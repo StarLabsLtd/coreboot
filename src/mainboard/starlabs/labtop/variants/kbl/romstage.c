@@ -4,7 +4,7 @@
 #include <console/console.h>
 #include <soc/romstage.h>
 #include <spd_bin.h>
-#include "spd/spd.h"
+#include "../../spd/spd.h"
 #include <ec/acpi/ec.h>
 #include <stdint.h>
 

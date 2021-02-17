@@ -53,3 +53,6 @@
 	path = 3rdparty/stm
 	url = https://github.com/coreboot/STM
 	branch = stmpe
+[submodule "3rdparty/blobs"]
+	path = 3rdparty/blobs
+	url = https://github.com/StarLabsLtd/blobs.git
