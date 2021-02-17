@@ -3,10 +3,12 @@
 PHONY+=add_ite_fw
 INTERMEDIATE+=add_ite_fw
 
-ifeq ($(CONFIG_EC_STARLABS_IT8987),y) ($(CONFIG_BOARD_STARLABS_LABTOP_CML),y)
-
+ifeq ($(CONFIG_EC_STARLABS_IT8987),y)
 all-y += ec.c
 smm-$(CONFIG_DEBUG_SMI) += ec.c
+endif
+
+ifeq ($(CONFIG_EC_STARLABS_IT8987_BIN), y)
 
 add_ite_fw: $(obj)/coreboot.pre
 	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT8987_FW_PATH) -u
