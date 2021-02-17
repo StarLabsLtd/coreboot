@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#ifndef _HDA_VERB_H_
+#define _HDA_VERB_H_
+
 #include <device/azalia_device.h>
 #include <device/azalia.h>
 
@@ -167,3 +170,6 @@ const u32 pc_beep_verbs[] = {
 };
 
 AZALIA_ARRAY_SIZES;
+
+#endif
+
