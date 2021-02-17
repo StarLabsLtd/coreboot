@@ -18,8 +18,8 @@
     - eDP 13-inch 1920x1080 LCD
     - HDMI video
     - USB-C DisplayPort video
-- Memory[^1]
-    - 16GB on-board for Comet Lake platforms
+- Memory
+    - 16GB on-board for Comet Lake platforms[^1]
     - 8GB on-board for Kaby Lake Refresh platform.
 - Networking
     - AX201 CNVi WiFi / Bluetooth soldered to PCBA (Comet Lake)
@@ -40,20 +40,25 @@
     - USB 3.1 Gen 2 Type-A (left)
     - USB 3.1 Gen 1 Type-A (right)
 
-[^1] The memory is based on hardware configuration resistors see `src/mainboard/starlabs/labtop_mk_iv/romstage.c`
+[^1] The Comet Lake PCB supports multiple memory variations that are based on hardware configuration resistors see `src/mainboard/starlabs/labtop/variants/cml/romstage.c`
 
 ## Building coreboot
 
 ### Preliminaries
 
-Prior to building coreboot the following files will need to be provided:
+Prior to building coreboot the following files are required:
 
+Comet Lake and Kaby Lake configurations:
 - Intel Flash Descriptor file (descriptor.bin)
-- ITE IT8987E firmware (it8987.bin)
 - Intel Management Engine firmware (me.bin)
+
+Comet Lake configuration only:
+- ITE IT8987E firmware (it8987-x.xx.bin)
+
+All Star Labs platforms:
 - Splash screen image in Windows 3.1 BMP format (Logo.bmp)
 
-Default directory for these files is `3rdparty/blobs/mainboard/starlabs/labtop_mk_iv`
+These files exist in the correct location in the StarLabsLtd/blobs repo on GitHub which is used in place of the standard 3rdparty/blobs repo.
 
 ### Build
 
@@ -61,7 +66,7 @@ The following commands will build a working image for a Comet Lake based PCBA:
 
 ```bash
 make distclean
-make defconfig KBUILD_DEFCONFIG=configs/config.starlabs_labtop_mkiv_cml
+make defconfig KBUILD_DEFCONFIG=configs/config.starlabs_labtop_cml
 make
 ```
 
@@ -69,7 +74,7 @@ For the Kaby Lake Refresh based boards use:
 
 ```bash
 make distclean
-make defconfig KBUILD_DEFCONFIG=configs/config.starlabs_labtop_mkiv_kblr
+make defconfig KBUILD_DEFCONFIG=configs/config.starlabs_labtop_kbl
 make
 ```
 
