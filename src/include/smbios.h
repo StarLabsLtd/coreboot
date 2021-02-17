@@ -53,6 +53,7 @@ u8 smbios_mainboard_feature_flags(void);
 const char *smbios_mainboard_location_in_chassis(void);
 const char *smbios_chassis_version(void);
 const char *smbios_chassis_serial_number(void);
+const char *smbios_chassis_asset_tag(void);
 const char *smbios_processor_serial_number(void);
 u8 smbios_chassis_power_cords(void);
 
@@ -327,6 +328,14 @@ typedef enum {
 	SMBIOS_BOARD_TYPE_PROCESSOR_IO_MODULE = 0x0c,
 	SMBIOS_BOARD_TYPE_INTERCONNECT_BOARD = 0x0d,
 } smbios_board_type;
+
+typedef enum {
+	SMBIOS_FEATURE_FLAG_HOSTING_BOARD = 0x01,
+	SMBIOS_FEATURE_FLAG_AUX_REQUIRED = 0x02,
+	SMBIOS_FEATURE_FLAG_REMOVABLE = 0x04,
+	SMBIOS_FEATURE_FLAG_REPLACEABLE = 0x08,
+	SMBIOS_FEATURE_FLAG_HOT_SWAPPABLE = 0x10,
+} smbios_feature_flags;
 
 struct smbios_type2 {
 	u8 type;
