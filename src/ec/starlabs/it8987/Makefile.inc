@@ -3,7 +3,7 @@
 PHONY+=add_ite_fw
 INTERMEDIATE+=add_ite_fw
 
-ifeq ($(CONFIG_EC_STARLABS_IT8987),y)
+ifeq ($(CONFIG_EC_STARLABS_IT8987),y) ($(CONFIG_BOARD_STARLABS_LABTOP_CML),y)
 
 all-y += ec.c
 smm-$(CONFIG_DEBUG_SMI) += ec.c
