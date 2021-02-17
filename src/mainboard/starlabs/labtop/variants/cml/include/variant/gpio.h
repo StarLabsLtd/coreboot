@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#ifndef _GPIO_H_
+#define _GPIO_H_
+
 #include "baseboard/variants.h"
 
 #ifndef __ACPI__
@@ -145,3 +148,6 @@ const struct pad_config *variant_gpio_table(size_t *num)
 }
 
 #endif
+
+#endif
+

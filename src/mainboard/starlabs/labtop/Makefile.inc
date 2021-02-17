@@ -8,6 +8,9 @@ subdirs-y += variants/$(VARIANT_DIR)
 CPPFLAGS_common += -I$(src)/mainboard/$(MAINBOARDDIR)/variants/$(VARIANT_DIR)/include
 
 bootblock-y += bootblock.c
+bootblock-y += gpio.c
 
-ramstage-y += mainboard.c
+ramstage-y += gpio.c
 ramstage-y += hda_verb.c
+ramstage-y += mainboard.c
+
