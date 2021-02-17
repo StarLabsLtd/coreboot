@@ -83,6 +83,14 @@ config FMDFILE
 	string
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/board.fmd"
 
+config IFD_BIN_PATH
+        string
+        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/descriptor.bin"
+
+config ME_BIN_PATH
+	string
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/me.bin"
+
 config EC_STARLABS_IT8987_FW_PATH
 	string
 	depends on EC_STARLABS_IT8987
