@@ -4,3 +4,5 @@
 #define HDA_VERB
 
 #include "variant/hda_verb.h"
+
+#endif
