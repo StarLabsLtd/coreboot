@@ -1,0 +1,108 @@
+if BOARD_STARLABS_LABTOP_MKIV_CML || BOARD_STARLABS_LABTOP_MKIV_KBLR
+
+#
+# LabTop Mk IV CML Board uses the following devices:
+#
+#     GigaDevice GD25Q64C (8192KB) SPI NOR flash (according to schematics)
+#     Winbond 25Q128JVSQ (16384KB) SPI NOR flash (fitted to the test hardware)
+#     Infineon SLB9670VQ SPI TPM2.0 device
+#     Realtek ALC256 audio CODEC
+#     ITE IT8987 Embedded Controller
+#     Analogix ANX7447 crosspoint switch 
+#
+config BOARD_SPECIFIC_OPTIONS
+	def_bool y
+	select BOARD_ROMSIZE_KB_16384 
+	select GENERIC_SPD_BIN
+	select HAVE_SPD_IN_CBFS
+	select HAVE_ACPI_RESUME
+	select HAVE_ACPI_TABLES
+	select MAINBOARD_HAS_LPC_TPM
+	select MAINBOARD_HAS_TPM2
+	select SOC_INTEL_COMMON_BLOCK_HDA
+	select SOC_INTEL_COMMON_BLOCK_HDA_VERB
+	select INTEL_LPSS_UART_FOR_CONSOLE
+	select DRIVERS_I2C_HID
+	select DRIVERS_I2C_GENERIC
+	select HAVE_IFD_BIN
+	select HAVE_ME_BIN
+	select INTEL_GMA_HAVE_VBT
+	select EC_STARLABS_IT8987
+	select SYSTEM_TYPE_LAPTOP
+	select SPI_FLASH_WINBOND
+	select SPI_FLASH_GIGADEVICE
+
+config MAINBOARD_DIR
+	string
+	default "starlabs/labtop_mk_iv"
+
+config VARIANT_DIR
+	string
+	default "cml_u" if BOARD_STARLABS_LABTOP_MKIV_CML
+	default "kbl_r" if BOARD_STARLABS_LABTOP_MKIV_KBLR
+
+config MAINBOARD_PART_NUMBER
+	string
+	default "LabTop Mk IV"
+
+config MAINBOARD_FAMILY
+	string
+	default "L4" if BOARD_STARLABS_LABTOP_MKIV_CML || BOARD_STARLABS_LABTOP_MKIV_KBLR
+
+config MAINBOARD_SMBIOS_PRODUCT_NAME
+	string
+	default "LabTop"
+
+config MAX_CPUS
+	int
+	default 8 if BOARD_STARLABS_LABTOP_MKIV_KBLR
+	default 12
+
+#config DRIVER_TPM_SPI_CHIP
+#	int
+#	default 2
+	
+config UART_FOR_CONSOLE
+	int
+	default 2
+
+config DEVICETREE
+	string
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
+
+config DIMM_SPD_SIZE
+	int
+	default 512
+
+config VBOOT
+	select VBOOT_LID_SWITCH
+	select VBOOT_MOCK_SECDATA
+
+config FMDFILE
+	string
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
+
+config EC_STARLABS_IT8987_FW_PATH
+	string
+	depends on EC_STARLABS_IT8987
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/it8987-1.04.bin" if EC_STARLABS_IT8987
+
+config ONBOARD_VGA_IS_PRIMARY
+	bool
+	default y
+
+config VGA_BIOS_ID
+	string
+	default "8086,0406"
+
+config VGA_BIOS_FILE
+	string
+	depends on VGA_BIOS
+	default "pci8086,0406.rom"
+
+config TIANOCORE_BOOTSPLASH_FILE
+	string
+	depends on TIANOCORE_BOOTSPLASH_IMAGE
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/Logo.bmp"
+
+endif
