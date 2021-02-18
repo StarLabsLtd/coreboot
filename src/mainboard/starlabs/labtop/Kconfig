@@ -93,8 +93,13 @@ config ME_BIN_PATH
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/me.bin"
 
 config EC_STARLABS_IT8987_BIN
+	bool
+	default n
+	default y if BOARD_STARLABS_LABTOP_CML
+
+config EC_STARLABS_IT8987_BIN_PATH
 	string
-	depends on EC_STARLABS_IT8987
+	depends on EC_STARLABS_IT8987_BIN
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/it8987-1.04.bin"
 
 config ONBOARD_VGA_IS_PRIMARY
