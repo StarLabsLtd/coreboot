@@ -8,10 +8,10 @@ all-y += ec.c
 smm-$(CONFIG_DEBUG_SMI) += ec.c
 endif
 
-ifeq ($(CONFIG_EC_STARLABS_IT8987_BIN), y)
+ifneq ($(CONFIG_EC_STARLABS_IT8987_BIN), )
 
 add_ite_fw: $(obj)/coreboot.pre
-	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT8987_FW_PATH) -u
+	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT8987_BIN) -u
 
 else
 files_added:: warn_no_ite_fw
