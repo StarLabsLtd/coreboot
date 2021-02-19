@@ -9,7 +9,7 @@
 /* Override the BIOS version using smbios_mainboard_bios_version() */
 const char *smbios_mainboard_bios_version(void)
 {
-	return "CB_0.09.00";
+	return "CB_0.00.01";
 }
 
 /* Get the Embedded Controller firmware version */
@@ -30,7 +30,7 @@ const char *smbios_system_manufacturer(void)
 /* Override smbios_system_sku */
 const char *smbios_system_sku(void)
 {
-	return "L4";
+	return "I3";
 }
 
 /* Override smbios_mainboard_features_flags */
