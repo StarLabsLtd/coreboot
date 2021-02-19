@@ -1,6 +1,5 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
-subdirs-y += ./spd
 subdirs-y += variants/baseboard
 CPPFLAGS_common += -I$(src)/mainboard/$(MAINBOARDDIR)/variants/baseboard/include
 
@@ -14,3 +13,4 @@ ramstage-y += gpio.c
 ramstage-y += hda_verb.c
 ramstage-y += mainboard.c
 
+romstage-y += romstage.c

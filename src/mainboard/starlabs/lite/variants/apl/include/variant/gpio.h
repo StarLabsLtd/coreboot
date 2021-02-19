@@ -16,6 +16,9 @@
 
 /* Early pad configuration in romstage. */
 static const struct pad_config early_gpio_table[] = {
+/* Temporary >apollolake_rvp< */
+        PAD_CFG_NF(GPIO_46, NATIVE, DEEP, NF1), /* UART2 RX */
+        PAD_CFG_NF(GPIO_47, NATIVE, DEEP, NF1), /* UART2 TX */
 
 };
 

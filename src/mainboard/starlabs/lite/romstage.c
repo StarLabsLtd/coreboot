@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <string.h>
+#include <baseboard/variants.h>
+#include <soc/meminit.h>
 #include <soc/romstage.h>
-#include <fsp/api.h>
-#include <FspmUpd.h>
 
 static const uint8_t Ch0_Bit_swizzling[] = {
 	0x09, 0x0e, 0x0c, 0x0d, 0x0a, 0x0b, 0x08, 0x0f,
@@ -100,3 +100,4 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memupd->FspmConfig.RmtMarginCheckScaleHighThreshold = 0x0;
 	memupd->FspmConfig.MsgLevelMask = 0x0;
 }
+
