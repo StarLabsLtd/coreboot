@@ -123,16 +123,16 @@ chip soc/intel/apollolake
 		device pci 0f.0 on  end # - Heci1
 		device pci 0f.1 on  end # - Heci2
 		device pci 0f.2 on  end # - Heci3
-		device pci 11.0 off end	# - ISH
+		device pci 11.0 on  end	# - ISH
 		device pci 12.0 on  end	# - SATA
-		device pci 13.0 off end	# - PCIe-A 0 Slot 1
-		device pci 13.1 off end	# - PCIe-A 1
-		device pci 13.2 off end	# - PCIe-A 2 Onboard Lan
-		device pci 13.3 off end	# - PCIe-A 3
-		device pci 14.0 off  end # - PCIe-B 0 Slot2
+		device pci 13.0 on  end	# - PCIe-A 0 Slot 1
+		device pci 13.1 on  end	# - PCIe-A 1
+		device pci 13.2 on  end	# - PCIe-A 2 Onboard Lan
+		device pci 13.3 on  end	# - PCIe-A 3
+		device pci 14.0 on   end # - PCIe-B 0 Slot2
 		device pci 14.1 on  end	# - PCIe-B 1 Onboard M2 Slot(Wifi/BT)
 		device pci 15.0 on  end	# - XHCI
-		device pci 15.1 off end # - XDCI
+		device pci 15.1 on  end # - XDCI
 		device pci 16.0 on	# - I2C 0
 #			chip drivers/i2c/da7219
 #				register "irq" = "ACPI_IRQ_LEVEL_LOW(GPIO_20_IRQ)"
@@ -152,9 +152,9 @@ chip soc/intel/apollolake
 #				device i2c 1a on end
 #			end
 		end
-		device pci 16.1 off end	# - I2C 1
-		device pci 16.2 off end # - I2C 2
-		device pci 16.3 off end # - I2C 3
+		device pci 16.1 on  end	# - I2C 1
+		device pci 16.2 on  end # - I2C 2
+		device pci 16.3 on  end # - I2C 3
 		device pci 17.0 on
 			chip drivers/i2c/hid
 				register "generic.hid" = ""ALPS0001""
@@ -164,20 +164,20 @@ chip soc/intel/apollolake
 				device i2c 2C on end
 			end
 		end # I2C 4
-		device pci 17.1 off end	# - I2C 5
-		device pci 17.2 off end	# - I2C 6
+		device pci 17.1 on  end	# - I2C 5
+		device pci 17.2 on  end	# - I2C 6
 		device pci 17.3 on  end # - I2C 7
 		device pci 18.0 on  end	# - UART 0
 		device pci 18.1 on  end	# - UART 1 (Debug)
 		device pci 18.2 on  end	# - UART 2
-		device pci 18.3 off end	# - UART 3
+		device pci 18.3 on  end	# - UART 3
 		device pci 19.0 on  end	# - SPI 0
 		device pci 19.1 on  end	# - SPI 1
 		device pci 19.2 on  end	# - SPI 2
 		device pci 1a.0 on  end	# - PWM
 		device pci 1b.0 on  end	# - SDCARD
 		device pci 1c.0 on  end	# - eMMC
-		device pci 1e.0 off end	# - SDIO
+		device pci 1e.0 on  end	# - SDIO
 		device pci 1f.0 on	# - LPC
 			chip drivers/pc80/tpm
 			register "irq_polarity" = "2"
