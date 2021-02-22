@@ -31,7 +31,6 @@ chip soc/intel/skylake
 
 	# FSP configuration
 	register "SaGv" = "SaGv_Enabled"
-	register "SkipExtGfxScan" = "1"
 
 	# Serial I/O
 	register "SerialIoDevMode" = "{
