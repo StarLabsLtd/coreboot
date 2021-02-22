@@ -93,7 +93,7 @@ chip soc/intel/skylake
 			chip drivers/i2c/hid
 				register "generic.hid" = ""PCT1336""
 				register "generic.desc" = ""Touchpad""
-				register "generic.irq" = "ACPI_IRQ_EDGE_LOW(GPP_B3_IRQ)"
+				register "generic.irq" = "ACPI_IRQ_LEVEL_LOW(GPP_C23_IRQ)"
 				register "generic.probed" = "1"
 				register "hid_desc_reg_offset" = "0x20"
 				device i2c 2c on end
