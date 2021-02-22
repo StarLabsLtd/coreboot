@@ -17,21 +17,21 @@ void mainboard_fill_dq_map_data(void *dq_map_ptr)
 void mainboard_fill_dqs_map_data(void *dqs_map_ptr)
 {
 	/* DQS CPU<>DRAM map */
-	const u8 dqs_map[2][8] = {{0, 1, 3, 2, 4, 5, 6, 7}, {1, 0, 4, 5, 2, 3, 6, 7}};
+	const u8 dqs_map[2][8] = {{0, 6, 3, 1, 5, 2, 7, 4}, {7, 5, 3, 6, 2, 4, 0, 1}};
 	memcpy(dqs_map_ptr, dqs_map, sizeof(dqs_map));
 }
 
 void mainboard_fill_rcomp_res_data(void *rcomp_ptr)
 {
 	/* Rcomp resistor */
-	const u16 RcompResistor[3] = {200, 81, 162};
+	const u16 RcompResistor[3] = {121, 81, 100};
 	memcpy(rcomp_ptr, RcompResistor, sizeof(RcompResistor));
 }
 
 void mainboard_fill_rcomp_strength_data(void *rcomp_strength_ptr)
 {
 	/* Rcomp target */
-	static const u16 RcompTarget[5] = {100, 40, 40, 23, 40};
+	static const u16 RcompTarget[5] = {100, 40, 20, 20, 26};
 
 	memcpy(rcomp_strength_ptr, RcompTarget, sizeof(RcompTarget));
 }
