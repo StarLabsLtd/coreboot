@@ -9,20 +9,12 @@
 #include <ec/acpi/ec.h>
 #include <stdint.h>
 
-#define SPD_4X_2GB 0
-#define SPD_4X_4GB 1
-
 void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
 	FSP_M_CONFIG *mem_cfg;
 	mem_cfg = &mupd->FspmConfig;
 
-
-#if CONFIG(BOARD_RAZER_BLADE_STEALTH_KBL_16GB)
-	u8 spd_index = SPD_4X_4GB;
-#else
-	u8 spd_index = SPD_4X_2GB;
-#endif
+	u8 spd_index = 6;
 
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
