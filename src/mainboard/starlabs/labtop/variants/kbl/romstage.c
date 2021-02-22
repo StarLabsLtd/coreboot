@@ -14,8 +14,8 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	FSP_M_CONFIG *mem_cfg;
 	mem_cfg = &mupd->FspmConfig;
 
+	/* Use the correct entry in the SPD table defined in Makefile.inc */
 	u8 spd_index = 6;
-
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
 	mainboard_fill_dq_map_data(&mem_cfg->DqByteMapCh0);
