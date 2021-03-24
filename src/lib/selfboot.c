@@ -13,6 +13,9 @@
 #include <program_loading.h>
 #include <timestamp.h>
 #include <cbmem.h>
+#if CONFIG(UNIVERSAL_PAYLOAD_LAYER)
+#include <hob.h>
+#endif
 
 /* The type syntax for C is essentially unparsable. -- Rob Pike */
 typedef int (*checker_t)(struct cbfs_payload_segment *cbfssegs, void *args);
@@ -251,9 +254,12 @@ bool selfload_mapped(struct prog *payload, void *mapping,
 
 	printk(BIOS_SPEW, "Loaded segments\n");
 
+#if CONFIG(UNIVERSAL_PAYLOAD_LAYER)
+	prog_set_entry(payload, (void *)entry, build_payload_hobs ());
+#else
 	/* Pass cbtables to payload if architecture desires it. */
 	prog_set_entry(payload, (void *)entry, cbmem_find(CBMEM_ID_CBTABLE));
-
+#endif
 	return true;
 }
 

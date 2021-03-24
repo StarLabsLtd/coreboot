@@ -392,4 +392,11 @@ endif
 
 ramstage-y += uuid.c
 
+ifeq ($(CONFIG_UNIVERSAL_PAYLOAD_LAYER),y)
+ramstage-y += hob.c
+ramstage-y += build_payload_hobs.c
+CPPFLAGS_common += -Isrc/vendorcode/intel/edk2/UDK2017/MdePkg/Include
+CPPFLAGS_common += -Isrc/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32
+endif
+
 romstage-$(CONFIG_SPD_CACHE_IN_FMAP) += spd_cache.c

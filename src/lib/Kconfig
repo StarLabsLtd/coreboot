@@ -114,3 +114,11 @@ config CBFS_PRELOAD
 	  in the background before they are actually required. This feature
 	  depends on the read-only boot_device having a DMA controller to
 	  perform the background transfer.
+
+config UNIVERSAL_PAYLOAD_LAYER
+	bool
+	default n
+	help
+	  This option enables a standard payload layer that can be used to pass
+	  information between coreboot to payload.
+
