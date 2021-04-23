@@ -1,4 +1,5 @@
 chip soc/intel/apollolake
+<<<<<<< HEAD
         register "common_soc_config" = "{
                 .chipset_lockdown = CHIPSET_LOCKDOWN_COREBOOT,
                  /* Touchpad */
@@ -12,6 +13,12 @@ chip soc/intel/apollolake
                 .tdp_pl1_override = 6,
                 .tdp_pl2_override = 12,
         }"
+=======
+
+	device cpu_cluster 0 on
+		device lapic 0 on end
+	end
+>>>>>>> 0aad105d98... Rebase
 
 	register "pcie_rp_clkreq_pin[0]" = "CLKREQ_DISABLED"
 	# Disable unused clkreq of PCIe root ports
@@ -64,6 +71,16 @@ chip soc/intel/apollolake
 	# Enable DPTF
 	register "dptf_enable" = "1"
 
+<<<<<<< HEAD
+=======
+	# PL1 override: 7.5W setting gives a run-time 6W actual
+	# Set RAPL PL2 to 15W.
+	register "power_limits_config" = "{
+		.tdp_pl1_override = 7,
+		.tdp_pl2_override = 15,
+	}"
+
+>>>>>>> 0aad105d98... Rebase
 	# Enable Audio Clock and Power gating
 	register "hdaudio_clk_gate_enable" = "1"
 	register "hdaudio_pwr_gate_enable" = "1"
@@ -84,15 +101,36 @@ chip soc/intel/apollolake
 	register "gpe0_dw2" = "PMC_GPE_N_95_64"
 	register "gpe0_dw3" = "PMC_GPE_NW_31_0"
 
+<<<<<<< HEAD
+=======
+	# Intel Common SoC Config
+	#+-------------------+---------------------------+
+	#| Field             |  Value                    |
+	#+-------------------+---------------------------+
+	#| I2C0              | Audio                     |
+	#+-------------------+---------------------------+
+	register "common_soc_config" = "{
+		.i2c[0] = {
+			.speed = I2C_SPEED_FAST,
+			.rise_time_ns = 104,
+			.fall_time_ns = 52,
+		},
+	}"
+
+>>>>>>> 0aad105d98... Rebase
 	# Minimum SLP S3 assertion width 28ms.
 	register "slp_s3_assertion_width_usecs" = "28000"
 
 	register "pnp_settings" = "PNP_PERF_POWER"
+<<<<<<< HEAD
 	
 	device cpu_cluster 0 on
 		device lapic 0 on end
 	end
 	
+=======
+
+>>>>>>> 0aad105d98... Rebase
 	device domain 0 on
 		device pci 00.0 on  end	# - Host Bridge
 		device pci 00.1 on  end	# - DPTF
@@ -105,8 +143,17 @@ chip soc/intel/apollolake
 		device pci 0d.2 on  end	# - SPI
 		device pci 0d.3 on  end	# - Shared SRAM
 		device pci 0e.0 on	# - Audio
+<<<<<<< HEAD
 			subsystemid 0x10ec 0x111e
 			# register "PchHdaAudioLinkHda" = "1"
+=======
+#			chip drivers/generic/max98357a
+#				register "hid" = ""MX98357A""
+#				register "sdmode_gpio" =  "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPIO_160)"
+#				register "sdmode_delay" = "5"
+#				device generic 0 on end
+#			end
+>>>>>>> 0aad105d98... Rebase
 		end
 		device pci 0f.0 on  end # - Heci1
 		device pci 0f.1 on  end # - Heci2
@@ -117,6 +164,7 @@ chip soc/intel/apollolake
 		device pci 13.1 on  end	# - PCIe-A 1
 		device pci 13.2 on  end	# - PCIe-A 2 Onboard Lan
 		device pci 13.3 on  end	# - PCIe-A 3
+<<<<<<< HEAD
 		device pci 14.0 on  end # - PCIe-B 0 Slot2
 		device pci 14.1 on  end	# - PCIe-B 1 Onboard M2 Slot(Wifi/BT)
 		device pci 15.0 on  end	# - XHCI
@@ -134,15 +182,47 @@ chip soc/intel/apollolake
 			# register "usb3_port[2]" = "USB3_PORT_DEFAULT(OC2)"
 		device pci 15.1 on  end # - XDCI
 		device pci 16.0 on  end # - I2C 0
+=======
+		device pci 14.0 on   end # - PCIe-B 0 Slot2
+		device pci 14.1 on  end	# - PCIe-B 1 Onboard M2 Slot(Wifi/BT)
+		device pci 15.0 on  end	# - XHCI
+		device pci 15.1 on  end # - XDCI
+		device pci 16.0 on	# - I2C 0
+#			chip drivers/i2c/da7219
+#				register "irq" = "ACPI_IRQ_LEVEL_LOW(GPIO_20_IRQ)"
+#				register "btn_cfg" = "50"
+#				register "mic_det_thr" = "500"
+#				register "jack_ins_deb" = "20"
+#				register "jack_det_rate" = ""32ms_64ms""
+#				register "jack_rem_deb" = "1"
+#				register "a_d_btn_thr" = "0xa"
+#				register "d_b_btn_thr" = "0x16"
+#				register "b_c_btn_thr" = "0x21"
+#				register "c_mic_btn_thr" = "0x3e"
+#				register "btn_avg" = "4"
+#				register "adc_1bit_rpt" = "1"
+#				register "micbias_lvl" = "2600"
+#				register "mic_amp_in_sel" = ""diff""
+#				device i2c 1a on end
+#			end
+		end
+>>>>>>> 0aad105d98... Rebase
 		device pci 16.1 on  end	# - I2C 1
 		device pci 16.2 on  end # - I2C 2
 		device pci 16.3 on  end # - I2C 3
 		device pci 17.0 on
 			chip drivers/i2c/hid
+<<<<<<< HEAD
 				register "generic.hid" = ""StarPoint""
 				register "generic.desc" = ""Touchpad""
 				register "generic.irq" = "ACPI_IRQ_LEVEL_LOW(GPIO_18_IRQ)"
 				register "hid_desc_reg_offset" = "0x20"
+=======
+				register "generic.hid" = ""ALPS0001""
+				register "generic.desc" = ""Touchpad""
+				register "generic.irq" = "ACPI_IRQ_LEVEL_LOW(GPIO_18_IRQ)"
+				register "hid_desc_reg_offset" = "0x1"
+>>>>>>> 0aad105d98... Rebase
 				device i2c 2C on end
 			end
 		end # I2C 4
@@ -161,11 +241,23 @@ chip soc/intel/apollolake
 		device pci 1c.0 on  end	# - eMMC
 		device pci 1e.0 on  end	# - SDIO
 		device pci 1f.0 on	# - LPC
+<<<<<<< HEAD
 			chip ec/starlabs/it8987
 				# Port 4Eh/4Fh
 				device pnp 4e.0 on              # IO Interface
 				end
 			end
+=======
+			chip drivers/pc80/tpm
+			register "irq_polarity" = "2"
+			device pnp 0c31.0 on
+				irq 0x70 = 10
+				end
+			end
+#			chip ec/google/chromeec
+#				device pnp 0c09.0 on end
+#			end
+>>>>>>> 0aad105d98... Rebase
 		end
 		device pci 1f.1 on  end	# - SMBUS
 	end

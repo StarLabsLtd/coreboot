@@ -49,7 +49,6 @@ static void it8987_init(struct device *dev)
 
 	/* Set the timeout for the keyboard backlight. */
 	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));
-
 	/*
 	 * Set the correct state for the Ctrl Fn Reverse option. This
 	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.

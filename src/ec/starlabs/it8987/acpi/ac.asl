@@ -46,19 +46,12 @@ Method (_QA0, 0, NotSerialized)			// AC Power Connected
 	{
 		\PWRS = 0
 	}
-
-	// 500ms delay - Not used in coreboot
-	// Sleep (500)
 	Notify (BAT0, 0x81)
-	// Sleep (500)
 	Notify (ADP1, 0x80)
 }
 
 Method(_Q0B, 0, NotSerialized)			// Battery Connected 
 {
-	// 500ms delay - Not used in coreboot
-	// Sleep (500)
 	Notify (BAT0, 0x81)
-	// Sleep (500)
 	Notify (BAT0, 0x80)
 }

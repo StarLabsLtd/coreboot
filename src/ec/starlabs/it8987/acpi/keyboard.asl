@@ -33,12 +33,11 @@ Method(_Q07)				// Brightness increase
 	\_SB.PCI0.GFX0.INCB()
 } 
 
-#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
 Method (_Q0E)
-	{
-		FNLC = FNST
-	}
-#endif
+{
+	FNLC = FNST
+}
+
 
 Method(_Q08)				// FN lock QEvent
 {

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+<<<<<<< HEAD
 #include <option.h>
+=======
+>>>>>>> 0aad105d98... Rebase
 #include <soc/cnl_memcfg_init.h>
 #include <soc/romstage.h>
 #include <console/console.h>
@@ -12,6 +15,11 @@
 
 u8 get_memory_config_straps(void)
 {
+<<<<<<< HEAD
+=======
+	int memid = 0;
+
+>>>>>>> 0aad105d98... Rebase
 	/*
 	 * The hardware supports a number of different memory configurations
 	 * which are selected using four ID bits ID3 (GPP_H7), ID2 (GPP_H6),
@@ -20,6 +28,7 @@ u8 get_memory_config_straps(void)
 	 * The mapping is defined in the schematics as follows ID3 is always
 	 * 0 and can be ignored):
 	 *
+<<<<<<< HEAD
 	 * ID2ID1ID0Memory type
 	 * --------------------
 	 * 1  1  1 Samsung 4G single channel
@@ -30,18 +39,36 @@ u8 get_memory_config_straps(void)
 	 * 0  1  0 Hynix 8G dual channel
 	 * 0  0  1 Micron 16G dual channel
 	 * 0  0  0 Hynix 16G dual channel
+=======
+	 * ID2  ID1  ID0  Memory type
+	 * ---  ---  ---  -----------
+	 *  1    1    1   Samsung 4G single channel
+	 *  1    1    0   Samsung 8G dual channel
+	 *  1    0    1   Micron 4G single channel
+	 *  1    0    0   Micron 8G dual channel
+	 *  0    1    1   Hynix 4G single channel
+	 *  0    1    0   Hynix 8G dual channel
+	 *  0    0    1   Micron 16G dual channel
+	 *  0    0    0   Hynix 16G dual channel
+>>>>>>> 0aad105d98... Rebase
 	 *
 	 * We return the value of these bits so that the index into the SPD
 	 * table can be .spd[] values can be configured correctly in the
 	 * memory configuration structure.
 	 */
 
+<<<<<<< HEAD
 	gpio_t memid_gpios[] = {
 		GPP_E22,
 		GPP_E23,
 		GPP_H6
 	};
 	return (u8)gpio_base2_value(memid_gpios, ARRAY_SIZE(memid_gpios));
+=======
+	memid = (gpio_get(GPP_H6) < 2) | (gpio_get(GPP_E23) < 1) | gpio_get(GPP_E22);
+
+	return (u8)memid;
+>>>>>>> 0aad105d98... Rebase
 }
 
 const struct cnl_mb_cfg *get_memory_cfg(struct cnl_mb_cfg *mem_cfg)
@@ -50,6 +77,19 @@ const struct cnl_mb_cfg *get_memory_cfg(struct cnl_mb_cfg *mem_cfg)
 
 	struct cnl_mb_cfg std_memcfg = {
 		/*
+<<<<<<< HEAD
+=======
+		* The dqs_map arrays map the DDR4 pins to the SoC pins
+		* for both channels.
+		*
+		* the index = pin number on DDR4 part
+		* the value = pin number on SoC
+		*/
+		.dqs_map[DDR_CH0] = {0, 6, 1, 3, 5, 2, 7, 4},
+		.dqs_map[DDR_CH1] = {7, 5, 3, 6, 2, 4, 0, 1},
+
+		/*
+>>>>>>> 0aad105d98... Rebase
 		* Mainboard uses 121, 81 and 100 rcomp resistors. See R6E1, R6E2
 		* and R6E3 on page 6 of the schematics.
 		*/
@@ -83,7 +123,11 @@ const struct cnl_mb_cfg *get_memory_cfg(struct cnl_mb_cfg *mem_cfg)
 
 	/*
 	 * If we are using single channel ID = 3, 5 or 7 then we only
+<<<<<<< HEAD
 	 * populate .spd[0].If we are dual channel then we also populate
+=======
+	 * populate .spd[0].  If we are dual channel then we also populate
+>>>>>>> 0aad105d98... Rebase
 	 * .spd[2] as well.
 	 */
 	mem_cfg->spd[0].read_type = READ_SPD_CBFS;
@@ -100,11 +144,14 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 {
 	struct cnl_mb_cfg board_memcfg;
 
+<<<<<<< HEAD
 	const uint8_t vtd = get_uint_option("vtd", 1);
 	memupd->FspmTestConfig.VtdDisable = !vtd;
 
 	const uint8_t ht = get_uint_option("hyper_threading", memupd->FspmConfig.HyperThreading);
 	memupd->FspmConfig.HyperThreading = ht;
 
+=======
+>>>>>>> 0aad105d98... Rebase
 	cannonlake_memcfg_init(&memupd->FspmConfig, get_memory_cfg(&board_memcfg));
 }
