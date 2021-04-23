@@ -35,7 +35,7 @@ u16 it8987_get_version(void)
 
 static void it8987_init(struct device *dev)
 {
-	u8 val;
+	/* u8 val; */
 
 	if (!dev->enabled)
 		return;
@@ -53,25 +53,17 @@ static void it8987_init(struct device *dev)
 	ec_write(0x19, 0xdd);
 
 	/* Set the timeout for the keyboard backlight. */
-	if (get_option(&val, "kbl_timeout") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_KBL_TIMEOUT, val);
-
+	ec_write(ECRAM_KBL_TIMEOUT, get_int_option("kbl_timeout", 0));
 	/*
 	 * Set the correct state for the Ctrl Fn Reverse option. This
 	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
 	 */
-	if (get_option(&val, "fn_ctrl_swap") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_FN_CTRL_REVERSE, val);
-
+	ec_write(ECRAM_FN_CTRL_REVERSE, get_int_option("fn_ctrl_swap", 0));
 	/*
 	 * Copy the stored state of the fn_lock_state CMOS variable to the
 	 * corresponding location within the EC RAM.
 	 */
-	if (get_option(&val, "fn_lock_state") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_FN_LOCK_STATE, val);
+	ec_write(ECRAM_FN_LOCK_STATE, get_int_option("fn_lock_state", 0));
 }
 
 static struct device_operations ops = {
