@@ -11,28 +11,7 @@
 #include "ec.h"
 #include "chip.h"
 
-<<<<<<< HEAD
 u16 it_get_version(void)
-=======
-void it8987_write_data(u8 addr, u8 data)
-{
-	outb(addr, IT8987E_ADDR);
-	outb(data, IT8987E_DATA);
-}
-
-u8 it8987_read_data(u8 addr)
-{
-	outb(addr, IT8987E_ADDR);
-	return inb(IT8987E_DATA);
-}
-
-u16 it8987_read_chipid(void)
-{
-	return((it8987_read_data(0x20) << 8) | it8987_read_data(0x21));
-}
-
-u16 it8987_get_version(void)
->>>>>>> 0aad105d98... Rebase
 {
 	return (ec_read(0x00) << 8) | ec_read(0x01);
 }
@@ -40,6 +19,10 @@ u16 it8987_get_version(void)
 static void it8987_init(struct device *dev)
 {
 <<<<<<< HEAD
+=======
+	/* u8 val; */
+
+>>>>>>> 788ebf5df1... Changed to match upstream
 	if (!dev->enabled)
 		return;
 
@@ -58,14 +41,6 @@ static void it8987_init(struct device *dev)
 	u8 chipid1 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID1);
 	u8 chipid2 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID2);
 	if (chipid1 != IT8987_CHIPID1_VAL || chipid2 != IT8987_CHIPID2_VAL) {
-=======
-	u8 val;
-
-	if (!dev->enabled)
-		return;
-
-	if (it8987_read_chipid() != 0x8987) {
->>>>>>> 0aad105d98... Rebase
 		printk(BIOS_DEBUG, "IT8987: Device not found.\n");
 		return;
 	}
@@ -81,11 +56,8 @@ static void it8987_init(struct device *dev)
 <<<<<<< HEAD
 	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));
 =======
-	if (get_option(&val, "kbl_timeout") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_KBL_TIMEOUT, val);
->>>>>>> 0aad105d98... Rebase
-
+	ec_write(ECRAM_KBL_TIMEOUT, get_int_option("kbl_timeout", 0));
+>>>>>>> 788ebf5df1... Changed to match upstream
 	/*
 	 * Set the correct state for the Ctrl Fn Reverse option. This
 	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
@@ -93,11 +65,8 @@ static void it8987_init(struct device *dev)
 <<<<<<< HEAD
 	ec_write(ECRAM_FN_CTRL_REVERSE, get_uint_option("fn_ctrl_swap", 0));
 =======
-	if (get_option(&val, "fn_ctrl_swap") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_FN_CTRL_REVERSE, val);
-
->>>>>>> 0aad105d98... Rebase
+	ec_write(ECRAM_FN_CTRL_REVERSE, get_int_option("fn_ctrl_swap", 0));
+>>>>>>> 788ebf5df1... Changed to match upstream
 	/*
 	 * Copy the stored state of the fn_lock_state CMOS variable to the
 	 * corresponding location within the EC RAM.
@@ -105,10 +74,8 @@ static void it8987_init(struct device *dev)
 <<<<<<< HEAD
 	ec_write(ECRAM_FN_LOCK_STATE, get_uint_option("fn_lock_state", 0));
 =======
-	if (get_option(&val, "fn_lock_state") != CB_SUCCESS)
-		val = 0;
-	ec_write(ECRAM_FN_LOCK_STATE, val);
->>>>>>> 0aad105d98... Rebase
+	ec_write(ECRAM_FN_LOCK_STATE, get_int_option("fn_lock_state", 0));
+>>>>>>> 788ebf5df1... Changed to match upstream
 }
 
 static struct device_operations ops = {
