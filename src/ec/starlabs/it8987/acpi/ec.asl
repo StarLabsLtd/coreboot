@@ -139,7 +139,7 @@ Scope (\_SB.PCI0.LPCB)
 				/* Initialize LID switch state */
 				\LIDS = LIDS
 			}
-//			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
@@ -366,6 +366,7 @@ Scope (\_SB.PCI0.LPCB)
 				// Wake Cause not used in EC RAM
 				// WFNO = Zero
 			}
+			\_SB.PCI0.LPCB.H_EC.ECOS = 0
 		}
 		Method (WAK, 1, Serialized) {
 			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
@@ -387,6 +388,7 @@ Scope (\_SB.PCI0.LPCB)
 				// Reset System76 Device
 //				^^^^S76D.RSET()
 			}
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
 
 	}
