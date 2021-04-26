@@ -144,17 +144,17 @@ Scope (\_SB.PCI0.LPCB)
 			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
 
-                Method (PTS, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
-                        \_SB.PCI0.LPCB.H_EC.ECOS = 0
-                }
+		Method (PTS, 1, Serialized)
+		{
+			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 0
+		}
 
-                Method (WAK, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
-                        \_SB.PCI0.LPCB.H_EC.ECOS = 1
-                }
+		Method (WAK, 1, Serialized)
+		{
+			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+		}
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
 		Field (SIPR, ByteAcc, Lock, Preserve)
