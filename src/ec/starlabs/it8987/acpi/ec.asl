@@ -103,10 +103,12 @@ Scope (\_SB.PCI0.LPCB)
 			Return (0x00)
 		}
 
+		Name (ECOK, Zero)
 		Method(_REG, 2, NotSerialized)
 		{
 			If ((Arg0 == 0x03) && (Arg1 == 0x01))
 			{
+				ECOS = 1
 				ECAV = 1
 				
 				// Unconditionally fix up the Battery and Power State.
@@ -137,7 +139,7 @@ Scope (\_SB.PCI0.LPCB)
 				/* Initialize LID switch state */
 				\LIDS = LIDS
 			}
-			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+//			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
@@ -172,7 +174,7 @@ Scope (\_SB.PCI0.LPCB)
 			PWPF, 8,	// Power Profile
 
 			Offset(0x1E),
-			BTHP,8,	// Health Battery Percentage 
+			BTHP,8,		// Health Battery Percentage 
 
 			Offset(0x20),
 			RCMD, 8,	// Same function as IO 66 port to send EC command
@@ -353,22 +355,40 @@ Scope (\_SB.PCI0.LPCB)
 		// {
 		//	SMB2 = 0xC1
 		// }
+
+		Name (S3OS, Zero)
+		Method (PTS, 1, Serialized) {
+			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
+			If (ECOK) {
+		                // Save ECOS during sleep
+				S3OS = ECOS
+
+				// Wake Cause not used in EC RAM
+				// WFNO = Zero
+			}
+		}
+		Method (WAK, 1, Serialized) {
+			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
+			If (ECOK) {
+				// Restore ECOS after sleep
+				ECOS = S3OS
+
+				// Set current AC state
+//				^^^^AC.ACFG = ADP
+
+				// Update battery information and status
+//				^^^^BAT0.UPBI()
+//				^^^^BAT0.UPBS()
+
+				// Notify of changes
+//				Notify(^^^^AC, Zero)
+//				Notify(^^^^BAT0, Zero)
+
+				// Reset System76 Device
+//				^^^^S76D.RSET()
+			}
+		}
+
 	}
 
-	// Not used in coreboot
-	// ECNT (Embedded Controller Notify)
-	//
-	// Handle all commands sent to EC by BIOS
-	//
-	// Arguments:
-	//  Arg0 - 1 = CS Entry Notify
-	//  Arg0 - 0 = CS Exit Notify
-	//
-	// Return Value:
-	//  0x00 = Success
-	//  0xFF = Failure
-	// Method(ECNT, 1, Serialized)
-	// {
-	//	Return (0x00)
-	// }
 }
