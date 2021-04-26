@@ -42,15 +42,9 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	/* MemoryDown = Memory Down on MB  */
 	memupd->FspmConfig.MemoryDown = 0x1;
 	/* DDR4PageSize = 1 KB */
-<<<<<<< HEAD
 	memupd->FspmConfig.DDR3LPageSize = 0x0;
 	/* DDR4ASR = Not Supported */
 	memupd->FspmConfig.DDR3LASR = 0x0;
-=======
-	memupd->FspmConfig.DDR3LPageSize = 0x0; /* Using DDR3 Setting as no DDR4 equivalant exists */
-	/* DDR4ASR = Not Supported */
-	memupd->FspmConfig.DDR3LASR = 0x0; /* Using DDR3 Setting as no DDR4 equivalant exists */
->>>>>>> 0aad105d98... Rebase
 	/* Scrambler Support = Enabled */
 	memupd->FspmConfig.ScramblerSupport = 0x1;
 	/* Channel Hash Mask = Ox0036 */
@@ -90,11 +84,7 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	/* Ch0 DramDensity = 8Gb */
 	memupd->FspmConfig.Ch0_DramDensity = 0x2; // Based on Up Squared 8Gb = 0x02
 	/* Cho Option = 0x03 */
-<<<<<<< HEAD
 	memupd->FspmConfig.Ch0_Option = 0x3;
-=======
-	memupd->FspmConfig.Ch0_Option = 0x3 ;
->>>>>>> 0aad105d98... Rebase
 	/* Cho Odt Config = 0x02 */
 	memupd->FspmConfig.Ch0_OdtConfig = 0x2;
 	/* Cho Tristate Clk1 = Ox00 */
@@ -164,7 +154,3 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memupd->FspmConfig.RmtMarginCheckScaleHighThreshold = 0x0;
 	memupd->FspmConfig.MsgLevelMask = 0x0;
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 0aad105d98... Rebase

@@ -15,7 +15,10 @@
 
 const char *smbios_mainboard_bios_version(void)
 {
-	return "6";
+	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+		return "0";
+	else
+		return "6";
 }
 
 /* Get the Embedded Controller firmware version */

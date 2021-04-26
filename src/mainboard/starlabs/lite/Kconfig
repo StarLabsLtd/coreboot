@@ -1,7 +1,6 @@
 if BOARD_STARLABS_LITE_GLK || BOARD_STARLABS_LITE_APL
 
 #
-<<<<<<< HEAD
 # Lite Mk III GLK Board uses the following devices:
 #
 # GigaDevice GD25Q64C (8192KB) SPI NOR flash (KBL)
@@ -10,20 +9,10 @@ if BOARD_STARLABS_LITE_GLK || BOARD_STARLABS_LITE_APL
 # Realtek ALC256 audio CODEC
 # ITE IT8987 Embedded Controller
 # Analogix ANX7447 crosspoint switch
-=======
-# Lite Mk III Board uses the following devices:
-#
-#     GigaDevice GD25Q64C (8192KB) SPI NOR flash (KBL)
-#     Infineon SLB9670VQ SPI TPM2.0 device
-#     Realtek ALC269 audio CODEC
-#     ITE IT8987 Embedded Controller
-#     Analogix ANX7447 crosspoint switch 
->>>>>>> 0aad105d98... Rebase
 #
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select BOARD_ROMSIZE_KB_8192
-<<<<<<< HEAD
 	select DRIVERS_I2C_HID
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
@@ -42,25 +31,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_OPTION_TABLE
 	select USE_OPTION_TABLE
 	select HAVE_CMOS_DEFAULT
-=======
-	select GENERIC_SPD_BIN
-#	select HAVE_SPD_IN_CBFS
-	select HAVE_ACPI_RESUME
-	select HAVE_ACPI_TABLES
-	select MAINBOARD_HAS_LPC_TPM
-	select MAINBOARD_HAS_TPM2
-	select SOC_INTEL_COMMON_BLOCK_HDA
-	select SOC_INTEL_COMMON_BLOCK_HDA_VERB
-	select INTEL_LPSS_UART_FOR_CONSOLE
-	select DRIVERS_I2C_HID
-	select DRIVERS_I2C_GENERIC
-	select HAVE_IFD_BIN
-	select INTEL_GMA_HAVE_VBT
-	select MAINBOARD_HAS_LIBGFXINIT
-	select EC_STARLABS_IT8987
-	select SYSTEM_TYPE_LAPTOP
-	select SPI_FLASH_GIGADEVICE
->>>>>>> 0aad105d98... Rebase
 
 config MAINBOARD_DIR
 	string
@@ -68,7 +38,6 @@ config MAINBOARD_DIR
 
 config VARIANT_DIR
 	string
-<<<<<<< HEAD
 	default "apl" if BOARD_STARLABS_LITE_APL
 	default "glk" if BOARD_STARLABS_LITE_GLK
 
@@ -81,20 +50,6 @@ config MAINBOARD_FAMILY
 	string
 	default "I2" if BOARD_STARLABS_LITE_APL
 	default "I3" if BOARD_STARLABS_LITE_GLK
-=======
-	default "glk" if BOARD_STARLABS_LITE_GLK
-	default "apl" if BOARD_STARLABS_LITE_APL
-
-config MAINBOARD_PART_NUMBER
-	string
-	default "Lite Mk III" if BOARD_STARLABS_LITE_GLK
-	default "Lite Mk II" if BOARD_STARLABS_LITE_APL
-
-config MAINBOARD_FAMILY
-	string
-	default "I3" if BOARD_STARLABS_LITE_GLK
-	default "I2" if BOARD_STARLABS_LITE_APL
->>>>>>> 0aad105d98... Rebase
 
 config MAINBOARD_SMBIOS_PRODUCT_NAME
 	string
@@ -104,17 +59,10 @@ config MAX_CPUS
 	int
 	default 4
 
-<<<<<<< HEAD
 config DRIVER_TPM_SPI_CHIP
 	int
 	default 2
 
-=======
-#config DRIVER_TPM_SPI_CHIP
-#	int
-#	default 2
-	
->>>>>>> 0aad105d98... Rebase
 config UART_FOR_CONSOLE
 	int
 	default 2
@@ -123,13 +71,6 @@ config DEVICETREE
 	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
 
-<<<<<<< HEAD
-=======
-## config GLK_INTEL_EC
-##         bool "Intel EC"
-##         default EC_ACPI
-
->>>>>>> 0aad105d98... Rebase
 config DIMM_SPD_SIZE
 	int
 	default 512
@@ -142,7 +83,6 @@ config FMDFILE
 	string
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
 
-<<<<<<< HEAD
 #config VGA_BIOS_FILE
 #	string
 #	default "pci8086,0406.rom"
@@ -156,71 +96,20 @@ config TIANOCORE_BOOTSPLASH_FILE
 	depends on TIANOCORE_BOOTSPLASH_IMAGE
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
-=======
->>>>>>> 0aad105d98... Rebase
 config NEED_IFWI
 	bool
 	default y
 
 config IFWI_FMAP_NAME
-<<<<<<< HEAD
 	string
 	default "IFWI"
-=======
-        string
-        default "IFWI"
->>>>>>> 0aad105d98... Rebase
 
 config IFD_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_0_flashdescriptor.bin"
 
 config IFWI_FILE_NAME
-<<<<<<< HEAD
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/fit-image.bin"
 
-=======
-        string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_1_bios.bin"
-
-config ADD_FSP_BINARIES
-        bool "Add FSP blobs"
-        default y
-
-config FSP_M_FILE
-        string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-M.Fv"
-
-config FSP_S_FILE
-        string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-S.Fv"
-
-
-config ONBOARD_VGA_IS_PRIMARY
-	bool
-	default y
-
-config VGA_BIOS_ID
-	string
-	default "8086,0406"
-
-config LINEAR_FRAMEBUFFER_MAX_WIDTH
-        int
-        default 1920
-
-config LINEAR_FRAMEBUFFER_MAX_HEIGHT
-        int
-        default 1080
-
-config VGA_BIOS_FILE
-	string
-	depends on VGA_BIOS
-	default "pci8086,0406.rom"
-
-config TIANOCORE_BOOTSPLASH_FILE
-	string
-	depends on TIANOCORE_BOOTSPLASH_IMAGE
-	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
->>>>>>> 0aad105d98... Rebase
 endif

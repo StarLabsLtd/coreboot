@@ -13,6 +13,7 @@ Device (HIDD)
 
 	Method (_STA, 0, Serialized)  // _STA: Status
 	{
+//		If (((OSYS >= 0x07DD) && (HEFE == One)))
 		If ((OSYS >= 0x07DD))
 		{
 			Return (0x0F)
@@ -95,47 +96,88 @@ Device (HIDD)
 		}
 
 		BTLD = One
-		BTS1 = 0x1F
-		\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		If ((AEAB == One))
+//		{
+			BTS1 = 0x1F
+			\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		}
+//		Else
+//		{
+//			BTS1 = Zero
+//		}
 	}
 
 	Method (BTNE, 1, Serialized)
 	{
 		Store ("-----> BTNE", Debug)
-		BTS1 = ((Arg0 & 0x1E) | One)
-		\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		If ((AEAB == One))
+//		{
+			BTS1 = ((Arg0 & 0x1E) | One)
+			\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		}
 	}
 
 	Method (BTNS, 0, Serialized)
 	{
 		Store ("-----> BTNS", Debug)
-		BTS1 = \_SB.PCI0.LPCB.H_EC.ECRD (RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		If ((AEAB == One))
+//		{
+			BTS1 = \_SB.PCI0.LPCB.H_EC.ECRD (RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
+//		}
 		Return (BTS1)
 	}
 
 	Method (BTNC, 0, Serialized)
 	{
 		Store ("-----> BTNC", Debug)
+//		If ((AEAB == One))
+//		{
 			Return (0x1F)
+//		}
+//		Else
+//		{
+//			Return (Zero)
+//		}
 	}
 
 	Name (HEB2, Zero)
 	Method (HEBC, 0, Serialized)
 	{
 		Store ("-----> HEBC", Debug)
-		Return (Zero)
+//		If ((AHDB == One))
+//		{
+//			Return (\HEB1)
+//		}
+//		Else
+//		{
+			Return (Zero)
+//		}
 	}
 
 	Method (H2BC, 0, Serialized)
 	{
 		Store ("-----> H2BC", Debug)
-		Return (Zero)
+//		If ((AHDB == One))
+//		{
+//			Return (\HEB1)
+//		}
+//		Else
+//		{
+			Return (Zero)
+//		}
 	}
 
 	Method (HEEC, 0, Serialized)
 	{
 		Store ("-----> HEEC", Debug)
-		Return (HEB2) /* \_SB_.HIDD.HEB2 */
+//		If ((AHDB == One))
+//		{
+			Return (HEB2) /* \_SB_.HIDD.HEB2 */
+//		}
+//		Else
+//		{
+//			Return (Zero)
+//		}
 	}
 
 	Method (_DSM, 4, Serialized)  // _DSM: Device-Specific Method

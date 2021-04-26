@@ -76,6 +76,8 @@ Device (BAT0)
 	}
 }
 
+<<<<<<< HEAD
+=======
 // Not used in coreboot
 // Device (BAT1)
 // {
@@ -97,3 +99,4 @@ Device (BAT0)
 //		Return (0x00)
 //	}
 // }
+>>>>>>> 5d09dd4295... Removed unused functions

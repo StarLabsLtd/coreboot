@@ -18,11 +18,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	u8 spd_index = 6;
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
-<<<<<<< HEAD
-=======
-	mainboard_fill_dq_map_data(&mem_cfg->DqByteMapCh0);
-	mainboard_fill_dqs_map_data(&mem_cfg->DqsMapCpu2DramCh0);
->>>>>>> 0aad105d98... Rebase
 	mainboard_fill_rcomp_res_data(&mem_cfg->RcompResistor);
 	mainboard_fill_rcomp_strength_data(&mem_cfg->RcompTarget);
 
@@ -30,11 +25,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	mem_cfg->DqPinsInterleaved = 0;
 	mem_cfg->MemorySpdDataLen = CONFIG_DIMM_SPD_SIZE;
-<<<<<<< HEAD
-=======
-	/* Memory leak is ok since we have memory mapped boot media */
-	// TODO evaluate google/eve way of loading
->>>>>>> 0aad105d98... Rebase
 	mem_cfg->MemorySpdPtr00 = spd_cbfs_map(spd_index);
 	if (!mem_cfg->MemorySpdPtr00)
 		die("spd.bin not found\n");

@@ -28,10 +28,10 @@ Device (BAT0)
 		0,		//  6: Design capacity of low
 		0x64,		//  7: Battery capacity granularity 1
 		0,		//  8: Battery capacity granularity 2
-		"CN6613-2S3P",	//  9: Model Number
-		"6UA3",		// 10: Serial Number
-		"Real",		// 11: Battery Type
-		"GDPT"		// 12: OEM Information
+		"ASL_BATTERY_MODEL_NUMBER",
+		"",
+		"ASL_BATTERY_TYPE",
+		"ASL_BATTERY_MANUFACTURE_NAME"
 	})
 
 	Method (_BIF, 0, Serialized)
@@ -72,28 +72,27 @@ Device (BAT0)
 		}
 		PKG1[2] = B1RC
 		PKG1[3] = B1VT
+
 		Return (PKG1)
 	}
 }
 
-// Not used in coreboot
-// Device (BAT1)
-// {
-//	Name (_HID, EISAID ("PNP0C0A"))
-//	Name (_UID, 1) // "Unique" that's the same as BAT0?
-//	Method (_STA, 0, NotSerialized)
-//	{
-//		Return (0x00)
-//	}
-// }
+Device (BAT1)
+{
+	Name (_HID, EISAID ("PNP0C0A"))
+	Name (_UID, 1)
+	Method (_STA, 0, NotSerialized)
+	{
+		Return (0x00)
+	}
+}
 
-// Not used in coreboot
-// Device (BAT2)
-// {
-//	Name (_HID, EISAID ("PNP0C0A"))
-//	Name (_UID, 2)
-//	Method (_STA, 0, NotSerialized)
-//	{
-//		Return (0x00)
-//	}
-// }
+Device (BAT2)
+{
+	Name (_HID, EISAID ("PNP0C0A"))
+	Name (_UID, 2)
+	Method (_STA, 0, NotSerialized)
+	{
+		Return (0x00)
+	}
+}

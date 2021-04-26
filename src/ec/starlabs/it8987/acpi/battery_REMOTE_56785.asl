@@ -72,6 +72,7 @@ Device (BAT0)
 		}
 		PKG1[2] = B1RC
 		PKG1[3] = B1VT
+
 		Return (PKG1)
 	}
 }

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-<<<<<<< HEAD
 #include <assert.h>
 #include <console/console.h>
 #include <fsp/api.h>
@@ -22,29 +21,10 @@ static const struct mb_cfg ddr4_mem_config = {
 	.ddr4_config = {
 		.dq_pins_interleaved = false,
 	}
-=======
-#include <fsp/util.h>
-#include <soc/meminit.h>
-#include <soc/romstage.h>
-
-static const struct mb_ddr4_cfg board_cfg = {
-	.dq_pins_interleaved = 0,
-	.ect = 0,
-};
-
-static const struct spd_info spd = {
-	.topology = MIXED,
-	.md_spd_loc = SPD_CBFS,
-	.cbfs_index = 0,
-	.smbus_info[1] = {
-		.addr_dimm0 = 0x52,
-	},
->>>>>>> 0aad105d98... Rebase
 };
 
 void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
-<<<<<<< HEAD
 	const struct mb_cfg *mem_config = &ddr4_mem_config;
 	const bool half_populated = false;
 
@@ -64,9 +44,3 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	memcfg_init(&mupd->FspmConfig, mem_config, &ddr4_spd_info, half_populated);
 };
-=======
-	mupd->FspmConfig.SaOcSupport = 1;
-	const bool half_populated = false;
-	meminit_ddr4(&mupd->FspmConfig, &board_cfg, &spd, half_populated);
-}
->>>>>>> 0aad105d98... Rebase
