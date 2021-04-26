@@ -55,3 +55,5 @@ Scope (_SB.PCI0.HDAS)
 #define EC_GPE_SCI 0x50 /* GPP_E16 */
 
 #include <ec/starlabs/it8987/acpi/ec.asl>
+
+
