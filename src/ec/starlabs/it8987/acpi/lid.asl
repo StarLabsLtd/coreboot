@@ -32,7 +32,7 @@ Device (LID0)
 
 Method (_Q0C, 0, NotSerialized)		// Lid close event
 {
-	DEBUG = "---> IT8987 LID: Q0C (close event)"  
+	DEBUG = "---> IT8987 LID: Q0C (close event)"
 	LIDS = 0
 	\LIDS = LIDS
 	Notify (LID0, 0x80)

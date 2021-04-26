@@ -5,7 +5,7 @@ Device (ADP1)
 	Name (_HID, "ACPI0003")
 	Name (_PCL, Package () { \_SB })
 
-	Method (_STA, 0, NotSerialized)  // _STA: Status
+	Method (_STA, 0, NotSerialized)		// _STA: Status
 	{
 		If (ECON == 1)
 		{
@@ -18,7 +18,7 @@ Device (ADP1)
 		Return (Local0)
 	}
 
-	Method (_PSR, 0, NotSerialized)  // _PSR: Power Source
+	Method (_PSR, 0, NotSerialized)		// _PSR: Power Source
 	{
 		If (ECWR & 0x01)
 		{
@@ -32,7 +32,7 @@ Device (ADP1)
 	}
 }
 
-Method (_QA0, 0, NotSerialized)		// AC Power Connected
+Method (_QA0, 0, NotSerialized)			// AC Power Connected
 {
 	If (ECWR & 0x01)
 	{
@@ -43,19 +43,18 @@ Method (_QA0, 0, NotSerialized)		// AC Power Connected
 		\PWRS = 0
 	}
 
-	// Fix issue "AC/DC switch slowly after S3 or Reboot"
-	// Add 500ms delay before notify battery in QEvent
-	Sleep (500)
+	// 500ms delay - Not used in coreboot
+	// Sleep (500)
 	Notify (BAT0, 0x81)
-	Sleep (500)
+	// Sleep (500)
 	Notify (ADP1, 0x80)
 }
 
-Method(_Q0B, 0, NotSerialized)
+Method(_Q0B, 0, NotSerialized)			// Battery Connected 
 {
-	// Add 500ms delay before notify battery in QEvent.
-	Sleep (500)
+	// 500ms delay - Not used in coreboot
+	// Sleep (500)
 	Notify (BAT0, 0x81)
-	Sleep (500)
+	// Sleep (500)
 	Notify (BAT0, 0x80)
 }

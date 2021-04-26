@@ -7,7 +7,7 @@ Method(_Q80)				// Volume up
 	Notify (\_SB.HIDD, 0xC5)
 	Store ("<----- _Q80", Debug)
 }
-    
+
 Method(_Q81)				// Volume down
 {
 	Store ("-----> _Q81", Debug)
@@ -15,19 +15,19 @@ Method(_Q81)				// Volume down
 	Notify (\_SB.HIDD, 0xC7)
 	Store ("<----- _Q81", Debug)
 } 
-    
+
 Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
 	\_SB.HIDD.HPEM(8) 
 	Store ("<----- _Q80", Debug)
 }
-    
+
 Method(_Q06)				// Brightness decrease
 {
 	\_SB.PCI0.GFX0.DECB()
 } 
-    
+
 Method(_Q07)				// Brightness increase
 {
 	\_SB.PCI0.GFX0.INCB()
@@ -47,14 +47,14 @@ Method(_Q54)				// Power Button Event
 	}
 	Store ("<----- _Q54", Debug)
 }
-    
+
 Method(_QD5)				// 10 second power button press
 {
 	Store ("-----> _QD5", Debug)
 	\_SB.PWPR()
 	Store ("<----- _QD5", Debug)
 }
-    
+
 Method(_QD6)				// 10 second power button de-press
 {
 	Store ("-----> _QD6", Debug)

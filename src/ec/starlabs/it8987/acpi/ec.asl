@@ -8,9 +8,9 @@ Scope(\)
 	Field (GNVS,AnyAcc,Lock,Preserve)
 	{
 		Offset(33),
-		B2SC, 8,		//   (33) Battery 2 Stored Capacity
+		B2SC, 8,		// (33) Battery 2 Stored Capacity
 		Offset(36),
-		B2SS, 8			//   (36) Battery 2 Stored Status
+		B2SS, 8			// (36) Battery 2 Stored Status
 	}
 }
 
@@ -43,13 +43,13 @@ Scope (\_SB.PCI0.LPCB)
 		Name(ECFG, 0)
 		Name(WIBT, 0)
 		Name(APST, 0)
-        
+
 		Name(ECON, 1)		// AC debug
 		Name(BNUM, 0)		// Number Of Batteries Present
 		Name(PVOL, ASL_PVOL_DEFOF_NUM)		
 		Name(B1CC, 0)
 		Name(B2CC, 0)
-    
+
 		Name(B2ST, 0)
 		Name(CFAN, 0)
 		Name(CMDR, 0)
@@ -112,18 +112,18 @@ Scope (\_SB.PCI0.LPCB)
 				// Unconditionally fix up the Battery and Power State.
 				
 				// Initialize the Number of Present Batteries.
-				//   1 = Real Battery 1 is present
-				//   2 = Real Battery 2 is present
-				//   3 = Real Battery 1 and 2 are present
+				// 1 = Real Battery 1 is present
+				// 2 = Real Battery 2 is present
+				// 3 = Real Battery 1 and 2 are present
 				BNUM = 0
 				BNUM |= ((ECRD (RefOf (ECWR)) & 0x02) >> 1)
 		
 				// Save the current Power State for later.
-				//Store (PWRS, Local0)
+				// Store (PWRS, Local0)
 		
 				// Initialize the Power State.
-				//   BNUM = 0 = Virtual Power State
-				//   BNUM > 0 = Real Power State
+				// BNUM = 0 = Virtual Power State
+				// BNUM > 0 = Real Power State
 				If (BNUM == 0x00)
 				{
 					\PWRS = ECRD (RefOf (VPWR))
@@ -131,7 +131,7 @@ Scope (\_SB.PCI0.LPCB)
 				Else
 				{
 					\PWRS = (ECRD (RefOf (ECWR)) & 0x01)
-				}      
+				}
 				PNOT()
 
 				/* Initialize LID switch state */
@@ -155,62 +155,62 @@ Scope (\_SB.PCI0.LPCB)
 			XXX2, 8,	// EC Firmware test- version number.
 
 			Offset(0x06),			 
-			SKID, 8,	// SKU ID        
+			SKID, 8,	// SKU ID
 
 			Offset(0x11),
 			KBCD, 8,	// Key / Touch Pad disable/enable bit
-			ECOS, 8,	// Enter OS flag  
+			ECOS, 8,	// Enter OS flag
 			HDAO, 8,
-			ECHK, 8,	// Hot keys flag     
+			ECHK, 8,	// Hot keys flag 
 
 			Offset(0x18),
 			KLBS, 8,	// Keyboard backlight begin.
 			KLBE, 8,	// Keyboard backlight status.
-  
+
 			Offset(0x1A),
 			KBLT, 8,	// Keyboard Backlight Timeout
 			PWPF, 8,	// Power Profile
 
-			Offset(0x1E),                  
-			BTHP,  8,	// Health Battery Percentage   
+			Offset(0x1E),
+			BTHP,8,	// Health Battery Percentage 
 
 			Offset(0x20),
 			RCMD, 8,	// Same function as IO 66 port to send EC command
 			RCST, 8,	// Report status for the result of command execution
 
-			Offset(0x2C),                  
-			FNST, 8,	// FN LOCK key status.    
+			Offset(0x2C),
+			FNST, 8,	// FN LOCK key status.
 
-			Offset(0x3F),                  
-			SFAN, 8,	// Set Fan Speed.   
+			Offset(0x3F),
+			SFAN, 8,	// Set Fan Speed. 
 			BTMP, 16,	// Battery Temperature. 
 			BCNT, 16,	// Battery Cycle Count. 
-			FRMP, 16,	// Fan Current Speed.  
-              
+			FRMP, 16,	// Fan Current Speed.
+
 			Offset(0x60),
 			TSR1, 8,	// Thermal Sensor Register 1 [CPU VR (IMVP) Temp on RVP]
 			TSR2, 8,	// Thermal Sensor Register 2 [Heat exchanger fan temp on RVP]
 			TER4, 8,	// Thermal Sensor Register 3 (skin temperature)
 
 			Offset(0x63),
-			TSI,  4,	// [0..3] - 0 = SEN1 - CPU VR temperature sensor
-					//          1 = SEN2 - Heat Exchanger temperature sensor
-					//          2 = SEN3 - Skin temperature sensor
-					//          3 = SEN4 - Ambient temperature sensor
-					//          4 = SEN5 - DIMM temperature sensor [IR sensor 1 on WSB]
-					//          5 = SEN6 - not used on RVP
+			TSI,4,	// [0..3]  0 = SEN1 - CPU VR temperature sensor
+					// 1 = SEN2 - Heat Exchanger temperature sensor
+					// 2 = SEN3 - Skin temperature sensor
+					// 3 = SEN4 - Ambient temperature sensor
+					// 4 = SEN5 - DIMM temperature sensor [IR sensor 1 on WSB]
+					// 5 = SEN6 - not used on RVP
 			HYST, 4,	// [4..7] - Hysteresis in degC.
 			TSHT, 8,	// Thermal Sensor (N) high trip point(set default value =70)
 			TSLT, 8,	// Thermal Sensor (N) low trip point (set default value =70)
 			TSSR, 8,	// TSSR- thermal sensor status register (set bit2 =1)
-					//          BIT0:  SEN1 - CPU VR Temp Sensor Trip Flag
-					//          BIT1:  SEN2 - Fan Temp Sensor Trip Flag
-					//          BIT2:  SEN3 - Skin Temp Sensor Trip Flag
-					//          BIT3:  SEN4 - Ambient Temp Sensor Trip Flag
-					//          BIT4:  Reserved
-					//          BIT5:  Reserved
-					//          BIT6:  Reserved
-					//          BIT7:  Reserved
+					// BIT0:SEN1 - CPU VR Temp Sensor Trip Flag
+					// BIT1:SEN2 - Fan Temp Sensor Trip Flag
+					// BIT2:SEN3 - Skin Temp Sensor Trip Flag
+					// BIT3:SEN4 - Ambient Temp Sensor Trip Flag
+					// BIT4:Reserved
+					// BIT5:Reserved
+					// BIT6:Reserved
+					// BIT7:Reserved
 			CHGR, 16,	// Charge Rate
 
 			Offset(0x70),
@@ -221,8 +221,8 @@ Scope (\_SB.PCI0.LPCB)
 
 			Offset(0x7F),
 			LSTE, 1,	// Lid feature
-					//          BIT0    LID GPI
-			    , 7,	// Reserved
+					// BIT0LID GPI
+			, 7,	// Reserved
  
 			Offset(0x80),
 			ECWR, 8,	// AC & Battery status
@@ -233,12 +233,12 @@ Scope (\_SB.PCI0.LPCB)
 			B1FC, 16,	// Battery#1 Last Full Charge Capacity
 			XX15, 16,	// Battery#1 Trip Point
 			B1ST, 8,	// Battery#1 State
-			B1CR, 16,	// Battery#1 Present Rate  
+			B1CR, 16,	// Battery#1 Present Rate
 			B1RC, 16,	// Battery#1 Remaining Capacity
 			B1VT, 16,	// Battery#1 Present Voltage
 			BPCN, 8,	// Battery#1 Remaining percentage
-          
-			// USB Type C Mailbox Interface  //   PPM->OPM Message In
+
+			// USB Type C Mailbox Interface// PPM->OPM Message In
 			Offset(0xc0),
 			MGI0, 8,
 			MGI1, 8,
@@ -257,8 +257,8 @@ Scope (\_SB.PCI0.LPCB)
 			MGIE, 8,
 			MGIF, 8,
 
-			// USB Type C Mailbox Interface  // OPM->PPM Message Out
-			MGO0, 8,    
+			// USB Type C Mailbox Interface// OPM->PPM Message Out
+			MGO0, 8,
 			MGO1, 8,
 			MGO2, 8,
 			MGO3, 8,
@@ -273,7 +273,7 @@ Scope (\_SB.PCI0.LPCB)
 			MGOC, 8,
 			MGOD, 8,
 			MGOE, 8,
-			MGOF, 8,    
+			MGOF, 8,
 
 			// USB Type C UCSI DATA Structure.
 			VER1, 8,
@@ -281,13 +281,13 @@ Scope (\_SB.PCI0.LPCB)
 			RSV1, 8,
 			RSV2, 8,
 
-			//   PPM->OPM CCI indicator  
+			// PPM->OPM CCI indicator
 			CCI0, 8,
 			CCI1, 8,
 			CCI2, 8,
 			CCI3, 8,
 
-			//   OPM->PPM Control message
+			// OPM->PPM Control message
 			CTL0, 8,
 			CTL1, 8,
 			CTL2, 8,
@@ -296,13 +296,13 @@ Scope (\_SB.PCI0.LPCB)
 			CTL5, 8,
 			CTL6, 8,
 			CTL7, 8,
-   
+ 
 			Offset(0xF0),
-			    , 3,    // BIT0 .. BIT2 Reserved
-			TPCC, 1,    // BIT3 TypeC connection bit
-			    , 2,    // BIT4 .. BIT5 Reserved
-			DRMD, 1,    // Bit6 Dual Role Mode. 0->DFP: Host mode; 1->UFP: Device Mode.
-			    , 1,    // BIT7 Reserved    
+			, 3,// BIT0 .. BIT2 Reserved
+			TPCC, 1,// BIT3 TypeC connection bit
+			, 2,// BIT4 .. BIT5 Reserved
+			DRMD, 1,// Bit6 Dual Role Mode. 0->DFP: Host mode; 1->UFP: Device Mode.
+			, 1,// BIT7 Reserved
 		}
 
 		Method (ECMD, 0, Serialized)
@@ -349,50 +349,26 @@ Scope (\_SB.PCI0.LPCB)
 		#include "ac.asl"
 		#include "lid.asl"
 
-		/* Random unknown events that are supported by the stock BIOS. */
-		Method(_Q40)    
-		{
-			SMB2 = 0xC6
-		}
-		
-		Method(_Q41)    
-		{
-			SMB2 = 0xC7
-		}
-		
-		Method(_Q42)    
-		{
-			SMB2 = 0xC8
-		}
-		
-		Method(_Q43)    
-		{
-			SMB2 = 0xC9
-		}
-
-		Method(_Q44)    
-		{
-			SMB2 = 0xCA
-		} 
-
-		Method(_Q45)    
-		{
-			SMB2 = 0xC1
-		}
-
-		// ECNT (Embedded Controller Notify)
-		//
-		// Handle all commands sent to EC by BIOS
-		//
-		// Arguments:
-		//     Arg0 - 1 = CS Entry Notify
-		//            0 = CS Exit Notify
-		//  Return Value:
-		//            0x00 = Success
-		//            0xFF = Failure
-//		Method(ECNT, 1, Serialized)
-//		{
-//			Return (0x00)
-//		}
+		// Method(_Q45) // SMM Mode - Not used in coreboot
+		// {
+		//	SMB2 = 0xC1
+		// }
 	}
+
+	// Not used in coreboot
+	// ECNT (Embedded Controller Notify)
+	//
+	// Handle all commands sent to EC by BIOS
+	//
+	// Arguments:
+	//  Arg0 - 1 = CS Entry Notify
+	//  Arg0 - 0 = CS Exit Notify
+	//
+	// Return Value:
+	//  0x00 = Success
+	//  0xFF = Failure
+	// Method(ECNT, 1, Serialized)
+	// {
+	//	Return (0x00)
+	// }
 }
