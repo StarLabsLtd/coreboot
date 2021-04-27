@@ -5,11 +5,6 @@
 #include <device/device.h>
 #include <soc/ramstage.h>
 #include <option.h>
-<<<<<<< HEAD
-=======
-#include "variant/gpio.h"
-
->>>>>>> 02ca45c066... Move reading of me_state to mainboard ramstage.c
 
 static void init_mainboard(void *chip_info)
 {
@@ -19,20 +14,24 @@ static void init_mainboard(void *chip_info)
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
 
-	devtree_update();
-}
-
 <<<<<<< HEAD
-struct chip_operations mainboard_ops = {
-	.init = init_mainboard,
+	devtree_update();
 =======
 static void mainboard_enable(struct device *dev)
 {
 	u8 me_state = get_int_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "XXXXX me_state: %d\n", me_state);
+	printk(BIOS_DEBUG, "XXXXX CMOS me_state: %d\n", me_state);
+
+	if (me_state == 1) {
+		printk(BIOS_DEBUG, "Flagging that SMM should disable the ME\n");
+		struct device *csedev = pcidev_path_on_root(PCH_DEVFN_CSE);
+		printk(BIOS_DEBUG, "XXXXX PCI device state before: %d\n", csedev->enabled);
+		csedev->enabled = 0;
+		printk(BIOS_DEBUG, "XXXXX PCI device state after: %d\n", csedev->enabled);
+	}
+>>>>>>> b12a25ac24... Add check to disable ME device.
 }
 
 struct chip_operations mainboard_ops = {
-        .enable_dev = mainboard_enable,
->>>>>>> 02ca45c066... Move reading of me_state to mainboard ramstage.c
+	.init = init_mainboard,
 };
