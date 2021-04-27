@@ -19,9 +19,13 @@ void smihandler_soc_at_finalize(void)
 	if (!CONFIG(HECI_DISABLE_USING_SMM))
 		return;
 
+<<<<<<< HEAD
+	if (!is_devfn_enabled(PCH_DEVFN_CSE))
+=======
 	const struct device *dev = pcidev_path_on_root(PCH_DEVFN_CSE);
 
 	if (!is_dev_enabled(dev))
+>>>>>>> 02ca45c066... Move reading of me_state to mainboard ramstage.c
 		heci_disable();
 }
 
