@@ -17,7 +17,7 @@ entries
 
 # coreboot config options: cpu
 400     1       e       5       hyper_threading
-401     1       e       5       me_state
+409     1       e       5       me_state
 
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
