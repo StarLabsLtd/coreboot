@@ -6,6 +6,22 @@
 #include <soc/soc_chip.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
+#include <option.h>
+#include <types.h>
+
+
+void smihandler_soc_at_finalize(void)
+{
+	if (!CONFIG(HECI_DISABLE_USING_SMM))
+		return;
+
+	const struct device *dev = pcidev_path_on_root(PCH_DEVFN_CSE);
+
+	if (!is_dev_enabled(dev) && get_int_option("me_state", 0))
+		heci_disable();
+
+}
+
 
 /*
  * Specific SOC SMI handler during ramstage finalize phase
