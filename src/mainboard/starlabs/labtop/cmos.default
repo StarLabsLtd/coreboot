@@ -4,3 +4,4 @@ power_on_after_fail=Disable
 hyper_threading=Enable
 kbl_timeout=30 seconds
 fn_ctrl_swap=Disable
+me_state=Disable
