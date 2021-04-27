@@ -1,7 +1,27 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <device/device.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/smihandler.h>
+#include <soc/soc_chip.h>
+#include <soc/pci_devs.h>
 #include <soc/pm.h>
+#include <option.h>
+#include <types.h>
+
+
+void smihandler_soc_at_finalize(void)
+{
+	if (!CONFIG(HECI_DISABLE_USING_SMM))
+		return;
+
+	const struct device *dev = pcidev_path_on_root(PCH_DEVFN_CSE);
+
+	if (!is_dev_enabled(dev) && get_int_option("me_state", 0))
+		heci_disable();
+
+}
+
 
 const smi_handler_t southbridge_smi[SMI_STS_BITS] = {
 	[SMI_ON_SLP_EN_STS_BIT] = smihandler_southbridge_sleep,
