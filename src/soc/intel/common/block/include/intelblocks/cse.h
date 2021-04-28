@@ -115,6 +115,9 @@ int heci_reset(void);
 /* Disable HECI using Sideband interface communication */
 void heci_disable(void);
 
+/* Disable ME using HECI */
+void disable_me(void);
+
 /* Reads config value from a specified offset in the CSE PCI Config space. */
 uint32_t me_read_config32(int offset);
 
