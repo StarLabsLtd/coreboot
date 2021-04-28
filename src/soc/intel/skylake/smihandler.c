@@ -6,22 +6,23 @@
 #include <soc/soc_chip.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
-#include <option.h>
-#include <types.h>
 
-
+/*
+ * Specific SOC SMI handler during ramstage finalize phase
+ *
+ * BIOS can't make CSME function disable as is due to POSTBOOT_SAI
+ * restriction in place from CNP chipset. Hence create SMI Handler to
+ * perform CSME function disabling logic during SMM mode.
+ */
 void smihandler_soc_at_finalize(void)
 {
 	if (!CONFIG(HECI_DISABLE_USING_SMM))
 		return;
 
 	const struct device *dev = pcidev_path_on_root(PCH_DEVFN_CSE);
-
-	if (!is_dev_enabled(dev) && get_int_option("me_state", 0))
+	if (!is_dev_enabled(dev))
 		heci_disable();
-
 }
-
 
 const smi_handler_t southbridge_smi[SMI_STS_BITS] = {
 	[SMI_ON_SLP_EN_STS_BIT] = smihandler_southbridge_sleep,

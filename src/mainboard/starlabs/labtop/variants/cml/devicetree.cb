@@ -171,24 +171,8 @@ chip soc/intel/cannonlake
                 device pci 1d.1 off end				# PCI Express Port 10
                 device pci 1d.2 off end				# PCI Express Port 11
                 device pci 1d.3 off end				# PCI Express Port 12
-                device pci 1d.4 on				# PCI Express Port 13 (LAN)
-			device pci 00.0 on end
-			register "PcieRpSlotImplemented[12]" = "1"
-			register "PcieRpEnable[12]" = "0"
-			register "PcieRpLtrEnable[12]" = "0"
-			register "PcieClkSrcUsage[2]" = "12"
-			register "PcieClkSrcClkReq[2]" = "2"
-		end
-                device pci 1d.5 on				# PCI Express Port 14 (WLAN)
-			register "PcieRpSlotImplemented[13]" = "1"
-		        register "PcieRpEnable[13]" = "1"
-			register "PcieRpLtrEnable[13]" = "1"
-			register "PcieClkSrcUsage[0]" = "13"
-			register "PcieClkSrcClkReq[0]" = "0"
-			chip drivers/wifi/generic
-				device pci 00.0 on end
-			end
-		end
+                device pci 1d.4 off end				# PCI Express Port 13 (LAN)
+                device pci 1d.5 off end				# PCI Express Port 14 (WLAN)
                 device pci 1d.6 off end # PCI Express Port 15
                 device pci 1d.7 off end # PCI Express Port 16
 		device pci 1e.0 on  end # UART #0
@@ -211,9 +195,6 @@ chip soc/intel/cannonlake
 				device pnp 4e.0 on		# IO Interface
 				end
 			end
-#			chip drivers/pc80/tpm
-#				device pnp 0c31.0 on end
-#			end
 		end
 		device pci 1f.1 off end				# P2SB
 		device pci 1f.2 off end				# Power Management Controller
