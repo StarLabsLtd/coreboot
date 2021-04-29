@@ -361,5 +361,7 @@ ret:
  * This can't be put in intel_me_status because by the time control
  * reaches there, ME doesn't respond to GET_FW_VERSION command.
  */
+#if CONFIG(ME_STATE_BY_CMOS)
 BOOT_STATE_INIT_ENTRY(BS_OS_RESUME_CHECK, BS_ON_EXIT, disable_me, NULL);
+#endif
 BOOT_STATE_INIT_ENTRY(BS_DEV_ENABLE, BS_ON_EXIT, print_me_fw_version, NULL);
