@@ -804,7 +804,7 @@ void disable_me(void *unused)
 	if (me_state == 1) {
 		printk(BIOS_DEBUG, "ME: HECI send disable\n");
 		int status;
-		
+
 		struct mkhi_hdr reply;
 		struct disable_command {
 			struct mkhi_hdr hdr;
@@ -822,13 +822,8 @@ void disable_me(void *unused)
 			.rule_data = 0,
 		};
 		size_t reply_size;
-
-		/* if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
-			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n"); */
-			
 		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
 		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
-		/* return status; */
 	}
 }
 
