@@ -7,10 +7,10 @@
 
 void mainboard_silicon_init_params(FSPS_UPD *supd)
 {
-        /* 
-         * Configure pads prior to SiliconInit() in case there's any
-         * dependencies during hardware initialization.
-         */
+	/*
+	 * Configure pads prior to SiliconInit() in case there's any
+	 * dependencies during hardware initialization.
+	 */
 	const struct pad_config *pads;
 	size_t num;
 
