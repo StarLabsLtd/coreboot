@@ -16,7 +16,8 @@
 
 cd "$(dirname "$0")" || exit 1
 
-CROSSGCC_VERSION="$(git log -n 1 --pretty=%cd --date=short .)_$(git log -n 1 --pretty=%h .)"
+CROSSGCC_DATE="$(git log -n 1 --pretty=%ad --date=short .)"
+CROSSGCC_VERSION="$(git log -n 1 --pretty=%h .)"
 CROSSGCC_COMMIT=$( git describe )
 
 # default settings
@@ -590,7 +591,7 @@ myhelp()
 }
 
 printversion() {
-	printf "${blue}Welcome to the ${red}coreboot${blue} cross toolchain builder v$CROSSGCC_VERSION ${NC}\n\n"
+	printf "${blue}Welcome to the ${red}coreboot${blue} cross toolchain builder v$CROSSGCC_VERSION ($CROSSGCC_DATE)${NC}\n\n"
 }
 
 myversion()
@@ -727,7 +728,7 @@ bootstrap_GCC() {
 		${GCC_OPTIONS} --enable-languages="${LANGUAGES}" \
 		--with-gmp="$DESTDIR$TARGETDIR" --with-mpfr="$DESTDIR$TARGETDIR" \
 		--with-mpc="$DESTDIR$TARGETDIR" \
-		--with-pkgversion="coreboot bootstrap v$CROSSGCC_VERSION" \
+		--with-pkgversion="coreboot bootstrap v$CROSSGCC_VERSION $CROSSGCC_DATE" \
 		&& \
 	# shellcheck disable=SC2086
 	$MAKE $JOBS BOOT_CFLAGS="$HOSTCFLAGS" BUILD_CONFIG="" bootstrap && \
@@ -773,7 +774,7 @@ build_cross_GCC() {
 		--with-gmp="$DESTDIR$TARGETDIR" --with-mpfr="$DESTDIR$TARGETDIR" \
 		--with-mpc="$DESTDIR$TARGETDIR" \
 		--with-gnu-as --with-gnu-ld \
-		--with-pkgversion="coreboot toolchain v$CROSSGCC_VERSION" \
+		--with-pkgversion="coreboot toolchain v$CROSSGCC_VERSION $CROSSGCC_DATE" \
 		&& \
 	mkdir -p gcc/$TARGETARCH && \
 	rm -f "gcc/$TARGETARCH/$GCC_VERSION" && \
@@ -842,7 +843,7 @@ build_IASL() {
 	test "$UNAME" = "FreeBSD" && HOST="_FreeBSD"
 	test "$UNAME" = "Cygwin" && HOST="_CYGWIN"
 	HOST="$HOST" CFLAGS="$CFLAGS" \
-	OPT_CFLAGS="-O -D_FORTIFY_SOURCE=2 -D COREBOOT_TOOLCHAIN_VERSION='\"coreboot toolchain v$CROSSGCC_VERSION\"' " \
+	OPT_CFLAGS="-O -D_FORTIFY_SOURCE=2 -D COREBOOT_TOOLCHAIN_VERSION='\"coreboot toolchain v$CROSSGCC_VERSION $CROSSGCC_DATE\"' " \
 	$MAKE $JOBS CC="$(hostcc host)" iasl acpibin acpidump acpiexec acpihelp acpisrc acpixtract
 	rm -f "$DESTDIR$TARGETDIR/bin/{iasl,acpibin,acpidump,acpiexec,acpihelp,acpisrc,acpixtract}" || touch "$RDIR/.failed"
 	cp bin/{iasl,acpibin,acpidump,acpiexec,acpihelp,acpisrc,acpixtract} "$DESTDIR$TARGETDIR/bin" || touch "$RDIR/.failed"
@@ -857,7 +858,7 @@ build_LLVM() {
 	cd - || exit 1
 
 	$CMAKE -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$DESTDIR$TARGETDIR" \
-		-DCLANG_VENDOR="coreboot toolchain v$CROSSGCC_VERSION - " \
+		-DCLANG_VENDOR="coreboot toolchain v$CROSSGCC_VERSION $CROSSGCC_DATE - " \
 		-DCMAKE_BUILD_TYPE=Release ../$LLVM_DIR || touch .failed
 	# shellcheck disable=SC2086
 	$MAKE $JOBS || touch .failed

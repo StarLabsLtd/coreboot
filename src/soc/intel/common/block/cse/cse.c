@@ -14,6 +14,8 @@
 #include <soc/me.h>
 #include <string.h>
 #include <timer.h>
+#include <option.h>
+#include <types.h>
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
 
@@ -792,6 +794,37 @@ int cse_hmrfpo_get_status(void)
 	}
 
 	return resp.status;
+}
+
+void disable_me(void *unused)
+{
+	/* First check if ME should be disabled */
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+	if (me_state == 1) {
+		printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+		int status;
+
+		struct mkhi_hdr reply;
+		struct disable_command {
+			struct mkhi_hdr hdr;
+			uint32_t rule_id;
+			uint8_t rule_len;
+			uint32_t rule_data;
+		} __packed;
+		struct disable_command msg = {
+			.hdr = {
+				.group_id = 0x03,
+				.command = 0x03,
+			},
+			.rule_id = 6,
+			.rule_len = 4,
+			.rule_data = 0,
+		};
+		size_t reply_size;
+		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
+	}
 }
 
 void print_me_fw_version(void *unused)

@@ -9,9 +9,13 @@
 
 static void lpc_lockdown_config(int chipset_lockdown)
 {
-	/* Set BIOS Interface Lock, BIOS Lock */
-	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT) {
+	/* Set BIOS Interface Lock */
+	if (chipset_lockdown >= CHIPSET_LOCKDOWN_COREBOOT) {
 		lpc_set_bios_interface_lock_down();
+	}
+
+	/* Set BIOS Lock */
+	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT) {
 		lpc_set_lock_enable();
 	}
 }
