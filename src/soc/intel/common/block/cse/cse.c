@@ -800,9 +800,9 @@ void disable_me(void *unused)
 {
 	/* First check if ME should be disabled */
 	u8 me_state = get_int_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
 	if (me_state == 1) {
-		printk(BIOS_DEBUG, "ME: HECI send disable\n");
+		printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
 		int status;
 
 		struct mkhi_hdr reply;
