@@ -820,14 +820,10 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-	/* First check if ME shoould be disabled */
+	/* First check if ME should be disabled */
 	u8 me_state = get_int_option("me_state", 0xff);
-	if (me_state == 0) {
-		/* Don't worry, I've got a tin foil hat */
-		printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
-	}
-	else {
-		printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	if (me_state == 1) {
 		printk(BIOS_DEBUG, "ME: HECI send disable\n");
 		struct disable_command {
 			uint32_t hdr;
