@@ -17,7 +17,7 @@ entries
 
 # coreboot config options: cpu
 400     1       e       5       hyper_threading
-409     1       e       7       me_state
+409     1       e       5       me_state
 
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
@@ -67,9 +67,6 @@ enumerations
 6       0       Disable
 6       1       Enable
 6       2       Keep
-
-7       0       Normal
-7       1       Disabled
 
 # -----------------------------------------------------------------
 checksums
