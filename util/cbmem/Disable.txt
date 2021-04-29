@@ -1,0 +1,1094 @@
+
+coreboot-4.13-3498-g92e2ee83b6-dirty Thu Apr 29 14:58:23 UTC 2021 bootblock starting (log level: 7)...
+CPU: Intel(R) Core(TM) i7-10710U CPU @ 1.10GHz
+CPU: ID a0660, Cometlake-U A0 (6+2), ucode: 000000df
+CPU: AES supported, TXT NOT supported, VT supported
+MCH: device id 9b51 (rev 00) is CometLake-U (6+2)
+PCH: device id 0284 (rev 00) is Cometlake-U Premium
+IGD: device id 9bca (rev 04) is CometLake ULT GT2
+FMAP: Found "FLASH" version 1.1 at 0x490000.
+FMAP: base = 0x0 size = 0x1000000 #areas = 7
+FMAP: area COREBOOT found @ 490200 (11992576 bytes)
+CBFS: mcache @0xfef21400 built for 18 files, used 0x3c8 of 0x2000 bytes
+CBFS: Found 'fallback/romstage' @0x80 size 0xdcb0 in mcache @0xfef2142c
+BS: bootblock times (exec / console): total (unknown) / 69 ms
+
+
+coreboot-4.13-3498-g92e2ee83b6-dirty Thu Apr 29 14:58:23 UTC 2021 romstage starting (log level: 7)...
+pm1_sts: 0000 pm1_en: 0000 pm1_cnt: 00001c00
+gpe0_sts[0]: 00000000 gpe0_en[0]: 00000000
+gpe0_sts[1]: 00000000 gpe0_en[1]: 00000000
+gpe0_sts[2]: 00000000 gpe0_en[2]: 00000000
+gpe0_sts[3]: 00002040 gpe0_en[3]: 00000000
+TCO_STS:   0000 0000
+GEN_PMCON: e0a01a39 00000200
+GBLRST_CAUSE: 00000000 00000000
+prev_sleep_state 0
+CBFS: Found 'fspm.bin' @0x5cdc0 size 0x8e000 in mcache @0xfef2166c
+FMAP: area RW_MRC_CACHE found @ 420000 (65536 bytes)
+MRC: no data in 'RW_MRC_CACHE'
+Memory config straps: 0x01
+SPD INDEX = 1
+CBFS: Found 'spd.bin' @0x57f00 size 0x1000 in mcache @0xfef215c8
+SPD: module type is DDR4
+SPD: module part number is MT40A1G16KD-062E:E  
+SPD: banks 8, ranks 1, rows 17, columns 10, density 16384 Mb
+SPD: device width 16 bits, bus width 64 bits
+SPD: module size is 8192 MB (per channel)
+memory slot: 0 configuration done.
+memory slot: 2 configuration done.
+CBMEM:
+IMD: root @ 0x99ffe000 254 entries.
+IMD: root @ 0x99ffdc00 62 entries.
+External stage cache:
+IMD: root @ 0x9abff000 254 entries.
+IMD: root @ 0x9abfec00 62 entries.
+FMAP: area RW_MRC_CACHE found @ 420000 (65536 bytes)
+MRC: Checking cached data update for 'RW_MRC_CACHE'.
+SF: Detected 00 0000 with sector size 0x1000, total 0x1000000
+MRC: no data in 'RW_MRC_CACHE'
+MRC: cache data 'RW_MRC_CACHE' needs update.
+MRC: updated 'RW_MRC_CACHE'.
+2 DIMMs found
+SMM Memory Map
+SMRAM       : 0x9a000000 0x1000000
+ Subregion 0: 0x9a000000 0xa00000
+ Subregion 1: 0x9aa00000 0x200000
+ Subregion 2: 0x9ac00000 0x400000
+top_of_ram = 0x9a000000
+MTRR Range: Start=99000000 End=9a000000 (Size 1000000)
+MTRR Range: Start=9a000000 End=9b000000 (Size 1000000)
+MTRR Range: Start=ff000000 End=0 (Size 1000000)
+Normal boot
+CBFS: Found 'fallback/postcar' @0x11a680 size 0x504c in mcache @0xfef21714
+Loading module at 0x99c20000 with entry 0x99c20031. filesize: 0x4d10 memsize: 0x9018
+Processing 191 relocs. Offset value of 0x97c20000
+BS: romstage times (exec / console): total (unknown) / 199 ms
+
+
+coreboot-4.13-3498-g92e2ee83b6-dirty Thu Apr 29 14:58:23 UTC 2021 postcar starting (log level: 7)...
+Normal boot
+CBFS: Found 'fallback/ramstage' @0x3e680 size 0x19301 in mcache @0x99c4c10c
+Loading module at 0x99bcb000 with entry 0x99bcb000. filesize: 0x35ec8 memsize: 0x53390
+Processing 3583 relocs. Offset value of 0x98dcb000
+BS: postcar times (exec / console): total (unknown) / 33 ms
+
+
+coreboot-4.13-3498-g92e2ee83b6-dirty Thu Apr 29 14:58:23 UTC 2021 ramstage starting (log level: 7)...
+Normal boot
+ACPI _SWS is PM1 Index -1 GPE Index -1
+BS: BS_PRE_DEVICE entry times (exec / console): 0 / 4 ms
+CBFS: Found 'cpu_microcode_blob.bin' @0xddc0 size 0x30800 in mcache @0x99c4c0ac
+microcode: sig=0xa0660 pf=0x80 revision=0xdf
+Skip microcode update
+CBFS: Found 'fsps.bin' @0xebdc0 size 0x2e85f in mcache @0x99c4c2d4
+Detected 6 core, 12 thread CPU.
+Setting up SMI for CPU
+IED base = 0x9ac00000
+IED size = 0x00400000
+Will perform SMM setup.
+CPU: Intel(R) Core(TM) i7-10710U CPU @ 1.10GHz.
+Loading module at 0x00030000 with entry 0x00030000. filesize: 0x170 memsize: 0x170
+Processing 16 relocs. Offset value of 0x00030000
+Attempting to start 11 APs
+Waiting for 10ms after sending INIT.
+Waiting for 1st SIPI to complete...done.
+AP: slot 7 apic_id 9, MCU rev: 0x000000df
+AP: slot 6 apic_id 8, MCU rev: 0x000000df
+AP: slot 9 apic_id 5, MCU rev: 0x000000df
+AP: slot 11 apic_id 4, MCU rev: 0x000000df
+Waiting for 2nd SIPI to complete...AP: slot 2 apic_id 1, MCU rev: 0x000000df
+done.
+AP: slot 4 apic_id 6, MCU rev: 0x000000df
+AP: slot 5 apic_id 7, MCU rev: 0x000000df
+AP: slot 10 apic_id b, MCU rev: 0x000000df
+AP: slot 8 apic_id a, MCU rev: 0x000000df
+AP: slot 3 apic_id 2, MCU rev: 0x000000df
+AP: slot 1 apic_id 3, MCU rev: 0x000000df
+smm_stub_place_stacks: cpus: c : stack space: needed -> 3000
+smm_stub_place_stacks: exit, stack_top 0x9a003000
+Loading module at 0x00038000 with entry 0x00038000. filesize: 0x1b0 memsize: 0x1b0
+Processing 11 relocs. Offset value of 0x00038000
+smm_module_setup_stub: stack_end = 0x9a000000
+smm_module_setup_stub: stack_top = 0x9a003000
+smm_module_setup_stub: stack_size = 0x400
+smm_module_setup_stub: runtime.start32_offset = 0x4c
+smm_module_setup_stub: runtime.smm_size = 0x10000
+SMM Module: stub loaded at 0x00038000. Will call 0x99be2bf9
+Installing permanent SMM handler to 0x9a000000
+smm_load_module: total_smm_space_needed eed8, available -> a00000
+Loading module at 0x9a9f8000 with entry 0x9a9f8c19. filesize: 0x3610 memsize: 0x76d8
+Processing 201 relocs. Offset value of 0x9a9f8000
+smm_load_module: smram_start: 0x0x9a000000
+smm_load_module: smram_end: 0x9aa00000
+smm_load_module: stack_top: 0x9a006000
+smm_load_module: handler start 0x9a9f8c19
+smm_load_module: handler_size 85b0
+smm_load_module: fxsave_area 0x9a9fe800
+smm_load_module: fxsave_size 1800
+smm_load_module: CONFIG_MSEG_SIZE 0x0
+smm_load_module: CONFIG_BIOS_RESOURCE_LIST_SIZE 0x0
+smm_load_module: handler_mod_params.smbase = 0x9a000000
+smm_load_module: per_cpu_save_state_size = 0x400
+smm_load_module: num_cpus = 0xc
+smm_load_module: total_save_state_size = 0x3000
+smm_load_module: cpu0 entry: 0x9a9e8000
+smm_create_map: cpus allowed in one segment 30
+smm_create_map: min # of segments needed 1
+CPU 0x0
+    smbase 9a9e8000  entry 9a9f0000
+           ss_start 9a9f7c00  code_end 9a9f01b0
+CPU 0x1
+    smbase 9a9e7c00  entry 9a9efc00
+           ss_start 9a9f7800  code_end 9a9efdb0
+CPU 0x2
+    smbase 9a9e7800  entry 9a9ef800
+           ss_start 9a9f7400  code_end 9a9ef9b0
+CPU 0x3
+    smbase 9a9e7400  entry 9a9ef400
+           ss_start 9a9f7000  code_end 9a9ef5b0
+CPU 0x4
+    smbase 9a9e7000  entry 9a9ef000
+           ss_start 9a9f6c00  code_end 9a9ef1b0
+CPU 0x5
+    smbase 9a9e6c00  entry 9a9eec00
+           ss_start 9a9f6800  code_end 9a9eedb0
+CPU 0x6
+    smbase 9a9e6800  entry 9a9ee800
+           ss_start 9a9f6400  code_end 9a9ee9b0
+CPU 0x7
+    smbase 9a9e6400  entry 9a9ee400
+           ss_start 9a9f6000  code_end 9a9ee5b0
+CPU 0x8
+    smbase 9a9e6000  entry 9a9ee000
+           ss_start 9a9f5c00  code_end 9a9ee1b0
+CPU 0x9
+    smbase 9a9e5c00  entry 9a9edc00
+           ss_start 9a9f5800  code_end 9a9eddb0
+CPU 0xa
+    smbase 9a9e5800  entry 9a9ed800
+           ss_start 9a9f5400  code_end 9a9ed9b0
+CPU 0xb
+    smbase 9a9e5400  entry 9a9ed400
+           ss_start 9a9f5000  code_end 9a9ed5b0
+smm_stub_place_stacks: cpus: c : stack space: needed -> 6000
+smm_stub_place_stacks: exit, stack_top 0x9a006000
+Loading module at 0x9a9f0000 with entry 0x9a9f0000. filesize: 0x1b0 memsize: 0x1b0
+Processing 11 relocs. Offset value of 0x9a9f0000
+smm_place_entry_code: smbase 9a9e5400, stack_top 9a006000
+SMM Module: placing smm entry code at 9a9efc00,  cpu # 0x1
+smm_place_entry_code: copying from 9a9f0000 to 9a9efc00 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ef800,  cpu # 0x2
+smm_place_entry_code: copying from 9a9f0000 to 9a9ef800 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ef400,  cpu # 0x3
+smm_place_entry_code: copying from 9a9f0000 to 9a9ef400 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ef000,  cpu # 0x4
+smm_place_entry_code: copying from 9a9f0000 to 9a9ef000 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9eec00,  cpu # 0x5
+smm_place_entry_code: copying from 9a9f0000 to 9a9eec00 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ee800,  cpu # 0x6
+smm_place_entry_code: copying from 9a9f0000 to 9a9ee800 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ee400,  cpu # 0x7
+smm_place_entry_code: copying from 9a9f0000 to 9a9ee400 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ee000,  cpu # 0x8
+smm_place_entry_code: copying from 9a9f0000 to 9a9ee000 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9edc00,  cpu # 0x9
+smm_place_entry_code: copying from 9a9f0000 to 9a9edc00 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ed800,  cpu # 0xa
+smm_place_entry_code: copying from 9a9f0000 to 9a9ed800 0x1b0 bytes
+SMM Module: placing smm entry code at 9a9ed400,  cpu # 0xb
+smm_place_entry_code: copying from 9a9f0000 to 9a9ed400 0x1b0 bytes
+smm_module_setup_stub: stack_end = 0x9a000000
+smm_module_setup_stub: stack_top = 0x9a006000
+smm_module_setup_stub: stack_size = 0x800
+smm_module_setup_stub: runtime.start32_offset = 0x4c
+smm_module_setup_stub: runtime.smm_size = 0xa00000
+SMM Module: stub loaded at 0x9a9f0000. Will call 0x9a9f8c19
+Clearing SMI status registers
+SMI_STS: PM1 
+TMROF GPE0 STD STS: PME_B0 TCO_SCI 
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e8000, cpu = 0
+In relocation handler: CPU 0
+New SMBASE=0x9a9e8000 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e7800, cpu = 2
+In relocation handler: CPU 2
+New SMBASE=0x9a9e7800 IEDBASE=0x9ac00000
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e6400, cpu = 7
+In relocation handler: CPU 7
+New SMBASE=0x9a9e6400 IEDBASE=0x9ac00000
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e6800, cpu = 6
+In relocation handler: CPU 6
+New SMBASE=0x9a9e6800 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e6000, cpu = 8
+In relocation handler: CPU 8
+New SMBASE=0x9a9e6000 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e5800, cpu = 10
+In relocation handler: CPU 10
+New SMBASE=0x9a9e5800 IEDBASE=0x9ac00000
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e7000, cpu = 4
+In relocation handler: CPU 4
+New SMBASE=0x9a9e7000 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e6c00, cpu = 5
+In relocation handler: CPU 5
+New SMBASE=0x9a9e6c00 IEDBASE=0x9ac00000
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e5c00, cpu = 9
+In relocation handler: CPU 9
+New SMBASE=0x9a9e5c00 IEDBASE=0x9ac00000
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e5400, cpu = 11
+In relocation handler: CPU 11
+New SMBASE=0x9a9e5400 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e7400, cpu = 3
+In relocation handler: CPU 3
+New SMBASE=0x9a9e7400 IEDBASE=0x9ac00000
+Writing SMRR. base = 0x9a000006, mask=0xff000800
+Relocation complete.
+smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x9a9e7c00, cpu = 1
+In relocation handler: CPU 1
+New SMBASE=0x9a9e7c00 IEDBASE=0x9ac00000
+Relocation complete.
+Initializing CPU #0
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Setting up local APIC...
+ apic_id: 0x0 done.
+Turbo is available but hidden
+Turbo is available and visible
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #0 initialized
+Initializing CPU #2
+Initializing CPU #4
+Initializing CPU #5
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Clearing out pending MCEs
+Setting up local APIC...
+Initializing CPU #8
+Initializing CPU #10
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Clearing out pending MCEs
+Setting up local APIC...
+Initializing CPU #3
+Initializing CPU #1
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Clearing out pending MCEs
+Setting up local APIC...
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+ apic_id: 0x6 done.
+Setting up local APIC...
+Initializing CPU #6
+Setting up local APIC...
+ apic_id: 0x2 done.
+Setting up local APIC...
+ apic_id: 0x7 done.
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #4 initialized
+Skip microcode update
+CPU #5 initialized
+ apic_id: 0xa done.
+ apic_id: 0xb done.
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #8 initialized
+Skip microcode update
+CPU #10 initialized
+Clearing out pending MCEs
+Initializing CPU #11
+Initializing CPU #9
+Setting up local APIC...
+Initializing CPU #7
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Clearing out pending MCEs
+Setting up local APIC...
+ apic_id: 0x3 done.
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #3 initialized
+Skip microcode update
+CPU #1 initialized
+ apic_id: 0x1 done.
+Setting up local APIC...
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+ apic_id: 0x9 done.
+ apic_id: 0x8 done.
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #7 initialized
+Skip microcode update
+CPU #6 initialized
+IA32_FEATURE_CONTROL already locked
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Skip microcode update
+CPU #2 initialized
+CPU: vendor Intel device a0660
+CPU: family 06, model a6, stepping 00
+Clearing out pending MCEs
+Clearing out pending MCEs
+Setting up local APIC...
+Setting up local APIC...
+ apic_id: 0x4 done.
+ apic_id: 0x5 done.
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked; VMX status: enabled
+IA32_FEATURE_CONTROL already locked
+IA32_FEATURE_CONTROL already locked
+Skip microcode update
+CPU #11 initialized
+Skip microcode update
+CPU #9 initialized
+bsp_do_flight_plan done after 1078 msecs.
+CPU: frequency set to 4700 MHz
+Enabling SMIs.
+Locking SMM.
+BS: BS_DEV_INIT_CHIPS entry times (exec / console): 649 / 597 ms
+CBFS: Found 'vbt.bin' @0x5c500 size 0x490 in mcache @0x99c4c214
+Found a VBT of 4608 bytes after decompression
+FSPS returned 0
+Display FSP Version Info HOB
+Reference Code - CPU = 9.0.30.50
+uCode Version = 0.0.0.e0
+TXT ACM version = ff.ff.ff.ffff
+Reference Code - ME = 9.0.30.50
+MEBx version = 0.0.0.0
+ME Firmware Version = Consumer SKU
+Reference Code - CML PCH = 9.0.30.50
+PCH-CRID Status = Disabled
+PCH-CRID Original Value = ff.ff.ff.ffff
+PCH-CRID New Value = ff.ff.ff.ffff
+OPROM - RST - RAID = ff.ff.ff.ffff
+ChipsetInit Base Version = ff.ff.ff.ffff
+ChipsetInit Oem Version = ff.ff.ff.ffff
+Reference Code - SA - System Agent = 9.0.30.50
+Reference Code - MRC = 0.0.0.45
+SA - PCIe Version = 9.0.30.50
+SA-CRID Status = Disabled
+SA-CRID Original Value = 0.0.0.0
+SA-CRID New Value = 0.0.0.0
+OPROM - VBIOS = ff.ff.ff.ffff
+Found PCIe Root Port #9 at PCI: 00:1d.0.
+BS: BS_DEV_INIT_CHIPS run times (exec / console): 325 / 87 ms
+RTC Init
+Set power off after power failure.
+Disabling Deep S3
+Disabling Deep S3
+Disabling Deep S4
+Disabling Deep S4
+Disabling Deep S5
+Disabling Deep S5
+BS: BS_DEV_INIT_CHIPS exit times (exec / console): 4 / 16 ms
+Enumerating buses...
+Root Device scanning...
+CPU_CLUSTER: 0 enabled
+DOMAIN: 0000 enabled
+DOMAIN: 0000 scanning...
+PCI: pci_scan_bus for bus 00
+PCI: 00:00.0 [8086/9b51] enabled
+PCI: 00:02.0 [8086/9bca] enabled
+PCI: 00:04.0 [8086/1903] enabled
+PCI: 00:08.0 [8086/1911] enabled
+PCI: 00:12.0 [8086/02f9] enabled
+PCI: 00:14.0 [8086/02ed] enabled
+PCI: 00:14.2 [8086/02ef] enabled
+PCI: 00:14.3 [8086/02f0] enabled
+PCI: 00:15.0 [8086/02e8] enabled
+PCI: 00:15.1 [8086/02e9] enabled
+PCI: 00:16.0 [8086/02e0] enabled
+PCI: 00:17.0 [8086/02d3] enabled
+PCI: 00:19.0 [8086/02c5] disabled
+PCI: 00:19.2 [8086/02c7] enabled
+PCI: 00:1a.0 [8086/02c4] enabled
+PCI: 00:1d.0 [8086/02b0] enabled
+PCI: 00:1e.0 [8086/02a8] enabled
+PCI: 00:1f.0 [8086/0284] enabled
+PCI: 00:1f.3 [8086/02c8] enabled
+PCI: 00:1f.4 [8086/02a3] enabled
+PCI: 00:1f.5 [8086/02a4] enabled
+PCI: Leftover static devices:
+PCI: 00:12.5
+PCI: 00:12.6
+PCI: 00:14.1
+PCI: 00:14.5
+PCI: 00:15.2
+PCI: 00:15.3
+PCI: 00:16.1
+PCI: 00:16.2
+PCI: 00:16.3
+PCI: 00:16.4
+PCI: 00:16.5
+PCI: 00:19.1
+PCI: 00:1e.1
+PCI: 00:1e.2
+PCI: 00:1e.3
+PCI: 00:1f.1
+PCI: 00:1f.2
+PCI: 00:1f.6
+PCI: Check your devicetree.cb.
+PCI: 00:02.0 scanning...
+scan_bus: bus PCI: 00:02.0 finished in 0 msecs
+PCI: 00:14.0 scanning...
+scan_bus: bus PCI: 00:14.0 finished in 0 msecs
+PCI: 00:14.3 scanning...
+GENERIC: 0.0 enabled
+scan_bus: bus PCI: 00:14.3 finished in 2 msecs
+PCI: 00:15.0 scanning...
+I2C: 00:2c enabled
+scan_bus: bus PCI: 00:15.0 finished in 1 msecs
+PCI: 00:15.1 scanning...
+scan_bus: bus PCI: 00:15.1 finished in 0 msecs
+PCI: 00:1d.0 scanning...
+PCI: pci_scan_bus for bus 01
+PCI: 01:00.0 [1987/5012] enabled
+Enabling Common Clock Configuration
+PCIE CLK PM is not supported by endpoint
+L1 Sub-State supported from root port 29
+L1 Sub-State Support = 0xf
+CommonModeRestoreTime = 0x28
+Power On Value = 0x6, Power On Scale = 0x1
+ASPM: Enabled L1
+PCIe: Max_Payload_Size adjusted to 128
+PCI: 01:00.0: Enabled LTR
+PCI: 01:00.0: Programmed LTR max latencies
+scan_bus: bus PCI: 00:1d.0 finished in 41 msecs
+PCI: 00:1f.0 scanning...
+PNP: 004e.0 enabled
+scan_bus: bus PCI: 00:1f.0 finished in 2 msecs
+PCI: 00:1f.3 scanning...
+scan_bus: bus PCI: 00:1f.3 finished in 0 msecs
+PCI: 00:1f.4 scanning...
+scan_bus: bus PCI: 00:1f.4 finished in 0 msecs
+PCI: 00:1f.5 scanning...
+scan_bus: bus PCI: 00:1f.5 finished in 0 msecs
+scan_bus: bus DOMAIN: 0000 finished in 224 msecs
+scan_bus: bus Root Device finished in 236 msecs
+done
+BS: BS_DEV_ENUMERATE run times (exec / console): 1 / 245 ms
+MRC: Could not find region 'UNIFIED_MRC_CACHE'
+FMAP: area RW_MRC_CACHE found @ 420000 (65536 bytes)
+MRC: NOT enabling PRR for 'RW_MRC_CACHE'.
+BS: BS_DEV_ENUMERATE exit times (exec / console): 0 / 14 ms
+found VGA at PCI: 00:02.0
+Setting up VGA for PCI: 00:02.0
+Setting PCI_BRIDGE_CTL_VGA for bridge DOMAIN: 0000
+Setting PCI_BRIDGE_CTL_VGA for bridge Root Device
+Allocating resources...
+Reading resources...
+Done reading resources.
+==== Resource allocator: DOMAIN: 0000 - Pass 1 (gathering requirements) ===
+ PCI: 00:1d.0 io: size: 0 align: 12 gran: 12 limit: ffff
+ PCI: 00:1d.0 io: size: 0 align: 12 gran: 12 limit: ffff done
+ PCI: 00:1d.0 mem: size: 0 align: 20 gran: 20 limit: ffffffff
+  PCI: 01:00.0 10 *  [0x0 - 0x3fff] mem
+ PCI: 00:1d.0 mem: size: 100000 align: 20 gran: 20 limit: ffffffff done
+ PCI: 00:1d.0 prefmem: size: 0 align: 20 gran: 20 limit: ffffffffffffffff
+ PCI: 00:1d.0 prefmem: size: 0 align: 20 gran: 20 limit: ffffffffffffffff done
+=== Resource allocator: DOMAIN: 0000 - Pass 2 (allocating resources) ===
+DOMAIN: 0000 io: base: 0 size: 0 align: 0 gran: 0 limit: ffff
+ update_constraints: PCI: 00:1f.0 00 base 00000000 limit 00000fff io (fixed)
+ update_constraints: PCI: 00:1f.0 20 base 00001800 limit 000018ff io (fixed)
+ update_constraints: PCI: 00:1f.4 20 base 0000efa0 limit 0000efbf io (fixed)
+ DOMAIN: 0000: Resource ranges:
+ * Base: 1000, Size: 800, Tag: 100
+ * Base: 1900, Size: d6a0, Tag: 100
+ * Base: efc0, Size: 1040, Tag: 100
+  PCI: 00:02.0 20 *  [0x1000 - 0x103f] limit: 103f io
+  PCI: 00:17.0 20 *  [0x1040 - 0x105f] limit: 105f io
+  PCI: 00:17.0 18 *  [0x1060 - 0x1067] limit: 1067 io
+  PCI: 00:17.0 1c *  [0x1068 - 0x106b] limit: 106b io
+DOMAIN: 0000 io: base: 0 size: 0 align: 0 gran: 0 limit: ffff done
+DOMAIN: 0000 mem: base: 0 size: 0 align: 0 gran: 0 limit: 7fffffffff
+ update_constraints: PCI: 00:00.0 00 base e0000000 limit efffffff mem (fixed)
+ update_constraints: PCI: 00:00.0 01 base fed10000 limit fed17fff mem (fixed)
+ update_constraints: PCI: 00:00.0 02 base feda0000 limit feda0fff mem (fixed)
+ update_constraints: PCI: 00:00.0 03 base feda1000 limit feda1fff mem (fixed)
+ update_constraints: PCI: 00:00.0 04 base fc000000 limit fc000fff mem (fixed)
+ update_constraints: PCI: 00:00.0 05 base fed80000 limit fed83fff mem (fixed)
+ update_constraints: PCI: 00:00.0 06 base fe000000 limit fe00ffff mem (fixed)
+ update_constraints: PCI: 00:00.0 07 base fed90000 limit fed90fff mem (fixed)
+ update_constraints: PCI: 00:00.0 08 base fed91000 limit fed91fff mem (fixed)
+ update_constraints: PCI: 00:00.0 09 base 00000000 limit 0009ffff mem (fixed)
+ update_constraints: PCI: 00:00.0 0a base 000c0000 limit 99ffefff mem (fixed)
+ update_constraints: PCI: 00:00.0 0b base 99fff000 limit 9f7fffff mem (fixed)
+ update_constraints: PCI: 00:00.0 0c base 100000000 limit 45e7fffff mem (fixed)
+ update_constraints: PCI: 00:00.0 0d base 000a0000 limit 000bffff mem (fixed)
+ update_constraints: PCI: 00:00.0 0e base 000c0000 limit 000fffff mem (fixed)
+ update_constraints: PCI: 00:19.2 10 base fe032000 limit fe032fff mem (fixed)
+ DOMAIN: 0000: Resource ranges:
+ * Base: 9f800000, Size: 40800000, Tag: 200
+ * Base: f0000000, Size: c000000, Tag: 200
+ * Base: fc001000, Size: 1fff000, Tag: 200
+ * Base: fe010000, Size: 22000, Tag: 200
+ * Base: fe033000, Size: cdd000, Tag: 200
+ * Base: fed18000, Size: 68000, Tag: 200
+ * Base: fed84000, Size: c000, Tag: 200
+ * Base: fed92000, Size: e000, Tag: 200
+ * Base: feda2000, Size: 125e000, Tag: 200
+ * Base: 45e800000, Size: 7ba1800000, Tag: 100200
+  PCI: 00:02.0 18 *  [0xa0000000 - 0xafffffff] limit: afffffff prefmem
+  PCI: 00:02.0 10 *  [0xb0000000 - 0xb0ffffff] limit: b0ffffff mem
+  PCI: 00:1d.0 20 *  [0x9f800000 - 0x9f8fffff] limit: 9f8fffff mem
+  PCI: 00:1f.3 20 *  [0x9f900000 - 0x9f9fffff] limit: 9f9fffff mem
+  PCI: 00:14.0 10 *  [0x9fa00000 - 0x9fa0ffff] limit: 9fa0ffff mem
+  PCI: 00:04.0 10 *  [0x9fa10000 - 0x9fa17fff] limit: 9fa17fff mem
+  PCI: 00:14.3 10 *  [0x9fa18000 - 0x9fa1bfff] limit: 9fa1bfff mem
+  PCI: 00:1f.3 10 *  [0x9fa1c000 - 0x9fa1ffff] limit: 9fa1ffff mem
+  PCI: 00:14.2 10 *  [0x9fa20000 - 0x9fa21fff] limit: 9fa21fff mem
+  PCI: 00:17.0 10 *  [0x9fa22000 - 0x9fa23fff] limit: 9fa23fff mem
+  PCI: 00:08.0 10 *  [0x9fa24000 - 0x9fa24fff] limit: 9fa24fff mem
+  PCI: 00:12.0 10 *  [0x9fa25000 - 0x9fa25fff] limit: 9fa25fff mem
+  PCI: 00:14.2 18 *  [0x9fa26000 - 0x9fa26fff] limit: 9fa26fff mem
+  PCI: 00:15.0 10 *  [0x9fa27000 - 0x9fa27fff] limit: 9fa27fff mem
+  PCI: 00:15.1 10 *  [0x9fa28000 - 0x9fa28fff] limit: 9fa28fff mem
+  PCI: 00:16.0 10 *  [0x9fa29000 - 0x9fa29fff] limit: 9fa29fff mem
+  PCI: 00:19.2 18 *  [0x9fa2a000 - 0x9fa2afff] limit: 9fa2afff mem
+  PCI: 00:1a.0 10 *  [0x9fa2b000 - 0x9fa2bfff] limit: 9fa2bfff mem
+  PCI: 00:1e.0 10 *  [0x9fa2c000 - 0x9fa2cfff] limit: 9fa2cfff mem
+  PCI: 00:1e.0 18 *  [0x9fa2d000 - 0x9fa2dfff] limit: 9fa2dfff mem
+  PCI: 00:1f.5 10 *  [0x9fa2e000 - 0x9fa2efff] limit: 9fa2efff mem
+  PCI: 00:17.0 24 *  [0x9fa2f000 - 0x9fa2f7ff] limit: 9fa2f7ff mem
+  PCI: 00:17.0 14 *  [0x9fa30000 - 0x9fa300ff] limit: 9fa300ff mem
+  PCI: 00:1f.4 10 *  [0x9fa31000 - 0x9fa310ff] limit: 9fa310ff mem
+DOMAIN: 0000 mem: base: 0 size: 0 align: 0 gran: 0 limit: 7fffffffff done
+PCI: 00:1d.0 mem: base: 9f800000 size: 100000 align: 20 gran: 20 limit: 9f8fffff
+ PCI: 00:1d.0: Resource ranges:
+ * Base: 9f800000, Size: 100000, Tag: 200
+  PCI: 01:00.0 10 *  [0x9f800000 - 0x9f803fff] limit: 9f803fff mem
+PCI: 00:1d.0 mem: base: 9f800000 size: 100000 align: 20 gran: 20 limit: 9f8fffff done
+=== Resource allocator: DOMAIN: 0000 - resource allocation complete ===
+PCI: 00:02.0 10 <- [0x00b0000000 - 0x00b0ffffff] size 0x01000000 gran 0x18 mem64
+PCI: 00:02.0 18 <- [0x00a0000000 - 0x00afffffff] size 0x10000000 gran 0x1c prefmem64
+PCI: 00:02.0 20 <- [0x0000001000 - 0x000000103f] size 0x00000040 gran 0x06 io
+PCI: 00:04.0 10 <- [0x009fa10000 - 0x009fa17fff] size 0x00008000 gran 0x0f mem64
+PCI: 00:08.0 10 <- [0x009fa24000 - 0x009fa24fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:12.0 10 <- [0x009fa25000 - 0x009fa25fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:14.0 10 <- [0x009fa00000 - 0x009fa0ffff] size 0x00010000 gran 0x10 mem64
+PCI: 00:14.2 10 <- [0x009fa20000 - 0x009fa21fff] size 0x00002000 gran 0x0d mem64
+PCI: 00:14.2 18 <- [0x009fa26000 - 0x009fa26fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:14.3 10 <- [0x009fa18000 - 0x009fa1bfff] size 0x00004000 gran 0x0e mem64
+PCI: 00:15.0 10 <- [0x009fa27000 - 0x009fa27fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:15.1 10 <- [0x009fa28000 - 0x009fa28fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:16.0 10 <- [0x009fa29000 - 0x009fa29fff] size 0x00001000 gran 0x0c mem64
+PCI: 00:17.0 10 <- [0x009fa22000 - 0x009fa23fff] size 0x00002000 gran 0x0d mem
+PCI: 00:17.0 14 <- [0x009fa30000 - 0x009fa300ff] size 0x00000100 gran 0x08 mem
+PCI: 00:17.0 18 <- [0x0000001060 - 0x0000001067] size 0x00000008 gran 0x03 io
+PCI: 00:17.0 1c <- [0x0000001068 - 0x000000106b] size 0x00000004 gran 0x02 io
+PCI: 00:17.0 20 <- [0x0000001040 - 0x000000105f] size 0x00000020 gran 0x05 io
+PCI: 00:17.0 24 <- [0x009fa2f000 - 0x009fa2f7ff] size 0x00000800 gran 0x0b mem
+PCI: 00:19.2 18 <- [0x009fa2a000 - 0x009fa2afff] size 0x00001000 gran 0x0c mem64
+PCI: 00:1a.0 10 <- [0x009fa2b000 - 0x009fa2bfff] size 0x00001000 gran 0x0c mem64
+PCI: 00:1d.0 1c <- [0x000000ffff - 0x000000fffe] size 0x00000000 gran 0x0c bus 01 io
+PCI: 00:1d.0 24 <- [0xffffffffffffffff - 0xfffffffffffffffe] size 0x00000000 gran 0x14 bus 01 prefmem
+PCI: 00:1d.0 20 <- [0x009f800000 - 0x009f8fffff] size 0x00100000 gran 0x14 bus 01 mem
+PCI: 01:00.0 10 <- [0x009f800000 - 0x009f803fff] size 0x00004000 gran 0x0e mem64
+PCI: 00:1e.0 10 <- [0x009fa2c000 - 0x009fa2cfff] size 0x00001000 gran 0x0c mem64
+PCI: 00:1e.0 18 <- [0x009fa2d000 - 0x009fa2dfff] size 0x00001000 gran 0x0c mem64
+PCI: 00:1f.3 10 <- [0x009fa1c000 - 0x009fa1ffff] size 0x00004000 gran 0x0e mem64
+PCI: 00:1f.3 20 <- [0x009f900000 - 0x009f9fffff] size 0x00100000 gran 0x14 mem64
+PCI: 00:1f.4 10 <- [0x009fa31000 - 0x009fa310ff] size 0x00000100 gran 0x08 mem64
+PCI: 00:1f.5 10 <- [0x009fa2e000 - 0x009fa2efff] size 0x00001000 gran 0x0c mem
+Done setting resources.
+Done allocating resources.
+BS: BS_DEV_RESOURCES run times (exec / console): 2 / 789 ms
+Enabling resources...
+PCI: 00:00.0 subsystem <- 8086/9b51
+PCI: 00:00.0 cmd <- 06
+PCI: 00:02.0 subsystem <- 8086/9bca
+PCI: 00:02.0 cmd <- 03
+PCI: 00:04.0 subsystem <- 8086/1903
+PCI: 00:04.0 cmd <- 02
+PCI: 00:08.0 subsystem <- 8086/1911
+PCI: 00:08.0 cmd <- 06
+PCI: 00:12.0 subsystem <- 8086/02f9
+PCI: 00:12.0 cmd <- 02
+PCI: 00:14.0 subsystem <- 8086/02ed
+PCI: 00:14.0 cmd <- 02
+PCI: 00:14.2 cmd <- 02
+PCI: 00:14.3 subsystem <- 8086/02f0
+PCI: 00:14.3 cmd <- 02
+PCI: 00:15.0 subsystem <- 8086/02e8
+PCI: 00:15.0 cmd <- 02
+PCI: 00:15.1 subsystem <- 8086/02e9
+PCI: 00:15.1 cmd <- 02
+PCI: 00:16.0 subsystem <- 8086/02e0
+PCI: 00:16.0 cmd <- 02
+PCI: 00:17.0 subsystem <- 8086/02d3
+PCI: 00:17.0 cmd <- 03
+PCI: 00:19.2 subsystem <- 8086/02c7
+PCI: 00:19.2 cmd <- 06
+PCI: 00:1a.0 subsystem <- 8086/02c4
+PCI: 00:1a.0 cmd <- 06
+PCI: 00:1d.0 bridge ctrl <- 0013
+PCI: 00:1d.0 subsystem <- 8086/02b0
+PCI: 00:1d.0 cmd <- 06
+PCI: 00:1e.0 subsystem <- 8086/02a8
+PCI: 00:1e.0 cmd <- 02
+PCI: 00:1f.0 subsystem <- 8086/0284
+PCI: 00:1f.0 cmd <- 07
+PCI: 00:1f.3 subsystem <- 10ec/119e
+PCI: 00:1f.3 cmd <- 02
+PCI: 00:1f.4 subsystem <- 8086/02a3
+PCI: 00:1f.4 cmd <- 03
+PCI: 00:1f.5 subsystem <- 8086/02a4
+PCI: 00:1f.5 cmd <- 406
+PCI: 01:00.0 subsystem <- 1987/5012
+PCI: 01:00.0 cmd <- 02
+done.
+BS: BS_DEV_ENABLE run times (exec / console): 1 / 128 ms
+Initializing devices...
+PCI: 00:00.0 init
+CPU TDP = 15 Watts
+CPU PL1 = 20 Watts
+CPU PL2 = 30 Watts
+PCI: 00:00.0 init finished in 6 msecs
+PCI: 00:02.0 init
+GMA: Found VBT in CBFS
+GMA: Found valid VBT in CBFS
+framebuffer_info: bytes_per_line: 7680, bits_per_pixel: 32
+                   x_res x y_res: 1920 x 1080, size: 8294400 at 0xa0000000
+PCI: 00:02.0 init finished in 18 msecs
+PCI: 00:04.0 init
+PCI: 00:04.0 init finished in 0 msecs
+PCI: 00:08.0 init
+PCI: 00:08.0 init finished in 0 msecs
+PCI: 00:12.0 init
+PCI: 00:12.0 init finished in 0 msecs
+PCI: 00:14.0 init
+PCI: 00:14.0 init finished in 0 msecs
+PCI: 00:14.2 init
+PCI: 00:14.2 init finished in 0 msecs
+PCI: 00:15.0 init
+I2C bus 0 version 0x3132322a
+DW I2C bus 0 at 0x9fa27000 (400 KHz)
+PCI: 00:15.0 init finished in 6 msecs
+PCI: 00:15.1 init
+I2C bus 1 version 0x3132322a
+DW I2C bus 1 at 0x9fa28000 (400 KHz)
+PCI: 00:15.1 init finished in 6 msecs
+PCI: 00:16.0 init
+PCI: 00:16.0 init finished in 0 msecs
+PCI: 00:1a.0 init
+PCI: 00:1a.0 init finished in 0 msecs
+PCI: 00:1d.0 init
+Initializing PCH PCIe bridge.
+PCI: 00:1d.0 init finished in 3 msecs
+PCI: 00:1f.0 init
+IOAPIC: Initializing IOAPIC at 0xfec00000
+IOAPIC: Bootstrap Processor Local APIC = 0x00
+IOAPIC: ID = 0x02
+PCI: 00:1f.0 init finished in 11 msecs
+PCI: 00:1f.3 init
+HDA: codec_mask = 05
+HDA: Initializing codec #2
+HDA: codec viddid: 8086280b
+HDA: No verb table entry found
+HDA: Initializing codec #0
+HDA: codec viddid: 10ec0256
+HDA: verb not loaded
+PCI: 00:1f.3 init finished in 27 msecs
+PCI: 00:1f.4 init
+PCI: 00:1f.4 init finished in 0 msecs
+PCI: 01:00.0 init
+PCI: 01:00.0 init finished in 0 msecs
+PNP: 004e.0 init
+IT8987: Initializing keyboard.
+PNP: 004e.0 init finished in 11 msecs
+Devices initialized
+BS: BS_DEV_INIT run times (exec / console): 19 / 174 ms
+FMAP: area SMMSTORE found @ 430000 (262144 bytes)
+SF: Detected 00 0000 with sector size 0x1000, total 0x1000000
+smm store: 4 # blocks with size 0x10000
+SMMSTORE: Setting up SMI handler
+apm_control: Disabling ACPI.
+APMC done.
+BS: BS_DEV_INIT exit times (exec / console): 0 / 23 ms
+Finalize devices...
+PCI: 00:17.0 final
+Devices finalized
+BS: BS_POST_DEVICE run times (exec / console): 0 / 6 ms
+CMOS: me_state = 1
+HECI: Sending command to disable
+HECI: Disable ME set success!
+BS: BS_OS_RESUME_CHECK exit times (exec / console): 9 / 8 ms
+CBFS: Found 'fallback/dsdt.aml' @0x58f40 size 0x355a in mcache @0x99c4c1e8
+CBFS: 'fallback/slic' not found.
+ACPI: Writing ACPI tables at 99b48000.
+ACPI:    * FACS
+ACPI:    * DSDT
+PCI space above 4GB MMIO is at 0x45e800000, len = 0x7ba1800000
+ACPI:    * FADT
+SCI is IRQ9
+ACPI: added table 1/32, length now 40
+ACPI:     * SSDT
+Found 1 CPU(s) with 6/12 physical/logical core(s) each.
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+PSS: 1101MHz power 15000 control 0x2f00 status 0x2f00
+PSS: 1100MHz power 15000 control 0xb00 status 0xb00
+PSS: 1000MHz power 13471 control 0xa00 status 0xa00
+PSS: 800MHz power 10534 control 0x800 status 0x800
+PSS: 600MHz power 7709 control 0x600 status 0x600
+PSS: 400MHz power 5014 control 0x400 status 0x400
+\_SB.PCI0.CNVW: WIFI Device GENERIC: 0.0
+\_SB.PCI0.I2C0.H02C: Touchpad at I2C: 00:2c
+ACPI: added table 2/32, length now 44
+ACPI:    * MCFG
+ACPI: added table 3/32, length now 48
+ACPI:     * LPIT
+ACPI: added table 4/32, length now 52
+ACPI:    * MADT
+SCI is IRQ9
+ACPI: added table 5/32, length now 56
+current = 99b4d800
+ACPI:    * DMAR
+ACPI: added table 6/32, length now 60
+ACPI: added table 7/32, length now 64
+ACPI:    * HPET
+ACPI: added table 8/32, length now 68
+ACPI: done.
+ACPI tables: 22832 bytes.
+smbios_write_tables: 99b47000
+Create SMBIOS type 16
+Create SMBIOS type 17
+GENERIC: 0.0 (WIFI Device)
+SMBIOS tables: 975 bytes.
+Writing table forward entry at 0x00000500
+Wrote coreboot table at: 0x00000500, 0x10 bytes, checksum a627
+Writing coreboot table at 0x99b6c000
+CBFS: Found 'cmos_layout.bin' @0xeae00 size 0x410 in mcache @0x99c4c2ac
+ 0. 0000000000000000-0000000000000fff: CONFIGURATION TABLES
+ 1. 0000000000001000-000000000009ffff: RAM
+ 2. 00000000000a0000-00000000000fffff: RESERVED
+ 3. 0000000000100000-0000000099b46fff: RAM
+ 4. 0000000099b47000-0000000099bcafff: CONFIGURATION TABLES
+ 5. 0000000099bcb000-0000000099c1efff: RAMSTAGE
+ 6. 0000000099c1f000-0000000099ffefff: CONFIGURATION TABLES
+ 7. 0000000099fff000-000000009f7fffff: RESERVED
+ 8. 00000000e0000000-00000000efffffff: RESERVED
+ 9. 00000000fc000000-00000000fc000fff: RESERVED
+10. 00000000fe000000-00000000fe00ffff: RESERVED
+11. 00000000fed10000-00000000fed17fff: RESERVED
+12. 00000000fed80000-00000000fed83fff: RESERVED
+13. 00000000fed90000-00000000fed91fff: RESERVED
+14. 00000000feda0000-00000000feda1fff: RESERVED
+15. 0000000100000000-000000045e7fffff: RAM
+Wrote coreboot table at: 0x99b6c000, 0x914 bytes, checksum e790
+coreboot table: 2348 bytes.
+IMD ROOT    0. 0x99ffe000 0x00001000
+IMD SMALL   1. 0x99ffd000 0x00001000
+FSP MEMORY  2. 0x99c4d000 0x003b0000
+RO MCACHE   3. 0x99c4c000 0x000003c8
+CONSOLE     4. 0x99c2c000 0x00020000
+TIME STAMP  5. 0x99c2b000 0x00000910
+ROMSTG STCK 6. 0x99c2a000 0x00001000
+AFTER CAR   7. 0x99c1f000 0x0000b000
+RAMSTAGE    8. 0x99bca000 0x00055000
+REFCODE     9. 0x99b96000 0x00034000
+SMM BACKUP 10. 0x99b86000 0x00010000
+4f444749   11. 0x99b84000 0x00002000
+53534d32   12. 0x99b74000 0x00010000
+COREBOOT   13. 0x99b6c000 0x00008000
+ACPI       14. 0x99b48000 0x00024000
+SMBIOS     15. 0x99b47000 0x00000800
+IMD small region:
+  IMD ROOT    0. 0x99ffdc00 0x00000400
+  FSP RUNTIME 1. 0x99ffdbe0 0x00000004
+  FMAP        2. 0x99ffda80 0x0000015e
+  POWER STATE 3. 0x99ffda40 0x00000040
+  ROMSTAGE    4. 0x99ffda20 0x00000004
+  MEM INFO    5. 0x99ffd840 0x000001e0
+  ACPI GNVS   6. 0x99ffd740 0x00000100
+BS: BS_WRITE_TABLES run times (exec / console): 3 / 669 ms
+MTRR: Physical address space:
+0x0000000000000000 - 0x00000000000a0000 size 0x000a0000 type 6
+0x00000000000a0000 - 0x00000000000c0000 size 0x00020000 type 0
+0x00000000000c0000 - 0x0000000099fff000 size 0x99f3f000 type 6
+0x0000000099fff000 - 0x00000000a0000000 size 0x06001000 type 0
+0x00000000a0000000 - 0x00000000b0000000 size 0x10000000 type 1
+0x00000000b0000000 - 0x0000000100000000 size 0x50000000 type 0
+0x0000000100000000 - 0x000000045e800000 size 0x35e800000 type 6
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: default type WB/UC MTRR counts: 6/9.
+MTRR: WB selected as default type.
+MTRR: 0 base 0x0000000099fff000 mask 0x0000007ffffff000 type 0
+MTRR: 1 base 0x000000009a000000 mask 0x0000007ffe000000 type 0
+MTRR: 2 base 0x000000009c000000 mask 0x0000007ffc000000 type 0
+MTRR: 3 base 0x00000000a0000000 mask 0x0000007ff0000000 type 1
+MTRR: 4 base 0x00000000b0000000 mask 0x0000007ff0000000 type 0
+MTRR: 5 base 0x00000000c0000000 mask 0x0000007fc0000000 type 0
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+
+MTRR check
+Fixed MTRRs   : Enabled
+Variable MTRRs: Enabled
+
+CPU physical address size: 39 bits
+BS: BS_WRITE_TABLES exit times (exec / console): 46 / 148 ms
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+CBFS: Found 'fallback/payload' @0x11f740 size 0xb8d7c in mcache @0x99c4c358
+MTRR: Fixed MSR 0x268 0x0606060606060606
+Checking segment from ROM address 0xff5af96c
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+CPU physical address size: 39 bits
+CPU physical address size: 39 bits
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+Checking segment from ROM address 0xff5af988
+CPU physical address size: 39 bits
+Loading segment from ROM address 0xff5af96c
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+  code (compression=1)
+  New segment dstaddr 0x00800000 memsize 0x800000 srcaddr 0xff5af9a4 filesize 0xb8d44
+CPU physical address size: 39 bits
+CPU physical address size: 39 bits
+Loading Segment: addr: 0x00800000 memsz: 0x0000000000800000 filesz: 0x00000000000b8d44
+using LZMA
+Loading segment from ROM address 0xff5af988
+  Entry Point 0x00803120
+BS: BS_PAYLOAD_LOAD run times (exec / console): 807 / 48 ms
+Finalizing chipset.
+apm_control: Finalizing SMM.
+APMC done.
+BS: BS_PAYLOAD_LOAD exit times (exec / console): 5 / 6 ms
+mp_park_aps done after 0 msecs.
+Jumping to boot code at 0x00803120(0x99b6c000)
+
