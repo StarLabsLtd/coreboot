@@ -23,6 +23,7 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
 }
+/*
 static void mainboard_enable(struct device *dev)
 {
 	struct device *csedev = pcidev_path_on_root(PCH_DEVFN_CSE);
@@ -40,3 +41,4 @@ static void mainboard_enable(struct device *dev)
 struct chip_operations mainboard_ops = {
         .enable_dev = mainboard_enable,
 };
+*/
