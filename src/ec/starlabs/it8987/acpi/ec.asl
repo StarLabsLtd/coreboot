@@ -30,7 +30,7 @@ Scope (\_SB.PCI0.LPCB)
 	// Include the definitions for accessing CMOS.
 	#include "cmos.asl"
 
-	// Our embedded controller device.
+	// Our embedded controller device.	
 	Device (H_EC)
 	{
 		Name (_HID, EISAID ("PNP0C09"))		// ACPI Embedded Controller
@@ -46,7 +46,7 @@ Scope (\_SB.PCI0.LPCB)
 
 		Name(ECON, 1)		// AC debug
 		Name(BNUM, 0)		// Number Of Batteries Present
-		Name(PVOL, ASL_PVOL_DEFOF_NUM)
+		Name(PVOL, ASL_PVOL_DEFOF_NUM)		
 		Name(B1CC, 0)
 		Name(B2CC, 0)
 
@@ -79,7 +79,7 @@ Scope (\_SB.PCI0.LPCB)
 		Name(PB10, 0)
 		Name(IWCW, 0)
 		Name(IWCR, 0)
-		Name(BTEN, 0)
+		Name(BTEN, 0) 
 		Mutex(ECMT, 0)
 
 		Method (_CRS, 0, Serialized)
@@ -94,6 +94,7 @@ Scope (\_SB.PCI0.LPCB)
 
 		Method (_STA, 0, NotSerialized)
 		{
+//			Store (0x03, \_SB.PCI0.GFX0.CLID)
 			If ((ECON == 1))
 			{
 				Return (0x0F)
@@ -102,26 +103,24 @@ Scope (\_SB.PCI0.LPCB)
 			Return (0x00)
 		}
 
-		Name (ECOK, Zero)
 		Method(_REG, 2, NotSerialized)
 		{
 			If ((Arg0 == 0x03) && (Arg1 == 0x01))
 			{
-				ECOS = 1
 				ECAV = 1
-
+				
 				// Unconditionally fix up the Battery and Power State.
-
+				
 				// Initialize the Number of Present Batteries.
 				// 1 = Real Battery 1 is present
 				// 2 = Real Battery 2 is present
 				// 3 = Real Battery 1 and 2 are present
 				BNUM = 0
 				BNUM |= ((ECRD (RefOf (ECWR)) & 0x02) >> 1)
-
+		
 				// Save the current Power State for later.
 				// Store (PWRS, Local0)
-
+		
 				// Initialize the Power State.
 				// BNUM = 0 = Virtual Power State
 				// BNUM > 0 = Real Power State
@@ -142,25 +141,17 @@ Scope (\_SB.PCI0.LPCB)
 			// Flag that the OS supports ACPI.
 			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
-
-		Name (S3OS, Zero)
-                Method (PTS, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
-                        If (ECOK) {
-				S3OS = ECOS
-			}
+		Method (PTS, 1, Serialized)
+		{
+			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
 			\_SB.PCI0.LPCB.H_EC.ECOS = 0
-                }
+		}
 
-                Method (WAK, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
-			If (ECOK) {
-				ECOS = S3OS
-			}
-                        \_SB.PCI0.LPCB.H_EC.ECOS = 1
-                }
+		Method (WAK, 1, Serialized)
+		{
+			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+		}
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
 		Field (SIPR, ByteAcc, Lock, Preserve)
@@ -176,14 +167,14 @@ Scope (\_SB.PCI0.LPCB)
 			XXX1, 8,	// EC Firmware sub- version number.
 			XXX2, 8,	// EC Firmware test- version number.
 
-			Offset(0x06),
+			Offset(0x06),			 
 			SKID, 8,	// SKU ID
 
 			Offset(0x11),
 			KBCD, 8,	// Key / Touch Pad disable/enable bit
 			ECOS, 8,	// Enter OS flag
 			HDAO, 8,
-			ECHK, 8,	// Hot keys flag
+			ECHK, 8,	// Hot keys flag 
 
 			Offset(0x18),
 			KLBS, 8,	// Keyboard backlight begin.
@@ -194,7 +185,7 @@ Scope (\_SB.PCI0.LPCB)
 			PWPF, 8,	// Power Profile
 
 			Offset(0x1E),
-			BTHP,8,		// Health Battery Percentage
+			BTHP,8,		// Health Battery Percentage 
 
 			Offset(0x20),
 			RCMD, 8,	// Same function as IO 66 port to send EC command
@@ -204,9 +195,9 @@ Scope (\_SB.PCI0.LPCB)
 			FNST, 8,	// FN LOCK key status.
 
 			Offset(0x3F),
-			SFAN, 8,	// Set Fan Speed.
-			BTMP, 16,	// Battery Temperature.
-			BCNT, 16,	// Battery Cycle Count.
+			SFAN, 8,	// Set Fan Speed. 
+			BTMP, 16,	// Battery Temperature. 
+			BCNT, 16,	// Battery Cycle Count. 
 			FRMP, 16,	// Fan Current Speed.
 
 			Offset(0x60),
@@ -236,16 +227,16 @@ Scope (\_SB.PCI0.LPCB)
 			CHGR, 16,	// Charge Rate
 
 			Offset(0x70),
-			CPTM, 8,	// CPU Temperature
+			CPTM, 8,	// CPU Temperature 
 
-			Offset(0x72),
-			TER2, 8,	// Charger Temperature, Charger thermistor support
+			Offset(0x72), 
+			TER2, 8,	// Charger Temperature, Charger thermistor support 
 
 			Offset(0x7F),
 			LSTE, 1,	// Lid feature
 					// BIT0LID GPI
 			, 7,	// Reserved
-
+ 
 			Offset(0x80),
 			ECWR, 8,	// AC & Battery status
 			XX10, 8,	// Battery#1 Model Number Code
@@ -274,7 +265,7 @@ Scope (\_SB.PCI0.LPCB)
 			MGI9, 8,
 			MGIA, 8,
 			MGIB, 8,
-			MGIC, 8,
+			MGIC, 8, 
 			MGID, 8,
 			MGIE, 8,
 			MGIF, 8,
@@ -318,7 +309,7 @@ Scope (\_SB.PCI0.LPCB)
 			CTL5, 8,
 			CTL6, 8,
 			CTL7, 8,
-
+ 
 			Offset(0xF0),
 			, 3,// BIT0 .. BIT2 Reserved
 			TPCC, 1,// BIT3 TypeC connection bit
@@ -371,9 +362,11 @@ Scope (\_SB.PCI0.LPCB)
 		#include "ac.asl"
 		#include "lid.asl"
 
-		// Method(_Q45) // SMM Mode - Not used in coreboot
-		// {
-		//	SMB2 = 0xC1
-		// }
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
+		Method(_Q45) // SMM Mode
+		{
+			SMB2 = 0xC1
+		}
+#endif
 	}
 }

@@ -13,6 +13,7 @@ Device (HIDD)
 
 	Method (_STA, 0, Serialized)  // _STA: Status
 	{
+//		If (((OSYS >= 0x07DD) && (HEFE == One)))
 		If ((OSYS >= 0x07DD))
 		{
 			Return (0x0F)
@@ -28,9 +29,9 @@ Device (HIDD)
 		Store ("-----> HDDM", Debug)
 		Name (DPKG, Package (0x04)
 		{
-			0x11111111,
-			0x22222222,
-			0x33333333,
+			0x11111111, 
+			0x22222222, 
+			0x33333333, 
 			0x44444444
 		})
 		Return (DPKG)

@@ -11,7 +11,7 @@
 #include "ec.h"
 #include "chip.h"
 
-u16 it8987_get_version(void)
+u16 it_get_version(void)
 {
 	return (ec_read(0x00) << 8) | ec_read(0x01);
 }

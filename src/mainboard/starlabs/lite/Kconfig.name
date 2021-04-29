@@ -1,0 +1,9 @@
+comment "Star Labs Lite Mk III"
+
+config BOARD_STARLABS_LITE_GLK
+	bool "Star Labs Lite Mk III (N5000)"
+	select SOC_INTEL_GEMINILAKE
+
+config BOARD_STARLABS_LITE_APL
+	bool "Star Labs Lite Mk II (N4200)"
+	select SOC_INTEL_APOLLOLAKE

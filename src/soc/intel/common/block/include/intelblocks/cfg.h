@@ -10,6 +10,7 @@
 enum {
 	CHIPSET_LOCKDOWN_FSP = 0, /* FSP handles locking per UPDs */
 	CHIPSET_LOCKDOWN_COREBOOT, /* coreboot handles locking */
+	CHIPSET_LOCKDOWN_COREBOOT_LOCKDIS, /* coreboot leaves lock disabled */
 };
 
 /*

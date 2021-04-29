@@ -75,3 +75,25 @@ Device (BAT0)
 		Return (PKG1)
 	}
 }
+
+// Not used in coreboot
+// Device (BAT1)
+// {
+//	Name (_HID, EISAID ("PNP0C0A"))
+//	Name (_UID, 1) // "Unique" that's the same as BAT0?
+//	Method (_STA, 0, NotSerialized)
+//	{
+//		Return (0x00)
+//	}
+// }
+
+// Not used in coreboot
+// Device (BAT2)
+// {
+//	Name (_HID, EISAID ("PNP0C0A"))
+//	Name (_UID, 2)
+//	Method (_STA, 0, NotSerialized)
+//	{
+//		Return (0x00)
+//	}
+// }
