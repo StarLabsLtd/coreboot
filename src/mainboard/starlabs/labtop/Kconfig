@@ -36,7 +36,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_OPTION_TABLE
 	select USE_OPTION_TABLE
 	select HAVE_CMOS_DEFAULT
-	select ME_STATE_BY_CMOS
 
 config MAINBOARD_DIR
 	string
@@ -102,6 +101,10 @@ config ME_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_2_intel_me.bin"
 
+config ME_STATE_BY_CMOS
+	bool
+	default y
+
 config EC_STARLABS_IT8987_BIN
 	bool
 	default n
@@ -121,20 +124,6 @@ config VGA_BIOS_ID
 	string
 	default "8086,9b41" if BOARD_STARLABS_LABTOP_CML
 	default "8086,5917" if BOARD_STARLABS_LABTOP_KBL
-
-#config VGA_BIOS_FILE
-#	string
-#	depends on VGA_BIOS
-#	default "pci8086,9b41.rom" if BOARD_STARLABS_LABTOP_CML
-#	default "pci8086,5916.rom" if BOARD_STARLABS_LABTOP_KBL
-
-#config LINEAR_FRAMEBUFFER_MAX_WIDTH
-#	int
-#	default 1920
-
-#config LINEAR_FRAMEBUFFER_MAX_HEIGHT
-#	int
-#	default 1080
 
 config TIANOCORE_BOOTSPLASH_FILE
 	string
