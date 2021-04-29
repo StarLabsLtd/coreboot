@@ -14,6 +14,8 @@
 #include <soc/me.h>
 #include <string.h>
 #include <timer.h>
+#include <option.h>
+#include <types.h>
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
 
@@ -817,6 +819,29 @@ void print_me_fw_version(void *unused)
 
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
+
+	/* First check if ME shoould be disabled */
+	u8 me_state = get_int_option("me_state", 0xff);
+	if (me_state == 0) {
+		/* Don't worry, I've got a tin foil hat */
+		printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	}
+	else {
+		printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+		printk(BIOS_DEBUG, "ME: HECI send disable\n");
+		struct disable_command {
+			uint32_t hdr;
+			uint32_t rule_id;
+			uint8_t rule_len;
+			uint32_t rule_data;
+		} __packed msg;
+		msg.hdr = 0x303;
+		msg.rule_id = 6; /* 3 or 6 */
+		msg.rule_len= 4; /* 0x04 */
+		msg.rule_data = 0;
+		if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
+			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n");
+	}
 
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))

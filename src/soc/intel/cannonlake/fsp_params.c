@@ -564,18 +564,10 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	params->SiSsidTablePtr = (uintptr_t)ssid_table;
 	params->SiNumberOfSsidTableEntry = ARRAY_SIZE(ssid_table);
-
-	mainboard_silicon_init_params_late(params);
 }
 
 /* Mainboard GPIO Configuration */
 __weak void mainboard_silicon_init_params(FSPS_UPD *supd)
-{
-	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
-}
-
-/* Mainboard tweaking of the FSP paramters */
-__weak void mainboard_silicon_init_params_late(FSP_S_CONFIG *params)
 {
 	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
 }
