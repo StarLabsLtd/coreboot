@@ -796,6 +796,66 @@ int cse_hmrfpo_get_status(void)
 	return resp.status;
 }
 
+void disable_me(void *unused)
+{
+	/* First check if ME should be disabled */
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	if (me_state == 1) {
+		printk(BIOS_DEBUG, "ME: HECI send disable\n");
+		struct disable_command {
+			uint32_t hdr;
+			uint32_t rule_id;
+			uint8_t rule_len;
+			uint32_t rule_data;
+		} __packed msg;
+
+		/* Message that AMI uses */
+		/* SetRuleMsg.Request.MkhiHeader.Data = 0; */
+		/* SetRuleMsg.Request.MkhiHeader.Fields.GroupId = 0x03; */
+		/* SetRuleMsg.Request.MkhiHeader.Fields.Command = 0x03; */
+		/* SetRuleMsg.Request.RuleId = RuleId; */
+		/* SetRuleMsg.Request.RuleDataLen = RuleDataLength; */
+		/* SetRuleMsg.Request.RuleData = RuleData; */
+		/* Length = sizeof (SET_RULE); */
+		/* RecvLength = sizeof (SET_RULE_ACK); */
+		/* int status; */
+		msg.hdr = 0x303;
+		msg.rule_id = 0x06;
+		msg.rule_len= 0x04;
+		msg.rule_data = 0x00;
+
+		int status;
+		/* struct mkhi_hdr reply;
+		struct reset_message {
+			struct mkhi_hdr hdr;
+			uint8_t req_origin;
+			uint8_t reset_type;
+		} __packed; */
+                struct disable_command reply;
+                struct reset_message {
+                        struct mkhi_hdr hdr;
+                        uint8_t req_origin;
+                        uint8_t reset_type;
+                } __packed;
+		/*
+		struct reset_message msg = {
+			.hdr = {
+				.group_id = MKHI_GROUP_ID_CBM,
+				.command = MKHI_CBM_GLOBAL_RESET_REQ,
+			},
+			.req_origin = GR_ORIGIN_BIOS_POST,
+		.reset_type = rst_type
+		};*/
+		size_t reply_size;
+		/* if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
+			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n"); */
+		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
+		/* return status; */
+	}
+}
+
 void print_me_fw_version(void *unused)
 {
 	struct version {
@@ -819,25 +879,6 @@ void print_me_fw_version(void *unused)
 
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
-
-	/* First check if ME should be disabled */
-	u8 me_state = get_int_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
-	if (me_state == 1) {
-		printk(BIOS_DEBUG, "ME: HECI send disable\n");
-		struct disable_command {
-			uint32_t hdr;
-			uint32_t rule_id;
-			uint8_t rule_len;
-			uint32_t rule_data;
-		} __packed msg;
-		msg.hdr = 0x303;
-		msg.rule_id = 6; /* 3 or 6 */
-		msg.rule_len= 4; /* 0x04 */
-		msg.rule_data = 0;
-		if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
-			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n");
-	}
 
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
