@@ -24,4 +24,3 @@ warn_no_ite_fw:
 	printf "coreboot has been built without the IT8987 EC Firmware.\n"
 	printf "Do not flash this image.  Your LabTop Mk IV's power button\n"
 	printf "may not respond when you press it.\n\n"
-

@@ -50,7 +50,7 @@ Method (_QA0, 0, NotSerialized)			// AC Power Connected
 	Notify (ADP1, 0x80)
 }
 
-Method(_Q0B, 0, NotSerialized)			// Battery Connected 
+Method(_Q0B, 0, NotSerialized)			// Battery Connected
 {
 	// 500ms delay - Not used in coreboot
 	// Sleep (500)
