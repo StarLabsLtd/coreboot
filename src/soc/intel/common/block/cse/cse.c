@@ -870,9 +870,10 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-	u8 me_state = get_int_option("me_state", 0xff);
+#if CONFIG(ME_STATE_BY_CMOS)
+	u8 me_state = get_uint_option("me_state", 0xff);
 	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-
+#endif
 
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
