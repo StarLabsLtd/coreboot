@@ -9,7 +9,7 @@
 /* Override the BIOS version using smbios_mainboard_bios_version() */
 const char *smbios_mainboard_bios_version(void)
 {
-#if CONFIG_BOARD_STARLABS_STARBOOK_TGL
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 	return "CB_0";
 #else
 	return "CB_5";
@@ -34,9 +34,9 @@ const char *smbios_system_manufacturer(void)
 /* Override smbios_system_sku */
 const char *smbios_system_sku(void)
 {
-#if CONFIG_BOARD_STARLABS_STARBOOK_TGL
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 	return "B5";
-#elif CONFIG_BOARD_STARLABS_LABTOP_CML
+#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
 	return "L4";
 #else
 	return "L3-U";
