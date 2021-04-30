@@ -12,7 +12,7 @@ DefinitionBlock(
 {
 	#include <acpi/dsdt_top.asl>
 	#include <soc/intel/common/block/acpi/acpi/platform.asl>
-#if CONFIG(BOARD_STARLABS_LABTOP_CML) || CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
 	#include <soc/intel/common/block/acpi/acpi/globalnvs.asl>
 #else
 	#include <soc/intel/skylake/acpi/globalnvs.asl>
@@ -21,13 +21,7 @@ DefinitionBlock(
 
 	Device (\_SB.PCI0)
 	{
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
-		#include <soc/intel/tigerlake/acpi/southbridge.asl>
-		#include <soc/intel/tigerlake/acpi/tcss.asl>
-
-
-#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
 		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 		#include <soc/intel/cannonlake/acpi/southbridge.asl>
 #else
