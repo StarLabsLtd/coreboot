@@ -869,7 +869,7 @@ void print_me_fw_version(void *unused)
 	size_t resp_size = sizeof(resp);
 
 #if CONFIG(ME_STATE_BY_CMOS)
-	u8 me_state = get_int_option("me_state", 0xff);
+	u8 me_state = get_uint_option("me_state", 0xff);
 	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
 #endif
 
