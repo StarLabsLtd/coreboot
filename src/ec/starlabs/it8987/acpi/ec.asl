@@ -103,12 +103,10 @@ Scope (\_SB.PCI0.LPCB)
 			Return (0x00)
 		}
 
-		Name (ECOK, Zero)
 		Method(_REG, 2, NotSerialized)
 		{
 			If ((Arg0 == 0x03) && (Arg1 == 0x01))
 			{
-				ECOS = 1
 				ECAV = 1
 				
 				// Unconditionally fix up the Battery and Power State.
@@ -142,25 +140,6 @@ Scope (\_SB.PCI0.LPCB)
 
 			// Flag that the OS supports ACPI.
 			\_SB.PCI0.LPCB.H_EC.ECOS = 1
-		}
-
-		Name (S3OS, Zero)
-                Method (PTS, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
-                        If (ECOK) {
-				S3OS = ECOS
-			}
-			\_SB.PCI0.LPCB.H_EC.ECOS = 0
-                }
-
-                Method (WAK, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
-			If (ECOK) {
-				ECOS = S3OS
-			}
-                        \_SB.PCI0.LPCB.H_EC.ECOS = 1
                 }
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
