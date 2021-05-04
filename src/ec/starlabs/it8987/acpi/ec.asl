@@ -362,9 +362,9 @@ Scope (\_SB.PCI0.LPCB)
 		#include "ac.asl"
 		#include "lid.asl"
 
-		// Method(_Q45) // SMM Mode - Not used in coreboot
-		// {
-		//	SMB2 = 0xC1
-		// }
+		Method(_Q45) // SMM Mode
+		{
+			SMB2 = 0xC1
+		}
 	}
 }
