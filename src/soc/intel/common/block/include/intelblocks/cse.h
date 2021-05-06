@@ -169,7 +169,8 @@ int cse_hmrfpo_enable(void);
  */
 int cse_hmrfpo_get_status(void);
 
-/* Method for disabling the ME */
+/* Methods for disabling/enabling the ME */
+int enable_me(void);
 int disable_me(void);
 
 /* Fixed Address MEI Header's Host Address field value */
