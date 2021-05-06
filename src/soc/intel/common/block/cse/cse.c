@@ -868,9 +868,10 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
+#if CONFIG(ME_STATE_BY_CMOS)
 	u8 me_state = get_int_option("me_state", 0xff);
 	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-
+#endif
 
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
@@ -894,9 +895,9 @@ void print_me_fw_version(void *unused)
 	 * 3) It's after DRAM INIT DONE message (taken care of by calling it
 	 *    during ramstage
 	 */
-	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal()) {
+	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
-	}
+
 #if CONFIG(ME_STATE_BY_CMOS)
 	if (me_state == 1)
 		disable_me();
@@ -916,6 +917,7 @@ void print_me_fw_version(void *unused)
 
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
+
 #if CONFIG(ME_STATE_BY_CMOS)
 	if (me_state == 0)
 		enable_me();
