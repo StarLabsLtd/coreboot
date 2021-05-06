@@ -69,6 +69,35 @@ static struct cse_device {
  * default. This is intended for pre-mem usage only where BARs haven't been
  * assigned yet and devices are not enabled.
  */
+
+int disable_me(void)
+{
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct disable_command {
+		struct mkhi_hdr hdr;
+		uint32_t rule_id;
+		uint8_t rule_len;
+		uint32_t rule_data;
+	} __packed;
+	struct disable_command msg = {
+		.hdr = {
+			.group_id = 0x03,
+			.command = 0x03,
+		},
+		.rule_id = 6,
+		.rule_len = 4,
+		.rule_data = 0,
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
+	return status;
+}
+
 void heci_init(uintptr_t tempbar)
 {
 #if defined(__SIMPLE_DEVICE__)
@@ -654,7 +683,8 @@ static int cse_request_reset(enum rst_req_type rst_type)
 		printk(BIOS_ERR, "HECI: CSE does not meet required prerequisites\n");
 		return 0;
 	}
-
+	u8 me_state = get_int_option("me_state", 0xff);
+        printk(BIOS_DEBUG, "CMOS: 1st me_state = %d\n", me_state);
 	heci_reset();
 
 	reply_size = sizeof(reply);
@@ -796,36 +826,6 @@ int cse_hmrfpo_get_status(void)
 	return resp.status;
 }
 
-void disable_me(void *unused)
-{
-	/* First check if ME should be disabled */
-	u8 me_state = get_int_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-	if (me_state == 1) {
-		printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
-		int status;
-
-		struct mkhi_hdr reply;
-		struct disable_command {
-			struct mkhi_hdr hdr;
-			uint32_t rule_id;
-			uint8_t rule_len;
-			uint32_t rule_data;
-		} __packed;
-		struct disable_command msg = {
-			.hdr = {
-				.group_id = 0x03,
-				.command = 0x03,
-			},
-			.rule_id = 6,
-			.rule_len = 4,
-			.rule_data = 0,
-		};
-		size_t reply_size;
-		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
-	}
-}
 
 void print_me_fw_version(void *unused)
 {
@@ -876,7 +876,8 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-	heci_reset();
+	disable_me();
+	/* heci_reset(); */
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
