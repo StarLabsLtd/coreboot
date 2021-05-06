@@ -74,8 +74,6 @@ static struct cse_device {
 
 int disable_me(void)
 {
-	u8 me_state = get_int_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
 	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
 	int status;
 	struct mkhi_hdr reply;
@@ -872,6 +870,10 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+
+
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
 		return;
@@ -897,8 +899,12 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-	disable_me();
-	/* heci_reset(); */
+#if CONFIG(ME_STATE_BY_CMOS)
+	if (me_state == 1)
+		disable_me();
+	else
+#endif
+		heci_reset();
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -912,6 +918,11 @@ void print_me_fw_version(void *unused)
 
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
+
+#if CONFIG(ME_STATE_BY_CMOS)
+	if (me_state == 0)
+		enable_me();
+#endif
 }
 
 #if ENV_RAMSTAGE
