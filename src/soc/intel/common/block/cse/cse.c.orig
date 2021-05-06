@@ -71,6 +71,54 @@ static struct cse_device {
  * default. This is intended for pre-mem usage only where BARs haven't been
  * assigned yet and devices are not enabled.
  */
+
+int disable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct disable_command {
+		struct mkhi_hdr hdr;
+		uint32_t rule_id;
+		uint8_t rule_len;
+		uint32_t rule_data;
+	} __packed;
+	struct disable_command msg = {
+		.hdr = {
+			.group_id = 0x03,
+			.command = 0x03,
+		},
+		.rule_id = 6,
+		.rule_len = 4,
+		.rule_data = 0,
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+int enable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct enable_command {
+		struct mkhi_hdr hdr;
+	} __packed;
+	struct enable_command msg = {
+		.hdr = {
+			.group_id = 0xF0,
+			.command = 0x03,
+		},
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+
+
+
 void heci_init(uintptr_t tempbar)
 {
 #if defined(__SIMPLE_DEVICE__)
@@ -656,7 +704,6 @@ static int cse_request_reset(enum rst_req_type rst_type)
 		printk(BIOS_ERR, "HECI: CSE does not meet required prerequisites\n");
 		return 0;
 	}
-
 	heci_reset();
 
 	reply_size = sizeof(reply);
@@ -798,92 +845,6 @@ int cse_hmrfpo_get_status(void)
 	return resp.status;
 }
 
-void disable_me(void *unused)
-{
-	/* First check if ME should be disabled */
-	u8 me_state = get_int_option("me_state", 0xff);
-<<<<<<< HEAD
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-	if (me_state == 1) {
-		printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
-		int status;
-
-		struct mkhi_hdr reply;
-		struct disable_command {
-			struct mkhi_hdr hdr;
-			uint32_t rule_id;
-			uint8_t rule_len;
-			uint32_t rule_data;
-		} __packed;
-		struct disable_command msg = {
-			.hdr = {
-				.group_id = 0x03,
-				.command = 0x03,
-			},
-			.rule_id = 6,
-			.rule_len = 4,
-			.rule_data = 0,
-		};
-		size_t reply_size;
-		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
-=======
-	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
-	if (me_state == 1) {
-		printk(BIOS_DEBUG, "ME: HECI send disable\n");
-		struct disable_command {
-			uint32_t hdr;
-			uint32_t rule_id;
-			uint8_t rule_len;
-			uint32_t rule_data;
-		} __packed msg;
-
-		/* Message that AMI uses */
-		/* SetRuleMsg.Request.MkhiHeader.Data = 0; */
-		/* SetRuleMsg.Request.MkhiHeader.Fields.GroupId = 0x03; */
-		/* SetRuleMsg.Request.MkhiHeader.Fields.Command = 0x03; */
-		/* SetRuleMsg.Request.RuleId = RuleId; */
-		/* SetRuleMsg.Request.RuleDataLen = RuleDataLength; */
-		/* SetRuleMsg.Request.RuleData = RuleData; */
-		/* Length = sizeof (SET_RULE); */
-		/* RecvLength = sizeof (SET_RULE_ACK); */
-		/* int status; */
-		msg.hdr = 0x303;
-		msg.rule_id = 0x06;
-		msg.rule_len= 0x04;
-		msg.rule_data = 0x00;
-
-		int status;
-		/* struct mkhi_hdr reply;
-		struct reset_message {
-			struct mkhi_hdr hdr;
-			uint8_t req_origin;
-			uint8_t reset_type;
-		} __packed; */
-                struct disable_command reply;
-                struct reset_message {
-                        struct mkhi_hdr hdr;
-                        uint8_t req_origin;
-                        uint8_t reset_type;
-                } __packed;
-		/*
-		struct reset_message msg = {
-			.hdr = {
-				.group_id = MKHI_GROUP_ID_CBM,
-				.command = MKHI_CBM_GLOBAL_RESET_REQ,
-			},
-			.req_origin = GR_ORIGIN_BIOS_POST,
-		.reset_type = rst_type
-		};*/
-		size_t reply_size;
-		/* if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
-			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n"); */
-		status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-		printk(BIOS_DEBUG, "HECI: Disable ME set %s!\n", status ? "success" : "failure");
-		/* return status; */
->>>>>>> cc787a8010... Added CMOS setting to disable/enable ME
-	}
-}
 
 void print_me_fw_version(void *unused)
 {
@@ -909,6 +870,31 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
+<<<<<<< HEAD
+	/* First check if ME should be disabled */
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS me_state: %d\n", me_state);
+	if (me_state == 1) {
+		printk(BIOS_DEBUG, "ME: HECI send disable\n");
+		struct disable_command {
+			uint32_t hdr;
+			uint32_t rule_id;
+			uint8_t rule_len;
+			uint32_t rule_data;
+		} __packed msg;
+		msg.hdr = 0x303;
+		msg.rule_id = 6; /* 3 or 6 */
+		msg.rule_len= 4; /* 0x04 */
+		msg.rule_data = 0;
+		if (!heci_send(&msg, sizeof(msg), BIOS_HOST_ADDR, HECI_MKHI_ADDR))
+			printk(BIOS_ERR, "ME: Error sending DISABLE msg\n");
+	}
+=======
+	u8 me_state = get_int_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+
+>>>>>>> 88a801eddf... Restored files from upstream
+
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
 		return;
@@ -931,10 +917,15 @@ void print_me_fw_version(void *unused)
 	 * 3) It's after DRAM INIT DONE message (taken care of by calling it
 	 *    during ramstage
 	 */
-	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
+	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal()) {
 		goto fail;
-
-	heci_reset();
+	}
+#if CONFIG(ME_STATE_BY_CMOS)
+	if (me_state == 1)
+		disable_me();
+	else
+#endif
+		heci_reset();
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -948,24 +939,10 @@ void print_me_fw_version(void *unused)
 
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
-}
-
-void cse_trigger_vboot_recovery(enum csme_failure_reason reason)
-{
-	printk(BIOS_DEBUG, "cse: CSE status registers: HFSTS1: 0x%x, HFSTS2: 0x%x "
-	       "HFSTS3: 0x%x\n", me_read_config32(PCI_ME_HFSTS1),
-	       me_read_config32(PCI_ME_HFSTS2), me_read_config32(PCI_ME_HFSTS3));
-
-	if (CONFIG(VBOOT)) {
-		struct vb2_context *ctx = vboot_get_context();
-		if (ctx == NULL)
-			goto failure;
-		vb2api_fail(ctx, VB2_RECOVERY_INTEL_CSE_LITE_SKU, reason);
-		vboot_save_data(ctx);
-		vboot_reboot();
-	}
-failure:
-	die("cse: Failed to trigger recovery mode(recovery subcode:%d)\n", reason);
+#if CONFIG(ME_STATE_BY_CMOS)
+	if (me_state == 0)
+		enable_me();
+#endif
 }
 
 #if ENV_RAMSTAGE
