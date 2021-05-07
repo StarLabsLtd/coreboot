@@ -221,7 +221,7 @@ int soc_prev_sleep_state(const struct chipset_power_state *ps, int prev_sleep_st
 		}
 
 		if (ps->gen_pmcon_b & mask) {
-			printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() mask bits mean set S5\n");
+			printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() mask (0x%.8x) bits mean set S5\n", mask);
 			prev_sleep_state = ACPI_S5;
 		}
 	}
