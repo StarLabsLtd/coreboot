@@ -192,14 +192,17 @@ int vbnv_cmos_failed(void)
 /* Return 0, 3, or 5 to indicate the previous sleep state. */
 int soc_prev_sleep_state(const struct chipset_power_state *ps, int prev_sleep_state)
 {
+	printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() called with %d\n", prev_sleep_state);
 	/*
 	 * Check for any power failure to determine if this a wake from
 	 * S5 because the PCH does not set the WAK_STS bit when waking
 	 * from a true G3 state.
 	 */
 	if (!(ps->pm1_sts & WAK_STS) &&
-	    (ps->gen_pmcon_b & (PWR_FLR | SUS_PWR_FLR)))
+	    (ps->gen_pmcon_b & (PWR_FLR | SUS_PWR_FLR))) {
+		printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() changing to S5\n");
 		prev_sleep_state = ACPI_S5;
+	}
 
 	/*
 	 * If waking from S3 determine if deep S3 is enabled. If not,
@@ -207,16 +210,23 @@ int soc_prev_sleep_state(const struct chipset_power_state *ps, int prev_sleep_st
 	 * Otherwise just check deep sleep well.
 	 */
 	if (prev_sleep_state == ACPI_S3) {
+		printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() arrived with S3\n");
 		/* PWR_FLR represents deep sleep power well loss. */
 		uint32_t mask = PWR_FLR;
 
 		/* If deep s3 isn't enabled check the suspend well too. */
-		if (!deep_s3_enabled())
+		if (!deep_s3_enabled()) {
+			printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() - deep S3 not enabled\n");
 			mask |= SUS_PWR_FLR;
+		}
 
-		if (ps->gen_pmcon_b & mask)
+		if (ps->gen_pmcon_b & mask) {
+			printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() mask bits mean set S5\n");
 			prev_sleep_state = ACPI_S5;
+		}
 	}
+
+	printk(BIOS_DEBUG, "XXXX - soc_prev_sleep_state() returning with %d\n", prev_sleep_state);
 	return prev_sleep_state;
 }
 
