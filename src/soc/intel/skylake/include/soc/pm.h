@@ -4,6 +4,7 @@
 #define _SOC_PM_H_
 
 #include <acpi/acpi.h>
+#include <console/console.h>
 #include <device/mmio.h>
 #include <soc/gpe.h>
 #include <soc/iomap.h>
@@ -169,6 +170,7 @@ static inline int deep_s3_enabled(void)
 	uint32_t deep_s3_pol;
 
 	deep_s3_pol = read32(pmc_mmio_regs() + S3_PWRGATE_POL);
+	printk(BIOS_DEBUG, "XXXX - deep_s3_pol = 0x%.8x\n", deep_s3_pol);
 	return !!(deep_s3_pol & (S3DC_GATE_SUS | S3AC_GATE_SUS));
 }
 
