@@ -7,7 +7,7 @@ chip soc/intel/skylake
 	register "deep_sx_config" = "DSX_EN_WAKE_PIN | DSX_DIS_AC_PRESENT_PD"
 
 	# Enable "Intel Speed Shift Technology"
-	register "speed_shift_enable" = "1"
+	register "eist_enable" = "1"
 
 	# Disable DPTF
 	register "dptf_enable" = "0"
@@ -38,9 +38,6 @@ chip soc/intel/skylake
 		.tdp_pl1_override = 20,
 		.tdp_pl2_override = 30,
 	}"
-
-	# Enable Enhanced Intel SpeedStep
-	register "eist_enable" = "1"
 
 	# FSP configuration
 	register "SaGv" = "SaGv_Enabled"
