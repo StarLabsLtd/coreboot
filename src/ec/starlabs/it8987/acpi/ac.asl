@@ -32,7 +32,11 @@ Device (ADP1)
 	}
 }
 
+#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
+Method (_Q0A, 0, NotSerialized)			// AC Power Connected
+#else
 Method (_QA0, 0, NotSerialized)			// AC Power Connected
+#endif
 {
 	If (ECWR & 0x01)
 	{

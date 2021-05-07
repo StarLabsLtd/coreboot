@@ -10,6 +10,13 @@ Device (LID0)
 		Return (0x0F)
 	}
 
+#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
+	Method (_PRW, 0, NotSerialized)// _PRW: Power Resources for Wake
+	{
+		Return (GPRW (0x0E, 0x03))
+	}
+#endif
+
 	Method (_PSW, 1, NotSerialized)
 	{
 		DEBUG = Concatenate ("---> IT8987 LID: _PSW", ToHexString(Arg0))

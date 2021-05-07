@@ -362,9 +362,11 @@ Scope (\_SB.PCI0.LPCB)
 		#include "ac.asl"
 		#include "lid.asl"
 
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
 		Method(_Q45) // SMM Mode
 		{
 			SMB2 = 0xC1
 		}
+#endif
 	}
 }
