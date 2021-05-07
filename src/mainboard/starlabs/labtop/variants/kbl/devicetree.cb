@@ -4,9 +4,10 @@ chip soc/intel/skylake
 	register "deep_s3_enable_dc" = "0"
 	register "deep_s5_enable_ac" = "0"
 	register "deep_s5_enable_dc" = "0"
+	register "deep_sx_config" = "DSX_EN_WAKE_PIN | DSX_DIS_AC_PRESENT_PD"
 
 	# Enable "Intel Speed Shift Technology"
-	# register "speed_shift_enable" = "1"
+	register "speed_shift_enable" = "1"
 
 	# Disable DPTF
 	register "dptf_enable" = "0"
@@ -195,7 +196,7 @@ chip soc/intel/skylake
 			end
 		end
 		device pci 1f.1 off end			# P2SB
-		device pci 1f.2 off end			# Power Management Controller
+		device pci 1f.2 on  end			# Power Management Controller
 		device pci 1f.3 on  end			# Intel HDA
 			subsystemid 0x10ec 0x111e
 		device pci 1f.4 on  end			# SMBus
