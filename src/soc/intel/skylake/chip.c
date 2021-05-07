@@ -420,7 +420,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	 * do the changes and then lock it back in coreboot during finalize.
 	 */
 	tconfig->PchSbAccessUnlock = (config->HeciEnabled == 0) ? 1 : 0;
-	if (get_lockdown_config() >= CHIPSET_LOCKDOWN_COREBOOT) {
+	if (get_lockdown_config() == CHIPSET_LOCKDOWN_COREBOOT) {
 		tconfig->PchLockDownBiosInterface = 0;
 		params->PchLockDownBiosLock = 0;
 		params->PchLockDownSpiEiss = 0;
