@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/apob_cache.h>
+#include <amdblocks/ioapic.h>
 #include <amdblocks/memmap.h>
 #include <assert.h>
 #include <console/uart.h>
@@ -48,6 +49,13 @@ static void fsp_fill_pcie_ddi_descriptors(FSP_M_CONFIG *mcfg)
 						&fsp_ddi, &num_ddi);
 	fill_dxio_descriptors(mcfg, fsp_dxio, num_dxio);
 	fill_ddi_descriptors(mcfg, fsp_ddi, num_ddi);
+}
+
+static void fsp_assign_ioapic_upds(FSP_M_CONFIG *mcfg)
+{
+	mcfg->gnb_ioapic_base = GNB_IO_APIC_ADDR;
+	mcfg->gnb_ioapic_id = GNB_IOAPIC_ID;
+	mcfg->fch_ioapic_id = FCH_IOAPIC_ID;
 }
 
 void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
@@ -118,5 +126,16 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	/* S0i3 enable */
 	mcfg->s0i3_enable = config->s0ix_enable;
 
+	/* voltage regulator telemetry settings */
+	mcfg->telemetry_vddcrvddfull_scale_current =
+		config->telemetry_vddcrvddfull_scale_current_mA;
+	mcfg->telemetry_vddcrvddoffset =
+		config->telemetry_vddcrvddoffset;
+	mcfg->telemetry_vddcrsocfull_scale_current =
+		config->telemetry_vddcrsocfull_scale_current_mA;
+	mcfg->telemetry_vddcrsocOffset =
+		config->telemetry_vddcrsocoffset;
+
 	fsp_fill_pcie_ddi_descriptors(mcfg);
+	fsp_assign_ioapic_upds(mcfg);
 }

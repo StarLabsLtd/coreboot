@@ -42,6 +42,11 @@ chip soc/amd/cezanne
 	register "sustained_power_limit_mW"  = "15000"
 	register "thermctl_limit_degreeC"    = "100"
 
+	register "telemetry_vddcrvddfull_scale_current_mA" = "92165" #mA
+	register "telemetry_vddcrvddoffset" =  "412"
+	register "telemetry_vddcrsocfull_scale_current_mA" = "30233" #mA
+	register "telemetry_vddcrsocoffset" =  "457"
+
 	# I2C Config
 	#+-------------------+---------------------------+
 	#| Field             |  Value                    |
@@ -78,6 +83,21 @@ chip soc/amd/cezanne
 			device i2c 15 on end
 		end
 	end # I2C0
+
+	device ref i2c_1 on
+		chip drivers/generic/gpio_keys
+			register "name" = ""PENH""
+			register "gpio" = "ACPI_GPIO_INPUT_ACTIVE_LOW(GPIO_4)"
+			register "key.dev_name" = ""EJCT""
+			register "key.wakeup_event_action" = "EV_ACT_DEASSERTED"
+			register "key.linux_code" = "SW_PEN_INSERTED"
+			register "key.linux_input_type" = "EV_SW"
+			register "key.label" = ""pen_eject""
+			register "key.debounce_interval" = "100"
+			register "key.wakeup_route" = "WAKEUP_ROUTE_GPIO_IRQ"
+			device generic 0 on end
+		end
+	end # I2C1
 
 	device ref i2c_2 on
 		chip drivers/i2c/generic

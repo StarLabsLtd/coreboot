@@ -2,6 +2,7 @@
 
 #include <acpi/acpigen.h>
 #include <amdblocks/acpi.h>
+#include <amdblocks/alib.h>
 #include <amdblocks/memmap.h>
 #include <amdblocks/ioapic.h>
 #include <arch/ioapic.h>
@@ -17,47 +18,35 @@
 #include <soc/iomap.h>
 #include "chip.h"
 
-enum {
-	ALIB_DPTCI_FUNCTION_ID = 0xc,
-	THERMAL_CONTROL_LIMIT_ID = 0x3,
-	SUSTAINED_POWER_LIMIT_PARAM_ID = 0x5,
-	FAST_PPT_LIMIT_PARAM_ID = 0x6,
-	SLOW_PPT_LIMIT_PARAM_ID = 0x7,
-	DPTC_TOTAL_UPDATE_PARAMS = 4,
-};
-
-struct dptc_param {
-	uint8_t id;
-	uint32_t value;
-} __packed;
+#define DPTC_TOTAL_UPDATE_PARAMS	4
 
 struct dptc_input {
 	uint16_t size;
-	struct dptc_param params[DPTC_TOTAL_UPDATE_PARAMS];
+	struct alib_dptc_param params[DPTC_TOTAL_UPDATE_PARAMS];
 } __packed;
 
 #define DPTC_INPUTS(_thermctllmit, _sustained, _fast, _slow)			\
-		{								\
-			.size = sizeof(struct dptc_input),			\
-			.params = {						\
-				{						\
-					.id = THERMAL_CONTROL_LIMIT_ID,		\
-					.value = _thermctllmit,			\
-				},						\
-				{						\
-					.id = SUSTAINED_POWER_LIMIT_PARAM_ID,	\
-					.value = _sustained,			\
-				},						\
-				{						\
-					.id = FAST_PPT_LIMIT_PARAM_ID,		\
-					.value = _fast,				\
-				},						\
-				{						\
-					.id = SLOW_PPT_LIMIT_PARAM_ID,		\
-					.value = _slow,				\
-				},						\
+	{									\
+		.size = sizeof(struct dptc_input),				\
+		.params = {							\
+			{							\
+				.id = ALIB_DPTC_THERMAL_CONTROL_LIMIT_ID,	\
+				.value = _thermctllmit,				\
 			},							\
-		}
+			{							\
+				.id = ALIB_DPTC_SUSTAINED_POWER_LIMIT_ID,	\
+				.value = _sustained,				\
+			},							\
+			{							\
+				.id = ALIB_DPTC_FAST_PPT_LIMIT_ID,		\
+				.value = _fast,					\
+			},							\
+			{							\
+				.id = ALIB_DPTC_SLOW_PPT_LIMIT_ID,		\
+				.value = _slow,					\
+			},							\
+		},								\
+	}
 /*
  *
  *                     +--------------------------------+
@@ -196,7 +185,7 @@ static void dptc_call_alib(const char *buf_name, uint8_t *buffer, size_t size)
 
 	/* \_SB.ALIB(0xc, buf_name) */
 	acpigen_emit_namestring("\\_SB.ALIB");
-	acpigen_write_integer(ALIB_DPTCI_FUNCTION_ID);
+	acpigen_write_integer(ALIB_FUNCTION_DYNAMIC_POWER_THERMAL_CONFIG);
 	acpigen_emit_namestring(buf_name);
 }
 

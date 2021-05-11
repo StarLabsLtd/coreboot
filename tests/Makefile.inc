@@ -41,9 +41,6 @@ TEST_CFLAGS += -std=gnu11 -Os -ffunction-sections -fdata-sections -fno-builtin
 
 TEST_CFLAGS += -D__TEST__
 
-# Checkout Cmocka repository
-forgetthis:=$(shell git submodule update --init --checkout 3rdparty/cmocka)
-
 TEST_CFLAGS += -I$(cmockasrc)/include
 
 # Link against Cmocka
@@ -157,6 +154,15 @@ $(alltests): $$($$(@)-bin)
 	rm -f $(testobj)/junit-$(subst /,_,$^).xml $(testobj)/$(subst /,_,$^).failed
 	-./$^ || echo failed > $(testobj)/$(subst /,_,$^).failed
 
+.PHONY: coverage-unit-tests
+
+coverage-unit-tests: TEST_CFLAGS += --coverage
+coverage-unit-tests: TEST_LDFLAGS += --coverage
+coverage-unit-tests: clean-unit-tests unit-tests
+	lcov -o $(testobj)/tests.info -c -d $(testobj) --exclude '*/$(testobj)/*'
+	genhtml -q -o build/tests/coverage_rpt -t "coreboot unit tests" \
+	-s $(testobj)/tests.info
+
 unit-tests: build-unit-tests run-unit-tests
 
 build-unit-tests: $(test-bins)
@@ -188,9 +194,11 @@ list-unit-tests:
 
 help-unit-tests help::
 	@echo  '*** coreboot unit-tests targets ***'
-	@echo  '  unit-tests        - Run all unit-tests from tests/'
-	@echo  '  clean-unit-tests  - Remove unit-tests build artifacts'
-	@echo  '  list-unit-tests   - List all unit-tests'
-	@echo  '  <unit-test>       - Build and run single unit-test'
-	@echo  '  clean-<unit-test> - Remove single unit-test build artifacts'
+	@echo  '  unit-tests            - Run all unit-tests from tests/'
+	@echo  '  clean-unit-tests      - Remove unit-tests build artifacts'
+	@echo  '  list-unit-tests       - List all unit-tests'
+	@echo  '  <unit-test>           - Build and run single unit-test'
+	@echo  '  clean-<unit-test>     - Remove single unit-test build artifacts'
+	@echo  '  coverage-unit-tests   - Build unit tests for code coverage and'
+	@echo  '                            generate a code coverage report'
 	@echo

@@ -168,6 +168,7 @@ struct mtk_topckgen_regs {
 };
 
 check_member(mtk_topckgen_regs, clk_cfg_0, 0x0020);
+check_member(mtk_topckgen_regs, clk_cfg_11_clr, 0x00ac);
 check_member(mtk_topckgen_regs, clk_extck_reg, 0x0204);
 check_member(mtk_topckgen_regs, clk26cali_0, 0x0218);
 check_member(mtk_topckgen_regs, clk_misc_cfg_0, 0x022c);
@@ -562,10 +563,12 @@ enum {
 /* top_div rate */
 enum {
 	CLK26M_HZ	= 26 * MHz,
+	UNIVPLL_D6_D2_HZ = UNIVPLL_HZ / 6 / 2,
 };
 
 /* top_mux rate */
 enum {
+	SPI_HZ		= UNIVPLL_D6_D2_HZ,
 	UART_HZ		= CLK26M_HZ,
 };
 
