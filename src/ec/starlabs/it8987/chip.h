@@ -7,4 +7,4 @@ struct ec_starlabs_it8987_config {
 	u8 cpuhot_limit;	/* temperature in °C which asserts PROCHOT# */
 };
 
-#endif /* _EC_ITE_IT8987_CHIP_H */
+#endif /* _EC_STARLABS_IT8987_CHIP_H */
