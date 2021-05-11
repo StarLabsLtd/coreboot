@@ -54,8 +54,8 @@ static void it8987_init(struct device *dev)
 	 * Set the correct state for the Ctrl Fn Reverse option. This
 	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
 	 */
-
 	ec_write(ECRAM_FN_CTRL_REVERSE, get_int_option("fn_ctrl_swap", 0));
+
 	/*
 	 * Copy the stored state of the fn_lock_state CMOS variable to the
 	 * corresponding location within the EC RAM.
