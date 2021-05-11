@@ -683,6 +683,29 @@ static void espi_set_op_freq_config(enum espi_op_freq mb_op_freq, uint32_t slave
 	}
 }
 
+static void espi_set_alert_pin_config(enum espi_alert_pin alert_pin, uint32_t slave_caps,
+				    uint32_t *slave_config, uint32_t *ctrlr_config)
+{
+	switch (alert_pin) {
+	case ESPI_ALERT_PIN_IN_BAND:
+		*slave_config |= ESPI_SLAVE_ALERT_MODE_IO1;
+		return;
+	case ESPI_ALERT_PIN_PUSH_PULL:
+		*slave_config |= ESPI_SLAVE_ALERT_MODE_PIN | ESPI_SLAVE_PUSH_PULL_ALERT_SEL;
+		*ctrlr_config |= ESPI_ALERT_MODE;
+		return;
+	case ESPI_ALERT_PIN_OPEN_DRAIN:
+		if (!(slave_caps & ESPI_SLAVE_OPEN_DRAIN_ALERT_SUPP))
+			die("eSPI peripheral does not support open drain alert!");
+
+		*slave_config |= ESPI_SLAVE_ALERT_MODE_PIN | ESPI_SLAVE_OPEN_DRAIN_ALERT_SEL;
+		*ctrlr_config |= ESPI_ALERT_MODE;
+		return;
+	default:
+		die("Unknown espi alert config: %u!\n", alert_pin);
+	}
+}
+
 static int espi_set_general_configuration(const struct espi_config *mb_cfg, uint32_t slave_caps)
 {
 	uint32_t slave_config = 0;
@@ -693,17 +716,15 @@ static int espi_set_general_configuration(const struct espi_config *mb_cfg, uint
 		ctrlr_config |= ESPI_CRC_CHECKING_EN;
 	}
 
-	if (mb_cfg->dedicated_alert_pin) {
-		slave_config |= ESPI_SLAVE_ALERT_MODE_PIN;
-		ctrlr_config |= ESPI_ALERT_MODE;
-	}
-
+	espi_set_alert_pin_config(mb_cfg->alert_pin, slave_caps, &slave_config, &ctrlr_config);
 	espi_set_io_mode_config(mb_cfg->io_mode, slave_caps, &slave_config, &ctrlr_config);
 	espi_set_op_freq_config(mb_cfg->op_freq_mhz, slave_caps, &slave_config, &ctrlr_config);
 
 	if (CONFIG(ESPI_DEBUG))
 		printk(BIOS_INFO, "Setting general configuration: slave: 0x%x controller: 0x%x\n",
 		       slave_config, ctrlr_config);
+
+	espi_show_slave_general_configuration(slave_config);
 
 	if (espi_set_configuration(ESPI_SLAVE_GENERAL_CFG, slave_config) == -1)
 		return -1;
@@ -861,9 +882,6 @@ static int espi_setup_flash_channel(const struct espi_config *mb_cfg, uint32_t s
 static void espi_set_initial_config(const struct espi_config *mb_cfg)
 {
 	uint32_t espi_initial_mode = ESPI_OP_FREQ_16_MHZ | ESPI_IO_MODE_SINGLE;
-
-	if (mb_cfg->dedicated_alert_pin)
-		espi_initial_mode |= ESPI_ALERT_MODE;
 
 	espi_write32(ESPI_SLAVE0_CONFIG, espi_initial_mode);
 }

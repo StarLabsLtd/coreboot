@@ -9,81 +9,26 @@
 #include <device/pci.h>
 #include <device/pciexp.h>
 #include <device/pci_ids.h>
-#include <soc/pci.h>
 #include <soc/pci_devs.h>
 #include <stdio.h>
 
-/**
- * Each PCI bridge has its INTx lines routed to one of the 8 GNB IOAPIC PCI
- * groups. Each group has 4 interrupts. The INTx lines can be swizzled before
- * being routed to the IOAPIC. If the IOAPIC redirection entry is masked, the
- * interrupt is reduced modulo 8 onto INT[A-H] and forwarded to the FCH IOAPIC.
- **/
-struct pci_routing {
-	unsigned int devfn;
-	unsigned int group;
-	uint8_t pin[4];
-};
-
 /* See AMD PPR 55570 - IOAPIC Initialization for the table that AGESA sets up */
-static const struct pci_routing pci_routing_table[] = {
-	{PCIE_GPP_0_DEVFN, 0, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_1_DEVFN, 1, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_2_DEVFN, 2, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_3_DEVFN, 3, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_4_DEVFN, 4, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_5_DEVFN, 5, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_6_DEVFN, 6, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_A_DEVFN, 7, {PIRQ_A, PIRQ_B, PIRQ_C, PIRQ_D} },
-	{PCIE_GPP_B_DEVFN, 7, {PIRQ_C, PIRQ_D, PIRQ_A, PIRQ_B} },
+const struct pci_routing_info pci_routing_table[] = {
+	{PCIE_GPP_0_DEVFN, 0, PCI_SWIZZLE_ABCD, 0x10},
+	{PCIE_GPP_1_DEVFN, 1, PCI_SWIZZLE_ABCD, 0x11},
+	{PCIE_GPP_2_DEVFN, 2, PCI_SWIZZLE_ABCD, 0x12},
+	{PCIE_GPP_3_DEVFN, 3, PCI_SWIZZLE_ABCD, 0x13},
+	{PCIE_GPP_4_DEVFN, 4, PCI_SWIZZLE_ABCD, 0x10},
+	{PCIE_GPP_5_DEVFN, 5, PCI_SWIZZLE_ABCD, 0x11},
+	{PCIE_GPP_6_DEVFN, 6, PCI_SWIZZLE_ABCD, 0x12},
+	{PCIE_GPP_A_DEVFN, 7, PCI_SWIZZLE_ABCD, 0x13},
+	{PCIE_GPP_B_DEVFN, 7, PCI_SWIZZLE_CDAB, 0x0C},
 };
 
-/*
- * This data structure is populated from the raw data above. It is used
- * by amd/common/block/pci/amd_pci_util to write the PCI_INT_LINE register
- * to each PCI device.
- */
-static struct pirq_struct pirq_data[ARRAY_SIZE(pci_routing_table)];
-
-static const struct pci_routing *get_pci_routing(unsigned int devfn)
+const struct pci_routing_info *get_pci_routing_table(size_t *entries)
 {
-	for (size_t i = 0; i < ARRAY_SIZE(pci_routing_table); ++i) {
-		if (devfn == pci_routing_table[i].devfn)
-			return &pci_routing_table[i];
-	}
-
-	return NULL;
-}
-
-static unsigned int calculate_irq(const struct pci_routing *pci_routing, unsigned int i)
-{
-	unsigned int irq_index;
-	irq_index = pci_routing->group * 4;
-	irq_index += pci_routing->pin[i];
-
-	return irq_index;
-}
-
-void populate_pirq_data(void)
-{
-	const struct pci_routing *pci_routing;
-	struct pirq_struct *pirq;
-	unsigned int irq_index;
-
-	for (size_t i = 0; i < ARRAY_SIZE(pirq_data); ++i) {
-		pirq = &pirq_data[i];
-		pci_routing = &pci_routing_table[i];
-
-		pirq->devfn = pci_routing->devfn;
-		for (size_t j = 0; j < 4; ++j) {
-			irq_index = calculate_irq(pci_routing, j);
-
-			pirq->PIN[j] = irq_index % 8;
-		}
-	}
-
-	pirq_data_ptr = pirq_data;
-	pirq_data_size = ARRAY_SIZE(pirq_data);
+	*entries = ARRAY_SIZE(pci_routing_table);
+	return pci_routing_table;
 }
 
 static const char *pcie_gpp_acpi_name(const struct device *dev)
@@ -113,68 +58,6 @@ static const char *pcie_gpp_acpi_name(const struct device *dev)
 	}
 
 	return NULL;
-}
-
-static void acpigen_write_PRT(const struct device *dev)
-{
-	char link_template[] = "\\_SB.INTX";
-	unsigned int irq_index;
-
-	const struct pci_routing *pci_routing = get_pci_routing(dev->path.pci.devfn);
-	if (!pci_routing) {
-		printk(BIOS_ERR, "PCI routing table not found for %s\n", dev_path(dev));
-		return;
-	}
-
-	acpigen_write_method("_PRT", 0);
-
-	/* If (PICM) */
-	acpigen_write_if();
-	acpigen_emit_namestring("PICM");
-
-	/* Return (Package{...}) */
-	acpigen_emit_byte(RETURN_OP);
-
-	acpigen_write_package(4); /* Package - APIC Routing */
-	for (unsigned int i = 0; i < 4; ++i) {
-		irq_index = calculate_irq(pci_routing, i);
-
-		acpigen_write_package(4);
-		/* There is only one device attached to the bridge */
-		acpigen_write_dword(0x0000FFFF);
-		acpigen_write_byte(i);
-		acpigen_write_byte(0); /* Source: GSI  */
-		/* GNB IO-APIC is located after the FCH IO-APIC */
-		acpigen_write_dword(IO_APIC_INTERRUPTS + irq_index);
-		acpigen_pop_len();
-	}
-	acpigen_pop_len(); /* Package - APIC Routing */
-
-	/* Else */
-	acpigen_write_else();
-
-	/* Return (Package{...}) */
-	acpigen_emit_byte(RETURN_OP);
-
-	acpigen_write_package(4); /* Package - PIC Routing */
-	for (unsigned int i = 0; i < 4; ++i) {
-		irq_index = calculate_irq(pci_routing, i);
-
-		link_template[8] = 'A' + (irq_index % 8);
-
-		acpigen_write_package(4);
-		/* There is only one device attached to the bridge */
-		acpigen_write_dword(0x0000FFFF);
-		acpigen_write_byte(i);
-		acpigen_emit_namestring(link_template);
-		acpigen_write_dword(0);
-		acpigen_pop_len();
-	}
-	acpigen_pop_len(); /* Package - PIC Routing */
-
-	acpigen_pop_len(); /* End Else */
-
-	acpigen_pop_len(); /* Method */
 }
 
 /*
@@ -285,7 +168,7 @@ static void acpi_device_write_gpp_pci_dev(const struct device *dev)
 	acpigen_write_ADR_pci_device(dev);
 	acpigen_write_STA(acpi_device_status(dev));
 
-	acpigen_write_PRT(dev);
+	acpigen_write_pci_GNB_PRT(dev);
 
 	acpigen_pop_len(); /* Device */
 	acpigen_pop_len(); /* Scope */

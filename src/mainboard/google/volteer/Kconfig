@@ -107,6 +107,7 @@ config MAINBOARD_PART_NUMBER
 	default "Drobit" if BOARD_GOOGLE_DROBIT
 	default "Copano" if BOARD_GOOGLE_COPANO
 	default "Collis" if BOARD_GOOGLE_COLLIS
+	default "Volet" if BOARD_GOOGLE_VOLET
 
 config MAX_CPUS
 	int
@@ -152,9 +153,18 @@ config VARIANT_DIR
 	default "drobit" if BOARD_GOOGLE_DROBIT
 	default "copano" if BOARD_GOOGLE_COPANO
 	default "collis" if BOARD_GOOGLE_COLLIS
+	default "volet" if BOARD_GOOGLE_VOLET
 
 config VARIANT_HAS_MIPI_CAMERA
 	bool
 	default n
+
+config CBFS_MCACHE_RW_PERCENTAGE
+	int
+	default 50
+
+config CBFS_MCACHE_SIZE
+	hex
+	default 0x4000
 
 endif # BOARD_GOOGLE_BASEBOARD_VOLTEER

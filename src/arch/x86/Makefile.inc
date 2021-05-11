@@ -91,7 +91,8 @@ else
 $(eval $(call early_x86_stage,bootblock,elf64-x86-64))
 endif
 
-bootblock-$(CONFIG_MICROCODE_UPDATE_PRE_RAM) += walkcbfs.S
+$(call src-to-obj,bootblock,$(dir)/walkcbfs.S): $(obj)/fmap_config.h
+bootblock-y += walkcbfs.S
 
 endif # CONFIG_ARCH_BOOTBLOCK_X86_32 / CONFIG_ARCH_BOOTBLOCK_X86_64
 
@@ -101,7 +102,7 @@ endif # CONFIG_ARCH_BOOTBLOCK_X86_32 / CONFIG_ARCH_BOOTBLOCK_X86_64
 
 ifeq ($(CONFIG_ARCH_VERSTAGE_X86_32)$(CONFIG_ARCH_VERSTAGE_X86_64),y)
 
-verstage-y += assembly_entry.S
+verstage-$(CONFIG_VBOOT_SEPARATE_VERSTAGE) += assembly_entry.S
 verstage-y += boot.c
 verstage-y += post.c
 verstage-$(CONFIG_VBOOT_SEPARATE_VERSTAGE) += gdt_init.S
