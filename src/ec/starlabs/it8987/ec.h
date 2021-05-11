@@ -37,7 +37,7 @@
 /* IT8987 chip ID byte values. */
 #define IT8987_CHIPID1_VAL	0x89
 #define IT8987_CHIPID2_VAL	0x87
- 
+
 /* EC RAM offsets. */
 #define	ECRAM_KBL_TIMEOUT	0x07
 #define ECRAM_FN_CTRL_REVERSE	0x08

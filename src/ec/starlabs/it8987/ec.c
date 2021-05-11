@@ -24,14 +24,14 @@ static void it8987_init(struct device *dev)
 	/*
 	 * The address/data IO port pair for the IT8987 EC are configurable
 	 * through the EC domain and are fixed by the EC's firmware blob. If
-	 * the value(s) passed through the "dev" structure don't match the 
+	 * the value(s) passed through the "dev" structure don't match the
 	 * expected values then output severe warnings.
 	 */
 	if (dev->path.pnp.port != IT8987E_FIXED_ADDR) {
 		printk(BIOS_ERR, "IT8987: Incorrect ports defined in devicetree.cb.\n");
 		printk(BIOS_ERR, "IT8987: Serious operational issues will arise.\n");
 		return;
-	} 
+	}
 
 	u8 chipid1 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID1);
 	u8 chipid2 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID2);
