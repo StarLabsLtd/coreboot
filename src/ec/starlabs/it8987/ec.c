@@ -11,23 +11,6 @@
 #include "ec.h"
 #include "chip.h"
 
-void it8987_write_data(u8 addr, u8 data)
-{
-	outb(addr, IT8987E_ADDR);
-	outb(data, IT8987E_DATA);
-}
-
-u8 it8987_read_data(u8 addr)
-{
-	outb(addr, IT8987E_ADDR);
-	return inb(IT8987E_DATA);
-}
-
-u16 it8987_read_chipid(void)
-{
-	return((it8987_read_data(0x20) << 8) | it8987_read_data(0x21));
-}
-
 u16 it8987_get_version(void)
 {
 	return (ec_read(0x00) << 8) | ec_read(0x01);
@@ -35,12 +18,24 @@ u16 it8987_get_version(void)
 
 static void it8987_init(struct device *dev)
 {
-	/* u8 val; */
-
 	if (!dev->enabled)
 		return;
 
-	if (it8987_read_chipid() != 0x8987) {
+	/*
+	 * The address/data IO port pair for the IT8987 EC are configurable
+	 * through the EC domain and are fixed by the EC's firmware blob. If
+	 * the value(s) passed through the "dev" structure don't match the 
+	 * expected values then output severe warnings.
+	 */
+	if (dev->path.pnp.port != IT8987E_FIXED_ADDR) {
+		printk(BIOS_ERR, "IT8987: Incorrect ports defined in devicetree.cb.\n");
+		printk(BIOS_ERR, "IT8987: Serious operational issues will arise.\n");
+		return;
+	} 
+
+	u8 chipid1 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID1);
+	u8 chipid2 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID2);
+	if (chipid1 != IT8987_CHIPID1_VAL || chipid2 != IT8987_CHIPID2_VAL) {
 		printk(BIOS_DEBUG, "IT8987: Device not found.\n");
 		return;
 	}
@@ -54,10 +49,12 @@ static void it8987_init(struct device *dev)
 
 	/* Set the timeout for the keyboard backlight. */
 	ec_write(ECRAM_KBL_TIMEOUT, get_int_option("kbl_timeout", 0));
+
 	/*
 	 * Set the correct state for the Ctrl Fn Reverse option. This
 	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
 	 */
+
 	ec_write(ECRAM_FN_CTRL_REVERSE, get_int_option("fn_ctrl_swap", 0));
 	/*
 	 * Copy the stored state of the fn_lock_state CMOS variable to the
