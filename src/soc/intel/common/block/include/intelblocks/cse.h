@@ -16,6 +16,9 @@
 /* Global Reset Command ID */
 #define MKHI_CBM_GLOBAL_RESET_REQ	0xb
 
+/* Set State Command ID */
+#define MKHI_ME_SET_STATE	0x3
+
 /* Origin of Global Reset command */
 #define GR_ORIGIN_BIOS_POST	0x2
 
@@ -40,9 +43,9 @@
 #define ME_HFS1_COM_SECOVER_MEI_MSG	0x5
 
 /* ME Disable Rule */
-#define ME_SET_STATE	0x6
-#define ME_RULE_LENGTH	0x4
-#define ME_DISABLE	0x0
+#define ME_DISABLE_RULE_ID	0x6
+#define ME_DISABLE_RULE_LENGTH	0x4
+#define ME_DISABLE_COMMAND	0x0
 
 /* ME Firmware SKU Types */
 #define ME_HFS3_FW_SKU_CONSUMER	0x2
