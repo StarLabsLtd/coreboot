@@ -9,18 +9,18 @@
 #include <baseboard/variants.h>
 
 static const struct mb_cfg ddr4_mem_config = {
-        .type = MEM_TYPE_DDR4,
+	.type = MEM_TYPE_DDR4,
 
-        /* .rcomp = {
-                .resistor = 100,
-                .targets = {40, 30, 33, 33, 30},
-        }, */
+	/* .rcomp = {
+		.resistor = 100,
+		.targets = {40, 30, 33, 33, 30},
+	}, */
 
-        .ect = false, /* Early Command Training */
+	.ect = false, /* Early Command Training */
 
-        .ddr4_config = {
-                .dq_pins_interleaved = false,
-       }
+	.ddr4_config = {
+		.dq_pins_interleaved = false,
+	}
 };
 
 void mainboard_memory_init_params(FSPM_UPD *mupd)
