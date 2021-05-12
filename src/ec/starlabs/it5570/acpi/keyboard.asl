@@ -1,13 +1,3 @@
-/*Scope(\_SB)
-{
-	Device(PWRB) //Power Button ACPI Device
-	{
-	Name(_HID,EISAID("PNP0C0C"))
-	Method(_STA)
-	{
-		Return(0x0F)
-	}
-}*/
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 Method(_Q80)				// Volume up
