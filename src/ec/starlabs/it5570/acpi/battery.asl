@@ -39,9 +39,9 @@ Device(BAT0)
       
 		If(ECRD(RefOf(B1FC)))
 		{
-			BPKG[5] = ECRD (RefOf(B1DC)) / 10
+			BPKG[5] = ECRD (RefOf(B1FS)) / 10
 			BPKG[6] = ECRD (RefOf(B1FC)) / 25
-			BPKG[7] = ECRD (RefOf(B1FC)) / 100
+			BPKG[7] = ECRD (RefOf(B1DC)) / 100
 		}
 		Return(BPKG)
 	}

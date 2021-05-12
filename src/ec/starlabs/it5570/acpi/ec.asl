@@ -182,7 +182,7 @@ Scope (\_SB.PCI0.LPCB)
 		Method(_GPE)
 		{
 			Local0 = 0x6E	// GPI6E for eSPI
-			return (Local0)
+			Return (Local0)
 		}
 		
 		Method (PTS, 1, Serialized)
