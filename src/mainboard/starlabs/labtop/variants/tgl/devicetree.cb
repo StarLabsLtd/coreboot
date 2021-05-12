@@ -3,205 +3,130 @@ chip soc/intel/tigerlake
 		.chipset_lockdown = CHIPSET_LOCKDOWN_COREBOOT,
 	}"
 
-# ACPI (soc/intel/tigerlake/acpi.c)
-	# Disable DPTF
-	register "dptf_enable" = "0"
+# CPU (soc/intel/tigerlake/cpu.c)
+	# Power limit
+	register "power_limits_config[POWER_LIMITS_U_2_CORE]" = "{
+		.tdp_pl1_override = 20,
+		.tdp_pl2_override = 30,
+		.tdp_pl4 = 30,
+	}"
+	register "power_limits_config[POWER_LIMITS_U_4_CORE]" = "{
+		.tdp_pl1_override = 20,
+		.tdp_pl2_override = 30,
+		.tdp_pl4 = 30,
+	}"
+
+	# Enable heci1 communication
+	register "HeciEnabled" = "1"
 
 	# Enable Enhanced Intel SpeedStep
 	register "eist_enable" = "1"
 
-	# Enable s0ix, required for TGL-U
-	register "s0ix_enable" = "1"
-
-# CPU (soc/intel/tigerlake/cpu.c)
-	# Power limits
-	register "power_limits_config[POWER_LIMITS_U_4_CORE]" = "{
-		.tdp_pl1_override = 20,
-		.tdp_pl2_override = 30,
-	}"
-	register "power_limits_config[POWER_LIMITS_U_2_CORE]" = "{
-		.tdp_pl1_override = 20,
-		.tdp_pl2_override = 30,
-	}"
-
-# Finalize (soc/intel/tigerlake/finalize.c)
-	# PM Timer Disabled, saves power
-	register "PmTimerDisabled" = "1"
-
 # FSP Memory (soc/intel/tigerlake/romstage/fsp_params.c)
-	# Enable C6 DRAM
-	register "enable_c6dram" = "1"
-
-	# System Agent dynamic frequency support
+	# FSP configuration
 	register "SaGv" = "SaGv_Enabled"
 
-# FSP Silicon (soc/intel/tigerlake/fsp_params.c)
-	# Acoustic settings
-	register "AcousticNoiseMitigation" = "1"
-	register "SlowSlewRate[VR_DOMAIN_IA]" = "SLEW_FAST_8"
-	register "SlowSlewRate[VR_DOMAIN_GT]" = "SLEW_FAST_8"
-	register "SlowSlewRate[VR_DOMAIN_SA]" = "SLEW_FAST_8"
-	register "SlowSlewRate[VR_DOMAIN_VLCC]" = "SLEW_FAST_8"
-	register "FastPkgCRampDisable[VR_DOMAIN_IA]" = "1"
-	register "FastPkgCRampDisable[VR_DOMAIN_GT]" = "1"
-	register "FastPkgCRampDisable[VR_DOMAIN_SA]" = "1"
-	register "FastPkgCRampDisable[VR_DOMAIN_VLCC]" = "1"
+	# CNVi BT enable/disable
+	register "CnviBtCore" = "true"
 
-	register "ext_fivr_settings" = "{
-		.configure_ext_fivr = 1,
-		.v1p05_enable_bitmap = 0,
-		.vnn_enable_bitmap = 0,
-		.v1p05_supported_voltage_bitmap = 0,
-		.vnn_supported_voltage_bitmap = 0,
-		.v1p05_icc_max_ma = 500,
-		.vnn_sx_voltage_mv = 1050,
+# FSP Silicon (soc/intel/tigerlake/fsp_params.c)
+	# Serial I/O
+	register "SerialIoI2cMode" = "{
+		[PchSerialIoIndexI2C0]= PchSerialIoPci,
+		[PchSerialIoIndexI2C1]= PchSerialIoPci,
+		[PchSerialIoIndexI2C2]= PchSerialIoPci,
+		[PchSerialIoIndexI2C3]= PchSerialIoPci,
+		[PchSerialIoIndexI2C4]= PchSerialIoDisabled,
+		[PchSerialIoIndexI2C5]= PchSerialIoPci,
 	}"
 
-	# Read LPM_EN, make sure to invert the bits
-	# sudo devmem2 0xfe001c78
-	# 0x9
-	register "LpmStateDisableMask" = "
-		LPM_S0i2_1 |
-		LPM_S0i2_2 |
-		LPM_S0i3_1 |
-		LPM_S0i3_2 |
-		LPM_S0i3_3 |
-		LPM_S0i3_4
-	"
+	register "SerialIoGSpiMode" = "{
+		[PchSerialIoIndexGSPI0] = PchSerialIoPci,
+		[PchSerialIoIndexGSPI1] = PchSerialIoPci,
+		[PchSerialIoIndexGSPI2] = PchSerialIoDisabled,
+	}"
+
+	register "SerialIoUartMode" = "{
+		[PchSerialIoIndexUART0] = PchSerialIoSkipInit,
+		[PchSerialIoIndexUART1] = PchSerialIoDisabled,
+		[PchSerialIoIndexUART2] = PchSerialIoSkipInit,
+	}"
+
+	# Misc
+	register "AcousticNoiseMitigation" = "1"
+
+	# Power
+	register "PchPmSlpS3MinAssert" = "2"		# 50ms
+	register "PchPmSlpS4MinAssert" = "3"		# 1s
+	register "PchPmSlpSusMinAssert" = "3"		# 500ms
+	register "PchPmSlpAMinAssert" = "3"		# 2s
 
 	# Thermal
-	# rdmsr --bitfield 31:24 --decimal 0x1A2
-	register "tcc_offset" = "12"
+	register "tcc_offset" = "15"
+
+	# Enable eDP device
+	register "DdiPortAConfig" = "1"
+
+	# Enable HPD for DDI ports B/C
+	register "DdiPortBHpd" = "1"
+	register "DdiPortCHpd" = "1"
+
+	# Enable DDC for DDI ports B/C
+	register "DdiPortBDdc" = "1"
+	register "DdiPortCDdc" = "1"
+
+	# Disable S0ix
+	register "s0ix_enable" = "0"
 
 # PM Util (soc/intel/tigerlake/pmutil.c)
 	# GPE configuration
+	# Note that GPE events called out in ASL code rely on this
+	# route. i.e. If this route changes then the affected GPE
+	# offset bits also need to be changed.
 	# sudo devmem2 0xfe001920 (pmc_bar + GPIO_GPE_CFG)
-	# TODO: 0x703
-	register "pmc_gpe0_dw0" = "PMC_GPP_R"
-	register "pmc_gpe0_dw1" = "PMC_GPP_B"
-	register "pmc_gpe0_dw2" = "PMC_GPP_D"
+	register "pmc_gpe0_dw0" = "PMC_GPP_B"
+	register "pmc_gpe0_dw1" = "PMC_GPP_C"
+	register "pmc_gpe0_dw2" = "PMC_GPP_E"
 
-# Actual device tree
+# Actual device tree.
 	device cpu_cluster 0 on
 		device lapic 0 on end
 	end
 
 	device domain 0 on
-		#From CPU EDS(575683)
-		device ref system_agent on end
-		device ref igpu on
-			# DDIA is eDP
-			register "DdiPortAConfig" = "1"
-			register "DdiPortAHpd" = "1"
-			register "DdiPortADdc" = "0"
-
-			# DDIB is HDMI
-			register "DdiPortBConfig" = "0"
-			register "DdiPortBHpd" = "1"
-			register "DdiPortBDdc" = "1"
-
-			register "gfx" = "GMA_STATIC_DISPLAYS(0)"
-		end
-		device ref dptf on
+		device pci 00.0 on  end				# Host Bridge
+		device pci 02.0 on  end				# Integrated Graphics Device
+		device pci 04.0 on				# SA Thermal Device
 			register "Device4Enable" = "1"
 		end
-		device ref peg on
-			# PCIe PEG0 x4, Clock 3 (SSD1)
-			register "PcieClkSrcUsage[3]" = "0x40"
-			register "PcieClkSrcClkReq[3]" = "3"
-
-			register "HybridStorageMode" = "0"
-		end
-		device ref tbt_pcie_rp0 on end # J_TYPEC1
-		device ref gna on end
-		device ref north_xhci on # J_TYPEC1
-			register "TcssXhciEn" = "1"
-			chip drivers/usb/acpi
-				device ref tcss_root_hub on
-					chip drivers/usb/acpi
-						register "desc" = ""USB3 J_TYPEC1""
-						register "type" = "UPC_TYPE_C_USB2_SS_SWITCH"
-						register "group" = "ACPI_PLD_GROUP(1, 1)"
-						device ref tcss_usb3_port1 on end
-					end
-				end
-			end
-		end
-		device ref tbt_dma0 on # J_TYPEC1
-			chip drivers/intel/usb4/retimer
-				register "power_gpio" = "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
-				device generic 0 on end
-			end
-		end
-
-		# From PCH EDS(576591)
-		device ref cnvi_bt on end
-		device ref south_xhci on
+		device pci 08.0 on  end				# Gaussian Mixture Model
+		device pci 12.0 on  end				# Thermal Subsystem
+		device pci 12.5 off end				# UFS SCS
+		device pci 12.6 off end				# GSPI #2
+		device pci 14.0 on				# USB xHCI
 			# USB2
-			register "usb2_ports[0]" = "USB2_PORT_MID(OC_SKIP)" # J_USB3_1
-			register "usb2_ports[1]" = "USB2_PORT_MID(OC_SKIP)" # J_USB3_2
-			register "usb2_ports[2]" = "USB2_PORT_TYPE_C(OC_SKIP)" # J_TYPEC1
-			register "usb2_ports[6]" = "USB2_PORT_MID(OC_SKIP)" # Camera
-			register "usb2_ports[9]" = "USB2_PORT_MID(OC_SKIP)" # Bluetooth
+			register "usb2_ports[0]" = "USB2_PORT_TYPE_C(OC2)"	# Type-C Port 1
+			register "usb2_ports[1]" = "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
+			register "usb2_ports[2]" = "USB2_PORT_MID(OC2)"		# Bluetooth
+			register "usb2_ports[3]" = "USB2_PORT_MID(OC2)"		# SD Card
+			register "usb2_ports[5]" = "USB2_PORT_MID(OC3)"		# Type-A Port 3
+			register "usb2_ports[6]" = "USB2_PORT_MID(OC3)"		# Camera
+			register "usb2_ports[9]" = "USB2_PORT_MID(OC_SKIP)"	# CNVi Bluetooth
+
 			# USB3
-			register "usb3_ports[0]" = "USB3_PORT_DEFAULT(OC_SKIP)" # J_USB3_1
-			register "usb3_ports[1]" = "USB3_PORT_DEFAULT(OC_SKIP)" # J_USB3_2
-			# ACPI
-			chip drivers/usb/acpi
-				device ref xhci_root_hub on
-					chip drivers/usb/acpi
-						register "desc" = ""USB2 J_USB3_1""
-						register "type" = "UPC_TYPE_A"
-						register "group" = "ACPI_PLD_GROUP(1, 2)"
-						device ref usb2_port1 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB2 J_USB3_2""
-						register "type" = "UPC_TYPE_A"
-						register "group" = "ACPI_PLD_GROUP(2, 1)"
-						device ref usb2_port2 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB2 J_TYPEC1""
-						register "type" = "UPC_TYPE_C_USB2_SS_SWITCH"
-						register "group" = "ACPI_PLD_GROUP(1, 1)"
-						device ref usb2_port3 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB2 Camera""
-						register "type" = "UPC_TYPE_INTERNAL"
-						device ref usb2_port7 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB2 Bluetooth""
-						register "type" = "UPC_TYPE_INTERNAL"
-						device ref usb2_port10 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB3 J_USB3_1""
-						register "type" = "UPC_TYPE_A"
-						register "group" = "ACPI_PLD_GROUP(1, 1)"
-						device ref usb3_port1 on end
-					end
-					chip drivers/usb/acpi
-						register "desc" = ""USB3 J_USB3_2""
-						register "type" = "UPC_TYPE_A"
-						register "group" = "ACPI_PLD_GROUP(2, 1)"
-						device ref usb3_port2 on end
-					end
-				end
-			end
+			register "usb3_ports[0]" = "USB3_PORT_DEFAULT(OC2)"
+			register "usb3_ports[1]" = "USB3_PORT_DEFAULT(OC_SKIP)"
+			register "usb3_ports[2]" = "USB3_PORT_DEFAULT(OC2)"
 		end
-		device ref shared_ram on end
-		device ref cnvi_wifi on
+		device pci 14.1 off end				# USB xDCI (OTG)
+		device pci 14.3 on				# CNVi wifi
 			chip drivers/wifi/generic
 				register "wake" = "GPE0_PME_B0"
 				device generic 0 on end
 			end
 		end
-		device ref i2c0 on
-			# Touchpad I2C bus
-			register "SerialIoI2cMode[PchSerialIoIndexI2C0]" = "PchSerialIoPci"
+		device pci 14.5 off end				# SDCard
+		device pci 15.0 on				# I2C #0
 			chip drivers/i2c/hid
 				register "generic.hid" = ""StarPoint""
 				register "generic.desc" = ""Touchpad""
@@ -211,77 +136,83 @@ chip soc/intel/tigerlake
 				device i2c 2c on end
 			end
 		end
-		device ref i2c1 on
-			#TODO: USB-PD?
-			register "SerialIoI2cMode[PchSerialIoIndexI2C1]" = "PchSerialIoPci"
-		end
-		device ref heci1 on
-			register "HeciEnabled" = "1"
-		end
-		device ref uart2 on
-			# Debug console
-			register "SerialIoUartMode[PchSerialIoIndexUART2]" = "PchSerialIoSkipInit"
-		end
-		device ref sata on
-			# SATA1 (SSD2)
-			register "SataPortsEnable[1]" = "1"
-			register "SataPortsDevSlp[1]" = "1"
-			register "SataPortsEnableDitoConfig[1]" = "1"
+	device pci 15.1 on  end # I2C #1
+		device pci 15.2 off end # I2C #2
+		device pci 15.3 off end # I2C #3
+		device pci 16.0 on  end # Management Engine Interface 1
+		device pci 16.1 off end # Management Engine Interface 2
+		device pci 16.2 off end # Management Engine IDE-R
+		device pci 16.3 off end # Management Engine KT Redirection
+		device pci 16.4 off end # Management Engine Interface 3
+		device pci 16.5 off end # Management Engine Interface 4
+		device pci 17.0 on	# SATA
 			register "SataSalpSupport" = "1"
+
+			# Port 1
+			register "SataPortsEnable[1]" = "1"
+			register "SataPortsDevSlp[1]" = "0"
+
+			# Port 2
+			register "SataPortsEnable[2]" = "1"
+			register "SataPortsDevSlp[2]" = "0"
 		end
-		device ref pcie_rp3 on
-			# PCIe root port #3 x1, Clock 1 (WLAN)
-			register "PcieRpEnable[2]" = "1"
-			register "PcieRpLtrEnable[2]" = "1"
-			register "PcieClkSrcUsage[1]" = "2"
+		device pci 19.0 off end				# I2C #4
+		device pci 19.1 off end				# I2C #5
+		device pci 19.2 on  end				# UART #2
+		device pci 1a.0 on  end				# eMMC - not fitted
+		device pci 1c.0 off end				# PCI Express Port 1
+		device pci 1c.1 off end				# PCI Express Port 2
+		device pci 1c.2 off end				# PCI Express Port 3
+		device pci 1c.3 off end				# PCI Express Port 4
+		device pci 1c.4 off end				# PCI Express Port 5
+		device pci 1c.5 off end				# PCI Express Port 6
+		device pci 1c.6 off end				# PCI Express Port 7
+		device pci 1c.7 off end				# PCI Express Port 8
+		device pci 1d.0 on				# PCI Express Port 9(SSD x4)
+			device pci 00.0 on end
+			# register "PcieRpSlotImplemented[8]" = "1"
+			register "PcieRpEnable[8]" = "1"
+			register "PcieRpLtrEnable[8]" = "1"
+			register "PcieClkSrcUsage[1]" = "8"
 			register "PcieClkSrcClkReq[1]" = "1"
+			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
 		end
-		device ref pcie_rp6 on
-			# PCIe root port #6 x1, Clock 2 (CARD)
-			register "PcieRpEnable[5]" = "1"
-			register "PcieRpLtrEnable[5]" = "1"
-			register "PcieClkSrcUsage[2]" = "5"
-			register "PcieClkSrcClkReq[2]" = "2"
-		end
-		device ref pcie_rp9 off end
-		device ref pch_espi on
+		device pci 1d.1 off end				# PCI Express Port 10
+		device pci 1d.2 off end				# PCI Express Port 11
+		device pci 1d.3 off end				# PCI Express Port 12
+		device pci 1d.4 off end				# PCI Express Port 13 (LAN)
+		device pci 1d.5 off end				# PCI Express Port 14 (WLAN)
+		device pci 1d.6 off end # PCI Express Port 15
+		device pci 1d.7 off end # PCI Express Port 16
+		device pci 1e.0 on  end # UART #0
+		device pci 1e.1 off end # UART #1
+		device pci 1e.2 off end # GSPI #0
+		device pci 1e.3 off end # GSPI #1
+		device pci 1f.0 on				# LPC Interface
 			# LPC configuration from lspci -s 1f.0 -xxx
-			# Address 0x84: Decode 0x80 - 0x8F (Port 80)
-			register "gen1_dec" = "0x000c0081"
-			# Address 0x88: Decode 0x68 - 0x6F (PMC)
-			register "gen2_dec" = "0x00040069"
-			# Address 0x8C: Decode 0xE00 - 0xEFF (AP/EC command)
-			register "gen3_dec" = "0x00fc0E01"
-			# Address 0x90: Decode 0xF00 - 0xFFF (AP/EC debug)
-			register "gen4_dec" = "0x00fc0F01"
-			# LPC TPM
-			chip drivers/pc80/tpm
-				device pnp 0c31.0 on end
-			end
-		end
-		device ref p2sb on end
-		device ref pmc hidden
-			# The pmc_mux chip driver is a placeholder for the
-			# PMC.MUX device in the ACPI hierarchy.
-			chip drivers/intel/pmc_mux
-				device generic 0 on
-					chip drivers/intel/pmc_mux/conn
-						# J_TYPEC1
-						register "usb2_port_number" = "3"
-						register "usb3_port_number" = "1"
-						# SBU & HSL follow CC
-						device generic 0 alias conn0 on end
-					end
+			# Address 0x84: Decode 0x680 - 0x68F
+			register "gen1_dec" = "0x000c0681"
+			# Address 0x88: Decode
+			register "gen2_dec" = "0x000c1641"
+			# Address 0x8C: Decode 0x200 - 0x2FF
+			register "gen3_dec" = "0x00fc0201"
+			# Address 0x90: Decode 0x80 - 0x8F (Port 80)
+			register "gen4_dec" = "0x000c0081"
+
+			chip ec/starlabs/it8987
+				# Port 4Eh/4Fh
+				device pnp 4e.0 on		# IO Interface
 				end
 			end
 		end
-		device ref hda on
+		device pci 1f.1 off end				# P2SB
+		device pci 1f.2 on end				# Power Management Controller
+		device pci 1f.3 on				# Intel HDA
 			subsystemid 0x10ec 0x119e
 			register "PchHdaAudioLinkHdaEnable" = "1"
 		end
-		device ref smbus on
-			register "SmbusEnable" = "1"
-		end
-		device ref fast_spi on end
+		device pci 1f.4 on  end				# SMBus
+		device pci 1f.5 on  end				# PCH SPI
+		device pci 1f.6 off end				# GbE
 	end
 end
