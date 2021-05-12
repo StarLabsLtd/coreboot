@@ -16,31 +16,31 @@ u16 it_get_version(void)
 	return (ec_read(0x00) << 8) | ec_read(0x01);
 }
 
-static void it8987_init(struct device *dev)
+static void it5570_init(struct device *dev)
 {
 	if (!dev->enabled)
 		return;
 
 	/*
-	 * The address/data IO port pair for the IT8987 EC are configurable
+	 * The address/data IO port pair for the it5570 EC are configurable
 	 * through the EC domain and are fixed by the EC's firmware blob. If
 	 * the value(s) passed through the "dev" structure don't match the
 	 * expected values then output severe warnings.
 	 */
-	if (dev->path.pnp.port != IT8987E_FIXED_ADDR) {
-		printk(BIOS_ERR, "IT8987: Incorrect ports defined in devicetree.cb.\n");
-		printk(BIOS_ERR, "IT8987: Serious operational issues will arise.\n");
+	if (dev->path.pnp.port != IT5570E_FIXED_ADDR) {
+		printk(BIOS_ERR, "IT5570: Incorrect ports defined in devicetree.cb.\n");
+		printk(BIOS_ERR, "IT5570: Serious operational issues will arise.\n");
 		return;
 	}
 
-	u8 chipid1 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID1);
-	u8 chipid2 = pnp_read_index(dev->path.pnp.port, IT8987_CHIPID2);
-	if (chipid1 != IT8987_CHIPID1_VAL || chipid2 != IT8987_CHIPID2_VAL) {
-		printk(BIOS_DEBUG, "IT8987: Device not found.\n");
+	u8 chipid1 = pnp_read_index(dev->path.pnp.port, IT5570_CHIPID1);
+	u8 chipid2 = pnp_read_index(dev->path.pnp.port, IT5570_CHIPID2);
+	if (chipid1 != IT5570_CHIPID1_VAL || chipid2 != IT5570_CHIPID2_VAL) {
+		printk(BIOS_DEBUG, "IT5570: Device not found.\n");
 		return;
 	}
 
-	printk(BIOS_DEBUG, "IT8987: Initializing keyboard.\n");
+	printk(BIOS_DEBUG, "IT5570: Initializing keyboard.\n");
 	pc_keyboard_init(NO_AUX_DEVICE);
 
 	/* Enable the keyboard backlight support. */
@@ -63,7 +63,7 @@ static void it8987_init(struct device *dev)
 }
 
 static struct device_operations ops = {
-	.init             = it8987_init,
+	.init             = it5570_init,
 	.read_resources   = noop_read_resources,
 	.set_resources    = noop_set_resources,
 };
@@ -77,7 +77,7 @@ static void enable_dev(struct device *dev)
 	pnp_enable_devices(dev, &ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
 }
 
-struct chip_operations ec_starlabs_it8987_ops = {
-	CHIP_NAME("ITE IT8987 EC")
+struct chip_operations ec_starlabs_it5570_ops = {
+	CHIP_NAME("ITE IT5570 EC")
 	.enable_dev = enable_dev
 };
