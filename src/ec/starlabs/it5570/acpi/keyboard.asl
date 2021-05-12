@@ -1,27 +1,4 @@
-Device(PS2K) {
-	Name(_HID,"MSFT0001")
-	Name(_CID,EISAID("PNP0303")) 
-	Method(_STA) {
-		Return (0x0F)
-	}
-
-	Name(_CRS,ResourceTemplate() {
-		IO(Decode16, 0x60, 0x60, 0, 0x1)    //PS2 resource
-		IO(Decode16, 0x64, 0x64, 0, 0x1)
-		IRQNoFlags(){1}
-	})
-
-	Name(_PRS, ResourceTemplate() {
-		StartDependentFn(0, 0) {  
-			IO(Decode16, 0x60, 0x60, 0, 0x1)  
-			IO(Decode16, 0x64, 0x64, 0, 0x1)
-			IRQNoFlags(){1}
-		}
-		EndDependentFn()
-	})
-}
-
-Scope(\_SB)
+/*Scope(\_SB)
 {
 	Device(PWRB) //Power Button ACPI Device
 	{
@@ -30,7 +7,7 @@ Scope(\_SB)
 	{
 		Return(0x0F)
 	}
-}
+}*/
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 Method(_Q80)				// Volume up

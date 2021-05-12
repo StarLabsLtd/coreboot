@@ -4,7 +4,7 @@
 
 Scope (\_SB)
 {
-//	#include "hid.asl"
+	#include "hid.asl"
 }
 
 Scope (\_SB.PCI0)
@@ -29,24 +29,15 @@ Scope (\_SB.PCI0.LPCB)
 
 		Mutex(ECMT, 0)		// EC Mutex
 
-		Method(_CRS,0, Serialized)
+		Name(BFFR, ResourceTemplate()
 		{
-			Name(BFFR, ResourceTemplate()
-			{
-				IO(Decode16,0x62,0x62,0,1)  // DIN/DOUT
-				IO(Decode16,0x66,0x66,0,1)  // CMD/STS
-			})
-			Return(BFFR)
-		}
+			IO(Decode16, 0x62, 0x62, 0, 1)  // DIN/DOUT
+			IO(Decode16, 0x66, 0x66, 0, 1)  // CMD/STS
+		})
 
-		Method (_CRS, 0, Serialized)
+		Method(_CRS, 0, Serialized)
 		{
-			Name (BFFR, ResourceTemplate()
-			{
-				IO (Decode16, 0x62, 0x62, 0x00, 0x01)
-				IO (Decode16, 0x66, 0x66, 0x00, 0x01)
-			})
-			Return (BFFR)
+			Return(BFFR)
 		}
 
 		Method (_STA, 0, NotSerialized)
@@ -94,16 +85,20 @@ Scope (\_SB.PCI0.LPCB)
 		{
 			// Check for ECDT support, set ECAV to One if ECDT is supported by OS
 			// Only check once at beginning since ECAV might be clear later in certain conditions
-			If (ECTK) {
-				If (_REV >= 2) {
+			If (ECTK)
+			{
+				If (_REV >= 2)
+				{
 					ECAV = 0x01
 				}
 				ECTK = 0x00   // Clear flag for checking once only
 			}
-			Local0 = (Acquire(ECMT, 1000)) // save Acquire result so we can check for Mutex acquired
-			If (Local0 = 0)  // check for Mutex acquired
+
+			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired
+			If (Local0 == 0x00)
 			{
-				If (ECAV) {
+				If (ECAV)
+				{
 					Store(DerefOf (Arg0), Local1) // Execute Read from EC
 					Release(ECMT)
 					Return(Local1)
@@ -116,18 +111,22 @@ Scope (\_SB.PCI0.LPCB)
 			Return(0)
 		}
 
-		Method(ECWT,2,Serialized,,,{IntObj, FieldUnitObj})
+		Method(ECWT,2,Serialized,,, {IntObj, FieldUnitObj})
 		{
-			If (ECTK) {
-				If (_REV >= 2) {
+			If (ECTK)
+			{
+				If (_REV >= 2)
+				{
 					ECAV = 1
 				}
 				ECTK = 0x00
 			}
-			Local0 = (Acquire(ECMT, 1000)) // save Acquire result so we can check for Mutex acquired	
-			If (Local0 = 0))  // check for Mutex acquired
+
+			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired	
+			If (Local0 == 0x00)
 			{
-				If (ECAV) {
+				If (ECAV)
+				{
 					Arg1 = Arg0 // Execute Write to EC
 				}
 				Release(ECMT)
@@ -143,7 +142,7 @@ Scope (\_SB.PCI0.LPCB)
 		}
   
 		// EREG method will be used in _REG (evaluated by OS without ECDT support) or _INI (for OS with ECDT support)
-		Method(EREG)
+/*		Method(EREG)
 		{
 			// Update ECAV Object. ASL should check for this value to be One before accessing EC OpRegion.
 			ECAV = 1
@@ -181,7 +180,7 @@ Scope (\_SB.PCI0.LPCB)
 				EREG()
 			}
 		}
-		
+*/		
 		Method(_GPE)
 		{
 			Local0 = 0x6E	// GPI6E for eSPI
@@ -191,13 +190,13 @@ Scope (\_SB.PCI0.LPCB)
 		Method (PTS, 1, Serialized)
 		{
 			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
-			\_SB.PCI0.LPCB.H_EC.ECOS = 0
+			\_SB.PCI0.LPCB.H_EC.OSFG = 0
 		}
 
 		Method (WAK, 1, Serialized)
 		{
 			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
-			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+			\_SB.PCI0.LPCB.H_EC.OSFG = 1
 		}
 
 		// Include the other parts of the Embedded Controller ASL.

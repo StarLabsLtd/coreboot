@@ -10,7 +10,7 @@ Device(HIDD)	//HID ACPI Device.
 	
 	Method(_STA,0,Serialized)
 	{
-		If (LAnd(LGreaterEqual(OSYS, 2013), LEqual(HEFE, 1))) {
+		If (OSYS > 2013) {
 			Return(0x0F)
 		} Else {
 			Return(0)
