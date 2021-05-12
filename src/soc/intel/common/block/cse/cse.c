@@ -83,12 +83,12 @@ int disable_me(void)
 	} __packed;
 	struct disable_command msg = {
 		.hdr = {
-			.group_id = 0x03,
-			.command = 0x03,
+			.group_id = MKHI_GROUP_ID_FWCAPS,
+			.command = ME_HFS1_COM_SOFT_TEMP_DISABLE,
 		},
-		.rule_id = 6,
-		.rule_len = 4,
-		.rule_data = 0,
+		.rule_id = ME_SET_STATE,
+		.rule_len = ME_RULE_LENGTH,
+		.rule_data = ME_DISABLE,
 	};
 	size_t reply_size;
 	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
@@ -105,8 +105,8 @@ int enable_me(void)
 	} __packed;
 	struct enable_command msg = {
 		.hdr = {
-			.group_id = 0xF0,
-			.command = 0x03,
+			.group_id = MKHI_GROUP_ID_BUP_COMMON,
+			.command = ME_HFS1_COM_SOFT_TEMP_DISABLE,
 		},
 	};
 	size_t reply_size;
