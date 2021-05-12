@@ -61,12 +61,15 @@ Scope (\_SB.PCI0.LPCB)
 			KBVS, 8,	//0x02		Keyboard revision
 			ECTV, 8,	//0x03		EC Firmware test version
 			OSFG, 8,	//0X04		Flag for enter OS //ICL_010+
+
 			Offset(0x2C),
 			FNST, 8,
+
 			Offset(0x7F),	//Support LID feature
 			LSTE, 1,	//BIT0LID GPI
-			, 7,		//Reserved
-			Offset(0x80),	//Offset(0x80)
+			    , 7,	//Reserved
+
+			Offset(0x80),
 			ECPS, 8,	//0x80		AC & Battery status
 			B1MN, 8,	//0x81		Battery#1 Model Number Code
 			B1SN, 16,	//0x82~83	Battery#1 Serial Number
@@ -131,14 +134,6 @@ Scope (\_SB.PCI0.LPCB)
 				}
 				Release(ECMT)
 			}
-		}
-
-		Method(ECMD,1,Serialized)
-		{
-		}
-  
-		Method (ECNT,1,Serialized)
-		{
 		}
   
 		// EREG method will be used in _REG (evaluated by OS without ECDT support) or _INI (for OS with ECDT support)
