@@ -29,13 +29,13 @@ Scope (\_SB.PCI0.LPCB)
 
 		Mutex(ECMT, 0)		// EC Mutex
 
-		Name(BFFR, ResourceTemplate()
+		Name (BFFR, ResourceTemplate()
 		{
 			IO(Decode16, 0x62, 0x62, 0, 1)  // DIN/DOUT
 			IO(Decode16, 0x66, 0x66, 0, 1)  // CMD/STS
 		})
 
-		Method(_CRS, 0, Serialized)
+		Method (_CRS, 0, Serialized)
 		{
 			Return(BFFR)
 		}
@@ -44,6 +44,14 @@ Scope (\_SB.PCI0.LPCB)
 		{
 			// Store (0x03, \_SB.PCI0.GFX0.CLID)
 			Return (0x0F)
+		}
+
+		Method (_REG, 2)
+		{
+			If ((Arg0 == 0x03) && (Arg1 == 0x01))
+			{
+				EREG()
+			}
 		}
 
 		OperationRegion (SMIP,SystemIO, 0xB2, 0x1)
@@ -136,46 +144,31 @@ Scope (\_SB.PCI0.LPCB)
 			}
 		}
   
-		// EREG method will be used in _REG (evaluated by OS without ECDT support) or _INI (for OS with ECDT support)
-/*		Method(EREG)
+		// EREG method will be used in _REG (evaluated by OS without
+		// ECDT support) or _INI (for OS with ECDT support)
+		Method (EREG)
 		{
-			// Update ECAV Object. ASL should check for this value to be One before accessing EC OpRegion.
+			// Update ECAV Object. ASL should check for this value
+			// to be 1 before accessing EC OpRegion.
 			ECAV = 1
-			
-			If (LEqual(\_SB.PC00.LPCB.H_EC.ECRD(RefOf(\_SB.PC00.LPCB.H_EC.LSTE)), 0))
-			{
-				\_SB.PC00.GFX0.CLID = 0
-			}
-			If (LEqual(\_SB.PC00.LPCB.H_EC.ECRD(RefOf(\_SB.PC00.LPCB.H_EC.LSTE)), 1))
-			{
-				\_SB.PC00.GFX0.CLID = 3
-			}
     
-			Store(\_SB.PC00.LPCB.H_EC.ECRD(RefOf(\_SB.PC00.LPCB.H_EC.LSTE)), LIDS)
+			LIDS = ECRD (RefOf (LSTE))
 
-			//Report OSFG to notify EC
-			\_SB.PC00.LPCB.H_EC.ECWT(One, RefOf(\_SB.PC00.LPCB.H_EC.OSFG))
+			// Report OSFG to notify EC
+			ECWT(0x01, RefOf (OSFG))
     
-			//Save the current Power State for later.
-			PWRS = Local0
+			// Save the current Power State for later.
+			// PWRS = Local0
     
-			//Update power state
-			Store(And(\_SB.PC00.LPCB.H_EC.ECRD(RefOf(\_SB.PC00.LPCB.H_EC.ECPS)), 0x01), PWRS)
+			// Update power state
+			PWRS = (ECRD (RefOf (ECPS)) & 0x01)
     
-			\_SB.CPPC = 0x00 // Note: \_SB.CPPC must be an Integer not a Method
+			//\_SB.CPPC = 0x00 // Note: \_SB.CPPC must be an Integer not a Method
     
 			//Perform needed ACPI Notifications.
 			PNOT()
 		}
 
-		Method(_REG,2)
-		{
-			If (LAnd(LEqual(Arg0,3),LEqual(Arg1,1)))
-			{
-				EREG()
-			}
-		}
-*/		
 		Method(_GPE)
 		{
 			Local0 = 0x6E	// GPI6E for eSPI
