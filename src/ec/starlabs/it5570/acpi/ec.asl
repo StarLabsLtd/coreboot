@@ -4,7 +4,7 @@
 
 Scope (\_SB)
 {
-	#include "hid.asl"
+//	#include "hid.asl"
 }
 
 Scope (\_SB.PCI0)
@@ -25,7 +25,10 @@ Scope (\_SB.PCI0.LPCB)
 		Name(_UID,1)
 		Name(ECAV, Zero)	// OS Bug Checks if EC OpRegion accessed before Embedded Controller Driver loaded
 		Name(ECTK, One)		// ECDT (Embedded Controller Boot Resources Table) Check to correct ECAV flag in the beginning
+		Name(LIDS, 0)
+
 		Mutex(ECMT, 0)		// EC Mutex
+
 		Method(_CRS,0, Serialized)
 		{
 			Name(BFFR, ResourceTemplate()

@@ -15,12 +15,10 @@ Device (LID0)
 		DEBUG = "---> IT5570 LID: _LID"
 		If (\_SB.PCI0.LPCB.H_EC.ECRD (RefOf (\_SB.PCI0.LPCB.H_EC.LSTE)) ==  0x01)
 		{
-			\_SB.PC00.GFX0.CLID = 3
 			Local0 = 1
 		}
 		else
 		{
-			\_SB.PC00.GFX0.CLID = 0
 			Local0 = 0
 		}
 		Return (Local0)
@@ -31,7 +29,7 @@ Method (_Q0C, 0, NotSerialized)		// Lid close event
 {
 	DEBUG = "---> IT5570 LID: Q0C (close event)"
 	LIDS = 0
-	\LIDS = LIDS
+	\LIDS = \_SB.PCI0.LPCB.H_EC.LIDS
 	Notify (LID0, 0x80)
 }
 
@@ -39,6 +37,6 @@ Method (_Q0D, 0, NotSerialized)		// Lid open event
 {
 	DEBUG = "---> IT5570 LID: Q0D (open event)"
 	LIDS = 1
-	\LIDS = LIDS
+	\LIDS = \_SB.PCI0.LPCB.H_EC.LIDS
 	Notify (LID0, 0x80)
 }
