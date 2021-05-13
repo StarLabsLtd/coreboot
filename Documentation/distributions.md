@@ -15,6 +15,10 @@ security; part of that effort is to minimize the amount of proprietary and/or
 binary code. Their laptops ship with a blob-free OS and coreboot firmware
 with a neutralized Intel Management Engine (ME) and SeaBIOS as the payload.
 
+### Star Labs
+
+[Star Labs](https://starlabs.systems/) offer a range of laptops designed and built specifically for Linux. All are now available with coreboot firmware, using Tianocore as the payload, and which include an NVRAM option to disable the Intel Management Engine.
+
 ### ChromeOS Devices
 
 All ChromeOS devices ([Chromebooks](https://chromebookdb.com/), Chromeboxes,
