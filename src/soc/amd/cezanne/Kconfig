@@ -38,6 +38,7 @@ config SOC_SPECIFIC_OPTIONS
 	select SOC_AMD_COMMON_BLOCK_ACP
 	select SOC_AMD_COMMON_BLOCK_ACPI
 	select SOC_AMD_COMMON_BLOCK_ACPIMMIO
+	select SOC_AMD_COMMON_BLOCK_ACPI_ALIB
 	select SOC_AMD_COMMON_BLOCK_ACPI_GPIO
 	select SOC_AMD_COMMON_BLOCK_AOAC
 	select SOC_AMD_COMMON_BLOCK_APOB
@@ -50,6 +51,7 @@ config SOC_SPECIFIC_OPTIONS
 	select SOC_AMD_COMMON_BLOCK_NONCAR
 	select SOC_AMD_COMMON_BLOCK_PCI
 	select SOC_AMD_COMMON_BLOCK_PCI_MMCONF
+	select SOC_AMD_COMMON_BLOCK_PCIE_GPP_DRIVER
 	select SOC_AMD_COMMON_BLOCK_PM
 	select SOC_AMD_COMMON_BLOCK_PM_CHIPSET_STATE_SAVE
 	select SOC_AMD_COMMON_BLOCK_PSP_GEN2
@@ -415,5 +417,23 @@ config CMOS_RECOVERY_BYTE
 
 	  This is the byte before the default first byte used by VBNV
 	  (0x26 + 0x0E - 1)
+
+if VBOOT_SLOTS_RW_AB && VBOOT_STARTS_BEFORE_BOOTBLOCK
+
+config RWA_REGION_ONLY
+	string
+	default "apu/amdfw_a"
+	help
+	  Add a space-delimited list of filenames that should only be in the
+	  RW-A section.
+
+config RWB_REGION_ONLY
+	string
+	default "apu/amdfw_b"
+	help
+	  Add a space-delimited list of filenames that should only be in the
+	  RW-B section.
+
+endif # VBOOT_SLOTS_RW_AB && VBOOT_STARTS_BEFORE_BOOTBLOCK
 
 endif # SOC_AMD_CEZANNE

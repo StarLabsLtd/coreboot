@@ -3,6 +3,7 @@
 #include <bootmode.h>
 #include <boot/coreboot_tables.h>
 #include <gpio.h>
+#include <security/tpm/tis.h>
 
 #include "gpio.h"
 
@@ -29,8 +30,7 @@ void fill_lb_gpios(struct lb_gpios *gpios)
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
 
-int get_recovery_mode_switch(void)
+int tis_plat_irq_status(void)
 {
-	/* TODO: use Chrome EC switches when EC support is added */
-	return 0;
+	return gpio_eint_poll(GPIO_GSC_AP_INT);
 }
