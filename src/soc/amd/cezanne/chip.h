@@ -86,6 +86,7 @@ struct soc_amd_cezanne_config {
 	uint32_t slow_ppt_limit_tablet_mode_mW;
 	uint32_t sustained_power_limit_tablet_mode_mW;
 	uint32_t thermctl_limit_tablet_mode_degreeC;
+<<<<<<< HEAD
 
 	/* The array index is the general purpose PCIe clock output number. Values in here
 	   aren't the values written to the register to have the default to be always on. */
@@ -104,6 +105,8 @@ struct soc_amd_cezanne_config {
 
 	uint8_t usb_phy_custom;
 	struct usb_phy_config usb_phy;
+=======
+>>>>>>> 165127c9ed... Merge upstream
 };
 
 #endif /* CEZANNE_CHIP_H */

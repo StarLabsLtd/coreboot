@@ -7,7 +7,11 @@ config INTEL_TXT
 	select ENABLE_VMX if CPU_INTEL_COMMON
 	select AP_IN_SIPI_WAIT
 	select TPM_MEASURED_BOOT_INIT_BOOTBLOCK if TPM_MEASURED_BOOT
+<<<<<<< HEAD
 	depends on TPM
+=======
+	depends on (TPM1 || TPM2)
+>>>>>>> 165127c9ed... Merge upstream
 	depends on CPU_INTEL_FIRMWARE_INTERFACE_TABLE
 	depends on PLATFORM_HAS_DRAM_CLEAR
 	depends on (SOC_INTEL_COMMON_BLOCK_SA || HAVE_CF9_RESET)

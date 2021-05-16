@@ -119,6 +119,7 @@ static void fch_init_resets(void)
 	pm_write16(PWR_RESET_CFG, pm_read16(PWR_RESET_CFG) | TOGGLE_ALL_PWR_GOOD);
 }
 
+<<<<<<< HEAD
 /* configure the genral purpose PCIe clock outputs according to the devicetree settings */
 static void gpp_clk_setup(void)
 {
@@ -161,6 +162,8 @@ static void gpp_clk_setup(void)
 	misc_write32(GPP_CLK_CNTRL, gpp_clk_ctl);
 }
 
+=======
+>>>>>>> 165127c9ed... Merge upstream
 void fch_init(void *chip_info)
 {
 	fch_init_resets();

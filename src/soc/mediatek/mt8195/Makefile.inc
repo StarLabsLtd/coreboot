@@ -31,8 +31,11 @@ romstage-y += emi.c
 romstage-y += ../common/flash_controller.c
 romstage-y += ../common/gpio.c gpio.c
 romstage-y += ../common/i2c.c i2c.c
+<<<<<<< HEAD
 romstage-y += ../common/memory.c
 romstage-y += ../common/memory_test.c
+=======
+>>>>>>> 165127c9ed... Merge upstream
 romstage-y += ../common/mmu_operations.c mmu_operations.c
 romstage-y += ../common/pll.c pll.c
 romstage-y += scp.c

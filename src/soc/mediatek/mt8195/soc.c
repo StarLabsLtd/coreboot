@@ -4,7 +4,10 @@
 #include <soc/emi.h>
 #include <soc/mcupm.h>
 #include <soc/mmu_operations.h>
+<<<<<<< HEAD
 #include <soc/sspm.h>
+=======
+>>>>>>> 165127c9ed... Merge upstream
 #include <soc/ufs.h>
 #include <symbols.h>
 
@@ -16,8 +19,11 @@ static void soc_read_resources(struct device *dev)
 static void soc_init(struct device *dev)
 {
 	mtk_mmu_disable_l2c_sram();
+<<<<<<< HEAD
 	mcupm_init();
 	sspm_init();
+=======
+>>>>>>> 165127c9ed... Merge upstream
 	ufs_disable_refclk();
 }
 

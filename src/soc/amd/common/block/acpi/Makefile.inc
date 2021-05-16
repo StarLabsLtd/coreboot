@@ -9,7 +9,10 @@ smm-y += acpi.c
 
 ramstage-y += pm_state.c
 ramstage-y += tables.c
+<<<<<<< HEAD
 ramstage-$(CONFIG_ACPI_BERT) += bert.c
+=======
+>>>>>>> 165127c9ed... Merge upstream
 ramstage-$(CONFIG_SOC_AMD_COMMON_BLOCK_ACPI_ALIB) += alib.c
 ramstage-$(CONFIG_SOC_AMD_COMMON_BLOCK_ACPI_GPIO) += gpio.c
 
