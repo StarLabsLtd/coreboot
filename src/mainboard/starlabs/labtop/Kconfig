@@ -91,7 +91,7 @@ config VBOOT
 
 config FMDFILE
 	string
-	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/board.fmd" if BOARD_STARLABS_LABTOP_KBL || BOARD_STARLABS_LABTOP_CML
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/board.fmd"
 
 config IFD_BIN_PATH
 	string
