@@ -199,7 +199,7 @@ chip soc/intel/tigerlake
 			# Address 0x90: Decode 0x80 - 0x8F (Port 80)
 			register "gen4_dec" = "0x000c0081"
 
-			chip ec/starlabs/it8987
+			chip ec/starlabs/it5570
 				# Port 4Eh/4Fh
 				device pnp 4e.0 on		# IO Interface
 				end

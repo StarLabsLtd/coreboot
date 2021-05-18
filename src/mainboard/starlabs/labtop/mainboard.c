@@ -4,7 +4,11 @@
 #include <types.h>
 #include <uuid.h>
 
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+#include <ec/starlabs/it5570/ec.h>
+#else
 #include <ec/starlabs/it8987/ec.h>
+#endif
 
 /* Override the BIOS version using smbios_mainboard_bios_version() */
 const char *smbios_mainboard_bios_version(void)
@@ -19,7 +23,7 @@ const char *smbios_mainboard_bios_version(void)
 /* Get the Embedded Controller firmware version */
 void smbios_ec_revision(uint8_t *ec_major_revision, uint8_t *ec_minor_revision)
 {
-	u16 ec_version = it8987_get_version();
+	u16 ec_version = it_get_version();
 
 	*ec_major_revision = ec_version >> 8;
 	*ec_minor_revision = ec_version & 0xff;
