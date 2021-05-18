@@ -10,7 +10,7 @@
 const char *smbios_mainboard_bios_version(void)
 {
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-	return "CB_0";
+	return "0";
 #else
 	return "6";
 #endif
