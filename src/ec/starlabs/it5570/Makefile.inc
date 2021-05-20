@@ -7,22 +7,23 @@ ifeq ($(CONFIG_EC_STARLABS_IT5570),y)
 all-y += ec.c
 smm-$(CONFIG_DEBUG_SMI) += ec.c
 
-ifeq ($(CONFIG_EC_STARLABS_IT_BIN),y)
-
-ifeq ($(CONFIG_EC_STARLABS_IT_BIN_PATH),)
-files_added:: warn_no_ite_fw
 endif
+
+ifeq ($(CONFIG_EC_STARLABS_IT_BIN),y) && ($(CONFIG_EC_STARLABS_IT5570),y)
 
 add_ite_fw: $(obj)/coreboot.pre
 	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT_BIN_PATH) -u
 endif
 
+ifeq ($(CONFIG_EC_STARLABS_IT_BIN_PATH),)  && ($(CONFIG_EC_STARLABS_IT5570),y)
+files_added:: warn_no_ite_fw
+endif
+
 PHONY+=warn_no_ite_fw
 warn_no_ite_fw:
 	printf "\n\t** WARNING **\n"
-	printf "coreboot has been built without the IT8987 EC Firmware.\n"
+	printf "coreboot has been built without the IT5570 EC Firmware.\n"
 	printf "Do not flash this image.  Your LabTop Mk IV's power button\n"
 	printf "may not respond when you press it.\n\n"
 
 
-endif
