@@ -8,9 +8,33 @@
 #include <device/device.h>
 #include <fsp/api.h>
 #include <soc/platform_descriptors.h>
+#include <soc/pci_devs.h>
 #include <string.h>
 #include <types.h>
 #include "chip.h"
+
+static const struct device_path gfx_hda_path[] = {
+	{
+		.type = DEVICE_PATH_PCI,
+		.pci.devfn = PCIE_ABC_A_DEVFN
+	},
+	{
+		.type = DEVICE_PATH_PCI,
+		.pci.devfn = GFX_HDA_DEVFN
+	},
+};
+
+static bool devtree_gfx_hda_dev_enabled(void)
+{
+	const struct device *gfx_hda_dev;
+
+	gfx_hda_dev = find_dev_nested_path(pci_root_bus(), gfx_hda_path,
+						ARRAY_SIZE(gfx_hda_path));
+	if (!gfx_hda_dev)
+		return false;
+
+	return gfx_hda_dev->enabled;
+}
 
 static void fill_dxio_descriptors(FSP_M_CONFIG *mcfg,
 			const fsp_dxio_descriptor *descs, size_t num)
@@ -67,7 +91,6 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	mcfg->pci_express_base_addr = CONFIG_MMCONF_BASE_ADDRESS;
 	mcfg->tseg_size = CONFIG_SMM_TSEG_SIZE;
-	mcfg->bert_size = CONFIG_ACPI_BERT_SIZE;
 	mcfg->serial_port_base = uart_platform_base(CONFIG_UART_FOR_CONSOLE);
 	mcfg->serial_port_use_mmio = CONFIG(DRIVERS_UART_8250MEM);
 	mcfg->serial_port_baudrate = get_uart_baudrate();
@@ -135,6 +158,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		config->telemetry_vddcrsocfull_scale_current_mA;
 	mcfg->telemetry_vddcrsocOffset =
 		config->telemetry_vddcrsocoffset;
+
+	mcfg->enable_nb_azalia = devtree_gfx_hda_dev_enabled();
 
 	fsp_fill_pcie_ddi_descriptors(mcfg);
 	fsp_assign_ioapic_upds(mcfg);
