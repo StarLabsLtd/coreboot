@@ -1,13 +1,19 @@
 chip soc/intel/cannonlake
 	register "common_soc_config" = "{
 		.chipset_lockdown = CHIPSET_LOCKDOWN_COREBOOT,
+		 /* Touchpad */
+		 .i2c[0] = {
+			.speed = I2C_SPEED_FAST,
+			.rise_time_ns = 80,
+			.fall_time_ns = 110,
+		 },
 	}"
 
 # CPU (soc/intel/cannonlake/cpu.c)
 	# Power limit
 	register "power_limits_config" = "{
 		.tdp_pl1_override = 15,
-		.tdp_pl2_override = 15,
+		.tdp_pl2_override = 20,
 	}"
 
 	# Enable Enhanced Intel SpeedStep
@@ -39,20 +45,10 @@ chip soc/intel/cannonlake
 	register "PchPmSlpAMinAssert" = "3"		# 2s
 
 	# Thermal
-	register "tcc_offset" = "15"
+	register "tcc_offset" = "10"
 
 	# Enable eDP device
-	register "DdiPortEdp" = "1"
-	# Enable HPD for DDI ports B/C
-	register "DdiPortBHpd" = "1"
-	register "DdiPortCHpd" = "1"
-	register "DdiPortDHpd" = "1"
-	register "DdiPortFHpd" = "1"
-	# Enable DDC for DDI ports B/C
-	register "DdiPortBDdc" = "1"
-	register "DdiPortCDdc" = "1"
-	register "DdiPortDDdc" = "1"
-	register "DdiPortFDdc" = "1"
+	# register "DdiPortEdp" = "1"
 
 # PM Util (soc/intel/cannonlake/pmutil.c)
 	# GPE configuration
