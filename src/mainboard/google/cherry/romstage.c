@@ -3,7 +3,10 @@
 #include <arch/stages.h>
 #include <soc/clkbuf.h>
 #include <soc/emi.h>
+<<<<<<< HEAD
 #include <soc/i2c.h>
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 #include <soc/mt6315.h>
 #include <soc/mt6359p.h>
 #include <soc/mt6360.h>
@@ -22,6 +25,13 @@ void platform_romstage_main(void)
 	mt6360_init(I2C_BUS);
 	clk_buf_init();
 	rtc_boot();
+<<<<<<< HEAD
 	mtk_dram_init();
+=======
+<<<<<<< HEAD
+=======
+	mtk_dram_init();
+>>>>>>> WIP/rebase
+>>>>>>> 1d8e4a6dc7... Rebase
 	scp_rsi_enable();
 }

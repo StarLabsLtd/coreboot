@@ -10,8 +10,11 @@ fw_config
 		option TS_ELAN_6918 2
 		option TS_ELAN_0001 3
 		option TS_RAYD_0001 4
+<<<<<<< HEAD
 		option TS_WDHT0002 5
 		option TS_GTCH7503 6
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 	end
 end
 
@@ -214,6 +217,7 @@ chip soc/intel/jasperlake
 				device i2c 10 on
 					probe TS_SOURCE TS_ELAN_6918
 				end
+<<<<<<< HEAD
 			end
 			chip drivers/i2c/hid
 				register "generic.hid" = ""WDHT0002""
@@ -250,6 +254,8 @@ chip soc/intel/jasperlake
 					probe TS_SOURCE TS_UNPROVISIONED
 					probe TS_SOURCE TS_GTCH7503
 				end
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 			end
 			chip drivers/i2c/generic
 				register "hid" = ""ELAN0001""

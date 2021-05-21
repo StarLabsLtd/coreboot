@@ -13,8 +13,13 @@ static const fsp_dxio_descriptor guybrush_czn_dxio_descriptors[] = {
 		.port_present = true,
 		.start_logical_lane = 0,
 		.end_logical_lane = 0,
+<<<<<<< HEAD
 		.device_number = PCI_SLOT(WLAN_DEVFN),
 		.function_number = PCI_FUNC(WLAN_DEVFN),
+=======
+		.device_number = 2,
+		.function_number = 1,
+>>>>>>> 1d8e4a6dc7... Rebase
 		.link_aspm = ASPM_L1,
 		.turn_off_unused_lanes = true,
 		.clk_req = CLK_REQ0,
@@ -25,8 +30,13 @@ static const fsp_dxio_descriptor guybrush_czn_dxio_descriptors[] = {
 		.port_present = true,
 		.start_logical_lane = 1,
 		.end_logical_lane = 1,
+<<<<<<< HEAD
 		.device_number = PCI_SLOT(SD_DEVFN),
 		.function_number = PCI_FUNC(SD_DEVFN),
+=======
+		.device_number = 2,
+		.function_number = 2,
+>>>>>>> 1d8e4a6dc7... Rebase
 		.link_aspm = ASPM_L1,
 		.turn_off_unused_lanes = true,
 		.clk_req = CLK_REQ1,
@@ -37,8 +47,13 @@ static const fsp_dxio_descriptor guybrush_czn_dxio_descriptors[] = {
 		.port_present = true,
 		.start_logical_lane = 2,
 		.end_logical_lane = 2,
+<<<<<<< HEAD
 		.device_number = PCI_SLOT(WWAN_DEVFN),
 		.function_number = PCI_FUNC(WWAN_DEVFN),
+=======
+		.device_number = 2,
+		.function_number = 3,
+>>>>>>> 1d8e4a6dc7... Rebase
 		.link_aspm = ASPM_L1,
 		.turn_off_unused_lanes = true,
 		.clk_req = CLK_REQ2,
@@ -49,8 +64,13 @@ static const fsp_dxio_descriptor guybrush_czn_dxio_descriptors[] = {
 		.port_present = true,
 		.start_logical_lane = 4,
 		.end_logical_lane = 7,
+<<<<<<< HEAD
 		.device_number = PCI_SLOT(NVME_DEVFN),
 		.function_number = PCI_FUNC(NVME_DEVFN),
+=======
+		.device_number = 2,
+		.function_number = 4,
+>>>>>>> 1d8e4a6dc7... Rebase
 		.link_aspm = ASPM_L1,
 		.turn_off_unused_lanes = true,
 		.clk_req = CLK_REQ3,

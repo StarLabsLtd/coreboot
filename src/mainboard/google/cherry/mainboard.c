@@ -24,12 +24,15 @@
 
 #include <arm-trusted-firmware/include/export/plat/mediatek/common/plat_params_exp.h>
 
+<<<<<<< HEAD
 /* GPIO to schematics names */
 #define GPIO_AP_EDP_BKLTEN GPIO(DGI_D5)
 #define GPIO_BL_PWM_1V8 GPIO(DISP_PWM0)
 #define GPIO_EDP_HPD_1V8 GPIO(GPIO_07)
 #define GPIO_EN_PP3300_DISP_X GPIO(I2SO1_D2)
 
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 DEFINE_BITFIELD(MSDC0_DRV, 29, 0)
 DEFINE_BITFIELD(MSDC1_DRV, 17, 0)
 DEFINE_BITFIELD(MSDC1_GPIO_MODE0_0, 26, 24)
@@ -194,12 +197,15 @@ static void mainboard_init(struct device *dev)
 	configure_sdcard();
 	setup_usb_host();
 
+<<<<<<< HEAD
 	if (dpm_init())
 		printk(BIOS_ERR, "dpm init failed, DVFS may not work\n");
 
 	if (spm_init())
 		printk(BIOS_ERR, "spm init failed, system suspend may not work\n");
 
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 	register_reset_to_bl31();
 }
 

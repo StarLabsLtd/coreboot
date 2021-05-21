@@ -14,12 +14,22 @@ Significant changes
 -------------------
 
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 ### Merged family of Asus mainboards using H61 chipset
 
 By using newer coreboot features like board variants and override devicetrees,
 lots of code can now be shared. This should ease maintenance and also make it
 easier for newcomers to add support for even more mainboards.
 
+<<<<<<< HEAD
+
+### Add support for Star Labs LabTop series
+
+LabTop Mk III (kbl-r), Mk IV (cml) and Mk IV (tgl) support.
 =======
->>>>>>> 165127c9ed... Merge upstream
+>>>>>>> WIP/rebase
+>>>>>>> 1d8e4a6dc7... Rebase
 ### Add significant changes here

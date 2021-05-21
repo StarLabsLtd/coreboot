@@ -118,7 +118,6 @@ static void set_vga_enable_reg(u32 nodeid, u32 linkn)
 
 }
 
-<<<<<<< HEAD
 static void add_fixed_resources(struct device *dev, int index)
 {
 	/* Reserve everything between A segment and 1MB:
@@ -142,8 +141,6 @@ static void add_fixed_resources(struct device *dev, int index)
 	}
 }
 
-=======
->>>>>>> 165127c9ed... Merge upstream
 static void nb_read_resources(struct device *dev)
 {
 	struct resource *res;
@@ -160,11 +157,8 @@ static void nb_read_resources(struct device *dev)
 	res->base = IO_APIC2_ADDR;
 	res->size = 0x00001000;
 	res->flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
-<<<<<<< HEAD
 
 	add_fixed_resources(dev, 0);
-=======
->>>>>>> 165127c9ed... Merge upstream
 }
 
 static void create_vga_resource(struct device *dev, unsigned int nodeid)

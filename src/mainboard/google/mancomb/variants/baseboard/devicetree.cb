@@ -50,8 +50,11 @@ chip soc/amd/cezanne
 	# Enable S0i3 support
 	register "s0ix_enable" = "1"
 
+<<<<<<< HEAD
 	register "pspp_policy" = "DXIO_PSPP_BALANCED"
 
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 	device domain 0 on
 		device ref gpp_bridge_0 on end # WLAN
 		device ref gpp_bridge_1 on end # SD
@@ -61,7 +64,10 @@ chip soc/amd/cezanne
 		device ref gpp_bridge_a on  # Internal GPP Bridge 0 to Bus A
 			device ref gfx on end # Internal GPU (GFX)
 			device ref gfx_hda on end # GFX HD Audio Controller
+<<<<<<< HEAD
 			device ref crypto on end # Crypto Coprocessor
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 			device ref xhci_0 on # USB 3.1 (USB0)
 				chip drivers/usb/acpi
 					device ref xhci_0_root_hub on
@@ -130,7 +136,11 @@ chip soc/amd/cezanne
 			end
 			device ref acp on
 				chip drivers/amd/i2s_machine_dev
+<<<<<<< HEAD
 					register "hid" = ""10025682""
+=======
+					register "hid" = ""AMDI5682""
+>>>>>>> 1d8e4a6dc7... Rebase
 					device generic 0.0 on end
 				end
 			end # Audio

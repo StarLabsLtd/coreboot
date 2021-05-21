@@ -309,6 +309,23 @@ const uint8_t *lpc_get_pic_pirq_routing(size_t *num)
 	return pch_interrupt_routing;
 }
 
+static const uint8_t pch_interrupt_routing[PIRQ_COUNT] = {
+	[PIRQ_A] = PCH_IRQ11,
+	[PIRQ_B] = PCH_IRQ10,
+	[PIRQ_C] = PCH_IRQ11,
+	[PIRQ_D] = PCH_IRQ11,
+	[PIRQ_E] = PCH_IRQ11,
+	[PIRQ_F] = PCH_IRQ11,
+	[PIRQ_G] = PCH_IRQ11,
+	[PIRQ_H] = PCH_IRQ11,
+};
+
+const uint8_t *lpc_get_pic_pirq_routing(size_t *num)
+{
+	*num = ARRAY_SIZE(pch_interrupt_routing);
+	return pch_interrupt_routing;
+}
+
 /*
  * PIRQ[n]_ROUT[3:0] - PIRQ Routing Control
  * 0x00 - 0000 = Reserved

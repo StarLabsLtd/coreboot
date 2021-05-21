@@ -7,6 +7,13 @@ fw_config
 		option SD_ABSENT		0
 		option SD_GL9755S		1
 	end
+<<<<<<< HEAD
+=======
+	field GSC 6 6
+		option H1D			0
+		option H1B			1
+	end
+>>>>>>> 1d8e4a6dc7... Rebase
 	field KB_BL 7 7
 		option KB_BL_ABSENT		0
 		option KB_BL_PRESENT		1
@@ -23,10 +30,13 @@ fw_config
 		option LTE_USB			1
 		option LTE_PCIE			2
 	end
+<<<<<<< HEAD
 	field UFC 13 14
 		option UFC_USB			0
 		option UFC_MIPI_5675		1
 	end
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 end
 
 chip soc/intel/alderlake
@@ -116,6 +126,7 @@ chip soc/intel/alderlake
 				device generic 0 on end
 			end
 		end
+<<<<<<< HEAD
 		device ref ipu on
 			chip drivers/intel/mipi_camera
 				register "acpi_uid" = "0x50000"
@@ -148,6 +159,8 @@ chip soc/intel/alderlake
 				end
 			end
 		end
+=======
+>>>>>>> 1d8e4a6dc7... Rebase
 		device ref cnvi_wifi on
 			chip drivers/wifi/generic
 				register "wake" = "GPE0_PME_B0"

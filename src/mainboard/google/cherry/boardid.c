@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+<<<<<<< HEAD
 #include <assert.h>
 #include <boardid.h>
 #include <console/console.h>
@@ -89,4 +90,11 @@ uint32_t ram_code(void)
 	}
 
 	return cached_ram_code;
+=======
+#include <boardid.h>
+
+uint32_t ram_code(void)
+{
+	return 0;
+>>>>>>> 1d8e4a6dc7... Rebase
 }

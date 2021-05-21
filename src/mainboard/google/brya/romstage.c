@@ -16,5 +16,11 @@ void mainboard_memory_init_params(FSP_M_CONFIG *m_cfg)
 		.cbfs_index = variant_memory_sku(),
 	};
 
+<<<<<<< HEAD
 	memcfg_init(m_cfg, mem_config, &spd_info, half_populated);
+=======
+	memcfg_init(&memupd->FspmConfig, mem_config, &spd_info, half_populated);
+
+	variant_update_fspm_upds(memupd);
+>>>>>>> 1d8e4a6dc7... Rebase
 }
