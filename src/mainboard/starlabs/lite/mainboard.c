@@ -9,13 +9,13 @@
 /* Override the BIOS version using smbios_mainboard_bios_version() */
 const char *smbios_mainboard_bios_version(void)
 {
-	return "CB_0.00.01";
+	return "0";
 }
 
 /* Get the Embedded Controller firmware version */
 void smbios_ec_revision(uint8_t *ec_major_revision, uint8_t *ec_minor_revision)
 {
-	u16 ec_version = it8987_get_version();
+	u16 ec_version = it_get_version();
 
 	*ec_major_revision = ec_version >> 8;
 	*ec_minor_revision = ec_version & 0xff;

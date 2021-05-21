@@ -99,20 +99,19 @@ config IFD_BIN_PATH
 
 config IFWI_FILE_NAME
         string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_1_bios.bin"
+        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/fit-image.bin"
 
 config ADD_FSP_BINARIES
         bool "Add FSP blobs"
         default y
 
-config FSP_M_FILE
-        string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-M.Fv"
+#config FSP_M_FILE
+#        string
+#        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-M.Fv"
 
-config FSP_S_FILE
-        string
-        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-S.Fv"
-
+#config FSP_S_FILE
+#        string
+#        default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/FSP-S.Fv"
 
 config ONBOARD_VGA_IS_PRIMARY
 	bool
@@ -122,18 +121,18 @@ config VGA_BIOS_ID
 	string
 	default "8086,0406"
 
-config LINEAR_FRAMEBUFFER_MAX_WIDTH
-        int
-        default 1920
+#config LINEAR_FRAMEBUFFER_MAX_WIDTH
+#        int
+#        default 1920
 
-config LINEAR_FRAMEBUFFER_MAX_HEIGHT
-        int
-        default 1080
+#config LINEAR_FRAMEBUFFER_MAX_HEIGHT
+#        int
+#        default 1080
 
-config VGA_BIOS_FILE
-	string
-	depends on VGA_BIOS
-	default "pci8086,0406.rom"
+#config VGA_BIOS_FILE
+#	string
+#	depends on VGA_BIOS
+#	default "pci8086,0406.rom"
 
 config TIANOCORE_BOOTSPLASH_FILE
 	string
