@@ -2,4 +2,3 @@
 
 #include "baseboard/variants.h"
 #include "variant/gpio.h"
-

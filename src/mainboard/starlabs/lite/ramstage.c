@@ -1,9 +1,10 @@
-
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
+#include <device/device.h>
 #include <soc/ramstage.h>
-#include <gpio.h>
+#include <option.h>
+#include "variant/gpio.h"
 
 void mainboard_silicon_init_params(FSPS_UPD *supd)
 {
