@@ -113,5 +113,6 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memupd->FspmTestConfig.VtdDisable = !vtd;
 	const uint8_t ht = get_uint_option("hyper_threading", memupd->FspmConfig.HyperThreading);
 	memupd->FspmConfig.HyperThreading = ht;
+
 	cannonlake_memcfg_init(&memupd->FspmConfig, get_memory_cfg(&board_memcfg));
 }
