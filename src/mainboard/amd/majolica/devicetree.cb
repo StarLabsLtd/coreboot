@@ -15,6 +15,8 @@ chip soc/amd/cezanne
 
 	register "s0ix_enable" = "true"
 
+	register "pspp_policy" = "DXIO_PSPP_BALANCED"
+
 	device domain 0 on
 		device ref gpp_gfx_bridge_0 on end # MXM
 		device ref gpp_bridge_0 on end # NVMe
@@ -25,6 +27,7 @@ chip soc/amd/cezanne
 		device ref gpp_bridge_5 on end
 		device ref gpp_bridge_a on  # Internal GPP Bridge 0 to Bus A
 			device ref gfx on end # Internal GPU (GFX)
+			device ref crypto on end # Crypto Coprocessor
 			device ref xhci_0 on # USB 3.1 (USB0)
 				chip drivers/usb/acpi
 					device ref xhci_0_root_hub on

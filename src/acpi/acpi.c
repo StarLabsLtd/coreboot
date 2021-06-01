@@ -508,6 +508,23 @@ int acpi_create_srat_mem(acpi_srat_mem_t *mem, u8 node, u32 basek, u32 sizek,
 	return mem->length;
 }
 
+int acpi_create_srat_gia_pci(acpi_srat_gia_t *gia, u32 proximity_domain,
+				u16 seg, u8 bus, u8 dev, u8 func, u32 flags)
+{
+	gia->type = ACPI_SRAT_STRUCTURE_GIA;
+	gia->length = sizeof(acpi_srat_gia_t);
+	gia->proximity_domain = proximity_domain;
+	gia->dev_handle_type = ACPI_SRAT_GIA_DEV_HANDLE_PCI;
+	/* First two bytes has segment number */
+	memcpy(gia->dev_handle, &seg, 2);
+	gia->dev_handle[2] = bus; /* Byte 2 has bus number */
+	/* Byte 3 has bits 7:3 for dev, bits 2:0 for func */
+	gia->dev_handle[3] = PCI_SLOT(dev) | PCI_FUNC(func);
+	gia->flags = flags;
+
+	return gia->length;
+}
+
 /* http://www.microsoft.com/whdc/system/sysinternals/sratdwn.mspx */
 void acpi_create_srat(acpi_srat_t *srat,
 		      unsigned long (*acpi_fill_srat)(unsigned long current))
@@ -956,7 +973,7 @@ void acpi_create_einj(acpi_einj_t *einj, uintptr_t addr, u8 actions)
 		printk(BIOS_DEBUG, "default_actions[%d].reg.addr is %llx\n", i,
 			default_actions[i].reg.addr);
 
-	memset((void *)einj, 0, sizeof(einj));
+	memset((void *)einj, 0, sizeof(*einj));
 
 	/* Fill out header fields. */
 	memcpy(header->signature, "EINJ", 4);
@@ -973,7 +990,7 @@ void acpi_create_einj(acpi_einj_t *einj, uintptr_t addr, u8 actions)
 	printk(BIOS_DEBUG, "%s einj->action_table = %p\n",
 		 __func__, einj->action_table);
 	memcpy((void *)einj->action_table, (void *)default_actions, sizeof(einj->action_table));
-	header->checksum = acpi_checksum((void *)einj, sizeof(einj));
+	header->checksum = acpi_checksum((void *)einj, sizeof(*einj));
 }
 
 void acpi_create_vfct(const struct device *device,
@@ -1548,7 +1565,7 @@ bool __weak acpi_is_boot_error_src_present(void)
 	return false;
 }
 
-__weak void acpi_soc_fill_bert(acpi_bert_t *bert, void **region, size_t *length) {}
+__weak void acpi_soc_fill_bert(void **region, size_t *length) {}
 
 unsigned long __weak fw_cfg_acpi_tables(unsigned long start)
 {
@@ -1798,7 +1815,7 @@ unsigned long write_acpi_tables(unsigned long start)
 		size_t size;
 		printk(BIOS_DEBUG, "ACPI:    * BERT\n");
 		bert = (acpi_bert_t *) current;
-		acpi_soc_fill_bert(bert, &region, &size);
+		acpi_soc_fill_bert(&region, &size);
 		acpi_write_bert(bert, (uintptr_t)region, size);
 		if (bert->header.length >= sizeof(acpi_bert_t)) {
 			current += bert->header.length;

@@ -8,7 +8,6 @@ and those providing after-market firmware to extend the usefulness of devices.
 
 ## Hardware shipping with coreboot
 
-<<<<<<< HEAD
 ### Purism
 
 [Purism](https://www.puri.sm) sells laptops with a focus on user privacy and
@@ -24,7 +23,6 @@ using Tianocore as the payload, and which include an NVRAM option to disable
 the Intel Management Engine.
 
 =======
->>>>>>> WIP/rebase
 ### ChromeOS Devices
 
 All ChromeOS devices ([Chromebooks](https://chromebookdb.com/), Chromeboxes,

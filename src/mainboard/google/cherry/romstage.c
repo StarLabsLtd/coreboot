@@ -16,9 +16,6 @@ void platform_romstage_main(void)
 	mt6315_init();
 	clk_buf_init();
 	rtc_boot();
-<<<<<<< HEAD
-=======
 	mtk_dram_init();
->>>>>>> WIP/rebase
 	scp_rsi_enable();
 }

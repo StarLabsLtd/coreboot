@@ -36,6 +36,10 @@ static bool devtree_gfx_hda_dev_enabled(void)
 	return gfx_hda_dev->enabled;
 }
 
+__weak void mb_pre_fspm(void)
+{
+}
+
 static void fill_dxio_descriptors(FSP_M_CONFIG *mcfg,
 			const fsp_dxio_descriptor *descs, size_t num)
 {
@@ -159,8 +163,17 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	mcfg->telemetry_vddcrsocOffset =
 		config->telemetry_vddcrsocoffset;
 
+	/* PCIe power vs. speed */
+	mcfg->pspp_policy = config->pspp_policy;
+
 	mcfg->enable_nb_azalia = devtree_gfx_hda_dev_enabled();
+
+	if (config->usb_phy_custom)
+		mcfg->usb_phy = (struct usb_phy_config *)&config->usb_phy;
+	else
+		mcfg->usb_phy = NULL;
 
 	fsp_fill_pcie_ddi_descriptors(mcfg);
 	fsp_assign_ioapic_upds(mcfg);
+	mb_pre_fspm();
 }

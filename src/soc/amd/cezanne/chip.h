@@ -8,6 +8,7 @@
 #include <soc/southbridge.h>
 #include <drivers/i2c/designware/dw_i2c.h>
 #include <types.h>
+#include <vendorcode/amd/fsp/cezanne/FspUsb.h>
 
 struct soc_amd_cezanne_config {
 	struct soc_amd_common_config common_config;
@@ -84,8 +85,6 @@ struct soc_amd_cezanne_config {
 	uint32_t slow_ppt_limit_tablet_mode_mW;
 	uint32_t sustained_power_limit_tablet_mode_mW;
 	uint32_t thermctl_limit_tablet_mode_degreeC;
-<<<<<<< HEAD
-=======
 
 	/* The array index is the general purpose PCIe clock output number. Values in here
 	   aren't the values written to the register to have the default to be always on. */
@@ -94,7 +93,16 @@ struct soc_amd_cezanne_config {
 		GPP_CLK_REQ,	/* GPP clock controlled by corresponding #CLK_REQx pin */
 		GPP_CLK_OFF,	/* GPP clk off */
 	} gpp_clk_config[GPP_CLK_OUTPUT_COUNT];
->>>>>>> WIP/rebase
+
+	/* performance policy for the PCIe links: power consumption vs. link speed */
+	enum {
+		DXIO_PSPP_PERFORMANCE = 0,
+		DXIO_PSPP_BALANCED,
+		DXIO_PSPP_POWERSAVE,
+	} pspp_policy;
+
+	uint8_t usb_phy_custom;
+	struct usb_phy_config usb_phy;
 };
 
 #endif /* CEZANNE_CHIP_H */
