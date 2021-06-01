@@ -34,7 +34,7 @@ Scope (_SB.PCI0.HDAS)
 
 		Name (_CID, Package (0x02)
 		{
-			"PRP00001", 
+			"PRP00001",
 			"PNP0A05"
 		})
 
@@ -45,7 +45,7 @@ Scope (_SB.PCI0.HDAS)
 	}
 }
 
-/* 
+/*
  * ITE IT8987E Embedded Controller
  *
  * We include this here as we need to support different levels within
