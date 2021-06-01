@@ -258,4 +258,3 @@ const struct pad_config *variant_gpio_table(size_t *num)
 #endif
 
 #endif
-

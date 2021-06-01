@@ -59,4 +59,3 @@ Scope (_SB.PCI0.HDAS)
 #else
 #include <ec/starlabs/it8987/acpi/ec.asl>
 #endif
-

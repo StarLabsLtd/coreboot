@@ -154,4 +154,3 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memupd->FspmConfig.RmtMarginCheckScaleHighThreshold = 0x0;
 	memupd->FspmConfig.MsgLevelMask = 0x0;
 }
-
