@@ -49,9 +49,9 @@
 #define ME_HFS1_COM_SECOVER_MEI_MSG	0x5
 
 /* ME Disable Rule */
-#define ME_DISABLE_RULE_ID	0x6
-#define ME_DISABLE_RULE_LENGTH	0x4
-#define ME_DISABLE_COMMAND	0x0
+#define ME_DISABLE_RULE_ID	6
+#define ME_DISABLE_RULE_LENGTH	4
+#define ME_DISABLE_COMMAND	0
 
 /* ME Firmware SKU Types */
 #define ME_HFS3_FW_SKU_CONSUMER	0x2
