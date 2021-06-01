@@ -8,7 +8,7 @@
 #include "variant/gpio.h"
 
 #if CONFIG(BOARD_STARLABS_LABTOP_CML)
-void mainboard_silicon_init_params(FSPS_UPD * supd)
+void mainboard_silicon_init_params(FSPS_UPD *supd)
 #else
 void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 #endif

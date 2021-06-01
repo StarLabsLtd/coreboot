@@ -48,7 +48,7 @@ chip soc/intel/cannonlake
 	register "tcc_offset" = "10"
 
 	# Enable eDP device
-	# register "DdiPortEdp" = "1"
+	register "DdiPortEdp" = "1"
 
 # PM Util (soc/intel/cannonlake/pmutil.c)
 	# GPE configuration
