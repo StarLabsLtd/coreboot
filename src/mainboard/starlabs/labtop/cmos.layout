@@ -4,7 +4,7 @@
 entries
 
 # -----------------------------------------------------------------
-0       120     r       0       reserved_memory
+0       384     r       0       reserved_memory
 
 # -----------------------------------------------------------------
 # RTC_BOOT_BYTE (coreboot hardcoded)
@@ -16,8 +16,8 @@ entries
 395     4       e       3       debug_level
 
 # coreboot config options: cpu
-400     1       e       5       hyper_threading
-401     1       e       5       vtd
+400     1       e       1       hyper_threading
+401     1       e       1       vtd
 409     1       e       5       me_state
 
 # coreboot config options: EC
@@ -72,4 +72,4 @@ enumerations
 # -----------------------------------------------------------------
 checksums
 
-checksum 392 983 984
+checksum 384 983 984
