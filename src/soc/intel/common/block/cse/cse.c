@@ -64,12 +64,6 @@ static struct cse_device {
 	uintptr_t sec_bar;
 } cse;
 
-/*
- * Initialize the device with provided temporary BAR. If BAR is 0 use a
- * default. This is intended for pre-mem usage only where BARs haven't been
- * assigned yet and devices are not enabled.
- */
-
 int disable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
@@ -80,7 +74,7 @@ int disable_me(void)
 		uint32_t rule_id;
 		uint8_t rule_len;
 		uint32_t rule_data;
-	} __packed;
+	};
 	struct disable_command msg = {
 		.hdr = {
 			.group_id = MKHI_GROUP_ID_FWCAPS,
@@ -95,6 +89,7 @@ int disable_me(void)
 	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
 	return status;
 }
+
 int enable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
@@ -102,7 +97,7 @@ int enable_me(void)
 	struct mkhi_hdr reply;
 	struct enable_command {
 		struct mkhi_hdr hdr;
-	} __packed;
+	};
 	struct enable_command msg = {
 		.hdr = {
 			.group_id = MKHI_GROUP_ID_BUP_COMMON,
@@ -115,7 +110,11 @@ int enable_me(void)
 	return status;
 }
 
-
+/*
+ * Initialize the device with provided temporary BAR. If BAR is 0 use a
+ * default. This is intended for pre-mem usage only where BARs haven't been
+ * assigned yet and devices are not enabled.
+ */
 
 void heci_init(uintptr_t tempbar)
 {
@@ -868,10 +867,10 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-#if CONFIG(ME_STATE_BY_CMOS)
-	u8 me_state = get_uint_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-#endif
+	if (CONFIG(ME_STATE_BY_CMOS)) {
+		u8 me_state = get_uint_option("me_state", 0xff);
+		printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+	}
 
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
@@ -898,12 +897,12 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-#if CONFIG(ME_STATE_BY_CMOS)
-	if (me_state == 1)
-		disable_me();
-	else
-#endif
-		heci_reset();
+	if (CONFIG(ME_STATE_BY_CMOS)) {
+		if (me_state == 1)
+			disable_me();
+		else
+	}
+			heci_reset();
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -918,10 +917,10 @@ void print_me_fw_version(void *unused)
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
 
-#if CONFIG(ME_STATE_BY_CMOS)
-	if (me_state == 0)
-		enable_me();
-#endif
+	if (CONFIG(ME_STATE_BY_CMOS)) {
+		if (me_state == 0)
+			enable_me();
+	}
 }
 
 #if ENV_RAMSTAGE
