@@ -112,6 +112,14 @@ int enable_me(void)
 	return status;
 }
 
+static uint8_t cmos_get_required_me_state(void)
+{
+	uint8_t me_state = get_uint_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+
+	return me_state;
+}
+
 /*
  * Initialize the device with provided temporary BAR. If BAR is 0 use a
  * default. This is intended for pre-mem usage only where BARs haven't been
@@ -844,7 +852,6 @@ int cse_hmrfpo_get_status(void)
 	return resp.status;
 }
 
-
 void print_me_fw_version(void *unused)
 {
 	struct version {
@@ -869,13 +876,8 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-	if (CONFIG(ME_STATE_BY_CMOS)) {
-		u8 me_state = get_uint_option("me_state", 0xff);
-		printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-	}
-
 	/* Ignore if UART debugging is disabled */
-	if (!CONFIG(CONSOLE_SERIAL))
+	if (CONFIG(CONSOLE_SERIAL))
 		return;
 
 	/* Ignore if CSE is disabled */
@@ -899,12 +901,10 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-	if (CONFIG(ME_STATE_BY_CMOS)) {
-		if (me_state == 1)
-			disable_me();
-		else
-	}
-			heci_reset();
+	if (CONFIG(ME_STATE_BY_CMOS) && cmos_get_required_me_state())
+		disable_me();
+	else
+		heci_reset();
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -919,10 +919,8 @@ void print_me_fw_version(void *unused)
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
 
-	if (CONFIG(ME_STATE_BY_CMOS)) {
-		if (me_state == 0)
-			enable_me();
-	}
+	if (CONFIG(ME_STATE_BY_CMOS) & !cmos_get_required_me_state())
+		enable_me();
 }
 
 #if ENV_RAMSTAGE
