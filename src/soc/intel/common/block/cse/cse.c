@@ -907,11 +907,12 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-	if (CONFIG(ME_STATE_BY_CMOS) && cmos_get_required_me_state()) {
-		disable_me();
-	} else {
+#if CONFIG(ME_STATE_BY_CMOS)
+		if (cmos_get_required_me_state())
+			disable_me();
+		else
+#endif
 		heci_reset();
-	};
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -926,8 +927,10 @@ void print_me_fw_version(void *unused)
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
 
-	if (CONFIG(ME_STATE_BY_CMOS) && !cmos_get_required_me_state())
-		enable_me();
+	#if CONFIG(ME_STATE_BY_CMOS)
+		if (!cmos_get_required_me_state())
+			enable_me();
+	#endif
 }
 
 #if ENV_RAMSTAGE
