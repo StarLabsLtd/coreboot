@@ -3,6 +3,11 @@
 #include <smbios.h>
 #include <types.h>
 #include <uuid.h>
+#include <option.h>
+#include <console/console.h>
+#include <device/device.h>
+#include <device/pci_def.h>
+#include <types.h>
 
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 #include <ec/starlabs/it5570/ec.h>
@@ -93,3 +98,25 @@ const char *smbios_chassis_asset_tag(void)
 {
 	return CONFIG_MAINBOARD_SERIAL_NUMBER;
 }
+
+static void device_by_cmos(void)
+{
+	u8 wireless_state = get_uint_option("wireless", 0xff);
+        printk(BIOS_DEBUG, "CMOS: wireless = %d\n", wireless_state);
+        if (wireless_state == 0) {
+                struct device *wireless = pcidev_on_root(0x14, 3);
+                if (wireless) {
+                        printk(BIOS_DEBUG, "Disabling wireless!\n");
+                        wireless->enabled = 0;
+                }
+        }
+}
+
+static void mainboard_enable(struct device *dev)
+{
+        device_by_cmos();
+}
+
+struct chip_operations mainboard_ops = {
+	.enable_dev = mainboard_enable,
+};
