@@ -12,8 +12,6 @@
 
 u8 get_memory_config_straps(void)
 {
-	int memid = 0;
-
 	/*
 	 * The hardware supports a number of different memory configurations
 	 * which are selected using four ID bits ID3 (GPP_H7), ID2 (GPP_H6),
@@ -24,23 +22,26 @@ u8 get_memory_config_straps(void)
 	 *
 	 * ID2ID1ID0Memory type
 	 * --------------------
-	 *111 Samsung 4G single channel
-	 *110 Samsung 8G dual channel
-	 *101 Micron 4G single channel
-	 *100 Micron 8G dual channel
-	 *011 Hynix 4G single channel
-	 *010 Hynix 8G dual channel
-	 *001 Micron 16G dual channel
-	 *000 Hynix 16G dual channel
+	 * 1  1  1 Samsung 4G single channel
+	 * 1  1  0 Samsung 8G dual channel
+	 * 1  0  1 Micron 4G single channel
+	 * 1  0  0 Micron 8G dual channel
+	 * 0  1  1 Hynix 4G single channel
+	 * 0  1  0 Hynix 8G dual channel
+	 * 0  0  1 Micron 16G dual channel
+	 * 0  0  0 Hynix 16G dual channel
 	 *
 	 * We return the value of these bits so that the index into the SPD
 	 * table can be .spd[] values can be configured correctly in the
 	 * memory configuration structure.
 	 */
 
-	memid = (gpio_get(GPP_H6) < 2) | (gpio_get(GPP_E23) < 1) | gpio_get(GPP_E22);
-
-	return (u8)memid;
+	gpio_t memid_gpios[] = {
+		GPP_E22,
+		GPP_E23,
+		GPP_H6
+	};
+	return (u8)gpio_base2_value(memid_gpios, ARRAY_SIZE(memid_gpios));
 }
 
 const struct cnl_mb_cfg *get_memory_cfg(struct cnl_mb_cfg *mem_cfg)
