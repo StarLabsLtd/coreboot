@@ -875,7 +875,7 @@ void print_me_fw_version(void *unused)
 	size_t resp_size = sizeof(resp);
 
 	/* Ignore if UART debugging is disabled */
-	if (CONFIG(CONSOLE_SERIAL))
+	if (!CONFIG(CONSOLE_SERIAL))
 		return;
 
 	/* Ignore if CSE is disabled */
@@ -899,10 +899,11 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
+	heci_reset();
 	if (CONFIG(ME_STATE_BY_CMOS) && cmos_get_required_me_state())
 		disable_me();
-	else
-		heci_reset();
+	/* else
+		heci_reset(); */
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -917,7 +918,7 @@ void print_me_fw_version(void *unused)
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
 
-	if (CONFIG(ME_STATE_BY_CMOS) & !cmos_get_required_me_state())
+	if (CONFIG(ME_STATE_BY_CMOS) && !cmos_get_required_me_state())
 		enable_me();
 }
 
