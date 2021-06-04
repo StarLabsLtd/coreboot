@@ -153,6 +153,7 @@ void devtree_update(void)
 			return;
 	}
 }
+
 void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
 	if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) {
@@ -160,3 +161,15 @@ void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 			disable_microphone(base);
         }
 }
+
+void disable_microphone(u8 *base)
+{
+        /* Overwrite settings made by baseboard */
+        azalia_program_verb_table(base, cim_verb_data, ARRAY_SIZE(cim_verb_data));
+
+        const u32 verbs[] = {
+                AZALIA_PIN_CFG(0, 0x12, 0x411111f0),
+        };
+        azalia_program_verb_table(base, verbs, ARRAY_SIZE(verbs));
+}
+
