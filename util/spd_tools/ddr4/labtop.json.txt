@@ -1,0 +1,28 @@
+{
+    "parts": [
+        {
+            "name": "MEMORY_PART_A",
+            "attribs": {
+                "speedMTps": 3200,
+                "CL_nRCD_nRP": 22
+                "capacityPerDieGb": 8,
+                "diesPerPackage": 2,
+                "packageBusWidth": 16,
+                "ranksPerPackage": 1,
+            }
+        },
+        {
+            "name": "MEMORY_PART_B",
+            "attribs": {
+                "speedMTps": 3200,
+                "CL_nRCD_nRP": 22
+                "capacityPerDieGb": 8,
+                "diesPerPackage": 1,
+                "packageBusWidth": 16,
+                "ranksPerPackage": 2,
+                "casLatencies": "9 10 11 12 13 14 15 16 17 18 19 20",
+                "tCKMaxPs": "1250"
+            }
+        }
+    ]
+}
