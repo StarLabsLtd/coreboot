@@ -8,6 +8,8 @@
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <types.h>
+#include <chip.h>
+#include <baseboard/variants.h>
 
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 #include <ec/starlabs/it5570/ec.h>
@@ -99,24 +101,50 @@ const char *smbios_chassis_asset_tag(void)
 	return CONFIG_MAINBOARD_SERIAL_NUMBER;
 }
 
-static void device_by_cmos(void)
+/* Override dev tree settings based on CMOS settings */
+void devtree_update(void)
 {
-	u8 wireless_state = get_uint_option("wireless", 0xff);
-        printk(BIOS_DEBUG, "CMOS: wireless = %d\n", wireless_state);
-        if (wireless_state == 0) {
-                struct device *wireless = pcidev_on_root(0x14, 3);
-                if (wireless) {
-                        printk(BIOS_DEBUG, "Disabling wireless!\n");
-                        wireless->enabled = 0;
-                }
-        }
-}
+	/*
+	 * usb2_ports[2] = Bluetooth
+	 * usb2_ports[6] = Camera
+	 * usb2_ports[9] = CNVi Bluetooth
+	 */
+	config_t *cfg = config_of_soc();
 
-static void mainboard_enable(struct device *dev)
-{
-        device_by_cmos();
-}
+	if (get_uint_option("camera", 0) == 0)
+		cfg->usb2_ports[6].enable = 0;
 
-struct chip_operations mainboard_ops = {
-	.enable_dev = mainboard_enable,
-};
+	if (get_uint_option("microphone", 0) == 0)
+		/* Need to switch verb table */
+		return;
+
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+		struct device *nic = pcidev_on_root(0x1d, 5);
+#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
+		struct device *nic = pcidev_on_root(0x14, 3);
+#elif CONFIG(BOARD_STARLABS_LABTOP_KBL)
+		struct device *nic = pcidev_on_root(0x1c, 5);
+#endif
+
+	if (get_uint_option("wireless", 0) == 0) {
+                nic->enabled = 0;
+	}
+
+	struct soc_power_limits_config *soc_conf;
+	soc_conf = &cfg->power_limits_config;
+
+	/* Update PL2 based on CMOS settings */
+	switch (get_uint_option("tdp", 0)) {
+		case 0:
+			soc_conf->tdp_pl2_override = 15;
+			break;
+		case 1:
+			soc_conf->tdp_pl2_override = 20;
+			break;
+		case 2:
+			soc_conf->tdp_pl2_override = 25;
+			break;
+		default:
+			return;
+	}
+}

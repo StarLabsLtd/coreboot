@@ -22,4 +22,9 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
+	devtree_update();
+}
+void __weak devtree_update(void)
+{
+        /* Override dev tree settings per board */
 }
