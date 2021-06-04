@@ -10,12 +10,17 @@
 #include <types.h>
 #include <chip.h>
 #include <baseboard/variants.h>
+#include <device/azalia_device.h>
+
 
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 #include <ec/starlabs/it5570/ec.h>
 #else
 #include <ec/starlabs/it8987/ec.h>
 #endif
+
+#define CODEC_ALC256 0x10ec0256
+#define CODEC_ALC269 0x10ec0259
 
 /* Override the BIOS version using smbios_mainboard_bios_version() */
 const char *smbios_mainboard_bios_version(void)
@@ -147,4 +152,11 @@ void devtree_update(void)
 		default:
 			return;
 	}
+}
+void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
+{
+	if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) {
+		if (get_uint_option("microphone", 0))
+			disable_microphone(base);
+        }
 }

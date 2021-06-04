@@ -12,5 +12,6 @@
 const struct pad_config *variant_gpio_table(size_t *num);
 const struct pad_config *variant_early_gpio_table(size_t *num);
 void devtree_update(void);
+void disable_microphone(u8 *base);
 
 #endif /* _BASEBOARD_VARIANTS_H_ */
