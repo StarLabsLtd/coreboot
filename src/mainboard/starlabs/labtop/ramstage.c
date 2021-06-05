@@ -1,11 +1,10 @@
-
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
 #include <device/device.h>
 #include <soc/ramstage.h>
 #include <option.h>
-#include "variant/gpio.h"
+#include "variant/gpio.c"
 
 #if CONFIG(BOARD_STARLABS_LABTOP_CML)
 void mainboard_silicon_init_params(FSPS_UPD *supd)

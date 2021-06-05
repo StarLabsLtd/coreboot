@@ -16,9 +16,6 @@ chip soc/intel/skylake
 		.chipset_lockdown = CHIPSET_LOCKDOWN_COREBOOT,
 	}"
 
-	# Send an extra VR mailbox command for the PS4 exit issue
-	# register "SendVrMbxCmd" = "2"
-
 # Graphics (soc/intel/skylake/graphics.c)
 	register "panel_cfg" = "{
 		.up_delay_ms= 200,// T3

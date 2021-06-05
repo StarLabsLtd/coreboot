@@ -63,11 +63,6 @@ config MAINBOARD_SMBIOS_PRODUCT_NAME
 	default "StarBook" if BOARD_STARLABS_STARBOOK_TGL
 	default "LabTop"
 
-config MAX_CPUS
-	int
-	default 8 if BOARD_STARLABS_LABTOP_KBL || BOARD_STARLABS_STARBOOK_TGL
-	default 12
-
 #config DRIVER_TPM_SPI_CHIP
 #	int
 #	default 2

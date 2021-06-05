@@ -5,7 +5,7 @@
 #include <bootblock_common.h>
 
 #include "baseboard/variants.h"
-#include "variant/gpio.h"
+#include "variant/gpio.c"
 
 void bootblock_mainboard_init(void)
 {

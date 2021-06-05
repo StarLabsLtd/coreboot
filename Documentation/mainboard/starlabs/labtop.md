@@ -100,7 +100,7 @@ make
 +---------------------+------------+
 | External flashing   | no         |
 +---------------------+------------+
-```
+
 #### **Requirements:**
 
 * Only available on Star Labtop Mk IV and Star LabTop Mk III
@@ -117,7 +117,7 @@ To check the version of **fwupd** you have installed, open a terminal window and
 fwupdmgr --version
 ```
 
-This will show the version number. Anything higher than **1.5.6** will work.
+This will show the version number. **1.5.6** or greater will work.
 ![fwupd version](https://cdn.shopify.com/s/files/1/2059/5897/files/fwupdV.png?v=1611136423)
 On Ubuntu 20.04, Ubuntu 20.10, Linux Mint 20.1 and elementaryOS 6, fwupd 1.5.6 can be installed from our PPA with the below terminal commands:
 

@@ -141,7 +141,7 @@ const u32 verbs[] = {
 
 void disable_microphone(u8 *base)
 {
-        azalia_program_verb_table(base, standard_verb, ARRAY_SIZE(standard_verb));
+        azalia_program_verb_table(base, , ARRAY_SIZE(standard_verb));
         azalia_program_verb_table(base, verbs, ARRAY_SIZE(verbs));
 }
 

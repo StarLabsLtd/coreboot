@@ -50,16 +50,6 @@ const struct cnl_mb_cfg *get_memory_cfg(struct cnl_mb_cfg *mem_cfg)
 
 	struct cnl_mb_cfg std_memcfg = {
 		/*
-		* The dqs_map arrays map the DDR4 pins to the SoC pins
-		* for both channels.
-		*
-		* the index = pin number on DDR4 part
-		* the value = pin number on SoC
-		*/
-		.dqs_map[DDR_CH0] = {0, 6, 1, 3, 5, 2, 7, 4},
-		.dqs_map[DDR_CH1] = {7, 5, 3, 6, 2, 4, 0, 1},
-
-		/*
 		* Mainboard uses 121, 81 and 100 rcomp resistors. See R6E1, R6E2
 		* and R6E3 on page 6 of the schematics.
 		*/
