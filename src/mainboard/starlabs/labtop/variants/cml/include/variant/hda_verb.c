@@ -9,7 +9,7 @@
 #include <console/console.h>
 #include <baseboard/variants.h>
 
-const u32 cim_verb_data[] = {
+const u32 standard_verb[] = {
 	/* coreboot specific header */
 	0x10ec0256,	// Codec Vendor / Device ID: Realtek ALC256
 	0xffffffff,	// Subsystem ID
@@ -175,15 +175,4 @@ const u32 pc_beep_verbs[] = {
 AZALIA_ARRAY_SIZES;
 
 #endif
-
-void disable_microphone(u8 *base)
-{
-        /* Overwrite settings made by baseboard */
-        azalia_program_verb_table(base, cim_verb_data, ARRAY_SIZE(cim_verb_data));
-
-        const u32 verbs[] = {
-                AZALIA_PIN_CFG(0, 0x12, 0x411111f0),
-        };
-        azalia_program_verb_table(base, verbs, ARRAY_SIZE(verbs));
-}
 
