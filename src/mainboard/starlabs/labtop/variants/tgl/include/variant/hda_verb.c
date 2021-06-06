@@ -5,6 +5,9 @@
 
 #include <device/azalia_device.h>
 #include <device/azalia.h>
+#include <types.h>
+#include <console/console.h>
+#include <baseboard/variants.h>
 
 const u32 cim_verb_data[] = {
 	/* coreboot specific header */
@@ -17,10 +20,7 @@ const u32 cim_verb_data[] = {
 
 	/* HDA Codec Subsystem ID Verb-table
 	   HDA Codec Subsystem ID  : 0x10EC119E */
-	0x0017209E,
-	0x00172111,
-	0x001722EC,
-	0x00172310,
+	AZALIA_SUBVENDOR(0, 0x10EC119E),
 
 	/* Pin Widget Verb-table */
 	AZALIA_PIN_CFG(0, 0x01, 0x00000000),
@@ -172,3 +172,4 @@ const u32 pc_beep_verbs[] = {
 AZALIA_ARRAY_SIZES;
 
 #endif
+
