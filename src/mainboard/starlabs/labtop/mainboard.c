@@ -42,11 +42,10 @@ const char *smbios_system_manufacturer(void)
 
 const char *smbios_system_sku(void)
 {
-#if CONFIG(BOARD_STARLABS_LABTOP_CML)
+if (CONFIG(BOARD_STARLABS_LABTOP_CML))
 	return "L4";
-#else
+else
 	return "L3-U";
-#endif
 }
 
 u8 smbios_mainboard_feature_flags(void)
@@ -82,27 +81,17 @@ const char *smbios_chassis_serial_number(void)
 /* Override dev tree settings based on CMOS settings */
 void devtree_update(void)
 {
-	/*
-	 * usb2_ports[2] = Bluetooth
-	 * usb2_ports[6] = Camera
-	 * usb2_ports[9] = CNVi Bluetooth
-	 */
 	config_t *cfg = config_of_soc();
 
 	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
 
-	if (get_uint_option("microphone", 0) == 0)
-		/* Need to switch verb table */
-		return;
-
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
 		struct device *nic = pcidev_on_root(0x1d, 5);
-#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
+	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
 		struct device *nic = pcidev_on_root(0x14, 3);
-#elif CONFIG(BOARD_STARLABS_LABTOP_KBL)
+	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
 		struct device *nic = pcidev_on_root(0x1c, 5);
-#endif
 
 	if (get_uint_option("wireless", 0) == 0) {
                 nic->enabled = 0;
@@ -129,19 +118,23 @@ void devtree_update(void)
 
 void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
-	if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) {
-		if (get_uint_option("microphone", 0))
-			disable_microphone(base);
-        }
+	uint8_t microphone = get_uint_option("microphone", 0xff);
+	printk(BIOS_DEBUG, "CMOS: microphone = %d\n", microphone);
+	/* if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) { */
+		/* if (get_uint_option("microphone", 0)) */
+        printk(BIOS_DEBUG, "CMOS: Disabling microphone\n");
+	disable_microphone(base);
+        /* } */
 }
 
-const u32 verbs[] = {
+const u32 override_verb[] = {
 	AZALIA_PIN_CFG(0, 0x12, 0x411111f0),
 };
 
 void disable_microphone(u8 *base)
 {
-        azalia_program_verb_table(base, standard_verb, ARRAY_SIZE(standard_verb));
-        azalia_program_verb_table(base, verbs, ARRAY_SIZE(verbs));
+	/* azalia_program_verb_table(base, cim_verb_data, ARRAY_SIZE(cim_verb_data)); */
+	azalia_program_verb_table(base, override_verb, ARRAY_SIZE(override_verb));
+	printk(BIOS_DEBUG, "CMOS: Disable attempted\n");
 }
 

@@ -18,12 +18,12 @@ chip soc/intel/skylake
 
 # Graphics (soc/intel/skylake/graphics.c)
 	register "panel_cfg" = "{
-		.up_delay_ms= 200,// T3
-		.down_delay_ms= 0,// T10
-		.cycle_delay_ms = 500,// T12
-		.backlight_on_delay_ms=50,// T7
-		.backlight_off_delay_ms = 0,// T9
-		.backlight_pwm_hz = 200,
+		.up_delay_ms		= 200,	// T3
+		.down_delay_ms		= 0,	// T10
+		.cycle_delay_ms		= 500,	// T12
+		.backlight_on_delay_ms	= 50,	// T7
+		.backlight_off_delay_ms	= 0,	// T9
+		.backlight_pwm_hz	= 200,
 	}"
 
 	# IGD Displays
@@ -41,15 +41,15 @@ chip soc/intel/skylake
 
 	# Serial I/O
 	register "SerialIoDevMode" = "{
-		[PchSerialIoIndexI2C0]= PchSerialIoPci,
-		[PchSerialIoIndexUart2] = PchSerialIoSkipInit,
+		[PchSerialIoIndexI2C0]	= PchSerialIoPci,
+		[PchSerialIoIndexUart2]	= PchSerialIoSkipInit,
 	}"
 
 	# Power
-	register "PmConfigSlpS3MinAssert" = "3"		# 50ms
-	register "PmConfigSlpS4MinAssert" = "3"		# 1s
-	register "PmConfigSlpSusMinAssert" = "3"	# 500ms
-	register "PmConfigSlpAMinAssert" = "3"		# 2s
+	register "PmConfigSlpS3MinAssert"	= "3"	# 50ms
+	register "PmConfigSlpS4MinAssert"	= "3"	# 1s
+	register "PmConfigSlpSusMinAssert"	= "3"	# 500ms
+	register "PmConfigSlpAMinAssert"	= "3"	# 2s
 
 	# Thermal
 	register "tcc_offset" = "5"
@@ -95,11 +95,11 @@ chip soc/intel/skylake
 		device pci 14.2 on  end			# Thermal Subsystem
 		device pci 15.0 on			# I2C #0
 			chip drivers/i2c/hid
-				register "generic.hid" = ""StarPoint""
-				register "generic.desc" = ""Touchpad""
-				register "generic.irq" = "ACPI_IRQ_LEVEL_LOW(GPP_C23_IRQ)"
-				register "generic.probed" = "1"
-				register "hid_desc_reg_offset" = "0x20"
+				register "generic.hid"		= ""StarPoint""
+				register "generic.desc"		= ""Touchpad""
+				register "generic.irq"		= "ACPI_IRQ_LEVEL_LOW(GPP_C23_IRQ)"
+				register "generic.probed"	= "1"
+				register "hid_desc_reg_offset"	= "0x20"
 				device i2c 2c on end
 			end
 		end
@@ -132,11 +132,11 @@ chip soc/intel/skylake
 		device pci 1c.3 off end			# PCI Express Port 4
 		device pci 1c.4 off end			# PCI Express Port 5
 		device pci 1c.5 on			# PCI Express Port 6 (WLAN)
-			register "PcieRpEnable[5]" = "1"
-			register "PcieRpClkReqSupport[5]" = "1"
-			register "PcieRpClkReqNumber[5]" = "4"
-			register "PcieRpClkSrcNumber[5]" = "4"
-			register "PcieRpLtrEnable[5]" = "1"
+			register "PcieRpEnable[5]"		= "1"
+			register "PcieRpClkReqSupport[5]"	= "1"
+			register "PcieRpClkReqNumber[5]"	= "4"
+			register "PcieRpClkSrcNumber[5]"	= "4"
+			register "PcieRpLtrEnable[5]"		= "1"
 			chip drivers/wifi/generic
 				device pci 00.0 on end
 			end
@@ -145,11 +145,11 @@ chip soc/intel/skylake
 		device pci 1c.7 off end			# PCI Express Port 8
 		device pci 1d.0 on			# PCI Express Port 9(SSD x4)
 			device pci 00.0 on end
-			register "PcieRpEnable[8]" = "1"
-			register "PcieRpClkReqSupport[8]" = "1"
-			register "PcieRpClkReqNumber[8]" = "0"
-			register "PcieRpClkSrcNumber[8]" = "0"
-			register "PcieRpLtrEnable[8]" = "1"
+			register "PcieRpEnable[8]"		= "1"
+			register "PcieRpClkReqSupport[8]"	= "1"
+			register "PcieRpClkReqNumber[8]"	= "0"
+			register "PcieRpClkSrcNumber[8]"	= "0"
+			register "PcieRpLtrEnable[8]"		= "1"
 			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
 		end
 		device pci 1d.1 off end			# PCI Express Port 10

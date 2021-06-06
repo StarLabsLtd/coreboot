@@ -15,10 +15,7 @@ const u32 cim_verb_data[] = {
 	AZALIA_RESET(0x1),
 	/* HDA Codec Subsystem ID Verb-table
 	HDA Codec Subsystem ID  : 0x10EC111E */
-	0x0017201E,
-	0x00172111,
-	0x001722EC,
-	0x00172310,
+	AZALIA_SUBVENDOR(0, 0x10EC111E),
 	/* Pin Widget Verb-table */
 	AZALIA_PIN_CFG(0, 0x01, 0x00000000),
 	AZALIA_PIN_CFG(0, 0x12, 0x90a61120),
