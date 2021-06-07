@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
-
 #include <baseboard/variants.h>
 #include <device/device.h>
 #include <soc/ramstage.h>
