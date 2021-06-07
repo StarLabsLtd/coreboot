@@ -42,9 +42,11 @@ const char *smbios_system_manufacturer(void)
 
 const char *smbios_system_sku(void)
 {
-if (CONFIG(BOARD_STARLABS_LABTOP_CML))
+if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+	return "B5";
+else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
 	return "L4";
-else
+else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
 	return "L3-U";
 }
 
