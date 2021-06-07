@@ -89,7 +89,7 @@ void devtree_update(void)
 
 	/* Perform any variant specific changes and return the nic_dev */
 	variant_devtree_update(nic_dev);
-	
+
 	if (nic_dev != NULL) {
 		if (get_uint_option("wireless", 0) == 0)
 			nic_dev->enabled = 0;
