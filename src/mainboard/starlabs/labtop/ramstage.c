@@ -9,18 +9,8 @@
 
 #include "variant/gpio.h"
 
-/* TODO: void mainboard_silicon_init_params(FSP_S_CONFIG *silconfig)
- * https://review.coreboot.org/c/coreboot/+/48143/ */
-#if CONFIG(BOARD_STARLABS_LABTOP_CML)
-void mainboard_silicon_init_params(FSPS_UPD *supd)
-#else
-void mainboard_silicon_init_params(FSP_S_CONFIG *params)
-#endif
+static void init_mainboard(void *chip_info)
 {
-	/*
-	 * Configure pads prior to SiliconInit() in case there's any
-	 * dependencies during hardware initialization.
-	 */
 	const struct pad_config *pads;
 	size_t num;
 
@@ -34,3 +24,7 @@ void __weak devtree_update(void)
 {
         /* Override dev tree settings per board */
 }
+
+struct chip_operations mainboard_ops = {
+	.init = init_mainboard,
+};

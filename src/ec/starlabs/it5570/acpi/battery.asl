@@ -38,7 +38,7 @@ Device(BAT0)
 		BPKG[1] = ECRD (RefOf(B1DC))
 		BPKG[2] = ECRD (RefOf(B1FC))
 		BPKG[4] = ECRD (RefOf(B1DV))
-      
+
 		If(ECRD(RefOf(B1FC)))
 		{
 			BPKG[5] = ECRD (RefOf(B1FC)) / 10
@@ -47,7 +47,7 @@ Device(BAT0)
 		}
 		Return(BPKG)
 	}
-    
+
 	Name(PKG1, Package() {
 		0xFFFFFFFF, // Battery State.
 		0xFFFFFFFF, // Battery Present Rate. (in mWh)
@@ -64,4 +64,3 @@ Device(BAT0)
 		Return(PKG1)
 	}
 }
-  

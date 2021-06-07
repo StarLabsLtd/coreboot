@@ -10,13 +10,14 @@ const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0269,	// Codec Vendor / Device ID: Realtek ALC269
 	0xffffffff,	// Subsystem ID
-	// TODO: Check
-	16,	// Number of jacks (NID entries)
+	16,		// Number of jacks (NID entries)
+
 	/* Rest Codec First */
 	AZALIA_RESET(0x1),
-	/* HDA Codec Subsystem ID Verb-table
-	HDA Codec Subsystem ID  : 0x10EC111E */
+
+	/* HDA Codec Subsystem ID Verb-table */
 	AZALIA_SUBVENDOR(0, 0x10EC111E),
+
 	/* Pin Widget Verb-table */
 	AZALIA_PIN_CFG(0, 0x01, 0x00000000),
 	AZALIA_PIN_CFG(0, 0x12, 0x90a61120),
@@ -29,26 +30,31 @@ const u32 cim_verb_data[] = {
 	AZALIA_PIN_CFG(0, 0x1B, 0x411111F0),
 	AZALIA_PIN_CFG(0, 0x1D, 0x411111F0),
 	AZALIA_PIN_CFG(0, 0x1E, 0x411111F0),
+
 	/* Widget node 0x20 */
 	0x02050018,
 	0x02040184, /* Stock: 0x02043984 */
 	0x0205001C,
 	0x02040800,
+
 	/* Widget node 0x20 - 1 */
 	0x02050024,
 	0x02040000,
 	0x02050004,
 	0x02040080,
+
 	/* Widget node 0x20 - 2 */
 	0x02050008,
 	0x02040300,
 	0x0205000C,
 	0x02043F00,
+
 	/* Widget node 0x20 - 3 */
 	0x02050015,
 	0x02048002,
 	0x02050015,
 	0x02048002,
+
 	/* Widget node 0x0C */
 	0x00C37080,
 	0x00270610,
