@@ -25,8 +25,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	mem_cfg->DqPinsInterleaved = 0;
 	mem_cfg->MemorySpdDataLen = CONFIG_DIMM_SPD_SIZE;
-	/* Memory leak is ok since we have memory mapped boot media */
-	// TODO evaluate google/eve way of loading
 	mem_cfg->MemorySpdPtr00 = spd_cbfs_map(spd_index);
 	if (!mem_cfg->MemorySpdPtr00)
 		die("spd.bin not found\n");
