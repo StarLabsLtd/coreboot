@@ -64,4 +64,3 @@ Device(BAT0)
 		Return(PKG1)
 	}
 }
-
