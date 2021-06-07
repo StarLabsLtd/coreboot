@@ -35,8 +35,8 @@
 #define IT5570_CHIPID2		0x21 /* Device ID register 2 */
 
 /* IT5570 chip ID byte values. */
-#define IT5570_CHIPID1_VAL	0x89
-#define IT5570_CHIPID2_VAL	0x87
+#define IT5570_CHIPID1_VAL	0x55
+#define IT5570_CHIPID2_VAL	0x70
 
 /* EC RAM offsets. */
 #define	ECRAM_KBL_TIMEOUT	0x07
