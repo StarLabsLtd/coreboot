@@ -18,8 +18,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	u8 spd_index = 6;
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
-	mainboard_fill_dq_map_data(&mem_cfg->DqByteMapCh0);
-	mainboard_fill_dqs_map_data(&mem_cfg->DqsMapCpu2DramCh0);
 	mainboard_fill_rcomp_res_data(&mem_cfg->RcompResistor);
 	mainboard_fill_rcomp_strength_data(&mem_cfg->RcompTarget);
 
