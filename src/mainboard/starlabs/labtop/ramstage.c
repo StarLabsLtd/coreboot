@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <device/device.h>
+
 #include <baseboard/variants.h>
 #include <device/device.h>
 #include <soc/ramstage.h>
@@ -23,7 +25,9 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 	gpio_configure_pads(pads, num);
 	devtree_update();
 }
+
 void __weak devtree_update(void)
 {
         /* Override dev tree settings per board */
 }
+

@@ -86,12 +86,13 @@ void devtree_update(void)
 	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
 
-	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-		struct device *nic = pcidev_on_root(0x1d, 5);
-	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
-		struct device *nic = pcidev_on_root(0x14, 3);
-	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
-		struct device *nic = pcidev_on_root(0x1c, 5);
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+	struct device *nic = pcidev_on_root(0x1d, 5); */
+#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
+	struct device *nic = pcidev_on_root(0x14, 3);
+#elif CONFIG(BOARD_STARLABS_LABTOP_KBL)
+	struct device *nic = pcidev_on_root(0x1c, 5);
+#endif
 
 	if (get_uint_option("wireless", 0) == 0) {
                 nic->enabled = 0;
