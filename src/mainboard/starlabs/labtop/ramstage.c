@@ -8,6 +8,8 @@
 #include <option.h>
 #include "variant/gpio.c"
 
+/* TODO: void mainboard_silicon_init_params(FSP_S_CONFIG *silconfig)
+ * https://review.coreboot.org/c/coreboot/+/48143/ */
 #if CONFIG(BOARD_STARLABS_LABTOP_CML)
 void mainboard_silicon_init_params(FSPS_UPD *supd)
 #else

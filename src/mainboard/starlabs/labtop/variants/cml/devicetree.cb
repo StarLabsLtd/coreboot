@@ -172,6 +172,7 @@ chip soc/intel/cannonlake
 		device pci 1f.1 off end								# P2SB
 		device pci 1f.2 on  end								# Power Management Controller
 		device pci 1f.3 on								# Intel HDA
+			# TODO: Make this less suspicous
 			subsystemid 0x10ec 0x119e
 			register "PchHdaAudioLinkHda"		= "1"
 		end

@@ -31,6 +31,7 @@ chip soc/intel/tigerlake
 
 # FSP Silicon (soc/intel/tigerlake/fsp_params.c)
 	# Serial I/O
+	# TODO: Remove ports that are off?
 	register "SerialIoI2cMode" = "{
 		[PchSerialIoIndexI2C0]		= PchSerialIoPci,
 		[PchSerialIoIndexI2C1]		= PchSerialIoPci,

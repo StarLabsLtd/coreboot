@@ -2,6 +2,7 @@
 
 Scope (\_SB) {
 	#include "sleep.asl"
+	/* TODO: Remove power button */
 	/* Power button device. */
 	Device (PWRB)
 	{

@@ -23,6 +23,9 @@
 
 const char *smbios_mainboard_bios_version(void)
 {
+if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+	return "0";
+else
 	return "6";
 }
 
@@ -88,6 +91,7 @@ void devtree_update(void)
 	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
 
+/* TODO: Remove preprocessor... */
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 	struct device *nic = pcidev_on_root(0x1d, 5); */
 #elif CONFIG(BOARD_STARLABS_LABTOP_CML)
@@ -119,6 +123,7 @@ void devtree_update(void)
 	}
 }
 
+/* TODO: Fix */
 void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
 	uint8_t microphone = get_uint_option("microphone", 0xff);

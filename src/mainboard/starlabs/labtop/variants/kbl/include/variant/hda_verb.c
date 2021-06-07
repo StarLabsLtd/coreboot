@@ -10,7 +10,8 @@ const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0269,	// Codec Vendor / Device ID: Realtek ALC269
 	0xffffffff,	// Subsystem ID
-	0x0000002b,	// Number of jacks (NID entries)
+	// TODO: Check
+	16,	// Number of jacks (NID entries)
 	/* Rest Codec First */
 	AZALIA_RESET(0x1),
 	/* HDA Codec Subsystem ID Verb-table
