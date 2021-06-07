@@ -138,7 +138,7 @@ chip soc/intel/skylake
 			register "PcieRpClkSrcNumber[5]"	= "4"
 			register "PcieRpLtrEnable[5]"		= "1"
 			chip drivers/wifi/generic
-				device pci 00.0 on end						# TODO: Remove?
+				device generic 0 on end
 			end
 		end
 		device pci 1c.6 off end								# PCI Express Port 7
