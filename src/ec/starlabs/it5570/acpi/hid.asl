@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 Device(HIDD)	//HID ACPI Device.
 {
 	Name(_HID,"INTC1051")	// Intel Ultrabook HID Platform Event Driver.
@@ -7,7 +9,7 @@ Device(HIDD)	//HID ACPI Device.
 	Name (HRDY, 0)   // HID Ready
 	Name (BTLD, 0)   // Button Driver Loaded
 	Name (BTS1, 0)   // Button Status
-	
+
 	Method(_STA,0,Serialized)
 	{
 		If (OSYS > 2013) {
@@ -16,14 +18,14 @@ Device(HIDD)	//HID ACPI Device.
 			Return(0)
 		}
 	}
-	
+
 	Method(HDDM,0,Serialized)
 	{
 		// Placeholder.
 		Name(DPKG, Package(4) {0x11111111, 0x22222222, 0x33333333, 0x44444444})
 		Return(DPKG)
 	}
-	
+
 	Method(HDEM,0,Serialized)
 	{
 		HBSY = 0x00	// Clear HID Busy.
@@ -33,7 +35,7 @@ Device(HIDD)	//HID ACPI Device.
 		}
 		Return(HMDE)
 	}
-	
+
 	Method(HDMM,0,Serialized)
 	{
 		Return(HMDE)	// Return Mode of operation.
@@ -43,7 +45,7 @@ Device(HIDD)	//HID ACPI Device.
 	{
 		HRDY = Arg0	// Store HID Ready Status.
 	}
-	
+
 	Method(HPEM,1,Serialized)	// HID Platform Event Method.
 	{
 		HBSY = 1
@@ -69,7 +71,7 @@ Device(HIDD)	//HID ACPI Device.
 			Return(0)
 		}
 	}
-	
+
 	Method(BTNL,0,Serialized)
 	{
 		BTS1 = 0
@@ -93,15 +95,15 @@ Device(HIDD)	//HID ACPI Device.
 	Method (HEBC,0,Serialized) {
 		Return (0x00063002)
 	}
-	
+
 	Method (H2BC,0,Serialized) {
 		Return (0x00063002)
 	}
-	
+
 	Method (HEEC,0,Serialized) {
 		Return(0)
 	}
-	
+
 	Method (_DSM, 4, Serialized, 0, UnknownObj, {BuffObj, IntObj, IntObj, PkgObj})
 	{
 		If (LEqual(Arg0, ToUUID ("EEEC56B3-4442-408F-A792-4EDD4D758054")))

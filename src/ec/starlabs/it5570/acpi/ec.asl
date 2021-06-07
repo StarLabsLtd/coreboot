@@ -18,10 +18,10 @@ Scope (\_SB.PCI0.LPCB)
 	// Include the definitions for accessing CMOS.
 	#include "cmos.asl"
 
-	// Our embedded controller device.	
+	// Our embedded controller device.
 	Device (H_EC)
 	{
-		Name(_HID, EISAID("PNP0C09"))  
+		Name(_HID, EISAID("PNP0C09"))
 		Name(_UID,1)
 		Name(ECAV, Zero)	// OS Bug Checks if EC OpRegion accessed before Embedded Controller Driver loaded
 		Name(ECTK, One)		// ECDT (Embedded Controller Boot Resources Table) Check to correct ECAV flag in the beginning
@@ -58,7 +58,7 @@ Scope (\_SB.PCI0.LPCB)
 		Field (SMIP, ByteAcc, Lock, Preserve) {
 			SMB2, 8
 		}
-		
+
 		// EC RAM fields
 		OperationRegion(ECF2, EmbeddedControl, 0, 0xFF)
 		Field (ECF2, ByteAcc, Lock, Preserve)
@@ -89,7 +89,7 @@ Scope (\_SB.PCI0.LPCB)
 			B1PR, 16,	//0x8D~8E	Battery#1 Present Rate
 			B1RC, 16,	//0x8F~90	Battery#1 Remaining Capacity
 			B1PV, 16,	//0x91~92	Battery#1 Present Voltage
-			B1RP, 8,	//0x93		Battery#1 Remaining percentage 
+			B1RP, 8,	//0x93		Battery#1 Remaining percentage
 		}
 
 		Method (ECRD, 1, Serialized, 0, IntObj, FieldUnitObj)
@@ -133,7 +133,7 @@ Scope (\_SB.PCI0.LPCB)
 				ECTK = 0x00
 			}
 
-			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired	
+			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired
 			If (Local0 == 0x00)
 			{
 				If (ECAV)
@@ -143,7 +143,7 @@ Scope (\_SB.PCI0.LPCB)
 				Release(ECMT)
 			}
 		}
-  
+
 		// EREG method will be used in _REG (evaluated by OS without
 		// ECDT support) or _INI (for OS with ECDT support)
 		Method (EREG)
@@ -151,20 +151,20 @@ Scope (\_SB.PCI0.LPCB)
 			// Update ECAV Object. ASL should check for this value
 			// to be 1 before accessing EC OpRegion.
 			ECAV = 1
-    
+
 			LIDS = ECRD (RefOf (LSTE))
 
 			// Report OSFG to notify EC
 			ECWT(0x01, RefOf (OSFG))
-    
+
 			// Save the current Power State for later.
 			// PWRS = Local0
-    
+
 			// Update power state
 			PWRS = (ECRD (RefOf (ECPS)) & 0x01)
-    
+
 			//\_SB.CPPC = 0x00 // Note: \_SB.CPPC must be an Integer not a Method
-    
+
 			//Perform needed ACPI Notifications.
 			PNOT()
 		}
@@ -174,7 +174,7 @@ Scope (\_SB.PCI0.LPCB)
 			Local0 = 0x6E	// GPI6E for eSPI
 			Return (Local0)
 		}
-		
+
 		Method (PTS, 1, Serialized)
 		{
 			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
