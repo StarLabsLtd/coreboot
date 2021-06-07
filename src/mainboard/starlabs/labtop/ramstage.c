@@ -7,8 +7,6 @@
 #include <soc/ramstage.h>
 #include <option.h>
 
-#include "variant/gpio.h"
-
 static void init_mainboard(void *chip_info)
 {
 	const struct pad_config *pads;
@@ -18,11 +16,6 @@ static void init_mainboard(void *chip_info)
 	gpio_configure_pads(pads, num);
 	
 	devtree_update();
-}
-
-void __weak devtree_update(void)
-{
-        /* Override dev tree settings per board */
 }
 
 struct chip_operations mainboard_ops = {

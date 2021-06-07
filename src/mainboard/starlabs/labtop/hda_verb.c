@@ -5,8 +5,6 @@
 #include <device/azalia_device.h>
 #include <types.h>
 
-#include "variant/hda_verb.h"
-
 #define AZALIA_CODEC_ALC256 0x10ec0256 /* 283902550 */
 #define AZALIA_CODEC_ALC269 0x10ec0269
 

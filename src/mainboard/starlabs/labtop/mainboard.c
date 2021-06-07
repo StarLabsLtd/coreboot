@@ -77,39 +77,24 @@ const char *smbios_chassis_serial_number(void)
 	return smbios_mainboard_serial_number();
 }
 
+void __weak variant_devtree_update(struct device *nic_dev)
+{
+}
+
 /* Override dev tree settings based on CMOS settings */
 void devtree_update(void)
 {
+	struct device *nic_dev = NULL;
 	config_t *cfg = config_of_soc();
+
+	/* Perform any variant specific changes and return the nic_dev */
+	variant_devtree_update(nic_dev);
+	
+	if (nic_dev != NULL) {
+		if (get_uint_option("wireless", 0) == 0)
+			nic_dev->enabled = 0;
+	}
 
 	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
-
-	struct device *nic_dev;
-	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-		nic_dev = pcidev_on_root(0x1d, 5);
-	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
-		nic_dev = pcidev_on_root(0x14, 3);
-	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
-		nic_dev = pcidev_on_root(0x1c, 5);
-
-	if (get_uint_option("wireless", 0) == 0)
-		nic_dev->enabled = 0;
-
-	struct soc_power_limits_config *soc_conf;
-	/* TODO: TGL needs power_limits_config[POWER_LIMITS_U_2_CORE] and power_limits_config[POWER_LIMITS_U_4_CORE] */
-	soc_conf = &cfg->power_limits_config;
-
-	/* Update PL2 based on CMOS settings */
-	switch (get_uint_option("tdp", 0)) {
-	case 1:
-		soc_conf->tdp_pl2_override = 20;
-		break;
-	case 2:
-		soc_conf->tdp_pl2_override = 25;
-		break;
-	default:
-		soc_conf->tdp_pl2_override = 15;
-		break;
-	}
 }

@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef MAINBOARD_SPD_H
-#define MAINBOARD_SPD_H
+#ifndef _MAINBOARD_SPD_H_
+#define _MAINBOARD_SPD_H_
 
 #include <gpio.h>
-#include <variant/gpio.h>
 
 void mainboard_fill_dq_map_data(void *dq_map_ptr);
 void mainboard_fill_dqs_map_data(void *dqs_map_ptr);

@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef _VARIANT_GPIO_H_
-#define _VARIANT_GPIO_H_
-
 #include "baseboard/variants.h"
-
-#ifndef __ACPI__
 
 /*
  * All definitions are taken from a comparison of the output of "inteltool -a"
@@ -13,7 +8,7 @@
  */
 
 /* Early pad configuration in romstage. */
-static const struct pad_config early_gpio_table[] = {
+const struct pad_config early_gpio_table[] = {
 
 };
 
@@ -24,7 +19,7 @@ const struct pad_config *variant_early_gpio_table(size_t *num)
 }
 
 /* Pad configuration in ramstage. */
-static const struct pad_config gpio_table[] = {
+const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPD0, NONE, PWROK, NF1),
 	PAD_CFG_NF(GPD1, NONE, PWROK, NF1),
 	_PAD_CFG_STRUCT(GPD2, 0x04000300, 0x1000),
@@ -197,7 +192,3 @@ const struct pad_config *variant_gpio_table(size_t *num)
 	*num = ARRAY_SIZE(gpio_table);
 	return gpio_table;
 }
-
-#endif
-
-#endif
