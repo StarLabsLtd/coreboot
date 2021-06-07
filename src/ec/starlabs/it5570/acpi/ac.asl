@@ -22,13 +22,12 @@ Device (ADP1)
 		}
 		Return (PWRS)
 	}
-
 }
 
 Method (_Q0A, 0, NotSerialized)
 {
 	Notify(BAT0, 0x81)
-    	Notify(ADP1, 0x80)
+	Notify(ADP1, 0x80)
 }
   
 Method (_Q0B, 0, NotSerialized)
