@@ -93,7 +93,7 @@ void devtree_update(void)
 
 /* TODO: Remove preprocessor... */
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-	struct device *nic = pcidev_on_root(0x1d, 5); */
+	struct device *nic = pcidev_on_root(0x1d, 5);
 #elif CONFIG(BOARD_STARLABS_LABTOP_CML)
 	struct device *nic = pcidev_on_root(0x14, 3);
 #elif CONFIG(BOARD_STARLABS_LABTOP_KBL)
@@ -105,6 +105,7 @@ void devtree_update(void)
 	}
 
 	struct soc_power_limits_config *soc_conf;
+	/* TODO: TGL needs power_limits_config[POWER_LIMITS_U_2_CORE] and power_limits_config[POWER_LIMITS_U_4_CORE] */
 	soc_conf = &cfg->power_limits_config;
 
 	/* Update PL2 based on CMOS settings */
