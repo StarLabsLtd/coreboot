@@ -10,23 +10,15 @@
 #include <types.h>
 #include <chip.h>
 #include <baseboard/variants.h>
-#include <device/azalia_device.h>
 
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-#include <ec/starlabs/it5570/ec.h>
-#else
-#include <ec/starlabs/it8987/ec.h>
-#endif
-
-#define CODEC_ALC256 0x10ec0256
-#define CODEC_ALC269 0x10ec0269
+#include "variant/ec.h"
 
 const char *smbios_mainboard_bios_version(void)
 {
-if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-	return "0";
-else
-	return "6";
+	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+		return "0";
+	else
+		return "6";
 }
 
 /* Get the Embedded Controller firmware version */
@@ -45,12 +37,14 @@ const char *smbios_system_manufacturer(void)
 
 const char *smbios_system_sku(void)
 {
-if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-	return "B5";
-else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
-	return "L4";
-else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
-	return "L3-U";
+	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+		return "B5";
+	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
+		return "L4";
+	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
+		return "L3-U";
+	else
+		return "Unknown";
 }
 
 u8 smbios_mainboard_feature_flags(void)
@@ -91,18 +85,16 @@ void devtree_update(void)
 	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
 
-/* TODO: Remove preprocessor... */
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-	struct device *nic = pcidev_on_root(0x1d, 5);
-#elif CONFIG(BOARD_STARLABS_LABTOP_CML)
-	struct device *nic = pcidev_on_root(0x14, 3);
-#elif CONFIG(BOARD_STARLABS_LABTOP_KBL)
-	struct device *nic = pcidev_on_root(0x1c, 5);
-#endif
+	struct device *nic_dev;
+	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
+		nic_dev = pcidev_on_root(0x1d, 5);
+	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
+		nic_dev = pcidev_on_root(0x14, 3);
+	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
+		nic_dev = pcidev_on_root(0x1c, 5);
 
-	if (get_uint_option("wireless", 0) == 0) {
-                nic->enabled = 0;
-	}
+	if (get_uint_option("wireless", 0) == 0)
+		nic_dev->enabled = 0;
 
 	struct soc_power_limits_config *soc_conf;
 	/* TODO: TGL needs power_limits_config[POWER_LIMITS_U_2_CORE] and power_limits_config[POWER_LIMITS_U_4_CORE] */
@@ -110,40 +102,14 @@ void devtree_update(void)
 
 	/* Update PL2 based on CMOS settings */
 	switch (get_uint_option("tdp", 0)) {
-		case 0:
-			soc_conf->tdp_pl2_override = 15;
-			break;
-		case 1:
-			soc_conf->tdp_pl2_override = 20;
-			break;
-		case 2:
-			soc_conf->tdp_pl2_override = 25;
-			break;
-		default:
-			return;
+	case 1:
+		soc_conf->tdp_pl2_override = 20;
+		break;
+	case 2:
+		soc_conf->tdp_pl2_override = 25;
+		break;
+	default:
+		soc_conf->tdp_pl2_override = 15;
+		break;
 	}
 }
-
-/* TODO: Fix */
-void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
-{
-	uint8_t microphone = get_uint_option("microphone", 0xff);
-	printk(BIOS_DEBUG, "CMOS: microphone = %d\n", microphone);
-	/* if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) { */
-		/* if (get_uint_option("microphone", 0)) */
-        printk(BIOS_DEBUG, "CMOS: Disabling microphone\n");
-	disable_microphone(base);
-        /* } */
-}
-
-const u32 override_verb[] = {
-	AZALIA_PIN_CFG(0, 0x12, 0x411111f0),
-};
-
-void disable_microphone(u8 *base)
-{
-	/* azalia_program_verb_table(base, cim_verb_data, ARRAY_SIZE(cim_verb_data)); */
-	azalia_program_verb_table(base, override_verb, ARRAY_SIZE(override_verb));
-	printk(BIOS_DEBUG, "CMOS: Disable attempted\n");
-}
-
