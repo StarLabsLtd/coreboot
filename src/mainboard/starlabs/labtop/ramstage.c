@@ -6,7 +6,8 @@
 #include <device/device.h>
 #include <soc/ramstage.h>
 #include <option.h>
-#include "variant/gpio.c"
+
+#include "variant/gpio.h"
 
 /* TODO: void mainboard_silicon_init_params(FSP_S_CONFIG *silconfig)
  * https://review.coreboot.org/c/coreboot/+/48143/ */
@@ -25,6 +26,7 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
+	
 	devtree_update();
 }
 
@@ -32,4 +34,3 @@ void __weak devtree_update(void)
 {
         /* Override dev tree settings per board */
 }
-
