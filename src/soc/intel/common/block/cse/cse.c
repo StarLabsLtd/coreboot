@@ -1,7 +1,9 @@
+
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <commonlib/helpers.h>
+#include <cf9_reset.h>
 #include <console/console.h>
 #include <device/mmio.h>
 #include <delay.h>
@@ -9,12 +11,12 @@
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <intelblocks/cse.h>
+#include <option.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/me.h>
 #include <string.h>
 #include <timer.h>
-#include <option.h>
 #include <types.h>
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
@@ -63,60 +65,6 @@
 static struct cse_device {
 	uintptr_t sec_bar;
 } cse;
-
-int disable_me(void)
-{
-	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
-	int status;
-	struct mkhi_hdr reply;
-	struct disable_command {
-		struct mkhi_hdr hdr;
-		uint32_t rule_id;
-		uint8_t rule_len;
-		uint32_t rule_data;
-	} __packed;
-	struct disable_command msg = {
-		.hdr = {
-			.group_id = MKHI_GROUP_ID_FWCAPS,
-			.command = MKHI_ME_SET_STATE,
-		},
-		.rule_id = ME_DISABLE_RULE_ID,
-		.rule_len = ME_DISABLE_RULE_LENGTH,
-		.rule_data = ME_DISABLE_COMMAND,
-	};
-	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
-	return status;
-}
-
-int enable_me(void)
-{
-	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
-	int status;
-	struct mkhi_hdr reply;
-	struct enable_command {
-		struct mkhi_hdr hdr;
-	};
-	struct enable_command msg = {
-		.hdr = {
-			.group_id = MKHI_GROUP_ID_BUP_COMMON,
-			.command = MKHI_ME_SET_STATE,
-		},
-	};
-	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
-	return status;
-}
-
-static uint8_t cmos_get_required_me_state(void)
-{
-	uint8_t me_state = get_uint_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-
-	return me_state;
-}
 
 /*
  * Initialize the device with provided temporary BAR. If BAR is 0 use a
@@ -875,11 +823,6 @@ void print_me_fw_version(void *unused)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-#if CONFIG(ME_STATE_BY_CMOS)
-	u8 me_state = get_uint_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-#endif
-
 	/* Ignore if UART debugging is disabled */
 	if (!CONFIG(CONSOLE_SERIAL))
 		return;
@@ -905,12 +848,7 @@ void print_me_fw_version(void *unused)
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto fail;
 
-#if CONFIG(ME_STATE_BY_CMOS)
-		if (cmos_get_required_me_state())
-			disable_me();
-		else
-#endif
-		heci_reset();
+	heci_reset();
 
 	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
 		goto fail;
@@ -924,11 +862,6 @@ void print_me_fw_version(void *unused)
 
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
-
-	#if CONFIG(ME_STATE_BY_CMOS)
-		if (!cmos_get_required_me_state())
-			enable_me();
-	#endif
 }
 
 #if ENV_RAMSTAGE
@@ -946,12 +879,121 @@ static void cse_set_resources(struct device *dev)
 	pci_dev_set_resources(dev);
 }
 
+int disable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct disable_command {
+		struct mkhi_hdr hdr;
+		uint32_t rule_id;
+		uint8_t rule_len;
+		uint32_t rule_data;
+	} __packed;
+	struct disable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_FWCAPS,
+			.command = MKHI_ME_SET_STATE,
+		},
+		.rule_id = ME_DISABLE_RULE_ID,
+		.rule_len = ME_DISABLE_RULE_LENGTH,
+		.rule_data = ME_DISABLE_COMMAND,
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+
+int enable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct enable_command {
+		struct mkhi_hdr hdr;
+	};
+	struct enable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_BUP_COMMON,
+			.command = MKHI_ME_SET_STATE,
+		},
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+
+static void cse_set_state(struct device *dev)
+{
+	if (!CONFIG(ME_STATE_BY_CMOS))
+		return;
+
+	struct version {
+		uint16_t minor;
+		uint16_t major;
+		uint16_t build;
+		uint16_t hotfix;
+	} __packed;
+
+	struct fw_ver_resp {
+		struct mkhi_hdr hdr;
+		struct version code;
+		struct version rec;
+		struct version fitc;
+	} __packed;
+
+	const struct mkhi_hdr fw_ver_msg = {
+		.group_id = MKHI_GROUP_ID_GEN,
+		.command = MKHI_GEN_GET_FW_VERSION,
+	};
+
+	struct fw_ver_resp resp;
+	size_t resp_size = sizeof(resp);
+
+	u8 me_state = get_uint_option("me_state", 0xff);
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+
+	/* If cse is disabled, go to disabled */
+	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
+		goto disabled;
+
+	/* If it's on, and we want it off, turn it off */
+	if (me_state)
+		disable_me();
+
+	heci_reset();
+
+	/* Check the firmware version to check it's disabled */
+	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
+		goto disabled;
+
+	if (resp.hdr.result)
+		goto disabled;
+
+	/* If we're still here, then it didn't go off, and a reset is required */
+	if (me_state)
+		do_full_reset();
+
+	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
+                        resp.code.minor, resp.code.hotfix, resp.code.build);
+	return;
+
+disabled:
+	printk(BIOS_DEBUG, "ME: Version: 0.0.0.0\n");
+
+	if (!me_state)
+		enable_me();
+}
+
 static struct device_operations cse_ops = {
 	.set_resources		= cse_set_resources,
 	.read_resources		= pci_dev_read_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= pci_dev_init,
 	.ops_pci		= &pci_dev_ops_pci,
+	.enable			= cse_set_state,
 };
 
 static const unsigned short pci_device_ids[] = {
