@@ -114,14 +114,6 @@ int enable_me(void)
 	return status;
 }
 
-uint8_t cmos_get_required_me_state(void)
-{
-	uint8_t me_state = get_uint_option("me_state", 0xff);
-	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
-
-	return me_state;
-}
-
 /*
  * Initialize the device with provided temporary BAR. If BAR is 0 use a
  * default. This is intended for pre-mem usage only where BARs haven't been
@@ -940,6 +932,10 @@ static void cse_set_state(struct device *dev)
 	if (!CONFIG(ME_STATE_BY_CMOS))
 		return;
 
+	/* Test */
+	u8 reboot_counter = get_uint_option("reboot_counter", 0xff);
+	printk(BIOS_DEBUG, "CMOS: reboot_counter = %d\n", reboot_counter);
+
 	struct version {
 		uint16_t minor;
 		uint16_t major;
@@ -970,7 +966,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* If it's on, and we want it off, turn it off */
-	if (cmos_get_required_me_state())
+	if (me_state == 1)
 		disable_me();
 
 	heci_reset();
@@ -983,7 +979,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* If we're still here, then it didn't go off, and a reset is required */
-	if (cmos_get_required_me_state())
+	if (me_state == 1)
 		do_full_reset();
 
 	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
@@ -994,7 +990,7 @@ disabled:
 	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
 			resp.code.minor, resp.code.hotfix, resp.code.build);
 
-	if (!cmos_get_required_me_state())
+	if (me_state == 0)
 		enable_me();
 }
 
