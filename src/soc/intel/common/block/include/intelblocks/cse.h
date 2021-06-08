@@ -207,6 +207,11 @@ int disable_me(void);
 void print_me_fw_version(void *unused);
 
 /*
+ * Set ME State
+ */
+uint8_t cmos_get_required_me_state(void);
+
+/*
  * Checks current working operation state is normal or not.
  * Returns true if CSE's current working state is normal, otherwise false.
  */
