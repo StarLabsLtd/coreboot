@@ -966,7 +966,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* If it's on, and we want it off, turn it off */
-	if (me_state == 1)
+	if (me_state)
 		disable_me();
 
 	heci_reset();
@@ -979,7 +979,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* If we're still here, then it didn't go off, and a reset is required */
-	if (me_state == 1)
+	if (me_state)
 		do_full_reset();
 
 	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
@@ -990,7 +990,7 @@ disabled:
 	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
 			resp.code.minor, resp.code.hotfix, resp.code.build);
 
-	if (me_state == 0)
+	if (!me_state)
 		enable_me();
 }
 
