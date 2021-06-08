@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <commonlib/helpers.h>
+#include <cf9_reset.h>
 #include <console/console.h>
 #include <device/mmio.h>
 #include <delay.h>
@@ -10,16 +11,13 @@
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <intelblocks/cse.h>
-#include <security/vboot/misc.h>
-#include <security/vboot/vboot_common.h>
+#include <option.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/me.h>
 #include <string.h>
 #include <timer.h>
-#include <option.h>
 #include <types.h>
-#include <cf9_reset.h>
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
 
@@ -927,14 +925,56 @@ static void cse_set_resources(struct device *dev)
 	pci_dev_set_resources(dev);
 }
 
+int disable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct disable_command {
+		struct mkhi_hdr hdr;
+		uint32_t rule_id;
+		uint8_t rule_len;
+		uint32_t rule_data;
+	} __packed;
+	struct disable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_FWCAPS,
+			.command = MKHI_ME_SET_STATE,
+		},
+		.rule_id = ME_DISABLE_RULE_ID,
+		.rule_len = ME_DISABLE_RULE_LENGTH,
+		.rule_data = ME_DISABLE_COMMAND,
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+
+int enable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct enable_command {
+		struct mkhi_hdr hdr;
+	};
+	struct enable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_BUP_COMMON,
+			.command = MKHI_ME_SET_STATE,
+		},
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
+	return status;
+}
+
 static void cse_set_state(struct device *dev)
 {
 	if (!CONFIG(ME_STATE_BY_CMOS))
 		return;
-
-	/* Test */
-	u8 reboot_counter = get_uint_option("reboot_counter", 0xff);
-	printk(BIOS_DEBUG, "CMOS: reboot_counter = %d\n", reboot_counter);
 
 	struct version {
 		uint16_t minor;
@@ -983,12 +1023,11 @@ static void cse_set_state(struct device *dev)
 		do_full_reset();
 
 	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
-			resp.code.minor, resp.code.hotfix, resp.code.build);
+                        resp.code.minor, resp.code.hotfix, resp.code.build);
 	return;
 
 disabled:
-	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
-			resp.code.minor, resp.code.hotfix, resp.code.build);
+	printk(BIOS_DEBUG, "ME: Version: 0.0.0.0\n");
 
 	if (!me_state)
 		enable_me();

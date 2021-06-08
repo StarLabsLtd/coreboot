@@ -226,10 +226,6 @@ int cse_hmrfpo_enable(void);
  */
 int cse_hmrfpo_get_status(void);
 
-/* Methods for disabling/enabling the ME */
-int enable_me(void);
-int disable_me(void);
-
 /* Fixed Address MEI Header's Host Address field value */
 #define BIOS_HOST_ADDR	0x00
 
