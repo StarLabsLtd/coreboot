@@ -77,7 +77,7 @@ config CPU_SPECIFIC_OPTIONS
 	select DISPLAY_FSP_VERSION_INFO
 	select HECI_DISABLE_USING_SMM
 
-onfig MAX_CPUS
+config MAX_CPUS
 	int
 	default 8
 
