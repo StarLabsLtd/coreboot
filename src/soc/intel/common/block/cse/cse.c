@@ -959,7 +959,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* Currently in state 0 and we want 3 */
-	if (me_state == 3)
+	if (me_state)
 		disable_me();
 
 	heci_reset();
@@ -972,7 +972,7 @@ static void cse_set_state(struct device *dev)
 		goto disabled;
 
 	/* Hasn't changed states, reset and try again */
-	if (me_state == 3)
+	if (me_state)
 		do_global_reset();
 
 	printk(BIOS_DEBUG, "ME: Version: %u.%u.%u.%u\n", resp.code.major,
