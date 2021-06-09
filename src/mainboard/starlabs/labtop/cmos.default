@@ -8,9 +8,9 @@ vtd=Enable
 tdp=15W
 me_state=Disable
 # Devices
-wireless=Disable
+wireless=Enable
 webcam=Enable
-microphone=Disable
+microphone=Enable
 # EC
 kbl_timeout=30 seconds
 fn_ctrl_swap=Disable

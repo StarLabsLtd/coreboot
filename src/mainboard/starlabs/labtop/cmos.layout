@@ -68,7 +68,7 @@ enumerations
 4       4       Never
 
 5       0       Enable
-5       1       Disable
+5       3       Disable
 
 6       0       Disable
 6       1       Enable
