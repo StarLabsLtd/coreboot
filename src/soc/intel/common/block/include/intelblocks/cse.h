@@ -17,7 +17,8 @@
 #define MKHI_CBM_GLOBAL_RESET_REQ	0xb
 
 /* Set State Command ID */
-#define MKHI_ME_SET_STATE	0x3
+#define MKHI_SET_ME_DISABLE	0x3
+#define MKHI_SET_ME_ENABLE	0x3
 
 /* Origin of Global Reset command */
 #define GR_ORIGIN_BIOS_POST	0x2

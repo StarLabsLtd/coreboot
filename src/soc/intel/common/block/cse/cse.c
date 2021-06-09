@@ -1,9 +1,7 @@
-
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <commonlib/helpers.h>
-#include <cf9_reset.h>
 #include <console/console.h>
 #include <device/mmio.h>
 #include <delay.h>
@@ -13,6 +11,7 @@
 #include <intelblocks/cse.h>
 #include <option.h>
 #include <soc/iomap.h>
+#include <soc/intel/common/reset.h>
 #include <soc/pci_devs.h>
 #include <soc/me.h>
 #include <string.h>
@@ -703,6 +702,7 @@ static int cse_request_reset(enum rst_req_type rst_type)
 		printk(BIOS_ERR, "HECI: CSE does not meet required prerequisites\n");
 		return 0;
 	}
+
 	heci_reset();
 
 	reply_size = sizeof(reply);
@@ -844,7 +844,6 @@ int cse_hmrfpo_get_status(void)
 	return resp.status;
 }
 
-
 void print_me_fw_version(void *unused)
 {
 	struct version {
@@ -925,7 +924,7 @@ static void cse_set_resources(struct device *dev)
 	pci_dev_set_resources(dev);
 }
 
-int disable_me(void)
+static int disable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
 	int status;
@@ -939,7 +938,7 @@ int disable_me(void)
 	struct disable_command msg = {
 		.hdr = {
 			.group_id = MKHI_GROUP_ID_FWCAPS,
-			.command = MKHI_ME_SET_STATE,
+			.command = MKHI_SET_ME_DISABLE,
 		},
 		.rule_id = ME_DISABLE_RULE_ID,
 		.rule_len = ME_DISABLE_RULE_LENGTH,
@@ -951,7 +950,7 @@ int disable_me(void)
 	return status;
 }
 
-int enable_me(void)
+static int enable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
 	int status;
@@ -962,7 +961,7 @@ int enable_me(void)
 	struct enable_command msg = {
 		.hdr = {
 			.group_id = MKHI_GROUP_ID_BUP_COMMON,
-			.command = MKHI_ME_SET_STATE,
+			.command = MKHI_SET_ME_ENABLE,
 		},
 	};
 	size_t reply_size;
@@ -973,7 +972,8 @@ int enable_me(void)
 
 static void cse_set_state(struct device *dev)
 {
-	if (!CONFIG(ME_STATE_BY_CMOS))
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	if (me_state == UINT_MAX)
 		return;
 
 	struct version {
@@ -998,15 +998,14 @@ static void cse_set_state(struct device *dev)
 	struct fw_ver_resp resp;
 	size_t resp_size = sizeof(resp);
 
-	u8 me_state = get_uint_option("me_state", 0xff);
 	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
 
 	/* If cse is disabled, go to disabled */
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
 		goto disabled;
 
-	/* If it's on, and we want it off, turn it off */
-	if (me_state)
+	/* Currently in state 0 and we want 3 */
+	if (me_state == 3)
 		disable_me();
 
 	heci_reset();
@@ -1018,12 +1017,12 @@ static void cse_set_state(struct device *dev)
 	if (resp.hdr.result)
 		goto disabled;
 
-	/* If we're still here, then it didn't go off, and a reset is required */
-	if (me_state)
-		do_full_reset();
+	/* Hasn't changed states, reset and try again */
+	if (me_state == 3)
+		do_global_reset();
 
-	printk(BIOS_DEBUG, "ME: Version: %d.%d.%d.%d\n", resp.code.major,
-                        resp.code.minor, resp.code.hotfix, resp.code.build);
+	printk(BIOS_DEBUG, "ME: Version: %u.%u.%u.%u\n", resp.code.major,
+			resp.code.minor, resp.code.hotfix, resp.code.build);
 	return;
 
 disabled:
