@@ -34,11 +34,6 @@ config TIANOCORE_REVISION_ID
 	   The commit's SHA-1 or branch name of the revision to use. Choose "upstream/master"
 	   for master branch of Tianocore release on github.
 
-config TIANOCORE_REPOSITORY
-	string "Insert git url to override repo"
-	help
-	    The full url
-
 choice
 	prompt "Tianocore build"
 	default TIANOCORE_RELEASE
