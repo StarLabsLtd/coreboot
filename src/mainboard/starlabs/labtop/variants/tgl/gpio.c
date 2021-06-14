@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef _VARIANT_GPIO_H_
-#define _VARIANT_GPIO_H_
-
 #include "baseboard/variants.h"
-
-#ifndef __ACPI__
 
 /*
  * All definitions are taken from a comparison of the output of "inteltool -a"
@@ -228,7 +223,3 @@ const struct pad_config *variant_gpio_table(size_t *num)
 	*num = ARRAY_SIZE(gpio_table);
 	return gpio_table;
 }
-
-#endif
-
-#endif
