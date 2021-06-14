@@ -9,7 +9,8 @@
 
 /* Early pad configuration in romstage.c */
 const struct pad_config early_gpio_table[] = {
-
+	PAD_NC(GPP_C20, NONE),
+	PAD_NC(GPP_C21, NONE),
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)
@@ -100,8 +101,6 @@ const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_C17, NONE, DEEP, NF1),
 	PAD_CFG_NF(GPP_C18, NONE, DEEP, NF1),
 	PAD_CFG_NF(GPP_C19, NONE, DEEP, NF1),
-	PAD_NC(GPP_C20, NONE),
-	PAD_NC(GPP_C21, NONE),
 	PAD_NC(GPP_C22, NONE),
 	PAD_NC(GPP_C23, NONE),
 	PAD_NC(GPP_D0, NONE),
