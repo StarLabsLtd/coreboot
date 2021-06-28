@@ -13,7 +13,6 @@ Device (HIDD)
 
 	Method (_STA, 0, Serialized)  // _STA: Status
 	{
-//		If (((OSYS >= 0x07DD) && (HEFE == One)))
 		If ((OSYS >= 0x07DD))
 		{
 			Return (0x0F)

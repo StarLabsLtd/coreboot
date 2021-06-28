@@ -12,15 +12,42 @@ chip soc/intel/elkhartlake
 	register "pmc_gpe0_dw1" = "GPP_F"
 	register "pmc_gpe0_dw2" = "GPP_E"
 
+	# Enable heci1 communication
+	register "HeciEnabled" = "1"
+
 	# FSP configuration
 	register "SaGv" = "SaGv_Enabled"
 	register "SmbusEnable" = "1"
 	register "Heci2Enable" = "1"
 
+	# Display related UPDs
+	# Enable HPD for DDI ports C
+	register "DdiPortCHpd" = "1"
+
+	# Enable DDC for DDI ports C
+	register "DdiPortCDdc" = "1"
+
+	# USB related UPDs
+	register "usb2_ports[0]" = "USB2_PORT_MID(OC3)"	# USB3/2 Type A port1
+	register "usb2_ports[1]" = "USB2_PORT_MID(OC3)"	# USB2 WWAN
+	register "usb2_ports[2]" = "USB2_PORT_MID(OC_SKIP)"	# USB2 Bluetooth
+	register "usb2_ports[3]" = "USB2_PORT_MID(OC3)"	# Type-C Port1
+	register "usb2_ports[4]" = "USB2_PORT_MID(OC3)"	# Type-C Port2
+	register "usb2_ports[5]" = "USB2_PORT_MID(OC_SKIP)"	# Type-C Port3
+	register "usb2_ports[6]" = "USB2_PORT_MID(OC_SKIP)"	# Type-C Port4
+	register "usb2_ports[7]" = "USB2_PORT_MID(OC_SKIP)"	# USB3/2 Type A port2
+	register "usb2_ports[8]" = "USB2_PORT_MID(OC_SKIP)"	# USB2 Type A port1
+	register "usb2_ports[9]" = "USB2_PORT_MID(OC_SKIP)"	# USB2 Type A port2
+
+	register "usb3_ports[0]" = "USB3_PORT_DEFAULT(OC3)"	# USB3/2 Type A port1
+	register "usb3_ports[1]" = "USB3_PORT_DEFAULT(OC3)"	# USB3/2 Type A port2
+	register "usb3_ports[2]" = "USB3_PORT_DEFAULT(OC3)"	# USB3 WLAN
+	register "usb3_ports[3]" = "USB3_PORT_DEFAULT(OC3)"	# UNUSED
+
 	# Skip the CPU repalcement check
 	register "SkipCpuReplacementCheck" = "1"
 
-	# Enable All Root Ports (1-7)
+	# PCIe root ports related UPDs
 	register "PcieRpEnable[0]" = "1"
 	register "PcieRpEnable[1]" = "1"
 	register "PcieRpEnable[2]" = "1"
@@ -43,6 +70,18 @@ chip soc/intel/elkhartlake
 	register "PcieClkSrcClkReq[4]" = "0x4"
 	register "PcieClkSrcClkReq[5]" = "0x5"
 
+	# Storage (SATA/SDCARD/EMMC) related UPDs
+	register "SataSalpSupport" = "1"
+	register "SataPortsEnable[0]" = "1"
+	register "SataPortsEnable[1]" = "1"
+	register "SataPortsDevSlp[0]" = "0"
+	register "SataPortsDevSlp[1]" = "1"
+
+	register "ScsEmmcHs400Enabled" = "1"
+	register "ScsEmmcDdr50Enabled" = "1"
+	register "SdCardPowerEnableActiveHigh" = "1"
+
+	# LPSS Serial IO (I2C/UART/GSPI) related UPDs
 	register "SerialIoI2cMode" = "{
 		[PchSerialIoIndexI2C0] = PchSerialIoPci,
 		[PchSerialIoIndexI2C1] = PchSerialIoDisabled,
@@ -103,6 +142,10 @@ chip soc/intel/elkhartlake
 
 	# GPIO for SD card detect
 	register "sdcard_cd_gpio" = "GPP_G5"
+
+	register "common_soc_config" = "{
+		.chipset_lockdown = CHIPSET_LOCKDOWN_COREBOOT,
+	}"
 
 	device domain 0 on
 		device pci 00.0 on	end # Host Bridge

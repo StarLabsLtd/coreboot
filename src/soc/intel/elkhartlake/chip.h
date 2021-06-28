@@ -24,6 +24,24 @@
 #define MAX_HD_AUDIO_SNDW_LINKS	4
 #define MAX_HD_AUDIO_SSP_LINKS	6
 
+/* Define config parameters for In-Band ECC (IBECC). */
+#define MAX_IBECC_REGIONS	8
+
+enum ibecc_mode {
+	IBECC_PER_REGION,
+	IBECC_NONE,
+	IBECC_ALL
+};
+
+struct ehl_ibecc_config {
+	bool enable;
+	bool parity_en;
+	enum ibecc_mode mode;
+	bool region_enable[MAX_IBECC_REGIONS];
+	uint16_t region_base[MAX_IBECC_REGIONS];
+	uint16_t region_mask[MAX_IBECC_REGIONS];
+};
+
 struct soc_intel_elkhartlake_config {
 
 	/* Common struct containing soc config data required by common code */
@@ -63,6 +81,16 @@ struct soc_intel_elkhartlake_config {
 
 	/* TCC activation offset */
 	uint32_t tcc_offset;
+	uint32_t tcc_offset_clamp;
+
+	/* Memory Thermal Throttling: Enable - Default (0) / Disable (1) */
+	bool MemoryThermalThrottlingDisable;
+
+	/* In-Band ECC (IBECC) configuration */
+	struct ehl_ibecc_config ibecc;
+
+	/* FuSa (Functional Safety): Disable - Default (0) / Enable (1) */
+	bool FuSaEnable;
 
 	/* System Agent dynamic frequency support.
 	 * When enabled memory will be trained at different frequencies.
@@ -80,8 +108,8 @@ struct soc_intel_elkhartlake_config {
 	uint8_t RMT;
 
 	/* USB related */
-	struct usb2_port_config usb2_ports[16];
-	struct usb3_port_config usb3_ports[10];
+	struct usb2_port_config usb2_ports[10];
+	struct usb3_port_config usb3_ports[4];
 	/* Wake Enable Bitmap for USB2 ports */
 	uint16_t usb2_wake_enable_bitmap;
 	/* Wake Enable Bitmap for USB3 ports */
@@ -90,8 +118,22 @@ struct soc_intel_elkhartlake_config {
 	/* SATA related */
 	uint8_t SataMode;
 	uint8_t SataSalpSupport;
-	uint8_t SataPortsEnable[8];
-	uint8_t SataPortsDevSlp[8];
+	uint8_t SataPortsEnable[CONFIG_MAX_SATA_PORTS];
+	uint8_t SataPortsDevSlp[CONFIG_MAX_SATA_PORTS];
+	/*
+	 * Enable(0)/Disable(1) SATA Power Optimizer on PCH side.
+	 * Default 0. Setting this to 1 disables the SATA Power Optimizer.
+	 */
+	uint8_t SataPwrOptimizeDisable;
+	/*
+	 * SATA Port Enable Dito Config.
+	 * Enable DEVSLP Idle Timeout settings (DmVal, DitoVal).
+	 */
+	uint8_t SataPortsEnableDitoConfig[CONFIG_MAX_SATA_PORTS];
+	/* SataPortsDmVal is the DITO multiplier. Default is 15. */
+	uint8_t SataPortsDmVal[CONFIG_MAX_SATA_PORTS];
+	/* SataPortsDitoVal is the DEVSLP Idle Timeout, default is 625ms */
+	uint16_t SataPortsDitoVal[CONFIG_MAX_SATA_PORTS];
 
 	/* Audio related */
 	uint8_t PchHdaDspEnable;
@@ -103,16 +145,29 @@ struct soc_intel_elkhartlake_config {
 
 	/* PCIe Root Ports */
 	uint8_t PcieRpEnable[CONFIG_MAX_ROOT_PORTS];
+	uint8_t PcieRpHotPlug[CONFIG_MAX_ROOT_PORTS];
+
 	/* PCIe output clocks type to PCIe devices.
 	 * 0-23: PCH rootport, 0x70: LAN, 0x80: unspecified but in use,
 	 * 0xFF: not used */
 	uint8_t PcieClkSrcUsage[CONFIG_MAX_PCIE_CLOCK_SRC];
+
 	/* PCIe ClkReq-to-ClkSrc mapping, number of clkreq signal assigned to
 	 * clksrc. */
 	uint8_t PcieClkSrcClkReq[CONFIG_MAX_PCIE_CLOCK_SRC];
 
+/* Enable PCIe Precision Time Measurement for Root Ports (disabled by default) */
+	uint8_t PciePtm[CONFIG_MAX_ROOT_PORTS];
+
+	/* Probe CLKREQ# signal before enabling CLKREQ# based power management.
+	 * Enable - Default (0) / Disable (1) */
+	uint8_t PcieRpClkReqDetectDisable[CONFIG_MAX_ROOT_PORTS];
+
 	/* Probe CLKREQ# signal before enabling CLKREQ# based power management.*/
-	uint8_t PcieRpClkReqDetect[CONFIG_MAX_ROOT_PORTS];
+	uint8_t PcieRpAdvancedErrorReportingDisable[CONFIG_MAX_ROOT_PORTS];
+
+	/* PCIe LTR: Enable - Default (0) / Disable (1) */
+	uint8_t PcieRpLtrDisable[CONFIG_MAX_ROOT_PORTS];
 
 	/* PCIe RP L1 substate */
 	enum L1_substates_control PcieRpL1Substates[CONFIG_MAX_ROOT_PORTS];
@@ -122,6 +177,7 @@ struct soc_intel_elkhartlake_config {
 
 	/* eMMC and SD */
 	uint8_t ScsEmmcHs400Enabled;
+	uint8_t ScsEmmcDdr50Enabled;
 
 	/* Enable if SD Card Power Enable Signal is Active High */
 	uint8_t SdCardPowerEnableActiveHigh;
@@ -338,6 +394,12 @@ struct soc_intel_elkhartlake_config {
 	 *  - PM_CFG.SLP_LAN_MIN_ASST_WDTH
 	 */
 	uint8_t PchPmPwrCycDur;
+
+	/*
+	 * PCH power button override period.
+	 * Values: 0x0 - 4s, 0x1 - 6s, 0x2 - 8s, 0x3 - 10s, 0x4 - 12s, 0x5 - 14s
+	 */
+	u8 PchPmPwrBtnOverridePeriod;
 };
 
 typedef struct soc_intel_elkhartlake_config config_t;
