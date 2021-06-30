@@ -40,7 +40,7 @@ ifeq ($(CONFIG_TIANOCORE_SECUREBOOT_DISABLE),y)
 SECUREBOOT=-DSECURE_BOOT_ENABLE=FALSE
 endif
 
-BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(build_flavor) $(CBMEM)
+BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(SECUREBOOT) $(build_flavor) $(CBMEM)
 
 all: clean build
 
