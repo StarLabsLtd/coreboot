@@ -149,7 +149,7 @@ chip soc/intel/cannonlake
 		device pci 1d.5 off end								# PCI Express Port 14 (WLAN)
 		device pci 1d.6 off end								# PCI Express Port 15
 		device pci 1d.7 off end								# PCI Express Port 16
-		device pci 1e.0 off end								# UART #0
+		device pci 1e.0 on  end								# UART #0
 		device pci 1e.1 off end								# UART #1
 		device pci 1e.2 off end								# GSPI #0
 		device pci 1e.3 off end								# GSPI #1
