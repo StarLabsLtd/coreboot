@@ -26,6 +26,10 @@ config TIANOCORE_UPSTREAM
 	help
 	  Select this option if you want to use upstream EDK2 to build Tianocore.
 
+config TIANOCORE_SECUREBOOT_DISABLE
+	bool "Secureboot"
+	  Select this option if you want to disable secureboot so stuff actually works
+
 endchoice
 
 config TIANOCORE_REVISION_ID
