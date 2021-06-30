@@ -33,6 +33,11 @@ config TIANOCORE_SECUREBOOT_DISABLE
 	help
 	  Select this option if you want to disable secureboot so stuff actually works
 
+config TIANOCORE_REPOSITORY
+	string "git url"
+	help
+	  Override using MrChromeboxs repo
+
 config TIANOCORE_REVISION_ID
 	string "Insert a commit's SHA-1 or a branch name"
 	help
