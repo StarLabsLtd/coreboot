@@ -94,6 +94,10 @@ config ME_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_2_intel_me.bin"
 
+config LOCK_MANAGEMENT_ENGINE
+	bool
+	default y
+
 config ME_STATE_BY_CMOS
 	bool
 	default y
