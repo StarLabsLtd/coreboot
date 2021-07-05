@@ -8,23 +8,6 @@ and those providing after-market firmware to extend the usefulness of devices.
 
 ## Hardware shipping with coreboot
 
-<<<<<<< HEAD
-### Purism
-
-[Purism](https://www.puri.sm) sells laptops with a focus on user privacy and
-security; part of that effort is to minimize the amount of proprietary and/or
-binary code. Their laptops ship with a blob-free OS and coreboot firmware
-with a neutralized Intel Management Engine (ME) and SeaBIOS as the payload.
-
-### Star Labs
-
-[Star Labs](https://starlabs.systems/) offer a range of laptops designed and
-built specifically for Linux. All are now available with coreboot firmware,
-using Tianocore as the payload, and which include an NVRAM option to disable
-the Intel Management Engine.
-
-=======
->>>>>>> WIP/rebase
 ### ChromeOS Devices
 
 All ChromeOS devices ([Chromebooks](https://chromebookdb.com/), Chromeboxes,
