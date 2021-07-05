@@ -10,6 +10,8 @@
 #include <device/pci_ops.h>
 #include <intelblocks/cse.h>
 #include <option.h>
+#include <security/vboot/misc.h>
+#include <security/vboot/vboot_common.h>
 #include <soc/iomap.h>
 #include <soc/intel/common/reset.h>
 #include <soc/pci_devs.h>
@@ -65,58 +67,11 @@ static struct cse_device {
 	uintptr_t sec_bar;
 } cse;
 
-int disable_me(void)
-{
-	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
-	int status;
-	struct mkhi_hdr reply;
-	struct disable_command {
-		struct mkhi_hdr hdr;
-		uint32_t rule_id;
-		uint8_t rule_len;
-		uint32_t rule_data;
-	} __packed;
-	struct disable_command msg = {
-		.hdr = {
-			.group_id = MKHI_GROUP_ID_FWCAPS,
-			.command = MKHI_ME_SET_STATE,
-		},
-		.rule_id = ME_DISABLE_RULE_ID,
-		.rule_len = ME_DISABLE_RULE_LENGTH,
-		.rule_data = ME_DISABLE_COMMAND,
-	};
-	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
-	return status;
-}
-
-int enable_me(void)
-{
-	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
-	int status;
-	struct mkhi_hdr reply;
-	struct enable_command {
-		struct mkhi_hdr hdr;
-	};
-	struct enable_command msg = {
-		.hdr = {
-			.group_id = MKHI_GROUP_ID_BUP_COMMON,
-			.command = MKHI_ME_SET_STATE,
-		},
-	};
-	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
-	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
-	return status;
-}
-
 /*
  * Initialize the device with provided temporary BAR. If BAR is 0 use a
  * default. This is intended for pre-mem usage only where BARs haven't been
  * assigned yet and devices are not enabled.
  */
-
 void heci_init(uintptr_t tempbar)
 {
 #if defined(__SIMPLE_DEVICE__)
@@ -907,6 +862,24 @@ void print_me_fw_version(void *unused)
 
 fail:
 	printk(BIOS_DEBUG, "ME: Version: Unavailable\n");
+}
+
+void cse_trigger_vboot_recovery(enum csme_failure_reason reason)
+{
+	printk(BIOS_DEBUG, "cse: CSE status registers: HFSTS1: 0x%x, HFSTS2: 0x%x "
+	       "HFSTS3: 0x%x\n", me_read_config32(PCI_ME_HFSTS1),
+	       me_read_config32(PCI_ME_HFSTS2), me_read_config32(PCI_ME_HFSTS3));
+
+	if (CONFIG(VBOOT)) {
+		struct vb2_context *ctx = vboot_get_context();
+		if (ctx == NULL)
+			goto failure;
+		vb2api_fail(ctx, VB2_RECOVERY_INTEL_CSE_LITE_SKU, reason);
+		vboot_save_data(ctx);
+		vboot_reboot();
+	}
+failure:
+	die("cse: Failed to trigger recovery mode(recovery subcode:%d)\n", reason);
 }
 
 #if ENV_RAMSTAGE
