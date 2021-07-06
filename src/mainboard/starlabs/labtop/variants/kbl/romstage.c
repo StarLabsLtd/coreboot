@@ -31,4 +31,10 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	mem_cfg->MemorySpdPtr10 = mem_cfg->MemorySpdPtr00;
 
 	mupd->FspmTestConfig.DmiVc1 = 1;
+
+        const uint8_t vtd = get_uint_option("vtd", 1);
+        memupd->FspmTestConfig.VtdDisable = !vtd;
+
+        const uint8_t ht = get_uint_option("hyper_threading", memupd->FspmConfig.HyperThreading);
+        memupd->FspmConfig.HyperThreading = ht;
 }
