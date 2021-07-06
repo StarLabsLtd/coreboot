@@ -16,4 +16,3 @@ kbl_timeout=30 seconds
 fn_ctrl_swap=Disable
 # southbridge
 power_on_after_fail=Disable
-
