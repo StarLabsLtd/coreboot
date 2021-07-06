@@ -51,7 +51,7 @@ Method (_QA0, 0, NotSerialized)			// AC Power Connected
 	Notify (ADP1, 0x80)
 }
 
-Method(_Q0B, 0, NotSerialized)			// Battery Connected 
+Method(_Q0B, 0, NotSerialized)			// Battery Connected
 {
 	Notify (BAT0, 0x81)
 	Notify (BAT0, 0x80)

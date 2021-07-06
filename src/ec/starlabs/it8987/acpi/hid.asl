@@ -13,7 +13,6 @@ Device (HIDD)
 
 	Method (_STA, 0, Serialized)  // _STA: Status
 	{
-//		If (((OSYS >= 0x07DD) && (HEFE == One)))
 		If ((OSYS >= 0x07DD))
 		{
 			Return (0x0F)
@@ -29,9 +28,9 @@ Device (HIDD)
 		Store ("-----> HDDM", Debug)
 		Name (DPKG, Package (0x04)
 		{
-			0x11111111, 
-			0x22222222, 
-			0x33333333, 
+			0x11111111,
+			0x22222222,
+			0x33333333,
 			0x44444444
 		})
 		Return (DPKG)
@@ -96,88 +95,47 @@ Device (HIDD)
 		}
 
 		BTLD = One
-//		If ((AEAB == One))
-//		{
-			BTS1 = 0x1F
-			\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
-//		}
-//		Else
-//		{
-//			BTS1 = Zero
-//		}
+		BTS1 = 0x1F
+		\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
 	}
 
 	Method (BTNE, 1, Serialized)
 	{
 		Store ("-----> BTNE", Debug)
-//		If ((AEAB == One))
-//		{
-			BTS1 = ((Arg0 & 0x1E) | One)
-			\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
-//		}
+		BTS1 = ((Arg0 & 0x1E) | One)
+		\_SB.PCI0.LPCB.H_EC.ECWT (BTS1, RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
 	}
 
 	Method (BTNS, 0, Serialized)
 	{
 		Store ("-----> BTNS", Debug)
-//		If ((AEAB == One))
-//		{
-			BTS1 = \_SB.PCI0.LPCB.H_EC.ECRD (RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
-//		}
+		BTS1 = \_SB.PCI0.LPCB.H_EC.ECRD (RefOf (\_SB.PCI0.LPCB.H_EC.BTEN))
 		Return (BTS1)
 	}
 
 	Method (BTNC, 0, Serialized)
 	{
 		Store ("-----> BTNC", Debug)
-//		If ((AEAB == One))
-//		{
-			Return (0x1F)
-//		}
-//		Else
-//		{
-//			Return (Zero)
-//		}
+		Return (0x1F)
 	}
 
 	Name (HEB2, Zero)
 	Method (HEBC, 0, Serialized)
 	{
 		Store ("-----> HEBC", Debug)
-//		If ((AHDB == One))
-//		{
-//			Return (\HEB1)
-//		}
-//		Else
-//		{
-			Return (Zero)
-//		}
+		Return (Zero)
 	}
 
 	Method (H2BC, 0, Serialized)
 	{
 		Store ("-----> H2BC", Debug)
-//		If ((AHDB == One))
-//		{
-//			Return (\HEB1)
-//		}
-//		Else
-//		{
-			Return (Zero)
-//		}
+		Return (Zero)
 	}
 
 	Method (HEEC, 0, Serialized)
 	{
 		Store ("-----> HEEC", Debug)
-//		If ((AHDB == One))
-//		{
-			Return (HEB2) /* \_SB_.HIDD.HEB2 */
-//		}
-//		Else
-//		{
-//			Return (Zero)
-//		}
+		Return (HEB2) /* \_SB_.HIDD.HEB2 */
 	}
 
 	Method (_DSM, 4, Serialized)  // _DSM: Device-Specific Method

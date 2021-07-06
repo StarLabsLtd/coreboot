@@ -3,7 +3,7 @@
 OperationRegion (CMOS, SystemIO, 0x70, 0x02)
 Field (CMOS, ByteAcc, NoLock, Preserve)
 {
-	NVRI, 8, 
+	NVRI, 8,
 	NVRD, 8
 }
 
