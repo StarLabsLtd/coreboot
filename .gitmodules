@@ -1,7 +1,7 @@
 [submodule "3rdparty/blobs"]
 	path = 3rdparty/blobs
-	url = ../blobs.git
-	update = none
+	url = http://github.com/StarLabsLtd/blobs.git
+	update = merge
 	ignore = dirty
 [submodule "util/nvidia-cbootimage"]
 	path = util/nvidia/cbootimage
