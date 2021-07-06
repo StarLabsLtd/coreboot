@@ -148,11 +148,6 @@ __weak const char *smbios_chassis_serial_number(void)
 	return "";
 }
 
-__weak const char *smbios_chassis_asset_tag(void)
-{
-        return "";
-}
-
 __weak const char *smbios_processor_serial_number(void)
 {
 	return "";

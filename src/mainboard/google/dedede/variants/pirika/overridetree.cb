@@ -42,7 +42,6 @@ chip soc/intel/jasperlake
 	register "tcc_offset" = "8"     # TCC of 97C
 
 	device domain 0 on
-<<<<<<< HEAD
 		device pci 04.0 on
 			# Default DPTF Policy for all Dedede boards if not overridden
 			chip drivers/intel/dptf
@@ -97,8 +96,6 @@ chip soc/intel/jasperlake
 			end
 		end # USB xHCI
 
-=======
->>>>>>> 1d8e4a6dc7... Rebase
 		device pci 15.0 on
 			chip drivers/i2c/generic
 				register "hid" = ""ELAN0000""
@@ -109,7 +106,6 @@ chip soc/intel/jasperlake
 				device i2c 15 on end
 			end
 		end
-<<<<<<< HEAD
 		device pci 19.0 on
 			chip drivers/i2c/generic
 				register "hid" = ""10EC5682""
@@ -147,7 +143,5 @@ chip soc/intel/jasperlake
 				end
 			end
 		end # Intel HDA
-=======
->>>>>>> 1d8e4a6dc7... Rebase
 	end
 end
