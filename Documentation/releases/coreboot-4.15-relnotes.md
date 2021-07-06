@@ -19,4 +19,10 @@ By using newer coreboot features like board variants and override devicetrees,
 lots of code can now be shared. This should ease maintenance and also make it
 easier for newcomers to add support for even more mainboards.
 
+### Add support for Star Labs LabTop series
+
+Support for LabTop Mk III, LabTop Mk IV and StarBook MK V. Also, includes the
+IT8987E and IT5570E EC used in them. Also includes option to disable the ME
+via HECI.
+
 ### Add significant changes here

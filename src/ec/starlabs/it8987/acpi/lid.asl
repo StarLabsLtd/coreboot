@@ -4,6 +4,10 @@ Device (LID0)
 {
 	Name (_HID, EisaId ("PNP0C0D"))
 
+#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
+	Name (_PRW, Package() { EC_GPE_SWI, 3 })
+#endif
+
 	Method (_STA, 0, NotSerialized)
 	{
 		DEBUG = "---> IT8987 LID: _STA"

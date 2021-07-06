@@ -43,6 +43,6 @@
 #define ECRAM_FN_CTRL_REVERSE	0x08
 #define ECRAM_FN_LOCK_STATE	0x2C
 
-u16 it8987_get_version(void);
+u16 it_get_version(void);
 
 #endif
