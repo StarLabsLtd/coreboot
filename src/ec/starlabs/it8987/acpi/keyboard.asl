@@ -14,31 +14,29 @@ Method(_Q81)				// Volume down
 	Notify (\_SB.HIDD, 0xC6)
 	Notify (\_SB.HIDD, 0xC7)
 	Store ("<----- _Q81", Debug)
-} 
+}
 
 Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
-	\_SB.HIDD.HPEM(8) 
+	\_SB.HIDD.HPEM(8)
 	Store ("<----- _Q80", Debug)
 }
 
 Method(_Q06)				// Brightness decrease
 {
 	\_SB.PCI0.GFX0.DECB()
-} 
+}
 
 Method(_Q07)				// Brightness increase
 {
 	\_SB.PCI0.GFX0.INCB()
-} 
+}
 
-#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
 Method (_Q0E)
-	{
-		FNLC = FNST
-	}
-#endif
+{
+	FNLC = FNST
+}
 
 Method(_Q08)				// FN lock QEvent
 {
