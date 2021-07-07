@@ -1090,7 +1090,7 @@ TS_OPTIONS := -j $(CONFIG_INTEL_TOP_SWAP_BOOTBLOCK_SIZE)
 endif
 
 ifneq ($(CONFIG_UPDATE_IMAGE),y)
-$(obj)/coreboot.pre: $(objcbfs)/bootblock.bin $$(prebuilt-files) $(CBFSTOOL) $(IFITTOOL) $$(cpu_ucode_cbfs_file) $(obj)/fmap.fmap $(obj)/fmap.desc
+$(obj)/coreboot.pre: $(objcbfs)/bootblock.bin $$(prebuilt-files) $(CBFSTOOL) $(obj)/fmap.fmap $(obj)/fmap.desc
 	$(CBFSTOOL) $@.tmp create -M $(obj)/fmap.fmap -r $(shell cat $(obj)/fmap.desc)
 ifeq ($(CONFIG_ARCH_X86),y)
 	$(CBFSTOOL) $@.tmp add \
@@ -1101,22 +1101,15 @@ ifeq ($(CONFIG_ARCH_X86),y)
 		-b -$(call file-size,$(objcbfs)/bootblock.bin) $(cbfs-autogen-attributes) \
 		$(TS_OPTIONS) \
 		$(CBFSTOOL_ADD_CMD_OPTIONS)
+	# the cbfs master header is a deprecated feature only used on x86
+	$(CBFSTOOL) $@.tmp add-master-header $(TS_OPTIONS) $(CBFSTOOL_ADD_CMD_OPTIONS)
 else # ifeq ($(CONFIG_ARCH_X86),y)
 	$(CBFSTOOL) $@.tmp write -u \
 		-r BOOTBLOCK \
 		-f $(objcbfs)/bootblock.bin
 	# make space for the CBFS master header pointer. "ptr_" is just
 	# arbitrary 4 bytes that will be overwritten by add-master-header.
-	printf "ptr_" > $@.tmp.2
-	$(CBFSTOOL) $@.tmp add \
-		-f $@.tmp.2 \
-		-n "header pointer" \
-		-t "cbfs header" \
-		-b -4 \
-		$(CBFSTOOL_ADD_CMD_OPTIONS)
-	rm -f $@.tmp.2
 endif # ifeq ($(CONFIG_ARCH_X86),y)
-	$(CBFSTOOL) $@.tmp add-master-header $(TS_OPTIONS) $(CBFSTOOL_ADD_CMD_OPTIONS)
 	$(prebuild-files) true
 	mv $@.tmp $@
 else # ifneq ($(CONFIG_UPDATE_IMAGE),y)
@@ -1146,7 +1139,7 @@ add_intermediate = \
 	$(1): $(obj)/coreboot.pre $(2) | $(INTERMEDIATE) \
 	$(eval INTERMEDIATE+=$(1)) $(eval PHONY+=$(1))
 
-$(obj)/coreboot.rom: $(obj)/coreboot.pre $(RAMSTAGE) $(CBFSTOOL) $$(INTERMEDIATE)
+$(obj)/coreboot.rom: $(obj)/coreboot.pre $(CBFSTOOL) $(IFITTOOL) $$(INTERMEDIATE)
 	@printf "    CBFS       $(subst $(obj)/,,$(@))\n"
 # The full ROM may be larger than the CBFS part, so create an empty
 # file (filled with \377 = 0xff) and copy the CBFS image over it.
