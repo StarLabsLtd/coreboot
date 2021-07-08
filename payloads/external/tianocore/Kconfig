@@ -28,6 +28,11 @@ config TIANOCORE_UPSTREAM
 
 endchoice
 
+config TIANOCORE_REPOSITORY
+	string "Insert URL to git repo"
+	help
+	  The GIT URL to use instead of MrChromebox's stable repository
+
 config TIANOCORE_REVISION_ID
 	string "Insert a commit's SHA-1 or a branch name"
 	help
