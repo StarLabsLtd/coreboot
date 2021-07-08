@@ -4,7 +4,6 @@
 
 #include <device/resource.h>
 #include <stdbool.h>
-#include <stddef.h>
 
 /* A memranges structure consists of a list of range_entry(s). The structure
  * is exposed so that a memranges can be used on the stack if needed. */
@@ -52,7 +51,7 @@ static inline resource_t range_entry_end(const struct range_entry *r)
 	return r->end + 1;
 }
 
-/* Return size of memory range. */
+/* Return size of of memory range. */
 static inline resource_t range_entry_size(const struct range_entry *r)
 {
 	return r->end - r->begin + 1;
@@ -81,6 +80,7 @@ static inline bool memranges_is_empty(const struct memranges *ranges)
  * ranges - memranges pointer */
 #define memranges_each_entry(r, ranges) \
 	for (r = (ranges)->entries; r != NULL; r = r->next)
+
 
 /* Initialize memranges structure providing an optional array of range_entry
  * to use as the free list. Additionally, it accepts an align parameter that
@@ -161,15 +161,17 @@ struct range_entry *memranges_next_entry(struct memranges *ranges,
 					 const struct range_entry *r);
 
 /* Steals memory from the available list in given ranges as per the constraints:
- * limit = Upper bound for the memory range to steal (Inclusive).
- * size  = Requested size for the stolen memory.
- * align = Required alignment(log 2) for the starting address of the stolen memory.
- * tag   = Use a range that matches the given tag.
+ * limit    = Upper bound for the memory range to steal (Inclusive).
+ * size     = Requested size for the stolen memory.
+ * align    = Required alignment(log 2) for the starting address of the stolen memory.
+ * tag      = Use a range that matches the given tag.
+ * from_top = Steal the highest possible range.
  *
  * If the constraints can be satisfied, this function creates a hole in the memrange,
  * writes the base address of that hole to stolen_base and returns true. Otherwise it returns
  * false. */
 bool memranges_steal(struct memranges *ranges, resource_t limit, resource_t size,
-			unsigned char align, unsigned long tag, resource_t *stolen_base);
+			unsigned char align, unsigned long tag, resource_t *stolen_base,
+			bool from_top);
 
 #endif /* MEMRANGE_H_ */
