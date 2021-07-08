@@ -123,7 +123,7 @@ chip soc/intel/cannonlake
 		end
 		device pci 19.0 off end								# I2C4
 		device pci 19.1 off end								# I2C5
-		device pci 19.2 on  end								# UART #2
+		device pci 19.2 off end								# UART #2
 		device pci 1a.0 off end								# eMMC
 		device pci 1c.0 off end								# PCI Express Port 1
 		device pci 1c.1 off end								# PCI Express Port 2
