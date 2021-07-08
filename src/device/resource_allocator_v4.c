@@ -365,9 +365,6 @@ static void print_resource_ranges(const struct device *dev, const struct memrang
 static void allocate_child_resources(struct bus *bus, struct memranges *ranges,
 				     unsigned long type_mask, unsigned long type_match)
 {
-	const bool allocate_top_down =
-		bus->dev->path.type == DEVICE_PATH_DOMAIN &&
-		CONFIG(RESOURCE_ALLOCATION_TOP_DOWN);
 	struct resource *resource = NULL;
 	const struct device *dev;
 
@@ -377,7 +374,7 @@ static void allocate_child_resources(struct bus *bus, struct memranges *ranges,
 			continue;
 
 		if (memranges_steal(ranges, resource->limit, resource->size, resource->align,
-				    type_match, &resource->base, allocate_top_down) == false) {
+				    type_match, &resource->base) == false) {
 			printk(BIOS_ERR, "  ERROR: Resource didn't fit!!! ");
 			printk(BIOS_DEBUG, "  %s %02lx *  size: 0x%llx limit: %llx %s\n",
 			       dev_path(dev), resource->index,
@@ -673,7 +670,7 @@ void allocate_resources(const struct device *root)
 		post_log_path(child);
 
 		/* Pass 1 - Gather requirements. */
-		printk(BIOS_INFO, "==== Resource allocator: %s - Pass 1 (gathering requirements) ===\n",
+		printk(BIOS_INFO, "=== Resource allocator: %s - Pass 1 (gathering requirements) ===\n",
 		       dev_path(child));
 		compute_domain_resources(child);
 
@@ -686,4 +683,3 @@ void allocate_resources(const struct device *root)
 		       dev_path(child));
 	}
 }
-
