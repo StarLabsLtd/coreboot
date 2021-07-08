@@ -877,9 +877,16 @@ config SOFTWARE_I2C
 	  I2C controller is not (yet) available. The platform code needs to
 	  provide bindings to manually toggle I2C lines.
 
-config RESOURCE_ALLOCATOR_V3
+config DEFAULT_RESOURCE_ALLOCATOR_V3
 	bool
-	default n
+
+choice
+	prompt "Resource allocator"
+	default RESOURCE_ALLOCATOR_V3 if DEFAULT_RESOURCE_ALLOCATOR_V3
+	default RESOURCE_ALLOCATOR_V4
+
+config RESOURCE_ALLOCATOR_V3
+	bool "v3 (deprecated)"
 	help
 	  This config option enables resource allocator v3 which performs
 	  top down allocation of resources in a single MMIO window. This is the
@@ -887,13 +894,26 @@ config RESOURCE_ALLOCATOR_V3
 	  chipsets are fixed. DO NOT USE THIS FOR ANY NEW CHIPSETS!
 
 config RESOURCE_ALLOCATOR_V4
-	bool
-	default n if RESOURCE_ALLOCATOR_V3
-	default y if !RESOURCE_ALLOCATOR_V3
+	bool "v4"
 	help
 	  This config option enables resource allocator v4 which uses multiple
 	  ranges for allocating resources. This allows allocation of resources
 	  above 4G boundary as well.
+
+config RESOURCE_ALLOCATOR_V4_5
+	bool "v4.5 (experimental)"
+
+endchoice
+
+
+config RESOURCE_ALLOCATION_TOP_DOWN
+	bool "Allocate resources from top down"
+	depends on RESOURCE_ALLOCATOR_V4 || RESOURCE_ALLOCATOR_V4_5
+
+config RESOURCE_ALLOCATION_COMPAT
+	bool "Resource allocator v3 compatibility mode"
+	depends on RESOURCE_ALLOCATOR_V4_5
+	select RESOURCE_ALLOCATION_TOP_DOWN
 
 config XHCI_UTILS
 	def_bool n
