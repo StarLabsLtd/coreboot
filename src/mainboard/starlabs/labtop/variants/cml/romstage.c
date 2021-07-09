@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <console/console.h>
+#include <gpio.h>
 #include <option.h>
 #include <soc/cnl_memcfg_init.h>
 #include <soc/romstage.h>
-#include <console/console.h>
-#include <gpio.h>
 #include <string.h>
 #include <types.h>
 

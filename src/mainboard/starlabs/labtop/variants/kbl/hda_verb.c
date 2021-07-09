@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <device/azalia_device.h>
 #include <device/azalia.h>
+#include <device/azalia_device.h>
 
 const u32 cim_verb_data[] = {
 	/* coreboot specific header */
