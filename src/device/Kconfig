@@ -671,7 +671,7 @@ config PCIEXP_HOTPLUG_PREFETCH_MEM_ABOVE_4G
 
 config PCIEXP_HOTPLUG_PREFETCH_MEM_BELOW_4G
 	bool "PCI Express Hotplug Prefetch Memory Allocation below 4G boundary"
-	default n
+	default y
 	help
 	  This enables prefetch memory allocation below 4G boundary for the
 	  hotplug resources.
@@ -879,7 +879,7 @@ config SOFTWARE_I2C
 
 config RESOURCE_ALLOCATOR_V3
 	bool
-	default n
+	default y
 	help
 	  This config option enables resource allocator v3 which performs
 	  top down allocation of resources in a single MMIO window. This is the

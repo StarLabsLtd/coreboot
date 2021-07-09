@@ -131,7 +131,7 @@ static void sa_read_map_entry(struct device *dev,
 
 	value |= pci_read_config32(dev, entry->reg);
 	/* All registers are on a 1MiB granularity. */
-	value = ALIGN_DOWN(value, 1 * MiB);
+	value = ALIGN_DOWN(value, 2 * MiB);
 
 	*result = value;
 }
@@ -140,7 +140,7 @@ static void sa_read_map_entry(struct device *dev,
 void sa_fill_gnvs(struct global_nvs *gnvs)
 {
 	struct device *sa_dev = pcidev_path_on_root(SA_DEVFN_ROOT);
-
+	return;
 	sa_read_map_entry(sa_dev, &sa_memory_map[SA_TOUUD_REG], &gnvs->a4gb);
 	gnvs->a4gs = POWER_OF_2(cpu_phys_address_size()) - gnvs->a4gb;
 	printk(BIOS_DEBUG, "PCI space above 4GB MMIO is at 0x%llx, len = 0x%llx\n",

@@ -25,7 +25,7 @@
 /* The IO resource has a bus below it. */
 #define IORESOURCE_BRIDGE	0x00080000
 /* This is a request to allocate resource about 4G boundary. */
-#define IORESOURCE_ABOVE_4G	0x00100000
+/* #define IORESOURCE_ABOVE_4G	0x00100000 */
 /* The resource needs to be reserved in the coreboot table */
 #define IORESOURCE_RESERVE	0x10000000
 /* The IO resource assignment has been stored in the device */

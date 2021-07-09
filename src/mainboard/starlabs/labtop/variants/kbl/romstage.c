@@ -8,6 +8,8 @@
 #include "spd/spd.h"
 #include <ec/acpi/ec.h>
 #include <stdint.h>
+#include <option.h>
+#include <types.h>
 
 void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
@@ -32,10 +34,10 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	mupd->FspmTestConfig.DmiVc1 = 1;
 
-	const uint8_t vtd = get_uint_option("vtd", 1);
-	memupd->FspmTestConfig.VtdDisable = !vtd;
+/*	const uint8_t vtd = get_uint_option("vtd", 1);
+	mupd->FspmConfig.VtdDisable = !vtd;
 
 	const uint8_t ht = get_uint_option("hyper_threading",
-		memupd->FspmConfig.HyperThreading);
-	memupd->FspmConfig.HyperThreading = ht;
+		mupd->FspmConfig.HyperThreading);
+	mupd->FspmConfig.HyperThreading = ht; */
 }
