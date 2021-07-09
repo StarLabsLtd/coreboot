@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <types.h>
-#include <option.h>
 #include <chip.h>
 #include <device/device.h>
 #include <device/pci_def.h>
+#include <option.h>
+#include <types.h>
 
 #include "baseboard/variants.h"
 

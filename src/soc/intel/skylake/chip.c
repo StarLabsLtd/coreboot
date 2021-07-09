@@ -233,6 +233,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	mainboard_silicon_init_params(params);
 
+	mainboard_silicon_test_config(tconfig);
+
 	struct soc_power_limits_config *soc_confg;
 	config_t *confg = config_of_soc();
 	soc_confg = &confg->power_limits_config;
@@ -517,6 +519,12 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 /* Mainboard FSP Configuration */
 __weak void mainboard_silicon_init_params(FSP_S_CONFIG *params)
+{
+	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
+}
+
+/* Mainboard FSP Test Configuration */
+__weak void mainboard_silicon_test_config(FSP_S_TEST_CONFIG *tconfig)
 {
 	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
 }

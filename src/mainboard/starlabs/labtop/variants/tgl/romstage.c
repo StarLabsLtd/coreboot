@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <baseboard/variants.h>
 #include <console/console.h>
 #include <fsp/api.h>
+#include <soc/meminit.h>
 #include <soc/romstage.h>
 #include <spd_bin.h>
-#include <soc/meminit.h>
-#include <baseboard/variants.h>
 
 static const struct mb_cfg ddr4_mem_config = {
 	.type = MEM_TYPE_DDR4,
