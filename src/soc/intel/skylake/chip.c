@@ -9,6 +9,7 @@
 #include <device/pci_ids.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <option.h>
 #include <intelblocks/cfg.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/lpc_lib.h>
@@ -29,6 +30,7 @@
 #include <soc/systemagent.h>
 #include <soc/usb.h>
 #include <string.h>
+#include <types.h>
 
 #include "chip.h"
 
@@ -232,8 +234,6 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	config = config_of_soc();
 
 	mainboard_silicon_init_params(params);
-
-	mainboard_silicon_test_config(tconfig);
 
 	struct soc_power_limits_config *soc_confg;
 	config_t *confg = config_of_soc();
@@ -507,7 +507,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 		params->VtdBaseAddress[0] = GFXVT_BASE_ADDRESS;
 		params->VtdBaseAddress[1] = VTVC0_BASE_ADDRESS;
 		params->X2ApicOptOut = 0;
-		tconfig->VtdDisable = 0;
+		const uint8_t vtd = get_uint_option("vtd", 1);
+		tconfig->VtdDisable = !vtd;
 	}
 
 	params->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_devfn_enabled(SA_DEVFN_IGD);
@@ -519,12 +520,6 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 /* Mainboard FSP Configuration */
 __weak void mainboard_silicon_init_params(FSP_S_CONFIG *params)
-{
-	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
-}
-
-/* Mainboard FSP Test Configuration */
-__weak void mainboard_silicon_test_config(FSP_S_TEST_CONFIG *tconfig)
 {
 	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
 }
