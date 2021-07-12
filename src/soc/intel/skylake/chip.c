@@ -509,11 +509,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 		params->VtdBaseAddress[0] = GFXVT_BASE_ADDRESS;
 		params->VtdBaseAddress[1] = VTVC0_BASE_ADDRESS;
 		params->X2ApicOptOut = 0;
-		if (vtd == UINT_MAX) {
-			tconfig->VtdDisable = 0;
-		} else {
-			tconfig->VtdDisable = !vtd;
-		}
+		tconfig->VtdDisable = !vtd;
 	}
 
 	params->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_devfn_enabled(SA_DEVFN_IGD);
