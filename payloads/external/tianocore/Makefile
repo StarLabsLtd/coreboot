@@ -5,7 +5,11 @@ export SHELL := env bash
 
 project_name=Tianocore
 project_dir=$(CURDIR)/tianocore
+ifeq($(CONFIG_TIANOCORE_REPOSITORY),)
 project_git_repo=https://github.com/mrchromebox/edk2
+else
+project_git_repo=$(CONFIG_TIANOCORE_REPOSITORY)
+endif
 project_git_branch=uefipayloadpkg
 upstream_git_repo=https://github.com/tianocore/edk2
 
