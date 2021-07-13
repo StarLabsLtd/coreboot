@@ -25,6 +25,7 @@ entries
 450     1       e       1       wireless
 451     1       e       1       webcam
 452     1       e       1       microphone
+453     1       e       1       legacy_8254_timer
 
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
