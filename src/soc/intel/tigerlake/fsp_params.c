@@ -10,6 +10,7 @@
 #include <fsp/api.h>
 #include <fsp/ppi/mp_service_ppi.h>
 #include <fsp/util.h>
+#include <option.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
 #include <intelblocks/lpss.h>
@@ -26,6 +27,7 @@
 #include <soc/soc_chip.h>
 #include <soc/tcss.h>
 #include <string.h>
+#include <types.h>
 
 /* THC assignment definition */
 #define THC_NONE	0
@@ -547,8 +549,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->ThcPort1Assignment = is_devfn_enabled(PCH_DEVFN_THC1) ? THC_1 : THC_NONE;
 
 	/* Legacy 8254 timer support */
-	params->Enable8254ClockGating = !CONFIG(USE_LEGACY_8254_TIMER);
-	params->Enable8254ClockGatingOnS3 = !CONFIG(USE_LEGACY_8254_TIMER);
+	const unsigned int legacy_8254_timer = get_uint_option("legacy_8254_timer", 1);
+	params->Enable8254ClockGating = !legacy_8254_timer;
+	params->Enable8254ClockGatingOnS3 = !legacy_8254_timer;
 
 	/* Enable Hybrid storage auto detection */
 	if (CONFIG(SOC_INTEL_CSE_LITE_SKU) && cse_is_hfs3_fw_sku_lite()
