@@ -39,6 +39,14 @@ config TIANOCORE_REVISION_ID
 	   The commit's SHA-1 or branch name of the revision to use. Choose "upstream/master"
 	   for master branch of Tianocore release on github.
 
+config TIANOCORE_ABOVE_4G_DECODE
+	bool "Disable Above 4G Decode"
+	depends on TIANOCORE_UEFIPAYLOAD
+	default y
+	help
+	  Disable Above 4G Decode so that the DXE core only dispatches drivers below 4GB. Required
+	  for Qubes (Xen).
+
 choice
 	prompt "Tianocore build"
 	default TIANOCORE_RELEASE
