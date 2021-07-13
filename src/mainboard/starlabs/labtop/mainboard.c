@@ -10,15 +10,20 @@
 #include <types.h>
 #include <chip.h>
 #include <baseboard/variants.h>
+#include <device/azalia_device.h>
 
-#include "variant/ec.h"
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+#include <ec/starlabs/it5570/ec.h>
+#else
+#include <ec/starlabs/it8987/ec.h>
+#endif
+
+#define CODEC_ALC256 0x10ec0256
+#define CODEC_ALC269 0x10ec0269
 
 const char *smbios_mainboard_bios_version(void)
 {
-	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-		return "0";
-	else
-		return "6";
+	return "6";
 }
 
 /* Get the Embedded Controller firmware version */
@@ -37,14 +42,11 @@ const char *smbios_system_manufacturer(void)
 
 const char *smbios_system_sku(void)
 {
-	if (CONFIG(BOARD_STARLABS_STARBOOK_TGL))
-		return "B5";
-	else if (CONFIG(BOARD_STARLABS_LABTOP_CML))
-		return "L4";
-	else if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
-		return "L3-U";
-	else
-		return "Unknown";
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
+	return "L4";
+#else
+	return "L3-U";
+#endif
 }
 
 u8 smbios_mainboard_feature_flags(void)
@@ -77,24 +79,29 @@ const char *smbios_chassis_serial_number(void)
 	return smbios_mainboard_serial_number();
 }
 
-void __weak variant_devtree_update(struct device *nic_dev)
-{
-}
-
 /* Override dev tree settings based on CMOS settings */
 void devtree_update(void)
 {
-	struct device *nic_dev = NULL;
 	config_t *cfg = config_of_soc();
 
-	/* Perform any variant specific changes and return the nic_dev */
-	variant_devtree_update(nic_dev);
-
-	if (nic_dev != NULL) {
-		if (get_uint_option("wireless", 0) == 0)
-			nic_dev->enabled = 0;
-	}
-
-	if (get_uint_option("webcam", 0) == 0)
+	if (get_uint_option("camera", 0) == 0)
 		cfg->usb2_ports[6].enable = 0;
+}
+
+void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
+{
+	if ((viddid == CODEC_ALC256) || (viddid == CODEC_ALC269)) {
+		if (get_uint_option("microphone", 0))
+			disable_microphone(base);
+        }
+}
+
+const u32 verbs[] = {
+	AZALIA_PIN_CFG(0, 0x12, 0x411111f0),
+};
+
+void disable_microphone(u8 *base)
+{
+        azalia_program_verb_table(base, , ARRAY_SIZE(standard_verb));
+        azalia_program_verb_table(base, verbs, ARRAY_SIZE(verbs));
 }
