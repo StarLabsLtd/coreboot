@@ -91,11 +91,6 @@ config ME_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_2_intel_me.bin"
 
-config EC_STARLABS_IT_BIN
-	bool
-	default n
-	default y if BOARD_STARLABS_LABTOP_CML || BOARD_STARLABS_STARBOOK_TGL
-
 config EC_STARLABS_IT_BIN_PATH
 	string
 	depends on EC_STARLABS_IT_BIN
