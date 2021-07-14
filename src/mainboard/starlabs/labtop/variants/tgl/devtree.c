@@ -21,15 +21,22 @@ void variant_devtree_update(struct device *nic_dev)
 	/* Update PL2 based on CMOS settings */
 	switch (get_uint_option("tdp", 0)) {
 	case 1:
-		soc_conf->tdp_pl2_override = 17;
-		soc_conf->tdp_pl2_override = 20;
+		soc_conf_2core->tdp_pl1_override = 17;
+		soc_conf_4core->tdp_pl1_override = 17;
+		soc_conf_2core->tdp_pl2_override = 20;
+		soc_conf_4core->tdp_pl2_override = 20;
 		break;
 	case 2:
-		soc_conf->tdp_pl1_override = 20;
-		soc_conf->tdp_pl2_override = 28;
+		soc_conf_2core->tdp_pl1_override = 20;
+		soc_conf_4core->tdp_pl1_override = 20;
+		soc_conf_2core->tdp_pl2_override = 28;
+		soc_conf_4core->tdp_pl2_override = 28;
 		break;
 	default:
-		soc_conf->tdp_pl2_override = 15;
+		soc_conf_2core->tdp_pl1_override = 15;
+		soc_conf_4core->tdp_pl1_override = 15;
+		soc_conf_2core->tdp_pl2_override = 15;
+		soc_conf_4core->tdp_pl2_override = 15;
 		break;
 	}
 
