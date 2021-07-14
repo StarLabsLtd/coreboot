@@ -11,21 +11,22 @@
 void variant_devtree_update(struct device *nic_dev)
 {
 	config_t *cfg = config_of_soc();
-	struct soc_power_limits_config *soc_conf = &cfg->power_limits_config;
+	struct soc_power_limits_config *soc_conf =
+		&cfg->power_limits_config[POWER_LIMITS_U_4_CORE];
 
 	/* Update PL2 based on CMOS settings */
 	switch (get_uint_option("tdp", 0)) {
-		case 1:
-			soc_conf->tdp_pl2_override = 17;
-			soc_conf->tdp_pl2_override = 20;
-			break;
-		case 2:
-			soc_conf->tdp_pl1_override = 20;
-			soc_conf->tdp_pl2_override = 28;
-			break;
-		default:
-			soc_conf->tdp_pl2_override = 15;
-			break;
+	case 1:
+		soc_conf->tdp_pl2_override = 17;
+		soc_conf->tdp_pl2_override = 20;
+		break;
+	case 2:
+		soc_conf->tdp_pl1_override = 20;
+		soc_conf->tdp_pl2_override = 28;
+		break;
+	default:
+		soc_conf->tdp_pl2_override = 15;
+		break;
 	}
 
 
