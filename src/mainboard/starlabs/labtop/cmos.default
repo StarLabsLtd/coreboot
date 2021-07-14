@@ -11,6 +11,7 @@ me_state=Disable
 wireless=Enable
 webcam=Enable
 microphone=Enable
+legacy_8254_timer=Enable
 # EC
 kbl_timeout=30 seconds
 fn_ctrl_swap=Disable
