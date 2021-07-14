@@ -39,14 +39,6 @@ config TIANOCORE_REVISION_ID
 	   The commit's SHA-1 or branch name of the revision to use. Choose "upstream/master"
 	   for master branch of Tianocore release on github.
 
-config TIANOCORE_ABOVE_4G_DECODE
-	bool "Disable Above 4G Decode"
-	depends on TIANOCORE_UEFIPAYLOAD
-	default y
-	help
-	  Sets whether the DXE core will dispatch drivers above or below 4GB. Must be disabled
-	  for Qubes (Xen).
-
 choice
 	prompt "Tianocore build"
 	default TIANOCORE_RELEASE
@@ -94,6 +86,14 @@ config TIANOCORE_BOOTSPLASH_FILE
 
 	  If an absolute path is not given, the path will assumed to be
 	  relative to the coreboot root directory.
+
+config TIANOCORE_ABOVE_4G_DECODE
+	bool "Enable Above 4G Decode"
+	default y
+	help
+	  Enable above 4G Decode. If the operating system being booted by tiancore
+	  e.g. Qubes (Xen) requires the DXE core and drivers below 4GB disable this
+	  option. If you are unsure, leave it enabled.
 
 endif
 
