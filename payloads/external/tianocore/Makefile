@@ -33,18 +33,14 @@ ifeq ($(CONFIG_TIANOCORE_CBMEM_LOGGING),y)
 CBMEM=-D USE_CBMEM_FOR_CONSOLE=TRUE
 endif
 
-ifneq ($(CONFIG_TIANOCORE_ABOVE_4G_DECODE),)
-4G=-D ABOVE_4G_DECODE=FALSE
-endif
-
 TIMEOUT=-D PLATFORM_BOOT_TIMEOUT=$(CONFIG_TIANOCORE_BOOT_TIMEOUT)
 
-BUILD_STR=-a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(build_flavor) $(CBMEM) $(4G)
+BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(build_flavor) $(CBMEM)
 
 all: clean build
 
 $(project_dir):
-	echo "    Cloning $(project_name) from Git $(project_git_repo)"
+	echo "    Cloning $(project_name) from Git"
 	git clone --branch $(project_git_branch) $(project_git_repo) $(project_dir); \
 		cd $(project_dir); \
 		git remote add upstream $(upstream_git_repo)
