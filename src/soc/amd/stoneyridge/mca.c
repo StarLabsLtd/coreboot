@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/reset.h>
+#include <cpu/amd/msr.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/msr.h>
 #include <acpi/acpi.h>
@@ -122,8 +123,7 @@ static void build_bert_mca_error(struct mca_bank_status *mci)
 	ctx = cper_new_ia32x64_context_msr(status, x86_sec, IA32_MC_CTL(mci->bank), 4);
 	if (!ctx)
 		goto failed;
-	ctx = cper_new_ia32x64_context_msr(status, x86_sec,
-					MC0_CTL_MASK + mci->bank, 1);
+	ctx = cper_new_ia32x64_context_msr(status, x86_sec, MC_CTL_MASK(mci->bank), 1);
 	if (!ctx)
 		goto failed;
 
@@ -159,7 +159,7 @@ static void mca_print_error(unsigned int bank)
 	printk(BIOS_WARNING, "   MC%u_MISC =     %08x_%08x\n", bank, msr.hi, msr.lo);
 	msr = rdmsr(IA32_MC_CTL(bank));
 	printk(BIOS_WARNING, "   MC%u_CTL =      %08x_%08x\n", bank, msr.hi, msr.lo);
-	msr = rdmsr(MC0_CTL_MASK + bank);
+	msr = rdmsr(MC_CTL_MASK(bank));
 	printk(BIOS_WARNING, "   MC%u_CTL_MASK = %08x_%08x\n", bank, msr.hi, msr.lo);
 }
 
@@ -186,18 +186,8 @@ static void mca_check_all_banks(void)
 	}
 }
 
-static void mca_clear_errors(void)
-{
-	const unsigned int num_banks = mca_get_bank_count();
-	const msr_t msr = {.lo = 0, .hi = 0};
-
-	/* Zero all machine check error status registers */
-	for (unsigned int i = 0 ; i < num_banks ; i++)
-		wrmsr(IA32_MC_STATUS(i), msr);
-}
-
 void check_mca(void)
 {
 	mca_check_all_banks();
-	mca_clear_errors();
+	mca_clear_status();
 }
