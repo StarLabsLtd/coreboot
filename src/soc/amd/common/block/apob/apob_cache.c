@@ -4,6 +4,7 @@
 #include <amdblocks/apob_cache.h>
 #include <assert.h>
 #include <boot_device.h>
+#include <bootstate.h>
 #include <commonlib/region.h>
 #include <console/console.h>
 #include <fmap.h>
@@ -96,7 +97,7 @@ static void *get_apob_from_nv_region(struct region *region)
 }
 
 /* Save APOB buffer to flash */
-void soc_update_apob_cache(void)
+static void soc_update_apob_cache(void *unused)
 {
 	struct apob_base_header *apob_rom;
 	struct region_device write_rdev;
@@ -131,7 +132,7 @@ void soc_update_apob_cache(void)
 		return;
 	}
 
-	printk(BIOS_SPEW, "Copy APOB from RAM 0x%p/0x%x to flash 0x%zx/0x%zx\n",
+	printk(BIOS_SPEW, "Copy APOB from RAM %p/%#x to flash %#zx/%#zx\n",
 		apob_src_ram, apob_src_ram->size,
 		region_offset(&region), region_sz(&region));
 
@@ -183,3 +184,4 @@ void *soc_fill_apob_cache(void)
 	 */
 	return get_apob_nv_address();
 }
+BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, soc_update_apob_cache, NULL);
