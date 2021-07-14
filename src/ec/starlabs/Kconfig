@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-config EC_STARLABS_IT_BIN
-	bool "Add Star Labs EC binary file"
-	default n
-	depends on EC_STARLABS_IT8987
-	help
-	  The EC binary
