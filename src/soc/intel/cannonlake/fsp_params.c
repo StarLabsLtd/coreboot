@@ -428,8 +428,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	/* Legacy 8254 timer support */
 	const unsigned int legacy_8254_timer = get_uint_option("legacy_8254_timer", 1);
-	params->Enable8254ClockGating = !legacy_8254_timer;;
-	params->Enable8254ClockGatingOnS3 = !legacy_8254_timer;;
+	params->Enable8254ClockGating = !legacy_8254_timer;
+	params->Enable8254ClockGatingOnS3 = !legacy_8254_timer;
 
 	params->EnableTcoTimer = CONFIG(USE_PM_ACPI_TIMER);
 
