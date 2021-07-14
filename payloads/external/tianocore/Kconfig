@@ -44,7 +44,7 @@ config TIANOCORE_ABOVE_4G_DECODE
 	depends on TIANOCORE_UEFIPAYLOAD
 	default y
 	help
-	  Disable Above 4G Decode so that the DXE core only dispatches drivers below 4GB. Required
+	  Sets whether the DXE core will dispatch drivers above or below 4GB. Must be disabled
 	  for Qubes (Xen).
 
 choice
