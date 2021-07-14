@@ -301,15 +301,12 @@ static void configure_mca(void)
 {
 	msr_t msr;
 	int i;
-	int num_banks;
-
-	msr = rdmsr(IA32_MCG_CAP);
-	num_banks = msr.lo & 0xff;
+	const unsigned int num_banks = mca_get_bank_count();
 
 	msr.lo = msr.hi = 0;
 	/* This should only be done on a cold boot */
 	for (i = 0; i < num_banks; i++)
-		wrmsr(IA32_MC0_STATUS + (i * 4), msr);
+		wrmsr(IA32_MC_STATUS(i), msr);
 }
 
 static void model_206ax_report(void)

@@ -338,19 +338,17 @@ void mca_configure(void)
 {
 	msr_t msr;
 	int i;
-	int num_banks;
+	const unsigned int num_banks = mca_get_bank_count();
 
 	printk(BIOS_DEBUG, "Clearing out pending MCEs\n");
 
-	msr = rdmsr(IA32_MCG_CAP);
-	num_banks = msr.lo & 0xff;
 	msr.lo = msr.hi = 0;
 
 	for (i = 0; i < num_banks; i++) {
 		/* Clear the machine check status */
-		wrmsr(IA32_MC0_STATUS + (i * 4), msr);
+		wrmsr(IA32_MC_STATUS(i), msr);
 		/* Initialize machine checks */
-		wrmsr(IA32_MC0_CTL + i * 4,
+		wrmsr(IA32_MC_CTL(i),
 			(msr_t) {.lo = 0xffffffff, .hi = 0xffffffff});
 	}
 }

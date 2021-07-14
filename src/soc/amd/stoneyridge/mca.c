@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/reset.h>
+#include <cpu/x86/lapic.h>
 #include <cpu/x86/msr.h>
 #include <acpi/acpi.h>
 #include <soc/cpu.h>
@@ -8,13 +9,9 @@
 #include <arch/bert_storage.h>
 #include <cper.h>
 
-struct mca_bank {
-	int bank;
-	msr_t ctl;
+struct mca_bank_status {
+	unsigned int bank;
 	msr_t sts;
-	msr_t addr;
-	msr_t misc;
-	msr_t cmask;
 };
 
 static inline size_t mca_report_size_reqd(void)
@@ -44,7 +41,7 @@ static inline size_t mca_report_size_reqd(void)
 	return size;
 }
 
-static enum cper_x86_check_type error_to_chktype(struct mca_bank *mci)
+static enum cper_x86_check_type error_to_chktype(struct mca_bank_status *mci)
 {
 	int error = mca_err_type(mci->sts);
 
@@ -62,7 +59,7 @@ static enum cper_x86_check_type error_to_chktype(struct mca_bank *mci)
 
 /* Fill additional information in the Generic Processor Error Section. */
 static void fill_generic_section(cper_proc_generic_error_section_t *sec,
-		struct mca_bank *mci)
+		struct mca_bank_status *mci)
 {
 	int type = mca_err_type(mci->sts);
 
@@ -90,7 +87,7 @@ static void fill_generic_section(cper_proc_generic_error_section_t *sec,
  * Processor Generic section and the failing error/check added to the
  * IA32/X64 section.
  */
-static void build_bert_mca_error(struct mca_bank *mci)
+static void build_bert_mca_error(struct mca_bank_status *mci)
 {
 	acpi_generic_error_status_t *status;
 	acpi_hest_generic_data_v300_t *gen_entry;
@@ -122,8 +119,7 @@ static void build_bert_mca_error(struct mca_bank *mci)
 	ctx = cper_new_ia32x64_context_msr(status, x86_sec, IA32_MCG_CAP, 3);
 	if (!ctx)
 		goto failed;
-	ctx = cper_new_ia32x64_context_msr(status, x86_sec,
-					IA32_MC0_CTL + (mci->bank * 4), 4);
+	ctx = cper_new_ia32x64_context_msr(status, x86_sec, IA32_MC_CTL(mci->bank), 4);
 	if (!ctx)
 		goto failed;
 	ctx = cper_new_ia32x64_context_msr(status, x86_sec,
@@ -148,54 +144,60 @@ static const char *const mca_bank_name[] = {
 	"Floating point unit"
 };
 
-void check_mca(void)
+static void mca_print_error(unsigned int bank)
 {
-	int i;
-	msr_t cap;
-	struct mca_bank mci;
-	int num_banks;
+	msr_t msr;
 
-	cap = rdmsr(IA32_MCG_CAP);
-	num_banks = cap.lo & MCA_BANKS_MASK;
+	printk(BIOS_WARNING, "#MC Error: core %u, bank %u %s\n", initial_lapicid(), bank,
+		mca_bank_name[bank]);
 
-	if (is_warm_reset()) {
-		for (i = 0 ; i < num_banks ; i++) {
-			if (i == 3) /* Reserved in Family 15h */
-				continue;
+	msr = rdmsr(IA32_MC_STATUS(bank));
+	printk(BIOS_WARNING, "   MC%u_STATUS =   %08x_%08x\n", bank, msr.hi, msr.lo);
+	msr = rdmsr(IA32_MC_ADDR(bank));
+	printk(BIOS_WARNING, "   MC%u_ADDR =     %08x_%08x\n", bank, msr.hi, msr.lo);
+	msr = rdmsr(IA32_MC_MISC(bank));
+	printk(BIOS_WARNING, "   MC%u_MISC =     %08x_%08x\n", bank, msr.hi, msr.lo);
+	msr = rdmsr(IA32_MC_CTL(bank));
+	printk(BIOS_WARNING, "   MC%u_CTL =      %08x_%08x\n", bank, msr.hi, msr.lo);
+	msr = rdmsr(MC0_CTL_MASK + bank);
+	printk(BIOS_WARNING, "   MC%u_CTL_MASK = %08x_%08x\n", bank, msr.hi, msr.lo);
+}
 
-			mci.sts = rdmsr(IA32_MC0_STATUS + (i * 4));
-			if (mci.sts.hi || mci.sts.lo) {
-				int core = cpuid_ebx(1) >> 24;
+static void mca_check_all_banks(void)
+{
+	struct mca_bank_status mci;
+	const unsigned int num_banks = mca_get_bank_count();
 
-				printk(BIOS_WARNING, "#MC Error: core %d, bank %d %s\n",
-						core, i, mca_bank_name[i]);
+	if (!is_warm_reset())
+		return;
 
-				printk(BIOS_WARNING, "   MC%d_STATUS =   %08x_%08x\n",
-						i, mci.sts.hi, mci.sts.lo);
-				mci.addr = rdmsr(MC0_ADDR + (i * 4));
-				printk(BIOS_WARNING, "   MC%d_ADDR =     %08x_%08x\n",
-						i, mci.addr.hi, mci.addr.lo);
-				mci.misc = rdmsr(MC0_MISC + (i * 4));
-				printk(BIOS_WARNING, "   MC%d_MISC =     %08x_%08x\n",
-						i, mci.misc.hi, mci.misc.lo);
-				mci.ctl = rdmsr(IA32_MC0_CTL + (i * 4));
-				printk(BIOS_WARNING, "   MC%d_CTL =      %08x_%08x\n",
-						i, mci.ctl.hi, mci.ctl.lo);
-				mci.cmask = rdmsr(MC0_CTL_MASK + i);
-				printk(BIOS_WARNING, "   MC%d_CTL_MASK = %08x_%08x\n",
-						i, mci.cmask.hi, mci.cmask.lo);
+	for (unsigned int i = 0 ; i < num_banks ; i++) {
+		if (i == 3) /* Reserved in Family 15h */
+			continue;
 
-				mci.bank = i;
-				if (CONFIG(ACPI_BERT)
-						&& mca_valid(mci.sts))
-					build_bert_mca_error(&mci);
-			}
+		mci.bank = i;
+		mci.sts = rdmsr(IA32_MC_STATUS(i));
+		if (mci.sts.hi || mci.sts.lo) {
+			mca_print_error(i);
+
+			if (CONFIG(ACPI_BERT) && mca_valid(mci.sts))
+				build_bert_mca_error(&mci);
 		}
 	}
+}
 
-	/* zero the machine check error status registers */
-	mci.sts.lo = 0;
-	mci.sts.hi = 0;
-	for (i = 0 ; i < num_banks ; i++)
-		wrmsr(IA32_MC0_STATUS + (i * 4), mci.sts);
+static void mca_clear_errors(void)
+{
+	const unsigned int num_banks = mca_get_bank_count();
+	const msr_t msr = {.lo = 0, .hi = 0};
+
+	/* Zero all machine check error status registers */
+	for (unsigned int i = 0 ; i < num_banks ; i++)
+		wrmsr(IA32_MC_STATUS(i), msr);
+}
+
+void check_mca(void)
+{
+	mca_check_all_banks();
+	mca_clear_errors();
 }
