@@ -11,7 +11,11 @@
 void variant_devtree_update(struct device *nic_dev)
 {
 	config_t *cfg = config_of_soc();
-	struct soc_power_limits_config *soc_conf =
+
+	struct soc_power_limits_config *soc_conf_2core =
+		&cfg->power_limits_config[POWER_LIMITS_U_2_CORE];
+
+	struct soc_power_limits_config *soc_conf_4core =
 		&cfg->power_limits_config[POWER_LIMITS_U_4_CORE];
 
 	/* Update PL2 based on CMOS settings */
