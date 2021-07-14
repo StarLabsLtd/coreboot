@@ -4,9 +4,11 @@
 #include <baseboard/variants.h>
 #include <console/console.h>
 #include <fsp/api.h>
+#include <option.h>
 #include <soc/meminit.h>
 #include <soc/romstage.h>
 #include <spd_bin.h>
+#include <types.h>
 
 static const struct mb_cfg ddr4_mem_config = {
 	.type = MEM_TYPE_DDR4,
@@ -43,11 +45,9 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	};
 
 	memcfg_init(&mupd->FspmConfig, mem_config, &ddr4_spd_info, half_populated);
-	const uint8_t vtd = get_uint_option("vtd", 1);
-	memupd->FspmTestConfig.VtdDisable = !vtd;
 
 	const uint8_t ht = get_uint_option("hyper_threading",
-		memupd->FspmConfig.HyperThreading);
-	memupd->FspmConfig.HyperThreading = ht;
+		mupd->FspmConfig.HyperThreading);
+	mupd->FspmConfig.HyperThreading = ht;
 
 };
