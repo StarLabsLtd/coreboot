@@ -22,6 +22,14 @@ chip soc/intel/cannonlake
 # Graphics (soc/intel/cannonlake/graphics.c)
 	# IGD Displays
 	register "gfx"				= "GMA_STATIC_DISPLAYS(0)"
+	register "panel_cfg" = "{
+		.up_delay_ms			=  200,
+		.down_delay_ms			=   50,
+		.cycle_delay_ms			=  500,
+		.backlight_pwm_hz		= 1000,
+		.backlight_on_delay_ms		=    1,
+		.backlight_off_delay_ms		=    1,
+	}"
 
 # FSP Memory (soc/intel/cannonlake/romstage/fsp_params.c)
 	# FSP configuration
