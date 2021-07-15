@@ -77,8 +77,9 @@ const char *smbios_chassis_serial_number(void)
 	return smbios_mainboard_serial_number();
 }
 
-void __weak variant_devtree_update(struct device *nic_dev)
+__weak struct device *variant_devtree_update(void)
 {
+	return NULL;
 }
 
 /* Override dev tree settings based on CMOS settings */
@@ -88,7 +89,7 @@ void devtree_update(void)
 	config_t *cfg = config_of_soc();
 
 	/* Perform any variant specific changes and return the nic_dev */
-	variant_devtree_update(nic_dev);
+	nic_dev = variant_devtree_update();
 
 	if (nic_dev != NULL) {
 		if (get_uint_option("wireless", 0) == 0)

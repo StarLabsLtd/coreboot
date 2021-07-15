@@ -8,7 +8,7 @@
 
 #include "baseboard/variants.h"
 
-void variant_devtree_update(struct device *nic_dev)
+struct device *variant_devtree_update(void)
 {
 	config_t *cfg = config_of_soc();
 	struct soc_power_limits_config *soc_conf = &cfg->power_limits_config;
@@ -29,5 +29,5 @@ void variant_devtree_update(struct device *nic_dev)
 	}
 
 	/* Return the correct network device for this platform. */
-	nic_dev = pcidev_on_root(0x14, 3);
+	return pcidev_on_root(0x14, 3);
 }
