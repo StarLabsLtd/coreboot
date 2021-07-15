@@ -9,6 +9,6 @@ config EC_STARLABS_IT5570
 config EC_STARLABS_IT_BIN
         bool "Add Star Labs EC binary file"
         default n
-        depends on EC_STARLABS_IT8987
+        depends on EC_STARLABS_IT5570
         help
           The EC binary
