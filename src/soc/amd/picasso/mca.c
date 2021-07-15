@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/mca.h>
 #include <amdblocks/msr_zen.h>
 #include <amdblocks/reset.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/msr.h>
 #include <acpi/acpi.h>
-#include <soc/cpu.h>
 #include <console/console.h>
 #include <arch/bert_storage.h>
 #include <cper.h>
+#include <types.h>
 
 /* MISC4 is the last used register in the MCAX banks of Picasso */
 #define MCAX_USED_REGISTERS_PER_BANK	(MCAX_MISC4_OFFSET + 1)
@@ -135,22 +136,50 @@ failed:
 }
 
 static const char *const mca_bank_name[] = {
-	"Load-store unit",
-	"Instruction fetch unit",
-	"L2 cache unit",
-	"Decode unit",
-	"",
-	"Execution unit",
-	"Floating point unit",
-	"L3 cache unit"
+	[0]  = "Load-store unit",
+	[1]  = "Instruction fetch unit",
+	[2]  = "L2 cache unit",
+	[3]  = "Decode unit",
+	[4]  = "",
+	[5]  = "Execution unit",
+	[6]  = "Floating point unit",
+	[7]  = "L3 cache unit",
+	[8]  = "L3 cache unit",
+	[9]  = "L3 cache unit",
+	[10] = "L3 cache unit",
+	[11] = "L3 cache unit",
+	[12] = "L3 cache unit",
+	[13] = "L3 cache unit",
+	[14] = "L3 cache unit",
+	[15] = "UMC",
+	[16] = "UMC",
+	[17] = "SMU",
+	[18] = "PSP",
+	[19] = "PB",
+	[20] = "CS",
+	[21] = "CS",
+	[22] = "PIE",
 };
+
+static bool mca_is_valid_bank(unsigned int bank)
+{
+	return (bank < ARRAY_SIZE(mca_bank_name) && mca_bank_name[bank] != NULL);
+}
+
+static const char *mca_get_bank_name(unsigned int bank)
+{
+	if (mca_is_valid_bank(bank))
+		return mca_bank_name[bank];
+	else
+		return "";
+}
 
 static void mca_print_error(unsigned int bank)
 {
 	msr_t msr;
 
 	printk(BIOS_WARNING, "#MC Error: core %u, bank %u %s\n", initial_lapicid(), bank,
-		bank < ARRAY_SIZE(mca_bank_name) ? mca_bank_name[bank] : "");
+		mca_get_bank_name(bank));
 
 	msr = rdmsr(MCAX_STATUS_MSR(bank));
 	printk(BIOS_WARNING, "   MC%u_STATUS =   %08x_%08x\n", bank, msr.hi, msr.lo);
@@ -164,12 +193,18 @@ static void mca_print_error(unsigned int bank)
 	printk(BIOS_WARNING, "   MC%u_CTL_MASK = %08x_%08x\n", bank, msr.hi, msr.lo);
 }
 
-static void mca_check_all_banks(void)
+void mca_check_all_banks(void)
 {
 	struct mca_bank_status mci;
 	const unsigned int num_banks = mca_get_bank_count();
 
+	if (ARRAY_SIZE(mca_bank_name) != num_banks)
+		printk(BIOS_WARNING, "CPU has an unexpected number of MCA banks!\n");
+
 	for (unsigned int i = 0 ; i < num_banks ; i++) {
+		if (!mca_is_valid_bank(i))
+			continue;
+
 		mci.bank = i;
 		mci.sts = rdmsr(MCAX_STATUS_MSR(i));
 		if (mci.sts.hi || mci.sts.lo) {
@@ -179,21 +214,4 @@ static void mca_check_all_banks(void)
 				build_bert_mca_error(&mci);
 		}
 	}
-}
-
-static void mca_clear_errors(void)
-{
-	const unsigned int num_banks = mca_get_bank_count();
-	const msr_t msr = {.lo = 0, .hi = 0};
-
-	/* Zero all machine check error status registers */
-	for (unsigned int i = 0 ; i < num_banks ; i++)
-		wrmsr(MCAX_STATUS_MSR(i), msr);
-}
-
-/* Check the Machine Check Architecture Extension registers */
-void check_mca(void)
-{
-	mca_check_all_banks();
-	mca_clear_errors();
 }

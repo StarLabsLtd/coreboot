@@ -5,3 +5,10 @@ config EC_STARLABS_IT8987
 	select EC_ACPI
 	help
 	  Interface to IT8987 embedded controller principally in Star Labs notebooks.
+
+config EC_STARLABS_IT_BIN
+        bool "Add Star Labs EC binary file"
+        default n
+        depends on EC_STARLABS_IT8987
+        help
+          The EC binary

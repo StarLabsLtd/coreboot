@@ -83,7 +83,6 @@
 #define IA32_VMX_BASIC_MSR              0x480
 #define  VMX_BASIC_HI_DUAL_MONITOR      (1UL << (49 - 32))
 #define IA32_VMX_MISC_MSR               0x485
-#define MC0_CTL_MASK			0xC0010044
 
 #define IA32_PM_ENABLE			0x770
 #define IA32_HWP_CAPABILITIES		0x771
@@ -164,6 +163,16 @@ static inline unsigned int mca_get_bank_count(void)
 {
 	msr_t msr = rdmsr(IA32_MCG_CAP);
 	return msr.lo & MCA_BANKS_MASK;
+}
+
+/* Clear all MCA status registers */
+static inline void mca_clear_status(void)
+{
+	const unsigned int num_banks = mca_get_bank_count();
+	const msr_t msr = {.lo = 0, .hi = 0};
+
+	for (unsigned int i = 0 ; i < num_banks ; i++)
+		wrmsr(IA32_MC_STATUS(i), msr);
 }
 
 /* Helpers for interpreting MC[i]_STATUS */
