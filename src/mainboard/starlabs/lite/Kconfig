@@ -28,13 +28,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOC_INTEL_COMMON_BLOCK_HDA_VERB
 	select SPI_FLASH_WINBOND
 	select SYSTEM_TYPE_LAPTOP
-	# Test
-#	select USE_BLOBS
-	select NEED_IFWI
-	select HAVE_IFD_BIN
-	select NEED_LBP2
-	select LBP2_FROM_IFWI
-	select CONSOLE_SPI_FLASH
 
 config MAINBOARD_DIR
 	string
