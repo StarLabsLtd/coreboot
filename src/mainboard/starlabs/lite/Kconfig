@@ -28,6 +28,13 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOC_INTEL_COMMON_BLOCK_HDA_VERB
 	select SPI_FLASH_WINBOND
 	select SYSTEM_TYPE_LAPTOP
+	# Test
+#	select USE_BLOBS
+	select NEED_IFWI
+	select HAVE_IFD_BIN
+	select NEED_LBP2
+	select LBP2_FROM_IFWI
+	select CONSOLE_SPI_FLASH
 
 config MAINBOARD_DIR
 	string
@@ -85,12 +92,13 @@ config IFWI_FMAP_NAME
 	string
 	default "IFWI"
 
-config IFD_BIN_PATH
-	string
-	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/flashregion_0_flashdescriptor.bin"
-
 config IFWI_FILE_NAME
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/fit-image.bin"
+
+config IFD_BIN_PATH
+	string
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/descriptor.bin"
+
 
 endif
