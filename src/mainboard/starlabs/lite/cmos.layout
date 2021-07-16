@@ -16,8 +16,16 @@ entries
 395     4       e       3       debug_level
 
 # coreboot config options: cpu
-400     1       e       5       hyper_threading
-409     1       e       5       me_state
+400     1       e       1       hyper_threading
+401     1       e       1       vtd
+402     2       e       7       tdp
+404     1       e       5       me_state
+
+# coreboot config options: Devices
+450     1       e       1       wireless
+451     1       e       1       webcam
+452     1       e       1       microphone
+453     1       e       1       legacy_8254_timer
 
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
@@ -26,13 +34,11 @@ entries
 # coreboot config options: southbridge
 536     2       e       6       power_on_after_fail
 
-#408     1       h       1       preserve_smmstore
-
 # coreboot config options: check sums
 984     16      h       0       check_sum
 
 # embedded controller settings (outwith the checksummed area)
-1000    1       h       0       fn_lock_state
+1000    1       h       1       fn_lock_state
 
 # -----------------------------------------------------------------
 
@@ -67,6 +73,10 @@ enumerations
 6       0       Disable
 6       1       Enable
 6       2       Keep
+
+7	0	15W
+7	1	20W
+7	2	25W
 
 # -----------------------------------------------------------------
 checksums

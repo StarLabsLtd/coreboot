@@ -1,20 +1,22 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <device/device.h>
 #include <baseboard/variants.h>
 #include <device/device.h>
 #include <soc/ramstage.h>
 #include <option.h>
-#include "variant/gpio.h"
 
-void mainboard_silicon_init_params(FSPS_UPD *supd)
+static void init_mainboard(void *chip_info)
 {
-	/*
-	 * Configure pads prior to SiliconInit() in case there's any
-	 * dependencies during hardware initialization.
-	 */
 	const struct pad_config *pads;
 	size_t num;
 
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
+
+	devtree_update();
 }
+
+struct chip_operations mainboard_ops = {
+	.init = init_mainboard,
+};

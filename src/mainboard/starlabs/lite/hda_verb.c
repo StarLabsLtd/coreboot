@@ -1,24 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef _HDA_VERB_H_
-#define _HDA_VERB_H_
-
 #include <device/azalia_device.h>
-#include <device/azalia.h>
 
 const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0269,	// Codec Vendor / Device ID: Realtek ALC269
 	0xffffffff,	// Subsystem ID
-	0x0000002b,	// Number of jacks (NID entries)
+	21,	// Number of jacks (NID entries)
 	/* Rest Codec First */
 	AZALIA_RESET(0x1),
 	/* HDA Codec Subsystem ID Verb-table
-	HDA Codec Subsystem ID  : 0x10EC111E */
-	0x0017201E,
-	0x00172111,
-	0x001722EC,
-	0x00172310,
+	   HDA Codec Subsystem ID  : 0x10EC111E */
+	AZALIA_SUBVENDOR(0, 0x10EC119E),
 	/* Pin Widget Verb-table */
 	AZALIA_PIN_CFG(0, 0x01, 0x00000000),
 	AZALIA_PIN_CFG(0, 0x12, 0x40000000),
@@ -74,5 +67,4 @@ const u32 pc_beep_verbs[] = {
 
 AZALIA_ARRAY_SIZES;
 
-#endif
 
