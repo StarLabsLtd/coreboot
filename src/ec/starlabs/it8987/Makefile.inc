@@ -12,7 +12,7 @@ add_ite_fw: $(obj)/coreboot.pre
 	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT_BIN_PATH) -u
 endif
 
-ifeq ($(CONFIG_EC_STARLABS_IT_BIN_PATH),)
+ifeq ($(CONFIG_EC_STARLABS_IT_BIN),y)
 files_added:: warn_no_ite_fw
 endif
 
