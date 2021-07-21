@@ -6,6 +6,7 @@
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
+#include <stdio.h>
 #include <string.h>
 #include <cbfs.h>
 #include <cbmem.h>
@@ -14,6 +15,24 @@
 /* Rmodules don't like weak symbols. */
 void __weak map_oprom_vendev_rev(u32 *vendev, u8 *rev) { return; }
 u32 __weak map_oprom_vendev(u32 vendev) { return vendev; }
+
+static void *cbfs_boot_map_optionrom(uint16_t vendor, uint16_t device)
+{
+	char name[17] = "pciXXXX,XXXX.rom";
+
+	snprintf(name, sizeof(name), "pci%04hx,%04hx.rom", vendor, device);
+
+	return cbfs_map(name, NULL);
+}
+
+static void *cbfs_boot_map_optionrom_revision(uint16_t vendor, uint16_t device, uint8_t rev)
+{
+	char name[20] = "pciXXXX,XXXX,XX.rom";
+
+	snprintf(name, sizeof(name), "pci%04hx,%04hx,%02hhx.rom", vendor, device, rev);
+
+	return cbfs_map(name, NULL);
+}
 
 struct rom_header *pci_rom_probe(const struct device *dev)
 {
@@ -49,21 +68,15 @@ struct rom_header *pci_rom_probe(const struct device *dev)
 	if (rom_header) {
 		printk(BIOS_DEBUG, "In CBFS, ROM address for %s = %p\n",
 		       dev_path(dev), rom_header);
-	} else if (!CONFIG(ON_DEVICE_ROM_LOAD)) {
-		printk(BIOS_DEBUG, "PCI Option ROM loading disabled for %s\n",
-		       dev_path(dev));
-		return NULL;
-	} else {
+	} else if (CONFIG(ON_DEVICE_ROM_LOAD)) {
 		uintptr_t rom_address;
 
 		rom_address = pci_read_config32(dev, PCI_ROM_ADDRESS);
 
 		if (rom_address == 0x00000000 || rom_address == 0xffffffff) {
-#if CONFIG(CPU_QEMU_X86)
-			if ((dev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+			if (CONFIG(CPU_QEMU_X86) && (dev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
 				rom_address = 0xc0000;
 			else
-#endif
 				return NULL;
 		} else {
 			/* Enable expansion ROM address decoding. */
@@ -76,6 +89,10 @@ struct rom_header *pci_rom_probe(const struct device *dev)
 		printk(BIOS_DEBUG, "Option ROM address for %s = %lx\n",
 		       dev_path(dev), (unsigned long)rom_address);
 		rom_header = (struct rom_header *)rom_address;
+	} else {
+		printk(BIOS_DEBUG, "PCI Option ROM loading disabled for %s\n",
+		       dev_path(dev));
+		return NULL;
 	}
 
 	printk(BIOS_SPEW,
