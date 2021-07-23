@@ -10,11 +10,9 @@ smm-$(CONFIG_DEBUG_SMI) += ec.c
 ifeq ($(CONFIG_EC_STARLABS_IT_BIN),y)
 add_ite_fw: $(obj)/coreboot.pre
 	$(CBFSTOOL) $(obj)/coreboot.pre write -r EC -f $(CONFIG_EC_STARLABS_IT_BIN_PATH) -u
-endif
 
 ifeq ($(CONFIG_EC_STARLABS_IT_BIN_PATH),)
 files_added:: warn_no_ite_fw
-endif
 
 PHONY+=warn_no_ite_fw
 warn_no_ite_fw:
@@ -24,3 +22,6 @@ warn_no_ite_fw:
 	printf "may not respond when you press it.\n\n"
 
 endif
+endif
+endif
+
