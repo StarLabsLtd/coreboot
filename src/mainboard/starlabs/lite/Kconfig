@@ -18,6 +18,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
 	select HAVE_CMOS_DEFAULT
+	select HAVE_IFD_BIN
 	select HAVE_OPTION_TABLE
 	select HAVE_SMI_HANDLER
 	select INTEL_GMA_HAVE_VBT
@@ -28,13 +29,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOC_INTEL_COMMON_BLOCK_HDA_VERB
 	select SPI_FLASH_WINBOND
 	select SYSTEM_TYPE_LAPTOP
-	# Test
-#	select USE_BLOBS
-	select NEED_IFWI
-	select HAVE_IFD_BIN
-	select NEED_LBP2
-	select LBP2_FROM_IFWI
-	select CONSOLE_SPI_FLASH
 
 config MAINBOARD_DIR
 	string
@@ -79,6 +73,10 @@ config FMDFILE
 	string
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
 
+config INTEL_GMA_VBT_FILE
+	string
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/data.vbt"
+
 config TIANOCORE_BOOTSPLASH_FILE
 	string
 	depends on TIANOCORE_BOOTSPLASH_IMAGE
@@ -86,7 +84,7 @@ config TIANOCORE_BOOTSPLASH_FILE
 
 config NEED_IFWI
 	bool
-	default y
+	default n
 
 config IFWI_FMAP_NAME
 	string
@@ -99,6 +97,5 @@ config IFWI_FILE_NAME
 config IFD_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/descriptor.bin"
-
 
 endif
