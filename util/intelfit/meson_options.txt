@@ -1,0 +1,29 @@
+option(
+  'processor',
+  type: 'combo',
+  choices: ['apollolake', 'geminilake'],
+  description: 'Processor family from ApolloLake (415) or GeminiLake (1548)',
+)
+
+option(
+  'bootguard',
+  type: 'boolean',
+  value: false,
+  description: 'Enable or Disable BootGuard',
+)
+
+option(
+  'stitch_dir',
+  type: 'string',
+  value: '',
+  description: 'Path to stitch directory containing required blobs',
+)
+
+option(
+  'hashed_blobs',
+  type: 'array',
+  value: ['iUnit.bin',
+          'dsp_fw.bin',
+          'ISH.bin'],
+  description: 'Blobs that must be signed for stitching',
+)
