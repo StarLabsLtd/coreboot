@@ -22,20 +22,16 @@ config BOARD_SPECIFIC_OPTIONS
 	select SYSTEM_TYPE_LAPTOP
 
 config MAINBOARD_DIR
-	string
 	default "system76/whl-u"
 
 config VARIANT_DIR
-	string
 	default "galp3-c" if BOARD_SYSTEM76_GALP3_C
 	default "darp5" if BOARD_SYSTEM76_DARP5
 
 config OVERRIDE_DEVICETREE
-	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "galp3-c" if BOARD_SYSTEM76_GALP3_C
 	default "darp5" if BOARD_SYSTEM76_DARP5
 
@@ -50,7 +46,6 @@ config MAINBOARD_VERSION
 	default "darp5" if BOARD_SYSTEM76_DARP5
 
 config CBFS_SIZE
-	hex
 	default 0xA00000
 
 config CONSOLE_POST

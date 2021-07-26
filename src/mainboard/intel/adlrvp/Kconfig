@@ -32,11 +32,9 @@ config CHROMEOS
 	select HAS_RECOVERY_MRC_CACHE
 
 config MAINBOARD_DIR
-	string
 	default "intel/adlrvp"
 
 config VARIANT_DIR
-	string
 	default "adlrvp_p" if BOARD_INTEL_ADLRVP_P
 	default "adlrvp_p_ext_ec" if BOARD_INTEL_ADLRVP_P_EXT_EC
 	default "adlrvp_m" if BOARD_INTEL_ADLRVP_M
@@ -49,7 +47,6 @@ config GBB_HWID
 	default "ADLRVPP"
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "Alder Lake Client Platform"
 
 config MAINBOARD_VENDOR
@@ -61,12 +58,10 @@ config MAINBOARD_FAMILY
 	default "Intel_adlrvp"
 
 config DEVICETREE
-	string
 	default "devicetree_m.cb" if BOARD_INTEL_ADLRVP_M || BOARD_INTEL_ADLRVP_M_EXT_EC
 	default "devicetree.cb"
 
 config OVERRIDE_DEVICETREE
-	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config DIMM_SPD_SIZE

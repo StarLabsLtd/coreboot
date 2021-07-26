@@ -31,12 +31,9 @@ config BOARD_GOOGLE_BASEBOARD_BRYA
 	select SOC_INTEL_ALDERLAKE
 	select SOC_INTEL_COMMON_BLOCK_PCIE_RTD3
 	select SOC_INTEL_CSE_LITE_SKU
+	select SYSTEM_TYPE_LAPTOP
 
 if BOARD_GOOGLE_BASEBOARD_BRYA
-
-config BASEBOARD_BRYA_LAPTOP
-	def_bool n
-	select SYSTEM_TYPE_LAPTOP
 
 config CHROMEOS
 	select CHROMEOS_DRAM_PART_NUMBER_IN_CBI
@@ -45,7 +42,6 @@ config CHROMEOS
 	select VBOOT_LID_SWITCH
 
 config DEVICETREE
-	string
 	default "variants/baseboard/devicetree.cb"
 
 config DRIVER_TPM_I2C_BUS
@@ -61,19 +57,16 @@ config TPM_TIS_ACPI_INTERRUPT
 	default 13 # GPE0_DW0_13 (GPP_A13_IRQ)
 
 config OVERRIDE_DEVICETREE
-	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config MAINBOARD_DIR
-	string
 	default "google/brya"
 
 config MAINBOARD_FAMILY
 	string
-	default "Google_Brya0" if BOARD_GOOGLE_BRYA0
+	default "Google_Brya"
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "Brya" if BOARD_GOOGLE_BRYA0
 	default "Primus" if BOARD_GOOGLE_PRIMUS
 	default "Gimble" if BOARD_GOOGLE_GIMBLE
@@ -82,7 +75,6 @@ config MAINBOARD_PART_NUMBER
 	default "Taeko" if BOARD_GOOGLE_TAEKO
 
 config VARIANT_DIR
-	string
 	default "brya0" if BOARD_GOOGLE_BRYA0
 	default "primus" if BOARD_GOOGLE_PRIMUS
 	default "gimble" if BOARD_GOOGLE_GIMBLE
