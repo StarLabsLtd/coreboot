@@ -134,6 +134,8 @@ coreboot_rom = configure_file(
             '-f',
             spi_config,
             '-o',
-            '@OUTPUT@'],
+            '@OUTPUT@',
+            '-st_path',
+            '/usr/bin/openssl'],
 )
 
