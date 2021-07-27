@@ -14,7 +14,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select AMD_SOC_CONSOLE_UART if !AMD_LPC_DEBUG_CARD
 
 config FMDFILE
-	string
 	default "src/mainboard/amd/mandolin/variants/\$(CONFIG_VARIANT_DIR)/board.fmd"
 
 config AMD_LPC_DEBUG_CARD
@@ -47,26 +46,21 @@ config SUPERIO_ADDR_BASE
 	default 0x164e	if SMSC_SIO1036_BASE_164E
 
 config CBFS_SIZE
-	hex
 	default 0x7cf000 if BOARD_AMD_MANDOLIN # Maximum size for the Mandolin FMAP
 	default 0xfcf000 if BOARD_AMD_CEREME # Maximum size for the Cereme FMAP
 
 config MAINBOARD_DIR
-	string
 	default "amd/mandolin"
 
 config VARIANT_DIR
-	string
 	default "mandolin" if BOARD_AMD_MANDOLIN
 	default "cereme" if BOARD_AMD_CEREME
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "MANDOLIN" if BOARD_AMD_MANDOLIN
 	default "CEREME" if BOARD_AMD_CEREME
 
 config DEVICETREE
-	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
 
 config ONBOARD_VGA_IS_PRIMARY

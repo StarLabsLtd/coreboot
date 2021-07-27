@@ -43,11 +43,9 @@ config DIMM_SPD_SIZE
 	default 512
 
 config DEVICETREE
-	string
 	default "variants/baseboard/devicetree.cb"
 
 config MAINBOARD_DIR
-	string
 	default "intel/shadowmountain"
 
 config MAINBOARD_FAMILY
@@ -55,7 +53,6 @@ config MAINBOARD_FAMILY
 	default "Intel_shadowmountain"
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "shadowmountain"
 
 config PCIEXP_HOTPLUG_BUSES

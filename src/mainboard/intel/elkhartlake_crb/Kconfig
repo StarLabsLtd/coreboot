@@ -15,15 +15,12 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOC_INTEL_ELKHARTLAKE
 
 config MAINBOARD_DIR
-	string
 	default "intel/elkhartlake_crb"
 
 config VARIANT_DIR
-	string
 	default "ehlcrb" if BOARD_INTEL_ELKHARTLAKE_CRB
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "ehlcrb"
 
 config MAINBOARD_FAMILY
@@ -31,7 +28,6 @@ config MAINBOARD_FAMILY
 	default "Intel_ehlcrb"
 
 config DEVICETREE
-	string
 	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
 
 config DIMM_SPD_SIZE

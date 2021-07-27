@@ -12,7 +12,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select AMD_SOC_CONSOLE_UART if !AMD_LPC_DEBUG_CARD
 
 config FMDFILE
-	string
 	default "src/mainboard/amd/bilby/board.fmd"
 
 config AMD_LPC_DEBUG_CARD
@@ -45,15 +44,12 @@ config SUPERIO_ADDR_BASE
 	default 0x164e	if BILBY_SMSC_SIO1036_BASE_164E
 
 config CBFS_SIZE
-	hex
 	default 0xfef000 # Maximum size for the Bilby FMAP
 
 config MAINBOARD_DIR
-	string
 	default "amd/bilby"
 
 config MAINBOARD_PART_NUMBER
-	string
 	default "BILBY"
 
 config ONBOARD_VGA_IS_PRIMARY
