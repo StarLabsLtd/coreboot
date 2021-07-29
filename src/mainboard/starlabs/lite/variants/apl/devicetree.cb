@@ -12,13 +12,14 @@ chip soc/intel/apollolake
 # CPU (soc/intel/apollolake/cpu.c)
 	# Power limit
 	register "power_limits_config" = "{
-		.tdp_pl1_override		= 7,
-		.tdp_pl2_override		= 7,
+		.tdp_pl1_override		= 4,
+		.tdp_pl2_override		= 4,
 	}"
 
 # Graphics (soc/intel/apollolake/graphics.c)
 	# IGD Displays
 	register "gfx"				= "GMA_STATIC_DISPLAYS(0)"
+	# TODO: Panel Cfg
 	# GMA_DEFAULT_PANEL(0)?
 	# register "panel_cfg" = "{
 	#	.up_delay_ms			=  0,				// T3

@@ -93,7 +93,11 @@ void devtree_update(void)
 			nic_dev->enabled = 0;
 	}
 
-	if (get_uint_option("webcam", 0) == 0)
-		cfg->usb2_ports[6].enable = 0;
+	if (get_uint_option("webcam", 0) == 0) {
+		if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
+			cfg->usb2_ports[5].enable = 0;
+		else
+			cfg->usb2_ports[6].enable = 0;
+	}
 }
 

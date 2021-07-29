@@ -7,6 +7,7 @@
  * using the stock BIOS and with coreboot.
  */
 
+/* TODO: Convert to macro */
 /* Early pad configuration in romstage.c */
 const struct pad_config early_gpio_table[] = {
 	_PAD_CFG_STRUCT(GPIO_64, 0x0006a0c5, 0x5f100002),

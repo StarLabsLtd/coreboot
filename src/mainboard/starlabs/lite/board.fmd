@@ -8,8 +8,6 @@ FLASH 8M {
                 SMMSTORE@0x10000 0x40000
                 CONSOLE@0x50000 0x20000
                 FMAP@0x70000 0x200
-		GBB@0x70200 0x2000
                 COREBOOT(CBFS)
         }
-	IFWI@0x400000
 }

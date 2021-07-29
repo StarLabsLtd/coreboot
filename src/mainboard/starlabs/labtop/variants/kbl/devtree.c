@@ -16,14 +16,15 @@ struct device *variant_devtree_update(void)
 	/* Update PL2 based on CMOS settings */
 	switch (get_uint_option("tdp", 0)) {
 	case 1:
-		soc_conf->tdp_pl2_override = 17;
+		soc_conf->tdp_pl1_override = 17;
 		soc_conf->tdp_pl2_override = 20;
 		break;
 	case 2:
-		soc_conf->tdp_pl2_override = 20;
+		soc_conf->tdp_pl1_override = 20;
 		soc_conf->tdp_pl2_override = 25;
 		break;
 	default:
+		soc_conf->tdp_pl1_override = 15;
 		soc_conf->tdp_pl2_override = 15;
 		break;
 	}

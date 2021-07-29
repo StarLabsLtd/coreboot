@@ -3,16 +3,12 @@
 #include <console/console.h>
 #include <gpio.h>
 #include <option.h>
+#include <soc/meminit.h>
 #include <soc/romstage.h>
 #include <string.h>
 #include <types.h>
 
 #include "baseboard/memory.h"
-
-
-#include <string.h>
-#include <soc/meminit.h>
-#include <soc/romstage.h>
 
 /* LPDDR4_2400_24_22_22 extracted from Intel BMP */
 static const uint8_t Ch0_Bit_swizzling[] = {
