@@ -41,7 +41,7 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 {
 	/* CA Connectivity Mapping = CA Mapping 1 */
 	memupd->FspmConfig.Package = 0x1;
-	/* Profile = LPDDR4 1600 10 10  */
+	/* Profile = LPDDR4 2400 24 22  */
 	memupd->FspmConfig.Profile = 0xB;
 	/* MemoryDown = Memory Down on MB  */
 	memupd->FspmConfig.MemoryDown = 0x1;
@@ -86,7 +86,7 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	/* Ch0 DeviceWidth = x16 */
 	memupd->FspmConfig.Ch0_DeviceWidth = 0x1; // x16
 	/* Ch0 DramDensity = 8Gb */
-	memupd->FspmConfig.Ch0_DramDensity = 0x2; // Based on Up Squared 8Gb = 0x02
+	memupd->FspmConfig.Ch0_DramDensity = 0x2;
 	/* Cho Option = 0x03 */
 	memupd->FspmConfig.Ch0_Option = 0x3;
 	/* Cho Odt Config = 0x02 */
