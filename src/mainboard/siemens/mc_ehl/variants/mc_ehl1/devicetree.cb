@@ -16,9 +16,15 @@ chip soc/intel/elkhartlake
 	register "HeciEnabled" = "1"
 
 	# FSP configuration
-	register "SaGv" = "SaGv_Enabled"
+	register "SaGv" = "SaGv_Disabled"
 	register "SmbusEnable" = "1"
 	register "Heci2Enable" = "1"
+
+	# Enable IBECC for the complete memory
+	register "ibecc" = "{
+		.enable = 1,
+		.mode = IBECC_ALL
+	}"
 
 	# USB related UPDs
 	register "usb2_ports[0]" = "USB2_PORT_SHORT(OC_SKIP)"	# USB3/2 Type A port 1
@@ -62,6 +68,22 @@ chip soc/intel/elkhartlake
 	register "PcieClkSrcClkReq[3]" = "0xFF"
 	register "PcieClkSrcClkReq[4]" = "0xFF"
 	register "PcieClkSrcClkReq[5]" = "0xFF"
+
+	# Disable all L1 substates for PCIe root ports
+	register "PcieRpL1Substates[0]" = "L1_SS_DISABLED"
+	register "PcieRpL1Substates[1]" = "L1_SS_DISABLED"
+	register "PcieRpL1Substates[2]" = "L1_SS_DISABLED"
+	register "PcieRpL1Substates[3]" = "L1_SS_DISABLED"
+	register "PcieRpL1Substates[4]" = "L1_SS_DISABLED"
+	register "PcieRpL1Substates[5]" = "L1_SS_DISABLED"
+
+	# Disable LTR for all PCIe root ports
+	register "PcieRpLtrDisable[0]" = "true"
+	register "PcieRpLtrDisable[1]" = "true"
+	register "PcieRpLtrDisable[2]" = "true"
+	register "PcieRpLtrDisable[3]" = "true"
+	register "PcieRpLtrDisable[4]" = "true"
+	register "PcieRpLtrDisable[5]" = "true"
 
 	# Storage (SATA/SDCARD/EMMC) related UPDs
 	register "SataSalpSupport" = "0"
@@ -214,11 +236,30 @@ chip soc/intel/elkhartlake
 		device pci 1e.6 on	end # HPET
 		device pci 1e.7 on	end # IOAPIC
 
-		device pci 1f.0 on	end # eSPI Interface
+		device pci 1f.0 on	    # eSPI Interface
+			chip drivers/pc80/tpm
+				device pnp 0c31.0 on end
+			end
+		end
 		device pci 1f.1 on	end # P2SB
 		device pci 1f.2 hidden	end # Power Management Controller
 		device pci 1f.3 off	end # Intel cAVS/HDA
-		device pci 1f.4 on	end # SMBus
+		device pci 1f.4	on	    # SMBus
+			# Enable external RTC chip
+			chip drivers/i2c/rx6110sa
+				register "bus_speed" = "I2C_SPEED_STANDARD"
+				register "pmon_sampling" = "PMON_SAMPL_256_MS"
+				register "bks_on" = "0"
+				register "bks_off" = "1"
+				register "iocut_en" = "1"
+				register "set_user_date" = "1"
+				register "user_year" = "04"
+				register "user_month" = "07"
+				register "user_day" = "01"
+				register "user_weekday" = "4"
+				device i2c 0x32 on end  # RTC RX6110 SA
+			end
+		end
 		device pci 1f.5 on	end # PCH SPI (flash & TPM)
 		device pci 1f.7 off	end # PCH Intel Trace Hub
 	end

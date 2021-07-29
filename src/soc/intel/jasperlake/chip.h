@@ -13,6 +13,7 @@
 #include <soc/gpio.h>
 #include <soc/pch.h>
 #include <soc/pci_devs.h>
+#include <soc/pcie_modphy.h>
 #include <soc/pmc.h>
 #include <soc/serialio.h>
 #include <soc/usb.h>
@@ -121,6 +122,9 @@ struct soc_intel_jasperlake_config {
 
 	/* PCIe RP L1 substate */
 	enum L1_substates_control PcieRpL1Substates[CONFIG_MAX_ROOT_PORTS];
+
+	/* PCIe ModPhy related */
+	struct pcie_modphy_config pcie_mp_cfg[CONFIG_MAX_ROOT_PORTS];
 
 	/* SMBus */
 	uint8_t SmbusEnable;
@@ -398,6 +402,18 @@ struct soc_intel_jasperlake_config {
 	 * Range 0-255
 	 */
 	uint8_t RampDown;
+
+	/*
+	 * It controls below soc variables
+	 *
+	 *   PchFivrExtV1p05RailEnabledStates
+	 *   PchFivrExtVnnRailSxEnabledStates
+	 *   PchFivrExtVnnRailEnabledStates
+	 *
+	 * If your platform does not support external vnn power rail please set to 1
+	 * 1: Disabled ; 0: Enabled
+	 */
+	bool disable_external_bypass_vr;
 
 };
 
