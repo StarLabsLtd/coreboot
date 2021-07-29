@@ -5,8 +5,7 @@ debug_level=Debug
 # cpu
 hyper_threading=Enable
 vtd=Enable
-tdp=15W
-me_state=Disable
+tdp=6W
 # Devices
 wireless=Enable
 webcam=Enable

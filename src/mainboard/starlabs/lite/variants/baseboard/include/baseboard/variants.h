@@ -12,11 +12,7 @@
 const struct pad_config *variant_gpio_table(size_t *num);
 const struct pad_config *variant_early_gpio_table(size_t *num);
 
-/* Baseboard default swizzle. Can be reused if swizzle is same. */
-extern const struct lpddr4_swizzle_cfg baseboard_lpddr4_swizzle;
-/* Return LPDDR4 configuration structure. */
-const struct lpddr4_cfg *variant_lpddr4_config(void);
-/* Return memory SKU for the board. */
-size_t variant_memory_sku(void);
+void devtree_update(void);
+struct device *variant_devtree_update(void);
 
 #endif /* _BASEBOARD_VARIANTS_H_ */

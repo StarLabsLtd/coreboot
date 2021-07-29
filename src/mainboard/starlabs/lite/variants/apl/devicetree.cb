@@ -1,8 +1,63 @@
 chip soc/intel/apollolake
+	register "common_soc_config" = "{
+		.chipset_lockdown		= CHIPSET_LOCKDOWN_COREBOOT,
+		 /* Touchpad */
+		 .i2c[0] = {
+			.speed			= I2C_SPEED_FAST,
+			.rise_time_ns		= 80,
+			.fall_time_ns		= 110,
+		 },
+	}"
 
-	register "pcie_rp_clkreq_pin[0]" = "2"	# PCIe slot 2
-	register "pcie_rp_clkreq_pin[1]" = "3"	# Wifi+BT M2 slot
-	register "pcie_rp_clkreq_pin[2]" = "0"	# PCIe slot 1
+# CPU (soc/intel/apollolake/cpu.c)
+	# Power limit
+	register "power_limits_config" = "{
+		.tdp_pl1_override		= 7,
+		.tdp_pl2_override		= 7,
+	}"
+
+# Graphics (soc/intel/apollolake/graphics.c)
+	# IGD Displays
+	register "gfx"				= "GMA_STATIC_DISPLAYS(0)"
+	# GMA_DEFAULT_PANEL(0)?
+	# register "panel_cfg" = "{
+	#	.up_delay_ms			=  0,				// T3
+	#	.backlight_on_delay_ms		=  0,				// T7
+	#	.backlight_off_delay_ms		=  0,				// T9
+	#	.down_delay_ms			=  0,				// T10
+	#	.cycle_delay_ms			=  500,				// T12
+	#	.backlight_pwm_hz		=  200,				// PWM
+	# }"
+
+# PM Util (soc/intel/apollolake/pmutil.c)
+	# GPE configuration
+	# Note that GPE events called out in ASL code rely on this
+	# route. i.e. If this route changes then the affected GPE
+	# offset bits also need to be changed.
+	# sudo devmem2 0xfe001920 (pmc_bar + GPIO_GPE_CFG)
+	register "gpe0_dw1"			= "PMC_GPE_NW_63_32"
+	register "gpe0_dw2"			= "PMC_GPE_NW_95_64"
+	register "gpe0_dw3"			= "PMC_GPE_N_63_32"
+
+	# Minimum SLP S3 assertion width 28ms.
+	register "slp_s3_assertion_width_usecs" = "28000"
+
+	# Enable lpss s0ix
+	register "lpss_s0ix_enable" = "1"
+
+	# Enable DPTF
+	register "dptf_enable" = "0"
+
+	# Enable Audio Clock and Power gating
+	register "hdaudio_clk_gate_enable" = "1"
+	register "hdaudio_pwr_gate_enable" = "1"
+	register "hdaudio_bios_config_lockdown" = "1"
+
+	register "pnp_settings" = "PNP_PERF_POWER"
+
+	register "pcie_rp_clkreq_pin[0]" = "2"	# CNVi
+	register "pcie_rp_clkreq_pin[1]" = "CLKREQ_DISABLED"
+	register "pcie_rp_clkreq_pin[2]" = "CLKREQ_DISABLED"
 	register "pcie_rp_clkreq_pin[3]" = "CLKREQ_DISABLED"
 	register "pcie_rp_clkreq_pin[4]" = "CLKREQ_DISABLED"
 	register "pcie_rp_clkreq_pin[5]" = "CLKREQ_DISABLED"
@@ -12,46 +67,70 @@ chip soc/intel/apollolake
 	end
 
 	device domain 0 on
-		device pci 00.0 on end	# - Host Bridge
-		device pci 00.1 on end	# - DPTF
-		device pci 00.2 on end	# - NPK
-		device pci 02.0 on end	# - Gen
-		device pci 03.0 on end	# - Iunit
-		device pci 0d.0 on end	# - P2SB
-		device pci 0d.1 on end	# - PMC
-		device pci 0d.2 on end	# - SPI
-		device pci 0d.3 on end	# - Shared SRAM
-		device pci 0e.0 on end	# - Audio
-		device pci 0f.0 on end	# - CSE
-		device pci 11.0 on end	# - ISH
-		device pci 12.0 on end	# - SATA
-		device pci 13.0 on end	# - PCIe-A 0
-		device pci 13.2 on end	# - Onboard Lan
-		device pci 13.3 on end	# - PCIe-A 3
-		device pci 14.0 on end	# - PCIe-B 0
-		device pci 14.1 on end	# - Onboard M2 Slot(Wifi/BT)
-		device pci 15.0 on end	# - XHCI
-		device pci 15.1 on end	# - XDCI
-		device pci 16.0 on end	# - I2C 0
-		device pci 16.1 on end	# - I2C 1
-		device pci 16.2 on end	# - I2C 2
-		device pci 16.3 on end	# - I2C 3
-		device pci 17.0 on end	# - I2C 4
-		device pci 17.1 on end	# - I2C 5
-		device pci 17.2 on end	# - I2C 6
-		device pci 17.3 on end	# - I2C 7
-		device pci 18.0 on end	# - UART 0
-		device pci 18.1 on end	# - UART 1
-		device pci 18.2 on end	# - UART 2
-		device pci 18.3 on end	# - UART 3
-		device pci 19.0 on end	# - SPI 0
-		device pci 19.1 on end	# - SPI 1
-		device pci 19.2 on end	# - SPI 2
-		device pci 1a.0 on end	# - PWM
-		device pci 1b.0 on end	# - SDCARD
-		device pci 1c.0 on end	# - eMMC
-		device pci 1e.0 on end	# - SDIO
-		device pci 1f.0 on end	# - LPC
-		device pci 1f.1 on end	# - SMBUS
+		device pci 00.0 on  end								# Host Bridge
+		device pci 00.1 on  end								# DPTF
+		device pci 00.2 off end								# NPK
+		device pci 02.0 on  end								# VGA Controller
+		device pci 03.0 off end								# Iunit
+		device pci 0d.0 off end								# P2SB
+		device pci 0d.1 off end								# PMC
+		device pci 0d.2 off end								# SPI
+		device pci 0d.3 off end								# Shared SRAM
+		device pci 0e.0 on  end								# Audio
+			subsystemid 0x10ec 0x111e
+		device pci 0f.0 on  end								# CSE
+		device pci 11.0 off end								# ISH
+		device pci 12.0 on  end								# SATA controller
+		device pci 13.0 off end								# PCI bridge
+		device pci 13.2 off end								# USB controller
+		device pci 13.3 off end								# PCIe-A 3
+		device pci 14.0 on  end								# PCIe-B 0
+		device pci 14.1 off end								# Onboard M2 Slot(Wifi/BT)
+		device pci 15.0 on  end								# XHCI
+		device pci 15.1 off end								# XDCI
+		device pci 16.0 on  end								# I2C 0
+			chip drivers/i2c/hid
+				register "generic.hid"		= ""StarPoint""
+				register "generic.desc"		= ""Touchpad""
+				register "generic.irq"		= "ACPI_IRQ_LEVEL_LOW(GPIO_18_IRQ)"
+				register "generic.probed"	= "1"
+				register "hid_desc_reg_offset"	= "0x20"
+				device i2c 2c on end
+			end
+		device pci 16.1 on  end								# I2C #1
+		device pci 16.2 on  end								# I2C #2
+		device pci 16.3 on  end								# I2C #3
+		device pci 17.0 on  end								# I2C #4
+		device pci 17.1 on  end								# I2C #5
+		device pci 17.2 on  end								# I2C #6
+		device pci 17.3 on  end								# I2C #7
+		device pci 18.0 on  end								# UART #0
+		device pci 18.1 off end								# UART #1
+		device pci 18.2 off end								# UART #2
+		device pci 18.3 off end								# UART #3
+		device pci 19.0 on  end								# SPI #0
+		device pci 19.1 on  end								# SPI #1
+		device pci 19.2 on  end								# SPI #2
+		device pci 1a.0 on  end								# PWM
+		device pci 1b.0 on  end								# SDCARD
+		device pci 1c.0 on  end								# eMMC
+		device pci 1e.0 on  end								# SDIO
+		device pci 1f.0 on  end								# ISA bridge
+			# LPC configuration from lspci -s 1f.0 -xxx
+			# Address 0x84: Decode 0x680 - 0x68F
+			# register "gen1_dec"			= "0x000c0681"
+			# Address 0x88: Decode
+			# register "gen2_dec"			= "0x000c1641"
+			# Address 0x8C: Decode 0x200 - 0x2FF
+			# register "gen3_dec"			= "0x00fc0201"
+			# Address 0x90: Decode 0x80 - 0x8F (Port 80)
+			# register "gen4_dec"			= "0x000c0081"
+			
+			chip ec/starlabs/it8987
+				# Port 4Eh/4Fh
+				device pnp 4e.0 on						# IO Interface
+				end
+			end
+		device pci 1f.1 on  end								# SMBus
 	end
 end

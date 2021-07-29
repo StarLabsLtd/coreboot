@@ -1,3 +1,4 @@
+
 # SPDX-License-Identifier: GPL-2.0-only
 
 # -----------------------------------------------------------------
@@ -19,7 +20,7 @@ entries
 400     1       e       1       hyper_threading
 401     1       e       1       vtd
 402     2       e       7       tdp
-404     1       e       5       me_state
+404     1       h       0       null
 
 # coreboot config options: Devices
 450     1       e       1       wireless
@@ -74,9 +75,9 @@ enumerations
 6       1       Enable
 6       2       Keep
 
-7	0	15W
-7	1	20W
-7	2	25W
+7	0	6W
+7	1	7W
+7	2	9W
 
 # -----------------------------------------------------------------
 checksums

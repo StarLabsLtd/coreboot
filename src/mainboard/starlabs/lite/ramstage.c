@@ -14,7 +14,7 @@ static void init_mainboard(void *chip_info)
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
 
-	devtree_update();
+	/* devtree_update(); */
 }
 
 struct chip_operations mainboard_ops = {
