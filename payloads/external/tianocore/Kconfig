@@ -28,11 +28,6 @@ config TIANOCORE_UPSTREAM
 
 endchoice
 
-config TIANOCORE_REPOSITORY
-	string "Insert URL to git repo"
-	help
-	  The GIT URL to use instead of MrChromebox's stable repository
-
 config TIANOCORE_REVISION_ID
 	string "Insert a commit's SHA-1 or a branch name"
 	help
@@ -88,12 +83,15 @@ config TIANOCORE_BOOTSPLASH_FILE
 	  relative to the coreboot root directory.
 
 config TIANOCORE_ABOVE_4G_DECODE
-	bool "Enable Above 4G Decode"
-	default y
+	bool "Enable above 4G memory"
+	default n
 	help
-	  Enable above 4G Decode. If the operating system being booted by tiancore
-	  e.g. Qubes (Xen) requires the DXE core and drivers below 4GB disable this
-	  option. If you are unsure, leave it enabled.
+	  Select this option to enable Above 4G Decode. This will allow the
+	  payload to use all of the memory, rather than an maximum of 4G.
+
+	  Disabling this option, which will reserve memory above 4G, is
+	  useful for bootloaders that are not fully 64-bit aware such as
+	  Qubes R4.0.4 bootloader.
 
 endif
 
@@ -106,3 +104,4 @@ config TIANOCORE_BOOT_TIMEOUT
 	  For boards without an internal display, a value of 5s is generally sufficient.
 
 endif
+

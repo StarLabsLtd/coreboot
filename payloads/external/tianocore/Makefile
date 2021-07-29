@@ -5,11 +5,7 @@ export SHELL := env bash
 
 project_name=Tianocore
 project_dir=$(CURDIR)/tianocore
-ifeq ($(CONFIG_TIANOCORE_REPOSITORY),)
 project_git_repo=https://github.com/mrchromebox/edk2
-else
-project_git_repo=$(CONFIG_TIANOCORE_REPOSITORY)
-endif
 project_git_branch=uefipayloadpkg
 upstream_git_repo=https://github.com/tianocore/edk2
 
@@ -39,9 +35,9 @@ CBMEM=-D USE_CBMEM_FOR_CONSOLE=TRUE
 endif
 
 ifeq ($(CONFIG_TIANOCORE_ABOVE_4G_DECODE),y)
-4G=-D ENABLE_ABOVE_4G_DECODE=TRUE
+4G=-D ABOVE_4G_DECODE=TRUE
 else
-4G=-D ENABLE_ABOVE_4G_DECODE=FALSE
+4G=-D ABOVE_4G_DECODE=FALSE
 endif
 
 TIMEOUT=-D PLATFORM_BOOT_TIMEOUT=$(CONFIG_TIANOCORE_BOOT_TIMEOUT)
@@ -51,7 +47,7 @@ BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b 
 all: clean build
 
 $(project_dir):
-	echo "    Cloning $(project_name) from Git $(project_git_repo)"
+	echo "    Cloning $(project_name) from Git"
 	git clone --branch $(project_git_branch) $(project_git_repo) $(project_dir); \
 		cd $(project_dir); \
 		git remote add upstream $(upstream_git_repo)
@@ -114,3 +110,4 @@ distclean:
 	rm -rf $(project_dir)
 
 .PHONY: all update checktools config build clean distclean
+
