@@ -1,19 +1,17 @@
+
 if BOARD_STARLABS_LITE_GLK || BOARD_STARLABS_LITE_APL
 
 #
 # Lite Mk III GLK Board uses the following devices:
 #
-# GigaDevice GD25Q64C (8192KB) SPI NOR flash (KBL)
-# Winbond 25Q128JVSQ (16384KB) SPI NOR flash (CML)
-# Infineon SLB9670VQ SPI TPM2.0 device
-# Realtek ALC256 audio CODEC
+# GigaDevice GD25Q64C (8192KB) SPI NOR flash
+# Realtek ALC269 audio CODEC
 # ITE IT8987 Embedded Controller
 # Analogix ANX7447 crosspoint switch
 #
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select BOARD_ROMSIZE_KB_8192
-	select DISABLE_ACPI_HIBERNATE
 	select DRIVERS_I2C_HID
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
@@ -22,6 +20,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_OPTION_TABLE
 	select HAVE_SMI_HANDLER
 	select INTEL_GMA_HAVE_VBT
+	select MAINBOARD_HAS_LIBGFXINIT
 	select INTEL_LPSS_UART_FOR_CONSOLE
 	select NO_UART_ON_SUPERIO
 	select EC_STARLABS_IT8987
@@ -71,28 +70,28 @@ config VBOOT
 
 config FMDFILE
 	string
-	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
+	default "src/mainboard/starlabs/lite/board.fmd"
 
 config INTEL_GMA_VBT_FILE
 	string
-	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/data.vbt"
+	default "src/mainboard/starlabs/lite/data.vbt"
 
 config TIANOCORE_BOOTSPLASH_FILE
 	string
 	depends on TIANOCORE_BOOTSPLASH_IMAGE
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
-config NEED_IFWI
-	bool
-	default n
+#config NEED_IFWI
+#	bool
+#	default y
 
-config IFWI_FMAP_NAME
-	string
-	default "IFWI"
+#config IFWI_FMAP_NAME
+#	string
+#	default "IFWI"
 
-config IFWI_FILE_NAME
-	string
-	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/fit-image.bin"
+#config IFWI_FILE_NAME
+#	string
+#	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/fit-image.bin"
 
 config IFD_BIN_PATH
 	string
