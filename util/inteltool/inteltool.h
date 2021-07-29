@@ -248,6 +248,8 @@ static inline uint32_t inl(unsigned port)
 #define PCI_DEVICE_ID_INTEL_I5000V		0x25d4
 #define PCI_DEVICE_ID_INTEL_I5000P		0x25d8
 
+#define PCI_DEVICE_ID_INTEL_GLK_LPC	0x31E8
+
 /* untested, but almost identical to D-series */
 #define PCI_DEVICE_ID_INTEL_ATOM_NXXX	0xa010
 
