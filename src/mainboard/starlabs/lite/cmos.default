@@ -3,7 +3,6 @@ boot_option=Fallback
 # console
 debug_level=Debug
 # cpu
-hyper_threading=Enable
 vtd=Enable
 tdp=6W
 # Devices

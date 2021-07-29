@@ -1,20 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <smbios.h>
-#include <types.h>
-#include <uuid.h>
-#include <option.h>
+#include <baseboard/variants.h>
+/* TODO: Fix include */
+#include "soc/intel/apollolake/chip.h"
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
+#include <option.h>
+#include <smbios.h>
 #include <types.h>
-#include <baseboard/variants.h>
-#include <ec/starlabs/it8987/ec.h>
+#include <uuid.h>
 
+#include "variant/ec.h"
 
 const char *smbios_mainboard_bios_version(void)
 {
-	return "6";
+	return "3";
 }
 
 /* Get the Embedded Controller firmware version */
@@ -71,32 +72,26 @@ const char *smbios_chassis_serial_number(void)
 	return smbios_mainboard_serial_number();
 }
 
-/*
- * TODO:
- * __weak struct device *variant_devtree_update(void)
- * {
- *	return NULL;
- * }
- */
+__weak struct device *variant_devtree_update(void)
+{
+	return NULL;
+}
 
 /* Override dev tree settings based on CMOS settings */
-/*
- * TODO:
- * void devtree_update(void)
- * {
- *	struct device *nic_dev = NULL;
- *	config_t *cfg = config_of_soc();
- */
+void devtree_update(void)
+{
+	struct device *nic_dev = NULL;
+	config_t *cfg = config_of_soc();
+
 	/* Perform any variant specific changes and return the nic_dev */
-/*
- *	nic_dev = variant_devtree_update();
- *
- *	if (nic_dev != NULL) {
- *		if (get_uint_option("wireless", 0) == 0)
- *			nic_dev->enabled = 0;
- *	}
- *
- *	if (get_uint_option("webcam", 0) == 0)
- *		cfg->usb2_ports[6].enable = 0;
- * }
- */
+	nic_dev = variant_devtree_update();
+
+	if (nic_dev != NULL) {
+		if (get_uint_option("wireless", 0) == 0)
+			nic_dev->enabled = 0;
+	}
+
+	if (get_uint_option("webcam", 0) == 0)
+		cfg->usb2_port[6].enable = 0;
+}
+
