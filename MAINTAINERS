@@ -836,7 +836,6 @@ F:	src/include/console/
 F:	src/drivers/uart/
 
 VERIFIED BOOT 2
-M:	Aaron Durbin <adurbin@chromium.org>
 F:	src/security/vboot/
 
 TPM SUPPORT
