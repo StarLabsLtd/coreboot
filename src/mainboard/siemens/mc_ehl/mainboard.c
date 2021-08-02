@@ -1,12 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
+#include <bootstate.h>
 #include <console/console.h>
 #include <device/device.h>
+#include <device/pci_def.h>
+#include <device/pci_ops.h>
+#include <device/pci_ids.h>
 #include <hwilib.h>
 #include <i210.h>
 #include <soc/gpio.h>
 #include <string.h>
+#include <timer.h>
+#include <timestamp.h>
 
 #define MAX_PATH_DEPTH		12
 #define MAX_NUM_MAPPINGS	10
@@ -83,6 +89,31 @@ enum cb_err mainboard_get_mac_address(struct device *dev, uint8_t mac[MAC_ADDR_L
 	return CB_ERR;
 }
 
+static void wait_for_legacy_dev(void *unused)
+{
+	uint32_t legacy_delay, us_since_boot;
+	struct stopwatch sw;
+
+	/* Open main hwinfo block. */
+	if (hwilib_find_blocks("hwinfo.hex") != CB_SUCCESS)
+		return;
+
+	/* Get legacy delay parameter from hwinfo. */
+	if (hwilib_get_field(LegacyDelay, (uint8_t *) &legacy_delay,
+			      sizeof(legacy_delay)) != sizeof(legacy_delay))
+		return;
+
+	us_since_boot = get_us_since_boot();
+	/* No need to wait if the time since boot is already long enough.*/
+	if (us_since_boot > legacy_delay)
+		return;
+	stopwatch_init_msecs_expire(&sw, (legacy_delay - us_since_boot) / 1000);
+	printk(BIOS_NOTICE, "Wait remaining %d of %d us for legacy devices...",
+			legacy_delay - us_since_boot, legacy_delay);
+	stopwatch_wait_until_expired(&sw);
+	printk(BIOS_NOTICE, "done!\n");
+}
+
 static void mainboard_init(void *chip_info)
 {
 	const struct pad_config *pads;
@@ -92,6 +123,25 @@ static void mainboard_init(void *chip_info)
 	gpio_configure_pads(pads, num);
 }
 
+static void mainboard_final(void *chip_info)
+{
+	struct device *dev;
+
+	if (CONFIG(PCI_ALLOW_BUS_MASTER_ANY_DEVICE)) {
+		/* Set Master Enable for on-board PCI devices if allowed. */
+		dev = dev_find_device(PCI_VENDOR_ID_SIEMENS, 0x403e, 0);
+		if (dev)
+			pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
+
+		dev = dev_find_device(PCI_VENDOR_ID_SIEMENS, 0x403f, 0);
+		if (dev)
+			pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
+	}
+}
+
 struct chip_operations mainboard_ops = {
-	.init = mainboard_init,
+	.init  = mainboard_init,
+	.final = mainboard_final
 };
+
+BOOT_STATE_INIT_ENTRY(BS_DEV_ENUMERATE, BS_ON_ENTRY, wait_for_legacy_dev, NULL);
