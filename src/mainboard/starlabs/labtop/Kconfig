@@ -32,22 +32,6 @@ config BOARD_SPECIFIC_OPTIONS
 	select SPI_FLASH_GIGADEVICE if BOARD_STARLABS_LABTOP_KBL
 	select SYSTEM_TYPE_LAPTOP
 
-config PCIEXP_HOTPLUG
-	default y
-
-config PCIEXP_HOTPLUG_BUSES
-        int
-        default 42
-
-config PCIEXP_HOTPLUG_MEM
-        hex
-        default 0xc200000 # 194 MiB
-
-config PCIEXP_HOTPLUG_PREFETCH_MEM
-        hex
-        default 0x1c00000 # 448 MiB
-
-
 config MAINBOARD_DIR
 	string
 	default "starlabs/labtop"
