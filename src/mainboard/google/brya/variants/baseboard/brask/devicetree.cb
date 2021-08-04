@@ -40,13 +40,17 @@ chip soc/intel/alderlake
 	register "usb2_ports[0]" = "USB2_PORT_TYPE_C(OC0)"	# USB2_C0
 	register "usb2_ports[1]" = "USB2_PORT_TYPE_C(OC1)"	# USB2_C1
 	register "usb2_ports[2]" = "USB2_PORT_TYPE_C(OC2)"	# USB2_C2
-	register "usb2_ports[3]" = "USB2_PORT_MID(OC_SKIP)"	# M.2 WWAN
-	register "usb2_ports[5]" = "USB2_PORT_MID(OC_SKIP)"	# M.2 Camera
+	register "usb2_ports[4]" = "USB2_PORT_MID(OC_SKIP)"	# NFC
+	register "usb2_ports[5]" = "USB2_PORT_MID(OC_SKIP)"	# Type-A Port A3
+	register "usb2_ports[6]" = "USB2_PORT_MID(OC_SKIP)"	# Type-A Port A2
+	register "usb2_ports[7]" = "USB2_PORT_MID(OC_SKIP)"	# Type-A Port A1
 	register "usb2_ports[8]" = "USB2_PORT_MID(OC_SKIP)"	# Type-A Port A0
 	register "usb2_ports[9]" = "USB2_PORT_MID(OC_SKIP)"	# M.2 Bluetooth
 
-	register "usb3_ports[0]" = "USB3_PORT_DEFAULT(OC3)"	# USB3/2 Type A port A0
-	register "usb3_ports[3]" = "USB3_PORT_DEFAULT(OC_SKIP)"	# M.2 WWAN
+	register "usb3_ports[0]" = "USB3_PORT_DEFAULT(OC_SKIP)"	# Type-A port A0
+	register "usb3_ports[1]" = "USB3_PORT_DEFAULT(OC_SKIP)" # Type-A port A1(DCI)
+	register "usb3_ports[2]" = "USB3_PORT_DEFAULT(OC_SKIP)" # Type-A port A2
+	register "usb3_ports[3]" = "USB3_PORT_DEFAULT(OC_SKIP)"	# Type-A port A3
 
 	register "tcss_ports[0]" = "TCSS_PORT_DEFAULT(OC0)"
 	register "tcss_ports[1]" = "TCSS_PORT_DEFAULT(OC1)"
@@ -54,11 +58,11 @@ chip soc/intel/alderlake
 
 	register "SerialIoI2cMode" = "{
 		[PchSerialIoIndexI2C0] = PchSerialIoPci,
-		[PchSerialIoIndexI2C1] = PchSerialIoPci,
-		[PchSerialIoIndexI2C2] = PchSerialIoPci,
+		[PchSerialIoIndexI2C1] = PchSerialIoDisabled,
+		[PchSerialIoIndexI2C2] = PchSerialIoDisabled,
 		[PchSerialIoIndexI2C3] = PchSerialIoPci,
 		[PchSerialIoIndexI2C4] = PchSerialIoDisabled,
-		[PchSerialIoIndexI2C5] = PchSerialIoPci,
+		[PchSerialIoIndexI2C5] = PchSerialIoDisabled,
 	}"
 
 	register "SerialIoGSpiMode" = "{
@@ -84,30 +88,18 @@ chip soc/intel/alderlake
 	#+-------------------+---------------------------+
 	#| chipset_lockdown  | CHIPSET_LOCKDOWN_COREBOOT |
 	#| GSPI1             | Fingerprint MCU           |
-	#| I2C0              | Audio and WFC             |
-	#| I2C1              | Touchscreen               |
-	#| I2C2              | SAR0                      |
+	#| I2C0              | Audio                     |
 	#| I2C3              | cr50 TPM. Early init is   |
 	#|                   | required to set up a BAR  |
 	#|                   | for TPM communication     |
-	#| I2C5              | Trackpad                  |
 	#+-------------------+---------------------------+
 	register "common_soc_config.chipset_lockdown" = "CHIPSET_LOCKDOWN_COREBOOT"
 	register "common_soc_config" = "{
 		.i2c[0] = {
 			.speed = I2C_SPEED_FAST,
 		},
-		.i2c[1] = {
-			.speed = I2C_SPEED_FAST,
-		},
-		.i2c[2] = {
-			.speed = I2C_SPEED_FAST,
-		},
 		.i2c[3] = {
 			.early_init = 1,
-			.speed = I2C_SPEED_FAST,
-		},
-		.i2c[5] = {
 			.speed = I2C_SPEED_FAST,
 		},
 	}"
@@ -138,19 +130,6 @@ chip soc/intel/alderlake
 		end
 		device ref heci1 on end
 		device ref sata on end
-		device ref pcie_rp6 on
-			# Enable WWAN PCIE 6 using clk 5
-			chip soc/intel/common/block/pcie/rtd3
-				register "reset_gpio" = "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_E0)"
-				register "srcclk_pin" = "5"
-				device generic 0 on end
-			end
-			register "pch_pcie_rp[PCH_RP(6)]" = "{
-				.clk_src = 5,
-				.clk_req = 5,
-				.flags = PCIE_RP_LTR | PCIE_RP_AER,
-			}"
-		end	#PCIE6 WWAN
 		device ref pcie_rp8 on
 			# Enable SD Card PCIE 8 using clk 3
 			register "pch_pcie_rp[PCH_RP(8)]" = "{
@@ -159,14 +138,6 @@ chip soc/intel/alderlake
 				.flags = PCIE_RP_HOTPLUG | PCIE_RP_LTR | PCIE_RP_AER,
 			}"
 		end	#PCIE8 SD card
-		device ref pcie_rp9 on
-			# Enable NVMe PCIE 9 using clk 1
-			register "pch_pcie_rp[PCH_RP(9)]" = "{
-				.clk_src = 1,
-				.clk_req = 1,
-				.flags = PCIE_RP_LTR | PCIE_RP_AER,
-			}"
-		end	#PCIE9-12 SSD
 		device ref uart0 on end
 		device ref gspi1 on end
 		device ref pch_espi on
