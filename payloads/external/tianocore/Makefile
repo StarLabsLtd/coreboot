@@ -33,15 +33,9 @@ ifeq ($(CONFIG_TIANOCORE_CBMEM_LOGGING),y)
 CBMEM=-D USE_CBMEM_FOR_CONSOLE=TRUE
 endif
 
-ifeq ($(CONFIG_TIANOCORE_ABOVE_4G_DECODE),y)
-4G=-D ABOVE_4G_DECODE=TRUE
-else
-4G=-D ABOVE_4G_DECODE=FALSE
-endif
-
 TIMEOUT=-D PLATFORM_BOOT_TIMEOUT=$(CONFIG_TIANOCORE_BOOT_TIMEOUT)
 
-BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(build_flavor) $(CBMEM) $(4G)
+BUILD_STR=-q -a IA32 -a X64 -p UefiPayloadPkg/UefiPayloadPkg.dsc -t COREBOOT -b $(BUILD_TYPE) $(TIMEOUT) $(build_flavor) $(CBMEM)
 
 all: clean build
 
@@ -109,4 +103,3 @@ distclean:
 	rm -rf $(project_dir)
 
 .PHONY: all update checktools config build clean distclean
-
