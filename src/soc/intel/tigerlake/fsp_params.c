@@ -549,9 +549,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->ThcPort1Assignment = is_devfn_enabled(PCH_DEVFN_THC1) ? THC_1 : THC_NONE;
 
 	/* Legacy 8254 timer support */
-	const unsigned int legacy_8254_timer = get_uint_option("legacy_8254_timer", 1);
-	params->Enable8254ClockGating = !legacy_8254_timer;
-	params->Enable8254ClockGatingOnS3 = !legacy_8254_timer;
+	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	params->Enable8254ClockGating = !use_8254;
+	params->Enable8254ClockGatingOnS3 = !use_8254;
 
 	/* Enable Hybrid storage auto detection */
 	if (CONFIG(SOC_INTEL_CSE_LITE_SKU) && cse_is_hfs3_fw_sku_lite()

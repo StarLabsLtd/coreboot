@@ -18,7 +18,6 @@
 #include <intelblocks/xdci.h>
 #include <intelblocks/p2sb.h>
 #include <intelpch/lockdown.h>
-#include <limits.h>
 #include <soc/acpi.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/interrupt.h>
@@ -343,8 +342,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	memset(params->PcieRpPmSci, 0, sizeof(params->PcieRpPmSci));
 
 	/* Legacy 8254 timer support */
-	const unsigned int legacy_8254_timer = get_uint_option("legacy_8254_timer", 1);
-	params->Early8254ClockGatingEnable = !legacy_8254_timer;
+	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	params->Early8254ClockGatingEnable = !use_8254;
 
 	params->EnableTcoTimer = CONFIG(USE_PM_ACPI_TIMER);
 
@@ -504,12 +503,11 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PchIoApicBdfValid = 0;
 
 	/* Enable VT-d and X2APIC */
-	const unsigned int vtd = get_uint_option("vtd", 1);
 	if (soc_is_vtd_capable()) {
 		params->VtdBaseAddress[0] = GFXVT_BASE_ADDRESS;
 		params->VtdBaseAddress[1] = VTVC0_BASE_ADDRESS;
 		params->X2ApicOptOut = 0;
-		tconfig->VtdDisable = !vtd;
+		tconfig->VtdDisable = 0;
 	}
 
 	params->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_devfn_enabled(SA_DEVFN_IGD);

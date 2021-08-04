@@ -427,9 +427,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	memset(params->PcieRpPmSci, 0, sizeof(params->PcieRpPmSci));
 
 	/* Legacy 8254 timer support */
-	const unsigned int legacy_8254_timer = get_uint_option("legacy_8254_timer", 1);
-	params->Enable8254ClockGating = !legacy_8254_timer;
-	params->Enable8254ClockGatingOnS3 = !legacy_8254_timer;
+	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	params->Enable8254ClockGating = !use_8254;
+	params->Enable8254ClockGatingOnS3 = !use_8254;
 
 	params->EnableTcoTimer = CONFIG(USE_PM_ACPI_TIMER);
 
