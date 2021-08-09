@@ -273,9 +273,11 @@ void vSetVcoreByFreq(DRAMC_CTX_T *p)
 #ifndef DDR_INIT_TIME_PROFILING
     print("Read voltage for %d, %d\n", p->frequency, vGet_Current_SRAMIdx(p));
     print("Vcore = %d\n", dramc_get_vcore_voltage());
+#ifdef FOR_HQA_REPORT_USED
     print("Vdram = %d\n", dramc_get_vmdd_voltage(p->dram_type));
     print("Vddq = %d\n", dramc_get_vmddq_voltage(p->dram_type));
     print("Vmddr = %d\n", dramc_get_vmddr_voltage());
+#endif
 #endif
 
 #endif
@@ -1881,6 +1883,9 @@ int Init_DRAM(DRAM_DRAM_TYPE_T dram_type, DRAM_CBT_MODE_EXTERN_T dram_cbt_mode_e
 #if RUNTIME_SHMOO_RELEATED_FUNCTION
     ett_fix_freq = 1; /* only 1600 & 4266 */
 #endif
+
+    if (CONFIG(MEDIATEK_DRAM_DVFS_LIMIT_FREQ_CNT))
+        ett_fix_freq = 0x1; // 4266, 1600
 
     if (ett_fix_freq != 0xff)
         gAndroid_DVFS_en = FALSE;
