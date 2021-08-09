@@ -9,6 +9,7 @@
  * Return values:
  *  0 = CHIPSET_LOCKDOWN_FSP = use FSP's lockdown functionality to lockdown IPs
  *  1 = CHIPSET_LOCKDOWN_COREBOOT = Use coreboot to lockdown IPs
+ *  2 = CHIPSET_LOCKDOWN_COREBOOT_LOCKDIS = Use coreboot but leave lock disable
  */
 int get_lockdown_config(void);
 

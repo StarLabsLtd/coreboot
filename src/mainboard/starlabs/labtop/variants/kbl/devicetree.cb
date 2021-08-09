@@ -13,7 +13,7 @@ chip soc/intel/skylake
 	register "dptf_enable"			= "0"
 
 	register "common_soc_config" = "{
-		.chipset_lockdown		= CHIPSET_LOCKDOWN_COREBOOT,
+		.chipset_lockdown		= CHIPSET_LOCKDOWN_COREBOOT_LOCKDIS,
 	}"
 
 # Graphics (soc/intel/skylake/graphics.c)
