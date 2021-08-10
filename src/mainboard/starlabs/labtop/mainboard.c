@@ -89,11 +89,11 @@ void devtree_update(void)
 	nic_dev = variant_devtree_update();
 
 	if (nic_dev != NULL) {
-		if (get_uint_option("wireless", 0) == 0)
+		if (get_uint_option("wireless", 1) == 0)
 			nic_dev->enabled = 0;
 	}
 
-	if (get_uint_option("webcam", 0) == 0) {
+	if (get_uint_option("webcam", 1) == 0) {
 		if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
 			cfg->usb2_ports[3].enable = 0;
 		else
