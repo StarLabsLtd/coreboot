@@ -183,7 +183,7 @@ chip soc/intel/skylake
 		device pci 1f.3 on  end								# Intel HDA
 			subsystemid 0x10ec 0x111e
 		device pci 1f.4 on  end								# SMBus
-		device pci 1f.5 off end								# PCH SPI
+		device pci 1f.5 on  end								# PCH SPI
 		device pci 1f.6 off end								# GbE
 	end
 end
