@@ -20,7 +20,7 @@ Device (ADP1)
 
 	Method (_PSR, 0, NotSerialized)		// _PSR: Power Source
 	{
-		If (ECWR & 0x01)
+		If (ECPS & 0x01)
 		{
 			\PWRS = 1
 		}
@@ -38,7 +38,7 @@ Method (_Q0A, 0, NotSerialized)			// AC Power Connected
 Method (_QA0, 0, NotSerialized)			// AC Power Connected
 #endif
 {
-	If (ECWR & 0x01)
+	If (ECPS & 0x01)
 	{
 		\PWRS = 1
 	}

@@ -19,20 +19,18 @@ Method(_Q81)				// Volume down
 Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
-	\_SB.HIDD.HPEM(8)
-	Store ("<----- _Q80", Debug)
+	^^^^HIDD.HPEM (8)
+	Store ("<----- _Q99", Debug)
 }
 
 Method(_Q06)				// Brightness decrease
 {
-	// ^^^^HIDD.HPEM (20)
-	\_SB.PCI0.GFX0.DECB()
+	^^^^HIDD.HPEM (20)
 }
 
 Method(_Q07)				// Brightness increase
 {
-	// ^^^^HIDD.HPEM (19)
-	\_SB.PCI0.GFX0.INCB()
+	^^^^HIDD.HPEM (19)
 }
 
 Method (_Q0E)
