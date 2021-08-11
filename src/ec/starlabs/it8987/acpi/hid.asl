@@ -1,5 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+Device (PWRB)
+{
+	Name (_HID, EisaId ("PNP0C0C"))
+	Name (PBST, One)
+
+	Method (_STA, 0, NotSerialized)
+	{
+		Return (0x0F)
+	}
+}
+
 Device (HIDD)
 {
 	Name (_HID, "INT33D5")

@@ -25,11 +25,13 @@ Method(_Q99)				// Wireless mode
 
 Method(_Q06)				// Brightness decrease
 {
+	// ^^^^HIDD.HPEM (20)
 	\_SB.PCI0.GFX0.DECB()
 }
 
 Method(_Q07)				// Brightness increase
 {
+	// ^^^^HIDD.HPEM (19)
 	\_SB.PCI0.GFX0.INCB()
 }
 

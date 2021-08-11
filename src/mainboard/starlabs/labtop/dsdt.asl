@@ -25,7 +25,7 @@ DefinitionBlock(
 		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 		#include <soc/intel/tigerlake/acpi/southbridge.asl>
 		#include <soc/intel/tigerlake/acpi/tcss.asl>
-		/* #include <soc/intel/common/block/acpi/acpi/ipu.asl> */
+		#include <soc/intel/common/block/acpi/acpi/ipu.asl>
 #elif CONFIG(BOARD_STARLABS_LABTOP_CML)
 		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 		#include <soc/intel/cannonlake/acpi/southbridge.asl>
