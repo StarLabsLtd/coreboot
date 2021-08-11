@@ -8,6 +8,7 @@
 
 static void init_mainboard(void *chip_info)
 {
+	printk(BIOS_DEBUG, "We get to ramstage");
 	const struct pad_config *pads;
 	size_t num;
 
