@@ -7,9 +7,9 @@ Device (BAT0)
 	Name (_PCL, Package () { \_SB })
 
 	// Battery Slot Status
-	Method (_STA, 0, Serialized)
+	Method (_STA, 0)
 	{
-		If (ECWR & 0x02)
+		If (ECPS & 0x02)
 		{
 			Return (0x1F)
 		}
@@ -17,7 +17,7 @@ Device (BAT0)
 	}
 
 	// Default Static Battery Information
-	Name (BPKG, Package (13)
+	Name (BPKG, Package ()
 	{
 		1,		//  0: Power Unit
 		0xFFFFFFFF,	//  1: Design Capacity
@@ -33,6 +33,8 @@ Device (BAT0)
 		"Real",		// 11: Battery Type
 		"GDPT"		// 12: OEM Information
 	})
+
+	Name (B1CN, "Real")
 
 	Method (_BIF, 0, Serialized)
 	{

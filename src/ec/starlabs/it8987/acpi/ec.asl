@@ -2,18 +2,6 @@
 
 #define ASL_PVOL_DEFOF_NUM 0xe8
 
-Scope(\)
-{
-	// These fields come from the Global NVS area
-	Field (GNVS,AnyAcc,Lock,Preserve)
-	{
-		Offset(33),
-		B2SC, 8,		// (33) Battery 2 Stored Capacity
-		Offset(36),
-		B2SS, 8			// (36) Battery 2 Stored Status
-	}
-}
-
 Scope (\_SB)
 {
 	#include "hid.asl"
@@ -114,7 +102,7 @@ Scope (\_SB.PCI0.LPCB)
 				// 2 = Real Battery 2 is present
 				// 3 = Real Battery 1 and 2 are present
 				BNUM = 0
-				BNUM |= ((ECRD (RefOf (ECWR)) & 0x02) >> 1)
+				BNUM |= ((ECRD (RefOf (ECPS)) & 0x02) >> 1)
 
 				// Initialize the Power State.
 				// BNUM = 0 = Virtual Power State
@@ -125,7 +113,7 @@ Scope (\_SB.PCI0.LPCB)
 				}
 				Else
 				{
-					\PWRS = (ECRD (RefOf (ECWR)) & 0x01)
+					\PWRS = (ECRD (RefOf (ECPS)) & 0x01)
 				}
 				PNOT()
 
@@ -233,7 +221,7 @@ Scope (\_SB.PCI0.LPCB)
 			, 7,		// Reserved
 
 			Offset(0x80),
-			ECWR, 8,	// AC & Battery status
+			ECPS, 8,	// AC & Battery status
 			XX10, 8,	// Battery#1 Model Number Code
 			XX11, 16,	// Battery#1 Serial Number
 			B1DC, 16,	// Battery#1 Design Capacity
