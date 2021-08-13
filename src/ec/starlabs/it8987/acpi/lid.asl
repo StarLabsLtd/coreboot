@@ -30,6 +30,7 @@ Method (_Q0C, 0, NotSerialized)		// Lid close event
 {
 	DEBUG = "---> ITE LID: Q0C (close event)"
 	// \_SB.PCI0.GFX0.GLID = 0
+	\LIDS = 0x00
 	Notify (LID0, 0x80)
 }
 
@@ -37,5 +38,6 @@ Method (_Q0D, 0, NotSerialized)		// Lid open event
 {
 	DEBUG = "---> ITE LID: Q0D (open event)"
 	// \_SB.PCI0.GFX0.GLID = 1
+	\LIDS = 0x01
 	Notify (LID0, 0x80)
 }
