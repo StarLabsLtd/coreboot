@@ -15,7 +15,7 @@
 
 const char *smbios_mainboard_bios_version(void)
 {
-	return "6";
+	return "7";
 }
 
 /* Get the Embedded Controller firmware version */
