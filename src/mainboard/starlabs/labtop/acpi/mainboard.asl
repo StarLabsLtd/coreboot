@@ -13,11 +13,12 @@
 #include <ec/starlabs/it5570/acpi/ec.asl>
 #else
 #include <ec/starlabs/it8987/acpi/ec.asl>
+// #include <ec/starlabs/it8987/acpi/v2.asl>
 #endif
 
-Scope (\_SB) {
-	#include "sleep.asl"
-}
+// Scope (\_SB.PCI0.LPCB) {
+//	#include "sleep.asl"
+// }
 
 /*
  * The Intel Comet Lake platform doesn't support SoundWire but there
