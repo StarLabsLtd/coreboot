@@ -132,7 +132,7 @@ chip soc/intel/tigerlake
 		device pci 14.5 on   end								# SDCard
 		device pci 15.0 on								# I2C0
 			chip drivers/i2c/hid
-				register "generic.hid"		= ""STAR001""
+				register "generic.hid"		= ""STAR0001""
 				register "generic.desc"		= ""Touchpad""
 				register "generic.irq"		= "ACPI_IRQ_LEVEL_LOW(GPP_B3_IRQ)"
 				register "generic.probed"	= "1"
