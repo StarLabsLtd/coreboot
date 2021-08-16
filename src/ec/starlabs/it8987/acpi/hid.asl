@@ -1,16 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-Device (PWRB)
-{
-	Name (_HID, EisaId ("PNP0C0C"))
-	Name (PBST, 1)
-
-	Method (_STA, 0, NotSerialized)
-	{
-		Return (0x0F)
-	}
-}
-
 Device (HIDD)					// HID APCI Device
 {
 	Name (_HID, "INT33D5")			// Intel Ultrabook HID Platform Event Driver.
@@ -129,60 +118,6 @@ Device (HIDD)					// HID APCI Device
 	{
 		Store ("-----> HEEC", Debug)
 		Return (0)
-	}
-
-	Method (_DSM, 4, Serialized, 0, UnknownObj, {BuffObj, IntObj, IntObj, PkgObj})
-	{
-		If ((Arg0 == ToUUID ("eeec56b3-4442-408f-a792-4edd4d758054")))
-		{
-			If ((1 == ToInteger (Arg1)))
-			{
-				Switch (ToInteger (Arg2))
-				{
-					Case (0)
-					{
-						Return (Buffer() {0xFF, 0x03})
-					}
-					Case (1)
-					{
-						BTNL ()
-					}
-					Case (2)
-					{
-						Return (HDMM ())
-					}
-					Case (3)
-					{
-						HDSM (DerefOf (Arg3 [0]))
-					}
-					Case (4)
-					{
-						Return (HDEM ())
-					}
-					Case (5)
-					{
-						Return (BTNS ())
-					}
-					Case (6)
-					{
-						BTNE (DerefOf (Arg3 [0]))
-					}
-					Case (7)
-					{
-						Return (HEBC ())
-					}
-					Case (8)
-					{
-						Return(0x40)
-					}
-					Case (9)
-					{
-						Return (H2BC ())
-					}
-				}
-			}
-		}
-		Return (Buffer() {0x00})
 	}
 }
 

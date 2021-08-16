@@ -2,7 +2,7 @@
 
 Device (BAT0)
 {
-	Name (_HID, EISAID ("PNP0C0A"))
+	Name (_HID, EisaId ("PNP0C0A"))
 	Name (_UID, 1)
 	Name (_PCL, Package () { \_SB })
 

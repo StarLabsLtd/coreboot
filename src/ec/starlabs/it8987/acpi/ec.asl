@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#define ASL_PVOL_DEFOF_NUM 0xe8
-
 Scope (\_SB)
 {
+	// #include "pbutton.asl"
 	#include "hid.asl"
 }
 
@@ -21,7 +20,7 @@ Scope (\_SB.PCI0.LPCB)
 	// Our embedded controller device.
 	Device (H_EC)
 	{
-		Name (_HID, EISAID ("PNP0C09"))		// ACPI Embedded Controller
+		Name (_HID, EisaId ("PNP0C09"))		// ACPI Embedded Controller
 		Name (_UID, 1)
 		Name (_GPE, EC_GPE_SCI)
 
@@ -32,9 +31,9 @@ Scope (\_SB.PCI0.LPCB)
 		Name(WIBT, 0)
 		Name(APST, 0)
 
-		Name(ECON, 1)		// AC debug
-		Name(BNUM, 0)		// Number Of Batteries Present
-		Name(PVOL, ASL_PVOL_DEFOF_NUM)
+		Name(ECON, 1)				// AC debug
+		Name(BNUM, 0)				// Number Of Batteries Present
+		Name(PVOL, 0xe8)
 		Name(B1CC, 0)
 		Name(B2CC, 0)
 
@@ -53,7 +52,7 @@ Scope (\_SB.PCI0.LPCB)
 		Name(PPSL, 0)
 		Name(PSTP, 0)
 		Name(RPWR, 0)
-		Name(LIDS, 0)
+		Name(LIDS, 1)
 		Name(SLPC, 0)
 		Name(VPWR, 0)
 		Name(WTMS, 0)
@@ -92,34 +91,14 @@ Scope (\_SB.PCI0.LPCB)
 
 		Method(_REG, 2, NotSerialized)
 		{
-			If ((Arg0 == 0x03) && (Arg1 == 0x01))
-			{
-				ECAV = 1
-
-				// Unconditionally fix up the Battery and Power State.
-				// Initialize the Number of Present Batteries.
-				// 1 = Real Battery 1 is present
-				// 2 = Real Battery 2 is present
-				// 3 = Real Battery 1 and 2 are present
-				BNUM = 0
-				BNUM |= ((ECRD (RefOf (ECPS)) & 0x02) >> 1)
-
-				// Initialize the Power State.
-				// BNUM = 0 = Virtual Power State
-				// BNUM > 0 = Real Power State
-				If (BNUM == 0x00)
-				{
-					\PWRS = ECRD (RefOf (VPWR))
-				}
-				Else
-				{
-					\PWRS = (ECRD (RefOf (ECPS)) & 0x01)
-				}
-				PNOT()
-
-				/* Initialize LID switch state */
-				\LIDS = LIDS
-			}
+			// Initialise the AC Power State
+			Store ((ECRD (RefOf (ECPS)) & 0x01), \PWRS)
+			
+			// Inform platform code
+			\PNOT ()
+			
+			/* Initialize LID switch state */
+			Store (LIDS, \LIDS)
 
 			// Flag that the OS supports ACPI.
 			\_SB.PCI0.LPCB.H_EC.ECOS = 1
@@ -218,7 +197,7 @@ Scope (\_SB.PCI0.LPCB)
 			Offset(0x7F),
 			LSTE, 1,	// Lid feature
 					// BIT0LID GPI
-			, 7,		// Reserved
+			    , 7,	// Reserved
 
 			Offset(0x80),
 			ECPS, 8,	// AC & Battery status
@@ -294,15 +273,11 @@ Scope (\_SB.PCI0.LPCB)
 			CTL7, 8,
 
 			Offset(0xF0),
-			, 3,		// BIT0 .. BIT2 Reserved
+			    , 3,	// BIT0 .. BIT2 Reserved
 			TPCC, 1,	// BIT3 TypeC connection bit
-			, 2,		// BIT4 .. BIT5 Reserved
+			    , 2,	// BIT4 .. BIT5 Reserved
 			DRMD, 1,	// Bit6 Dual Role Mode. 0->DFP: Host mode; 1->UFP: Device Mode.
-			, 1,		// BIT7 Reserved
-		}
-
-		Method (ECMD, 0, Serialized)
-		{
+			    , 1,	// BIT7 Reserved
 		}
 
 		Method (ECWT, 2, Serialized,,, {IntObj, FieldUnitObj})
