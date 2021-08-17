@@ -56,9 +56,6 @@ chip soc/intel/tigerlake
 		[PchSerialIoIndexUART2]		= PchSerialIoSkipInit,
 	}"
 
-	# Misc
-	register "AcousticNoiseMitigation"	= "1"
-
 	# Power
 	register "PchPmSlpS3MinAssert"		= "2"				# 50ms
 	register "PchPmSlpS4MinAssert"		= "3"				# 1s
@@ -114,7 +111,12 @@ chip soc/intel/tigerlake
 		device pci 0a.0 off end								# Crash-log SRAM
 		device pci 0d.0 on  end								# USB xHCI
 		device pci 0d.1 on  end								# USB xDCI (OTG)
-		device pci 0d.2 on  end								# TBT DMA0
+		device pci 0d.2 on								# TBT DMA0
+			chip drivers/intel/usb4/retimer
+				# register "power_gpio"		= ""ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)""
+				device generic 0 on end
+			end
+		end
 		device pci 0d.3 on  end								# TBT
 		device pci 0e.0 off end								# VMD
 		device pci 10.6 off end
@@ -186,34 +188,32 @@ chip soc/intel/tigerlake
 		device pci 1c.6 off end								# PCI Express Port 7
 		device pci 1c.7 off end								# PCI Express Port 8
 		device pci 1d.0 on								# PCI Express Port 9(SSD x4)
-	register "PcieRpEnable[2]" = "1"
-	register "PcieRpEnable[3]" = "1"
-	register "PcieRpEnable[8]" = "1"
-	register "PcieRpEnable[10]" = "1"
+				# register "PcieRpEnable[2]" = "1"
+				# register "PcieRpEnable[3]" = "1"
+				# register "PcieRpEnable[8]" = "1"
+				# register "PcieRpEnable[10]" = "1"
 
-	# Enable RP LTR
-	register "PcieRpLtrEnable[2]" = "1"
-	register "PcieRpLtrEnable[3]" = "1"
-	register "PcieRpLtrEnable[8]" = "1"
-	register "PcieRpLtrEnable[10]" = "1"
-
-	# Hybrid storage mode
-	register "HybridStorageMode" = "1"
-
-	register "PcieClkSrcClkReq[1]" = "1"
-	register "PcieClkSrcClkReq[2]" = "2"
-	register "PcieClkSrcClkReq[3]" = "3"
-
-	register "PcieClkSrcUsage[1]" = "0x2"
-	register "PcieClkSrcUsage[2]" = "0x3"
-	register "PcieClkSrcUsage[3]" = "0x8"
+				# Enable RP LTR
+				# register "PcieRpLtrEnable[2]" = "1"
+				# register "PcieRpLtrEnable[3]" = "1"
+				# register "PcieRpLtrEnable[8]" = "1"
+				# register "PcieRpLtrEnable[10]" = "1"
 
 
-			# register "PcieRpEnable[8]"		= "1"
-			# register "PcieRpLtrEnable[8]"		= "1"
-			# register "PcieClkSrcUsage[0]"		= "8"
-			# register "PcieClkSrcClkReq[0]"		= "0"
-			# smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
+				# register "PcieClkSrcClkReq[1]" = "1"
+				# register "PcieClkSrcClkReq[2]" = "2"
+				# register "PcieClkSrcClkReq[3]" = "3"
+
+				# register "PcieClkSrcUsage[1]" = "0x2"
+				# register "PcieClkSrcUsage[2]" = "0x3"
+				# register "PcieClkSrcUsage[3]" = "0x8"
+
+
+			register "PcieRpEnable[8]"		= "1"
+			register "PcieRpLtrEnable[8]"		= "1"
+			register "PcieClkSrcUsage[3]"		= "8"
+			register "PcieClkSrcClkReq[3]"		= "3"
+			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
 		end
 		device pci 1d.1 off end								# PCI Express Port 10
 		device pci 1d.2 off end								# PCI Express Port 11
