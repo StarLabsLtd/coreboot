@@ -31,7 +31,7 @@ Device (HIDD)					// HID APCI Device
 		Return (DPKG)
 	}
 
-	Method(HDEM,0,Serialized)
+	Method (HDEM, 0, Serialized)
 	{
 		Store ("-----> HDEM", Debug)
 		HBSY = 0
@@ -99,14 +99,18 @@ Device (HIDD)					// HID APCI Device
 
 	Method (BTNC, 0, Serialized)
 	{
-		Return(0x1F)
+		Store ("-----> BTNC", Debug)
+		Return (0x1F)
 	}
 
 	Method (HEBC,0,Serialized) {
+		Store ("-----> HEBC", Debug)
 		Return (0x00063002)
 	}
 
-	Method (H2BC,0,Serialized) {
+	Method (H2BC, 0, Serialized)
+	{
+		Store ("-----> H2BC", Debug)
 		Return (0x00063002)
 	}
 
