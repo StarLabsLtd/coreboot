@@ -20,7 +20,7 @@ Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
 	^^^^HIDD.HPEM (8)
-	Store ("<----- _Q99", Debug)
+	Store ("<----- _Q80", Debug)
 }
 
 Method(_Q06)				// Brightness decrease

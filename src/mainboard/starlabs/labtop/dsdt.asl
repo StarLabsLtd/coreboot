@@ -12,11 +12,14 @@ DefinitionBlock(
 {
 	#include <acpi/dsdt_top.asl>
 	#include <soc/intel/common/block/acpi/acpi/platform.asl>
-#if CONFIG(BOARD_STARLABS_LABTOP_CML) || CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-	#include <soc/intel/common/block/acpi/acpi/globalnvs.asl>
-#else
+
+	/* global NVS and variables */
+#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
 	#include <soc/intel/skylake/acpi/globalnvs.asl>
+#else
+	#include <soc/intel/common/block/acpi/acpi/globalnvs.asl>
 #endif
+	/* CPU */
 	#include <cpu/intel/common/acpi/cpu.asl>
 
 	Device (\_SB.PCI0)
@@ -25,7 +28,7 @@ DefinitionBlock(
 		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 		#include <soc/intel/tigerlake/acpi/southbridge.asl>
 		#include <soc/intel/tigerlake/acpi/tcss.asl>
-		/* #include <soc/intel/common/block/acpi/acpi/ipu.asl> */
+		#include <soc/intel/common/block/acpi/acpi/ipu.asl>
 #elif CONFIG(BOARD_STARLABS_LABTOP_CML)
 		#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 		#include <soc/intel/cannonlake/acpi/southbridge.asl>
@@ -33,7 +36,6 @@ DefinitionBlock(
 		#include <soc/intel/skylake/acpi/systemagent.asl>
 		#include <soc/intel/skylake/acpi/pch.asl>
 #endif
-		/* #include <drivers/intel/gma/acpi/default_brightness_levels.asl> */
 	}
 
 	#include <southbridge/intel/common/acpi/sleepstates.asl>
