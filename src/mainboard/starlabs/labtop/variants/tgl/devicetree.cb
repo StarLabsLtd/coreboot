@@ -113,7 +113,7 @@ chip soc/intel/tigerlake
 		device pci 0d.1 on  end								# USB xDCI (OTG)
 		device pci 0d.2 on								# TBT DMA0
 			chip drivers/intel/usb4/retimer
-				register "dfp[0].power_gpio"		= ""ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)""
+				register "dfp[0].power_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
 				device generic 0 on end
 			end
 		end
