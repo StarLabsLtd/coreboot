@@ -1,12 +1,6 @@
 chip soc/intel/cannonlake
 	register "common_soc_config" = "{
 		.chipset_lockdown		= CHIPSET_LOCKDOWN_COREBOOT,
-		 /* Touchpad */
-		 .i2c[0] = {
-			.speed			= I2C_SPEED_FAST,
-			.rise_time_ns		= 80,
-			.fall_time_ns		= 110,
-		 },
 	}"
 
 # CPU (soc/intel/cannonlake/cpu.c)
@@ -83,7 +77,7 @@ chip soc/intel/cannonlake
 			# USB2
 			register "usb2_ports[0]"		= "USB2_PORT_MID(OC2)"		# Type-C Port 1
 			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
-			register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Not sure
+			# register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Not sure
 			register "usb2_ports[3]"		= "USB2_PORT_MID(OC2)"		# SD Card
 			register "usb2_ports[5]"		= "USB2_PORT_MID(OC3)"		# Type-A Port 3
 			register "usb2_ports[6]"		= "USB2_PORT_MID(OC3)"		# Camera
@@ -91,7 +85,7 @@ chip soc/intel/cannonlake
 			# USB3
 			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC2)"
 			register "usb3_ports[1]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
-			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC2)"
+			# register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC2)"
 		end
 		device pci 14.1 off end								# USB xDCI (OTG)
 		device pci 14.3 on								# CNVi wifi
@@ -125,9 +119,6 @@ chip soc/intel/cannonlake
 			# Port 1
 			register "SataPortsEnable[1]"		= "1"
 			register "SataPortsDevSlp[1]"		= "1"
-			# Port 2
-			register "SataPortsEnable[2]"		= "1"
-			register "SataPortsDevSlp[2]"		= "1"
 		end
 		device pci 19.0 off end								# I2C4
 		device pci 19.1 off end								# I2C5
