@@ -46,10 +46,6 @@ Method(_Q08)				// FN lock QEvent
 Method(_Q54)				// Power Button Event
 {
 	Store ("-----> _Q54", Debug)
-	// If (CondRefOf (\_SB.PWRB))
-	// {
-	//	Notify(\_SB.PWRB, 0x80)
-	// }
 	Store ("<----- _Q54", Debug)
 }
 

@@ -19,20 +19,18 @@ Method(_Q81)				// Volume down
 Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
-	\_SB.HIDD.HPEM(8)
-	Store ("<----- _Q80", Debug)
+	^^^^HIDD.HPEM (8)
+	Store ("<----- _Q99", Debug)
 }
 
 Method(_Q06)				// Brightness decrease
 {
 	^^^^HIDD.HPEM (20)
-	// \_SB.PCI0.GFX0.DECB()
 }
 
 Method(_Q07)				// Brightness increase
 {
 	^^^^HIDD.HPEM (19)
-	// \_SB.PCI0.GFX0.INCB()
 }
 
 Method(_Q08)				// FN lock QEvent
@@ -43,10 +41,6 @@ Method(_Q08)				// FN lock QEvent
 Method(_Q54)				// Power Button Event
 {
 	Store ("-----> _Q54", Debug)
-	If (CondRefOf (\_SB.PWRB))
-	{
-		Notify(\_SB.PWRB, 0x80)
-	}
 	Store ("<----- _Q54", Debug)
 }
 

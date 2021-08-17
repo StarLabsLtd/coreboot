@@ -2,7 +2,6 @@
 
 Scope (\_SB)
 {
-	// #include "pbutton.asl"
 	#include "hid.asl"
 }
 
@@ -66,15 +65,16 @@ Scope (\_SB.PCI0.LPCB)
 		Name(IWCW, 0)
 		Name(IWCR, 0)
 		Name(BTEN, 0)
+
 		Mutex(ECMT, 0)
 
+		Name (BFFR, ResourceTemplate()
+		{
+			IO (Decode16, 0x62, 0x62, 0x00, 0x01)
+			IO (Decode16, 0x66, 0x66, 0x00, 0x01)
+		})
 		Method (_CRS, 0, Serialized)
 		{
-			Name (BFFR, ResourceTemplate()
-			{
-				IO (Decode16, 0x62, 0x62, 0x00, 0x01)
-				IO (Decode16, 0x66, 0x66, 0x00, 0x01)
-			})
 			Return (BFFR)
 		}
 
@@ -124,6 +124,7 @@ Scope (\_SB.PCI0.LPCB)
 		OperationRegion(ECF2, EmbeddedControl, 0, 0xFF)
 		Field (ECF2, ByteAcc, Lock, Preserve)
 		{
+			Offset(0x00),
 			XXX0, 8,	// EC Firmware main - version number.
 			XXX1, 8,	// EC Firmware sub - version number.
 			XXX2, 8,	// EC Firmware test - version number.
