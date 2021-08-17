@@ -9,6 +9,7 @@
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <intelblocks/cse.h>
+#include <limits.h>
 #include <option.h>
 #include <security/vboot/misc.h>
 #include <security/vboot/vboot_common.h>
@@ -897,7 +898,7 @@ static void cse_set_resources(struct device *dev)
 	pci_dev_set_resources(dev);
 }
 
-static int disable_me(void)
+static void disable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
 	int status;
@@ -920,10 +921,9 @@ static int disable_me(void)
 	size_t reply_size;
 	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
 	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
-	return status;
 }
 
-static int enable_me(void)
+static void enable_me(void)
 {
 	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
 	int status;
@@ -940,7 +940,21 @@ static int enable_me(void)
 	size_t reply_size;
 	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
 	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
-	return status;
+}
+
+static void cse_enable_when_disabled(void)
+{
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	printk(BIOS_DEBUG, "ME: Version: 0.0.0.0\n");
+
+	if (!me_state)
+		enable_me();
+
+	/* Currently not in state 0 so reset */
+	if (!me_state) {
+		if (cse_is_hfs1_cws_normal() || cse_is_hfs1_com_normal())
+			do_global_reset();
+	}
 }
 
 static void cse_set_state(struct device *dev)
@@ -974,8 +988,10 @@ static void cse_set_state(struct device *dev)
 	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
 
 	/* If cse is disabled, go to disabled */
-	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal())
-		goto disabled;
+	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal()) {
+		cse_enable_when_disabled();
+		return;
+	}
 
 	/* Currently in state 0 and we want 3 */
 	if (me_state)
@@ -984,11 +1000,15 @@ static void cse_set_state(struct device *dev)
 	heci_reset();
 
 	/* Check the firmware version to check it's disabled */
-	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size))
-		goto disabled;
+	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size)) {
+		cse_enable_when_disabled();
+		return;
+	}
 
-	if (resp.hdr.result)
-		goto disabled;
+	if (resp.hdr.result) {
+		cse_enable_when_disabled();
+		return;
+	}
 
 	/* Hasn't changed states, reset and try again */
 	if (me_state)
@@ -996,13 +1016,6 @@ static void cse_set_state(struct device *dev)
 
 	printk(BIOS_DEBUG, "ME: Version: %u.%u.%u.%u\n", resp.code.major,
 			resp.code.minor, resp.code.hotfix, resp.code.build);
-	return;
-
-disabled:
-	printk(BIOS_DEBUG, "ME: Version: 0.0.0.0\n");
-
-	if (!me_state)
-		enable_me();
 }
 
 static struct device_operations cse_ops = {
