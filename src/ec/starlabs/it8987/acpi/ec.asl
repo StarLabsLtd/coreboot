@@ -52,7 +52,6 @@ Scope (\_SB.PCI0.LPCB)
 		Name(PPSL, 0)
 		Name(PSTP, 0)
 		Name(RPWR, 0)
-		// Name(LIDS, 1)
 		Name(SLPC, 0)
 		Name(VPWR, 0)
 		Name(WTMS, 0)
@@ -195,9 +194,7 @@ Scope (\_SB.PCI0.LPCB)
 			TER2, 8,	// Charger Temperature, Charger thermistor support
 
 			Offset(0x7F),
-			// LSTE, 1,	// Lid feature
-			LIDS, 1,	// Lid feature
-					// BIT0 LID GPI
+			LIDS, 1,	// BIT0 LID GPI
 			    , 7,	// Reserved
 
 			Offset(0x80),
