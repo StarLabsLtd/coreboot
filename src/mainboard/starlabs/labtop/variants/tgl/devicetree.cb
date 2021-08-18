@@ -23,7 +23,7 @@ chip soc/intel/tigerlake
 # Graphics
 	# IGD Displays
 	# Not used (yet...)
-	# register "gfx"			= "GMA_STATIC_DISPLAYS(0)"
+	register "gfx"			= "GMA_STATIC_DISPLAYS(0)"
 	# register "panel_cfg" = "{
 	#	.up_delay_ms			=  0,				// T3
 	#	.backlight_on_delay_ms		=  0,				// T7

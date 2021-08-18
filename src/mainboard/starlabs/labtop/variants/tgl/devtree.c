@@ -40,7 +40,6 @@ struct device *variant_devtree_update(void)
 		break;
 	}
 
-
 	/* Return the correct network device for this platform. */
 	return pcidev_on_root(0x14, 3);
 }
