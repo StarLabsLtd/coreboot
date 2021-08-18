@@ -33,4 +33,7 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	const uint8_t ht = get_uint_option("hyper_threading",
 		mupd->FspmConfig.HyperThreading);
 	mupd->FspmConfig.HyperThreading = ht;
+
+	// TODO: Would PL1 not override base TDP anyway?
+	// mupd->FspmConfig.ConfigTdpLevel = 1;
 };

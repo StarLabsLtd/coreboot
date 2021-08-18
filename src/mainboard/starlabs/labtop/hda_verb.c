@@ -21,7 +21,9 @@ void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
 	if ((viddid == AZALIA_CODEC_ALC256) || (viddid == AZALIA_CODEC_ALC269)) {
 		printk(BIOS_DEBUG, "CMOS: viddid = %d\n", viddid);
-		if (get_uint_option("microphone", 1) == 0)
+		if (get_uint_option("microphone", 1) == 0) {
+			printk(BIOS_DEBUG, "Disabling mic\n");
 			disable_microphone(base, viddid);
+		}
 	}
 }
