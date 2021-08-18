@@ -8,9 +8,8 @@
 
 static void init_mainboard(void *chip_info)
 {
-	printk(BIOS_DEBUG, "We get to ramstage");
-	const struct pad_config *pads;
-	size_t num;
+ 	const struct pad_config *pads;
+ 	size_t num;
 
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
@@ -19,5 +18,5 @@ static void init_mainboard(void *chip_info)
 }
 
 struct chip_operations mainboard_ops = {
-	.init = init_mainboard,
+ 	.init = init_mainboard,
 };

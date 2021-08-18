@@ -100,4 +100,3 @@ void devtree_update(void)
 			cfg->usb2_ports[6].enable = 0;
 	}
 }
-

@@ -19,4 +19,3 @@ SPD_SOURCES += samsung-K4A8G165WB-BCRC		# 0b0110
 SPD_SOURCES += samsung-K4A8G165WB-BCRC		# 0b0111
 
 LIB_SPD_DEPS = $(foreach f, $(SPD_SOURCES), src/mainboard/$(MAINBOARDDIR)/spd/$(f).spd.hex)
-

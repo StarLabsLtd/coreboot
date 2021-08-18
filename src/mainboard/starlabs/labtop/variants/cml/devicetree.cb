@@ -77,7 +77,7 @@ chip soc/intel/cannonlake
 			# USB2
 			register "usb2_ports[0]"		= "USB2_PORT_MID(OC2)"		# Type-C Port 1
 			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
-			# register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Not sure
+			register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Not sure
 			register "usb2_ports[3]"		= "USB2_PORT_MID(OC2)"		# SD Card
 			register "usb2_ports[5]"		= "USB2_PORT_MID(OC3)"		# Type-A Port 3
 			register "usb2_ports[6]"		= "USB2_PORT_MID(OC3)"		# Camera
@@ -85,7 +85,7 @@ chip soc/intel/cannonlake
 			# USB3
 			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC2)"
 			register "usb3_ports[1]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
-			# register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC2)"
+			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC2)"
 		end
 		device pci 14.1 off end								# USB xDCI (OTG)
 		device pci 14.3 on								# CNVi wifi
