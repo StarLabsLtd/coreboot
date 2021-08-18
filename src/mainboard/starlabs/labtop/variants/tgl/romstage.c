@@ -27,8 +27,10 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	memcfg_init(&mupd->FspmConfig, &mem_config, &ddr4_spd_info, half_populated);
 
+	const uint8_t vtd = get_uint_option("vtd", 1);
+		mupd->FspmConfig.VtdDisable = !vtd;
+
 	const uint8_t ht = get_uint_option("hyper_threading",
 		mupd->FspmConfig.HyperThreading);
 	mupd->FspmConfig.HyperThreading = ht;
-
 };

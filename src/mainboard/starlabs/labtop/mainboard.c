@@ -94,9 +94,10 @@ void devtree_update(void)
 	}
 
 	if (get_uint_option("webcam", 1) == 0) {
-		if (CONFIG(BOARD_STARLABS_LABTOP_KBL))
-			cfg->usb2_ports[3].enable = 0;
-		else
+		if (CONFIG(BOARD_STARLABS_LABTOP_CML))
 			cfg->usb2_ports[6].enable = 0;
+		else
+			cfg->usb2_ports[3].enable = 0;
+	/* Tried 6. */
 	}
 }
