@@ -82,7 +82,7 @@ config TIANOCORE_BOOTSPLASH_FILE
 	  If an absolute path is not given, the path will assumed to be
 	  relative to the coreboot root directory.
 
-config TIANOCORE_ABOVE_4G_DECODE
+config TIANOCORE_ABOVE_4G_MEMORY
 	bool "Enable above 4G memory"
 	default n
 	help

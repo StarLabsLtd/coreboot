@@ -94,4 +94,3 @@ void devtree_update(void)
 	if (get_uint_option("webcam", 0) == 0)
 		cfg->usb2_port[6].enable = 0;
 }
-

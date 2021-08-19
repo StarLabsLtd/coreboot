@@ -138,4 +138,3 @@ coreboot_rom = configure_file(
             '-st_path',
             '/usr/bin/openssl'],
 )
-

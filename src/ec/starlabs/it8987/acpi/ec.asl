@@ -92,10 +92,10 @@ Scope (\_SB.PCI0.LPCB)
 		{
 			// Initialise the AC Power State
 			Store ((ECRD (RefOf (ECPS)) & 0x01), \PWRS)
-			
+
 			// Inform platform code
 			\PNOT ()
-			
+
 			/* Initialize LID switch state */
 			Store (LIDS, \LIDS)
 

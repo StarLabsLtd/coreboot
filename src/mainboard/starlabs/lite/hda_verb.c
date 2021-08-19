@@ -166,4 +166,3 @@ const u32 pc_beep_verbs[] = {
 };
 
 AZALIA_ARRAY_SIZES;
-
