@@ -15,7 +15,7 @@
 
 const char *smbios_mainboard_bios_version(void)
 {
-	return "3";
+	return "7";
 }
 
 /* Get the Embedded Controller firmware version */
@@ -87,10 +87,10 @@ void devtree_update(void)
 	nic_dev = variant_devtree_update();
 
 	if (nic_dev != NULL) {
-		if (get_uint_option("wireless", 0) == 0)
+		if (get_uint_option("wireless", 1) == 0)
 			nic_dev->enabled = 0;
 	}
 
-	if (get_uint_option("webcam", 0) == 0)
+	if (get_uint_option("webcam", 1) == 0)
 		cfg->usb2_port[6].enable = 0;
 }
