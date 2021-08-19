@@ -616,6 +616,7 @@ M:	Jason Glenesk <jason.glenesk@gmail.com>
 M:	Raul E Rangel <rrangel@chromium.org>
 S:	Maintained
 F:	src/soc/amd/cezanne/
+F:	src/vendorcode/amd/fsp/cezanne/
 
 AMD common SoC code
 M:	Marshall Dawson <marshalldawson3rd@gmail.com>
@@ -633,6 +634,12 @@ M:	Raul E Rangel <rrangel@chromium.org>
 S:	Maintained
 F:	src/soc/amd/picasso/
 F:	src/vendorcode/amd/fsp/picasso/
+
+AMD Stoneyridge
+M:	Marshall Dawson <marshalldawson3rd@gmail.com>
+M:	Felix Held <felix-coreboot@felixheld.de>
+S:	Odd Fixes
+F:	src/soc/amd/stoneyridge/
 
 INTEL ALDERLAKE SOC
 M:	Tim Wawrzynczak <twawrzynczak@chromium.org>
