@@ -1,15 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <smbios.h>
-#include <types.h>
-#include <uuid.h>
-#include <option.h>
+#include <baseboard/variants.h>
+#include <chip.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
+#include <option.h>
+#include <smbios.h>
 #include <types.h>
-#include <chip.h>
-#include <baseboard/variants.h>
+#include <uuid.h>
 
 #include "variant/ec.h"
 

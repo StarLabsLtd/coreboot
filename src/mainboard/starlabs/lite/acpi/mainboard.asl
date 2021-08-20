@@ -1,19 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-Scope (\_SB) {
+/*
+ * ITE Embedded Controller
+ *
+ * We include this here as we need to support different levels within
+ * the ACPI DSDT tree structure.
+ */
+#define EC_GPE_SWI 0x49 /* GPP_E15 */
+#define EC_GPE_SCI 0x50 /* GPP_E16 */
+
+#include <ec/starlabs/it8987/acpi/ec.asl>
+
+Scope (\_SB.PCI0.LPCB) {
 	#include "sleep.asl"
-
-	/* Power button device. */
-	Device (PWRB)
-	{
-		Name (_HID, EisaId ("PNP0C0C"))
-		Name (PBST, One)
-
-		Method (_STA, 0, NotSerialized)
-		{
-			Return (0x0F)
-		}
-	}
 }
 
 /*
@@ -34,7 +33,7 @@ Scope (_SB.PCI0.HDAS)
 
 		Name (_CID, Package (0x02)
 		{
-			"PRP00001", 
+			"PRP00001",
 			"PNP0A05"
 		})
 
@@ -45,17 +44,3 @@ Scope (_SB.PCI0.HDAS)
 	}
 }
 
-/* 
- * ITE IT8987E Embedded Controller
- *
- * We include this here as we need to support different levels within
- * the ACPI DSDT tree structure.
- */
-#define	EC_GPE_SWI 0x49 /* GPP_E15 */
-#define EC_GPE_SCI 0x50 /* GPP_E16 */
-
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-#include <ec/starlabs/it5570/acpi/ec.asl>
-#else
-#include <ec/starlabs/it8987/acpi/ec.asl>
-#endif
