@@ -25,12 +25,12 @@ Method(_Q99)				// Wireless mode
 
 Method(_Q06)				// Brightness decrease
 {
-	^^^^HIDD.HPEM (20)
+	^^^^HIDD.HPEM (19)
 }
 
-Method(_Q07)				// Brightness increase
+Method(_Q05)				// Brightness increase
 {
-	^^^^HIDD.HPEM (19)
+	^^^^HIDD.HPEM (20)
 }
 
 Method(_Q08)				// FN lock QEvent
