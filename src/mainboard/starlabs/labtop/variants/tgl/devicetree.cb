@@ -21,6 +21,8 @@ chip soc/intel/tigerlake
 	register "eist_enable"			= "1"
 	register "SmbusEnable"			= "1"
 	register "PmTimerDisabled"		= "1"
+	# register "SlowSlewRate"			= "SLEW_FAST_8"
+	# register "FastPkgCRampDisable"		= "1"
 
 # Graphics
 	# IGD Displays
@@ -182,11 +184,17 @@ chip soc/intel/tigerlake
 		device pci 1c.6 off end								# PCI Express Port 7
 		device pci 1c.7 off end								# PCI Express Port 8
 		device pci 1d.0 on								# PCI Express Port 9 (SSD x4)
-		        register "PcieRpEnable[8]" = "1"
-			register "PcieRpLtrEnable[8]" = "1"
-		        register "PcieClkSrcClkReq[3]" = "3"
-			register "PcieClkSrcUsage[3]" = "0x8"
+			register "HybridStorageMode"		= "0"
+		        register "PcieRpEnable[8]"		= "1"
+			register "PcieRpLtrEnable[8]"		= "1"
+		        register "PcieClkSrcClkReq[3]"		= "3"
+			register "PcieClkSrcUsage[3]"		= "0x8"
 			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
+			# chip soc/intel/common/block/pcie/rtd3
+			#	register "enable_gpio"	= ""
+			#	register "reset_gpio"	= ""
+			#	device generic 0 on end
+			# end
 		end
 		device pci 1d.1 off end								# PCI Express Port 10
 		device pci 1d.2 off end								# PCI Express Port 11
@@ -210,7 +218,7 @@ chip soc/intel/tigerlake
 				end
 			end
 		end
-		device pci 1f.1 off end								# P2SB
+		device pci 1f.1 on  end								# P2SB
 		device pci 1f.2 hidden								# Power Management Controller
 		end
 		device pci 1f.3 on								# Intel HDA
