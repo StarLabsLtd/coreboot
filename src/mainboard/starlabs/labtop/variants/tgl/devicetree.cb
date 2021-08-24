@@ -218,7 +218,7 @@ chip soc/intel/tigerlake
 				end
 			end
 		end
-		device pci 1f.1 on  end								# P2SB
+		device pci 1f.1 off end								# P2SB
 		device pci 1f.2 hidden								# Power Management Controller
 		end
 		device pci 1f.3 on								# Intel HDA
