@@ -21,8 +21,8 @@ chip soc/intel/tigerlake
 	register "eist_enable"			= "1"
 	register "SmbusEnable"			= "1"
 	register "PmTimerDisabled"		= "1"
-	# register "SlowSlewRate"			= "SLEW_FAST_8"
-	# register "FastPkgCRampDisable"		= "1"
+#	register "SlowSlewRate"			= "SLEW_FAST_8"
+#	register "FastPkgCRampDisable"		= "1"
 
 # Graphics
 	# IGD Displays
@@ -62,14 +62,6 @@ chip soc/intel/tigerlake
 
 	# Thermal
 	register "tcc_offset"			= "10"
-
-	register "DdiPortAConfig"		= "1"
-	register "DdiPortAHpd"			= "1"
-	register "DdiPortADdc"			= "0"
-
-	register "DdiPortBConfig"		= "1"
-	register "DdiPortBHpd"			= "1"
-	register "DdiPortBDdc"			= "1"
 
 	# Disable S0ix
 	# This isn't necessary, but here incase upstream changes
@@ -126,13 +118,9 @@ chip soc/intel/tigerlake
 		device pci 12.6 off end								# GSPI #2
 		device pci 14.0 on								# USB xHCI
 			# USB2
-			register "usb2_ports[0]"		= "USB2_PORT_TYPE_C(OC2)"	# Type-C Port 1
-			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
-			register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Bluetooth
-			register "usb2_ports[3]"		= "USB2_PORT_MID(OC2)"		# SD Card
-			register "usb2_ports[5]"		= "USB2_PORT_MID(OC3)"		# Type-A Port 3
-			register "usb2_ports[6]"		= "USB2_PORT_MID(OC3)"		# Camera
-			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# CNVi Bluetooth
+			register "usb2_ports[3]"		= "USB2_PORT_MID(OC2)"		# Camera
+			register "usb2_ports[5]"		= "USB2_PORT_MID(OC3)"		# Right USB 2.0
+			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# Bluetooth
 
 			# USB3
 			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC2)"
@@ -220,6 +208,17 @@ chip soc/intel/tigerlake
 		end
 		device pci 1f.1 off end								# P2SB
 		device pci 1f.2 hidden								# Power Management Controller
+#			chip drivers/intel/pmc_mux
+#				device generic 0 on
+#					chip drivers/intel/pmc_mux/conn
+#						# J_TYPEC1
+#						register "usb2_port_number" = "3"
+#						register "usb3_port_number" = "1"
+#						# SBU & HSL follow CC
+#						device generic 0 alias conn0 on end
+#					end
+#				end
+#			end
 		end
 		device pci 1f.3 on								# Intel HDA
 			subsystemid 0x10ec 0x119e
