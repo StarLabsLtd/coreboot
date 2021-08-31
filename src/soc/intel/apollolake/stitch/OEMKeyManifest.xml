@@ -1,0 +1,30 @@
+<!--SPDX-License-Identifier: GPL-2.0-only-->
+<?xml version="1.0" encoding="utf-8"?>
+<OEMKeyManifest version="2.11">
+    <OemId value="0x0000"/>
+    <KeyManifestId value="0x1"/>
+    <VendorId value="0x8086"/>
+    <SecurityVersionNumber value="0x00000000"/>
+    <VersionMajor value="0x0000"/>
+    <VersionMinor value="0x0000"/>
+    <VersionHotfix value="0x0000"/>
+    <VersionBuild value="0x0000"/>
+    <KeyManifestEntries>
+        <KeyManifestEntry>
+            <Usage value="IfwiManifest | OemSmipManifest | OemDnxIfwiManifest | BootPolicyManifest"/>
+            <HashBinary value="build/private_hash.bin"/>
+        </KeyManifestEntry>
+        <KeyManifestEntry>
+            <Usage value="cAvsImage0Manifest | cAvsImage1Manifest"/>
+            <HashBinary value="build/private_hash_dsp_fw.bin"/>
+        </KeyManifestEntry>
+        <KeyManifestEntry>
+            <Usage value="iUnitBootLoaderManifest | iUnitMainFwManifest"/>
+            <HashBinary value="build/private_hash_iUnit.bin"/>
+        </KeyManifestEntry>
+        <KeyManifestEntry>
+            <Usage value="IshManifest"/>
+            <HashBinary value="build/private_hash_ISH.bin"/>
+        </KeyManifestEntry>
+    </KeyManifestEntries>
+</OEMKeyManifest>

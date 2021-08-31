@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MeuConfig version="2.11">
+    <PathVars label="Path Variables">
+        <WorkingDir value="./" label="$WorkingDir" help_text="Path for environment variable $WorkingDir"/>
+        <SourceDir value="./" label="$SourceDir" help_text="Path for environment variable $SourceDir"/>
+        <DestDir value="./" label="$DestDir" help_text="Path for environment variable $DestDir"/>
+        <UserVar1 value="./" label="$UserVar1" help_text="Path for environment variable $UserVar1"/>
+        <UserVar2 value="./" label="$UserVar2" help_text="Path for environment variable $UserVar2"/>
+        <UserVar3 value="./" label="$UserVar3" help_text="Path for environment variable $UserVar3"/>
+    </PathVars>
+    <SigningConfig label="Signing Configuration">
+        <SigningTool value="OpenSSL" value_list="Disabled,,OpenSSL,,MobileSigningUtil" label="Signing Tool" help_text="Select tool to be used for signing, or disable signing."/>
+        <SigningToolPath value="/usr/bin/openssl" label="Signing Tool Path" help_text="Path to signing tool executable."/>
+        <PrivateKeyPath value="@signing_key@" label="Private Key Path" help_text="Path to private RSA key (in PEM format) to be used for signing. Key is required if using OpenSSL. If using MSU, and value is not-empty, this will override the key in the Signing Tool Config XML."/>
+        <SigningToolXmlPath value="" label="Signing Tool Config XML Path" help_text="Configuration XML template for MobileSigningUtil. Leave blank if not using MSU."/>
+        <SigningToolExecPath value="" label="Signing Tool Execution Path" help_text="Specify a directory from which the signing tool should be executed. This can be useful if relative paths are used in the Signing Tool Config XML. If no path is provided, the signing tool will be executed from the same directory as this tool was executed. Leave blank if not using MSU."/>
+    </SigningConfig>
+    <CompressionConfig label="Compression Configuration">
+        <LzmaToolPath value="" label="LZMA Tool Path" help_text="Path to lzma tool executable."/>
+    </CompressionConfig>
+</MeuConfig>
