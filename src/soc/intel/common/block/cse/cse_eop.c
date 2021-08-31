@@ -139,11 +139,11 @@ static enum cse_eop_result cse_send_eop(void)
 static void cse_handle_eop_error(void)
 {
 	if (!cse_disable_mei_bus())
-		die("Failed to disable MEI bus while recovering from EOP error\n"
+		/* die */ printk (BIOS_DEBUG, "Failed to disable MEI bus while recovering from EOP error\n"
 		    "Preventing system from booting into an insecure state.\n");
 
 	if (!cse_disable_mei_devices())
-		die("Error disabling MEI devices while recovering from EOP error\n"
+		/* die */ printk(BIOS_DEBUG, "Error disabling MEI devices while recovering from EOP error\n"
 		    "Preventing system from booting into an insecure state.\n");
 }
 
