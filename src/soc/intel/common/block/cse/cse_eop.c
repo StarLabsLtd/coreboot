@@ -4,6 +4,8 @@
 #include <console/console.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/pmc_ipc.h>
+#include <limits.h>
+#include <option.h>
 #include <security/vboot/vboot_common.h>
 #include <soc/intel/common/reset.h>
 #include <timestamp.h>
@@ -174,9 +176,12 @@ static void handle_cse_eop_result(enum cse_eop_result result)
 
 static void set_cse_end_of_post(void *unused)
 {
-	timestamp_add_now(TS_ME_BEFORE_END_OF_POST);
-	handle_cse_eop_result(cse_send_eop());
-	timestamp_add_now(TS_ME_AFTER_END_OF_POST);
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	if (!me_state) {
+		timestamp_add_now(TS_ME_BEFORE_END_OF_POST);
+		handle_cse_eop_result(cse_send_eop());
+		timestamp_add_now(TS_ME_AFTER_END_OF_POST);
+	}
 }
 
 /*
