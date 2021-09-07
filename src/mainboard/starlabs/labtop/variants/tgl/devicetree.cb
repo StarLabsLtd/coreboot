@@ -6,7 +6,7 @@ chip soc/intel/tigerlake
 # CPU
 	# Power limit
 	# Select TDP Level 2
-	# register "ConfigTdpLevel" = "2"
+	register "ConfigTdpLevel" = "2"
 
 	register "power_limits_config[POWER_LIMITS_U_2_CORE]" = "{
 		.tdp_pl1_override		= 15,
@@ -36,7 +36,7 @@ chip soc/intel/tigerlake
 
 	# FSP Memory
 	register "CnviBtCore"			= "true"
-	# register "CnviBtAudioOffload"		= "1"
+	register "CnviBtAudioOffload"		= "1"
 	register "enable_c6dram"		= "1"
 	register "HeciEnabled"			= "1"
 	register "PmTimerDisabled"		= "1"
@@ -47,23 +47,9 @@ chip soc/intel/tigerlake
 	# Serial I/O
 	register "SerialIoI2cMode" = "{
 		[PchSerialIoIndexI2C0]		= PchSerialIoPci,
-		[PchSerialIoIndexI2C1]		= PchSerialIoDisabled,
-		[PchSerialIoIndexI2C2]		= PchSerialIoDisabled,
-		[PchSerialIoIndexI2C3]		= PchSerialIoDisabled,
-		[PchSerialIoIndexI2C4]		= PchSerialIoDisabled,
-		[PchSerialIoIndexI2C5]		= PchSerialIoDisabled,
-	}"
-
-        register "SerialIoGSpiMode" = "{
-		[PchSerialIoIndexGSPI0]		= PchSerialIoDisabled,
-		[PchSerialIoIndexGSPI1]		= PchSerialIoDisabled,
-		[PchSerialIoIndexGSPI2]		= PchSerialIoDisabled,
-		[PchSerialIoIndexGSPI3]		= PchSerialIoDisabled,
 	}"
 
 	register "SerialIoUartMode" = "{
-		[PchSerialIoIndexUART0]		= PchSerialIoDisabled,
-		[PchSerialIoIndexUART1]		= PchSerialIoDisabled,
 		[PchSerialIoIndexUART2]		= PchSerialIoSkipInit,
 	}"
 
@@ -77,31 +63,20 @@ chip soc/intel/tigerlake
 	register "tcc_offset"			= "10"
 
 	# Enable DPTF
-        register "dptf_enable"			= "1"
-
-	register "AcousticNoiseMitigation"	= "1"
-	register "SlowSlewRate"			= "SLEW_FAST_8"
-	register "FastPkgCRampDisable"		= "1"
+        register "dptf_enable"			= "0"
 
 	# FIVR configuration
-	#   Read EXT_RAIL_CONFIG to determine bitmaps
-	#     sudo devmem2 0xfe0011b8
-	#     0x0
-	#   Read EXT_V1P05_VR_CONFIG
-	#     sudo devmem2 0xfe0011c0
-	#     0x1a42000
-	#   Read EXT_VNN_VR_CONFIG0
-	#     sudo devmem2 0xfe0011c4
-	#     0x1a42000
-	# TODO: v1p05 voltage and vnn icc max?
+	#   EXT_RAIL_CONFIG:		0x0
+	#   EXT_V1P05_VR_CONFIG:	0x1a42000
+	#   EXT_VNN_VR_CONFIG0:		0x1a42000
 	register "ext_fivr_settings" = "{
-		.configure_ext_fivr = 1,
-		.v1p05_enable_bitmap = 0,
-		.vnn_enable_bitmap = 0,
-		.v1p05_supported_voltage_bitmap = 0,
-		.vnn_supported_voltage_bitmap = 0,
-		.v1p05_icc_max_ma = 500,
-		.vnn_sx_voltage_mv = 1050,
+		.configure_ext_fivr		= 1,
+		.v1p05_enable_bitmap		= 0,
+		.vnn_enable_bitmap		= 0,
+		.v1p05_supported_voltage_bitmap	= 0,
+		.vnn_supported_voltage_bitmap	= 0,
+		.v1p05_icc_max_ma		= 500,
+		.vnn_sx_voltage_mv		= 1050,
 	}"
 
 
@@ -136,33 +111,33 @@ chip soc/intel/tigerlake
 			chip drivers/intel/dptf
 				## Active Policy
 				register "policies.active" = "{
-					[0] = {.target = DPTF_CPU,
-					       .thresholds = {TEMP_PCT(85, 90),
-							      TEMP_PCT(80, 69),
-							      TEMP_PCT(75, 56),
-							      TEMP_PCT(70, 46),
-							      TEMP_PCT(65, 36),}},
-					[1] = {.target = DPTF_TEMP_SENSOR_0,
-					       .thresholds = {TEMP_PCT(50, 90),
-							      TEMP_PCT(47, 69),
-							      TEMP_PCT(45, 56),
-							      TEMP_PCT(42, 46),
-							      TEMP_PCT(39, 36),}},
-					[2] = {.target = DPTF_TEMP_SENSOR_1,
-					       .thresholds = {TEMP_PCT(50, 90),
-							      TEMP_PCT(47, 69),
-							      TEMP_PCT(45, 56),
-							      TEMP_PCT(42, 46),
-							      TEMP_PCT(39, 36),}},
-					[3] = {.target = DPTF_TEMP_SENSOR_2,
-					       .thresholds = {TEMP_PCT(50, 90),
-							      TEMP_PCT(47, 69),
-							      TEMP_PCT(45, 56),
-							      TEMP_PCT(42, 46),
-							      TEMP_PCT(39, 36),}},
-					[4] = {.target = DPTF_TEMP_SENSOR_3,
-					       .thresholds = {TEMP_PCT(50, 90),
-							      TEMP_PCT(47, 69),
+					[0]			= {.target = DPTF_CPU,
+								   .thresholds = {TEMP_PCT(85, 90),
+										  TEMP_PCT(80, 69),
+										  TEMP_PCT(75, 56),
+										  TEMP_PCT(70, 46),
+										  TEMP_PCT(65, 36),}},
+					[1]			= {.target = DPTF_TEMP_SENSOR_0,
+								   .thresholds = {TEMP_PCT(50, 90),
+										  TEMP_PCT(47, 69),
+										  TEMP_PCT(45, 56),
+										  TEMP_PCT(42, 46),
+										  TEMP_PCT(39, 36),}},
+					[2]			= {.target = DPTF_TEMP_SENSOR_1,
+								   .thresholds = {TEMP_PCT(50, 90),
+										  TEMP_PCT(47, 69),
+										  TEMP_PCT(45, 56),
+										  TEMP_PCT(42, 46),
+										  TEMP_PCT(39, 36),}},
+					[3]			= {.target = DPTF_TEMP_SENSOR_2,
+								   .thresholds = {TEMP_PCT(50, 90),
+										  TEMP_PCT(47, 69),
+										  TEMP_PCT(45, 56),
+										  TEMP_PCT(42, 46),
+										  TEMP_PCT(39, 36),}},
+					[4]			= {.target = DPTF_TEMP_SENSOR_3,
+								  .thresholds = {TEMP_PCT(50, 90),
+										 TEMP_PCT(47, 69),
 							      TEMP_PCT(45, 56),
 							      TEMP_PCT(42, 46),
 							      TEMP_PCT(39, 36),}}}"
@@ -187,40 +162,40 @@ chip soc/intel/tigerlake
 				# 3-15W PL1 in 200mW increments, avg over 28-32s interval
 				# PL2 ranges from 15 to 60W, avg over 28-32s interval
 				register "controls.power_limits" = "{
-					.pl1 = {.min_power = 3000,
-						.max_power = 15000,
-						.time_window_min = 28 * MSECS_PER_SEC,
-						.time_window_max = 32 * MSECS_PER_SEC,
-						.granularity = 200,},
-					.pl2 = {.min_power = 60000,
-						.max_power = 60000,
-						.time_window_min = 28 * MSECS_PER_SEC,
-						.time_window_max = 32 * MSECS_PER_SEC,
-						.granularity = 1000,}}"
+					.pl1 = {.min_power		= 3000,
+						.max_power		= 15000,
+						.time_window_min	= 28 * MSECS_PER_SEC,
+						.time_window_max	= 32 * MSECS_PER_SEC,
+						.granularity		= 200,},
+					.pl2 = {.min_power		= 60000,
+						.max_power		= 60000,
+						.time_window_min	= 28 * MSECS_PER_SEC,
+						.time_window_max	= 32 * MSECS_PER_SEC,
+						.granularity		= 1000,}}"
 
 				## Charger Performance Control (Control, mA)
 				register "controls.charger_perf" = "{
-					[0] = { 255, 1700 },
-					[1] = {  24, 1500 },
-					[2] = {  16, 1000 },
-					[3] = {   8,  500 }}"
+					[0]	= { 255, 1700 },
+					[1]	= {  24, 1500 },
+					[2]	= {  16, 1000 },
+					[3]	= {   8,  500 }}"
 
 				## Fan Performance Control (Percent, Speed, Noise, Power)
 				register "controls.fan_perf" = "{
-					[0] = {  90, 6700, 220, 2200, },
-					[1] = {  80, 5800, 180, 1800, },
-					[2] = {  70, 5000, 145, 1450, },
-					[3] = {  60, 4900, 115, 1150, },
-					[4] = {  50, 3838,  90,  900, },
-					[5] = {  40, 2904,  55,  550, },
-					[6] = {  30, 2337,  30,  300, },
-					[7] = {  20, 1608,  15,  150, },
-					[8] = {  10,  800,  10,  100, },
-					[9] = {   0,    0,   0,   50, }}"
+					[0]	= {  90, 6700, 220, 2200, },
+					[1]	= {  80, 5800, 180, 1800, },
+					[2]	= {  70, 5000, 145, 1450, },
+					[3]	= {  60, 4900, 115, 1150, },
+					[4]	= {  50, 3838,  90,  900, },
+					[5]	= {  40, 2904,  55,  550, },
+					[6]	= {  30, 2337,  30,  300, },
+					[7]	= {  20, 1608,  15,  150, },
+					[8]	= {  10,  800,  10,  100, },
+					[9]	= {   0,    0,   0,   50, }}"
 
 				# Fan options
-				register "options.fan.fine_grained_control" = "1"
-				register "options.fan.step_size" = "2"
+				register "options.fan.fine_grained_control"	= "1"
+				register "options.fan.step_size"		= "2"
 
 				device generic 0 on end
 			end
@@ -237,13 +212,12 @@ chip soc/intel/tigerlake
 		device pci 0d.0 on								# USB xHCI
 			register "UsbTcPortEn"			= "1"
 			register "TcssXhciEn"			= "1"
-			register "TcssAuxOri"			= "0"
 			chip drivers/usb/acpi
-				device ref tcss_root_hub on
+				device usb 3.0 on
 					chip drivers/usb/acpi
-						register "desc" = ""USB3 TYPE_C""
-						register "type" = "UPC_TYPE_C_USB2_SS_SWITCH"
-						register "group" = "ACPI_PLD_GROUP(1, 1)"
+						register "desc"		= ""USB3 TYPE_C""
+						register "type"		= "UPC_TYPE_C_USB2_SS_SWITCH"
+						register "group"	= "ACPI_PLD_GROUP(0, 1)"
 						device ref tcss_usb3_port1 on end
 					end
 				end
@@ -253,9 +227,7 @@ chip soc/intel/tigerlake
 		device pci 0d.2 on								# TBT DMA0
 			chip drivers/intel/usb4/retimer
 				register "dfp[0].power_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
-				# register "dfp[1].power_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
 				use tcss_usb3_port1 as dfp[0].typec_port
-				# use tcss_usb3_port2 as dfp[1].typec_port
 				device generic 0 on end
 			end
 		end
@@ -266,23 +238,79 @@ chip soc/intel/tigerlake
 		device pci 12.0 off end								# Thermal Subsystem
 		device pci 12.6 off end								# GSPI #2
 		device pci 14.0 on								# USB xHCI
-			# USB2
-			register "usb2_ports[0]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-C Port 1
-			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
-			register "usb2_ports[2]"		= "USB2_PORT_MID(OC_SKIP)"	# Not sure
-			register "usb2_ports[3]"		= "USB2_PORT_MID(OC_SKIP)"	# Camera
-			register "usb2_ports[5]"		= "USB2_PORT_MID(OC_SKIP)"	# Right USB 2.0
-			register "usb2_ports[6]"		= "USB2_PORT_MID(OC_SKIP)"	# Camera
-			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# Bluetooth
+			# USB 2.0 Devices
+			register "usb2_ports[0]"                = "USB2_PORT_TYPE_C(OC_SKIP)"	# Motherboard USB Type C
+			register "usb2_ports[1]"                = "USB2_PORT_MID(OC_SKIP)"	# Motherboard USB 3.0
+			register "usb2_ports[2]"                = "USB2_PORT_MID(OC_SKIP)"	# Daughterboard USB 3.0
+			register "usb2_ports[3]"                = "USB2_PORT_MID(OC_SKIP)"	# Internal Webcam
+			register "usb2_ports[5]"                = "USB2_PORT_MID(OC_SKIP)"	# Daughterboard SD Card
+			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# Internal Bluetooth
+			
+			# USB 3.0 Devices
+			register "usb3_ports[0]"                = "USB3_PORT_DEFAULT(OC_SKIP)"	# Motherboard USB 3.0
+			register "usb3_ports[1]"                = "USB3_PORT_DEFAULT(OC_SKIP)"	# Daughterboard USB 3.0
+			register "usb3_ports[2]"                = "USB3_PORT_DEFAULT(OC_SKIP)"	# Internal WiFi
 
-			# USB3
-			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
-			register "usb3_ports[1]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
-			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
+			# Thunderbolt 4.0 Devices
+			register "tcss_ports[0]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"	# Motherboard Thunderbolt 4.0
 
-			# TBT4
-			register "tcss_ports[0]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"
-
+			# APCI
+			device usb 0.0 on
+				# USB 2.0 Devices
+				chip drivers/usb/acpi
+					register "desc"			= ""Motherboard USB Type C""
+					register "type"			= "UPC_TYPE_C_USB2_SS_SWITCH"
+					register "group"		= "ACPI_PLD_GROUP(0, 1)"
+					device usb 2.0 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Motherboard USB 3.0""
+					register "type"			= "UPC_TYPE_USB3_A"
+					register "group"		= "ACPI_PLD_GROUP(1, 1)"
+					device usb 2.1 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Daughterboard USB 3.0""
+					register "type"			= "UPC_TYPE_USB3_A"
+					register "group"		= "ACPI_PLD_GROUP(2, 1)"
+					device usb 2.2 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Internal Webcam""
+					register "type"			= "UPC_TYPE_INTERNAL"
+					device usb 2.3 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Daughterboard SD Card""
+					register "type"			= "UPC_TYPE_INTERNAL"
+					register "group"		= "ACPI_PLD_GROUP(3, 1)"
+					device usb 2.5 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Internal Bluetooth""
+					register "type"			= "UPC_TYPE_INTERNAL"
+					device usb 2.9 on end
+				end
+				# USB 3.0 Devices
+				chip drivers/usb/acpi
+					register "desc"			= ""Motherboard USB 3.0""
+					register "type"			= "UPC_TYPE_USB3_A"
+					register "group"		= "ACPI_PLD_GROUP(1, 2)"
+					device usb 3.0 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Daughterboard USB 3.0""
+					register "type"			= "UPC_TYPE_USB3_A"
+					register "group"		= "ACPI_PLD_GROUP(2, 2)"
+					device usb 3.1 on end
+				end
+				chip drivers/usb/acpi
+					register "desc"			= ""Internal WiFi""
+					register "type"			= "UPC_TYPE_EXPRESSCARD"
+					register "group"		= "ACPI_PLD_GROUP(4, 1)"
+					device usb 3.1 on end
+				end
+			end
 		end
 		device pci 14.1 off end								# USB xDCI (OTG)
 		device pci 14.2 on  end								# USB xDCI (OTG)
@@ -336,8 +364,8 @@ chip soc/intel/tigerlake
 			register "PcieClkSrcUsage[3]"		= "0x8"
 			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
 			# chip soc/intel/common/block/pcie/rtd3
-			#	register "enable_gpio"	= ""
-			#	register "reset_gpio"	= ""
+			#	register "enable_gpio"		= ""
+			#	register "reset_gpio"		= ""
 			#	device generic 0 on end
 			# end
 		end
@@ -374,9 +402,8 @@ chip soc/intel/tigerlake
 			chip drivers/intel/pmc_mux
 				device generic 0 on
 					chip drivers/intel/pmc_mux/conn
-						register "usb2_port_number" = "9"
-						register "usb3_port_number" = "1"
-						# SBU & HSL follow CC
+						register "usb2_port_number"	= "0"
+						register "usb3_port_number"	= "4"
 						device generic 0 alias conn0 on end
 					end
 				end
