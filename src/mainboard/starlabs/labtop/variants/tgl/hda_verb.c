@@ -6,7 +6,7 @@ const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0256, // Codec Vendor / Device ID: Realtek ALC256
 	0xffffffff, // Subsystem ID
-	33,	    // Number of jacks (NID entries)
+	38,	    // Number of jacks (NID entries)
 
 	/* Reset Codec First */
 	AZALIA_RESET(0x1),
@@ -28,13 +28,13 @@ const u32 cim_verb_data[] = {
 	AZALIA_PIN_CFG(0, 0x1e, 0x411111f0),
 	AZALIA_PIN_CFG(0, 0x21, 0x042b1010),
 
-	/* RESET to D0 */
+	/* Reset to D0 */
 	0x00170500,
 	0x00170500,
 	0x00170500,
 	0x00170500,
 
-	/* RESET Register */
+	/* Reset Register */
 	0x0205001A,
 	0x02048003,
 	0x0205001A,
@@ -70,9 +70,14 @@ const u32 cim_verb_data[] = {
 	0x0205000A,
 	0x02047770,
 
+	/* Combo Jack TRS setting */
+	0x02050038,
+	0x02047901,
+
 	/* Disable Microphone Security */
 	0x0205000D,
 	0x0204A020,
+
 	/* Enable ADC clock */
 	0x02050005,
 	0x02040700,
@@ -80,9 +85,6 @@ const u32 cim_verb_data[] = {
 	/* Speaker Enable */
 	0x0205000C,
 	0x020401EF,
-	/* Combo Jack TRS setting */
-	0x02050038,
-	0x02047901,
 
 	/*
 	 * Equalizer:
@@ -128,62 +130,77 @@ const u32 cim_verb_data[] = {
 	0x0534065A,
 	0x0535001d,
 	0x05340800,
+
 	0x0535001e,
 	0x05340FF6,
 	0x05350003,
 	0x05341F7A,
+
 	0x05350004,
 	0x0534FA18,
 	0x0535000F,
 	0x05341961,
+
 	0x05350010,
 	0x053412C2,
 	0x05350011,
 	0x0534F405,
+
 	0x05350018,
 	0x0534C1AA,
 	0x05350019,
 	0x05341E5E,
+
 	0x0535001A,
 	0x05340FED,
 	0x0535001B,
 	0x05341F2C,
+
 	0x0535001C,
 	0x0534095C,
 	0x05450000,
 	0x05440000,
+
 	0x0545001d,
 	0x05440800,
 	0x0545001e,
 	0x05440FF6,
+
 	0x05450003,
 	0x05441F7A,
 	0x05450004,
 	0x0544FA18,
+
 	0x0545000F,
 	0x05441961,
 	0x05450010,
 	0x054412C2,
+
 	0x05450011,
 	0x0544F405,
 	0x05450018,
 	0x0544C1AA,
+
 	0x05450019,
 	0x05441E5E,
 	0x0545001A,
 	0x05440FED,
+
 	0x0545001B,
 	0x05441F2C,
 	0x0545001C,
 	0x0544095C,
+
 	0x05350000,
 	0x0534C65A,
 	0x02050038,
 	0x02044901,
+
 	0x02050013,
 	0x02044193,
 	0x02050016,
 	0x02044E50,
+
 	0x02050012,
 	0x0204EBC4,
 	0x02050020,
