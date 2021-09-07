@@ -935,7 +935,8 @@ static void disable_me(void)
 		.rule_data = ME_DISABLE_COMMAND,
 	};
 	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size,
+							      HECI_MKHI_ADDR);
 	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
 }
 
@@ -954,7 +955,8 @@ static void enable_me(void)
 		},
 	};
 	size_t reply_size;
-	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size);
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size,
+							      HECI_MKHI_ADDR);
 	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
 }
 
@@ -1016,7 +1018,8 @@ static void cse_set_state(struct device *dev)
 	heci_reset();
 
 	/* Check the firmware version to check it's disabled */
-	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size)) {
+	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size,
+								HECI_MKHI_ADDR)) {
 		cse_enable_when_disabled();
 		return;
 	}

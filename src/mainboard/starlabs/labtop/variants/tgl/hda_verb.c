@@ -3,16 +3,16 @@
 #include <device/azalia_device.h>
 
 const u32 cim_verb_data[] = {
-	/* coreboot specific header */
+	/* coreboot specific ,eader */
 	0x10ec0256, // Codec Vendor / Device ID: Realtek ALC256
 	0xffffffff, // Subsystem ID
-	33,	    // Number of jacks (NID entries)
+	50,	    // Number of jacks (NID entries)
 
 	/* Reset Codec First */
 	AZALIA_RESET(0x1),
 
-	/* HDA Codec Subsystem ID Verb-table
-	   HDA Codec Subsystem ID  : 0x10EC119E */
+	/* ,DA Codec Subsystem ID Verb-table
+	   ,DA Codec Subsystem ID  : 0x10EC119E */
 	AZALIA_SUBVENDOR(0, 0x10EC119E),
 
 	/* Pin Widget Verb-table */
@@ -28,125 +28,129 @@ const u32 cim_verb_data[] = {
 	AZALIA_PIN_CFG(0, 0x1e, 0x411111f0),
 	AZALIA_PIN_CFG(0, 0x21, 0x042b1010),
 
-	/* RESET to D0 */
-	0x00170500,
-	0x00170500,
-	0x00170500,
-	0x00170500,
-
-	/* RESET Register */
-	0x0205001A,
-	0x02048003,
-	0x0205001A,
-	0x0204C003,
-
-	/* ALC256 default-1(Class D RESET) */
-	0x0205003C,
-	0x02040354,
-	0x0205003C,
-	0x02040314,
-
-	/* ALC256 default-2 */
-	0x02050040,
-	0x02049800,
-	0x02050034,
-	0x0204023C,
-
-	/* ALC256 Speaker output power - 4 ohm 2.2W (+12dB gain) + Combo Jack TRS setting */
-	0x02050038,
-	0x02047901,
-	0x02050045,
-	0x02045089,
-
-	/* H/W AGC setting-1 */
-	0x02050016,
-	0x02040C50,
-	0x02050012,
-	0x0204EBC2,
-
-	/* H/W AGC setting-2 */
-	0x02050013,
-	0x0204401D,
-	0x02050016,
-	0x02044E50,
-
-	/* Zero data  + EAPD to verb-control */
-	0x02050037,
-	0x0204FE15,
-	0x02050010,
-	0x02040020,
-
-	/* Zero data */
-	0x02050030,
-	0x02048000,
-	0x02050030,
-	0x02048000,
-
-	/* ALC256 default-3 */
-	0x05750003,
-	0x05740DA3,
-	0x02050046,
-	0x02040004,
-
-	/* ALC256 default-4 */
-	0x0205001B,
-	0x02040A4B,
-	0x02050008,
-	0x02046A6C,
-
-	/* JD1 */
-	0x02050009,
-	0x0204E003,
-	0x0205000A,
-	0x02047770,
-
-	/* Microphone + Array MIC  security Disable  +ADC clock Enable */
-	0x0205000D,
-	0x0204A020,
-	0x02050005,
-	0x02040700,
-
-	/* Speaker Enable */
-	0x0205000C,
-	0x020401EF,
-	0x0205000C,
-	0x020401EF,
-
-	/* EQ Bypass + EQ HPF cutoff 250Hz */
+	// Left Channel
 	0x05350000,
-	0x0534201A,
+	0x053423FA,
 	0x0535001d,
-	0x05340800,
-
-	/* EQ-2 */
+	0x05340000,
 	0x0535001e,
-	0x05340800,
+	0x05340000,
 	0x05350003,
-	0x05341EF8,
-
-	/* EQ-3 */
+	0x05341C10,
 	0x05350004,
 	0x05340000,
+	0x05350005,
+	0x053403A1,
+	0x05350006,
+	0x0534715C,
+	0x05350007,
+	0x05341E56,
+	0x05350008,
+	0x05348980,
+	0x05350009,
+	0x053401D2,
+	0x0535000A,
+	0x0534B9F6,
+	0x0535000B,
+	0x05341C00,
+	0x0535000C,
+	0x05340000,
+	0x0535000D,
+	0x05340200,
+	0x0535000E,
+	0x05340000,
+	0x0535000F,
+	0x0534C3F7,
+	0x05350010,
+	0x05341C10,
+	0x05350011,
+	0x05342FB2,
+	0x05350012,
+	0x0534C473,
+	0x05350013,
+	0x05341C10,
+	0x05350014,
+	0x05342FB2,
+	0x05350015,
+	0x0534E3B3,
+	0x05350016,
+	0x05341899,
+	0x05350017,
+	0x0534F805,
+	0x05350018,
+	0x05341961,
+	0x05350019,
+	0x053412C2,
+	0x0535001A,
+	0x0534F405,
+	// Right Channel
 	0x05450000,
 	0x05442000,
-
-	/* EQ-4 */
 	0x0545001d,
-	0x05440800,
+	0x05440000,
 	0x0545001e,
-	0x05440800,
-
-	/* EQ-5 */
+	0x05440000,
 	0x05450003,
-	0x05441EF8,
+	0x05441C10,
 	0x05450004,
 	0x05440000,
+	0x05450005,
+	0x054403A1,
+	0x05450006,
+	0x0544715C,
+	0x05450007,
+	0x05441E56,
+	0x05450008,
+	0x05448980,
+	0x05450009,
+	0x054401D2,
+	0x0545000A,
+	0x0544B9F6,
+	0x0545000B,
+	0x05441C00,
+	0x0545000C,
+	0x05440000,
+	0x0545000D,
+	0x05440200,
+	0x0545000E,
+	0x05440000,
+	0x0545000F,
+	0x0544C3F7,
+	0x05450010,
+	0x05441C10,
+	0x05450011,
+	0x05442FB2,
+	0x05450012,
+	0x0544C473,
+	0x05450013,
+	0x05441C10,
+	0x05450014,
+	0x05442FB2,
+	0x05450015,
+	0x0544E3B3,
+	0x05450016,
+	0x05441899,
+	0x05450017,
+	0x0544F805,
+	0x05450018,
+	0x05441961,
+	0x05450019,
+	0x054412C2,
+	0x0545001A,
+	0x0544F405,
 
-	/* EQ Update */
 	0x05350000,
-	0x0534E01A,
-	0x05350000,
-	0x0534E01A,
+	0x053463FA,
+
+	0x02050038,
+	0x02044901,
+	0x02050013,
+	0x0204292F,
+	0x02050016,
+	0x02044C50,
+
+
+
 };
 
 const u32 pc_beep_verbs[] = {};
