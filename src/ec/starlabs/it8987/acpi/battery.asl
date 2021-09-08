@@ -64,14 +64,7 @@ Device (BAT0)
 
 
 		PKG1[0] = B1ST & 0x07
-		If (B1ST & 0x01)
-		{
-			PKG1[1] = B1CR
-		}
-		Else
-		{
-			PKG1[1] = B1CR
-		}
+		PKG1[1] = B1CR
 		PKG1[2] = B1RC
 		PKG1[3] = B1VT
 		Return (PKG1)

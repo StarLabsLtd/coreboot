@@ -55,10 +55,30 @@ static void it5570_init(struct device *dev)
 	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));
 
 	/* Set the maximum charge level for the internal battery */
-	ec_write(ECRAM_MAX_CHARGE, get_uint_option("max_charge", 0));
+	switch (get_uint_option("max_charge", 0)) {
+	case 1:
+		ec_write(ECRAM_MAX_CHARGE, CHARGE_80);
+		break;
+	case 2:
+		ec_write(ECRAM_MAX_CHARGE, CHARGE_60);
+		break;
+	default:
+		ec_write(ECRAM_MAX_CHARGE, CHARGE_100);
+		break;
+	}
 
 	/* Set the fan mode */
-	ec_write(ECRAM_MAX_CHARGE, get_uint_option("fan_mode", 0));
+	switch (get_uint_option("fan_mode", 0)) {
+	case 1:
+		ec_write(ECRAM_FAN_MODE, FAN_AGGRESSIVE);
+		break;
+	case 2:
+		ec_write(ECRAM_FAN_MODE, FAN_QUIET);
+		break;
+	default:
+		ec_write(ECRAM_FAN_MODE, FAN_NORMAL);
+		break;
+	}
 
 	/*
 	 * Restore the stored state for the ctrl_fn_reverse CMOS variable to the
@@ -76,7 +96,7 @@ static void it5570_init(struct device *dev)
 	 * Restore the stored state of the trackpad_state CMOS variable to the
 	 * corresponding location within the EC RAM.
 	 */
-	u8 laststate = ecread(ECRAM_TRACKPAD_STATE);
+	u8 laststate = ec_read(ECRAM_TRACKPAD_STATE);
 	/*
 	 * Enabled:	0x11
 	 * Disabled:	0x22
@@ -89,13 +109,16 @@ static void it5570_init(struct device *dev)
 }
 
 static struct device_operations ops = {
-	.init             = it5570_init,
-	.read_resources   = noop_read_resources,
-	.set_resources    = noop_set_resources,
+	.init		= it5570_init,
+	.read_resources	= noop_read_resources,
+	.set_resources	= noop_set_resources,
 };
 
 static struct pnp_info pnp_dev_info[] = {
-	{ NULL, 0, 0, 0, }
+	{ NULL,
+	  0,
+	  0,
+	  0, }
 };
 
 static void enable_dev(struct device *dev)
@@ -103,7 +126,5 @@ static void enable_dev(struct device *dev)
 	pnp_enable_devices(dev, &ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
 }
 
-struct chip_operations ec_starlabs_it5570_ops = {
-	CHIP_NAME("ITE IT5570 EC")
-	.enable_dev = enable_dev
-};
+struct chip_operations ec_starlabs_it5570_ops = {CHIP_NAME("ITE IT5570 EC").enable_dev =
+							 enable_dev};

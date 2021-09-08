@@ -20,7 +20,7 @@ Method(_Q99)				// Wireless mode
 {
 	Store ("-----> _Q99", Debug)
 	^^^^HIDD.HPEM (8)
-	Store ("<----- _Q80", Debug)
+	Store ("<----- _Q99", Debug)
 }
 
 Method(_Q06)				// Brightness decrease
@@ -33,9 +33,22 @@ Method(_Q05)				// Brightness increase
 	^^^^HIDD.HPEM (20)
 }
 
-Method(_Q08)				// FN lock QEvent
+Method(_Q0E)				// FN lock QEvent
 {
 	FNLC = FNST
+	Store (FNST, FNLC)
+}
+
+Method(_Q0F)                            // FN lock QEvent
+{
+        FNLC = FNST
+	Store (FNST, FNLC)
+}
+
+Method(_Q08)                            // FN lock QEvent
+{
+        FNLC = FNST
+	Store (FNST, FNLC)
 }
 
 Method(_Q54)				// Power Button Event

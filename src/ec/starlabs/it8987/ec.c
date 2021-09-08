@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
+#include <delay.h>
 #include <device/device.h>
 #include <device/pnp.h>
-#include <pc80/keyboard.h>
 #include <ec/acpi/ec.h>
-#include <delay.h>
 #include <option.h>
+#include <pc80/keyboard.h>
 
-#include "ec.h"
 #include "chip.h"
+#include "ec.h"
 
 u16 it_get_version(void)
 {
@@ -44,28 +44,54 @@ static void it8987_init(struct device *dev)
 	pc_keyboard_init(NO_AUX_DEVICE);
 
 	/* Enable the keyboard backlight support. */
-	ec_write(0x18, 0xaa);
-	ec_write(0x19, 0xdd);
+	u8 lastlevel = ec_read(ECRAM_KBL_BRIGHTNESS);
+	if ((lastlevel == KBL_OFF) || (lastlevel == KBL_ON)) {
+		ec_write(ECRAM_KBL_STATE, lastlevel);
+	} else {
+		ec_write(ECRAM_KBL_STATE, KBL_ON);
+	}
 
 	/* Set the timeout for the keyboard backlight. */
 	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));
 
+	/* Set the maximum charge level for the internal battery */
+	ec_write(ECRAM_MAX_CHARGE, get_uint_option("max_charge", 0));
+
+	/* Set the fan mode */
+	ec_write(ECRAM_MAX_CHARGE, get_uint_option("fan_mode", 0));
+
 	/*
-	 * Set the correct state for the Ctrl Fn Reverse option. This
-	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
+	 * Restore the stored state for the ctrl_fn_reverse CMOS variable to the
+	 * corresponding location within the EC RAM.
 	 */
 	ec_write(ECRAM_FN_CTRL_REVERSE, get_uint_option("fn_ctrl_swap", 0));
+
 	/*
-	 * Copy the stored state of the fn_lock_state CMOS variable to the
+	 * Restore the stored state of the fn_lock_state CMOS variable to the
 	 * corresponding location within the EC RAM.
 	 */
 	ec_write(ECRAM_FN_LOCK_STATE, get_uint_option("fn_lock_state", 0));
+
+	/*
+	 * Restore the stored state of the trackpad_state CMOS variable to the
+	 * corresponding location within the EC RAM.
+	 */
+	u8 laststate = ec_read(ECRAM_TRACKPAD_STATE);
+	/*
+	 * Enabled:	0x11
+	 * Disabled:	0x22
+	 */
+	if (laststate == 0) {
+		ec_write(ECRAM_TRACKPAD_STATE, 0x11);
+	} else {
+		ec_write(ECRAM_TRACKPAD_STATE, get_uint_option("trackpad_state", 0));
+	}
 }
 
 static struct device_operations ops = {
-	.init = it8987_init,
-	.read_resources = noop_read_resources,
-	.set_resources = noop_set_resources,
+	.init		= it8987_init,
+	.read_resources	= noop_read_resources,
+	.set_resources	= noop_set_resources,
 };
 
 static struct pnp_info pnp_dev_info[] = {

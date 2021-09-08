@@ -123,7 +123,7 @@ Device (HIDD)					// HID APCI Device
 
 Method (PWPR, 0, Serialized)
 {
-	 Notify (HIDD, 0xCE)
+	Notify (HIDD, 0xCE)
 }
 
 Method (PWRR, 0, Serialized)
