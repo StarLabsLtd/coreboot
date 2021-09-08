@@ -28,11 +28,13 @@ Method(_Q06)				// Brightness decrease
 	^^^^HIDD.HPEM (19)
 }
 
-Method(_Q05)				// Brightness increase
+// TODO: Q05
+Method(_Q07)				// Brightness increase
 {
 	^^^^HIDD.HPEM (20)
 }
 
+// TODO: Q0E Q0F
 Method(_Q08)				// FN lock QEvent
 {
 	FNLC = FNST

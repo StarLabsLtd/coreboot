@@ -14,5 +14,6 @@ IndexField (NVRI, NVRD, ByteAcc, NoLock, Preserve)
 	FNSW, 8,		// Ctrl Fn Reverse (make keyboard Apple-like)
 
 	Offset (0x7D),
-	FNLC, 8			// Current state of Fn Lock key.
+	FNLC, 8,		// Current state of Fn Lock key.
+	// TPLF, 8,		// Current state of Trackpad
 }

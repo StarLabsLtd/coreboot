@@ -63,7 +63,7 @@ chip soc/intel/tigerlake
 	register "tcc_offset"			= "10"
 
 	# Enable DPTF
-        # register "dptf_enable"			= "0"
+	# register "dptf_enable"			= "1"
 
 	# FIVR configuration
 	#   EXT_RAIL_CONFIG:		0x0

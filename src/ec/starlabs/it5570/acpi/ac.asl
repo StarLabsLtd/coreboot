@@ -12,26 +12,35 @@ Device (ADP1)
 
 	Method (_PSR, 0, NotSerialized)		// _PSR: Power Source
 	{
-		If (ECRD (RefOf (ECPS)) & 0x01)
+		If (ECPS & 0x01)
 		{
-			PWRS = 1
+			\PWRS = 1
 		}
 		Else
 		{
-			PWRS = 0
+			\PWRS = 0
 		}
-		Return (PWRS)
+		Return (\PWRS)
 	}
 }
 
 Method (_Q0A, 0, NotSerialized)
 {
-	Notify(BAT0, 0x81)
-	Notify(ADP1, 0x80)
+	If (ECPS & 0x01)
+	{
+		\PWRS = 1
+	}
+	Else
+	{
+		\PWRS = 0
+	}
+
+	Notify (BAT0, 0x81)
+	Notify (ADP1, 0x80)
 }
 
-Method (_Q0B, 0, NotSerialized)
+Method(_Q0B, 0, NotSerialized)			// Battery Connected
 {
-	Notify(BAT0, 0x81)
-	Notify(BAT0, 0x80)
+	Notify (BAT0, 0x81)
+	Notify (BAT0, 0x80)
 }

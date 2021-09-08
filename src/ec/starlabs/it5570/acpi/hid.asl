@@ -2,7 +2,7 @@
 
 Device (HIDD)					// HID APCI Device
 {
-	Name (_HID, "INTC1051")			// Intel Ultrabook HID Platform Event Driver.
+	Name (_HID, "INT33D5")			// Intel Ultrabook HID Platform Event Driver.
 	Name (HBSY, 0)				// HID Busy
 	Name (HIDX, 0)				// HID Index
 	Name (HMDE, 0)				// HID Mode
