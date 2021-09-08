@@ -81,7 +81,7 @@ Scope (\_SB.PCI0.LPCB)
 			ECTV, 8,	//0x03		EC Firmware test version
 			ECOS, 8,	//0X04		Flag for enter OS //ICL_010+
 
-			Offset(0x2C),
+			Offset(0x0f),
 			FNST, 8,
 
 			Offset(0x7F),

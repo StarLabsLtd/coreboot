@@ -39,9 +39,16 @@
 #define IT5570_CHIPID2_VAL	0x70
 
 /* EC RAM offsets. */
+#define ECRAM_KBL_STATE		0x0a
+#define ECRAM_KBL_BRIGHTNESS	0x09
 #define	ECRAM_KBL_TIMEOUT	0x07
-#define ECRAM_FN_CTRL_REVERSE	0x08
-#define ECRAM_FN_LOCK_STATE	0x2C
+#define ECRAM_FN_CTRL_REVERSE	0x17
+#define ECRAM_FN_LOCK_STATE	0x0f
+
+/* Keyboard Brightness Levels */
+#define KBL_OFF			0xcc
+#define KBL_LOW			0xbb
+#define KBL_HIGH		0xaa
 
 u16 it_get_version(void);
 

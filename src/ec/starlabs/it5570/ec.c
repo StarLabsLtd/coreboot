@@ -44,8 +44,12 @@ static void it5570_init(struct device *dev)
 	pc_keyboard_init(NO_AUX_DEVICE);
 
 	/* Enable the keyboard backlight support. */
-	ec_write(0x18, 0xaa);
-	ec_write(0x19, 0xdd);
+	u8 lastlevel = ec_read(ECRAM_KBL_BRIGHTNESS);
+	if ((lastlevel == KBL_OFF) || (lastlevel == KBL_LOW) || (lastlevel = KBL_HIGH)) {
+		ec_write(ECRAM_KBL_STATE, lastlevel);
+	} else {
+		ec_write(ECRAM_KBL_STATE, KBL_HIGH);
+	}
 
 	/* Set the timeout for the keyboard backlight. */
 	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));

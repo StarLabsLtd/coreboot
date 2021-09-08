@@ -6,7 +6,7 @@ chip soc/intel/tigerlake
 # CPU
 	# Power limit
 	# Select TDP Level 2
-	register "ConfigTdpLevel" = "2"
+	# register "ConfigTdpLevel" = "2"
 
 	register "power_limits_config[POWER_LIMITS_U_2_CORE]" = "{
 		.tdp_pl1_override		= 15,
@@ -63,7 +63,7 @@ chip soc/intel/tigerlake
 	register "tcc_offset"			= "10"
 
 	# Enable DPTF
-        register "dptf_enable"			= "0"
+        # register "dptf_enable"			= "0"
 
 	# FIVR configuration
 	#   EXT_RAIL_CONFIG:		0x0

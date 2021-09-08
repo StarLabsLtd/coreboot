@@ -119,8 +119,8 @@ const u32 cim_verb_data[] = {
 	 * Resistance:	4ohms
 	 *
 	 * EQ Output
-	 * Left:	+ 6.00 dB
-	 * Right:	+ 6.00 dB
+	 * Left:	+ 3.00 dB
+	 * Right:	+ 3.00 dB
 	 *
 	 * VARQ
 	 * Q:		0.707
@@ -132,7 +132,7 @@ const u32 cim_verb_data[] = {
 	0x05340800,
 
 	0x0535001e,
-	0x05340FF6,
+	0x05340B4C,
 	0x05350003,
 	0x05341F7A,
 
@@ -164,7 +164,7 @@ const u32 cim_verb_data[] = {
 	0x0545001d,
 	0x05440800,
 	0x0545001e,
-	0x05440FF6,
+	0x05440B4C,
 
 	0x05450003,
 	0x05441F7A,
@@ -192,7 +192,7 @@ const u32 cim_verb_data[] = {
 	0x0544095C,
 
 	0x05350000,
-	0x0534C65A,
+	0x0534465A,
 	0x02050038,
 	0x02044901,
 
