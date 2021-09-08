@@ -30,6 +30,8 @@ entries
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
 520     1       e       1       fn_ctrl_swap
+521     1       e       8       max_charge
+522     1       e       9       fan_mode
 
 # coreboot config options: southbridge
 536     2       e       6       power_on_after_fail
@@ -39,6 +41,7 @@ entries
 
 # embedded controller settings (outwith the checksummed area)
 1000    1       h       1       fn_lock_state
+1008    1       h       1       trackpad_state
 
 # -----------------------------------------------------------------
 
@@ -77,6 +80,14 @@ enumerations
 7	0	15W
 7	1	20W
 7	2	25W
+
+8	0	100%
+8	1	80%
+8	2	60%
+
+9	0	Normal
+9	1	Aggresive
+9	2	Quiet
 
 # -----------------------------------------------------------------
 checksums

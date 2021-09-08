@@ -73,6 +73,7 @@ Scope (\_SB.PCI0.LPCB)
 			IO (Decode16, 0x62, 0x62, 0x00, 0x01)
 			IO (Decode16, 0x66, 0x66, 0x00, 0x01)
 		})
+
 		Method (_CRS, 0, Serialized)
 		{
 			Return (BFFR)

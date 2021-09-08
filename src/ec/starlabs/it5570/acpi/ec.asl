@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#define ASL_PVOL_DEFOF_NUM 0xe8
-
 Scope (\_SB)
 {
 	#include "hid.asl"
@@ -44,7 +42,7 @@ Scope (\_SB.PCI0.LPCB)
 		Name(DOCK, 0)
 		Name(EJET, 0)
 		Name(MCAP, 0)
-		Name(PLMX, 0)
+		// Name(PLMX, 0)
 		Name(PECH, 0)
 		Name(PECL, 0)
 		Name(PENV, 0)
@@ -87,11 +85,24 @@ Scope (\_SB.PCI0.LPCB)
 			Return (0x0F)
 		}
 
-		Method (_REG, 2)
+		Method (_REG, 2, NotSerialized)
 		{
 			If ((Arg0 == 0x03) && (Arg1 == 0x01))
 			{
-				EREG()
+				// Flag that the DPTF supports ACPI.
+				Store(1, ECAV)
+
+				// Flag that the OS supports ACPI.
+				Store(1, ECOS)
+
+				/* Initialize LID switch state */
+				Store(LIDS, \LIDS)
+
+				// Initialise the AC Power State
+				Store(And(ECRD(RefOf(ECPS)), 0x01), PWRS)
+
+				// Inform platform code
+				PNOT()
 			}
 		}
 
@@ -117,70 +128,62 @@ Scope (\_SB.PCI0.LPCB)
 		Field (ECF2, ByteAcc, Lock, Preserve)
 		{
 			Offset(0x00),
-			ECMV, 8,	// EC Firmware main - version number.
-			ECSV, 8,	// EC Firmware sub - version number.
-			KBVS, 8,	// EC Firmware test - version number.
-			ECTV, 8,	//0x03		EC Firmware test version
-			ECOS, 8,	//0X04		Flag for enter OS //ICL_010+
+			ECMV, 8,	// Major Version Number
+			ECSV, 8,	// Minor Version Number
+			KBVS, 8,	// Keyboard Controller Version
+			ECTV, 8,	// Test Version Number
+			ECOS, 8,	// OS Flag
+			FRMF, 8,	// Froce Mirror Flag
+			SKUI, 8,	// SKU ID
+			MDSB, 8,	// Modern Standby Flag
 
+			Offset(0x09),
+			KBLB, 8,	// Keyboard Backlight Brightness
+			KBLE, 8,	// Keyboard Backlight State
+			BDID, 8,	// Board ID
+			TPEN, 8,	// Trackpad Enable
+			ROTA, 8,	// Rotate Flag
+			WIFI, 8,	// WiFi Enable
+			FNST, 8,	// Function Lock Status
 
-			Offset(0x18),
-			KLBS, 8,	// Keyboard backlight begin.
-			KLBE, 8,	// Keyboard backlight status.
-			//
-			// KLKT, 8,	// Keyboard backlight timeout (0x1A)
-			//
+			Offset(0x13),
+			AUDI, 8,	// Control Audio
+			SURF, 8,	// Chassis Surface Temperature
+			CHAR, 8,	// Charger Temperature
+			FNCT, 8,	// Fn Ctrl Reverse
+
 			Offset(0x1A),
-			KBLT, 8,	// Keyboard Backlight Timeout
-			PWPF, 8,	// Power Profile
+			BFCP, 8,	// Battery Full Charge Percentage
+			FANM, 8,	// Fan Mode
+			FNLK, 8,	// Function Lock
 
-			Offset(0x1E),
-			BTHP,8,		// Health Battery Percentage
+			Offset(0x40),
+			SHIP, 8,	// Shipping Mode Flag
+			ECBT, 8,	// EC Build Time
 
-			Offset(0x20),
-			RCMD, 8,	// Same function as IO 66 port to send EC command
-			RCST, 8,	// Report status for the result of command execution
+			Offset(0x4B),
+			ECBD, 8,	// EC Build Date
 
-			Offset(0x2C),
-			FNST, 8,	// FN LOCK key status.
+			Offset(0x62),
+			SEN2, 8,	// Sensor 2 Temperature
+			SENF, 8,	// Sensor F
+			SENH, 8,	// Thermal Sensor High Trip Point
+			SENL, 8,	// Thermal Sensor Low Trip Point
+			THER, 8,	// Thermal Source
 
-			Offset(0x3F),
-			SFAN, 8,	// Set Fan Speed.
-			BTMP, 16,	// Battery Temperature.
-			BCNT, 16,	// Battery Cycle Count.
-			FRMP, 16,	// Fan Current Speed.
-
-			Offset(0x60),
-			TSR1, 8,	// Thermal Sensor Register 1 [CPU VR (IMVP) Temp on RVP]
-			TSR2, 8,	// Thermal Sensor Register 2 [Heat exchanger fan temp on RVP]
-			TER4, 8,	// Thermal Sensor Register 3 (skin temperature)
-
-			Offset(0x63),
-			TSI,  4,	// [0..3]  0 = SEN1 - CPU VR temperature sensor
-					// 1 = SEN2 - Heat Exchanger temperature sensor
-					// 2 = SEN3 - Skin temperature sensor
-					// 3 = SEN4 - Ambient temperature sensor
-					// 4 = SEN5 - DIMM temperature sensor [IR sensor 1 on WSB]
-					// 5 = SEN6 - not used on RVP
-			HYST, 4,	// [4..7] - Hysteresis in degC.
-			TSHT, 8,	// Thermal Sensor (N) high trip point(set default value =70)
-			TSLT, 8,	// Thermal Sensor (N) low trip point (set default value =70)
-			TSSR, 8,	// TSSR- thermal sensor status register (set bit2 =1)
-					// BIT0: SEN1 - CPU VR Temp Sensor Trip Flag
-					// BIT1: SEN2 - Fan Temp Sensor Trip Flag
-					// BIT2: SEN3 - Skin Temp Sensor Trip Flag
-					// BIT3: SEN4 - Ambient Temp Sensor Trip Flag
-					// BIT4: Reserved
-					// BIT5: Reserved
-					// BIT6: Reserved
-					// BIT7: Reserved
-			CHGR, 16,	// Charge Rate
+			Offset(0x68),
+			BATT, 8,	// Battery Temperature
+					// TODO:
+					// Defined as XWORD, could be a 16?
 
 			Offset(0x70),
-			CPTM, 8,	// CPU Temperature
+			BATC, 8,	// Battery Temperature Ces
+			CPUT, 8,	// PECI CPU Temperature
+			PLMX, 8,	// PLMX Temperature
+			SEN1, 8,	// Sensor 1 Temperature
+			SEN3, 8,	// Sensor 3 Temperature // 73
 
-			Offset(0x72),
-			TER2, 8,	// Charger Temperature, Charger thermistor support
+			// Settings below are unconfirmed
 
 			Offset(0x7F),
 			LIDS, 1,	// BIT0 LID GPI
@@ -317,33 +320,6 @@ Scope (\_SB.PCI0.LPCB)
 				}
 				Release(ECMT)
 			}
-		}
-
-		// EREG method will be used in _REG (evaluated by OS without
-		// ECDT support) or _INI (for OS with ECDT support)
-		Method (EREG)
-		{
-			// Update ECAV Object. ASL should check for this value
-			// to be 1 before accessing EC OpRegion.
-			ECAV = 1
-
-			// LIDS = ECRD (RefOf (LSTE))
-			/* Initialize LID switch state */
-			Store (LIDS, \LIDS)
-
-			// Report OSFG to notify EC
-			ECWT(0x01, RefOf (ECOS))
-
-			// Save the current Power State for later.
-			// PWRS = Local0
-
-			// Update power state
-			PWRS = (ECRD (RefOf (ECPS)) & 0x01)
-
-			//\_SB.CPPC = 0x00 // Note: \_SB.CPPC must be an Integer not a Method
-
-			//Perform needed ACPI Notifications.
-			PNOT()
 		}
 
 		// Method(_GPE)

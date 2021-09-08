@@ -12,8 +12,10 @@ IndexField (NVRI, NVRD, ByteAcc, NoLock, Preserve)
 	Offset (0x40),
 	KBBL, 8,		// Keyboard backlight timeout
 	FNSW, 8,		// Ctrl Fn Reverse (make keyboard Apple-like)
+	MXCH, 8,		// Max Charge Level
+	FNMD, 8,		// Fan Mode
 
 	Offset (0x7D),
 	FNLC, 8,		// Current state of Fn Lock key.
-	// TPLF, 8,		// Current state of Trackpad
+	TPLF, 8,		// Current state of Trackpad
 }

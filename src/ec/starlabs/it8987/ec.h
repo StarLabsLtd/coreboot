@@ -41,7 +41,7 @@
 /* EC RAM offsets. */
 #define ECRAM_KBL_TIMEOUT 0x07
 #define ECRAM_FN_CTRL_REVERSE 0x08
-#define ECRAM_FN_LOCK_STATE 0x2C
+#define ECRAM_FN_LOCK_STATE 0x0f
 
 u16 it_get_version(void);
 

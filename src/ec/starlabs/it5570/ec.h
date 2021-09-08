@@ -39,11 +39,14 @@
 #define IT5570_CHIPID2_VAL	0x70
 
 /* EC RAM offsets. */
-#define ECRAM_KBL_STATE		0x0a
 #define ECRAM_KBL_BRIGHTNESS	0x09
-#define	ECRAM_KBL_TIMEOUT	0x07
-#define ECRAM_FN_CTRL_REVERSE	0x17
+#define ECRAM_KBL_STATE		0x10
+#define ECRAM_TRACKPAD_STATE	0x0c
 #define ECRAM_FN_LOCK_STATE	0x0f
+#define ECRAM_FN_CTRL_REVERSE	0x17
+#define ECRAM_MAX_CHARGE	0x1a
+#define ECRAM_FAN_MODE		0x1b
+#define	ECRAM_KBL_TIMEOUT	0x99 /* TBC */
 
 /* Keyboard Brightness Levels */
 #define KBL_OFF			0xcc
