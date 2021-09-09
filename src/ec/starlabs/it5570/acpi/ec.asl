@@ -159,11 +159,6 @@ Scope (\_SB.PCI0.LPCB)
 			Return (Local1)
 		}
 
-		Method(_GPE)
-		{
-			Return (0x6e)
-		}
-
 		// Include the other parts of the Embedded Controller ASL.
 		#include "keyboard.asl"
 		#include "battery.asl"
