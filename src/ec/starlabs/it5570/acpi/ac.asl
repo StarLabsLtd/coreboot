@@ -7,14 +7,14 @@ Device (ADP1)
 
 	Method (_STA, 0, NotSerialized)		// _STA: Status
 	{
-		// If (ECON == 1)
-		// {
-		//	Local0 = 0x0F
-		// }
-		// Else
-		// {
+		If (ECON == 1)
+		{
+			Local0 = 0x0F
+		}
+		Else
+		{
 			Local0 = 0
-		// }
+		}
 		Return (Local0)
 	}
 

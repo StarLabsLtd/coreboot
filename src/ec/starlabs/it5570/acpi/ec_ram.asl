@@ -10,10 +10,10 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	ECTV, 8,	// Test Version Number
 	ECOS, 8,	// OS Flag
 	FRMF, 8,	// Froce Mirror Flag
+
+	Offset(0x07),
 	SKUI, 8,	// SKU ID
 	MDSB, 8,	// Modern Standby Flag
-
-	Offset(0x09),
 	KBLB, 8,	// Keyboard Backlight Brightness
 	KBLE, 8,	// Keyboard Backlight State
 	BDID, 8,	// Board ID
@@ -52,9 +52,9 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 
 	Offset(0x68),
 	BATT, 16,	// Battery Temperature
+	BATC, 8,	// Battery Temperature Ces
 
 	Offset(0x70),
-	BATC, 8,	// Battery Temperature Ces
 	CPUT, 8,	// PECI CPU Temperature
 	PMXT, 8,	// PLMX Temperature
 	SEN1, 8,	// Sensor 1 Temperature
@@ -62,6 +62,7 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 
 	Offset(0x7F),
 	LIDS, 1,	// Lid Status
+	    , 7,	// Reserved
 
 	Offset(0x80),
 	ECPS, 8,	// AC & Battery status
@@ -77,9 +78,27 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	B1VT, 16,	// Battery Present Voltage
 	BPCN, 8,	// Battery Remaining percentage
 
+	Offset(0xb0),
+	MGO0, 8,	// UCSI DS MGO 0
+	MGO1, 8,	// UCSI DS MGO 1
+	MGO2, 8,	// UCSI DS MGO 2
+	MGO3, 8,	// UCSI DS MGO 3
+	MGO4, 8,	// UCSI DS MGO 4
+	MGO5, 8,	// UCSI DS MGO 5
+	MGO6, 8,	// UCSI DS MGO 6
+	MGO7, 8,	// UCSI DS MGO 7
+	MGO8, 8,	// UCSI DS MGO 8
+	MGO9, 8,	// UCSI DS MGO 9
+	MGOA, 8,	// UCSI DS MGO A
+	MGOB, 8,	// UCSI DS MGO B
+	MGOC, 8,	// UCSI DS MGO C
+	MGOD, 8,	// UCSI DS MGO D
+	MGOE, 8,	// UCSI DS MGO E
+	MGOF, 8,	// UCSI DS MGO F
+
 	Offset(0xc0),
-	UCSV, 8,	// UCSI DS Version
-	UCSR, 8,	// UCSI DS Reserved
+	UCSV, 16,	// UCSI DS Version
+	UCSR, 16,	// UCSI DS Reserved
 	UCC0, 8,	// UCSI DS CCI 0
 	UCC1, 8,	// UCSI DS CCI 1
 	UCC2, 8,	// UCSI DS CCI 2
@@ -92,8 +111,24 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	UCT5, 8,	// UCSI DS Control 0
 	UCT6, 8,	// UCSI DS Control 0
 	UCT7, 8,	// UCSI DS Control 0
-	UCGI, 16,	// UCSI DS MGI
-	UCGO, 16,	// UCSI DS MGO
+
+	Offset(0xd0),
+	MGI0, 8,	// UCSI DS MGI 0
+	MGI1, 8,	// UCSI DS MGI 1
+	MGI2, 8,	// UCSI DS MGI 2
+	MGI3, 8,	// UCSI DS MGI 3
+	MGI4, 8,	// UCSI DS MGI 4
+	MGI5, 8,	// UCSI DS MGI 5
+	MGI6, 8,	// UCSI DS MGI 6
+	MGI7, 8,	// UCSI DS MGI 7
+	MGI8, 8,	// UCSI DS MGI 8
+	MGI9, 8,	// UCSI DS MGI 9
+	MGIA, 8,	// UCSI DS MGI A
+	MGIB, 8,	// UCSI DS MGI B
+	MGIC, 8,	// UCSI DS MGI C
+	MGID, 8,	// UCSI DS MGI D
+	MGIE, 8,	// UCSI DS MGI E
+	MGIF, 8,	// UCSI DS MGI F
 
 	Offset(0xe6),
 	ECWD, 16,	// EC Wakeup Delay
@@ -104,5 +139,5 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	TBTP, 8,	// Thunderbolt Data Port
 	TBTD, 8,	// Thunderbolt Data
 	TBTA, 8,	// Thunderbolt Acknowledge
-	TBTG, 8,	// THunderbolt DBG Data
+	TBTG, 16,	// THunderbolt DBG Data
 }

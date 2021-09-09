@@ -51,7 +51,7 @@ Device (BAT0)
 		Return (BPKG)
 	}
 
-	Name (PKG1, Package (4)
+	Name (PKG1, Package ()
 	{
 		0xFFFFFFFF,	// Battery State
 		0xFFFFFFFF,	// Battery Present Rate
