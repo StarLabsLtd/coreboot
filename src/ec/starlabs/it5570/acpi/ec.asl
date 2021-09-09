@@ -59,7 +59,7 @@ Scope (\_SB.PCI0.LPCB)
 		Name(AWT0, 0)
 		Name(DLED, 0)
 		Name(IBT1, 0)
-		Name(ECAV, 1)		// Support DPTF feature
+		Name(ECAV, 1)				// Support DPTF feature
 		Name(SPT2, 0)
 		Name(PB10, 0)
 		Name(IWCW, 0)
@@ -159,11 +159,10 @@ Scope (\_SB.PCI0.LPCB)
 			Return (Local1)
 		}
 
-		// Method(_GPE)
-		// {
-		//	Local0 = 0x6E	// GPI6E for eSPI
-		//	Return (Local0)
-		// }
+		Method(_GPE)
+		{
+			Return (0x6e)
+		}
 
 		// Include the other parts of the Embedded Controller ASL.
 		#include "keyboard.asl"

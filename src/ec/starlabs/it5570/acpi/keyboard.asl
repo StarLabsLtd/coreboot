@@ -33,22 +33,9 @@ Method(_Q05)				// Brightness increase
 	^^^^HIDD.HPEM (20)
 }
 
-Method(_Q0E)				// FN lock QEvent
+Method(_Q87)				// FN lock QEvent
 {
 	FNLC = FNST
-	Store (FNST, FNLC)
-}
-
-Method(_Q0F)                            // FN lock QEvent
-{
-        FNLC = FNST
-	Store (FNST, FNLC)
-}
-
-Method(_Q08)                            // FN lock QEvent
-{
-        FNLC = FNST
-	Store (FNST, FNLC)
 }
 
 Method(_Q54)				// Power Button Event

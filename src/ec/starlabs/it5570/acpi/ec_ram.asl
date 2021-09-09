@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 OperationRegion(ECF2, EmbeddedControl, 0, 0xFF)
 Field (ECF2, ByteAcc, Lock, Preserve)
 {
@@ -22,6 +24,8 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 
 	Offset(0x13),
 	AUDI, 8,	// Control Audio
+
+	Offset(0x15),
 	SURF, 8,	// Chassis Surface Temperature
 	CHAR, 8,	// Charger Temperature
 	FNCT, 8,	// Fn Ctrl Reverse

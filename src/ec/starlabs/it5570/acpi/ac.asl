@@ -22,13 +22,13 @@ Device (ADP1)
 	{
 		If (ECPS & 0x01)
 		{
-			\PWRS = 1
+			PWRS = 1
 		}
 		Else
 		{
-			\PWRS = 0
+			PWRS = 0
 		}
-		Return (\PWRS)
+		Return (PWRS)
 	}
 }
 
@@ -36,11 +36,11 @@ Method (_Q0A, 0, NotSerialized)
 {
 	If (ECPS & 0x01)
 	{
-		\PWRS = 1
+		PWRS = 1
 	}
 	Else
 	{
-		\PWRS = 0
+		PWRS = 0
 	}
 
 	Notify (BAT0, 0x81)
