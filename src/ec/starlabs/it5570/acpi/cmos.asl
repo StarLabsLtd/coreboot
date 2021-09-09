@@ -11,7 +11,7 @@ IndexField (NVRI, NVRD, ByteAcc, NoLock, Preserve)
 {
 	Offset (0x40),
 	KBBL, 8,		// Keyboard backlight timeout
-	FNSW, 8,		// Ctrl Fn Reverse (make keyboard Apple-like)
+	FNST, 8,		// Ctrl Fn Reverse (make keyboard Apple-like)
 	MXCH, 8,		// Max Charge Level
 	FNMD, 8,		// Fan Mode
 

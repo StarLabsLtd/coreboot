@@ -21,6 +21,7 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	ROTA, 8,	// Rotate Flag
 	WIFI, 8,	// WiFi Enable
 	FNST, 8,	// Function Lock Status
+	KBLT, 8,	// Keyboard Backlight Timeout
 
 	Offset(0x13),
 	AUDI, 8,	// Control Audio

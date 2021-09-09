@@ -38,6 +38,11 @@ Method(_Q87)				// FN lock QEvent
 	FNLC = FNST
 }
 
+Method(_Q88)				// Trackpad Disable
+{
+	TPLF = TPEN
+}
+
 Method(_Q54)				// Power Button Event
 {
 	Store ("-----> _Q54", Debug)
