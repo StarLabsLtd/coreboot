@@ -18,7 +18,7 @@ entries
 # coreboot config options: cpu
 400     1       e       1       hyper_threading
 401     1       e       1       vtd
-402     2       e       7       tdp
+402     2       e       7       power_profile
 404     1       e       5       me_state
 
 # coreboot config options: Devices
@@ -26,6 +26,7 @@ entries
 451     1       e       1       webcam
 452     1       e       1       microphone
 453     1       e       1       legacy_8254_timer
+454     1       e       1       usb_always_on
 
 # coreboot config options: EC
 512     3       e       4       kbl_timeout
@@ -77,9 +78,9 @@ enumerations
 6       1       Enable
 6       2       Keep
 
-7	0	15W
-7	1	20W
-7	2	25W
+7	0	Power Saver
+7	1	Balanced
+7	2	Performance
 
 8	0	100%
 8	1	80%

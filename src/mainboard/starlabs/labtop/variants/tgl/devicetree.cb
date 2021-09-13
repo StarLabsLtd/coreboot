@@ -4,10 +4,6 @@ chip soc/intel/tigerlake
 	}"
 
 # CPU
-	# Power limit
-	# Select TDP Level 2
-	# register "ConfigTdpLevel" = "2"
-
 	register "power_limits_config[POWER_LIMITS_U_2_CORE]" = "{
 		.tdp_pl1_override		= 15,
 		.tdp_pl2_override		= 15,
@@ -62,9 +58,6 @@ chip soc/intel/tigerlake
 	# Thermal
 	register "tcc_offset"			= "10"
 
-	# Enable DPTF
-	# register "dptf_enable"			= "1"
-
 	# FIVR configuration
 	#   EXT_RAIL_CONFIG:		0x0
 	#   EXT_V1P05_VR_CONFIG:	0x1a42000
@@ -107,98 +100,6 @@ chip soc/intel/tigerlake
 		device pci 02.0 on  end								# Integrated Graphics Device
 		device pci 04.0 on								# SA Thermal Device
 			register "Device4Enable"		= "1"
-
-			chip drivers/intel/dptf
-				## Active Policy
-				register "policies.active" = "{
-					[0]			= {.target = DPTF_CPU,
-								   .thresholds = {TEMP_PCT(85, 90),
-										  TEMP_PCT(80, 69),
-										  TEMP_PCT(75, 56),
-										  TEMP_PCT(70, 46),
-										  TEMP_PCT(65, 36),}},
-					[1]			= {.target = DPTF_TEMP_SENSOR_0,
-								   .thresholds = {TEMP_PCT(50, 90),
-										  TEMP_PCT(47, 69),
-										  TEMP_PCT(45, 56),
-										  TEMP_PCT(42, 46),
-										  TEMP_PCT(39, 36),}},
-					[2]			= {.target = DPTF_TEMP_SENSOR_1,
-								   .thresholds = {TEMP_PCT(50, 90),
-										  TEMP_PCT(47, 69),
-										  TEMP_PCT(45, 56),
-										  TEMP_PCT(42, 46),
-										  TEMP_PCT(39, 36),}},
-					[3]			= {.target = DPTF_TEMP_SENSOR_2,
-								   .thresholds = {TEMP_PCT(50, 90),
-										  TEMP_PCT(47, 69),
-										  TEMP_PCT(45, 56),
-										  TEMP_PCT(42, 46),
-										  TEMP_PCT(39, 36),}},
-					[4]			= {.target = DPTF_TEMP_SENSOR_3,
-								  .thresholds = {TEMP_PCT(50, 90),
-										 TEMP_PCT(47, 69),
-							      TEMP_PCT(45, 56),
-							      TEMP_PCT(42, 46),
-							      TEMP_PCT(39, 36),}}}"
-
-				## Passive Policy
-				register "policies.passive" = "{
-					[0] = DPTF_PASSIVE(CPU,	CPU,	       95, 5000),
-					[1] = DPTF_PASSIVE(CPU,	TEMP_SENSOR_1, 65, 6000),
-					[2] = DPTF_PASSIVE(CHARGER,	TEMP_SENSOR_0, 65, 6000),
-					[3] = DPTF_PASSIVE(CPU,	TEMP_SENSOR_2, 65, 6000),
-					[4] = DPTF_PASSIVE(CPU,	TEMP_SENSOR_3, 65, 6000)}"
-
-				## Critical Policy
-				register "policies.critical" = "{
-					[0] = DPTF_CRITICAL(CPU,	       105, SHUTDOWN),
-					[1] = DPTF_CRITICAL(TEMP_SENSOR_0,	75, SHUTDOWN),
-					[2] = DPTF_CRITICAL(TEMP_SENSOR_1,	75, SHUTDOWN),
-					[3] = DPTF_CRITICAL(TEMP_SENSOR_2,	75, SHUTDOWN),
-					[4] = DPTF_CRITICAL(TEMP_SENSOR_3,	75, SHUTDOWN)}"
-
-				## Power Limits Control
-				# 3-15W PL1 in 200mW increments, avg over 28-32s interval
-				# PL2 ranges from 15 to 60W, avg over 28-32s interval
-				register "controls.power_limits" = "{
-					.pl1 = {.min_power		= 3000,
-						.max_power		= 15000,
-						.time_window_min	= 28 * MSECS_PER_SEC,
-						.time_window_max	= 32 * MSECS_PER_SEC,
-						.granularity		= 200,},
-					.pl2 = {.min_power		= 60000,
-						.max_power		= 60000,
-						.time_window_min	= 28 * MSECS_PER_SEC,
-						.time_window_max	= 32 * MSECS_PER_SEC,
-						.granularity		= 1000,}}"
-
-				## Charger Performance Control (Control, mA)
-				register "controls.charger_perf" = "{
-					[0]	= { 255, 1700 },
-					[1]	= {  24, 1500 },
-					[2]	= {  16, 1000 },
-					[3]	= {   8,  500 }}"
-
-				## Fan Performance Control (Percent, Speed, Noise, Power)
-				register "controls.fan_perf" = "{
-					[0]	= {  90, 6700, 220, 2200, },
-					[1]	= {  80, 5800, 180, 1800, },
-					[2]	= {  70, 5000, 145, 1450, },
-					[3]	= {  60, 4900, 115, 1150, },
-					[4]	= {  50, 3838,  90,  900, },
-					[5]	= {  40, 2904,  55,  550, },
-					[6]	= {  30, 2337,  30,  300, },
-					[7]	= {  20, 1608,  15,  150, },
-					[8]	= {  10,  800,  10,  100, },
-					[9]	= {   0,    0,   0,   50, }}"
-
-				# Fan options
-				register "options.fan.fine_grained_control"	= "1"
-				register "options.fan.step_size"		= "2"
-
-				device generic 0 on end
-			end
 		end
 		device pci 05.0 off end								# IPU
 		device pci 06.0 off end								# PEG60
@@ -212,22 +113,24 @@ chip soc/intel/tigerlake
 		device pci 0d.0 on								# USB xHCI
 			register "UsbTcPortEn"			= "1"
 			register "TcssXhciEn"			= "1"
-			chip drivers/usb/acpi
-				device usb 3.0 on
-					chip drivers/usb/acpi
-						register "desc"		= ""USB3 TYPE_C""
-						register "type"		= "UPC_TYPE_C_USB2_SS_SWITCH"
-						register "group"	= "ACPI_PLD_GROUP(0, 1)"
-						device ref tcss_usb3_port1 on end
-					end
-				end
-			end
+			# chip drivers/usb/acpi
+			#	device usb 3.0 on
+			#		chip drivers/usb/acpi
+			#			register "desc"		= ""USB3 TYPE_C""
+			#			register "type"		= "UPC_TYPE_C_USB2_SS_SWITCH"
+			#			register "group"	= "ACPI_PLD_GROUP(0, 1)"
+			#			device usb 3.0 on end
+			#		end
+			#	end
+			# end
 		end
 		device pci 0d.1 off end								# USB xDCI (OTG)
 		device pci 0d.2 on								# TBT DMA0
 			chip drivers/intel/usb4/retimer
 				register "dfp[0].power_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
+				register "dfp[1].power_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_A23)"
 				use tcss_usb3_port1 as dfp[0].typec_port
+				use tcss_usb3_port2 as dfp[1].typec_port
 				device generic 0 on end
 			end
 		end
@@ -252,65 +155,65 @@ chip soc/intel/tigerlake
 			register "usb3_ports[2]"                = "USB3_PORT_DEFAULT(OC_SKIP)"	# Internal WiFi
 
 			# Thunderbolt 4.0 Devices
-			register "tcss_ports[0]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"	# Motherboard Thunderbolt 4.0
+			# register "tcss_ports[0]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"	# Motherboard Thunderbolt 4.0
 
 			# APCI
-			device usb 0.0 on
+			# device usb 0.0 on
 				# USB 2.0 Devices
-				chip drivers/usb/acpi
-					register "desc"			= ""Motherboard USB Type C""
-					register "type"			= "UPC_TYPE_C_USB2_SS_SWITCH"
-					register "group"		= "ACPI_PLD_GROUP(0, 1)"
-					device usb 2.0 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Motherboard USB 3.0""
-					register "type"			= "UPC_TYPE_USB3_A"
-					register "group"		= "ACPI_PLD_GROUP(1, 1)"
-					device usb 2.1 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Daughterboard USB 3.0""
-					register "type"			= "UPC_TYPE_USB3_A"
-					register "group"		= "ACPI_PLD_GROUP(2, 1)"
-					device usb 2.2 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Internal Webcam""
-					register "type"			= "UPC_TYPE_INTERNAL"
-					device usb 2.3 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Daughterboard SD Card""
-					register "type"			= "UPC_TYPE_INTERNAL"
-					register "group"		= "ACPI_PLD_GROUP(3, 1)"
-					device usb 2.5 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Internal Bluetooth""
-					register "type"			= "UPC_TYPE_INTERNAL"
-					device usb 2.9 on end
-				end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Motherboard USB Type C""
+			#		register "type"			= "UPC_TYPE_C_USB2_SS_SWITCH"
+			#		register "group"		= "ACPI_PLD_GROUP(0, 1)"
+			#		device usb 2.0 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Motherboard USB 3.0""
+			#		register "type"			= "UPC_TYPE_USB3_A"
+			#		register "group"		= "ACPI_PLD_GROUP(1, 1)"
+			#		device usb 2.1 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Daughterboard USB 3.0""
+			#		register "type"			= "UPC_TYPE_USB3_A"
+			#		register "group"		= "ACPI_PLD_GROUP(2, 1)"
+			#		device usb 2.2 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Internal Webcam""
+			#		register "type"			= "UPC_TYPE_INTERNAL"
+			#		device usb 2.3 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Daughterboard SD Card""
+			#		register "type"			= "UPC_TYPE_INTERNAL"
+			#		register "group"		= "ACPI_PLD_GROUP(3, 1)"
+			#		device usb 2.5 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Internal Bluetooth""
+			#		register "type"			= "UPC_TYPE_INTERNAL"
+			#		device usb 2.9 on end
+			#	end
 				# USB 3.0 Devices
-				chip drivers/usb/acpi
-					register "desc"			= ""Motherboard USB 3.0""
-					register "type"			= "UPC_TYPE_USB3_A"
-					register "group"		= "ACPI_PLD_GROUP(1, 2)"
-					device usb 3.0 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Daughterboard USB 3.0""
-					register "type"			= "UPC_TYPE_USB3_A"
-					register "group"		= "ACPI_PLD_GROUP(2, 2)"
-					device usb 3.1 on end
-				end
-				chip drivers/usb/acpi
-					register "desc"			= ""Internal WiFi""
-					register "type"			= "UPC_TYPE_EXPRESSCARD"
-					register "group"		= "ACPI_PLD_GROUP(4, 1)"
-					device usb 3.1 on end
-				end
-			end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Motherboard USB 3.0""
+			#		register "type"			= "UPC_TYPE_USB3_A"
+			#		register "group"		= "ACPI_PLD_GROUP(1, 2)"
+			#		device usb 3.0 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Daughterboard USB 3.0""
+			#		register "type"			= "UPC_TYPE_USB3_A"
+			#		register "group"		= "ACPI_PLD_GROUP(2, 2)"
+			#		device usb 3.1 on end
+			#	end
+			#	chip drivers/usb/acpi
+			#		register "desc"			= ""Internal WiFi""
+			#		register "type"			= "UPC_TYPE_EXPRESSCARD"
+			#		register "group"		= "ACPI_PLD_GROUP(4, 1)"
+			#		device usb 3.1 on end
+			#	end
+			# end
 		end
 		device pci 14.1 off end								# USB xDCI (OTG)
 		device pci 14.2 on  end								# USB xDCI (OTG)
@@ -363,11 +266,6 @@ chip soc/intel/tigerlake
 		        register "PcieClkSrcClkReq[3]"		= "3"
 			register "PcieClkSrcUsage[3]"		= "0x8"
 			smbios_slot_desc "SlotTypeM2Socket3" "SlotLengthOther" "M.2/M 2280" "SlotDataBusWidth4X"
-			# chip soc/intel/common/block/pcie/rtd3
-			#	register "enable_gpio"		= ""
-			#	register "reset_gpio"		= ""
-			#	device generic 0 on end
-			# end
 		end
 		device pci 1d.1 off end								# PCI Express Port 10
 		device pci 1d.2 off end								# PCI Express Port 11
@@ -399,15 +297,15 @@ chip soc/intel/tigerlake
 		device pci 1f.2 hidden								# Power Management Controller
 			# The pmc_mux chip driver is a placeholder for the
 			# PMC.MUX device in the ACPI hierarchy.
-			chip drivers/intel/pmc_mux
-				device generic 0 on
-					chip drivers/intel/pmc_mux/conn
-						register "usb2_port_number"	= "0"
-						register "usb3_port_number"	= "4"
-						device generic 0 alias conn0 on end
-					end
-				end
-			end
+			# chip drivers/intel/pmc_mux
+			#	device generic 0 on
+			#		chip drivers/intel/pmc_mux/conn
+			#			register "usb2_port_number"	= "0"
+			#			register "usb3_port_number"	= "4"
+			#			device generic 0 alias conn0 on end
+			#		end
+			#	end
+			# end
 		end
 		device pci 1f.3 on								# Intel HDA
 			subsystemid 0x10ec 0x119e
