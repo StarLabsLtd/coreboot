@@ -158,7 +158,7 @@ chip soc/intel/skylake
 			register "gen4_dec"			= "0x0000006d"
 			register "serirq_mode"			= "SERIRQ_CONTINUOUS"
 
-			chip ec/starlabs/it8987
+			chip ec/starlabs/merlin
 				# Port 4Eh/4Fh
 				device pnp 4e.0 on						# IO Interface
 				end

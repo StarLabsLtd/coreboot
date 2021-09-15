@@ -12,7 +12,7 @@ Method (_Q0C)					// Event: Lid Closed
 	Notify (LID0, 0x80)
 }
 
-Method (_QA0)					// Event: AC Power Connected
+Method (_Q0A)					// Event: AC Power Connected
 {
 	Notify (BAT0, 0x81)
 	Notify (ADP1, 0x80)

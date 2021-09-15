@@ -1,0 +1,136 @@
+#define MEM_EC_SPACE                0x0400
+XBYTE   xEC_MainVersion		_at_ MEM_EC_SPACE+0x00;
+XBYTE   xEC_SubVersion		_at_ MEM_EC_SPACE+0x01;
+XBYTE   xEC_KBCVersion		_at_ MEM_EC_SPACE+0x02;
+XBYTE   xEC_TestVersion		_at_ MEM_EC_SPACE+0x03;
+XBYTE	xEC_Froce_Mirror	_at_ MEM_EC_SPACE+0x04;		
+
+XBYTE   xEC_BuildYear		_at_ MEM_EC_SPACE+0x0C;
+XBYTE   xEC_BuildMonth		_at_ MEM_EC_SPACE+0x0D;
+XBYTE   xEC_BuildDay		_at_ MEM_EC_SPACE+0x0E;
+XBYTE   xEC_BuildIndex		_at_ MEM_EC_SPACE+0x0F;
+
+XBYTE   OEM_ControlPOWER			_at_ MEM_EC_SPACE+0x10;
+XBYTE   OEM_ControlDevice           _at_ MEM_EC_SPACE+0x11;
+XBYTE   OEM_ControlOS				_at_ MEM_EC_SPACE+0x12;	
+XBYTE   OEM_ControlTP				_at_ MEM_EC_SPACE+0x14;	
+XBYTE   KB_Control_flag             _at_ MEM_EC_SPACE+0x18;
+XBYTE   KB_light_flag               _at_ MEM_EC_SPACE+0x19;
+	
+XBYTE   KB_light_time				_at_ MEM_EC_SPACE+0x1A;		
+
+XBYTE   xEC_ThermalChargCMD         _at_ MEM_EC_SPACE+0x20;
+XBYTE   xEC_ThermalChargFlag        _at_ MEM_EC_SPACE+0x21;
+
+XBYTE   xEC_FnlockFlag              _at_ MEM_EC_SPACE+0x2C;	
+
+XBYTE   xEC_SensorT_Error_F         _at_ MEM_EC_SPACE+0x30;
+XBYTE   ShipModeFlag				_at_ MEM_EC_SPACE+0x40;		
+XBYTE	xEC_Fan_Plan				_at_ MEM_EC_SPACE+0x42;		
+XBYTE	xEC_KB_Flag					_at_ MEM_EC_SPACE+0x43;		
+
+
+XWORD   xEC_Charge_Rate             _at_ MEM_EC_SPACE+0x50;
+XWORD   xEC_Charge_InCurrent        _at_ MEM_EC_SPACE+0x52;
+XWORD   xEC_Charge_Vlot             _at_ MEM_EC_SPACE+0x54;
+XWORD   xEC_Charge_option           _at_ MEM_EC_SPACE+0x56;
+
+XBYTE   xEC_SYS_SKIN_T              _at_ MEM_EC_SPACE+0x62;
+XBYTE   xEC_Sensor_F                _at_ MEM_EC_SPACE+0x63;
+XBYTE   xEC_Sensor_TSHT             _at_ MEM_EC_SPACE+0x64;
+XBYTE   xEC_Sensor_TSLT             _at_ MEM_EC_SPACE+0x65;
+XBYTE   xEC_ThermalSource           _at_ MEM_EC_SPACE+0x66;
+
+
+XBYTE   xEC_PECI_CPU_T              _at_ MEM_EC_SPACE+0x70;
+XBYTE   xEC_PLMX_T                  _at_ MEM_EC_SPACE+0x71;
+XBYTE   xEC_CHARGER_T               _at_ MEM_EC_SPACE+0x72;
+XBYTE   OEM_ControlFlag				_at_ MEM_EC_SPACE+0x7E;
+XBYTE   xEC_LID_STATUS              _at_ MEM_EC_SPACE+0x7F;
+
+
+XBYTE   xEC_PowerState              _at_ MEM_EC_SPACE+0x80;
+XBYTE   xEC_Bt1ModelCode            _at_ MEM_EC_SPACE+0x81;
+XBYTE   xEC_Bt1SerialNumberL        _at_ MEM_EC_SPACE+0x82;
+XBYTE   xEC_Bt1SerialNumberH        _at_ MEM_EC_SPACE+0x83;
+XBYTE   xEC_Bt1DesignCapacityL      _at_ MEM_EC_SPACE+0x84;
+XBYTE   xEC_Bt1DesignCapacityH      _at_ MEM_EC_SPACE+0x85;
+XBYTE   xEC_Bt1DesignVoltageL       _at_ MEM_EC_SPACE+0x86;
+XBYTE   xEC_Bt1DesignVoltageH       _at_ MEM_EC_SPACE+0x87;
+XBYTE   xEC_Bt1FullChrgCapacityL    _at_ MEM_EC_SPACE+0x88;
+XBYTE   xEC_Bt1FullChrgCapacityH    _at_ MEM_EC_SPACE+0x89;
+XBYTE   xEC_Bt1TripPointL           _at_ MEM_EC_SPACE+0x8A;
+XBYTE   xEC_Bt1TripPointH           _at_ MEM_EC_SPACE+0x8B;
+XBYTE   xEC_Bt1State                _at_ MEM_EC_SPACE+0x8C;
+XBYTE   xEC_Bt1PresentRateL         _at_ MEM_EC_SPACE+0x8D;
+XBYTE   xEC_Bt1PresentRateH         _at_ MEM_EC_SPACE+0x8E;
+XBYTE   xEC_Bt1RemainCapacityL      _at_ MEM_EC_SPACE+0x8F;
+XBYTE   xEC_Bt1RemainCapacityH      _at_ MEM_EC_SPACE+0x90;
+XBYTE   xEC_Bt1PresentVoltageL      _at_ MEM_EC_SPACE+0x91;
+XBYTE   xEC_Bt1PresentVoltageH      _at_ MEM_EC_SPACE+0x92;
+XBYTE   xEC_Bt1RSOC                  _at_ MEM_EC_SPACE+0x93;
+XBYTE   xEC_Bt1ASOC                 _at_ MEM_EC_SPACE+0x94; 
+
+XBYTE   xEC_EJ898A_FW_VERSION       _at_ MEM_EC_SPACE+0xBF;
+XBYTE   xEC_USB_TC_MB_MGI0          _at_ MEM_EC_SPACE+0xC0;
+XBYTE   xEC_USB_TC_MB_MGI1          _at_ MEM_EC_SPACE+0xC1;
+XBYTE   xEC_USB_TC_MB_MGI2          _at_ MEM_EC_SPACE+0xC2;
+XBYTE   xEC_USB_TC_MB_MGI3          _at_ MEM_EC_SPACE+0xC3;
+XBYTE   xEC_USB_TC_MB_MGI4          _at_ MEM_EC_SPACE+0xC4;
+XBYTE   xEC_USB_TC_MB_MGI5          _at_ MEM_EC_SPACE+0xC5;
+XBYTE   xEC_USB_TC_MB_MGI6          _at_ MEM_EC_SPACE+0xC6;
+XBYTE   xEC_USB_TC_MB_MGI7          _at_ MEM_EC_SPACE+0xC7;
+XBYTE   xEC_USB_TC_MB_MGI8          _at_ MEM_EC_SPACE+0xC8;
+XBYTE   xEC_USB_TC_MB_MGI9          _at_ MEM_EC_SPACE+0xC9;
+XBYTE   xEC_USB_TC_MB_MGIA          _at_ MEM_EC_SPACE+0xCA;
+XBYTE   xEC_USB_TC_MB_MGIB          _at_ MEM_EC_SPACE+0xCB;
+XBYTE   xEC_USB_TC_MB_MGIC          _at_ MEM_EC_SPACE+0xCC;
+XBYTE   xEC_USB_TC_MB_MGID          _at_ MEM_EC_SPACE+0xCD;
+XBYTE   xEC_USB_TC_MB_MGIE          _at_ MEM_EC_SPACE+0xCE;
+XBYTE   xEC_USB_TC_MB_MGIF          _at_ MEM_EC_SPACE+0xCF;
+
+XBYTE   xEC_USB_TC_MB_MGO0          _at_ MEM_EC_SPACE+0xD0;
+XBYTE   xEC_USB_TC_MB_MGO1          _at_ MEM_EC_SPACE+0xD1;
+XBYTE   xEC_USB_TC_MB_MGO2          _at_ MEM_EC_SPACE+0xD2;
+XBYTE   xEC_USB_TC_MB_MGO3          _at_ MEM_EC_SPACE+0xD3;
+XBYTE   xEC_USB_TC_MB_MGO4          _at_ MEM_EC_SPACE+0xD4;
+XBYTE   xEC_USB_TC_MB_MGO5          _at_ MEM_EC_SPACE+0xD5;
+XBYTE   xEC_USB_TC_MB_MGO6          _at_ MEM_EC_SPACE+0xD6;
+XBYTE   xEC_USB_TC_MB_MGO7          _at_ MEM_EC_SPACE+0xD7;
+XBYTE   xEC_USB_TC_MB_MGO8          _at_ MEM_EC_SPACE+0xD8;
+XBYTE   xEC_USB_TC_MB_MGO9          _at_ MEM_EC_SPACE+0xD9;
+XBYTE   xEC_USB_TC_MB_MGOA          _at_ MEM_EC_SPACE+0xDA;
+XBYTE   xEC_USB_TC_MB_MGOB          _at_ MEM_EC_SPACE+0xDB;
+XBYTE   xEC_USB_TC_MB_MGOC          _at_ MEM_EC_SPACE+0xDC;
+XBYTE   xEC_USB_TC_MB_MGOD          _at_ MEM_EC_SPACE+0xDD;
+XBYTE   xEC_USB_TC_MB_MGOE          _at_ MEM_EC_SPACE+0xDE;
+XBYTE   xEC_USB_TC_MB_MGOF          _at_ MEM_EC_SPACE+0xDF;
+
+XBYTE   xEC_USB_TC_UCSI_DATA_VER1   _at_ MEM_EC_SPACE+0xE0;
+XBYTE   xEC_USB_TC_UCSI_DATA_VER2   _at_ MEM_EC_SPACE+0xE1;
+XBYTE   xEC_USB_TC_UCSI_DATA_RSV1   _at_ MEM_EC_SPACE+0xE2;
+XBYTE   xEC_USB_TC_UCSI_DATA_RSV2   _at_ MEM_EC_SPACE+0xE3;
+
+XBYTE   xEC_USB_TC_CCI0             _at_ MEM_EC_SPACE+0xE4;
+XBYTE   xEC_USB_TC_CCI1             _at_ MEM_EC_SPACE+0xE5;
+XBYTE   xEC_USB_TC_CCI2             _at_ MEM_EC_SPACE+0xE6;
+XBYTE   xEC_USB_TC_CCI3             _at_ MEM_EC_SPACE+0xE7;
+
+XBYTE   xEC_USB_TC_CTL0             _at_ MEM_EC_SPACE+0xE8;
+XBYTE   xEC_USB_TC_CTL1             _at_ MEM_EC_SPACE+0xE9;
+XBYTE   xEC_USB_TC_CTL2             _at_ MEM_EC_SPACE+0xEA;
+XBYTE   xEC_USB_TC_CTL3             _at_ MEM_EC_SPACE+0xEB;
+XBYTE   xEC_USB_TC_CTL4             _at_ MEM_EC_SPACE+0xEC;
+XBYTE   xEC_USB_TC_CTL5             _at_ MEM_EC_SPACE+0xED;
+XBYTE   xEC_USB_TC_CTL6             _at_ MEM_EC_SPACE+0xEE;
+XBYTE   xEC_USB_TC_CTL7             _at_ MEM_EC_SPACE+0xEF;
+
+XBYTE   xEC_USB_PD_STS_DD           _at_ MEM_EC_SPACE+0xF0;
+XBYTE   xEC_USB_PD_STS_4            _at_ MEM_EC_SPACE+0xF1;
+XBYTE   xEC_USB_PD_STS_5            _at_ MEM_EC_SPACE+0xF2;
+XBYTE   xEC_USB_PD_STS_E            _at_ MEM_EC_SPACE+0xF3;
+XBYTE   xEC_USB_PD_STS_10           _at_ MEM_EC_SPACE+0xF4;
+XBYTE   xEC_USB_PD_STS_11           _at_ MEM_EC_SPACE+0xF5;
+XBYTE   xEC_ShutdownCode            _at_ MEM_EC_SPACE+0xFD;
+XBYTE   xEC_EJ898A_NEED_REBOOT      _at_ MEM_EC_SPACE+0xFE;
+XBYTE   xEC_EJ898A_ERROR            _at_ MEM_EC_SPACE+0xFF;
