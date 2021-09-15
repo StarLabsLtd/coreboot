@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-Method (_Q0D)					// Event: Lid Opened
+Method (_Q0D, 0, NotSerialized)			// Event: Lid Opened
 {
 	\LIDS = LSTE
 	Notify (LID0, 0x80)
 }
 
-Method (_Q0C)					// Event: Lid Closed
+Method (_Q0C, 0, NotSerialized)			// Event: Lid Closed
 {
 	\LIDS = LSTE
 	Notify (LID0, 0x80)
 }
 
-Method (_Q0A)					// Event: AC Power Connected
+Method (_Q0A, 0, NotSerialized)			// Event: AC Power Connected
 {
 	Notify (BAT0, 0x81)
 	Notify (ADP1, 0x80)
@@ -24,22 +24,22 @@ Method (_Q0B, 0, NotSerialized)			// Event: AC Power Disconnected
 	Notify (BAT0, 0x80)
 }
 
-Method (_Q05)					// Event: Backlight Brightness Down
+Method (_Q05, 0, NotSerialized)			// Event: Backlight Brightness Down
 {
 	^^^^HIDD.HPEM (20)
 }
 
-Method (_Q06)					// Event: Backlight Brightness Up
+Method (_Q06, 0, NotSerialized)			// Event: Backlight Brightness Up
 {
 	^^^^HIDD.HPEM (19)
 }
 
-Method (_Q87)					// Event: Function Lock
+Method (_Q87, 0, NotSerialized)			// Event: Function Lock
 {
 	FLKS = FLKA
 }
 
-Method (_Q88)					// Event: Trackpad Lock
+Method (_Q88, 0, NotSerialized)			// Event: Trackpad Lock
 {
 	TPLS = TPLA
 }
@@ -49,17 +49,17 @@ Method (_Q11)					// Event: Keyboard Backlight Brightness
 	KLSC = KLSE
 }
 
-Method (_Q99)					// Event: Airplane Mode
+Method (_Q99, 0, NotSerialized)			// Event: Airplane Mode
 {
 	^^^^HIDD.HPEM (8)
 }
 
-Method (_QD5)					// Event: 10 Second Power Button Pressed
+Method (_QD5, 0, NotSerialized)			// Event: 10 Second Power Button Pressed
 {
 	Store ("EC: 10 Second Power Button Pressed", Debug)
 }
 
-Method (_QD6)					// Event: 10 Second Power Button Released
+Method (_QD6, 0, NotSerialized)			// Event: 10 Second Power Button Released
 {
 	Store ("EC: 10 Second Power Button Release", Debug)
 }
@@ -69,27 +69,27 @@ Method (_Q22, 0, NotSerialized)			// Event: CHARGER_T
 	Store ("EC: CHARGER_T", Debug)
 }
 
-Method (_Q40)					// Event: AC_DC
+Method (_Q40, 0, NotSerialized)			// Event: AC_DC
 {
 	SMB2 = 0xC6
 }
 
-Method (_Q41)					// Event: DC_20_0
+Method (_Q41, 0, NotSerialized)			// Event: DC_20_0
 {
 	SMB2 = 0xC7
 }
 
-Method (_Q42)					// Event: DC_60_20
+Method (_Q42, 0, NotSerialized)			// Event: DC_60_20
 {
 	SMB2 = 0xC9
 }
 
-Method (_Q43)					// Event: DC_100_60
+Method (_Q43, 0, NotSerialized)			// Event: DC_100_60
 {
 	SMB2 = 0xC9
 }
 
-Method (_Q44)					// Event: AC_ONLY
+Method (_Q44, 0, NotSerialized)			// Event: AC_ONLY
 {
 	SMB2 = 0xCA
 }
@@ -109,12 +109,12 @@ Method (_Q54, 0, NotSerialized)			// Event: PWRBTN
 	Store ("EC: PWRBTN", Debug)
 }
 
-Method (_QF0)					// Event: Temperature Report
+Method (_QF0, 0, NotSerialized)			// Event: Temperature Report
 {
 	Store ("EC: Temperature Report", Debug)
 }
 
-Method (_QF1)					// Event: Temperature Trigger
+Method (_QF1, 0, NotSerialized)			// Event: Temperature Trigger
 {
 	Notify (SEN3, 0x90)
 }
@@ -134,47 +134,47 @@ Method (_Q85, 0, NotSerialized)			// Event: HOME
 	Store ("EC: HOME", Debug)
 }
 
-Method (_Q01)					// Event: F1 Hot Key
+Method (_Q01, 0, NotSerialized)			// Event: F1 Hot Key
 {
 	Store ("EC: F1", Debug)
 }
 
-Method (_Q02)					// Event: F2 Hot Key
+Method (_Q02, 0, NotSerialized)			// Event: F2 Hot Key
 {
 	Store ("EC: F2", Debug)
 }
 
-Method (_Q03)					// Event: F3 Hot Key
+Method (_Q03, 0, NotSerialized)			// Event: F3 Hot Key
 {
 	Store ("EC: F3", Debug)
 }
 
-Method (_Q04)					// Event: F4 Hot Key
+Method (_Q04, 0, NotSerialized)			// Event: F4 Hot Key
 {
 	Store ("EC: F4", Debug)
 }
 
-Method (_Q08)					// Event: F5 Hot Key
+Method (_Q08, 0, NotSerialized)			// Event: F5 Hot Key
 {
 	Store ("EC: F5", Debug)
 }
 
-Method (_Q09)					// Event: F6 Hot Key
+Method (_Q09, 0, NotSerialized)			// Event: F6 Hot Key
 {
 	Store ("EC: F6", Debug)
 }
 
-Method (_Q07)					// Event: F7 Hot Key
+Method (_Q07, 0, NotSerialized)			// Event: F7 Hot Key
 {
 	Store ("EC: F7", Debug)
 }
 
-Method (_Q10)					// Event: F10 Hot Key
+Method (_Q10, 0, NotSerialized)			// Event: F10 Hot Key
 {
 	Store ("EC: F10", Debug)
 }
 
-Method (_Q12)					// Event: F12 Hot Key
+Method (_Q12, 0, NotSerialized)			// Event: F12 Hot Key
 {
 	Store ("EC: F6", Debug)
 }
@@ -264,7 +264,7 @@ Method (_Q3F, 0, NotSerialized)			// Event: SHUTDOWN
 	Store ("EC: SHUTDOWN", Debug)
 }
 
-Method (_Q45)					// Event: SENSOR_T76
+Method (_Q45, 0, NotSerialized)			// Event: SENSOR_T76
 {
 	SMB2 = 0xCB
 }
