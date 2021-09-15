@@ -111,7 +111,7 @@ Method (_QD5), 0, NotSerialized)		// Event: 10 Second Power Button Pressed
 	Store ("EC: 10 Second Power Button Pressed", Debug)
 }
 
-Method (_QD6), 0, NotSerialized)		// Event: 10 Second Power Button Release
+Method (_QD6), 0, NotSerialized)		// Event: 10 Second Power Button Released
 {
 	Store ("EC: 10 Second Power Button Release", Debug)
 }
@@ -134,10 +134,7 @@ Method (_QF1), 0, NotSerialized)		// Event: TrigPoint
 // Method (_Q)					// Event: Keyboard Backlight Brightness
 // {
 //	KLBC = KLBE
-// }
-//
-// Method (_Q)					// Event: Keyboard Backlight State
-// {
 //	KLSC = KLSE
 // }
+//
 

@@ -1,0 +1,98 @@
+#define MEM_EC_SPACE                0x0400
+XBYTE   xEC_MainVersion             _at_ MEM_EC_SPACE + 0x00;
+XBYTE   xEC_SubVersion              _at_ MEM_EC_SPACE + 0x01;
+XBYTE   xEC_KBCVersion              _at_ MEM_EC_SPACE + 0x02;
+XBYTE   xEC_TestVersion             _at_ MEM_EC_SPACE + 0x03;
+XBYTE   xEC_OsFlag                  _at_ MEM_EC_SPACE + 0x04; 
+XBYTE   xEC_Froce_Mirror_Flag       _at_ MEM_EC_SPACE + 0x05; 
+XBYTE	xEC_CCG5_SetCtrl			_at_ MEM_EC_SPACE + 0x06;
+XBYTE	xEC_SKU_ID					_at_ MEM_EC_SPACE + 0x07;
+XBYTE   xEC_ModernStandbyFlag		_at_ MEM_EC_SPACE + 0x08; // 0: Exit MB    ; 1: Enter MB
+
+XBYTE	xEC_KBLT_Control_Level      _at_ MEM_EC_SPACE + 0x09;
+XBYTE	xEC_KB_Light_EN				_at_ MEM_EC_SPACE + 0x0A;
+XBYTE   xEC_BoardID_Value           _at_ MEM_EC_SPACE + 0x0B;
+XBYTE   xEC_ControlTP				_at_ MEM_EC_SPACE + 0x0C;
+XBYTE	xEC_YOGA_FLAG				_at_ MEM_EC_SPACE + 0x0D; /* BIOS Setting */
+XBYTE	xEC_WIFI_Flag				_at_ MEM_EC_SPACE + 0x0E;
+XBYTE   xEC_FnlockFlag				_at_ MEM_EC_SPACE + 0x0F;
+
+XBYTE   xEC_OEM_ControlAudio        _at_ MEM_EC_SPACE + 0x13; //IN1_012+
+XBYTE	xEC_SYS_SKIN_T				_at_ MEM_EC_SPACE + 0x15;	
+XBYTE	xEC_CHARGER_T				_at_ MEM_EC_SPACE + 0x16;
+XBYTE	xEC_Fn_Ctrl_Change			_at_ MEM_EC_SPACE + 0x17;
+
+XBYTE	xEC_BatFullChgPer_PCManager	_at_ MEM_EC_SPACE + 0x1A; /* BIOS Setting xx:60% xx:80% xx:100% */
+XBYTE   xEC_FanMode_PCManager		_at_ MEM_EC_SPACE + 0x1B; /* BIOS Setting xx:full xx:normal xx:silent mode */
+XBYTE   xEC_FnLock_PCManager		_at_ MEM_EC_SPACE + 0x1D; /* BIOS recover 0:unlock 1:lock */
+
+XBYTE   ShipModeFlag				_at_ MEM_EC_SPACE + 0x40; 
+
+XBYTE   xEC_BuildTime[10]           _at_ MEM_EC_SPACE + 0x41;	//0x41-0x4A
+XBYTE   xEC_BuildDate[10]           _at_ MEM_EC_SPACE + 0x4B;	//0x4B-0x55
+
+XBYTE   xEC_Sensor_2_T              _at_ MEM_EC_SPACE + 0x62; //T2 SEN2
+XBYTE   xEC_Sensor_F                _at_ MEM_EC_SPACE + 0x63;
+XBYTE   xEC_Sensor_TSHT             _at_ MEM_EC_SPACE + 0x64;
+XBYTE   xEC_Sensor_TSLT             _at_ MEM_EC_SPACE + 0x65;
+XBYTE   xEC_ThermalSource           _at_ MEM_EC_SPACE + 0x66;
+XWORD   xEC_BAT1_Temperature        _at_ MEM_EC_SPACE + 0x68;//
+XBYTE   xEC_BAT1_TemperatureCes     _at_ MEM_EC_SPACE + 0x6A;
+XBYTE   xEC_PECI_CPU_T              _at_ MEM_EC_SPACE + 0x70;
+XBYTE   xEC_PLMX_T                  _at_ MEM_EC_SPACE + 0x71;
+XBYTE   xEC_Sensor_1_T              _at_ MEM_EC_SPACE + 0x72; //T1 SEN1
+XBYTE   xEC_Sensor_3_T              _at_ MEM_EC_SPACE + 0x73; //T3 SEN3
+
+XBYTE   xEC_LID_STATUS              _at_ MEM_EC_SPACE + 0x7F;
+XBYTE   xEC_PowerState              _at_ MEM_EC_SPACE + 0x80;
+XBYTE   xEC_Bt1ModelCode            _at_ MEM_EC_SPACE + 0x81;
+XBYTE   xEC_Bt1SerialNumberL        _at_ MEM_EC_SPACE + 0x82;
+XBYTE   xEC_Bt1SerialNumberH        _at_ MEM_EC_SPACE + 0x83;
+XBYTE   xEC_Bt1DesignCapacityL      _at_ MEM_EC_SPACE + 0x84;
+XBYTE   xEC_Bt1DesignCapacityH      _at_ MEM_EC_SPACE + 0x85;
+XBYTE   xEC_Bt1DesignVoltageL       _at_ MEM_EC_SPACE + 0x86;
+XBYTE   xEC_Bt1DesignVoltageH       _at_ MEM_EC_SPACE + 0x87;
+XBYTE   xEC_Bt1FullChrgCapacityL    _at_ MEM_EC_SPACE + 0x88;
+XBYTE   xEC_Bt1FullChrgCapacityH    _at_ MEM_EC_SPACE + 0x89;
+XBYTE   xEC_Bt1TripPointL           _at_ MEM_EC_SPACE + 0x8A;
+XBYTE   xEC_Bt1TripPointH           _at_ MEM_EC_SPACE + 0x8B;
+XBYTE   xEC_Bt1State                _at_ MEM_EC_SPACE + 0x8C;
+XBYTE   xEC_Bt1PresentRateL         _at_ MEM_EC_SPACE + 0x8D;
+XBYTE   xEC_Bt1PresentRateH         _at_ MEM_EC_SPACE + 0x8E;
+XBYTE   xEC_Bt1RemainCapacityL      _at_ MEM_EC_SPACE + 0x8F;
+XBYTE   xEC_Bt1RemainCapacityH      _at_ MEM_EC_SPACE + 0x90;
+XBYTE   xEC_Bt1PresentVoltageL      _at_ MEM_EC_SPACE + 0x91;
+XBYTE   xEC_Bt1PresentVoltageH      _at_ MEM_EC_SPACE + 0x92;
+XBYTE   xEC_Bt1RSOC                 _at_ MEM_EC_SPACE + 0x93;
+//-----------------------------------------------------------------------------
+/* USB TYPE C  (x04C0 ~ 0x4EF) */
+//-----------------------------------------------------------------------------
+#if 1   //UCSI_SUPPORT  /* 0x4C0 ~ 0x4EF for UCSI function */
+XBYTE   xUCSI_DS_VERSION[2]         _at_ MEM_EC_SPACE + 0xC0;
+XBYTE   xUCSI_DS_RESERVED[2]        _at_ MEM_EC_SPACE + 0xC2;
+XBYTE   xUCSI_DS_CCI0               _at_ MEM_EC_SPACE + 0xC4;
+XBYTE   xUCSI_DS_CCI1               _at_ MEM_EC_SPACE + 0xC5;
+XBYTE   xUCSI_DS_CCI2               _at_ MEM_EC_SPACE + 0xC6;
+XBYTE   xUCSI_DS_CCI3               _at_ MEM_EC_SPACE + 0xC7;
+XBYTE   xUCSI_DS_CTL0               _at_ MEM_EC_SPACE + 0xC8;
+#define xUCSI_COMMAND       xUCSI_DS_CTL0
+XBYTE   xUCSI_DS_CTL1               _at_ MEM_EC_SPACE + 0xC9;
+XBYTE   xUCSI_DS_CTL2               _at_ MEM_EC_SPACE + 0xCA;
+XBYTE   xUCSI_DS_CTL3               _at_ MEM_EC_SPACE + 0xCB;
+XBYTE   xUCSI_DS_CTL4               _at_ MEM_EC_SPACE + 0xCC;
+XBYTE   xUCSI_DS_CTL5               _at_ MEM_EC_SPACE + 0xCD;
+XBYTE   xUCSI_DS_CTL6               _at_ MEM_EC_SPACE + 0xCE;
+XBYTE   xUCSI_DS_CTL7               _at_ MEM_EC_SPACE + 0xCF;
+XBYTE   xUCSI_DS_MGI[16]            _at_ MEM_EC_SPACE + 0xD0;
+XBYTE   xUCSI_DS_MGO[16]            _at_ MEM_EC_SPACE + 0xB0;
+#endif //UCSI_SUPPORT
+//-----------------------------------------------------------------------------
+
+XWORD	EC_Wakeup_Delay				_at_ MEM_EC_SPACE + 0xE6;	//4E0
+XBYTE	EC_Wakeup_Enable			_at_ MEM_EC_SPACE + 0xE8;
+
+XBYTE   xTBT_CMD                    _at_ MEM_EC_SPACE + 0xF7;
+XBYTE   xTBT_PORT1                  _at_ MEM_EC_SPACE + 0xF8;
+XBYTE   xTBT_DATA                   _at_ MEM_EC_SPACE + 0xF9;
+XBYTE   xTBT_ACK                    _at_ MEM_EC_SPACE + 0xFA;
+XBYTE   xTBT_DBG_DATA[2]            _at_ MEM_EC_SPACE + 0xFB;

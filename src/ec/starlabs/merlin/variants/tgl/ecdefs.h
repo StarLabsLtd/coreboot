@@ -8,8 +8,8 @@
 #define _EC_STARLABS_ITE_CFG_H
 
 /* IT5570 chip ID byte values. */
-#define ITE_CHIPID1_VAL	0x55
-#define ITE_CHIPID2_VAL	0x70
+#define ITE_CHIPID1_VAL		0x55
+#define ITE_CHIPID2_VAL		0x70
 
 /* EC RAM offsets. */
 #define ECRAM_KBL_BRIGHTNESS	0x09
