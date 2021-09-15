@@ -20,14 +20,14 @@ Method (_Q04)					// Event: F4 Hot Key
 	Store ("EC: F4", Debug)
 }
 
-Method (_Q05)					// Event: F5 Hot Key
+Method (_Q05)					// Event: Brightness Down
 {
-	Store ("EC: F5", Debug)
+	^^^^HIDD.HPEM (20)
 }
 
-Method (_Q06)					// Event: F6 Hot Key
+Method (_Q06)					// Event: Brightness Up
 {
-	Store ("EC: F6", Debug)
+	^^^^HIDD.HPEM (19)
 }
 
 Method (_Q07)					// Event: F7 Hot Key
@@ -35,14 +35,14 @@ Method (_Q07)					// Event: F7 Hot Key
 	Store ("EC: F7", Debug)
 }
 
-Method (_Q08)					// Event: Brightness Down
+Method (_Q05)					// Event: F8 Hot Key
 {
-	^^^^HIDD.HPEM (20)
+	Store ("EC: F8", Debug)
 }
 
-Method (_Q09)					// Event: Brightness Up
+Method (_Q06)					// Event: F9 Hot Key
 {
-	^^^^HIDD.HPEM (19)
+	Store ("EC: F9", Debug)
 }
 
 Method (_Q10)					// Event: F10 Hot Key
