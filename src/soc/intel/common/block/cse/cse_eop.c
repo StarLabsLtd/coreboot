@@ -4,8 +4,6 @@
 #include <console/console.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/pmc_ipc.h>
-#include <limits.h>
-#include <option.h>
 #include <security/vboot/vboot_common.h>
 #include <soc/intel/common/reset.h>
 #include <timestamp.h>
@@ -19,6 +17,7 @@ enum cse_eop_result {
 	CSE_EOP_RESULT_GLOBAL_RESET_REQUESTED,
 	CSE_EOP_RESULT_SUCCESS,
 	CSE_EOP_RESULT_ERROR,
+	CSE_EOP_RESULT_DISABLED,
 };
 
 static bool cse_disable_mei_bus(void)
@@ -103,7 +102,9 @@ static enum cse_eop_result cse_send_eop(void)
 	 */
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal()) {
 		printk(BIOS_ERR, "HECI: Prerequisites not met for sending EOP\n");
-		return CSE_EOP_RESULT_ERROR;
+		if (CONFIG(SOC_INTEL_CSE_LITE_SKU))
+			return CSE_EOP_RESULT_ERROR;
+		return CSE_EOP_RESULT_DISABLED;
 	}
 
 	printk(BIOS_INFO, "HECI: Sending End-of-Post\n");
@@ -141,11 +142,11 @@ static enum cse_eop_result cse_send_eop(void)
 static void cse_handle_eop_error(void)
 {
 	if (!cse_disable_mei_bus())
-		/* die */ printk (BIOS_DEBUG, "Failed to disable MEI bus while recovering from EOP error\n"
+		die("Failed to disable MEI bus while recovering from EOP error\n"
 		    "Preventing system from booting into an insecure state.\n");
 
 	if (!cse_disable_mei_devices())
-		/* die */ printk(BIOS_DEBUG, "Error disabling MEI devices while recovering from EOP error\n"
+		die("Error disabling MEI devices while recovering from EOP error\n"
 		    "Preventing system from booting into an insecure state.\n");
 }
 
@@ -158,6 +159,9 @@ static void handle_cse_eop_result(enum cse_eop_result result)
 		break;
 	case CSE_EOP_RESULT_SUCCESS:
 		printk(BIOS_INFO, "CSE EOP successful, continuing boot\n");
+		break;
+	case CSE_EOP_RESULT_DISABLED:
+		printk(BIOS_INFO, "CSE is disabled, continuing boot\n");
 		break;
 	case CSE_EOP_RESULT_ERROR: /* fallthrough */
 	default:
@@ -176,12 +180,9 @@ static void handle_cse_eop_result(enum cse_eop_result result)
 
 static void set_cse_end_of_post(void *unused)
 {
-	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
-	if (!me_state) {
-		timestamp_add_now(TS_ME_BEFORE_END_OF_POST);
-		handle_cse_eop_result(cse_send_eop());
-		timestamp_add_now(TS_ME_AFTER_END_OF_POST);
-	}
+	timestamp_add_now(TS_ME_BEFORE_END_OF_POST);
+	handle_cse_eop_result(cse_send_eop());
+	timestamp_add_now(TS_ME_AFTER_END_OF_POST);
 }
 
 /*

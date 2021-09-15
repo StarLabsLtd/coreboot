@@ -1,23 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-/*
- * ITE Embedded Controller
- *
- * We include this here as we need to support different levels within
- * the ACPI DSDT tree structure.
- */
-#define EC_GPE_SWI 0x49 /* GPP_E15 */
-#define EC_GPE_SCI 0x50 /* GPP_E16 */
-
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-#include <ec/starlabs/it5570/acpi/ec.asl>
-#else
-#include <ec/starlabs/it8987/acpi/ec.asl>
-#endif
-
-Scope (\_SB.PCI0.LPCB) {
-	#include "sleep.asl"
-}
+// Scope (\_SB.PCI0.LPCB) {
+//	#include "sleep.asl"
+// }
 
 /*
  * The Intel Comet Lake platform doesn't support SoundWire but there

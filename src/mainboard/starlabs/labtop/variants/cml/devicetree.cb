@@ -70,18 +70,18 @@ chip soc/intel/cannonlake
 		device pci 12.5 off end								# UFS SCS
 		device pci 12.6 off end								# GSPI #2
 		device pci 14.0 on								# USB xHCI
-			# USB2
-			register "usb2_ports[0]"		= "USB2_PORT_MID(OC2)"		# Type-C Port 1
-			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Type-A Port 2
-			register "usb2_ports[2]"		= "USB2_PORT_MID(OC2)"		# Not sure
-			register "usb2_ports[3]"		= "USB2_PORT_MID(OC2)"		# SD Card
-			register "usb2_ports[5]"		= "USB2_PORT_MID(OC3)"		# Type-A Port 3
-			register "usb2_ports[6]"		= "USB2_PORT_MID(OC3)"		# Camera
-			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# CNVi Bluetooth
-			# USB3
-			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC2)"
-			register "usb3_ports[1]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
-			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC2)"
+			# USB 2.0 Devices
+			register "usb2_ports[0]"		= "USB2_PORT_TYPE_C(OC_SKIP)"	# Motherboard USB Type C
+			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"	# Motherboard USB 3.0
+			register "usb2_ports[3]"		= "USB2_PORT_MID(OC_SKIP)"	# Daughterboard SD Card
+			register "usb2_ports[5]"		= "USB2_PORT_MID(OC_SKIP)"	# Daughterboard USB 3.0
+			register "usb2_ports[6]"		= "USB2_PORT_MID(OC_SKIP)"	# Internal Webcam
+			register "usb2_ports[9]"		= "USB2_PORT_MID(OC_SKIP)"	# Internal Bluetooth
+
+			# USB 3.0 Devices
+			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC_SKIP)"	# Motherboard USB Type C
+			register "usb3_ports[1]"		= "USB3_PORT_DEFAULT(OC_SKIP)"	# Motherboard USB 3.0
+			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC_SKIP)"	# Daughterboard USB 3.0
 		end
 		device pci 14.1 off end								# USB xDCI (OTG)
 		device pci 14.3 on								# CNVi wifi
@@ -165,7 +165,7 @@ chip soc/intel/cannonlake
 			end
 		end
 		device pci 1f.1 off end								# P2SB
-		device pci 1f.2 on  end							# Power Management Controller
+		device pci 1f.2 hidden end								# Power Management Controller
 		device pci 1f.3 on								# Intel HDA
 			subsystemid 0x10ec 0x119e
 			register "PchHdaAudioLinkHda"		= "1"

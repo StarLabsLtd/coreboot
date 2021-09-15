@@ -3,56 +3,24 @@
 Device (ADP1)
 {
 	Name (_HID, "ACPI0003")
-	Name (_PCL, Package () { \_SB })
-
-	Method (_STA, 0, NotSerialized)		// _STA: Status
+	Method (_STA)
 	{
-		If (ECON == 1)
-		{
-			Local0 = 0x0F
-		}
-		Else
-		{
-			Local0 = 0
-		}
-		Return (Local0)
+		Return (0x0F)
 	}
-
-	Method (_PSR, 0, NotSerialized)		// _PSR: Power Source
+	Method (_PSR, 0)
 	{
-		If (ECPS & 0x01)
+		If (ECPS && 0x01)
 		{
-			\PWRS = 1
+			PWRS = 0x01
+		} Else {
+			PWRS = 0x00
 		}
-		Else
-		{
-			\PWRS = 0
-		}
-		Return (\PWRS)
+		Return(PWRS)
 	}
-}
-
-#if CONFIG(BOARD_STARLABS_LABTOP_KBL)
-Method (_Q0A, 0, NotSerialized)			// AC Power Connected
-#else
-Method (_QA0, 0, NotSerialized)			// AC Power Connected
-#endif
-{
-	If (ECPS & 0x01)
+	Method (_PCL, 0)
 	{
-		\PWRS = 1
+		Return (
+			Package() { _SB }
+		)
 	}
-	Else
-	{
-		\PWRS = 0
-	}
-
-	Notify (BAT0, 0x81)
-	Notify (ADP1, 0x80)
-}
-
-Method(_Q0B, 0, NotSerialized)			// Battery Connected
-{
-	Notify (BAT0, 0x81)
-	Notify (BAT0, 0x80)
 }

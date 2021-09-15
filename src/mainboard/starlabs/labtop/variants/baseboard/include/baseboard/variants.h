@@ -15,4 +15,5 @@ const struct pad_config *variant_early_gpio_table(size_t *num);
 void devtree_update(void);
 struct device *variant_devtree_update(void);
 
+void disable_sixteen(void);
 #endif /* _BASEBOARD_VARIANTS_H_ */

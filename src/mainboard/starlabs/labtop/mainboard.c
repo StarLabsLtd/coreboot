@@ -5,6 +5,7 @@
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
+#include <limits.h>
 #include <option.h>
 #include <smbios.h>
 #include <types.h>
@@ -98,4 +99,15 @@ void devtree_update(void)
 		else
 			cfg->usb2_ports[3].enable = 0;
 	}
+}
+
+/* Change 16.0 to off instead of hidden when CSME is disabled */
+void disable_sixteen(void)
+{
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	if (me_state == UINT_MAX)
+		return;
+
+	struct device *me_dev = pcidev_on_root(0x16, 0);
+	me_dev->enabled = !me_state;
 }

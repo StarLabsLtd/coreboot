@@ -21,18 +21,19 @@ struct device *variant_devtree_update(void)
 	/* Update PL2 based on CMOS settings */
 	switch (get_uint_option("tdp", 0)) {
 	case 1:
-		soc_conf_2core->tdp_pl1_override = 17;
-		soc_conf_4core->tdp_pl1_override = 17;
-		soc_conf_2core->tdp_pl2_override = 20;
-		soc_conf_4core->tdp_pl2_override = 20;
+		soc_conf_2core->tdp_pl1_override = 15;
+		soc_conf_4core->tdp_pl1_override = 15;
+		soc_conf_2core->tdp_pl2_override = 25;
+		soc_conf_4core->tdp_pl2_override = 25;
 		break;
 	case 2:
-		soc_conf_2core->tdp_pl1_override = 20;
-		soc_conf_4core->tdp_pl1_override = 20;
-		soc_conf_2core->tdp_pl2_override = 28;
-		soc_conf_4core->tdp_pl2_override = 28;
+		soc_conf_2core->tdp_pl1_override = 28;
+		soc_conf_4core->tdp_pl1_override = 28;
+		soc_conf_2core->tdp_pl2_override = 40;
+		soc_conf_4core->tdp_pl2_override = 40;
 		break;
 	default:
+		/* TODO: Disable Turbo */
 		soc_conf_2core->tdp_pl1_override = 15;
 		soc_conf_4core->tdp_pl1_override = 15;
 		soc_conf_2core->tdp_pl2_override = 15;

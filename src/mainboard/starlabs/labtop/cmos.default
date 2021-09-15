@@ -5,13 +5,14 @@ debug_level=Debug
 # cpu
 hyper_threading=Enable
 vtd=Enable
-tdp=15W
+power_profile=Balanced
 me_state=Disable
 # Devices
 wireless=Enable
 webcam=Enable
 microphone=Enable
 legacy_8254_timer=Enable
+usb_always_on=Disable
 # EC
 kbl_timeout=30 seconds
 fn_ctrl_swap=Disable
