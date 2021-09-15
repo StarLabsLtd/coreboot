@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
+#define EC_GPE_SCI 0x6e /* GPP_??? */
+#else
+#define EC_GPE_SCI 0x50 /* GPP_E16 */
+#endif
+
 #include <acpi/acpi.h>
 DefinitionBlock(
 	"dsdt.aml",
@@ -40,22 +46,12 @@ DefinitionBlock(
 	#include <southbridge/intel/common/acpi/sleepstates.asl>
 
 	/* Star Labs EC */
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-	#define EC_GPE_SCI 0x6e /* GPP_??? */
 	#include <ec/starlabs/merlin/acpi/ec.asl>
-#else
-	#define EC_GPE_SCI 0x50 /* GPP_E16 */
-	#include <ec/starlabs/it8987/acpi/ec.asl>
-#endif
 
 	/* HID Driver */
 	Scope (\_SB)
 	{
-#if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 		#include <ec/starlabs/merlin/acpi/hid.asl>
-#else
-		#include <ec/starlabs/it8987/acpi/hid.asl>
-#endif
 	}
 
 	/* PS/2 Keyboard */
