@@ -152,8 +152,6 @@
 		testdisk
 		tmate
 		tmux
-		uefitool
-		uefitoolPackages.old-engine
 		unzip
 		upterm
 		usbutils

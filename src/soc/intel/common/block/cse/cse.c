@@ -9,13 +9,17 @@
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <intelblocks/cse.h>
+#include <limits.h>
+#include <option.h>
 #include <security/vboot/misc.h>
 #include <security/vboot/vboot_common.h>
+#include <soc/intel/common/reset.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/me.h>
 #include <string.h>
 #include <timer.h>
+#include <types.h>
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
 
@@ -910,12 +914,136 @@ static void cse_set_resources(struct device *dev)
 	pci_dev_set_resources(dev);
 }
 
+static void disable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to disable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct disable_command {
+		struct mkhi_hdr hdr;
+		uint32_t rule_id;
+		uint8_t rule_len;
+		uint32_t rule_data;
+	} __packed;
+	struct disable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_FWCAPS,
+			.command = MKHI_SET_ME_DISABLE,
+		},
+		.rule_id = ME_DISABLE_RULE_ID,
+		.rule_len = ME_DISABLE_RULE_LENGTH,
+		.rule_data = ME_DISABLE_COMMAND,
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size,
+							      HECI_MKHI_ADDR);
+	printk(BIOS_DEBUG, "HECI: Disable ME %s!\n", status ? "success" : "failure");
+}
+
+static void enable_me(void)
+{
+	printk(BIOS_DEBUG, "HECI: Sending command to enable\n");
+	int status;
+	struct mkhi_hdr reply;
+	struct enable_command {
+		struct mkhi_hdr hdr;
+	};
+	struct enable_command msg = {
+		.hdr = {
+			.group_id = MKHI_GROUP_ID_BUP_COMMON,
+			.command = MKHI_SET_ME_ENABLE,
+		},
+	};
+	size_t reply_size;
+	status = heci_send_receive(&msg, sizeof(msg), &reply, &reply_size,
+							      HECI_MKHI_ADDR);
+	printk(BIOS_DEBUG, "HECI: Enable ME %s!\n", status ? "success" : "failure");
+}
+
+static void cse_enable_when_disabled(void)
+{
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	printk(BIOS_DEBUG, "ME: Version: 0.0.0.0\n");
+
+	if (!me_state)
+		enable_me();
+
+	/* Currently not in state 0 so reset */
+	if (!me_state) {
+		if (cse_is_hfs1_cws_normal() || cse_is_hfs1_com_normal())
+			do_global_reset();
+	}
+}
+
+static void cse_set_state(struct device *dev)
+{
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	if (me_state == UINT_MAX)
+		return;
+
+	struct version {
+		uint16_t minor;
+		uint16_t major;
+		uint16_t build;
+		uint16_t hotfix;
+	} __packed;
+
+	struct fw_ver_resp {
+		struct mkhi_hdr hdr;
+		struct version code;
+		struct version rec;
+		struct version fitc;
+	} __packed;
+
+	const struct mkhi_hdr fw_ver_msg = {
+		.group_id = MKHI_GROUP_ID_GEN,
+		.command = MKHI_GEN_GET_FW_VERSION,
+	};
+
+	struct fw_ver_resp resp;
+	size_t resp_size = sizeof(resp);
+
+	printk(BIOS_DEBUG, "CMOS: me_state = %d\n", me_state);
+
+	/* If cse is disabled, go to disabled */
+	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal()) {
+		cse_enable_when_disabled();
+		return;
+	}
+
+	/* Currently in state 0 and we want 3 */
+	if (me_state)
+		disable_me();
+
+	heci_reset();
+
+	/* Check the firmware version to check it's disabled */
+	if (!heci_send_receive(&fw_ver_msg, sizeof(fw_ver_msg), &resp, &resp_size,
+								HECI_MKHI_ADDR)) {
+		cse_enable_when_disabled();
+		return;
+	}
+
+	if (resp.hdr.result) {
+		cse_enable_when_disabled();
+		return;
+	}
+
+	/* Hasn't changed states, reset and try again */
+	if (me_state)
+		do_global_reset();
+
+	printk(BIOS_DEBUG, "ME: Version: %u.%u.%u.%u\n", resp.code.major,
+			resp.code.minor, resp.code.hotfix, resp.code.build);
+}
+
 static struct device_operations cse_ops = {
 	.set_resources		= cse_set_resources,
 	.read_resources		= pci_dev_read_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= pci_dev_init,
 	.ops_pci		= &pci_dev_ops_pci,
+	.enable			= cse_set_state,
 };
 
 static const unsigned short pci_device_ids[] = {

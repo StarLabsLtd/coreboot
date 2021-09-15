@@ -1,0 +1,146 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+Method (_Q0D)					// Event: Lid Opened
+{
+	\LIDS = LSTE
+	Notify (LID0, 0x80)
+}
+
+Method (_Q0C)					// Event: Lid Closed
+{
+	\LIDS = LSTE
+	Notify (LID0, 0x80)
+}
+
+Method (_Q0A)					// Event: AC Power Connected
+{
+	Notify (BAT0, 0x81)
+	Notify (ADP1, 0x80)
+}
+
+Method (_Q0B, 0, NotSerialized)			// Event: AC Power Disconnected
+{
+	Notify (BAT0, 0x81)
+	Notify (BAT0, 0x80)
+}
+
+Method (_Q06)					// Event: Backlight Brightness Down
+{
+	^^^^HIDD.HPEM (20)
+}
+
+Method (_Q07)					// Event: Backlight Brightness Up
+{
+	^^^^HIDD.HPEM (19)
+}
+
+Method (_Q08)					// Event: Function Lock
+{
+	FLKS = FLKA
+}
+
+Method (_Q04)					// Event: Trackpad Lock
+{
+	TPLS = TPLA
+}
+// 
+// TODO:
+// Below Q Events need to be added
+//
+// Method (_Q__)					// Event: Keyboard Backlight Brightness
+// {
+//	KLBC = KLBE
+//	KLSC = KLSE
+// }
+//
+
+Method (_Q99)					// Event: Airplane Mode
+{
+	^^^^HIDD.HPEM (8)
+}
+
+Method (_QD5)					// Event: 10 Second Power Button Pressed
+{
+	Store ("EC: 10 Second Power Button Pressed", Debug)
+}
+
+Method (_QD6)					// Event: 10 Second Power Button Released
+{
+	Store ("EC: 10 Second Power Button Release", Debug)
+}
+
+Method (_Q22, 0, NotSerialized)			// Event: CHARGER_T
+{
+	Store ("EC: CHARGER_T", Debug)
+}
+
+Method (_Q40)					// Event: AC_DC
+{
+	SMB2 = 0xC6
+}
+
+Method (_Q41)					// Event: DC_20_0
+{
+	SMB2 = 0xC7
+}
+
+Method (_Q42)					// Event: DC_60_20
+{
+	SMB2 = 0xC9
+}
+
+Method (_Q43)					// Event: DC_100_60
+{
+	SMB2 = 0xC9
+}
+
+Method (_Q44)					// Event: AC_ONLY
+{
+	SMB2 = 0xCA
+}
+
+Method (_Q80, 0, NotSerialized)			// Event: VOLUME_UP
+{
+	Store ("EC: VOLUME_UP", Debug)
+}
+
+Method (_Q81, 0, NotSerialized)			// Event: VOLUME_DOWN
+{
+	Store ("EC: VOLUME_DOWN", Debug)
+}
+
+Method (_Q54, 0, NotSerialized)			// Event: PWRBTN
+{
+	Store ("EC: PWRBTN", Debug)
+}
+
+Method (_QF0)					// Event: Temperature Report
+{
+	Store ("EC: Temperature Report", Debug)
+}
+
+Method (_QF1)					// Event: Temperature Trigger
+{
+	Notify (SEN3, 0x90)
+}
+
+/*
+ * The below events are unique to this platform.
+ */
+
+
+Method (_Q02, 0, NotSerialized)			// Event: APP
+{
+	Store ("EC: APP", Debug)
+}
+
+Method (_Q82, 0, NotSerialized)			// Event: MIC
+{
+	Store ("EC: MIC", Debug)
+}
+
+Method (_Q83, 0, NotSerialized)			// Event: MUTE
+{
+	Store ("EC: MUTE", Debug)
+}
+

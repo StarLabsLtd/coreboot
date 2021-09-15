@@ -1,0 +1,21 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config EC_STARLABS_ITE
+	bool
+	select EC_ACPI
+	help
+	  Interface to ITE embedded controller principally in Star Labs notebooks.
+
+config EC_STARLABS_IT_BIN
+	bool "Add Star Labs EC binary file"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  The EC binary
+
+config EC_STARLABS_MERLIN
+	bool "Use open-source ec aka Merlin"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  Use open source embedded controller firmware

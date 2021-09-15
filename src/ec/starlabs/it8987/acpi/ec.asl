@@ -1,19 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#define ASL_PVOL_DEFOF_NUM 0xe8
-
-Scope(\)
-{
-	// These fields come from the Global NVS area
-	Field (GNVS,AnyAcc,Lock,Preserve)
-	{
-		Offset(33),
-		B2SC, 8,		// (33) Battery 2 Stored Capacity
-		Offset(36),
-		B2SS, 8			// (36) Battery 2 Stored Status
-	}
-}
-
 Scope (\_SB)
 {
 	#include "hid.asl"
@@ -33,7 +19,7 @@ Scope (\_SB.PCI0.LPCB)
 	// Our embedded controller device.
 	Device (H_EC)
 	{
-		Name (_HID, EISAID ("PNP0C09"))		// ACPI Embedded Controller
+		Name (_HID, EisaId ("PNP0C09"))		// ACPI Embedded Controller
 		Name (_UID, 1)
 		Name (_GPE, EC_GPE_SCI)
 
@@ -44,9 +30,9 @@ Scope (\_SB.PCI0.LPCB)
 		Name(WIBT, 0)
 		Name(APST, 0)
 
-		Name(ECON, 1)		// AC debug
-		Name(BNUM, 0)		// Number Of Batteries Present
-		Name(PVOL, ASL_PVOL_DEFOF_NUM)
+		Name(ECON, 1)				// AC debug
+		Name(BNUM, 0)				// Number Of Batteries Present
+		Name(PVOL, 0xe8)
 		Name(B1CC, 0)
 		Name(B2CC, 0)
 
@@ -65,7 +51,6 @@ Scope (\_SB.PCI0.LPCB)
 		Name(PPSL, 0)
 		Name(PSTP, 0)
 		Name(RPWR, 0)
-		Name(LIDS, 0)
 		Name(SLPC, 0)
 		Name(VPWR, 0)
 		Name(WTMS, 0)
@@ -80,15 +65,16 @@ Scope (\_SB.PCI0.LPCB)
 		Name(IWCW, 0)
 		Name(IWCR, 0)
 		Name(BTEN, 0)
+
 		Mutex(ECMT, 0)
 
+		Name (BFFR, ResourceTemplate()
+		{
+			IO (Decode16, 0x62, 0x62, 0x00, 0x01)
+			IO (Decode16, 0x66, 0x66, 0x00, 0x01)
+		})
 		Method (_CRS, 0, Serialized)
 		{
-			Name (BFFR, ResourceTemplate()
-			{
-				IO (Decode16, 0x62, 0x62, 0x00, 0x01)
-				IO (Decode16, 0x66, 0x66, 0x00, 0x01)
-			})
 			Return (BFFR)
 		}
 
@@ -102,65 +88,31 @@ Scope (\_SB.PCI0.LPCB)
 			Return (0x00)
 		}
 
-		Name (ECOK, Zero)
 		Method(_REG, 2, NotSerialized)
 		{
-			If ((Arg0 == 0x03) && (Arg1 == 0x01))
-			{
-				ECOS = 1
-				ECAV = 1
+			// Initialise the AC Power State
+			Store ((ECRD (RefOf (ECPS)) & 0x01), \PWRS)
 
-				// Unconditionally fix up the Battery and Power State.
+			// Inform platform code
+			\PNOT ()
 
-				// Initialize the Number of Present Batteries.
-				// 1 = Real Battery 1 is present
-				// 2 = Real Battery 2 is present
-				// 3 = Real Battery 1 and 2 are present
-				BNUM = 0
-				BNUM |= ((ECRD (RefOf (ECWR)) & 0x02) >> 1)
-
-				// Save the current Power State for later.
-				// Store (PWRS, Local0)
-
-				// Initialize the Power State.
-				// BNUM = 0 = Virtual Power State
-				// BNUM > 0 = Real Power State
-				If (BNUM == 0x00)
-				{
-					\PWRS = ECRD (RefOf (VPWR))
-				}
-				Else
-				{
-					\PWRS = (ECRD (RefOf (ECWR)) & 0x01)
-				}
-				PNOT()
-
-				/* Initialize LID switch state */
-				\LIDS = LIDS
-			}
+			/* Initialize LID switch state */
+			Store (LIDS, \LIDS)
 
 			// Flag that the OS supports ACPI.
 			\_SB.PCI0.LPCB.H_EC.ECOS = 1
 		}
-
-		Name (S3OS, Zero)
-                Method (PTS, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
-                        If (ECOK) {
-				S3OS = ECOS
-			}
+		Method (PTS, 1, Serialized)
+		{
+			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
 			\_SB.PCI0.LPCB.H_EC.ECOS = 0
-                }
+		}
 
-                Method (WAK, 1, Serialized)
-                {
-                        Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
-			If (ECOK) {
-				ECOS = S3OS
-			}
-                        \_SB.PCI0.LPCB.H_EC.ECOS = 1
-                }
+		Method (WAK, 1, Serialized)
+		{
+			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+		}
 
 		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
 		Field (SIPR, ByteAcc, Lock, Preserve)
@@ -172,9 +124,10 @@ Scope (\_SB.PCI0.LPCB)
 		OperationRegion(ECF2, EmbeddedControl, 0, 0xFF)
 		Field (ECF2, ByteAcc, Lock, Preserve)
 		{
-			XXX0, 8,	// EC Firmware main- version number.
-			XXX1, 8,	// EC Firmware sub- version number.
-			XXX2, 8,	// EC Firmware test- version number.
+			Offset(0x00),
+			XXX0, 8,	// EC Firmware main - version number.
+			XXX1, 8,	// EC Firmware sub - version number.
+			XXX2, 8,	// EC Firmware test - version number.
 
 			Offset(0x06),
 			SKID, 8,	// SKU ID
@@ -215,7 +168,7 @@ Scope (\_SB.PCI0.LPCB)
 			TER4, 8,	// Thermal Sensor Register 3 (skin temperature)
 
 			Offset(0x63),
-			TSI,4,	// [0..3]  0 = SEN1 - CPU VR temperature sensor
+			TSI,  4,	// [0..3]  0 = SEN1 - CPU VR temperature sensor
 					// 1 = SEN2 - Heat Exchanger temperature sensor
 					// 2 = SEN3 - Skin temperature sensor
 					// 3 = SEN4 - Ambient temperature sensor
@@ -225,14 +178,14 @@ Scope (\_SB.PCI0.LPCB)
 			TSHT, 8,	// Thermal Sensor (N) high trip point(set default value =70)
 			TSLT, 8,	// Thermal Sensor (N) low trip point (set default value =70)
 			TSSR, 8,	// TSSR- thermal sensor status register (set bit2 =1)
-					// BIT0:SEN1 - CPU VR Temp Sensor Trip Flag
-					// BIT1:SEN2 - Fan Temp Sensor Trip Flag
-					// BIT2:SEN3 - Skin Temp Sensor Trip Flag
-					// BIT3:SEN4 - Ambient Temp Sensor Trip Flag
-					// BIT4:Reserved
-					// BIT5:Reserved
-					// BIT6:Reserved
-					// BIT7:Reserved
+					// BIT0: SEN1 - CPU VR Temp Sensor Trip Flag
+					// BIT1: SEN2 - Fan Temp Sensor Trip Flag
+					// BIT2: SEN3 - Skin Temp Sensor Trip Flag
+					// BIT3: SEN4 - Ambient Temp Sensor Trip Flag
+					// BIT4: Reserved
+					// BIT5: Reserved
+					// BIT6: Reserved
+					// BIT7: Reserved
 			CHGR, 16,	// Charge Rate
 
 			Offset(0x70),
@@ -242,12 +195,11 @@ Scope (\_SB.PCI0.LPCB)
 			TER2, 8,	// Charger Temperature, Charger thermistor support
 
 			Offset(0x7F),
-			LSTE, 1,	// Lid feature
-					// BIT0LID GPI
-			, 7,	// Reserved
+			LIDS, 1,	// BIT0 LID GPI
+			    , 7,	// Reserved
 
 			Offset(0x80),
-			ECWR, 8,	// AC & Battery status
+			ECPS, 8,	// AC & Battery status
 			XX10, 8,	// Battery#1 Model Number Code
 			XX11, 16,	// Battery#1 Serial Number
 			B1DC, 16,	// Battery#1 Design Capacity
@@ -320,15 +272,11 @@ Scope (\_SB.PCI0.LPCB)
 			CTL7, 8,
 
 			Offset(0xF0),
-			, 3,// BIT0 .. BIT2 Reserved
-			TPCC, 1,// BIT3 TypeC connection bit
-			, 2,// BIT4 .. BIT5 Reserved
-			DRMD, 1,// Bit6 Dual Role Mode. 0->DFP: Host mode; 1->UFP: Device Mode.
-			, 1,// BIT7 Reserved
-		}
-
-		Method (ECMD, 0, Serialized)
-		{
+			    , 3,	// BIT0 .. BIT2 Reserved
+			TPCC, 1,	// BIT3 TypeC connection bit
+			    , 2,	// BIT4 .. BIT5 Reserved
+			DRMD, 1,	// Bit6 Dual Role Mode. 0->DFP: Host mode; 1->UFP: Device Mode.
+			    , 1,	// BIT7 Reserved
 		}
 
 		Method (ECWT, 2, Serialized,,, {IntObj, FieldUnitObj})
@@ -371,9 +319,11 @@ Scope (\_SB.PCI0.LPCB)
 		#include "ac.asl"
 		#include "lid.asl"
 
-		// Method(_Q45) // SMM Mode - Not used in coreboot
-		// {
-		//	SMB2 = 0xC1
-		// }
+#if CONFIG(BOARD_STARLABS_LABTOP_CML)
+		Method(_Q45) // SMM Mode
+		{
+			SMB2 = 0xC1
+		}
+#endif
 	}
 }
