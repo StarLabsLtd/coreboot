@@ -42,7 +42,7 @@ DefinitionBlock(
 	/* Star Labs EC */
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
 	#define EC_GPE_SCI 0x6e /* GPP_??? */
-	#include <ec/starlabs/it5570/acpi/ec.asl>
+	#include <ec/starlabs/merlin/acpi/ec.asl>
 #else
 	#define EC_GPE_SCI 0x50 /* GPP_E16 */
 	#include <ec/starlabs/it8987/acpi/ec.asl>
@@ -52,7 +52,7 @@ DefinitionBlock(
 	Scope (\_SB)
 	{
 #if CONFIG(BOARD_STARLABS_STARBOOK_TGL)
-		#include <ec/starlabs/it5570/acpi/hid.asl>
+		#include <ec/starlabs/merlin/acpi/hid.asl>
 #else
 		#include <ec/starlabs/it8987/acpi/hid.asl>
 #endif

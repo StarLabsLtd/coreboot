@@ -3,6 +3,6 @@
 #ifndef _VARIANT_EC_H_
 #define _VARIANT_EC_H_
 
-#include <ec/starlabs/it5570/ec.h>
+#include <ec/starlabs/merlin/ec.h>
 
 #endif

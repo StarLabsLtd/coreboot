@@ -62,7 +62,7 @@ Scope (\_SB.PCI0.LPCB)
 			SMB2, 8
 		}
 
-		#include "/emem.asl"
+		#include "emem.asl"
  
 		// ECRD (Embedded Read Method)
 		//
