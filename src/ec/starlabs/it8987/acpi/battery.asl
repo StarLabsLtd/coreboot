@@ -2,20 +2,22 @@
 
 Device (BAT0)
 {
-	Name (_HID, EisaId("PNP0C0A"))
-	Name (_UID, 0)
-	Method (_STA, 0, NotSerialized)
+	Name (_HID, EisaId ("PNP0C0A"))
+	Name (_UID, 1)
+	Name (_PCL, Package () { \_SB })
+
+	// Battery Slot Status
+	Method (_STA, 0)
 	{
-		// Battery Status
-		// 0x80 BIT1 0x01 = Present
-		// 0x80 BIT1 0x00 = Not Present
-		If(ECPS && 0x02)
+		If (ECPS & 0x02)
 		{
-			Return(0x1F)
+			Return (0x1F)
 		}
-		Return(0x0F)
+		Return (0x0F)
 	}
-	Name (BPKG, Package(13)
+
+	// Default Static Battery Information
+	Name (BPKG, Package ()
 	{
 		1,		//  0: Power Unit
 		0xFFFFFFFF,	//  1: Design Capacity
@@ -26,43 +28,52 @@ Device (BAT0)
 		0,		//  6: Design capacity of low
 		0x64,		//  7: Battery capacity granularity 1
 		0,		//  8: Battery capacity granularity 2
-		"597077-3S",	//  9: Model Number
-		"3ICP6/70/77",	// 10: Serial Number
+		"CN6613-2S3P",	//  9: Model Number
+		"6UA3",		// 10: Serial Number
 		"Real",		// 11: Battery Type
-		"DGFGE"		// 12: OEM Information
+		"GDPT"		// 12: OEM Information
 	})
+
+	Name (B1CN, "Real")
+
 	Method (_BIF, 0, Serialized)
 	{
-		BPKG[0x01] = B1DC
-		BPKG[0x02] = B1FC
-		BPKG[0x04] = B1DV
-		If(B1FC)
+		BPKG[1] = B1DC
+		BPKG[2] = B1FC
+		BPKG[4] = B1FV
+		If (B1FC)
 		{
-			BPKG[0x05] = B1FC / 0x0a
-			BPKG[0x06] = B1FC / 0x64
-			BPKG[0x07] = B1DC / 0x64
+			BPKG[5] = B1FC / 10
+			BPKG[6] = B1FC / 25
+			BPKG[7] = B1DC / 100
 		}
-		Return(BPKG)
+
+		Return (BPKG)
 	}
+
 	Name (PKG1, Package (4)
 	{
-		0xFFFFFFFF,     // Battery State
-		0xFFFFFFFF,     // Battery Present Rate
-		0xFFFFFFFF,     // Battery Remaining Capacity
-		0xFFFFFFFF,     // Battery Present Voltage
+		0xFFFFFFFF,	// Battery State
+		0xFFFFFFFF,	// Battery Present Rate
+		0xFFFFFFFF,	// Battery Remaining Capacity
+		0xFFFFFFFF,	// Battery Present Voltage
 	})
-	Method (_BST, 0, NotSerialized)
+
+	Method (_BST, 0, Serialized)
 	{
-		PKG1[0x00] = (B1ST & 0x07)
-		PKG1[0x01] = B1PR
-		PKG1[0x02] = B1RC
-		PKG1[0x03] = B1PV
-		Return(PKG1)
-	}
-	Method (_PCL, 0, NotSerialized)
-	{
-		Return (
-			Package() { _SB }
-		)
+
+
+		PKG1[0] = B1ST & 0x07
+		If (B1ST & 0x01)
+		{
+			PKG1[1] = B1CR
+		}
+		Else
+		{
+			PKG1[1] = B1CR
+		}
+		PKG1[2] = B1RC
+		PKG1[3] = B1VT
+		Return (PKG1)
 	}
 }

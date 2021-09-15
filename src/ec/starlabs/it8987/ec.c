@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
-#include <delay.h>
 #include <device/device.h>
 #include <device/pnp.h>
-#include <ec/acpi/ec.h>
-#include <option.h>
 #include <pc80/keyboard.h>
+#include <ec/acpi/ec.h>
+#include <delay.h>
+#include <option.h>
 
-#include "chip.h"
 #include "ec.h"
+#include "chip.h"
 
 u16 it_get_version(void)
 {
@@ -43,184 +43,29 @@ static void it8987_init(struct device *dev)
 	printk(BIOS_DEBUG, "IT8987: Initializing keyboard.\n");
 	pc_keyboard_init(NO_AUX_DEVICE);
 
-	/*
-	 * Restore settings from CMOS into EC RAM:
-	 *
-	 * kbl_timeout
-	 * fn_ctrl_swap
-	 * max_charge
-	 * fan_mode
-	 * fn_lock_state
-	 * trackpad_state
-	 * kbl_brightness
-	 * kbl_state
-	 *
-	 */
+	/* Enable the keyboard backlight support. */
+	ec_write(0x18, 0xaa);
+	ec_write(0x19, 0xdd);
+
+	/* Set the timeout for the keyboard backlight. */
+	ec_write(ECRAM_KBL_TIMEOUT, get_uint_option("kbl_timeout", 0));
 
 	/*
-	 * Keyboard Backlight Timeout
-	 *
-	 * Setting:	kbl_timeout
-	 *
-	 * Values:	30 Seconds, 1 Minute, 3 Minutes, 5 Minutes, Never
-	 * Default:	30 Seconds
-	 *
+	 * Set the correct state for the Ctrl Fn Reverse option. This
+	 * swaps the Ctrl and Fn keys to make it like an Apple keyboard.
 	 */
-	switch (get_uint_option("kbl_timeout", 0)) {
-		case MIN_1:
-			ec_write(ECRAM_KBL_TIMEOUT, MIN_1);
-			break;
-		case MIN_3:
-			ec_write(ECRAM_KBL_TIMEOUT, MIN_3);
-			break;
-		case MIN_5:
-			ec_write(ECRAM_KBL_TIMEOUT, MIN_5);
-			break;
-		case NEVER:
-			ec_write(ECRAM_KBL_TIMEOUT, NEVER);
-			break;
-		default:
-			ec_write(ECRAM_KBL_TIMEOUT, SEC_30);
-			break;
-	}
-
+	ec_write(ECRAM_FN_CTRL_REVERSE, get_uint_option("fn_ctrl_swap", 0));
 	/*
-	 * Fn Ctrl Reverse
-	 *
-	 * Setting:	fn_ctrl_swap
-	 *
-	 * Values:	Enabled, Disabled
-	 * Default:	Disabled
-	 *
+	 * Copy the stored state of the fn_lock_state CMOS variable to the
+	 * corresponding location within the EC RAM.
 	 */
-	switch (get_uint_option("fn_ctrl_swap", 0)) {
-		case CTRL_FN:
-			ec_write(ECRAM_FN_CTRL_REVERSE, CTRL_FN);
-			break;
-		default:
-			ec_write(ECRAM_FN_CTRL_REVERSE, FN_CTRL);
-			break;
-	}
-
-	/*
-	 * Maximum Charge Level
-	 *
-	 * Setting:	max_charge
-	 *
-	 * Values:	60%, 80%, 100%
-	 * Default:	100%
-	 *
-	 */
-	switch (get_uint_option("max_charge", 0)) {
-		case CHARGE_80:
-			ec_write(ECRAM_MAX_CHARGE, VAL_CHARGE_80);
-			break;
-		case CHARGE_60:
-			ec_write(ECRAM_MAX_CHARGE, VAL_CHARGE_60);
-			break;
-		default:
-		 	ec_write(ECRAM_MAX_CHARGE, VAL_CHARGE_100);
-			break;
-	}
-	
-	/*
-	 * Fan Mode
-	 *
-	 * Setting:	fan_mode
-	 *
-	 * Values:	Quiet, Normal, Aggressive
-	 * Default:	Normal
-	 *
-	 */
-	switch (get_uint_option("fan_mode", 0)) {
-		case FAN_AGGRESSIVE:
-	 		ec_write(ECRAM_FAN_MODE, VAL_FAN_AGGRESSIVE);
-			break;
-		case FAN_QUIET:
-			ec_write(ECRAM_FAN_MODE, VAL_FAN_QUIET);
-			break;
-		default:
-			ec_write(ECRAM_FAN_MODE, VAL_FAN_NORMAL);
-			break;
-	}
-	
-	/*
-	 * Function Lock
-	 *
-	 * Setting:	fn_lock_state
-	 *
-	 * Values:	Locked, Unlocked
-	 * Default:	Locked
-	 *
-	 */
-	switch (get_uint_option("fn_lock_state", 0)) {
-		case UNLOCKED:
-			ec_write(ECRAM_FN_LOCK_STATE, UNLOCKED);
-			break;
-		default:
-			ec_write(ECRAM_FN_LOCK_STATE, LOCKED);
-			break;
-	}
-
-	/*
-	 * Trackpad State
-	 *
-	 * Setting:	trackpad_state
-	 *
-	 * Values:	Enabled, Disabled
-	 * Default:	Enabled
-	 *
-	 */
-	switch (get_uint_option("trackpad_state", 0)) {
-		case TRACKPAD_DISABLED:
-			ec_write(ECRAM_TRACKPAD_STATE, VAL_TRACKPAD_DISABLED);
-			break;
-		default:
-			ec_write(ECRAM_TRACKPAD_STATE, VAL_TRACKPAD_ENABLED);
-			break;
-	}
-
-	/*
-	 * Keyboard Backlight Brightness
-	 *
-	 * Setting:	kbl_brightness
-	 *
-	 * Values:	Off, High
-	 * Default:	High
-	 *
-	 */
-	switch (get_uint_option("kbl_brightness", 0)) {
-		case KBL_OFF:
-			ec_write(ECRAM_KBL_BRIGHTNESS, VAL_KBL_OFF);
-			break;
-		default:
-			ec_write(ECRAM_KBL_BRIGHTNESS, VAL_KBL_HIGH);
-			break;
-	}
-	
-	/*
-	 * Keyboard Backlight State
-	 *
-	 * Setting:	kbl_state
-	 *
-	 * Values:	Off, On
-	 * Default:	On
-	 *
-	 */
-	switch (get_uint_option("kbl_state", 0)) {
-		case KBL_DISABLED:
-			ec_write(ECRAM_KBL_STATE, VAL_KBL_DISABLED);
-			break;
-		default:
-			ec_write(ECRAM_KBL_STATE, VAL_KBL_ENABLED);
-			break;
-	}
+	ec_write(ECRAM_FN_LOCK_STATE, get_uint_option("fn_lock_state", 0));
 }
 
 static struct device_operations ops = {
-	.init		= it8987_init,
-	.read_resources	= noop_read_resources,
-	.set_resources	= noop_set_resources,
+	.init = it8987_init,
+	.read_resources = noop_read_resources,
+	.set_resources = noop_set_resources,
 };
 
 static struct pnp_info pnp_dev_info[] = {

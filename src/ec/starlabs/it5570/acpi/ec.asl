@@ -1,233 +1,197 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include "external.asl"
+#define ASL_PVOL_DEFOF_NUM 0xe8
+
+Scope (\_SB)
+{
+	#include "hid.asl"
+}
+
+Scope (\_SB.PCI0)
+{
+	// Add the entries for the PS/2 keyboard and mouse.
+	#include <drivers/pc80/pc/ps2_controller.asl>
+}
 
 Scope (\_SB.PCI0.LPCB)
 {
+	// Include the definitions for accessing CMOS.
 	#include "cmos.asl"
 
-	Device (EC)
+	// Our embedded controller device.
+	Device (H_EC)
 	{
-		Name (_HID, EisaId ("PNP0C09"))
-		Name (_UID, 0x01)
-		Name (_GPE, EC_GPE_SCI)	
-		Name (ECAV, 0x00)				// Check if EC OpRegion accessed before Embedded Controller Driver loaded
-		Name (ECTK, 0x01)				// Embedded Controller Boot Resources Table Check to correct ECAV flag in the beginning
-		Name (B2ST, 0x00)
-		Name (CFAN, 0x00)
-		Name (CMDR, 0x00)
-		Name (DOCK, 0x00)
-		Name (PLMX, 0x00)
-		Name (PECH, 0x00)
-		Name (PECL, 0x00)
-		Name (PENV, 0x00)
-		Name (PINV, 0x00)
-		Name (PPSH, 0x00)
-		Name (PPSL, 0x00)
-		Name (PSTP, 0x00)
-		Name (RPWR, 0x00)
-		Name (VPWR, 0x00)
-		Name (WTMS, 0x00)
-		Name (AWT2, 0x00)
-		Name (AWT1, 0x00)
-		Name (AWT0, 0x00)
-		Name (DLED, 0x00)
-		Name (SPT2, 0x00)
-		Name (PB10, 0x00)
-		Name (IWCW, 0x00)
-		Name (IWCR, 0x00)
-		Name (PVOL, 0x00)
-		Mutex (ECMT, 0x00)
+		Name (_HID, EisaId ("PNP0C09"))		// ACPI Embedded Controller
+		Name (_UID, 1)
+		Name(ECAV, Zero)	// OS Bug Checks if EC OpRegion accessed before Embedded Controller Driver loaded
+		Name(ECTK, One)		// ECDT (Embedded Controller Boot Resources Table) Check to correct ECAV flag in the beginning
 
-		Name(BFFR, ResourceTemplate()
+		Mutex(ECMT, 0)		// EC Mutex
+
+		Name (BFFR, ResourceTemplate()
 		{
-			IO(Decode16, 0x0062, 0x0062, 0x00, 0x01)
-			IO(Decode16, 0x0066, 0x0066, 0x00, 0x01)
+			IO (Decode16, 0x62, 0x62, 0x00, 0x01)
+			IO (Decode16, 0x66, 0x66, 0x00, 0x01)
 		})
 
 		Method (_CRS, 0, Serialized)
 		{
-
-			Return(BFFR)
+			Return (BFFR)
 		}
-	
+
 		Method (_STA, 0, NotSerialized)
 		{
-			\LIDS = 0x03
+			// Store (0x03, \_SB.PCI0.GFX0.CLID)
 			Return (0x0F)
 		}
 
-		OperationRegion (SIPR, SystemIO, 0xB2, 0x1)
-		Field (SIPR, ByteAcc, Lock, Preserve) {
-			SMB2, 8
-		}
-
-		#include "emem.asl"
- 
-		// ECRD (Embedded Read Method)
-		//
-		// Handle all commands sent to EC by BIOS
-		//
-		// Arguments:
-		// Arg0 = Object to Read
-		//
-		// Return Value:
-		// Read Value
-		//
-		Method (ECRD, 1, Serialized, 0, IntObj, FieldUnitObj)
-		{
-			//
-			// Check for ECDT support, set ECAV to One if ECDT is supported by OS
-			// Only check once at beginning since ECAV might be clear later in certain conditions
-			//
-			If (ECTK) {
-				If (LGreaterEqual (_REV, 2)) {
-					ECAV = 0x01
-				}
-				ECTK = 0x00				// Clear flag for checking once only
-			}
-
-		Local0 = Acquire (ECMT, 1000)				// Save Acquired Result
-		If (Local0 == 0x00)					// Check for Mutex Acquisition
-		{
-			If (ECAV) {
-				Local1 = DerefOf (Arg0)			// Execute Read from EC
-				Release (ECMT)
-				Return (Local1)
-			} Else {
-				Release (ECMT)
-			}
-		}
-		Return (Local1)						// Return incase Arg0 doesnt exist
-	}
-
-	// ECWT (Embedded Write Method)
-	//
-	// Handle all commands sent to EC by BIOS
-	//
-	// Arguments:
-	// Arg0 = Value to Write
-	// Arg1 = Object to Write to
-	//
-	Method (ECWT, 2, Serialized,,,{IntObj, FieldUnitObj})
-	{
-		//
-		// Check for ECDT support, set ECAV to One if ECDT is supported by OS
-		// Only check once at beginning since ECAV might be clear later in certain conditions
-		//
-		If (ECTK) {
-			If (LGreaterEqual (_REV, 2)) {
-				ECAV = 0x01
-			}
-			ECTK = 0x00					// Clear flag for checking once only
-		}
-
-		Local0 = Acquire(ECMT, 1000)				// Save Acquired Result
-		If (Local0 == 0x00)					// Check for Mutex Acquisition
-		{
-		If (ECAV) {
-			Arg1 = Arg0					// Execute Write to EC
-		}
-		Release (ECMT)
-		}
-	}
-
-	// ECWR (Embedded Write Method)
-	//
-	// Handle all commands sent to EC by BIOS
-	//
-	// Arguments:
-	// Arg0 = Value to Write
-	// Arg1 = Object to Write to
-	//
-	// Return Value:
-	// None
-	//
-	Method (ECWR, 2, Serialized,,,{IntObj, FieldUnitObj})
-	{
-		Local0 = Acquire (ECMT, 1000)		// save Acquire result so we can check for Mutex acquired
-		If (Local0 == 0x00)			// check for Mutex acquired
-		{
-		If (ECAV) {
-			Arg1 = Arg0			// Execute Write to EC
-			Local1 = 0x00
-			While (1) {
-				If (Arg0 == DerefOf (Arg1)) {
-					Break
-				}
-				Sleep (1)
-				Arg1 = Arg0
-				Add (Local1, 1, Local1)
-				If (Local1 == 0x03) {
-					Break
-				}
-			}
-		}
-		Release (ECMT)
-		}
-	}
-
-	Method (ECMD, 0, Serialized)
-	{
-		Return (0x00)
-	}
-
-	Method (ECM1, 0, Serialized)
-	{
-		Return (0x00)
-	}
-
-	Method (ECNT, 0, Serialized)
-	{
-		Return (0x00)
-	}
-
-	#include "typec.asl"
-
-	Method (_Q79)			// Event: USB Type-C
-	{
-		UCEV()
-	}
-	
-	#include "ac.asl"
-	#include "battery.asl"
-
-
-		Method (_REG, 2, NotSerialized)
+		Method (_REG, 2)
 		{
 			If ((Arg0 == 0x03) && (Arg1 == 0x01))
 			{
-				// Load EC Driver
-				ECAV = 0x01
-
-				// Initialise the Lid State
-				\LIDS = LSTE
-
-				// Initialise the OS State
-				OSFG = 0x01
-
-				// Initialise the Power State
-				PWRS = (ECRD (RefOf(ECPS)) & 0x01)
-
-				// Inform the platform code
-				PNOT()
+				EREG()
 			}
 		}
-		#include "events.asl"	
+
+		Method (PTS, 1, Serialized)
+		{
+			Debug = Concatenate("EC: PTS: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 0
+		}
+
+		Method (WAK, 1, Serialized)
+		{
+			Debug = Concatenate("EC: WAK: ", ToHexString(Arg0))
+			\_SB.PCI0.LPCB.H_EC.ECOS = 1
+		}
+
+		OperationRegion (SMIP,SystemIO, 0xB2, 0x1)
+		Field (SMIP, ByteAcc, Lock, Preserve) {
+			SMB2, 8
+		}
+
+		// EC RAM fields
+		OperationRegion(ECF2, EmbeddedControl, 0, 0xFF)
+		Field (ECF2, ByteAcc, Lock, Preserve)
+		{
+			Offset(0x00),
+			ECMV, 8,	// EC Firmware main - version number.
+			ECSV, 8,	// EC Firmware sub - version number.
+			KBVS, 8,	// EC Firmware test - version number.
+			ECTV, 8,	//0x03		EC Firmware test version
+			ECOS, 8,	//0X04		Flag for enter OS //ICL_010+
+
+			Offset(0x2C),
+			FNST, 8,
+
+			Offset(0x7F),
+			LIDS, 1,	// BIT0 LID GPI
+			    , 7,	// Reserved
+
+			Offset(0x80),
+			ECPS, 8,	//0x80		AC & Battery status
+			B1MN, 8,	//0x81		Battery#1 Model Number Code
+			B1SN, 16,	//0x82~83	Battery#1 Serial Number
+			B1DC, 16,	//0x84~85	Battery#1 Design Capacity
+			B1DV, 16,	//0x86~87	Battery#1 Design Voltage
+			B1FC, 16,	//0x88~89	Battery#1 Last Full Charge Capacity
+			B1TP, 16,	//0x8A~8B	Battery#1 Trip Point
+			B1ST, 8,	//0x8C		Battery#1 State
+			B1PR, 16,	//0x8D~8E	Battery#1 Present Rate
+			B1RC, 16,	//0x8F~90	Battery#1 Remaining Capacity
+			B1PV, 16,	//0x91~92	Battery#1 Present Voltage
+			B1RP, 8,	//0x93		Battery#1 Remaining percentage
+		}
+
+		Method (ECRD, 1, Serialized, 0, IntObj, FieldUnitObj)
+		{
+			// Check for ECDT support, set ECAV to One if ECDT is supported by OS
+			// Only check once at beginning since ECAV might be clear later in certain conditions
+			If (ECTK)
+			{
+				If (_REV >= 2)
+				{
+					ECAV = 0x01
+				}
+				ECTK = 0x00   // Clear flag for checking once only
+			}
+
+			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired
+			If (Local0 == 0x00)
+			{
+				If (ECAV)
+				{
+					Store(DerefOf (Arg0), Local1) // Execute Read from EC
+					Release(ECMT)
+					Return(Local1)
+				}
+				Else
+				{
+					Release(ECMT)
+				}
+			}
+			Return(0)
+		}
+
+		Method(ECWT,2,Serialized,,, {IntObj, FieldUnitObj})
+		{
+			If (ECTK)
+			{
+				If (_REV >= 2)
+				{
+					ECAV = 1
+				}
+				ECTK = 0x00
+			}
+
+			Local0 = Acquire(ECMT, 1000) // save Acquire result so we can check for Mutex acquired
+			If (Local0 == 0x00)
+			{
+				If (ECAV)
+				{
+					Arg1 = Arg0 // Execute Write to EC
+				}
+				Release(ECMT)
+			}
+		}
+
+		// EREG method will be used in _REG (evaluated by OS without
+		// ECDT support) or _INI (for OS with ECDT support)
+		Method (EREG)
+		{
+			// Update ECAV Object. ASL should check for this value
+			// to be 1 before accessing EC OpRegion.
+			ECAV = 1
+
+			// LIDS = ECRD (RefOf (LSTE))
+			/* Initialize LID switch state */
+			Store (LIDS, \LIDS)
+
+			// Report OSFG to notify EC
+			ECWT(0x01, RefOf (ECOS))
+
+			// Save the current Power State for later.
+			// PWRS = Local0
+
+			// Update power state
+			PWRS = (ECRD (RefOf (ECPS)) & 0x01)
+
+			//\_SB.CPPC = 0x00 // Note: \_SB.CPPC must be an Integer not a Method
+
+			//Perform needed ACPI Notifications.
+			PNOT()
+		}
+
+		Method(_GPE)
+		{
+			Local0 = 0x6E	// GPI6E for eSPI
+			Return (Local0)
+		}
+
+		// Include the other parts of the Embedded Controller ASL.
+		#include "keyboard.asl"
+		#include "battery.asl"
+		#include "ac.asl"
 		#include "lid.asl"
-
-		// Unicorn
-		Method (P8XH,2,Serialized)
-		{
-			// If(CondRefOf(MDBG)) { // Check if ACPI Debug SSDT is loaded
-			//	D8XH(Arg0,Arg1)
-			// }
-		}
-
-		// Unicorn
-		Method (ADBG, 1, Serialized)
-		{
-			Return (Arg0)
-		}
 	}
 }
