@@ -17,7 +17,7 @@ u16 it_get_version(void)
 	return (ec_read(0x00) << 8) | ec_read(0x01);
 }
 
-static void ite_init(struct device *dev)
+static void merlin_init(struct device *dev)
 {
 	if (!dev->enabled)
 		return;
@@ -222,16 +222,13 @@ static void ite_init(struct device *dev)
 }
 
 static struct device_operations ops = {
-	.init		= ite_init,
+	.init		= merlin_init,
 	.read_resources	= noop_read_resources,
 	.set_resources	= noop_set_resources,
 };
 
 static struct pnp_info pnp_dev_info[] = {
-	{ NULL,
-	  0,
-	  0,
-	  0, }
+	{ NULL, 0, 0, 0, }
 };
 
 static void enable_dev(struct device *dev)
@@ -239,5 +236,7 @@ static void enable_dev(struct device *dev)
 	pnp_enable_devices(dev, &ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
 }
 
-struct chip_operations ec_starlabs_ite_ops = {CHIP_NAME("ITE ITE EC").enable_dev =
-							 enable_dev};
+struct chip_operations ec_starlabs_merlin_ops = {
+	CHIP_NAME("ITE ITE EC")
+	.enable_dev = enable_dev
+};
