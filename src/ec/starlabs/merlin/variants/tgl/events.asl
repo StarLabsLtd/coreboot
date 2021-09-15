@@ -223,6 +223,7 @@ Method (_Q54, 0, NotSerialized)			// Event: PWRBTN
 Method (_Q79, 0, NotSerialized)			// Event: USB Type-C
 {
 	Store ("EC: USB Type-C", Debug)
+	UCEV()
 }
 
 Method (_Q80, 0, NotSerialized)			// Event: VOLUME_UP

@@ -183,12 +183,6 @@ Scope (\_SB.PCI0.LPCB)
 	}
 
 	#include "typec.asl"
-
-	Method (_Q79)			// Event: USB Type-C
-	{
-		UCEV()
-	}
-	
 	#include "ac.asl"
 	#include "battery.asl"
 
