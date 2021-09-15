@@ -61,12 +61,12 @@ Method (_Q99, 0, NotSerialized)			// Event: Airplane Mode
 
 Method (_QD5, 0, NotSerialized)			// Event: 10 Second Power Button Pressed
 {
-	Store ("EC: 10 Second Power Button Pressed", Debug)
+	Notify (HIDD, 0xCE)
 }
 
 Method (_QD6, 0, NotSerialized)			// Event: 10 Second Power Button Released
 {
-	Store ("EC: 10 Second Power Button Release", Debug)
+	Notify (HIDD, 0xCF)
 }
 
 Method (_Q22, 0, NotSerialized)			// Event: CHARGER_T
@@ -74,42 +74,47 @@ Method (_Q22, 0, NotSerialized)			// Event: CHARGER_T
 	Store ("EC: CHARGER_T", Debug)
 }
 
-Method (_Q40, 0, NotSerialized)			// Event: AC_DC
+Method (_Q40, 0, NotSerialized)			// Event: AC and DC Power
 {
 	SMB2 = 0xC6
+	Notify (BAT0, 0x80)
 }
 
-Method (_Q41, 0, NotSerialized)			// Event: DC_20_0
+Method (_Q41, 0, NotSerialized)			// Event: Battery Charge between 0% and 20%
 {
 	SMB2 = 0xC7
+	Notify (BAT0, 0x80)
 }
 
-Method (_Q42, 0, NotSerialized)			// Event: DC_60_20
+Method (_Q42, 0, NotSerialized)			// Event: Battery Charge between 20% and 60%
+{
+	SMB2 = 0xC8
+	Notify (BAT0, 0x80)
+}
+
+Method (_Q43, 0, NotSerialized)			// Event: Battery Charge between 60% and 100%
 {
 	SMB2 = 0xC9
+	Notify (BAT0, 0x80)
 }
 
-Method (_Q43, 0, NotSerialized)			// Event: DC_100_60
-{
-	SMB2 = 0xC9
-}
-
-Method (_Q44, 0, NotSerialized)			// Event: AC_ONLY
+Method (_Q44, 0, NotSerialized)			// Event: AC Power Only
 {
 	SMB2 = 0xCA
+	Notify (BAT0, 0x80)
 }
 
-Method (_Q80, 0, NotSerialized)			// Event: VOLUME_UP
+Method (_Q80, 0, NotSerialized)			// Event: Volume Up
 {
 	Store ("EC: VOLUME_UP", Debug)
 }
 
-Method (_Q81, 0, NotSerialized)			// Event: VOLUME_DOWN
+Method (_Q81, 0, NotSerialized)			// Event: Volume Down
 {
 	Store ("EC: VOLUME_DOWN", Debug)
 }
 
-Method (_Q54, 0, NotSerialized)			// Event: PWRBTN
+Method (_Q54, 0, NotSerialized)			// Event: Power Button Press
 {
 	Store ("EC: PWRBTN", Debug)
 }

@@ -355,3 +355,4 @@ Device (HIDD)							// HID Device
 		Return (Buffer() {0x00})
 	}
 }
+
