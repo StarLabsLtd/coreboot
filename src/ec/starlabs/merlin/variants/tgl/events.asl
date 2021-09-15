@@ -25,7 +25,7 @@ Method (_Q08)					// Event: F5 Hot Key
 	Store ("EC: F5", Debug)
 }
 
-Method (_Q08)					// Event: F6 Hot Key
+Method (_Q09)					// Event: F6 Hot Key
 {
 	Store ("EC: F6", Debug)
 }
