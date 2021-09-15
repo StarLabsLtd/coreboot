@@ -10,6 +10,7 @@
 
 #include "chip.h"
 #include "ec.h"
+#include "ecdefs.h"
 
 u16 it_get_version(void)
 {

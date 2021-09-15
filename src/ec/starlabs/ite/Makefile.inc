@@ -3,6 +3,8 @@
 PHONY+=add_ite_fw
 INTERMEDIATE+=add_ite_fw
 
+CPPFLAGS_common += -I$(src)/ec/starlabs/ite/variants/$(VARIANT_DIR)
+
 ifeq ($(CONFIG_EC_STARLABS_ITE),y)
 all-y += ec.c
 smm-$(CONFIG_DEBUG_SMI) += ec.c
