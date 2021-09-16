@@ -21,10 +21,10 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	CDEV, 8,	// Control Device
 	OSFG, 8,	// OS Flag
 
-	Offset(0x14)
+	Offset(0x14),
 	TPLA, 8,	// Trackpad State
 
-	Offset(0x18)
+	Offset(0x18),
 	KLSE, 8,	// Keyboard Backlight State
 	KLBE, 8,	// Keyboard Backlight Brightness
 	KLTE, 8,	// Keyboard Backlight Timeout
@@ -39,10 +39,10 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	Offset(0x30),
 	STEF, 8,	// Sensor T Error F
 
-	Offset(0x40)
+	Offset(0x40),
 	SHIP, 8,        // Shipping Mode Flag
 
-	Offset(0x42)
+	Offset(0x42),
 	FANM, 8,	// Fan Mode
 	KBFL, 8,	// Keyboard Flag
 
