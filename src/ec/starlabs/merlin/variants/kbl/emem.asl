@@ -20,15 +20,16 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	CPWR, 8,	// Control Power
 	CDEV, 8,	// Control Device
 	OSFG, 8,	// OS Flag
+
+	Offset(0x14)
 	TPLA, 8,	// Trackpad State
+
+	Offset(0x18)
 	KLSE, 8,	// Keyboard Backlight State
 	KLBE, 8,	// Keyboard Backlight Brightness
-
-	Offset(0x1a),
 	KLTE, 8,	// Keyboard Backlight Timeout
 
 	Offset(0x20),
-	
 	TCHC, 8,	// Thermal Charge CMD
 	TCHF, 8,	// Thermal Charge Flag
 
@@ -37,23 +38,19 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 
 	Offset(0x30),
 	STEF, 8,	// Sensor T Error F
-	SHIP, 8,        // Shipping Mode Flag
-	FANM, 8,	// Fan Mode
 
-	Offset(0x43),
+	Offset(0x40)
+	SHIP, 8,        // Shipping Mode Flag
+
+	Offset(0x42)
+	FANM, 8,	// Fan Mode
 	KBFL, 8,	// Keyboard Flag
 
 	Offset(0x50),
-	CHRA, 8,	// Charge Rate
-
-	Offset(0x52),
-	CHIC, 8,	// Charge Input Current
-
-	Offset(0x54),
-	CHVL, 8,	// Charge Vlot
-
-	Offset(0x56),
-	CHOP, 8,	// Charge Option
+	CHRA, 16,	// Charge Rate
+	CHIC, 16,	// Charge Input Current
+	CHVL, 16,	// Charge Vlot
+	CHOP, 16,	// Charge Option
 
 	Offset(0x62),
 	TSE2, 8,	// Sensor 2 Temperature
