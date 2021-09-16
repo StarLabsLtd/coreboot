@@ -14,18 +14,18 @@ entries
 # -----------------------------------------------------------------
 # coreboot config options: console
 395     4       e       3       debug_level
-
 # coreboot config options: cpu
-400     1       e       1       hyper_threading
-408     1       e       1       vtd
-416     2       e       7       power_profile
-424     1       e       5       me_state
+#400    8       r       0       reserved for century byte
+408     1       e       1       hyper_threading
+416     1       e       1       vtd
+424     2       e       7       power_profile
+432     1       e       5       me_state
 
 # coreboot config options: Devices
-500     1       e       1       wireless
-508     1       e       1       webcam
-516     1       e       1       microphone
-524     1       e       1       legacy_8254_timer
+504     1       e       1       wireless
+512     1       e       1       webcam
+520     1       e       1       microphone
+528     1       e       1       legacy_8254_timer
 536     1       e       1       usb_always_on
 
 # coreboot config options: EC
@@ -35,7 +35,7 @@ entries
 624     2       e       9       fan_mode
 
 # coreboot config options: southbridge
-700     2       e       6       power_on_after_fail
+800     2       e       6       power_on_after_fail
 
 # coreboot config options: check sums
 984     16      h       0       check_sum

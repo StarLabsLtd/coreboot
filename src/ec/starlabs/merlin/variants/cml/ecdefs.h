@@ -19,6 +19,6 @@
 #define ECRAM_KBL_TIMEOUT	0x07
 #define ECRAM_FN_CTRL_REVERSE	0x08
 #define ECRAM_MAX_CHARGE	0xff
-#define ECRAM_FAN_MODE		0x08
+#define ECRAM_FAN_MODE		0x09
 
 #endif

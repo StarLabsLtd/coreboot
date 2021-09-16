@@ -135,7 +135,7 @@ static void merlin_init(struct device *dev)
 	 */
 	switch (get_uint_option("fan_mode", 0)) {
 		case FAN_AGGRESSIVE:
-	 		ec_write(ECRAM_FAN_MODE, VAL_FAN_AGGRESSIVE);
+			ec_write(ECRAM_FAN_MODE, VAL_FAN_AGGRESSIVE);
 			break;
 		case FAN_QUIET:
 			ec_write(ECRAM_FAN_MODE, VAL_FAN_QUIET);

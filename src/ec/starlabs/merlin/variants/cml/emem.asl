@@ -20,9 +20,13 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	P0SV, 8,	// PD Port 0 Minor Version
 	P1MV, 8,	// PD Port 1 Major Version
 	P1SV, 8,	// PD Port 1 Minor Version
+
+	Offset(0x10),
 	CPWR, 8,	// Control Power
 	CDEV, 8,	// Control Device
 	OSFG, 8,	// OS Flag
+
+	Offset(0x14),
 	TPLA, 8,	// Trackpad State
 	AFG3, 8,	// After G3
 	CLTP, 8,	// Close Trackpad
@@ -32,6 +36,8 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 
 	Offset(0x1a),
 	CWFU, 8,	// CW2015 Full
+
+	Offset(0x1c),
 	WIFI, 8,	// WiFi Enable
 
 	Offset(0x22),
@@ -79,8 +85,6 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	Offset(0x70),
 	CPUT, 8,	// PECI CPU Temperature
 	PMXT, 8,	// PLMX Temperature
-
-	Offset(0x72),
 	CHAR, 8,	// Charger Temperature
 
 	Offset(0x7f),
@@ -101,7 +105,7 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	B1PV, 16,	// Battery Present Voltage
 	BPRP, 8,	// Battery Remaining percentage
 	BT1A, 8,	// Bt1 ASOC
-	BT1T, 8,	// Bt1 Temperature
+	BT1T, 16,	// Bt1 Temperature
 	BT1C, 8,	// Bt1 Control
 
 	// Unicorn - doesn't actually exist
