@@ -1,13 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-/* Method called from _PTS prior to enter sleep state */
-Method (MPTS, 1)
+Method (_PTS, 1, NotSerialized)				// _PTS: Prepare To Sleep
 {
-        \_SB.PCI0.LPCB.H_EC.PTS (Arg0)
+	If (Arg0)
+	{
+		\_SB.TPM.TPTS (Arg0)
+		RPTS (Arg0)
+		\_SB.PC00.LPCB.SPTS (Arg0)
+	}
 }
 
-/* Method called from _WAK prior to wakeup */
-Method (MWAK, 1)
+Method (_WAK, 1, NotSerialized)				// _WAK: Wake
 {
-        \_SB.PCI0.LPCB.H_EC.WAK (Arg0)
+	\_SB.PC00.LPCB.SWAK (Arg0)
+	RWAK (Arg0)
+	Return (AM00) /* \AM00 */
 }

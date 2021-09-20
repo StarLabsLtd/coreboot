@@ -19,7 +19,7 @@ struct device *variant_devtree_update(void)
 		&cfg->power_limits_config[POWER_LIMITS_U_4_CORE];
 
 	/* Update PL2 based on CMOS settings */
-	switch (get_uint_option("tdp", 0)) {
+	switch (get_uint_option("power_profile", 0)) {
 	case 1:
 		soc_conf_2core->tdp_pl1_override = 15;
 		soc_conf_4core->tdp_pl1_override = 15;

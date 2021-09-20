@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-// Scope (\_SB.PCI0.LPCB) {
-//	#include "sleep.asl"
-// }
+Scope (\_SB.PCI0.LPCB) {
+	#include "sleep.asl"
+}
 
 /*
  * The Intel Comet Lake platform doesn't support SoundWire but there
