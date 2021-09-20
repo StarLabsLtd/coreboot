@@ -48,10 +48,13 @@ DefinitionBlock(
 	/* Star Labs EC */
 	#include <ec/starlabs/merlin/acpi/ec.asl>
 
-	/* HID Driver */
 	Scope (\_SB)
 	{
+		/* HID Driver */
 		#include <ec/starlabs/merlin/acpi/hid.asl>
+
+		/* Suspend Methods */
+		#include <ec/starlabs/merlin/acpi/suspend.asl>
 	}
 
 	/* PS/2 Keyboard */

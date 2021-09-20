@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-Scope (\_SB.PCI0.LPCB) {
+Scope (\_SB) {
 	#include "sleep.asl"
 }
 
@@ -8,7 +8,7 @@ Scope (\_SB.PCI0.LPCB) {
  * The Intel Comet Lake platform doesn't support SoundWire but there
  * is a kernel bug in some 5.10.x releases.
  *
- * Debian testing live CD (at 4th Feb 2021) uses 5.10.9-1.  More
+ * Debian testing live CD (at 4th Feb 2021) uses 5.10.9-1. More
  * details can be found at https://bit.ly/3ttdffG but it appears to
  * be triggered by missing SoundWire ACPI entries.
  *
