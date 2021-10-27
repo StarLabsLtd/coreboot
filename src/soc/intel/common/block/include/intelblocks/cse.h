@@ -11,9 +11,14 @@
 #define MKHI_GROUP_ID_HMRFPO	0x5
 #define MKHI_GROUP_ID_GEN	0xff
 #define MKHI_GROUP_ID_BUP_COMMON	0xf0
+#define MKHI_GROUP_ID_FWCAPS	0x3
 
 /* Global Reset Command ID */
 #define MKHI_CBM_GLOBAL_RESET_REQ	0xb
+
+/* Set State Command ID */
+#define MKHI_SET_ME_DISABLE	0x3
+#define MKHI_SET_ME_ENABLE	0x3
 
 /* Origin of Global Reset command */
 #define GR_ORIGIN_BIOS_POST	0x2

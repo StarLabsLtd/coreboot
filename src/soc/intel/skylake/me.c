@@ -6,9 +6,12 @@
 #include <console/console.h>
 #include <device/pci.h>
 #include <intelblocks/cse.h>
+#include <limits.h>
+#include <option.h>
 #include <soc/iomap.h>
 #include <soc/me.h>
 #include <soc/pci_devs.h>
+#include <types.h>
 
 /* HFSTS1[3:0] Current Working State Values */
 static const char *const me_cws_values[] = {
@@ -188,7 +191,8 @@ void intel_me_status(void)
 	union me_hfsts3 hfs3;
 	union me_hfsts6 hfs6;
 
-	if (!is_cse_enabled())
+	const unsigned int me_state = get_uint_option("me_state", UINT_MAX);
+	if (!is_cse_enabled() && (me_state == UINT_MAX))
 		return;
 
 	hfs1.data = me_read_config32(PCI_ME_HFSTS1);

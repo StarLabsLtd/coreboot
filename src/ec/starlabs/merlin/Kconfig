@@ -1,0 +1,41 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config EC_STARLABS_ITE
+	bool
+	select EC_ACPI
+	help
+	  Interface to ITE embedded controller principally in Star Labs notebooks.
+	  Works with closed-source ITE firmware versions:
+	  TGL - 1.00 or later
+	  CML - 1.04 or later
+	  KBL - 3.12 or later
+	  And open-source Merlin firmware version 1.00 or later
+
+config EC_STARLABS_IT_BIN
+	bool "Add Star Labs EC binary file"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  The EC binary
+
+config EC_STARLABS_KBL_LEVELS
+	bool "Adjustable Keyboard Backlight"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  Select to enable various levels of brightness for the keyboard.
+
+config EC_STARLABS_FAN
+	bool "Fan device"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  Select to enable fan support.
+
+config EC_STARLABS_MERLIN
+	bool "Use open-source ec aka Merlin"
+	default n
+	depends on EC_STARLABS_ITE
+	help
+	  Use open source embedded controller firmware. Both firmwares have the
+	  same features but differ in licensing and compilers.
