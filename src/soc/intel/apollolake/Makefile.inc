@@ -189,4 +189,32 @@ else
 cpu_microcode_bins += $(wildcard 3rdparty/intel-microcode/intel-ucode/06-5c-*)
 endif
 
+# IFWI Stitching
+
+ifeq ($(CONFIG_IFWI_STITCH_COMPONENTS),y)
+
+coreboot: $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom $(objcbfs)/cbfs.rom $(objcbfs)/nvstorage.rom
+
+$(objcbfs)/ibbl.rom: $(CBFSTOOL) $(objcbfs)/bootblock.bin
+	cp $(objcbfs)/bootblock.bin $@
+	printf "\nBuilt $@ (0x%x)\n" `stat -c "%s" $@`
+
+$(objcbfs)/ibbm.rom: $(objcbfs)/ibbl.rom
+	# Size is calculate as:
+	# IBBP-Sub-Partition - IBBL - Manifest - BPM.met - Padding
+	dd if=/dev/zero bs=1 count=$(shell echo $$((32768 - \
+		$(shell stat -Lc %s $(objcbfs)/ibbl.rom) \
+		- 748 - 180 - 3168))) | tr "\000" "\377" > $@
+	printf "\nBuilt $@ (0x%x)\n" `stat -c "%s" $@`
+
+$(objcbfs)/cbfs.rom: $(CBFSTOOL) $(obj)/coreboot.rom
+	$(CBFSTOOL) $(obj)/coreboot.rom read -r OBB -f $@
+	printf "\nBuilt $@ (0x%x)\n" `stat -c "%s" $@`
+
+$(objcbfs)/nvstorage.rom: $(CBFSTOOL) $(obj)/coreboot.rom
+	$(CBFSTOOL) $(obj)/coreboot.rom read -r NVSTORAGE -f $@
+	printf "\nBuilt $@ (0x%x)\n" `stat -c "%s" $@`
+
+endif
+
 endif # if CONFIG_SOC_INTEL_APOLLOLAKE

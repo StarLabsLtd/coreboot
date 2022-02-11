@@ -122,7 +122,7 @@ config CPU_SPECIFIC_OPTIONS
 
 config SKIP_CSE_RBP
 	bool
-	default y if BOOT_DEVICE_MEMORY_MAPPED
+	default y if BOOT_DEVICE_MEMORY_MAPPED && !IFWI_STITCH_COMPONENTS
 	help
 	  Tell CSE we do not need to use Ring Buffer Protocol (RBP) to fetch
 	  firmware for us if we are using memory-mapped SPI. This lets CSE
@@ -270,6 +270,20 @@ config IFWI_FILE_NAME
 	default "3rdparty/blobs/mainboard/\$(CONFIG_MAINBOARD_DIR)/ifwi.bin"
 	help
 	  Name of file to store in the IFWI region.
+
+config IFWI_STITCH_COMPONENTS
+	bool "Create components for stitching IFWI"
+	default n
+	help
+	  Create IBBL, IBBM, OBB and NvStorage that are required to build a
+	  BIOS binary that is needed for IFWI stitching.
+
+if IFWI_STITCH_COMPONENTS
+
+config FMDFILE
+	default "src/soc/intel/apollolake/sample.fmd"
+
+endif
 
 config HEAP_SIZE
 	hex
