@@ -483,4 +483,66 @@ config IFWI_MEASURED_BOOT
 	  Measuring the IBBL, IBB and TXE using either PTT or a TPM. The IBB is measured
 	  only after it has been loaded into the CSE.
 
+config IFWI_STITCH_IMAGE
+	bool "Stitch of complete IFWI image"
+	default n
+	help
+	  Stitch IFWI image using Intels FIT and MEU tools
+
+if IFWI_STITCH_IMAGE
+
+config IFWI_CSE_IMAGE
+	string "cse_image.bin is required"
+	default "../stitch/cse_image.bin"
+
+config IFWI_PMCP
+	string "pmcp.bin is required"
+	default "../stitch/pmcp.bin"
+
+config IFWI_DSP_FW
+	string "dsp_fw.bin is optional"
+	help
+	  "../stitch/dsp_fw.bin"
+
+config IFWI_IUNIT
+	string "iUnit.bin is optional"
+	help
+	  "../stitch/iUnit.bin"
+
+config IFWI_ISH_FW
+	string "ish.bin is optional"
+	help
+	  "../stitch/ISH.bin"
+
+config IFWI_PDT
+	string "PdtBinary might be needed"
+	default "../stitch/PdtBinary.bin"
+
+config IFWI_PDR
+	string "pdr.bin is optional"
+	help
+	  "../stitch/pdr.bin"
+
+config IFWI_INTEL_FIT
+	string "Path to FIT tool"
+	default "../stitch/fit"
+
+config IFWI_INTEL_VSCCOMMN
+	string "Path to VSCCOMMN binary"
+	default "../stitch/vsccommn.bin"
+
+config IFWI_INTEL_MEU
+	string "Path to MEU tool"
+	default "../stitch/meu"
+
+config IFWI_PRIVATE_KEY
+	string "Key to use for manifest"
+	default "../stitch/private.pem"
+
+config IFWI_BOOTGUARD
+	bool "Enable BootGuard permanently"
+	default n
+
+endif
+
 endif
