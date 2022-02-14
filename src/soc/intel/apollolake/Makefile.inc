@@ -229,8 +229,116 @@ endif
 endif # CONFIG_VBOOT
 	$(CBFSTOOL) $(obj)/coreboot.rom read -r OBB -f $@
 
-ifeq ($(CONFIG_IFWI_IBBM_LOAD),y)
-coreboot: $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom $(objcbfs)/obb.rom
+ifeq ($(CONFIG_IFWI_STITCH_IMAGE),y)
+coreboot: $(obj)/coreboot-ifwi.rom
 endif
+
+$(obj)/cse_image.bin:
+	cp $(CONFIG_IFWI_CSE_IMAGE) $@
+
+$(obj)/ISH.bin:
+	cp $(CONFIG_IFWI_ISH_FW) $@
+
+$(obj)/pdt.bin:
+	cp $(CONFIG_IFWI_PDT) $@
+
+$(obj)/iUnit.bin:
+	cp $(CONFIG_IFWI_IUNIT) $@
+
+$(obj)/pdr.bin:
+	cp $(CONFIG_IFWI_PDR) $@
+
+$(obj)/dsp_fw.bin:
+	cp $(CONFIG_IFWI_DSP_FW) $@
+
+$(obj)/pmcp.bin:
+	cp $(CONFIG_IFWI_PMCP) $@
+
+$(obj)/smip_iafw.bin:
+	# Create empty smip_iafw.bin with Python
+	@printf "    Generating $@\n"
+	python -c "import struct; \
+	fp = open ('$@', 'wb'); \
+	fp.write (b'\xAF\xBE\xED\xDE' + b'\x00' * 0x380 + b'\xAA\xCC\xFF\xAA'); \
+	fp.close();"
+
+$(obj)/fit:
+	cp $(CONFIG_IFWI_INTEL_FIT) $@
+
+$(obj)/vsccommn.bin:
+	cp $(CONFIG_IFWI_INTEL_VSCCOMMN) $@
+
+$(obj)/meu:
+	cp $(CONFIG_IFWI_INTEL_MEU) $@
+
+$(obj)/private.pem:
+	cp $(CONFIG_IFWI_PRIVATE_KEY) $@
+
+$(obj)/public.pem: $(call strip_quotes, $(CONFIG_IFWI_PRIVATE_KEY))
+	openssl pkey -in $< -pubout > $@
+
+# 1. Create a hash of the keys
+$(obj)/private_hash: $(obj)/meu $(obj)/meu_config.xml $(obj)/private.pem
+	$(obj)/meu -cfg $(obj)/meu_config.xml -keyhash $@ -key $(obj)/private.pem
+
+$(obj)/public_hash: $(obj)/meu $(obj)/meu_config.xml $(obj)/public.pem
+	$(obj)/meu -cfg $(obj)/meu_config.xml -keyhash $@ -key $(obj)/public.pem
+
+# 2. Configure meu_config.xml
+$(obj)/meu_config.xml:
+	sed \
+	-e 's%@signing_key@%$(obj)/private.pem%g' \
+	src/soc/intel/apollolake/stitch/meu_config.xml.in > $@
+
+# 2. Configure spi.xml
+hash=$(shell cat $(obj)/private_hash.txt)
+
+ifeq ($(CONFIG_SOC_INTEL_GEMINILAKE),y)
+patch1=3rdparty/intel-microcode/intel-ucode/06-7a-01
+patch2=3rdparty/intel-microcode/intel-ucode/06-7a-08
+sku=GLK
+region=1548
+else
+patch1=3rdparty/intel-microcode/intel-ucode/06-5c-09
+patch2=3rdparty/intel-microcode/intel-ucode/06-5c-0a
+sku=APL
+region=415
+endif
+
+ifeq ($(CONFIG_IFWI_BOOTGUARD),y)
+bootguard=Boot Guard Profile 2 - VM
+else
+bootguard=Boot Guard Profile 0 - Legacy
+endif
+
+$(obj)/spi.xml: $(obj)/private_hash
+	sed \
+	-e 's%@signing_key@%$(obj)/private.pem%g' \
+	-e 's%@key_hash@%$(hash)%g' \
+	-e 's%@patch1@%$(patch1)%g' \
+	-e 's%@patch2@%$(patch2)%g' \
+	-e "s%@sku@%$(sku)%g" \
+	-e 's%@region@%$(region)%g' \
+	-e 's%@bootguard@%$(bootguard)%g' \
+	src/soc/intel/apollolake/stitch/spi.xml.in > $@
+
+# 4. Create bios.bin
+$(obj)/bios.bin: $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom $(objcbfs)/obb.rom $(obj)/meu $(obj)/meu_config.xml
+	$(obj)/meu -f src/soc/intel/apollolake/stitch/bios.xml -cfg $(obj)/meu_config.xml -o $@ -key $(CONFIG_IFWI_PRIVATE_KEY)
+
+# 5. Create oemkeymn2.bin
+$(obj)/oemkeymn2.bin: $(obj)/meu $(obj)/public_hash
+	$(obj)/meu -f src/soc/intel/apollolake/stitch/OEMKeyManifest.xml -cfg $(obj)/meu_config.xml -o $@
+
+# 7. Create coreboot.rom
+$(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(obj)/bios.bin \
+			  $(obj)/pmcp.bin $(obj)/smip_iafw.bin \
+			  $(obj)/pdt.bin \
+			  $(obj)/fit $(obj)/vsccommn.bin \
+			  $(obj)/meu $(obj)/spi.xml \
+			  $(obj)/oemkeymn2.bin
+	$(obj)/fit -b -f $(obj)/spi.xml -o $@ -st_path /usr/bin/openssl
+	echo "Overwriting coreboot.rom"
+	cp $@ $(obj)/coreboot.rom
 
 endif # if CONFIG_SOC_INTEL_APOLLOLAKE

@@ -1,0 +1,53 @@
+<!--SPDX-License-Identifier: GPL-2.0-only-->
+<?xml version="1.0" encoding="utf-8"?>
+<Bios version="2.11">
+    <IbbSubPartition label="IBB">
+        <Length value="0xa0000" help_text="Set the length of sub partition."/>
+        <Usage value="BootPolicyManifest" value_list="CseBupManifest,,CseMainManifest,,PmcManifest,,BootPolicyManifest,,iUnitBootLoaderManifest,,iUnitMainFwManifest,,cAvsImage0Manifest,,cAvsImage1Manifest,,IfwiManifest,,OsBootLoaderManifest,,OsKernelManifest,,OemSmipManifest,,IshManifest,,OemDebugManifest,,SilentLakeVmmManifest,,OemAttestationManifest,,OemDalManifest,,OemDnxIfwiManifest"/>
+        <VendorId value="0x8086"/>
+        <SecurityVersionNumber value="0" label="Secure Version Number"/>
+        <VersionControlNumber value="0" label="Version Control Number"/>
+        <VersionMajor value="0" label="Version Major"/>
+        <VersionMinor value="0" label="Version Minor"/>
+        <VersionHotfix value="0" label="Version Hotfix"/>
+        <VersionBuild value="0" label="Version Build"/>
+        <MovePadding value="true" value_list="true,,false" help_text="Move the padding in the partition to be before the first Data-Module and after the CPD header."/>
+        <VersionExtraction>
+            <Enabled value="false" value_list="true,,false" help_text="If enabled, the version details will be extracted from the InputFile binary at the offsets specified. If disabled, the version must be specified manually."/>
+            <InputFile value="" help_text="Binary file from which to extract the version details."/>
+            <VersionMajorByte0Offset value="0" help_text="Offset of Major Version number's LSB in InputFile."/>
+            <VersionMajorByte1Offset value="0" help_text="Offset of Major Version number's MSB in InputFile."/>
+            <VersionMinorByte0Offset value="0" help_text="Offset of Minor Version number's LSB in InputFile."/>
+            <VersionMinorByte1Offset value="0" help_text="Offset of Minor Version number's MSB in InputFile."/>
+            <VersionHotfixByte0Offset value="0" help_text="Offset of Hotfix Version number's LSB in InputFile."/>
+            <VersionHotfixByte1Offset value="0" help_text="Offset of Hotfix Version number's MSB in InputFile."/>
+            <VersionBuildByte0Offset value="0" help_text="Offset of Build Version number's LSB in InputFile."/>
+            <VersionBuildByte1Offset value="0" help_text="Offset of Build Version number's MSB in InputFile."/>
+        </VersionExtraction>
+        <BootPolicyManifest>
+            <Enabled value="true" value_list="true,,false" help_text="If set to 'false' the Boot Policy Manifest will not be created and thus the IBB, IBBL and OBB modules will not be covered by the manifest signature."/>
+        </BootPolicyManifest>
+        <Modules>
+            <DataModule name="IBBL">
+                <InputFile value="$UserVar1/build/cbfs/fallback/ibbl.rom"/>
+            </DataModule>
+            <DataModule name="IBB">
+                <InputFile value="$UserVar1/build/cbfs/fallback/ibbm.rom"/>
+            </DataModule>
+        </Modules>
+    </IbbSubPartition>
+    <ObbSubPartition label="OBB">
+        <Length value="0x0" help_text="Set the length of sub partition."/>
+        <MovePadding value="true" value_list="true,,false" help_text="Move the padding in the partition to be before the first Data-Module and after the CPD header."/>
+        <Modules>
+            <DataModule name="OBB">
+                <InputFile value="$UserVar1/build/cbfs/fallback/obb.rom"/>
+            </DataModule>
+        </Modules>
+        <SkipHashModules>
+            <SkipHashModule>
+                <Name value="" help_text="Name of the OBB Subpartition Data-Module that will be ignored from hash calculation. Empty name is ignored."/>
+            </SkipHashModule>
+        </SkipHashModules>
+    </ObbSubPartition>
+</Bios>
