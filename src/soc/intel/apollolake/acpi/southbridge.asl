@@ -26,5 +26,8 @@
 /* PCI _OSC */
 #include <soc/intel/common/acpi/pci_osc.asl>
 
+/* PMC IPC */
+#include "pmc_ipc.asl"
+
 /* SGX */
 #include <soc/intel/common/acpi/sgx.asl>

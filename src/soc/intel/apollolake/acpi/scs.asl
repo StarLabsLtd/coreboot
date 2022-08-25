@@ -94,6 +94,16 @@ Scope (\_SB.PCI0) {
 			 * Restore bit 6 and 0
 			 */
 			^^SCPG(1,0x00000041)
+
+			Local1 = (TSTM (0x0840, 0x00, 0x00) & 0x1f)
+			If (Local1)
+			{
+				Local2 = TSTM (0x0834, 0x00, 0x00)
+				Local3 = ((Local2 & 0x3f00) >> 0x08)
+				Local3 += (Local1 * 0x02)
+				Local2 = ((Local2 & 0xffffff80) | (Local3 & 0x7f))
+				TSTM (0x0834, Local2, 0x01)
+			}
 		}
 
 		Device (CARD)
