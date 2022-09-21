@@ -13,6 +13,7 @@
 #include <intelblocks/pcie_rp.h>
 #include <intelblocks/systemagent.h>
 #include <intelblocks/xdci.h>
+#include <option.h>
 #include <soc/hsphy.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/itss.h>
@@ -203,7 +204,8 @@ void soc_init_pre_device(void *chip_info)
 	 * current boot sequence) to reduce message response time from CSE hence moving
 	 * sending EOP to earlier stage.
 	 */
-	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_EARLY)) {
+	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_EARLY) &&
+	    get_uint_option("me_state", UINT_MAX) == UINT_MAX) {
 		printk(BIOS_INFO, "Sending EOP early from SoC\n");
 		cse_send_end_of_post();
 	}
