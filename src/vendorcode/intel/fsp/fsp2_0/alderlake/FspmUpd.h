@@ -407,9 +407,15 @@ typedef struct {
 **/
   UINT8                       PchHdaAudioLinkDmicClockSelect[2];
 
-/** Offset 0x019A - Reserved
+/** Offset 0x019A - Disable Tccold Handshake
+  Disable Tccold Handshake. <b>0: Do Nothing;</b> 1: Disable
+  $EN_DIS
 **/
-  UINT8                       Reserved1[5];
+  UINT8                       DisableDynamicTccoldHandshake;
+
+/** Offset 0x019B - Reserved
+**/
+  UINT8                       Reserved1[4];
 
 /** Offset 0x019F - State of X2APIC_OPT_OUT bit in the DMAR table
   0=Disable/Clear, 1=Enable/Set
