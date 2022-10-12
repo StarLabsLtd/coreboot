@@ -1,0 +1,9 @@
+# hardcoded
+boot_option=Fallback
+# console
+debug_level=Debug
+# cpu
+power_profile=Balanced
+# Devices
+# southbridge
+power_on_after_fail=Disable

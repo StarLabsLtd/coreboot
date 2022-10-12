@@ -1,0 +1,42 @@
+chip soc/amd/cezanne
+	# TODO: Remove once devtree handles
+	register "pspp_policy" = "DXIO_PSPP_BALANCED"
+
+	# Memory
+	register "i2c_pad[2].rx_level"		= "I2C_PAD_RX_3_3V"
+	# Trackpad
+	register "i2c_pad[3].rx_level"		= "I2C_PAD_RX_3_3V"
+
+	device domain 0 on
+		device ref iommu on end
+		device ref gpp_bridge_0		on		# SSD
+			register "gpp_clk_config[1]"	= "GPP_CLK_REQ"
+		end
+		device ref gpp_bridge_3		on		# WLAN
+			register "gpp_clk_config[4]"	= "GPP_CLK_REQ"
+		end
+		device ref gpp_bridge_a on
+			device ref gfx		on  end
+			device ref gfx_hda	on  end
+			device ref crypto	on  end
+			device ref xhci_0	on  end
+			device ref xhci_1	on  end
+			device ref acp		on  end
+			device ref hda		on  end
+		end
+	end
+	device ref data_fabric_0	on  end
+	device ref data_fabric_1	on  end
+	device ref data_fabric_2	on  end
+	device ref data_fabric_3	on  end
+	device ref data_fabric_4	on  end
+	device ref data_fabric_5	on  end
+	device ref data_fabric_6	on  end
+	device ref data_fabric_7	on  end
+
+
+	device ref i2c_0	on
+		register "i2c_pad[0].rx_level"	= "I2C_PAD_RX_3_3V"
+	end
+	device ref uart_0	on  end
+end
