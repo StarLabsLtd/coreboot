@@ -1,5 +1,6 @@
 config BOARD_STARLABS_CEZANNE_SERIES
 	def_bool n
+	select AMD_SOC_CONSOLE_UART
 	select AZALIA_PLUGIN_SUPPORT
 	select BOARD_ROMSIZE_KB_16384
 	select DRIVERS_I2C_HID
@@ -41,6 +42,9 @@ config APCB_SOURCES_PATH
 config CCD_PORT
 	int
 	default 3
+
+config CONSOLE_SERIAL
+	default n if !EDK2_DEBUG
 
 config CMOS_DEFAULT_FILE
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/cmos.default" if BOARD_STARLABS_STARBOOK_CEZANNE
