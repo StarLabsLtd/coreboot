@@ -1,0 +1,184 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <amdblocks/cpu.h>
+#include <soc/gpio.h>
+#include <soc/platform_descriptors.h>
+#include <types.h>
+
+static const fsp_dxio_descriptor starbook_dxio_descriptors[] = {
+	/*
+	 * Device:		SATA 2.5 SSD
+	 *
+	 * Engine:		PCIe Port
+	 * Phy Lane:		0 - 3
+	 * Hot Plug:		0
+	 * GPIO Group:
+	 * Port Present:	1
+	 * Device:		02.4
+	 * Link Speed:		0
+	 * Link ASPM:		0
+	 * SB Link:		0
+	 * Misc Control:	0x80
+	 * Master PLL:		0
+	 */
+	{
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 0,
+		.end_logical_lane	= 3,
+		.link_speed_capability	= GEN3,
+		.device_number		= 2,
+		.function_number	= 4,
+		.link_aspm		= ASPM_DISABLED,
+		.link_aspm_L1_1		= false,
+		.link_aspm_L1_2		= false,
+		.turn_off_unused_lanes	= true,
+		.clk_req		= CLK_REQ5,
+		.port_params		= {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122},
+	},
+	/*
+	 * Device:		LAN
+	 *
+	 * Engine:		PCIe Port
+	 * Phy Lane:		5
+	 * Hot Plug:		0
+	 * GPIO Group:
+	 * Port Present:	1
+	 * Device:		01.2
+	 * Link Speed:		0
+	 * Link ASPM:		0
+	 * SB Link:		0
+	 * Misc Control:	0x80
+	 * Master PLL:		0
+	 */
+	{
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 5,
+		.end_logical_lane	= 5,
+		.link_speed_capability	= GEN3,
+		.device_number		= 1,
+		.function_number	= 2,
+		.link_aspm		= ASPM_DISABLED,
+		.link_aspm_L1_1		= false,
+		.link_aspm_L1_2		= false,
+		.turn_off_unused_lanes	= true,
+		.clk_req		= CLK_REQ4_GFX,
+		.port_params		= {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122},
+	},
+	/*
+	 * Device:		M.2 2230 Wireless
+	 *
+	 * Engine:		PCIe Port
+	 * Phy Lane:		7
+	 * Hot Plug:		0
+	 * GPIO Group:
+	 * Port Present:	1
+	 * Device:		02.2
+	 * Link Speed:		0
+	 * Link ASPM:		0
+	 * SB Link:		0
+	 * Misc Control:	0x80
+	 * Master PLL:		0
+	 */
+	{
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 7,
+		.end_logical_lane	= 7,
+		.link_speed_capability	= GEN3,
+		.device_number		= 2,
+		.function_number	= 4,
+		.link_aspm		= ASPM_DISABLED,
+		.link_aspm_L1_1		= false,
+		.link_aspm_L1_2		= false,
+		.turn_off_unused_lanes	= true,
+		.clk_req		= CLK_REQ6,
+		.port_params		= {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+	},
+	/*
+	 * Device:		M.2 2280 SSD
+	 *
+	 * Engine:		PCIe Port
+	 * Phy Lane:		8 - 11
+	 * Hot Plug:		0
+	 * GPIO Group:		27
+	 * Port Present:	1
+	 * Device:		02.1
+	 * Link Speed:		0
+	 * Link ASPM:		2
+	 * SB Link:		0
+	 * Misc Control:	0x80
+	 * Master PLL:		0
+	 *
+	 * Engine Type:		SATA Port
+	 * Phy Lane:		2 - 3
+	 * Hot Plug:		0
+	 * Gpio Group:		1
+	 */
+//	{
+//		.engine_type		= PCIE_ENGINE,
+//		.port_present		= true,
+//		.start_logical_lane	= 8,
+//		.end_logical_lane	= 11,
+//		.link_speed_capability	= GEN3,
+//		.device_number		= 2,
+//		.function_number	= 1,
+//		.link_aspm		= ASPM_L1,
+//		.link_aspm_L1_1		= true,
+//		.link_aspm_L1_2		= true,
+//		.turn_off_unused_lanes	= true,
+//		.clk_req		= CLK_REQ1,
+//		.port_params		= {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+//	},
+	{
+		.engine_type		= SATA_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 8,
+		.end_logical_lane	= 9,
+		.channel_type		= SATA_CHANNEL_LONG,
+	},
+};
+
+static fsp_ddi_descriptor starbook_ddi_descriptors[] = {
+	/* DDI0:	HDMI */
+	{
+		.connector_type		= DDI_HDMI,
+		.aux_index		= DDI_AUX1,
+		.hdp_index		= DDI_HDP1
+	},
+	/* DDI1:	HDMI */
+	{
+		.connector_type		= DDI_HDMI,
+		.aux_index		= DDI_AUX2,
+		.hdp_index		= DDI_HDP2
+	},
+	/* DDI2:	Not Used */
+	{
+		.connector_type		= DDI_UNUSED_TYPE,
+		.aux_index		= DDI_AUX3,
+		.hdp_index		= DDI_HDP3,
+	},
+	/* DDI3:	Display Port (via Type-C) */
+	{
+		.connector_type		= DDI_DP,
+		.aux_index		= DDI_AUX3,
+		.hdp_index		= DDI_HDP3,
+	},
+	/* DDI4:	Not Used */
+	{
+		.connector_type		= DDI_UNUSED_TYPE,
+		.aux_index		= DDI_AUX4,
+		.hdp_index		= DDI_HDP4,
+	}
+};
+
+void mainboard_get_dxio_ddi_descriptors(
+		const fsp_dxio_descriptor **dxio_descs, size_t *dxio_num,
+		const fsp_ddi_descriptor **ddi_descs, size_t *ddi_num)
+{
+	*dxio_descs = starbook_dxio_descriptors;
+	*dxio_num = ARRAY_SIZE(starbook_dxio_descriptors);
+	*ddi_descs = starbook_ddi_descriptors;
+	*ddi_num = ARRAY_SIZE(starbook_ddi_descriptors);
+}

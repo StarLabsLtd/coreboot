@@ -1,4 +1,7 @@
 comment "Star Labs StarBook Series"
 
+config BOARD_STARLABS_BYTE_CEZANNE
+	bool "Star Labs Byte Mk I (Ryzen 7 5800U)"
+
 config BOARD_STARLABS_STARBOOK_CEZANNE
 	bool "Star Labs StarBook Mk VI (Ryzen 7 5800U)"
