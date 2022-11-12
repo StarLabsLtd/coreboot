@@ -5,7 +5,7 @@
 #include <intelblocks/thermal.h>
 
 /* Get PCH Thermal Trip from common chip config */
-uint8_t get_thermal_trip_temp(void)
+__weak uint8_t get_thermal_trip_temp(void)
 {
 	const struct soc_intel_common_config *common_config;
 	common_config = chip_get_common_soc_structure();
