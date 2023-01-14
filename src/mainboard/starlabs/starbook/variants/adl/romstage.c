@@ -29,4 +29,10 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	const uint8_t vtd = get_uint_option("vtd", 1);
 	mupd->FspmConfig.VtdDisable = !vtd;
+
+	if (get_uint_option("wireless", 1) == 0) {
+		mupd->FspmConfig.PcieClkSrcUsage[5] = 0xff;
+		mupd->FspmConfig.PcieClkSrcClkReq[5] = 0xff;
+	}
+
 };
