@@ -35,4 +35,5 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 		mupd->FspmConfig.PcieClkSrcClkReq[5] = 0xff;
 	}
 
+	mupd->FspmConfig.GpioOverride = 0;
 };
