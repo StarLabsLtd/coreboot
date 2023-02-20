@@ -1,0 +1,46 @@
+# VENDOR #
+CONFIG_VENDOR_STARLABS=y
+
+# BOARD #
+CONFIG_BOARD_STARLABS_LITE_GLK=y
+CONFIG_HAVE_IFD_BIN=n
+CONFIG_HAVE_ME_BIN=n
+CONFIG_EC_STARLABS_ADD_ITE_BIN=n
+CONFIG_MAINBOARD_SERIAL_NUMBER="I300000"
+CONFIG_LOCALVERSION="24.04"
+
+# STANDARD #
+CONFIG_SMMSTORE=y
+CONFIG_SMMSTORE_V2=y
+CONFIG_LOCK_MANAGEMENT_ENGINE=n
+CONFIG_TPM_RDRESP_NEED_DELAY=n
+
+### PAYLOAD ###
+# STARLABS #
+CONFIG_PAYLOAD_EDK2=y
+CONFIG_EDK2_REPO_CUSTOM=y
+CONFIG_EDK2_BOOT_TIMEOUT=2
+CONFIG_EDK2_SD_MMC_TIMEOUT=1
+CONFIG_EDK2_REPOSITORY="https://github.com/starlabsltd/edk2"
+CONFIG_EDK2_TAG_OR_REV="origin/uefipayload_vs"
+CONFIG_EDK2_CUSTOM_BUILD_PARAMS="-D VARIABLE_SUPPORT=SMMSTORE"
+
+# DEBUG #
+# CONFIG_EDK2_DEBUG=y
+
+### IFWI ###
+CONFIG_BOOT_PROFILE_2=y
+CONFIG_IFWI_STITCH_IMAGE=y
+CONFIG_IFWI_BOOTGUARD=y
+CONFIG_IFWI_CSE_IMAGE="3rdparty/blobs/mainboard/starlabs/lite/glk/cse_image.bin"
+CONFIG_IFWI_PMCP="3rdparty/blobs/mainboard/starlabs/lite/glk/pmcp.bin"
+CONFIG_IFWI_PDT="3rdparty/blobs/mainboard/starlabs/lite/glk/pdt.bin"
+
+### FSP ###
+CONFIG_ADD_FSP_BINARIES=y
+# RELEASE #
+CONFIG_FSP_M_FILE="3rdparty/blobs/mainboard/starlabs/lite/glk/FSP/Release/Fsp_M.fd"
+CONFIG_FSP_S_FILE="3rdparty/blobs/mainboard/starlabs/lite/glk/FSP/Release/Fsp_S.fd"
+# DEBUG #
+# CONFIG_FSP_M_FILE="3rdparty/blobs/mainboard/starlabs/lite/glk/FSP/Debug/Fsp_M.fd"
+# CONFIG_FSP_S_FILE="3rdparty/blobs/mainboard/starlabs/lite/glk/FSP/Debug/Fsp_S.fd"
