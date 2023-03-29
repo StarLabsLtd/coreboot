@@ -1,0 +1,2 @@
+config DRIVERS_OPTION_CFR
+	bool "Support generating a CFR list of options"
