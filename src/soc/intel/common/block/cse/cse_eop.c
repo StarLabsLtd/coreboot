@@ -270,7 +270,7 @@ static void do_send_end_of_post(bool wait_for_completion)
 /*
  * Don't send EOP if the following conditions are met:
  * 1. "The platform is running CSE-Lite SKU" AND
- * 2. 'The CSE is running the RO FW" AND
+ * 2. 'The CSE is running the RO FW" OR
  * 3. "The board is in recovery mode"
  *
  * The above conditions summarize that the CSE is in "SOFT TEMP DISABLE" state,
@@ -278,7 +278,7 @@ static void do_send_end_of_post(bool wait_for_completion)
  */
 static bool is_cse_eop_supported(void)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SKU) && vboot_recovery_mode_enabled() &&
+	if ((CONFIG(SOC_INTEL_CSE_LITE_SKU) && vboot_recovery_mode_enabled()) ||
 		cse_is_hfs1_com_soft_temp_disable()) {
 		printk(BIOS_INFO, "HECI: coreboot in recovery mode; found CSE in expected SOFT "
 		       "TEMP DISABLE state, skipping EOP\n");
