@@ -278,7 +278,7 @@ static void do_send_end_of_post(bool wait_for_completion)
  */
 static bool is_cse_eop_supported(void)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SKU) && vboot_recovery_mode_enabled() &&
+	if ((CONFIG(SOC_INTEL_CSE_LITE_SKU) && vboot_recovery_mode_enabled()) ||
 		cse_is_hfs1_com_soft_temp_disable()) {
 		printk(BIOS_INFO, "HECI: coreboot in recovery mode; found CSE in expected SOFT "
 		       "TEMP DISABLE state, skipping EOP\n");
