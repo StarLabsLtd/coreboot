@@ -13,3 +13,12 @@ config SOC_INTEL_COMMON_BASECODE_RAMTOP
 	  uses this uncached RAMTOP range for various purposes and having the
 	  ability to cache this range beforehand would help to optimize the boot
 	  time (more than 50ms).
+
+config RAMTOP_OFFSET
+	hex
+	default 0x3e8
+	help
+	  CMOS offset for ramtop data. This value must match cmos.layout
+	  in the mainboard directory. It should be outside the checksummed
+	  area, like the default 1000.
+
