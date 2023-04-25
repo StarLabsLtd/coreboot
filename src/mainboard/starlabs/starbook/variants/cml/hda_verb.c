@@ -204,16 +204,6 @@ const u32 cim_verb_data[] = {
 	0x0204EBC4,
 	0x02050020,
 	0x020451FF,
-
-	0x8086280b, /* Codec Vendor / Device ID: Intel */
-	0x80860101, /* Subsystem ID */
-	4,	    /* Number of 4 dword sets */
-
-	AZALIA_SUBVENDOR(2, 0x80860101),
-
-	AZALIA_PIN_CFG(2, 0x05, 0x18560010),
-	AZALIA_PIN_CFG(2, 0x06, 0x18560010),
-	AZALIA_PIN_CFG(2, 0x07, 0x18560010),
 };
 
 const u32 pc_beep_verbs[] = {};
