@@ -13,6 +13,7 @@
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
+#include <option.h>
 #include <spi_flash.h>
 #include <spi-generic.h>
 #include <timer.h>
@@ -1093,7 +1094,7 @@ void spi_finalize_ops(void)
 	}
 	writew_(optype, cntlr.optype);
 
-	spi_set_smm_only_flashing(CONFIG(BOOTMEDIA_SMM_BWP));
+	spi_set_smm_only_flashing(get_uint_option("bootmedia_smm_bwp", CONFIG(BOOTMEDIA_SMM_BWP)));
 }
 
 __weak void intel_southbridge_override_spi(struct intel_swseq_spi_config *spi_config)

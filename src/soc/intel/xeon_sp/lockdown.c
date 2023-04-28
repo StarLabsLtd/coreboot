@@ -2,6 +2,7 @@
 
 #include <intelblocks/lpc_lib.h>
 #include <intelpch/lockdown.h>
+#include <option.h>
 #include <soc/lockdown.h>
 #include <soc/pm.h>
 
@@ -11,7 +12,7 @@ static void lpc_lockdown_config(void)
 	lpc_set_bios_interface_lock_down();
 
 	/* Only allow writes in SMM */
-	if (CONFIG(BOOTMEDIA_SMM_BWP)) {
+	if (get_uint_option("bootmedia_smm_bwp", CONFIG(BOOTMEDIA_SMM_BWP))) {
 		lpc_set_eiss();
 		lpc_enable_wp();
 	}
