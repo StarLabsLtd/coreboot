@@ -15,6 +15,16 @@
 #define FSP_NOT_STARTED	EFI_NOT_STARTED
 #define FSP_UNSUPPORTED	EFI_UNSUPPORTED
 
+/*
+ * FSP Specification < 2.2 has only 1 stage like FspSiliconInit. FSP specification >= 2.2
+ * has multiple stages as below.
+ */
+enum fsp_silicon_init_phases {
+	FSP_SILICON_INIT_API,
+	FSP_MULTI_PHASE_SI_INIT_GET_NUMBER_OF_PHASES_API,
+	FSP_MULTI_PHASE_SI_INIT_EXECUTE_PHASE_API
+};
+
 enum fsp_boot_mode {
 	FSP_BOOT_WITH_FULL_CONFIGURATION = 0x00,
 	FSP_BOOT_WITH_MINIMAL_CONFIGURATION = 0x01,
@@ -32,6 +42,7 @@ enum fsp_notify_phase {
 };
 
 /* Main FSP stages */
+void fsps_return_value_handler(enum fsp_silicon_init_phases phases, uint32_t status);
 void preload_fspm(void);
 void fsp_memory_init(bool s3wake);
 void preload_fsps(void);

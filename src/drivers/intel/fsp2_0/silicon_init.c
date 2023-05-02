@@ -31,16 +31,7 @@ void __weak platform_fsp_multi_phase_init_cb(uint32_t phase_index)
 	/* Leave for the SoC/Mainboard to implement if necessary. */
 }
 
-/* FSP Specification < 2.2 has only 1 stage like FspSiliconInit. FSP specification >= 2.2
- * has multiple stages as below.
- */
-enum fsp_silicon_init_phases {
-	FSP_SILICON_INIT_API,
-	FSP_MULTI_PHASE_SI_INIT_GET_NUMBER_OF_PHASES_API,
-	FSP_MULTI_PHASE_SI_INIT_EXECUTE_PHASE_API
-};
-
-static void fsps_return_value_handler(enum fsp_silicon_init_phases phases, uint32_t status)
+void fsps_return_value_handler(enum fsp_silicon_init_phases phases, uint32_t status)
 {
 	uint8_t postcode;
 
