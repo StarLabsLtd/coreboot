@@ -9,6 +9,7 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
+#include <fsp/api.h>
 #include <intelblocks/acpi.h>
 #include <intelblocks/cfg.h>
 #include <intelblocks/fast_spi.h>
@@ -26,6 +27,7 @@
 #include <option.h>
 #include <soc/cpu.h>
 #include <soc/heci.h>
+#include <soc/intel/common/reset.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/iomap.h>
 #include <soc/itss.h>
@@ -339,6 +341,11 @@ static void soc_init(void *data)
 
 static void soc_final(void *data)
 {
+	uint32_t status;
+
+	status = fsp_get_pch_reset_status();
+	fsps_return_value_handler(FSP_SILICON_INIT_API, status);
+
 	/* Make sure payload/OS can't trigger global reset */
 	pmc_global_reset_disable_and_lock();
 }
