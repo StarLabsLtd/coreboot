@@ -40,7 +40,7 @@ static void tpm_enable(void)
 
 asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 {
-	pci_devfn_t dev;
+	pci_devfn_t pmc = PCH_DEV_PMC;
 
 	bootblock_systemagent_early_init();
 
@@ -48,10 +48,10 @@ asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 	p2sb_configure_hpet();
 
 	/* Decode the ACPI I/O port range for early firmware verification.*/
-	dev = PCH_DEV_PMC;
-	pci_write_config16(dev, PCI_BASE_ADDRESS_4, ACPI_BASE_ADDRESS);
-	pci_write_config16(dev, PCI_COMMAND,
-				PCI_COMMAND_IO | PCI_COMMAND_MASTER);
+	write32p(pmc + PCI_BASE_ADDRESS_4, ACPI_BASE_ADDRESS);
+	write32p(pmc + PCI_COMMAND, read32p(pmc + PCI_COMMAND) |
+		(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER)
+	);
 
 	enable_rtc_upper_bank();
 
@@ -64,25 +64,8 @@ asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 	bootblock_main_with_basetime(base_timestamp);
 }
 
-static void enable_pmcbar(void)
-{
-	pci_devfn_t pmc = PCH_DEV_PMC;
-
-	/* Set PMC base addresses and enable decoding. */
-	pci_write_config32(pmc, PCI_BASE_ADDRESS_0, PCH_PWRM_BASE_ADDRESS);
-	pci_write_config32(pmc, PCI_BASE_ADDRESS_1, 0);	/* 64-bit BAR */
-	pci_write_config32(pmc, PCI_BASE_ADDRESS_2, PMC_BAR1);
-	pci_write_config32(pmc, PCI_BASE_ADDRESS_3, 0);	/* 64-bit BAR */
-	pci_write_config16(pmc, PCI_BASE_ADDRESS_4, ACPI_BASE_ADDRESS);
-	pci_write_config16(pmc, PCI_COMMAND,
-				PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-				PCI_COMMAND_MASTER);
-}
-
 void bootblock_soc_early_init(void)
 {
-	enable_pmcbar();
-
 	/* Clear global reset promotion bit */
 	pmc_global_reset_enable(0);
 

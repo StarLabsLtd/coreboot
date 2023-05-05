@@ -38,6 +38,8 @@ DefinitionBlock(
 
 		/* Suspend Methods */
 		#include <ec/starlabs/merlin/acpi/suspend.asl>
+
+		#include <soc/intel/apollolake/acpi/pmc_ipc.asl>
 	}
 
 	#include "acpi/mainboard.asl"

@@ -25,6 +25,7 @@
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <soc/romstage.h>
+#include <soc/smbus.h>
 #include <soc/systemagent.h>
 #include <spi_flash.h>
 #include <timer.h>
@@ -155,11 +156,50 @@ void set_max_freq(void)
 	cpu_set_p_state_to_turbo_ratio();
 }
 
+static struct chipset_power_state power_state;
+
+static struct chipset_power_state *fill_power_state(void)
+{
+	struct chipset_power_state *ps = &power_state;
+
+	ps->pm1_sts = inw(ACPI_BASE_ADDRESS + PM1_STS);
+	ps->pm1_en = inw(ACPI_BASE_ADDRESS + PM1_EN);
+	ps->pm1_cnt = inl(ACPI_BASE_ADDRESS + PM1_CNT);
+	for (int i = 0; i < GPE0_REG_MAX; ++i) {
+		ps->gpe0_sts[i] = inl(ACPI_BASE_ADDRESS + GPE0_STS(i));
+		ps->gpe0_en[i] = inl(ACPI_BASE_ADDRESS + GPE0_EN(i));
+	}
+	ps->tco1_sts = inw(ACPI_BASE_ADDRESS + TCO1_STS);
+	ps->tco2_sts = inw(ACPI_BASE_ADDRESS + TCO2_STS);
+	ps->prsts = read32p(soc_read_pmc_base() + PRSTS);
+	ps->gen_pmcon1 = read32p(soc_read_pmc_base() + GEN_PMCON1);
+	ps->gen_pmcon2 = read32p(soc_read_pmc_base() + GEN_PMCON2);
+	ps->gen_pmcon3 = read32p(soc_read_pmc_base() + GEN_PMCON3);
+
+	printk(BIOS_DEBUG, "pm_gencon1 at 0x20: %x\n", read32p(soc_read_pmc_base() + 0x20));
+	printk(BIOS_DEBUG, "pm_gencon1 at 0x1020: %x\n", read32p(soc_read_pmc_base() + 0x1020));
+
+	printk(BIOS_DEBUG, "pmc_base_address: %lx\n", soc_read_pmc_base());
+
+	printk(BIOS_DEBUG, "pm1_sts: %04x pm1_en: %04x pm1_cnt: %08x\n",
+		ps->pm1_sts, ps->pm1_en, ps->pm1_cnt);
+	for (int i = 0; i < GPE0_REG_MAX; ++i) {
+		printk(BIOS_DEBUG, "gpe0_sts[%d]: %08x gpe0_en[%d]: %08x\n",
+			i, ps->gpe0_sts[i], i, ps->gpe0_en[i]);
+	}
+	printk(BIOS_DEBUG, "tco1_sts: %04x tco2_sts: %04x\n",
+		ps->tco1_sts, ps->tco2_sts);
+	printk(BIOS_DEBUG, "prsts: %08x gen_pmcon1: %08x gen_pmcon2: %08x gen_pmcon3: %08x\n",
+		ps->prsts, ps->gen_pmcon1, ps->gen_pmcon2, ps->gen_pmcon3);
+
+	return ps;
+}
+
 void mainboard_romstage_entry(void)
 {
 	bool s3wake;
 	size_t var_size;
-	struct chipset_power_state *ps = pmc_get_power_state();
+	struct chipset_power_state *ps = fill_power_state();
 	const void *new_var_data;
 
 	soc_early_romstage_init();
