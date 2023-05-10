@@ -14,6 +14,7 @@
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/p2sb.h>
+#include <intelblocks/pcr.h>
 #include <intelblocks/power_limit.h>
 #include <intelblocks/xdci.h>
 #include <fsp/api.h>
@@ -32,6 +33,7 @@
 #include <soc/itss.h>
 #include <soc/msr.h>
 #include <soc/pci_devs.h>
+#include <soc/pcr_ids.h>
 #include <soc/pm.h>
 #include <soc/systemagent.h>
 #include <spi-generic.h>
@@ -843,6 +845,50 @@ static void disable_xhci_lfps_pm(void)
 	}
 }
 
+#define PCR_PSFX_TO_SHDW_PMC_REG_BASE	0x0300	// PSF base address (PMC)
+#define PCR_PSFX_TO_SHDW_PWM_REG_BASE	0x0400	// PSF base address (PWM)
+#define PCR_PSFX_TO_SHDW_SSRAM_REG_BASE	0x0500	// PSF base address (SSRAM)
+
+#define PCR_PSFX_TO_SHDW_CFG_DIS	0x38	// PCI configuration disable
+#define PCR_PSFX_TO_SHDW_CFG_DIS_CFGDIS	BIT(0)	// Config Disable
+
+/* PMC IOSF20CP Registers */
+#define SB_PMC_IOSF2OCP_PORT		0x95
+#define SB_PMC_IOSF2OCP_PCR_PCICFGCTRL1	0x200
+#define SB_PMC_IOSF2OCP_PCR_PCICFGCTRL2	0x204
+#define SB_PMC_IOSF2OCP_PCR_PCICFGCTRL3	0x208
+#define SB_PMC_IOSF2OCP_PCR_PCICFGCTRL3_BAR1_DISABLE3  BIT(7)
+
+static void configure_pmc(void)
+{
+	uintptr_t pmc_base_address;
+
+	pmc_base_address = soc_read_pmc_base();
+
+	/* Ensure the base address is correct */
+	write32((volatile void *)(pmc_base_address + PCI_BASE_ADDRESS_4), ACPI_BASE_ADDRESS);
+
+	/* Ensure the correct PCI command bits are set without changing any others */
+	write32((volatile void *)(pmc_base_address + PCI_COMMAND),
+		read32((const volatile void *)(pmc_base_address + PCI_COMMAND)) |
+		(PCI_COMMAND_IO | PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY));
+
+	/* Put the PMC IPC into ACPI mode */
+	pcr_or32(PID_PSF3,
+		 PCR_PSFX_TO_SHDW_PMC_REG_BASE + PCR_PSFX_TO_SHDW_CFG_DIS,
+		 PCR_PSFX_TO_SHDW_CFG_DIS_CFGDIS);
+
+	/* Put the PMC IPC into ACPI mode */
+	pcr_or32(SB_PMC_IOSF2OCP_PORT,
+		 SB_PMC_IOSF2OCP_PCR_PCICFGCTRL3,
+		 PCR_PSFX_TO_SHDW_CFG_DIS_CFGDIS + SB_PMC_IOSF2OCP_PCR_PCICFGCTRL3_BAR1_DISABLE3);
+
+	/* Program the PMC ACPI IRQ */
+	pcr_write32(SB_PMC_IOSF2OCP_PORT,
+		    SB_PMC_IOSF2OCP_PCR_PCICFGCTRL2,
+		    pcr_read32(SB_PMC_IOSF2OCP_PORT, SB_PMC_IOSF2OCP_PCR_PCICFGCTRL2) | BIT(1) | 0x28000);
+}
+
 void platform_fsp_notify_status(enum fsp_notify_phase phase)
 {
 	if (phase == END_OF_FIRMWARE) {
@@ -852,6 +898,12 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 		 * dump CSE status and disable HECI1 interface.
 		 */
 		heci_cse_lockdown();
+
+		/*
+		 * Before hiding the P2SB, configure the PMC and SSRAM so they can
+		 * used in ACPI via the Trusted Sideband Interface.
+		 */
+		configure_pmc();
 
 		/* Hide the P2SB device to align with previous behavior. */
 		p2sb_hide();
