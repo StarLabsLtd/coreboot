@@ -637,6 +637,10 @@ static void fill_fsps_pcie_params(FSP_S_CONFIG *s_cfg,
 		s_cfg->PcieRpClkReqDetect[i] = !!(rp_cfg->flags & PCIE_RP_CLK_REQ_DETECT);
 		if (rp_cfg->pcie_rp_aspm)
 			s_cfg->PcieRpAspm[i] = get_aspm_control(rp_cfg->pcie_rp_aspm);
+		else if (CONFIG(PCIEXP_ASPM)) /* use auto (FSP default) if PCIEXP_ASPM is enabled */
+			s_cfg->PcieRpAspm[i] = ASPM_AUTO;
+		else
+			s_cfg->PcieRpAspm[i] = ASPM_DISABLE;
 	}
 	s_cfg->PcieComplianceTestMode = CONFIG(SOC_INTEL_COMPLIANCE_TEST_MODE);
 }
