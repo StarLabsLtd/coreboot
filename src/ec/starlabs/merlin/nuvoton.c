@@ -6,9 +6,11 @@
 #include <ec/acpi/ec.h>
 #include <option.h>
 #include <pc80/keyboard.h>
+#include <pc80/mc146818rtc.h>
 
 #include "ec.h"
 #include "ecdefs.h"
+#include "option_table.h"
 
 uint16_t ec_get_version(void)
 {
@@ -24,6 +26,28 @@ static uint8_t get_ec_value_from_option(const char *name,
 	if (index >= lut_size)
 		index = fallback;
 	return lut[index];
+}
+
+static uint8_t get_cmos_value(uint32_t bit, uint32_t length)
+{
+	uint32_t byte, byte_bit;
+	uint8_t uchar;
+	uint8_t ret = 0;
+
+	byte = bit / 8; // find the byte where the data starts
+	byte_bit = bit % 8; // find the bit in the byte where the data starts
+	if (length < 9) {       // one byte or less
+		uchar = cmos_read(byte); // load the byte
+		uchar >>= byte_bit;     // shift the bits to byte align
+		// clear unspecified bits
+		ret = uchar & ((1U << length) - 1);
+	} else { // more than one byte so transfer the whole bytes
+		for (uint32_t i = 0; length > 0; i++, length -= 8, byte++) {
+			// load the byte
+			ret = cmos_read(byte);
+		}
+	}
+	return ret;
 }
 
 static uint16_t ec_get_chip_id(unsigned int port)
@@ -194,10 +218,7 @@ static void merlin_init(struct device *dev)
 	};
 
 	ec_write(ECRAM_FN_LOCK_STATE,
-		get_ec_value_from_option("fn_lock_state",
-					 1,
-					 fn_lock_state,
-					 ARRAY_SIZE(fn_lock_state)));
+		fn_lock_state[get_cmos_value(CMOS_VSTART_fn_lock_state, CMOS_VLEN_fn_lock_state)]);
 
 	/*
 	 * Trackpad State
@@ -214,10 +235,7 @@ static void merlin_init(struct device *dev)
 	};
 
 	ec_write(ECRAM_TRACKPAD_STATE,
-		get_ec_value_from_option("trackpad_state",
-					 0,
-					 trackpad_state,
-					 ARRAY_SIZE(trackpad_state)));
+		trackpad_state[get_cmos_value(CMOS_VSTART_trackpad_state, CMOS_VLEN_trackpad_state)]);
 
 	/*
 	 * Keyboard Backlight Brightness
@@ -235,18 +253,8 @@ static void merlin_init(struct device *dev)
 		KBL_HIGH
 	};
 
-	if (CONFIG(EC_STARLABS_KBL_LEVELS))
-		ec_write(ECRAM_KBL_BRIGHTNESS,
-			get_ec_value_from_option("kbl_brightness",
-						 2,
-						 kbl_brightness,
-						 ARRAY_SIZE(kbl_brightness)));
-	else
-		ec_write(ECRAM_KBL_BRIGHTNESS,
-			get_ec_value_from_option("kbl_brightness",
-						 0,
-						 kbl_brightness,
-						 ARRAY_SIZE(kbl_brightness)));
+	ec_write(ECRAM_KBL_BRIGHTNESS,
+		kbl_brightness[get_cmos_value(CMOS_VSTART_kbl_brightness, CMOS_VLEN_kbl_brightness)]);
 
 	/*
 	 * Keyboard Backlight State
@@ -263,10 +271,7 @@ static void merlin_init(struct device *dev)
 	};
 
 	ec_write(ECRAM_KBL_STATE,
-		get_ec_value_from_option("kbl_state",
-					 1,
-					 kbl_state,
-					 ARRAY_SIZE(kbl_state)));
+		kbl_state[get_cmos_value(CMOS_VSTART_kbl_state, CMOS_VLEN_kbl_state)]);
 }
 
 static struct device_operations ops = {
