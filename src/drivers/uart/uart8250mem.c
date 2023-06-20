@@ -2,10 +2,15 @@
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
+#include <boot/upl_fdt_table.h>
+#include <console/console.h>
 #include <console/uart.h>
 #include <device/device.h>
 #include <delay.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "uart8250reg.h"
 
 /* Should support 8250, 16450, 16550, 16550A type UARTs */
@@ -145,4 +150,28 @@ enum cb_err fill_lb_serial(struct lb_serial *serial)
 	serial->input_hertz = uart_platform_refclk();
 
 	return CB_SUCCESS;
+}
+
+const char *upl_fdt_add_serial(struct device_tree_node *parent_node)
+{
+	static const char *serial_path[] = { "serial", NULL };
+	u32 addr_cells = 0, size_cells = 0;
+	struct device_tree_node *uart_node = dt_find_node(parent_node, serial_path, &addr_cells, &size_cells, 1);
+	if (!uart_node) {
+		printk(BIOS_ERR, "%s(): could not add serial node\n", __func__);
+		return NULL;
+	}
+
+	u64 reg_addrs[] = { uart_platform_base(CONFIG_UART_FOR_CONSOLE) };
+	u64 reg_sizes[] = { 8 };
+	dt_add_reg_prop(uart_node, reg_addrs, reg_sizes, 1, addr_cells, size_cells);
+	dt_add_string_prop(uart_node, "compatible", "ns8250");
+	dt_add_u32_prop(uart_node, "clock-frequency", uart_platform_refclk());
+	dt_add_u32_prop(uart_node, "current-speed", get_uart_baudrate());
+	if (CONFIG(DRIVERS_UART_8250MEM_32))
+		dt_add_u32_prop(uart_node, "reg-io-width", sizeof(uint32_t));
+	else
+		dt_add_u32_prop(uart_node, "reg-io-width", sizeof(uint8_t));
+
+	return "/serial";
 }
