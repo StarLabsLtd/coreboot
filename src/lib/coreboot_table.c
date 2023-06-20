@@ -531,7 +531,7 @@ size_t write_coreboot_forwarding_table(uintptr_t entry, uintptr_t target)
 	return (uintptr_t)lb_table_fini(head) - entry;
 }
 
-static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
+uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 {
 	struct lb_header *head;
 
@@ -646,37 +646,4 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Remember where my valid memory ranges are */
 	return lb_table_fini(head);
-}
-
-void *write_tables(void)
-{
-	uintptr_t cbtable_start;
-	uintptr_t cbtable_end;
-	size_t cbtable_size;
-	const size_t max_table_size = COREBOOT_TABLE_SIZE;
-
-	cbtable_start = (uintptr_t)cbmem_add(CBMEM_ID_CBTABLE, max_table_size);
-
-	if (!cbtable_start) {
-		printk(BIOS_ERR, "Could not add CBMEM for coreboot table.\n");
-		return NULL;
-	}
-
-	/* Add architecture specific tables. */
-	arch_write_tables(cbtable_start);
-
-	/* Write the coreboot table. */
-	cbtable_end = write_coreboot_table(cbtable_start);
-	cbtable_size = cbtable_end - cbtable_start;
-
-	if (cbtable_size > max_table_size) {
-		printk(BIOS_ERR, "%s: coreboot table didn't fit (%zx/%zx)\n",
-			__func__, cbtable_size, max_table_size);
-	}
-
-	printk(BIOS_DEBUG, "coreboot table: %zd bytes.\n", cbtable_size);
-
-	/* Print CBMEM sections */
-	cbmem_list();
-	return (void *)cbtable_start;
 }
