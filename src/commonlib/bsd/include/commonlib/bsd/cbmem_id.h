@@ -96,6 +96,7 @@
 #define CBMEM_ID_PVMFW		0x666d7670
 #define CBMEM_ID_BOOT_MODE	0x444D5442
 #define CBMEM_ID_RB_INFO	0x50524249
+#define CBMEM_ID_FDT		0x46445400
 
 #define CBMEM_ID_TO_NAME_TABLE				 \
 	{ CBMEM_ID_ACPI,		"ACPI       " }, \
@@ -184,5 +185,6 @@
 	{ CBMEM_ID_AMD_OPENSIL,		"OPENSIL DATA"}, \
 	{ CBMEM_ID_PVMFW,		"PVMFW      "}, \
 	{ CBMEM_ID_BOOT_MODE,		"BOOT MODE  "}, \
-	{ CBMEM_ID_RB_INFO,		"PCI RB INFO"}
+	{ CBMEM_ID_RB_INFO,		"PCI RB INFO"}, \
+	{ CBMEM_ID_FDT,			"FDT        "}
 #endif /* _CBMEM_ID_H_ */

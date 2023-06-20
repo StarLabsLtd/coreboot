@@ -191,7 +191,6 @@ static uintptr_t forwarding_table = FORWARDING_TABLE_ADDR;
 
 void arch_write_tables(uintptr_t coreboot_table)
 {
-	size_t sz;
 	unsigned long rom_table_end;
 
 	if (CONFIG(SHADOW_ROM_TABLE_TO_EBDA))
@@ -213,11 +212,13 @@ void arch_write_tables(uintptr_t coreboot_table)
 	if (CONFIG(GENERATE_SMBIOS_TABLES))
 		rom_table_end = write_smbios_table(rom_table_end);
 
-	sz = write_coreboot_forwarding_table(forwarding_table, coreboot_table);
+	if (CONFIG(HANDOFF_COREBOOT_TABLES) || CONFIG(HANDOFF_UPL_DEVICETREE)) {
+		size_t sz = write_coreboot_forwarding_table(forwarding_table, coreboot_table);
 
-	forwarding_table += sz;
-	/* Align up to page boundary for historical consistency. */
-	forwarding_table = ALIGN_UP(forwarding_table, 4*KiB);
+		forwarding_table += sz;
+		/* Align up to page boundary for historical consistency. */
+		forwarding_table = ALIGN_UP(forwarding_table, 4*KiB);
+	}
 
 	/* Tell static analysis we know value is left unused. */
 	(void)rom_table_end;
@@ -225,12 +226,14 @@ void arch_write_tables(uintptr_t coreboot_table)
 
 void bootmem_arch_add_ranges(void)
 {
-	/* Memory from 0 through the forwarding_table is reserved. */
-	const uintptr_t base = 0;
+	if (CONFIG(HANDOFF_COREBOOT_TABLES) || CONFIG(HANDOFF_UPL_DEVICETREE)) {
+		/* Memory from 0 through the forwarding_table is reserved. */
+		const uintptr_t base = 0;
 
-	bootmem_add_range(base, forwarding_table - base, BM_MEM_TABLE);
+		bootmem_add_range(base, forwarding_table - base, BM_MEM_TABLE);
 
-	/* Reserve Extend BIOS Data Area (EBDA) region explicitly */
-	bootmem_add_range((uintptr_t)CONFIG_DEFAULT_EBDA_SEGMENT << 4,
-			CONFIG_DEFAULT_EBDA_SIZE, BM_MEM_TABLE);
+		/* Reserve Extend BIOS Data Area (EBDA) region explicitly */
+		bootmem_add_range((uintptr_t)CONFIG_DEFAULT_EBDA_SEGMENT << 4,
+				CONFIG_DEFAULT_EBDA_SIZE, BM_MEM_TABLE);
+	}
 }

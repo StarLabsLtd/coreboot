@@ -2,8 +2,11 @@
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
+#include <boot/upl_fdt_table.h>
+#include <console/console.h>
 #include <console/uart.h>
 #include <drivers/uart/pl011.h>
+#include <stdlib.h>
 
 void uart_init(unsigned int idx)
 {
@@ -72,8 +75,29 @@ enum cb_err fill_lb_serial(struct lb_serial *serial)
 	serial->type = LB_SERIAL_TYPE_MEMORY_MAPPED;
 	serial->baseaddr = uart_platform_base(CONFIG_UART_FOR_CONSOLE);
 	serial->baud = get_uart_baudrate();
-	serial->regwidth = 4;
+	serial->regwidth = sizeof(uint32_t);
 	serial->input_hertz = uart_platform_refclk();
 
 	return CB_SUCCESS;
+}
+
+const char *upl_fdt_add_serial(struct device_tree_node *parent_node)
+{
+	static const char *serial_path[] = { "serial", NULL };
+	u32 addr_cells = 0, size_cells = 0;
+	struct device_tree_node *uart_node = dt_find_node(parent_node, serial_path, &addr_cells, &size_cells, 1);
+	if (!uart_node) {
+		printk(BIOS_ERR, "%s(): could not add serial node\n", __func__);
+		return NULL;
+	}
+
+	u64 reg_addrs[] = { uart_platform_base(CONFIG_UART_FOR_CONSOLE) };
+	u64 reg_sizes[] = { 0x1000 };
+	dt_add_reg_prop(uart_node, reg_addrs, reg_sizes, 1, addr_cells, size_cells);
+	dt_add_string_prop(uart_node, "compatible", "arm,pl011");
+	dt_add_u32_prop(uart_node, "clock-frequency", uart_platform_refclk());
+	dt_add_u32_prop(uart_node, "current-speed", get_uart_baudrate());
+	dt_add_u32_prop(uart_node, "reg-io-width", sizeof(uint32_t));
+
+	return "/serial";
 }

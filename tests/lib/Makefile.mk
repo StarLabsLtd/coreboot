@@ -144,6 +144,7 @@ dimm_info_util-test-srcs += tests/stubs/console.c
 coreboot_table-test-srcs += tests/lib/coreboot_table-test.c
 coreboot_table-test-srcs += tests/stubs/console.c
 coreboot_table-test-srcs += src/commonlib/bsd/ipchksum.c
+coreboot_table-test-srcs += src/lib/tables.c
 coreboot_table-test-srcs += src/lib/coreboot_table.c
 coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c

@@ -201,4 +201,26 @@ config PAYLOAD_FIT_SUPPORT
 	  In case the Payload is added afterwards (e.g. using cbfstool), one
 	  can enable this option in combination with PAYLOAD_NONE=y.
 
+# PAYLOAD_NONE only means that coreboot does not add a payload to CBFS. A
+# payload may be added later, so the selected handoff still has to be built.
+choice
+	prompt "Payload Handoff Selection"
+	default HANDOFF_UPL_DEVICETREE if EDK2_UNIVERSAL_PAYLOAD
+	default HANDOFF_COREBOOT_TABLES
+
+config HANDOFF_COREBOOT_TABLES
+	bool "Create coreboot table handoff"
+	help
+	  Use coreboot tables as handoff to the payload. It is an easy,
+	  small and widely supported format for handoffs.
+
+config HANDOFF_UPL_DEVICETREE
+	bool "Create Universal Payload FDT handoff (experimental)"
+	select FLATTENED_DEVICE_TREE
+	help
+	  Use Universal Payload Flattened Device Tree as payload handoff.
+	  Its format is specified by the Universal Payload Specification.
+
+endchoice
+
 endmenu

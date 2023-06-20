@@ -14,6 +14,7 @@
  * of table written.
  */
 size_t write_coreboot_forwarding_table(uintptr_t entry, uintptr_t target);
+uintptr_t write_coreboot_table(uintptr_t rom_table_end);
 
 void fill_lb_gpios(struct lb_gpios *gpios);
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
