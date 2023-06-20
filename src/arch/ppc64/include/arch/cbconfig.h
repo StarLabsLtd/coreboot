@@ -10,6 +10,7 @@
  * to have the same name across all architectures.
  */
 
-#define COREBOOT_TABLE_SIZE 0x2000
+// coreboot handoff can either be coreboot tables or Universal Payload devicetree
+#define MAX_COREBOOT_HANDOFF_SIZE 0x2000
 
 #endif

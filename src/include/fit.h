@@ -24,10 +24,12 @@ struct fit_image_node {
 
 struct fit_config_node {
 	const char *name;
+	struct fit_image_node *firmware;
 	struct fit_image_node *kernel;
 	struct fit_image_node *fdt;
 	struct list_node overlays;
 	struct fit_image_node *ramdisk;
+	struct list_node secondary_images;
 	struct fdt_property compat;
 	int compat_rank;
 	int compat_pos;
@@ -36,8 +38,8 @@ struct fit_config_node {
 	struct list_node list_node;
 };
 
-struct fit_overlay_chain {
-	struct fit_image_node *overlay;
+struct fit_image_chain {
+	struct fit_image_node *image;
 	struct list_node list_node;
 };
 
