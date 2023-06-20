@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <console/console.h>
+#include <assert.h>
 #include <bootmem.h>
+#include <boot/upl_fdt_table.h>
 #include <cbmem.h>
+#include <console/console.h>
 #include <device/resource.h>
 #include <drivers/efi/capsules.h>
 #include <symbols.h>
-#include <assert.h>
 #include <types.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static int initialized;
 static int table_written;
@@ -178,6 +181,72 @@ void bootmem_write_memory_table(struct lb_memory *mem)
 	}
 
 	table_written = 1;
+}
+
+// Write memory ranges in devicetree of UPL handoff
+void upl_fdt_add_memory(struct device_tree *tree)
+{
+	printk(BIOS_DEBUG, "Write UPL FDT memory entries\n");
+	bootmem_init();
+	bootmem_dump_ranges();
+
+	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
+	u32 addr_cells = 2;
+	u32 size_cells = 1;
+
+	struct device_tree_node *rsvd_node;
+	rsvd_node = dt_find_node_by_path(tree, "/reserved-memory", &addr_cells, &size_cells, 1);
+	if (!rsvd_node)
+		return;
+
+	// Binding doc says this should have the same #{address,size}-cells as the root.
+	dt_add_u32_prop(rsvd_node, "#address-cells", addr_cells);
+	dt_add_u32_prop(rsvd_node, "#size-cells", size_cells);
+	// Binding doc says this should be empty (1:1 mapping from root).
+	dt_add_bin_prop(rsvd_node, "ranges", NULL, 0);
+
+	const struct range_entry *r;
+	memranges_each_entry(r, &bootmem_os) {
+		char node_name[100];
+		u64 addr = range_entry_base(r);
+		u64 size = range_entry_size(r);
+		struct device_tree_node *node = NULL;
+		switch (range_entry_tag(r)) {
+		case BM_MEM_RAM:
+		case BM_MEM_RAMSTAGE:
+		case BM_MEM_PAYLOAD:
+			snprintf(node_name, 100, "/memory@%llx", addr);
+			node = dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
+			dt_add_string_prop(node, "device_type", "memory");
+			break;
+		case BM_MEM_ACPI:
+			snprintf(node_name, 100, "acpi-reclaim@%llx", addr);
+			const char *node_names_acpi[] = { node_name, NULL };
+			node = dt_find_node(rsvd_node, node_names_acpi, NULL, NULL, 1);
+			dt_add_bin_prop(node, "no-map", NULL, 0);
+			break;
+		case BM_MEM_NVS:
+			snprintf(node_name, 100, "acpi-nvs@%llx", addr);
+			const char *node_names_nvs[] = { node_name, NULL };
+			node = dt_find_node(rsvd_node, node_names_nvs, NULL, NULL, 1);
+			dt_add_bin_prop(node, "no-map", NULL, 0);
+			break;
+		case BM_MEM_VENDOR_RSVD:
+		case BM_MEM_UNUSABLE:
+		case BM_MEM_RESERVED:
+		case BM_MEM_SOFT_RESERVED:
+		case BM_MEM_TABLE:
+		case BM_MEM_OPENSBI:
+		case BM_MEM_BL31:
+		default:
+			snprintf(node_name, 100, "memory@%llx", addr);
+			const char *node_names[] = { node_name, NULL };
+			node = dt_find_node(rsvd_node, node_names, NULL, NULL, 1);
+			dt_add_bin_prop(node, "no-map", NULL, 0);
+			break;
+		}
+		dt_add_reg_prop(node, &addr, &size, 1, addr_cells, size_cells);
+	}
 }
 
 void bootmem_dump_ranges(void)
