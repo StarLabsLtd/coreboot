@@ -82,7 +82,8 @@ void ec_mirror_flag(void)
 	if (CONFIG(EC_STARLABS_MIRROR_SUPPORT) &&
 		(CONFIG(SOC_INTEL_COMMON_BLOCK_TCSS) || get_uint_option("mirror_flag", 0)) &&
 		(ec_get_version() != CONFIG_EC_STARLABS_MIRROR_VERSION))	{
-		printk(BIOS_ERR, "ITE: System and EC ROM version mismatch.\n");
+		printk(BIOS_ERR, "ITE: EC version 0x%x doesn't match coreboot version 0x%x.\n",
+			ec_get_version(), CONFIG_EC_STARLABS_MIRROR_VERSION);
 		ec_mirror_with_count();
 	}
 }
