@@ -80,7 +80,7 @@ void ec_mirror_flag(void)
 	 * flag for devices without it.
 	 */
 	if (CONFIG(EC_STARLABS_MIRROR_SUPPORT) &&
-		(CONFIG(SOC_INTEL_COMMON_BLOCK_TCSS) || get_uint_option("mirror_flag", 0)) &&
+		(CONFIG(DRIVERS_INTEL_USB4_RETIMER) || get_uint_option("mirror_flag", 0)) &&
 		(ec_get_version() != CONFIG_EC_STARLABS_MIRROR_VERSION))	{
 		printk(BIOS_ERR, "ITE: EC version 0x%x doesn't match coreboot version 0x%x.\n",
 			ec_get_version(), CONFIG_EC_STARLABS_MIRROR_VERSION);
