@@ -138,6 +138,25 @@ chip soc/intel/alderlake
 				device generic 0 on end
 			end
 		end
+		device ref pcie_rp9	on				# SSD x4
+			register "pch_pcie_rp[PCH_RP(9)]" = "{
+					.clk_src	= 1,
+					.clk_req	= 1,
+					.flags		= PCIE_RP_LTR | PCIE_RP_AER,
+			}"
+
+			smbios_slot_desc		"SlotTypeM2Socket3"
+							"SlotLengthLong"
+							"M.2/M 2280"
+							"SlotDataBusWidth4X"
+
+#			chip soc/intel/common/block/pcie/rtd3
+#				register "enable_gpio	= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_D16)"
+#				register "reset_gpio"	= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_H0)"
+#				register "srcclk_pin"	= "1"
+#				device generic 0 on end
+#			end
+		end
 		device ref uart0	on  end
 		device ref pch_espi	on
 			register "gen1_dec"			= "0x00fc0201"

@@ -61,7 +61,7 @@ const struct pad_config gpio_table[] = {
 	/* A11:		Not Connected					*/
 	PAD_NC(GPP_A11, NONE),
 	/* A12:		PCH M.2 SSD PEDET				*/
-	PAD_NC(GPP_A12, NONE),
+	PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
 	/* A13:		BlueTooth RF Kill				*/
 	PAD_CFG_GPO(GPP_A13, 1, DEEP),
 	/* A14:		Test Point 45					*/
@@ -209,7 +209,7 @@ const struct pad_config gpio_table[] = {
 	/* D5:		Not Connected					*/
 	PAD_NC(GPP_D5, NONE),
 	/* D6:		Clock Request 1		PCH M.2 SSD		*/
-	PAD_NC(GPP_D6, NONE),
+	PAD_CFG_NF(GPP_D6, NONE, DEEP, NF1),
 	/* D7:		Clock Request 2		Wireless LAN		*/
 	PAD_CFG_NF(GPP_D7, NONE, DEEP, NF1),
 	/* D8:		Clock Request 3		LAN			*/
@@ -229,7 +229,7 @@ const struct pad_config gpio_table[] = {
 	/* D15:		Not Connected					*/
 	PAD_NC(GPP_D15, NONE),
 	/* D16:		PCH M.2 SSD Power Enable			*/
-	PAD_NC(GPP_D16, NONE),
+	PAD_CFG_GPO(GPP_D16, 1, PLTRST),
 	/* D17:		Not used		Fingerprint ID		*/
 	PAD_NC(GPP_D17, NONE),
 	/* D18:		Not Connected					*/
@@ -340,7 +340,7 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_F23, NONE),
 
 	/* H0:		PCH M.2 SSD Reset				*/
-	PAD_NC(GPP_H0, NONE),
+	PAD_CFG_GPO(GPP_H0, 1, PLTRST),
 	/* H1:		BFX Strap 2 Bit 3	Weak Internal PD 20K	*/
 	PAD_CFG_GPO(GPP_H1, 1, PLTRST),
 	/* H2:		Wireless LAN Reset				*/
@@ -362,7 +362,7 @@ const struct pad_config gpio_table[] = {
 	/* H12:		Not Connected					*/
 	PAD_NC(GPP_H12, NONE),
 	/* H13:		PCH M.2 SSD Device Sleep			*/
-	PAD_NC(GPP_H13, NONE),
+	PAD_CFG_GPO(GPP_H13, 0, PLTRST),
 	/* H14:		Not Connected					*/
 	PAD_NC(GPP_H14, NONE),
 	/* H15:		DDPB Control Clock				*/
