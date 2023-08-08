@@ -1,4 +1,5 @@
 chip soc/intel/alderlake
+	register "disable_package_c_state_demotion" = "1"
 
 	device domain 0 on end
 end
