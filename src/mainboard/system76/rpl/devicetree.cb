@@ -19,6 +19,8 @@ chip soc/intel/alderlake
 
 	register "disable_package_c_state_demotion" = "1"
 
+	register "disable_c1e" = "1"
+
 	device cpu_cluster 0 on end
 
 	device domain 0 on

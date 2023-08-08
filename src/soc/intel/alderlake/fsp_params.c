@@ -956,7 +956,6 @@ static void fill_fsps_cpu_pcie_params(FSP_S_CONFIG *s_cfg,
 static void fill_fsps_misc_power_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
-	u32 cpu_id = cpu_get_cpuid();
 	/* Skip setting D0I3 bit for all HECI devices */
 	s_cfg->DisableD0I3SettingForHeci = 1;
 	/*
@@ -1027,10 +1026,7 @@ static void fill_fsps_misc_power_params(FSP_S_CONFIG *s_cfg,
 
 	s_cfg->PkgCStateDemotion = !config->disable_package_c_state_demotion;
 
-	if (cpu_id == CPUID_RAPTORLAKE_J0 || cpu_id == CPUID_RAPTORLAKE_Q0)
-		s_cfg->C1e = 0;
-	else
-		s_cfg->C1e = 1;
+	s_cfg->C1e = !config->disable_c1e;
 #if CONFIG(SOC_INTEL_RAPTORLAKE) && !CONFIG(FSP_USE_REPO)
 	s_cfg->EnableHwpScalabilityTracking = config->enable_hwp_scalability_tracking;
 #endif
