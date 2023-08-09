@@ -1,68 +1,54 @@
 /** @file
-  Header file for Firmware Version Information
+  Intel Firmware Version Info (FVI) related definitions.
 
- @copyright
-  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  @todo update document/spec reference
 
-  This program and the accompanying materials are licensed and made available under
-  the terms and conditions of the BSD License which accompanies this distribution.
-  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
+  Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+@par Specification Reference:
+  System Management BIOS (SMBIOS) Reference Specification v3.0.0 dated 2015-Feb-12
+  http://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.0.0.pdf
 
 **/
 
-#ifndef _FIRMWARE_VERSION_INFO_HOB_H_
-#define _FIRMWARE_VERSION_INFO_HOB_H_
+#ifndef __FIRMWARE_VERSION_INFO_H__
+#define __FIRMWARE_VERSION_INFO_H__
 
-#include <Uefi/UefiMultiPhase.h>
-#include <Pi/PiBootMode.h>
-#include <Pi/PiHob.h>
+#include <IndustryStandard/SmBios.h>
+
+#define INTEL_FIRMWARE_VERSION_INFO_GROUP_NAME    "Firmware Version Info"
 
 #pragma pack(1)
+
 ///
 /// Firmware Version Structure
 ///
 typedef struct {
-  UINT8                          MajorVersion;
-  UINT8                          MinorVersion;
-  UINT8                          Revision;
-  UINT16                         BuildNumber;
-} FIRMWARE_VERSION;
+  UINT8                       MajorVersion;
+  UINT8                       MinorVersion;
+  UINT8                       Revision;
+  UINT16                      BuildNumber;
+} INTEL_FIRMWARE_VERSION;
 
 ///
-/// Firmware Version Information Structure
+/// Firmware Version Info (FVI) Structure
 ///
 typedef struct {
-  UINT8                          ComponentNameIndex;        ///< Offset 0   Index of Component Name
-  UINT8                          VersionStringIndex;        ///< Offset 1   Index of Version String
-  FIRMWARE_VERSION               Version;                   ///< Offset 2-6 Firmware version
-} FIRMWARE_VERSION_INFO;
-
-#ifndef __SMBIOS_STANDARD_H__
-///
-/// The Smbios structure header.
-///
-typedef struct {
-  UINT8                          Type;
-  UINT8                          Length;
-  UINT16                         Handle;
-} SMBIOS_STRUCTURE;
-#endif
+  SMBIOS_TABLE_STRING         ComponentName;  ///< String Index of Component Name
+  SMBIOS_TABLE_STRING         VersionString;  ///< String Index of Version String
+  INTEL_FIRMWARE_VERSION      Version;        ///< Firmware version
+} INTEL_FIRMWARE_VERSION_INFO;
 
 ///
-/// Firmware Version Information HOB Structure
+/// SMBIOS OEM Type Intel Firmware Version Info (FVI) Structure
 ///
 typedef struct {
-  EFI_HOB_GUID_TYPE              Header;                    ///< Offset 0-23  The header of FVI HOB
-  SMBIOS_STRUCTURE               SmbiosData;                ///< Offset 24-27  The SMBIOS header of FVI HOB
-  UINT8                          Count;                     ///< Offset 28    Number of FVI elements included.
-///
-/// FIRMWARE_VERSION_INFO structures followed by the null terminated string buffer
-///
-} FIRMWARE_VERSION_INFO_HOB;
+  SMBIOS_STRUCTURE            Header;         ///< SMBIOS structure header
+  UINT8                       Count;          ///< Number of FVI entries in this structure
+  INTEL_FIRMWARE_VERSION_INFO Fvi[1];         ///< FVI structure(s)
+} SMBIOS_TABLE_TYPE_OEM_INTEL_FVI;
+
 #pragma pack()
 
-#endif // _FIRMWARE_VERSION_INFO_HOB_H_
+#endif
