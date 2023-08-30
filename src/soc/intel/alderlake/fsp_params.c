@@ -679,8 +679,7 @@ static void fill_fsps_tcss_params(FSP_S_CONFIG *s_cfg,
 			s_cfg->UsbTcPortEn |= BIT(i);
 	}
 
-	if (CONFIG(SOC_INTEL_RAPTORLAKE))
-		s_cfg->Usb4CmMode = CONFIG(SOFTWARE_CONNECTION_MANAGER);
+	s_cfg->Usb4CmMode = CONFIG(SOFTWARE_CONNECTION_MANAGER);
 }
 
 static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
