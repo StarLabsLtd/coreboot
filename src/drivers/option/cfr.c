@@ -7,6 +7,7 @@
 #include <crc_byte.h>
 #include <drivers/option/cfr.h>
 #include <inttypes.h>
+#include <option.h>
 #include <string.h>
 #include <types.h>
 
@@ -199,6 +200,49 @@ static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 	default:
 		printk(BIOS_ERR, "Unknown setup menu object kind %u, ignoring\n", sm_obj->kind);
 		return 0;
+	}
+}
+
+void cfr_set_default_values(const struct setup_menu_root *sm_root)
+{
+	for (int form_idx = 0; form_idx < sm_root->num_forms; form_idx++) {
+		const struct sm_obj_form *frm = &sm_root->form_list[form_idx];
+
+		for (int obj_idx = 0; obj_idx < frm->num_objects; obj_idx++) {
+			const struct sm_object *obj = &frm->obj_list[obj_idx];
+
+			switch (obj->kind) {
+			case SM_OBJ_ENUM:
+				const struct sm_obj_enum *opt_enum = &obj->sm_enum;
+
+				/* Check if the option exists */
+				if (get_uint_option(opt_enum->opt_name, UINT_MAX) == UINT_MAX) {
+					/* Create it if it doesn't exist */
+					set_uint_option(opt_enum->opt_name, opt_enum->default_value);
+				}
+				break;
+			case SM_OBJ_NUMBER:
+				const struct sm_obj_number *opt_number = &obj->sm_number;
+
+				/* Check if the option exists */
+				if (get_uint_option(opt_number->opt_name, UINT_MAX) == UINT_MAX) {
+					/* Create it if it doesn't exist */
+					set_uint_option(opt_number->opt_name, opt_number->default_value);
+				}
+				break;
+			case SM_OBJ_BOOL:
+				const struct sm_obj_bool *opt_bool = &obj->sm_bool;
+
+				/* Check if the option exists */
+				if (get_uint_option(opt_bool->opt_name, UINT_MAX) == UINT_MAX) {
+					/* Create it if it doesn't exist */
+					set_uint_option(opt_bool->opt_name, opt_bool->default_value);
+				}
+				break;
+			default:
+				break;
+			}
+		}
 	}
 }
 
