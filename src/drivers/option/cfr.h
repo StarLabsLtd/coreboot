@@ -110,6 +110,7 @@ struct setup_menu_root {
 	size_t num_forms;
 };
 
+void cfr_set_default_values(const struct setup_menu_root *sm_root);
 void cfr_write_setup_menu(struct lb_header *header, const struct setup_menu_root *sm_root);
 
 /* Back-end */
