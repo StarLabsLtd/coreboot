@@ -354,4 +354,3 @@ void lb_board(struct lb_header *header)
 	cfr_set_default_values(&sm_root);
 	cfr_write_setup_menu(header, &sm_root);
 }
-
