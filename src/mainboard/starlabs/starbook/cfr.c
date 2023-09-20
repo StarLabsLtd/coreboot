@@ -212,13 +212,6 @@ void lb_board(struct lb_header *header)
 		},
 		{
 			.object_id	= starbook_get_object_id(),
-			.opt_name	= "mirror_flag_counter",
-			.ui_name	= "Mirror Flag Counter",
-			.flags		= CFR_OPTFLAG_SUPPRESS,
-			.default_value	= 0,
-		},
-		{
-			.object_id	= starbook_get_object_id(),
 			.opt_name	= "reboot_counter",
 			.ui_name	= "Reboot Counter",
 			.flags		= CFR_OPTFLAG_SUPPRESS,
@@ -262,16 +255,13 @@ void lb_board(struct lb_header *header)
 	const struct sm_object coreboot_options[] = {
 		SM_DECLARE_ENUM(enum_opts[0]),		// boot_option
 		SM_DECLARE_ENUM(enum_opts[1]),		// debug_level
-		SM_DECLARE_NUMBER(number_opts[2]),	// reboot_counter
+		SM_DECLARE_NUMBER(number_opts[1]),	// reboot_counter
 	};
 
 	/* Embedded Controller Options */
 	const struct sm_object ec_options[] = {
-	#if CONFIG(EC_STARLABS_MIRROR_SUPPORT)
-	#if !CONFIG(DRIVERS_INTEL_USB4_RETIMER)
+	#if CONFIG(EC_STARLABS_MIRROR_SUPPORT) && !CONFIG(DRIVERS_INTEL_USB4_RETIMER)
 		SM_DECLARE_BOOL(bool_opts[4]),		// mirror_flag
-	#endif
-		SM_DECLARE_NUMBER(number_opts[1]),	// mirror_flag_counter
 	#endif
 	};
 
