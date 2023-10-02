@@ -98,15 +98,6 @@ void lb_board(struct lb_header *header)
 		},
 		{
 			.object_id	= lite_get_object_id(),
-			.opt_name	= "legacy_8254_timer",
-			.ui_name	= "Legacy 8254 Timer",
-			.ui_helptext	= "Enable or disable the legacy 8254 timer. Increases power consumption"
-					" by disabling clock gating, but increases compatibility with older"
-					" Operating Systems",
-			.default_value	= true,
-		},
-		{
-			.object_id	= lite_get_object_id(),
 			.opt_name	= "hyper_threading",
 			.ui_name	= "Hyper-Threading",
 			.ui_helptext	= "Enable or disable Hyper-Threading",
@@ -179,16 +170,15 @@ void lb_board(struct lb_header *header)
 
 	/* Device Options */
 	const struct sm_object device_options[] = {
-		SM_DECLARE_BOOL(bool_opts[7]),		// wireless
-		SM_DECLARE_BOOL(bool_opts[6]),		// webcam
-		SM_DECLARE_BOOL(bool_opts[8]),		// power_on_after_fail
+		SM_DECLARE_BOOL(bool_opts[6]),		// wireless
+		SM_DECLARE_BOOL(bool_opts[5]),		// webcam
+		SM_DECLARE_BOOL(bool_opts[7]),		// power_on_after_fail
 	};
 
 	/* Chipset Options */
 	const struct sm_object chipset_options[] = {
-		SM_DECLARE_BOOL(bool_opts[2]),		// legacy_8254_timer
-		SM_DECLARE_BOOL(bool_opts[3]),		// hyper_threading
-		SM_DECLARE_BOOL(bool_opts[5]),		// vtd
+		SM_DECLARE_BOOL(bool_opts[2]),		// hyper_threading
+		SM_DECLARE_BOOL(bool_opts[4]),		// vtd
 	};
 
 	/* coreboot Options */
@@ -201,7 +191,7 @@ void lb_board(struct lb_header *header)
 	/* Embedded Controller Options */
 	const struct sm_object ec_options[] = {
 #if CONFIG(EC_STARLABS_MIRROR_SUPPORT)
-		SM_DECLARE_BOOL(bool_opts[4]),		// mirror_flag
+		SM_DECLARE_BOOL(bool_opts[3]),		// mirror_flag
 		SM_DECLARE_NUMBER(number_opts[0]),	// mirror_flag_counter
 #endif
 	};
