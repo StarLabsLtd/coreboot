@@ -2,6 +2,7 @@
 
 config SOC_INTEL_COMMON_BLOCK_SMM
 	bool
+	select HAVE_PAYLOAD_MM_INTERFACE
 	help
 	  Intel Processor common SMM support
 

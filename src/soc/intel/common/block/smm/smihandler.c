@@ -26,6 +26,7 @@
 #include <option.h>
 #include <security/lockdown/lockdown.h>
 #include <security/tcg/opal_s3_smm.h>
+#include <payload_mm_interface.h>
 #include <smmstore.h>
 #include <soc/nvs.h>
 #include <soc/pci_devs.h>
@@ -331,6 +332,30 @@ static void southbridge_smi_store(
 	}
 }
 
+static void southbridge_smi_payload(
+	const struct smm_save_state_ops *save_state_ops)
+{
+	u8 sub_command, ret;
+	int node;
+	uint32_t reg_eax, reg_ebx;
+
+	node = save_state_ops->apmc_node(APM_CNT_ELOG_GSMI);
+	if (node < 0)
+		return;
+	if (save_state_ops->get_reg(RAX, node, &reg_eax, sizeof(reg_eax)) != 0)
+		return;
+	/* Command and return value in EAX */
+	sub_command = (reg_eax >> 8) & 0xff;
+
+	/* payload_mm_load_context struct pointer in RBX */
+	if (save_state_ops->get_reg(RBX, node, &reg_ebx, sizeof(reg_ebx)) != 0)
+		return;
+
+	/* drivers/payload_mm_interface/smi.c */
+	ret = payload_mm_exec_interface(sub_command, (void *)(uintptr_t)reg_ebx);
+	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+}
+
 __weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
 {
 	*num = 0;
@@ -441,6 +466,10 @@ void smihandler_southbridge_apmc(
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
 		break;
+	case APM_CNT_PAYLOAD_MM:
+		if (CONFIG(PAYLOAD_MM_INTERFACE))
+			southbridge_smi_payload(save_state_ops);
+		break;
 	case APM_CNT_FINALIZE:
 		finalize();
 		break;
@@ -450,6 +479,9 @@ void smihandler_southbridge_apmc(
 		return;
 
 	mainboard_smi_apmc(reg8);
+
+	if (CONFIG(PAYLOAD_MM_INTERFACE))
+		payload_mm_call_entrypoint();
 }
 
 void smihandler_southbridge_pm1(
