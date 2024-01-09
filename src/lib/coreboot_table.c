@@ -24,6 +24,7 @@
 #include <bootmode.h>
 #include <bootsplash.h>
 #include <inttypes.h>
+#include <payload_mm_interface.h>
 #include <spi_flash.h>
 #include <smmstore.h>
 #include <types.h>
@@ -626,6 +627,10 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
+
+	/* coreboot-mediated payload MM initialisation */
+	if (CONFIG(PAYLOAD_MM_INTERFACE))
+		lb_payload_mm(head);
 
 	/* Add information about firmware in form suitable for EFI updates. */
 	if (CONFIG(DRIVERS_EFI_FW_INFO))
