@@ -1,7 +1,14 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config HAVE_PAYLOAD_MM_INTERFACE
+	def_bool n
+	help
+	  Selected by platforms that have implemented support for payload MM.
+
 config PAYLOAD_MM_INTERFACE
-	bool
+	bool "Support coreboot-mediated payload MM"
+	depends on HAVE_SMI_HANDLER
+	depends on HAVE_PAYLOAD_MM_INTERFACE
 	default n
 	help
 	  Implements coreboot-to-payload compatibility layers for sharing SMM. coreboot will

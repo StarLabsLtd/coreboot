@@ -82,6 +82,9 @@ enum {
 	LB_TAG_PLATFORM_BLOB_VERSION	= 0x0038,
 	LB_TAG_SMMSTOREV2		= 0x0039,
 	LB_TAG_TPM_PPI_HANDOFF		= 0x003a,
+	LB_TAG_PLD_MM_INTERFACE_INFO    = 0x003b,
+	LB_TAG_PAYLOAD_MM_SMRAM_REGION  = 0x003c,
+	LB_TAG_PAYLOAD_MM_SHARED_MEM    = 0x003d,
 	LB_TAG_BOARD_CONFIG		= 0x0040,
 	LB_TAG_ACPI_CNVS		= 0x0041,
 	LB_TAG_TYPE_C_INFO		= 0x0042,
@@ -596,6 +599,41 @@ struct lb_tpm_physical_presence {
 	uint8_t pad[2];
 };
 
+/*
+ * Payload MM interface info structure
+ */
+struct lb_payload_mm_interface_info {
+	uint32_t tag;
+	uint32_t size;
+	uint8_t revision;			/* The version of this table. Currently "0" */
+	uint8_t bootloader_smm_is_64bit;	/* Whether the bootloader's SMM is 64-bit code. This aids the
+						   payload determine if mode switching is required. */
+	uint8_t apm_cmd;			/* The command byte to write to the APM I/O port */
+	uint8_t pad;
+};
+
+/*
+ * Payload MM SMRAM region handoff
+ */
+struct lb_pld_mm_smram_descriptor {
+	lb_uint64_t physical_start;	/* Physical address of the descriptor */
+	lb_uint64_t physical_size;	/* Size of the described region */
+};
+
+struct lb_payload_mm_smram_region {
+	uint32_t tag;
+	uint32_t size;
+	struct lb_pld_mm_smram_descriptor descriptor;	/* The payload MM subregion */
+};
+
+/*
+ * Payload MM shared memory address
+ */
+struct lb_payload_mm_shared_mem {
+	uint32_t tag;
+	uint32_t size;
+	struct lb_pld_mm_smram_descriptor comm_buffer;	/* The shared memory */
+};
 
 /*
  * Handoff the ACPI RSDP
