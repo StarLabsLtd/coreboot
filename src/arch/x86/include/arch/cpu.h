@@ -156,6 +156,7 @@ struct cpu_driver *find_cpu_driver(struct device *cpu);
 
 struct thread;
 
+#if ENV_RAMSTAGE
 struct cpu_info {
 	struct device *cpu;
 	size_t index;
@@ -198,6 +199,9 @@ static inline unsigned long cpu_index(void)
 	ci = cpu_info();
 	return ci->index;
 }
+#else
+unsigned long cpu_index(void);
+#endif
 
 struct cpuinfo_x86 {
 	uint8_t	x86;		/* CPU family */

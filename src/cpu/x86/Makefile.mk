@@ -24,7 +24,7 @@ $(obj)/ramstage/cpu/x86/smm_start32_offset.h: $(dir)/smm_start32_offset.h.templa
 endif
 
 $(call src-to-obj,ramstage,$(dir)/mp_init.c): $(obj)/ramstage/cpu/x86/smm_start32_offset.h
-ramstage-$(CONFIG_PARALLEL_MP) += mp_init.c
+ramstage-$(CONFIG_PARALLEL_MP) += mp_init.c mp_common.c
 
 ramstage-y += backup_default_smm.c
 ramstage-y += smi_trigger.c
