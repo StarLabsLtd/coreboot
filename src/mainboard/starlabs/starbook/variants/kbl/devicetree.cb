@@ -3,17 +3,6 @@ chip soc/intel/skylake
 	# Enable Enhanced Intel SpeedStep
 	register "eist_enable"			= "1"
 
-	# Graphics
-	# IGD Displays
-	register "panel_cfg" = "{
-		.up_delay_ms			=  0,				// T3
-		.backlight_on_delay_ms		=  0,				// T7
-		.backlight_off_delay_ms		=  0,				// T9
-		.down_delay_ms			=  0,				// T10
-		.cycle_delay_ms			=  500,				// T12
-		.backlight_pwm_hz		=  200,				// PWM
-	}"
-
 	# FSP Memory
 	register "SaGv"				= "SaGv_Enabled"
 
