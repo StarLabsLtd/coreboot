@@ -9,9 +9,9 @@
 #include <pc80/mc146818rtc.h>
 #include <halt.h>
 
-#include "ec.h"
 #include "ecdefs.h"
 #include "option_table.h"
+#include "ec.h"
 
 uint16_t ec_get_version(void)
 {
