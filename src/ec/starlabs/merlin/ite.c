@@ -8,9 +8,9 @@
 #include <pc80/keyboard.h>
 #include <pc80/mc146818rtc.h>
 
-#include "ec.h"
 #include "ecdefs.h"
 #include "option_table.h"
+#include "ec.h"
 
 uint16_t ec_get_version(void)
 {
