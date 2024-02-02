@@ -190,6 +190,20 @@ void lb_board(struct lb_header *header)
 			.ui_name	= "Power on after failure",
 			.ui_helptext	= "Automatically turn on after a power failure",
 			.default_value	= false,
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "fingerprint_reader",
+			.ui_name	= "Fingerprint Reader",
+			.ui_helptext	= "Enable or disable the built-in fingerprint reader",
+			.default_value	= true,
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "card_reader",
+			.ui_name	= "Card Reader",
+			.ui_helptext	= "Enable or disable the built-in card reader",
+			.default_value	= true,
 		}
 	};
 
@@ -231,6 +245,10 @@ void lb_board(struct lb_header *header)
 	#endif
 		SM_DECLARE_BOOL(bool_opts[2]),		// microphone
 		SM_DECLARE_BOOL(bool_opts[9]),		// power_on_after_fail
+	#if CONFIG(BOARD_STARLABS_STARBOOK_ADL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL)
+		SM_DECLARE_BOOL(bool_opts[10]),		// fingerprint_reader
+	#endif
+		SM_DECLARE_BOOL(bool_opts[11]),		// card_reader
 	};
 
 	/* Chipset Options */
