@@ -899,17 +899,25 @@ static struct device_operations noop_tpm_ops = {
 	.set_resources = noop_set_resources,
 };
 
+
 static struct pnp_info pnp_dev_info[] = {
 	{ .flags = PNP_IRQ0 }
 };
 
 static void enable_dev(struct device *dev)
 {
-	if (CONFIG(TPM))
-		pnp_enable_devices(dev, &lpc_tpm_ops,
-			ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
-	else
+	enum tpm_family family;
+
+	if (CONFIG(TPM)) {
+		if (pc80_tis_probe(&family) == NULL) {
+			dev->enabled = 0;
+			return;
+		}
+
+		pnp_enable_devices(dev, &lpc_tpm_ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
+	} else {
 		pnp_enable_devices(dev, &noop_tpm_ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
+	}
 }
 
 struct chip_operations drivers_pc80_tpm_ops = {
