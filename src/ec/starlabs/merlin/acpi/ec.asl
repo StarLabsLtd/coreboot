@@ -50,7 +50,9 @@ Scope (\_SB.PCI0.LPCB)
 
 		Method (_STA, 0, NotSerialized)
 		{
+#if CONFIG(SOC_INTEL_COMMON)
 			\LIDS = 0x03
+#endif
 			Return (0x0F)
 		}
 
@@ -145,8 +147,10 @@ Scope (\_SB.PCI0.LPCB)
 				// Load EC Driver
 				ECAV = 0x01
 
+#if CONFIG(SOC_INTEL_COMMON)
 				// Initialise the Lid State
 				\LIDS = LSTE
+#endif
 
 				// Initialise the OS State
 				OSFG = 0x01

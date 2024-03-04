@@ -22,6 +22,8 @@ Method (_Q0B, 0, NotSerialized)			// Event: Battery Information Update
 
 Method (_Q0C, 0, NotSerialized)			// Event: Lid Opened or Closed
 {
+#if CONFIG(SOC_INTEL_COMMON)
 	\LIDS = LSTE
+#endif
 	Notify (LID0, 0x80)
 }
