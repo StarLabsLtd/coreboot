@@ -839,6 +839,12 @@ static void fill_fsps_cnvi_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->CnviMode = is_devfn_enabled(PCH_DEVFN_CNVI_WIFI);
 	s_cfg->CnviBtCore = config->cnvi_bt_core;
 	s_cfg->CnviBtAudioOffload = config->cnvi_bt_audio_offload;
+	/*
+	 * FSP defaults to GPP_A8 and GPP_A9 for the reset and clkreq pins
+	 * which are used for eSPI.
+	 */
+	s_cfg->CnviRfResetPinMux = 0x194ce404;
+	s_cfg->CnviClkreqPinMux = 0x294ce605;
 	/* Assert if CNVi BT is enabled without CNVi being enabled. */
 	assert(s_cfg->CnviMode || !s_cfg->CnviBtCore);
 	/* Assert if CNVi BT offload is enabled without CNVi BT being enabled. */
