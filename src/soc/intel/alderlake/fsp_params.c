@@ -935,6 +935,14 @@ static void fill_fsps_cnvi_params(FSP_S_CONFIG *s_cfg,
 		printk(BIOS_ERR, "USB BT Audio offload enabled but CNVi BT offload disabled\n");
 		usb_cfg->cnvi_bt_audio_offload = 0;
 	}
+	/*
+	 * FSP defaults to GPP_A8 and GPP_A9 for the reset and clkreq pins
+	 * which are used for eSPI, so change these to GPP_F4 and GPP_F5.
+	 */
+	if (!CONFIG(SOC_INTEL_ALDERLAKE_PCH_S)) {
+		s_cfg->CnviRfResetPinMux = 0x194ce404;
+		s_cfg->CnviClkreqPinMux = 0x294ce605;
+	}
 }
 
 static void fill_fsps_vmd_params(FSP_S_CONFIG *s_cfg,
