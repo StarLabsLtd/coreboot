@@ -132,6 +132,7 @@ static void merlin_init(struct device *dev)
 	 * trackpad_state
 	 * kbl_brightness
 	 * kbl_state
+	 * learn_interval
 	 */
 
 	/*
@@ -320,6 +321,32 @@ static void merlin_init(struct device *dev)
 	 */
 
 	ec_write(ECRAM_KBL_STATE, KBL_ENABLED);
+
+	/*
+	 * LEARN interval
+	 *
+	 * Setting:	learn_interval
+	 *
+	 * Values:	0, 32, 64, 128
+	 * Default:	64
+	 *
+	 */
+	const uint8_t learn_interval[] = {
+		LEARN_DISABLED,
+		LEARN_2_CYCLES,
+		LEARN_32_CYCLES,
+		LEARN_64_CYCLES,
+		LEARN_128_CYCLES
+	};
+
+	if (CONFIG(EC_STARLABS_LEARN_INTERVAL))
+		ec_write(ECRAM_LEARN_INTERVAL,
+			get_ec_value_from_option("learn_interval",
+				4,
+				learn_interval,
+				ARRAY_SIZE(learn_interval),
+				UINT_MAX,
+				UINT_MAX));
 }
 
 static struct device_operations ops = {
