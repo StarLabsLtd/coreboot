@@ -78,6 +78,12 @@ config EC_STARLABS_MIRROR_VERSION
 	  The version of the EC that should be installed. The mirror flag will be activated
 	  if this Kconfig option is set and it does not match the current EC version.
 
+config EC_STARLABS_LEARN_INTERVAL
+	bool "Enable setting the LEARN interval"
+	depends on EC_STARLABS_ITE
+	help
+	  Select if the mainboard supports configuring the LEARN interval
+
 config EC_STARLABS_MERLIN
 	bool "Use open-source Merlin EC Firmware"
 	default n

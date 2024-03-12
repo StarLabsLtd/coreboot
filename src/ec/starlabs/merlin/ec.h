@@ -102,6 +102,12 @@
 #define MIRROR_DISABLED		0x00
 #define MIRROR_ENABLED		0xaa
 
+/* LEARN Interval */
+#define LEARN_DISABLED		0x00
+#define LEARN_2_CYCLES		0x02
+#define LEARN_32_CYCLES		0x20
+#define LEARN_64_CYCLES		0x40
+#define LEARN_128_CYCLES	0x80
 
 #ifndef CMOS_VSTART_fn_lock_state
 #define CMOS_VSTART_fn_lock_state	UINT_MAX

@@ -110,13 +110,28 @@ void lb_board(struct lb_header *header)
 			.ui_name	= "Power Profile",
 			.ui_helptext	= "Select whether to maximise performance, battery life or both.",
 			.default_value	= 1,
-			.values		= (const struct sm_enum_value []) {
+			.values		= (const struct sm_enum_value[]) {
 				{	"Power Saver",	PP_POWER_SAVER	},
 				{	"Balanced",	PP_BALANCED	},
 				{	"Performance",	PP_PERFORMANCE	},
 				SM_ENUM_VALUE_END,
-			},
+			}
 		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "learn_interval",
+			.ui_name	= "LEARN interval",
+			.ui_helptext	= "The number of charge cycles between LEARN cycles, where the battery will fully discharge to calibrate.",
+			.default_value	= 0,
+			.values		= (const struct sm_enum_value[]) {
+				{	"Disabled",	0		},
+				{	"2",		1		},
+				{	"32",		2		},
+				{	"64",		3		},
+				{	"128",		4		},
+				SM_ENUM_VALUE_END,
+			}
+		}
 	};
 
 	const struct sm_obj_bool bool_opts[] = {
@@ -231,6 +246,9 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_ENUM(enum_opts[4]),		// maximum charge level
 		SM_DECLARE_ENUM(enum_opts[3]),		// keyboard backlight timeout
 		SM_DECLARE_BOOL(bool_opts[0]),		// function control swap
+	#if CONFIG(EC_STARLABS_LEARN_INTERVAL)
+		SM_DECLARE_ENUM(enum_opts[7]),		// learn_interval
+	#endif
 	};
 
 	/* Device Options */
