@@ -81,6 +81,22 @@ struct drivers_i2c_generic_config {
 	bool has_rotation_matrix;
 	int rotation_matrix[9];
 
+	/*
+	 * Chip Direct Mapping is exclusive to Windows, a allows specifying the
+	 * position where a chip in mounted. There are 8 positions:
+	 *	1:	90 Degrees
+	 *	2:	270 Degrees
+	 *	3:	180 Degress
+	 *	4:	0 Degress
+	 *	5:	90 Degrees (Inverted)
+	 *	6:	270 Degrees (Inverted)
+	 *	7:	180 Degress (Inverted)
+	 *	8:	0 Degress (Inverted)
+	 *
+	 * The _CDM method should return 0xabcd0X, where X is the position.
+	 */
+	bool has_cdm;
+	int cdm_index;
 
 	/* Generic properties for exporting device-specific data to the OS */
 	struct acpi_dp property_list[MAX_GENERIC_PROPERTY_LIST];
