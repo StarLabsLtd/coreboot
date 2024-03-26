@@ -25,9 +25,9 @@ chip soc/intel/alderlake
 	register "pch_slp_a_min_assertion_width"	= "3"			# 2s
 
 	# PM Util
-	register "pmc_gpe0_dw0"			= "GPP_B"
-	register "pmc_gpe0_dw1"			= "GPP_C"
-	register "pmc_gpe0_dw2"			= "GPP_E"
+	register "pmc_gpe0_dw0"			= "GPP_A"
+	register "pmc_gpe0_dw1"			= "GPP_R"
+	register "pmc_gpe0_dw2"			= "GPD"
 
 	# Device Tree
 	device cpu_cluster 0 on end
