@@ -782,4 +782,21 @@ struct soc_intel_alderlake_config {
 
 typedef struct soc_intel_alderlake_config config_t;
 
+/* Clock Power Management and ASPM Helpers */
+enum pci_aspm {
+	PCH_PCIE_ASPM_DISABLED,
+	PCH_PCIE_ASPM_L0S,
+	PCH_PCIE_ASPM_L1,
+	PCH_PCIE_ASPM_L0S_L1,
+	PCH_PCIE_ASPM_AUTO,
+	PCH_PCIE_ASPM_MAX
+};
+
+enum pcie_l1_substate {
+	DISABLED,
+	PCH_PCIE_L1_SUBSTATES_L1_1,
+	PCH_PCIE_L1_SUBSTATES_L1_1_2,
+	PCH_PCIE_L1_SUBSTATES_MAX,
+};
+
 #endif
