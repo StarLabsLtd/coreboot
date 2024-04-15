@@ -493,9 +493,14 @@ static void configure_rp_power_management(FSP_S_CONFIG *s_cfg,
 				   const struct pcie_rp_config *rp_cfg,
 				   uint32_t index)
 {
-	s_cfg->PcieRpEnableCpm[index] = CONFIG(PCIEXP_CLK_PM);
+	bool pciexp_clk_pm = get_uint_option("pciexp_clk_pm", CONFIG(PCIEXP_CLK_PM));
+	bool pciexp_aspm = get_uint_option("pciexp_aspm", CONFIG(PCIEXP_ASPM));
+	bool pciexp_l1_sub_state = get_uint_option("pciexp_l1_sub_state",
+						   CONFIG(PCIEXP_L1_SUB_STATE));
 
-	if (!CONFIG(PCIEXP_ASPM)) {
+	s_cfg->PcieRpEnableCpm[index] = pciexp_clk_pm;
+
+	if (!pciexp_aspm) {
 		s_cfg->PcieRpAspm[index] = 0;
 		s_cfg->PcieRpL1Substates[index] = 0;
 		return;
@@ -505,7 +510,7 @@ static void configure_rp_power_management(FSP_S_CONFIG *s_cfg,
 	if (rp_cfg->pcie_rp_aspm > 0)
 		s_cfg->PcieRpAspm[index] = rp_cfg->pcie_rp_aspm - 1;
 
-	if (!CONFIG(PCIEXP_L1_SUB_STATE)) {
+	if (!pciexp_l1_sub_state) {
 		s_cfg->PcieRpL1Substates[index] = 0;
 		return;
 	}
@@ -534,11 +539,16 @@ static void configure_cpu_rp_power_management(FSP_S_CONFIG *s_cfg,
 				       const struct pcie_rp_config *rp_cfg,
 				       uint32_t index)
 {
-	s_cfg->CpuPcieRpEnableCpm[index] = CONFIG(PCIEXP_CLK_PM);
-	s_cfg->CpuPcieClockGating[index] = CONFIG(PCIEXP_CLK_PM);
-	s_cfg->CpuPciePowerGating[index] = CONFIG(PCIEXP_CLK_PM);
+	bool pciexp_clk_pm = get_uint_option("pciexp_clk_pm", CONFIG(PCIEXP_CLK_PM));
+	bool pciexp_aspm = get_uint_option("pciexp_aspm", CONFIG(PCIEXP_ASPM));
+	bool pciexp_l1_sub_state = get_uint_option("pciexp_l1_sub_state",
+						   CONFIG(PCIEXP_L1_SUB_STATE));
 
-	if (!CONFIG(PCIEXP_ASPM)) {
+	s_cfg->CpuPcieRpEnableCpm[index] = pciexp_clk_pm;
+	s_cfg->CpuPcieClockGating[index] = pciexp_clk_pm;
+	s_cfg->CpuPciePowerGating[index] = pciexp_clk_pm;
+
+	if (!pciexp_aspm) {
 		s_cfg->CpuPcieRpAspm[index] = 0;
 		s_cfg->CpuPcieRpL1Substates[index] = 0;
 		return;
@@ -548,7 +558,7 @@ static void configure_cpu_rp_power_management(FSP_S_CONFIG *s_cfg,
 	if (rp_cfg->pcie_rp_aspm > 0)
 		s_cfg->CpuPcieRpAspm[index] = rp_cfg->pcie_rp_aspm - 1;
 
-	if (!CONFIG(PCIEXP_L1_SUB_STATE)) {
+	if (!pciexp_l1_sub_state) {
 		s_cfg->CpuPcieRpL1Substates[index] = 0;
 		return;
 	}
