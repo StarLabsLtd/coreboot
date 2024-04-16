@@ -219,6 +219,33 @@ void lb_board(struct lb_header *header)
 			.ui_name	= "Card Reader",
 			.ui_helptext	= "Enable or disable the built-in card reader",
 			.default_value	= true,
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "pciexp_clk_pm",
+			.ui_name	= "PCI Clock Power Management",
+			.ui_helptext	= "Enables or disables power management for the PCI clock. When enabled, "
+					  "it reduces power consumption during idle states. This can help lower "
+					  "overall energy use but may impact performance in power-sensitive tasks.",
+			.default_value	= true,
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "pciexp_aspm",
+			.ui_name	= "PCI ASPM",
+			.ui_helptext	= "Controls the Active State Power Management for PCI devices. Enabling this "
+					  "feature can reduce power consumption of PCI-connected devices during idle "
+					  "times.",
+			.default_value	= true,
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "pciexp_l1_sub_state",
+			.ui_name	= "PCI L1 Substates",
+			.ui_helptext	= "Controls deeper power-saving states for PCI devices. Enabling this feature "
+					  "allows supported devices to achieve lower power states at the cost of "
+					  "slightly increased latency when exiting these states.",
+			.default_value	= true,
 		}
 	};
 
@@ -267,6 +294,11 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_BOOL(bool_opts[10]),		// fingerprint_reader
 	#endif
 		SM_DECLARE_BOOL(bool_opts[11]),		// card_reader
+	#if CONFIG(SOC_INTEL_ALDERLAKE)
+		SM_DECLARE_BOOL(bool_opts[12]),		// pciexp_clk_pm
+		SM_DECLARE_BOOL(bool_opts[13]),		// pciexp_aspm
+		SM_DECLARE_BOOL(bool_opts[14]),		// pciexp_l1_sub_state
+	#endif
 	};
 
 	/* Chipset Options */
