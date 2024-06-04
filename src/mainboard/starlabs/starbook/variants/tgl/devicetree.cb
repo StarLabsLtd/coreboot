@@ -55,7 +55,9 @@ chip soc/intel/tigerlake
 	device cpu_cluster 0 on end
 
 	device domain 0 on
-		device ref igpu		on  end
+		device ref igpu		on
+			register "gfx"				= "GMA_DEFAULT_PANEL(0)"
+		end
 		device ref dptf		on  end
 		device ref tbt_pcie_rp0	on  end
 		device ref gna		on  end
