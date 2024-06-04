@@ -227,7 +227,7 @@ static void fill_fspm_misc_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->SkipCpuReplacementCheck = !config->cpu_replacement_check;
 
 	/* Skip GPIO configuration from FSP */
-	m_cfg->GpioOverride = 0x1;
+	//m_cfg->GpioOverride = 0x1;
 
 	/* CNVi DDR RFI Mitigation */
 	const struct device_path path[] = {

@@ -9,10 +9,15 @@ Device (BAT0)
 		// Battery Status
 		// 0x80 BIT1 0x01 = Present
 		// 0x80 BIT1 0x00 = Not Present
+#if CONFIG(BOARD_STARLABS_BYTE_ADL)
+		Return (0x00)
+#else
 		If (ECRD (RefOf(ECPS)) & 0x02)
+		{
 			Return (0x1F)
 		}
 		Return (0x0F)
+#endif
 	}
 
 	Name (SBIF, Package (13)
