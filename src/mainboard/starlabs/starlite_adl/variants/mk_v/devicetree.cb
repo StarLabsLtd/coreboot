@@ -1,13 +1,4 @@
 chip soc/intel/alderlake
-	register "common_soc_config" = "{
-		.i2c[0] = {
-			.speed = I2C_SPEED_FAST,
-		},
-		.i2c[2] = {
-			.speed = I2C_SPEED_FAST,
-		},
-	}"
-
 	# FSP Memory
 	register "enable_c6dram"		= "1"
 	register "sagv"				= "SaGv_Enabled"
@@ -43,6 +34,8 @@ chip soc/intel/alderlake
 
 	device domain 0 on
 		device ref igpu		on
+			subsystemid 0x1e50 0x8023
+			register "gfx"				= "GMA_DEFAULT_PANEL(0)"
 			register "ddi_portA_config"		= "1"
 			register "ddi_ports_config" = "{
 				[DDI_PORT_B]			= DDI_ENABLE_HPD | DDI_ENABLE_DDC,
@@ -50,7 +43,7 @@ chip soc/intel/alderlake
 				[DDI_PORT_2]			= DDI_ENABLE_HPD,
 			}"
 		end
-		device ref gna		on  end
+		device ref gna		off end
 		device ref xhci		on
 			# Primary USB Type C
 			register "usb2_ports[0]"		= "USB2_PORT_MID(OC_SKIP)"
@@ -97,9 +90,8 @@ chip soc/intel/alderlake
 		device ref i2c2		on			# Touchscreen
 			chip drivers/i2c/hid
 				register "generic.hid"		= ""GXTP7386""
-				register "generic.cid"		= ""GXTP7386""
 				register "generic.desc"		= ""Touchscreen""
-				register "generic.irq_gpio"	= "ACPI_GPIO_IRQ_LEVEL_LOW(GPP_F18)"
+				register "generic.irq"		= "ACPI_IRQ_LEVEL_LOW(GPP_F18_IRQ)"
 				register "generic.reset_gpio"	= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_F17)"
 				register "hid_desc_reg_offset"	= "0x01"
 				device i2c 5d on end
