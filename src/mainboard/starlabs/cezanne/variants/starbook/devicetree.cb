@@ -1,0 +1,66 @@
+chip soc/amd/cezanne
+	# TODO: Remove once devtree handles
+	register "pspp_policy" = "DXIO_PSPP_BALANCED"
+
+	# Memory
+	register "i2c_pad[2].rx_level"		= "I2C_PAD_RX_3_3V"
+	# Trackpad
+	register "i2c_pad[3].rx_level"		= "I2C_PAD_RX_3_3V"
+
+	device domain 0 on
+		device ref iommu on end
+		device ref gpp_bridge_0		on		# SSD
+			register "gpp_clk_config[1]"	= "GPP_CLK_REQ"
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""NVME""
+				device pci 00.0 on end
+			end
+		end
+		device ref gpp_bridge_3		on		# WLAN
+			register "gpp_clk_config[6]"	= "GPP_CLK_REQ"
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""WIFI""
+				device pci 00.0 on end
+			end
+
+		end
+		device ref gpp_bridge_a		on
+			device ref gfx		on  end
+			device ref gfx_hda	on  end
+			device ref crypto	on  end
+			device ref xhci_0	on  end
+			device ref xhci_1	on  end
+			device ref acp		on  end
+			device ref hda		on  end
+		end
+		device ref lpc_bridge		on
+			chip ec/starlabs/merlin
+				# Port pair 4Eh/4Fh
+				device pnp 4e.00 on  end			# IO Interface
+				device pnp 4e.01 off end			# Com 1
+				device pnp 4e.02 off end			# Com 2
+				device pnp 4e.04 off end			# System Wake-Up
+				device pnp 4e.05 off end			# PS/2 Mouse
+				device pnp 4e.06 on				# PS/2 Keyboard
+					io 0x60			= 0x0060
+					io 0x62			= 0x0064
+					irq 0x70		= 1
+				end
+				device pnp 4e.0a off end			# Consumer IR
+				device pnp 4e.0f off end			# Shared Memory/Flash Interface
+				device pnp 4e.10 off end			# RTC-like Timer
+				device pnp 4e.11 off end			# Power Management Channel 1
+				device pnp 4e.12 off end			# Power Management Channel 2
+				device pnp 4e.13 off end			# Serial Peripheral Interface
+				device pnp 4e.14 off end			# Platform EC Interface
+				device pnp 4e.17 off end			# Power Management Channel 3
+				device pnp 4e.18 off end			# Power Management Channel 4
+				device pnp 4e.19 off end			# Power Management Channel 5
+			end
+		end
+	end
+	device ref i2c_0	on
+		register "i2c_pad[0].rx_level"	= "I2C_PAD_RX_3_3V"
+	end
+	device ref uart_0	on  end
+end

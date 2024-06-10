@@ -1,0 +1,98 @@
+config BOARD_STARLABS_CEZANNE_SERIES
+	def_bool n
+	select AMD_FWM_POSITION_820000_DEFAULT
+	select AMD_SOC_CONSOLE_UART
+	select AZALIA_HDA_CODEC_SUPPORT
+	select BOARD_ROMSIZE_KB_16384
+	select DRIVERS_I2C_HID
+	select DRIVERS_PCIE_RTD3_DEVICE
+	select EC_STARLABS_ITE
+	select EC_STARLABS_FAN
+	select EC_STARLABS_NEED_ITE_BIN
+	select RUN_FSP_GOP
+	select HAVE_ACPI_RESUME
+	select HAVE_ACPI_TABLES
+	select HAVE_CMOS_DEFAULT
+	select HAVE_OPTION_TABLE
+	select MEMORY_MAPPED_TPM
+	select MAINBOARD_HAS_TPM2
+	select PCIEXP_ASPM
+	select PCIEXP_CLK_PM
+	select PCIEXP_COMMON_CLOCK
+	select PCIEXP_L1_SUB_STATE
+	select SOC_AMD_CEZANNE
+	select SPI_FLASH_WINBOND
+	select VGA_BIOS
+
+config BOARD_STARLABS_STARBOOK_CEZANNE
+	select BOARD_STARLABS_CEZANNE_SERIES
+	select EC_STARLABS_MERLIN
+	select EC_STARLABS_KBL_LEVELS
+	select EC_STARLABS_MAX_CHARGE
+	select SYSTEM_TYPE_LAPTOP
+
+if BOARD_STARLABS_CEZANNE_SERIES
+
+config ADD_APCB_SOURCES
+	bool "Add PSP customisation files"
+
+config AMDFW_CONFIG_FILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/fw.cfg"
+
+config APCB_SOURCES_PATH
+	string "Path to APCB files"
+
+config CCD_PORT
+	int
+	default 3
+
+config CONSOLE_SERIAL
+	default n if !EDK2_DEBUG
+
+config CMOS_DEFAULT_FILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/cmos.default" if BOARD_STARLABS_STARBOOK_CEZANNE
+
+config CMOS_LAYOUT_FILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/cmos.layout" if BOARD_STARLABS_STARBOOK_CEZANNE
+
+config DEVICETREE
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
+
+config EC_GPE_SCI
+	default 0x03
+
+config EC_STARLABS_ADD_ITE_BIN
+	default y
+
+config EC_STARLABS_ITE_BIN_PATH
+	depends on EC_STARLABS_NEED_ITE_BIN
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/ec.bin"
+
+config EDK2_BOOTSPLASH_FILE
+	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+
+config FMDFILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
+
+config MAINBOARD_DIR
+	default "starlabs/cezanne"
+
+config MAINBOARD_FAMILY
+	default "B6-A"			if BOARD_STARLABS_STARBOOK_CEZANNE
+
+config MAINBOARD_PART_NUMBER
+	default "StarBook Mk VI"	if BOARD_STARLABS_STARBOOK_CEZANNE
+
+config MAINBOARD_SMBIOS_PRODUCT_NAME
+	default "StarBook"		if BOARD_STARLABS_STARBOOK_CEZANNE
+
+config PSP_LOAD_MP2_FW
+	default y
+
+config PSP_POSTCODES_ON_ESPI
+	default n
+
+config VARIANT_DIR
+	default "starbook"		if BOARD_STARLABS_STARBOOK_CEZANNE
+
+endif

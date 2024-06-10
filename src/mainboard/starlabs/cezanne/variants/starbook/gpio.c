@@ -1,0 +1,155 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <variants.h>
+
+/* Early pad configuration in bootblock */
+const struct soc_amd_gpio early_gpio_table[] = {
+	/* 141:EGPIO141/UART0_RXD		UART0_RXD		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_141, UART0_RXD, PULL_NONE),
+	/* 143:EGPIO143/UART0_TXD		UART0_TXD 		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_143, UART0_TXD, PULL_NONE),
+
+	PAD_NFO(GPIO_26, PCIE_RST_L, HIGH),
+	PAD_NFO(GPIO_27, PCIE_RST1_L, HIGH),
+};
+
+const struct soc_amd_gpio *variant_early_gpio_table(size_t *num)
+{
+	*num = ARRAY_SIZE(early_gpio_table);
+	return early_gpio_table;
+}
+
+/* Pad configuration in ramstage. */
+const struct soc_amd_gpio gpio_table[] = {
+	PAD_NFO(GPIO_26, PCIE_RST_L, HIGH),
+	PAD_NFO(GPIO_27, PCIE_RST1_L, HIGH),
+
+	/*   0:PWR_BTN_L/AGPIO			PM_PWRBTN_R_N		[ NF0	N/A		PULL_UP   ] */
+	PAD_NF(GPIO_0, PWR_BTN_L, PULL_UP),
+	/*   1:SYS_RESET_L/AGPIO1		SYS_RST#		[ NF0	N/A		PULL_UP   ] */
+	PAD_NF(GPIO_1, SYS_RESET_L, PULL_NONE),
+	/*   2:WAKE_L/AGPIO2			WLAN_WAKE_N		[ NF0	N/A		PULL_UP   ] */
+	PAD_NF(GPIO_2, WAKE_L, PULL_UP),
+	/*   3:AGPIO3				TPM_ID			[ NF0	INPUT		PULL_UP   ] */
+	PAD_NC(GPIO_3),
+	/*   4:AGPIO4/SATAE_IFDET		SSD_DET			[ NF0	INPUT		PULL_DOWN ] */
+	PAD_GPI(GPIO_4, PULL_DOWN),
+	/*   5:AGPIO5/DEVSLP0			SSD_DEVSLP0		[ NF1	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_5, DEVSLP0, PULL_DOWN),
+	/*   6:AGPIO6/DEVSLP1						[ Not Connected			  ] */
+	PAD_NC(GPIO_6),
+	/*   7:AGPIO7/FCH_ACP_I2S_SDIN_BT				[ Not Connected			  ] */
+	PAD_NC(GPIO_7),
+	/*   8:AGPIO8/FCH_ACP_I2S_LRCLK_BT	EC_SMI_N		[ NF1	N/A		PULL_DOWN ] */
+	PAD_NC(GPIO_8),
+	/*   9:AGPIO9				TCHPAD_INT_N		[ NF0	INPUT		PULL_DOWN ] */
+	PAD_NC(GPIO_9),
+	/*  10:S0A3_GPIO/AGPIO10		S0A3GPIO_L		[ NF0	OUTPUT_HIGH	PULL_DOWN ] */
+	PAD_NF(GPIO_10, S0A3, PULL_NONE),
+	/*  11:BLINK/AGPIO11			?			[ NF0	INPUT		PULL_UP   ] */
+	PAD_GPI(GPIO_11, PULL_NONE),
+	/*  12:LLB_L/AGPIO12			PM_BATLOW_N		[ NF1	INPUT		PULL_DOWN ] */
+	PAD_GPI(GPIO_12, PULL_DOWN),
+	/*  16:USB_OC0_L/AGPIO16		TYPEC_VBUS_OC		[ NF0	INPUT		PULL_UP   ] */
+	PAD_NF(GPIO_16, USB_OC0_L, PULL_UP),
+	/*  17:USB_OC1_L/AGPIO17					[ Not Connected			  ] */
+	PAD_NC(GPIO_17),
+	/*  18:USB_OC2_L/AGPIO18		WLAN_WAKE_N		[ NF1	INPUT		PULL_UP   ] */
+	PAD_GPI(GPIO_18, PULL_UP),
+	/*  19:I2C3_SCL/AGPIO19/SMBUS1_I2C_SCL	TCHPAD_I2C3_SCL		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_19, SCL1, PULL_DOWN),									// Check
+	/*  20:I2C3_SDA/AGPIO20/SMBUS1_I2C_SDA	TCHPAD_I2C3_SCL		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_20, SDA1, PULL_DOWN),									// Check
+	/*  21:LPC_PD_L/AGPIO21						[ Not Connected			  ] */
+	PAD_GPI(GPIO_21, PULL_NONE),
+	/*  22:LPC_PME_L/AGPIO22		LPC_PME			[ NF2	INPUT		PULL_UP   ] */
+	PAD_NF(GPIO_22, LPC_PME_L, PULL_UP),
+	/*  23:AC_PRES/AGPIO23			AC_PRESENT		[ NF0	N/A		PULL_UP   ] */
+	PAD_NF(GPIO_23, AC_PRES, PULL_UP),
+	/*  24:USB_OC3_L/AGPIO24		DB_LAN_WAKE_N		[ Not Connected			  ] */
+	PAD_NC(GPIO_24),
+	// TODO:
+	PAD_GPI(GPIO_32, PULL_UP),
+	// TODO:
+	PAD_GPO(GPIO_40, HIGH),
+	/*  42:EGPIO42							[ Not Connected			  ] */
+	PAD_NC(GPIO_42),
+	/*  67:SPI_ROM_REQ/EGPIO67					[ Not Connected			  ] */
+	PAD_NC(GPIO_67),
+	/*  68:AGPIO68							[ Not Connected			  ] */
+	PAD_NC(GPIO_68),
+	/*  69:AGPIO69				AUX_RESET_N		[ Not Connected			  ] */
+	PAD_NC(GPIO_69),
+	/*  70:EGPIO70							[ Not Connected			  ] */
+	PAD_NC(GPIO_70),
+	/*  74:LPCCLK0/EGPIO74			LPC_CLK_EC		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_74, LPCCLK0, PULL_DOWN),
+	/*  75:LPCCLK1/EGPIO75						[ Not Connected			  ] */
+	PAD_NC(GPIO_75),
+	/*  76:SPI_ROM_GNT/EGPIO76					[ Not Connected			  ] */
+	PAD_NC(GPIO_76),
+	/*  84:FANIN0/AGPIO84						[ Not Connected			  ] */
+	PAD_NC(GPIO_84),
+	/*  85:FANOUT0/AGPIO85						[ Not Connected			  ] */
+	PAD_NC(GPIO_85),
+	/*  86:AGPIO86/SPI_CLK2			EC_SMI_N		[ NF1	INPUT		NONE	  ] */
+	PAD_NF(GPIO_86, LPC_SMI_L, PULL_NONE),
+	/*  87:SERIRQ/AGPIO87			LPC_SERIRQ		[ NF2	OUTPUT_LOW	PULL_DOWN ] */
+	PAD_GPI(GPIO_87, PULL_NONE),
+	/*  88:LPC_CLKRUN_L/AGPIO88		PM_CLKRUN_N		[ NF2	INPUT		PULL_UP   ] */
+	PAD_GPI(GPIO_88, PULL_NONE),
+	/*  89:GENINT1_L/AGPIO89		TOUCH_INT_N		[ Not Connected			  ] */
+	PAD_NC(GPIO_89),
+	/*  90:GENINT2_L/AGPIO90		TOUCH_RST_N		[ Not Connected			  ] */
+	PAD_NC(GPIO_90),
+	/*  91:SPKR/AGPIO91			WIFI_DISABLE_N		[ NF0	N/A		PULL_DOWN ] */
+	PAD_GPO(GPIO_91, HIGH),
+	/*  92:CLK_REQ0_L/SATA_IS0_L/SATA_ZP0_L/AGPIO92			[ NF0	N/A		PULL_UP   ] */
+	PAD_NF(GPIO_92, CLK_REQ0_L, PULL_UP),
+	/* 104:LAD0/ESPI1_DATA0/EGPIO104	LPC_LAD0		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_104, LAD0, PULL_NONE),
+	/* 105:LAD1/ESPI1_DATA1/EGPIO105	LPC_LAD1		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_105, LAD1, PULL_NONE),
+	/* 106:LAD2/ESPI1_DATA2/EGPIO106	LPC_LAD2		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_106, LAD2, PULL_NONE),
+	/* 107:LAD3/ESPI1_DATA3/EGPIO107	LPC_LAD3		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_107, LAD3, PULL_NONE),
+	/* 108:ESPI_ALERT_L/LDRQ0_L/EGPIO108	AUDIO_INT_N		[ NF0	N/A		NONE	  ] */
+	PAD_NF(GPIO_108, LDRQ0_L, PULL_NONE),
+	/* 109:LFRAME_L/EGPIO109		LPC_FRAME_N		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_109, LFRAME_L, PULL_DOWN),
+	/* 113:I2C2_SCL/EGPIO113/SMBUS0_I2C_SCL	SMB_SCL0		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_113, SCL0, PULL_DOWN),
+	/* 114:I2C2_SDA/EGPIO114/SMBUS0_I2C_SDA	SMB_SDA0		[ NF0	N/A		PULL_DOWN ] */
+	PAD_NF(GPIO_114, SDA0, PULL_DOWN),
+	/* 115:CLK_REQ1_L/AGPIO115		PCIE_SSD_CLK_REQ_N	[ NF0	N/A		PULL_UP	  ] */
+	PAD_NF(GPIO_115, CLK_REQ1_L, PULL_UP),
+	/* 116:CLK_REQ2_L/AGPIO116					[ Not Conncted			  ] */
+	PAD_NC(GPIO_116),
+	/* 120:CLK_REQ5_L/EGPIO120		DB_LAN_CLK_REQ_N	[ Not Conncted			  ] */
+	PAD_NC(GPIO_120),
+	/* 121:CLK_REQ6_L/EGPIO121		WIFI_CLK_REQ_N		[ Not Connected			  ] */
+	PAD_NF(GPIO_121, CLK_REQ6_L, PULL_UP),
+	/* 129:ESPI_RESET_L/KBRST_L/AGPIO129				[ Not Connected			  ] */
+	PAD_NF(GPIO_129, KBRST_L, PULL_UP),
+	/* 130:SATA_ACT_L/AGPIO130					[ Not Connected			  ] */
+	PAD_NC(GPIO_130),
+	/* 131:CLK_REQ3_L/SATA_IS1_L/SATA_ZP1_L/EGPIO131		[ Not Connected			  ] */
+	PAD_NC(GPIO_131),
+	/* 132:CLK_REQ4_L/OSCIN/EGPIO132				[ Not Connected			  ] */
+	PAD_NC(GPIO_132),
+	/* 140:EGPIO140/UART0_CTS_L/UART1_TXD				[ Not Connected			  ] */
+	PAD_NC(GPIO_140),
+	/* 142:EGPIO142/UART0_RTS_L/UART1_RXD				[ Not Connected			  ] */
+	PAD_NC(GPIO_142),
+	/* 144:AGPIO144/SHUTDOWN_L/UART0_INTR				[ Not Connected			  ] */
+	PAD_NC(GPIO_144),
+};
+
+const struct soc_amd_gpio *variant_gpio_table(size_t *num)
+{
+	*num = ARRAY_SIZE(gpio_table);
+	return gpio_table;
+}
+
+
