@@ -23,5 +23,6 @@
 #define ECRAM_MIRROR_FLAG	0x05
 #define ECRAM_LEARN_INTERVAL	0x1c
 #define ECRAM_CHARGING_SPEED	0x1d
+#define ECRAM_LID_SWITCH	0x1e
 
 #endif

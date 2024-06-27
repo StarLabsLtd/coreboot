@@ -144,6 +144,18 @@ void lb_board(struct lb_header *header)
 				{	"0.2C",		2		},
 				SM_ENUM_VALUE_END,
 			}
+		},
+		{
+			.object_id	= starbook_get_object_id(),
+			.opt_name	= "lid_switch",
+			.ui_name	= "Lid Switch",
+			.ui_helptext	= "Enable or disable the lid switch.",
+			.default_value	= 0,
+			.values		= (const struct sm_enum_value[]) {
+				{	"Enabled",	0		},
+				{	"Disabled",	1		},
+				SM_ENUM_VALUE_END,
+			}
 		}
 	};
 
@@ -264,6 +276,9 @@ void lb_board(struct lb_header *header)
 	#endif
 	#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		SM_DECLARE_ENUM(enum_opts[8]),		// charging speed
+	#endif
+	#if CONFIG(EC_STARLABS_LID_SWITCH)
+		SM_DECLARE_ENUM(enum_opts[9]),		// lid switch
 	#endif
 	};
 
