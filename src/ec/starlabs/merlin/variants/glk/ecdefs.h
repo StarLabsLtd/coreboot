@@ -22,5 +22,6 @@
 #define ECRAM_FAST_CHARGE	dead_code_t(uint8_t)
 #define ECRAM_MIRROR_FLAG	0x04
 #define ECRAM_LEARN_INTERVAL	dead_code_t(uint8_t)
+#define ECRAM_CHARGING_SPEED	dead_code_t(uint8_t)
 
 #endif

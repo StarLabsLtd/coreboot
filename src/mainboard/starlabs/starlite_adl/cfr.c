@@ -89,6 +89,19 @@ void lb_board(struct lb_header *header)
 				SM_ENUM_VALUE_END,
 			},
 		},
+		{
+			.object_id	= starlite_get_object_id(),
+			.opt_name	= "charging_speed",
+			.ui_name	= "Charging Speed",
+			.ui_helptext	= "Set the maximum speed to charge the battery. Charging faster will increase heat and battery wear.",
+			.default_value	= 1,
+			.values		= (const struct sm_enum_value[]) {
+				{	"1.0C",		0		},
+				{	"0.5C",		1		},
+				{	"0.2C",		2		},
+				SM_ENUM_VALUE_END,
+			}
+		}
 	};
 
 	const struct sm_obj_bool bool_opts[] = {
@@ -185,6 +198,9 @@ void lb_board(struct lb_header *header)
 	const struct sm_object general_options[] = {
 		SM_DECLARE_ENUM(enum_opts[4]),		// power profile
 		SM_DECLARE_ENUM(enum_opts[2]),		// maximum charge level
+	#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+		SM_DECLARE_ENUM(enum_opts[5]),		// charging speed
+	#endif
 	};
 
 	/* Device Options */

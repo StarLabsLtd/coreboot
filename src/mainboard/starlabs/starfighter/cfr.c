@@ -131,6 +131,19 @@ void lb_board(struct lb_header *header)
 				{	"128",		4		},
 				SM_ENUM_VALUE_END,
 			}
+		},
+		{
+			.object_id	= starfighter_get_object_id(),
+			.opt_name	= "charging_speed",
+			.ui_name	= "Charging Speed",
+			.ui_helptext	= "Set the maximum speed to charge the battery. Charging faster will increase heat and battery wear.",
+			.default_value	= 1,
+			.values		= (const struct sm_enum_value[]) {
+				{	"1.0C",		0		},
+				{	"0.5C",		1		},
+				{	"0.2C",		2		},
+				SM_ENUM_VALUE_END,
+			}
 		}
 	};
 
@@ -253,6 +266,9 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_BOOL(bool_opts[0]),		// function control swap
 	#if CONFIG(EC_STARLABS_LEARN_INTERVAL)
 		SM_DECLARE_ENUM(enum_opts[7]),		// learn_interval
+	#endif
+	#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+		SM_DECLARE_ENUM(enum_opts[8]),		// charging speed
 	#endif
 	};
 

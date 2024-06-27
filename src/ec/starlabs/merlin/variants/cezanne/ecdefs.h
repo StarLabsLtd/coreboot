@@ -24,5 +24,6 @@
 #define ECRAM_FN_LOCK_STATE	0x70
 #define ECRAM_FAST_CHARGE	dead_code_t(uint8_t)
 #define ECRAM_MIRROR_FLAG	0x05
+#define ECRAM_CHARGING_SPEED	dead_code_t(uint8_t)
 
 #endif

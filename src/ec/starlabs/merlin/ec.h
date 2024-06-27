@@ -109,6 +109,11 @@
 #define LEARN_64_CYCLES		0x40
 #define LEARN_128_CYCLES	0x80
 
+/* Charging Speed */
+#define SPEED_1_0C		0x00
+#define SPEED_0_5C		0x01
+#define SPEED_0_2C		0x02
+
 #ifndef CMOS_VSTART_fn_lock_state
 #define CMOS_VSTART_fn_lock_state	UINT_MAX
 #endif
