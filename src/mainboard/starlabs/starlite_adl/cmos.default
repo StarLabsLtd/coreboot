@@ -14,4 +14,4 @@ webcam=Enable
 camera=Enable
 microphone=Enable
 # EC
-mirror_flag=Disable
+charging_speed=0.5C
