@@ -81,13 +81,11 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 		},
 
 		.ect			= true,
-
-		.LpDdrDqDqsReTraining	= 1,
-
 		.UserBd			= BOARD_TYPE_MOBILE,
+		.LpDdrDqDqsReTraining	= true,
 
 		.lp5x_config = {
-			.ccc_config	= 0x0,
+			.ccc_config	= 0x00,
 		}
 	};
 
@@ -103,3 +101,4 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	const uint8_t vtd = get_uint_option("vtd", 1);
 	mupd->FspmConfig.VtdDisable = !vtd;
 };
+

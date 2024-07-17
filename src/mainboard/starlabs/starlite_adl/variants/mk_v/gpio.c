@@ -8,26 +8,6 @@ const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2),
 	/* H11:		UART0 TXD		Debug Connector		*/
 	PAD_CFG_NF(GPP_H11, NONE, DEEP, NF2),
-
-	/* F0:		CNV BRI Data					*/
-	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
-	/* F1:		CNV BRI Response				*/
-	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
-	/* F2:		CNV RGI Data					*/
-	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
-	/* F3:		CNV RGI Response				*/
-	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
-	/* F4:		CNV RF Reset					*/
-	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
-	/* F5:		Not used		MODEM_CLKREQ		*/
-	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
-	/* F6:		CNV PA Blanking					*/
-	PAD_NC(GPP_F6, NONE),
-
-	/* A13:		BlueTooth RF Kill				*/
-	PAD_CFG_GPO(GPP_A13, 1, DEEP),
-	/* E3:		WiFi RF Kill					*/
-	PAD_CFG_GPO(GPP_E3, 1, DEEP),
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)
@@ -61,7 +41,7 @@ const struct pad_config gpio_table[] = {
 	/* GPD10:	Sleep S5					*/
 	PAD_CFG_NF(GPD10, NONE, DEEP, NF1),
 	/* GPD11:	LAN PHY Enable					*/
-	PAD_NC(GPD11, NONE),
+        PAD_CFG_GPO(GPD11, 0, PWROK),
 
 	/* A0:		ESPI IO 0					*/
 	/* A1:		ESPI IO 1					*/
@@ -73,7 +53,7 @@ const struct pad_config gpio_table[] = {
 	/* A6:		Not Connected					*/
 	PAD_NC(GPP_A6, NONE),
 	/* A7:		Embedded Controller SCI				*/
-	PAD_CFG_GPI_SCI_LOW(GPP_A7, NONE, PLTRST, LEVEL),
+	PAD_NC(GPP_A7, NONE),
 	/* A8:		Not Connected					*/
 	PAD_NC(GPP_A8, NONE),
 	/* A9:		ESPI Clock					*/
@@ -82,6 +62,8 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_A11, NONE),
 	/* A12:		PCH M.2 SSD PEDET				*/
 	PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
+	/* A13:		BlueTooth RF Kill				*/
+	PAD_NC(GPP_A13, NONE),
 	/* A14:		Camera Power Enable				*/
 	PAD_NC(GPP_A14, NONE),
 	/* A15:		Camera Reset					*/
@@ -93,9 +75,9 @@ const struct pad_config gpio_table[] = {
 	/* A18:		DDI B DP HPD					*/
 	PAD_CFG_NF(GPP_A18, NONE, DEEP, NF1),
 	/* A19:		TCP0 HPD					*/
-	PAD_CFG_NF(GPP_A19, NONE, PLTRST, NF1),
+	PAD_CFG_NF(GPP_A19, NONE, DEEP, NF1),
 	/* A20:		TCP1 HPD					*/
-	PAD_CFG_NF(GPP_A20, NONE, PLTRST, NF1),
+	PAD_CFG_NF(GPP_A20, NONE, DEEP, NF1),
 	/* A21:		Fingerprint Reader Interrupt			*/
 	PAD_NC(GPP_A21, NONE),
 	/* A22:		Fingerprint Reader Reset			*/
@@ -133,7 +115,7 @@ const struct pad_config gpio_table[] = {
 	/* B13:		PLT RST						*/
 	PAD_CFG_NF(GPP_B13, NONE, DEEP, NF1),
 	/* B14:		Webcam Privacy LED				*/
-	PAD_CFG_GPO(GPP_B14, 0, PLTRST),
+	PAD_NC(GPP_B14, NONE),
 	/* B15:		Not Connected					*/
 	PAD_NC(GPP_B15, NONE),
 	/* B16:		I2C 5 SDA		Webcam SDA		*/
@@ -166,7 +148,7 @@ const struct pad_config gpio_table[] = {
 	/* C2:		TLS Confidentiality	Weak Internal PD 20K
 				Low:	Disabled
 				High:	Enabled				*/
-	PAD_CFG_GPO(GPP_C2, 1, PLTRST),
+	PAD_CFG_GPO(GPP_C2, 0, DEEP),
 	/* C3:		SML 0 Clock					*/
 	PAD_CFG_NF(GPP_C3, NONE, DEEP, NF1),
 	/* C4:		SML 0 Data					*/
@@ -258,7 +240,9 @@ const struct pad_config gpio_table[] = {
 	/* E1:		Accelerometer Interrupt				*/
 	PAD_NC(GPP_E1, NONE),
 	/* E2:		Not Connected					*/
-	PAD_CFG_GPO(GPP_E2, 1, PLTRST),
+	PAD_NC(GPP_E2, NONE),
+	/* E3:		WiFi RF Kill					*/
+	PAD_NC(GPP_E3, NONE),
 	/* E4:		P Offset					*/
 	PAD_NC(GPP_E4, NONE),
 	/* E5:		P Out						*/
@@ -268,27 +252,27 @@ const struct pad_config gpio_table[] = {
 				High:	Enabled				*/
 	PAD_CFG_GPO(GPP_E6, 0, DEEP),
 	/* E7:		Embedded Controller SMI				*/
-	PAD_CFG_GPI_SMI_LOW(GPP_E7, NONE, DEEP, EDGE_SINGLE),
+	PAD_NC(GPP_E7, NONE),
 	/* E8:		DRAM Sleep					*/
-	PAD_CFG_NF(GPP_E8, NONE, DEEP, NF1),
+	PAD_NC(GPP_E8, NONE),
 	/* E9:		USB OverCurrent 0				*/
 	PAD_CFG_NF(GPP_E9, NONE, DEEP, NF1),
 	/* E10:		PWD Amplifier Input				*/
-	PAD_CFG_GPO(GPP_E10, 0, PLTRST),
+	PAD_NC(GPP_E10, NONE),
 	/* E11:		TPM IRQ						*/
-	PAD_CFG_NF(GPP_E11, NONE, DEEP, NF1),
+	PAD_NC(GPP_E11, NONE),
 	/* E12:		Touchpad Interrupt				*/
-	PAD_CFG_GPI_APIC_LOW(GPP_E12, NONE, PLTRST),
+	PAD_NC(GPP_E12, NONE),
 	/* E13:		Not connected					*/
 	PAD_NC(GPP_E13, NONE),
 	/* E14:		EDP HPD						*/
-	PAD_CFG_NF(GPP_E14, NONE, DEEP, NF1),
+	PAD_NC(GPP_E14, NONE),
 	/* E15:		Webcam Power Enable				*/
 	PAD_NC(GPP_E15, NONE),
 	/* E16:		Not Connected					*/
 	PAD_NC(GPP_E16, NONE),
 	/* E17:		Not Connected					*/
-	PAD_CFG_GPO(GPP_E17, 1, PLTRST),
+	PAD_NC(GPP_E17, NONE),
 	/* E18:		Gyroscope Interrupt				*/
 	PAD_NC(GPP_E18, NONE),
 	/* E19:		Thunderbolt LSX RXD				*/
@@ -302,18 +286,33 @@ const struct pad_config gpio_table[] = {
 	/* E23:		Not Connected					*/
 	PAD_NC(GPP_E23, NONE),
 
+
+	/* F0:		CNV BRI Data					*/
+	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
+	/* F1:		CNV BRI Response				*/
+	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
+	/* F2:		CNV RGI Data					*/
+	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
+	/* F3:		CNV RGI Response				*/
+	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
+	/* F4:		CNV RF Reset					*/
+	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
+	/* F5:		Not used		MODEM_CLKREQ		*/
+	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
+	/* F6:		CNV PA Blanking					*/
+	PAD_NC(GPP_F6, NONE),
 	/* F7:		TBT LSX VCCIO		Weak Internal PD 20K
 				Low:	1.8V
 				High:	3.3V				*/
-	PAD_NC(GPP_F7, NONE),
+	PAD_CFG_GPO(GPP_F7, 0, DEEP),
 	/* F8:		Not Connected					*/
 	PAD_NC(GPP_F8, NONE),
 	/* F9:								*/
 	PAD_NC(GPP_F9, NONE),
 	/* F10:		Weak Internal PD 20K				*/
-	PAD_CFG_GPO(GPP_F10, 1, PLTRST),
+	PAD_CFG_GPO(GPP_F10, 0, DEEP),
 	/* F11:		TPM ID						*/
-	PAD_CFG_GPI_TRIG_OWN(GPP_F11, NONE, DEEP, OFF, ACPI),
+	PAD_NC(GPP_F11, NONE),
 	/* F12:		Not Connected					*/
 	PAD_NC(GPP_F12, NONE),
 	/* F13:		Not Connected					*/
@@ -321,9 +320,9 @@ const struct pad_config gpio_table[] = {
 	/* F14:		Not Connected					*/
 	PAD_NC(GPP_F14, NONE),
 	/* F15:		Keyboard Detect					*/
-	PAD_NC(GPP_F15, NONE),
+	PAD_CFG_GPI(GPP_F15, NONE, DEEP),
 	/* F16:		Not Connected					*/
-	PAD_CFG_GPO(GPP_F16, 1, RSMRST),
+	PAD_NC(GPP_F16, NONE),
 	/* F17:		Touch Panel Reset				*/
 	PAD_CFG_GPO(GPP_F17, 1, PLTRST),
 	/* F18:		Touch Panel Interrupt				*/
@@ -342,9 +341,9 @@ const struct pad_config gpio_table[] = {
 	/* H0:		PCH M.2 SSD Reset				*/
 	PAD_CFG_GPO(GPP_H0, 1, PLTRST),
 	/* H1:		BFX Strap 2 Bit 3	Weak Internal PD 20K	*/
-	PAD_CFG_GPO(GPP_H1, 1, PLTRST),
+	PAD_CFG_GPO(GPP_H1, 0, DEEP),
 	/* H2:		Wireless LAN Reset				*/
-	PAD_CFG_GPO(GPP_H2, 1, PLTRST),
+	PAD_NC(GPP_H2, NONE),
 	/* H3:		Not Connected					*/
 	PAD_NC(GPP_H3, NONE),
 	/* H4:		I2C 0 SDA		G Sensor SDA		*/
@@ -362,7 +361,7 @@ const struct pad_config gpio_table[] = {
 	/* H12:		Not Connected					*/
 	PAD_NC(GPP_H12, NONE),
 	/* H13:		PCH M.2 SSD Device Sleep			*/
-	PAD_CFG_GPO(GPP_H13, 0, PLTRST),
+	PAD_NC(GPP_H13, NONE),
 	/* H14:		Not Connected					*/
 	PAD_NC(GPP_H14, NONE),
 	/* H15:		DDPB Control Clock				*/
@@ -389,9 +388,9 @@ const struct pad_config gpio_table[] = {
 	/* S1:		Not Connected					*/
 	PAD_NC(GPP_S1, NONE),
 	/* S2:		DMIC Clock					*/
-	PAD_CFG_NF(GPP_S2, NONE, DEEP, NF2),
+	PAD_NC(GPP_S2, NONE),
 	/* S3:		DMIC Data					*/
-	PAD_CFG_NF(GPP_S3, NONE, DEEP, NF2),
+	PAD_NC(GPP_S3, NONE),
 	/* S4:		Not Connected					*/
 	PAD_NC(GPP_S4, NONE),
 	/* S5:		Not Connected					*/

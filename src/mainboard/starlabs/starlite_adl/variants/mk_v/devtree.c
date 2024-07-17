@@ -25,19 +25,18 @@ void devtree_update(void)
 	/* Update PL1 & PL2 based on CMOS settings */
 	switch (get_power_profile(PP_POWER_SAVER)) {
 	case PP_POWER_SAVER:
-		disable_turbo();
 		soc_conf_4core->tdp_pl1_override	= 6;
-		soc_conf_4core->tdp_pl2_override	= 10;
+		soc_conf_4core->tdp_pl2_override	= 15;
 		common_config->pch_thermal_trip		= 30;
 		break;
 	case PP_BALANCED:
-		soc_conf_4core->tdp_pl1_override	= 10;
-		soc_conf_4core->tdp_pl2_override	= 25;
+		soc_conf_4core->tdp_pl1_override	= 8;
+		soc_conf_4core->tdp_pl2_override	= 20;
 		common_config->pch_thermal_trip		= 25;
 		break;
 	case PP_PERFORMANCE:
-		soc_conf_4core->tdp_pl1_override	= 20;
-		soc_conf_4core->tdp_pl2_override	= 35;
+		soc_conf_4core->tdp_pl1_override	= 12;
+		soc_conf_4core->tdp_pl2_override	= 25;
 		common_config->pch_thermal_trip		= 20;
 		break;
 	}
@@ -59,10 +58,6 @@ void devtree_update(void)
 	/* Enable/Disable Touchscreen based on CMOS settings */
 	if (get_uint_option("touchscreen", 1) == 0)
 		touchscreen_dev->enabled = 0;
-
-	/* Enable/Disable Card Reader based on CMOS Settings */
-	if (get_uint_option("card_reader", 1) == 0)
-		cfg->usb2_ports[3].enable = 0;
 
 	/* Enable/Disable Accelerometer based on CMOS settings */
 	if (get_uint_option("accelerometer", 1) == 0)

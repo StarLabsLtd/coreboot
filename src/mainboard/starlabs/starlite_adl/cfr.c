@@ -81,7 +81,7 @@ void lb_board(struct lb_header *header)
 			.opt_name	= "power_profile",
 			.ui_name	= "Power Profile",
 			.ui_helptext	= "Select whether to maximise performance, battery life or both.",
-			.default_value	= 0,
+			.default_value	= 1,
 			.values		= (const struct sm_enum_value[]) {
 				{	"Power Saver",	PP_POWER_SAVER	},
 				{	"Balanced",	PP_BALANCED	},
@@ -106,8 +106,8 @@ void lb_board(struct lb_header *header)
 			.object_id	= starlite_get_object_id(),
 			.opt_name	= "lid_switch",
 			.ui_name	= "Lid Switch",
-			.ui_helptext	= "Enable or disable the lid switch.",
-			.default_value	= 0,
+			.ui_helptext	= "Enable or disable waking up with the lid switch.",
+			.default_value	= 1,
 			.values		= (const struct sm_enum_value[]) {
 				{	"Enabled",	0		},
 				{	"Disabled",	1		},
@@ -179,13 +179,6 @@ void lb_board(struct lb_header *header)
 			.ui_name	= "Accelerometer",
 			.ui_helptext	= "Enable or disable the built-in accelerometer",
 			.default_value	= true,
-		},
-		{
-			.object_id	= starlite_get_object_id(),
-			.opt_name	= "card_reader",
-			.ui_name	= "Card Reader",
-			.ui_helptext	= "Enable or disable the built-in card reader",
-			.default_value	= true,
 		}
 	};
 
@@ -227,7 +220,6 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_BOOL(bool_opts[7]),		// touchscreen
 		SM_DECLARE_BOOL(bool_opts[8]),		// accelerometer
 		SM_DECLARE_BOOL(bool_opts[5]),		// power_on_after_fail
-		SM_DECLARE_BOOL(bool_opts[9]),		// card_reader
 	};
 
 	/* Chipset Options */

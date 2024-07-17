@@ -14,7 +14,6 @@ Scope (\_SB.PCI0.LPCB)
 		Name (B2ST, 0x00)
 		Name (CFAN, 0x00)
 		Name (CMDR, 0x00)
-		Name (DOCK, 0x00)
 		Name (PLMX, 0x00)
 		Name (PECH, 0x00)
 		Name (PECL, 0x00)
@@ -139,6 +138,7 @@ Scope (\_SB.PCI0.LPCB)
 		#include "battery.asl"
 		#include "events.asl"
 		#include "lid.asl"
+		#include "dock.asl"
 
 		Method (_REG, 2, NotSerialized)
 		{
