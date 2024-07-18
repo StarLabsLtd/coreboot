@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <acpi/acpi_device.h>
 #include <acpi/acpigen.h>
 #include <device/device.h>
@@ -93,6 +94,18 @@ static void cnvw_fill_ssdt(const struct device *dev)
 	};
 	acpigen_write_field("CWAR", fields2, ARRAY_SIZE(fields2),
 		FIELD_BYTEACC | FIELD_NOLOCK | FIELD_PRESERVE);
+
+/*
+ *	Method (_S0W, 0, NotSerialized)  // _S0W: S0 Device Wake State
+ *	{
+ *		Return (0x03)
+ *	}
+ */
+	acpigen_write_method("_S0W", 0);
+	{
+		acpigen_write_return_integer(ACPI_DEVICE_SLEEP_D3_HOT);
+	}
+	acpigen_pop_len();
 
 	acpigen_write_scope_end();
 }
