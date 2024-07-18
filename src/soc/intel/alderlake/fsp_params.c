@@ -878,6 +878,24 @@ static void fill_fsps_gna_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->GnaEnable = is_devfn_enabled(SA_DEVFN_GNA);
 }
 
+static void fill_fsps_i2c_params(FSP_S_CONFIG *s_cfg,
+		const struct soc_intel_alderlake_config *config)
+{
+	/*
+	 * FSP defaults to pins that are used for LPC; given that
+	 * coreboot only supports eSPI, set these pins accordingly.
+	 */
+	s_cfg->PchSerialIoI2cSdaPinMux[0] = 0x1947c404;	// GPP_H4
+	s_cfg->PchSerialIoI2cSclPinMux[0] = 0x1947a405;	// GPP_H5
+
+	s_cfg->PchSerialIoI2cSdaPinMux[1] = 0x1947c606;	// GPP_H6
+	s_cfg->PchSerialIoI2cSclPinMux[1] = 0x1947a607;	// GPP_H7
+
+	s_cfg->PchSerialIoI2cSdaPinMux[7] = 0x1947d20c;	// GPP_H12
+	s_cfg->PchSerialIoI2cSclPinMux[7] = 0x1947b20d;	// GPP_H13
+}
+
+
 static void fill_fsps_lan_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
@@ -1320,6 +1338,7 @@ static void soc_silicon_init_params(FSP_S_CONFIG *s_cfg,
 		fill_fsps_sata_params,
 		fill_fsps_thermal_params,
 		fill_fsps_gna_params,
+		fill_fsps_i2c_params,
 		fill_fsps_lan_params,
 		fill_fsps_cnvi_params,
 		fill_fsps_vmd_params,
