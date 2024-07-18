@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <acpi/acpi_device.h>
+#include <acpi/acpigen.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
@@ -10,6 +11,74 @@ static const char *cnvi_wifi_acpi_name(const struct device *dev)
 	return "CNVW";
 }
 
+static void cnvw_fill_ssdt(const struct device *dev)
+{
+	const char *scope = acpi_device_path(dev);
+
+	acpi_device_write_pci_dev(dev);
+
+	acpigen_write_scope(scope);
+/*
+ *	OperationRegion(CWAR, SystemMemory, Add(\_SB.PCI0.GPCB(), 0xa3000), 0x100)
+ *	Field(CWAR, WordAcc, NoLock, Preserve) {
+ *		VDID, 32,	// 0x00, VID DID
+ *		    ,  1,
+ *		WMSE,  1,	// MSE
+ *		WBME,  1,	// BME
+ *		Offset(0x10),
+ *		WBR0, 64,	// BAR0
+ *		Offset(0x44),
+ *		    , 28,
+ *		WFLR,  1,	// Function Level Reset Capable
+ *		Offset(0x48),
+ *		    , 15,
+ *		WIFR,  1,	// Init Function Level Reset
+ *		Offset(0xcc),
+ *		WPMS, 32,
+ *	}
+ */
+
+	/* RegionOffset stored in Local0 */
+	/* Local0 = \_SB_.PCI0.GPCB() + 0xa3000 */
+	acpigen_emit_byte(ADD_OP);
+	acpigen_write_integer(0xa3000);
+	acpigen_emit_namestring("\\_SB_.PCI0.GPCB()");
+	acpigen_emit_byte(LOCAL0_OP);
+
+	/* OperationRegion */
+	acpigen_emit_ext_op(OPREGION_OP);
+	/* NameString 4 chars only */
+	acpigen_emit_namestring("CWAR");
+	/* RegionSpace */
+	acpigen_emit_byte(SYSTEMMEMORY);
+	/* RegionOffset */
+	acpigen_emit_byte(LOCAL0_OP);
+	/* RegionLen */
+	acpigen_write_integer(0x100);
+
+	struct fieldlist fields[] = {
+		FIELDLIST_OFFSET(0),
+		FIELDLIST_NAMESTR("VDID", 32),
+		FIELDLIST_RESERVED(1),
+		FIELDLIST_NAMESTR("WMSE", 1),
+		FIELDLIST_NAMESTR("WBME", 1),
+		FIELDLIST_OFFSET(0x10),
+		FIELDLIST_NAMESTR("WBR0", 64),
+		FIELDLIST_OFFSET(0x44),
+		FIELDLIST_RESERVED(28),
+		FIELDLIST_NAMESTR("WFLR", 1),
+		FIELDLIST_OFFSET(0x48),
+		FIELDLIST_RESERVED(15),
+		FIELDLIST_NAMESTR("WIFR", 1),
+		FIELDLIST_OFFSET(0xcc),
+		FIELDLIST_NAMESTR("WPMS", 32),
+	};
+	acpigen_write_field("CWAR", fields, ARRAY_SIZE(fields),
+		FIELD_WORDACC | FIELD_NOLOCK | FIELD_PRESERVE);
+
+	acpigen_write_scope_end();
+}
+
 static struct device_operations cnvi_wifi_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
@@ -17,7 +86,7 @@ static struct device_operations cnvi_wifi_ops = {
 	.ops_pci		= &pci_dev_ops_pci,
 	.scan_bus		= scan_static_bus,
 	.acpi_name		= cnvi_wifi_acpi_name,
-	.acpi_fill_ssdt		= acpi_device_write_pci_dev,
+	.acpi_fill_ssdt		= cnvw_fill_ssdt,
 };
 
 static const unsigned short wifi_pci_device_ids[] = {
