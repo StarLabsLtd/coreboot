@@ -106,6 +106,68 @@ static void cnvw_fill_ssdt(const struct device *dev)
 		acpigen_write_return_integer(ACPI_DEVICE_SLEEP_D3_HOT);
 	}
 	acpigen_pop_len();
+/*
+ *	PowerResource(WRST, 5, 0)
+ *	{
+ *		Method(_STA)
+ *		{
+ *			Return (0x01)
+ *		}
+ *		Method(_ON, 0)
+ *		{
+ *		}
+ *		Method(_OFF, 0)
+ *		{
+ *		}
+ *		Method(_RST, 0, NotSerialized)
+ *		{
+ *			If (WFLR == 1)
+ *			{
+ *				WBR0 = 0
+ *				WPMS = 0
+ *				WBME = 0
+ *				WMSE = 0
+ *				WIFR = 1
+ *			}
+ *		}
+ *	}
+ *
+ *	Name(_PRR, Package() {
+ *		WRST
+ *	})
+ */
+	acpigen_write_power_res("WRST", 5, 0, NULL, 0);
+	{
+		acpigen_write_method("_STA", 0);
+		{
+			acpigen_emit_byte(RETURN_OP);
+			acpigen_write_byte(acpi_device_status(dev));
+		}
+		acpigen_pop_len();
+
+		acpigen_write_method("_ON", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_OFF", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_RST", 0);
+		{
+			acpigen_write_if_lequal_namestr_int("WLFR", 1);
+			{
+				acpigen_write_store_int_to_namestr(0, "WBR0");
+				acpigen_write_store_int_to_namestr(0, "WPMS");
+				acpigen_write_store_int_to_namestr(0, "WBME");
+				acpigen_write_store_int_to_namestr(0, "WMSE");
+				acpigen_write_store_int_to_namestr(1, "WIFR");
+			}
+			acpigen_pop_len();
+		}
+		acpigen_pop_len();
+	}
+	acpigen_write_power_res_end();
+
+	acpigen_write_name_string("_PRR", "WRST");
 
 	acpigen_write_scope_end();
 }
