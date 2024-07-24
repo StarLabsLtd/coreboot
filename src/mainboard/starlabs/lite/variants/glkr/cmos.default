@@ -10,7 +10,6 @@ power_profile=Balanced
 # Devices
 wireless=Enable
 webcam=Enable
-legacy_8254_timer=Disable
 # EC
 kbl_timeout=30 seconds
 fn_ctrl_swap=Disable
