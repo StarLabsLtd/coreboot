@@ -5,9 +5,12 @@
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
 #include <option.h>
+#include <pc80/keyboard.h>
+#include <pc80/mc146818rtc.h>
 
-#include "ec.h"
 #include "ecdefs.h"
+#include "option_table.h"
+#include "ec.h"
 
 #define ITE_IT5570	0x5570
 #define ITE_IT8987	0x8987
@@ -17,12 +20,42 @@ uint16_t ec_get_version(void)
 	return (ec_read(ECRAM_MAJOR_VERSION) << 8) | ec_read(ECRAM_MINOR_VERSION);
 }
 
-static uint8_t get_ec_value_from_option(const char *name,
-					unsigned int fallback,
-					const uint8_t *lut,
-					size_t lut_size)
+static uint8_t get_cmos_value(uint32_t bit, uint32_t length)
 {
-	unsigned int index = get_uint_option(name, fallback);
+	uint32_t byte, byte_bit;
+	uint8_t uchar;
+	uint8_t ret = 0;
+
+	byte = bit / 8; // find the byte where the data starts
+	byte_bit = bit % 8; // find the bit in the byte where the data starts
+	if (length < 9) {       // one byte or less
+		uchar = cmos_read(byte); // load the byte
+		uchar >>= byte_bit;     // shift the bits to byte align
+		// clear unspecified bits
+		ret = uchar & ((1U << length) - 1);
+	} else { // more than one byte so transfer the whole bytes
+		for (uint32_t i = 0; length > 0; i++, length -= 8, byte++) {
+			// load the byte
+			ret = cmos_read(byte);
+		}
+	}
+	return ret;
+}
+
+static uint8_t get_ec_value_from_option(const char *name,
+					uint32_t fallback,
+					const uint8_t *lut,
+					size_t lut_size,
+					uint32_t cmos_start_bit,
+					uint32_t cmos_length)
+{
+	unsigned int index;
+
+	if (cmos_start_bit != UINT_MAX)
+		index = get_cmos_value(cmos_start_bit, cmos_length);
+	else
+		index = get_uint_option(name, fallback);
+
 	if (index >= lut_size)
 		index = fallback;
 	return lut[index];
@@ -94,7 +127,9 @@ static void merlin_init(struct device *dev)
 		get_ec_value_from_option("kbl_timeout",
 					 0,
 					 kbl_timeout,
-					 ARRAY_SIZE(kbl_timeout)));
+					 ARRAY_SIZE(kbl_timeout),
+					 UINT_MAX,
+					 UINT_MAX));
 
 	/*
 	 * Fn Ctrl Reverse
@@ -114,7 +149,9 @@ static void merlin_init(struct device *dev)
 		get_ec_value_from_option("fn_ctrl_swap",
 					 0,
 					 fn_ctrl_swap,
-					 ARRAY_SIZE(fn_ctrl_swap)));
+					 ARRAY_SIZE(fn_ctrl_swap),
+					 UINT_MAX,
+					 UINT_MAX));
 
 	/*
 	 * Maximum Charge Level
@@ -136,7 +173,9 @@ static void merlin_init(struct device *dev)
 			get_ec_value_from_option("max_charge",
 						 0,
 						 max_charge,
-						 ARRAY_SIZE(max_charge)));
+						 ARRAY_SIZE(max_charge),
+						 UINT_MAX,
+						 UINT_MAX));
 
 	/*
 	 * Fan Mode
@@ -158,7 +197,9 @@ static void merlin_init(struct device *dev)
 			get_ec_value_from_option("fan_mode",
 						 0,
 						 fan_mode,
-						 ARRAY_SIZE(fan_mode)));
+						 ARRAY_SIZE(fan_mode),
+						 UINT_MAX,
+						 UINT_MAX));
 
 	/*
 	 * Function Lock
@@ -178,7 +219,9 @@ static void merlin_init(struct device *dev)
 		get_ec_value_from_option("fn_lock_state",
 					 1,
 					 fn_lock_state,
-					 ARRAY_SIZE(fn_lock_state)));
+					 ARRAY_SIZE(fn_lock_state),
+					 CMOS_VSTART_fn_lock_state,
+					 CMOS_VLEN_fn_lock_state));
 
 	/*
 	 * Trackpad State
@@ -198,7 +241,9 @@ static void merlin_init(struct device *dev)
 		get_ec_value_from_option("trackpad_state",
 					 0,
 					 trackpad_state,
-					 ARRAY_SIZE(trackpad_state)));
+					 ARRAY_SIZE(trackpad_state),
+					 CMOS_VSTART_trackpad_state,
+					 CMOS_VLEN_trackpad_state));
 
 	/*
 	 * Keyboard Backlight Brightness
@@ -221,13 +266,18 @@ static void merlin_init(struct device *dev)
 			get_ec_value_from_option("kbl_brightness",
 						 2,
 						 kbl_brightness,
-						 ARRAY_SIZE(kbl_brightness)));
+						 ARRAY_SIZE(kbl_brightness),
+						 CMOS_VSTART_kbl_brightness,
+						 CMOS_VLEN_kbl_brightness));
 	else
 		ec_write(ECRAM_KBL_BRIGHTNESS,
 			get_ec_value_from_option("kbl_brightness",
 						 0,
 						 kbl_brightness,
-						 ARRAY_SIZE(kbl_brightness)));
+						 ARRAY_SIZE(kbl_brightness),
+						 CMOS_VSTART_kbl_brightness,
+						 CMOS_VLEN_kbl_brightness));
+
 
 	/*
 	 * Keyboard Backlight State
