@@ -23,7 +23,6 @@ entries
 # coreboot config options: Devices
 504	1	e	1	wireless
 512	1	e	1	webcam
-528	1	e	1	legacy_8254_timer
 
 # coreboot config options: EC
 600	3	e	4	kbl_timeout
