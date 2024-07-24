@@ -41,7 +41,7 @@ const struct pad_config gpio_table[] = {
 	/* GPD10:	Sleep S5					*/
 	PAD_CFG_NF(GPD10, NONE, DEEP, NF1),
 	/* GPD11:	LAN PHY Enable					*/
-        PAD_CFG_GPO(GPD11, 0, PWROK),
+	PAD_CFG_GPO(GPD11, 0, PWROK),
 
 	/* A0:		ESPI IO 0					*/
 	/* A1:		ESPI IO 1					*/
@@ -285,7 +285,6 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_E22, NONE),
 	/* E23:		Not Connected					*/
 	PAD_NC(GPP_E23, NONE),
-
 
 	/* F0:		CNV BRI Data					*/
 	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),

@@ -3,7 +3,7 @@ chip soc/intel/alderlake
 		.i2c[0] = {
 			.speed = I2C_SPEED_FAST,
 		},
-	}
+	}",
 
 	# FSP Memory
 	register "enable_c6dram"		= "1"

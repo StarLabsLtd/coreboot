@@ -113,7 +113,6 @@ chip soc/intel/alderlake
 						device ref usb2_port10 on end
 					end
 				end
-
 			end
 		end
 		device ref shared_sram	on  end
@@ -215,7 +214,7 @@ chip soc/intel/alderlake
 		end
 		device ref smbus	on  end
 	end
-	chip drivers/crb
-		device mmio 0xfed40000 on end
-	end
+#	chip drivers/crb
+#		device mmio 0xfed40000 on end
+#	end
 end
