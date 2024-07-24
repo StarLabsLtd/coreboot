@@ -91,12 +91,6 @@ config CCD_PORT
 	default 4 if BOARD_STARLABS_STARBOOK_ADL || BOARD_STARLABS_STARBOOK_RPL
 	default 3
 
-config CMOS_DEFAULT_FILE
-	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/cmos.default" if BOARD_STARLABS_STARBOOK_TGL
-
-config CMOS_LAYOUT_FILE
-	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/\$(CONFIG_VARIANT_DIR)/cmos.layout" if BOARD_STARLABS_STARBOOK_TGL
-
 config CONSOLE_SERIAL
 	default n if !EDK2_DEBUG
 
