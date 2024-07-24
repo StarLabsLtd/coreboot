@@ -107,6 +107,39 @@
 #define SWITCH_ENABLED		0x00
 #define SWITCH_DISABLED		0x01
 
+
+#ifndef CMOS_VSTART_fn_lock_state
+#define CMOS_VSTART_fn_lock_state	UINT_MAX
+#endif
+
+#ifndef CMOS_VLEN_fn_lock_state
+#define CMOS_VLEN_fn_lock_state		UINT_MAX
+#endif
+
+#ifndef CMOS_VSTART_trackpad_state
+#define CMOS_VSTART_trackpad_state	UINT_MAX
+#endif
+
+#ifndef CMOS_VLEN_trackpad_state
+#define CMOS_VLEN_trackpad_state	UINT_MAX
+#endif
+
+#ifndef CMOS_VSTART_kbl_brightness
+#define CMOS_VSTART_kbl_brightness	UINT_MAX
+#endif
+
+#ifndef CMOS_VLEN_kbl_brightness
+#define CMOS_VLEN_kbl_brightness	UINT_MAX
+#endif
+
+#ifndef CMOS_VSTART_kbl_brightness
+#define CMOS_VSTART_kbl_brightness	UINT_MAX
+#endif
+
+#ifndef CMOS_VLEN_kbl_brightness
+#define CMOS_VLEN_kbl_brightness	UINT_MAX
+#endif
+
 uint16_t ec_get_version(void);
 
 #endif
