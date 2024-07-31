@@ -309,6 +309,38 @@ static void cnvw_fill_ssdt(const struct device *dev)
 	}
 	acpigen_pop_len();
 
+/*
+ *	Method (AOLX, 0, NotSerialized)
+ *	{
+ *		Name (AODS, Package (0x03)
+ *		{
+ *			Zero,
+ *			0x12,
+ *			Zero		// Audio Offload Enabled
+ *		})
+ *		Return (AODS)
+ *	}
+ */
+	const struct soc_intel_alderlake_config *soc_conf;
+	soc_conf = config_of_soc();
+
+	acpigen_write_method("AOLX", 0);
+	{
+		acpigen_write_name("AODS");
+		{
+			acpigen_write_name("AODS");
+			acpigen_write_package(3);
+			{
+				acpigen_write_integer(0);
+				acpigen_write_integer(0x12);
+				acpigen_write_integer(soc_conf->cnvi_bt_audio_offload);
+			}
+			acpigen_pop_len();
+		}
+		acpigen_write_return_namestr("AODS");
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
 }
 
 static struct device_operations cnvi_wifi_ops = {
