@@ -417,6 +417,19 @@ static void cnvw_fill_ssdt(const struct device *dev)
 		acpigen_pop_len();
 	}
 	acpigen_pop_len();
+
+/*
+ *	Method (GBTE, 0, NotSerialized)
+ *	{
+ *		Return (GTXS (0x090a0000))
+ *	}
+ */
+	acpigen_write_method("GBTE", 0);
+	{
+		acpigen_soc_get_tx_gpio(0x090a0000);
+	}
+	acpigen_pop_len();
+
 }
 
 static struct device_operations cnvi_wifi_ops = {
