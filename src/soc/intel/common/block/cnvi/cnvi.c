@@ -265,6 +265,37 @@ static void cnvw_fill_ssdt(const struct device *dev)
 		acpigen_pop_len();
 	}
 	acpigen_pop_len();
+
+/*
+ *	Method (SBTE, 1, Serialized)
+ *	{
+ *		If (Arg0 == 1)
+ *		{
+ *			STXS(0x090A0000)
+ *		} Else {
+ *			CTXS(0x090A0000)
+ *		}
+ *	}
+ */
+	acpigen_write_method("SBTE", 1);
+	{
+		acpigen_write_if_lequal_op_int(ARG0_OP, 1);
+		{
+			if (CONFIG(SOC_INTEL_ALDERLAKE_PCH_S))
+				acpigen_soc_set_tx_gpio(0x08030000);
+			else
+				acpigen_soc_set_tx_gpio(0x090a0000);
+		}
+		acpigen_write_else();
+		{
+			if (CONFIG(SOC_INTEL_ALDERLAKE_PCH_S))
+				acpigen_soc_clear_tx_gpio(0x08030000);
+			else
+				acpigen_soc_clear_tx_gpio(0x090a0000);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
 }
 
 static struct device_operations cnvi_wifi_ops = {
