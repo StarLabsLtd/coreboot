@@ -172,6 +172,13 @@ void lb_board(struct lb_header *header)
 			.ui_name	= "Accelerometer",
 			.ui_helptext	= "Enable or disable the built-in accelerometer",
 			.default_value	= true,
+		},
+		{
+			.object_id	= starlite_get_object_id(),
+			.opt_name	= "i2c_speed_fast",
+			.ui_name	= "Fast Touchscreen Refresh",
+			.ui_helptext	= "Enable fast i2c for the touchscreen.",
+			.default_value	= false,
 		}
 	};
 
@@ -212,6 +219,7 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_BOOL(bool_opts[0]),		// microphone
 		SM_DECLARE_BOOL(bool_opts[6]),		// touchscreen
 		SM_DECLARE_BOOL(bool_opts[7]),		// accelerometer
+		SM_DECLARE_BOOL(bool_opts[8]),		// i2c_speed_fast
 		SM_DECLARE_BOOL(bool_opts[4]),		// power_on_after_fail
 	};
 
