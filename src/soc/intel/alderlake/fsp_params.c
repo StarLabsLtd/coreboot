@@ -855,6 +855,9 @@ static void fill_fsps_sata_params(FSP_S_CONFIG *s_cfg,
 			s_cfg->SataPortsDitoVal[i] = config->sata_ports_dito_val[i];
 		}
 	}
+
+	s_cfg->SataPortDevSlpPinMux[0] = 0x59673e0c;
+	s_cfg->SataPortDevSlpPinMux[1] = 0x5967400d;
 }
 
 static void fill_fsps_thermal_params(FSP_S_CONFIG *s_cfg,
