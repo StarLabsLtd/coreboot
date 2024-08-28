@@ -67,7 +67,7 @@ void devtree_update(void)
 	/* Set I2C devices speed to fast based on CMOS settings */
 	if (get_uint_option("i2c_speed_fast", 0) == 1) {
 		for (uint8_t i = 0; i < CONFIG_SOC_INTEL_I2C_DEV_MAX; i++) {
-			common_config->i2c[i].i2c_speed = I2C_SPEED_FAST;
+			common_config->i2c[i].speed = I2C_SPEED_FAST;
 		}
 	}
 }

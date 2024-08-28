@@ -47,6 +47,10 @@ struct drivers_usb_acpi_config {
 	/* Does the device have a power resource? */
 	bool has_power_resource;
 
+	/* Intel Wireless Companion device */
+	bool intel_bt;
+	struct acpi_gpio bt_rf_kill;
+
 	/* GPIO used to take device out of reset or to put it into reset. */
 	struct acpi_gpio reset_gpio;
 	/* Delay to be inserted after device is taken out of reset. */

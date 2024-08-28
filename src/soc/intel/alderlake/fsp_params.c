@@ -856,8 +856,8 @@ static void fill_fsps_sata_params(FSP_S_CONFIG *s_cfg,
 		}
 	}
 
-	s_cfg->SataPortDevSlpPinMux[0] = 0x59673e0c;
-	s_cfg->SataPortDevSlpPinMux[1] = 0x5967400d;
+//	s_cfg->SataPortDevSlpPinMux[0] = 0x59673e0c;
+//	s_cfg->SataPortDevSlpPinMux[1] = 0x5967400d;
 }
 
 static void fill_fsps_thermal_params(FSP_S_CONFIG *s_cfg,
@@ -906,7 +906,6 @@ static void fill_fsps_cnvi_params(FSP_S_CONFIG *s_cfg,
 {
 	/* CNVi */
 	s_cfg->CnviWifiCore = is_devfn_enabled(PCH_DEVFN_CNVI_WIFI);
-	s_cfg->CnviMode = is_devfn_enabled(PCH_DEVFN_CNVI_WIFI);
 	s_cfg->CnviBtCore = config->cnvi_bt_core;
 	s_cfg->CnviBtAudioOffload = config->cnvi_bt_audio_offload;
 	/*

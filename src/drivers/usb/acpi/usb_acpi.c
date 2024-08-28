@@ -8,6 +8,52 @@
 #include <device/device.h>
 #include "chip.h"
 
+/*
+ *	Intel Bluetooth DSM
+ *
+ *	Set Tile Activaction (2d19d3e1-5708-4696-bd5b-2c3dbae2d6a9)
+ *	BIT(0)	Indicates whether the device supports other functions
+ *	BIT(1)	Set Tile Activation
+ *
+ *	Set Reset Delay (aa10f4e0-81ac-4233-abf6-3b2ac50e28d9)
+ *	BIT(0)	Indicates whether the device supports other functions
+ *	BIT(1)	Set Bluetooth reset timing
+ */
+
+static void check_reset_delay(void *arg)	/* aa10f4e0-81ac-4233-abf6-3b2ac50e28d9 */
+{
+	acpigen_write_if_lequal_op_int(ARG1_OP, 0);
+	{
+		acpigen_write_return_singleton_buffer(0x03);
+	}
+	acpigen_write_else();
+	{
+		acpigen_write_return_singleton_buffer(0x00);
+	}
+	acpigen_pop_len();
+}
+
+static void set_reset_delay(void *arg)		/* aa10f4e0-81ac-4233-abf6-3b2ac50e28d9 */
+{
+	acpigen_write_store_op_to_namestr(ARG3_OP, "RDLY");
+}
+
+static void get_feature_flag(void *arg)		/* 2d19d3e1-5708-4696-bd5b-2c3dbae2d6a9 */
+{
+	acpigen_write_if_lequal_op_int(ARG1_OP, 0);
+	{
+		acpigen_write_return_singleton_buffer(0x03);
+	}
+	acpigen_write_else();
+	{
+		acpigen_write_return_singleton_buffer(0x00);
+	}
+	acpigen_pop_len();
+}
+
+void (*uuid_callbacks1[])(void *) = { check_reset_delay, set_reset_delay };
+void (*uuid_callbacks2[])(void *) = { get_feature_flag };
+
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
 {
 	if (cfg->privacy_gpio.pin_count)
@@ -21,16 +67,354 @@ static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
 
 static int usb_acpi_write_gpio(struct acpi_gpio *gpio, int *curr_index)
 {
-	int ret = -1;
+    int ret = -1;
 
-	if (gpio->pin_count == 0)
-		return ret;
+    if (gpio->pin_count == 0) {
+        printk(BIOS_DEBUG, "GPIO write: No pins defined, returning %d\n", ret);
+        return ret;
+    }
 
-	acpi_device_write_gpio(gpio);
-	ret = *curr_index;
-	(*curr_index)++;
+    printk(BIOS_DEBUG, "GPIO write: Writing GPIO with pin count %d at index %d\n", gpio->pin_count, *curr_index);
 
-	return ret;
+    acpi_device_write_gpio(gpio);
+
+    ret = *curr_index;
+    (*curr_index)++;
+
+    printk(BIOS_DEBUG, "GPIO write: Successfully wrote GPIO, returning index %d\n", ret);
+
+    return ret;
+}
+
+static void acpi_device_cnvi_companion(unsigned int bt_rf_kill_gpio)
+{
+/*
+ *	Name (SADX, Package (0x03)
+ *	{
+ *		Zero,
+ *		Package (0x02)
+ *		{
+ *			0x07,
+ *			0x02	// Diversity
+ *		},
+ *		Package (0x02)
+ *		{
+ *			0x12,
+ *			0x02	// Diversity
+ *		}
+ *	})
+ */
+	acpigen_write_name("SADX");
+	acpigen_write_package(3);
+	{
+		acpigen_write_integer(0);
+		acpigen_write_package(2);
+		{
+			acpigen_write_integer(7);
+			acpigen_write_integer(2);
+		}
+		acpigen_pop_len();
+
+		acpigen_write_package(2);
+		{
+			acpigen_write_integer(0x12);
+			acpigen_write_integer(2);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+/*
+ *	Method (SADS, 0, Serialized)
+ *	{
+ *		Return (SADX)
+ *	}
+ */
+	acpigen_write_method_serialized("SADS", 0);
+	{
+		acpigen_write_return_namestr("SADX");
+	}
+	acpigen_pop_len();
+
+/*
+ *	Name (BRDY, Package (0x02)
+ *	{
+ *		Zero,
+ *		Package (0x08)
+ *		{
+ *			0x12,
+ *			0x00,	// Sar
+ *			0x00,	// SarBr
+ *			0x00,	// Sar Edr2
+ *			0x00,	// Sar Edr3
+ *			0x00,	// Sar Le
+ *			0x00,	// Sar Le 2MHz
+ *			0x00	// Sar Le Lr
+ *		}
+ *	})
+ */
+	acpigen_write_name("BRDY");
+	acpigen_write_package(2);
+	{
+		acpigen_write_integer(0);
+		acpigen_write_package(8);
+		{
+			acpigen_write_integer(0x12);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+			acpigen_write_integer(0x00);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+/*
+ *	Method (BRDS, 0, Serialized)
+ *	{
+ *		Return (BRDY)
+ *	}
+ */
+	acpigen_write_method_serialized("BRDS", 0);
+	{
+		acpigen_write_return_namestr("BRDY");
+	}
+	acpigen_pop_len();
+
+	acpigen_write_method("AOLD", 0);
+	{
+		acpigen_write_return_namestr("AOLX");
+	}
+	acpigen_pop_len();
+/*
+ *	Name (ECKY, Package (0x02)
+ *	{
+ *		Zero,
+ *		Package (0x02)
+ *		{
+ *			0x12,
+ *			Zero
+ *		}
+ *	})
+ */
+	acpigen_write_name("ECKY");
+	acpigen_write_package(2);
+	{
+		acpigen_write_integer(0);
+		acpigen_write_package(2);
+		{
+			acpigen_write_integer(0x12);
+			acpigen_write_integer(0);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+/*
+ *	Method (ECKV, 0, Serialized)
+ *	{
+ *		Return (ECKY)
+ *	}
+ */
+	acpigen_write_method_serialized("ECKV", 0);
+	{
+		acpigen_write_return_namestr("ECKY");
+	}
+	acpigen_pop_len();
+
+/*
+ *	Name (RDLY, 0x69)
+ */
+	acpigen_write_name_integer("RDLY", 0x69);
+
+/*
+ *	2D19D3E1-5708-4696-BD5B-2C3DBAE2D6A9
+ *	BIT(0)	Indicates whether its support for any other functions
+ *	BIT(1)	Set Tile Activation
+ *
+ *	aa10f4e0-81ac-4233-abf6-3b2ac50e28d9
+ *	BIT(0)	Indicates whether its support for any other functions
+ *	BIT(1)	Set BT reset timing
+ *
+ *	Method (_DSM, 4, Serialized)
+ *	{
+ *		If ((Arg0 == ToUUID ("aa10f4e0-81ac-4233-abf6-3b2ac50e28d9")))
+ *		{
+ *			If ((Arg2 == Zero))
+ *			{
+ *				If ((Arg1 == Zero))
+ *				{
+ *					Return (Buffer (One)
+ *					{
+ *						0x03
+ *					})
+ *				}
+ *				Else
+ *				{
+ *					Return (Buffer (One)
+ *					{
+ *						0x00
+ *					})
+ *				}
+ *			}
+ *			If ((Arg2 == One))
+ *			{
+ *				RDLY = Arg3
+ *			}
+ *			Return (Zero)
+ *		}
+ *		ElseIf ((Arg0 == ToUUID ("2d19d3e1-5708-4696-bd5b-2c3dbae2d6a9")))
+ *		{
+ *			If ((Arg2 == Zero))
+ *			{
+ *				If ((Arg1 == Zero))
+ *				{
+ *					Return (Buffer (One)
+ *					{
+ *						0x00
+ *					})
+ *				}
+ *				Else
+ *				{
+ *					Return (Buffer (One)
+ *					{
+ *						0x00
+ *					})
+ *				}
+ *			}
+ *			Return (Zero)
+ *		}
+ *		Else
+ *		{
+ *			Return (Buffer (One)
+ *			{
+ *				0x00
+ *			})
+ *		}
+ *	}
+ */
+	struct dsm_uuid uuid_callbacks[] = {
+		DSM_UUID("aa10f4e0-81ac-4233-abf6-3b2ac50e28d9", uuid_callbacks1, 2, NULL),
+		DSM_UUID("2d19d3e1-5708-4696-bd5b-2c3dbae2d6a9", uuid_callbacks2, 1, NULL),
+	};
+
+	acpigen_write_dsm_uuid_arr(uuid_callbacks, ARRAY_SIZE(uuid_callbacks));
+
+/*
+ *	Method (BTRK, 1, Serialized)
+ *	{
+ *		If (Arg0 == 1)
+ *		{
+ *			STXS (BT_RF_KILL)
+ *		} Else {
+ *			CTXS (BT_RF_KILL)
+ *		}
+ *	}
+ */
+
+	acpigen_write_method_serialized("BTRK", 1);
+	{
+		acpigen_write_if_lequal_op_int(ARG0_OP, 1);
+		{
+			acpigen_soc_set_tx_gpio(bt_rf_kill_gpio);
+		}
+		acpigen_write_else();
+		{
+			acpigen_soc_clear_tx_gpio(bt_rf_kill_gpio);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+/*
+ *	PowerResource (BTRT, 0x05, 0x0000)
+ *	{
+ *		Method (_STA, 0, NotSerialized)
+ *		{
+ *			Return (One)
+ *		}
+ *		Method (_ON, 0, NotSerialized)
+ *		{
+ *		}
+ *		Method (_OFF, 0, NotSerialized)
+ *		{
+ *		}
+ *		Method (_RST, 0, NotSerialized)
+ *		{
+ *			Local0 = Acquire (CNMT, 0x03E8)
+ *			If ((Local0 == Zero))
+ *			{
+ *				BTRK (Zero)
+ *				Sleep (RDLY)
+ *				BTRK (One)
+ *				Sleep (RDLY)
+ *			}
+ *			Release (CNMT)
+ *		}
+ *	}
+ */
+	acpigen_write_power_res("BTRT", 5, 0, NULL, 0);
+	{
+		acpigen_write_method("_STA", 0);
+		{
+			acpigen_write_return_integer(1);
+		}
+		acpigen_pop_len();
+
+		acpigen_write_method("_ON", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_OFF", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_RST", 0);
+		{
+			acpigen_write_store();
+			acpigen_write_acquire("CNMT", 0x03e8);
+			acpigen_emit_byte(LOCAL0_OP);
+
+			acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
+			{
+				acpigen_emit_namestring("BTRK");
+				acpigen_emit_byte(0);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+
+				acpigen_emit_namestring("BTRK");
+				acpigen_emit_byte(1);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+			}
+			acpigen_pop_len();
+			acpigen_write_release("CNMT");
+		}
+		acpigen_pop_len();
+	}
+	acpigen_write_power_res_end();
+
+/*
+ *	Method (_PRR, 0, NotSerialized)
+ *	{
+ *		Return (Package (0x01)
+ *		{
+ *			BTRT
+ *		})
+ *	}
+ */
+	acpigen_write_method("_PRR", 0);
+	{
+		acpigen_write_package(1);
+		{
+			acpigen_emit_namestring("BTRT");
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
 }
 
 static void usb_acpi_fill_ssdt_generator(const struct device *dev)
@@ -105,6 +489,14 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 			config->use_gpio_for_status
 		};
 		acpi_device_add_power_res(&power_res_params);
+	}
+
+	if (config->intel_bt) {
+
+		printk(BIOS_DEBUG, "CNVi Companion Configuration: cnvi_companion=%d, bluetooth_rf_kill.pin_count=%d\n",
+			config->intel_bt,	config->bt_rf_kill.pins[0]);
+
+		acpi_device_cnvi_companion(config->bt_rf_kill.pins[0]);
 	}
 
 	acpigen_pop_len();

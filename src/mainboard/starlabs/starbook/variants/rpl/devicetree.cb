@@ -21,11 +21,6 @@ chip soc/intel/alderlake
 	register "pch_slp_sus_min_assertion_width"	= "3"		# 500ms
 	register "pch_slp_a_min_assertion_width"	= "3"		# 2s
 
-	# PM Util
-	register "pmc_gpe0_dw0"				= "GPP_B"
-	register "pmc_gpe0_dw1"				= "GPP_C"
-	register "pmc_gpe0_dw2"				= "GPP_E"
-
 	# Device Tree
 	device domain 0 on
 		device ref igpu		on
@@ -142,6 +137,8 @@ chip soc/intel/alderlake
 					chip drivers/usb/acpi
 						register "desc"		= ""Internal Bluetooth""
 						register "type"		= "UPC_TYPE_INTERNAL"
+						register "intel_bt"	= "1"
+						register "bt_rf_kill"	= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_A13)"
 						device ref usb2_port10 on end
 					end
 				end
@@ -158,11 +155,8 @@ chip soc/intel/alderlake
 			end
 		end
 		device ref shared_sram	on  end
+		device ref cnvi_wifi	on  end
 		device ref pcie_rp5	on				# WiFi
-			chip drivers/wifi/generic
-				register "wake"			= "GPE0_PME_B0"
-				device generic 0 on end
-			end
 			register "pch_pcie_rp[PCH_RP(5)]" = "{
 				.clk_src			= 2,
 				.clk_req			= 2,

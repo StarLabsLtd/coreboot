@@ -63,7 +63,7 @@ const struct pad_config gpio_table[] = {
 	/* A12:		PCH M.2 SSD PEDET				*/
 	PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
 	/* A13:		BlueTooth RF Kill				*/
-	PAD_CFG_GPO(GPP_A13, 1, DEEP),
+	PAD_CFG_GPO_GPIO_DRIVER(GPP_A13, 1, DEEP, NONE),
 	/* A14:		Camera Power Enable				*/
 	PAD_NC(GPP_A14, NONE),
 	/* A15:		Camera Reset					*/
