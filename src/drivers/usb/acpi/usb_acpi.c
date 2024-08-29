@@ -243,6 +243,40 @@ static void acpi_device_intel_bt(unsigned int bt_rf_kill_gpio)
 		acpigen_pop_len();
 	}
 	acpigen_write_power_res_end();
+
+/*
+ *	Method (AOLD, 0, NotSerialized)
+ *	{
+ *		Name (AODS, Package (0x03)
+ *		{
+ *			Zero,
+ *			0x12,
+ *			Zero	// Audio Offload Enabled
+ *		})
+ *		Return (AODS)
+ *	}
+ */
+	config_t *conf = config_of_soc();
+
+	acpigen_write_method("AOLD", 0);
+	{
+		acpigen_write_name("AODS");
+		acpigen_write_package(3);
+		{
+			acpigen_write_integer(0);
+			acpigen_write_integer(0x12);
+#if CONFIG(SOC_INTEL_METEORLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_PANTHERLAKE_BASE)
+			acpigen_write_integer(conf->cnvi_bt_audio_offload);
+#else
+			acpigen_write_integer(0);
+#endif
+
+		}
+		acpigen_pop_len();
+
+		acpigen_write_return_namestr("AODS");
+	}
+	acpigen_pop_len();
 }
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
