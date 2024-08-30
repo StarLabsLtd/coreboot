@@ -175,6 +175,74 @@ static void acpi_device_intel_bt(unsigned int bt_rf_kill_gpio)
 		acpigen_pop_len();
 	}
 	acpigen_pop_len();
+
+/*
+ *	PowerResource (BTRT, 0x05, 0x0000)
+ *	{
+ *		Method (_STA, 0, NotSerialized)
+ *		{
+ *			Return (One)
+ *		}
+ *		Method (_ON, 0, NotSerialized)
+ *		{
+ *		}
+ *		Method (_OFF, 0, NotSerialized)
+ *		{
+ *		}
+ *		Method (_RST, 0, NotSerialized)
+ *		{
+ *			Local0 = Acquire (CNMT, 0x03E8)
+ *			If ((Local0 == Zero))
+ *			{
+ *				BTRK (Zero)
+ *				Sleep (RDLY)
+ *				BTRK (One)
+ *				Sleep (RDLY)
+ *			}
+ *			Release (CNMT)
+ *		}
+ *	}
+ */
+	acpigen_write_power_res("BTRT", 5, 0, NULL, 0);
+	{
+		acpigen_write_method("_STA", 0);
+		{
+			acpigen_write_return_integer(1);
+		}
+		acpigen_pop_len();
+
+		acpigen_write_method("_ON", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_OFF", 0);
+		acpigen_pop_len();
+
+		acpigen_write_method("_RST", 0);
+		{
+			acpigen_write_store();
+			acpigen_write_acquire("CNMT", 0x03e8);
+			acpigen_emit_byte(LOCAL0_OP);
+
+			acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
+			{
+				acpigen_emit_namestring("BTRK");
+				acpigen_emit_byte(0);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+
+				acpigen_emit_namestring("BTRK");
+				acpigen_emit_byte(1);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+			}
+			acpigen_pop_len();
+			acpigen_write_release("CNMT");
+		}
+		acpigen_pop_len();
+	}
+	acpigen_write_power_res_end();
 }
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
