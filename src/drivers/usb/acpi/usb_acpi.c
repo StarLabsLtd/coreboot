@@ -58,7 +58,7 @@ static void get_feature_flag(void *arg)
 void (*uuid_callbacks1[])(void *) = { check_reset_delay, set_reset_delay };
 void (*uuid_callbacks2[])(void *) = { get_feature_flag };
 
-static void acpi_device_intel_bt(void)
+static void acpi_device_intel_bt(unsigned int bt_rf_kill_gpio)
 {
 /*
  *	Name (RDLY, 0x69)
@@ -129,6 +129,52 @@ static void acpi_device_intel_bt(void)
 	};
 
 	acpigen_write_dsm_uuid_arr(uuid_callbacks, ARRAY_SIZE(uuid_callbacks));
+
+/*
+ *	Method (BTRK, 1, Serialized)
+ *	{
+ *		If (Arg0 == 1)
+ *		{
+ *			STXS (BT_RF_KILL)
+ *		} Else {
+ *			CTXS (BT_RF_KILL)
+ *		}
+ *	}
+ */
+
+	acpigen_write_method_serialized("BTRK", 1);
+	{
+		acpigen_write_if_lequal_op_int(ARG0_OP, 1);
+		{
+			acpigen_soc_set_tx_gpio(bt_rf_kill_gpio);
+		}
+
+		acpigen_write_else();
+		{
+			acpigen_soc_clear_tx_gpio(bt_rf_kill_gpio);
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+/*
+ *	Method (_PRR, 0, NotSerialized)
+ *	{
+ *		Return (Package (0x01)
+ *		{
+ *			BTRT
+ *		})
+ *	}
+ */
+	acpigen_write_method("_PRR", 0);
+	{
+		acpigen_write_package(1);
+		{
+			acpigen_emit_namestring("BTRT");
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
 }
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
@@ -231,7 +277,7 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 	}
 
 	if (config->is_intel_bluetooth)
-		acpi_device_intel_bt();
+		acpi_device_intel_bt(config->bt_rf_kill.pins[0]);
 
 	acpigen_pop_len();
 

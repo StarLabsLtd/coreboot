@@ -49,6 +49,7 @@ struct drivers_usb_acpi_config {
 
 	/* Intel Bluetooth */
 	bool is_intel_bluetooth;
+	struct acpi_gpio bt_rf_kill;
 
 	/* GPIO used to take device out of reset or to put it into reset. */
 	struct acpi_gpio reset_gpio;
