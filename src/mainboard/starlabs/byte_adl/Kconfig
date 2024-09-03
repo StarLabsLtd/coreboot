@@ -29,6 +29,9 @@ config BOARD_STARLABS_BYTE_ADL
 
 if BOARD_STARLABS_BYTE_SERIES
 
+config FSP_TYPE_IOT
+	default y
+
 config CONSOLE_SERIAL
 	default n if !EDK2_DEBUG
 
