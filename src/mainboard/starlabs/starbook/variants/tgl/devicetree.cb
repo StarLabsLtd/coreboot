@@ -137,18 +137,15 @@ chip soc/intel/tigerlake
 					chip drivers/usb/acpi
 						register "desc"		= ""Internal Bluetooth""
 						register "type"		= "UPC_TYPE_INTERNAL"
+						register "is_intel_bluetooth" = "1"
+						register "bt_rf_kill"	= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_A13)"
 						device ref usb2_port10 on end
 					end
 				end
 			end
 		end
 		device ref shared_ram	on  end
-		device ref cnvi_wifi	on
-			chip drivers/wifi/generic
-				register "wake"			= "GPE0_PME_B0"
-				device generic 0 on end
-			end
-		end
+		device ref cnvi_wifi	on  end
 		device ref i2c0		on
 			chip drivers/i2c/hid
 				register "generic.hid"		= ""STAR0001""
