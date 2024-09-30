@@ -641,11 +641,20 @@ void tpm_ppi_acpi_fill_ssdt(const struct device *dev)
 	acpigen_write_return_integer(0);
 	acpigen_pop_len(); /* If */
 
-	/* TPPF = CreateField("PPOP", Local0) */
-	acpigen_emit_byte(CREATE_BYTE_OP);
-	acpigen_emit_namestring("PPOP");
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_emit_namestring("TPPF");
+	/*
+	 * Field (PPOP, AnyAcc, NoLock, Preserve)
+	 * {
+	 *	Offset (0x60),
+	 *	TPPF,   8
+	 * }
+	*/
+	struct fieldlist tppf_field[] = {
+		FIELDLIST_OFFSET(0x60),
+		FIELDLIST_NAMESTR("TPPF", 8)
+	};
+
+	acpigen_write_field("PPOP", tppf_field,
+		ARRAY_SIZE(tppf_field), FIELD_ANYACC | FIELD_NOLOCK | FIELD_PRESERVE);
 
 	/* Local0 = ToInteger("TPPF") */
 	acpigen_emit_byte(TO_INTEGER_OP);
