@@ -8,6 +8,8 @@ const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2),
 	/* H11:		UART0 TXD		Debug Connector		*/
 	PAD_CFG_NF(GPP_H11, NONE, DEEP, NF2),
+
+	PAD_CFG_GPO_GPIO_DRIVER(GPP_A13, 0, DEEP, NONE),
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)
@@ -63,7 +65,8 @@ const struct pad_config gpio_table[] = {
 	/* A12:		PCH M.2 SSD PEDET				*/
 	PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
 	/* A13:		BlueTooth RF Kill				*/
-	PAD_CFG_GPO(GPP_A13, 1, DEEP),
+	PAD_CFG_GPO_GPIO_DRIVER(GPP_A13, 1, DEEP, NONE),
+
 	/* A14:		Camera Power Enable				*/
 	PAD_NC(GPP_A14, NONE),
 	/* A15:		Camera Reset					*/
@@ -207,7 +210,7 @@ const struct pad_config gpio_table[] = {
 	/* D5:		Clock Request 0		PCH M.2 SSD		*/
 	PAD_CFG_NF(GPP_D5, NONE, DEEP, NF1),
 	/* D6:		Clock Request 1		Wireless LAN		*/
-	PAD_NC(GPP_D6, NONE),
+	PAD_CFG_NF(GPP_D6, NONE, DEEP, NF1),
 	/* D7:		Clock Request 2					*/
 	PAD_NC(GPP_D7, NONE),
 	/* D8:		Clock Request 3					*/
@@ -286,20 +289,27 @@ const struct pad_config gpio_table[] = {
 	/* E23:		Not Connected					*/
 	PAD_NC(GPP_E23, NONE),
 
+        _PAD_CFG_STRUCT(GPP_F0, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), PAD_IOSSTATE(IGNORE)),
+        _PAD_CFG_STRUCT(GPP_F1, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE) | (1 << 1), PAD_PULL(UP_20K) | PAD_IOSSTATE(IGNORE)),
+        _PAD_CFG_STRUCT(GPP_F2, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), PAD_IOSSTATE(IGNORE)),
+        _PAD_CFG_STRUCT(GPP_F3, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), PAD_PULL(UP_20K) | PAD_IOSSTATE(IGNORE)),
+        _PAD_CFG_STRUCT(GPP_F4, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), PAD_IOSSTATE(IGNORE)),
+        _PAD_CFG_STRUCT(GPP_F5, PAD_FUNC(NF2) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), PAD_IOSSTATE(IGNORE)),
+
 	/* F0:		CNV BRI Data					*/
-	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
 	/* F1:		CNV BRI Response				*/
-	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F1, NONE, DEEP, NF1),
 	/* F2:		CNV RGI Data					*/
-	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
 	/* F3:		CNV RGI Response				*/
-	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F3, NONE, DEEP, NF1),
 	/* F4:		CNV RF Reset					*/
-	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
 	/* F5:		Not used		MODEM_CLKREQ		*/
-	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
+//	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
 	/* F6:		CNV PA Blanking					*/
-	PAD_NC(GPP_F6, NONE),
+//	PAD_NC(GPP_F6, NONE),
 	/* F7:		TBT LSX VCCIO		Weak Internal PD 20K
 				Low:	1.8V
 				High:	3.3V				*/
@@ -319,13 +329,13 @@ const struct pad_config gpio_table[] = {
 	/* F14:		Not Connected					*/
 	PAD_NC(GPP_F14, NONE),
 	/* F15:		Keyboard Detect					*/
-	PAD_CFG_GPI_SMI_LOW(GPP_F15, NONE, DEEP, EDGE_BOTH),
+	// PAD_CFG_GPI_SMI_LOW(GPP_F15, NONE, DEEP, EDGE_BOTH),
 	/* F16:		Not Connected					*/
 	PAD_NC(GPP_F16, NONE),
 	/* F17:		Touch Panel Reset				*/
-	PAD_CFG_GPO(GPP_F17, 1, PLTRST),
+	PAD_CFG_GPO(GPP_F17, 1, DEEP),
 	/* F18:		Touch Panel Interrupt				*/
-	PAD_CFG_GPI_GPIO_DRIVER(GPP_F18, NONE, DEEP),
+	PAD_CFG_GPI_APIC(GPP_F18, NONE, PLTRST, LEVEL, INVERT),
 	/* F19:		Not Connected					*/
 	PAD_NC(GPP_F19, NONE),
 	/* F20:		Not Connected					*/

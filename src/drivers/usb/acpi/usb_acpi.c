@@ -257,7 +257,7 @@ static void acpi_device_intel_bt(unsigned int bt_rf_kill_gpio)
  *		Return (AODS)
  *	}
  */
-	config_t *conf = config_of_soc();
+//	config_t *conf = config_of_soc();
 
 	acpigen_write_method("AOLD", 0);
 	{
@@ -266,11 +266,11 @@ static void acpi_device_intel_bt(unsigned int bt_rf_kill_gpio)
 		{
 			acpigen_write_integer(0);
 			acpigen_write_integer(0x12);
-#if CONFIG(SOC_INTEL_METEORLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_PANTHERLAKE_BASE)
-			acpigen_write_integer(conf->cnvi_bt_audio_offload);
-#else
+//#if CONFIG(SOC_INTEL_METEORLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_PANTHERLAKE_BASE)
+//			acpigen_write_integer(conf->cnvi_bt_audio_offload);
+//#else
 			acpigen_write_integer(0);
-#endif
+//#endif
 
 		}
 		acpigen_pop_len();
