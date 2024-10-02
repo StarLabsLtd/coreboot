@@ -103,7 +103,9 @@ static const acpi_cstate_t cstate_map[NUM_C_STATES] = {
 static int cstate_set_non_s0ix[] = {
 	C_STATE_C1,
 	C_STATE_C6_LONG_LAT,
+#if CONFIG_MAX_C_STATE >= 8
 	C_STATE_C7S_LONG_LAT
+#endif
 };
 
 static int cstate_set_s0ix[] = {
