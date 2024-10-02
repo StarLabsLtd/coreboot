@@ -322,9 +322,7 @@ Device (PEG0)
 		Return (IRQM (RPPN))
 	}
 }
-#endif
 
-#if CONFIG(SOC_INTEL_ALDERLAKE_PCH_P)
 Device (PEG1)
 {
 	Name (_ADR, 0x00060002)
