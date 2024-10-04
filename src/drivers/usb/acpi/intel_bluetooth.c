@@ -36,7 +36,13 @@ static void set_reset_delay(void *arg)
 	acpigen_write_store_op_to_namestr(ARG3_OP, "RDLY");
 }
 
-void (*uuid_callbacks1[])(void *) = { check_reset_delay, set_reset_delay };
+static void not_supported(void *arg)
+{
+	acpigen_write_return_singleton_buffer(0x00);
+}
+
+void (*reset_supported[])(void *) = { check_reset_delay, set_reset_delay };
+void (*reset_unsupported[])(void *) = { not_supported };
 
 void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, bool audio_offload)
 {
@@ -82,11 +88,18 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
  *		}
  *	}
  */
-	struct dsm_uuid uuid_callbacks[] = {
-		DSM_UUID("aa10f4e0-81ac-4233-abf6-3b2ac50e28d9", uuid_callbacks1, 2, NULL),
+	struct dsm_uuid reset_supported_methods[] = {
+		DSM_UUID("aa10f4e0-81ac-4233-abf6-3b2ac50e28d9", reset_supported, 2, NULL),
 	};
 
-	acpigen_write_dsm_uuid_arr(uuid_callbacks, ARRAY_SIZE(uuid_callbacks));
+	struct dsm_uuid reset_unsupported_methods[] = {
+		DSM_UUID("aa10f4e0-81ac-4233-abf6-3b2ac50e28d9", reset_unsupported, 1, NULL),
+	};
+
+	if (reset_gpio)
+		acpigen_write_dsm_uuid_arr(reset_supported_methods, ARRAY_SIZE(reset_supported_methods));
+	else
+		acpigen_write_dsm_uuid_arr(reset_unsupported_methods, ARRAY_SIZE(reset_unsupported_methods));
 /*
  *	PowerResource (BTRT, 0x05, 0x0000)
  *	{
@@ -152,27 +165,28 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
 
 		acpigen_write_method("_RST", 0);
 		{
-			acpigen_write_store();
-			acpigen_write_acquire("\\_SB.PCI0.CNMT", 1000);
-			acpigen_emit_byte(LOCAL0_OP);
+			if (reset_gpio) {
+				acpigen_write_store();
+				acpigen_write_acquire("\\_SB.PCI0.CNMT", 1000);
+				acpigen_emit_byte(LOCAL0_OP);
 
-			acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
-			{
-				acpigen_emit_namestring("BTRK");
-				acpigen_emit_byte(0);
+				acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
+				{
+					acpigen_emit_namestring("BTRK");
+					acpigen_emit_byte(0);
 
-				acpigen_emit_ext_op(SLEEP_OP);
-				acpigen_emit_namestring("RDLY");
+					acpigen_emit_ext_op(SLEEP_OP);
+					acpigen_emit_namestring("RDLY");
 
-				acpigen_emit_namestring("BTRK");
-				acpigen_emit_byte(1);
+					acpigen_emit_namestring("BTRK");
+					acpigen_emit_byte(1);
 
-				acpigen_emit_ext_op(SLEEP_OP);
-				acpigen_emit_namestring("RDLY");
-
+					acpigen_emit_ext_op(SLEEP_OP);
+					acpigen_emit_namestring("RDLY");
+				}
+				acpigen_pop_len();
 				acpigen_write_release("\\_SB.PCI0.CNMT");
 			}
-			acpigen_pop_len();
 		}
 		acpigen_pop_len();
 	}
@@ -195,7 +209,6 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
 		{
 			acpigen_soc_set_tx_gpio(reset_gpio);
 		}
-
 		acpigen_write_else();
 		{
 			acpigen_soc_clear_tx_gpio(reset_gpio);
