@@ -114,7 +114,7 @@ const struct pad_config gpio_table[] = {
 	/* B2:	Not Connected			*/
 	PAD_NC(GPP_B2, NONE),
 	/* B3:	CLICK_PAD_INT_R_N		*/
-	PAD_CFG_GPI_APIC_LOW(GPP_B3, NONE, PLTRST),
+	PAD_CFG_GPI_APIC(GPP_B3, NONE, DEEP, EDGE_SINGLE, INVERT),
 	/* B4:	BT_RF_KILL_N			*/
 	PAD_CFG_GPO(GPP_B4, 1, DEEP),
 	/* B5:	 WLAN_CLKREQ#			*/
