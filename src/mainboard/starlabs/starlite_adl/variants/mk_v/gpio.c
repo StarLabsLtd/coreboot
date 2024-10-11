@@ -325,7 +325,7 @@ const struct pad_config gpio_table[] = {
 	/* F17:		Touch Panel Reset				*/
 	PAD_CFG_GPO(GPP_F17, 1, DEEP),
 	/* F18:		Touch Panel Interrupt				*/
-	PAD_CFG_GPI_APIC(GPP_F18, NONE, PLTRST, LEVEL, INVERT),
+	PAD_CFG_GPI_APIC(GPP_F18, NONE, DEEP, EDGE_SINGLE, INVERT),
 	/* F19:		Not Connected					*/
 	PAD_NC(GPP_F19, NONE),
 	/* F20:		Not Connected					*/
