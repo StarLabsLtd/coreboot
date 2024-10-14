@@ -183,9 +183,10 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
 
 					acpigen_emit_ext_op(SLEEP_OP);
 					acpigen_emit_namestring("RDLY");
+
+					acpigen_write_release("\\_SB.PCI0.CNMT");
 				}
 				acpigen_pop_len();
-				acpigen_write_release("\\_SB.PCI0.CNMT");
 			}
 		}
 		acpigen_pop_len();

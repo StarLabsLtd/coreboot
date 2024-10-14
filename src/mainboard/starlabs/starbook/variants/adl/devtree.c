@@ -27,15 +27,15 @@ void devtree_update(void)
 	/* Update PL1 & PL2 based on CMOS settings */
 	switch (get_power_profile(PP_POWER_SAVER)) {
 	case PP_POWER_SAVER:
-		performance_scale -= 25;
+		performance_scale			-= 50;
 		common_config->pch_thermal_trip		= 20;
 		break;
 	case PP_BALANCED:
-		/* Use the Intel defaults */
+		performance_scale			-= 25;
 		common_config->pch_thermal_trip		= 15;
 		break;
 	case PP_PERFORMANCE:
-		performance_scale += 25;
+		/* Use the Intel defaults */
 		common_config->pch_thermal_trip		= 10;
 		break;
 	}

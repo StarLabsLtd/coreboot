@@ -30,15 +30,15 @@ void devtree_update(void)
 	/* Update PL1 & PL2 based on CMOS settings */
 	switch (get_power_profile(PP_POWER_SAVER)) {
 	case PP_POWER_SAVER:
-		performance_scale -= 25;
+		performance_scale		-= 50;
 		cfg->tcc_offset			= 15;
 		break;
 	case PP_BALANCED:
-		/* Use the Intel defaults */
+		performance_scale		-= 25;
 		cfg->tcc_offset			= 10;
 		break;
 	case PP_PERFORMANCE:
-		performance_scale += 25;
+		/* Use the Intel defaults */
 		cfg->tcc_offset			= 5;
 		break;
 	}
