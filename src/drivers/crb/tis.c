@@ -10,6 +10,7 @@
 #include <endian.h>
 #include <smbios.h>
 #include <string.h>
+#include <intelblocks/cse.h>
 
 #include "tpm.h"
 #include "chip.h"
@@ -49,6 +50,9 @@ static tpm_result_t crb_tpm_sendrecv(const uint8_t *sendbuf, size_t sbuf_size, u
 tis_sendrecv_fn crb_tis_probe(enum tpm_family *family)
 {
 	struct crb_tpm_info info;
+
+	if (!cse_is_hfs1_fw_init_complete())
+		printk(BIOS_DEBUG, "Init not done\n");
 
 	if (CONFIG(HAVE_INTEL_PTT)) {
 		if (!ptt_active()) {

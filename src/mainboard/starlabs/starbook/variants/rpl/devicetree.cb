@@ -213,9 +213,9 @@ chip soc/intel/alderlake
 			register "gen2_dec"			= "0x00000381"
 			register "gen3_dec"			= "0x00000511"
 
-			chip drivers/pc80/tpm
-				device pnp 0c31.0 on end
-			end
+#			chip drivers/pc80/tpm
+#				device pnp 0c31.0 on end
+#			end
 
 			chip ec/starlabs/merlin
 				# Port pair 4Eh/4Fh
@@ -261,5 +261,9 @@ chip soc/intel/alderlake
 			register "pch_hda_idisp_link_tmode"		= "HDA_TMODE_8T"
 		end
 		device ref smbus	on  end
+		chip drivers/crb
+			device mmio 0xfed40000 on end
+		end
+
 	end
 end

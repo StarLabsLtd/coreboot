@@ -611,4 +611,7 @@ void cse_fill_bp_info(void);
  * Returns true if an update is required, false otherwise
  */
 bool is_cse_fw_update_required(void);
+
+bool cse_is_hfs1_fw_init_complete(void);
+
 #endif // SOC_INTEL_COMMON_CSE_H

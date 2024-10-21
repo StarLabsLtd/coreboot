@@ -2,10 +2,12 @@
 
 #include <option.h>
 #include <soc/ramstage.h>
-
+#include <intelblocks/cse.h>
 
 void mainboard_silicon_init_params(FSP_S_CONFIG *supd)
 {
 	if (get_uint_option("thunderbolt", 1) == 0)
 		supd->UsbTcPortEn = 0;
+
+	cse_enable_ptt(true);
 }

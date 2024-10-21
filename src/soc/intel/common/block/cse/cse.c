@@ -247,7 +247,7 @@ static bool cse_check_hfs1_com(int mode)
 	return hfs1.fields.operation_mode == mode;
 }
 
-static bool cse_is_hfs1_fw_init_complete(void)
+bool cse_is_hfs1_fw_init_complete(void)
 {
 	union me_hfsts1 hfs1;
 	hfs1.data = me_read_config32(PCI_ME_HFSTS1);
@@ -1171,8 +1171,22 @@ void cse_enable_ptt(bool state)
 	 * 4) HFSTS1 FW Init Complete is set
 	 * 5) Before EOP issued to CSE
 	 */
+
+	if (!cse_is_hfs1_cws_normal())
+		printk(BIOS_DEBUG, "Not normal\n");
+
+	if (!cse_is_hfs1_com_normal())
+		printk(BIOS_DEBUG, "Con not normal\n");
+
+	if (!cse_is_hfs1_fw_init_complete())
+		printk(BIOS_DEBUG, "Init not done\n");
+
+	if (!ENV_RAMSTAGE)
+		printk(BIOS_DEBUG, "Non ramstage\n");
+
 	if (!cse_is_hfs1_cws_normal() || !cse_is_hfs1_com_normal() ||
-	    !cse_is_hfs1_fw_init_complete() || !ENV_RAMSTAGE) {
+//	    !cse_is_hfs1_fw_init_complete() || !ENV_RAMSTAGE) {
+						!ENV_RAMSTAGE) {
 		printk(BIOS_ERR, "HECI: Unmet prerequisites for"
 				 "FW FEATURE SHIPMENT TIME STATE OVERRIDE\n");
 		return;
