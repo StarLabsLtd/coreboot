@@ -434,7 +434,7 @@ static void pcie_rtd3_acpi_fill_ssdt(const struct device *dev)
 			return;
 		}
 	}
-	if (rp_type != PCIE_RP_PCH) {
+	if (rp_type == PCIE_RP_UNKNOWN) {
 		if (config->ext_pm_support & ACPI_PCIE_RP_EMIT_PSD0) {
 			printk(BIOS_ERR, "%s: Can not export PSD0 method\n", __func__);
 			return;
