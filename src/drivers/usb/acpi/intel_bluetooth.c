@@ -101,7 +101,7 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
 	else
 		acpigen_write_dsm_uuid_arr(reset_unsupported_methods, ARRAY_SIZE(reset_unsupported_methods));
 /*
- *	PowerResource (BTRT, 0x05, 0x0000)
+ *	PowerResource (BTRT, 0x00, 0x0000)
  *	{
  *		Method (_STA, 0, NotSerialized)
  *		{
@@ -129,7 +129,7 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
  *		}
  *	}
  */
-	acpigen_write_power_res("BTRT", 5, 0, NULL, 0);
+	acpigen_write_power_res("BTRT", 0, 0, NULL, 0);
 	{
 		acpigen_write_method("_STA", 0);
 		{
