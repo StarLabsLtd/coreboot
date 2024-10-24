@@ -186,7 +186,7 @@ const struct pad_config gpio_table[] = {
 	/* GPP_C22:	Not Connected		*/
 	PAD_NC(GPP_C22, NONE),
 	/* GPP_C23:	TOUCHPAD_INT		*/
-	PAD_CFG_GPI_APIC(GPP_C23, NONE, DEEP, EDGE_SINGLE, INVERT),
+	PAD_CFG_GPI_APIC(GPP_C23, NONE, DEEP, EDGE_BOTH, INVERT),
 	/* GPP_D0:	Not Connected		*/
 	PAD_NC(GPP_D0, DN_20K),
 	/* GPP_D1:	Not Connected		*/

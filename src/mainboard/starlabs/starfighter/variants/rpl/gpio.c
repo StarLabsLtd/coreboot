@@ -224,7 +224,7 @@ const struct pad_config gpio_table[] = {
 	/* D10:		TPM_IRQ						*/
 	PAD_NC(GPP_D10, NONE),
 	/* D11:		TCHPAD_INT_N					*/
-	PAD_CFG_GPI_APIC(GPP_D11, NONE, DEEP, EDGE_SINGLE, INVERT),
+	PAD_CFG_GPI_APIC(GPP_D11, NONE, DEEP, EDGE_BOTH, INVERT),
 	/* D12:		ES8336_INT_N					*/
 	PAD_NC(GPP_D12, NONE),
 	/* D13:		Wireless LAN Wake				*/

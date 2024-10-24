@@ -158,7 +158,7 @@ const struct pad_config gpio_table[] = {
 	/* C7:	SML1_DATA			*/
 	PAD_CFG_NF(GPP_C7, NONE, PWROK, NF1),
 	/* C8:	CLICK_PAD_INT_N			*/
-	PAD_CFG_GPI_APIC(GPP_C8, NONE, DEEP, EDGE_SINGLE, INVERT),
+	PAD_CFG_GPI_APIC(GPP_C8, NONE, DEEP, EDGE_BOTH, INVERT),
 	/* C9:	Not Connected			*/
 	PAD_NC(GPP_C9, NONE),
 	/* C10:	Not Connected			*/

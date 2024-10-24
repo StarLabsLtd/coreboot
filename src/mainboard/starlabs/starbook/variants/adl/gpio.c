@@ -264,7 +264,7 @@ const struct pad_config gpio_table[] = {
 	/* E11:		TPM IRQ						*/
 	PAD_CFG_NF(GPP_E11, NONE, DEEP, NF1),
 	/* E12:		Touchpad Interrupt				*/
-	PAD_CFG_GPI_APIC(GPP_E12, NONE, DEEP, EDGE_SINGLE, INVERT),
+	PAD_CFG_GPI_APIC(GPP_E12, NONE, DEEP, EDGE_BOTH, INVERT),
 	/* E13:		Not connected					*/
 	PAD_NC(GPP_E13, NONE),
 	/* E14:		EDP HPD						*/
