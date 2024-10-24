@@ -41,7 +41,7 @@ void devtree_update(void)
 		break;
 	}
 
-	soc_conf_4core->tdp_pl1_override = (soc_conf_4core->tdp_pl1_override * performance_scale) / 100;
+	soc_conf_4core->tdp_pl1_override = ((soc_conf_4core->tdp_pl1_override * performance_scale) / 100) * 2;
 	soc_conf_4core->tdp_pl2_override = (soc_conf_4core->tdp_pl2_override * performance_scale) / 100;
 
 	/* Set PL4 to 1.0C */

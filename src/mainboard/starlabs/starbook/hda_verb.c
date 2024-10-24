@@ -7,6 +7,8 @@
 
 #define AZALIA_CODEC_ALC256 0x10ec0256
 #define AZALIA_CODEC_ALC269 0x10ec0269
+#define AZALIA_CODEC_SN6140 0x14f11f87
+
 
 static const u32 override_verb[] = {
 	AZALIA_PIN_CFG(0, 0x12, AZALIA_PIN_CFG_NC(0)),
@@ -19,7 +21,9 @@ static void disable_microphone(u8 *base)
 
 void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
-	if (viddid == AZALIA_CODEC_ALC256 || viddid == AZALIA_CODEC_ALC269) {
+	if (viddid == AZALIA_CODEC_ALC256 ||
+	    viddid == AZALIA_CODEC_ALC269 ||
+	    viddid == AZALIA_CODEC_SN6140) {
 		printk(BIOS_DEBUG, "CMOS: viddid = %08x\n", viddid);
 		if (get_uint_option("microphone", 1) == 0)
 			disable_microphone(base);

@@ -10,6 +10,9 @@
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
 {
+	if (cfg->is_intel_bluetooth)
+		return false;
+
 	if (cfg->privacy_gpio.pin_count)
 		return true;
 
@@ -119,7 +122,7 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 	 * other code to access it i.e. CNVi driver.
 	 */
 	if (config->is_intel_bluetooth)
-		acpi_device_intel_bt_common(config->enable_gpio.pins[0]);
+		acpi_device_intel_bt_common(config->enable_gpio.pins[0], config->reset_gpio.pins[0]);
 
 	printk(BIOS_INFO, "%s: %s at %s\n", path,
 	       config->desc ? : dev->chip_ops->name, dev_path(dev));

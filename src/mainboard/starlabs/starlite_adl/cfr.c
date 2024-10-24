@@ -146,7 +146,7 @@ void lb_board(struct lb_header *header)
 		.opt_name	= "power_profile",
 		.ui_name	= "Power Profile",
 		.ui_helptext	= "Select whether to maximize performance, battery life or both.",
-		.default_value	= 1,
+		.default_value	= PP_PERFORMANCE,
 		.values	= (const struct sm_enum_value[]) {
 			{ "Power Saver",	PP_POWER_SAVER	},
 			{ "Balanced",		PP_BALANCED	},
@@ -168,7 +168,7 @@ void lb_board(struct lb_header *header)
 		.opt_name	= "memory_speed",
 		.ui_name	= "Memory Speed",
 		.ui_helptext	= "Configure the speed that the memory will run at. Higher speeds produce more heat and consume more power but provide higher performance.",
-		.default_value	= 0,
+		.default_value	= 2,
 		.values		= (const struct sm_enum_value[]) {
 			{	"5500MT/s",	0		},
 			{	"6400MT/s",	1		},

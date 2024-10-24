@@ -16,3 +16,6 @@ config BOARD_STARLABS_STARBOOK_ADL
 
 config BOARD_STARLABS_STARBOOK_RPL
 	bool "Star Labs StarBook Mk VI (i3-1315U and i7-1360P)"
+
+config BOARD_STARLABS_STARBOOK_MTL
+	bool "Star labs StarBook Mk VII (165H)"

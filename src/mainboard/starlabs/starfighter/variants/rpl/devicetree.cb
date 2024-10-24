@@ -168,6 +168,7 @@ chip soc/intel/alderlake
 						register "is_intel_bluetooth" = "1"
 						register "cnvi_bt_audio_offload" = "1"
 						register "enable_gpio"	= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_VGPIO_0)"
+						register "reset_gpio"	= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_A13)"
 						device ref usb2_port10 on end
 					end
 				end
