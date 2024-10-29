@@ -216,6 +216,19 @@ void lb_board(struct lb_header *header)
 	};
 	#endif
 
+	struct sm_obj_enum power_led = {
+		.object_id	= get_object_id(),
+		.opt_name	= "power_led",
+		.ui_name	= "Power LED Brightness",
+		.ui_helptext	= "Control the maximum brightness of the power LED",
+		.default_value	= 0,
+		.values = (const struct sm_enum_value[]) {
+			{ "Normal",		0		},
+			{ "Reduced",		1		},
+			SM_ENUM_VALUE_END,
+		},
+	};
+
 	struct sm_obj_number reboot_counter = {
 		.object_id	= get_object_id(),
 		.opt_name	= "reboot_counter",
@@ -286,6 +299,7 @@ void lb_board(struct lb_header *header)
 			SM_DECLARE_ENUM(lid_switch),
 		#endif
 		SM_DECLARE_BOOL(microphone),
+		SM_DECLARE_ENUM(power_led),
 		SM_DECLARE_BOOL(touchscreen),
 		SM_DECLARE_BOOL(webcam),
 		SM_DECLARE_BOOL(wireless)
