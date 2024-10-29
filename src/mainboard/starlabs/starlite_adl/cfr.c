@@ -83,6 +83,16 @@ void lb_board(struct lb_header *header)
 		},
 	};
 
+	#if CONFIG(SOC_INTEL_TIGERLAKELAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
+	struct sm_obj_bool gna = {
+		.object_id	= get_object_id(),
+		.opt_name	= "gna",
+		.ui_name	= "Gaussian & Neural Accelerator",
+		.ui_helptext	= "Enable or Disable the Gaussian & Neural Accelerator",
+		.default_value	= false,
+	};
+	#endif
+
 	#if CONFIG(EC_STARLABS_LID_SWITCH)
 	struct sm_obj_enum lid_switch = {
 		.object_id	= get_object_id(),
@@ -295,6 +305,7 @@ void lb_board(struct lb_header *header)
 	const struct sm_object device[] = {
 		SM_DECLARE_BOOL(accelerometer),
 		SM_DECLARE_BOOL(camera),
+		SM_DECLARE_BOOL(gna),
 		#if CONFIG(EC_STARLABS_LID_SWITCH)
 			SM_DECLARE_ENUM(lid_switch),
 		#endif

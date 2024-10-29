@@ -51,6 +51,16 @@ void lb_board(struct lb_header *header)
 		},
 	};
 
+	#if CONFIG(SOC_INTEL_TIGERLAKELAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
+	struct sm_obj_bool gna = {
+		.object_id	= get_object_id(),
+		.opt_name	= "gna",
+		.ui_name	= "Gaussian & Neural Accelerator",
+		.ui_helptext	= "Enable or Disable the Gaussian & Neural Accelerator",
+		.default_value	= false,
+	};
+	#endif
+
 	struct sm_obj_enum me_state = {
 		.object_id	= get_object_id(),
 		.opt_name	= "me_state",
@@ -176,6 +186,7 @@ void lb_board(struct lb_header *header)
 
 	/* Devices */
 	const struct sm_object device[] = {
+		SM_DECLARE_BOOL(gna),
 		SM_DECLARE_BOOL(wireless)
 	};
 

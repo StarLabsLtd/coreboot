@@ -107,6 +107,16 @@ void lb_board(struct lb_header *header)
 		.default_value	= false,
 	};
 
+	#if CONFIG(SOC_INTEL_TIGERLAKELAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
+	struct sm_obj_bool gna = {
+		.object_id	= get_object_id(),
+		.opt_name	= "gna",
+		.ui_name	= "Gaussian & Neural Accelerator",
+		.ui_helptext	= "Enable or Disable the Gaussian & Neural Accelerator",
+		.default_value	= false,
+	};
+	#endif
+
 	struct sm_obj_bool hyper_threading = {
 		.object_id	= get_object_id(),
 		.opt_name	= "hyper_threading",
@@ -336,6 +346,9 @@ void lb_board(struct lb_header *header)
 		SM_DECLARE_BOOL(card_reader),
 		#if CONFIG(BOARD_STARLABS_STARBOOK_ADL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL)
 			SM_DECLARE_BOOL(fingerprint_reader),
+		#endif
+		#if CONFIG(SOC_INTEL_TIGERLAKELAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
+		SM_DECLARE_BOOL(gna),
 		#endif
 		#if CONFIG(EC_STARLABS_LID_SWITCH)
 			SM_DECLARE_ENUM(lid_switch),
