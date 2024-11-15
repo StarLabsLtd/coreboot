@@ -31,11 +31,18 @@ bool load_ibb(uint32_t ibb_dest, uint32_t ibb_size)
 {
 	uint32_t	host_to_cse		= (ibb_size << 4) | 0xc0000000;
 	uint32_t	cse_to_host;
+	uint32_t	state;
+	uint8_t		ring_index;
 
 	uint32_t	chunk_num;
+	uint32_t	chunk_index		= 0;
 	uint32_t	chunk_size;
 	uint32_t	number_of_chunks;
 	uint32_t	ibb_size_left;
+
+	uint8_t		*dst;
+	uint8_t		*src;
+	uint32_t	size;
 
 	/* Check if the CSE exists */
 	if ((pci_read_config32(PCH_DEV_CSE, 0) !=
@@ -69,10 +76,6 @@ bool load_ibb(uint32_t ibb_dest, uint32_t ibb_size)
 
 	/* Loading IBBM */
 	while (ibb_size_left > 0) {
-		uint32_t state;
-		uint32_t chunk_index = 0;
-		uint8_t ring_index;
-
 
 		/* Check whether there is ring buffer ready to copy */
 		state = (cse_to_host ^ host_to_cse) & 0x0f;
@@ -84,10 +87,6 @@ bool load_ibb(uint32_t ibb_dest, uint32_t ibb_size)
 		/* Calculate ring index */
 		ring_index	= (uint8_t)(chunk_index % number_of_chunks);
 		if ((state & (1 << ring_index)) != 0) {
-			uint32_t size;
-			uint8_t *dst;
-			uint8_t *src;
-
 			/* Calculate the source and destination address in ring buffer */
 			src	= (uint8_t *)(uintptr_t)
 					(SHARED_SRAM_BASE + chunk_size * ring_index);
