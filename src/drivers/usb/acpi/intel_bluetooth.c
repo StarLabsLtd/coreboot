@@ -102,15 +102,13 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
  *	{
  *		Method (_STA, 0, NotSerialized)
  *		{
- *			Return (\_SB.PCI0.GBTE())
+ *			Return (1)
  *		}
  *		Method (_ON, 0, NotSerialized)
  *		{
- *			\_SB.PCI0.SBTE(1)
  *		}
  *		Method (_OFF, 0, NotSerialized)
  *		{
- *			\_SB.PCI0.SBTE(0)
  *		}
  *		Method (_RST, 0, NotSerialized)
  *		{
@@ -130,33 +128,17 @@ void acpi_device_intel_bt(unsigned int reset_gpio, unsigned int enable_gpio, boo
 	{
 		acpigen_write_method("_STA", 0);
 		{
-			if (enable_gpio) {
-				acpigen_write_store();
-				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
-				acpigen_emit_byte(LOCAL0_OP);
-
-				acpigen_write_return_op(LOCAL0_OP);
-			} else {
-				acpigen_write_return_integer(1);
-			}
+			acpigen_write_return_integer(1);
 		}
 		acpigen_pop_len();
 
 		acpigen_write_method("_ON", 0);
 		{
-			if (enable_gpio) {
-				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-				acpigen_emit_byte(1);
-			}
 		}
 		acpigen_pop_len();
 
 		acpigen_write_method("_OFF", 0);
 		{
-			if (enable_gpio) {
-				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-				acpigen_emit_byte(0);
-			}
 		}
 		acpigen_pop_len();
 
