@@ -105,7 +105,7 @@ static void cnvw_fill_ssdt(const struct device *dev)
 	acpigen_write_name_integer("RSTT", 0);
 
 /*
- *	PowerResource(WRST, 5, 0)
+ *	PowerResource(WRST, 0, 0)
  *	{
  *		Method(_STA)
  *		{
@@ -163,7 +163,7 @@ static void cnvw_fill_ssdt(const struct device *dev)
  *	}
  *
  */
-	acpigen_write_power_res("WRST", 5, 0, NULL, 0);
+	acpigen_write_power_res("WRST", 0, 0, NULL, 0);
 	{
 		acpigen_write_method("_STA", 0);
 		{
