@@ -37,7 +37,7 @@ const struct pad_config gpio_table[] = {
 	/* GPD8:	Suspend Clock					*/
 	PAD_CFG_NF(GPD8, NONE, DEEP, NF1),
 	/* GPD9:	Wireless LAN Sleep				*/
-	PAD_CFG_NF(GPD9, NONE, DEEP, NF1),
+	PAD_NC(GPD9, NONE),
 	/* GPD10:	Sleep S5					*/
 	PAD_NC(GPD10, NONE),
 	/* GPD11:	LAN PHY Enable					*/
@@ -61,7 +61,7 @@ const struct pad_config gpio_table[] = {
 	/* A11:		Webcam Camera Reset				*/
 	PAD_NC(GPP_A11, NONE),
 	/* A12:		PCH M.2 SSD PEDET				*/
-	PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
+	PAD_NC(GPP_A12, NONE),
 	/* A13:		BlueTooth RF Kill				*/
 	PAD_CFG_GPO_GPIO_DRIVER(GPP_A13, 1, DEEP, NONE),
 	/* A14:		Camera Power Enable				*/
@@ -254,7 +254,7 @@ const struct pad_config gpio_table[] = {
 	/* E7:		Embedded Controller SMI				*/
 	PAD_NC(GPP_E7, NONE),
 	/* E8:		DRAM Sleep					*/
-	PAD_CFG_NF(GPP_E8, NONE, DEEP, NF2),
+	PAD_CFG_GPO(GPP_E8, 1, DEEP),
 	/* E9:		USB OverCurrent 0				*/
 	PAD_NC(GPP_E9, NONE),
 	/* E10:		PWD Amplifier Input				*/
@@ -289,15 +289,15 @@ const struct pad_config gpio_table[] = {
 	/* F0:		CNV BRI Data					*/
 	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
 	/* F1:		CNV BRI Response				*/
-	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
+	PAD_CFG_NF(GPP_F1, NONE, DEEP, NF1),
 	/* F2:		CNV RGI Data					*/
 	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
 	/* F3:		CNV RGI Response				*/
-	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
+	PAD_CFG_NF(GPP_F3, NONE, DEEP, NF1),
 	/* F4:		CNV RF Reset					*/
 	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
 	/* F5:		MODEM_CLKREQ					*/
-	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
 	/* F6:		CNV PA Blanking					*/
 	PAD_NC(GPP_F6, NONE),
 	/* F7:		TBT LSX VCCIO		Weak Internal PD 20K
@@ -449,26 +449,60 @@ const struct pad_config gpio_table[] = {
 	/* R7:		Not Connected					*/
 	PAD_NC(GPP_R7, NONE),
 
-	/* BT_EN */
+	/* CNV_BTEN */
 	PAD_CFG_GPO_GPIO_DRIVER(GPP_VGPIO_0, 1, DEEP, NONE),
-
-	/* CNVi BT UART0 */
+	/* CNV_BT_HOST_WAKEB */
+	PAD_NC(GPP_VGPIO_4, NONE),
+	/* CNV_BT_IF_SELECT */
+	PAD_CFG_GPO(GPP_VGPIO_5, 1, DEEP),
+	/* vCNV_BT_UART_TXD */
 	PAD_NC(GPP_VGPIO_6, NONE),
+	/* vCNV_BT_UART_RXD */
 	PAD_NC(GPP_VGPIO_7, NONE),
+	/* vCNV_BT_UART_CTS_B */
 	PAD_NC(GPP_VGPIO_8, NONE),
+	/* vCNV_BT_UART_RTS_B */
 	PAD_NC(GPP_VGPIO_9, NONE),
-
-	/* CNVi UART0 */
+	/* vCNV_MFUART1_TXD */
+	PAD_NC(GPP_VGPIO_10, NONE),
+	/* vCNV_MFUART1_RXD */
+	PAD_NC(GPP_VGPIO_11, NONE),
+	/* vCNV_MFUART1_CTS_B */
+	PAD_NC(GPP_VGPIO_12, NONE),
+	/* vCNV_MFUART1_RTS_B */
+	PAD_NC(GPP_VGPIO_13, NONE),
+	/* vUART0_TXD */
 	PAD_NC(GPP_VGPIO_18, NONE),
+	/* vUART0_RXD */
 	PAD_NC(GPP_VGPIO_19, NONE),
+	/* vUART0_CTS_B */
 	PAD_NC(GPP_VGPIO_20, NONE),
+	/* vUART0_RTS_B */
 	PAD_NC(GPP_VGPIO_21, NONE),
-
-	/* BT I2S */
-	PAD_CFG_NF(GPP_VGPIO_30, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_31, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_32, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_33, NONE, DEEP, NF3),
+	/* vISH_UART0_TXD */
+	PAD_NC(GPP_VGPIO_22, NONE),
+	/* vISH_UART0_RXD */
+	PAD_NC(GPP_VGPIO_23, NONE),
+	/* vISH_UART0_CTS_B */
+	PAD_NC(GPP_VGPIO_24, NONE),
+	/* vISH_UART0_RTS_B */
+	PAD_NC(GPP_VGPIO_25, NONE),
+	/* vCNV_BT_I2S_BCLK */
+	PAD_NC(GPP_VGPIO_30, NONE),
+	/* vCNV_BT_I2S_WS_SYNC */
+	PAD_NC(GPP_VGPIO_31, NONE),
+	/* vCNV_BT_I2S_SDO */
+	PAD_NC(GPP_VGPIO_32, NONE),
+	/* vCNV_BT_I2S_SDI */
+	PAD_NC(GPP_VGPIO_33, NONE),
+	/* vI2S2_SCLK */
+	PAD_NC(GPP_VGPIO_34, NONE),
+	/* vI2S2_SFRM */
+	PAD_NC(GPP_VGPIO_35, NONE),
+	/* vI2S2_TXD */
+	PAD_NC(GPP_VGPIO_36, NONE),
+	/* vI2S2_RXD */
+	PAD_NC(GPP_VGPIO_37, NONE),
 };
 
 const struct pad_config *variant_gpio_table(size_t *num)
