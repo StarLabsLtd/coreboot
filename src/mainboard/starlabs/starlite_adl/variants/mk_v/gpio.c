@@ -254,7 +254,7 @@ const struct pad_config gpio_table[] = {
 	/* E7:		Embedded Controller SMI				*/
 	PAD_NC(GPP_E7, NONE),
 	/* E8:		DRAM Sleep					*/
-	PAD_CFG_NF(GPP_E8, NONE, DEEP, NF2),
+	PAD_CFG_GPO(GPP_E8, 1, DEEP),
 	/* E9:		USB OverCurrent 0				*/
 	PAD_NC(GPP_E9, NONE),
 	/* E10:		PWD Amplifier Input				*/
@@ -287,17 +287,25 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_E23, NONE),
 
 	/* F0:		CNV BRI Data					*/
-	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),
 	/* F1:		CNV BRI Response				*/
-	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F1, UP_20K, DEEP, NF1),
 	/* F2:		CNV RGI Data					*/
-	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F2, NONE, DEEP, NF1),
 	/* F3:		CNV RGI Response				*/
-	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F3, UP_20K, DEEP, NF1),
 	/* F4:		CNV RF Reset					*/
-	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
+//	PAD_CFG_NF(GPP_F4, NONE, DEEP, NF1),
 	/* F5:		Not used		MODEM_CLKREQ		*/
-	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
+//	PAD_CFG_NF(GPP_F5, NONE, DEEP, NF2),
+	_PAD_CFG_STRUCT(GPP_F0, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), 0),   /* CNV_BRI_DT */
+        _PAD_CFG_STRUCT(GPP_F1, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE) | (1 << 1), PAD_PULL(UP_20K)), /* CNV_BRI_RSP */
+        _PAD_CFG_STRUCT(GPP_F2, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), 0),   /* CNV_RGI_DT */
+        _PAD_CFG_STRUCT(GPP_F3, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE) | (1 << 1), PAD_PULL(UP_20K)), /* CNV_RGI_RSP */
+        _PAD_CFG_STRUCT(GPP_F4, PAD_FUNC(NF1) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), 0),   /* CNV_RF_RESET# */
+        _PAD_CFG_STRUCT(GPP_F5, PAD_FUNC(NF2) | PAD_RESET(DEEP) | PAD_TRIG(OFF) | PAD_BUF(TX_RX_DISABLE), 0),
+
+
 	/* F6:		CNV PA Blanking					*/
 	PAD_NC(GPP_F6, NONE),
 	/* F7:		TBT LSX VCCIO		Weak Internal PD 20K
@@ -465,10 +473,10 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_VGPIO_21, NONE),
 
 	/* BT I2S */
-	PAD_CFG_NF(GPP_VGPIO_30, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_31, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_32, NONE, DEEP, NF3),
-	PAD_CFG_NF(GPP_VGPIO_33, NONE, DEEP, NF3),
+	PAD_NC(GPP_VGPIO_30, NONE),
+	PAD_NC(GPP_VGPIO_31, NONE),
+	PAD_NC(GPP_VGPIO_32, NONE),
+	PAD_NC(GPP_VGPIO_33, NONE),
 };
 
 const struct pad_config *variant_gpio_table(size_t *num)
