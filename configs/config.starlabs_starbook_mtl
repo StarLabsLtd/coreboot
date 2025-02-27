@@ -31,6 +31,6 @@ CONFIG_POST_IO=n
 # FSP #
 CONFIG_ADD_FSP_BINARIES=y
 CONFIG_FSP_FULL_FD=y
-CONFIG_FSP_HEADER_PATH="../intel_fsp/mtl/Include/"
-CONFIG_FSP_FD_PATH="../intel_fsp/mtl/Release/Fsp.fd"
+CONFIG_FSP_HEADER_PATH="3rdparty/fsp/MeteorLakeFspBinPkg/IoT/MeteorLake/Include"
+CONFIG_FSP_FD_PATH="3rdparty/fsp/MeteorLakeFspBinPkg/IoT/MeteorLake/Fsp.fd"
 
