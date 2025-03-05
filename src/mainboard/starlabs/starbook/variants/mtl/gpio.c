@@ -490,7 +490,8 @@ const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_D20, NONE, DEEP, NF1),
 	/* D21:	CLKREQ5
 	 *			WLAN		*/
-	PAD_CFG_NF(GPP_D21, NONE, DEEP, NF2),
+	_PAD_CFG_STRUCT(GPP_D21, PAD_FUNC(NF2) | PAD_RESET(DEEP) | PAD_BUF(TX_RX_DISABLE) | (1 << 1), 0),
+
 	/* D22:					*/
 	PAD_NC(GPP_D22, NONE),
 	/* D23:					*/
