@@ -216,6 +216,9 @@ config ME_BIN_PATH
 config POWER_STATE_DEFAULT_ON_AFTER_FAILURE
 	default n
 
+config SOC_INTEL_COMMON_BLOCK_ACPI_PEP
+	default n
+
 config SOC_INTEL_CSE_SEND_EOP_EARLY
 	default n
 
