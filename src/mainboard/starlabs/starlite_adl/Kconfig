@@ -112,6 +112,9 @@ config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
+config SOC_INTEL_COMMON_BLOCK_ACPI_PEP
+	default n
+
 config SOC_INTEL_CSE_SEND_EOP_EARLY
 	default n
 
