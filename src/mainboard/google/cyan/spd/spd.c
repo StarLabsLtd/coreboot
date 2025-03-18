@@ -3,7 +3,6 @@
 #include <cbfs.h>
 #include <cbmem.h>
 #include <console/console.h>
-#include <device/dram/ddr3.h>
 #include <gpio.h>
 #include <lib.h>
 #include <memory_info.h>
@@ -39,9 +38,9 @@ static void *get_spd_pointer(int *dual)
 	if (!spd_file)
 		die("SPD data not found.");
 
-	if (spd_file_len < SPD_SIZE_MAX_DDR3)
+	if (spd_file_len < SPD_PAGE_LEN)
 		die("Missing SPD data.");
-	total_spds = spd_file_len / SPD_SIZE_MAX_DDR3;
+	total_spds = spd_file_len / SPD_PAGE_LEN;
 
 	ram_id = get_ramid();
 	printk(BIOS_DEBUG, "ram_id=%d, total_spds: %d\n", ram_id, total_spds);
@@ -52,7 +51,7 @@ static void *get_spd_pointer(int *dual)
 		return NULL;
 	}
 	/* Return the serial product data for the RAM */
-	return &spd_file[SPD_SIZE_MAX_DDR3 * spd_index];
+	return &spd_file[SPD_PAGE_LEN * spd_index];
 }
 
 /* Copy SPD data for on-board memory */
@@ -68,7 +67,7 @@ void spd_memory_init_params(MEMORY_INIT_UPD *memory_params)
 	spd_content = get_spd_pointer(&dual_channel);
 	if (CONFIG(DISPLAY_SPD_DATA) && spd_content != NULL) {
 		printk(BIOS_DEBUG, "SPD Data:\n");
-		hexdump(spd_content, SPD_SIZE_MAX_DDR3);
+		hexdump(spd_content, SPD_PAGE_LEN);
 		printk(BIOS_DEBUG, "\n");
 	}
 
@@ -136,8 +135,8 @@ static void set_dimm_info(const uint8_t *spd, struct dimm_info *dimm)
 	dimm->dimm_size = capmb / 8 * busw / devw * ranks;  /* MiB */
 	dimm->mod_type = spd[3] & 0xf;
 	strncpy((char *)&dimm->module_part_number[0], (char *)&spd[0x80],
-		SPD_DDR3_PART_LEN);
-	dimm->module_part_number[SPD_DDR3_PART_LEN] = 0;
+		LPDDR3_SPD_PART_LEN);
+	dimm->module_part_number[LPDDR3_SPD_PART_LEN] = 0;
 	dimm->mod_id = *(uint16_t *)&spd[0x94];
 
 	switch (busw) {
