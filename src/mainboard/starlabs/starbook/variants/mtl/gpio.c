@@ -67,11 +67,11 @@ const struct pad_config gpio_table[] = {
 	/* V18:					*/
 	PAD_NC(GPP_V18, NONE),
 	/* V19:					*/
-	PAD_NC(GPP_V19, NONE),
+	PAD_CFG_NF(GPP_V19, NONE, DEEP, NF1),
 	/* V20:					*/
-	PAD_NC(GPP_V20, NONE),
+	PAD_CFG_NF(GPP_V20, NONE, DEEP, NF1),
 	/* V21:					*/
-	PAD_NC(GPP_V21, NONE),
+	PAD_CFG_NF(GPP_V21, NONE, DEEP, NF1),
 	/* V22:					*/
 	PAD_NC(GPP_V22, NONE),
 	/* V23:					*/
@@ -140,12 +140,19 @@ const struct pad_config gpio_table[] = {
 	 * End:		GPP_A23
 	 */
 	/* A00:	ESPI_IO0_EC_R			*/
+	PAD_CFG_NF(GPP_A00, UP_20K, DEEP, NF1),
 	/* A01:	ESPI_IO1_EC_R			*/
+	PAD_CFG_NF(GPP_A01, UP_20K, DEEP, NF1),
 	/* A02:	ESPI_IO2_EC_R			*/
+	PAD_CFG_NF(GPP_A02, UP_20K, DEEP, NF1),
 	/* A03:	ESPI_IO3_EC_R			*/
+	PAD_CFG_NF(GPP_A03, UP_20K, DEEP, NF1),
 	/* A04:	ESPI_CS0_N			*/
+	PAD_CFG_NF(GPP_A04, UP_20K, DEEP, NF1),
 	/* A05:	ESPI_CLK_EC_R			*/
+	PAD_CFG_NF(GPP_A05, UP_20K, DEEP, NF1),
 	/* A06:	ESPI_RESET_N			*/
+	PAD_CFG_NF(GPP_A06, NONE, DEEP, NF1),
 	/* A07:					*/
 	PAD_NC(GPP_A07, NONE),
 	/* A08:					*/
