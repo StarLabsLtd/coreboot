@@ -396,6 +396,13 @@ static void fill_fsps_tcss_params(FSP_S_CONFIG *s_cfg,
 	/* Explicitly clear this field to avoid using defaults */
 	memset(s_cfg->IomTypeCPortPadCfg, 0, sizeof(s_cfg->IomTypeCPortPadCfg));
 
+	/*
+	 * Set FSPS UPD ITbtConnectTopologyTimeoutInMs with value 0. FSP will
+	 * evaluate this UPD value and skip sending command. There will be no
+	 * delay for command completion.
+	 */
+	s_cfg->ITbtConnectTopologyTimeoutInMs = 0;
+
 	/* D3Hot and D3Cold for TCSS */
 	s_cfg->D3HotEnable = !config->tcss_d3_hot_disable;
 	s_cfg->D3ColdEnable = CONFIG(D3COLD_SUPPORT);
