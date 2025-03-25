@@ -165,6 +165,7 @@ config EC_STARLABS_BATTERY_OEM
 config EC_STARLABS_ITE_BIN_PATH
 	string
 	depends on EC_STARLABS_NEED_ITE_BIN
+	default "merlin.bin" if BOARD_STARLABS_STARBOOK_MTL
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/ec.bin"
 
 config EC_VARIANT_DIR
