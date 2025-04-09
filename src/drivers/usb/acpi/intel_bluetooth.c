@@ -48,6 +48,12 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 			  const struct acpi_gpio *reset_gpio,
 			  bool audio_offload)
 {
+	acpigen_write_name_integer("_S0W", ACPI_DEVICE_SLEEP_D3_HOT);
+
+        struct acpi_dp *dsd = acpi_dp_new_table("_DSD");
+        acpi_device_add_hotplug_support_in_d3(dsd);
+        acpi_dp_write(dsd);
+
 /*
  *	Name (RDLY, 0x69)
  */
@@ -101,6 +107,8 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 	};
 
 	acpigen_write_dsm_uuid_arr(uuid_callbacks, ARRAY_SIZE(uuid_callbacks));
+
+	acpigen_write_name_integer("BSTS", 0x01);
 /*
  *	PowerResource (BTRT, 0, 0)
  *	{
@@ -136,7 +144,7 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 		{
 			if (enable_gpio->pin_count) {
 				acpigen_write_store();
-				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
+				acpigen_emit_namestring("BSTS");
 				acpigen_emit_byte(LOCAL0_OP);
 
 				acpigen_write_return_op(LOCAL0_OP);
@@ -145,9 +153,9 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 			}
 		}
 		acpigen_pop_len();
-
 		acpigen_write_method("_ON", 0);
 		{
+			acpigen_write_store_int_to_namestr(1, "BSTS");
 			if (enable_gpio->pin_count) {
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(1);
@@ -157,6 +165,7 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 
 		acpigen_write_method("_OFF", 0);
 		{
+			acpigen_write_store_int_to_namestr(0, "BSTS");
 			if (enable_gpio->pin_count) {
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(0);
@@ -217,32 +226,6 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 	{
 		acpigen_write_package(1);
 		acpigen_emit_namestring("BTRT");
-	}
-	acpigen_pop_len();
-
-/*
- *	Method (_PS0, 0, NotSerialized)
- *	{
- *		\_SB.PCI0.SBTE(1)
- *	}
- */
-	acpigen_write_method("_PS0", 0);
-	{
-		acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-		acpigen_emit_byte(1);
-	}
-	acpigen_pop_len();
-
-/*
- *	Name (_PS3, Package (0x01)
- *	{
- *		\_SB.PCI0.SBTE(0)
- *	}
- */
-	acpigen_write_method("_PS3", 0);
-	{
-		acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-		acpigen_emit_byte(0);
 	}
 	acpigen_pop_len();
 
