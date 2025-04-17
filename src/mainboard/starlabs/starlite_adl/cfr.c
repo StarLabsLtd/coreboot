@@ -196,6 +196,13 @@ static const struct sm_object bluetooth_rtd3 = SM_DECLARE_BOOL({
 	.default_value	= true,
 });
 
+static const struct sm_object display_native_res = SM_DECLARE_BOOL({
+	.opt_name	= "display_native_res",
+	.ui_name	= "Display: Use Native Resolution",
+	.ui_helptext	= "Enabled: use the native panel resolution at boot. Disabled: use a fixed/scaled video mode at boot.",
+	.default_value	= false,
+});
+
 static struct sm_obj_form performance = {
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
@@ -233,6 +240,7 @@ static struct sm_obj_form devices = {
 	.ui_name = "Devices",
 	.obj_list = (const struct sm_object *[]) {
 		&accelerometer,
+		&display_native_res,
 		#if CONFIG(SOC_INTEL_TIGERLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
 		&gna,
 		#endif
