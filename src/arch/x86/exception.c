@@ -623,8 +623,8 @@ struct lidtarg {
 #endif
 } __packed;
 
-/* This global is for src/cpu/x86/lapic/secondary.S usage which is only
-   used during ramstage. */
+/* This global is for src/cpu/x86/mp_init.c -> src/cpu/x86/sipi_vector.S usage,
+   which is only used during ramstage. */
 struct lidtarg idtarg;
 
 static void load_idt(void *table, size_t sz)
@@ -665,8 +665,8 @@ asmlinkage void exception_init(void)
 
 	load_idt(idt, sizeof(idt));
 
-#if !ENV_SMM
 	null_breakpoint_init();
+#if !ENV_SMM
 	stack_canary_breakpoint_init();
 #endif
 }

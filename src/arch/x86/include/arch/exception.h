@@ -5,7 +5,7 @@
 
 #include <arch/cpu.h>
 
-#if CONFIG(IDT_IN_EVERY_STAGE) || ENV_RAMSTAGE
+#if CONFIG(IDT_IN_EVERY_STAGE) || ENV_RAMSTAGE || ENV_SMM
 asmlinkage void exception_init(void);
 #else
 static inline void exception_init(void) { /* not implemented */ }

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/io.h>
 #include <arch/exception.h>
+#include <arch/io.h>
+#include <arch/null_breakpoint.h>
+#include <arch/stack_canary_breakpoint.h>
 #include <commonlib/region.h>
 #include <console/cbmem_console.h>
 #include <console/console.h>
@@ -103,6 +105,28 @@ static void smi_restore_pci_address(void)
 	outl(pci_orig, 0xcf8);
 }
 
+struct x86_debug_register_state {
+	uintptr_t dr0, dr1, dr2, dr3;
+};
+
+static struct x86_debug_register_state s_x86_debug_register_state;
+
+static void x86_debug_register_save(void)
+{
+	asm("mov %%dr0, %0" : "=r"(s_x86_debug_register_state.dr0));
+	asm("mov %%dr1, %0" : "=r"(s_x86_debug_register_state.dr1));
+	asm("mov %%dr2, %0" : "=r"(s_x86_debug_register_state.dr2));
+	asm("mov %%dr3, %0" : "=r"(s_x86_debug_register_state.dr3));
+}
+
+static void x86_debug_register_restore(void)
+{
+	asm("mov %0, %%dr0" :: "r"(s_x86_debug_register_state.dr0));
+	asm("mov %0, %%dr1" :: "r"(s_x86_debug_register_state.dr1));
+	asm("mov %0, %%dr2" :: "r"(s_x86_debug_register_state.dr2));
+	asm("mov %0, %%dr3" :: "r"(s_x86_debug_register_state.dr3));
+}
+
 struct global_nvs *gnvs;
 
 void *smm_get_save_state(int cpu)
@@ -170,8 +194,10 @@ asmlinkage void smm_handler_start(void *arg)
 
 	printk(BIOS_SPEW, "\nSMI# #%d\n", cpu);
 
-	if (CONFIG(DEBUG_SMI) && CONFIG(CONSOLE_SERIAL))
+	if (CONFIG(DEBUG_SMI) && CONFIG(CONSOLE_SERIAL)) {
+		x86_debug_register_save();
 		exception_init();
+	}
 
 	/* Allow drivers to initialize variables in SMM context. */
 	if (do_driver_init) {
@@ -196,6 +222,13 @@ asmlinkage void smm_handler_start(void *arg)
 		// Don't die if we can't indicate an error.
 		if (CONFIG(DEBUG_SMI))
 			die("SMM Handler caused a stack overflow\n");
+	}
+
+	if (CONFIG(DEBUG_SMI) && CONFIG(CONSOLE_SERIAL)) {
+		// Clear out the allocated breakpoints so that we don't 'run out'
+		null_breakpoint_remove();
+		//stack_canary_breakpoint_remove();
+		x86_debug_register_restore();
 	}
 
 	smm_soc_exit();
