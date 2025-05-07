@@ -17,6 +17,7 @@
 #include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
+#include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smihandler.h>
@@ -349,6 +350,41 @@ static void soc_lock_gpios(void)
 		gpio_lock_pads(soc_gpios, soc_gpio_num);
 }
 
+static void enable_smm_code_access_check(void)
+{
+	msr_t smm_mca_cap;
+	msr_t smm_feature_control;
+
+	/*
+	 * Xeon-SP and Snow Ridge do not use the client SMM_FEATURE_CONTROL MSR.
+	 * Their SMM feature control path is implemented elsewhere.
+	 */
+	if (CONFIG(XEON_SP_COMMON_BASE) || CONFIG(SOC_INTEL_SNOWRIDGE))
+		return;
+
+	smm_mca_cap = rdmsr(SMM_MCA_CAP_MSR);
+	if (!(smm_mca_cap.hi & SMM_CODE_ACCESS_CHK_MASK)) {
+		printk(BIOS_DEBUG, "SMM code check is not supported\n");
+		return;
+	}
+
+	smm_feature_control = rdmsr(SMM_FEATURE_CONTROL_MSR);
+	if (smm_feature_control.lo & SMM_FEATURE_CONTROL_LOCK) {
+		if (smm_feature_control.lo & SMM_CODE_CHK_EN)
+			printk(BIOS_DEBUG, "SMM code check already enabled and locked\n");
+		else
+			printk(BIOS_WARNING,
+			       "SMM feature control already locked without SMM code check\n");
+		return;
+	}
+
+	smm_feature_control.hi = 0;
+	smm_feature_control.lo &= ~SMM_CPU_SAVE_EN;
+	smm_feature_control.lo |= SMM_CODE_CHK_EN | SMM_FEATURE_CONTROL_LOCK;
+	wrmsr(SMM_FEATURE_CONTROL_MSR, smm_feature_control);
+	printk(BIOS_DEBUG, "Enabled and locked SMM code check\n");
+}
+
 static void finalize(void)
 {
 	static int finalize_done;
@@ -381,6 +417,8 @@ static void finalize(void)
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
 	smihandler_soc_at_finalize();
+
+	enable_smm_code_access_check();
 }
 
 void smihandler_southbridge_apmc(
