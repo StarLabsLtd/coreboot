@@ -592,7 +592,7 @@ static void pciexp_enable_aspm(struct device *root, unsigned int root_cap,
 	ok_latency = (devcap & PCI_EXP_DEVCAP_L1) >> 9;
 	exit_latency = pciexp_aspm_latency(root, root_cap, endp, endp_cap,
 					   PCIE_ASPM_L1);
-	if (exit_latency >= 0 && exit_latency <= ok_latency)
+//	if (exit_latency >= 0 && exit_latency <= ok_latency)
 		apmc |= PCIE_ASPM_L1;
 
 	if (apmc != PCIE_ASPM_NONE) {
