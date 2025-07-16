@@ -624,7 +624,7 @@ struct lidtarg {
 } __packed;
 
 /* This global is for src/cpu/x86/mp_init.c -> src/cpu/x86/sipi_vector.S usage,
-   which is only used during ramstage. */
+   used during ramstage, and smm_exception_ap_init, used in src/cpu/x86/smm/smm_module_handler.c */
 struct lidtarg idtarg;
 
 static void load_idt(void *table, size_t sz)
@@ -641,7 +641,7 @@ static void load_idt(void *table, size_t sz)
 		: "memory"
 	);
 
-	if (ENV_RAMSTAGE)
+	if (ENV_RAMSTAGE || ENV_SMM)
 		memcpy(&idtarg, &lidtarg, sizeof(idtarg));
 }
 

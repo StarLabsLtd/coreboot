@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <arch/cpu.h>
 #include <arch/exception.h>
 #include <arch/io.h>
 #include <arch/null_breakpoint.h>
@@ -8,10 +9,14 @@
 #include <console/cbmem_console.h>
 #include <console/console.h>
 #include <cpu/cpu.h>
+#include <cpu/x86/gdt.h>
+#include <cpu/x86/lapic.h>
+#include <cpu/x86/mp.h>
 #include <cpu/x86/smm.h>
 #include <rmodule.h>
 #include <types.h>
 #include <security/intel/stm/SmmStm.h>
+#include "../mp_internal.h"
 
 #if CONFIG(SPI_FLASH_SMM)
 #include <spi-generic.h>
@@ -53,6 +58,25 @@ static void smi_release_lock(void)
 		: "g" (SMI_UNLOCKED)
 		: "eax"
 	);
+}
+
+static const u16 *apic_id_to_cpu_num = NULL;
+
+unsigned long cpu_index(void)
+{
+	unsigned int cpu_lapicid = initial_lapicid();
+
+	for (int i = 0; i < smm_runtime.num_cpus && i < CONFIG_MAX_CPUS; i++) {
+		if (apic_id_to_cpu_num[i] == cpu_lapicid)
+			return i;
+	}
+
+	return -1;
+}
+
+int mp_internal_get_num_cpus(void)
+{
+	return smm_runtime.num_cpus;
 }
 
 #if CONFIG(RUNTIME_CONFIGURABLE_SMM_LOGLEVEL)
@@ -109,22 +133,36 @@ struct x86_debug_register_state {
 	uintptr_t dr0, dr1, dr2, dr3;
 };
 
-static struct x86_debug_register_state s_x86_debug_register_state;
+static struct x86_debug_register_state s_x86_debug_register_state[CONFIG_MAX_CPUS];
 
-static void x86_debug_register_save(void)
+static void x86_debug_register_save(void *unused)
 {
-	asm("mov %%dr0, %0" : "=r"(s_x86_debug_register_state.dr0));
-	asm("mov %%dr1, %0" : "=r"(s_x86_debug_register_state.dr1));
-	asm("mov %%dr2, %0" : "=r"(s_x86_debug_register_state.dr2));
-	asm("mov %%dr3, %0" : "=r"(s_x86_debug_register_state.dr3));
+	unsigned long cpu_idx = cpu_index();
+
+	asm("mov %%dr0, %0" : "=r"(s_x86_debug_register_state[cpu_idx].dr0));
+	asm("mov %%dr1, %0" : "=r"(s_x86_debug_register_state[cpu_idx].dr1));
+	asm("mov %%dr2, %0" : "=r"(s_x86_debug_register_state[cpu_idx].dr2));
+	asm("mov %%dr3, %0" : "=r"(s_x86_debug_register_state[cpu_idx].dr3));
 }
 
-static void x86_debug_register_restore(void)
+static void x86_debug_register_restore(void *unused)
 {
-	asm("mov %0, %%dr0" :: "r"(s_x86_debug_register_state.dr0));
-	asm("mov %0, %%dr1" :: "r"(s_x86_debug_register_state.dr1));
-	asm("mov %0, %%dr2" :: "r"(s_x86_debug_register_state.dr2));
-	asm("mov %0, %%dr3" :: "r"(s_x86_debug_register_state.dr3));
+	unsigned long cpu_idx = cpu_index();
+
+	asm("mov %0, %%dr0" :: "r"(s_x86_debug_register_state[cpu_idx].dr0));
+	asm("mov %0, %%dr1" :: "r"(s_x86_debug_register_state[cpu_idx].dr1));
+	asm("mov %0, %%dr2" :: "r"(s_x86_debug_register_state[cpu_idx].dr2));
+	asm("mov %0, %%dr3" :: "r"(s_x86_debug_register_state[cpu_idx].dr3));
+}
+
+static void smm_exception_ap_init(void *unused)
+{
+	asm volatile (
+		"lidt   %0"
+		:
+		: "m" (idtarg)
+		: "memory"
+	);
 }
 
 struct global_nvs *gnvs;
@@ -167,6 +205,7 @@ asmlinkage void smm_handler_start(void *arg)
 
 	/* Make sure to set the global runtime. It's OK to race as the value
 	 * will be the same across CPUs as well as multiple SMIs. */
+	apic_id_to_cpu_num = p->apic_id_to_cpu;
 	gnvs = (void *)(uintptr_t)smm_runtime.gnvs_ptr;
 
 	if (cpu >= CONFIG_MAX_CPUS) {
@@ -176,12 +215,13 @@ asmlinkage void smm_handler_start(void *arg)
 
 	/* Are we ok to execute the handler? */
 	if (!smi_obtain_lock()) {
+		mp_internal_ap_ready_for_instruction(cpu);
+
 		/* For security reasons we don't release the other CPUs
 		 * until the CPU with the lock is actually done */
 		while (smi_handler_status == SMI_LOCKED) {
-			asm volatile (
-				".byte 0xf3, 0x90\n" /* PAUSE */
-			);
+			mp_internal_ap_check_for_instruction(cpu);
+			asm volatile ("pause");
 		}
 		return;
 	}
@@ -195,8 +235,9 @@ asmlinkage void smm_handler_start(void *arg)
 	printk(BIOS_SPEW, "\nSMI# #%d\n", cpu);
 
 	if (CONFIG(DEBUG_SMI) && CONFIG(CONSOLE_SERIAL)) {
-		x86_debug_register_save();
+		mp_run_on_all_cpus(x86_debug_register_save, NULL);
 		exception_init();
+		mp_run_on_all_aps(smm_exception_ap_init, NULL, 1000, true);
 	}
 
 	/* Allow drivers to initialize variables in SMM context. */
@@ -228,7 +269,7 @@ asmlinkage void smm_handler_start(void *arg)
 		// Clear out the allocated breakpoints so that we don't 'run out'
 		null_breakpoint_remove();
 		//stack_canary_breakpoint_remove();
-		x86_debug_register_restore();
+		mp_run_on_all_cpus(x86_debug_register_restore, NULL);
 	}
 
 	smm_soc_exit();

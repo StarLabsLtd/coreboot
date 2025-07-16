@@ -99,6 +99,7 @@ struct smm_runtime {
 
 struct smm_module_params {
 	size_t cpu;
+	u16 *apic_id_to_cpu;
 	/* A canary value that has been placed at the end of the stack.
 	 * If (uintptr_t)canary != *canary then a stack overflow has occurred.
 	 */

@@ -203,6 +203,8 @@ align_stack:
 
 
 	push	%rbx /* uintptr_t *canary */
+	mov	$(apic_to_cpu_num), %rbx
+	push	%rbx /* u16 *apic_id_to_cpu */
 	push	%rcx /* size_t cpu */
 
 	mov	%rsp, %rdi	/* *arg */
@@ -210,8 +212,9 @@ align_stack:
 	movabs	c_handler, %eax
 	call	*%rax
 #else
-	push	$0x0 /* Padding */
 	push	%ebx /* uintptr_t *canary */
+	mov	$(apic_to_cpu_num), %ebx
+	push	%ebx /* u16 *apic_id_to_cpu */
 	push	%ecx /* size_t cpu */
 	push	%esp /* smm_module_params *arg (allocated on stack). */
 	mov	c_handler, %eax

@@ -42,7 +42,7 @@ ifeq ($(CONFIG_PARALLEL_MP),y)
 
 smmstub-y += smm_stub.S
 
-smm-y += smm_module_handler.c
+smm-y += smm_module_handler.c ../mp_common.c
 
 ramstage-srcs += $(obj)/cpu/x86/smm/smmstub.manual
 
