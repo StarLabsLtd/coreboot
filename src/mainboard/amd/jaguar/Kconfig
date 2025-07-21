@@ -16,9 +16,13 @@ config BOARD_SPECIFIC_OPTIONS
 	select AMD_CRB_FTPM
 	select MAINBOARD_HAS_TPM2
 	select SMBIOS_TYPE4_SOCKETED_CPU
+	select SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH
 
 config FMDFILE
 	default "src/mainboard/amd/jaguar/board_faegan.fmd"
+
+config BACKUP_BOOT_DEVICE_SPI_CHIP_SELECT
+	default 2
 
 config PSP_LOAD_MP2_FW
 	prompt "Load MP2 Firmware"
