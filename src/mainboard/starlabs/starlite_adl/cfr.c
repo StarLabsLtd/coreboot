@@ -14,6 +14,13 @@ static const struct sm_object accelerometer = SM_DECLARE_BOOL({
 	.default_value	= true,
 });
 
+static const struct sm_object card_reader = SM_DECLARE_BOOL({
+	.opt_name	= "card_reader",
+	.ui_name	= "Card Reader",
+	.ui_helptext	= "Enable or disable the built-in card reader",
+	.default_value	= true,
+});
+
 #if CONFIG(SOC_INTEL_TIGERLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
 static const struct sm_object gna = SM_DECLARE_BOOL({
 	.opt_name	= "gna",
@@ -147,6 +154,7 @@ static struct sm_obj_form devices = {
 	.ui_name = "Devices",
 	.obj_list = (const struct sm_object *[]) {
 		&accelerometer,
+		&card_reader,
 		&display_native_res,
 		#if CONFIG(SOC_INTEL_TIGERLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
 		&gna,
