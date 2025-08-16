@@ -7,23 +7,49 @@
 
 static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 {
-	/*
-	 * Device:		M.2 2280 SSD
-	 */
-	{
-		.engine_type		= PCIE_ENGINE,
-		.port_present		= true,
-		.start_logical_lane	= 8,
-		.end_logical_lane	= 11,
-		.link_speed_capability	= GEN3,
-		.device_number		= 2,
-		.function_number	= 1,
-		.link_aspm		= false,	// ASPM_L1,
-		.link_aspm_L1_1		= false,	// true,
-		.link_aspm_L1_2		= false,	// true,
-		.turn_off_unused_lanes	= true,
-		.clk_req		= CLK_REQ1,
-		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x133 }
+	{ /* Dummy Device */
+		.engine_type = PCIE_ENGINE,
+		.port_present = true,
+		.start_logical_lane = 16,
+		.end_logical_lane = 23,
+		.device_number = 1,
+		.function_number = 1,
+		.turn_off_unused_lanes = true,
+		.clk_req = CLK_DISABLE,
+		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+	},
+	{ /* Dummy Device */
+		.engine_type = PCIE_ENGINE,
+		.port_present = true,
+		.start_logical_lane = 0,
+		.end_logical_lane = 1,
+		.device_number = 2,
+		.function_number = 6,
+		.turn_off_unused_lanes = true,
+		.clk_req = CLK_DISABLE,
+		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+	},
+	{ /* Dummy Device */
+		.engine_type = PCIE_ENGINE,
+		.port_present = true,
+		.start_logical_lane = 4,
+		.end_logical_lane = 4,
+		.device_number = 2,
+		.function_number = 2,
+		.turn_off_unused_lanes = true,
+		.clk_req = CLK_DISABLE,
+		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+	},
+	{ /* Dummy Device */
+		.engine_type = PCIE_ENGINE,
+		.port_present = true,
+		.start_logical_lane = 5,
+		.end_logical_lane = 5,
+		.device_number = 2,
+		.function_number = 3,
+		.turn_off_unused_lanes = true,
+		.clk_req = CLK_DISABLE,
+		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
 	},
 	/*
 	 * Device:		M.2 2230 Wireless
@@ -42,6 +68,35 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 		.turn_off_unused_lanes	= true,
 		.clk_req		= CLK_REQ6,
 		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
+	},
+	{ /* Dummy Device */
+		.engine_type = PCIE_ENGINE,
+		.port_present = true,
+		.start_logical_lane = 7,
+		.end_logical_lane = 7,
+		.device_number = 2,
+		.function_number = 5,
+		.turn_off_unused_lanes = true,
+		.clk_req = CLK_DISABLE,
+		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
+	},
+	/*
+	 * Device:		M.2 2280 SSD
+	 */
+	{
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 8,
+		.end_logical_lane	= 11,
+		.link_speed_capability	= GEN3,
+		.device_number		= 2,
+		.function_number	= 1,
+		.link_aspm		= ASPM_L1,
+		.link_aspm_L1_1		= true,
+		.link_aspm_L1_2		= true,
+		.turn_off_unused_lanes	= true,
+		.clk_req		= CLK_REQ1,
+		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x133 }
 	},
 	/*
 	 * Device:		SATA SSD
