@@ -4,21 +4,25 @@ chip soc/amd/cezanne
 	# Memory
 	register "i2c_pad[2].rx_level"		= "I2C_PAD_RX_3_3V"
 
+	register "system_configuration" = "2"
+
 	device domain 0 on
 		device ref iommu on end
 		device ref gpp_bridge_0		on		# SSD
 			register "gpp_clk_config[1]"	= "GPP_CLK_REQ"
-#			chip drivers/pcie/rtd3/device
-#				register "name"		= ""NVME""
-#				device pci 00.0 on end
-#			end
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""NVME""
+				device pci 00.0 on end
+			end
 		end
+		device ref gpp_bridge_1		on	end
+		device ref gpp_bridge_2		on	end
 		device ref gpp_bridge_3		on		# WLAN
 			register "gpp_clk_config[6]"	= "GPP_CLK_REQ"
-#			chip drivers/pcie/rtd3/device
-#				register "name"		= ""WIFI""
-#				device pci 00.0 on end
-#			end
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""WIFI""
+				device pci 00.0 on end
+			end
 		end
 		device ref gpp_bridge_a		on
 			device ref gfx		on  end
