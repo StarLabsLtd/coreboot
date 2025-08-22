@@ -22,14 +22,14 @@
  *  9: acpi <- soc/amd/common/acpi/lpc.asl
  */
 static const struct fch_irq_routing fch_irq_map[] = {
-	{ PIRQ_A,	15,		PIRQ_NC		},
-	{ PIRQ_B,	5,		PIRQ_NC		},
-	{ PIRQ_C,	10,		PIRQ_NC		},
-	{ PIRQ_D,	11,		PIRQ_NC		},
-	{ PIRQ_E,	15,		PIRQ_NC		},
-	{ PIRQ_F,	5,		PIRQ_NC		},
-	{ PIRQ_G,	10,		PIRQ_NC		},
-	{ PIRQ_H,	11,		PIRQ_NC		},
+	{ PIRQ_A,	12,		PIRQ_NC		},
+	{ PIRQ_B,	14,		PIRQ_NC		},
+	{ PIRQ_C,	15,		PIRQ_NC		},
+	{ PIRQ_D,	12,		PIRQ_NC		},
+	{ PIRQ_E,	14,		PIRQ_NC		},
+	{ PIRQ_F,	15,		PIRQ_NC		},
+	{ PIRQ_G,	12,		PIRQ_NC		},
+	{ PIRQ_H,	14,		PIRQ_NC		},
 
 	{ PIRQ_SCI,	ACPI_SCI_IRQ,	ACPI_SCI_IRQ	},
 	{ PIRQ_SD,	PIRQ_NC,	PIRQ_NC		},
