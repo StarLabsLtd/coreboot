@@ -5,11 +5,12 @@ subdirs-y += variants/$(VARIANT_DIR)
 
 bootblock-y += bootblock.c
 
+romstage-y += romstage.c
+
+ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
+ramstage-y += hda_verb.c
 ramstage-y += mainboard.c
 ramstage-y += smbios.c
-ramstage-y += hda_verb.c
-
-romstage-y += romstage.c
 
 ifeq ($(CONFIG_ADD_APCB_SOURCES),y)
 APCB_SOURCES = $(call strip_quotes, $(CONFIG_APCB_SOURCES_PATH))/APCB_CZN_D4_Updatable.bin
