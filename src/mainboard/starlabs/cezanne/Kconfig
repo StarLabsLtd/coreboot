@@ -96,4 +96,13 @@ config S3_VGA_ROM_RUN
 config VARIANT_DIR
 	default "starbook"
 
+config EFS_SPI_SPEED
+	default 4	# 100MHz
+
+config NORMAL_READ_SPI_SPEED
+	default 1	# 33MHz
+
+config ALT_SPI_SPEED
+	default 0	# 66MHz
+
 endif
