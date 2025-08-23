@@ -20,8 +20,8 @@ void bootblock_mainboard_early_init(void)
 	/* Delay 10ms for SSD initialisation */
 	stopwatch_init_usecs_expire(&pcie_init_timeout_sw, (10 * USECS_PER_MSEC));
 
-//	lpc_enable_sio_decode(LPC_SELECT_SIO_4E4F);
-//	lpc_enable_decode(DECODE_ENABLE_KBC_PORT | DECODE_ENABLE_ACPIUC_PORT);
+	lpc_enable_sio_decode(LPC_SELECT_SIO_4E4F);
+	lpc_enable_decode(DECODE_ENABLE_KBC_PORT | DECODE_ENABLE_ACPIUC_PORT);
 }
 
 void bootblock_mainboard_init(void)
