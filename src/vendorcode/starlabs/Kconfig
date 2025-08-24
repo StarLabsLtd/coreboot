@@ -1,0 +1,15 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config USE_VENDORCODE_STARLABS
+	bool
+	default y if VENDOR_STARLABS
+
+if USE_VENDORCODE_STARLABS
+
+menu "Star Labs Settings"
+
+source "src/vendorcode/starlabs/hda/Kconfig"
+
+endmenu
+
+endif

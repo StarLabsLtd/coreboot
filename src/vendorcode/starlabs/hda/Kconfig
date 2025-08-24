@@ -1,0 +1,14 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config HAS_DMIC
+	bool
+	default y if SYSTEM_TYPE_LAPTOP
+	help
+	  Select if the board has a DMIC
+
+config ALC269_VB6
+	bool
+
+config CODEC_ID
+	hex
+	default 0x10ec0269 if ALC269_VB6
