@@ -31,6 +31,9 @@ chip soc/amd/cezanne
 			device ref acp		on  end
 			device ref hda		on  end
 		end
+		device ref gpp_bridge_b on
+			device ref sata_0	on  end
+		end
 		device ref gpp_bridge_c		off end
 		device ref lpc_bridge		on
 			chip ec/starlabs/merlin
