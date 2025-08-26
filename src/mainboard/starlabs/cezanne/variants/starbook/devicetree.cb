@@ -15,8 +15,6 @@ chip soc/amd/cezanne
 				device pci 00.0 on end
 			end
 		end
-		device ref gpp_bridge_1		on	end
-		device ref gpp_bridge_2		on	end
 		device ref gpp_bridge_3		on		# WLAN
 			register "gpp_clk_config[6]"	= "GPP_CLK_REQ"
 			chip drivers/pcie/rtd3/device
@@ -33,6 +31,7 @@ chip soc/amd/cezanne
 			device ref acp		on  end
 			device ref hda		on  end
 		end
+		device ref gpp_bridge_c		off end
 		device ref lpc_bridge		on
 			chip ec/starlabs/merlin
 				# Port pair 4Eh/4Fh
