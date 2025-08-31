@@ -9,6 +9,7 @@ const struct soc_amd_gpio early_gpio_table[] = {
 
 	PAD_NFO(GPIO_26,	PCIE_RST_L,	LOW),		// PLT_RST_N
 	PAD_GPO(GPIO_40,			LOW),		// SSD_RST
+	PAD_GPO(GPIO_91,			LOW),		// WIFI_DISABLE_N
 };
 
 const struct soc_amd_gpio *variant_early_gpio_table(size_t *num)
@@ -21,6 +22,7 @@ const struct soc_amd_gpio *variant_early_gpio_table(size_t *num)
 const struct soc_amd_gpio bootblock_gpio_table[] = {
 	PAD_NFO(GPIO_26,	PCIE_RST_L,	HIGH),		// PLT_RST_N
 	PAD_GPO(GPIO_40,			HIGH),		// SSD_RST
+	PAD_GPO(GPIO_91,			HIGH),		// WIFI_DISABLE_N
 };
 
 const struct soc_amd_gpio *variant_bootblock_gpio_table(size_t *num)
