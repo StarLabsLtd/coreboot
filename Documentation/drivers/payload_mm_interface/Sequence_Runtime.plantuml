@@ -1,0 +1,10 @@
+@startuml
+
+SW -> HW: SWSMI(...)
+HW -> coreboot: smm_handler_start(...)
+coreboot -> _coreboot_soc_: smihandler_southbridge_apmc(...)
+_coreboot_soc_ -> payload_mm_interface: mm_call_entrypoint()
+payload_mm_interface -> BlSmmCpuPayloadMm: LongModeCallMmCore(...)
+BlSmmCpuPayloadMm -> StandaloneMmCore: MmEntryPoint(...)
+
+@enduml
