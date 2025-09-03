@@ -24,6 +24,7 @@ CFR use within coreboot <cfr_internal.md>
 Intel DPTF <dptf.md>
 IPMI BT (Block Transfer) <ipmi_bt.md>
 IPMI KCS <ipmi_kcs.md>
+Payload MM Interface <payload_mm_interface/index.md>
 SMMSTORE <smmstore.md>
 SoundWire <soundwire.md>
 USB4 Retimer <retimer.md>
