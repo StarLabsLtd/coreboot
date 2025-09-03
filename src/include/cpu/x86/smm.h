@@ -215,6 +215,8 @@ enum {
 	SMM_SUBREGION_HANDLER,
 	/* Persistent OPAL S3 state area. */
 	SMM_SUBREGION_OPAL_S3_STATE,
+	/* Payload MM area. */
+	SMM_SUBREGION_PAYLOAD,
 	/* SMM cache region. */
 	SMM_SUBREGION_CACHE,
 	/* Chipset specific area. */
