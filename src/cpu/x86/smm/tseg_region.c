@@ -17,6 +17,8 @@
  *     +-------------------------+
  *     |   OPAL S3 State (opt)   | SMM_OPAL_S3_STATE_SMRAM_SIZE
  *     +-------------------------+
+ *     | (optional payload area) |
+ *     +-------------------------+
  *     |      code and data      |
  *     |         (TSEG)          |
  *     +-------------------------+ TSEG
@@ -28,6 +30,7 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	const size_t ied_size = CONFIG_IED_REGION_SIZE;
 	const size_t cache_size = CONFIG_SMM_RESERVED_SIZE;
 	const size_t opal_state_size = CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE;
+	const size_t payload_size = CONFIG_PAYLOAD_MM_SMRAM_SIZE;
 
 	if (CONFIG(SMM_TSEG))
 		smm_region(&sub_base, &sub_size);
@@ -37,21 +40,24 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 		return -1;
 
 	ASSERT(IS_ALIGNED(sub_base, sub_size));
-	ASSERT(sub_size > (cache_size + ied_size + opal_state_size));
+	ASSERT(sub_size > (payload_size + cache_size + ied_size + opal_state_size));
 
 	switch (sub) {
 	case SMM_SUBREGION_HANDLER:
 		/* Handler starts at the base of TSEG. */
-		sub_size -= ied_size;
-		sub_size -= cache_size;
-		sub_size -= opal_state_size;
+		sub_size -= (ied_size + cache_size + opal_state_size + payload_size);
 		break;
 	case SMM_SUBREGION_OPAL_S3_STATE:
 		if (!opal_state_size)
 			return -1;
-		/* Persistent OPAL S3 state lives below the external stage cache. */
+		/* Above the payload slot, below the external stage cache. */
 		sub_base += sub_size - (ied_size + cache_size + opal_state_size);
 		sub_size = opal_state_size;
+		break;
+	case SMM_SUBREGION_PAYLOAD:
+		/* Payload follows handler subregion. */
+		sub_base += sub_size - (ied_size + cache_size + opal_state_size + payload_size);
+		sub_size = payload_size;
 		break;
 	case SMM_SUBREGION_CACHE:
 		/* External cache is in the middle of TSEG. */
