@@ -1,0 +1,19 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config PAYLOAD_MM_INTERFACE
+	bool
+	default n
+	help
+	  Implements coreboot-to-payload compatibility layers for sharing SMM. coreboot will
+	  continue to initialise and own SMM. Payload can register to be called on SMI too.
+	  An example use-case is enabling EDK2 Secure Boot with Authenticated Variables.
+
+	  Select N if unsure.
+
+config PAYLOAD_MM_SMRAM_SIZE
+	hex
+	depends on PAYLOAD_MM_INTERFACE
+	default 0x155000
+	help
+	  The amount of SMRAM to reserve for payload MM. This amount is sufficient for Secure Boot,
+	  with some left over as spare. It requires platforms to support 2M of SMRAM.
