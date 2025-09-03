@@ -1,0 +1,11 @@
+@startuml
+
+StandaloneMmIpl -> MmIplPlatformHookLibPayloadMm: PlatformHookCallMmCore(...)
+MmIplPlatformHookLibPayloadMm -> payload_mm_interface: SWSMI(PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE)
+payload_mm_interface -> MmCorePayloadMmEntryPoint: _ModuleEntryPoint(...)
+MmCorePayloadMmEntryPoint -> StandaloneMmCore: StandaloneMmMain(...)
+
+StandaloneMmCore -> BlSmmCpuPayloadMm: BlSmmCpuStandaloneMmEntry(...)
+StandaloneMmCore -> BlSmmCpuPayloadMm: RegisterPayloadMmEntry(...)
+
+@enduml
