@@ -151,6 +151,22 @@ enum azalia_pin_misc {
 	AZALIA_NO_JACK_PRESENCE_DETECT = 0x1,
 };
 
+enum azalia_pin_widget {
+	AZALIA_PIN_SSID		= 0x01,
+	AZALIA_PIN_DMIC		= 0x12,
+	AZALIA_PIN_STEREO_MIX	= 0x13,
+	AZALIA_PIN_SPEAKERS	= 0x14,
+	AZALIA_PIN_HPJACK	= 0x15,
+	AZALIA_PIN_MONO		= 0x17,
+	AZALIA_PIN_MIC1		= 0x18,
+	AZALIA_PIN_MIC2		= 0x19,
+	AZALIA_PIN_LINE1	= 0x1a,
+	AZALIA_PIN_LINE2	= 0x1b,
+	AZALIA_PIN_PC_BEEP	= 0x1d,
+	AZALIA_PIN_SPDIF_OUT	= 0x1e,
+	AZALIA_PIN_HPJACK1	= 0x21,
+};
+
 #define AZALIA_PIN_DESC(conn, location, dev, type, color, misc, association, sequence)	\
 	((((conn)        << 30) & 0xc0000000) |						\
 	 (((location)    << 24) & 0x3f000000) |						\
