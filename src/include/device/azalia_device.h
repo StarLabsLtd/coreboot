@@ -201,10 +201,10 @@ enum azalia_pin_widget {
 	AZALIA_VERB_12B(0, pin, AZALIA_FUNCTION_RESET, 0),	\
 	AZALIA_VERB_12B(0, pin, AZALIA_FUNCTION_RESET, 0)
 
-#define AZALIA_SUBVENDOR(codec, val)							\
-	AZALIA_VERB_12B(codec, 1, AZALIA_SET_SUBSYSTEM_ID_1, ((val) >>  0) & 0xff),	\
-	AZALIA_VERB_12B(codec, 1, AZALIA_SET_SUBSYSTEM_ID_2, ((val) >>  8) & 0xff),	\
-	AZALIA_VERB_12B(codec, 1, AZALIA_SET_SUBSYSTEM_ID_3, ((val) >> 16) & 0xff),	\
-	AZALIA_VERB_12B(codec, 1, AZALIA_SET_SUBSYSTEM_ID_4, ((val) >> 24) & 0xff)
+#define AZALIA_SUBVENDOR(codec, val)									\
+	AZALIA_VERB_12B(codec, AZALIA_PIN_SSID, AZALIA_SET_SUBSYSTEM_ID_1, ((val) >>  0) & 0xff),	\
+	AZALIA_VERB_12B(codec, AZALIA_PIN_SSID, AZALIA_SET_SUBSYSTEM_ID_2, ((val) >>  8) & 0xff),	\
+	AZALIA_VERB_12B(codec, AZALIA_PIN_SSID, AZALIA_SET_SUBSYSTEM_ID_3, ((val) >> 16) & 0xff),	\
+	AZALIA_VERB_12B(codec, AZALIA_PIN_SSID, AZALIA_SET_SUBSYSTEM_ID_4, ((val) >> 24) & 0xff)
 
 #endif /* DEVICE_AZALIA_H */
