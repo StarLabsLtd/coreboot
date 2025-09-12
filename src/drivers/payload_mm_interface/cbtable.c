@@ -6,6 +6,9 @@
 #include <device/pci_ops.h>
 #include <lib.h>
 #include <payload_mm_interface.h>
+#if CONFIG(SOC_INTEL_COMMON)
+#include <soc/pci_devs.h>
+#endif
 #include <string.h>
 
 void lb_payload_mm(struct lb_header *header)
@@ -45,4 +48,25 @@ void lb_payload_mm(struct lb_header *header)
 
 	if (!acpi_is_wakeup_s3())
 		memset((void *)(uintptr_t)mm_shared_mem->comm_buffer.physical_start, 0, PLD_MM_SHARED_MEMORY_MAX_SIZE);
+
+	/* SPI registers */
+#ifdef PCH_DEV_SPI
+	struct lb_pld_mm_spi_controller_info *spi_info = (void *)lb_new_record(header);
+
+	spi_info->tag = LB_TAG_PLD_SPI_FLASH_INFO;
+	spi_info->size = sizeof(*spi_info);
+
+	spi_info->revision = 0;
+	spi_info->flags = 0;
+	if (CONFIG(BOOTMEDIA_SMM_BWP))
+		spi_info->flags |= FLAGS_SPI_DISABLE_SMM_WRITE_PROTECT;
+
+	spi_info->spi_address.address_space_id = PLD_EFI_ACPI_3_0_PCI_CONFIGURATION_SPACE;
+	spi_info->spi_address.register_bit_width = 32;
+	spi_info->spi_address.register_bit_offset = 0;
+	// FIXME: Avoid hard-coding?
+	spi_info->spi_address.address = CONFIG_ECAM_MMCONF_BASE_ADDRESS + PCI_BDF(PCH_DEV_SPI);
+#elif CONFIG(SOC_INTEL_COMMON) || CONFIG(SOC_AMD_COMMON)
+	#warning "BUGBUG: PCH_DEV_SPI not defined!"
+#endif
 }
