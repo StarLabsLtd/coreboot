@@ -85,6 +85,7 @@ enum {
 	LB_TAG_PLD_MM_INTERFACE_INFO    = 0x003b,
 	LB_TAG_PAYLOAD_MM_SMRAM_REGION  = 0x003c,
 	LB_TAG_PAYLOAD_MM_SHARED_MEM    = 0x003d,
+	LB_TAG_PLD_SPI_FLASH_INFO       = 0x003e,
 	LB_TAG_BOARD_CONFIG		= 0x0040,
 	LB_TAG_ACPI_CNVS		= 0x0041,
 	LB_TAG_TYPE_C_INFO		= 0x0042,
@@ -633,6 +634,34 @@ struct lb_payload_mm_shared_mem {
 	uint32_t tag;
 	uint32_t size;
 	struct lb_pld_mm_smram_descriptor comm_buffer;	/* The shared memory */
+};
+
+/*
+ * SPI flash info structure
+ */
+enum lb_pld_efi_acpi_3_0_memory_types {
+	PLD_EFI_ACPI_3_0_SYSTEM_MEMORY = 0,
+	PLD_EFI_ACPI_3_0_SYSTEM_IO,
+	PLD_EFI_ACPI_3_0_PCI_CONFIGURATION_SPACE,
+};
+
+struct lb_pld_generic_register {
+	uint8_t address_space_id;	/* The address space where this register is found.
+					   Follows the ACPI types */
+	uint8_t register_bit_width;	/* The width of this register */
+	uint8_t register_bit_offset;	/* The offset into this register to use */
+	uint8_t reserved;
+	lb_uint64_t address;		/* The address of this register. Exact location depends on the address space */
+	lb_uint64_t value;		/* An optional value to set in this register */
+};
+
+#define FLAGS_SPI_DISABLE_SMM_WRITE_PROTECT (1 << 0)
+struct lb_pld_mm_spi_controller_info {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;				/* The version of this table. Currently "0" */
+	uint16_t flags;					/* A set of flags to describe this SPI controller, defined above */
+	struct lb_pld_generic_register spi_address;	/* The address of the PCIe SPI controller, if present */
 };
 
 /*

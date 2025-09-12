@@ -9,6 +9,8 @@ config PAYLOAD_MM_INTERFACE
 	bool "Support coreboot-mediated payload MM"
 	depends on HAVE_SMI_HANDLER
 	depends on HAVE_PAYLOAD_MM_INTERFACE
+	# Needed by `smmstore_lookup_region` helper function to EFIVARS option system.
+	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	default n
 	help
 	  Implements coreboot-to-payload compatibility layers for sharing SMM. coreboot will
@@ -24,3 +26,8 @@ config PAYLOAD_MM_SMRAM_SIZE
 	help
 	  The amount of SMRAM to reserve for payload MM. This amount is sufficient for Secure Boot,
 	  with some left over as spare. It requires platforms to support 2M of SMRAM.
+
+# Initialise size of reused "SMMSTORE" FMAP region for native SPI services
+config SMMSTORE_SIZE
+	depends on !SMMSTORE && PAYLOAD_MM_INTERFACE
+	default 0x40000
