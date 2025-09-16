@@ -48,7 +48,7 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 		.device_number = 2,
 		.function_number = 3,
 		.turn_off_unused_lanes = true,
-		.clk_req = CLK_DISABLE,
+		.clk_req = CLK_REQ4_L,
 		.port_params = {PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122}
 	},
 	/*

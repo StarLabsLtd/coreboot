@@ -15,7 +15,13 @@ chip soc/amd/cezanne
 				device pci 00.0 on end
 			end
 		end
-		device ref gpp_bridge_3		on		# WLAN
+		device ref gpp_bridge_2		on		# WLAN
+			register "gpp_clk_config[4]"	= "GPP_CLK_REQ"
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""FOOD""
+				device pci 00.0 on end
+		end
+		device ref gpp_bridge_3		on		# WIFI
 			register "gpp_clk_config[6]"	= "GPP_CLK_REQ"
 			chip drivers/pcie/rtd3/device
 				register "name"		= ""WIFI""

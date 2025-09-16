@@ -87,7 +87,7 @@ const struct soc_amd_gpio gpio_table[] = {
 	PAD_NC(GPIO_129),
 	PAD_NC(GPIO_130),
 	PAD_NC(GPIO_131),
-	PAD_NC(GPIO_132),
+	PAD_NF(GPIO_132,	CLK_REQ4_L,	PULL_NONE),			// WLAN_CLK_REQ
 	PAD_NC(GPIO_144),
 };
 
