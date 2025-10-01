@@ -69,6 +69,8 @@ static void save_dimm_info(void)
 	dimm_max = ARRAY_SIZE(mem_info->dimm);
 	for (node = 0; node < MAX_NODE; node++) {
 		ctrlr_info = &meminfo_hob->Controller[node];
+		if (ctrlr_info->Status != CHANNEL_PRESENT)
+			continue;
 		for (channel = 0; channel < MAX_CH && index < dimm_max; channel++) {
 			channel_info = &ctrlr_info->ChannelInfo[channel];
 			if (channel_info->Status != CHANNEL_PRESENT)
