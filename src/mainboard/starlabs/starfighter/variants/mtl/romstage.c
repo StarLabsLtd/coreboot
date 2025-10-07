@@ -136,5 +136,4 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 //	}
 
 	mupd->FspmConfig.PchHdaSubSystemIds = 0x20147017;
-	mupd->FspmConfig.PsysPmax = 0;
 };

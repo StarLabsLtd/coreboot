@@ -43,6 +43,13 @@ static const struct sm_object power_profile = SM_DECLARE_ENUM({
 				SM_ENUM_VALUE_END			},
 });
 
+static const struct sm_object legacy_8254_timer = SM_DECLARE_BOOL({
+        .opt_name       = "legacy_8254_timer",
+        .ui_name        = "8254 Timer",
+        .ui_helptext    = "Enable or disable 8254 timer",
+        .default_value  = true,
+});
+
 #if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
 static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
 	.opt_name	= "thunderbolt",
@@ -144,6 +151,7 @@ static struct sm_obj_form devices = {
 		#if CONFIG(SOC_INTEL_METEORLAKE)
 		&vpu,
 		#endif
+		&legacy_8254_timer,
 		NULL
 	},
 };

@@ -161,19 +161,19 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
  */
 	acpigen_write_power_res("BTRT", 0, 0, NULL, 0);
 	{
-		acpigen_write_method("_STA", 0);
-		{
-			if (enable_gpio->pin_count) {
-				acpigen_write_store();
-				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
-				acpigen_emit_byte(LOCAL0_OP);
+	acpigen_write_method("_STA", 0);
+	{
+		if (enable_gpio->pin_count) {
+			acpigen_write_store();
+			acpigen_emit_namestring("\\_SB.PCI0.GBTE");
+			acpigen_emit_byte(LOCAL0_OP);
 
-				acpigen_write_return_op(LOCAL0_OP);
-			} else {
-				acpigen_write_return_integer(1);
-			}
+			acpigen_write_return_op(LOCAL0_OP);
+		} else {
+			acpigen_write_return_integer(1);
 		}
-		acpigen_pop_len();
+	}
+	acpigen_pop_len();
 
 		acpigen_write_method("_ON", 0);
 		{
@@ -182,14 +182,12 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
 				acpigen_emit_byte(LOCAL0_OP);
 
-				acpigen_write_if_lequal_op_int(LOCAL0_OP, 1);
+				acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
 				{
-					acpigen_write_return_integer(1);
+					acpigen_emit_namestring("\\_SB.PCI0.SBTE");
+					acpigen_emit_byte(1);
 				}
 				acpigen_pop_len();
-
-				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-				acpigen_emit_byte(1);
 			}
 		}
 		acpigen_pop_len();
@@ -386,7 +384,8 @@ void acpi_device_intel_bt_common(const struct acpi_gpio *enable_gpio,
 			acpigen_write_xor(LOCAL0_OP, 1, LOCAL0_OP);
 			acpigen_write_return_op(LOCAL0_OP);
 		} else {
-			acpigen_write_return_op(0);
+			/* No reset GPIO wired means the radio cannot be held in reset. */
+			acpigen_write_return_integer(1);
 		}
 	}
 	acpigen_pop_len();
