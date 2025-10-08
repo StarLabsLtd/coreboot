@@ -19,10 +19,10 @@ chip soc/intel/meteorlake
 	}"
 
 	# Power
-#	register "pch_slp_s3_min_assertion_width"	= "SLP_S3_ASSERTION_1_MS"
-#	register "pch_slp_s4_min_assertion_width"	= "SLP_S4_ASSERTION_3S"
-#	register "pch_slp_sus_min_assertion_width"	= "SLP_SUS_ASSERTION_1_S"
-#	register "pch_slp_a_min_assertion_width"	= "SLP_A_ASSERTION_98_MS"
+	register "pch_slp_s3_min_assertion_width"	= "SLP_S3_ASSERTION_1_MS"
+	register "pch_slp_s4_min_assertion_width"	= "SLP_S4_ASSERTION_3S"
+	register "pch_slp_sus_min_assertion_width"	= "SLP_SUS_ASSERTION_1_S"
+	register "pch_slp_a_min_assertion_width"	= "SLP_A_ASSERTION_98_MS"
 
 	device domain 0 on
 		device ref igpu		on
@@ -76,6 +76,7 @@ chip soc/intel/meteorlake
 				end
 			end
 		end
+		device ref tcss_dma0	on  end
 		device ref gna		on  end
 		device ref xhci		on
 			# Motherboard USB 3.0 Type-C Back	7893 mil
