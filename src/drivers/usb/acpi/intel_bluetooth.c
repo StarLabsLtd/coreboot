@@ -4,6 +4,8 @@
 #include <option.h>
 #include "chip.h"
 
+#define RESET_DELAY		105
+
 /*
  * Intel Bluetooth DSM
  *
@@ -75,9 +77,9 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 	acpi_device_add_hotplug_support_in_d3(NULL);
 
 /*
- *	Name (RDLY, 0x69)
+ *	Name (RDLY, RESET_DELAY)
  */
-	acpigen_write_name_integer("RDLY", 0x69);
+	acpigen_write_name_integer("RDLY", RESET_DELAY);
 
 /*
  *	Method (_DSM, 4, Serialized)
@@ -140,10 +142,30 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
  *				Return (1)
  *			}
  *			\_SB.PCI0.SBTE(1)
+ *
+ *			Sleep (RDLY)
+ *			Store(RESET_DELAY, Local7)
+ *			While (Local7 > 0) {
+ *				If (Lequal(\_SB.PCI0.GBTR, 1)) {
+ *					Break
+ *				}
+ *				Sleep(2)
+ *				Decrement(Local7)
+ *			}
  *		}
  *		Method (_OFF, 0, NotSerialized)
  *		{
  *			\_SB.PCI0.SBTE(0)
+ *
+ *			Sleep (RDLY)
+ *			Store(RESET_DELAY, Local7)
+ * 			While (Local7 > 0) {
+ *				If (Lequal(\_SB.PCI0.GBTR, 0)) {
+ *					Break
+ *				}
+ *				Sleep(2)
+ *				Decrement(Local7)
+ *			}
  *		}
  *		Method (_RST, 0, NotSerialized)
  *		{
@@ -190,6 +212,10 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(1);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+				acpigen_write_delay_until_namestr_int(RESET_DELAY, "\\_SB.PCI0.GBTR", 1);
 			}
 		}
 		acpigen_pop_len();
@@ -199,6 +225,10 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 			if (get_uint_option("bluetooth_rtd3", 1) && enable_gpio->pin_count) {
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(0);
+
+				acpigen_emit_ext_op(SLEEP_OP);
+				acpigen_emit_namestring("RDLY");
+				acpigen_write_delay_until_namestr_int(RESET_DELAY, "\\_SB.PCI0.GBTR", 0);
 			}
 		}
 		acpigen_pop_len();
