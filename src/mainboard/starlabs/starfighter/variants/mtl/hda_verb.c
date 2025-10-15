@@ -1,0 +1,60 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <device/azalia_device.h>
+#include <device/azalia_codec/realtek.h>
+
+const u32 cim_verb_data[] = {
+	/* coreboot specific header */
+	0x10ec0235,	/* Codec Vendor / Device ID: Realtek ALC235 */
+	0x20147017,	/* Subsystem ID */
+	18,		/* Number of verb entries */
+
+	/* Reset Codec First */
+	AZALIA_RESET(0x1),
+
+	/* HDA Codec Subsystem ID */
+	AZALIA_SUBVENDOR(0, 0x20147017),
+
+	/* Pin Widget Verb-table */
+	AZALIA_PIN_CFG(0, ALC269_DMIC12, 0x90a60130),
+	AZALIA_PIN_CFG(0, ALC269_SPEAKERS, 0x40000000),
+	AZALIA_PIN_CFG(0, ALC269_MIC2, 0x04A19040),
+	AZALIA_PIN_CFG(0, ALC269_LINE2, 0x90170110),
+	AZALIA_PIN_CFG(0, ALC269_PC_BEEP, 0x40869a45),
+	AZALIA_PIN_CFG(0, ALC269_VB_HP_OUT, 0x04214020),
+	AZALIA_PIN_CFG(0, 0x20, 0x0040ffff),
+	AZALIA_PIN_CFG(0, ALC269_MONO, AZALIA_PIN_CFG_NC(0)),
+	AZALIA_PIN_CFG(0, ALC269_MIC1, AZALIA_PIN_CFG_NC(0)),
+	AZALIA_PIN_CFG(0, ALC269_LINE1, AZALIA_PIN_CFG_NC(0)),
+	AZALIA_PIN_CFG(0, ALC269_SPDIF_OUT, AZALIA_PIN_CFG_NC(0)),
+
+	0x05750003,
+	0x057486a6,
+	0x02050034,
+	0x02048204,
+
+	0x0205001b,
+	0x02040a0b,
+	0x02050046,
+	0x02040004,
+
+	0x02050008,
+	0x02046a0c,
+	0x02050040,
+	0x02041800,
+
+	0x02050037,
+	0x02044a06,
+	0x0205004c,
+	0x02044803,
+
+	0x02050019,
+	0x02040a10,
+	0x02050035,
+	0x020488aa,
+};
+
+const u32 pc_beep_verbs[] = {
+};
+
+AZALIA_ARRAY_SIZES;
