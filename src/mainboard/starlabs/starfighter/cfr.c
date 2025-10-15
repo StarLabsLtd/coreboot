@@ -23,6 +23,13 @@ static const struct sm_object hyper_threading = SM_DECLARE_BOOL({
 	.default_value	= true,
 });
 
+static const struct sm_object vpu = SM_DECLARE_BOOL({
+	.opt_name	= "vpu",
+	.ui_name	= "VPU",
+	.ui_helptext	= "Enable or disable VPU",
+	.default_value	= false,
+});
+
 
 static const struct sm_object power_profile = SM_DECLARE_ENUM({
 	.opt_name	= "power_profile",
@@ -133,6 +140,9 @@ static struct sm_obj_form devices = {
 		#endif
 		#if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
 		&thunderbolt,
+		#endif
+		#if CONFIG(SOC_INTEL_METEORLAKE)
+		&vpu,
 		#endif
 		NULL
 	},
