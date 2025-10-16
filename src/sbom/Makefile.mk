@@ -81,9 +81,12 @@ coreboot-licenses = $(foreach license, $(patsubst %.txt, %, $(filter-out retaine
 
 # only include CBFS SBOM section if there is any data for it
 ifeq ($(CONFIG_SBOM),y)
-cbfs-files-y += sbom
-sbom-file = $(build-dir)/sbom.uswid
-sbom-type = raw
+PHONY+=add_sbom
+INTERMEDIATE+=add_sbom
+
+add_sbom: $(obj)/coreboot.pre $(build-dir)/sbom.uswid
+	$(CBFSTOOL) $(obj)/coreboot.pre write -r SBOM -f $(build-dir)/sbom.uswid -u
+
 endif
 
 ## Build final SBOM (Software Bill of Materials) file in uswid format
@@ -115,9 +118,11 @@ $(build-dir)/compiler-%.json: $(src-dir)/compiler-%.json | $(build-dir)/goswid
 
 $(build-dir)/coreboot.json: $(src-dir)/coreboot.json $(obj)/build.h | $(build-dir)/goswid
 	cp $< $@
-	git_tree_hash=$$(grep 'COREBOOT_ORIGIN_TREE_REVISION' $(obj)/build.h | sed 's/.*"\(.*\)".*/\1/');\
-	git_comm_hash=$$(grep 'COREBOOT_ORIGIN_GIT_REVISION' $(obj)/build.h | sed 's/.*"\(.*\)".*/\1/');\
-	sed -i -e "s/<colloquial_version>/$$git_tree_hash/" -e "s/<software_version>/$$git_comm_hash/" $@;\
+	bios_version=$$(grep 'COREBOOT_EXTRA_VERSION' $(obj)/build.h | sed 's/.*"\(.*\)".*/\1/' | cut -c2-);\
+	major_version=$$(grep 'COREBOOT_MAJOR_VERSION' $(obj)/build.h | sed 's/.* \([0-9]*\)/\1/');\
+	minor_version=$$(grep 'COREBOOT_MINOR_VERSION' $(obj)/build.h | sed 's/.* \([0-9]*\)/\1/');\
+	bios_release=$$(printf "%d.%02d" $$major_version $$minor_version);\
+	sed -i -e "s/<colloquial_version>/$$bios_release/" -e "s/<software_version>/$$bios_version/" $@;\
 	$(build-dir)/goswid add-license -o $@ -i $@ $(coreboot-licenses)
 
 $(build-dir)/intel-me.json: $(src-dir)/intel-me.json $(CONFIG_ME_BIN_PATH) | $(build-dir)

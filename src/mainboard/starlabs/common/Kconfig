@@ -8,6 +8,9 @@ config MB_COMMON_DIR
 	string
 	default "starlabs/common"
 
+config SBOM
+	default y
+
 endmenu
 
 endif
