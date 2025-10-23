@@ -5,7 +5,8 @@
 #define _STARBOOK_CFR_H_
 
 #include <drivers/option/cfr_frontend.h>
-#include <variants.h>
+#include <soc/soc_chip.h>
+#include "powercap.h"
 
 static const struct sm_object card_reader = SM_DECLARE_BOOL({
 	.opt_name	= "card_reader",
