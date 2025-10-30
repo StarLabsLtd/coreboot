@@ -113,3 +113,16 @@ static const struct sm_object power_led = SM_DECLARE_ENUM({
 				SM_ENUM_VALUE_END,
 	},
 });
+
+static const struct sm_object charge_led = SM_DECLARE_ENUM({
+	.opt_name	= "charge_led",
+	.ui_name	= "Charge LED Brightness",
+	.ui_helptext	= "Control the maximum brightness of the charge LED",
+	.default_value	= 0,
+	.values		= (const struct sm_enum_value[]) {
+				{ "Normal",		0		},
+				{ "Reduced",		1		},
+				{ "Off",		2		},
+				SM_ENUM_VALUE_END,
+	},
+});
