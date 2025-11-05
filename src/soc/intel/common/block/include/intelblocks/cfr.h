@@ -133,4 +133,14 @@ static const struct sm_object pciexp_speed = SM_DECLARE_ENUM({
 				SM_ENUM_VALUE_END		},
 });
 
+/* TME */
+static const struct sm_object intel_tme = SM_DECLARE_BOOL({
+	.opt_name	= "intel_tme",
+	.ui_name	= "Total Memory Encryption",
+	.ui_helptext	= "Enable TME (Total Memory Encryption). When enabled, all data stored in"
+			  " system memory is encrypted to prevent unauthorized access or data theft.",
+	.default_value	= CONFIG(INTEL_TME),
+});
+
+
 #endif /* SOC_INTEL_CMN_CFR_H */
