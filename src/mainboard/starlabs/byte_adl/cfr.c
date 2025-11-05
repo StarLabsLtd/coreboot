@@ -47,6 +47,15 @@ static struct sm_obj_form devices = {
 	},
 };
 
+static struct sm_obj_form security = {
+	.ui_name = "Security",
+	.obj_list = (const struct sm_object *[]) {
+		&intel_tme,
+		NULL
+	},
+};
+
+
 static struct sm_obj_form pci = {
 	.ui_name = "PCI",
 	.obj_list = (const struct sm_object *[]) {
@@ -70,6 +79,7 @@ static struct sm_obj_form *sm_root[] = {
 	&processor,
 	&power,
 	&devices,
+	&security,
 	&pci,
 	&coreboot,
 	NULL
