@@ -5,6 +5,7 @@
 #include <amdblocks/acpimmio.h>
 #include <commonlib/helpers.h>
 #include <device/device.h>
+#include <pc80/keyboard.h>
 #include <types.h>
 #include <variants.h>
 
