@@ -4,21 +4,32 @@ chip soc/amd/cezanne
 	# Memory
 	register "i2c_pad[2].rx_level"		= "I2C_PAD_RX_3_3V"
 
+	register "system_configuration" = "2"
+
+	register "pspp_policy" = "DXIO_PSPP_BALANCED"
+
+	# general purpose PCIe clock output configuration
+	register "gpp_clk_config[0]" = "GPP_CLK_OFF"
+	register "gpp_clk_config[1]" = "GPP_CLK_REQ" # SSD
+	register "gpp_clk_config[2]" = "GPP_CLK_OFF"
+	register "gpp_clk_config[3]" = "GPP_CLK_OFF"
+	register "gpp_clk_config[4]" = "GPP_CLK_OFF"
+	register "gpp_clk_config[5]" = "GPP_CLK_OFF"
+	register "gpp_clk_config[6]" = "GPP_CLK_ON"  # WLAN
+
 	device domain 0 on
 		device ref iommu on end
 		device ref gpp_bridge_0		on		# SSD
-			register "gpp_clk_config[1]"	= "GPP_CLK_REQ"
-#			chip drivers/pcie/rtd3/device
-#				register "name"		= ""NVME""
-#				device pci 00.0 on end
-#			end
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""NVME""
+				device pci 00.0 on end
+			end
 		end
-		device ref gpp_bridge_3		on		# WLAN
-			register "gpp_clk_config[6]"	= "GPP_CLK_REQ"
-#			chip drivers/pcie/rtd3/device
-#				register "name"		= ""WIFI""
-#				device pci 00.0 on end
-#			end
+		device ref gpp_bridge_3		on		# WIFI
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""WIFI""
+				device pci 00.0 on end
+			end
 		end
 		device ref gpp_bridge_a		on
 			device ref gfx		on  end
@@ -29,6 +40,10 @@ chip soc/amd/cezanne
 			device ref acp		on  end
 			device ref hda		on  end
 		end
+		device ref gpp_bridge_b on
+			device ref sata_0	on  end
+		end
+		device ref gpp_bridge_c		off end
 		device ref lpc_bridge		on
 			chip ec/starlabs/merlin
 				# Port pair 4Eh/4Fh
