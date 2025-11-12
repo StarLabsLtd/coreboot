@@ -38,28 +38,6 @@ chip soc/intel/alderlake
 
 	device domain 0 on
 		device ref igpu		on
-			chip drivers/gfx/generic
-				register "device_count"		= "6"
-				# [DDIA] eDP
-				register "device[0].name"	= ""LCD0""
-				register "device[0].type"	= "panel"
-				# [DDIB] HDMI
-				register "device[1].name"	= ""DD01""
-				# [TCP0] Type-C
-				register "device[2].name"	= ""DD02""
-				register "device[2].use_pld"	= "true"
-				register "device[2].pld"	= "ACPI_PLD_TYPE_C(RIGHT, CENTER, ACPI_PLD_GROUP(0, 0))"
-				# [TCP1] Type-C
-				register "device[3].name"	= ""DD03""
-				register "device[3].use_pld"	= "true"
-				register "device[3].pld"	= "ACPI_PLD_TYPE_C(RIGHT, CENTER, ACPI_PLD_GROUP(0, 1))"
-				# [TCP2] N/A
-				register "device[4].name"	= ""DD04""
-				# [TCP3] N/A
-				register "device[5].name"	= ""DD05""
-				device generic 0 on end
-			end
-
 			register "ddi_portA_config"		= "1"
 			register "ddi_ports_config" = "{
 				[DDI_PORT_A]			= DDI_ENABLE_HPD | DDI_ENABLE_DDC,

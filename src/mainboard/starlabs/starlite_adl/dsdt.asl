@@ -21,8 +21,6 @@ DefinitionBlock(
 		#include <soc/intel/alderlake/acpi/southbridge.asl>
 		#include <soc/intel/alderlake/acpi/tcss.asl>
 
-		#include <drivers/intel/gma/acpi/default_brightness_levels.asl>
-
 		#include <soc/intel/common/block/acpi/acpi/gna.asl>
 
 		/* PS/2 Keyboard */
