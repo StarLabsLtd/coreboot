@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-	Name (BRLV, BRIG[0])
+	Name (BRLV, 0)
+	Name (BRVA, 0)
+
 	/*
 	 * Pseudo device that contains methods to modify Opregion
 	 * "Mailbox 3 BIOS to Driver Notification"
@@ -64,8 +66,7 @@
 			/* also set valid bit */
 			BCLP = Local1 | 0x80000000
 
-			If (ARDY == 0)
-			{
+			If (ARDY == 0) {
 				Return (Ones)
 			}
 
@@ -75,8 +76,7 @@
 			ASLE = 0x1
 
 			Local0 = 0x20
-			While (Local0 > 0)
-			{
+			While (Local0 > 0) {
 				Sleep (1)
 				If ((ASLC & 2) == 0) {
 					/* Request has been processed, check status: */
@@ -116,8 +116,7 @@
 		Method (XBQC, 0, NotSerialized)
 		{
 			/* Prevent DivideByZero if backlight control isn't enabled */
-			If (BCLM == 0)
-			{
+			If (BCLM == 0) {
 				Return (0)
 			}
 			/* Local0: current percentage */
@@ -149,14 +148,13 @@
 	Method (XBCM, 1, NotSerialized)
 	{
 		BRLV = Arg0
-		If (^BOX3.XBCM (Arg0) == Ones)
-		{
+		BRVA = 1
+		If (^BOX3.XBCM (Arg0) == Ones) {
 			/*
 			 * Only touch the legacy PWM registers after the graphics driver
 			 * reprograms them during boot/resume (BCLM stays zero until then).
 			 */
-			If (BCLM != 0)
-			{
+			If (BCLM != 0) {
 				^LEGA.XBCM (Arg0)
 			}
 		}
@@ -167,16 +165,21 @@
 		/*
 		 * During early boot / resume the IGD driver has not yet populated
 		 * the OpRegion brightness fields (BCLM stays zero), so fall back to
-		 * the cached value we last exposed to the OS.
+		 * the cached value we last exposed to the OS. If there's no cached
+		 * value yet, use the platform's default from BRIG[0].
 		 */
-		If (BCLM == 0)
-		{
-			Return (BRLV)
+		If (BCLM == 0) {
+			If (BRVA != 0) {
+				Return (BRLV)
+			}
+
+			/* No cached brightness yet, fall back to platform default. */
+			Local0 = DeRefOf (BRIG[0])
+			Return (Local0)
 		}
 
 		Local0 = ^LEGA.XBQC ()
-		If (Local0 != BRLV)
-		{
+		If (BRVA != 0 && Local0 != BRLV) {
 			/*
 			 * The OS replays _BCM requests while the graphics driver is
 			 * still reinitializing, so hardware brightness can diverge
@@ -193,5 +196,6 @@
 			}
 		}
 		BRLV = Local0
+		BRVA = 1
 		Return (Local0)
 	}
