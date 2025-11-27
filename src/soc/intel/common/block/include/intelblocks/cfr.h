@@ -65,7 +65,7 @@ static const struct sm_object pciexp_aspm = SM_DECLARE_ENUM({
 	.ui_helptext	= "Controls the Active State Power Management for PCIe devices."
 			  " Enabling this feature can reduce power consumption of"
 			  " PCIe-connected devices during idle times.",
-	.default_value	= ASPM_AUTO,
+	.default_value	= ASPM_L0S_L1,
 	.values		= (const struct sm_enum_value[]) {
 				{ "Disabled",	ASPM_DISABLE	},
 				{ "L0s",	ASPM_L0S	},

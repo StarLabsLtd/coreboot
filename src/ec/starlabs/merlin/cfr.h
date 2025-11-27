@@ -58,7 +58,7 @@ static const struct sm_object fan_mode = SM_DECLARE_ENUM({
 	.opt_name	= "fan_mode",
 	.ui_name	= "Fan Mode",
 	.ui_helptext	= "Adjust the fan curve to prioritize performance or noise levels.",
-	.default_value	= FAN_NORMAL,
+	.default_value	= FAN_AGGRESSIVE,
 	.values		= (const struct sm_enum_value[]) {
 			{ "Normal",		FAN_NORMAL	},
 			{ "Aggressive",		FAN_AGGRESSIVE	},
@@ -75,7 +75,7 @@ static const struct sm_object charging_speed = SM_DECLARE_ENUM({
 	.ui_name	= "Charging Speed",
 	.ui_helptext	= "Set the maximum speed to charge the battery. Charging faster"
 		  " will increase heat and battery wear.",
-	.default_value	= SPEED_0_5C,
+	.default_value	= SPEED_1_0C,
 	.values		= (const struct sm_enum_value[]) {
 			{ "1.0C",		SPEED_1_0C	},
 			{ "0.5C",		SPEED_0_5C	},

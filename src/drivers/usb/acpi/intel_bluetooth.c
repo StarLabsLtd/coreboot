@@ -52,9 +52,9 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 /*
  *	Name (_S0W, 3)
  */
-	if (get_uint_option("bluetooth_rtd3", 1))
-		acpigen_write_name_integer("_S0W", ACPI_DEVICE_SLEEP_D3_HOT);
-	else
+//	if (get_uint_option("bluetooth_rtd3", 1))
+//		acpigen_write_name_integer("_S0W", ACPI_DEVICE_SLEEP_D3_HOT);
+//	else
 		acpigen_write_name_integer("_S0W", ACPI_DEVICE_SLEEP_D0);
 
 /*
@@ -72,7 +72,7 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
  *	})
  *
  */
-	acpi_device_add_hotplug_support_in_d3(NULL);
+//	acpi_device_add_hotplug_support_in_d3(NULL);
 
 /*
  *	Name (RDLY, 0x69)
@@ -177,29 +177,29 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 
 		acpigen_write_method("_ON", 0);
 		{
-			if (get_uint_option("bluetooth_rtd3", 1) && enable_gpio->pin_count) {
-				acpigen_write_store();
-				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
-				acpigen_emit_byte(LOCAL0_OP);
-
-				acpigen_write_if_lequal_op_int(LOCAL0_OP, 1);
-				{
-					acpigen_write_return_integer(1);
-				}
-				acpigen_pop_len();
-
-				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-				acpigen_emit_byte(1);
-			}
+//			if (get_uint_option("bluetooth_rtd3", 1) && enable_gpio->pin_count) {
+//				acpigen_write_store();
+//				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
+//				acpigen_emit_byte(LOCAL0_OP);
+//
+//				acpigen_write_if_lequal_op_int(LOCAL0_OP, 1);
+//				{
+//					acpigen_write_return_integer(1);
+//				}
+//				acpigen_pop_len();
+//
+//				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
+//				acpigen_emit_byte(1);
+//			}
 		}
 		acpigen_pop_len();
 
 		acpigen_write_method("_OFF", 0);
 		{
-			if (get_uint_option("bluetooth_rtd3", 1) && enable_gpio->pin_count) {
-				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
-				acpigen_emit_byte(0);
-			}
+//			if (get_uint_option("bluetooth_rtd3", 1) && enable_gpio->pin_count) {
+//				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
+//				acpigen_emit_byte(0);
+//			}
 		}
 		acpigen_pop_len();
 

@@ -22,7 +22,7 @@ void cfr_card_reader_update(struct sm_object *new_obj)
 static struct sm_obj_form performance = {
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
-		&bluetooth_rtd3,
+		// &bluetooth_rtd3,
 		&memory_speed,
 		&power_profile,
 		NULL
