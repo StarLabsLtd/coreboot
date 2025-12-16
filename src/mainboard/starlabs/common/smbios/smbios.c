@@ -13,6 +13,7 @@
 void smbios_ec_revision(uint8_t *ec_major_revision, uint8_t *ec_minor_revision)
 {
 	u16 ec_version = ec_get_version();
+	printk(BIOS_DEBUG, "ECCE: 0x%x\n", ec_version);
 
 	*ec_major_revision = ec_version >> 8;
 	*ec_minor_revision = ec_version & 0xff;

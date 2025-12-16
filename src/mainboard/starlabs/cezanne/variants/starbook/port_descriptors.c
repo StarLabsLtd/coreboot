@@ -46,14 +46,14 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 		.port_present		= true,
 		.start_logical_lane	= 6,
 		.end_logical_lane	= 6,
-		.link_speed_capability	= GEN2,
+		.link_speed_capability	= GEN_MAX,
 		.device_number		= 2,
 		.function_number	= 4,
-		.link_aspm		= false,	// ASPM_L1,
-		.link_aspm_L1_1		= false,	// true,
-		.link_aspm_L1_2		= false,	// true,
+		.link_aspm		= ASPM_L1,
+		.link_aspm_L1_1		= true,
+		.link_aspm_L1_2		= true,
 		.turn_off_unused_lanes	= true,
-		.gpio_group_id		= 34,
+		.link_hotplug		= HOTPLUG_ENHANCED,
 		.clk_req		= CLK_REQ6,
 		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
@@ -84,14 +84,14 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 	/*
 	 * Device:		SATA SSD
 	 */
-	{
-		.engine_type		= SATA_ENGINE,
-		.port_present		= true,
-		.start_logical_lane	= 2,
-		.end_logical_lane	= 3,
-		.gpio_group_id		= 1,
-		.channel_type		= SATA_CHANNEL_LONG,
-	}
+//	{
+//		.engine_type		= SATA_ENGINE,
+//		.port_present		= true,
+//		.start_logical_lane	= 2,
+//		.end_logical_lane	= 3,
+//		.gpio_group_id		= 1,
+//		.channel_type		= SATA_CHANNEL_LONG,
+//	}
 };
 
 static fsp_ddi_descriptor starbook_ddi_descriptors[] = {

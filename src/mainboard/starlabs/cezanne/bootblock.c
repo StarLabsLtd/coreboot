@@ -4,6 +4,9 @@
 #include <amdblocks/lpc.h>
 #include <soc/gpio.h>
 #include <variants.h>
+#include <ec/acpi/ec.h>
+#include <timer.h>
+#include <delay.h>
 
 void bootblock_mainboard_early_init(void)
 {
@@ -15,4 +18,7 @@ void bootblock_mainboard_early_init(void)
 
 	lpc_enable_sio_decode(LPC_SELECT_SIO_4E4F);
 	lpc_enable_decode(DECODE_ENABLE_KBC_PORT | DECODE_ENABLE_ACPIUC_PORT);
+
+	ec_write(0xd0, 1);
+	mdelay(50);
 }

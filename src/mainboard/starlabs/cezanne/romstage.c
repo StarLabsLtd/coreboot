@@ -4,6 +4,7 @@
 #include <option.h>
 #include <soc/platform_descriptors.h>
 #include <variants.h>
+#include <ec/acpi/ec.h>
 
 enum cmos_power_profile get_power_profile(enum cmos_power_profile fallback)
 {
@@ -16,6 +17,7 @@ void mb_pre_fspm(FSP_M_CONFIG *mcfg)
 	const struct soc_amd_gpio *pads;
 	size_t num;
 
+	ec_write(0xd0, 0);
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
 

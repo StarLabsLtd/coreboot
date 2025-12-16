@@ -15,7 +15,7 @@ chip soc/amd/cezanne
 	register "gpp_clk_config[3]" = "GPP_CLK_OFF"
 	register "gpp_clk_config[4]" = "GPP_CLK_OFF"
 	register "gpp_clk_config[5]" = "GPP_CLK_OFF"
-	register "gpp_clk_config[6]" = "GPP_CLK_ON"  # WLAN
+	register "gpp_clk_config[6]" = "GPP_CLK_REQ"  # WLAN
 
 	device domain 0 on
 		device ref iommu on end
@@ -47,7 +47,6 @@ chip soc/amd/cezanne
 		device ref lpc_bridge		on
 			chip ec/starlabs/merlin
 				# Port pair 4Eh/4Fh
-				device pnp 4e.00 on  end			# IO Interface
 				device pnp 4e.01 off end			# Com 1
 				device pnp 4e.02 off end			# Com 2
 				device pnp 4e.04 off end			# System Wake-Up
