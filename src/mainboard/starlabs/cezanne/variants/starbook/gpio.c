@@ -7,7 +7,6 @@ const struct soc_amd_gpio early_gpio_table[] = {
 	PAD_NF(GPIO_141,	UART0_RXD,	PULL_NONE),	// UART0_RXD
 	PAD_NF(GPIO_143,	UART0_TXD,	PULL_NONE),	// UART0_TXD
 
-	PAD_NFO(GPIO_26,	PCIE_RST_L,	LOW),		// PLT_RST_N
 	PAD_GPO(GPIO_40,			LOW),		// SSD_RST
 	PAD_GPO(GPIO_91,			LOW),		// WIFI_DISABLE_N
 };
@@ -41,7 +40,6 @@ const struct soc_amd_gpio gpio_table[] = {
 	PAD_NF_SCI(GPIO_22,	LPC_PME_L,	PULL_UP,	EDGE_HIGH),	// LPC_PME#
 	PAD_NF(GPIO_23,		AC_PRES,	PULL_UP),	// AC_PRESENT
 	PAD_NC(GPIO_24),
-	PAD_NFO(GPIO_26,	PCIE_RST_L,	HIGH),		// PCIE_RST_L
 	PAD_GPI(GPIO_32,			PULL_UP),	// GPIO32
 
 	PAD_GPO(GPIO_40,			HIGH),		// SSD_RESET
