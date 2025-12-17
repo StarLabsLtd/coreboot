@@ -53,7 +53,6 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 		.link_aspm_L1_1		= false,	// true,
 		.link_aspm_L1_2		= false,	// true,
 		.turn_off_unused_lanes	= true,
-		.gpio_group_id		= 34,
 		.clk_req		= CLK_REQ6,
 		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
