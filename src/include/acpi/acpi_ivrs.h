@@ -42,6 +42,7 @@
 
 /* Extended Feature Support */
 #define IVINFO_EFR_SUPPORTED			0x01
+#define IVINFO_DMAREMAP_MASK			0x02
 #define EFR_FEATURE_SUP				(1 << 27)
 
 /* IVHD Flags Field */

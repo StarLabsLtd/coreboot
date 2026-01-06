@@ -422,6 +422,9 @@ static unsigned long acpi_fill_ivrs(acpi_ivrs_t *ivrs, unsigned long current)
 		if (cap_offset_0 & EFR_FEATURE_SUP)
 			ivrs->iv_info |= IVINFO_EFR_SUPPORTED;
 
+		/* Enable DMAR if supported */
+		if (cap_offset_0 & IVINFO_DMAREMAP_MASK)
+			ivrs->iv_info |= IVINFO_DMAREMAP_MASK;
 
 		current_backup = current;
 		current = acpi_ivhd_misc(current, dev);
