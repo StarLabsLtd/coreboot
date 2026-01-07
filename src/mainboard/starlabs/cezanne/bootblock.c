@@ -12,6 +12,7 @@ void bootblock_mainboard_early_init(void)
 
 	pads = variant_early_gpio_table(&num);
 	gpio_configure_pads(pads, num);
+	delay_ms(20);
 
 	lpc_enable_sio_decode(LPC_SELECT_SIO_4E4F);
 	lpc_enable_decode(DECODE_ENABLE_KBC_PORT | DECODE_ENABLE_ACPIUC_PORT);
