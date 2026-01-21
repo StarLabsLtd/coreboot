@@ -73,6 +73,62 @@ build_complete:: | coreboot
 .PHONY: files_added
 files_added:: | build_complete
 
+# Optional post-build targets.
+.PHONY: capsule
+capsule::
+
+ifeq ($(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),y)
+files_added:: $(obj)/coreboot.cap
+capsule:: $(obj)/coreboot.cap
+
+EDK2_CB_WORKSPACE := $(top)/payloads/external/edk2/workspace
+EDK2_PATH := $(EDK2_CB_WORKSPACE)/$(word 3,$(subst /, ,$(CONFIG_EDK2_REPOSITORY)))
+EDK2_APPEND_RMAP_MANIFEST := $(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py
+EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
+
+CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
+CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+CAPSULE_SIGNER_PRIVATE_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
+CAPSULE_OTHER_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
+CAPSULE_TRUSTED_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+
+define edk2_abspath
+$(if $(filter /%,$(1)),$(1),$(if $(wildcard $(top)/$(1)),$(abspath $(top)/$(1)),$(EDK2_PATH)/$(1)))
+endef
+
+CAPSULE_SIGNER_PRIVATE_CERT_PATH := $(call edk2_abspath,$(CAPSULE_SIGNER_PRIVATE_CERT))
+CAPSULE_OTHER_PUBLIC_CERT_PATH := $(call edk2_abspath,$(CAPSULE_OTHER_PUBLIC_CERT))
+CAPSULE_TRUSTED_PUBLIC_CERT_PATH := $(call edk2_abspath,$(CAPSULE_TRUSTED_PUBLIC_CERT))
+
+$(obj)/coreboot.rmap.rom: $(obj)/coreboot.rom
+	test -f "$(EDK2_APPEND_RMAP_MANIFEST)"
+	python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$@" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$<"
+
+$(obj)/coreboot.cap: $(obj)/coreboot.rmap.rom
+	test -x "$(EDK2_GENERATE_CAPSULE)"
+	test -f "$(EDK2_APPEND_RMAP_MANIFEST)"
+	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
+	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
+	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
+	fw_version=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) )); \
+	if [ $$fw_version -eq 0 ]; then \
+		set -- $$(printf '%s\n' "$(CAPSULE_LOCALVERSION)" | \
+			sed -nE 's/^[^0-9]*([0-9]+)\\.([0-9]+).*/\\1 \\2/p'); \
+		if [ -n "$$1" ] && [ -n "$$2" ]; then \
+			fw_version=$$(( $$1 * 100 + $$2 )); \
+		fi; \
+	fi; \
+	lsv=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) )); \
+	"$(EDK2_GENERATE_CAPSULE)" -e -o "$@" --guid "$(CAPSULE_GUID)" \
+		--capflag PersistAcrossReset --capflag InitiateReset \
+		--fw-version $$fw_version --lsv $$lsv \
+		--signer-private-cert "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)" \
+		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
+		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
+		"$<"
+endif
+
 # This target should come just before the show_notices target.  If there
 # are no notices, the build should finish with the text of what was just
 # built.
