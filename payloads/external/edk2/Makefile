@@ -4,6 +4,9 @@
 export SHELL := env bash
 
 project_name = edk2
+
+strip_quotes = $(subst ",,$(1))
+
 export WORKSPACE := $(CURDIR)/workspace
 export EDK2_PATH := $(WORKSPACE)/$(word 3,$(subst /, ,$(CONFIG_EDK2_REPOSITORY)))
 
@@ -128,6 +131,8 @@ ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
 BUILD_STR += -D CAPSULE_SUPPORT=TRUE
 BUILD_STR += -D CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)
 endif
+
+CAPSULE_TRUSTED_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -311,6 +316,48 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
+		if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
+			cert="$(CAPSULE_TRUSTED_PUBLIC_CERT)"; \
+			if [ "$${cert#/}" = "$$cert" ] && [ -f "$(EDK2_PATH)/$$cert" ]; then \
+				cert="$(EDK2_PATH)/$$cert"; \
+			elif [ "$${cert#/}" = "$$cert" ] && [ -n "$(top)" ] && [ -f "$(top)/$$cert" ]; then \
+				cert="$(top)/$$cert"; \
+			fi; \
+			inc_src=""; \
+			case "$$cert" in \
+				*.pub.pem) inc_src="$${cert%.pub.pem}.cer.gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr.inc" ;; \
+			esac; \
+			if [ -z "$$inc_src" ] || [ ! -f "$$inc_src" ]; then \
+				echo "ERROR: Missing FMP cert include for $$cert"; \
+				echo "       Expected: $$inc_src"; \
+				echo "       Generate it with EDK2 BinToPcd.py (see BaseTools/Source/Python/Pkcs7Sign/Readme.md)."; \
+				exit 1; \
+			fi; \
+			dsc="$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc"; \
+			if [ ! -f "$$dsc" ]; then \
+				echo "ERROR: Missing $$dsc"; \
+				exit 1; \
+			fi; \
+			inc_rel="$$(sed -nE 's/^[[:space:]]*!include[[:space:]]+([^[:space:]]*PcdFmpDevicePkcs7CertBufferXdr\.inc).*/\1/p' "$$dsc" | head -n1)"; \
+			if [ -z "$$inc_rel" ]; then \
+				echo "ERROR: Couldn't locate PcdFmpDevicePkcs7CertBufferXdr include in $$dsc"; \
+				exit 1; \
+			fi; \
+			case "$$inc_rel" in \
+				/*|*..*) echo "ERROR: Refusing to overwrite suspicious include path: $$inc_rel" ; exit 1 ;; \
+			esac; \
+			inc_dst="$(EDK2_PATH)/$$inc_rel"; \
+			if [ ! -f "$$inc_dst" ]; then \
+				echo "ERROR: Include referenced by DSC not found: $$inc_dst"; \
+				exit 1; \
+			fi; \
+			if [ "$$inc_src" -ef "$$inc_dst" ]; then \
+				:; \
+			else \
+				trap 'git -C "$(EDK2_PATH)" checkout -- "$$inc_rel" >/dev/null 2>&1 || true' EXIT; \
+				cp "$$inc_src" "$$inc_dst" || exit 1; \
+			fi; \
+		fi; \
 		echo -n "EDK2: Building... "; \
 		build -a IA32 -a X64 -b $(RELEASE_STR) $(BUILD_STR) \
 			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt; \
@@ -324,6 +371,48 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/UniversalPayload.elf: \
 	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
+		if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
+			cert="$(CAPSULE_TRUSTED_PUBLIC_CERT)"; \
+			if [ "$${cert#/}" = "$$cert" ] && [ -f "$(EDK2_PATH)/$$cert" ]; then \
+				cert="$(EDK2_PATH)/$$cert"; \
+			elif [ "$${cert#/}" = "$$cert" ] && [ -n "$(top)" ] && [ -f "$(top)/$$cert" ]; then \
+				cert="$(top)/$$cert"; \
+			fi; \
+			inc_src=""; \
+			case "$$cert" in \
+				*.pub.pem) inc_src="$${cert%.pub.pem}.cer.gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr.inc" ;; \
+			esac; \
+			if [ -z "$$inc_src" ] || [ ! -f "$$inc_src" ]; then \
+				echo "ERROR: Missing FMP cert include for $$cert"; \
+				echo "       Expected: $$inc_src"; \
+				echo "       Generate it with EDK2 BinToPcd.py (see BaseTools/Source/Python/Pkcs7Sign/Readme.md)."; \
+				exit 1; \
+			fi; \
+			dsc="$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc"; \
+			if [ ! -f "$$dsc" ]; then \
+				echo "ERROR: Missing $$dsc"; \
+				exit 1; \
+			fi; \
+			inc_rel="$$(sed -nE 's/^[[:space:]]*!include[[:space:]]+([^[:space:]]*PcdFmpDevicePkcs7CertBufferXdr\.inc).*/\1/p' "$$dsc" | head -n1)"; \
+			if [ -z "$$inc_rel" ]; then \
+				echo "ERROR: Couldn't locate PcdFmpDevicePkcs7CertBufferXdr include in $$dsc"; \
+				exit 1; \
+			fi; \
+			case "$$inc_rel" in \
+				/*|*..*) echo "ERROR: Refusing to overwrite suspicious include path: $$inc_rel" ; exit 1 ;; \
+			esac; \
+			inc_dst="$(EDK2_PATH)/$$inc_rel"; \
+			if [ ! -f "$$inc_dst" ]; then \
+				echo "ERROR: Include referenced by DSC not found: $$inc_dst"; \
+				exit 1; \
+			fi; \
+			if [ "$$inc_src" -ef "$$inc_dst" ]; then \
+				:; \
+			else \
+				trap 'git -C "$(EDK2_PATH)" checkout -- "$$inc_rel" >/dev/null 2>&1 || true' EXIT; \
+				cp "$$inc_src" "$$inc_dst" || exit 1; \
+			fi; \
+		fi; \
 		echo -n "EDK2: Building... "; \
 		$(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR)
 		if [ ! -f $@ ]; then \
@@ -339,6 +428,48 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/IA32/UefiPayloadPkg/Shim
 			$(EDK2_PATH)/UefiPayloadPkg/ShimLayer/UniversalPayload.o; \
 	cd $(WORKSPACE) && \
 		source $(EDK2_PATH)/edksetup.sh; \
+		if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
+			cert="$(CAPSULE_TRUSTED_PUBLIC_CERT)"; \
+			if [ "$${cert#/}" = "$$cert" ] && [ -f "$(EDK2_PATH)/$$cert" ]; then \
+				cert="$(EDK2_PATH)/$$cert"; \
+			elif [ "$${cert#/}" = "$$cert" ] && [ -n "$(top)" ] && [ -f "$(top)/$$cert" ]; then \
+				cert="$(top)/$$cert"; \
+			fi; \
+			inc_src=""; \
+			case "$$cert" in \
+				*.pub.pem) inc_src="$${cert%.pub.pem}.cer.gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr.inc" ;; \
+			esac; \
+			if [ -z "$$inc_src" ] || [ ! -f "$$inc_src" ]; then \
+				echo "ERROR: Missing FMP cert include for $$cert"; \
+				echo "       Expected: $$inc_src"; \
+				echo "       Generate it with EDK2 BinToPcd.py (see BaseTools/Source/Python/Pkcs7Sign/Readme.md)."; \
+				exit 1; \
+			fi; \
+			dsc="$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc"; \
+			if [ ! -f "$$dsc" ]; then \
+				echo "ERROR: Missing $$dsc"; \
+				exit 1; \
+			fi; \
+			inc_rel="$$(sed -nE 's/^[[:space:]]*!include[[:space:]]+([^[:space:]]*PcdFmpDevicePkcs7CertBufferXdr\.inc).*/\1/p' "$$dsc" | head -n1)"; \
+			if [ -z "$$inc_rel" ]; then \
+				echo "ERROR: Couldn't locate PcdFmpDevicePkcs7CertBufferXdr include in $$dsc"; \
+				exit 1; \
+			fi; \
+			case "$$inc_rel" in \
+				/*|*..*) echo "ERROR: Refusing to overwrite suspicious include path: $$inc_rel" ; exit 1 ;; \
+			esac; \
+			inc_dst="$(EDK2_PATH)/$$inc_rel"; \
+			if [ ! -f "$$inc_dst" ]; then \
+				echo "ERROR: Include referenced by DSC not found: $$inc_dst"; \
+				exit 1; \
+			fi; \
+			if [ "$$inc_src" -ef "$$inc_dst" ]; then \
+				:; \
+			else \
+				trap 'git -C "$(EDK2_PATH)" checkout -- "$$inc_rel" >/dev/null 2>&1 || true' EXIT; \
+				cp "$$inc_src" "$$inc_dst" || exit 1; \
+			fi; \
+		fi; \
 		build -p UefiPayloadPkg/UefiPayloadPkg.dsc -b $(RELEASE_STR) -a IA32 -a X64 \
 			-m UefiPayloadPkg/ShimLayer/ShimLayer.inf \
 			-t COREBOOT -D BOOTLOADER=COREBOOT -D SHIMLAYER=TRUE \
