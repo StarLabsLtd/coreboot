@@ -603,6 +603,7 @@ static enum cb_err mp_init(struct bus *cpu_bus, struct mp_params *p)
 {
 	int num_cpus;
 	atomic_t *ap_count;
+	enum cb_err ret;
 
 	g_cpu_bus = cpu_bus;
 
@@ -630,6 +631,34 @@ static enum cb_err mp_init(struct bus *cpu_bus, struct mp_params *p)
 		return CB_ERR;
 	}
 
+	void *microcode_pointer_dram = NULL;
+	/*
+	 * On Server platforms with high core count or older platforms with
+	 * slow SPI flash interface loading the microcode from SPI flash MMIO
+	 * area on each AP slows down MPinit. On Server platforms tests showed
+	 * a difference of multiple seconds.
+	 */
+	if (p->microcode_pointer && p->microcode_size) {
+		microcode_pointer_dram = malloc(p->microcode_size);
+		if (microcode_pointer_dram) {
+			memcpy(microcode_pointer_dram, p->microcode_pointer, p->microcode_size);
+			if (!self_snooping_supported()) {
+				/*
+				 * Make sure microcode hits RAM so the APs that come up will see the
+				 * microcode even if the caches are disabled.
+				 */
+				if (clflush_supported())
+					clflush_region((uintptr_t)microcode_pointer_dram, p->microcode_size);
+				else
+					wbinvd();
+			}
+			p->microcode_pointer = microcode_pointer_dram;
+		} else {
+			/* For developers: Increase CONFIG_HEAP_SIZE */
+			printk(BIOS_WARNING, "%s: Not enough heap. MPinit will be slower.\n", __func__);
+		}
+	}
+
 	/* Copy needed parameters so that APs have a reference to the plan. */
 	mp_info.num_records = p->num_records;
 	mp_info.records = p->flight_plan;
@@ -649,7 +678,11 @@ static enum cb_err mp_init(struct bus *cpu_bus, struct mp_params *p)
 	}
 
 	/* Walk the flight plan for the BSP. */
-	return bsp_do_flight_plan(p);
+	ret = bsp_do_flight_plan(p);
+
+	free(microcode_pointer_dram);
+
+	return ret;
 }
 
 void smm_initiate_relocation_parallel(void)
