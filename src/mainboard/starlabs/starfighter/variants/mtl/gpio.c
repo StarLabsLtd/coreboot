@@ -12,6 +12,11 @@ const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(GPP_C00, NONE, DEEP, NF1),				/* Clock */
 	PAD_CFG_NF(GPP_C01, NONE, DEEP, NF1),				/* Data */
 
+	/* SSD (PCH) power sequence: 1. no clkreq; PERST asserted; power off */
+	PAD_CFG_GPI(GPP_C10, NONE, DEEP),				/* Clock Request 1 */
+	PAD_CFG_GPO(GPP_H00, 0, PLTRST),				/* Reset */
+	PAD_CFG_GPO(GPP_D22, 0, DEEP),					/* Enable */
+
 	/* Board ID */
 	PAD_CFG_GPI_LOCK(GPP_B05, NONE, LOCK_CONFIG),
 	PAD_CFG_GPI_LOCK(GPP_B06, NONE, LOCK_CONFIG),
