@@ -192,18 +192,17 @@ chip soc/intel/alderlake
 				device generic 0 on end
 			end
 		end
-		device ref pcie_rp9	on				# SSD x4
-			register "pch_pcie_rp[PCH_RP(9)]" = "{
-				.clk_src				= 1,
-				.clk_req				= 1,
-				.flags					= PCIE_RP_LTR | PCIE_RP_AER,
-				.pcie_rp_aspm				= ASPM_L0S_L1,
-				.PcieRpL1Substates			= L1_SS_L1_2,
-
-			}"
-			smbios_slot_desc				"SlotTypeM2Socket3"
-									"SlotLengthLong"
-									"M.2/M 2280"
+			device ref pcie_rp9	on				# SSD x4
+				register "pch_pcie_rp[PCH_RP(9)]" = "{
+					.clk_src				= 1,
+					.clk_req				= 1,
+					.flags					= PCIE_RP_LTR | PCIE_RP_AER,
+					.pcie_rp_aspm				= ASPM_L0S_L1,
+					.PcieRpL1Substates			= L1_SS_L1_2,
+				}"
+				smbios_slot_desc				"SlotTypeM2Socket3"
+										"SlotLengthLong"
+										"M.2/M 2280"
 									"SlotDataBusWidth4X"
 
 			chip soc/intel/common/block/pcie/rtd3
