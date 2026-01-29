@@ -4,6 +4,7 @@
 #include <common/nvme_seq.h>
 
 #if ENV_RAMSTAGE
+/* clang-format off */
 static const struct pad_config nvme_pads[] = {
 	PAD_CFG_GPO(GPP_D16, 1, DEEP),       /* Enable */
 	PAD_CFG_NF(GPP_D5, NONE, DEEP, NF1), /* Clock Request 0 */
@@ -13,6 +14,7 @@ static const struct pad_config nvme_pads[] = {
 static const struct pad_config post_nvme_pads[] = {
 	PAD_CFG_GPO(GPP_H0, 1, PLTRST), /* Reset deasserted */
 };
+/* clang-format on */
 
 const struct pad_config *variant_nvme_power_sequence_pads(size_t *num)
 {
@@ -28,6 +30,7 @@ const struct pad_config *variant_nvme_power_sequence_post_pads(size_t *num)
 #endif
 
 /* Early pad configuration in bootblock */
+/* clang-format off */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
 	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2), /* RXD */
@@ -38,6 +41,7 @@ const struct pad_config early_gpio_table[] = {
 	PAD_CFG_GPO(GPP_H0, 0, PLTRST),  /* Reset asserted */
 	PAD_CFG_GPO(GPP_D16, 0, DEEP),   /* Enable (PWREN off) */
 };
+/* clang-format on */
 
 const struct pad_config *variant_early_gpio_table(size_t *num)
 {
@@ -46,6 +50,7 @@ const struct pad_config *variant_early_gpio_table(size_t *num)
 }
 
 /* Pad configuration in ramstage. */
+/* clang-format off */
 const struct pad_config gpio_table[] = {
 	/* General Purpose I/O Deep */
 	PAD_CFG_NF(GPD0, NONE, DEEP, NF1),   /* Battery Low */
@@ -79,9 +84,9 @@ const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI_SMI_LOW(GPP_F15, NONE, DEEP, EDGE_BOTH), /* Detect */
 
 	/* SSD */
-	PAD_NC(GPP_D5, NONE),                /* Clock Request 0 */
-	PAD_CFG_GPO(GPP_H0, 0, PLTRST),      /* Reset asserted */
-	PAD_CFG_GPO(GPP_D16, 0, DEEP),       /* Enable (PWREN off) */
+	PAD_NC(GPP_D5, NONE),		/* Clock Request 0 */
+	PAD_CFG_GPO(GPP_H0, 0, PLTRST), /* Reset asserted */
+	PAD_CFG_GPO(GPP_D16, 0, DEEP),  /* Enable (PWREN off) */
 
 	/* Wireless */
 	PAD_CFG_NF(GPP_F0, NONE, DEEP, NF1),   /* BRI Data */
@@ -120,7 +125,7 @@ const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_C1, NONE, DEEP, NF1), /* Data */
 	PAD_CFG_GPO(GPP_E8, 1, DEEP),        /* DRAM Sleep */
 
-	/* Config Straps 									[ Low      / High     ] */
+	/* Config Straps                                    [ Low      / High     ] */
 	PAD_CFG_GPO(GPP_B14, 0, PLTRST), /* Top Swap		[ Disabled / Enabled  ] */
 	PAD_CFG_GPO(GPP_B18, 0, PLTRST), /* Reboot Support	[ Enabled  / Disabled ] */
 	PAD_CFG_GPO(GPP_C2, 1, PLTRST),  /* TLS Confidentiality	[ Disabled / Enabled  ] */
@@ -291,6 +296,7 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_R6, NONE),
 	PAD_NC(GPP_R7, NONE),
 };
+/* clang-format on */
 
 const struct pad_config *variant_gpio_table(size_t *num)
 {
