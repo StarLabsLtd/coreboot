@@ -5,6 +5,7 @@
 
 #include <drivers/option/cfr_frontend.h>
 #include <soc/soc_chip.h>
+#include <intelblocks/cfr.h>
 #include <common/powercap.h>
 
 void cfr_card_reader_update(struct sm_object *new_obj);
@@ -102,7 +103,7 @@ static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 			  "Disabled: Use ACPI S3 for device sleep.\n"
 			  "Requires Intel ME to be enabled.",
 	.default_value	= false,
-});
+}, WITH_DEP_VALUES(&me_state, 0));
 
 static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
 	.opt_name	= "thunderbolt",
