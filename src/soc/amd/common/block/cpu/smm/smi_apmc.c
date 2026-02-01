@@ -8,6 +8,7 @@
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
 #include <elog.h>
+#include <security/tcg/opal_s3_smm.h>
 #include <smmstore.h>
 #include <types.h>
 
@@ -106,15 +107,18 @@ void fch_apmc_smi_handler(void)
 	case APM_CNT_ELOG_GSMI:
 		if (CONFIG(ELOG_GSMI))
 			handle_smi_gsmi();
-	break;
+		break;
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			handle_smi_store();
-	break;
+		break;
 	case APM_CNT_SMMINFO:
 		psp_notify_smm();
 		break;
 	}
+
+	if (CONFIG(TCG_OPAL_S3_UNLOCK) && opal_s3_smi_apmc(cmd))
+		return;
 
 	mainboard_smi_apmc(cmd);
 }
