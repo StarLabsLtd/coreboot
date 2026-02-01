@@ -6,6 +6,9 @@
 #include <arch/cpu.h>
 #include <commonlib/helpers.h>
 #include <fallback.h>
+#if CONFIG(TCG_OPAL_S3_UNLOCK)
+#include <security/tcg/opal_s3_resume.h>
+#endif
 #include <timestamp.h>
 
 #define WAKEUP_BASE 0x600
@@ -19,6 +22,10 @@ void __noreturn acpi_resume(void *wake_vec)
 {
 	/* Call mainboard resume handler first, if defined. */
 	mainboard_suspend_resume();
+
+#if CONFIG(TCG_OPAL_S3_UNLOCK)
+	opal_s3_resume_unlock();
+#endif
 
 	/* Copy wakeup trampoline in place. */
 	memcpy((void *)WAKEUP_BASE, &__wakeup, __wakeup_size);
