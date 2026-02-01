@@ -11,6 +11,7 @@
 #include <console/console.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/smm.h>
+#include <security/tcg/opal_s3_smm.h>
 #include <soc/smi.h>
 #include <soc/smu.h>
 #include <soc/southbridge.h>
@@ -31,6 +32,8 @@ static void fch_slp_typ_handler(void)
 	pm1cnt = acpi_read16(MMIO_ACPI_PM1_CNT_BLK);
 	printk(BIOS_SPEW, "SMI#: SLP = 0x%04x\n", pm1cnt);
 	slp_typ = acpi_sleep_from_pm1(pm1cnt);
+
+	opal_s3_smi_sleep(slp_typ);
 
 	/* Do any mainboard sleep handling */
 	mainboard_smi_sleep(slp_typ);
