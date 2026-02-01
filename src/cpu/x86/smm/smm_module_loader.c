@@ -366,6 +366,23 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
 		mod_params->smmstore_com_buffer_size = info.block_size;
 	}
+
+#if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
+	/*
+	 * Provide a small, coreboot-managed CBMEM scratch region for SMM code.
+	 * CBMEM is reserved in the memory map, and persists across S3, making
+	 * it suitable for firmware-owned DMA buffers on resume.
+	 */
+	void *scratch = cbmem_add(CBMEM_ID_OPAL_S3_SCRATCH, 16 * 1024);
+	if (!scratch) {
+		printk(BIOS_ERR, "SMM: Failed to allocate OPAL S3 scratch\n");
+		mod_params->opal_s3_scratch_base = 0;
+		mod_params->opal_s3_scratch_size = 0;
+	} else {
+		mod_params->opal_s3_scratch_base = (uintptr_t)scratch;
+		mod_params->opal_s3_scratch_size = 16 * 1024;
+	}
+#endif
 }
 
 static void print_region(const char *name, const struct region region)
