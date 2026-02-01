@@ -196,6 +196,15 @@ config SMM_MODULE_STACK_SIZE
 	  This option determines the size of the stack within the SMM handler
 	  modules.
 
+config SMM_OPAL_S3_SCRATCH_CBMEM
+	bool
+	default n
+	help
+	  Allocate a coreboot-managed CBMEM region that can be used as a
+	  persistent (across S3) scratch buffer by SMM code performing OPAL/NVMe
+	  unlock on resume. The region is in CBMEM and therefore reserved from
+	  the OS via the memory map.
+
 endif
 
 config SMM_LAPIC_REMAP_MITIGATION
