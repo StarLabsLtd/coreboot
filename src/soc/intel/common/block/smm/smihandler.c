@@ -22,6 +22,7 @@
 #include <intelblocks/uart.h>
 #include <option.h>
 #include <security/lockdown/lockdown.h>
+#include <security/tcg/opal_s3_smm.h>
 #include <smmstore.h>
 #include <soc/nvs.h>
 #include <soc/pci_devs.h>
@@ -163,6 +164,8 @@ void smihandler_southbridge_sleep(
 	printk(BIOS_SPEW, "SMI#: SLP = 0x%08x\n", reg32);
 	slp_typ = acpi_sleep_from_pm1(reg32);
 
+	opal_s3_smi_sleep(slp_typ);
+
 	/* Do any mainboard sleep handling */
 	mainboard_smi_sleep(slp_typ);
 
@@ -221,6 +224,8 @@ void smihandler_southbridge_sleep(
 		printk(BIOS_DEBUG, "SMI#: ERROR: SLP_TYP reserved\n");
 		break;
 	}
+
+	opal_s3_smi_sleep_finalize(slp_typ);
 
 	/* Allow mainboard to restore wake sources (e.g. for S5 WOL). */
 	mainboard_smi_sleep_finalize(slp_typ);
@@ -399,6 +404,9 @@ void smihandler_southbridge_apmc(
 		finalize();
 		break;
 	}
+
+	if (opal_s3_smi_apmc(reg8))
+		return;
 
 	mainboard_smi_apmc(reg8);
 }
