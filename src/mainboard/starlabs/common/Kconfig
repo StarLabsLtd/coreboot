@@ -13,6 +13,9 @@ config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 config DRIVERS_EFI_FW_INFO
 	def_bool y
 
+config TCG_OPAL_S3_UNLOCK
+	default y
+
 config MB_COMMON_DIR
 	string
 	default "starlabs/common"
