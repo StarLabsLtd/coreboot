@@ -1,0 +1,446 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if BOARD_AMD_JAGUAR
+
+config BOARD_SPECIFIC_OPTIONS
+	def_bool y
+	select SOC_AMD_FAEGAN
+	select BOARD_ROMSIZE_KB_32768
+	select EC_ACPI
+	select SOC_AMD_COMMON_BLOCK_USE_ESPI if !SOC_AMD_COMMON_BLOCK_SIMNOW_BUILD
+	select DRIVERS_PCIE_RTD3_DEVICE
+	select SOC_AMD_COMMON_BLOCK_ESPI_RETAIN_PORT80_EN if !SOC_AMD_COMMON_BLOCK_SIMNOW_BUILD
+	select SOC_AMD_COMMON_BLOCK_SIMNOW_SUPPORTED
+	select SPI_FLASH_EXIT_4_BYTE_ADDR_MODE
+	select SOC_AMD_COMMON_BLOCK_PSP_RPMC
+	select AMD_CRB_FTPM
+	select MAINBOARD_HAS_TPM2
+	select SMBIOS_TYPE4_SOCKETED_CPU
+
+config FMDFILE
+	default "src/mainboard/amd/jaguar/board_faegan.fmd"
+
+config PSP_LOAD_MP2_FW
+	prompt "Load MP2 Firmware"
+	default n
+
+config MAINBOARD_DIR
+	default "amd/jaguar"
+
+config MAINBOARD_PART_NUMBER
+	default "Jaguar_Faegan"
+
+config DEVICETREE
+	default "devicetree_faegan.cb"
+
+config JAGUAR_HAVE_MCHP_FW
+	bool "Have Microchip EC firmware?"
+	default y
+
+config AMD_SOC_CONSOLE_UART
+	default y if !SOC_AMD_COMMON_BLOCK_SIMNOW_BUILD
+
+config JAGUAR_MCHP_FW_FILE
+	string "Microchip EC firmware file"
+	depends on JAGUAR_HAVE_MCHP_FW
+	help
+	  The EC firmware blob is at the EC_BODY FMAP region of the firmware image.
+
+config ENABLE_EVAL_CARD
+	bool "Enable Eval Card"
+	help
+	  Enable the Eval Card PCIe slot.
+
+choice
+	prompt "Force Power on GPP0"
+	default DISABLE_FORCE_POWER_GPP0
+	depends on ENABLE_EVAL_CARD
+	help
+	  Turn it off/on to disable/enable the force power for bifurcation.
+
+config DISABLE_FORCE_POWER_GPP0
+	bool "Disable Force Power on PCIe Slot-0 (GPP0)"
+
+config ENABLE_FORCE_POWER_GPP0
+	bool "Enable Force Power on PCIe Slot-0 (GPP0)"
+endchoice
+
+choice
+	prompt "GPP0 Slot as x8/x4 Lanes"
+	default PCIE_SLOT0_1X8
+	depends on ENABLE_EVAL_CARD
+	help
+	  Either PCIe Slot-0 As 1(x8), PCIe Slot-0 As 2(x4).
+
+config PCIE_SLOT0_1X8
+	bool "Enable PCIe Slot-0 as 1(x8), Turn off force power"
+
+config PCIE_SLOT0_2X4
+	bool "Enable PCIe Slot-0 as 2(x4), Turn on force power"
+endchoice
+
+choice
+	prompt "WLAN/M.2 SSD0 ENABLE"
+	default ENABLE_NVME_4LANES
+	help
+	  Either M.2 SSD0, WLAN X2 or PCIe Slot 1 can be used, as they are sharing PCIe lanes.
+
+config ENABLE_NVME_4LANES
+	bool "Enable M.2 NVMe SSD0 x4 Lanes"
+
+config ENABLE_PCIE_4LANES
+	bool "Enable PCIe slot 1 with x4 Lanes"
+
+config ENABLE_NVME_PCIE_2LANES
+	bool "Enable both x2 NVMe and x2 PCIe slot 1"
+
+config ENABLE_NVME_WLAN_2LANES
+	bool "Enable both X2 NVMe and x2 WLAN"
+endchoice
+
+config ENABLE_S0I3_SUPPORT
+	bool "S0i3 support"
+	default y
+	help
+	  Apply quirks to allow board to enter S0i3.
+
+choice
+	prompt "XGBE"
+	default XGBE_EN
+	help
+	  Select to Use ETH  Slot 1-0  as XGBE.
+config XGBE_EN
+	bool "XGBE Enablement"
+	depends on !ENABLE_S0I3_SUPPORT
+	help
+	  Use ETH  Slot 1-0  as XGBE.
+config GPP2_EN
+	bool "GPP2 Enablement"
+	help
+	  Use of slot GPP2 5-4 as PCIe.
+endchoice
+
+choice
+	prompt "XGBE_PORT_CONNECTIONTYPE"
+	depends on XGBE_EN
+	default XGBE_BACKPLANE_CONNECTION
+	help
+	  Select to XGBE Port Connector type eith BACKPLANE Connection or SFP Plus Connection.
+
+config XGBE_BACKPLANE_CONNECTION
+	bool "XGBE BACKPLANE Enablement"
+	help
+	  Set select xgbe BACKPLANE.
+
+config XGBE_SFP_PLUS_CONNECTION
+	bool "XGBE SFP PLUS Connection Enablement"
+	help
+	  XGBE SFP PLUS Connection Enablement. Needs board rework.
+endchoice
+
+choice
+	prompt "XGBE PORT PLATFORM CONFIG"
+	default XGBE_10G_1G_BACKPLANE
+	depends on XGBE_BACKPLANE_CONNECTION || XGBE_SFP_PLUS_CONNECTION
+	help
+	  Select to Use 10G/1G Backplane an on modes.
+
+config XGBE_10G_1G_BACKPLANE
+	bool "XGBE XGBE_10G_1G_BACKPLANE"
+	help
+	  Select to Use 10G/1G Backplane an on modes.
+
+config XGBE_2_5G_BACKPLANE
+	bool "XGBE XGBE_2_5G_BACKPLANE"
+	help
+	  Select to Use 2.5 G Backplane an of modes.
+
+config XGBE_PORT_SGMII_BACKPLANE
+	bool "XGBE XGBE_PORT_SGMII_BACKPLANE"
+	help
+	  Select to Use all speeed with Backplane an of modes.
+
+config XGBE_SFP_PLUS_CONNECTOR
+	bool "XGBE XGBE_SFP_PLUS_CONNECTOR"
+	help
+	  Select to Use 10M/100M/1000M  with SGMI modes 10G with SFI mode.
+endchoice
+
+choice
+	prompt "Xgbe port speed"
+	depends on XGBE_BACKPLANE_CONNECTION || XGBE_SFP_PLUS_CONNECTION
+	default XGBE_PORT_SPEED_10G
+
+config XGBE_PORT_SPEED_10G
+	bool "10G Port Speed"
+	help
+	  Set Xgbe port speed to support 10GBps.
+
+config XGBE_PORT_SPEED_10_100_1000M
+	bool "10/100/1000MB"
+	help
+	  Set Xgbe port speed to support 10/100/1000MB.
+
+config XGBE_PORT_SPEED_10M
+	bool "10MB Port Speed"
+	help
+	  Set Xgbe port speed to support 10MBps.
+
+config XGBE_PORT_SPEED_100M
+	bool "100 MBps port speed"
+	help
+	  Set Xgbe port speed to support 1000MBps.
+
+config XGBE_PORT_SPEED_1G
+	bool "1G Port Speed"
+	help
+	  Set Xgbe port speed to support 1GBps.
+
+config XGBE_PORT_SPEED_2500M
+	bool "2500M Port Speed"
+	help
+	  Set Xgbe port speed to support 2.5GBps.
+endchoice
+
+menu "XGBE LED Options"
+
+choice
+	prompt "XGBE LED Enable"
+	default XGBE_LED_TURN_ON
+	help
+	  Turn XGBE LED on or off.
+
+config XGBE_LED_TURN_OFF
+	bool "Turn Off XGBE Led"
+	help
+	  Turn Off XGBE LED
+
+config XGBE_LED_TURN_ON
+	bool "Tunr On XGBE Led"
+	help
+	  Tunr On XGBE LED
+endchoice
+
+choice
+	prompt "XGBE PORT-0 Link Status LED"
+	depends on XGBE_LED_TURN_ON
+	default TURN_ON_PORT_0_LINK_STATUS_LED
+	help
+	  Enable or Disable Link Status LED.
+
+config TURN_ON_PORT_0_LINK_STATUS_LED
+	bool "Enable"
+	help
+	   Turn On link status LED.
+
+config TURN_OFF_PORT_0_LINK_STATUS_LED
+	bool "Disable"
+	help
+	  Tunr Off link status LED.
+endchoice
+
+choice
+	prompt "XGBE PORT-0 Link Speed LED"
+	depends on XGBE_LED_TURN_ON
+	default TURN_ON_PORT_0_LINK_SPEED_LED
+	help
+	  Enable Disable Link Status LED.
+
+config TURN_ON_PORT_0_LINK_SPEED_LED
+	bool "Enable"
+	help
+	  Turn On link speed LED.
+
+config TURN_OFF_PORT_0_LINK_SPEED_LED
+	bool "Disable"
+	help
+	  Tunr Off link speed LED.
+endchoice
+
+choice
+	prompt "XGBE PORT-0 TX/RX LED blink rate"
+	depends on XGBE_LED_TURN_ON
+	default PORT_0_TX_RX_LED_BLINK_RATE_170
+	help
+	  choose TX RX LED blink rate.
+
+config PORT_0_TX_RX_LED_BLINK_RATE_42
+	bool "42ms"
+	help
+	  blink at 42ms on and 42ms off.
+
+config PORT_0_TX_RX_LED_BLINK_RATE_84
+	bool "84ms"
+	help
+	  blink at 84ms on and 84ms off.
+
+config PORT_0_TX_RX_LED_BLINK_RATE_170
+	bool "170ms"
+	help
+	  blink at 170ms on and 170ms Off.
+
+config PORT_0_TX_RX_LED_BLINK_RATE_340
+	bool "340ms"
+	help
+	  blink at 340ms on and 340ms off.
+endchoice
+
+choice
+	prompt "XGBE PORT-1 Link Status LED"
+	depends on XGBE_LED_TURN_ON
+	default TURN_ON_PORT_1_LINK_STATUS_LED
+	help
+	  Enable or Disable Link Status LED.
+
+config TURN_ON_PORT_1_LINK_STATUS_LED
+	bool "Enable"
+	help
+	  Turn On link status LED.
+
+config TURN_OFF_PORT_1_LINK_STATUS_LED
+	bool "Disable"
+	help
+	  Turn Off link status LED.
+endchoice
+
+choice
+	prompt "XGBE PORT-1 Link Speed LED"
+	depends on XGBE_LED_TURN_ON
+	default TURN_ON_PORT_1_LINK_SPEED_LED
+	help
+	  Enable or Disable Link Status LED.
+
+config TURN_ON_PORT_1_LINK_SPEED_LED
+	bool "Enable"
+	help
+	  Turn On link speed LED.
+
+config TURN_OFF_PORT_1_LINK_SPEED_LED
+	bool "Disable"
+	help
+	  Tunr Off link speed LED.
+endchoice
+
+choice
+	prompt "XGBE PORT-1 TX/RX LED blink rate"
+	depends on XGBE_LED_TURN_ON
+	default PORT_1_TX_RX_LED_BLINK_RATE_170
+	help
+	  choose TX RX LED blink rate.
+
+config PORT_1_TX_RX_LED_BLINK_RATE_42
+	bool "42ms"
+	help
+	  blink at 42ms on and 42ms off.
+
+config PORT_1_TX_RX_LED_BLINK_RATE_84
+	bool "84ms"
+	help
+	  blink at 84ms on and 84ms off.
+
+config PORT_1_TX_RX_LED_BLINK_RATE_170
+	bool "170ms"
+	help
+	  blink at 170ms on and 170ms Off.
+
+config PORT_1_TX_RX_LED_BLINK_RATE_340
+	bool "340ms"
+	help
+	  blink at 340ms on and 340ms off.
+endchoice
+
+endmenu
+
+config PORT_1_TX_RX_LED_BLINK_RATE
+	int
+	default 0 if PORT_1_TX_RX_LED_BLINK_RATE_42
+	default 1 if PORT_1_TX_RX_LED_BLINK_RATE_84
+	default 2 if PORT_1_TX_RX_LED_BLINK_RATE_170
+	default 3 if PORT_1_TX_RX_LED_BLINK_RATE_340
+	help
+	  Map the Port 1 Tx/Rx Blink rate to an integer.
+
+config PORT_0_TX_RX_LED_BLINK_RATE
+	int
+	default 0 if PORT_0_TX_RX_LED_BLINK_RATE_42
+	default 1 if PORT_0_TX_RX_LED_BLINK_RATE_84
+	default 2 if PORT_0_TX_RX_LED_BLINK_RATE_170
+	default 3 if PORT_0_TX_RX_LED_BLINK_RATE_340
+	help
+	  Map the Port 0 Tx/Rx Blink rate to an integer.
+
+choice
+	prompt "Uart Mode"
+	default UART_0_1_2_3_TWO_WIRE
+	help
+	  Select Uart Mode.
+	  Note: Enabling XGBE LED affects the Uart 2 and Uart 4.
+	  So please turn off to collect logs from UART2 & 4.
+
+config UART_0_2_4_FOUR_WIRE
+	bool "3x4 Wire"
+	help
+	  Uart 0,2,4 in Four wire Mode
+
+config UART_0_1_2_3_TWO_WIRE
+	bool "4x2 Wire and 1x4 wire"
+	help
+	  Uart 0,1,2,3 in Two wire Mode and Uart 4 in Four wire Mode.
+endchoice
+
+choice
+	prompt "I3C/I2C Configuration"
+	default I2C_ENABLE
+	help
+	  Select either I2C or I3C.
+
+config I2C_ENABLE
+	bool "I2C"
+	help
+	  Enable I2C.
+
+config I3C_ENABLE
+	depends on !ENABLE_S0I3_SUPPORT
+	bool "I3C"
+	help
+	  Enable I3C.
+endchoice
+
+choice
+	prompt "Select DP4 as TypeC / HDMI display"
+	default DISPLAY_PORT_TYPEC
+	help
+	  Enable USBC3/DP4 as TypeC display or HDMI display.
+	  Note that enabling the DISPLAY_PORT_HDMI option is not going to be enough to use it.
+	  Hardware rework also needs to be done as per schematic.
+
+config DISPLAY_PORT_TYPEC
+	bool "Enable TYPEC"
+
+config DISPLAY_PORT_HDMI
+	bool "Enable HDMI"
+endchoice
+
+if !EM100	# EM100 defaults in soc/amd/common/blocks/spi/Kconfig
+
+config EFS_SPI_READ_MODE
+	default 3	# Quad IO (1-1-4)
+
+config EFS_SPI_SPEED
+	default 0	# 66MHz
+
+config EFS_SPI_MICRON_FLAG
+	default 0
+
+config NORMAL_READ_SPI_SPEED
+	default 1	# 33MHz
+
+config ALT_SPI_SPEED
+	default 1	# 33MHz
+
+config TPM_SPI_SPEED
+	default 1	# 33MHz
+
+endif # !EM100
+
+endif # BOARD_AMD_JAGUAR
