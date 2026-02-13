@@ -26,25 +26,50 @@
 #define OPAL_S3_UNLOCK_RETRY_DELAY_MS   50
 #define OPAL_S3_UNLOCK_RETRIES          10
 
-struct opal_s3_secret {
-	bool valid;
-	bool armed;
+#define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
+#define OPAL_S3_STATE_VERSION   0x0001
+
+struct opal_s3_state {
+	u32 signature;
+	u16 version;
+	u16 size;
+
+	u8 valid;
+	u8 armed;
+	u16 reserved0;
+
 	u32 sleep_cycle;
 	u32 armed_cycle;
+
 	u16 base_comid;
 	u8 password_len;
+	u8 reserved1;
 	u8 password[OPAL_S3_MAX_PASSWORD_LEN];
 
-	pci_devfn_t nvme_dev;
+	u8 bus;
+	u8 dev;
+	u8 func;
+	u8 reserved2;
+
 	u32 nvme_bar0_low;
 	u32 nvme_bar0_high;
-	uintptr_t scratch_cbmem_base;
-	size_t scratch_cbmem_size;
-	void *scratch;
-	size_t scratch_size;
-};
+} __packed;
 
-static struct opal_s3_secret secret;
+static struct opal_s3_state state_fallback;
+
+static struct opal_s3_state *opal_s3_get_state(void)
+{
+#if CONFIG(SMM_OPAL_S3_STATE_SMRAM)
+	uintptr_t base = 0;
+	size_t size = 0;
+
+	smm_get_opal_s3_state_buffer(&base, &size);
+	if (base && size >= sizeof(struct opal_s3_state))
+		return (struct opal_s3_state *)(uintptr_t)base;
+#endif
+
+	return &state_fallback;
+}
 
 static bool opal_s3_validate_scratch(uintptr_t base, size_t size, uintptr_t *aligned_base_out,
 				     size_t *aligned_size_out)
@@ -94,16 +119,19 @@ static bool opal_s3_validate_scratch(uintptr_t base, size_t size, uintptr_t *ali
 
 static u32 opal_s3_clear_secret(void)
 {
-	opal_explicit_bzero(&secret, sizeof(secret));
+	struct opal_s3_state *st = opal_s3_get_state();
+	opal_explicit_bzero(st, sizeof(*st));
 	return 0;
 }
 
 static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 {
+	struct opal_s3_state *st = opal_s3_get_state();
 	uintptr_t scratch_base = 0;
 	size_t scratch_size = 0;
 	uintptr_t aligned_base = 0;
 	size_t aligned_size = 0;
+	pci_devfn_t nvme_dev;
 
 	/* Fail closed: clear any prior state for any SET_SECRET attempt. */
 	opal_s3_clear_secret();
@@ -141,33 +169,36 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 		return 7;
 	}
 
-	secret.nvme_dev = PCI_DEV(ctx->bus, ctx->dev, ctx->func);
-	secret.base_comid = ctx->base_comid;
-	secret.password_len = ctx->password_len;
-	memcpy(secret.password, ctx->password, ctx->password_len);
+	nvme_dev = PCI_DEV(ctx->bus, ctx->dev, ctx->func);
+
+	st->signature = OPAL_S3_STATE_SIGNATURE;
+	st->version = OPAL_S3_STATE_VERSION;
+	st->size = sizeof(*st);
+	st->valid = 1;
+	st->armed = 0;
+	st->sleep_cycle = 0;
+	st->armed_cycle = 0;
+
+	st->bus = ctx->bus;
+	st->dev = ctx->dev;
+	st->func = ctx->func;
+	st->base_comid = ctx->base_comid;
+	st->password_len = ctx->password_len;
+	memcpy(st->password, ctx->password, ctx->password_len);
 
 	/*
 	 * Cache BAR0 so S3 resume can restore it if the device loses PCI config
 	 * state across sleep (common on some platforms). Store raw BAR dwords
 	 * including attribute bits.
 	 */
-	secret.nvme_bar0_low = pci_read_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0);
-	secret.nvme_bar0_high = pci_read_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0 + 4);
-
-	secret.scratch_cbmem_base = scratch_base;
-	secret.scratch_cbmem_size = scratch_size;
-	secret.scratch = (void *)(uintptr_t)aligned_base;
-	secret.scratch_size = aligned_size;
-
-	secret.valid = true;
-	secret.armed = false;
-	secret.armed_cycle = 0;
+	st->nvme_bar0_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
+	st->nvme_bar0_high = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4);
 
 	if (CONFIG(DEBUG_SMI)) {
 		printk(BIOS_DEBUG,
 		       "OPAL: set secret for %02x:%02x.%x base_comid=0x%04x pw_len=%u bar0=%08x:%08x\n",
-		       ctx->bus, ctx->dev, ctx->func, secret.base_comid, secret.password_len,
-		       secret.nvme_bar0_high, secret.nvme_bar0_low);
+		       ctx->bus, ctx->dev, ctx->func, st->base_comid, st->password_len,
+		       st->nvme_bar0_high, st->nvme_bar0_low);
 	}
 
 	return 0;
@@ -175,92 +206,104 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 
 static void opal_s3_arm_for_s3(void)
 {
-	if (!secret.valid)
+	struct opal_s3_state *st = opal_s3_get_state();
+
+	if (st->signature != OPAL_S3_STATE_SIGNATURE ||
+	    st->version != OPAL_S3_STATE_VERSION ||
+	    st->size != sizeof(*st) ||
+	    !st->valid)
 		return;
 
 	/* Rate-limit: once per sleep entry. */
-	if (secret.armed)
+	if (st->armed)
 		return;
 
-	secret.sleep_cycle++;
-	secret.armed_cycle = secret.sleep_cycle;
-	secret.armed = true;
+	st->sleep_cycle++;
+	st->armed_cycle = st->sleep_cycle;
+	st->armed = 1;
 
 	if (CONFIG(DEBUG_SMI))
-		printk(BIOS_DEBUG, "OPAL: armed for S3 (cycle=%u)\n", secret.sleep_cycle);
+		printk(BIOS_DEBUG, "OPAL: armed for S3 (cycle=%u)\n", st->sleep_cycle);
 }
 
-static void opal_s3_restore_nvme_bar0_if_needed(void)
+static void opal_s3_restore_nvme_bar0_if_needed(pci_devfn_t nvme_dev,
+						u32 saved_bar0_low, u32 saved_bar0_high)
 {
-	const u32 cur_low = pci_read_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0);
+	const u32 cur_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
 	const u32 cur_base = cur_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
-	const u32 saved_base = secret.nvme_bar0_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
-	const bool is_saved_mem = ((secret.nvme_bar0_low & PCI_BASE_ADDRESS_SPACE) ==
+	const u32 saved_base = saved_bar0_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
+	const bool is_saved_mem = ((saved_bar0_low & PCI_BASE_ADDRESS_SPACE) ==
 				   PCI_BASE_ADDRESS_SPACE_MEMORY);
-	const bool is_saved_64 = ((secret.nvme_bar0_low & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) ==
+	const bool is_saved_64 = ((saved_bar0_low & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) ==
 				  PCI_BASE_ADDRESS_MEM_LIMIT_64);
 
 	if (cur_low != 0xffffffff && cur_base != 0)
 		return;
 
-	if (!secret.nvme_bar0_low || saved_base == 0 || !is_saved_mem)
+	if (!saved_bar0_low || saved_base == 0 || !is_saved_mem)
 		return;
 
-	pci_write_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0, secret.nvme_bar0_low);
+	pci_write_config32(nvme_dev, PCI_BASE_ADDRESS_0, saved_bar0_low);
 	if (is_saved_64)
-		pci_write_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0 + 4, secret.nvme_bar0_high);
+		pci_write_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4, saved_bar0_high);
 
 	if (CONFIG(DEBUG_SMI)) {
-		const u32 new_low = pci_read_config32(secret.nvme_dev, PCI_BASE_ADDRESS_0);
+		const u32 new_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
 		printk(BIOS_DEBUG, "OPAL: restored NVMe BAR0 0x%08x -> 0x%08x\n",
 		       cur_low, new_low);
 	}
 }
 
-static u32 opal_s3_unlock(void)
+static u32 opal_s3_unlock(const struct opal_s3_state *st)
 {
+	uintptr_t scratch_base = 0;
+	size_t scratch_size = 0;
 	uintptr_t aligned_base = 0;
 	size_t aligned_size = 0;
+	pci_devfn_t nvme_dev;
 
-	if (!opal_s3_validate_scratch(secret.scratch_cbmem_base, secret.scratch_cbmem_size,
-				      &aligned_base, &aligned_size)) {
+	smm_get_opal_s3_scratch_buffer(&scratch_base, &scratch_size);
+	if (!opal_s3_validate_scratch(scratch_base, scratch_size, &aligned_base, &aligned_size)) {
 		printk(BIOS_ERR, "OPAL: scratch invariant failed at unlock\n");
 		return 1;
 	}
 
-	secret.scratch = (void *)(uintptr_t)aligned_base;
-	secret.scratch_size = aligned_size;
+	nvme_dev = PCI_DEV(st->bus, st->dev, st->func);
 
-	opal_s3_restore_nvme_bar0_if_needed();
+	opal_s3_restore_nvme_bar0_if_needed(nvme_dev, st->nvme_bar0_low, st->nvme_bar0_high);
 
-	return opal_nvme_opal_unlock(secret.nvme_dev, secret.base_comid, secret.password,
-				     secret.password_len, secret.scratch, secret.scratch_size);
+	return opal_nvme_opal_unlock(nvme_dev, st->base_comid, st->password, st->password_len,
+				     (void *)(uintptr_t)aligned_base, aligned_size);
 }
 
 static u32 opal_s3_unlock_if_armed(void)
 {
+	struct opal_s3_state *st = opal_s3_get_state();
 	u32 rc;
 
-	if (!secret.valid) {
+	if (st->signature != OPAL_S3_STATE_SIGNATURE ||
+	    st->version != OPAL_S3_STATE_VERSION ||
+	    st->size != sizeof(*st) ||
+	    !st->valid) {
 		if (CONFIG(DEBUG_SMI))
 			printk(BIOS_DEBUG, "OPAL: unlock skipped (no secret)\n");
 		return 0x10;
 	}
 
-	if (!secret.armed) {
+	if (!st->armed) {
 		if (CONFIG(DEBUG_SMI))
 			printk(BIOS_DEBUG, "OPAL: unlock skipped (not armed)\n");
 		return 0x11;
 	}
 
-	if (secret.armed_cycle != secret.sleep_cycle) {
+	if (st->armed_cycle != st->sleep_cycle) {
 		printk(BIOS_ERR, "OPAL: unlock rejected (invalid sequence)\n");
 		opal_s3_clear_secret();
 		return 0x12;
 	}
 
-	secret.armed = false;
-	secret.armed_cycle = 0;
+	st->armed = 0;
+	st->armed_cycle = 0;
 
 	/*
 	 * Give the NVMe controller and upstream PCIe fabric a moment to come
@@ -273,7 +316,7 @@ static u32 opal_s3_unlock_if_armed(void)
 		if (attempt)
 			mdelay(OPAL_S3_UNLOCK_RETRY_DELAY_MS);
 
-		rc = opal_s3_unlock();
+		rc = opal_s3_unlock(st);
 		if (rc == 0)
 			break;
 
