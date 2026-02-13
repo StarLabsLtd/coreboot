@@ -36,7 +36,8 @@ struct nvme_cq_entry {
 static int nvme_wait_ready(u8 *regs, bool ready)
 {
 	const u64 cap = read64(regs + 0x0);
-	int timeout_ms = ((cap >> 24) & 0xff) * 500;
+	const int timeout_units = (cap >> 24) & 0xff;
+	int timeout_ms = MAX(timeout_units, 1) * 500;
 
 	while (timeout_ms >= 0) {
 		const u32 csts = read32(regs + 0x1c);
