@@ -26,6 +26,7 @@ config SOC_INTEL_COMMON_BLOCK_SMM_ESPI_DISABLE
 
 config SOC_INTEL_COMMON_BLOCK_SMM_TCO_ENABLE
 	bool "Enable TCO SMI"
+	default y if SOC_INTEL_COMMON_BLOCK_SPI && BOOTMEDIA_SMM_BWP
 	default n
 	help
 	  Enable TCO SMI source to e.g. handle case instrusion.
