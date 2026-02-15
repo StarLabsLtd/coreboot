@@ -12,6 +12,7 @@
 #include <option.h>
 #include <intelblocks/acpi.h>
 #include <intelblocks/cfg.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/pcie_rp.h>
@@ -419,7 +420,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PchPmWolEnableOverride = config->WakeConfigWolEnableOverride;
 	params->PchPmPcieWakeFromDeepSx = config->WakeConfigPcieWakeFromDeepSx;
 	params->PchPmDeepSxPol = config->PmConfigDeepSxPol;
-	config->s0ix_enable = get_uint_option("s0ix_enable", config->s0ix_enable);
+	config->s0ix_enable = cse_get_s0ix_enable_state(config->s0ix_enable);
 	params->PchPmSlpS0Enable = config->s0ix_enable;
 	params->PchPmSlpS3MinAssert = config->PmConfigSlpS3MinAssert;
 	params->PchPmSlpS4MinAssert = config->PmConfigSlpS4MinAssert;
