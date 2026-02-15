@@ -485,6 +485,23 @@ bool cse_is_hfs1_com_secover_mei_msg(void);
  */
 bool cse_is_hfs1_com_soft_temp_disable(void);
 
+#if ENV_RAMSTAGE
+/*
+ * Check whether ME/CSME is configured to be enabled via the `me_state` option.
+ * Returns true when `me_state` is 0 ("Enabled") and false when it is 1 ("Disabled").
+ */
+bool cse_is_me_state_enabled(void);
+
+/*
+ * Check whether ME/CSME is operational (HFSTS1 current working state and operation
+ * mode are both normal).
+ */
+bool cse_is_me_operational(void);
+#else
+static inline bool cse_is_me_state_enabled(void) { return true; }
+static inline bool cse_is_me_operational(void) { return true; }
+#endif
+
 /*
  * Checks CSE's spi protection mode is protected or unprotected.
  * Returns true if CSE's spi protection mode is protected, otherwise false.
