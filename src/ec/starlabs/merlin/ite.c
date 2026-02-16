@@ -5,9 +5,11 @@
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
 #include <option.h>
+#include <pc80/mc146818rtc.h>
 #include <halt.h>
 
 #include "ecdefs.h"
+#include "option_table.h"
 #include "ec.h"
 
 #define ITE_IT5570 0x5570
@@ -18,9 +20,40 @@ uint16_t ec_get_version(void)
 	return (ec_read(ECRAM_MAJOR_VERSION) << 8) | ec_read(ECRAM_MINOR_VERSION);
 }
 
-static uint8_t get_ec_value_from_option(const char *name, uint8_t fallback, const uint8_t *lut,
-					size_t lut_size)
+static uint8_t get_cmos_value(uint32_t bit, uint32_t length)
 {
+	uint32_t byte, byte_bit;
+	uint8_t uchar;
+
+	byte = bit / 8;     // find the byte where the data starts
+	byte_bit = bit % 8; // find the bit in the byte where the data starts
+
+	uchar = cmos_read(byte); // load the byte
+	uchar >>= byte_bit;      // shift the bits to byte align
+	// clear unspecified bits
+	return uchar & ((1U << length) - 1);
+}
+
+static uint8_t get_ec_value_from_option(const char *name, uint32_t fallback, const uint8_t *lut,
+					size_t lut_size, uint32_t cmos_start_bit,
+					uint32_t cmos_length)
+{
+	/*
+	 * CMOS-backed EC options store an index (see cmos.layout and ACPI
+	 * RPTS/RWAK mappings), while the option backend stores the EC's raw
+	 * values (e.g. 0xaa/0xbb/0xdd).
+	 */
+	if (cmos_start_bit != UINT_MAX) {
+		unsigned int index = get_cmos_value(cmos_start_bit, cmos_length);
+
+		if (index >= lut_size)
+			index = fallback;
+		if (index >= lut_size)
+			index = 0;
+
+		return lut[index];
+	}
+
 	const uint8_t value = get_uint_option(name, fallback);
 
 	/* Check if the value exists in the LUT array */
@@ -61,7 +94,7 @@ static void merlin_init(struct device *dev)
 	}
 
 	/*
-	 * Restore settings from options into EC RAM:
+	 * Restore settings from CMOS into EC RAM:
 	 *
 	 * kbl_timeout
 	 * fn_ctrl_swap
@@ -89,7 +122,7 @@ static void merlin_init(struct device *dev)
 
 	ec_write(ECRAM_KBL_TIMEOUT,
 		 get_ec_value_from_option("kbl_timeout", SEC_30, kbl_timeout,
-					  ARRAY_SIZE(kbl_timeout)));
+					  ARRAY_SIZE(kbl_timeout), UINT_MAX, UINT_MAX));
 
 	/*
 	 * Fn Ctrl Reverse
@@ -104,7 +137,7 @@ static void merlin_init(struct device *dev)
 
 	ec_write(ECRAM_FN_CTRL_REVERSE,
 		 get_ec_value_from_option("fn_ctrl_swap", FN_CTRL, fn_ctrl_swap,
-					  ARRAY_SIZE(fn_ctrl_swap)));
+					  ARRAY_SIZE(fn_ctrl_swap), UINT_MAX, UINT_MAX));
 
 	/*
 	 * Maximum Charge Level
@@ -120,7 +153,7 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_MAX_CHARGE))
 		ec_write(ECRAM_MAX_CHARGE,
 			 get_ec_value_from_option("max_charge", CHARGE_100, max_charge,
-						  ARRAY_SIZE(max_charge)));
+						  ARRAY_SIZE(max_charge), UINT_MAX, UINT_MAX));
 
 	/*
 	 * Fan Mode
@@ -136,7 +169,7 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_FAN))
 		ec_write(ECRAM_FAN_MODE,
 			 get_ec_value_from_option("fan_mode", FAN_NORMAL, fan_mode,
-						  ARRAY_SIZE(fan_mode)));
+						  ARRAY_SIZE(fan_mode), UINT_MAX, UINT_MAX));
 
 	/*
 	 * Function Lock
@@ -147,11 +180,15 @@ static void merlin_init(struct device *dev)
 	 * Default:	Locked
 	 *
 	 */
+#ifdef CMOS_VLEN_fn_lock_state
 	const uint8_t fn_lock_state[] = {UNLOCKED, LOCKED};
 
 	ec_write(ECRAM_FN_LOCK_STATE,
 		 get_ec_value_from_option(
-			 "fn_lock_state", UNLOCKED, fn_lock_state, ARRAY_SIZE(fn_lock_state)));
+			 "fn_lock_state", UNLOCKED, fn_lock_state, ARRAY_SIZE(fn_lock_state),
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VSTART_fn_lock_state : UINT_MAX,
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VLEN_fn_lock_state : UINT_MAX));
+#endif
 
 	/*
 	 * Trackpad State
@@ -162,12 +199,16 @@ static void merlin_init(struct device *dev)
 	 * Default:	Enabled
 	 *
 	 */
+#ifdef CMOS_VSTART_trackpad_state
 	const uint8_t trackpad_state[] = {TRACKPAD_ENABLED, TRACKPAD_DISABLED};
 
 	ec_write(ECRAM_TRACKPAD_STATE,
 		 get_ec_value_from_option(
 			 "trackpad_state", TRACKPAD_ENABLED, trackpad_state,
-			 ARRAY_SIZE(trackpad_state)));
+			 ARRAY_SIZE(trackpad_state),
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VSTART_trackpad_state : UINT_MAX,
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VLEN_trackpad_state : UINT_MAX));
+#endif
 
 	/*
 	 * Keyboard Backlight Brightness
@@ -178,16 +219,19 @@ static void merlin_init(struct device *dev)
 	 * Default:	Low
 	 *
 	 */
+#ifdef CMOS_VSTART_kbl_brightness
 	const uint8_t kbl_brightness[] = {KBL_ON, KBL_OFF, KBL_LOW, KBL_HIGH};
-
-	const uint8_t kbl_brightness_fallback =
-		CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON;
 
 	ec_write(ECRAM_KBL_BRIGHTNESS,
 		 get_ec_value_from_option(
 			 "kbl_brightness",
-			 kbl_brightness_fallback,
-			 kbl_brightness, ARRAY_SIZE(kbl_brightness)));
+			 CONFIG(USE_OPTION_TABLE) ?
+				 (CONFIG(EC_STARLABS_KBL_LEVELS) ? 2 : 0) :
+				 (CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON),
+			 kbl_brightness, ARRAY_SIZE(kbl_brightness),
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VSTART_kbl_brightness : UINT_MAX,
+			 CONFIG(USE_OPTION_TABLE) ? CMOS_VLEN_kbl_brightness : UINT_MAX));
+#endif
 
 	/*
 	 * Keyboard Backlight State
@@ -217,7 +261,8 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_CHARGING_SPEED))
 		ec_write(ECRAM_CHARGING_SPEED,
 			 get_ec_value_from_option("charging_speed", SPEED_0_5C, charging_speed,
-						  ARRAY_SIZE(charging_speed)));
+						  ARRAY_SIZE(charging_speed), UINT_MAX,
+						  UINT_MAX));
 
 	/*
 	 * Lid Switch
@@ -233,7 +278,7 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_LID_SWITCH))
 		ec_write(ECRAM_LID_SWITCH,
 			 get_ec_value_from_option("lid_switch", SWITCH_NORMAL, lid_switch,
-						  ARRAY_SIZE(lid_switch)));
+						  ARRAY_SIZE(lid_switch), UINT_MAX, UINT_MAX));
 
 	/*
 	 * Power LED Brightness
@@ -249,7 +294,8 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_POWER_LED))
 		ec_write(ECRAM_POWER_LED,
 			 get_ec_value_from_option("power_led", LED_NORMAL, led_brightness,
-						  ARRAY_SIZE(led_brightness)));
+						  ARRAY_SIZE(led_brightness), UINT_MAX,
+						  UINT_MAX));
 
 	/*
 	 * Charge LED Brightness
@@ -264,7 +310,8 @@ static void merlin_init(struct device *dev)
 	if (CONFIG(EC_STARLABS_CHARGE_LED))
 		ec_write(ECRAM_CHARGE_LED,
 			 get_ec_value_from_option("charge_led", LED_NORMAL, led_brightness,
-						  ARRAY_SIZE(led_brightness)));
+						  ARRAY_SIZE(led_brightness), UINT_MAX,
+						  UINT_MAX));
 }
 
 static struct device_operations ops = {
