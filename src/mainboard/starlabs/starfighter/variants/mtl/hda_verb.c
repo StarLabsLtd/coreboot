@@ -7,7 +7,7 @@ const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0235,	/* Codec Vendor / Device ID: Realtek ALC235 */
 	0x20147017,	/* Subsystem ID */
-	18,		/* Number of verb entries */
+	20,		/* Number of verb entries */
 
 	/* Reset Codec First */
 	AZALIA_RESET(0x1),
@@ -73,6 +73,20 @@ const u32 cim_verb_data[] = {
 	AZALIA_PIN_CFG(0, ALC269_SPEAKERS,	AZALIA_PIN_CFG_NC(0)),
 	AZALIA_PIN_CFG(0, ALC269_LINE1,		AZALIA_PIN_CFG_NC(0)),
 	AZALIA_PIN_CFG(0, ALC269_SPDIF_OUT,	AZALIA_PIN_CFG_NC(0)),
+
+	/*
+	 * External amp (EAPD) init:
+	 * Configure the common Realtek "DOS beep path" so EAPD is under
+	 * verb control and enabled after setup to reduce speaker pops.
+	 */
+	0x02050010,
+	0x02040420,
+	0x01470c00,
+	0x02050036,
+	0x02047151,
+	0x01470740,
+	0x0143b000,
+	0x01470c02,
 
 	0x05750003,
 	0x057486a6,
