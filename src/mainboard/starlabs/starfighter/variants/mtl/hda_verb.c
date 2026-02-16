@@ -7,7 +7,7 @@ const u32 cim_verb_data[] = {
 	/* coreboot specific header */
 	0x10ec0235,	/* Codec Vendor / Device ID: Realtek ALC235 */
 	0x20147017,	/* Subsystem ID */
-	20,		/* Number of verb entries */
+	21,		/* Number of verb entries */
 
 	/* Reset Codec First */
 	AZALIA_RESET(0x1),
@@ -73,6 +73,16 @@ const u32 cim_verb_data[] = {
 	AZALIA_PIN_CFG(0, ALC269_SPEAKERS,	AZALIA_PIN_CFG_NC(0)),
 	AZALIA_PIN_CFG(0, ALC269_LINE1,		AZALIA_PIN_CFG_NC(0)),
 	AZALIA_PIN_CFG(0, ALC269_SPDIF_OUT,	AZALIA_PIN_CFG_NC(0)),
+
+	/*
+	 * Microphone defaults:
+	 * Keep ADC capture gain low and use a small amount of DMIC boost to
+	 * reduce hiss without making speech too quiet.
+	 */
+	0x00836014,
+	0x00835014,
+	0x01236001,
+	0x01235001,
 
 	/*
 	 * External amp (EAPD) init:
