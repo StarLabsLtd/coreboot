@@ -11,10 +11,6 @@ static enum cmos_power_profile get_power_profile(enum cmos_power_profile fallbac
 	return power_profile < NUM_POWER_PROFILES ? power_profile : fallback;
 }
 
-static uint16_t round_up_to_5(uint16_t value)
-{
-	return DIV_ROUND_UP(value, 5) * 5;
-}
 
 void update_power_limits(config_t *cfg)
 {
@@ -43,18 +39,18 @@ void update_power_limits(config_t *cfg)
 
 	for (size_t i = 0; i < limit_count; i++) {
 		struct soc_power_limits_config *entry = &limits[i];
-		uint16_t tdp, pl1, pl2;
+//uint16_t tdp, pl1, pl2;
 
 		entry->tdp_pl4 = (uint16_t)CONFIG_PL4_WATTS;
 
-		tdp = entry->tdp_pl1_override;
-		if (!tdp)
-			continue;
+//		tdp = entry->tdp_pl1_override;
+//		if (!tdp)
+//			continue;
 
-		pl1 = (tdp * performance_scale) / 100;
-		pl2 = round_up_to_5(pl1 * 2);
+//		pl1 = (tdp * performance_scale) / 100;
+//		pl2 = round_up_to_5(pl1 * 2);
 
-		entry->tdp_pl1_override = pl1;
-		entry->tdp_pl2_override = pl2;
+		entry->tdp_pl1_override = 10;
+		entry->tdp_pl2_override = 25;
 	}
 }

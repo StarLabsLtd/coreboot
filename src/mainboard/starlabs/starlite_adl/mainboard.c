@@ -2,14 +2,35 @@
 
 #include <acpi/acpigen_ps2_keybd.h>
 #include <device/device.h>
+#include <soc/soc_chip.h>
 #include <soc/ramstage.h>
 #include <option.h>
 #include <variants.h>
+
+static void init_default_options(void)
+{
+	/*
+	 * Options are stored in the UEFI variable store. Use an out-of-range sentinel
+	 * fallback to detect "unset" without overriding legitimate user choices.
+	 */
+	const unsigned int unset = 0xffffffffu;
+
+	if (get_uint_option("memory_speed", unset) == unset)
+		set_uint_option("memory_speed", 1); /* 6400MT/s */
+
+	if (get_uint_option("igd_aperture_size", unset) == unset)
+		set_uint_option("igd_aperture_size", IGD_AP_SZ_512MB);
+
+	if (get_uint_option("igd_dvmt_prealloc", unset) == unset)
+		set_uint_option("igd_dvmt_prealloc", IGD_SM_128MB);
+}
 
 static void init_mainboard(void *chip_info)
 {
 	const struct pad_config *pads;
 	size_t num;
+
+	init_default_options();
 
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);

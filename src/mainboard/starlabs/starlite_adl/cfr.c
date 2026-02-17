@@ -11,6 +11,35 @@
 #include <static.h>
 #include <variants.h>
 #include <common/cfr.h>
+#include <soc/soc_chip.h>
+
+static const struct sm_object he_igd_aperture_size = SM_DECLARE_ENUM({
+	.opt_name	= "igd_aperture_size",
+	.ui_name	= "iGPU Aperture Size",
+	.ui_helptext	= "A larger aperture can help some iGPU compute workloads at the cost "
+			  "of address space. Applies after reboot.",
+	.default_value	= IGD_AP_SZ_512MB,
+	.values		= (const struct sm_enum_value[]) {
+		{ "128 MB", IGD_AP_SZ_128MB },
+		{ "256 MB", IGD_AP_SZ_256MB },
+		{ "512 MB", IGD_AP_SZ_512MB },
+		SM_ENUM_VALUE_END,
+	},
+});
+
+static const struct sm_object he_igd_dvmt_prealloc = SM_DECLARE_ENUM({
+	.opt_name	= "igd_dvmt_prealloc",
+	.ui_name	= "iGPU DVMT Prealloc",
+	.ui_helptext	= "Increase preallocated graphics memory for iGPU workloads. "
+			  "Applies after reboot.",
+	.default_value	= IGD_SM_128MB,
+	.values		= (const struct sm_enum_value[]) {
+		{ "60 MB", IGD_SM_60MB },
+		{ "128 MB", IGD_SM_128MB },
+		{ "160 MB", IGD_SM_160MB },
+		SM_ENUM_VALUE_END,
+	},
+});
 
 void cfr_card_reader_update(struct sm_object *new_obj)
 {
@@ -100,6 +129,8 @@ static struct sm_obj_form performance_group = {
 		#if CONFIG(SOC_INTEL_TIGERLAKE) || CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_RAPTORLAKE)
 		&gna,
 		#endif
+		&he_igd_aperture_size,
+		&he_igd_dvmt_prealloc,
 		&memory_speed,
 		&power_profile,
 		NULL
