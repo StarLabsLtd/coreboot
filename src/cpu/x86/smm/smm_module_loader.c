@@ -385,6 +385,24 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 	}
 #endif
 
+#if CONFIG(SMM_OPAL_S3_HINT_CBMEM)
+	/*
+	 * Provide a small, coreboot-managed CBMEM hint region for passing non-secret
+	 * resume metadata (e.g. NVMe BDF) between SMM and ramstage.
+	 */
+	void *hint = cbmem_add(CBMEM_ID_OPAL_S3_HINT, 64);
+	if (!hint) {
+		printk(BIOS_ERR, "SMM: Failed to allocate OPAL S3 hint\n");
+		mod_params->opal_s3_hint_base = 0;
+		mod_params->opal_s3_hint_size = 0;
+	} else {
+		mod_params->opal_s3_hint_base = (uintptr_t)hint;
+		mod_params->opal_s3_hint_size = 64;
+		if (!acpi_is_wakeup_s3())
+			memset(hint, 0, 64);
+	}
+#endif
+
 #if CONFIG(SMM_OPAL_S3_STATE_SMRAM)
 	uintptr_t state_base = 0;
 	size_t state_size = 0;

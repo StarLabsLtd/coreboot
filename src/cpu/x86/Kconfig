@@ -221,6 +221,13 @@ config SMM_OPAL_S3_SCRATCH_CBMEM
 	  unlock on resume. The region is in CBMEM and therefore reserved from
 	  the OS via the memory map.
 
+config SMM_OPAL_S3_HINT_CBMEM
+	bool
+	default y if TCG_OPAL_S3_UNLOCK
+	help
+	  Allocate a small coreboot-managed CBMEM region for passing non-secret
+	  OPAL S3 resume hints (e.g. NVMe BDF) between SMM and ramstage.
+
 endif
 
 config SMM_LAPIC_REMAP_MITIGATION

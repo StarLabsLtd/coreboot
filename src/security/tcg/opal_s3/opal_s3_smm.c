@@ -29,13 +29,32 @@
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
 #define OPAL_S3_STATE_VERSION   0x0001
 
+#define OPAL_S3_ARMED_NONE      0
+#define OPAL_S3_ARMED_S3        1
+#define OPAL_S3_ARMED_DEFERRED  2
+
+#define OPAL_S3_HINT_SIGNATURE  0x3348504f /* "OPH3" */
+#define OPAL_S3_HINT_VERSION    0x0001
+#define OPAL_S3_HINT_FLAG_RESUME_DEFERRED (1 << 0)
+
+struct opal_s3_hint {
+	u32 signature;
+	u16 version;
+	u16 size;
+
+	u8 bus;
+	u8 dev;
+	u8 func;
+	u8 flags;
+} __packed;
+
 struct opal_s3_state {
 	u32 signature;
 	u16 version;
 	u16 size;
 
 	u8 valid;
-	u8 armed;
+	u8 armed_state;
 	u16 reserved0;
 
 	u32 sleep_cycle;
@@ -56,6 +75,25 @@ struct opal_s3_state {
 } __packed;
 
 static struct opal_s3_state state_fallback;
+
+#if CONFIG(SMM_OPAL_S3_HINT_CBMEM)
+static struct opal_s3_hint *opal_s3_get_hint(void)
+{
+	uintptr_t base = 0;
+	size_t size = 0;
+
+	smm_get_opal_s3_hint_buffer(&base, &size);
+	if (!base || size < sizeof(struct opal_s3_hint))
+		return NULL;
+
+	return (struct opal_s3_hint *)(uintptr_t)base;
+}
+#else
+static struct opal_s3_hint *opal_s3_get_hint(void)
+{
+	return NULL;
+}
+#endif
 
 static struct opal_s3_state *opal_s3_get_state(void)
 {
@@ -121,6 +159,11 @@ static u32 opal_s3_clear_secret(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	opal_explicit_bzero(st, sizeof(*st));
+
+	struct opal_s3_hint *hint = opal_s3_get_hint();
+	if (hint)
+		opal_explicit_bzero(hint, sizeof(*hint));
+
 	return 0;
 }
 
@@ -175,7 +218,7 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	st->version = OPAL_S3_STATE_VERSION;
 	st->size = sizeof(*st);
 	st->valid = 1;
-	st->armed = 0;
+	st->armed_state = OPAL_S3_ARMED_NONE;
 	st->sleep_cycle = 0;
 	st->armed_cycle = 0;
 
@@ -201,12 +244,24 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 		       st->nvme_bar0_high, st->nvme_bar0_low);
 	}
 
+	struct opal_s3_hint *hint = opal_s3_get_hint();
+	if (hint) {
+		hint->signature = OPAL_S3_HINT_SIGNATURE;
+		hint->version = OPAL_S3_HINT_VERSION;
+		hint->size = sizeof(*hint);
+		hint->bus = ctx->bus;
+		hint->dev = ctx->dev;
+		hint->func = ctx->func;
+		hint->flags = 0;
+	}
+
 	return 0;
 }
 
 static void opal_s3_arm_for_s3(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
+	struct opal_s3_hint *hint = opal_s3_get_hint();
 
 	if (st->signature != OPAL_S3_STATE_SIGNATURE ||
 	    st->version != OPAL_S3_STATE_VERSION ||
@@ -214,16 +269,44 @@ static void opal_s3_arm_for_s3(void)
 	    !st->valid)
 		return;
 
+	/*
+	 * If resume did not complete an unlock (e.g. NVMe still in RTD3), the
+	 * secret may remain armed across S0. Never carry that across a second S3
+	 * entry: clear it instead of re-arming with stale sequencing.
+	 */
+	if (st->armed_state == OPAL_S3_ARMED_DEFERRED ||
+	    (hint && hint->signature == OPAL_S3_HINT_SIGNATURE &&
+	     hint->version == OPAL_S3_HINT_VERSION &&
+	     hint->size == sizeof(*hint) &&
+	     (hint->flags & OPAL_S3_HINT_FLAG_RESUME_DEFERRED))) {
+		printk(BIOS_ERR, "OPAL: clearing stale armed secret\n");
+		opal_s3_clear_secret();
+		return;
+	}
+
 	/* Rate-limit: once per sleep entry. */
-	if (st->armed)
+	if (st->armed_state == OPAL_S3_ARMED_S3)
 		return;
 
 	st->sleep_cycle++;
 	st->armed_cycle = st->sleep_cycle;
-	st->armed = 1;
+	st->armed_state = OPAL_S3_ARMED_S3;
 
 	if (CONFIG(DEBUG_SMI))
 		printk(BIOS_DEBUG, "OPAL: armed for S3 (cycle=%u)\n", st->sleep_cycle);
+}
+
+static bool opal_s3_nvme_present(pci_devfn_t nvme_dev)
+{
+	const u16 vendor = pci_read_config16(nvme_dev, PCI_VENDOR_ID);
+	const u16 device = pci_read_config16(nvme_dev, PCI_DEVICE_ID);
+
+	if (vendor == 0xffff || device == 0xffff)
+		return false;
+	if (vendor == 0x0000 || device == 0x0000)
+		return false;
+
+	return true;
 }
 
 static void opal_s3_restore_nvme_bar0_if_needed(pci_devfn_t nvme_dev,
@@ -280,6 +363,7 @@ static u32 opal_s3_unlock_if_armed(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	u32 rc;
+	pci_devfn_t nvme_dev;
 
 	if (st->signature != OPAL_S3_STATE_SIGNATURE ||
 	    st->version != OPAL_S3_STATE_VERSION ||
@@ -290,7 +374,7 @@ static u32 opal_s3_unlock_if_armed(void)
 		return 0x10;
 	}
 
-	if (!st->armed) {
+	if (st->armed_state == OPAL_S3_ARMED_NONE) {
 		if (CONFIG(DEBUG_SMI))
 			printk(BIOS_DEBUG, "OPAL: unlock skipped (not armed)\n");
 		return 0x11;
@@ -302,7 +386,24 @@ static u32 opal_s3_unlock_if_armed(void)
 		return 0x12;
 	}
 
-	st->armed = 0;
+	nvme_dev = PCI_DEV(st->bus, st->dev, st->func);
+
+	/*
+	 * If the NVMe device is powered off (e.g. RTD3), config space reads will
+	 * often return 0xffff. In that case, keep the secret armed so a later SMI
+	 * can retry after ACPI _ON brings the device back.
+	 */
+	if (!opal_s3_nvme_present(nvme_dev)) {
+		if (st->armed_state == OPAL_S3_ARMED_S3)
+			st->armed_state = OPAL_S3_ARMED_DEFERRED;
+		if (CONFIG(DEBUG_SMI)) {
+			printk(BIOS_DEBUG, "OPAL: NVMe %02x:%02x.%x not present; deferring unlock\n",
+			       st->bus, st->dev, st->func);
+		}
+		return 0x14;
+	}
+
+	st->armed_state = OPAL_S3_ARMED_NONE;
 	st->armed_cycle = 0;
 
 	/*

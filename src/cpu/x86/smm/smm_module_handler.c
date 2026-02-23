@@ -73,6 +73,14 @@ void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
 }
 #endif
 
+#if CONFIG(SMM_OPAL_S3_HINT_CBMEM)
+void smm_get_opal_s3_hint_buffer(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.opal_s3_hint_base;
+	*size = smm_runtime.opal_s3_hint_size;
+}
+#endif
+
 #if CONFIG(SMM_OPAL_S3_STATE_SMRAM)
 void smm_get_opal_s3_state_buffer(uintptr_t *base, size_t *size)
 {
