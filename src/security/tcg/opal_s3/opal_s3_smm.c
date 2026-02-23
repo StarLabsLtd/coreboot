@@ -29,13 +29,16 @@
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
 #define OPAL_S3_STATE_VERSION   0x0001
 
+#define OPAL_S3_ARMED_NONE      0
+#define OPAL_S3_ARMED_S3        1
+
 struct opal_s3_state {
 	u32 signature;
 	u16 version;
 	u16 size;
 
 	u8 valid;
-	u8 armed;
+	u8 armed_state;
 	u16 reserved0;
 
 	u32 sleep_cycle;
@@ -121,6 +124,7 @@ static u32 opal_s3_clear_secret(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	opal_explicit_bzero(st, sizeof(*st));
+
 	return 0;
 }
 
@@ -175,7 +179,7 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	st->version = OPAL_S3_STATE_VERSION;
 	st->size = sizeof(*st);
 	st->valid = 1;
-	st->armed = 0;
+	st->armed_state = OPAL_S3_ARMED_NONE;
 	st->sleep_cycle = 0;
 	st->armed_cycle = 0;
 
@@ -213,12 +217,12 @@ static void opal_s3_arm_for_s3(void)
 		return;
 
 	/* Rate-limit: once per sleep entry. */
-	if (st->armed)
+	if (st->armed_state == OPAL_S3_ARMED_S3)
 		return;
 
 	st->sleep_cycle++;
 	st->armed_cycle = st->sleep_cycle;
-	st->armed = 1;
+	st->armed_state = OPAL_S3_ARMED_S3;
 
 	if (CONFIG(DEBUG_SMI))
 		printk(BIOS_DEBUG, "OPAL: armed for S3 (cycle=%u)\n", st->sleep_cycle);
@@ -287,7 +291,7 @@ static u32 opal_s3_unlock_if_armed(void)
 		return 0x10;
 	}
 
-	if (!st->armed) {
+	if (st->armed_state == OPAL_S3_ARMED_NONE) {
 		if (CONFIG(DEBUG_SMI))
 			printk(BIOS_DEBUG, "OPAL: unlock skipped (not armed)\n");
 		return 0x11;
@@ -299,7 +303,7 @@ static u32 opal_s3_unlock_if_armed(void)
 		return 0x12;
 	}
 
-	st->armed = 0;
+	st->armed_state = OPAL_S3_ARMED_NONE;
 	st->armed_cycle = 0;
 
 	/*
