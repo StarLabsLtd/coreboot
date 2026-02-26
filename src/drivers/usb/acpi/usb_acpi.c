@@ -66,8 +66,8 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 	}
 
 	/* Resources */
+	struct acpi_dp *dsd = acpi_dp_new_table("_DSD");
 	if (usb_acpi_add_gpios_to_crs(config) == true) {
-		struct acpi_dp *dsd;
 		int idx = 0;
 		int reset_gpio_index = -1;
 		int privacy_gpio_index;
@@ -82,7 +82,6 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 							 &idx);
 		acpigen_write_resourcetemplate_footer();
 
-		dsd = acpi_dp_new_table("_DSD");
 		if (reset_gpio_index >= 0)
 			acpi_dp_add_gpio(dsd, "reset-gpio", path,
 					 reset_gpio_index, 0,
@@ -91,8 +90,9 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 			acpi_dp_add_gpio(dsd, "privacy-gpio", path,
 					 privacy_gpio_index, 0,
 					 config->privacy_gpio.active_low);
-		acpi_dp_write(dsd);
 	}
+	acpi_device_add_hotplug_support_in_d3(dsd);
+	acpi_dp_write(dsd);
 
 	if (config->has_power_resource) {
 		const struct acpi_power_res_params power_res_params = {
