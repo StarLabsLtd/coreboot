@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <console/console.h>
-#include "opensil_console.h"
 #include <SilCommon.h>
 
 static int translate_opensil_debug_level(size_t MsgLevel)
@@ -24,7 +23,7 @@ static int translate_opensil_debug_level(size_t MsgLevel)
 	}
 }
 
-void HostDebugService(size_t MsgLevel, const char *SilPrefix, const char *Message,
+void SilTracePoint(size_t MsgLevel, const char *SilPrefix, const char *Message,
 				 const char *Function, size_t Line, ...)
 {
 	if (!CONFIG(OPENSIL_DEBUG_OUTPUT))

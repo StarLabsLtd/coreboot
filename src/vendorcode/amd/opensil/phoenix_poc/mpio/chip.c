@@ -1,19 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cbmem.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <Mpio/Common/MpioStructs.h>
 #include <Mpio/MpioClass-api.h>
 #include <Nbio/NbioClass-api.h>
+#include <Mpio/Common/MpioStructs.h>
+#include <Nbio/Common/PciStructs.h>
+#include <Mpio/Phx/MpioPhxData.h>
 #include <RcMgr/DfX/RcManager-api.h>
 #include <vendorcode/amd/opensil/opensil.h>
 #include <xSIM-api.h>
 
-#include "chip.h"
+#include "../include/chip.h"
+#include "../include/mpio_defs.h"
 
-static void mpio_params_config(void)
+static void mpio_params_config(SIL_CONTEXT *SilContext)
 {
-	MPIOCLASS_INPUT_BLK *mpio_data = SilFindStructure(SilId_MpioClass, 0);
+	MPIOCLASS_COMMON_INPUT_BLK *mpio_data = SilFindStructure(SilContext, SilId_MpioClass, 0);
 	mpio_data->CfgDxioClockGating                  = 1;
 	mpio_data->PcieDxioTimingControlEnable         = 0;
 	mpio_data->PCIELinkReceiverDetectionPolling    = 0;
@@ -65,9 +70,8 @@ static void mpio_params_config(void)
 	mpio_data->MPIOAncDataSupport                  = 1;
 	mpio_data->AfterResetDelay                     = 0;
 	mpio_data->CfgEarlyLink                        = 0;
-	mpio_data->AmdCfgExposeUnusedPciePorts         = 1; // Show all ports
+	mpio_data->AmdCfgExposeUnusedPciePorts         = 1;
 	mpio_data->CfgForcePcieGenSpeed                = 0;
-	mpio_data->CfgSataPhyTuning                    = 0;
 	mpio_data->PcieLinkComplianceModeAllPorts      = 0;
 	mpio_data->AmdMCTPEnable                       = 0;
 	mpio_data->SbrBrokenLaneAvoidanceSup           = 1;
@@ -83,52 +87,51 @@ static void mpio_params_config(void)
 	mpio_data->SyncHeaderByPass                    = 1;
 	mpio_data->CxlTempGen5AdvertAltPtcl            = 0;
 
-	/* TODO handle this differently on multisocket */
+	// OpenSIL complains about missing complex terminator despite it being present...
+	// It doesn't seem to cause any issues though? TODO: Investigate.
 	mpio_data->PcieTopologyData.PlatformData[0].Flags = DESCRIPTOR_TERMINATE_LIST;
 	mpio_data->PcieTopologyData.PlatformData[0].PciePortList = mpio_data->PcieTopologyData.PortList;
+
 }
 
-static void nbio_params_config(void)
+#define xApicMode 0x01
+#define x2ApicMode 0x02
+#define ApicAutoMode 0xff
+static void nbio_params_config(SIL_CONTEXT *SilContext)
 {
-	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilId_NbioClass, 0);
-	NBIOCLASS_INPUT_BLK *input = &nbio_data->NbioInputBlk;
-	input->CfgHdAudioEnable           = false;
-	input->EsmEnableAllRootPorts      = false;
-	input->EsmTargetSpeed             = 16;
-	input->CfgRxMarginPersistenceMode = 1;
-	input->CfgDxioFrequencyVetting    = false;
-	input->CfgSkipPspMessage          = 1;
-	input->CfgEarlyTrainTwoPcieLinks  = false;
-	input->EarlyBmcLinkTraining       = true;
-	input->EdpcEnable                 = 0;
-	input->PcieAerReportMechanism     = 2;
-	input->SevSnpSupport              = false;
-}
+	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilContext, SilId_NbioClass, 0);
+	NBIO_CONFIG_DATA *input = &nbio_data->NbioConfigData;
 
-static void setup_bmc_lanes(uint8_t lane, uint8_t socket)
-{
-	DFX_RCMGR_INPUT_BLK *rc_mgr_input_block = SilFindStructure(SilId_RcManager,  0);
-	rc_mgr_input_block->BmcSocket = socket;
-	rc_mgr_input_block->EarlyBmcLinkLaneNum = lane;
+	// IOMMU
+	input->IommuSupport = true;
+	input->IommuAvicSupport = false;
+	input->IommuL1ClockGatingEnable = true;
+	input->IommuL2ClockGatingEnable = true;
+	input->IommuMMIOAddressReservedEnable = true;   // Use MMIO address reserved from GNB
 
-	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilId_NbioClass, 0);
-	NBIOCLASS_INPUT_BLK *nbio_input = &nbio_data->NbioInputBlk;
-	nbio_input->EarlyBmcLinkSocket         = socket;
-	nbio_input->EarlyBmcLinkLaneNum        = lane;
-	nbio_input->EarlyBmcLinkDie            = 0;
+	// Interrupt Controller (only APIC tested currently)
+	input->IoApicMMIOAddressReservedEnable = true;
+	input->IoApicIdPreDefineEn = true;
 
-	MPIOCLASS_INPUT_BLK *mpio_data = SilFindStructure(SilId_MpioClass, 0);
-	mpio_data->EarlyBmcLinkSocket                  = socket;
-	mpio_data->EarlyBmcLinkLaneNum                 = lane;
-	mpio_data->EarlyBmcLinkDie                     = 0;
+	if (CONFIG(XAPIC_ONLY) || CONFIG(X2APIC_LATE_WORKAROUND))
+		input->AmdApicMode = xApicMode;
+	else if (CONFIG(X2APIC_ONLY))
+		input->AmdApicMode = x2ApicMode;
+	else
+		input->AmdApicMode = ApicAutoMode;
 }
 
 void opensil_mpio_per_device_config(struct device *dev)
 {
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
 	/* Cache *mpio_data from SilFindStructure */
-	static MPIOCLASS_INPUT_BLK *mpio_data = NULL;
+	static MPIOCLASS_COMMON_INPUT_BLK *mpio_data = NULL;
 	if (mpio_data == NULL) {
-		mpio_data = SilFindStructure(SilId_MpioClass, 0);
+		mpio_data = SilFindStructure(&SilContext, SilId_MpioClass, 0);
 	}
 
 	static uint32_t slot_num;
@@ -147,12 +150,6 @@ void opensil_mpio_per_device_config(struct device *dev)
 		}
 		return;
 	}
-
-	if (config->bmc) {
-		setup_bmc_lanes(config->start_lane, 0); // TODO support multiple sockets
-		return;
-	}
-
 	static int mpio_port = 0;
 	MPIO_PORT_DESCRIPTOR port = { .Flags = DESCRIPTOR_TERMINATE_LIST };
 	if (config->type == IFTYPE_PCIE) {
@@ -175,16 +172,6 @@ void opensil_mpio_per_device_config(struct device *dev)
 							config->aspm_l1_2,
 							config->clock_pm);
 		port.Port = port_data;
-	} else if (config->type == IFTYPE_SATA) {
-		const MPIO_ENGINE_DATA engine_data =
-			MPIO_ENGINE_DATA_INITIALIZER(MpioSATAEngine,
-						     config->start_lane, config->end_lane,
-						     0, // meaningless field
-						     config->gpio_group);
-		port.EngineData = engine_data;
-		const MPIO_PORT_DATA port_data = { .PortPresent = 1 };
-		port.Port = port_data;
-
 	}
 	port.Port.AlwaysExpose = 1;
 	port.Port.SlotNum = ++slot_num;
@@ -197,6 +184,11 @@ void opensil_mpio_per_device_config(struct device *dev)
 
 void opensil_mpio_global_config(void)
 {
-	mpio_params_config();
-	nbio_params_config();
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
+	mpio_params_config(&SilContext);
+	nbio_params_config(&SilContext);
 }

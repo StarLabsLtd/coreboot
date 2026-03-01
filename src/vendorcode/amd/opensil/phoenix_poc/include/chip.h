@@ -22,7 +22,7 @@
 enum mpio_type {
 	IFTYPE_UNUSED,
 	IFTYPE_PCIE,
-	IFTYPE_SATA,
+	IFTYPE_DDI,
 };
 
 /* Sync with PCIE_HOTPLUG_TYPE */

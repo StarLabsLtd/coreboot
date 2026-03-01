@@ -1,18 +1,27 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <opensil_config.h>
+#include <CCX/CcxClass-api.h>
+#include <CCX/Common/CcxApic.h>
+#include <DF/DfClass-api.h>
+#include <DF/DfX/PHX/DfSilFabricInfoPhx.h>
+#include <FCH/FchClass-api.h>
+#include <FCH/FchHwAcpi-api.h>
 #include <FCH/Common/FchCommon.h>
 #include <RcMgr/DfX/RcManager-api.h>
 #include <amdblocks/reset.h>
 #include <bootstate.h>
 #include <cbmem.h>
 #include <cpu/cpu.h>
+#include <cpu/x86/smm.h>
 #include <device/device.h>
+#include <soc/aoac_defs.h>
+#include <soc/iomap.h>
 #include <soc/amd/phoenix/chip.h>
 #include <static.h>
 #include <stdio.h>
 #include <xSIM-api.h>
 
-#include "opensil_console.h"
 #include "../opensil.h"
 
 void SIL_STATUS_report(const char *function, const int status)
@@ -47,110 +56,187 @@ void SIL_STATUS_report(const char *function, const int status)
 	printk(log_level, "%s returned %d (%s)\n", function, status, error_string);
 }
 
-static void setup_rc_manager_default(void)
+static void setup_rc_manager_default(SIL_CONTEXT *SilContext)
 {
-	DFX_RCMGR_INPUT_BLK *rc_mgr_input_block = SilFindStructure(SilId_RcManager,  0);
-	/* Let openSIL distribute the resources to the different PCI roots */
-	rc_mgr_input_block->SetRcBasedOnNv = false;
+	DFX_RCMGR_INPUT_BLK *rc_mgr_input_block = SilFindStructure(SilContext, SilId_RcManager, 0);
 
-	/* Currently 1P is the only supported configuration */
+	if (!rc_mgr_input_block) {
+		printk(BIOS_ERR, "OpenSIL: RC Manager block not found\n");
+		return;
+	}
+
 	rc_mgr_input_block->SocketNumber = 1;
-	rc_mgr_input_block->RbsPerSocket = 4; /* PCI root bridges per socket */
+	rc_mgr_input_block->RbsPerSocket = 1; // Consumer platform, 1 RootBridge/Socket
 	rc_mgr_input_block->McptEnable = true;
+	rc_mgr_input_block->SetRcBasedOnNv = false;
 	rc_mgr_input_block->PciExpressBaseAddress = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
 	rc_mgr_input_block->BottomMmioReservedForPrimaryRb = 4ull * GiB - 32 * MiB;
 	rc_mgr_input_block->MmioSizePerRbForNonPciDevice = 16 * MiB;
 	/* MmioAbove4GLimit will be adjusted down in openSIL */
 	rc_mgr_input_block->MmioAbove4GLimit = POWER_OF_2(cpu_phys_address_size());
 	rc_mgr_input_block->Above4GMmioSizePerRbForNonPciDevice = 0;
+
 }
 
-#define NUM_XHCI_CONTROLLERS 2
-static void configure_usb(void)
+#define NUM_XHCI_CONTROLLERS 4
+static void configure_usb(SIL_CONTEXT *SilContext)
 {
-	const struct soc_amd_phoenix_poc_config *soc_config = config_of_soc();
-	const struct soc_usb_config *usb = &soc_config->usb;
+	struct device *usb_ctrlr[NUM_XHCI_CONTROLLERS] = {
+		DEV_PTR(xhci_0),
+		DEV_PTR(xhci_1),
+		DEV_PTR(usb4_xhci_0),
+		DEV_PTR(usb4_xhci_1)
+	};
 
-	FCHUSB_INPUT_BLK *fch_usb_data = SilFindStructure(SilId_FchUsb, 0);
-	fch_usb_data->Xhci0Enable = usb->xhci0_enable;
-	fch_usb_data->Xhci1Enable = usb->xhci1_enable;
-	fch_usb_data->Xhci2Enable = false; /* there's no XHCI2 on this SoC */
-	for (int i = 0; i < NUM_XHCI_CONTROLLERS; i++) {
-		memcpy(&fch_usb_data->XhciOCpinSelect[i].Usb20OcPin, &usb->usb2_oc_pins[i],
-		       sizeof(fch_usb_data->XhciOCpinSelect[i].Usb20OcPin));
-		memcpy(&fch_usb_data->XhciOCpinSelect[i].Usb31OcPin, &usb->usb3_oc_pins[i],
-		       sizeof(fch_usb_data->XhciOCpinSelect[i].Usb31OcPin));
-	}
-	fch_usb_data->XhciOcPolarityCfgLow = usb->polarity_cfg_low;
-	fch_usb_data->Usb3PortForceGen1 = usb->usb3_force_gen1.raw;
+	FCHUSB_INPUT_BLK *fch_usb_data = SilFindStructure(SilContext, SilId_FchUsb, 0);
 
-	/* Instead of overwriting the whole OemUsbConfigurationTable, only copy the relevant
-	   fields to the pre-populated data structure */
-	fch_usb_data->OemUsbConfigurationTable.Usb31PhyEnable = usb->usb31_phy_enable;
-	if (usb->usb31_phy_enable)
-		memcpy(&fch_usb_data->OemUsbConfigurationTable.Usb31PhyPort, usb->usb31_phy,
-		       sizeof(fch_usb_data->OemUsbConfigurationTable.Usb31PhyPort));
-	fch_usb_data->OemUsbConfigurationTable.Usb31PhyEnable = usb->s1_usb31_phy_enable;
-	if (usb->s1_usb31_phy_enable)
-		memcpy(&fch_usb_data->OemUsbConfigurationTable.S1Usb31PhyPort, usb->s1_usb31_phy,
-		       sizeof(fch_usb_data->OemUsbConfigurationTable.S1Usb31PhyPort));
+	if (!fch_usb_data)
+		return;
+
+	fch_usb_data->Xhci0Enable = usb_ctrlr[0] && usb_ctrlr[0]->enabled;
+	fch_usb_data->Xhci1Enable = usb_ctrlr[1] && usb_ctrlr[1]->enabled;
+	fch_usb_data->Xhci2Enable = usb_ctrlr[2] && usb_ctrlr[2]->enabled;
+	fch_usb_data->Xhci3Enable = usb_ctrlr[3] && usb_ctrlr[3]->enabled;
+
 }
 
-#define NUM_SATA_CONTROLLERS 4
-static void configure_sata(void)
+static void setup_data_fabric_default(SIL_CONTEXT *SilContext)
 {
-	FCHSATA_INPUT_BLK *fch_sata_data = SilFindStructure(SilId_FchSata, 0);
-	FCH_SATA2 *fch_sata_defaults = GetFchSataData();
-	for (int i = 0; i < NUM_SATA_CONTROLLERS; i++) {
-		fch_sata_data[i] = fch_sata_defaults[i];
-		fch_sata_data[i].SataSetMaxGen2 = false;
-		fch_sata_data[i].SataMsiEnable = true;
-		fch_sata_data[i].SataEspPort = 0xFF;
-		fch_sata_data[i].SataRasSupport = true;
-		fch_sata_data[i].SataDevSlpPort1Num = 1;
-		fch_sata_data[i].SataMsiEnable = true;
-		fch_sata_data[i].SataControllerAutoShutdown = true;
-		fch_sata_data[i].SataRxPolarity = 0xFF;
+	DFCLASS_INPUT_BLK *df_input_block = SilFindStructure(SilContext, SilId_DfClass, 0);
+
+	if (!df_input_block) {
+		printk(BIOS_ERR, "OpenSIL: Data Fabric block not found\n");
+		return;
 	}
+
+	df_input_block->AmdPciExpressBaseAddress = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+}
+
+// HACK: OpenSil uses different definitions than FSP.
+#define FCH_AOAC_ESPI FCH_AOAC_DEV_ESPI
+#define FCH_AOAC_I2C0 FCH_AOAC_DEV_I2C0
+#define FCH_AOAC_I2C1 FCH_AOAC_DEV_I2C1
+#define FCH_AOAC_I2C2 FCH_AOAC_DEV_I2C2
+#define FCH_AOAC_I2C3 FCH_AOAC_DEV_I2C3
+#define FCH_AOAC_I2C4 FCH_AOAC_DEV_I2C4
+#define FCH_AOAC_I2C5 FCH_AOAC_DEV_I2C5
+#define FCH_AOAC_I3C0 FCH_AOAC_DEV_I3C0
+#define FCH_AOAC_I3C1 FCH_AOAC_DEV_I3C1
+#define FCH_AOAC_I3C2 FCH_AOAC_DEV_I3C2
+#define FCH_AOAC_I3C3 FCH_AOAC_DEV_I3C3
+#define FCH_AOAC_UART0 FCH_AOAC_DEV_UART0
+#define FCH_AOAC_UART1 FCH_AOAC_DEV_UART1
+#define FCH_AOAC_UART2 FCH_AOAC_DEV_UART2
+#define FCH_AOAC_UART3 FCH_AOAC_DEV_UART3
+#define FCH_AOAC_UART4 FCH_AOAC_DEV_UART4
+
+#define FCH_DEV_ENABLE(dev, aoac_bit) \
+	fch_data->FchRunTime.FchDeviceEnableMap |= ((DEV_PTR(dev))->enabled ? aoac_bit : 0)
+static void configure_fch_acpi(SIL_CONTEXT *SilContext)
+{
+	FCHHWACPI_INPUT_BLK *fch_hwacpi_data = SilFindStructure(SilContext, SilId_FchHwAcpi, 0);
+	FCHCLASS_INPUT_BLK *fch_data = SilFindStructure(SilContext, SilId_FchClass, 0);
+	struct device *smb = DEV_PTR(smbus);
+
+	fch_data->Smbus.SmbusSsid = smb->subsystem_vendor |
+				    ((uint32_t)smb->subsystem_device << 16);
+
+	fch_data->FchBldCfg.CfgSioPmeBaseAddress = 0;
+	fch_data->FchBldCfg.CfgAcpiPm1EvtBlkAddr = ACPI_PM_EVT_BLK;
+	fch_data->FchBldCfg.CfgAcpiPm1CntBlkAddr = ACPI_PM1_CNT_BLK;
+	fch_data->FchBldCfg.CfgAcpiPmTmrBlkAddr = ACPI_PM_TMR_BLK;
+	fch_data->FchBldCfg.CfgCpuControlBlkAddr = ACPI_CSTATE_CONTROL;
+	fch_data->FchBldCfg.CfgAcpiGpe0BlkAddr = ACPI_GPE0_BLK;
+	fch_data->FchBldCfg.CfgSmiCmdPortAddr = APM_CNT;
+
+	// OpenSIL seems to use different definitions than FSP.
+	// TODO: Add decinitions expected by OpenSIL (i.e: FCH_AOAC_UART0).
+	fch_data->FchRunTime.FchDeviceEnableMap = 0;
+	//FCH_DEV_ENABLE(espi, FCH_AOAC_DEV_ESPI);
+
+	FCH_DEV_ENABLE(i2c_0, FCH_AOAC_DEV_I2C0);
+	FCH_DEV_ENABLE(i2c_1, FCH_AOAC_DEV_I2C1);
+	FCH_DEV_ENABLE(i2c_2, FCH_AOAC_DEV_I2C2);
+	FCH_DEV_ENABLE(i2c_3, FCH_AOAC_DEV_I2C3);
+	//FCH_DEV_ENABLE(i2c_4, FCH_AOAC_DEV_I2C4);
+	//FCH_DEV_ENABLE(i2c_5, FCH_AOAC_DEV_I2C5);
+
+	FCH_DEV_ENABLE(i3c_0, FCH_AOAC_DEV_I3C0);
+	FCH_DEV_ENABLE(i3c_1, FCH_AOAC_DEV_I3C1);
+	FCH_DEV_ENABLE(i3c_2, FCH_AOAC_DEV_I3C2);
+	FCH_DEV_ENABLE(i3c_3, FCH_AOAC_DEV_I3C3);
+
+	FCH_DEV_ENABLE(uart_0, FCH_AOAC_DEV_UART0);
+	FCH_DEV_ENABLE(uart_1, FCH_AOAC_DEV_UART1);
+	FCH_DEV_ENABLE(uart_2, FCH_AOAC_DEV_UART2);
+	FCH_DEV_ENABLE(uart_3, FCH_AOAC_DEV_UART3);
+	FCH_DEV_ENABLE(uart_4, FCH_AOAC_DEV_UART4);
+
+	fch_hwacpi_data->PwrFailShadow = (CONFIG_MAINBOARD_POWER_FAILURE_STATE == 2) ?
+		3 : CONFIG_MAINBOARD_POWER_FAILURE_STATE;
+}
+
+#define xApicMode 0x01
+#define x2ApicMode 0x02
+#define ApicAutoMode 0xff
+static void configure_ccx(SIL_CONTEXT *SilContext)
+{
+	CCXCLASS_DATA_BLK *ccx_data = SilFindStructure(SilContext, SilId_CcxClass, 0);
+
+	if (CONFIG(XAPIC_ONLY) || CONFIG(X2APIC_LATE_WORKAROUND))
+		ccx_data->CcxInputBlock.AmdApicMode = xApicMode;
+	else if (CONFIG(X2APIC_ONLY))
+		ccx_data->CcxInputBlock.AmdApicMode = x2ApicMode;
+	else
+		ccx_data->CcxInputBlock.AmdApicMode = ApicAutoMode;
+
+	ccx_data->CcxInputBlock.EnableAvx512 = 1;
+	ccx_data->CcxInputBlock.EnableSvmX2AVIC = true;
+	ccx_data->CcxInputBlock.EnableSvmAVIC = true;
+	ccx_data->CcxInputBlock.AmdCStateIoBaseAddress = ACPI_CSTATE_CONTROL;
 }
 
 void setup_opensil(void)
 {
-	const SIL_STATUS debug_ret = SilDebugSetup(HostDebugService);
-	SIL_STATUS_report("SilDebugSetup", debug_ret);
 	const size_t mem_req = xSimQueryMemoryRequirements();
 	void *buf = cbmem_add(CBMEM_ID_AMD_OPENSIL, mem_req);
-	assert(buf);
+
+	SIL_CONTEXT SilContext;
+	SilContext.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS;
+	SilContext.SilMemBaseAddress = (uintptr_t)buf;
+
 	/* We run all openSIL timepoints in the same stage so using TP1 as argument is fine. */
-	const SIL_STATUS assign_mem_ret = xSimAssignMemoryTp1(buf, mem_req);
+	const SIL_STATUS assign_mem_ret = xSimAssignMemoryTp1(&SilContext, mem_req);
 	SIL_STATUS_report("xSimAssignMemory", assign_mem_ret);
 
-	setup_rc_manager_default();
-	configure_usb();
-	configure_sata();
+	setup_rc_manager_default(&SilContext);
+	setup_data_fabric_default(&SilContext);
+	configure_ccx(&SilContext);
+	configure_fch_acpi(&SilContext);
+	configure_usb(&SilContext);
 }
 
-static void opensil_entry(SIL_TIMEPOINT timepoint)
+static void opensil_entry(SIL_TIMEPOINT timepoint, SIL_CONTEXT *SilContext)
 {
 	SIL_STATUS ret;
 	SIL_TIMEPOINT tp = (uintptr_t)timepoint;
 
 	switch (tp) {
 	case SIL_TP1:
-		ret = InitializeSiTp1();
+		ret = InitializeAMDSiTp1(SilContext);
 		break;
 	case SIL_TP2:
-		ret = InitializeSiTp2();
+		ret = InitializeAMDSiTp2(SilContext);
 		break;
 	case SIL_TP3:
-		ret = InitializeSiTp3();
+		ret = InitializeAMDSiTp3(SilContext);
 		break;
 	default:
 		printk(BIOS_ERR, "Unknown openSIL timepoint\n");
 		return;
 	}
 	char opensil_function[16];
-	snprintf(opensil_function, sizeof(opensil_function), "InitializeSiTp%d", tp + 1);
+	snprintf(opensil_function, sizeof(opensil_function), "InitializeAMDSiTp%d", tp + 1);
 	SIL_STATUS_report(opensil_function, ret);
 	if (ret == SilResetRequestColdImm || ret == SilResetRequestColdDef) {
 		printk(BIOS_INFO, "openSIL requested a cold reset");
@@ -163,17 +249,30 @@ static void opensil_entry(SIL_TIMEPOINT timepoint)
 
 void opensil_xSIM_timepoint_1(void)
 {
-	opensil_entry(SIL_TP1);
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
+	opensil_entry(SIL_TP1, &SilContext);
 }
 
 void opensil_xSIM_timepoint_2(void)
 {
-	opensil_entry(SIL_TP2);
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
+	opensil_entry(SIL_TP2, &SilContext);
 }
 
 void opensil_xSIM_timepoint_3(void)
 {
-	opensil_entry(SIL_TP3);
-}
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
 
-/* TODO: also call timepoints 2 and 3 from coreboot. Are they NOOP? */
+	opensil_entry(SIL_TP3, &SilContext);
+}

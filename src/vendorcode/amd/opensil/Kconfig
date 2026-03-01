@@ -40,7 +40,7 @@ config AMD_OPENSIL_PATH
 config AMD_OPENSIL_MPIO_CHIP_H_FILE
 	string "Location of specific MPIO chip.h implementation"
 	default "$(top)/src/vendorcode/amd/opensil/genoa_poc/mpio/chip.h" if SOC_AMD_OPENSIL_GENOA_POC
-	default "$(top)/src/vendorcode/amd/opensil/phoenix_poc/mpio/chip.h" if SOC_AMD_OPENSIL_PHOENIX_POC
+	default "$(top)/src/vendorcode/amd/opensil/phoenix_poc/include/chip.h" if SOC_AMD_OPENSIL_PHOENIX_POC
 	default "$(top)/src/vendorcode/amd/opensil/turin_poc/mpio/chip.h" if SOC_AMD_OPENSIL_TURIN_POC
 	default "$(top)/src/vendorcode/amd/opensil/stub/mpio/chip.h"
 	help
