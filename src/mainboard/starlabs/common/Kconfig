@@ -13,9 +13,6 @@ config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 config DRIVERS_EFI_FW_INFO
 	def_bool y
 
-config TCG_OPAL_S3_UNLOCK
-	default y
-
 config STARLABS_NVME_POWER_SEQUENCE
 	bool "Enable NVMe/M.2 slot power sequence"
 	depends on SOC_INTEL_COMMON_BLOCK_GPIO
@@ -36,6 +33,9 @@ config STARLABS_NVME_POWER_SEQUENCE
 	  `variant_nvme_power_sequence_*()` helpers or provide pad tables via
 	  `variant_nvme_power_sequence_pads()` and
 	  `variant_nvme_power_sequence_post_pads()`.
+
+config TCG_OPAL_S3_UNLOCK
+	default y
 
 config MB_COMMON_DIR
 	string
