@@ -328,10 +328,11 @@ static u32 opal_s3_unlock_if_armed(void)
 		printk(BIOS_DEBUG, "OPAL: unlock succeeded\n");
 
 	/*
-	 * If the device isn't ready yet (rc == 1), keep the S3 cycle armed so a
-	 * later resume-time trigger (e.g. from an RTD3 _ON method) can retry.
+	 * If the device isn't ready yet (rc == 1) or the OPAL stack failed before
+	 * a successful unlock (rc == 3), keep the S3 cycle armed so a later
+	 * resume-time trigger (e.g. from an RTD3 _ON method) can retry.
 	 */
-	if (rc != 1) {
+	if (rc != 1 && rc != 3) {
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
 	}
@@ -365,6 +366,7 @@ int opal_s3_smi_apmc(u8 apmc)
 		 * whether unlock was attempted/succeeded without relying on SMM logs.
 		 */
 		unlock_rc = opal_s3_unlock_if_armed();
+		printk(BIOS_DEBUG, "OPAL-S3: unlock SMI rc=0x%x\n", unlock_rc);
 
 		node = get_apmc_node(apmc);
 		if (node >= 0) {
