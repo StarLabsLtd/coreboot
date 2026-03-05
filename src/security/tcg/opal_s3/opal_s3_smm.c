@@ -303,9 +303,6 @@ static u32 opal_s3_unlock_if_armed(void)
 		return 0x12;
 	}
 
-	st->armed_state = OPAL_S3_ARMED_NONE;
-	st->armed_cycle = 0;
-
 	/*
 	 * Give the NVMe controller and upstream PCIe fabric a moment to come
 	 * back after S3 before attempting MMIO + DMA.
@@ -329,6 +326,15 @@ static u32 opal_s3_unlock_if_armed(void)
 		printk(BIOS_ERR, "OPAL: unlock failed (rc=%u)\n", rc);
 	else if (CONFIG(DEBUG_SMI))
 		printk(BIOS_DEBUG, "OPAL: unlock succeeded\n");
+
+	/*
+	 * If the device isn't ready yet (rc == 1), keep the S3 cycle armed so a
+	 * later resume-time trigger (e.g. from an RTD3 _ON method) can retry.
+	 */
+	if (rc != 1) {
+		st->armed_state = OPAL_S3_ARMED_NONE;
+		st->armed_cycle = 0;
+	}
 
 	/*
 	 * Keep the secret cached so subsequent S3 cycles can unlock even if the

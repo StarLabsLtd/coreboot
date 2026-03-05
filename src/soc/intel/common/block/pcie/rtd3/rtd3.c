@@ -166,6 +166,13 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 	acpigen_emit_namestring(acpi_device_path_join(parent, "RTD3._STA"));
 	acpigen_emit_byte(LOCAL0_OP);
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, ONE_OP);
+	/*
+	 * If _ON is called while the power resource is already ON (common during
+	 * resume), still trigger the OPAL S3 unlock request. The SMM handler will
+	 * ignore it unless an S3 resume cycle is armed.
+	 */
+	if (trigger_opal_s3_unlock)
+		acpigen_write_store_int_to_namestr(APM_CNT_OPAL_S3_UNLOCK, "APMC");
 	acpigen_write_return_op(ONE_OP);
 	acpigen_write_if_end();
 
