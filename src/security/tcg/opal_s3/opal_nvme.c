@@ -196,15 +196,15 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	nvme->sq_db = (u32 *)(nvme->regs + 0x1000 + (0 * nvme->dstrd_bytes));
 	nvme->cq_db = (u32 *)(nvme->regs + 0x1000 + (1 * nvme->dstrd_bytes));
 
-	cc = read32(nvme->regs + 0x14);
-	csts = read32(nvme->regs + 0x1c);
-
 	/*
 	 * If controller is already running, avoid disturbing it when it is
 	 * already configured for our private scratch queues and appears idle.
 	 * Otherwise, reinitialize to private queues to avoid interacting with
 	 * OS-owned admin queues.
 	 */
+	cc = read32(nvme->regs + 0x14);
+	csts = read32(nvme->regs + 0x1c);
+
 	if ((cc & NVME_CC_EN) && (csts & 0x1)) {
 		const u64 asq = read64(nvme->regs + 0x28);
 		const u64 acq = read64(nvme->regs + 0x30);
@@ -248,7 +248,6 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 		printk(BIOS_ERR, "OPAL NVMe: controller not ready\n");
 		return -1;
 	}
-
 	nvme->sq_tail = 0;
 	nvme->cq_head = 0;
 	nvme->cq_phase = 0;
@@ -266,14 +265,17 @@ static int nvme_security_cmd(struct opal_nvme *nvme, u8 opcode, u8 protocol, u16
 			     const void *buf, size_t buf_size)
 {
 	struct nvme_sq_entry cmd = { 0 };
-	const u16 sp = __builtin_bswap16(sp_specific);
 	const u64 prp1 = (u64)(uintptr_t)buf;
 
 	cmd.dw[0] = opcode; /* CID is left as 0 */
 	cmd.dw[1] = 0;      /* NSID = 0 (controller) */
 	cmd.dw[6] = (u32)prp1;
 	cmd.dw[7] = (u32)(prp1 >> 32);
-	cmd.dw[10] = ((u32)protocol << 24) | ((u32)sp << 8);
+	/*
+	 * NVMe command dwords are little-endian on x86. The Security Protocol
+	 * Specific field is a numeric value in the command; do not byte-swap it.
+	 */
+	cmd.dw[10] = ((u32)protocol << 24) | ((u32)sp_specific << 8);
 	cmd.dw[11] = (u32)buf_size;
 
 	return nvme_admin_cmd(nvme, &cmd);

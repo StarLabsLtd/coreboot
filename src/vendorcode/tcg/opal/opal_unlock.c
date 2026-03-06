@@ -4,9 +4,9 @@
 
 #include <vendorcode/intel/tcg_storage_core/tcg_storage_core_lib.h>
 
+#include <commonlib/bsd/helpers.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
-#include <commonlib/bsd/helpers.h>
 #include <delay.h>
 #include <security/tcg/opal_s3/opal_nvme.h>
 #include <security/tcg/opal_s3/opal_secure.h>
@@ -16,7 +16,8 @@
 #define TCG_OPAL_SECURITY_PROTOCOL_1 0x01
 
 /* Minimal Opal UIDs needed for S3 unlock. */
-#define OPAL_UID_LOCKING_SP TCG_TO_UID(0x00, 0x00, 0x02, 0x05, 0x00, 0x00, 0x00, 0x02)
+#define OPAL_UID_LOCKING_SP \
+	TCG_TO_UID(0x00, 0x00, 0x02, 0x05, 0x00, 0x00, 0x00, 0x02)
 #define OPAL_LOCKING_SP_ADMIN1_AUTHORITY \
 	TCG_TO_UID(0x00, 0x00, 0x00, 0x09, 0x00, 0x01, 0x00, 0x01)
 #define OPAL_LOCKING_SP_USER1_AUTHORITY \
@@ -25,12 +26,6 @@
 	TCG_TO_UID(0x00, 0x00, 0x08, 0x02, 0x00, 0x00, 0x00, 0x01)
 
 #define TRUSTED_COMMAND_TIMEOUT_NS ((u64)5 * 1000 * 1000 * 1000ULL)
-
-#define OPAL_NVME_PAGE_SIZE         4096U
-#define OPAL_NVME_QUEUE_PAGES       2U
-#define OPAL_NVME_SCRATCH_PAGES     3U
-#define OPAL_NVME_QUEUE_BYTES       (OPAL_NVME_QUEUE_PAGES * OPAL_NVME_PAGE_SIZE)
-#define OPAL_NVME_SCRATCH_MIN_BYTES (OPAL_NVME_SCRATCH_PAGES * OPAL_NVME_PAGE_SIZE)
 
 typedef struct {
 	UINT32 HostSessionId;
@@ -41,8 +36,8 @@ typedef struct {
 } OPAL_SESSION;
 
 static TCG_RESULT opal_trusted_send(OPAL_SESSION *Session, UINT8 SecurityProtocol,
-				    UINT16 SpSpecific, UINTN TransferLength, VOID *Buffer,
-				    UINTN BufferSize)
+				    UINT16 SpSpecific, UINTN TransferLength,
+				    VOID *Buffer, UINTN BufferSize)
 {
 	const UINTN TransferLength512 = (TransferLength + 511) & ~(UINTN)511;
 
@@ -51,8 +46,8 @@ static TCG_RESULT opal_trusted_send(OPAL_SESSION *Session, UINT8 SecurityProtoco
 
 	ZeroMem((UINT8 *)Buffer + TransferLength, TransferLength512 - TransferLength);
 
-	if (opal_nvme_security_send(Session->Nvme, SecurityProtocol, SpSpecific, Buffer,
-				    TransferLength512))
+	if (opal_nvme_security_send(Session->Nvme, SecurityProtocol, SpSpecific,
+				    Buffer, TransferLength512))
 		return TcgResultFailure;
 
 	return TcgResultSuccess;
@@ -77,8 +72,8 @@ static TCG_RESULT opal_trusted_recv(OPAL_SESSION *Session, UINT8 SecurityProtoco
 		size_t TransferSize = 0;
 
 		ZeroMem(Buffer, BufferSize);
-		if (opal_nvme_security_recv(Session->Nvme, SecurityProtocol, SpSpecific, Buffer,
-					    TransferLength512, &TransferSize))
+		if (opal_nvme_security_recv(Session->Nvme, SecurityProtocol, SpSpecific,
+					    Buffer, TransferLength512, &TransferSize))
 			return TcgResultFailure;
 
 		if (SecurityProtocol != TCG_OPAL_SECURITY_PROTOCOL_1)
@@ -111,8 +106,8 @@ static TCG_RESULT opal_perform_method(OPAL_SESSION *Session, UINT32 SendSize, VO
 				      EstimateTimeCost));
 
 	ERROR_CHECK(TcgInitTcgParseStruct(ParseStruct, Buffer, BufferSize));
-	ERROR_CHECK(
-		TcgCheckComIds(ParseStruct, Session->OpalBaseComId, Session->ComIdExtension));
+	ERROR_CHECK(TcgCheckComIds(ParseStruct, Session->OpalBaseComId,
+				   Session->ComIdExtension));
 	ERROR_CHECK(TcgGetMethodStatus(ParseStruct, MethodStatus));
 
 	return TcgResultSuccess;
@@ -120,64 +115,71 @@ static TCG_RESULT opal_perform_method(OPAL_SESSION *Session, UINT32 SendSize, VO
 
 static TCG_RESULT opal_start_session(OPAL_SESSION *Session, TCG_UID SpId, BOOLEAN Write,
 				     UINT32 HostChallengeLength, const VOID *HostChallenge,
-				     TCG_UID HostSigningAuthority, UINT8 *MethodStatus)
+				     TCG_UID HostSigningAuthority, VOID *Buffer,
+				     UINT32 BufferSize, UINT8 *MethodStatus)
 {
 	TCG_CREATE_STRUCT CreateStruct;
 	TCG_PARSE_STRUCT ParseStruct;
 	UINT32 Size;
 	UINT16 ComIdExtension = 0;
 	UINT32 HostSessionId = 1;
-	UINT8 Buf[512];
 	TCG_RESULT Ret = TcgResultSuccess;
 
-	if (!Session || !MethodStatus)
+	if (!Session || !MethodStatus || !Buffer)
 		return TcgResultFailureNullPointer;
+
+	if (BufferSize < 512)
+		return TcgResultFailureBufferTooSmall;
 
 	*MethodStatus = 0;
 
 	Session->ComIdExtension = ComIdExtension;
 	Session->HostSessionId = HostSessionId;
 
-	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buf, sizeof(Buf));
+	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buffer, BufferSize);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
 	Ret = TcgCreateStartSession(&CreateStruct, &Size, Session->OpalBaseComId,
 				    ComIdExtension, HostSessionId, SpId, Write,
-				    HostChallengeLength, HostChallenge, HostSigningAuthority);
+				    HostChallengeLength, HostChallenge,
+				    HostSigningAuthority);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = opal_perform_method(Session, Size, Buf, sizeof(Buf), &ParseStruct, MethodStatus,
-				  0);
+	Ret = opal_perform_method(Session, Size, Buffer, BufferSize, &ParseStruct,
+				  MethodStatus, 0);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	if (*MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS)
 		goto out;
 
-	if (TcgParseSyncSession(&ParseStruct, Session->OpalBaseComId, ComIdExtension,
-				HostSessionId, &Session->TperSessionId) != TcgResultSuccess) {
+	if (TcgParseSyncSession(&ParseStruct, Session->OpalBaseComId,
+				ComIdExtension, HostSessionId,
+				&Session->TperSessionId) != TcgResultSuccess) {
 		Ret = TcgResultFailure;
 		goto out;
 	}
 
 out:
-	opal_explicit_bzero(Buf, sizeof(Buf));
+	opal_explicit_bzero(Buffer, BufferSize);
 	return Ret;
 }
 
-static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
+static TCG_RESULT opal_end_session(OPAL_SESSION *Session, VOID *Buffer, UINT32 BufferSize)
 {
-	UINT8 Buffer[512];
 	TCG_CREATE_STRUCT CreateStruct;
 	UINT32 Size;
 	TCG_PARSE_STRUCT ParseStruct;
 	TCG_RESULT Ret = TcgResultSuccess;
 
-	if (!Session)
+	if (!Session || !Buffer)
 		return TcgResultFailureNullPointer;
 
-	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buffer, sizeof(Buffer));
+	if (BufferSize < 512)
+		return TcgResultFailureBufferTooSmall;
+
+	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buffer, BufferSize);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
@@ -187,21 +189,22 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = opal_trusted_send(Session, TCG_OPAL_SECURITY_PROTOCOL_1, Session->OpalBaseComId,
-				Size, Buffer, sizeof(Buffer));
+	Ret = opal_trusted_send(Session, TCG_OPAL_SECURITY_PROTOCOL_1,
+				Session->OpalBaseComId, Size, Buffer, BufferSize);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = opal_trusted_recv(Session, TCG_OPAL_SECURITY_PROTOCOL_1, Session->OpalBaseComId,
-				Buffer, sizeof(Buffer), 0);
+	Ret = opal_trusted_recv(Session, TCG_OPAL_SECURITY_PROTOCOL_1,
+				Session->OpalBaseComId, Buffer, BufferSize, 0);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = TcgInitTcgParseStruct(&ParseStruct, Buffer, sizeof(Buffer));
+	Ret = TcgInitTcgParseStruct(&ParseStruct, Buffer, BufferSize);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = TcgCheckComIds(&ParseStruct, Session->OpalBaseComId, Session->ComIdExtension);
+	Ret = TcgCheckComIds(&ParseStruct, Session->OpalBaseComId,
+			     Session->ComIdExtension);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
@@ -210,37 +213,43 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 		goto out;
 
 out:
-	opal_explicit_bzero(Buffer, sizeof(Buffer));
+	opal_explicit_bzero(Buffer, BufferSize);
 	return Ret;
 }
 
-static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEAN ReadLocked,
-						   BOOLEAN WriteLocked, UINT8 *MethodStatus)
+static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session,
+						   BOOLEAN ReadLocked, BOOLEAN WriteLocked,
+						   VOID *Buffer, UINT32 BufferSize,
+						   UINT8 *MethodStatus)
 {
-	UINT8 Buf[512];
 	TCG_CREATE_STRUCT CreateStruct;
 	TCG_PARSE_STRUCT ParseStruct;
 	UINT32 Size;
 	TCG_RESULT Ret = TcgResultSuccess;
 
-	if (!Session || !MethodStatus)
+	if (!Session || !MethodStatus || !Buffer)
 		return TcgResultFailureNullPointer;
 
-	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buf, sizeof(Buf));
+	if (BufferSize < 512)
+		return TcgResultFailureBufferTooSmall;
+
+	Ret = TcgInitTcgCreateStruct(&CreateStruct, Buffer, BufferSize);
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = TcgStartComPacket(&CreateStruct, Session->OpalBaseComId, Session->ComIdExtension);
+	Ret = TcgStartComPacket(&CreateStruct, Session->OpalBaseComId,
+				Session->ComIdExtension);
 	if (Ret != TcgResultSuccess)
 		goto out;
-	Ret = TcgStartPacket(&CreateStruct, Session->TperSessionId, Session->HostSessionId, 0,
-			     0, 0);
+	Ret = TcgStartPacket(&CreateStruct, Session->TperSessionId,
+			     Session->HostSessionId, 0, 0, 0);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	Ret = TcgStartSubPacket(&CreateStruct, 0);
 	if (Ret != TcgResultSuccess)
 		goto out;
-	Ret = TcgStartMethodCall(&CreateStruct, OPAL_LOCKING_SP_LOCKING_GLOBALRANGE,
+	Ret = TcgStartMethodCall(&CreateStruct,
+				 OPAL_LOCKING_SP_LOCKING_GLOBALRANGE,
 				 TCG_UID_METHOD_SET);
 	if (Ret != TcgResultSuccess)
 		goto out;
@@ -251,7 +260,7 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	Ret = TcgAddStartName(&CreateStruct);
 	if (Ret != TcgResultSuccess)
 		goto out;
-	Ret = TcgAddUINT8(&CreateStruct, 0x01); /* "Values" */
+	Ret = TcgAddUINT8(&CreateStruct, 0x01);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	Ret = TcgAddStartList(&CreateStruct);
@@ -261,7 +270,7 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	Ret = TcgAddStartName(&CreateStruct);
 	if (Ret != TcgResultSuccess)
 		goto out;
-	Ret = TcgAddUINT8(&CreateStruct, 0x07); /* "ReadLocked" */
+	Ret = TcgAddUINT8(&CreateStruct, 0x07);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	Ret = TcgAddBOOLEAN(&CreateStruct, ReadLocked);
@@ -274,7 +283,7 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	Ret = TcgAddStartName(&CreateStruct);
 	if (Ret != TcgResultSuccess)
 		goto out;
-	Ret = TcgAddUINT8(&CreateStruct, 0x08); /* "WriteLocked" */
+	Ret = TcgAddUINT8(&CreateStruct, 0x08);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	Ret = TcgAddBOOLEAN(&CreateStruct, WriteLocked);
@@ -306,8 +315,8 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess)
 		goto out;
 
-	Ret = opal_perform_method(Session, Size, Buf, sizeof(Buf), &ParseStruct, MethodStatus,
-				  0);
+	Ret = opal_perform_method(Session, Size, Buffer, BufferSize, &ParseStruct,
+				  MethodStatus, 0);
 	if (Ret != TcgResultSuccess)
 		goto out;
 	if (*MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS) {
@@ -316,14 +325,16 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	}
 
 out:
-	opal_explicit_bzero(Buf, sizeof(Buf));
+	opal_explicit_bzero(Buffer, BufferSize);
 	return Ret;
 }
 
 static TCG_RESULT opal_util_update_global_locking_range(OPAL_SESSION *Session,
 							const VOID *Password,
 							UINT32 PasswordLength,
-							BOOLEAN ReadLocked, BOOLEAN WriteLocked)
+							BOOLEAN ReadLocked,
+							BOOLEAN WriteLocked,
+							VOID *Buffer, UINT32 BufferSize)
 {
 	UINT8 MethodStatus = 0;
 	TCG_RESULT Ret;
@@ -331,31 +342,34 @@ static TCG_RESULT opal_util_update_global_locking_range(OPAL_SESSION *Session,
 	NULL_CHECK(Session);
 	NULL_CHECK(Password);
 
-	/* Try admin1 authority. */
-	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength, Password,
-				 OPAL_LOCKING_SP_ADMIN1_AUTHORITY, &MethodStatus);
-	if ((Ret == TcgResultSuccess) && (MethodStatus == TCG_METHOD_STATUS_CODE_SUCCESS)) {
+	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength,
+				 Password, OPAL_LOCKING_SP_ADMIN1_AUTHORITY,
+				 Buffer, BufferSize, &MethodStatus);
+	if ((Ret == TcgResultSuccess) &&
+	    (MethodStatus == TCG_METHOD_STATUS_CODE_SUCCESS)) {
 		Ret = opal_update_global_locking_range(Session, ReadLocked, WriteLocked,
-						       &MethodStatus);
-		opal_end_session(Session);
+						       Buffer, BufferSize, &MethodStatus);
+		opal_end_session(Session, Buffer, BufferSize);
 		if ((Ret == TcgResultSuccess) &&
 		    (MethodStatus == TCG_METHOD_STATUS_CODE_SUCCESS))
 			return TcgResultSuccess;
 	}
 
-	/* Try user1 authority. */
-	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength, Password,
-				 OPAL_LOCKING_SP_USER1_AUTHORITY, &MethodStatus);
+	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength,
+				 Password, OPAL_LOCKING_SP_USER1_AUTHORITY,
+				 Buffer, BufferSize, &MethodStatus);
 	if (Ret != TcgResultSuccess)
 		goto done;
 	if (MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS)
 		goto done;
 
-	Ret = opal_update_global_locking_range(Session, ReadLocked, WriteLocked, &MethodStatus);
-	opal_end_session(Session);
+	Ret = opal_update_global_locking_range(Session, ReadLocked, WriteLocked,
+					       Buffer, BufferSize, &MethodStatus);
+	opal_end_session(Session, Buffer, BufferSize);
 
 done:
-	if ((Ret == TcgResultSuccess) && (MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS)) {
+	if ((Ret == TcgResultSuccess) &&
+	    (MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS)) {
 		if (MethodStatus == TCG_METHOD_STATUS_CODE_AUTHORITY_LOCKED_OUT)
 			Ret = TcgResultFailureInvalidType;
 		else
@@ -365,8 +379,8 @@ done:
 	return Ret;
 }
 
-u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u8 password_len,
-			  void *scratch, size_t scratch_size)
+u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
+			  u8 password_len, void *scratch, size_t scratch_size)
 {
 	struct opal_nvme nvme;
 	OPAL_SESSION Session;
@@ -380,7 +394,7 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 		return 4;
 	}
 
-	if (!scratch || scratch_size < OPAL_NVME_SCRATCH_MIN_BYTES) {
+	if (!scratch || scratch_size < (3 * 4096)) {
 		printk(BIOS_ERR, "OPAL: invalid scratch buffer\n");
 		return 2;
 	}
@@ -390,20 +404,17 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 		return 2;
 	}
 
-	queue_base = (u8 *)ALIGN_UP((uintptr_t)scratch, OPAL_NVME_PAGE_SIZE);
-	if ((uintptr_t)queue_base + OPAL_NVME_SCRATCH_MIN_BYTES >
-	    (uintptr_t)scratch + scratch_size) {
+	queue_base = (u8 *)ALIGN_UP((uintptr_t)scratch, 4096);
+	if ((uintptr_t)queue_base + (3 * 4096) > (uintptr_t)scratch + scratch_size) {
 		printk(BIOS_ERR, "OPAL: scratch alignment overflow\n");
 		rc = 2;
 		goto out_early;
 	}
 
-	/* Use a 4KiB IO buffer after the queue pages. */
-	io_buf = queue_base + OPAL_NVME_QUEUE_BYTES;
+	io_buf = queue_base + (2 * 4096);
 
 	if (opal_nvme_init(&nvme, dev, scratch, scratch_size)) {
-		/* Fail closed and ensure stale DMA-visible buffers are cleared. */
-		opal_explicit_bzero(queue_base, OPAL_NVME_SCRATCH_MIN_BYTES);
+		opal_explicit_bzero(queue_base, 3 * 4096);
 		return 1;
 	}
 
@@ -412,27 +423,29 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 	Session.OpalBaseComId = base_comid;
 	Session.ComIdExtension = 0;
 
-	/* Best-effort unlock. */
-	Ret = opal_util_update_global_locking_range(&Session, password, password_len, FALSE,
-						    FALSE);
+	Ret = opal_util_update_global_locking_range(&Session, password, password_len,
+						    FALSE, FALSE, io_buf, 4096);
 
-	opal_explicit_bzero(io_buf, OPAL_NVME_PAGE_SIZE);
-
-	/* Clear DMA-visible admin queues as well. */
-	opal_explicit_bzero(queue_base, OPAL_NVME_QUEUE_BYTES);
+	opal_explicit_bzero(io_buf, 4096);
+	opal_explicit_bzero(queue_base, 2 * 4096);
 	opal_nvme_deinit(&nvme);
 
 	rc = (Ret == TcgResultSuccess) ? 0 : 3;
 	return rc;
-out_early: {
-	const uintptr_t end = (uintptr_t)scratch + scratch_size;
-	const uintptr_t start = (uintptr_t)queue_base;
-	if (end > start) {
-		size_t safe = end - start;
-		if (safe > OPAL_NVME_SCRATCH_MIN_BYTES)
-			safe = OPAL_NVME_SCRATCH_MIN_BYTES;
-		opal_explicit_bzero(queue_base, safe);
+
+out_early:
+	{
+		const uintptr_t end = (uintptr_t)scratch + scratch_size;
+		const uintptr_t start = (uintptr_t)queue_base;
+
+		if (end > start) {
+			size_t safe = end - start;
+
+			if (safe > (3 * 4096))
+				safe = 3 * 4096;
+			opal_explicit_bzero(queue_base, safe);
+		}
 	}
-}
+
 	return rc;
 }
