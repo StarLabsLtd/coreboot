@@ -10,6 +10,7 @@
 #include <device/pci_ops.h>
 #include <device/pci_type.h>
 #include <security/tcg/opal_s3.h>
+#include <security/tcg/opal_s3_diag.h>
 #include <security/tcg/opal_s3_smm.h>
 #include <vendorcode/tcg/opal/opal_unlock.h>
 #include <stddef.h>
@@ -319,7 +320,7 @@ static u32 opal_s3_unlock_if_armed(void)
 			break;
 
 		/* Retry only the NVMe init path failures. */
-		if (rc != 1)
+		if (opal_s3_diag_class(rc) != 1)
 			break;
 	}
 	if (rc)
@@ -331,7 +332,7 @@ static u32 opal_s3_unlock_if_armed(void)
 	 * Keep the S3 cycle armed only when the device was not ready yet so a
 	 * later resume-time trigger (e.g. from an RTD3 _ON method) can retry.
 	 */
-	if (rc != 1) {
+	if (opal_s3_diag_class(rc) != 1) {
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
 	}

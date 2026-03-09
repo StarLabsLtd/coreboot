@@ -9,6 +9,7 @@
 #include <cpu/x86/smm.h>
 #include <commonlib/bsd/helpers.h>
 #include <delay.h>
+#include <security/tcg/opal_s3_diag.h>
 #include <security/tcg/opal_s3/opal_nvme.h>
 #include <security/tcg/opal_s3/opal_secure.h>
 #include <string.h>
@@ -39,6 +40,10 @@ typedef struct {
 	UINT16 ComIdExtension;
 	UINT16 OpalBaseComId;
 	struct opal_nvme *Nvme;
+	u8 DiagAuthority;
+	u8 DiagStage;
+	u8 DiagMethodStatus;
+	TCG_RESULT DiagRet;
 } OPAL_SESSION;
 
 static const char *tcg_result_string(TCG_RESULT ret)
@@ -77,6 +82,33 @@ static const char *opal_authority_string(TCG_UID authority)
 	}
 }
 
+static void opal_diag_record(OPAL_SESSION *Session, u8 Stage, UINT8 MethodStatus, TCG_RESULT Ret)
+{
+	if (!Session)
+		return;
+
+	Session->DiagStage = Stage;
+	Session->DiagMethodStatus = MethodStatus;
+	Session->DiagRet = Ret;
+}
+
+static u32 opal_diag_rc(const OPAL_SESSION *Session, u8 Class)
+{
+	u8 authority = OPAL_S3_DIAG_AUTH_NONE;
+	u8 stage = OPAL_S3_DIAG_STAGE_NONE;
+	u8 method_status = 0;
+	u8 ret = 0;
+
+	if (Session) {
+		authority = Session->DiagAuthority;
+		stage = Session->DiagStage;
+		method_status = Session->DiagMethodStatus;
+		ret = Session->DiagRet;
+	}
+
+	return OPAL_S3_DIAG_RC(Class, authority, stage, method_status, ret);
+}
+
 static TCG_RESULT opal_trusted_send(OPAL_SESSION *Session, UINT8 SecurityProtocol,
 				    UINT16 SpSpecific, UINTN TransferLength, VOID *Buffer,
 				    UINTN BufferSize)
@@ -88,6 +120,8 @@ static TCG_RESULT opal_trusted_send(OPAL_SESSION *Session, UINT8 SecurityProtoco
 		       "OPAL: trusted send buffer too small sp=0x%02x sps=0x%04x xfer=0x%zx padded=0x%zx buf=0x%zx\n",
 		       SecurityProtocol, SpSpecific, TransferLength, TransferLength512,
 		       BufferSize);
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_TRUSTED_SEND, 0,
+				 TcgResultFailureBufferTooSmall);
 		return TcgResultFailureBufferTooSmall;
 	}
 
@@ -101,6 +135,7 @@ static TCG_RESULT opal_trusted_send(OPAL_SESSION *Session, UINT8 SecurityProtoco
 		printk(BIOS_ERR,
 		       "OPAL: trusted send failed sp=0x%02x sps=0x%04x xfer=0x%zx\n",
 		       SecurityProtocol, SpSpecific, TransferLength512);
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_TRUSTED_SEND, 0, TcgResultFailure);
 		return TcgResultFailure;
 	}
 
@@ -125,6 +160,8 @@ static TCG_RESULT opal_trusted_recv(OPAL_SESSION *Session, UINT8 SecurityProtoco
 		printk(BIOS_ERR,
 		       "OPAL: trusted recv buffer too small sp=0x%02x sps=0x%04x buf=0x%zx aligned=0x%zx\n",
 		       SecurityProtocol, SpSpecific, BufferSize, TransferLength512);
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_TRUSTED_RECV, 0,
+				 TcgResultFailureBufferTooSmall);
 		return TcgResultFailureBufferTooSmall;
 	}
 
@@ -144,6 +181,8 @@ static TCG_RESULT opal_trusted_recv(OPAL_SESSION *Session, UINT8 SecurityProtoco
 			printk(BIOS_ERR,
 			       "OPAL: trusted recv transport failed sp=0x%02x sps=0x%04x tries_left=%u/%u\n",
 			       SecurityProtocol, SpSpecific, Tries, TotalTries);
+			opal_diag_record(Session, OPAL_S3_DIAG_STAGE_TRUSTED_RECV, 0,
+					 TcgResultFailure);
 			return TcgResultFailure;
 		}
 		LastTransferSize = TransferSize;
@@ -172,6 +211,7 @@ static TCG_RESULT opal_trusted_recv(OPAL_SESSION *Session, UINT8 SecurityProtoco
 	       "OPAL: trusted recv timed out sp=0x%02x sps=0x%04x len=0x%x outstanding=0x%x xfer=0x%zx\n",
 	       SecurityProtocol, SpSpecific, LastLength, LastOutstandingData,
 	       LastTransferSize);
+	opal_diag_record(Session, OPAL_S3_DIAG_STAGE_TRUSTED_RECV, 0, TcgResultFailure);
 	return TcgResultFailure;
 }
 
@@ -210,6 +250,7 @@ static TCG_RESULT opal_perform_method(OPAL_SESSION *Session, UINT32 SendSize, VO
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: parse init failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_PARSE_INIT, 0, Ret);
 		return Ret;
 	}
 
@@ -231,6 +272,7 @@ static TCG_RESULT opal_perform_method(OPAL_SESSION *Session, UINT32 SendSize, VO
 			       Ret, tcg_result_string(Ret), ComIdRet,
 			       tcg_result_string(ComIdRet));
 		}
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_CHECK_COMID, 0, Ret);
 		return Ret;
 	}
 
@@ -238,6 +280,7 @@ static TCG_RESULT opal_perform_method(OPAL_SESSION *Session, UINT32 SendSize, VO
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: get method status failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_GET_METHOD_STATUS, 0, Ret);
 		return Ret;
 	}
 	printk(BIOS_DEBUG, "OPAL: method status=0x%02x (%s)\n", *MethodStatus,
@@ -275,6 +318,7 @@ static TCG_RESULT opal_start_session(OPAL_SESSION *Session, TCG_UID SpId, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start session create init failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_START_SESSION_CREATE, 0, Ret);
 		goto out;
 	}
 
@@ -284,6 +328,7 @@ static TCG_RESULT opal_start_session(OPAL_SESSION *Session, TCG_UID SpId, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: create start session failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_START_SESSION_CREATE, 0, Ret);
 		goto out;
 	}
 
@@ -302,6 +347,8 @@ static TCG_RESULT opal_start_session(OPAL_SESSION *Session, TCG_UID SpId, BOOLEA
 		       "OPAL: start session rejected authority=%s status=0x%02x (%s)\n",
 		       opal_authority_string(HostSigningAuthority), *MethodStatus,
 		       TcgMethodStatusString(*MethodStatus));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_START_SESSION_STATUS,
+				 *MethodStatus, Ret);
 		goto out;
 	}
 
@@ -312,6 +359,7 @@ static TCG_RESULT opal_start_session(OPAL_SESSION *Session, TCG_UID SpId, BOOLEA
 		       opal_authority_string(HostSigningAuthority), HostSessionId,
 		       Session->OpalBaseComId);
 		Ret = TcgResultFailure;
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_START_SESSION_SYNC, 0, Ret);
 		goto out;
 	}
 	printk(BIOS_DEBUG, "OPAL: session started authority=%s host_sid=0x%x tper_sid=0x%x\n",
@@ -338,6 +386,7 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end session create init failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_END_SESSION_CREATE, 0, Ret);
 		goto out;
 	}
 
@@ -347,6 +396,7 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: create end session failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_END_SESSION_CREATE, 0, Ret);
 		goto out;
 	}
 
@@ -370,6 +420,7 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end session parse init failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_END_SESSION_PARSE, 0, Ret);
 		goto out;
 	}
 
@@ -377,6 +428,7 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end session comid check failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_END_SESSION_PARSE, 0, Ret);
 		goto out;
 	}
 
@@ -384,6 +436,7 @@ static TCG_RESULT opal_end_session(OPAL_SESSION *Session)
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end session parse failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_END_SESSION_PARSE, 0, Ret);
 		goto out;
 	}
 	printk(BIOS_DEBUG, "OPAL: session ended host_sid=0x%x tper_sid=0x%x\n",
@@ -415,6 +468,7 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: locking range create init failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -422,6 +476,7 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start com packet failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgStartPacket(&CreateStruct, Session->TperSessionId, Session->HostSessionId, 0,
@@ -429,12 +484,14 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start packet failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgStartSubPacket(&CreateStruct, 0);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start subpacket failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgStartMethodCall(&CreateStruct, OPAL_LOCKING_SP_LOCKING_GLOBALRANGE,
@@ -442,12 +499,14 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start method call failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgStartParameters(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: start parameters failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -455,18 +514,21 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add values start name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddUINT8(&CreateStruct, 0x01); /* "Values" */
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add values selector failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddStartList(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add values list start failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -474,24 +536,28 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add readlocked start name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddUINT8(&CreateStruct, 0x07); /* "ReadLocked" */
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add readlocked selector failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddBOOLEAN(&CreateStruct, ReadLocked);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add readlocked value failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddEndName(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add readlocked end name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -499,24 +565,28 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add writelocked start name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddUINT8(&CreateStruct, 0x08); /* "WriteLocked" */
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add writelocked selector failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddBOOLEAN(&CreateStruct, WriteLocked);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add writelocked value failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddEndName(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add writelocked end name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -524,42 +594,49 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add values list end failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgAddEndName(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: add values end name failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgEndParameters(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end parameters failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgEndMethodCall(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end method call failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgEndSubPacket(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end subpacket failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgEndPacket(&CreateStruct);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end packet failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 	Ret = TcgEndComPacket(&CreateStruct, &Size);
 	if (Ret != TcgResultSuccess) {
 		printk(BIOS_ERR, "OPAL: end com packet failed ret=%d (%s)\n",
 		       Ret, tcg_result_string(Ret));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_BUILD, 0, Ret);
 		goto out;
 	}
 
@@ -575,6 +652,8 @@ static TCG_RESULT opal_update_global_locking_range(OPAL_SESSION *Session, BOOLEA
 	if (*MethodStatus != TCG_METHOD_STATUS_CODE_SUCCESS) {
 		printk(BIOS_ERR, "OPAL: set global range rejected status=0x%02x (%s)\n",
 		       *MethodStatus, TcgMethodStatusString(*MethodStatus));
+		opal_diag_record(Session, OPAL_S3_DIAG_STAGE_SET_RANGE_STATUS, *MethodStatus,
+				 TcgResultSuccess);
 		Ret = TcgResultSuccess;
 		goto out;
 	}
@@ -600,6 +679,7 @@ static TCG_RESULT opal_util_update_global_locking_range(OPAL_SESSION *Session,
 	       Session->OpalBaseComId, PasswordLength, ReadLocked, WriteLocked);
 
 	/* Try admin1 authority. */
+	Session->DiagAuthority = OPAL_S3_DIAG_AUTH_ADMIN1;
 	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength, Password,
 				 OPAL_LOCKING_SP_ADMIN1_AUTHORITY, &MethodStatus);
 	printk(BIOS_DEBUG,
@@ -623,6 +703,7 @@ static TCG_RESULT opal_util_update_global_locking_range(OPAL_SESSION *Session,
 	}
 
 	/* Try user1 authority. */
+	Session->DiagAuthority = OPAL_S3_DIAG_AUTH_USER1;
 	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength, Password,
 				 OPAL_LOCKING_SP_USER1_AUTHORITY, &MethodStatus);
 	printk(BIOS_DEBUG,
@@ -669,24 +750,28 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 
 	if (!password || !password_len) {
 		printk(BIOS_ERR, "OPAL: missing password\n");
-		return 4;
+		return OPAL_S3_DIAG_RC(4, OPAL_S3_DIAG_AUTH_NONE,
+				       OPAL_S3_DIAG_STAGE_MISSING_PASSWORD, 0, 0);
 	}
 
 	if (!scratch || scratch_size < OPAL_NVME_SCRATCH_MIN_BYTES) {
 		printk(BIOS_ERR, "OPAL: invalid scratch buffer\n");
-		return 2;
+		return OPAL_S3_DIAG_RC(2, OPAL_S3_DIAG_AUTH_NONE,
+				       OPAL_S3_DIAG_STAGE_INVALID_SCRATCH, 0, 0);
 	}
 
 	if (smm_points_to_smram(scratch, scratch_size)) {
 		printk(BIOS_ERR, "OPAL: scratch overlaps SMRAM\n");
-		return 2;
+		return OPAL_S3_DIAG_RC(2, OPAL_S3_DIAG_AUTH_NONE,
+				       OPAL_S3_DIAG_STAGE_SCRATCH_OVERLAP, 0, 0);
 	}
 
 	queue_base = (u8 *)ALIGN_UP((uintptr_t)scratch, OPAL_NVME_PAGE_SIZE);
 	if ((uintptr_t)queue_base + OPAL_NVME_SCRATCH_MIN_BYTES >
 	    (uintptr_t)scratch + scratch_size) {
 		printk(BIOS_ERR, "OPAL: scratch alignment overflow\n");
-		rc = 2;
+		rc = OPAL_S3_DIAG_RC(2, OPAL_S3_DIAG_AUTH_NONE,
+				     OPAL_S3_DIAG_STAGE_SCRATCH_ALIGN, 0, 0);
 		goto out_early;
 	}
 
@@ -702,7 +787,8 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 		printk(BIOS_ERR, "OPAL: nvme init failed dev=0x%x comid=0x%04x\n", dev,
 		       base_comid);
 		opal_explicit_bzero(queue_base, OPAL_NVME_SCRATCH_MIN_BYTES);
-		return 1;
+		return OPAL_S3_DIAG_RC(1, OPAL_S3_DIAG_AUTH_NONE,
+				       OPAL_S3_DIAG_STAGE_NVME_INIT, 0, 0);
 	}
 	printk(BIOS_DEBUG, "OPAL: nvme init ok dev=0x%x comid=0x%04x\n", dev, base_comid);
 
@@ -710,6 +796,10 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 	Session.Nvme = &nvme;
 	Session.OpalBaseComId = base_comid;
 	Session.ComIdExtension = 0;
+	Session.DiagAuthority = OPAL_S3_DIAG_AUTH_NONE;
+	Session.DiagStage = OPAL_S3_DIAG_STAGE_NONE;
+	Session.DiagMethodStatus = 0;
+	Session.DiagRet = TcgResultSuccess;
 
 	/* Best-effort unlock. */
 	Ret = opal_util_update_global_locking_range(&Session, password, password_len, FALSE,
@@ -721,7 +811,7 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password, u
 	opal_explicit_bzero(queue_base, OPAL_NVME_QUEUE_BYTES);
 	opal_nvme_deinit(&nvme);
 
-	rc = (Ret == TcgResultSuccess) ? 0 : 3;
+	rc = (Ret == TcgResultSuccess) ? 0 : opal_diag_rc(&Session, 3);
 	printk(BIOS_DEBUG, "OPAL: unlock end ret=%d (%s) rc=%u\n", Ret,
 	       tcg_result_string(Ret), rc);
 	return rc;
