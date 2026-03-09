@@ -113,6 +113,9 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	struct nvme_cq_entry *c = &nvme->cq[nvme->cq_head];
 	struct stopwatch sw;
 	bool timed_out = false;
+	const u8 opcode = cmd->dw[0] & 0xff;
+	const u32 dw10 = cmd->dw[10];
+	const u32 dw11 = cmd->dw[11];
 
 	memcpy(s, cmd, sizeof(*cmd));
 	nvme->sq_tail = (nvme->sq_tail + 1) & (NVME_QUEUE_SIZE - 1);
@@ -129,7 +132,10 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	}
 
 	if (timed_out) {
-		printk(BIOS_ERR, "OPAL NVMe: admin cmd timeout\n");
+		printk(BIOS_ERR,
+		       "OPAL NVMe: admin opcode=0x%02x timeout dw10=0x%08x dw11=0x%08x cc=0x%08x csts=0x%08x pci_cmd=0x%04x\n",
+		       opcode, dw10, dw11, read32(nvme->regs + 0x14), read32(nvme->regs + 0x1c),
+		       pci_read_config16(nvme->dev, PCI_COMMAND));
 		return -1;
 	}
 
@@ -139,6 +145,10 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 		nvme->cq_phase ^= 1;
 
 	/* DW3 bits 31:17 are Status Field (SC + SCT + etc). */
+	printk(BIOS_INFO,
+	       "OPAL NVMe: admin opcode=0x%02x done status=0x%04x dw10=0x%08x dw11=0x%08x cc=0x%08x csts=0x%08x\n",
+	       opcode, (u32)(c->dw[3] >> 17), dw10, dw11, read32(nvme->regs + 0x14),
+	       read32(nvme->regs + 0x1c));
 	return (int)(c->dw[3] >> 17);
 }
 
@@ -147,6 +157,7 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	u64 regs;
 	u16 cmd;
 	u16 pmcap;
+	u16 pmcsr = 0;
 	u8 *p = scratch;
 	u32 cc;
 	u32 csts;
@@ -172,18 +183,20 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	/* Bring device to D0 if it supports PM capability. */
 	pmcap = pci_s_find_capability(dev, PCI_CAP_ID_PM);
 	if (pmcap) {
-		u16 pmcsr = pci_read_config16(dev, pmcap + PCI_PM_CTRL);
+		pmcsr = pci_read_config16(dev, pmcap + PCI_PM_CTRL);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_PM_CTRL_POWER_STATE_D0) {
 			pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 			pci_write_config16(dev, pmcap + PCI_PM_CTRL, pmcsr);
 			udelay(1000);
 		}
+		pmcsr = pci_read_config16(dev, pmcap + PCI_PM_CTRL);
 	}
 
 	/* Enable MMIO decoding. */
 	cmd = pci_read_config16(dev, PCI_COMMAND);
 	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
 	pci_write_config16(dev, PCI_COMMAND, cmd);
+	cmd = pci_read_config16(dev, PCI_COMMAND);
 
 	if (nvme_read_bar0(dev, &regs)) {
 		printk(BIOS_ERR, "OPAL NVMe: invalid BAR0\n");
@@ -198,6 +211,11 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 
 	cc = read32(nvme->regs + 0x14);
 	csts = read32(nvme->regs + 0x1c);
+	printk(BIOS_INFO,
+	       "OPAL NVMe: init dev=%02x.%x bar0=0x%08x:%08x pci_cmd=0x%04x pmcsr=0x%04x cc=0x%08x csts=0x%08x\n",
+	       PCI_SLOT(dev), PCI_FUNC(dev),
+	       pci_read_config32(dev, PCI_BASE_ADDRESS_0 + 4), pci_read_config32(dev, PCI_BASE_ADDRESS_0),
+	       cmd, pmcsr, cc, csts);
 
 	/*
 	 * If controller is already running, avoid disturbing it when it is
@@ -249,6 +267,8 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 		return -1;
 	}
 
+	printk(BIOS_INFO, "OPAL NVMe: reinit ready cc=0x%08x csts=0x%08x\n",
+	       read32(nvme->regs + 0x14), read32(nvme->regs + 0x1c));
 	nvme->sq_tail = 0;
 	nvme->cq_head = 0;
 	nvme->cq_phase = 0;
