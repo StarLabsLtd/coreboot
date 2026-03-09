@@ -23,8 +23,8 @@
 #define OPAL_S3_SCRATCH_PAGES     3
 #define OPAL_S3_SCRATCH_MIN_BYTES (OPAL_S3_SCRATCH_PAGES * OPAL_S3_SCRATCH_ALIGN)
 
-#define OPAL_S3_UNLOCK_INITIAL_DELAY_MS 200
-#define OPAL_S3_UNLOCK_RETRY_DELAY_MS   50
+#define OPAL_S3_UNLOCK_INITIAL_DELAY_MS 750
+#define OPAL_S3_UNLOCK_RETRY_DELAY_MS   150
 #define OPAL_S3_UNLOCK_RETRIES          10
 
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
@@ -199,12 +199,10 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	st->nvme_bar0_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
 	st->nvme_bar0_high = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4);
 
-	if (CONFIG(DEBUG_SMI)) {
-		printk(BIOS_DEBUG,
-		       "OPAL: set secret for %02x:%02x.%x base_comid=0x%04x pw_len=%u bar0=%08x:%08x\n",
-		       ctx->bus, ctx->dev, ctx->func, st->base_comid, st->password_len,
-		       st->nvme_bar0_high, st->nvme_bar0_low);
-	}
+	printk(BIOS_INFO,
+	       "OPAL: set secret ok for %02x:%02x.%x base_comid=0x%04x pw_len=%u bar0=%08x:%08x scratch=0x%lx+0x%zx\n",
+	       ctx->bus, ctx->dev, ctx->func, st->base_comid, st->password_len,
+	       st->nvme_bar0_high, st->nvme_bar0_low, (unsigned long)aligned_base, aligned_size);
 
 	return 0;
 }
@@ -225,8 +223,7 @@ static void opal_s3_arm_for_s3(void)
 	st->armed_cycle = st->sleep_cycle;
 	st->armed_state = OPAL_S3_ARMED_S3;
 
-	if (CONFIG(DEBUG_SMI))
-		printk(BIOS_DEBUG, "OPAL: armed for S3 (cycle=%u)\n", st->sleep_cycle);
+	printk(BIOS_INFO, "OPAL: armed for S3 (cycle=%u)\n", st->sleep_cycle);
 }
 
 static void opal_s3_restore_nvme_bar0_if_needed(pci_devfn_t nvme_dev, u32 saved_bar0_low,
@@ -280,6 +277,51 @@ static u32 opal_s3_unlock(const struct opal_s3_state *st)
 				     (void *)(uintptr_t)aligned_base, aligned_size);
 }
 
+static bool opal_s3_unlock_retryable(u32 rc)
+{
+	if (!opal_s3_diag_is_encoded(rc))
+		return false;
+
+	/*
+	 * NVMe init failures are expected when resume sequencing is still
+	 * catching up. Also retry trusted send/recv transport failures: on
+	 * some platforms the controller is enumerated but not yet ready to
+	 * accept OPAL Security Send/Receive commands on the first S3 attempt.
+	 */
+	if (opal_s3_diag_class(rc) == 1)
+		return true;
+
+	if (opal_s3_diag_class(rc) != 3)
+		return false;
+
+	switch (opal_s3_diag_stage(rc)) {
+	case OPAL_S3_DIAG_STAGE_TRUSTED_SEND:
+	case OPAL_S3_DIAG_STAGE_TRUSTED_RECV:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool opal_s3_unlock_keep_armed(u32 rc)
+{
+	if (!opal_s3_diag_is_encoded(rc))
+		return false;
+
+	/*
+	 * Preserve the S3 armed state for both "device not ready yet" failures
+	 * and OPAL-stack failures. This matches the more permissive resume
+	 * behavior that allowed a later RTD3-triggered unlock to recover.
+	 */
+	switch (opal_s3_diag_class(rc)) {
+	case 1:
+	case 3:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static u32 opal_s3_unlock_if_armed(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
@@ -287,14 +329,12 @@ static u32 opal_s3_unlock_if_armed(void)
 
 	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st) || !st->valid) {
-		if (CONFIG(DEBUG_SMI))
-			printk(BIOS_DEBUG, "OPAL: unlock skipped (no secret)\n");
+		printk(BIOS_INFO, "OPAL: unlock skipped (no secret)\n");
 		return 0x10;
 	}
 
 	if (st->armed_state == OPAL_S3_ARMED_NONE) {
-		if (CONFIG(DEBUG_SMI))
-			printk(BIOS_DEBUG, "OPAL: unlock skipped (not armed)\n");
+		printk(BIOS_INFO, "OPAL: unlock skipped (not armed)\n");
 		return 0x11;
 	}
 
@@ -308,33 +348,51 @@ static u32 opal_s3_unlock_if_armed(void)
 	 * Give the NVMe controller and upstream PCIe fabric a moment to come
 	 * back after S3 before attempting MMIO + DMA.
 	 */
+	printk(BIOS_INFO,
+	       "OPAL: unlock start bus=%02x dev=%02x func=%x cycle=%u initial_delay=%u retry_delay=%u retries=%u\n",
+	       st->bus, st->dev, st->func, st->sleep_cycle, OPAL_S3_UNLOCK_INITIAL_DELAY_MS,
+	       OPAL_S3_UNLOCK_RETRY_DELAY_MS, OPAL_S3_UNLOCK_RETRIES);
 	mdelay(OPAL_S3_UNLOCK_INITIAL_DELAY_MS);
 
 	rc = 1;
 	for (int attempt = 0; attempt < OPAL_S3_UNLOCK_RETRIES; attempt++) {
+		printk(BIOS_INFO, "OPAL: unlock attempt %d/%d\n", attempt + 1,
+		       OPAL_S3_UNLOCK_RETRIES);
+
 		if (attempt)
 			mdelay(OPAL_S3_UNLOCK_RETRY_DELAY_MS);
 
 		rc = opal_s3_unlock(st);
+		if (rc && opal_s3_diag_is_encoded(rc)) {
+			printk(BIOS_INFO,
+			       "OPAL: unlock attempt %d rc=0x%x class=%u stage=0x%x method=0x%x tcg=%u\n",
+			       attempt + 1, rc, opal_s3_diag_class(rc), opal_s3_diag_stage(rc),
+			       opal_s3_diag_method_status(rc), opal_s3_diag_tcg_result(rc));
+		}
+
 		if (rc == 0)
 			break;
 
-		/* Retry only the NVMe init path failures. */
-		if (opal_s3_diag_class(rc) != 1)
+		if (!opal_s3_unlock_retryable(rc))
 			break;
 	}
 	if (rc)
 		printk(BIOS_ERR, "OPAL: unlock failed (rc=%u)\n", rc);
-	else if (CONFIG(DEBUG_SMI))
-		printk(BIOS_DEBUG, "OPAL: unlock succeeded\n");
+	else
+		printk(BIOS_INFO, "OPAL: unlock succeeded\n");
 
 	/*
-	 * Keep the S3 cycle armed only when the device was not ready yet so a
-	 * later resume-time trigger (e.g. from an RTD3 _ON method) can retry.
+	 * Keep the S3 cycle armed on retryable/not-ready cases and OPAL-stack
+	 * failures so a later resume-time trigger (e.g. from an RTD3 _ON
+	 * method) can retry.
 	 */
-	if (opal_s3_diag_class(rc) != 1) {
+	if (!opal_s3_unlock_keep_armed(rc)) {
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
+		if (rc)
+			printk(BIOS_INFO, "OPAL: disarmed after rc=0x%x\n", rc);
+	} else if (rc) {
+		printk(BIOS_INFO, "OPAL: keeping S3 armed after rc=0x%x\n", rc);
 	}
 
 	/*
@@ -396,9 +454,11 @@ int opal_s3_smi_apmc(u8 apmc)
 	switch (subcmd) {
 	case OPAL_SMM_SUBCMD_SET_SECRET:
 		ret = opal_s3_set_secret((const struct opal_s3_smm_ctx *)(uintptr_t)rbx);
+		printk(BIOS_INFO, "OPAL: SMI SET_SECRET rc=0x%x\n", ret);
 		break;
 	case OPAL_SMM_SUBCMD_CLEAR_SECRET:
 		ret = opal_s3_clear_secret();
+		printk(BIOS_INFO, "OPAL: SMI CLEAR_SECRET rc=0x%x\n", ret);
 		break;
 	default:
 		ret = 0xfffffffe;
