@@ -328,11 +328,10 @@ static u32 opal_s3_unlock_if_armed(void)
 		printk(BIOS_DEBUG, "OPAL: unlock succeeded\n");
 
 	/*
-	 * If the device isn't ready yet (rc == 1) or the OPAL stack failed before
-	 * a successful unlock (rc == 3), keep the S3 cycle armed so a later
-	 * resume-time trigger (e.g. from an RTD3 _ON method) can retry.
+	 * Keep the S3 cycle armed only when the device was not ready yet so a
+	 * later resume-time trigger (e.g. from an RTD3 _ON method) can retry.
 	 */
-	if (rc != 1 && rc != 3) {
+	if (rc != 1) {
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
 	}

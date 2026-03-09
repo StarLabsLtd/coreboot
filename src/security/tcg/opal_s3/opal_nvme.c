@@ -266,14 +266,17 @@ static int nvme_security_cmd(struct opal_nvme *nvme, u8 opcode, u8 protocol, u16
 			     const void *buf, size_t buf_size)
 {
 	struct nvme_sq_entry cmd = { 0 };
-	const u16 sp = __builtin_bswap16(sp_specific);
 	const u64 prp1 = (u64)(uintptr_t)buf;
 
 	cmd.dw[0] = opcode; /* CID is left as 0 */
 	cmd.dw[1] = 0;      /* NSID = 0 (controller) */
 	cmd.dw[6] = (u32)prp1;
 	cmd.dw[7] = (u32)(prp1 >> 32);
-	cmd.dw[10] = ((u32)protocol << 24) | ((u32)sp << 8);
+	/*
+	 * NVMe command dwords are little-endian on x86. The Security Protocol
+	 * Specific field is a numeric value in the command; do not byte-swap it.
+	 */
+	cmd.dw[10] = ((u32)protocol << 24) | ((u32)sp_specific << 8);
 	cmd.dw[11] = (u32)buf_size;
 
 	return nvme_admin_cmd(nvme, &cmd);
