@@ -9,6 +9,7 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <security/tcg/opal_s3_trace.h>
 #include <string.h>
 #include <timer.h>
 
@@ -39,6 +40,24 @@ struct nvme_cq_entry {
 };
 
 /* Use the public definition from opal_nvme.h. */
+
+static void nvme_log_admin_submit(const struct opal_nvme *nvme, const struct nvme_sq_entry *cmd)
+{
+	const u8 opcode = cmd->dw[0] & 0xff;
+	const u16 cid = (cmd->dw[0] >> 16) & 0xffff;
+	const u32 nsid = cmd->dw[1];
+	const u64 prp1 = ((u64)cmd->dw[7] << 32) | cmd->dw[6];
+	const u8 protocol = (cmd->dw[10] >> 24) & 0xff;
+	const u16 sp_specific = (cmd->dw[10] >> 8) & 0xffff;
+
+	printk(BIOS_ERR,
+	       "OPAL NVMe: admin submit opcode=0x%02x cid=0x%04x nsid=0x%08x prp1=0x%08x:%08x protocol=0x%02x spsp=0x%04x len=%u dw0=0x%08x dw1=0x%08x dw6=0x%08x dw7=0x%08x dw10=0x%08x dw11=0x%08x pci_cmd=0x%04x cc=0x%08x csts=0x%08x\n",
+	       opcode, cid, nsid, cmd->dw[7], cmd->dw[6], protocol, sp_specific, cmd->dw[11],
+	       cmd->dw[0], cmd->dw[1], cmd->dw[6], cmd->dw[7], cmd->dw[10], cmd->dw[11],
+	       pci_read_config16(nvme->dev, PCI_COMMAND), read32(nvme->regs + 0x14),
+	       read32(nvme->regs + 0x1c));
+	(void)prp1;
+}
 
 static int nvme_wait_ready(u8 *regs, bool ready)
 {
@@ -117,6 +136,7 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	const u32 dw10 = cmd->dw[10];
 	const u32 dw11 = cmd->dw[11];
 
+	nvme_log_admin_submit(nvme, cmd);
 	memcpy(s, cmd, sizeof(*cmd));
 	nvme->sq_tail = (nvme->sq_tail + 1) & (NVME_QUEUE_SIZE - 1);
 	write32(nvme->sq_db, nvme->sq_tail);
@@ -132,6 +152,9 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	}
 
 	if (timed_out) {
+		opal_s3_trace_note_nvme_admin(opcode, true, 0, pci_read_config16(nvme->dev, PCI_COMMAND),
+					      dw10, dw11, read32(nvme->regs + 0x14),
+					      read32(nvme->regs + 0x1c));
 		printk(BIOS_ERR,
 		       "OPAL NVMe: admin opcode=0x%02x timeout dw10=0x%08x dw11=0x%08x cc=0x%08x csts=0x%08x pci_cmd=0x%04x\n",
 		       opcode, dw10, dw11, read32(nvme->regs + 0x14), read32(nvme->regs + 0x1c),
@@ -145,6 +168,9 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 		nvme->cq_phase ^= 1;
 
 	/* DW3 bits 31:17 are Status Field (SC + SCT + etc). */
+	opal_s3_trace_note_nvme_admin(opcode, false, (u16)(c->dw[3] >> 17),
+				      pci_read_config16(nvme->dev, PCI_COMMAND), dw10, dw11,
+				      read32(nvme->regs + 0x14), read32(nvme->regs + 0x1c));
 	printk(BIOS_INFO,
 	       "OPAL NVMe: admin opcode=0x%02x done status=0x%04x dw10=0x%08x dw11=0x%08x cc=0x%08x csts=0x%08x\n",
 	       opcode, (u32)(c->dw[3] >> 17), dw10, dw11, read32(nvme->regs + 0x14),
@@ -211,6 +237,8 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 
 	cc = read32(nvme->regs + 0x14);
 	csts = read32(nvme->regs + 0x1c);
+	opal_s3_trace_note_nvme_init(cmd, pmcsr, pci_read_config32(dev, PCI_BASE_ADDRESS_0),
+				     pci_read_config32(dev, PCI_BASE_ADDRESS_0 + 4), cc, csts);
 	printk(BIOS_INFO,
 	       "OPAL NVMe: init dev=%02x.%x bar0=0x%08x:%08x pci_cmd=0x%04x pmcsr=0x%04x cc=0x%08x csts=0x%08x\n",
 	       PCI_SLOT(dev), PCI_FUNC(dev),
@@ -262,11 +290,15 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	write32(nvme->regs + 0x14, NVME_CC_EN | NVME_CC_CSS_NVM | NVME_CC_MPS_4K |
 				 NVME_CC_AMS_RR | NVME_CC_SHN_NONE |
 				 NVME_CC_IOSQES_64B | NVME_CC_IOCQES_16B);
-	if (nvme_wait_ready(nvme->regs, true)) {
-		printk(BIOS_ERR, "OPAL NVMe: controller not ready\n");
-		return -1;
-	}
+		if (nvme_wait_ready(nvme->regs, true)) {
+			printk(BIOS_ERR, "OPAL NVMe: controller not ready\n");
+			opal_s3_trace_note_nvme_reinit(false, read32(nvme->regs + 0x14),
+						      read32(nvme->regs + 0x1c));
+			return -1;
+		}
 
+	opal_s3_trace_note_nvme_reinit(true, read32(nvme->regs + 0x14),
+				      read32(nvme->regs + 0x1c));
 	printk(BIOS_INFO, "OPAL NVMe: reinit ready cc=0x%08x csts=0x%08x\n",
 	       read32(nvme->regs + 0x14), read32(nvme->regs + 0x1c));
 	nvme->sq_tail = 0;
