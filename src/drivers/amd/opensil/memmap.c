@@ -22,6 +22,12 @@ typedef struct {
 /* This assumes holes are allocated */
 void amd_opensil_add_memmap(struct device *dev, unsigned long *idx)
 {
+	// TODO: Guard for Phoenix and newer
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
 	uint64_t top_of_mem = 0;
 	uint32_t n_holes = 0;
 	void *hole_info = NULL;
@@ -34,7 +40,8 @@ void amd_opensil_add_memmap(struct device *dev, unsigned long *idx)
 
 	/* Holes in upper DRAM */
 	/* This assumes all the holes in upper DRAM are continuous */
-	opensil_get_hole_info(&n_holes, &top_of_mem, &hole_info);
+	// TODO: Guard for Phoenix and newer
+	opensil_get_hole_info(&SilContext, &n_holes, &top_of_mem, &hole_info);
 	if (hole_info == NULL)
 		return;
 
@@ -67,11 +74,18 @@ void amd_opensil_add_memmap(struct device *dev, unsigned long *idx)
 
 static void print_memory_holes(void *unused)
 {
+	// TODO: Guard for Phoenix and newer
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
 	uint64_t top_of_mem = 0;
 	uint32_t n_holes = 0;
 	void *hole_info = NULL;
 
-	opensil_get_hole_info(&n_holes, &top_of_mem, &hole_info);
+	// TODO: Guard for Phoenix and newer
+	opensil_get_hole_info(&SilContext, &n_holes, &top_of_mem, &hole_info);
 	if (hole_info == NULL)
 		return;
 
