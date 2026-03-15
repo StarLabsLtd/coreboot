@@ -22,6 +22,7 @@ Scope(\_SB) {
 	ROOT_BRIDGE(PCI0)
 
 	Scope(PCI0) {
+		#include "resources.asl"
 		#include <soc/amd/common/acpi/lpc.asl>
 
 		#include "pci.asl"
