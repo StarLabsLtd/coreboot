@@ -22,6 +22,31 @@ IndexField(PRQI, PRQD, ByteAcc, NoLock, Preserve) {
 	PIRG, 0x00000008,	/* Index 6: INTG */
 	PIRH, 0x00000008,	/* Index 7: INTH */
 
+	Offset (0x0C),
+	SIRA, 0x00000008,	/* Index 0xc: Serial IRQ A */
+	SIRB, 0x00000008,	/* Index 0xd: Serial IRQ B */
+	SIRC, 0x00000008,	/* Index 0xe: Serial IRQ C */
+	SIRD, 0x00000008,	/* Index 0xf: Serial IRQ D */
+	PSCI, 0x00000008,	/* Index 0x10: SCI */
+
+	Offset (0x13),
+	PHDA, 0x00000008,	/* Index 0x13: HDA */
+
+	Offset (0x17),
+	PSDC, 0x00000008,	/* Index 0x17: SD */
+
+	Offset (0x1A),
+	PSIO, 0x00000008,	/* Index 0x1A: SDIO */
+
+	Offset (0x30),
+	PUS1, 0x00000008,       /* Index 0x30: USB EMU */
+
+	Offset (0x34),
+	PUS3, 0x00000008,       /* Index 0x34: XHCI0 */
+
+	Offset (0x41),
+	PSAT, 0x00000008,       /* Index 0x41: SATA */
+
 	Offset (0x60),
 	PGSC, 0x00000008,	/* Index 0x60: GEventSci */
 	PGSM, 0x00000008,	/* Index 0x61: GEventSmi */
