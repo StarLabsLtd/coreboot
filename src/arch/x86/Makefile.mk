@@ -86,6 +86,8 @@ add_bootblock = \
 	$(CBFSTOOL) $(1) add -f $(2) -n bootblock -t bootblock $(TXTIBB) \
 	-b -$(call file-size,$(2)) \
 	$(cbfs-autogen-attributes) $(TS_OPTIONS) $(CBFSTOOL_ADD_CMD_OPTIONS)
+else
+add_bootblock = $(CBFSTOOL) $(1) write -u -r BOOTBLOCK -f $(2)
 endif
 
 ifneq ($(CONFIG_CBFS_VERIFICATION),y)
