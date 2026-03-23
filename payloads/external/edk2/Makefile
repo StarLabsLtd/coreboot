@@ -145,10 +145,6 @@ ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
-CAPSULE_PCD_INC_REL := BaseTools/Source/Python/Pkcs7Sign/TestRoot.cer.gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr.inc
-CAPSULE_PCD_INC := $(EDK2_PATH)/$(CAPSULE_PCD_INC_REL)
-CAPSULE_PCD_NAME := gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr
-
 CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
@@ -170,7 +166,50 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 # If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
 EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
 
-CAPSULE_ROOT_CERT_DER := $(WORKSPACE)/capsule_trusted_root.der
+define EDK2_USE_CONFIGURED_FMP_CERT
+	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
+		cert="$(CAPSULE_TRUSTED_PUBLIC_CERT)"; \
+		if [ "$${cert#/}" = "$$cert" ] && [ -f "$(EDK2_PATH)/$$cert" ]; then \
+			cert="$(EDK2_PATH)/$$cert"; \
+		elif [ "$${cert#/}" = "$$cert" ] && [ -n "$(top)" ] && [ -f "$(top)/$$cert" ]; then \
+			cert="$(top)/$$cert"; \
+		fi; \
+		inc_src=""; \
+		case "$$cert" in \
+			*.pub.pem) inc_src="$${cert%.pub.pem}.cer.gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7CertBufferXdr.inc" ;; \
+		esac; \
+		if [ -z "$$inc_src" ] || [ ! -f "$$inc_src" ]; then \
+			echo "ERROR: Missing FMP cert include for $$cert"; \
+			echo "       Expected: $$inc_src"; \
+			echo "       Generate it with EDK2 BinToPcd.py (see BaseTools/Source/Python/Pkcs7Sign/Readme.md)."; \
+			exit 1; \
+		fi; \
+		dsc="$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc"; \
+		if [ ! -f "$$dsc" ]; then \
+			echo "ERROR: Missing $$dsc"; \
+			exit 1; \
+		fi; \
+		inc_rel="$$(sed -nE 's/^[[:space:]]*!include[[:space:]]+([^[:space:]]*PcdFmpDevicePkcs7CertBufferXdr\.inc).*/\1/p' "$$dsc" | head -n1)"; \
+		if [ -z "$$inc_rel" ]; then \
+			echo "ERROR: Couldn't locate PcdFmpDevicePkcs7CertBufferXdr include in $$dsc"; \
+			exit 1; \
+		fi; \
+		case "$$inc_rel" in \
+			/*|*..*) echo "ERROR: Refusing to overwrite suspicious include path: $$inc_rel" ; exit 1 ;; \
+		esac; \
+		inc_dst="$(EDK2_PATH)/$$inc_rel"; \
+		if [ ! -f "$$inc_dst" ]; then \
+			echo "ERROR: Include referenced by DSC not found: $$inc_dst"; \
+			exit 1; \
+		fi; \
+		if [ "$$inc_src" -ef "$$inc_dst" ]; then \
+			:; \
+		else \
+			trap 'git -C "$(EDK2_PATH)" checkout -- "$$inc_rel" >/dev/null 2>&1 || true' EXIT; \
+			cp "$$inc_src" "$$inc_dst" || exit 1; \
+		fi; \
+	fi;
+endef
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -266,10 +305,6 @@ $(EDK2_PATH): $(WORKSPACE)
 	fi
 	cd $(EDK2_PATH); \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
-		git checkout "$(CAPSULE_PCD_INC_REL)" > /dev/null 2>&1 || true; \
-		if ! git ls-files --error-unmatch "$(CAPSULE_PCD_INC_REL)" >/dev/null 2>&1; then \
-			rm -f "$(CAPSULE_PCD_INC_REL)" || true; \
-		fi; \
 		if [ -e UefiPayloadPkg/ShimLayer/UniversalPayload.o ]; then \
 			rm UefiPayloadPkg/ShimLayer/UniversalPayload.o; \
 		fi; \
@@ -335,13 +370,7 @@ checktools:
 
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yy)
 capsule_keys: $(EDK2_PATH)
-	type openssl > /dev/null 2>&1 || ( echo "ERROR: Please install openssl."; exit 1 )
-	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
-	test -f "$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"
-	mkdir -p "$(dir $(CAPSULE_PCD_INC))"
-	openssl x509 -in "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" -outform der -out "$(CAPSULE_ROOT_CERT_DER)"
-	python3 "$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py" -q -x \
-		-i "$(CAPSULE_ROOT_CERT_DER)" -o "$(CAPSULE_PCD_INC)" -p "$(CAPSULE_PCD_NAME)"
+	$(EDK2_USE_CONFIGURED_FMP_CERT)
 
 prep: capsule_keys
 endif
@@ -371,6 +400,7 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
+		$(EDK2_USE_CONFIGURED_FMP_CERT) \
 		echo -n "EDK2: Building... "; \
 		build -a IA32 -a X64 -b $(RELEASE_STR) $(BUILD_STR) \
 			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt; \
@@ -384,6 +414,7 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/UniversalPayload.elf: \
 	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
+		$(EDK2_USE_CONFIGURED_FMP_CERT) \
 		echo -n "EDK2: Building... "; \
 		$(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR)
 		if [ ! -f $@ ]; then \
