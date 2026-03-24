@@ -51,6 +51,19 @@ config STARLABS_ACPI_EFI_OPTION_SMI
 	  (e.g. keyboard backlight and trackpad state) to the UEFI variable
 	  store via an SMM APMC SMI handler.
 
+config BOOTBLOCK_IN_CBFS
+	default n if STARLABS_AB_COREBOOT
+
+config STARLABS_AB_COREBOOT
+	bool "Use dual COREBOOT slots with CMOS-based selection"
+	depends on ARCH_X86
+	default y if BOARD_STARLABS_STARBOOK_MTL
+	default n
+	help
+	  Maintain two CBFS-backed COREBOOT slots and select between them using
+	  raw CMOS state in early boot. Boards enabling this option must provide
+	  COREBOOT and COREBOOT_B FMAP regions and keep bootblock outside CBFS.
+
 source "src/mainboard/starlabs/common/hda/Kconfig"
 
 endmenu

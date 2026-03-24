@@ -2,6 +2,18 @@
 
 #include <fmap_config.h>
 
+#if CONFIG(STARLABS_AB_COREBOOT)
+#define STARLABS_AB_CMOS_INDEX_PORT CONFIG_PC_CMOS_BASE_PORT_BANK0
+#define STARLABS_AB_CMOS_DATA_PORT  (CONFIG_PC_CMOS_BASE_PORT_BANK0 + 1)
+#define STARLABS_AB_CMOS_ACTIVE     49
+#define STARLABS_AB_CMOS_PENDING    50
+#define STARLABS_AB_CMOS_TRIES      51
+#define STARLABS_AB_CMOS_CURRENT    52
+#define STARLABS_AB_PENDING_VALID   0x80
+#define STARLABS_AB_CURRENT_VALID   0x80
+#define STARLABS_AB_SLOT_MASK       0x01
+#endif
+
 #if CONFIG(CBFS_VERIFICATION)
 #error "walkcbfs_asm is not safe to use with CBFS verification!"
 #endif
@@ -18,6 +30,12 @@
 #define CBFS_FILE_STRUCTSIZE (CBFS_FILE_OFFSET + 4)
 
 #define COREBOOT_CBFS_START (0xffffffff - CONFIG_ROM_SIZE + 1 + FMAP_SECTION_COREBOOT_START)
+#define COREBOOT_END        (COREBOOT_CBFS_START - 1 + FMAP_SECTION_COREBOOT_SIZE)
+
+#if CONFIG(STARLABS_AB_COREBOOT)
+#define COREBOOT_B_CBFS_START (0xffffffff - CONFIG_ROM_SIZE + 1 + FMAP_SECTION_COREBOOT_B_START)
+#define COREBOOT_B_END        (COREBOOT_B_CBFS_START - 1 + FMAP_SECTION_COREBOOT_B_SIZE)
+#endif
 
 .code32
 .section .init
@@ -33,6 +51,58 @@ walkcbfs_asm:
 	cld
 
 	movl $COREBOOT_CBFS_START, %ebx
+	movl $COREBOOT_END, %edx
+
+#if CONFIG(STARLABS_AB_COREBOOT)
+	movw $STARLABS_AB_CMOS_INDEX_PORT, %dx
+	movb $STARLABS_AB_CMOS_CURRENT, %al
+	outb %al, %dx
+	movw $STARLABS_AB_CMOS_DATA_PORT, %dx
+	inb %dx, %al
+	testb $STARLABS_AB_CURRENT_VALID, %al
+	jz 1f
+	testb $STARLABS_AB_SLOT_MASK, %al
+	jz 3f
+	movl $COREBOOT_B_CBFS_START, %ebx
+	movl $COREBOOT_B_END, %edx
+	jmp 3f
+
+1:
+	movw $STARLABS_AB_CMOS_INDEX_PORT, %dx
+	movb $STARLABS_AB_CMOS_PENDING, %al
+	outb %al, %dx
+	movw $STARLABS_AB_CMOS_DATA_PORT, %dx
+	inb %dx, %al
+	movb %al, %ah
+	testb $STARLABS_AB_PENDING_VALID, %ah
+	jz 2f
+
+	movw $STARLABS_AB_CMOS_INDEX_PORT, %dx
+	movb $STARLABS_AB_CMOS_TRIES, %al
+	outb %al, %dx
+	movw $STARLABS_AB_CMOS_DATA_PORT, %dx
+	inb %dx, %al
+	testb %al, %al
+	jz 2f
+
+	testb $STARLABS_AB_SLOT_MASK, %ah
+	jz 3f
+	movl $COREBOOT_B_CBFS_START, %ebx
+	movl $COREBOOT_B_END, %edx
+	jmp 3f
+
+2:
+	movw $STARLABS_AB_CMOS_INDEX_PORT, %dx
+	movb $STARLABS_AB_CMOS_ACTIVE, %al
+	outb %al, %dx
+	movw $STARLABS_AB_CMOS_DATA_PORT, %dx
+	inb %dx, %al
+	testb $STARLABS_AB_SLOT_MASK, %al
+	jz 3f
+	movl $COREBOOT_B_CBFS_START, %ebx
+	movl $COREBOOT_B_END, %edx
+3:
+#endif
 
 	/* determine filename length */
 	mov $0, %eax
@@ -88,11 +158,8 @@ tryharder:
 	mov %ecx, %ebx
 
 check_for_exit:
-	/* if addr <= COREBOOT_END - 1, continue */
-#define FMAP_SECTION_COREBOOT_END (COREBOOT_CBFS_START - 1 + FMAP_SECTION_COREBOOT_SIZE)
-
-	movl $FMAP_SECTION_COREBOOT_END, %ecx
-	cmp %ecx, %ebx
+	/* if addr <= selected region end, continue */
+	cmp %edx, %ebx
 	jbe walker
 
 out:

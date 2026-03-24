@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootblock_common.h>
+#include <mainboard/ab_slot.h>
 #include <soc/gpio.h>
 #include <variants.h>
 
@@ -11,4 +12,5 @@ void bootblock_mainboard_init(void)
 
 	pads = variant_early_gpio_table(&num);
 	gpio_configure_pads(pads, num);
+	starlabs_ab_bootblock_init();
 }

@@ -144,6 +144,9 @@ endif
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
+ifeq ($(CONFIG_STARLABS_AB_COREBOOT),y)
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdCorebootAbSupport=TRUE
+endif
 
 CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
