@@ -14,6 +14,17 @@
 #include <soc/intel/common/block/include/intelblocks/rtc.h>
 
 static int tpm_log_initialized;
+
+/*
+ * Some platforms keep the active bootblock in a SoC-specific location and
+ * override this helper. Others can measure BOOTBLOCK directly from FMAP or
+ * CBFS and do not provide a platform implementation.
+ */
+int __weak tspi_soc_measure_bootblock(int pcr_index)
+{
+	return TPM_CB_FAIL;
+}
+
 static inline int tpm_log_available(void)
 {
 	if (ENV_BOOTBLOCK)
@@ -62,8 +73,8 @@ static tpm_result_t tspi_init_crtm(void)
 		printk(BIOS_ERR, "TSPI: Could not find FMAP!\n");
 	}
 
-	/* measure bootblock from RO */
-	if (!CONFIG(ARCH_X86)) {
+	/* measure bootblock from an FMAP region when it exists outside CBFS */
+	if (!CONFIG(BOOTBLOCK_IN_CBFS)) {
 		struct region_device bootblock_fmap;
 		if (fmap_locate_area_as_rdev("BOOTBLOCK", &bootblock_fmap) == 0) {
 			rc = tpm_measure_region(&bootblock_fmap,
@@ -71,8 +82,12 @@ static tpm_result_t tspi_init_crtm(void)
 					"FMAP: BOOTBLOCK");
 			if (rc)
 				return rc;
+			return TPM_SUCCESS;
 		}
-	} else if (CONFIG(BOOTBLOCK_IN_CBFS)) {
+	}
+
+	/* measure bootblock from CBFS on x86 when it is stored as a file */
+	if (CONFIG(ARCH_X86) && CONFIG(BOOTBLOCK_IN_CBFS)) {
 		/* Mapping measures the file. We know we can safely map here because
 		   bootblock-as-a-file is only used on x86, where we don't need cache to map. */
 		enum cbfs_type type = CBFS_TYPE_BOOTBLOCK;
