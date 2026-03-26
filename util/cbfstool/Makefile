@@ -16,7 +16,7 @@ VBOOT_HOST_BUILD ?= $(abspath $(objutil)/vboot_lib)
 SPDX_ID_STRING := SPDX-License-Identifier
 
 .PHONY: all
-all: cbfstool ifittool fmaptool rmodtool ifwitool cbfs-compression-tool elogtool cse_fpt cse_serger
+all: cbfstool ifittool fmaptool rmodtool ifwitool cbfs-compression-tool elogtool cse_fpt cse_serger test
 
 cbfstool: $(objutil)/cbfstool/cbfstool
 
@@ -36,7 +36,9 @@ cse_fpt: $(objutil)/cbfstool/cse_fpt
 
 cse_serger: $(objutil)/cbfstool/cse_serger
 
-.PHONY: clean cbfstool ifittool fmaptool rmodtool ifwitool cbfs-compression-tool elogtool cse_fpt cse_serger
+test: $(objutil)/cbfstool/test
+
+.PHONY: clean cbfstool ifittool fmaptool rmodtool ifwitool cbfs-compression-tool elogtool cse_fpt cse_serger test
 clean:
 	$(RM) -f fmd_parser.c fmd_parser.h fmd_scanner.c fmd_scanner.h
 	$(RM) -f $(objutil)/cbfstool/cbfstool $(cbfsobj)
@@ -48,6 +50,7 @@ clean:
 	$(RM) -f $(objutil)/cbfstool/elogtool $(elogobj)
 	$(RM) -f $(objutil)/cbfstool/cse_fpt $(cse_fpt_obj)
 	$(RM) -f $(objutil)/cbfstool/cse_serger $(cse_serger_obj)
+	$(RM) -f $(objutil)/cbfstool/test $(test_obj)
 	$(RM) -rf $(VBOOT_HOST_BUILD)
 
 linux_trampoline.c: linux_trampoline.S
@@ -87,6 +90,7 @@ help:
 	@echo "  elogtool - Display ELOG events"
 	@echo "  cse_fpt  - Manage Intel CSE Flash Partition Table (FPT)"
 	@echo "  cse_serger - Stitch Intel CSE components"
+	@echo "  test - build tests"
 
 ifneq ($(V),1)
 .SILENT:

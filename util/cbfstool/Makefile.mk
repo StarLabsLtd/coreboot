@@ -140,6 +140,12 @@ cse_serger_obj += common.o
 cse_serger_obj += cse_helpers.o
 cse_serger_obj += $(foreach var, $(bpdt_formats_obj), $(var))
 
+test_obj :=
+test_obj += test.o
+test_obj += fmap.o
+test_obj += kv_pair.o
+test_obj += valstr.o
+
 TOOLCFLAGS ?= -Werror -Wall -Wextra -Wshadow
 TOOLCFLAGS += -Wcast-qual -Wmissing-prototypes -Wredundant-decls -Wshadow
 TOOLCFLAGS += -Wstrict-prototypes -Wwrite-strings
@@ -274,6 +280,10 @@ $(objutil)/cbfstool/cse_fpt: $(addprefix $(objutil)/cbfstool/,$(cse_fpt_obj))
 $(objutil)/cbfstool/cse_serger: $(addprefix $(objutil)/cbfstool/,$(cse_serger_obj))
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
 	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(cse_serger_obj))
+
+$(objutil)/cbfstool/test: $(addprefix $(objutil)/cbfstool/,$(test_obj))
+	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
+	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(test_obj))
 
 # Yacc source is superset of header
 $(objutil)/cbfstool/fmd.o: TOOLCFLAGS += -Wno-redundant-decls
