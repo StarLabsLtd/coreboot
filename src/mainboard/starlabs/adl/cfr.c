@@ -80,10 +80,22 @@ static struct sm_obj_form io_expansion_group = {
 static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list =
-		(const struct sm_object *[]){
-					     &pciexp_aspm,
-					     &pciexp_clk_pm,
-					     &pciexp_l1ss,
+			(const struct sm_object *[]){
+#if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
+					     &pciexp_ssd_clk_pm,
+					     &pciexp_ssd_aspm,
+					     &pciexp_ssd_l1ss,
+#elif CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
+					     &pciexp_lan1_clk_pm,
+					     &pciexp_lan1_aspm,
+					     &pciexp_lan1_l1ss,
+					     &pciexp_lan2_clk_pm,
+					     &pciexp_lan2_aspm,
+					     &pciexp_lan2_l1ss,
+					     &pciexp_ssd_clk_pm,
+					     &pciexp_ssd_aspm,
+					     &pciexp_ssd_l1ss,
+#endif
 					     NULL, },
 };
 
