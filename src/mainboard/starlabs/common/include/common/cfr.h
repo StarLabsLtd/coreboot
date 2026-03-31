@@ -11,6 +11,7 @@
 
 void cfr_card_reader_update(struct sm_object *new_obj);
 void cfr_touchscreen_update(struct sm_object *new_obj);
+void starlabs_cfr_custom_profile_update(struct sm_object *new_obj);
 void starlabs_cfr_register_overrides(void);
 
 static const struct sm_object accelerometer = SM_DECLARE_BOOL({
@@ -96,12 +97,15 @@ static const struct sm_object hda_dsp = SM_DECLARE_BOOL({
 static const struct sm_object power_profile = SM_DECLARE_ENUM({
 	.opt_name	= "power_profile",
 	.ui_name	= "Power Profile",
-	.ui_helptext	= "Select whether to maximize performance, battery life or both.",
+	.ui_helptext	= "Choose maximum battery life, balanced behaviour, "
+			  "maximum performance, or custom CPU power and "
+			  "thermal settings.",
 	.default_value	= PP_PERFORMANCE,
 	.values		= (const struct sm_enum_value[]) {
 			{ "Power Saver",	PP_POWER_SAVER	},
 			{ "Balanced",		PP_BALANCED	},
 			{ "Performance",	PP_PERFORMANCE	},
+			{ "Custom",		PP_CUSTOM	},
 			SM_ENUM_VALUE_END			},
 });
 
@@ -166,6 +170,50 @@ STARLABS_DECLARE_PCIE_PM_OBJECTS(lan1, "LAN 1");
 STARLABS_DECLARE_PCIE_PM_OBJECTS(lan2, "LAN 2");
 
 #undef STARLABS_DECLARE_PCIE_PM_OBJECTS
+
+static const struct sm_object pl1_override = SM_DECLARE_NUMBER({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "pl1_override",
+	.ui_name	= "Sustained CPU Power Limit (PL1, W)",
+	.ui_helptext	= "Long-duration CPU package power limit in Watts.",
+	.default_value	= 0,
+	.step		= 1,
+}, WITH_DEP_VALUES(&power_profile, PP_CUSTOM),
+	WITH_CALLBACK(starlabs_cfr_custom_profile_update));
+
+static const struct sm_object pl2_override = SM_DECLARE_NUMBER({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "pl2_override",
+	.ui_name	= "Short Boost CPU Power Limit (PL2, W)",
+	.ui_helptext	= "Short-duration CPU package power limit in Watts. "
+			  "Runtime clamped so PL2 never exceeds PL4.",
+	.default_value	= 0,
+	.step		= 1,
+}, WITH_DEP_VALUES(&power_profile, PP_CUSTOM),
+	WITH_CALLBACK(starlabs_cfr_custom_profile_update));
+
+static const struct sm_object pl4_override = SM_DECLARE_NUMBER({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "pl4_override",
+	.ui_name	= "Hard CPU Power Limit (PL4, W)",
+	.ui_helptext	= "Hard CPU package power limit in Watts. This can only be reduced "
+			  "from the stock board limit.",
+	.default_value	= 0,
+	.step		= 1,
+}, WITH_DEP_VALUES(&power_profile, PP_CUSTOM),
+	WITH_CALLBACK(starlabs_cfr_custom_profile_update));
+
+static const struct sm_object tcc_temp = SM_DECLARE_NUMBER({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "tcc_temp",
+	.ui_name	= "CPU Thermal Throttling Temperature (TCC, C)",
+	.ui_helptext	= "CPU temperature in Celsius where thermal throttling "
+			  "starts. Higher values let the CPU run hotter "
+			  "before throttling.",
+	.default_value	= 0,
+	.step		= 1,
+}, WITH_DEP_VALUES(&power_profile, PP_CUSTOM),
+	WITH_CALLBACK(starlabs_cfr_custom_profile_update));
 
 static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 	.opt_name	= "s0ix_enable",
