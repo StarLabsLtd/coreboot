@@ -98,7 +98,12 @@ static struct sm_obj_form performance_group = {
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 					     &memory_speed,
 #endif
-					     &power_profile, NULL},
+					     &power_profile,
+					     &pl1_override,
+					     &pl2_override,
+					     &pl4_override,
+					     &tcc_temp,
+					     NULL},
 };
 
 static struct sm_obj_form security_group = {
