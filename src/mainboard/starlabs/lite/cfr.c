@@ -75,6 +75,10 @@ static struct sm_obj_form performance_group = {
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
 		&power_profile,
+		&pl1_override,
+		&pl2_override,
+		&pl4_override,
+		&tcc_temp,
 		NULL
 	},
 };
