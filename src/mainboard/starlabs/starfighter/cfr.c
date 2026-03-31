@@ -91,12 +91,15 @@ static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM)
-		&pciexp_aspm,
-		#if CONFIG(HAS_INTEL_CPU_ROOT_PORTS)
-		&pciexp_aspm_cpu,
-		#endif
-		&pciexp_clk_pm,
-		&pciexp_l1ss,
+		&pciexp_wifi_clk_pm,
+		&pciexp_wifi_aspm,
+		&pciexp_wifi_l1ss,
+		&pciexp_ssd_clk_pm,
+		&pciexp_ssd_aspm,
+		&pciexp_ssd_l1ss,
+		&pciexp_ssd2_clk_pm,
+		&pciexp_ssd2_aspm,
+		&pciexp_ssd2_l1ss,
 		#endif
 		NULL
 	},

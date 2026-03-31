@@ -74,16 +74,42 @@ static unsigned int l1ss_control_to_upd(enum L1_substates_control l1_substates_c
 	return UPD_INDEX(l1_substates_control);
 }
 
+void __weak mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
+				   unsigned int index,
+				   bool is_cpu_rp,
+				   struct pcie_pm_option_names *names)
+{
+	(void)rp_cfg;
+	(void)index;
+	(void)is_cpu_rp;
+
+	if (!names)
+		return;
+
+	names->clk_pm = NULL;
+	names->aspm = NULL;
+	names->l1ss = NULL;
+}
+
+static unsigned int get_pcie_pm_option(const char *opt_name, unsigned int fallback)
+{
+	return opt_name ? get_uint_option(opt_name, fallback) : fallback;
+}
+
 void configure_pch_rp_power_management(FSP_S_CONFIG *s_cfg,
 					      const struct pcie_rp_config *rp_cfg,
 					      unsigned int index)
 {
+	struct pcie_pm_option_names options;
+
+	mainboard_get_pcie_pm_options(rp_cfg, index, false, &options);
+
 	s_cfg->PcieRpEnableCpm[index] =
-		get_uint_option("pciexp_clk_pm", CONFIG(PCIEXP_CLK_PM));
+		get_pcie_pm_option(options.clk_pm, CONFIG(PCIEXP_CLK_PM));
 	s_cfg->PcieRpAspm[index] =
-		aspm_control_to_upd(get_uint_option("pciexp_aspm", rp_cfg->pcie_rp_aspm), false);
+		aspm_control_to_upd(get_pcie_pm_option(options.aspm, rp_cfg->pcie_rp_aspm), false);
 	s_cfg->PcieRpL1Substates[index] =
-		l1ss_control_to_upd(get_uint_option("pciexp_l1ss", rp_cfg->PcieRpL1Substates));
+		l1ss_control_to_upd(get_pcie_pm_option(options.l1ss, rp_cfg->PcieRpL1Substates));
 	s_cfg->PcieRpPcieSpeed[index] =
 		pcie_speed_control_to_upd(get_uint_option("pciexp_speed", rp_cfg->pcie_rp_pcie_speed));
 }
@@ -106,14 +132,19 @@ void configure_cpu_rp_power_management(FSP_S_CONFIG *s_cfg,
 					      const struct pcie_rp_config *rp_cfg,
 					      unsigned int index)
 {
-	bool pciexp_clk_pm = get_uint_option("pciexp_clk_pm", CONFIG(PCIEXP_CLK_PM));
+	struct pcie_pm_option_names options;
+	bool pciexp_clk_pm;
+
+	mainboard_get_pcie_pm_options(rp_cfg, index, true, &options);
+
+	pciexp_clk_pm = get_pcie_pm_option(options.clk_pm, CONFIG(PCIEXP_CLK_PM));
 	s_cfg->CpuPcieRpEnableCpm[index] = pciexp_clk_pm;
 	s_cfg->CpuPcieClockGating[index] = pciexp_clk_pm;
 	s_cfg->CpuPciePowerGating[index] = pciexp_clk_pm;
 	s_cfg->CpuPcieRpAspm[index] =
-		aspm_control_to_upd(get_uint_option("pciexp_aspm_cpu", rp_cfg->pcie_rp_aspm), true);
+		aspm_control_to_upd(get_pcie_pm_option(options.aspm, rp_cfg->pcie_rp_aspm), true);
 	s_cfg->CpuPcieRpL1Substates[index] =
-		l1ss_control_to_upd(get_uint_option("pciexp_l1ss", rp_cfg->PcieRpL1Substates));
+		l1ss_control_to_upd(get_pcie_pm_option(options.l1ss, rp_cfg->PcieRpL1Substates));
 }
 
 #endif	// CONFIG(HAS_INTEL_CPU_ROOT_PORTS)

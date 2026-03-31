@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <drivers/option/cfr_frontend.h>
+#include <intelblocks/aspm.h>
 #include <intelblocks/pcie_rp.h>
 #include <stdio.h>
 #include <static.h>
@@ -127,4 +128,140 @@ void starlabs_cfr_register_overrides(void)
 	if (!CONFIG(DRIVERS_OPTION_CFR))
 		return;
 	cfr_register_overrides(starlabs_cfr_overrides);
+}
+
+static void set_pcie_pm_option_names(struct pcie_pm_option_names *names,
+				     const char *clk_pm,
+				     const char *aspm,
+				     const char *l1ss)
+{
+	if (!names)
+		return;
+
+	names->clk_pm = clk_pm;
+	names->aspm = aspm;
+	names->l1ss = l1ss;
+}
+
+void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
+				   unsigned int index,
+				   bool is_cpu_rp,
+				   struct pcie_pm_option_names *names)
+{
+	(void)rp_cfg;
+
+	set_pcie_pm_option_names(names, NULL, NULL, NULL);
+
+	if (is_cpu_rp) {
+#if CONFIG(BOARD_STARLABS_STARBOOK_RPL) || CONFIG(BOARD_STARLABS_STARFIGHTER_RPL)
+		if (index == CPU_RP(1))
+			set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+						 "pciexp_ssd_aspm",
+						 "pciexp_ssd_l1ss");
+#endif
+		return;
+	}
+
+#if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
+	if (index == PCH_RP(9))
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+#elif CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
+	switch (index) {
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_lan1_clk_pm",
+					 "pciexp_lan1_aspm",
+					 "pciexp_lan1_l1ss");
+		return;
+	case PCH_RP(10):
+		set_pcie_pm_option_names(names, "pciexp_lan2_clk_pm",
+					 "pciexp_lan2_aspm",
+					 "pciexp_lan2_l1ss");
+		return;
+	case PCH_RP(12):
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARBOOK_ADL)
+	switch (index) {
+	case PCH_RP(5):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARBOOK_ADL_N)
+	switch (index) {
+	case PCH_RP(7):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARBOOK_MTL)
+	switch (index) {
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	case PCH_RP(10):
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARBOOK_RPL)
+	switch (index) {
+	case PCH_RP(5):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARFIGHTER_RPL)
+	switch (index) {
+	case PCH_RP(5):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_ssd2_clk_pm",
+					 "pciexp_ssd2_aspm",
+					 "pciexp_ssd2_l1ss");
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
+	switch (index) {
+	case PCH_RP(9):
+		set_pcie_pm_option_names(names, "pciexp_wifi_clk_pm",
+					 "pciexp_wifi_aspm",
+					 "pciexp_wifi_l1ss");
+		return;
+	case PCH_RP(10):
+		set_pcie_pm_option_names(names, "pciexp_ssd_clk_pm",
+					 "pciexp_ssd_aspm",
+					 "pciexp_ssd_l1ss");
+		return;
+	case PCH_RP(1):
+		set_pcie_pm_option_names(names, "pciexp_ssd2_clk_pm",
+					 "pciexp_ssd2_aspm",
+					 "pciexp_ssd2_l1ss");
+		return;
+	}
+#endif
 }

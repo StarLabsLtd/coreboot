@@ -69,13 +69,19 @@ static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM)
-		#if CONFIG(BOARD_STARLABS_STARBOOK_RPL)
-		&pciexp_aspm_cpu,
+		#if CONFIG(BOARD_STARLABS_STARBOOK_ADL) || CONFIG(BOARD_STARLABS_STARBOOK_ADL_N) || \
+		    CONFIG(BOARD_STARLABS_STARBOOK_MTL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL)
+		&pciexp_wifi_clk_pm,
+		&pciexp_wifi_aspm,
+		&pciexp_wifi_l1ss,
+		&pciexp_ssd_clk_pm,
+		&pciexp_ssd_aspm,
+		&pciexp_ssd_l1ss,
 		#else
 		&pciexp_aspm,
-		#endif
 		&pciexp_clk_pm,
 		&pciexp_l1ss,
+		#endif
 		#endif
 		NULL
 	},
