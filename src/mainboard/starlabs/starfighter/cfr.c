@@ -112,6 +112,10 @@ static struct sm_obj_form performance_group = {
 		&hyper_threading,
 		&memory_speed,
 		&power_profile,
+		&pl1_override,
+		&pl2_override,
+		&pl4_override,
+		&tcc_temp,
 		#if CONFIG(SOC_INTEL_METEORLAKE)
 		&vpu,
 		#endif
