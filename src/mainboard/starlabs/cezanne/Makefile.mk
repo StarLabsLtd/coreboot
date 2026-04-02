@@ -8,7 +8,6 @@ bootblock-y += bootblock.c
 romstage-y += romstage.c
 
 ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
-ramstage-y += hda_verb.c
 ramstage-y += mainboard.c
 
 ifeq ($(CONFIG_ADD_APCB_SOURCES),y)

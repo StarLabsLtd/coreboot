@@ -2,10 +2,10 @@
 
 bootblock-y += gpio.c
 
+romstage-y += gpio.c
+romstage-y += port_descriptors.c
+
 ramstage-y += devtree.c
 ramstage-y += gpio.c
+ramstage-y += hda_verb.c
 ramstage-y += port_descriptors.c
-
-romstage-y += gpio.c
-
-romstage-y += port_descriptors.c
