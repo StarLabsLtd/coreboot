@@ -433,7 +433,10 @@ static void do_fsp_memory_init(const struct fspm_context *context, bool s3wake)
 				 &fspm_upd);
 
 	/* Give SoC and mainboard a chance to update the UPD */
+	printk(BIOS_DEBUG, "FSP-M: calling platform UPD callback\n");
 	platform_fsp_memory_init_params_cb(&fspm_upd, version);
+	printk(BIOS_DEBUG, "FSP-M: platform UPD callback done, NvsBufferPtr=%p\n",
+	       (void *)(uintptr_t)arch_upd->NvsBufferPtr);
 
 	/*
 	 * For S3 resume case, if valid mrc cache data is not found or
@@ -453,6 +456,8 @@ static void do_fsp_memory_init(const struct fspm_context *context, bool s3wake)
 	/* Call FspMemoryInit */
 	fsp_raminit = (void *)(uintptr_t)(hdr->image_base + hdr->fsp_memory_init_entry_offset);
 	fsp_debug_before_memory_init(fsp_raminit, upd, &fspm_upd);
+	printk(BIOS_DEBUG, "FSP-M: entering FspMemoryInit @ %p, hob_list_ptr=%p\n",
+	       fsp_raminit, fsp_get_hob_list_ptr());
 
 	/* FSP disables the interrupt handler so remove debug exceptions temporarily  */
 	null_breakpoint_remove();
@@ -465,6 +470,7 @@ static void do_fsp_memory_init(const struct fspm_context *context, bool s3wake)
 						  (uintptr_t)fsp_get_hob_list_ptr());
 	else
 		status = fsp_raminit(&fspm_upd, fsp_get_hob_list_ptr());
+	printk(BIOS_DEBUG, "FSP-M: FspMemoryInit returned status %#x\n", status);
 	null_breakpoint_init();
 	stack_canary_breakpoint_init();
 

@@ -72,7 +72,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	FSP_M_CONFIG *mcfg = &mupd->FspmConfig;
 	const struct soc_amd_cezanne_config *config = config_of_soc();
 
+	printk(BIOS_DEBUG, "CZN FSP-M params: begin, version=0x%x\n", version);
 	mupd->FspmArchUpd.NvsBufferPtr = (uintptr_t)soc_fill_apob_cache();
+	printk(BIOS_DEBUG, "CZN FSP-M params: APOB/NVS buffer @ %p\n",
+	       (void *)(uintptr_t)mupd->FspmArchUpd.NvsBufferPtr);
 
 	mcfg->pci_express_base_addr = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
 	mcfg->tseg_size = CONFIG_SMM_TSEG_SIZE;
@@ -80,6 +83,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	mcfg->serial_port_use_mmio = CONFIG(DRIVERS_UART_8250MEM);
 	mcfg->serial_port_baudrate = get_uart_baudrate();
 	mcfg->serial_port_refclk = uart_platform_refclk();
+	printk(BIOS_DEBUG,
+	       "CZN FSP-M params: UART base=%#llx mmio=%d baud=%u refclk=%u\n",
+	       (unsigned long long)mcfg->serial_port_base, mcfg->serial_port_use_mmio,
+	       mcfg->serial_port_baudrate, mcfg->serial_port_refclk);
 
 	/* 0 is default */
 	mcfg->ccx_down_core_mode = config->downcore_mode;
@@ -170,9 +177,17 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		mcfg->usb_phy_ptr = 0;
 	}
 
+	printk(BIOS_DEBUG,
+	       "CZN FSP-M params: before board hooks, s0i3=%d iommu=%d azalia(nb=%d hda=%d) sata=%d\n",
+	       mcfg->s0i3_enable, mcfg->iommu_support, mcfg->enable_nb_azalia,
+	       mcfg->hda_enable, mcfg->sata_enable);
 	platform_fsp_memory_init_params_cb_sub(mcfg, config);
+	printk(BIOS_DEBUG, "CZN FSP-M params: after SoC sub-hook\n");
 
 	fsp_fill_pcie_ddi_descriptors(mcfg);
+	printk(BIOS_DEBUG, "CZN FSP-M params: PCIe/DDI descriptors populated\n");
 	fsp_assign_ioapic_upds(mcfg);
+	printk(BIOS_DEBUG, "CZN FSP-M params: IOAPIC UPDs assigned\n");
 	mb_pre_fspm(mcfg);
+	printk(BIOS_DEBUG, "CZN FSP-M params: end\n");
 }
