@@ -8,35 +8,35 @@
 static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 {
 	{ /* Dummy Device */
-		.engine_type = PCIE_ENGINE,
-		.port_present = true,
-		.start_logical_lane = 16,
-		.end_logical_lane = 23,
-		.port_params = { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 16,
+		.end_logical_lane	= 23,
+		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
 	{ /* Dummy Device */
-		.engine_type = UNUSED_ENGINE,
-		.port_present = false,
-		.start_logical_lane = 0,
-		.end_logical_lane = 1
+		.engine_type		= UNUSED_ENGINE,
+		.port_present		= false,
+		.start_logical_lane	= 0,
+		.end_logical_lane	= 1
 	},
 	{ /* Dummy Device */
-		.engine_type = PCIE_ENGINE,
-		.port_present = true,
-		.start_logical_lane = 4,
-		.end_logical_lane = 4,
-		.device_number = 2,
-		.function_number = 2,
-		.port_params = { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 4,
+		.end_logical_lane	= 4,
+		.device_number		= 2,
+		.function_number	= 2,
+		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
 	{ /* Dummy Device */
-		.engine_type = PCIE_ENGINE,
-		.port_present = true,
-		.start_logical_lane = 5,
-		.end_logical_lane = 5,
-		.device_number = 2,
-		.function_number = 3,
-		.port_params = { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
+		.engine_type		= PCIE_ENGINE,
+		.port_present		= true,
+		.start_logical_lane	= 5,
+		.end_logical_lane	= 5,
+		.device_number		= 2,
+		.function_number	= 3,
+		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
 	/*
 	 * Device:		M.2 2230 Wireless
@@ -49,18 +49,18 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 		.link_speed_capability	= GEN_MAX,
 		.device_number		= 2,
 		.function_number	= 4,
-		.link_aspm		= false,	// ASPM_L1,
-		.link_aspm_L1_1		= false,	// true,
-		.link_aspm_L1_2		= false,	// true,
+		.link_aspm		= ASPM_L1,
+		.link_aspm_L1_1		= true,
+		.link_aspm_L1_2		= true,
 		.turn_off_unused_lanes	= true,
 		.clk_req		= CLK_REQ6,
 		.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 }
 	},
 	{ /* Dummy Device */
-		.engine_type = UNUSED_ENGINE,
-		.port_present = false,
-		.start_logical_lane = 7,
-		.end_logical_lane = 7
+		.engine_type		= UNUSED_ENGINE,
+		.port_present		= false,
+		.start_logical_lane	= 7,
+		.end_logical_lane	= 7
 	},
 	/*
 	 * Device:		M.2 2280 SSD
@@ -68,6 +68,7 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 	{
 		.engine_type		= PCIE_ENGINE,
 		.port_present		= true,
+		.gpio_group_id		= 27,
 		.start_logical_lane	= 8,
 		.end_logical_lane	= 11,
 		.link_speed_capability	= GEN_MAX,
@@ -85,11 +86,9 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 	 */
 	{
 		.engine_type		= SATA_ENGINE,
-		.port_present		= true,
 		.start_logical_lane	= 2,
 		.end_logical_lane	= 3,
 		.gpio_group_id		= 1,
-		.channel_type		= SATA_CHANNEL_LONG,
 	}
 };
 
