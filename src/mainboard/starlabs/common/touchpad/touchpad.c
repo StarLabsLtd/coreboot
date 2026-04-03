@@ -9,11 +9,6 @@
 
 #include <common/touchpad.h>
 
-static uint16_t starlabs_read_le16(const uint8_t *buf, size_t offset)
-{
-	return (uint16_t)buf[offset] | ((uint16_t)buf[offset + 1] << 8);
-}
-
 static void starlabs_write_le16(uint8_t *buf, size_t offset, uint16_t value)
 {
 	buf[offset] = value & 0xff;
@@ -71,63 +66,26 @@ static int starlabs_touchpad_set_report(unsigned int bus, uint16_t cmd_reg,
 	return i2c_write_raw(bus, STARLABS_TOUCHPAD_I2C_ADDR, buf, cmd_len);
 }
 
-static int starlabs_touchpad_get_report(unsigned int bus, uint16_t cmd_reg,
-					uint16_t data_reg, uint8_t report_type,
-					uint8_t report_id, uint8_t *report,
-					size_t report_len)
+static int starlabs_touchpad_reset(unsigned int bus, uint16_t cmd_reg)
 {
-	struct i2c_msg seg[2];
-	uint8_t cmd_buf[7];
-	uint8_t raw_buf[16];
+	uint8_t buf[4];
 	size_t cmd_len = 0;
-	uint16_t raw_len;
-	int ret;
 
-	if (report_len + sizeof(uint16_t) > sizeof(raw_buf))
-		return -1;
-
-	starlabs_write_le16(cmd_buf, cmd_len, cmd_reg);
+	starlabs_write_le16(buf, cmd_len, cmd_reg);
 	cmd_len += sizeof(uint16_t);
-	cmd_len += starlabs_touchpad_encode_command(cmd_buf + cmd_len,
-						    I2C_HID_OPCODE_GET_REPORT,
-						    report_type, report_id);
-	starlabs_write_le16(cmd_buf, cmd_len, data_reg);
-	cmd_len += sizeof(uint16_t);
+	cmd_len += starlabs_touchpad_encode_command(buf + cmd_len,
+				    I2C_HID_OPCODE_RESET,
+				    0, 0);
 
-	seg[0].slave = STARLABS_TOUCHPAD_I2C_ADDR;
-	seg[0].flags = 0;
-	seg[0].buf = cmd_buf;
-	seg[0].len = cmd_len;
-	seg[1].slave = STARLABS_TOUCHPAD_I2C_ADDR;
-	seg[1].flags = I2C_M_RD;
-	seg[1].buf = raw_buf;
-	seg[1].len = report_len + sizeof(uint16_t);
-
-	ret = i2c_transfer(bus, seg, ARRAY_SIZE(seg));
-	if (ret)
-		return ret;
-
-	raw_len = starlabs_read_le16(raw_buf, 0);
-	if (raw_len <= sizeof(uint16_t))
-		return -1;
-
-	raw_len -= sizeof(uint16_t);
-	if (raw_len < report_len)
-		return -1;
-
-	memcpy(report, raw_buf + sizeof(uint16_t), report_len);
-	if (report[0] != report_id)
-		return -1;
-
-	return 0;
+	return i2c_write_raw(bus, STARLABS_TOUCHPAD_I2C_ADDR, buf, cmd_len);
 }
 
 static int starlabs_touchpad_set_haptics(unsigned int bus, uint16_t cmd_reg,
-					 uint16_t data_reg, uint8_t level)
+				 uint16_t data_reg, uint8_t level)
 {
 	return starlabs_touchpad_set_report(bus, cmd_reg, data_reg,
-					    STARLABS_TOUCHPAD_HAPTICS_REPORT_ID,
-					    &level, sizeof(level));
+				    STARLABS_TOUCHPAD_HAPTICS_REPORT_ID,
+				    &level, sizeof(level));
 }
 
 static int starlabs_touchpad_set_force(unsigned int bus, uint16_t cmd_reg,
@@ -155,38 +113,12 @@ static int starlabs_touchpad_write_user_reg(unsigned int bus, uint16_t cmd_reg,
 					    payload, sizeof(payload));
 }
 
-static int starlabs_touchpad_read_user_reg(unsigned int bus, uint16_t cmd_reg,
-					   uint16_t data_reg, uint8_t bank,
-					   uint8_t addr, uint8_t *value)
-{
-	uint8_t report[4];
-	int ret;
-
-	ret = starlabs_touchpad_write_user_reg(bus, cmd_reg, data_reg,
-					       bank | STARLABS_TOUCHPAD_USER_REG_READ_FLAG,
-					       addr, 0);
-	if (ret)
-		return ret;
-
-	mdelay(STARLABS_TOUCHPAD_SETTLE_DELAY_MS);
-
-	ret = starlabs_touchpad_get_report(bus, cmd_reg, data_reg,
-					   I2C_HID_REPORT_TYPE_FEATURE,
-					   STARLABS_TOUCHPAD_USER_REG_REPORT_ID,
-					   report, sizeof(report));
-	if (ret)
-		return ret;
-
-	*value = report[3];
-	return 0;
-}
-
 static int starlabs_touchpad_set_haptics_op(void *arg)
 {
 	const struct starlabs_touchpad_op_ctx *ctx = arg;
 
 	return starlabs_touchpad_set_haptics(ctx->bus, ctx->cmd_reg,
-					     ctx->data_reg, ctx->level);
+				     ctx->data_reg, ctx->level);
 }
 
 static int starlabs_touchpad_set_force_op(void *arg)
@@ -207,6 +139,13 @@ static int starlabs_touchpad_write_user_reg_op(void *arg)
 						ctx->addr, ctx->value);
 }
 
+static int starlabs_touchpad_reset_op(void *arg)
+{
+	const struct starlabs_touchpad_op_ctx *ctx = arg;
+
+	return starlabs_touchpad_reset(ctx->bus, ctx->cmd_reg);
+}
+
 static int starlabs_touchpad_retry(int (*op)(void *arg), void *arg)
 {
 	int ret;
@@ -224,8 +163,8 @@ static int starlabs_touchpad_retry(int (*op)(void *arg), void *arg)
 
 static void starlabs_touchpad_apply_settings(void *arg)
 {
-	uint8_t readback = 0;
 	int ret;
+	uint8_t wake_byte;
 	struct starlabs_touchpad_op_ctx op_ctx = {
 		.bus = STARLABS_TOUCHPAD_I2C_BUS,
 		.cmd_reg = STARLABS_TOUCHPAD_FALLBACK_CMD_REG,
@@ -244,12 +183,17 @@ static void starlabs_touchpad_apply_settings(void *arg)
 
 	(void)arg;
 
-	ret = starlabs_touchpad_retry(starlabs_touchpad_set_haptics_op, &op_ctx);
+	(void)i2c_read_raw(STARLABS_TOUCHPAD_I2C_BUS, STARLABS_TOUCHPAD_I2C_ADDR, &wake_byte, 1);
+	mdelay(1);
+
+	ret = starlabs_touchpad_retry(starlabs_touchpad_write_user_reg_op, &op_ctx);
 	if (ret != 0) {
-		printk(BIOS_ERR, "Touchpad settings: failed to set haptics level %u: %d\n",
-		       op_ctx.level, ret);
+		printk(BIOS_ERR, "Touchpad settings: failed to set report rate %u: %d\n",
+		       op_ctx.value, ret);
 		return;
 	}
+
+	mdelay(STARLABS_TOUCHPAD_SETTLE_DELAY_MS);
 
 	ret = starlabs_touchpad_retry(starlabs_touchpad_set_force_op, &op_ctx);
 	if (ret != 0) {
@@ -259,26 +203,28 @@ static void starlabs_touchpad_apply_settings(void *arg)
 		return;
 	}
 
-	ret = starlabs_touchpad_retry(starlabs_touchpad_write_user_reg_op, &op_ctx);
+	mdelay(STARLABS_TOUCHPAD_SETTLE_DELAY_MS);
+
+	ret = starlabs_touchpad_retry(starlabs_touchpad_reset_op, &op_ctx);
 	if (ret != 0) {
-		printk(BIOS_ERR, "Touchpad settings: failed to set report rate %u: %d\n",
-		       op_ctx.value, ret);
+		printk(BIOS_ERR, "Touchpad settings: failed to reset device before haptics write: %d\n",
+		       ret);
 		return;
 	}
 
-	ret = starlabs_touchpad_read_user_reg(op_ctx.bus, op_ctx.cmd_reg,
-					      op_ctx.data_reg, op_ctx.bank,
-					      op_ctx.addr, &readback);
-	if (ret != 0 || readback != op_ctx.value) {
-		printk(BIOS_ERR,
-		       "Touchpad settings: report rate verify failed via regs 0x%04x/0x%04x: ret=%d read=%u want=%u\n",
-		       op_ctx.cmd_reg, op_ctx.data_reg, ret,
-		       ret ? 0 : readback, op_ctx.value);
+	mdelay(100);
+
+	ret = starlabs_touchpad_retry(starlabs_touchpad_set_haptics_op, &op_ctx);
+	if (ret != 0) {
+		printk(BIOS_ERR, "Touchpad settings: failed to set haptics level %u: %d\n",
+		       op_ctx.level, ret);
 		return;
 	}
+
+	mdelay(STARLABS_TOUCHPAD_SETTLE_DELAY_MS);
 
 	printk(BIOS_INFO,
-	       "Touchpad settings: verified via regs 0x%04x/0x%04x; haptics=%u click=%u release=%u rate=%u\n",
+	       "Touchpad settings: applied via regs 0x%04x/0x%04x; haptics=%u click=%u release=%u rate=%u\n",
 	       op_ctx.cmd_reg, op_ctx.data_reg,
 	       op_ctx.level, op_ctx.press, op_ctx.release, op_ctx.value);
 }
