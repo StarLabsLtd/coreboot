@@ -97,6 +97,68 @@ static const struct sm_object power_profile = SM_DECLARE_ENUM({
 			SM_ENUM_VALUE_END			},
 });
 
+static void starlabs_update_pcie_clk_pm(struct sm_object *new_obj)
+{
+	if (!CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM))
+		new_obj->sm_bool.flags |= CFR_OPTFLAG_SUPPRESS;
+}
+
+static void starlabs_update_pcie_aspm(struct sm_object *new_obj)
+{
+	if (!CONFIG(PCIEXP_ASPM))
+		new_obj->sm_enum.flags |= CFR_OPTFLAG_SUPPRESS;
+}
+
+static void starlabs_update_pcie_l1ss(struct sm_object *new_obj)
+{
+	if (!CONFIG(PCIEXP_ASPM) || !CONFIG(PCIEXP_L1_SUB_STATE))
+		new_obj->sm_enum.flags |= CFR_OPTFLAG_SUPPRESS;
+}
+
+#define STARLABS_DECLARE_PCIE_PM_OBJECTS(_suffix, _label)					\
+static const struct sm_object pciexp_##_suffix##_clk_pm = SM_DECLARE_BOOL({			\
+	.opt_name	= "pciexp_" #_suffix "_clk_pm",					\
+	.ui_name	= _label " Clock Power Management",				\
+	.ui_helptext	= "Enable or disable clock power management for " _label ".",	\
+	.default_value	= true,								\
+}, WITH_CALLBACK(starlabs_update_pcie_clk_pm));					\
+											\
+static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({			\
+	.opt_name	= "pciexp_" #_suffix "_aspm",					\
+	.ui_name	= _label " ASPM",						\
+	.ui_helptext	= "Control Active State Power Management for " _label ".",	\
+	.default_value	= ASPM_L0S_L1,						\
+	.values		= (const struct sm_enum_value[]) {				\
+				{ "Disabled",	ASPM_DISABLE	},			\
+				{ "L0s",	ASPM_L0S	},			\
+				{ "L1",		ASPM_L1		},			\
+				{ "L0sL1",	ASPM_L0S_L1	},			\
+				{ "Auto",	ASPM_AUTO	},			\
+				SM_ENUM_VALUE_END				},	\
+}, WITH_DEP_VALUES(&pciexp_##_suffix##_clk_pm, true),					\
+	WITH_CALLBACK(starlabs_update_pcie_aspm));					\
+											\
+static const struct sm_object pciexp_##_suffix##_l1ss = SM_DECLARE_ENUM({			\
+	.opt_name	= "pciexp_" #_suffix "_l1ss",					\
+	.ui_name	= _label " L1 Substates",					\
+	.ui_helptext	= "Control PCIe L1 substates for " _label ".",			\
+	.default_value	= L1_SS_L1_2,						\
+	.values		= (const struct sm_enum_value[]) {				\
+				{ "Disabled",	L1_SS_DISABLED	},			\
+				{ "L1.1",	L1_SS_L1_1	},			\
+				{ "L1.2",	L1_SS_L1_2	},			\
+				SM_ENUM_VALUE_END				},	\
+}, WITH_DEP_VALUES(&pciexp_##_suffix##_clk_pm, true),					\
+	WITH_CALLBACK(starlabs_update_pcie_l1ss))
+
+STARLABS_DECLARE_PCIE_PM_OBJECTS(wifi, "WiFi");
+STARLABS_DECLARE_PCIE_PM_OBJECTS(ssd, "SSD");
+STARLABS_DECLARE_PCIE_PM_OBJECTS(ssd2, "SSD 2");
+STARLABS_DECLARE_PCIE_PM_OBJECTS(lan1, "LAN 1");
+STARLABS_DECLARE_PCIE_PM_OBJECTS(lan2, "LAN 2");
+
+#undef STARLABS_DECLARE_PCIE_PM_OBJECTS
+
 static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 	.opt_name	= "s0ix_enable",
 	.ui_name	= "Modern Standby (S0ix)",

@@ -4,8 +4,57 @@
 #include <console/cfr.h>
 #include <drivers/option/cfr_frontend.h>
 #include <ec/starlabs/merlin/cfr.h>
+#include <intelblocks/aspm.h>
 #include <intelblocks/cfr.h>
 #include <common/cfr.h>
+
+#if CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
+static const struct pcie_pm_option_names pciexp_lan1_names = {
+	.clk_pm = "pciexp_lan1_clk_pm",
+	.aspm = "pciexp_lan1_aspm",
+	.l1ss = "pciexp_lan1_l1ss",
+};
+
+static const struct pcie_pm_option_names pciexp_lan2_names = {
+	.clk_pm = "pciexp_lan2_clk_pm",
+	.aspm = "pciexp_lan2_aspm",
+	.l1ss = "pciexp_lan2_l1ss",
+};
+#endif
+
+static const struct pcie_pm_option_names pciexp_ssd_names = {
+	.clk_pm = "pciexp_ssd_clk_pm",
+	.aspm = "pciexp_ssd_aspm",
+	.l1ss = "pciexp_ssd_l1ss",
+};
+
+void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
+				   unsigned int index,
+				   bool is_cpu_rp,
+				   struct pcie_pm_option_names *names)
+{
+	(void)rp_cfg;
+
+	if (!names || is_cpu_rp)
+		return;
+
+#if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
+	if (index == PCH_RP(9))
+		*names = pciexp_ssd_names;
+#elif CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
+	switch (index) {
+	case PCH_RP(9):
+		*names = pciexp_lan1_names;
+		return;
+	case PCH_RP(10):
+		*names = pciexp_lan2_names;
+		return;
+	case PCH_RP(12):
+		*names = pciexp_ssd_names;
+		return;
+	}
+#endif
+}
 
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 static struct sm_obj_form audio_video_group = {
@@ -80,10 +129,22 @@ static struct sm_obj_form io_expansion_group = {
 static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list =
-		(const struct sm_object *[]){
-					     &pciexp_aspm,
-					     &pciexp_clk_pm,
-					     &pciexp_l1ss,
+			(const struct sm_object *[]){
+#if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
+					     &pciexp_ssd_clk_pm,
+					     &pciexp_ssd_aspm,
+					     &pciexp_ssd_l1ss,
+#elif CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
+					     &pciexp_lan1_clk_pm,
+					     &pciexp_lan1_aspm,
+					     &pciexp_lan1_l1ss,
+					     &pciexp_lan2_clk_pm,
+					     &pciexp_lan2_aspm,
+					     &pciexp_lan2_l1ss,
+					     &pciexp_ssd_clk_pm,
+					     &pciexp_ssd_aspm,
+					     &pciexp_ssd_l1ss,
+#endif
 					     NULL, },
 };
 

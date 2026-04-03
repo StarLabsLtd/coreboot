@@ -4,9 +4,73 @@
 #include <console/cfr.h>
 #include <drivers/option/cfr_frontend.h>
 #include <ec/starlabs/merlin/cfr.h>
+#include <intelblocks/aspm.h>
 #include <intelblocks/cfr.h>
 #include <variants.h>
 #include <common/cfr.h>
+
+static const struct pcie_pm_option_names pciexp_wifi_names = {
+	.clk_pm = "pciexp_wifi_clk_pm",
+	.aspm = "pciexp_wifi_aspm",
+	.l1ss = "pciexp_wifi_l1ss",
+};
+
+static const struct pcie_pm_option_names pciexp_ssd_names = {
+	.clk_pm = "pciexp_ssd_clk_pm",
+	.aspm = "pciexp_ssd_aspm",
+	.l1ss = "pciexp_ssd_l1ss",
+};
+
+static const struct pcie_pm_option_names pciexp_ssd2_names = {
+	.clk_pm = "pciexp_ssd2_clk_pm",
+	.aspm = "pciexp_ssd2_aspm",
+	.l1ss = "pciexp_ssd2_l1ss",
+};
+
+void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
+				   unsigned int index,
+				   bool is_cpu_rp,
+				   struct pcie_pm_option_names *names)
+{
+	(void)rp_cfg;
+
+	if (!names)
+		return;
+
+#if CONFIG(BOARD_STARLABS_STARFIGHTER_RPL)
+	if (is_cpu_rp) {
+		if (index == CPU_RP(1))
+			*names = pciexp_ssd_names;
+		return;
+	}
+#else
+	if (is_cpu_rp)
+		return;
+#endif
+
+#if CONFIG(BOARD_STARLABS_STARFIGHTER_RPL)
+	switch (index) {
+	case PCH_RP(5):
+		*names = pciexp_wifi_names;
+		return;
+	case PCH_RP(9):
+		*names = pciexp_ssd2_names;
+		return;
+	}
+#elif CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
+	switch (index) {
+	case PCH_RP(9):
+		*names = pciexp_wifi_names;
+		return;
+	case PCH_RP(10):
+		*names = pciexp_ssd_names;
+		return;
+	case PCH_RP(1):
+		*names = pciexp_ssd2_names;
+		return;
+	}
+#endif
+}
 
 #if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 static const struct sm_object legacy_speaker_control = SM_DECLARE_BOOL({
@@ -91,12 +155,15 @@ static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM)
-		&pciexp_aspm,
-		#if CONFIG(HAS_INTEL_CPU_ROOT_PORTS)
-		&pciexp_aspm_cpu,
-		#endif
-		&pciexp_clk_pm,
-		&pciexp_l1ss,
+		&pciexp_wifi_clk_pm,
+		&pciexp_wifi_aspm,
+		&pciexp_wifi_l1ss,
+		&pciexp_ssd_clk_pm,
+		&pciexp_ssd_aspm,
+		&pciexp_ssd_l1ss,
+		&pciexp_ssd2_clk_pm,
+		&pciexp_ssd2_aspm,
+		&pciexp_ssd2_l1ss,
 		#endif
 		NULL
 	},
