@@ -35,22 +35,28 @@
 #define STARLABS_TOUCHPAD_FORCE_REPORT_ID	0x0b
 #define STARLABS_TOUCHPAD_USER_REG_REPORT_ID	0x43
 #define STARLABS_TOUCHPAD_USER_REG_BANK		0x00
+#define STARLABS_TOUCHPAD_USER_REG_READ_FLAG	0x10
 #define STARLABS_TOUCHPAD_USER_REG_ADDR_RATE	0x12
 
 /*
- * On StarFighter the I2C-HID descriptor is still zeroed when this hook runs,
- * but the command/data registers are stable and match the runtime descriptor
- * observed from Linux on 093a:0274 hardware.
+ * The HID descriptor may not be live immediately when this hook runs, but
+ * these command/data registers are stable enough to perform early HID bring-up.
  */
 #define STARLABS_TOUCHPAD_FALLBACK_CMD_REG	0x0022
 #define STARLABS_TOUCHPAD_FALLBACK_DATA_REG	0x0023
 
 #define STARLABS_TOUCHPAD_RETRIES		3
 #define STARLABS_TOUCHPAD_RETRY_DELAY_MS	20
+#define STARLABS_TOUCHPAD_POWER_ON_DELAY_MS	60
+#define STARLABS_TOUCHPAD_SETTLE_DELAY_MS	20
 
-#define I2C_HID_OPCODE_SET_REPORT		0x03
+#define I2C_HID_OPCODE_GET_REPORT		0x02
 #define I2C_HID_OPCODE_RESET			0x01
+#define I2C_HID_OPCODE_SET_REPORT		0x03
+#define I2C_HID_OPCODE_SET_POWER		0x08
 #define I2C_HID_REPORT_TYPE_FEATURE		0x03
+
+#define I2C_HID_PWR_ON				0x00
 
 enum starlabs_touchpad_desc_offset {
 	TOUCHPAD_DESC_CMD_REG		= 16,
