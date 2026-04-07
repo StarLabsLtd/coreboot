@@ -123,7 +123,9 @@ chip soc/amd/cezanne
 				end
 			end
 			device ref acp		on  end
-			device ref hda		on  end
+			device ref hda		on
+				subsystemid 0x14f1 0x0216
+			end
 		end
 		device ref gpp_bridge_b on
 			device ref sata_0	on  end
