@@ -173,6 +173,7 @@ void fch_spi_restore_registers(void)
 static int spi_ctrlr_xfer(const struct spi_slave *slave, const void *dout,
 			size_t bytesout, void *din, size_t bytesin)
 {
+	size_t count;
 	uint8_t cmd;
 	uint8_t *bufin = din;
 	const uint8_t *bufout = dout;
@@ -205,12 +206,14 @@ static int spi_ctrlr_xfer(const struct spi_slave *slave, const void *dout,
 	spi_write8(SPI_TX_BYTE_COUNT, bytesout);
 	spi_write8(SPI_RX_BYTE_COUNT, bytesin);
 
-	spi_write_block(SPI_FIFO, bufout, bytesout);
+	for (count = 0; count < bytesout; count++)
+		spi_write8(SPI_FIFO + count, bufout[count]);
 
 	if (execute_command())
 		return -1;
 
-	spi_read_block(SPI_FIFO + bytesout, bufin, bytesin);
+	for (count = 0; count < bytesin; count++)
+		bufin[count] = spi_read8(SPI_FIFO + count + bytesout);
 
 	return 0;
 }

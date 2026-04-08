@@ -70,8 +70,7 @@ config SOC_AMD_GLINDA_BASE
 	select SOC_AMD_COMMON_BLOCK_SMM			# TODO: Check if this is still correct
 	select SOC_AMD_COMMON_BLOCK_SMU			# TODO: Check if this is still correct
 	select SOC_AMD_COMMON_BLOCK_SMU_SX_ENTRY	# TODO: Check if this is still correct
-	select SOC_AMD_COMMON_BLOCK_SPI
-	select SOC_AMD_COMMON_BLOCK_SPI_DWORD_ACCESS
+	select SOC_AMD_COMMON_BLOCK_SPI			# TODO: Check if this is still correct
 	select SOC_AMD_COMMON_BLOCK_SVI3
 	select SOC_AMD_COMMON_BLOCK_TSC
 	select SOC_AMD_COMMON_BLOCK_UART		# TODO: Check if this is still correct
@@ -93,6 +92,7 @@ config SOC_AMD_GLINDA_BASE
 	select X86_AMD_FIXED_MTRRS
 	select X86_INIT_NEED_1_SIPI
 	select HAVE_X86_64_SUPPORT
+	select SPI_FLASH_SFDP if SPI_FLASH
 	help
 	  AMD Glinda support
 
