@@ -430,7 +430,7 @@ clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+#	rm -rf $(WORKSPACE)
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
 
