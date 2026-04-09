@@ -6,6 +6,7 @@
 #include <amdblocks/amd_pci_util.h>
 #include <arch/ioapic.h>
 #include <device/device.h>
+#include <device/pci_def.h>
 
 /* GNB IO-APIC is located after the FCH IO-APIC */
 #define FCH_IOAPIC_INTERRUPTS	24
@@ -14,6 +15,39 @@
 __weak unsigned int soc_get_gsi_base(const struct device *dev)
 {
 	return GNB_GSI_BASE;
+}
+
+static void acpigen_write_PRT_GSI_entry_devfn(unsigned int devfn, unsigned int acpi_pin,
+					      unsigned int gsi)
+{
+	acpigen_write_package(4);
+	acpigen_write_dword((PCI_SLOT(devfn) << 16) | PCI_FUNC(devfn));
+	acpigen_write_byte(acpi_pin);
+
+	/* Source */
+	acpigen_write_byte(0);
+
+	/* Source Index */
+	acpigen_write_dword(gsi);
+
+	acpigen_pop_len(); /* Package */
+}
+
+static void acpigen_write_PRT_source_entry_devfn(unsigned int devfn, unsigned int acpi_pin,
+						 const char *source_path,
+						 unsigned int index)
+{
+	acpigen_write_package(4);
+	acpigen_write_dword((PCI_SLOT(devfn) << 16) | PCI_FUNC(devfn));
+	acpigen_write_byte(acpi_pin);
+
+	/* Source */
+	acpigen_emit_namestring(source_path);
+
+	/* Source Index */
+	acpigen_write_dword(index);
+
+	acpigen_pop_len(); /* Package */
 }
 
 static void acpigen_write_PRT_GSI(const struct device *dev,
@@ -163,9 +197,98 @@ void acpigen_write_pci_GNB_PRT(const struct device *dev)
 	acpigen_pop_len(); /* Method */
 }
 
+static size_t count_pci_root_prt_entries(const struct pci_routing_info *routing_table,
+					 size_t routing_table_entries)
+{
+	size_t entries = 0;
+
+	for (size_t i = 0; i < routing_table_entries; ++i) {
+		if (routing_table[i].bridge_irq != UINT8_MAX)
+			entries++;
+	}
+
+	return entries;
+}
+
+static void acpigen_write_root_PRT_GSI(const struct pci_routing_info *routing_table,
+				       size_t routing_table_entries, size_t prt_entries)
+{
+	acpigen_write_package(prt_entries); /* Package - APIC Routing */
+	for (size_t i = 0; i < routing_table_entries; ++i) {
+		if (routing_table[i].bridge_irq == UINT8_MAX)
+			continue;
+
+		/*
+		 * The HOB's bridge_irq/map byte is not an OS-visible APIC GSI here.
+		 * Route the root port's own INTx through its GNB group/swizzle instead.
+		 */
+		acpigen_write_PRT_GSI_entry_devfn(routing_table[i].devfn,
+						  0, /* root port interrupt pin A */
+						  GNB_GSI_BASE + pci_calculate_irq(&routing_table[i], 0));
+	}
+	acpigen_pop_len(); /* Package - APIC Routing */
+}
+
+static void acpigen_write_root_PRT_PIC(const struct pci_routing_info *routing_table,
+				       size_t routing_table_entries, size_t prt_entries)
+{
+	char link_template[] = "\\_SB.INTX";
+	unsigned int irq;
+
+	acpigen_write_package(prt_entries); /* Package - PIC Routing */
+	for (size_t i = 0; i < routing_table_entries; ++i) {
+		if (routing_table[i].bridge_irq == UINT8_MAX)
+			continue;
+
+		irq = pci_calculate_irq(&routing_table[i], 0);
+		link_template[8] = 'A' + (irq % 8);
+		acpigen_write_PRT_source_entry_devfn(routing_table[i].devfn,
+						     0, /* root port interrupt pin A */
+						     link_template,
+						     0);
+	}
+	acpigen_pop_len(); /* Package - PIC Routing */
+}
+
+void acpigen_write_pci_root_PRT(void)
+{
+	const struct pci_routing_info *routing_table;
+	size_t routing_table_entries = 0;
+	size_t prt_entries;
+
+	routing_table = get_pci_routing_table(&routing_table_entries);
+	if (!routing_table || !routing_table_entries)
+		return;
+
+	prt_entries = count_pci_root_prt_entries(routing_table, routing_table_entries);
+	if (!prt_entries)
+		return;
+
+	acpigen_write_method("_PRT", 0);
+
+	/* If (PICM) */
+	acpigen_write_if();
+	acpigen_emit_namestring("PICM");
+
+	/* Return (Package{...}) */
+	acpigen_emit_byte(RETURN_OP);
+	acpigen_write_root_PRT_GSI(routing_table, routing_table_entries, prt_entries);
+
+	/* Else */
+	acpigen_write_else();
+
+	/* Return (Package{...}) */
+	acpigen_emit_byte(RETURN_OP);
+	acpigen_write_root_PRT_PIC(routing_table, routing_table_entries, prt_entries);
+
+	acpigen_pop_len(); /* End Else */
+
+	acpigen_pop_len(); /* Method */
+}
+
  /*
- * This method writes a PCI _PRT table that uses the FCH IO-APIC / PIC :
- *     Name (_PRT, Package (0x04)
+* This method writes a PCI _PRT table that uses the FCH IO-APIC / PIC :
+*     Name (_PRT, Package (0x04)
  *     {
  *         Package (0x04)
  *         {

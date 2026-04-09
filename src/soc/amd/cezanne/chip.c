@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <acpi/acpigen_pci.h>
+#include <acpi/acpi_device.h>
+#include <acpi/acpigen.h>
 #include <amdblocks/acpi.h>
+#include <amdblocks/amd_pci_util.h>
 #include <amdblocks/data_fabric.h>
 #include <amdblocks/fsp.h>
 #include <amdblocks/root_complex.h>
@@ -27,13 +30,22 @@ static const char *soc_acpi_name(const struct device *dev)
 	return NULL;
 };
 
+static void cezanne_pci_domain_fill_ssdt(const struct device *domain)
+{
+	pci_domain_fill_ssdt(domain);
+
+	acpigen_write_scope(acpi_device_path(domain));
+	acpigen_write_pci_root_PRT();
+	acpigen_pop_len();
+}
+
 struct device_operations cezanne_pci_domain_ops = {
 	.read_resources	= amd_pci_domain_read_resources,
 	.set_resources	= pci_domain_set_resources,
 	.scan_bus	= amd_pci_domain_scan_bus,
 	.init		= amd_pci_domain_init,
 	.acpi_name	= soc_acpi_name,
-	.acpi_fill_ssdt	= pci_domain_fill_ssdt,
+	.acpi_fill_ssdt	= cezanne_pci_domain_fill_ssdt,
 };
 
 static void soc_init(void *chip_info)
