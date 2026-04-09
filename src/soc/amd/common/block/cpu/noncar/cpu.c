@@ -18,6 +18,7 @@
 #define UNSUPPORTED 0
 
 #define UNINITIALIZED ((uint64_t)-1)
+#define MSR_BIT(bit) (1ULL << (bit))
 
 struct core_info {
 	/* Core max boost frequency */
@@ -29,6 +30,42 @@ struct core_info {
 };
 
 static struct core_info core_info_list[CONFIG_MAX_CPUS];
+
+static bool update_msr(uint32_t msr_num, uint64_t set, uint64_t clear)
+{
+	msr_t msr = rdmsr(msr_num);
+	uint64_t value = msr.raw;
+
+	value &= ~clear;
+	value |= set;
+
+	if (msr.raw == value)
+		return false;
+
+	msr.raw = value;
+	wrmsr(msr_num, msr);
+	return true;
+}
+
+static void apply_zen3_czn_all_core_msr_fixups(void)
+{
+	bool changed = false;
+
+	if (!CONFIG(SOC_AMD_CEZANNE))
+		return;
+
+	/* Match AMI/AGESA CcxZen3AllCoreRegistersAfterApLaunch for Cezanne. */
+	changed |= update_msr(HWCR_MSR, MSR_BIT(27) | MSR_BIT(32), 0);
+	changed |= update_msr(0xc0010400, 0x0000000000380000, 0x0000000000001004);
+	changed |= update_msr(0xc0010402, MSR_BIT(3), 0);
+	changed |= update_msr(0xc0010406, MSR_BIT(6), 0);
+	changed |= update_msr(CPU_ID_FEATURES_7_0_MSR, 0, MSR_BIT(4) | MSR_BIT(11));
+	changed |= update_msr(0xc00110dc, 0, MSR_BIT(22));
+	changed |= update_msr(0xc00110de, 0, MSR_BIT(4));
+
+	if (changed)
+		printk(BIOS_DEBUG, "Applied Cezanne/Zen3 all-core MSR fixups\n");
+}
 
 static union pstate_msr get_pstate0_msr(void)
 {
@@ -204,6 +241,8 @@ void amd_cpu_init(struct device *dev)
 
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_UCODE))
 		amd_apply_microcode_patch();
+
+	apply_zen3_czn_all_core_msr_fixups();
 
 	if (CONFIG(SOC_FILL_CPU_CACHE_INFO))
 		ap_stash_core_info();
