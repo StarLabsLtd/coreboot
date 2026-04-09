@@ -53,22 +53,7 @@ chip soc/amd/cezanne
 						chip drivers/usb/acpi
 							register "desc" = ""Internal USB 2.0 Hub""
 							register "type" = "UPC_TYPE_HUB"
-							device ref usb2_port2 on
-								chip drivers/usb/acpi
-									register "desc" = ""SD Card Reader""
-									register "type" = "UPC_TYPE_INTERNAL"
-									register "use_custom_pld" = "true"
-									register "custom_pld" = "ACPI_PLD_TYPE_A(RIGHT, LEFT, ACPI_PLD_GROUP(3, 1))"
-									device usb 2.2.1 on end
-								end
-								chip drivers/usb/acpi
-									register "desc" = ""Right Front Type-A Port""
-									register "type" = "UPC_TYPE_USB3_A"
-									register "use_custom_pld" = "true"
-									register "custom_pld" = "ACPI_PLD_TYPE_A(RIGHT, LEFT, ACPI_PLD_GROUP(3, 2))"
-									device usb 2.2.3 on end
-								end
-							end
+							device ref usb2_port2 on end
 						end
 						chip drivers/usb/acpi
 							register "desc" = ""Camera""
