@@ -3,11 +3,27 @@
 #include <amdblocks/cpu.h>
 #include <console/console.h>
 #include <gpio.h>
+#include <option.h>
 #include <soc/gpio.h>
 #include <soc/platform_descriptors.h>
 #include <types.h>
 
 enum {
+	STARLABS_CFR_ASPM_DISABLE = 1,
+	STARLABS_CFR_ASPM_L0S,
+	STARLABS_CFR_ASPM_L1,
+	STARLABS_CFR_ASPM_L0S_L1,
+	STARLABS_CFR_ASPM_AUTO,
+};
+
+enum {
+	STARLABS_CFR_L1SS_DISABLED = 1,
+	STARLABS_CFR_L1SS_L1_1,
+	STARLABS_CFR_L1SS_L1_2,
+};
+
+enum {
+	STARBOOK_DXIO_WIFI_DESC = 4,
 	STARBOOK_DXIO_SSD_DESC = 6,
 };
 
@@ -98,6 +114,73 @@ static fsp_dxio_descriptor starbook_dxio_descriptors[] =
 	}
 };
 
+static void starbook_set_dxio_aspm(fsp_dxio_descriptor *desc, unsigned int aspm)
+{
+	desc->link_aspm = ASPM_L1;
+
+	switch (aspm) {
+	case STARLABS_CFR_ASPM_DISABLE:
+		desc->link_aspm = ASPM_DISABLED;
+		break;
+	case STARLABS_CFR_ASPM_L0S:
+		desc->link_aspm = ASPM_L0s;
+		break;
+	case STARLABS_CFR_ASPM_L1:
+		desc->link_aspm = ASPM_L1;
+		break;
+	case STARLABS_CFR_ASPM_L0S_L1:
+		desc->link_aspm = ASPM_L0sL1;
+		break;
+	case STARLABS_CFR_ASPM_AUTO:
+	default:
+		break;
+	}
+}
+
+static void starbook_set_dxio_l1ss(fsp_dxio_descriptor *desc, unsigned int l1ss)
+{
+	desc->link_aspm_L1_1 = true;
+	desc->link_aspm_L1_2 = true;
+
+	switch (l1ss) {
+	case STARLABS_CFR_L1SS_DISABLED:
+		desc->link_aspm_L1_1 = false;
+		desc->link_aspm_L1_2 = false;
+		break;
+	case STARLABS_CFR_L1SS_L1_1:
+		desc->link_aspm_L1_1 = true;
+		desc->link_aspm_L1_2 = false;
+		break;
+	case STARLABS_CFR_L1SS_L1_2:
+	default:
+		break;
+	}
+}
+
+static void starbook_update_dxio_power_management(void)
+{
+	fsp_dxio_descriptor *wifi = &starbook_dxio_descriptors[STARBOOK_DXIO_WIFI_DESC];
+	fsp_dxio_descriptor *ssd = &starbook_dxio_descriptors[STARBOOK_DXIO_SSD_DESC];
+
+	if (get_uint_option("wifi", 1) == 0) {
+		wifi->engine_type = UNUSED_ENGINE;
+		wifi->port_present = false;
+	}
+
+	wifi->clk_req = get_uint_option("pciexp_wifi_clk_pm", 1) ? CLK_REQ6 : CLK_ENABLE;
+	ssd->clk_req = get_uint_option("pciexp_ssd_clk_pm", 1) ? CLK_REQ1 : CLK_ENABLE;
+
+	starbook_set_dxio_aspm(wifi, get_uint_option("pciexp_wifi_aspm",
+						     STARLABS_CFR_ASPM_L1));
+	starbook_set_dxio_aspm(ssd, get_uint_option("pciexp_ssd_aspm",
+						    STARLABS_CFR_ASPM_L1));
+
+	starbook_set_dxio_l1ss(wifi, get_uint_option("pciexp_wifi_l1ss",
+						     STARLABS_CFR_L1SS_DISABLED));
+	starbook_set_dxio_l1ss(ssd, get_uint_option("pciexp_ssd_l1ss",
+						    STARLABS_CFR_L1SS_L1_2));
+}
+
 static void starbook_select_ssd_dxio_descriptor(void)
 {
 	fsp_dxio_descriptor *ssd = &starbook_dxio_descriptors[STARBOOK_DXIO_SSD_DESC];
@@ -161,6 +244,7 @@ void mainboard_get_dxio_ddi_descriptors(
 		const fsp_ddi_descriptor **ddi_descs, size_t *ddi_num)
 {
 	starbook_select_ssd_dxio_descriptor();
+	starbook_update_dxio_power_management();
 
 	*dxio_descs = starbook_dxio_descriptors;
 	*dxio_num = ARRAY_SIZE(starbook_dxio_descriptors);
