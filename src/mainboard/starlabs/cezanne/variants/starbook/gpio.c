@@ -49,6 +49,7 @@ const struct soc_amd_gpio gpio_table[] = {
 
 	/* SSD */
 	PAD_NF_SCI(GPIO_2,	WAKE_L,		PULL_NONE,	EDGE_HIGH),	// PCIE_SSD_WAKE_N#
+	PAD_GPI(GPIO_4,				PULL_NONE),	// SSD_DET (1 = PCIe, 0 = SATA)
 	PAD_NF(GPIO_5,		DEVSLP0,	PULL_DOWN),	// SSD_DEVSLP0
 	PAD_GPO(GPIO_40,			HIGH),		// AUX_RESET_N
 	PAD_NF(GPIO_115,	CLK_REQ1_L,	PULL_UP),	// PCIE_SSD_CLK_REQ_N
@@ -77,7 +78,6 @@ const struct soc_amd_gpio gpio_table[] = {
 
 	/* Not connected */
 	PAD_NC(GPIO_3),
-	PAD_NC(GPIO_4),
 	PAD_NC(GPIO_6),
 	PAD_NC(GPIO_7),
 	PAD_NC(GPIO_11),

@@ -1,11 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/cpu.h>
+#include <console/console.h>
+#include <gpio.h>
 #include <soc/gpio.h>
 #include <soc/platform_descriptors.h>
 #include <types.h>
 
-static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
+enum {
+	STARBOOK_DXIO_SSD_DESC = 6,
+};
+
+static fsp_dxio_descriptor starbook_dxio_descriptors[] =
 {
 	{ /* Dummy Device */
 		.engine_type		= PCIE_ENGINE,
@@ -92,6 +98,31 @@ static const fsp_dxio_descriptor starbook_dxio_descriptors[] =
 	}
 };
 
+static void starbook_select_ssd_dxio_descriptor(void)
+{
+	fsp_dxio_descriptor *ssd = &starbook_dxio_descriptors[STARBOOK_DXIO_SSD_DESC];
+
+	gpio_input(GPIO_4);
+
+	if (gpio_get(GPIO_4)) {
+		ssd->engine_type = PCIE_ENGINE;
+		ssd->start_logical_lane = 8;
+		ssd->end_logical_lane = 11;
+		ssd->gpio_group_id = 27;
+		ssd->channel_type = SATA_CHANNEL_OTHER;
+		printk(BIOS_INFO, "DXIO: detected PCIe SSD on lanes 8-11\n");
+		return;
+	}
+
+	printk(BIOS_INFO, "DXIO: detected SATA SSD; routing lanes 8-9 to SATA\n");
+	ssd->engine_type = SATA_ENGINE;
+	ssd->start_logical_lane = 8;
+	ssd->end_logical_lane = 9;
+	ssd->gpio_group_id = 1;
+	ssd->port_present = true;
+	ssd->channel_type = SATA_CHANNEL_LONG;
+}
+
 static fsp_ddi_descriptor starbook_ddi_descriptors[] = {
 	/* DDI0:	eDP */
 	{
@@ -129,6 +160,8 @@ void mainboard_get_dxio_ddi_descriptors(
 		const fsp_dxio_descriptor **dxio_descs, size_t *dxio_num,
 		const fsp_ddi_descriptor **ddi_descs, size_t *ddi_num)
 {
+	starbook_select_ssd_dxio_descriptor();
+
 	*dxio_descs = starbook_dxio_descriptors;
 	*dxio_num = ARRAY_SIZE(starbook_dxio_descriptors);
 	*ddi_descs = starbook_ddi_descriptors;
