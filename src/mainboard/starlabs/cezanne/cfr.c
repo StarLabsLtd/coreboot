@@ -187,6 +187,13 @@ static struct sm_obj_form performance_group = {
 	},
 };
 
+static struct sm_obj_form security_group = {
+	.ui_name = "Security",
+	.obj_list = (const struct sm_object *[]) {
+		NULL
+	},
+};
+
 static struct sm_obj_form suspend_lid_group = {
 	.ui_name = "Suspend & Lid",
 	.obj_list = (const struct sm_object *[]) {
@@ -214,6 +221,7 @@ static struct sm_obj_form *sm_root[] = {
 	&leds_group,
 	&pcie_power_management_group,
 	&performance_group,
+	&security_group,
 	&suspend_lid_group,
 	&wireless_group,
 	NULL
