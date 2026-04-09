@@ -66,9 +66,9 @@ const u32 cim_verb_data[] = {
 
 	/* Enable EAPD */
 	0x01870c02,
-	0xffffffff,
-	0xffffffff,
-	0xffffffff,
+	0x01870c02,
+	0x01870c02,
+	0x01870c02,
 };
 
 const u32 pc_beep_verbs[] = {};
