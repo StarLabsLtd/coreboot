@@ -42,10 +42,6 @@ config AMDFW_CONFIG_FILE
 config APCB_SOURCES_PATH
 	string "Path to APCB files"
 
-config CCD_PORT
-	int
-	default 3
-
 config CONSOLE_SERIAL
 	default n if !EDK2_DEBUG
 
