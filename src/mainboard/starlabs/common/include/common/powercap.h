@@ -3,6 +3,7 @@
 #ifndef _STARLABS_CMN_POWERCAP_H_
 #define _STARLABS_CMN_POWERCAP_H_
 
+#include <option.h>
 #include <soc/soc_chip.h>
 
 enum cmos_power_profile {
@@ -27,6 +28,14 @@ struct starlabs_power_profile_bounds {
 	uint32_t min_tcc_temp;
 	uint32_t max_tcc_temp;
 };
+
+static inline enum cmos_power_profile starlabs_get_power_profile(
+	enum cmos_power_profile fallback)
+{
+	const unsigned int power_profile = get_uint_option("power_profile", fallback);
+
+	return power_profile < NUM_POWER_PROFILES ? power_profile : fallback;
+}
 
 bool starlabs_get_power_profile_bounds(const config_t *cfg,
 	struct starlabs_power_profile_bounds *bounds);

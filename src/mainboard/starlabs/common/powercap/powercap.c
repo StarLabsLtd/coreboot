@@ -3,16 +3,9 @@
 #include <commonlib/bsd/clamp.h>
 #include <commonlib/helpers.h>
 #include <intelblocks/power_limit.h>
-#include <option.h>
 #include <types.h>
 #include <chip.h>
 #include <common/powercap.h>
-
-static enum cmos_power_profile get_power_profile(enum cmos_power_profile fallback)
-{
-	const unsigned int power_profile = get_uint_option("power_profile", fallback);
-	return power_profile < NUM_POWER_PROFILES ? power_profile : fallback;
-}
 
 static uint16_t round_up_to_5(uint16_t value)
 {
@@ -102,7 +95,7 @@ void update_power_limits(config_t *cfg)
 	uint8_t performance_scale = 100;
 	uint32_t performance_tcc_offset = CONFIG(EC_STARLABS_FAN) ? 10 : 20;
 	uint32_t tj_max = get_tj_max();
-	const enum cmos_power_profile profile = get_power_profile(PP_POWER_SAVER);
+	const enum cmos_power_profile profile = starlabs_get_power_profile(PP_POWER_SAVER);
 	struct starlabs_power_profile_bounds bounds;
 	bool have_bounds = starlabs_get_power_profile_bounds(cfg, &bounds);
 	uint16_t custom_pl1 = 0, custom_pl2 = 0, custom_pl4 = 0;

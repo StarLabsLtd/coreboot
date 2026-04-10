@@ -175,8 +175,7 @@ static void starbook_update_dxio_power_management(void)
 	starbook_set_dxio_aspm(ssd, get_uint_option("pciexp_ssd_aspm",
 						    STARLABS_CFR_ASPM_L1));
 
-	starbook_set_dxio_l1ss(wifi, get_uint_option("pciexp_wifi_l1ss",
-						     STARLABS_CFR_L1SS_DISABLED));
+	starbook_set_dxio_l1ss(wifi, STARLABS_CFR_L1SS_DISABLED);
 	starbook_set_dxio_l1ss(ssd, get_uint_option("pciexp_ssd_l1ss",
 						    STARLABS_CFR_L1SS_L1_2));
 }

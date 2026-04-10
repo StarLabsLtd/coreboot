@@ -40,7 +40,6 @@ static void cezanne_update_pcie_l1ss(struct sm_object *new_obj)
 
 static const struct cfr_default_override cezanne_cfr_overrides[] = {
 	CFR_OVERRIDE_ENUM("pciexp_wifi_aspm", STARLABS_CFR_ASPM_L1),
-	CFR_OVERRIDE_ENUM("pciexp_wifi_l1ss", STARLABS_CFR_L1SS_DISABLED),
 	CFR_OVERRIDE_ENUM("pciexp_ssd_aspm", STARLABS_CFR_ASPM_L1),
 	CFR_OVERRIDE_END
 };
@@ -85,8 +84,9 @@ static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({		\
 				{ "Auto",	STARLABS_CFR_ASPM_AUTO		}, \
 				SM_ENUM_VALUE_END				}, \
 }, WITH_DEP_VALUES(&pciexp_##_suffix##_clk_pm, true),				\
-	WITH_CALLBACK(cezanne_update_pcie_aspm));				\
-											\
+	WITH_CALLBACK(cezanne_update_pcie_aspm))
+
+#define STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT(_suffix, _label)			\
 static const struct sm_object pciexp_##_suffix##_l1ss = SM_DECLARE_ENUM({		\
 	.opt_name	= "pciexp_" #_suffix "_l1ss",				\
 	.ui_name	= _label " L1 Substates",				\
@@ -102,8 +102,10 @@ static const struct sm_object pciexp_##_suffix##_l1ss = SM_DECLARE_ENUM({		\
 
 STARBOOK_CEZANNE_DECLARE_PCIE_PM_OBJECTS(wifi, "WiFi");
 STARBOOK_CEZANNE_DECLARE_PCIE_PM_OBJECTS(ssd, "SSD");
+STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT(ssd, "SSD");
 
 #undef STARBOOK_CEZANNE_DECLARE_PCIE_PM_OBJECTS
+#undef STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT
 
 static const struct sm_object bluetooth_rtd3 = SM_DECLARE_BOOL({
 	.opt_name	= "bluetooth_rtd3",
@@ -134,7 +136,9 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		&charging_speed,
 		#endif
+		#if CONFIG(EC_STARLABS_MAX_CHARGE)
 		&max_charge,
+		#endif
 		NULL
 	},
 };
@@ -170,7 +174,6 @@ static struct sm_obj_form pcie_power_management_group = {
 	.obj_list = (const struct sm_object *[]) {
 		&pciexp_wifi_clk_pm,
 		&pciexp_wifi_aspm,
-		&pciexp_wifi_l1ss,
 		&pciexp_ssd_clk_pm,
 		&pciexp_ssd_aspm,
 		&pciexp_ssd_l1ss,

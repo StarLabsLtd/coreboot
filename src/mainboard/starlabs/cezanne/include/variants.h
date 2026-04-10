@@ -22,6 +22,4 @@ const struct soc_amd_gpio *variant_early_gpio_table(size_t *num);
 const struct soc_amd_gpio *variant_bootblock_gpio_table(size_t *num);
 const struct soc_amd_gpio *variant_gpio_table(size_t *num);
 
-void devtree_update(void);
-
 #endif /* _BASEBOARD_VARIANTS_H_ */
