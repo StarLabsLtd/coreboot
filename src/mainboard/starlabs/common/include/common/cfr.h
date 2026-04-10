@@ -85,6 +85,14 @@ static const struct sm_object microphone = SM_DECLARE_BOOL({
 	.default_value	= true,
 });
 
+static const struct sm_object hda_dsp = SM_DECLARE_BOOL({
+	.opt_name	= "hda_dsp",
+	.ui_name	= "Digital Signal Processor",
+	.ui_helptext	= "Enable or disable the Intel HD Audio Digital Signal Processor.\n"
+			  "Recommended to disable when booting Windows.",
+	.default_value	= true,
+});
+
 static const struct sm_object power_profile = SM_DECLARE_ENUM({
 	.opt_name	= "power_profile",
 	.ui_name	= "Power Profile",
