@@ -81,15 +81,18 @@ static const struct sm_object legacy_speaker_control = SM_DECLARE_BOOL({
 			  "so the speakers start muted.",
 	.default_value	= true,
 });
+#endif
 
 static struct sm_obj_form audio_group = {
 	.ui_name = "Audio",
 	.obj_list = (const struct sm_object *[]) {
+		&hda_dsp,
+		#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 		&legacy_speaker_control,
+		#endif
 		NULL
 	},
 };
-#endif
 
 static struct sm_obj_form battery_group = {
 	.ui_name = "Battery",
@@ -227,9 +230,7 @@ static struct sm_obj_form wireless_group = {
 };
 
 static struct sm_obj_form *sm_root[] = {
-	#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 	&audio_group,
-	#endif
 	&battery_group,
 	&debug_group,
 	#if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
