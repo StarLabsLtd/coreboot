@@ -11,6 +11,7 @@ static struct sm_obj_form audio_video_group = {
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
+		&hda_dsp,
 		&webcam,
 		NULL
 	},
