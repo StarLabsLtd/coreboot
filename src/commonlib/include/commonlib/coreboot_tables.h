@@ -638,6 +638,15 @@ struct lb_panel_poweroff {
 	uint8_t cmd[];
 };
 
+#define LB_TAG_BOOT_INFO 0x00a1
+
+struct lb_boot_info {
+	uint32_t tag;
+	uint32_t size;
+	uint8_t is_disk_capsules_boot;
+	uint8_t pad[3];
+} __packed;
+
 enum boot_mode_t {
 	/* Regular boot scenarios */
 	LB_BOOT_MODE_NORMAL,
