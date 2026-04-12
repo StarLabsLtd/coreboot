@@ -92,6 +92,7 @@ enum {
 	LB_TAG_CFR_ROOT			= 0x0047,
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
+	LB_TAG_BOOT_INFO		= 0x00a1,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -637,6 +638,13 @@ struct lb_panel_poweroff {
 	/* MIPI DSI poweroff commands from panel_serializable_data. */
 	uint8_t cmd[];
 };
+
+struct lb_boot_info {
+	uint32_t tag;
+	uint32_t size;
+	uint8_t is_disk_capsules_boot;
+	uint8_t pad[3];
+} __packed;
 
 enum boot_mode_t {
 	/* Regular boot scenarios */
