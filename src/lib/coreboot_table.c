@@ -20,6 +20,7 @@
 #include <cbmem.h>
 #include <bootmem.h>
 #include <bootsplash.h>
+#include <drivers/efi/capsules.h>
 #include <inttypes.h>
 #include <spi_flash.h>
 #include <smmstore.h>
@@ -155,6 +156,17 @@ static void lb_framebuffer(struct lb_header *header)
 		unsigned int depth = framebuffer->bits_per_pixel;
 		set_bootsplash(fb_ptr, width, height, bytes_per_line, depth);
 	}
+}
+
+static void lb_add_boot_info(struct lb_header *header)
+{
+	struct lb_boot_info *boot_info;
+
+	boot_info = (struct lb_boot_info *)lb_new_record(header);
+	boot_info->tag = LB_TAG_BOOT_INFO;
+	boot_info->size = sizeof(*boot_info);
+	boot_info->is_disk_capsules_boot = efi_is_disk_capsules_boot();
+	memset(boot_info->pad, 0, sizeof(boot_info->pad));
 }
 
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
@@ -560,6 +572,9 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Add information about firmware in form suitable for EFI updates. */
 	if (CONFIG(DRIVERS_EFI_FW_INFO))
 		lb_efi_fw_info(head);
+
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES))
+		lb_add_boot_info(head);
 
 	/* Add board-specific table entries, if any. */
 	lb_board(head);
