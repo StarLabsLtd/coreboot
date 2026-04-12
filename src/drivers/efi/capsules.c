@@ -88,6 +88,9 @@ struct memory_range {
 static const EFI_GUID capsule_vendor_guid = {
 	0x711C703F, 0xC285, 0x4B10, { 0xA3, 0xB0, 0x36, 0xEC, 0xBD, 0x3C, 0x8B, 0xE2 }
 };
+static const EFI_GUID eficoreboot_nvdata_guid = {
+	0xceae4c1d, 0x335b, 0x4685, { 0xa4, 0xa0, 0xfc, 0x4a, 0x94, 0xee, 0xa0, 0x85 }
+};
 static const EFI_GUID windows_ux_capsule_guid = WINDOWS_UX_CAPSULE_GUID;
 static const EFI_GUID edk2_capsule_on_disk_name_guid = {
 	0x98C80A4F, 0xE16B, 0x4D11, { 0x93, 0x9A, 0xAB, 0xE5, 0x61, 0x26, 0x3, 0x30 }
@@ -106,6 +109,26 @@ struct memory_range coalesce_buffer;
 /* Where individual coalesced capsules are located and their count. */
 static struct memory_range uefi_capsules[MAX_CAPSULES];
 static int uefi_capsule_count;
+
+bool efi_is_disk_capsules_boot(void)
+{
+	struct region_device rdev;
+	enum cb_err ret;
+	uint8_t value;
+	uint32_t size;
+
+	if (smmstore_lookup_region(&rdev))
+		return false;
+
+	value = 0;
+	size = sizeof(value);
+	ret = efi_fv_get_option(&rdev, &eficoreboot_nvdata_guid, "DiskCapsulesBoot",
+				&value, &size);
+	if (ret != CB_SUCCESS || size != sizeof(value))
+		return false;
+
+	return value != 0;
+}
 
 static bool is_data_block(const struct block_descr *block)
 {
@@ -605,8 +628,9 @@ static void coalesce_capsules(struct block_descr block_chain, uint8_t *target)
 	load_block(&block);
 	for (; !is_final_block(&block); advance_block(&block), load_block(&block)) {
 		/* Advance over a continuation. */
-		if (!is_data_block(&block))
+		if (!is_data_block(&block)) {
 			continue;
+		}
 
 		/* This must be the first block of a capsule. */
 		if (size_left == 0) {
@@ -791,9 +815,10 @@ BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_EXIT, parse_capsules, NULL);
 static void enable_capsule_smi(void *unused)
 {
 	uint32_t ret;
+	bool full_flash_access = uefi_capsule_count > 0 || efi_is_disk_capsules_boot();
 
 	ret = call_smm(APM_CNT_SMMSTORE, SMMSTORE_CMD_USE_FULL_FLASH,
-		       (void *)(uintptr_t)uefi_capsule_count);
+		       (void *)(uintptr_t)full_flash_access);
 
 	printk(BIOS_INFO, "%sabled capsule update SMI handler\n",
 	       ret == SMMSTORE_RET_SUCCESS ? "En" : "Dis");
