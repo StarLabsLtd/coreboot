@@ -218,12 +218,21 @@ void set_power_limits(u8 power_limit_1_time,
 
 	/* Set Pl4 */
 	if (conf->tdp_pl4) {
-		limit = rdmsr(MSR_VR_CURRENT_CONFIG);
-		limit.lo = 0;
 		printk(BIOS_INFO, "CPU PL4 = %u Watts\n", conf->tdp_pl4);
-		limit.lo |= (conf->tdp_pl4 * power_unit) &
-				PKG_POWER_LIMIT_MASK;
-		wrmsr(MSR_VR_CURRENT_CONFIG, limit);
+
+		/*
+		 * Apollo Lake #GP faults on the PL4 VR current configuration MSR,
+		 * so leave PL4 programming to hardware defaults on that SoC.
+		 */
+		if (CONFIG(SOC_INTEL_APOLLOLAKE)) {
+			printk(BIOS_INFO, "Skipping PL4 MSR programming on Apollo Lake\n");
+		} else {
+			limit = rdmsr(MSR_VR_CURRENT_CONFIG);
+			limit.lo = 0;
+			limit.lo |= (conf->tdp_pl4 * power_unit) &
+					PKG_POWER_LIMIT_MASK;
+			wrmsr(MSR_VR_CURRENT_CONFIG, limit);
+		}
 	}
 
 	/* Set DDR RAPL power limit by copying from MMIO to MSR */
