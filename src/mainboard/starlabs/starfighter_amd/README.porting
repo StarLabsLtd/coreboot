@@ -1,0 +1,41 @@
+StarFighter AMD / F2-A bring-up notes
+=====================================
+
+Base
+----
+- Structural base: `src/mainboard/google/myst`
+- SoC family: `soc/amd/phoenix`
+- Local board policy reference: `src/mainboard/starlabs/cezanne`
+
+AMI source
+----------
+- `/home/sean/Documents/arn39/ARN39EP023`
+- Project token: `OemProjectPkg/ARN39EP/ARN39EP.sdl`
+- Public product naming should follow StarFighter, not the factory ARN39 ref.
+- Board is wired as Phoenix FP7 / Mayan-class in the AMI tree.
+
+Artifacts to mine next
+----------------------
+- Final BIOS:
+  - `Build/Phoenix/RELEASE_VS2015/FV/AMIROM.fd`
+  - signed output `ARN39EP.rom`
+- EC blob:
+  - `OemProjectPkg/ARN39EP/OemEcMirror/OemEcMirror.sdl`
+- PD blobs:
+  - `OemProjectPkg/ARN39EP/OemPdMirror/OemPdMirror.sdl`
+- APCB:
+  - `AmiAgesaWrapperPkg/AmiApcbGen/PhoenixFp7/PhoenixFp7.sdl`
+- PSP/SMU/MP2/MPIO payload layout:
+  - `AmiPspPkg/PspLayout/PHX/BuildPspPhx_L2A.txt`
+  - `AmiPspPkg/PspLayout/PHX/BuildPspPhx_AB.txt`
+
+Known placeholders in this skeleton
+-----------------------------------
+- GPIO tables are intentionally minimal.
+- DXIO routing is tentative.
+- DDI routing is tentative.
+- Devicetree only keeps the obvious Phoenix/eSPI/EC structure.
+- Phoenix FSP binaries are still missing; there is no first bring-up without
+  them.
+- The generic Phoenix `src/soc/amd/phoenix/fw.cfg` should be used first unless
+  the AMI build proves this board needs a custom firmware package layout.

@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+chip soc/amd/phoenix
+
+	register "common_config.espi_config" = "{
+		.std_io_decode_bitmap = ESPI_DECODE_IO_0x80_EN |
+			ESPI_DECODE_IO_0X60_0X64_EN,
+		.generic_io_range[0] = {
+			.base = 0x62,
+			.size = 1,
+		},
+		.generic_io_range[1] = {
+			.base = 0x66,
+			.size = 1,
+		},
+		.generic_io_range[2] = {
+			.base = 0x800,
+			.size = 256,
+		},
+		.generic_io_range[3] = {
+			.base = 0x900,
+			.size = 255,
+		},
+		.generic_io_range[4] = {
+			.base = 0x200,
+			.size = 8,
+		},
+		.io_mode = ESPI_IO_MODE_QUAD,
+		.op_freq_mhz = ESPI_OP_FREQ_16_MHZ,
+		.crc_check_enable = 1,
+		.alert_pin = ESPI_ALERT_PIN_OPEN_DRAIN,
+		.periph_ch_en = 1,
+		.vw_ch_en = 1,
+		.oob_ch_en = 0,
+		.flash_ch_en = 0,
+		.vw_irq_polarity = ESPI_VW_IRQ_LEVEL_HIGH(1),
+	}"
+
+	register "gpp_clk_config[0]" = "GPP_CLK_REQ" # WLAN
+	register "gpp_clk_config[1]" = "GPP_CLK_REQ" # SD
+	register "gpp_clk_config[2]" = "GPP_CLK_OFF" # optional NVMe1
+	register "gpp_clk_config[3]" = "GPP_CLK_REQ" # NVMe0
+
+	register "pspp_policy" = "DXIO_PSPP_DISABLED"
+	register "s0ix_enable" = "true"
+
+	device domain 0 on
+		device ref iommu on end
+		device ref gpp_bridge_2_1 on end # WLAN
+		device ref gpp_bridge_2_2 on end # SD
+		device ref gpp_bridge_2_4 on end # NVMe0
+
+		device ref gpp_bridge_a on
+			device ref gfx on end
+			device ref gfx_hda on end
+			device ref crypto on end
+			device ref xhci_0 on end
+			device ref xhci_1 on end
+			device ref acp on end
+			device ref hda on end
+		end
+
+		device ref lpc_bridge on
+			chip ec/starlabs/merlin
+				device pnp 4e.01 off end
+				device pnp 4e.02 off end
+				device pnp 4e.04 off end
+				device pnp 4e.05 off end
+				device pnp 4e.06 on
+					io 0x60 = 0x0060
+					io 0x62 = 0x0064
+					irq 0x70 = 1
+				end
+				device pnp 4e.0a off end
+				device pnp 4e.0f off end
+				device pnp 4e.10 off end
+				device pnp 4e.11 off end
+				device pnp 4e.12 off end
+				device pnp 4e.13 off end
+				device pnp 4e.14 off end
+				device pnp 4e.17 off end
+				device pnp 4e.18 off end
+				device pnp 4e.19 off end
+			end
+		end
+	end
+
+	device ref uart_0 on end
+end

@@ -1,0 +1,6 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+comment "Star Labs StarFighter AMD"
+
+config BOARD_STARLABS_STARFIGHTER_AMD
+	bool "Star Labs StarFighter Mk II (AMD)"
