@@ -51,7 +51,11 @@ struct smmstore_params_append {
  * data format isn't specified. See documentation page for more details.
  */
 
+#if CONFIG(BOARD_STARLABS_LITE_SERIES)
+#define SMM_BLOCK_SIZE (4 * KiB)
+#else
 #define SMM_BLOCK_SIZE (64 * KiB)
+#endif
 
 /*
  * Sets the communication buffer to use for read and write operations.
