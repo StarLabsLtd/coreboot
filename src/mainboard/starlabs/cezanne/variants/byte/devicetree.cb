@@ -1,0 +1,54 @@
+chip soc/amd/cezanne
+	register "system_configuration" = "2"
+	register "pspp_policy" = "DXIO_PSPP_BALANCED"
+
+	# Memory
+	register "i2c_pad[2].rx_level"		= "I2C_PAD_RX_3_3V"
+	register "gpp_clk_config[1]"		= "GPP_CLK_REQ"	# LAN (02.1 / CLKREQ1)
+	register "gpp_clk_config[4]"		= "GPP_CLK_REQ"	# AMI DT/LAN1 lane (01.2 / CLKREQ4)
+	register "gpp_clk_config[5]"		= "GPP_CLK_REQ"	# M.2 SSD (02.4 / CLKREQ5)
+	register "gpp_clk_config[6]"		= "GPP_CLK_REQ"	# WIFI (02.2 / CLKREQ6)
+
+	device domain 0 on
+		device ref iommu on end
+		device ref gpp_gfx_bridge_1	on		# AMI DT/LAN1 lane
+		end
+		device ref gpp_bridge_0		on		# LAN
+		end
+		device ref gpp_bridge_1		on		# WIFI
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""WIFI""
+				device pci 00.0 on end
+			end
+		end
+		device ref gpp_bridge_3		on		# M.2 SSD
+			chip drivers/pcie/rtd3/device
+				register "name"		= ""NVME""
+				device pci 00.0 on end
+			end
+		end
+		device ref gpp_bridge_a on
+			device ref gfx		on  end
+			device ref gfx_hda	on  end
+			device ref crypto	on  end
+			device ref xhci_0	on  end
+			device ref xhci_1	on  end
+			device ref acp		on  end
+			device ref hda		on
+				subsystemid 0x14f1 0x0216
+			end
+		end
+		device ref gpp_bridge_b on
+			device ref sata_0	on  end
+		end
+	end
+	device ref data_fabric_0	on  end
+	device ref data_fabric_1	on  end
+	device ref data_fabric_2	on  end
+	device ref data_fabric_3	on  end
+	device ref data_fabric_4	on  end
+	device ref data_fabric_5	on  end
+	device ref data_fabric_6	on  end
+	device ref data_fabric_7	on  end
+	device ref uart_0	on  end
+end

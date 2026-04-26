@@ -9,6 +9,7 @@ romstage-y += romstage.c
 
 ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
 ramstage-y += mainboard.c
+ramstage-y += variants/$(VARIANT_DIR)/hda_verb.c
 
 ifeq ($(CONFIG_ADD_APCB_SOURCES),y)
 APCB_SOURCES = $(call strip_quotes, $(CONFIG_APCB_SOURCES_PATH))/APCB_CZN_D4_Updatable.bin

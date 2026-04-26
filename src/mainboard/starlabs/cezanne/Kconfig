@@ -29,6 +29,9 @@ config BOARD_STARLABS_CEZANNE_SERIES
 	select SYSTEM_TYPE_LAPTOP
 	select VGA_BIOS
 
+config BOARD_STARLABS_BYTE_CEZANNE
+	select BOARD_STARLABS_CEZANNE_SERIES
+
 config BOARD_STARLABS_STARBOOK_CEZANNE
 	select BOARD_STARLABS_CEZANNE_SERIES
 
@@ -36,6 +39,9 @@ if BOARD_STARLABS_CEZANNE_SERIES
 
 config ADD_APCB_SOURCES
 	bool "Add PSP customisation files"
+
+config AMDFW_CONFIG_FILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/fw.cfg"
 
 config APCB_SOURCES_PATH
 	string "Path to APCB files"
@@ -65,13 +71,16 @@ config MAINBOARD_DIR
 	default "starlabs/cezanne"
 
 config MAINBOARD_FAMILY
-	default "B6-A"
+	default "B6-A"			if BOARD_STARLABS_STARBOOK_CEZANNE
+	default "Y1"			if BOARD_STARLABS_BYTE_CEZANNE
 
 config MAINBOARD_PART_NUMBER
-	default "StarBook Mk VI"
+	default "StarBook Mk VI"	if BOARD_STARLABS_STARBOOK_CEZANNE
+	default "Byte Mk I"		if BOARD_STARLABS_BYTE_CEZANNE
 
 config MAINBOARD_SMBIOS_PRODUCT_NAME
-	default "StarBook"
+	default "StarBook"		if BOARD_STARLABS_STARBOOK_CEZANNE
+	default "Byte"			if BOARD_STARLABS_BYTE_CEZANNE
 
 config POST_IO
 	default y
@@ -86,7 +95,8 @@ config S3_VGA_ROM_RUN
 	default n
 
 config VARIANT_DIR
-	default "starbook"
+	default "starbook"		if BOARD_STARLABS_STARBOOK_CEZANNE
+	default "byte"			if BOARD_STARLABS_BYTE_CEZANNE
 
 config EFS_SPI_SPEED
 	default 4	# 100MHz
