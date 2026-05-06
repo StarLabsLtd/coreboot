@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
+#include <bootstate.h>
 #include <device/azalia_device.h>
 #include <device/device.h>
 #include <device/pci.h>
@@ -19,12 +21,20 @@ static void hda_init(struct device *dev)
 		azalia_audio_init(dev);
 }
 
+static void hda_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES) && !acpi_is_wakeup_s3())
+		pci_dev_disable_bus_master(dev);
+	else
+		pci_dev_request_bus_master(dev);
+}
+
 struct device_operations hda_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= hda_init,
-	.final			= pci_dev_request_bus_master,
+	.final			= hda_final,
 	.ops_pci		= &pci_dev_ops_pci,
 	.scan_bus		= scan_static_bus
 };
@@ -44,6 +54,25 @@ static const unsigned short pci_device_ids[] = {
 	PCI_DID_INTEL_MCC_AUDIO,
 	0
 };
+
+static void hda_disable_bme_before_payload(void *unused)
+{
+	(void)unused;
+
+	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		return;
+
+	for (const unsigned short *id = pci_device_ids; *id; id++) {
+		struct device *dev = NULL;
+
+		while ((dev = dev_find_device(PCI_VID_INTEL, *id, dev)))
+			if (is_enabled_pci(dev))
+				pci_dev_disable_bus_master(dev);
+	}
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,
+		      hda_disable_bme_before_payload, NULL);
 
 static const struct pci_driver pch_hda __pci_driver = {
 	.ops		= &hda_ops,
