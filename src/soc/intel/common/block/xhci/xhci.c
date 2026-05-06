@@ -118,11 +118,18 @@ void usb_xhci_disable_unused(bool (*ext_usb_xhci_en_cb)(unsigned int port_type,
 
 __weak void soc_xhci_init(struct device *dev) { /* no-op */ }
 
+static void usb_xhci_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_dev_disable_bus_master(dev);
+}
+
 struct device_operations usb_xhci_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= soc_xhci_init,
+	.final			= usb_xhci_final,
 	.ops_pci		= &pci_dev_ops_pci,
 	.scan_bus		= scan_static_bus,
 #if CONFIG(HAVE_ACPI_TABLES)
