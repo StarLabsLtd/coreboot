@@ -23,11 +23,19 @@ static void sata_acpi_fill_ssdt(const struct device *dev)
 	acpigen_pop_len(); /* Scope */
 }
 
+static void sata_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_dev_disable_bus_master(dev);
+	else
+		pci_dev_request_bus_master(dev);
+}
+
 struct device_operations sata_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
-	.final			= pci_dev_request_bus_master,
+	.final			= sata_final,
 	.ops_pci		= &pci_dev_ops_pci,
 #if CONFIG(HAVE_ACPI_TABLES)
 	.acpi_fill_ssdt		= sata_acpi_fill_ssdt,
