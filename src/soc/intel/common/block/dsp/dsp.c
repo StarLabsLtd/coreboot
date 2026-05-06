@@ -4,13 +4,21 @@
 #include <device/pci.h>
 #include <device/pci_ids.h>
 
+static void dsp_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_dev_disable_bus_master(dev);
+	else
+		pci_dev_request_bus_master(dev);
+}
+
 static struct device_operations dsp_dev_ops = {
 	.read_resources         = pci_dev_read_resources,
 	.set_resources          = pci_dev_set_resources,
 	.enable_resources       = pci_dev_enable_resources,
 	.ops_pci                = &pci_dev_ops_pci,
 	.scan_bus               = scan_static_bus,
-	.final                  = pci_dev_request_bus_master,
+	.final                  = dsp_final,
 };
 
 static const unsigned short pci_device_ids[] = {
