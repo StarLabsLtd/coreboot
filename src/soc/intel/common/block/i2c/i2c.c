@@ -160,6 +160,12 @@ static void dw_i2c_device_init(struct device *dev)
 	dw_i2c_dev_init(dev);
 }
 
+static void dw_i2c_device_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_dev_disable_bus_master(dev);
+}
+
 struct device_operations i2c_dev_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
@@ -168,6 +174,7 @@ struct device_operations i2c_dev_ops = {
 	.ops_i2c_bus		= &dw_i2c_bus_ops,
 	.ops_pci		= &pci_dev_ops_pci,
 	.init			= dw_i2c_device_init,
+	.final			= dw_i2c_device_final,
 #if CONFIG(HAVE_ACPI_TABLES)
 	.acpi_fill_ssdt		= dw_i2c_acpi_fill_ssdt,
 #endif
