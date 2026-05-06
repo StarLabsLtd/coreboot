@@ -7,6 +7,7 @@
 
 #include <acpi/acpi.h>
 #include <assert.h>
+#include <bootstate.h>
 #include <cbmem.h>
 #include <device/pci_ops.h>
 #include <bootmode.h>
@@ -1614,6 +1615,21 @@ void pci_dev_disable_bus_master(const struct device *dev)
 {
 	pci_update_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MASTER, 0x0);
 }
+
+static void pci_disable_bus_mastering_before_payload(void *unused)
+{
+	struct device *dev;
+
+	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		return;
+
+	for (dev = all_devices; dev; dev = dev->next)
+		if (is_enabled_pci(dev))
+			pci_dev_disable_bus_master(dev);
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,
+		      pci_disable_bus_mastering_before_payload, NULL);
 
 /**
  * Take an INT_PIN number (0, 1 - 4) and convert
