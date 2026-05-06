@@ -58,6 +58,14 @@ endchoice
 
 source "payloads/external/*/Kconfig"
 
+config PAYLOAD_OWNS_PCI_DEVICES
+	bool
+	depends on !EDK2_UNIVERSAL_PAYLOAD
+	default y if PAYLOAD_EDK2
+	help
+	  Select this when the payload takes ownership of PCI devices after
+	  coreboot and will enable bus mastering from its own drivers.
+
 config PAYLOAD_FILE
 	string "Payload path and filename"
 	depends on PAYLOAD_ELF || PAYLOAD_FIT || PAYLOAD_FLAT_BINARY
