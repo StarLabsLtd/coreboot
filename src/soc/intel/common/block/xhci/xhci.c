@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
+#include <bootstate.h>
 #include <acpi/acpi_device.h>
 #include <console/console.h>
 #include <device/device.h>
@@ -118,11 +120,18 @@ void usb_xhci_disable_unused(bool (*ext_usb_xhci_en_cb)(unsigned int port_type,
 
 __weak void soc_xhci_init(struct device *dev) { /* no-op */ }
 
+static void usb_xhci_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES) && !acpi_is_wakeup_s3())
+		pci_dev_disable_bus_master(dev);
+}
+
 struct device_operations usb_xhci_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= soc_xhci_init,
+	.final			= usb_xhci_final,
 	.ops_pci		= &pci_dev_ops_pci,
 	.scan_bus		= scan_static_bus,
 #if CONFIG(HAVE_ACPI_TABLES)
@@ -138,6 +147,25 @@ static const unsigned short pci_device_ids[] = {
 	PCI_DID_INTEL_SNR_XHCI,
 	0
 };
+
+static void usb_xhci_disable_bme_before_payload(void *unused)
+{
+	(void)unused;
+
+	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		return;
+
+	for (const unsigned short *id = pci_device_ids; *id; id++) {
+		struct device *dev = NULL;
+
+		while ((dev = dev_find_device(PCI_VID_INTEL, *id, dev)))
+			if (is_enabled_pci(dev))
+				pci_dev_disable_bus_master(dev);
+	}
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,
+		      usb_xhci_disable_bme_before_payload, NULL);
 
 static const struct pci_driver pch_usb_xhci __pci_driver = {
 	.ops	 = &usb_xhci_ops,
