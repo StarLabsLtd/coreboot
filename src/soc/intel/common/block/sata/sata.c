@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <acpi/acpigen.h>
 #include <acpi/acpigen_pci.h>
+#include <bootstate.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
@@ -23,11 +25,19 @@ static void sata_acpi_fill_ssdt(const struct device *dev)
 	acpigen_pop_len(); /* Scope */
 }
 
+static void sata_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES) && !acpi_is_wakeup_s3())
+		pci_dev_disable_bus_master(dev);
+	else
+		pci_dev_request_bus_master(dev);
+}
+
 struct device_operations sata_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
-	.final			= pci_dev_request_bus_master,
+	.final			= sata_final,
 	.ops_pci		= &pci_dev_ops_pci,
 #if CONFIG(HAVE_ACPI_TABLES)
 	.acpi_fill_ssdt		= sata_acpi_fill_ssdt,
@@ -50,6 +60,25 @@ static const unsigned short pci_device_ids[] = {
 	PCI_DID_INTEL_MCC_AHCI_SATA,
 	0
 };
+
+static void sata_disable_bme_before_payload(void *unused)
+{
+	(void)unused;
+
+	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		return;
+
+	for (const unsigned short *id = pci_device_ids; *id; id++) {
+		struct device *dev = NULL;
+
+		while ((dev = dev_find_device(PCI_VID_INTEL, *id, dev)))
+			if (is_enabled_pci(dev))
+				pci_dev_disable_bus_master(dev);
+	}
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,
+		      sata_disable_bme_before_payload, NULL);
 
 static const struct pci_driver pch_sata __pci_driver = {
 	.ops     = &sata_ops,
