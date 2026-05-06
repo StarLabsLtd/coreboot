@@ -19,12 +19,20 @@ static void hda_init(struct device *dev)
 		azalia_audio_init(dev);
 }
 
+static void hda_final(struct device *dev)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_dev_disable_bus_master(dev);
+	else
+		pci_dev_request_bus_master(dev);
+}
+
 struct device_operations hda_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= hda_init,
-	.final			= pci_dev_request_bus_master,
+	.final			= hda_final,
 	.ops_pci		= &pci_dev_ops_pci,
 	.scan_bus		= scan_static_bus
 };
