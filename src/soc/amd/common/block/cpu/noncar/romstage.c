@@ -7,6 +7,7 @@
 #include <amdblocks/pmlib.h>
 #include <amdblocks/stb.h>
 #include <cbmem.h>
+#include <drivers/amd/opensil/opensil.h>
 #include <program_loading.h>
 #include <romstage_common.h>
 
@@ -26,6 +27,8 @@ void __noreturn romstage_main(void)
 		amd_fsp_early_init();
 	} else {
 		cbmem_initialize_empty();
+		if (CONFIG(OPENSIL_DRIVER))
+			mainboard_opensil_after_cbmem_init();
 	}
 
 	if (CONFIG(SOC_AMD_COMMON_ROMSTAGE_LEGACY_DMA_FIXUP)) {
