@@ -8,6 +8,8 @@
 #include <FchHwAcpi-api.h>
 #include <FCH/Common/FchCommon.h>
 
+#include <amdblocks/acpi.h>
+
 #include "../opensil.h"
 
 void opensil_fill_fadt(acpi_fadt_t *fadt)

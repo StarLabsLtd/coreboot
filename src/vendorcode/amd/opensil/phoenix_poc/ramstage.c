@@ -9,6 +9,7 @@
 #include <FCH/FchHwAcpi-api.h>
 #include <FCH/Common/FchCommon.h>
 #include <RcMgr/DfX/RcManager-api.h>
+#include <amdblocks/ioapic.h>
 #include <amdblocks/reset.h>
 #include <bootstate.h>
 #include <cbmem.h>
@@ -65,39 +66,30 @@ static void setup_rc_manager_default(SIL_CONTEXT *SilContext)
 		return;
 	}
 
+	/* Let openSIL distribute the resources to the different PCI roots */
+	rc_mgr_input_block->SetRcBasedOnNv = false;
+
+	/* Currently 1P is the only supported configuration */
 	rc_mgr_input_block->SocketNumber = 1;
 	rc_mgr_input_block->RbsPerSocket = 1; // Consumer platform, 1 RootBridge/Socket
 	rc_mgr_input_block->McptEnable = true;
-	rc_mgr_input_block->SetRcBasedOnNv = false;
 	rc_mgr_input_block->PciExpressBaseAddress = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
 	rc_mgr_input_block->BottomMmioReservedForPrimaryRb = 4ull * GiB - 32 * MiB;
 	rc_mgr_input_block->MmioSizePerRbForNonPciDevice = 16 * MiB;
-	/* MmioAbove4GLimit will be adjusted down in openSIL */
-	rc_mgr_input_block->MmioAbove4GLimit = POWER_OF_2(cpu_phys_address_size());
-	rc_mgr_input_block->Above4GMmioSizePerRbForNonPciDevice = 0;
 
+	rc_mgr_input_block->MmioAbove4GLimit = POWER_OF_2(MIN(48, cpu_phys_address_size()));
+	rc_mgr_input_block->Above4GMmioSizePerRbForNonPciDevice = 0;
 }
 
-#define NUM_XHCI_CONTROLLERS 4
 static void configure_usb(SIL_CONTEXT *SilContext)
 {
-	struct device *usb_ctrlr[NUM_XHCI_CONTROLLERS] = {
-		DEV_PTR(xhci_0),
-		DEV_PTR(xhci_1),
-		DEV_PTR(usb4_xhci_0),
-		DEV_PTR(usb4_xhci_1)
-	};
-
 	FCHUSB_INPUT_BLK *fch_usb_data = SilFindStructure(SilContext, SilId_FchUsb, 0);
 
-	if (!fch_usb_data)
-		return;
-
-	fch_usb_data->Xhci0Enable = usb_ctrlr[0] && usb_ctrlr[0]->enabled;
-	fch_usb_data->Xhci1Enable = usb_ctrlr[1] && usb_ctrlr[1]->enabled;
-	fch_usb_data->Xhci2Enable = usb_ctrlr[2] && usb_ctrlr[2]->enabled;
-	fch_usb_data->Xhci3Enable = usb_ctrlr[3] && usb_ctrlr[3]->enabled;
-
+	// HACK
+	fch_usb_data->Xhci0Enable = false;
+	fch_usb_data->Xhci1Enable = false;
+	fch_usb_data->Xhci2Enable = false;
+	fch_usb_data->Xhci3Enable = false;
 }
 
 static void setup_data_fabric_default(SIL_CONTEXT *SilContext)
@@ -149,6 +141,12 @@ static void configure_fch_acpi(SIL_CONTEXT *SilContext)
 	fch_data->FchBldCfg.CfgAcpiGpe0BlkAddr = ACPI_GPE0_BLK;
 	fch_data->FchBldCfg.CfgSmiCmdPortAddr = APM_CNT;
 
+	fch_data->LegacyFree = true;
+	fch_data->WdtEnable = false;
+	fch_data->SerialIrqEnable = true;
+	fch_data->CfgIoApicIdPreDefEnable = true;
+	fch_data->FchIoApicId = FCH_IOAPIC_ID;
+
 	// OpenSIL seems to use different definitions than FSP.
 	// TODO: Add decinitions expected by OpenSIL (i.e: FCH_AOAC_UART0).
 	fch_data->FchRunTime.FchDeviceEnableMap = 0;
@@ -191,8 +189,8 @@ static void configure_ccx(SIL_CONTEXT *SilContext)
 		ccx_data->CcxInputBlock.AmdApicMode = ApicAutoMode;
 
 	ccx_data->CcxInputBlock.EnableAvx512 = 1;
-	ccx_data->CcxInputBlock.EnableSvmX2AVIC = true;
-	ccx_data->CcxInputBlock.EnableSvmAVIC = true;
+	//ccx_data->CcxInputBlock.EnableSvmX2AVIC = true;
+	//ccx_data->CcxInputBlock.EnableSvmAVIC = true;
 	ccx_data->CcxInputBlock.AmdCStateIoBaseAddress = ACPI_CSTATE_CONTROL;
 }
 

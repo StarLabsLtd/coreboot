@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbmem.h>
+#include <static.h>
+#include <amdblocks/ioapic.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <Mpio/Common/MpioStructs.h>
@@ -11,6 +13,7 @@
 #include <Mpio/Phx/MpioPhxData.h>
 #include <RcMgr/DfX/RcManager-api.h>
 #include <vendorcode/amd/opensil/opensil.h>
+#include <soc/iomap.h>
 #include <xSIM-api.h>
 
 #include "../include/chip.h"
@@ -54,12 +57,6 @@ static void mpio_params_config(SIL_CONTEXT *SilContext)
 	mpio_data->CfgPcieAriSupport                   = 1;
 	mpio_data->CfgNbioCTOtoSC                      = 0;
 	mpio_data->CfgNbioCTOIgnoreError               = 1;
-	mpio_data->CfgNbioSsid                         = 0;
-	mpio_data->CfgIommuSsid                        = 0;
-	mpio_data->CfgPspccpSsid                       = 0;
-	mpio_data->CfgNtbccpSsid                       = 0;
-	mpio_data->CfgNbifF0Ssid                       = 0;
-	mpio_data->CfgNtbSsid                          = 0;
 	mpio_data->AmdPcieSubsystemDeviceID            = 0x1453;
 	mpio_data->AmdPcieSubsystemVendorID            = 0x1022;
 	mpio_data->GppAtomicOps                        = 1;
@@ -91,7 +88,6 @@ static void mpio_params_config(SIL_CONTEXT *SilContext)
 	// It doesn't seem to cause any issues though? TODO: Investigate.
 	mpio_data->PcieTopologyData.PlatformData[0].Flags = DESCRIPTOR_TERMINATE_LIST;
 	mpio_data->PcieTopologyData.PlatformData[0].PciePortList = mpio_data->PcieTopologyData.PortList;
-
 }
 
 #define xApicMode 0x01
@@ -107,11 +103,7 @@ static void nbio_params_config(SIL_CONTEXT *SilContext)
 	input->IommuAvicSupport = false;
 	input->IommuL1ClockGatingEnable = true;
 	input->IommuL2ClockGatingEnable = true;
-	input->IommuMMIOAddressReservedEnable = true;   // Use MMIO address reserved from GNB
-
-	// Interrupt Controller (only APIC tested currently)
-	input->IoApicMMIOAddressReservedEnable = true;
-	input->IoApicIdPreDefineEn = true;
+	input->IommuMMIOAddressReservedEnable = true; // Use MMIO address reserved from GNB
 
 	if (CONFIG(XAPIC_ONLY) || CONFIG(X2APIC_LATE_WORKAROUND))
 		input->AmdApicMode = xApicMode;
@@ -119,6 +111,10 @@ static void nbio_params_config(SIL_CONTEXT *SilContext)
 		input->AmdApicMode = x2ApicMode;
 	else
 		input->AmdApicMode = ApicAutoMode;
+
+	input->IoApicMMIOAddressReservedEnable = true;
+	input->IoApicIdPreDefineEn = true;
+	input->IoApicIdBase = GNB_IOAPIC_ID;
 }
 
 void opensil_mpio_per_device_config(struct device *dev)
