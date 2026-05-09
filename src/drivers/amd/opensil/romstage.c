@@ -5,6 +5,12 @@
 #include <cpu/amd/mtrr.h>
 #include <vendorcode/amd/opensil/opensil.h>
 
+#include "opensil.h"
+
+__weak void mainboard_opensil_after_cbmem_init(void)
+{
+}
+
 uintptr_t cbmem_top_chipset(void)
 {
 	printk(BIOS_DEBUG, "TOM1: 0x%x\n", get_top_of_mem_below_4gb());

@@ -19,5 +19,7 @@ void amd_opensil_fill_fadt_io_ports(acpi_fadt_t *fadt);
 void opensil_smbios_fill_cbmem_meminfo(void);
 /* Fill DIMM locators using OpenSIL DMI info, returns 0 on success */
 int opensil_smbios_fill_dimm_locator(const struct dimm_info *dimm, struct smbios_type17 *t);
+/* Romstage callback for mainboards after CBMEM init */
+void mainboard_opensil_after_cbmem_init(void);
 
 #endif /* OPENSIL_DRIVER_H */
