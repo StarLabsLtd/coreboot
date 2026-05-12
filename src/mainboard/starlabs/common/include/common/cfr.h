@@ -100,7 +100,7 @@ static const struct sm_object power_profile = SM_DECLARE_ENUM({
 	.ui_helptext	= "Choose maximum battery life, balanced behaviour, "
 			  "maximum performance, or custom CPU power and "
 			  "thermal settings.",
-	.default_value	= PP_PERFORMANCE,
+	.default_value	= PP_BALANCED,
 	.values		= (const struct sm_enum_value[]) {
 			{ "Power Saver",	PP_POWER_SAVER	},
 			{ "Balanced",		PP_BALANCED	},
