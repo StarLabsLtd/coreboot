@@ -18,21 +18,32 @@ static uint16_t round_up_to_5(uint16_t value)
 	return DIV_ROUND_UP(value, 5) * 5;
 }
 
-static uint32_t apply_uplift(uint32_t value, uint32_t uplift_percent)
+/*
+ * Power profile policy:
+ *
+ * - Power Saver targets roughly two thirds of nominal TDP.
+ * - Balanced uses nominal TDP.
+ * - Performance targets roughly one third above nominal TDP.
+ * - Custom defaults to the Performance values and allows up to 50% above
+ *   nominal TDP.
+ *
+ * This keeps the preset profiles ordered consistently across low- and
+ * high-TDP parts, while reserving a small amount of extra headroom for
+ * manual tuning.
+ */
+static uint32_t get_power_saver_pl1(uint32_t tdp)
 {
-	return MAX(value, (value * (100 + uplift_percent)) / 100);
+	return MAX(1U, (tdp * 2) / 3);
 }
 
-static uint32_t get_pl_uplift_percent(uint32_t stock_pl1)
+static uint32_t get_performance_pl1(uint32_t tdp)
 {
-	if (stock_pl1 <= 7)
-		return 30;
-	if (stock_pl1 <= 15)
-		return 25;
-	if (stock_pl1 <= 28)
-		return 20;
+	return MAX(tdp, DIV_ROUND_UP(tdp * 4, 3));
+}
 
-	return 15;
+static uint32_t get_max_pl1(uint32_t tdp)
+{
+	return MAX(tdp, DIV_ROUND_UP(tdp * 3, 2));
 }
 
 static uint32_t get_tj_max(void)
@@ -60,8 +71,9 @@ static uint32_t tcc_offset_to_temp(uint32_t tj_max, uint32_t offset)
 bool starlabs_get_power_profile_bounds(const config_t *cfg,
 	struct starlabs_power_profile_bounds *bounds)
 {
-	uint32_t stock_pl1, stock_pl2, stock_pl4, stock_tcc_offset, uplift_percent, tj_max;
-	uint32_t default_pl2, max_pl2;
+	uint32_t stock_pl1, stock_pl4, stock_tcc_offset, tj_max;
+	uint32_t min_pl1, default_pl1, max_pl1;
+	uint32_t min_pl2, default_pl2, max_pl2;
 
 	if (!cfg || !bounds)
 		return false;
@@ -69,20 +81,23 @@ bool starlabs_get_power_profile_bounds(const config_t *cfg,
 	stock_pl1 = get_cpu_tdp();
 	if (!stock_pl1)
 		return false;
-	stock_pl2 = round_up_to_5(stock_pl1 * 2);
 	stock_pl4 = CONFIG_MB_STARLABS_PL4_WATTS;
 	stock_tcc_offset = CONFIG(EC_STARLABS_FAN) ? 10 : 20;
 	tj_max = get_tj_max();
-	uplift_percent = get_pl_uplift_percent(stock_pl1);
-	max_pl2 = MIN(apply_uplift(stock_pl2, uplift_percent), stock_pl4);
-	default_pl2 = clamp_u32(stock_pl1, stock_pl2, max_pl2);
+	min_pl1 = get_power_saver_pl1(stock_pl1);
+	default_pl1 = get_performance_pl1(stock_pl1);
+	max_pl1 = get_max_pl1(stock_pl1);
+	min_pl2 = round_up_to_5(min_pl1 * 2);
+	default_pl2 = round_up_to_5(default_pl1 * 2);
+	max_pl2 = MIN(round_up_to_5(max_pl1 * 2), stock_pl4);
+	default_pl2 = clamp_u32(min_pl2, default_pl2, max_pl2);
 
-	bounds->default_pl1 = stock_pl1;
-	bounds->min_pl1 = MAX(1U, DIV_ROUND_UP(stock_pl1, 2));
-	bounds->max_pl1 = apply_uplift(stock_pl1, uplift_percent);
+	bounds->default_pl1 = default_pl1;
+	bounds->min_pl1 = min_pl1;
+	bounds->max_pl1 = max_pl1;
 
 	bounds->default_pl2 = default_pl2;
-	bounds->min_pl2 = stock_pl1;
+	bounds->min_pl2 = min_pl2;
 	bounds->max_pl2 = max_pl2;
 
 	bounds->default_pl4 = stock_pl4;
@@ -98,10 +113,9 @@ bool starlabs_get_power_profile_bounds(const config_t *cfg,
 
 void update_power_limits(config_t *cfg)
 {
-	uint8_t performance_scale = 100;
 	uint32_t performance_tcc_offset = CONFIG(EC_STARLABS_FAN) ? 10 : 20;
 	uint32_t tj_max = get_tj_max();
-	const enum cmos_power_profile profile = get_power_profile(PP_POWER_SAVER);
+	const enum cmos_power_profile profile = get_power_profile(PP_BALANCED);
 	struct starlabs_power_profile_bounds bounds;
 	bool have_bounds = starlabs_get_power_profile_bounds(cfg, &bounds);
 	uint16_t custom_pl1 = 0, custom_pl2 = 0, custom_pl4 = 0;
@@ -110,11 +124,9 @@ void update_power_limits(config_t *cfg)
 	/* Scale PL1 & PL2 based on CMOS settings */
 	switch (profile) {
 	case PP_POWER_SAVER:
-		performance_scale -= 50;
 		cfg->tcc_offset = performance_tcc_offset + 20;
 		break;
 	case PP_BALANCED:
-		performance_scale -= 25;
 		cfg->tcc_offset = performance_tcc_offset + 10;
 		break;
 	case PP_PERFORMANCE:
@@ -168,7 +180,22 @@ void update_power_limits(config_t *cfg)
 		if (!tdp)
 			continue;
 
-		pl1 = (tdp * performance_scale) / 100;
+		switch (profile) {
+		case PP_POWER_SAVER:
+			pl1 = get_power_saver_pl1(tdp);
+			break;
+		case PP_BALANCED:
+			pl1 = tdp;
+			break;
+		case PP_PERFORMANCE:
+			pl1 = get_performance_pl1(tdp);
+			break;
+		case PP_CUSTOM:
+		default:
+			pl1 = tdp;
+			break;
+		}
+
 		pl2 = round_up_to_5(pl1 * 2);
 
 		entry->tdp_pl1_override = pl1;
