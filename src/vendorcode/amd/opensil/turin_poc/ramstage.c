@@ -235,8 +235,9 @@ static void configure_fch_isa(void)
 	fch_isa_data->SpiConfig.WriteSpeed = 0;
 }
 
-#define FCH_DEV_ENABLE(dev, aoac_bit) \
-	fch_data->FchRunTime.FchDeviceEnableMap |= ((DEV_PTR(dev))->enabled ? aoac_bit : 0)
+#define FCH_DEV_ENABLE(dev, aoac_dev_id) \
+	fch_data->FchRunTime.FchDeviceEnableMap |= \
+		((DEV_PTR(dev))->enabled ? BIT_32(aoac_dev_id) : 0)
 
 static void configure_fch_acpi(void)
 {
