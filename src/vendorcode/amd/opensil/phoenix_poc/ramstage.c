@@ -8,6 +8,9 @@
 #include <FCH/FchClass-api.h>
 #include <FCH/FchHwAcpi-api.h>
 #include <FCH/Common/FchCommon.h>
+#include <FchUsb-api.h>
+#include <Tacoma/FchCore/FchUsb/FchUsbOemTc.h>
+#include <Tacoma/FchCore/FchUsb/FchUsbRegTc.h>
 #include <RcMgr/DfX/RcManager-api.h>
 #include <amdblocks/ioapic.h>
 #include <amdblocks/reset.h>
@@ -81,15 +84,23 @@ static void setup_rc_manager_default(SIL_CONTEXT *SilContext)
 	rc_mgr_input_block->Above4GMmioSizePerRbForNonPciDevice = 0;
 }
 
+static const SIL_RESERVED_STRUCT_0012 usb_oem_platform_table = {
+	.field0 = FCH_XHCI_VERSION_MAJOR_TC,
+	.field1 = FCH_XHCI_VERSION_MINOR_TC,
+	.field2 = sizeof(SIL_RESERVED_STRUCT_0012),
+	.field3 = 0,
+};
+
 static void configure_usb(SIL_CONTEXT *SilContext)
 {
 	FCHUSB_INPUT_BLK *fch_usb_data = SilFindStructure(SilContext, SilId_FchUsb, 0);
 
-	// HACK
-	fch_usb_data->Xhci0Enable = false;
-	fch_usb_data->Xhci1Enable = false;
-	fch_usb_data->Xhci2Enable = false;
-	fch_usb_data->Xhci3Enable = false;
+	if (!fch_usb_data) {
+		printk(BIOS_ERR, "OpenSIL: FCH USB block not found\n");
+		return;
+	}
+
+	fch_usb_data->OemUsbConfigurationTable = (uint64_t)(uintptr_t)&usb_oem_platform_table;
 }
 
 static void setup_data_fabric_default(SIL_CONTEXT *SilContext)
