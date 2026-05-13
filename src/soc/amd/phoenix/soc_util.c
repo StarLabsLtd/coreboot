@@ -12,6 +12,8 @@ enum soc_type get_soc_type(void)
 	if (cpuid_match(cpuid, PHOENIX_A0_CPUID, CPUID_ALL_STEPPINGS_MASK))
 		return SOC_PHOENIX;
 
+	if (cpuid_match(cpuid, PHOENIX_HP1_CPUID, CPUID_ALL_STEPPINGS_MASK))
+		return SOC_PHOENIX;
 
 	if (cpuid_match(cpuid, PHOENIX2_A0_CPUID, CPUID_ALL_STEPPINGS_MASK))
 		return SOC_PHOENIX2;
