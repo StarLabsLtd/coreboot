@@ -122,8 +122,10 @@ static void setup_data_fabric_default(SIL_CONTEXT *SilContext)
 #define FCH_AOAC_UART3 FCH_AOAC_DEV_UART3
 #define FCH_AOAC_UART4 FCH_AOAC_DEV_UART4
 
-#define FCH_DEV_ENABLE(dev, aoac_bit) \
-	fch_data->FchRunTime.FchDeviceEnableMap |= ((DEV_PTR(dev))->enabled ? aoac_bit : 0)
+#define FCH_DEV_ENABLE(dev, aoac_dev_id) \
+	fch_data->FchRunTime.FchDeviceEnableMap |= \
+		((DEV_PTR(dev))->enabled ? BIT_32(aoac_dev_id) : 0)
+
 static void configure_fch_acpi(SIL_CONTEXT *SilContext)
 {
 	FCHHWACPI_INPUT_BLK *fch_hwacpi_data = SilFindStructure(SilContext, SilId_FchHwAcpi, 0);
