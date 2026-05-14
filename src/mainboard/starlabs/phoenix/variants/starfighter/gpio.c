@@ -1,0 +1,226 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include <variants.h>
+#include <commonlib/helpers.h>
+#include <gpio.h>
+
+static const struct soc_amd_gpio base_gpio_table[] = {
+	/* PM_PWRBTN */
+	PAD_NF(GPIO_0, PWR_BTN_L, PULL_UP),
+	/* SYS_RESET# */
+	PAD_NF(GPIO_1, SYS_RESET_L, PULL_UP),
+	/* N/C (AMI: FUNC_2 OUT HIGH) */
+	PAD_CFG_STRUCT(GPIO_2, 2, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* TPM_ID0 */
+	PAD_GPI(GPIO_3, PULL_NONE),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_4, GPIO_4_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* TCHPAD_RST_N (AMI: FUNC_1 OUT HIGH) */
+	PAD_CFG_STRUCT(GPIO_5, 1, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* SLP_LAN_N? */
+	PAD_CFG_STRUCT(GPIO_6, GPIO_6_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_UP)),
+	/* EC_SCI_N */
+	PAD_SCI(GPIO_7, PULL_UP, EDGE_LOW),
+	/* TCHPAD_INT_N (interrupt enabled in OS per AMI note) */
+	PAD_GPI(GPIO_8, PULL_UP),
+	/* EC_SMI_N */
+	PAD_GPI(GPIO_9, PULL_UP),
+	/* TPM_ID1 */
+	PAD_GPI(GPIO_10, PULL_NONE),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_11, GPIO_11_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* PM_BATLOW_N */
+	PAD_CFG_STRUCT(GPIO_12, GPIO_12_IOMUX_GPIOxx, PAD_PULL(PULL_DOWN)),
+	/* TYPEC_VBUS_OC */
+	PAD_NF(GPIO_16, USB_OC0_L, PULL_UP),
+	/* TYPEC_VBUS_OC */
+	PAD_NF(GPIO_17, USB_OC1_L, PULL_UP),
+	/* WLAN_WAKE_N */
+	PAD_SCI(GPIO_18, PULL_UP, EDGE_LOW),
+	/* APU_I2C3 */
+	PAD_NF(GPIO_19, I2C3_SCL, PULL_NONE),
+	PAD_NF(GPIO_20, I2C3_SDA, PULL_NONE),
+	/* ESPI_RST# */
+	PAD_NF(GPIO_21, ESPI_RESET_L, PULL_UP),
+	/* ESPI_ALERT# */
+	PAD_NF(GPIO_22, ESPI_ALERT_D1, PULL_NONE),
+	/* AC_PRESENT */
+	PAD_NF(GPIO_23, AC_PRES, PULL_UP),
+	/* DB_LAN_WAKE_N */
+	PAD_SCI(GPIO_24, PULL_UP, EDGE_LOW),
+	/* PCIE_RST1#_R */
+	PAD_CFG_STRUCT(GPIO_27, GPIO_27_IOMUX_PCIE_RST1_L,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	/* SPI0_TPM_1_CS2 */
+	PAD_NF(GPIO_29, SPI_TPM_CS_L, PULL_UP),
+	/* ESPI_EC_CS# */
+	PAD_NF(GPIO_30, ESPI_CS_L, PULL_UP),
+	/* CPU_INT_CLKREQ_N */
+	PAD_CFG_STRUCT(GPIO_31, 2, PAD_PULL(PULL_UP)),
+	/* LPC_RST# */
+	PAD_CFG_STRUCT(GPIO_32, GPIO_32_IOMUX_LPC_RST_L,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	/* DB_LAN_CLK_REQ_N */
+	PAD_NF(GPIO_38, CLK_REQ5_L, PULL_UP),
+	/* WLAN_CLK_REQ_N */
+	PAD_NF(GPIO_39, CLK_REQ6_L, PULL_UP),
+	/* FPS_INT_N */
+	PAD_GPI(GPIO_42, PULL_NONE),
+	/* Clock request for SPI */
+	PAD_CFG_STRUCT(GPIO_67, GPIO_67_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* ESPI1_DAT2 */
+	PAD_NF(GPIO_68, SPI1_DAT2, PULL_UP),
+	/* ESPI1_DAT3 */
+	PAD_NF(GPIO_69, SPI1_DAT3, PULL_UP),
+	/* GSPI0_CLK_FPS */
+	PAD_NF(GPIO_70, SPI2_CLK, PULL_DOWN),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_74, GPIO_74_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* GSPI0_FPS_CS_N */
+	PAD_NF(GPIO_75, SPI2_CS1_L, PULL_UP),
+	/* N/C (after bootblock ROM_GNT) */
+	PAD_CFG_STRUCT(GPIO_76, GPIO_76_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* ESPI1_CLK */
+	PAD_NF(GPIO_77, SPI1_CLK, PULL_DOWN),
+	/* SSD1 reset -- deasserted for runtime */
+	PAD_CFG_STRUCT(GPIO_78, GPIO_78_IOMUX_GPIOxx, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	/* SSD2 reset */
+	PAD_CFG_STRUCT(GPIO_79, GPIO_79_IOMUX_GPIOxx, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	PAD_NF(GPIO_80, SPI1_DAT1, PULL_UP),
+	PAD_NF(GPIO_81, SPI1_DAT0, PULL_UP),
+	/* GYRO_INT_N */
+	PAD_CFG_STRUCT(GPIO_84, GPIO_84_IOMUX_GPIOxx, PAD_PULL(PULL_NONE)),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_85, GPIO_85_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* TOUCH_INT_N */
+	PAD_GPI(GPIO_89, PULL_NONE),
+	/* TPM_IRQ */
+	PAD_INT(GPIO_90, PULL_UP, EDGE_LOW, STATUS_DELIVERY),
+	/* BT_RF_KILL_N */
+	PAD_CFG_STRUCT(GPIO_91, GPIO_91_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_92, 3, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	PAD_NF(GPIO_104, SPI2_DAT0, PULL_DOWN),
+	PAD_NF(GPIO_105, SPI2_DAT1, PULL_DOWN),
+	PAD_CFG_STRUCT(GPIO_106, GPIO_106_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	PAD_CFG_STRUCT(GPIO_107, GPIO_107_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* APU_I2C2 */
+	PAD_NF(GPIO_113, I2C2_SCL, PULL_NONE),
+	PAD_NF(GPIO_114, I2C2_SDA, PULL_NONE),
+	/* PCIE_SSD_CLK_REQ_N */
+	PAD_NF(GPIO_115, CLK_REQ1_L, PULL_UP),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_116, GPIO_116_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* FPR - unused */
+	PAD_NC(GPIO_130),
+	/* PCIE_SSD2_CLK_REQ */
+	PAD_NF(GPIO_131, CLK_REQ3_L, PULL_UP),
+	/* N/C */
+	PAD_CFG_STRUCT(GPIO_132, 2, PAD_PULL(PULL_UP)),
+	/* APU_TOUCH_RSTN */
+	PAD_CFG_STRUCT(GPIO_135, GPIO_135_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	PAD_CFG_STRUCT(GPIO_136, GPIO_136_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* WIFI_DISABLE_N */
+	PAD_CFG_STRUCT(GPIO_137, GPIO_137_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	PAD_CFG_STRUCT(GPIO_138, GPIO_138_IOMUX_GPIOxx, PAD_OUTPUT(LOW) | PAD_PULL(PULL_DOWN)),
+	/* BRD_ID1 */
+	PAD_GPI(GPIO_139, PULL_NONE),
+	/* BOARD_ID0 */
+	PAD_GPI(GPIO_142, PULL_NONE),
+	PAD_NF(GPIO_145, I2C0_SCL, PULL_NONE),
+	PAD_NF(GPIO_146, I2C0_SDA, PULL_NONE),
+	PAD_NF(GPIO_147, I2C1_SCL, PULL_NONE),
+	PAD_NF(GPIO_148, I2C1_SDA, PULL_NONE),
+	/* WWAN_FCP_OFF_N */
+	PAD_CFG_STRUCT(GPIO_153, GPIO_153_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* BRD_ID2 */
+	PAD_GPI(GPIO_154, PULL_NONE),
+	/* WWAN_DISABLE_N */
+	PAD_CFG_STRUCT(GPIO_155, GPIO_155_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* WWAN_RST_N */
+	PAD_CFG_STRUCT(GPIO_156, GPIO_156_IOMUX_GPIOxx,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_UP)),
+	/* BRD_ID3 */
+	PAD_GPI(GPIO_157, PULL_NONE),
+};
+
+static const struct soc_amd_gpio bootblock_gpio_table[] = {
+};
+
+static const struct soc_amd_gpio early_gpio_table[] = {
+	PAD_NF(GPIO_113, I2C2_SCL, PULL_NONE),
+	PAD_NF(GPIO_114, I2C2_SDA, PULL_NONE),
+	PAD_NF(GPIO_141, UART0_RXD, PULL_DOWN),
+	PAD_NF(GPIO_143, UART0_TXD, PULL_UP),
+};
+
+static const struct soc_amd_gpio romstage_gpio_table[] = {
+	PAD_CFG_STRUCT(GPIO_26, GPIO_26_IOMUX_PCIE_RST0_L,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	PAD_CFG_STRUCT(GPIO_78, GPIO_78_IOMUX_GPIOxx, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	PAD_CFG_STRUCT(GPIO_79, GPIO_79_IOMUX_GPIOxx, PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	PAD_CFG_STRUCT(GPIO_27, GPIO_27_IOMUX_PCIE_RST1_L,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+	PAD_CFG_STRUCT(GPIO_32, GPIO_32_IOMUX_LPC_RST_L,
+		       PAD_OUTPUT(HIGH) | PAD_PULL(PULL_DOWN)),
+};
+
+static const struct soc_amd_gpio espi_gpio_table[] = {
+	PAD_NF(GPIO_21, ESPI_RESET_L, PULL_UP),
+	PAD_NF(GPIO_22, ESPI_ALERT_D1, PULL_NONE),
+	PAD_NF(GPIO_30, ESPI_CS_L, PULL_UP),
+	PAD_NF(GPIO_68, SPI1_DAT2, PULL_UP),
+	PAD_NF(GPIO_69, SPI1_DAT3, PULL_UP),
+	PAD_NF(GPIO_77, SPI1_CLK, PULL_DOWN),
+	PAD_NF(GPIO_80, SPI1_DAT1, PULL_UP),
+	PAD_NF(GPIO_81, SPI1_DAT0, PULL_UP),
+	PAD_NF(GPIO_67, SPI_ROM_REQ, PULL_DOWN),
+	PAD_NF(GPIO_76, SPI_ROM_GNT, PULL_DOWN),
+};
+
+void baseboard_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = ARRAY_SIZE(base_gpio_table);
+	*gpio = base_gpio_table;
+}
+
+__weak void baseboard_romstage_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = ARRAY_SIZE(romstage_gpio_table);
+	*gpio = romstage_gpio_table;
+}
+
+__weak void variant_bootblock_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = ARRAY_SIZE(bootblock_gpio_table);
+	*gpio = bootblock_gpio_table;
+}
+
+__weak void variant_early_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = ARRAY_SIZE(early_gpio_table);
+	*gpio = early_gpio_table;
+}
+
+void variant_espi_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = ARRAY_SIZE(espi_gpio_table);
+	*gpio = espi_gpio_table;
+}
+
+__weak void variant_tpm_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = 0;
+	*gpio = NULL;
+}
+
+__weak void variant_override_gpio_table(const struct soc_amd_gpio **gpio, size_t *size)
+{
+	*size = 0;
+	*gpio = NULL;
+}

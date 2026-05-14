@@ -1,0 +1,378 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+chip soc/amd/phoenix
+
+	register "common_config.espi_config" = "{
+		.std_io_decode_bitmap = ESPI_DECODE_IO_0x80_EN | ESPI_DECODE_IO_0X60_0X64_EN,
+		.generic_io_range[0] = {
+			.base = 0x62,
+			.size = 1,
+		},
+		.generic_io_range[1] = {
+			.base = 0x66,
+			.size = 1,
+		},
+		.generic_io_range[2] = {
+			.base = 0x4e,
+			.size = 2,
+		},
+		.io_mode = ESPI_IO_MODE_QUAD,
+		.op_freq_mhz = ESPI_OP_FREQ_16_MHZ,
+		.crc_check_enable = 1,
+		.alert_pin = ESPI_ALERT_PIN_PUSH_PULL,
+		.periph_ch_en = 1,
+		.vw_ch_en = 1,
+		.oob_ch_en = 1,
+		.flash_ch_en = 0
+	}"
+
+	register "i2c_scl_reset" = "GPIO_I2C0_SCL | GPIO_I2C1_SCL |
+					GPIO_I2C2_SCL | GPIO_I2C3_SCL"
+
+	register "i2c[0].early_init" = "1"
+	register "i2c[1].early_init" = "1"
+	register "i2c[2].early_init" = "1"
+	register "i2c[3].early_init" = "1"
+
+	register "i2c_pad[0].rx_level" = "I2C_PAD_RX_1_8V"
+	register "i2c_pad[1].rx_level" = "I2C_PAD_RX_1_8V"
+	register "i2c_pad[2].rx_level" = "I2C_PAD_RX_1_8V"
+	register "i2c_pad[3].rx_level" = "I2C_PAD_RX_1_8V"
+
+	register "pspp_policy" = "DXIO_PSPP_DISABLED"
+	register "s0ix_enable" = "true"
+
+	register "usb_phy_custom" = "true"
+	register "usb_phy" = "{
+		.Usb2PhyPort[0] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[1] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[2] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[3] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[4] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[5] = {
+			.compdistune = 0x1,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x3,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[6] = {
+			.compdistune = 0x3,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x6,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb2PhyPort[7] = {
+			.compdistune = 0x3,
+			.pllbtune = 0x1,
+			.pllitune = 0x0,
+			.pllptune = 0xc,
+			.sqrxtune = 0x2,
+			.txfslstune = 0x1,
+			.txpreempamptune = 0x3,
+			.txpreemppulsetune = 0x0,
+			.txrisetune = 0x1,
+			.txvreftune = 0x6,
+			.txhsxvtune = 0x3,
+			.txrestune = 0x2,
+		},
+		.Usb3PhyPort[0] = {
+			.tx_term_ctrl = 0x2,
+			.rx_term_ctrl = 0x2,
+			.tx_vboost_lvl_en = 0x0,
+			.tx_vboost_lvl = 0x5,
+		},
+		.Usb3PhyPort[1] = {
+			.tx_term_ctrl = 0x2,
+			.rx_term_ctrl = 0x2,
+			.tx_vboost_lvl_en = 0x0,
+			.tx_vboost_lvl = 0x5,
+		},
+		.Usb3PhyPort[2] = {
+			.tx_term_ctrl = 0x2,
+			.rx_term_ctrl = 0x2,
+			.tx_vboost_lvl_en = 0x0,
+			.tx_vboost_lvl = 0x5,
+		},
+		.ComboPhyStaticConfig[0] = USB_COMBO_PHY_MODE_USB_C,
+		.ComboPhyStaticConfig[1] = USB_COMBO_PHY_MODE_USB_C,
+		.ComboPhyStaticConfig[2] = USB_COMBO_PHY_MODE_USB_C,
+		.BatteryChargerEnable = 0,
+		.PhyP3CpmP4Support = 0,
+	}"
+
+	device domain 0 on
+		device ref iommu on end
+		chip drivers/amd/opensil/mpio
+			register "type" = "IFTYPE_PCIE"
+			register "start_lane" = "8"
+			register "end_lane" = "11"
+			register "gpio_group" = "0"
+			register "hotplug" = "HotplugDisabled"
+			register "speed" = "MaxSupported"
+			register "aspm" = "L1"
+			register "clock_pm" = "1"
+			device ref gpp_bridge_1_2 on end # NVMe0
+		end
+		chip drivers/amd/opensil/mpio
+			register "type" = "IFTYPE_PCIE"
+			register "start_lane" = "15"
+			register "end_lane" = "15"
+			register "gpio_group" = "0"
+			register "hotplug" = "HotplugDisabled"
+			register "speed" = "MaxSupported"
+			register "aspm" = "L1"
+			register "clock_pm" = "1"
+			device ref gpp_bridge_2_2 on end # WLAN
+		end
+		chip drivers/amd/opensil/mpio
+			register "type" = "IFTYPE_PCIE"
+			register "start_lane" = "16"
+			register "end_lane" = "19"
+			register "gpio_group" = "0"
+			register "hotplug" = "HotplugDisabled"
+			register "speed" = "MaxSupported"
+			register "aspm" = "L1"
+			register "clock_pm" = "1"
+			device ref gpp_bridge_2_4 on end # NVMe1
+		end
+
+		device ref usb4_pcie_bridge_0 on end
+		device ref usb4_pcie_bridge_1 on end
+
+		device ref gpp_bridge_a on
+			device ref gfx on
+				register "ddi[0]" = "{
+					.connector_type = DDI_EDP,
+					.aux_index = 0,
+					.hdp_index = 0,
+				}"
+				register "ddi[1]" = "{
+					.connector_type = DDI_HDMI,
+					.aux_index = 1,
+					.hdp_index = 1,
+				}"
+				register "ddi[2]" = "{
+					.connector_type = DDI_DP_W_TYPEC,
+					.aux_index = 2,
+					.hdp_index = 2,
+				}"
+				register "ddi[3]" = "{
+					.connector_type = DDI_DP_W_TYPEC,
+					.aux_index = 3,
+					.hdp_index = 3,
+				}"
+				register "ddi[4]" = "{
+					.connector_type = DDI_UNUSED_TYPE,
+					.aux_index = 4,
+					.hdp_index = 4,
+				}"
+			end
+			device ref gfx_hda on end
+			device ref crypto on end
+			device ref xhci_0 on
+				chip drivers/usb/acpi
+					register "type" = "UPC_TYPE_HUB"
+					device ref xhci_0_root_hub on
+						# port 1 - USB type-A left
+						chip drivers/usb/acpi
+							device ref usb2_port2 on end
+						end
+						# port 2 - internal hub - (2) USB type-A ports, right
+						chip drivers/usb/acpi
+							device ref usb2_port3 on end
+						end
+						# port 3 - Realtek card reader
+						chip drivers/usb/acpi
+							device ref usb2_port4 on end
+						end
+						# port 4 - internal hub - unused?
+						chip drivers/usb/acpi
+							device ref usb2_port5 on end
+						end
+						# port 5 - internal BT
+						chip drivers/usb/acpi
+							device ref usb2_port6 on end
+						end
+						# port 6 - USB type-A left
+						chip drivers/usb/acpi
+							device ref usb3_port2 on end
+						end
+						# port 7 - internal hub - (2) USB type-A ports, right
+						chip drivers/usb/acpi
+							device ref usb3_port3 on end
+						end
+					end
+				end
+			end
+			device ref xhci_1 on	# unused?
+				chip drivers/usb/acpi
+					register "type" = "UPC_TYPE_HUB"
+					device ref xhci_1_root_hub on
+						# Detachable webcam
+						chip drivers/usb/acpi
+							device ref usb2_port7 on end
+						end
+						chip drivers/usb/acpi
+							device ref usb3_port7 on end
+						end
+					end
+				end
+			end
+			device ref acp on end
+			device ref hda on end
+			device ref mp2 on end
+		end
+
+		device ref gpp_bridge_c on
+			device ref usb4_xhci_0 on
+				chip drivers/usb/acpi
+					# USB type-C left rear
+					device ref usb4_xhci_0_root_hub on
+						# port 1
+						chip drivers/usb/acpi
+							device ref usb2_port0 on end
+						end
+						# port 2
+						chip drivers/usb/acpi
+							device ref usb3_port0 on end
+						end
+					end
+				end
+			end
+			device ref usb4_xhci_1 on
+				chip drivers/usb/acpi
+					# USB type-C left front
+					device ref usb4_xhci_1_root_hub on
+						# port 1
+						chip drivers/usb/acpi
+							device ref usb2_port1 on end
+						end
+						# port 2
+						chip drivers/usb/acpi
+							device ref usb3_port1 on end
+						end
+					end
+				end
+			end
+			device ref usb4_router_0 on end
+			device ref usb4_router_1 on end
+		end
+
+		device ref lpc_bridge on
+			chip ec/starlabs/merlin
+				device pnp 4e.01 off end
+				device pnp 4e.02 off end
+				device pnp 4e.04 off end
+				device pnp 4e.05 off end
+				device pnp 4e.06 on
+					io 0x60 = 0x0060
+					io 0x62 = 0x0064
+					irq 0x70 = 1
+				end
+				device pnp 4e.0a off end
+				device pnp 4e.0f off end
+				device pnp 4e.10 off end
+				device pnp 4e.11 off end
+				device pnp 4e.12 off end
+				device pnp 4e.13 off end
+				device pnp 4e.14 off end
+				device pnp 4e.17 off end
+				device pnp 4e.18 off end
+				device pnp 4e.19 off end
+			end
+		end
+	end
+
+	device ref i2c_0 on
+		chip drivers/i2c/hid
+			register "generic.hid" = ""STAR0001""
+			register "generic.desc" = ""Touchpad""
+			register "generic.detect" = "1"
+			register "generic.irq_gpio" = "ACPI_GPIO_IRQ_LEVEL_LOW(GPIO_8)"
+			register "hid_desc_reg_offset" = "0x20"
+			device i2c 2c on end
+		end
+	end
+
+	device ref uart_0 on end
+end

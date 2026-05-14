@@ -1,0 +1,46 @@
+StarFighter AMD / F2-A bring-up notes
+=====================================
+
+Base
+----
+- Layout: `src/mainboard/starlabs/cezanne` (`include/variants.h`, `variants/<name>/`)
+- Earlier Myst-style baseboard split was dropped in favor of that layout.
+- SoC family: `soc/amd/phoenix`
+
+AMI source
+----------
+- `ARN39EP023`
+- Project token: `OemProjectPkg/ARN39EP/ARN39EP.sdl`
+- Public product naming should follow StarFighter, not the factory ARN39 ref.
+- Board is wired as Phoenix FP7 / Mayan-class in the AMI tree.
+
+Artifacts to mine next
+----------------------
+- Final BIOS:
+  - `Build/Phoenix/RELEASE_VS2015/FV/AMIROM.fd`
+  - signed output `ARN39EP.rom`
+- EC blob:
+  - `OemProjectPkg/ARN39EP/OemEcMirror/OemEcMirror.sdl`
+- PD blobs:
+  - `OemProjectPkg/ARN39EP/OemPdMirror/OemPdMirror.sdl`
+- APCB:
+  - `AmiAgesaWrapperPkg/AmiApcbGen/PhoenixFp7/PhoenixFp7.sdl`
+- PSP/SMU/MP2/MPIO payload layout:
+  - `AmiPspPkg/PspLayout/PHX/BuildPspPhx_L2A.txt`
+  - `AmiPspPkg/PspLayout/PHX/BuildPspPhx_AB.txt`
+
+Blobs layout
+------------
+- EC image path follows Cezanne: `3rdparty/blobs/mainboard/starlabs/starfighter_amd/starfighter/ec.bin`
+  (VARIANT_DIR is `starfighter`).
+
+Known placeholders in this skeleton
+-----------------------------------
+- GPIO tables are intentionally minimal.
+- DXIO routing is tentative.
+- DDI routing is tentative.
+- Devicetree only keeps the obvious Phoenix/eSPI/EC structure.
+- Silicon init uses OpenSIL (not FSP); USB PHY policy belongs in OpenSIL or
+  board ramstage hooks, not FSP `mcfg->usb_phy_ptr` devicetree registers.
+- Board `fw.cfg` lists PSP/amdfw blobs; adjust against the AMI PSP layout when
+  validating a new binary set.

@@ -1,0 +1,97 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config BOARD_STARLABS_PHOENIX_SERIES
+	def_bool n
+	select AMD_SOC_CONSOLE_UART
+	select AZALIA_HDA_CODEC_SUPPORT
+	select AZALIA_USE_LEGACY_VERB_TABLE
+	select BOARD_ROMSIZE_KB_32768
+	select DRIVERS_AMD_ATOMBIOS
+	select DRIVERS_EFI_VARIABLE_STORE
+	select DRIVERS_OPTION_CFR_ENABLED
+	select DRIVERS_PCIE_RTD3_DEVICE
+	select EC_STARLABS_ITE
+	select EC_STARLABS_MERLIN
+	select HAVE_ACPI_RESUME
+	select HAVE_ACPI_TABLES
+	select PCIEXP_ASPM
+	select PCIEXP_CLK_PM
+	select PCIEXP_COMMON_CLOCK
+	select PCIEXP_L1_SUB_STATE
+	select SOC_AMD_COMMON_BLOCK_HDA
+	select SOC_AMD_COMMON_BLOCK_USE_ESPI
+	select SOC_AMD_PHOENIX_OPENSIL
+
+config BOARD_STARLABS_STARFIGHTER_AMD
+	select BOARD_STARLABS_PHOENIX_SERIES
+	select DRIVERS_I2C_HID
+	select SYSTEM_TYPE_LAPTOP
+
+if BOARD_STARLABS_PHOENIX_SERIES
+
+config BOARD_SPECIFIC_OPTIONS
+	def_bool y
+
+config ADD_APCB_SOURCES
+	bool "Add PSP customisation files"
+
+config APCB_SOURCES_PATH
+	string "Path to APCB files"
+
+config CONSOLE_SERIAL
+	default n if !EDK2_DEBUG
+
+config DEVICETREE
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
+
+config EC_GPE_SCI
+	default 0x0B
+
+config EDK2_BOOTSPLASH_FILE
+	string
+	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+
+config FMDFILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
+
+config MAINBOARD_DIR
+	default "starlabs/phoenix"
+
+config MAINBOARD_FAMILY
+	string
+	default "F2-A"
+
+config MAINBOARD_PART_NUMBER
+	string
+	default "StarFighter Mk II"
+
+config MAINBOARD_SMBIOS_PRODUCT_NAME
+	string
+	default "StarFighter"
+
+config PSP_LOAD_MP2_FW
+	default y
+
+config PSP_APOB_DRAM_SIZE
+	default 0x40000
+
+config VARIANT_DIR
+	string
+	default "starfighter"
+
+config EFS_SPI_SPEED
+	default 3
+
+config NORMAL_READ_SPI_SPEED
+	default 1
+
+config ALT_SPI_SPEED
+	default 0
+
+config PSP_UNLOCK_SECURE_DEBUG
+	default n
+
+config ALWAYS_ALLOW_ABOVE_4G_ALLOCATION
+	default y
+
+endif # BOARD_STARLABS_PHOENIX_SERIES
