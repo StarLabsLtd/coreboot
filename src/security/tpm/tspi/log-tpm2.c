@@ -22,6 +22,13 @@
 #include <cbmem.h>
 #include <vb2_sha.h>
 
+#define TPM_20_STARTUP_LOCALITY_SIGNATURE "StartupLocality"
+
+struct tpm_2_startup_locality_event {
+	uint8_t signature[16];
+	uint8_t startup_locality;
+} __packed;
+
 static uint16_t tpmalg_from_vb2_hash(enum vb2_hash_algorithm hash_type)
 {
 	switch (hash_type) {
@@ -37,6 +44,79 @@ static uint16_t tpmalg_from_vb2_hash(enum vb2_hash_algorithm hash_type)
 	default:
 		return 0xFF;
 	}
+}
+
+void tpm2_log_add_event(const uint32_t pcr, const uint32_t event_type,
+			enum vb2_hash_algorithm digest_algo,
+			const uint8_t *digest, const size_t digest_len,
+			const uint8_t *data, const size_t data_len)
+{
+	struct tpm_2_log_table *tclt;
+	struct tpm_2_log_entry *tce;
+
+	tclt = tpm_log_init();
+	if (!tclt) {
+		printk(BIOS_WARNING, "TPM LOG: non-existent!\n");
+		return;
+	}
+
+	if (!digest) {
+		printk(BIOS_WARNING, "TPM LOG: event digest not set\n");
+		return;
+	}
+
+	if (digest_algo != TPM_MEASURE_ALGO) {
+		printk(BIOS_WARNING, "TPM LOG: digest is of unsupported type: %s\n",
+		       vb2_get_hash_algorithm_name(digest_algo));
+		return;
+	}
+
+	if (digest_len != vb2_digest_size(TPM_MEASURE_ALGO)) {
+		printk(BIOS_WARNING, "TPM LOG: digest has invalid length: %d\n",
+		       (int)digest_len);
+		return;
+	}
+
+	if (!data) {
+		printk(BIOS_WARNING, "TPM LOG: event data not set\n");
+		return;
+	}
+
+	if (data_len > TPM_20_LOG_DATA_MAX_LENGTH) {
+		printk(BIOS_WARNING, "TPM LOG: event data too long\n");
+		return;
+	}
+
+	if (le16toh(tclt->vendor.num_entries) >= le16toh(tclt->vendor.max_entries)) {
+		printk(BIOS_WARNING, "TPM LOG: log table is full\n");
+		return;
+	}
+
+	tce = &tclt->entries[le16toh(tclt->vendor.num_entries)];
+	tclt->vendor.num_entries = htole16(le16toh(tclt->vendor.num_entries) + 1);
+
+	memset(tce, 0, sizeof(*tce));
+	tce->pcr = htole32(pcr);
+	tce->event_type = htole32(event_type);
+	tce->digest_count = htole32(1);
+	tce->digest_type = htole16(tpmalg_from_vb2_hash(TPM_MEASURE_ALGO));
+	tce->data_length = htole32(sizeof(tce->data));
+
+	memcpy(tce->digest, digest, digest_len);
+	memcpy(tce->data, data, data_len);
+}
+
+static void tpm2_log_add_startup_locality(void)
+{
+	struct tpm_2_startup_locality_event event = {
+		.signature = TPM_20_STARTUP_LOCALITY_SIGNATURE,
+		.startup_locality = 0,
+	};
+	uint8_t digest[TPM_20_LOG_DIGEST_MAX_LENGTH] = { 0 };
+
+	tpm2_log_add_event(0, EV_NO_ACTION, TPM_MEASURE_ALGO, digest,
+			   vb2_digest_size(TPM_MEASURE_ALGO), (uint8_t *)&event,
+			   sizeof(event));
 }
 
 void *tpm2_log_cbmem_init(void)
@@ -82,6 +162,8 @@ void *tpm2_log_cbmem_init(void)
 		tclt->vendor.max_entries = htole16(MAX_TPM_LOG_ENTRIES);
 		tclt->vendor.num_entries = htole16(0);
 		tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
+
+		tpm2_log_add_startup_locality();
 	}
 
 	return tclt;
@@ -120,54 +202,22 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 			      const uint8_t *digest,
 			      const size_t digest_len)
 {
-	struct tpm_2_log_table *tclt;
-	struct tpm_2_log_entry *tce;
-
-	tclt = tpm_log_init();
-	if (!tclt) {
-		printk(BIOS_WARNING, "TPM LOG: non-existent!\n");
-		return;
-	}
+	size_t name_len;
 
 	if (!name) {
 		printk(BIOS_WARNING, "TPM LOG: entry name not set\n");
 		return;
 	}
 
-	if (digest_algo != TPM_MEASURE_ALGO) {
-		printk(BIOS_WARNING, "TPM LOG: digest is of unsupported type: %s\n",
-		       vb2_get_hash_algorithm_name(digest_algo));
-		return;
-	}
+	name_len = strnlen(name, TPM_20_LOG_DATA_MAX_LENGTH - 1) + 1;
 
-	if (digest_len != vb2_digest_size(TPM_MEASURE_ALGO)) {
-		printk(BIOS_WARNING, "TPM LOG: digest has invalid length: %d\n",
-		       (int)digest_len);
-		return;
-	}
-
-	if (le16toh(tclt->vendor.num_entries) >= le16toh(tclt->vendor.max_entries)) {
-		printk(BIOS_WARNING, "TPM LOG: log table is full\n");
-		return;
-	}
-
-	tce = &tclt->entries[le16toh(tclt->vendor.num_entries)];
-	tclt->vendor.num_entries = htole16(le16toh(tclt->vendor.num_entries) + 1);
-
-	tce->pcr = htole32(pcr);
-	tce->event_type = htole32(EV_ACTION);
-
-	tce->digest_count = htole32(1);
-	tce->digest_type = htole16(tpmalg_from_vb2_hash(TPM_MEASURE_ALGO));
-	memcpy(tce->digest, digest, vb2_digest_size(TPM_MEASURE_ALGO));
-
-	tce->data_length = htole32(sizeof(tce->data));
-	strncpy((char *)tce->data, name, sizeof(tce->data) - 1);
-	tce->data[sizeof(tce->data) - 1] = '\0';
+	tpm2_log_add_event(pcr, EV_ACTION, digest_algo, digest, digest_len,
+			   (const uint8_t *)name, name_len);
 }
 
 int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
-		 enum vb2_hash_algorithm *digest_algo, const char **event_name)
+		 enum vb2_hash_algorithm *digest_algo, const char **event_name,
+		 bool *should_extend)
 {
 	struct tpm_2_log_table *tclt;
 	struct tpm_2_log_entry *tce;
@@ -185,6 +235,7 @@ int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 	*digest_data = tce->digest;
 	*digest_algo = TPM_MEASURE_ALGO; /* We validate algorithm on addition */
 	*event_name = (char *)tce->data;
+	*should_extend = le32toh(tce->event_type) != EV_NO_ACTION;
 	return 0;
 }
 
