@@ -136,7 +136,8 @@ void tpm1_preram_log_clear(void)
 }
 
 int tpm1_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
-		 enum vb2_hash_algorithm *digest_algo, const char **event_name)
+		 enum vb2_hash_algorithm *digest_algo, const char **event_name,
+		 bool *should_extend)
 {
 	struct tpm_1_log_table *tclt;
 	struct tpm_1_log_entry *tce;
@@ -154,6 +155,7 @@ int tpm1_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 	*digest_data = tce->digest;
 	*digest_algo = VB2_HASH_SHA1;
 	*event_name = (char *)tce->data;
+	*should_extend = true;
 	return 0;
 }
 
