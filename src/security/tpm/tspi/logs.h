@@ -3,6 +3,7 @@
 #ifndef LOGS_H_
 #define LOGS_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <vb2_api.h>
 
@@ -14,7 +15,8 @@ void tpm_cb_preram_log_clear(void);
 uint16_t tpm_cb_log_get_size(const void *log_table);
 void tpm_cb_log_copy_entries(const void *from, void *to);
 int tpm_cb_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
-		   enum vb2_hash_algorithm *digest_algo, const char **event_name);
+		   enum vb2_hash_algorithm *digest_algo, const char **event_name,
+		   bool *should_extend);
 void tpm_cb_log_add_table_entry(const char *name, const uint32_t pcr,
 				enum vb2_hash_algorithm digest_algo,
 				const uint8_t *digest,
@@ -29,7 +31,8 @@ void tpm1_preram_log_clear(void);
 uint16_t tpm1_log_get_size(const void *log_table);
 void tpm1_log_copy_entries(const void *from, void *to);
 int tpm1_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
-		 enum vb2_hash_algorithm *digest_algo, const char **event_name);
+		 enum vb2_hash_algorithm *digest_algo, const char **event_name,
+		 bool *should_extend);
 void tpm1_log_add_table_entry(const char *name, const uint32_t pcr,
 			      enum vb2_hash_algorithm digest_algo,
 			      const uint8_t *digest,
@@ -44,11 +47,16 @@ void tpm2_preram_log_clear(void);
 uint16_t tpm2_log_get_size(const void *log_table);
 void tpm2_log_copy_entries(const void *from, void *to);
 int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
-		 enum vb2_hash_algorithm *digest_algo, const char **event_name);
+		 enum vb2_hash_algorithm *digest_algo, const char **event_name,
+		 bool *should_extend);
 void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 			      enum vb2_hash_algorithm digest_algo,
 			      const uint8_t *digest,
 			      const size_t digest_len);
+void tpm2_log_add_event(const uint32_t pcr, const uint32_t event_type,
+			enum vb2_hash_algorithm digest_algo,
+			const uint8_t *digest, const size_t digest_len,
+			const uint8_t *data, const size_t data_len);
 void tpm2_log_dump(void);
 
 #endif /* LOGS_H_ */
