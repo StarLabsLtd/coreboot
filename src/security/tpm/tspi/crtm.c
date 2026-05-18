@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
+#include <commonlib/helpers.h>
 #include <fmap.h>
 #include <bootstate.h>
 #include <cbfs.h>
+#include <security/vboot/misc.h>
 #include <symbols.h>
 #include "crtm.h"
 #include <stdio.h>
@@ -196,6 +198,7 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 	const char *event_name;
 	const uint8_t *digest_data;
 	enum vb2_hash_algorithm digest_algo;
+	bool should_extend;
 
 	/* This means the table is empty. */
 	if (!tpm_log_available())
@@ -207,8 +210,11 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 	}
 
 	printk(BIOS_DEBUG, "TPM: Write digests cached in TPM log to PCR\n");
-	i = 0;
-	while (!tpm_log_get(i++, &pcr, &digest_data, &digest_algo, &event_name)) {
+	for (i = 0; !tpm_log_get(i, &pcr, &digest_data, &digest_algo, &event_name,
+				 &should_extend); i++) {
+		if (!should_extend)
+			continue;
+
 		printk(BIOS_DEBUG, "TPM: Write digest for %s into PCR %d\n", event_name, pcr);
 		tpm_result_t rc = tlcl_extend(pcr, digest_data, digest_algo);
 		if (rc != TPM_SUCCESS) {
@@ -243,4 +249,68 @@ static void recover_tpm_log(int is_recovery)
 CBMEM_CREATION_HOOK(recover_tpm_log);
 #endif
 
-BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, tpm_log_dump, NULL);
+static void tpm_measure_separator_events(void)
+{
+	const uint32_t separator = 0;
+	const uint32_t separator_pcrs[] = {
+		CONFIG_PCR_SRTM,
+		CONFIG_PCR_RUNTIME_DATA,
+	};
+	struct vb2_hash hash;
+	tpm_result_t rc;
+	size_t i;
+
+	rc = tlcl_lib_init();
+	if (rc != TPM_SUCCESS) {
+		printk(BIOS_ERR, "TPM: Can't initialize library for separator events: %#x\n",
+		       rc);
+		return;
+	}
+
+	if (vb2_hash_calculate(vboot_hwcrypto_allowed(), &separator,
+			       sizeof(separator), TPM_MEASURE_ALGO, &hash)) {
+		printk(BIOS_ERR, "TPM: Error hashing separator event.\n");
+		return;
+	}
+
+	if (CONFIG(PAYLOAD_EDK2)) {
+		/*
+		 * EDK2's Tcg2Dxe caps PCR0 at ReadyToBoot. UefiPayload
+		 * inherits coreboot's event log, so add the PCR0 separator
+		 * event here without extending it. The TPM extend is handled
+		 * by the payload.
+		 */
+		tpm2_log_add_event(0, EV_SEPARATOR, hash.algo, hash.raw,
+				   vb2_digest_size(hash.algo), (const uint8_t *)&separator,
+				   sizeof(separator));
+	}
+
+	for (i = 0; i < ARRAY_SIZE(separator_pcrs); i++) {
+		const uint32_t pcr = separator_pcrs[i];
+
+		if (i > 0 && pcr == separator_pcrs[0])
+			continue;
+
+		rc = tlcl_extend(pcr, hash.raw, hash.algo);
+		if (rc != TPM_SUCCESS) {
+			printk(BIOS_ERR,
+			       "TPM: Extending separator event into PCR %u failed: %#x\n",
+			       pcr, rc);
+			return;
+		}
+
+		tpm2_log_add_event(pcr, EV_SEPARATOR, hash.algo, hash.raw,
+				   vb2_digest_size(hash.algo), (const uint8_t *)&separator,
+				   sizeof(separator));
+	}
+}
+
+static void tpm_finalize_measurements(void *unused)
+{
+	if (CONFIG(TPM_LOG_TPM2))
+		tpm_measure_separator_events();
+
+	tpm_log_dump(unused);
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, tpm_finalize_measurements, NULL);
