@@ -207,6 +207,9 @@ endif
 # GOP_DRIVER			= FALSE
 ifeq ($(CONFIG_EDK2_GOP_DRIVER), y)
 BUILD_STR += -D USE_PLATFORM_GOP=TRUE
+ifeq ($(CONFIG_EDK2_AMD_GOP_DRIVER), y)
+BUILD_STR += -D USE_AMD_GOP=TRUE
+endif
 endif
 # PRIORITIZE_INTERNAL		= FALSE
 ifeq ($(CONFIG_EDK2_PRIORITIZE_INTERNAL),y)
@@ -317,11 +320,19 @@ logo: $(EDK2_PATH)
 	esac \
 
 gop_driver: $(EDK2_PATH)
-	if [ -n "$(CONFIG_EDK2_GOP_DRIVER)" ]; then \
-		echo "Using GOP driver $(CONFIG_EDK2_GOP_FILE)"; \
-		cp $(top)/$(CONFIG_EDK2_GOP_FILE) $(EDK2_PATH)/UefiPayloadPkg/IntelGopDriver.efi; \
-		cp $(top)/$(CONFIG_INTEL_GMA_VBT_FILE) $(EDK2_PATH)/UefiPayloadPkg/vbt.bin; \
-	fi; \
+ifeq ($(CONFIG_EDK2_AMD_GOP_DRIVER),y)
+	@echo "Using AMD GOP driver $(CONFIG_EDK2_AMD_GOP_FILE)"
+	cp $(top)/$(call strip_quotes,$(CONFIG_EDK2_AMD_GOP_FILE)) \
+		$(EDK2_PATH)/UefiPayloadPkg/AmdX64GenericGop.efi
+	cp $(top)/$(call strip_quotes,$(CONFIG_EDK2_AMD_VBIOS_FILE)) \
+		$(EDK2_PATH)/UefiPayloadPkg/amd_vbios.rom
+else ifeq ($(CONFIG_EDK2_GOP_DRIVER),y)
+	@echo "Using Intel GOP driver $(CONFIG_EDK2_GOP_FILE)"
+	cp $(top)/$(call strip_quotes,$(CONFIG_EDK2_GOP_FILE)) \
+		$(EDK2_PATH)/UefiPayloadPkg/IntelGopDriver.efi
+	cp $(top)/$(call strip_quotes,$(CONFIG_INTEL_GMA_VBT_FILE)) \
+		$(EDK2_PATH)/UefiPayloadPkg/vbt.bin
+endif
 
 ipxe_rom: $(EDK2_PATH)
 	if [ "$(CONFIG_EDK2_IPXE)" == "y" ]; then \

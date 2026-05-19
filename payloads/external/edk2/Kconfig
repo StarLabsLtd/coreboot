@@ -283,17 +283,50 @@ config EDK2_SECURE_BOOT_SUPPORT
 
 config EDK2_GOP_DRIVER
 	bool "Add a GOP driver to the Tianocore build"
-	depends on INTEL_GMA_ADD_VBT && NO_GFX_INIT && !EDK2_REPO_OFFICIAL
+	depends on NO_GFX_INIT && !EDK2_REPO_OFFICIAL
 	default y if INTEL_GMA_ADD_VBT && NO_GFX_INIT && EDK2_REPO_MRCHROMEBOX
 	help
-	  Select this option to have edk2 use an external GOP driver for display init.
+	  Select this option to have edk2 use an external GOP driver for display init
+	  instead of the generic GraphicsOutputDxe framebuffer driver.
+
+	  Also select "None" under Graphics initialization (NO_GFX_INIT); do not
+	  use native graphics init in coreboot when the payload GOP runs modeset.
+
+config EDK2_AMD_GOP_DRIVER
+	bool "Use AMD external GOP driver"
+	depends on EDK2_GOP_DRIVER && SOC_AMD_COMMON
+	help
+	  Use AMD's signed DXE GOP (e.g. AmdX64GenericGop.efi) in the payload.
+	  Platform-to-driver agents are built from source in UefiPayloadPkg.
+	  Requires the GOP and VBIOS binaries under 3rdparty/blobs on the
+	  mainboard path.
+
+	  Mutually exclusive with DRIVERS_AMD_ATOMBIOS_GFX_INIT: display init
+	  is either AtomBIOS in coreboot ramstage or AMD GOP in the payload.
 
 config EDK2_GOP_FILE
 	string "GOP driver file"
-	depends on EDK2_GOP_DRIVER
+	depends on EDK2_GOP_DRIVER && !EDK2_AMD_GOP_DRIVER
 	default "IntelGopDriver.efi"
 	help
-	  The name of the GOP driver file passed to edk2.
+	  Path to the Intel GOP driver PE32 image, relative to the coreboot top
+	  directory. Copied into UefiPayloadPkg/IntelGopDriver.efi at build time.
+
+config EDK2_AMD_GOP_FILE
+	string "AMD GOP driver file"
+	depends on EDK2_AMD_GOP_DRIVER
+	default "3rdparty/blobs/mainboard/starlabs/phoenix/starfighter/AmdX64GenericGop.efi"
+	help
+	  Path to the AMD Phoenix x64 GOP driver, relative to the coreboot top
+	  directory.
+
+config EDK2_AMD_VBIOS_FILE
+	string "AMD VBIOS image for GOP"
+	depends on EDK2_AMD_GOP_DRIVER
+	default "3rdparty/blobs/mainboard/starlabs/phoenix/starfighter/vbios.rom"
+	help
+	  Phoenix generic VBIOS image embedded in the payload firmware volume
+	  (same layout as AMI ROM storage).
 
 config EDK2_DISABLE_TPM
 	bool "Disable TPM support in edk2"
