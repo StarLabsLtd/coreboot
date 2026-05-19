@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <device/mmio.h>
 #include <bootstate.h>
 #include <console/console.h>
+#include <cpu/x86/smm.h>
 #include <amdblocks/psp.h>
 #include <soc/iomap.h>
 #include "psp_def.h"
@@ -131,6 +133,36 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 }
 #endif
 
+#if CONFIG(SOC_AMD_COMMON_BLOCK_PSP_GEN2)
+
+static int psp_send_default_mbox_cmd(uint8_t command, const char *msg)
+{
+	int cmd_status;
+	struct mbox_default_buffer buffer = {
+		.header = {
+			.size = sizeof(buffer)
+		}
+	};
+
+	printk(BIOS_DEBUG, "PSP: %s... ", msg);
+	cmd_status = send_psp_command(command, &buffer);
+	psp_print_cmd_status(cmd_status, &buffer.header);
+	return cmd_status;
+}
+
+/*
+ * AGESA sends MboxBiosCmdSmmLock at SmmReadyToLock, before Ready To Boot /
+ * MboxBiosCmdBootDone.
+ */
+static void psp_notify_smm_lock(void *unused)
+{
+	psp_send_default_mbox_cmd(MBOX_BIOS_CMD_SMM_LOCK, "SMM lock");
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, psp_notify_smm_lock, NULL);
+
+#endif /* CONFIG_SOC_AMD_COMMON_BLOCK_PSP_GEN2 */
+
 /*
  * Notify the PSP that the system is completing the boot process.  Upon
  * receiving this command, the PSP will only honor commands where the buffer
@@ -145,11 +177,18 @@ static void psp_notify_boot_done(void *unused)
 		}
 	};
 
+	/*
+	 * BootDone requires successful SmmInfo (AGESA). Use the SMM c2p buffer
+	 * registered during SmmInfo, matching post-SmmLock expectations.
+	 */
+	if (!acpi_is_wakeup_s3()) {
+		apm_control(APM_CNT_SMMINFO);
+		apm_control(APM_CNT_PSP_BOOT_DONE);
+		return;
+	}
+
 	printk(BIOS_DEBUG, "PSP: Notify that POST is finishing... ");
-
 	cmd_status = send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, &buffer);
-
-	/* buffer's status shouldn't change but report it if it does */
 	psp_print_cmd_status(cmd_status, &buffer.header);
 }
 

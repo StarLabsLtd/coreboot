@@ -27,6 +27,7 @@
 #define APM_CNT_LEGACY		0xcc
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
+#define APM_CNT_PSP_BOOT_DONE	0xe8
 #define APM_CNT_SMMINFO		0xec
 #define APM_CNT_SMMSTORE	0xed
 #define APM_CNT_OPAL_S3_UNLOCK	0xe9
