@@ -147,10 +147,10 @@ static void psp_notify_boot_done(void *unused)
 
 	printk(BIOS_DEBUG, "PSP: Notify that POST is finishing... ");
 
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, &buffer);
+	if (0) cmd_status = send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, &buffer);
 
 	/* buffer's status shouldn't change but report it if it does */
-	psp_print_cmd_status(cmd_status, &buffer.header);
+	if (0) psp_print_cmd_status(cmd_status, &buffer.header);
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, psp_notify_boot_done, NULL);
