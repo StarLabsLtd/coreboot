@@ -22,6 +22,7 @@
 #include <soc/aoac_defs.h>
 #include <soc/iomap.h>
 #include <soc/amd/phoenix/chip.h>
+#include <string.h>
 #include <static.h>
 #include <stdio.h>
 #include <xSIM-api.h>
@@ -84,21 +85,80 @@ static void setup_rc_manager_default(SIL_CONTEXT *SilContext)
 	rc_mgr_input_block->Above4GMmioSizePerRbForNonPciDevice = 0;
 }
 
-static const SIL_RESERVED_STRUCT_0012 usb_oem_platform_table = {
-	.field0 = FCH_XHCI_VERSION_MAJOR_TC,
-	.field1 = FCH_XHCI_VERSION_MINOR_TC,
-	.field2 = sizeof(SIL_RESERVED_STRUCT_0012),
-	.field3 = 0,
-};
+static FCH_TC_USB_OEM_PLATFORM_TABLE usb_oem_platform_table;
+
+static void fill_usb2_phy(FCH_USB20_PHY *dst, const struct fch_usb2_phy *src)
+{
+	dst->COMPDISTUNE = src->compdistune;
+	dst->PLLBTUNE = src->pllbtune;
+	dst->PLLITUNE = src->pllitune;
+	dst->PLLPTUNE = src->pllptune;
+	dst->SQRXTUNE = src->sqrxtune;
+	dst->TXFSLSTUNE = src->txfslstune;
+	dst->TXPREEMPAMPTUNE = src->txpreempamptune;
+	dst->TXPREEMPPULSETUNE = src->txpreemppulsetune;
+	dst->TXRISETUNE = src->txrisetune;
+	dst->TXVREFTUNE = src->txvreftune;
+	dst->TXHSXVTUNE = src->txhsxvtune;
+	dst->TXRESTUNE = src->txrestune;
+}
+
+static void fill_usb3_phy(FCH_USB3_PHY *dst, const struct fch_usb3_phy *src)
+{
+	dst->TX_TERM_CTRL = src->tx_term_ctrl;
+	dst->RX_TERM_CTRL = src->rx_term_ctrl;
+	dst->TX_VBOOST_LVL_EN = src->tx_vboost_lvl_en;
+	dst->TX_VBOOST_LVL = src->tx_vboost_lvl;
+}
+
+static void init_usb_oem_table_header(FCH_TC_USB_OEM_PLATFORM_TABLE *tbl)
+{
+	memset(tbl, 0, sizeof(*tbl));
+	tbl->Version_Major = FCH_XHCI_VERSION_MAJOR_TC;
+	tbl->Version_Minor = FCH_XHCI_VERSION_MINOR_TC;
+	tbl->TableLength = sizeof(*tbl);
+}
+
+static void fill_usb_oem_table(FCH_TC_USB_OEM_PLATFORM_TABLE *tbl,
+			       const struct usb_phy_config *phy)
+{
+	size_t i;
+
+	init_usb_oem_table_header(tbl);
+
+	for (i = 0; i < USB2_PORT_COUNT; i++)
+		fill_usb2_phy(&tbl->Usb20PhyPort[i], &phy->Usb2PhyPort[i]);
+	for (i = 0; i < USB3_PORT_COUNT; i++)
+		fill_usb3_phy(&tbl->Usb3PhyPort[i], &phy->Usb3PhyPort[i]);
+
+	tbl->BatteryChargerEnable = phy->BatteryChargerEnable;
+	tbl->PhyP3CpmP4Support = phy->PhyP3CpmP4Support;
+	for (i = 0; i < USBC_COMBO_PHY_COUNT; i++)
+		tbl->ComboPhyStaticConfig[i] = phy->ComboPhyStaticConfig[i] & 0xf;
+}
 
 static void configure_usb(SIL_CONTEXT *SilContext)
 {
+	const struct soc_amd_phoenix_config *cfg = config_of_soc();
 	FCHUSB_INPUT_BLK *fch_usb_data = SilFindStructure(SilContext, SilId_FchUsb, 0);
 
 	if (!fch_usb_data) {
 		printk(BIOS_ERR, "OpenSIL: FCH USB block not found\n");
 		return;
 	}
+
+	fch_usb_data->Xhci0Enable = is_dev_enabled(DEV_PTR(xhci_0));
+	fch_usb_data->Xhci1Enable = is_dev_enabled(DEV_PTR(xhci_1));
+
+	fch_usb_data->Usb4Host[0].InitEnable = is_dev_enabled(DEV_PTR(usb4_xhci_0));
+	fch_usb_data->Usb4Host[0].HostEnable = fch_usb_data->Usb4Host[0].InitEnable;
+	fch_usb_data->Usb4Host[1].InitEnable = is_dev_enabled(DEV_PTR(usb4_xhci_1));
+	fch_usb_data->Usb4Host[1].HostEnable = fch_usb_data->Usb4Host[1].InitEnable;
+
+	if (cfg->usb_phy_custom)
+		fill_usb_oem_table(&usb_oem_platform_table, &cfg->usb_phy);
+	else
+		init_usb_oem_table_header(&usb_oem_platform_table);
 
 	fch_usb_data->OemUsbConfigurationTable = (uint64_t)(uintptr_t)&usb_oem_platform_table;
 }
