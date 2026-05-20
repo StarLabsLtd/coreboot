@@ -25,6 +25,11 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version);
 bool intel_ht_supported(void);
 
 /*
+ * Returns true if CPU supports more than one hardware thread per core.
+ */
+bool intel_smt_supported(void);
+
+/*
  * Returns true if it's not thread 0 on a hyperthreading enabled core.
  */
 bool intel_ht_sibling(void);
