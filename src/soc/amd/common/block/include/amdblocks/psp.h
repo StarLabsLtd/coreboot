@@ -58,7 +58,6 @@ void soc_fill_smm_reg_info(struct smm_register_info *reg); /* v2 only */
 int psp_notify_dram(void);
 
 int psp_notify_smm(void);
-int psp_notify_boot_done_smm(void);
 
 #if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMI))
 void psp_smi_handler(void);

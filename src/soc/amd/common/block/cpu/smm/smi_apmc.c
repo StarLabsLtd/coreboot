@@ -137,9 +137,6 @@ void fch_apmc_smi_handler(void)
 	case APM_CNT_SMMINFO:
 		psp_notify_smm();
 		break;
-	case APM_CNT_PSP_BOOT_DONE:
-		psp_notify_boot_done_smm();
-		break;
 	}
 
 	mainboard_smi_apmc(cmd);

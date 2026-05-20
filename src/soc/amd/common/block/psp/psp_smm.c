@@ -98,22 +98,6 @@ int psp_notify_smm(void)
 	return cmd_status;
 }
 
-int psp_notify_boot_done_smm(void)
-{
-	struct mbox_default_buffer *buffer = (void *)c2p_buffer.buffer;
-	int cmd_status;
-
-	memset(buffer, 0, sizeof(*buffer));
-	buffer->header.size = sizeof(*buffer);
-
-	printk(BIOS_DEBUG, "PSP: Notify that POST is finishing (SMM)... ");
-
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, buffer);
-	psp_print_cmd_status(cmd_status, &buffer->header);
-
-	return cmd_status;
-}
-
 int psp_rom_armor_enter_smm_mode(const bool allow_capsule_update, size_t *flash_size)
 {
 	int cmd_status;
