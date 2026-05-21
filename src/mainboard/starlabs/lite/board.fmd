@@ -52,7 +52,7 @@ FLASH 8M {
 			}
 			SMMSTORE@0x2e000		0x80000
 			FMAP@0xae000			0x200
-			COREBOOT(CBFS)
+			COREBOOT(CBFS)@0xae200		0x1ffe00
 		}
 	}
 }
