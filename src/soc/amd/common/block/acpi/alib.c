@@ -4,6 +4,19 @@
 #include <amdblocks/alib.h>
 #include <types.h>
 
+/*
+ * FSP platforms provide the ALIB SSDT from a firmware HOB. OpenSIL boards need a
+ * minimal \_SB.ALIB method so DSDT helpers (WAL1, PNOT, EC._REG) do not abort.
+ */
+void acpigen_write_alib_stub(void)
+{
+	acpigen_write_scope("\\_SB");
+	acpigen_write_method("ALIB", 2);
+	acpigen_write_return_integer(0);
+	acpigen_write_method_end();
+	acpigen_write_scope_end();
+}
+
 static void acpigen_dptc_call_alib(const char *buf_name, uint8_t *buffer, size_t size)
 {
 	/* Name (buf_name, Buffer(size) {...} */

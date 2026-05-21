@@ -87,6 +87,10 @@ static void acipgen_dptci(void)
 
 static void root_complex_fill_ssdt(const struct device *device)
 {
+	/* FSP provides the full ALIB SSDT via HOB; OpenSIL needs a stub method. */
+	if (!CONFIG(PLATFORM_USES_FSP2_0))
+		acpigen_write_alib_stub();
+
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_ACPI_DPTC))
 		acipgen_dptci();
 }
