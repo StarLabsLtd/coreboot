@@ -34,7 +34,7 @@ chip soc/intel/apollolake
 	register "usb_config_override"		= "1"
 	register "disable_compliance_mode"	= "1"
 
-	register "pcie_rp_clkreq_pin[0]"	= "CLKREQ_DISABLED"
+	register "pcie_rp_clkreq_pin[0]"	= "0"
 	register "pcie_rp_clkreq_pin[1]"	= "CLKREQ_DISABLED"
 	register "pcie_rp_clkreq_pin[2]"	= "CLKREQ_DISABLED"
 	register "pcie_rp_clkreq_pin[3]"	= "CLKREQ_DISABLED"
