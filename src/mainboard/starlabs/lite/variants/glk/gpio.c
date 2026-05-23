@@ -50,6 +50,7 @@ const struct pad_config gpio_table[] = {
 	/* Wireless */
 	PAD_CFG_GPO_IOSSTATE_IOSTERM(GPIO_33, 1, DEEP, UP_20K, TxLASTRxE, DISPUPD),             /* Bluetooth RF Kill */
 	PAD_CFG_GPO_IOSSTATE_IOSTERM(GPIO_34, 1, DEEP, NONE, IGNORE, DISPUPD),                  /* WiFi RF Kill */
+	PAD_CFG_NF_IOSTANDBY_IGNORE(GPIO_116, UP_20K, DEEP, NF1),                               /* PCIe Wake */
 	PAD_CFG_NF_IOSSTATE_IOSTERM(GPIO_120, UP_20K, DEEP, NF1, HIZCRx1, ENPU),                /* Clock Request */
 	PAD_CFG_NF_IOSTANDBY_IGNORE(GPIO_192, UP_20K, DEEP, NF1),                               /* BRI Response */
 	PAD_CFG_NF_IOSTANDBY_IGNORE(GPIO_193, NONE, DEEP, NF1),                                 /* RGI Data */
@@ -178,7 +179,6 @@ const struct pad_config gpio_table[] = {
 	PAD_NC(GPIO_111, DN_20K),
 	PAD_NC(GPIO_112, DN_20K),
 	PAD_NC(GPIO_113, DN_20K),
-	PAD_NC(GPIO_116, DN_20K),
 	PAD_NC(GPIO_117, DN_20K),
 	PAD_NC(GPIO_118, DN_20K),
 	PAD_NC(GPIO_119, DN_20K),
