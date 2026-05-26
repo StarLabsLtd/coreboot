@@ -331,14 +331,54 @@ $(obj)/oemkeymn2.bin: $(obj)/meu $(obj)/public_hash
 	$(obj)/meu -f src/soc/intel/apollolake/stitch/OEMKeyManifest.xml -cfg $(obj)/meu_config.xml -o $@
 
 # 7. Create coreboot.rom
+ifeq ($(CONFIG_IFWI_NATIVE_STITCH),y)
+
+ifwi_descriptor=$(call strip_quotes,$(CONFIG_IFWI_DESCRIPTOR))
+ifwi_ifp_override=$(call strip_quotes,$(CONFIG_IFWI_IFP_OVERRIDE))
+ifwi_uep=$(call strip_quotes,$(CONFIG_IFWI_UEP))
+ifwi_smip_source=$(call strip_quotes,$(CONFIG_IFWI_SMIP))
+ifwi_fitc_config=$(call strip_quotes,$(CONFIG_IFWI_FITC_CONFIG))
+ifwi_ec_image=$(call strip_quotes,$(CONFIG_IFWI_EC_IMAGE))
+
+$(obj)/smip.bin: $(obj)/meu $(obj)/meu_config.xml $(obj)/private.pem $(ifwi_smip_source)
+	$(obj)/meu -f $(ifwi_smip_source) -resign all -o $@ -key $(obj)/private.pem
+
+$(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(obj)/bios.bin \
+			  $(obj)/pmcp.bin $(obj)/smip.bin \
+			  $(obj)/pdt.bin $(obj)/oemkeymn2.bin \
+			  $(ifwi_descriptor) $(ifwi_ifp_override) \
+			  $(ifwi_uep) $(ifwi_fitc_config) \
+			  $(ifwi_ec_image) $(patch1) $(patch2) \
+			  src/soc/intel/apollolake/stitch/apl_ifwi.py
+	python3 src/soc/intel/apollolake/stitch/apl_ifwi.py \
+		--output $@ \
+		--descriptor $(ifwi_descriptor) \
+		--cse-image $(obj)/cse_image.bin \
+		--bios $(obj)/bios.bin \
+		--pmcp $(obj)/pmcp.bin \
+		--smip $(obj)/smip.bin \
+		--ifp-override $(ifwi_ifp_override) \
+		--uep $(ifwi_uep) \
+		--oem-key $(obj)/oemkeymn2.bin \
+		--fitc-config $(ifwi_fitc_config) \
+		--microcode $(patch1) \
+		--microcode $(patch2) \
+		--bp2-offset $(CONFIG_IFWI_BP2_OFFSET) \
+		--fit-tool-version $(call strip_quotes,$(CONFIG_IFWI_FIT_TOOL_VERSION)) \
+		$(if $(ifwi_ec_image),--ec $(ifwi_ec_image),)
+	echo "Overwriting coreboot.rom"
+	cp $@ $(obj)/coreboot.rom
+
+else # CONFIG_IFWI_NATIVE_STITCH
+
 $(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(obj)/bios.bin \
 			  $(obj)/pmcp.bin $(obj)/smip_iafw.bin \
-			  $(obj)/pdt.bin \
-			  $(obj)/fit $(obj)/vsccommn.bin \
-			  $(obj)/meu $(obj)/spi.xml \
-			  $(obj)/oemkeymn2.bin
+			  $(obj)/pdt.bin $(obj)/fit $(obj)/vsccommn.bin \
+			  $(obj)/meu $(obj)/spi.xml $(obj)/oemkeymn2.bin
 	$(obj)/fit -b -f $(obj)/spi.xml -o $@ -st_path /usr/bin/openssl
 	echo "Overwriting coreboot.rom"
 	cp $@ $(obj)/coreboot.rom
+
+endif # CONFIG_IFWI_NATIVE_STITCH
 
 endif # if CONFIG_SOC_INTEL_APOLLOLAKE
