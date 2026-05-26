@@ -321,6 +321,14 @@ config EDK2_CUSTOM_BUILD_PARAMS
 
 	  This option can support both macros `-D` and Pcds `--pcd`.
 
+config EDK2_CAPSULE_ON_DISK_SUPPORT
+	bool "Support EFI capsules on disk"
+	depends on DRIVERS_EFI_UPDATE_CAPSULES
+	default y if SOC_AMD_COMMON
+	help
+	  Permit update capsules to be submitted via the EFI system
+	  partition instead of relying on capsule pointers surviving reset.
+
 config EDK2_ENABLE_IPXE
 	bool "Include iPXE in edk2 payload"
 	depends on !EDK2_REPO_OFFICIAL
