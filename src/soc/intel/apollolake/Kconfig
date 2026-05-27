@@ -501,61 +501,100 @@ config IFWI_STITCH_IMAGE
 	bool "Stitch of complete IFWI image"
 	default n
 	help
-	  Stitch IFWI image using Intels FIT and MEU tools
+	  Use coreboot tooling to build and sign the Apollo Lake IFWI image.
+	  This creates BPDT/CPD/MN2 metadata and signs it with OpenSSL.
+
+	  Intel FIT and MEU are not used.
 
 if IFWI_STITCH_IMAGE
 
 config IFWI_CSE_IMAGE
-	string "cse_image.bin is required"
-	default "../stitch/cse_image.bin"
+	string "CSE image"
+	help
+	  Path to the CSE region input image. This is required when
+	  IFWI_STITCH_IMAGE is enabled.
 
 config IFWI_PMCP
-	string "pmcp.bin is required"
-	default "../stitch/pmcp.bin"
-
-config IFWI_DSP_FW
-	string "dsp_fw.bin is optional"
+	string "PMCP sub-partition binary"
 	help
-	  "../stitch/dsp_fw.bin"
-
-config IFWI_IUNIT
-	string "iUnit.bin is optional"
-	help
-	  "../stitch/iUnit.bin"
-
-config IFWI_ISH_FW
-	string "ish.bin is optional"
-	help
-	  "../stitch/ISH.bin"
+	  Path to the PMCP sub-partition binary. This is required when
+	  IFWI_STITCH_IMAGE is enabled.
 
 config IFWI_PDT
-	string "PdtBinary might be needed"
-	default "../stitch/PdtBinary.bin"
-
-config IFWI_PDR
-	string "pdr.bin is optional"
+	string "PDT sub-partition binary"
 	help
-	  "../stitch/pdr.bin"
-
-config IFWI_INTEL_FIT
-	string "Path to FIT tool"
-	default "../stitch/fit"
-
-config IFWI_INTEL_VSCCOMMN
-	string "Path to VSCCOMMN binary"
-	default "../stitch/vsccommn.bin"
-
-config IFWI_INTEL_MEU
-	string "Path to MEU tool"
-	default "../stitch/meu"
+	  Path to the PDT sub-partition binary. This is required when
+	  IFWI_STITCH_IMAGE is enabled.
 
 config IFWI_PRIVATE_KEY
 	string "Key to use for manifest"
-	default "../stitch/private.pem"
+	help
+	  Path to the RSA private key used for IFWI manifest signing. This is
+	  required when IFWI_STITCH_IMAGE is enabled.
 
-config IFWI_BOOTGUARD
-	bool "Enable BootGuard permanently"
-	default n
+config IFWI_DESCRIPTOR
+	string "Flash descriptor binary"
+	help
+	  Intel flash descriptor used by the native Apollo Lake IFWI stitcher.
+
+config IFWI_UEP_FPF_FLAGS
+	string "UEP FPF flags"
+	default "0xc880"
+	help
+	  Value to write into the generated UEP fuse-emulation records.
+	  This is kept configurable because the value differs between known
+	  Apollo Lake/Gemini Lake images and the UEP format is not publicly
+	  documented.
+
+config IFWI_UEP_BOOT_POLICY
+	string "UEP Boot Guard policy flags"
+	default "0x11f"
+	help
+	  Value to write into the generated UEP Boot Guard policy records.
+	  This should match the Boot Guard policy fused for the target.
+
+config IFWI_SMIP
+	string "SMIP payload or sub-partition binary"
+	help
+	  SMIP payload or full SMIP CPD sub-partition used by the native
+	  Apollo Lake IFWI stitcher. A full sub-partition is re-signed. A raw
+	  payload is wrapped in a native SMIP CPD and signed. Leave empty to
+	  generate a minimal SMIP payload from a dummy IAFW SMIP.
+
+config IFWI_FITC_CONFIG
+	string "fitc.cfg CSE BUP directory entry override"
+	help
+	  Optional fitc.cfg directory entry override added to the CSE BUP
+	  sub-partition by the native Apollo Lake IFWI stitcher. Leave unset
+	  to preserve the entry from IFWI_CSE_IMAGE, or generate one if the
+	  source CSE image has an empty entry.
+
+config IFWI_FITC_CONFIG_PROFILE
+	string "fitc.cfg profile"
+	help
+	  Board profile used when generating the CSE BUP fitc.cfg entry.
+	  Known values are "glk" and "glkr".
+
+config IFWI_EC_IMAGE
+	string "EC region binary"
+	help
+	  Optional EC region binary. Leave unset when the descriptor does not
+	  define an EC region.
+
+config IFWI_BP2_OFFSET
+	hex "Second boot partition offset"
+	default 0x0
+	help
+	  Flash offset of the second logical boot partition. Use 0 to derive
+	  the offset from the BIOS region described by the flash descriptor.
+
+config IFWI_FIT_TOOL_VERSION
+	string "BPDT FIT tool version"
+	default "0"
+	help
+	  Value to write into the BPDT FIT tool version field. This is metadata
+	  only and is kept configurable to allow comparisons with
+	  vendor-generated IFWI images.
 
 endif
 
