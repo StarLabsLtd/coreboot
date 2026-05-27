@@ -229,30 +229,51 @@ endif
 endif # CONFIG_VBOOT
 	$(CBFSTOOL) $(obj)/coreboot.rom read -r OBB -f $@
 
-ifeq ($(CONFIG_IFWI_STITCH_IMAGE),y)
-coreboot: $(obj)/coreboot-ifwi.rom
+ifeq ($(CONFIG_IFWI_IBBM_LOAD),y)
+coreboot: $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom $(objcbfs)/obb.rom
 endif
 
-$(obj)/cse_image.bin:
-	cp $(CONFIG_IFWI_CSE_IMAGE) $@
+ifeq ($(CONFIG_IFWI_STITCH_IMAGE),y)
+coreboot: $(obj)/coreboot-ifwi.rom
 
-$(obj)/ISH.bin:
-	cp $(CONFIG_IFWI_ISH_FW) $@
+ifwi_cse_image=$(call strip_quotes,$(CONFIG_IFWI_CSE_IMAGE))
+ifwi_pmcp=$(call strip_quotes,$(CONFIG_IFWI_PMCP))
+ifwi_pdt=$(call strip_quotes,$(CONFIG_IFWI_PDT))
+ifwi_private_key=$(call strip_quotes,$(CONFIG_IFWI_PRIVATE_KEY))
+ifwi_descriptor=$(call strip_quotes,$(CONFIG_IFWI_DESCRIPTOR))
+ifwi_smip_source=$(call strip_quotes,$(CONFIG_IFWI_SMIP))
+ifwi_fitc_config=$(call strip_quotes,$(CONFIG_IFWI_FITC_CONFIG))
+ifwi_fitc_config_profile=$(call strip_quotes,$(CONFIG_IFWI_FITC_CONFIG_PROFILE))
+ifwi_fit_tool_version=$(call strip_quotes,$(CONFIG_IFWI_FIT_TOOL_VERSION))
+ifwi_ec_image=$(call strip_quotes,$(CONFIG_IFWI_EC_IMAGE))
+ifwi_smip_arg=$(if $(ifwi_smip_source),--smip $(ifwi_smip_source),--smip-iafw $(obj)/smip_iafw.bin)
+ifwi_smip_dep=$(if $(ifwi_smip_source),$(ifwi_smip_source),$(obj)/smip_iafw.bin)
+ifwi_fitc_profile_arg=$(if $(ifwi_fitc_config_profile),--fitc-config-profile $(ifwi_fitc_config_profile),)
 
-$(obj)/pdt.bin:
-	cp $(CONFIG_IFWI_PDT) $@
+ifeq ($(ifwi_cse_image),)
+$(error CONFIG_IFWI_CSE_IMAGE is required when CONFIG_IFWI_STITCH_IMAGE=y)
+endif
+ifeq ($(ifwi_pmcp),)
+$(error CONFIG_IFWI_PMCP is required when CONFIG_IFWI_STITCH_IMAGE=y)
+endif
+ifeq ($(ifwi_pdt),)
+$(error CONFIG_IFWI_PDT is required when CONFIG_IFWI_STITCH_IMAGE=y)
+endif
+ifeq ($(ifwi_private_key),)
+$(error CONFIG_IFWI_PRIVATE_KEY is required when CONFIG_IFWI_STITCH_IMAGE=y)
+endif
+ifeq ($(ifwi_descriptor),)
+$(error CONFIG_IFWI_DESCRIPTOR is required when CONFIG_IFWI_STITCH_IMAGE=y)
+endif
 
-$(obj)/iUnit.bin:
-	cp $(CONFIG_IFWI_IUNIT) $@
+$(obj)/cse_image.bin: $(ifwi_cse_image)
+	cp $< $@
 
-$(obj)/pdr.bin:
-	cp $(CONFIG_IFWI_PDR) $@
+$(obj)/pdt.bin: $(ifwi_pdt)
+	cp $< $@
 
-$(obj)/dsp_fw.bin:
-	cp $(CONFIG_IFWI_DSP_FW) $@
-
-$(obj)/pmcp.bin:
-	cp $(CONFIG_IFWI_PMCP) $@
+$(obj)/pmcp.bin: $(ifwi_pmcp)
+	cp $< $@
 
 $(obj)/smip_iafw.bin:
 	# Create empty smip_iafw.bin with Python
@@ -262,83 +283,52 @@ $(obj)/smip_iafw.bin:
 	fp.write (b'\xAF\xBE\xED\xDE' + b'\x00' * 0x380 + b'\xAA\xCC\xFF\xAA'); \
 	fp.close();"
 
-$(obj)/fit:
-	cp $(CONFIG_IFWI_INTEL_FIT) $@
-
-$(obj)/vsccommn.bin:
-	cp $(CONFIG_IFWI_INTEL_VSCCOMMN) $@
-
-$(obj)/meu:
-	cp $(CONFIG_IFWI_INTEL_MEU) $@
-
-$(obj)/private.pem:
-	cp $(CONFIG_IFWI_PRIVATE_KEY) $@
-
-$(obj)/public.pem: $(call strip_quotes, $(CONFIG_IFWI_PRIVATE_KEY))
-	openssl pkey -in $< -pubout > $@
-
-# 1. Create a hash of the keys
-$(obj)/private_hash: $(obj)/meu $(obj)/meu_config.xml $(obj)/private.pem
-	$(obj)/meu -cfg $(obj)/meu_config.xml -keyhash $@ -key $(obj)/private.pem
-
-$(obj)/public_hash: $(obj)/meu $(obj)/meu_config.xml $(obj)/public.pem
-	$(obj)/meu -cfg $(obj)/meu_config.xml -keyhash $@ -key $(obj)/public.pem
-
-# 2. Configure meu_config.xml
-$(obj)/meu_config.xml:
-	sed \
-	-e 's%@signing_key@%$(obj)/private.pem%g' \
-	src/soc/intel/apollolake/stitch/meu_config.xml.in > $@
-
-# 2. Configure spi.xml
-hash=$(shell cat $(obj)/private_hash.txt)
+$(obj)/private.pem: $(ifwi_private_key)
+	cp $< $@
 
 ifeq ($(CONFIG_SOC_INTEL_GEMINILAKE),y)
 patch1=3rdparty/intel-microcode/intel-ucode/06-7a-01
 patch2=3rdparty/intel-microcode/intel-ucode/06-7a-08
-sku=GLK
-region=1548
 else
 patch1=3rdparty/intel-microcode/intel-ucode/06-5c-09
 patch2=3rdparty/intel-microcode/intel-ucode/06-5c-0a
-sku=APL
-region=415
 endif
 
-ifeq ($(CONFIG_IFWI_BOOTGUARD),y)
-bootguard=Boot Guard Profile 2 - VM
-else
-bootguard=Boot Guard Profile 0 - Legacy
+$(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(CBFSTOOL) \
+			  $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom \
+			  $(objcbfs)/obb.rom $(obj)/private.pem \
+			  $(obj)/pmcp.bin $(obj)/pdt.bin \
+			  $(ifwi_descriptor) \
+			  $(ifwi_smip_dep) \
+			  $(if $(ifwi_fitc_config),$(ifwi_fitc_config),) \
+			  $(ifwi_ec_image) $(patch1) $(patch2) \
+			  src/soc/intel/apollolake/stitch/apl_ifwi.py
+	python3 src/soc/intel/apollolake/stitch/apl_ifwi.py \
+		--output $@ \
+		--descriptor $(ifwi_descriptor) \
+		--cse-image $(obj)/cse_image.bin \
+		--ibbl $(objcbfs)/ibbl.rom \
+		--ibb $(objcbfs)/ibbm.rom \
+		--obb $(objcbfs)/obb.rom \
+		--private-key $(obj)/private.pem \
+		--pmcp $(obj)/pmcp.bin \
+		$(ifwi_smip_arg) \
+		--uep-fpf-flags $(call strip_quotes,$(CONFIG_IFWI_UEP_FPF_FLAGS)) \
+		--uep-boot-policy $(call strip_quotes,$(CONFIG_IFWI_UEP_BOOT_POLICY)) \
+		--microcode $(patch1) \
+		--microcode $(patch2) \
+		--bp2-offset $(CONFIG_IFWI_BP2_OFFSET) \
+		--fit-tool-version $(ifwi_fit_tool_version) \
+		$(ifwi_fitc_profile_arg) \
+		$(if $(ifwi_fitc_config),--fitc-config $(ifwi_fitc_config),) \
+		$(if $(ifwi_ec_image),--ec $(ifwi_ec_image),)
+ifeq ($(CONFIG_VALIDATE_INTEL_DESCRIPTOR),y)
+	printf "    FMAP       validate IFWI layout\n"
+	$(CBFSTOOL) $@ layout -w > /dev/null
 endif
-
-$(obj)/spi.xml: $(obj)/private_hash
-	sed \
-	-e 's%@signing_key@%$(obj)/private.pem%g' \
-	-e 's%@key_hash@%$(hash)%g' \
-	-e 's%@patch1@%$(patch1)%g' \
-	-e 's%@patch2@%$(patch2)%g' \
-	-e "s%@sku@%$(sku)%g" \
-	-e 's%@region@%$(region)%g' \
-	-e 's%@bootguard@%$(bootguard)%g' \
-	src/soc/intel/apollolake/stitch/spi.xml.in > $@
-
-# 4. Create bios.bin
-$(obj)/bios.bin: $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom $(objcbfs)/obb.rom $(obj)/meu $(obj)/meu_config.xml
-	$(obj)/meu -f src/soc/intel/apollolake/stitch/bios.xml -cfg $(obj)/meu_config.xml -o $@ -key $(CONFIG_IFWI_PRIVATE_KEY)
-
-# 5. Create oemkeymn2.bin
-$(obj)/oemkeymn2.bin: $(obj)/meu $(obj)/public_hash
-	$(obj)/meu -f src/soc/intel/apollolake/stitch/OEMKeyManifest.xml -cfg $(obj)/meu_config.xml -o $@
-
-# 7. Create coreboot.rom
-$(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(obj)/bios.bin \
-			  $(obj)/pmcp.bin $(obj)/smip_iafw.bin \
-			  $(obj)/pdt.bin \
-			  $(obj)/fit $(obj)/vsccommn.bin \
-			  $(obj)/meu $(obj)/spi.xml \
-			  $(obj)/oemkeymn2.bin
-	$(obj)/fit -b -f $(obj)/spi.xml -o $@ -st_path /usr/bin/openssl
 	echo "Overwriting coreboot.rom"
 	cp $@ $(obj)/coreboot.rom
+
+endif # CONFIG_IFWI_STITCH_IMAGE
 
 endif # if CONFIG_SOC_INTEL_APOLLOLAKE
