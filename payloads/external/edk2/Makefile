@@ -378,7 +378,8 @@ print:
 		-e 's/s /Build:          Silent/' \
 		-e 's/t /Toolchain:      /'
 
-prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo gop_driver ipxe_rom
+# Keep the EDK2 build output between SKU builds in release batches.
+prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo gop_driver ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
@@ -434,7 +435,7 @@ clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+	@echo "EDK2: preserving $(WORKSPACE)"
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
 
