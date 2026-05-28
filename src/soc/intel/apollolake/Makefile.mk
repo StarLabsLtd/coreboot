@@ -249,6 +249,13 @@ ifwi_ec_image=$(call strip_quotes,$(CONFIG_IFWI_EC_IMAGE))
 ifwi_smip_arg=$(if $(ifwi_smip_source),--smip $(ifwi_smip_source),--smip-iafw $(obj)/smip_iafw.bin)
 ifwi_smip_dep=$(if $(ifwi_smip_source),$(ifwi_smip_source),$(obj)/smip_iafw.bin)
 ifwi_fitc_profile_arg=$(if $(ifwi_fitc_config_profile),--fitc-config-profile $(ifwi_fitc_config_profile),)
+empty :=
+space := $(empty) $(empty)
+escape_spaces = $(subst $(space),\$(space),$(1))
+ifwi_cse_image_dep=$(call escape_spaces,$(ifwi_cse_image))
+ifwi_pmcp_dep=$(call escape_spaces,$(ifwi_pmcp))
+ifwi_pdt_dep=$(call escape_spaces,$(ifwi_pdt))
+ifwi_descriptor_dep=$(call escape_spaces,$(ifwi_descriptor))
 
 ifeq ($(ifwi_cse_image),)
 $(error CONFIG_IFWI_CSE_IMAGE is required when CONFIG_IFWI_STITCH_IMAGE=y)
@@ -266,14 +273,14 @@ ifeq ($(ifwi_descriptor),)
 $(error CONFIG_IFWI_DESCRIPTOR is required when CONFIG_IFWI_STITCH_IMAGE=y)
 endif
 
-$(obj)/cse_image.bin: $(ifwi_cse_image)
-	cp $< $@
+$(obj)/cse_image.bin: $(ifwi_cse_image_dep)
+	cp "$(ifwi_cse_image)" $@
 
-$(obj)/pdt.bin: $(ifwi_pdt)
-	cp $< $@
+$(obj)/pdt.bin: $(ifwi_pdt_dep)
+	cp "$(ifwi_pdt)" $@
 
-$(obj)/pmcp.bin: $(ifwi_pmcp)
-	cp $< $@
+$(obj)/pmcp.bin: $(ifwi_pmcp_dep)
+	cp "$(ifwi_pmcp)" $@
 
 $(obj)/smip_iafw.bin:
 	# Create empty smip_iafw.bin with Python
@@ -298,14 +305,14 @@ $(obj)/coreboot-ifwi.rom: $(obj)/cse_image.bin $(CBFSTOOL) \
 			  $(objcbfs)/ibbl.rom $(objcbfs)/ibbm.rom \
 			  $(objcbfs)/obb.rom $(obj)/private.pem \
 			  $(obj)/pmcp.bin $(obj)/pdt.bin \
-			  $(ifwi_descriptor) \
+			  $(ifwi_descriptor_dep) \
 			  $(ifwi_smip_dep) \
 			  $(if $(ifwi_fitc_config),$(ifwi_fitc_config),) \
 			  $(ifwi_ec_image) $(patch1) $(patch2) \
 			  src/soc/intel/apollolake/stitch/apl_ifwi.py
 	python3 src/soc/intel/apollolake/stitch/apl_ifwi.py \
 		--output $@ \
-		--descriptor $(ifwi_descriptor) \
+		--descriptor "$(ifwi_descriptor)" \
 		--cse-image $(obj)/cse_image.bin \
 		--ibbl $(objcbfs)/ibbl.rom \
 		--ibb $(objcbfs)/ibbm.rom \
