@@ -11,6 +11,7 @@
  * Keyboard Backlight Timeout
  */
 static const struct sm_object kbl_timeout = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "kbl_timeout",
 	.ui_name	= "Keyboard Backlight Timeout",
 	.ui_helptext	= "Set the amount of time before the keyboard backlight turns off"
