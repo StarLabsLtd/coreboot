@@ -109,6 +109,48 @@ static uint32_t sm_write_dep_values(char *current,
 	return cfr_values->size;
 }
 
+static bool runtime_apply_apm_cnt_supported(void)
+{
+	return CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY) &&
+	       (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) ||
+		CONFIG(SOC_AMD_COMMON_BLOCK_SMIHANDLER));
+}
+
+static uint32_t sm_write_runtime_apply(char *current,
+				       const struct sm_runtime_apply *sm_runtime_apply)
+{
+	struct lb_cfr_runtime_apply *runtime_apply = (struct lb_cfr_runtime_apply *)current;
+
+	if (sm_runtime_apply->method == CFR_RUNTIME_APPLY_NONE)
+		return 0;
+
+	switch (sm_runtime_apply->method) {
+	case CFR_RUNTIME_APPLY_APM_CNT:
+		if (!runtime_apply_apm_cnt_supported()) {
+			printk(BIOS_ERR, "CFR: APM runtime apply requires common SMM handler support\n");
+			return 0;
+		}
+		break;
+	default:
+		printk(BIOS_ERR, "CFR: unsupported runtime apply method %#x\n",
+		       sm_runtime_apply->method);
+		return 0;
+	}
+
+	if (sm_runtime_apply->id > UINT8_MAX) {
+		printk(BIOS_ERR, "CFR: APM runtime apply ID %#x exceeds APM_STS\n",
+		       sm_runtime_apply->id);
+		return 0;
+	}
+
+	runtime_apply->tag = CFR_TAG_RUNTIME_APPLY;
+	runtime_apply->size = ALIGN_UP(sizeof(*runtime_apply), LB_ENTRY_ALIGN);
+	runtime_apply->method = sm_runtime_apply->method;
+	runtime_apply->id = sm_runtime_apply->id;
+
+	return runtime_apply->size;
+}
+
 static uint32_t sm_write_enum_value(char *current, const struct sm_enum_value *e)
 {
 	struct lb_cfr_enum_value *enum_val = (struct lb_cfr_enum_value *)current;
@@ -139,10 +181,12 @@ static bool override_matches_numeric_tag(enum sm_object_kind override_kind, uint
 }
 
 static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t object_id,
-		const char *opt_name, const char *ui_name, const char *ui_helptext,
-		uint32_t flags, uint32_t default_value, uint32_t min, uint32_t max, uint32_t step,
-		uint32_t display_flags, const struct sm_enum_value *values, const uint64_t dep_id,
-		const uint32_t *dep_values, const uint32_t num_dep_values)
+	const char *opt_name, const char *ui_name, const char *ui_helptext,
+	uint32_t flags, uint32_t default_value, uint32_t min, uint32_t max, uint32_t step,
+	uint32_t display_flags, const struct sm_enum_value *values,
+	const struct sm_runtime_apply *runtime_apply,
+	const uint64_t dep_id, const uint32_t *dep_values,
+	const uint32_t num_dep_values)
 {
 	struct lb_cfr_numeric_option *option = (struct lb_cfr_numeric_option *)current;
 	size_t len;
@@ -180,6 +224,7 @@ static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t
 	current += len;
 	current += sm_write_ui_helptext(current, ui_helptext);
 	current += sm_write_dep_values(current, dep_values, num_dep_values);
+	current += sm_write_runtime_apply(current, runtime_apply);
 
 	if (option->tag == CFR_TAG_OPTION_ENUM && values) {
 		for (const struct sm_enum_value *e = values; e->ui_name; e++) {
@@ -199,7 +244,7 @@ static uint32_t sm_write_opt_enum(char *current, const struct sm_obj_enum *sm_en
 	return write_numeric_option(current, CFR_TAG_OPTION_ENUM, object_id,
 			sm_enum->opt_name, sm_enum->ui_name, sm_enum->ui_helptext,
 			sm_enum->flags, sm_enum->default_value, 0, 0, 0, 0, sm_enum->values,
-			dep_id, dep_values, num_dep_values);
+			&sm_enum->runtime_apply, dep_id, dep_values, num_dep_values);
 }
 
 static uint32_t sm_write_opt_number(char *current, const struct sm_obj_number *sm_number,
@@ -210,8 +255,8 @@ static uint32_t sm_write_opt_number(char *current, const struct sm_obj_number *s
 	return write_numeric_option(current, CFR_TAG_OPTION_NUMBER, object_id,
 			sm_number->opt_name, sm_number->ui_name, sm_number->ui_helptext,
 			sm_number->flags, sm_number->default_value, sm_number->min, sm_number->max,
-			sm_number->step, sm_number->display_flags, NULL, dep_id, dep_values,
-			num_dep_values);
+			sm_number->step, sm_number->display_flags, NULL,
+			&sm_number->runtime_apply, dep_id, dep_values, num_dep_values);
 }
 
 static uint32_t sm_write_opt_bool(char *current, const struct sm_obj_bool *sm_bool,
@@ -221,8 +266,8 @@ static uint32_t sm_write_opt_bool(char *current, const struct sm_obj_bool *sm_bo
 {
 	return write_numeric_option(current, CFR_TAG_OPTION_BOOL, object_id,
 			sm_bool->opt_name, sm_bool->ui_name, sm_bool->ui_helptext,
-			sm_bool->flags, sm_bool->default_value, 0, 0, 0, 0, NULL, dep_id,
-			dep_values, num_dep_values);
+			sm_bool->flags, sm_bool->default_value, 0, 0, 0, 0, NULL,
+			&sm_bool->runtime_apply, dep_id, dep_values, num_dep_values);
 }
 
 static uint32_t sm_write_opt_varchar(char *current, const struct sm_obj_varchar *sm_varchar,
