@@ -25,6 +25,7 @@
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
 #define APM_CNT_LEGACY		0xcc
+#define APM_CNT_CFR_RUNTIME_APPLY	0xe3
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
 #define APM_CNT_SMMINFO		0xec
