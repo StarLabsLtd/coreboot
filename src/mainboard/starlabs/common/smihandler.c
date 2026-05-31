@@ -82,42 +82,52 @@ struct starlabs_efiopt_entry {
 	uint32_t fallback;
 };
 
+static const struct starlabs_efiopt_entry efiopts[] = {
+	{
+		.name = "fn_lock_state",
+		.id = STARLABS_EFIOPT_ID_FN_LOCK_STATE,
+		.fallback = LOCKED,
+	},
+	{
+		.name = "trackpad_state",
+		.id = STARLABS_EFIOPT_ID_TRACKPAD_STATE,
+		.fallback = TRACKPAD_ENABLED,
+	},
+	{
+		.name = "kbl_brightness",
+		.id = STARLABS_EFIOPT_ID_KBL_BRIGHTNESS,
+		.fallback = CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON,
+	},
+	{
+		.name = "kbl_state",
+		.id = STARLABS_EFIOPT_ID_KBL_STATE,
+		.fallback = KBL_ENABLED,
+	},
+	{
+		.name = "kbl_timeout",
+		.id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
+		.fallback = SEC_30,
+	},
+};
+
 static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id id)
 {
-	static const struct starlabs_efiopt_entry opts[] = {
-		{
-			.name = "fn_lock_state",
-			.id = STARLABS_EFIOPT_ID_FN_LOCK_STATE,
-			.fallback = LOCKED,
-		},
-		{
-			.name = "trackpad_state",
-			.id = STARLABS_EFIOPT_ID_TRACKPAD_STATE,
-			.fallback = TRACKPAD_ENABLED,
-		},
-		{
-			.name = "kbl_brightness",
-			.id = STARLABS_EFIOPT_ID_KBL_BRIGHTNESS,
-			.fallback = CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON,
-		},
-		{
-			.name = "kbl_state",
-			.id = STARLABS_EFIOPT_ID_KBL_STATE,
-			.fallback = KBL_ENABLED,
-		},
-		{
-			.name = "kbl_timeout",
-			.id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
-			.fallback = SEC_30,
-		},
-	};
-
-	for (size_t i = 0; i < ARRAY_SIZE(opts); i++) {
-		if (opts[i].id == id)
-			return &opts[i];
+	for (size_t i = 0; i < ARRAY_SIZE(efiopts); i++) {
+		if (efiopts[i].id == id)
+			return &efiopts[i];
 	}
 
 	return NULL;
+}
+
+static uint32_t get_supported_efiopts(void)
+{
+	uint32_t mask = 0;
+
+	for (size_t i = 0; i < ARRAY_SIZE(efiopts); i++)
+		mask |= 1U << efiopts[i].id;
+
+	return mask;
 }
 
 static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
@@ -190,14 +200,21 @@ int mainboard_smi_apmc(u8 data)
 
 	const enum starlabs_efiopt_cmd cmd = dnvs->cmd;
 	const enum starlabs_efiopt_id id = dnvs->id;
-	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+	const struct starlabs_efiopt_entry *opt = NULL;
 
-	if (!opt) {
+	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED)
+		opt = find_efiopt(id);
+
+	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED && !opt) {
 		dnvs->status = CB_ERR_ARG;
 		return 1;
 	}
 
 	switch (cmd) {
+	case STARLABS_EFIOPT_CMD_GET_SUPPORTED:
+		dnvs->value = get_supported_efiopts();
+		dnvs->status = CB_SUCCESS;
+		break;
 	case STARLABS_EFIOPT_CMD_GET:
 		dnvs->value = get_uint_option(opt->name, opt->fallback);
 		dnvs->status = CB_SUCCESS;

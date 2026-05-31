@@ -28,10 +28,42 @@ Method (EOGT, 1, Serialized)
 
 	Store (0x01, EOCM)
 	Store (Arg0, EOID)
-	Store (0x00, EORS)
+	Store (0xFFFFFFFF, EOVL)
+	Store (0xFFFFFFFF, EORS)
 	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
 
-	Store (EOVL, Local0)
+	If (EORS)
+	{
+		Store (0xFFFFFFFF, Local0)
+	}
+	Else
+	{
+		Store (EOVL, Local0)
+	}
+	Release (EOMX)
+	Return (Local0)
+}
+
+Method (EOMS, 0, Serialized)
+{
+	If (Acquire (EOMX, 1000))
+	{
+		Return (0x00)
+	}
+
+	Store (0x03, EOCM)
+	Store (0x00, EOVL)
+	Store (0xFFFFFFFF, EORS)
+	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
+
+	If (EORS)
+	{
+		Store (0x00, Local0)
+	}
+	Else
+	{
+		Store (EOVL, Local0)
+	}
 	Release (EOMX)
 	Return (Local0)
 }
@@ -46,7 +78,7 @@ Method (EOSV, 2, Serialized)
 	Store (0x02, EOCM)
 	Store (Arg0, EOID)
 	Store (Arg1, EOVL)
-	Store (0x00, EORS)
+	Store (0xFFFFFFFF, EORS)
 	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
 
 	Store (EORS, Local0)
