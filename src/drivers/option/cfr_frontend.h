@@ -23,6 +23,8 @@ struct sm_obj_enum {
 	const char *ui_helptext;
 	uint32_t default_value;
 	const struct sm_enum_value *values;
+	uint32_t runtime_apply_method;
+	uint32_t runtime_apply_id;
 };
 
 struct sm_obj_number {
@@ -35,6 +37,8 @@ struct sm_obj_number {
 	uint32_t max;
 	uint32_t step;
 	uint32_t display_flags;	/* enum cfr_numeric_option_display_flags */
+	uint32_t runtime_apply_method;
+	uint32_t runtime_apply_id;
 };
 
 struct sm_obj_bool {
@@ -43,6 +47,8 @@ struct sm_obj_bool {
 	const char *ui_name;
 	const char *ui_helptext;
 	bool default_value;
+	uint32_t runtime_apply_method;
+	uint32_t runtime_apply_id;
 };
 
 struct sm_obj_varchar {
