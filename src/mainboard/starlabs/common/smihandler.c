@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <acpi/acpi_gnvs.h>
+#include <arch/io.h>
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm.h>
 #include <ec/acpi/ec.h>
@@ -189,8 +190,33 @@ static void apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t value)
 	}
 }
 
+static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
+{
+	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+	uint32_t value;
+	enum cb_err ret;
+
+	if (!opt)
+		return CB_ERR_ARG;
+
+	value = get_uint_option(opt->name, opt->fallback);
+	ret = normalize_value(id, &value);
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	apply_runtime_efiopt(id, value);
+	return CB_SUCCESS;
+}
+
 int mainboard_smi_apmc(u8 data)
 {
+	if (data == APM_CNT_CFR_RUNTIME_APPLY) {
+		const enum cb_err ret = apply_stored_efiopt(inb(APM_STS));
+
+		outb((u8)ret, APM_STS);
+		return 1;
+	}
+
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
 
