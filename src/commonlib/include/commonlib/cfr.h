@@ -64,6 +64,7 @@ enum cfr_tags {
 	CFR_TAG_VARCHAR_DEF_VALUE	= 10,
 	CFR_TAG_OPTION_COMMENT		= 11,
 	CFR_TAG_DEP_VALUES		= 12,
+	CFR_TAG_RUNTIME_APPLY		= 13,
 };
 
 /*
@@ -130,6 +131,18 @@ enum cfr_numeric_option_display_flags {
 	CFR_NUM_OPT_DISPFLAG_HEX	= 1 << 0,
 };
 
+enum cfr_runtime_apply_method {
+	CFR_RUNTIME_APPLY_NONE		= 0,
+	CFR_RUNTIME_APPLY_APM_CNT	= 1,
+};
+
+struct __packed lb_cfr_runtime_apply {
+	uint32_t tag;		/* CFR_TAG_RUNTIME_APPLY */
+	uint32_t size;
+	uint32_t method;	/* enum cfr_runtime_apply_method */
+	uint32_t id;		/* Method-specific token */
+};
+
 /* Supports multiple option types: ENUM, NUMBER, BOOL */
 struct __packed lb_cfr_numeric_option {
 	uint32_t tag;		/*
@@ -153,6 +166,7 @@ struct __packed lb_cfr_numeric_option {
 	 * struct lb_cfr_varbinary		ui_name
 	 * struct lb_cfr_varbinary		ui_helptext (Optional)
 	 * struct lb_cfr_varbinary		dependency_values (Optional)
+	 * struct lb_cfr_runtime_apply		runtime_apply (Optional)
 	 * struct lb_cfr_enum_value		enum_values[]
 	 */
 };
