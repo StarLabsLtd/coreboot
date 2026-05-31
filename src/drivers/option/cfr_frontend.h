@@ -16,6 +16,11 @@ struct sm_enum_value {
 
 #define SM_ENUM_VALUE_END	((struct sm_enum_value) {0})
 
+struct sm_runtime_apply {
+	uint32_t method;
+	uint32_t id;
+};
+
 struct sm_obj_enum {
 	uint32_t flags;		/* enum cfr_option_flags */
 	const char *opt_name;
@@ -23,6 +28,7 @@ struct sm_obj_enum {
 	const char *ui_helptext;
 	uint32_t default_value;
 	const struct sm_enum_value *values;
+	struct sm_runtime_apply runtime_apply;
 };
 
 struct sm_obj_number {
@@ -35,6 +41,7 @@ struct sm_obj_number {
 	uint32_t max;
 	uint32_t step;
 	uint32_t display_flags;	/* enum cfr_numeric_option_display_flags */
+	struct sm_runtime_apply runtime_apply;
 };
 
 struct sm_obj_bool {
@@ -43,6 +50,7 @@ struct sm_obj_bool {
 	const char *ui_name;
 	const char *ui_helptext;
 	bool default_value;
+	struct sm_runtime_apply runtime_apply;
 };
 
 struct sm_obj_varchar {
@@ -119,6 +127,8 @@ struct sm_object {
 	.dep = (d),								\
 	.dep_values = ((const uint32_t[]) { __VA_ARGS__ }),			\
 	.num_dep_values = sizeof((uint32_t[]) { __VA_ARGS__ }) / sizeof(uint32_t)
+#define WITH_RUNTIME_APPLY(method_, id_)					\
+	.runtime_apply = { .method = (method_), .id = (id_) }
 
 /*
  * CFR Default Value Override System
