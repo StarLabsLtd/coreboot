@@ -5,6 +5,7 @@
  */
 
 #include <drivers/option/cfr_frontend.h>
+#include <starlabs/efi_option_smi.h>
 #include "ec.h"
 
 /*
@@ -17,6 +18,8 @@ static const struct sm_object kbl_timeout = SM_DECLARE_ENUM({
 	.ui_helptext	= "Set the amount of time before the keyboard backlight turns off"
 			  " when un-used",
 	.default_value	= SEC_30,
+	.runtime_apply_method = CFR_RUNTIME_APPLY_APM_CNT,
+	.runtime_apply_id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
 	.values		= (struct sm_enum_value[]) {
 			{ "30 seconds",		SEC_30	},
 			{ "1 minute",		MIN_1	},
