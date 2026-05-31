@@ -3,6 +3,7 @@
 #include <acpi/acpi_gnvs.h>
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm.h>
+#include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 #include <cpu/intel/msr.h>
@@ -14,6 +15,7 @@
 #include <soc/nvs.h>
 #include <starlabs/efi_option_smi.h>
 #include <types.h>
+#include "ecdefs.h"
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 static void set_insmm_sts(const bool enable_writes)
@@ -103,6 +105,11 @@ static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id i
 			.id = STARLABS_EFIOPT_ID_KBL_STATE,
 			.fallback = KBL_ENABLED,
 		},
+		{
+			.name = "kbl_timeout",
+			.id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
+			.fallback = SEC_30,
+		},
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(opts); i++) {
@@ -139,8 +146,36 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 		if (*value == KBL_DISABLED || *value == KBL_ENABLED)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_KBL_TIMEOUT:
+		if (*value == SEC_30 || *value == MIN_1 || *value == MIN_3 ||
+		    *value == MIN_5 || *value == NEVER)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
 	default:
 		return CB_ERR_ARG;
+	}
+}
+
+static void apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t value)
+{
+	switch (id) {
+	case STARLABS_EFIOPT_ID_FN_LOCK_STATE:
+		ec_write(ECRAM_FN_LOCK_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_TRACKPAD_STATE:
+		ec_write(ECRAM_TRACKPAD_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_BRIGHTNESS:
+		ec_write(ECRAM_KBL_BRIGHTNESS, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_STATE:
+		ec_write(ECRAM_KBL_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_TIMEOUT:
+		ec_write(ECRAM_KBL_TIMEOUT, value);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -177,6 +212,8 @@ int mainboard_smi_apmc(u8 data)
 		dnvs->status = set_uint_option(opt->name, value);
 		if (wp_enabled)
 			chipset_enable_wp();
+		if (dnvs->status == CB_SUCCESS)
+			apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:

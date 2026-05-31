@@ -26,6 +26,7 @@ enum starlabs_efiopt_id {
 	STARLABS_EFIOPT_ID_TRACKPAD_STATE = 2,
 	STARLABS_EFIOPT_ID_KBL_BRIGHTNESS = 3,
 	STARLABS_EFIOPT_ID_KBL_STATE = 4,
+	STARLABS_EFIOPT_ID_KBL_TIMEOUT = 5,
 };
 
 struct starlabs_dnvs_efiopt {

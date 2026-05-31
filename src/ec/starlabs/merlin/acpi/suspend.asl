@@ -15,6 +15,7 @@ Name (EOFL, 0x1)	// STARLABS_EFIOPT_ID_FN_LOCK_STATE
 Name (EOTP, 0x2)	// STARLABS_EFIOPT_ID_TRACKPAD_STATE
 Name (EOKB, 0x3)	// STARLABS_EFIOPT_ID_KBL_BRIGHTNESS
 Name (EOKS, 0x4)	// STARLABS_EFIOPT_ID_KBL_STATE
+Name (EOKT, 0x5)	// STARLABS_EFIOPT_ID_KBL_TIMEOUT
 
 Mutex (EOMX, 0x00)
 
@@ -56,20 +57,6 @@ Method (EOSV, 2, Serialized)
 
 Method (RPTS, 1, Serialized)
 {
-
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-	/* Store current EC settings in UEFI variable store */
-	Store (\_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.TPLE)), Local0)
-	If (Local0 == 0x11)
-	{
-		Store (0x00, Local0)
-	}
-	EOSV (EOTP, Local0)
-
-	EOSV (EOFL, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.FLKE)))
-	EOSV (EOKS, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLSE)))
-	EOSV (EOKB, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLBE)))
-#endif
 
 	/*
 	 * Disable ACPI support.
@@ -131,6 +118,12 @@ Method (RWAK, 1, Serialized)
 		{
 			\_SB.PCI0.LPCB.EC.ECWR (0xaa, RefOf(\_SB.PCI0.LPCB.EC.KLBE))
 		}
+	}
+
+	Store (EOGT (EOKT), Local0)
+	If (Local0 <= 0x04)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.KLTE))
 	}
 #endif
 
