@@ -14,6 +14,7 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/oc_wdt.h>
@@ -393,6 +394,9 @@ void smihandler_southbridge_apmc(
 	}
 
 	if (opal_s3_smi_apmc(reg8))
+		return;
+
+	if (cfr_runtime_apply_smi_apmc(reg8))
 		return;
 
 	mainboard_smi_apmc(reg8);

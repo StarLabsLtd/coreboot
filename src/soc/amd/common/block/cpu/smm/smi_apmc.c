@@ -7,6 +7,7 @@
 #include <arch/io.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <smmstore.h>
 #include <types.h>
@@ -138,6 +139,9 @@ void fch_apmc_smi_handler(void)
 		psp_notify_smm();
 		break;
 	}
+
+	if (cfr_runtime_apply_smi_apmc(cmd))
+		return;
 
 	mainboard_smi_apmc(cmd);
 }
