@@ -5,6 +5,26 @@ config SOC_INTEL_COMMON_BLOCK_SMM
 	help
 	  Intel Processor common SMM support
 
+config SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
+	bool
+	help
+	  Intel Processor common SMM support for a standard GPE Wake Alarm
+	  Device Timer event.
+
+config SOC_INTEL_COMMON_BLOCK_SMM_KEEP_WADT_ENABLED_IN_S5
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
+	default n
+	help
+	  Keep the Wake Alarm Device Timer GPE enabled when entering S5.
+
+	  The common Intel S5 SMI handler clears all GPE enables before
+	  entering S5. Platforms that advertise the ACPI Time and Alarm
+	  Device as S5 wake-capable need to re-enable WADT before SLP_EN is
+	  asserted, otherwise the OS can program an S5 wake alarm that firmware
+	  prevents from waking the platform.
+
 config SOC_INTEL_COMMON_BLOCK_SMM_IO_TRAP
 	bool
 	help
