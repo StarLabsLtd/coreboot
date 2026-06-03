@@ -66,23 +66,10 @@ Device(LPCB) {
 	/* Real Time Clock Device */
 	Device(RTC0) {
 		Name(_HID, EISAID("PNP0B00"))   /* AT Real Time Clock (not PIIX4 compatible) */
-		Name(CRS0, ResourceTemplate() {
-			IO(Decode16,0x0070, 0x0070, 0, 2)
-		})
-		Name(CRS1, ResourceTemplate() {
+		Name(_CRS, ResourceTemplate() {
 			IRQNoFlags(){8}
-			IO(Decode16,0x0070, 0x0070, 0, 2)
+			IO(Decode16,0x0070, 0x0070, 1, 8)
 		})
-		Method (_CRS, 0)
-		{
-			/* Avoid IRQ resource conflict with HPET */
-			If (^^HPEN)
-			{
-				Return (CRS0)
-			}
-
-			Return (CRS1)
-		}
 	} /* End Device(_SB.PCI0.LpcIsaBr.RTC0) */
 
 	Device(TMR) {	/* Timer */
