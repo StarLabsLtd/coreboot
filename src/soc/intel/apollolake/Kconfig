@@ -4,7 +4,6 @@ config SOC_INTEL_APOLLOLAKE
 	bool
 	select INTEL_CAR_CQOS
 	select ACPI_INTEL_HARDWARE_SLEEP_VALUES
-	select ACPI_NO_PCAT_8259
 	select ARCH_X86
 	select BOOT_DEVICE_SUPPORTS_WRITES
 	# CPU specific options
@@ -122,6 +121,9 @@ config SKIP_CSE_RBP
 	  as designed.
 
 config DISABLE_HECI1_AT_PRE_BOOT
+	default y
+
+config NO_PCAT_8259
 	default y
 
 config SOC_HAS_MSR_VR_CURRENT_CONFIG
