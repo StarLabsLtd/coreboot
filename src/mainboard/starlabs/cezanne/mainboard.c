@@ -3,6 +3,8 @@
 #include <amdblocks/acpi.h>
 #include <amdblocks/amd_pci_util.h>
 #include <amdblocks/acpimmio.h>
+#include <acpi/acpi.h>
+#include <arch/smp/mpspec.h>
 #include <commonlib/helpers.h>
 #include <device/device.h>
 
@@ -53,6 +55,14 @@ const struct fch_irq_routing *mb_get_fch_irq_mapping(size_t *length)
 {
 	*length = ARRAY_SIZE(fch_irq_map);
 	return fch_irq_map;
+}
+
+unsigned long mainboard_write_madt_irq_overrides(unsigned long current)
+{
+	current += acpi_create_madt_irqoverride((void *)current, MP_BUS_ISA, 11, 11,
+						MP_IRQ_TRIGGER_LEVEL | MP_IRQ_POLARITY_LOW);
+
+	return current;
 }
 
 struct chip_operations mainboard_ops = {};
