@@ -39,7 +39,9 @@ void mb_devtree_update(void)
 	if (get_uint_option("gna", 0) == 0)
 		DEV_PTR(gna)->enabled = 0;
 
-	/* Enable/Disable Card Reader based on CMOS Settings */
-	if (get_uint_option("card_reader", 0) == 0)
-		cfg->usb2_ports[3].enable = 0;
+	/*
+	 * USB2_P4 is an unpopulated card-reader/fingerprint alternate path on
+	 * production boards. The card reader is downstream of the keyboard hub.
+	 */
+	cfg->usb2_ports[3].enable = 0;
 }

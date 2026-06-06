@@ -120,14 +120,6 @@ static struct sm_obj_form display_group = {
 					     &touchscreen,
 					     NULL, },
 };
-
-static struct sm_obj_form io_expansion_group = {
-	.ui_name = "I/O / Expansion",
-	.obj_list =
-		(const struct sm_object *[]){
-					     &card_reader,
-					     NULL, },
-};
 #endif
 
 static struct sm_obj_form pcie_power_management_group = {
@@ -211,7 +203,6 @@ static struct sm_obj_form *sm_root[] = {
 	&debug_group,
 #if CONFIG(BOARD_STARLABS_LITE_ADL)
 	&display_group,
-	&io_expansion_group,
 #endif
 #if CONFIG(SYSTEM_TYPE_LAPTOP)
 	&keyboard_group,
