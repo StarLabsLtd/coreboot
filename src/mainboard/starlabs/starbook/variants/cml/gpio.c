@@ -188,7 +188,7 @@ const struct pad_config gpio_table[] = {
 	PAD_CFG_GPO(GPP_D14, 1, PLTRST),
 	PAD_NC(GPP_D15, NONE),
 	/* D16:	 GPIO_2_EC			*/
-	PAD_CFG_GPO(GPP_D16, 0, PWROK),
+	PAD_CFG_GPO(GPP_D16, 0, RSMRST),
 	/* D17:	 DMIC_CLK1_SNDW3_CLK		*/
 	PAD_CFG_NF(GPP_D17, NONE, DEEP, NF1),
 	/* D18:	 DMIC_DATA1_SNDW3_DATA		*/
