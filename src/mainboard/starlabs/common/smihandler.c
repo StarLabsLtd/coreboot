@@ -109,6 +109,53 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
 		.fallback = SEC_30,
 	},
+	{
+		.name = "fn_ctrl_swap",
+		.id = STARLABS_EFIOPT_ID_FN_CTRL_SWAP,
+		.fallback = FN_CTRL,
+	},
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	{
+		.name = "max_charge",
+		.id = STARLABS_EFIOPT_ID_MAX_CHARGE,
+		.fallback = CHARGE_100,
+	},
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	{
+		.name = "fan_mode",
+		.id = STARLABS_EFIOPT_ID_FAN_MODE,
+		.fallback = FAN_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	{
+		.name = "charging_speed",
+		.id = STARLABS_EFIOPT_ID_CHARGING_SPEED,
+		.fallback = SPEED_1_0C,
+	},
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	{
+		.name = "lid_switch",
+		.id = STARLABS_EFIOPT_ID_LID_SWITCH,
+		.fallback = SWITCH_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	{
+		.name = "power_led",
+		.id = STARLABS_EFIOPT_ID_POWER_LED,
+		.fallback = LED_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	{
+		.name = "charge_led",
+		.id = STARLABS_EFIOPT_ID_CHARGE_LED,
+		.fallback = LED_NORMAL,
+	},
+#endif
 };
 
 static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id id)
@@ -162,6 +209,48 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 		    *value == MIN_5 || *value == NEVER)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_FN_CTRL_SWAP:
+		if (*value == FN_CTRL || *value == CTRL_FN)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	case STARLABS_EFIOPT_ID_MAX_CHARGE:
+		if (*value == CHARGE_100 || *value == CHARGE_80 || *value == CHARGE_60)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	case STARLABS_EFIOPT_ID_FAN_MODE:
+		if (*value == FAN_NORMAL || *value == FAN_AGGRESSIVE ||
+		    *value == FAN_QUIET || *value == FAN_DISABLED)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	case STARLABS_EFIOPT_ID_CHARGING_SPEED:
+		if (*value == SPEED_1_0C || *value == SPEED_0_5C || *value == SPEED_0_2C)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	case STARLABS_EFIOPT_ID_LID_SWITCH:
+		if (*value == SWITCH_NORMAL || *value == SWITCH_SLEEP_ONLY ||
+		    *value == SWITCH_DISABLED)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	case STARLABS_EFIOPT_ID_POWER_LED:
+		if (*value == LED_NORMAL || *value == LED_REDUCED || *value == LED_OFF)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	case STARLABS_EFIOPT_ID_CHARGE_LED:
+		if (*value == LED_NORMAL || *value == LED_REDUCED || *value == LED_OFF)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
@@ -185,6 +274,39 @@ static void apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t value)
 	case STARLABS_EFIOPT_ID_KBL_TIMEOUT:
 		ec_write(ECRAM_KBL_TIMEOUT, value);
 		break;
+	case STARLABS_EFIOPT_ID_FN_CTRL_SWAP:
+		ec_write(ECRAM_FN_CTRL_REVERSE, value);
+		break;
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	case STARLABS_EFIOPT_ID_MAX_CHARGE:
+		ec_write(ECRAM_MAX_CHARGE, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	case STARLABS_EFIOPT_ID_FAN_MODE:
+		ec_write(ECRAM_FAN_MODE, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	case STARLABS_EFIOPT_ID_CHARGING_SPEED:
+		ec_write(ECRAM_CHARGING_SPEED, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	case STARLABS_EFIOPT_ID_LID_SWITCH:
+		ec_write(ECRAM_LID_SWITCH, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	case STARLABS_EFIOPT_ID_POWER_LED:
+		ec_write(ECRAM_POWER_LED, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	case STARLABS_EFIOPT_ID_CHARGE_LED:
+		ec_write(ECRAM_CHARGE_LED, value);
+		break;
+#endif
 	default:
 		break;
 	}
