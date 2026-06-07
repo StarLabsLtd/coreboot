@@ -213,8 +213,20 @@ static void *get_tcpa_log(u32 *size)
 	return lasa;
 }
 
+static bool acpi_tpm_init(void)
+{
+#if CONFIG(TPM)
+	return tlcl_lib_init() == TPM_SUCCESS;
+#else
+	return false;
+#endif
+}
+
 static void acpi_create_tcpa(acpi_header_t *header, void *unused)
 {
+	if (!acpi_tpm_init())
+		return;
+
 	if (tlcl_get_family() != TPM_1)
 		return;
 
@@ -261,6 +273,9 @@ static void *get_tpm2_log(u32 *size)
 
 static void acpi_create_tpm2(acpi_header_t *header, void *unused)
 {
+	if (!acpi_tpm_init())
+		return;
+
 	if (tlcl_get_family() != TPM_2)
 		return;
 
