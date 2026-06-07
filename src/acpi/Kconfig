@@ -33,6 +33,16 @@ config NO_PCAT_8259
 config ACPI_HAVE_PCAT_8259
 	def_bool y if !NO_PCAT_8259
 
+config ACPI_TPM_TABLES_REQUIRE_PROBE
+	bool
+	depends on TPM
+	help
+	  Probe the TPM library before emitting TCPA or TPM2 ACPI tables.
+
+	  Select this on platforms where a TPM can be configured but absent at
+	  runtime, and the OS should not see TPM ACPI tables unless firmware
+	  found working TPM hardware.
+
 config ACPI_INTEL_HARDWARE_SLEEP_VALUES
 	def_bool n
 	help
