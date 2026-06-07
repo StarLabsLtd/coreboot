@@ -220,8 +220,23 @@ static void *get_tcpa_log(u32 *size)
 	return lasa;
 }
 
+static bool acpi_should_create_tpm_tables(void)
+{
+	if (!CONFIG(ACPI_TPM_TABLES_REQUIRE_PROBE))
+		return true;
+
+#if CONFIG(TPM)
+	return tlcl_lib_init() == TPM_SUCCESS;
+#else
+	return false;
+#endif
+}
+
 static void acpi_create_tcpa(acpi_header_t *header, void *unused)
 {
+	if (!acpi_should_create_tpm_tables())
+		return;
+
 	if (tlcl_get_family() != TPM_1)
 		return;
 
@@ -272,6 +287,9 @@ static void acpi_create_tpm2(acpi_header_t *header, void *unused)
 	u64 control_area;
 	u32 start_method;
 	uint8_t method_params[sizeof(tpm2->msp)] = { 0 };
+
+	if (!acpi_should_create_tpm_tables())
+		return;
 
 	if (tlcl_get_family() != TPM_2)
 		return;
