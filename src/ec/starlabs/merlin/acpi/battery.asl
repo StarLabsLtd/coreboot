@@ -44,18 +44,20 @@ Device (BAT0)
 
 	Method (BFCX, 0, NotSerialized)
 	{
-		Local0 = ECRD(RefOf(B1DC))
-
-		Local1 = ECRD(RefOf(B1FC))
-		If (Local1) {
-			If (Local1 != 0xffff) {
-				If (Local1 > Local0) {
-					Local0 = Local1
+		Local0 = ECRD(RefOf(B1FC))
+		Local1 = ECRD(RefOf(B1RC))
+		If (Local0) {
+			If (Local0 != 0xffff) {
+				If (Local1 != 0xffff) {
+					If (Local1 > Local0) {
+						Local0 = Local1
+					}
 				}
+				Return (Local0)
 			}
 		}
 
-		Local1 = ECRD(RefOf(B1RC))
+		Local0 = ECRD(RefOf(B1DC))
 		If (Local1 != 0xffff) {
 			If (Local1 > Local0) {
 				Local0 = Local1
