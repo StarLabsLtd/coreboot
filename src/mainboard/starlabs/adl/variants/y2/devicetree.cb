@@ -5,6 +5,7 @@ chip soc/intel/alderlake
 	register "energy_efficient_turbo"	= "true"
 	register "cnvi_bt_core"			= "true"
 	register "sagv"				= "SaGv_Enabled"
+	register "common_soc_config.chipset_lockdown" = "CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK"
 
 	# Serial I/O
 	register "serial_io_uart_mode" = "{
