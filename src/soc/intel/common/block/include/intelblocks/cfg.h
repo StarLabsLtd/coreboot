@@ -8,11 +8,33 @@
 #include <intelblocks/gspi.h>
 #include <drivers/i2c/designware/dw_i2c.h>
 #include <intelblocks/mmc.h>
+#include <types.h>
 
 enum {
-	CHIPSET_LOCKDOWN_COREBOOT = 0,	/* coreboot handles locking */
-	CHIPSET_LOCKDOWN_FSP,		/* FSP handles locking per UPDs */
+	CHIPSET_LOCKDOWN_COREBOOT = 0, /* coreboot handles locking */
+	CHIPSET_LOCKDOWN_FSP,          /* FSP handles locking per UPDs */
+	/*
+	 * FSP handles platform lockdown, while coreboot applies final
+	 * BIOS lock settings after SMM setup.
+	 */
+	CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK,
 };
+
+static inline bool chipset_lockdown_uses_fsp_platform_lockdown(int chipset_lockdown)
+{
+	return chipset_lockdown == CHIPSET_LOCKDOWN_FSP ||
+	       chipset_lockdown == CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK;
+}
+
+static inline bool chipset_lockdown_uses_fsp_bios_lock(int chipset_lockdown)
+{
+	return chipset_lockdown == CHIPSET_LOCKDOWN_FSP;
+}
+
+static inline bool chipset_lockdown_uses_late_coreboot_bios_lock(int chipset_lockdown)
+{
+	return chipset_lockdown == CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK;
+}
 
 /*
  * This structure will hold data required by common blocks.
