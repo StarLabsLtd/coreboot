@@ -20,6 +20,7 @@
 #include <fsp/util.h>
 #include <gpio.h>
 #include <intelblocks/aspm.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
 #include <intelblocks/lpss.h>
@@ -685,12 +686,13 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
 	/* Chipset Lockdown */
-	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
-	s_cfg->PchLockDownGlobalSmi = lockdown_by_fsp;
-	s_cfg->PchLockDownBiosInterface = lockdown_by_fsp;
-	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp;
-	s_cfg->RtcMemoryLock = lockdown_by_fsp;
-	s_cfg->SkipPamLock = !lockdown_by_fsp;
+	const bool platform_lockdown_by_fsp = chipset_lockdown_use_fsp(get_lockdown_config());
+
+	s_cfg->PchLockDownGlobalSmi = platform_lockdown_by_fsp;
+	s_cfg->PchLockDownBiosInterface = platform_lockdown_by_fsp;
+	s_cfg->PchUnlockGpioPads = !platform_lockdown_by_fsp;
+	s_cfg->RtcMemoryLock = platform_lockdown_by_fsp;
+	s_cfg->SkipPamLock = !platform_lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
 	s_cfg->EndOfPostMessage = EOP_DISABLE;
