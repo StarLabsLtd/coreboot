@@ -139,7 +139,12 @@ Device (BAT0)
 	Method (_BST, 0, NotSerialized)
 	{
 		PKG1[0] = (ECRD(RefOf(B1ST)) & 0x07)
-		PKG1[1] = ECRD(RefOf(B1PR))
+
+		Local0 = ECRD(RefOf(B1PR))
+		If (Local0 >= 0x8000) {
+			Local0 = 0xffffffff
+		}
+		PKG1[1] = Local0
 
 		PKG1[2] = 0xffffffff
 
