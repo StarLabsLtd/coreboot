@@ -124,22 +124,30 @@ Scope (\_SB.PCI0.LPCB)
 
 		Method (_REG, 2, NotSerialized)
 		{
-			If ((Arg0 == 0x03) && (Arg1 == 0x01))
+			If (Arg0 == 0x03)
 			{
-				// Load EC Driver
-				ECAV = 0x01
+				If (Arg1 == 0x00)
+				{
+					// Unload EC Driver
+					ECAV = 0x00
+				}
+				If (Arg1 == 0x01)
+				{
+					// Load EC Driver
+					ECAV = 0x01
 
-				// Initialise the Lid State
-				\LIDS = ECRD(RefOf(LSTE))
+					// Initialise the Lid State
+					\LIDS = ECRD(RefOf(LSTE))
 
-				// Initialise the OS State
-				ECWR(0x01, RefOf(OSFG))
+					// Initialise the OS State
+					ECWR(0x01, RefOf(OSFG))
 
-				// Initialise the Power State
-				PWRS = (ECRD (RefOf(ECPS)) & 0x01)
+					// Initialise the Power State
+					PWRS = (ECRD (RefOf(ECPS)) & 0x01)
 
-				// Inform the platform code
-				PNOT()
+					// Inform the platform code
+					PNOT()
+				}
 			}
 		}
 	}

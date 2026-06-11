@@ -16,6 +16,14 @@ Name (EOTP, 0x2)	// STARLABS_EFIOPT_ID_TRACKPAD_STATE
 Name (EOKB, 0x3)	// STARLABS_EFIOPT_ID_KBL_BRIGHTNESS
 Name (EOKS, 0x4)	// STARLABS_EFIOPT_ID_KBL_STATE
 Name (EOKT, 0x5)	// STARLABS_EFIOPT_ID_KBL_TIMEOUT
+Name (EOFC, 0x6)	// STARLABS_EFIOPT_ID_FN_CTRL_SWAP
+Name (EOMC, 0x7)	// STARLABS_EFIOPT_ID_MAX_CHARGE
+Name (EOFM, 0x8)	// STARLABS_EFIOPT_ID_FAN_MODE
+Name (EOCS, 0x9)	// STARLABS_EFIOPT_ID_CHARGING_SPEED
+Name (EOLS, 0x0A)	// STARLABS_EFIOPT_ID_LID_SWITCH
+Name (EOPL, 0x0B)	// STARLABS_EFIOPT_ID_POWER_LED
+Name (EOCL, 0x0C)	// STARLABS_EFIOPT_ID_CHARGE_LED
+Name (EOPA, 0x0D)	// STARLABS_EFIOPT_ID_POWER_ON_AC
 
 Mutex (EOMX, 0x00)
 
@@ -90,6 +98,44 @@ Method (EOSV, 2, Serialized)
 Method (RPTS, 1, Serialized)
 {
 
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+	/* Store current EC settings in UEFI variable store */
+	Store (\_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.TPLE)), Local0)
+	If (Local0 == 0x11)
+	{
+		Store (0x00, Local0)
+	}
+	EOSV (EOTP, Local0)
+
+	EOSV (EOFL, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.FLKE)))
+	EOSV (EOKS, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLSE)))
+	EOSV (EOKB, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLBE)))
+	EOSV (EOKT, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLTE)))
+	EOSV (EOFC, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.FCLA)))
+
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	EOSV (EOMC, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.BFCP)))
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	EOSV (EOFM, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.FANM)))
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	EOSV (EOCS, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.CHSP)))
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	EOSV (EOLS, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.LIDC)))
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	EOSV (EOPL, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.PLED)))
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	EOSV (EOCL, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.CHLE)))
+#endif
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+	EOSV (EOPA, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.POAC)))
+#endif
+#endif
+
 	/*
 	 * Disable ACPI support.
 	 * This should always be the last action before entering a sleep state.
@@ -157,6 +203,93 @@ Method (RWAK, 1, Serialized)
 	{
 		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.KLTE))
 	}
+
+	Store (EOGT (EOFC), Local0)
+	If (Local0 <= 0x01)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.FCLA))
+	}
+
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	Store (EOGT (EOMC), Local0)
+	Switch (ToInteger (Local0))
+	{
+		Case (0x00)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0x00, RefOf(\_SB.PCI0.LPCB.EC.BFCP))
+		}
+		Case (0xbb)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0xbb, RefOf(\_SB.PCI0.LPCB.EC.BFCP))
+		}
+		Case (0xaa)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0xaa, RefOf(\_SB.PCI0.LPCB.EC.BFCP))
+		}
+	}
+#endif
+
+#if CONFIG(EC_STARLABS_FAN)
+	Store (EOGT (EOFM), Local0)
+	Switch (ToInteger (Local0))
+	{
+		Case (0x00)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0x00, RefOf(\_SB.PCI0.LPCB.EC.FANM))
+		}
+		Case (0xbb)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0xbb, RefOf(\_SB.PCI0.LPCB.EC.FANM))
+		}
+		Case (0xaa)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0xaa, RefOf(\_SB.PCI0.LPCB.EC.FANM))
+		}
+		Case (0xcc)
+		{
+			\_SB.PCI0.LPCB.EC.ECWR (0xcc, RefOf(\_SB.PCI0.LPCB.EC.FANM))
+		}
+	}
+#endif
+
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	Store (EOGT (EOCS), Local0)
+	If (Local0 <= 0x02)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.CHSP))
+	}
+#endif
+
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	Store (EOGT (EOLS), Local0)
+	If (Local0 <= 0x02)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.LIDC))
+	}
+#endif
+
+#if CONFIG(EC_STARLABS_POWER_LED)
+	Store (EOGT (EOPL), Local0)
+	If (Local0 <= 0x02)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.PLED))
+	}
+#endif
+
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	Store (EOGT (EOCL), Local0)
+	If (Local0 <= 0x02)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.CHLE))
+	}
+#endif
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+	Store (EOGT (EOPA), Local0)
+	If (Local0 <= 0x01)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.POAC))
+	}
+#endif
 #endif
 
 	Return (Arg0)

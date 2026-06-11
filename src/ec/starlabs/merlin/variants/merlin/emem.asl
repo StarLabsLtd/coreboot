@@ -25,9 +25,20 @@ Field (ECF2, ByteAcc, Lock, Preserve)
 	Offset(0x17),
 	FCLA, 8,	// Fn Ctrl Reverse
 
+	Offset(0x18),
+	CHLE, 8,	// Charge LED Mode
+
 	Offset(0x1a),
 	BFCP, 8,	// Maximum Charge Level
 	FANM, 8,	// Fan Mode
+
+	Offset(0x1d),
+	CHSP, 8,	// Charging Speed
+	LIDC, 8,	// Lid Switch Control
+	PLED, 8,	// Power LED Mode
+
+	Offset(0x20),
+	POAC, 8,	// Power On AC Connect
 
 	Offset(0x40),
 	SHIP, 8,	// Shipping Mode Flag

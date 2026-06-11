@@ -175,3 +175,18 @@ static const struct sm_object charge_led = SM_DECLARE_ENUM({
 #endif
 	.values		= led_brightness,
 });
+
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+/*
+ * Power on when adapter is connected
+ */
+static const struct sm_object power_on_ac = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "power_on_ac",
+	.ui_name	= "Power On AC Connect",
+	.ui_helptext	= "Power on automatically when a charger is connected.",
+	.default_value	= true,
+	.runtime_apply_method = CFR_RUNTIME_APPLY_APM_CNT,
+	.runtime_apply_id = STARLABS_EFIOPT_ID_POWER_ON_AC,
+});
+#endif
