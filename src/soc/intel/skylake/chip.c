@@ -399,17 +399,20 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	 */
 	tconfig->PchSbAccessUnlock = soc_disable_heci1_at_pre_boot();
 
-	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
-	tconfig->PchLockDownBiosInterface = lockdown_by_fsp;
-	params->PchLockDownBiosLock = lockdown_by_fsp;
-	params->PchLockDownSpiEiss = lockdown_by_fsp;
+	const int lockdown_config = get_lockdown_config();
+	const bool platform_lockdown_by_fsp = chipset_lockdown_use_fsp(lockdown_config);
+	const bool bios_lockdown_by_fsp = lockdown_config == CHIPSET_LOCKDOWN_FSP;
+
+	tconfig->PchLockDownBiosInterface = platform_lockdown_by_fsp;
+	params->PchLockDownBiosLock = bios_lockdown_by_fsp;
+	params->PchLockDownSpiEiss = bios_lockdown_by_fsp;
 	/*
 	 * Making this config "0" means FSP won't set the FLOCKDN bit
 	 * of SPIBAR + 0x04 (i.e., Bit 15 of BIOS_HSFSTS_CTL).
 	 * So, it becomes coreboot's responsibility to set this bit
 	 * before end of POST for security concerns.
 	 */
-	params->SpiFlashCfgLockDown = lockdown_by_fsp;
+	params->SpiFlashCfgLockDown = platform_lockdown_by_fsp;
 
 	/* FSP should let coreboot set subsystem IDs, which are read/write-once */
 	params->DefaultSvid = 0;
