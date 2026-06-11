@@ -10,6 +10,7 @@ chip soc/intel/meteorlake
 	}"
 
 	register "common_soc_config" = "{
+		.chipset_lockdown		= CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK,
 		.i2c[0] = {
 			.speed				= I2C_SPEED_FAST,
 		},
