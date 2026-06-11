@@ -706,15 +706,21 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 
 	silconfig->SkipMpInit = !CONFIG(USE_INTEL_FSP_MP_INIT);
 
-	/* coreboot handles lockdown unless the board delegates it to FSP */
-	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
+	/* coreboot handles lockdown unless the board delegates it to FSP. */
+	const int lockdown_config = get_lockdown_config();
+	const bool platform_lockdown_by_fsp =
+		chipset_lockdown_uses_fsp_platform_lockdown(lockdown_config);
+	const bool bios_lockdown_by_fsp = chipset_lockdown_uses_fsp_bios_lock(lockdown_config);
 
-	silconfig->LockDownGlobalSmi		= lockdown_by_fsp;
-	silconfig->BiosLock			= lockdown_by_fsp;
-	silconfig->BiosInterface		= lockdown_by_fsp;
-	silconfig->WriteProtectionEnable[0]	= lockdown_by_fsp;
-	silconfig->SpiEiss			= lockdown_by_fsp;
-	silconfig->RtcLock			= lockdown_by_fsp;
+	silconfig->LockDownGlobalSmi		= platform_lockdown_by_fsp;
+	silconfig->BiosLock			= bios_lockdown_by_fsp;
+	silconfig->BiosInterface		= platform_lockdown_by_fsp;
+	silconfig->WriteProtectionEnable[0]	= platform_lockdown_by_fsp;
+	silconfig->ReadProtectionEnable[0]	= platform_lockdown_by_fsp;
+	silconfig->ProtectedRangeLimit[0]	= 0x0fff;
+	silconfig->ProtectedRangeBase[0]	= 0x0000;
+	silconfig->SpiEiss			= bios_lockdown_by_fsp;
+	silconfig->RtcLock			= platform_lockdown_by_fsp;
 
 	/* Enable Audio clk gate and power gate */
 	silconfig->HDAudioClkGate = cfg->hdaudio_clk_gate_enable;
