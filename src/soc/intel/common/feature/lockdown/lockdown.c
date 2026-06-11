@@ -11,8 +11,8 @@
 #include <stdint.h>
 
 /* PCR PSTH Control Register */
-#define PCR_PSTH_CTRLREG		0x1d00
-#define PSTH_CTRLREG_IOSFPTCGE		BIT(2)
+#define PCR_PSTH_CTRLREG       0x1d00
+#define PSTH_CTRLREG_IOSFPTCGE BIT(2)
 
 static void pmc_lockdown_config(int chipset_lockdown)
 {
@@ -29,12 +29,13 @@ static void pmc_lockdown_config(int chipset_lockdown)
 	if (!CONFIG(USE_FSP_NOTIFY_PHASE_POST_PCI_ENUM)) {
 		setbits32(pmcbase + PMC_FDIS_LOCK_REG, ST_FDIS_LOCK);
 		setbits32(pmcbase + SSML, SSML_SSL_EN);
-		setbits32(pmcbase + PM_CFG, PM_CFG_DBG_MODE_LOCK |
-					 PM_CFG_XRAM_READ_DISABLE);
+		setbits32(pmcbase + PM_CFG, PM_CFG_DBG_MODE_LOCK | PM_CFG_XRAM_READ_DISABLE);
 	}
 
-	/* Send PMC IPC to inform about both BIOS Reset and PCI enumeration done */
-	pmc_send_bios_reset_pci_enum_done();
+	if (!CONFIG(USE_FSP_NOTIFY_PHASE_POST_PCI_ENUM)) {
+		/* Inform PMC that BIOS reset and PCI enumeration are done. */
+		pmc_send_bios_reset_pci_enum_done();
+	}
 }
 
 static void soc_die_lockdown_cfg(void)
