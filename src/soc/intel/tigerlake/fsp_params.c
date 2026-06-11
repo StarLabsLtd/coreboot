@@ -12,6 +12,7 @@
 #include <fsp/ppi/mp_service_ppi.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
 #include <intelblocks/lpss.h>
@@ -359,12 +360,14 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->DisableTccoldOnUsbConnected = 1;
 
 	/* Chipset Lockdown */
-	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
-	params->PchLockDownGlobalSmi = lockdown_by_fsp;
-	params->PchLockDownBiosInterface = lockdown_by_fsp;
-	params->PchUnlockGpioPads = !lockdown_by_fsp;
-	params->RtcMemoryLock = lockdown_by_fsp;
-	params->SkipPamLock = !lockdown_by_fsp;
+	const bool platform_lockdown_by_fsp =
+		chipset_lockdown_uses_fsp_platform_lockdown(get_lockdown_config());
+
+	params->PchLockDownGlobalSmi = platform_lockdown_by_fsp;
+	params->PchLockDownBiosInterface = platform_lockdown_by_fsp;
+	params->PchUnlockGpioPads = !platform_lockdown_by_fsp;
+	params->RtcMemoryLock = platform_lockdown_by_fsp;
+	params->SkipPamLock = !platform_lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
 	params->EndOfPostMessage = EOP_DISABLE;
