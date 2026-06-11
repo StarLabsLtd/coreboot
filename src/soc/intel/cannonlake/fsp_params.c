@@ -8,6 +8,7 @@
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <option.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
 #include <intelblocks/lpss.h>
@@ -704,12 +705,16 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 #endif
 
 	/* Chipset Lockdown */
-	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
-	tconfig->PchLockDownGlobalSmi = lockdown_by_fsp;
-	tconfig->PchLockDownBiosInterface = lockdown_by_fsp;
-	s_cfg->PchLockDownBiosLock = lockdown_by_fsp;
-	s_cfg->PchLockDownRtcMemoryLock = lockdown_by_fsp;
-	tconfig->SkipPamLock = !lockdown_by_fsp;
+	const int lockdown_config = get_lockdown_config();
+	const bool platform_lockdown_by_fsp =
+		chipset_lockdown_uses_fsp_platform_lockdown(lockdown_config);
+	const bool bios_lockdown_by_fsp = chipset_lockdown_uses_fsp_bios_lock(lockdown_config);
+
+	tconfig->PchLockDownGlobalSmi = platform_lockdown_by_fsp;
+	tconfig->PchLockDownBiosInterface = platform_lockdown_by_fsp;
+	s_cfg->PchLockDownBiosLock = bios_lockdown_by_fsp;
+	s_cfg->PchLockDownRtcMemoryLock = platform_lockdown_by_fsp;
+	tconfig->SkipPamLock = !platform_lockdown_by_fsp;
 #if CONFIG(SOC_INTEL_COMETLAKE)
 	/*
 	 * Making this config "0" means FSP won't set the FLOCKDN bit
@@ -717,7 +722,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	 * So, it becomes coreboot's responsibility to set this bit
 	 * before end of POST for security concerns.
 	 */
-	s_cfg->SpiFlashCfgLockDown = lockdown_by_fsp;
+	s_cfg->SpiFlashCfgLockDown = platform_lockdown_by_fsp;
 #endif
 	/*
 	 * IA32_DEBUG_INTERFACE_MSR has to be locked by coreboot,
