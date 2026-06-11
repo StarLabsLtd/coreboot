@@ -16,7 +16,7 @@ static void preload_pre_fsps(void *unused)
 	 * completed before FSP-S finishes. In this case, it yields better
 	 * results to preload the payload before lockdown.
 	 */
-	if (config->chipset_lockdown == CHIPSET_LOCKDOWN_FSP)
+	if (chipset_lockdown_uses_fsp_platform_lockdown(config->chipset_lockdown))
 		payload_preload();
 }
 
@@ -29,7 +29,7 @@ static void preload_post_fsps(void *unused)
 	 * If the chipset lockdown is handled by FSP, SPI DMA is locked, and
 	 * we cannot preload any other CBFS files.
 	 */
-	if (config->chipset_lockdown == CHIPSET_LOCKDOWN_FSP)
+	if (chipset_lockdown_uses_fsp_platform_lockdown(config->chipset_lockdown))
 		return;
 
 	cbfs_preload(CONFIG_CBFS_PREFIX "/dsdt.aml");
