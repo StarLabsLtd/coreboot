@@ -185,7 +185,7 @@ static const struct sm_object power_on_ac = SM_DECLARE_BOOL({
 	.opt_name	= "power_on_ac",
 	.ui_name	= "Power On AC Connect",
 	.ui_helptext	= "Power on automatically when a charger is connected.",
-	.default_value	= true,
+	.default_value	= ADAPTER_AUTO_POWER_ON_DEFAULT,
 	.runtime_apply_method = CFR_RUNTIME_APPLY_APM_CNT,
 	.runtime_apply_id = STARLABS_EFIOPT_ID_POWER_ON_AC,
 });

@@ -259,15 +259,16 @@ static void merlin_restore_options(void *unused)
 	 * Setting:	power_on_ac
 	 *
 	 * Values:	Enabled, Disabled
-	 * Default:	Enabled
+	 * Default:	Enabled on Mini PC systems, disabled otherwise
 	 *
 	 */
 	const uint8_t power_on_ac[] = {0, 1};
 
 	if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON))
 		ec_write(ECRAM_POWER_ON_AC,
-			 get_ec_value_from_option("power_on_ac", 1, power_on_ac,
-						  ARRAY_SIZE(power_on_ac)));
+			 get_ec_value_from_option("power_on_ac",
+						  ADAPTER_AUTO_POWER_ON_DEFAULT,
+						  power_on_ac, ARRAY_SIZE(power_on_ac)));
 }
 BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_ENTRY, merlin_restore_options, NULL);
 
