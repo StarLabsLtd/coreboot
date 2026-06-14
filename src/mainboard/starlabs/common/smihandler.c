@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <acpi/acpi_gnvs.h>
+#include <arch/io.h>
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm.h>
+#include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 #include <cpu/intel/msr.h>
@@ -14,6 +16,7 @@
 #include <soc/nvs.h>
 #include <starlabs/efi_option_smi.h>
 #include <types.h>
+#include "ecdefs.h"
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 static void set_insmm_sts(const bool enable_writes)
@@ -80,37 +83,99 @@ struct starlabs_efiopt_entry {
 	uint32_t fallback;
 };
 
+static const struct starlabs_efiopt_entry efiopts[] = {
+	{
+		.name = "fn_lock_state",
+		.id = STARLABS_EFIOPT_ID_FN_LOCK_STATE,
+		.fallback = LOCKED,
+	},
+	{
+		.name = "trackpad_state",
+		.id = STARLABS_EFIOPT_ID_TRACKPAD_STATE,
+		.fallback = TRACKPAD_ENABLED,
+	},
+	{
+		.name = "kbl_brightness",
+		.id = STARLABS_EFIOPT_ID_KBL_BRIGHTNESS,
+		.fallback = CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON,
+	},
+	{
+		.name = "kbl_state",
+		.id = STARLABS_EFIOPT_ID_KBL_STATE,
+		.fallback = KBL_ENABLED,
+	},
+	{
+		.name = "kbl_timeout",
+		.id = STARLABS_EFIOPT_ID_KBL_TIMEOUT,
+		.fallback = SEC_30,
+	},
+	{
+		.name = "fn_ctrl_swap",
+		.id = STARLABS_EFIOPT_ID_FN_CTRL_SWAP,
+		.fallback = FN_CTRL,
+	},
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	{
+		.name = "max_charge",
+		.id = STARLABS_EFIOPT_ID_MAX_CHARGE,
+		.fallback = CHARGE_100,
+	},
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	{
+		.name = "fan_mode",
+		.id = STARLABS_EFIOPT_ID_FAN_MODE,
+		.fallback = FAN_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	{
+		.name = "charging_speed",
+		.id = STARLABS_EFIOPT_ID_CHARGING_SPEED,
+		.fallback = SPEED_1_0C,
+	},
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	{
+		.name = "lid_switch",
+		.id = STARLABS_EFIOPT_ID_LID_SWITCH,
+		.fallback = SWITCH_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	{
+		.name = "power_led",
+		.id = STARLABS_EFIOPT_ID_POWER_LED,
+		.fallback = LED_NORMAL,
+	},
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	{
+		.name = "charge_led",
+		.id = STARLABS_EFIOPT_ID_CHARGE_LED,
+		.fallback = LED_NORMAL,
+	},
+#endif
+};
+
 static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id id)
 {
-	static const struct starlabs_efiopt_entry opts[] = {
-		{
-			.name = "fn_lock_state",
-			.id = STARLABS_EFIOPT_ID_FN_LOCK_STATE,
-			.fallback = LOCKED,
-		},
-		{
-			.name = "trackpad_state",
-			.id = STARLABS_EFIOPT_ID_TRACKPAD_STATE,
-			.fallback = TRACKPAD_ENABLED,
-		},
-		{
-			.name = "kbl_brightness",
-			.id = STARLABS_EFIOPT_ID_KBL_BRIGHTNESS,
-			.fallback = CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON,
-		},
-		{
-			.name = "kbl_state",
-			.id = STARLABS_EFIOPT_ID_KBL_STATE,
-			.fallback = KBL_ENABLED,
-		},
-	};
-
-	for (size_t i = 0; i < ARRAY_SIZE(opts); i++) {
-		if (opts[i].id == id)
-			return &opts[i];
+	for (size_t i = 0; i < ARRAY_SIZE(efiopts); i++) {
+		if (efiopts[i].id == id)
+			return &efiopts[i];
 	}
 
 	return NULL;
+}
+
+static uint32_t get_supported_efiopts(void)
+{
+	uint32_t mask = 0;
+
+	for (size_t i = 0; i < ARRAY_SIZE(efiopts); i++)
+		mask |= 1U << efiopts[i].id;
+
+	return mask;
 }
 
 static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
@@ -139,13 +204,141 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 		if (*value == KBL_DISABLED || *value == KBL_ENABLED)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_KBL_TIMEOUT:
+		if (*value == SEC_30 || *value == MIN_1 || *value == MIN_3 ||
+		    *value == MIN_5 || *value == NEVER)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_FN_CTRL_SWAP:
+		if (*value == FN_CTRL || *value == CTRL_FN)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	case STARLABS_EFIOPT_ID_MAX_CHARGE:
+		if (*value == CHARGE_100 || *value == CHARGE_80 || *value == CHARGE_60)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	case STARLABS_EFIOPT_ID_FAN_MODE:
+		if (*value == FAN_NORMAL || *value == FAN_AGGRESSIVE ||
+		    *value == FAN_QUIET || *value == FAN_DISABLED)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	case STARLABS_EFIOPT_ID_CHARGING_SPEED:
+		if (*value == SPEED_1_0C || *value == SPEED_0_5C || *value == SPEED_0_2C)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	case STARLABS_EFIOPT_ID_LID_SWITCH:
+		if (*value == SWITCH_NORMAL || *value == SWITCH_SLEEP_ONLY ||
+		    *value == SWITCH_DISABLED)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	case STARLABS_EFIOPT_ID_POWER_LED:
+		if (*value == LED_NORMAL || *value == LED_REDUCED || *value == LED_OFF)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	case STARLABS_EFIOPT_ID_CHARGE_LED:
+		if (*value == LED_NORMAL || *value == LED_REDUCED || *value == LED_OFF)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
 }
 
+static void apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t value)
+{
+	switch (id) {
+	case STARLABS_EFIOPT_ID_FN_LOCK_STATE:
+		ec_write(ECRAM_FN_LOCK_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_TRACKPAD_STATE:
+		ec_write(ECRAM_TRACKPAD_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_BRIGHTNESS:
+		ec_write(ECRAM_KBL_BRIGHTNESS, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_STATE:
+		ec_write(ECRAM_KBL_STATE, value);
+		break;
+	case STARLABS_EFIOPT_ID_KBL_TIMEOUT:
+		ec_write(ECRAM_KBL_TIMEOUT, value);
+		break;
+	case STARLABS_EFIOPT_ID_FN_CTRL_SWAP:
+		ec_write(ECRAM_FN_CTRL_REVERSE, value);
+		break;
+#if CONFIG(EC_STARLABS_MAX_CHARGE)
+	case STARLABS_EFIOPT_ID_MAX_CHARGE:
+		ec_write(ECRAM_MAX_CHARGE, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_FAN)
+	case STARLABS_EFIOPT_ID_FAN_MODE:
+		ec_write(ECRAM_FAN_MODE, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_SPEED)
+	case STARLABS_EFIOPT_ID_CHARGING_SPEED:
+		ec_write(ECRAM_CHARGING_SPEED, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_LID_SWITCH)
+	case STARLABS_EFIOPT_ID_LID_SWITCH:
+		ec_write(ECRAM_LID_SWITCH, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_POWER_LED)
+	case STARLABS_EFIOPT_ID_POWER_LED:
+		ec_write(ECRAM_POWER_LED, value);
+		break;
+#endif
+#if CONFIG(EC_STARLABS_CHARGE_LED)
+	case STARLABS_EFIOPT_ID_CHARGE_LED:
+		ec_write(ECRAM_CHARGE_LED, value);
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
+static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
+{
+	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+	uint32_t value;
+	enum cb_err ret;
+
+	if (!opt)
+		return CB_ERR_ARG;
+
+	value = get_uint_option(opt->name, opt->fallback);
+	ret = normalize_value(id, &value);
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	apply_runtime_efiopt(id, value);
+	return CB_SUCCESS;
+}
+
 int mainboard_smi_apmc(u8 data)
 {
+	if (data == APM_CNT_CFR_RUNTIME_APPLY) {
+		const enum cb_err ret = apply_stored_efiopt(inb(APM_STS));
+
+		outb((u8)ret, APM_STS);
+		return 1;
+	}
+
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
 
@@ -155,14 +348,21 @@ int mainboard_smi_apmc(u8 data)
 
 	const enum starlabs_efiopt_cmd cmd = dnvs->cmd;
 	const enum starlabs_efiopt_id id = dnvs->id;
-	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+	const struct starlabs_efiopt_entry *opt = NULL;
 
-	if (!opt) {
+	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED)
+		opt = find_efiopt(id);
+
+	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED && !opt) {
 		dnvs->status = CB_ERR_ARG;
 		return 1;
 	}
 
 	switch (cmd) {
+	case STARLABS_EFIOPT_CMD_GET_SUPPORTED:
+		dnvs->value = get_supported_efiopts();
+		dnvs->status = CB_SUCCESS;
+		break;
 	case STARLABS_EFIOPT_CMD_GET:
 		dnvs->value = get_uint_option(opt->name, opt->fallback);
 		dnvs->status = CB_SUCCESS;
@@ -177,6 +377,8 @@ int mainboard_smi_apmc(u8 data)
 		dnvs->status = set_uint_option(opt->name, value);
 		if (wp_enabled)
 			chipset_enable_wp();
+		if (dnvs->status == CB_SUCCESS)
+			apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:
