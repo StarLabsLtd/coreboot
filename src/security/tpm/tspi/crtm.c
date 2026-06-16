@@ -262,6 +262,10 @@ static void tpm_measure_separator_events(void)
 
 	rc = tlcl_lib_init();
 	if (rc != TPM_SUCCESS) {
+		if (rc == TPM_CB_NO_DEVICE && tpm_is_expected_absent()) {
+			printk(BIOS_DEBUG, "TPM: skipping separator events because TPM is absent by platform policy\n");
+			return;
+		}
 		printk(BIOS_ERR, "TPM: Can't initialize library for separator events: %#x\n",
 		       rc);
 		return;
