@@ -19,6 +19,9 @@
 /* ESPI 0:1f.0 */
 #include <soc/intel/common/block/acpi/acpi/lpc.asl>
 
+/* ACPI Time and Alarm device */
+#include <soc/intel/common/acpi/time_alarm.asl>
+
 /* HDA */
 #include "hda.asl"
 
