@@ -135,6 +135,20 @@ static void busmaster_disable_on_bus(int bus)
 	}
 }
 
+static void smihandler_keep_wadt_enabled_in_s5(void)
+{
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_KEEP_WADT_ENABLED_IN_S5)
+	/*
+	 * The common S5 path disables all GPEs. Restore WADT at the final
+	 * pre-SLP_EN point so platforms that advertise ACPI000E S5 wake can
+	 * actually wake.
+	 */
+	outl(WADT_EN, ACPI_BASE_ADDRESS + GPE0_STS(GPE_STD));
+	pmc_enable_std_gpe(WADT_EN);
+	outl(WADT_EN, ACPI_BASE_ADDRESS + GPE0_STS(GPE_STD));
+#endif
+}
+
 void smihandler_southbridge_sleep(
 	const struct smm_save_state_ops *save_state_ops)
 {
@@ -213,6 +227,9 @@ void smihandler_southbridge_sleep(
 
 	/* Allow mainboard to restore wake sources (e.g. for S5 WOL). */
 	mainboard_smi_sleep_finalize(slp_typ);
+
+	if (slp_typ == ACPI_S5)
+		smihandler_keep_wadt_enabled_in_s5();
 
 	/*
 	 * Write back to the SLP register to cause the originally intended
