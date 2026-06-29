@@ -10,7 +10,7 @@
 
 #define TPM_20_LOG_VI_MAGIC 0x32544243 /* "CBT2" in LE */
 #define TPM_20_LOG_VI_MAJOR 1
-#define TPM_20_LOG_VI_MINOR 0
+#define TPM_20_LOG_VI_MINOR 1
 
 /*
  * TPM2.0 log entries can't be generally represented as C structures due to
