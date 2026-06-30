@@ -8,6 +8,7 @@
 #include <soc/soc_chip.h>
 #include <common/powercap.h>
 #include <common/touchpad.h>
+#include <starlabs/efi_option_smi.h>
 
 void cfr_card_reader_update(struct sm_object *new_obj);
 void cfr_touchscreen_update(struct sm_object *new_obj);
@@ -247,6 +248,10 @@ static const struct sm_object touchpad_haptics = SM_DECLARE_ENUM({
 	.ui_name	= "Touchpad Vibration Intensity",
 	.ui_helptext	= "Choose how strong the touchpad click vibration feels.",
 	.default_value	= STARLABS_TOUCHPAD_HAPTICS_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
+	},
 	.values		= (const struct sm_enum_value[]) {
 		{ "Off",	0 },
 		{ "Low",	1 },
@@ -263,6 +268,10 @@ static const struct sm_object touchpad_force_press = SM_DECLARE_ENUM({
 	.ui_name	= "Touchpad Click Force",
 	.ui_helptext	= "Choose how much force it takes to click the touchpad.",
 	.default_value	= STARLABS_TOUCHPAD_PRESS_FORCE_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
+	},
 	.values		= (const struct sm_enum_value[]) {
 		{ "Minimal",	STARLABS_TOUCHPAD_FORCE_MINIMAL },
 		{ "Low",	STARLABS_TOUCHPAD_FORCE_LOW },
@@ -279,6 +288,10 @@ static const struct sm_object touchpad_force_release = SM_DECLARE_ENUM({
 	.ui_name	= "Touchpad Release Force",
 	.ui_helptext	= "Choose how much force it takes for the touchpad click to release.",
 	.default_value	= STARLABS_TOUCHPAD_RELEASE_FORCE_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
+	},
 	.values		= (const struct sm_enum_value[]) {
 		{ "Minimal",	STARLABS_TOUCHPAD_FORCE_MINIMAL },
 		{ "Low",	STARLABS_TOUCHPAD_FORCE_LOW },
@@ -295,6 +308,10 @@ static const struct sm_object touchpad_report_rate = SM_DECLARE_ENUM({
 	.ui_name	= "Touchpad Tracking Speed",
 	.ui_helptext	= "Choose how quickly the touchpad reports movement.",
 	.default_value	= STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE,
+	},
 	.values		= (const struct sm_enum_value[]) {
 		{ "Relaxed",	STARLABS_TOUCHPAD_RATE_RELAXED },
 		{ "Balanced",	STARLABS_TOUCHPAD_RATE_BALANCED },
