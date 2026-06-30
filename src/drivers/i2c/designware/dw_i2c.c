@@ -1,11 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#if ENV_RAMSTAGE
 #include <acpi/acpigen.h>
+#endif
 #include <device/mmio.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/i2c_bus.h>
 #include <device/i2c_simple.h>
+#if ENV_SMM
+#include <device/pci.h>
+#include <device/pci_def.h>
+#include <device/pci_ops.h>
+#include <intelblocks/lpss.h>
+#endif
 #include <string.h>
 #include <timer.h>
 #include <types.h>
@@ -15,6 +23,10 @@
 #define DW_I2C_TIMEOUT_US		10000
 /* Timeout for waiting for FIFO to flush */
 #define DW_I2C_FLUSH_TIMEOUT_US		160000
+
+#if ENV_SMM
+#define DW_I2C_LPSS_PMCSR	0x84
+#endif
 
 /* High and low times in different speed modes (in ns) */
 enum {
@@ -358,6 +370,48 @@ static enum cb_err dw_i2c_transfer_byte(struct dw_i2c_regs *regs,
 	return CB_SUCCESS;
 }
 
+#if ENV_SMM
+static enum cb_err dw_i2c_smm_prepare(unsigned int bus, struct dw_i2c_regs *regs,
+				      pci_devfn_t *dev, bool *restore_power_state)
+{
+	const struct dw_i2c_bus_config *config = dw_i2c_get_soc_cfg(bus);
+	int devfn = dw_i2c_soc_bus_to_devfn(bus);
+
+	*restore_power_state = false;
+
+	if (devfn >= 0) {
+		uint8_t pmcsr;
+
+		*dev = PCI_DEV(0, PCI_SLOT(devfn), PCI_FUNC(devfn));
+		pmcsr = pci_s_read_config8(*dev, DW_I2C_LPSS_PMCSR);
+		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_PM_CTRL_POWER_STATE_D3HOT) {
+			*restore_power_state = true;
+			lpss_set_power_state(*dev, STATE_D0);
+		}
+	}
+
+	/*
+	 * Runtime SMI handlers can run after the OS has suspended the LPSS
+	 * controller, so prepare it the same way as the normal init path.
+	 */
+	lpss_reset_release((uintptr_t)regs);
+
+	if (!config || dw_i2c_init(bus, config) != CB_SUCCESS) {
+		printk(BIOS_ERR, "I2C failed to initialize bus %u\n", bus);
+		return CB_ERR;
+	}
+
+	if (dw_i2c_disable(regs) != CB_SUCCESS) {
+		printk(BIOS_ERR, "I2C failed to disable bus %u\n", bus);
+		return CB_ERR;
+	}
+
+	read32(&regs->clear_intr);
+
+	return CB_SUCCESS;
+}
+#endif
+
 static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segments,
 				    size_t count)
 {
@@ -366,12 +420,21 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 	size_t byte;
 	enum cb_err ret = CB_ERR;
 	bool seg_zero_len = segments->len == 0;
+#if ENV_SMM
+	pci_devfn_t dev = 0;
+	bool restore_power_state = false;
+#endif
 
 	regs = (struct dw_i2c_regs *)dw_i2c_base_address(bus);
 	if (!regs) {
 		printk(BIOS_ERR, "I2C bus %u base address not found\n", bus);
 		return CB_ERR;
 	}
+
+#if ENV_SMM
+	if (dw_i2c_smm_prepare(bus, regs, &dev, &restore_power_state) != CB_SUCCESS)
+		goto restore_power;
+#endif
 
 	/* The assumption is that the host controller is disabled -- either
 	   after running this function or from performing the initialization
@@ -464,6 +527,11 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 out:
 	read32(&regs->clear_intr);
 	dw_i2c_disable(regs);
+#if ENV_SMM
+restore_power:
+	if (restore_power_state)
+		lpss_set_power_state(dev, STATE_D3);
+#endif
 	return ret;
 }
 
@@ -752,6 +820,7 @@ enum cb_err dw_i2c_init(unsigned int bus, const struct dw_i2c_bus_config *bcfg)
 	return CB_SUCCESS;
 }
 
+#if ENV_RAMSTAGE
 /*
  * Write ACPI object to describe speed configuration.
  *
@@ -868,3 +937,4 @@ static int dw_i2c_dev_transfer(struct device *dev,
 const struct i2c_bus_operations dw_i2c_bus_ops = {
 	.transfer = dw_i2c_dev_transfer,
 };
+#endif
