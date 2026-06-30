@@ -3,7 +3,7 @@
 #ifndef _STARLABS_CMN_TOUCHPAD_H_
 #define _STARLABS_CMN_TOUCHPAD_H_
 
-#include <stdint.h>
+#include <types.h>
 
 #define STARLABS_TOUCHPAD_HAPTICS_DEFAULT		2
 #define STARLABS_TOUCHPAD_HAPTICS_MAX			4
@@ -77,5 +77,7 @@ struct starlabs_touchpad_op_ctx {
 	uint8_t value;
 	uint8_t level;
 };
+
+enum cb_err starlabs_touchpad_runtime_apply_report_rate(void);
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */
