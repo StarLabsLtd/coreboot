@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
+#include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <intelblocks/lpss.h>
 
@@ -10,9 +11,6 @@
 #define LPSS_CNT_CLK_UPDATE	(1 << 31)
 #define LPSS_CLOCK_DIV_N(n)	(((n) & 0x7fff) << 16)
 #define LPSS_CLOCK_DIV_M(m)	(((m) & 0x7fff) << 1)
-
-/* reset register  */
-#define LPSS_RESET_CTL_REG	0x204
 
 /*
  * Bit 1:0 controls LPSS controller reset.
@@ -27,10 +25,7 @@
 /* DMA Software Reset Control */
 #define LPSS_DMA_RST_RELEASE	(1 << 2)
 
-/* Power management control and status register */
 #define PME_CTRL_STATUS	0x84
-/* Bit 1:0 Powerstate, controls D0 and D3 state */
-#define POWER_STATE_MASK	3
 
 bool lpss_is_controller_in_reset(uintptr_t base)
 {
@@ -67,7 +62,13 @@ void lpss_clk_update(uintptr_t base, uint32_t clk_m_val, uint32_t clk_n_val)
 void lpss_set_power_state(pci_devfn_t devfn, enum lpss_pwr_state state)
 {
 	uint8_t reg8 = pci_s_read_config8(devfn, PME_CTRL_STATUS);
-	reg8 &= ~POWER_STATE_MASK;
+	reg8 &= ~PCI_PM_CTRL_STATE_MASK;
 	reg8 |= state;
 	pci_s_write_config8(devfn, PME_CTRL_STATUS, reg8);
+}
+
+enum lpss_pwr_state lpss_get_power_state(pci_devfn_t devfn)
+{
+	return (enum lpss_pwr_state)(pci_s_read_config8(devfn, PME_CTRL_STATUS) &
+				     PCI_PM_CTRL_STATE_MASK);
 }
