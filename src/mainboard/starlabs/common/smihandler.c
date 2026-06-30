@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <commonlib/helpers.h>
+#include <common/touchpad.h>
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+#include <drivers/i2c/designware/dw_i2c.h>
+#endif
 #include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
@@ -88,11 +92,60 @@ static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 }
 #endif
 
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+int mainboard_smi_finalize(void)
+{
+	dw_i2c_smm_init(STARLABS_TOUCHPAD_I2C_BUS);
+	return 0;
+}
+#endif
+
 struct starlabs_efiopt_entry {
 	const char *name;
 	enum starlabs_efiopt_id id;
 	uint32_t fallback;
 };
+
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+static bool is_valid_touchpad_haptics(uint32_t value)
+{
+	return value == STARLABS_TOUCHPAD_HAPTICS_LOW ||
+	       value == STARLABS_TOUCHPAD_HAPTICS_MEDIUM ||
+	       value == STARLABS_TOUCHPAD_HAPTICS_HIGH ||
+	       value == STARLABS_TOUCHPAD_HAPTICS_DEFAULT ||
+	       value == STARLABS_TOUCHPAD_HAPTICS_MAX ||
+	       (!CONFIG(STARLABS_TOUCHPAD_CST) && value == STARLABS_TOUCHPAD_HAPTICS_MIN);
+}
+
+static bool is_valid_touchpad_press_force(uint32_t value)
+{
+	return value == STARLABS_TOUCHPAD_PRESS_FORCE_MINIMAL ||
+	       value == STARLABS_TOUCHPAD_PRESS_FORCE_LOW ||
+	       value == STARLABS_TOUCHPAD_PRESS_FORCE_AVERAGE ||
+	       value == STARLABS_TOUCHPAD_PRESS_FORCE_HIGH ||
+	       value == STARLABS_TOUCHPAD_PRESS_FORCE_HULK;
+}
+
+static bool is_valid_touchpad_release_force(uint32_t value)
+{
+	return value == STARLABS_TOUCHPAD_RELEASE_FORCE_MINIMAL ||
+	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_LOW ||
+	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_AVERAGE ||
+	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HIGH ||
+	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HULK;
+}
+
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+static bool is_valid_touchpad_report_rate(uint32_t value)
+{
+	return value == STARLABS_TOUCHPAD_RATE_RELAXED ||
+	       value == STARLABS_TOUCHPAD_RATE_BALANCED ||
+	       value == STARLABS_TOUCHPAD_RATE_FAST ||
+	       value == STARLABS_TOUCHPAD_RATE_LUDICROUS ||
+	       value == STARLABS_TOUCHPAD_RATE_PLAID;
+}
+#endif
+#endif
 
 static const struct starlabs_efiopt_entry efiopts[] = {
 	{
@@ -173,6 +226,30 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_POWER_ON_AC,
 		.fallback = ADAPTER_AUTO_POWER_ON_DEFAULT,
 	},
+#endif
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	{
+		.name = "touchpad_haptics",
+		.id = STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
+		.fallback = STARLABS_TOUCHPAD_HAPTICS_DEFAULT,
+	},
+	{
+		.name = "touchpad_force_press",
+		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
+		.fallback = STARLABS_TOUCHPAD_PRESS_FORCE_DEFAULT,
+	},
+	{
+		.name = "touchpad_force_release",
+		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
+		.fallback = STARLABS_TOUCHPAD_RELEASE_FORCE_DEFAULT,
+	},
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	{
+		.name = "touchpad_report_rate",
+		.id = STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE,
+		.fallback = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT,
+	},
+#endif
 #endif
 };
 
@@ -277,10 +354,68 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
 #endif
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
+		return is_valid_touchpad_haptics(*value) ? CB_SUCCESS : CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
+		return is_valid_touchpad_press_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
+		return is_valid_touchpad_release_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
+		return is_valid_touchpad_report_rate(*value) ? CB_SUCCESS : CB_ERR_ARG;
+#endif
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
 }
+
+static enum cb_err get_stored_efiopt_value(enum starlabs_efiopt_id id, uint32_t *value)
+{
+	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+	enum cb_err ret;
+
+	if (!opt)
+		return CB_ERR_ARG;
+
+	ret = get_uint_option_status(opt->name, opt->fallback, value);
+	if (ret == CB_EFI_OPTION_NOT_FOUND)
+		*value = opt->fallback;
+	else if (ret != CB_SUCCESS)
+		return ret;
+
+	const uint32_t stored = *value;
+	ret = normalize_value(id, value);
+	if (ret != CB_SUCCESS || *value != stored)
+		return CB_ERR_ARG;
+
+	return CB_SUCCESS;
+}
+
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+static enum cb_err apply_touchpad_efiopts(void)
+{
+	uint32_t haptics;
+	uint32_t press;
+	uint32_t release;
+	uint32_t rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
+
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS, &haptics))
+		return CB_ERR_ARG;
+
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS, &press) ||
+	    get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE, &release))
+		return CB_ERR_ARG;
+
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE, &rate))
+		return CB_ERR_ARG;
+#endif
+
+	return starlabs_touchpad_runtime_apply(haptics, press, release, rate);
+}
+#endif
 
 static enum cb_err apply_ec_value(uint8_t reg, uint32_t value)
 {
@@ -347,6 +482,15 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 	case STARLABS_EFIOPT_ID_POWER_ON_AC:
 		return apply_ec_value(ECRAM_POWER_ON_AC, value);
 #endif
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
+#endif
+		return apply_touchpad_efiopts();
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
@@ -354,23 +498,11 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 
 static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
 {
-	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
 	uint32_t value;
-	enum cb_err ret;
+	enum cb_err ret = get_stored_efiopt_value(id, &value);
 
-	if (!opt)
-		return CB_ERR_ARG;
-
-	ret = get_uint_option_status(opt->name, opt->fallback, &value);
-	if (ret == CB_EFI_OPTION_NOT_FOUND)
-		value = opt->fallback;
-	else if (ret != CB_SUCCESS)
+	if (ret != CB_SUCCESS)
 		return ret;
-
-	const uint32_t stored = value;
-	ret = normalize_value(id, &value);
-	if (ret != CB_SUCCESS || value != stored)
-		return CB_ERR_ARG;
 
 	return apply_runtime_efiopt(id, value);
 }
