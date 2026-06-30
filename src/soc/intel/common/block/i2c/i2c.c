@@ -35,7 +35,13 @@ uintptr_t dw_i2c_get_soc_early_base(unsigned int bus)
 	return EARLY_I2C_BASE(bus);
 }
 
-#if !ENV_PAYLOAD_LOADER
+#if ENV_SMM
+uintptr_t dw_i2c_base_address(unsigned int bus)
+{
+	(void)bus;
+	return 0;
+}
+#elif !ENV_PAYLOAD_LOADER
 static int lpss_i2c_early_init_bus(unsigned int bus)
 {
 	const struct dw_i2c_bus_config *config;
