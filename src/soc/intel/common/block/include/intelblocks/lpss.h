@@ -12,6 +12,8 @@ enum lpss_pwr_state {
 	STATE_D3 = 3
 };
 
+#define LPSS_RESET_CTL_REG	0x204
+
 /* Gets controller out of reset */
 void lpss_reset_release(uintptr_t base);
 
@@ -26,5 +28,8 @@ bool lpss_is_controller_in_reset(uintptr_t base);
 
 /* Set controller power state to D0 or D3*/
 void lpss_set_power_state(pci_devfn_t devfn, enum lpss_pwr_state state);
+
+/* Get controller power state. */
+enum lpss_pwr_state lpss_get_power_state(pci_devfn_t devfn);
 
 #endif	/* SOC_INTEL_COMMON_BLOCK_LPSS_H */
