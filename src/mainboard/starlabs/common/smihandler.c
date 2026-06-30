@@ -101,7 +101,6 @@ static bool is_valid_touchpad_haptics(uint32_t value)
 	       (!CONFIG(STARLABS_TOUCHPAD_CST) && value == STARLABS_TOUCHPAD_HAPTICS_MIN);
 }
 
-#if CONFIG(STARLABS_TOUCHPAD_CST)
 static bool is_valid_touchpad_press_force(uint32_t value)
 {
 	return value == STARLABS_TOUCHPAD_PRESS_FORCE_MINIMAL ||
@@ -119,7 +118,6 @@ static bool is_valid_touchpad_release_force(uint32_t value)
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HIGH ||
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HULK;
 }
-#endif
 
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 static bool is_valid_touchpad_report_rate(uint32_t value)
@@ -219,7 +217,6 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
 		.fallback = STARLABS_TOUCHPAD_HAPTICS_DEFAULT,
 	},
-#if CONFIG(STARLABS_TOUCHPAD_CST)
 	{
 		.name = "touchpad_force_press",
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
@@ -230,7 +227,6 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
 		.fallback = STARLABS_TOUCHPAD_RELEASE_FORCE_DEFAULT,
 	},
-#endif
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	{
 		.name = "touchpad_report_rate",
@@ -345,12 +341,10 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
 		return is_valid_touchpad_haptics(*value) ? CB_SUCCESS : CB_ERR_ARG;
-#if CONFIG(STARLABS_TOUCHPAD_CST)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
 		return is_valid_touchpad_press_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
 	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
 		return is_valid_touchpad_release_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
-#endif
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
 		return is_valid_touchpad_report_rate(*value) ? CB_SUCCESS : CB_ERR_ARG;
@@ -360,6 +354,41 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 		return CB_ERR_ARG;
 	}
 }
+
+static enum cb_err get_stored_efiopt_value(enum starlabs_efiopt_id id, uint32_t *value)
+{
+	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
+
+	if (!opt || !value)
+		return CB_ERR_ARG;
+
+	*value = get_uint_option(opt->name, opt->fallback);
+	return normalize_value(id, value);
+}
+
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+static enum cb_err apply_touchpad_efiopts(void)
+{
+	uint32_t haptics;
+	uint32_t press;
+	uint32_t release;
+	uint32_t rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
+
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS, &haptics))
+		return CB_ERR_ARG;
+
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS, &press) ||
+	    get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE, &release))
+		return CB_ERR_ARG;
+
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE, &rate))
+		return CB_ERR_ARG;
+#endif
+
+	return starlabs_touchpad_runtime_apply(haptics, press, release, rate);
+}
+#endif
 
 static enum cb_err apply_ec_value(uint8_t reg, uint32_t value)
 {
@@ -412,6 +441,15 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 	case STARLABS_EFIOPT_ID_POWER_ON_AC:
 		return apply_ec_value(ECRAM_POWER_ON_AC, value);
 #endif
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
+#endif
+		return apply_touchpad_efiopts();
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
@@ -419,15 +457,10 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 
 static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
 {
-	const struct starlabs_efiopt_entry *opt = find_efiopt(id);
 	uint32_t value;
 	enum cb_err ret;
 
-	if (!opt)
-		return CB_ERR_ARG;
-
-	value = get_uint_option(opt->name, opt->fallback);
-	ret = normalize_value(id, &value);
+	ret = get_stored_efiopt_value(id, &value);
 	if (ret != CB_SUCCESS)
 		return ret;
 
