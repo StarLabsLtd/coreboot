@@ -5,3 +5,11 @@ config SOC_INTEL_COMMON_BLOCK_I2C
 	select DRIVERS_I2C_DESIGNWARE
 	help
 	  Intel Processor Common I2C support
+
+config SOC_INTEL_COMMON_BLOCK_I2C_SMM
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_I2C
+	depends on SOC_INTEL_COMMON_FEATURE_I2C_DEVFN
+	select SMM_PCI_RESOURCE_STORE
+	help
+	  Build Intel DesignWare I2C transfer support for SMM handlers.
