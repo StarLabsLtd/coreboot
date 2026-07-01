@@ -165,18 +165,34 @@ static unsigned long acpi_ivhd_misc(unsigned long current, struct device *dev)
 	u8 dte_setting = IVHD_DTE_LINT_1_PASS | IVHD_DTE_LINT_0_PASS |
 		       IVHD_DTE_SYS_MGT_NO_TRANS | IVHD_DTE_NMI_PASS |
 		       IVHD_DTE_EXT_INT_PASS | IVHD_DTE_INIT_PASS;
-	int8_t root_level = -1;
 	struct resource *res;
 
-	/*
-	 * Add all possible PCI devices in the domain that can generate transactions
-	 * processed by IOMMU. Start with device <bus>:01.0
-	 */
-	current = ivhd_dev_range(current, PCI_DEVFN(0, 3) | (dev->downstream->secondary << 8),
-				 0xff | (dev->downstream->subordinate << 8), 0);
+	if (CONFIG(SOC_AMD_COMMON_BLOCK_ACPI_IVRS_AGESA_DEVICE_RANGE)) {
+		u16 devid_start, devid_end;
 
-	add_ivhd_device_entries(NULL, dev, 0, -1, &root_level,
-		&current, dev->downstream->secondary);
+		/*
+		 * Add all possible PCI devices in the domain that can generate transactions
+		 * processed by IOMMU. Match AGESA's legacy IVRS range: <bus>:01.0 through
+		 * <bus>:1f.6. AGESA does not append the recursive PCIe select/alias entries
+		 * coreboot currently emits here.
+		 */
+		devid_start = PCI_DEVFN(1, 0) | (dev->downstream->secondary << 8);
+		devid_end = PCI_DEVFN(0x1f, 6) | (dev->downstream->max_subordinate << 8);
+		current = ivhd_dev_range(current, devid_start, devid_end, 0);
+	} else {
+		s8 root_level = -1;
+
+		/*
+		 * Add all possible PCI devices in the domain that can generate transactions
+		 * processed by IOMMU. Start with device <bus>:01.0
+		 */
+		current = ivhd_dev_range(current,
+					 PCI_DEVFN(0, 3) | (dev->downstream->secondary << 8),
+					 0xff | (dev->downstream->subordinate << 8), 0);
+
+		add_ivhd_device_entries(NULL, dev, 0, -1, &root_level, &current,
+					dev->downstream->secondary);
+	}
 
 	res = probe_resource(dev, IOMMU_IOAPIC_IDX);
 	if (res) {
