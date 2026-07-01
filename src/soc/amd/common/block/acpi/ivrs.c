@@ -114,8 +114,10 @@ static unsigned long acpi_ivhd_misc(unsigned long current, struct device *dev)
 	 * bridge / IOAPIC / IOMMU at 00.0-00.2). End at <max_subordinate>:1f.7, the last
 	 * Device ID on the last possible bus within the domain.
 	 */
-	const uint16_t devid_start = PCI_DEVFN(0, 3) | (dev->downstream->secondary << 8);
-	const uint16_t devid_end = PCI_DEVFN(0x1f, 7) |
+	const bool agesa_range = CONFIG(SOC_AMD_COMMON_BLOCK_ACPI_IVRS_AGESA_DEVICE_RANGE);
+	const uint16_t devid_start = (agesa_range ? PCI_DEVFN(1, 0) : PCI_DEVFN(0, 3)) |
+				     (dev->downstream->secondary << 8);
+	const uint16_t devid_end = (agesa_range ? PCI_DEVFN(0x1f, 6) : PCI_DEVFN(0x1f, 7)) |
 				   (dev->downstream->max_subordinate << 8);
 	current = ivhd_dev_range(current, devid_start, devid_end, 0);
 
