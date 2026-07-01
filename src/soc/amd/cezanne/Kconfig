@@ -148,7 +148,7 @@ config FSP_S_FILE
 
 config EARLY_RESERVED_DRAM_BASE
 	hex
-	default 0x2000000
+	default 0x10000000
 	help
 	  This variable defines the base address of the DRAM which is reserved
 	  for usage by coreboot in early stages (i.e. before ramstage is up).
@@ -162,7 +162,7 @@ config EARLYRAM_BSP_STACK_SIZE
 
 config PSP_APOB_DRAM_ADDRESS
 	hex
-	default 0x2001000
+	default 0x10001000
 	help
 	  Location in DRAM where the PSP will copy the AGESA PSP Output
 	  Block.
@@ -174,8 +174,8 @@ config PSP_APOB_DRAM_SIZE
 
 config PSP_SHAREDMEM_BASE
 	hex
-	default 0x201F000 if VBOOT && (SOC_AMD_RENOIR || SOC_AMD_V2000A)
-	default 0x2011000 if VBOOT
+	default 0x1001F000 if VBOOT && (SOC_AMD_RENOIR || SOC_AMD_V2000A)
+	default 0x10011000 if VBOOT
 	default 0x0
 	help
 	  This variable defines the base address in DRAM memory where PSP copies
@@ -220,7 +220,7 @@ config C_ENV_BOOTBLOCK_SIZE
 
 config ROMSTAGE_ADDR
 	hex
-	default 0x2050000
+	default 0x10050000
 	help
 	  Sets the address in DRAM where romstage should be loaded.
 
@@ -232,7 +232,7 @@ config ROMSTAGE_SIZE
 
 config FSP_M_ADDR
 	hex
-	default 0x20C0000
+	default 0x100C0000
 	help
 	  Sets the address in DRAM where FSP-M should be loaded. cbfstool
 	  performs relocation of FSP-M to this address.
@@ -252,7 +252,7 @@ config FSP_TEMP_RAM_SIZE
 config VERSTAGE_ADDR
 	hex
 	depends on VBOOT_SEPARATE_VERSTAGE
-	default 0x2180000
+	default 0x10180000
 	help
 	  Sets the address in DRAM where verstage should be loaded if running
 	  as a separate stage on x86.
