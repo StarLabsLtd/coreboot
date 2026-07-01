@@ -154,6 +154,7 @@ config FSP_S_FILE
 
 config EARLY_RESERVED_DRAM_BASE
 	hex
+	default 0x10000000 if BOARD_STARLABS_CEZANNE_SERIES
 	default 0x2000000
 	help
 	  This variable defines the base address of the DRAM which is reserved
@@ -168,6 +169,7 @@ config EARLYRAM_BSP_STACK_SIZE
 
 config PSP_APOB_DRAM_ADDRESS
 	hex
+	default 0x10001000 if BOARD_STARLABS_CEZANNE_SERIES
 	default 0x2001000
 	help
 	  Location in DRAM where the PSP will copy the AGESA PSP Output
@@ -181,6 +183,7 @@ config PSP_APOB_DRAM_SIZE
 config PSP_SHAREDMEM_BASE
 	hex
 	default 0x201F000 if VBOOT && (SOC_AMD_RENOIR || SOC_AMD_V2000A)
+	default 0x10011000 if VBOOT && BOARD_STARLABS_CEZANNE_SERIES
 	default 0x2011000 if VBOOT
 	default 0x0
 	help
@@ -226,6 +229,7 @@ config C_ENV_BOOTBLOCK_SIZE
 
 config ROMSTAGE_ADDR
 	hex
+	default 0x10050000 if BOARD_STARLABS_CEZANNE_SERIES
 	default 0x2050000
 	help
 	  Sets the address in DRAM where romstage should be loaded.
@@ -238,6 +242,7 @@ config ROMSTAGE_SIZE
 
 config FSP_M_ADDR
 	hex
+	default 0x100C0000 if BOARD_STARLABS_CEZANNE_SERIES
 	default 0x20C0000
 	help
 	  Sets the address in DRAM where FSP-M should be loaded. cbfstool
@@ -258,6 +263,7 @@ config FSP_TEMP_RAM_SIZE
 config VERSTAGE_ADDR
 	hex
 	depends on VBOOT_SEPARATE_VERSTAGE
+	default 0x10180000 if BOARD_STARLABS_CEZANNE_SERIES
 	default 0x2180000
 	help
 	  Sets the address in DRAM where verstage should be loaded if running
