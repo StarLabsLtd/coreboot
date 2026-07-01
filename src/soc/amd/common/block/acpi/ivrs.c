@@ -108,16 +108,13 @@ static unsigned long acpi_ivhd_misc(unsigned long current, struct device *dev)
 		       IVHD_DTE_EXT_INT_PASS | IVHD_DTE_INIT_PASS;
 	struct resource *res;
 
-	/*
-	 * Create one inclusive IVHD PCI Device ID range for the IOMMU domain. Use
-	 * max_subordinate (last bus number decoded to this domain) so hot-plug / SR-IOV Device
-	 * IDs are covered, not only buses present at boot. Start at <bus>:00.3 (after host
-	 * bridge / IOAPIC / IOMMU at 00.0-00.2). End at <max_subordinate>:1f.7, the last
-	 * Device ID on the last possible bus within the domain.
-	 */
-	const uint16_t devid_start = PCI_DEVFN(0, 3) | (dev->downstream->secondary << 8);
-	const uint16_t devid_end = PCI_DEVFN(0x1f, 7) |
-				   (dev->downstream->max_subordinate << 8);
+	uint16_t devid_start = PCI_DEVFN(0, 3) | (dev->downstream->secondary << 8);
+	uint16_t devid_end = PCI_DEVFN(0x1f, 7) |
+			     (dev->downstream->max_subordinate << 8);
+
+	/* Match AGESA's legacy device range on platforms which request it. */
+	if (CONFIG(SOC_AMD_COMMON_BLOCK_ACPI_IVRS_AGESA_DEVICE_RANGE))
+		devid_start = PCI_DEVFN(1, 0) | (dev->downstream->secondary << 8);
 	current = ivhd_dev_range(current, devid_start, devid_end, 0);
 
 	res = probe_resource(dev, IOMMU_IOAPIC_IDX);
