@@ -36,6 +36,13 @@ config SOC_AMD_COMMON_BLOCK_ACPI_HEST
 config SOC_AMD_COMMON_BLOCK_ACPI_IVRS
 	bool
 
+config SOC_AMD_COMMON_BLOCK_ACPI_IVRS_AGESA_DEVICE_RANGE
+	bool
+	depends on SOC_AMD_COMMON_BLOCK_ACPI_IVRS
+	help
+	  Select this to emit the AGESA-style legacy IVRS device range without
+	  appending recursive PCIe select/alias entries.
+
 config SOC_AMD_COMMON_BLOCK_ACPI_MADT
 	bool
 	help
