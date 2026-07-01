@@ -127,15 +127,22 @@ static void fch_init_acpi_ports(void)
 		pm_write8(PM_RST_CTRL1, reg);
 
 		configure_smi(SMITYPE_SLP_TYP, SMI_MODE_SMI);
+		configure_smi(SMITYPE_PWRBUTTON_UP, SMI_MODE_SMI);
 	} else {
 		pm_write16(PM_ACPI_SMI_CMD, 0);
 	}
 
+	acpi_write16(MMIO_ACPI_PM1_STS, PWRBTN_STS);
+	acpi_write16(MMIO_ACPI_PM1_EN, acpi_read16(MMIO_ACPI_PM1_EN) | PWRBTN_EN);
+
 	/* Decode ACPI registers and enable standard features */
-	pm_write8(PM_ACPI_CONF, PM_ACPI_DECODE_STD |
-				PM_ACPI_GLOBAL_EN |
-				PM_ACPI_RTC_EN_EN |
-				PM_ACPI_TIMER_EN_EN);
+	reg = pm_read16(PM_ACPI_CONF);
+	reg |= PM_ACPI_DECODE_STD |
+	       PM_ACPI_GLOBAL_EN |
+	       PM_ACPI_RTC_EN_EN |
+	       PM_ACPI_TIMER_EN_EN |
+	       PM_ACPI_PWRBTNEN_EN;
+	pm_write16(PM_ACPI_CONF, reg);
 }
 
 /* Configure the general purpose PCIe clock outputs according to the devicetree settings */

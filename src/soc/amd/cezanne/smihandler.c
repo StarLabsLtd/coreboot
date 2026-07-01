@@ -110,13 +110,51 @@ static void fch_slp_typ_handler(void)
 	}
 }
 
+static void cezanne_fch_apmc_smi_handler(void)
+{
+	const uint8_t cmd = apm_get_apmc();
+
+	fch_apmc_smi_handler();
+
+	switch (cmd) {
+	case APM_CNT_ACPI_ENABLE:
+		configure_smi(SMITYPE_PWRBUTTON_UP, SMI_MODE_DISABLE);
+		break;
+	case APM_CNT_ACPI_DISABLE:
+		configure_smi(SMITYPE_PWRBUTTON_UP, SMI_MODE_SMI);
+		break;
+	}
+}
+
+static void fch_power_button_handler(void)
+{
+	uint16_t pm1cnt;
+
+	pm1cnt = acpi_read16(MMIO_ACPI_PM1_CNT_BLK);
+	if (pm1cnt & ACPI_PM1_CNT_SCIEN) {
+		printk(BIOS_DEBUG, "SMI#: Power button with OSPM active, ignoring\n");
+		return;
+	}
+
+	printk(BIOS_DEBUG, "SMI#: Power button, entering S5\n");
+
+	acpi_write16(MMIO_ACPI_PM1_STS, WAK_STS | PWRBTN_STS);
+
+	pm1cnt &= ~SLP_TYP;
+	pm1cnt |= SLP_TYP_S5 << SLP_TYP_SHIFT;
+	acpi_write16(MMIO_ACPI_PM1_CNT_BLK, pm1cnt);
+
+	fch_slp_typ_handler();
+}
+
 /*
  * Table of functions supported in the SMI handler.  Note that SMI source setup
  * in fch.c is unrelated to this list.
  */
 static const struct smi_sources_t smi_sources[] = {
-	{ .type = SMITYPE_SMI_CMD_PORT, .handler = fch_apmc_smi_handler },
+	{ .type = SMITYPE_SMI_CMD_PORT, .handler = cezanne_fch_apmc_smi_handler },
 	{ .type = SMITYPE_SLP_TYP, .handler = fch_slp_typ_handler},
+	{ .type = SMITYPE_PWRBUTTON_UP, .handler = fch_power_button_handler },
 	{ .type = SMITYPE_PSP, .handler = psp_smi_handler },
 };
 
