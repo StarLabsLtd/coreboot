@@ -14,10 +14,10 @@
 
 
 _Static_assert(IS_ALIGNED(FMAP_SECTION_SMMSTORE_START, SMM_BLOCK_SIZE),
-	       "SMMSTORE FMAP region not aligned to 64K");
+	       "SMMSTORE FMAP region not aligned to block size");
 
 _Static_assert(SMM_BLOCK_SIZE <= FMAP_SECTION_SMMSTORE_SIZE,
-	       "SMMSTORE FMAP region must be at least 64K");
+	       "SMMSTORE FMAP region must be at least one block");
 
 /*
  * The region format is still not finalized, but so far it looks like this:

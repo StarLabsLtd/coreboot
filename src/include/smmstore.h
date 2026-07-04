@@ -46,12 +46,12 @@ struct smmstore_params_append {
 
 /* Version 2 */
 /*
- * The Version 2 protocol separates the SMMSTORE into 64KiB blocks, each
+ * The Version 2 protocol separates the SMMSTORE into fixed-size blocks, each
  * of which can be read/written/cleared in an independent manner. The
  * data format isn't specified. See documentation page for more details.
  */
 
-#define SMM_BLOCK_SIZE (64 * KiB)
+#define SMM_BLOCK_SIZE CONFIG_SMMSTORE_BLOCK_SIZE
 
 /*
  * Sets the communication buffer to use for read and write operations.
@@ -63,7 +63,6 @@ struct smmstore_params_init {
 
 /*
  * Returns the number of blocks the SMMSTORE supports and their size.
- * For edk2 this should be at least two blocks with 64 KiB each.
  * The mmap_addr is set the memory mapped physical address of the SMMSTORE.
  */
 struct smmstore_params_info {
