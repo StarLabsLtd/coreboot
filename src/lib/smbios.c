@@ -122,13 +122,32 @@ static void trim_trailing_whitespace(char *buffer, size_t buffer_size)
 }
 
 /** This function will fill the corresponding part number */
-static void smbios_fill_dimm_part_number(const char *part_number, struct smbios_type17 *t)
+static const char *smbios_dimm_fallback_part_number(const struct dimm_info *dimm)
+{
+	switch (dimm->ddr_type) {
+	case MEMORY_TYPE_LPDDR:
+		return "Onboard LPDDR";
+	case MEMORY_TYPE_LPDDR2:
+		return "Onboard LPDDR2";
+	case MEMORY_TYPE_LPDDR3:
+		return "Onboard LPDDR3";
+	case MEMORY_TYPE_LPDDR4:
+		return "Onboard LPDDR4";
+	case MEMORY_TYPE_LPDDR5:
+		return "Onboard LPDDR5";
+	default:
+		return "Onboard Memory";
+	}
+}
+
+static void smbios_fill_dimm_part_number(const struct dimm_info *dimm, struct smbios_type17 *t)
 {
 	int invalid;
 	size_t i, len;
 	char trimmed_part_number[DIMM_INFO_PART_NUMBER_SIZE];
 
-	strncpy(trimmed_part_number, part_number, sizeof(trimmed_part_number));
+	strncpy(trimmed_part_number, (const char *)dimm->module_part_number,
+		sizeof(trimmed_part_number));
 	trimmed_part_number[sizeof(trimmed_part_number) - 1] = '\0';
 
 	/*
@@ -148,8 +167,8 @@ static void smbios_fill_dimm_part_number(const char *part_number, struct smbios_
 	}
 
 	if (len == 0) {
-		/* Null String in Part Number will have "None" instead. */
-		t->part_number = smbios_add_string(t->eos, "None");
+		t->part_number = smbios_add_string(t->eos,
+						   smbios_dimm_fallback_part_number(dimm));
 	} else if (invalid) {
 		char string_buffer[sizeof(trimmed_part_number) + 10];
 
@@ -165,7 +184,14 @@ static void smbios_fill_dimm_part_number(const char *part_number, struct smbios_
 static void smbios_fill_dimm_serial_number(const struct dimm_info *dimm,
 					   struct smbios_type17 *t)
 {
-	char serial[9];
+	char serial[20];
+
+	if (!dimm->serial[0] && !dimm->serial[1] && !dimm->serial[2] && !dimm->serial[3]) {
+		snprintf(serial, sizeof(serial), "OnboardCH%uD%u",
+			 dimm->channel_num, dimm->dimm_num);
+		t->serial_number = smbios_add_string(t->eos, serial);
+		return;
+	}
 
 	snprintf(serial, sizeof(serial), "%02hhx%02hhx%02hhx%02hhx",
 		 dimm->serial[0], dimm->serial[1], dimm->serial[2], dimm->serial[3]);
@@ -279,7 +305,7 @@ static int create_smbios_type17_for_dimm(struct dimm_info *dimm,
 
 	/* put '\0' in the end of data */
 	dimm->module_part_number[DIMM_INFO_PART_NUMBER_SIZE - 1] = '\0';
-	smbios_fill_dimm_part_number((char *)dimm->module_part_number, t);
+	smbios_fill_dimm_part_number(dimm, t);
 
 	/* Voltage Levels */
 	t->configured_voltage = dimm->vdd_voltage;
