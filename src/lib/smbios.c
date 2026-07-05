@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <stddef.h>
 #include <string.h>
 #include <smbios.h>
 #include <console/console.h>
@@ -575,13 +576,19 @@ int smbios_write_type7(unsigned long *current,
 		       const size_t max_cache_size,
 		       const size_t cache_size)
 {
+	const bool use_extended_size =
+		max_cache_size >= (SMBIOS_CACHE_SIZE_MASK * 64 * KiB) ||
+		cache_size >= (SMBIOS_CACHE_SIZE_MASK * 64 * KiB);
+	const size_t formatted_len = use_extended_size ? offsetof(struct smbios_type7, eos) :
+							 offsetof(struct smbios_type7, max_cache_size2);
 	char buf[8];
 
 	struct smbios_type7 *t = smbios_carve_table(*current, SMBIOS_CACHE_INFORMATION,
-						    sizeof(*t), handle);
+						    formatted_len + 2, handle);
+	u8 *eos = (u8 *)t + t->header.length;
 
 	snprintf(buf, sizeof(buf), "CACHE%x", level);
-	t->socket_designation = smbios_add_string(t->eos, buf);
+	t->socket_designation = smbios_add_string(eos, buf);
 
 	t->cache_configuration = SMBIOS_CACHE_CONF_LEVEL(level) |
 		SMBIOS_CACHE_CONF_LOCATION(0) | /* Internal */
@@ -590,36 +597,44 @@ int smbios_write_type7(unsigned long *current,
 
 	if (max_cache_size < (SMBIOS_CACHE_SIZE_MASK * KiB)) {
 		t->max_cache_size = max_cache_size / KiB;
-		t->max_cache_size2 = t->max_cache_size;
 
 		t->max_cache_size |= SMBIOS_CACHE_SIZE_UNIT_1KB;
-		t->max_cache_size2 |= SMBIOS_CACHE_SIZE2_UNIT_1KB;
+		if (use_extended_size) {
+			t->max_cache_size2 = max_cache_size / KiB;
+			t->max_cache_size2 |= SMBIOS_CACHE_SIZE2_UNIT_1KB;
+		}
 	} else {
 		if (max_cache_size < (SMBIOS_CACHE_SIZE_MASK * 64 * KiB))
 			t->max_cache_size = max_cache_size / (64 * KiB);
 		else
 			t->max_cache_size = SMBIOS_CACHE_SIZE_OVERFLOW;
-		t->max_cache_size2 = max_cache_size / (64 * KiB);
 
 		t->max_cache_size |= SMBIOS_CACHE_SIZE_UNIT_64KB;
-		t->max_cache_size2 |= SMBIOS_CACHE_SIZE2_UNIT_64KB;
+		if (use_extended_size) {
+			t->max_cache_size2 = max_cache_size / (64 * KiB);
+			t->max_cache_size2 |= SMBIOS_CACHE_SIZE2_UNIT_64KB;
+		}
 	}
 
 	if (cache_size < (SMBIOS_CACHE_SIZE_MASK * KiB)) {
 		t->installed_size = cache_size / KiB;
-		t->installed_size2 = t->installed_size;
 
 		t->installed_size |= SMBIOS_CACHE_SIZE_UNIT_1KB;
-		t->installed_size2 |= SMBIOS_CACHE_SIZE2_UNIT_1KB;
+		if (use_extended_size) {
+			t->installed_size2 = cache_size / KiB;
+			t->installed_size2 |= SMBIOS_CACHE_SIZE2_UNIT_1KB;
+		}
 	} else {
 		if (cache_size < (SMBIOS_CACHE_SIZE_MASK * 64 * KiB))
 			t->installed_size = cache_size / (64 * KiB);
 		else
 			t->installed_size = SMBIOS_CACHE_SIZE_OVERFLOW;
-		t->installed_size2 = cache_size / (64 * KiB);
 
 		t->installed_size |= SMBIOS_CACHE_SIZE_UNIT_64KB;
-		t->installed_size2 |= SMBIOS_CACHE_SIZE2_UNIT_64KB;
+		if (use_extended_size) {
+			t->installed_size2 = cache_size / (64 * KiB);
+			t->installed_size2 |= SMBIOS_CACHE_SIZE2_UNIT_64KB;
+		}
 	}
 
 	t->associativity = associativity;
@@ -629,7 +644,7 @@ int smbios_write_type7(unsigned long *current,
 	t->error_correction_type = smbios_cache_error_correction_type(level);
 	t->system_cache_type = type;
 
-	const int len = smbios_full_table_len(&t->header, t->eos);
+	const int len = smbios_full_table_len(&t->header, eos);
 	*current += len;
 	return len;
 }
