@@ -857,6 +857,7 @@ static void write_efi_option_methods(void)
 	acpigen_write_name_integer("EOTP", STARLABS_EFIOPT_ID_TRACKPAD_STATE);
 	acpigen_write_name_integer("EOKB", STARLABS_EFIOPT_ID_KBL_BRIGHTNESS);
 	acpigen_write_name_integer("EOKS", STARLABS_EFIOPT_ID_KBL_STATE);
+	acpigen_write_name_integer("EOKT", STARLABS_EFIOPT_ID_KBL_TIMEOUT);
 	acpigen_write_mutex("EOMX", 0);
 
 	acpigen_write_method_serialized("EOGT", 1);
@@ -866,9 +867,32 @@ static void write_efi_option_methods(void)
 	acpigen_write_if_end();
 	acpigen_write_store_int_to_namestr(1, "EOCM");
 	acpigen_write_store_op_to_namestr(ARG0_OP, "EOID");
-	acpigen_write_store_int_to_namestr(0, "EORS");
+	acpigen_write_store_int_to_namestr(0xffffffff, "EOVL");
+	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
 	acpigen_write_store_namestr_to_op("EOVL", LOCAL0_OP);
+	acpigen_write_if();
+	acpigen_emit_namestring("EORS");
+	acpigen_write_store_int_to_op(0xffffffff, LOCAL0_OP);
+	acpigen_write_if_end();
+	acpigen_write_release("EOMX");
+	acpigen_write_return_op(LOCAL0_OP);
+	acpigen_write_method_end();
+
+	acpigen_write_method_serialized("EOMS", 0);
+	acpigen_write_if();
+	acpigen_write_acquire("EOMX", 1000);
+	acpigen_write_return_integer(0);
+	acpigen_write_if_end();
+	acpigen_write_store_int_to_namestr(3, "EOCM");
+	acpigen_write_store_int_to_namestr(0, "EOVL");
+	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
+	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
+	acpigen_write_store_namestr_to_op("EOVL", LOCAL0_OP);
+	acpigen_write_if();
+	acpigen_emit_namestring("EORS");
+	acpigen_write_store_int_to_op(0, LOCAL0_OP);
+	acpigen_write_if_end();
 	acpigen_write_release("EOMX");
 	acpigen_write_return_op(LOCAL0_OP);
 	acpigen_write_method_end();
@@ -881,7 +905,7 @@ static void write_efi_option_methods(void)
 	acpigen_write_store_int_to_namestr(2, "EOCM");
 	acpigen_write_store_op_to_namestr(ARG0_OP, "EOID");
 	acpigen_write_store_op_to_namestr(ARG1_OP, "EOVL");
-	acpigen_write_store_int_to_namestr(0, "EORS");
+	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
 	acpigen_write_store_namestr_to_op("EORS", LOCAL0_OP);
 	acpigen_write_release("EOMX");
@@ -941,6 +965,16 @@ static void write_efi_option_resume(void)
 		write_ec_write_integer(brightness_values[i], EC_ACPI_FIELD("KLBE"));
 		acpigen_write_if_end();
 	}
+
+	acpigen_emit_byte(STORE_OP);
+	write_efi_option_get("EOKT");
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_write_if_lequal_op_int(LOCAL0_OP, 4);
+	write_method_call(EC_ACPI_METHOD("ECWR"));
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_emit_byte(REF_OF_OP);
+	acpigen_emit_namestring(EC_ACPI_FIELD("KLTE"));
+	acpigen_write_if_end();
 }
 #endif
 
