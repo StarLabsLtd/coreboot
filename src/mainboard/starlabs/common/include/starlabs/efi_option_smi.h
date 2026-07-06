@@ -36,6 +36,7 @@ enum starlabs_efiopt_id {
 	STARLABS_EFIOPT_ID_LID_SWITCH = 10,
 	STARLABS_EFIOPT_ID_POWER_LED = 11,
 	STARLABS_EFIOPT_ID_CHARGE_LED = 12,
+	STARLABS_EFIOPT_ID_POWER_ON_AC = 13,
 };
 
 struct starlabs_dnvs_efiopt {
