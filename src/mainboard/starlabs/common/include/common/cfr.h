@@ -16,6 +16,7 @@ void starlabs_cfr_custom_profile_update(struct sm_object *new_obj);
 void starlabs_cfr_register_overrides(void);
 
 static const struct sm_object accelerometer = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "accelerometer",
 	.ui_name	= "Accelerometer",
 	.ui_helptext	= "Enable or disable the built-in accelerometer",
@@ -23,6 +24,7 @@ static const struct sm_object accelerometer = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object bluetooth = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "bluetooth",
 	.ui_name	= "Bluetooth",
 	.ui_helptext	= "Enable or disable the built-in Bluetooth",
@@ -30,6 +32,7 @@ static const struct sm_object bluetooth = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object card_reader = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "card_reader",
 	.ui_name	= "Card Reader",
 	.ui_helptext	= "Enable or disable the built-in card reader",
@@ -37,6 +40,7 @@ static const struct sm_object card_reader = SM_DECLARE_BOOL({
 }, WITH_CALLBACK(cfr_card_reader_update));
 
 static const struct sm_object fingerprint_reader = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "fingerprint_reader",
 	.ui_name	= "Fingerprint Reader",
 	.ui_helptext	= "Enable or disable the built-in fingerprint reader",
@@ -44,6 +48,7 @@ static const struct sm_object fingerprint_reader = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object gna = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "gna",
 	.ui_name	= "Gaussian & Neural Accelerator",
 	.ui_helptext	= "Enable or Disable the Gaussian & Neural Accelerator",
@@ -51,6 +56,7 @@ static const struct sm_object gna = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object memory_speed = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "memory_speed",
 	.ui_name	= "Memory Speed",
 	.ui_helptext	= "Configure the speed that the memory will run at. "
@@ -66,6 +72,7 @@ static const struct sm_object memory_speed = SM_DECLARE_ENUM({
 });
 
 static const struct sm_object microphone = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "microphone",
 	.ui_name	= "Microphone",
 	.ui_helptext	= "Enable or disable the built-in microphone",
@@ -73,6 +80,7 @@ static const struct sm_object microphone = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object hda_dsp = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "hda_dsp",
 	.ui_name	= "Digital Signal Processor",
 	.ui_helptext	= "Enable or disable the Intel HD Audio Digital Signal Processor.\n"
@@ -106,6 +114,7 @@ static const struct sm_object ibecc = SM_DECLARE_BOOL({
 #endif
 
 static const struct sm_object power_profile = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_profile",
 	.ui_name	= "Power Profile",
 	.ui_helptext	= "Choose maximum battery life, balanced behaviour, "
@@ -184,6 +193,7 @@ static void starlabs_update_pcie_l1ss(struct sm_object *new_obj)
 
 #define STARLABS_DECLARE_PCIE_PM_OBJECTS(_suffix, _label)					\
 static const struct sm_object pciexp_##_suffix##_clk_pm = SM_DECLARE_BOOL({			\
+	.flags		= CFR_OPTFLAG_RUNTIME,						\
 	.opt_name	= "pciexp_" #_suffix "_clk_pm",					\
 	.ui_name	= _label " Clock Power Management",				\
 	.ui_helptext	= "Enable or disable clock power management for " _label ".",	\
@@ -191,6 +201,7 @@ static const struct sm_object pciexp_##_suffix##_clk_pm = SM_DECLARE_BOOL({			\
 }, WITH_CALLBACK(starlabs_update_pcie_clk_pm));					\
 											\
 static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({			\
+	.flags		= CFR_OPTFLAG_RUNTIME,						\
 	.opt_name	= "pciexp_" #_suffix "_aspm",					\
 	.ui_name	= _label " ASPM",						\
 	.ui_helptext	= "Control Active State Power Management for " _label ".",	\
@@ -206,6 +217,7 @@ static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({			\
 	WITH_CALLBACK(starlabs_update_pcie_aspm));					\
 											\
 static const struct sm_object pciexp_##_suffix##_l1ss = SM_DECLARE_ENUM({			\
+	.flags		= CFR_OPTFLAG_RUNTIME,						\
 	.opt_name	= "pciexp_" #_suffix "_l1ss",					\
 	.ui_name	= _label " L1 Substates",					\
 	.ui_helptext	= "Control PCIe L1 substates for " _label ".",			\
@@ -227,6 +239,7 @@ STARLABS_DECLARE_PCIE_PM_OBJECTS(lan2, "LAN 2");
 #undef STARLABS_DECLARE_PCIE_PM_OBJECTS
 
 static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "s0ix_enable",
 	.ui_name	= "Modern Standby (S0ix)",
 	.ui_helptext	= "Enabled: Use S0ix for device sleep.\n"
@@ -243,6 +256,7 @@ static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object touchpad_haptics = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchpad_haptics",
 	.ui_name	= "Touchpad Vibration Intensity",
 	.ui_helptext	= "Choose how strong the touchpad click vibration feels.",
@@ -258,6 +272,7 @@ static const struct sm_object touchpad_haptics = SM_DECLARE_ENUM({
 });
 
 static const struct sm_object touchpad_force_press = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchpad_force_press",
 	.ui_name	= "Touchpad Click Force",
 	.ui_helptext	= "Choose how much force it takes to click the touchpad.",
@@ -273,6 +288,7 @@ static const struct sm_object touchpad_force_press = SM_DECLARE_ENUM({
 });
 
 static const struct sm_object touchpad_force_release = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchpad_force_release",
 	.ui_name	= "Touchpad Release Force",
 	.ui_helptext	= "Choose how much force it takes for the touchpad click to release.",
@@ -288,6 +304,7 @@ static const struct sm_object touchpad_force_release = SM_DECLARE_ENUM({
 });
 
 static const struct sm_object touchpad_report_rate = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchpad_report_rate",
 	.ui_name	= "Touchpad Tracking Speed",
 	.ui_helptext	= "Choose how quickly the touchpad reports movement.",
@@ -303,6 +320,7 @@ static const struct sm_object touchpad_report_rate = SM_DECLARE_ENUM({
 });
 
 static const struct sm_object touchscreen = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchscreen",
 	.ui_name	= "Touchscreen",
 	.ui_helptext	= "Enable or disable the built-in touch-screen",
@@ -310,6 +328,7 @@ static const struct sm_object touchscreen = SM_DECLARE_BOOL({
 }, WITH_CALLBACK(cfr_touchscreen_update));
 
 static const struct sm_object vpu = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "vpu",
 	.ui_name	= "VPU",
 	.ui_helptext	= "Enable or disable VPU",
@@ -324,6 +343,7 @@ static const struct sm_object vtd = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object webcam = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "webcam",
 	.ui_name	= "Webcam",
 	.ui_helptext	= "Enable or disable the built-in webcam",
@@ -331,6 +351,7 @@ static const struct sm_object webcam = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object wifi = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "wifi",
 	.ui_name	= "Wi-Fi",
 	.ui_helptext	= "Enable or disable the built-in Wi-Fi",
