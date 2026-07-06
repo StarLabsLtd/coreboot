@@ -10,6 +10,7 @@
 #include <drivers/option/cfr_frontend.h>
 
 const struct sm_object debug_level = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "debug_level",
 	.ui_name	= "Console Log Level",
 	.ui_helptext	= "Set the verbosity of the coreboot console output.",
