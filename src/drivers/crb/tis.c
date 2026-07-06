@@ -52,7 +52,11 @@ tis_sendrecv_fn crb_tis_probe(enum tpm_family *family)
 
 	if (CONFIG(HAVE_INTEL_PTT)) {
 		if (!ptt_active()) {
-			printk(BIOS_ERR, "%s: Intel PTT is not active.\n", __func__);
+			if (tpm_is_expected_absent())
+				printk(BIOS_DEBUG, "%s: Intel PTT is inactive by platform policy.\n",
+				       __func__);
+			else
+				printk(BIOS_ERR, "%s: Intel PTT is not active.\n", __func__);
 			return NULL;
 		}
 		printk(BIOS_DEBUG, "%s: Intel PTT is active.\n", __func__);
@@ -149,10 +153,10 @@ static int smbios_write_type43_tpm(struct device *dev, int *handle, unsigned lon
 	 * With vboot the TSS is only set up in verstage, so ramstage has to
 	 * set it up again before it can ask the TPM for its properties.
 	 */
-	if (tlcl_lib_init() != TPM_SUCCESS)
+	if (tpm_is_expected_absent() || tlcl_lib_init() != TPM_SUCCESS)
 		return 0;
 
-	if (tlcl_get_family() == TPM_1)
+	if (tlcl_get_family() != TPM_2)
 		return 0;
 
 	crb_tpm_get_info(&info);
