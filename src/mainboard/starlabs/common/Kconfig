@@ -84,6 +84,9 @@ config STARLABS_NO_PCAT_8259
 	default y if !STARLABS_HAS_I8042_INPUT
 	select NO_PCAT_8259
 
+config TPM_TREAT_ME_DISABLED_AS_ABSENT
+	default y if HAVE_INTEL_PTT
+
 config DRIVERS_EFI_FW_INFO
 	def_bool y
 
