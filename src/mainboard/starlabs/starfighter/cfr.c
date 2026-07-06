@@ -77,6 +77,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 
 #if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 static const struct sm_object firmware_enable_amp = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "firmware_enable_amp",
 	.ui_name	= "Firmware Enables AMP",
 	.ui_helptext	= "Enabled: assert LINE2 EAPD and drive GPIO2 high "
