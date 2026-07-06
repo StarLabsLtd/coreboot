@@ -15,6 +15,7 @@ Name (EOFL, 0x1)	// STARLABS_EFIOPT_ID_FN_LOCK_STATE
 Name (EOTP, 0x2)	// STARLABS_EFIOPT_ID_TRACKPAD_STATE
 Name (EOKB, 0x3)	// STARLABS_EFIOPT_ID_KBL_BRIGHTNESS
 Name (EOKS, 0x4)	// STARLABS_EFIOPT_ID_KBL_STATE
+Name (EOKT, 0x5)	// STARLABS_EFIOPT_ID_KBL_TIMEOUT
 
 Mutex (EOMX, 0x00)
 
@@ -27,10 +28,42 @@ Method (EOGT, 1, Serialized)
 
 	Store (0x01, EOCM)
 	Store (Arg0, EOID)
-	Store (0x00, EORS)
+	Store (0xFFFFFFFF, EOVL)
+	Store (0xFFFFFFFF, EORS)
 	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
 
-	Store (EOVL, Local0)
+	If (EORS)
+	{
+		Store (0xFFFFFFFF, Local0)
+	}
+	Else
+	{
+		Store (EOVL, Local0)
+	}
+	Release (EOMX)
+	Return (Local0)
+}
+
+Method (EOMS, 0, Serialized)
+{
+	If (Acquire (EOMX, 1000))
+	{
+		Return (0x00)
+	}
+
+	Store (0x03, EOCM)
+	Store (0x00, EOVL)
+	Store (0xFFFFFFFF, EORS)
+	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
+
+	If (EORS)
+	{
+		Store (0x00, Local0)
+	}
+	Else
+	{
+		Store (EOVL, Local0)
+	}
 	Release (EOMX)
 	Return (Local0)
 }
@@ -45,7 +78,7 @@ Method (EOSV, 2, Serialized)
 	Store (0x02, EOCM)
 	Store (Arg0, EOID)
 	Store (Arg1, EOVL)
-	Store (0x00, EORS)
+	Store (0xFFFFFFFF, EORS)
 	Store (EOAP, \_SB.PCI0.LPCB.EC.SMB2)
 
 	Store (EORS, Local0)
@@ -56,20 +89,6 @@ Method (EOSV, 2, Serialized)
 
 Method (RPTS, 1, Serialized)
 {
-
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-	/* Store current EC settings in UEFI variable store */
-	Store (\_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.TPLE)), Local0)
-	If (Local0 == 0x11)
-	{
-		Store (0x00, Local0)
-	}
-	EOSV (EOTP, Local0)
-
-	EOSV (EOFL, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.FLKE)))
-	EOSV (EOKS, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLSE)))
-	EOSV (EOKB, \_SB.PCI0.LPCB.EC.ECRD (RefOf (\_SB.PCI0.LPCB.EC.KLBE)))
-#endif
 
 	/*
 	 * Disable ACPI support.
@@ -131,6 +150,12 @@ Method (RWAK, 1, Serialized)
 		{
 			\_SB.PCI0.LPCB.EC.ECWR (0xaa, RefOf(\_SB.PCI0.LPCB.EC.KLBE))
 		}
+	}
+
+	Store (EOGT (EOKT), Local0)
+	If (Local0 <= 0x04)
+	{
+		\_SB.PCI0.LPCB.EC.ECWR (Local0, RefOf(\_SB.PCI0.LPCB.EC.KLTE))
 	}
 #endif
 
