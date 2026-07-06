@@ -22,15 +22,9 @@ config SMMSTORE_V2
 if SMMSTORE
 
 config SMMSTORE_BLOCK_SIZE
-	int "SMMSTORE v2 block size"
+	int
 	depends on SMMSTORE_V2
-	default 4096 if SOC_INTEL_APOLLOLAKE
 	default 65536
-	help
-	  Sets the SMMSTORE v2 logical block size that is reported to the
-	  caller and used for block read, write, and erase operations.
-	  Do not change this unless the platform needs a different erase
-	  block size and the SMMSTORE FMAP region is aligned accordingly.
 
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"

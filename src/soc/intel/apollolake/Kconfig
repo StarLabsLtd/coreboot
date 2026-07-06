@@ -111,6 +111,9 @@ config FSP_STATUS_GLOBAL_RESET
 config USE_LEGACY_8254_TIMER
 	default y
 
+config SMMSTORE_BLOCK_SIZE
+	default 4096 if SMMSTORE_V2
+
 config SKIP_CSE_RBP
 	bool
 	default y if BOOT_DEVICE_MEMORY_MAPPED && !IFWI_IBBM_LOAD
