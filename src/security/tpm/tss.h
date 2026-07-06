@@ -34,6 +34,18 @@
 tpm_result_t tlcl_lib_init(void);
 
 /**
+ * Return true when platform policy says the TPM should be treated as absent.
+ */
+#if CONFIG(TPM)
+bool tpm_is_expected_absent(void);
+#else
+static inline bool tpm_is_expected_absent(void)
+{
+	return false;
+}
+#endif
+
+/**
  * Query active TPM family.  Returns TPM_UNKNOWN if uninitialized and TPM_1 or TPM_2 otherwise.
  */
 static inline enum tpm_family tlcl_get_family(void)
