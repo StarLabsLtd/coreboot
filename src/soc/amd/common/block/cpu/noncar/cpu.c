@@ -18,6 +18,8 @@
 #define UNSUPPORTED 0
 
 #define UNINITIALIZED ((uint64_t)-1)
+#define CPUID_FAMILY_19H			0x19
+#define CPUID_FEATURES_7_HLE_RTM_MASK		(BIT(4) | BIT(11))
 
 struct core_info {
 	/* Core max boost frequency */
@@ -195,6 +197,27 @@ static void ap_stash_core_info(void)
 	core_info->max_frequency = get_max_boost_frequency();
 }
 
+static uint32_t amd_cpuid_family(void)
+{
+	const uint32_t eax = cpuid_eax(1);
+	uint32_t family = (eax >> 8) & 0xf;
+
+	if (family == 0xf)
+		family += (eax >> 20) & 0xff;
+
+	return family;
+}
+
+static void hide_unsupported_zen3_cpuid_features(void)
+{
+	if (amd_cpuid_family() != CPUID_FAMILY_19H)
+		return;
+
+	msr_t msr = rdmsr(CPU_ID_FEATURES_7_MSR);
+	msr.raw &= ~CPUID_FEATURES_7_HLE_RTM_MASK;
+	wrmsr(CPU_ID_FEATURES_7_MSR, msr);
+}
+
 void amd_cpu_init(struct device *dev)
 {
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_MCA_COMMON))
@@ -204,6 +227,8 @@ void amd_cpu_init(struct device *dev)
 
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_UCODE))
 		amd_apply_microcode_patch();
+
+	hide_unsupported_zen3_cpuid_features();
 
 	if (CONFIG(SOC_FILL_CPU_CACHE_INFO))
 		ap_stash_core_info();
