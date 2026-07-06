@@ -7,6 +7,9 @@
 #include <drivers/spi/tpm/tpm.h>
 #include <security/tpm/tis.h>
 #include <security/tpm/tss.h>
+#if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT) && ENV_RAMSTAGE
+#include <intelblocks/cse.h>
+#endif
 
 /*
  * This unit is meant to dispatch to either TPM1.2 or TPM2.0 TSS implementation
@@ -16,6 +19,28 @@
 enum tpm_family tlcl_tpm_family = TPM_UNKNOWN;
 
 tis_sendrecv_fn tlcl_tis_sendrecv;
+
+bool tpm_is_expected_absent(void)
+{
+#if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT) && ENV_RAMSTAGE
+	static bool logged;
+	const char *reason = NULL;
+
+	if (!cse_is_me_state_requested_enabled())
+		reason = "ME is disabled by runtime option";
+	if (!reason && cse_is_hfs1_com_soft_temp_disable())
+		reason = "ME is in software temporary disable mode";
+
+	if (reason) {
+		if (!logged)
+			printk(BIOS_DEBUG, "TPM: %s; treating TPM as absent\n", reason);
+		logged = true;
+		return true;
+	}
+#endif
+
+	return false;
+}
 
 /* Probe for TPM device and choose implementation based on the returned TPM family. */
 tpm_result_t tlcl_lib_init(void)
@@ -29,6 +54,11 @@ tpm_result_t tlcl_lib_init(void)
 	init_done = true;
 
 	tlcl_tis_sendrecv = NULL;
+	tlcl_tpm_family = TPM_UNKNOWN;
+
+	if (tpm_is_expected_absent())
+		return TPM_CB_NO_DEVICE;
+
 	if (CONFIG(CRB_TPM) || CONFIG(AMD_CRB_FTPM))
 		tlcl_tis_sendrecv = crb_tis_probe(&tlcl_tpm_family);
 	if (CONFIG(MEMORY_MAPPED_TPM) && tlcl_tis_sendrecv == NULL)
@@ -39,7 +69,10 @@ tpm_result_t tlcl_lib_init(void)
 		tlcl_tis_sendrecv = spi_tis_probe(&tlcl_tpm_family);
 
 	if (tlcl_tis_sendrecv == NULL) {
-		printk(BIOS_ERR, "%s: TIS probe failed\n", __func__);
+		if (tpm_is_expected_absent())
+			printk(BIOS_DEBUG, "%s: TPM absent by platform policy\n", __func__);
+		else
+			printk(BIOS_ERR, "%s: TIS probe failed\n", __func__);
 		tlcl_tpm_family = TPM_UNKNOWN;
 	} else if (tlcl_tpm_family != TPM_1 && tlcl_tpm_family != TPM_2) {
 		printk(BIOS_ERR, "%s: TIS probe returned incorrect TPM family: %d\n", __func__,
