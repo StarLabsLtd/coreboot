@@ -92,6 +92,9 @@ static tpm_result_t tpm_setup_epilogue(tpm_result_t rc)
 static int tpm_is_setup;
 static inline int tspi_tpm_is_setup(void)
 {
+	if (tpm_is_expected_absent())
+		return 0;
+
 	/*
 	 * vboot_logic_executed() only starts returning true at the end of
 	 * verstage, but the vboot logic itself already wants to extend PCRs
@@ -140,6 +143,10 @@ tpm_result_t tpm_setup(int s3flag)
 
 	rc = tlcl_lib_init();
 	if (rc != TPM_SUCCESS) {
+		if (rc == TPM_CB_NO_DEVICE && tpm_is_expected_absent()) {
+			printk(BIOS_DEBUG, "TPM: setup skipped because TPM is absent by platform policy\n");
+			return rc;
+		}
 		printk(BIOS_ERR, "TPM Error (%#x): Can't initialize.\n", rc);
 		return tpm_setup_epilogue(rc);
 	}
