@@ -37,6 +37,7 @@ static const struct sm_object me_state_counter = SM_DECLARE_NUMBER({
  * Use this option or the one below, but not both
  */
 static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_on_after_fail",
 	.ui_name	= "Restore AC power after loss",
 	.ui_helptext	= "Specify what to do when power is re-applied after a power loss.",
@@ -53,6 +54,7 @@ static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
  * Use this option or the one above, but not both
  */
 static const struct sm_object power_on_after_fail_bool = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_on_after_fail",
 	.ui_name	= "Power on after failure",
 	.ui_helptext	= "Automatically turn on after a power failure",
@@ -67,6 +69,7 @@ static void update_hyper_threading(struct sm_object *new)
 }
 
 static const struct sm_object hyper_threading = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "hyper_threading",
 	.ui_name	= "Hyper-Threading",
 	.ui_helptext	= "Enable or disable Hyper-Threading",
@@ -94,6 +97,7 @@ static void update_pcie_l1ss(struct sm_object *new)
 
 /* PCIe Clock PM */
 static const struct sm_object pciexp_clk_pm = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "pciexp_clk_pm",
 	.ui_name	= "PCIe Clock Power Management",
 	.ui_helptext	= "Enables or disables power management for the PCIe clock. When"
@@ -104,6 +108,7 @@ static const struct sm_object pciexp_clk_pm = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object pciexp_aspm = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "pciexp_aspm",
 	.ui_name	= "PCIe PCH RP ASPM",
 	.ui_helptext	= "Controls the Active State Power Management for PCIe devices."
@@ -121,6 +126,7 @@ static const struct sm_object pciexp_aspm = SM_DECLARE_ENUM({
 
 /* PCIe CPU RP ASPM */
 static const struct sm_object pciexp_aspm_cpu = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "pciexp_aspm_cpu",
 	.ui_name	= "PCIe CPU RP ASPM",
 	.ui_helptext	= "Controls the Active State Power Management for PCIe devices."
@@ -137,6 +143,7 @@ static const struct sm_object pciexp_aspm_cpu = SM_DECLARE_ENUM({
 
 /* PCIe L1 Substates */
 static const struct sm_object pciexp_l1ss = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "pciexp_l1ss",
 	.ui_name	= "PCIe L1 Substates",
 	.ui_helptext	= "Controls deeper power-saving states for PCIe devices."
@@ -153,6 +160,7 @@ static const struct sm_object pciexp_l1ss = SM_DECLARE_ENUM({
 
 /* PCIe PCH Root Port Speed */
 static const struct sm_object pciexp_speed = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "pciexp_speed",
 	.ui_name	= "PCIe PCH Root Port Speed",
 	.ui_helptext	= "Sets the maximum port speed for PCIe devices attached to PCH root ports.",
