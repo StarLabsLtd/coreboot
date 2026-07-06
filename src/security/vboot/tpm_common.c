@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <console/console.h>
 #include <security/tpm/tspi.h>
 #include <security/tpm/tss.h>
 #include <security/vboot/tpm_common.h>
@@ -14,6 +15,11 @@
 tpm_result_t vboot_setup_tpm(struct vb2_context *ctx)
 {
 	tpm_result_t rc;
+
+	if (CONFIG(VBOOT_MOCK_SECDATA) && tpm_is_expected_absent()) {
+		printk(BIOS_DEBUG, "VBOOT: TPM absent by platform policy; using mock secdata\n");
+		return TPM_SUCCESS;
+	}
 
 	rc = tpm_setup(ctx->flags & VB2_CONTEXT_S3_RESUME);
 	if (rc == TPM_CB_MUST_REBOOT)
