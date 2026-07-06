@@ -140,6 +140,10 @@ tpm_result_t tpm_setup(int s3flag)
 
 	rc = tlcl_lib_init();
 	if (rc != TPM_SUCCESS) {
+		if (rc == TPM_CB_NO_DEVICE && tpm_is_expected_absent()) {
+			printk(BIOS_DEBUG, "TPM: setup skipped because TPM is absent by platform policy\n");
+			return rc;
+		}
 		printk(BIOS_ERR, "TPM Error (%#x): Can't initialize.\n", rc);
 		return tpm_setup_epilogue(rc);
 	}

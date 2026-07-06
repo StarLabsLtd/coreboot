@@ -285,11 +285,6 @@ bool cse_is_hfs1_com_secover_mei_msg(void)
 	return cse_check_hfs1_com(ME_HFS1_COM_SECOVER_MEI_MSG);
 }
 
-bool cse_is_hfs1_com_soft_temp_disable(void)
-{
-	return cse_check_hfs1_com(ME_HFS1_COM_SOFT_TEMP_DISABLE);
-}
-
 bool cse_is_hfs1_cos_default(void)
 {
 	union me_hfsts1 hfs1;
@@ -732,11 +727,6 @@ bool is_cse_devfn_visible(unsigned int devfn)
 bool is_cse_enabled(void)
 {
 	return is_cse_devfn_visible(PCH_DEVFN_CSE);
-}
-
-uint32_t me_read_config32(int offset)
-{
-	return pci_read_config32(PCH_DEV_CSE, offset);
 }
 
 static bool cse_is_global_reset_allowed(void)
