@@ -45,6 +45,7 @@ static const struct cfr_default_override cezanne_cfr_overrides[] = {
 };
 
 static const struct sm_object microphone = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "microphone",
 	.ui_name	= "Microphone",
 	.ui_helptext	= "Enable or disable the built-in microphone",
@@ -52,6 +53,7 @@ static const struct sm_object microphone = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object power_profile = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_profile",
 	.ui_name	= "Power Profile",
 	.ui_helptext	= "Select whether to maximize performance, battery life or both.",
@@ -65,6 +67,7 @@ static const struct sm_object power_profile = SM_DECLARE_ENUM({
 
 #define STARBOOK_CEZANNE_DECLARE_PCIE_PM_OBJECTS(_suffix, _label)			\
 static const struct sm_object pciexp_##_suffix##_clk_pm = SM_DECLARE_BOOL({		\
+	.flags		= CFR_OPTFLAG_RUNTIME,					\
 	.opt_name	= "pciexp_" #_suffix "_clk_pm",				\
 	.ui_name	= _label " Clock Power Management",			\
 	.ui_helptext	= "Enable or disable clock power management for " _label ".", \
@@ -72,6 +75,7 @@ static const struct sm_object pciexp_##_suffix##_clk_pm = SM_DECLARE_BOOL({		\
 }, WITH_CALLBACK(cezanne_update_pcie_clk_pm));					\
 											\
 static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({		\
+	.flags		= CFR_OPTFLAG_RUNTIME,					\
 	.opt_name	= "pciexp_" #_suffix "_aspm",				\
 	.ui_name	= _label " ASPM",					\
 	.ui_helptext	= "Control Active State Power Management for " _label ".", \
@@ -88,6 +92,7 @@ static const struct sm_object pciexp_##_suffix##_aspm = SM_DECLARE_ENUM({		\
 
 #define STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT(_suffix, _label)			\
 static const struct sm_object pciexp_##_suffix##_l1ss = SM_DECLARE_ENUM({		\
+	.flags		= CFR_OPTFLAG_RUNTIME,					\
 	.opt_name	= "pciexp_" #_suffix "_l1ss",				\
 	.ui_name	= _label " L1 Substates",				\
 	.ui_helptext	= "Control PCIe L1 substates for " _label ".",		\
@@ -108,6 +113,7 @@ STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT(ssd, "SSD");
 #undef STARBOOK_CEZANNE_DECLARE_PCIE_L1SS_OBJECT
 
 static const struct sm_object wifi = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "wifi",
 	.ui_name	= "Wi-Fi",
 	.ui_helptext	= "Enable or disable the built-in Wi-Fi",
