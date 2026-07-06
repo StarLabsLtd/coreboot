@@ -10,7 +10,8 @@
  *  0 = CHIPSET_LOCKDOWN_COREBOOT = Use coreboot to lockdown IPs
  *  1 = CHIPSET_LOCKDOWN_FSP = use FSP's lockdown functionality to lockdown IPs
  *  2 = CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK = Use FSP to lock
- *	platform IPs, then let coreboot apply BIOS lock settings
+ *	platform IPs and protected ranges, then let coreboot apply EISS and
+ *	BIOS Lock Enable
  */
 int get_lockdown_config(void);
 

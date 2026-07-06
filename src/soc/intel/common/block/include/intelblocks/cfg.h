@@ -15,7 +15,9 @@ enum {
 	CHIPSET_LOCKDOWN_FSP,          /* FSP handles locking per UPDs */
 	/*
 	 * Work around FSPs that fail when coreboot skips FSP lockdown, but
-	 * still leave final BIOS lock settings for coreboot after SMM setup.
+	 * require EISS to be set before BIOS Lock Enable. FSP handles platform
+	 * lockdown, protected ranges and WPD ownership; coreboot applies the
+	 * final EISS and BIOS Lock Enable bits after SMM setup.
 	 */
 	CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK,
 };

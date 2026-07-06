@@ -21,7 +21,8 @@
  *  0 = CHIPSET_LOCKDOWN_COREBOOT = Use coreboot to lockdown IPs
  *  1 = CHIPSET_LOCKDOWN_FSP = use FSP's lockdown functionality to lockdown IPs
  *  2 = CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK = Use FSP to lock
- *	platform IPs, then let coreboot apply BIOS lock settings
+ *	platform IPs and protected ranges, then let coreboot apply EISS and
+ *	BIOS Lock Enable
  */
 int get_lockdown_config(void)
 {
@@ -127,26 +128,16 @@ static void sa_lockdown_config(int chipset_lockdown)
 
 static void late_bios_lock_config(void *unused)
 {
-	if (get_lockdown_config() != CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK)
+	int chipset_lockdown = get_lockdown_config();
+
+	if (chipset_lockdown != CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK)
 		return;
 
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)) {
-		if (enable_smm_bios_protection()) {
+		if (enable_smm_bios_protection())
 			fast_spi_set_eiss();
-			fast_spi_enable_wp();
-		}
 
 		fast_spi_set_lock_enable();
-		fast_spi_set_ext_bios_lock_enable();
-	}
-
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_LPC)) {
-		if (enable_smm_bios_protection()) {
-			lpc_set_eiss();
-			lpc_enable_wp();
-		}
-
-		lpc_set_lock_enable();
 	}
 }
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, late_bios_lock_config, NULL);
