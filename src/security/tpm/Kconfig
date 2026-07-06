@@ -32,6 +32,17 @@ config TPM
 	default y
 	depends on TPM1 || TPM2
 
+config TPM_TREAT_ME_DISABLED_AS_ABSENT
+	bool
+	depends on TPM2
+	depends on SOC_INTEL_COMMON_BLOCK_CSE
+	depends on CRB_TPM
+	depends on HAVE_INTEL_PTT
+	depends on !MEMORY_MAPPED_TPM
+	help
+	  Treat an Intel firmware TPM as absent when ME/CSE is disabled by a
+	  runtime firmware option or has entered software temporary disable mode.
+
 config MAINBOARD_HAS_TPM1
 	bool
 	help
