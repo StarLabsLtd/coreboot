@@ -160,6 +160,13 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.fallback = LED_NORMAL,
 	},
 #endif
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+	{
+		.name = "power_on_ac",
+		.id = STARLABS_EFIOPT_ID_POWER_ON_AC,
+		.fallback = ADAPTER_AUTO_POWER_ON_DEFAULT,
+	},
+#endif
 };
 
 static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id id)
@@ -257,6 +264,12 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
 #endif
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+	case STARLABS_EFIOPT_ID_POWER_ON_AC:
+		if (*value <= 1)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
 	default:
 		return CB_ERR_ARG;
 	}
@@ -308,6 +321,10 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #if CONFIG(EC_STARLABS_CHARGE_LED)
 	case STARLABS_EFIOPT_ID_CHARGE_LED:
 		return apply_ec_value(ECRAM_CHARGE_LED, value);
+#endif
+#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+	case STARLABS_EFIOPT_ID_POWER_ON_AC:
+		return apply_ec_value(ECRAM_POWER_ON_AC, value);
 #endif
 	default:
 		return CB_ERR_ARG;
