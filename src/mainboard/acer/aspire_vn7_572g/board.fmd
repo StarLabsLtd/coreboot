@@ -7,7 +7,7 @@ FLASH 8M {
 	SI_BIOS 6M {
 		EC 0x20000
 		RW_MRC_CACHE 0x10000
-		# SMMSTORE requires 64k alignment
+		# Keep SMMSTORE 64k-aligned for compatibility with 64 KiB block overrides
 		SMMSTORE 0x40000
 		CONSOLE 0x20000
 		FMAP 0x200

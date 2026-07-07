@@ -12,7 +12,7 @@
 
 // The same as in `smmstore.h` header, which isn't in `commonlib`.
 #ifndef SMM_BLOCK_SIZE
-#define SMM_BLOCK_SIZE (64 * 1024)
+#define SMM_BLOCK_SIZE (4 * 1024)
 #endif
 
 static const EFI_GUID EfiVariableGuid = EFI_VARIABLE_GUID;
