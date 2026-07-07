@@ -43,7 +43,8 @@ struct smmstore_params_init {
 
 /*
  * Returns the number of blocks the SMMSTORE supports and their size.
- * For edk2 this should be at least two blocks with 64 KiB each.
+ * For edk2 this should provide enough space for the variable store and
+ * fault-tolerant write area.
  * The mmap_addr is set the memory mapped physical address of the SMMSTORE.
  */
 struct smmstore_params_info {
