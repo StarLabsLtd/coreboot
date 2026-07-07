@@ -23,7 +23,8 @@ static void pmc_lockdown_config(int chipset_lockdown)
 	/* Lock down ABASE and sleep stretching policy */
 	setbits32(pmcbase + GEN_PMCON_B, SLP_STR_POL_LOCK | ACPI_BASE_LOCK);
 
-	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT)
+	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT ||
+	    chipset_lockdown == CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK)
 		setbits32(pmcbase + GEN_PMCON_B, SMI_LOCK);
 
 	if (!CONFIG(USE_FSP_NOTIFY_PHASE_POST_PCI_ENUM)) {

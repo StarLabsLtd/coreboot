@@ -18,7 +18,8 @@ static void pmc_lock_smi(void)
 void soc_lockdown_config(int chipset_lockdown)
 {
 	/* Only Gemini Lake exposes SMI_LOCK through the PMC MMIO path. */
-	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT &&
+	if ((chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT ||
+	     chipset_lockdown == CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK) &&
 	    CONFIG(SOC_INTEL_GEMINILAKE))
 		pmc_lock_smi();
 }
