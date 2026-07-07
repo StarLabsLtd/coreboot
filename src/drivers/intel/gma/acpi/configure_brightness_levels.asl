@@ -163,38 +163,21 @@
 	Method (XBQC, 0, NotSerialized)
 	{
 		/*
-		 * During early boot / resume the IGD driver has not yet populated
-		 * the OpRegion brightness fields (BCLM stays zero), so fall back to
-		 * the cached value we last exposed to the OS. If there's no cached
-		 * value yet, use the platform's default from BRIG[0].
+		 * Return the brightness level last accepted via _BCM. The legacy PWM
+		 * readback path can be stale or rounded after mailbox changes, so use
+		 * it only to seed the cache before the first _BCM.
 		 */
-		If (BCLM == 0) {
-			If (BRVA != 0) {
-				Return (BRLV)
-			}
+		If (BRVA != 0) {
+			Return (BRLV)
+		}
 
+		If (BCLM == 0) {
 			/* No cached brightness yet, fall back to platform default. */
 			Local0 = DeRefOf (BRIG[0])
 			Return (Local0)
 		}
 
 		Local0 = ^LEGA.XBQC ()
-		If (BRVA != 0 && Local0 != BRLV) {
-			/*
-			 * The OS replays _BCM requests while the graphics driver is
-			 * still reinitializing, so hardware brightness can diverge
-			 * from what we cached in BRLV. Reapply the cached level once
-			 * the OpRegion is ready to keep firmware and OS state aligned.
-			 * Use BRCT flag to prevent recursion.
-			 */
-			If (BRCT == 0)
-			{
-				BRCT = 1
-				XBCM (BRLV)
-				Local0 = ^LEGA.XBQC ()
-				BRCT = 0
-			}
-		}
 		BRLV = Local0
 		BRVA = 1
 		Return (Local0)
