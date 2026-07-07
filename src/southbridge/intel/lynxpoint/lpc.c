@@ -609,10 +609,12 @@ static void lpc_init(struct device *dev)
 	/* Initialize the High Precision Event Timers, if present. */
 	enable_hpet(dev);
 
-	setup_i8259();
+	if (!CONFIG(NO_PCAT_8259)) {
+		setup_i8259();
 
-	/* Interrupt 9 should be level triggered (SCI) */
-	i8259_configure_irq_trigger(9, 1);
+		/* Interrupt 9 should be level triggered (SCI) */
+		i8259_configure_irq_trigger(9, 1);
+	}
 
 	pch_set_acpi_mode();
 

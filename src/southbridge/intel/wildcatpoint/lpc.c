@@ -446,8 +446,10 @@ static void lpc_init(struct device *dev)
 	/* Interrupt configuration */
 	pch_enable_ioapic(dev);
 	pch_pirq_init(dev);
-	setup_i8259();
-	i8259_configure_irq_trigger(9, 1);
+	if (!CONFIG(NO_PCAT_8259)) {
+		setup_i8259();
+		i8259_configure_irq_trigger(9, 1);
+	}
 	enable_hpet(dev);
 
 	/* Initialize power management */

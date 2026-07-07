@@ -249,7 +249,8 @@ static void lpc_init(struct device *dev)
 	/* Initialize the High Precision Event Timers */
 	enable_hpet(dev);
 
-	setup_i8259();
+	if (!CONFIG(NO_PCAT_8259))
+		setup_i8259();
 
 	i82801dx_set_acpi_mode(dev);
 }

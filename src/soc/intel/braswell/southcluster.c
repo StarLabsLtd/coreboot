@@ -149,7 +149,8 @@ static void write_pci_config_irqs(void)
 
 		if (int_line != PIRQ_PIC_IRQDISABLE) {
 			/* Set this IRQ to level triggered */
-			i8259_configure_irq_trigger(int_line, IRQ_LEVEL_TRIGGERED);
+			if (!CONFIG(NO_PCAT_8259))
+				i8259_configure_irq_trigger(int_line, IRQ_LEVEL_TRIGGERED);
 
 			/* Set the Interrupt Line register */
 			pci_write_config8(irq_dev, PCI_INTERRUPT_LINE, int_line);
@@ -261,12 +262,14 @@ static void sc_init(struct device *dev)
 	for (i = 0; i < NUM_IR_DEVS; i++)
 		write16((void *)(ir_base + i*sizeof(ir->pcidev[i])), ir->pcidev[i]);
 
-	/* Interrupt 9 should be level triggered (SCI) */
-	i8259_configure_irq_trigger(9, 1);
+	if (!CONFIG(NO_PCAT_8259)) {
+		/* Interrupt 9 should be level triggered (SCI) */
+		i8259_configure_irq_trigger(9, 1);
 
-	for (i = 0; i < NUM_PIRQS; i++) {
-		if (ir->pic[i])
-			i8259_configure_irq_trigger(ir->pic[i], 1);
+		for (i = 0; i < NUM_PIRQS; i++) {
+			if (ir->pic[i])
+				i8259_configure_irq_trigger(ir->pic[i], 1);
+		}
 	}
 
 	if (config->disable_slp_x_stretch_sus_fail) {
@@ -281,7 +284,8 @@ static void sc_init(struct device *dev)
 	write_pci_config_irqs();
 
 	/* Initialize i8259 pic */
-	setup_i8259();
+	if (!CONFIG(NO_PCAT_8259))
+		setup_i8259();
 
 	/* Initialize i8254 timers */
 	setup_i8254();

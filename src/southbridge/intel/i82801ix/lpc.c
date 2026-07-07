@@ -383,11 +383,13 @@ static void lpc_init(struct device *dev)
 	/* Initialize Clock Gating */
 	enable_clock_gating();
 
-	setup_i8259();
+	if (!CONFIG(NO_PCAT_8259)) {
+		setup_i8259();
 
-	/* The OS should do this? */
-	/* Interrupt 9 should be level triggered (SCI) */
-	i8259_configure_irq_trigger(9, 1);
+		/* The OS should do this? */
+		/* Interrupt 9 should be level triggered (SCI) */
+		i8259_configure_irq_trigger(9, 1);
+	}
 
 	i82801ix_set_acpi_mode(dev);
 }
