@@ -23,9 +23,15 @@ static void pmc_lockdown_config(int chipset_lockdown)
 	/* Lock down ABASE and sleep stretching policy */
 	setbits32(pmcbase + GEN_PMCON_B, SLP_STR_POL_LOCK | ACPI_BASE_LOCK);
 
-	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT)
+	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT ||
+	    chipset_lockdown == CHIPSET_LOCKDOWN_FSP_THEN_COREBOOT_BIOS_LOCK)
 		setbits32(pmcbase + GEN_PMCON_B, SMI_LOCK);
 
+	/*
+	 * When FSP PostPciEnumeration notify is enabled, FSP owns the PMC
+	 * BIOS-reset/PCI-enumeration handoff. Sending the native IPC as well
+	 * has caused PMC IPC timeouts on validated StarLabs Lite ADL firmware.
+	 */
 	if (!CONFIG(USE_FSP_NOTIFY_PHASE_POST_PCI_ENUM)) {
 		setbits32(pmcbase + PMC_FDIS_LOCK_REG, ST_FDIS_LOCK);
 		setbits32(pmcbase + SSML, SSML_SSL_EN);
