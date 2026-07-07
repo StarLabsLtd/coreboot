@@ -709,7 +709,7 @@ static void __calc_var_mtrrs(struct memranges *addr_space,
 }
 
 static int calc_var_mtrrs(struct memranges *addr_space, bool above4gb, int address_bits,
-			  int *num_mtrrs_used)
+			  int *num_mtrrs_used, bool allow_wrcomb_removal)
 {
 	int wb_deftype_count = 0;
 	int uc_deftype_count = 0;
@@ -718,7 +718,8 @@ static int calc_var_mtrrs(struct memranges *addr_space, bool above4gb, int addre
 			 &uc_deftype_count);
 
 	const int bios_mtrrs = total_mtrrs - get_os_reserved_mtrrs();
-	if (wb_deftype_count > bios_mtrrs && uc_deftype_count > bios_mtrrs) {
+	if (allow_wrcomb_removal &&
+	    wb_deftype_count > bios_mtrrs && uc_deftype_count > bios_mtrrs) {
 		printk(BIOS_DEBUG, "MTRR: Removing WRCOMB type. "
 		       "WB/UC MTRR counts: %d/%d > %d.\n",
 		       wb_deftype_count, uc_deftype_count, bios_mtrrs);
@@ -813,7 +814,7 @@ void x86_setup_var_mtrrs(unsigned int address_bits, bool above4gb)
 	if (sol == NULL) {
 		sol = &mtrr_global_solution;
 		sol->mtrr_default_type =
-			calc_var_mtrrs(addr_space, above4gb, address_bits, &num_mtrrs_used);
+			calc_var_mtrrs(addr_space, above4gb, address_bits, &num_mtrrs_used, true);
 		prepare_var_mtrrs(addr_space, sol->mtrr_default_type,
 				  above4gb, address_bits, sol);
 	}
@@ -889,72 +890,60 @@ static struct temp_range {
 	int type;
 } temp_ranges[10];
 
-/*
- * Attempt to use the temporary ranges in the MTRR solution. If it fails, it
- * will drop above 4GiB ranges and try again. If it still fails, it will return false.
- */
-static bool mtrr_use_temp_range_internal(bool use_wrcomb, bool *wrcomb_seen)
+static void build_temp_addr_space(struct memranges *addr_space, bool use_wrcomb,
+				  bool *wrcomb_seen)
 {
 	const struct range_entry *r;
-	const struct memranges *orig;
-	struct var_mtrr_solution sol;
-	struct memranges addr_space;
-	bool above4gb = true; /* Cover above 4GiB by default. */
-	int address_bits;
-	int num_mtrrs_used;
-	bool ret = false;
+	const struct memranges *orig = get_physical_address_space();
 
-	/* Make a copy of the original address space and tweak it with the
-	 * provided range. */
-	memranges_init_empty(&addr_space, NULL, 0);
-	orig = get_physical_address_space();
-	memranges_each_entry(r, orig) {
-		unsigned long tag = range_entry_tag(r);
+	memranges_each_entry(r, orig)
+		memranges_insert(addr_space, range_entry_base(r), range_entry_size(r),
+				 range_entry_tag(r));
 
-		if (wrcomb_seen && tag == MTRR_TYPE_WRCOMB)
-			*wrcomb_seen = true;
-		/* Remove any write combining MTRRs from the temporary
-		 * solution as it fragments the address space. */
-		if (!use_wrcomb && tag == MTRR_TYPE_WRCOMB)
-			tag = MTRR_TYPE_UNCACHEABLE;
-
-		memranges_insert(&addr_space, range_entry_base(r),
-				range_entry_size(r), tag);
-	}
-
-	/* Place new range into the address space. */
 	for (size_t i = 0; i < ARRAY_SIZE(temp_ranges); i++) {
 		if (temp_ranges[i].size != 0)
-			memranges_insert(&addr_space, temp_ranges[i].begin,
+			memranges_insert(addr_space, temp_ranges[i].begin,
 					 temp_ranges[i].size, temp_ranges[i].type);
 	}
 
-	print_physical_address_space(&addr_space, "TEMPORARY");
-
-	/* Calculate a new solution with the updated address space. */
-	address_bits = cpu_phys_address_size();
-	memset(&sol, 0, sizeof(sol));
-	sol.mtrr_default_type =
-		calc_var_mtrrs(&addr_space, above4gb, address_bits, &num_mtrrs_used);
-
-	/* If we ran out of MTRRs, retry excluding ranges above 4GiB */
-	if (above4gb && num_mtrrs_used > total_mtrrs) {
-		printk(BIOS_WARNING, "MTRR: Ran out of variable MTRRs; retrying excluding ranges above 4GiB.\n");
-		above4gb = false;
-		sol.mtrr_default_type = calc_var_mtrrs(&addr_space, above4gb, address_bits, &num_mtrrs_used);
-	}
-	if (num_mtrrs_used <= total_mtrrs)
-		prepare_var_mtrrs(&addr_space, sol.mtrr_default_type, above4gb, address_bits, &sol);
-	else
-		printk(BIOS_ERR, "Not enough MTRRs: %d needed vs %d available\n", num_mtrrs_used, total_mtrrs);
-
-	if (num_mtrrs_used <= total_mtrrs && commit_var_mtrrs(&sol) == 0) {
-		put_back_original_solution = true;
-		ret = true;
+	if (wrcomb_seen) {
+		memranges_each_entry(r, addr_space) {
+			if (range_entry_tag(r) == MTRR_TYPE_WRCOMB)
+				*wrcomb_seen = true;
+		}
 	}
 
-	memranges_teardown(&addr_space);
-	return ret;
+	/* Include caller-supplied temporary WC ranges in the fallback. */
+	if (!use_wrcomb)
+		memranges_update_tag(addr_space, MTRR_TYPE_WRCOMB, MTRR_TYPE_UNCACHEABLE);
+
+	print_physical_address_space(addr_space, "TEMPORARY");
+}
+
+static bool mtrr_use_temp_range_internal(struct memranges *addr_space, bool above4gb,
+					 const char *wc_state)
+{
+	struct var_mtrr_solution sol = {0};
+	int address_bits = cpu_phys_address_size();
+	int num_mtrrs_used;
+
+	sol.mtrr_default_type = calc_var_mtrrs(addr_space, above4gb, address_bits,
+					    &num_mtrrs_used, false);
+	if (num_mtrrs_used > total_mtrrs) {
+		printk(BIOS_DEBUG, "MTRR: Temporary range needs %d MTRRs vs %d available\n",
+		       num_mtrrs_used, total_mtrrs);
+		return false;
+	}
+
+	prepare_var_mtrrs(addr_space, sol.mtrr_default_type, above4gb, address_bits, &sol);
+	if (commit_var_mtrrs(&sol) != 0)
+		return false;
+
+	put_back_original_solution = true;
+	printk(above4gb ? BIOS_DEBUG : BIOS_WARNING,
+	       "MTRR: Temporary solution: WC %s, above-4GiB coverage %s\n",
+	       wc_state, above4gb ? "retained" : "dropped");
+	return true;
 }
 
 /*
@@ -963,6 +952,8 @@ static bool mtrr_use_temp_range_internal(bool use_wrcomb, bool *wrcomb_seen)
  */
 void mtrr_use_temp_range(uintptr_t begin, size_t size, int type)
 {
+	static struct memranges with_wrcomb, without_wrcomb;
+	static bool initialized;
 	bool wrcomb_seen = false;
 	int i;
 
@@ -982,23 +973,39 @@ void mtrr_use_temp_range(uintptr_t begin, size_t size, int type)
 		return;
 	}
 
+	/* Initialize once so teardown retains the free lists between calls. */
+	if (!initialized) {
+		memranges_init_empty(&with_wrcomb, NULL, 0);
+		memranges_init_empty(&without_wrcomb, NULL, 0);
+		initialized = true;
+	}
+
 	/*
-	 * Try with WRCOMB (write-combining) MTRRs first.
-	 * WRCOMB MTRRs speed up framebuffer access a lot and should be used if possible.
-	 * However, they can be dropped if the MTRR solution runs out of variable MTRRs.
+	 * Try full coverage with WC, then without WC; next try below 4GiB
+	 * with WC, then without WC. Correct types above 4GiB take priority
+	 * over framebuffer write-combining.
 	 */
-	if (mtrr_use_temp_range_internal(true, &wrcomb_seen))
-		return;
+	build_temp_addr_space(&with_wrcomb, true, &wrcomb_seen);
+	if (mtrr_use_temp_range_internal(&with_wrcomb, true, wrcomb_seen ? "retained" : "none"))
+		goto out;
 
 	if (wrcomb_seen) {
-		/* Try again by removing WRCOMB MTRRs */
-		printk(BIOS_DEBUG, "MTRR: Temporarily disabling WRCOMB MTRRs\n");
-		if (mtrr_use_temp_range_internal(false, NULL))
-			return;
+		build_temp_addr_space(&without_wrcomb, false, NULL);
+		if (mtrr_use_temp_range_internal(&without_wrcomb, true, "removed"))
+			goto out;
 	}
+
+	if (mtrr_use_temp_range_internal(&with_wrcomb, false, wrcomb_seen ? "retained" : "none"))
+		goto out;
+
+	if (wrcomb_seen && mtrr_use_temp_range_internal(&without_wrcomb, false, "removed"))
+		goto out;
 
 	printk(BIOS_ERR, "Unable to insert temporary MTRR range: 0x%016llx - 0x%016llx size 0x%08llx type %d\n",
 	       (long long)begin, (long long)begin + size - 1, (long long)size, type);
+out:
+	memranges_teardown(&with_wrcomb);
+	memranges_teardown(&without_wrcomb);
 }
 
 static void remove_temp_solution(void *unused)
