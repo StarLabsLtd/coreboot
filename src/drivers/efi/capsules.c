@@ -485,6 +485,11 @@ static int discover_capsule_blocks(struct region_device *rdev,
 		printk(BIOS_INFO, "capsules: capsule block #%d at %#010llx.\n",
 		       block_count, block.self);
 		blocks[block_count++] = block;
+
+		/* efi_fv_get_option() trashes the rdev. Need to reinitialize after every call. */
+		if (!smmstore_lookup_region(rdev))
+			return block_count;
+
 	}
 
 	return block_count;
