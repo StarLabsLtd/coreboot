@@ -72,12 +72,16 @@ config USE_LEGACY_8254_TIMER
 config USE_PC_CMOS_ALTCENTURY
 	default n if VENDOR_STARLABS
 
-
 config ACPI_TPM_TABLES_REQUIRE_PROBE
 	default y if VENDOR_STARLABS
 
 config TPM_TREAT_ME_DISABLED_AS_ABSENT
 	default y if HAVE_INTEL_PTT
+
+config STARLABS_NO_PCAT_8259
+	bool
+	default y
+	select NO_PCAT_8259
 
 config DRIVERS_EFI_FW_INFO
 	def_bool y
