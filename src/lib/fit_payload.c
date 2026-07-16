@@ -365,7 +365,7 @@ void fit_payload(struct prog *payload, void *data)
 	if (config->fdt)
 		dt = unpack_fdt(config->fdt);
 	else if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware)
-		dt = fdt_unflatten(cbmem_find(CBMEM_ID_CBTABLE));
+		dt = fdt_unflatten(cbmem_find(CBMEM_ID_FDT));
 	if (!dt) {
 		printk(BIOS_ERR, "Failed to unflatten the FDT.\n");
 		return;

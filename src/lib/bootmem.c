@@ -17,6 +17,16 @@ static int table_written;
 static struct memranges bootmem;
 static struct memranges bootmem_os;
 
+#if ENV_TEST
+void bootmem_reset(void)
+{
+	memranges_teardown(&bootmem);
+	memranges_teardown(&bootmem_os);
+	initialized = 0;
+	table_written = 0;
+}
+#endif
+
 struct range_strings {
 	enum bootmem_type tag;
 	const char *str;
@@ -168,7 +178,8 @@ void bootmem_write_memory_table(struct lb_memory *mem)
 
 	lb_r = &mem->map[0];
 
-	bootmem_init();
+	if (!bootmem_is_initialized())
+		bootmem_init();
 	bootmem_dump_ranges();
 
 	memranges_each_entry(r, &bootmem_os) {
@@ -187,7 +198,8 @@ void bootmem_write_memory_table(struct lb_memory *mem)
 void upl_fdt_add_memory(struct device_tree *tree)
 {
 	printk(BIOS_DEBUG, "Write UPL FDT memory entries\n");
-	bootmem_init();
+	if (!bootmem_is_initialized())
+		bootmem_init();
 	bootmem_dump_ranges();
 
 	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
