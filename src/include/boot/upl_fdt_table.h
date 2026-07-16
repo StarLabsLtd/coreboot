@@ -9,7 +9,8 @@
 
 /* Add references to each secondary image. */
 void upl_fdt_add_secondary(struct device_tree *tree, const char *name, struct region *secondary);
-uintptr_t write_upl_fdt_table(uintptr_t rom_table_end);
+uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
+			      bool use_existing_fdt);
 
 /*
  * Adds a serial node using parent_node as a parent
