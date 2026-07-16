@@ -223,6 +223,7 @@ config HANDOFF_COREBOOT_TABLES
 config HANDOFF_UPL_DEVICETREE
 	bool "Create Universal Payload FDT handoff (experimental)"
 	select FLATTENED_DEVICE_TREE
+	select PAYLOAD_OWNS_PCI_DEVICES
 	help
 	  Use Universal Payload Flattened Device Tree as payload handoff.
 	  Its format is specified by the Universal Payload Specification.
