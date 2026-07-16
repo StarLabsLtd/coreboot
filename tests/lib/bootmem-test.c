@@ -18,6 +18,8 @@ void bootmem_arch_add_ranges(void)
 {
 }
 
+void bootmem_reset(void);
+
 struct bootmem_ranges_t {
 	uint64_t start;
 	uint64_t size;
@@ -240,6 +242,13 @@ static void init_memory_table_library(void)
 	free(lb_mem);
 }
 
+static int setup_bootmem_test(void **state)
+{
+	bootmem_reset();
+
+	return 0;
+}
+
 static void test_bootmem_add_range(void **state)
 {
 	init_memory_table_library();
@@ -380,7 +389,8 @@ static void test_bootmem_allocate_buffer(void **state)
 	assert_non_null(buf);
 	assert_int_equal(1, bootmem_region_targets_type((uintptr_t)buf,
 							0xE0000000, BM_MEM_PAYLOAD));
-	assert_in_range((uintptr_t)buf, CACHEABLE_START + RAMSTAGE_SIZE, RESERVED_START);
+	assert_true((uintptr_t)buf >= CACHEABLE_START + RAMSTAGE_SIZE);
+	assert_true((uintptr_t)buf < RESERVED_START);
 	/* Check if allocated (payload) ranges have their base and size aligned */
 	bootmem_walk(verify_bootmem_allocate_buffer, NULL);
 
@@ -389,9 +399,11 @@ static void test_bootmem_allocate_buffer(void **state)
 	assert_non_null(buf);
 	assert_int_equal(1, bootmem_region_targets_type((uintptr_t)buf,
 							0xF000000, BM_MEM_PAYLOAD));
-	assert_in_range((uintptr_t)buf, CACHEABLE_START + RAMSTAGE_SIZE, RESERVED_START);
+	assert_true((uintptr_t)buf >= CACHEABLE_START + RAMSTAGE_SIZE);
+	assert_true((uintptr_t)buf < RESERVED_START);
 	/* Check if newly allocated buffer does not overlap with previously allocated range */
-	assert_not_in_range((uintptr_t)buf, (uintptr_t)prev, (uintptr_t)prev + 0xE0000000);
+	assert_false((uintptr_t)buf >= (uintptr_t)prev &&
+		     (uintptr_t)buf < (uintptr_t)prev + 0xE0000000);
 	/* Check if allocated (payload) ranges have their base and size aligned */
 	bootmem_walk(verify_bootmem_allocate_buffer, NULL);
 
@@ -403,11 +415,11 @@ static void test_bootmem_allocate_buffer(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_bootmem_write_mem_table),
-		cmocka_unit_test(test_bootmem_add_range),
-		cmocka_unit_test(test_bootmem_walk),
-		cmocka_unit_test(test_bootmem_allocate_buffer),
-		cmocka_unit_test(test_bootmem_region_targets_type)
+		cmocka_unit_test_setup(test_bootmem_write_mem_table, setup_bootmem_test),
+		cmocka_unit_test_setup(test_bootmem_add_range, setup_bootmem_test),
+		cmocka_unit_test_setup(test_bootmem_walk, setup_bootmem_test),
+		cmocka_unit_test_setup(test_bootmem_allocate_buffer, setup_bootmem_test),
+		cmocka_unit_test_setup(test_bootmem_region_targets_type, setup_bootmem_test)
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

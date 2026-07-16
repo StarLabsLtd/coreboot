@@ -9,6 +9,8 @@
 #include <console/console.h>
 #include <console/uart.h>
 #include <cpu/cpu.h>
+#include <device/device.h>
+#include <device/pci_def.h>
 #include <fit.h>
 #include <stdio.h>
 #include <version.h>
@@ -88,6 +90,98 @@ void upl_fdt_add_secondary(struct device_tree *tree, const char *name, struct re
 		dt_add_string_prop(image_node, "description", "TODO");
 		dt_add_reg_prop(image_node, &addr, &size, 1, addr_cells, size_cells);
 	}
+}
+
+#define NON_RELOCATABLE	BIT(31)
+#define IO_SPACE	BIT(24)
+#define MMIO_SPACE	BIT(25)
+#define MMIO64_SPACE	(BIT(24) | BIT(25))
+
+static void write_pci_rb_range(uint32_t *ranges, uint32_t *index,
+			       uint32_t memory_space, u64 base, u64 limit)
+{
+	ranges[(*index)++] = cpu_to_be32(NON_RELOCATABLE | memory_space);
+
+	uint32_t child_addr_index = *index;
+	ranges[(*index)++] = cpu_to_be32(base >> 32);
+	ranges[(*index)++] = cpu_to_be32(base & 0xffffffff);
+
+	ranges[(*index)++] = ranges[child_addr_index];
+	ranges[(*index)++] = ranges[child_addr_index + 1];
+
+	u64 size = limit - base + 1;
+	ranges[(*index)++] = cpu_to_be32(size >> 32);
+	ranges[(*index)++] = cpu_to_be32(size & 0xffffffff);
+}
+
+static int write_pci_rb_node(struct device_tree *tree)
+{
+	uint64_t addr = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+	uint64_t size = CONFIG_ECAM_MMCONF_LENGTH;
+	char node_name[64];
+	int status;
+	struct device_tree_node *pci_rb_node;
+	uint32_t ranges[21];
+	uint32_t ranges_index = 0;
+
+	/* PCI Bus Binding requires three address cells and two size cells. */
+	u32 pci_addr_cells = 3, pci_size_cells = 2;
+	u32 host_addr_cells = 2, host_size_cells = 1;
+
+	status = snprintf(node_name, sizeof(node_name), "/pci-rb0@%llx", addr);
+	assert(status >= 0 && status < (int)sizeof(node_name));
+	pci_rb_node = dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
+	if (!pci_rb_node) {
+		printk(BIOS_ERR, "%s: %s node is null", __func__, node_name);
+		return -1;
+	}
+	dt_add_u32_prop(pci_rb_node, "#address-cells", pci_addr_cells);
+	dt_add_u32_prop(pci_rb_node, "#size-cells", pci_size_cells);
+	dt_add_string_prop(pci_rb_node, "compatible", "pci-rb");
+
+	dt_add_reg_prop(pci_rb_node, &addr, &size, 1, host_addr_cells, host_size_cells);
+
+	struct device *domain = dev_find_path(NULL, DEVICE_PATH_DOMAIN);
+	if (!domain) {
+		printk(BIOS_ERR, "%s: PCI domain is unavailable\n", __func__);
+		return -1;
+	}
+
+	const struct resource *res;
+	for (res = domain->resource_list; res; res = res->next) {
+		if (!(res->flags & IORESOURCE_SUBTRACTIVE) || res->base > res->limit)
+			continue;
+		if (ranges_index + 7 > ARRAY_SIZE(ranges)) {
+			printk(BIOS_ERR, "%s: too many PCI domain apertures\n", __func__);
+			return -1;
+		}
+
+		if (res->flags & IORESOURCE_IO)
+			write_pci_rb_range(ranges, &ranges_index, IO_SPACE,
+					   res->base, res->limit);
+		else if ((res->flags & IORESOURCE_MEM) && res->base < 4ULL * GiB)
+			write_pci_rb_range(ranges, &ranges_index, MMIO_SPACE,
+					   res->base, res->limit);
+		else if (res->flags & IORESOURCE_MEM)
+			write_pci_rb_range(ranges, &ranges_index, MMIO64_SPACE,
+					   res->base, res->limit);
+	}
+
+	if (!ranges_index) {
+		printk(BIOS_ERR, "%s: PCI domain has no allocatable apertures\n", __func__);
+		return -1;
+	}
+
+	dt_add_bin_prop(pci_rb_node, "ranges", ranges,
+			ranges_index * sizeof(ranges[0]));
+
+	uint32_t bus_range[] = {
+		cpu_to_be32(0),
+		cpu_to_be32(MIN(CONFIG_ECAM_MMCONF_BUS_NUMBER - 1, 0xff)),
+	};
+	dt_add_bin_prop(pci_rb_node, "bus-range", bus_range, sizeof(bus_range));
+
+	return 0;
 }
 
 static int write_isa_node(struct device_tree *tree)
@@ -209,12 +303,13 @@ static int write_reserved_memory_node(struct device_tree *tree)
 
 /*
  * Writes a FDT (Flattened Device Tree) compliant to the UPL (Universal Payload Specification)
- * at rom_table_end and advances rom_table_end pointer to the size of the FDT.
+ * at table_start and advances the pointer by the size of the FDT.
  * This FDT is used as an alternative to the coreboot tables for the handoff to the payload.
  * Some architectures (like RISC-V) already use an FDT for handoff.
  * In that case the UPL specific FDT structues will simply be extended into the exisitng FDT.
  */
-uintptr_t write_upl_fdt_table(uintptr_t rom_table_end)
+uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
+			      bool use_existing_fdt)
 {
 	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
 	u32 addr_cells = 2, size_cells = 1;
@@ -241,14 +336,14 @@ uintptr_t write_upl_fdt_table(uintptr_t rom_table_end)
 	header.reserve_map_offset = cpu_to_be32(ALIGN_UP(dev_tree.header_size, 8));
 
 	struct device_tree *tree;
-	void *dtb = cbmem_find(CBMEM_ID_FDT); // check for existing devicetree
-	if (dtb) {
+	void *dtb = (void *)table_start;
+	if (use_existing_fdt) {
 		printk(BIOS_DEBUG, "%s: Using existing devicetree\n", __func__);
 		tree = fdt_unflatten(dtb);
 		//free(dtb);
 		if (!tree) {
 			printk(BIOS_ERR, "%s: error unflattening devicetree\n", __func__);
-			return rom_table_end;
+			return table_start;
 		}
 	} else {
 		printk(BIOS_DEBUG, "%s: Creating new UPL devicetree\n", __func__);
@@ -258,6 +353,9 @@ uintptr_t write_upl_fdt_table(uintptr_t rom_table_end)
 	}
 
 	if (write_options_node(tree))
+		goto error;
+
+	if (write_pci_rb_node(tree))
 		goto error;
 
 	if (write_isa_node(tree))
@@ -272,17 +370,22 @@ uintptr_t write_upl_fdt_table(uintptr_t rom_table_end)
 	if (write_reserved_memory_node(tree))
 		goto error;
 
-	printk(BIOS_DEBUG, "Writing UPL devicetree at 0x%08lx\n", (long)rom_table_end);
+	printk(BIOS_DEBUG, "Writing UPL devicetree at 0x%08lx\n", (long)table_start);
 
 	size_t dt_size = dt_flat_size(tree);
-	dt_flatten(tree, (void *)rom_table_end);
-	if (dtb)
+	if (dt_size > table_capacity) {
+		printk(BIOS_ERR, "%s: UPL FDT is too large (%zx/%zx)\n",
+		       __func__, dt_size, table_capacity);
+		goto error;
+	}
+	dt_flatten(tree, (void *)table_start);
+	if (use_existing_fdt)
 		free(tree);
 
-	return rom_table_end + dt_size;
+	return table_start + dt_size;
 
 error:
-	if (dtb)
+	if (use_existing_fdt)
 		free(tree);
-	return rom_table_end;
+	return table_start;
 }
