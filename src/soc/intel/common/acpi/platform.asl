@@ -4,6 +4,7 @@
 
 External(\_SB.MPTS, MethodObj)
 External(\_SB.MWAK, MethodObj)
+External(\_SB.AWAC.RWIN, MethodObj)
 External(\_SB.PCI0.EGPM, MethodObj)
 External(\_SB.PCI0.RGPM, MethodObj)
 External(\_SB.PCI0.LPCB.EC0.PTS, MethodObj)
@@ -19,6 +20,11 @@ External(\_SB.PCI0.LPCB.EC0.WAK, MethodObj)
 Method (_PTS, 1)
 {
 	DBG0 = POSTCODE_OS_ENTER_PTS
+
+	If (CondRefOf (\_SB.AWAC.RWIN))
+	{
+		\_SB.AWAC.RWIN ()
+	}
 
 	If (CondRefOf (\_SB.PCI0.LPCB.EC0.PTS))
 	{
