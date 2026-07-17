@@ -247,6 +247,19 @@ enabled without rebooting first. There could be a way of deactivating the
 handler, but coreboot, having no way of enforcing its usage, might as well
 permit access until a reboot and rely on the payload to do the right thing.
 
+### - SMMSTORE_CMD_USE_EC_REGION = 0x40
+
+This modifier uses the same one-boot capsule authorization as full-flash
+access, but exposes only the first 64 KiB of the FMAP `EC` region. This is the
+executable range selected by the ITE mirror signature; the upper half of a
+128 KiB Merlin image remains inaccessible through this modifier. Block IDs are
+relative to the scoped range, which must start on an SMMSTORE block boundary.
+Commands with both region modifiers set are rejected.
+
+An EC-only FMP implementation must use this modifier instead of
+`SMMSTORE_CMD_USE_FULL_FLASH`. The full-flash path remains available for the
+existing system-firmware capsule and is not changed by this interface.
+
 ## External links
 
 * [A Tour Beyond BIOS Implementing UEFI Authenticated Variables in SMM with EDK II](https://github.com/tianocore-docs/Docs/raw/master/White_Papers/A_Tour_Beyond_BIOS_Implementing_UEFI_Authenticated_Variables_in_SMM_with_EDKII_V2.pdf)

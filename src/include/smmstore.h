@@ -23,7 +23,9 @@
  * otherwise protected to avoid causing problems while trying to overwrite
  * them.
  */
+#define SMMSTORE_CMD_USE_EC_REGION  0x40
 #define SMMSTORE_CMD_USE_FULL_FLASH 0x80
+#define SMMSTORE_CMD_REGION_MASK    (SMMSTORE_CMD_USE_EC_REGION | SMMSTORE_CMD_USE_FULL_FLASH)
 
 /*
  * The SMMSTORE protocol separates the store into blocks, each of which
@@ -88,8 +90,6 @@ struct smmstore_params_raw_read {
 struct smmstore_params_raw_clear {
 	uint32_t block_id;
 } __packed;
-
-
 /* SMM handler */
 uint32_t smmstore_exec(uint8_t command, void *param);
 
