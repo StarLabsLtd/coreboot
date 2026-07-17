@@ -75,6 +75,7 @@
 #define GPE_STD      3 /**< 0x6c = Standard GPE. */
 
 #define GPE0_EN(x)     (0x70 + ((x) * 4))
+#define WADT_STS       BIT(18)
 #define WADT_EN        BIT(18)
 #define USB_CON_DSX_EN BIT(17)
 #define LANWAKE_EN     BIT(16)
