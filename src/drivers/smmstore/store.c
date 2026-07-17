@@ -11,8 +11,10 @@
 #include <types.h>
 
 #define SMMSTORE_REGION "SMMSTORE"
+#define EC_REGION       "EC"
 
 #define SMMSTORE_MIN_SIZE (64 * KiB)
+#define EC_UPDATE_SIZE    (64 * KiB)
 
 _Static_assert(IS_ALIGNED(FMAP_SECTION_SMMSTORE_START, SMM_BLOCK_SIZE),
 	       "SMMSTORE FMAP region not aligned to block size");
@@ -23,11 +25,28 @@ _Static_assert(SMMSTORE_MIN_SIZE <= FMAP_SECTION_SMMSTORE_SIZE,
 _Static_assert(SMM_BLOCK_SIZE <= FMAP_SECTION_SMMSTORE_SIZE,
 	       "SMMSTORE FMAP region must fit at least one logical block");
 
-static int smmstore_use_full_flash;
+enum smmstore_region_mode {
+	SMMSTORE_REGION_DEFAULT,
+	SMMSTORE_REGION_EC,
+	SMMSTORE_REGION_FULL_FLASH,
+	SMMSTORE_REGION_COUNT,
+};
+
+struct smmstore_region_context {
+	struct region_device read_rdev;
+	struct region_device write_rdev;
+	struct incoherent_rdev store_irdev;
+};
+
+static enum smmstore_region_mode smmstore_region_mode;
 static int has_capsules = -1;
 
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
+	uint8_t region_modifier;
+
+	smmstore_region_mode = SMMSTORE_REGION_DEFAULT;
+
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		if (has_capsules == -1 && *cmd == SMMSTORE_CMD_USE_FULL_FLASH) {
 			has_capsules = !!(uintptr_t)param;
@@ -37,20 +56,37 @@ int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 			 * the caller whether capsule handling was enabled or not.
 			 */
 			return has_capsules;
-		} else if (has_capsules == 1 && *cmd & SMMSTORE_CMD_USE_FULL_FLASH) {
-			smmstore_use_full_flash = 1;
-			*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
-		} else {
-			smmstore_use_full_flash = 0;
 		}
+
+		region_modifier = *cmd & SMMSTORE_CMD_REGION_MASK;
+		if (has_capsules != 1 || region_modifier == 0)
+			return 0;
+
+		if (region_modifier == SMMSTORE_CMD_USE_EC_REGION)
+			smmstore_region_mode = SMMSTORE_REGION_EC;
+		else if (region_modifier == SMMSTORE_CMD_USE_FULL_FLASH)
+			smmstore_region_mode = SMMSTORE_REGION_FULL_FLASH;
+		else
+			return 0;
+
+		*cmd &= ~SMMSTORE_CMD_REGION_MASK;
 	}
 
 	return 0;
 }
 
-static enum cb_err lookup_store_region(struct region *region)
+static const char *smmstore_region_name(enum smmstore_region_mode mode)
 {
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash) {
+	if (mode == SMMSTORE_REGION_EC)
+		return EC_REGION;
+	if (mode == SMMSTORE_REGION_FULL_FLASH)
+		return "full flash";
+	return SMMSTORE_REGION;
+}
+
+static enum cb_err lookup_store_region(struct region *region, enum smmstore_region_mode mode)
+{
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && mode == SMMSTORE_REGION_FULL_FLASH) {
 		const struct region_device *rdev = boot_device_rw();
 
 		if (rdev == NULL)
@@ -60,11 +96,24 @@ static enum cb_err lookup_store_region(struct region *region)
 		return CB_SUCCESS;
 	}
 
-	if (fmap_locate_area(SMMSTORE_REGION, region)) {
-		printk(BIOS_WARNING,
-		       "smm store: Unable to find SMM store FMAP region '%s'\n",
-		       SMMSTORE_REGION);
+	const char *region_name = smmstore_region_name(mode);
+
+	if (fmap_locate_area(region_name, region)) {
+		printk(BIOS_WARNING, "smm store: Unable to find SMM store FMAP region '%s'\n",
+		       region_name);
 		return CB_ERR;
+	}
+
+	if (mode == SMMSTORE_REGION_EC) {
+		if (!IS_ALIGNED(region_offset(region), SMM_BLOCK_SIZE) ||
+		    (region_sz(region) < EC_UPDATE_SIZE)) {
+			printk(BIOS_WARNING,
+			       "smm store: FMAP region '%s' cannot contain the EC update range\n",
+			       region_name);
+			return CB_ERR;
+		}
+
+		*region = region_create(region_offset(region), EC_UPDATE_SIZE);
 	}
 
 	return CB_SUCCESS;
@@ -82,23 +131,24 @@ static enum cb_err lookup_store_region(struct region *region)
  * returns 0 on success, -1 on failure
  * outputs the valid store rdev in rstore
  */
-static int lookup_store(struct region_device *rstore)
+static int lookup_store(struct region_device *rstore, enum smmstore_region_mode mode)
 {
-	static struct region_device read_rdev, write_rdev;
-	static struct incoherent_rdev store_irdev;
+	static struct smmstore_region_context context[SMMSTORE_REGION_COUNT];
+	struct smmstore_region_context *selected = &context[mode];
 	struct region region;
 	const struct region_device *rdev;
 
-	if (lookup_store_region(&region) != CB_SUCCESS)
+	if (lookup_store_region(&region, mode) != CB_SUCCESS)
 		return -1;
 
-	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
+	if (boot_device_ro_subregion(&region, &selected->read_rdev) < 0)
 		return -1;
 
-	if (boot_device_rw_subregion(&region, &write_rdev) < 0)
+	if (boot_device_rw_subregion(&region, &selected->write_rdev) < 0)
 		return -1;
 
-	rdev = incoherent_rdev_init(&store_irdev, &region, &read_rdev, &write_rdev);
+	rdev = incoherent_rdev_init(&selected->store_irdev, &region, &selected->read_rdev,
+				    &selected->write_rdev);
 
 	if (rdev == NULL)
 		return -1;
@@ -106,7 +156,7 @@ static int lookup_store(struct region_device *rstore)
 	return rdev_chain(rstore, rdev, 0, region_device_sz(rdev));
 }
 
- /* this function is non reentrant */
+/* this function is non reentrant */
 int smmstore_lookup_region(struct region_device *rstore)
 {
 	static int done;
@@ -116,10 +166,10 @@ int smmstore_lookup_region(struct region_device *rstore)
 	if (!done) {
 		done = 1;
 
-		if (lookup_store(&rdev)) {
+		if (lookup_store(&rdev, SMMSTORE_REGION_DEFAULT)) {
 			printk(BIOS_WARNING,
 			       "smm store: Unable to find SMM store FMAP region '%s'\n",
-				SMMSTORE_REGION);
+			       SMMSTORE_REGION);
 			ret = -1;
 		} else {
 			ret = 0;
@@ -162,7 +212,7 @@ int smmstore_get_info(struct smmstore_params_info *out)
 {
 	struct region_device store;
 
-	if (lookup_store(&store) < 0) {
+	if (lookup_store(&store, SMMSTORE_REGION_DEFAULT) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
@@ -188,7 +238,7 @@ int smmstore_get_info(struct smmstore_params_info *out)
 /* Returns -1 on error, 0 on success */
 static int lookup_block_in_store(struct region_device *store, uint32_t block_id)
 {
-	if (lookup_store(store) < 0) {
+	if (lookup_store(store, smmstore_region_mode) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
