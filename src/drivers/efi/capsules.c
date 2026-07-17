@@ -154,7 +154,8 @@ static void *map_range(uint64_t base, uint32_t len)
 	/* Using MMCONF should be safe as long as we don't do any device
 	   initialization during parsing of capsules and don't forget to call
 	   paging_disable_pae() at the end. */
-	_Static_assert(IS_ALIGNED(CONFIG_ECAM_MMCONF_BASE_ADDRESS, 2 * MiB));
+	_Static_assert(IS_ALIGNED(CONFIG_ECAM_MMCONF_BASE_ADDRESS, 2 * MiB),
+		       "MMCONF base must be 2 MiB aligned");
 	uintptr_t window_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
 	size_t window_size = 2 * MiB;
 
