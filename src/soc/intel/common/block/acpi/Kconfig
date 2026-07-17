@@ -113,3 +113,21 @@ config SOC_INTEL_COMMON_BLOCK_ACPI_USE_GPE1
 	  SOC_INTEL_COMMON_BLOCK_ACPI_HAVE_GPE1 exposes a SoC capability using ACPI.
 
 endif
+
+config SOC_INTEL_COMMON_ACPI_TIME_ALARM
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_ACPI
+	depends on SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
+	depends on HAVE_ACPI_TABLES
+	help
+	  Expose the ACPI Time and Alarm Device (ACPI000E) using the Intel WADT
+	  GPE, and preserve an OS-armed WADT enable across S3/S4 sleep entry.
+
+config SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5
+	bool
+	depends on SOC_INTEL_COMMON_ACPI_TIME_ALARM
+	default n
+	help
+	  Advertise ACPI000E wake from S5 and restore WADT after the common S5
+	  path clears all GPE enables. Select only on boards that have validated
+	  S5 wake through WADT.
