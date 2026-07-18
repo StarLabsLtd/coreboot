@@ -38,7 +38,10 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 {
 	(void)rp_cfg;
 
-	if (!names || is_cpu_rp)
+	if (!names)
+		return;
+
+	if (is_cpu_rp)
 		return;
 
 #if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
@@ -124,13 +127,15 @@ static struct sm_obj_form display_group = {
 					     &touchscreen,
 					     NULL, },
 };
+#endif
 
+#if CONFIG(BOARD_STARLABS_LITE_ADL)
 static struct sm_obj_form io_expansion_group = {
 	.ui_name = "I/O / Expansion",
 	.obj_list =
-		(const struct sm_object *[]){
-					     &card_reader,
-					     NULL, },
+			(const struct sm_object *[]){
+						     &card_reader,
+						     NULL, },
 };
 #endif
 
@@ -139,9 +144,9 @@ static struct sm_obj_form pcie_power_management_group = {
 	.obj_list =
 			(const struct sm_object *[]){
 #if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
-					     &pciexp_ssd_clk_pm,
-					     &pciexp_ssd_aspm,
-					     &pciexp_ssd_l1ss,
+						     &pciexp_ssd_clk_pm,
+						     &pciexp_ssd_aspm,
+						     &pciexp_ssd_l1ss,
 #elif CONFIG(BOARD_STARLABS_BYTE_ADL) || CONFIG(BOARD_STARLABS_BYTE_TWL)
 					     &pciexp_lan1_clk_pm,
 					     &pciexp_lan1_aspm,
@@ -164,7 +169,7 @@ static struct sm_obj_form performance_group = {
 					     &fan_mode,
 #endif
 					     &gna,
-#if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
+#if CONFIG(BOARD_STARLABS_ADL_HORIZON) || CONFIG(BOARD_STARLABS_LITE_ADL)
 					     &memory_speed,
 #endif
 					     &power_profile,
@@ -215,6 +220,8 @@ static struct sm_obj_form *sm_root[] = {
 	&debug_group,
 #if CONFIG(BOARD_STARLABS_LITE_ADL)
 	&display_group,
+#endif
+#if CONFIG(BOARD_STARLABS_LITE_ADL)
 	&io_expansion_group,
 #endif
 #if CONFIG(SYSTEM_TYPE_LAPTOP)

@@ -1,5 +1,12 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+ifeq ($(CONFIG_BOARD_STARLABS_STARBOOK_RPL_U),y)
+SPD_GEN_MEM_TECH := lp5
+
+SPD_SOURCES = 32gb-5500
+SPD_SOURCES += 32gb-6400
+SPD_SOURCES += 32gb-7500
+else
 # Schematics for this platform show Samsung K4A8G165WB-BCRC devices
 # which are 8Gb, 2400Mbps 512Mx16 devices.
 #
@@ -19,3 +26,4 @@ SPD_SOURCES += samsung-K4A8G165WB-BCRC		# 0b0110
 SPD_SOURCES += samsung-K4A8G165WB-BCRC		# 0b0111
 
 LIB_SPD_DEPS = $(foreach f, $(SPD_SOURCES), src/mainboard/$(MAINBOARDDIR)/spd/$(f).spd.hex)
+endif

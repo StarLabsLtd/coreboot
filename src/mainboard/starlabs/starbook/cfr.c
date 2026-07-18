@@ -11,12 +11,14 @@
 #include <common/cfr.h>
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM)
+#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 static const struct pcie_pm_option_names pciexp_wifi_names = {
 	.clk_pm = "pciexp_wifi_clk_pm",
 	.aspm = "pciexp_wifi_aspm",
 	.l1ss = "pciexp_wifi_l1ss",
 	.speed = "pciexp_speed",
 };
+#endif
 
 static const struct pcie_pm_option_names pciexp_ssd_names = {
 	.clk_pm = "pciexp_ssd_clk_pm",
@@ -35,7 +37,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 	if (!names)
 		return;
 
-#if CONFIG(BOARD_STARLABS_STARBOOK_RPL)
+#if CONFIG(BOARD_STARLABS_STARBOOK_RPL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 	if (is_cpu_rp) {
 		if (index == CPU_RP(1))
 			*names = pciexp_ssd_names;
@@ -116,7 +118,9 @@ static struct sm_obj_form debug_group = {
 static struct sm_obj_form io_expansion_group = {
 	.ui_name = "I/O / Expansion",
 	.obj_list = (const struct sm_object *[]) {
+#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 		&card_reader,
+#endif
 		#if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
 		&thunderbolt,
 		#endif
@@ -133,6 +137,21 @@ static struct sm_obj_form keyboard_group = {
 	},
 };
 
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+static struct sm_obj_form trackpad_group = {
+	.ui_name = "Trackpad",
+	.obj_list = (const struct sm_object *[]) {
+		&touchpad_haptics,
+		&touchpad_force_press,
+		&touchpad_force_release,
+#if STARLABS_TOUCHPAD_HAS_REPORT_RATE
+		&touchpad_report_rate,
+#endif
+		NULL
+	},
+};
+#endif
+
 static struct sm_obj_form leds_group = {
 	.ui_name = "LEDs",
 	.obj_list = (const struct sm_object *[]) {
@@ -146,8 +165,12 @@ static struct sm_obj_form pcie_power_management_group = {
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(SOC_INTEL_COMMON_BLOCK_ASPM)
-		#if CONFIG(BOARD_STARLABS_STARBOOK_ADL) || CONFIG(BOARD_STARLABS_STARBOOK_ADL_N) || \
-		    CONFIG(BOARD_STARLABS_STARBOOK_MTL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL)
+		#if CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
+		&pciexp_ssd_clk_pm,
+		&pciexp_ssd_aspm,
+		&pciexp_ssd_l1ss,
+		#elif CONFIG(BOARD_STARLABS_STARBOOK_ADL) || CONFIG(BOARD_STARLABS_STARBOOK_ADL_N) || \
+		      CONFIG(BOARD_STARLABS_STARBOOK_MTL) || CONFIG(BOARD_STARLABS_STARBOOK_RPL)
 		&pciexp_wifi_clk_pm,
 		&pciexp_wifi_aspm,
 		&pciexp_wifi_l1ss,
@@ -173,6 +196,9 @@ static struct sm_obj_form performance_group = {
 		#endif
 		#if CONFIG(BOARD_SUPPORTS_HT)
 		&hyper_threading,
+		#endif
+		#if CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
+		&memory_speed,
 		#endif
 		&power_profile,
 		&pl1_override,
@@ -240,6 +266,9 @@ static struct sm_obj_form *sm_root[] = {
 	&debug_group,
 	&io_expansion_group,
 	&keyboard_group,
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	&trackpad_group,
+#endif
 	&leds_group,
 	&pcie_power_management_group,
 	&performance_group,
