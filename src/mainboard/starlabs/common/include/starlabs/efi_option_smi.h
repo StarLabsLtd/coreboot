@@ -12,6 +12,7 @@
  * ACPI fills DNVS, then triggers an APMC SMI by writing STARLABS_APMC_CMD
  * to the APM_CNT port (0xB2). SMM reads DNVS, performs the operation, and
  * updates DNVS with status and (for reads) the returned value.
+ *
  */
 
 #define STARLABS_APMC_CMD_EFI_OPTION 0xE2
@@ -19,6 +20,7 @@
 enum starlabs_efiopt_cmd {
 	STARLABS_EFIOPT_CMD_GET = 1,
 	STARLABS_EFIOPT_CMD_SET = 2,
+	STARLABS_EFIOPT_CMD_GET_SUPPORTED = 3,
 };
 
 enum starlabs_efiopt_id {
