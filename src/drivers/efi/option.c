@@ -10,7 +10,8 @@
 static const EFI_GUID EficorebootNvDataGuid = {
 	0xceae4c1d, 0x335b, 0x4685, { 0xa4, 0xa0, 0xfc, 0x4a, 0x94, 0xee, 0xa0, 0x85 } };
 
-unsigned int get_uint_option(const char *name, const unsigned int fallback)
+enum cb_err get_uint_option_status(const char *name, unsigned int fallback,
+					  unsigned int *value)
 {
 	struct region_device rdev;
 	enum cb_err ret;
@@ -18,15 +19,29 @@ unsigned int get_uint_option(const char *name, const unsigned int fallback)
 	uint32_t size;
 
 	if (smmstore_lookup_region(&rdev))
-		return fallback;
+		return CB_EFI_ACCESS_ERROR;
 
 	var = 0;
 	size = sizeof(var);
 	ret = efi_fv_get_option(&rdev, &EficorebootNvDataGuid, name, &var, &size);
-	if (ret != CB_SUCCESS || size != sizeof(var))
-		return fallback;
+	if (ret != CB_SUCCESS) {
+		if (ret == CB_EFI_OPTION_NOT_FOUND)
+			*value = fallback;
+		return ret;
+	}
 
-	return var;
+	if (size != sizeof(var))
+		return CB_ERR_ARG;
+
+	*value = var;
+	return CB_SUCCESS;
+}
+
+unsigned int get_uint_option(const char *name, const unsigned int fallback)
+{
+	unsigned int value;
+
+	return get_uint_option_status(name, fallback, &value) == CB_SUCCESS ? value : fallback;
 }
 
 enum cb_err set_uint_option(const char *name, unsigned int value)

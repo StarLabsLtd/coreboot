@@ -69,8 +69,9 @@ static void write_ec_resources(void)
 	acpigen_write_method_end();
 
 	acpigen_write_opregion(&smi_region);
+	/* The SMI handler acquires the Global Lock before accessing the EC. */
 	acpigen_write_field("SIPR", smi_field, ARRAY_SIZE(smi_field),
-			    FIELD_BYTEACC | FIELD_LOCK | FIELD_PRESERVE);
+			    FIELD_BYTEACC | FIELD_NOLOCK | FIELD_PRESERVE);
 	acpigen_write_opregion(&ec_region);
 	acpigen_write_field("ECF2", starlabs_ec_fields, ARRAY_SIZE(starlabs_ec_fields),
 			    FIELD_BYTEACC | FIELD_LOCK | FIELD_PRESERVE);
@@ -207,6 +208,8 @@ static void write_ec_base(void)
 	}
 	acpigen_write_name_integer("_UID", 1);
 	acpigen_write_name_integer("_GPE", CONFIG_EC_GPE_SCI);
+	if (CONFIG(ACPI_SMM_GLOBAL_LOCK))
+		acpigen_write_name_integer("_GLK", 1);
 	acpigen_write_name_integer("ECAV", 0);
 	acpigen_write_name_integer("ECTK", 1);
 	acpigen_write_mutex("ECMT", 0);
@@ -1353,7 +1356,10 @@ static void write_efi_option_methods(void)
 	acpigen_write_store_op_to_namestr(ARG0_OP, "EOID");
 	acpigen_write_store_int_to_namestr(0, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
+	acpigen_write_store_int_to_op(0xffffffff, LOCAL0_OP);
+	acpigen_write_if_lequal_namestr_int("EORS", 0);
 	acpigen_write_store_namestr_to_op("EOVL", LOCAL0_OP);
+	acpigen_write_if_end();
 	acpigen_write_release("EOMX");
 	acpigen_write_return_op(LOCAL0_OP);
 	acpigen_write_method_end();
@@ -1392,10 +1398,13 @@ static void write_efi_option_suspend(void)
 
 static void write_efi_option_restore_integer(const char *field, uint64_t valid_value)
 {
+	/* Leave the EC unchanged if the option could not be read. */
+	acpigen_write_if_lnotequal_op_int(LOCAL0_OP, 0xffffffff);
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, valid_value);
 	write_ec_write_integer(valid_value, field);
 	acpigen_write_else();
 	write_ec_write_integer(0, field);
+	acpigen_write_if_end();
 	acpigen_write_if_end();
 }
 
@@ -1408,10 +1417,10 @@ static void write_efi_option_resume(void)
 	acpigen_emit_byte(LOCAL0_OP);
 	write_efi_option_restore_integer(EC_ACPI_FIELD("TPLE"), 0x22);
 
-	write_method_call(EC_ACPI_METHOD("ECWR"));
+	acpigen_emit_byte(STORE_OP);
 	write_efi_option_get("EOFL");
-	acpigen_emit_byte(REF_OF_OP);
-	acpigen_emit_namestring(EC_ACPI_FIELD("FLKE"));
+	acpigen_emit_byte(LOCAL0_OP);
+	write_efi_option_restore_integer(EC_ACPI_FIELD("FLKE"), LOCKED);
 
 	acpigen_emit_byte(STORE_OP);
 	write_efi_option_get("EOKS");
