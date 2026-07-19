@@ -822,6 +822,9 @@ verstage-c-deps+=$(obj)/fmap_config.h
 bootblock-c-deps+=$(obj)/fmap_config.h
 postcar-c-deps+=$(obj)/fmap_config.h
 smm-c-deps+=$(obj)/fmap_config.h
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_POLICY),y)
+ramstage-c-deps+=$(obj)/capsule_policy_fmap_hash.h
+endif
 
 .PHONY: devicetree
 devicetree: $(DEVICETREE_STATIC_C)
@@ -1304,6 +1307,12 @@ $(obj)/fmap.desc: $(obj)/fmap.fmap
 $(obj)/fmap.fmap: $(obj)/fmap.fmd $(FMAPTOOL)
 	echo "    FMAP       $(FMAPTOOL) -h $(obj)/fmap_config.h $< $@"
 	$(FMAPTOOL) -h $(obj)/fmap_config.h -R $(obj)/fmap.desc $< $@
+
+$(obj)/capsule_policy_fmap_hash.h: $(obj)/fmap.fmap \
+		$(top)/util/scripts/gen_capsule_policy_fmap_header.py
+	@printf "    HASH       %s\n" "$@"
+	python3 $(top)/util/scripts/gen_capsule_policy_fmap_header.py $< $@.tmp
+	mv $@.tmp $@
 
 ifneq ($(CONFIG_INTEL_TOP_SWAP_SEPARATE_REGIONS),y)
 BB_FIT_REGION = COREBOOT

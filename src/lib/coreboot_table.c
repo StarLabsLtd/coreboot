@@ -614,6 +614,8 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Add information about firmware in form suitable for EFI updates. */
 	if (CONFIG(DRIVERS_EFI_FW_INFO))
 		lb_efi_fw_info(head);
+	if (CONFIG(DRIVERS_EFI_CAPSULE_POLICY))
+		lb_efi_capsule_policy(head);
 
 	/* Add board-specific table entries, if any. */
 	lb_board(head);

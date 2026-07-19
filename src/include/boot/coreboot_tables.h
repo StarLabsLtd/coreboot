@@ -33,6 +33,9 @@ void lb_board(struct lb_header *header);
 /* Adds LB_TAG_EFI_FW_INFO table entry. */
 void lb_efi_fw_info(struct lb_header *header);
 
+/* Adds LB_TAG_EFI_CAPSULE_POLICY table entry. */
+void lb_efi_capsule_policy(struct lb_header *header);
+
 /* Adds LB_TAG_CAPSULE table entries. */
 void lb_efi_capsules(struct lb_header *header);
 

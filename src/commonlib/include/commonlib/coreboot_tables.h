@@ -93,6 +93,8 @@ enum {
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
+	LB_TAG_EFI_CAPSULE_POLICY	= 0x004b,
+	LB_TAG_BOOT_INFO		= 0x00a1,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -622,6 +624,52 @@ struct lb_efi_fw_info {
 	uint32_t version;			/* Current version */
 	uint32_t lowest_supported_version;	/* Lowest allowed version for downgrades */
 	uint32_t fw_size;			/* Size of firmware in bytes */
+} __packed;
+
+#define LB_EFI_CAPSULE_POLICY_VERSION		1
+#define LB_EFI_CAPSULE_POLICY_MAX_REGIONS	32
+#define LB_EFI_CAPSULE_REGION_NAME_LEN		16
+
+enum lb_efi_capsule_policy_capability {
+	LB_EFI_CAPSULE_POLICY_REQUIRE_AUTHENTICATION = 1 << 0,
+	LB_EFI_CAPSULE_POLICY_REQUIRE_DRIVER_FREE = 1 << 1,
+	LB_EFI_CAPSULE_POLICY_REQUIRE_RMAP = 1 << 2,
+	LB_EFI_CAPSULE_POLICY_REQUIRE_EXACT_REGIONS = 1 << 3,
+	LB_EFI_CAPSULE_POLICY_REQUIRE_FMAP_DIGEST = 1 << 4,
+};
+
+struct lb_efi_capsule_region {
+	uint32_t offset;
+	uint32_t size;
+	uint16_t flags;
+	uint8_t name_length;
+	uint8_t reserved;
+	uint8_t name[LB_EFI_CAPSULE_REGION_NAME_LEN];
+} __packed;
+
+/*
+ * Read-only board policy for consumers of authenticated firmware capsules.
+ * Region descriptors are followed by NUL-terminated vendor and part-number
+ * strings at vendor_offset and part_number_offset respectively.
+ */
+struct lb_efi_capsule_policy {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t version;
+	uint16_t header_size;
+	uint32_t capabilities;
+	uint32_t max_capsule_size;
+	uint32_t firmware_size;
+	uint8_t image_guid[16];		/* EFI GUID byte order */
+	lb_uint64_t hardware_instance;
+	uint32_t fmap_offset;
+	uint32_t fmap_size;
+	uint8_t fmap_sha256[32];
+	uint16_t smmstore_protocol_revision;
+	uint16_t region_count;
+	uint16_t vendor_offset;
+	uint16_t part_number_offset;
+	struct lb_efi_capsule_region regions[];
 } __packed;
 struct lb_cfr {
 	uint32_t tag;

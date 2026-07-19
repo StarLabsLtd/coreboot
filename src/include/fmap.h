@@ -39,6 +39,15 @@ int fmap_locate_area_as_rdev_rw(const char *name, struct region_device *area);
  * < 0 on error. */
 int fmap_locate_area(const char *name, struct region *r);
 
+/* Also return the serialized FMAP flags for the named area. */
+int fmap_locate_area_with_flags(const char *name, struct region *r, uint16_t *flags);
+
+/* Return 1 if r overlaps an FMAP area with flags, 0 if not, or < 0 on error. */
+int fmap_region_overlaps_area_with_flags(const struct region *r);
+
+/* Read the complete serialized FMAP into buffer. */
+ssize_t fmap_read_directory(void *buffer, size_t size);
+
 /* Find fmap area name by offset and size.
  * Return 0 on success, < 0 on error. */
 int fmap_find_region_name(const struct region * const ar,

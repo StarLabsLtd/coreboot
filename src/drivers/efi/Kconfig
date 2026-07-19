@@ -117,6 +117,17 @@ config DRIVERS_EFI_CAPSULE_REGIONS
 	  allowed to modify. The list is embedded as a manifest inside the ROM
 	  image prior to building the capsule.
 
+config DRIVERS_EFI_CAPSULE_POLICY
+	bool
+	default y if DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_GENERATE_CAPSULE
+	select VBOOT_LIB
+	help
+	  Expose the board identity, serialized FMAP digest, and live FMAP update
+	  allowlist in a versioned, read-only coreboot table record. The record is
+	  omitted at runtime if the configured policy is malformed or does not
+	  match FMAP.
+
 menu "Capsule signing certificates"
 	depends on DRIVERS_EFI_GENERATE_CAPSULE
 

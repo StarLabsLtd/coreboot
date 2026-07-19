@@ -168,7 +168,7 @@ int fmap_locate_area_as_rdev_rw(const char *name, struct region_device *area)
 	return boot_device_rw_subregion(&ar, area);
 }
 
-int fmap_locate_area(const char *name, struct region *ar)
+int fmap_locate_area_with_flags(const char *name, struct region *ar, uint16_t *flags)
 {
 	struct region_device fmrd;
 	size_t offset;
@@ -201,6 +201,8 @@ int fmap_locate_area(const char *name, struct region *ar)
 
 		int rc = region_create_untrusted(ar, le32toh(area->offset),
 						 le32toh(area->size));
+		if (!rc && flags != NULL)
+			*flags = le16toh(area->flags);
 
 		rdev_munmap(&fmrd, area);
 
@@ -213,6 +215,69 @@ int fmap_locate_area(const char *name, struct region *ar)
 	printk(BIOS_DEBUG, "FMAP: area %s not found\n", name);
 
 	return -1;
+}
+
+int fmap_locate_area(const char *name, struct region *ar)
+{
+	return fmap_locate_area_with_flags(name, ar, NULL);
+}
+
+int fmap_region_overlaps_area_with_flags(const struct region *ar)
+{
+	struct region_device fmrd;
+	struct fmap *fmap;
+	size_t offset = sizeof(*fmap);
+	uint16_t nareas;
+
+	if (ar == NULL || region_sz(ar) == 0 || find_fmap_directory(&fmrd))
+		return -1;
+
+	fmap = rdev_mmap(&fmrd, 0, sizeof(*fmap));
+	if (fmap == NULL)
+		return -1;
+	nareas = le16toh(fmap->nareas);
+	rdev_munmap(&fmrd, fmap);
+
+	for (size_t i = 0; i < nareas; i++, offset += sizeof(struct fmap_area)) {
+		struct fmap_area *area = rdev_mmap(&fmrd, offset, sizeof(*area));
+		struct region area_region;
+		int overlap;
+
+		if (area == NULL)
+			return -1;
+		if (le16toh(area->flags) == 0) {
+			rdev_munmap(&fmrd, area);
+			continue;
+		}
+		if (le32toh(area->size) == 0 ||
+		    region_create_untrusted(&area_region, le32toh(area->offset),
+					    le32toh(area->size)) != CB_SUCCESS) {
+			rdev_munmap(&fmrd, area);
+			return -1;
+		}
+		overlap = region_overlap(ar, &area_region);
+		rdev_munmap(&fmrd, area);
+		if (overlap)
+			return 1;
+	}
+
+	return 0;
+}
+
+ssize_t fmap_read_directory(void *buffer, size_t size)
+{
+	struct region_device fmrd;
+	size_t fmap_size;
+
+	if (buffer == NULL || find_fmap_directory(&fmrd))
+		return -1;
+
+	fmap_size = region_device_sz(&fmrd);
+	if (fmap_size == 0 || size < fmap_size ||
+	    rdev_readat(&fmrd, buffer, 0, fmap_size) != fmap_size)
+		return -1;
+
+	return fmap_size;
 }
 
 int fmap_find_region_name(const struct region * const ar,

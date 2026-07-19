@@ -158,6 +158,7 @@ static void test_fmap_locate_area_as_rdev_rw(void **state)
 static void test_fmap_locate_area(void **state)
 {
 	struct region ar;
+	uint16_t flags = UINT16_MAX;
 
 	/* Try to locate named area */
 	assert_int_not_equal(-1, fmap_locate_area("COREBOOT", &ar));
@@ -174,6 +175,13 @@ static void test_fmap_locate_area(void **state)
 	assert_int_equal(FMAP_SECTION_GBB_START, region_offset(&ar));
 	assert_int_equal(FMAP_SECTION_GBB_SIZE, region_sz(&ar));
 
+	assert_int_not_equal(-1, fmap_locate_area_with_flags("RW_PRESERVE", &ar, &flags));
+	assert_int_equal(FMAP_AREA_PRESERVE, flags);
+	assert_int_equal(1, fmap_region_overlaps_area_with_flags(&ar));
+	assert_int_not_equal(-1, fmap_locate_area("COREBOOT", &ar));
+	assert_int_equal(0, fmap_region_overlaps_area_with_flags(&ar));
+	assert_int_equal(-1, fmap_region_overlaps_area_with_flags(NULL));
+
 	/* Expect error when looking for incorrect area */
 	assert_int_equal(-1, fmap_locate_area("NONEXISTENT_AREA", &ar));
 	assert_int_equal(-1, fmap_locate_area("", &ar));
@@ -181,6 +189,17 @@ static void test_fmap_locate_area(void **state)
 
 	/* Expect error when passing invalid region pointer */
 	assert_int_equal(-1, fmap_locate_area("SHARED_DATA", NULL));
+}
+
+static void test_fmap_read_directory(void **state)
+{
+	(void)state;
+	uint8_t buffer[FMAP_SIZE];
+
+	assert_int_equal(FMAP_SIZE, fmap_read_directory(buffer, sizeof(buffer)));
+	assert_memory_equal(tests_fmap_bin, buffer, sizeof(buffer));
+	assert_int_equal(-1, fmap_read_directory(buffer, sizeof(buffer) - 1));
+	assert_int_equal(-1, fmap_read_directory(NULL, sizeof(buffer)));
 }
 
 static void test_fmap_find_region_name(void **state)
@@ -293,6 +312,8 @@ int main(void)
 		cmocka_unit_test_setup_teardown(test_fmap_locate_area_as_rdev_rw, setup_fmap,
 						teardown_fmap),
 		cmocka_unit_test_setup_teardown(test_fmap_locate_area, setup_fmap,
+						teardown_fmap),
+		cmocka_unit_test_setup_teardown(test_fmap_read_directory, setup_fmap,
 						teardown_fmap),
 		cmocka_unit_test_setup_teardown(test_fmap_find_region_name, setup_fmap,
 						teardown_fmap),
