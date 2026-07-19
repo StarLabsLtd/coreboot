@@ -119,7 +119,14 @@ static void image_node(struct device_tree_node *node, u32 addr_cells, void *fit_
 	struct device_tree_property *prop;
 	list_for_each(prop, node->properties, list_node) {
 		if (!strcmp("data-offset", prop->prop.name)) {
-			image->data = fit_bin_base + fit_fdt_size + fdt_read_int_prop(&prop->prop, 0);
+			u64 offset = fdt_read_int_prop(&prop->prop, 0);
+
+			if (fit_fdt_size > UINTPTR_MAX - (uintptr_t)fit_bin_base ||
+			    offset > UINTPTR_MAX - (uintptr_t)fit_bin_base - fit_fdt_size)
+				image->data = NULL;
+			else
+				image->data = (void *)(uintptr_t)((uintptr_t)fit_bin_base +
+							  fit_fdt_size + offset);
 		} else if (!strcmp("data-size", prop->prop.name)) {
 			image->size = fdt_read_int_prop(&prop->prop, 0);
 		} else if (!strcmp("data", prop->prop.name)) {

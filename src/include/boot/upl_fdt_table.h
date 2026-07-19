@@ -5,10 +5,11 @@
 
 #include <types.h>
 #include <commonlib/device_tree.h>
-#include <commonlib/region.h>
 
-/* Add references to each secondary image. */
-void upl_fdt_add_secondary(struct device_tree *tree, const char *name, struct region *secondary);
+/* Add the original FIT address used by the EDK2 FIT payload entry. */
+void upl_fdt_add_payload(struct device_tree *tree, uintptr_t fit_address);
+void upl_fdt_add_reserved_memory(struct device_tree *tree, const char *name,
+				 uintptr_t address, size_t size, const char *type);
 uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
 			      bool use_existing_fdt);
 
@@ -19,5 +20,6 @@ uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
  */
 const char *upl_fdt_add_serial(struct device_tree_node *parent_node);
 void upl_fdt_add_memory(struct device_tree *tree);
+void upl_fdt_refresh_memory(struct device_tree *tree);
 
 #endif
