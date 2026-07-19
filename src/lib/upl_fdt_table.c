@@ -8,11 +8,13 @@
 #include <commonlib/device_tree.h>
 #include <console/console.h>
 #include <console/uart.h>
+#include <cpu/x86/smm.h>
 #include <cpu/cpu.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <fit.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <version.h>
 
 __weak uint32_t board_id(void) { return UNDEFINED_STRAPPING_ID; }
@@ -23,27 +25,12 @@ __weak const char *upl_fdt_add_serial(struct device_tree_node *node) { return ""
 
 static int write_options_node(struct device_tree *tree)
 {
-	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
-	u32 addr_cells = 2, size_cells = 1;
-
 	struct device_tree_node *options_node;
 	options_node = dt_find_node_by_path(tree, "/options", NULL, NULL, 1);
 	if (!options_node) {
 		printk(BIOS_ERR, "%s: options node is null", __func__);
 		return -1;
 	}
-
-	// Add container for secondary images nodes
-	struct device_tree_node *images_node;
-	images_node = dt_find_node_by_path(tree, "/options/upl-image", NULL, NULL, 1);
-	if (!images_node) {
-		printk(BIOS_ERR, "%s: upl-params node is null", __func__);
-		return -1;
-	}
-	dt_add_u32_prop(images_node, "#address-cells", addr_cells);
-	dt_add_u32_prop(images_node, "#size-cells", size_cells);
-	/* Need to add 'ranges' to the intermediate node to make 'reg' work. */
-	dt_add_bin_prop(images_node, "ranges", NULL, 0);
 
 	// Add some UPL specific parameters
 	struct device_tree_node *params_node;
@@ -54,6 +41,7 @@ static int write_options_node(struct device_tree *tree)
 	}
 	dt_add_string_prop(params_node, "compatible", "upl");
 	dt_add_u32_prop(params_node, "addr-width", cpu_phys_address_size());
+	dt_add_bin_prop(params_node, "pci-enum-done", NULL, 0);
 
 	// Add coreboot node, which contains information about coreboot like version and name
 	struct device_tree_node *cb_node;
@@ -69,27 +57,51 @@ static int write_options_node(struct device_tree *tree)
 	return 0;
 }
 
-/* Add references to each secondary image. */
-void upl_fdt_add_secondary(struct device_tree *tree, const char *name, struct region *secondary)
+void upl_fdt_add_payload(struct device_tree *tree, uintptr_t fit_address)
 {
 	char node_name[64];
-	uint64_t addr, size;
-	u32 addr_cells, size_cells;
+	int status = snprintf(node_name, sizeof(node_name), "/options/upl-image@%lx",
+			      fit_address);
+	assert(status >= 0 && status < (int)sizeof(node_name));
 
-	addr = secondary->offset;
-	size = secondary->size;
-
-	int status = snprintf(node_name, sizeof(node_name), "/options/upl-image/image@%llx", addr);
-	assert(status <= sizeof(node_name));
-
-	struct device_tree_node *image_node;
-	image_node = dt_find_node_by_path(tree, node_name, &addr_cells, &size_cells, 1);
-	if (image_node) {
-		// NB: This is not specced!
-		dt_add_string_prop(image_node, "name", name);
-		dt_add_string_prop(image_node, "description", "TODO");
-		dt_add_reg_prop(image_node, &addr, &size, 1, addr_cells, size_cells);
+	struct device_tree_node *image_node =
+		dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
+	if (!image_node) {
+		printk(BIOS_ERR, "%s: %s node is null\n", __func__, node_name);
+		return;
 	}
+
+	/* The preserved FIT contains the FV data-offset targets used by EDK2. */
+	dt_add_u64_prop(image_node, "addr", fit_address);
+}
+
+void upl_fdt_add_reserved_memory(struct device_tree *tree, const char *name,
+				 uintptr_t address, size_t size, const char *type)
+{
+	char node_name[96];
+	u32 addr_cells = 2;
+	u32 size_cells = 2;
+	u64 range_address = address;
+	u64 range_size = size;
+	int status;
+
+	dt_read_cell_props(tree->root, &addr_cells, &size_cells);
+	status = snprintf(node_name, sizeof(node_name), "/reserved-memory/%s@%lx",
+			  name, address);
+	assert(status >= 0 && status < (int)sizeof(node_name));
+
+	struct device_tree_node *node =
+		dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
+	if (!node) {
+		printk(BIOS_ERR, "%s: %s node is null\n", __func__, node_name);
+		return;
+	}
+
+	dt_add_bin_prop(node, "no-map", NULL, 0);
+	dt_add_reg_prop(node, &range_address, &range_size, 1, addr_cells,
+			size_cells);
+	if (type)
+		dt_add_string_prop(node, "compatible", type);
 }
 
 #define NON_RELOCATABLE	BIT(31)
@@ -121,12 +133,12 @@ static int write_pci_rb_node(struct device_tree *tree)
 	char node_name[64];
 	int status;
 	struct device_tree_node *pci_rb_node;
-	uint32_t ranges[21];
+	uint32_t *ranges;
 	uint32_t ranges_index = 0;
 
 	/* PCI Bus Binding requires three address cells and two size cells. */
 	u32 pci_addr_cells = 3, pci_size_cells = 2;
-	u32 host_addr_cells = 2, host_size_cells = 1;
+	u32 host_addr_cells = 2, host_size_cells = 2;
 
 	status = snprintf(node_name, sizeof(node_name), "/pci-rb0@%llx", addr);
 	assert(status >= 0 && status < (int)sizeof(node_name));
@@ -147,11 +159,17 @@ static int write_pci_rb_node(struct device_tree *tree)
 		return -1;
 	}
 
+	ranges = malloc(21 * sizeof(*ranges));
+	if (!ranges) {
+		printk(BIOS_ERR, "%s: PCI ranges allocation failed\n", __func__);
+		return -1;
+	}
+
 	const struct resource *res;
 	for (res = domain->resource_list; res; res = res->next) {
 		if (!(res->flags & IORESOURCE_SUBTRACTIVE) || res->base > res->limit)
 			continue;
-		if (ranges_index + 7 > ARRAY_SIZE(ranges)) {
+		if (ranges_index + 7 > 21) {
 			printk(BIOS_ERR, "%s: too many PCI domain apertures\n", __func__);
 			return -1;
 		}
@@ -159,9 +177,41 @@ static int write_pci_rb_node(struct device_tree *tree)
 		if (res->flags & IORESOURCE_IO)
 			write_pci_rb_range(ranges, &ranges_index, IO_SPACE,
 					   res->base, res->limit);
-		else if ((res->flags & IORESOURCE_MEM) && res->base < 4ULL * GiB)
+		else if ((res->flags & IORESOURCE_MEM) && res->base < 4ULL * GiB) {
+			u64 base = res->base;
+			u64 limit = res->limit;
+			u64 ecam_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+			u64 ecam_limit = ecam_base + CONFIG_ECAM_MMCONF_LENGTH - 1;
+			uintptr_t smm_base;
+			size_t smm_size;
+
+			smm_region(&smm_base, &smm_size);
+			if (base <= smm_base + smm_size && res->limit >= smm_base)
+				base = smm_base + smm_size;
+			if (base > limit) {
+				printk(BIOS_ERR, "%s: PCI MMIO aperture is empty\n", __func__);
+				return -1;
+			}
+
+			/* The root-bridge HOB has only one low-MMIO aperture. Keep the
+			 * larger side when ECAM splits a subtractive domain resource. */
+			if ((base <= ecam_limit) && (limit >= ecam_base)) {
+				u64 below_size = (base < ecam_base) ? ecam_base - base : 0;
+				u64 above_size = (limit > ecam_limit) ? limit - ecam_limit : 0;
+
+				if (below_size >= above_size)
+					limit = ecam_base - 1;
+				else
+					base = ecam_limit + 1;
+			}
+			if (base > limit) {
+				printk(BIOS_ERR, "%s: PCI MMIO aperture is consumed by ECAM\n",
+				       __func__);
+				return -1;
+			}
 			write_pci_rb_range(ranges, &ranges_index, MMIO_SPACE,
-					   res->base, res->limit);
+						   base, limit);
+		}
 		else if (res->flags & IORESOURCE_MEM)
 			write_pci_rb_range(ranges, &ranges_index, MMIO64_SPACE,
 					   res->base, res->limit);
@@ -175,11 +225,15 @@ static int write_pci_rb_node(struct device_tree *tree)
 	dt_add_bin_prop(pci_rb_node, "ranges", ranges,
 			ranges_index * sizeof(ranges[0]));
 
-	uint32_t bus_range[] = {
-		cpu_to_be32(0),
-		cpu_to_be32(MIN(CONFIG_ECAM_MMCONF_BUS_NUMBER - 1, 0xff)),
-	};
-	dt_add_bin_prop(pci_rb_node, "bus-range", bus_range, sizeof(bus_range));
+	uint32_t *bus_range = malloc(2 * sizeof(*bus_range));
+	if (!bus_range) {
+		printk(BIOS_ERR, "%s: PCI bus range allocation failed\n", __func__);
+		return -1;
+	}
+	bus_range[0] = cpu_to_be32(0);
+	bus_range[1] = cpu_to_be32(MIN(CONFIG_ECAM_MMCONF_BUS_NUMBER - 1, 0xff));
+	dt_add_bin_prop(pci_rb_node, "bus-range", bus_range,
+			2 * sizeof(*bus_range));
 
 	return 0;
 }
@@ -219,14 +273,16 @@ static int write_isa_node(struct device_tree *tree)
 
 static int write_framebuffer_node(struct device_tree *tree)
 {
-	struct lb_framebuffer fb;
+	const struct lb_framebuffer *fb = get_lb_framebuffer();
 	char node_name[32];
+	u32 addr_cells = 2, size_cells = 2;
 
-	if (fill_lb_framebuffer(&fb))
+	if (!fb)
 		return 0;
 
-	int status = snprintf(node_name, sizeof(node_name), "/framebuffer@%lx", (uint32_t)fb.physical_address);
-	assert(status <= sizeof(node_name));
+	int status = snprintf(node_name, sizeof(node_name), "/framebuffer@%llx",
+			      fb->physical_address);
+	assert(status >= 0 && status < (int)sizeof(node_name));
 
 	struct device_tree_node *framebuffer_node;
 	framebuffer_node = dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
@@ -239,22 +295,21 @@ static int write_framebuffer_node(struct device_tree *tree)
 	// but skipping it only means no HOB to describe the graphics device, and that's fine.
 	dt_add_string_prop(framebuffer_node, "compatible", "simple-framebuffer");
 
-	u64 addr = fb.physical_address;
-	u64 size = fb.x_resolution * fb.y_resolution * (fb.bits_per_pixel / 8);
-	// At least EDK2 assumes that framebuffer must be in low memory. But does this violate the spec?
-	dt_add_reg_prop(framebuffer_node, &addr, &size, 1, 1, 1);
+	u64 addr = fb->physical_address;
+	u64 size = (u64)fb->x_resolution * fb->y_resolution * (fb->bits_per_pixel / 8);
+	dt_read_cell_props(tree->root, &addr_cells, &size_cells);
+	dt_add_reg_prop(framebuffer_node, &addr, &size, 1, addr_cells, size_cells);
 
 	dt_add_string_prop(framebuffer_node, "format", "a8r8g8b8");
-	dt_add_u32_prop(framebuffer_node, "height", fb.y_resolution);
-	dt_add_u32_prop(framebuffer_node, "width", fb.x_resolution);
+	dt_add_u32_prop(framebuffer_node, "height", fb->y_resolution);
+	dt_add_u32_prop(framebuffer_node, "width", fb->x_resolution);
 
 	return 0;
 }
 
 static int write_reserved_memory_node(struct device_tree *tree)
 {
-	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
-	u32 addr_cells = 2, size_cells = 1;
+	u32 addr_cells = 2, size_cells = 2;
 
 	char node_name[32];
 	u64 addr, size;
@@ -267,11 +322,15 @@ static int write_reserved_memory_node(struct device_tree *tree)
 	}
 	if (CONFIG(HAVE_ACPI_TABLES)) {
 		const struct cbmem_entry *acpi_region = cbmem_entry_find(CBMEM_ID_ACPI);
+		if (!acpi_region) {
+			printk(BIOS_ERR, "%s: ACPI CBMEM entry is unavailable\n", __func__);
+			return -1;
+		}
 		addr = (unsigned long)cbmem_entry_start(acpi_region);
 		size = cbmem_entry_size(acpi_region);
 
 		status = snprintf(node_name, sizeof(node_name), "memory@%llx", addr);
-		assert(status <= sizeof(node_name));
+		assert(status >= 0 && status < (int)sizeof(node_name));
 		const char *node_names_acpi[] = { node_name, NULL };
 		node = dt_find_node(rsvd_node, node_names_acpi, NULL, NULL, 1);
 		if (!node) {
@@ -283,11 +342,15 @@ static int write_reserved_memory_node(struct device_tree *tree)
 	}
 	if (CONFIG(GENERATE_SMBIOS_TABLES)) {
 		const struct cbmem_entry *smbios_region = cbmem_entry_find(CBMEM_ID_SMBIOS);
+		if (!smbios_region) {
+			printk(BIOS_ERR, "%s: SMBIOS CBMEM entry is unavailable\n", __func__);
+			return -1;
+		}
 		addr = (unsigned long)cbmem_entry_start(smbios_region);
 		size = cbmem_entry_size(smbios_region);
 
 		status = snprintf(node_name, sizeof(node_name), "memory@%llx", addr);
-		assert(status <= sizeof(node_name));
+		assert(status >= 0 && status < (int)sizeof(node_name));
 		const char *node_names_smbios[] = { node_name, NULL };
 		node = dt_find_node(rsvd_node, node_names_smbios, NULL, NULL, 1);
 		if (!node) {
@@ -311,8 +374,8 @@ static int write_reserved_memory_node(struct device_tree *tree)
 uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
 			      bool use_existing_fdt)
 {
-	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
-	u32 addr_cells = 2, size_cells = 1;
+	/* UPL x86 uses 64-bit address and size cells at the root. */
+	u32 addr_cells = 2, size_cells = 2;
 
 	// these structures are only used if there is no existing devicetree in CBMEM
 	struct fdt_header header = {
