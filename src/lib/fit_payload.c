@@ -16,13 +16,23 @@
 #include <timestamp.h>
 
 /* Pack the device_tree and place it at given position. */
-static void pack_fdt(struct region *fdt, struct device_tree *dt)
+static bool pack_fdt(struct region *fdt, struct device_tree *dt)
 {
+	const size_t size = dt_flat_size(dt);
+
+	if (size > region_sz(fdt)) {
+		printk(BIOS_ERR, "FIT: FDT grew from 0x%zx to 0x%zx bytes\n",
+		       region_sz(fdt), size);
+		return false;
+	}
+
+	fdt->size = size;
 	printk(BIOS_INFO, "FIT: Flattening FDT to %p\n",
 	       (void *)fdt->offset);
 
 	dt_flatten(dt, (void *)fdt->offset);
 	prog_segment_loaded(fdt->offset, fdt->size, 0);
+	return true;
 }
 
 /**
@@ -103,27 +113,99 @@ static struct device_tree *unpack_fdt(struct fit_image_node *image_node)
 	return fdt_unflatten(data);
 }
 
+static bool fit_get_total_size(const void *fit, size_t *fit_size)
+{
+	struct fdt_property size_prop;
+	const struct fdt_header *header = fit;
+	u32 root;
+	u64 size;
+
+	root = fdt_find_node_by_path(fit, "/", NULL, NULL);
+	if (!root || !fdt_read_prop(fit, root, "size", &size_prop)) {
+		printk(BIOS_ERR, "FIT: Missing root size property\n");
+		return false;
+	}
+
+	if (size_prop.size != sizeof(u32) && size_prop.size != sizeof(u64)) {
+		printk(BIOS_ERR, "FIT: Invalid root size width %u\n", size_prop.size);
+		return false;
+	}
+
+	size = fdt_read_int_prop(&size_prop, size_prop.size / sizeof(u32));
+	if (size < be32_to_cpu(header->totalsize) || size > 256 * MiB ||
+	    size > SIZE_MAX) {
+		printk(BIOS_ERR, "FIT: Invalid total size 0x%llx\n", size);
+		return false;
+	}
+
+	*fit_size = size;
+	return true;
+}
+
+static bool fit_image_is_bounded(const struct fit_image_node *image,
+				 const void *fit, size_t fit_size)
+{
+	uintptr_t base = (uintptr_t)fit;
+	uintptr_t data;
+	size_t offset;
+
+	if (!image)
+		return true;
+
+	data = (uintptr_t)image->data;
+	if (data < base)
+		return false;
+
+	offset = data - base;
+	return offset <= fit_size && image->size <= fit_size - offset;
+}
+
+static bool fit_config_is_bounded(const struct fit_config_node *config,
+				  const void *fit, size_t fit_size)
+{
+	struct fit_image_chain *chain;
+
+	if (!fit_image_is_bounded(config->firmware, fit, fit_size) ||
+	    !fit_image_is_bounded(config->kernel, fit, fit_size) ||
+	    !fit_image_is_bounded(config->fdt, fit, fit_size) ||
+	    !fit_image_is_bounded(config->ramdisk, fit, fit_size))
+		return false;
+
+	list_for_each(chain, config->secondary_images, list_node) {
+		if (!fit_image_is_bounded(chain->image, fit, fit_size))
+			return false;
+	}
+
+	list_for_each(chain, config->overlays, list_node) {
+		if (!fit_image_is_bounded(chain->image, fit, fit_size))
+			return false;
+	}
+
+	return true;
+}
+
 /**
  * Add coreboot tables, CBMEM information and optional board specific strapping
  * IDs to the device tree loaded via FIT.
  */
 static void add_cb_fdt_data(struct device_tree *tree)
 {
-	u32 addr_cells = 1, size_cells = 1;
+	const u32 addr_cells = 2;
+	const u32 size_cells = 2;
 	u64 reg_addrs[2], reg_sizes[2];
 	void *baseptr;
 	size_t size;
 
-	static const char *firmware_path[] = {"firmware", NULL};
+	static const char *const firmware_path[] = {"firmware", NULL};
 	struct device_tree_node *firmware_node = dt_find_node(tree->root,
-		firmware_path, &addr_cells, &size_cells, 1);
+		firmware_path, NULL, NULL, 1);
 
 	/* Need to add 'ranges' to the intermediate node to make 'reg' work. */
 	dt_add_bin_prop(firmware_node, "ranges", NULL, 0);
 
-	static const char *coreboot_path[] = {"coreboot", NULL};
+	static const char *const coreboot_path[] = {"coreboot", NULL};
 	struct device_tree_node *coreboot_node = dt_find_node(firmware_node,
-		coreboot_path, &addr_cells, &size_cells, 1);
+		coreboot_path, NULL, NULL, 1);
 
 	dt_add_string_prop(coreboot_node, "compatible", "coreboot");
 
@@ -228,17 +310,9 @@ static bool fit_place_mem(const struct range_entry *r, void *arg)
 	return true;
 }
 
-static int fit_allocate_firmware(struct prog *payload, struct fit_config_node *config,
-				  struct region *firmware,
-				  struct region *fdt)
+static int fit_allocate_firmware(struct fit_config_node *config,
+				  struct region *firmware)
 {
-	/*
-	 * The code assumes that bootmem_walk provides a sorted list of memory
-	 * regions, starting from the lowest address.
-	 * The order of the calls here doesn't matter, as the placement is
-	 * enforced in the called functions.
-	 * For details check code above.
-	 */
 	printk(BIOS_DEBUG, "FIT: Using firmware size of 0x%zx bytes\n", region_sz(firmware));
 
 	/* Attempt to fetch a satisfactory region. If successful, allocate it. */
@@ -258,6 +332,14 @@ static int fit_allocate_firmware(struct prog *payload, struct fit_config_node *c
 	/* Mark as reserved for future allocations. */
 	bootmem_add_range(region_offset(firmware), region_sz(firmware), BM_MEM_PAYLOAD);
 
+	return 0;
+}
+
+static int fit_allocate_firmware_fdt(struct prog *payload,
+				      struct fit_config_node *config,
+				      const struct region *firmware,
+				      struct region *fdt)
+{
 	/* Place FDT after firmware. */
 	fdt->offset = region_offset(firmware) + region_sz(firmware);
 	if (!bootmem_walk(fit_place_mem, fdt)) {
@@ -309,8 +391,6 @@ static int load_secondaries(struct fit_config_node *config, struct device_tree *
 			return -1;
 		}
 
-		if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware)
-			upl_fdt_add_secondary(tree, secondary_image->name, &secondary_region);
 	}
 
 	return 0;
@@ -328,17 +408,36 @@ static int fit_extract_firmware(struct prog *payload, struct fit_config_node *co
 
 	/* Collect info for fit_allocate_firmware */
 	code->size = MAX(config->firmware->size, config->firmware->uncompressed_size);
-	fdt->size = dt_flat_size(dt);
 
-	/* Invoke arch-generic FIT payload placement */
-	if (fit_allocate_firmware(payload, config, code, fdt) != 0) {
+	if (fit_allocate_firmware(config, code) != 0) {
 		printk(BIOS_ERR, "Failed to find free memory region\n");
 		bootmem_dump_ranges();
 		return -1;
 	}
 
-	if (extract(code, config->firmware) != 0 || load_secondaries(config, dt) != 0) {
+	if (CONFIG(HANDOFF_UPL_DEVICETREE)) {
+		upl_fdt_add_reserved_memory(dt, "upl-entry", region_offset(code),
+					    ALIGN_UP(region_sz(code), 4 * KiB),
+					    "boot-code");
+		upl_fdt_refresh_memory(dt);
+	}
+
+	fdt->size = dt_flat_size(dt);
+	if (fit_allocate_firmware_fdt(payload, config, code, fdt) != 0) {
+		printk(BIOS_ERR, "Failed to find free memory region\n");
+		bootmem_dump_ranges();
+		return -1;
+	}
+
+	if (extract(code, config->firmware) != 0) {
 		printk(BIOS_ERR, "Failed to extract firmware\n");
+		prog_set_entry(payload, NULL, NULL);
+		return -1;
+	}
+
+	/* EDK2 resolves its FV data-offsets from the preserved FIT itself. */
+	if (!CONFIG(HANDOFF_UPL_DEVICETREE) && load_secondaries(config, dt) != 0) {
+		printk(BIOS_ERR, "Failed to extract secondary firmware images\n");
 		prog_set_entry(payload, NULL, NULL);
 		return -1;
 	}
@@ -353,6 +452,8 @@ void fit_payload(struct prog *payload, void *data)
 {
 	struct device_tree *dt = NULL;
 	struct region code = {0}, fdt = {0}, initrd = {0};
+	void *upl_fit = NULL;
+	size_t fit_size = 0;
 
 	printk(BIOS_INFO, "FIT: Examine payload %s\n", payload->name);
 
@@ -360,6 +461,23 @@ void fit_payload(struct prog *payload, void *data)
 	if (!config) {
 		printk(BIOS_ERR, "Could not load FIT\n");
 		return;
+	}
+
+	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware) {
+		if (!fit_get_total_size(data, &fit_size) ||
+		    !fit_config_is_bounded(config, data, fit_size)) {
+			printk(BIOS_ERR, "FIT: UPL image ranges are invalid\n");
+			return;
+		}
+
+		upl_fit = bootmem_allocate_buffer(fit_size);
+		if (!upl_fit) {
+			printk(BIOS_ERR, "FIT: Unable to preserve UPL FIT\n");
+			return;
+		}
+		memcpy(upl_fit, data, fit_size);
+		printk(BIOS_INFO, "FIT: Preserved 0x%zx-byte UPL FIT at %p\n",
+		       fit_size, upl_fit);
 	}
 
 	if (config->fdt)
@@ -384,6 +502,11 @@ void fit_payload(struct prog *payload, void *data)
 
 	/* Insert coreboot specific information */
 	add_cb_fdt_data(dt);
+	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware) {
+		upl_fdt_add_reserved_memory(dt, "upl-fit", (uintptr_t)upl_fit,
+					    ALIGN_UP(fit_size, 4 * KiB), "boot-data");
+		upl_fdt_add_payload(dt, (uintptr_t)upl_fit);
+	}
 
 	if (!CONFIG(HANDOFF_UPL_DEVICETREE) || !config->firmware)
 		fit_update_memory(dt);
@@ -406,8 +529,15 @@ void fit_payload(struct prog *payload, void *data)
 	if (status != 0)
 		return;
 
+	/* Payload allocations must not remain advertised as free UPL memory. */
+	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware)
+		upl_fdt_refresh_memory(dt);
+
 	/* Repack FDT for handoff to entrypoint */
-	pack_fdt(&fdt, dt);
+	if (!pack_fdt(&fdt, dt)) {
+		prog_set_entry(payload, NULL, NULL);
+		return;
+	}
 
 	timestamp_add_now(TS_KERNEL_START);
 }
