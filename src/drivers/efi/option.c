@@ -57,6 +57,16 @@ enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 	return efi_fv_set_option(&rdev, &EficorebootNvDataGuid, name, &var, sizeof(var));
 }
 
+enum cb_err get_uint_option_status(const char *name, unsigned int fallback,
+				  unsigned int *value)
+{
+	enum cb_err ret = efi_option_get_uint(name, value);
+
+	if (ret == CB_EFI_OPTION_NOT_FOUND)
+		*value = fallback;
+	return ret;
+}
+
 unsigned int get_uint_option(const char *name, const unsigned int fallback)
 {
 	uint32_t value;
