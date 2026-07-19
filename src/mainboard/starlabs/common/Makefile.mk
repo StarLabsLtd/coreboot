@@ -32,4 +32,4 @@ ramstage-$(CONFIG_STARLABS_NVME_POWER_SEQUENCE) += nvme_seq.c
 CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
 ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
-smm-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += smihandler.c
+smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
