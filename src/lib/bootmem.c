@@ -11,6 +11,7 @@
 #include <types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int initialized;
 static int table_written;
@@ -202,9 +203,9 @@ void upl_fdt_add_memory(struct device_tree *tree)
 		bootmem_init();
 	bootmem_dump_ranges();
 
-	// #address-cells = 2, #size-cells = 1 is the default according to devicetree spec
+	/* UPL x86 address and size fields are both 64-bit. */
 	u32 addr_cells = 2;
-	u32 size_cells = 1;
+	u32 size_cells = 2;
 
 	struct device_tree_node *rsvd_node;
 	rsvd_node = dt_find_node_by_path(tree, "/reserved-memory", &addr_cells, &size_cells, 1);
@@ -223,6 +224,17 @@ void upl_fdt_add_memory(struct device_tree *tree)
 		u64 addr = range_entry_base(r);
 		u64 size = range_entry_size(r);
 		struct device_tree_node *node = NULL;
+
+		if (addr == CONFIG_ECAM_MMCONF_BASE_ADDRESS &&
+		    size == CONFIG_ECAM_MMCONF_LENGTH) {
+			snprintf(node_name, sizeof(node_name), "mmio@%llx", addr);
+			const char *node_names_mmio[] = { node_name, NULL };
+			node = dt_find_node(rsvd_node, node_names_mmio, NULL, NULL, 1);
+			dt_add_bin_prop(node, "no-map", NULL, 0);
+			dt_add_reg_prop(node, &addr, &size, 1, addr_cells, size_cells);
+			continue;
+		}
+
 		switch (range_entry_tag(r)) {
 		case BM_MEM_RAM:
 		case BM_MEM_RAMSTAGE:
@@ -258,6 +270,49 @@ void upl_fdt_add_memory(struct device_tree *tree)
 			break;
 		}
 		dt_add_reg_prop(node, &addr, &size, 1, addr_cells, size_cells);
+	}
+}
+
+void upl_fdt_refresh_memory(struct device_tree *tree)
+{
+	struct device_tree_node *node;
+	struct device_tree_node *memory_node;
+	const struct range_entry *r;
+
+	/* The recovered EDK2 parser requires one memory@ node per RAM tuple. */
+	do {
+		memory_node = NULL;
+		list_for_each(node, tree->root->children, list_node) {
+			const char *device_type = dt_find_string_prop(node, "device_type");
+			if (device_type && !strcmp(device_type, "memory")) {
+				memory_node = node;
+				break;
+			}
+		}
+		if (memory_node)
+			list_remove(&memory_node->list_node);
+	} while (memory_node);
+
+	memranges_each_entry(r, &bootmem) {
+		char node_name[64];
+		u64 address;
+		u64 size;
+
+		if (range_entry_tag(r) != BM_MEM_RAM &&
+		    range_entry_tag(r) != BM_MEM_PAYLOAD)
+			continue;
+
+		address = range_entry_base(r);
+		size = range_entry_size(r);
+		snprintf(node_name, sizeof(node_name), "/memory@%llx", address);
+		node = dt_find_node_by_path(tree, node_name, NULL, NULL, 1);
+		if (!node) {
+			printk(BIOS_ERR, "%s: %s node is null\n", __func__, node_name);
+			continue;
+		}
+
+		dt_add_string_prop(node, "device_type", "memory");
+		dt_add_reg_prop(node, &address, &size, 1, 2, 2);
 	}
 }
 
