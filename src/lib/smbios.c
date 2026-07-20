@@ -1366,7 +1366,7 @@ unsigned long smbios_write_tables(unsigned long current)
 		memcpy(se->anchor, "_SM_", 4);
 		se->length = sizeof(*se);
 		se->major_version = 3;
-		se->minor_version = 0;
+		se->minor_version = 1;
 		se->max_struct_size = max_struct_size;
 		se->struct_count = handle;
 		memcpy(se->intermediate_anchor_string, "_DMI_", 5);
@@ -1383,7 +1383,7 @@ unsigned long smbios_write_tables(unsigned long current)
 	memcpy(se3->anchor, "_SM3_", 5);
 	se3->length = sizeof(*se3);
 	se3->major_version = 3;
-	se3->minor_version = 0;
+	se3->minor_version = 1;
 
 	se3->struct_table_address = (u64)tables;
 	se3->struct_table_length = len;
