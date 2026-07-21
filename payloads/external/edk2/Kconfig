@@ -193,6 +193,14 @@ config EDK2_CBMEM_LOGGING
 	  this option, as it will increase logging output significantly.
 	  Selecting this option will increase the payload size in CBFS by ~1MB.
 
+config EDK2_SPI_FLASH_LOGGING
+	bool "Enable edk2 logging to the SPI flash console"
+	depends on ARCH_X86 && SMMSTORE && CONSOLE_SPI_FLASH
+	help
+	  Append edk2 debug output to the CONSOLE FMAP region through a
+	  restricted SMMSTORE command. CBMEM logging remains enabled so the
+	  same output is available without reading the flash.
+
 config EDK2_CPU_TIMER_LIB
 	bool
 	default n
