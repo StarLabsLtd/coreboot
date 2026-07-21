@@ -686,10 +686,13 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
 	/* Chipset Lockdown */
-	const bool platform_lockdown_by_fsp = chipset_lockdown_use_fsp(get_lockdown_config());
+	const int chipset_lockdown = get_lockdown_config();
+	const bool platform_lockdown_by_fsp = chipset_lockdown_use_fsp(chipset_lockdown);
+	const bool bios_interface_lockdown_by_fsp = chipset_lockdown == CHIPSET_LOCKDOWN_FSP;
 
 	s_cfg->PchLockDownGlobalSmi = platform_lockdown_by_fsp;
-	s_cfg->PchLockDownBiosInterface = platform_lockdown_by_fsp;
+	/* In split mode Heads must update before coreboot's SMM finalization. */
+	s_cfg->PchLockDownBiosInterface = bios_interface_lockdown_by_fsp;
 	s_cfg->PchUnlockGpioPads = !platform_lockdown_by_fsp;
 	s_cfg->RtcMemoryLock = platform_lockdown_by_fsp;
 	s_cfg->SkipPamLock = !platform_lockdown_by_fsp;

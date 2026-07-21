@@ -16,6 +16,7 @@
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
 #include <elog.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
@@ -23,6 +24,7 @@
 #include <intelblocks/smihandler.h>
 #include <intelblocks/tco.h>
 #include <intelblocks/uart.h>
+#include <intelpch/lockdown.h>
 #include <option.h>
 #include <security/lockdown/lockdown.h>
 #include <security/tcg/opal_s3_smm.h>
@@ -394,6 +396,14 @@ static void finalize(void)
 		return;
 	}
 	finalize_done = 1;
+
+	if (CONFIG(SOC_INTEL_COMMON_SPI_LOCKDOWN_SMM)) {
+		/* SPI lock down configuration */
+		fast_spi_lockdown_bios(CHIPSET_LOCKDOWN_COREBOOT);
+
+		/* LPC/eSPI lock down configuration */
+		lpc_lockdown_config(CHIPSET_LOCKDOWN_COREBOOT);
+	}
 
 	if (CONFIG(SPI_FLASH_SMM))
 		/* Re-init SPI driver to handle locked BAR */
