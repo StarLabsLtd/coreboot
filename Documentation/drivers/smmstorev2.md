@@ -73,6 +73,8 @@ In order to get the communication buffer address, the payload or OS
 has to read the coreboot table with tag `0x0039`, containing:
 
 ```C
+#define SMMSTOREV2_FEATURE_FLASH_CONSOLE (1U << 0)
+
 struct lb_smmstorev2 {
 	uint32_t tag;
 	uint32_t size;
@@ -89,11 +91,14 @@ struct lb_smmstorev2 {
 					   Introduced after the initial implementation. Users of
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
+	uint32_t features;		/* Optional SMMSTOREv2 feature flags. */
 };
 ```
 
 The absence of this coreboot table entry indicates that there's no
-SMMSTOREv2 support.
+SMMSTOREv2 support. `features` is an optional field added after the initial
+implementation. A caller must check that the table is large enough to contain
+the field, then check the corresponding bit before using an optional command.
 
 `mmap_addr` is an optional field added after the initial implementation.
 Users of this table must check the size field to know if it's written by coreboot.
@@ -131,7 +136,7 @@ that the SMMSTOREv2 feature is not installed.
 
 ### Calling arguments
 
-SMMSTOREv2 supports 3 subcommands that are passed via `%ah`, the
+SMMSTOREv2 supports subcommands that are passed via `%ah`, the
 additional calling arguments are passed via `%ebx`.
 
 **NOTE**: The size of the struct entries are in the native word size of
@@ -199,6 +204,22 @@ struct smmstore_params_raw_clear {
 
 INPUT:
 - `block_id`: Block to erase
+
+#### - SMMSTORE_CMD_FLASH_CONSOLE_WRITE = 8
+
+Availability is advertised by `SMMSTOREV2_FEATURE_FLASH_CONSOLE`. The command
+appends data from the communication buffer to the `CONSOLE` FMAP region. It
+does not expose offsets in the flash address space and cannot erase the region.
+
+The parameter buffer contains the number of bytes to append, up to 128 bytes
+per call, and their offset in the communication buffer:
+
+```C
+struct smmstore_params_flash_console_write {
+	uint32_t bufsize;
+	uint32_t bufoffset;
+};
+```
 
 #### Security
 

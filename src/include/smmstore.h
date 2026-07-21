@@ -14,6 +14,8 @@
 #define SMMSTORE_CMD_RAW_READ 5
 #define SMMSTORE_CMD_RAW_WRITE 6
 #define SMMSTORE_CMD_RAW_CLEAR 7
+#define SMMSTORE_CMD_FLASH_CONSOLE_WRITE 8
+#define SMMSTORE_FLASH_CONSOLE_MAX_SIZE 128
 
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.
@@ -89,6 +91,10 @@ struct smmstore_params_raw_clear {
 	uint32_t block_id;
 } __packed;
 
+struct smmstore_params_flash_console_write {
+	uint32_t bufsize;
+	uint32_t bufoffset;
+} __packed;
 
 /* SMM handler */
 uint32_t smmstore_exec(uint8_t command, void *param);
@@ -97,6 +103,7 @@ int smmstore_init(void *buf, size_t len);
 int smmstore_rawread_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);
 int smmstore_rawwrite_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);
 int smmstore_rawclear_region(uint32_t block_id);
+int smmstore_flashconsole_write(uint32_t offset, uint32_t size);
 #if ENV_RAMSTAGE
 int smmstore_get_info(struct smmstore_params_info *info);
 #endif

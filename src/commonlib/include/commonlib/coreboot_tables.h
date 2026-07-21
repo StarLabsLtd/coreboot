@@ -554,6 +554,8 @@ struct	cmos_checksum {
  * This record contains information to use SMMSTOREv2.
  */
 
+#define SMMSTOREV2_FEATURE_FLASH_CONSOLE	(1U << 0)
+
 struct lb_smmstorev2 {
 	uint32_t tag;
 	uint32_t size;
@@ -570,6 +572,7 @@ struct lb_smmstorev2 {
 					   Introduced after the initial implementation. Users of
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
+	uint32_t features;		/* Optional SMMSTOREv2 feature flags. */
 };
 
 enum lb_tpm_ppi_tpm_version {

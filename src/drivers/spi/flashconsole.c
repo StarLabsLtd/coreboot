@@ -15,6 +15,11 @@ static struct region_device rdev;
 static uint8_t line_buffer[LINE_BUFFER_SIZE];
 static size_t offset;
 static size_t line_offset;
+static bool initialized;
+static bool disabled;
+static bool failed;
+
+static int flashconsole_flush_buffer(void);
 
 void flashconsole_init(void)
 {
@@ -23,6 +28,9 @@ void flashconsole_init(void)
 	size_t initial_offset = 0;
 	size_t len = READ_BUFFER_SIZE;
 	size_t i;
+
+	if (initialized || disabled)
+		return;
 
 	if (fmap_locate_area_as_rdev_rw("CONSOLE", &rdev)) {
 		printk(BIOS_INFO, "Can't find 'CONSOLE' area in FMAP\n");
@@ -43,7 +51,7 @@ void flashconsole_init(void)
 	for (i = 0; i < len && initial_offset < size;) {
 		// Fill the buffer on first iteration
 		if (i == 0) {
-			len = MIN(READ_BUFFER_SIZE, size - offset);
+			len = MIN(READ_BUFFER_SIZE, size - initial_offset);
 			if (rdev_readat(&rdev, buffer, initial_offset, len) != len)
 				return;
 		}
@@ -60,11 +68,13 @@ void flashconsole_init(void)
 	// Make sure there is still space left on the console
 	if (initial_offset >= size) {
 		printk(BIOS_INFO, "No space left on 'console' region in SPI flash\n");
+		disabled = true;
 		return;
 	}
 
 	offset = initial_offset;
 	rdev_ptr = &rdev;
+	initialized = true;
 }
 
 void flashconsole_tx_byte(unsigned char c)
@@ -85,6 +95,11 @@ void flashconsole_tx_byte(unsigned char c)
 
 void flashconsole_tx_flush(void)
 {
+	flashconsole_flush_buffer();
+}
+
+static int flashconsole_flush_buffer(void)
+{
 	size_t len = line_offset;
 	size_t region_size;
 
@@ -98,22 +113,48 @@ void flashconsole_tx_flush(void)
 	 * seems to return -1 if len is zero even though this should be a
 	 * recoverable condition. */
 	if (busy || !rdev_ptr || len == 0)
-		return;
+		return len == 0 ? 0 : -1;
 
 	busy = true;
 	region_size = region_device_sz(rdev_ptr);
 	if (offset + len >= region_size)
 		len = region_size - offset;
 
-	if (rdev_writeat(&rdev, line_buffer, offset, len) != len)
-		return;
-
-	// If the region is full, stop future write attempts
-	if (offset + len >= region_size)
-		return;
+	if (rdev_writeat(&rdev, line_buffer, offset, len) != len) {
+		rdev_ptr = NULL;
+		line_offset = 0;
+		disabled = true;
+		failed = true;
+		busy = false;
+		return -1;
+	}
 
 	offset += len;
 	line_offset = 0;
+	// If the region is full, stop future write attempts.
+	if (offset >= region_size) {
+		rdev_ptr = NULL;
+		disabled = true;
+	}
 
 	busy = false;
+	return 0;
+}
+
+int flashconsole_append(const void *buffer, size_t size)
+{
+	const uint8_t *data = buffer;
+
+	if (!rdev_ptr)
+		flashconsole_init();
+	if (!rdev_ptr)
+		return -1;
+
+	for (size_t i = 0; i < size; i++) {
+		flashconsole_tx_byte(data[i]);
+		if (!rdev_ptr)
+			return !failed && i + 1 == size ? 0 : -1;
+	}
+
+	return flashconsole_flush_buffer();
 }

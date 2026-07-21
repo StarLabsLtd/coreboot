@@ -80,6 +80,23 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}
+	case SMMSTORE_CMD_FLASH_CONSOLE_WRITE: {
+		struct smmstore_params_flash_console_write *params = param;
+
+		if (!CONFIG(CONSOLE_SPI_FLASH)) {
+			ret = SMMSTORE_RET_UNSUPPORTED;
+			break;
+		}
+
+		if (range_check(params, sizeof(*params)) != 0)
+			break;
+		if (params->bufsize == 0 || params->bufsize > SMMSTORE_FLASH_CONSOLE_MAX_SIZE)
+			break;
+
+		if (smmstore_flashconsole_write(params->bufoffset, params->bufsize) == 0)
+			ret = SMMSTORE_RET_SUCCESS;
+		break;
+	}
 	default:
 		printk(BIOS_DEBUG, "Unknown SMM store command: 0x%02x\n", command);
 		ret = SMMSTORE_RET_UNSUPPORTED;

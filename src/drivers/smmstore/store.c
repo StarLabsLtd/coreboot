@@ -4,6 +4,7 @@
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <console/console.h>
+#include <console/flash.h>
 #include <cpu/x86/smm.h>
 #include <fmap.h>
 #include <fmap_config.h>
@@ -219,6 +220,20 @@ static void *mmap_com_buf(struct region_device *com_buf, uint32_t offset, uint32
 		printk(BIOS_ERR, "smm store: not enough space for new data\n");
 
 	return ptr;
+}
+
+int smmstore_flashconsole_write(uint32_t offset, uint32_t size)
+{
+	struct region_device com_buf;
+	void *ptr = mmap_com_buf(&com_buf, offset, size);
+	int ret;
+
+	if (!ptr)
+		return -1;
+
+	ret = flashconsole_append(ptr, size);
+	rdev_munmap(&com_buf, ptr);
+	return ret;
 }
 
 /**

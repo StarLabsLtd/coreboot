@@ -3,11 +3,13 @@
 #ifndef CONSOLE_FLASH_H
 #define CONSOLE_FLASH_H 1
 
+#include <stddef.h>
 #include <stdint.h>
 
 void flashconsole_init(void);
 void flashconsole_tx_byte(unsigned char c);
 void flashconsole_tx_flush(void);
+int flashconsole_append(const void *buffer, size_t size);
 
 #define __CONSOLE_FLASH_ENABLE__	CONFIG(CONSOLE_SPI_FLASH)
 

@@ -36,4 +36,8 @@ void lb_smmstorev2(struct lb_header *header)
 	store->num_blocks = info.num_blocks;
 	store->block_size = info.block_size;
 	store->apm_cmd = APM_CNT_SMMSTORE;
+	store->unused[0] = 0;
+	store->unused[1] = 0;
+	store->unused[2] = 0;
+	store->features = CONFIG(CONSOLE_SPI_FLASH) ? SMMSTOREV2_FEATURE_FLASH_CONSOLE : 0;
 }
