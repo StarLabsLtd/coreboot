@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <endian.h>
 #include <sys/stat.h>
 #include <libgen.h>
 #include <assert.h>
