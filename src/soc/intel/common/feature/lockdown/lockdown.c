@@ -31,10 +31,9 @@ static void pmc_lockdown_config(int chipset_lockdown)
 		setbits32(pmcbase + SSML, SSML_SSL_EN);
 		setbits32(pmcbase + PM_CFG, PM_CFG_DBG_MODE_LOCK |
 					 PM_CFG_XRAM_READ_DISABLE);
+		/* Send PMC IPC to inform about both BIOS Reset and PCI enumeration done */
+		pmc_send_bios_reset_pci_enum_done();
 	}
-
-	/* Send PMC IPC to inform about both BIOS Reset and PCI enumeration done */
-	pmc_send_bios_reset_pci_enum_done();
 }
 
 static void soc_die_lockdown_cfg(void)
