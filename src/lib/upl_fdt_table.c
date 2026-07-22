@@ -274,6 +274,7 @@ static int write_isa_node(struct device_tree *tree)
 static int write_framebuffer_node(struct device_tree *tree)
 {
 	const struct lb_framebuffer *fb = get_lb_framebuffer();
+	const char *format;
 	char node_name[32];
 	u32 addr_cells = 2, size_cells = 2;
 
@@ -295,13 +296,32 @@ static int write_framebuffer_node(struct device_tree *tree)
 	// but skipping it only means no HOB to describe the graphics device, and that's fine.
 	dt_add_string_prop(framebuffer_node, "compatible", "simple-framebuffer");
 
+	if (fb->bits_per_pixel != 32 || fb->red_mask_size != 8 ||
+	    fb->green_mask_size != 8 || fb->green_mask_pos != 8 ||
+	    fb->blue_mask_size != 8 ||
+	    !((fb->reserved_mask_size == 8 && fb->reserved_mask_pos == 24) ||
+	      fb->reserved_mask_size == 0)) {
+		printk(BIOS_ERR, "%s: unsupported framebuffer format\n", __func__);
+		return -1;
+	}
+
+	if (fb->red_mask_pos == 16 && fb->blue_mask_pos == 0)
+		format = fb->reserved_mask_size == 8 ? "a8r8g8b8" : "x8r8g8b8";
+	else if (fb->red_mask_pos == 0 && fb->blue_mask_pos == 16)
+		format = fb->reserved_mask_size == 8 ? "a8b8g8r8" : "x8b8g8r8";
+	else {
+		printk(BIOS_ERR, "%s: unsupported framebuffer channel layout\n", __func__);
+		return -1;
+	}
+
 	u64 addr = fb->physical_address;
-	u64 size = (u64)fb->x_resolution * fb->y_resolution * (fb->bits_per_pixel / 8);
+	u64 size = (u64)fb->bytes_per_line * fb->y_resolution;
 	dt_read_cell_props(tree->root, &addr_cells, &size_cells);
 	dt_add_reg_prop(framebuffer_node, &addr, &size, 1, addr_cells, size_cells);
 
-	dt_add_string_prop(framebuffer_node, "format", "a8r8g8b8");
+	dt_add_string_prop(framebuffer_node, "format", format);
 	dt_add_u32_prop(framebuffer_node, "height", fb->y_resolution);
+	dt_add_u32_prop(framebuffer_node, "stride", fb->bytes_per_line);
 	dt_add_u32_prop(framebuffer_node, "width", fb->x_resolution);
 
 	return 0;
