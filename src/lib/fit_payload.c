@@ -566,12 +566,16 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 			return;
 		}
 
-		upl_fit = bootmem_allocate_buffer(fit_size);
-		if (!upl_fit) {
-			printk(BIOS_ERR, "FIT: Unable to preserve UPL FIT\n");
-			return;
+		if (bootmem_region_targets_type((uintptr_t)data, fit_size, BM_MEM_PAYLOAD)) {
+			upl_fit = data;
+		} else {
+			upl_fit = bootmem_allocate_buffer(fit_size);
+			if (!upl_fit) {
+				printk(BIOS_ERR, "FIT: Unable to preserve UPL FIT\n");
+				return;
+			}
+			memcpy(upl_fit, data, fit_size);
 		}
-		memcpy(upl_fit, data, fit_size);
 		printk(BIOS_INFO, "FIT: Preserved 0x%zx-byte UPL FIT at %p\n",
 		       fit_size, upl_fit);
 	}
