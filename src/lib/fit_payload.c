@@ -114,7 +114,27 @@ static struct device_tree *unpack_fdt(struct fit_image_node *image_node)
 	return fdt_unflatten(data);
 }
 
-static bool fit_get_total_size(const void *fit, size_t *fit_size)
+static bool fit_fdt_is_bounded(const void *fit, size_t data_size)
+{
+	const struct fdt_header *header = fit;
+	size_t fdt_size;
+
+	if (data_size < sizeof(*header)) {
+		printk(BIOS_ERR, "FIT: Container is smaller than the FDT header\n");
+		return false;
+	}
+
+	fdt_size = be32_to_cpu(header->totalsize);
+	if (fdt_size < sizeof(*header) || fdt_size > data_size) {
+		printk(BIOS_ERR, "FIT: FDT size 0x%zx exceeds container size 0x%zx\n",
+		       fdt_size, data_size);
+		return false;
+	}
+
+	return true;
+}
+
+static bool fit_get_total_size(const void *fit, size_t data_size, size_t *fit_size)
 {
 	struct fdt_property size_prop;
 	const struct fdt_header *header = fit;
@@ -126,7 +146,7 @@ static bool fit_get_total_size(const void *fit, size_t *fit_size)
 
 	root = fdt_find_node_by_path(fit, "/", NULL, NULL);
 	if (!root || !fdt_read_prop(fit, root, "size", &size_prop)) {
-		*fit_size = fdt_size;
+		*fit_size = data_size;
 		return true;
 	}
 
@@ -136,8 +156,11 @@ static bool fit_get_total_size(const void *fit, size_t *fit_size)
 	}
 
 	size = fdt_read_int_prop(&size_prop, size_prop.size / sizeof(u32));
-	if (size < fdt_size || size > 256 * MiB || size > SIZE_MAX) {
-		printk(BIOS_ERR, "FIT: Invalid total size 0x%llx\n", size);
+	if (size < fdt_size || size > 256 * MiB ||
+	    size > SIZE_MAX || size > data_size) {
+		printk(BIOS_ERR,
+		       "FIT: Invalid total size 0x%llx for 0x%zx-byte container\n",
+		       size, data_size);
 		return false;
 	}
 
@@ -163,25 +186,93 @@ static bool fit_image_is_bounded(const struct fit_image_node *image,
 	return offset <= fit_size && image->size <= fit_size - offset;
 }
 
+static bool fit_images_overlap(const struct fit_image_node *first,
+			       const struct fit_image_node *second)
+{
+	uintptr_t first_start;
+	uintptr_t second_start;
+
+	if (!first || !second || !first->size || !second->size)
+		return false;
+
+	first_start = (uintptr_t)first->data;
+	second_start = (uintptr_t)second->data;
+
+	if (first_start < second_start)
+		return first->size > second_start - first_start;
+
+	return second->size > first_start - second_start;
+}
+
+static bool fit_firmware_entry_is_bounded(const struct fit_image_node *firmware)
+{
+	size_t image_size;
+
+	if (!firmware)
+		return true;
+
+	image_size = MAX(firmware->size, firmware->uncompressed_size);
+	return firmware->entrypoint_address >= firmware->load_address &&
+	       firmware->entrypoint_address - firmware->load_address < image_size;
+}
+
 static bool fit_config_is_bounded(const struct fit_config_node *config,
 				  const void *fit, size_t fit_size)
 {
+	const struct fit_image_node *fixed[] = {
+		config->firmware, config->kernel, config->fdt, config->ramdisk,
+	};
 	struct fit_image_chain *chain;
+	struct fit_image_chain *other;
+	size_t i;
+	size_t j;
 
 	if (!fit_image_is_bounded(config->firmware, fit, fit_size) ||
 	    !fit_image_is_bounded(config->kernel, fit, fit_size) ||
 	    !fit_image_is_bounded(config->fdt, fit, fit_size) ||
-	    !fit_image_is_bounded(config->ramdisk, fit, fit_size))
+	    !fit_image_is_bounded(config->ramdisk, fit, fit_size) ||
+	    !fit_firmware_entry_is_bounded(config->firmware))
 		return false;
+
+	for (i = 0; i < ARRAY_SIZE(fixed); i++) {
+		for (j = 0; j < i; j++) {
+			if (fit_images_overlap(fixed[i], fixed[j]))
+				return false;
+		}
+	}
 
 	list_for_each(chain, config->secondary_images, list_node) {
 		if (!fit_image_is_bounded(chain->image, fit, fit_size))
 			return false;
+		for (i = 0; i < ARRAY_SIZE(fixed); i++) {
+			if (fit_images_overlap(chain->image, fixed[i]))
+				return false;
+		}
+		list_for_each(other, config->secondary_images, list_node) {
+			if (other == chain)
+				break;
+			if (fit_images_overlap(chain->image, other->image))
+				return false;
+		}
 	}
 
 	list_for_each(chain, config->overlays, list_node) {
 		if (!fit_image_is_bounded(chain->image, fit, fit_size))
 			return false;
+		for (i = 0; i < ARRAY_SIZE(fixed); i++) {
+			if (fit_images_overlap(chain->image, fixed[i]))
+				return false;
+		}
+		list_for_each(other, config->secondary_images, list_node) {
+			if (fit_images_overlap(chain->image, other->image))
+				return false;
+		}
+		list_for_each(other, config->overlays, list_node) {
+			if (other == chain)
+				break;
+			if (fit_images_overlap(chain->image, other->image))
+				return false;
+		}
 	}
 
 	return true;
@@ -451,7 +542,7 @@ static int fit_extract_firmware(struct prog *payload, struct fit_config_node *co
 /*
  * Parse the uImage FIT, choose a configuration and extract images.
  */
-void fit_payload(struct prog *payload, void *data)
+void fit_payload(struct prog *payload, void *data, size_t data_size)
 {
 	struct device_tree *dt = NULL;
 	struct region code = {0}, fdt = {0}, initrd = {0};
@@ -459,6 +550,8 @@ void fit_payload(struct prog *payload, void *data)
 	size_t fit_size = 0;
 
 	printk(BIOS_INFO, "FIT: Examine payload %s\n", payload->name);
+	if (!fit_fdt_is_bounded(data, data_size))
+		return;
 
 	struct fit_config_node *config = fit_load(data);
 	if (!config) {
@@ -467,7 +560,7 @@ void fit_payload(struct prog *payload, void *data)
 	}
 
 	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware) {
-		if (!fit_get_total_size(data, &fit_size) ||
+		if (!fit_get_total_size(data, data_size, &fit_size) ||
 		    !fit_config_is_bounded(config, data, fit_size)) {
 			printk(BIOS_ERR, "FIT: UPL image ranges are invalid\n");
 			return;
