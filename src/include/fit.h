@@ -15,6 +15,9 @@ struct fit_image_node {
 	void *data;
 	uint32_t size;
 	int compression;
+	uint32_t uncompressed_size;
+	uintptr_t load_address;
+	uintptr_t entrypoint_address;
 
 	struct list_node list_node;
 };
