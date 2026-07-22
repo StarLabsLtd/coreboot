@@ -454,10 +454,8 @@ static void test_write_tables(void **state)
 
 			const struct lb_cbmem_entry *cbmem_entry =
 				(struct lb_cbmem_entry *)record;
-			const LargestIntegralType expected_tags[] = {CBMEM_ID_CBTABLE,
-								     CBMEM_ID_MMC_STATUS};
-			assert_in_set(cbmem_entry->id, expected_tags,
-				      ARRAY_SIZE(expected_tags));
+			assert_true(cbmem_entry->id == CBMEM_ID_CBTABLE ||
+				    cbmem_entry->id == CBMEM_ID_MMC_STATUS);
 			break;
 		case LB_TAG_TSC_INFO:
 			assert_int_equal(sizeof(struct lb_tsc_info), record->size);
