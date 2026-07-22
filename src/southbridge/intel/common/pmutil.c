@@ -119,7 +119,8 @@ void dump_gpe0_status(u64 gpe0_sts)
 	printk(BIOS_DEBUG, "GPE0_STS: ");
 	if (gpe0_sts & (1LL << 32)) printk(BIOS_DEBUG, "USB6 ");
 	for (i=31; i>= 16; i--) {
-		if (gpe0_sts & (1 << i)) printk(BIOS_DEBUG, "GPIO%d ", (i-16));
+		if (gpe0_sts & (1ULL << i))
+			printk(BIOS_DEBUG, "GPIO%d ", (i-16));
 	}
 	if (gpe0_sts & (1 << 14)) printk(BIOS_DEBUG, "USB4 ");
 	if (gpe0_sts & (1 << 13)) printk(BIOS_DEBUG, "PME_B0 ");

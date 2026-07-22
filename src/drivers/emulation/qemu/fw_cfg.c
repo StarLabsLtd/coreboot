@@ -51,7 +51,7 @@ static int fw_cfg_present(void)
 static void fw_cfg_select(uint16_t entry)
 {
 	if (fw_ver & FW_CFG_VERSION_DMA) {
-		fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | entry << 16, NULL, 0);
+		fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | (uint32_t)entry << 16, NULL, 0);
 	} else {
 #ifdef __ARCH_GENERIC_IO_H__
 		entry = cpu_to_be16 (entry); // Big endian if MMIO

@@ -33,7 +33,7 @@ static void sata_enable_ahci_mmap(struct device *const dev, const config_t *conf
 	/* Set AHCI access mode.
 	   No other ABAR registers should be accessed before this. */
 	reg32 = read32(abar + 0x04);
-	reg32 |= 1 << 31;
+	reg32 |= 1U << 31;
 	write32(abar + 0x04, reg32);
 
 	/* CAP (HBA Capabilities) : enable power management */

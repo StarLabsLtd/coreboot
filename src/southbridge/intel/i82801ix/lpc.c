@@ -321,7 +321,7 @@ static void enable_clock_gating(void)
 
 	/* Enable Clock Gating for most devices. */
 	reg32 = RCBA32(RCBA_CG);
-	reg32 |= (1 << 31);	/* LPC dynamic clock gating */
+	reg32 |= (1U << 31);	/* LPC dynamic clock gating */
 	/* USB UHCI dynamic clock gating: */
 	reg32 |= (1 << 29) | (1 << 28);
 	/* SATA dynamic clock gating [0-3]: */
