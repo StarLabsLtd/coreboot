@@ -230,4 +230,13 @@ config HANDOFF_UPL_DEVICETREE
 
 endchoice
 
+config UPL_HANDOFF_CAPTURE
+	bool "Build a shadow Universal Payload FDT"
+	depends on HANDOFF_COREBOOT_TABLES
+	select FLATTENED_DEVICE_TREE
+	help
+	  Build the Universal Payload device tree in CBMEM while retaining the
+	  normal coreboot-table payload handoff. This is intended for comparing
+	  both handoff formats without changing which payload boots.
+
 endmenu

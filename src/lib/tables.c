@@ -18,6 +18,8 @@ void *write_tables(void)
 	uintptr_t fdt_end = 0;
 	size_t fdt_capacity = 0;
 	bool use_existing_fdt = false;
+	const bool build_upl_fdt = CONFIG(HANDOFF_UPL_DEVICETREE) ||
+		CONFIG(UPL_HANDOFF_CAPTURE);
 
 	cbtable_start = (uintptr_t)cbmem_add(CBMEM_ID_CBTABLE, MAX_COREBOOT_HANDOFF_SIZE);
 
@@ -26,7 +28,7 @@ void *write_tables(void)
 		return NULL;
 	}
 
-	if (CONFIG(HANDOFF_UPL_DEVICETREE)) {
+	if (build_upl_fdt) {
 		const struct cbmem_entry *fdt_entry = cbmem_entry_find(CBMEM_ID_FDT);
 		if (fdt_entry) {
 			fdt_start = (uintptr_t)cbmem_entry_start(fdt_entry);
@@ -57,7 +59,7 @@ void *write_tables(void)
 
 	printk(BIOS_DEBUG, "coreboot table: %zd bytes.\n", cbtable_size);
 
-	if (CONFIG(HANDOFF_UPL_DEVICETREE)) {
+	if (build_upl_fdt) {
 		fdt_end = write_upl_fdt_table(fdt_start, fdt_capacity,
 					      use_existing_fdt);
 		size_t fdt_size = fdt_end - fdt_start;

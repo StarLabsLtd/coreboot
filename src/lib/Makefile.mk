@@ -131,6 +131,7 @@ ramstage-y += selfboot.c
 ramstage-y += tables.c
 ramstage-y += coreboot_table.c
 ramstage-$(CONFIG_HANDOFF_UPL_DEVICETREE) += upl_fdt_table.c
+ramstage-$(CONFIG_UPL_HANDOFF_CAPTURE) += upl_fdt_table.c
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios.c
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios_defaults.c
 ramstage-y += bootmem.c
