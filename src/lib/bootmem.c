@@ -195,10 +195,63 @@ void bootmem_write_memory_table(struct lb_memory *mem)
 	table_written = 1;
 }
 
+static uint64_t bootmem_top_of_dram_below(uint64_t limit)
+{
+	const struct range_entry *r;
+	uint64_t top = 0;
+
+	if (!bootmem_is_initialized())
+		bootmem_init();
+
+	/*
+	 * Match UefiPayloadPkg's TOLUD estimate. Usable ranges raise the limit,
+	 * while adjacent reserved ranges account for stolen memory, TSEG and
+	 * other DRAM hidden from the OS. Disjoint ranges below 4 GiB are MMIO.
+	 */
+	memranges_each_entry(r, &bootmem_os) {
+		const uint64_t base = range_entry_base(r);
+		const uint64_t end = range_entry_end(r);
+
+		if (end > limit || range_entry_tag(r) == BM_MEM_UNUSABLE)
+			continue;
+
+		switch (range_entry_tag(r)) {
+		case BM_MEM_RAM:
+		case BM_MEM_ACPI:
+		case BM_MEM_NVS:
+			top = MAX(top, end);
+			break;
+		default:
+			if (base == top)
+				top = end;
+			break;
+		}
+	}
+
+	return top;
+}
+
+uint64_t bootmem_top_of_low_dram(void)
+{
+	return bootmem_top_of_dram_below(1ULL << 32);
+}
+
+uint64_t bootmem_top_of_dram(void)
+{
+	return bootmem_top_of_dram_below(UINT64_MAX);
+}
+
 // Write memory ranges in devicetree of UPL handoff
 void upl_fdt_add_memory(struct device_tree *tree)
 {
+	const uint64_t top_of_low_dram = ENV_X86 ? bootmem_top_of_low_dram() : 0;
+	const uint64_t top_of_dram = ENV_X86 ? bootmem_top_of_dram() : 0;
+	const uint64_t low_address_limit = 1ULL << 32;
+
 	printk(BIOS_DEBUG, "Write UPL FDT memory entries\n");
+	if (ENV_X86)
+		printk(BIOS_DEBUG, "UPL FDT: TOLUD is 0x%llx, TOUUD is 0x%llx\n",
+		       top_of_low_dram, top_of_dram);
 	if (!bootmem_is_initialized())
 		bootmem_init();
 	bootmem_dump_ranges();
@@ -263,7 +316,11 @@ void upl_fdt_add_memory(struct device_tree *tree)
 		case BM_MEM_OPENSBI:
 		case BM_MEM_BL31:
 		default:
-			snprintf(node_name, 100, "memory@%llx", addr);
+			if (ENV_X86 && ((addr >= top_of_low_dram &&
+					 addr < low_address_limit) || addr >= top_of_dram))
+				snprintf(node_name, sizeof(node_name), "mmio@%llx", addr);
+			else
+				snprintf(node_name, sizeof(node_name), "memory@%llx", addr);
 			const char *node_names[] = { node_name, NULL };
 			node = dt_find_node(rsvd_node, node_names, NULL, NULL, 1);
 			dt_add_bin_prop(node, "no-map", NULL, 0);
