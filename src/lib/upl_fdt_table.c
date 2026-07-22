@@ -3,12 +3,12 @@
 #include <assert.h>
 #include <boardid.h>
 #include <boot/upl_fdt_table.h>
+#include <bootmem.h>
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/device_tree.h>
 #include <console/console.h>
 #include <console/uart.h>
-#include <cpu/x86/smm.h>
 #include <cpu/cpu.h>
 #include <device/device.h>
 #include <device/pci_def.h>
@@ -126,6 +126,35 @@ static void write_pci_rb_range(uint32_t *ranges, uint32_t *index,
 	ranges[(*index)++] = cpu_to_be32(size & 0xffffffff);
 }
 
+enum { PCI_RB_RANGE_CELLS = 7 };
+
+struct pci_rb_aperture {
+	bool valid;
+	u64 base;
+	u64 limit;
+};
+
+static void pci_rb_aperture_include(struct pci_rb_aperture *aperture, u64 base,
+				    u64 limit)
+{
+	if (!aperture->valid || base < aperture->base)
+		aperture->base = base;
+	if (!aperture->valid || limit > aperture->limit)
+		aperture->limit = limit;
+
+	aperture->valid = true;
+}
+
+static bool pci_domain_resource_is_aperture(const struct resource *res)
+{
+	unsigned long type = res->flags & IORESOURCE_TYPE_MASK;
+
+	if ((res->flags & IORESOURCE_FIXED) || res->base > res->limit)
+		return false;
+
+	return type == IORESOURCE_IO || type == IORESOURCE_MEM;
+}
+
 static int write_pci_rb_node(struct device_tree *tree)
 {
 	uint64_t addr = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
@@ -159,63 +188,72 @@ static int write_pci_rb_node(struct device_tree *tree)
 		return -1;
 	}
 
-	ranges = malloc(21 * sizeof(*ranges));
+	size_t range_count = 0;
+	const struct resource *res;
+	struct pci_rb_aperture io = { 0 };
+	struct pci_rb_aperture low_mmio = { 0 };
+	struct pci_rb_aperture high_mmio = { 0 };
+
+	for (res = domain->resource_list; res; res = res->next) {
+		if (!pci_domain_resource_is_aperture(res))
+			continue;
+
+		if (res->flags & IORESOURCE_IO) {
+			pci_rb_aperture_include(&io, res->base, res->limit);
+		} else if (res->flags & IORESOURCE_MEM) {
+			if (res->base < 4ULL * GiB) {
+				u64 base = MAX(res->base, bootmem_top_of_low_dram());
+				u64 limit = MIN(res->limit, 4ULL * GiB - 1);
+
+				if (base > limit) {
+					printk(BIOS_ERR, "%s: PCI MMIO aperture is empty\n",
+					       __func__);
+					return -1;
+				}
+
+				pci_rb_aperture_include(&low_mmio, base, limit);
+			}
+
+			if (res->limit >= 4ULL * GiB) {
+				u64 base = MAX(MAX(res->base, 4ULL * GiB),
+					       bootmem_top_of_dram());
+
+				if (base > res->limit) {
+					printk(BIOS_ERR, "%s: PCI MMIO64 aperture is empty\n",
+					       __func__);
+					return -1;
+				}
+
+				pci_rb_aperture_include(&high_mmio, base, res->limit);
+			}
+		}
+	}
+
+	/*
+	 * EDK2 flattens these ranges into one root-bridge window per class, so
+	 * coalesce domain apertures before handing them off.
+	 */
+	range_count = (io.valid ? 1 : 0) + (low_mmio.valid ? 1 : 0) +
+		      (high_mmio.valid ? 1 : 0);
+	if (!range_count) {
+		printk(BIOS_ERR, "%s: PCI domain has no allocatable apertures\n", __func__);
+		return -1;
+	}
+
+	ranges = malloc(range_count * PCI_RB_RANGE_CELLS * sizeof(*ranges));
 	if (!ranges) {
 		printk(BIOS_ERR, "%s: PCI ranges allocation failed\n", __func__);
 		return -1;
 	}
 
-	const struct resource *res;
-	for (res = domain->resource_list; res; res = res->next) {
-		if (!(res->flags & IORESOURCE_SUBTRACTIVE) || res->base > res->limit)
-			continue;
-		if (ranges_index + 7 > 21) {
-			printk(BIOS_ERR, "%s: too many PCI domain apertures\n", __func__);
-			return -1;
-		}
-
-		if (res->flags & IORESOURCE_IO)
-			write_pci_rb_range(ranges, &ranges_index, IO_SPACE,
-					   res->base, res->limit);
-		else if ((res->flags & IORESOURCE_MEM) && res->base < 4ULL * GiB) {
-			u64 base = res->base;
-			u64 limit = res->limit;
-			u64 ecam_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
-			u64 ecam_limit = ecam_base + CONFIG_ECAM_MMCONF_LENGTH - 1;
-			uintptr_t smm_base;
-			size_t smm_size;
-
-			smm_region(&smm_base, &smm_size);
-			if (base <= smm_base + smm_size && res->limit >= smm_base)
-				base = smm_base + smm_size;
-			if (base > limit) {
-				printk(BIOS_ERR, "%s: PCI MMIO aperture is empty\n", __func__);
-				return -1;
-			}
-
-			/* The root-bridge HOB has only one low-MMIO aperture. Keep the
-			 * larger side when ECAM splits a subtractive domain resource. */
-			if ((base <= ecam_limit) && (limit >= ecam_base)) {
-				u64 below_size = (base < ecam_base) ? ecam_base - base : 0;
-				u64 above_size = (limit > ecam_limit) ? limit - ecam_limit : 0;
-
-				if (below_size >= above_size)
-					limit = ecam_base - 1;
-				else
-					base = ecam_limit + 1;
-			}
-			if (base > limit) {
-				printk(BIOS_ERR, "%s: PCI MMIO aperture is consumed by ECAM\n",
-				       __func__);
-				return -1;
-			}
-			write_pci_rb_range(ranges, &ranges_index, MMIO_SPACE,
-						   base, limit);
-		}
-		else if (res->flags & IORESOURCE_MEM)
-			write_pci_rb_range(ranges, &ranges_index, MMIO64_SPACE,
-					   res->base, res->limit);
-	}
+	if (io.valid)
+		write_pci_rb_range(ranges, &ranges_index, IO_SPACE, io.base, io.limit);
+	if (low_mmio.valid)
+		write_pci_rb_range(ranges, &ranges_index, MMIO_SPACE, low_mmio.base,
+				   low_mmio.limit);
+	if (high_mmio.valid)
+		write_pci_rb_range(ranges, &ranges_index, MMIO64_SPACE, high_mmio.base,
+				   high_mmio.limit);
 
 	if (!ranges_index) {
 		printk(BIOS_ERR, "%s: PCI domain has no allocatable apertures\n", __func__);
