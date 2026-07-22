@@ -143,14 +143,17 @@ static int rmodule_relocate(const struct rmodule *module)
 	       num_relocations, (unsigned long)adjustment);
 
 	while (num_relocations > 0) {
-		uintptr_t *adjust_loc;
+		void *adjust_loc;
+		uintptr_t value;
 
 		/* If the adjustment location is non-NULL adjust it. */
 		adjust_loc = rmodule_load_addr(module, *reloc);
+		memcpy(&value, adjust_loc, sizeof(value));
 		printk(PK_ADJ_LEVEL, "Adjusting %p: 0x%08lx -> 0x%08lx\n",
-		       adjust_loc, (unsigned long) *adjust_loc,
-		       (unsigned long) (*adjust_loc + adjustment));
-		*adjust_loc += adjustment;
+		       adjust_loc, (unsigned long)value,
+		       (unsigned long)(value + adjustment));
+		value += adjustment;
+		memcpy(adjust_loc, &value, sizeof(value));
 
 		reloc++;
 		num_relocations--;
