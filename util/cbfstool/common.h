@@ -171,8 +171,7 @@ int parse_elf_to_payload(const struct buffer *input, struct buffer *output,
 			 enum cbfs_compression algo);
 int parse_fv_to_payload(const struct buffer *input, struct buffer *output,
 			enum cbfs_compression algo);
-int parse_fit_to_payload(const struct buffer *input, struct buffer *output,
-			 enum cbfs_compression algo);
+int parse_fit_to_payload(const struct buffer *input, struct buffer *output);
 int parse_bzImage_to_payload(const struct buffer *input,
 			     struct buffer *output, const char *initrd,
 			     char *cmdline, enum cbfs_compression algo);
