@@ -51,6 +51,10 @@ enum bootmem_type {
  */
 void bootmem_write_memory_table(struct lb_memory *mem);
 
+#if ENV_TEST
+void bootmem_reset_for_test(void);
+#endif
+
 /* Architecture hook to add bootmem areas the architecture controls when
  * bootmem_write_memory_table() is called. */
 void bootmem_arch_add_ranges(void);

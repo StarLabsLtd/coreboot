@@ -18,8 +18,6 @@ void bootmem_arch_add_ranges(void)
 {
 }
 
-void bootmem_reset(void);
-
 struct bootmem_ranges_t {
 	uint64_t start;
 	uint64_t size;
@@ -231,6 +229,8 @@ static void init_memory_table_library(void)
 {
 	struct lb_memory *lb_mem;
 
+	bootmem_reset_for_test();
+
 	/* Allocate space for 10 lb_mem entries to be safe */
 	lb_mem = malloc(sizeof(*lb_mem) + 10 * sizeof(struct lb_memory_range));
 	lb_mem->tag = LB_TAG_MEMORY;
@@ -244,7 +244,7 @@ static void init_memory_table_library(void)
 
 static int setup_bootmem_test(void **state)
 {
-	bootmem_reset();
+	bootmem_reset_for_test();
 
 	return 0;
 }
@@ -411,7 +411,7 @@ static void test_bootmem_allocate_buffer(void **state)
 	assert_true((uintptr_t)buf < RESERVED_START);
 	/* Check if newly allocated buffer does not overlap with previously allocated range */
 	assert_false((uintptr_t)buf >= (uintptr_t)prev &&
-		     (uintptr_t)buf < (uintptr_t)prev + 0xE0000000);
+			     (uintptr_t)buf < (uintptr_t)prev + 0xE0000000);
 	/* Check if allocated (payload) ranges have their base and size aligned */
 	bootmem_walk(verify_bootmem_allocate_buffer, NULL);
 

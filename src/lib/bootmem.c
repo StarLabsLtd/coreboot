@@ -19,10 +19,13 @@ static struct memranges bootmem;
 static struct memranges bootmem_os;
 
 #if ENV_TEST
-void bootmem_reset(void)
+void bootmem_reset_for_test(void)
 {
-	memranges_teardown(&bootmem);
-	memranges_teardown(&bootmem_os);
+	if (initialized) {
+		memranges_teardown(&bootmem);
+		memranges_teardown(&bootmem_os);
+	}
+
 	initialized = 0;
 	table_written = 0;
 }
