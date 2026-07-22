@@ -365,8 +365,7 @@ int parse_fv_to_payload(const struct buffer *input, struct buffer *output,
 
 }
 
-int parse_fit_to_payload(const struct buffer *input, struct buffer *output,
-			 enum cbfs_compression algo)
+int parse_fit_to_payload(const struct buffer *input, struct buffer *output)
 {
 	struct fdt_header *fdt_h;
 
@@ -379,19 +378,6 @@ int parse_fit_to_payload(const struct buffer *input, struct buffer *output,
 	}
 	if (read_be32(&fdt_h->magic) != FDT_HEADER_MAGIC) {
 		INFO("Not a FIT payload.\n");
-		return -1;
-	}
-
-	/**
-	 * For developers:
-	 * Compress the kernel binary you're sourcing in your its-script
-	 * manually with LZ4 or LZMA and add 'compression = "lz4"' or "lzma" to
-	 * the kernel@1 node in the its-script before assembling the image with
-	 * mkimage.
-	 */
-	if (algo != CBFS_COMPRESS_NONE) {
-		ERROR("FIT images don't support whole-image compression,"
-		      " compress the kernel component instead!\n");
 		return -1;
 	}
 
