@@ -3,12 +3,12 @@
 #include <assert.h>
 #include <boardid.h>
 #include <boot/upl_fdt_table.h>
+#include <bootmem.h>
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/device_tree.h>
 #include <console/console.h>
 #include <console/uart.h>
-#include <cpu/x86/smm.h>
 #include <cpu/cpu.h>
 #include <device/device.h>
 #include <device/pci_def.h>
@@ -180,41 +180,26 @@ static int write_pci_rb_node(struct device_tree *tree)
 		else if ((res->flags & IORESOURCE_MEM) && res->base < 4ULL * GiB) {
 			u64 base = res->base;
 			u64 limit = res->limit;
-			u64 ecam_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
-			u64 ecam_limit = ecam_base + CONFIG_ECAM_MMCONF_LENGTH - 1;
-			uintptr_t smm_base;
-			size_t smm_size;
+			u64 top_of_low_dram = bootmem_top_of_low_dram();
 
-			smm_region(&smm_base, &smm_size);
-			if (base <= smm_base + smm_size && res->limit >= smm_base)
-				base = smm_base + smm_size;
+			base = MAX(base, top_of_low_dram);
 			if (base > limit) {
 				printk(BIOS_ERR, "%s: PCI MMIO aperture is empty\n", __func__);
 				return -1;
 			}
 
-			/* The root-bridge HOB has only one low-MMIO aperture. Keep the
-			 * larger side when ECAM splits a subtractive domain resource. */
-			if ((base <= ecam_limit) && (limit >= ecam_base)) {
-				u64 below_size = (base < ecam_base) ? ecam_base - base : 0;
-				u64 above_size = (limit > ecam_limit) ? limit - ecam_limit : 0;
-
-				if (below_size >= above_size)
-					limit = ecam_base - 1;
-				else
-					base = ecam_limit + 1;
-			}
-			if (base > limit) {
-				printk(BIOS_ERR, "%s: PCI MMIO aperture is consumed by ECAM\n",
-				       __func__);
-				return -1;
-			}
 			write_pci_rb_range(ranges, &ranges_index, MMIO_SPACE,
 						   base, limit);
-		}
-		else if (res->flags & IORESOURCE_MEM)
+		} else if (res->flags & IORESOURCE_MEM) {
+			u64 base = MAX(res->base, bootmem_top_of_dram());
+
+			if (base > res->limit) {
+				printk(BIOS_ERR, "%s: PCI MMIO64 aperture is empty\n", __func__);
+				return -1;
+			}
 			write_pci_rb_range(ranges, &ranges_index, MMIO64_SPACE,
-					   res->base, res->limit);
+					   base, res->limit);
+		}
 	}
 
 	if (!ranges_index) {
