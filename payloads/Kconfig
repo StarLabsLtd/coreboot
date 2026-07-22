@@ -59,6 +59,7 @@ source "payloads/external/*/Kconfig"
 
 config PAYLOAD_OWNS_PCI_DEVICES
 	bool
+	default n if HANDOFF_UPL_DEVICETREE
 	default y if PAYLOAD_EDK2
 	help
 	  Select this when the payload takes ownership of PCI devices after
@@ -223,7 +224,6 @@ config HANDOFF_COREBOOT_TABLES
 config HANDOFF_UPL_DEVICETREE
 	bool "Create Universal Payload FDT handoff (experimental)"
 	select FLATTENED_DEVICE_TREE
-	select PAYLOAD_OWNS_PCI_DEVICES
 	help
 	  Use Universal Payload Flattened Device Tree as payload handoff.
 	  Its format is specified by the Universal Payload Specification.
