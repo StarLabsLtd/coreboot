@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <commonlib/bsd/compression.h>
+#include <commonlib/bsd/helpers.h>
 #include <console/console.h>
 #include <bootmem.h>
 #include <cbmem.h>
@@ -206,7 +207,7 @@ void fit_payload(struct prog *payload, void *data)
 	fit_update_memory(dt);
 
 	/* Collect infos for fit_payload_arch */
-	kernel.size = config->kernel->size;
+	kernel.size = MAX(config->kernel->size, config->kernel->uncompressed_size);
 	fdt.size = dt_flat_size(dt);
 	initrd.size = config->ramdisk ? config->ramdisk->size : 0;
 
