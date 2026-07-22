@@ -94,6 +94,12 @@ typedef bool (*range_action_t)(const struct range_entry *r, void *arg);
  */
 bool bootmem_walk_os_mem(range_action_t action, void *arg);
 
+/* Return the end of contiguous low DRAM, including firmware-reserved ranges. */
+uint64_t bootmem_top_of_low_dram(void);
+
+/* Return the end of DRAM, including contiguous firmware-reserved ranges. */
+uint64_t bootmem_top_of_dram(void);
+
 /**
  * Walk memory tables and call the provided function, for every region.
  * The caller has to return false to break out of the loop any time, or
