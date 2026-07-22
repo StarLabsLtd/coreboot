@@ -189,6 +189,6 @@ bool selfload_mapped(struct prog *payload, void *mapping,
 		     enum bootmem_type dest_type);
 
 /* Load a FIT payload. The payload data must already be mapped to memory. */
-void fit_payload(struct prog *payload, void *data);
+void fit_payload(struct prog *payload, void *data, size_t data_size);
 
 #endif /* PROGRAM_LOADING_H */
