@@ -677,7 +677,7 @@ $(build_h): $$(shell $$(build_h_check))
 	@printf "    GEN        build.h\n"
 	mv $< $@
 
-$(obj)/build_info:
+$(obj)/build_info: $(build_h) $(DOTCONFIG)
 	@echo 'COREBOOT_VERSION: $(call strip_quotes,$(KERNELVERSION))' > $@.tmp
 	@echo 'MAINBOARD_VENDOR: $(call strip_quotes,$(CONFIG_MAINBOARD_VENDOR))' >> $@.tmp
 	@echo 'MAINBOARD_PART_NUMBER: $(call strip_quotes,$(CONFIG_MAINBOARD_PART_NUMBER))' >> $@.tmp
