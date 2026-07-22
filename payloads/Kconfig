@@ -76,9 +76,10 @@ config PAYLOAD_FILE
 
 choice
 	prompt "Payload compression algorithm"
+	default COMPRESSED_PAYLOAD_LZ4 if EDK2_UNIVERSAL_PAYLOAD
 	default COMPRESSED_PAYLOAD_LZMA
 	default COMPRESSED_PAYLOAD_NONE if PAYLOAD_FIT_SUPPORT
-	depends on !PAYLOAD_FIT_SUPPORT
+	depends on !PAYLOAD_FIT_SUPPORT || EDK2_UNIVERSAL_PAYLOAD
 	help
 	  Choose the compression algorithm for the chosen payloads.
 	  You can choose between None, LZMA, or LZ4.
