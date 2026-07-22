@@ -106,7 +106,7 @@ static struct fit_image_node *find_image_with_overlays(const char *name,
 	return base;
 }
 
-static void image_node(struct device_tree_node *node)
+static void image_node(struct device_tree_node *node, u32 addr_cells)
 {
 	struct fit_image_node *image = xzalloc(sizeof(*image));
 
@@ -127,6 +127,12 @@ static void image_node(struct device_tree_node *node)
 				image->compression = CBFS_COMPRESS_LZ4;
 			else
 				image->compression = -1;
+		} else if (!strcmp("uncomp-size", prop->prop.name)) {
+			image->uncompressed_size = fdt_read_int_prop(&prop->prop, 1);
+		} else if (!strcmp("load", prop->prop.name)) {
+			image->load_address = fdt_read_int_prop(&prop->prop, addr_cells);
+		} else if (!strcmp("entry", prop->prop.name)) {
+			image->entrypoint_address = fdt_read_int_prop(&prop->prop, addr_cells);
 		}
 	}
 
@@ -157,11 +163,15 @@ static void config_node(struct device_tree_node *node)
 static void fit_unpack(struct device_tree *tree, const char **default_config)
 {
 	struct device_tree_node *child;
+	u32 addr_cells = 1;
+
+	dt_read_cell_props(tree->root, &addr_cells, NULL);
+
 	struct device_tree_node *images = dt_find_node_by_path(tree, "/images",
-							       NULL, NULL, 0);
+								       NULL, NULL, 0);
 	if (images)
 		list_for_each(child, images->children, list_node)
-			image_node(child);
+			image_node(child, addr_cells);
 
 	struct device_tree_node *configs = dt_find_node_by_path(tree,
 		"/configurations", NULL, NULL, 0);
