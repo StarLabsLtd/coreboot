@@ -153,6 +153,7 @@ void payload_load(void)
 {
 	struct prog *payload = &global_payload;
 	void *mapping;
+	size_t mapping_size;
 
 	timestamp_add_now(TS_LOAD_PAYLOAD);
 
@@ -160,7 +161,7 @@ void payload_load(void)
 		goto out;
 
 	payload->cbfs_type = CBFS_TYPE_QUERY;
-	mapping = cbfs_type_map(prog_name(payload), NULL, &payload->cbfs_type);
+	mapping = cbfs_type_map(prog_name(payload), &mapping_size, &payload->cbfs_type);
 
 	if (!mapping)
 		goto out;
@@ -171,7 +172,7 @@ void payload_load(void)
 		break;
 	case CBFS_TYPE_FIT_PAYLOAD: /* Flattened image tree */
 		if (CONFIG(PAYLOAD_FIT_SUPPORT)) {
-			fit_payload(payload, mapping);
+			fit_payload(payload, mapping, mapping_size);
 			break;
 		}
 		__fallthrough;
