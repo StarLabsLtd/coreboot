@@ -57,8 +57,6 @@ chip soc/intel/meteorlake
 			}"
 		end
 		device ref tcss_xhci	on
-			register "tcss_aux_ori"			= "(BIT(0) | BIT(2))"
-
 			chip drivers/usb/acpi
 				device ref tcss_root_hub on
 					chip drivers/usb/acpi
@@ -82,11 +80,14 @@ chip soc/intel/meteorlake
 		device ref xhci		on
 			# Motherboard USB 3.0 Type-C Back	7893 mil
 			register "usb2_ports[0]"		= "USB2_PORT_TYPE_C(OC_SKIP)"
-			register "tcss_ports[0]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"
 
 			# Motherboard USB 3.0 Type-C Front	9557 mil
 			register "usb2_ports[2]"		= "USB2_PORT_TYPE_C(OC_SKIP)"
-			register "tcss_ports[1]"		= "TCSS_PORT_DEFAULT(OC_SKIP)"
+
+			register "tcss_ports" = "{
+				[0] = TCSS_PORT_DEFAULT_AUX(OC_SKIP, TCSS_AUX_ORIENTATION_FOLLOW_CC1),
+				[1] = TCSS_PORT_DEFAULT_AUX(OC_SKIP, TCSS_AUX_ORIENTATION_FOLLOW_CC1),
+			}"
 
 			# Motherboard USB 3.0 Type-A		8916 mil
 			register "usb2_ports[1]"		= "USB2_PORT_MID(OC_SKIP)"
