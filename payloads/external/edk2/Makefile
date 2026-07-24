@@ -290,7 +290,7 @@ endif
 all: UefiPayloadPkg
 
 $(WORKSPACE):
-	mkdir $(WORKSPACE)
+	mkdir -p $(WORKSPACE)
 
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
