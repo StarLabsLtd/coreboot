@@ -106,6 +106,15 @@ endif
 ifeq ($(CONFIG_EDK2_PS2_SUPPORT),y)
 BUILD_STR += -D SIO_BUS_ENABLE=TRUE
 endif
+# Avoid probing every ACPI EC protocol when coreboot already knows the type.
+# Zero retains EDK2's automatic probing for platforms without a mapping here.
+ifeq ($(CONFIG_EC_STARLABS_MERLIN),y)
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=2
+else ifeq ($(CONFIG_EC_GOOGLE_CHROMEEC),y)
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=1
+else ifeq ($(CONFIG_BOARD_EMULATION_QEMU_X86_Q35),y)
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=4
+endif
 # SHELL_TYPE			= BUILD_SHELL
 ifneq ($(CONFIG_EDK2_HAVE_EFI_SHELL),y)
 BUILD_STR += -D SHELL_TYPE=NONE
@@ -113,6 +122,7 @@ endif
 # USE_CBMEM_FOR_CONSOLE		= FALSE
 ifeq ($(CONFIG_EDK2_CBMEM_LOGGING),y)
 BUILD_STR += -D USE_CBMEM_FOR_CONSOLE=TRUE
+BUILD_STR += -D CBMEM_TIMESTAMPS=TRUE
 endif
 # USE_SPI_FLASH_FOR_CONSOLE	= FALSE
 ifeq ($(CONFIG_EDK2_SPI_FLASH_LOGGING),y)
