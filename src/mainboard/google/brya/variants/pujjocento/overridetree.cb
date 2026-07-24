@@ -66,7 +66,6 @@ chip soc/intel/alderlake
         # Bits 0 and 2 must be enabled first before configuring Bits 1 and 3 to be "1".
 	# Bit1,Bit3 set to "0" indicates Aux lines are not swapped on the
 	# motherboard to USBC connector
-	register "tcss_aux_ori" = "0"
 
 
 	# HD Audio
