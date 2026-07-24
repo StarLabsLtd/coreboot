@@ -6,6 +6,7 @@
 #include <intelblocks/gpio.h>
 #if !defined(__ACPI__)
 #include <device/usbc_mux.h>
+#include <stdint.h>
 
 /* PMC IPC related offsets and commands */
 #define PMC_IPC_USBC_CMD_ID		0xA7
@@ -77,6 +78,44 @@ enum typec_port_index {
 	TYPE_C_PORT_3,
 	MAX_TYPE_C_PORTS,
 };
+
+enum tcss_aux_orientation {
+	/* Do not override AUX orientation in the SoC. */
+	TCSS_AUX_ORIENTATION_NO_OVERRIDE,
+	/* The SoC handles AUX orientation and AUX+ follows CC1. */
+	TCSS_AUX_ORIENTATION_FOLLOW_CC1,
+	/* The SoC handles AUX orientation and AUX+ follows CC2. */
+	TCSS_AUX_ORIENTATION_FOLLOW_CC2,
+};
+
+static inline uint16_t tcss_apply_aux_orientation(uint16_t aux_ori, unsigned int port,
+						  enum tcss_aux_orientation orientation)
+{
+	uint16_t setting;
+	const unsigned int shift = port * 2;
+
+	if (port >= MAX_TYPE_C_PORTS)
+		return aux_ori;
+
+	switch (orientation) {
+	case TCSS_AUX_ORIENTATION_NO_OVERRIDE:
+		setting = 0;
+		break;
+	case TCSS_AUX_ORIENTATION_FOLLOW_CC1:
+		setting = 1;
+		break;
+	case TCSS_AUX_ORIENTATION_FOLLOW_CC2:
+		setting = 3;
+		break;
+	default:
+		return aux_ori;
+	}
+
+	aux_ori &= ~(3 << shift);
+	aux_ori |= setting << shift;
+
+	return aux_ori;
+}
 
 #define TCSS_CD_FIELD(name, val) \
 	(((val) & TCSS_CD_##name##_MASK) << TCSS_CD_##name##_SHIFT)

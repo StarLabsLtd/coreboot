@@ -138,7 +138,10 @@ struct usb3_port_config {
 }
 
 struct tcss_port_config {
-	uint8_t enable;
+	uint8_t enable:1;
+	uint8_t aux_orientation_set:1;
+	uint8_t aux_orientation:2;
+	uint8_t reserved:4;
 	uint8_t ocpin;
 };
 
@@ -150,6 +153,13 @@ struct tcss_port_config {
 #define TCSS_PORT_DEFAULT(pin) { \
 	.enable           = 1, \
 	.ocpin            = (pin), \
+}
+
+#define TCSS_PORT_DEFAULT_AUX(pin, orientation) { \
+	.enable               = 1, \
+	.ocpin                = (pin), \
+	.aux_orientation      = (orientation), \
+	.aux_orientation_set  = 1, \
 }
 
 #endif

@@ -333,6 +333,15 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	params->UsbTcPortEn = config->UsbTcPortEn;
 	params->TcssAuxOri = config->TcssAuxOri;
+	for (i = 0; i < MAX_TYPE_C_PORTS; i++) {
+		const struct tcss_port_config *port = &config->tcss_ports[i];
+
+		if (!port->enable || !port->aux_orientation_set)
+			continue;
+
+		params->TcssAuxOri = tcss_apply_aux_orientation(params->TcssAuxOri, i,
+							       port->aux_orientation);
+	}
 
 	/* Explicitly clear this field to avoid using defaults */
 	memset(params->IomTypeCPortPadCfg, 0, sizeof(params->IomTypeCPortPadCfg));

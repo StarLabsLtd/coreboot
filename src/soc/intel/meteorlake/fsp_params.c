@@ -394,6 +394,15 @@ static void fill_fsps_tcss_params(FSP_S_CONFIG *s_cfg,
 	};
 
 	s_cfg->TcssAuxOri = config->tcss_aux_ori;
+	for (int i = 0; i < MAX_TYPE_C_PORTS; i++) {
+		const struct tcss_port_config *port = &config->tcss_ports[i];
+
+		if (!port->enable || !port->aux_orientation_set)
+			continue;
+
+		s_cfg->TcssAuxOri = tcss_apply_aux_orientation(s_cfg->TcssAuxOri, i,
+							      port->aux_orientation);
+	}
 
 	/* Explicitly clear this field to avoid using defaults */
 	memset(s_cfg->IomTypeCPortPadCfg, 0, sizeof(s_cfg->IomTypeCPortPadCfg));
