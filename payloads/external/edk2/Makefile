@@ -273,6 +273,10 @@ endif
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiDefaultOemId="COREv4"
 BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdFirstTimeWakeUpAPsBySipi=FALSE
 
+# Coreboot already bounds MP initialization to the board's CPU capacity.
+# Pass that bound to EDK2 instead of retaining its generic 1024-CPU default.
+BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber=$(CONFIG_MAX_CPUS)
+
 # coreboot produces SMBIOS 3.0.0 tables
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdSmbiosVersion=0x0300
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdSmbiosDocRev=0x0
