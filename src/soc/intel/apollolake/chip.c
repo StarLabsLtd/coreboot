@@ -706,15 +706,20 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 
 	silconfig->SkipMpInit = !CONFIG(USE_INTEL_FSP_MP_INIT);
 
-	/* coreboot handles lockdown unless the board delegates it to FSP */
+	/* coreboot handles lockdown unless the board delegates it to FSP. */
 	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
 
 	silconfig->LockDownGlobalSmi		= lockdown_by_fsp;
-	silconfig->BiosLock			= lockdown_by_fsp;
 	silconfig->BiosInterface		= lockdown_by_fsp;
-	silconfig->WriteProtectionEnable[0]	= lockdown_by_fsp;
-	silconfig->SpiEiss			= lockdown_by_fsp;
 	silconfig->RtcLock			= lockdown_by_fsp;
+
+	/*
+	 * When delegated to FSP, leave protected ranges, EISS and LE clear.
+	 * coreboot uses SMM_BWP and sets EISS before LE after SMM setup.
+	 */
+	silconfig->WriteProtectionEnable[0]	= false;
+	silconfig->SpiEiss			= false;
+	silconfig->BiosLock			= false;
 
 	/* Enable Audio clk gate and power gate */
 	silconfig->HDAudioClkGate = cfg->hdaudio_clk_gate_enable;
