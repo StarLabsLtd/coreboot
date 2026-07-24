@@ -23,7 +23,6 @@ romstage-y += memory_rpl.c
 endif
 
 ramstage-$(CONFIG_CHROMEOS) += chromeos.c
-ramstage-y += ec.c
 ramstage-y += mainboard.c
 ramstage-y += board_id.c
 ramstage-$(CONFIG_FW_CONFIG) += fw_config.c
