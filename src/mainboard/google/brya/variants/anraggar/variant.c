@@ -30,14 +30,15 @@ void variant_update_soc_chip_config(struct soc_intel_alderlake_config *config)
 
 	if (fw_config_probe(FW_CONFIG(DB_AUX_BIAS, SOC))) {
 		printk(BIOS_INFO, "DB DP AUX BIAS connect to SOC.\n");
-		config->tcss_aux_ori = 5;
+		config->tcss_ports[0].aux_orientation = 1;
+		config->tcss_ports[1].aux_orientation = 1;
 		config->typec_aux_bias_pads[0].pad_auxp_dc = GPP_A19;
 		config->typec_aux_bias_pads[0].pad_auxn_dc = GPP_A20;
 		config->typec_aux_bias_pads[1].pad_auxp_dc = GPP_E22;
 		config->typec_aux_bias_pads[1].pad_auxn_dc = GPP_E23;
 	} else {
 		printk(BIOS_INFO, "DB DP AUX BIAS connect to redriver IC.\n");
-		config->tcss_aux_ori = 4;
+		config->tcss_ports[1].aux_orientation = 1;
 		config->typec_aux_bias_pads[1].pad_auxp_dc = GPP_E22;
 		config->typec_aux_bias_pads[1].pad_auxn_dc = GPP_E23;
 	}
