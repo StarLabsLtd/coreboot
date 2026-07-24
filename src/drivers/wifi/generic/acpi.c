@@ -1387,6 +1387,22 @@ const char *wifi_pcie_acpi_name(const struct device *dev)
 }
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_CNVI)
+static void write_cnvi_pr3(const char *scope)
+{
+	/*
+	 * CNVP must remain on in D3hot so PCI config space stays accessible.
+	 * Linux drops the resource when it subsequently enters D3cold.
+	 */
+	acpigen_write_scope(scope);
+	acpigen_write_name("_PR3");
+	{
+		acpigen_write_package(1);
+		acpigen_emit_namestring("CNVP");
+	}
+	acpigen_pop_len();
+	acpigen_write_scope_end();
+}
+
 static void write_cnvi_control(const struct acpi_gpio *gpio)
 {
 
@@ -1454,7 +1470,9 @@ void wifi_cnvi_fill_ssdt(const struct device *dev)
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_CNVI)
 	const struct drivers_wifi_generic_config *config = dev->chip_info;
-	if (config->cnvi_enable_gpio.pin_count)
+	if (config->cnvi_enable_gpio.pin_count) {
+		write_cnvi_pr3(path);
 		write_cnvi_control(&config->cnvi_enable_gpio);
+	}
 #endif
 }
