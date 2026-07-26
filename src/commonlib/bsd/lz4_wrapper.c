@@ -58,7 +58,7 @@ static void LZ4_copy8(void *dst, const void *src)
 	for (i = 0; i < 8; i++)
 		((uint8_t *)dst)[i] = ((uint8_t *)src)[i];
 #else
-	*(uint64_t *)dst = *(const uint64_t *)src;
+	memcpy(dst, src, sizeof(uint64_t));
 #endif
 }
 
