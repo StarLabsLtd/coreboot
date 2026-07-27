@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <boardid.h>
+#include <bootmode.h>
 #include <boot/upl_fdt_table.h>
 #include <bootmem.h>
 #include <cbfs.h>
@@ -39,9 +40,13 @@ static int write_options_node(struct device_tree *tree)
 		printk(BIOS_ERR, "%s: upl-params node is null", __func__);
 		return -1;
 	}
+	const char *boot_mode = get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE ?
+		"flash-update" : "normal";
+
 	dt_add_string_prop(params_node, "compatible", "upl");
 	dt_add_u32_prop(params_node, "addr-width", cpu_phys_address_size());
 	dt_add_bin_prop(params_node, "pci-enum-done", NULL, 0);
+	dt_add_string_prop(params_node, "boot-mode", boot_mode);
 
 	// Add coreboot node, which contains information about coreboot like version and name
 	struct device_tree_node *cb_node;
