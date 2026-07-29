@@ -244,6 +244,11 @@ uint64_t bootmem_top_of_dram(void)
 // Write memory ranges in devicetree of UPL handoff
 void upl_fdt_add_memory(struct device_tree *tree)
 {
+	struct {
+		u64 start;
+		u64 end;
+	} table_exclusions[2];
+	size_t table_exclusion_count = 0;
 	const uint64_t top_of_low_dram = ENV_X86 ? bootmem_top_of_low_dram() : 0;
 	const uint64_t top_of_dram = ENV_X86 ? bootmem_top_of_dram() : 0;
 	const uint64_t low_address_limit = 1ULL << 32;
@@ -270,6 +275,46 @@ void upl_fdt_add_memory(struct device_tree *tree)
 	dt_add_u32_prop(rsvd_node, "#size-cells", size_cells);
 	// Binding doc says this should be empty (1:1 mapping from root).
 	dt_add_bin_prop(rsvd_node, "ranges", NULL, 0);
+
+	/*
+	 * EDK2 gives ACPI and SMBIOS their own allocation HOBs. Exclude those
+	 * entries from the generic CBMEM reservation to avoid overlapping HOBs.
+	 */
+	if (CONFIG(HAVE_ACPI_TABLES)) {
+		const struct cbmem_entry *entry = cbmem_entry_find(CBMEM_ID_ACPI);
+
+		if (entry) {
+			table_exclusions[table_exclusion_count].start =
+				(uintptr_t)cbmem_entry_start(entry);
+			table_exclusions[table_exclusion_count].end =
+				table_exclusions[table_exclusion_count].start +
+				cbmem_entry_size(entry);
+			table_exclusion_count++;
+		}
+	}
+
+	if (CONFIG(GENERATE_SMBIOS_TABLES)) {
+		const struct cbmem_entry *entry = cbmem_entry_find(CBMEM_ID_SMBIOS);
+
+		if (entry) {
+			table_exclusions[table_exclusion_count].start =
+				(uintptr_t)cbmem_entry_start(entry);
+			table_exclusions[table_exclusion_count].end =
+				table_exclusions[table_exclusion_count].start +
+				cbmem_entry_size(entry);
+			table_exclusion_count++;
+		}
+	}
+
+	if (table_exclusion_count == 2 &&
+	    table_exclusions[0].start > table_exclusions[1].start) {
+		const u64 start = table_exclusions[0].start;
+		const u64 end = table_exclusions[0].end;
+
+		table_exclusions[0] = table_exclusions[1];
+		table_exclusions[1].start = start;
+		table_exclusions[1].end = end;
+	}
 
 	const struct range_entry *r;
 	memranges_each_entry(r, &bootmem_os) {
@@ -312,7 +357,6 @@ void upl_fdt_add_memory(struct device_tree *tree)
 		case BM_MEM_UNUSABLE:
 		case BM_MEM_RESERVED:
 		case BM_MEM_SOFT_RESERVED:
-		case BM_MEM_TABLE:
 		case BM_MEM_OPENSBI:
 		case BM_MEM_BL31:
 		default:
@@ -325,6 +369,47 @@ void upl_fdt_add_memory(struct device_tree *tree)
 			node = dt_find_node(rsvd_node, node_names, NULL, NULL, 1);
 			dt_add_bin_prop(node, "no-map", NULL, 0);
 			break;
+		case BM_MEM_TABLE: {
+			u64 cursor = addr;
+			const u64 end = addr + size;
+
+			for (size_t i = 0; i < table_exclusion_count; i++) {
+				const u64 exclusion_start = table_exclusions[i].start;
+				const u64 exclusion_end = table_exclusions[i].end;
+
+				if (exclusion_end <= cursor || exclusion_start >= end)
+					continue;
+
+				if (exclusion_start > cursor) {
+					const u64 reserved_size = exclusion_start - cursor;
+
+					snprintf(node_name, sizeof(node_name),
+						 "coreboot@%llx", cursor);
+					const char *table_gap_nodes[] = { node_name, NULL };
+					node = dt_find_node(rsvd_node, table_gap_nodes,
+							    NULL, NULL, 1);
+					dt_add_bin_prop(node, "no-map", NULL, 0);
+					dt_add_reg_prop(node, &cursor, &reserved_size, 1,
+							addr_cells, size_cells);
+				}
+
+				cursor = MAX(cursor, MIN(end, exclusion_end));
+			}
+
+			if (cursor < end) {
+				const u64 reserved_size = end - cursor;
+
+				snprintf(node_name, sizeof(node_name),
+					 "coreboot@%llx", cursor);
+				const char *table_tail_nodes[] = { node_name, NULL };
+				node = dt_find_node(rsvd_node, table_tail_nodes,
+						    NULL, NULL, 1);
+				dt_add_bin_prop(node, "no-map", NULL, 0);
+				dt_add_reg_prop(node, &cursor, &reserved_size, 1,
+						addr_cells, size_cells);
+			}
+			continue;
+		}
 		}
 		dt_add_reg_prop(node, &addr, &size, 1, addr_cells, size_cells);
 	}
