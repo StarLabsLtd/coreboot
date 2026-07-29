@@ -2,6 +2,7 @@
 
 #include <acpi/acpigen.h>
 #include <cbmem.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <device/device.h>
@@ -87,8 +88,9 @@ static void sa_soc_systemagent_init(struct device *dev)
 	m->ecc_type = sa_get_ecc_type(capid0_a);
 	m->max_capacity_mib = soc_systemagent_max_chan_capacity_mib(CAPID_DDRSZ(capid0_a)) *
 			      sa_number_of_channels(capid0_a);
-	m->number_of_devices = sa_slots_per_channel(capid0_a) *
-			       sa_number_of_channels(capid0_a);
+	m->number_of_devices = MAX(sa_slots_per_channel(capid0_a) *
+				   sa_number_of_channels(capid0_a),
+				   m->dimm_cnt);
 }
 
 /*
