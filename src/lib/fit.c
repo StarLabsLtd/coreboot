@@ -20,6 +20,13 @@ static struct list_node image_nodes;
 static struct list_node config_nodes;
 static struct list_node compat_strings;
 
+static bool fdt_prop_string_eq(const struct fdt_property *prop, const char *value)
+{
+	const size_t value_size = strlen(value) + 1;
+
+	return prop->size == value_size && !memcmp(prop->data, value, value_size);
+}
+
 struct compat_string_entry {
 	const char *compat_string;
 	struct list_node list_node;
@@ -133,16 +140,28 @@ static void image_node(struct device_tree_node *node, u32 addr_cells, void *fit_
 			image->data = prop->prop.data;
 			image->size = prop->prop.size;
 		} else if (!strcmp("compression", prop->prop.name)) {
-			if (!strcmp("none", prop->prop.data))
+			if (fdt_prop_string_eq(&prop->prop, "none"))
 				image->compression = CBFS_COMPRESS_NONE;
-			else if (!strcmp("lzma", prop->prop.data))
+			else if (fdt_prop_string_eq(&prop->prop, "lzma"))
 				image->compression = CBFS_COMPRESS_LZMA;
-			else if (!strcmp("lz4", prop->prop.data))
+			else if (fdt_prop_string_eq(&prop->prop, "lz4"))
 				image->compression = CBFS_COMPRESS_LZ4;
 			else
 				image->compression = -1;
 		} else if (!strcmp("uncomp-size", prop->prop.name)) {
 			image->uncompressed_size = fdt_read_int_prop(&prop->prop, 1);
+		} else if (!strcmp("arch", prop->prop.name)) {
+			if (fdt_prop_string_eq(&prop->prop, "i386") ||
+			    fdt_prop_string_eq(&prop->prop, "x86"))
+				image->arch = PROG_ARCH_X86_32;
+			else if (fdt_prop_string_eq(&prop->prop, "x86_64"))
+				image->arch = PROG_ARCH_X86_64;
+			else if (fdt_prop_string_eq(&prop->prop, "arm"))
+				image->arch = PROG_ARCH_ARM;
+			else if (fdt_prop_string_eq(&prop->prop, "arm64"))
+				image->arch = PROG_ARCH_ARM64;
+			else if (fdt_prop_string_eq(&prop->prop, "riscv64"))
+				image->arch = PROG_ARCH_RISCV64;
 		} else if (!strcmp("load", prop->prop.name)) {
 			image->load_address = fdt_read_int_prop(&prop->prop, addr_cells);
 		} else if (!strcmp("entry", prop->prop.name)) {

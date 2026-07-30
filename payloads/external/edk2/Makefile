@@ -11,7 +11,26 @@ strip_quotes = $(subst ",,$(1))
 EDK2_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_REPOSITORY))
 EDK2_PLATFORMS_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_REPOSITORY))
 EDK2_PATH_REPO_ROOT := $(word 3,$(subst /, ,$(EDK2_REPOSITORY)))
+ifeq ($(CONFIG_EDK2_CDK2),y)
+# Use the repository basename for local/private cdk2 paths.
+EDK2_PATH_REPO_ROOT := $(patsubst %.git,%,$(notdir $(subst :,/,$(patsubst %/,%,$(EDK2_REPOSITORY)))))
+endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
+
+ifeq ($(CONFIG_EDK2_CDK2),y)
+EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/Build/cdk2/basetools/Python/BinWrappers/PosixLike/GenerateCapsule
+else
+EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
+endif
+
+EDK2_CLONE_FLAGS := --recurse-submodules
+EDK2_SUBMODULE_FLAGS := --init --checkout --recursive
+ifeq ($(CONFIG_EDK2_CDK2),y)
+# cdk2 only needs EDK2's direct build submodules. Do not pull nested OpenSSL
+# development repositories into every Coreboot build.
+EDK2_CLONE_FLAGS := --no-recurse-submodules
+EDK2_SUBMODULE_FLAGS := --init --checkout
+endif
 
 define edk2_abspath
 $(if $(filter /%,$(1)),$(1),$(EDK2_PATH)/$(1))
@@ -36,6 +55,8 @@ endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
 EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
+EDK2_CDK2_OUT ?= ../../../build/cdk2-coreboot-image.elf
+HOSTCC ?= cc
 
 ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
@@ -151,6 +172,7 @@ endif
 # CAPSULE_MAIN_FW_GUID	=
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
 BUILD_STR += -D CAPSULE_SUPPORT=TRUE
+BUILD_STR += -D ESRT_SUPPORT=TRUE
 BUILD_STR += -D CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)
 endif
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS),y)
@@ -287,7 +309,11 @@ ifneq ($(CONFIG_EDK2_CUSTOM_BUILD_PARAMS),)
 BUILD_STR += $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)
 endif
 
+ifeq ($(CONFIG_EDK2_CDK2),y)
+all: cdk2
+else
 all: UefiPayloadPkg
+endif
 
 $(WORKSPACE):
 	mkdir -p $(WORKSPACE)
@@ -311,7 +337,12 @@ $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 
 $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
+		git clone $(EDK2_CLONE_FLAGS) $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
+	fi
+	# FDF RAW paths are relative to WORKSPACE, not PACKAGES_PATH.  Keep cdk2
+	# third-party objects visible when the repository is staged below WORKSPACE.
+	if [ -d "$(EDK2_PATH)/3rdparty" ] && [ ! -e "$(WORKSPACE)/3rdparty" ] && [ ! -L "$(WORKSPACE)/3rdparty" ]; then \
+		ln -s "$(EDK2_PATH)/3rdparty" "$(WORKSPACE)/3rdparty"; \
 	fi
 	cd $(EDK2_PATH); \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
@@ -324,11 +355,11 @@ $(EDK2_PATH): $(WORKSPACE)
 		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
 			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
 			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-			git submodule update --checkout --recursive; \
+		git submodule update $(EDK2_SUBMODULE_FLAGS); \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout --recursive
+		git submodule update $(EDK2_SUBMODULE_FLAGS)
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -442,13 +473,58 @@ UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
 	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
 		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
+cdk2: $(EDK2_PATH) checktools
+	set -e; \
+	cdk2_build_dir=Build/cdk2-coreboot; \
+	cdk2_defconfig=$(EDK2_PATH)/$$cdk2_build_dir/coreboot.defconfig; \
+	mkdir -p $(EDK2_PATH)/$$cdk2_build_dir; \
+	test -f $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig; \
+	tr -d '\r' < $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig > $$cdk2_defconfig; \
+	if [ "$(CONFIG_EDK2_DEBUG)" = "y" ]; then \
+		sed -i \
+			-e '/^CONFIG_CDK2_BUILD_DEBUG=/d' \
+			-e '/^# CONFIG_CDK2_BUILD_DEBUG is not set$$/d' \
+			-e '/^CONFIG_CDK2_SERIAL=/d' \
+			-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
+			$$cdk2_defconfig; \
+		printf '%s\n' CONFIG_CDK2_BUILD_DEBUG=y CONFIG_CDK2_SERIAL=y >> $$cdk2_defconfig; \
+	fi; \
+	if [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
+		sed -i \
+			-e '/^CONFIG_CDK2_SERIAL=/d' \
+			-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
+			-e '/^CONFIG_CDK2_CBMEM_CONSOLE=/d' \
+			-e '/^# CONFIG_CDK2_CBMEM_CONSOLE is not set$$/d' \
+			-e '/^CONFIG_CDK2_CBMEM_TIMESTAMPS=/d' \
+			-e '/^# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set$$/d' \
+			$$cdk2_defconfig; \
+		printf '%s\n' CONFIG_CDK2_SERIAL=y CONFIG_CDK2_CBMEM_CONSOLE=y CONFIG_CDK2_CBMEM_TIMESTAMPS=y >> $$cdk2_defconfig; \
+	fi; \
+	cd $(EDK2_PATH); \
+		unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
+		source edksetup.sh; \
+		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" CDK2_NATIVE_CC="$(HOSTCC)" \
+			CDK2_BUILD_DIR=$$cdk2_build_dir \
+			CDK2_DEFCONFIG=$$cdk2_defconfig \
+			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
+			-f UefiPayloadPkg/cdk2/Makefile defconfig && \
+		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" CDK2_NATIVE_CC="$(HOSTCC)" \
+			CDK2_BUILD_DIR=$$cdk2_build_dir \
+			CDK2_DEFCONFIG=$$cdk2_defconfig \
+			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
+			-f UefiPayloadPkg/cdk2/Makefile build; \
+	cdk2_image=$(EDK2_PATH)/$$cdk2_build_dir/native/cdk2-coreboot-image.elf; \
+	test -s $$cdk2_image; \
+	mkdir -p $(dir $(EDK2_CDK2_OUT)); \
+	cp $$cdk2_image $(EDK2_CDK2_OUT)
+
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
 	rm -rf $(WORKSPACE)
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload cdk2 clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
@@ -456,7 +532,7 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
-	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
+	test -x "$(EDK2_GENERATE_CAPSULE)"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
@@ -486,7 +562,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
 		capflags+=( --capflag InitiateReset ); \
 	fi; \
-	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$(COREBOOT_CAPSULE_OUT)" \
+	"$(EDK2_GENERATE_CAPSULE)" -e -o "$(COREBOOT_CAPSULE_OUT)" \
 		--guid "$(CAPSULE_GUID)" \
 		"$${capflags[@]}" \
 		--fw-version $$fw_version --lsv $$lsv \

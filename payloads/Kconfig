@@ -197,6 +197,7 @@ endif # !PAYLOAD_NONE
 
 config PAYLOAD_FIT_SUPPORT
 	bool "FIT support"
+	depends on !EDK2_CDK2
 	default y if PAYLOAD_LINUX && (ARCH_ARM64 || ARCH_RISCV || ARCH_ARM)
 	default n
 	select FLATTENED_DEVICE_TREE
@@ -212,6 +213,7 @@ config PAYLOAD_FIT_SUPPORT
 # payload may be added later, so the selected handoff still has to be built.
 choice
 	prompt "Payload Handoff Selection"
+	default HANDOFF_COREBOOT_TABLES if EDK2_CDK2
 	default HANDOFF_UPL_DEVICETREE if EDK2_UNIVERSAL_PAYLOAD
 	default HANDOFF_COREBOOT_TABLES
 
@@ -223,6 +225,7 @@ config HANDOFF_COREBOOT_TABLES
 
 config HANDOFF_UPL_DEVICETREE
 	bool "Create Universal Payload FDT handoff (experimental)"
+	depends on !EDK2_CDK2
 	select FLATTENED_DEVICE_TREE
 	help
 	  Use Universal Payload Flattened Device Tree as payload handoff.

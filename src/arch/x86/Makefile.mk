@@ -235,6 +235,7 @@ ramstage-y += acpi.c
 ramstage-$(CONFIG_HAVE_ACPI_RESUME) += acpi_s3.c
 ramstage-$(CONFIG_ACPI_BERT) += acpi_bert_storage.c
 ramstage-y += boot.c
+ramstage-$(CONFIG_ARCH_RAMSTAGE_X86_64) += efi_entry.S
 ramstage-$(CONFIG_PAYLOAD_FIT_SUPPORT) += fit_payload.c
 ramstage-y += post.c
 ramstage-y += c_start.S

@@ -4,8 +4,9 @@ if PAYLOAD_EDK2
 
 config PAYLOAD_FILE
 	string "edk2 binary"
-	default "$(obj)/UEFIPAYLOAD.fd" if EDK2_UEFIPAYLOAD
-	default "$(obj)/UniversalPayload.fit" if EDK2_UNIVERSAL_PAYLOAD
+	default "\$(obj)/UEFIPAYLOAD.fd" if EDK2_UEFIPAYLOAD
+	default "\$(obj)/UniversalPayload.fit" if EDK2_UNIVERSAL_PAYLOAD
+	default "\$(obj)/cdk2-coreboot-image.elf" if EDK2_CDK2
 	help
 	  The result of a UefiPayloadPkg build
 
@@ -36,10 +37,18 @@ config EDK2_UNIVERSAL_PAYLOAD
 
 	  See https://universalscalablefirmware.github.io/documentation/ for more information.
 
+config EDK2_CDK2
+	bool "Build cdk2 native coreboot payload"
+	help
+	  Build the private cdk2 fork through its coreboot-style Kconfig and Make
+	  entry point. The resulting native ELF is consumed directly as a coreboot
+	  payload; this does not use the UniversalPayload FIT wrapper.
+
 endchoice
 
 choice
 	prompt "Tianocore's EDK II payload"
+	default EDK2_REPO_CUSTOM if EDK2_CDK2
 	default EDK2_REPO_OFFICIAL if EDK2_UNIVERSAL_PAYLOAD
 	default EDK2_REPO_MRCHROMEBOX
 	help
@@ -50,12 +59,14 @@ choice
 
 config EDK2_REPO_MRCHROMEBOX
 	bool "MrChromebox' edk2 fork"
+	depends on !EDK2_CDK2
 	help
 	  Select this option to build using MrChromebox's custom edk2 fork,
 	  which incorporates fixes/improvements from System 76's and 9elements' trees.
 
 config EDK2_REPO_OFFICIAL
 	bool "Official edk2 repository"
+	depends on !EDK2_CDK2
 	help
 	  Select this option if you want to use the official edk2 repository to build
 	  edk2.
@@ -67,7 +78,8 @@ config EDK2_REPO_OFFICIAL
 config EDK2_REPO_CUSTOM
 	bool "Specify your own repository"
 	help
-	  Specify your own edk2 repository and branch to use.
+	  Specify your own edk2 repository and branch to use. CDK2 requires a
+	  repository that contains UefiPayloadPkg/cdk2.
 
 endchoice
 

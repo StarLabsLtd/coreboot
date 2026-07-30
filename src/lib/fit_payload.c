@@ -585,6 +585,12 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 		return;
 	}
 
+	if (config->firmware)
+		printk(BIOS_DEBUG, "FIT: Firmware architecture %d\n",
+		       config->firmware->arch);
+	if (config->firmware)
+		prog_set_arch(payload, config->firmware->arch);
+
 	struct fit_image_chain *overlay_chain;
 	list_for_each(overlay_chain, config->overlays, list_node) {
 		struct device_tree *overlay = unpack_fdt(overlay_chain->image);
