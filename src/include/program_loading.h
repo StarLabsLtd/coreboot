@@ -27,6 +27,15 @@ enum prog_type {
 	PROG_OPENSBI,
 };
 
+enum prog_arch {
+	PROG_ARCH_UNKNOWN,
+	PROG_ARCH_X86_32,
+	PROG_ARCH_X86_64,
+	PROG_ARCH_ARM,
+	PROG_ARCH_ARM64,
+	PROG_ARCH_RISCV64,
+};
+
 /*
  * prog_segment_loaded() is called for each segment of a program loaded. The
  * SEG_FINAL flag will be set on the last segment loaded. The following two
@@ -41,6 +50,7 @@ void arch_segment_loaded(uintptr_t start, size_t size, int flags);
 /* Representation of a program. */
 struct prog {
 	enum prog_type type;
+	enum prog_arch arch;
 	enum cbfs_type cbfs_type;
 	const char *name;
 	void *start;		/* Program start in memory. */
@@ -63,6 +73,11 @@ static inline const char *prog_name(const struct prog *prog)
 static inline enum prog_type prog_type(const struct prog *prog)
 {
 	return prog->type;
+}
+
+static inline enum prog_arch prog_arch(const struct prog *prog)
+{
+	return prog->arch;
 }
 
 static inline enum cbfs_type prog_cbfs_type(const struct prog *prog)
@@ -101,6 +116,11 @@ static inline void prog_set_area(struct prog *prog, void *start, size_t size)
 {
 	prog->start = start;
 	prog->size = size;
+}
+
+static inline void prog_set_arch(struct prog *prog, enum prog_arch arch)
+{
+	prog->arch = arch;
 }
 
 static inline void prog_set_entry(struct prog *prog, void *e, void *arg)

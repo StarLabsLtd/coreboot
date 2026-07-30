@@ -291,7 +291,6 @@ void lb_arch_add_records(struct lb_header *header)
 
 void arch_bootstate_coreboot_exit(void)
 {
-	/* APs are already parked by existing infrastructure. */
 	if (!CONFIG(PARALLEL_MP_AP_WORK))
 		return;
 

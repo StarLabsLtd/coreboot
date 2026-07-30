@@ -201,6 +201,16 @@ enum timestamp_id {
 	TS_CRHV_PSTORE_START = 1205,
 	TS_CRHV_PSTORE_END = 1206,
 	TS_CRHV_VMM_START = 1207,
+
+	/* Universal Payload lifecycle timestamps */
+	TS_UPL_ENTRY = 1300,
+	TS_UPL_HOB_READY = 1301,
+	TS_UPL_DXE_LOAD_START = 1302,
+	TS_UPL_DXE_LOAD_END = 1303,
+	TS_UPL_DXE_HANDOFF = 1304,
+	TS_UPL_DXE_DRIVER = 1305,
+	TS_UPL_READY_TO_BOOT = 1306,
+	TS_UPL_EXIT_BOOT = 1307,
 };
 
 #define TS_NAME_DEF(id, id_end, desc) {(id), (id_end),  STRINGIFY(id), (desc)}
@@ -418,6 +428,16 @@ static const struct timestamp_id_to_name {
 	TS_NAME_DEF(TS_CRHV_PSTORE_START, TS_CRHV_PSTORE_END, "hypervisor pstore init start"),
 	TS_NAME_DEF(TS_CRHV_PSTORE_END, 0, "hypervisor pstore init complete"),
 	TS_NAME_DEF(TS_CRHV_VMM_START, 0, "hypervisor OS VMM start"),
+
+	TS_NAME_DEF(TS_UPL_ENTRY, 0, "Universal Payload entry"),
+	TS_NAME_DEF(TS_UPL_HOB_READY, 0, "Universal Payload HOBs ready"),
+	TS_NAME_DEF(TS_UPL_DXE_LOAD_START, TS_UPL_DXE_LOAD_END,
+		    "Universal Payload DXE load start"),
+	TS_NAME_DEF(TS_UPL_DXE_LOAD_END, 0, "Universal Payload DXE load complete"),
+	TS_NAME_DEF(TS_UPL_DXE_HANDOFF, 0, "Universal Payload DXE handoff"),
+	TS_NAME_DEF(TS_UPL_DXE_DRIVER, 0, "Universal Payload timestamp driver"),
+	TS_NAME_DEF(TS_UPL_READY_TO_BOOT, 0, "Universal Payload ReadyToBoot"),
+	TS_NAME_DEF(TS_UPL_EXIT_BOOT, 0, "Universal Payload ExitBootServices"),
 };
 
 #endif

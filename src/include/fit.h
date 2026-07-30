@@ -16,6 +16,7 @@ struct fit_image_node {
 	uint32_t size;
 	int compression;
 	uint32_t uncompressed_size;
+	enum prog_arch arch;
 	uintptr_t load_address;
 	uintptr_t entrypoint_address;
 

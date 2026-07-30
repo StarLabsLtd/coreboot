@@ -8,6 +8,10 @@
 #include <symbols.h>
 #include <assert.h>
 
+#if ENV_RAMSTAGE && ENV_X86_64
+void x86_64_efi_call(void (*entry)(void *), void *arg);
+#endif
+
 int payload_arch_usable_ram_quirk(uint64_t start, uint64_t size)
 {
 	if (start < 1 * MiB && (start + size) <= 1 * MiB) {
@@ -22,6 +26,11 @@ int payload_arch_usable_ram_quirk(uint64_t start, uint64_t size)
 void arch_prog_run(struct prog *prog)
 {
 #if ENV_RAMSTAGE && ENV_X86_64
+	if (prog_arch(prog) == PROG_ARCH_X86_64) {
+		x86_64_efi_call(prog_entry(prog), prog_entry_arg(prog));
+		return;
+	}
+
 	const uint32_t arg = pointer_to_uint32_safe(prog_entry_arg(prog));
 	const uint32_t entry = pointer_to_uint32_safe(prog_entry(prog));
 
