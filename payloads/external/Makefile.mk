@@ -282,6 +282,8 @@ $(obj)/cdk2-coreboot-image.elf: $(DOTCONFIG) payloads/external/edk2/Makefile
 	$(MAKE) -C payloads/external/edk2 cdk2 \
 		EDK2_CDK2_OUT="$(abspath $@)" \
 		HOSTCC="$(HOSTCC)" \
+		CDK2_NATIVE_CC="$(GCC_CC_x86_64)" \
+		CDK2_NATIVE_OBJCOPY="$(OBJCOPY_x86_64)" \
 		CONFIG_EDK2_CDK2=$(CONFIG_EDK2_CDK2) \
 		CONFIG_EDK2_DEBUG=$(CONFIG_EDK2_DEBUG) \
 		CONFIG_EDK2_CBMEM_LOGGING=$(CONFIG_EDK2_CBMEM_LOGGING) \

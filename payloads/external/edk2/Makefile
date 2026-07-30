@@ -18,7 +18,7 @@ endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
 
 ifeq ($(CONFIG_EDK2_CDK2),y)
-EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/Build/cdk2/basetools/Python/BinWrappers/PosixLike/GenerateCapsule
+EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/Build/cdk2-coreboot/basetools/Python/BinWrappers/PosixLike/GenerateCapsule
 else
 EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
 endif
@@ -57,6 +57,12 @@ EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
 EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
 EDK2_CDK2_OUT ?= ../../../build/cdk2-coreboot-image.elf
 HOSTCC ?= cc
+ifndef CDK2_NATIVE_CC
+CDK2_NATIVE_CC := $(GCC_CC_x86_64)
+endif
+ifndef CDK2_NATIVE_OBJCOPY
+CDK2_NATIVE_OBJCOPY := $(OBJCOPY_x86_64)
+endif
 
 ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
@@ -480,35 +486,44 @@ cdk2: $(EDK2_PATH) checktools
 	mkdir -p $(EDK2_PATH)/$$cdk2_build_dir; \
 	test -f $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig; \
 	tr -d '\r' < $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig > $$cdk2_defconfig; \
+	sed -i \
+		-e '/^CONFIG_CDK2_BUILD_DEBUG=/d' \
+		-e '/^# CONFIG_CDK2_BUILD_DEBUG is not set$$/d' \
+		-e '/^CONFIG_CDK2_SERIAL=/d' \
+		-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
+		-e '/^CONFIG_CDK2_CBMEM_CONSOLE=/d' \
+		-e '/^# CONFIG_CDK2_CBMEM_CONSOLE is not set$$/d' \
+		-e '/^CONFIG_CDK2_CBMEM_TIMESTAMPS=/d' \
+		-e '/^# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set$$/d' \
+		$$cdk2_defconfig; \
 	if [ "$(CONFIG_EDK2_DEBUG)" = "y" ]; then \
-		sed -i \
-			-e '/^CONFIG_CDK2_BUILD_DEBUG=/d' \
-			-e '/^# CONFIG_CDK2_BUILD_DEBUG is not set$$/d' \
-			-e '/^CONFIG_CDK2_SERIAL=/d' \
-			-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
-			$$cdk2_defconfig; \
-		printf '%s\n' CONFIG_CDK2_BUILD_DEBUG=y CONFIG_CDK2_SERIAL=y >> $$cdk2_defconfig; \
+		printf '%s\n' CONFIG_CDK2_BUILD_DEBUG=y >> $$cdk2_defconfig; \
+	else \
+		printf '%s\n' '# CONFIG_CDK2_BUILD_DEBUG is not set' >> $$cdk2_defconfig; \
+	fi; \
+	if [ "$(CONFIG_EDK2_SERIAL_SUPPORT)" = "y" ] || [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
+		printf '%s\n' CONFIG_CDK2_SERIAL=y >> $$cdk2_defconfig; \
+	else \
+		printf '%s\n' '# CONFIG_CDK2_SERIAL is not set' >> $$cdk2_defconfig; \
 	fi; \
 	if [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
-		sed -i \
-			-e '/^CONFIG_CDK2_SERIAL=/d' \
-			-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
-			-e '/^CONFIG_CDK2_CBMEM_CONSOLE=/d' \
-			-e '/^# CONFIG_CDK2_CBMEM_CONSOLE is not set$$/d' \
-			-e '/^CONFIG_CDK2_CBMEM_TIMESTAMPS=/d' \
-			-e '/^# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set$$/d' \
-			$$cdk2_defconfig; \
-		printf '%s\n' CONFIG_CDK2_SERIAL=y CONFIG_CDK2_CBMEM_CONSOLE=y CONFIG_CDK2_CBMEM_TIMESTAMPS=y >> $$cdk2_defconfig; \
+		printf '%s\n' CONFIG_CDK2_CBMEM_CONSOLE=y CONFIG_CDK2_CBMEM_TIMESTAMPS=y >> $$cdk2_defconfig; \
+	else \
+		printf '%s\n' '# CONFIG_CDK2_CBMEM_CONSOLE is not set' '# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set' >> $$cdk2_defconfig; \
 	fi; \
 	cd $(EDK2_PATH); \
 		unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
 		source edksetup.sh; \
-		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" CDK2_NATIVE_CC="$(HOSTCC)" \
+		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
+			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
+			$(if $(CDK2_NATIVE_OBJCOPY),CDK2_NATIVE_OBJCOPY="$(CDK2_NATIVE_OBJCOPY)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
 			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
 			-f UefiPayloadPkg/cdk2/Makefile defconfig && \
-		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" CDK2_NATIVE_CC="$(HOSTCC)" \
+		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
+			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
+			$(if $(CDK2_NATIVE_OBJCOPY),CDK2_NATIVE_OBJCOPY="$(CDK2_NATIVE_OBJCOPY)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
 			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
