@@ -183,12 +183,15 @@ BUILD_STR += -D CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)
 endif
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS),y)
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleEmbeddedDriverSupport=TRUE
+EDK2_CDK2_EXTRA_DEFINES += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleEmbeddedDriverSupport=TRUE
 endif
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT),y)
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleOnDiskSupport=TRUE
+EDK2_CDK2_EXTRA_DEFINES += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleOnDiskSupport=TRUE
 endif
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
+EDK2_CDK2_EXTRA_DEFINES += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
 CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
@@ -209,6 +212,7 @@ CAPSULE_FMP_PCD_INC_PCD_NAME := gFmpDevicePkgTokenSpaceGuid.PcdFmpDevicePkcs7Cer
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
 ifneq ($(CAPSULE_TRUSTED_PUBLIC_CERT),)
 BUILD_STR += -D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+EDK2_CDK2_EXTRA_DEFINES += -D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
 endif
 endif
 
@@ -220,8 +224,12 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
 ))
 
+ifeq ($(CONFIG_EDK2_CDK2),y)
+EDK2_FMP_DXE = $(EDK2_PATH)/Build/cdk2-coreboot/edk2/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+else
 # If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
 EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+endif
 
 define EDK2_ENSURE_FMP_CERT_INC
 	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
@@ -347,8 +355,13 @@ $(EDK2_PATH): $(WORKSPACE)
 	fi
 	# FDF RAW paths are relative to WORKSPACE, not PACKAGES_PATH.  Keep cdk2
 	# third-party objects visible when the repository is staged below WORKSPACE.
-	if [ -d "$(EDK2_PATH)/3rdparty" ] && [ ! -e "$(WORKSPACE)/3rdparty" ] && [ ! -L "$(WORKSPACE)/3rdparty" ]; then \
-		ln -s "$(EDK2_PATH)/3rdparty" "$(WORKSPACE)/3rdparty"; \
+	if [ -d "$(EDK2_PATH)/3rdparty" ]; then \
+		if [ -L "$(WORKSPACE)/3rdparty" ] && [ "$$(readlink "$(WORKSPACE)/3rdparty")" != "$(EDK2_PATH)/3rdparty" ]; then \
+			rm "$(WORKSPACE)/3rdparty"; \
+		fi; \
+		if [ ! -e "$(WORKSPACE)/3rdparty" ] && [ ! -L "$(WORKSPACE)/3rdparty" ]; then \
+			ln -s "$(EDK2_PATH)/3rdparty" "$(WORKSPACE)/3rdparty"; \
+		fi; \
 	fi
 	cd $(EDK2_PATH); \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
@@ -417,6 +430,7 @@ capsule_keys: $(EDK2_PATH)
 	$(EDK2_ENSURE_FMP_CERT_INC)
 
 prep: capsule_keys
+EDK2_CDK2_DEPS += capsule_keys
 endif
 
 print:
@@ -479,7 +493,7 @@ UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
 	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
 		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
-cdk2: $(EDK2_PATH) checktools
+cdk2: $(EDK2_PATH) checktools $(EDK2_CDK2_DEPS)
 	set -e; \
 	cdk2_build_dir=Build/cdk2-coreboot; \
 	cdk2_defconfig=$(EDK2_PATH)/$$cdk2_build_dir/coreboot.defconfig; \
@@ -495,6 +509,9 @@ cdk2: $(EDK2_PATH) checktools
 		-e '/^# CONFIG_CDK2_CBMEM_CONSOLE is not set$$/d' \
 		-e '/^CONFIG_CDK2_CBMEM_TIMESTAMPS=/d' \
 		-e '/^# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set$$/d' \
+		-e '/^CONFIG_CDK2_CAPSULE=/d' \
+		-e '/^# CONFIG_CDK2_CAPSULE is not set$$/d' \
+		-e '/^CONFIG_CDK2_CAPSULE_MAIN_FW_GUID=/d' \
 		$$cdk2_defconfig; \
 	if [ "$(CONFIG_EDK2_DEBUG)" = "y" ]; then \
 		printf '%s\n' CONFIG_CDK2_BUILD_DEBUG=y >> $$cdk2_defconfig; \
@@ -511,19 +528,27 @@ cdk2: $(EDK2_PATH) checktools
 	else \
 		printf '%s\n' '# CONFIG_CDK2_CBMEM_CONSOLE is not set' '# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set' >> $$cdk2_defconfig; \
 	fi; \
+	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ]; then \
+		printf '%s\n' CONFIG_CDK2_CAPSULE=y >> $$cdk2_defconfig; \
+		printf '%s\n' 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)' >> $$cdk2_defconfig; \
+	else \
+		printf '%s\n' '# CONFIG_CDK2_CAPSULE is not set' >> $$cdk2_defconfig; \
+	fi; \
 	cd $(EDK2_PATH); \
 		unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
 		source edksetup.sh; \
 		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
 			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
 			$(if $(CDK2_NATIVE_OBJCOPY),CDK2_NATIVE_OBJCOPY="$(CDK2_NATIVE_OBJCOPY)") \
+			$(if $(EDK2_CDK2_EXTRA_DEFINES),CDK2_EXTRA_DEFINES="$(EDK2_CDK2_EXTRA_DEFINES)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
 			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
-			-f UefiPayloadPkg/cdk2/Makefile defconfig && \
+			-f UefiPayloadPkg/cdk2/Makefile defconfig; \
 		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
 			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
 			$(if $(CDK2_NATIVE_OBJCOPY),CDK2_NATIVE_OBJCOPY="$(CDK2_NATIVE_OBJCOPY)") \
+			$(if $(EDK2_CDK2_EXTRA_DEFINES),CDK2_EXTRA_DEFINES="$(EDK2_CDK2_EXTRA_DEFINES)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
 			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
