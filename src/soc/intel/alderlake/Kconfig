@@ -123,6 +123,7 @@ config SOC_INTEL_ALDERLAKE
 
 config SOC_INTEL_RAPTORLAKE
 	bool
+	select SOC_INTEL_COMMON_BLOCK_GPIO_IOSTANDBY
 	help
 	 Intel Raptorlake support. Mainboards using RPL should select
 	 SOC_INTEL_RAPTORLAKE and SOC_INTEL_ALDERLAKE_PCH_* together.
