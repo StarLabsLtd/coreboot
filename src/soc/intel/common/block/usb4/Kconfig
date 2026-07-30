@@ -35,9 +35,15 @@ config DEFAULT_SOFTWARE_CONNECTION_MANAGER
 	help
 	  select to default to using the Software Connection Manager
 
+config DEFAULT_FIRMWARE_CONNECTION_MANAGER
+	bool
+	help
+	  select to default to using the Firmware Connection Manager
+
 choice
 	prompt "Connection Manager"
 	depends on SOC_INTEL_COMMON_BLOCK_USB4
+	default FIRMWARE_CONNECTION_MANAGER if DEFAULT_FIRMWARE_CONNECTION_MANAGER
 	default SOFTWARE_CONNECTION_MANAGER if DEFAULT_SOFTWARE_CONNECTION_MANAGER
 	default FIRMWARE_CONNECTION_MANAGER
 	help
