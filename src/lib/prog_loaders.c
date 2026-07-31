@@ -166,8 +166,7 @@ void payload_load(void)
 
 	switch (prog_cbfs_type(payload)) {
 	case CBFS_TYPE_SELF: /* Simple ELF */
-		if (selfload_mapped(payload, mapping, BM_MEM_RAM) && CONFIG(EDK2_CDK2))
-			prog_set_arch(payload, PROG_ARCH_X86_64);
+		selfload_mapped(payload, mapping, BM_MEM_RAM);
 		break;
 	case CBFS_TYPE_FIT_PAYLOAD: /* Flattened image tree */
 		if (CONFIG(PAYLOAD_FIT_SUPPORT)) {
