@@ -80,6 +80,24 @@ void upl_fdt_add_payload(struct device_tree *tree, uintptr_t fit_address)
 	dt_add_u64_prop(image_node, "addr", fit_address);
 }
 
+static void upl_fdt_add_reserve_map_entry(struct device_tree *tree, u64 start, u64 size)
+{
+	struct device_tree_reserve_map_entry *entry = xzalloc(sizeof(*entry));
+
+	entry->start = start;
+	entry->size = size;
+	list_insert_after(&entry->list_node, &tree->reserve_map);
+}
+
+static void upl_fdt_add_ecam_reserve_map_entry(struct device_tree *tree)
+{
+	if (!CONFIG(ECAM_MMCONF_SUPPORT))
+		return;
+
+	upl_fdt_add_reserve_map_entry(tree, CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+				      CONFIG_ECAM_MMCONF_LENGTH);
+}
+
 void upl_fdt_add_reserved_memory(struct device_tree *tree, const char *name,
 				 uintptr_t address, size_t size, const char *type)
 {
@@ -455,10 +473,7 @@ uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
 		.root = &root,
 	};
 	// Required to be present
-	struct device_tree_reserve_map_entry *entry = xzalloc(sizeof(*entry));
-	entry->start = 0;
-	entry->size = 0;
-	list_insert_after(&entry->list_node, &dev_tree.reserve_map);
+	upl_fdt_add_reserve_map_entry(&dev_tree, 0, 0);
 	header.reserve_map_offset = cpu_to_be32(ALIGN_UP(dev_tree.header_size, 8));
 
 	struct device_tree *tree;
@@ -477,6 +492,7 @@ uintptr_t write_upl_fdt_table(uintptr_t table_start, size_t table_capacity,
 		dt_add_u32_prop(tree->root, "#address-cells", addr_cells);
 		dt_add_u32_prop(tree->root, "#size-cells", size_cells);
 	}
+	upl_fdt_add_ecam_reserve_map_entry(tree);
 
 	if (write_options_node(tree))
 		goto error;
