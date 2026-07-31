@@ -177,8 +177,14 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
 ))
 
-# If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
-EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+EDK2_BUILD_ARCH := X64
+ifeq ($(CONFIG_EDK2_UNIVERSAL_PAYLOAD),y)
+EDK2_BUILD_ARCH := IA32
+endif
+EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_STR)_GCC
+EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
+EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
+CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
 
 define EDK2_ENSURE_FMP_CERT_INC
 	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
@@ -455,4 +461,13 @@ coreboot_capsule: $(EDK2_PATH)
 		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
 		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
 		"$${embedded_driver_args[@]}" \
-		"$$rmap_rom"
+		"$$rmap_rom"; \
+	embedded_driver_count=0; \
+	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
+		embedded_driver_count=1; \
+	fi; \
+	python3 "$(CAPSULE_VALIDATOR)" \
+		--capsule "$(COREBOOT_CAPSULE_OUT)" \
+		--firmware-volume "$(EDK2_DXE_FV)" \
+		--guid "$(CAPSULE_GUID)" \
+		--embedded-drivers "$$embedded_driver_count"
