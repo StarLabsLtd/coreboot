@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 /*
- * Write architecture specific tables as well as the common coreboot table or UPL FDT.
+ * Write architecture specific tables as well as the common coreboot table.
  * Returns a pointer to the table or NULL on error.
  */
 void *write_tables(void);

@@ -2,8 +2,6 @@
 
 #include <boardid.h>
 #include <bootmem.h>
-#include <boot/upl_fdt_table.h>
-#include <cbmem.h>
 #include <commonlib/bsd/compression.h>
 #include <commonlib/bsd/helpers.h>
 #include <commonlib/region.h>
@@ -509,13 +507,6 @@ static int fit_extract_firmware(struct prog *payload, struct fit_config_node *co
 		return -1;
 	}
 
-	if (CONFIG(HANDOFF_UPL_DEVICETREE)) {
-		upl_fdt_add_reserved_memory(dt, "upl-entry", region_offset(code),
-					    ALIGN_UP(region_sz(code), 4 * KiB),
-					    "boot-code");
-		upl_fdt_refresh_memory(dt);
-	}
-
 	fdt->size = dt_flat_size(dt);
 	if (fit_allocate_firmware_fdt(payload, config, code, fdt) != 0) {
 		printk(BIOS_ERR, "Failed to find free memory region\n");
@@ -529,8 +520,7 @@ static int fit_extract_firmware(struct prog *payload, struct fit_config_node *co
 		return -1;
 	}
 
-	/* EDK2 resolves its FV data-offsets from the preserved FIT itself. */
-	if (!CONFIG(HANDOFF_UPL_DEVICETREE) && load_secondaries(config, dt) != 0) {
+	if (load_secondaries(config, dt) != 0) {
 		printk(BIOS_ERR, "Failed to extract secondary firmware images\n");
 		prog_set_entry(payload, NULL, NULL);
 		return -1;
@@ -546,7 +536,6 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 {
 	struct device_tree *dt = NULL;
 	struct region code = {0}, fdt = {0}, initrd = {0};
-	void *upl_fit = NULL;
 	size_t fit_size = 0;
 
 	printk(BIOS_INFO, "FIT: Examine payload %s\n", payload->name);
@@ -559,31 +548,15 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 		return;
 	}
 
-	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware) {
-		if (!fit_get_total_size(data, data_size, &fit_size) ||
-		    !fit_config_is_bounded(config, data, fit_size)) {
-			printk(BIOS_ERR, "FIT: UPL image ranges are invalid\n");
-			return;
-		}
-
-		if (bootmem_region_targets_type((uintptr_t)data, fit_size, BM_MEM_PAYLOAD)) {
-			upl_fit = data;
-		} else {
-			upl_fit = bootmem_allocate_buffer(fit_size);
-			if (!upl_fit) {
-				printk(BIOS_ERR, "FIT: Unable to preserve UPL FIT\n");
-				return;
-			}
-			memcpy(upl_fit, data, fit_size);
-		}
-		printk(BIOS_INFO, "FIT: Preserved 0x%zx-byte UPL FIT at %p\n",
-		       fit_size, upl_fit);
+	if (config->firmware &&
+	    (!fit_get_total_size(data, data_size, &fit_size) ||
+	     !fit_config_is_bounded(config, data, fit_size))) {
+		printk(BIOS_ERR, "FIT: image ranges are invalid\n");
+		return;
 	}
 
 	if (config->fdt)
 		dt = unpack_fdt(config->fdt);
-	else if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware)
-		dt = fdt_unflatten(cbmem_find(CBMEM_ID_FDT));
 	if (!dt) {
 		printk(BIOS_ERR, "Failed to unflatten the FDT.\n");
 		return;
@@ -602,14 +575,8 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 
 	/* Insert coreboot specific information */
 	add_cb_fdt_data(dt);
-	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware) {
-		upl_fdt_add_reserved_memory(dt, "upl-fit", (uintptr_t)upl_fit,
-					    ALIGN_UP(fit_size, 4 * KiB), "boot-data");
-		upl_fdt_add_payload(dt, (uintptr_t)upl_fit);
-	}
 
-	if (!CONFIG(HANDOFF_UPL_DEVICETREE) || !config->firmware)
-		fit_update_memory(dt);
+	fit_update_memory(dt);
 
 	/* Update device_tree */
 #if defined(CONFIG_LINUX_COMMAND_LINE)
@@ -628,10 +595,6 @@ void fit_payload(struct prog *payload, void *data, size_t data_size)
 		status = fit_extract_kernel(payload, config, dt, &code, &fdt, &initrd);
 	if (status != 0)
 		return;
-
-	/* Payload allocations must not remain advertised as free UPL memory. */
-	if (CONFIG(HANDOFF_UPL_DEVICETREE) && config->firmware)
-		upl_fdt_refresh_memory(dt);
 
 	/* Repack FDT for handoff to entrypoint */
 	if (!pack_fdt(&fdt, dt)) {
