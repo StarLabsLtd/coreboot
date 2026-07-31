@@ -105,6 +105,7 @@ config EDK2_TAG_OR_REV
 
 config EDK2_USE_EDK2_PLATFORMS
 	bool "Use edk2-platforms repository"
+	depends on !EDK2_CDK2
 	default n
 	help
 	  Clone edk2-platforms repository to the edk2 workspace for additional modules.

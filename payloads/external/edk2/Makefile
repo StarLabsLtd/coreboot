@@ -431,6 +431,18 @@ checktools:
 		exit 1; \
 	fi
 
+checktools_cdk2:
+	echo -n "EDK2: Checking uuid-dev:"
+	echo "#include <uuid/uuid.h>" > libtest.c
+	echo "int main(int argc, char **argv) { (void) argc; (void) argv; return 0; }" >> libtest.c
+	$(HOSTCC) $(HOSTCCFLAGS) libtest.c -o libtest >/dev/null 2>&1 && echo "    Found!" || \
+		( echo "    Not found!"; \
+			echo "ERROR: please_install uuid-dev (libuuid-devel)"; exit 1 )
+	rm -rf libtest.c libtest
+	echo -n "EDK2: Checking nasm:"
+	type nasm > /dev/null 2>&1 && echo "        Found!" || \
+		( echo "        Not found!"; echo "ERROR: Please install nasm."; exit 1 )
+
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yy)
 capsule_keys: $(EDK2_PATH)
 	$(EDK2_ENSURE_FMP_CERT_INC)
@@ -499,7 +511,7 @@ UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
 	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
 		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
-cdk2: $(EDK2_PATH) checktools $(EDK2_CDK2_DEPS)
+cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 	set -e; \
 	cdk2_build_dir=Build/cdk2-coreboot; \
 	cdk2_defconfig=$(EDK2_PATH)/$$cdk2_build_dir/coreboot.defconfig; \
@@ -627,7 +639,7 @@ clean:
 distclean:
 	rm -rf $(WORKSPACE)
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload cdk2 clean distclean
+.PHONY: $(EDK2_PATH) checktools checktools_cdk2 logo UefiPayloadPkg UniversalPayload cdk2 clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
