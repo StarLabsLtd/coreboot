@@ -142,12 +142,6 @@ fail:
 static struct prog global_payload =
 	PROG_INIT(PROG_PAYLOAD, CONFIG_CBFS_PREFIX "/payload");
 
-static void *upl_fit_allocator(void *arg_unused, size_t size,
-			       const union cbfs_mdata *mdata_unused)
-{
-	return bootmem_allocate_buffer(size);
-}
-
 void payload_preload(void)
 {
 	if (!CONFIG(CBFS_PRELOAD))
@@ -167,15 +161,8 @@ void payload_load(void)
 	if (prog_locate_hook(payload))
 		goto out;
 
-	if (CONFIG(HANDOFF_UPL_DEVICETREE)) {
-		payload->cbfs_type = CBFS_TYPE_FIT_PAYLOAD;
-		mapping = cbfs_type_alloc(prog_name(payload), upl_fit_allocator, NULL,
-					  &mapping_size, &payload->cbfs_type);
-	} else {
-		payload->cbfs_type = CBFS_TYPE_QUERY;
-		mapping = cbfs_type_map(prog_name(payload), &mapping_size, &payload->cbfs_type);
-	}
-
+	payload->cbfs_type = CBFS_TYPE_QUERY;
+	mapping = cbfs_type_map(prog_name(payload), &mapping_size, &payload->cbfs_type);
 	if (!mapping)
 		goto out;
 
