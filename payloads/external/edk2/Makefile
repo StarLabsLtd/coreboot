@@ -7,6 +7,7 @@ project_name = edk2
 export WORKSPACE := $(CURDIR)/workspace
 
 strip_quotes = $(subst ",,$(1))
+edk2_repo_basename = $(patsubst %.git,%,$(notdir $(subst :,/,$(patsubst file://%,%,$(patsubst %/,%,$(1))))))
 
 EDK2_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_REPOSITORY))
 EDK2_PLATFORMS_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_REPOSITORY))
@@ -14,7 +15,11 @@ EDK2_PATH_REPO_ROOT := $(word 3,$(subst /, ,$(EDK2_REPOSITORY)))
 ifneq ($(filter /% file:///%,$(EDK2_REPOSITORY)),)
 # Keep local/private edk2 paths from collapsing into workspace/home or
 # workspace/sean.
-EDK2_PATH_REPO_ROOT := $(patsubst %.git,%,$(notdir $(subst :,/,$(patsubst %/,%,$(EDK2_REPOSITORY)))))
+EDK2_PATH_REPO_ROOT := $(call edk2_repo_basename,$(EDK2_REPOSITORY))
+endif
+ifeq ($(CONFIG_EDK2_CDK2),y)
+# CDK2 is usually tested from local/private forks, including scp-style SSH URLs.
+EDK2_PATH_REPO_ROOT := $(call edk2_repo_basename,$(EDK2_REPOSITORY))
 endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
 
