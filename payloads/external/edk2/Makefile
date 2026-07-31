@@ -635,6 +635,9 @@ cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
+ifeq ($(CONFIG_EDK2_CDK2),y)
+	test -d $(EDK2_PATH) && (cd $(EDK2_PATH); rm -rf Build/cdk2-coreboot; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
+endif
 
 distclean:
 	rm -rf $(WORKSPACE)
