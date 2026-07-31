@@ -560,7 +560,7 @@ cdk2: $(EDK2_PATH) checktools $(EDK2_CDK2_DEPS)
 	fi; \
 	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ]; then \
 		printf '%s\n' CONFIG_CDK2_CAPSULE=y >> $$cdk2_defconfig; \
-		printf '%s\n' 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)' >> $$cdk2_defconfig; \
+		printf '%s\n' 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="$(CAPSULE_GUID)"' >> $$cdk2_defconfig; \
 	else \
 		printf '%s\n' '# CONFIG_CDK2_CAPSULE is not set' >> $$cdk2_defconfig; \
 	fi; \

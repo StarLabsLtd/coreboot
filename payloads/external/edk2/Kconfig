@@ -149,6 +149,7 @@ endchoice
 
 config EDK2_BOOTSPLASH_FILE
 	string "edk2 Bootsplash path and filename"
+	depends on !EDK2_CDK2
 	default "Documentation/coreboot_logo.bmp"
 	help
 	  The path and filename of the file to use as graphical bootsplash
@@ -184,6 +185,7 @@ config EDK2_BOOTSPLASH_FILE
 
 config EDK2_BOOT_MANAGER_ESCAPE
 	bool "Use Escape key for Boot Manager"
+	depends on !EDK2_CDK2
 	default n
 	help
 	  Use Escape as the hot-key to access the Boot Manager. This replaces
@@ -209,6 +211,7 @@ config EDK2_CBMEM_LOGGING
 config EDK2_SPI_FLASH_LOGGING
 	bool "Enable edk2 logging to the SPI flash console"
 	depends on ARCH_X86 && SMMSTORE && CONSOLE_SPI_FLASH
+	depends on !EDK2_CDK2
 	help
 	  Append edk2 debug output to the CONSOLE FMAP region through a
 	  restricted SMMSTORE command. CBMEM logging remains enabled so the
@@ -230,7 +233,7 @@ config EDK2_CPU_TIMER_LIB
 
 config EDK2_FOLLOW_BGRT_SPEC
 	bool "Center logo 38.2% from the top of screen"
-	depends on !EDK2_REPO_OFFICIAL
+	depends on !EDK2_REPO_OFFICIAL && !EDK2_CDK2
 	default n
 	help
 	  Follow the BGRT Specification implemented by Microsoft and
@@ -239,6 +242,7 @@ config EDK2_FOLLOW_BGRT_SPEC
 
 config EDK2_FULL_SCREEN_SETUP
 	bool "Use the full screen for the edk2 frontpage"
+	depends on !EDK2_CDK2
 	default y
 	help
 	  Allow edk2 to use the full screen to display the frontpage
@@ -253,13 +257,14 @@ config EDK2_HAVE_EFI_SHELL
 
 config EDK2_PRIORITIZE_INTERNAL
 	bool "Prioritize internal boot devices"
-	depends on !EDK2_REPO_OFFICIAL
+	depends on !EDK2_REPO_OFFICIAL && !EDK2_CDK2
 	default y
 	help
 	  Prioritize internal boot devices over external devices
 
 config EDK2_LOAD_OPTION_ROMS
 	bool "Load and Execute OpROMs on PCIe devices"
+	depends on !EDK2_CDK2
 	default n
 	help
 	  Load and execute OpROMs on PCIe devices.
@@ -273,6 +278,7 @@ config EDK2_PS2_SUPPORT
 
 config EDK2_SD_MMC_TIMEOUT
 	int "Timeout in ms for initializing SD and eMMC devices"
+	depends on !EDK2_CDK2
 	default 10
 	help
 	  The amount of time allowed to initialize the SD Card reader and/or eMMC drive.
@@ -316,6 +322,7 @@ config EDK2_USE_LVGL_RENDERER
 config EDK2_GOP_DRIVER
 	bool "Add a GOP driver to the Tianocore build"
 	depends on INTEL_GMA_ADD_VBT && NO_GFX_INIT && !EDK2_REPO_OFFICIAL
+	depends on !EDK2_CDK2
 	default y if INTEL_GMA_ADD_VBT && NO_GFX_INIT && EDK2_REPO_MRCHROMEBOX
 	help
 	  Select this option to have edk2 use an external GOP driver for display init.
@@ -355,7 +362,7 @@ config EDK2_CUSTOM_BUILD_PARAMS
 
 config EDK2_ENABLE_IPXE
 	bool "Include iPXE in edk2 payload"
-	depends on !EDK2_REPO_OFFICIAL
+	depends on !EDK2_REPO_OFFICIAL && !EDK2_CDK2
 	default n
 	select PXE
 	help
