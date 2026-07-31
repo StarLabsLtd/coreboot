@@ -212,7 +212,7 @@ void arch_write_tables(uintptr_t coreboot_table)
 	if (CONFIG(GENERATE_SMBIOS_TABLES))
 		rom_table_end = write_smbios_table(rom_table_end);
 
-	if (CONFIG(HANDOFF_COREBOOT_TABLES)) {
+	if (CONFIG(HANDOFF_COREBOOT_TABLES) || CONFIG(HANDOFF_UPL_DEVICETREE)) {
 		size_t sz = write_coreboot_forwarding_table(forwarding_table, coreboot_table);
 
 		forwarding_table += sz;
@@ -226,7 +226,7 @@ void arch_write_tables(uintptr_t coreboot_table)
 
 void bootmem_arch_add_ranges(void)
 {
-	if (CONFIG(HANDOFF_COREBOOT_TABLES)) {
+	if (CONFIG(HANDOFF_COREBOOT_TABLES) || CONFIG(HANDOFF_UPL_DEVICETREE)) {
 		/* Memory from 0 through the forwarding_table is reserved. */
 		const uintptr_t base = 0;
 
