@@ -35,18 +35,13 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
 
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
-endif
 BUILD_STR += -t GCC
 BUILD_STR += -D BOOTLOADER=COREBOOT
 ifneq ($(V),1)
 BUILD_STR += -q
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -s
-endif
 endif
 
 #
@@ -402,30 +397,10 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 		fi
 		echo "Success!"; \
 
-$(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
-	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		$(EDK2_ENSURE_FMP_CERT_INC) \
-		echo -n "EDK2: Building... "; \
-		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
-			-D BUILD_ARCH=IA32 --Fit \
-			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
-		if [ ! -f $@ ]; then \
-			echo "Failed!"; \
-			exit 1; \
-		fi
-		echo "Success!"; \
-
 UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd
 	mkdir -p $(dir $(EDK2_UEFIPAYLOAD_OUT))
 	mv $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd \
 		$(EDK2_UEFIPAYLOAD_OUT)
-
-UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
-	mkdir -p $(dir $(EDK2_UNIVERSAL_PAYLOAD_OUT))
-	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
-		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
@@ -433,7 +408,7 @@ clean:
 distclean:
 	rm -rf $(WORKSPACE)
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
