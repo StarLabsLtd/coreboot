@@ -11,8 +11,9 @@ strip_quotes = $(subst ",,$(1))
 EDK2_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_REPOSITORY))
 EDK2_PLATFORMS_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_REPOSITORY))
 EDK2_PATH_REPO_ROOT := $(word 3,$(subst /, ,$(EDK2_REPOSITORY)))
-ifeq ($(CONFIG_EDK2_CDK2),y)
-# Use the repository basename for local/private cdk2 paths.
+ifneq ($(filter /% file:///%,$(EDK2_REPOSITORY)),)
+# Keep local/private edk2 paths from collapsing into workspace/home or
+# workspace/sean.
 EDK2_PATH_REPO_ROOT := $(patsubst %.git,%,$(notdir $(subst :,/,$(patsubst %/,%,$(EDK2_REPOSITORY)))))
 endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
@@ -63,6 +64,24 @@ endif
 ifndef CDK2_NATIVE_OBJCOPY
 CDK2_NATIVE_OBJCOPY := $(OBJCOPY_x86_64)
 endif
+
+CDK2_COREBOOT_CONFIG_KEYS := \
+	CONFIG_CDK2_BUILD_DEBUG \
+	CONFIG_CDK2_SERIAL \
+	CONFIG_CDK2_CBMEM_CONSOLE \
+	CONFIG_CDK2_CBMEM_TIMESTAMPS \
+	CONFIG_CDK2_SMMSTORE \
+	CONFIG_CDK2_CAPSULE \
+	CONFIG_CDK2_CAPSULE_MAIN_FW_GUID \
+	CONFIG_CDK2_SECURE_BOOT \
+	CONFIG_CDK2_SHELL \
+	CONFIG_CDK2_PS2_KEYBOARD \
+	CONFIG_CDK2_TPM12 \
+	CONFIG_CDK2_TPM2 \
+	CONFIG_CDK2_CPU_TIMER \
+	CONFIG_CDK2_BOOT_TIMEOUT \
+	CONFIG_CDK2_LAPIC_TIMER \
+	CONFIG_CDK2_HPET_TIMER
 
 ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
@@ -291,6 +310,7 @@ endif
 # EDK2_USE_LVGL_RENDERER		= FALSE
 ifeq ($(CONFIG_EDK2_USE_LVGL_RENDERER),y)
 BUILD_STR += -D LVGL_ENABLE=TRUE
+EDK2_CDK2_EXTRA_DEFINES += -D LVGL_ENABLE=TRUE
 endif
 
 endif # !CONFIG_EDK2_REPO_OFFICIAL
@@ -518,97 +538,58 @@ cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 	mkdir -p $(EDK2_PATH)/$$cdk2_build_dir; \
 	test -f $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig; \
 	tr -d '\r' < $(EDK2_PATH)/UefiPayloadPkg/cdk2/defconfig > $$cdk2_defconfig; \
-	sed -i \
-		-e '/^CONFIG_CDK2_BUILD_DEBUG=/d' \
-		-e '/^# CONFIG_CDK2_BUILD_DEBUG is not set$$/d' \
-		-e '/^CONFIG_CDK2_SERIAL=/d' \
-		-e '/^# CONFIG_CDK2_SERIAL is not set$$/d' \
-		-e '/^CONFIG_CDK2_CBMEM_CONSOLE=/d' \
-		-e '/^# CONFIG_CDK2_CBMEM_CONSOLE is not set$$/d' \
-		-e '/^CONFIG_CDK2_CBMEM_TIMESTAMPS=/d' \
-		-e '/^# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set$$/d' \
-		-e '/^CONFIG_CDK2_SMMSTORE=/d' \
-		-e '/^# CONFIG_CDK2_SMMSTORE is not set$$/d' \
-		-e '/^CONFIG_CDK2_CAPSULE=/d' \
-		-e '/^# CONFIG_CDK2_CAPSULE is not set$$/d' \
-		-e '/^CONFIG_CDK2_CAPSULE_MAIN_FW_GUID=/d' \
-		-e '/^CONFIG_CDK2_SECURE_BOOT=/d' \
-		-e '/^# CONFIG_CDK2_SECURE_BOOT is not set$$/d' \
-		-e '/^CONFIG_CDK2_SHELL=/d' \
-		-e '/^# CONFIG_CDK2_SHELL is not set$$/d' \
-		-e '/^CONFIG_CDK2_PS2_KEYBOARD=/d' \
-		-e '/^# CONFIG_CDK2_PS2_KEYBOARD is not set$$/d' \
-		-e '/^CONFIG_CDK2_TPM12=/d' \
-		-e '/^# CONFIG_CDK2_TPM12 is not set$$/d' \
-		-e '/^CONFIG_CDK2_TPM2=/d' \
-		-e '/^# CONFIG_CDK2_TPM2 is not set$$/d' \
-		-e '/^CONFIG_CDK2_CPU_TIMER=/d' \
-		-e '/^# CONFIG_CDK2_CPU_TIMER is not set$$/d' \
-		-e '/^CONFIG_CDK2_BOOT_TIMEOUT=/d' \
-		-e '/^CONFIG_CDK2_LAPIC_TIMER=/d' \
-		-e '/^# CONFIG_CDK2_LAPIC_TIMER is not set$$/d' \
-		-e '/^CONFIG_CDK2_HPET_TIMER=/d' \
-		-e '/^# CONFIG_CDK2_HPET_TIMER is not set$$/d' \
-		$$cdk2_defconfig; \
-	if [ "$(CONFIG_EDK2_DEBUG)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_BUILD_DEBUG=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_BUILD_DEBUG is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_SERIAL_SUPPORT)" = "y" ] || [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_SERIAL=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_SERIAL is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_CBMEM_CONSOLE=y CONFIG_CDK2_CBMEM_TIMESTAMPS=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_CBMEM_CONSOLE is not set' '# CONFIG_CDK2_CBMEM_TIMESTAMPS is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_SMMSTORE)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_SMMSTORE=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_SMMSTORE is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_CAPSULE=y >> $$cdk2_defconfig; \
-		printf '%s\n' 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="$(CAPSULE_GUID)"' >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_CAPSULE is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_SECURE_BOOT_SUPPORT)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_SECURE_BOOT=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_SECURE_BOOT is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_HAVE_EFI_SHELL)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_SHELL=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_SHELL is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_PS2_SUPPORT)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_PS2_KEYBOARD=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_PS2_KEYBOARD is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_DISABLE_TPM)" = "y" ]; then \
-		printf '%s\n' '# CONFIG_CDK2_TPM12 is not set' '# CONFIG_CDK2_TPM2 is not set' >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' CONFIG_CDK2_TPM12=y CONFIG_CDK2_TPM2=y >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_CPU_TIMER_LIB)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_CPU_TIMER=y >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_CPU_TIMER is not set' >> $$cdk2_defconfig; \
-	fi; \
-	if [ -n "$(CONFIG_EDK2_BOOT_TIMEOUT)" ]; then \
-		printf '%s\n' 'CONFIG_CDK2_BOOT_TIMEOUT=$(CONFIG_EDK2_BOOT_TIMEOUT)' >> $$cdk2_defconfig; \
-	fi; \
-	if [ "$(CONFIG_EDK2_USE_LAPIC_TIMER)" = "y" ]; then \
-		printf '%s\n' CONFIG_CDK2_LAPIC_TIMER=y '# CONFIG_CDK2_HPET_TIMER is not set' >> $$cdk2_defconfig; \
-	else \
-		printf '%s\n' '# CONFIG_CDK2_LAPIC_TIMER is not set' CONFIG_CDK2_HPET_TIMER=y >> $$cdk2_defconfig; \
-	fi; \
+	cdk2_config_keys=$$cdk2_defconfig.keys; \
+	cdk2_base_config=$$cdk2_defconfig.base; \
+	printf '%s\n' $(CDK2_COREBOOT_CONFIG_KEYS) > $$cdk2_config_keys; \
+	awk 'NR == FNR { keys[$$1] = 1; next } \
+	     /^CONFIG_[A-Za-z0-9_]+=/{ split($$1, key, "="); if (key[1] in keys) next } \
+	     /^# CONFIG_[A-Za-z0-9_]+ is not set$$/{ if ($$2 in keys) next } \
+	     { print }' $$cdk2_config_keys $$cdk2_defconfig > $$cdk2_base_config; \
+	mv $$cdk2_base_config $$cdk2_defconfig; \
+	cdk2_bool() { \
+		if [ "$$2" = "y" ]; then \
+			printf 'CONFIG_%s=y\n' "$$1"; \
+		else \
+			printf '# CONFIG_%s is not set\n' "$$1"; \
+		fi; \
+	}; \
+	{ \
+		cdk2_bool CDK2_BUILD_DEBUG "$(CONFIG_EDK2_DEBUG)"; \
+		if [ "$(CONFIG_EDK2_SERIAL_SUPPORT)" = "y" ] || [ "$(CONFIG_EDK2_CBMEM_LOGGING)" = "y" ]; then \
+			cdk2_bool CDK2_SERIAL y; \
+		else \
+			cdk2_bool CDK2_SERIAL n; \
+		fi; \
+		cdk2_bool CDK2_CBMEM_CONSOLE "$(CONFIG_EDK2_CBMEM_LOGGING)"; \
+		cdk2_bool CDK2_CBMEM_TIMESTAMPS "$(CONFIG_EDK2_CBMEM_LOGGING)"; \
+		cdk2_bool CDK2_SMMSTORE "$(CONFIG_SMMSTORE)"; \
+		cdk2_bool CDK2_CAPSULE "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)"; \
+		if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ]; then \
+			printf 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="%s"\n' "$(CAPSULE_GUID)"; \
+		fi; \
+		cdk2_bool CDK2_SECURE_BOOT "$(CONFIG_EDK2_SECURE_BOOT_SUPPORT)"; \
+		cdk2_bool CDK2_SHELL "$(CONFIG_EDK2_HAVE_EFI_SHELL)"; \
+		cdk2_bool CDK2_PS2_KEYBOARD "$(CONFIG_EDK2_PS2_SUPPORT)"; \
+		if [ "$(CONFIG_EDK2_DISABLE_TPM)" = "y" ]; then \
+			cdk2_bool CDK2_TPM12 n; \
+			cdk2_bool CDK2_TPM2 n; \
+		else \
+			cdk2_bool CDK2_TPM12 y; \
+			cdk2_bool CDK2_TPM2 y; \
+		fi; \
+		cdk2_bool CDK2_CPU_TIMER "$(CONFIG_EDK2_CPU_TIMER_LIB)"; \
+		if [ -n "$(CONFIG_EDK2_BOOT_TIMEOUT)" ]; then \
+			printf 'CONFIG_CDK2_BOOT_TIMEOUT=%s\n' "$(CONFIG_EDK2_BOOT_TIMEOUT)"; \
+		fi; \
+		if [ "$(CONFIG_EDK2_USE_LAPIC_TIMER)" = "y" ]; then \
+			cdk2_bool CDK2_LAPIC_TIMER y; \
+			cdk2_bool CDK2_HPET_TIMER n; \
+		else \
+			cdk2_bool CDK2_LAPIC_TIMER n; \
+			cdk2_bool CDK2_HPET_TIMER y; \
+		fi; \
+	} >> $$cdk2_defconfig; \
+	rm -f $$cdk2_config_keys; \
 	cd $(EDK2_PATH); \
 		unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
 		source edksetup.sh; \

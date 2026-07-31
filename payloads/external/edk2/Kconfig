@@ -305,8 +305,8 @@ config EDK2_SECURE_BOOT_SUPPORT
 
 config EDK2_USE_LVGL_RENDERER
 	bool "Use the LVGL graphical setup renderer"
-	default y if !EDK2_SERIAL_SUPPORT
-	depends on EDK2_REPO_MRCHROMEBOX
+	default y if !EDK2_SERIAL_SUPPORT && EDK2_REPO_MRCHROMEBOX
+	depends on EDK2_REPO_MRCHROMEBOX || EDK2_CDK2
 	help
 	  Render the firmware setup and boot menu with the LVGL-based
 	  graphical HII display engine (LvglDisplayEngineDxe) instead of the
