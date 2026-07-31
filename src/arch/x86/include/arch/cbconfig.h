@@ -10,7 +10,7 @@
  * to have the same name across all architectures.
  */
 
-// coreboot handoff can either be coreboot tables or UPL FDT
+// Size of the coreboot table handoff area.
 #define MAX_COREBOOT_HANDOFF_SIZE 0x8000
 
 #endif
