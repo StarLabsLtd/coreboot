@@ -236,4 +236,8 @@ void bootmem_arch_add_ranges(void)
 		bootmem_add_range((uintptr_t)CONFIG_DEFAULT_EBDA_SEGMENT << 4,
 				CONFIG_DEFAULT_EBDA_SIZE, BM_MEM_TABLE);
 	}
+
+	if (CONFIG(ECAM_MMCONF_SUPPORT))
+		bootmem_add_range(CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+				  CONFIG_ECAM_MMCONF_LENGTH, BM_MEM_RESERVED);
 }
