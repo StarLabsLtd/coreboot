@@ -39,7 +39,7 @@ config EDK2_UNIVERSAL_PAYLOAD
 
 config EDK2_CDK2
 	bool "Build cdk2 native coreboot payload"
-	depends on ARCH_X86 && ARCH_RAMSTAGE_X86_64
+	depends on ARCH_X86
 	help
 	  Build the private cdk2 fork through its coreboot-style Kconfig and Make
 	  entry point. The resulting native ELF is consumed directly as a coreboot
