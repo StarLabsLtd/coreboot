@@ -303,10 +303,19 @@ config EDK2_SECURE_BOOT_SUPPORT
 	  Select this option to enable UEFI SecureBoot support in edk2.
 	  UEFI SecureBoot will be disabled by default and can be enabled from the menu option.
 
+config EDK2_CDK2_SETUP_UI
+	bool "Include cdk2 firmware setup UI"
+	depends on EDK2_CDK2
+	default n
+	help
+	  Include cdk2's HII setup browser, boot-manager UI, and related setup
+	  modules. Leave this disabled for payloads that provide their own setup
+	  surface or only need normal UEFI boot options.
+
 config EDK2_USE_LVGL_RENDERER
 	bool "Use the LVGL graphical setup renderer"
 	default y if !EDK2_SERIAL_SUPPORT && EDK2_REPO_MRCHROMEBOX
-	depends on EDK2_REPO_MRCHROMEBOX || EDK2_CDK2
+	depends on EDK2_REPO_MRCHROMEBOX || (EDK2_CDK2 && EDK2_CDK2_SETUP_UI)
 	help
 	  Render the firmware setup and boot menu with the LVGL-based
 	  graphical HII display engine (LvglDisplayEngineDxe) instead of the
