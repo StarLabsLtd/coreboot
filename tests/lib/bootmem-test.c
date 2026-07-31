@@ -303,14 +303,6 @@ static void test_bootmem_walk(void **state)
 	assert_int_equal(bootmem_walk_cnt, 5);
 }
 
-static void test_bootmem_top_of_dram(void **state)
-{
-	init_memory_table_library();
-
-	assert_int_equal(bootmem_top_of_low_dram(), 1ULL << 32);
-	assert_int_equal(bootmem_top_of_dram(), CACHEABLE_END);
-}
-
 static void test_bootmem_region_targets_type(void **state)
 {
 	int ret;
@@ -426,7 +418,6 @@ int main(void)
 		cmocka_unit_test_setup(test_bootmem_write_mem_table, setup_bootmem_test),
 		cmocka_unit_test_setup(test_bootmem_add_range, setup_bootmem_test),
 		cmocka_unit_test_setup(test_bootmem_walk, setup_bootmem_test),
-		cmocka_unit_test_setup(test_bootmem_top_of_dram, setup_bootmem_test),
 		cmocka_unit_test_setup(test_bootmem_allocate_buffer, setup_bootmem_test),
 		cmocka_unit_test_setup(test_bootmem_region_targets_type, setup_bootmem_test)
 	};

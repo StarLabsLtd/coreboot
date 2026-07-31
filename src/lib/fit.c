@@ -534,9 +534,7 @@ struct fit_config_node *fit_load(void *fit)
 		if (config->firmware) {
 			printk(BIOS_DEBUG, ", firmware %s", config->firmware->name);
 
-			/* Insert firmware's secondary images
-			   - TODO: Consider refactoring this fragment as common code ("loadables")
-				   once EDK2's UPL, the primary consumer, gains support. */
+			/* Insert firmware's secondary images. */
 			struct fit_image_chain *next;
 			list_for_each(image, image_nodes, list_node) {
 				if (strcmp(image->name, config->firmware->name) != 0) {
