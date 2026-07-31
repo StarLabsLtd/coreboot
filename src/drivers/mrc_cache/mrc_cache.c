@@ -576,8 +576,24 @@ static int nvm_protect(const struct region *r)
 	return spi_flash_ctrlr_protect_region(boot_device_spi_flash(), r, WRITE_PROTECT);
 }
 
+static int protect_mrc_cache_region(const char *name, const struct region *region)
+{
+	if (nvm_is_write_protected() <= 0) {
+		printk(BIOS_INFO, "MRC: NOT enabling PRR for '%s'.\n", name);
+		return 0;
+	}
+
+	if (nvm_protect(region) < 0) {
+		printk(BIOS_ERR, "MRC: ERROR setting PRR for '%s'.\n", name);
+		return -1;
+	}
+
+	printk(BIOS_INFO, "MRC: Enabled Protected Range on '%s'.\n", name);
+	return 0;
+}
+
 /* Protect mrc region with a Protected Range Register */
-static int protect_mrc_cache(const char *name)
+static int protect_mrc_cache(const char *name, bool is_optional)
 {
 	struct region region;
 
@@ -585,22 +601,12 @@ static int protect_mrc_cache(const char *name)
 		return 0;
 
 	if (lookup_region_by_name(name, &region) < 0) {
-		printk(BIOS_INFO, "MRC: Could not find region '%s'\n", name);
+		if (!is_optional)
+			printk(BIOS_INFO, "MRC: Could not find region '%s'\n", name);
 		return -1;
 	}
 
-	if (nvm_is_write_protected() <= 0) {
-		printk(BIOS_INFO, "MRC: NOT enabling PRR for '%s'.\n", name);
-		return 0;
-	}
-
-	if (nvm_protect(&region) < 0) {
-		printk(BIOS_ERR, "MRC: ERROR setting PRR for '%s'.\n", name);
-		return -1;
-	}
-
-	printk(BIOS_INFO, "MRC: Enabled Protected Range on '%s'.\n", name);
-	return 0;
+	return protect_mrc_cache_region(name, &region);
 }
 
 static void protect_mrc_region(void)
@@ -610,16 +616,16 @@ static void protect_mrc_region(void)
 	 * RECOVERY_MRC_CACHE and DEFAULT_MRC_CACHE. In that case protect the
 	 * entire region using a single PRR.
 	 *
-	 * If we are not able to protect the entire region, try protecting
-	 * individual regions next.
+	 * If the unified region is absent or we are not able to protect it,
+	 * try protecting individual regions next.
 	 */
-	if (protect_mrc_cache(UNIFIED_MRC_CACHE) == 0)
+	if (protect_mrc_cache(UNIFIED_MRC_CACHE, true) == 0)
 		return;
 
 	if (CONFIG(HAS_RECOVERY_MRC_CACHE))
-		protect_mrc_cache(RECOVERY_MRC_CACHE);
+		protect_mrc_cache(RECOVERY_MRC_CACHE, false);
 
-	protect_mrc_cache(DEFAULT_MRC_CACHE);
+	protect_mrc_cache(DEFAULT_MRC_CACHE, false);
 }
 
 static void invalidate_normal_cache(void)
