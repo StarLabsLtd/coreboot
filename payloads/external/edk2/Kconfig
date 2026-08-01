@@ -273,9 +273,18 @@ config EDK2_LOAD_OPTION_ROMS
 
 config EDK2_PS2_SUPPORT
 	bool "Support PS/2 Keyboards"
+	depends on !EDK2_CDK2
 	default y
 	help
 	  Include support for PS/2 keyboards
+
+config EDK2_CDK2_PS2_KEYBOARD
+	bool "Include cdk2 PS/2 keyboard support"
+	depends on EDK2_CDK2
+	default n
+	help
+	  Include the cdk2 PS/2 keyboard driver path. Leave this disabled on
+	  platforms that do not need legacy PS/2 input.
 
 config EDK2_SD_MMC_TIMEOUT
 	int "Timeout in ms for initializing SD and eMMC devices"
@@ -311,6 +320,14 @@ config EDK2_CDK2_SETUP_UI
 	  Include cdk2's HII setup browser, boot-manager UI, and related setup
 	  modules. Leave this disabled for payloads that provide their own setup
 	  surface or only need normal UEFI boot options.
+
+config EDK2_CDK2_LVGL_RENDERER
+	bool "Use the LVGL graphical setup renderer for cdk2"
+	depends on EDK2_CDK2_SETUP_UI
+	default n
+	help
+	  Render the cdk2 setup UI with LVGL instead of the default text-mode
+	  display engine. This is opt-in and requires the cdk2 setup UI.
 
 config EDK2_USE_LVGL_RENDERER
 	bool "Use the LVGL graphical setup renderer"
