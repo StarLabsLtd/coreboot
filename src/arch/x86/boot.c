@@ -9,7 +9,7 @@
 #include <assert.h>
 
 #if ENV_RAMSTAGE && ENV_X86_64
-void x86_64_efi_call(void (*entry)(void *), void *arg);
+asmlinkage void x86_64_efi_call(void (*entry)(void *), void *arg);
 #endif
 
 int payload_arch_usable_ram_quirk(uint64_t start, uint64_t size)

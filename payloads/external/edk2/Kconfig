@@ -315,7 +315,8 @@ config EDK2_CDK2_SETUP_UI
 config EDK2_USE_LVGL_RENDERER
 	bool "Use the LVGL graphical setup renderer"
 	default y if !EDK2_SERIAL_SUPPORT && EDK2_REPO_MRCHROMEBOX
-	depends on EDK2_REPO_MRCHROMEBOX || (EDK2_CDK2 && EDK2_CDK2_SETUP_UI)
+	depends on !EDK2_CDK2
+	depends on EDK2_REPO_MRCHROMEBOX
 	help
 	  Render the firmware setup and boot menu with the LVGL-based
 	  graphical HII display engine (LvglDisplayEngineDxe) instead of the
@@ -353,6 +354,7 @@ config EDK2_DISABLE_TPM
 
 config EDK2_USE_LAPIC_TIMER
 	bool "Use LAPIC timer instead of HPET"
+	depends on !EDK2_CDK2
 	default n
 	help
 	  Select this option to use the LAPIC timer instead of HPET in edk2. The LAPIC is closer
@@ -360,8 +362,18 @@ config EDK2_USE_LAPIC_TIMER
 	  This setting is at least needed for platforms with Core 2 processors, which are reported
 	  to have issues with HPET.
 
+config EDK2_CDK2_HPET_TIMER
+	bool "Use HPET timer in cdk2"
+	depends on EDK2_CDK2
+	default n
+	help
+	  Use the HPET timer driver in the cdk2 payload. The cdk2 direct-coreboot
+	  default is the local APIC timer; select this only for platforms that
+	  explicitly provide a working HPET interrupt path.
+
 config EDK2_CUSTOM_BUILD_PARAMS
 	string "edk2 additional custom build parameters"
+	depends on !EDK2_CDK2
 	default ""
 	help
 	  edk2 has build options that are not modified by coreboot, and these can be

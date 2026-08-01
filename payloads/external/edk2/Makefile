@@ -162,10 +162,13 @@ endif
 # Zero retains EDK2's automatic probing for platforms without a mapping here.
 ifeq ($(CONFIG_EC_STARLABS_MERLIN),y)
 BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=2
+EDK2_CDK2_EXTRA_DEFINES += -D EC_ACPI_BATTERY_PROFILE=2
 else ifeq ($(CONFIG_EC_GOOGLE_CHROMEEC),y)
 BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=1
+EDK2_CDK2_EXTRA_DEFINES += -D EC_ACPI_BATTERY_PROFILE=1
 else ifeq ($(CONFIG_BOARD_EMULATION_QEMU_X86_Q35),y)
 BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdEcAcpiBatteryProfile=4
+EDK2_CDK2_EXTRA_DEFINES += -D EC_ACPI_BATTERY_PROFILE=4
 endif
 # SHELL_TYPE			= BUILD_SHELL
 ifneq ($(CONFIG_EDK2_HAVE_EFI_SHELL),y)
@@ -342,7 +345,10 @@ BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdFirstTimeWakeUpAPsBySipi=FALSE
 
 # Coreboot already bounds MP initialization to the board's CPU capacity.
 # Pass that bound to EDK2 instead of retaining its generic 1024-CPU default.
+ifneq ($(CONFIG_MAX_CPUS),)
 BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber=$(CONFIG_MAX_CPUS)
+EDK2_CDK2_EXTRA_DEFINES += -D MAX_LOGICAL_PROCESSORS=$(CONFIG_MAX_CPUS)
+endif
 
 # coreboot produces SMBIOS 3.0.0 tables
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdSmbiosVersion=0x0300
@@ -410,6 +416,21 @@ $(EDK2_PATH): $(WORKSPACE)
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
 		git submodule update $(EDK2_SUBMODULE_FLAGS)
+ifeq ($(CONFIG_EDK2_CDK2),y)
+	cd $(EDK2_PATH); \
+		expected_rev=$$(git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{commit}); \
+		actual_rev=$$(git rev-parse HEAD); \
+		if [ -z "$$expected_rev" ]; then \
+			echo "ERROR: $(CONFIG_EDK2_TAG_OR_REV) is not a cdk2 commit"; \
+			exit 1; \
+		fi; \
+		if [ "$$actual_rev" != "$$expected_rev" ]; then \
+			echo "ERROR: cdk2 checkout revision mismatch"; \
+			echo "ERROR: expected $$expected_rev from $(CONFIG_EDK2_TAG_OR_REV)"; \
+			echo "ERROR: found $$actual_rev in $(EDK2_PATH)"; \
+			exit 1; \
+		fi
+endif
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -587,12 +608,12 @@ cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 		if [ -n "$(CONFIG_EDK2_BOOT_TIMEOUT)" ]; then \
 			printf 'CONFIG_CDK2_BOOT_TIMEOUT=%s\n' "$(CONFIG_EDK2_BOOT_TIMEOUT)"; \
 		fi; \
-		if [ "$(CONFIG_EDK2_USE_LAPIC_TIMER)" = "y" ]; then \
-			cdk2_bool CDK2_LAPIC_TIMER y; \
-			cdk2_bool CDK2_HPET_TIMER n; \
-		else \
-			cdk2_bool CDK2_LAPIC_TIMER n; \
+		if [ "$(CONFIG_EDK2_CDK2_HPET_TIMER)" = "y" ]; then \
 			cdk2_bool CDK2_HPET_TIMER y; \
+			cdk2_bool CDK2_LAPIC_TIMER n; \
+		else \
+			cdk2_bool CDK2_HPET_TIMER n; \
+			cdk2_bool CDK2_LAPIC_TIMER y; \
 		fi; \
 	} >> $$cdk2_defconfig; \
 	rm -f $$cdk2_config_keys; \
@@ -639,16 +660,16 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
 	test -x "$(EDK2_GENERATE_CAPSULE)"
+	command -v python3 >/dev/null
+	command -v openssl >/dev/null
+	test -n "$(EDK2_APPEND_RMAP_MANIFEST)" || { echo "ERROR: AppendRmapManifest.py not found; refusing to generate unrestricted capsule."; exit 1; }
+	test -f "$(EDK2_APPEND_RMAP_MANIFEST)"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
 	set -e; \
-	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
-	else \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
-	fi; \
+	python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
 	embedded_driver_args=(); \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
 		test -f "$(EDK2_FMP_DXE)"; \
@@ -668,7 +689,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
 		capflags+=( --capflag InitiateReset ); \
 	fi; \
-	"$(EDK2_GENERATE_CAPSULE)" -e -o "$(COREBOOT_CAPSULE_OUT)" \
+	PYTHON_COMMAND=python3 "$(EDK2_GENERATE_CAPSULE)" -e -o "$(COREBOOT_CAPSULE_OUT)" \
 		--guid "$(CAPSULE_GUID)" \
 		"$${capflags[@]}" \
 		--fw-version $$fw_version --lsv $$lsv \
