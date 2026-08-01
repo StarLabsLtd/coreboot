@@ -4,38 +4,10 @@ if PAYLOAD_EDK2
 
 config PAYLOAD_FILE
 	string "edk2 binary"
-	default "\$(obj)/UEFIPAYLOAD.fd" if EDK2_UEFIPAYLOAD
-	default "\$(obj)/UniversalPayload.fit" if EDK2_UNIVERSAL_PAYLOAD
 	default "\$(obj)/cdk2-coreboot-image.elf" if EDK2_CDK2
+	default "\$(obj)/UEFIPAYLOAD.fd"
 	help
 	  The result of a UefiPayloadPkg build
-
-choice
-	prompt "EDK II build type"
-	default EDK2_UEFIPAYLOAD
-	help
-	  Select the build type for edk2. UniversalPayload is recommended, as it is
-	  replacing UefiPayloadPkg. Whilst in the transition phase between the two,
-	  both options exist.
-
-config EDK2_UEFIPAYLOAD
-	bool "Build UefiPayloadPkg"
-	help
-	  Build the standard UefiPayloadPkg
-
-config EDK2_UNIVERSAL_PAYLOAD
-	bool "Build Universal Payload"
-	select PAYLOAD_FIT_SUPPORT
-	help
-	  Select this option if you want to build a coreboot image
-	  with EDK2s Universal Payload. If you don't know what this is
-	  about, just leave it enabled.
-
-	  Universal Payload should ideally only be built from upstream EDK2,
-	  https://github.com/tianocore/edk2, as this is regularly build tested
-	  and it encourages patches to be merged upstream.
-
-	  See https://universalscalablefirmware.github.io/documentation/ for more information.
 
 config EDK2_CDK2
 	bool "Build cdk2 native coreboot payload"
@@ -45,12 +17,9 @@ config EDK2_CDK2
 	  entry point. The resulting native ELF is consumed directly as a coreboot
 	  payload; this does not use the UniversalPayload FIT wrapper.
 
-endchoice
-
 choice
 	prompt "Tianocore's EDK II payload"
 	default EDK2_REPO_CUSTOM if EDK2_CDK2
-	default EDK2_REPO_OFFICIAL if EDK2_UNIVERSAL_PAYLOAD
 	default EDK2_REPO_MRCHROMEBOX
 	help
 	  Select which type of payload edk2 will build (default is UefiPayload)

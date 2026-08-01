@@ -60,7 +60,6 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
 EDK2_CDK2_OUT ?= ../../../build/cdk2-coreboot-image.elf
 HOSTCC ?= cc
 ifndef CDK2_NATIVE_CC
@@ -90,14 +89,14 @@ CDK2_COREBOOT_CONFIG_KEYS := \
 	CONFIG_CDK2_LAPIC_TIMER \
 	CONFIG_CDK2_HPET_TIMER
 
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
-BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
+ifneq ($(CONFIG_EDK2_CDK2),y)
+	BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
 endif
 BUILD_STR += -t GCC
 BUILD_STR += -D BOOTLOADER=COREBOOT
 ifneq ($(V),1)
 BUILD_STR += -q
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
+ifneq ($(CONFIG_EDK2_CDK2),y)
 BUILD_STR += -s
 endif
 endif
@@ -533,30 +532,10 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 		fi
 		echo "Success!"; \
 
-$(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
-	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		$(EDK2_ENSURE_FMP_CERT_INC) \
-		echo -n "EDK2: Building... "; \
-		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
-			-D BUILD_ARCH=IA32 --Fit \
-			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
-		if [ ! -f $@ ]; then \
-			echo "Failed!"; \
-			exit 1; \
-		fi
-		echo "Success!"; \
-
 UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd
 	mkdir -p $(dir $(EDK2_UEFIPAYLOAD_OUT))
 	mv $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd \
 		$(EDK2_UEFIPAYLOAD_OUT)
-
-UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
-	mkdir -p $(dir $(EDK2_UNIVERSAL_PAYLOAD_OUT))
-	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
-		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
 cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 	set -e; \
@@ -653,7 +632,7 @@ endif
 distclean:
 	rm -rf $(WORKSPACE)
 
-.PHONY: $(EDK2_PATH) checktools checktools_cdk2 logo UefiPayloadPkg UniversalPayload cdk2 clean distclean
+.PHONY: $(EDK2_PATH) checktools checktools_cdk2 logo UefiPayloadPkg cdk2 clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
