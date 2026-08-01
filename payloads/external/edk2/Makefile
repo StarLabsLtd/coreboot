@@ -24,7 +24,7 @@ endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
 
 ifeq ($(CONFIG_EDK2_CDK2),y)
-EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/Build/cdk2-coreboot/basetools/Python/BinWrappers/PosixLike/GenerateCapsule
+EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
 else
 EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
 endif
