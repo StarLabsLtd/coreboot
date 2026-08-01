@@ -391,14 +391,14 @@ config EDK2_CDK2_HPET_TIMER
 
 config EDK2_CUSTOM_BUILD_PARAMS
 	string "edk2 additional custom build parameters"
-	depends on !EDK2_CDK2
 	default ""
 	help
 	  edk2 has build options that are not modified by coreboot, and these can be
 	  found in `UefiPayloadPkg/UefiPayloadPkg.dsc`. Forks may also support
 	  additional build options that should have been upstreamed but have not.
 
-	  This option can support both macros `-D` and Pcds `--pcd`.
+	  This option can support both macros `-D` and Pcds `--pcd`. cdk2
+	  payloads receive these options through CDK2_EXTRA_DEFINES.
 
 config EDK2_ENABLE_IPXE
 	bool "Include iPXE in edk2 payload"
