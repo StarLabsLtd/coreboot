@@ -104,6 +104,7 @@ static bool is_valid_touchpad_haptics(uint32_t value)
 	       (!CONFIG(STARLABS_TOUCHPAD_CST) && value == STARLABS_TOUCHPAD_HAPTICS_MIN);
 }
 
+#if CONFIG(STARLABS_TOUCHPAD_CST)
 static bool is_valid_touchpad_press_force(uint32_t value)
 {
 	return value == STARLABS_TOUCHPAD_PRESS_FORCE_MINIMAL ||
@@ -121,6 +122,7 @@ static bool is_valid_touchpad_release_force(uint32_t value)
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HIGH ||
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HULK;
 }
+#endif
 
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 static bool is_valid_touchpad_report_rate(uint32_t value)
@@ -226,6 +228,7 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
 		.fallback = STARLABS_TOUCHPAD_HAPTICS_DEFAULT,
 	},
+#if CONFIG(STARLABS_TOUCHPAD_CST)
 	{
 		.name = "touchpad_force_press",
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
@@ -236,6 +239,7 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.id = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
 		.fallback = STARLABS_TOUCHPAD_RELEASE_FORCE_DEFAULT,
 	},
+#endif
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	{
 		.name = "touchpad_report_rate",
@@ -357,10 +361,12 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
 		return is_valid_touchpad_haptics(*value) ? CB_SUCCESS : CB_ERR_ARG;
+#if CONFIG(STARLABS_TOUCHPAD_CST)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
 		return is_valid_touchpad_press_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
 	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
 		return is_valid_touchpad_release_force(*value) ? CB_SUCCESS : CB_ERR_ARG;
+#endif
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
 		return is_valid_touchpad_report_rate(*value) ? CB_SUCCESS : CB_ERR_ARG;
