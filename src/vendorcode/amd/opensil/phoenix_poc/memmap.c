@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cbmem.h>
 #include <SilCommon.h>
 #include <Sil-api.h> // needed above ApobCmn.h
 #include <APOB/Common/ApobCmn.h>
@@ -45,7 +46,15 @@ const char *opensil_get_hole_info_type(uint32_t type)
 
 void opensil_get_hole_info(uint32_t *n_holes, uint64_t *top_of_mem, void **hole_info)
 {
-        SIL_STATUS status = xPrfGetSystemMemoryMap(n_holes, top_of_mem, hole_info);
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
+	if (!SilContext.SilMemBaseAddress)
+		die("OpenSIL cbmem memory not found!\n");
+
+	SIL_STATUS status = xPrfGetSystemMemoryMap(&SilContext, n_holes, top_of_mem, hole_info);
 	SIL_STATUS_report("xPrfGetSystemMemoryMap", status);
 	// Make sure hole_info does not get initialized to something odd by xPRF on failure
 	if (status != SilPass) {

@@ -102,9 +102,15 @@ config SOC_AMD_PHOENIX_FSP
 
 config SOC_AMD_PHOENIX_OPENSIL
 	bool
+	select HAVE_X86_64_SUPPORT
+	select USE_X86_64_SUPPORT
 	select SOC_AMD_PHOENIX_BASE
 	select SOC_AMD_OPENSIL
 	select OPENSIL_DRIVER
+	select SOC_AMD_OPENSIL_PHOENIX_POC
+	select UDK_2017_BINDING
+	help
+	  AMD Phoenix support using OpenSIL (Proof of Comcept)
 
 if SOC_AMD_PHOENIX_BASE
 
@@ -126,6 +132,9 @@ config EARLY_RESERVED_DRAM_BASE
 config EARLYRAM_BSP_STACK_SIZE
 	hex
 	default 0x1000
+
+config STACK_SIZE
+	default 0x8000 if SOC_AMD_PHOENIX_OPENSIL
 
 config PSP_APOB_DRAM_ADDRESS
 	hex
@@ -373,11 +382,3 @@ config FSP_TEMP_RAM_SIZE
 	  The amount of coreboot-allocated heap and stack usage by the FSP.
 
 endif # SOC_AMD_PHOENIX_FSP
-
-if SOC_AMD_PHOENIX_OPENSIL
-
-config SOC_AMD_OPENSIL_STUB
-	prompt "Build with openSIL stub"
-	default y
-
-endif # SOC_AMD_PHOENIX_OPENSIL
