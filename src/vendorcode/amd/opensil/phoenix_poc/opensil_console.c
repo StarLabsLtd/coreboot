@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <console/console.h>
-#include "opensil_console.h"
 #include <SilCommon.h>
 
 static int translate_opensil_debug_level(size_t MsgLevel)
@@ -24,17 +23,35 @@ static int translate_opensil_debug_level(size_t MsgLevel)
 	}
 }
 
-void HostDebugService(size_t MsgLevel, const char *SilPrefix, const char *Message,
-				 const char *Function, size_t Line, ...)
+
+void
+SilTracePoint (size_t SilMsgLevel, const char *SilPrefix, const char  *Message,
+			 const char  *Function, size_t Line, ...)
 {
 	if (!CONFIG(OPENSIL_DEBUG_OUTPUT))
 		return;
 
-	const int loglevel = translate_opensil_debug_level(MsgLevel);
+	const int loglevel = translate_opensil_debug_level(SilMsgLevel);
 
-	/* print fomatted prefix */
-	if (CONFIG(OPENSIL_DEBUG_PREFIX))
-		printk(loglevel, "%s%s:%zu:", SilPrefix, Function, Line);
+	/* print formatted prefix */
+	if (CONFIG(OPENSIL_DEBUG_PREFIX)) {
+		switch (SilMsgLevel) {
+		case SIL_TRACE_RAW: break; // Raw print do nothing
+		case SIL_TRACE_ENTRY:
+			printk(loglevel, "%s Enter %s:%zu:", SilPrefix, Function, Line);
+			break;
+		case SIL_TRACE_EXIT:
+			printk(loglevel, "%s Exit %s:%zu:", SilPrefix, Function, Line);
+			break;
+		case SIL_TRACE_ERROR:
+		case SIL_TRACE_WARNING:
+		case SIL_TRACE_INFO:
+		/* fallthrough */
+		default:
+			printk(loglevel, "%s%s:%zu:", SilPrefix, Function, Line);
+			break;
+		}
+	}
 
 	/* print formatted message */
 	va_list args;

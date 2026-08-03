@@ -1,19 +1,60 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cbmem.h>
 #include <device/device.h>
 #include <device/pci_def.h>
-#include <Mpio/Common/MpioStructs.h>
+#include <CCX/Common/CcxApic.h>
+#include <GFX/GfxClass-api.h>
 #include <Mpio/MpioClass-api.h>
+#include <Mpio/Phx/MpioPhxData.h>
 #include <Nbio/NbioClass-api.h>
 #include <RcMgr/DfX/RcManager-api.h>
+#include <soc/iomap.h>
 #include <vendorcode/amd/opensil/opensil.h>
 #include <xSIM-api.h>
+#include <static.h>
 
 #include "chip.h"
 
-static void mpio_params_config(void)
+static MPIO_DDI_DESCRIPTOR ddi_descriptor_list[DDI_DESCRIPTOR_COUNT];
+
+static void mpio_params_config(SIL_CONTEXT *SilContext)
 {
-	MPIOCLASS_INPUT_BLK *mpio_data = SilFindStructure(SilId_MpioClass, 0);
+	const struct soc_amd_phoenix_config *config = config_of_soc();
+	MPIOCLASS_COMMON_INPUT_BLK *mpio_data = SilFindStructure(SilContext, SilId_MpioClass, 0);
+	MPIOCLASS_PHX_INPUT_BLK *phx_data = SilFindStructure(SilContext, SilId_MpioClass, 1);
+	struct device *gnb = DEV_PTR(gnb);
+	struct device *iommu = DEV_PTR(iommu);
+	struct device *psp = DEV_PTR(crypto);
+	struct device *nbif = pcidev_on_root(8, 0);
+	struct device *acp = DEV_PTR(acp);
+	struct device *hda = DEV_PTR(hda);
+	struct device *mp2 = DEV_PTR(mp2);
+	struct device *gfx = DEV_PTR(gfx);
+	struct device *gfx_hda = DEV_PTR(gfx_hda);
+	struct device *nbifrc = DEV_PTR(gpp_bridge_a);
+
+	phx_data->AcpController = is_dev_enabled(acp);
+	phx_data->CfgHdAudioEnable = is_dev_enabled(hda);
+	phx_data->CfgSensorHubEnable = is_dev_enabled(mp2);
+
+	if (pcidev_get_ssid(acp))
+		phx_data->CfgAcpSsid = pcidev_get_ssid(acp);
+	if (pcidev_get_ssid(gfx))
+		phx_data->AmdCfgGnbIGPUSSID = pcidev_get_ssid(gfx);
+	if (pcidev_get_ssid(gfx_hda))
+		phx_data->AmdCfgGnbIGPUAudioSSID = pcidev_get_ssid(gfx_hda);
+	if (pcidev_get_ssid(nbifrc))
+		phx_data->CfgNbifRCSsid = pcidev_get_ssid(nbifrc);
+	if (pcidev_get_ssid(gnb))
+		mpio_data->CfgNbioSsid = pcidev_get_ssid(gnb);
+	if (pcidev_get_ssid(iommu))
+		mpio_data->CfgIommuSsid  = pcidev_get_ssid(iommu);
+	if (pcidev_get_ssid(psp))
+		mpio_data->CfgPspccpSsid = pcidev_get_ssid(psp);
+	if (pcidev_get_ssid(nbif))
+		mpio_data->CfgNbifF0Ssid = pcidev_get_ssid(nbif);
+
 	mpio_data->CfgDxioClockGating                  = 1;
 	mpio_data->PcieDxioTimingControlEnable         = 0;
 	mpio_data->PCIELinkReceiverDetectionPolling    = 0;
@@ -49,14 +90,8 @@ static void mpio_params_config(void)
 	mpio_data->CfgPcieAriSupport                   = 1;
 	mpio_data->CfgNbioCTOtoSC                      = 0;
 	mpio_data->CfgNbioCTOIgnoreError               = 1;
-	mpio_data->CfgNbioSsid                         = 0;
-	mpio_data->CfgIommuSsid                        = 0;
-	mpio_data->CfgPspccpSsid                       = 0;
 	mpio_data->CfgNtbccpSsid                       = 0;
-	mpio_data->CfgNbifF0Ssid                       = 0;
 	mpio_data->CfgNtbSsid                          = 0;
-	mpio_data->AmdPcieSubsystemDeviceID            = 0x1453;
-	mpio_data->AmdPcieSubsystemVendorID            = 0x1022;
 	mpio_data->GppAtomicOps                        = 1;
 	mpio_data->GfxAtomicOps                        = 1;
 	mpio_data->AmdNbioReportEdbErrors              = 0;
@@ -67,7 +102,6 @@ static void mpio_params_config(void)
 	mpio_data->CfgEarlyLink                        = 0;
 	mpio_data->AmdCfgExposeUnusedPciePorts         = 1; // Show all ports
 	mpio_data->CfgForcePcieGenSpeed                = 0;
-	mpio_data->CfgSataPhyTuning                    = 0;
 	mpio_data->PcieLinkComplianceModeAllPorts      = 0;
 	mpio_data->AmdMCTPEnable                       = 0;
 	mpio_data->SbrBrokenLaneAvoidanceSup           = 1;
@@ -86,57 +120,81 @@ static void mpio_params_config(void)
 	/* TODO handle this differently on multisocket */
 	mpio_data->PcieTopologyData.PlatformData[0].Flags = DESCRIPTOR_TERMINATE_LIST;
 	mpio_data->PcieTopologyData.PlatformData[0].PciePortList = mpio_data->PcieTopologyData.PortList;
+	for (size_t i = 0; i < ARRAY_SIZE(config->ddi); i++) {
+		const struct ddi_descriptor *ddi = &config->ddi[i];
+
+		ddi_descriptor_list[i].Ddi.ConnectorType = ddi->connector_type;
+		/* openSIL inserts the no-retimer Type-C connector before DP-without-Type-C. */
+		if (ddi->connector_type >= DDI_DP_WO_TYPEC)
+			ddi_descriptor_list[i].Ddi.ConnectorType++;
+		ddi_descriptor_list[i].Ddi.AuxIndex = ddi->aux_index;
+		ddi_descriptor_list[i].Ddi.HdpIndex = ddi->hdp_index;
+	}
+	ddi_descriptor_list[DDI_DESCRIPTOR_COUNT - 1].Flags = DESCRIPTOR_TERMINATE_LIST;
+	mpio_data->PcieTopologyData.PlatformData[0].DdiLinkList = ddi_descriptor_list;
 }
 
-static void nbio_params_config(void)
+WEAK_DEV_PTR(usb4_router_0);
+WEAK_DEV_PTR(usb4_pcie_bridge_0);
+WEAK_DEV_PTR(usb4_router_1);
+WEAK_DEV_PTR(usb4_pcie_bridge_1);
+
+static void nbio_params_config(SIL_CONTEXT *SilContext)
 {
-	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilId_NbioClass, 0);
-	NBIOCLASS_INPUT_BLK *input = &nbio_data->NbioInputBlk;
-	input->CfgHdAudioEnable           = false;
+	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilContext, SilId_NbioClass, 0);
+	GFXCLASS_INPUT_BLK *gfx_data = SilFindStructure(SilContext, SilId_GfxClass, 0);
+	NBIO_CONFIG_DATA *input = &nbio_data->NbioConfigData;
+	input->IoApicMMIOAddressReservedEnable = false;
+	input->CfgGnbIoapicAddress        = GNB_IO_APIC_ADDR;
+	if (CONFIG(IOAPIC_USE_PRESET_ID)) {
+		input->IoApicIdPreDefineEn = 1;
+		input->IoApicIdBase        = 33;
+	}
 	input->EsmEnableAllRootPorts      = false;
 	input->EsmTargetSpeed             = 16;
 	input->CfgRxMarginPersistenceMode = 1;
-	input->CfgDxioFrequencyVetting    = false;
-	input->CfgSkipPspMessage          = 1;
-	input->CfgEarlyTrainTwoPcieLinks  = false;
-	input->EarlyBmcLinkTraining       = true;
-	input->EdpcEnable                 = 0;
-	input->PcieAerReportMechanism     = 2;
 	input->SevSnpSupport              = false;
-}
+	input->IommuAvicSupport           = true;
+	input->IommuSupport               = is_dev_enabled(DEV_PTR(iommu));
+	input->CfgAzaliaEnable            = is_dev_enabled(DEV_PTR(gfx_hda));
+	input->Usb4Rt0En                  = is_dev_enabled(DEV_PTR(usb4_router_0));
+	input->Usb4Rt0PcieTnlEn           = is_dev_enabled(DEV_PTR(usb4_pcie_bridge_0));
+	input->Usb4Rt1En                  = is_dev_enabled(DEV_PTR(usb4_router_1));
+	input->Usb4Rt1PcieTnlEn           = is_dev_enabled(DEV_PTR(usb4_pcie_bridge_1));
+	gfx_data->Usb4Rt0En               = input->Usb4Rt0En;
+	gfx_data->Usb4Rt1En               = input->Usb4Rt1En;
 
-static void setup_bmc_lanes(uint8_t lane, uint8_t socket)
-{
-	DFX_RCMGR_INPUT_BLK *rc_mgr_input_block = SilFindStructure(SilId_RcManager,  0);
-	rc_mgr_input_block->BmcSocket = socket;
-	rc_mgr_input_block->EarlyBmcLinkLaneNum = lane;
-
-	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilId_NbioClass, 0);
-	NBIOCLASS_INPUT_BLK *nbio_input = &nbio_data->NbioInputBlk;
-	nbio_input->EarlyBmcLinkSocket         = socket;
-	nbio_input->EarlyBmcLinkLaneNum        = lane;
-	nbio_input->EarlyBmcLinkDie            = 0;
-
-	MPIOCLASS_INPUT_BLK *mpio_data = SilFindStructure(SilId_MpioClass, 0);
-	mpio_data->EarlyBmcLinkSocket                  = socket;
-	mpio_data->EarlyBmcLinkLaneNum                 = lane;
-	mpio_data->EarlyBmcLinkDie                     = 0;
+	if (CONFIG(XAPIC_ONLY) || CONFIG(X2APIC_LATE_WORKAROUND))
+		input->AmdApicMode = xApicMode;
+	else if (CONFIG(X2APIC_ONLY))
+		input->AmdApicMode = x2ApicMode;
+	else
+		input->AmdApicMode = ApicAutoMode;
 }
 
 void opensil_mpio_per_device_config(struct device *dev)
 {
 	/* Cache *mpio_data from SilFindStructure */
-	static MPIOCLASS_INPUT_BLK *mpio_data = NULL;
+	static MPIOCLASS_COMMON_INPUT_BLK *mpio_data = NULL;
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
 	if (mpio_data == NULL) {
-		mpio_data = SilFindStructure(SilId_MpioClass, 0);
+		mpio_data = SilFindStructure(&SilContext, SilId_MpioClass, 0);
+		if (!mpio_data) {
+			printk(BIOS_ERR, "Could not find OpenSIL MPIO data\n");
+			return;
+		}
 	}
 
-	static uint32_t slot_num;
 	const uint32_t domain = dev_get_domain_id(dev);
 	const uint32_t devfn = dev->path.pci.devfn;
 	const struct drivers_amd_opensil_mpio_config *const config = dev->chip_info;
-	printk(BIOS_DEBUG, "Setting MPIO port for domain 0x%x, PCI %d:%d\n",
-	       domain, PCI_SLOT(devfn), PCI_FUNC(devfn));
+	if (is_pci(dev))
+		printk(BIOS_DEBUG, "Setting MPIO port for domain 0x%x, PCI %d:%d\n",
+		       domain, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	if (config->type == IFTYPE_UNUSED) {
 		if (is_dev_enabled(dev)) {
@@ -148,56 +206,59 @@ void opensil_mpio_per_device_config(struct device *dev)
 		return;
 	}
 
-	if (config->bmc) {
-		setup_bmc_lanes(config->start_lane, 0); // TODO support multiple sockets
-		return;
-	}
-
-	static int mpio_port = 0;
-	MPIO_PORT_DESCRIPTOR port = { .Flags = DESCRIPTOR_TERMINATE_LIST };
 	if (config->type == IFTYPE_PCIE) {
-		const MPIO_ENGINE_DATA engine_data =
-			MPIO_ENGINE_DATA_INITIALIZER(MpioPcieEngine,
-						     config->start_lane, config->end_lane,
-						     config->hotplug == HotplugDisabled ? 0 : 1,
-						     config->gpio_group);
-		port.EngineData = engine_data;
-		const MPIO_PORT_DATA port_data =
-			MPIO_PORT_DATA_INITIALIZER_PCIE(is_dev_enabled(dev) ?
-								MpioPortEnabled : MpioPortDisabled,
-							PCI_SLOT(devfn),
-							PCI_FUNC(devfn),
-							config->hotplug,
-							config->speed,
-							0, // No backup PCIe speed
-							config->aspm,
-							config->aspm_l1_1,
-							config->aspm_l1_2,
-							config->clock_pm);
-		port.Port = port_data;
-		port.Port.ClkReq = config->clk_req;
-	} else if (config->type == IFTYPE_SATA) {
-		const MPIO_ENGINE_DATA engine_data =
-			MPIO_ENGINE_DATA_INITIALIZER(MpioSATAEngine,
-						     config->start_lane, config->end_lane,
-						     0, // meaningless field
-						     config->gpio_group);
-		port.EngineData = engine_data;
-		const MPIO_PORT_DATA port_data = { .PortPresent = 1 };
-		port.Port = port_data;
+		static uint32_t slot_num;
+		static int mpio_port = 0;
 
+		MPIO_PORT_DESCRIPTOR port = {
+			.Flags = DESCRIPTOR_TERMINATE_LIST,
+			.EngineData = {
+				.EngineType = MpioPcieEngine,
+				.StartLane = config->start_lane,
+				.EndLane = config->end_lane,
+				.HotPluggable = config->hotplug != HotplugDisabled,
+				.GpioGroupId = config->gpio_group,
+			},
+			.Port = {
+				.PortPresent = is_dev_enabled(dev) ? MpioPortEnabled : MpioPortDisabled,
+				.DeviceNumber = PCI_SLOT(devfn),
+				.FunctionNumber = PCI_FUNC(devfn),
+				.LinkHotplug = config->hotplug,
+				.LinkSpeedCapability = config->speed,
+				.LinkAspm = config->aspm,
+				.LinkAspmL1_1 = config->aspm_l1_1,
+				.LinkAspmL1_2 = config->aspm_l1_2,
+				.MiscControls = {
+					.ClkPmSupport = config->clock_pm,
+					.TurnOffUnusedLanes = 1,
+				},
+			},
+		};
+		port.Port.ClkReq = config->clk_req;
+		port.Port.MiscControls.SbLink = config->sb_link;
+
+		if (pcidev_get_ssid(dev)) {
+			mpio_data->AmdPcieSubsystemVendorID = dev->subsystem_vendor;
+			mpio_data->AmdPcieSubsystemDeviceID = dev->subsystem_device;
+		}
+
+		port.Port.AlwaysExpose = 1;
+		port.Port.SlotNum = ++slot_num;
+		mpio_data->PcieTopologyData.PortList[mpio_port] = port;
+		/* Update TERMINATE list */
+		if (mpio_port > 0)
+			mpio_data->PcieTopologyData.PortList[mpio_port - 1].Flags = 0;
+		mpio_port++;
 	}
-	port.Port.AlwaysExpose = 1;
-	port.Port.SlotNum = ++slot_num;
-	mpio_data->PcieTopologyData.PortList[mpio_port] = port;
-	/* Update TERMINATE list */
-	if (mpio_port > 0)
-		mpio_data->PcieTopologyData.PortList[mpio_port - 1].Flags = 0;
-	mpio_port++;
 }
 
 void opensil_mpio_global_config(void)
 {
-	mpio_params_config();
-	nbio_params_config();
+	SIL_CONTEXT SilContext = {
+		.ApobBaseAddress = CONFIG_PSP_APOB_DRAM_ADDRESS,
+		.SilMemBaseAddress = (uintptr_t)cbmem_find(CBMEM_ID_AMD_OPENSIL)
+	};
+
+	mpio_params_config(&SilContext);
+	nbio_params_config(&SilContext);
 }
