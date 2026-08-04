@@ -61,7 +61,7 @@ bios_size=$(CONFIG_C_ENV_BOOTBLOCK_SIZE)
 $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template
 	sed -e "s,##APOB_BASE##,$(CONFIG_PSP_APOB_DRAM_ADDRESS)," \
 	    -e "s,##BIOS_ENTRY_BASE##,$(bios_base)," \
-	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size) ," \
+	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size)," \
 		$< > $@
 
 $(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
