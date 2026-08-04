@@ -18,6 +18,7 @@ c_args = ['-nostdinc',
           # openSIL isn't compatible with coreboot's assert implementation, so use special case
           '-D_PORTING_H_=1',
           '-DSIL_DEBUG_ENABLE=##SIL_DEBUG_ENABLE##',
+          '-Dasm=__asm__',
           # openSIL uses coreboot assert which uses printk which warns about unused-param
           '-Wno-unused-parameter',
           # ubiquitous problem in openSIL
