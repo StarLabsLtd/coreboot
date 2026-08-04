@@ -64,12 +64,22 @@ $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template
 	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size)," \
 		$< > $@
 
-$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
+$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(OBJPATH)/config.h $(objutil)/kconfig/conf
+	mkdir -p $(OBJPATH)/opensil/config; \
 	cd $(opensil_dir); \
 		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KBUILD_DEFCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KCONFIG_AUTOHEADER=$@ \
-		$(PYTHON) util/kconfig/lib/genconfig.py \
-			--config-out $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+		KCONFIG_AUTOCONFIG=$(OBJPATH)/opensil_auto.conf \
+		KCONFIG_DEPENDENCIES=$(OBJPATH)/opensil_auto.conf.cmd \
+		KCONFIG_SPLITCONFIG=$(OBJPATH)/opensil/config/ \
+		KCONFIG_RUSTCCFG=$(OBJPATH)/opensil_config.rustcfg \
+		DOTCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KCONFIG_NEGATIVES=1 \
+		KCONFIG_WERROR=1 \
+		KCONFIG_WARN_UNKNOWN_SYMBOLS=1 \
+		KCONFIG_PACKAGE=openSIL.Config \
+		$(top)/$(objutil)/kconfig/conf --defconfig $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
 
 # meson handles ccache on its own
 OPENSIL_COMPILER=$(filter-out $(CCACHE), $(CC_ramstage))
