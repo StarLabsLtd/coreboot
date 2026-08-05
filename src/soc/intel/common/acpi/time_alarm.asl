@@ -4,8 +4,8 @@
 
 #define AWAC_GPE		0x72
 #define AWAC_WADT_AC		0x1800
-#define AWAC_GCP_S4		0x35
-#define AWAC_GCP_S5		0x75
+#define AWAC_GCP_S4		0xa7
+#define AWAC_GCP_S5		0x1e7
 #define RTC_DISABLED		0xffffffff
 #define RTC_SET			0x80
 #define RTC_UIP			0x80
@@ -163,20 +163,13 @@ Scope (\_SB)
 	Device (AWAC)
 	{
 		Name (_HID, "ACPI000E")
-		Method (_DEP, 0)
-		{
-			Return (Package () { \_SB.PCI0.LPCB.RTC })
-		}
-		Name (ACAR, 0)
-		Name (ACEX, 0)
-		Name (ACWS, 0)
-		Name (WAIN, 0)
+		Name (WAST, 0)
+		Name (WTTR, 0)
 		Mutex (WATL, 0)
 
 		Method (RWIN, 0)
 		{
 			Acquire (WATL, 0xffff)
-			WAIN = 0
 			Release (WATL)
 		}
 
@@ -208,121 +201,88 @@ Scope (\_SB)
 		Method (_GWS, 1, Serialized)
 		{
 			Local0 = 0
-			If (Arg0 != 0)
-			{
-				Return (Local0)
-			}
 
 			Acquire (WATL, 0xffff)
-			If (!WAIN)
+			If (Arg0 == 0)
 			{
-				If (\WATS)
+				If ((ACWA == RTC_DISABLED) && (WTTR & 1))
 				{
-					ACEX = 1
-					ACWS = 1
-					ACAR = 0
-					\WATS = 0
+					Local0 |= 1
+					WTTR ^= 1
 				}
-				WAIN = 1
 			}
-
-			If (ACAR && (ACWA == RTC_DISABLED))
-			{
-				ACEX = 1
-				ACAR = 0
-			}
-
-			If (ACEX)
+			ElseIf ((DCWA == RTC_DISABLED) && (WTTR & 2))
 			{
 				Local0 |= 1
+				WTTR ^= 2
 			}
 
-			If (ACWS)
-			{
-				Local0 |= 2
-			}
+				If (\WATS || WAST)
+				{
+					Local0 |= 2
+					\WATS = 0
+					WAST = 0
+				}
 
-			ACEX = 0
-			ACWS = 0
 			Release (WATL)
 			Return (Local0)
 		}
 
 		Method (_CWS, 1)
 		{
-			If (Arg0 != 0)
-			{
-				Return (1)
-			}
-
-			Acquire (WATL, 0xffff)
-			WAIN = 1
-			\WATS = 0
-			ACEX = 0
-			ACWS = 0
-			If (ACWA == RTC_DISABLED)
-			{
-				ACAR = 0
-			}
-			Release (WATL)
 			Return (0)
 		}
 
 		Method (_STP, 2)
 		{
-			If (Arg0 != 0)
+			If (Arg0 == 0)
 			{
-				Return (1)
+				ACET = Arg1
+			}
+			Else
+			{
+				DCET = Arg1
 			}
 
-			ACET = Arg1
 			Return (0)
 		}
 
 		Method (_STV, 2, Serialized)
 		{
-			If (Arg0 != 0)
-			{
-				Return (1)
-			}
-
 			Acquire (WATL, 0xffff)
-			WAIN = 1
-			\WATS = 0
-			ACWA = Arg1
-			ACEX = 0
-			ACWS = 0
-			If (Arg1 == RTC_DISABLED)
+			If (Arg0 == 0)
 			{
-				ACAR = 0
+				ACWA = Arg1
+				WTTR |= 1
 			}
 			Else
 			{
-				ACAR = 1
+				DCWA = Arg1
+				WTTR |= 2
 			}
-
 			Release (WATL)
+
 			Return (0)
 		}
 
 		Method (_TIP, 1)
 		{
-			If (Arg0 != 0)
+			If (Arg0 == 0)
 			{
-				Return (RTC_DISABLED)
+				Return (ACET)
 			}
 
-			Return (ACET)
+			Return (DCET)
 		}
 
 		Method (_TIV, 1)
 		{
-			If (Arg0 != 0)
+			If (Arg0 == 0)
 			{
-				Return (RTC_DISABLED)
+				Return (ACWA)
 			}
 
-			Return (ACWA)
+			Return (DCWA)
 		}
 	}
 }
@@ -334,8 +294,7 @@ Scope (\_GPE)
 		If (CondRefOf (\_SB.AWAC))
 		{
 			Acquire (\_SB.AWAC.WATL, 0xffff)
-			\_SB.AWAC.ACEX = 1
-			\_SB.AWAC.ACAR = 0
+			\_SB.AWAC.WAST = 1
 			Release (\_SB.AWAC.WATL)
 			Notify (\_SB.AWAC, 0x02)
 		}
