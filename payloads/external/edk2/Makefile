@@ -23,6 +23,10 @@ EDK2_PATH_REPO_ROOT := $(call edk2_repo_basename,$(EDK2_REPOSITORY))
 endif
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
 
+ifeq ($(CDK2_BACKEND),native)
+CONFIG_EDK2_CDK2_BACKEND_NATIVE := y
+endif
+
 ifeq ($(CONFIG_EDK2_CDK2),y)
 EDK2_GENERATE_CAPSULE := $(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule
 else
@@ -36,6 +40,10 @@ ifeq ($(CONFIG_EDK2_CDK2),y)
 # development repositories into every Coreboot build.
 EDK2_CLONE_FLAGS := --no-recurse-submodules
 EDK2_SUBMODULE_FLAGS := --init --checkout
+endif
+EDK2_SUBMODULE_UPDATE := git submodule update $(EDK2_SUBMODULE_FLAGS)
+ifeq ($(CONFIG_EDK2_CDK2_BACKEND_NATIVE),y)
+EDK2_SUBMODULE_UPDATE := :
 endif
 
 define edk2_abspath
@@ -364,6 +372,25 @@ BUILD_STR += $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)
 EDK2_CDK2_EXTRA_DEFINES += $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)
 endif
 
+CDK2_BACKEND ?= edk2
+CDK2_BACKEND_MAKE_ARGS := \
+	CDK2_BACKEND="$(CDK2_BACKEND)" \
+	CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64
+CDK2_BACKEND_PREP = \
+	unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
+	source edksetup.sh; \
+	unset CC CXX AR; MAKEFLAGS= MFLAGS= MAKEOVERRIDES= $(MAKE) -C BaseTools 2>&1
+CDK2_CHECKTOOLS := checktools_cdk2
+
+ifeq ($(CONFIG_EDK2_CDK2_BACKEND_NATIVE),y)
+override CDK2_BACKEND := native
+CDK2_BACKEND_MAKE_ARGS := \
+	CDK2_BACKEND=native \
+	CDK2_PAYLOAD_FV="$(CDK2_PAYLOAD_FV)"
+CDK2_BACKEND_PREP = :
+CDK2_CHECKTOOLS :=
+endif
+
 ifeq ($(CONFIG_EDK2_CDK2),y)
 all: cdk2
 else
@@ -394,9 +421,9 @@ $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
 		git clone $(EDK2_CLONE_FLAGS) $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
 	fi
-	# FDF RAW paths are relative to WORKSPACE, not PACKAGES_PATH.  Keep cdk2
-	# third-party objects visible when the repository is staged below WORKSPACE.
-	if [ -d "$(EDK2_PATH)/3rdparty" ]; then \
+	@# FDF RAW paths are relative to WORKSPACE, not PACKAGES_PATH. Keep cdk2
+	@# third-party objects visible when the repository is staged below WORKSPACE.
+	@if [ "$(CONFIG_EDK2_CDK2_BACKEND_NATIVE)" != "y" ] && [ -d "$(EDK2_PATH)/3rdparty" ]; then \
 		if [ -L "$(WORKSPACE)/3rdparty" ] && [ "$$(readlink "$(WORKSPACE)/3rdparty")" != "$(EDK2_PATH)/3rdparty" ]; then \
 			rm "$(WORKSPACE)/3rdparty"; \
 		fi; \
@@ -415,11 +442,11 @@ $(EDK2_PATH): $(WORKSPACE)
 		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
 			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
 			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-		git submodule update $(EDK2_SUBMODULE_FLAGS); \
+		$(EDK2_SUBMODULE_UPDATE); \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update $(EDK2_SUBMODULE_FLAGS)
+		$(EDK2_SUBMODULE_UPDATE)
 ifeq ($(CONFIG_EDK2_CDK2),y)
 	cd $(EDK2_PATH); \
 		expected_rev=$$(git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{commit}); \
@@ -493,12 +520,14 @@ checktools_cdk2:
 	type nasm > /dev/null 2>&1 && echo "        Found!" || \
 		( echo "        Not found!"; echo "ERROR: Please install nasm."; exit 1 )
 
+ifneq ($(CONFIG_EDK2_CDK2_BACKEND_NATIVE),y)
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yy)
 capsule_keys: $(EDK2_PATH)
 	$(EDK2_ENSURE_FMP_CERT_INC)
 
 prep: capsule_keys
 EDK2_CDK2_DEPS += capsule_keys
+endif
 endif
 
 print:
@@ -561,7 +590,7 @@ UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
 	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
 		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
-cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
+cdk2: $(EDK2_PATH) $(CDK2_CHECKTOOLS) $(EDK2_CDK2_DEPS)
 	set -e; \
 	cdk2_build_dir=Build/cdk2-coreboot; \
 	cdk2_defconfig=$(EDK2_PATH)/$$cdk2_build_dir/coreboot.defconfig; \
@@ -622,16 +651,14 @@ cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 	} >> $$cdk2_defconfig; \
 	rm -f $$cdk2_config_keys; \
 	cd $(EDK2_PATH); \
-		unset WORKSPACE PACKAGES_PATH EDK_TOOLS_PATH CONF_PATH CC CFLAGS CPPFLAGS LDFLAGS; \
-		source edksetup.sh; \
-		unset CC CXX AR; MAKEFLAGS= MFLAGS= MAKEOVERRIDES= $(MAKE) -C BaseTools 2>&1; \
+		$(CDK2_BACKEND_PREP); \
 		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
 			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
 			$(if $(CDK2_NATIVE_OBJCOPY),CDK2_NATIVE_OBJCOPY="$(CDK2_NATIVE_OBJCOPY)") \
 			$(if $(EDK2_CDK2_EXTRA_DEFINES),CDK2_EXTRA_DEFINES="$(EDK2_CDK2_EXTRA_DEFINES)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
-			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
+			$(CDK2_BACKEND_MAKE_ARGS) \
 			-f UefiPayloadPkg/cdk2/Makefile defconfig; \
 		$(MAKE) MAKEOVERRIDES= CC="$(HOSTCC)" \
 			$(if $(CDK2_NATIVE_CC),CDK2_NATIVE_CC="$(CDK2_NATIVE_CC)") \
@@ -639,7 +666,7 @@ cdk2: $(EDK2_PATH) checktools_cdk2 $(EDK2_CDK2_DEPS)
 			$(if $(EDK2_CDK2_EXTRA_DEFINES),CDK2_EXTRA_DEFINES="$(EDK2_CDK2_EXTRA_DEFINES)") \
 			CDK2_BUILD_DIR=$$cdk2_build_dir \
 			CDK2_DEFCONFIG=$$cdk2_defconfig \
-			CDK2_BACKEND_OUTPUT_DIRECTORY=$$cdk2_build_dir/edk2/UefiPayloadPkgX64 \
+			$(CDK2_BACKEND_MAKE_ARGS) \
 			-f UefiPayloadPkg/cdk2/Makefile build; \
 	cdk2_image=$(EDK2_PATH)/$$cdk2_build_dir/native/cdk2-coreboot-image.elf; \
 	test -s $$cdk2_image; \

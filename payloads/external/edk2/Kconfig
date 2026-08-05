@@ -48,6 +48,40 @@ config EDK2_CDK2
 
 endchoice
 
+if EDK2_CDK2
+
+choice
+	prompt "cdk2 backend"
+	default EDK2_CDK2_BACKEND_EDK2
+	help
+	  Select the producer for the firmware volume embedded by the native cdk2
+	  coreboot payload image.
+
+config EDK2_CDK2_BACKEND_EDK2
+	bool "EDK II backend"
+	help
+	  Build the cdk2 firmware volume through the EDK II backend. This remains
+	  the compatibility path while the native backend is brought up.
+
+config EDK2_CDK2_BACKEND_NATIVE
+	bool "Native backend with prebuilt FV"
+	help
+	  Build only the native cdk2 coreboot image and embed a supplied flat
+	  payload firmware volume. This path does not invoke edksetup.sh, EDK II
+	  BaseTools, Python build wrappers, or the EDK II build command.
+
+endchoice
+
+config EDK2_CDK2_PAYLOAD_FV
+	string "Prebuilt cdk2 payload FV"
+	depends on EDK2_CDK2_BACKEND_NATIVE
+	help
+	  Path to a flat payload firmware volume consumed by the native cdk2
+	  backend. This is an interim input until the FV producer is replaced by
+	  coreboot-style native rules.
+
+endif
+
 choice
 	prompt "Tianocore's EDK II payload"
 	default EDK2_REPO_CUSTOM if EDK2_CDK2

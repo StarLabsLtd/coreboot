@@ -59,6 +59,7 @@ source "payloads/external/*/Kconfig"
 
 config PAYLOAD_OWNS_PCI_DEVICES
 	bool
+	default n if HANDOFF_UPL_DEVICETREE
 	default y if PAYLOAD_EDK2
 	help
 	  Select this when the payload takes ownership of PCI devices after
@@ -207,10 +208,16 @@ config PAYLOAD_FIT_SUPPORT
 	  In case the Payload is added afterwards (e.g. using cbfstool), one
 	  can enable this option in combination with PAYLOAD_NONE=y.
 
-# PAYLOAD_NONE only means that coreboot does not add a payload to CBFS. A
-# payload may be added later, so the selected handoff still has to be built.
-config HANDOFF_COREBOOT_TABLES
-	bool
-	default y
+	# PAYLOAD_NONE only means that coreboot does not add a payload to CBFS. A
+	# payload may be added later, so the selected handoff still has to be built.
+	config HANDOFF_UPL_DEVICETREE
+		bool
+		default EDK2_UNIVERSAL_PAYLOAD
+		depends on PAYLOAD_FIT_SUPPORT
+
+	config HANDOFF_COREBOOT_TABLES
+		bool
+		default n if HANDOFF_UPL_DEVICETREE
+		default y
 
 endmenu

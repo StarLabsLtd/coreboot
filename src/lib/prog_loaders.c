@@ -166,12 +166,12 @@ void payload_load(void)
 
 	switch (prog_cbfs_type(payload)) {
 	case CBFS_TYPE_SELF: /* Simple ELF */
-		/*
-		 * cdk2's native payload is an ELF64 image, but its entry point is
-		 * Cdk2CorebootEntry32, a protected-mode trampoline that switches
-		 * itself to long mode. Leave the architecture unset so x86_64
-		 * ramstage enters it through protected_mode_call_1arg().
-		 */
+			/*
+			 * cdk2's native payload is an ELF64 image, but its entry point is
+			 * cdk2_coreboot_entry32, a protected-mode trampoline that switches
+			 * itself to long mode. Leave the architecture unset so x86_64
+			 * ramstage enters it through protected_mode_call_1arg().
+			 */
 		selfload_mapped(payload, mapping, BM_MEM_RAM);
 		break;
 	case CBFS_TYPE_FIT_PAYLOAD: /* Flattened image tree */
