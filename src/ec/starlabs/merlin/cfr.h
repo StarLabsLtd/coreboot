@@ -72,6 +72,20 @@ static const struct sm_object max_charge = SM_DECLARE_ENUM({
 });
 
 /*
+ * Power Reporting
+ */
+static const struct sm_object power_reporting = SM_DECLARE_ENUM({
+	.opt_name	= "power_reporting",
+	.ui_name	= "Power Reporting",
+	.ui_helptext	= "Control battery discharge reporting while external power is connected.",
+	.default_value	= POWER_REPORTING_TRUTHFUL,
+	.values		= (const struct sm_enum_value[]) {
+			{ "Truthful",	POWER_REPORTING_TRUTHFUL	},
+			{ "Quiet",	POWER_REPORTING_QUIET		},
+			SM_ENUM_VALUE_END				},
+});
+
+/*
  * Fan Mode
  */
 static const struct sm_object fan_mode = SM_DECLARE_ENUM({
