@@ -61,6 +61,7 @@ static void merlin_restore_options(void *unused)
 	 * lid_switch
 	 * power_led
 	 * power_on_ac
+	 * power_reporting
 	 */
 
 	/*
@@ -269,6 +270,22 @@ static void merlin_restore_options(void *unused)
 			 get_ec_value_from_option("power_on_ac",
 						  ADAPTER_AUTO_POWER_ON_DEFAULT,
 						  power_on_ac, ARRAY_SIZE(power_on_ac)));
+
+	/*
+	 * Power Reporting
+	 *
+	 * Setting:	power_reporting
+	 *
+	 * Values:	Truthful, Quiet
+	 * Default:	Truthful
+	 *
+	 */
+	const uint8_t power_reporting[] = {POWER_REPORTING_TRUTHFUL, POWER_REPORTING_QUIET};
+
+	if (CONFIG(EC_STARLABS_POWER_REPORTING))
+		ec_write(ECRAM_POWER_REPORTING,
+			 get_ec_value_from_option("power_reporting", POWER_REPORTING_TRUTHFUL,
+						  power_reporting, ARRAY_SIZE(power_reporting)));
 }
 BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_ENTRY, merlin_restore_options, NULL);
 

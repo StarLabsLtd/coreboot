@@ -119,6 +119,10 @@ void merlin_fill_ssdt(const struct device *dev);
 /* Adapter auto power-on */
 #define ADAPTER_AUTO_POWER_ON_DEFAULT	CONFIG(SYSTEM_TYPE_MINIPC)
 
+/* Power reporting */
+#define POWER_REPORTING_TRUTHFUL	0x00
+#define POWER_REPORTING_QUIET		0x01
+
 uint16_t ec_get_version(void);
 
 #endif
