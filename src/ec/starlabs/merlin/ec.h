@@ -128,6 +128,10 @@ enum automatic_start {
 #define AUTOMATIC_START_DEFAULT	(CONFIG(SYSTEM_TYPE_MINIPC) ? AUTOMATIC_START_ALWAYS : \
 				 AUTOMATIC_START_NEVER)
 
+/* Power reporting */
+#define POWER_REPORTING_TRUTHFUL	0x00
+#define POWER_REPORTING_QUIET		0x01
+
 uint16_t ec_get_version(void);
 
 #endif
