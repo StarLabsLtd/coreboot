@@ -137,6 +137,9 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_MAX_CHARGE)
 		&max_charge,
 		#endif
+		#if CONFIG(EC_STARLABS_POWER_REPORTING)
+		&power_reporting,
+		#endif
 		#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 		&power_on_ac,
 		#endif
