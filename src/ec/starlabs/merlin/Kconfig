@@ -45,6 +45,11 @@ config EC_STARLABS_FAN
 	help
 	  Select if the mainboard has a fan.
 
+config EC_STARLABS_POWER_REPORTING
+	bool
+	help
+	  Select if the mainboard supports configuring battery discharge reporting.
+
 config EC_STARLABS_KBL_LEVELS
 	bool
 	default n
