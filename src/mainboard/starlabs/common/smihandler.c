@@ -170,6 +170,13 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.fallback = ADAPTER_AUTO_POWER_ON_DEFAULT,
 	},
 #endif
+#if CONFIG(EC_STARLABS_POWER_REPORTING)
+	{
+		.name = "power_reporting",
+		.id = STARLABS_EFIOPT_ID_POWER_REPORTING,
+		.fallback = POWER_REPORTING_TRUTHFUL,
+	},
+#endif
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 	{
 		.name = "touchpad_haptics",
@@ -334,6 +341,12 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
 #endif
+#if CONFIG(EC_STARLABS_POWER_REPORTING)
+	case STARLABS_EFIOPT_ID_POWER_REPORTING:
+		if (*value == POWER_REPORTING_TRUTHFUL || *value == POWER_REPORTING_QUIET)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
 		if (is_valid_touchpad_haptics(*value))
@@ -442,6 +455,10 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 	case STARLABS_EFIOPT_ID_POWER_ON_AC:
 		return apply_ec_value(ECRAM_POWER_ON_AC, value);
+#endif
+#if CONFIG(EC_STARLABS_POWER_REPORTING)
+	case STARLABS_EFIOPT_ID_POWER_REPORTING:
+		return apply_ec_value(ECRAM_POWER_REPORTING, value);
 #endif
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
