@@ -29,6 +29,7 @@
 #define ECRAM_LID_SWITCH		dead_code_t(uint8_t)
 #define ECRAM_POWER_LED			0x1f
 #define ECRAM_POWER_ON_AC		dead_code_t(uint8_t)
+#define ECRAM_POWER_REPORTING		dead_code_t(uint8_t)
 #define ECRAM_BATTERY_DESIGN_CAPACITY	0x84
 #define ECRAM_BATTERY_DESIGN_VOLTAGE	0x86
 
