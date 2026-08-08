@@ -1,5 +1,14 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config CDK2_LOCAL_APIC_TIMER_FREQUENCY_HZ
+	int
+	default 1000000000 if BOARD_EMULATION_QEMU_X86_Q35
+	default 0
+	help
+	  Authoritative input clock, in Hz, for the local APIC timer. Platforms
+	  must provide this explicitly before CDK2 can replace its retained timer
+	  driver; zero suppresses the handoff record rather than guessing.
+
 if PAYLOAD_CDK2
 
 source "payloads/external/cdk2/cdk2/Kconfig"

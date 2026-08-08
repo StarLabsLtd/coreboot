@@ -251,6 +251,21 @@ static void lb_smm_register_info(struct lb_header *header)
 #endif
 }
 
+static void lb_local_apic_timer_info(struct lb_header *header)
+{
+#if CONFIG(PAYLOAD_CDK2)
+	struct lb_local_apic_timer_info *info;
+
+	info = (struct lb_local_apic_timer_info *)lb_new_record(header);
+	*info = (struct lb_local_apic_timer_info) {
+		.tag = LB_TAG_LOCAL_APIC_TIMER_INFO,
+		.size = sizeof(*info),
+		.revision = 1,
+		.frequency_hz = CONFIG_CDK2_LOCAL_APIC_TIMER_FREQUENCY_HZ,
+	};
+#endif
+}
+
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
 		  size_t count)
 {
@@ -703,6 +718,7 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMRAM range for payload SMM protocol initialization. */
 	lb_smram(head);
 	lb_smm_register_info(head);
+	lb_local_apic_timer_info(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
