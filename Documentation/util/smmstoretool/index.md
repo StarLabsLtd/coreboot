@@ -49,6 +49,15 @@ Sub-commands:
 
 Then run `smmstoretool rom help sub-command-name` to get more details.
 
+The `init` subcommand creates an empty variable-store firmware volume when
+the selected SMMSTORE region is erased. It is idempotent: an already valid
+store is left unchanged. This is useful when preparing a writable QEMU pflash
+image before its first boot:
+
+```
+smmstoretool coreboot.rom init
+```
+
 ## Data types
 
 EFI variables in the storage don't have an associated data type and it needs to

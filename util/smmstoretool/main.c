@@ -26,12 +26,14 @@ struct subcommand_t {
 static void help_get(FILE *f, const struct subcommand_t *info);
 static void help_guids(FILE *f, const struct subcommand_t *info);
 static void help_help(FILE *f, const struct subcommand_t *info);
+static void help_init(FILE *f, const struct subcommand_t *info);
 static void help_list(FILE *f, const struct subcommand_t *info);
 static void help_remove(FILE *f, const struct subcommand_t *info);
 static void help_set(FILE *f, const struct subcommand_t *info);
 static int process_get(int argc, char *argv[], const char store_file[]);
 static int process_guids(int argc, char *argv[], const char store_file[]);
 static int process_help(int argc, char *argv[], const char store_file[]);
+static int process_init(int argc, char *argv[], const char store_file[]);
 static int process_list(int argc, char *argv[], const char store_file[]);
 static int process_remove(int argc, char *argv[], const char store_file[]);
 static int process_set(int argc, char *argv[], const char store_file[]);
@@ -54,6 +56,12 @@ static const struct subcommand_t sub_commands[] = {
 		.description = "provide built-in help",
 		.print_help = &help_help,
 		.process = &process_help,
+	},
+	{
+		.name = "init",
+		.description = "initialize an empty variable store",
+		.print_help = &help_init,
+		.process = &process_init,
 	},
 	{
 		.name = "list",
@@ -130,6 +138,28 @@ static void print_types(FILE *f)
 	fprintf(f, " * unicode (widened and NUL-terminated)\n");
 	fprintf(f, " * file (input only; file contents as variable)\n");
 	fprintf(f, " * raw (output only; raw bytes on output)\n");
+}
+
+static void help_init(FILE *f, const struct subcommand_t *info)
+{
+	fprintf(f, "Initialize an empty variable store if it is not formatted:\n");
+	fprintf(f, "  %s smm-store-file|rom %s\n", program_name, info->name);
+}
+
+static int process_init(int argc, char *argv[], const char store_file[])
+{
+	struct storage_t storage;
+
+	if (argc != 1) {
+		fprintf(stderr, "Invalid invocation\n");
+		print_sub_command_usage(argv[0]);
+	}
+
+	if (!storage_open(store_file, &storage, /*rw=*/true))
+		return EXIT_FAILURE;
+
+	storage_drop(&storage);
+	return EXIT_SUCCESS;
 }
 
 static void help_set(FILE *f, const struct subcommand_t *info)

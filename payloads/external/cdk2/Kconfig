@@ -1,0 +1,23 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+if PAYLOAD_CDK2
+
+source "payloads/external/cdk2/cdk2/Kconfig"
+
+config CDK2_RETAINED_FV
+	string "Transitional retained firmware volume"
+	help
+	  Path to the reviewed retained-module firmware volume. This input is
+	  temporary and must be removed when CDK2's retained inventory reaches
+	  zero. The build fails if the file or its expected SHA-256 is absent.
+
+config CDK2_RETAINED_FV_SHA256
+	string "Expected retained firmware-volume SHA-256"
+	depends on CDK2_RETAINED_FV != ""
+	help
+	  Exact lowercase SHA-256 of CDK2_RETAINED_FV.
+
+config PAYLOAD_FILE
+	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"
+
+endif
