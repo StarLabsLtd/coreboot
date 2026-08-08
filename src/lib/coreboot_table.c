@@ -23,6 +23,10 @@
 #if CONFIG(ARCH_X86)
 #include <cpu/x86/smm.h>
 #endif
+#if CONFIG(SOUTHBRIDGE_INTEL_COMMON_PMBASE)
+#include <southbridge/intel/common/pmbase.h>
+#include <southbridge/intel/common/pmutil.h>
+#endif
 #include <bootmem.h>
 #include <bootsplash.h>
 #include <inttypes.h>
@@ -182,6 +186,68 @@ static void lb_smram(struct lb_header *header)
 	smram->size = sizeof(*smram);
 	smram->physical_start = base;
 	smram->physical_size = size;
+#endif
+}
+
+static void lb_smm_register_info(struct lb_header *header)
+{
+	(void)header;
+#if CONFIG(SOUTHBRIDGE_INTEL_COMMON_PMBASE)
+	struct lb_smm_register_info *info;
+	uint16_t smi_en;
+
+	if (!CONFIG(HAVE_SMI_HANDLER))
+		return;
+
+	smi_en = lpc_get_pmbase() + SMI_EN;
+	if (smi_en == SMI_EN)
+		return;
+
+	info = (struct lb_smm_register_info *)lb_new_record(header);
+	*info = (struct lb_smm_register_info){
+		.tag = LB_TAG_SMM_REGISTER_INFO,
+		.size = sizeof(*info),
+		.revision = 1,
+		.count = 4,
+		.registers = {
+			{
+				.id = 1,
+				.value = 1,
+				.address_space_id = 1,
+				.register_bit_width = 1,
+				.register_bit_offset = 0,
+				.access_size = 3,
+				.address = smi_en,
+			},
+			{
+				.id = 3,
+				.value = 1,
+				.address_space_id = 1,
+				.register_bit_width = 1,
+				.register_bit_offset = 1,
+				.access_size = 3,
+				.address = smi_en,
+			},
+			{
+				.id = 4,
+				.value = 1,
+				.address_space_id = 1,
+				.register_bit_width = 1,
+				.register_bit_offset = 5,
+				.access_size = 3,
+				.address = smi_en,
+			},
+			{
+				.id = 5,
+				.value = 1,
+				.address_space_id = 1,
+				.register_bit_width = 1,
+				.register_bit_offset = 5,
+				.access_size = 3,
+				.address = smi_en + (SMI_STS - SMI_EN),
+			},
+		},
+	};
 #endif
 }
 
@@ -636,6 +702,7 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* SMRAM range for payload SMM protocol initialization. */
 	lb_smram(head);
+	lb_smm_register_info(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
