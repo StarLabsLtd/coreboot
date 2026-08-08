@@ -95,6 +95,7 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_SMRAM			= 0x004c,
 	LB_TAG_SMM_REGISTER_INFO	= 0x004d,
+	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -187,6 +188,14 @@ struct lb_smm_register_info {
 	uint16_t reserved;
 	uint32_t count;
 	struct lb_smm_generic_register registers[4];
+} __packed;
+
+struct lb_local_apic_timer_info {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t reserved;
+	lb_uint64_t frequency_hz;
 } __packed;
 
 struct lb_pcie {
