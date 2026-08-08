@@ -20,6 +20,9 @@
 #include <fw_config.h>
 #include <cbfs.h>
 #include <cbmem.h>
+#if CONFIG(ARCH_X86)
+#include <cpu/x86/smm.h>
+#endif
 #include <bootmem.h>
 #include <bootsplash.h>
 #include <inttypes.h>
@@ -157,6 +160,29 @@ static void lb_framebuffer(struct lb_header *header)
 		unsigned int depth = framebuffer->bits_per_pixel;
 		set_bootsplash(fb_ptr, width, height, bytes_per_line, depth);
 	}
+}
+
+static void lb_smram(struct lb_header *header)
+{
+	(void)header;
+#if CONFIG(ARCH_X86)
+	struct lb_smram *smram;
+	uintptr_t base;
+	size_t size;
+
+	if (!CONFIG(HAVE_SMI_HANDLER))
+		return;
+
+	smm_region(&base, &size);
+	if (size == 0)
+		return;
+
+	smram = (struct lb_smram *)lb_new_record(header);
+	smram->tag = LB_TAG_SMRAM;
+	smram->size = sizeof(*smram);
+	smram->physical_start = base;
+	smram->physical_size = size;
+#endif
 }
 
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
@@ -607,6 +633,9 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+
+	/* SMRAM range for payload SMM protocol initialization. */
+	lb_smram(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
