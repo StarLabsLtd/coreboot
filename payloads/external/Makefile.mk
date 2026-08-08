@@ -157,6 +157,54 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 
 # edk2
 
+# cdk2
+
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+CDK2_SOURCE := payloads/external/cdk2/cdk2
+CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
+CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
+CDK2_RETAINED_FV := $(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV))
+CDK2_RETAINED_FV_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV_SHA256))
+
+$(CDK2_PAYLOAD): $(DOTCONFIG) $(objutil)/kconfig/conf
+	@test "$(CONFIG_SMMSTORE)" = y || { \
+		echo "CDK2 requires CONFIG_SMMSTORE=y for the coreboot handoff" >&2; \
+		exit 1; \
+	}
+	@test -n "$(CDK2_RETAINED_FV)" || { \
+		echo "CDK2_RETAINED_FV is required until the retained inventory reaches zero" >&2; \
+		exit 1; \
+	}
+	@test -f "$(CDK2_RETAINED_FV)" || { \
+		echo "CDK2 retained FV does not exist: $(CDK2_RETAINED_FV)" >&2; \
+		exit 1; \
+	}
+	@test -n "$(CDK2_RETAINED_FV_SHA256)" || { \
+		echo "CDK2_RETAINED_FV_SHA256 is required" >&2; \
+		exit 1; \
+	}
+	@printf '%s  %s\n' "$(CDK2_RETAINED_FV_SHA256)" "$(CDK2_RETAINED_FV)" | sha256sum -c -
+	+$(MAKE) -C $(CDK2_SOURCE) retained-fv-check native-fvinfo \
+		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))"
+	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		HOSTCC="$(HOSTCC)" CC=cc \
+		LD=ld OBJCOPY="$(OBJCOPY_x86_64)" \
+		NM="$(NM_x86_64)"
+	+$(MAKE) -C $(CDK2_SOURCE) native-coreboot-image \
+		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_CONFIG="$(abspath $(CDK2_OUTPUT))/.config" \
+		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		CDK2_PAYLOAD_FV="$(abspath $(CDK2_RETAINED_FV))" \
+		HOSTCC="$(HOSTCC)" CC=cc LD=ld \
+		CDK2_NATIVE_OBJCOPY="$(OBJCOPY_x86_64)" \
+		CDK2_NATIVE_NM="$(NM_x86_64)"
+
+endif
+
 ifeq ($(CONFIG_EDK2_ENABLE_IPXE),y)
 IPXE_EFI := payloads/external/iPXE/ipxe/ipxe.rom
 endif
