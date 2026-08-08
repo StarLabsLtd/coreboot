@@ -6,6 +6,8 @@ test-help help::
 	@echo  '                         Skip tests by setting env vars JENKINS_SKIP_x_TESTS'
 	@echo  '                         to 'y' where x is: CLANG, GCC, LINT, TOOL, or UNIT'
 	@echo  '  lint / lint-stable   - Run coreboot lint tools (all / minimal)'
+	@echo  '  test-cdk2            - Run CDK2-owned checks explicitly'
+	@echo  '  test-cdk2-qemu       - Build and boot the integrated Q35 ROM'
 	@echo  '  test-basic           - Run standard build tests. All expected to pass.'
 	@echo  '  test-lint            - Basic: Run stable and extended lint tests.'
 	@echo  '  test-tools           - Basic: Tests a basic list of tools.'
@@ -92,6 +94,9 @@ validate_sec_tools:
 	fi
 
 what-jenkins-does: test-cleanup validate_sec_tools
+ifneq ($(JENKINS_SKIP_CDK2_TESTS),y)
+	+$(MAKE) test-cdk2 test-cdk2-qemu
+endif
 ifneq ($(JENKINS_SKIP_LINT_TESTS),y)
 	JUNIT=--junit $(MAKE) test-lint
 endif
@@ -110,6 +115,18 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 endif
 
 test-basic: test-lint test-tools test-abuild test-payloads test-cleanup
+
+test-cdk2: build/util/kconfig/conf
+	@test -f payloads/external/cdk2/cdk2/Makefile || { \
+		echo "CDK2 submodule is not initialized" >&2; \
+		exit 1; \
+	}
+	+$(MAKE) -C payloads/external/cdk2/cdk2 what-jenkins-does \
+		CDK2_KCONFIG_TOOL="$(abspath build/util/kconfig/conf)" \
+		CDK2_NATIVE_CC=cc CDK2_NATIVE_HOST_CC=cc
+
+test-cdk2-qemu: test-cdk2
+	util/testing/cdk2-qemu-test
 
 test-lint:
 	util/lint/lint lint-stable $(JUNIT)
@@ -179,5 +196,5 @@ test-cleanup:
 	$(MAKE) -C src/soc/nvidia/tegra210/lp0 clean
 
 .PHONY: test-basic test-lint test-abuild test-payloads
-.PHONY: test-tools test-cleanup test-help
+.PHONY: test-tools test-cleanup test-help test-cdk2 test-cdk2-qemu
 .PHONY: lint lint-stable what-jenkins-does

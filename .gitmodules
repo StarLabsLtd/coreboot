@@ -79,3 +79,6 @@
 	url = https://github.com/openSIL/openSIL.git
 	branch = turin_poc
 
+[submodule "payloads/external/cdk2/cdk2"]
+	path = payloads/external/cdk2/cdk2
+	url = git@github.com:StarLabsLtd/cdk2.git
