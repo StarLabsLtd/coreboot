@@ -22,70 +22,79 @@ command -v timeout >/dev/null
 printf '%s  %s\n' "$CDK2_RETAINED_FV_SHA256" "$CDK2_RETAINED_FV" |
 	sha256sum -c -
 
-top=$(pwd)
-if test -n "${CDK2_QEMU_WORKDIR:-}"; then
-	tmpdir=$CDK2_QEMU_WORKDIR
-	mkdir -p "$tmpdir"
-else
-	tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/coreboot-cdk2-qemu.XXXXXX")
-	trap 'rm -rf "$tmpdir"' EXIT INT TERM
-fi
-config="$tmpdir/.config"
-obj="$tmpdir/build"
-
-cp "${CDK2_QEMU_CONFIG:-configs/config.emulation_qemu_x86_q35_smm_tseg}" "$config"
-{
-	printf '%s\n' 'CONFIG_PAYLOAD_CDK2=y'
-	printf '%s\n' 'CONFIG_USE_X86_64_SUPPORT=y'
-	printf '%s\n' 'CONFIG_CDK2_BUILD_DEBUG=y'
-	printf 'CONFIG_CDK2_RETAINED_FV="%s"\n' "$CDK2_RETAINED_FV"
-	printf 'CONFIG_CDK2_RETAINED_FV_SHA256="%s"\n' "$CDK2_RETAINED_FV_SHA256"
-} >>"$config"
-
-make olddefconfig DOTCONFIG="$config" obj="$obj"
-make -j "${CPUS:-4}" DOTCONFIG="$config" obj="$obj"
 make -C util/smmstoretool
 
-test -s "$obj/coreboot.rom"
-"$obj/cbfstool" "$obj/coreboot.rom" print | grep -q 'fallback/payload'
-
-# Keep the linked image immutable as build evidence.  QEMU receives a
-# deterministically initialized copy because pflash is writable at runtime.
-cp "$obj/coreboot.rom" "$tmpdir/q35.rom"
-util/smmstoretool/smmstoretool "$tmpdir/q35.rom" init
-test -z "$(util/smmstoretool/smmstoretool "$tmpdir/q35.rom" list)"
-
-cp "$CDK2_QEMU_NVME_IMAGE" "$tmpdir/nvme.img"
-cp "$CDK2_QEMU_USB_IMAGE" "$tmpdir/usb.img"
-
-set +e
-timeout "${CDK2_QEMU_TIMEOUT:-80}" qemu-system-x86_64 \
-	-machine q35 -m 512M -nographic -no-reboot \
-	-drive if=pflash,format=raw,file="$tmpdir/q35.rom" \
-	-drive if=none,format=raw,file="$tmpdir/nvme.img",id=nvme \
-	-device nvme,drive=nvme,serial=cdk2 \
-	-drive if=none,format=raw,file="$tmpdir/usb.img",id=usb \
-	-device qemu-xhci -device usb-storage,drive=usb \
-	>"$tmpdir/q35.log" 2>&1
-status=$?
-set -e
-
-if test "$status" -ne 0 && test "$status" -ne 124; then
-	cat "$tmpdir/q35.log" >&2
-	exit "$status"
+top=$(pwd)
+if test -n "${CDK2_QEMU_WORKDIR:-}"; then
+	test_root=$CDK2_QEMU_WORKDIR
+	mkdir -p "$test_root"
+else
+	test_root=$(mktemp -d "${TMPDIR:-/tmp}/coreboot-cdk2-qemu.XXXXXX")
+	trap 'rm -rf "$test_root"' EXIT INT TERM
 fi
 
-for marker in 'UEFI Interactive Shell' 'CDK2_NATIVE_STARTUP' \
-	'CDK2_NATIVE_DONE' 'Reset with <null string>'; do
-	if ! grep -q "$marker" "$tmpdir/q35.log"; then
-		echo "missing CDK2 Q35 marker: $marker" >&2
+for ramstage in ${CDK2_QEMU_RAMSTAGES:-ia32 x86_64}; do
+	case "$ramstage" in
+		ia32|x86_64) ;;
+		*) echo "invalid CDK2 QEMU ramstage: $ramstage" >&2; exit 1 ;;
+	esac
+	tmpdir="$test_root/$ramstage"
+	config="$tmpdir/.config"
+	obj="$tmpdir/build"
+	mkdir -p "$tmpdir"
+	cp "${CDK2_QEMU_CONFIG:-configs/config.emulation_qemu_x86_q35_smm_tseg}" "$config"
+	{
+		printf '%s\n' 'CONFIG_PAYLOAD_CDK2=y'
+		if test "$ramstage" = x86_64; then
+			printf '%s\n' 'CONFIG_USE_X86_64_SUPPORT=y'
+		else
+			printf '%s\n' '# CONFIG_USE_X86_64_SUPPORT is not set'
+		fi
+		printf '%s\n' 'CONFIG_CDK2_BUILD_DEBUG=y'
+		printf 'CONFIG_CDK2_RETAINED_FV="%s"\n' "$CDK2_RETAINED_FV"
+		printf 'CONFIG_CDK2_RETAINED_FV_SHA256="%s"\n' "$CDK2_RETAINED_FV_SHA256"
+	} >>"$config"
+
+	make olddefconfig DOTCONFIG="$config" obj="$obj"
+	make -j "${CPUS:-4}" DOTCONFIG="$config" obj="$obj"
+	test -s "$obj/coreboot.rom"
+	"$obj/cbfstool" "$obj/coreboot.rom" print | grep -q 'fallback/payload'
+
+	# Keep the linked image immutable as build evidence. QEMU receives a
+	# deterministically initialized copy because pflash is writable at runtime.
+	cp "$obj/coreboot.rom" "$tmpdir/q35.rom"
+	util/smmstoretool/smmstoretool "$tmpdir/q35.rom" init
+	test -z "$(util/smmstoretool/smmstoretool "$tmpdir/q35.rom" list)"
+	cp "$CDK2_QEMU_NVME_IMAGE" "$tmpdir/nvme.img"
+	cp "$CDK2_QEMU_USB_IMAGE" "$tmpdir/usb.img"
+
+	set +e
+	timeout "${CDK2_QEMU_TIMEOUT:-80}" qemu-system-x86_64 \
+		-machine q35 -m 512M -nographic -no-reboot \
+		-drive if=pflash,format=raw,file="$tmpdir/q35.rom" \
+		-drive if=none,format=raw,file="$tmpdir/nvme.img",id=nvme \
+		-device nvme,drive=nvme,serial=cdk2 \
+		-drive if=none,format=raw,file="$tmpdir/usb.img",id=usb \
+		-device qemu-xhci -device usb-storage,drive=usb \
+		>"$tmpdir/q35.log" 2>&1
+	status=$?
+	set -e
+
+	if test "$status" -ne 0 && test "$status" -ne 124; then
+		cat "$tmpdir/q35.log" >&2
+		exit "$status"
+	fi
+	for marker in 'UEFI Interactive Shell' 'CDK2_NATIVE_STARTUP' \
+		'CDK2_NATIVE_DONE' 'Reset with <null string>'; do
+		if ! grep -q "$marker" "$tmpdir/q35.log"; then
+			echo "missing CDK2 Q35 $ramstage marker: $marker" >&2
+			cat "$tmpdir/q35.log" >&2
+			exit 1
+		fi
+	done
+	if grep -q 'Exception Type' "$tmpdir/q35.log"; then
 		cat "$tmpdir/q35.log" >&2
 		exit 1
 	fi
+	printf 'CDK2 integrated Q35 %s test: PASS (%s)\n' "$ramstage" "$top"
 done
-if grep -q 'Exception Type' "$tmpdir/q35.log"; then
-	cat "$tmpdir/q35.log" >&2
-	exit 1
-fi
-
-printf 'CDK2 integrated Q35 test: PASS (%s)\n' "$top"
