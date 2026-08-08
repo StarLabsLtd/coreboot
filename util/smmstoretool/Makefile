@@ -38,9 +38,12 @@ SRC += fmap.c kv_pair.c valstr.c
 OBJ := $(SRC:.c=.o)
 DEP := $(SRC:.c=.o.d)
 
-.PHONY: all debug clean install
+.PHONY: all debug clean install test
 
 all: $(PRG)
+
+test: $(PRG)
+	./tests/init-test ./$(PRG)
 
 debug: HOSTCFLAGS += -O0 -g
 debug: HOSTLDFLAGS += -g
