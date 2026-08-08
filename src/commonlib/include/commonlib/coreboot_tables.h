@@ -93,6 +93,7 @@ enum {
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
+	LB_TAG_SMRAM			= 0x004c,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -159,6 +160,13 @@ struct lb_memory {
 	uint32_t tag;
 	uint32_t size;
 	struct lb_memory_range map[];
+};
+
+struct lb_smram {
+	uint32_t tag;
+	uint32_t size;
+	lb_uint64_t physical_start;
+	lb_uint64_t physical_size;
 };
 
 struct lb_pcie {
