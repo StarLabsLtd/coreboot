@@ -1,11 +1,11 @@
 # CDK2 payload
 
 CDK2 is built from `payloads/external/cdk2/cdk2` as a coreboot-owned external
-payload. Coreboot passes its resolved configuration, toolchain and output
+payload. coreboot passes its resolved configuration, toolchain and output
 directory to CDK2. CDK2 remains responsible for selecting, compiling, linking
 and testing its own sources.
 
-Coreboot's lint targets intentionally do not inspect files behind a submodule
+coreboot's lint targets intentionally do not inspect files behind a submodule
 gitlink. `test-cdk2` therefore invokes CDK2's `what-jenkins-does` target
 explicitly. `test-cdk2-qemu` additionally builds a Q35 ROM containing that
 exact payload with both the normal 32-bit ramstage and the optional 64-bit
