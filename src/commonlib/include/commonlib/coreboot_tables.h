@@ -94,6 +94,7 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_SMRAM			= 0x004c,
+	LB_TAG_SMM_REGISTER_INFO	= 0x004d,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -168,6 +169,25 @@ struct lb_smram {
 	lb_uint64_t physical_start;
 	lb_uint64_t physical_size;
 };
+
+struct lb_smm_generic_register {
+	lb_uint64_t id;
+	lb_uint64_t value;
+	uint8_t address_space_id;
+	uint8_t register_bit_width;
+	uint8_t register_bit_offset;
+	uint8_t access_size;
+	lb_uint64_t address;
+} __packed;
+
+struct lb_smm_register_info {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t reserved;
+	uint32_t count;
+	struct lb_smm_generic_register registers[4];
+} __packed;
 
 struct lb_pcie {
 	uint32_t tag;
