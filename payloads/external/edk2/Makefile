@@ -407,8 +407,13 @@ UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIP
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
-distclean:
-	rm -rf $(WORKSPACE)
+distclean: clean
+	for git_dir in "$(WORKSPACE)"/*/.git; do \
+		test -e "$$git_dir" || continue; \
+		repo="$${git_dir%/.git}"; \
+		git -C "$$repo" clean -xfd && \
+		git -C "$$repo" reset --hard || exit 1; \
+	done
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
 
