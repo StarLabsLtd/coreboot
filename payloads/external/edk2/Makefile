@@ -412,8 +412,28 @@ UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIP
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
-distclean:
-	rm -rf $(WORKSPACE)
+distclean: clean
+	if [ ! -d "$(WORKSPACE)" ]; then exit 0; fi; \
+	shopt -s dotglob nullglob; \
+	for path in "$(WORKSPACE)"/*; do \
+		if [ -e "$$path/.git" ]; then \
+			case "$$path" in \
+			"$(EDK2_PATH)") \
+				git -C "$$path" remote set-url origin "$(EDK2_REPOSITORY)" || exit 1; \
+				;; \
+			"$(EDK2_PLATFORMS_PATH)") \
+				git -C "$$path" remote set-url origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+				;; \
+			esac; \
+			git -C "$$path" reset --hard && \
+			git -C "$$path" submodule update --checkout --recursive && \
+			git -C "$$path" submodule foreach --recursive \
+				'git reset --hard && git clean -xffd' && \
+			git -C "$$path" clean -xffd || exit 1; \
+		else \
+			rm -rf "$$path" || exit 1; \
+		fi; \
+	done
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
 
