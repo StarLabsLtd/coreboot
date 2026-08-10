@@ -259,22 +259,48 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
+# Read each parent's new .gitmodules before updating its children.
+define update_submodules
+git submodule sync && \
+git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout && \
+git submodule foreach --recursive \
+	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
+endef
+
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
 		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
 	fi
 	cd $(EDK2_PLATFORMS_PATH); \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch origin; \
+		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q "nothing to commit, working tree clean"; then \
+		if git status --ignore-submodules=all | grep -q "nothing to commit, working tree clean"; then \
 			echo "    Checking out edk2-platforms revision $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout
+		$(update_submodules)
 
 $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
@@ -283,19 +309,35 @@ $(EDK2_PATH): $(WORKSPACE)
 	cd $(EDK2_PATH); \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
-		git fetch origin 2>/dev/null; \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch origin; \
+		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
+		if git status --ignore-submodules=all | grep -q -e clean -e "nothing added"; then \
 			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-			git submodule update --checkout --recursive; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout --recursive
+		$(update_submodules)
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -398,9 +440,21 @@ clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+	if [ -L "$(WORKSPACE)" ]; then rm -f "$(WORKSPACE)"; exit; fi; \
+	if [ ! -d "$(WORKSPACE)" ]; then exit 0; fi; \
+	shopt -s dotglob nullglob; \
+	for path in "$(WORKSPACE)"/*; do \
+		if [ -L "$$path" ] || [ -L "$$path/.git" ] || [ ! -d "$$path/.git" ]; then \
+			rm -rf "$$path" || exit 1; \
+			continue; \
+		fi; \
+		git -C "$$path" -c submodule.recurse=false reset --hard && \
+		git -C "$$path" submodule foreach --recursive \
+			'git -c submodule.recurse=false reset --hard && git clean -xffd' && \
+		git -C "$$path" clean -xffd || exit 1; \
+	done
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
