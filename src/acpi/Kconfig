@@ -22,25 +22,19 @@ config ACPI_FNKEY_GEN_SCANCODE
 	  pressed. A value of 0 is ignored, which is the default since most
 	  keyboards do not emit a scancode for the Fn key.
 
-config NO_PCAT_8259
+config HAVE_PCAT_8259
 	bool
 	help
-	  Select this on platforms that do not expose a PC/AT 8259 PIC pair.
-
-	  Platforms without a legacy PIC should also avoid routing the PIC
-	  ExtINT output through the IOAPIC/LAPIC virtual-wire path.
+	  Select this on platforms that expose a PC/AT 8259 PIC pair.
 
 config USE_PCAT_8259_RUNTIME
 	bool
-	depends on !NO_PCAT_8259
+	depends on HAVE_PCAT_8259
 	help
 	  Select this on platforms that require coreboot to initialize the
 	  PC/AT 8259 PIC and its IOAPIC/LAPIC ExtINT virtual-wire path.
 
 	  This does not control whether ACPI advertises PC/AT compatibility.
-
-config ACPI_HAVE_PCAT_8259
-	def_bool y if !NO_PCAT_8259
 
 config ACPI_TPM_TABLES_REQUIRE_PROBE
 	bool
