@@ -13,7 +13,7 @@ External (\_SB.NAPE, MethodObj)
 Name (OSYS, 0)
 
 /* 0 => PIC mode, 1 => APIC mode */
-#if CONFIG(ACPI_HAVE_PCAT_8259)
+#if CONFIG(HAVE_PCAT_8259)
 Name (PICM, 0)
 #else
 Name (PICM, 1)

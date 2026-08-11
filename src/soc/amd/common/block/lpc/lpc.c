@@ -91,7 +91,7 @@ static void lpc_init(struct device *dev)
 	 */
 	cmos_init(0);
 
-	if (!CONFIG(NO_PCAT_8259))
+	if (CONFIG(HAVE_PCAT_8259))
 		setup_i8259();
 
 	/* Initialize i8254 timers */

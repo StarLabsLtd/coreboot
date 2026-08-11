@@ -131,7 +131,7 @@ static int acpi_create_madt_sci_override(acpi_madt_irqoverride_t *irqoverride)
 
 	/* In systems without 8259, the SCI_INT field in the FADT contains the SCI GSI number
 	   instead of the 8259 IRQ number */
-	if (!CONFIG(ACPI_HAVE_PCAT_8259))
+	if (!CONFIG(HAVE_PCAT_8259))
 		irq = gsi;
 
 	return acpi_create_madt_irqoverride(irqoverride, MP_BUS_ISA, irq, gsi, flags);
@@ -233,7 +233,7 @@ unsigned long acpi_arch_fill_madt(acpi_madt_t *madt, unsigned long current)
 
 	madt->lapic_addr = cpu_get_lapic_addr();
 
-	if (CONFIG(ACPI_HAVE_PCAT_8259))
+	if (CONFIG(HAVE_PCAT_8259))
 		madt->flags |= ACPI_MADT_PCAT_COMPAT;
 
 	if (CONFIG(ACPI_COMMON_MADT_LAPIC))

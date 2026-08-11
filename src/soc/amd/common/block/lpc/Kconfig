@@ -2,6 +2,7 @@
 
 config SOC_AMD_COMMON_BLOCK_LPC
 	bool
+	select HAVE_PCAT_8259
 	help
 	  Select this option to use the traditional LPC-ISA bridge at D14F3.
 

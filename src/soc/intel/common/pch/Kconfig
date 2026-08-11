@@ -29,6 +29,7 @@ config SOC_INTEL_COMMON_PCH_SERVER
 config SOC_INTEL_COMMON_PCH_BASE
 	bool
 	depends on SOC_INTEL_COMMON_BLOCK
+	select HAVE_PCAT_8259
 	help
 	  This option is meant to be selected by the specific options above.
 
