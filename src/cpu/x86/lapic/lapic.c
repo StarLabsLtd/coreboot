@@ -84,7 +84,7 @@ void setup_lapic_interrupts(void)
 			LAPIC_DELIVERY_MODE_MASK;
 
 	/* Put the local APIC in virtual wire mode when using the legacy PIC. */
-	if (boot_cpu() && !CONFIG(NO_PCAT_8259))
+	if (boot_cpu() && CONFIG(USE_PCAT_8259_RUNTIME))
 		lapic_update32(LAPIC_LVT0, ~mask, LAPIC_DELIVERY_MODE_EXTINT);
 	else
 		lapic_update32(LAPIC_LVT0, ~mask, LAPIC_LVT_MASKED |

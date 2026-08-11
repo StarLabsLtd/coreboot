@@ -42,7 +42,7 @@ void lpc_soc_init(struct device *dev)
 	pch_enable_ioapic();
 	pch_pirq_init();
 
-	if (!CONFIG(NO_PCAT_8259)) {
+	if (CONFIG(USE_PCAT_8259_RUNTIME)) {
 		setup_i8259();
 		i8259_configure_irq_trigger(9, 1);
 	}

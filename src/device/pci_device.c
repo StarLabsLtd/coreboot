@@ -1803,7 +1803,7 @@ void pci_assign_irqs(struct device *dev, const unsigned char pIntAtoD[4])
 		pci_write_config8(dev, PCI_INTERRUPT_LINE, irq);
 
 		/* Change to level triggered. */
-		if (!CONFIG(NO_PCAT_8259))
+		if (CONFIG(USE_PCAT_8259_RUNTIME))
 			i8259_configure_irq_trigger(irq, IRQ_LEVEL_TRIGGERED);
 	}
 }
