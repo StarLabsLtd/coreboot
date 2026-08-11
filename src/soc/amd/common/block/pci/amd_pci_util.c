@@ -226,7 +226,7 @@ void write_pci_cfg_irqs(void)
 		pci_write_config8(dev, PCI_INTERRUPT_LINE, int_line);
 
 		/* Set IRQ to level triggered since used by a PCI device */
-		if (!CONFIG(NO_PCAT_8259))
+		if (CONFIG(USE_PCAT_8259_RUNTIME))
 			i8259_configure_irq_trigger(int_line, IRQ_LEVEL_TRIGGERED);
 
 		/*
