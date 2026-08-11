@@ -83,8 +83,8 @@ void setup_lapic_interrupts(void)
 	uint32_t mask = LAPIC_LVT_MASKED | LAPIC_LVT_LEVEL_TRIGGER | LAPIC_INPUT_POLARITY |
 			LAPIC_DELIVERY_MODE_MASK;
 
-	/* Put the local APIC in virtual wire mode when using the legacy PIC. */
-	if (boot_cpu() && !CONFIG(NO_PCAT_8259))
+	/* ExtINT virtual-wire on LINT0 when enabled for this build. */
+	if (boot_cpu() && CONFIG(PIC_EXTINT_VIRTUAL_WIRE))
 		lapic_update32(LAPIC_LVT0, ~mask, LAPIC_DELIVERY_MODE_EXTINT);
 	else
 		lapic_update32(LAPIC_LVT0, ~mask, LAPIC_LVT_MASKED |
