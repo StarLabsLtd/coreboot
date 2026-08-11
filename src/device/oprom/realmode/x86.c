@@ -421,7 +421,7 @@ void run_bios(struct device *dev, unsigned long addr)
 	 * Removing this will cause random illegal instruction exceptions
 	 * in some option roms.
 	 */
-	if (!CONFIG(NO_PCAT_8259))
+	if (CONFIG(HAVE_PCAT_8259))
 		setup_i8259();
 	setup_i8254();
 
