@@ -255,6 +255,9 @@ enum {
 	MAINBOARD_POWER_STATE_PREVIOUS,
 };
 
+/* Return the power state to use after power is reapplied. */
+unsigned int mainboard_get_power_failure_state(void);
+
 /*
  * Implemented by SoC code to set PMC register to know which state
  * system should go into after power is reapplied.
