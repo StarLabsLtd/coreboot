@@ -257,7 +257,13 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 	},
 #endif
 #endif
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+	{
+		.name = "automatic_start",
+		.id = STARLABS_EFIOPT_ID_AUTOMATIC_START,
+		.fallback = AUTOMATIC_START_DEFAULT,
+	},
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 	{
 		.name = "power_on_ac",
 		.id = STARLABS_EFIOPT_ID_POWER_ON_AC,
@@ -386,7 +392,14 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 		return is_valid_touchpad_report_rate(*value) ? CB_SUCCESS : CB_ERR_ARG;
 #endif
 #endif
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+	case STARLABS_EFIOPT_ID_AUTOMATIC_START:
+		if (*value == AUTOMATIC_START_ALWAYS ||
+		    *value == AUTOMATIC_START_AFTER_FAILURE ||
+		    *value == AUTOMATIC_START_NEVER)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 	case STARLABS_EFIOPT_ID_POWER_ON_AC:
 		if (*value <= 1)
 			return CB_SUCCESS;
@@ -521,7 +534,18 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #endif
 		return apply_touchpad_efiopts();
 #endif
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+	case STARLABS_EFIOPT_ID_AUTOMATIC_START: {
+		const enum cb_err ret =
+			apply_ec_value(ECRAM_POWER_ON_AC, value == AUTOMATIC_START_ALWAYS);
+
+		if (ret != CB_SUCCESS)
+			return ret;
+
+		pmc_set_power_failure_state(true);
+		return CB_SUCCESS;
+	}
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 	case STARLABS_EFIOPT_ID_POWER_ON_AC:
 		return apply_ec_value(ECRAM_POWER_ON_AC, value);
 #endif
