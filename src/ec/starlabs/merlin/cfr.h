@@ -174,7 +174,28 @@ static const struct sm_object charge_led = SM_DECLARE_ENUM({
 	.values		= led_brightness,
 });
 
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+/*
+ * Automatic power-on policy
+ */
+static const struct sm_object automatic_start = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "automatic_start",
+	.ui_name	= "Automatic Start",
+	.ui_helptext	= "Configure when the system starts automatically.",
+	.default_value	= AUTOMATIC_START_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_AUTOMATIC_START,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Always",          AUTOMATIC_START_ALWAYS        },
+			{ "After Failure",   AUTOMATIC_START_AFTER_FAILURE },
+			{ "Never",           AUTOMATIC_START_NEVER         },
+			SM_ENUM_VALUE_END
+	},
+});
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 /*
  * Power on when adapter is connected
  */
