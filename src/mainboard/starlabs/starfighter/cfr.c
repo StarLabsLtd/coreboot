@@ -92,6 +92,7 @@ static struct sm_obj_form audio_group = {
 	.ui_name = "Audio",
 	.obj_list = (const struct sm_object *[]) {
 		&hda_dsp,
+		&hda_subsystem_id,
 		#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 		&firmware_enable_amp,
 		#endif
