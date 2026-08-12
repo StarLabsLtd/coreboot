@@ -254,22 +254,26 @@ static void merlin_restore_options(void *unused)
 			 get_ec_value_from_option("charge_led", LED_NORMAL, led_brightness,
 						  ARRAY_SIZE(led_brightness)));
 
-	/*
-	 * Power on when adapter is connected
-	 *
-	 * Setting:	power_on_ac
-	 *
-	 * Values:	Enabled, Disabled
-	 * Default:	Enabled on Mini PC systems, disabled otherwise
-	 *
-	 */
-	const uint8_t power_on_ac[] = {0, 1};
+	/* Only "Always" powers on for an ordinary adapter connection. */
+	if (CONFIG(STARLABS_AUTOMATIC_START)) {
+		const uint8_t automatic_start[] = {
+			AUTOMATIC_START_ALWAYS,
+			AUTOMATIC_START_AFTER_FAILURE,
+			AUTOMATIC_START_NEVER,
+		};
 
-	if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON))
 		ec_write(ECRAM_POWER_ON_AC,
-			 get_ec_value_from_option("power_on_ac",
-						  ADAPTER_AUTO_POWER_ON_DEFAULT,
+			 get_ec_value_from_option("automatic_start", AUTOMATIC_START_DEFAULT,
+						  automatic_start,
+						  ARRAY_SIZE(automatic_start)) ==
+				 AUTOMATIC_START_ALWAYS);
+	} else if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)) {
+		const uint8_t power_on_ac[] = {0, 1};
+
+		ec_write(ECRAM_POWER_ON_AC,
+			 get_ec_value_from_option("power_on_ac", ADAPTER_AUTO_POWER_ON_DEFAULT,
 						  power_on_ac, ARRAY_SIZE(power_on_ac)));
+	}
 
 	/*
 	 * Power Reporting

@@ -123,6 +123,15 @@ void merlin_fill_ssdt(const struct device *dev);
 #define POWER_REPORTING_TRUTHFUL	0x00
 #define POWER_REPORTING_QUIET		0x01
 
+enum automatic_start {
+	AUTOMATIC_START_ALWAYS = 0,
+	AUTOMATIC_START_AFTER_FAILURE = 1,
+	AUTOMATIC_START_NEVER = 2,
+};
+
+#define AUTOMATIC_START_DEFAULT	(CONFIG(SYSTEM_TYPE_MINIPC) ? AUTOMATIC_START_ALWAYS : \
+				 AUTOMATIC_START_NEVER)
+
 uint16_t ec_get_version(void);
 
 #endif
