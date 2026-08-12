@@ -1,94 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <common/hda.h>
 #include <device/azalia_device.h>
 #include <device/azalia_codec/realtek.h>
 
 static const u32 realtek_alc269_verbs[] = {
-	/* Reset Codec First */
-	AZALIA_RESET(0x1),
-
-	/* HDA Codec Subsystem ID */
-	AZALIA_SUBVENDOR(0, 0x1e507038),
-
-	/* Pin Widget Verb-table */
-	AZALIA_PIN_CFG(0, ALC269_DMIC12,	AZALIA_PIN_DESC(
-							AZALIA_INTEGRATED,
-							AZALIA_MOBILE_LID_INSIDE,
-							AZALIA_MIC_IN,
-							AZALIA_OTHER_DIGITAL,
-							AZALIA_COLOR_UNKNOWN,
-							AZALIA_NO_JACK_PRESENCE_DETECT,
-							3,
-							0
-						)),
-	AZALIA_PIN_CFG(0, ALC269_SPEAKERS,	AZALIA_PIN_DESC(
-							AZALIA_INTEGRATED,
-							AZALIA_INTERNAL | AZALIA_FRONT,
-							AZALIA_SPEAKER,
-							AZALIA_OTHER_ANALOG,
-							AZALIA_COLOR_UNKNOWN,
-							AZALIA_NO_JACK_PRESENCE_DETECT,
-							1,
-							0
-						)),
-	AZALIA_PIN_CFG(0, ALC269_VC_HP_OUT,	AZALIA_PIN_DESC(
-							AZALIA_JACK,
-							AZALIA_EXTERNAL_PRIMARY_CHASSIS | AZALIA_RIGHT,
-							AZALIA_HP_OUT,
-							AZALIA_STEREO_MONO_1_8,
-							AZALIA_BLACK,
-							AZALIA_JACK_PRESENCE_DETECT,
-							2,
-							0
-						)),
-	AZALIA_PIN_CFG(0, ALC269_MIC1,		AZALIA_PIN_DESC(
-							AZALIA_JACK,
-							AZALIA_EXTERNAL_PRIMARY_CHASSIS | AZALIA_RIGHT,
-							AZALIA_MIC_IN,
-							AZALIA_STEREO_MONO_1_8,
-							AZALIA_BLACK,
-							AZALIA_JACK_PRESENCE_DETECT,
-							4,
-							0
-						)),
-	AZALIA_PIN_CFG(0, ALC269_MONO,		AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_MIC2,		AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_LINE1,		AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_LINE2,		AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_PC_BEEP,	AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_SPDIF_OUT,	AZALIA_PIN_CFG_NC(0)),
-	AZALIA_PIN_CFG(0, ALC269_VB_HP_OUT,	AZALIA_PIN_CFG_NC(0)),
-
-	/* ALC269 Default 1 */
-	0x02050018,
-	0x02040184,
-	0x0205001c,
-	0x02044800,
-	/* ALC269 Default 2 */
-	0x02050024,
-	0x02040000,
-	0x02050004,
-	0x0204c080,
-	/* ALC269 Default 3 */
-	0x02050008,
-	0x02040000,
-	0x0205000c,
-	0x02043f00,
-	/* ALC269 Default 4 */
-	0x02050015,
-	0x02048002,
-	0x02050015,
-	0x02048002,
-	/* Realtek 6.0.9906.1 native Windows coefficient state */
-	0x0205000b,
-	0x02040c0d,
-	0x0205001a,
-	0x0204c020,
-	/* Widget 0x0c */
-	0x00c37080,
-	0x00270610,
-	0x00d37080,
-	0x00370610,
+#define STARLABS_HDA_DMIC_LOCATION	AZALIA_MOBILE_LID_INSIDE
+#define STARLABS_HDA_SPEAKER_LOCATION	AZALIA_FRONT
+#include <mainboard/starlabs/common/hda/alc269_vc3.inc>
+#include <mainboard/starlabs/common/hda/alc269_vc3_rpl_u_coefficients.inc>
 };
 
 const u32 pc_beep_verbs[] = {
@@ -98,7 +18,8 @@ static struct azalia_codec mainboard_azalia_codecs[] = {
 	{
 		.name         = "Realtek ALC269",
 		.vendor_id    = 0x10ec0269,
-		.subsystem_id = 0x1e507038,
+		.subsystem_id =
+			STARLABS_HDA_CODEC_SUBSYSTEM_ID(STARLABS_HDA_POLICY_ALC269_VC3),
 		.address      = 0,
 		.verbs        = realtek_alc269_verbs,
 		.verb_count   = ARRAY_SIZE(realtek_alc269_verbs),
