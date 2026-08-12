@@ -21,7 +21,7 @@ endif
 
 subdirs-$(CONFIG_VENDOR_STARLABS) += cfr
 subdirs-$(CONFIG_VENDOR_STARLABS) += hda
-subdirs-$(CONFIG_BOARD_STARLABS_STARFIGHTER_SERIES) += touchpad
+subdirs-$(CONFIG_STARLABS_TOUCHPAD_RUNTIME) += touchpad
 subdirs-$(CONFIG_VENDOR_STARLABS) += powercap
 subdirs-$(CONFIG_VENDOR_STARLABS) += fsp_params
 subdirs-$(CONFIG_VENDOR_STARLABS) += pin_mux
@@ -32,4 +32,6 @@ ramstage-$(CONFIG_STARLABS_NVME_POWER_SEQUENCE) += nvme_seq.c
 CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
 ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
-smm-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += smihandler.c
+ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
+smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
+smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
