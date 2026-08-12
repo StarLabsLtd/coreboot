@@ -82,9 +82,13 @@ static struct sm_obj_form battery_group = {
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 					     &max_charge,
 #endif
+#if CONFIG(STARLABS_AUTOMATIC_START)
+					     &automatic_start,
+#else
 					     &power_on_after_fail_bool,
 #if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 					     &power_on_ac,
+#endif
 #endif
 					     NULL},
 };
