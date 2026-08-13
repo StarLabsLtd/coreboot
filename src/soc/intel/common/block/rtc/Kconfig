@@ -5,3 +5,22 @@ config SOC_INTEL_COMMON_BLOCK_RTC
 	select RTC
 	help
 	  Intel Processor common RTC support
+
+if SOC_INTEL_COMMON_BLOCK_RTC
+
+config SOC_INTEL_COMMON_BLOCK_RTC_HAS_PCR
+	bool
+	help
+	  Selected when PID_RTC names a supported PCR port.
+
+config SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_RTC_HAS_PCR
+	help
+	  Set the RTC configuration lock bits for the protected lower and
+	  upper CMOS memory ranges before firmware handoff.
+
+	  Boards should only select this when the protected RTC CMOS ranges
+	  are not used for runtime firmware state.
+
+endif
