@@ -5,6 +5,7 @@
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/pcr.h>
+#include <intelblocks/rtc.h>
 #include <intelblocks/systemagent.h>
 #include <intelpch/lockdown.h>
 #include <intelblocks/gpmr.h>
@@ -123,6 +124,12 @@ static void sa_lockdown_config(int chipset_lockdown)
 		sa_lock_pam();
 }
 
+static void rtc_lockdown_config(void)
+{
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY))
+		rtc_conf_lock_cmos_memory();
+}
+
 /*
  * platform_lockdown_config has 2 major part.
  * 1. Common SoC lockdown configuration.
@@ -145,6 +152,9 @@ static void platform_lockdown_config(void *unused)
 
 	/* SA lock down configuration */
 	sa_lockdown_config(chipset_lockdown);
+
+	/* RTC lock down configuration */
+	rtc_lockdown_config();
 
 	/* SoC lock down configuration */
 	soc_lockdown_config(chipset_lockdown);

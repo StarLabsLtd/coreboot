@@ -41,4 +41,7 @@ void sync_rtc_buc_top_swap(void);
 
 /* Set RTC Configuration BILD bit. */
 void rtc_conf_set_bios_interface_lockdown(void);
+
+/* Lock protected RTC CMOS memory ranges. */
+void rtc_conf_lock_cmos_memory(void);
 #endif	/* SOC_INTEL_COMMON_BLOCK_RTC_H */
