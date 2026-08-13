@@ -56,8 +56,8 @@ static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
 static const struct sm_object power_on_after_fail_bool = SM_DECLARE_BOOL({
 	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_on_after_fail",
-	.ui_name	= "Power on after failure",
-	.ui_helptext	= "Automatically turn on after a power failure",
+	.ui_name	= "Start After Power Loss",
+	.ui_helptext	= "Start automatically when external power returns after a complete power loss.",
 	.default_value	= CONFIG_MAINBOARD_POWER_FAILURE_STATE,
 });
 
