@@ -196,16 +196,16 @@ static const struct sm_object automatic_start = SM_DECLARE_ENUM({
 	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "automatic_start",
 	.ui_name	= "Automatic Start",
-	.ui_helptext	= "Configure when the system starts automatically.",
+	.ui_helptext	= "Choose when the system starts without pressing the power button.",
 	.default_value	= AUTOMATIC_START_DEFAULT,
 	.runtime_apply = {
 		.method	= CFR_RUNTIME_APPLY_APM_CNT,
 		.id	= STARLABS_EFIOPT_ID_AUTOMATIC_START,
 	},
 	.values		= (const struct sm_enum_value[]) {
-			{ "Always",          AUTOMATIC_START_ALWAYS        },
-			{ "After Failure",   AUTOMATIC_START_AFTER_FAILURE },
-			{ "Never",           AUTOMATIC_START_NEVER         },
+			{ "When Charger Connected", AUTOMATIC_START_ALWAYS        },
+			{ "After Power Loss",       AUTOMATIC_START_AFTER_FAILURE },
+			{ "Never",                  AUTOMATIC_START_NEVER         },
 			SM_ENUM_VALUE_END
 	},
 });
@@ -216,8 +216,8 @@ static const struct sm_object automatic_start = SM_DECLARE_ENUM({
 static const struct sm_object power_on_ac = SM_DECLARE_BOOL({
 	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_on_ac",
-	.ui_name	= "Power On AC Connect",
-	.ui_helptext	= "Power on automatically when a charger is connected.",
+	.ui_name	= "Start When Charger Connected",
+	.ui_helptext	= "Start automatically when a charger is connected.",
 	.default_value	= ADAPTER_AUTO_POWER_ON_DEFAULT,
 	.runtime_apply = {
 		.method	= CFR_RUNTIME_APPLY_APM_CNT,
