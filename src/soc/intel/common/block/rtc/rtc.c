@@ -43,6 +43,11 @@ void rtc_conf_set_bios_interface_lockdown(void)
 					PCR_RTC_CONF_BILD);
 }
 
+void rtc_conf_lock_cmos_memory(void)
+{
+	pcr_or32(PID_RTC, PCR_RTC_CONF, PCR_RTC_CONF_LCMOS_LOCK | PCR_RTC_CONF_UCMOS_LOCK);
+}
+
 #if CONFIG(INTEL_HAS_TOP_SWAP)
 void configure_rtc_buc_top_swap(enum ts_config ts_state)
 {
