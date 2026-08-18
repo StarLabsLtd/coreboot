@@ -13,7 +13,7 @@ cdk2-source-state:
 
 $(CDK2_PROFILE_CONFIG): util/cdk2-config $(DOTCONFIG)
 	@printf '    CDK2       %s\n' "$@"
-	@util/cdk2-config "$@"
+	@util/cdk2-config "$(DOTCONFIG)" "$@"
 
 $(CDK2_PAYLOAD): $(DOTCONFIG) $(CDK2_PROFILE_CONFIG) util/cdk2-build cdk2-source-state
 	@printf '    CDK2       %s\n' "$@"
