@@ -1,0 +1,22 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+if PAYLOAD_CDK2
+
+config CDK2_SOURCE_PATH
+	string "Path to the CDK2 source checkout"
+	default "../cdk2"
+	help
+	  Path relative to the coreboot source root, or an absolute path.  The
+	  checkout is never modified and all build output is kept under obj/.
+
+config CDK2_SOURCE_REVISION
+	string "Required CDK2 source revision"
+	default "b6c70863f4d0c8b893d561397fab8c4abb61d382"
+	help
+	  Full commit object name required at the source checkout's HEAD.  Builds
+	  fail when this is empty, differs from HEAD, or the checkout is dirty.
+
+config PAYLOAD_FILE
+	default "$(obj)/cdk2/native/cdk2-coreboot-stage.elf"
+
+endif

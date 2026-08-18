@@ -1,5 +1,26 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+# CDK2
+
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+CDK2_SOURCE_PATH := $(call strip_quotes,$(CONFIG_CDK2_SOURCE_PATH))
+CDK2_SOURCE_DIR := $(if $(filter /%,$(CDK2_SOURCE_PATH)),$(CDK2_SOURCE_PATH),$(CURDIR)/$(CDK2_SOURCE_PATH))
+CDK2_PROFILE_CONFIG := $(obj)/cdk2-profile.config
+CDK2_PAYLOAD := $(obj)/cdk2/native/cdk2-coreboot-stage.elf
+
+$(CDK2_PROFILE_CONFIG): util/cdk2-config $(DOTCONFIG)
+	@printf '    CDK2       %s\n' "$@"
+	@util/cdk2-config "$@"
+
+$(CDK2_PAYLOAD): $(DOTCONFIG) $(CDK2_PROFILE_CONFIG) util/cdk2-build
+	@printf '    CDK2       %s\n' "$@"
+	@util/cdk2-build "$(CDK2_SOURCE_DIR)" \
+		"$(call strip_quotes,$(CONFIG_CDK2_SOURCE_REVISION))" \
+		"$(abspath $(DOTCONFIG))" "$(abspath $(CDK2_PROFILE_CONFIG))" \
+		"$(abspath $(obj)/cdk2)"
+
+endif
+
 # set up payload config and version files for later inclusion
 ifeq ($(CONFIG_PAYLOAD_BUILD_SEABIOS),y)
 PAYLOAD_CONFIG=payloads/external/SeaBIOS/seabios/.config
