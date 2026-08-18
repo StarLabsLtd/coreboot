@@ -94,7 +94,8 @@ for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl
 	"$make_command" -s -C "$root" DOTCONFIG="$tmp/$board" \
 		obj="$tmp/build-$board" olddefconfig
 	for symbol in PAYLOAD_CDK2 HANDOFF_COREBOOT_TABLES \
-		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER SMMSTORE; do
+		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER \
+		GENERIC_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
 	done
 	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="8bbabbd2557057f1b5112229a8b189fa99289d7c"' \
