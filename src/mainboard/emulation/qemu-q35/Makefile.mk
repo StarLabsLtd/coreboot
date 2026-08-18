@@ -1,11 +1,14 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
 bootblock-y += bootblock.c
+bootblock-y += rom_media_stub.c
 
 romstage-y += ../qemu-i440fx/memmap.c
+romstage-y += rom_media_stub.c
 
 postcar-y += ../qemu-i440fx/memmap.c
 postcar-y += ../qemu-i440fx/exit_car.S
+postcar-y += rom_media_stub.c
 
 ramstage-y += ../qemu-i440fx/memmap.c
 ramstage-y += ../qemu-i440fx/northbridge.c
