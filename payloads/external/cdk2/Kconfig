@@ -11,12 +11,25 @@ config CDK2_SOURCE_PATH
 
 config CDK2_SOURCE_REVISION
 	string "Required CDK2 source revision"
-	default "b6c70863f4d0c8b893d561397fab8c4abb61d382"
+	default "8bbabbd2557057f1b5112229a8b189fa99289d7c"
 	help
 	  Full commit object name required at the source checkout's HEAD.  Builds
 	  fail when this is empty, differs from HEAD, or the checkout is dirty.
 
+config CDK2_RETAINED_FV_PATH
+	string "Path to the admitted retained DXE firmware volume"
+	help
+	  Path to the retained EDK2 firmware volume used to compose the complete
+	  CDK2 payload image.  A stage-only payload cannot dispatch DXE drivers.
+
+config CDK2_RETAINED_FV_SHA256
+	string
+	default "ca1ebfd0ff6c7c82935a4302c1ddc4cc418ed177756c678260dfb09527e1f50e"
+	help
+	  Pinned digest of the admitted retained firmware volume.  This prevents
+	  an unreviewed FV from silently changing the paired payload composition.
+
 config PAYLOAD_FILE
-	default "$(obj)/cdk2/native/cdk2-coreboot-stage.elf"
+	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"
 
 endif
