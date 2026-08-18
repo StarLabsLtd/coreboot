@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+
+output=${1:?usage: cdk2-config OUTPUT}
+tmp="${output}.tmp"
+
+echo 'CONFIG_CDK2_PAYLOAD=y' > "$tmp"
+mv "$tmp" "$output"

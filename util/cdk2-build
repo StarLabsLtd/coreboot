@@ -1,0 +1,58 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+
+source_dir=${1:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+revision=${2:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+coreboot_config=${3:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+profile=${4:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+output_dir=${5:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+
+case "$revision" in
+	*[!0-9a-f]* )
+		echo 'CDK2_SOURCE_REVISION must be a full hexadecimal commit object name' >&2
+		exit 1
+		;;
+esac
+[ "${#revision}" -eq 40 ] || {
+	echo 'CDK2_SOURCE_REVISION must contain exactly 40 hexadecimal digits' >&2
+	exit 1
+}
+[ -f "$source_dir/Makefile" ] || {
+	echo "CDK2 source Makefile does not exist: $source_dir/Makefile" >&2
+	exit 1
+}
+head=$(git -C "$source_dir" rev-parse --verify HEAD^{commit})
+[ "$head" = "$revision" ] || {
+	echo "CDK2 source revision mismatch: expected $revision, found $head" >&2
+	exit 1
+}
+git -C "$source_dir" diff-index --quiet HEAD -- || {
+	echo "CDK2 source checkout has tracked modifications: $source_dir" >&2
+	exit 1
+}
+test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)" || {
+	echo "CDK2 source checkout is not clean: $source_dir" >&2
+	exit 1
+}
+[ -f "$coreboot_config" ] || {
+	echo "coreboot configuration does not exist: $coreboot_config" >&2
+	exit 1
+}
+[ -s "$profile" ] || {
+	echo "CDK2 profile is missing or empty: $profile" >&2
+	exit 1
+}
+
+mkdir -p "$output_dir"
+# coreboot exports stage-specific compiler command lines.  They are not valid
+# CDK2 host/native tool selections and must not leak across the payload build
+# boundary; CDK2 chooses its own deterministic defaults (or explicit caller
+# overrides in its standalone build).
+exec env -u CC -u HOSTCC -u CFLAGS -u CPPFLAGS -u LDFLAGS \
+	-u OBJCOPY -u NM -u MAKEFLAGS -u MFLAGS -u MAKEOVERRIDES \
+	make -C "$source_dir" \
+	COREBOOT_CONFIG="$coreboot_config" \
+	COREBOOT_CDK2_PROFILE="$profile" \
+	COREBOOT_OUTPUT_DIR="$output_dir" \
+	coreboot-stage

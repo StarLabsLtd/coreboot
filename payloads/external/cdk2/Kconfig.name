@@ -1,0 +1,14 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config PAYLOAD_CDK2
+	bool "CDK2 payload"
+	depends on ARCH_X86
+	depends on BOOT_DEVICE_SUPPORTS_WRITES && HAVE_SMI_HANDLER
+	select HANDOFF_COREBOOT_TABLES
+	select PAYLOAD_OWNS_PCI_DEVICES
+	select WANT_LINEAR_FRAMEBUFFER
+	select SMMSTORE
+	help
+	  Build the CDK2 payload from a pinned, clean source checkout.  Platform
+	  policy is translated into one generated CDK2 configuration fragment;
+	  payload-internal Kconfig choices are not exposed in coreboot.
