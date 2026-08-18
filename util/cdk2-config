@@ -2,8 +2,24 @@
 # SPDX-License-Identifier: GPL-2.0-only
 set -eu
 
-output=${1:?usage: cdk2-config OUTPUT}
+config=${1:?usage: cdk2-config COREBOOT_CONFIG OUTPUT}
+output=${2:?usage: cdk2-config COREBOOT_CONFIG OUTPUT}
 tmp="${output}.tmp"
 
-echo 'CONFIG_CDK2_PAYLOAD=y' > "$tmp"
+enabled=$(sed -n 's/^CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=//p' "$config")
+guid=$(sed -n 's/^CONFIG_DRIVERS_EFI_MAIN_FW_GUID="\(.*\)"/\1/p' "$config")
+if [ "$enabled" = y ]; then
+	[ -n "$guid" ] || {
+		echo 'CDK2 capsule profile requires CONFIG_DRIVERS_EFI_MAIN_FW_GUID' >&2
+		exit 1
+	}
+
+	{
+		echo 'CONFIG_CDK2_PAYLOAD=y'
+		echo 'CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE=y'
+		printf 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="%s"\n' "$guid"
+	} > "$tmp"
+else
+	echo 'CONFIG_CDK2_PAYLOAD=y' > "$tmp"
+fi
 mv "$tmp" "$output"

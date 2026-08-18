@@ -37,7 +37,7 @@ exec "$make_command" "\$@"
 EOF
 chmod +x "$tmp/gmake"
 echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
-"$root/util/cdk2-config" "$tmp/profile"
+"$root/util/cdk2-config" "$tmp/coreboot.config" "$tmp/profile"
 COREBOOT_EXPORTS='COREBOOT_EXPORTS KCONFIG_CONFIG obj top src' \
 	KCONFIG_CONFIG=wrong obj=wrong top=wrong src=wrong \
 	AR=wrong AS=wrong LD=wrong NM=wrong OBJCOPY=wrong OBJDUMP=wrong \
