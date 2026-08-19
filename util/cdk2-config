@@ -13,6 +13,11 @@ if [ "$enabled" = y ]; then
 		echo 'CDK2 capsule profile requires CONFIG_DRIVERS_EFI_MAIN_FW_GUID' >&2
 		exit 1
 	}
+	printf '%s\n' "$guid" | grep -Eq \
+		'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' || {
+		echo 'CDK2 capsule profile requires a canonical firmware GUID' >&2
+		exit 1
+	}
 	lower_guid=$(printf '%s' "$guid" | tr '[:upper:]' '[:lower:]')
 	[ "$lower_guid" != 00000000-0000-0000-0000-000000000000 ] || {
 		echo 'CDK2 capsule profile requires a non-nil firmware GUID' >&2
