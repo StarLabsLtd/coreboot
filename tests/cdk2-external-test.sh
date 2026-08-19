@@ -8,7 +8,7 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 source_dir="$tmp/source"
 mkdir -p "$source_dir"
-git -C "$source_dir" init -q
+git -C "$source_dir" init -q --object-format=sha1
 git -C "$source_dir" config user.email test@example.com
 git -C "$source_dir" config user.name Test
 cat > "$source_dir/Makefile" <<'EOF'
@@ -28,12 +28,12 @@ coreboot-stage:
 	@touch "$(COREBOOT_OUTPUT_DIR)/native/cdk2-coreboot-stage.elf"
 EOF
 git -C "$source_dir" add Makefile
-git -C "$source_dir" commit -q -m fixture
+git -C "$source_dir" -c commit.gpgSign=false commit -q -m fixture
 revision=$(git -C "$source_dir" rev-parse HEAD)
 cat > "$tmp/gmake" <<EOF
 #!/bin/sh
 echo invoked > "$tmp/make-invoked"
-exec make "\$@"
+exec "$make_command" "\$@"
 EOF
 chmod +x "$tmp/gmake"
 echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
