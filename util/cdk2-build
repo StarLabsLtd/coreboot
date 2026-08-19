@@ -52,7 +52,8 @@ mkdir -p "$output_dir"
 # overrides in its standalone build).
 unset ${COREBOOT_EXPORTS:-}
 exec env -u CC -u HOSTCC -u CFLAGS -u CPPFLAGS -u LDFLAGS \
-	-u OBJCOPY -u NM -u MAKEFLAGS -u MFLAGS -u MAKEOVERRIDES \
+	-u AR -u AS -u LD -u NM -u OBJCOPY -u OBJDUMP -u RANLIB -u STRIP \
+	-u MAKEFLAGS -u MFLAGS -u MAKEOVERRIDES \
 	"$make_command" -C "$source_dir" \
 	COREBOOT_CONFIG="$coreboot_config" \
 	COREBOOT_CDK2_PROFILE="$profile" \
