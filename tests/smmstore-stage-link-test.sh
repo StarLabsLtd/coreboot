@@ -25,7 +25,7 @@ CONFIG_DRIVERS_EFI_FW_INFO=y
 CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y
 EOF
 "$make_command" -s -C "$root" DOTCONFIG="$tmp/q35" \
-	BUILD_DIR="$tmp/build" olddefconfig
+	obj="$tmp/build" olddefconfig
 for symbol in SMMSTORE DRIVERS_EFI_VARIABLE_STORE USE_UEFI_VARIABLE_STORE \
 	DRIVERS_EFI_FW_INFO \
 	DRIVERS_EFI_UPDATE_CAPSULES; do
@@ -34,4 +34,4 @@ done
 
 # Link the configured image so unresolved per-stage ownership is observable.
 "$make_command" -s -C "$root" DOTCONFIG="$tmp/q35" \
-	BUILD_DIR="$tmp/build" -j2
+	obj="$tmp/build" -j2
