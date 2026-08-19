@@ -3,6 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+make_command=${MAKE:-make}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 source_dir="$tmp/source"
@@ -62,7 +63,8 @@ grep -q 'tracked modifications' "$tmp/error"
 for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl; do
 	cp "$root/configs/$board" "$tmp/$board"
 	echo 'CONFIG_PAYLOAD_CDK2=y' >> "$tmp/$board"
-	make -s -C "$root" DOTCONFIG="$tmp/$board" olddefconfig
+	"$make_command" -s -C "$root" DOTCONFIG="$tmp/$board" \
+		obj="$tmp/build-$board" olddefconfig
 	for symbol in PAYLOAD_CDK2 HANDOFF_COREBOOT_TABLES \
 		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
@@ -73,6 +75,7 @@ done
 
 # Merely adding CDK2 must not perturb the existing EDK2 selection.
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/edk2"
-make -s -C "$root" DOTCONFIG="$tmp/edk2" olddefconfig
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/edk2" \
+	obj="$tmp/build-edk2" olddefconfig
 grep -qx 'CONFIG_PAYLOAD_EDK2=y' "$tmp/edk2"
 grep -qx '# CONFIG_PAYLOAD_CDK2 is not set' "$tmp/edk2"
