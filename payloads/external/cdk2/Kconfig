@@ -11,7 +11,7 @@ config CDK2_SOURCE_PATH
 
 config CDK2_SOURCE_REVISION
 	string "Required CDK2 source revision"
-	default "dca5f794ebc6d6e130c46985022da6cc0c566501"
+	default "43385fa7f726b1d776f00c73fad420bb46691fc0"
 	help
 	  Full commit object name required at the source checkout's HEAD.  Builds
 	  fail when this is empty, differs from HEAD, or the checkout is dirty.
