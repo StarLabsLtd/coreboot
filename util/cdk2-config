@@ -23,6 +23,10 @@ if [ "$enabled" = y ]; then
 		echo 'CDK2 capsule profile requires a non-nil firmware GUID' >&2
 		exit 1
 	}
+	[ "$lower_guid" != ffffffff-ffff-ffff-ffff-ffffffffffff ] || {
+		echo 'CDK2 capsule profile requires a non-max firmware GUID' >&2
+		exit 1
+	}
 	[ "$lower_guid" != 00112233-4455-6677-8899-aabbccddeeff ] || {
 		echo 'CDK2 capsule profile requires a board-specific firmware GUID' >&2
 		exit 1
