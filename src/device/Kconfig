@@ -116,7 +116,7 @@ config RUN_FSP_GOP
 
 config NO_GFX_INIT
 	bool "None"
-	depends on !MAINBOARD_FORCE_NATIVE_VGA_INIT
+	depends on !MAINBOARD_FORCE_NATIVE_VGA_INIT && !PAYLOAD_CDK2
 	help
 	  Select this to not perform any graphics initialization in
 	  coreboot. This is useful if the payload (e.g. SeaBIOS) can

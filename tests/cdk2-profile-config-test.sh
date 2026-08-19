@@ -84,6 +84,18 @@ for symbol in PAYLOAD_CDK2 PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE DRIVERS_EFI_VARIA
 	grep -qx "CONFIG_${symbol}=y" "$tmp/coreboot-enabled"
 done
 
+cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-no-gfx"
+cat >> "$tmp/coreboot-no-gfx" <<'EOF'
+CONFIG_PAYLOAD_CDK2=y
+CONFIG_NO_GFX_INIT=y
+EOF
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-no-gfx" \
+	obj="$tmp/build-no-gfx" olddefconfig
+if grep -qx 'CONFIG_NO_GFX_INIT=y' "$tmp/coreboot-no-gfx"; then
+	echo 'CDK2 payload retained an unusable no-graphics configuration' >&2
+	exit 1
+fi
+
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-disabled"
 "$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-disabled" \
 	obj="$tmp/build-disabled" olddefconfig
