@@ -33,7 +33,13 @@ git -C "$source_dir" -c commit.gpgSign=false commit -q -m fixture
 revision=$(git -C "$source_dir" rev-parse HEAD)
 echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
 printf 'admitted retained FV fixture\n' > "$tmp/retained.fv"
-retained_hash=$(sha256sum "$tmp/retained.fv" | awk '{print $1}')
+if command -v sha256sum >/dev/null 2>&1; then
+	retained_hash=$(sha256sum "$tmp/retained.fv" | awk '{print $1}')
+elif command -v sha256 >/dev/null 2>&1; then
+	retained_hash=$(sha256 -q "$tmp/retained.fv")
+else
+	retained_hash=$(shasum -a 256 "$tmp/retained.fv" | awk '{print $1}')
+fi
 cat > "$tmp/gmake" <<EOF
 #!/bin/sh
 echo invoked > "$tmp/make-invoked"
