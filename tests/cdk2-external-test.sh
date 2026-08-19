@@ -98,7 +98,7 @@ for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl
 		GENERIC_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
 	done
-	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="81284a2223599fe7a9856c3e704e675454b6f970"' \
+	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="dca5f794ebc6d6e130c46985022da6cc0c566501"' \
 		"$tmp/$board"
 	grep -qx 'CONFIG_CDK2_RETAINED_FV_SHA256="ca1ebfd0ff6c7c82935a4302c1ddc4cc418ed177756c678260dfb09527e1f50e"' \
 		"$tmp/$board"
