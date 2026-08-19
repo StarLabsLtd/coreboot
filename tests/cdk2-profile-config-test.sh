@@ -8,12 +8,12 @@ trap 'rm -rf "$tmp"' EXIT
 
 cat > "$tmp/enabled" <<'EOF'
 CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
-CONFIG_DRIVERS_EFI_MAIN_FW_GUID="00112233-4455-6677-8899-aabbccddeeff"
+CONFIG_DRIVERS_EFI_MAIN_FW_GUID="11112233-4455-6677-8899-aabbccddeeff"
 EOF
 "$root/util/cdk2-config" "$tmp/enabled" "$tmp/profile"
 grep -qx 'CONFIG_CDK2_PAYLOAD=y' "$tmp/profile"
 grep -qx 'CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE=y' "$tmp/profile"
-grep -qx 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="00112233-4455-6677-8899-aabbccddeeff"' "$tmp/profile"
+grep -qx 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="11112233-4455-6677-8899-aabbccddeeff"' "$tmp/profile"
 
 echo '# CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE is not set' > "$tmp/disabled"
 "$root/util/cdk2-config" "$tmp/disabled" "$tmp/profile"
@@ -26,6 +26,16 @@ if "$root/util/cdk2-config" "$tmp/invalid" "$tmp/profile" 2> "$tmp/error"; then
 	exit 1
 fi
 grep -q 'requires CONFIG_DRIVERS_EFI_MAIN_FW_GUID' "$tmp/error"
+
+cat > "$tmp/placeholder" <<'EOF'
+CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
+CONFIG_DRIVERS_EFI_MAIN_FW_GUID="00112233-4455-6677-8899-aabbccddeeff"
+EOF
+if "$root/util/cdk2-config" "$tmp/placeholder" "$tmp/profile" 2> "$tmp/error"; then
+	echo 'placeholder firmware GUID unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'requires a board-specific firmware GUID' "$tmp/error"
 
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-enabled"
 cat >> "$tmp/coreboot-enabled" <<'EOF'
