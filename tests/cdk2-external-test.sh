@@ -108,7 +108,8 @@ done
 # capability must not expose it as a selectable payload.
 cp "$root/configs/builder/config.intel.crb.ac" "$tmp/no-linear"
 echo 'CONFIG_PAYLOAD_CDK2=y' >> "$tmp/no-linear"
-make -s -C "$root" DOTCONFIG="$tmp/no-linear" olddefconfig
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/no-linear" \
+	obj="$tmp/build-no-linear" olddefconfig
 ! grep -qx 'CONFIG_PAYLOAD_CDK2=y' "$tmp/no-linear"
 
 # Merely adding CDK2 must not perturb the existing EDK2 selection.
