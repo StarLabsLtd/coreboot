@@ -56,6 +56,14 @@ if "$root/util/cdk2-config" "$tmp/nil-guid" "$tmp/profile" 2> "$tmp/error"; then
 fi
 grep -q 'requires a non-nil firmware GUID' "$tmp/error"
 
+sed 's/00112233-4455-6677-8899-aabbccddeeff/ffffffff-ffff-ffff-ffff-ffffffffffff/' \
+	"$tmp/placeholder" > "$tmp/max-guid"
+if "$root/util/cdk2-config" "$tmp/max-guid" "$tmp/profile" 2> "$tmp/error"; then
+	echo 'max firmware GUID unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'requires a non-max firmware GUID' "$tmp/error"
+
 sed 's/aabbccddeeff/AABBCCDDEEFF/' "$tmp/placeholder" > "$tmp/placeholder-upper"
 if "$root/util/cdk2-config" "$tmp/placeholder-upper" "$tmp/profile" 2> "$tmp/error"; then
 	echo 'uppercase placeholder firmware GUID unexpectedly accepted' >&2
