@@ -38,6 +38,14 @@ if "$root/util/cdk2-config" "$tmp/placeholder" "$tmp/profile" 2> "$tmp/error"; t
 fi
 grep -q 'requires a board-specific firmware GUID' "$tmp/error"
 
+sed 's/00112233-4455-6677-8899-aabbccddeeff/00000000-0000-0000-0000-000000000000/' \
+	"$tmp/placeholder" > "$tmp/nil-guid"
+if "$root/util/cdk2-config" "$tmp/nil-guid" "$tmp/profile" 2> "$tmp/error"; then
+	echo 'nil firmware GUID unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'requires a non-nil firmware GUID' "$tmp/error"
+
 sed 's/aabbccddeeff/AABBCCDDEEFF/' "$tmp/placeholder" > "$tmp/placeholder-upper"
 if "$root/util/cdk2-config" "$tmp/placeholder-upper" "$tmp/profile" 2> "$tmp/error"; then
 	echo 'uppercase placeholder firmware GUID unexpectedly accepted' >&2
