@@ -96,6 +96,18 @@ if grep -qx 'CONFIG_NO_GFX_INIT=y' "$tmp/coreboot-no-gfx"; then
 	exit 1
 fi
 
+cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-vga-rom"
+cat >> "$tmp/coreboot-vga-rom" <<'EOF'
+CONFIG_PAYLOAD_CDK2=y
+CONFIG_VGA_ROM_RUN=y
+EOF
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-vga-rom" \
+	obj="$tmp/build-vga-rom" olddefconfig
+if grep -qx 'CONFIG_VGA_ROM_RUN=y' "$tmp/coreboot-vga-rom"; then
+	echo 'CDK2 payload retained a text-only VGA ROM configuration' >&2
+	exit 1
+fi
+
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-disabled"
 "$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-disabled" \
 	obj="$tmp/build-disabled" olddefconfig
