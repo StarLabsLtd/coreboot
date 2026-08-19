@@ -13,7 +13,8 @@ if [ "$enabled" = y ]; then
 		echo 'CDK2 capsule profile requires CONFIG_DRIVERS_EFI_MAIN_FW_GUID' >&2
 		exit 1
 	}
-	[ "$guid" != 00112233-4455-6677-8899-aabbccddeeff ] || {
+	lower_guid=$(printf '%s' "$guid" | tr '[:upper:]' '[:lower:]')
+	[ "$lower_guid" != 00112233-4455-6677-8899-aabbccddeeff ] || {
 		echo 'CDK2 capsule profile requires a board-specific firmware GUID' >&2
 		exit 1
 	}

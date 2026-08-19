@@ -3,6 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+make_command=${MAKE:-make}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -37,12 +38,20 @@ if "$root/util/cdk2-config" "$tmp/placeholder" "$tmp/profile" 2> "$tmp/error"; t
 fi
 grep -q 'requires a board-specific firmware GUID' "$tmp/error"
 
+sed 's/aabbccddeeff/AABBCCDDEEFF/' "$tmp/placeholder" > "$tmp/placeholder-upper"
+if "$root/util/cdk2-config" "$tmp/placeholder-upper" "$tmp/profile" 2> "$tmp/error"; then
+	echo 'uppercase placeholder firmware GUID unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'requires a board-specific firmware GUID' "$tmp/error"
+
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-enabled"
 cat >> "$tmp/coreboot-enabled" <<'EOF'
 CONFIG_PAYLOAD_CDK2=y
 CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
 EOF
-make -s -C "$root" DOTCONFIG="$tmp/coreboot-enabled" olddefconfig
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-enabled" \
+	obj="$tmp/build-enabled" olddefconfig
 for symbol in PAYLOAD_CDK2 PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE DRIVERS_EFI_VARIABLE_STORE \
 	DRIVERS_EFI_FW_INFO DRIVERS_EFI_UPDATE_CAPSULES \
 	DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT SMMSTORE; do
@@ -50,7 +59,8 @@ for symbol in PAYLOAD_CDK2 PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE DRIVERS_EFI_VARIA
 done
 
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/coreboot-disabled"
-make -s -C "$root" DOTCONFIG="$tmp/coreboot-disabled" olddefconfig
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/coreboot-disabled" \
+	obj="$tmp/build-disabled" olddefconfig
 if grep -qx 'CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y' \
 	"$tmp/coreboot-disabled"; then
 	echo 'CDK2 capsule profile unexpectedly enabled with EDK2' >&2
@@ -62,7 +72,8 @@ cat >> "$tmp/qemu-enabled" <<'EOF'
 CONFIG_PAYLOAD_CDK2=y
 CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
 EOF
-make -s -C "$root" DOTCONFIG="$tmp/qemu-enabled" olddefconfig \
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/qemu-enabled" \
+	obj="$tmp/build-qemu" olddefconfig \
 	2> "$tmp/qemu-error"
 test ! -s "$tmp/qemu-error"
 for symbol in PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE DRIVERS_EFI_FW_INFO \
