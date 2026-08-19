@@ -8,16 +8,19 @@ CDK2_SOURCE_DIR := $(if $(filter /%,$(CDK2_SOURCE_PATH)),$(CDK2_SOURCE_PATH),$(C
 CDK2_PROFILE_CONFIG := $(obj)/cdk2-profile.config
 CDK2_PAYLOAD := $(obj)/cdk2/native/cdk2-coreboot-stage.elf
 
+.PHONY: cdk2-source-state
+cdk2-source-state:
+
 $(CDK2_PROFILE_CONFIG): util/cdk2-config $(DOTCONFIG)
 	@printf '    CDK2       %s\n' "$@"
 	@util/cdk2-config "$@"
 
-$(CDK2_PAYLOAD): $(DOTCONFIG) $(CDK2_PROFILE_CONFIG) util/cdk2-build
+$(CDK2_PAYLOAD): $(DOTCONFIG) $(CDK2_PROFILE_CONFIG) util/cdk2-build cdk2-source-state
 	@printf '    CDK2       %s\n' "$@"
 	@util/cdk2-build "$(CDK2_SOURCE_DIR)" \
 		"$(call strip_quotes,$(CONFIG_CDK2_SOURCE_REVISION))" \
 		"$(abspath $(DOTCONFIG))" "$(abspath $(CDK2_PROFILE_CONFIG))" \
-		"$(abspath $(obj)/cdk2)"
+		"$(abspath $(obj)/cdk2)" "$(MAKE)"
 
 endif
 

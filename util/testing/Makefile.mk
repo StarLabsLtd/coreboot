@@ -150,6 +150,7 @@ test-payloads:
 		|| exit 1; )
 
 test-tools:
+	tests/cdk2-external-test.sh
 	@echo "Build testing $(TOOLLIST)"
 	$(foreach tool, $(TOOLLIST),  echo "Building $(tool)";$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR="util/$(tool)" BLD="$(tool)" MFLAGS= MAKEFLAGS= MAKETARGET= junit.xml; )
 	unset COREBOOT_BUILD_DIR;$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=payloads/nvramcui BLD=nvramcui MFLAGS= MAKEFLAGS= MAKETARGET=all junit.xml

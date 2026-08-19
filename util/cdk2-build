@@ -6,7 +6,8 @@ source_dir=${1:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT
 revision=${2:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
 coreboot_config=${3:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
 profile=${4:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
-output_dir=${5:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
+output_dir=${5:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR MAKE}
+make_command=${6:-make}
 
 case "$revision" in
 	*[!0-9a-f]* )
@@ -49,9 +50,10 @@ mkdir -p "$output_dir"
 # CDK2 host/native tool selections and must not leak across the payload build
 # boundary; CDK2 chooses its own deterministic defaults (or explicit caller
 # overrides in its standalone build).
+unset ${COREBOOT_EXPORTS:-}
 exec env -u CC -u HOSTCC -u CFLAGS -u CPPFLAGS -u LDFLAGS \
 	-u OBJCOPY -u NM -u MAKEFLAGS -u MFLAGS -u MAKEOVERRIDES \
-	make -C "$source_dir" \
+	"$make_command" -C "$source_dir" \
 	COREBOOT_CONFIG="$coreboot_config" \
 	COREBOOT_CDK2_PROFILE="$profile" \
 	COREBOOT_OUTPUT_DIR="$output_dir" \
