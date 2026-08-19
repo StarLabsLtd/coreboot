@@ -20,6 +20,9 @@ coreboot-stage:
 	@test -z "$(obj)"
 	@test -z "$(top)"
 	@test -z "$(src)"
+	@test "$(origin AR)$(origin AS)$(origin LD)" = defaultdefaultdefault
+	@test "$(origin NM)$(origin OBJCOPY)$(origin OBJDUMP)" = undefinedundefinedundefined
+	@test "$(origin RANLIB)$(origin STRIP)" = undefinedundefined
 	@mkdir -p "$(COREBOOT_OUTPUT_DIR)/native"
 	@cp "$(COREBOOT_CDK2_PROFILE)" "$(COREBOOT_OUTPUT_DIR)/received.config"
 	@touch "$(COREBOOT_OUTPUT_DIR)/native/cdk2-coreboot-stage.elf"
@@ -37,6 +40,8 @@ echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
 "$root/util/cdk2-config" "$tmp/profile"
 COREBOOT_EXPORTS='COREBOOT_EXPORTS KCONFIG_CONFIG obj top src' \
 	KCONFIG_CONFIG=wrong obj=wrong top=wrong src=wrong \
+	AR=wrong AS=wrong LD=wrong NM=wrong OBJCOPY=wrong OBJDUMP=wrong \
+	RANLIB=wrong STRIP=wrong \
 	"$root/util/cdk2-build" "$source_dir" "$revision" \
 	"$tmp/coreboot.config" "$tmp/profile" "$tmp/output" \
 	"$tmp/gmake"
