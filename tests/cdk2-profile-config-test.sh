@@ -28,6 +28,16 @@ if "$root/util/cdk2-config" "$tmp/invalid" "$tmp/profile" 2> "$tmp/error"; then
 fi
 grep -q 'requires CONFIG_DRIVERS_EFI_MAIN_FW_GUID' "$tmp/error"
 
+cat > "$tmp/malformed" <<'EOF'
+CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
+CONFIG_DRIVERS_EFI_MAIN_FW_GUID="not-a-guid"
+EOF
+if "$root/util/cdk2-config" "$tmp/malformed" "$tmp/profile" 2> "$tmp/error"; then
+	echo 'malformed firmware GUID unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'requires a canonical firmware GUID' "$tmp/error"
+
 cat > "$tmp/placeholder" <<'EOF'
 CONFIG_PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE=y
 CONFIG_DRIVERS_EFI_MAIN_FW_GUID="00112233-4455-6677-8899-aabbccddeeff"
