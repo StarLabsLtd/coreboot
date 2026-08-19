@@ -94,14 +94,23 @@ for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl
 	"$make_command" -s -C "$root" DOTCONFIG="$tmp/$board" \
 		obj="$tmp/build-$board" olddefconfig
 	for symbol in PAYLOAD_CDK2 HANDOFF_COREBOOT_TABLES \
-		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER SMMSTORE; do
+		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER \
+		GENERIC_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
 	done
-	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="8bbabbd2557057f1b5112229a8b189fa99289d7c"' \
+	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="47c95ecc920cfcdb3b0f39f95318ff3c4047d6c6"' \
 		"$tmp/$board"
 	grep -qx 'CONFIG_CDK2_RETAINED_FV_SHA256="ca1ebfd0ff6c7c82935a4302c1ddc4cc418ed177756c678260dfb09527e1f50e"' \
 		"$tmp/$board"
 done
+
+# CDK2 requires a framebuffer HOB, so boards without linear-framebuffer
+# capability must not expose it as a selectable payload.
+cp "$root/configs/builder/config.intel.crb.ac" "$tmp/no-linear"
+echo 'CONFIG_PAYLOAD_CDK2=y' >> "$tmp/no-linear"
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/no-linear" \
+	obj="$tmp/build-no-linear" olddefconfig
+! grep -qx 'CONFIG_PAYLOAD_CDK2=y' "$tmp/no-linear"
 
 # Merely adding CDK2 must not perturb the existing EDK2 selection.
 cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/edk2"
