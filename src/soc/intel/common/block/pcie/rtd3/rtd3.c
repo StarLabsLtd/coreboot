@@ -32,10 +32,107 @@
 /* ACPI path to control PCIE CLK by P2SB */
 #define RTD3_PCIE_CLK_ENABLE_PATH "\\_SB.PCI0.SPCO"
 
+#define WIFI_PLDR_DELAY_MS 50
+
+enum wifi_pldr_mode {
+	WIFI_PLDR_CORE_RESET,
+	WIFI_PLDR_PRODUCT_RESET,
+};
+
+enum wifi_pldr_status {
+	WIFI_PLDR_CORE_RESET_COMPLETE = 1,
+	WIFI_PLDR_PRODUCT_RESET_COMPLETE,
+};
+
 enum modphy_pg_state {
 	PG_DISABLE = 0,
 	PG_ENABLE = 1,
 };
+
+static void
+pcie_rtd3_acpi_wifi_pldr(const struct device *wifi, const struct device *parent,
+			 const struct soc_intel_common_block_pcie_rtd3_config *config)
+{
+	const unsigned int pcie_cap = pci_find_capability(wifi, PCI_CAP_ID_PCIE);
+	const char *scope = acpi_device_path(wifi);
+	const struct opregion opregion = OPREGION("WFPC", PCI_CONFIG, 0, 0xff);
+	const struct fieldlist fieldlist[] = {
+		FIELDLIST_OFFSET(pcie_cap + PCI_EXP_DEVCAP),
+		FIELDLIST_RESERVED(28),
+		FIELDLIST_NAMESTR("WFLR", 1),
+		FIELDLIST_OFFSET(pcie_cap + PCI_EXP_DEVCTL),
+		FIELDLIST_RESERVED(15),
+		FIELDLIST_NAMESTR("WIFR", 1),
+	};
+
+	if (!scope || !pcie_cap || !config->reset_gpio.pin_count) {
+		printk(BIOS_ERR,
+		       "%s: Wi-Fi PLDR requires an ACPI scope, PCIe capability, "
+		       "and reset GPIO\n",
+		       __func__);
+		return;
+	}
+
+	acpigen_write_scope(scope);
+
+	acpigen_write_name_integer("RSTT", WIFI_PLDR_CORE_RESET);
+	acpigen_write_name_integer("PRRS", 0);
+	acpigen_write_name_integer("WFDL", WIFI_PLDR_DELAY_MS);
+
+	acpigen_write_opregion(&opregion);
+	acpigen_write_field("WFPC", fieldlist, ARRAY_SIZE(fieldlist),
+			    FIELD_WORDACC | FIELD_NOLOCK | FIELD_PRESERVE);
+
+	acpigen_write_power_res("WRST", 5, 0, NULL, 0);
+
+	acpigen_write_method("_STA", 0);
+	acpigen_write_return_integer(1);
+	acpigen_pop_len(); /* Method */
+
+	acpigen_write_method("_ON", 0);
+	acpigen_pop_len(); /* Method */
+
+	acpigen_write_method("_OFF", 0);
+	acpigen_pop_len(); /* Method */
+
+	acpigen_write_method_serialized("_RST", 0);
+
+	if (config->use_rp_mutex)
+		acpigen_write_acquire(acpi_device_path_join(parent, RP_MUTEX_NAME),
+				      ACPI_MUTEX_NO_TIMEOUT);
+
+	/* A core reset precedes the optional product reset. */
+	acpigen_write_if_lequal_namestr_int("WFLR", 1);
+	acpigen_write_store_int_to_namestr(1, "WIFR");
+	acpigen_pop_len(); /* If */
+	acpigen_write_store_int_to_namestr(WIFI_PLDR_CORE_RESET_COMPLETE, "PRRS");
+
+	acpigen_write_if_lequal_namestr_int("RSTT", WIFI_PLDR_PRODUCT_RESET);
+	acpigen_enable_tx_gpio(&config->reset_gpio);
+	acpigen_emit_ext_op(SLEEP_OP);
+	acpigen_emit_namestring("WFDL");
+	acpigen_disable_tx_gpio(&config->reset_gpio);
+	acpigen_write_store_int_to_namestr(WIFI_PLDR_PRODUCT_RESET_COMPLETE, "PRRS");
+	acpigen_pop_len(); /* If */
+
+	if (config->use_rp_mutex)
+		acpigen_write_release(acpi_device_path_join(parent, RP_MUTEX_NAME));
+
+	if (config->skip_on_off_support) {
+		acpigen_emit_byte(INCREMENT_OP);
+		acpigen_emit_namestring(acpi_device_path_join(parent, "RTD3.OFSK"));
+	}
+
+	acpigen_pop_len(); /* Method */
+	acpigen_write_power_res_end();
+
+	acpigen_write_name("_PRR");
+	acpigen_write_package(1);
+	acpigen_emit_namestring("WRST");
+	acpigen_pop_len(); /* Package */
+
+	acpigen_write_scope_end();
+}
 
 /* Called from _ON to get PCIe link back to active state. */
 static void pcie_rtd3_acpi_l23_exit(void)
@@ -575,6 +672,17 @@ static void pcie_rtd3_acpi_fill_ssdt(const struct device *dev)
 	}
 
 	acpigen_pop_len(); /* Scope */
+
+	if (config->enable_wifi_pldr) {
+		const struct device *wifi = dev->sibling;
+
+		if (wifi && is_dev_enabled(wifi) && wifi->path.type == DEVICE_PATH_PCI &&
+		    wifi->vendor == PCI_VID_INTEL &&
+		    (wifi->class >> 16) == PCI_BASE_CLASS_NETWORK)
+			pcie_rtd3_acpi_wifi_pldr(wifi, parent, config);
+		else
+			printk(BIOS_ERR, "%s: Intel Wi-Fi device not found\n", __func__);
+	}
 }
 
 static const char *pcie_rtd3_acpi_name(const struct device *dev)
