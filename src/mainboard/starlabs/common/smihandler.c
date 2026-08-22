@@ -104,6 +104,7 @@ static bool is_valid_touchpad_haptics(uint32_t value)
 	       (!CONFIG(STARLABS_TOUCHPAD_CST) && value == STARLABS_TOUCHPAD_HAPTICS_MIN);
 }
 
+#if CONFIG(STARLABS_TOUCHPAD_CST)
 static bool is_valid_touchpad_press_force(uint32_t value)
 {
 	return value == STARLABS_TOUCHPAD_PRESS_FORCE_MINIMAL ||
@@ -121,6 +122,7 @@ static bool is_valid_touchpad_release_force(uint32_t value)
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HIGH ||
 	       value == STARLABS_TOUCHPAD_RELEASE_FORCE_HULK;
 }
+#endif
 
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 static bool is_valid_touchpad_report_rate(uint32_t value)
