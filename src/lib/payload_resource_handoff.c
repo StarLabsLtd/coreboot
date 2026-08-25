@@ -38,7 +38,7 @@ static bool resource_is_pci_aperture(const struct resource *resource)
 
 	return resource->size != 0 && (resource->flags & IORESOURCE_ASSIGNED) != 0 &&
 	       (resource->flags & (IORESOURCE_SUBTRACTIVE | IORESOURCE_RESERVE |
-				    IORESOURCE_BRIDGE)) == 0 &&
+				    IORESOURCE_BRIDGE | IORESOURCE_CACHEABLE)) == 0 &&
 	       (type == IORESOURCE_IO || type == IORESOURCE_MEM);
 }
 

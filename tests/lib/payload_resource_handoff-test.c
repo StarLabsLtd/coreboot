@@ -16,7 +16,7 @@ static struct bus child_bus;
 static struct device domain;
 static struct device pci_device;
 static struct device child_device;
-static struct resource resources[5];
+static struct resource resources[6];
 
 struct device *all_devices;
 
@@ -99,7 +99,14 @@ static int setup(void **state)
 	resources[4] = (struct resource) {
 		.base = 0xfe02c000, .size = 0x1000,
 		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
-		.index = 0x10,
+		.index = 0x10, .next = &resources[5],
+	};
+	/* Host DRAM is attached to the system agent, but is not a PCI aperture. */
+	resources[5] = (struct resource) {
+		.base = 0, .size = 0xa0000,
+		.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
+			 IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
+		.index = 0x0f,
 	};
 
 	all_devices = &domain;
