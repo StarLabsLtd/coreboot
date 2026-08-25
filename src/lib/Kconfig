@@ -9,9 +9,11 @@ config MISSING_BOARD_RESET
 
 config PAYLOAD_RESOURCE_HANDOFF
 	bool
+	depends on BOARD_STARLABS_STARBOOK_MTL && PAYLOAD_EDK2
 	depends on PCI && ECAM_MMCONF_SUPPORT
 	help
-	  Serialize coreboot-assigned PCI root bridge apertures for payloads.
+	  Serialize PCI root topology and exact coreboot-assigned resources for
+	  the CDK2 payload.
 
 config ROMSTAGE_ADA
 	bool
