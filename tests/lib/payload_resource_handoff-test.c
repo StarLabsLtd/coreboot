@@ -97,7 +97,7 @@ static void test_exact_holes_and_prefetch(void **state)
 	s = h->sections;
 	assert_int_equal(s[0].entry_count, 1);
 	root = (const void *)((const uint8_t *)h + s[0].offset);
-	assert_int_equal(root->flags, LB_PRH_PCI_ROOT_RESOURCE_ASSIGNED);
+	assert_int_equal(root->flags, LB_PRH_PCI_ROOT_TOPOLOGY_ONLY);
 	assert_int_equal(root->mem32_length, 0);
 	assert_int_equal(s[1].type, LB_PRH_SECTION_PCI_ASSIGNMENTS);
 	assert_int_equal(s[1].entry_count, 4);
@@ -117,6 +117,25 @@ static void test_duplicate(void **state)
 	res[4].next = &res[5];
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
+static void test_duplicate_resource_identity(void **state)
+{
+	set_res(5, 0x20000000, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x10, NULL);
+	res[3].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_high_resource_index(void **state)
+{
+	res[0].index = 0x344;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_narrowing_collision(void **state)
+{
+	res[0].index = 0x110;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
 static void test_reserved(void **state)
@@ -186,6 +205,9 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
 		cmocka_unit_test_setup(test_duplicate, setup),
+		cmocka_unit_test_setup(test_duplicate_resource_identity, setup),
+		cmocka_unit_test_setup(test_rejects_high_resource_index, setup),
+		cmocka_unit_test_setup(test_rejects_narrowing_collision, setup),
 		cmocka_unit_test_setup(test_reserved, setup),
 		cmocka_unit_test_setup(test_ecam, setup),
 		cmocka_unit_test_setup(test_two_roots_same_segment, setup),
