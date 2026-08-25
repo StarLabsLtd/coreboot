@@ -227,8 +227,8 @@ static void test_platform_mmio_contains_bar(void **state)
 {
 	res[0].base = 0xfe03e000;
 	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
-		IORESOURCE_FIXED | IORESOURCE_RESERVE, 1, NULL);
-	res[4].next = &res[5];
+		IORESOURCE_FIXED | IORESOURCE_RESERVE, PCI_BASE_ADDRESS_0, NULL);
+	devs[0].resource_list = &res[5];
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
 }
 
@@ -237,7 +237,27 @@ static void test_platform_mmio_partial_overlap_rejected(void **state)
 	res[0].base = 0xfe03e000;
 	set_res(5, 0xfe03d800, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
 		IORESOURCE_FIXED | IORESOURCE_RESERVE, 1, NULL);
-	res[4].next = &res[5];
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_platform_cacheable_containment_rejected(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_CACHEABLE, 1, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_platform_malformed_range_rejected(void **state)
+{
+	res[0].base = UINT64_MAX - 0x7ff;
+	res[0].size = 0x400;
+	res[0].flags |= IORESOURCE_PCI64;
+	set_res(5, UINT64_MAX - 0xfff, 0x2000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_RESERVE, 1, NULL);
+	devs[0].resource_list = &res[5];
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
@@ -392,6 +412,8 @@ int main(void)
 		cmocka_unit_test_setup(test_skips_assigned_non_bar_io, setup),
 		cmocka_unit_test_setup(test_platform_mmio_contains_bar, setup),
 		cmocka_unit_test_setup(test_platform_mmio_partial_overlap_rejected, setup),
+		cmocka_unit_test_setup(test_platform_cacheable_containment_rejected, setup),
+		cmocka_unit_test_setup(test_platform_malformed_range_rejected, setup),
 		cmocka_unit_test_setup(test_two_roots_same_segment, setup),
 		cmocka_unit_test_setup(test_overlapping_roots, setup),
 		cmocka_unit_test_setup(test_orphan, setup),
