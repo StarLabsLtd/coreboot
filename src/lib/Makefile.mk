@@ -274,6 +274,7 @@ verstage-y += crc_byte.c
 romstage-y += crc_byte.c
 postcar-y += crc_byte.c
 ramstage-y += crc_byte.c
+ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
 smm-y += crc_byte.c
 
 postcar-y += bootmode.c

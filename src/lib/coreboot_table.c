@@ -27,6 +27,7 @@
 #include <smmstore.h>
 #include <types.h>
 #include <version.h>
+#include <halt.h>
 
 #if CONFIG(USE_OPTION_TABLE)
 #include <option_table.h>
@@ -614,6 +615,10 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Add information about firmware in form suitable for EFI updates. */
 	if (CONFIG(DRIVERS_EFI_FW_INFO))
 		lb_efi_fw_info(head);
+
+	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
+	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
+		die("Payload resource handoff is not trustworthy\n");
 
 	/* Add board-specific table entries, if any. */
 	lb_board(head);
