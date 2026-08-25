@@ -93,6 +93,7 @@ enum {
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
+	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -166,6 +167,65 @@ struct lb_pcie {
 	uint32_t size;
 	lb_uint64_t ctrl_base;		/* Base address of PCIe controller */
 };
+
+#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 2
+
+#define LB_PRH_SECTION_PCI_ROOT_BRIDGES 3
+
+#define LB_PRH_SECTION_FLAG_MANDATORY     0x0001
+#define LB_PRH_SECTION_FLAG_AUTHORITATIVE 0x0002
+
+#define LB_PRH_LIFETIME_COLD_BOOT          0x0000000000000001ULL
+#define LB_PRH_LIFETIME_EXIT_BOOT_SERVICES 0x0000000000000008ULL
+
+struct lb_payload_resource_section {
+	uint16_t type;
+	uint16_t flags;
+	uint16_t header_length;
+	uint16_t entry_size;
+	uint32_t entry_count;
+	uint32_t offset;
+	uint32_t length;
+};
+
+struct lb_payload_resource_handoff {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_length;
+	uint16_t section_header_length;
+	uint16_t flags;
+	uint32_t crc32;
+	uint32_t section_count;
+	uint32_t producer_stage;
+	lb_uint64_t producer_generation;
+	lb_uint64_t lifetime_flags;
+	struct lb_payload_resource_section sections[];
+};
+
+struct lb_prh_pci_root_bridge {
+	uint16_t segment;
+	uint8_t bus_start;
+	uint8_t bus_end;
+	uint32_t flags;
+	lb_uint64_t io_base;
+	lb_uint64_t io_length;
+	lb_uint64_t mem32_base;
+	lb_uint64_t mem32_length;
+	lb_uint64_t mem64_base;
+	lb_uint64_t mem64_length;
+	lb_uint64_t pref_mem32_base;
+	lb_uint64_t pref_mem32_length;
+	lb_uint64_t pref_mem64_base;
+	lb_uint64_t pref_mem64_length;
+};
+
+_Static_assert(sizeof(struct lb_payload_resource_handoff) == 44,
+	       "unexpected payload resource handoff header size");
+_Static_assert(sizeof(struct lb_payload_resource_section) == 20,
+	       "unexpected payload resource section size");
+_Static_assert(sizeof(struct lb_prh_pci_root_bridge) == 88,
+	       "unexpected payload resource root bridge size");
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
 
