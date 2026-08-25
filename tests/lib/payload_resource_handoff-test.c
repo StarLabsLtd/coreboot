@@ -6,10 +6,14 @@
 #include <tests/test.h>
 
 const unsigned int coreboot_version_timestamp = 0x12345678;
-static uint8_t storage[2048];
+static uint8_t storage[16384];
 static struct bus buses[2];
 static struct device devs[5];
 static struct resource res[8];
+static struct device limit_devs[44];
+static struct resource limit_res[LB_PRH_PCI_MAX_ASSIGNMENTS + 1];
+static struct device limit_domains[LB_PRH_PCI_MAX_ROOTS + 1];
+static struct bus limit_buses[LB_PRH_PCI_MAX_ROOTS + 1];
 struct device *all_devices;
 
 const char *dev_path(const struct device *dev) { return "fixture"; }
@@ -253,6 +257,87 @@ static void test_outside_mcfg(void **state)
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
+static void set_assignment_count(size_t count)
+{
+	memset(limit_devs, 0, sizeof(limit_devs));
+	memset(limit_res, 0, sizeof(limit_res));
+	devs[0].next = &limit_devs[0];
+	for (size_t index = 0; index < count; index++) {
+		const size_t device = index / 6;
+
+		limit_devs[device].enabled = 1;
+		limit_devs[device].path.type = DEVICE_PATH_PCI;
+		limit_devs[device].path.pci.devfn = PCI_DEVFN(device % 32, device / 32);
+		limit_devs[device].upstream = &buses[0];
+		limit_devs[device].resource_list = &limit_res[device * 6];
+		limit_devs[device].next = device + 1 < DIV_ROUND_UP(count, 6) ?
+			&limit_devs[device + 1] : NULL;
+		limit_res[index] = (struct resource) {
+			.base = 0x20000000 + index * 0x1000,
+			.size = 0x1000,
+			.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED,
+			.index = PCI_BASE_ADDRESS_0 + (index % 6) * sizeof(uint32_t),
+			.next = index % 6 != 5 && index + 1 < count ? &limit_res[index + 1] : NULL,
+		};
+	}
+}
+
+static void test_assignment_limit(void **state)
+{
+	const struct lb_payload_resource_handoff *handoff;
+
+	set_assignment_count(LB_PRH_PCI_MAX_ASSIGNMENTS);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[1].entry_count,
+		LB_PRH_PCI_MAX_ASSIGNMENTS);
+}
+
+static void test_assignment_limit_rejected(void **state)
+{
+	set_assignment_count(LB_PRH_PCI_MAX_ASSIGNMENTS + 1);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
+static void set_root_count(size_t count)
+{
+	memset(limit_domains, 0, sizeof(limit_domains));
+	memset(limit_buses, 0, sizeof(limit_buses));
+	for (size_t index = 0; index < count; index++) {
+		limit_domains[index].enabled = 1;
+		limit_domains[index].path.type = DEVICE_PATH_DOMAIN;
+		limit_domains[index].downstream = &limit_buses[index];
+		limit_domains[index].next = index + 1 < count ?
+			&limit_domains[index + 1] : &devs[1];
+		limit_buses[index].dev = &limit_domains[index];
+		limit_buses[index].segment_group = index;
+		limit_buses[index].subordinate = 1;
+	}
+	devs[1].upstream = &limit_buses[0];
+	devs[1].next = NULL;
+	devs[1].resource_list = &res[0];
+	res[0].next = NULL;
+	all_devices = &limit_domains[0];
+}
+
+static void test_root_limit(void **state)
+{
+	const struct lb_payload_resource_handoff *handoff;
+
+	set_root_count(LB_PRH_PCI_MAX_ROOTS);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[0].entry_count, LB_PRH_PCI_MAX_ROOTS);
+}
+
+static void test_root_limit_rejected(void **state)
+{
+	set_root_count(LB_PRH_PCI_MAX_ROOTS + 1);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -274,6 +359,10 @@ int main(void)
 		cmocka_unit_test_setup(test_overlapping_roots, setup),
 		cmocka_unit_test_setup(test_orphan, setup),
 		cmocka_unit_test_setup(test_outside_mcfg, setup),
+		cmocka_unit_test_setup(test_assignment_limit, setup),
+		cmocka_unit_test_setup(test_assignment_limit_rejected, setup),
+		cmocka_unit_test_setup(test_root_limit, setup),
+		cmocka_unit_test_setup(test_root_limit_rejected, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);
 }
