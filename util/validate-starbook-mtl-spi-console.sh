@@ -26,7 +26,7 @@ fi
 # opt-in overlay; do not treat the fragment text itself as validation.
 cp "$base" "$resolved"
 cat "$overlay" >> "$resolved"
-make -s olddefconfig KCONFIG_CONFIG="$resolved"
+make -s -C "$root" olddefconfig KCONFIG_CONFIG="$resolved"
 grep -q '^CONFIG_CONSOLE_SERIAL=y$' "$resolved"
 grep -q '^CONFIG_CONSOLE_CBMEM=y$' "$resolved"
 grep -q '^CONFIG_CONSOLE_SPI_FLASH=y$' "$resolved"
