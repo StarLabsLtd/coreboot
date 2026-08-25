@@ -99,9 +99,19 @@ static bool assignment_valid(const struct device *device, const struct resource 
 	    device->upstream->secondary < domain->downstream->secondary ||
 	    device->upstream->secondary > domain->downstream->subordinate)
 		return false;
+	if (device->path.pci.devfn > UINT8_MAX)
+		return false;
 	if ((resource->flags & IORESOURCE_IO) && end > UINT16_MAX)
 		return false;
 	if ((resource->flags & IORESOURCE_MEM) && resource->base < 4ULL * GiB && end >= 4ULL * GiB)
+		return false;
+	if ((resource->flags & IORESOURCE_MEM) && end > UINT32_MAX &&
+	    !(resource->flags & IORESOURCE_PCI64))
+		return false;
+	if ((resource->flags & IORESOURCE_PCI64) &&
+	    !(resource->flags & IORESOURCE_MEM))
+		return false;
+	if ((resource->flags & IORESOURCE_PCI64) && bar == 5)
 		return false;
 	/* ECAM is configuration space, never an assigned BAR interval. */
 	if ((resource->flags & IORESOURCE_MEM) &&
@@ -113,18 +123,25 @@ static bool assignment_valid(const struct device *device, const struct resource 
 	for (other_device = all_devices; other_device; other_device = other_device->next) {
 		const struct resource *other;
 
+		if (!other_device->enabled || other_device->path.type != DEVICE_PATH_PCI)
+			continue;
 		for (other = other_device->resource_list; other; other = other->next) {
 			uint64_t other_end;
 			uint8_t other_bar;
 
 			if (other == resource ||
-			    (!resource_is_assignment(other) && !resource_is_reserved(other)) ||
-			    (other->flags & IORESOURCE_TYPE_MASK) !=
-				(resource->flags & IORESOURCE_TYPE_MASK))
+			    (!resource_is_assignment(other) && !resource_is_reserved(other)))
 				continue;
-			if (other_device == device && resource_bar(other, &other_bar) &&
-			    bar == other_bar)
+			if (resource_bar(other, &other_bar) && other_device->upstream &&
+			    root_domain(other_device) == domain &&
+			    other_device->upstream->secondary == device->upstream->secondary &&
+			    other_device->path.pci.devfn == device->path.pci.devfn &&
+			    bar <= other_bar + !!(other->flags & IORESOURCE_PCI64) &&
+			    other_bar <= bar + !!(resource->flags & IORESOURCE_PCI64))
 				return false;
+			if ((other->flags & IORESOURCE_TYPE_MASK) !=
+			    (resource->flags & IORESOURCE_TYPE_MASK))
+				continue;
 			if (!range_end(other->base, other->size, &other_end) ||
 			    ranges_overlap(resource->base, end, other->base, other_end)) {
 				printk(BIOS_ERR, "PRH: %s resource %lx overlaps %s resource %lx\n",
@@ -275,6 +292,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			if (!resource_bar(resource, &output->bar))
 				return CB_ERR;
 			output->resource_type = assignment_type(resource);
+			output->flags = resource->flags & IORESOURCE_PCI64 ?
+				LB_PRH_PCI_ASSIGNMENT_64BIT : 0;
 			output->base = resource->base;
 			output->length = resource->size;
 			printk(BIOS_INFO, "PRH PCI %02x:%02x.%x BAR %x type %u: %llx + %llx\n",

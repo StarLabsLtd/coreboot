@@ -55,13 +55,15 @@ static int setup(void **state)
 	set_res(1, 0x10010000, 0x2000,
 		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x18, &res[2]);
 	set_res(2, 0x100000000ULL, 0x4000,
-		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x20, &res[3]);
+		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_PCI64 |
+		IORESOURCE_ASSIGNED, 0x20, NULL);
 	set_res(3, 0x2000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED, 0x24, NULL);
 	devs[2].enabled = 1;
 	devs[2].path.type = DEVICE_PATH_PCI;
 	devs[2].path.pci.devfn = PCI_DEVFN(3, 0);
 	devs[2].upstream = &buses[0];
-	devs[2].resource_list = &res[4];
+	devs[2].resource_list = &res[3];
+	res[3].next = &res[4];
 	set_res(4, 0, 0xa0000, IORESOURCE_MEM | IORESOURCE_CACHEABLE |
 		IORESOURCE_ASSIGNED | IORESOURCE_FIXED, 0xf, NULL);
 	all_devices = &devs[0];
@@ -109,6 +111,7 @@ static void test_exact_holes_and_prefetch(void **state)
 	assert_int_equal(a[1].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32);
 	assert_true(a[0].base + a[0].length < a[1].base);
 	assert_int_equal(a[2].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64);
+	assert_int_equal(a[2].flags, LB_PRH_PCI_ASSIGNMENT_64BIT);
 }
 
 static void test_duplicate(void **state)
@@ -123,6 +126,56 @@ static void test_duplicate_resource_identity(void **state)
 {
 	set_res(5, 0x20000000, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x10, NULL);
 	res[3].next = &res[5];
+	devs[2].path.pci.devfn = devs[1].path.pci.devfn;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_64bit_bar5(void **state)
+{
+	res[2].index = PCI_BASE_ADDRESS_5;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_64bit_high_half_assignment(void **state)
+{
+	set_res(5, 0x200000000ULL, 0x1000,
+		IORESOURCE_MEM | IORESOURCE_ASSIGNED, PCI_BASE_ADDRESS_5, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_cross_type_same_bar(void **state)
+{
+	set_res(5, 0x3000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED,
+		PCI_BASE_ADDRESS_0, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_io_in_64bit_high_half(void **state)
+{
+	set_res(5, 0x3000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED,
+		PCI_BASE_ADDRESS_5, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_above4g_non_pci64(void **state)
+{
+	res[2].flags &= ~IORESOURCE_PCI64;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_pci64_io(void **state)
+{
+	res[3].index = PCI_BASE_ADDRESS_0;
+	res[3].flags |= IORESOURCE_PCI64;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_devfn_narrowing(void **state)
+{
+	devs[1].path.pci.devfn = 0x100;
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
@@ -206,6 +259,13 @@ int main(void)
 		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
 		cmocka_unit_test_setup(test_duplicate, setup),
 		cmocka_unit_test_setup(test_duplicate_resource_identity, setup),
+		cmocka_unit_test_setup(test_rejects_64bit_bar5, setup),
+		cmocka_unit_test_setup(test_rejects_64bit_high_half_assignment, setup),
+		cmocka_unit_test_setup(test_rejects_cross_type_same_bar, setup),
+		cmocka_unit_test_setup(test_rejects_io_in_64bit_high_half, setup),
+		cmocka_unit_test_setup(test_rejects_above4g_non_pci64, setup),
+		cmocka_unit_test_setup(test_rejects_pci64_io, setup),
+		cmocka_unit_test_setup(test_rejects_devfn_narrowing, setup),
 		cmocka_unit_test_setup(test_rejects_high_resource_index, setup),
 		cmocka_unit_test_setup(test_rejects_narrowing_collision, setup),
 		cmocka_unit_test_setup(test_reserved, setup),
