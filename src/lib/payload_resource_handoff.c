@@ -177,7 +177,8 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 		if (device->enabled && device->path.type == DEVICE_PATH_DOMAIN) {
 			if (!valid_domain(device))
 				return CB_ERR;
-			(*root_count)++;
+			if (++(*root_count) > LB_PRH_PCI_MAX_ROOTS)
+				return CB_ERR;
 		}
 		if (!device->enabled || device->path.type != DEVICE_PATH_PCI)
 			continue;
@@ -188,7 +189,8 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 				continue;
 			if (!assignment_valid(device, resource))
 				return CB_ERR;
-			(*assignment_count)++;
+			if (++(*assignment_count) > LB_PRH_PCI_MAX_ASSIGNMENTS)
+				return CB_ERR;
 		}
 	}
 	return *root_count && *assignment_count ? CB_SUCCESS : CB_ERR;
