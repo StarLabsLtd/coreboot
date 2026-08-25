@@ -59,6 +59,7 @@ menu "Star Labs Settings"
 
 config BOOTMEDIA_SMM_BWP
 	bool
+	default n if CONSOLE_SPI_FLASH
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION

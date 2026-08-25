@@ -6,3 +6,7 @@ CONFIG_CONSOLE_SERIAL=y
 CONFIG_CONSOLE_CBMEM=y
 CONFIG_CONSOLE_SPI_FLASH=y
 CONFIG_CONSOLE_SPI_FLASH_BUFFER_SIZE=0x20000
+# Flash-console writes must remain possible while SMM protects the rest of
+# the flash.  These options are intentionally explicit in the debug overlay.
+CONFIG_BOOTMEDIA_SMM_BWP=n
+CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION=n
