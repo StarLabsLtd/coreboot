@@ -40,6 +40,15 @@ static bool resource_is_reserved(const struct resource *resource)
 		(resource->flags & (IORESOURCE_RESERVE | IORESOURCE_CACHEABLE));
 }
 
+static bool resource_bar(const struct resource *resource, uint8_t *bar)
+{
+	if (resource->index < PCI_BASE_ADDRESS_0 || resource->index > PCI_BASE_ADDRESS_5 ||
+	    (resource->index - PCI_BASE_ADDRESS_0) % sizeof(uint32_t))
+		return false;
+	*bar = (resource->index - PCI_BASE_ADDRESS_0) / sizeof(uint32_t);
+	return true;
+}
+
 static const struct device *root_domain(const struct device *device)
 {
 	const struct bus *bus = device->upstream;
@@ -79,9 +88,11 @@ static bool assignment_valid(const struct device *device, const struct resource 
 {
 	const struct device *domain = root_domain(device);
 	const struct device *other_device;
+	uint8_t bar;
 	uint64_t end;
 
-	if (!domain || !valid_domain(domain) || !range_end(resource->base, resource->size, &end))
+	if (!domain || !valid_domain(domain) || !resource_bar(resource, &bar) ||
+	    !range_end(resource->base, resource->size, &end))
 		return false;
 	if (!device->upstream ||
 	    device->upstream->segment_group != domain->downstream->segment_group ||
@@ -104,12 +115,16 @@ static bool assignment_valid(const struct device *device, const struct resource 
 
 		for (other = other_device->resource_list; other; other = other->next) {
 			uint64_t other_end;
+			uint8_t other_bar;
 
 			if (other == resource ||
 			    (!resource_is_assignment(other) && !resource_is_reserved(other)) ||
 			    (other->flags & IORESOURCE_TYPE_MASK) !=
 				(resource->flags & IORESOURCE_TYPE_MASK))
 				continue;
+			if (other_device == device && resource_bar(other, &other_bar) &&
+			    bar == other_bar)
+				return false;
 			if (!range_end(other->base, other->size, &other_end) ||
 			    ranges_overlap(resource->base, end, other->base, other_end)) {
 				printk(BIOS_ERR, "PRH: %s resource %lx overlaps %s resource %lx\n",
@@ -238,7 +253,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			roots[root_index].segment = bus->segment_group;
 			roots[root_index].bus_start = bus->secondary;
 			roots[root_index].bus_end = bus->subordinate;
-			roots[root_index].flags = LB_PRH_PCI_ROOT_RESOURCE_ASSIGNED;
+			roots[root_index].flags = LB_PRH_PCI_ROOT_TOPOLOGY_ONLY;
 			printk(BIOS_INFO, "PRH RootBridge: segment %u, Bus: %x - %x\n",
 			       bus->segment_group, bus->secondary, bus->subordinate);
 			root_index++;
@@ -257,7 +272,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			output->bus = device->upstream->secondary;
 			output->device = device->path.pci.devfn >> 3;
 			output->function = device->path.pci.devfn & 7;
-			output->bar = resource->index;
+			if (!resource_bar(resource, &output->bar))
+				return CB_ERR;
 			output->resource_type = assignment_type(resource);
 			output->base = resource->base;
 			output->length = resource->size;
