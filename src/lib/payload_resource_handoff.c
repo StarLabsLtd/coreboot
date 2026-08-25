@@ -49,8 +49,8 @@ static bool resource_bar(const struct resource *resource, uint8_t *bar)
 	return true;
 }
 
-static bool platform_mmio_contains(const struct resource *resource, uint64_t base,
-	uint64_t end)
+static bool platform_mmio_contains(const struct device *device,
+	const struct resource *resource, uint64_t base, uint64_t end)
 {
 	uint64_t resource_end;
 	uint8_t bar;
@@ -58,7 +58,7 @@ static bool platform_mmio_contains(const struct resource *resource, uint64_t bas
 	return (resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_MEM &&
 		(resource->flags & IORESOURCE_FIXED) &&
 		!(resource->flags & IORESOURCE_CACHEABLE) &&
-		!resource_bar(resource, &bar) &&
+		(device->path.type != DEVICE_PATH_PCI || !resource_bar(resource, &bar)) &&
 		range_end(resource->base, resource->size, &resource_end) &&
 		resource->base <= base && end <= resource_end;
 }
@@ -137,7 +137,7 @@ static bool assignment_valid(const struct device *device, const struct resource 
 	for (other_device = all_devices; other_device; other_device = other_device->next) {
 		const struct resource *other;
 
-		if (!other_device->enabled || other_device->path.type != DEVICE_PATH_PCI)
+		if (!other_device->enabled)
 			continue;
 		for (other = other_device->resource_list; other; other = other->next) {
 			uint64_t other_end;
@@ -146,7 +146,8 @@ static bool assignment_valid(const struct device *device, const struct resource 
 			if (other == resource ||
 			    (!resource_is_assignment(other) && !resource_is_reserved(other)))
 				continue;
-			if (resource_bar(other, &other_bar) && other_device->upstream &&
+			if (other_device->path.type == DEVICE_PATH_PCI &&
+			    resource_bar(other, &other_bar) && other_device->upstream &&
 			    root_domain(other_device) == domain &&
 			    other_device->upstream->secondary == device->upstream->secondary &&
 			    other_device->path.pci.devfn == device->path.pci.devfn &&
@@ -159,7 +160,7 @@ static bool assignment_valid(const struct device *device, const struct resource 
 			if (!range_end(other->base, other->size, &other_end))
 				return false;
 			if (ranges_overlap(resource->base, end, other->base, other_end)) {
-				if (platform_mmio_contains(other, resource->base, end))
+				if (platform_mmio_contains(other_device, other, resource->base, end))
 					continue;
 				printk(BIOS_ERR, "PRH: %s resource %lx overlaps %s resource %lx\n",
 				       dev_path(device), resource->index, dev_path(other_device),
