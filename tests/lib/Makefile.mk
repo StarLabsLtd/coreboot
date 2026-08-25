@@ -26,6 +26,7 @@ tests-y += uuid-test
 tests-y += bootmem-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
+tests-y += payload_resource_handoff-test
 tests-y += rtc-test
 tests-y += spd_cache-ddr3-test
 tests-y += spd_cache-ddr4-test
@@ -150,6 +151,13 @@ coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
+
+payload_resource_handoff-test-srcs += tests/lib/payload_resource_handoff-test.c
+payload_resource_handoff-test-srcs += tests/stubs/console.c
+payload_resource_handoff-test-srcs += src/lib/payload_resource_handoff.c
+payload_resource_handoff-test-srcs += src/lib/crc_byte.c
+payload_resource_handoff-test-config += CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xc0000000 \
+	CONFIG_ECAM_MMCONF_BUS_NUMBER=256 CONFIG_PAYLOAD_RESOURCE_HANDOFF=1
 
 rtc-test-srcs += tests/lib/rtc-test.c
 rtc-test-srcs += src/lib/rtc.c
