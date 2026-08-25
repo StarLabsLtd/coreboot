@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# StarBook MTL debug-only SPI flash console overlay.
+# Apply after configs/config.starlabs_starbook_mtl with Kconfig merge tools.
+
+CONFIG_CONSOLE_SERIAL=y
+CONFIG_CONSOLE_CBMEM=y
+CONFIG_CONSOLE_SPI_FLASH=y
+CONFIG_CONSOLE_SPI_FLASH_BUFFER_SIZE=0x20000
