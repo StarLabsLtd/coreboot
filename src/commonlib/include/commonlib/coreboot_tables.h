@@ -183,10 +183,18 @@ struct lb_pcie {
 	lb_uint64_t ctrl_base;		/* Base address of PCIe controller */
 };
 
-#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 2
+#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 3
 
 #define LB_PRH_SECTION_PCI_ROOT_BRIDGES 3
+#define LB_PRH_SECTION_PCI_ASSIGNMENTS  4
 
+#define LB_PRH_PCI_ROOT_RESOURCE_ASSIGNED 0x00000001
+
+#define LB_PRH_PCI_RESOURCE_IO              1
+#define LB_PRH_PCI_RESOURCE_MMIO32          2
+#define LB_PRH_PCI_RESOURCE_MMIO64          3
+#define LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32 4
+#define LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64 5
 #define LB_PRH_SECTION_FLAG_MANDATORY     0x0001
 #define LB_PRH_SECTION_FLAG_AUTHORITATIVE 0x0002
 
@@ -235,12 +243,27 @@ struct lb_prh_pci_root_bridge {
 	lb_uint64_t pref_mem64_length;
 };
 
+struct lb_prh_pci_assignment {
+	uint16_t segment;
+	uint8_t bus;
+	uint8_t device;
+	uint8_t function;
+	uint8_t bar;
+	uint8_t resource_type;
+	uint8_t flags;
+	lb_uint64_t base;
+	lb_uint64_t length;
+	lb_uint64_t attributes;
+};
+
 _Static_assert(sizeof(struct lb_payload_resource_handoff) == 44,
 	       "unexpected payload resource handoff header size");
 _Static_assert(sizeof(struct lb_payload_resource_section) == 20,
 	       "unexpected payload resource section size");
 _Static_assert(sizeof(struct lb_prh_pci_root_bridge) == 88,
 	       "unexpected payload resource root bridge size");
+_Static_assert(sizeof(struct lb_prh_pci_assignment) == 32,
+	       "unexpected payload resource PCI assignment size");
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
 

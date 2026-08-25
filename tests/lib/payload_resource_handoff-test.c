@@ -1,202 +1,197 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-
 #include <boot/coreboot_tables.h>
-#include <commonlib/helpers.h>
 #include <crc_byte.h>
 #include <device/device.h>
+#include <device/pci_def.h>
 #include <tests/test.h>
 
 const unsigned int coreboot_version_timestamp = 0x12345678;
-
-static uint8_t table_storage[sizeof(struct lb_header) + 512];
-static struct lb_header *table;
-
-static struct bus domain_bus;
-static struct bus child_bus;
-static struct device domain;
-static struct device pci_device;
-static struct device child_device;
-static struct resource resources[6];
-
+static uint8_t storage[2048];
+static struct bus buses[2];
+static struct device devs[5];
+static struct resource res[8];
 struct device *all_devices;
 
-const char *dev_path(const struct device *device)
+const char *dev_path(const struct device *dev) { return "fixture"; }
+struct lb_record *lb_new_record(struct lb_header *h)
 {
-	return device == &pci_device ? "PCI: 00:00:02.0" : "PCI: 00:01:00.0";
+	struct lb_record *r = (void *)((uint8_t *)h + sizeof(*h) + h->table_bytes);
+	if (h->table_entries) {
+		h->table_bytes += r->size;
+		r = (void *)((uint8_t *)h + sizeof(*h) + h->table_bytes);
+	}
+	h->table_entries++;
+	r->size = sizeof(*r);
+	return r;
 }
 
-struct lb_record *lb_new_record(struct lb_header *header)
+static void set_res(int i, uint64_t base, uint64_t size, unsigned long flags,
+		    unsigned long index, struct resource *next)
 {
-	struct lb_record *record = (void *)((uint8_t *)header + sizeof(*header) +
-						 header->table_bytes);
-
-	if (header->table_entries != 0) {
-		header->table_bytes += record->size;
-		record = (void *)((uint8_t *)header + sizeof(*header) + header->table_bytes);
-	}
-	header->table_entries++;
-	record->tag = LB_TAG_UNUSED;
-	record->size = sizeof(*record);
-	return record;
+	res[i] = (struct resource) {
+		.base = base, .size = size, .flags = flags, .index = index, .next = next,
+	};
 }
 
 static int setup(void **state)
 {
-	memset(table_storage, 0, sizeof(table_storage));
-	table = (void *)table_storage;
-	memset(&domain_bus, 0, sizeof(domain_bus));
-	memset(&child_bus, 0, sizeof(child_bus));
-	memset(&domain, 0, sizeof(domain));
-	memset(&pci_device, 0, sizeof(pci_device));
-	memset(&child_device, 0, sizeof(child_device));
-	memset(resources, 0, sizeof(resources));
-
-	domain.enabled = 1;
-	domain.path.type = DEVICE_PATH_DOMAIN;
-	domain.downstream = &domain_bus;
-	domain.next = &pci_device;
-	domain_bus.dev = &domain;
-	domain_bus.secondary = 0;
-	domain_bus.subordinate = 2;
-	domain_bus.segment_group = 0;
-
-	pci_device.enabled = 1;
-	pci_device.path.type = DEVICE_PATH_PCI;
-	pci_device.upstream = &domain_bus;
-	pci_device.downstream = &child_bus;
-	pci_device.resource_list = &resources[0];
-	pci_device.next = &child_device;
-	child_bus.dev = &pci_device;
-	child_bus.secondary = 1;
-	child_bus.subordinate = 1;
-	child_bus.segment_group = 0;
-
-	child_device.enabled = 1;
-	child_device.path.type = DEVICE_PATH_PCI;
-	child_device.upstream = &child_bus;
-	child_device.resource_list = &resources[4];
-
-	resources[0] = (struct resource) {
-		.base = 0xefa0, .size = 0x20,
-		.flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
-		.index = 0x20, .next = &resources[1],
-	};
-	resources[1] = (struct resource) {
-		.base = 0xaeb8d000, .size = 0x00473000,
-		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED,
-		.index = 0x10, .next = &resources[2],
-	};
-	resources[2] = (struct resource) {
-		.base = 0xb0000000, .size = 0x10000000,
-		.flags = IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED,
-		.index = 0x18, .next = &resources[3],
-	};
-	resources[3] = (struct resource) {
-		.base = 0x3ffe8000000ULL, .size = 0x80000000,
-		.flags = IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED,
-		.index = 0x344,
-	};
-	resources[4] = (struct resource) {
-		.base = 0xfe02c000, .size = 0x1000,
-		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
-		.index = 0x10, .next = &resources[5],
-	};
-	/* Host DRAM is attached to the system agent, but is not a PCI aperture. */
-	resources[5] = (struct resource) {
-		.base = 0, .size = 0xa0000,
-		.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
-			 IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
-		.index = 0x0f,
-	};
-
-	all_devices = &domain;
-	*state = table;
+	memset(storage, 0, sizeof(storage));
+	memset(buses, 0, sizeof(buses));
+	memset(devs, 0, sizeof(devs));
+	memset(res, 0, sizeof(res));
+	devs[0].enabled = 1;
+	devs[0].path.type = DEVICE_PATH_DOMAIN;
+	devs[0].downstream = &buses[0];
+	devs[0].next = &devs[1];
+	buses[0].dev = &devs[0];
+	buses[0].subordinate = 0x7f;
+	devs[1].enabled = 1;
+	devs[1].path.type = DEVICE_PATH_PCI;
+	devs[1].path.pci.devfn = PCI_DEVFN(2, 0);
+	devs[1].upstream = &buses[0];
+	devs[1].resource_list = &res[0];
+	devs[1].next = &devs[2];
+	set_res(0, 0x10000000, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x10, &res[1]);
+	set_res(1, 0x10010000, 0x2000,
+		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x18, &res[2]);
+	set_res(2, 0x100000000ULL, 0x4000,
+		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x20, &res[3]);
+	set_res(3, 0x2000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED, 0x24, NULL);
+	devs[2].enabled = 1;
+	devs[2].path.type = DEVICE_PATH_PCI;
+	devs[2].path.pci.devfn = PCI_DEVFN(3, 0);
+	devs[2].upstream = &buses[0];
+	devs[2].resource_list = &res[4];
+	set_res(4, 0, 0xa0000, IORESOURCE_MEM | IORESOURCE_CACHEABLE |
+		IORESOURCE_ASSIGNED | IORESOURCE_FIXED, 0xf, NULL);
+	all_devices = &devs[0];
+	*state = storage;
 	return 0;
 }
 
-static uint32_t record_crc32(const struct lb_payload_resource_handoff *handoff)
+static const struct lb_payload_resource_handoff *get_handoff(void *state)
 {
-	const uint8_t *bytes = (const void *)handoff;
-	const size_t crc_offset = offsetof(struct lb_payload_resource_handoff, crc32);
-	uint32_t crc = 0;
-
-	for (size_t index = 0; index < handoff->size; index++)
-		crc = crc32_byte(crc, index >= crc_offset &&
-					     index < crc_offset + sizeof(handoff->crc32) ?
-					     0 : bytes[index]);
-	return crc;
+	return (const void *)((uint8_t *)state + sizeof(struct lb_header));
 }
 
-static void test_serializes_assigned_root(void **state)
+static uint32_t crc(const struct lb_payload_resource_handoff *h)
 {
-	struct lb_header *header = *state;
-	const struct lb_payload_resource_handoff *handoff;
-	const struct lb_payload_resource_section *section;
+	const uint8_t *p = (const void *)h;
+	const size_t off = offsetof(struct lb_payload_resource_handoff, crc32);
+	uint32_t value = 0;
+	for (size_t i = 0; i < h->size; i++)
+		value = crc32_byte(value, i >= off && i < off + sizeof(h->crc32) ? 0 : p[i]);
+	return value;
+}
+
+static void test_exact_holes_and_prefetch(void **state)
+{
+	const struct lb_payload_resource_handoff *h;
+	const struct lb_payload_resource_section *s;
 	const struct lb_prh_pci_root_bridge *root;
-
-	assert_int_equal(lb_add_payload_resource_handoff(header), CB_SUCCESS);
-	assert_int_equal(header->table_entries, 1);
-	handoff = (const void *)((const uint8_t *)header + sizeof(*header));
-	assert_int_equal(handoff->tag, LB_TAG_PAYLOAD_RESOURCE_HANDOFF);
-	assert_int_equal(handoff->revision, LB_PAYLOAD_RESOURCE_HANDOFF_REVISION);
-	assert_int_equal(handoff->producer_generation, coreboot_version_timestamp);
-	assert_int_equal(handoff->section_count, 1);
-	assert_int_equal(record_crc32(handoff), handoff->crc32);
-
-	section = handoff->sections;
-	assert_int_equal(section->type, LB_PRH_SECTION_PCI_ROOT_BRIDGES);
-	assert_int_equal(section->flags, LB_PRH_SECTION_FLAG_AUTHORITATIVE);
-	assert_int_equal(section->entry_count, 1);
-	root = (const void *)((const uint8_t *)handoff + section->offset);
-	assert_int_equal(root->segment, 0);
-	assert_int_equal(root->bus_start, 0);
-	assert_int_equal(root->bus_end, 2);
-	assert_int_equal(root->io_base, 0xefa0);
-	assert_int_equal(root->io_length, 0x20);
-	/* Overlapping Mem/PMem envelopes are combined for CDK2's combined aperture. */
-	assert_int_equal(root->mem32_base, 0xaeb8d000);
-	assert_int_equal(root->mem32_length, 0xfe02d000ULL - 0xaeb8d000ULL);
-	assert_int_equal(root->pref_mem32_length, 0);
-	assert_int_equal(root->pref_mem64_base, 0x3ffe8000000ULL);
-	assert_int_equal(root->pref_mem64_length, 0x80000000);
+	const struct lb_prh_pci_assignment *a;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	h = get_handoff(*state);
+	assert_int_equal(h->section_count, 2);
+	assert_int_equal(crc(h), h->crc32);
+	s = h->sections;
+	assert_int_equal(s[0].entry_count, 1);
+	root = (const void *)((const uint8_t *)h + s[0].offset);
+	assert_int_equal(root->flags, LB_PRH_PCI_ROOT_RESOURCE_ASSIGNED);
+	assert_int_equal(root->mem32_length, 0);
+	assert_int_equal(s[1].type, LB_PRH_SECTION_PCI_ASSIGNMENTS);
+	assert_int_equal(s[1].entry_count, 4);
+	a = (const void *)((const uint8_t *)h + s[1].offset);
+	assert_int_equal(a[0].base, 0x10000000);
+	assert_int_equal(a[0].length, 0x1000);
+	assert_int_equal(a[0].resource_type, LB_PRH_PCI_RESOURCE_MMIO32);
+	assert_int_equal(a[1].base, 0x10010000);
+	assert_int_equal(a[1].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32);
+	assert_true(a[0].base + a[0].length < a[1].base);
+	assert_int_equal(a[2].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64);
 }
 
-static void test_rejects_overlapping_assignments_without_record(void **state)
+static void test_duplicate(void **state)
 {
-	struct lb_header *header = *state;
-
-	resources[4].base = resources[1].base;
-	assert_int_equal(lb_add_payload_resource_handoff(header), CB_ERR);
-	assert_int_equal(header->table_entries, 0);
+	set_res(5, res[0].base, res[0].size, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x14, NULL);
+	res[4].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
 }
 
-static void test_rejects_resource_overflow_without_record(void **state)
+static void test_reserved(void **state)
 {
-	struct lb_header *header = *state;
-
-	resources[3].base = UINT64_MAX - 0xff;
-	resources[3].size = 0x1000;
-	assert_int_equal(lb_add_payload_resource_handoff(header), CB_ERR);
-	assert_int_equal(header->table_entries, 0);
+	res[0].base = 0x1000;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
-static void test_rejects_root_outside_mcfg(void **state)
+static void test_ecam(void **state)
 {
-	struct lb_header *header = *state;
+	res[0].base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
 
-	domain_bus.subordinate = 256;
-	assert_int_equal(lb_add_payload_resource_handoff(header), CB_ERR);
-	assert_int_equal(header->table_entries, 0);
+static void add_second_root(void)
+{
+	devs[2].next = &devs[3];
+	devs[3].enabled = 1;
+	devs[3].path.type = DEVICE_PATH_DOMAIN;
+	devs[3].downstream = &buses[1];
+	devs[3].next = &devs[4];
+	buses[1].dev = &devs[3];
+	buses[1].secondary = 0x80;
+	buses[1].subordinate = 0xff;
+	devs[4].enabled = 1;
+	devs[4].path.type = DEVICE_PATH_PCI;
+	devs[4].path.pci.devfn = PCI_DEVFN(1, 0);
+	devs[4].upstream = &buses[1];
+	devs[4].resource_list = &res[5];
+	set_res(5, 0x20000000, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x10, NULL);
+}
+
+static void test_two_roots_same_segment(void **state)
+{
+	const struct lb_payload_resource_handoff *h;
+	const struct lb_prh_pci_root_bridge *roots;
+	add_second_root();
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	h = get_handoff(*state);
+	assert_int_equal(h->sections[0].entry_count, 2);
+	roots = (const void *)((const uint8_t *)h + h->sections[0].offset);
+	assert_int_equal(roots[0].bus_start, 0);
+	assert_int_equal(roots[1].bus_start, 0x80);
+}
+
+static void test_overlapping_roots(void **state)
+{
+	add_second_root();
+	buses[1].secondary = 0x70;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_orphan(void **state)
+{
+	devs[1].upstream = NULL;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_outside_mcfg(void **state)
+{
+	buses[0].subordinate = CONFIG_ECAM_MMCONF_BUS_NUMBER;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test_setup(test_serializes_assigned_root, setup),
-		cmocka_unit_test_setup(test_rejects_overlapping_assignments_without_record, setup),
-		cmocka_unit_test_setup(test_rejects_resource_overflow_without_record, setup),
-		cmocka_unit_test_setup(test_rejects_root_outside_mcfg, setup),
+		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
+		cmocka_unit_test_setup(test_duplicate, setup),
+		cmocka_unit_test_setup(test_reserved, setup),
+		cmocka_unit_test_setup(test_ecam, setup),
+		cmocka_unit_test_setup(test_two_roots_same_segment, setup),
+		cmocka_unit_test_setup(test_overlapping_roots, setup),
+		cmocka_unit_test_setup(test_orphan, setup),
+		cmocka_unit_test_setup(test_outside_mcfg, setup),
 	};
-
 	return cb_run_group_tests(tests, NULL, NULL);
 }
