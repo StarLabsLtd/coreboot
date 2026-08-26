@@ -57,6 +57,7 @@ static bool platform_mmio_contains(const struct device *device,
 
 	return (resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_MEM &&
 		(resource->flags & IORESOURCE_FIXED) &&
+		(resource->flags & IORESOURCE_RESERVE) &&
 		!(resource->flags & IORESOURCE_CACHEABLE) &&
 		(device->path.type != DEVICE_PATH_PCI || !resource_bar(resource, &bar)) &&
 		range_end(resource->base, resource->size, &resource_end) &&

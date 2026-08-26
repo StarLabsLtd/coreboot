@@ -232,6 +232,15 @@ static void test_platform_mmio_contains_bar(void **state)
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
 }
 
+static void test_unreserved_domain_mmio_containment_rejected(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED, 1, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
 static void test_platform_mmio_partial_overlap_rejected(void **state)
 {
 	res[0].base = 0xfe03e000;
@@ -411,6 +420,7 @@ int main(void)
 		cmocka_unit_test_setup(test_ecam, setup),
 		cmocka_unit_test_setup(test_skips_assigned_non_bar_io, setup),
 		cmocka_unit_test_setup(test_platform_mmio_contains_bar, setup),
+		cmocka_unit_test_setup(test_unreserved_domain_mmio_containment_rejected, setup),
 		cmocka_unit_test_setup(test_platform_mmio_partial_overlap_rejected, setup),
 		cmocka_unit_test_setup(test_platform_cacheable_containment_rejected, setup),
 		cmocka_unit_test_setup(test_platform_malformed_range_rejected, setup),
