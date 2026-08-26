@@ -3,7 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-fmd="$root/src/mainboard/starlabs/starfighter/variants/mtl/board.fmd"
+fmd="$root/src/mainboard/starlabs/starbook/variants/mtl/board.fmd"
 overlay="$root/configs/overlays/starlabs_starbook_mtl_spi_flash_console.config"
 base="$root/configs/config.starlabs_starbook_mtl"
 resolved=$(mktemp)
