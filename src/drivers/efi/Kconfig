@@ -7,8 +7,28 @@ config DRIVERS_EFI_VARIABLE_STORE
 	  Adds a driver that is able to read and write an EFI formatted
 	  VariableStore as used by tianocore.
 
+config PAYLOAD_CDK2_CAPSULE_UPDATE_PROFILE
+	bool "Enable the CDK2 capsule-on-disk update profile"
+	depends on PAYLOAD_CDK2
+	depends on BOOT_DEVICE_SUPPORTS_WRITES && HAVE_SMI_HANDLER
+	select SMMSTORE
+	select DRIVERS_EFI_VARIABLE_STORE
+	select DRIVERS_EFI_FW_INFO
+	select DRIVERS_EFI_UPDATE_CAPSULES
+	select DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
+	help
+	  Enable the reviewed coreboot/CDK2 firmware-update pairing with one
+	  platform-policy option. This provides the firmware-information and
+	  capsule handoff records, SMMSTORE-backed variables, ESRT/capsule runtime
+	  policy in CDK2, and capsule discovery on the EFI system partition.
+
+	  This option does not control full-screen setup. EDK2's full-screen setup
+	  switch changes four console-geometry PCDs; capsule-on-disk changes only
+	  PcdCapsuleOnDiskSupport.
+
 config DRIVERS_EFI_FW_INFO
 	bool "Expose firmware version in a EFI-friendly form"
+	default y if VENDOR_STARLABS
 	select UDK_2017_BINDING if !PLATFORM_USES_FSP2_0
 	help
 	  Adds firmware version information to coreboot table in a form similar to
