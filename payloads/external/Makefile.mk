@@ -5,8 +5,10 @@
 ifeq ($(CONFIG_PAYLOAD_CDK2),y)
 CDK2_SOURCE_PATH := $(call strip_quotes,$(CONFIG_CDK2_SOURCE_PATH))
 CDK2_SOURCE_DIR := $(if $(filter /%,$(CDK2_SOURCE_PATH)),$(CDK2_SOURCE_PATH),$(CURDIR)/$(CDK2_SOURCE_PATH))
+CDK2_RETAINED_FV_PATH := $(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV_PATH))
+CDK2_RETAINED_FV := $(if $(filter /%,$(CDK2_RETAINED_FV_PATH)),$(CDK2_RETAINED_FV_PATH),$(CURDIR)/$(CDK2_RETAINED_FV_PATH))
 CDK2_PROFILE_CONFIG := $(obj)/cdk2-profile.config
-CDK2_PAYLOAD := $(obj)/cdk2/native/cdk2-coreboot-stage.elf
+CDK2_PAYLOAD := $(obj)/cdk2/native/cdk2-coreboot-image.elf
 
 .PHONY: cdk2-source-state
 cdk2-source-state:
@@ -20,7 +22,9 @@ $(CDK2_PAYLOAD): $(DOTCONFIG) $(CDK2_PROFILE_CONFIG) util/cdk2-build cdk2-source
 	@util/cdk2-build "$(CDK2_SOURCE_DIR)" \
 		"$(call strip_quotes,$(CONFIG_CDK2_SOURCE_REVISION))" \
 		"$(abspath $(DOTCONFIG))" "$(abspath $(CDK2_PROFILE_CONFIG))" \
-		"$(abspath $(obj)/cdk2)" "$(MAKE)"
+		"$(abspath $(obj)/cdk2)" "$(abspath $(CDK2_RETAINED_FV))" \
+		"$(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV_SHA256))" \
+		"$(MAKE)"
 
 endif
 

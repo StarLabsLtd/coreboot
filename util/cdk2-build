@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 set -eu
 
-source_dir=${1:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
-revision=${2:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
-coreboot_config=${3:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
-profile=${4:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR}
-output_dir=${5:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR MAKE}
-make_command=${6:-make}
+source_dir=${1:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+revision=${2:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+coreboot_config=${3:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+profile=${4:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+output_dir=${5:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+retained_fv=${6:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256}
+retained_fv_sha256=${7:?usage: cdk2-build SOURCE REVISION COREBOOT_CONFIG PROFILE OUTPUT_DIR RETAINED_FV RETAINED_FV_SHA256 MAKE}
+make_command=${8:-make}
 
 case "$revision" in
 	*[!0-9a-f]* )
@@ -44,6 +46,34 @@ test -z "$(git -C "$source_dir" status --porcelain --untracked-files=all)" || {
 	echo "CDK2 profile is missing or empty: $profile" >&2
 	exit 1
 }
+[ -s "$retained_fv" ] || {
+	echo "CDK2 retained FV is missing or empty: $retained_fv" >&2
+	exit 1
+}
+case "$retained_fv_sha256" in
+	*[!0-9a-f]* )
+		echo 'CDK2 retained FV SHA-256 must contain exactly 64 hexadecimal digits' >&2
+		exit 1
+		;;
+esac
+[ "${#retained_fv_sha256}" -eq 64 ] || {
+	echo 'CDK2 retained FV SHA-256 must contain exactly 64 hexadecimal digits' >&2
+	exit 1
+}
+if command -v sha256sum >/dev/null 2>&1; then
+	actual_fv_sha256=$(sha256sum "$retained_fv" | awk '{print $1}')
+elif command -v sha256 >/dev/null 2>&1; then
+	actual_fv_sha256=$(sha256 -q "$retained_fv")
+elif command -v shasum >/dev/null 2>&1; then
+	actual_fv_sha256=$(shasum -a 256 "$retained_fv" | awk '{print $1}')
+else
+	echo 'no supported SHA-256 utility found' >&2
+	exit 1
+fi
+[ "$actual_fv_sha256" = "$retained_fv_sha256" ] || {
+	echo "CDK2 retained FV digest mismatch: expected $retained_fv_sha256, found $actual_fv_sha256" >&2
+	exit 1
+}
 
 mkdir -p "$output_dir"
 # coreboot exports stage-specific compiler command lines.  They are not valid
@@ -57,5 +87,6 @@ exec env -u CC -u HOSTCC -u CFLAGS -u CPPFLAGS -u LDFLAGS \
 	"$make_command" -C "$source_dir" \
 	COREBOOT_CONFIG="$coreboot_config" \
 	COREBOOT_CDK2_PROFILE="$profile" \
-	COREBOOT_OUTPUT_DIR="$output_dir" \
-	coreboot-stage
+	CDK2_BUILD_DIR="$output_dir" \
+	CDK2_PAYLOAD_FV="$retained_fv" \
+	native-coreboot-image

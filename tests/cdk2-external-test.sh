@@ -12,10 +12,11 @@ git -C "$source_dir" init -q --object-format=sha1
 git -C "$source_dir" config user.email test@example.com
 git -C "$source_dir" config user.name Test
 cat > "$source_dir/Makefile" <<'EOF'
-coreboot-stage:
+native-coreboot-image:
 	@test -n "$(COREBOOT_CONFIG)"
 	@test -n "$(COREBOOT_CDK2_PROFILE)"
-	@test -n "$(COREBOOT_OUTPUT_DIR)"
+	@test -n "$(CDK2_BUILD_DIR)"
+	@test -s "$(CDK2_PAYLOAD_FV)"
 	@test -z "$(KCONFIG_CONFIG)"
 	@test -z "$(obj)"
 	@test -z "$(top)"
@@ -23,20 +24,28 @@ coreboot-stage:
 	@test "$(origin AR)$(origin AS)$(origin LD)" = defaultdefaultdefault
 	@test "$(origin NM)$(origin OBJCOPY)$(origin OBJDUMP)" = undefinedundefinedundefined
 	@test "$(origin RANLIB)$(origin STRIP)" = undefinedundefined
-	@mkdir -p "$(COREBOOT_OUTPUT_DIR)/native"
-	@cp "$(COREBOOT_CDK2_PROFILE)" "$(COREBOOT_OUTPUT_DIR)/received.config"
-	@touch "$(COREBOOT_OUTPUT_DIR)/native/cdk2-coreboot-stage.elf"
+	@mkdir -p "$(CDK2_BUILD_DIR)/native"
+	@cp "$(COREBOOT_CDK2_PROFILE)" "$(CDK2_BUILD_DIR)/received.config"
+	@printf 'complete-image-with-fv\n' > "$(CDK2_BUILD_DIR)/native/cdk2-coreboot-image.elf"
 EOF
 git -C "$source_dir" add Makefile
 git -C "$source_dir" -c commit.gpgSign=false commit -q -m fixture
 revision=$(git -C "$source_dir" rev-parse HEAD)
+echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
+printf 'admitted retained FV fixture\n' > "$tmp/retained.fv"
+if command -v sha256sum >/dev/null 2>&1; then
+	retained_hash=$(sha256sum "$tmp/retained.fv" | awk '{print $1}')
+elif command -v sha256 >/dev/null 2>&1; then
+	retained_hash=$(sha256 -q "$tmp/retained.fv")
+else
+	retained_hash=$(shasum -a 256 "$tmp/retained.fv" | awk '{print $1}')
+fi
 cat > "$tmp/gmake" <<EOF
 #!/bin/sh
 echo invoked > "$tmp/make-invoked"
 exec "$make_command" "\$@"
 EOF
 chmod +x "$tmp/gmake"
-echo 'CONFIG_PAYLOAD_CDK2=y' > "$tmp/coreboot.config"
 "$root/util/cdk2-config" "$tmp/coreboot.config" "$tmp/profile"
 COREBOOT_EXPORTS='COREBOOT_EXPORTS KCONFIG_CONFIG obj top src' \
 	KCONFIG_CONFIG=wrong obj=wrong top=wrong src=wrong \
@@ -44,14 +53,15 @@ COREBOOT_EXPORTS='COREBOOT_EXPORTS KCONFIG_CONFIG obj top src' \
 	RANLIB=wrong STRIP=wrong \
 	"$root/util/cdk2-build" "$source_dir" "$revision" \
 	"$tmp/coreboot.config" "$tmp/profile" "$tmp/output" \
-	"$tmp/gmake"
+	"$tmp/retained.fv" "$retained_hash" "$tmp/gmake"
 test -f "$tmp/make-invoked"
 cmp "$tmp/profile" "$tmp/output/received.config"
-test -f "$tmp/output/native/cdk2-coreboot-stage.elf"
+grep -qx 'complete-image-with-fv' "$tmp/output/native/cdk2-coreboot-image.elf"
 
 if "$root/util/cdk2-build" "$source_dir" \
 	0000000000000000000000000000000000000000 "$tmp/coreboot.config" \
-	"$tmp/profile" "$tmp/bad-revision" 2> "$tmp/error"; then
+	"$tmp/profile" "$tmp/bad-revision" "$tmp/retained.fv" \
+	"$retained_hash" 2> "$tmp/error"; then
 	echo 'mismatched CDK2 revision unexpectedly accepted' >&2
 	exit 1
 fi
@@ -59,22 +69,37 @@ grep -q 'revision mismatch' "$tmp/error"
 
 echo changed >> "$source_dir/Makefile"
 if "$root/util/cdk2-build" "$source_dir" "$revision" \
-	"$tmp/coreboot.config" "$tmp/profile" "$tmp/dirty" 2> "$tmp/error"; then
+	"$tmp/coreboot.config" "$tmp/profile" "$tmp/dirty" \
+	"$tmp/retained.fv" "$retained_hash" 2> "$tmp/error"; then
 	echo 'dirty CDK2 checkout unexpectedly accepted' >&2
 	exit 1
 fi
 grep -q 'tracked modifications' "$tmp/error"
+git -C "$source_dir" checkout -q -- Makefile
+
+if "$root/util/cdk2-build" "$source_dir" "$revision" \
+	"$tmp/coreboot.config" "$tmp/profile" "$tmp/bad-fv" \
+	"$tmp/retained.fv" \
+	0000000000000000000000000000000000000000000000000000000000000000 \
+	2> "$tmp/error"; then
+	echo 'mismatched retained FV digest unexpectedly accepted' >&2
+	exit 1
+fi
+grep -q 'retained FV digest mismatch' "$tmp/error"
 
 for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl; do
 	cp "$root/configs/$board" "$tmp/$board"
 	echo 'CONFIG_PAYLOAD_CDK2=y' >> "$tmp/$board"
+	echo 'CONFIG_CDK2_RETAINED_FV_PATH="/firmware/retained.fv"' >> "$tmp/$board"
 	"$make_command" -s -C "$root" DOTCONFIG="$tmp/$board" \
 		obj="$tmp/build-$board" olddefconfig
 	for symbol in PAYLOAD_CDK2 HANDOFF_COREBOOT_TABLES \
 		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
 	done
-	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="b6c70863f4d0c8b893d561397fab8c4abb61d382"' \
+	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="8bbabbd2557057f1b5112229a8b189fa99289d7c"' \
+		"$tmp/$board"
+	grep -qx 'CONFIG_CDK2_RETAINED_FV_SHA256="ca1ebfd0ff6c7c82935a4302c1ddc4cc418ed177756c678260dfb09527e1f50e"' \
 		"$tmp/$board"
 done
 
