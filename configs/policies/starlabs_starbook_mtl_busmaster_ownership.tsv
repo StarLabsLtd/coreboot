@@ -1,0 +1,301 @@
+# SPDX-License-Identifier: GPL-2.0-only
+devicetree	f5b8925312dfae03d37e43c1e7ee943a5997324c3595b8e9b2ea11d3f1662559	generated StarBook MTL static devicetree
+# kind  state  owner  class  source  context-sha256  review note
+#
+# The site digest covers the matching line and its two neighbouring lines on
+# either side. The audit regenerates this inventory from the exact source list
+# selected by config.starlabs_starbook_mtl. Keep disable and dormant sites: a
+# changed Kconfig guard or a changed operation must be reviewed, not disappear.
+
+# Resolved policy inputs used by the classifications below.
+config	CONFIG_PCI_ALLOW_BUS_MASTER_ANY_DEVICE	y	broad compatibility policy remains enabled
+config	CONFIG_PCI_SET_BUS_MASTER_PCI_BRIDGES	y	bridge forwarding is enabled
+config	CONFIG_PAYLOAD_OWNS_PCI_DEVICES	y	EDK2 owns endpoint devices at handoff
+config	CONFIG_RUN_FSP_GOP	y	FSP initializes graphics
+config	CONFIG_NO_GFX_INIT	n	coreboot graphics init remains enabled
+config	CONFIG_TCG_OPAL_S3_UNLOCK	y	S3 OPAL NVMe path is compiled
+config	CONFIG_CONSOLE_SERIAL	n	release profile does not initialize debug UART
+
+# Site rows are updated only after reviewing audit-reported inventory drift.
+site	enable	coreboot	bridge-resource	src/device/pci_device.c	e8db683ee4b73bebb6751b0a38ec681488f5bf761340ed1f33cc76cb5e8e0a52	PCI bridge forwarding selected by PCI_SET_BUS_MASTER_PCI_BRIDGES
+site	enable	coreboot	system-class	src/device/pci_device.c	da3028e8ea2818b4b2465e84f3b8b644ef0e07099a163f0cf88e835078bc1851	system-class device selected by broad ANY_DEVICE compatibility
+site	disable	coreboot	endpoint-helper	src/device/pci_device.c	a56e73f3aa9d0d24734523354be67d276e5f96b09e9a8d27d63b317351e916f0	generic endpoint bus-master disable helper
+site	enable	coreboot	opal-s3-nvme	src/security/tcg/opal_s3/opal_nvme.c	27380af85a4a02f5422c34384c3df34703335990d6751c7eb758465d15936df4	S3 unlock enables the NVMe endpoint and currently retains it after success
+site	disable	coreboot	opal-s3-error	src/security/tcg/opal_s3/opal_nvme.c	3bd9a32113f13daf6d1faec605ab2a50ad23555b4ee068db63273c5505044d89	invalid-BAR failure clears NVMe memory decode and BME
+site	disable	coreboot	cse-early	src/soc/intel/common/block/cse/cse.c	a8688fb887ff0e64d554ba314718c4af4e77489bc6768926ba5aa46168b3e178	clear old HECI decode before programming temporary BAR
+site	enable	coreboot	cse-early	src/soc/intel/common/block/cse/cse.c	4e55888af84a1d730661ee75b66ebeedd1b11f1f55e6dd521f077ac9169fae12	enable HECI temporary BAR for pre-memory CSE traffic
+site	enable	coreboot	cse-state	src/soc/intel/common/block/cse/cse.c	8eb9fc54d0d3400399c86017a5c5a74bcd0f37f02b2a7a07de622a369d7f00e0	enable CSE device while leaving device-idle state
+site	disable	coreboot	cse-state	src/soc/intel/common/block/cse/cse.c	4e712757b259fb141d09951b8f57345e423898081b8d96e5089c62c0f1cca713	clear CSE decode and BME when entering device-idle
+site	dormant	payload	dsp-endpoint	src/soc/intel/common/block/dsp/dsp.c	ad9480e8c59d02dc547f53c75d1bec7d8e6951c6fb7b3966300c892f72388f85	request branch is not selected because PAYLOAD_OWNS_PCI_DEVICES is set
+site	disable	coreboot	fast-spi-early	src/soc/intel/common/block/fast_spi/fast_spi.c	e0797ca74f81be05b55bd41c63e536fe482a9b574c432ce101a47dfcc046a9e0	clear old SPI decode before programming temporary BAR
+site	enable	coreboot	fast-spi-early	src/soc/intel/common/block/fast_spi/fast_spi.c	219c37e5da0dd6b71c88239a3ade56a6a4fd866eb5b02c5a91366b9892247e84	enable SPI temporary BAR during bootblock initialization
+site	enable	coreboot	graphics-endpoint	src/soc/intel/common/block/graphics/graphics.c	62b3859b99c2807a8b180fdcda3927733386fd24dec2cbac638e200d062f19e1	graphics init directly enables BME because NO_GFX_INIT is not set
+site	enable	coreboot	graphics-endpoint	src/soc/intel/common/block/graphics/graphics.c	49b3c88069bb8c2b1bc7721fd90a67dc98fd577476ae1ce5a6b5ea9049630ca2	graphics final requests BME under broad ANY_DEVICE compatibility
+site	dormant	coreboot	gspi-early	src/soc/intel/common/block/gspi/gspi.c	bb3eb181d7e689635f62e3daf5959b6ae57cc9a254f8506ac90087cec912c18a	compiled simple-device setter; StarBook MTL has no GSPI early-init owner
+site	dormant	coreboot	gspi-runtime	src/soc/intel/common/block/gspi/gspi.c	eef255159265a1ef06c232d0241b8f5d9a2a9084c433ccd46b7468ee023603ac	compiled runtime setter; StarBook MTL has no enabled GSPI device
+site	dormant	payload	hda-endpoint	src/soc/intel/common/block/hda/hda.c	bd05eb8e1069f659081e2a2d835a8212a21defb0cb0bc0c463cf558298ea4b8f	request branch is not selected because PAYLOAD_OWNS_PCI_DEVICES is set
+site	dormant	coreboot	i2c-early	src/soc/intel/common/block/i2c/i2c.c	cf70e7fdf3757858e95f87017016754620e8491ec40bf17ccd80db725166a829	compiled setter; StarBook MTL I2C configuration does not set early_init
+site	enable	coreboot	p2sb-platform	src/soc/intel/common/block/p2sb/p2sblib.c	55fd4b44ac35559e32a141764b271ed823a88921b0ac31aa83cad2bd21afba83	enable P2SB PCR BAR during platform initialization
+site	enable	coreboot	pcie-bridge	src/soc/intel/common/block/pcie/pcie.c	3740156074949d85d903ce7489e8e5906309a066ebab547679e1a9cee777c734	enable forwarding on initialized PCH PCIe root ports
+site	dormant	payload	sata-endpoint	src/soc/intel/common/block/sata/sata.c	4fcc1af0b51d28295ef75f885a9a424b7267b535c552a8d1d2dfec450a5ff7ee	request branch is not selected because PAYLOAD_OWNS_PCI_DEVICES is set
+site	disable	coreboot	smm-sweep	src/soc/intel/common/block/smm/smihandler.c	c963b3612d4ed892a1a175be024ee700ac0f86931101c5977abc0b376f48f032	SMM sleep path clears endpoint bus mastering
+site	capability	coreboot	uart-controller	src/soc/intel/common/block/uart/uart.c	5cfa3202e2fa328644a5d9154f563419f7dc1687ab23c21e61912636c68c4dae	compiled UART enable mask; release profile has CONSOLE_SERIAL disabled
+site	disable	coreboot	pmc-bootblock	src/soc/intel/meteorlake/bootblock/soc_die.c	f8e1370d949c9f847522de490bfe5c25b8802a57c1a093d7811b312a1d6e1f9b	clear old PMC decode before assigning PWRMBASE
+site	enable	coreboot	pmc-bootblock	src/soc/intel/meteorlake/bootblock/soc_die.c	f9853bc467e0140d56888ac17ab74f765aac28e2c415f160efe753077a2dc4fe	enable PMC PWRMBASE in bootblock
+
+# Configured preprocessor expansion. The state describes the operation, not
+# whether its containing function is called; the site rows above record dormant
+# board paths. Unknown command-register rows have a proven command offset but
+# an indirect or non-asserting BME value. Unknown-overlap rows are mutators whose
+# configured byte range could not be proven disjoint from command bytes 4-5;
+# both kinds remain pinned to their exact source line and expanded statement.
+site	disable	coreboot	dsp-finalize	src/soc/intel/common/block/dsp/dsp.c	e403432dba9e478b8e8810a3f30dd2438d0c95123f2717fe048ad3ba0867500f	payload handoff clears DSP bus mastering
+site	disable	coreboot	hda-finalize	src/soc/intel/common/block/hda/hda.c	6987cd95098ec47fb89ec9c7eb6a549fe815c9d4af5301407bbada42f0a27a2a	payload handoff clears HDA bus mastering
+site	disable	coreboot	i2c-finalize	src/soc/intel/common/block/i2c/i2c.c	2aa08ee29af092361f8809e1ee68e7c3ce7d0bd52703733e872edf972e5655c2	payload handoff clears I2C bus mastering
+site	disable	coreboot	sata-finalize	src/soc/intel/common/block/sata/sata.c	c7507c96e3e9dfacbaccbadd6f689e2fd830a7a748f394b48400b3c65ee8433b	payload handoff clears SATA bus mastering
+site	disable	coreboot	thunderbolt-finalize	src/soc/intel/common/feature/finalize/finalize.c	30ced1cfdd3ac2a3ba9e723bb7c42868e3d1d07d4230adde7f5685104332eea5	payload handoff clears Thunderbolt bus mastering
+site	disable	coreboot	xhci-finalize	src/soc/intel/common/block/xhci/xhci.c	b82e3c86e538edad62870a922e11acab952ea98212a2adc63c954dd91eedd42a	payload handoff clears xHCI bus mastering
+expanded	disable	coreboot	command-register	bootblock	src/soc/intel/meteorlake/bootblock/soc_die.c	6c451b2bbd7892bf2d7d381e13b15bcb53ccf5bd9470215bf304f3a076631287	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/device/pci_device.c	5b8aeb7a4ea1ba4a5a442d6901aafa1a296b507d3e19811f44c02aea6c14f63a	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/device/pci_device.c	fbffe39b44edf2888df0a330777f8d169da6d0255a7b5614f51d1387557d008f	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/cse/cse.c	f3b3f26a38aee45e45566f6ee88436a2de4dd153dbdce3e403cc7b2f658735f4	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/dsp/dsp.c	4128f29f52ffcab8198673f6eef0197f95db8ed1f9d0e7bafddedc3fcec47604	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/hda/hda.c	d9007f96a0c19d281ddb40fa185f9c4db0c20158151a02237106c7fedb508c48	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/i2c/i2c.c	24dcfc79ea3607725cf67010589a140747f7e9c1c835cb2041592c8dd66d02b3	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/sata/sata.c	b8343abcda9e0a988df2c5d932acaed78df5362f2232b9faa5d0c7c3a407c98e	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/block/xhci/xhci.c	b7b6e3f035f045b12d801b8276644ba069834a63a6fa0c802cec88b01721fd59	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	ramstage	src/soc/intel/common/feature/finalize/finalize.c	a0812cc45a5839e0d85627123433485d9ffdaadd21a3489bacc14b440464fcfa	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	romstage	src/soc/intel/common/block/cse/cse.c	f3b3f26a38aee45e45566f6ee88436a2de4dd153dbdce3e403cc7b2f658735f4	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	smm	src/security/tcg/opal_s3/opal_nvme.c	eb2bcb3015e737a5af16d5412ad1941de67b922846418d50f0a24f32dd5d0457	reviewed stage-specific preprocessor expansion
+expanded	dormant	payload	command-register	ramstage	src/soc/intel/common/block/dsp/dsp.c	443d4d9de130f06d77a13ed306272c98820b124453a2773d0e3a9e57b4aea8a7	reviewed stage-specific preprocessor expansion
+expanded	dormant	payload	command-register	ramstage	src/soc/intel/common/block/hda/hda.c	f539615c3dc96475dc3976308942904c20092d2eb071e9d52aec9494a6bf8b65	reviewed stage-specific preprocessor expansion
+expanded	dormant	payload	command-register	ramstage	src/soc/intel/common/block/sata/sata.c	387a96afe39497f9ab21732b1315c7924ee5e9b49fcce8dd47a71f983a8cf8e1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/include/device/pci.h	e95494e6228ebb0eb9eef2991ca46676ddbc6109897a77a10eb07a0de694cece	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/common/block/fast_spi/fast_spi.c	85efe4748d77cde39972779442478434b2637e7eb9cbace2c1d5897d8548bdb3	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/common/block/gspi/gspi.c	b55c38263da6fabfe80751aaf1b2c99ce568992f852e1d0020f5467ac4f53dda	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/common/block/i2c/i2c.c	2ee8d22c782bbbf95aac4dffa9421ed4aa73021e52c13a1dcee522c074349f96	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/common/block/p2sb/p2sblib.c	1c16e71bcf07d8de8556a111b3dda51c2a00354b6f4d2da4980bdfa98cc1ee77	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/common/block/uart/uart.c	1ca912ec6e1dee714c06004a64f4a3f66ccc627ca79e1df99af6f3ae720f3ca1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	bootblock	src/soc/intel/meteorlake/bootblock/soc_die.c	b45b66660bad011f18300910e010d1cbe73b478f84bd3567d16b029e864d5e80	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	postcar	src/include/device/pci.h	e95494e6228ebb0eb9eef2991ca46676ddbc6109897a77a10eb07a0de694cece	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	postcar	src/soc/intel/common/block/fast_spi/fast_spi.c	85efe4748d77cde39972779442478434b2637e7eb9cbace2c1d5897d8548bdb3	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	postcar	src/soc/intel/common/block/gspi/gspi.c	b55c38263da6fabfe80751aaf1b2c99ce568992f852e1d0020f5467ac4f53dda	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	postcar	src/soc/intel/common/block/i2c/i2c.c	2ee8d22c782bbbf95aac4dffa9421ed4aa73021e52c13a1dcee522c074349f96	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	postcar	src/soc/intel/common/block/uart/uart.c	1ca912ec6e1dee714c06004a64f4a3f66ccc627ca79e1df99af6f3ae720f3ca1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/device/pci_device.c	289795d49df43833779ede8be0a73f78f2db314ad8de00a985afd8aeebeda723	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/device/pci_device.c	c3e64f27810778c97637a9d32a6bc9b54463fe89066fe82c4e3dcae7a37d6444	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/include/device/pci.h	87a2ea553b44f1fe388c6fd3b9fddeaf723edfa2559122e750555e529a15bfb1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/include/device/pci.h	e95494e6228ebb0eb9eef2991ca46676ddbc6109897a77a10eb07a0de694cece	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/cse/cse.c	ca2a54eca527bb7b79c6e8f2b5e18bcb5da7b6ec0c32c18fc072f85c5ec22e55	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/cse/cse.c	d5b7737de88920a6f24773d772ae8fd696cd394ffbdb2cb5969180970e584789	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/fast_spi/fast_spi.c	85efe4748d77cde39972779442478434b2637e7eb9cbace2c1d5897d8548bdb3	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/graphics/graphics.c	5743d97badb9c99e0852ea00aeea3b35d16749aea3f2130d7d1b94bec61896b4	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/graphics/graphics.c	81fb2405eeff5689080c2d319bbef53f8d1a7727f2e8733ed807c9415cb5acbe	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/gspi/gspi.c	d6940bb3cec882b703f34a5bc288369c9136edd4d450dd8ce24675f6b4413e0f	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/p2sb/p2sblib.c	1c16e71bcf07d8de8556a111b3dda51c2a00354b6f4d2da4980bdfa98cc1ee77	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/pcie/pcie.c	e337c90eac1e63343f0faaa8c367e0461ac9150f1cc9c64420cec6c11cd0e76b	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	ramstage	src/soc/intel/common/block/uart/uart.c	1ca912ec6e1dee714c06004a64f4a3f66ccc627ca79e1df99af6f3ae720f3ca1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/include/device/pci.h	e95494e6228ebb0eb9eef2991ca46676ddbc6109897a77a10eb07a0de694cece	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/cse/cse.c	ca2a54eca527bb7b79c6e8f2b5e18bcb5da7b6ec0c32c18fc072f85c5ec22e55	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/cse/cse.c	d5b7737de88920a6f24773d772ae8fd696cd394ffbdb2cb5969180970e584789	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/fast_spi/fast_spi.c	85efe4748d77cde39972779442478434b2637e7eb9cbace2c1d5897d8548bdb3	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/gspi/gspi.c	b55c38263da6fabfe80751aaf1b2c99ce568992f852e1d0020f5467ac4f53dda	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/i2c/i2c.c	2ee8d22c782bbbf95aac4dffa9421ed4aa73021e52c13a1dcee522c074349f96	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/p2sb/p2sblib.c	1c16e71bcf07d8de8556a111b3dda51c2a00354b6f4d2da4980bdfa98cc1ee77	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	romstage	src/soc/intel/common/block/uart/uart.c	1ca912ec6e1dee714c06004a64f4a3f66ccc627ca79e1df99af6f3ae720f3ca1	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	smm	src/include/device/pci.h	e95494e6228ebb0eb9eef2991ca46676ddbc6109897a77a10eb07a0de694cece	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	smm	src/security/tcg/opal_s3/opal_nvme.c	3484e097b81f0480b587ba2ba046a7ba8558013d832058e76ee873f805f2b3fe	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	smm	src/soc/intel/common/block/fast_spi/fast_spi.c	85efe4748d77cde39972779442478434b2637e7eb9cbace2c1d5897d8548bdb3	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	smm	src/soc/intel/common/block/p2sb/p2sblib.c	1c16e71bcf07d8de8556a111b3dda51c2a00354b6f4d2da4980bdfa98cc1ee77	reviewed stage-specific preprocessor expansion
+expanded	enable	coreboot	command-register	smm	src/soc/intel/common/block/uart/uart.c	1ca912ec6e1dee714c06004a64f4a3f66ccc627ca79e1df99af6f3ae720f3ca1	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	bootblock	src/device/pci_early.c	0d3946a3217baf9be7abf1ee471ecc4c465b4a9639f463d7c2623216bd78b0b7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	bootblock	src/device/pci_early.c	54c9a8df282a78cfa5c26ee04313f7b5e88ff433e81198e5efd92a787595a23b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	bootblock	src/soc/intel/common/block/fast_spi/fast_spi.c	a14e27a629dfd494c3520810c26ea96f1e3816748993246682bfaef589af997b	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	bootblock	src/soc/intel/common/block/smbus/smbus_early.c	38db2af7edfac9fe88d87899c48920e725c2e9295eebb7b23951cb302b18d206	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	postcar	src/device/pci_early.c	0d3946a3217baf9be7abf1ee471ecc4c465b4a9639f463d7c2623216bd78b0b7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	postcar	src/device/pci_early.c	54c9a8df282a78cfa5c26ee04313f7b5e88ff433e81198e5efd92a787595a23b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	postcar	src/soc/intel/common/block/fast_spi/fast_spi.c	a14e27a629dfd494c3520810c26ea96f1e3816748993246682bfaef589af997b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/device.c	8b5c2baa79ed1b7d5962de8f54ab919806fe4de10e8004bc284fc272c096cf02	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/device.c	940264b535977f132de4f2dde26b17a9f1e79c253aea61af4cf95844e2c28c02	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/pci_device.c	1618afe4cbf5a13b7d24f335f41461726ed4c65cd004c1a73f499cca2c49a2ce	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/pci_device.c	1d51ef6dffcca6e5ecacf8e4db3ba6ed74a44be9bdae4e7f08ace449ea475219	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/pci_device.c	25c976be4413d4b080113040135f6e643d4a52f96a39848e0cedb2fcef9a6ece	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/pci_device.c	540af1a7a08240056e5adacbe975507eadfdce20b3994e14f23dc4b6c27c3e11	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/device/pci_device.c	8be19410053c1562fc12fb772ff29b25e27f2d7cd117cdb3e37ce041ffe563c5	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/soc/intel/common/block/cse/cse.c	4aa4337f2f3bac386c48f423490eddf55008727d4e08e1d7b6c138774e420de3	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/soc/intel/common/block/fast_spi/fast_spi.c	a14e27a629dfd494c3520810c26ea96f1e3816748993246682bfaef589af997b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/soc/intel/common/block/pcie/pcie.c	3743f8f0b934d81f50e06f6f128d47a61769ad2131b4d7734eca62c06f2c4fd2	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/soc/intel/meteorlake/crashlog.c	5ed9544abbe5611b8be04e519003739071d60005ddcbf444bdad87dd5690eb6e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	ramstage	src/soc/intel/meteorlake/crashlog.c	e35c224ce519ef4be7a05eec58f02d23b2fb8be5b2e17b99e06397a2cb0fe0a8	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/device/pci_early.c	0d3946a3217baf9be7abf1ee471ecc4c465b4a9639f463d7c2623216bd78b0b7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/device/pci_early.c	54c9a8df282a78cfa5c26ee04313f7b5e88ff433e81198e5efd92a787595a23b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/soc/intel/common/block/cse/cse.c	4aa4337f2f3bac386c48f423490eddf55008727d4e08e1d7b6c138774e420de3	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/soc/intel/common/block/fast_spi/fast_spi.c	a14e27a629dfd494c3520810c26ea96f1e3816748993246682bfaef589af997b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/soc/intel/common/block/graphics/early_graphics.c	596383dbb052fd0423021de7697b1e30280db56aac6806693d3b5dbffeec2cfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	romstage	src/soc/intel/common/block/graphics/early_graphics.c	cba0891542ed039de61daf1c9bf1ed8f1cbce748914326e6df914a04d86b5fcf	reviewed stage-specific preprocessor expansion
+expanded	disable	coreboot	command-register	romstage	src/soc/intel/common/block/smbus/smbus_early.c	38db2af7edfac9fe88d87899c48920e725c2e9295eebb7b23951cb302b18d206	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	smm	src/soc/intel/common/block/fast_spi/fast_spi.c	a14e27a629dfd494c3520810c26ea96f1e3816748993246682bfaef589af997b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	command-register	smm	src/soc/intel/common/block/smm/smihandler.c	129b9ce34298ff47461e80a67dadfd11a1d9a45797c827970137d12a5bb485a7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/arch/x86/include/arch/pci_io_cfg.h	275198348b95cbe07edf36ac95548cd50bbefc2153891c7f33d8357d64430ffc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/arch/x86/include/arch/pci_io_cfg.h	bf04b6f9a98c062c7d542227fd0e92daae71d348fd843d4825af32d9ec194f22	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/arch/x86/include/arch/pci_io_cfg.h	cb3901c03bc032b5abe3e8ccc5aff11d7d507b8311029c8963093e5d840113ea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_mmio_cfg.h	8ee08caf604fc2ef0960c075ad31c3b7a8bd2356d352d3b879559bca589a753b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_mmio_cfg.h	a654efb3fa9d95ea55e0ad7f51e05b91b42b75c5be480924f555a54bdf2ee4b6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_mmio_cfg.h	e3003cf2cd9d460792ac31e83c6df47b01f093b0f32064e42efcac4e41cd300f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	0286eeaba27765b3df1ae9833b1074b17220067a22c49084d8738fdea2179033	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	1a391658c9e7d5955f659ad68657f7ee62eff73e18e8584ee5623b395d5a3860	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	2309570a2fe3150c6f922e0d8be09bbb28d4ae6290c277ea8d0fb1b8df43c3ec	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	50b199863d4971ecb154b83b8c4f7e3274a68d981586f73be703a8e28daabcc7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	59264b4d1762b065125b51cb7217b4c7520a8f29d3c4a4687c51be0a78ef1dfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	5ef6bfec530e47ebdd6aba97df657abdc910bbdc4b27035964d4e3e9aa8cd465	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	b2889c0b244c02fff8cdbd98ff99f8dd640127cda2f89551fb5b50eb2055cb7a	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	cf5365a2ebe3d33f46cadf8e454be36f27986fcf50723fea1735ffe63293626e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	d4cfd5ffe7cff44a9eeabb7576351f3b8ec1995959ea497bd053480e3c5d3acc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	de9520297afeefaf1750d52cdd2e8abea7e948cd35487a4457e75d9a122fb16d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	f2111431a33603eb740efa422a5759ea5319bcf6a70b85234a3ff0ba65aec49f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/include/device/pci_ops.h	f21e17ed8ddd7c3ee3c25a7e51121028ff0e6e6bbc795772bbc5947319845e19	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/lpc/lpc_lib.c	b690951c9358f9dace55c77bc15e4994c998f69ca1566140c97c75126f1600dd	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/lpc/lpc_lib.c	f7d0aa29897bde0209c1a8149aeda9a2b27a80890b266dfa0e5dbcb3ba7645aa	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/p2sb/p2sb.c	180a8bfcf8cf0f73097f58682042b676ebf040efabf3cb191343a23f6cfd77cb	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/p2sb/p2sblib.c	1c9462dfbf6b5d78fe63ac8bbc928208fc0e8d66f632bcb5a69fedb8b7d26d69	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/systemagent/systemagent_early.c	b36d60726fcea8a94dea418eb188fa43682e3fdbe3dd5324ea6a7290cbb6c0d5	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	bootblock	src/soc/intel/common/block/systemagent/systemagent_early.c	c658d71703670ced656439daf3c760ee708779e1398646e862c1ce32b0b5a292	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/arch/x86/include/arch/pci_io_cfg.h	275198348b95cbe07edf36ac95548cd50bbefc2153891c7f33d8357d64430ffc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/arch/x86/include/arch/pci_io_cfg.h	bf04b6f9a98c062c7d542227fd0e92daae71d348fd843d4825af32d9ec194f22	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/arch/x86/include/arch/pci_io_cfg.h	cb3901c03bc032b5abe3e8ccc5aff11d7d507b8311029c8963093e5d840113ea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_mmio_cfg.h	8ee08caf604fc2ef0960c075ad31c3b7a8bd2356d352d3b879559bca589a753b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_mmio_cfg.h	a654efb3fa9d95ea55e0ad7f51e05b91b42b75c5be480924f555a54bdf2ee4b6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_mmio_cfg.h	e3003cf2cd9d460792ac31e83c6df47b01f093b0f32064e42efcac4e41cd300f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	0286eeaba27765b3df1ae9833b1074b17220067a22c49084d8738fdea2179033	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	1a391658c9e7d5955f659ad68657f7ee62eff73e18e8584ee5623b395d5a3860	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	2309570a2fe3150c6f922e0d8be09bbb28d4ae6290c277ea8d0fb1b8df43c3ec	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	50b199863d4971ecb154b83b8c4f7e3274a68d981586f73be703a8e28daabcc7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	59264b4d1762b065125b51cb7217b4c7520a8f29d3c4a4687c51be0a78ef1dfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	5ef6bfec530e47ebdd6aba97df657abdc910bbdc4b27035964d4e3e9aa8cd465	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	b2889c0b244c02fff8cdbd98ff99f8dd640127cda2f89551fb5b50eb2055cb7a	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	cf5365a2ebe3d33f46cadf8e454be36f27986fcf50723fea1735ffe63293626e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	d4cfd5ffe7cff44a9eeabb7576351f3b8ec1995959ea497bd053480e3c5d3acc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	de9520297afeefaf1750d52cdd2e8abea7e948cd35487a4457e75d9a122fb16d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	f2111431a33603eb740efa422a5759ea5319bcf6a70b85234a3ff0ba65aec49f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/include/device/pci_ops.h	f21e17ed8ddd7c3ee3c25a7e51121028ff0e6e6bbc795772bbc5947319845e19	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/soc/intel/common/block/systemagent/systemagent_early.c	b36d60726fcea8a94dea418eb188fa43682e3fdbe3dd5324ea6a7290cbb6c0d5	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	postcar	src/soc/intel/common/block/systemagent/systemagent_early.c	c658d71703670ced656439daf3c760ee708779e1398646e862c1ce32b0b5a292	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/arch/x86/include/arch/pci_io_cfg.h	275198348b95cbe07edf36ac95548cd50bbefc2153891c7f33d8357d64430ffc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/arch/x86/include/arch/pci_io_cfg.h	bf04b6f9a98c062c7d542227fd0e92daae71d348fd843d4825af32d9ec194f22	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/arch/x86/include/arch/pci_io_cfg.h	cb3901c03bc032b5abe3e8ccc5aff11d7d507b8311029c8963093e5d840113ea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	1cc217c0a7751d84561d2c36a384ac294e6cacd241e8300538ea8a56c966dc53	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	427d21c47eae29b2ce72f33ef2661079f2fb82cd0f475d5fae7e075fc990cca1	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	4b7b7c8d0dd826fc51f192bcf6ea93b10aeb83ce82893a7d1218ce66952473a8	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	5c5756cd7618036a7b647fd3f6447299d9d8f386a817ebbc7d8cec3fb357aa5c	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	5d48be351cb26d2571025f0d1db6e7bac550d720c21ba3997006acb7c4b97262	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	5fd9719e556cd33deca30a86a14c6e0eef1803e3c236dcc655aaa6e2cb59532d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	61f6d89adc2958a3ee49940ab9c93d348f3d67b1e6d46400643db3e77d718091	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	72f2865474bbf679aa3e63c90704d8aadb8c0127ae244bb147a85a0f4952c501	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	8f7224fd6e10fc0bb0827d5f66bbdd657710697784e4c0a36426b49c7e3e0cda	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	a10eef35f4558d2c437e0d907c81ad44b4e5ea5d2333a953cb56bd9e6e79fc04	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	abdac7124cc58bd1788fcb7b7cd0a7c16f504913c9c8c38552c3eb06057af088	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	b45688afa939adc50c9de58911dfcf66f92eb6c102b7aee94fc1386a7464bf07	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	ce3a10ad28dbdded9c7ce5c93fada9574dc4d8cd0b202751cbcd0d2e007346cf	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pci_device.c	df54af44f0a4039d9bea4c6115cbd4c18c0d292a2510b447c599b096479491ce	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	0b89cbd10b4feeed68fb2da043abff72009f6028227403a49b45c6e84aaa9970	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	13eec3134c753f68fb1d6b1e84799c560ba435b923ff808c5bd57cc752e1121b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	259b556c1048c532ac6bbcb94e7944c3f8dd95cebf14e8b79c8cc2a6780fa1ff	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	2ba039c3397144831939cb46a9c392adbebf6c6c61a3d8f06addedd02157406e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	2f044de35e163475b959be1befaa151cda125560369a86c562ca94cec6fc92d8	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	311466dcfc1fb79644a204605e387f862cf0c3a8246bf2c1c88f5d08f77083ff	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	3562399e022492ca9fbf2772905a450c55247a5d4c35a3d1160d488d25ce4dea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	3e46698815705966a9c95d7c2d9ace845c9881df44a69a8f4251e3d6c9ea3f52	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	406963495aaf2d923a81089a52c8b7a82f8e4b25c35275a2df25c5f8d2d93594	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	423da0e22b550e8f50ab57f93e7ae4fc9da96d57e94047a87a7c45d71518ca35	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	6de83c1894892afdda9a5404c8cdf842d48e88cca6e7cbe012690bbeb6654e34	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	72e97f0a4b834ca31aa55865e0145c3f53957d670200617d38da279fecaa149c	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	7db29745f941c79174cd57d942150844ed6b853a0751c640d469a65d6feb8141	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	95d7091693e03d39c66eefda6d7a4cdd71b61408c781bf12166e5ca5a750138b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	b77b80c77794a1f564fdc64b39861af95f5f90718e56bdd6f1c780cfd466008e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	cb98ced08f221bc848a0b7c036147e4db159d9bc5daeaa8431fecc3c0395e965	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	fa554d3ec1fde721b38e39e09c2b767763a4feeb9b39117a9162f5ee3aa34721	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	fb5ae6330ca95e0d503011c9b6aa9d0aec18871d5eb493162f0ee1e3980ffaa3	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pciexp_device.c	ffb46df47ab17631dff8fc9cba8c647d573826ecce712a99cd2d11bb85a48e4b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/device/pcix_device.c	80c703f279a269e1d97b8c79bc20af5eeba9ba3b64f94dcadf787d98a7fa076b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/drivers/intel/gma/opregion.c	cd4cea1e1a6c94545a665e7b0cf5a0a912ec6371965548699b7f99b26abba24f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_mmio_cfg.h	8ee08caf604fc2ef0960c075ad31c3b7a8bd2356d352d3b879559bca589a753b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_mmio_cfg.h	a654efb3fa9d95ea55e0ad7f51e05b91b42b75c5be480924f555a54bdf2ee4b6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_mmio_cfg.h	e3003cf2cd9d460792ac31e83c6df47b01f093b0f32064e42efcac4e41cd300f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	0286eeaba27765b3df1ae9833b1074b17220067a22c49084d8738fdea2179033	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	1a391658c9e7d5955f659ad68657f7ee62eff73e18e8584ee5623b395d5a3860	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	2309570a2fe3150c6f922e0d8be09bbb28d4ae6290c277ea8d0fb1b8df43c3ec	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	2f2f796fb0bbb3dcd3973762930ca2fe0ca2d2117a037f6da360a68fefc2fdf3	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	3643f3e9542967260e94cf0102e0776d504248a6a42920c395ba98f791ec5e86	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	3a130bd6e3884467f476daa1daedb1a9cc20683cf7a61c2908144ea093fb89c6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	45c96ade7951d80e5213cb12922856d68b62b568551b1627418d435bb4e47d58	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	4b2d1ee08dc8da861289695731ce7a7547e240776b4077aeb88269b8d1b6423d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	50b199863d4971ecb154b83b8c4f7e3274a68d981586f73be703a8e28daabcc7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	53d78ed3d0088631f9d6e20aa606f32ea221e1bec071bb860e1596e6d36517c8	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	59264b4d1762b065125b51cb7217b4c7520a8f29d3c4a4687c51be0a78ef1dfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	5e0071481be722b44c34b5c983416691d7b442e3d5406f5c26b8b8dc79b8923b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	5ef6bfec530e47ebdd6aba97df657abdc910bbdc4b27035964d4e3e9aa8cd465	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	5fbabf67f062fe73dffd265069c43b2b6b948c2bb15a7416a1024eed3fd524b2	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	8df85eb41902f3c828228820180d48b9074966e355b2939c6c93de03b7e53e55	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	910ac16f8e66cabfb307e8d32b8174466eb90544ad3581409bfc1b1e922e5ea2	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	97aba6b3e03ade60407018a5586a600ed33733d494d5c2d2c75fc767cfbb285e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	a5a9e31dad55dba86aebc185b5a04a03d7832195bdf55e746612b638cd638116	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	ad94dfce1c7a91db1861016457346375c0ce278de1353f7f7460a18769791df7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	b2889c0b244c02fff8cdbd98ff99f8dd640127cda2f89551fb5b50eb2055cb7a	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	b961f5a2e2a0c6edb65cb277456872388c4e74bd6fb1bbcee254ab6844b5772d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	c8471ea595fa40c0601096846193ef9bd86fd7f7dde072a2b82febbc4a65bfd8	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	cf5365a2ebe3d33f46cadf8e454be36f27986fcf50723fea1735ffe63293626e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	d4cfd5ffe7cff44a9eeabb7576351f3b8ec1995959ea497bd053480e3c5d3acc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	de9520297afeefaf1750d52cdd2e8abea7e948cd35487a4457e75d9a122fb16d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	f2111431a33603eb740efa422a5759ea5319bcf6a70b85234a3ff0ba65aec49f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/include/device/pci_ops.h	f21e17ed8ddd7c3ee3c25a7e51121028ff0e6e6bbc795772bbc5947319845e19	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/lpc/lpc_lib.c	b690951c9358f9dace55c77bc15e4994c998f69ca1566140c97c75126f1600dd	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/lpc/lpc_lib.c	f7d0aa29897bde0209c1a8149aeda9a2b27a80890b266dfa0e5dbcb3ba7645aa	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/p2sb/p2sb.c	180a8bfcf8cf0f73097f58682042b676ebf040efabf3cb191343a23f6cfd77cb	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/p2sb/p2sblib.c	1c9462dfbf6b5d78fe63ac8bbc928208fc0e8d66f632bcb5a69fedb8b7d26d69	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/systemagent/systemagent_early.c	b36d60726fcea8a94dea418eb188fa43682e3fdbe3dd5324ea6a7290cbb6c0d5	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	ramstage	src/soc/intel/common/block/systemagent/systemagent_early.c	c658d71703670ced656439daf3c760ee708779e1398646e862c1ce32b0b5a292	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/arch/x86/include/arch/pci_io_cfg.h	275198348b95cbe07edf36ac95548cd50bbefc2153891c7f33d8357d64430ffc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/arch/x86/include/arch/pci_io_cfg.h	bf04b6f9a98c062c7d542227fd0e92daae71d348fd843d4825af32d9ec194f22	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/arch/x86/include/arch/pci_io_cfg.h	cb3901c03bc032b5abe3e8ccc5aff11d7d507b8311029c8963093e5d840113ea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_mmio_cfg.h	8ee08caf604fc2ef0960c075ad31c3b7a8bd2356d352d3b879559bca589a753b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_mmio_cfg.h	a654efb3fa9d95ea55e0ad7f51e05b91b42b75c5be480924f555a54bdf2ee4b6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_mmio_cfg.h	e3003cf2cd9d460792ac31e83c6df47b01f093b0f32064e42efcac4e41cd300f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	0286eeaba27765b3df1ae9833b1074b17220067a22c49084d8738fdea2179033	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	1a391658c9e7d5955f659ad68657f7ee62eff73e18e8584ee5623b395d5a3860	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	2309570a2fe3150c6f922e0d8be09bbb28d4ae6290c277ea8d0fb1b8df43c3ec	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	50b199863d4971ecb154b83b8c4f7e3274a68d981586f73be703a8e28daabcc7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	59264b4d1762b065125b51cb7217b4c7520a8f29d3c4a4687c51be0a78ef1dfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	5ef6bfec530e47ebdd6aba97df657abdc910bbdc4b27035964d4e3e9aa8cd465	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	b2889c0b244c02fff8cdbd98ff99f8dd640127cda2f89551fb5b50eb2055cb7a	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	cf5365a2ebe3d33f46cadf8e454be36f27986fcf50723fea1735ffe63293626e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	d4cfd5ffe7cff44a9eeabb7576351f3b8ec1995959ea497bd053480e3c5d3acc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	de9520297afeefaf1750d52cdd2e8abea7e948cd35487a4457e75d9a122fb16d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	f2111431a33603eb740efa422a5759ea5319bcf6a70b85234a3ff0ba65aec49f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/include/device/pci_ops.h	f21e17ed8ddd7c3ee3c25a7e51121028ff0e6e6bbc795772bbc5947319845e19	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/lpc/lpc_lib.c	b690951c9358f9dace55c77bc15e4994c998f69ca1566140c97c75126f1600dd	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/lpc/lpc_lib.c	f7d0aa29897bde0209c1a8149aeda9a2b27a80890b266dfa0e5dbcb3ba7645aa	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/p2sb/p2sb.c	180a8bfcf8cf0f73097f58682042b676ebf040efabf3cb191343a23f6cfd77cb	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/p2sb/p2sblib.c	1c9462dfbf6b5d78fe63ac8bbc928208fc0e8d66f632bcb5a69fedb8b7d26d69	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/systemagent/systemagent_early.c	b36d60726fcea8a94dea418eb188fa43682e3fdbe3dd5324ea6a7290cbb6c0d5	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	romstage	src/soc/intel/common/block/systemagent/systemagent_early.c	c658d71703670ced656439daf3c760ee708779e1398646e862c1ce32b0b5a292	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/arch/x86/include/arch/pci_io_cfg.h	275198348b95cbe07edf36ac95548cd50bbefc2153891c7f33d8357d64430ffc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/arch/x86/include/arch/pci_io_cfg.h	bf04b6f9a98c062c7d542227fd0e92daae71d348fd843d4825af32d9ec194f22	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/arch/x86/include/arch/pci_io_cfg.h	cb3901c03bc032b5abe3e8ccc5aff11d7d507b8311029c8963093e5d840113ea	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_mmio_cfg.h	8ee08caf604fc2ef0960c075ad31c3b7a8bd2356d352d3b879559bca589a753b	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_mmio_cfg.h	a654efb3fa9d95ea55e0ad7f51e05b91b42b75c5be480924f555a54bdf2ee4b6	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_mmio_cfg.h	e3003cf2cd9d460792ac31e83c6df47b01f093b0f32064e42efcac4e41cd300f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	0286eeaba27765b3df1ae9833b1074b17220067a22c49084d8738fdea2179033	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	1a391658c9e7d5955f659ad68657f7ee62eff73e18e8584ee5623b395d5a3860	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	2309570a2fe3150c6f922e0d8be09bbb28d4ae6290c277ea8d0fb1b8df43c3ec	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	50b199863d4971ecb154b83b8c4f7e3274a68d981586f73be703a8e28daabcc7	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	59264b4d1762b065125b51cb7217b4c7520a8f29d3c4a4687c51be0a78ef1dfc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	5ef6bfec530e47ebdd6aba97df657abdc910bbdc4b27035964d4e3e9aa8cd465	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	b2889c0b244c02fff8cdbd98ff99f8dd640127cda2f89551fb5b50eb2055cb7a	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	cf5365a2ebe3d33f46cadf8e454be36f27986fcf50723fea1735ffe63293626e	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	d4cfd5ffe7cff44a9eeabb7576351f3b8ec1995959ea497bd053480e3c5d3acc	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	de9520297afeefaf1750d52cdd2e8abea7e948cd35487a4457e75d9a122fb16d	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	f2111431a33603eb740efa422a5759ea5319bcf6a70b85234a3ff0ba65aec49f	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/include/device/pci_ops.h	f21e17ed8ddd7c3ee3c25a7e51121028ff0e6e6bbc795772bbc5947319845e19	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/security/tcg/opal_s3/opal_nvme.c	8a98158f29c706158de5beead5c2387d2f43d000f770e21b0432f703bcc4d294	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/soc/intel/common/block/p2sb/p2sb.c	180a8bfcf8cf0f73097f58682042b676ebf040efabf3cb191343a23f6cfd77cb	reviewed stage-specific preprocessor expansion
+expanded	unknown	coreboot	unknown-overlap	smm	src/soc/intel/common/block/p2sb/p2sblib.c	1c9462dfbf6b5d78fe63ac8bbc928208fc0e8d66f632bcb5a69fedb8b7d26d69	reviewed stage-specific preprocessor expansion
