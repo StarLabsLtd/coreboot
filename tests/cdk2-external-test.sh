@@ -97,6 +97,11 @@ for board in config.emulation_qemu_x86_q35_smm_tseg config.starlabs_starbook_mtl
 		PAYLOAD_OWNS_PCI_DEVICES WANT_LINEAR_FRAMEBUFFER SMMSTORE; do
 		grep -qx "CONFIG_${symbol}=y" "$tmp/$board"
 	done
+	if [ "$board" = config.starlabs_starbook_mtl ]; then
+		grep -qx 'CONFIG_PAYLOAD_RESOURCE_HANDOFF=y' "$tmp/$board"
+	else
+		! grep -q '^CONFIG_PAYLOAD_RESOURCE_HANDOFF=y$' "$tmp/$board"
+	fi
 	grep -qx 'CONFIG_CDK2_SOURCE_REVISION="8bbabbd2557057f1b5112229a8b189fa99289d7c"' \
 		"$tmp/$board"
 	grep -qx 'CONFIG_CDK2_RETAINED_FV_SHA256="ca1ebfd0ff6c7c82935a4302c1ddc4cc418ed177756c678260dfb09527e1f50e"' \
@@ -109,3 +114,20 @@ cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/edk2"
 	obj="$tmp/build-edk2" olddefconfig
 grep -qx 'CONFIG_PAYLOAD_EDK2=y' "$tmp/edk2"
 grep -qx '# CONFIG_PAYLOAD_CDK2 is not set' "$tmp/edk2"
+grep -qx 'CONFIG_PAYLOAD_RESOURCE_HANDOFF=y' "$tmp/edk2"
+
+# The handoff remains scoped to StarBook MTL and the two consuming payloads.
+cp "$root/configs/config.starlabs_starbook_adl" "$tmp/other-board"
+echo 'CONFIG_PAYLOAD_CDK2=y' >> "$tmp/other-board"
+echo 'CONFIG_CDK2_RETAINED_FV_PATH="/firmware/retained.fv"' >> "$tmp/other-board"
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/other-board" \
+	obj="$tmp/build-other-board" olddefconfig
+grep -qx 'CONFIG_PAYLOAD_CDK2=y' "$tmp/other-board"
+! grep -q '^CONFIG_PAYLOAD_RESOURCE_HANDOFF=y$' "$tmp/other-board"
+
+cp "$root/configs/config.starlabs_starbook_mtl" "$tmp/other-payload"
+echo 'CONFIG_PAYLOAD_NONE=y' >> "$tmp/other-payload"
+"$make_command" -s -C "$root" DOTCONFIG="$tmp/other-payload" \
+	obj="$tmp/build-other-payload" olddefconfig
+grep -qx 'CONFIG_PAYLOAD_NONE=y' "$tmp/other-payload"
+! grep -q '^CONFIG_PAYLOAD_RESOURCE_HANDOFF=y$' "$tmp/other-payload"

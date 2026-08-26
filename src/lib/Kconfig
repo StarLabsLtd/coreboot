@@ -7,6 +7,15 @@ config MISSING_BOARD_RESET
 	  implementation. This activates a stub that logs the missing
 	  board reset and halts execution.
 
+config PAYLOAD_RESOURCE_HANDOFF
+	bool
+	depends on BOARD_STARLABS_STARBOOK_MTL
+	depends on PAYLOAD_EDK2 || PAYLOAD_CDK2
+	depends on PCI && ECAM_MMCONF_SUPPORT
+	help
+	  Serialize PCI root topology and exact coreboot-assigned resources for
+	  UEFI payloads which consume the resource handoff.
+
 config ROMSTAGE_ADA
 	bool
 	help
