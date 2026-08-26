@@ -4,10 +4,18 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 fmd="$root/src/mainboard/starlabs/starfighter/variants/mtl/board.fmd"
-overlay="$root/configs/config.starlabs_starbook_mtl.spi_flash_console"
+overlay="$root/configs/overlays/starlabs_starbook_mtl_spi_flash_console.config"
 base="$root/configs/config.starlabs_starbook_mtl"
 resolved=$(mktemp)
 trap 'rm -f "$resolved"' EXIT
+
+# abuild treats every top-level configs/config.<board>* file as a complete
+# configuration.  Keep this opt-in fragment outside that discovery namespace.
+if find "$root/configs" -maxdepth 1 \
+	-name 'config.starlabs_starbook_mtl*' ! -path "$base" | grep -q .; then
+	printf '%s\n' 'error: SPI console overlay collides with abuild config discovery' >&2
+	exit 1
+fi
 
 grep -Eq 'SMMSTORE@0x30000[[:space:]]+0x80000' "$fmd"
 grep -Eq 'CONSOLE@0xB0000[[:space:]]+0x20000' "$fmd"
