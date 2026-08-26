@@ -11,6 +11,7 @@ test-help help::
 	@echo  '  test-tools           - Basic: Tests a basic list of tools.'
 	@echo  '  test-abuild          - Basic: Builds all platforms'
 	@echo  '  test-payloads        - Basic: Builds internal payloads'
+	@echo  '  test-pci-busmaster-ownership - Audit StarBook MTL BME ownership'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
 	@echo  '  test-starbook-mtl-spi-console - Validate the out-of-tree SPI console config'
 	@echo
@@ -112,9 +113,19 @@ endif
 
 test-basic: test-lint test-tools test-abuild test-payloads test-cleanup
 
-test-lint:
+test-lint: test-pci-busmaster-ownership test-starbook-mtl-spi-console
 	util/lint/lint lint-stable $(JUNIT)
 	util/lint/lint lint-extended $(JUNIT)
+
+.PHONY: test-pci-busmaster-ownership
+test-pci-busmaster-ownership:
+	util/check-pci-busmaster-ownership-test.sh
+
+.PHONY: print-pci-busmaster-build-graph
+print-pci-busmaster-build-graph:
+	$(foreach class,$(classes),$(foreach source,$($(class)-srcs), \
+		$(info $(class)	$(source)	$(call src-to-obj,$(class),$(source)))))
+	@:
 
 test-abuild:
 ifneq ($(JENKINS_SKIP_STATIC_ANALYSIS_TEST),y)
