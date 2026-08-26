@@ -12,6 +12,7 @@ test-help help::
 	@echo  '  test-abuild          - Basic: Builds all platforms'
 	@echo  '  test-payloads        - Basic: Builds internal payloads'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
+	@echo  '  test-starbook-mtl-spi-console - Validate the out-of-tree SPI console config'
 	@echo
 
 # junit.xml is a helper target to wrap builds that don't create junit.xml output
@@ -181,6 +182,9 @@ test-cleanup:
 	$(MAKE) -C src/soc/nvidia/tegra124/lp0 clean
 	$(MAKE) -C src/soc/nvidia/tegra210/lp0 clean
 
+test-starbook-mtl-spi-console:
+	util/testing/validate-starbook-mtl-spi-console-test.sh
+
 .PHONY: test-basic test-lint test-abuild test-payloads
-.PHONY: test-tools test-cleanup test-help
+.PHONY: test-tools test-cleanup test-help test-starbook-mtl-spi-console
 .PHONY: lint lint-stable what-jenkins-does
