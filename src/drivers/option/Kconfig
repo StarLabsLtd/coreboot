@@ -5,3 +5,18 @@ config DRIVERS_OPTION_CFR
 	bool "Support generating a CFR list of options"
 	select DRIVERS_EFI_VARIABLE_STORE if PAYLOAD_EDK2 && SMMSTORE
 	default y if DRIVERS_OPTION_CFR_ENABLED
+
+config DRIVERS_OPTION_CFR_SMM
+	bool "Expose an atomic CFR settings SMM service"
+	depends on DRIVERS_OPTION_CFR
+	depends on ARCH_X86 && HAVE_SMI_HANDLER && SMMSTORE
+	depends on USE_UEFI_VARIABLE_STORE
+	depends on DRIVERS_OPTION_CFR_SMM_SUPPORTED
+	help
+	  Expose a fixed coreboot-owned CBMEM mailbox for reading and updating
+	  explicitly allowlisted CFR numeric options. Boards must provide a
+	  policy that maps stable tokens to CFR objects. The default policy is
+	  empty and rejects every request.
+
+config DRIVERS_OPTION_CFR_SMM_SUPPORTED
+	def_bool n

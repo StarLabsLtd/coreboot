@@ -16,3 +16,10 @@ tests-y += cfr-settings-policy-test
 
 cfr-settings-policy-test-srcs += tests/drivers/cfr_settings_policy-test.c
 cfr-settings-policy-test-srcs += src/drivers/option/cfr_settings_policy.c
+
+tests-y += cfr-settings-smm-test
+
+cfr-settings-smm-test-srcs += tests/drivers/cfr_settings_smm-test.c
+cfr-settings-smm-test-srcs += src/drivers/option/cfr_settings_policy.c
+cfr-settings-smm-test-srcs += src/drivers/option/cfr_settings_smm.c
+cfr-settings-smm-test-srcs += tests/stubs/console.c
