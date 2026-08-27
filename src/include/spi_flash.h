@@ -46,7 +46,10 @@ enum spi_flash_status_reg_lockdown {
  * read:	Flash read operation.
  * write:	Flash write operation.
  * erase:	Flash erase operation.
- * status:	Read flash status register.
+ * status:	Read flash status register 1.
+ * read_status: Read a flash status register selected by opcode.
+ * write_status: Write one or more flash status registers using the selected
+ *               opcode in a single cycle.
  */
 struct spi_flash_ops {
 	int (*read)(const struct spi_flash *flash, u32 offset, size_t len,
@@ -55,6 +58,9 @@ struct spi_flash_ops {
 			const void *buf);
 	int (*erase)(const struct spi_flash *flash, u32 offset, size_t len);
 	int (*status)(const struct spi_flash *flash, u8 *reg);
+	int (*read_status)(const struct spi_flash *flash, u8 opcode, u8 *reg);
+	int (*write_status)(const struct spi_flash *flash, u8 opcode,
+			    const u8 *regs, size_t len);
 };
 
 struct spi_flash_bpbits {
@@ -199,6 +205,18 @@ int spi_flash_write(const struct spi_flash *flash, u32 offset, size_t len,
 		    const void *buf);
 int spi_flash_erase(const struct spi_flash *flash, u32 offset, size_t len);
 int spi_flash_status(const struct spi_flash *flash, u8 *reg);
+
+/*
+ * Read a status register selected by opcode. Controllers may override the
+ * generic command fallback.
+ *
+ * Writing selected status registers requires controller support. The
+ * controller operation owns any required write-enable and completion handling
+ * and returns a non-zero value when the operation fails or is unsupported.
+ */
+int spi_flash_read_status(const struct spi_flash *flash, u8 opcode, u8 *reg);
+int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
+			   const u8 *regs, size_t len);
 
 /*
  * Return the vendor dependent SPI flash write protection state.
