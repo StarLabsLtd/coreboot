@@ -129,20 +129,21 @@ void read_vbnv_flash(uint8_t *vbnv_copy)
 	memcpy(vbnv_copy, ctx->cache, BLOB_SIZE);
 }
 
-void save_vbnv_flash(const uint8_t *vbnv_copy)
+int save_vbnv_flash(const uint8_t *vbnv_copy)
 {
 	struct vbnv_flash_ctx *ctx = &vbnv_flash;
+	uint8_t readback[BLOB_SIZE];
 	int new_offset;
 	int i;
 	const struct region_device *rdev = &ctx->vbnv_dev;
 
 	if (!ctx->initialized)
 		if (init_vbnv())
-			return;  /* error */
+			return -1;
 
 	/* Bail out if there have been no changes. */
 	if (!memcmp(vbnv_copy, ctx->cache, BLOB_SIZE))
-		return;
+		return 0;
 
 	new_offset = ctx->blob_offset;
 
@@ -153,18 +154,22 @@ void save_vbnv_flash(const uint8_t *vbnv_copy)
 			new_offset += BLOB_SIZE;
 			if (new_offset > ctx->top_offset) {
 				if (erase_nvram())
-					return;  /* error */
+					return -1;
 				new_offset = 0;
 			}
 			break;
 		}
 	}
 
-	if (rdev_writeat(rdev, vbnv_copy, new_offset, BLOB_SIZE) == BLOB_SIZE) {
+	if (rdev_writeat(rdev, vbnv_copy, new_offset, BLOB_SIZE) == BLOB_SIZE &&
+	    rdev_readat(rdev, readback, new_offset, BLOB_SIZE) == BLOB_SIZE &&
+	    !memcmp(readback, vbnv_copy, BLOB_SIZE)) {
 		/* write was successful. safely move pointer forward */
 		ctx->blob_offset = new_offset;
 		memcpy(ctx->cache, vbnv_copy, BLOB_SIZE);
+		return 0;
 	} else {
 		printk(BIOS_ERR, "failed to save nvdata\n");
+		return -1;
 	}
 }

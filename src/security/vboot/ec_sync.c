@@ -398,8 +398,7 @@ static vb2_error_t ec_get_expected_hash(enum vb2_firmware_selection select,
  */
 vb2_error_t vb2ex_commit_data(struct vb2_context *ctx)
 {
-	save_vbnv(ctx->nvdata);
-	return VB2_SUCCESS;
+	return save_vbnv(ctx->nvdata) ? VB2_ERROR_NV_WRITE : VB2_SUCCESS;
 }
 
 /*
