@@ -738,8 +738,9 @@ int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
 	return -1;
 }
 
-int spi_flash_is_write_protected(const struct spi_flash *flash,
-				 const struct region *region)
+static int spi_flash_get_write_protection(const struct spi_flash *flash,
+					  const struct region *region,
+					  bool exact)
 {
 	struct region flash_region;
 
@@ -757,7 +758,28 @@ int spi_flash_is_write_protected(const struct spi_flash *flash,
 		return -1;
 	}
 
+	if (exact && !flash->prot_ops->get_write_exact) {
+		printk(BIOS_WARNING, "SPI: Exact write-protection gathering not "
+		       "implemented for this vendor.\n");
+		return -1;
+	}
+
+	if (exact)
+		return flash->prot_ops->get_write_exact(flash, region);
+
 	return flash->prot_ops->get_write(flash, region);
+}
+
+int spi_flash_is_write_protected(const struct spi_flash *flash,
+				 const struct region *region)
+{
+	return spi_flash_get_write_protection(flash, region, false);
+}
+
+int spi_flash_is_write_protected_exact(const struct spi_flash *flash,
+				       const struct region *region)
+{
+	return spi_flash_get_write_protection(flash, region, true);
 }
 
 int spi_flash_set_write_protected(const struct spi_flash *flash,
