@@ -7,13 +7,11 @@
 static size_t remaining = PAYLOAD_SPI_CONSOLE_BOOT_LIMIT;
 static bool busy;
 
-static void write_flash_console(const uint8_t *data, size_t length,
+static bool write_flash_console(const uint8_t *data, size_t length,
 	void *context)
 {
 	(void)context;
-	while (length--)
-		flashconsole_tx_byte(*data++);
-	flashconsole_tx_flush();
+	return flashconsole_append(data, length);
 }
 
 void payload_spi_console_smi(void)

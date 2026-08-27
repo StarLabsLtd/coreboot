@@ -15,13 +15,14 @@ struct capture {
 	size_t length;
 };
 
-static void capture_sink(const uint8_t *data, size_t length, void *context)
+static bool capture_sink(const uint8_t *data, size_t length, void *context)
 {
 	struct capture *capture = context;
 
 	memset(capture->source->data, 0xee, sizeof(capture->source->data));
 	memcpy(capture->data, data, length);
 	capture->length = length;
+	return true;
 }
 
 static void prepare(struct fixture *fixture, const void *data, size_t length)
@@ -30,10 +31,28 @@ static void prepare(struct fixture *fixture, const void *data, size_t length)
 	fixture->request.signature = PAYLOAD_SPI_CONSOLE_SIGNATURE;
 	fixture->request.version = PAYLOAD_SPI_CONSOLE_VERSION;
 	fixture->request.header_size = sizeof(fixture->request);
-	fixture->request.sequence = 7;
 	fixture->request.length = length;
 	fixture->request.status = PAYLOAD_SPI_CONSOLE_PENDING;
 	memcpy(fixture->data, data, length);
+}
+
+static bool reject_sink(const uint8_t *data, size_t length, void *context)
+{
+	return false;
+}
+
+static void test_sink_failure_preserves_quota(void **state)
+{
+	const uint8_t message[] = "write failure";
+	struct fixture fixture;
+	size_t remaining = sizeof(message);
+	bool busy = false;
+
+	prepare(&fixture, message, sizeof(message));
+	assert_int_equal(payload_spi_console_process(&fixture, sizeof(fixture),
+		&remaining, &busy, reject_sink, NULL), PAYLOAD_SPI_CONSOLE_IO_ERROR);
+	assert_int_equal(remaining, sizeof(message));
+	assert_false(busy);
 }
 
 static enum payload_spi_console_status process(struct fixture *fixture,
@@ -142,6 +161,7 @@ int main(void)
 		cmocka_unit_test(test_rejects_malformed_headers),
 		cmocka_unit_test(test_rejects_lengths_outside_fixed_buffer),
 		cmocka_unit_test(test_busy_and_boot_limit_fail_closed),
+		cmocka_unit_test(test_sink_failure_preserves_quota),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

@@ -35,7 +35,11 @@ enum payload_spi_console_status payload_spi_console_process(void *buffer,
 
 	*busy = true;
 	memcpy(payload, request->data, header.length);
-	sink(payload, header.length, context);
+	if (!sink(payload, header.length, context)) {
+		status = PAYLOAD_SPI_CONSOLE_IO_ERROR;
+		*busy = false;
+		goto complete;
+	}
 	*remaining -= header.length;
 	*busy = false;
 	status = PAYLOAD_SPI_CONSOLE_SUCCESS;
