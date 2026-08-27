@@ -279,6 +279,18 @@ static void winbond_bpbits_to_region(const size_t granularity,
 	*out = region_create(tb ? 0 : flash_size - protected_size, protected_size);
 }
 
+static int winbond_read_status_regs(const struct spi_flash *flash,
+				    struct status_regs *regs)
+{
+	int ret;
+
+	ret = spi_flash_status(flash, &regs->reg1.u);
+	if (ret)
+		return ret;
+
+	return spi_flash_read_status(flash, CMD_W25_RDSR2, &regs->reg2.u);
+}
+
 /*
  * Available on all devices.
  * Read block protect bits from Status/Status2 Reg.
@@ -295,6 +307,7 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 	const struct spi_flash_part_id *params;
 	struct region wp_region;
 	struct spi_flash_bpbits bpbits;
+	struct status_regs regs = { 0 };
 	int ret;
 
 	params = flash->part;
@@ -304,29 +317,19 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 
 	const size_t granularity = (1 << params->protection_granularity_shift);
 
-	union status_reg1 reg1 = { .u = 0 };
-	union status_reg2 reg2 = { .u = 0 };
-
-	ret = spi_flash_cmd(&flash->spi, flash->status_cmd, &reg1.u,
-			    sizeof(reg1.u));
+	ret = winbond_read_status_regs(flash, &regs);
 	if (ret)
 		return ret;
-
-	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR2, &reg2.u,
-			    sizeof(reg2.u));
-	if (ret)
-		return ret;
-
 	if (params->bp_bits == 3) {
-		if (reg1.bp3.sec) {
+		if (regs.reg1.bp3.sec) {
 			// FIXME: not supported
 			return -1;
 		}
 
 		bpbits = (struct spi_flash_bpbits){
-			.bp = reg1.bp3.bp,
-			.cmp = reg2.cmp,
-			.tb = reg1.bp3.tb,
+			.bp = regs.reg1.bp3.bp,
+			.cmp = regs.reg2.cmp,
+			.tb = regs.reg1.bp3.tb,
 			/*
 			 * For W25Q*{,F}* parts:
 			 *  srp1 srp0
@@ -339,15 +342,15 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 			 *   W25Q32)
 			 */
 			.winbond = {
-				.srp0 = reg1.bp3.srp0,
-				.srp1 = reg2.srp1,
+				.srp0 = regs.reg1.bp3.srp0,
+				.srp1 = regs.reg2.srp1,
 			},
 		};
 	} else if (params->bp_bits == 4) {
 		bpbits = (struct spi_flash_bpbits){
-			.bp = reg1.bp4.bp,
-			.cmp = reg2.cmp,
-			.tb = reg1.bp4.tb,
+			.bp = regs.reg1.bp4.bp,
+			.cmp = regs.reg2.cmp,
+			.tb = regs.reg1.bp4.tb,
 			/*
 			 * For W25Q*{J,D}* parts:
 			 *
@@ -364,8 +367,8 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 			 * convention for the structs though.
 			 */
 			.winbond = {
-				.srp0 = reg1.bp4.srp0,
-				.srp1 = reg2.srp1,
+				.srp0 = regs.reg1.bp4.srp0,
+				.srp1 = regs.reg2.srp1,
 			},
 		};
 	} else {
@@ -408,74 +411,69 @@ static int winbond_flash_cmd_status(const struct spi_flash *flash,
 		u8 cmd;
 		u16 sreg;
 	} __packed cmdbuf;
-	u8 reg8;
+	struct status_regs regs = { 0 };
 	int ret;
 
 	if (!flash)
 		return -1;
 
-	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR, &reg8, sizeof(reg8));
+	ret = winbond_read_status_regs(flash, &regs);
 	if (ret)
 		return ret;
-
-	cmdbuf.sreg = reg8;
-
-	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR2, &reg8, sizeof(reg8));
-	if (ret)
-		return ret;
-
-	cmdbuf.sreg |= reg8 << 8;
+	cmdbuf.sreg = regs.u;
 
 	if ((val & mask) == (cmdbuf.sreg & mask))
 		return 0;
 
-	if (non_volatile) {
-		ret = spi_flash_cmd(&flash->spi, CMD_W25_WREN, NULL, 0);
-	} else {
-		ret = spi_flash_cmd(&flash->spi, CMD_VOLATILE_SREG_WREN, NULL,
-				    0);
-	}
-	if (ret)
-		return ret;
-
 	cmdbuf.sreg &= ~mask;
 	cmdbuf.sreg |= val & mask;
-	cmdbuf.cmd = CMD_W25_WRSR;
 
-	/* Legacy method of writing status register 1 & 2 */
-	ret = spi_flash_cmd_write(&flash->spi, (u8 *)&cmdbuf, sizeof(cmdbuf),
-				  NULL, 0);
-	if (ret)
-		return ret;
-
-	if (non_volatile) {
-		/* Wait tw */
-		ret = spi_flash_cmd_wait_ready(flash, WINBOND_FLASH_TIMEOUT);
+	if (flash->ops->write_status) {
+		ret = spi_flash_write_status(flash, CMD_W25_WRSR,
+					     (u8 *)&cmdbuf.sreg,
+					     sizeof(cmdbuf.sreg));
 		if (ret)
 			return ret;
 	} else {
-		/* Wait tSHSL */
-		udelay(1);
+		if (non_volatile) {
+			ret = spi_flash_cmd(&flash->spi, CMD_W25_WREN, NULL, 0);
+		} else {
+			ret = spi_flash_cmd(&flash->spi, CMD_VOLATILE_SREG_WREN,
+					    NULL, 0);
+		}
+		if (ret)
+			return ret;
+
+		cmdbuf.cmd = CMD_W25_WRSR;
+
+		/* Legacy method of writing status register 1 & 2 */
+		ret = spi_flash_cmd_write(&flash->spi, (u8 *)&cmdbuf,
+					  sizeof(cmdbuf), NULL, 0);
+		if (ret)
+			return ret;
+
+		if (non_volatile) {
+			/* Wait tw */
+			ret = spi_flash_cmd_wait_ready(flash,
+						       WINBOND_FLASH_TIMEOUT);
+			if (ret)
+				return ret;
+		} else {
+			/* Wait tSHSL */
+			udelay(1);
+		}
 	}
 
 	/* Now read the status register to make sure it's not locked */
-	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR, &reg8, sizeof(reg8));
+	ret = winbond_read_status_regs(flash, &regs);
 	if (ret)
 		return ret;
-
-	cmdbuf.sreg = reg8;
-
-	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR2, &reg8, sizeof(reg8));
-	if (ret)
-		return ret;
-
-	cmdbuf.sreg |= reg8 << 8;
+	cmdbuf.sreg = regs.u;
 
 	printk(BIOS_DEBUG, "WINBOND: SREG=%02x SREG2=%02x\n",
 	       cmdbuf.sreg & 0xff,
 	       cmdbuf.sreg >> 8);
 
-	/* Compare against expected result */
 	if ((val & mask) != (cmdbuf.sreg & mask)) {
 		printk(BIOS_ERR, "WINBOND: SREG is locked!\n");
 		ret = -1;
