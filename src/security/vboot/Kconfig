@@ -275,6 +275,34 @@ config VBOOT_CLEAR_RECOVERY_IN_RAMSTAGE
 	  platforms without vboot-integrated payloads, to avoid being stuck in
 	  the recovery mode.
 
+config VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN
+	bool "Clear the recovery request after boot-media lockdown"
+	depends on BOOTMEDIA_SPI_LOCK_PLATFORM && BOOTMEDIA_LOCK_FAILURE_FATAL
+	depends on BOOTMEDIA_LOCK_WPRO_VBOOT_RO && VBOOT_VBNV_FLASH
+	default n
+	help
+	  Clear the recovery request and save VBNV after chip protection and
+	  controller status-write lockdown have succeeded, but before the Intel
+	  BIOS write lock is applied. Use this instead of
+	  VBOOT_CLEAR_RECOVERY_IN_RAMSTAGE when flash-backed VBNV would become
+	  inaccessible later in ramstage.
+
+config VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN
+	bool "Mark verified firmware boot successful after boot-media lockdown"
+	depends on BOOTMEDIA_SPI_LOCK_PLATFORM && BOOTMEDIA_LOCK_FAILURE_FATAL
+	depends on BOOTMEDIA_LOCK_WPRO_VBOOT_RO && VBOOT_VBNV_FLASH
+	default n
+	help
+	  Mark a normal verified boot successful in VBNV only after chip
+	  protection and controller status-write lockdown have succeeded. This
+	  lets a subsequent boot advance the TPM firmware rollback version on
+	  platforms whose payload and operating system cannot update VBNV.
+	  Recovery boots are never marked successful.
+
+	  Enabling this moves the successful-boot boundary into ramstage. Do not
+	  enable it on platforms that require payload or operating-system success
+	  before firmware anti-rollback state may advance.
+
 config VBOOT_ENABLE_CBFS_FALLBACK
 	bool
 	default n

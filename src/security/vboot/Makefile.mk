@@ -61,6 +61,8 @@ endif # CONFIG_VBOOT_LIB
 
 ifeq ($(CONFIG_VBOOT),y)
 
+CPPFLAGS_common += -I$(VBOOT_SOURCE)/firmware/2lib/include
+
 bootblock-y += bootmode.c
 romstage-y += bootmode.c
 ramstage-y += bootmode.c
