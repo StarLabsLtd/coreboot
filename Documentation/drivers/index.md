@@ -21,6 +21,7 @@ Some of the drivers currently available include:
 ACPI Five-Level Fan Control <acpi_fan_control.md>
 CFR <cfr.md>
 CFR use within coreboot <cfr_internal.md>
+CFR settings service <cfr_settings.md>
 Intel DPTF <dptf.md>
 IPMI BT (Block Transfer) <ipmi_bt.md>
 IPMI KCS <ipmi_kcs.md>

@@ -16,6 +16,7 @@
 #include <device/device.h>
 #include <drivers/tpm/tpm_ppi.h>
 #include <drivers/option/cfr_frontend.h>
+#include <drivers/option/cfr_settings.h>
 #include <fmap.h>
 #include <fw_config.h>
 #include <cbfs.h>
@@ -86,6 +87,29 @@ struct lb_record *lb_new_record(struct lb_header *header)
 	rec->tag = LB_TAG_UNUSED;
 	rec->size = sizeof(*rec);
 	return rec;
+}
+
+static size_t lb_table_space_remaining(const struct lb_header *header)
+{
+	const uintptr_t table_end = (uintptr_t)header + COREBOOT_TABLE_SIZE;
+	uintptr_t current;
+
+	if (header->table_bytes > COREBOOT_TABLE_SIZE - sizeof(*header))
+		return 0;
+	current = (uintptr_t)header + sizeof(*header) + header->table_bytes;
+
+	if (header->table_entries) {
+		const struct lb_record *record = (const struct lb_record *)current;
+
+		if (current >= table_end || table_end - current < sizeof(*record) ||
+		    record->size < sizeof(*record) ||
+		    !IS_ALIGNED(record->size, LB_ENTRY_ALIGN) ||
+		    record->size > table_end - current)
+			return 0;
+		current += record->size;
+	}
+
+	return current <= table_end ? table_end - current : 0;
 }
 
 static struct lb_memory *lb_memory(struct lb_header *header)
@@ -406,7 +430,11 @@ static void lb_cfr_setup_menu(struct lb_header *header)
 {
 	char *current = (char *)lb_new_record(header);
 	struct lb_cfr *cfr_root = (struct lb_cfr *)current;
+	const uintptr_t table_end = (uintptr_t)header + COREBOOT_TABLE_SIZE;
+	const size_t available = (uintptr_t)current < table_end ?
+		table_end - (uintptr_t)current : 0;
 
+	cfr_set_serialization_limit(available);
 	mb_cfr_setup_menu(cfr_root);
 }
 
@@ -551,6 +579,7 @@ size_t write_coreboot_forwarding_table(uintptr_t entry, uintptr_t target)
 static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 {
 	struct lb_header *head;
+	bool publish_cfr = true;
 
 	printk(BIOS_DEBUG, "Writing coreboot table at 0x%08lx\n",
 		(long)rom_table_end);
@@ -575,10 +604,6 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		}
 	}
 #endif
-
-	/* Generate CFR entry for setup menus */
-	if (CONFIG(DRIVERS_OPTION_CFR))
-		lb_cfr_setup_menu(head);
 
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));
@@ -665,6 +690,25 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	lb_add_boot_mode(head);
 	lb_add_boot_reason(head);
+
+	if (CONFIG(DRIVERS_OPTION_CFR_SMM)) {
+		const size_t required = sizeof(struct lb_cfr_settings) + sizeof(struct lb_cfr);
+
+		if (lb_table_space_remaining(head) < required) {
+			printk(BIOS_ERR, "CFR: no coreboot table space for settings records\n");
+			publish_cfr = false;
+		} else {
+			lb_cfr_settings(head);
+		}
+	}
+
+	/* CFR must be last: its bound is the table allocation's remaining space. */
+	if (CONFIG(DRIVERS_OPTION_CFR) && publish_cfr) {
+		if (lb_table_space_remaining(head) < sizeof(struct lb_cfr))
+			printk(BIOS_ERR, "CFR: no coreboot table space for setup menu\n");
+		else
+			lb_cfr_setup_menu(head);
+	}
 
 	/* Remember where my valid memory ranges are */
 	return lb_table_fini(head);

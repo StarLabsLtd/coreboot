@@ -71,6 +71,12 @@ bool smm_is_s3_resume(void)
 	return smm_runtime.s3_resume;
 }
 
+void smm_get_cfr_settings_mailbox(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.cfr_settings_mailbox_base;
+	*size = smm_runtime.cfr_settings_mailbox_size;
+}
+
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
 {

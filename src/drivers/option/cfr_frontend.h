@@ -172,6 +172,8 @@ struct cfr_default_override {
 /* Register mainboard override table (call before cfr_write_setup_menu) */
 void cfr_register_overrides(const struct cfr_default_override *overrides);
 
+/* Bound the next CFR serialization to the available coreboot table space. */
+void cfr_set_serialization_limit(size_t max_size);
 void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[]);
 
 #if ENV_RAMSTAGE

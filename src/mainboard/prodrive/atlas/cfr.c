@@ -255,10 +255,7 @@ static struct sm_obj_form *sm_root[] = {
  * into code at build time may be the way to go. Maybe expand SCONFIG
  * so that these can be devicetree options?
  */
-void lb_board(struct lb_header *header)
+void mb_cfr_setup_menu(struct lb_cfr *cfr_root)
 {
-	char *current = (char *)lb_new_record(header);
-	struct lb_cfr *cfr_root = (struct lb_cfr *)current;
-
 	cfr_write_setup_menu(cfr_root, sm_root);
 }
