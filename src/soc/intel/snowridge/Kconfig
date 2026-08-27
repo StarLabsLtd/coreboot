@@ -2,6 +2,7 @@
 
 config SOC_INTEL_SNOWRIDGE
 	bool
+	select FAST_SPI_SUPPORTS_SWSEQ
 	help
 	  Intel Snow Ridge SoC support
 
