@@ -118,6 +118,7 @@ extern const struct spi_flash_vendor_info spi_flash_adesto_vi;
 extern const struct spi_flash_vendor_info spi_flash_amic_vi;
 extern const struct spi_flash_vendor_info spi_flash_atmel_vi;
 extern const struct spi_flash_vendor_info spi_flash_eon_vi;
+extern const struct spi_flash_vendor_info spi_flash_fudan_vi;
 extern const struct spi_flash_vendor_info spi_flash_gigadevice_vi;
 extern const struct spi_flash_vendor_info spi_flash_macronix_vi;
 /* Probing order matters between the Spansion sequence. */
