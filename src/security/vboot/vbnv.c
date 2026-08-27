@@ -68,14 +68,16 @@ void read_vbnv(uint8_t *vbnv_copy)
  * Write VBNV data to configured storage backend.
  * This assumes that the caller has updated the CRC already.
  */
-void save_vbnv(const uint8_t *vbnv_copy)
+int save_vbnv(const uint8_t *vbnv_copy)
 {
-	if (CONFIG(VBOOT_VBNV_CMOS))
+	if (CONFIG(VBOOT_VBNV_CMOS)) {
 		save_vbnv_cmos(vbnv_copy);
-	else if (CONFIG(VBOOT_VBNV_FLASH))
-		save_vbnv_flash(vbnv_copy);
-	else
+		return 0;
+	} else if (CONFIG(VBOOT_VBNV_FLASH)) {
+		return save_vbnv_flash(vbnv_copy);
+	} else {
 		dead_code();
+	}
 }
 
 /* Read the USB Device Controller(UDC) enable flag from VBNV. */
