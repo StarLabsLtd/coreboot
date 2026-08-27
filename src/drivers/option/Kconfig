@@ -19,4 +19,4 @@ config DRIVERS_OPTION_CFR_SMM
 	  empty and rejects every request.
 
 config DRIVERS_OPTION_CFR_SMM_SUPPORTED
-	def_bool n
+	def_bool SOC_INTEL_COMMON_BLOCK_SMM
