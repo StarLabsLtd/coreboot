@@ -715,6 +715,26 @@ int spi_flash_status(const struct spi_flash *flash, u8 *reg)
 	return -1;
 }
 
+int spi_flash_read_status(const struct spi_flash *flash, u8 opcode, u8 *reg)
+{
+	if (opcode == flash->status_cmd)
+		return spi_flash_status(flash, reg);
+
+	if (flash->ops->read_status)
+		return flash->ops->read_status(flash, opcode, reg);
+
+	return spi_flash_cmd(&flash->spi, opcode, reg, sizeof(*reg));
+}
+
+int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
+			   const u8 *regs, size_t len)
+{
+	if (flash->ops->write_status)
+		return flash->ops->write_status(flash, opcode, regs, len);
+
+	return -1;
+}
+
 int spi_flash_is_write_protected(const struct spi_flash *flash,
 				 const struct region *region)
 {
