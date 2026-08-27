@@ -86,8 +86,9 @@ static void fudan_bp_to_region(const struct spi_flash *flash, u8 bp, bool tb,
 				protected_size);
 }
 
-static int fudan_get_write_protection(const struct spi_flash *flash,
-				      const struct region *region)
+static int fudan_get_write_protection_common(const struct spi_flash *flash,
+					     const struct region *region,
+					     bool exact)
 {
 	struct region wp_region;
 	bool sr2_valid;
@@ -114,7 +115,23 @@ static int fudan_get_write_protection(const struct spi_flash *flash,
 	printk(BIOS_DEBUG, "FUDAN: flash protected range 0x%08zx-0x%08zx\n",
 	       region_offset(&wp_region), region_last(&wp_region));
 
+	if (exact)
+		return region_offset(&wp_region) == region_offset(region) &&
+		       region_sz(&wp_region) == region_sz(region);
+
 	return region_is_subregion(&wp_region, region);
+}
+
+static int fudan_get_write_protection(const struct spi_flash *flash,
+				      const struct region *region)
+{
+	return fudan_get_write_protection_common(flash, region, false);
+}
+
+static int fudan_get_write_protection_exact(const struct spi_flash *flash,
+					    const struct region *region)
+{
+	return fudan_get_write_protection_common(flash, region, true);
 }
 
 static int fudan_write_status(const struct spi_flash *flash, u8 sr1, u8 sr2)
@@ -248,6 +265,7 @@ static int fudan_set_write_protection(const struct spi_flash *flash,
 
 static const struct spi_flash_protection_ops spi_flash_protection_ops = {
 	.get_write = fudan_get_write_protection,
+	.get_write_exact = fudan_get_write_protection_exact,
 	.set_write = fudan_set_write_protection,
 };
 
