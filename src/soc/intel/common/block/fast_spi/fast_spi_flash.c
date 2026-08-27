@@ -339,7 +339,8 @@ static int fast_spi_flash_write_status(const struct spi_flash *flash,
 	uint8_t status;
 	int ret;
 
-	if (CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) ||
+	if ((CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) &&
+	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
 	    opcode != SPI_OPMENU_0 || !len || len > sizeof(uint16_t))
 		return E_ARGUMENT;
 
