@@ -124,11 +124,18 @@ def parse_ffs_files(data):
         offset = (offset + file_size + 7) & ~7
 
 
-def validate(capsule, firmware_volume, expected_guid, expected_embedded_count):
+def validate(
+    capsule,
+    firmware_volume,
+    expected_capsule_guid,
+    expected_firmware_guid,
+    expected_embedded_count,
+):
     capsule_guid, embedded_count = parse_capsule(capsule)
-    if capsule_guid != expected_guid:
+    if capsule_guid != expected_capsule_guid:
         raise ValidationError(
-            f"capsule image GUID {capsule_guid} does not match {expected_guid}"
+            f"capsule image GUID {capsule_guid} does not match "
+            f"{expected_capsule_guid}"
         )
     if embedded_count != expected_embedded_count:
         raise ValidationError(
@@ -137,13 +144,13 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count):
         )
 
     matching_drivers = sum(
-        file_guid == expected_guid and file_type == FFS_FILETYPE_DRIVER
+        file_guid == expected_firmware_guid and file_type == FFS_FILETYPE_DRIVER
         for file_guid, file_type in parse_ffs_files(firmware_volume)
     )
     if matching_drivers != 1:
         raise ValidationError(
             f"firmware volume has {matching_drivers} resident FMP drivers "
-            f"with GUID {expected_guid}, expected 1"
+            f"with GUID {expected_firmware_guid}, expected 1"
         )
 
 
@@ -151,7 +158,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capsule", required=True, help="generated FMP capsule")
     parser.add_argument("--firmware-volume", required=True, help="EDK2 DXE FV")
-    parser.add_argument("--guid", required=True, type=uuid.UUID)
+    parser.add_argument("--capsule-guid", required=True, type=uuid.UUID)
+    parser.add_argument("--firmware-guid", required=True, type=uuid.UUID)
     parser.add_argument("--embedded-drivers", required=True, type=int)
     args = parser.parse_args()
 
@@ -160,13 +168,20 @@ def main():
             capsule = capsule_file.read()
         with open(args.firmware_volume, "rb") as fv_file:
             firmware_volume = fv_file.read()
-        validate(capsule, firmware_volume, args.guid, args.embedded_drivers)
+        validate(
+            capsule,
+            firmware_volume,
+            args.capsule_guid,
+            args.firmware_guid,
+            args.embedded_drivers,
+        )
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1
 
     print(
-        f"capsule validated: GUID {args.guid}, "
+        f"capsule validated: capsule GUID {args.capsule_guid}, "
+        f"firmware GUID {args.firmware_guid}, "
         f"embedded drivers {args.embedded_drivers}"
     )
     return 0
