@@ -26,6 +26,7 @@ static void apmc_log(const char *fn, u8 cmd)
 		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
 			break;
 		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
+	case APM_CNT_CFR_SETTINGS:
 		break;
 	case APM_CNT_ROM_ARMOR:
 		break;

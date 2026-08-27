@@ -12,3 +12,11 @@ config DRIVERS_OPTION_CFR_RUNTIME_APPLY
 	depends on DRIVERS_OPTION_CFR
 	depends on HAVE_SMI_HANDLER
 	depends on SOC_INTEL_COMMON_BLOCK_SMM || SOC_AMD_COMMON_BLOCK_SMIHANDLER
+	help
+	  Expose a fixed coreboot-owned CBMEM mailbox for reading and updating
+	  explicitly allowlisted CFR numeric options. Boards must provide a
+	  policy that maps stable tokens to CFR objects. The default policy is
+	  empty and rejects every request.
+
+config DRIVERS_OPTION_CFR_SMM_SUPPORTED
+	def_bool SOC_INTEL_COMMON_BLOCK_SMM
