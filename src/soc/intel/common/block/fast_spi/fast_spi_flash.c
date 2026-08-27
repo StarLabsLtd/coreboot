@@ -326,8 +326,50 @@ static int fast_spi_flash_read_status(const struct spi_flash *flash,
 	(void)flash;
 	(void)opcode;
 	(void)reg;
-
 	return E_ARGUMENT;
+}
+
+static int fast_spi_flash_write_status(const struct spi_flash *flash,
+				       uint8_t opcode, const uint8_t *regs,
+				       size_t len)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint32_t vscc0;
+	uint8_t status;
+	int ret;
+
+	if ((CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) &&
+	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
+	    opcode != SPI_OPMENU_0 || !len || len > sizeof(uint16_t))
+		return E_ARGUMENT;
+
+	vscc0 = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SFDP0_VSCC0);
+	if ((vscc0 & SPIBAR_VSCC0_VCL) &&
+	    (vscc0 & (SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR)) !=
+		    (SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR)) {
+		printk(BIOS_ERR, "SPI status writes are locked out by VSCC0\n");
+		return E_HW_ERROR;
+	}
+
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SFDP0_VSCC0,
+		vscc0 | SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR);
+	fill_xfer_fifo(ctx, regs, len);
+	ret = exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (ret != SUCCESS)
+		return ret;
+
+	stopwatch_init_msecs_expire(&sw, 1000);
+	do {
+		ret = fast_spi_flash_status(flash, &status);
+		if (ret != SUCCESS)
+			return ret;
+		if (!(status & 1))
+			return SUCCESS;
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI status write timed out\n");
+	return E_TIMEOUT;
 }
 
 const struct spi_flash_ops fast_spi_flash_ops = {
@@ -336,6 +378,7 @@ const struct spi_flash_ops fast_spi_flash_ops = {
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
 	.read_status = fast_spi_flash_read_status,
+	.write_status = fast_spi_flash_write_status,
 };
 
 /*
