@@ -85,6 +85,9 @@ struct spi_flash_protection_ops {
 	 */
 	int (*get_write)(const struct spi_flash *flash,
 				    const struct region *region);
+	/* Returns 1 only if the protected region exactly matches region. */
+	int (*get_write_exact)(const struct spi_flash *flash,
+					  const struct region *region);
 	/*
 	 * Enable the status register write protection, if supported on the
 	 * requested region, and optionally enable status register lock-down.
@@ -218,6 +221,9 @@ int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
  */
 int spi_flash_is_write_protected(const struct spi_flash *flash,
 				 const struct region *region);
+/* Return 1 only when the status-register range exactly matches region. */
+int spi_flash_is_write_protected_exact(const struct spi_flash *flash,
+				       const struct region *region);
 /*
  * Enable the vendor dependent SPI flash write protection. The region not
  * covered by write-protection will be set to write-able state.

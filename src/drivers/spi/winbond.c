@@ -357,8 +357,9 @@ static int winbond_read_status_regs(const struct spi_flash *flash,
  *  1    if region is covered by write protection
  *  0    if a part of region isn't covered by write protection
  */
-static int winbond_get_write_protection(const struct spi_flash *flash,
-					const struct region *region)
+static int winbond_get_write_protection_common(const struct spi_flash *flash,
+					       const struct region *region,
+					       bool exact)
 {
 	const struct spi_flash_part_id *params;
 	struct region wp_region;
@@ -452,7 +453,23 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 	printk(BIOS_DEBUG, "WINBOND: flash protected range 0x%08zx-0x%08zx\n",
 	       region_offset(&wp_region), region_last(&wp_region));
 
+	if (exact)
+		return region_offset(&wp_region) == region_offset(region) &&
+		       region_sz(&wp_region) == region_sz(region);
+
 	return region_is_subregion(&wp_region, region);
+}
+
+static int winbond_get_write_protection(const struct spi_flash *flash,
+					const struct region *region)
+{
+	return winbond_get_write_protection_common(flash, region, false);
+}
+
+static int winbond_get_write_protection_exact(const struct spi_flash *flash,
+					      const struct region *region)
+{
+	return winbond_get_write_protection_common(flash, region, true);
 }
 
 /**
@@ -741,6 +758,7 @@ winbond_set_write_protection(const struct spi_flash *flash,
 
 static const struct spi_flash_protection_ops spi_flash_protection_ops = {
 	.get_write = winbond_get_write_protection,
+	.get_write_exact = winbond_get_write_protection_exact,
 	.set_write = winbond_set_write_protection,
 };
 
