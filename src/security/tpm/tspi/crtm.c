@@ -10,10 +10,20 @@
 #include <string.h>
 
 static int tpm_log_initialized;
+static int crtm_initialized;
+
 static inline int tpm_log_available(void)
 {
 	if (ENV_BOOTBLOCK)
 		return tpm_log_initialized;
+
+	return 1;
+}
+
+static inline int crtm_available(void)
+{
+	if (ENV_BOOTBLOCK)
+		return crtm_initialized;
 
 	return 1;
 }
@@ -37,14 +47,15 @@ static inline int tpm_log_available(void)
 static tpm_result_t tspi_init_crtm(void)
 {
 	tpm_result_t rc = TPM_SUCCESS;
-	/* Initialize TPM PRERAM log. */
-	if (!tpm_log_available()) {
-		tpm_preram_log_clear();
-		tpm_log_initialized = 1;
-	} else {
+
+	if (crtm_available()) {
 		printk(BIOS_WARNING, "TSPI: CRTM already initialized!\n");
 		return TPM_SUCCESS;
 	}
+
+	tspi_ensure_event_log_initialized();
+	/* Prevent measurements made below from recursively initializing the CRTM. */
+	crtm_initialized = 1;
 
 	struct region_device fmap;
 	if (fmap_locate_area_as_rdev("FMAP", &fmap) == 0) {
@@ -106,6 +117,24 @@ static tpm_result_t tspi_init_crtm(void)
 	return TPM_SUCCESS;
 }
 
+tpm_result_t tspi_ensure_event_log_initialized(void)
+{
+	if (tpm_log_available())
+		return TPM_SUCCESS;
+
+	tpm_preram_log_clear();
+	tpm_log_initialized = 1;
+	return TPM_SUCCESS;
+}
+
+tpm_result_t tspi_ensure_crtm_initialized(void)
+{
+	if (crtm_available())
+		return TPM_SUCCESS;
+
+	return tspi_init_crtm();
+}
+
 static bool is_runtime_data(const char *name)
 {
 	const char *allowlist = CONFIG_TPM_MEASURED_BOOT_RUNTIME_DATA;
@@ -131,8 +160,8 @@ tpm_result_t tspi_cbfs_measurement(const char *name, uint32_t type, const struct
 	tpm_result_t rc = TPM_SUCCESS;
 	char tpm_log_metadata[TPM_CB_LOG_PCR_HASH_NAME];
 
-	if (!tpm_log_available()) {
-		rc = tspi_init_crtm();
+	if (!crtm_available()) {
+		rc = tspi_ensure_crtm_initialized();
 		if (rc) {
 			printk(BIOS_WARNING,
 			       "Initializing CRTM failed!\n");
