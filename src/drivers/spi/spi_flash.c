@@ -454,6 +454,9 @@ static const struct spi_flash_vendor_info *spi_flash_vendors[] = {
 #if CONFIG(SPI_FLASH_EON)
 	&spi_flash_eon_vi,
 #endif
+#if CONFIG(SPI_FLASH_FUDAN)
+	&spi_flash_fudan_vi,
+#endif
 #if CONFIG(SPI_FLASH_GIGADEVICE)
 	&spi_flash_gigadevice_vi,
 #endif
