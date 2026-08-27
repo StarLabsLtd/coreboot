@@ -374,11 +374,11 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 			PAYLOAD_SPI_CONSOLE_BUFFER_SIZE);
 		if (!ptr) {
 			printk(BIOS_ERR, "Payload SPI console: no communication buffer\n");
-			return;
+		} else {
+			mod_params->payload_spi_console_buffer_base = (uintptr_t)ptr;
+			mod_params->payload_spi_console_buffer_size =
+				PAYLOAD_SPI_CONSOLE_BUFFER_SIZE;
 		}
-		mod_params->payload_spi_console_buffer_base = (uintptr_t)ptr;
-		mod_params->payload_spi_console_buffer_size =
-			PAYLOAD_SPI_CONSOLE_BUFFER_SIZE;
 	}
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)

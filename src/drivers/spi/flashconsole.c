@@ -6,6 +6,7 @@
 #include <console/console.h>
 #include <console/flash.h>
 #include <types.h>
+#include <string.h>
 
 #define LINE_BUFFER_SIZE 128
 #define READ_BUFFER_SIZE 0x100
@@ -83,7 +84,7 @@ void flashconsole_tx_byte(unsigned char c)
 	}
 }
 
-void flashconsole_tx_flush(void)
+static bool flashconsole_flush(void)
 {
 	size_t len = line_offset;
 	size_t region_size;
@@ -97,23 +98,48 @@ void flashconsole_tx_flush(void)
 	 * len = 0 also prevents false disabling of the driver, as rdev_writeat
 	 * seems to return -1 if len is zero even though this should be a
 	 * recoverable condition. */
-	if (busy || !rdev_ptr || len == 0)
-		return;
+	if (busy || !rdev_ptr)
+		return false;
+	if (len == 0)
+		return true;
 
 	busy = true;
 	region_size = region_device_sz(rdev_ptr);
 	if (offset + len >= region_size)
 		len = region_size - offset;
 
-	if (rdev_writeat(&rdev, line_buffer, offset, len) != len)
-		return;
-
-	// If the region is full, stop future write attempts
-	if (offset + len >= region_size)
-		return;
+	if (len == 0 || rdev_writeat(&rdev, line_buffer, offset, len) != len) {
+		busy = false;
+		return false;
+	}
 
 	offset += len;
 	line_offset = 0;
-
 	busy = false;
+	return true;
+}
+
+void flashconsole_tx_flush(void)
+{
+	(void)flashconsole_flush();
+}
+
+bool flashconsole_append(const uint8_t *data, size_t length)
+{
+	if (!data || !rdev_ptr)
+		return false;
+
+	while (length) {
+		size_t available = LINE_BUFFER_SIZE - line_offset;
+		size_t chunk = MIN(length, available);
+
+		memcpy(line_buffer + line_offset, data, chunk);
+		line_offset += chunk;
+		data += chunk;
+		length -= chunk;
+		if (line_offset == LINE_BUFFER_SIZE && !flashconsole_flush())
+			return false;
+	}
+
+	return flashconsole_flush();
 }

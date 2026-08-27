@@ -21,20 +21,20 @@ enum payload_spi_console_status {
 	PAYLOAD_SPI_CONSOLE_INVALID = 2,
 	PAYLOAD_SPI_CONSOLE_BUSY = 3,
 	PAYLOAD_SPI_CONSOLE_LIMIT = 4,
+	PAYLOAD_SPI_CONSOLE_IO_ERROR = 5,
 };
 
 struct payload_spi_console_request {
 	uint32_t signature;
 	uint16_t version;
 	uint16_t header_size;
-	uint32_t sequence;
 	uint16_t length;
 	uint16_t flags;
 	uint32_t status;
 	uint8_t data[];
 } __packed;
 
-typedef void (*payload_spi_console_sink)(const uint8_t *data, size_t length,
+typedef bool (*payload_spi_console_sink)(const uint8_t *data, size_t length,
 	void *context);
 
 enum payload_spi_console_status payload_spi_console_process(void *buffer,

@@ -22,6 +22,9 @@
 #include <fw_config.h>
 #include <cbfs.h>
 #include <cbmem.h>
+#if CONFIG(ARCH_X86)
+#include <cpu/x86/smm.h>
+#endif
 #include <bootmem.h>
 #include <bootsplash.h>
 #include <inttypes.h>
@@ -636,6 +639,7 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+
 	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE))
 		lb_payload_spi_console(head);
 
