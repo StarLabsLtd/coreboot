@@ -96,6 +96,11 @@ config BOOTMEDIA_LOCK_IN_VERSTAGE
 	  ramstage, like the MRC cache for example.
 	  Use this option if you don't trust code running after verstage.
 
+config BOOTMEDIA_LOCK_FAILURE_FATAL
+	bool
+	help
+	  Stop before the payload if boot-media protection cannot be applied.
+
 config BOOTMEDIA_SMM_BWP
 	bool "Boot media only writable in SMM"
 	depends on !CONSOLE_SPI_FLASH
@@ -146,3 +151,10 @@ config BOOTMEDIA_SPI_LOCK_PERMANENT
 	  Supported by Winbond parts.
 
 endchoice
+
+config BOOTMEDIA_SPI_LOCK_PLATFORM
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on SOC_INTEL_COMMON_PCH_LOCKDOWN
+	depends on !MRC_WRITE_NV_LATE
+	depends on !BOOTMEDIA_LOCK_IN_VERSTAGE
