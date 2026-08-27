@@ -32,6 +32,134 @@ static bool compare_guid(const EFI_GUID *a, const EFI_GUID *b)
 	return memcmp(a, b, sizeof(*a)) == 0;
 }
 
+struct efi_fv_initial_image {
+	struct {
+		EFI_FIRMWARE_VOLUME_HEADER fv;
+		EFI_FV_BLOCK_MAP_ENTRY terminator;
+	} volume;
+	VARIABLE_STORE_HEADER store;
+};
+
+static enum cb_err region_can_complete_initialization(
+	const struct region_device *rdev, const struct efi_fv_initial_image *image,
+	size_t image_size)
+{
+	uint8_t buf[64];
+	const uint8_t *expected = (const uint8_t *)image;
+	const uint8_t *mapping;
+	size_t offset = 0;
+	enum cb_err ret = CB_SUCCESS;
+
+	mapping = rdev_mmap_full(rdev);
+	if (mapping) {
+		for (size_t i = 0; i < region_device_sz(rdev); i++) {
+			const uint8_t target = i < image_size ? expected[i] : UINT8_MAX;
+
+			/* SPI programming may only clear bits from the erased state. */
+			if ((mapping[i] & target) != target) {
+				ret = CB_EFI_FVH_INVALID;
+				break;
+			}
+		}
+		rdev_munmap(rdev, (void *)mapping);
+		return ret;
+	}
+
+	while (offset < region_device_sz(rdev)) {
+		size_t size = MIN(sizeof(buf), region_device_sz(rdev) - offset);
+
+		if (rdev_readat(rdev, buf, offset, size) != size)
+			return CB_EFI_ACCESS_ERROR;
+		for (size_t i = 0; i < size; i++) {
+			const size_t position = offset + i;
+			const uint8_t target = position < image_size ?
+				expected[position] : UINT8_MAX;
+
+			/* SPI programming may only clear bits from the erased state. */
+			if ((buf[i] & target) != target)
+				return CB_EFI_FVH_INVALID;
+		}
+		offset += size;
+	}
+
+	return CB_SUCCESS;
+}
+
+static bool region_starts_with(const struct region_device *rdev,
+			       const void *expected, size_t expected_size)
+{
+	uint8_t buf[64];
+	const uint8_t *bytes = expected;
+	size_t offset = 0;
+
+	while (offset < expected_size) {
+		const size_t size = MIN(sizeof(buf), expected_size - offset);
+
+		if (rdev_readat(rdev, buf, offset, size) != size ||
+		    memcmp(buf, bytes + offset, size))
+			return false;
+		offset += size;
+	}
+
+	return true;
+}
+
+enum cb_err efi_fv_initialize(const struct region_device *rdev, size_t block_size)
+{
+	struct efi_fv_initial_image image;
+	size_t region_size = region_device_sz(rdev);
+	size_t variable_store_size;
+	size_t number_of_blocks;
+	const size_t image_size = sizeof(image.volume) + sizeof(image.store);
+	uint16_t checksum = 0;
+	enum cb_err ret;
+
+	if (!block_size || block_size > UINT32_MAX || region_size % block_size)
+		return CB_ERR_ARG;
+
+	number_of_blocks = region_size / block_size;
+	if (number_of_blocks < 4 || number_of_blocks > UINT32_MAX)
+		return CB_ERR_ARG;
+
+	variable_store_size = (number_of_blocks / 2 - 1) * block_size;
+	if (variable_store_size < sizeof(image.volume) + sizeof(image.store))
+		return CB_ERR_ARG;
+	variable_store_size -= sizeof(image.volume);
+	if (variable_store_size > UINT32_MAX)
+		return CB_ERR_ARG;
+
+	memset(&image, 0, sizeof(image));
+	image.volume.fv.FileSystemGuid = EfiSystemNvDataFvGuid;
+	image.volume.fv.FvLength = region_size;
+	image.volume.fv.Signature = EFI_FVH_SIGNATURE;
+	image.volume.fv.Attributes = EFI_FVB2_READ_ENABLED_CAP | EFI_FVB2_READ_STATUS |
+		EFI_FVB2_WRITE_ENABLED_CAP | EFI_FVB2_WRITE_STATUS |
+		EFI_FVB2_STICKY_WRITE | EFI_FVB2_MEMORY_MAPPED | EFI_FVB2_ERASE_POLARITY;
+	image.volume.fv.HeaderLength = sizeof(image.volume);
+	image.volume.fv.Revision = EFI_FVH_REVISION;
+	image.volume.fv.BlockMap[0].NumBlocks = number_of_blocks;
+	image.volume.fv.BlockMap[0].Length = block_size;
+
+	for (size_t i = 0; i < sizeof(image.volume) / sizeof(uint16_t); i++)
+		checksum += ((const uint16_t *)&image.volume)[i];
+	image.volume.fv.Checksum = -checksum;
+
+	image.store.Signature = EfiAuthenticatedVariableGuid;
+	image.store.Size = variable_store_size;
+	image.store.Format = VARIABLE_STORE_FORMATTED;
+	image.store.State = VARIABLE_STORE_HEALTHY;
+
+	ret = region_can_complete_initialization(rdev, &image, image_size);
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	if (rdev_writeat(rdev, &image, 0, image_size) != image_size ||
+	    !region_starts_with(rdev, &image, image_size))
+		return CB_EFI_ACCESS_ERROR;
+
+	return CB_SUCCESS;
+}
+
 /* Reads the CHAR16 string from rdev at offset and prints it */
 static enum cb_err rdev_print_wchar(int log_level, struct region_device *rdev, size_t offset)
 {
@@ -185,7 +313,7 @@ validate_variable_store_header(const EFI_FIRMWARE_VOLUME_HEADER  *fv_hdr,
 	*auth_format = compare_guid(&hdr.Signature, &EfiAuthenticatedVariableGuid);
 
 	length = region_device_sz(rdev) - fv_hdr->HeaderLength;
-	if (hdr.Size > length) {
+	if (hdr.Size < sizeof(hdr) || hdr.Size > length) {
 		printk(BIOS_WARNING, PREFIX "Variable Store Length does not match\n");
 		return CB_EFI_VS_CORRUPTED_INVALID;
 	}
@@ -196,7 +324,8 @@ validate_variable_store_header(const EFI_FIRMWARE_VOLUME_HEADER  *fv_hdr,
 	if (hdr.State != VARIABLE_STORE_HEALTHY)
 		return CB_EFI_VS_CORRUPTED_INVALID;
 
-	if (rdev_chain(rdev, rdev, fv_hdr->HeaderLength + sizeof(hdr), hdr.Size)) {
+	if (rdev_chain(rdev, rdev, fv_hdr->HeaderLength + sizeof(hdr),
+		       hdr.Size - sizeof(hdr))) {
 		printk(BIOS_WARNING, PREFIX "rdev_chain failed\n");
 		return CB_EFI_ACCESS_ERROR;
 	}
@@ -360,27 +489,26 @@ static enum cb_err walk_variables(struct region_device *rdev,
 		if (hdr.StartId != VARIABLE_DATA)
 			break;
 
-		if (hdr.State == UINT8_MAX ||
-		    hdr.DataSize == UINT32_MAX ||
-		    hdr.NameSize == UINT32_MAX ||
-		    hdr.Attributes == UINT32_MAX) {
-			hdr.NameSize = 0;
-			hdr.DataSize = 0;
-		}
-
 		printk(BIOS_SPEW, "Found variable with state %02x and ", hdr.State);
 		print_guid(BIOS_SPEW, &hdr.VendorGuid);
 		printk(BIOS_SPEW, "\n");
 
+		if (hdr.NameSize > SIZE_MAX - header_size)
+			return CB_EFI_VS_CORRUPTED_INVALID;
+		var_size = header_size + hdr.NameSize;
+		if (hdr.DataSize > SIZE_MAX - var_size)
+			return CB_EFI_VS_CORRUPTED_INVALID;
+		var_size += hdr.DataSize;
+		if (var_size > SIZE_MAX - (HEADER_ALIGNMENT - 1))
+			return CB_EFI_VS_CORRUPTED_INVALID;
+		var_size = ALIGN_UP(var_size, HEADER_ALIGNMENT);
+		if (!var_size || var_size > region_device_sz(rdev))
+			return CB_EFI_VS_CORRUPTED_INVALID;
+
 		stop = false;
-
 		ret = walker(rdev, &hdr, header_size, walker_arg, &stop);
-
 		if (ret != CB_SUCCESS || stop)
 			return ret;
-
-		var_size = ALIGN_UP(header_size + hdr.NameSize + hdr.DataSize,
-				    HEADER_ALIGNMENT);
 	} while (!rdev_chain(rdev, rdev, var_size, region_device_sz(rdev) - var_size));
 
 	return CB_EFI_OPTION_NOT_FOUND;
