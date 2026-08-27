@@ -13,6 +13,7 @@
 
 #define SPI_STATUS_OPCODE_RDSR2	0x35
 #define SPI_STATUS_OPCODE_RDSR3	0x15
+#define SPI_STATUS_OPCODE_WRSR	0x01
 
 /* Helper to create a FAST_SPI context on API entry. */
 #define BOILERPLATE_CREATE_CTX(ctx)		\
@@ -162,6 +163,21 @@ static int wait_for_hwseq_spi_cycle_complete(struct fast_spi_flash_ctx *ctx)
 	return E_TIMEOUT;
 }
 
+static int exec_sync_hwseq_xfer_locked(struct fast_spi_flash_ctx *ctx,
+				       uint32_t hsfsts_cycle,
+				       uint32_t flash_addr, size_t len)
+{
+	if (wait_for_hwseq_spi_cycle_complete(ctx) != SUCCESS) {
+		printk(BIOS_ERR, "SPI Transaction Timeout (Exceeded %d ms) due to prior"
+				" operation at Flash Offset %x\n",
+				SPIBAR_HWSEQ_XFER_TIMEOUT_MS, flash_addr);
+		return E_TIMEOUT;
+	}
+
+	start_hwseq_xfer(ctx, hsfsts_cycle, flash_addr, len);
+	return wait_for_hwseq_xfer(ctx, flash_addr);
+}
+
 /* Execute FAST_SPI flash transfer. This is a blocking call. */
 static int exec_sync_hwseq_xfer(struct fast_spi_flash_ctx *ctx,
 				uint32_t hsfsts_cycle, uint32_t flash_addr,
@@ -174,20 +190,9 @@ static int exec_sync_hwseq_xfer(struct fast_spi_flash_ctx *ctx,
 	 * If SMP is not enabled, spinlock functions are no-ops.
 	 */
 	spin_lock(&fast_spi_lock);
-
-	if (wait_for_hwseq_spi_cycle_complete(ctx) != SUCCESS) {
-		printk(BIOS_ERR, "SPI Transaction Timeout (Exceeded %d ms) due to prior"
-				" operation at Flash Offset %x\n",
-				SPIBAR_HWSEQ_XFER_TIMEOUT_MS, flash_addr);
-		ret = E_TIMEOUT;
-		goto unlock;
-	}
-
-	start_hwseq_xfer(ctx, hsfsts_cycle, flash_addr, len);
-	ret = wait_for_hwseq_xfer(ctx, flash_addr);
-
-unlock:
+	ret = exec_sync_hwseq_xfer_locked(ctx, hsfsts_cycle, flash_addr, len);
 	spin_unlock(&fast_spi_lock);
+
 	return ret;
 }
 
@@ -308,18 +313,31 @@ static int fast_spi_flash_write(const struct spi_flash *flash,
 	return SUCCESS;
 }
 
-static int fast_spi_flash_status(const struct spi_flash *flash,
-						uint8_t *reg)
+static int fast_spi_flash_status_locked(struct fast_spi_flash_ctx *ctx,
+					uint8_t *reg)
 {
-	int ret;
-	BOILERPLATE_CREATE_CTX(ctx);
+	int ret = exec_sync_hwseq_xfer_locked(ctx,
+					    SPIBAR_HSFSTS_CYCLE_RD_STATUS, 0,
+					    sizeof(*reg));
 
-	ret = exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_RD_STATUS, 0,
-				   sizeof(*reg));
 	if (ret != SUCCESS)
 		return ret;
 
 	drain_xfer_fifo(ctx, reg, sizeof(*reg));
+	return SUCCESS;
+}
+
+static int fast_spi_flash_status(const struct spi_flash *flash,
+				 uint8_t *reg)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	int ret;
+
+	(void)flash;
+	spin_lock(&fast_spi_lock);
+	ret = fast_spi_flash_status_locked(ctx, reg);
+	spin_unlock(&fast_spi_lock);
+
 	return ret;
 }
 
@@ -415,12 +433,56 @@ out:
 	return ret;
 }
 
+static int fast_spi_flash_write_status(const struct spi_flash *flash,
+				       uint8_t opcode, const uint8_t *regs,
+				       size_t len)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint8_t status;
+	int ret;
+
+	(void)flash;
+	if ((CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) &&
+	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
+	    !regs || !len || len > SPIBAR_FDATA_FIFO_SIZE)
+		return E_ARGUMENT;
+	if (opcode != SPI_STATUS_OPCODE_WRSR || len > sizeof(uint16_t))
+		return E_ARGUMENT;
+
+	spin_lock(&fast_spi_lock);
+	fill_xfer_fifo(ctx, regs, len);
+	/* WET remains clear, selecting the 06h write-enable command. */
+	ret = exec_sync_hwseq_xfer_locked(ctx,
+					SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (ret != SUCCESS)
+		goto out;
+
+	stopwatch_init_msecs_expire(&sw, SPIBAR_HWSEQ_XFER_TIMEOUT_MS);
+	do {
+		ret = fast_spi_flash_status_locked(ctx, &status);
+		if (ret != SUCCESS)
+			goto out;
+		if (!(status & 1)) {
+			ret = SUCCESS;
+			goto out;
+		}
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI status write timed out\n");
+	ret = E_TIMEOUT;
+out:
+	spin_unlock(&fast_spi_lock);
+	return ret;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
 	.read_status = fast_spi_flash_read_status,
+	.write_status = fast_spi_flash_write_status,
 };
 
 /*

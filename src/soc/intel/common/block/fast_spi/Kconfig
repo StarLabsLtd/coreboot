@@ -13,6 +13,8 @@ config FAST_SPI_DISABLE_WRITE_STATUS
 	default y
 	help
 	  Disable the write status SPI opcode in Intel Fast SPI block.
+	  BOOTMEDIA_SPI_LOCK_PLATFORM temporarily permits coreboot to set the
+	  flash block-protection bits before this opcode is disabled and locked.
 
 config FAST_SPI_SUPPORTS_EXT_BIOS_WINDOW
 	bool
