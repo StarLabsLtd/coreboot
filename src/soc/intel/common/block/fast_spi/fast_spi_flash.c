@@ -320,11 +320,54 @@ static int fast_spi_flash_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int fast_spi_flash_read_status(const struct spi_flash *flash,
+				      uint8_t opcode, uint8_t *reg)
+{
+	(void)flash;
+	(void)opcode;
+	(void)reg;
+
+	return E_ARGUMENT;
+}
+
+static int fast_spi_flash_write_status(const struct spi_flash *flash,
+				       uint8_t opcode, const uint8_t *regs,
+				       size_t len)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint8_t status;
+	int ret;
+
+	if (CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) ||
+	    opcode != SPI_OPMENU_0 || !len || len > sizeof(uint16_t))
+		return E_ARGUMENT;
+
+	fill_xfer_fifo(ctx, regs, len);
+	ret = exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (ret != SUCCESS)
+		return ret;
+
+	stopwatch_init_msecs_expire(&sw, 1000);
+	do {
+		ret = fast_spi_flash_status(flash, &status);
+		if (ret != SUCCESS)
+			return ret;
+		if (!(status & 1))
+			return SUCCESS;
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI status write timed out\n");
+	return E_TIMEOUT;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
+	.read_status = fast_spi_flash_read_status,
+	.write_status = fast_spi_flash_write_status,
 };
 
 /*
