@@ -338,8 +338,12 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 				struct spi_flash *flash)
 {
 	BOILERPLATE_CREATE_CTX(ctx);
+	struct spi_flash identified = { 0 };
+	uint8_t idcode[3];
+	uint32_t component0_size;
 	uint32_t flash_bits;
 	uint32_t ptinx_reg;
+	bool dual_component = false;
 
 	/*
 	 * bytes = (bits + 1) / 8;
@@ -349,6 +353,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	ptinx_reg = SPIBAR_PTINX_COMP_0 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 	flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 	flash->size = (flash_bits >> 3) + 1;
+	component0_size = flash->size;
 
 	/*
 	 * Now check if we have a second flash component.
@@ -358,6 +363,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	 */
 	ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_SFDP | SFDP_HDR_SIG;
 	if (fast_spi_flash_read_sfdp(ctx, ptinx_reg) == SFDP_SIGNATURE) {
+		dual_component = true;
 		ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 		flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 		flash->size += ((flash_bits >> 3) + 1);
@@ -368,6 +374,26 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	/* Can erase both 4 KiB and 64 KiB chunks. Declare the smaller size. */
 	flash->sector_size = 4 * KiB;
 	flash->page_size = 256;
+
+	if (!dual_component &&
+	    exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_RD_ID, 0,
+				   sizeof(idcode)) == SUCCESS) {
+		drain_xfer_fifo(ctx, idcode, sizeof(idcode));
+		if (!spi_flash_fill_from_id(dev, &identified, idcode,
+					    sizeof(idcode))) {
+			if (identified.size != component0_size) {
+				printk(BIOS_WARNING,
+				       "SFDP and JEDEC flash sizes differ: %#x vs %#x\n",
+				       component0_size, identified.size);
+			} else {
+				flash->vendor = identified.vendor;
+				flash->model = identified.model;
+				flash->status_cmd = identified.status_cmd;
+				flash->prot_ops = identified.prot_ops;
+				flash->part = identified.part;
+			}
+		}
+	}
 	/*
 	 * FIXME: Get erase+cmd, and status_cmd from SFDP.
 	 *
