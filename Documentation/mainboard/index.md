@@ -390,6 +390,7 @@ StarFighter Mk II <starlabs/starfighter_mtl.md>
 
 Building coreboot <starlabs/common/building.md>
 Flashing devices <starlabs/common/flashing.md>
+Verified boot <starlabs/common/vboot.md>
 ```
 
 ## Supermicro
