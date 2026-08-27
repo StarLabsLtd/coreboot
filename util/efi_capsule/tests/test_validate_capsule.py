@@ -80,34 +80,47 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
 
 class ValidateCapsuleTest(unittest.TestCase):
     def test_matching_capsule_and_resident_driver(self):
-        validate(make_capsule(), make_fv(), FMP_GUID, 0)
+        validate(make_capsule(), make_fv(), FMP_GUID, FMP_GUID, 0)
+
+    def test_transition_capsule_and_resident_driver(self):
+        validate(
+            make_capsule(OTHER_GUID),
+            make_fv(),
+            OTHER_GUID,
+            FMP_GUID,
+            0,
+        )
 
     def test_matching_embedded_driver_count(self):
-        validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1)
+        validate(
+            make_capsule(embedded_count=1), make_fv(), FMP_GUID, FMP_GUID, 1
+        )
 
     def test_rejects_capsule_image_guid_mismatch(self):
         with self.assertRaisesRegex(ValidationError, "does not match"):
-            validate(make_capsule(OTHER_GUID), make_fv(), FMP_GUID, 0)
+            validate(make_capsule(OTHER_GUID), make_fv(), FMP_GUID, FMP_GUID, 0)
 
     def test_rejects_embedded_driver_count_mismatch(self):
         with self.assertRaisesRegex(ValidationError, "embedded drivers"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 0)
+            validate(
+                make_capsule(embedded_count=1), make_fv(), FMP_GUID, FMP_GUID, 0
+            )
 
     def test_rejects_missing_resident_driver(self):
         with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):
-            validate(make_capsule(), make_fv(OTHER_GUID), FMP_GUID, 0)
+            validate(make_capsule(), make_fv(OTHER_GUID), FMP_GUID, FMP_GUID, 0)
 
     def test_rejects_duplicate_resident_driver(self):
         with self.assertRaisesRegex(ValidationError, "2 resident FMP drivers"):
-            validate(make_capsule(), make_fv(duplicate=True), FMP_GUID, 0)
+            validate(make_capsule(), make_fv(duplicate=True), FMP_GUID, FMP_GUID, 0)
 
     def test_rejects_matching_non_driver_ffs_file(self):
         with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):
-            validate(make_capsule(), make_fv(file_type=0x09), FMP_GUID, 0)
+            validate(make_capsule(), make_fv(file_type=0x09), FMP_GUID, FMP_GUID, 0)
 
     def test_rejects_invalid_item_offset(self):
         with self.assertRaisesRegex(ValidationError, "invalid FMP item offset"):
-            validate(make_capsule(item_offset=8), make_fv(), FMP_GUID, 0)
+            validate(make_capsule(item_offset=8), make_fv(), FMP_GUID, FMP_GUID, 0)
 
 
 if __name__ == "__main__":
