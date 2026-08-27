@@ -486,7 +486,7 @@ static const struct spi_flash_vendor_info *spi_flash_vendors[] = {
 
 static int fill_spi_flash(const struct spi_slave *spi, struct spi_flash *flash,
 	const struct spi_flash_vendor_info *vi,
-	const struct spi_flash_part_id *part)
+	const struct spi_flash_part_id *part, bool run_after_probe)
 {
 	memcpy(&flash->spi, spi, sizeof(*spi));
 	flash->vendor = vi->id;
@@ -507,7 +507,7 @@ static int fill_spi_flash(const struct spi_slave *spi, struct spi_flash *flash,
 	flash->prot_ops = vi->prot_ops;
 	flash->part = part;
 
-	if (vi->after_probe)
+	if (run_after_probe && vi->after_probe)
 		return vi->after_probe(flash);
 
 	return 0;
@@ -533,7 +533,7 @@ static const struct spi_flash_part_id *find_part(const struct spi_flash_vendor_i
 }
 
 static int find_match(const struct spi_slave *spi, struct spi_flash *flash,
-			uint8_t manuf_id, uint16_t id[2])
+			uint8_t manuf_id, uint16_t id[2], bool run_after_probe)
 {
 	int i;
 
@@ -551,11 +551,28 @@ static int find_match(const struct spi_slave *spi, struct spi_flash *flash,
 		if (part == NULL)
 			continue;
 
-		return fill_spi_flash(spi, flash, vi, part);
+		return fill_spi_flash(spi, flash, vi, part, run_after_probe);
 	}
 
 	printk(BIOS_WARNING, "SF: no match for ID %04x %04x\n", id[0], id[1]);
 	return -1;
+}
+
+int spi_flash_fill_from_id(const struct spi_slave *spi,
+			   struct spi_flash *flash, const u8 *idcode,
+			   size_t idcode_len)
+{
+	u16 id[2] = { 0 };
+
+	if (idcode_len != 3 && idcode_len != 5)
+		return -1;
+
+	id[0] = (idcode[1] << 8) | idcode[2];
+	if (idcode_len == 5)
+		id[1] = (idcode[3] << 8) | idcode[4];
+
+	printk(BIOS_INFO, "Manufacturer: %02x\n", idcode[0]);
+	return find_match(spi, flash, idcode[0], id, false);
 }
 
 int spi_flash_generic_probe(const struct spi_slave *spi,
@@ -593,7 +610,7 @@ int spi_flash_generic_probe(const struct spi_slave *spi,
 	id[0] = (idcode[1] << 8) | idcode[2];
 	id[1] = (idcode[3] << 8) | idcode[4];
 
-	return find_match(spi, flash, manuf_id, id);
+	return find_match(spi, flash, manuf_id, id, true);
 }
 
 int spi_flash_probe(unsigned int bus, unsigned int cs, struct spi_flash *flash)
