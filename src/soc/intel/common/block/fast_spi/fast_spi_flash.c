@@ -11,6 +11,9 @@
 #include <timer.h>
 #include <smp/spinlock.h>
 
+#define SPI_STATUS_OPCODE_RDSR2	0x35
+#define SPI_STATUS_OPCODE_RDSR3	0x15
+
 /* Helper to create a FAST_SPI context on API entry. */
 #define BOILERPLATE_CREATE_CTX(ctx)		\
 	struct fast_spi_flash_ctx	real_ctx;	\
@@ -320,11 +323,104 @@ static int fast_spi_flash_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int fast_spi_flash_read_status(const struct spi_flash *flash,
+				      uint8_t opcode, uint8_t *reg)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint32_t opmenu_upper, ssfsts;
+	uint16_t optype;
+	int ret = E_HW_ERROR;
+
+	(void)flash;
+	/* Status register 1 uses hardware sequencing. */
+	if (opcode != SPI_STATUS_OPCODE_RDSR2 &&
+	    opcode != SPI_STATUS_OPCODE_RDSR3) {
+		printk(BIOS_ERR, "Unsupported SPI status-read opcode %#x\n", opcode);
+		return E_ARGUMENT;
+	}
+
+	spin_lock(&fast_spi_lock);
+
+	if (wait_for_hwseq_spi_cycle_complete(ctx) != SUCCESS) {
+		printk(BIOS_ERR, "SPI hardware sequence did not become idle\n");
+		goto out;
+	}
+
+	stopwatch_init_msecs_expire(&sw, SPIBAR_HWSEQ_XFER_TIMEOUT_MS);
+	while (fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL) &
+	       SPIBAR_SSFSTS_SCIP) {
+		if (stopwatch_expired(&sw)) {
+			printk(BIOS_ERR, "SPI software sequence did not become idle\n");
+			ret = E_TIMEOUT;
+			goto out;
+		}
+	}
+
+	if (fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_HSFSTS_CTL) &
+	    SPIBAR_HSFSTS_FLOCKDN) {
+		printk(BIOS_ERR, "SPI opcode menu is locked\n");
+		goto out;
+	}
+
+	/* Temporarily use opcode-menu entry 7 as a read without address. */
+	opmenu_upper = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_OPMENU_UPPER);
+	optype = read16p(ctx->mmio_base + SPIBAR_OPTYPE);
+	write32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER,
+		 (opmenu_upper & 0x00ffffff) | ((uint32_t)opcode << 24));
+	write16p(ctx->mmio_base + SPIBAR_OPTYPE, optype & ~(0x3 << 14));
+	if ((read32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER) >> 24) != opcode ||
+	    (read16p(ctx->mmio_base + SPIBAR_OPTYPE) & (0x3 << 14))) {
+		printk(BIOS_ERR, "SPI opcode menu update failed\n");
+		goto restore;
+	}
+
+	ssfsts = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL);
+	ssfsts &= SPIBAR_SSFSTS_RESERVED_MASK | SPIBAR_SSFSTS_SCF_MASK;
+	ssfsts |= SPIBAR_SSFSTS_W1C_BITS;
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SSFSTS_CTL, ssfsts);
+
+	ssfsts |= SPIBAR_SSFSTS_SCGO | SPIBAR_SSFSTS_COP(7) |
+		  SPIBAR_SSFSTS_DS | SPIBAR_SSFSTS_DBC(0);
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SSFSTS_CTL, ssfsts);
+
+	stopwatch_init_msecs_expire(&sw, SPIBAR_HWSEQ_XFER_TIMEOUT_MS);
+	do {
+		ssfsts = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL);
+		if (ssfsts & (SPIBAR_SSFSTS_FCERR | SPIBAR_SSFSTS_AEL)) {
+			printk(BIOS_ERR,
+			       "SPI software sequence failed, SSFSTS=%#x\n", ssfsts);
+			goto restore;
+		}
+		if (ssfsts & SPIBAR_SSFSTS_FDONE) {
+			drain_xfer_fifo(ctx, reg, sizeof(*reg));
+			ret = SUCCESS;
+			goto restore;
+		}
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI software sequence timed out\n");
+	ret = E_TIMEOUT;
+
+restore:
+	write32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER, opmenu_upper);
+	write16p(ctx->mmio_base + SPIBAR_OPTYPE, optype);
+	if (read32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER) != opmenu_upper ||
+	    read16p(ctx->mmio_base + SPIBAR_OPTYPE) != optype) {
+		printk(BIOS_ERR, "SPI opcode menu restoration failed\n");
+		ret = E_HW_ERROR;
+	}
+out:
+	spin_unlock(&fast_spi_lock);
+	return ret;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
+	.read_status = fast_spi_flash_read_status,
 };
 
 /*
