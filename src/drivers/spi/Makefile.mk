@@ -24,6 +24,7 @@ $(1)-$(CONFIG_SPI_FLASH_ADESTO) += adesto.c
 $(1)-$(CONFIG_SPI_FLASH_AMIC) += amic.c
 $(1)-$(CONFIG_SPI_FLASH_ATMEL) += atmel.c
 $(1)-$(CONFIG_SPI_FLASH_EON) += eon.c
+$(1)-$(CONFIG_SPI_FLASH_FUDAN) += fudan.c
 $(1)-$(CONFIG_SPI_FLASH_GIGADEVICE) += gigadevice.c
 $(1)-$(CONFIG_SPI_FLASH_MACRONIX) += macronix.c
 $(1)-$(CONFIG_SPI_FLASH_SPANSION) += spansion.c
