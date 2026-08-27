@@ -320,11 +320,22 @@ static int fast_spi_flash_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int fast_spi_flash_read_status(const struct spi_flash *flash,
+				      uint8_t opcode, uint8_t *reg)
+{
+	(void)flash;
+	(void)opcode;
+	(void)reg;
+
+	return E_ARGUMENT;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
+	.read_status = fast_spi_flash_read_status,
 };
 
 /*
