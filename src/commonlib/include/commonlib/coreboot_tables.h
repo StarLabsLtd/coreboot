@@ -93,6 +93,7 @@ enum {
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
+	LB_TAG_CFR_SETTINGS		= 0x004b,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -629,6 +630,18 @@ struct lb_cfr {
 	uint32_t version;
 	uint32_t checksum;	/* Checksum of the variable payload. */
 	/* struct lb_cfr_option_form		forms[] */
+};
+
+/* Atomic CFR settings service record. */
+#define LB_CFR_SETTINGS_VERSION 1
+struct lb_cfr_settings {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t version;
+	lb_uint64_t mailbox_address;
+	uint32_t mailbox_size;
+	uint8_t apm_cmd;
+	uint8_t reserved[3];
 };
 
 struct lb_panel_poweroff {

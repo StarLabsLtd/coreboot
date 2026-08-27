@@ -66,6 +66,12 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
 
+void smm_get_cfr_settings_mailbox(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.cfr_settings_mailbox_base;
+	*size = smm_runtime.cfr_settings_mailbox_size;
+}
+
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
 {

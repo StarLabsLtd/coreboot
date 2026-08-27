@@ -3,6 +3,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_gnvs.h>
 #include <cbmem.h>
+#include <commonlib/cfr.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <console/console.h>
@@ -366,6 +367,21 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		}
 		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
 		mod_params->smmstore_com_buffer_size = info.block_size;
+	}
+
+	if (CONFIG(DRIVERS_OPTION_CFR_SMM)) {
+		void *mailbox = cbmem_add(CBMEM_ID_CFR_SETTINGS,
+					 CFR_SETTINGS_MAILBOX_SIZE);
+
+		if (!mailbox) {
+			printk(BIOS_ERR, "CFR settings: Failed to allocate mailbox\n");
+			mod_params->cfr_settings_mailbox_base = 0;
+			mod_params->cfr_settings_mailbox_size = 0;
+		} else {
+			memset(mailbox, 0, CFR_SETTINGS_MAILBOX_SIZE);
+			mod_params->cfr_settings_mailbox_base = (uintptr_t)mailbox;
+			mod_params->cfr_settings_mailbox_size = CFR_SETTINGS_MAILBOX_SIZE;
+		}
 	}
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)

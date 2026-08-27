@@ -6,6 +6,7 @@
 #include <console/console.h>
 #include <crc_byte.h>
 #include <drivers/option/cfr_frontend.h>
+#include <drivers/option/cfr_settings.h>
 #include <inttypes.h>
 #include <string.h>
 #include <types.h>
@@ -123,6 +124,26 @@ static uint32_t sm_write_enum_value(char *current, const struct sm_enum_value *e
 	return enum_val->size;
 }
 
+static uint32_t sm_write_option_access(char *current, uint32_t token,
+				       uint32_t permissions)
+{
+	struct lb_cfr_option_access *access = (struct lb_cfr_option_access *)current;
+
+	if (!token || permissions & ~CFR_SETTINGS_ACCESS_PERMISSIONS_MASK ||
+	    !(permissions & CFR_SETTINGS_ACCESS_READ) ||
+	    ((permissions & CFR_SETTINGS_ACCESS_WRITE) &&
+	     !(permissions & CFR_SETTINGS_ACCESS_READ)))
+		return 0;
+
+	access->tag = CFR_TAG_OPTION_ACCESS;
+	access->size = sizeof(*access);
+	access->version = CFR_OPTION_ACCESS_VERSION;
+	access->token = token;
+	access->permissions = permissions;
+	access->reserved = 0;
+
+	return access->size;
+}
 
 static bool override_matches_numeric_tag(enum sm_object_kind override_kind, uint32_t tag)
 {
@@ -142,7 +163,8 @@ static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t
 		const char *opt_name, const char *ui_name, const char *ui_helptext,
 		uint32_t flags, uint32_t default_value, uint32_t min, uint32_t max, uint32_t step,
 		uint32_t display_flags, const struct sm_enum_value *values, const uint64_t dep_id,
-		const uint32_t *dep_values, const uint32_t num_dep_values)
+		const uint32_t *dep_values, const uint32_t num_dep_values, uint32_t access_token,
+		uint32_t access_permissions)
 {
 	struct lb_cfr_numeric_option *option = (struct lb_cfr_numeric_option *)current;
 	size_t len;
@@ -150,7 +172,11 @@ static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t
 	/* Check for mainboard override of default value */
 	const struct cfr_default_override *ovr = find_override(opt_name);
 	if (ovr) {
-		if (!override_matches_numeric_tag(ovr->kind, tag))
+		if (access_token)
+			printk(BIOS_WARNING,
+			       "CFR: ignoring default override for SMM-managed option '%s'.\n",
+			       opt_name);
+		else if (!override_matches_numeric_tag(ovr->kind, tag))
 			printk(BIOS_WARNING, "CFR: override for option '%s' has mismatched type; skipping.\n", opt_name);
 		else
 			default_value = ovr->uint_value;
@@ -186,6 +212,7 @@ static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t
 			current += sm_write_enum_value(current, e);
 		}
 	}
+	current += sm_write_option_access(current, access_token, access_permissions);
 
 	option->size = cfr_record_size((char *)option, current);
 	return option->size;
@@ -193,36 +220,39 @@ static uint32_t write_numeric_option(char *current, uint32_t tag, const uint64_t
 
 static uint32_t sm_write_opt_enum(char *current, const struct sm_obj_enum *sm_enum,
 				  const uint64_t object_id, const uint64_t dep_id,
-				  const uint32_t *dep_values, const uint32_t num_dep_values)
+				  const uint32_t *dep_values, const uint32_t num_dep_values,
+				  uint32_t access_token, uint32_t access_permissions)
 
 {
 	return write_numeric_option(current, CFR_TAG_OPTION_ENUM, object_id,
 			sm_enum->opt_name, sm_enum->ui_name, sm_enum->ui_helptext,
 			sm_enum->flags, sm_enum->default_value, 0, 0, 0, 0, sm_enum->values,
-			dep_id, dep_values, num_dep_values);
+			dep_id, dep_values, num_dep_values, access_token, access_permissions);
 }
 
 static uint32_t sm_write_opt_number(char *current, const struct sm_obj_number *sm_number,
 				    const uint64_t object_id, const uint64_t dep_id,
-				    const uint32_t *dep_values, const uint32_t num_dep_values)
+				    const uint32_t *dep_values, const uint32_t num_dep_values,
+				    uint32_t access_token, uint32_t access_permissions)
 
 {
 	return write_numeric_option(current, CFR_TAG_OPTION_NUMBER, object_id,
 			sm_number->opt_name, sm_number->ui_name, sm_number->ui_helptext,
 			sm_number->flags, sm_number->default_value, sm_number->min, sm_number->max,
 			sm_number->step, sm_number->display_flags, NULL, dep_id, dep_values,
-			num_dep_values);
+			num_dep_values, access_token, access_permissions);
 }
 
 static uint32_t sm_write_opt_bool(char *current, const struct sm_obj_bool *sm_bool,
 				  const uint64_t object_id, const uint64_t dep_id,
-				  const uint32_t *dep_values, const uint32_t num_dep_values)
+				  const uint32_t *dep_values, const uint32_t num_dep_values,
+				  uint32_t access_token, uint32_t access_permissions)
 
 {
 	return write_numeric_option(current, CFR_TAG_OPTION_BOOL, object_id,
 			sm_bool->opt_name, sm_bool->ui_name, sm_bool->ui_helptext,
 			sm_bool->flags, sm_bool->default_value, 0, 0, 0, 0, NULL, dep_id,
-			dep_values, num_dep_values);
+			dep_values, num_dep_values, access_token, access_permissions);
 }
 
 static uint32_t sm_write_opt_varchar(char *current, const struct sm_obj_varchar *sm_varchar,
@@ -337,10 +367,22 @@ static uint32_t sm_write_form(char *current, struct sm_obj_form *sm_form,
 static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 {
 	uint64_t dep_id, obj_id;
+	uint32_t access_token = 0;
+	uint32_t access_permissions = 0;
 	const uint32_t *dep_values;
 	uint32_t num_dep_values;
 	assert(sm_obj);
 	struct sm_object sm_obj_copy = *sm_obj;
+	const struct cfr_settings_policy *policy;
+
+	if (CONFIG(DRIVERS_OPTION_CFR_SMM)) {
+		policy = cfr_settings_policy_for_option(sm_obj);
+		if (policy)
+			access_token = policy->token;
+		if (policy)
+			access_permissions = policy->flags &
+				CFR_SETTINGS_ACCESS_PERMISSIONS_MASK;
+	}
 
 	/* Assign uniqueue ID */
 	obj_id = sm_gen_obj_id((void *)sm_obj);
@@ -368,13 +410,16 @@ static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 		return 0;
 	case SM_OBJ_ENUM:
 		return sm_write_opt_enum(current, &sm_obj_copy.sm_enum, obj_id,
-					 dep_id, dep_values, num_dep_values);
+					 dep_id, dep_values, num_dep_values, access_token,
+					 access_permissions);
 	case SM_OBJ_NUMBER:
 		return sm_write_opt_number(current, &sm_obj_copy.sm_number, obj_id,
-					   dep_id, dep_values, num_dep_values);
+					   dep_id, dep_values, num_dep_values, access_token,
+					   access_permissions);
 	case SM_OBJ_BOOL:
 		return sm_write_opt_bool(current, &sm_obj_copy.sm_bool, obj_id,
-					 dep_id, dep_values, num_dep_values);
+					 dep_id, dep_values, num_dep_values, access_token,
+					 access_permissions);
 	case SM_OBJ_VARCHAR:
 		return sm_write_opt_varchar(current, &sm_obj_copy.sm_varchar, obj_id,
 					    dep_id, dep_values, num_dep_values);

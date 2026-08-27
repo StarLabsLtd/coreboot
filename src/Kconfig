@@ -177,8 +177,9 @@ config USE_UEFI_VARIABLE_STORE
 	depends on SMMSTORE
 	help
 	  Enable this option if coreboot shall read/write options from the
-	  SMMSTORE region within the SPI flash. The region must be formatted
-	  by the payload first before it can be used.
+	  SMMSTORE region within the SPI flash. The region normally must be
+	  formatted by the payload before use. The atomic CFR SMM service can
+	  initialize an erased region for its own managed options.
 
 config USE_MAINBOARD_SPECIFIC_OPTION_BACKEND
 	bool "Use mainboard-specific option backend"

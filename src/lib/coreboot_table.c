@@ -16,6 +16,7 @@
 #include <device/device.h>
 #include <drivers/tpm/tpm_ppi.h>
 #include <drivers/option/cfr_frontend.h>
+#include <drivers/option/cfr_settings.h>
 #include <fmap.h>
 #include <fw_config.h>
 #include <cbfs.h>
@@ -562,6 +563,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Generate CFR entry for setup menus */
 	if (CONFIG(DRIVERS_OPTION_CFR))
 		lb_cfr_setup_menu(head);
+	if (CONFIG(DRIVERS_OPTION_CFR_SMM))
+		lb_cfr_settings(head);
 
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));

@@ -64,7 +64,87 @@ enum cfr_tags {
 	CFR_TAG_VARCHAR_DEF_VALUE	= 10,
 	CFR_TAG_OPTION_COMMENT		= 11,
 	CFR_TAG_DEP_VALUES		= 12,
+	/* Reserved by the Linux CFR runtime-apply ABI. */
+	CFR_TAG_RUNTIME_APPLY		= 13,
+	CFR_TAG_OPTION_ACCESS		= 14,
 };
+
+enum cfr_settings_access_permissions {
+	CFR_SETTINGS_ACCESS_READ = 1 << 0,
+	CFR_SETTINGS_ACCESS_WRITE = 1 << 1,
+};
+
+#define CFR_SETTINGS_ACCESS_PERMISSIONS_MASK \
+	(CFR_SETTINGS_ACCESS_READ | CFR_SETTINGS_ACCESS_WRITE)
+#define CFR_OPTION_ACCESS_VERSION 1
+#define CFR_OPTION_ACCESS_SIZE_V1 24
+
+/* Stable firmware-owned token and permissions for the settings service. */
+struct __packed lb_cfr_option_access {
+	uint32_t tag;		/* CFR_TAG_OPTION_ACCESS */
+	uint32_t size;
+	uint32_t version;
+	uint32_t token;
+	uint32_t permissions;	/* enum cfr_settings_access_permissions */
+	uint32_t reserved;
+};
+
+_Static_assert(sizeof(struct lb_cfr_option_access) == CFR_OPTION_ACCESS_SIZE_V1,
+	       "CFR option access ABI size changed");
+
+#define CFR_SETTINGS_VERSION 1
+#define CFR_SETTINGS_MAILBOX_SIZE 64
+
+enum cfr_settings_command {
+	CFR_SETTINGS_CMD_NONE = 0,
+	CFR_SETTINGS_CMD_GET = 1,
+	CFR_SETTINGS_CMD_SET = 2,
+};
+
+enum cfr_settings_status {
+	CFR_SETTINGS_STATUS_IDLE = 0,
+	CFR_SETTINGS_STATUS_BUSY = 1,
+	CFR_SETTINGS_STATUS_VALUE = 2,
+	CFR_SETTINGS_STATUS_UNCHANGED = 3,
+	CFR_SETTINGS_STATUS_APPLIED = 4,
+	CFR_SETTINGS_STATUS_REBOOT_REQUIRED = 5,
+	CFR_SETTINGS_STATUS_ROLLED_BACK = 6,
+	CFR_SETTINGS_STATUS_INDETERMINATE = 7,
+	CFR_SETTINGS_STATUS_INVALID_MAILBOX = 8,
+	CFR_SETTINGS_STATUS_INVALID_COMMAND = 9,
+	CFR_SETTINGS_STATUS_INVALID_TOKEN = 10,
+	CFR_SETTINGS_STATUS_DENIED = 11,
+	CFR_SETTINGS_STATUS_CONFLICT = 12,
+	CFR_SETTINGS_STATUS_INVALID_VALUE = 13,
+	CFR_SETTINGS_STATUS_DEPENDENCY_FAILED = 14,
+	CFR_SETTINGS_STATUS_STORAGE_ERROR = 15,
+};
+
+enum cfr_settings_response_flags {
+	CFR_SETTINGS_RESP_FAULTED = 1 << 0,
+	CFR_SETTINGS_RESP_CURRENT_VALID = 1 << 1,
+};
+
+/*
+ * Communication buffer shared with the payload or operating system. The
+ * buffer address is firmware-owned and advertised by LB_TAG_CFR_SETTINGS.
+ */
+struct __packed cfr_settings_mailbox {
+	uint32_t version;
+	uint32_t size;
+	uint64_t sequence;
+	uint32_t command;
+	uint32_t status;
+	uint32_t token;
+	uint32_t expected_value;
+	uint32_t value;
+	uint32_t current_value;
+	uint32_t response_flags;
+	uint32_t reserved[5];
+};
+
+_Static_assert(sizeof(struct cfr_settings_mailbox) == CFR_SETTINGS_MAILBOX_SIZE,
+	       "CFR settings mailbox ABI size changed");
 
 /*
  * The optional flags describe the visibilty of the option and the
@@ -154,6 +234,7 @@ struct __packed lb_cfr_numeric_option {
 	 * struct lb_cfr_varbinary		ui_helptext (Optional)
 	 * struct lb_cfr_varbinary		dependency_values (Optional)
 	 * struct lb_cfr_enum_value		enum_values[]
+	 * struct lb_cfr_option_access		settings_access (Optional)
 	 */
 };
 

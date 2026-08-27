@@ -11,3 +11,15 @@ efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/
+
+tests-y += cfr-settings-policy-test
+
+cfr-settings-policy-test-srcs += tests/drivers/cfr_settings_policy-test.c
+cfr-settings-policy-test-srcs += src/drivers/option/cfr_settings_policy.c
+
+tests-y += cfr-settings-smm-test
+
+cfr-settings-smm-test-srcs += tests/drivers/cfr_settings_smm-test.c
+cfr-settings-smm-test-srcs += src/drivers/option/cfr_settings_policy.c
+cfr-settings-smm-test-srcs += src/drivers/option/cfr_settings_smm.c
+cfr-settings-smm-test-srcs += tests/stubs/console.c

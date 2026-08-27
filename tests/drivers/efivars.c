@@ -85,7 +85,7 @@ static const uint8_t FVH[] = {
 #define FVH_CHECKSUMMED_SIZE (sizeof(EFI_FIRMWARE_VOLUME_HEADER) + 8 + sizeof(EFI_GUID))
 
 static struct region_device flash_rdev_rw;
-static uint8_t flash_buffer[0x30000];
+static uint8_t flash_buffer[0x40000];
 
 static const char *name = "coreboot";
 
@@ -188,12 +188,115 @@ static void efi_test_new_write(void **state)
 	assert_string_equal((const char *)buf, "is awesome");
 }
 
+static void efi_test_initialize_erased_store(void **state)
+{
+	enum cb_err ret;
+	uint8_t buf[16];
+	uint32_t size;
+
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	mock_rdev(false);
+
+	ret = efi_fv_initialize(&flash_rdev_rw, 0x10000);
+	assert_int_equal(ret, CB_SUCCESS);
+
+	size = sizeof(buf);
+	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, buf, &size);
+	assert_int_equal(ret, CB_EFI_OPTION_NOT_FOUND);
+
+	ret = efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+				name, "persists", strlen("persists") + 1);
+	assert_int_equal(ret, CB_SUCCESS);
+
+	size = sizeof(buf);
+	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, buf, &size);
+	assert_int_equal(ret, CB_SUCCESS);
+	assert_string_equal((const char *)buf, "persists");
+}
+
+static void efi_test_refuse_non_erased_store(void **state)
+{
+	enum cb_err ret;
+
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	flash_buffer[sizeof(flash_buffer) - 1] = 0xfe;
+	mock_rdev(false);
+
+	ret = efi_fv_initialize(&flash_rdev_rw, 0x10000);
+	assert_int_equal(ret, CB_EFI_FVH_INVALID);
+	for (size_t i = 0; i < sizeof(flash_buffer) - 1; i++)
+		assert_int_equal(flash_buffer[i], 0xff);
+	assert_int_equal(flash_buffer[sizeof(flash_buffer) - 1], 0xfe);
+}
+
+static void efi_test_complete_interrupted_initialization(void **state)
+{
+	const size_t initial_header_size = sizeof(EFI_FIRMWARE_VOLUME_HEADER) +
+		sizeof(EFI_FV_BLOCK_MAP_ENTRY) + sizeof(VARIABLE_STORE_HEADER);
+	uint8_t expected[128];
+	enum cb_err ret;
+
+	assert_true(initial_header_size <= sizeof(expected));
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	mock_rdev(false);
+	assert_int_equal(efi_fv_initialize(&flash_rdev_rw, 0x10000), CB_SUCCESS);
+	memcpy(expected, flash_buffer, initial_header_size);
+
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	memcpy(flash_buffer, expected, initial_header_size / 2);
+	ret = efi_fv_initialize(&flash_rdev_rw, 0x10000);
+	assert_int_equal(ret, CB_SUCCESS);
+	assert_memory_equal(flash_buffer, expected, initial_header_size);
+}
+
+static void efi_test_reject_invalid_initializer_geometry(void **state)
+{
+	struct region_device tiny_rdev;
+
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	mock_rdev(false);
+	assert_int_equal(rdev_chain(&tiny_rdev, &flash_rdev_rw, 0, 128), 0);
+	assert_int_equal(efi_fv_initialize(&tiny_rdev, 32), CB_ERR_ARG);
+#if __SIZEOF_SIZE_T__ > 4
+	assert_int_equal(efi_fv_initialize(&flash_rdev_rw,
+					   (size_t)UINT32_MAX + 1), CB_ERR_ARG);
+#endif
+}
+
+static void efi_test_reject_wrapped_variable_size(void **state)
+{
+	AUTHENTICATED_VARIABLE_HEADER *header;
+	uint8_t value[4];
+	uint32_t size = sizeof(value);
+	enum cb_err ret;
+
+	memset(flash_buffer, 0xff, sizeof(flash_buffer));
+	mock_rdev(false);
+	assert_int_equal(efi_fv_initialize(&flash_rdev_rw, 0x10000), CB_SUCCESS);
+	header = (AUTHENTICATED_VARIABLE_HEADER *)(flash_buffer +
+		sizeof(EFI_FIRMWARE_VOLUME_HEADER) + sizeof(EFI_FV_BLOCK_MAP_ENTRY) +
+		sizeof(VARIABLE_STORE_HEADER));
+	header->StartId = VARIABLE_DATA;
+	header->State = VAR_ADDED;
+	header->NameSize = UINT32_MAX - sizeof(*header) + 1;
+	header->DataSize = UINT32_MAX;
+
+	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+				name, value, &size);
+	assert_int_equal(ret, CB_EFI_VS_CORRUPTED_INVALID);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(efi_test_header),
 		cmocka_unit_test(efi_test_noop_existing_write),
-		cmocka_unit_test(efi_test_new_write)
+		cmocka_unit_test(efi_test_new_write),
+		cmocka_unit_test(efi_test_initialize_erased_store),
+		cmocka_unit_test(efi_test_refuse_non_erased_store),
+		cmocka_unit_test(efi_test_complete_interrupted_initialization),
+		cmocka_unit_test(efi_test_reject_invalid_initializer_geometry),
+		cmocka_unit_test(efi_test_reject_wrapped_variable_size)
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
