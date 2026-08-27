@@ -21,6 +21,7 @@
 #include <soc/pci_devs.h>
 #include <spi_flash.h>
 #include <spi-generic.h>
+#include <security/vboot/vbnv.h>
 
 #define FLASH_MMIO_SIZE		(16 * MiB)
 #define FLASH_BASE_ADDR		((0xffffffff - FLASH_MMIO_SIZE) + 1)
@@ -521,6 +522,18 @@ void fast_spi_disable_wp(void)
 	bios_cntl = pci_read_config8(dev, SPI_BIOS_CONTROL);
 	bios_cntl |= SPI_BIOS_CONTROL_WPD;
 	pci_write_config8(dev, SPI_BIOS_CONTROL, bios_cntl);
+}
+
+int vboot_prepare_vbnv_write(void)
+{
+	fast_spi_disable_wp();
+	return fast_spi_wpd_status() ? 0 : -1;
+}
+
+int vboot_finish_vbnv_write(void)
+{
+	fast_spi_enable_wp();
+	return fast_spi_wpd_status() ? -1 : 0;
 }
 
 void fast_spi_set_bde(void)
