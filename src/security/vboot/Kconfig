@@ -80,6 +80,15 @@ config VBOOT_VBNV_FLASH
 	help
 	  VBNV is stored in flash storage
 
+config VBOOT_VBNV_FLASH_PRIMARY
+	bool
+	default n
+	depends on VBOOT_VBNV_FLASH
+	help
+	  Use flash as the primary VBNV backend on platforms that would
+	  otherwise select CMOS. SoC Kconfig must suppress its CMOS VBNV
+	  selection when this option is enabled.
+
 config VBOOT_STARTS_BEFORE_BOOTBLOCK
 	def_bool n
 	select VBOOT_SEPARATE_VERSTAGE
