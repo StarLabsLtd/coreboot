@@ -13,4 +13,7 @@ static inline bool enable_smm_bios_protection(void)
 	return CONFIG(BOOTMEDIA_SMM_BWP);
 }
 
+/* Called after the platform makes SPI status-register writes immutable. */
+void boot_device_wp_status_locked(void);
+
 #endif /* SECURITY_LOCKDOWN_LOCKDOWN_H */
