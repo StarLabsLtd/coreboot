@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <console/payload_spi_console.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/legacy_save_state.h>
 #include <cpu/x86/save_state.h>
@@ -312,6 +313,10 @@ void cpu_smi_handler(void)
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			mainboard_smi_store();
+		break;
+	case PAYLOAD_SPI_CONSOLE_APM_CMD:
+		if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE))
+			payload_spi_console_smi();
 		break;
 	}
 }

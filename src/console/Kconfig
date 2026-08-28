@@ -271,8 +271,8 @@ endif
 config CONSOLE_SPI_FLASH
 	bool "SPI Flash console output"
 	default n
-	depends on BOOT_DEVICE_SPI_FLASH
-	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if !COMMON_CBFS_SPI_WRAPPER
+	depends on BOOT_DEVICE_SPI_FLASH || BOARD_EMULATION_QEMU_X86_Q35
+	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if !COMMON_CBFS_SPI_WRAPPER && BOOT_DEVICE_SPI_FLASH
 	help
 	  Send coreboot debug output to the SPI Flash in the FMAP CONSOLE area
 
@@ -302,8 +302,9 @@ config CONSOLE_SPI_FLASH_BUFFER_SIZE
 
 config PAYLOAD_SPI_FLASH_CONSOLE
 	bool "Allow the payload to append to the SPI flash console through SMM"
-	depends on CONSOLE_SPI_FLASH && SMMSTORE && SOC_INTEL_COMMON_BLOCK_SMM
-	select BOOTMEDIA_SMM_BWP
+	depends on CONSOLE_SPI_FLASH && SMMSTORE
+	depends on SOC_INTEL_COMMON_BLOCK_SMM || BOARD_EMULATION_QEMU_X86_Q35
+	select BOOTMEDIA_SMM_BWP if SOC_INTEL_COMMON_BLOCK_SMM
 	help
 	  Advertise a bounded, versioned SMM service that lets a payload append
 	  diagnostic bytes to the existing CONSOLE FMAP region. The service uses

@@ -6,6 +6,10 @@ subdirs-y += tpm
 
 smm-$(CONFIG_PAYLOAD_SPI_FLASH_CONSOLE) += payload_spi_console.c
 smm-$(CONFIG_PAYLOAD_SPI_FLASH_CONSOLE) += payload_spi_console_smi.c
+ifeq ($(CONFIG_BOARD_EMULATION_QEMU_X86_Q35),y)
+ramstage-$(CONFIG_CONSOLE_SPI_FLASH) += flashconsole.c
+smm-$(CONFIG_PAYLOAD_SPI_FLASH_CONSOLE) += flashconsole.c
+endif
 
 ifeq ($(CONFIG_EM100PRO_SPI_CONSOLE),y)
 ramstage-y += spiconsole.c
@@ -22,7 +26,9 @@ $(1)-$(CONFIG_COMMON_CBFS_SPI_WRAPPER) += cbfs_spi.c
 $(1)-$(CONFIG_SPI_FLASH) += spi_flash.c
 $(1)-$(CONFIG_SPI_SDCARD) += spi_sdcard.c
 $(1)-$(CONFIG_BOOT_DEVICE_SPI_FLASH_RW_NOMMAP$(2)) += boot_device_rw_nommap.c
+ifneq ($(CONFIG_BOARD_EMULATION_QEMU_X86_Q35),y)
 $(1)-$(CONFIG_CONSOLE_SPI_FLASH) += flashconsole.c
+endif
 $(1)-$(CONFIG_SPI_FLASH_ADESTO) += adesto.c
 $(1)-$(CONFIG_SPI_FLASH_AMIC) += amic.c
 $(1)-$(CONFIG_SPI_FLASH_ATMEL) += atmel.c
