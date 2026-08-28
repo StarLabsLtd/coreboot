@@ -30,6 +30,16 @@ config NO_PCAT_8259
 	  Platforms without a legacy PIC should also avoid routing the PIC
 	  ExtINT output through the IOAPIC/LAPIC virtual-wire path.
 
+config DISABLE_PIC_EXTINT_VIRTUAL_WIRE
+	bool
+
+config PIC_EXTINT_VIRTUAL_WIRE
+	bool
+	depends on !NO_PCAT_8259 && !DISABLE_PIC_EXTINT_VIRTUAL_WIRE
+	default y
+	help
+	  Program LAPIC LVT0 and IOAPIC pin 0 for ExtINT virtual-wire mode.
+
 config ACPI_HAVE_PCAT_8259
 	def_bool y if !NO_PCAT_8259
 
