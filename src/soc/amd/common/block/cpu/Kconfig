@@ -96,6 +96,7 @@ config SOC_AMD_COMMON_BLOCK_SMM
 
 config SOC_AMD_COMMON_BLOCK_SMIHANDLER
 	bool
+	select HAVE_CFR_RUNTIME_APPLY_SUPPORT
 	depends on SOC_AMD_COMMON_BLOCK_SMM
 	help
 	  Common fch_slp_typ_handler, get_smi_source_handler, and SMM
