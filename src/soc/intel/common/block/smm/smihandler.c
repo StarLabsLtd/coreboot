@@ -14,6 +14,7 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
@@ -464,6 +465,10 @@ void smihandler_southbridge_apmc(
 			if (node >= 0)
 				save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 		}
+		break;
+	case APM_CNT_CFR_RUNTIME_APPLY:
+		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
+			cfr_runtime_apply_smi();
 		break;
 	}
 
