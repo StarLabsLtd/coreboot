@@ -8,6 +8,7 @@
 #include <arch/io.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <soc/smi.h>
 #include <smmstore.h>
@@ -137,6 +138,10 @@ void fch_apmc_smi_handler(void)
 	case APM_CNT_ROM_ARMOR:
 		if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 			handle_smi_rom_armor();
+		break;
+	case APM_CNT_CFR_RUNTIME_APPLY:
+		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
+			cfr_runtime_apply_smi();
 		break;
 	case APM_CNT_SMMINFO:
 		psp_notify_smm();
