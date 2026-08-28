@@ -109,6 +109,7 @@ fields plus the size of the struct itself equals the size field.
      - `CFR_TAG_VARCHAR_UI_NAME`
      - `CFR_TAG_ENUM_VALUE`
      - `CFR_TAG_VARCHAR_UI_HELPTEXT`
+     - `CFR_TAG_RUNTIME_APPLY`
 
    Required sub nodes:
      - `CFR_TAG_VARCHAR_OPT_NAME`
@@ -124,6 +125,7 @@ fields plus the size of the struct itself equals the size field.
      - `CFR_TAG_VARCHAR_OPT_NAME`
      - `CFR_TAG_VARCHAR_UI_NAME`
      - `CFR_TAG_VARCHAR_UI_HELPTEXT`
+     - `CFR_TAG_RUNTIME_APPLY`
 
    Required sub nodes:
      - `CFR_TAG_VARCHAR_OPT_NAME`
@@ -138,6 +140,7 @@ fields plus the size of the struct itself equals the size field.
      - `CFR_TAG_VARCHAR_OPT_NAME`
      - `CFR_TAG_VARCHAR_UI_NAME`
      - `CFR_TAG_VARCHAR_UI_HELPTEXT`
+     - `CFR_TAG_RUNTIME_APPLY`
 
    Required sub nodes:
      - `CFR_TAG_VARCHAR_OPT_NAME`
@@ -198,6 +201,46 @@ fields plus the size of the struct itself equals the size field.
    Used in `struct lb_cfr_varbinary`
 
    Default value in case the variable is not present.
+
+* CFR_TAG_RUNTIME_APPLY
+
+   Used in `struct lb_cfr_runtime_apply`
+
+   Optional metadata for numeric options that lets a consumer request
+   immediate application of an already stored option value.
+
+```
+struct lb_cfr_runtime_apply {
+  uint32_t tag;                  = CFR_TAG_RUNTIME_APPLY
+  uint32_t size;                 = sizeof(struct lb_cfr_runtime_apply)
+  uint32_t method;               = enum cfr_runtime_apply_method
+  uint32_t id;                   = method-specific token
+};
+```
+
+   Supported methods:
+
+   - `CFR_RUNTIME_APPLY_NONE` (`0`): no runtime apply support. This method is
+     not serialized.
+   - `CFR_RUNTIME_APPLY_APM_CNT` (`1`): x86 APMC SMI runtime apply.
+
+   For `CFR_RUNTIME_APPLY_APM_CNT`, a consumer first stores the new option
+   value using the configured option backend, then requests immediate apply
+   through the APMC ports:
+
+   - write the `id` byte to `APM_STS` (`0xb3`);
+   - write `CFR_RUNTIME_APPLY_APM_CNT_COMMAND` (`0xe3`) to `APM_CNT` (`0xb2`);
+   - read the status byte from `APM_STS` (`0xb3`).
+
+   The returned status is a signed 8-bit coreboot error value:
+
+   - `0x00`: `CB_SUCCESS`
+   - `0xff`: `CB_ERR`
+   - `0xfe`: `CB_ERR_ARG`
+   - `0xfd`: `CB_ERR_NOT_IMPLEMENTED`
+
+   Other status values are reserved. Consumers must ignore unknown runtime
+   apply methods.
 
 ### Flags
 
