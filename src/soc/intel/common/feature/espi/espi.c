@@ -38,12 +38,13 @@ void lpc_soc_init(struct device *dev)
 	else
 		lpc_set_serirq_mode(SERIRQ_QUIET);
 
+	if (!CONFIG(NO_PCAT_8259))
+		setup_i8259();
+
 	/* Interrupt configuration */
 	pch_enable_ioapic();
 	pch_pirq_init();
 
-	if (!CONFIG(NO_PCAT_8259)) {
-		setup_i8259();
+	if (!CONFIG(NO_PCAT_8259))
 		i8259_configure_irq_trigger(9, 1);
-	}
 }
