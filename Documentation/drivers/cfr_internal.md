@@ -152,6 +152,69 @@ static struct sm_object com1_termination = SM_DECLARE_BOOL({
 
 ```
 
+### Runtime apply metadata
+
+Numeric CFR options can advertise an optional runtime apply method. This is
+only metadata for consumers; the mainboard or platform must also provide the
+matching runtime handler. For the x86 APMC method, the board must select
+`DRIVERS_OPTION_CFR_RUNTIME_APPLY` and implement
+`cfr_runtime_apply_option()` in an SMM object, for example through
+`smm-$(CONFIG_...) += smihandler.c`. A ramstage-only implementation will not
+override the weak SMM stub. The common APMC dispatcher is currently available
+only on the Intel and AMD common SMM stacks; the CFR generator will not
+serialize `CFR_RUNTIME_APPLY_APM_CNT` metadata without that support.
+
+Callbacks must accept only published token IDs, re-read and validate the
+stored option value before applying it, and avoid unbounded or destructive work
+in SMM. Return only `CB_SUCCESS`, `CB_ERR`, `CB_ERR_ARG`, or
+`CB_ERR_NOT_IMPLEMENTED`; the common SMM dispatcher reports that value to the
+caller through `APM_STS` as a signed 8-bit status.
+
+Use `WITH_RUNTIME_APPLY()` inside the numeric object initializer.
+
+**Example:** Mark a boolean option as runtime-appliable through APMC.
+
+```
+enum runtime_apply_id {
+	RUNTIME_APPLY_POWER_LED = 1,
+};
+
+static struct sm_object power_led = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "power_led",
+	.ui_name	= "Power LED",
+	.ui_helptext	= NULL,
+	.default_value	= true,
+	WITH_RUNTIME_APPLY(CFR_RUNTIME_APPLY_APM_CNT,
+			   RUNTIME_APPLY_POWER_LED),
+});
+```
+
+The corresponding callback must be built into SMM. It validates the token,
+re-reads and validates the stored value, then performs the bounded
+board-specific operation:
+
+```
+enum cb_err cfr_runtime_apply_option(uint32_t id)
+{
+	unsigned int value;
+
+	switch (id) {
+	case RUNTIME_APPLY_POWER_LED:
+		value = get_uint_option("power_led", true);
+		if (value > 1)
+			return CB_ERR_ARG;
+
+		return apply_power_led(value);
+	default:
+		return CB_ERR_ARG;
+	}
+}
+```
+
+Here, `apply_power_led()` represents the board's SMM-safe implementation and
+returns one of the supported `enum cb_err` values.
+
 ### Providing mainboard custom options
 
 A mainboard that uses CFR can provide a list of custom options
