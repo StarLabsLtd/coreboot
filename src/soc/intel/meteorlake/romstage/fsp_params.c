@@ -17,7 +17,9 @@
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/fspm.h>
 #include <intelblocks/pcie_rp.h>
+#include <intelblocks/pmclib.h>
 #include <option.h>
 #include <soc/cpu.h>
 #include <soc/gpio_soc_defs.h>
@@ -525,6 +527,14 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	/* TCSS xDCI requires its xHCI parent. */
 	mupd->FspmConfig.TcssXdciEn &= !!mupd->FspmConfig.TcssXhciEn;
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && !m_cfg->VtdDisable) {
+		struct chipset_power_state *ps = pmc_get_power_state();
+		const bool s3wake = pmc_fill_power_state(ps) == ACPI_S3;
+
+		m_cfg->DmaBufferSize = s3wake ? 2 * MiB : 4 * MiB;
+		m_cfg->PreBootDmaMask = FSP_PRE_BOOT_DMA_IOMMU_ENABLE |
+			FSP_PRE_BOOT_DMA_OS_HANDOFF;
+	}
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

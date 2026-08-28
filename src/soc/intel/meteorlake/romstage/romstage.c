@@ -9,6 +9,8 @@
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smbus.h>
 #include <intelblocks/thermal.h>
+#include <intelblocks/vtd.h>
+#include <option.h>
 #include <soc/iomap.h>
 #include <soc/pm.h>
 #include <soc/romstage.h>
@@ -58,4 +60,7 @@ void mainboard_romstage_entry(void)
 	pmc_set_disb();
 	if (!s3wake)
 		fsp_save_dimm_info();
+
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && get_uint_option("vtd", 1))
+		vtd_enable_dma_protection();
 }

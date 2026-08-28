@@ -16,6 +16,7 @@
 #include <intelbasecode/debug_feature.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/fspm.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
 #include <soc/intel/common/reset.h>
@@ -354,7 +355,8 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->VtdIgdEnable = m_cfg->InternalGfx;
 	m_cfg->VtdIpuEnable = m_cfg->SaIpuEnable;
 
-	m_cfg->PreBootDmaMask = CONFIG(ENABLE_EARLY_DMA_PROTECTION);
+	m_cfg->PreBootDmaMask = !m_cfg->VtdDisable && CONFIG(ENABLE_EARLY_DMA_PROTECTION) ?
+		(FSP_PRE_BOOT_DMA_IOMMU_ENABLE | FSP_PRE_BOOT_DMA_OS_HANDOFF) : 0;
 
 	if (m_cfg->VtdIgdEnable && m_cfg->VtdBaseAddress[VTD_GFX] == 0) {
 		m_cfg->VtdIgdEnable = 0;

@@ -17,6 +17,7 @@
 #include <intelblocks/vtd.h>
 #include <intelbasecode/debug_feature.h>
 #include <memory_info.h>
+#include <option.h>
 #include <soc/intel/common/smbios.h>
 #include <soc/iomap.h>
 #include <soc/pm.h>
@@ -251,7 +252,10 @@ void mainboard_romstage_entry(void)
 	if (!s3wake)
 		save_dimm_info();
 
-	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && !vtd_enable_dma_protection())
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && get_uint_option("vtd", 1) &&
+	    cpu_get_cpuid() != CPUID_ALDERLAKE_J0 &&
+	    cpu_get_cpuid() != CPUID_ALDERLAKE_Q0 &&
+	    !vtd_enable_dma_protection())
 		die("Failed to establish VTVC0 early DMA protection\n");
 
 	/* Keep eSOL active if CSE sync is pending at ramstage */
