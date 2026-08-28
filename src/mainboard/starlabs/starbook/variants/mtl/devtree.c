@@ -14,6 +14,12 @@ void mb_devtree_update(void)
 {
 	config_t *cfg = config_of_soc();
 	update_power_limits(cfg);
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && get_uint_option("vtd", 1)) {
+		DEV_PTR(tbt_pcie_rp0)->enabled = 1;
+		DEV_PTR(tbt_pcie_rp1)->enabled = 1;
+		DEV_PTR(tbt_pcie_rp2)->enabled = 1;
+		DEV_PTR(tbt_pcie_rp3)->enabled = 1;
+	}
 
 	/* Enable/Disable Bluetooth based on CMOS settings */
 	if (get_uint_option("bluetooth", 1) == 0)

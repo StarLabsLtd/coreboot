@@ -33,6 +33,12 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	const uint8_t vtd = get_uint_option("vtd", 1);
 	mupd->FspmConfig.VtdDisable = !vtd;
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && vtd) {
+		mupd->FspmConfig.TcssItbtPcie0En = 1;
+		mupd->FspmConfig.TcssItbtPcie1En = 1;
+		mupd->FspmConfig.TcssItbtPcie2En = 1;
+		mupd->FspmConfig.TcssItbtPcie3En = 1;
+	}
 
 	/* Enable/Disable WiFi (RP09) based on CMOS settings */
 	if (get_uint_option("wifi", 1) == 0)
