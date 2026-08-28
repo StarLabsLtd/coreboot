@@ -4,6 +4,7 @@
 #define CPU_X86_SMM_H
 
 #include <arch/cpu.h>
+#include <commonlib/cfr.h>
 #include <commonlib/region.h>
 #include <device/pci_type.h>
 #include <device/resource.h>
@@ -25,6 +26,7 @@
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
 #define APM_CNT_LEGACY		0xcc
+#define APM_CNT_CFR_RUNTIME_APPLY	CFR_RUNTIME_APPLY_APM_CNT_COMMAND
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
 #define APM_CNT_SMMINFO		0xec
