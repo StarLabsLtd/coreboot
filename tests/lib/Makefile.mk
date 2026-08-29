@@ -6,6 +6,7 @@ tests-y += b64_decode-test
 tests-y += hexstrtobin-test
 tests-y += imd-test
 tests-y += timestamp-test
+tests-y += x86-timestamp-frequency-test
 tests-y += edid-test
 tests-y += cbmem_console-romstage-test
 tests-y += cbmem_console-ramstage-test
@@ -62,6 +63,10 @@ timestamp-test-srcs += tests/lib/timestamp-test.c
 timestamp-test-srcs += tests/stubs/timestamp.c
 timestamp-test-srcs += tests/stubs/console.c
 timestamp-test-stage := romstage
+
+x86-timestamp-frequency-test-srcs += tests/lib/x86-timestamp-frequency-test.c
+x86-timestamp-frequency-test-srcs += src/arch/x86/timestamp.c
+x86-timestamp-frequency-test-stage := ramstage
 
 edid-test-srcs += tests/lib/edid-test.c
 edid-test-srcs += src/lib/edid.c

@@ -95,20 +95,25 @@ bad_ctc:
 }
 
 #if CONFIG(UNKNOWN_TSC_RATE)
-static u32 timer_tsc;
+static unsigned long timer_tsc;
+
+unsigned long tsc_freq_mhz_measured(void)
+{
+	if (timer_tsc == 0)
+		tsc_cache_measured_frequency(&timer_tsc, calibrate_tsc_with_pit());
+
+	return timer_tsc;
+}
 
 unsigned long tsc_freq_mhz(void)
 {
-	if (timer_tsc > 0)
-		return timer_tsc;
-
-	timer_tsc = calibrate_tsc_with_pit();
+	unsigned long frequency = tsc_freq_mhz_measured();
 
 	/* Set some semi-ridiculous rate if approximation fails. */
-	if (timer_tsc == 0)
-		timer_tsc = 5000;
+	if (frequency == 0)
+		frequency = 5000;
 
-	return timer_tsc;
+	return frequency;
 }
 #endif
 

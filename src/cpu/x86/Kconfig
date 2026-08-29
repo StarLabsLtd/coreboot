@@ -107,6 +107,12 @@ config UNKNOWN_TSC_RATE
 	bool
 	default y if LAPIC_MONOTONIC_TIMER
 
+config SERIALIZE_MEASURED_TSC_RATE
+	bool
+	help
+	  Serialize a runtime-measured TSC frequency in the CBMEM timestamp
+	  table without claiming that the platform has a compile-time-known rate.
+
 config TSC_MONOTONIC_TIMER
 	def_bool n
 	depends on UDELAY_TSC
