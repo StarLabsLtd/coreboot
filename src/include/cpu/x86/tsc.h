@@ -55,6 +55,16 @@ static inline unsigned long long rdtscll(void)
 
 /* Provided by CPU/chipset code for the TSC rate in MHz. */
 unsigned long tsc_freq_mhz(void);
+unsigned long tsc_freq_mhz_measured(void);
+
+static inline unsigned long tsc_cache_measured_frequency(
+	unsigned long *cached_frequency, unsigned long measured_frequency)
+{
+	if (*cached_frequency == 0)
+		*cached_frequency = measured_frequency;
+
+	return *cached_frequency;
+}
 
 static inline int tsc_constant_rate(void)
 {
