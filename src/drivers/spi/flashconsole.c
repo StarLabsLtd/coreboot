@@ -16,6 +16,7 @@ static struct region_device rdev;
 static uint8_t line_buffer[LINE_BUFFER_SIZE];
 static size_t offset;
 static size_t line_offset;
+static bool write_failed;
 
 void flashconsole_init(void)
 {
@@ -44,7 +45,7 @@ void flashconsole_init(void)
 	for (i = 0; i < len && initial_offset < size;) {
 		// Fill the buffer on first iteration
 		if (i == 0) {
-			len = MIN(READ_BUFFER_SIZE, size - offset);
+			len = MIN(READ_BUFFER_SIZE, size - initial_offset);
 			if (rdev_readat(&rdev, buffer, initial_offset, len) != len)
 				return;
 		}
@@ -53,7 +54,7 @@ void flashconsole_init(void)
 			break;
 		}
 		// If we're done, repeat the process for the next sector
-		if (++i == READ_BUFFER_SIZE) {
+		if (++i == len) {
 			initial_offset += len;
 			i = 0;
 		}
@@ -105,10 +106,10 @@ static bool flashconsole_flush(void)
 
 	busy = true;
 	region_size = region_device_sz(rdev_ptr);
-	if (offset + len >= region_size)
-		len = region_size - offset;
-
-	if (len == 0 || rdev_writeat(&rdev, line_buffer, offset, len) != len) {
+	if (len == 0 || offset > region_size || len > region_size - offset ||
+	    rdev_writeat(&rdev, line_buffer, offset, len) != len) {
+		write_failed = true;
+		line_offset = 0;
 		busy = false;
 		return false;
 	}
@@ -126,7 +127,21 @@ void flashconsole_tx_flush(void)
 
 bool flashconsole_append(const uint8_t *data, size_t length)
 {
-	if (!data || !rdev_ptr)
+	size_t region_size;
+
+	if (!data || write_failed)
+		return false;
+
+	/* The SMM image has its own static state and does not execute the
+	 * ramstage console initialization path.  Recover the persisted append
+	 * cursor from the authoritative FMAP CONSOLE region on first use. */
+	if (!rdev_ptr)
+		flashconsole_init();
+	if (!rdev_ptr)
+		return false;
+	region_size = region_device_sz(rdev_ptr);
+	if (offset > region_size || line_offset > region_size - offset ||
+	    length > region_size - offset - line_offset)
 		return false;
 
 	while (length) {

@@ -7,6 +7,7 @@ tests-y += hexstrtobin-test
 tests-y += imd-test
 tests-y += timestamp-test
 tests-y += x86-timestamp-frequency-test
+tests-y += flashconsole-lazy-test
 tests-y += edid-test
 tests-y += cbmem_console-romstage-test
 tests-y += cbmem_console-ramstage-test
@@ -67,6 +68,10 @@ timestamp-test-stage := romstage
 x86-timestamp-frequency-test-srcs += tests/lib/x86-timestamp-frequency-test.c
 x86-timestamp-frequency-test-srcs += src/arch/x86/timestamp.c
 x86-timestamp-frequency-test-stage := ramstage
+
+flashconsole-lazy-test-srcs += tests/lib/flashconsole_lazy_standalone_test.c
+flashconsole-lazy-test-stage := smm
+flashconsole-lazy-test-cflags += -I tests/include/tests/lib/flashconsole
 
 edid-test-srcs += tests/lib/edid-test.c
 edid-test-srcs += src/lib/edid.c
