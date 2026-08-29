@@ -46,6 +46,7 @@ void lb_efi_capsules(struct lb_header *header);
 /* Define this function to get the frame buffer returning lb_framebuffer object
    on success and NULL on error. */
 const struct lb_framebuffer *get_lb_framebuffer(void);
+const struct lb_framebuffer *payload_resource_framebuffer(void);
 
 /* Allow arch to add records. */
 void lb_arch_add_records(struct lb_header *header);

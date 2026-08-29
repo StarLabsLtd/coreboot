@@ -187,6 +187,8 @@ struct lb_pcie {
 
 #define LB_PRH_SECTION_PCI_ROOT_BRIDGES 3
 #define LB_PRH_SECTION_PCI_ASSIGNMENTS  4
+#define LB_PRH_SECTION_MEMORY_POLICY    1
+#define LB_PRH_SECTION_FRAMEBUFFER      7
 
 #define LB_PRH_PCI_ROOT_TOPOLOGY_ONLY 0x00000001
 
@@ -198,6 +200,10 @@ struct lb_pcie {
 #define LB_PRH_PCI_ASSIGNMENT_64BIT 0x01
 #define LB_PRH_PCI_MAX_ROOTS       16
 #define LB_PRH_PCI_MAX_ASSIGNMENTS 256
+#define LB_PRH_GCD_MEMORY_TYPE_MMIO 3
+#define LB_PRH_MEMORY_GCD_AUTHORITATIVE 0x00000004
+#define LB_PRH_FRAMEBUFFER_GEOMETRY_AUTHORITATIVE 0x00000001
+#define LB_PRH_FRAMEBUFFER_MEMORY_DELEGATED       0x80000000
 #define LB_PRH_SECTION_FLAG_MANDATORY     0x0001
 #define LB_PRH_SECTION_FLAG_AUTHORITATIVE 0x0002
 
@@ -259,6 +265,36 @@ struct lb_prh_pci_assignment {
 	lb_uint64_t attributes;
 };
 
+struct lb_prh_memory_policy {
+	lb_uint64_t base;
+	lb_uint64_t length;
+	lb_uint64_t capabilities;
+	lb_uint64_t attributes;
+	uint32_t gcd_type;
+	uint32_t efi_memory_type;
+	uint32_t owner_flags;
+	uint32_t reserved;
+};
+
+struct lb_prh_framebuffer {
+	lb_uint64_t physical_address;
+	lb_uint64_t size;
+	uint32_t x_resolution;
+	uint32_t y_resolution;
+	uint32_t bytes_per_line;
+	uint8_t bits_per_pixel;
+	uint8_t red_mask_pos;
+	uint8_t red_mask_size;
+	uint8_t green_mask_pos;
+	uint8_t green_mask_size;
+	uint8_t blue_mask_pos;
+	uint8_t blue_mask_size;
+	uint8_t reserved_mask_pos;
+	uint8_t reserved_mask_size;
+	uint8_t reserved[3];
+	uint32_t owner_flags;
+};
+
 _Static_assert(sizeof(struct lb_payload_resource_handoff) == 44,
 	       "unexpected payload resource handoff header size");
 _Static_assert(sizeof(struct lb_payload_resource_section) == 20,
@@ -267,6 +303,10 @@ _Static_assert(sizeof(struct lb_prh_pci_root_bridge) == 88,
 	       "unexpected payload resource root bridge size");
 _Static_assert(sizeof(struct lb_prh_pci_assignment) == 32,
 	       "unexpected payload resource PCI assignment size");
+_Static_assert(sizeof(struct lb_prh_memory_policy) == 48,
+	       "unexpected payload resource memory policy size");
+_Static_assert(sizeof(struct lb_prh_framebuffer) == 44,
+	       "unexpected payload resource framebuffer size");
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
 
