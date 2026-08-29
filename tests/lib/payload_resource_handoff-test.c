@@ -5,7 +5,6 @@
 #include <device/pci_def.h>
 #include <tests/test.h>
 
-const unsigned int coreboot_version_timestamp = 0x12345678;
 static uint8_t storage[16384];
 static struct bus buses[2];
 static struct device devs[5];
@@ -15,6 +14,23 @@ static struct resource limit_res[LB_PRH_PCI_MAX_ASSIGNMENTS + 1];
 static struct device limit_domains[LB_PRH_PCI_MAX_ROOTS + 1];
 static struct bus limit_buses[LB_PRH_PCI_MAX_ROOTS + 1];
 struct device *all_devices;
+static uint16_t pci_command;
+static bool bus_master_stuck;
+static size_t command_reads, command_writes;
+
+uint16_t payload_resource_read_command(const struct device *device)
+{
+	command_reads++;
+	(void)device;
+	return pci_command | (bus_master_stuck ? PCI_COMMAND_MASTER : 0);
+}
+
+void payload_resource_write_command(const struct device *device, uint16_t command)
+{
+	command_writes++;
+	(void)device;
+	pci_command = command;
+}
 
 const char *dev_path(const struct device *dev) { return "fixture"; }
 struct lb_record *lb_new_record(struct lb_header *h)
@@ -32,6 +48,8 @@ struct lb_record *lb_new_record(struct lb_header *h)
 static void set_res(int i, uint64_t base, uint64_t size, unsigned long flags,
 		    unsigned long index, struct resource *next)
 {
+	if (flags & IORESOURCE_ASSIGNED)
+		flags |= IORESOURCE_STORED;
 	res[i] = (struct resource) {
 		.base = base, .size = size, .flags = flags, .index = index, .next = next,
 	};
@@ -43,6 +61,9 @@ static int setup(void **state)
 	memset(buses, 0, sizeof(buses));
 	memset(devs, 0, sizeof(devs));
 	memset(res, 0, sizeof(res));
+	pci_command = PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
+	bus_master_stuck = false;
+	command_reads = command_writes = 0;
 	devs[0].enabled = 1;
 	devs[0].path.type = DEVICE_PATH_DOMAIN;
 	devs[0].downstream = &buses[0];
@@ -99,6 +120,12 @@ static void test_exact_holes_and_prefetch(void **state)
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
 	h = get_handoff(*state);
 	assert_int_equal(h->section_count, 2);
+	assert_int_equal(h->producer_generation, 1);
+	assert_int_equal(h->lifetime_flags,
+		LB_PRH_LIFETIME_COLD_BOOT | LB_PRH_LIFETIME_EXIT_BOOT_SERVICES);
+	assert_int_equal(command_writes, 2);
+	assert_int_equal(command_reads, 4);
+	assert_false(pci_command & PCI_COMMAND_MASTER);
 	assert_int_equal(crc(h), h->crc32);
 	s = h->sections;
 	assert_int_equal(s[0].entry_count, 1);
@@ -116,6 +143,22 @@ static void test_exact_holes_and_prefetch(void **state)
 	assert_true(a[0].base + a[0].length < a[1].base);
 	assert_int_equal(a[2].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64);
 	assert_int_equal(a[2].flags, LB_PRH_PCI_ASSIGNMENT_64BIT);
+}
+
+static void test_rejects_unstored_assignment(void **state)
+{
+	res[0].flags &= ~IORESOURCE_STORED;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
+static void test_bus_master_readback_failure_is_transactional(void **state)
+{
+	bus_master_stuck = true;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+	assert_true(command_reads >= 2);
+	assert_int_equal(command_writes, 1);
 }
 
 static void test_duplicate(void **state)
@@ -338,7 +381,7 @@ static void set_assignment_count(size_t count)
 		limit_res[index] = (struct resource) {
 			.base = 0x20000000 + index * 0x1000,
 			.size = 0x1000,
-			.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED,
+			.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_STORED,
 			.index = PCI_BASE_ADDRESS_0 + (index % 6) * sizeof(uint32_t),
 			.next = index % 6 != 5 && index + 1 < count ? &limit_res[index + 1] : NULL,
 		};
@@ -405,6 +448,9 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
+		cmocka_unit_test_setup(test_rejects_unstored_assignment, setup),
+		cmocka_unit_test_setup(test_bus_master_readback_failure_is_transactional,
+			setup),
 		cmocka_unit_test_setup(test_duplicate, setup),
 		cmocka_unit_test_setup(test_duplicate_resource_identity, setup),
 		cmocka_unit_test_setup(test_rejects_64bit_bar5, setup),

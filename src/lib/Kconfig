@@ -8,12 +8,16 @@ config MISSING_BOARD_RESET
 	  board reset and halts execution.
 
 config PAYLOAD_RESOURCE_HANDOFF
-	bool
-	depends on BOARD_STARLABS_STARBOOK_MTL && PAYLOAD_EDK2
+	bool "Publish assigned PCI resources to the payload"
+	default n
+	depends on BOARD_EMULATION_QEMU_X86_Q35
 	depends on PCI && ECAM_MMCONF_SUPPORT
 	help
 	  Serialize PCI root topology and exact coreboot-assigned resources for
-	  the CDK2 payload.
+	  payloads that consume the revision 3 resource handoff. Before the
+	  record is published, bus mastering is disabled and verified for every
+	  serialized function. This is intended for automated QEMU acceptance,
+	  not hardware firmware profiles.
 
 config ROMSTAGE_ADA
 	bool
