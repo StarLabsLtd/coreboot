@@ -134,6 +134,18 @@ uintptr_t sa_get_tolud_base(void)
 	return ALIGN_DOWN(pci_read_config32(SA_DEV_ROOT, TOLUD), 1*MiB);
 }
 
+uint64_t sa_get_touud_base(void)
+{
+	uint64_t touud;
+
+	touud = pci_read_config32(SA_DEV_ROOT, TOUUD + sizeof(uint32_t));
+	touud <<= 32;
+	touud |= pci_read_config32(SA_DEV_ROOT, TOUUD);
+
+	/* TOUUD has 1 MiB alignment. */
+	return ALIGN_DOWN(touud, 1*MiB);
+}
+
 uintptr_t sa_get_gsm_base(void)
 {
 	/* All regions concerned for have 1 MiB alignment. */
