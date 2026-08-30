@@ -20,6 +20,7 @@ int main(void)
 	unsigned char *mapping;
 	acpi_rsdp_t rsdp;
 	acpi_rsdp_t *short_rsdp;
+	acpi_xsdt_t xsdt;
 	int failures = 0;
 
 	mapping = mmap(NULL, (size_t)page_size * 2U, PROT_READ | PROT_WRITE,
@@ -49,6 +50,14 @@ int main(void)
 	rsdp.xsdt_address = 0;
 	failures += expect(acpi_qemu_rsdp_needs_xsdt(&rsdp),
 		"ACPI 2.0 RSDP without XSDT was reused");
+	memset(&xsdt, 0xff, sizeof(xsdt));
+	acpi_qemu_clear_xsdt(&xsdt);
+	failures += expect(xsdt.header.length == 0 && xsdt.entry[0] == 0,
+		"fresh XSDT retained prior entries");
+	xsdt.entry[0] = 0x12345000U;
+	acpi_qemu_clear_xsdt(&xsdt);
+	failures += expect(xsdt.entry[0] == 0,
+		"second XSDT construction retained its first entry");
 	(void)munmap(mapping, (size_t)page_size * 2U);
 	return failures != 0;
 }

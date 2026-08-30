@@ -4,6 +4,7 @@
 #define ACPI_QEMU_RSDP_H
 
 #include <acpi/acpi.h>
+#include <string.h>
 
 static inline bool acpi_qemu_rsdp_needs_xsdt(const acpi_rsdp_t *rsdp)
 {
@@ -11,6 +12,11 @@ static inline bool acpi_qemu_rsdp_needs_xsdt(const acpi_rsdp_t *rsdp)
 	 * short-circuited so stale or inaccessible trailing bytes are irrelevant. */
 	return rsdp->revision < 2 || rsdp->length < sizeof(*rsdp) ||
 		rsdp->xsdt_address == 0;
+}
+
+static inline void acpi_qemu_clear_xsdt(acpi_xsdt_t *xsdt)
+{
+	memset(xsdt, 0, sizeof(*xsdt));
 }
 
 #endif

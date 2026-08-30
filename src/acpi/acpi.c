@@ -1585,6 +1585,7 @@ unsigned long write_acpi_tables(const unsigned long start)
 			xsdt = (acpi_xsdt_t *)current;
 			current += sizeof(acpi_xsdt_t);
 			current = acpi_align_current(current);
+			acpi_qemu_clear_xsdt(xsdt);
 
 			/*
 			 * Qemu only creates an RSDT.
