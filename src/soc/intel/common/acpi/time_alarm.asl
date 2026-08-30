@@ -4,8 +4,8 @@
 
 #define AWAC_GPE		0x72
 #define AWAC_WADT_AC		0x1800
-#define AWAC_GCP_S4		0xa7
-#define AWAC_GCP_S5		0x1e7
+#define AWAC_GCP_S4		0xb7
+#define AWAC_GCP_S5		0x1f7
 #define AWAC_AC_STATUS		1
 #define AWAC_DC_STATUS		2
 #define RTC_DISABLED		0xffffffff
