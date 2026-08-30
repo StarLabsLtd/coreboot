@@ -153,7 +153,8 @@ ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
-CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+RESIDENT_FMP_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+CAPSULE_GUID := $(RESIDENT_FMP_GUID)
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
 CAPSULE_SIGNER_PRIVATE_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
@@ -514,5 +515,6 @@ coreboot_capsule: $(EDK2_PATH)
 	python3 "$(CAPSULE_VALIDATOR)" \
 		--capsule "$(COREBOOT_CAPSULE_OUT)" \
 		--firmware-volume "$(EDK2_DXE_FV)" \
-		--guid "$(CAPSULE_GUID)" \
+		--guid "$(RESIDENT_FMP_GUID)" \
+		--capsule-guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count"

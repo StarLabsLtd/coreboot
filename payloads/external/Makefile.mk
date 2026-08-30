@@ -196,6 +196,27 @@ EDK2_CAPSULE_ARGS = \
 	CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT=$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT) \
 	CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT=$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT)
 
+ifneq ($(CAPSULE_GUID),)
+EDK2_CAPSULE_ARGS += CAPSULE_GUID=$(CAPSULE_GUID)
+endif
+
+EDK2_EFFECTIVE_CAPSULE_GUID := $(if $(CAPSULE_GUID),$(CAPSULE_GUID),\
+	$(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)))
+EDK2_CAPSULE_GUID_STATE := $(obj)/coreboot-cap-guid
+
+.PHONY: check_capsule_guid_state
+check_capsule_guid_state:
+
+$(EDK2_CAPSULE_GUID_STATE): check_capsule_guid_state
+	@printf '%s\n' '$(EDK2_EFFECTIVE_CAPSULE_GUID)' > '$@.tmp'
+	@if cmp -s '$@.tmp' '$@'; then \
+		$(RM) '$@.tmp'; \
+	else \
+		mv '$@.tmp' '$@'; \
+	fi
+
+$(obj)/coreboot.cap: $(EDK2_CAPSULE_GUID_STATE)
+
 EDK2_PAYLOAD_ARGS = \
 	HOSTCC="$(HOSTCC)" \
 	CC="$(HOSTCC)" \
