@@ -225,7 +225,9 @@ static struct sm_obj_form performance_group = {
 static struct sm_obj_form security_group = {
 	.ui_name = "Security",
 	.obj_list = (const struct sm_object *[]) {
+#if CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION)
 		&bios_lock,
+#endif
 		#if CONFIG(BOARD_HAS_FPR)
 		&fingerprint_reader,
 		#endif
