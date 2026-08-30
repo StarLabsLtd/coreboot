@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <assert.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <device/pci.h>
 #include <cpu/x86/msr.h>
@@ -13,6 +15,7 @@
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <halt.h>
 #include <intelbasecode/debug_feature.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
@@ -335,6 +338,8 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 
 	/* Disable VT-d for early silicon steppings as it results in a CPU hard hang */
 	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0) {
+		if (CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+			die("Early DMA protection is unavailable on this CPU stepping");
 		m_cfg->VtdDisable = 1;
 		return;
 	}
@@ -382,6 +387,17 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 
 	/* Change VmxEnable UPD value according to ENABLE_VMX Kconfig */
 	m_cfg->VmxEnable = CONFIG(ENABLE_VMX);
+}
+
+static void enforce_early_dma_protection(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	m_cfg->VtdDisable = 0;
+	m_cfg->VtdIopEnable = 1;
+	m_cfg->DmaBufferSize = acpi_is_wakeup_s3() ? 2 * MiB : 4 * MiB;
+	m_cfg->PreBootDmaMask = BIT(0) | BIT(1);
 }
 
 static void fill_fspm_trace_params(FSP_M_CONFIG *m_cfg,
@@ -527,6 +543,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
+
+	enforce_early_dma_protection(m_cfg);
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;

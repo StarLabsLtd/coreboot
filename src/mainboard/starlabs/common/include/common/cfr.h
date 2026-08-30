@@ -363,6 +363,7 @@ static const struct sm_object vpu = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object vtd = SM_DECLARE_BOOL({
+	.flags		= CONFIG(ENABLE_EARLY_DMA_PROTECTION) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "vtd",
 	.ui_name	= "VT-d",
 	.ui_helptext	= "Enable or disable Intel VT-d (virtualization)",
