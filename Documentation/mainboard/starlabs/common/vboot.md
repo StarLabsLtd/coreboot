@@ -1,6 +1,8 @@
 # Star Labs verified boot
 
-The release configurations for the following systems use verified boot:
+The verified-boot policy targets HZ, B8, B7-U, F1 and F2. The release
+configurations below currently select verified boot; selection is not hardware
+qualification or release approval:
 
 | System | Configuration | Firmware GUID |
 | --- | --- | --- |
@@ -10,10 +12,19 @@ The release configurations for the following systems use verified boot:
 | StarFighter Mk II (F2) | `config.starlabs_starfighter_mtl` | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
 
 Each image has one signed read-write slot and an immutable recovery image. The
-top-aligned `WP_RO` region is covered exactly by the SPI flash block-protect
-bits. HZ and B8 support their Fudan FM25W128 parts; F1 and F2 support their
-Winbond parts. Intel Fast SPI disables status-register writes and locks that
-controller state on every boot after coreboot programs the protected range.
+top-aligned `WP_RO` region is intended to be represented by SPI flash
+block-protect bits. Fudan support and exact effective protection remain
+unvalidated; inherited status-read fallbacks are not a fail-closed proof.
+Intel Fast SPI applies the native status-write and controller-lock policy
+after programming the protected range.
+
+B7-U also has layout/policy plumbing. Its release configuration remains
+non-vboot with stock GUID `85584837-7b03-4b6c-940c-8b6186cbf7a1` and capsule
+regions `COREBOOT EC`. New vboot identity, rollback/signing version and migration
+contract remain pending; do not publish a conversion under these settings.
+Its layout retains the 32 MiB flash, BIOS base `0x01200000` and 14 MiB BIOS
+span, with an 8 MiB top-aligned `WP_RO`. HAS_WPS describes a capability, not
+provisioned-clear status. No B7-U WPS_PROVISIONED_CLEAR assertion is made.
 
 Routine capsules update only the EC, flash-backed VBNV and signed read-write
 tuple. Including `RW_NVRAM` clears the previous image's successful-boot result,
