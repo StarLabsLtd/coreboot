@@ -14,6 +14,7 @@
  */
 
 #include <acpi/acpi.h>
+#include "qemu_rsdp.h"
 #include <acpi/acpi_apei.h>
 #include <acpi/acpi_gnvs.h>
 #include <acpi/acpi_iort.h>
@@ -1567,7 +1568,10 @@ unsigned long write_acpi_tables(const unsigned long start)
 
 		current = fw;
 		current = acpi_align_current(current);
-		if (rsdp->xsdt_address == 0) {
+		/* QEMU republishes an ACPI 1.0 RSDP on every boot.  Do not inspect
+		 * bytes beyond that structure: on a firmware reset they can retain the
+		 * XSDT address that coreboot synthesized during the previous boot. */
+		if (acpi_qemu_rsdp_needs_xsdt(rsdp)) {
 			acpi_rsdt_t *existing_rsdt = (acpi_rsdt_t *)(uintptr_t)rsdp->rsdt_address;
 
 			/*
