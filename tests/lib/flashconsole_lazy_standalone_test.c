@@ -12,6 +12,11 @@ static int read_failure;
 static int write_failure;
 static int fail_on_write;
 static int write_calls;
+static int erase_failure;
+static int erase_calls;
+static int partial_erase_failure;
+static int smmstore_failure;
+static int smmstore_overlap;
 
 int printk(int level, const char *format, ...)
 {
@@ -22,11 +27,33 @@ int printk(int level, const char *format, ...)
 
 int fmap_locate_area_as_rdev_rw(const char *name, struct region_device *device)
 {
-	if (locate_failure || strcmp(name, "CONSOLE"))
+	if (locate_failure)
 		return -1;
 	memset(device, 0, sizeof(*device));
-	device->region.size = flash_size;
+	if (!strcmp(name, "CONSOLE")) {
+		device->region.size = flash_size;
+	} else if (!strcmp(name, "SMMSTORE") && !smmstore_failure) {
+		device->region.offset = smmstore_overlap ? 0 : flash_size;
+		device->region.size = 64;
+	} else {
+		return -1;
+	}
 	return 0;
+}
+
+ssize_t rdev_eraseat(const struct region_device *device, size_t position,
+	size_t length)
+{
+	(void)device;
+	erase_calls++;
+	if (partial_erase_failure) {
+		memset(flash, 0xff, flash_size / 2);
+		return -1;
+	}
+	if (erase_failure || position != 0 || length != flash_size)
+		return -1;
+	memset(flash, 0xff, flash_size);
+	return length;
 }
 
 ssize_t rdev_readat(const struct region_device *device, void *buffer,
@@ -60,9 +87,12 @@ static void reset_fixture(size_t size, size_t used)
 	flash_size = size;
 	locate_failure = read_failure = write_failure = 0;
 	fail_on_write = write_calls = 0;
+	erase_failure = erase_calls = partial_erase_failure = 0;
+	smmstore_failure = smmstore_overlap = 0;
 	rdev_ptr = NULL;
 	offset = line_offset = 0;
 	write_failed = false;
+	latest_boot_attempted = false;
 }
 
 static int bytes_equal(size_t offset_bytes, const char *value, size_t length)
@@ -73,6 +103,77 @@ static int bytes_equal(size_t offset_bytes, const char *value, size_t length)
 int main(void)
 {
 	uint8_t snapshot[sizeof(flash)];
+
+#ifdef TEST_LATEST_BOOT
+	reset_fixture(sizeof(flash), 257);
+	flashconsole_init();
+	if (erase_calls != 1 || offset != 0 || flash[0] != 0xff || !rdev_ptr)
+		return 20;
+	if (!flashconsole_append((const uint8_t *)"new", 3) ||
+	    !bytes_equal(0, "new", 3) || erase_calls != 1)
+		return 21;
+	flashconsole_init();
+	if (erase_calls != 1 || offset != 3 || !bytes_equal(0, "new", 3))
+		return 29;
+
+	reset_fixture(sizeof(flash), sizeof(flash));
+	flashconsole_init();
+	if (erase_calls != 1 || !flashconsole_append((const uint8_t *)"boot", 4) ||
+	    !bytes_equal(0, "boot", 4))
+		return 22;
+
+	reset_fixture(sizeof(flash), 0);
+	flashconsole_init();
+	if (erase_calls != 1 || !flashconsole_append((const uint8_t *)"fresh", 5))
+		return 23;
+	/* A new boot has fresh static state and intentionally replaces this log. */
+	rdev_ptr = NULL;
+	offset = line_offset = 0;
+	write_failed = false;
+	latest_boot_attempted = false;
+	flashconsole_init();
+	if (erase_calls != 2 || !flashconsole_append((const uint8_t *)"next", 4) ||
+	    !bytes_equal(0, "next", 4) || flash[4] != 0xff)
+		return 27;
+
+	reset_fixture(sizeof(flash), 10);
+	erase_failure = 1;
+	memcpy(snapshot, flash, sizeof(flash));
+	flashconsole_init();
+	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	    flashconsole_append((const uint8_t *)"x", 1) ||
+	    memcmp(snapshot, flash, sizeof(flash)))
+		return 24;
+	erase_failure = 0;
+	flashconsole_init();
+	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	    memcmp(snapshot, flash, sizeof(flash)))
+		return 30;
+
+	reset_fixture(sizeof(flash), sizeof(flash));
+	partial_erase_failure = 1;
+	flashconsole_init();
+	memcpy(snapshot, flash, sizeof(flash));
+	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	    flashconsole_append((const uint8_t *)"x", 1) ||
+	    memcmp(snapshot, flash, sizeof(flash)))
+		return 28;
+
+	reset_fixture(sizeof(flash), 10);
+	smmstore_overlap = 1;
+	memcpy(snapshot, flash, sizeof(flash));
+	flashconsole_init();
+	if (erase_calls || rdev_ptr || !write_failed ||
+	    memcmp(snapshot, flash, sizeof(flash)))
+		return 25;
+
+	reset_fixture(sizeof(flash), 10);
+	smmstore_failure = 1;
+	flashconsole_init();
+	if (erase_calls || rdev_ptr || !write_failed)
+		return 26;
+	return 0;
+#endif
 
 	reset_fixture(sizeof(flash), 0);
 	if (!flashconsole_append((const uint8_t *)"abc", 3) ||

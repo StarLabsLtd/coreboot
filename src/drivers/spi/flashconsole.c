@@ -17,20 +17,63 @@ static uint8_t line_buffer[LINE_BUFFER_SIZE];
 static size_t offset;
 static size_t line_offset;
 static bool write_failed;
+static bool latest_boot_attempted;
+
+static bool latest_boot_owner(void)
+{
+	/* Q35 intentionally instantiates this console only in ramstage. */
+	if (CONFIG(BOARD_EMULATION_QEMU_X86_Q35))
+		return ENV_RAMSTAGE;
+	return ENV_BOOTBLOCK;
+}
 
 void flashconsole_init(void)
 {
 	uint8_t buffer[READ_BUFFER_SIZE];
+	struct region_device smmstore;
 	size_t size;
 	size_t initial_offset = 0;
 	size_t len = READ_BUFFER_SIZE;
 	size_t i;
+	bool latest_owner = CONFIG(CONSOLE_SPI_FLASH_LATEST_BOOT) &&
+		latest_boot_owner();
+
+	if (latest_owner && latest_boot_attempted)
+		return;
+	if (latest_owner) {
+		latest_boot_attempted = true;
+		rdev_ptr = NULL;
+		offset = 0;
+		line_offset = 0;
+		write_failed = false;
+	}
 
 	if (fmap_locate_area_as_rdev_rw("CONSOLE", &rdev)) {
+		if (latest_owner)
+			write_failed = true;
 		printk(BIOS_INFO, "Can't find 'CONSOLE' area in FMAP\n");
 		return;
 	}
 	size = region_device_sz(&rdev);
+	if (latest_owner) {
+		if (CONFIG(SMMSTORE) &&
+		    (fmap_locate_area_as_rdev_rw("SMMSTORE", &smmstore) ||
+		     region_overlap(region_device_region(&rdev),
+			region_device_region(&smmstore)))) {
+			write_failed = true;
+			printk(BIOS_ERR, "Invalid CONSOLE/SMMSTORE FMAP ownership\n");
+			return;
+		}
+		if (rdev_eraseat(&rdev, 0, size) != size) {
+			write_failed = true;
+			printk(BIOS_ERR, "Can't reclaim 'CONSOLE' area in SPI flash\n");
+			return;
+		}
+		offset = 0;
+		line_offset = 0;
+		rdev_ptr = &rdev;
+		return;
+	}
 
 	/*
 	 * We need to check the region until we find a 0xff indicating
