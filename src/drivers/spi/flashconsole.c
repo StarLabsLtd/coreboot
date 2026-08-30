@@ -69,6 +69,7 @@ void flashconsole_init(void)
 			printk(BIOS_ERR, "Can't reclaim 'CONSOLE' area in SPI flash\n");
 			return;
 		}
+		printk(BIOS_INFO, "Flash console latest-boot erase complete\n");
 		offset = 0;
 		line_offset = 0;
 		rdev_ptr = &rdev;
