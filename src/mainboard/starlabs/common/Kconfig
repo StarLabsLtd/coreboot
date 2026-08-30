@@ -158,7 +158,7 @@ config STARLABS_NVME_POWER_SEQUENCE
 	  `variant_nvme_power_sequence_post_pads()`.
 
 config TCG_OPAL_S3_UNLOCK
-	default y
+	default y if HAVE_ACPI_RESUME
 
 config MB_COMMON_DIR
 	string
