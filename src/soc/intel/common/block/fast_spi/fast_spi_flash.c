@@ -14,6 +14,7 @@
 #define SPI_STATUS_OPCODE_RDSR2	0x35
 #define SPI_STATUS_OPCODE_RDSR3	0x15
 #define SPI_STATUS_OPCODE_WRSR	0x01
+#define SPI_STATUS_OPCODE_WRSR3	0x11
 
 /* Helper to create a FAST_SPI context on API entry. */
 #define BOILERPLATE_CREATE_CTX(ctx)		\
@@ -433,6 +434,96 @@ out:
 	return ret;
 }
 
+static int fast_spi_flash_write_status_sw_locked(struct fast_spi_flash_ctx *ctx,
+						 uint8_t opcode,
+						 const uint8_t *regs, size_t len)
+{
+	struct stopwatch sw;
+	uint32_t opmenu_upper, ssfsts;
+	uint16_t optype, preop;
+	int ret = E_HW_ERROR;
+
+	if (wait_for_hwseq_spi_cycle_complete(ctx) != SUCCESS) {
+		printk(BIOS_ERR, "SPI hardware sequence did not become idle\n");
+		return E_TIMEOUT;
+	}
+
+	stopwatch_init_msecs_expire(&sw, SPIBAR_HWSEQ_XFER_TIMEOUT_MS);
+	while (fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL) &
+	       SPIBAR_SSFSTS_SCIP) {
+		if (stopwatch_expired(&sw)) {
+			printk(BIOS_ERR, "SPI software sequence did not become idle\n");
+			return E_TIMEOUT;
+		}
+	}
+
+	if (fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_HSFSTS_CTL) &
+	    SPIBAR_HSFSTS_FLOCKDN) {
+		printk(BIOS_ERR, "SPI opcode menu is locked\n");
+		return E_HW_ERROR;
+	}
+
+	/* Use opcode-menu entry 7 with the 06h WREN atomic prefix. */
+	preop = read16p(ctx->mmio_base + SPIBAR_PREOP);
+	optype = read16p(ctx->mmio_base + SPIBAR_OPTYPE);
+	opmenu_upper = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_OPMENU_UPPER);
+	write16p(ctx->mmio_base + SPIBAR_PREOP,
+		 (preop & 0xff00) | SPI_OPCODE_WREN);
+	write16p(ctx->mmio_base + SPIBAR_OPTYPE,
+		 (optype & ~(0x3 << 14)) | (SPI_OPTYPE_0 << 14));
+	write32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER,
+		 (opmenu_upper & 0x00ffffff) | ((uint32_t)opcode << 24));
+	if ((read16p(ctx->mmio_base + SPIBAR_PREOP) & 0xff) !=
+		    SPI_OPCODE_WREN ||
+	    (read16p(ctx->mmio_base + SPIBAR_OPTYPE) & (0x3 << 14)) !=
+		    (SPI_OPTYPE_0 << 14) ||
+	    (read32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER) >> 24) != opcode) {
+		printk(BIOS_ERR, "SPI opcode menu update failed\n");
+		goto restore;
+	}
+
+	fill_xfer_fifo(ctx, regs, len);
+	ssfsts = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL);
+	ssfsts &= SPIBAR_SSFSTS_RESERVED_MASK | SPIBAR_SSFSTS_SCF_MASK;
+	ssfsts |= SPIBAR_SSFSTS_W1C_BITS;
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SSFSTS_CTL, ssfsts);
+
+	ssfsts |= SPIBAR_SSFSTS_SCGO | SPIBAR_SSFSTS_ACS |
+		  SPIBAR_SSFSTS_COP(7) | SPIBAR_SSFSTS_DS |
+		  SPIBAR_SSFSTS_DBC(len - 1);
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SSFSTS_CTL, ssfsts);
+
+	stopwatch_init_msecs_expire(&sw, SPIBAR_HWSEQ_XFER_TIMEOUT_MS);
+	do {
+		ssfsts = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SSFSTS_CTL);
+		if (ssfsts & (SPIBAR_SSFSTS_FCERR | SPIBAR_SSFSTS_AEL)) {
+			printk(BIOS_ERR,
+			       "SPI software sequence failed, SSFSTS=%#x\n", ssfsts);
+			goto restore;
+		}
+		if (ssfsts & SPIBAR_SSFSTS_FDONE) {
+			ret = SUCCESS;
+			goto restore;
+		}
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI software sequence timed out\n");
+	ret = E_TIMEOUT;
+
+restore:
+	write32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER, opmenu_upper);
+	write16p(ctx->mmio_base + SPIBAR_OPTYPE, optype);
+	write16p(ctx->mmio_base + SPIBAR_PREOP, preop);
+	if (read32p(ctx->mmio_base + SPIBAR_OPMENU_UPPER) != opmenu_upper ||
+	    read16p(ctx->mmio_base + SPIBAR_OPTYPE) != optype ||
+	    read16p(ctx->mmio_base + SPIBAR_PREOP) != preop) {
+		printk(BIOS_ERR, "SPI opcode menu restoration failed\n");
+		ret = E_HW_ERROR;
+	}
+
+	return ret;
+}
+
 static int fast_spi_flash_write_status(const struct spi_flash *flash,
 				       uint8_t opcode, const uint8_t *regs,
 				       size_t len)
@@ -447,14 +538,24 @@ static int fast_spi_flash_write_status(const struct spi_flash *flash,
 	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
 	    !regs || !len || len > SPIBAR_FDATA_FIFO_SIZE)
 		return E_ARGUMENT;
-	if (opcode != SPI_STATUS_OPCODE_WRSR || len > sizeof(uint16_t))
+	if (opcode == SPI_STATUS_OPCODE_WRSR && len > sizeof(uint16_t))
+		return E_ARGUMENT;
+	if (opcode == SPI_STATUS_OPCODE_WRSR3 && len != sizeof(uint8_t))
+		return E_ARGUMENT;
+	if (opcode != SPI_STATUS_OPCODE_WRSR &&
+	    opcode != SPI_STATUS_OPCODE_WRSR3)
 		return E_ARGUMENT;
 
 	spin_lock(&fast_spi_lock);
-	fill_xfer_fifo(ctx, regs, len);
-	/* WET remains clear, selecting the 06h write-enable command. */
-	ret = exec_sync_hwseq_xfer_locked(ctx,
-					SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (opcode == SPI_STATUS_OPCODE_WRSR) {
+		fill_xfer_fifo(ctx, regs, len);
+		/* WET remains clear, selecting the 06h write-enable command. */
+		ret = exec_sync_hwseq_xfer_locked(ctx,
+						SPIBAR_HSFSTS_CYCLE_WR_STATUS,
+						0, len);
+	} else {
+		ret = fast_spi_flash_write_status_sw_locked(ctx, opcode, regs, len);
+	}
 	if (ret != SUCCESS)
 		goto out;
 

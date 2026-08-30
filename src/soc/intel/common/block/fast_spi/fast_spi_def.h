@@ -94,6 +94,7 @@
 #define SPIBAR_SSFSTS_FCERR		(1 << 3)
 #define SPIBAR_SSFSTS_AEL		(1 << 4)
 #define SPIBAR_SSFSTS_SCGO		(1 << 9)
+#define SPIBAR_SSFSTS_ACS		(1 << 10)
 #define SPIBAR_SSFSTS_COP(n)		(((n) & 0x7) << 12)
 #define SPIBAR_SSFSTS_DBC(n)		(((n) & 0x3f) << 16)
 #define SPIBAR_SSFSTS_DS			(1 << 22)
