@@ -57,10 +57,13 @@ void boot_device_security_lockdown(void)
 		rdev = boot_device_ro();
 	}
 
-	if (rdev && boot_device_wp_region(rdev, lock_type) >= 0)
+	if (rdev && boot_device_wp_region(rdev, lock_type) >= 0) {
 		printk(BIOS_INFO, "BM-LOCKDOWN: Enabled bootmedia protection\n");
-	else
+	} else {
 		printk(BIOS_ERR, "BM-LOCKDOWN: Failed to enable bootmedia protection\n");
+		if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+			die("Required boot-media protection failed\n");
+	}
 
 	if (CONFIG(BOOTMEDIA_LOCK_TOPSWAP)) {
 		/*

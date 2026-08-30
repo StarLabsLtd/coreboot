@@ -160,11 +160,21 @@ void fast_spi_lock_bar(void)
 {
 	void *spibar = fast_spi_get_bar();
 	uint16_t hsfs = SPIBAR_HSFSTS_FLOCKDN | SPIBAR_HSFSTS_PRR34_LOCKDN;
+	uint16_t value;
 
 	if (CONFIG(FAST_SPI_DISABLE_WRITE_STATUS))
 		hsfs |= SPIBAR_HSFSTS_WRSDIS;
 
 	write16(spibar + SPIBAR_HSFSTS_CTL, hsfs);
+
+	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) {
+		value = read16(spibar + SPIBAR_HSFSTS_CTL);
+		if ((value & hsfs) != hsfs) {
+			printk(BIOS_ERR, "FAST_SPI: HSFSTS lockdown failed: %#x\n",
+			       value);
+			die("Required SPI controller lockdown failed\n");
+		}
+	}
 }
 
 /*

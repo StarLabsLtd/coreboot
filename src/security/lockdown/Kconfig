@@ -127,6 +127,18 @@ config BOOTMEDIA_SPI_LOCK_REBOOT
 	  The SPI chip is locked until power is removed and re-applied.
 	  Supported by Winbond parts.
 
+config BOOTMEDIA_SPI_LOCK_PLATFORM
+	bool "Lock SPI status writes using the platform controller"
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on SOC_INTEL_COMMON_PCH_LOCKDOWN
+	depends on !MRC_WRITE_NV_LATE
+	select FAST_SPI_DISABLE_WRITE_STATUS
+	help
+	  Preserve the flash status-register lock bits after setting the block
+	  protection range, then have the platform controller disable further
+	  status writes before handing control to the payload. This permits
+	  chip-level block protection without depending on an asserted WP# pin.
+
 config BOOTMEDIA_SPI_LOCK_PIN
 	bool "Lock SPI flash using WP# pin"
 	help
