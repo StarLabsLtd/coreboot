@@ -86,6 +86,10 @@ static void clear_memory(void *unused)
 	if (cbmem_get_region(&baseptr, &size))
 		die("Could not find cbmem region");
 	memranges_insert(&mem, (uintptr_t)baseptr, size, BM_MEM_TABLE);
+	uintptr_t capsule_base;
+	size_t capsule_size;
+	if (efi_capsule_coalesce_span(&capsule_base, &capsule_size))
+		memranges_insert(&mem, capsule_base, capsule_size, BM_MEM_RESERVED);
 
 	if (ENV_X86) {
 		/* Find space for PAE enabled memset */

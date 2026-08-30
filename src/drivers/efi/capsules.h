@@ -9,11 +9,20 @@ void efi_parse_capsules(void);
 
 void efi_add_capsules_to_bootmem(void);
 
+bool efi_capsule_coalesce_span(uintptr_t *base, size_t *size);
+
 #else
 
 static inline void efi_parse_capsules(void) { }
 
 static inline void efi_add_capsules_to_bootmem(void) { }
+
+static inline bool efi_capsule_coalesce_span(uintptr_t *base, size_t *size)
+{
+	(void)base;
+	(void)size;
+	return false;
+}
 
 #endif
 
