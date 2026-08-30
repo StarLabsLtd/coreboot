@@ -489,6 +489,12 @@ config CSE_DEFAULT_CFR_OPTION_STATE_DISABLED
 	  the ME operational state and want the default state to be disabled.
 	  If not selected, the default state will be enabled.
 
+config SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED
+	bool
+	help
+	  Keep the CSE in soft temporary disable, ignore the mutable ME-state
+	  setting, and fail closed if the requested state cannot be enforced.
+
 config SOC_INTEL_CSE_S0IX_FIXED_DISABLED
 	bool
 	help

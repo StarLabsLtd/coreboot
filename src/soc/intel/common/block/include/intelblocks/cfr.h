@@ -14,6 +14,8 @@
 
 /* Intel ME State */
 static const struct sm_object me_state = SM_DECLARE_ENUM({
+	.flags		= CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) ?
+			  CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "me_state",
 	.ui_name	= "Intel Management Engine",
 	.ui_helptext	= "Enable or disable the Intel Management Engine",
