@@ -240,7 +240,9 @@ STARLABS_DECLARE_PCIE_PM_OBJECTS(lan2, "LAN 2");
 #undef STARLABS_DECLARE_PCIE_PM_OBJECTS
 
 static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
-	.flags		= CFR_OPTFLAG_RUNTIME,
+	.flags		= CFR_OPTFLAG_RUNTIME |
+			  (CONFIG(SOC_INTEL_CSE_S0IX_FIXED_DISABLED) ?
+			   CFR_OPTFLAG_SUPPRESS : 0),
 	.opt_name	= "s0ix_enable",
 	.ui_name	= "Modern Standby (S0ix)",
 	.ui_helptext	= "Enabled: Use S0ix for device sleep.\n"
