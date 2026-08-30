@@ -41,6 +41,15 @@ union status_reg2 {
 	};
 };
 
+union status_reg3 {
+	uint8_t u;
+	struct {
+		uint8_t reserved0 : 2;
+		uint8_t wps       : 1;
+		uint8_t reserved1 : 5;
+	};
+};
+
 struct status_regs {
 	union {
 		struct {
@@ -54,6 +63,7 @@ struct status_regs {
 		};
 		u16 u;
 	};
+	union status_reg3 reg3;
 };
 
 static const struct spi_flash_part_id flash_table[] = {
@@ -258,6 +268,21 @@ static const struct spi_flash_part_id flash_table[] = {
 	},
 };
 
+static bool winbond_has_wps(const struct spi_flash_part_id *params)
+{
+	if (!CONFIG(SPI_FLASH_WINBOND_HAS_WPS) || !params)
+		return false;
+
+	switch (params->id[0]) {
+	case 0x4019: /* W25R256JV */
+	case 0x6019: /* W25Q256JW/W25R256JW */
+	case 0x8019: /* W25Q256JW_DTR */
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
  * Convert BPx, TB and CMP to a region.
  * SEC (if available) must be zero.
@@ -288,7 +313,11 @@ static int winbond_read_status_regs(const struct spi_flash *flash,
 	if (ret)
 		return ret;
 
-	return spi_flash_read_status(flash, CMD_W25_RDSR2, &regs->reg2.u);
+	ret = spi_flash_read_status(flash, CMD_W25_RDSR2, &regs->reg2.u);
+	if (ret || !winbond_has_wps(flash->part))
+		return ret;
+
+	return spi_flash_read_status(flash, CMD_W25_RDSR3, &regs->reg3.u);
 }
 
 /*
@@ -320,6 +349,11 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 	ret = winbond_read_status_regs(flash, &regs);
 	if (ret)
 		return ret;
+	if (winbond_has_wps(params) && regs.reg3.wps) {
+		printk(BIOS_ERR, "WINBOND: BP protection disabled by WPS\n");
+		return -1;
+	}
+
 	if (params->bp_bits == 3) {
 		if (regs.reg1.bp3.sec) {
 			// FIXME: not supported
@@ -482,6 +516,56 @@ static int winbond_flash_cmd_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int winbond_write_status_reg(const struct spi_flash *flash, u8 opcode,
+				    u8 value)
+{
+	const u8 command[] = { opcode, value };
+	int ret;
+
+	if (flash->ops->write_status)
+		return spi_flash_write_status(flash, opcode, &value, sizeof(value));
+
+	ret = spi_flash_cmd(&flash->spi, CMD_W25_WREN, NULL, 0);
+	if (ret)
+		return ret;
+
+	ret = spi_flash_cmd_write(&flash->spi, command, sizeof(command), NULL, 0);
+	if (ret)
+		return ret;
+
+	return spi_flash_cmd_wait_ready(flash, WINBOND_FLASH_TIMEOUT);
+}
+
+static int winbond_clear_wps(const struct spi_flash *flash)
+{
+	u8 expected, value;
+	int ret;
+
+	if (!winbond_has_wps(flash->part))
+		return 0;
+
+	ret = spi_flash_read_status(flash, CMD_W25_RDSR3, &value);
+	if (ret)
+		return ret;
+	if (!(value & BIT(2)))
+		return 0;
+
+	expected = value & ~BIT(2);
+	ret = winbond_write_status_reg(flash, CMD_W25_WRSR3, expected);
+	if (ret)
+		return ret;
+
+	ret = spi_flash_read_status(flash, CMD_W25_RDSR3, &value);
+	if (ret)
+		return ret;
+	if (value != expected) {
+		printk(BIOS_ERR, "WINBOND: status register 3 verification failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * Available on all devices.
  * Protect a region starting from start of flash or end of flash.
@@ -503,8 +587,11 @@ winbond_set_write_protection(const struct spi_flash *flash,
 			     const enum spi_flash_status_reg_lockdown mode)
 {
 	const struct spi_flash_part_id *params;
+	struct status_regs lock_mask = { 0 };
+	struct status_regs lock_val = { 0 };
 	struct status_regs mask, val;
 	struct region wp_region;
+	bool has_wps;
 	u8 cmp, bp, tb;
 	int ret;
 
@@ -521,6 +608,8 @@ winbond_set_write_protection(const struct spi_flash *flash,
 		/* FIXME: not implemented */
 		return -1;
 	}
+
+	has_wps = winbond_has_wps(params);
 
 	wp_region = *region;
 
@@ -591,20 +680,35 @@ winbond_set_write_protection(const struct spi_flash *flash,
 		}
 
 		if (params->bp_bits == 3) {
-			val.reg1.bp3.srp0 = !!(srp & 1);
-			mask.reg1.bp3.srp0 = 1;
+			lock_val.reg1.bp3.srp0 = !!(srp & 1);
+			lock_mask.reg1.bp3.srp0 = 1;
 		} else {
-			val.reg1.bp4.srp0 = !!(srp & 1);
-			mask.reg1.bp4.srp0 = 1;
+			lock_val.reg1.bp4.srp0 = !!(srp & 1);
+			lock_mask.reg1.bp4.srp0 = 1;
 		}
 
-		val.reg2.srp1 = !!(srp & 2);
-		mask.reg2.srp1 = 1;
+		lock_val.reg2.srp1 = !!(srp & 2);
+		lock_mask.reg2.srp1 = 1;
+	}
+
+	if (!has_wps) {
+		val.u |= lock_val.u;
+		mask.u |= lock_mask.u;
 	}
 
 	ret = winbond_flash_cmd_status(flash, mask.u, val.u, true);
 	if (ret)
 		return ret;
+
+	ret = winbond_clear_wps(flash);
+	if (ret)
+		return ret;
+	if (has_wps && lock_mask.u) {
+		ret = winbond_flash_cmd_status(flash, lock_mask.u,
+					       lock_val.u, true);
+		if (ret)
+			return ret;
+	}
 
 	printk(BIOS_DEBUG, "WINBOND: write-protection set to range "
 	       "0x%08zx-0x%08zx\n", region_offset(region), region_last(region));

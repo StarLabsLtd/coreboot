@@ -163,6 +163,13 @@ config SPI_FLASH_WINBOND
 	  Select this option if your chipset driver needs to store certain
 	  data in the SPI flash and your SPI flash is made by Winbond.
 
+config SPI_FLASH_WINBOND_HAS_WPS
+	bool
+	depends on SPI_FLASH_WINBOND
+	help
+	  Select this option when the board's known Winbond flash part uses
+	  status register 3 WPS to select individual block protection.
+
 config SPI_FLASH_ISSI
 	bool
 	default y if SPI_FLASH_INCLUDE_ALL_DRIVERS
