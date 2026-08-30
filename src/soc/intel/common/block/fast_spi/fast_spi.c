@@ -134,17 +134,63 @@ void fast_spi_set_eiss(void)
 	fast_spi_read_post_write(SPI_BIOS_CONTROL);
 }
 
+static uint16_t fast_spi_opcode_prefix(void)
+{
+	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+		return 0;
+
+	return SPI_OPPREFIX;
+}
+
+static uint16_t fast_spi_opcode_type(void)
+{
+	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+		return SPI_OPTYPE & ~0x3;
+
+	return SPI_OPTYPE;
+}
+
+static uint32_t fast_spi_opcode_menu_lower(void)
+{
+	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+		return (SPI_OPMENU_LOWER & ~0xff) | SPI_OPMENU_3;
+
+	return SPI_OPMENU_LOWER;
+}
+
+static void fast_spi_check_opcode_menu(void *spibar)
+{
+	const uint16_t preop = read16(spibar + SPIBAR_PREOP);
+	const uint16_t optype = read16(spibar + SPIBAR_OPTYPE);
+	const uint32_t lower = read32(spibar + SPIBAR_OPMENU_LOWER);
+	const uint32_t upper = read32(spibar + SPIBAR_OPMENU_UPPER);
+
+	if (preop == fast_spi_opcode_prefix() &&
+	    optype == fast_spi_opcode_type() &&
+	    lower == fast_spi_opcode_menu_lower() &&
+	    upper == SPI_OPMENU_UPPER)
+		return;
+
+	printk(BIOS_ERR, "FAST_SPI: opcode lockdown failed: "
+	       "PREOP=%#x OPTYPE=%#x OPMENU=%#x:%#x\n",
+	       preop, optype, upper, lower);
+	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+		die("Required SPI opcode lockdown failed\n");
+}
+
 /*
- * Set FAST_SPI opcode menu.
+ * Set FAST_SPI opcode menu. Platform chip protection replaces WRSR with
+ * read-only RDSR and removes the status-write enable prefixes before FLOCKDN.
  */
 void fast_spi_set_opcode_menu(void)
 {
 	void *spibar = fast_spi_get_bar();
 
-	write16(spibar + SPIBAR_PREOP, SPI_OPPREFIX);
-	write16(spibar + SPIBAR_OPTYPE, SPI_OPTYPE);
-	write32(spibar + SPIBAR_OPMENU_LOWER, SPI_OPMENU_LOWER);
+	write16(spibar + SPIBAR_PREOP, fast_spi_opcode_prefix());
+	write16(spibar + SPIBAR_OPTYPE, fast_spi_opcode_type());
+	write32(spibar + SPIBAR_OPMENU_LOWER, fast_spi_opcode_menu_lower());
 	write32(spibar + SPIBAR_OPMENU_UPPER, SPI_OPMENU_UPPER);
+	fast_spi_check_opcode_menu(spibar);
 }
 
 /*
@@ -167,14 +213,14 @@ void fast_spi_lock_bar(void)
 
 	write16(spibar + SPIBAR_HSFSTS_CTL, hsfs);
 
-	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) {
-		value = read16(spibar + SPIBAR_HSFSTS_CTL);
-		if ((value & hsfs) != hsfs) {
-			printk(BIOS_ERR, "FAST_SPI: HSFSTS lockdown failed: %#x\n",
-			       value);
+	value = read16(spibar + SPIBAR_HSFSTS_CTL);
+	if ((value & hsfs) != hsfs) {
+		printk(BIOS_ERR, "FAST_SPI: HSFSTS lockdown failed: %#x\n", value);
+		if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
 			die("Required SPI controller lockdown failed\n");
-		}
 	}
+
+	fast_spi_check_opcode_menu(spibar);
 }
 
 /*
@@ -200,6 +246,7 @@ void fast_spi_pr_dlock(void)
 void fast_spi_vscc0_lock(void)
 {
 	void *spibar = fast_spi_get_bar();
+	uint32_t value;
 
 	/*
 	 * SPI Flash Programming Guide Section 5.5.2 describes Vendor Component Lock (VCL).
@@ -209,6 +256,12 @@ void fast_spi_vscc0_lock(void)
 	 * functionality.
 	 */
 	setbits32(spibar + SPIBAR_SFDP0_VSCC0, SPIBAR_VSCC0_VCL);
+	value = read32(spibar + SPIBAR_SFDP0_VSCC0);
+	if (!(value & SPIBAR_VSCC0_VCL)) {
+		printk(BIOS_ERR, "FAST_SPI: VSCC0 lockdown failed: %#x\n", value);
+		if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+			die("Required SPI vendor lock failed\n");
+	}
 }
 
 /*
