@@ -17,11 +17,13 @@ static int erase_calls;
 static int partial_erase_failure;
 static int smmstore_failure;
 static int smmstore_overlap;
+static int erase_marker_count;
 
 int printk(int level, const char *format, ...)
 {
 	(void)level;
-	(void)format;
+	if (!strcmp(format, "Flash console latest-boot erase complete\n"))
+		erase_marker_count++;
 	return 0;
 }
 
@@ -89,6 +91,7 @@ static void reset_fixture(size_t size, size_t used)
 	fail_on_write = write_calls = 0;
 	erase_failure = erase_calls = partial_erase_failure = 0;
 	smmstore_failure = smmstore_overlap = 0;
+	erase_marker_count = 0;
 	rdev_ptr = NULL;
 	offset = line_offset = 0;
 	write_failed = false;
@@ -107,24 +110,28 @@ int main(void)
 #ifdef TEST_LATEST_BOOT
 	reset_fixture(sizeof(flash), 257);
 	flashconsole_init();
-	if (erase_calls != 1 || offset != 0 || flash[0] != 0xff || !rdev_ptr)
+	if (erase_calls != 1 || erase_marker_count != 1 || offset != 0 ||
+	    flash[0] != 0xff || !rdev_ptr)
 		return 20;
 	if (!flashconsole_append((const uint8_t *)"new", 3) ||
 	    !bytes_equal(0, "new", 3) || erase_calls != 1)
 		return 21;
 	flashconsole_init();
-	if (erase_calls != 1 || offset != 3 || !bytes_equal(0, "new", 3))
+	if (erase_calls != 1 || erase_marker_count != 1 || offset != 3 ||
+	    !bytes_equal(0, "new", 3))
 		return 29;
 
 	reset_fixture(sizeof(flash), sizeof(flash));
 	flashconsole_init();
-	if (erase_calls != 1 || !flashconsole_append((const uint8_t *)"boot", 4) ||
+	if (erase_calls != 1 || erase_marker_count != 1 ||
+	    !flashconsole_append((const uint8_t *)"boot", 4) ||
 	    !bytes_equal(0, "boot", 4))
 		return 22;
 
 	reset_fixture(sizeof(flash), 0);
 	flashconsole_init();
-	if (erase_calls != 1 || !flashconsole_append((const uint8_t *)"fresh", 5))
+	if (erase_calls != 1 || erase_marker_count != 1 ||
+	    !flashconsole_append((const uint8_t *)"fresh", 5))
 		return 23;
 	/* A new boot has fresh static state and intentionally replaces this log. */
 	rdev_ptr = NULL;
@@ -132,7 +139,8 @@ int main(void)
 	write_failed = false;
 	latest_boot_attempted = false;
 	flashconsole_init();
-	if (erase_calls != 2 || !flashconsole_append((const uint8_t *)"next", 4) ||
+	if (erase_calls != 2 || erase_marker_count != 2 ||
+	    !flashconsole_append((const uint8_t *)"next", 4) ||
 	    !bytes_equal(0, "next", 4) || flash[4] != 0xff)
 		return 27;
 
@@ -140,13 +148,13 @@ int main(void)
 	erase_failure = 1;
 	memcpy(snapshot, flash, sizeof(flash));
 	flashconsole_init();
-	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	if (erase_calls != 1 || erase_marker_count || rdev_ptr || !write_failed ||
 	    flashconsole_append((const uint8_t *)"x", 1) ||
 	    memcmp(snapshot, flash, sizeof(flash)))
 		return 24;
 	erase_failure = 0;
 	flashconsole_init();
-	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	if (erase_calls != 1 || erase_marker_count || rdev_ptr || !write_failed ||
 	    memcmp(snapshot, flash, sizeof(flash)))
 		return 30;
 
@@ -154,7 +162,7 @@ int main(void)
 	partial_erase_failure = 1;
 	flashconsole_init();
 	memcpy(snapshot, flash, sizeof(flash));
-	if (erase_calls != 1 || rdev_ptr || !write_failed ||
+	if (erase_calls != 1 || erase_marker_count || rdev_ptr || !write_failed ||
 	    flashconsole_append((const uint8_t *)"x", 1) ||
 	    memcmp(snapshot, flash, sizeof(flash)))
 		return 28;
@@ -163,14 +171,14 @@ int main(void)
 	smmstore_overlap = 1;
 	memcpy(snapshot, flash, sizeof(flash));
 	flashconsole_init();
-	if (erase_calls || rdev_ptr || !write_failed ||
+	if (erase_calls || erase_marker_count || rdev_ptr || !write_failed ||
 	    memcmp(snapshot, flash, sizeof(flash)))
 		return 25;
 
 	reset_fixture(sizeof(flash), 10);
 	smmstore_failure = 1;
 	flashconsole_init();
-	if (erase_calls || rdev_ptr || !write_failed)
+	if (erase_calls || erase_marker_count || rdev_ptr || !write_failed)
 		return 26;
 	return 0;
 #endif
