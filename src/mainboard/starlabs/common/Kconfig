@@ -2,6 +2,19 @@
 
 if VENDOR_STARLABS
 
+config STARLABS_ENHANCED_SECURITY
+	bool "Enable the Star Labs enhanced-security profile"
+	depends on BOARD_STARLABS_ADL_HORIZON || BOARD_STARLABS_STARBOOK_RPL_U || \
+		BOARD_STARLABS_STARBOOK_MTL || BOARD_STARLABS_STARFIGHTER_MTL
+	select BOOTMEDIA_SMM_BWP
+	select BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
+	select ENABLE_EARLY_DMA_PROTECTION
+	select TPM_MEASURED_BOOT_REQUIRED
+	select VBOOT
+	help
+	  Enable the verified-boot, flash write-protection, and early DMA
+	  protection requirements of the Star Labs enhanced-security firmware.
+
 config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
@@ -64,6 +77,7 @@ config BOOTMEDIA_SMM_BWP
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool
 	depends on BOOTMEDIA_SMM_BWP
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config USE_LEGACY_8254_TIMER

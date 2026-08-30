@@ -2,6 +2,21 @@
 
 CPPFLAGS_common += -I$(src)/mainboard/$(MAINBOARDDIR)/include
 
+ifeq ($(CONFIG_STARLABS_ENHANCED_SECURITY),y)
+ifneq ($(CONFIG_BOOTMEDIA_LOCK_CHIP),y)
+$(error Enhanced-security builds require chip-level boot-media protection)
+endif
+ifneq ($(CONFIG_BOOTMEDIA_LOCK_WPRO_VBOOT_RO),y)
+$(error Enhanced-security builds require WP_RO boot-media protection)
+endif
+ifneq ($(CONFIG_BOOTMEDIA_SPI_LOCK_PLATFORM),y)
+$(error Enhanced-security builds require platform-enforced SPI status locking)
+endif
+ifeq ($(CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION),y)
+$(error Enhanced-security builds cannot expose runtime BIOS write protection)
+endif
+endif
+
 bootblock-$(CONFIG_BOARD_STARLABS_ADL_SERIES) += bootblock.c
 bootblock-$(CONFIG_BOARD_STARLABS_STARFIGHTER_SERIES) += bootblock.c
 
