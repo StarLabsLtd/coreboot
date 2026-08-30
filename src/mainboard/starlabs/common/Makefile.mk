@@ -31,6 +31,7 @@ subdirs-$(CONFIG_VENDOR_STARLABS) += pin_mux
 subdirs-$(CONFIG_VENDOR_STARLABS) += smbios
 
 ramstage-$(CONFIG_STARLABS_NVME_POWER_SEQUENCE) += nvme_seq.c
+ramstage-$(CONFIG_ENABLE_EARLY_DMA_PROTECTION) += dma.c
 
 CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
