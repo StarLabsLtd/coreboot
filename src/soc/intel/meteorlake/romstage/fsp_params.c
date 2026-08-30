@@ -371,6 +371,16 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->VmxEnable = CONFIG(ENABLE_VMX);
 }
 
+static void enforce_early_dma_protection(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	m_cfg->VtdDisable = 0;
+	m_cfg->DmaBufferSize = acpi_is_wakeup_s3() ? 2 * MiB : 4 * MiB;
+	m_cfg->PreBootDmaMask = BIT(0) | BIT(1);
+}
+
 static void fill_fspm_trace_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
@@ -520,6 +530,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	enforce_early_dma_protection(m_cfg);
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
