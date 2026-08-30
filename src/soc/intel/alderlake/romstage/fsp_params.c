@@ -25,6 +25,7 @@
 #include <soc/pcie.h>
 #include <soc/romstage.h>
 #include <soc/soc_chip.h>
+#include <soc/systemagent.h>
 #include <static.h>
 #include <string.h>
 
@@ -154,14 +155,7 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 		[DDI_PORT_4] = {&m_cfg->DdiPort4Ddc, &m_cfg->DdiPort4Hpd},
 	};
 
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-					   && is_devfn_enabled(SA_DEVFN_IGD);
-
-	/* Probe for no IGD and disable InternalGfx to prevent a crash in FSP-M. */
-	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
-		printk(BIOS_ERR, "igd_enabled is set, but IGD is not present. Disabling IGD.\n");
-		igd_enabled = false;
-	}
+	bool igd_enabled = soc_is_igd_enabled();
 
 	if (igd_enabled) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */

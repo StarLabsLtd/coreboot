@@ -68,5 +68,6 @@ uint64_t get_mmcfg_size(const struct device *dev);
 uint64_t get_dsm_size(const struct device *dev);
 uint64_t get_gsm_size(const struct device *dev);
 uint64_t get_dpr_size(const struct device *dev);
+bool soc_is_igd_enabled(void);
 
 #endif
