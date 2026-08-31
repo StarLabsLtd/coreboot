@@ -277,6 +277,22 @@ void lb_arch_add_records(struct lb_header *header)
 {
 	uint32_t freq_khz;
 	struct lb_tsc_info *tsc_info;
+	uint64_t frequency_hz;
+
+	/* The local APIC clock is independent of TSC enumeration.  In particular,
+	 * a payload still needs its timer handoff when coreboot declines to publish
+	 * a non-constant or unavailable TSC rate. */
+	if (CONFIG(PAYLOAD_LOCAL_APIC_TIMER_INFO)) {
+		frequency_hz = soc_local_apic_timer_frequency_hz();
+		if (frequency_hz) {
+			lb_add_local_apic_timer_info(header, frequency_hz);
+			printk(BIOS_INFO,
+			       "Local APIC timer: published payload frequency %llu Hz\n",
+			       frequency_hz);
+		} else {
+			printk(BIOS_ERR, "Local APIC timer frequency is unavailable\n");
+		}
+	}
 
 	/* Don't advertise a TSC rate unless it's constant. */
 	if (!tsc_constant_rate())
@@ -292,15 +308,6 @@ void lb_arch_add_records(struct lb_header *header)
 	tsc_info->tag = LB_TAG_TSC_INFO;
 	tsc_info->size = sizeof(*tsc_info);
 	tsc_info->freq_khz = freq_khz;
-
-	if (CONFIG(PAYLOAD_LOCAL_APIC_TIMER_INFO)) {
-		uint64_t frequency_hz = soc_local_apic_timer_frequency_hz();
-
-		if (frequency_hz)
-			lb_add_local_apic_timer_info(header, frequency_hz);
-		else
-			printk(BIOS_ERR, "Local APIC timer frequency is unavailable\n");
-	}
 }
 
 void arch_bootstate_coreboot_exit(void)
