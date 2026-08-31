@@ -38,7 +38,8 @@ void mb_devtree_update(void)
 		cfg->usb2_ports[CONFIG_CCD_PORT].enable = 0;
 
 	/* Enable/Disable Thunderbolt based on CMOS settings */
-	if (get_uint_option("thunderbolt", 1) == 0) {
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION) &&
+	    get_uint_option("thunderbolt", 1) == 0) {
 		disable_dev_if_present(DEV_PTR(tbt_pcie_rp0));
 		disable_dev_if_present(DEV_PTR(tbt_pcie_rp1));
 		disable_dev_if_present(DEV_PTR(tcss_dma0));
