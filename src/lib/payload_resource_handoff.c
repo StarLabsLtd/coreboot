@@ -34,8 +34,8 @@ static bool resource_is_assignment(const struct resource *resource)
 	const unsigned long type = resource->flags & IORESOURCE_TYPE_MASK;
 
 	return resource->size &&
-		(resource->flags & (IORESOURCE_ASSIGNED | IORESOURCE_STORED)) ==
-			(IORESOURCE_ASSIGNED | IORESOURCE_STORED) &&
+		(resource->flags & IORESOURCE_ASSIGNED) &&
+		(resource->flags & (IORESOURCE_STORED | IORESOURCE_FIXED)) &&
 		!(resource->flags & (IORESOURCE_SUBTRACTIVE | IORESOURCE_RESERVE |
 				    IORESOURCE_BRIDGE | IORESOURCE_CACHEABLE)) &&
 		(type == IORESOURCE_IO || type == IORESOURCE_MEM);
@@ -203,8 +203,10 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 		const struct resource *resource;
 
 		if (device->enabled && device->path.type == DEVICE_PATH_DOMAIN) {
-			if (!valid_domain(device))
+			if (!valid_domain(device)) {
+				printk(BIOS_ERR, "PRH: invalid PCI domain %s\n", dev_path(device));
 				return CB_ERR;
+			}
 			if (++(*root_count) > LB_PRH_PCI_MAX_ROOTS)
 				return CB_ERR;
 		}
@@ -216,20 +218,34 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 			uint8_t bar;
 
 			if (resource->size && (resource->flags & IORESOURCE_ASSIGNED) &&
-			    !(resource->flags & IORESOURCE_STORED) &&
+			    !(resource->flags & (IORESOURCE_STORED | IORESOURCE_FIXED)) &&
 			    ((resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_IO ||
 			     (resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_MEM) &&
-			    resource_bar(resource, &bar))
+			    resource_bar(resource, &bar)) {
+				printk(BIOS_ERR,
+				       "PRH: %s BAR %u is assigned but neither stored nor fixed\n",
+				       dev_path(device), bar);
 				return CB_ERR;
+			}
 			if (!resource_is_assignment(resource) || !resource_bar(resource, &bar))
 				continue;
-			if (!assignment_valid(device, resource))
+			if (!assignment_valid(device, resource)) {
+				printk(BIOS_ERR,
+				       "PRH: invalid assignment %s resource %lx base %llx size %llx flags %lx\n",
+				       dev_path(device), resource->index, resource->base,
+				       resource->size, resource->flags);
 				return CB_ERR;
+			}
 			if (++(*assignment_count) > LB_PRH_PCI_MAX_ASSIGNMENTS)
 				return CB_ERR;
 		}
 	}
-	return *root_count && *assignment_count ? CB_SUCCESS : CB_ERR;
+	if (!*root_count || !*assignment_count) {
+		printk(BIOS_ERR, "PRH: incomplete inventory: %zu roots, %zu assignments\n",
+		       *root_count, *assignment_count);
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
 }
 
 static uint32_t handoff_crc32(const struct lb_payload_resource_handoff *handoff)
@@ -376,9 +392,14 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	size_t fixed_size = sizeof(*handoff) + section_count * sizeof(*root_section) +
 		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
 
-	if (!header || count_records(&root_count, &assignment_count) != CB_SUCCESS ||
-	    validate_framebuffer(framebuffer, &framebuffer_length) != CB_SUCCESS)
+	if (!header)
 		return CB_ERR;
+	if (count_records(&root_count, &assignment_count) != CB_SUCCESS)
+		return CB_ERR;
+	if (validate_framebuffer(framebuffer, &framebuffer_length) != CB_SUCCESS) {
+		printk(BIOS_ERR, "PRH: framebuffer ownership validation failed\n");
+		return CB_ERR;
+	}
 	if (quiesce_assigned_devices() != CB_SUCCESS)
 		return CB_ERR;
 	if (root_count > UINT32_MAX || assignment_count > UINT32_MAX ||
