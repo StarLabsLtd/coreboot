@@ -14,6 +14,7 @@ ramstage-y += ../qemu-i440fx/memmap.c
 ramstage-y += ../qemu-i440fx/northbridge.c
 ramstage-y += ../qemu-i440fx/rom_media.c
 ramstage-y += cpu.c
+ramstage-$(CONFIG_PAYLOAD_LOCAL_APIC_TIMER_INFO) += lapic_timer.c
 
 all-y += ../qemu-i440fx/bootmode.c
 all-y += memmap.c
