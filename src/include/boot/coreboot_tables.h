@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct device;
+
 /* function prototypes for building the coreboot table */
 
 /*
@@ -27,6 +29,8 @@ enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 
 /* Adds an authoritative payload-resource PCI root-bridge handoff. */
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
+uint16_t payload_resource_read_command(const struct device *device);
+void payload_resource_write_command(const struct device *device, uint16_t command);
 
 void lb_string_platform_blob_version(struct lb_header *header);
 

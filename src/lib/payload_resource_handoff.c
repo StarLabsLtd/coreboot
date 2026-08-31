@@ -6,6 +6,7 @@
 #include <crc_byte.h>
 #include <device/device.h>
 #include <device/pci_def.h>
+#include <device/pci_ops.h>
 #include <string.h>
 #include <version.h>
 
@@ -26,7 +27,9 @@ static bool resource_is_assignment(const struct resource *resource)
 {
 	const unsigned long type = resource->flags & IORESOURCE_TYPE_MASK;
 
-	return resource->size && (resource->flags & IORESOURCE_ASSIGNED) &&
+	return resource->size &&
+		(resource->flags & (IORESOURCE_ASSIGNED | IORESOURCE_STORED)) ==
+			(IORESOURCE_ASSIGNED | IORESOURCE_STORED) &&
 		!(resource->flags & (IORESOURCE_SUBTRACTIVE | IORESOURCE_RESERVE |
 				    IORESOURCE_BRIDGE | IORESOURCE_CACHEABLE)) &&
 		(type == IORESOURCE_IO || type == IORESOURCE_MEM);
@@ -206,6 +209,12 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 		for (resource = device->resource_list; resource; resource = resource->next) {
 			uint8_t bar;
 
+			if (resource->size && (resource->flags & IORESOURCE_ASSIGNED) &&
+			    !(resource->flags & IORESOURCE_STORED) &&
+			    ((resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_IO ||
+			     (resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_MEM) &&
+			    resource_bar(resource, &bar))
+				return CB_ERR;
 			if (!resource_is_assignment(resource) || !resource_bar(resource, &bar))
 				continue;
 			if (!assignment_valid(device, resource))
@@ -230,6 +239,50 @@ static uint32_t handoff_crc32(const struct lb_payload_resource_handoff *handoff)
 	return crc;
 }
 
+__weak uint16_t payload_resource_read_command(const struct device *device)
+{
+	return pci_read_config16(device, PCI_COMMAND);
+}
+
+__weak void payload_resource_write_command(const struct device *device, uint16_t command)
+{
+	pci_write_config16(device, PCI_COMMAND, command);
+}
+
+static bool device_has_assignment(const struct device *device)
+{
+	const struct resource *resource;
+
+	for (resource = device->resource_list; resource; resource = resource->next) {
+		uint8_t bar;
+
+		if (resource_is_assignment(resource) && resource_bar(resource, &bar))
+			return true;
+	}
+	return false;
+}
+
+static enum cb_err quiesce_assigned_devices(void)
+{
+	const struct device *device;
+
+	for (device = all_devices; device; device = device->next) {
+		uint16_t command;
+
+		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
+		    !device_has_assignment(device))
+			continue;
+		command = payload_resource_read_command(device);
+		payload_resource_write_command(device, command & ~PCI_COMMAND_MASTER);
+		if (payload_resource_read_command(device) & PCI_COMMAND_MASTER) {
+			printk(BIOS_ERR, "PRH: failed to quiesce bus mastering for %s\n",
+			       dev_path(device));
+			return CB_ERR;
+		}
+	}
+	return CB_SUCCESS;
+}
+
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 {
 	struct lb_payload_resource_handoff *handoff;
@@ -240,6 +293,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	size_t root_count, assignment_count, root_index = 0, assignment_index = 0;
 
 	if (!header || count_records(&root_count, &assignment_count) != CB_SUCCESS)
+		return CB_ERR;
+	if (quiesce_assigned_devices() != CB_SUCCESS)
 		return CB_ERR;
 	if (root_count > UINT32_MAX || assignment_count > UINT32_MAX ||
 	    root_count > (UINT32_MAX - sizeof(*handoff) - 2 * sizeof(*root_section)) /
@@ -260,7 +315,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	handoff->section_header_length = sizeof(*root_section);
 	handoff->section_count = 2;
 	handoff->producer_stage = 1;
-	handoff->producer_generation = coreboot_version_timestamp;
+	handoff->producer_generation = 1;
 	handoff->lifetime_flags = LB_PRH_LIFETIME_COLD_BOOT |
 		LB_PRH_LIFETIME_EXIT_BOOT_SERVICES;
 
