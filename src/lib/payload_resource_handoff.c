@@ -7,8 +7,14 @@
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <framebuffer_info.h>
 #include <string.h>
 #include <version.h>
+
+__weak const struct lb_framebuffer *payload_resource_framebuffer(void)
+{
+	return get_lb_framebuffer();
+}
 
 static bool range_end(uint64_t base, uint64_t length, uint64_t *end)
 {
@@ -283,37 +289,119 @@ static enum cb_err quiesce_assigned_devices(void)
 	return CB_SUCCESS;
 }
 
+static bool framebuffer_mask_valid(uint8_t position, uint8_t size, uint8_t bpp,
+	uint32_t *mask)
+{
+	if (!size) {
+		*mask = 0;
+		return position == 0;
+	}
+	if (position >= bpp || size > bpp - position)
+		return false;
+	*mask = size == 32 ? UINT32_MAX : ((1U << size) - 1U) << position;
+	return true;
+}
+
+static enum cb_err validate_framebuffer(const struct lb_framebuffer *framebuffer,
+	uint64_t *length)
+{
+	uint32_t red, green, blue, reserved;
+	uint64_t minimum_stride;
+	unsigned int assignment_matches = 0;
+	const struct device *device;
+
+	if (!framebuffer) {
+		*length = 0;
+		return CB_SUCCESS;
+	}
+	if (!framebuffer->x_resolution || !framebuffer->y_resolution ||
+	    !framebuffer->bits_per_pixel ||
+	    framebuffer->bits_per_pixel > 32 ||
+	    framebuffer->orientation != LB_FB_ORIENTATION_NORMAL || framebuffer->pad ||
+	    framebuffer->flags.reserved ||
+	    !framebuffer_mask_valid(framebuffer->red_mask_pos, framebuffer->red_mask_size,
+		framebuffer->bits_per_pixel, &red) ||
+	    !framebuffer_mask_valid(framebuffer->green_mask_pos, framebuffer->green_mask_size,
+		framebuffer->bits_per_pixel, &green) ||
+	    !framebuffer_mask_valid(framebuffer->blue_mask_pos, framebuffer->blue_mask_size,
+		framebuffer->bits_per_pixel, &blue) ||
+	    !framebuffer_mask_valid(framebuffer->reserved_mask_pos,
+		framebuffer->reserved_mask_size, framebuffer->bits_per_pixel, &reserved) ||
+	    !red || !green || !blue || (red & green) || (red & blue) ||
+	    (red & reserved) || (green & blue) ||
+	    (green & reserved) || (blue & reserved))
+		return CB_ERR;
+	minimum_stride = ((uint64_t)framebuffer->x_resolution *
+		framebuffer->bits_per_pixel + 7) / 8;
+	if (framebuffer->bytes_per_line < minimum_stride ||
+	    framebuffer->y_resolution > UINT64_MAX / framebuffer->bytes_per_line)
+		return CB_ERR;
+	*length = (uint64_t)framebuffer->bytes_per_line * framebuffer->y_resolution;
+	if (!range_end(framebuffer->physical_address, *length, &minimum_stride))
+		return CB_ERR;
+	for (device = all_devices; device; device = device->next) {
+		const struct resource *resource;
+
+		if (!device->enabled)
+			continue;
+		for (resource = device->resource_list; resource; resource = resource->next) {
+			uint64_t end;
+
+			if (!range_end(resource->base, resource->size, &end) ||
+			    resource->base > framebuffer->physical_address || end < minimum_stride)
+				continue;
+			if (device->path.type == DEVICE_PATH_PCI &&
+			    resource_is_assignment(resource) &&
+			    (resource->flags & IORESOURCE_MEM))
+				assignment_matches++;
+		}
+	}
+	return assignment_matches == 1 ? CB_SUCCESS : CB_ERR;
+}
+
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 {
 	struct lb_payload_resource_handoff *handoff;
 	struct lb_payload_resource_section *root_section, *assignment_section;
+	struct lb_payload_resource_section *memory_section, *framebuffer_section;
 	struct lb_prh_pci_root_bridge *roots;
 	struct lb_prh_pci_assignment *assignments;
+	struct lb_prh_memory_policy *memory;
+	struct lb_prh_framebuffer *framebuffer_output;
+	const struct lb_framebuffer *framebuffer = payload_resource_framebuffer();
 	const struct device *device;
 	size_t root_count, assignment_count, root_index = 0, assignment_index = 0;
+	uint64_t framebuffer_length;
+	size_t section_count = framebuffer ? 4 : 2;
+	size_t fixed_size = sizeof(*handoff) + section_count * sizeof(*root_section) +
+		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
 
-	if (!header || count_records(&root_count, &assignment_count) != CB_SUCCESS)
+	if (!header || count_records(&root_count, &assignment_count) != CB_SUCCESS ||
+	    validate_framebuffer(framebuffer, &framebuffer_length) != CB_SUCCESS)
 		return CB_ERR;
 	if (quiesce_assigned_devices() != CB_SUCCESS)
 		return CB_ERR;
 	if (root_count > UINT32_MAX || assignment_count > UINT32_MAX ||
-	    root_count > (UINT32_MAX - sizeof(*handoff) - 2 * sizeof(*root_section)) /
+	    fixed_size > UINT32_MAX ||
+	    root_count > (UINT32_MAX - fixed_size) /
 			 sizeof(*roots) ||
-	    assignment_count > (UINT32_MAX - sizeof(*handoff) - 2 * sizeof(*root_section) -
-				      root_count * sizeof(*roots)) / sizeof(*assignments))
+	    assignment_count > (UINT32_MAX - fixed_size - root_count * sizeof(*roots)) /
+			 sizeof(*assignments))
 		return CB_ERR;
 
 	handoff = (void *)lb_new_record(header);
-	handoff->size = sizeof(*handoff) + 2 * sizeof(*root_section) +
-		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments);
+	handoff->size = sizeof(*handoff) + section_count * sizeof(*root_section) +
+		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments) +
+		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
 	memset(handoff, 0, handoff->size);
 	handoff->tag = LB_TAG_PAYLOAD_RESOURCE_HANDOFF;
-	handoff->size = sizeof(*handoff) + 2 * sizeof(*root_section) +
-		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments);
+	handoff->size = sizeof(*handoff) + section_count * sizeof(*root_section) +
+		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments) +
+		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
 	handoff->revision = LB_PAYLOAD_RESOURCE_HANDOFF_REVISION;
 	handoff->header_length = sizeof(*handoff);
 	handoff->section_header_length = sizeof(*root_section);
-	handoff->section_count = 2;
+	handoff->section_count = section_count;
 	handoff->producer_stage = 1;
 	handoff->producer_generation = 1;
 	handoff->lifetime_flags = LB_PRH_LIFETIME_COLD_BOOT |
@@ -326,7 +414,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	root_section->header_length = sizeof(*root_section);
 	root_section->entry_size = sizeof(*roots);
 	root_section->entry_count = root_count;
-	root_section->offset = sizeof(*handoff) + 2 * sizeof(*root_section);
+	root_section->offset = sizeof(*handoff) + section_count * sizeof(*root_section);
 	root_section->length = root_count * sizeof(*roots);
 	assignment_section->type = LB_PRH_SECTION_PCI_ASSIGNMENTS;
 	assignment_section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
@@ -337,6 +425,48 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	assignment_section->length = assignment_count * sizeof(*assignments);
 	roots = (void *)((uint8_t *)handoff + root_section->offset);
 	assignments = (void *)((uint8_t *)handoff + assignment_section->offset);
+	if (framebuffer) {
+		memory_section = &handoff->sections[2];
+		framebuffer_section = &handoff->sections[3];
+		memory_section->type = LB_PRH_SECTION_MEMORY_POLICY;
+		memory_section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
+		memory_section->header_length = sizeof(*memory_section);
+		memory_section->entry_size = sizeof(*memory);
+		memory_section->entry_count = 1;
+		memory_section->offset = assignment_section->offset + assignment_section->length;
+		memory_section->length = sizeof(*memory);
+		framebuffer_section->type = LB_PRH_SECTION_FRAMEBUFFER;
+		framebuffer_section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
+		framebuffer_section->header_length = sizeof(*framebuffer_section);
+		framebuffer_section->entry_size = sizeof(*framebuffer_output);
+		framebuffer_section->entry_count = 1;
+		framebuffer_section->offset = memory_section->offset + memory_section->length;
+		framebuffer_section->length = sizeof(*framebuffer_output);
+		memory = (void *)((uint8_t *)handoff + memory_section->offset);
+		framebuffer_output =
+			(void *)((uint8_t *)handoff + framebuffer_section->offset);
+		memory->base = framebuffer->physical_address;
+		memory->length = framebuffer_length;
+		memory->gcd_type = LB_PRH_GCD_MEMORY_TYPE_MMIO;
+		memory->owner_flags = LB_PRH_MEMORY_GCD_AUTHORITATIVE;
+		framebuffer_output->physical_address = framebuffer->physical_address;
+		framebuffer_output->size = framebuffer_length;
+		framebuffer_output->x_resolution = framebuffer->x_resolution;
+		framebuffer_output->y_resolution = framebuffer->y_resolution;
+		framebuffer_output->bytes_per_line = framebuffer->bytes_per_line;
+		framebuffer_output->bits_per_pixel = framebuffer->bits_per_pixel;
+		framebuffer_output->red_mask_pos = framebuffer->red_mask_pos;
+		framebuffer_output->red_mask_size = framebuffer->red_mask_size;
+		framebuffer_output->green_mask_pos = framebuffer->green_mask_pos;
+		framebuffer_output->green_mask_size = framebuffer->green_mask_size;
+		framebuffer_output->blue_mask_pos = framebuffer->blue_mask_pos;
+		framebuffer_output->blue_mask_size = framebuffer->blue_mask_size;
+		framebuffer_output->reserved_mask_pos = framebuffer->reserved_mask_pos;
+		framebuffer_output->reserved_mask_size = framebuffer->reserved_mask_size;
+		framebuffer_output->owner_flags =
+			LB_PRH_FRAMEBUFFER_GEOMETRY_AUTHORITATIVE |
+			LB_PRH_FRAMEBUFFER_MEMORY_DELEGATED;
+	}
 
 	for (device = all_devices; device; device = device->next) {
 		const struct resource *resource;
