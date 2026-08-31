@@ -1,0 +1,19 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set -eu
+
+tool=$1
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/smmstoretool-init.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT INT TERM
+store=$tmpdir/SMMSTORE
+
+dd if=/dev/zero bs=65536 count=8 2>/dev/null | tr '\000' '\377' >"$store"
+"$tool" "$store" init
+test -z "$("$tool" "$store" list)"
+
+sha256sum "$store" >"$tmpdir/before.sha256"
+"$tool" "$store" init
+sha256sum -c "$tmpdir/before.sha256"
+
+printf '%s\n' 'smmstoretool init test: PASS'

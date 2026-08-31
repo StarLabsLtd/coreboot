@@ -60,7 +60,7 @@ source "payloads/external/*/Kconfig"
 
 config PAYLOAD_OWNS_PCI_DEVICES
 	bool
-	default y if PAYLOAD_EDK2
+	default y if PAYLOAD_EDK2 || PAYLOAD_CDK2
 	help
 	  Select this when the payload takes ownership of PCI devices after
 	  coreboot and will enable bus mastering from its own drivers.
