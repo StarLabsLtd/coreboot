@@ -6,10 +6,14 @@
 #include <tests/test.h>
 
 const unsigned int coreboot_version_timestamp = 0x12345678;
-static uint8_t storage[2048];
+static uint8_t storage[16384];
 static struct bus buses[2];
 static struct device devs[5];
 static struct resource res[8];
+static struct device limit_devs[44];
+static struct resource limit_res[LB_PRH_PCI_MAX_ASSIGNMENTS + 1];
+static struct device limit_domains[LB_PRH_PCI_MAX_ROOTS + 1];
+static struct bus limit_buses[LB_PRH_PCI_MAX_ROOTS + 1];
 struct device *all_devices;
 
 const char *dev_path(const struct device *dev) { return "fixture"; }
@@ -55,13 +59,15 @@ static int setup(void **state)
 	set_res(1, 0x10010000, 0x2000,
 		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x18, &res[2]);
 	set_res(2, 0x100000000ULL, 0x4000,
-		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_ASSIGNED, 0x20, &res[3]);
+		IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_PCI64 |
+		IORESOURCE_ASSIGNED, 0x20, NULL);
 	set_res(3, 0x2000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED, 0x24, NULL);
 	devs[2].enabled = 1;
 	devs[2].path.type = DEVICE_PATH_PCI;
 	devs[2].path.pci.devfn = PCI_DEVFN(3, 0);
 	devs[2].upstream = &buses[0];
-	devs[2].resource_list = &res[4];
+	devs[2].resource_list = &res[3];
+	res[3].next = &res[4];
 	set_res(4, 0, 0xa0000, IORESOURCE_MEM | IORESOURCE_CACHEABLE |
 		IORESOURCE_ASSIGNED | IORESOURCE_FIXED, 0xf, NULL);
 	all_devices = &devs[0];
@@ -97,7 +103,7 @@ static void test_exact_holes_and_prefetch(void **state)
 	s = h->sections;
 	assert_int_equal(s[0].entry_count, 1);
 	root = (const void *)((const uint8_t *)h + s[0].offset);
-	assert_int_equal(root->flags, LB_PRH_PCI_ROOT_RESOURCE_ASSIGNED);
+	assert_int_equal(root->flags, LB_PRH_PCI_ROOT_TOPOLOGY_ONLY);
 	assert_int_equal(root->mem32_length, 0);
 	assert_int_equal(s[1].type, LB_PRH_SECTION_PCI_ASSIGNMENTS);
 	assert_int_equal(s[1].entry_count, 4);
@@ -109,6 +115,7 @@ static void test_exact_holes_and_prefetch(void **state)
 	assert_int_equal(a[1].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32);
 	assert_true(a[0].base + a[0].length < a[1].base);
 	assert_int_equal(a[2].resource_type, LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64);
+	assert_int_equal(a[2].flags, LB_PRH_PCI_ASSIGNMENT_64BIT);
 }
 
 static void test_duplicate(void **state)
@@ -117,6 +124,75 @@ static void test_duplicate(void **state)
 	res[4].next = &res[5];
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
+static void test_duplicate_resource_identity(void **state)
+{
+	set_res(5, 0x20000000, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED, 0x10, NULL);
+	res[3].next = &res[5];
+	devs[2].path.pci.devfn = devs[1].path.pci.devfn;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_64bit_bar5(void **state)
+{
+	res[2].index = PCI_BASE_ADDRESS_5;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_64bit_high_half_assignment(void **state)
+{
+	set_res(5, 0x200000000ULL, 0x1000,
+		IORESOURCE_MEM | IORESOURCE_ASSIGNED, PCI_BASE_ADDRESS_5, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_cross_type_same_bar(void **state)
+{
+	set_res(5, 0x3000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED,
+		PCI_BASE_ADDRESS_0, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_io_in_64bit_high_half(void **state)
+{
+	set_res(5, 0x3000, 0x20, IORESOURCE_IO | IORESOURCE_ASSIGNED,
+		PCI_BASE_ADDRESS_5, NULL);
+	res[2].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_above4g_non_pci64(void **state)
+{
+	res[2].flags &= ~IORESOURCE_PCI64;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_pci64_io(void **state)
+{
+	res[3].index = PCI_BASE_ADDRESS_0;
+	res[3].flags |= IORESOURCE_PCI64;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_devfn_narrowing(void **state)
+{
+	devs[1].path.pci.devfn = 0x100;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_high_resource_index(void **state)
+{
+	res[0].index = 0x344;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_rejects_narrowing_collision(void **state)
+{
+	res[0].index = 0x110;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
 static void test_reserved(void **state)
@@ -181,17 +257,112 @@ static void test_outside_mcfg(void **state)
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
+static void set_assignment_count(size_t count)
+{
+	memset(limit_devs, 0, sizeof(limit_devs));
+	memset(limit_res, 0, sizeof(limit_res));
+	devs[0].next = &limit_devs[0];
+	for (size_t index = 0; index < count; index++) {
+		const size_t device = index / 6;
+
+		limit_devs[device].enabled = 1;
+		limit_devs[device].path.type = DEVICE_PATH_PCI;
+		limit_devs[device].path.pci.devfn = PCI_DEVFN(device % 32, device / 32);
+		limit_devs[device].upstream = &buses[0];
+		limit_devs[device].resource_list = &limit_res[device * 6];
+		limit_devs[device].next = device + 1 < DIV_ROUND_UP(count, 6) ?
+			&limit_devs[device + 1] : NULL;
+		limit_res[index] = (struct resource) {
+			.base = 0x20000000 + index * 0x1000,
+			.size = 0x1000,
+			.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED,
+			.index = PCI_BASE_ADDRESS_0 + (index % 6) * sizeof(uint32_t),
+			.next = index % 6 != 5 && index + 1 < count ? &limit_res[index + 1] : NULL,
+		};
+	}
+}
+
+static void test_assignment_limit(void **state)
+{
+	const struct lb_payload_resource_handoff *handoff;
+
+	set_assignment_count(LB_PRH_PCI_MAX_ASSIGNMENTS);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[1].entry_count,
+		LB_PRH_PCI_MAX_ASSIGNMENTS);
+}
+
+static void test_assignment_limit_rejected(void **state)
+{
+	set_assignment_count(LB_PRH_PCI_MAX_ASSIGNMENTS + 1);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
+static void set_root_count(size_t count)
+{
+	memset(limit_domains, 0, sizeof(limit_domains));
+	memset(limit_buses, 0, sizeof(limit_buses));
+	for (size_t index = 0; index < count; index++) {
+		limit_domains[index].enabled = 1;
+		limit_domains[index].path.type = DEVICE_PATH_DOMAIN;
+		limit_domains[index].downstream = &limit_buses[index];
+		limit_domains[index].next = index + 1 < count ?
+			&limit_domains[index + 1] : &devs[1];
+		limit_buses[index].dev = &limit_domains[index];
+		limit_buses[index].segment_group = index;
+		limit_buses[index].subordinate = 1;
+	}
+	devs[1].upstream = &limit_buses[0];
+	devs[1].next = NULL;
+	devs[1].resource_list = &res[0];
+	res[0].next = NULL;
+	all_devices = &limit_domains[0];
+}
+
+static void test_root_limit(void **state)
+{
+	const struct lb_payload_resource_handoff *handoff;
+
+	set_root_count(LB_PRH_PCI_MAX_ROOTS);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[0].entry_count, LB_PRH_PCI_MAX_ROOTS);
+}
+
+static void test_root_limit_rejected(void **state)
+{
+	set_root_count(LB_PRH_PCI_MAX_ROOTS + 1);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(((struct lb_header *)*state)->table_entries, 0);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
 		cmocka_unit_test_setup(test_duplicate, setup),
+		cmocka_unit_test_setup(test_duplicate_resource_identity, setup),
+		cmocka_unit_test_setup(test_rejects_64bit_bar5, setup),
+		cmocka_unit_test_setup(test_rejects_64bit_high_half_assignment, setup),
+		cmocka_unit_test_setup(test_rejects_cross_type_same_bar, setup),
+		cmocka_unit_test_setup(test_rejects_io_in_64bit_high_half, setup),
+		cmocka_unit_test_setup(test_rejects_above4g_non_pci64, setup),
+		cmocka_unit_test_setup(test_rejects_pci64_io, setup),
+		cmocka_unit_test_setup(test_rejects_devfn_narrowing, setup),
+		cmocka_unit_test_setup(test_rejects_high_resource_index, setup),
+		cmocka_unit_test_setup(test_rejects_narrowing_collision, setup),
 		cmocka_unit_test_setup(test_reserved, setup),
 		cmocka_unit_test_setup(test_ecam, setup),
 		cmocka_unit_test_setup(test_two_roots_same_segment, setup),
 		cmocka_unit_test_setup(test_overlapping_roots, setup),
 		cmocka_unit_test_setup(test_orphan, setup),
 		cmocka_unit_test_setup(test_outside_mcfg, setup),
+		cmocka_unit_test_setup(test_assignment_limit, setup),
+		cmocka_unit_test_setup(test_assignment_limit_rejected, setup),
+		cmocka_unit_test_setup(test_root_limit, setup),
+		cmocka_unit_test_setup(test_root_limit_rejected, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);
 }
