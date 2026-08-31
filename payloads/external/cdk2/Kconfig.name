@@ -3,13 +3,12 @@
 config PAYLOAD_CDK2
 	bool "CDK2"
 	depends on ARCH_X86
-	depends on USE_X86_64_SUPPORT
 	select HANDOFF_COREBOOT_TABLES
 	select WANT_LINEAR_FRAMEBUFFER
 	select SMMSTORE
 	help
 	  Build CDK2 from its source submodule and add its ELF image as the
-	  primary payload. CDK2's 32-bit entry stub requires the protected-mode
-	  payload-call ABI provided by a 64-bit coreboot ramstage. The current
-	  transition also requires coreboot-produced SMMSTORE and linear
+	  primary payload. CDK2's entry stub consumes coreboot's standard
+	  protected-mode payload-call ABI and performs its own mode transition.
+	  The current handoff also requires coreboot-produced SMMSTORE and linear
 	  framebuffer table records.
