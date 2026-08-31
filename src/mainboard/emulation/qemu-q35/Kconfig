@@ -92,14 +92,6 @@ config HAVE_INTEL_FIRMWARE
 	bool
 	default n
 
-config PAYLOAD_LOCAL_APIC_TIMER_INFO
-	bool "Publish measured local APIC timer frequency to the payload"
-	default n
-	help
-	  Measure the QEMU local APIC timer against the ICH9 ACPI PM timer and
-	  publish the result in the coreboot table for payloads that require an
-	  authoritative timer input frequency.
-
 config DCACHE_BSP_STACK_SIZE
 	hex
 	default 0x4000

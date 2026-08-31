@@ -71,9 +71,8 @@ static uint32_t hardware_pm_timer_read(void)
 	return inl(DEFAULT_PMBASE + ACPI_PM_TIMER_OFFSET);
 }
 
-void lb_board(struct lb_header *header)
+uint64_t soc_local_apic_timer_frequency_hz(void)
 {
-	struct lb_local_apic_timer_info *timer;
 	static const struct q35_lapic_timer_ops ops = {
 		hardware_lapic_read, hardware_lapic_write, hardware_pm_timer_read
 	};
@@ -82,14 +81,9 @@ void lb_board(struct lb_header *header)
 
 	if (frequency_hz == 0) {
 		printk(BIOS_ERR, "QEMU: failed to calibrate local APIC timer\n");
-		return;
+		return 0;
 	}
-	timer = (void *)lb_new_record(header);
-	timer->tag = LB_TAG_LOCAL_APIC_TIMER_INFO;
-	timer->size = sizeof(*timer);
-	timer->revision = 1;
-	timer->reserved = 0;
-	timer->frequency_hz = frequency_hz;
 	printk(BIOS_INFO, "QEMU: local APIC timer measured at %u Hz\n", frequency_hz);
+	return frequency_hz;
 }
 #endif

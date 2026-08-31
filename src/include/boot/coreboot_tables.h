@@ -60,6 +60,8 @@ void lb_table_add_macs_from_vpd(struct lb_header *header);
 void lb_table_add_serialno_from_vpd(struct lb_header *header);
 
 struct lb_record *lb_new_record(struct lb_header *header);
+void lb_add_local_apic_timer_info(struct lb_header *header, uint64_t frequency_hz);
+uint64_t soc_local_apic_timer_frequency_hz(void);
 
 /* Add VBOOT VBNV offsets. */
 void lb_table_add_vbnv_cmos(struct lb_header *header);
