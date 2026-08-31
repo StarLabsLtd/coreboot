@@ -25,6 +25,9 @@ void lb_add_console(uint16_t consoletype, void *data);
 
 enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 
+/* Adds an authoritative payload-resource PCI root-bridge handoff. */
+enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
+
 void lb_string_platform_blob_version(struct lb_header *header);
 
 /* Define this in mainboard.c to add board-specific table entries. */
