@@ -271,8 +271,8 @@ endif
 config CONSOLE_SPI_FLASH
 	bool "SPI Flash console output"
 	default n
-	depends on BOOT_DEVICE_SPI_FLASH
-	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if !COMMON_CBFS_SPI_WRAPPER
+	depends on BOOT_DEVICE_SPI_FLASH || BOARD_EMULATION_QEMU_X86_Q35
+	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if !COMMON_CBFS_SPI_WRAPPER && BOOT_DEVICE_SPI_FLASH
 	help
 	  Send coreboot debug output to the SPI Flash in the FMAP CONSOLE area
 
@@ -299,6 +299,29 @@ config CONSOLE_SPI_FLASH_BUFFER_SIZE
 	  Space allocated for console output storage in FMAP. The default
 	  value (128K or 0x20000 bytes) is large enough to accommodate
 	  even the BIOS_SPEW level.
+
+config CONSOLE_SPI_FLASH_LATEST_BOOT
+	bool "Erase the SPI flash console at the start of each boot"
+	default n
+	depends on CONSOLE_SPI_FLASH
+	help
+	  Treat the CONSOLE FMAP area as a latest-boot diagnostic sink. The
+	  earliest stage which owns the flash console erases the exact region
+	  before writing, so every boot has bounded space for a complete log.
+	  This increases flash wear and intentionally discards the previous boot;
+	  enable it only in development/debug profiles with known erase support.
+
+config PAYLOAD_SPI_FLASH_CONSOLE
+	bool "Allow the payload to append to the SPI flash console through SMM"
+	depends on CONSOLE_SPI_FLASH && SMMSTORE
+	depends on SOC_INTEL_COMMON_BLOCK_SMM || BOARD_EMULATION_QEMU_X86_Q35
+	select BOOTMEDIA_SMM_BWP if SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Advertise a bounded, versioned SMM service that lets a payload append
+	  diagnostic bytes to the existing CONSOLE FMAP region. The service uses
+	  the reserved SMM communication buffer and retains SMM write protection.
+	  Enable this only in a development profile because flash writes consume
+	  device endurance.
 
 config CONSOLE_I2C_SMBUS
 	bool "SMBus console output"

@@ -6,6 +6,7 @@
 #include <commonlib/bsd/ipchksum.h>
 #include <commonlib/sdhci_nonpci_info.h>
 #include <console/console.h>
+#include <console/payload_spi_console.h>
 #include <console/uart.h>
 #include <identity.h>
 #include <boot/coreboot_tables.h>
@@ -20,6 +21,9 @@
 #include <fw_config.h>
 #include <cbfs.h>
 #include <cbmem.h>
+#if CONFIG(ARCH_X86)
+#include <cpu/x86/smm.h>
+#endif
 #include <bootmem.h>
 #include <bootsplash.h>
 #include <inttypes.h>
@@ -341,6 +345,28 @@ static void add_cbmem_pointers(struct lb_header *header)
 	}
 }
 
+static void lb_payload_spi_console(struct lb_header *header)
+{
+	const struct cbmem_entry *entry;
+	struct lb_payload_spi_console *console;
+
+	entry = cbmem_entry_find(CBMEM_ID_PAYLOAD_SPI_CONSOLE);
+	if (!entry)
+		return;
+
+	console = (void *)lb_new_record(header);
+	memset(console, 0, sizeof(*console));
+	console->tag = LB_TAG_PAYLOAD_SPI_CONSOLE;
+	console->size = sizeof(*console);
+	console->version = PAYLOAD_SPI_CONSOLE_VERSION;
+	console->request_header_size = sizeof(struct payload_spi_console_request);
+	console->com_buffer = (uintptr_t)cbmem_entry_start(entry);
+	console->com_buffer_size = cbmem_entry_size(entry);
+	console->max_chunk = PAYLOAD_SPI_CONSOLE_MAX_CHUNK;
+	console->boot_limit = PAYLOAD_SPI_CONSOLE_BOOT_LIMIT;
+	console->apm_cmd = PAYLOAD_SPI_CONSOLE_APM_CMD;
+}
+
 static struct lb_mainboard *lb_mainboard(struct lb_header *header)
 {
 	struct lb_record *rec;
@@ -608,6 +634,9 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+
+	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE))
+		lb_payload_spi_console(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
