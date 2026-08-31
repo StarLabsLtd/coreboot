@@ -736,8 +736,9 @@ static void arch_silicon_init_params(FSPS_ARCHx_UPD *s_arch_cfg)
 #endif
 
 	/* Assign FspEventHandler arch Upd to use coreboot debug event handler */
-	if (CONFIG(FSP_USES_CB_DEBUG_EVENT_HANDLER) && CONFIG(CONSOLE_SERIAL) &&
-			 CONFIG(FSP_ENABLE_SERIAL_DEBUG))
+	if (!CONFIG(NO_DEBUG_EGRESS) &&
+	    CONFIG(FSP_USES_CB_DEBUG_EVENT_HANDLER) && CONFIG(CONSOLE_SERIAL) &&
+	    CONFIG(FSP_ENABLE_SERIAL_DEBUG))
 
 #if CONFIG(PLATFORM_USES_FSP2_X86_32)
 		s_arch_cfg->FspEventHandler = (FSP_EVENT_HANDLER)
@@ -862,6 +863,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	arch_silicon_init_params(s_arch_cfg);
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
+	if (CONFIG(NO_DEBUG_EGRESS))
+		s_arch_cfg->FspEventHandler = 0;
 }
 
 /*

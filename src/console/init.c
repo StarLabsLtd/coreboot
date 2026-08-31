@@ -26,7 +26,7 @@ static void init_log_level(void)
 {
 	console_loglevel = get_console_loglevel();
 
-	if (!FIRST_CONSOLE)
+	if (!FIRST_CONSOLE && !CONFIG(NO_DEBUG_EGRESS))
 		console_loglevel = get_uint_option("debug_level", console_loglevel);
 }
 
@@ -40,7 +40,8 @@ int console_log_level(int msg_level)
 	if (msg_level <= log_level)
 		return CONSOLE_LOG_ALL;
 
-	if (CONFIG(CONSOLE_CBMEM) && (msg_level <= BIOS_DEBUG))
+	if (CONFIG(CONSOLE_CBMEM) && !CONFIG(NO_DEBUG_EGRESS) &&
+	    (msg_level <= BIOS_DEBUG))
 		return CONSOLE_LOG_FAST;
 
 	return 0;

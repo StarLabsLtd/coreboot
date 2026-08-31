@@ -454,6 +454,7 @@ config FSP_FD_PATH
 #  7:Manual
 config SOC_INTEL_COMMON_DEBUG_CONSENT
 	int
+	default 0 if NO_DEBUG_EGRESS
 	default 2 if SOC_INTEL_DEBUG_CONSENT
 
 config DATA_BUS_WIDTH

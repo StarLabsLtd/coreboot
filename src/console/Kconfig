@@ -2,6 +2,12 @@
 
 menu "Console"
 
+config NO_DEBUG_EGRESS
+	bool
+	help
+	  Disable external and persistent debug output and ignore mutable console
+	  verbosity settings.
+
 config NO_BOOTBLOCK_CONSOLE
 	bool
 	depends on SEPARATE_ROMSTAGE
@@ -35,7 +41,7 @@ config SQUELCH_EARLY_SMP
 config CONSOLE_SERIAL
 	bool "Serial port console output"
 	default y
-	depends on DRIVERS_UART
+	depends on DRIVERS_UART && !NO_DEBUG_EGRESS
 	help
 	  Send coreboot debug output to a serial port.
 
@@ -174,13 +180,13 @@ endif # CONSOLE_SERIAL
 config SPKMODEM
 	bool "spkmodem (console on speaker) console output"
 	default n
-	depends on ARCH_X86
+	depends on ARCH_X86 && !NO_DEBUG_EGRESS
 	help
 	  Send coreboot debug output through speaker
 
 config CONSOLE_USB
 	bool "USB dongle console output"
-	depends on USBDEBUG
+	depends on USBDEBUG && !NO_DEBUG_EGRESS
 	default y
 	help
 	  Send coreboot debug output to USB.
@@ -192,7 +198,7 @@ config CONSOLE_USB
 config CONSOLE_NE2K
 	bool "Network console over NE2000 compatible Ethernet adapter"
 	default n
-	depends on PCI
+	depends on PCI && !NO_DEBUG_EGRESS
 	help
 	  Send coreboot debug output to a Ethernet console, it works
 	  same way as Linux netconsole, packets are received to UDP
@@ -250,7 +256,7 @@ config CONSOLE_CBMEM_BUFFER_SIZE
 	  even the BIOS_SPEW level.
 
 config CONSOLE_CBMEM_DUMP_TO_UART
-	depends on !CONSOLE_SERIAL
+	depends on !CONSOLE_SERIAL && !NO_DEBUG_EGRESS
 	bool "Dump CBMEM console on resets"
 	default n
 	help
@@ -271,7 +277,7 @@ endif
 config CONSOLE_SPI_FLASH
 	bool "SPI Flash console output"
 	default n
-	depends on BOOT_DEVICE_SPI_FLASH
+	depends on BOOT_DEVICE_SPI_FLASH && !NO_DEBUG_EGRESS
 	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if !COMMON_CBFS_SPI_WRAPPER
 	help
 	  Send coreboot debug output to the SPI Flash in the FMAP CONSOLE area
@@ -302,7 +308,7 @@ config CONSOLE_SPI_FLASH_BUFFER_SIZE
 
 config CONSOLE_I2C_SMBUS
 	bool "SMBus console output"
-	depends on SOUTHBRIDGE_INTEL_COMMON_SMBUS
+	depends on SOUTHBRIDGE_INTEL_COMMON_SMBUS && !NO_DEBUG_EGRESS
 	help
 	  Send coreboot debug output to the SMBus.
 	  The output can be read with an I2C slave device connected
@@ -365,7 +371,7 @@ config CONSOLE_QEMU_DEBUGCON_PORT
 
 config EM100PRO_SPI_CONSOLE
 	bool "EM100Pro SPI debug console output"
-	depends on HAVE_EM100PRO_SPI_CONSOLE_SUPPORT && !DEBUG_SPI_FLASH
+	depends on HAVE_EM100PRO_SPI_CONSOLE_SUPPORT && !DEBUG_SPI_FLASH && !NO_DEBUG_EGRESS
 	help
 	  Enable support for the debug console on the Dediprog EM100Pro.
 	  This is currently working only in ramstage due to how the spi
@@ -396,27 +402,33 @@ if !CONSOLE_OVERRIDE_LOGLEVEL
 
 choice
 	prompt "Default console log level"
+	default DEFAULT_CONSOLE_LOGLEVEL_3 if NO_DEBUG_EGRESS
 	default DEFAULT_CONSOLE_LOGLEVEL_8 if CHROMEOS
 	default DEFAULT_CONSOLE_LOGLEVEL_7
 
 config DEFAULT_CONSOLE_LOGLEVEL_8
 	bool "8: SPEW"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Way too many details.
 config DEFAULT_CONSOLE_LOGLEVEL_7
 	bool "7: DEBUG"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Debug-level messages.
 config DEFAULT_CONSOLE_LOGLEVEL_6
 	bool "6: INFO"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Informational messages.
 config DEFAULT_CONSOLE_LOGLEVEL_5
 	bool "5: NOTICE"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Normal but significant conditions.
 config DEFAULT_CONSOLE_LOGLEVEL_4
 	bool "4: WARNING"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Warning conditions.
 config DEFAULT_CONSOLE_LOGLEVEL_3
@@ -425,14 +437,17 @@ config DEFAULT_CONSOLE_LOGLEVEL_3
 	  Error conditions.
 config DEFAULT_CONSOLE_LOGLEVEL_2
 	bool "2: CRIT"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Critical conditions.
 config DEFAULT_CONSOLE_LOGLEVEL_1
 	bool "1: ALERT"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Action must be taken immediately.
 config DEFAULT_CONSOLE_LOGLEVEL_0
 	bool "0: EMERG"
+	depends on !NO_DEBUG_EGRESS
 	help
 	  System is unusable.
 

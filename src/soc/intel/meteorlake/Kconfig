@@ -379,6 +379,7 @@ config FSP_FD_PATH
 #  6:Enable Trace Power-Off, 7:Manual
 config SOC_INTEL_COMMON_DEBUG_CONSENT
 	int
+	default 0 if NO_DEBUG_EGRESS
 	default 6 if SOC_INTEL_DEBUG_CONSENT
 	default 2 if SOC_INTEL_COMMON_BLOCK_TRACEHUB
 

@@ -234,6 +234,17 @@ static void enforce_fixed_tme(FSP_M_CONFIG *m_cfg)
 	m_cfg->TmeEnable = 1;
 }
 
+static void enforce_no_debug_egress(FSP_M_CONFIG *m_cfg, FSPM_ARCHx_UPD *arch_upd)
+{
+	if (!CONFIG(NO_DEBUG_EGRESS))
+		return;
+
+	m_cfg->PlatformDebugOption = 0;
+	m_cfg->PcdSerialDebugLevel = 0;
+	m_cfg->SerialDebugMrcLevel = 0;
+	arch_upd->FspEventHandler = 0;
+}
+
 static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
@@ -548,6 +559,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	enforce_no_debug_egress(m_cfg, arch_upd);
 	enforce_fixed_tme(m_cfg);
 	enforce_early_dma_protection(m_cfg);
 }
