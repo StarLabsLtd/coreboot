@@ -96,6 +96,7 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
 	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
+	LB_TAG_PAYLOAD_SPI_CONSOLE	= 0x0050,
 	LB_TAG_CAPSULE_HANDOFF		= 0x0052,
 	LB_TAG_DMA_HANDOFF		= 0x0053,
 	LB_TAG_CAPSULE_BROKER_ENDPOINT	= 0x0054,
@@ -759,6 +760,19 @@ struct lb_smmstorev2 {
 					   Introduced after the initial implementation. Users of
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
+};
+
+struct lb_payload_spi_console {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t version;
+	uint16_t request_header_size;
+	lb_uint64_t com_buffer;
+	uint32_t com_buffer_size;
+	uint32_t max_chunk;
+	uint32_t boot_limit;
+	uint8_t apm_cmd;
+	uint8_t reserved[3];
 };
 
 enum lb_tpm_ppi_tpm_version {

@@ -4,6 +4,9 @@
 
 subdirs-y += tpm
 
+smm-$(CONFIG_PAYLOAD_SPI_FLASH_CONSOLE) += payload_spi_console.c
+smm-$(CONFIG_PAYLOAD_SPI_FLASH_CONSOLE) += payload_spi_console_smi.c
+
 ifeq ($(CONFIG_EM100PRO_SPI_CONSOLE),y)
 ramstage-y += spiconsole.c
 smm-y += spiconsole.c
