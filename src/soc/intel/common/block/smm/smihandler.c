@@ -172,7 +172,7 @@ void smihandler_southbridge_sleep(
 	}
 
 	/* Clear pending GPE events, preserving an armed WADT if needed. */
-	pmc_clear_all_gpe_status_except(gpe_preserve);
+	pmc_clear_gpe_status(gpe_preserve);
 #else
 	/* Clear pending GPE events. */
 	pmc_clear_all_gpe_status();
