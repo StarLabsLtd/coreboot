@@ -10,6 +10,7 @@
 #include <cpu/x86/pae.h>
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
+#include <drivers/efi/capsule_buffer.h>
 #include <memrange.h>
 #include <smm_call.h>
 #include <smmstore.h>
@@ -103,7 +104,7 @@ struct memranges memory_map;
 static char pae_page_tables[20 * KiB] __aligned(4 * KiB);
 
 /* Where all coalesced capsules are located. */
-struct memory_range coalesce_buffer;
+static struct memory_range coalesce_buffer;
 
 /* Where individual coalesced capsules are located and their count. */
 static struct memory_range uefi_capsules[MAX_CAPSULES];
@@ -595,33 +596,12 @@ static void reserve_capsules(struct block_descr block_chain)
 static struct memory_range pick_buffer(uint64_t total_data_size)
 {
 	struct memory_range buffer = {0};
+	uint64_t base;
+	uint64_t size;
 
-	/* 4 * KiB is the alignment set by memranges_init(). */
-	total_data_size = ALIGN_UP(total_data_size, 4 * KiB);
-
-	const struct range_entry *r;
-	memranges_each_entry(r, &memory_map) {
-		if (range_entry_tag(r) != BM_MEM_RAM)
-			continue;
-
-		resource_t base = range_entry_base(r);
-		if (base >= 4ULL * GiB)
-			break;
-
-		/* Possibly reduce size to not deal with ranges that cross 4 GiB boundary. */
-		resource_t size = range_entry_size(r);
-		if (base + size > 4ULL * GiB)
-			size -= base + size - 4ULL * GiB;
-
-		if (size >= total_data_size) {
-			/*
-			 * To not create troubles for payloads prefer higher addresses:
-			 *  - use the top part of a suitable range
-			 *  - exit the loop only after hitting 4 GiB boundary or end of the list
-			 */
-			buffer.base = base + size - total_data_size;
-			buffer.len = total_data_size;
-		}
+	if (efi_capsule_pick_buffer(&memory_map, total_data_size, &base, &size)) {
+		buffer.base = base;
+		buffer.len = size;
 	}
 
 	return buffer;
@@ -715,6 +695,10 @@ void efi_parse_capsules(void)
 		       IORESOURCE_ASSIGNED | IORESOURCE_CACHEABLE, IORESOURCE_MEM |
 		       IORESOURCE_FIXED | IORESOURCE_STORED | IORESOURCE_ASSIGNED |
 		       IORESOURCE_CACHEABLE, BM_MEM_RAM);
+	memranges_add_resources(&memory_map, IORESOURCE_RESERVE,
+				IORESOURCE_RESERVE, BM_MEM_RESERVED);
+	memranges_add_resources(&memory_map, IORESOURCE_SOFT_RESERVE,
+				IORESOURCE_SOFT_RESERVE, BM_MEM_RESERVED);
 
 	if (ENV_X86_32)
 		init_pae_pagetables(&pae_page_tables);
@@ -766,15 +750,17 @@ void efi_parse_capsules(void)
 			 (uintptr_t)cbmem_current + cbmem_size - cbmem_future_base,
 			 BM_MEM_RESERVED);
 
-	coalesce_buffer = pick_buffer(total_data_size);
-	if (coalesce_buffer.base == 0) {
+	struct memory_range candidate = pick_buffer(total_data_size);
+	if (candidate.base == 0) {
 		printk(BIOS_ERR,
 		       "capsules: failed to find a buffer (%#llx bytes) for coalesced UEFI capsules.\n",
 		       total_data_size);
 	} else {
 		printk(BIOS_DEBUG, "capsules: coalescing capsules data @ %#010x.\n",
-		       coalesce_buffer.base);
-		coalesce_capsules(block_chain, (void *)(uintptr_t)coalesce_buffer.base);
+		       candidate.base);
+		coalesce_capsules(block_chain, (void *)(uintptr_t)candidate.base);
+		if (uefi_capsule_count > 0)
+			coalesce_buffer = candidate;
 	}
 	if (uefi_capsule_count > 0)
 		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);
@@ -803,11 +789,27 @@ void lb_efi_capsules(struct lb_header *header)
 
 void efi_add_capsules_to_bootmem(void)
 {
-	if (coalesce_buffer.len != 0) {
-		printk(BIOS_INFO, "capsules: reserving capsules data @ %#010x.\n",
-		       coalesce_buffer.base);
-		bootmem_add_range(coalesce_buffer.base, coalesce_buffer.len, BM_MEM_RESERVED);
+	uintptr_t base;
+	size_t size;
+
+	if (efi_capsule_coalesce_span(&base, &size)) {
+		printk(BIOS_INFO, "capsules: reserving capsules data @ %#010lx.\n",
+		       (unsigned long)base);
+		bootmem_add_range(base, size, BM_MEM_RESERVED);
 	}
+}
+
+bool efi_capsule_coalesce_span(uintptr_t *base, size_t *size)
+{
+	if (base == NULL || size == NULL || coalesce_buffer.base == 0 ||
+	    coalesce_buffer.len == 0 || !IS_ALIGNED(coalesce_buffer.base, 4 * KiB) ||
+	    !IS_ALIGNED(coalesce_buffer.len, 4 * KiB) ||
+	    coalesce_buffer.base > UINTPTR_MAX - coalesce_buffer.len)
+		return false;
+
+	*base = coalesce_buffer.base;
+	*size = coalesce_buffer.len;
+	return true;
 }
 
 /*

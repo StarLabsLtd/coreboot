@@ -24,6 +24,7 @@ tests-y += malloc-test
 tests-y += memmove-test
 tests-y += crc_byte-test
 tests-y += memrange-test
+tests-y += capsule-buffer-test
 tests-y += uuid-test
 tests-y += bootmem-test
 tests-y += dimm_info_util-test
@@ -136,6 +137,18 @@ memrange-test-srcs += tests/lib/memrange-test.c
 memrange-test-srcs += src/lib/memrange.c
 memrange-test-srcs += tests/stubs/console.c
 memrange-test-srcs += src/device/device_util.c
+
+capsule-buffer-test-srcs += tests/lib/capsule-buffer-test.c
+capsule-buffer-test-srcs += src/lib/memrange.c
+capsule-buffer-test-srcs += tests/stubs/console.c
+capsule-buffer-test-srcs += src/device/device_util.c
+capsule-buffer-test-no_test_framework := 1
+
+.PHONY: capsule-buffer-source-test
+capsule-buffer-source-test:
+	$(Q)tests/lib/capsule-buffer-source-test.sh
+
+run-tests/lib/capsule-buffer-test: capsule-buffer-source-test
 
 uuid-test-srcs += tests/lib/uuid-test.c
 uuid-test-srcs += src/lib/hexstrtobin.c
