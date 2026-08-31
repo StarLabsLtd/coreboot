@@ -82,7 +82,9 @@ BUILD_STR += -D DISABLE_SERIAL_TERMINAL=TRUE
 endif
 # VARIABLE_SUPPORT		= EMU
 # MAX_VARIABLE_SIZE		= 0x10000
-ifeq ($(CONFIG_SMMSTORE),y)
+ifeq ($(CONFIG_EDK2_RESTRICTED_BUILD),y)
+BUILD_STR += -D VARIABLE_SUPPORT=EMU
+else ifeq ($(CONFIG_SMMSTORE),y)
 BUILD_STR += -D VARIABLE_SUPPORT=SMMSTORE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize=0x8000
 endif
@@ -321,7 +323,27 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout --recursive
+		git submodule update --init --checkout --recursive; \
+		if [ "$(CONFIG_EDK2_RESTRICTED_BUILD)" = "y" ]; then \
+			test "$$(git remote get-url origin)" = "$(EDK2_REPOSITORY)" || { \
+				echo "ERROR: EDK II origin does not match the configured repository"; \
+				exit 1; \
+			}; \
+			test "$$(git rev-parse HEAD)" = \
+				"$$(git rev-parse $(CONFIG_EDK2_TAG_OR_REV)^{commit})" || { \
+				echo "ERROR: EDK II HEAD does not match the configured revision"; \
+				exit 1; \
+			}; \
+			test -z "$$(git status --porcelain --untracked-files=all)" || { \
+				echo "ERROR: Enhanced-security EDK II source is not clean"; \
+				exit 1; \
+			}; \
+			git submodule foreach --quiet --recursive \
+				'test -z "$$(git status --porcelain --untracked-files=all)"' || { \
+				echo "ERROR: Enhanced-security EDK II submodule is not clean"; \
+				exit 1; \
+			}; \
+		fi
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \

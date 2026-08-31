@@ -2,6 +2,12 @@
 
 if PAYLOAD_EDK2
 
+config EDK2_RESTRICTED_BUILD
+	bool
+	help
+	  Enforce a release UefiPayloadPkg build from pinned, clean source and
+	  suppress payload features which expand the pre-OS attack surface.
+
 config PAYLOAD_FILE
 	string "edk2 binary"
 	default "$(obj)/UEFIPAYLOAD.fd" if EDK2_UEFIPAYLOAD
@@ -24,6 +30,7 @@ config EDK2_UEFIPAYLOAD
 
 config EDK2_UNIVERSAL_PAYLOAD
 	bool "Build Universal Payload"
+	depends on !EDK2_RESTRICTED_BUILD
 	select PAYLOAD_FIT_SUPPORT
 	help
 	  Select this option if you want to build a coreboot image
@@ -40,6 +47,7 @@ endchoice
 
 choice
 	prompt "Tianocore's EDK II payload"
+	default EDK2_REPO_CUSTOM if EDK2_RESTRICTED_BUILD
 	default EDK2_REPO_OFFICIAL if EDK2_UNIVERSAL_PAYLOAD
 	default EDK2_REPO_MRCHROMEBOX
 	help
@@ -50,12 +58,14 @@ choice
 
 config EDK2_REPO_MRCHROMEBOX
 	bool "MrChromebox' edk2 fork"
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Select this option to build using MrChromebox's custom edk2 fork,
 	  which incorporates fixes/improvements from System 76's and 9elements' trees.
 
 config EDK2_REPO_OFFICIAL
 	bool "Official edk2 repository"
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Select this option if you want to use the official edk2 repository to build
 	  edk2.
@@ -73,6 +83,7 @@ endchoice
 
 config EDK2_REPOSITORY
 	string "URL to git repository for edk2"
+	default "https://github.com/starlabsltd/edk2" if EDK2_RESTRICTED_BUILD
 	default "https://github.com/mrchromebox/edk2" if EDK2_REPO_MRCHROMEBOX
 	default "https://github.com/tianocore/edk2" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -82,6 +93,7 @@ config EDK2_REPOSITORY
 
 config EDK2_TAG_OR_REV
 	string "Insert a commit's SHA-1 or a branch name"
+	default "origin/26.09" if EDK2_RESTRICTED_BUILD
 	default "origin/uefipayload_2605" if EDK2_REPO_MRCHROMEBOX
 	default "origin/master" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -93,6 +105,7 @@ config EDK2_TAG_OR_REV
 config EDK2_USE_EDK2_PLATFORMS
 	bool "Use edk2-platforms repository"
 	default n
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Clone edk2-platforms repository to the edk2 workspace for additional modules.
 
@@ -123,6 +136,7 @@ choice
 
 config EDK2_DEBUG
 	bool "Generate edk2 debug build"
+	depends on !EDK2_RESTRICTED_BUILD
 	select CONSOLE_SERIAL
 	help
 	  Generate a debug build. Select this if you want to enable serial debugging output.
@@ -186,7 +200,7 @@ config EDK2_BOOT_TIMEOUT
 
 config EDK2_CBMEM_LOGGING
 	bool "Enable edk2 logging to CBMEM"
-	depends on EDK2_RELEASE
+	depends on EDK2_RELEASE && !EDK2_RESTRICTED_BUILD
 	help
 	  Select this option if you want to enable edk2 logging to CBMEM.
 	  You will want to increase the default cbmem buffer size when selecting
@@ -227,6 +241,7 @@ config EDK2_FULL_SCREEN_SETUP
 config EDK2_HAVE_EFI_SHELL
 	bool "Include EFI Shell"
 	default y
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Include the EFI shell Binary
 
@@ -240,6 +255,7 @@ config EDK2_PRIORITIZE_INTERNAL
 config EDK2_LOAD_OPTION_ROMS
 	bool "Load and Execute OpROMs on PCIe devices"
 	default n
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Load and execute OpROMs on PCIe devices.
 	  Select this option to support use of an external dGPU.
@@ -261,7 +277,7 @@ config EDK2_SERIAL_SUPPORT
 	bool "Enable serial console"
 	default y if EDK2_DEBUG
 	default n
-	depends on !EDK2_CBMEM_LOGGING
+	depends on !EDK2_CBMEM_LOGGING && !EDK2_RESTRICTED_BUILD
 	select CONSOLE_SERIAL
 	help
 	  Enable serial consule support in edk2. Serial output limits the performance of edk2's
@@ -269,7 +285,8 @@ config EDK2_SERIAL_SUPPORT
 
 config EDK2_SECURE_BOOT_SUPPORT
 	bool "Enable UEFI Secure Boot support"
-	depends on !EDK2_REPO_OFFICIAL && SMMSTORE
+	depends on !EDK2_REPO_OFFICIAL
+	depends on SMMSTORE || EDK2_RESTRICTED_BUILD
 	default y if EDK2_REPO_MRCHROMEBOX && SMMSTORE
 	help
 	  Select this option to enable UEFI SecureBoot support in edk2.
@@ -279,7 +296,8 @@ config EDK2_SECURE_BOOT_SUPPORT
 
 config EDK2_SECURE_BOOT_DEFAULT_ENABLE
 	bool "Enable UEFI Secure Boot by default"
-	depends on EDK2_SECURE_BOOT_SUPPORT && EDK2_REPO_MRCHROMEBOX
+	depends on EDK2_SECURE_BOOT_SUPPORT
+	depends on EDK2_REPO_MRCHROMEBOX || EDK2_RESTRICTED_BUILD
 	help
 	  After EnrollDefaultKeys provisions the default PK/KEK/db/dbx on
 	  first boot, leave Secure Boot enabled instead of forcing it off.
@@ -304,6 +322,7 @@ config EDK2_USE_LVGL_RENDERER
 config EDK2_GOP_DRIVER
 	bool "Add a GOP driver to the Tianocore build"
 	depends on INTEL_GMA_ADD_VBT && NO_GFX_INIT && !EDK2_REPO_OFFICIAL
+	depends on !EDK2_RESTRICTED_BUILD
 	default y if INTEL_GMA_ADD_VBT && NO_GFX_INIT && EDK2_REPO_MRCHROMEBOX
 	help
 	  Select this option to have edk2 use an external GOP driver for display init.
@@ -318,6 +337,7 @@ config EDK2_GOP_FILE
 config EDK2_DISABLE_TPM
 	bool "Disable TPM support in edk2"
 	default y if EDK2_REPO_MRCHROMEBOX && TPM_GOOGLE_CR50 && SOC_AMD_COMMON
+	depends on !EDK2_RESTRICTED_BUILD
 	help
 	  Select this option to disable TPM support in edk2. This is necessary to avoid boot
 	  hangs on some boards with a CR50 TPM, particularly those with an AMD Zen SoC.
@@ -343,7 +363,7 @@ config EDK2_CUSTOM_BUILD_PARAMS
 
 config EDK2_ENABLE_IPXE
 	bool "Include iPXE in edk2 payload"
-	depends on !EDK2_REPO_OFFICIAL
+	depends on !EDK2_REPO_OFFICIAL && !EDK2_RESTRICTED_BUILD
 	default n
 	select PXE
 	help
