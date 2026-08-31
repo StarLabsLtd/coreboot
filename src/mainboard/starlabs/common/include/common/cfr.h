@@ -252,6 +252,7 @@ static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 }, WITH_DEP_VALUES(&me_state, 0));
 
 static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
+	.flags		= CONFIG(STARLABS_ENHANCED_SECURITY) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "thunderbolt",
 	.ui_name	= "Thunderbolt",
 	.ui_helptext	= "Enable or disable Thunderbolt support",
