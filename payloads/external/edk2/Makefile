@@ -253,6 +253,14 @@ endif
 
 endif # !CONFIG_EDK2_REPO_OFFICIAL
 
+ifeq ($(CONFIG_EDK2_BOOT_KEY_AUTHENTICATION),y)
+BUILD_STR += -D BOOT_KEY_AUTHENTICATION=TRUE
+BUILD_STR += -D BOOT_KEY_USB_FIDO=TRUE
+BUILD_STR += -D BOOT_KEY_TPM_NV_STORE=TRUE
+BUILD_STR += -D BOOT_KEY_INTEL_CLIENT_BOUNDARY=TRUE
+BUILD_STR += -D BOOT_KEY_DMA_ISOLATION=TRUE
+endif
+
 #
 # EDKII has the below PCDs that are relevant to coreboot:
 #
@@ -343,6 +351,16 @@ $(EDK2_PATH): $(WORKSPACE)
 				echo "ERROR: Enhanced-security EDK II submodule is not clean"; \
 				exit 1; \
 			}; \
+			if [ "$(CONFIG_EDK2_BOOT_KEY_AUTHENTICATION)" = "y" ]; then \
+				test -f UefiPayloadPkg/Library/BootKeyAuthLib/BootKeyAuthLib.inf && \
+				grep -q '^[[:space:]]*DEFINE BOOT_KEY_AUTHENTICATION[[:space:]]*=' \
+					UefiPayloadPkg/UefiPayloadPkg.dsc && \
+				grep -q '^[[:space:]]*DEFINE SECURE_BOOT_DEFAULT_ENABLE[[:space:]]*=' \
+					UefiPayloadPkg/UefiPayloadPkg.dsc || { \
+					echo "ERROR: EDK II lacks required boot-key capabilities"; \
+					exit 1; \
+				}; \
+			fi; \
 		fi
 
 logo: $(EDK2_PATH)

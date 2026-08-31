@@ -8,6 +8,12 @@ config EDK2_RESTRICTED_BUILD
 	  Enforce a release UefiPayloadPkg build from pinned, clean source and
 	  suppress payload features which expand the pre-OS attack surface.
 
+config EDK2_BOOT_KEY_AUTHENTICATION
+	bool
+	depends on EDK2_RESTRICTED_BUILD
+	help
+	  Require the payload's physical boot-key authentication policy.
+
 config PAYLOAD_FILE
 	string "edk2 binary"
 	default "$(obj)/UEFIPAYLOAD.fd" if EDK2_UEFIPAYLOAD
