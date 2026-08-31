@@ -300,6 +300,17 @@ config CONSOLE_SPI_FLASH_BUFFER_SIZE
 	  value (128K or 0x20000 bytes) is large enough to accommodate
 	  even the BIOS_SPEW level.
 
+config PAYLOAD_SPI_FLASH_CONSOLE
+	bool "Allow the payload to append to the SPI flash console through SMM"
+	depends on CONSOLE_SPI_FLASH && SMMSTORE && SOC_INTEL_COMMON_BLOCK_SMM
+	select BOOTMEDIA_SMM_BWP
+	help
+	  Advertise a bounded, versioned SMM service that lets a payload append
+	  diagnostic bytes to the existing CONSOLE FMAP region. The service uses
+	  the reserved SMM communication buffer and retains SMM write protection.
+	  Enable this only in a development profile because flash writes consume
+	  device endurance.
+
 config CONSOLE_I2C_SMBUS
 	bool "SMBus console output"
 	depends on SOUTHBRIDGE_INTEL_COMMON_SMBUS
