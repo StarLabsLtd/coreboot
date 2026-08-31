@@ -49,6 +49,21 @@ static bool resource_bar(const struct resource *resource, uint8_t *bar)
 	return true;
 }
 
+static bool platform_mmio_contains(const struct device *device,
+	const struct resource *resource, uint64_t base, uint64_t end)
+{
+	uint64_t resource_end;
+	uint8_t bar;
+
+	return (resource->flags & IORESOURCE_TYPE_MASK) == IORESOURCE_MEM &&
+		(resource->flags & IORESOURCE_FIXED) &&
+		(resource->flags & IORESOURCE_RESERVE) &&
+		!(resource->flags & IORESOURCE_CACHEABLE) &&
+		(device->path.type != DEVICE_PATH_PCI || !resource_bar(resource, &bar)) &&
+		range_end(resource->base, resource->size, &resource_end) &&
+		resource->base <= base && end <= resource_end;
+}
+
 static const struct device *root_domain(const struct device *device)
 {
 	const struct bus *bus = device->upstream;
@@ -123,7 +138,7 @@ static bool assignment_valid(const struct device *device, const struct resource 
 	for (other_device = all_devices; other_device; other_device = other_device->next) {
 		const struct resource *other;
 
-		if (!other_device->enabled || other_device->path.type != DEVICE_PATH_PCI)
+		if (!other_device->enabled)
 			continue;
 		for (other = other_device->resource_list; other; other = other->next) {
 			uint64_t other_end;
@@ -132,7 +147,8 @@ static bool assignment_valid(const struct device *device, const struct resource 
 			if (other == resource ||
 			    (!resource_is_assignment(other) && !resource_is_reserved(other)))
 				continue;
-			if (resource_bar(other, &other_bar) && other_device->upstream &&
+			if (other_device->path.type == DEVICE_PATH_PCI &&
+			    resource_bar(other, &other_bar) && other_device->upstream &&
 			    root_domain(other_device) == domain &&
 			    other_device->upstream->secondary == device->upstream->secondary &&
 			    other_device->path.pci.devfn == device->path.pci.devfn &&
@@ -142,8 +158,11 @@ static bool assignment_valid(const struct device *device, const struct resource 
 			if ((other->flags & IORESOURCE_TYPE_MASK) !=
 			    (resource->flags & IORESOURCE_TYPE_MASK))
 				continue;
-			if (!range_end(other->base, other->size, &other_end) ||
-			    ranges_overlap(resource->base, end, other->base, other_end)) {
+			if (!range_end(other->base, other->size, &other_end))
+				return false;
+			if (ranges_overlap(resource->base, end, other->base, other_end)) {
+				if (platform_mmio_contains(other_device, other, resource->base, end))
+					continue;
 				printk(BIOS_ERR, "PRH: %s resource %lx overlaps %s resource %lx\n",
 				       dev_path(device), resource->index, dev_path(other_device),
 				       other->index);
@@ -185,7 +204,9 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 		if (!root_domain(device))
 			return CB_ERR;
 		for (resource = device->resource_list; resource; resource = resource->next) {
-			if (!resource_is_assignment(resource))
+			uint8_t bar;
+
+			if (!resource_is_assignment(resource) || !resource_bar(resource, &bar))
 				continue;
 			if (!assignment_valid(device, resource))
 				return CB_ERR;
@@ -284,15 +305,16 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		for (resource = device->resource_list; resource; resource = resource->next) {
 			struct lb_prh_pci_assignment *output;
 
-			if (!resource_is_assignment(resource))
+			uint8_t bar;
+
+			if (!resource_is_assignment(resource) || !resource_bar(resource, &bar))
 				continue;
 			output = &assignments[assignment_index++];
 			output->segment = bus->segment_group;
 			output->bus = device->upstream->secondary;
 			output->device = device->path.pci.devfn >> 3;
 			output->function = device->path.pci.devfn & 7;
-			if (!resource_bar(resource, &output->bar))
-				return CB_ERR;
+			output->bar = bar;
 			output->resource_type = assignment_type(resource);
 			output->flags = resource->flags & IORESOURCE_PCI64 ?
 				LB_PRH_PCI_ASSIGNMENT_64BIT : 0;

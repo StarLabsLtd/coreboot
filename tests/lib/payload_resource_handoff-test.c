@@ -183,16 +183,20 @@ static void test_rejects_devfn_narrowing(void **state)
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
-static void test_rejects_high_resource_index(void **state)
+static void test_skips_non_bar_mmio_index(void **state)
 {
+	const struct lb_payload_resource_handoff *handoff;
+
 	res[0].index = 0x344;
-	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[1].entry_count, 3);
 }
 
-static void test_rejects_narrowing_collision(void **state)
+static void test_skips_non_bar_low_byte_alias(void **state)
 {
 	res[0].index = 0x110;
-	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
 }
 
 static void test_reserved(void **state)
@@ -204,6 +208,65 @@ static void test_reserved(void **state)
 static void test_ecam(void **state)
 {
 	res[0].base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_skips_assigned_non_bar_io(void **state)
+{
+	const struct lb_payload_resource_handoff *handoff;
+
+	set_res(5, 0x1800, 0x80, IORESOURCE_IO | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED, 1, NULL);
+	res[3].next = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	handoff = get_handoff(*state);
+	assert_int_equal(handoff->sections[1].entry_count, 4);
+}
+
+static void test_platform_mmio_contains_bar(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_RESERVE, PCI_BASE_ADDRESS_0, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+}
+
+static void test_unreserved_domain_mmio_containment_rejected(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED, 1, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_platform_mmio_partial_overlap_rejected(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfe03d800, 0x1000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_RESERVE, 1, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_platform_cacheable_containment_rejected(void **state)
+{
+	res[0].base = 0xfe03e000;
+	set_res(5, 0xfd800000, 0x01000000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_CACHEABLE, 1, NULL);
+	devs[0].resource_list = &res[5];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
+}
+
+static void test_platform_malformed_range_rejected(void **state)
+{
+	res[0].base = UINT64_MAX - 0x7ff;
+	res[0].size = 0x400;
+	res[0].flags |= IORESOURCE_PCI64;
+	set_res(5, UINT64_MAX - 0xfff, 0x2000, IORESOURCE_MEM | IORESOURCE_ASSIGNED |
+		IORESOURCE_FIXED | IORESOURCE_RESERVE, 1, NULL);
+	devs[0].resource_list = &res[5];
 	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_ERR);
 }
 
@@ -351,10 +414,16 @@ int main(void)
 		cmocka_unit_test_setup(test_rejects_above4g_non_pci64, setup),
 		cmocka_unit_test_setup(test_rejects_pci64_io, setup),
 		cmocka_unit_test_setup(test_rejects_devfn_narrowing, setup),
-		cmocka_unit_test_setup(test_rejects_high_resource_index, setup),
-		cmocka_unit_test_setup(test_rejects_narrowing_collision, setup),
+		cmocka_unit_test_setup(test_skips_non_bar_mmio_index, setup),
+		cmocka_unit_test_setup(test_skips_non_bar_low_byte_alias, setup),
 		cmocka_unit_test_setup(test_reserved, setup),
 		cmocka_unit_test_setup(test_ecam, setup),
+		cmocka_unit_test_setup(test_skips_assigned_non_bar_io, setup),
+		cmocka_unit_test_setup(test_platform_mmio_contains_bar, setup),
+		cmocka_unit_test_setup(test_unreserved_domain_mmio_containment_rejected, setup),
+		cmocka_unit_test_setup(test_platform_mmio_partial_overlap_rejected, setup),
+		cmocka_unit_test_setup(test_platform_cacheable_containment_rejected, setup),
+		cmocka_unit_test_setup(test_platform_malformed_range_rejected, setup),
 		cmocka_unit_test_setup(test_two_roots_same_segment, setup),
 		cmocka_unit_test_setup(test_overlapping_roots, setup),
 		cmocka_unit_test_setup(test_orphan, setup),
