@@ -15,7 +15,14 @@ static struct lb_framebuffer framebuffer;
 static int framebuffer_present;
 static uint16_t command;
 static int stuck;
+static uint32_t pci_bars[6];
 struct device *all_devices;
+
+uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar_number)
+{
+	(void)device;
+	return pci_bars[bar_number];
+}
 
 const struct lb_framebuffer *payload_resource_framebuffer(void)
 {
@@ -84,6 +91,7 @@ static void reset_fixture(void)
 	memset(&second_endpoint, 0, sizeof(second_endpoint));
 	memset(&second_resource, 0, sizeof(second_resource));
 	memset(&framebuffer, 0, sizeof(framebuffer));
+	memset(pci_bars, 0, sizeof(pci_bars));
 	domain.enabled = 1;
 	domain.path.type = DEVICE_PATH_DOMAIN;
 	domain.downstream = &root_bus;
@@ -170,6 +178,21 @@ int main(void)
 		"no-framebuffer record changed legacy layout");
 	first_size = handoff->size;
 	memcpy(first_record, handoff, first_size);
+
+	reset_fixture();
+	bar.flags |= IORESOURCE_FIXED;
+	pci_bars[0] = PCI_BASE_ADDRESS_MEM_LIMIT_64;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"fixed live 64-bit BAR was rejected");
+	handoff = (const void *)(storage + sizeof(*header));
+	{
+		const struct lb_prh_pci_assignment *assignment =
+			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
+
+		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT,
+			"fixed live 64-bit BAR lost its encoding");
+	}
+
 	reset_fixture();
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS &&
 		((const struct lb_payload_resource_handoff *)(const void *)

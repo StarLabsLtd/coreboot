@@ -271,6 +271,26 @@ __weak void payload_resource_write_command(const struct device *device, uint16_t
 	pci_write_config16(device, PCI_COMMAND, command);
 }
 
+__weak uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar)
+{
+	return pci_read_config32(device, PCI_BASE_ADDRESS_0 + bar * sizeof(uint32_t));
+}
+
+static bool assignment_is_64bit(const struct device *device,
+	const struct resource *resource, uint8_t bar)
+{
+	uint32_t value;
+
+	if (resource->flags & IORESOURCE_PCI64)
+		return true;
+	if (!(resource->flags & IORESOURCE_MEM) || !(resource->flags & IORESOURCE_FIXED))
+		return false;
+
+	value = payload_resource_read_bar(device, bar);
+	return (value & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY &&
+		(value & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) == PCI_BASE_ADDRESS_MEM_LIMIT_64;
+}
+
 static bool device_has_assignment(const struct device *device)
 {
 	const struct resource *resource;
@@ -522,7 +542,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			output->function = device->path.pci.devfn & 7;
 			output->bar = bar;
 			output->resource_type = assignment_type(resource);
-			output->flags = resource->flags & IORESOURCE_PCI64 ?
+			output->flags = assignment_is_64bit(device, resource, bar) ?
 				LB_PRH_PCI_ASSIGNMENT_64BIT : 0;
 			output->base = resource->base;
 			output->length = resource->size;

@@ -31,6 +31,7 @@ enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
 uint16_t payload_resource_read_command(const struct device *device);
 void payload_resource_write_command(const struct device *device, uint16_t command);
+uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar);
 
 void lb_string_platform_blob_version(struct lb_header *header);
 
