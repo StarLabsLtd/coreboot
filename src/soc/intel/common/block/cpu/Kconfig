@@ -164,6 +164,18 @@ config INTEL_TME
 	 it would get enabled. If CPU supports MKTME, this same config option
 	 enables MKTME.
 
+config INTEL_TME_RUNTIME_OPTION
+	bool
+	help
+	  Select this from SoCs which expose the intel_tme runtime option.
+
+config INTEL_TME_FIXED
+	bool
+	depends on INTEL_TME
+	help
+	  Keep TME enabled regardless of mutable runtime settings and fail closed
+	  if the processor or firmware cannot enforce it.
+
 config TME_KEY_REGENERATION_ON_WARM_BOOT
 	bool "Generate new TME key on each warm boot"
 	depends on INTEL_TME

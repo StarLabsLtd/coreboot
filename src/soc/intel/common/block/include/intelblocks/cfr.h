@@ -183,7 +183,8 @@ static const struct sm_object pciexp_speed = SM_DECLARE_ENUM({
 /* TME */
 static void update_intel_tme(struct sm_object *new)
 {
-	if (!is_tme_supported())
+	if (!CONFIG(INTEL_TME_RUNTIME_OPTION) || CONFIG(INTEL_TME_FIXED) ||
+	    !is_tme_supported())
 		new->sm_bool.flags |= CFR_OPTFLAG_SUPPRESS;
 }
 
