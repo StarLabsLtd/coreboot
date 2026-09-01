@@ -10,7 +10,9 @@
 bool payload_resource_firmware_owned(const struct device *dev)
 {
 	return dev->path.type == DEVICE_PATH_PCI && dev->upstream != NULL &&
-		dev->upstream->secondary == 0 && dev->path.pci.devfn == PCI_DEVFN(31, 5);
+		dev->upstream->secondary == 0 &&
+		(dev->path.pci.devfn == PCI_DEVFN(22, 0) ||
+		 dev->path.pci.devfn == PCI_DEVFN(31, 5));
 }
 
 static void starlabs_configure_mainboard(void *unused)
