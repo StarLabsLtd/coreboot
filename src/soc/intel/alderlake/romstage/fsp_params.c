@@ -223,7 +223,24 @@ static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
 {
 	/* Disable BIOS Guard */
 	m_cfg->BiosGuard = 0;
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	if (CONFIG(INTEL_TME_FIXED))
+		m_cfg->TmeEnable = 1;
+	else if (CONFIG(INTEL_TME_RUNTIME_OPTION))
+		m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) &&
+				   is_tme_supported();
+	else
+		m_cfg->TmeEnable = CONFIG(INTEL_TME) && is_tme_supported();
+}
+
+static void enforce_fixed_tme(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(INTEL_TME_FIXED))
+		return;
+
+	if (!is_tme_supported())
+		die("TME is unavailable on this processor");
+
+	m_cfg->TmeEnable = 1;
 }
 
 static void fill_fspm_uart_params(FSP_M_CONFIG *m_cfg,
@@ -544,6 +561,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
 
+	enforce_fixed_tme(m_cfg);
 	enforce_early_dma_protection(m_cfg);
 
 	if (CONFIG(HWBASE_STATIC_MMIO))

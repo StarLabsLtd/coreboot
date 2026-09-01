@@ -16,6 +16,7 @@
 #include <cpu/intel/turbo.h>
 #include <cpu/intel/common/common.h>
 #include <fsp/api.h>
+#include <halt.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/mp_init.h>
 #include <intelblocks/msr.h>
@@ -141,8 +142,15 @@ void soc_core_init(struct device *cpu)
 	/* Enable Turbo */
 	enable_turbo();
 
-	if (get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported())
+	if (CONFIG(INTEL_TME_FIXED)) {
+		if (!is_tme_active())
+			die("TME is not active");
 		set_tme_core_activate();
+	} else if ((!CONFIG(INTEL_TME_RUNTIME_OPTION) ? CONFIG(INTEL_TME) :
+		    get_uint_option("intel_tme", CONFIG(INTEL_TME))) &&
+		   is_tme_supported()) {
+		set_tme_core_activate();
+	}
 }
 
 static void per_cpu_smm_trigger(void)
