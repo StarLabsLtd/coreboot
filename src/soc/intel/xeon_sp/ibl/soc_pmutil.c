@@ -51,7 +51,7 @@ int soc_get_rtc_failed(void)
  * Set which power state system will be after reapplying
  * the power (from G3 State)
  */
-void pmc_soc_set_afterg3_en(const bool on)
+bool pmc_soc_set_afterg3_en(const bool on)
 {
 	uint8_t reg8;
 	uint8_t *const pmcbase = pmc_mmio_regs();
@@ -62,6 +62,8 @@ void pmc_soc_set_afterg3_en(const bool on)
 	else
 		reg8 |= SLEEP_AFTER_POWER_FAIL;
 	write8(pmcbase + GEN_PMCON_A, reg8);
+
+	return !!(read8(pmcbase + GEN_PMCON_A) & SLEEP_AFTER_POWER_FAIL) != on;
 }
 
 void pmc_lockdown_config(void)

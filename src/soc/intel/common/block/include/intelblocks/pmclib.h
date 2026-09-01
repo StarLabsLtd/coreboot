@@ -259,10 +259,10 @@ enum {
 unsigned int mainboard_get_power_failure_state(void);
 
 /*
- * Implemented by SoC code to set PMC register to know which state
- * system should go into after power is reapplied.
+ * Implemented by SoC code to set the state used after power is reapplied.
+ * Returns true when the value reads back as requested.
  */
-void pmc_soc_set_afterg3_en(bool on);
+bool pmc_soc_set_afterg3_en(bool on);
 
 /* Disable the dedicated Deep-Sx wake inputs and report whether they read back. */
 bool pmc_disable_deep_sx_wake(void);
