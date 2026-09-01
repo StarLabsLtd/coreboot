@@ -12,6 +12,18 @@ config SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 	  The SoC implements the WADT standard GPE status and enable bits used
 	  by the common SMM sleep path.
 
+config SOC_INTEL_COMMON_BLOCK_SMM_S4_S5_POWER_BUTTON_ONLY
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on SOC_INTEL_COMMON_FEATURE_PMUTIL
+	depends on HAVE_ACPI_TABLES
+	select ACPI_S4_S5_POWER_BUTTON_ONLY_WAKE
+	help
+	  On S4 and S5 entry, discard operating-system and mainboard wake
+	  enables and leave only the fixed power button enabled. The final
+	  register state is read back so the sleep transition fails closed if
+	  the policy cannot be applied.
+
 config SOC_INTEL_COMMON_BLOCK_SMM_IO_TRAP
 	bool
 	help

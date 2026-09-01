@@ -285,3 +285,15 @@ void pmc_soc_set_afterg3_en(const bool on)
 		reg8 |= SLEEP_AFTER_POWER_FAIL;
 	write8(pmcbase + GEN_PMCON_A, reg8);
 }
+
+bool pmc_disable_deep_sx_wake(void)
+{
+	uint8_t *const pmcbase = pmc_mmio_regs();
+	const uint32_t mask = REQ_CNV_NOWAKE_DSX | DSX_EN_WAKE_PIN |
+		DSX_EN_LAN_WAKE_PIN;
+	const uint32_t value = REQ_CNV_NOWAKE_DSX;
+
+	clrsetbits32(pmcbase + DSX_CFG, mask, value);
+
+	return (read32(pmcbase + DSX_CFG) & mask) == value;
+}

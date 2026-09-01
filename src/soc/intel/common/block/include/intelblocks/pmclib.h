@@ -263,6 +263,10 @@ unsigned int mainboard_get_power_failure_state(void);
  * system should go into after power is reapplied.
  */
 void pmc_soc_set_afterg3_en(bool on);
+
+/* Disable the dedicated Deep-Sx wake inputs and report whether they read back. */
+bool pmc_disable_deep_sx_wake(void);
+
 /*
  * Configure power state to go into when power is reapplied.
  *
