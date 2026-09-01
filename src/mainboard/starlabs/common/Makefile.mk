@@ -87,8 +87,11 @@ endif
 ifneq ($(CONFIG_SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY),y)
 $(error Enhanced-security builds require protected RTC CMOS locking)
 endif
-ifeq ($(CONFIG_GBB_FLAG_DISABLE_FW_ROLLBACK_CHECK),y)
-$(error Enhanced-security builds require vboot firmware rollback checking)
+ifneq ($(CONFIG_VBOOT_GBB_FLAGS_ZERO),y)
+$(error Enhanced-security builds require a zero GBB flags field)
+endif
+ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
+$(error Enhanced-security builds cannot use mocked vboot secure data)
 endif
 ifneq ($(findstring /tests/devkeys,$(starlabs_vboot_key_paths)),)
 $(error Enhanced-security builds cannot use vboot development keys)
