@@ -788,7 +788,9 @@ __weak unsigned int mainboard_get_power_failure_state(void)
 
 void pmc_set_power_failure_state(const bool target_on)
 {
-	const unsigned int state = mainboard_get_power_failure_state();
+	const unsigned int state =
+		CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF) ?
+		MAINBOARD_POWER_STATE_OFF : mainboard_get_power_failure_state();
 
 	/*
 	 * On the shutdown path (target_on == false), we only need to
@@ -800,20 +802,23 @@ void pmc_set_power_failure_state(const bool target_on)
 
 	switch (state) {
 	case MAINBOARD_POWER_STATE_OFF:
-		if (!target_on)
+		if (!target_on &&
+		    !CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF))
 			break;
 		printk(BIOS_INFO, "Set power off after power failure.\n");
-		pmc_soc_set_afterg3_en(false);
+		if (!pmc_soc_set_afterg3_en(false) &&
+		    CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF))
+			die("Failed to enforce fixed-off power-failure policy");
 		break;
 	case MAINBOARD_POWER_STATE_ON:
 		if (!target_on)
 			break;
 		printk(BIOS_INFO, "Set power on after power failure.\n");
-		pmc_soc_set_afterg3_en(true);
+		(void)pmc_soc_set_afterg3_en(true);
 		break;
 	case MAINBOARD_POWER_STATE_PREVIOUS:
 		printk(BIOS_INFO, "Keep power state after power failure.\n");
-		pmc_soc_set_afterg3_en(target_on);
+		(void)pmc_soc_set_afterg3_en(target_on);
 		break;
 	default:
 		printk(BIOS_WARNING, "Unknown power-failure state: %d\n", state);

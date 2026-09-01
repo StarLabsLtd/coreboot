@@ -34,6 +34,14 @@ config SOC_INTEL_COMMON_BLOCK_PMC_EPOC
 	  Enable this for PMC devices to perform EPOC (CPU Early Power-on
 	  Configuration) related functions.
 
+config SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on SOC_INTEL_COMMON_FEATURE_PMUTIL
+	help
+	  Keep the platform powered off when external power returns, ignore
+	  stored power-failure policy, and suppress its runtime firmware option.
+
 endif # SOC_INTEL_COMMON_BLOCK_PMC
 
 config PMC_INVALID_READ_AFTER_WRITE

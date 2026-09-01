@@ -79,4 +79,7 @@ void enable_energy_perf_pref(void);
  */
 bool is_tme_supported(void);
 
+/* Return true when TME is enabled, locked, and not in bypass mode. */
+bool is_tme_active(void);
+
 #endif

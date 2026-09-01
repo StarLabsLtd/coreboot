@@ -215,6 +215,7 @@ config TPM_TIS_ACPI_INTERRUPT
 config SOC_INTEL_DEBUG_CONSENT
 	bool "Enable SOC debug interface"
 	default n
+	depends on !NO_DEBUG_EGRESS
 	help
 	  Set this option to enable default debug interface of SoC such as DBC
 	  or DCI.

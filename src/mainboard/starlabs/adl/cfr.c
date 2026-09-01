@@ -187,7 +187,11 @@ static struct sm_obj_form performance_group = {
 
 static struct sm_obj_form security_group = {
 	.ui_name = "Security",
-	.obj_list = (const struct sm_object *[]){&bios_lock, &intel_tme, &me_state,
+	.obj_list = (const struct sm_object *[]){
+#if CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION)
+						 &bios_lock,
+#endif
+						 &intel_tme, &me_state,
 						 &me_state_counter,
 #if CONFIG(SOC_INTEL_ALDERLAKE)
 						 &ibecc,

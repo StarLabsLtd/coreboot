@@ -254,6 +254,9 @@ CONFIG_VBOOT_FWID_VERSION := $(call strip_quotes,$(CONFIG_VBOOT_FWID_VERSION))
 # return "value" if var is "y", 0 otherwise
 bool-to-mask = $(if $(filter y,$(1)),$(2),0)
 
+ifeq ($(CONFIG_VBOOT_GBB_FLAGS_ZERO),y)
+GBB_FLAGS := 0
+else
 GBB_FLAGS := $(call int-add, \
 	$(call bool-to-mask,$(CONFIG_GBB_FLAG_DEV_SCREEN_SHORT_DELAY),0x1) \
 	$(call bool-to-mask,$(CONFIG_GBB_FLAG_LOAD_OPTION_ROMS),0x2) \
@@ -274,6 +277,7 @@ GBB_FLAGS := $(call int-add, \
 	$(call bool-to-mask,$(CONFIG_GBB_FLAG_FORCE_CSE_SYNC),0x20000) \
 	$(call bool-to-mask,$(CONFIG_GBB_FLAG_ENABLE_ADB),0x80000000) \
 	)
+endif
 
 ifneq ($(CONFIG_GBB_BMPFV_FILE),)
 $(obj)/gbb.sizetmp: $(obj)/coreboot.rom

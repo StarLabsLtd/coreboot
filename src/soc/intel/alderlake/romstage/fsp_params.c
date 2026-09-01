@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <assert.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <device/pci.h>
 #include <cpu/x86/msr.h>
@@ -13,6 +15,7 @@
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <halt.h>
 #include <intelbasecode/debug_feature.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
@@ -25,6 +28,7 @@
 #include <soc/pcie.h>
 #include <soc/romstage.h>
 #include <soc/soc_chip.h>
+#include <soc/systemagent.h>
 #include <static.h>
 #include <string.h>
 
@@ -154,14 +158,7 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 		[DDI_PORT_4] = {&m_cfg->DdiPort4Ddc, &m_cfg->DdiPort4Hpd},
 	};
 
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-					   && is_devfn_enabled(SA_DEVFN_IGD);
-
-	/* Probe for no IGD and disable InternalGfx to prevent a crash in FSP-M. */
-	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
-		printk(BIOS_ERR, "igd_enabled is set, but IGD is not present. Disabling IGD.\n");
-		igd_enabled = false;
-	}
+	bool igd_enabled = soc_is_igd_enabled();
 
 	if (igd_enabled) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
@@ -226,7 +223,35 @@ static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
 {
 	/* Disable BIOS Guard */
 	m_cfg->BiosGuard = 0;
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	if (CONFIG(INTEL_TME_FIXED))
+		m_cfg->TmeEnable = 1;
+	else if (CONFIG(INTEL_TME_RUNTIME_OPTION))
+		m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) &&
+				   is_tme_supported();
+	else
+		m_cfg->TmeEnable = CONFIG(INTEL_TME) && is_tme_supported();
+}
+
+static void enforce_fixed_tme(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(INTEL_TME_FIXED))
+		return;
+
+	if (!is_tme_supported())
+		die("TME is unavailable on this processor");
+
+	m_cfg->TmeEnable = 1;
+}
+
+static void enforce_no_debug_egress(FSP_M_CONFIG *m_cfg, FSPM_ARCH_UPD *arch_upd)
+{
+	if (!CONFIG(NO_DEBUG_EGRESS))
+		return;
+
+	m_cfg->PlatformDebugConsent = 0;
+	m_cfg->PcdSerialDebugLevel = 0;
+	m_cfg->SerialDebugMrcLevel = 0;
+	arch_upd->FspEventHandler = 0;
 }
 
 static void fill_fspm_uart_params(FSP_M_CONFIG *m_cfg,
@@ -341,6 +366,8 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 
 	/* Disable VT-d for early silicon steppings as it results in a CPU hard hang */
 	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0) {
+		if (CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+			die("Early DMA protection is unavailable on this CPU stepping");
 		m_cfg->VtdDisable = 1;
 		return;
 	}
@@ -388,6 +415,17 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 
 	/* Change VmxEnable UPD value according to ENABLE_VMX Kconfig */
 	m_cfg->VmxEnable = CONFIG(ENABLE_VMX);
+}
+
+static void enforce_early_dma_protection(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	m_cfg->VtdDisable = 0;
+	m_cfg->VtdIopEnable = 1;
+	m_cfg->DmaBufferSize = acpi_is_wakeup_s3() ? 2 * MiB : 4 * MiB;
+	m_cfg->PreBootDmaMask = BIT(0) | BIT(1);
 }
 
 static void fill_fspm_trace_params(FSP_M_CONFIG *m_cfg,
@@ -533,6 +571,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
+
+	enforce_no_debug_egress(m_cfg, arch_upd);
+	enforce_fixed_tme(m_cfg);
+	enforce_early_dma_protection(m_cfg);
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;

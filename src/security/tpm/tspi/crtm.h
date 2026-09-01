@@ -37,6 +37,11 @@
 #endif
 
 /**
+ * Initialize the pre-RAM TPM event log without accessing boot media.
+ */
+tpm_result_t tspi_ensure_event_log_initialized(void);
+
+/**
  * Measure digests cached in TPM log entries into PCRs
  */
 tpm_result_t tspi_measure_cache_to_pcr(void);

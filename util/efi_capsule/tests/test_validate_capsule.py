@@ -82,6 +82,15 @@ class ValidateCapsuleTest(unittest.TestCase):
     def test_matching_capsule_and_resident_driver(self):
         validate(make_capsule(), make_fv(), FMP_GUID, 0)
 
+    def test_transition_capsule_and_resident_driver(self):
+        validate(
+            make_capsule(OTHER_GUID),
+            make_fv(),
+            FMP_GUID,
+            0,
+            OTHER_GUID,
+        )
+
     def test_matching_embedded_driver_count(self):
         validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1)
 

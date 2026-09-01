@@ -239,6 +239,19 @@ bool is_tme_supported(void)
 	return (cpuid_regs.ecx & CPUID_EXT_FEATURE_TME_SUPPORTED);
 }
 
+bool is_tme_active(void)
+{
+	const uint32_t required = (1 << 0) | (1 << 1);
+	const uint32_t bypass = 1U << 31;
+	msr_t msr;
+
+	if (!is_tme_supported())
+		return false;
+
+	msr = rdmsr(MSR_TME_ACTIVATE);
+	return (msr.lo & required) == required && !(msr.lo & bypass);
+}
+
 /*
  * Get number of address bits used by Total Memory Encryption (TME)
  *

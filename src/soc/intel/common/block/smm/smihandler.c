@@ -16,6 +16,7 @@
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
 #include <elog.h>
+#include <halt.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
@@ -44,6 +45,48 @@
 __weak const struct smm_save_state_ops *get_smm_save_state_ops(void)
 {
 	return &em64t101_smm_ops;
+}
+
+static bool gpe_wake_is_enabled(void)
+{
+	int i;
+
+	for (i = 0; i < GPE0_REG_MAX; i++) {
+		if (inl(ACPI_BASE_ADDRESS + GPE0_EN(i)))
+			return true;
+	}
+
+	return false;
+}
+
+static void enforce_power_button_only_wake(uint8_t slp_typ)
+{
+	bool deep_sx_wake_disabled;
+
+	if (!CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_S4_S5_POWER_BUTTON_ONLY) ||
+	    (slp_typ != ACPI_S4 && slp_typ != ACPI_S5))
+		return;
+
+	/* Apply policy after board callbacks have made their final changes. */
+	pmc_enable_pm1(0);
+	pmc_disable_all_gpe();
+	deep_sx_wake_disabled = pmc_disable_deep_sx_wake();
+	pmc_clear_pm1_status();
+	pmc_clear_all_gpe_status();
+	pmc_enable_pm1(PWRBTN_EN);
+
+	if (pmc_read_pm1_enable() != PWRBTN_EN || gpe_wake_is_enabled() ||
+	    !deep_sx_wake_disabled)
+		die("Failed to restrict wake sources to the power button");
+}
+
+static void enforce_fixed_off_after_power_failure(uint8_t slp_typ)
+{
+	if (!CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF) ||
+	    (slp_typ != ACPI_S4 && slp_typ != ACPI_S5))
+		return;
+
+	pmc_set_power_failure_state(false);
 }
 
 /* Specific SOC SMI handler during ramstage finalize phase */
@@ -198,7 +241,8 @@ void smihandler_southbridge_sleep(
 		/* Disable all GPE */
 		pmc_disable_all_gpe();
 		/* Set which state system will be after power reapplied */
-		pmc_set_power_failure_state(false);
+		if (!CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF))
+			pmc_set_power_failure_state(false);
 		/* also iterates over all bridges on bus 0 */
 		busmaster_disable_on_bus(0);
 
@@ -231,6 +275,9 @@ void smihandler_southbridge_sleep(
 
 	if (wadt_wake_should_preserve(slp_typ))
 		wadt_wake_restore(wadt_enabled);
+
+	enforce_power_button_only_wake(slp_typ);
+	enforce_fixed_off_after_power_failure(slp_typ);
 
 	/*
 	 * Write back to the SLP register to cause the originally intended

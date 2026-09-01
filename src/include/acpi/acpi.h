@@ -7,6 +7,12 @@
 #ifndef __ACPI_ACPI_H__
 #define __ACPI_ACPI_H__
 
+#if CONFIG(ACPI_S4_S5_POWER_BUTTON_ONLY_WAKE)
+#define ACPI_S4_DEVICE_WAKE_STATE	3
+#else
+#define ACPI_S4_DEVICE_WAKE_STATE	4
+#endif
+
 /*
  * The type and enable fields are common in ACPI, but the
  * values themselves are hardware implementation defined.

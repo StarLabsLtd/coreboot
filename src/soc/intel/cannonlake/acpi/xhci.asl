@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <intelblocks/xhci.h>
 #include <soc/gpe.h>
 
@@ -12,7 +13,7 @@ Device (XHCI)
 {
 	Name (_ADR, 0x00140000)
 
-	Name (_PRW, Package () { GPE0_PME_B0, 4 })
+	Name (_PRW, Package () { GPE0_PME_B0, ACPI_S4_DEVICE_WAKE_STATE })
 
 	Method (_DSW, 3)
 	{

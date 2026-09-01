@@ -5,6 +5,7 @@
 #include <device/device.h>
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
+#include <halt.h>
 #include <option.h>
 #include "ecdefs.h"
 #include "ec.h"
@@ -43,7 +44,18 @@ static void merlin_restore_options(void *unused)
 
 	if (chip_id != ITE_IT5570 && chip_id != ITE_IT8987) {
 		printk(BIOS_ERR, "ITE: Unsupported chip ID 0x%04x.\n", chip_id);
+		if (CONFIG(EC_STARLABS_SECURE_MODE_REQUIRED))
+			die("Enhanced security requires a supported EC");
 		return;
+	}
+
+	if (CONFIG(EC_STARLABS_SECURE_MODE_REQUIRED)) {
+		/* Secure Merlin must ignore host writes to its build-identity ABI. */
+		if (ec_write(ECRAM_SECURE_BUILD_SIGNATURE, 0) ||
+		    ec_write(ECRAM_SECURE_BUILD_VERSION, 0) ||
+		    ec_read(ECRAM_SECURE_BUILD_SIGNATURE) != EC_SECURE_BUILD_SIGNATURE ||
+		    ec_read(ECRAM_SECURE_BUILD_VERSION) != EC_SECURE_BUILD_VERSION)
+			die("Enhanced security requires compatible secure-mode EC firmware");
 	}
 
 	/*

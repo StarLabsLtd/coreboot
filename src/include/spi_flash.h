@@ -46,7 +46,10 @@ enum spi_flash_status_reg_lockdown {
  * read:	Flash read operation.
  * write:	Flash write operation.
  * erase:	Flash erase operation.
- * status:	Read flash status register.
+ * status:	Read flash status register 1.
+ * read_status: Read a flash status register selected by opcode.
+ * write_status: Write one or more flash status registers using the selected
+ *               opcode in a single cycle.
  */
 struct spi_flash_ops {
 	int (*read)(const struct spi_flash *flash, u32 offset, size_t len,
@@ -55,6 +58,9 @@ struct spi_flash_ops {
 			const void *buf);
 	int (*erase)(const struct spi_flash *flash, u32 offset, size_t len);
 	int (*status)(const struct spi_flash *flash, u8 *reg);
+	int (*read_status)(const struct spi_flash *flash, u8 opcode, u8 *reg);
+	int (*write_status)(const struct spi_flash *flash, u8 opcode,
+			    const u8 *regs, size_t len);
 };
 
 struct spi_flash_bpbits {
@@ -68,7 +74,7 @@ struct spi_flash_bpbits {
 	};
 };
 
-/* Current code assumes all callbacks are supplied in this object. */
+/* All callbacks except get_write_exact must be supplied. */
 struct spi_flash_protection_ops {
 	/*
 	 * Returns 1 if the whole region is software write protected.
@@ -79,6 +85,12 @@ struct spi_flash_protection_ops {
 	 */
 	int (*get_write)(const struct spi_flash *flash,
 				    const struct region *region);
+	/*
+	 * Optional exact-range query. Returns a negative value on error, zero
+	 * when the protected region does not exactly match, and one on a match.
+	 */
+	int (*get_write_exact)(const struct spi_flash *flash,
+			       const struct region *region);
 	/*
 	 * Enable the status register write protection, if supported on the
 	 * requested region, and optionally enable status register lock-down.
@@ -182,6 +194,16 @@ int spi_flash_probe(unsigned int bus, unsigned int cs, struct spi_flash *flash);
 int spi_flash_generic_probe(const struct spi_slave *slave,
 				struct spi_flash *flash);
 
+/*
+ * Fill flash metadata from an exact three or five byte JEDEC ID.
+ *
+ * This does not access the flash or run vendor after-probe hooks. Return zero
+ * when the ID matches an enabled part and a non-zero value otherwise.
+ */
+int spi_flash_fill_from_id(const struct spi_slave *slave,
+			   struct spi_flash *flash, const u8 *idcode,
+			   size_t idcode_len);
+
 /* All the following functions return 0 on success and non-zero on error. */
 int spi_flash_read(const struct spi_flash *flash, u32 offset, size_t len,
 		   void *buf);
@@ -189,6 +211,18 @@ int spi_flash_write(const struct spi_flash *flash, u32 offset, size_t len,
 		    const void *buf);
 int spi_flash_erase(const struct spi_flash *flash, u32 offset, size_t len);
 int spi_flash_status(const struct spi_flash *flash, u8 *reg);
+
+/*
+ * Read a status register selected by opcode. Controllers may override the
+ * generic command fallback.
+ *
+ * Writing selected status registers requires controller support. The
+ * controller operation owns any required write-enable and completion handling
+ * and returns a non-zero value when the operation fails or is unsupported.
+ */
+int spi_flash_read_status(const struct spi_flash *flash, u8 opcode, u8 *reg);
+int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
+			   const u8 *regs, size_t len);
 
 /*
  * Return the vendor dependent SPI flash write protection state.
@@ -204,6 +238,13 @@ int spi_flash_status(const struct spi_flash *flash, u8 *reg);
  */
 int spi_flash_is_write_protected(const struct spi_flash *flash,
 				 const struct region *region);
+/*
+ * Return a negative value on error or when exact queries are unsupported,
+ * zero when the status-register range does not exactly match region, and one
+ * when it does.
+ */
+int spi_flash_is_write_protected_exact(const struct spi_flash *flash,
+				       const struct region *region);
 /*
  * Enable the vendor dependent SPI flash write protection. The region not
  * covered by write-protection will be set to write-able state.

@@ -1,14 +1,24 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
+	bool
+	depends on VBOOT
+	help
+	  Fix boot-media protection to chip-level WP_RO locking with platform
+	  controller enforcement and no mutable choice.
+
 choice
 	prompt "Boot media protection mechanism"
+	default BOOTMEDIA_LOCK_CHIP if BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	default BOOTMEDIA_LOCK_NONE
 
 config BOOTMEDIA_LOCK_NONE
 	bool "Don't lock boot media sections"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 
 config BOOTMEDIA_LOCK_CONTROLLER
 	bool "Lock boot media using the controller"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  Select this if you want the controller to lock specific regions.
 	  This only works on some platforms, please check the code or boot log.
@@ -26,10 +36,12 @@ endchoice
 choice
 	prompt "Boot media protected regions"
 	depends on !BOOTMEDIA_LOCK_NONE
+	default BOOTMEDIA_LOCK_WPRO_VBOOT_RO if BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	default BOOTMEDIA_LOCK_WHOLE_RO
 
 config BOOTMEDIA_LOCK_WHOLE_RO
 	bool "Write-protect the whole boot medium"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  Select this if you want to write-protect the whole firmware boot
 	  medium.
@@ -45,6 +57,7 @@ config BOOTMEDIA_LOCK_WHOLE_RO
 
 config BOOTMEDIA_LOCK_WHOLE_NO_ACCESS
 	depends on BOOTMEDIA_LOCK_CONTROLLER
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	bool "Read- and write-protect the whole boot medium"
 	help
 	  Select this if you want to protect the firmware boot medium against
@@ -77,6 +90,7 @@ config BOOTMEDIA_LOCK_TOPSWAP
 	bool "Write-protect the COREBOOT & BOOTBLOCK regions"
 	depends on TOP_SWAP_REDUNDANCY
 	depends on BOOTMEDIA_LOCK_CONTROLLER
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  Select this if you want to write-protect the BOOTBLOCK and COREBOOT
 	  (Slot A) regions as specified in the Top Swap FMAP. You will be able to
@@ -89,6 +103,7 @@ endchoice
 
 config BOOTMEDIA_LOCK_IN_VERSTAGE
 	depends on BOOTMEDIA_LOCK_WPRO_VBOOT_RO
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	bool "Lock boot media down in verstage"
 	help
 	  Select this if you want to write-protect the WP_RO region as soon as
@@ -111,24 +126,40 @@ config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool "Boot media only writable in SMM can be controlled via option API"
 	depends on BOOTMEDIA_SMM_BWP
 	depends on DRIVERS_OPTION_CFR
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  Provide a runtime option "bios_lock" to enable or disable SMM BIOS Write Protection
 	  via the option API.
 
 choice
 	prompt "SPI Flash write protection duration"
+	default BOOTMEDIA_SPI_LOCK_PLATFORM if BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	default BOOTMEDIA_SPI_LOCK_REBOOT
 	depends on BOOTMEDIA_LOCK_CHIP
 	depends on BOOT_DEVICE_SPI_FLASH
 
 config BOOTMEDIA_SPI_LOCK_REBOOT
 	bool "Lock SPI flash until next reboot"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  The SPI chip is locked until power is removed and re-applied.
 	  Supported by Winbond parts.
 
+config BOOTMEDIA_SPI_LOCK_PLATFORM
+	bool "Lock SPI status writes using the platform controller"
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on SOC_INTEL_COMMON_PCH_LOCKDOWN
+	depends on !MRC_WRITE_NV_LATE
+	select FAST_SPI_DISABLE_WRITE_STATUS
+	help
+	  Preserve the flash status-register lock bits after setting the block
+	  protection range, then have the platform controller disable further
+	  status writes before handing control to the payload. This permits
+	  chip-level block protection without depending on an asserted WP# pin.
+
 config BOOTMEDIA_SPI_LOCK_PIN
 	bool "Lock SPI flash using WP# pin"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  The SPI chip is locked using a non-volatile configuration bit. Writes
 	  are only possible if the WP# is not asserted. Supported by Winbond
@@ -136,6 +167,7 @@ config BOOTMEDIA_SPI_LOCK_PIN
 
 config BOOTMEDIA_SPI_LOCK_PERMANENT
 	bool "Lock SPI flash permanently"
+	depends on !BOOTMEDIA_LOCK_VBOOT_RO_PLATFORM_POLICY
 	help
 	  The SPI chip is permanently locked using a non-volatile configuration
 	  bit. No writes are ever possible again after we perform the lock.

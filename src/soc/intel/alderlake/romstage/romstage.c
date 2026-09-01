@@ -251,8 +251,8 @@ void mainboard_romstage_entry(void)
 	if (!s3wake)
 		save_dimm_info();
 
-	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION))
-		vtd_enable_dma_protection();
+	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION) && !vtd_enable_dma_protection())
+		die("Failed to enable VT-d PMR DMA protection\n");
 
 	/* Keep eSOL active if CSE sync is pending at ramstage */
 	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_IN_RAMSTAGE) && is_cse_fw_update_required())

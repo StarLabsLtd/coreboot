@@ -269,7 +269,7 @@ uint16_t get_pmbase(void)
  * Set which power state system will be after reapplying
  * the power (from G3 State)
  */
-void pmc_soc_set_afterg3_en(const bool on)
+bool pmc_soc_set_afterg3_en(const bool on)
 {
 	uint8_t reg8;
 	const pci_devfn_t dev = PCH_DEV_PMC;
@@ -280,4 +280,6 @@ void pmc_soc_set_afterg3_en(const bool on)
 	else
 		reg8 |= SLEEP_AFTER_POWER_FAIL;
 	pci_write_config8(dev, GEN_PMCON_B, reg8);
+
+	return !!(pci_read_config8(dev, GEN_PMCON_B) & SLEEP_AFTER_POWER_FAIL) != on;
 }

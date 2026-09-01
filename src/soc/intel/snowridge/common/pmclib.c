@@ -79,7 +79,7 @@ const char *const *soc_std_gpe_sts_array(size_t *a)
 	return gpe_sts_bits;
 }
 
-void pmc_soc_set_afterg3_en(bool on)
+bool pmc_soc_set_afterg3_en(bool on)
 {
 	uintptr_t pmc_bar = soc_read_pmc_base();
 	uint8_t reg8 = read32p(pmc_bar + GEN_PMCON_A);
@@ -90,6 +90,8 @@ void pmc_soc_set_afterg3_en(bool on)
 		reg8 |= SLEEP_AFTER_POWER_FAIL;
 
 	write32p(pmc_bar + GEN_PMCON_A, reg8);
+
+	return !!(read32p(pmc_bar + GEN_PMCON_A) & SLEEP_AFTER_POWER_FAIL) != on;
 }
 
 uintptr_t soc_read_pmc_base(void)

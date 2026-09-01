@@ -87,6 +87,8 @@ void enable_pam_region(void);
 void enable_power_aware_intr(void);
 /* API to get TOLUD base address */
 uintptr_t sa_get_tolud_base(void);
+/* API to get TOUUD base address */
+uint64_t sa_get_touud_base(void);
 /* API to get GSM base address */
 uintptr_t sa_get_gsm_base(void);
 /* API to get TSEG base address */

@@ -11,6 +11,7 @@ config SOC_INTEL_COMMON_DEBUG_CONSENT
 	int "Debug Consent for Intel SoC"
 	# USB DBC is more common for developers so make this default to 3 if
 	# SOC_INTEL_DEBUG_CONSENT=y
+	default 0 if NO_DEBUG_EGRESS
 	default 3 if SOC_INTEL_DEBUG_CONSENT
 	default 0
 	help

@@ -113,6 +113,13 @@ config SPI_FLASH_EON
 	  Select this option if your chipset driver needs to store certain
 	  data in the SPI flash and your SPI flash is made by EON.
 
+config SPI_FLASH_FUDAN
+	bool
+	default y if SPI_FLASH_INCLUDE_ALL_DRIVERS
+	help
+	  Select this option if your chipset driver needs to store certain
+	  data in the SPI flash and your SPI flash is made by Fudan.
+
 config SPI_FLASH_GIGADEVICE
 	bool
 	default y if SPI_FLASH_INCLUDE_ALL_DRIVERS
@@ -155,6 +162,13 @@ config SPI_FLASH_WINBOND
 	help
 	  Select this option if your chipset driver needs to store certain
 	  data in the SPI flash and your SPI flash is made by Winbond.
+
+config SPI_FLASH_WINBOND_HAS_WPS
+	bool
+	depends on SPI_FLASH_WINBOND
+	help
+	  Select this option when the board's known Winbond flash part uses
+	  status register 3 WPS to select individual block protection.
 
 config SPI_FLASH_ISSI
 	bool

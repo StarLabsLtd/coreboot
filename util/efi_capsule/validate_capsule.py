@@ -124,11 +124,21 @@ def parse_ffs_files(data):
         offset = (offset + file_size + 7) & ~7
 
 
-def validate(capsule, firmware_volume, expected_guid, expected_embedded_count):
+def validate(
+    capsule,
+    firmware_volume,
+    expected_guid,
+    expected_embedded_count,
+    expected_capsule_guid=None,
+):
+    if expected_capsule_guid is None:
+        expected_capsule_guid = expected_guid
+
     capsule_guid, embedded_count = parse_capsule(capsule)
-    if capsule_guid != expected_guid:
+    if capsule_guid != expected_capsule_guid:
         raise ValidationError(
-            f"capsule image GUID {capsule_guid} does not match {expected_guid}"
+            "capsule image GUID "
+            f"{capsule_guid} does not match {expected_capsule_guid}"
         )
     if embedded_count != expected_embedded_count:
         raise ValidationError(
@@ -151,7 +161,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capsule", required=True, help="generated FMP capsule")
     parser.add_argument("--firmware-volume", required=True, help="EDK2 DXE FV")
-    parser.add_argument("--guid", required=True, type=uuid.UUID)
+    parser.add_argument(
+        "--guid", required=True, type=uuid.UUID, help="resident FMP driver GUID"
+    )
+    parser.add_argument(
+        "--capsule-guid",
+        type=uuid.UUID,
+        help="capsule image GUID (defaults to the resident FMP driver GUID)",
+    )
     parser.add_argument("--embedded-drivers", required=True, type=int)
     args = parser.parse_args()
 
@@ -160,7 +177,13 @@ def main():
             capsule = capsule_file.read()
         with open(args.firmware_volume, "rb") as fv_file:
             firmware_volume = fv_file.read()
-        validate(capsule, firmware_volume, args.guid, args.embedded_drivers)
+        validate(
+            capsule,
+            firmware_volume,
+            args.guid,
+            args.embedded_drivers,
+            args.capsule_guid,
+        )
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1

@@ -146,7 +146,7 @@ Device (PXSX)
 
 	Method (_PRW, 0)
 	{
-		Return (Package() { 0x69, 4 })
+		Return (Package() { 0x69, TCSS_WAKE_LOWEST_SLEEP_STATE })
 	}
 }
 
@@ -164,7 +164,7 @@ Method (_DSW, 3)
 
 Method (_PRW, 0)
 {
-	Return (Package() { 0x69, 4 })
+	Return (Package() { 0x69, TCSS_WAKE_LOWEST_SLEEP_STATE })
 }
 
 /*

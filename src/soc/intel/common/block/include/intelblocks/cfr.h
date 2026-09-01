@@ -14,6 +14,8 @@
 
 /* Intel ME State */
 static const struct sm_object me_state = SM_DECLARE_ENUM({
+	.flags		= CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) ?
+			  CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "me_state",
 	.ui_name	= "Intel Management Engine",
 	.ui_helptext	= "Enable or disable the Intel Management Engine",
@@ -37,7 +39,9 @@ static const struct sm_object me_state_counter = SM_DECLARE_NUMBER({
  * Use this option or the one below, but not both
  */
 static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
-	.flags		= CFR_OPTFLAG_RUNTIME,
+	.flags		= CFR_OPTFLAG_RUNTIME |
+			  (CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF) ?
+				CFR_OPTFLAG_SUPPRESS : 0),
 	.opt_name	= "power_on_after_fail",
 	.ui_name	= "Restore AC power after loss",
 	.ui_helptext	= "Specify what to do when power is re-applied after a power loss.",
@@ -54,7 +58,9 @@ static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
  * Use this option or the one above, but not both
  */
 static const struct sm_object power_on_after_fail_bool = SM_DECLARE_BOOL({
-	.flags		= CFR_OPTFLAG_RUNTIME,
+	.flags		= CFR_OPTFLAG_RUNTIME |
+			  (CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF) ?
+				CFR_OPTFLAG_SUPPRESS : 0),
 	.opt_name	= "power_on_after_fail",
 	.ui_name	= "Start After Power Loss",
 	.ui_helptext	= "Start automatically when external power returns after a complete power loss.",
@@ -177,7 +183,8 @@ static const struct sm_object pciexp_speed = SM_DECLARE_ENUM({
 /* TME */
 static void update_intel_tme(struct sm_object *new)
 {
-	if (!is_tme_supported())
+	if (!CONFIG(INTEL_TME_RUNTIME_OPTION) || CONFIG(INTEL_TME_FIXED) ||
+	    !is_tme_supported())
 		new->sm_bool.flags |= CFR_OPTFLAG_SUPPRESS;
 }
 

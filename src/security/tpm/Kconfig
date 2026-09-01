@@ -90,6 +90,13 @@ config TPM_MEASURED_BOOT
 	help
 	  Enables measured boot (experimental)
 
+config TPM_MEASURED_BOOT_REQUIRED
+	bool
+	depends on TPM_MEASURED_BOOT
+	help
+	  Halt when the CRTM cannot be initialized instead of continuing without
+	  the required measurement chain.
+
 config TPM_MEASURE_MRC_CACHE
 	bool "Measure MRC cache"
 	default n

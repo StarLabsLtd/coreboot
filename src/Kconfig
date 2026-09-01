@@ -1118,7 +1118,7 @@ config GDB_STUB
 	bool "GDB debugging support"
 	default n
 # FIXME Not implemented in long mode
-	depends on DRIVERS_UART && !USE_X86_64_SUPPORT
+	depends on DRIVERS_UART && !USE_X86_64_SUPPORT && !NO_DEBUG_EGRESS
 	help
 	  If enabled, you will be able to set breakpoints for gdb debugging.
 	  See src/arch/x86/c_start.S for details.

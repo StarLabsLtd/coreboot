@@ -16,6 +16,7 @@
 #include <intelblocks/pmclib.h>
 #include <intelblocks/post_codes.h>
 #include <option.h>
+#include <pc80/mc146818rtc.h>
 #include <security/vboot/misc.h>
 #include <security/vboot/vboot_common.h>
 #include <soc/intel/common/reset.h>
@@ -28,6 +29,13 @@
 #define HECI_BASE_SIZE (4 * KiB)
 
 #define MAX_HECI_MESSAGE_RETRY_COUNT 5
+
+#define ME_STATE_COUNTER_CMOS_MARKER_OFFSET 0x7c
+#define ME_STATE_COUNTER_CMOS_VALUE_OFFSET  0x7d
+#define ME_STATE_COUNTER_CMOS_MARKER        0x4d
+#define ME_STATE_COUNTER_CMOS_VALUE         0xa0
+#define ME_STATE_COUNTER_CMOS_COUNT_MASK    0x03
+#define ME_STATE_COUNTER_CMOS_INVERSE_SHIFT 2
 
 /* Wait up to 15 sec for HECI to get ready */
 #define HECI_DELAY_READY_MS	(15 * 1000)
@@ -305,6 +313,9 @@ bool cse_is_me_operational(void)
 #if ENV_RAMSTAGE
 bool cse_is_me_state_requested_enabled(void)
 {
+	if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+		return false;
+
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
 	const unsigned int me_state = get_uint_option("me_state", me_state_default);
 
@@ -318,6 +329,9 @@ bool cse_is_me_enabled(void)
 
 bool cse_get_s0ix_enable_state(bool fallback)
 {
+	if (CONFIG(SOC_INTEL_CSE_S0IX_FIXED_DISABLED))
+		return false;
+
 	const bool enable = get_uint_option("s0ix_enable", fallback);
 
 	if (!enable)
@@ -1322,18 +1336,88 @@ void cse_enable_ptt(bool state)
  * 5       1       Disable
  */
 
+static uint8_t me_state_counter_cmos_value(unsigned int counter)
+{
+	return ME_STATE_COUNTER_CMOS_VALUE |
+		counter |
+		((~counter & ME_STATE_COUNTER_CMOS_COUNT_MASK)
+		 << ME_STATE_COUNTER_CMOS_INVERSE_SHIFT);
+}
+
+static unsigned int me_state_counter_read(void)
+{
+	uint8_t value;
+	unsigned int counter;
+
+	if (!CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+		return get_uint_option("me_state_counter", UINT_MAX);
+
+	if (cmos_read(ME_STATE_COUNTER_CMOS_MARKER_OFFSET) !=
+	    ME_STATE_COUNTER_CMOS_MARKER)
+		return 0;
+
+	value = cmos_read(ME_STATE_COUNTER_CMOS_VALUE_OFFSET);
+	counter = value & ME_STATE_COUNTER_CMOS_COUNT_MASK;
+	if (value != me_state_counter_cmos_value(counter))
+		return 0;
+
+	return counter;
+}
+
+static enum cb_err me_state_counter_write(unsigned int counter)
+{
+	uint8_t value;
+
+	if (!CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+		return set_uint_option("me_state_counter", counter);
+
+	if (counter > ME_STATE_COUNTER_CMOS_COUNT_MASK)
+		return CB_ERR_ARG;
+
+	value = me_state_counter_cmos_value(counter);
+	cmos_write(value, ME_STATE_COUNTER_CMOS_VALUE_OFFSET);
+	cmos_write(ME_STATE_COUNTER_CMOS_MARKER,
+		   ME_STATE_COUNTER_CMOS_MARKER_OFFSET);
+	if (cmos_read(ME_STATE_COUNTER_CMOS_VALUE_OFFSET) != value ||
+	    cmos_read(ME_STATE_COUNTER_CMOS_MARKER_OFFSET) !=
+	    ME_STATE_COUNTER_CMOS_MARKER)
+		return CB_CMOS_ACCESS_ERROR;
+
+	return CB_SUCCESS;
+}
+
+static enum cb_err me_state_counter_clear(void)
+{
+	if (!CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+		return set_uint_option("me_state_counter", 0);
+
+	cmos_write(0, ME_STATE_COUNTER_CMOS_MARKER_OFFSET);
+	cmos_write(0, ME_STATE_COUNTER_CMOS_VALUE_OFFSET);
+	if (cmos_read(ME_STATE_COUNTER_CMOS_MARKER_OFFSET) ||
+	    cmos_read(ME_STATE_COUNTER_CMOS_VALUE_OFFSET))
+		return CB_CMOS_ACCESS_ERROR;
+
+	return CB_SUCCESS;
+}
+
 static void me_reset_with_count(void)
 {
-	unsigned int cmos_me_state_counter = get_uint_option("me_state_counter", UINT_MAX);
+	unsigned int cmos_me_state_counter = me_state_counter_read();
 
 	if (cmos_me_state_counter != UINT_MAX) {
-		printk(BIOS_DEBUG, "CMOS: me_state_counter = %u\n", cmos_me_state_counter);
+		printk(BIOS_DEBUG, "ME state counter = %u\n", cmos_me_state_counter);
 		/* Avoid boot loops by only trying a state change 3 times */
 		if (cmos_me_state_counter < ME_DISABLE_ATTEMPTS) {
+			enum cb_err ret;
+
 			cmos_me_state_counter++;
-			set_uint_option("me_state_counter", cmos_me_state_counter);
+			ret = me_state_counter_write(cmos_me_state_counter);
+			if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) && ret != CB_SUCCESS)
+				die("ME: Failed to persist state transition counter\n");
 			printk(BIOS_DEBUG, "ME: Reset attempt %u/%u.\n", cmos_me_state_counter,
 									 ME_DISABLE_ATTEMPTS);
+			if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+				global_reset();
 			do_global_reset();
 		} else {
 			/*
@@ -1342,9 +1426,16 @@ static void me_reset_with_count(void)
 			 */
 			printk(BIOS_ERR, "Failed to change ME state in %u attempts!\n",
 									 ME_DISABLE_ATTEMPTS);
+			if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+				die("ME: Fixed state transition failed\n");
 		}
 	} else {
+		if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) &&
+		    me_state_counter_write(1) != CB_SUCCESS)
+			die("ME: State transition counter is unavailable\n");
 		printk(BIOS_DEBUG, "ME: Resetting");
+		if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+			global_reset();
 		do_global_reset();
 	}
 }
@@ -1375,9 +1466,9 @@ static void cse_set_state(struct device *dev)
 		uint32_t rule_id;
 	} __packed;
 
-	struct me_disable_reply disable_reply;
+	struct me_disable_reply disable_reply = { 0 };
 
-	size_t disable_reply_size;
+	size_t disable_reply_size = sizeof(disable_reply);
 
 	/* (CS)ME Enable Command */
 	struct me_enable_command {
@@ -1393,9 +1484,9 @@ static void cse_set_state(struct device *dev)
 		struct mkhi_hdr hdr;
 	} __packed;
 
-	struct me_enable_reply enable_reply;
+	struct me_enable_reply enable_reply = { 0 };
 
-	size_t enable_reply_size;
+	size_t enable_reply_size = sizeof(enable_reply);
 
 	/* Function Start */
 
@@ -1405,19 +1496,20 @@ static void cse_set_state(struct device *dev)
 	if (fast_spi_flash_descriptor_override()) {
 		printk(BIOS_WARNING, "HECI: not setting ME state because "
 			"flash descriptor override is enabled\n");
+		if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED))
+			die("ME: Flash descriptor override is enabled\n");
 		return;
 	}
 
-	/*
-	 * Check if the CMOS value "me_state" exists, if it doesn't, then
-	 * don't do anything.
-	 */
-	const unsigned int cmos_me_state = get_uint_option("me_state", UINT_MAX);
+	/* Use the fixed profile policy, or the CMOS option when one exists. */
+	const unsigned int requested_me_state = CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) ? 1 :
+		get_uint_option("me_state", UINT_MAX);
 
-	if (cmos_me_state == UINT_MAX)
+	if (requested_me_state == UINT_MAX)
 		return;
 
-	printk(BIOS_DEBUG, "CMOS: me_state = %u\n", cmos_me_state);
+	printk(BIOS_DEBUG, "ME: Requested state = %s.\n",
+	       requested_me_state ? "disabled" : "enabled");
 
 	/*
 	 * We only take action if the me_state doesn't match the CS(ME) working state
@@ -1425,32 +1517,54 @@ static void cse_set_state(struct device *dev)
 
 	const unsigned int soft_temp_disable = cse_is_hfs1_com_soft_temp_disable();
 
-	if (cmos_me_state && !soft_temp_disable) {
+	if (requested_me_state && !soft_temp_disable) {
 		/* me_state should be disabled, but it's enabled */
 		printk(BIOS_DEBUG, "ME needs to be disabled.\n");
 		send = heci_send_receive(&me_disable, sizeof(me_disable),
 			&disable_reply, &disable_reply_size, HECI_MKHI_ADDR);
-		result = disable_reply.hdr.result;
-	} else if (!cmos_me_state && soft_temp_disable) {
+		if (!send && (disable_reply_size != sizeof(disable_reply) ||
+		    disable_reply.hdr.group_id != MKHI_GROUP_ID_FWCAPS ||
+		    disable_reply.hdr.command != MKHI_SET_ME_DISABLE ||
+		    !disable_reply.hdr.is_resp || disable_reply.rule_id != ME_DISABLE_RULE_ID)) {
+			printk(BIOS_ERR, "HECI: Invalid ME disable reply\n");
+			send = CSE_RX_ERR_INPUT;
+		}
+		result = send ? -1 : disable_reply.hdr.result;
+	} else if (!requested_me_state && soft_temp_disable) {
 		/* me_state should be enabled, but it's disabled */
 		printk(BIOS_DEBUG, "ME needs to be enabled.\n");
 		send = heci_send_receive(&me_enable, sizeof(me_enable),
 			&enable_reply, &enable_reply_size, HECI_MKHI_ADDR);
-		result = enable_reply.hdr.result;
+		if (!send && (enable_reply_size != sizeof(enable_reply) ||
+		    enable_reply.hdr.group_id != MKHI_GROUP_ID_BUP_COMMON ||
+		    enable_reply.hdr.command != MKHI_SET_ME_ENABLE ||
+		    !enable_reply.hdr.is_resp)) {
+			printk(BIOS_ERR, "HECI: Invalid ME enable reply\n");
+			send = CSE_RX_ERR_INPUT;
+		}
+		result = send ? -1 : enable_reply.hdr.result;
 	} else {
-		printk(BIOS_DEBUG, "ME is %s.\n", cmos_me_state ? "disabled" : "enabled");
-		unsigned int cmos_me_state_counter = get_uint_option("me_state_counter",
-								 UINT_MAX);
+		printk(BIOS_DEBUG, "ME is %s.\n",
+		       requested_me_state ? "disabled" : "enabled");
+		unsigned int cmos_me_state_counter = me_state_counter_read();
 		/* set me_state_counter to 0 */
-		if ((cmos_me_state_counter != UINT_MAX && cmos_me_state_counter != 0))
-			set_uint_option("me_state_counter", 0);
+		if (cmos_me_state_counter != UINT_MAX && cmos_me_state_counter != 0) {
+			enum cb_err ret = me_state_counter_clear();
+
+			if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) && ret != CB_SUCCESS)
+				die("ME: Failed to clear state transition counter\n");
+		}
 		return;
 	}
 
 	printk(BIOS_DEBUG, "HECI: ME state change send %s!\n",
 							!send ? "success" : "failure");
-	printk(BIOS_DEBUG, "HECI: ME state change result %s!\n",
-							result ? "success" : "failure");
+	if (!send)
+		printk(BIOS_DEBUG, "HECI: ME state change result %s!\n",
+							!result ? "success" : "failure");
+
+	if (CONFIG(SOC_INTEL_CSE_ME_STATE_FIXED_DISABLED) && !send && result)
+		die("ME: Disable command was rejected\n");
 
 	/*
 	 * Reset if the result was successful, or if the send failed as some older

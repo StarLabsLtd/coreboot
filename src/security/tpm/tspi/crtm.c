@@ -10,12 +10,37 @@
 #include <string.h>
 
 static int tpm_log_initialized;
+
+enum crtm_state {
+	CRTM_NOT_STARTED,
+	CRTM_IN_PROGRESS,
+	CRTM_COMPLETE,
+	CRTM_FAILED,
+};
+
+static enum crtm_state crtm_state;
+
 static inline int tpm_log_available(void)
 {
 	if (ENV_BOOTBLOCK)
 		return tpm_log_initialized;
 
 	return 1;
+}
+
+static inline int crtm_available(void)
+{
+	if (ENV_BOOTBLOCK)
+		return crtm_state == CRTM_IN_PROGRESS ||
+		       crtm_state == CRTM_COMPLETE;
+
+	return 1;
+}
+
+static tpm_result_t tspi_crtm_fail(tpm_result_t rc)
+{
+	crtm_state = CRTM_FAILED;
+	return rc;
 }
 
 /*
@@ -37,14 +62,15 @@ static inline int tpm_log_available(void)
 static tpm_result_t tspi_init_crtm(void)
 {
 	tpm_result_t rc = TPM_SUCCESS;
-	/* Initialize TPM PRERAM log. */
-	if (!tpm_log_available()) {
-		tpm_preram_log_clear();
-		tpm_log_initialized = 1;
-	} else {
+
+	if (crtm_available()) {
 		printk(BIOS_WARNING, "TSPI: CRTM already initialized!\n");
 		return TPM_SUCCESS;
 	}
+
+	tspi_ensure_event_log_initialized();
+	/* Prevent measurements made below from recursively initializing the CRTM. */
+	crtm_state = CRTM_IN_PROGRESS;
 
 	struct region_device fmap;
 	if (fmap_locate_area_as_rdev("FMAP", &fmap) == 0) {
@@ -52,10 +78,11 @@ static tpm_result_t tspi_init_crtm(void)
 		if (rc) {
 			printk(BIOS_ERR,
 			       "TSPI: Couldn't measure FMAP into CRTM! rc %#x\n", rc);
-			return rc;
+			return tspi_crtm_fail(rc);
 		}
 	} else {
 		printk(BIOS_ERR, "TSPI: Could not find FMAP!\n");
+		return tspi_crtm_fail(TPM_CB_FAIL);
 	}
 
 	/* measure bootblock from RO */
@@ -66,7 +93,10 @@ static tpm_result_t tspi_init_crtm(void)
 					CONFIG_PCR_SRTM,
 					"FMAP: BOOTBLOCK");
 			if (rc)
-				return rc;
+				return tspi_crtm_fail(rc);
+		} else {
+			printk(BIOS_ERR, "TSPI: Could not find BOOTBLOCK!\n");
+			return tspi_crtm_fail(TPM_CB_FAIL);
 		}
 	} else if (CONFIG(BOOTBLOCK_IN_CBFS)) {
 		/* Mapping measures the file. We know we can safely map here because
@@ -89,9 +119,11 @@ static tpm_result_t tspi_init_crtm(void)
 		if (!mapping) {
 			printk(BIOS_INFO,
 			       "TSPI: Couldn't measure bootblock into CRTM!\n");
-			return TPM_CB_FAIL;
+			return tspi_crtm_fail(TPM_CB_FAIL);
 		}
 		cbfs_unmap(mapping);
+		if (crtm_state == CRTM_FAILED)
+			return TPM_CB_FAIL;
 	} else {
 		/* Since none of the above conditions are met let the SOC code measure the
 		 * bootblock. This accomplishes for cases where the bootblock is treated
@@ -99,11 +131,32 @@ static tpm_result_t tspi_init_crtm(void)
 		if (tspi_soc_measure_bootblock(CONFIG_PCR_SRTM)) {
 			printk(BIOS_INFO,
 			       "TSPI: Couldn't measure bootblock into CRTM on SoC level!\n");
-			return TPM_CB_FAIL;
+			return tspi_crtm_fail(TPM_CB_FAIL);
 		}
 	}
 
+	crtm_state = CRTM_COMPLETE;
 	return TPM_SUCCESS;
+}
+
+tpm_result_t tspi_ensure_event_log_initialized(void)
+{
+	if (tpm_log_available())
+		return TPM_SUCCESS;
+
+	tpm_preram_log_clear();
+	tpm_log_initialized = 1;
+	return TPM_SUCCESS;
+}
+
+static tpm_result_t tspi_ensure_crtm_initialized(void)
+{
+	if (crtm_available())
+		return TPM_SUCCESS;
+	if (crtm_state == CRTM_FAILED)
+		return TPM_CB_FAIL;
+
+	return tspi_init_crtm();
 }
 
 static bool is_runtime_data(const char *name)
@@ -131,11 +184,12 @@ tpm_result_t tspi_cbfs_measurement(const char *name, uint32_t type, const struct
 	tpm_result_t rc = TPM_SUCCESS;
 	char tpm_log_metadata[TPM_CB_LOG_PCR_HASH_NAME];
 
-	if (!tpm_log_available()) {
-		rc = tspi_init_crtm();
+	if (!crtm_available()) {
+		rc = tspi_ensure_crtm_initialized();
 		if (rc) {
-			printk(BIOS_WARNING,
-			       "Initializing CRTM failed!\n");
+			printk(BIOS_ERR, "Initializing CRTM failed!\n");
+			if (CONFIG(TPM_MEASURED_BOOT_REQUIRED))
+				die("Required CRTM initialization failed\n");
 			return rc;
 		}
 		printk(BIOS_DEBUG, "CRTM initialized.\n");
@@ -165,8 +219,12 @@ tpm_result_t tspi_cbfs_measurement(const char *name, uint32_t type, const struct
 
 	snprintf(tpm_log_metadata, TPM_CB_LOG_PCR_HASH_NAME, "CBFS: %s", name);
 
-	return tpm_extend_pcr(pcr_index, hash->algo, hash->raw, vb2_digest_size(hash->algo),
-			      tpm_log_metadata);
+	rc = tpm_extend_pcr(pcr_index, hash->algo, hash->raw,
+			    vb2_digest_size(hash->algo), tpm_log_metadata);
+	if (rc && crtm_state == CRTM_IN_PROGRESS)
+		crtm_state = CRTM_FAILED;
+
+	return rc;
 }
 
 void *tpm_log_init(void)

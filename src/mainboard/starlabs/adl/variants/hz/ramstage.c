@@ -8,4 +8,10 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *supd)
 {
 	configure_pin_mux(supd);
 	starlabs_update_fsp_s_policy(supd);
+
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	for (size_t i = 0; i < CONFIG_MAX_PCH_ROOT_PORTS; i++)
+		supd->PcieRpAcsEnabled[i] = 1;
 }

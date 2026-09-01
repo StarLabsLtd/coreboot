@@ -14,6 +14,7 @@
 #include <elog.h>
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
+#include <halt.h>
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
@@ -28,6 +29,7 @@
 #include <soc/romstage.h>
 #include <soc/soc_chip.h>
 #include <soc/soc_info.h>
+#include <soc/systemagent.h>
 #include <static.h>
 #include <string.h>
 #include <ux_locales.h>
@@ -123,7 +125,7 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 		[DDI_PORT_3] = {&m_cfg->DdiPort3Ddc, &m_cfg->DdiPort3Hpd},
 		[DDI_PORT_4] = {&m_cfg->DdiPort4Ddc, &m_cfg->DdiPort4Hpd},
 	};
-	m_cfg->InternalGfx = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD)) && is_devfn_enabled(PCI_DEVFN_IGD);
+	m_cfg->InternalGfx = soc_is_igd_enabled();
 	if (m_cfg->InternalGfx) {
 		/* IGD is enabled, set IGD stolen size to 128MB. */
 		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_128MB);
@@ -198,7 +200,13 @@ static void fill_fspm_cpu_params(FSP_M_CONFIG *m_cfg,
 
 static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 {
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	if (CONFIG(INTEL_TME_FIXED))
+		m_cfg->TmeEnable = 1;
+	else if (CONFIG(INTEL_TME_RUNTIME_OPTION))
+		m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) &&
+				   is_tme_supported();
+	else
+		m_cfg->TmeEnable = CONFIG(INTEL_TME) && is_tme_supported();
 	if (!m_cfg->TmeEnable || acpi_is_wakeup_s3())
 		return;
 	m_cfg->GenerateNewTmeKey = CONFIG(TME_KEY_REGENERATION_ON_WARM_BOOT) &&
@@ -213,6 +221,28 @@ static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 		m_cfg->TmeExcludeBase = (ram_top - CACHE_TMP_RAMTOP);
 		m_cfg->TmeExcludeSize = CACHE_TMP_RAMTOP;
 	}
+}
+
+static void enforce_fixed_tme(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(INTEL_TME_FIXED))
+		return;
+
+	if (!is_tme_supported())
+		die("TME is unavailable on this processor");
+
+	m_cfg->TmeEnable = 1;
+}
+
+static void enforce_no_debug_egress(FSP_M_CONFIG *m_cfg, FSPM_ARCHx_UPD *arch_upd)
+{
+	if (!CONFIG(NO_DEBUG_EGRESS))
+		return;
+
+	m_cfg->PlatformDebugOption = 0;
+	m_cfg->PcdSerialDebugLevel = 0;
+	m_cfg->SerialDebugMrcLevel = 0;
+	arch_upd->FspEventHandler = 0;
 }
 
 static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
@@ -370,6 +400,16 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->VmxEnable = CONFIG(ENABLE_VMX);
 }
 
+static void enforce_early_dma_protection(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	m_cfg->VtdDisable = 0;
+	m_cfg->DmaBufferSize = acpi_is_wakeup_s3() ? 2 * MiB : 4 * MiB;
+	m_cfg->PreBootDmaMask = BIT(0) | BIT(1);
+}
+
 static void fill_fspm_trace_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
@@ -519,6 +559,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	enforce_no_debug_egress(m_cfg, arch_upd);
+	enforce_fixed_tme(m_cfg);
+	enforce_early_dma_protection(m_cfg);
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

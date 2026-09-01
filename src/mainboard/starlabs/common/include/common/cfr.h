@@ -240,7 +240,9 @@ STARLABS_DECLARE_PCIE_PM_OBJECTS(lan2, "LAN 2");
 #undef STARLABS_DECLARE_PCIE_PM_OBJECTS
 
 static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
-	.flags		= CFR_OPTFLAG_RUNTIME,
+	.flags		= CFR_OPTFLAG_RUNTIME |
+			  (CONFIG(SOC_INTEL_CSE_S0IX_FIXED_DISABLED) ?
+			   CFR_OPTFLAG_SUPPRESS : 0),
 	.opt_name	= "s0ix_enable",
 	.ui_name	= "Modern Standby (S0ix)",
 	.ui_helptext	= "Enabled: Use S0ix for device sleep.\n"
@@ -250,6 +252,7 @@ static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 }, WITH_DEP_VALUES(&me_state, 0));
 
 static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
+	.flags		= CONFIG(STARLABS_ENHANCED_SECURITY) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "thunderbolt",
 	.ui_name	= "Thunderbolt",
 	.ui_helptext	= "Enable or disable Thunderbolt support",
@@ -361,6 +364,7 @@ static const struct sm_object vpu = SM_DECLARE_BOOL({
 });
 
 static const struct sm_object vtd = SM_DECLARE_BOOL({
+	.flags		= CONFIG(ENABLE_EARLY_DMA_PROTECTION) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "vtd",
 	.ui_name	= "VT-d",
 	.ui_helptext	= "Enable or disable Intel VT-d (virtualization)",

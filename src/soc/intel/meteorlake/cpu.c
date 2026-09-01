@@ -11,6 +11,7 @@
 #include <cpu/x86/msr.h>
 #include <device/pci.h>
 #include <fsp/api.h>
+#include <halt.h>
 #include <intelblocks/acpi.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/mp_init.h>
@@ -143,8 +144,15 @@ void soc_core_init(struct device *cpu)
 	/* Set core type in struct cpu_info */
 	set_dev_core_type();
 
-	if (get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported())
+	if (CONFIG(INTEL_TME_FIXED)) {
+		if (!is_tme_active())
+			die("TME is not active");
 		set_tme_core_activate();
+	} else if ((!CONFIG(INTEL_TME_RUNTIME_OPTION) ? CONFIG(INTEL_TME) :
+		    get_uint_option("intel_tme", CONFIG(INTEL_TME))) &&
+		   is_tme_supported()) {
+		set_tme_core_activate();
+	}
 
 	if (CONFIG(DROP_CPU_FEATURE_PROGRAM_IN_FSP)) {
 		/* Disable 3-strike error */

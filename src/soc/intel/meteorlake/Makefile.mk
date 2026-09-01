@@ -18,6 +18,7 @@ romstage-$(CONFIG_SOC_INTEL_CSE_PRE_CPU_RESET_TELEMETRY) += cse_telemetry.c
 romstage-y += meminit.c
 romstage-y += pcie_rp.c
 romstage-y += soc_info.c
+romstage-y += vtd.c
 
 ramstage-y += acpi.c
 ramstage-y += chip.c
@@ -36,6 +37,7 @@ ramstage-y += systemagent.c
 ramstage-y += tcss.c
 ramstage-y += xhci.c
 ramstage-y += soc_info.c
+ramstage-y += vtd.c
 
 smm-y += elog.c
 smm-y += gpio.c
