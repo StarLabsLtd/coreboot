@@ -80,6 +80,15 @@ static void enforce_power_button_only_wake(uint8_t slp_typ)
 		die("Failed to restrict wake sources to the power button");
 }
 
+static void enforce_fixed_off_after_power_failure(uint8_t slp_typ)
+{
+	if (!CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF) ||
+	    (slp_typ != ACPI_S4 && slp_typ != ACPI_S5))
+		return;
+
+	pmc_set_power_failure_state(false);
+}
+
 /* Specific SOC SMI handler during ramstage finalize phase */
 __weak void smihandler_soc_at_finalize(void)
 {
@@ -232,7 +241,8 @@ void smihandler_southbridge_sleep(
 		/* Disable all GPE */
 		pmc_disable_all_gpe();
 		/* Set which state system will be after power reapplied */
-		pmc_set_power_failure_state(false);
+		if (!CONFIG(SOC_INTEL_COMMON_PMC_POWER_FAILURE_FIXED_OFF))
+			pmc_set_power_failure_state(false);
 		/* also iterates over all bridges on bus 0 */
 		busmaster_disable_on_bus(0);
 
@@ -267,6 +277,7 @@ void smihandler_southbridge_sleep(
 		wadt_wake_restore(wadt_enabled);
 
 	enforce_power_button_only_wake(slp_typ);
+	enforce_fixed_off_after_power_failure(slp_typ);
 
 	/*
 	 * Write back to the SLP register to cause the originally intended
