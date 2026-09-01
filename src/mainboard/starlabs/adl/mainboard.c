@@ -1,9 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
+#include <boot/coreboot_tables.h>
 #include <device/device.h>
+#include <device/pci_def.h>
 #include <ec/starlabs/merlin/ec.h>
 #include <variants.h>
+
+bool payload_resource_firmware_owned(const struct device *dev)
+{
+	return dev->path.type == DEVICE_PATH_PCI && dev->upstream != NULL &&
+		dev->upstream->secondary == 0 && dev->path.pci.devfn == PCI_DEVFN(31, 5);
+}
 
 static void starlabs_configure_mainboard(void *unused)
 {

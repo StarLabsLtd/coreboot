@@ -16,6 +16,12 @@ __weak const struct lb_framebuffer *payload_resource_framebuffer(void)
 	return get_lb_framebuffer();
 }
 
+__weak bool payload_resource_firmware_owned(const struct device *device)
+{
+	(void)device;
+	return false;
+}
+
 static bool range_end(uint64_t base, uint64_t length, uint64_t *end)
 {
 	if (!length || base > UINT64_MAX - (length - 1))
@@ -202,6 +208,9 @@ static enum cb_err count_records(size_t *root_count, size_t *assignment_count)
 	for (device = all_devices; device; device = device->next) {
 		const struct resource *resource;
 
+		if (payload_resource_firmware_owned(device))
+			continue;
+
 		if (device->enabled && device->path.type == DEVICE_PATH_DOMAIN) {
 			if (!valid_domain(device)) {
 				printk(BIOS_ERR, "PRH: invalid PCI domain %s\n", dev_path(device));
@@ -294,6 +303,9 @@ static bool assignment_is_64bit(const struct device *device,
 static bool device_has_assignment(const struct device *device)
 {
 	const struct resource *resource;
+
+	if (payload_resource_firmware_owned(device))
+		return false;
 
 	for (resource = device->resource_list; resource; resource = resource->next) {
 		uint8_t bar;
@@ -514,6 +526,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		const struct device *domain;
 		const struct bus *bus;
 
+		if (payload_resource_firmware_owned(device))
+			continue;
 		if (device->enabled && device->path.type == DEVICE_PATH_DOMAIN) {
 			bus = device->downstream;
 			roots[root_index].segment = bus->segment_group;

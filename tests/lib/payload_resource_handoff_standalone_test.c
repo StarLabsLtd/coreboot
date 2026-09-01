@@ -16,7 +16,13 @@ static int framebuffer_present;
 static uint16_t command;
 static int stuck;
 static uint32_t pci_bars[6];
+static const struct device *firmware_owned;
 struct device *all_devices;
+
+bool payload_resource_firmware_owned(const struct device *device)
+{
+	return device == firmware_owned;
+}
 
 uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar_number)
 {
@@ -92,6 +98,7 @@ static void reset_fixture(void)
 	memset(&second_resource, 0, sizeof(second_resource));
 	memset(&framebuffer, 0, sizeof(framebuffer));
 	memset(pci_bars, 0, sizeof(pci_bars));
+	firmware_owned = NULL;
 	domain.enabled = 1;
 	domain.path.type = DEVICE_PATH_DOMAIN;
 	domain.downstream = &root_bus;
@@ -340,6 +347,11 @@ int main(void)
 	bar.flags &= ~IORESOURCE_STORED;
 	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
 		header->table_entries == 0, "unstored assignment was published");
+
+	reset_fixture();
+	firmware_owned = &endpoint;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
+		header->table_entries == 0, "firmware-owned assignment was published");
 
 	reset_fixture();
 	stuck = 1;

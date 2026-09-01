@@ -18,6 +18,12 @@ static uint16_t pci_command;
 static bool bus_master_stuck;
 static size_t command_reads, command_writes;
 static uint32_t pci_bars[6];
+static const struct device *firmware_owned;
+
+bool payload_resource_firmware_owned(const struct device *device)
+{
+	return device == firmware_owned;
+}
 
 uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar)
 {
@@ -72,6 +78,7 @@ static int setup(void **state)
 	pci_command = PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
 	bus_master_stuck = false;
 	command_reads = command_writes = 0;
+	firmware_owned = NULL;
 	devs[0].enabled = 1;
 	devs[0].path.type = DEVICE_PATH_DOMAIN;
 	devs[0].downstream = &buses[0];
@@ -164,6 +171,17 @@ static void test_fixed_bar_uses_live_64bit_encoding(void **state)
 	h = get_handoff(*state);
 	assignments = (const void *)((const uint8_t *)h + h->sections[1].offset);
 	assert_int_equal(assignments[0].flags, LB_PRH_PCI_ASSIGNMENT_64BIT);
+}
+
+static void test_omits_firmware_owned_device(void **state)
+{
+	const struct lb_payload_resource_handoff *h;
+
+	firmware_owned = &devs[1];
+	assert_int_equal(lb_add_payload_resource_handoff(*state), CB_SUCCESS);
+	h = get_handoff(*state);
+	assert_int_equal(h->sections[1].entry_count, 1);
+	assert_int_equal(command_reads, 2);
 }
 
 static void test_rejects_unstored_assignment(void **state)
@@ -470,6 +488,7 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_exact_holes_and_prefetch, setup),
 		cmocka_unit_test_setup(test_fixed_bar_uses_live_64bit_encoding, setup),
+		cmocka_unit_test_setup(test_omits_firmware_owned_device, setup),
 		cmocka_unit_test_setup(test_rejects_unstored_assignment, setup),
 		cmocka_unit_test_setup(test_bus_master_readback_failure_is_transactional,
 			setup),
