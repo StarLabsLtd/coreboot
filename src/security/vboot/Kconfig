@@ -380,6 +380,12 @@ config VBOOT_GSC_BOARD_ID
 	  this value is just a default and doesn't need to be set per-variant in coreboot.
 	  (Note: This is a completely separate thing from coreboot's `board_id()` function.)
 
+config VBOOT_GBB_FLAGS_ZERO
+	bool
+	help
+	  Ignore all mutable GBB flag selections and generate the GBB with a zero
+	  flags field.
+
 menu "GBB configuration"
 
 config GBB_HWID
@@ -394,6 +400,8 @@ config GBB_HWID
 config GBB_BMPFV_FILE
 	string "Path to bmpfv image"
 	default ""
+
+if !VBOOT_GBB_FLAGS_ZERO
 
 config GBB_FLAG_DEV_SCREEN_SHORT_DELAY
 	bool "Reduce dev screen delay"
@@ -466,6 +474,8 @@ config GBB_FLAG_FORCE_CSE_SYNC
 config GBB_FLAG_ENABLE_ADB
 	bool "Enable ADB"
 	default n
+
+endif # !VBOOT_GBB_FLAGS_ZERO
 
 endmenu # GBB
 
