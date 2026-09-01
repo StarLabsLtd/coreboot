@@ -14,6 +14,7 @@
 #include <elog.h>
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
+#include <halt.h>
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
@@ -199,7 +200,13 @@ static void fill_fspm_cpu_params(FSP_M_CONFIG *m_cfg,
 
 static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 {
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	if (CONFIG(INTEL_TME_FIXED))
+		m_cfg->TmeEnable = 1;
+	else if (CONFIG(INTEL_TME_RUNTIME_OPTION))
+		m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) &&
+				   is_tme_supported();
+	else
+		m_cfg->TmeEnable = CONFIG(INTEL_TME) && is_tme_supported();
 	if (!m_cfg->TmeEnable || acpi_is_wakeup_s3())
 		return;
 	m_cfg->GenerateNewTmeKey = CONFIG(TME_KEY_REGENERATION_ON_WARM_BOOT) &&
@@ -214,6 +221,17 @@ static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 		m_cfg->TmeExcludeBase = (ram_top - CACHE_TMP_RAMTOP);
 		m_cfg->TmeExcludeSize = CACHE_TMP_RAMTOP;
 	}
+}
+
+static void enforce_fixed_tme(FSP_M_CONFIG *m_cfg)
+{
+	if (!CONFIG(INTEL_TME_FIXED))
+		return;
+
+	if (!is_tme_supported())
+		die("TME is unavailable on this processor");
+
+	m_cfg->TmeEnable = 1;
 }
 
 static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
@@ -530,6 +548,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	enforce_fixed_tme(m_cfg);
 	enforce_early_dma_protection(m_cfg);
 }
 
