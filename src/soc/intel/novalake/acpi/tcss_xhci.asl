@@ -91,7 +91,7 @@ Method (_S4W, 0, NotSerialized)
  */
 Method (_PRW, 0)
 {
-	Return (Package() { 0x65, 4 })
+	Return (Package() { 0x65, TCSS_WAKE_LOWEST_SLEEP_STATE })
 }
 
 /*

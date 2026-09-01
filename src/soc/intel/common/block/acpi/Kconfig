@@ -120,6 +120,7 @@ config SOC_INTEL_COMMON_ACPI_TIME_ALARM
 	depends on SOC_INTEL_COMMON_ACPI_WAKE_SOURCE
 	depends on SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 	depends on HAVE_ACPI_TABLES
+	depends on !ACPI_S4_S5_POWER_BUTTON_ONLY_WAKE
 	help
 	  Preserve an OS-armed Intel WADT wake source across S3/S4 sleep
 	  entry for ACPI Time and Alarm users.
@@ -127,6 +128,7 @@ config SOC_INTEL_COMMON_ACPI_TIME_ALARM
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5
 	bool
 	depends on SOC_INTEL_COMMON_ACPI_TIME_ALARM
+	depends on !ACPI_S4_S5_POWER_BUTTON_ONLY_WAKE
 	help
 	  Preserve an OS-armed Intel WADT wake source across S5 sleep entry
 	  after the common S5 path clears all GPE enables. Select only on

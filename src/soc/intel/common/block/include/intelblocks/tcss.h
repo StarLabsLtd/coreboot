@@ -237,6 +237,11 @@ bool tcss_valid_tbt_auth(void);
 bool ioe_tcss_valid_tbt_auth(void);
 #endif /* !defined(__ACPI__) */
 
+#if defined(__ACPI__)
+#include <acpi/acpi.h>
+#define TCSS_WAKE_LOWEST_SLEEP_STATE	ACPI_S4_DEVICE_WAKE_STATE
+#endif
+
 /*
  * The PCI-SIG engineering change requirement provides the ACPI additions for firmware latency
  * optimization. Both of FW_RESET_TIME and FW_D3HOT_TO_D0_TIME are applicable to the upstream

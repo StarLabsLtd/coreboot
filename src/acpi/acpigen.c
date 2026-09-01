@@ -6,6 +6,7 @@
 /* If you need to change this, change acpigen_pop_len too */
 #define ACPIGEN_RSVD_PKGLEN_BYTES	3
 
+#include <acpi/acpi.h>
 #include <lib.h>
 #include <string.h>
 #include <acpi/acpigen.h>
@@ -1006,6 +1007,9 @@ void acpigen_write_TPC(const char *gnvs_tpc_limit)
 
 void acpigen_write_PRW(u32 wake, u32 level)
 {
+	if (CONFIG(ACPI_S4_S5_POWER_BUTTON_ONLY_WAKE) && level > ACPI_S3)
+		level = ACPI_S3;
+
 	/*
 	 * Name (_PRW, Package () { wake, level }
 	 */

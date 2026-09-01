@@ -105,5 +105,5 @@ Method (_DSW, 3)
 
 Method (_PRW, 0)
 {
-	Return (Package() { 0x6D, 4 })
+	Return (Package() { 0x6D, TCSS_WAKE_LOWEST_SLEEP_STATE })
 }
