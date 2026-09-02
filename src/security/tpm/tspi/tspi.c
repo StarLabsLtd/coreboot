@@ -231,6 +231,12 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	if (!digest)
 		return TPM_IOERROR;
 
+	if (CONFIG(TPM_MEASURED_BOOT)) {
+		rc = tspi_ensure_event_log_initialized();
+		if (rc != TPM_SUCCESS)
+			return rc;
+	}
+
 	if (tspi_tpm_is_setup()) {
 		rc = tlcl_lib_init();
 		if (rc != TPM_SUCCESS) {
@@ -268,7 +274,6 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 
 	if (!rdev || !rname)
 		return TPM_CB_INVALID_ARG;
-
 	digest_len = vb2_digest_size(TPM_MEASURE_ALGO);
 	assert(digest_len <= sizeof(digest));
 	if (vb2_digest_init(&ctx, vboot_hwcrypto_allowed(), TPM_MEASURE_ALGO,

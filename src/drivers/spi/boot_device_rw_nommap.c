@@ -99,11 +99,21 @@ int boot_device_wp_region(const struct region_device *rd,
 		return -1;
 
 	if (type == MEDIA_WP) {
-		if (spi_flash_is_write_protected(boot_dev,
-						 region_device_region(rd)) != 1) {
+		int protected;
+
+		if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+			protected = spi_flash_is_write_protected_exact(
+				boot_dev, region_device_region(rd));
+		else
+			protected = spi_flash_is_write_protected(
+				boot_dev, region_device_region(rd));
+
+		if (protected != 1) {
 			enum spi_flash_status_reg_lockdown lock =
 				SPI_WRITE_PROTECTION_REBOOT;
-			if (CONFIG(BOOTMEDIA_SPI_LOCK_REBOOT))
+			if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM))
+				lock = SPI_WRITE_PROTECTION_PRESERVE;
+			else if (CONFIG(BOOTMEDIA_SPI_LOCK_REBOOT))
 				lock = SPI_WRITE_PROTECTION_REBOOT;
 			else if (CONFIG(BOOTMEDIA_SPI_LOCK_PIN))
 				lock = SPI_WRITE_PROTECTION_PIN;

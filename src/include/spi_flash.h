@@ -46,7 +46,10 @@ enum spi_flash_status_reg_lockdown {
  * read:	Flash read operation.
  * write:	Flash write operation.
  * erase:	Flash erase operation.
- * status:	Read flash status register.
+ * status:	Read flash status register 1.
+ * read_status: Read a flash status register selected by opcode.
+ * write_status: Write one or more flash status registers using the selected
+ *               opcode in a single cycle.
  */
 struct spi_flash_ops {
 	int (*read)(const struct spi_flash *flash, u32 offset, size_t len,
@@ -55,6 +58,9 @@ struct spi_flash_ops {
 			const void *buf);
 	int (*erase)(const struct spi_flash *flash, u32 offset, size_t len);
 	int (*status)(const struct spi_flash *flash, u8 *reg);
+	int (*read_status)(const struct spi_flash *flash, u8 opcode, u8 *reg);
+	int (*write_status)(const struct spi_flash *flash, u8 opcode,
+			    const u8 *regs, size_t len);
 };
 
 struct spi_flash_bpbits {
@@ -79,6 +85,9 @@ struct spi_flash_protection_ops {
 	 */
 	int (*get_write)(const struct spi_flash *flash,
 				    const struct region *region);
+	/* Returns 1 only if the protected region exactly matches region. */
+	int (*get_write_exact)(const struct spi_flash *flash,
+					  const struct region *region);
 	/*
 	 * Enable the status register write protection, if supported on the
 	 * requested region, and optionally enable status register lock-down.
@@ -182,6 +191,11 @@ int spi_flash_probe(unsigned int bus, unsigned int cs, struct spi_flash *flash);
 int spi_flash_generic_probe(const struct spi_slave *slave,
 				struct spi_flash *flash);
 
+/* Fill flash identification data from a three or five byte JEDEC ID. */
+int spi_flash_fill_from_id(const struct spi_slave *slave,
+			   struct spi_flash *flash, const u8 *idcode,
+			   size_t idcode_len);
+
 /* All the following functions return 0 on success and non-zero on error. */
 int spi_flash_read(const struct spi_flash *flash, u32 offset, size_t len,
 		   void *buf);
@@ -189,6 +203,9 @@ int spi_flash_write(const struct spi_flash *flash, u32 offset, size_t len,
 		    const void *buf);
 int spi_flash_erase(const struct spi_flash *flash, u32 offset, size_t len);
 int spi_flash_status(const struct spi_flash *flash, u8 *reg);
+int spi_flash_read_status(const struct spi_flash *flash, u8 opcode, u8 *reg);
+int spi_flash_write_status(const struct spi_flash *flash, u8 opcode,
+			   const u8 *regs, size_t len);
 
 /*
  * Return the vendor dependent SPI flash write protection state.
@@ -204,6 +221,9 @@ int spi_flash_status(const struct spi_flash *flash, u8 *reg);
  */
 int spi_flash_is_write_protected(const struct spi_flash *flash,
 				 const struct region *region);
+/* Return 1 only when the status-register range exactly matches region. */
+int spi_flash_is_write_protected_exact(const struct spi_flash *flash,
+				       const struct region *region);
 /*
  * Enable the vendor dependent SPI flash write protection. The region not
  * covered by write-protection will be set to write-able state.

@@ -320,11 +320,65 @@ static int fast_spi_flash_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int fast_spi_flash_read_status(const struct spi_flash *flash,
+				      uint8_t opcode, uint8_t *reg)
+{
+	(void)flash;
+	(void)opcode;
+	(void)reg;
+	return E_ARGUMENT;
+}
+
+static int fast_spi_flash_write_status(const struct spi_flash *flash,
+				       uint8_t opcode, const uint8_t *regs,
+				       size_t len)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint32_t vscc0;
+	uint8_t status;
+	int ret;
+
+	if ((CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) &&
+	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
+	    opcode != SPI_OPMENU_0 || !len || len > sizeof(uint16_t))
+		return E_ARGUMENT;
+
+	vscc0 = fast_spi_flash_ctrlr_reg_read(ctx, SPIBAR_SFDP0_VSCC0);
+	if ((vscc0 & SPIBAR_VSCC0_VCL) &&
+	    (vscc0 & (SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR)) !=
+		    (SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR)) {
+		printk(BIOS_ERR, "SPI status writes are locked out by VSCC0\n");
+		return E_HW_ERROR;
+	}
+
+	fast_spi_flash_ctrlr_reg_write(ctx, SPIBAR_SFDP0_VSCC0,
+		vscc0 | SPIBAR_VSCC0_LVSCC_WEWS | SPIBAR_VSCC0_LVSCC_WSR);
+	fill_xfer_fifo(ctx, regs, len);
+	ret = exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (ret != SUCCESS)
+		return ret;
+
+	stopwatch_init_msecs_expire(&sw, 1000);
+	do {
+		ret = fast_spi_flash_status(flash, &status);
+		if (ret != SUCCESS)
+			return ret;
+		if (!(status & 1))
+			return SUCCESS;
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI status write timed out\n");
+	return E_TIMEOUT;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
+	.read_status = fast_spi_flash_read_status,
+	.write_status = fast_spi_flash_write_status,
 };
 
 /*
@@ -338,8 +392,11 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 				struct spi_flash *flash)
 {
 	BOILERPLATE_CREATE_CTX(ctx);
+	uint8_t idcode[3];
+	uint32_t component0_size;
 	uint32_t flash_bits;
 	uint32_t ptinx_reg;
+	bool dual_component = false;
 
 	/*
 	 * bytes = (bits + 1) / 8;
@@ -349,6 +406,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	ptinx_reg = SPIBAR_PTINX_COMP_0 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 	flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 	flash->size = (flash_bits >> 3) + 1;
+	component0_size = flash->size;
 
 	/*
 	 * Now check if we have a second flash component.
@@ -358,6 +416,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	 */
 	ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_SFDP | SFDP_HDR_SIG;
 	if (fast_spi_flash_read_sfdp(ctx, ptinx_reg) == SFDP_SIGNATURE) {
+		dual_component = true;
 		ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 		flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 		flash->size += ((flash_bits >> 3) + 1);
@@ -368,6 +427,21 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	/* Can erase both 4 KiB and 64 KiB chunks. Declare the smaller size. */
 	flash->sector_size = 4 * KiB;
 	flash->page_size = 256;
+
+	if (!dual_component &&
+	    exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_RD_ID, 0,
+				   sizeof(idcode)) == SUCCESS) {
+		drain_xfer_fifo(ctx, idcode, sizeof(idcode));
+		if (!spi_flash_fill_from_id(dev, flash, idcode, sizeof(idcode))) {
+			if (flash->size != component0_size)
+				printk(BIOS_WARNING,
+				       "SFDP and JEDEC flash sizes differ: %#x vs %#x\n",
+				       component0_size, flash->size);
+			flash->size = component0_size;
+			flash->sector_size = 4 * KiB;
+			flash->page_size = 256;
+		}
+	}
 	/*
 	 * FIXME: Get erase+cmd, and status_cmd from SFDP.
 	 *
