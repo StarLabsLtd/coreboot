@@ -165,8 +165,18 @@ CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
 CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
 CDK2_RETAINED_FV := $(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV))
 CDK2_RETAINED_FV_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_RETAINED_FV_SHA256))
+CDK2_SYSTEM_FMP_FFS := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_FFS))
+CDK2_SYSTEM_FMP_FFS_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_FFS_SHA256))
+CDK2_SYSTEM_FMP_PE := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_PE))
+CDK2_SYSTEM_FMP_PE_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_PE_SHA256))
 
-$(CDK2_PAYLOAD): $(DOTCONFIG) $(objutil)/kconfig/conf
+# The nested CDK2 build owns its fine-grained source dependencies.  Always
+# enter it so edits below payloads/external/cdk2/cdk2 cannot leave a stale
+# payload merely because the outer coreboot target already exists.
+.PHONY: cdk2_force
+cdk2_force:
+
+$(CDK2_PAYLOAD): cdk2_force $(DOTCONFIG) $(objutil)/kconfig/conf
 	@test "$(CONFIG_SMMSTORE)" = y || { \
 		echo "CDK2 requires CONFIG_SMMSTORE=y for the coreboot handoff" >&2; \
 		exit 1; \
@@ -184,6 +194,16 @@ $(CDK2_PAYLOAD): $(DOTCONFIG) $(objutil)/kconfig/conf
 		exit 1; \
 	}
 	@printf '%s  %s\n' "$(CDK2_RETAINED_FV_SHA256)" "$(CDK2_RETAINED_FV)" | sha256sum -c -
+	@test -f "$(CDK2_SYSTEM_FMP_FFS)" || { \
+		echo "CDK2 system FMP FFS does not exist: $(CDK2_SYSTEM_FMP_FFS)" >&2; \
+		exit 1; \
+	}
+	@printf '%s  %s\n' "$(CDK2_SYSTEM_FMP_FFS_SHA256)" "$(CDK2_SYSTEM_FMP_FFS)" | sha256sum -c -
+	@test -f "$(CDK2_SYSTEM_FMP_PE)" || { \
+		echo "CDK2 system FMP executable does not exist: $(CDK2_SYSTEM_FMP_PE)" >&2; \
+		exit 1; \
+	}
+	@printf '%s  %s\n' "$(CDK2_SYSTEM_FMP_PE_SHA256)" "$(CDK2_SYSTEM_FMP_PE)" | sha256sum -c -
 	+$(MAKE) -C $(CDK2_SOURCE) retained-fv-check native-fvinfo \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))"
@@ -191,6 +211,8 @@ $(CDK2_PAYLOAD): $(DOTCONFIG) $(objutil)/kconfig/conf
 		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
 		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		CDK2_SYSTEM_FMP_FFS_SOURCE="$(abspath $(CDK2_SYSTEM_FMP_FFS))" \
+		CDK2_SYSTEM_FMP_PE_SOURCE="$(abspath $(CDK2_SYSTEM_FMP_PE))" \
 		HOSTCC="$(HOSTCC)" CC=cc \
 		LD=ld OBJCOPY="$(OBJCOPY_x86_64)" \
 		NM="$(NM_x86_64)"
@@ -199,6 +221,8 @@ $(CDK2_PAYLOAD): $(DOTCONFIG) $(objutil)/kconfig/conf
 		CDK2_CONFIG="$(abspath $(CDK2_OUTPUT))/.config" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		CDK2_PAYLOAD_FV="$(abspath $(CDK2_RETAINED_FV))" \
+		CDK2_SYSTEM_FMP_FFS_SOURCE="$(abspath $(CDK2_SYSTEM_FMP_FFS))" \
+		CDK2_SYSTEM_FMP_PE_SOURCE="$(abspath $(CDK2_SYSTEM_FMP_PE))" \
 		HOSTCC="$(HOSTCC)" CC=cc LD=ld \
 		CDK2_NATIVE_OBJCOPY="$(OBJCOPY_x86_64)" \
 		CDK2_NATIVE_NM="$(NM_x86_64)"
