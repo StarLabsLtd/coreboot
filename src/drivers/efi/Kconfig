@@ -82,7 +82,7 @@ config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 
 config DRIVERS_EFI_GENERATE_CAPSULE
 	bool "Generate an update capsule during the build"
-	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES
+	depends on (PAYLOAD_EDK2 || PAYLOAD_CDK2) && DRIVERS_EFI_UPDATE_CAPSULES
 	help
 	  Generates a UEFI capsule from the final ROM image using EDK2 BaseTools.
 	  This is intended for fwupd update workflows that use the ESRT/FMP

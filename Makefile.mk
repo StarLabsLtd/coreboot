@@ -82,15 +82,40 @@ finalised_rom:: | files_added
 .PHONY: capsule
 capsule::
 
-ifeq ($(CONFIG_PAYLOAD_EDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yyy)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yy)
 finalised_rom:: $(obj)/coreboot.cap
 capsule:: $(obj)/coreboot.cap
 
-$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) | files_added
-	$(MAKE) -C payloads/external/edk2 coreboot_capsule \
-		COREBOOT_ROM="$(abspath $<)" \
-		COREBOOT_CAPSULE_OUT="$(abspath $@)" \
-		$(EDK2_CAPSULE_ARGS)
+$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) \
+		util/efi_capsule/append_rmap.py util/efi_capsule/generate_capsule.py \
+		util/efi_capsule/validate_capsule.py | files_added
+	regions='$(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))'; \
+		test -n "$$regions"; \
+		set --; for region in $$regions; do set -- "$$@" --region "$$region"; done; \
+		python3 util/efi_capsule/append_rmap.py --output "$(obj)/coreboot.rmap.rom" \
+			"$$@" "$<"; \
+		version=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) )); \
+		if [ $$version -eq 0 ]; then \
+			version=$$(printf '%s\n' '$(call strip_quotes,$(CONFIG_LOCALVERSION))' | awk 'match($$0, /[0-9]+\.[0-9]+/) { split(substr($$0, RSTART, RLENGTH), v, "."); print v[1] * 65536 + v[2] }'); \
+			test -n "$$version"; \
+		fi; \
+		lsv=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) )); \
+		if [ $$lsv -eq 0 ]; then lsv=$$version; fi; \
+		reset_arg=; if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = y ]; then \
+			reset_arg=--initiate-reset; fi; \
+		if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = y ]; then \
+			echo 'Embedded FMP drivers require an explicit payload-owned input' >&2; exit 1; \
+		fi; \
+		python3 util/efi_capsule/generate_capsule.py --output "$@" \
+			--guid '$(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))' \
+			--fw-version $$version --lsv $$lsv $$reset_arg \
+			--signer-private-cert '$(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))' \
+			--other-public-cert '$(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))' \
+			--trusted-public-cert '$(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))' \
+			"$(obj)/coreboot.rmap.rom"; \
+		python3 util/efi_capsule/validate_capsule.py --capsule "$@" \
+			--guid '$(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))' \
+			--embedded-drivers 0
 endif
 
 # This target should come just before the show_notices target.  If there
