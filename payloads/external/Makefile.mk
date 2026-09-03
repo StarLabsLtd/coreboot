@@ -204,7 +204,7 @@ $(CDK2_PAYLOAD): cdk2_force $(DOTCONFIG) $(objutil)/kconfig/conf
 		exit 1; \
 	}
 	@printf '%s  %s\n' "$(CDK2_SYSTEM_FMP_PE_SHA256)" "$(CDK2_SYSTEM_FMP_PE)" | sha256sum -c -
-	+$(MAKE) -C $(CDK2_SOURCE) retained-fv-check native-fvinfo \
+	+$(MAKE) -C $(CDK2_SOURCE) retained-fv-check \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))"
 	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
