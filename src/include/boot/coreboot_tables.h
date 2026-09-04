@@ -34,6 +34,10 @@ uint16_t payload_resource_read_command(const struct device *device);
 void payload_resource_write_command(const struct device *device, uint16_t command);
 uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar);
 bool payload_resource_firmware_owned(const struct device *device);
+/* Board policy: opt in only when the enumerated tree and boot intent are authoritative. */
+bool payload_resource_revision4_ready(void);
+/* Return true for a boot controller; lower priorities are serialized first. */
+bool payload_resource_boot_controller(const struct device *device, uint16_t *priority);
 
 void lb_string_platform_blob_version(struct lb_header *header);
 

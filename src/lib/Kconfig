@@ -13,7 +13,9 @@ config PAYLOAD_RESOURCE_HANDOFF
 	depends on PCI && ECAM_MMCONF_SUPPORT
 	help
 	  Serialize PCI root topology and exact coreboot-assigned resources for
-	  payloads that consume the revision 3 resource handoff. Before the
+	  payloads that consume the resource handoff. Revision 3 remains the safe
+	  default; boards with a trustworthy PCI tree and boot-controller policy
+	  may opt in to revision 4 topology and boot-intent sections. Before the
 	  record is published, bus mastering is disabled and verified for every
 	  serialized function. CDK2's linear boot flow consumes this authoritative
 	  handoff instead of probing or reassigning resources already configured by
