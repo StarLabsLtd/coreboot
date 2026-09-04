@@ -367,6 +367,12 @@ static bool bridge_relationship_valid(const struct device *device, const struct 
 		downstream->subordinate <= root_end && downstream->subordinate <= UINT8_MAX;
 }
 
+static bool device_is_pci_bridge_candidate(const struct device *device)
+{
+	return (device->class >> 8) == 0x0604 ||
+		(device->hdr_type & 0x7f) == PCI_HEADER_TYPE_BRIDGE;
+}
+
 static bool bus_has_assignment(const struct bus *bus, unsigned int depth, bool *valid,
 	uint8_t root_start, uint8_t root_end)
 {
@@ -378,6 +384,8 @@ static bool bus_has_assignment(const struct bus *bus, unsigned int depth, bool *
 		return false;
 	}
 	for (device = bus->children; device; device = device->sibling) {
+		bool has_descendant = false;
+
 		if (++child_count > LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES) {
 			*valid = false;
 			return false;
@@ -391,16 +399,18 @@ static bool bus_has_assignment(const struct bus *bus, unsigned int depth, bool *
 		if (device_has_assignment(device))
 			return true;
 		if (device->downstream) {
-			if (!bridge_relationship_valid(device, bus, root_start, root_end)) {
+			has_descendant = bus_has_assignment(device->downstream, depth + 1,
+				valid, root_start, root_end);
+			if (!*valid)
+				return false;
+			if ((device_is_pci_bridge_candidate(device) || has_descendant) &&
+			    !bridge_relationship_valid(device, bus, root_start, root_end)) {
 				*valid = false;
 				return false;
 			}
-			if (bus_has_assignment(device->downstream, depth + 1, valid,
-				root_start, root_end))
+			if (has_descendant)
 				return true;
 		}
-		if (!*valid)
-			return false;
 	}
 	return false;
 }
@@ -475,13 +485,14 @@ static bool collect_topology_bus(const struct bus *bus, uint16_t parent,
 		bridge = (device->class >> 8) == 0x0604;
 		has_descendant = false;
 		if (device->downstream) {
-			if (!bridge_relationship_valid(device, bus, root_start, root_end))
-				return false;
 			has_descendant = bus_has_assignment(device->downstream, depth + 1,
 				&valid, root_start, root_end);
+			if (!valid)
+				return false;
+			if ((device_is_pci_bridge_candidate(device) || has_descendant) &&
+			    !bridge_relationship_valid(device, bus, root_start, root_end))
+				return false;
 		}
-		if (!valid)
-			return false;
 		if (!has_assignment && !has_descendant)
 			continue;
 		if (topology_bdf_duplicate(snapshot, device))

@@ -17,9 +17,11 @@ _Static_assert(sizeof(struct lb_prh_framebuffer) == 44,
 
 static uint8_t storage[4096];
 static struct device domain, endpoint, second_endpoint, third_endpoint, fourth_endpoint;
-static struct bus root_bus, bridge_bus;
+static struct device fifth_endpoint, logical_child;
+static struct bus root_bus, bridge_bus, logical_bus;
 static struct resource bar;
 static struct resource aperture, second_resource, third_resource, fourth_resource;
+static struct resource logical_resource;
 static struct lb_framebuffer framebuffer;
 static int framebuffer_present;
 static uint16_t command;
@@ -127,14 +129,18 @@ static void reset_fixture(void)
 	memset(&endpoint, 0, sizeof(endpoint));
 	memset(&root_bus, 0, sizeof(root_bus));
 	memset(&bridge_bus, 0, sizeof(bridge_bus));
+	memset(&logical_bus, 0, sizeof(logical_bus));
 	memset(&bar, 0, sizeof(bar));
 	memset(&aperture, 0, sizeof(aperture));
 	memset(&second_endpoint, 0, sizeof(second_endpoint));
 	memset(&third_endpoint, 0, sizeof(third_endpoint));
 	memset(&fourth_endpoint, 0, sizeof(fourth_endpoint));
+	memset(&fifth_endpoint, 0, sizeof(fifth_endpoint));
+	memset(&logical_child, 0, sizeof(logical_child));
 	memset(&second_resource, 0, sizeof(second_resource));
 	memset(&third_resource, 0, sizeof(third_resource));
 	memset(&fourth_resource, 0, sizeof(fourth_resource));
+	memset(&logical_resource, 0, sizeof(logical_resource));
 	memset(&framebuffer, 0, sizeof(framebuffer));
 	memset(pci_bars, 0, sizeof(pci_bars));
 	firmware_owned = NULL;
@@ -238,6 +244,32 @@ static void add_q35_boot_controllers(void)
 		.size = 0x2000,
 		.index = PCI_BASE_ADDRESS_0,
 		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_STORED,
+	};
+}
+
+static void add_q35_lpc_logical_child(void)
+{
+	fourth_endpoint.next = &fifth_endpoint;
+	fourth_endpoint.sibling = &fifth_endpoint;
+	fifth_endpoint = (struct device) {
+		.enabled = 1,
+		.path = { .type = DEVICE_PATH_PCI, .pci.devfn = PCI_DEVFN(0x1f, 0) },
+		.upstream = &root_bus,
+		.downstream = &logical_bus,
+		.vendor = 0x8086,
+		.device = 0x2918,
+		.class = 0x060100,
+		.hdr_type = PCI_HEADER_TYPE_NORMAL,
+		.next = &logical_child,
+	};
+	logical_bus = (struct bus) {
+		.dev = &fifth_endpoint,
+		.children = &logical_child,
+	};
+	logical_child = (struct device) {
+		.enabled = 1,
+		.path = { .type = DEVICE_PATH_PNP },
+		.upstream = &logical_bus,
 	};
 }
 
@@ -411,6 +443,7 @@ int main(void)
 	revision4_ready = 1;
 	framebuffer_present = 1;
 	add_q35_boot_controllers();
+	add_q35_lpc_logical_child();
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
 		"Q35 revision 4 fixture was rejected");
 	handoff = (const void *)(storage + sizeof(*header));
@@ -479,9 +512,47 @@ int main(void)
 	revision4_ready = 1;
 	framebuffer_present = 1;
 	add_q35_boot_controllers();
+	add_q35_lpc_logical_child();
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS &&
 		memcmp(first_record, storage + sizeof(*header), first_size) == 0,
-		"Q35 revision 4 serialization is not deterministic");
+			"Q35 revision 4 serialization is not deterministic");
+
+	/* A logical LPC child is harmless, but a PCI descendant is not. */
+	reset_fixture();
+	revision4_ready = 1;
+	add_q35_boot_controllers();
+	add_q35_lpc_logical_child();
+	logical_child.path.type = DEVICE_PATH_PCI;
+	logical_child.path.pci.devfn = PCI_DEVFN(0, 0);
+	logical_child.class = 0x010802;
+	logical_child.hdr_type = PCI_HEADER_TYPE_NORMAL;
+	logical_child.resource_list = &logical_resource;
+	logical_resource = (struct resource) {
+		.base = 0x50000000,
+		.size = 0x1000,
+		.index = PCI_BASE_ADDRESS_0,
+		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_STORED,
+	};
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"PCI child under LPC did not preserve revision 3 compatibility");
+	handoff = (const void *)(storage + sizeof(*header));
+	failures += check(handoff->revision == LB_PAYLOAD_RESOURCE_HANDOFF_REVISION,
+		"PCI child under LPC emitted revision 4");
+
+	/* A real bridge remains validated even when it has only a logical child. */
+	reset_fixture();
+	revision4_ready = 1;
+	add_q35_boot_controllers();
+	add_q35_lpc_logical_child();
+	fifth_endpoint.class = 0x060400;
+	fifth_endpoint.hdr_type = PCI_HEADER_TYPE_BRIDGE;
+	logical_bus.secondary = 0;
+	logical_bus.subordinate = 1;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"malformed empty bridge did not preserve revision 3 compatibility");
+	handoff = (const void *)(storage + sizeof(*header));
+	failures += check(handoff->revision == LB_PAYLOAD_RESOURCE_HANDOFF_REVISION,
+		"malformed empty bridge emitted revision 4");
 
 	reset_fixture();
 	revision4_ready = 1;
