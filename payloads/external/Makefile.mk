@@ -169,6 +169,9 @@ CDK2_SYSTEM_FMP_FFS := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_FFS))
 CDK2_SYSTEM_FMP_FFS_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_FFS_SHA256))
 CDK2_SYSTEM_FMP_PE := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_PE))
 CDK2_SYSTEM_FMP_PE_SHA256 := $(call strip_quotes,$(CONFIG_CDK2_SYSTEM_FMP_PE_SHA256))
+CDK2_SYSTEM_FMP_PROVENANCE := $(CDK2_SOURCE)/migration/system-fmp-provenance.tsv
+CDK2_SYSTEM_FMP_PROVENANCE_SHA256 := d74060d687b989d80369afd6d9ccbff317ee3540557d3dd8db7b2d8ce2d3ee5a
+CDK2_SYSTEM_FMP_PROVENANCE_VERIFIER := $(CDK2_OUTPUT)/system-fmp-provenance
 
 # The nested CDK2 build owns its fine-grained source dependencies.  Always
 # enter it so edits below payloads/external/cdk2/cdk2 cannot leave a stale
@@ -204,6 +207,12 @@ $(CDK2_PAYLOAD): cdk2_force $(DOTCONFIG) $(objutil)/kconfig/conf
 		exit 1; \
 	}
 	@printf '%s  %s\n' "$(CDK2_SYSTEM_FMP_PE_SHA256)" "$(CDK2_SYSTEM_FMP_PE)" | sha256sum -c -
+	+$(MAKE) -C $(CDK2_SOURCE) system-fmp-provenance-host-tool \
+		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))" HOSTCC="$(HOSTCC)"
+	@"$(CDK2_SYSTEM_FMP_PROVENANCE_VERIFIER)" verify \
+		--manifest "$(CDK2_SYSTEM_FMP_PROVENANCE)" \
+		--manifest-sha256 "$(CDK2_SYSTEM_FMP_PROVENANCE_SHA256)" \
+		--ffs "$(CDK2_SYSTEM_FMP_FFS)" --pe "$(CDK2_SYSTEM_FMP_PE)"
 	+$(MAKE) -C $(CDK2_SOURCE) retained-fv-check \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))"
