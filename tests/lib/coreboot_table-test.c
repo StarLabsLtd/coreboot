@@ -118,6 +118,24 @@ static void test_lb_new_record(void **state)
 	}
 }
 
+static void test_lb_add_local_apic_timer_info(void **state)
+{
+	struct lb_header *header = *state;
+	const uint64_t frequency_hz = 100 * MHz;
+
+	lb_add_local_apic_timer_info(header, 0);
+	assert_int_equal(header->table_entries, 0);
+	lb_add_local_apic_timer_info(header, frequency_hz);
+	assert_int_equal(header->table_entries, 1);
+	const struct lb_local_apic_timer_info *timer =
+		(const void *)lb_first_record(header);
+	assert_int_equal(timer->tag, LB_TAG_LOCAL_APIC_TIMER_INFO);
+	assert_int_equal(timer->size, sizeof(*timer));
+	assert_int_equal(timer->revision, 1);
+	assert_int_equal(timer->reserved, 0);
+	assert_int_equal(timer->frequency_hz, frequency_hz);
+}
+
 static void test_lb_add_console(void **state)
 {
 	struct lb_header *header = *state;
@@ -505,6 +523,8 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_lb_add_gpios),
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
+		cmocka_unit_test_setup(test_lb_add_local_apic_timer_info,
+			setup_test_header),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),
 		cmocka_unit_test_setup(test_multiple_entries, setup_test_header),
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),

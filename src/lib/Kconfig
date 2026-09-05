@@ -9,15 +9,17 @@ config MISSING_BOARD_RESET
 
 config PAYLOAD_RESOURCE_HANDOFF
 	bool "Publish assigned PCI resources to the payload"
-	default n
-	depends on BOARD_EMULATION_QEMU_X86_Q35
+	default y if PAYLOAD_CDK2 && CDK2_LINEAR_BOOT
 	depends on PCI && ECAM_MMCONF_SUPPORT
 	help
 	  Serialize PCI root topology and exact coreboot-assigned resources for
-	  payloads that consume the revision 3 resource handoff. Before the
+	  payloads that consume the resource handoff. Revision 3 remains the safe
+	  default; boards with a trustworthy PCI tree and boot-controller policy
+	  may opt in to revision 4 topology and boot-intent sections. Before the
 	  record is published, bus mastering is disabled and verified for every
-	  serialized function. This is intended for automated QEMU acceptance,
-	  not hardware firmware profiles.
+	  serialized function. CDK2's linear boot flow consumes this authoritative
+	  handoff instead of probing or reassigning resources already configured by
+	  coreboot.
 
 config ROMSTAGE_ADA
 	bool

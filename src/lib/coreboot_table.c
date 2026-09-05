@@ -91,6 +91,20 @@ struct lb_record *lb_new_record(struct lb_header *header)
 	return rec;
 }
 
+void lb_add_local_apic_timer_info(struct lb_header *header, uint64_t frequency_hz)
+{
+	struct lb_local_apic_timer_info *timer;
+
+	if (!frequency_hz)
+		return;
+	timer = (void *)lb_new_record(header);
+	timer->tag = LB_TAG_LOCAL_APIC_TIMER_INFO;
+	timer->size = sizeof(*timer);
+	timer->revision = 1;
+	timer->reserved = 0;
+	timer->frequency_hz = frequency_hz;
+}
+
 static struct lb_memory *lb_memory(struct lb_header *header)
 {
 	struct lb_record *rec;

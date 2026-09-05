@@ -33,6 +33,14 @@ enum alderlake_model {
 	ADL_MODEL_N = 0xBE,
 };
 
+uint64_t soc_local_apic_timer_frequency_hz(void)
+{
+	/* Alder Lake's local APIC timer uses the core crystal clock.  Reuse the
+	 * SoC's existing authoritative crystal configuration, also consumed by
+	 * coreboot's timer code, instead of inferring it from CPU ratios. */
+	return CONFIG_CPU_XTAL_HZ;
+}
+
 bool cpu_soc_is_in_untrusted_mode(void)
 {
 	msr_t msr;

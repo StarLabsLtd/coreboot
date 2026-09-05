@@ -4,6 +4,7 @@
 #define COREBOOT_TABLES_H
 
 #include <commonlib/coreboot_tables.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -31,6 +32,12 @@ enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
 uint16_t payload_resource_read_command(const struct device *device);
 void payload_resource_write_command(const struct device *device, uint16_t command);
+uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar);
+bool payload_resource_firmware_owned(const struct device *device);
+/* Board policy: opt in only when the enumerated tree and boot intent are authoritative. */
+bool payload_resource_revision4_ready(void);
+/* Return true for a boot controller; lower priorities are serialized first. */
+bool payload_resource_boot_controller(const struct device *device, uint16_t *priority);
 
 void lb_string_platform_blob_version(struct lb_header *header);
 
@@ -60,6 +67,8 @@ void lb_table_add_macs_from_vpd(struct lb_header *header);
 void lb_table_add_serialno_from_vpd(struct lb_header *header);
 
 struct lb_record *lb_new_record(struct lb_header *header);
+void lb_add_local_apic_timer_info(struct lb_header *header, uint64_t frequency_hz);
+uint64_t soc_local_apic_timer_frequency_hz(void);
 
 /* Add VBOOT VBNV offsets. */
 void lb_table_add_vbnv_cmos(struct lb_header *header);

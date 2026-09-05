@@ -13,6 +13,18 @@ check_source()
 		return 1
 	test "$(grep -c 'acpi_qemu_clear_xsdt(xsdt);' "$source_file")" -eq 1 ||
 		return 1
+	test "$(grep -c 'acpi_create_ssdt_generator(ssdt, NULL);' \
+		"$source_file")" -eq 1 || return 1
+	test "$(grep -c 'ssdt->checksum = acpi_checksum' \
+		"$source_file")" -eq 1 || return 1
+	generator_line=$(grep -n 'acpi_create_ssdt_generator(ssdt, NULL);' \
+		"$source_file" | cut -d: -f1)
+	checksum_line=$(grep -n 'ssdt->checksum = acpi_checksum' \
+		"$source_file" | cut -d: -f1)
+	test "$generator_line" -lt "$checksum_line" || return 1
+	test "$(grep -c \
+		'current = acpi_align_current((unsigned long)ssdt + ssdt->length);' \
+		"$source_file")" -eq 1 || return 1
 	if grep -q 'if (rsdp->xsdt_address' "$source_file"; then
 		return 1
 	fi
@@ -33,6 +45,16 @@ fi
 sed '/acpi_qemu_clear_xsdt(xsdt);/d' "$root/src/acpi/acpi.c" \
 	>"$temporary/missing-clear.c"
 if check_source "$temporary/missing-clear.c"; then
+	exit 1
+fi
+sed '/ssdt->checksum = acpi_checksum/d' "$root/src/acpi/acpi.c" \
+	>"$temporary/missing-final-checksum.c"
+if check_source "$temporary/missing-final-checksum.c"; then
+	exit 1
+fi
+sed '/current = acpi_align_current((unsigned long)ssdt + ssdt->length);/d' \
+	"$root/src/acpi/acpi.c" >"$temporary/missing-final-length.c"
+if check_source "$temporary/missing-final-length.c"; then
 	exit 1
 fi
 printf '%s\n' 'qemu RSDP source contract: PASS'
