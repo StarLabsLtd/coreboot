@@ -178,6 +178,18 @@ static void lb_framebuffer(struct lb_header *header)
 	}
 }
 
+#if CONFIG(BMP_LOGO)
+static void lb_boot_splash(struct lb_header *header)
+{
+	struct lb_boot_splash handoff;
+
+	if (!bootsplash_get_handoff(&handoff))
+		return;
+
+	memcpy(lb_new_record(header), &handoff, sizeof(handoff));
+}
+#endif
+
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
 		  size_t count)
 {
@@ -627,6 +639,11 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_record_version_timestamp(head);
 	/* Record our framebuffer */
 	lb_framebuffer(head);
+
+#if CONFIG(BMP_LOGO)
+	/* Publish only a successfully rendered splash rectangle. */
+	lb_boot_splash(head);
+#endif
 
 	/* Record our GPIO settings (ChromeOS specific) */
 	if (CONFIG(CHROMEOS))

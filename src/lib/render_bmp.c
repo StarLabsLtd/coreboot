@@ -13,6 +13,49 @@
 
 #define MAX_SPLASH_TEXT_WIDTH 32
 
+static struct lb_boot_splash boot_splash_handoff;
+static bool boot_splash_handoff_valid;
+
+bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+				uint32_t framebuffer_width,
+				uint32_t framebuffer_height,
+				uint32_t image_offset_x,
+				uint32_t image_offset_y,
+				uint32_t image_width,
+				uint32_t image_height)
+{
+	if (boot_splash_handoff_valid || !framebuffer_address ||
+		!framebuffer_width || !framebuffer_height || !image_width ||
+		!image_height || image_offset_x > framebuffer_width ||
+		image_offset_y > framebuffer_height ||
+		image_width > framebuffer_width - image_offset_x ||
+		image_height > framebuffer_height - image_offset_y)
+		return false;
+
+	boot_splash_handoff = (struct lb_boot_splash) {
+		.tag = LB_TAG_BOOT_SPLASH,
+		.size = sizeof(boot_splash_handoff),
+		.revision = LB_BOOT_SPLASH_REVISION,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED,
+		.framebuffer_address = framebuffer_address,
+		.image_offset_x = image_offset_x,
+		.image_offset_y = image_offset_y,
+		.image_width = image_width,
+		.image_height = image_height,
+	};
+	boot_splash_handoff_valid = true;
+	return true;
+}
+
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff)
+{
+	if (!handoff || !boot_splash_handoff_valid)
+		return false;
+
+	*handoff = boot_splash_handoff;
+	return true;
+}
+
 static bool is_bmp_image_valid(struct bmp_image_header *header)
 {
 	/* Check if the BMP Header Signature is valid */
@@ -649,6 +692,16 @@ static int load_and_render_logo_to_framebuffer(
 	convert_bmp_to_blt(logo, logo_size, &blt_buffer, &blt_size,
 				   &logo_height, &logo_width, config->panel_orientation);
 
+	if (!logo_width || !logo_height ||
+		logo_width > config->horizontal_resolution ||
+		logo_height > config->vertical_resolution) {
+		printk(BIOS_ERR, "%s: BMP image (%ux%u) exceeds framebuffer (%ux%u).\n",
+		       __func__, logo_width, logo_height,
+		       config->horizontal_resolution, config->vertical_resolution);
+		bmp_release_logo();
+		return -1;
+	}
+
 	get_logo_layout(logo_type, config, &halignment, &valignment, &logo_bottom_margin);
 
 	logo_coords = calculate_logo_coordinates(config->horizontal_resolution,
@@ -671,8 +724,21 @@ static int load_and_render_logo_to_framebuffer(
 		}
 	}
 
+	if (logo_coords.x > config->horizontal_resolution ||
+		logo_coords.y > config->vertical_resolution ||
+		logo_width > config->horizontal_resolution - logo_coords.x ||
+		logo_height > config->vertical_resolution - logo_coords.y) {
+		printk(BIOS_ERR, "%s: Invalid BMP display rectangle (%u,%u %ux%u).\n",
+		       __func__, logo_coords.x, logo_coords.y, logo_width, logo_height);
+		bmp_release_logo();
+		return -1;
+	}
+
 	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline, blt_buffer,
 				 logo_width, logo_height, logo_coords.x, logo_coords.y);
+	bootsplash_publish_handoff(config->framebuffer_base,
+				  config->horizontal_resolution, config->vertical_resolution,
+				  logo_coords.x, logo_coords.y, logo_width, logo_height);
 
 	bmp_release_logo();
 

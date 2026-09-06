@@ -136,6 +136,32 @@ static void test_lb_add_local_apic_timer_info(void **state)
 	assert_int_equal(timer->frequency_hz, frequency_hz);
 }
 
+static void test_lb_boot_splash_abi(void **state)
+{
+	struct lb_boot_splash splash = {
+		.tag = LB_TAG_BOOT_SPLASH,
+		.size = sizeof(splash),
+		.revision = LB_BOOT_SPLASH_REVISION,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED,
+		.framebuffer_address = 0x12345000,
+		.image_offset_x = 10,
+		.image_offset_y = 20,
+		.image_width = 640,
+		.image_height = 480,
+	};
+
+	assert_int_equal(sizeof(splash), 36);
+	assert_int_equal(splash.tag, LB_TAG_BOOT_SPLASH);
+	assert_int_equal(splash.size, sizeof(splash));
+	assert_int_equal(splash.revision, LB_BOOT_SPLASH_REVISION);
+	assert_int_equal(splash.flags, LB_BOOT_SPLASH_FLAG_DISPLAYED);
+	assert_int_equal(splash.framebuffer_address, 0x12345000);
+	assert_int_equal(splash.image_offset_x, 10);
+	assert_int_equal(splash.image_offset_y, 20);
+	assert_int_equal(splash.image_width, 640);
+	assert_int_equal(splash.image_height, 480);
+}
+
 static void test_lb_add_console(void **state)
 {
 	struct lb_header *header = *state;
@@ -525,6 +551,7 @@ int main(void)
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
 		cmocka_unit_test_setup(test_lb_add_local_apic_timer_info,
 			setup_test_header),
+		cmocka_unit_test(test_lb_boot_splash_abi),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),
 		cmocka_unit_test_setup(test_multiple_entries, setup_test_header),
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),

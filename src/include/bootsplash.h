@@ -161,6 +161,15 @@ struct logo_coordinates calculate_logo_coordinates(
 	enum fw_splash_horizontal_alignment halignment,
 	enum fw_splash_vertical_alignment valignment);
 void render_logo_to_framebuffer(struct logo_config *config);
+/* Publish the first successfully rendered framebuffer rectangle. */
+bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+				uint32_t framebuffer_width,
+				uint32_t framebuffer_height,
+				uint32_t image_offset_x,
+				uint32_t image_offset_y,
+				uint32_t image_width,
+				uint32_t image_height);
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
 void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
