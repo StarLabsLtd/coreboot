@@ -180,6 +180,15 @@ config BMP_LOGO
 	  BMP file only. The uncompressed size can be up to 1 MB. The logo can
 	  be compressed based on either `BMP_LOGO_COMPRESS_*` configs (default LZMA).
 
+config USE_COREBOOT_FOR_BMP_RENDERING
+	bool "Render the BMP logo in coreboot"
+	depends on BMP_LOGO && LINEAR_FRAMEBUFFER
+	default n
+	help
+	  Render the configured BMP after device resource assignment using the
+	  framebuffer published by coreboot. This avoids platform-specific payload
+	  rendering and makes the displayed rectangle available to payloads.
+
 config HAVE_CUSTOM_BMP_LOGO
 	def_bool n
 	depends on BMP_LOGO

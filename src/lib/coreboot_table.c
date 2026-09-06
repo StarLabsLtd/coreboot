@@ -13,6 +13,7 @@
 #include <boot/tables.h>
 #include <boot_device.h>
 #include <string.h>
+#include <timestamp.h>
 #include <boardid.h>
 #include <device/device.h>
 #include <drivers/tpm/tpm_ppi.h>
@@ -167,8 +168,16 @@ static void lb_framebuffer(struct lb_header *header)
 	memcpy(framebuffer, fb, sizeof(*framebuffer));
 	framebuffer->tag = LB_TAG_FRAMEBUFFER;
 	framebuffer->size = sizeof(*framebuffer);
+	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+		struct logo_config logo = { 0 };
+		struct lb_boot_splash splash;
 
-	if (CONFIG(BOOTSPLASH)) {
+		render_logo_to_framebuffer(&logo);
+		if (bootsplash_get_handoff(&splash))
+			timestamp_add_now(TS_FIRMWARE_SPLASH_RENDERED);
+	}
+
+	if (CONFIG(BOOTSPLASH) && !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
 		uint8_t *fb_ptr = (uint8_t *)(uintptr_t)framebuffer->physical_address;
 		unsigned int width = framebuffer->x_resolution;
 		unsigned int height = framebuffer->y_resolution;
