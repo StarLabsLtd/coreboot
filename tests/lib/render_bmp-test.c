@@ -57,6 +57,10 @@ void *bmp_load_logo(size_t *size)
 	return bmp_load_logo_by_type(BOOTSPLASH_CENTER, size);
 }
 
+void bmp_retain_logo(void)
+{
+}
+
 void bmp_release_logo(void)
 {
 	releases++;

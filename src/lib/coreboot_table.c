@@ -168,7 +168,7 @@ static void lb_framebuffer(struct lb_header *header)
 	memcpy(framebuffer, fb, sizeof(*framebuffer));
 	framebuffer->tag = LB_TAG_FRAMEBUFFER;
 	framebuffer->size = sizeof(*framebuffer);
-	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
 		struct logo_config logo = { 0 };
 		struct lb_boot_splash splash;
 

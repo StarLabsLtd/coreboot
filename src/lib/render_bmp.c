@@ -23,11 +23,14 @@ bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
 				uint32_t image_offset_x,
 				uint32_t image_offset_y,
 				uint32_t image_width,
-				uint32_t image_height)
+				uint32_t image_height,
+				const void *bmp,
+				size_t bmp_size)
 {
 	if (boot_splash_handoff_valid || !framebuffer_address ||
 		!framebuffer_width || !framebuffer_height || !image_width ||
-		!image_height || image_offset_x > framebuffer_width ||
+		!image_height || !bmp || !bmp_size || bmp_size > UINT32_MAX ||
+		image_offset_x > framebuffer_width ||
 		image_offset_y > framebuffer_height ||
 		image_width > framebuffer_width - image_offset_x ||
 		image_height > framebuffer_height - image_offset_y)
@@ -37,12 +40,14 @@ bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
 		.tag = LB_TAG_BOOT_SPLASH,
 		.size = sizeof(boot_splash_handoff),
 		.revision = LB_BOOT_SPLASH_REVISION,
-		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP,
 		.framebuffer_address = framebuffer_address,
 		.image_offset_x = image_offset_x,
 		.image_offset_y = image_offset_y,
 		.image_width = image_width,
 		.image_height = image_height,
+		.bmp_address = (uintptr_t)bmp,
+		.bmp_size = bmp_size,
 	};
 	boot_splash_handoff_valid = true;
 	return true;
@@ -626,9 +631,13 @@ static int load_and_render_logo_to_framebuffer(
 
 	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline, blt_buffer,
 				 logo_width, logo_height, logo_coords.x, logo_coords.y);
-	bootsplash_publish_handoff(config->framebuffer_base,
+	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) &&
+	    logo_type == BOOTSPLASH_CENTER &&
+	    bootsplash_publish_handoff(config->framebuffer_base,
 				  config->horizontal_resolution, config->vertical_resolution,
-				  logo_coords.x, logo_coords.y, logo_width, logo_height);
+				  logo_coords.x, logo_coords.y, logo_width, logo_height,
+				  (const void *)logo, logo_size))
+		bmp_retain_logo();
 
 	result = 0;
 out:

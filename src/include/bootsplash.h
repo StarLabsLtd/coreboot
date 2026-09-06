@@ -169,7 +169,9 @@ bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
 				uint32_t image_offset_x,
 				uint32_t image_offset_y,
 				uint32_t image_width,
-				uint32_t image_height);
+				uint32_t image_height,
+				const void *bmp,
+				size_t bmp_size);
 bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
 /* On failure, outputs are zero. On success, the caller owns the BLT allocation. */
 bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
@@ -191,6 +193,7 @@ const char *mainboard_bmp_logo_filename(void);
 const char *bmp_logo_filename(void);
 void *bmp_load_logo(size_t *logo_size);
 void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size);
+void bmp_retain_logo(void);
 void bmp_release_logo(void);
 /*
  * Platform specific callbacks for power-off handling.

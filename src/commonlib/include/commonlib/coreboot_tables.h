@@ -506,11 +506,12 @@ struct lb_framebuffer {
 
 /*
  * Describes the framebuffer rectangle populated by coreboot's bootsplash.
- * The framebuffer remains owned by coreboot; consumers must not infer an
- * image asset or its lifetime from this record.
+ * The framebuffer and BMP allocation remain owned by coreboot. The BMP is a
+ * persistent CBMEM allocation suitable for an ACPI BGRT image address.
  */
-#define LB_BOOT_SPLASH_REVISION		1
+#define LB_BOOT_SPLASH_REVISION		2
 #define LB_BOOT_SPLASH_FLAG_DISPLAYED	(1U << 0)
+#define LB_BOOT_SPLASH_FLAG_BMP		(1U << 1)
 
 struct lb_boot_splash {
 	uint32_t tag;
@@ -522,14 +523,18 @@ struct lb_boot_splash {
 	uint32_t image_offset_y;
 	uint32_t image_width;
 	uint32_t image_height;
+	lb_uint64_t bmp_address;
+	uint32_t bmp_size;
 };
 
-_Static_assert(sizeof(struct lb_boot_splash) == 36,
+_Static_assert(sizeof(struct lb_boot_splash) == 48,
 	       "boot splash record ABI changed");
 _Static_assert(offsetof(struct lb_boot_splash, framebuffer_address) == 12,
 	       "boot splash framebuffer address offset changed");
 _Static_assert(offsetof(struct lb_boot_splash, image_offset_x) == 20,
 	       "boot splash image offset changed");
+_Static_assert(offsetof(struct lb_boot_splash, bmp_address) == 36,
+	       "boot splash BMP address offset changed");
 
 struct lb_gpio {
 	uint32_t port;
