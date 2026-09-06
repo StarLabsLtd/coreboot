@@ -12,6 +12,7 @@
 #include <fsp/graphics.h>
 #include <fsp/util.h>
 #include <intelblocks/graphics.h>
+#include <limits.h>
 #include <soc/iomap.h>
 #include <soc/soc_chip.h>
 #include <stdlib.h>
@@ -80,7 +81,10 @@ void soc_load_logo_by_coreboot(void)
 
 	/* Find the graphics information HOB */
 	ginfo = fsp_find_extension_hob_by_guid(fsp_graphics_info_guid, &size);
-	if (!ginfo || ginfo->framebuffer_base == 0) {
+	if (!ginfo || size < sizeof(*ginfo) || !ginfo->framebuffer_base ||
+	    ginfo->framebuffer_base > UINTPTR_MAX ||
+	    ginfo->pixel_format != pixel_bgrx_8bpc ||
+	    ginfo->pixels_per_scanline > UINT32_MAX / sizeof(efi_graphics_output_blt_pixel)) {
 		printk(BIOS_ERR, "Graphics information HOB not found or invalid framebuffer base.\n");
 		return;
 	}

@@ -141,6 +141,7 @@ enum fw_splash_horizontal_alignment {
 };
 
 struct logo_config {
+	/* An explicit framebuffer must be BGRX8888 with the declared accessible geometry. */
 	uintptr_t framebuffer_base;
 	uint32_t horizontal_resolution;
 	uint32_t vertical_resolution;
@@ -170,10 +171,11 @@ bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
 				uint32_t image_width,
 				uint32_t image_height);
 bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
-void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
+/* On failure, outputs are zero. On success, the caller owns the BLT allocation. */
+bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
-void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
+bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
 void render_text_to_framebuffer(struct logo_config *config, const char *str,

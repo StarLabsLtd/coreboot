@@ -43,6 +43,12 @@ void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size)
 {
 	void *logo_buffer;
 
+	if (!logo_size)
+		return NULL;
+	*logo_size = 0;
+	if ((unsigned int)type >= BOOTSPLASH_MAX_NUM)
+		return NULL;
+
 	/* CBMEM is locked for S3 resume path. */
 	if (acpi_is_wakeup_s3())
 		return NULL;

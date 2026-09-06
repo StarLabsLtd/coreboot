@@ -29,6 +29,7 @@ tests-y += uuid-test
 tests-y += bootmem-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
+tests-y += render_bmp-test
 tests-y += payload_resource_handoff-test
 tests-y += rtc-test
 tests-y += spd_cache-ddr3-test
@@ -174,6 +175,16 @@ coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
+
+render_bmp-test-srcs += tests/lib/render_bmp-test.c
+render_bmp-test-srcs += tests/stubs/console.c
+render_bmp-test-cflags += -I src/drivers/intel/fsp2_0/include
+render_bmp-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include
+render_bmp-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/X64
+render_bmp-test-config += CONFIG_UDK_VERSION=2017
+render_bmp-test-config += CONFIG_FRAMEBUFFER_SPLASH_TEXT=0 CONFIG_SPLASH_SCREEN_FOOTER=0
+render_bmp-test-config += CONFIG_PLATFORM_HAS_LOW_BATTERY_INDICATOR=0
+render_bmp-test-config += CONFIG_PLATFORM_HAS_OFF_MODE_CHARGING_INDICATOR=0
 
 payload_resource_handoff-test-srcs += tests/lib/payload_resource_handoff-test.c
 payload_resource_handoff-test-srcs += tests/stubs/console.c
