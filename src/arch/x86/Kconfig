@@ -494,4 +494,12 @@ config IOAPIC_USE_PRESET_ID
 	  Select this option if coreboot should keep IOAPIC IDs programmed
 	  by silicon vendor initialization code.
 
+config PAYLOAD_LOCAL_APIC_TIMER_INFO
+	bool "Publish local APIC timer frequency to the payload"
+	default n
+	help
+	  Publish the authoritative local APIC timer input frequency in the
+	  coreboot table. Platforms selecting this must provide the frequency
+	  from a silicon clock facility or a bounded hardware calibration.
+
 endif

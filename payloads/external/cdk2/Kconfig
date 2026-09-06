@@ -2,6 +2,21 @@
 
 if PAYLOAD_CDK2
 
+# Keep platform-owned policy at the coreboot boundary.  These defaults are
+# materialized as CONFIG_CDK2_* values in coreboot's .config before the nested
+# payload build imports it, so boards do not have to duplicate the same facts.
+config CDK2_CBMEM_CONSOLE
+	default y if CONSOLE_CBMEM
+
+config CDK2_CBMEM_TIMESTAMPS
+	default y if COLLECT_TIMESTAMPS
+
+config CDK2_MAX_LOGICAL_PROCESSORS
+	default MAX_CPUS
+
+config CDK2_CAPSULE_MAIN_FW_GUID
+	default DRIVERS_EFI_MAIN_FW_GUID if DRIVERS_EFI_FW_INFO
+
 source "payloads/external/cdk2/cdk2/Kconfig"
 
 config CDK2_RETAINED_FV
@@ -16,6 +31,25 @@ config CDK2_RETAINED_FV_SHA256
 	depends on CDK2_RETAINED_FV != ""
 	help
 	  Exact lowercase SHA-256 of CDK2_RETAINED_FV.
+
+config CDK2_SYSTEM_FMP_FFS
+	string "System firmware FMP provider"
+	depends on CDK2_CAPSULE
+	help
+	  Reviewed EDK2 FmpDxe FFS for the board firmware GUID. This remains a
+	  transitional input until CDK2 has a native SPI firmware provider.
+
+config CDK2_SYSTEM_FMP_FFS_SHA256
+	string "Expected system FMP FFS SHA-256"
+	depends on CDK2_SYSTEM_FMP_FFS != ""
+
+config CDK2_SYSTEM_FMP_PE
+	string "System firmware FMP executable"
+	depends on CDK2_SYSTEM_FMP_FFS != ""
+
+config CDK2_SYSTEM_FMP_PE_SHA256
+	string "Expected system FMP executable SHA-256"
+	depends on CDK2_SYSTEM_FMP_PE != ""
 
 config PAYLOAD_FILE
 	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"

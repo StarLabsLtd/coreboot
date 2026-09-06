@@ -79,6 +79,9 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
 
 
 class ValidateCapsuleTest(unittest.TestCase):
+    def test_payload_neutral_validation(self):
+        validate(make_capsule(), None, FMP_GUID, 0)
+
     def test_matching_capsule_and_resident_driver(self):
         validate(make_capsule(), make_fv(), FMP_GUID, 0)
 

@@ -13,6 +13,7 @@
 #include <boot/tables.h>
 #include <boot_device.h>
 #include <string.h>
+#include <timestamp.h>
 #include <boardid.h>
 #include <device/device.h>
 #include <drivers/tpm/tpm_ppi.h>
@@ -91,6 +92,20 @@ struct lb_record *lb_new_record(struct lb_header *header)
 	return rec;
 }
 
+void lb_add_local_apic_timer_info(struct lb_header *header, uint64_t frequency_hz)
+{
+	struct lb_local_apic_timer_info *timer;
+
+	if (!frequency_hz)
+		return;
+	timer = (void *)lb_new_record(header);
+	timer->tag = LB_TAG_LOCAL_APIC_TIMER_INFO;
+	timer->size = sizeof(*timer);
+	timer->revision = 1;
+	timer->reserved = 0;
+	timer->frequency_hz = frequency_hz;
+}
+
 static struct lb_memory *lb_memory(struct lb_header *header)
 {
 	struct lb_record *rec;
@@ -153,8 +168,16 @@ static void lb_framebuffer(struct lb_header *header)
 	memcpy(framebuffer, fb, sizeof(*framebuffer));
 	framebuffer->tag = LB_TAG_FRAMEBUFFER;
 	framebuffer->size = sizeof(*framebuffer);
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+		struct logo_config logo = { 0 };
+		struct lb_boot_splash splash;
 
-	if (CONFIG(BOOTSPLASH)) {
+		render_logo_to_framebuffer(&logo);
+		if (bootsplash_get_handoff(&splash))
+			timestamp_add_now(TS_FIRMWARE_SPLASH_RENDERED);
+	}
+
+	if (CONFIG(BOOTSPLASH) && !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
 		uint8_t *fb_ptr = (uint8_t *)(uintptr_t)framebuffer->physical_address;
 		unsigned int width = framebuffer->x_resolution;
 		unsigned int height = framebuffer->y_resolution;
@@ -163,6 +186,18 @@ static void lb_framebuffer(struct lb_header *header)
 		set_bootsplash(fb_ptr, width, height, bytes_per_line, depth);
 	}
 }
+
+#if CONFIG(BMP_LOGO)
+static void lb_boot_splash(struct lb_header *header)
+{
+	struct lb_boot_splash handoff;
+
+	if (!bootsplash_get_handoff(&handoff))
+		return;
+
+	memcpy(lb_new_record(header), &handoff, sizeof(handoff));
+}
+#endif
 
 void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
 		  size_t count)
@@ -613,6 +648,11 @@ uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_record_version_timestamp(head);
 	/* Record our framebuffer */
 	lb_framebuffer(head);
+
+#if CONFIG(BMP_LOGO)
+	/* Publish only a successfully rendered splash rectangle. */
+	lb_boot_splash(head);
+#endif
 
 	/* Record our GPIO settings (ChromeOS specific) */
 	if (CONFIG(CHROMEOS))
