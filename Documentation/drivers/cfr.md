@@ -242,6 +242,22 @@ struct lb_cfr_runtime_apply {
    Other status values are reserved. Consumers must ignore unknown runtime
    apply methods.
 
+   - `CFR_RUNTIME_APPLY_ACPI` (`2`): ACPI runtime apply.
+
+   For `CFR_RUNTIME_APPLY_ACPI`, a consumer first stores the new option value
+   using the configured option backend, then evaluates `CFRA(id, value)` on
+   the ACPI device that exposes the coreboot table. The method returns zero on
+   success and non-zero on failure.
+
+   The same device must provide `CFRG(id)`, which returns a package containing
+   `{ status, value }`. A zero status indicates that the live value was read
+   successfully. This lets consumers persist settings changed by another
+   runtime interface before suspend or shutdown.
+
+   Firmware must validate both the token and value and expose only the specific
+   operations described by its CFR records. Consumers must ignore unknown
+   runtime apply methods.
+
 ### Flags
 
 The optional flags describe the visibilty of the option and the

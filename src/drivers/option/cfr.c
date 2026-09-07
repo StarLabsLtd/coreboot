@@ -129,16 +129,17 @@ static uint32_t sm_write_runtime_apply(char *current, uint32_t flags,
 			printk(BIOS_ERR, "CFR: APM runtime apply requires common SMM handler support\n");
 			return 0;
 		}
+		if (sm_runtime_apply->id > UINT8_MAX) {
+			printk(BIOS_ERR, "CFR: APM runtime apply ID %#x exceeds APM_STS\n",
+			       sm_runtime_apply->id);
+			return 0;
+		}
+		break;
+	case CFR_RUNTIME_APPLY_ACPI:
 		break;
 	default:
 		printk(BIOS_ERR, "CFR: unsupported runtime apply method %#x\n",
 		       sm_runtime_apply->method);
-		return 0;
-	}
-
-	if (sm_runtime_apply->id > UINT8_MAX) {
-		printk(BIOS_ERR, "CFR: APM runtime apply ID %#x exceeds APM_STS\n",
-		       sm_runtime_apply->id);
 		return 0;
 	}
 

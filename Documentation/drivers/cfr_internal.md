@@ -215,6 +215,13 @@ enum cb_err cfr_runtime_apply_option(uint32_t id)
 Here, `apply_power_led()` represents the board's SMM-safe implementation and
 returns one of the supported `enum cb_err` values.
 
+For `CFR_RUNTIME_APPLY_ACPI`, the coreboot-table ACPI device provides
+`CFRA(id, value)` and `CFRG(id)`. The consumer saves the value before calling
+`CFRA`; zero means apply succeeded. `CFRG` returns `{ status, live value }`,
+with zero status on success. Methods validate published IDs and values and
+must not expose arbitrary register, EC or bus access. Saving and applying
+are separate operations; consumers must handle rollback after apply failure.
+
 ### Providing mainboard custom options
 
 A mainboard that uses CFR can provide a list of custom options

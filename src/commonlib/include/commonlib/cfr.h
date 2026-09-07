@@ -145,12 +145,17 @@ enum cfr_runtime_apply_method {
 	 * APM_CNT, then read status from APM_STS.
 	 */
 	CFR_RUNTIME_APPLY_APM_CNT	= 1,
+	/*
+	 * Evaluate CFRA(id, value) on the ACPI device which exposes the
+	 * coreboot table. A return value of zero indicates success.
+	 */
+	CFR_RUNTIME_APPLY_ACPI		= 2,
 };
 
 /*
  * Optional metadata that lets a consumer request immediate application of a
  * stored option. The metadata only describes the handoff ABI; the platform or
- * board that advertises a method must provide the matching SMM handler.
+ * board that advertises a method must provide the matching implementation.
  */
 struct __packed lb_cfr_runtime_apply {
 	uint32_t tag;		/* CFR_TAG_RUNTIME_APPLY */
