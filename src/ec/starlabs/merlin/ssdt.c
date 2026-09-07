@@ -742,6 +742,13 @@ static void write_hid_device(void)
 		acpigen_write_method_serialized("HDSM", 1);
 		{
 			acpigen_write_store_op_to_namestr(ARG0_OP, "HRDY");
+			if (CONFIG(SYSTEM_TYPE_DETACHABLE)) {
+				acpigen_write_if_lequal_op_int(ARG0_OP, 1);
+				{
+					write_method_call("\\_SB.PCI0.LPCB.EC.VBTN.UPDK");
+				}
+				acpigen_write_if_end();
+			}
 		}
 		acpigen_write_method_end();
 
