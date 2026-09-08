@@ -52,6 +52,10 @@ enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 	if (!name)
 		return CB_ERR_ARG;
 
+	/* The resident payload owns variable policy and persistent writes. */
+	if (ENV_SMM && CONFIG(PAYLOAD_MM_INTERFACE))
+		return CB_ERR;
+
 	if (ENV_SMM && CONFIG(SMMSTORE) && smmstore_variable_busy())
 		return CB_ERR;
 
