@@ -277,18 +277,20 @@ static void southbridge_smi_gsmi(
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
-static void set_insmm_sts(const bool enable_writes)
+static bool set_insmm_sts(const bool enable_writes)
 {
 	msr_t msr = {
 		.lo = read32p(0xfed30880),
 		.hi = 0,
 	};
+	const bool was_enabled = msr.lo & 1;
 	if (enable_writes)
 		msr.lo |= 1;
 	else
 		msr.lo &= ~1;
 
 	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
+	return was_enabled;
 }
 
 static void southbridge_smi_store(
@@ -480,8 +482,15 @@ void smihandler_southbridge_apmc(
 
 	mainboard_smi_apmc(reg8);
 
-	if (CONFIG(PAYLOAD_MM_INTERFACE))
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		const bool protected = fast_spi_eiss_status();
+		const bool was_enabled = protected ? set_insmm_sts(true) : false;
+
+		/* MM owns BIOSWE; coreboot owns the chipset's in-SMM status. */
 		payload_mm_call_entrypoint();
+		if (protected)
+			set_insmm_sts(was_enabled);
+	}
 }
 
 void smihandler_southbridge_pm1(
