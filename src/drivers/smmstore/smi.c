@@ -6,6 +6,19 @@
 #include <smmstore.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+
+static bool variable_busy;
+
+bool smmstore_variable_busy(void)
+{
+	return variable_busy || !smm_get_smmstore_generation();
+}
+
+void smmstore_variable_changed(void)
+{
+	(*smm_get_smmstore_generation())++;
+}
 
 /*
  * Check that the given range is legal.
@@ -27,6 +40,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 {
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
+	static void *com_buffer;
 
 	if (smmstore_preprocess_cmd(&command, param))
 		return SMMSTORE_RET_SUCCESS;
@@ -41,10 +55,28 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 
 		if (smmstore_init((void *)base, size))
 			return SMMSTORE_RET_FAILURE;
+		if (size < sizeof(uint64_t))
+			return SMMSTORE_RET_FAILURE;
+		com_buffer = (void *)base;
 		initialized = true;
 	}
 
 	switch (command) {
+	case SMMSTORE_CMD_VARIABLE_BEGIN:
+		if (!smm_get_smmstore_generation())
+			return SMMSTORE_RET_FAILURE;
+		if (variable_busy)
+			return SMMSTORE_RET_BUSY;
+		variable_busy = true;
+		memcpy(com_buffer, smm_get_smmstore_generation(), sizeof(uint64_t));
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
+	case SMMSTORE_CMD_VARIABLE_END:
+		if (!variable_busy)
+			break;
+		variable_busy = false;
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
 	case SMMSTORE_CMD_RAW_READ: {
 		printk(BIOS_DEBUG, "Raw read from SMM store, param = %p\n", param);
 		struct smmstore_params_raw_read *params = param;
