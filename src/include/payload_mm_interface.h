@@ -16,6 +16,7 @@
  * and the arguments that the loader wants passed to the payload MM core module.
  */
 #define PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE	1
+#define PAYLOAD_MM_CMD_CLOSE_LOADER	2
 
 #define PLD_MM_LOAD_CONTEXT_REVISION	1
 

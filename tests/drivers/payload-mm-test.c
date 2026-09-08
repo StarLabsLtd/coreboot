@@ -45,6 +45,29 @@ static void reject_unknown_command(void **state)
 	assert_false(registered);
 }
 
+static void close_unused_loader(void **state)
+{
+	assert_int_equal(payload_mm_exec_interface(PAYLOAD_MM_CMD_CLOSE_LOADER, NULL),
+			 PAYLOAD_MM_RET_FAILURE);
+	assert_true(load_attempted);
+	assert_false(registered);
+	assert_int_equal(payload_mm_exec_interface(PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE, NULL),
+			 PAYLOAD_MM_RET_FAILURE);
+}
+
+static void close_registered_loader(void **state)
+{
+	/* Model a completed registration without executing a loaded image. */
+	registered = true;
+	load_attempted = true;
+	assert_int_equal(payload_mm_exec_interface(PAYLOAD_MM_CMD_CLOSE_LOADER, NULL),
+			 PAYLOAD_MM_RET_SUCCESS);
+	assert_int_equal(payload_mm_exec_interface(PAYLOAD_MM_CMD_CLOSE_LOADER, NULL),
+			 PAYLOAD_MM_RET_SUCCESS);
+	assert_int_equal(payload_mm_exec_interface(PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE, NULL),
+			 PAYLOAD_MM_RET_FAILURE);
+}
+
 static void reject_context_in_smram(void **state)
 {
 	struct payload_mm_load_context context = { 0 };
@@ -127,6 +150,8 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(reject_missing_context, setup),
 		cmocka_unit_test_setup(reject_unknown_command, setup),
+		cmocka_unit_test_setup(close_unused_loader, setup),
+		cmocka_unit_test_setup(close_registered_loader, setup),
 		cmocka_unit_test_setup(reject_context_in_smram, setup),
 		cmocka_unit_test_setup(reject_context_version, setup),
 		cmocka_unit_test_setup(validate_registered_header, setup),
