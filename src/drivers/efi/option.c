@@ -33,6 +33,10 @@ enum cb_err set_uint_option(const char *name, unsigned int value)
 {
 	struct region_device rdev;
 	uint32_t var = value;
+	enum cb_err ret;
+
+	if (ENV_SMM && CONFIG(SMMSTORE) && smmstore_variable_busy())
+		return CB_ERR;
 
 	/* The resident payload owns variable policy and persistent writes. */
 	if (ENV_SMM && CONFIG(PAYLOAD_MM_INTERFACE))
@@ -41,5 +45,9 @@ enum cb_err set_uint_option(const char *name, unsigned int value)
 	if (smmstore_lookup_region(&rdev))
 		return CB_CMOS_OTABLE_DISABLED;
 
-	return efi_fv_set_option(&rdev, &EficorebootNvDataGuid, name, &var, sizeof(var));
+	ret = efi_fv_set_option(&rdev, &EficorebootNvDataGuid, name, &var, sizeof(var));
+	/* A failed append may also have changed the store. */
+	if (ENV_SMM && CONFIG(SMMSTORE))
+		smmstore_variable_changed();
+	return ret;
 }

@@ -200,6 +200,34 @@ struct smmstore_params_raw_clear {
 INPUT:
 - `block_id`: Block to erase
 
+#### - SMMSTORE_CMD_VARIABLE_BEGIN = 8
+
+Acquire cooperative exclusion for one payload runtime variable operation.
+Returns `SMMSTORE_RET_BUSY=3` immediately if an operation is already active;
+the caller must not wait in SMM for an interrupted payload to finish.
+
+On success, the first eight bytes of the communication buffer contain a
+little-endian generation counter. It changes after each coreboot SMM option
+write attempt that reaches the variable-store writer, including failed writes
+that may have partially changed the store. Raw SMMStore writes do not increment
+it, because the payload owns their cache and allocation updates.
+
+The payload must refresh both its variable cache and allocation accounting
+when the generation changes, while exclusion remains held. coreboot's SMM
+option writer returns an error while a payload operation is active. These
+commands require a non-NULL argument as usual, but do not dereference it.
+
+#### - SMMSTORE_CMD_VARIABLE_END = 9
+
+Release exclusion acquired by a successful `VARIABLE_BEGIN`. The payload must
+call this on every exit, including a failed variable operation. An unmatched
+end returns `SMMSTORE_RET_FAILURE`.
+
+Older implementations return `SMMSTORE_RET_UNSUPPORTED` for these commands.
+Both firmware and payload support are required for runtime option coherence.
+This protocol coordinates cooperating writers; it does not authorize writes
+or prevent an OS caller from using the existing raw SMMStore commands.
+
 #### Security
 
 Pointers provided by the payload or OS are checked to not overlap with
