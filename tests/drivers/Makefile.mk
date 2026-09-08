@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 tests-y += efivars-test
+tests-y += tseg-subregion-test
+tseg-subregion-test-srcs += tests/drivers/tseg-subregion-test.c
+tseg-subregion-test-srcs += src/cpu/x86/smm/tseg_region.c
+tseg-subregion-test-srcs += tests/stubs/console.c
+tseg-subregion-test-config += CONFIG_SMM_TSEG=1 CONFIG_SMM_ASEG=0 \
+	CONFIG_SMM_TSEG_SIZE=0x1000000 CONFIG_IED_REGION_SIZE=0x400000 \
+	CONFIG_SMM_RESERVED_SIZE=0x200000 CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0x1000
 
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
