@@ -625,6 +625,7 @@ struct lb_payload_mm_smram_region {
 	uint32_t tag;
 	uint32_t size;
 	struct lb_pld_mm_smram_descriptor descriptor;	/* The payload MM subregion */
+	struct lb_pld_mm_smram_descriptor handler;	/* Downstream: coreboot handler */
 };
 
 /*
@@ -659,9 +660,13 @@ struct lb_pld_generic_register {
 struct lb_pld_mm_spi_controller_info {
 	uint32_t tag;
 	uint32_t size;
-	uint16_t revision;				/* The version of this table. Currently "0" */
+	uint16_t revision;				/* Downstream version 1 */
 	uint16_t flags;					/* A set of flags to describe this SPI controller, defined above */
 	struct lb_pld_generic_register spi_address;	/* The address of the PCIe SPI controller, if present */
+	/* Downstream revision 1: physical flash mapping, never a RAM read cache. */
+	lb_uint64_t store_base;
+	uint32_t store_size;
+	uint32_t block_size;
 };
 
 /*
