@@ -134,6 +134,11 @@ void fast_spi_set_eiss(void)
 	fast_spi_read_post_write(SPI_BIOS_CONTROL);
 }
 
+bool fast_spi_eiss_status(void)
+{
+	return pci_read_config8(PCH_DEV_SPI, SPI_BIOS_CONTROL) & SPI_BIOS_CONTROL_EISS;
+}
+
 /*
  * Set FAST_SPI opcode menu.
  */

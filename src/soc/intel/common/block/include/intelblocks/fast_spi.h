@@ -29,6 +29,8 @@ void fast_spi_set_ext_bios_lock_enable(void);
  * Set FAST_SPIBAR BIOS Control EISS bit.
  */
 void fast_spi_set_eiss(void);
+/* Return whether SPI writes require the chipset to be in SMM. */
+bool fast_spi_eiss_status(void);
 /*
  * Set FAST_SPI opcode menu.
  */
