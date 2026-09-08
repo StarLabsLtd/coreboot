@@ -23,7 +23,6 @@ static void acpi_create_gnvs(void *unused)
 		gnvs = cbmem_add(CBMEM_ID_ACPI_GNVS, gnvs_size + dnvs_size);
 		if (!gnvs)
 			return;
-
 		memset(gnvs, 0, gnvs_size + dnvs_size);
 	}
 
