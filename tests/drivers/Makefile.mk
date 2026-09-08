@@ -2,6 +2,12 @@
 
 tests-y += efivars-test
 
+tests-y += payload-mm-test
+payload-mm-test-srcs += tests/drivers/payload-mm-test.c
+payload-mm-test-srcs += src/commonlib/region.c
+payload-mm-test-srcs += tests/stubs/console.c
+payload-mm-test-stage := smm
+
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
 efivars-test-srcs += tests/stubs/console.c

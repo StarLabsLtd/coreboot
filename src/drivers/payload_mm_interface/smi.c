@@ -9,6 +9,9 @@
 #include <string.h>
 #include <types.h>
 
+static bool load_attempted;
+static bool registered;
+
 static uint32_t payload_mm_get_entrypoint(void)
 {
 	uintptr_t payload_mm_region_base;
@@ -16,19 +19,21 @@ static uint32_t payload_mm_get_entrypoint(void)
 
 	payload_mm_get_reserved_region(&payload_mm_region_base, &payload_mm_region_size);
 
-	struct payload_mm_shared_info *payload_mm_shared_mem = (void *)payload_mm_region_base;
-	if (payload_mm_shared_mem->header_magic != PLD_MM_SHARED_STRUCT_MAGIC ||
-	    payload_mm_shared_mem->shared_info_size > PLD_MM_SHARED_STRUCT_MAX_SIZE)
+	if (payload_mm_region_size <= PLD_MM_SHARED_MEMORY_MAX_SIZE)
 		return 0;
 
-	// TODO: Further consider in which situations a size mismatch is recoverable.
-	if (payload_mm_shared_mem->shared_info_size != sizeof(*payload_mm_shared_mem) ||
-	    payload_mm_shared_mem->header_revision != PLD_MM_SHARED_STRUCT_REVISION)
-		printk(BIOS_WARNING, "MM version mismatch! Bootloader: %d; Payload: %d.\n",
-		       PLD_MM_SHARED_STRUCT_REVISION, payload_mm_shared_mem->header_revision);
+	struct payload_mm_shared_info *payload_mm_shared_mem = (void *)payload_mm_region_base;
+	if (payload_mm_shared_mem->header_magic != PLD_MM_SHARED_STRUCT_MAGIC ||
+	    payload_mm_shared_mem->shared_info_size != sizeof(*payload_mm_shared_mem) ||
+	    payload_mm_shared_mem->header_revision != PLD_MM_SHARED_STRUCT_REVISION ||
+	    payload_mm_shared_mem->reserved)
+		return 0;
 
 	if (payload_mm_shared_mem->mm_entrypoint_address < payload_mm_region_base ||
-	    payload_mm_shared_mem->mm_entrypoint_address > (payload_mm_region_base + payload_mm_region_size)) {
+	    payload_mm_shared_mem->mm_entrypoint_address - payload_mm_region_base <
+			PLD_MM_SHARED_MEMORY_MAX_SIZE ||
+	    payload_mm_shared_mem->mm_entrypoint_address - payload_mm_region_base >=
+			payload_mm_region_size) {
 		printk(BIOS_WARNING, "Payload set MM entrypoint outside of the reserved region!\n");
 		return 0;
 	}
@@ -41,22 +46,31 @@ static uint8_t payload_mm_load_and_call_core_module(void *argument)
 	uintptr_t payload_mm_region_base;
 	size_t payload_mm_region_size;
 	struct region payload_mm_core_module = { 0 };
+	struct payload_mm_load_context request;
+
+	if (!argument || smm_points_to_smram(argument, sizeof(request)))
+		return PAYLOAD_MM_RET_FAILURE;
+
+	/* Do not re-read request fields from caller memory after validation. */
+	memcpy(&request, argument, sizeof(request));
+	const struct payload_mm_load_context *load_context = &request;
+	if (load_context->header_size != sizeof(*load_context) ||
+	    load_context->header_revision != PLD_MM_LOAD_CONTEXT_REVISION ||
+	    load_context->reserved)
+		return PAYLOAD_MM_RET_FAILURE;
 
 	payload_mm_get_reserved_region(&payload_mm_region_base, &payload_mm_region_size);
 
-	struct payload_mm_load_context *load_context = argument;
-	printk(BIOS_DEBUG, "Payload MM registration, param = %p.\n", load_context);
-
-	// TODO: Further consider in which situations a size mismatch is recoverable.
-	if (load_context->header_size != sizeof(*load_context) || load_context->header_revision != PLD_MM_LOAD_CONTEXT_REVISION)
-		printk(BIOS_WARNING, "MM version mismatch! Bootloader: %d; Payload: %d.\n",
-		       PLD_MM_LOAD_CONTEXT_REVISION, load_context->header_revision);
+	if (payload_mm_region_size <= PLD_MM_SHARED_MEMORY_MAX_SIZE)
+		return PAYLOAD_MM_RET_FAILURE;
 
 	uint64_t mm_src_address = load_context->mm_core_source_address;
 	uintptr_t mm_dest_address = load_context->mm_core_destination_address;
 	size_t payload_mm_core_size = load_context->mm_core_size;
 
-	if (!ENV_X86_64 && mm_src_address >= (1ULL << 32)) {
+	if (!mm_src_address || !payload_mm_core_size ||
+	    mm_src_address > UINTPTR_MAX ||
+	    payload_mm_core_size - 1 > UINTPTR_MAX - mm_src_address) {
 		printk(BIOS_ERR, "Payload MM source address is not reachable!\n");
 		return PAYLOAD_MM_RET_FAILURE;
 	}
@@ -66,13 +80,19 @@ static uint8_t payload_mm_load_and_call_core_module(void *argument)
 		return PAYLOAD_MM_RET_FAILURE;
 	}
 
+	/* The shared ABI carries entrypoints as 32-bit physical addresses. */
+	if (payload_mm_core_size - 1 > UINT32_MAX - mm_dest_address)
+		return PAYLOAD_MM_RET_FAILURE;
+
 	enum cb_err status = region_create_untrusted(&payload_mm_core_module, mm_dest_address, payload_mm_core_size);
 	if (status != CB_SUCCESS) {
 		printk(BIOS_ERR, "Payload provided a malformed MM core region!\n");
 		return PAYLOAD_MM_RET_FAILURE;
 	}
 
-	struct region payload_mm_region = region_create(payload_mm_region_base, payload_mm_region_size);
+	struct region payload_mm_region = region_create(
+		payload_mm_region_base + PLD_MM_SHARED_MEMORY_MAX_SIZE,
+		payload_mm_region_size - PLD_MM_SHARED_MEMORY_MAX_SIZE);
 	if (!region_is_subregion(&payload_mm_region, &payload_mm_core_module)) {
 		printk(BIOS_ERR, "Payload tried to load MM core outside of the reserved region!\n");
 		return PAYLOAD_MM_RET_FAILURE;
@@ -103,23 +123,27 @@ static uint8_t payload_mm_load_and_call_core_module(void *argument)
 
 uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument)
 {
-	// TODO: Query command (if we'll have secondary consumers)?
-	uint32_t mm_entrypoint_address = payload_mm_get_entrypoint();
-	if (mm_entrypoint_address) {
-		printk(BIOS_WARNING, "Payload MM already registered at 0x%x!\n", mm_entrypoint_address);
+	if (load_attempted)
 		return PAYLOAD_MM_RET_FAILURE;
-	}
 
-	if (sub_command == PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE) {
-		return payload_mm_load_and_call_core_module(argument);
-	}
+	/* A failed or malformed registration must not reopen the loader. */
+	load_attempted = true;
+	if (sub_command != PAYLOAD_MM_CMD_LOAD_AND_CALL_CORE)
+		return PAYLOAD_MM_RET_FAILURE;
 
-	printk(BIOS_WARNING, "Unrecognised subcommand 0x%x!\n", sub_command);
-	return PAYLOAD_MM_RET_FAILURE;
+	if (payload_mm_load_and_call_core_module(argument) != PAYLOAD_MM_RET_SUCCESS ||
+	    !payload_mm_get_entrypoint())
+		return PAYLOAD_MM_RET_FAILURE;
+
+	registered = true;
+	return PAYLOAD_MM_RET_SUCCESS;
 }
 
 void payload_mm_call_entrypoint(void)
 {
+	if (!registered)
+		return;
+
 	uint32_t mm_entrypoint_address = payload_mm_get_entrypoint();
 	if (!mm_entrypoint_address) {
 		printk(BIOS_WARNING, "Payload MM not yet registered.\n");
