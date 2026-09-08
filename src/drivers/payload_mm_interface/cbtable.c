@@ -8,6 +8,10 @@
 #include <payload_mm_interface.h>
 #include <soc/pci_devs.h>
 
+__weak void mainboard_payload_mm_cfr_info(struct lb_payload_mm_interface_info *info)
+{
+}
+
 void lb_payload_mm(struct lb_header *header)
 {
 	uintptr_t payload_mm_region_base;
@@ -21,10 +25,14 @@ void lb_payload_mm(struct lb_header *header)
 	mm_info->tag = LB_TAG_PLD_MM_INTERFACE_INFO;
 	mm_info->size = sizeof(*mm_info);
 
-	mm_info->revision = 0;
+	mm_info->revision = 1;
 	mm_info->bootloader_smm_is_64bit = ENV_X86_64;
 	mm_info->apm_cmd = APM_CNT_PAYLOAD_MM;
 	mm_info->pad = 0;
+	mm_info->cfr_mailbox = 0;
+	mm_info->cfr_mailbox_size = 0;
+	mm_info->cfr_supported_options = 0;
+	mainboard_payload_mm_cfr_info(mm_info);
 
 	/* SMRAM ranges */
 	struct lb_payload_mm_smram_region *smram_desc = (void *)lb_new_record(header);

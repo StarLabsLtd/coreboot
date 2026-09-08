@@ -611,6 +611,10 @@ struct lb_payload_mm_interface_info {
 						   payload determine if mode switching is required. */
 	uint8_t apm_cmd;			/* The command byte to write to the APM I/O port */
 	uint8_t pad;
+	/* Downstream revision 1: fixed ACPI preference mailbox. */
+	lb_uint64_t cfr_mailbox;
+	uint32_t cfr_mailbox_size;
+	uint32_t cfr_supported_options;
 };
 
 /*

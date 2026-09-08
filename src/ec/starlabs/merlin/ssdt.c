@@ -1304,7 +1304,12 @@ static void write_efi_option_get(const char *option)
 
 static void write_efi_option_set_ec_read(const char *option, const char *field)
 {
-	write_method_call("EOSV");
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		write_method_call("EORQ");
+		acpigen_write_integer(STARLABS_EFIOPT_CMD_SET);
+	} else {
+		write_method_call("EOSV");
+	}
 	acpigen_emit_namestring(option);
 	write_ec_read_path(field);
 }
@@ -1316,6 +1321,8 @@ static void write_efi_option_field(void)
 		FIELDLIST_NAMESTR("EOID", 32),
 		FIELDLIST_NAMESTR("EOVL", 32),
 		FIELDLIST_NAMESTR("EORS", 32),
+		FIELDLIST_NAMESTR("EOVR", 32),
+		FIELDLIST_NAMESTR("EORV", 32),
 	};
 
 	acpigen_emit_ext_op(FIELD_OP);
@@ -1325,6 +1332,111 @@ static void write_efi_option_field(void)
 	for (size_t i = 0; i < ARRAY_SIZE(fields); i++)
 		acpigen_write_field_name(fields[i].name, fields[i].bits);
 	acpigen_pop_len();
+}
+
+static void write_efi_option_apply(void)
+{
+	static const struct {
+		enum starlabs_efiopt_id id;
+		const char *field;
+		bool enabled;
+	} fields[] = {
+		{ STARLABS_EFIOPT_ID_FN_LOCK_STATE, EC_ACPI_FIELD("FLKE"), true },
+		{ STARLABS_EFIOPT_ID_TRACKPAD_STATE, EC_ACPI_FIELD("TPLE"), true },
+		{ STARLABS_EFIOPT_ID_KBL_BRIGHTNESS, EC_ACPI_FIELD("KLBE"), true },
+		{ STARLABS_EFIOPT_ID_KBL_STATE, EC_ACPI_FIELD("KLSE"), true },
+		{ STARLABS_EFIOPT_ID_KBL_TIMEOUT, EC_ACPI_FIELD("KLTE"), true },
+		{ STARLABS_EFIOPT_ID_FN_CTRL_SWAP, EC_ACPI_FIELD("FCLA"),
+		  CONFIG(EC_STARLABS_MERLIN) },
+		{ STARLABS_EFIOPT_ID_MAX_CHARGE, EC_ACPI_FIELD("BFCP"),
+		  CONFIG(EC_STARLABS_MAX_CHARGE) },
+		{ STARLABS_EFIOPT_ID_FAN_MODE, EC_ACPI_FIELD("FANM"), CONFIG(EC_STARLABS_FAN) },
+		{ STARLABS_EFIOPT_ID_CHARGING_SPEED, EC_ACPI_FIELD("CGSP"),
+		  CONFIG(EC_STARLABS_CHARGING_SPEED) },
+		{ STARLABS_EFIOPT_ID_LID_SWITCH, EC_ACPI_FIELD("LDSW"),
+		  CONFIG(EC_STARLABS_LID_SWITCH) },
+		{ STARLABS_EFIOPT_ID_POWER_LED, EC_ACPI_FIELD("PWLE"),
+		  CONFIG(EC_STARLABS_POWER_LED) },
+		{ STARLABS_EFIOPT_ID_CHARGE_LED, EC_ACPI_FIELD("CHLE"),
+		  CONFIG(EC_STARLABS_CHARGE_LED) },
+		{ STARLABS_EFIOPT_ID_POWER_ON_AC, EC_ACPI_FIELD("PWAC"),
+		  CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON) },
+	};
+
+	/* EAPL applies a validated saved preference, without holding EOMX over EC I/O. */
+	acpigen_write_method_serialized("EAPL", 1);
+	{
+		acpigen_write_if();
+		{
+			acpigen_emit_byte(LNOT_OP);
+			acpigen_emit_namestring(EC_ACPI_FIELD("ECAV"));
+			acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+		}
+		acpigen_write_if_end();
+		acpigen_emit_byte(STORE_OP);
+		write_method_call("EORQ");
+		acpigen_write_integer(STARLABS_EFIOPT_CMD_GET);
+		acpigen_emit_byte(ARG0_OP);
+		acpigen_write_integer(0);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_get_package_op_element(LOCAL0_OP, 0, LOCAL1_OP);
+		acpigen_get_package_op_element(LOCAL0_OP, 1, LOCAL2_OP);
+		acpigen_write_if();
+		{
+			acpigen_emit_byte(LOCAL1_OP);
+			acpigen_write_return_op(LOCAL1_OP);
+		}
+		acpigen_write_if_end();
+		if (CONFIG(STARLABS_AUTOMATIC_START) && CONFIG(SOC_INTEL_ALDERLAKE)) {
+			acpigen_write_if_lequal_op_int(ARG0_OP, STARLABS_EFIOPT_ID_AUTOMATIC_START);
+			{
+				acpigen_write_store_int_to_op(0, LOCAL3_OP);
+				acpigen_write_if_lequal_op_int(LOCAL2_OP, AUTOMATIC_START_ALWAYS);
+				acpigen_write_store_int_to_op(1, LOCAL3_OP);
+				acpigen_write_if_end();
+				write_method_call(EC_ACPI_METHOD("ECWR"));
+				acpigen_emit_byte(LOCAL3_OP);
+				acpigen_emit_byte(REF_OF_OP);
+				acpigen_emit_namestring(EC_ACPI_FIELD("PWAC"));
+				acpigen_write_if();
+				{
+					acpigen_emit_byte(LAND_OP);
+					write_method_call("\\_SB.ASAC");
+					acpigen_emit_byte(LOCAL2_OP);
+					acpigen_emit_byte(LEQUAL_OP);
+					acpigen_emit_byte(LOCAL3_OP);
+					write_ec_read_path(EC_ACPI_FIELD("PWAC"));
+					acpigen_write_return_integer(STARLABS_EFIOPT_SUCCESS);
+				}
+				acpigen_write_if_end();
+				acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+			}
+			acpigen_write_if_end();
+		}
+		for (size_t i = 0; i < ARRAY_SIZE(fields); i++) {
+			if (!fields[i].enabled)
+				continue;
+			acpigen_write_if_lequal_op_int(ARG0_OP, fields[i].id);
+			{
+				write_method_call(EC_ACPI_METHOD("ECWR"));
+				acpigen_emit_byte(LOCAL2_OP);
+				acpigen_emit_byte(REF_OF_OP);
+				acpigen_emit_namestring(fields[i].field);
+				acpigen_write_if();
+				{
+					acpigen_emit_byte(LEQUAL_OP);
+					acpigen_emit_byte(LOCAL2_OP);
+					write_ec_read_path(fields[i].field);
+					acpigen_write_return_integer(STARLABS_EFIOPT_SUCCESS);
+				}
+				acpigen_write_if_end();
+				acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+			}
+			acpigen_write_if_end();
+		}
+		acpigen_write_return_integer(STARLABS_EFIOPT_UNSUPPORTED);
+	}
+	acpigen_write_method_end();
 }
 
 static void write_efi_option_methods(void)
@@ -1338,12 +1450,48 @@ static void write_efi_option_methods(void)
 	acpigen_write_name_integer("EOKT", STARLABS_EFIOPT_ID_KBL_TIMEOUT);
 	acpigen_write_mutex("EOMX", 0);
 
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		/* EORQ (command, id, value) returns { status, value }. */
+		acpigen_write_method_serialized("EORQ", 3);
+		{
+			acpigen_write_if();
+			{
+				acpigen_write_acquire("EOMX", 1000);
+				acpigen_emit_byte(RETURN_OP);
+				acpigen_write_package(2);
+				acpigen_write_integer(STARLABS_EFIOPT_ERROR);
+				acpigen_write_integer(0);
+				acpigen_pop_len();
+			}
+			acpigen_write_if_end();
+			acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_VERSION, "EOVR");
+			acpigen_write_store_int_to_namestr(0, "EORV");
+			acpigen_write_store_op_to_namestr(ARG0_OP, "EOCM");
+			acpigen_write_store_op_to_namestr(ARG1_OP, "EOID");
+			acpigen_write_store_op_to_namestr(ARG2_OP, "EOVL");
+			acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
+			acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
+			acpigen_emit_byte(STORE_OP);
+			acpigen_write_package(2);
+			acpigen_emit_namestring("EORS");
+			acpigen_emit_namestring("EOVL");
+			acpigen_pop_len();
+			acpigen_emit_byte(LOCAL0_OP);
+			acpigen_write_release("EOMX");
+			acpigen_write_return_op(LOCAL0_OP);
+		}
+		acpigen_write_method_end();
+		write_efi_option_apply();
+	}
+
 	acpigen_write_method_serialized("EOGT", 1);
 	acpigen_write_if();
 	acpigen_write_acquire("EOMX", 1000);
 	acpigen_write_return_integer(0xffffffff);
 	acpigen_write_if_end();
-	acpigen_write_store_int_to_namestr(1, "EOCM");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_VERSION, "EOVR");
+	acpigen_write_store_int_to_namestr(0, "EORV");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_CMD_GET, "EOCM");
 	acpigen_write_store_op_to_namestr(ARG0_OP, "EOID");
 	acpigen_write_store_int_to_namestr(0xffffffff, "EOVL");
 	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
@@ -1362,7 +1510,9 @@ static void write_efi_option_methods(void)
 	acpigen_write_acquire("EOMX", 1000);
 	acpigen_write_return_integer(0);
 	acpigen_write_if_end();
-	acpigen_write_store_int_to_namestr(3, "EOCM");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_VERSION, "EOVR");
+	acpigen_write_store_int_to_namestr(0, "EORV");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_CMD_GET_SUPPORTED, "EOCM");
 	acpigen_write_store_int_to_namestr(0, "EOVL");
 	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
@@ -1380,13 +1530,24 @@ static void write_efi_option_methods(void)
 	acpigen_write_acquire("EOMX", 1000);
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
-	acpigen_write_store_int_to_namestr(2, "EOCM");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_VERSION, "EOVR");
+	acpigen_write_store_int_to_namestr(0, "EORV");
+	acpigen_write_store_int_to_namestr(STARLABS_EFIOPT_CMD_SET, "EOCM");
 	acpigen_write_store_op_to_namestr(ARG0_OP, "EOID");
 	acpigen_write_store_op_to_namestr(ARG1_OP, "EOVL");
 	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
 	acpigen_write_store_namestr_to_op("EORS", LOCAL0_OP);
 	acpigen_write_release("EOMX");
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		acpigen_write_if_lequal_op_int(LOCAL0_OP, STARLABS_EFIOPT_SUCCESS);
+		{
+			acpigen_emit_byte(RETURN_OP);
+			write_method_call("EAPL");
+			acpigen_emit_byte(ARG0_OP);
+		}
+		acpigen_write_if_end();
+	}
 	acpigen_write_return_op(LOCAL0_OP);
 	acpigen_write_method_end();
 }
@@ -1399,7 +1560,12 @@ static void write_efi_option_suspend(void)
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, 0x11);
 	acpigen_write_store_int_to_op(0, LOCAL0_OP);
 	acpigen_write_if_end();
-	write_method_call("EOSV");
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		write_method_call("EORQ");
+		acpigen_write_integer(STARLABS_EFIOPT_CMD_SET);
+	} else {
+		write_method_call("EOSV");
+	}
 	acpigen_emit_namestring("EOTP");
 	acpigen_emit_byte(LOCAL0_OP);
 	write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"));
@@ -1419,6 +1585,22 @@ static void write_efi_option_restore_integer(const char *field, uint64_t valid_v
 static void write_efi_option_resume(void)
 {
 	static const uint8_t brightness_values[] = {0xdd, 0xcc, 0xbb, 0xaa};
+	static const enum starlabs_efiopt_id restore_ids[] = {
+		STARLABS_EFIOPT_ID_TRACKPAD_STATE,
+		STARLABS_EFIOPT_ID_FN_LOCK_STATE,
+		STARLABS_EFIOPT_ID_KBL_STATE,
+		STARLABS_EFIOPT_ID_KBL_BRIGHTNESS,
+		STARLABS_EFIOPT_ID_KBL_TIMEOUT,
+	};
+
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		/* Failed or absent preferences must not be written to EC registers. */
+		for (size_t i = 0; i < ARRAY_SIZE(restore_ids); i++) {
+			write_method_call("EAPL");
+			acpigen_write_integer(restore_ids[i]);
+		}
+		return;
+	}
 
 	acpigen_emit_byte(STORE_OP);
 	write_efi_option_get("EOTP");
@@ -1465,9 +1647,8 @@ static void write_sleep_methods(void)
 #endif
 
 /*
- *	RPTS snapshots live EC options through EOSV before clearing OSFG.
- *	RWAK sets OSFG and restores saved options through EOGT.
- *	The option methods use the SMM backend when configured.
+ *	RPTS saves live EC options before clearing OSFG. Payload MM saves do not apply.
+ *	RWAK sets OSFG and restores saved options, skipping failed Payload MM reads.
  */
 	acpigen_write_method_serialized("RPTS", 1);
 	{

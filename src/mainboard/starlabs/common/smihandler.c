@@ -502,6 +502,9 @@ enum cb_err cfr_runtime_apply_option(uint32_t id)
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
 int mainboard_smi_apmc(u8 data)
 {
+	if (CONFIG(PAYLOAD_MM_INTERFACE))
+		return 0;
+
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
 

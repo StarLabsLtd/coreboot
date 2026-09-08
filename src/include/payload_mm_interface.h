@@ -71,6 +71,7 @@ struct payload_mm_shared_info {
 void payload_mm_get_reserved_region(uintptr_t *tseg_base, size_t *tseg_size);
 
 void lb_payload_mm(struct lb_header *header);
+void mainboard_payload_mm_cfr_info(struct lb_payload_mm_interface_info *info);
 
 uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument);
 void payload_mm_call_entrypoint(void);

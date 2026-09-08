@@ -16,6 +16,16 @@
  */
 
 #define STARLABS_APMC_CMD_EFI_OPTION 0xE2
+#define STARLABS_EFIOPT_VERSION 1
+
+enum starlabs_efiopt_status {
+	STARLABS_EFIOPT_SUCCESS = 0,
+	STARLABS_EFIOPT_ERROR = 1,
+	STARLABS_EFIOPT_INVALID = 2,
+	STARLABS_EFIOPT_NOT_FOUND = 3,
+	STARLABS_EFIOPT_UNSUPPORTED = 4,
+	STARLABS_EFIOPT_DENIED = 5,
+};
 
 enum starlabs_efiopt_cmd {
 	STARLABS_EFIOPT_CMD_GET = 1,
@@ -49,6 +59,8 @@ struct starlabs_dnvs_efiopt {
 	uint32_t id;
 	uint32_t value;
 	uint32_t status;
+	uint32_t version;
+	uint32_t reserved;
 } __packed;
 
 #endif /* STARLABS_EFI_OPTION_SMI_H */
