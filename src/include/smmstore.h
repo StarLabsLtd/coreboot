@@ -3,17 +3,25 @@
 #ifndef _SMMSTORE_H_
 #define _SMMSTORE_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define SMMSTORE_RET_SUCCESS 0
 #define SMMSTORE_RET_FAILURE 1
 #define SMMSTORE_RET_UNSUPPORTED 2
+#define SMMSTORE_RET_BUSY 3
 
 #define SMMSTORE_CMD_INIT_DEPRECATED 4
 #define SMMSTORE_CMD_RAW_READ 5
 #define SMMSTORE_CMD_RAW_WRITE 6
 #define SMMSTORE_CMD_RAW_CLEAR 7
+#define SMMSTORE_CMD_VARIABLE_BEGIN 8
+#define SMMSTORE_CMD_VARIABLE_END 9
+
+/* Cooperative exclusion for a payload variable operation, not authorization. */
+bool smmstore_variable_busy(void);
+void smmstore_variable_changed(void);
 
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.

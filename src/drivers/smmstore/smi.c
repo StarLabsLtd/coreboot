@@ -6,6 +6,20 @@
 #include <smmstore.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+
+static bool variable_busy;
+static uint64_t variable_generation;
+
+bool smmstore_variable_busy(void)
+{
+	return variable_busy;
+}
+
+void smmstore_variable_changed(void)
+{
+	variable_generation++;
+}
 
 /*
  * Check that the given range is legal.
@@ -27,6 +41,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 {
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
+	static void *com_buffer;
 
 	/* A reloaded S3 handler must not let the resumed OS recreate this latch. */
 	if (CONFIG(PAYLOAD_MM_INTERFACE) && smm_is_s3_resume() &&
@@ -55,10 +70,26 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 
 		if (smmstore_init((void *)base, size))
 			return SMMSTORE_RET_FAILURE;
+		if (size < sizeof(variable_generation))
+			return SMMSTORE_RET_FAILURE;
+		com_buffer = (void *)base;
 		initialized = true;
 	}
 
 	switch (command) {
+	case SMMSTORE_CMD_VARIABLE_BEGIN:
+		if (variable_busy)
+			return SMMSTORE_RET_BUSY;
+		variable_busy = true;
+		memcpy(com_buffer, &variable_generation, sizeof(variable_generation));
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
+	case SMMSTORE_CMD_VARIABLE_END:
+		if (!variable_busy)
+			break;
+		variable_busy = false;
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
 	case SMMSTORE_CMD_RAW_READ: {
 		printk(BIOS_DEBUG, "Raw read from SMM store, param = %p\n", param);
 		struct smmstore_params_raw_read *params = param;
