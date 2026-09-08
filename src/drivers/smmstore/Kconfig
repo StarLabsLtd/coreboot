@@ -9,6 +9,8 @@ config SMMSTORE
 	  SMMSTORE allows secure communication with SMM and makes no
 	  assumptions on the structure of the data stored within. It splits
 	  the store into blocks to allow fault tolerant writes.
+	  With payload MM, the capsule-update path is the only SMMSTORE user;
+	  the payload MM variable service owns normal variable-store access.
 
 if SMMSTORE
 

@@ -26,6 +26,11 @@ _Static_assert(FMAP_SECTION_SMMSTORE_SIZE >= SMM_BLOCK_SIZE,
 static int smmstore_use_full_flash;
 static int has_capsules = -1;
 
+bool smmstore_full_flash_enabled(void)
+{
+	return smmstore_use_full_flash;
+}
+
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
