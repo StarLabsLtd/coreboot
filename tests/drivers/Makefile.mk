@@ -22,6 +22,12 @@ efi-option-no-smmstore-test-config += CONFIG_SMMSTORE=0 CONFIG_USE_UEFI_VARIABLE
 	CONFIG_OPTION_BACKEND_NONE=0 CONFIG_USE_CBFS_FILE_OPTION_BACKEND=0
 efi-option-no-smmstore-test-cflags := $(smmstore-variable-test-cflags)
 
+tests-y += payload-mm-test
+payload-mm-test-srcs += tests/drivers/payload-mm-test.c
+payload-mm-test-srcs += src/commonlib/region.c
+payload-mm-test-srcs += tests/stubs/console.c
+payload-mm-test-stage := smm
+
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
 efivars-test-srcs += tests/stubs/console.c
