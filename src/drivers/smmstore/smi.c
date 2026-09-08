@@ -42,8 +42,15 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	static bool initialized = false;
 	static void *com_buffer;
 
+	/* Payload MM owns the variable store and only the update path uses SMMSTORE. */
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && !(command & SMMSTORE_CMD_USE_FULL_FLASH))
+		return SMMSTORE_RET_UNSUPPORTED;
+
 	if (smmstore_preprocess_cmd(&command, param))
 		return SMMSTORE_RET_SUCCESS;
+
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && !smmstore_full_flash_enabled())
+		return SMMSTORE_RET_UNSUPPORTED;
 
 	if (!param)
 		return SMMSTORE_RET_FAILURE;
