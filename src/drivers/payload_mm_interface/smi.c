@@ -123,6 +123,11 @@ static uint8_t payload_mm_load_and_call_core_module(void *argument)
 
 uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument)
 {
+	if (sub_command == PAYLOAD_MM_CMD_CLOSE_LOADER) {
+		load_attempted = true;
+		return registered ? PAYLOAD_MM_RET_SUCCESS : PAYLOAD_MM_RET_FAILURE;
+	}
+
 	if (load_attempted)
 		return PAYLOAD_MM_RET_FAILURE;
 
