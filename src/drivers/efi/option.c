@@ -34,6 +34,10 @@ enum cb_err set_uint_option(const char *name, unsigned int value)
 	struct region_device rdev;
 	uint32_t var = value;
 
+	/* The resident payload owns variable policy and persistent writes. */
+	if (ENV_SMM && CONFIG(PAYLOAD_MM_INTERFACE))
+		return CB_ERR;
+
 	if (smmstore_lookup_region(&rdev))
 		return CB_CMOS_OTABLE_DISABLED;
 
