@@ -31,6 +31,8 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	const size_t cache_size = CONFIG_SMM_RESERVED_SIZE;
 	const size_t opal_state_size = CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE;
 	const size_t payload_size = CONFIG_PAYLOAD_MM_SMRAM_SIZE;
+	const uint64_t reserved_size = (uint64_t)ied_size + cache_size +
+		opal_state_size + payload_size;
 
 	if (CONFIG(SMM_TSEG))
 		smm_region(&sub_base, &sub_size);
@@ -39,8 +41,9 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	else
 		return -1;
 
-	ASSERT(IS_ALIGNED(sub_base, sub_size));
-	ASSERT(sub_size > (payload_size + cache_size + ied_size + opal_state_size));
+	/* Never calculate subregions from an invalid hardware reservation. */
+	if (!sub_size || !IS_ALIGNED(sub_base, sub_size) || sub_size <= reserved_size)
+		die("Invalid SMM subregion layout");
 
 	switch (sub) {
 	case SMM_SUBREGION_HANDLER:
