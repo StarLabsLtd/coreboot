@@ -373,6 +373,19 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		}
 		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
 		mod_params->smmstore_com_buffer_size = info.block_size;
+
+		uint64_t *generation = cbmem_add(CBMEM_ID_SMMSTORE_GENERATION,
+						sizeof(*generation));
+		if (generation) {
+			/* SMM is reloaded on S3; invalidate retained payload caches. */
+			if (acpi_is_wakeup_s3())
+				(*generation)++;
+			else
+				*generation = 0;
+		} else {
+			printk(BIOS_ERR, "SMMSTORE: Failed to add generation counter\n");
+		}
+		mod_params->smmstore_generation = generation;
 	}
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
