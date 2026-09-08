@@ -28,8 +28,17 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
 
+	/* MM owns variables. Retain read access and the boot-only capsule transport. */
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && command != SMMSTORE_CMD_RAW_READ &&
+	    !(command & SMMSTORE_CMD_USE_FULL_FLASH))
+		return SMMSTORE_RET_UNSUPPORTED;
+
 	if (smmstore_preprocess_cmd(&command, param))
 		return SMMSTORE_RET_SUCCESS;
+
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && command != SMMSTORE_CMD_RAW_READ &&
+	    command != SMMSTORE_CMD_RAW_WRITE && command != SMMSTORE_CMD_RAW_CLEAR)
+		return SMMSTORE_RET_UNSUPPORTED;
 
 	if (!param)
 		return SMMSTORE_RET_FAILURE;

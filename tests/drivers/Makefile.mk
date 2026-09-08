@@ -1,6 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 tests-y += efivars-test
+tests-y += smmstore-mm-capsule-test
+smmstore-mm-capsule-test-srcs += tests/drivers/smmstore-variable.c
+smmstore-mm-capsule-test-srcs += src/drivers/smmstore/smi.c
+smmstore-mm-capsule-test-srcs += src/drivers/efi/option.c
+smmstore-mm-capsule-test-srcs += tests/stubs/console.c
+smmstore-mm-capsule-test-srcs += src/commonlib/region.c
+smmstore-mm-capsule-test-stage := smm
+smmstore-mm-capsule-test-config += CONFIG_SMMSTORE=1 CONFIG_USE_UEFI_VARIABLE_STORE=1 \
+	CONFIG_PAYLOAD_MM_INTERFACE=1 \
+	CONFIG_OPTION_BACKEND_NONE=0 CONFIG_USE_CBFS_FILE_OPTION_BACKEND=0
+smmstore-mm-capsule-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/
+smmstore-mm-capsule-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32/
 
 tests-y += payload-mm-test
 payload-mm-test-srcs += tests/drivers/payload-mm-test.c
