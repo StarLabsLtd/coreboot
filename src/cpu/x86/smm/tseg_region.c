@@ -8,6 +8,11 @@
 #include <types.h>
 #include <inttypes.h>
 
+_Static_assert(!CONFIG(PAYLOAD_MM_INTERFACE) || CONFIG_SMM_TSEG_SIZE >
+	       (uint64_t)CONFIG_IED_REGION_SIZE + CONFIG_SMM_RESERVED_SIZE +
+	       CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE + CONFIG_PAYLOAD_MM_SMRAM_SIZE,
+	       "TSEG must fit payload MM, retained state, stage cache and the SMM handler");
+
 /*
  *        Subregions within SMM
  *     +-------------------------+
