@@ -4,6 +4,7 @@
 #define PAYLOAD_MM_INTERFACE_H
 
 #include <commonlib/coreboot_tables.h>
+#include <commonlib/region.h>
 #include <types.h>
 
 /* Payload MM command interface */
@@ -69,6 +70,9 @@ struct payload_mm_shared_info {
 } __packed;
 
 void payload_mm_get_reserved_region(uintptr_t *tseg_base, size_t *tseg_size);
+bool payload_mm_flash_region_is_valid(const struct region *region, size_t media_size,
+				      size_t block_size);
+bool payload_mm_map_flash_region(const struct region *region, uintptr_t *mapping);
 
 void lb_payload_mm(struct lb_header *header);
 void mainboard_payload_mm_cfr_info(struct lb_payload_mm_interface_info *info);
