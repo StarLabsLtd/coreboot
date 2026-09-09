@@ -90,6 +90,7 @@ struct smm_runtime {
 	u32 smm_size;
 	u32 save_state_size;
 	u32 num_cpus;
+	bool s3_resume;
 	u32 gnvs_ptr;
 	u32 cbmemc_size;
 	void *cbmemc;
@@ -254,6 +255,7 @@ bool smm_pci_resource_store_fill_resources(struct smm_pci_resource_info *slots, 
 void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+bool smm_is_s3_resume(void);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif
