@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
+#include <common/automatic_start.h>
 #include <device/device.h>
 #include <ec/starlabs/merlin/ec.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_I2C_SMM)
@@ -21,9 +22,17 @@ static void starlabs_configure_gpios(void *unused)
 
 BOOT_STATE_INIT_ENTRY(BS_PRE_DEVICE, BS_ON_ENTRY, starlabs_configure_gpios, NULL);
 
+static void starlabs_mainboard_fill_ssdt(const struct device *dev)
+{
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) &&
+	    CONFIG(STARLABS_AUTOMATIC_START))
+		starlabs_automatic_start_ssdt();
+	merlin_fill_ssdt(dev);
+}
+
 static void enable_mainboard(struct device *dev)
 {
-	dev->ops->acpi_fill_ssdt = merlin_fill_ssdt;
+	dev->ops->acpi_fill_ssdt = starlabs_mainboard_fill_ssdt;
 }
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_I2C_SMM)

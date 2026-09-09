@@ -1571,7 +1571,7 @@ static void write_efi_option_apply(void)
 			acpigen_write_if_end();
 		}
 		acpigen_write_if_end();
-		if (CONFIG(STARLABS_AUTOMATIC_START) && CONFIG(SOC_INTEL_ALDERLAKE)) {
+		if (CONFIG(STARLABS_AUTOMATIC_START)) {
 			acpigen_write_if_lequal_op_int(ARG0_OP, STARLABS_EFIOPT_ID_AUTOMATIC_START);
 			{
 				acpigen_write_store_int_to_op(0, LOCAL3_OP);
@@ -1789,7 +1789,7 @@ static void write_cfr_runtime_methods(void)
 				}
 				acpigen_write_if_end();
 			}
-			if (CONFIG(STARLABS_AUTOMATIC_START) && CONFIG(SOC_INTEL_ALDERLAKE)) {
+			if (CONFIG(STARLABS_AUTOMATIC_START)) {
 				acpigen_write_if_lequal_op_int(ARG0_OP, STARLABS_EFIOPT_ID_AUTOMATIC_START);
 				{
 					acpigen_emit_byte(STORE_OP);
