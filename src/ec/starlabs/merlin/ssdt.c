@@ -78,74 +78,230 @@ static void write_ec_resources(void)
 
 static void write_ec_read_method(void)
 {
+/*
+ *	EC read with status
+ *
+ *	Method (ECGT, 1, Serialized)
+ *	{
+ *		If (ECTK)
+ *		{
+ *			If (!(_REV < 2))
+ *				ECAV = One
+ *
+ *			ECTK = Zero
+ *		}
+ *
+ *		Local0 = Acquire (ECMT, EC_MUTEX_TIMEOUT_MS)
+ *		If ((Local0 == EC_MUTEX_ACQUIRED))
+ *		{
+ *			If (ECAV)
+ *			{
+ *				Local1 = DerefOf (Arg0)
+ *				Release (ECMT)
+ *				Local2 = Package (EC_ACPI_RESULT_SIZE)
+ *				{
+ *					EC_ACPI_SUCCESS,
+ *					0
+ *				}
+ *				Local2 [EC_ACPI_VALUE] = Local1
+ *				Return (Local2)
+ *			}
+ *
+ *			Release (ECMT)
+ *		}
+ *
+ *		Return (Package (EC_ACPI_RESULT_SIZE)
+ *		{
+ *			EC_ACPI_ERROR,
+ *			0
+ *		})
+ *	}
+ */
+	acpigen_write_method_serialized("ECGT", 1);
+	{
+		acpigen_write_if();
+		{
+			acpigen_emit_namestring("ECTK");
+			acpigen_write_if();
+			{
+				acpigen_emit_byte(LNOT_OP);
+				acpigen_emit_byte(LLESS_OP);
+				acpigen_emit_namestring("_REV");
+				acpigen_write_integer(2);
+				acpigen_write_store_int_to_namestr(1, "ECAV");
+			}
+			acpigen_write_if_end();
+			acpigen_write_store_int_to_namestr(0, "ECTK");
+		}
+		acpigen_write_if_end();
+
+		acpigen_emit_byte(STORE_OP);
+		acpigen_write_acquire("ECMT", EC_MUTEX_TIMEOUT_MS);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_write_if_lequal_op_int(LOCAL0_OP, EC_MUTEX_ACQUIRED);
+		{
+			acpigen_write_if();
+			{
+				acpigen_emit_namestring("ECAV");
+				acpigen_emit_byte(STORE_OP);
+				acpigen_emit_byte(DEREF_OP);
+				acpigen_emit_byte(ARG0_OP);
+				acpigen_emit_byte(LOCAL1_OP);
+				acpigen_write_release("ECMT");
+				acpigen_emit_byte(STORE_OP);
+				acpigen_write_package(EC_ACPI_RESULT_SIZE);
+				acpigen_write_integer(EC_ACPI_SUCCESS);
+				acpigen_write_integer(0);
+				acpigen_write_package_end();
+				acpigen_emit_byte(LOCAL2_OP);
+				acpigen_emit_byte(STORE_OP);
+				acpigen_emit_byte(LOCAL1_OP);
+				acpigen_emit_byte(INDEX_OP);
+				acpigen_emit_byte(LOCAL2_OP);
+				acpigen_write_integer(EC_ACPI_VALUE);
+				acpigen_emit_byte(ZERO_OP);
+				acpigen_write_return_op(LOCAL2_OP);
+			}
+			acpigen_write_else();
+			{
+				acpigen_write_release("ECMT");
+			}
+			acpigen_write_if_end();
+		}
+		acpigen_write_if_end();
+
+		acpigen_emit_byte(RETURN_OP);
+		acpigen_write_package(EC_ACPI_RESULT_SIZE);
+		acpigen_write_integer(EC_ACPI_ERROR);
+		acpigen_write_integer(0);
+		acpigen_write_package_end();
+	}
+	acpigen_write_method_end();
+
+/*
+ *	Legacy EC read
+ *
+ *	Method (ECRD, 1, Serialized)
+ *	{
+ *		Local0 = ECGT (Arg0)
+ *		Local1 = Local0 [EC_ACPI_STATUS]
+ *		If ((Local1 == EC_ACPI_SUCCESS))
+ *		{
+ *			Local1 = Local0 [EC_ACPI_VALUE]
+ *			Return (Local1)
+ *		}
+ *
+ *		Return (Zero)
+ *	}
+ */
 	acpigen_write_method_serialized("ECRD", 1);
-
-	acpigen_write_if();
-	acpigen_emit_namestring("ECTK");
-	acpigen_write_if();
-	acpigen_emit_byte(LNOT_OP);
-	acpigen_emit_byte(LLESS_OP);
-	acpigen_emit_namestring("_REV");
-	acpigen_write_integer(2);
-	acpigen_write_store_int_to_namestr(1, "ECAV");
-	acpigen_write_if_end();
-	acpigen_write_store_int_to_namestr(0, "ECTK");
-	acpigen_write_if_end();
-
-	acpigen_emit_byte(STORE_OP);
-	acpigen_write_acquire("ECMT", 1000);
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
-	acpigen_write_if();
-	acpigen_emit_namestring("ECAV");
-	acpigen_emit_byte(STORE_OP);
-	acpigen_emit_byte(DEREF_OP);
-	acpigen_emit_byte(ARG0_OP);
-	acpigen_emit_byte(LOCAL1_OP);
-	acpigen_write_release("ECMT");
-	acpigen_write_return_op(LOCAL1_OP);
-	acpigen_write_else();
-	acpigen_write_release("ECMT");
-	acpigen_write_if_end();
-	acpigen_write_if_end();
-	acpigen_write_return_integer(0);
+	{
+		acpigen_emit_byte(STORE_OP);
+		acpigen_emit_namestring("ECGT");
+		acpigen_emit_byte(ARG0_OP);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_STATUS,
+					       LOCAL1_OP);
+		acpigen_write_if_lequal_op_int(LOCAL1_OP, EC_ACPI_SUCCESS);
+		{
+			acpigen_get_package_op_element(LOCAL0_OP,
+						       EC_ACPI_VALUE,
+						       LOCAL1_OP);
+			acpigen_write_return_op(LOCAL1_OP);
+		}
+		acpigen_write_if_end();
+		acpigen_write_return_integer(0);
+	}
 	acpigen_write_method_end();
 }
 
 static void write_ec_write_method(void)
 {
+/*
+ *	EC write
+ *
+ *	Method (ECWR, 2, Serialized)
+ *	{
+ *		Local2 = EC_ACPI_ERROR
+ *		Local0 = Acquire (ECMT, EC_MUTEX_TIMEOUT_MS)
+ *		If ((Local0 == EC_MUTEX_ACQUIRED))
+ *		{
+ *			If (ECAV)
+ *			{
+ *				Arg1 = Arg0
+ *				Local1 = Zero
+ *				While (One)
+ *				{
+ *					If ((Arg0 == DerefOf (Arg1)))
+ *					{
+ *						Local2 = EC_ACPI_SUCCESS
+ *						Break
+ *					}
+ *
+ *					If ((Local1 == EC_WRITE_RETRY_COUNT))
+ *						Break
+ *
+ *					Sleep (EC_WRITE_RETRY_DELAY_MS)
+ *					Arg1 = Arg0
+ *					Local1++
+ *				}
+ *			}
+ *
+ *			Release (ECMT)
+ *		}
+ *
+ *		Return (Local2)
+ *	}
+ */
 	acpigen_write_method_serialized("ECWR", 2);
-	acpigen_emit_byte(STORE_OP);
-	acpigen_write_acquire("ECMT", 1000);
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
-	acpigen_write_if();
-	acpigen_emit_namestring("ECAV");
-	acpigen_write_store_ops(ARG0_OP, ARG1_OP);
-	acpigen_write_store_int_to_op(0, LOCAL1_OP);
+	{
+		acpigen_write_store_int_to_op(EC_ACPI_ERROR, LOCAL2_OP);
+		acpigen_emit_byte(STORE_OP);
+		acpigen_write_acquire("ECMT", EC_MUTEX_TIMEOUT_MS);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_write_if_lequal_op_int(LOCAL0_OP, EC_MUTEX_ACQUIRED);
+		{
+			acpigen_write_if();
+			{
+				acpigen_emit_namestring("ECAV");
+				acpigen_write_store_ops(ARG0_OP, ARG1_OP);
+				acpigen_write_store_int_to_op(0, LOCAL1_OP);
 
-	acpigen_emit_byte(WHILE_OP);
-	acpigen_write_len_f();
-	acpigen_write_one();
-	acpigen_write_if();
-	acpigen_emit_byte(LEQUAL_OP);
-	acpigen_emit_byte(ARG0_OP);
-	acpigen_emit_byte(DEREF_OP);
-	acpigen_emit_byte(ARG1_OP);
-	acpigen_emit_byte(BREAK_OP);
-	acpigen_write_if_end();
-	acpigen_write_sleep(1);
-	acpigen_write_store_ops(ARG0_OP, ARG1_OP);
-	acpigen_emit_byte(INCREMENT_OP);
-	acpigen_emit_byte(LOCAL1_OP);
-	acpigen_write_if_lequal_op_int(LOCAL1_OP, 3);
-	acpigen_emit_byte(BREAK_OP);
-	acpigen_write_if_end();
-	acpigen_pop_len();
-
-	acpigen_write_if_end();
-	acpigen_write_release("ECMT");
-	acpigen_write_if_end();
+				acpigen_emit_byte(WHILE_OP);
+				acpigen_write_len_f();
+				{
+					acpigen_write_one();
+					acpigen_write_if();
+					{
+						acpigen_emit_byte(LEQUAL_OP);
+						acpigen_emit_byte(ARG0_OP);
+						acpigen_emit_byte(DEREF_OP);
+						acpigen_emit_byte(ARG1_OP);
+						acpigen_write_store_int_to_op(
+							EC_ACPI_SUCCESS,
+							LOCAL2_OP);
+						acpigen_emit_byte(BREAK_OP);
+					}
+					acpigen_write_if_end();
+					acpigen_write_if_lequal_op_int(LOCAL1_OP,
+								       EC_WRITE_RETRY_COUNT);
+					{
+						acpigen_emit_byte(BREAK_OP);
+					}
+					acpigen_write_if_end();
+					acpigen_write_sleep(EC_WRITE_RETRY_DELAY_MS);
+					acpigen_write_store_ops(ARG0_OP, ARG1_OP);
+					acpigen_emit_byte(INCREMENT_OP);
+					acpigen_emit_byte(LOCAL1_OP);
+				}
+				acpigen_pop_len();
+			}
+			acpigen_write_if_end();
+			acpigen_write_release("ECMT");
+		}
+		acpigen_write_if_end();
+		acpigen_write_return_op(LOCAL2_OP);
+	}
 	acpigen_write_method_end();
 }
 
