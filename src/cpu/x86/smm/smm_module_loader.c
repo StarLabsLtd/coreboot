@@ -331,6 +331,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 	mod_params->smm_size = tseg_size;
 	mod_params->save_state_size = loader_params->cpu_save_state_size;
 	mod_params->num_cpus = loader_params->num_cpus;
+	mod_params->s3_resume = acpi_is_wakeup_s3();
 	mod_params->gnvs_ptr = (uint32_t)(uintptr_t)acpi_get_gnvs();
 	if (CONFIG(ACPI_SMM_GLOBAL_LOCK)) {
 		acpi_facs_t *facs = acpi_get_facs();

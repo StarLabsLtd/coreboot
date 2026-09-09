@@ -11,6 +11,7 @@
 
 static bool load_attempted;
 static bool registered;
+static bool initialized;
 
 static uint32_t payload_mm_get_entrypoint(void)
 {
@@ -39,6 +40,27 @@ static uint32_t payload_mm_get_entrypoint(void)
 	}
 
 	return payload_mm_shared_mem->mm_entrypoint_address;
+}
+
+static void payload_mm_restore_registration(void)
+{
+	if (initialized)
+		return;
+
+	/* The handler is reloaded on S3; payload MM and its record stay in SMRAM. */
+	if (smm_is_s3_resume()) {
+		load_attempted = true;
+		registered = payload_mm_get_entrypoint() != 0;
+	} else {
+		uintptr_t base;
+		size_t size;
+
+		/* Ramstage may publish the table after SMRAM has been locked. */
+		payload_mm_get_reserved_region(&base, &size);
+		if (size > PLD_MM_SHARED_MEMORY_MAX_SIZE)
+			memset((void *)base, 0, PLD_MM_SHARED_MEMORY_MAX_SIZE);
+	}
+	initialized = true;
 }
 
 static uint8_t payload_mm_load_and_call_core_module(void *argument)
@@ -123,6 +145,8 @@ static uint8_t payload_mm_load_and_call_core_module(void *argument)
 
 uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument)
 {
+	payload_mm_restore_registration();
+
 	if (sub_command == PAYLOAD_MM_CMD_CLOSE_LOADER) {
 		load_attempted = true;
 		return registered ? PAYLOAD_MM_RET_SUCCESS : PAYLOAD_MM_RET_FAILURE;
@@ -146,6 +170,8 @@ uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument)
 
 void payload_mm_call_entrypoint(void)
 {
+	payload_mm_restore_registration();
+
 	if (!registered)
 		return;
 
