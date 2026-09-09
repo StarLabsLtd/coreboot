@@ -10,7 +10,7 @@
 #if CONFIG(STARLABS_AUTOMATIC_START)
 #include <intelblocks/pmclib.h>
 #endif
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) && !CONFIG(PAYLOAD_MM_INTERFACE)
 #include <acpi/acpi_gnvs.h>
 #include <cpu/x86/smm.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
@@ -26,7 +26,7 @@
 #include <types.h>
 #include "ecdefs.h"
 
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) && !CONFIG(PAYLOAD_MM_INTERFACE)
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 static void set_insmm_sts(const bool enable_writes)
 {
@@ -256,7 +256,7 @@ static const struct starlabs_efiopt_entry *find_efiopt(enum starlabs_efiopt_id i
 	return NULL;
 }
 
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) && !CONFIG(PAYLOAD_MM_INTERFACE)
 static uint32_t get_supported_efiopts(void)
 {
 	uint32_t mask = 0;
@@ -499,12 +499,9 @@ enum cb_err cfr_runtime_apply_option(uint32_t id)
 	return apply_stored_efiopt(id);
 }
 
-#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) && !CONFIG(PAYLOAD_MM_INTERFACE)
 int mainboard_smi_apmc(u8 data)
 {
-	if (CONFIG(PAYLOAD_MM_INTERFACE))
-		return 0;
-
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
 

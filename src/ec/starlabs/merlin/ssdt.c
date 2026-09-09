@@ -1461,11 +1461,26 @@ static void write_efi_option_get(const char *option)
 static void write_efi_option_set_ec_read(const char *option, const char *field)
 {
 	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
-		write_method_call("EORQ");
-		acpigen_write_integer(STARLABS_EFIOPT_CMD_SET);
-	} else {
-		write_method_call("EOSV");
+		/* Do not persist a transport failure as a valid zero-valued preference. */
+		acpigen_emit_byte(STORE_OP);
+		write_method_call(EC_ACPI_METHOD("ECGT"));
+		acpigen_emit_byte(REF_OF_OP);
+		acpigen_emit_namestring(field);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_STATUS, LOCAL1_OP);
+		acpigen_write_if_lequal_op_int(LOCAL1_OP, EC_ACPI_SUCCESS);
+		{
+			acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_VALUE, LOCAL2_OP);
+			write_method_call("EORQ");
+			acpigen_write_integer(STARLABS_EFIOPT_CMD_SET);
+			acpigen_emit_namestring(option);
+			acpigen_emit_byte(LOCAL2_OP);
+		}
+		acpigen_write_if_end();
+		return;
 	}
+
+	write_method_call("EOSV");
 	acpigen_emit_namestring(option);
 	write_ec_read_path(field);
 }
@@ -1490,37 +1505,37 @@ static void write_efi_option_field(void)
 	acpigen_pop_len();
 }
 
+static const struct {
+	enum starlabs_efiopt_id id;
+	const char *field;
+	bool enabled;
+} efi_option_ec_fields[] = {
+	{ STARLABS_EFIOPT_ID_FN_LOCK_STATE, EC_ACPI_FIELD("FLKE"), true },
+	{ STARLABS_EFIOPT_ID_TRACKPAD_STATE, EC_ACPI_FIELD("TPLE"), true },
+	{ STARLABS_EFIOPT_ID_KBL_BRIGHTNESS, EC_ACPI_FIELD("KLBE"), true },
+	{ STARLABS_EFIOPT_ID_KBL_STATE, EC_ACPI_FIELD("KLSE"), true },
+	{ STARLABS_EFIOPT_ID_KBL_TIMEOUT, EC_ACPI_FIELD("KLTE"), true },
+	{ STARLABS_EFIOPT_ID_FN_CTRL_SWAP, EC_ACPI_FIELD(EC_ACPI_FN_CTRL_FIELD), true },
+	{ STARLABS_EFIOPT_ID_MAX_CHARGE, EC_ACPI_FIELD("BFCP"),
+	  CONFIG(EC_STARLABS_MAX_CHARGE) },
+	{ STARLABS_EFIOPT_ID_FAN_MODE, EC_ACPI_FIELD("FANM"), CONFIG(EC_STARLABS_FAN) },
+	{ STARLABS_EFIOPT_ID_CHARGING_SPEED, EC_ACPI_FIELD("CGSP"),
+	  CONFIG(EC_STARLABS_CHARGING_SPEED) },
+	{ STARLABS_EFIOPT_ID_LID_SWITCH, EC_ACPI_FIELD("LDSW"),
+	  CONFIG(EC_STARLABS_LID_SWITCH) },
+	{ STARLABS_EFIOPT_ID_POWER_LED, EC_ACPI_FIELD("PWLE"),
+	  CONFIG(EC_STARLABS_POWER_LED) },
+	{ STARLABS_EFIOPT_ID_CHARGE_LED, EC_ACPI_FIELD("CHLE"),
+	  CONFIG(EC_STARLABS_CHARGE_LED) },
+	{ STARLABS_EFIOPT_ID_POWER_ON_AC, EC_ACPI_FIELD("PWAC"),
+	  CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON) },
+};
+
 static void write_efi_option_apply(void)
 {
-	static const struct {
-		enum starlabs_efiopt_id id;
-		const char *field;
-		bool enabled;
-	} fields[] = {
-		{ STARLABS_EFIOPT_ID_FN_LOCK_STATE, EC_ACPI_FIELD("FLKE"), true },
-		{ STARLABS_EFIOPT_ID_TRACKPAD_STATE, EC_ACPI_FIELD("TPLE"), true },
-		{ STARLABS_EFIOPT_ID_KBL_BRIGHTNESS, EC_ACPI_FIELD("KLBE"), true },
-		{ STARLABS_EFIOPT_ID_KBL_STATE, EC_ACPI_FIELD("KLSE"), true },
-		{ STARLABS_EFIOPT_ID_KBL_TIMEOUT, EC_ACPI_FIELD("KLTE"), true },
-		{ STARLABS_EFIOPT_ID_FN_CTRL_SWAP, EC_ACPI_FIELD("FCLA"),
-		  CONFIG(EC_STARLABS_MERLIN) },
-		{ STARLABS_EFIOPT_ID_MAX_CHARGE, EC_ACPI_FIELD("BFCP"),
-		  CONFIG(EC_STARLABS_MAX_CHARGE) },
-		{ STARLABS_EFIOPT_ID_FAN_MODE, EC_ACPI_FIELD("FANM"), CONFIG(EC_STARLABS_FAN) },
-		{ STARLABS_EFIOPT_ID_CHARGING_SPEED, EC_ACPI_FIELD("CGSP"),
-		  CONFIG(EC_STARLABS_CHARGING_SPEED) },
-		{ STARLABS_EFIOPT_ID_LID_SWITCH, EC_ACPI_FIELD("LDSW"),
-		  CONFIG(EC_STARLABS_LID_SWITCH) },
-		{ STARLABS_EFIOPT_ID_POWER_LED, EC_ACPI_FIELD("PWLE"),
-		  CONFIG(EC_STARLABS_POWER_LED) },
-		{ STARLABS_EFIOPT_ID_CHARGE_LED, EC_ACPI_FIELD("CHLE"),
-		  CONFIG(EC_STARLABS_CHARGE_LED) },
-		{ STARLABS_EFIOPT_ID_POWER_ON_AC, EC_ACPI_FIELD("PWAC"),
-		  CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON) },
-	};
 
 	/* EAPL applies a validated saved preference, without holding EOMX over EC I/O. */
-	acpigen_write_method_serialized("EAPL", 1);
+	acpigen_write_method_serialized("EAPL", 2);
 	{
 		acpigen_write_if();
 		{
@@ -1543,6 +1558,19 @@ static void write_efi_option_apply(void)
 			acpigen_write_return_op(LOCAL1_OP);
 		}
 		acpigen_write_if_end();
+		acpigen_write_if_lnotequal_op_int(ARG1_OP, UINT32_MAX);
+		{
+			acpigen_write_if();
+			{
+				acpigen_emit_byte(LNOT_OP);
+				acpigen_emit_byte(LEQUAL_OP);
+				acpigen_emit_byte(ARG1_OP);
+				acpigen_emit_byte(LOCAL2_OP);
+				acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+			}
+			acpigen_write_if_end();
+		}
+		acpigen_write_if_end();
 		if (CONFIG(STARLABS_AUTOMATIC_START) && CONFIG(SOC_INTEL_ALDERLAKE)) {
 			acpigen_write_if_lequal_op_int(ARG0_OP, STARLABS_EFIOPT_ID_AUTOMATIC_START);
 			{
@@ -1550,18 +1578,17 @@ static void write_efi_option_apply(void)
 				acpigen_write_if_lequal_op_int(LOCAL2_OP, AUTOMATIC_START_ALWAYS);
 				acpigen_write_store_int_to_op(1, LOCAL3_OP);
 				acpigen_write_if_end();
+				acpigen_write_if();
 				write_method_call(EC_ACPI_METHOD("ECWR"));
 				acpigen_emit_byte(LOCAL3_OP);
 				acpigen_emit_byte(REF_OF_OP);
 				acpigen_emit_namestring(EC_ACPI_FIELD("PWAC"));
+				acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+				acpigen_write_if_end();
 				acpigen_write_if();
 				{
-					acpigen_emit_byte(LAND_OP);
 					write_method_call("\\_SB.ASAC");
 					acpigen_emit_byte(LOCAL2_OP);
-					acpigen_emit_byte(LEQUAL_OP);
-					acpigen_emit_byte(LOCAL3_OP);
-					write_ec_read_path(EC_ACPI_FIELD("PWAC"));
 					acpigen_write_return_integer(STARLABS_EFIOPT_SUCCESS);
 				}
 				acpigen_write_if_end();
@@ -1569,24 +1596,16 @@ static void write_efi_option_apply(void)
 			}
 			acpigen_write_if_end();
 		}
-		for (size_t i = 0; i < ARRAY_SIZE(fields); i++) {
-			if (!fields[i].enabled)
+		for (size_t i = 0; i < ARRAY_SIZE(efi_option_ec_fields); i++) {
+			if (!efi_option_ec_fields[i].enabled)
 				continue;
-			acpigen_write_if_lequal_op_int(ARG0_OP, fields[i].id);
+			acpigen_write_if_lequal_op_int(ARG0_OP, efi_option_ec_fields[i].id);
 			{
+				acpigen_emit_byte(RETURN_OP);
 				write_method_call(EC_ACPI_METHOD("ECWR"));
 				acpigen_emit_byte(LOCAL2_OP);
 				acpigen_emit_byte(REF_OF_OP);
-				acpigen_emit_namestring(fields[i].field);
-				acpigen_write_if();
-				{
-					acpigen_emit_byte(LEQUAL_OP);
-					acpigen_emit_byte(LOCAL2_OP);
-					write_ec_read_path(fields[i].field);
-					acpigen_write_return_integer(STARLABS_EFIOPT_SUCCESS);
-				}
-				acpigen_write_if_end();
-				acpigen_write_return_integer(STARLABS_EFIOPT_ERROR);
+				acpigen_emit_namestring(efi_option_ec_fields[i].field);
 			}
 			acpigen_write_if_end();
 		}
@@ -1701,6 +1720,7 @@ static void write_efi_option_methods(void)
 			acpigen_emit_byte(RETURN_OP);
 			write_method_call("EAPL");
 			acpigen_emit_byte(ARG0_OP);
+			acpigen_write_integer(UINT32_MAX);
 		}
 		acpigen_write_if_end();
 	}
@@ -1708,20 +1728,129 @@ static void write_efi_option_methods(void)
 	acpigen_write_method_end();
 }
 
+static void write_cfr_runtime_methods(void)
+{
+	static const uint32_t touchpad_ids[] = {
+		STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
+		STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
+		STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
+		STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE,
+	};
+
+	acpigen_write_scope("\\CTBL");
+	{
+/*
+ *	Method (CFRA, 2, Serialized)
+ *	{
+ *		Return (\_SB.EAPL (Arg0, Arg1))
+ *	}
+ *
+ *	CFRG returns { status, live value }, not a cached EFI value.
+ */
+		acpigen_write_method_serialized("CFRA", 2);
+		{
+			if (CONFIG(STARLABS_TOUCHPAD_ACPI_RUNTIME)) {
+				for (size_t i = 0; i < ARRAY_SIZE(touchpad_ids); i++) {
+					acpigen_write_if_lequal_op_int(ARG0_OP, touchpad_ids[i]);
+					{
+						acpigen_emit_byte(RETURN_OP);
+						write_method_call("\\_SB.PCI0.I2C0.TPAP");
+						acpigen_emit_byte(ARG0_OP);
+						acpigen_emit_byte(ARG1_OP);
+					}
+					acpigen_write_if_end();
+				}
+			}
+			acpigen_emit_byte(RETURN_OP);
+			write_method_call("\\_SB.EAPL");
+			acpigen_emit_byte(ARG0_OP);
+			acpigen_emit_byte(ARG1_OP);
+		}
+		acpigen_write_method_end();
+		acpigen_write_method_serialized("CFRG", 1);
+		{
+			for (size_t i = 0; i < ARRAY_SIZE(efi_option_ec_fields); i++) {
+				if (!efi_option_ec_fields[i].enabled)
+					continue;
+				acpigen_write_if_lequal_op_int(ARG0_OP, efi_option_ec_fields[i].id);
+				{
+					acpigen_emit_byte(STORE_OP);
+					write_method_call(EC_ACPI_METHOD("ECGT"));
+					acpigen_emit_byte(REF_OF_OP);
+					acpigen_emit_namestring(efi_option_ec_fields[i].field);
+					acpigen_emit_byte(LOCAL0_OP);
+					if (efi_option_ec_fields[i].id == STARLABS_EFIOPT_ID_TRACKPAD_STATE) {
+						acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_VALUE, LOCAL1_OP);
+						acpigen_write_if_lequal_op_int(LOCAL1_OP, 0x11);
+						acpigen_set_package_op_element_int(LOCAL0_OP, EC_ACPI_VALUE, TRACKPAD_ENABLED);
+						acpigen_write_if_end();
+					}
+					acpigen_write_return_op(LOCAL0_OP);
+				}
+				acpigen_write_if_end();
+			}
+			if (CONFIG(STARLABS_AUTOMATIC_START) && CONFIG(SOC_INTEL_ALDERLAKE)) {
+				acpigen_write_if_lequal_op_int(ARG0_OP, STARLABS_EFIOPT_ID_AUTOMATIC_START);
+				{
+					acpigen_emit_byte(STORE_OP);
+					write_method_call(EC_ACPI_METHOD("ECGT"));
+					acpigen_emit_byte(REF_OF_OP);
+					acpigen_emit_namestring(EC_ACPI_FIELD("PWAC"));
+					acpigen_emit_byte(LOCAL0_OP);
+					acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_STATUS, LOCAL1_OP);
+					acpigen_write_if_lequal_op_int(LOCAL1_OP, EC_ACPI_SUCCESS);
+					{
+						acpigen_get_package_op_element(LOCAL0_OP, EC_ACPI_VALUE, LOCAL1_OP);
+						acpigen_write_if_lequal_op_int(LOCAL1_OP, 1);
+						acpigen_set_package_op_element_int(LOCAL0_OP, EC_ACPI_VALUE, AUTOMATIC_START_ALWAYS);
+						acpigen_write_else();
+						{
+							acpigen_write_if_lequal_namestr_int("\\_SB.ASPF", 1);
+							acpigen_set_package_op_element_int(LOCAL0_OP, EC_ACPI_VALUE, AUTOMATIC_START_NEVER);
+							acpigen_write_else();
+							acpigen_set_package_op_element_int(LOCAL0_OP, EC_ACPI_VALUE, AUTOMATIC_START_AFTER_FAILURE);
+							acpigen_write_if_end();
+						}
+						acpigen_write_if_end();
+					}
+					acpigen_write_if_end();
+					acpigen_write_return_op(LOCAL0_OP);
+				}
+				acpigen_write_if_end();
+			}
+			acpigen_emit_byte(RETURN_OP);
+			if (CONFIG(STARLABS_TOUCHPAD_ACPI_RUNTIME)) {
+				write_method_call("\\_SB.PCI0.I2C0.TPGT");
+				acpigen_emit_byte(ARG0_OP);
+			} else {
+				acpigen_write_package(EC_ACPI_RESULT_SIZE);
+				acpigen_write_integer(EC_ACPI_ERROR);
+				acpigen_write_integer(0);
+				acpigen_write_package_end();
+			}
+		}
+		acpigen_write_method_end();
+	}
+	acpigen_write_scope_end();
+}
+
 static void write_efi_option_suspend(void)
 {
+	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
+		write_efi_option_set_ec_read("EOTP", EC_ACPI_FIELD("TPLE"));
+		write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"));
+		write_efi_option_set_ec_read("EOKS", EC_ACPI_FIELD("KLSE"));
+		write_efi_option_set_ec_read("EOKB", EC_ACPI_FIELD("KLBE"));
+		return;
+	}
+
 	acpigen_emit_byte(STORE_OP);
 	write_ec_read_path(EC_ACPI_FIELD("TPLE"));
 	acpigen_emit_byte(LOCAL0_OP);
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, 0x11);
 	acpigen_write_store_int_to_op(0, LOCAL0_OP);
 	acpigen_write_if_end();
-	if (CONFIG(PAYLOAD_MM_INTERFACE)) {
-		write_method_call("EORQ");
-		acpigen_write_integer(STARLABS_EFIOPT_CMD_SET);
-	} else {
-		write_method_call("EOSV");
-	}
+	write_method_call("EOSV");
 	acpigen_emit_namestring("EOTP");
 	acpigen_emit_byte(LOCAL0_OP);
 	write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"));
@@ -1754,6 +1883,7 @@ static void write_efi_option_resume(void)
 		for (size_t i = 0; i < ARRAY_SIZE(restore_ids); i++) {
 			write_method_call("EAPL");
 			acpigen_write_integer(restore_ids[i]);
+			acpigen_write_integer(UINT32_MAX);
 		}
 		return;
 	}
@@ -1862,4 +1992,8 @@ void merlin_fill_ssdt(const struct device *dev)
 		write_sleep_methods();
 	}
 	acpigen_write_scope_end();
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && CONFIG(DRIVERS_OPTION_CFR))
+		write_cfr_runtime_methods();
+#endif
 }

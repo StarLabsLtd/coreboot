@@ -71,4 +71,6 @@ static const struct fieldlist starlabs_ec_fields[] = {
 	FIELDLIST_NAMESTR("EJ8R", 8),  FIELDLIST_NAMESTR("EJ8E", 8),
 };
 
+#define EC_ACPI_FN_CTRL_FIELD "KBFL"
+
 #endif
