@@ -340,9 +340,10 @@ static void southbridge_smi_payload(
 {
 	u8 sub_command, ret;
 	int node;
-	uint32_t reg_eax, reg_ebx;
+	uint32_t reg_eax;
+	uintptr_t reg_ebx;
 
-	node = save_state_ops->apmc_node(APM_CNT_ELOG_GSMI);
+	node = save_state_ops->apmc_node(APM_CNT_PAYLOAD_MM);
 	if (node < 0)
 		return;
 	if (save_state_ops->get_reg(RAX, node, &reg_eax, sizeof(reg_eax)) != 0)
@@ -472,7 +473,7 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_PAYLOAD_MM:
 		if (CONFIG(PAYLOAD_MM_INTERFACE))
 			southbridge_smi_payload(save_state_ops);
-		break;
+		return;
 	case APM_CNT_FINALIZE:
 		finalize();
 		break;
