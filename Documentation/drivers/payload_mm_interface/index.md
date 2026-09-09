@@ -276,6 +276,9 @@ UefiPayload's implementation:
 
 ## Addendum: Notes and Open Issues
 
+The [Star Labs preference interface](starlabs_preferences.md) is a bounded
+ACPI consumer of the resident variable service, separate from the loader ABI.
+
 **Open tasks**:
 - Consider using the MM supervisor in UefiPayload (and directing payloads to strongly consider
   old and new security measures), this requires enhancing the supervisor first.
