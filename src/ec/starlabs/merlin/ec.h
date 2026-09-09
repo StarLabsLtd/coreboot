@@ -13,6 +13,22 @@ struct device;
 
 void merlin_fill_ssdt(const struct device *dev);
 
+enum ec_acpi_status {
+	EC_ACPI_SUCCESS = 0,
+	EC_ACPI_ERROR = 1,
+};
+
+enum ec_acpi_result {
+	EC_ACPI_STATUS,
+	EC_ACPI_VALUE,
+	EC_ACPI_RESULT_SIZE,
+};
+
+#define EC_MUTEX_ACQUIRED	0
+#define EC_MUTEX_TIMEOUT_MS	1000
+#define EC_WRITE_RETRY_DELAY_MS	1
+#define EC_WRITE_RETRY_COUNT	3
+
 /*
  * Define the expected value of the PNP base address that is fixed through
  * the BADRSEL register controlled within the EC domain by the EC Firmware.
