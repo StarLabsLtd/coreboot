@@ -76,4 +76,6 @@ static const struct fieldlist starlabs_ec_fields[] = {
 	FIELDLIST_NAMESTR("MGOE", 8),  FIELDLIST_NAMESTR("MGOF", 8),
 };
 
+#define EC_ACPI_FN_CTRL_FIELD "FCLA"
+
 #endif

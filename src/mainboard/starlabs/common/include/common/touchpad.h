@@ -3,7 +3,9 @@
 #ifndef _STARLABS_CMN_TOUCHPAD_H_
 #define _STARLABS_CMN_TOUCHPAD_H_
 
+#ifndef __ACPI__
 #include <types.h>
+#endif
 
 #if CONFIG(STARLABS_TOUCHPAD_CST)
 #define STARLABS_TOUCHPAD_HAPTICS_MIN			1
@@ -100,9 +102,13 @@
 #define I2C_HID_OPCODE_SET_REPORT		0x03
 #define I2C_HID_OPCODE_SET_POWER		0x08
 #define I2C_HID_REPORT_TYPE_FEATURE		0x03
+#define I2C_HID_REPORT_ID_EXTENDED		0x0f
+#define I2C_HID_FEATURE_REPORT(report_id)	((I2C_HID_REPORT_TYPE_FEATURE << 4) | \
+						 (report_id))
 
 #define I2C_HID_PWR_ON				0x00
 
+#ifndef __ACPI__
 enum starlabs_touchpad_desc_offset {
 	TOUCHPAD_DESC_CMD_REG		= 16,
 	TOUCHPAD_DESC_DATA_REG		= 18,
@@ -123,5 +129,6 @@ struct starlabs_touchpad_op_ctx {
 
 enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 					    uint16_t release, uint8_t rate);
+#endif
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */

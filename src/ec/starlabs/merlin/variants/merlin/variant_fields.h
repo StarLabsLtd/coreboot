@@ -31,4 +31,6 @@ static const struct fieldlist starlabs_ec_fields[] = {
 	FIELDLIST_NAMESTR("B1RP", 16), FIELDLIST_NAMESTR("B1CC", 16),
 };
 
+#define EC_ACPI_FN_CTRL_FIELD "FCLA"
+
 #endif
