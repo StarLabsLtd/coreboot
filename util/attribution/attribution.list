@@ -68,7 +68,6 @@ payload_crabefi|CrabEFI (payload)|Apache-2.0|https://github.com/ArthurHeymans/Cr
 payload_depthcharge|depthcharge (payload)|GPL-2.0-or-later|https://chromium.googlesource.com/chromiumos/platform/depthcharge|Copyright The ChromiumOS Authors; ChromeOS bootloader used as the coreboot payload|binary
 payload_edk2|TianoCore edk2 UEFI payload|BSD-2-Clause-Patent|https://github.com/tianocore/edk2|Copyright TianoCore contributors; UEFI payload built from edk2|binary
 payload_edk2_mrchromebox|edk2 UEFI payload - MrChromebox fork|BSD-2-Clause-Patent|https://github.com/mrchromebox/edk2|MrChromebox's customized edk2 fork used to build the UEFI payload; based on TianoCore EDK II|binary
-payload_edk2_starlabs|edk2 UEFI payload - Star Labs fork|BSD-2-Clause-Patent|https://github.com/starlabsltd/edk2|Star Labs' edk2 fork (default source for the edk2 Universal Payload); based on TianoCore EDK II|binary
 # A custom edk2 repository (EDK2_REPO_CUSTOM) is credited dynamically by
 # Makefile.mk with the actual configured URL/revision; see the '--extra'
 # mechanism in gen_attribution.sh.
