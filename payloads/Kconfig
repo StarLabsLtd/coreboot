@@ -60,7 +60,6 @@ source "payloads/external/*/Kconfig"
 
 config PAYLOAD_OWNS_PCI_DEVICES
 	bool
-	depends on !EDK2_UNIVERSAL_PAYLOAD
 	default y if PAYLOAD_EDK2
 	help
 	  Select this when the payload takes ownership of PCI devices after
