@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <acpi/acpi.h>
 #include <boot/coreboot_tables.h>
 #include <cpu/x86/smm.h>
 #include <device/pci_ops.h>
@@ -8,7 +7,6 @@
 #include <lib.h>
 #include <payload_mm_interface.h>
 #include <soc/pci_devs.h>
-#include <string.h>
 
 void lb_payload_mm(struct lb_header *header)
 {
@@ -52,9 +50,6 @@ void lb_payload_mm(struct lb_header *header)
 
 	mm_shared_mem->comm_buffer.physical_start = payload_mm_region_base;
 	mm_shared_mem->comm_buffer.physical_size = PLD_MM_SHARED_MEMORY_MAX_SIZE;
-
-	if (!acpi_is_wakeup_s3())
-		memset((void *)(uintptr_t)mm_shared_mem->comm_buffer.physical_start, 0, PLD_MM_SHARED_MEMORY_MAX_SIZE);
 
 	struct region store;
 	if (fmap_locate_area("SMMSTORE", &store) ||
