@@ -42,6 +42,11 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	static bool initialized = false;
 	static void *com_buffer;
 
+	/* A reloaded S3 handler must not let the resumed OS recreate this latch. */
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && smm_is_s3_resume() &&
+	    (command & SMMSTORE_CMD_USE_FULL_FLASH))
+		return SMMSTORE_RET_UNSUPPORTED;
+
 	/* Payload MM owns the variable store and only the update path uses SMMSTORE. */
 	if (CONFIG(PAYLOAD_MM_INTERFACE) && !(command & SMMSTORE_CMD_USE_FULL_FLASH))
 		return SMMSTORE_RET_UNSUPPORTED;

@@ -270,6 +270,11 @@ An example runtime control flow (from delivery of an APMC to the HW) is below:
 Payload MM implementations remain in-place through S3 resumes. The shared memory region will
 also be preserved, and so the bootloader will continue to find payload MM as usual.
 
+Payload MM rejects legacy SMMStore full-flash requests on S3 before the SMMStore capsule state
+machine runs. This prevents a resumed OS from using reset SMMStore static state to enable or select
+the full-flash region. Cold flash-update boots retain the legacy transport until the matched payload
+processes the capsule and resets the machine.
+
 ## Addendum: Payload components
 
 UefiPayload's implementation:
