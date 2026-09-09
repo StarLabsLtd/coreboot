@@ -176,6 +176,7 @@ config SMM_RESERVED_SIZE
 
 config SMM_TSEG_SIZE
 	hex
+	default 0x1000000 if PAYLOAD_MM_INTERFACE
 	default 0x800000
 
 config VGA_BIOS_ID
