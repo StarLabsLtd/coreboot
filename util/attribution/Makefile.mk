@@ -103,15 +103,10 @@ attribution-keys-$(CONFIG_PAYLOAD_EDK2)		+= payload_edk2
 # EDK2_REPO_OFFICIAL uses TianoCore upstream, already covered by payload_edk2.
 attribution-keys-$(CONFIG_EDK2_REPO_MRCHROMEBOX) += payload_edk2_mrchromebox
 ifeq ($(CONFIG_EDK2_REPO_CUSTOM),y)
-ifeq ($(CONFIG_EDK2_UNIVERSAL_PAYLOAD),y)
-# Universal Payload defaults its (custom) repo to Star Labs' edk2 fork.
-attribution-keys-y += payload_edk2_starlabs
-else
 # A truly custom repo cannot be named statically; emit the actual configured
 # URL/revision at build time via gen_attribution.sh's --extra mechanism.
 attribution-edk2-custom-url := $(or $(call strip_quotes,$(CONFIG_EDK2_REPOSITORY)),(see CONFIG_EDK2_REPOSITORY))
 attribution-edk2-custom-rev := $(or $(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV)),unspecified revision)
-endif
 endif
 attribution-keys-$(CONFIG_PAYLOAD_DEPTHCHARGE)	+= payload_depthcharge
 attribution-keys-$(CONFIG_PAYLOAD_FILO)		+= payload_filo
