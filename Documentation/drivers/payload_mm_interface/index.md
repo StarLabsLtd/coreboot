@@ -156,9 +156,12 @@ struct lb_payload_mm_shared_mem {
 ### `LB_TAG_PLD_SPI_FLASH_INFO == 0x003e`
 
 This supplies the SPI controller location and the physical flash geometry used by the resident
-variable service. Revision 1 provides the SMMSTORE base, size and logical block size. The base is
-a physical flash mapping, not a cached RAM mapping. coreboot validates that the complete region is
-within the boot device and contains at least three aligned logical blocks before publishing it.
+variable service. Revision 1 provides the SMMSTORE base, size and logical block size. Revision 2
+adds the absolute SMMSTORE offset in the SPI flash address space because the CPU mapping need not
+be linear with the SPI BIOS region. The consumer must translate this offset relative to the base
+of that controller region for region-relative transactions. The base is a physical flash mapping,
+not a cached RAM mapping. coreboot validates that the complete region is within one boot-device
+mapping and contains at least three aligned logical blocks before publishing it.
 
 ```C
 enum lb_pld_efi_acpi_3_0_memory_types {
@@ -182,12 +185,13 @@ struct lb_pld_generic_register {
 struct lb_pld_mm_spi_controller_info {
 	uint32_t tag;
 	uint32_t size;
-	uint16_t revision;				/* The version of this table. Currently "1" */
+	uint16_t revision;				/* The version of this table. Currently "2" */
 	uint16_t flags;					/* A set of flags to describe this SPI controller, defined above */
 	struct lb_pld_generic_register spi_address;	/* The address of the PCIe SPI controller, if present */
 	lb_uint64_t store_base;
 	uint32_t store_size;
 	uint32_t block_size;
+	uint32_t store_offset;
 };
 ```
 

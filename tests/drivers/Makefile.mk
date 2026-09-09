@@ -15,6 +15,7 @@ smmstore-mm-capsule-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/I
 smmstore-mm-capsule-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32/
 
 tests-y += payload-mm-test
+tests-y += payload-mm-flash-map-test
 tests-y += tseg-subregion-test
 tseg-subregion-test-srcs += tests/drivers/tseg-subregion-test.c
 tseg-subregion-test-srcs += src/cpu/x86/smm/tseg_region.c
@@ -28,6 +29,11 @@ payload-mm-test-srcs += tests/drivers/payload-mm-test.c
 payload-mm-test-srcs += src/commonlib/region.c
 payload-mm-test-srcs += tests/stubs/console.c
 payload-mm-test-stage := smm
+
+payload-mm-flash-map-test-srcs += tests/drivers/payload-mm-flash-map-test.c
+payload-mm-flash-map-test-srcs += src/drivers/payload_mm_interface/flash_map.c
+payload-mm-flash-map-test-srcs += src/lib/boot_device.c
+payload-mm-flash-map-test-srcs += src/commonlib/region.c
 
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c

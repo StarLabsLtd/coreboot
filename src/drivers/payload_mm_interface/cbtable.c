@@ -18,6 +18,7 @@ void lb_payload_mm(struct lb_header *header)
 	size_t payload_mm_region_size;
 	uintptr_t handler_base;
 	size_t handler_size;
+	uintptr_t store_base;
 
 	/* Enables payload to perform MM initialisation and runtime handling */
 	struct lb_payload_mm_interface_info *mm_info = (void *)lb_new_record(header);
@@ -61,19 +62,18 @@ void lb_payload_mm(struct lb_header *header)
 
 	struct region store;
 	if (fmap_locate_area("SMMSTORE", &store) ||
-	    region_offset(&store) > CONFIG_ROM_SIZE ||
-	    region_sz(&store) > CONFIG_ROM_SIZE - region_offset(&store) ||
-	    region_sz(&store) % CONFIG_SMMSTORE_BLOCK_SIZE ||
-	    region_sz(&store) / CONFIG_SMMSTORE_BLOCK_SIZE < 3)
+	    !payload_mm_flash_region_is_valid(&store, CONFIG_ROM_SIZE,
+					      CONFIG_SMMSTORE_BLOCK_SIZE))
 		die("Payload MM variable store has invalid geometry\n");
+	if (!payload_mm_map_flash_region(&store, &store_base))
+		die("Payload MM variable store is not memory mapped\n");
 
-	/* Alder Lake exposes the BIOS flash at the top of the 32-bit address space. */
 	struct lb_pld_mm_spi_controller_info *spi_info = (void *)lb_new_record(header);
 
 	spi_info->tag = LB_TAG_PLD_SPI_FLASH_INFO;
 	spi_info->size = sizeof(*spi_info);
 
-	spi_info->revision = 1;
+	spi_info->revision = 2;
 	spi_info->flags = 0;
 
 	spi_info->spi_address.address_space_id = PLD_EFI_ACPI_3_0_PCI_CONFIGURATION_SPACE;
@@ -82,7 +82,8 @@ void lb_payload_mm(struct lb_header *header)
 	spi_info->spi_address.reserved = 0;
 	spi_info->spi_address.address = CONFIG_ECAM_MMCONF_BASE_ADDRESS + PCI_BDF(PCH_DEV_SPI);
 	spi_info->spi_address.value = 0;
-	spi_info->store_base = (1ULL << 32) - CONFIG_ROM_SIZE + region_offset(&store);
+	spi_info->store_base = store_base;
 	spi_info->store_size = region_sz(&store);
 	spi_info->block_size = CONFIG_SMMSTORE_BLOCK_SIZE;
+	spi_info->store_offset = region_offset(&store);
 }

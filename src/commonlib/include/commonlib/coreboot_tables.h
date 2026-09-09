@@ -606,7 +606,7 @@ struct lb_tpm_physical_presence {
 struct lb_payload_mm_interface_info {
 	uint32_t tag;
 	uint32_t size;
-	uint8_t revision;			/* The version of this table. Currently "0" */
+	uint8_t revision;			/* The version of this table. Currently "1" */
 	uint8_t bootloader_smm_is_64bit;	/* Whether the bootloader's SMM is 64-bit code. This aids the
 						   payload determine if mode switching is required. */
 	uint8_t apm_cmd;			/* The command byte to write to the APM I/O port */
@@ -664,13 +664,15 @@ struct lb_pld_generic_register {
 struct lb_pld_mm_spi_controller_info {
 	uint32_t tag;
 	uint32_t size;
-	uint16_t revision;				/* Downstream version 1 */
+	uint16_t revision;				/* Downstream version 2 */
 	uint16_t flags;					/* A set of flags to describe this SPI controller, defined above */
 	struct lb_pld_generic_register spi_address;	/* The address of the PCIe SPI controller, if present */
 	/* Downstream revision 1: physical flash mapping, never a RAM read cache. */
 	lb_uint64_t store_base;
 	uint32_t store_size;
 	uint32_t block_size;
+	/* Downstream revision 2: SMMSTORE offset in the SPI flash address space. */
+	uint32_t store_offset;
 };
 
 /*
