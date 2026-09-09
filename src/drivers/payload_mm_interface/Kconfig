@@ -9,6 +9,7 @@ config PAYLOAD_MM_INTERFACE
 	bool "Support coreboot-mediated payload MM"
 	depends on HAVE_SMI_HANDLER
 	depends on HAVE_PAYLOAD_MM_INTERFACE
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
 	# Needed by `smmstore_lookup_region` helper function to EFIVARS option system.
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	default n
@@ -31,3 +32,8 @@ config PAYLOAD_MM_SMRAM_SIZE
 config SMMSTORE_SIZE
 	depends on !SMMSTORE && PAYLOAD_MM_INTERFACE
 	default 0x40000
+
+config SMMSTORE_BLOCK_SIZE
+	int
+	depends on !SMMSTORE && PAYLOAD_MM_INTERFACE
+	default 65536
