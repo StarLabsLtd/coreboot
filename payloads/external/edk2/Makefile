@@ -35,18 +35,13 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
 
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
-endif
 BUILD_STR += -t GCC
 BUILD_STR += -D BOOTLOADER=COREBOOT
 ifneq ($(V),1)
 BUILD_STR += -q
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -s
-endif
 endif
 
 #
@@ -190,6 +185,24 @@ EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_S
 EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
+
+define EDK2_ENSURE_FMP_CERT_INC
+	if [ "$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" = "y" ] && [ -n "$(CAPSULE_TRUSTED_PUBLIC_CERT)" ]; then \
+		type openssl > /dev/null 2>&1 || { echo "ERROR: Please install openssl."; exit 1; }; \
+		test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"; \
+		binto_pcd="$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"; \
+		if [ ! -f "$$binto_pcd" ]; then \
+			echo "ERROR: BinToPcd.py not found (expected EDK2 BaseTools/Scripts/BinToPcd.py)."; \
+			exit 1; \
+		fi; \
+		mkdir -p "$(WORKSPACE)/Conf"; \
+		der="$(WORKSPACE)/.capsule_fmp_cert.$$$$.der"; \
+		openssl x509 -in "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" -outform der -out "$$der" || exit 1; \
+		python3 "$$binto_pcd" -q -x -i "$$der" \
+			-o "$(WORKSPACE)/$(CAPSULE_FMP_PCD_INC_REL)" -p "$(CAPSULE_FMP_PCD_INC_PCD_NAME)" || exit 1; \
+		rm -f "$$der"; \
+	fi;
+endef
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -349,22 +362,9 @@ checktools:
 		exit 1; \
 	fi
 
-ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yy)
 capsule_keys: $(EDK2_PATH)
-	type openssl > /dev/null 2>&1 || { echo "ERROR: Please install openssl."; exit 1; }; \
-	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"; \
-	binto_pcd="$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"; \
-	if [ ! -f "$$binto_pcd" ]; then \
-		echo "ERROR: BinToPcd.py not found (expected EDK2 BaseTools/Scripts/BinToPcd.py)."; \
-		exit 1; \
-	fi; \
-	mkdir -p "$(WORKSPACE)/Conf"; \
-	der="$(WORKSPACE)/.capsule_fmp_cert.$$$$.der"; \
-	openssl x509 -in "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" -outform der -out "$$der" || exit 1; \
-	python3 "$$binto_pcd" -q -x -i "$$der" \
-		-o "$(WORKSPACE)/$(CAPSULE_FMP_PCD_INC_REL)" -p "$(CAPSULE_FMP_PCD_INC_PCD_NAME)" || exit 1; \
-	rm -f "$$der";
-
+	$(EDK2_ENSURE_FMP_CERT_INC)
 
 prep: capsule_keys
 endif
@@ -394,23 +394,10 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
+		$(EDK2_ENSURE_FMP_CERT_INC) \
 		echo -n "EDK2: Building... "; \
 		build -a IA32 -a X64 -b $(RELEASE_STR) $(BUILD_STR) -D BUILD_ARCH=X64 \
 			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt; \
-		if [ ! -f $@ ]; then \
-			echo "Failed!"; \
-			exit 1; \
-		fi
-		echo "Success!"; \
-
-$(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
-	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		echo -n "EDK2: Building... "; \
-		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
-			-D BUILD_ARCH=IA32 --Fit \
-			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
 		if [ ! -f $@ ]; then \
 			echo "Failed!"; \
 			exit 1; \
@@ -421,11 +408,6 @@ UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIP
 	mkdir -p $(dir $(EDK2_UEFIPAYLOAD_OUT))
 	mv $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd \
 		$(EDK2_UEFIPAYLOAD_OUT)
-
-UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
-	mkdir -p $(dir $(EDK2_UNIVERSAL_PAYLOAD_OUT))
-	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
-		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
 
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
@@ -453,7 +435,7 @@ distclean: clean
 		fi; \
 	done
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
