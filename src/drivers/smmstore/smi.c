@@ -28,6 +28,11 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
 
+	/* A reloaded S3 handler must not let the resumed OS recreate this latch. */
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && smm_is_s3_resume() &&
+	    (command & SMMSTORE_CMD_USE_FULL_FLASH))
+		return SMMSTORE_RET_UNSUPPORTED;
+
 	/* MM owns variables. Retain read access and the boot-only capsule transport. */
 	if (CONFIG(PAYLOAD_MM_INTERFACE) && command != SMMSTORE_CMD_RAW_READ &&
 	    !(command & SMMSTORE_CMD_USE_FULL_FLASH))

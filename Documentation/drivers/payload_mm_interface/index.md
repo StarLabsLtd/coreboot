@@ -296,6 +296,11 @@ unconditionally and restores registration only if the retained shared header has
 magic, size and revision and its entrypoint remains inside the payload-owned region. A missing or
 malformed header leaves payload MM unregistered and cannot reopen loading from the resumed OS.
 
+Payload MM rejects legacy SMMStore full-flash requests on S3 before the SMMStore capsule state
+machine runs. This prevents a resumed OS from using reset SMMStore static state to enable or select
+the full-flash region. Cold flash-update boots retain the legacy transport until the matched payload
+processes the capsule and resets the machine.
+
 ## Addendum: Payload components
 
 UefiPayload's component description will be updated with the matched EDK2 series once its

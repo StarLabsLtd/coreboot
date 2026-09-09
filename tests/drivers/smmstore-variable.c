@@ -9,7 +9,14 @@
 static uint64_t com_buffer;
 static unsigned int writes;
 static unsigned int raw_writes;
+static unsigned int preprocess_calls;
+static bool s3_resume;
 static enum cb_err write_result;
+
+bool smm_is_s3_resume(void)
+{
+	return s3_resume;
+}
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 {
@@ -26,8 +33,12 @@ int smmstore_init(void *buf, size_t len)
 
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
-	/* Model the update-boot gate for the MM dispatch test. */
-	if (CONFIG(PAYLOAD_MM_INTERFACE))
+	preprocess_calls++;
+
+	/* Model the update-boot gate, which clears the modifier before dispatch. */
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && *cmd == SMMSTORE_CMD_USE_FULL_FLASH)
+		return 1;
+	if (CONFIG(PAYLOAD_MM_INTERFACE) && (*cmd & SMMSTORE_CMD_USE_FULL_FLASH))
 		*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
 	return 0;
 }
@@ -76,12 +87,34 @@ static void variable_operation(void **state)
 			 SMMSTORE_RET_UNSUPPORTED);
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_CLEAR, &params),
 			 SMMSTORE_RET_UNSUPPORTED);
+	/* A cold flash-update boot retains the FMP full-flash transport. */
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH, (void *)1),
+			 SMMSTORE_RET_SUCCESS);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH | SMMSTORE_CMD_RAW_WRITE,
+				       &params),
+			 SMMSTORE_RET_FAILURE);
+	assert_int_equal(raw_writes, 1);
+	assert_int_equal(preprocess_calls, 2);
+
+	/* An S3 SMM-handler reload cannot recreate or use full-flash access. */
+	raw_writes = 0;
+	preprocess_calls = 0;
+	s3_resume = true;
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH, (void *)1),
+			 SMMSTORE_RET_UNSUPPORTED);
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH | 0x7f, &params),
 			 SMMSTORE_RET_UNSUPPORTED);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH | SMMSTORE_CMD_RAW_READ,
+				       &params),
+			 SMMSTORE_RET_UNSUPPORTED);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH | SMMSTORE_CMD_RAW_WRITE,
+				       &params),
+			 SMMSTORE_RET_UNSUPPORTED);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH | SMMSTORE_CMD_RAW_CLEAR,
+				       &params),
+			 SMMSTORE_RET_UNSUPPORTED);
 	assert_int_equal(raw_writes, 0);
-	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH |
-		SMMSTORE_CMD_RAW_WRITE, &params), SMMSTORE_RET_FAILURE);
-	assert_int_equal(raw_writes, 1);
+	assert_int_equal(preprocess_calls, 0);
 }
 
 int main(void)
