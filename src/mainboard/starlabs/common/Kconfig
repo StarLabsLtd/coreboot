@@ -99,6 +99,21 @@ config STARLABS_COMMON_CFR
 	bool
 	default y if CPU_INTEL_COMMON
 
+config STARLABS_EDK2_MM
+	bool "Use the Star Labs EDK2 MM variable service"
+	depends on PAYLOAD_EDK2
+	depends on HAVE_SMI_HANDLER && HAVE_PAYLOAD_MM_INTERFACE
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	help
+	  Enable the MM backend and bounded ACPI preference service provided
+	  by the matched downstream EDK2 payload. Do not enable this with an
+	  upstream or custom payload that does not implement that service.
+
+config PAYLOAD_MM_INTERFACE
+	depends on HAVE_SMI_HANDLER && HAVE_PAYLOAD_MM_INTERFACE
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	default y if STARLABS_EDK2_MM
+
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM
 	default y if SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 
@@ -174,7 +189,7 @@ config STARLABS_ACPI_EFI_OPTION_SMI
 	bool "Expose coreboot options to ACPI via SMI (UEFI var store)"
 	depends on USE_UEFI_VARIABLE_STORE
 	depends on HAVE_ACPI_TABLES
-	default y if !PAYLOAD_MM_INTERFACE
+	default y if !PAYLOAD_MM_INTERFACE || STARLABS_EDK2_MM
 	help
 	  Provide ACPI methods that proxy a restricted set of coreboot options
 	  (e.g. keyboard backlight and trackpad state) to the UEFI variable
