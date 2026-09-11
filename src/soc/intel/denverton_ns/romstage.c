@@ -134,34 +134,20 @@ void mainboard_romstage_entry(void)
 #endif
 }
 
-static void soc_memory_init_params(FSP_M_CONFIG *m_cfg)
+static void soc_memory_init_hsio(FSP_M_CONFIG *m_cfg)
 {
-	FSPM_UPD *mupd = container_of(m_cfg, FSPM_UPD, FspmConfig);
 	size_t num;
-	uint16_t supported_hsio_lanes;
 	BL_HSIO_INFORMATION *hsio_config;
 
-	/* Set the parameters for MemoryInit */
-	m_cfg->PcdEnableIQAT = CONFIG(IQAT_ENABLE);
+	/* Preserve an explicit FIA configuration and its lane count. */
+	if (m_cfg->PcdMeHeciCommunication || m_cfg->PcdFiaMuxConfigPtr)
+		return;
 
-	/* if ME HECI communication is disabled, apply default one*/
-	if (mupd->FspmConfig.PcdMeHeciCommunication == 0) {
-		/* Configure FIA MUX PCD */
-		/* Assume the validating silicon has max lanes. */
-		supported_hsio_lanes = BL_ME_FIA_MUX_LANE_NUM_MAX;
+	num = mainboard_get_hsio_config(&hsio_config);
+	if (get_fiamux_hsio_info(m_cfg->PcdHsioLanesNumber, num, &hsio_config))
+		die("HSIO configuration is invalid, please correct it!\n");
 
-		num = mainboard_get_hsio_config(&hsio_config);
-
-		if (get_fiamux_hsio_info(supported_hsio_lanes, num,
-					 &hsio_config))
-			die("HSIO Configuration is invalid, please correct "
-			    "it!");
-
-		mupd->FspmConfig.PcdHsioLanesNumber =
-		    (uint32_t)hsio_config->NumLanesSupported;
-		mupd->FspmConfig.PcdFiaMuxConfigPtr =
-		    (uint32_t)&hsio_config->FiaConfig;
-	}
+	m_cfg->PcdFiaMuxConfigPtr = (uint32_t)&hsio_config->FiaConfig;
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)
@@ -173,7 +159,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 {
 	FSP_M_CONFIG *m_cfg = &mupd->FspmConfig;
 
-	soc_memory_init_params(m_cfg);
+	m_cfg->PcdEnableIQAT = CONFIG(IQAT_ENABLE);
 
 	mainboard_memory_init_params(mupd);
+	soc_memory_init_hsio(m_cfg);
 }
