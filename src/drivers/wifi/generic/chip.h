@@ -28,7 +28,10 @@ struct drivers_wifi_generic_config {
 	 */
 	struct acpi_gpio cnvi_enable_gpio;
 
-	/* Pointer to the Bluetooth companion device */
+	/*
+	 * Paired USB or PCI Bluetooth device receiving shared SAR data.
+	 * Does not select the Bluetooth vendor, transport or reset method.
+	 */
 	DEVTREE_CONST struct device *bluetooth_companion;
 };
 
