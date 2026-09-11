@@ -767,6 +767,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->SubSystemId = 0;
 
 	mainboard_silicon_init_params(silconfig);
+
+	silconfig->DspEnable = cse_get_audio_dsp_enable(silconfig->DspEnable);
 }
 
 struct chip_operations soc_intel_apollolake_ops = {
