@@ -259,6 +259,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	/* DSP firmware authentication requires ME, including after board overrides. */
 	mupd->FspmConfig.PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)
