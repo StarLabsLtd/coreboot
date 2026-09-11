@@ -253,6 +253,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
 
+	/* Board overrides must not enable VT-d on pre-QS silicon. */
+	if (cpu_get_cpuid() == CPUID_TIGERLAKE_A0)
+		m_cfg->VtdDisable = 1;
+
 	/* DSP firmware authentication requires ME, including after board overrides. */
 	mupd->FspmConfig.PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 
