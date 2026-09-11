@@ -506,7 +506,6 @@ bool cse_is_hfs1_cos_default(void);
  */
 bool cse_is_me_operational(void);
 
-#if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is requested enabled via the `me_state` option.
  * Returns true when `me_state` is 0 ("Enabled") and false when it is 1
@@ -514,6 +513,10 @@ bool cse_is_me_operational(void);
  */
 bool cse_is_me_state_requested_enabled(void);
 
+/* DSP firmware authentication requires ME; retain a disabled DSP preference. */
+bool cse_get_audio_dsp_enable(bool enable);
+
+#if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is both requested enabled and operational.
  */
@@ -526,7 +529,6 @@ bool cse_is_me_enabled(void);
  */
 bool cse_get_s0ix_enable_state(bool fallback);
 #else
-static inline bool cse_is_me_state_requested_enabled(void) { return true; }
 static inline bool cse_is_me_enabled(void) { return true; }
 static inline bool cse_get_s0ix_enable_state(bool fallback) { return fallback; }
 #endif
