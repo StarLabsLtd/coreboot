@@ -493,13 +493,15 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 #if !CONFIG(SOC_INTEL_GEMINILAKE) /* GLK FSP does not have these fields in FspsUpd.h yet */
 	uint8_t port;
 
+	if (cfg->usb_config_override)
+		silconfig->UsbPerPortCtl = 1;
+
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (cfg->usb_config_override) {
-			if (!cfg->usb2_port[port].enable)
-				continue;
-
-			silconfig->PortUsb20Enable[port] = 1;
-			silconfig->PortUs20bOverCurrentPin[port] = cfg->usb2_port[port].oc_pin;
+			silconfig->PortUsb20Enable[port] = cfg->usb2_port[port].enable;
+			if (cfg->usb2_port[port].enable)
+				silconfig->PortUs20bOverCurrentPin[port] =
+					cfg->usb2_port[port].oc_pin;
 		}
 
 		if (cfg->usb2eye[port].Usb20PerPortTxPeHalf != 0)
@@ -533,10 +535,10 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 
 	if (cfg->usb_config_override) {
 		for (port = 0; port < APOLLOLAKE_USB3_PORT_MAX; port++) {
+			silconfig->PortUsb30Enable[port] = cfg->usb3_port[port].enable;
 			if (!cfg->usb3_port[port].enable)
 				continue;
 
-			silconfig->PortUsb30Enable[port] = 1;
 			silconfig->PortUs30bOverCurrentPin[port] = cfg->usb3_port[port].oc_pin;
 		}
 	}
