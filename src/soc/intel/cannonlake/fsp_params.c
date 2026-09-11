@@ -795,6 +795,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	s_cfg->DevIntConfigPtr = (UINT32)((uintptr_t)upd_irqs);
 	s_cfg->NumOfDevIntConfig = pch_count;
 	printk(BIOS_INFO, "IRQ: Using dynamically assigned PCI IO-APIC IRQs\n");
+
+	/* DSP firmware authentication requires ME, including after board overrides. */
+	s_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 /* Mainboard GPIO Configuration */

@@ -536,6 +536,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;
+
+	/* DSP firmware authentication requires ME, including after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
