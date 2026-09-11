@@ -68,6 +68,8 @@ chip soc/intel/alderlake
 	register "sata_ports_dev_slp[0]" = "0"
 	register "sata_ports_dev_slp[1]" = "1"
 	register "sata_ports_enable_dito_config[1]" = "1"
+	register "sata_ports_dm_val[1]" = "15"
+	register "sata_ports_dito_val[1]" = "625"
 
 	register "serial_io_i2c_mode" = "{
 		[PchSerialIoIndexI2C0]  = PchSerialIoPci,
