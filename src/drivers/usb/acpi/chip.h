@@ -7,6 +7,16 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_pld.h>
 
+enum usb_acpi_bluetooth_mode {
+	USB_ACPI_BLUETOOTH_NONE,
+	USB_ACPI_BLUETOOTH_INTEL,
+	/*
+	 * Actual CNVi Bluetooth over USB, not discrete Bluetooth on a CNVi SoC.
+	 * Use PLDR only when no reset GPIO is supplied; GPIO reset takes priority.
+	 */
+	USB_ACPI_BLUETOOTH_INTEL_CNVI_PLDR,
+};
+
 struct drivers_usb_acpi_config {
 	const char *desc;
 
@@ -47,12 +57,9 @@ struct drivers_usb_acpi_config {
 	/* Does the device have a power resource? */
 	bool has_power_resource;
 
-	/* Intel Bluetooth */
-	bool is_intel_bluetooth;
+	/* Intel USB ACPI applies to both discrete and CNVi Bluetooth. */
+	enum usb_acpi_bluetooth_mode bluetooth_mode;
 	bool cnvi_bt_audio_offload;
-	/* CNVi BT over USB: no PCI function or reset GPIO, so _RST uses the CNVi
-	   PLDR. Not for a discrete Intel USB BT on a CNVi-capable platform. */
-	bool is_cnvi_bluetooth;
 
 	/* GPIO used to take device out of reset or to put it into reset. */
 	struct acpi_gpio reset_gpio;
