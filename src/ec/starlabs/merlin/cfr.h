@@ -212,7 +212,7 @@ static const struct sm_object automatic_start = SM_DECLARE_ENUM({
 		.id	= STARLABS_EFIOPT_ID_AUTOMATIC_START,
 	},
 	.values		= (const struct sm_enum_value[]) {
-			{ "When Charger Connected", AUTOMATIC_START_ALWAYS        },
+			{ "On AC Connect",          AUTOMATIC_START_ALWAYS        },
 			{ "After Power Loss",       AUTOMATIC_START_AFTER_FAILURE },
 			{ "Never",                  AUTOMATIC_START_NEVER         },
 			SM_ENUM_VALUE_END
