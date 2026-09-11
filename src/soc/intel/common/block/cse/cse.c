@@ -323,6 +323,12 @@ bool cse_get_s0ix_enable_state(bool fallback)
 	if (!enable)
 		return false;
 
+	if (get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
+		       "disables clock gating necessary for S0ix.\n");
+		return false;
+	}
+
 	if (cse_is_me_enabled())
 		return true;
 
