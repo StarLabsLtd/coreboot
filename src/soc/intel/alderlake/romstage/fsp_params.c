@@ -543,6 +543,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	const uint32_t cpuid = cpu_get_cpuid();
 	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0)
 		m_cfg->VtdDisable = 1;
+
+	m_cfg->PchHdaDspEnable = cse_get_audio_dsp_enable(m_cfg->PchHdaDspEnable);
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
