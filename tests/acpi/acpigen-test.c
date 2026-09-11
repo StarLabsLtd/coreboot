@@ -204,9 +204,24 @@ static void test_acpigen_scope_with_contents(void **state)
 	assert_int_equal(package_length, block_length);
 }
 
+static void test_acpigen_set_package_element(void **state)
+{
+	char *buffer = *state;
+	const u8 expected[] = {
+		STORE_OP, BYTE_PREFIX, 42, INDEX_OP, LOCAL0_OP, ONE_OP, ZERO_OP,
+	};
+
+	acpigen_set_current(buffer);
+	acpigen_set_package_op_element_int(LOCAL0_OP, 1, 42);
+	assert_int_equal(acpigen_get_current() - buffer, sizeof(expected));
+	assert_memory_equal(buffer, expected, sizeof(expected));
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup_teardown(test_acpigen_set_package_element, setup_acpigen,
+						teardown_acpigen),
 		cmocka_unit_test_setup_teardown(test_acpigen_single_if, setup_acpigen,
 						teardown_acpigen),
 		cmocka_unit_test_setup_teardown(test_acpigen_nested_ifs, setup_acpigen,
