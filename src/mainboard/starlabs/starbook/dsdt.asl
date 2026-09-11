@@ -51,4 +51,7 @@ DefinitionBlock(
 	#include <southbridge/intel/common/acpi/sleepstates.asl>
 
 	#include <mainboard/starlabs/common/acpi/mainboard.asl>
+#if CONFIG(STARLABS_TOUCHPAD_ACPI_RUNTIME)
+	#include <mainboard/starlabs/common/acpi/cst_runtime.asl>
+#endif
 }
