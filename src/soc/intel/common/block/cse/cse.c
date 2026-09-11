@@ -323,6 +323,13 @@ bool cse_get_s0ix_enable_state(bool fallback)
 	if (!enable)
 		return false;
 
+	/* APL/GLK use a different timer interface and retain their existing policy. */
+	if (!CONFIG(SOC_INTEL_APOLLOLAKE) &&
+	    get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the legacy 8254 timer requires its clock.\n");
+		return false;
+	}
+
 	if (cse_is_me_enabled())
 		return true;
 
