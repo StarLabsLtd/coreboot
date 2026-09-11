@@ -254,6 +254,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	mainboard_memory_init_params(mupd);
 
 	mupd->FspmConfig.PchHdaDspEnable = cse_get_audio_dsp_enable(mupd->FspmConfig.PchHdaDspEnable);
+
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)
