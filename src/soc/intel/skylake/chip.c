@@ -516,6 +516,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PavpEnable = CONFIG(PAVP);
 
 	soc_irq_settings(params);
+
+	params->PchHdaDspEnable = cse_get_audio_dsp_enable(params->PchHdaDspEnable);
 }
 
 /* Mainboard FSP Configuration */
