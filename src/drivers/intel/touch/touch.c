@@ -528,7 +528,7 @@ static void touch_dev_fill_ssdt_generator(const struct device *dev)
 	const char *scope = acpi_device_path(parent);
 	const char *domain_scope = acpi_device_path(domain);
 
-	static const char *const power_res_states[] = {"_PR0", "_PR3"};
+	static const char *const power_res_states[] = {"_PR0", "_PR2", "_PR3"};
 
 	if (!config)
 		return;
