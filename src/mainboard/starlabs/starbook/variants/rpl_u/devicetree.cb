@@ -129,12 +129,9 @@ chip soc/intel/alderlake
 			register "usb2_ports[1]"		= "USB2_PORT_TYPE_C(OC_SKIP)"
 			register "tcss_ports[1]"		= "TCSS_PORT_CC1(OC_SKIP)"
 
-			# Right USB 3.0 Hub (PCH USB3 P3)
-			# PCH USB3 P3: 2.43"-2.77" (2430-2768 mils);
-			# GL3510 paths: 1.68"-1.72" upstream and
-			# 1.96"-3.48" downstream (1676-3477 mils).
+			# Right USB 3.0 Hub (JDB1: USB2 P7 / PCH USB3 P1)
 			register "usb2_ports[6]"		= "USB2_PORT_SHORT(OC_SKIP)"
-			register "usb3_ports[2]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
+			register "usb3_ports[0]"		= "USB3_PORT_DEFAULT(OC_SKIP)"
 
 			# Internal Webcam
 			# USB2 trace length not covered by the supplied USB3 sheets.
@@ -195,7 +192,7 @@ chip soc/intel/alderlake
 						register "type"			= "UPC_TYPE_HUB"
 						register "use_custom_pld"	= "true"
 						register "custom_pld"		= "ACPI_PLD_TYPE_C(RIGHT, CENTER, ACPI_PLD_GROUP(0, 2))"
-						device ref usb3_port3 on
+						device ref usb3_port1 on
 							chip drivers/usb/hub
 								register "name"		= ""GL3510""
 								register "desc"		= ""Right USB 3.0 Hub""
@@ -302,7 +299,7 @@ chip soc/intel/alderlake
 					# Right USB Type-C via the right GL3510 hub.
 					chip drivers/intel/pmc_mux/conn
 						use usb2_port7 as usb2_port
-						use usb3_port3 as usb3_port
+						use usb3_port1 as usb3_port
 						device generic 2 alias conn2 on end
 					end
 				end
