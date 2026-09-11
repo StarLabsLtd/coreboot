@@ -10,6 +10,7 @@
 #include <fsp/util.h>
 #include <gpio.h>
 #include <intelblocks/cpulib.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
 #include <soc/iomap.h>
@@ -251,6 +252,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
+
+	mupd->FspmConfig.PchHdaDspEnable = cse_get_audio_dsp_enable(mupd->FspmConfig.PchHdaDspEnable);
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)
