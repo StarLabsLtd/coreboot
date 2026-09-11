@@ -161,6 +161,9 @@ struct soc_intel_apollolake_config {
 
 	/* Override USB port configuration */
 	bool usb_config_override;
+	/* Explicit Apollo Lake disables, with one bit per port. */
+	uint8_t usb2_disable_mask;
+	uint8_t usb3_disable_mask;
 	struct usb_port_config usb2_port[APOLLOLAKE_USB2_PORT_MAX];
 	struct usb_port_config usb3_port[APOLLOLAKE_USB3_PORT_MAX];
 

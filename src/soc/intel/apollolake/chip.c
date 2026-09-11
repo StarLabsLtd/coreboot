@@ -493,8 +493,15 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 #if !CONFIG(SOC_INTEL_GEMINILAKE) /* GLK FSP does not have these fields in FspsUpd.h yet */
 	uint8_t port;
 
+	if (cfg->usb_config_override && (cfg->usb2_disable_mask || cfg->usb3_disable_mask))
+		silconfig->UsbPerPortCtl = 1;
+
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (cfg->usb_config_override) {
+			if (cfg->usb2_disable_mask & BIT(port)) {
+				silconfig->PortUsb20Enable[port] = 0;
+				continue;
+			}
 			if (!cfg->usb2_port[port].enable)
 				continue;
 
@@ -533,6 +540,10 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 
 	if (cfg->usb_config_override) {
 		for (port = 0; port < APOLLOLAKE_USB3_PORT_MAX; port++) {
+			if (cfg->usb3_disable_mask & BIT(port)) {
+				silconfig->PortUsb30Enable[port] = 0;
+				continue;
+			}
 			if (!cfg->usb3_port[port].enable)
 				continue;
 
