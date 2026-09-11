@@ -519,6 +519,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+
+	/* TCSS xDCI requires its xHCI parent. */
+	mupd->FspmConfig.TcssXdciEn &= !!mupd->FspmConfig.TcssXhciEn;
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
