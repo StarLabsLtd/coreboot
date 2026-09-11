@@ -467,6 +467,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	 *  The default values can be changed from devicetree.
 	 */
 	for (i = 0; i < ARRAY_SIZE(config->SataPortsEnableDitoConfig); i++) {
+		params->SataPortsEnableDitoConfig[i] = config->SataPortsEnableDitoConfig[i];
 		if (config->SataPortsEnableDitoConfig[i]) {
 			if (config->SataPortsDmVal[i])
 				params->SataPortsDmVal[i] = config->SataPortsDmVal[i];
