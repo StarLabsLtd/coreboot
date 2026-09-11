@@ -413,6 +413,20 @@ static void cnvw_fill_ssdt(const struct device *dev)
 	acpigen_pop_len();
 
 /*
+ *	Name (_PR2, Package (0x01)
+ *	{
+ *		CNVP
+ *	})
+ */
+	/* Windows requires the D0 resource to remain described in D2. */
+	acpigen_write_name("_PR2");
+	{
+		acpigen_write_package(1);
+		acpigen_emit_namestring("CNVP");
+	}
+	acpigen_pop_len();
+
+/*
  *	Method (GPEH, 0, NotSerialized)
  *	{
  *		If ((VDID == 0xFFFFFFFF))
