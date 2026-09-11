@@ -401,6 +401,24 @@ static void fill_fspm_trace_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->CpuCrashLogEnable = m_cfg->CpuCrashLogDevice;
 }
 
+static void validate_early_dma_policy(const FSP_M_CONFIG *m_cfg)
+{
+	uint32_t cpuid;
+
+	if (!CONFIG(ENABLE_EARLY_DMA_PROTECTION))
+		return;
+
+	cpuid = cpu_get_cpuid();
+
+	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0)
+		die("Early DMA protection is unsupported on this CPU stepping\n");
+
+	if (m_cfg->VtdDisable || !m_cfg->VtdIopEnable ||
+	    m_cfg->VtdBaseAddress[VTD_VTVCO] != VTVC0_BASE_ADDRESS ||
+	    !(m_cfg->PreBootDmaMask & BIT(0)))
+		die("Early DMA protection requires active VTVC0 policy\n");
+}
+
 static void fill_fspm_ibecc_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
@@ -536,6 +554,11 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;
+
+	validate_early_dma_policy(m_cfg);
+
+	/* DSP firmware authentication requires ME, including after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

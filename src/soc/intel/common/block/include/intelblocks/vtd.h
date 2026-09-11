@@ -40,9 +40,9 @@ static __always_inline void vtd_write64(uintptr_t vtd_base, uint32_t reg, uint64
 }
 
 /*
- * Enable DMA protection by setting PMR registers in VT-d for whole DRAM memory.
+ * Enable VTVC0 PMR DMA protection for DRAM. Return true only when active.
  */
-void vtd_enable_dma_protection(void);
+bool vtd_enable_dma_protection(void);
 /*
  * Get DMA buffer base and size.
  */

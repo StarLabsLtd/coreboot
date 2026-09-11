@@ -11,8 +11,10 @@ config ENABLE_EARLY_DMA_PROTECTION
 	depends on SOC_INTEL_COMMON_BLOCK_VTD
 	default n
 	help
-	  Setting this makes the whole memory from 0 to TOLUM and from 4GB
-	  to TOUUD DMA protected with VT-d PMR registers.
+	  Require the VTVC0 VT-d engine to protect the low and high memory
+	  ranges described by the FSP PMR HOB. Boot stops if VT-d policy
+	  is disabled or the protection cannot be established. This does not
+	  program the GFX or IPU VT-d engines.
 
 	  Disable this setting if your OS does not support IOMMU. The payload
 	  must be aware of the DMA protection, otherwise I/O devices might not
