@@ -181,7 +181,7 @@ chip soc/intel/alderlake
 					chip drivers/usb/acpi
 						register "desc"			= ""CNVi Bluetooth""
 						register "type"			= "UPC_TYPE_INTERNAL"
-						register "is_intel_bluetooth"	= "1"
+						register "bluetooth_mode"	= "USB_ACPI_BT_INTEL_DISCRETE"
 						register "enable_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPP_VGPIO_0)"
 						register "reset_gpio"		= "ACPI_GPIO_OUTPUT_ACTIVE_LOW(GPP_A13)"
 						register "group"		= "ACPI_PLD_GROUP(0, 5)"

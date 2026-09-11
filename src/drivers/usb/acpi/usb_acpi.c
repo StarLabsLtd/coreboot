@@ -10,7 +10,7 @@
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
 {
-	if (cfg->is_intel_bluetooth)
+	if (cfg->bluetooth_mode != USB_ACPI_BT_NONE)
 		return false;
 
 	if (cfg->privacy_gpio.pin_count)
@@ -111,11 +111,12 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 		acpi_device_add_power_res(&power_res_params);
 	}
 
-	if (config->is_intel_bluetooth)
+	if (config->bluetooth_mode != USB_ACPI_BT_NONE)
 		acpi_device_intel_bt(&config->enable_gpio,
 				     &config->reset_gpio,
 				     config->cnvi_bt_audio_offload,
-				     config->is_cnvi_bluetooth);
+				     config->bluetooth_mode ==
+					USB_ACPI_BT_INTEL_CNVI);
 
 	acpigen_pop_len();
 
@@ -123,7 +124,7 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 	 * This is generated outside of the USB Device Scope to make it easier for
 	 * other code to access it i.e. CNVi driver.
 	 */
-	if (config->is_intel_bluetooth)
+	if (config->bluetooth_mode != USB_ACPI_BT_NONE)
 		acpi_device_intel_bt_common(&config->enable_gpio,
 					    &config->reset_gpio);
 
