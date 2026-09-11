@@ -592,9 +592,97 @@ acpigen_write_store();
 	acpigen_pop_len();
 }
 
+/*
+ * Function 5: Set Power Resource for Reset (PRR) mode for Bluetooth
+ *
+ * Args3 is a buffer comparable to the following C structure:
+ * struct pldr_mode {
+ *	uint16_t cmd_type;
+ *	uint16_t cmd_payload;
+ * };
+ *
+ * cmd_type can take one of the following values:
+ * 1 - Set PRR mode to cmd_payload;
+ */
+static void bluetooth_dsm_set_power_resource_for_reset(__always_unused void *args)
+{
+	acpigen_write_create_word_field(ARG3_OP, 0, "BCMT");
+	acpigen_write_create_word_field(ARG3_OP, 2, "BCMP");
+
+	/* Set PRR mode */
+	acpigen_write_if_lequal_namestr_int("BCMT", 1);
+	{
+		acpigen_write_if_cond_ref_of("RSTT");
+		{
+			acpigen_write_store();
+			acpigen_emit_namestring("BCMP");
+			acpigen_emit_namestring("RSTT");
+
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+	acpigen_write_return_integer(0);
+}
+
+/*
+ * Function 6: Get Power Resource for Reset (PRR) mode and status for Bluetooth
+ */
+static void bluetooth_dsm_get_power_resource_for_reset(__always_unused void *args)
+{
+	/* Get PRR mode and status */
+	acpigen_write_if_cond_ref_of("RSTT");
+	{
+		acpigen_write_if_cond_ref_of("PRRS");
+		{
+			acpigen_emit_byte(RETURN_OP);
+			acpigen_write_package(2);
+			acpigen_emit_namestring("RSTT");
+			acpigen_emit_namestring("PRRS");
+			acpigen_pop_len();
+		}
+		acpigen_pop_len();
+	}
+	acpigen_pop_len();
+
+	acpigen_write_return_integer(0);
+}
+
+/*
+ * Function 7: Set Power Resource for Reset (PRR) reset delay for Bluetooth
+ */
+static void bluetooth_dsm_set_prr_reset_delay(__always_unused void *args)
+{
+	acpigen_write_if_cond_ref_of("BTDL");
+	{
+		acpigen_write_store();
+		acpigen_emit_byte(ARG3_OP);
+		acpigen_emit_namestring("BTDL");
+	}
+	acpigen_pop_len();
+}
+
+
+static void (*bluetooth_dsm_callbacks[])(void *) = {
+	NULL,						/* Function 0 */
+	NULL,						/* Function 1 */
+	NULL,						/* Function 2 */
+	NULL,						/* Function 3 */
+	NULL,						/* Function 4 */
+	bluetooth_dsm_set_power_resource_for_reset,	/* Function 5 */
+	bluetooth_dsm_get_power_resource_for_reset,	/* Function 6 */
+	bluetooth_dsm_set_prr_reset_delay,		/* Function 7 */
+};
+
 static void cnvb_fill_ssdt(const struct device *dev)
 {
 	const char *scope = acpi_device_path(dev);
+	struct dsm_uuid bt_dsm = {
+		.uuid = "7266172C-220B-4B29-814F-75E4DD26B5FD",
+		.callbacks = bluetooth_dsm_callbacks,
+		.count = ARRAY_SIZE(bluetooth_dsm_callbacks),
+	};
 
 /*
  *	Mutex (CNMT, 0)
@@ -606,6 +694,7 @@ static void cnvb_fill_ssdt(const struct device *dev)
 	acpi_device_write_pci_dev(dev);
 
 	acpigen_write_scope(scope);
+	acpigen_write_dsm_uuid_arr(&bt_dsm, 1);
 
 /*
  *	OperationRegion (CBTR, SystemMemory, \_SB_.PCI0.BASE(_ADR), 0x100)
