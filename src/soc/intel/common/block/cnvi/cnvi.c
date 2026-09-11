@@ -192,22 +192,18 @@ static void cnvw_fill_ssdt(const struct device *dev)
  *						Local0 = \_SB.PCI0.PCRR(PID_CNVI, CNVI_ABORT_PLDR)
  *						Local1 = (Local0 & CNVI_ABORT_REQUEST)
  *						Local3 = (Local0 & CNVI_READY)
+ *						PRRS = CNVI_PLDR_TIMEOUT
  *						If ((Local1 == Zero))
  *						{
  *							If ((Local3 == CNVI_READY))
  *							{
  *								PRRS = CNVI_PLDR_COMPLETE
- *								If ((Local2 == One))
- *								{
- *									\_SB.PCI0.BTRK (One)
- *									Sleep (0xA0)
- *								}
  *							}
  *						}
- *						Else
+ *						If ((Local2 == One))
  *						{
- *							PRRS = CNVI_PLDR_TIMEOUT
  *							\_SB.PCI0.BTRK (One)
+ *							Sleep (0xA0)
  *						}
  *					}
  *					Else
@@ -347,27 +343,24 @@ static void cnvw_fill_ssdt(const struct device *dev)
 						acpigen_write_integer(CNVI_READY);
 						acpigen_emit_byte(LOCAL3_OP);
 
+						acpigen_write_store_int_to_namestr(
+							CNVI_PLDR_TIMEOUT, "PRRS");
 						acpigen_write_if_lequal_op_int(LOCAL1_OP, 0);
 						{
 							acpigen_write_if_lequal_op_int(LOCAL3_OP, CNVI_READY);
 							{
 								acpigen_write_store_int_to_namestr(CNVI_PLDR_COMPLETE, "PRRS");
-
-								acpigen_write_if_lequal_op_int(LOCAL2_OP, 1);
-								{
-									acpigen_emit_namestring("\\_SB.PCI0.BTRK");
-									acpigen_emit_byte(1);
-									acpigen_write_sleep(160);
-								}
-								acpigen_pop_len();
 							}
 							acpigen_pop_len();
 						}
-						acpigen_write_else();
+						acpigen_pop_len();
+
+						/* Restore Bluetooth only if asserted here. */
+						acpigen_write_if_lequal_op_int(LOCAL2_OP, 1);
 						{
-							acpigen_write_store_int_to_namestr(CNVI_PLDR_TIMEOUT, "PRRS");
 							acpigen_emit_namestring("\\_SB.PCI0.BTRK");
 							acpigen_emit_byte(1);
+							acpigen_write_sleep(160);
 						}
 						acpigen_pop_len();
 					}
