@@ -695,7 +695,6 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	memcpy(silconfig->SataPortsHotPlug, cfg->sata_ports_hot_plug,
 		sizeof(silconfig->SataPortsHotPlug));
 
-	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(cfg->lpss_s0ix_enable);
 	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
 
 	/* Disable monitor mwait since it is broken due to a hardware bug
@@ -769,6 +768,11 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	mainboard_silicon_init_params(silconfig);
 
 	silconfig->DspEnable = cse_get_audio_dsp_enable(silconfig->DspEnable);
+
+	/* Resolve board defaults and runtime policy before FSP and ACPI consume it. */
+	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(silconfig->LPSS_S0ixEnable);
+	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
+
 }
 
 struct chip_operations soc_intel_apollolake_ops = {
