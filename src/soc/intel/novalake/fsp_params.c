@@ -693,6 +693,12 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	arch_silicon_init_params(s_arch_cfg);
 	/* Override settings per board if required. */
 	mainboard_update_soc_chip_config(config);
+	if (config->s0ix_enable &&
+	    get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
+		       "disables clock gating necessary for S0ix.\n");
+		config->s0ix_enable = false;
+	}
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
 }
