@@ -302,7 +302,6 @@ bool cse_is_me_operational(void)
 	return cse_is_hfs1_cws_normal() && cse_is_hfs1_com_normal();
 }
 
-#if ENV_RAMSTAGE
 bool cse_is_me_state_requested_enabled(void)
 {
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
@@ -311,6 +310,7 @@ bool cse_is_me_state_requested_enabled(void)
 	return me_state == 0;
 }
 
+#if ENV_RAMSTAGE
 bool cse_is_me_enabled(void)
 {
 	return cse_is_me_state_requested_enabled() && cse_is_me_operational();

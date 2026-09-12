@@ -10,6 +10,7 @@
 #include <fsp/util.h>
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/tcss.h>
 #include <option.h>
 #include <soc/iomap.h>
@@ -534,6 +535,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(mupd);
 
 	mainboard_memory_init_params(mupd);
+
+	/* DSP firmware authentication requires ME, including after board overrides. */
+	mupd->FspmConfig.PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
