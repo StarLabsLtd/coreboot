@@ -186,6 +186,13 @@ static const struct starlabs_efiopt_entry efiopts[] = {
 		.fallback = SPEED_1_0C,
 	},
 #endif
+#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+	{
+		.name = "charging_policy",
+		.id = STARLABS_EFIOPT_ID_CHARGING_POLICY,
+		.fallback = CHARGING_POLICY_AUTO,
+	},
+#endif
 #if CONFIG(EC_STARLABS_LID_SWITCH)
 	{
 		.name = "lid_switch",
@@ -322,6 +329,13 @@ static enum cb_err normalize_value(enum starlabs_efiopt_id id, uint32_t *value)
 			return CB_SUCCESS;
 		return CB_ERR_ARG;
 #endif
+#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+	case STARLABS_EFIOPT_ID_CHARGING_POLICY:
+		if (*value == CHARGING_POLICY_AUTO || *value == CHARGING_POLICY_CHARGING ||
+		    *value == CHARGING_POLICY_PERFORMANCE)
+			return CB_SUCCESS;
+		return CB_ERR_ARG;
+#endif
 #if CONFIG(EC_STARLABS_LID_SWITCH)
 	case STARLABS_EFIOPT_ID_LID_SWITCH:
 		if (*value == SWITCH_NORMAL || *value == SWITCH_SLEEP_ONLY ||
@@ -440,6 +454,10 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #if CONFIG(EC_STARLABS_CHARGING_SPEED)
 	case STARLABS_EFIOPT_ID_CHARGING_SPEED:
 		return apply_ec_value(ECRAM_CHARGING_SPEED, value);
+#endif
+#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+	case STARLABS_EFIOPT_ID_CHARGING_POLICY:
+		return apply_ec_value(ECRAM_CHARGING_POLICY, value);
 #endif
 #if CONFIG(EC_STARLABS_LID_SWITCH)
 	case STARLABS_EFIOPT_ID_LID_SWITCH:

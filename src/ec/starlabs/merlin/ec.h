@@ -106,6 +106,11 @@ void merlin_fill_ssdt(const struct device *dev);
 #define SPEED_0_5C		0x01
 #define SPEED_0_2C		0x02
 
+/* Charging Policy */
+#define CHARGING_POLICY_AUTO		0x00
+#define CHARGING_POLICY_CHARGING	0xaa
+#define CHARGING_POLICY_PERFORMANCE	0xbb
+
 /* Lid Switch */
 #define SWITCH_NORMAL		0x00
 #define SWITCH_SLEEP_ONLY	0x01
