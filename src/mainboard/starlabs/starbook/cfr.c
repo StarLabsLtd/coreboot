@@ -86,7 +86,11 @@ static struct sm_obj_form audio_video_group = {
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
+		&hda_dsp,
+	#if !CONFIG(BOARD_STARLABS_STARBOOK_ADL_N) && \
+		!CONFIG(BOARD_STARLABS_STARBOOK_MTL)
 		&hda_subsystem_id,
+	#endif
 		&webcam,
 		NULL
 	},
