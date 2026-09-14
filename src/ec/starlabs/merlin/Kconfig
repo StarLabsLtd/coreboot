@@ -91,6 +91,11 @@ config EC_STARLABS_CHARGING_SPEED
 	help
 	  Select if the mainboard supports configuring the charging speed.
 
+config EC_STARLABS_CHARGING_POLICY
+	bool
+	help
+	  Select if the EC reserves input power for battery charging.
+
 config EC_STARLABS_LID_SWITCH
 	bool "Enable disabling the lid switch"
 	default y

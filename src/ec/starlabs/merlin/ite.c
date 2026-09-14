@@ -58,6 +58,7 @@ static void merlin_restore_options(void *unused)
 	 * kbl_brightness
 	 * kbl_state
 	 * charging_speed
+	 * charging_policy
 	 * lid_switch
 	 * power_led
 	 * power_on_ac
@@ -206,6 +207,26 @@ static void merlin_restore_options(void *unused)
 		ec_write(ECRAM_CHARGING_SPEED,
 			 get_ec_value_from_option("charging_speed", SPEED_1_0C, charging_speed,
 						  ARRAY_SIZE(charging_speed)));
+
+	/*
+	 * Charging Policy
+	 *
+	 * Setting:	charging_policy
+	 *
+	 * Values:	Automatic, Charging, Performance
+	 * Default:	Automatic
+	 *
+	 */
+	const uint8_t charging_policy[] = {
+		CHARGING_POLICY_AUTO,
+		CHARGING_POLICY_CHARGING,
+		CHARGING_POLICY_PERFORMANCE,
+	};
+
+	if (CONFIG(EC_STARLABS_CHARGING_POLICY))
+		ec_write(ECRAM_CHARGING_POLICY,
+			 get_ec_value_from_option("charging_policy", CHARGING_POLICY_AUTO,
+						  charging_policy, ARRAY_SIZE(charging_policy)));
 
 	/*
 	 * Lid Switch
