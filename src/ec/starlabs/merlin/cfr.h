@@ -136,6 +136,28 @@ static const struct sm_object charging_speed = SM_DECLARE_ENUM({
 });
 
 /*
+ * Charging Policy
+ */
+static const struct sm_object charging_policy = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_CHARGING_POLICY) ? CFR_OPTFLAG_RUNTIME : 0,
+	.opt_name	= "charging_policy",
+	.ui_name	= "Charging Priority",
+	.ui_helptext	= "Choose whether battery charging or system performance gets"
+			  " priority when external power is limited.",
+	.default_value	= CHARGING_POLICY_AUTO,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_CHARGING_POLICY) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_CHARGING_POLICY,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Automatic", 	CHARGING_POLICY_AUTO		},
+			{ "Charging", 		CHARGING_POLICY_CHARGING	},
+			{ "Performance", 	CHARGING_POLICY_PERFORMANCE	},
+			SM_ENUM_VALUE_END				},
+});
+
+/*
  * Lid Switch
  */
 static const struct sm_object lid_switch = SM_DECLARE_ENUM({

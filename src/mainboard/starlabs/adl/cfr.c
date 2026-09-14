@@ -78,6 +78,9 @@ static struct sm_obj_form battery_group = {
 #if CONFIG(EC_STARLABS_CHARGING_SPEED)
 					     &charging_speed,
 #endif
+#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+					     &charging_policy,
+#endif
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 					     &max_charge,
 #endif
