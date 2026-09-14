@@ -305,6 +305,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 		params->SkipPamLock = 0;
 	}
 
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY))
+		params->RtcMemoryLock = 1;
+
 	/* Disable PAVP */
 	params->PavpEnable = 0;
 
