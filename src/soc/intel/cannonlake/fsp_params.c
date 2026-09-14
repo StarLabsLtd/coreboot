@@ -711,7 +711,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	tconfig->PchLockDownGlobalSmi = lockdown_by_fsp;
 	tconfig->PchLockDownBiosInterface = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosLock = lockdown_by_fsp;
-	s_cfg->PchLockDownRtcMemoryLock = lockdown_by_fsp;
+	s_cfg->PchLockDownRtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	tconfig->SkipPamLock = !lockdown_by_fsp;
 #if CONFIG(SOC_INTEL_COMETLAKE)
 	/*
