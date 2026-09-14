@@ -81,10 +81,16 @@ static const struct sm_object max_charge = SM_DECLARE_ENUM({
  * Power Reporting
  */
 static const struct sm_object power_reporting = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_POWER_REPORTING) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "power_reporting",
 	.ui_name	= "Power Reporting",
 	.ui_helptext	= "Control battery discharge reporting while external power is connected.",
 	.default_value	= POWER_REPORTING_TRUTHFUL,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_POWER_REPORTING) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_POWER_REPORTING,
+	},
 	.values		= (const struct sm_enum_value[]) {
 			{ "Truthful",	POWER_REPORTING_TRUTHFUL	},
 			{ "Quiet",	POWER_REPORTING_QUIET		},
