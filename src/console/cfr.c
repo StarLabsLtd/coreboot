@@ -12,6 +12,7 @@
 #endif
 
 static const struct sm_object debug_level = SM_DECLARE_ENUM({
+	.flags		= CONFIG(NO_DEBUG_EGRESS) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "debug_level",
 	.ui_name	= "Console Log Level",
 	.ui_helptext	= "Set the verbosity of the coreboot console output.",

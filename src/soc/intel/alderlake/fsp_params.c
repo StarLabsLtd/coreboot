@@ -1389,6 +1389,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	config = config_of_soc();
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
+	if (CONFIG(NO_DEBUG_EGRESS))
+		s_cfg->FspEventHandler = 0;
 
 	wait_for_panel_power_cycle_done(config);
 }

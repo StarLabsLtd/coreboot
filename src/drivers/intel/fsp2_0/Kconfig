@@ -422,7 +422,7 @@ config FSP_UGOP_EARLY_SIGN_OF_LIFE
 config FSP_ENABLE_SERIAL_DEBUG
 	bool "Output FSP debug messages on serial console"
 	default y
-	depends on FSP_USES_CB_DEBUG_EVENT_HANDLER
+	depends on FSP_USES_CB_DEBUG_EVENT_HANDLER && !NO_DEBUG_EGRESS
 	help
 	  Output FSP debug messages on serial console.
 

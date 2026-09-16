@@ -511,6 +511,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 			m_cfg->SerialDebugMrcLevel = 0;
 		}
 	}
+
 	config = config_of_soc();
 
 	soc_memory_init_params(m_cfg, config);
@@ -519,6 +520,13 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	if (CONFIG(NO_DEBUG_EGRESS)) {
+		m_cfg->PlatformDebugOption = 0;
+		m_cfg->PcdSerialDebugLevel = 0;
+		m_cfg->SerialDebugMrcLevel = 0;
+		arch_upd->FspEventHandler = 0;
+	}
+
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

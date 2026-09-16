@@ -533,6 +533,12 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
+	if (CONFIG(NO_DEBUG_EGRESS)) {
+		m_cfg->PlatformDebugConsent = 0;
+		m_cfg->PcdSerialDebugLevel = 0;
+		m_cfg->SerialDebugMrcLevel = 0;
+		arch_upd->FspEventHandler = 0;
+	}
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;
