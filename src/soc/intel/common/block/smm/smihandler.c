@@ -389,7 +389,7 @@ __weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
 	return NULL;
 }
 
-static void soc_lock_gpios(void)
+static int soc_lock_gpios(void)
 {
 	const struct gpio_lock_config *soc_gpios;
 	size_t soc_gpio_num;
@@ -398,8 +398,12 @@ static void soc_lock_gpios(void)
 	soc_gpios = soc_gpio_lock_config(&soc_gpio_num);
 
 	/* Lock any soc requested gpios */
-	if (soc_gpio_num)
-		gpio_lock_pads(soc_gpios, soc_gpio_num);
+	if (soc_gpio_num && gpio_lock_pads(soc_gpios, soc_gpio_num)) {
+		printk(BIOS_ERR, "%s: Failed to lock SoC GPIO pads\n", __func__);
+		return -1;
+	}
+
+	return 0;
 }
 
 static void enable_smm_code_access_check(void)
@@ -436,15 +440,14 @@ static void enable_smm_code_access_check(void)
 	printk(BIOS_DEBUG, "Enabled SMM code access check\n");
 }
 
-static void finalize(void)
+static int finalize(void)
 {
 	static int finalize_done;
 
 	if (finalize_done) {
 		printk(BIOS_DEBUG, "SMM already finalized.\n");
-		return;
+		return 0;
 	}
-	finalize_done = 1;
 
 	enable_smm_code_access_check();
 
@@ -465,11 +468,14 @@ static void finalize(void)
 	mainboard_smi_finalize();
 
 	/* Lock down all GPIOs that may have been requested by the SoC and/or the mainboard. */
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS))
-		soc_lock_gpios();
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) && soc_lock_gpios())
+		return -1;
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
 	smihandler_soc_at_finalize();
+	finalize_done = 1;
+
+	return 0;
 }
 
 void smihandler_southbridge_apmc(
@@ -502,7 +508,13 @@ void smihandler_southbridge_apmc(
 			southbridge_smi_cfr_settings();
 		break;
 	case APM_CNT_FINALIZE:
-		finalize();
+		{
+			int node = save_state_ops->apmc_node(APM_CNT_FINALIZE);
+			uint32_t ret = finalize();
+
+			if (node >= 0)
+				save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+		}
 		break;
 	case APM_CNT_CFR_RUNTIME_APPLY:
 		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
