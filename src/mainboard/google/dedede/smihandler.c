@@ -53,7 +53,7 @@ void __weak variant_smi_sleep(u8 slp_typ)
 {
 }
 
-static void mainboard_config_cbi_wp(void)
+static int mainboard_config_cbi_wp(void)
 {
 	int hw_wp = gpio_get(GPIO_PCH_WP);
 	const struct spi_flash *spi_flash_dev = boot_device_spi_flash();
@@ -76,7 +76,7 @@ static void mainboard_config_cbi_wp(void)
 	if (spi_flash_status(spi_flash_dev, &sr1) < 0) {
 		printk(BIOS_ERR, "MB: Failed to read SPI status register 1\n");
 		printk(BIOS_ERR, "MB: CBI EEPROM WP cannot change!");
-		return;
+		return -1;
 	}
 
 	/*
@@ -93,13 +93,19 @@ static void mainboard_config_cbi_wp(void)
 
 	/* Lock the configuration down. */
 	rv = gpio_lock_pad(GPP_B16, GPIO_LOCK_FULL);
-	if (rv)
+	if (rv) {
 		printk(BIOS_ERR, "MB: Failed to lock CBI WP (rv=%d)\n",
 		       rv);
+		return -1;
+	}
+
+	return 0;
 }
 
-void mainboard_smi_finalize(void)
+int mainboard_smi_finalize(void)
 {
 	if (CONFIG(BOARD_GOOGLE_BASEBOARD_DEDEDE_TPM2))
-		mainboard_config_cbi_wp();
+		return mainboard_config_cbi_wp();
+
+	return 0;
 }

@@ -68,7 +68,7 @@ void mainboard_smi_gpi(u32 gpi_sts);
 int  mainboard_smi_apmc(u8 data);
 void mainboard_smi_sleep(u8 slp_typ);
 void mainboard_smi_sleep_finalize(u8 slp_typ);
-void mainboard_smi_finalize(void);
+int mainboard_smi_finalize(void);
 int mainboard_set_smm_log_level(void);
 
 void smm_soc_early_init(void);

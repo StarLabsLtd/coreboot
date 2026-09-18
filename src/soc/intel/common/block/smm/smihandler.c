@@ -465,7 +465,8 @@ static int finalize(void)
 	 * interface.  Some boards may require this interface in mainboard_smi_finalize(),
 	 * therefore, this call must precede smihandler_soc_at_finalize().
 	 */
-	mainboard_smi_finalize();
+	if (mainboard_smi_finalize())
+		return -1;
 
 	/* Lock down all GPIOs that may have been requested by the SoC and/or the mainboard. */
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) && soc_lock_gpios())
