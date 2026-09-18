@@ -402,8 +402,8 @@ static void gpio_configure_pad(const struct pad_config *cfg)
 	gpi_enable_smi(cfg, comm, group, pin);
 	gpi_enable_nmi(cfg, comm, group, pin);
 	gpi_enable_gpe(cfg, comm, group, pin);
-	if (cfg->lock_action)
-		gpio_lock_pad(cfg->pad, cfg->lock_action);
+	if (cfg->lock_action && gpio_lock_pad(cfg->pad, cfg->lock_action))
+		printk(BIOS_ERR, "Failed to lock GPIO pad %d\n", cfg->pad);
 }
 
 void gpio_configure_pads(const struct pad_config *cfg, size_t num_pads)
