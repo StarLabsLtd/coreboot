@@ -704,7 +704,8 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 		}
 	}
 
-	p2sb_unhide();
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI))
+		p2sb_unhide();
 
 	for (int x = 0; x < count; x++) {
 		pad = pad_list[x].pad;
@@ -751,7 +752,8 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 			ret = -1;
 	}
 
-	p2sb_hide();
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI))
+		p2sb_hide();
 
 	return ret;
 }
