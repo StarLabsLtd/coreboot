@@ -15,7 +15,22 @@ install-image-size
 install-scratch-communication install-scratch-staging install-region-count
 install-missing-hash install-media-context-null install-media-context-large
 install-sha-context-null install-sha-context-large install-proof-context-null
-install-proof-context-large no-grant grant-transaction grant-version digest guard
+install-missing-authenticate install-authenticate-context-null
+install-authenticate-context-large install-proof-context-large
+authenticate-happy authenticate-source-mutation authenticate-context-mutation
+authenticate-check-only authenticate-set-one-shot authenticate-reject
+authenticate-image-mutation authenticate-guard authenticate-digest
+authenticate-generation authenticate-image-size authenticate-operation
+authenticate-flags authenticate-revision authenticate-size
+authenticate-transaction authenticate-algorithm authenticate-digest-size
+authenticate-reserved authenticate-version authenticate-closed
+authenticate-unstaged
+authenticate-reenter authenticate-callback-grant authenticate-callback-handle
+authenticate-callback-close authenticate-callback-mutation
+proof-close-1 proof-close-2 proof-close-3 proof-close-4 proof-close-5
+proof-reenter-1 proof-reenter-2 proof-reenter-3 proof-reenter-4 proof-reenter-5
+hash-close-1 hash-close-2 hash-reenter-1 hash-reenter-2
+no-grant grant-transaction grant-version digest guard
 malformed message-revision message-size message-operation message-flags
 message-transaction message-image message-algorithm message-digest-size
 message-result message-status preflight preflight-range preflight-smmstore
@@ -49,6 +64,7 @@ run_test()
 
 run_test ordinary
 run_test optimized -O2
+run_test strict -O2 -Wconversion -Wsign-conversion
 run_test sanitized -O1 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
-printf '%s\n' 'Capsule broker O0/O2/ASan+UBSan hostile cases: PASS'
+printf '%s\n' 'Capsule broker O0/O2/strict/ASan+UBSan hostile cases: PASS'

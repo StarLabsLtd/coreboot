@@ -4,6 +4,7 @@
 #define LIB_CAPSULE_BROKER_INTERNAL_H
 
 #include <boot/capsule_broker.h>
+#include <boot/payload_mm_authvar.h>
 #include "capsule_update_internal.h"
 
 typedef bool capsule_broker_range_proof_fn(void *context, uint64_t base,
@@ -11,6 +12,8 @@ typedef bool capsule_broker_range_proof_fn(void *context, uint64_t base,
 typedef bool capsule_broker_state_proof_fn(void *context);
 typedef enum cb_err capsule_broker_sha256_fn(void *context, const void *data,
 	size_t size, uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE]);
+typedef enum cb_err capsule_broker_authenticate_fn(const void *context,
+	const void *image, size_t image_size, uint32_t attempted_version);
 
 struct capsule_broker_proofs {
 	capsule_broker_range_proof_fn *communication_reserved;
@@ -43,6 +46,9 @@ struct capsule_broker_policy {
 	capsule_broker_sha256_fn *sha256;
 	void *sha256_context;
 	size_t sha256_context_size;
+	capsule_broker_authenticate_fn *authenticate;
+	const void *authenticate_context;
+	size_t authenticate_context_size;
 	struct capsule_broker_proofs proofs;
 };
 
@@ -57,8 +63,13 @@ enum cb_err capsule_broker_policy_install(
 bool capsule_broker_generation_matches(uint64_t generation);
 bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size);
 bool capsule_broker_buffer_available(const void *buffer, size_t size);
+enum cb_err capsule_broker_authenticate_intent(
+	const struct payload_mm_fmp_capsule_intent *intent);
 
-/* Called only by the protected variable owner after durable checkpoint commit. */
+/*
+ * Called only by the protected variable owner after a matching SET was
+ * authenticated and its durable failure checkpoint committed.
+ */
 enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,
 	uint64_t transaction, uint32_t attempted_version);
 
