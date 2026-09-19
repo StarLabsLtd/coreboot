@@ -9,6 +9,17 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
+legacy_symbols='capsule_broker_handle(
+capsule_broker_authenticate_intent(
+capsule_broker_checkpoint_grant(
+payload_mm_fmp_checkpoint_commit('
+for symbol in $legacy_symbols; do
+	if grep -R -F "$symbol" "$root/src/lib" "$root/src/include"; then
+		printf '%s\n' "legacy capsule route remains: $symbol" >&2
+		exit 1
+	fi
+done
+
 cases='endpoint install-storage install-communication install-staging install-dma
 install-spi install-raw install-rendezvous install-scratch install-geometry
 install-image-size
@@ -19,24 +30,24 @@ install-missing-authenticate install-authenticate-context-null
 install-authenticate-context-large install-proof-context-large
 authenticate-happy authenticate-source-mutation authenticate-context-mutation
 authenticate-check-only authenticate-set-one-shot authenticate-reject
-authenticate-image-mutation authenticate-guard authenticate-digest
+authenticate-image-mutation authenticate-owner-mutation authenticate-guard authenticate-digest
 authenticate-generation authenticate-image-size authenticate-operation
 authenticate-flags authenticate-revision authenticate-size
 authenticate-transaction authenticate-algorithm authenticate-digest-size
 authenticate-reserved authenticate-version authenticate-closed
 authenticate-unstaged
-authenticate-reenter authenticate-callback-grant authenticate-callback-handle
+authenticate-reenter authenticate-callback-grant authenticate-callback-apply
 authenticate-callback-close authenticate-callback-mutation
 proof-close-1 proof-close-2 proof-close-3 proof-close-4 proof-close-5
 proof-reenter-1 proof-reenter-2 proof-reenter-3 proof-reenter-4 proof-reenter-5
 hash-close-1 hash-close-2 hash-reenter-1 hash-reenter-2
 no-grant grant-transaction grant-version digest guard
-malformed message-revision message-size message-operation message-flags
-message-transaction message-image message-algorithm message-digest-size
-message-result message-status preflight preflight-range preflight-smmstore
+preflight preflight-range preflight-smmstore
 preflight-policy
-media-erase media-write media-read media-verify stale close s3 snapshot
+media-erase media-write media-read media-verify stale close s3
 policy-snapshot grant-edges generation-match'
+cases="$cases bound-happy bound-sequence bound-digest bound-unstaged
+bound-mutation"
 cases="$cases source-mutation"
 
 run_test()

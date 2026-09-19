@@ -17,7 +17,7 @@ header-no-body reentry source-copy version floor payload-floor
 missing-version foreign-board duplicate-fmap
 duplicate-build-info verify-failure install-owner install-protection
 install-mutation install-authority-mutation install-xdr install-source
-install-image-size'
+install-image-size owner-same-sequence owner-aba'
 
 run_test()
 {

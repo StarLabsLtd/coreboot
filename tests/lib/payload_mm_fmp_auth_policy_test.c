@@ -26,6 +26,7 @@ static bool verify_ok = true;
 static bool mutate_policy;
 static bool mutate_authority;
 static bool reenter;
+static bool mutate_owner_read;
 static unsigned int verifies;
 
 static size_t read_file(const char *path, uint8_t *data, size_t capacity)
@@ -191,6 +192,8 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 {
 	assert(key == PAYLOAD_MM_FMP_STATE_KEY_STATE);
 	*record = state;
+	if (mutate_owner_read)
+		record->data[4] ^= 1;
 	return CB_SUCCESS;
 }
 
@@ -219,7 +222,7 @@ enum payload_mm_verify_status payload_mm_authenticate_image(
 	verifies++;
 	if (reenter)
 		assert(payload_mm_fmp_authenticate_provider(NULL, image->data,
-			image->size, 3) == CB_ERR);
+			image->size, 3, &state) == CB_ERR);
 	if (!verify_ok)
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	*authenticated = (struct payload_mm_authenticated_image) {
@@ -314,7 +317,7 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3) == CB_SUCCESS);
+			auth_used, 3, &state) == CB_SUCCESS);
 		return 0;
 	}
 #endif
@@ -328,7 +331,7 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3) == CB_SUCCESS);
+			auth_used, 3, &state) == CB_SUCCESS);
 		return 0;
 	}
 #endif
@@ -426,6 +429,25 @@ int main(int argc, char **argv)
 		trust[4] ^= 1;
 		value.trusted_lowest_version = UINT32_MAX;
 	}
+	if (!strcmp(test, "owner-same-sequence")) {
+		struct payload_mm_fmp_owner_record expected = state;
+
+		state.data[4] ^= 1;
+		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
+			auth_used, 3, &expected) == CB_ERR);
+		assert(state.sequence == expected.sequence);
+		assert(memcmp(&state, &expected, sizeof(state)) != 0);
+		return 0;
+	}
+	if (!strcmp(test, "owner-aba")) {
+		struct payload_mm_fmp_owner_record expected = state;
+
+		mutate_owner_read = true;
+		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
+			auth_used, 3, &expected) == CB_ERR);
+		assert(!memcmp(&state, &expected, sizeof(state)));
+		return 0;
+	}
 	if (!strcmp(test, "success") || !strcmp(test, "dependency") ||
 	    !strcmp(test, "dependency-declared") ||
 	    !strcmp(test, "dependency-guid") ||
@@ -433,10 +455,10 @@ int main(int argc, char **argv)
 	    !strcmp(test, "header-extension-dependency") ||
 	    !strcmp(test, "reentry") || !strcmp(test, "source-copy")) {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3) == CB_SUCCESS);
+			auth_used, 3, &state) == CB_SUCCESS);
 	} else {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3) == CB_ERR);
+			auth_used, 3, &state) == CB_ERR);
 	}
 	if (!strcmp(test, "floor"))
 		assert(verifies == 0);

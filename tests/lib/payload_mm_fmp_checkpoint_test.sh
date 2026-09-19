@@ -16,6 +16,7 @@ bad-reserved2 bad-sequence bad-present absent sequence-wrap bad-validity
 wrong-generation zero-transaction low-version durable-lsv grant-failure
 read-input-mutation commit-input-mutation replay-after-failure max-transaction
 idempotent-sequence-max outstanding-grant install-no-owner
+bound-success bound-sequence bound-record
 install-zero-generation install-generation-mismatch install-null install-misaligned install-outside
 install-no-proof install-authority-unprotected install-workspace-unprotected
 install-authority-mutation-failure install-workspace-mutation-failure'
