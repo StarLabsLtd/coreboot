@@ -32,7 +32,7 @@ static bool key_valid(uint32_t key)
 	return key <= PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION;
 }
 
-static bool record_valid(uint32_t key,
+bool payload_mm_fmp_owner_record_valid(uint32_t key,
 	const struct payload_mm_fmp_owner_record *record)
 {
 	uint32_t expected_size = key == PAYLOAD_MM_FMP_STATE_KEY_STATE ?
@@ -145,7 +145,7 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	if (owner_authority.backend.read(owner_authority.backend.context, &identity,
 		key, &snapshot) != CB_SUCCESS ||
 	    memcmp(&identity, &expected_identity, sizeof(identity)) != 0 ||
-	    !record_valid(key, &snapshot))
+	    !payload_mm_fmp_owner_record_valid(key, &snapshot))
 		return CB_ERR;
 	*record = snapshot;
 	return CB_SUCCESS;
@@ -167,7 +167,8 @@ static enum cb_err commit(uint32_t key,
 
 	if (!owner_authority.installed || owner_authority.busy)
 		return CB_ERR;
-	if (!record_valid(key, &current) || !record_valid(key, &candidate) ||
+	if (!payload_mm_fmp_owner_record_valid(key, &current) ||
+	    !payload_mm_fmp_owner_record_valid(key, &candidate) ||
 	    current.sequence == UINT64_MAX ||
 	    candidate.sequence != current.sequence + 1)
 		return CB_ERR;
@@ -187,7 +188,7 @@ static enum cb_err commit(uint32_t key,
 		owner_authority.backend.read(owner_authority.backend.context,
 			&identity, key, &verified) == CB_SUCCESS &&
 		memcmp(&identity, &expected_identity, sizeof(identity)) == 0 &&
-		record_valid(key, &verified);
+		payload_mm_fmp_owner_record_valid(key, &verified);
 	owner_authority.busy = false;
 	if (!inputs_unchanged || !readback_valid ||
 	    memcmp(&verified, &expected_candidate, sizeof(verified)) != 0)
@@ -229,7 +230,8 @@ enum cb_err payload_mm_fmp_owner_remove_legacy(uint32_t key,
 	    !owner_buffer(current, sizeof(*current)))
 		return CB_ERR;
 	current_snapshot = *current;
-	if (!record_valid(key, &current_snapshot) || !current_snapshot.present ||
+	if (!payload_mm_fmp_owner_record_valid(key, &current_snapshot) ||
+	    !current_snapshot.present ||
 	    current_snapshot.sequence == UINT64_MAX)
 		return CB_ERR;
 	candidate = (struct payload_mm_fmp_owner_record) {

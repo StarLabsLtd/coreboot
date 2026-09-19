@@ -137,8 +137,20 @@ exact candidate record is success even after an ambiguous callback error; the
 exact prior record is failure, and unavailable, invalid, torn or any other
 valid record fails closed. Callback mutation of the identity or either record
 also fails closed. The checkpoint performs its own exact-state read after the
-owner has reconciled that outcome. It remains dormant because this series
-supplies no reset-safe, rollback-protected variable backend.
+owner has reconciled that outcome.
+
+The dormant generic owner journal is the first storage-side prerequisite, not
+a platform backend. It binds one global epoch and all five fixed owner records
+to one storage domain and the sealed identity set in a canonical manifest. An
+abstract protected anchor names only an exact epoch and SHA-256 manifest
+digest. Two erase domains hold append-only fixed slots. Recovery ignores
+unanchored stale or newer records and accepts only the exact manifest named by
+the anchor. Garbage collection first copies and verifies the authoritative
+manifest in an erased alternate domain, then may erase its sole old copy. A
+conditional anchor result is always reconciled by rereading both anchor and
+manifest. A cleared anchor never initializes at runtime; a separate explicit
+factory-provision operation is the only creation path. No anchor provider,
+flash range or platform selection is supplied.
 
 ## Lifecycle
 
@@ -181,7 +193,8 @@ specific values. A partial-media failure remains a reset/recovery case.
 | Platform policy producer and trust anchors | Open |
 | Typed checkpoint engine and grant ordering | Implemented, unselected |
 | Synchronous staged-intent transaction executor | Implemented, unselected |
-| Atomic rollback-protected variable backend | Open |
+| Generic two-domain owner journal | Implemented, unselected |
+| Protected monotonic anchor and media backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
 | Fixed typed transport dispatcher | Implemented, unselected |
 | SMI entry and endpoint publication | Open |
