@@ -11,7 +11,16 @@ static struct {
 	struct payload_mm_authvar_request request;
 	size_t message_size;
 	uint8_t message[COMM_BYTES];
+	struct payload_mm_fmp_state_command command;
+	uint8_t current_state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE + 8] __aligned(8);
 } trusted __aligned(4096);
+
+static const guid_t state_guid = GUID_INIT(0x975cd0e6, 0xc540, 0x4e2b,
+	0x90, 0x6c, 0x72, 0xc0, 0xd0, 0xd1, 0xe4, 0x0d);
+static const uint8_t state_guid_bytes[16] = {
+	0xe6, 0xd0, 0x5c, 0x97, 0x40, 0xc5, 0x2b, 0x4e,
+	0x90, 0x6c, 0x72, 0xc0, 0xd0, 0xd1, 0xe4, 0x0d,
+};
 
 static bool owns_store;
 static bool owns_smm;
@@ -74,6 +83,15 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 	assert(context == &ownership_calls);
 	assert(storage != NULL);
 	assert(size >= sizeof(struct payload_mm_authvar_contract) + 2);
+	return protects_authority;
+}
+
+static bool protected_state_storage(void *context, const void *storage,
+	size_t size)
+{
+	assert(context == &ownership_calls);
+	assert(storage != NULL);
+	assert(size >= sizeof(struct payload_mm_fmp_state_policy));
 	return protects_authority;
 }
 
@@ -253,10 +271,303 @@ static void request_mutations(void)
 		&trusted.message_size) == CB_ERR);
 }
 
+static void write32(uint8_t *data, uint32_t value)
+{
+	data[0] = value;
+	data[1] = value >> 8;
+	data[2] = value >> 16;
+	data[3] = value >> 24;
+}
+
+static struct payload_mm_fmp_state_policy state_policy(uint64_t instance)
+{
+	struct payload_mm_fmp_state_policy policy = {
+		.revision = PAYLOAD_MM_FMP_STATE_POLICY_REVISION,
+		.size = sizeof(policy),
+		.hardware_instance = instance,
+		.trusted_lowest_version = 7,
+	};
+
+	policy.namespace_guid = state_guid;
+	return policy;
+}
+
+static struct payload_mm_fmp_state_message state_message(uint32_t operation,
+	uint32_t key, uint64_t transaction)
+{
+	return (struct payload_mm_fmp_state_message) {
+		.revision = PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION,
+		.size = sizeof(struct payload_mm_fmp_state_message),
+		.operation = operation,
+		.key = key,
+		.transaction = transaction,
+		.data_size = key == PAYLOAD_MM_FMP_STATE_KEY_STATE ?
+			PAYLOAD_MM_FMP_STATE_WIRE_SIZE : sizeof(uint32_t),
+		.result = PAYLOAD_MM_FMP_STATE_RESULT_PENDING,
+	};
+}
+
+static enum cb_err prepare_state(const struct payload_mm_fmp_state_message *message,
+	bool current)
+{
+	memcpy(trusted.message, message, sizeof(*message));
+	memset(&trusted.command, 0xa5, sizeof(trusted.command));
+	return payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(*message), current ? trusted.current_state : NULL,
+		current ? PAYLOAD_MM_FMP_STATE_WIRE_SIZE : 0, &trusted.command);
+}
+
+static void expect_name(const char *expected)
+{
+	size_t length = strlen(expected);
+
+	assert(trusted.command.variable_name_bytes ==
+		(length + 1) * sizeof(uint16_t));
+	for (size_t i = 0; i < length; i++)
+		assert(trusted.command.variable_name[i] == (uint8_t)expected[i]);
+	assert(!trusted.command.variable_name[length]);
+}
+
+static void state_message_mutations(uint64_t transaction)
+{
+	struct payload_mm_fmp_state_message message;
+	struct payload_mm_fmp_state_command outside;
+
+#define REJECT(member, value) do { \
+	message = state_message(PAYLOAD_MM_FMP_STATE_READ, \
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction); \
+	message.member = (value); \
+	assert(prepare_state(&message, false) == CB_ERR); \
+} while (0)
+	REJECT(revision, 2);
+	REJECT(size, sizeof(message) - 1);
+	REJECT(operation, 0);
+	REJECT(key, PAYLOAD_MM_FMP_STATE_KEY_NONE);
+	REJECT(transaction, 0);
+	REJECT(attributes, 1);
+	REJECT(data_size, sizeof(uint32_t));
+	REJECT(result, 0);
+	REJECT(reserved, 1);
+#undef REJECT
+
+	message = state_message(PAYLOAD_MM_FMP_STATE_READ,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction);
+	message.data[19] = 1;
+	assert(prepare_state(&message, false) == CB_ERR);
+	memcpy(trusted.message, &message, sizeof(message));
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message) - 1, NULL, 0, &trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message + 1,
+		sizeof(message), NULL, 0, &trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(&message, sizeof(message),
+		NULL, 0, &trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), NULL, 0, &outside) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), NULL, 0,
+		(struct payload_mm_fmp_state_command *)trusted.message) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), trusted.message,
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE, &trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), &message, PAYLOAD_MM_FMP_STATE_WIRE_SIZE,
+		&trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), trusted.current_state + 1,
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE, &trusted.command) == CB_ERR);
+	assert(payload_mm_fmp_state_command_prepare(trusted.message,
+		sizeof(message), (uint8_t *)&trusted.command + 8,
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE, &trusted.command) == CB_ERR);
+}
+
+static void state_write_mutations(uint64_t transaction)
+{
+	struct payload_mm_fmp_state_message message = state_message(
+		PAYLOAD_MM_FMP_STATE_WRITE_STATE, PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		transaction);
+
+	message.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+	message.data[0] = 2;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.data[0] = 0;
+	message.attributes = 0;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+	message.data_size--;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.data_size = PAYLOAD_MM_FMP_STATE_WIRE_SIZE;
+	message.key = PAYLOAD_MM_FMP_STATE_KEY_VERSION;
+	assert(prepare_state(&message, false) == CB_ERR);
+}
+
+static void state_control_mutations(uint64_t transaction)
+{
+	struct payload_mm_fmp_state_message message = state_message(
+		PAYLOAD_MM_FMP_STATE_REMOVE_LEGACY,
+		PAYLOAD_MM_FMP_STATE_KEY_VERSION, transaction);
+
+	message.data_size = 0;
+	message.key = PAYLOAD_MM_FMP_STATE_KEY_STATE;
+	assert(prepare_state(&message, true) == CB_ERR);
+	message.key = PAYLOAD_MM_FMP_STATE_KEY_VERSION;
+	message.attributes = 1;
+	assert(prepare_state(&message, true) == CB_ERR);
+	message.attributes = 0;
+	message.data_size = sizeof(uint32_t);
+	assert(prepare_state(&message, true) == CB_ERR);
+	message.data_size = 0;
+	message.data[0] = 1;
+	assert(prepare_state(&message, true) == CB_ERR);
+
+	message = state_message(PAYLOAD_MM_FMP_STATE_CLOSE_STATE,
+		PAYLOAD_MM_FMP_STATE_KEY_NONE, transaction);
+	message.data_size = 0;
+	message.key = PAYLOAD_MM_FMP_STATE_KEY_STATE;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.key = PAYLOAD_MM_FMP_STATE_KEY_NONE;
+	message.attributes = 1;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.attributes = 0;
+	message.data_size = sizeof(uint32_t);
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.data_size = 0;
+	message.data[19] = 1;
+	assert(prepare_state(&message, false) == CB_ERR);
+}
+
+static void state_max_transaction_test(void)
+{
+	struct payload_mm_fmp_state_policy policy = state_policy(0);
+	struct payload_mm_fmp_state_message message = state_message(
+		PAYLOAD_MM_FMP_STATE_READ, PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		UINT64_MAX);
+
+	assert(payload_mm_fmp_state_policy_install(&policy,
+		protected_state_storage, &ownership_calls) == CB_SUCCESS);
+	assert(prepare_state(&message, false) == CB_SUCCESS);
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.transaction = UINT64_MAX - 1;
+	assert(prepare_state(&message, false) == CB_ERR);
+	message.transaction = 1;
+	assert(prepare_state(&message, false) == CB_ERR);
+}
+
+static void state_contract_tests(bool nonzero_instance)
+{
+	static const char *const base_names[] = {
+		"FmpState", "FmpVersion", "FmpLsv", "LastAttemptStatus",
+		"LastAttemptVersion",
+	};
+	struct payload_mm_fmp_state_policy policy = state_policy(nonzero_instance ?
+		0x1234567812345678ULL : 0);
+	struct payload_mm_fmp_state_message message;
+	uint64_t transaction = 1;
+
+	assert(!memcmp(state_guid.b, state_guid_bytes, sizeof(state_guid_bytes)));
+	assert(payload_mm_fmp_state_policy_install(&policy,
+		protected_state_storage, &ownership_calls) == CB_SUCCESS);
+	policy.hardware_instance++;
+	assert(payload_mm_fmp_state_policy_install(&policy,
+		protected_state_storage, &ownership_calls) == CB_ERR);
+	state_message_mutations(transaction);
+	for (uint32_t key = PAYLOAD_MM_FMP_STATE_KEY_STATE;
+	     key <= PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION; key++) {
+		char expected[40];
+
+		message = state_message(PAYLOAD_MM_FMP_STATE_READ, key, transaction++);
+		assert(prepare_state(&message, false) == CB_SUCCESS);
+		if (nonzero_instance) {
+			size_t length = strlen(base_names[key]);
+
+			assert(length + 17 <= sizeof(expected));
+			memcpy(expected, base_names[key], length);
+			memcpy(expected + length, "1234567812345678", 17);
+			expect_name(expected);
+		} else {
+			expect_name(base_names[key]);
+		}
+		assert(!guidcmp(&trusted.command.namespace_guid, &state_guid));
+		assert(trusted.command.hardware_instance ==
+			(nonzero_instance ? 0x1234567812345678ULL : 0));
+		assert(trusted.command.trusted_lowest_version == 7);
+		if (key == PAYLOAD_MM_FMP_STATE_KEY_STATE) {
+			trusted.message[0] = 0;
+			assert(trusted.command.message.revision ==
+				PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION);
+		}
+	}
+	message = state_message(PAYLOAD_MM_FMP_STATE_READ,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction - 1);
+	assert(prepare_state(&message, false) == CB_ERR);
+
+	state_write_mutations(transaction);
+	message = state_message(PAYLOAD_MM_FMP_STATE_WRITE_STATE,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction++);
+	message.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+	message.data[0] = 1;
+	message.data[1] = 1;
+	write32(message.data + 4, 7);
+	write32(message.data + 8, 7);
+	assert(prepare_state(&message, false) == CB_SUCCESS);
+	memcpy(trusted.current_state, message.data,
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+
+	message.transaction = transaction;
+	memset(trusted.current_state, 0, PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	memset(message.data, 0, sizeof(message.data));
+	for (size_t i = 0; i < 4; i++) {
+		trusted.current_state[i] = 1;
+		message.data[i] = 1;
+	}
+	write32(trusted.current_state + 4, 7);
+	write32(trusted.current_state + 8, 7);
+	write32(message.data + 4, 7);
+	write32(message.data + 8, 7);
+	for (size_t i = 0; i < 4; i++) {
+		message.data[i] = 0;
+		assert(prepare_state(&message, true) == CB_ERR);
+		message.data[i] = 1;
+	}
+	trusted.current_state[2] = 2;
+	assert(prepare_state(&message, true) == CB_ERR);
+	trusted.current_state[2] = 1;
+	write32(message.data + 8, 6);
+	assert(prepare_state(&message, true) == CB_ERR);
+	write32(message.data + 8, 8);
+	write32(message.data + 4, 8);
+	assert(prepare_state(&message, true) == CB_SUCCESS);
+	transaction++;
+	memcpy(trusted.current_state, message.data,
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	state_control_mutations(transaction);
+
+	message = state_message(PAYLOAD_MM_FMP_STATE_REMOVE_LEGACY,
+		PAYLOAD_MM_FMP_STATE_KEY_VERSION, transaction);
+	message.data_size = 0;
+	assert(prepare_state(&message, false) == CB_ERR);
+	assert(prepare_state(&message, true) == CB_SUCCESS);
+	transaction++;
+	message = state_message(PAYLOAD_MM_FMP_STATE_REMOVE_LEGACY,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction);
+	message.data_size = 0;
+	assert(prepare_state(&message, true) == CB_ERR);
+
+	message = state_message(PAYLOAD_MM_FMP_STATE_CLOSE_STATE,
+		PAYLOAD_MM_FMP_STATE_KEY_NONE, transaction++);
+	message.data_size = 0;
+	assert(prepare_state(&message, false) == CB_SUCCESS);
+	assert(!trusted.command.variable_name_bytes);
+	assert(prepare_state(&message, false) == CB_ERR);
+	message = state_message(PAYLOAD_MM_FMP_STATE_READ,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, transaction);
+	assert(prepare_state(&message, false) == CB_ERR);
+}
+
 int main(int argc, char **argv)
 {
 	struct payload_mm_authvar_contract contract;
 	struct payload_mm_authvar_platform platform = valid_platform();
+	struct payload_mm_fmp_state_policy policy = state_policy(0);
 
 	enable_platform_facts();
 	contract_mutations();
@@ -264,8 +575,16 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_contract_build(&contract, &platform) == CB_SUCCESS);
 	assert(contract.flags == PAYLOAD_MM_AUTHVAR_REQUIRED_FLAGS);
 	assert(ownership_calls == 1);
-	if (argc > 1) {
-		(void)argv;
+	if (argc > 1 && !strcmp(argv[1], "state-before-authority")) {
+		assert(payload_mm_fmp_state_policy_install(&policy,
+			protected_state_storage, &ownership_calls) == CB_ERR);
+		assert(payload_mm_authvar_authority_install(&contract,
+			protected_storage, &ownership_calls) == CB_SUCCESS);
+		assert(payload_mm_fmp_state_policy_install(&policy,
+			protected_state_storage, &ownership_calls) == CB_ERR);
+		return 0;
+	}
+	if (argc > 1 && !strcmp(argv[1], "reject-authority")) {
 		protects_authority = false;
 		assert(payload_mm_authvar_authority_install(&contract,
 			protected_storage, &ownership_calls) == CB_ERR);
@@ -279,6 +598,36 @@ int main(int argc, char **argv)
 	contract.generation++;
 	assert(payload_mm_authvar_authority_install(&contract, protected_storage,
 		&ownership_calls) == CB_ERR);
+	if (argc > 1) {
+		if (!strcmp(argv[1], "state-bad-revision"))
+			policy.revision++;
+		else if (!strcmp(argv[1], "state-bad-size"))
+			policy.size--;
+		else if (!strcmp(argv[1], "state-zero-guid"))
+			memset(&policy.namespace_guid, 0, sizeof(policy.namespace_guid));
+		else if (!strcmp(argv[1], "state-reserved"))
+			policy.reserved = 1;
+		else if (!strcmp(argv[1], "state-unprotected"))
+			protects_authority = false;
+		else if (strcmp(argv[1], "instance") &&
+			 strcmp(argv[1], "max-transaction"))
+			assert(false);
+		if (strcmp(argv[1], "instance") &&
+		    strcmp(argv[1], "max-transaction")) {
+			assert(payload_mm_fmp_state_policy_install(&policy,
+				protected_state_storage, &ownership_calls) == CB_ERR);
+			protects_authority = true;
+			policy = state_policy(0);
+			assert(payload_mm_fmp_state_policy_install(&policy,
+				protected_state_storage, &ownership_calls) == CB_ERR);
+			return 0;
+		}
+	}
 	request_mutations();
+	if (argc > 1 && !strcmp(argv[1], "max-transaction")) {
+		state_max_transaction_test();
+		return 0;
+	}
+	state_contract_tests(argc > 1);
 	return 0;
 }

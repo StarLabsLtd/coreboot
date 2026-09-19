@@ -28,12 +28,29 @@ static bool ranges_overlap(uint64_t left_base, uint64_t left_size,
 	return left_base < right_end && right_base < left_end;
 }
 
+bool payload_mm_authvar_buffers_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	return ranges_overlap((uintptr_t)left, left_size, (uintptr_t)right,
+		right_size);
+}
+
 static bool smram_output(const void *output, size_t size)
 {
 	return payload_mm_authvar_range_within((uintptr_t)output, size,
 			authority.contract.smram.base, authority.contract.smram.size) &&
 		!ranges_overlap((uintptr_t)output, size, (uintptr_t)&authority,
 			sizeof(authority));
+}
+
+bool payload_mm_authvar_authority_ready(void)
+{
+	return authority.installed;
+}
+
+bool payload_mm_authvar_smram_buffer(const void *buffer, size_t size)
+{
+	return authority.installed && smram_output(buffer, size);
 }
 
 enum cb_err payload_mm_authvar_authority_install(
