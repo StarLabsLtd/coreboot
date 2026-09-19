@@ -87,7 +87,8 @@ static enum cb_err finish(uint64_t transaction, enum cb_err status,
 	return status;
 }
 
-enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address)
+static enum cb_err execute(uint64_t request_address,
+	const struct payload_mm_fmp_capsule_intent *direct_intent)
 {
 	struct payload_mm_fmp_owner_record before;
 	struct payload_mm_fmp_owner_record after;
@@ -98,7 +99,8 @@ enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address)
 	bool set_operation = false;
 
 	if (!transaction_authority.installed || transaction_authority.busy ||
-	    transaction_authority.closed || !request_address)
+	    transaction_authority.closed ||
+	    ((!request_address) == (!direct_intent)))
 		return CB_ERR;
 	transaction_authority.busy = true;
 	expected = control_state();
@@ -108,8 +110,8 @@ enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address)
 		capsule_broker_close_for_s3();
 		return CB_ERR;
 	}
-	if (payload_mm_fmp_dispatch_prepare(request_address, NULL, 0) !=
-		CB_SUCCESS) {
+	if ((direct_intent ? payload_mm_fmp_dispatch_prepare_intent(direct_intent) :
+		payload_mm_fmp_dispatch_prepare(request_address, NULL, 0)) != CB_SUCCESS) {
 		transaction_authority.busy = false;
 		transaction_authority.closed = true;
 		capsule_broker_close_for_s3();
@@ -183,6 +185,17 @@ out:
 	memset(&after, 0, sizeof(after));
 	memset(&intent, 0, sizeof(intent));
 	return finish(expected.last_transaction, status, set_operation);
+}
+
+enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address)
+{
+	return execute(request_address, NULL);
+}
+
+enum cb_err payload_mm_fmp_transaction_execute_intent(
+	const struct payload_mm_fmp_capsule_intent *intent)
+{
+	return execute(0, intent);
 }
 
 void payload_mm_fmp_transaction_close(void)

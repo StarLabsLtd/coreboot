@@ -141,7 +141,7 @@ static void proof_callback_enter(enum proof_callback callback)
 }
 
 struct fixture {
-	uint8_t communication[sizeof(struct capsule_broker_message)] __aligned(8);
+	uint8_t communication[CAPSULE_BROKER_TRANSPORT_SIZE] __aligned(8);
 	struct payload_mm_fmp_capsule_intent capsule;
 	uint8_t staging[STAGING_SIZE] __aligned(8);
 	uint8_t media[MEDIA_SIZE];
@@ -557,11 +557,22 @@ static void happy(void)
 static void generation_match_case(void)
 {
 	struct fixture fixture;
+	void *buffer = NULL;
+	size_t size = 0;
+	uint64_t generation = 0;
 
 	initialize(&fixture);
+	assert(!capsule_broker_transport_buffer(&buffer, &size, &generation));
 	assert(!capsule_broker_generation_matches(GENERATION));
 	assert(!capsule_broker_intent_matches(GENERATION, CAPSULE_SIZE));
 	install(&fixture);
+	assert(capsule_broker_transport_buffer(&buffer, &size, &generation));
+	assert(buffer == fixture.communication);
+	assert(size == sizeof(fixture.communication));
+	assert(generation == GENERATION);
+	assert(!capsule_broker_transport_buffer(NULL, &size, &generation));
+	assert(!capsule_broker_transport_buffer(&buffer, NULL, &generation));
+	assert(!capsule_broker_transport_buffer(&buffer, &size, NULL));
 	assert(capsule_broker_generation_matches(GENERATION));
 	assert(capsule_broker_intent_matches(GENERATION, CAPSULE_SIZE));
 	assert(capsule_broker_intent_matches(GENERATION, CAPSULE_SIZE - 1));
@@ -573,6 +584,7 @@ static void generation_match_case(void)
 	fixture.policy.endpoint.generation++;
 	assert(capsule_broker_generation_matches(GENERATION));
 	capsule_broker_close_for_s3();
+	assert(!capsule_broker_transport_buffer(&buffer, &size, &generation));
 	assert(!capsule_broker_generation_matches(GENERATION));
 	assert(!capsule_broker_intent_matches(GENERATION, CAPSULE_SIZE));
 }

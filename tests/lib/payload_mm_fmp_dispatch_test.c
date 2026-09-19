@@ -424,6 +424,7 @@ static void intent_case(const char *name)
 	const struct payload_mm_fmp_capsule_intent *staged;
 	uint64_t address;
 	uint64_t staged_transaction;
+	bool direct = !strcmp(name, "intent-direct");
 	bool overlap = false;
 
 	if (!strcmp(name, "intent-revision"))
@@ -500,7 +501,8 @@ static void intent_case(const char *name)
 		assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
 		return;
 	}
-	assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_SUCCESS);
+	assert((direct ? payload_mm_fmp_dispatch_prepare_intent(&capsule) :
+		payload_mm_fmp_dispatch_prepare(address, NULL, 0)) == CB_SUCCESS);
 	staged = payload_mm_fmp_dispatch_capsule_intent();
 	assert(staged == &smram.workspace.intent);
 	assert(payload_mm_fmp_dispatch_command() == NULL);

@@ -102,6 +102,14 @@ enum cb_err payload_mm_fmp_dispatch_prepare(uint64_t request_address,
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_fmp_dispatch_prepare_intent(
+	const struct payload_mm_fmp_capsule_intent *direct_intent)
+{
+	assert(direct_intent);
+	intent = *direct_intent;
+	return payload_mm_fmp_dispatch_prepare(0x1000, NULL, 0);
+}
+
 const struct payload_mm_fmp_capsule_intent *
 payload_mm_fmp_dispatch_capsule_intent(void)
 {

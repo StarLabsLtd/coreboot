@@ -31,6 +31,8 @@ bool payload_mm_fmp_dispatch_ready(void);
 bool payload_mm_fmp_dispatch_buffer_available(const void *buffer, size_t size);
 enum cb_err payload_mm_fmp_dispatch_prepare(uint64_t request_address,
 	const void *current_state, size_t current_state_size);
+enum cb_err payload_mm_fmp_dispatch_prepare_intent(
+	const struct payload_mm_fmp_capsule_intent *intent);
 const struct payload_mm_fmp_state_command *payload_mm_fmp_dispatch_command(void);
 const struct payload_mm_fmp_capsule_intent *
 	payload_mm_fmp_dispatch_capsule_intent(void);
