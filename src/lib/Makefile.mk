@@ -11,6 +11,7 @@ smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_layout.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_journal.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_rdev.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_transaction.c

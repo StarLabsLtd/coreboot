@@ -159,6 +159,20 @@ inside the media, erase aligned, composed of two to 32 equal slots, and
 disjoint from SMMSTORE and every allowed capsule route. The journal derives
 its storage-domain binding by hashing that exact descriptor.
 
+A dormant generic media adapter maps only those two validated `FMP_STATE_A`
+and `FMP_STATE_B` ranges onto writable `region_device` children of one media
+root. Reads, programs and erases must complete exactly within one domain;
+programming rejects every attempted zero-to-one transition, and erase uses the
+descriptor's exact geometry. Short or failed writes and erases are ambiguous
+until authoritative readback proves the requested bytes. Durability is a
+separate mandatory callback: no absent operation or successful return from a
+memory-backed `region_device` is treated as a flush. The copied layout,
+subregions, callback and callback context are sealed, and mutation or reentry
+fails closed; policy mutation poisons the adapter. This supplies no protected
+anchor, journal installation, platform selection or production SPI authority.
+The protected adapter object starts zeroed and accepts exactly one
+initialization attempt; malformed or repeated initialization poisons it.
+
 ## Lifecycle
 
 A malformed installation consumes the sole installation attempt. Typed
@@ -204,6 +218,7 @@ specific values. A partial-media failure remains a reset/recovery case.
 | Synchronous staged-intent transaction executor | Implemented, unselected |
 | Generic two-domain owner journal | Implemented, unselected |
 | Canonical FMAP owner layout and writer exclusions | Implemented, unselected |
+| Generic owner journal `region_device` media adapter | Implemented, unselected |
 | Protected monotonic anchor and media backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
 | Fixed typed transport dispatcher | Implemented, unselected |
@@ -218,7 +233,9 @@ provider. Host evidence is provided by:
 
 `Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF` additionally selects a dormant QEMU
 image layout with two 64 KiB preserved domains, each containing sixteen 4 KiB
-slots. It still installs no owner, broker, transport or SMI entry.
+slots, and compiles the dormant media adapter. QEMU memory-pflash can exercise
+`region_device` behavior but is not production SPI or durability authority. It
+still installs no owner, broker, transport or SMI entry.
 
 ```
 tests/lib/capsule_broker_test.sh
