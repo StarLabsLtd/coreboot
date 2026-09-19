@@ -22,6 +22,16 @@ config Q35_CAPSULE_UPDATE_TEST_PROOF
 	  authenticated live-ROM identity. The host proof uses an immutable test
 	  route policy; it is not firmware authority.
 
+config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
+	bool "QEMU-only Payload-MM authenticated-variable boundary proof"
+	default n
+	depends on HAVE_SMI_HANDLER
+	select PAYLOAD_MM_AUTHVAR_CONTRACT
+	help
+	  Compile the dormant typed boundary for hostile QEMU testing. This does
+	  not install a producer, SMI command, MM dispatcher or authenticated-
+	  variable service. It grants no SPI access.
+
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select CPU_QEMU_X86
