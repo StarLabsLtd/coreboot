@@ -49,10 +49,12 @@ The 26.09 tree provides some authoritative facts, but not the full chain:
 | Live board record | `lb_mainboard()` | One record is emitted |
 | Canonical image identity | CBFS `build_info` | Present, not authenticated on ordinary Q35 |
 | Board-to-image binding | `LB_MAINBOARD` versus `build_info` | No authenticated comparison hook |
-| Payload-callable broker | Existing SMMSTORE full-flash commands | Rejected: raw and over-broad |
+| Payload-callable broker | Dormant typed one-shot SMM contract | Unselected; no producer or dispatcher |
 | Durable update checkpoint | None in this contract | Missing |
 
-Production publication therefore remains gated on an authenticated current-ROM
+The dormant broker ABI and state machine are described in
+`Documentation/lib/capsule-broker-contract.md`. Production publication remains
+gated on an authenticated current-ROM
 `build_info`, a unique live-mainboard match made inside that trust boundary, an
 authoritative platform erase-geometry provider, and a distinct runtime broker
 transport with a durable checkpoint. The existing full-flash SMMSTORE mode is
@@ -62,8 +64,8 @@ not that broker and must not be widened or reused.
 
 `CAPSULE_UPDATE_CONTRACT` defaults off. No producer exists: in particular,
 there is no caller-supplied boolean or metadata path that can assert trust.
-No table producer, broker caller or
-flash backend is registered. Publishing the record before all production gates
+No table producer, broker caller, SMI dispatcher or production flash backend is
+registered. Publishing the record before all production gates
 above exist would turn metadata into authority.
 
 The standalone test emits a 144-byte fixture for byte-exact comparison with

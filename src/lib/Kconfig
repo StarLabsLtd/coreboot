@@ -52,6 +52,17 @@ config PAYLOAD_MM_AUTHVAR_CONTRACT
 	  persistence claim. A platform must select this together with a matched
 	  native payload and provide the missing SMM/SPI ownership hooks.
 
+config CAPSULE_BROKER_CONTRACT
+	bool
+	default n
+	depends on CAPSULE_UPDATE_CONTRACT && PAYLOAD_MM_AUTHVAR_CONTRACT
+	help
+	  Build the dormant one-shot SMM capsule-broker contract. This adds no
+	  producer, table publication, SMI command, dispatcher, production flash
+	  backend or selected payload service. A future platform must provide the
+	  protected policy, DMA-isolated staging, durable checkpoint grant and
+	  complete close-before-external-code lifecycle.
+
 config ROMSTAGE_ADA
 	bool
 	help
