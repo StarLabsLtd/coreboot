@@ -1865,18 +1865,22 @@ static void write_efi_option_suspend(void)
 	acpigen_emit_byte(LOCAL0_OP);
 	acpigen_emit_byte(LOCAL1_OP);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOKS", EC_ACPI_FIELD("KLSE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOKB", EC_ACPI_FIELD("KLBE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 }
@@ -1887,6 +1891,18 @@ static void write_efi_option_restore_integer(const char *field, uint64_t valid_v
 	write_ec_write_integer(valid_value, field);
 	acpigen_write_else();
 	write_ec_write_integer(0, field);
+	acpigen_write_if_end();
+}
+
+static void write_efi_option_restore_flag(const char *field)
+{
+	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
+	write_ec_write_integer(0, field);
+	acpigen_write_else();
+	write_method_call(EC_ACPI_METHOD("ECWR"));
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_emit_byte(REF_OF_OP);
+	acpigen_emit_namestring(field);
 	acpigen_write_if_end();
 }
 
@@ -1919,7 +1935,7 @@ static void write_efi_option_resume(void)
 	acpigen_emit_byte(STORE_OP);
 	write_efi_option_get("EOFL");
 	acpigen_emit_byte(LOCAL0_OP);
-	write_efi_option_restore_integer(EC_ACPI_FIELD("FLKE"), 1);
+	write_efi_option_restore_flag(EC_ACPI_FIELD("FLKE"));
 
 	acpigen_emit_byte(STORE_OP);
 	write_efi_option_get("EOKS");
