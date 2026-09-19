@@ -231,6 +231,28 @@ static void efi_test_new_write(void **state)
 	assert_string_equal((const char *)buf, "is awesome");
 }
 
+static void efi_test_rejects_oversized_entry(void **state)
+{
+	const size_t var_offset = sizeof(EFI_FIRMWARE_VOLUME_HEADER) +
+		8 + sizeof(EFI_GUID);
+	AUTHENTICATED_VARIABLE_HEADER *hdr;
+	uint8_t buf[16];
+	uint32_t size = sizeof(buf);
+	enum cb_err ret;
+
+	mock_rdev(true);
+	hdr = (AUTHENTICATED_VARIABLE_HEADER *)(flash_buffer + var_offset);
+	hdr->NameSize = sizeof(flash_buffer);
+
+	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, buf,
+				&size);
+	assert_int_equal(ret, CB_EFI_ACCESS_ERROR);
+
+	ret = efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid, name,
+				"replacement", sizeof("replacement"));
+	assert_int_equal(ret, CB_EFI_ACCESS_ERROR);
+}
+
 static void efi_test_initialize_erased_store(void **state)
 {
 	enum cb_err ret;
@@ -620,6 +642,7 @@ int main(void)
 		cmocka_unit_test(efi_test_header),
 		cmocka_unit_test(efi_test_noop_existing_write),
 		cmocka_unit_test(efi_test_new_write),
+		cmocka_unit_test(efi_test_rejects_oversized_entry),
 		cmocka_unit_test(efi_test_initialize_erased_store),
 		cmocka_unit_test(efi_test_refuse_non_erased_store),
 		cmocka_unit_test(efi_test_complete_interrupted_initialization),
