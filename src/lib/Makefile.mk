@@ -18,6 +18,7 @@ payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/cms.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/crypto.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/mbedtls_verify_wrap.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_fmp_auth_policy.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += \
 	$(addprefix $(payload_mm_mbedtls_dir)/library/,$(payload_mm_mbedtls_sources))
 ifeq ($(CONFIG_PAYLOAD_MM_CMS_VERIFY),y)

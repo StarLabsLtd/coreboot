@@ -66,7 +66,7 @@ config CAPSULE_BROKER_CONTRACT
 	  state. It also admits a separate, fixed authenticated-capsule CHECK/SET
 	  intent into protected staging and a sealed authentication-provider port;
 	  generic state writes cannot imply SET. A future platform must provide the
-	  provider, executor, backend, protected policy, DMA-isolated staging and
+	  executor, backend, protected policy producer, DMA-isolated staging and
 	  complete close-before-external-code lifecycle.
 
 config PAYLOAD_MM_CMS_VERIFY
@@ -76,8 +76,11 @@ config PAYLOAD_MM_CMS_VERIFY
 	help
 	  Build the dormant SMM-safe authenticated-capsule verification core. It
 	  accepts bounded canonical DER/CMS with RSA/SHA-256 X.509 chains and uses
-	  a fixed protected arena which is wiped after every call. This selects no
-	  trust policy, provider, executor, transport, SMI command or flash backend.
+	  a fixed protected arena which is wiped after every call. It also builds an
+	  unselected protected SystemFmp authentication-policy owner and capsule-
+	  broker provider. This selects no policy producer, executor, transport, SMI
+	  command or flash backend. A platform must seal its trust roots, image
+	  identity, board identity and version floor before installing it.
 
 config ROMSTAGE_ADA
 	bool

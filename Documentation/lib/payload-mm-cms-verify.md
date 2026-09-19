@@ -1,8 +1,10 @@
 # Payload-MM authenticated-capsule verification core
 
 `PAYLOAD_MM_CMS_VERIFY` is an unselected SMM-capable prerequisite. It does not
-publish a coreboot table, register an SMI command, choose trust anchors, install
-an authentication provider or authorize a flash operation.
+publish a coreboot table, register an SMI command, choose trust anchors or
+authorize a flash operation. It includes an unselected protected SystemFmp
+policy owner and capsule-broker authentication provider; no platform installs
+that owner in this tree.
 
 The parser accepts the retained EDK2 authenticated-image envelope and detached
 CMS SignedData profile used by SystemFmp: SHA-256, RSA PKCS#1 v1.5, canonical
@@ -44,3 +46,8 @@ CertificateSet orders and rejection of duplicate certificates. Setting
 `PAYLOAD_MM_REAL_CAPSULE` to the pinned 16,781,014-byte capsule additionally
 verifies its hash, extracted CMS and content digest before passing the complete
 authentication image through the native path.
+
+`tests/lib/payload_mm_fmp_auth_policy_test.sh` adds hostile policy, state, MSS1,
+dependency and ROM-layout cases at O0 and O2 and under ASan/UBSan. It also makes
+a fresh RSA root and authenticated MSS1 capsule, verifies the detached CMS with
+OpenSSL, then passes that same image and XDR root through the complete provider.
