@@ -6,6 +6,7 @@
 #include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar.h>
 #include "capsule_update_internal.h"
+#include "payload_mm_fmp_owner_layout_internal.h"
 
 struct payload_mm_fmp_owner_record;
 
@@ -43,6 +44,7 @@ struct capsule_broker_policy {
 	uint32_t erase_size;
 	uint32_t region_count;
 	struct lb_capsule_update_region regions[CAPSULE_UPDATE_MAX_REGIONS];
+	struct fmp_owner_layout owner_layout;
 	struct capsule_media_backend media;
 	size_t media_context_size;
 	void *scratch;

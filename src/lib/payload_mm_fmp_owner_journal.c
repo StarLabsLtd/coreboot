@@ -23,6 +23,7 @@ static struct {
 	struct payload_mm_fmp_state_identity
 		identity[PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS];
 	uint8_t identity_binding[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
+	u8 storage_domain[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
 	bool installed;
 	bool install_attempted;
 	bool busy;
@@ -69,39 +70,18 @@ static bool journal_storage_overlaps(const void *buffer, size_t size)
 		sizeof(journal));
 }
 
-static bool domains_valid(
-	const struct payload_mm_fmp_owner_journal_port *port)
-{
-	uint64_t end[PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS];
-
-	if (port->slot_size < sizeof(struct payload_mm_fmp_owner_journal_manifest) ||
-	    port->slot_size % sizeof(uint64_t))
-		return false;
-	for (size_t i = 0; i < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS; i++) {
-		const struct payload_mm_fmp_owner_journal_domain *domain =
-			&port->domain[i];
-		uint64_t slots;
-
-		if (domain->offset % port->slot_size ||
-		    domain->size % port->slot_size ||
-		    !payload_mm_authvar_range_end(domain->offset, domain->size,
-			&end[i]))
-			return false;
-		slots = domain->size / port->slot_size;
-		if (slots < 2 || slots > PAYLOAD_MM_FMP_OWNER_JOURNAL_MAX_SLOTS)
-			return false;
-	}
-	return end[0] <= port->domain[1].offset ||
-		end[1] <= port->domain[0].offset;
-}
-
 static enum cb_err hash(const void *data, size_t size,
 	uint8_t digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE])
 {
-	uint8_t snapshot[sizeof(journal.identity)];
+	union {
+		struct fmp_owner_layout layout;
+		struct payload_mm_fmp_state_identity
+			identity[PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS];
+	} snapshot_storage;
+	u8 *snapshot = (void *)&snapshot_storage;
 	enum cb_err result;
 
-	if (journal.poisoned || size > sizeof(snapshot))
+	if (journal.poisoned || size > sizeof(snapshot_storage))
 		return CB_ERR;
 	memcpy(snapshot, data, size);
 	result = journal.policy.port.sha256(journal.policy.port.context, data, size,
@@ -109,6 +89,19 @@ static enum cb_err hash(const void *data, size_t size,
 	if (!policy_unchanged() || memcmp(snapshot, data, size) != 0)
 		return CB_ERR;
 	return result;
+}
+
+static enum cb_err bind_storage_domain(void)
+{
+	const void *layout = &journal.policy.port.layout;
+	size_t layout_size = sizeof(journal.policy.port.layout);
+	enum cb_err status = hash(layout, layout_size, journal.storage_domain);
+	bool cleared = bytes_equal_value(journal.storage_domain,
+		sizeof(journal.storage_domain), 0);
+
+	if (status || cleared)
+		return CB_ERR;
+	return CB_SUCCESS;
 }
 
 static enum cb_err media_read(uint64_t offset, void *buffer, size_t size)
@@ -183,14 +176,14 @@ static bool manifest_shape_valid(
 	if (manifest->magic != OWNER_JOURNAL_MAGIC ||
 	    manifest->revision != PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION ||
 	    manifest->size != sizeof(*manifest) ||
-	    manifest->slot_size != journal.policy.port.slot_size ||
+	    manifest->slot_size != journal.policy.port.layout.slot_size ||
 	    manifest->owner_record_size !=
 		sizeof(struct payload_mm_fmp_owner_record) ||
 	    manifest->owner_record_count != PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS ||
 	    manifest->format != PAYLOAD_MM_FMP_OWNER_JOURNAL_FORMAT ||
 	    !manifest->epoch ||
 	    memcmp(manifest->storage_domain,
-		journal.policy.port.storage_domain,
+		journal.storage_domain,
 		sizeof(manifest->storage_domain)) != 0 ||
 	    memcmp(manifest->identity_binding, journal.identity_binding,
 		sizeof(manifest->identity_binding)) != 0)
@@ -205,11 +198,11 @@ static bool manifest_shape_valid(
 static enum cb_err slot_erased(uint64_t offset, bool *erased)
 {
 	uint8_t chunk[64];
-	uint32_t remaining = journal.policy.port.slot_size;
+	u32 remaining = journal.policy.port.layout.slot_size;
 
 	*erased = true;
 	while (remaining) {
-		uint32_t size = remaining < sizeof(chunk) ? remaining : sizeof(chunk);
+		u32 size = remaining < sizeof(chunk) ? remaining : sizeof(chunk);
 
 		if (media_read(offset, chunk, size) != CB_SUCCESS)
 			return CB_ERR;
@@ -240,14 +233,14 @@ static enum cb_err recover(struct journal_scan *scan)
 		return CB_ERR;
 	for (size_t domain = 0;
 	     domain < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS; domain++) {
-		uint32_t slots = (uint32_t)(journal.policy.port.domain[domain].size /
-			journal.policy.port.slot_size);
+		u32 slots = (u32)(journal.policy.port.layout.state[domain].size /
+			journal.policy.port.layout.slot_size);
 
 		for (uint32_t slot = 0; slot < slots; slot++) {
 			struct payload_mm_fmp_owner_journal_manifest candidate;
 			uint8_t digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
-			uint64_t offset = journal.policy.port.domain[domain].offset +
-				(uint64_t)slot * journal.policy.port.slot_size;
+			u64 offset = journal.policy.port.layout.state[domain].offset +
+				(uint64_t)slot * journal.policy.port.layout.slot_size;
 			bool erased;
 
 			if (slot_erased(offset, &erased) != CB_SUCCESS)
@@ -277,8 +270,8 @@ static enum cb_err recover(struct journal_scan *scan)
 
 static enum cb_err erase_domain(size_t domain)
 {
-	const struct payload_mm_fmp_owner_journal_domain *region =
-		&journal.policy.port.domain[domain];
+	const struct fmp_owner_range *region =
+		&journal.policy.port.layout.state[domain];
 	bool erased;
 
 	if (journal.poisoned)
@@ -289,9 +282,10 @@ static enum cb_err erase_domain(size_t domain)
 	    !erased)
 		return CB_ERR;
 	/* Check every slot, not merely the first one. */
-	for (uint64_t offset = region->offset + journal.policy.port.slot_size;
+	for (u64 offset = region->offset +
+		journal.policy.port.layout.slot_size;
 	     offset < region->offset + region->size;
-	     offset += journal.policy.port.slot_size)
+	     offset += journal.policy.port.layout.slot_size)
 		if (slot_erased(offset, &erased) != CB_SUCCESS || !erased)
 			return CB_ERR;
 	return media_sync();
@@ -303,12 +297,12 @@ static enum cb_err write_manifest(size_t domain, uint32_t slot,
 	struct payload_mm_fmp_owner_journal_manifest verified;
 	uint8_t expected_digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
 	uint8_t verified_digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
-	uint64_t offset = journal.policy.port.domain[domain].offset +
-		(uint64_t)slot * journal.policy.port.slot_size;
+	u64 offset = journal.policy.port.layout.state[domain].offset +
+		(uint64_t)slot * journal.policy.port.layout.slot_size;
 	bool erased;
 
-	if (slot >= journal.policy.port.domain[domain].size /
-		journal.policy.port.slot_size ||
+	if (slot >= journal.policy.port.layout.state[domain].size /
+		journal.policy.port.layout.slot_size ||
 	    manifest_digest(manifest, expected_digest) != CB_SUCCESS ||
 	    slot_erased(offset, &erased) != CB_SUCCESS || !erased ||
 	    media_program(offset, manifest, sizeof(*manifest)) != CB_SUCCESS ||
@@ -326,8 +320,8 @@ static enum cb_err append_location(const struct journal_scan *scan,
 {
 	for (size_t i = 0; i < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS; i++) {
 		uint32_t next = scan->occupied[i] ? scan->last_occupied[i] + 1 : 0;
-		uint32_t slots = (uint32_t)(journal.policy.port.domain[i].size /
-			journal.policy.port.slot_size);
+		u32 slots = (u32)(journal.policy.port.layout.state[i].size /
+			journal.policy.port.layout.slot_size);
 
 		if (scan->authoritative[i] && next < slots) {
 			*domain = i;
@@ -493,9 +487,12 @@ enum cb_err payload_mm_fmp_owner_journal_install(
 		return CB_ERR;
 	memcpy(&port, trusted_port, sizeof(port));
 	if (port.revision != PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION ||
-	    port.size != sizeof(port) || port.reserved ||
-	    bytes_equal_value(port.storage_domain, sizeof(port.storage_domain), 0) ||
-	    !domains_valid(&port) || !port.read || !port.program || !port.erase ||
+	    port.size != sizeof(port) ||
+	    !payload_mm_fmp_layout_valid(&port.layout) ||
+	    port.layout.slot_size <
+		sizeof(struct payload_mm_fmp_owner_journal_manifest) ||
+	    port.layout.slot_size % sizeof(uint64_t) ||
+	    !port.read || !port.program || !port.erase ||
 	    !port.sync || !port.sha256 || !port.anchor_read ||
 	    !port.anchor_advance ||
 	    ((port.context == NULL) != (port.context_size == 0)) ||
@@ -521,6 +518,11 @@ enum cb_err payload_mm_fmp_owner_journal_install(
 		return CB_ERR;
 	journal.installed = true;
 	journal.busy = true;
+	if (bind_storage_domain() != CB_SUCCESS) {
+		journal.busy = false;
+		journal.installed = false;
+		return CB_ERR;
+	}
 	if (hash(journal.identity, sizeof(journal.identity),
 		journal.identity_binding) != CB_SUCCESS) {
 		journal.busy = false;
@@ -557,7 +559,7 @@ enum cb_err payload_mm_fmp_owner_journal_factory_provision(
 		.magic = OWNER_JOURNAL_MAGIC,
 		.revision = PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION,
 		.size = sizeof(manifest),
-		.slot_size = journal.policy.port.slot_size,
+		.slot_size = journal.policy.port.layout.slot_size,
 		.owner_record_size = sizeof(struct payload_mm_fmp_owner_record),
 		.owner_record_count = PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS,
 		.format = PAYLOAD_MM_FMP_OWNER_JOURNAL_FORMAT,
@@ -566,6 +568,7 @@ enum cb_err payload_mm_fmp_owner_journal_factory_provision(
 	struct payload_mm_fmp_owner_journal_anchor anchor;
 	struct payload_mm_fmp_owner_journal_anchor verified;
 	uint8_t verified_digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
+	size_t storage_domain_size = sizeof(journal.storage_domain);
 	enum cb_err result = CB_ERR;
 
 	if (!journal.installed || journal.busy || journal.poisoned || !record ||
@@ -584,8 +587,7 @@ enum cb_err payload_mm_fmp_owner_journal_factory_provision(
 	if (anchor_read(&anchor) != CB_SUCCESS || !anchor_cleared(&anchor) ||
 	    memcmp(record, record_snapshot, sizeof(record_snapshot)) != 0)
 		goto out;
-	memcpy(manifest.storage_domain, journal.policy.port.storage_domain,
-		sizeof(manifest.storage_domain));
+	memcpy(manifest.storage_domain, journal.storage_domain, storage_domain_size);
 	memcpy(manifest.identity_binding, journal.identity_binding,
 		sizeof(manifest.identity_binding));
 	memcpy(manifest.record, record_snapshot, sizeof(manifest.record));

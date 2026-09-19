@@ -14,6 +14,7 @@
 #define SLOT_SIZE 512U
 #define SLOTS 3U
 #define DOMAIN_SIZE (SLOT_SIZE * SLOTS)
+#define MEDIA_SIZE (4U * DOMAIN_SIZE)
 #define TEST_OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL
 #define FACTORY_FIRST_POST_PROVISION_READ 58U
 #define FACTORY_RECOVER_MANIFEST_READ 66U
@@ -35,7 +36,7 @@ enum fault_kind {
 };
 
 struct model {
-	uint8_t media[2 * DOMAIN_SIZE];
+	u8 media[MEDIA_SIZE];
 	struct payload_mm_fmp_owner_journal_anchor anchor;
 	enum fault_kind program_fault;
 	enum fault_kind erase_fault;
@@ -450,10 +451,27 @@ static struct payload_mm_fmp_owner_journal_port port(void)
 	struct payload_mm_fmp_owner_journal_port value = {
 		.revision = PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION,
 		.size = sizeof(value),
-		.slot_size = SLOT_SIZE,
-		.domain = {
-			{ .offset = 0, .size = DOMAIN_SIZE },
-			{ .offset = DOMAIN_SIZE, .size = DOMAIN_SIZE },
+		.layout = {
+			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
+			.size = sizeof(struct fmp_owner_layout),
+			.media_size = MEDIA_SIZE,
+			.erase_size = SLOT_SIZE,
+			.slot_size = SLOT_SIZE,
+			.route_count = 1,
+			.state = {
+				{ .offset = 0, .size = DOMAIN_SIZE },
+				{ .offset = DOMAIN_SIZE, .size = DOMAIN_SIZE },
+			},
+			.smmstore = {
+				.offset = 2U * DOMAIN_SIZE,
+				.size = SLOT_SIZE,
+			},
+			.route = {{
+				.image_offset = 0,
+				.flash_offset = 2U * DOMAIN_SIZE + SLOT_SIZE,
+				.size = SLOT_SIZE,
+				.flags = LB_CAPSULE_REGION_BIOS,
+			}},
 		},
 		.read = media_read,
 		.program = media_program,
@@ -467,8 +485,6 @@ static struct payload_mm_fmp_owner_journal_port port(void)
 		.context_size = sizeof(source_context),
 	};
 
-	for (size_t i = 0; i < sizeof(value.storage_domain); i++)
-		value.storage_domain[i] = (uint8_t)(i + 1U);
 	return value;
 }
 
@@ -603,7 +619,9 @@ static void factory_expected(
 	struct payload_mm_fmp_owner_journal_manifest *manifest,
 	struct payload_mm_fmp_owner_journal_anchor *anchor)
 {
+	struct payload_mm_fmp_owner_journal_port journal_port = port();
 	struct payload_mm_fmp_state_identity identities[5];
+	const void *layout = &journal_port.layout;
 
 	*manifest = (struct payload_mm_fmp_owner_journal_manifest) {
 		.magic = TEST_OWNER_JOURNAL_MAGIC,
@@ -618,8 +636,7 @@ static void factory_expected(
 	for (uint32_t key = 0; key < ARRAY_SIZE(identities); key++)
 		assert(payload_mm_fmp_state_identity_get_for_key(key,
 			&identities[key]) == CB_SUCCESS);
-	for (size_t i = 0; i < sizeof(manifest->storage_domain); i++)
-		manifest->storage_domain[i] = (uint8_t)(i + 1U);
+	test_hash(layout, sizeof(journal_port.layout), manifest->storage_domain);
 	test_hash(identities, sizeof(identities), manifest->identity_binding);
 	memcpy(manifest->record, workspace()->record, sizeof(manifest->record));
 	anchor->epoch = manifest->epoch;

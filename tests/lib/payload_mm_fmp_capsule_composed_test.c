@@ -13,7 +13,7 @@
 #define GENERATION 0x8877665544332211ULL
 #define STAGING_SIZE (64U * 1024U)
 #define ROM_SIZE 4096U
-#define MEDIA_SIZE (16U * 1024U)
+#define MEDIA_SIZE (32U * 1024U)
 #define ERASE_SIZE 4096U
 
 static uint8_t communication[CAPSULE_BROKER_TRANSPORT_SIZE]
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 		},
 		.raw_image_size = ROM_SIZE,
 		.boot_media_size = MEDIA_SIZE,
-		.smmstore_offset = 3 * ERASE_SIZE,
+		.smmstore_offset = 6 * ERASE_SIZE,
 		.smmstore_size = ERASE_SIZE,
 		.erase_size = ERASE_SIZE,
 		.region_count = 1,
@@ -205,6 +205,28 @@ int main(int argc, char **argv)
 			.size = ROM_SIZE,
 			.flags = LB_CAPSULE_REGION_BIOS,
 		}},
+		.owner_layout = {
+			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
+			.size = sizeof(struct fmp_owner_layout),
+			.media_size = MEDIA_SIZE,
+			.erase_size = ERASE_SIZE,
+			.slot_size = ERASE_SIZE,
+			.route_count = 1,
+			.state = {
+				{ .offset = 2 * ERASE_SIZE, .size = 2 * ERASE_SIZE },
+				{ .offset = 4 * ERASE_SIZE, .size = 2 * ERASE_SIZE },
+			},
+			.smmstore = {
+				.offset = 6 * ERASE_SIZE,
+				.size = ERASE_SIZE,
+			},
+			.route = {{
+				.image_offset = 0,
+				.flash_offset = ERASE_SIZE,
+				.size = ROM_SIZE,
+				.flags = LB_CAPSULE_REGION_BIOS,
+			}},
+		},
 		.media = {
 			.size = MEDIA_SIZE,
 			.erase_size = ERASE_SIZE,

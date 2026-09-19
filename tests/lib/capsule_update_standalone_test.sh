@@ -20,6 +20,7 @@ build_and_run() {
 		-I"$temporary/include" "$@" \
 		"$root/tests/lib/capsule_update_standalone_test.c" \
 		"$root/src/lib/capsule_update.c" \
+		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
 		"$root/src/lib/capsule_update_backend.c" -Wl,--gc-sections \
 		-o "$temporary/$name"
 	"$temporary/$name"

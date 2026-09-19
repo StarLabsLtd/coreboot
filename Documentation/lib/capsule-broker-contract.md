@@ -152,6 +152,13 @@ manifest. A cleared anchor never initializes at runtime; a separate explicit
 factory-provision operation is the only creation path. No anchor provider,
 flash range or platform selection is supplied.
 
+The journal media descriptor is pointer-free and canonical. Platform code must
+fill it from immutable FMAP and update-route policy, never from a payload table
+or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,
+inside the media, erase aligned, composed of two to 32 equal slots, and
+disjoint from SMMSTORE and every allowed capsule route. The journal derives
+its storage-domain binding by hashing that exact descriptor.
+
 ## Lifecycle
 
 A malformed installation consumes the sole installation attempt. Typed
@@ -175,7 +182,9 @@ The broker calls `capsule_apply_policy_verified()`. That writer completes all
 plan and backend validation before its first media operation, accepts only the
 immutable route policy, excludes SMMSTORE, touches only erase-aligned listed
 regions and compares readback after each block. Every unlisted byte is
-preserved.
+preserved. The sealed internal policy also carries both owner-journal domains;
+the shared layout validator rejects a route reaching either domain before the
+first media callback.
 
 The writer currently returns only success or failure. The future selected
 coordinator must map that result into FMP status without inventing device-
@@ -194,6 +203,7 @@ specific values. A partial-media failure remains a reset/recovery case.
 | Typed checkpoint engine and grant ordering | Implemented, unselected |
 | Synchronous staged-intent transaction executor | Implemented, unselected |
 | Generic two-domain owner journal | Implemented, unselected |
+| Canonical FMAP owner layout and writer exclusions | Implemented, unselected |
 | Protected monotonic anchor and media backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
 | Fixed typed transport dispatcher | Implemented, unselected |
@@ -206,10 +216,15 @@ specific values. A partial-media failure remains a reset/recovery case.
 record, registers no SMI command and supplies no checkpoint, hashing or flash
 provider. Host evidence is provided by:
 
+`Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF` additionally selects a dormant QEMU
+image layout with two 64 KiB preserved domains, each containing sixteen 4 KiB
+slots. It still installs no owner, broker, transport or SMI entry.
+
 ```
 tests/lib/capsule_broker_test.sh
 tests/lib/capsule_broker_transport_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
 tests/lib/payload_mm_fmp_transaction_test.sh
+tests/lib/payload_mm_fmp_owner_layout_test.sh
 ```
