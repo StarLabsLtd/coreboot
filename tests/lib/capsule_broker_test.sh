@@ -30,7 +30,11 @@ install-missing-authenticate install-authenticate-context-null
 install-authenticate-context-large install-proof-context-large
 authenticate-happy authenticate-source-mutation authenticate-context-mutation
 authenticate-check-only authenticate-set-one-shot authenticate-reject
-authenticate-image-mutation authenticate-owner-mutation authenticate-guard authenticate-digest
+authenticate-image-mutation authenticate-before-callback-mutation
+authenticate-raw-zero authenticate-raw-oob authenticate-raw-overflow
+authenticate-raw-wrong-size authenticate-raw-source-mutation
+authenticate-raw-output-mutation
+authenticate-owner-mutation authenticate-guard authenticate-digest
 authenticate-generation authenticate-image-size authenticate-operation
 authenticate-flags authenticate-revision authenticate-size
 authenticate-transaction authenticate-algorithm authenticate-digest-size
@@ -45,7 +49,7 @@ no-grant grant-transaction grant-version digest guard
 preflight preflight-range preflight-smmstore
 preflight-policy
 media-erase media-write media-read media-verify stale close s3
-policy-snapshot grant-edges generation-match'
+policy-snapshot grant-edges grant-max generation-match'
 cases="$cases bound-happy bound-sequence bound-digest bound-unstaged
 bound-mutation"
 cases="$cases source-mutation"

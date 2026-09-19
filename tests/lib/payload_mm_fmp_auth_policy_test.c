@@ -220,9 +220,12 @@ enum payload_mm_verify_status payload_mm_authenticate_image(
 	assert(trust_xdr->size == sizeof(mock_trust) &&
 		!memcmp(trust_xdr->data, mock_trust, sizeof(mock_trust)));
 	verifies++;
-	if (reenter)
+	if (reenter) {
+		struct capsule_broker_raw_image raw_image;
+
 		assert(payload_mm_fmp_authenticate_provider(NULL, image->data,
-			image->size, 3, &state) == CB_ERR);
+			image->size, 3, &state, &raw_image) == CB_ERR);
+	}
 	if (!verify_ok)
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	*authenticated = (struct payload_mm_authenticated_image) {
@@ -288,6 +291,7 @@ static void prepare(void)
 int main(int argc, char **argv)
 {
 	struct payload_mm_fmp_auth_policy value;
+	struct capsule_broker_raw_image raw_image;
 	const char *test;
 
 	if (argc == 3 && !strcmp(argv[1], "emit")) {
@@ -317,7 +321,9 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state) == CB_SUCCESS);
+			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
+		assert(raw_image.size == rom_size &&
+			raw_image.offset + raw_image.size == auth_used);
 		return 0;
 	}
 #endif
@@ -331,7 +337,9 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state) == CB_SUCCESS);
+			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
+		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
+			raw_image.size <= auth_used - raw_image.offset);
 		return 0;
 	}
 #endif
@@ -434,7 +442,8 @@ int main(int argc, char **argv)
 
 		state.data[4] ^= 1;
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &expected) == CB_ERR);
+			auth_used, 3, &expected, &raw_image) == CB_ERR);
+		assert(raw_image.offset == 0 && raw_image.size == 0);
 		assert(state.sequence == expected.sequence);
 		assert(memcmp(&state, &expected, sizeof(state)) != 0);
 		return 0;
@@ -444,7 +453,8 @@ int main(int argc, char **argv)
 
 		mutate_owner_read = true;
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &expected) == CB_ERR);
+			auth_used, 3, &expected, &raw_image) == CB_ERR);
+		assert(raw_image.offset == 0 && raw_image.size == 0);
 		assert(!memcmp(&state, &expected, sizeof(state)));
 		return 0;
 	}
@@ -455,10 +465,13 @@ int main(int argc, char **argv)
 	    !strcmp(test, "header-extension-dependency") ||
 	    !strcmp(test, "reentry") || !strcmp(test, "source-copy")) {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state) == CB_SUCCESS);
+			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
+		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
+			raw_image.size <= auth_used - raw_image.offset);
 	} else {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state) == CB_ERR);
+			auth_used, 3, &state, &raw_image) == CB_ERR);
+		assert(raw_image.offset == 0 && raw_image.size == 0);
 	}
 	if (!strcmp(test, "floor"))
 		assert(verifies == 0);

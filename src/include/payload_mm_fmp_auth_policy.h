@@ -3,6 +3,7 @@
 #ifndef PAYLOAD_MM_FMP_AUTH_POLICY_H
 #define PAYLOAD_MM_FMP_AUTH_POLICY_H
 
+#include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar.h>
 #include <payload_mm_cms.h>
 
@@ -29,14 +30,17 @@ struct payload_mm_fmp_auth_policy {
 /*
  * Install once from trusted coreboot-owned facts before broker use. The
  * complete trust and identity policy is copied into protected storage. The
- * provider is synchronous, accepts no context and retains no image pointer.
+ * provider is synchronous, accepts no context and retains no capsule or output
+ * pointer. On success it returns the raw ROM's bounded offset and size inside
+ * the exact supplied capsule envelope.
  */
 enum cb_err payload_mm_fmp_auth_policy_install(
 	const struct payload_mm_fmp_auth_policy *trusted_policy,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
 enum cb_err payload_mm_fmp_authenticate_provider(const void *context,
-	const void *image, size_t image_size, uint32_t attempted_version,
-	const struct payload_mm_fmp_owner_record *owner_record);
+	const void *capsule, size_t capsule_size, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *owner_record,
+	struct capsule_broker_raw_image *raw_image);
 
 #if ENV_TEST
 const void *payload_mm_fmp_auth_policy_test_authority(size_t *size);

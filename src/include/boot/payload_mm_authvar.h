@@ -85,7 +85,7 @@ struct payload_mm_fmp_state_message {
 	uint32_t reserved;
 } __aligned(8);
 
-/* Fixed authenticated-capsule intent carried in the opaque request message. */
+/* Fixed intent carrying the occupied capsule-envelope size and its digest. */
 struct payload_mm_fmp_capsule_intent {
 	uint32_t revision;
 	uint32_t size;
@@ -93,7 +93,7 @@ struct payload_mm_fmp_capsule_intent {
 	uint32_t flags;
 	uint64_t broker_generation;
 	uint64_t transaction;
-	uint64_t image_size;
+	uint64_t capsule_size;
 	uint32_t digest_algorithm;
 	uint32_t digest_size;
 	uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
@@ -190,6 +190,7 @@ _Static_assert(_Alignof(struct payload_mm_fmp_capsule_intent) == 8,
 	"payload_mm_fmp_capsule_intent alignment changed");
 _Static_assert(offsetof(struct payload_mm_fmp_capsule_intent,
 	broker_generation) == 16 &&
+	offsetof(struct payload_mm_fmp_capsule_intent, capsule_size) == 32 &&
 	offsetof(struct payload_mm_fmp_capsule_intent, digest_algorithm) == 40 &&
 	offsetof(struct payload_mm_fmp_capsule_intent, digest) == 48 &&
 	offsetof(struct payload_mm_fmp_capsule_intent, attempted_version) == 80,
