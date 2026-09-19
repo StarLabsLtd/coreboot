@@ -12,7 +12,10 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 cases='read read-absent read-legacy source-mutation authority-mutation authority-ranges read-outside read-key read-misaligned
 read-failure bad-sequence bad-present bad-attributes bad-size bad-reserved
 bad-reserved2 bad-validity bad-absent bad-legacy-tail success
-commit-failure commit-lie readback-corrupt input-mutation state-regression
+commit-error-candidate commit-error-current commit-success-current
+commit-success-other commit-error-other commit-success-torn commit-error-torn
+readback-failure same-sequence-distinct commit-identity-mutation
+commit-input-mutation readback-identity-mutation reentry state-regression
 lsv-regression trusted-floor validity-regressions sequence-gap sequence-wrap outside misaligned alias remove remove-state
 remove-absent remove-wrap install-no-state install-revision install-size
 install-read install-commit install-context-null install-context-zero

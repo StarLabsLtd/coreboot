@@ -20,10 +20,13 @@ struct store {
 	unsigned int commits;
 	unsigned int fail_read;
 	bool commit_fails;
-	bool commit_lies;
+	bool commit_current;
+	bool commit_other;
+	bool commit_torn;
 	bool corrupt_readback;
 	bool mutate_read_identity;
 	bool mutate_commit_inputs;
+	bool reenter;
 };
 
 struct backend_context {
@@ -102,6 +105,12 @@ static enum cb_err read_record(const void *opaque,
 	store->reads++;
 	if (store->reads == store->fail_read)
 		return CB_ERR;
+	if (store->reenter && store->commits && store->reads == 2) {
+		assert(payload_mm_fmp_owner_read(key, &workspace()->verified) ==
+			CB_ERR);
+		assert(payload_mm_fmp_owner_commit_state(&workspace()->current,
+							 &workspace()->candidate) == CB_ERR);
+	}
 	*record = store->record;
 	if (store->corrupt_readback && store->commits)
 		record->sequence++;
@@ -124,16 +133,24 @@ static enum cb_err commit_record(const void *opaque,
 	store->commits++;
 	assert(!memcmp(current, &store->record, sizeof(*current)));
 	assert(candidate->sequence == current->sequence + 1);
-	if (store->commit_fails)
-		return CB_ERR;
-	if (!store->commit_lies)
+	if (!store->commit_current)
 		store->record = *candidate;
+	if (store->commit_other)
+		store->record.data[4]++;
+	if (store->commit_torn)
+		store->record.reserved = 1;
 	if (store->mutate_commit_inputs) {
 		((struct payload_mm_fmp_state_identity *)identity)->hardware_instance++;
 		((struct payload_mm_fmp_owner_record *)current)->sequence++;
 		((struct payload_mm_fmp_owner_record *)candidate)->sequence++;
 	}
-	return CB_SUCCESS;
+	if (store->reenter) {
+		assert(payload_mm_fmp_owner_read(key, &workspace()->verified) ==
+			CB_ERR);
+		assert(payload_mm_fmp_owner_commit_state(&workspace()->current,
+							 &workspace()->candidate) == CB_ERR);
+	}
+	return store->commit_fails ? CB_ERR : CB_SUCCESS;
 }
 
 static enum cb_err record_grant(uint64_t generation,
@@ -441,10 +458,22 @@ static void run_case(const char *name)
 	context.route = 0;
 	expect_workspace_clear();
 
-	if (!strcmp(name, "commit-failure"))
+	if (!strcmp(name, "commit-failure") ||
+	    !strcmp(name, "commit-error-candidate") ||
+	    !strcmp(name, "commit-error-other") ||
+	    !strcmp(name, "commit-error-torn"))
 		store.commit_fails = true;
-	else if (!strcmp(name, "commit-lie"))
-		store.commit_lies = true;
+	if (!strcmp(name, "commit-failure") || !strcmp(name, "commit-lie"))
+		store.commit_current = true;
+	if (!strcmp(name, "commit-success-other") ||
+	    !strcmp(name, "commit-error-other") ||
+	    !strcmp(name, "same-sequence-distinct"))
+		store.commit_other = true;
+	if (!strcmp(name, "commit-success-torn") ||
+	    !strcmp(name, "commit-error-torn"))
+		store.commit_torn = true;
+	if (!strcmp(name, "reentry"))
+		store.reenter = true;
 	else if (!strcmp(name, "read-failure"))
 		store.fail_read = 1;
 	else if (!strcmp(name, "owner-readback-failure"))
@@ -567,6 +596,8 @@ static void run_case(const char *name)
 		return;
 	}
 	if (!strcmp(name, "success") || !strcmp(name, "wide-version") ||
+	    !strcmp(name, "commit-error-candidate") ||
+	    !strcmp(name, "reentry") ||
 	    !strcmp(name, "bind-authority-mutation") ||
 	    !strcmp(name, "bind-workspace-mutation") ||
 	    !strcmp(name, "grant-failure") || !strcmp(name, "max-transaction")) {
@@ -596,9 +627,11 @@ static void run_case(const char *name)
 	assert(checkpoint(&store, 9, 1, 6) == CB_ERR);
 	assert(!grants);
 	if (!strcmp(name, "commit-failure") ||
-	    !strcmp(name, "commit-input-mutation"))
-		expect_trace("RC");
-	else if (!strcmp(name, "commit-lie") ||
+	    !strcmp(name, "commit-input-mutation") ||
+	    !strcmp(name, "commit-lie") ||
+	    !strncmp(name, "commit-success-", 15) ||
+	    !strncmp(name, "commit-error-", 13) ||
+	    !strcmp(name, "same-sequence-distinct") ||
 		 !strcmp(name, "owner-readback-failure") ||
 		 !strcmp(name, "readback-corrupt"))
 		expect_trace("RCR");
