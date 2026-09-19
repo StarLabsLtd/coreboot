@@ -3,6 +3,7 @@
 #ifndef COMMONLIB_COREBOOT_TABLES_H
 #define COMMONLIB_COREBOOT_TABLES_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* The coreboot table information is for conveying information
@@ -93,6 +94,7 @@ enum {
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
+	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -166,6 +168,177 @@ struct lb_pcie {
 	uint32_t size;
 	lb_uint64_t ctrl_base;		/* Base address of PCIe controller */
 };
+
+#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 3
+#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION_4 4
+
+#define LB_PRH_SECTION_PCI_ROOT_BRIDGES 3
+#define LB_PRH_SECTION_PCI_ASSIGNMENTS  4
+#define LB_PRH_SECTION_BOOT_INTENT      5
+#define LB_PRH_SECTION_MEMORY_POLICY    1
+#define LB_PRH_SECTION_FRAMEBUFFER      7
+#define LB_PRH_SECTION_PCI_TOPOLOGY     8
+
+#define LB_PRH_PCI_ROOT_TOPOLOGY_ONLY 0x00000001
+
+#define LB_PRH_PCI_RESOURCE_IO              1
+#define LB_PRH_PCI_RESOURCE_MMIO32          2
+#define LB_PRH_PCI_RESOURCE_MMIO64          3
+#define LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32 4
+#define LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64 5
+#define LB_PRH_PCI_ASSIGNMENT_64BIT 0x01
+#define LB_PRH_PCI_MAX_ROOTS       16
+#define LB_PRH_PCI_MAX_ASSIGNMENTS 256
+#define LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES 512
+#define LB_PRH_PCI_TOPOLOGY_PATH_ONLY   0x01
+#define LB_PRH_PCI_TOPOLOGY_PARENT_ROOT 0xffff
+#define LB_PRH_GCD_MEMORY_TYPE_MMIO 3
+#define LB_PRH_MEMORY_GCD_AUTHORITATIVE 0x00000004
+#define LB_PRH_FRAMEBUFFER_GEOMETRY_AUTHORITATIVE 0x00000001
+#define LB_PRH_FRAMEBUFFER_PCI_OWNER_AUTHORITATIVE 0x00000002
+#define LB_PRH_FRAMEBUFFER_MEMORY_DELEGATED       0x80000000
+#define LB_PRH_SECTION_FLAG_MANDATORY     0x0001
+#define LB_PRH_SECTION_FLAG_AUTHORITATIVE 0x0002
+
+#define LB_PRH_LIFETIME_COLD_BOOT          0x0000000000000001ULL
+#define LB_PRH_LIFETIME_EXIT_BOOT_SERVICES 0x0000000000000008ULL
+
+struct lb_payload_resource_section {
+	uint16_t type;
+	uint16_t flags;
+	uint16_t header_length;
+	uint16_t entry_size;
+	uint32_t entry_count;
+	uint32_t offset;
+	uint32_t length;
+};
+
+struct lb_payload_resource_handoff {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_length;
+	uint16_t section_header_length;
+	uint16_t flags;
+	uint32_t crc32;
+	uint32_t section_count;
+	uint32_t producer_stage;
+	lb_uint64_t producer_generation;
+	lb_uint64_t lifetime_flags;
+	struct lb_payload_resource_section sections[];
+};
+
+struct lb_prh_pci_root_bridge {
+	uint16_t segment;
+	uint8_t bus_start;
+	uint8_t bus_end;
+	uint32_t flags;
+	lb_uint64_t io_base;
+	lb_uint64_t io_length;
+	lb_uint64_t mem32_base;
+	lb_uint64_t mem32_length;
+	lb_uint64_t mem64_base;
+	lb_uint64_t mem64_length;
+	lb_uint64_t pref_mem32_base;
+	lb_uint64_t pref_mem32_length;
+	lb_uint64_t pref_mem64_base;
+	lb_uint64_t pref_mem64_length;
+};
+
+struct lb_prh_pci_assignment {
+	uint16_t segment;
+	uint8_t bus;
+	uint8_t device;
+	uint8_t function;
+	uint8_t bar;
+	uint8_t resource_type;
+	uint8_t flags;
+	lb_uint64_t base;
+	lb_uint64_t length;
+	lb_uint64_t attributes;
+};
+
+struct lb_prh_pci_topology {
+	uint16_t segment;
+	uint8_t bus;
+	uint8_t device;
+	uint8_t function;
+	uint8_t header_type;
+	uint16_t parent_index;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint16_t command;
+	uint8_t class_code;
+	uint8_t subclass;
+	uint8_t programming_interface;
+	uint8_t secondary_bus;
+	uint8_t subordinate_bus;
+	uint8_t flags;
+	uint32_t reserved;
+} __packed;
+
+struct lb_prh_boot_intent {
+	uint16_t topology_index;
+	uint16_t flags;
+	uint32_t reserved;
+} __packed;
+
+struct lb_prh_memory_policy {
+	lb_uint64_t base;
+	lb_uint64_t length;
+	lb_uint64_t capabilities;
+	lb_uint64_t attributes;
+	uint32_t gcd_type;
+	uint32_t efi_memory_type;
+	uint32_t owner_flags;
+	uint32_t reserved;
+};
+
+struct lb_prh_framebuffer {
+	lb_uint64_t physical_address;
+	lb_uint64_t size;
+	uint32_t x_resolution;
+	uint32_t y_resolution;
+	uint32_t bytes_per_line;
+	uint8_t bits_per_pixel;
+	uint8_t red_mask_pos;
+	uint8_t red_mask_size;
+	uint8_t green_mask_pos;
+	uint8_t green_mask_size;
+	uint8_t blue_mask_pos;
+	uint8_t blue_mask_size;
+	uint8_t reserved_mask_pos;
+	uint8_t reserved_mask_size;
+	union {
+		uint8_t reserved[3];
+		struct {
+			uint16_t topology_index;
+			uint8_t bar;
+		} __packed;
+	} __packed;
+	uint32_t owner_flags;
+};
+
+_Static_assert(sizeof(struct lb_payload_resource_handoff) == 44,
+	       "unexpected payload resource handoff header size");
+_Static_assert(sizeof(struct lb_payload_resource_section) == 20,
+	       "unexpected payload resource section size");
+_Static_assert(sizeof(struct lb_prh_pci_root_bridge) == 88,
+	       "unexpected payload resource root bridge size");
+_Static_assert(sizeof(struct lb_prh_pci_assignment) == 32,
+	       "unexpected payload resource PCI assignment size");
+_Static_assert(sizeof(struct lb_prh_pci_topology) == 24,
+	       "unexpected payload resource PCI topology size");
+_Static_assert(sizeof(struct lb_prh_boot_intent) == 8,
+	       "unexpected payload resource boot intent size");
+_Static_assert(sizeof(struct lb_prh_memory_policy) == 48,
+	       "unexpected payload resource memory policy size");
+_Static_assert(sizeof(struct lb_prh_framebuffer) == 44,
+	       "unexpected payload resource framebuffer size");
+_Static_assert(offsetof(struct lb_prh_framebuffer, topology_index) == 37,
+	       "unexpected payload resource framebuffer owner offset");
+_Static_assert(offsetof(struct lb_prh_framebuffer, bar) == 39,
+	       "unexpected payload resource framebuffer BAR offset");
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
 
