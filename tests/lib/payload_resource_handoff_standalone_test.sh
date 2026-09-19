@@ -18,4 +18,17 @@ cc -std=gnu11 -Wall -Wextra -Werror -Wno-unused-parameter \
 	"$root/src/lib/payload_resource_handoff.c" "$root/src/lib/crc_byte.c" \
 	-Wl,--gc-sections -o "$temporary/payload-resource-handoff-test"
 "$temporary/payload-resource-handoff-test"
+
+cc -std=gnu11 -Wall -Wextra -Werror -Wno-unused-parameter \
+	-ffunction-sections -fdata-sections \
+	-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -fno-builtin \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-I"$root/build" \
+	"$root/tests/lib/payload_resource_handoff_q35_test.c" \
+	"$root/src/mainboard/emulation/qemu-q35/payload_resource_handoff.c" \
+	-Wl,--gc-sections -o "$temporary/payload-resource-handoff-q35-test"
+"$temporary/payload-resource-handoff-q35-test"
 printf '%s\n' 'payload resource handoff standalone tests: PASS'

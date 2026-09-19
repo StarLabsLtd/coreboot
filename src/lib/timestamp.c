@@ -9,7 +9,10 @@
 #include <timestamp.h>
 #include <smp/node.h>
 
-#define MAX_TIMESTAMPS 192
+/* CDK2 records per-driver and per-phase events in the same CBMEM table.
+ * Keep enough headroom to cover a complete boot, rather than silently
+ * truncating the trace after the first dispatcher wave. */
+#define MAX_TIMESTAMPS 1024
 
 /* This points to the active timestamp_table and can change within a stage
    as CBMEM comes available. */

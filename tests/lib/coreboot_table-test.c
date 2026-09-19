@@ -118,6 +118,55 @@ static void test_lb_new_record(void **state)
 	}
 }
 
+static void test_lb_add_local_apic_timer_info(void **state)
+{
+	struct lb_header *header = *state;
+	const uint64_t frequency_hz = 100 * MHz;
+
+	lb_add_local_apic_timer_info(header, 0);
+	assert_int_equal(header->table_entries, 0);
+	lb_add_local_apic_timer_info(header, frequency_hz);
+	assert_int_equal(header->table_entries, 1);
+	const struct lb_local_apic_timer_info *timer =
+		(const void *)lb_first_record(header);
+	assert_int_equal(timer->tag, LB_TAG_LOCAL_APIC_TIMER_INFO);
+	assert_int_equal(timer->size, sizeof(*timer));
+	assert_int_equal(timer->revision, 1);
+	assert_int_equal(timer->reserved, 0);
+	assert_int_equal(timer->frequency_hz, frequency_hz);
+}
+
+static void test_lb_boot_splash_abi(void **state)
+{
+	struct lb_boot_splash splash = {
+		.tag = LB_TAG_BOOT_SPLASH,
+		.size = sizeof(splash),
+		.revision = LB_BOOT_SPLASH_REVISION,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP,
+		.framebuffer_address = 0x12345000,
+		.image_offset_x = 10,
+		.image_offset_y = 20,
+		.image_width = 640,
+		.image_height = 480,
+		.bmp_address = 0x23456000,
+		.bmp_size = 4096,
+	};
+
+	assert_int_equal(sizeof(splash), 48);
+	assert_int_equal(splash.tag, LB_TAG_BOOT_SPLASH);
+	assert_int_equal(splash.size, sizeof(splash));
+	assert_int_equal(splash.revision, LB_BOOT_SPLASH_REVISION);
+	assert_int_equal(splash.flags,
+		LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP);
+	assert_int_equal(splash.framebuffer_address, 0x12345000);
+	assert_int_equal(splash.image_offset_x, 10);
+	assert_int_equal(splash.image_offset_y, 20);
+	assert_int_equal(splash.image_width, 640);
+	assert_int_equal(splash.image_height, 480);
+	assert_int_equal(splash.bmp_address, 0x23456000);
+	assert_int_equal(splash.bmp_size, 4096);
+}
+
 static void test_lb_add_console(void **state)
 {
 	struct lb_header *header = *state;
@@ -505,6 +554,9 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_lb_add_gpios),
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
+		cmocka_unit_test_setup(test_lb_add_local_apic_timer_info,
+			setup_test_header),
+		cmocka_unit_test(test_lb_boot_splash_abi),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),
 		cmocka_unit_test_setup(test_multiple_entries, setup_test_header),
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),

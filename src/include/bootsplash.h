@@ -141,6 +141,7 @@ enum fw_splash_horizontal_alignment {
 };
 
 struct logo_config {
+	/* An explicit framebuffer must be BGRX8888 with the declared accessible geometry. */
 	uintptr_t framebuffer_base;
 	uint32_t horizontal_resolution;
 	uint32_t vertical_resolution;
@@ -161,10 +162,22 @@ struct logo_coordinates calculate_logo_coordinates(
 	enum fw_splash_horizontal_alignment halignment,
 	enum fw_splash_vertical_alignment valignment);
 void render_logo_to_framebuffer(struct logo_config *config);
-void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
+/* Publish the first successfully rendered framebuffer rectangle. */
+bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+				uint32_t framebuffer_width,
+				uint32_t framebuffer_height,
+				uint32_t image_offset_x,
+				uint32_t image_offset_y,
+				uint32_t image_width,
+				uint32_t image_height,
+				const void *bmp,
+				size_t bmp_size);
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
+/* On failure, outputs are zero. On success, the caller owns the BLT allocation. */
+bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
-void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
+bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
 void render_text_to_framebuffer(struct logo_config *config, const char *str,
@@ -180,6 +193,7 @@ const char *mainboard_bmp_logo_filename(void);
 const char *bmp_logo_filename(void);
 void *bmp_load_logo(size_t *logo_size);
 void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size);
+void bmp_retain_logo(void);
 void bmp_release_logo(void);
 /*
  * Platform specific callbacks for power-off handling.

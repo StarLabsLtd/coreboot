@@ -9,12 +9,6 @@
 #include <types.h>
 #include <framebuffer_info.h>
 
-enum pixel_format {
-	pixel_rgbx_8bpc = 0,
-	pixel_bgrx_8bpc = 1,
-	pixel_bitmask = 2,		/* defined by <rgb>_mask values */
-};
-
 struct pixel {
 	uint8_t pos;
 	uint8_t size;

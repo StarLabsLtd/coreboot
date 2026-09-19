@@ -9,6 +9,30 @@
 
 static const struct cbmem_entry *logo_entry;
 
+struct bmp_cbmem_allocation {
+	uint32_t id;
+	const struct cbmem_entry *entry;
+};
+
+static void *bmp_cbmem_allocator(void *arg, size_t size,
+	const union cbfs_mdata *metadata_unused)
+{
+	struct bmp_cbmem_allocation *allocation = arg;
+	size_t allocation_size = size;
+	void *buffer;
+
+	(void)metadata_unused;
+	if (size == 0 || size > 1 * MiB)
+		return NULL;
+	if (allocation->id == CBMEM_ID_BOOT_SPLASH)
+		allocation_size += DYN_CBMEM_ALIGN_SIZE - 1;
+	buffer = cbmem_add(allocation->id, allocation_size);
+	allocation->entry = cbmem_entry_find(allocation->id);
+	if (buffer && allocation->id == CBMEM_ID_BOOT_SPLASH)
+		buffer = (void *)ALIGN_UP((uintptr_t)buffer, DYN_CBMEM_ALIGN_SIZE);
+	return buffer;
+}
+
 /* Mapping of different bootsplash logo name based on bootsplash type */
 static const char *bootsplash_list[BOOTSPLASH_MAX_NUM] = {
 	[BOOTSPLASH_LOW_BATTERY] = "low_battery.bmp",
@@ -42,22 +66,34 @@ static const char *bmp_get_logo_filename(enum bootsplash_type type)
 void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size)
 {
 	void *logo_buffer;
+	struct bmp_cbmem_allocation allocation;
+
+	if (!logo_size)
+		return NULL;
+	*logo_size = 0;
+	if ((unsigned int)type >= BOOTSPLASH_MAX_NUM)
+		return NULL;
 
 	/* CBMEM is locked for S3 resume path. */
 	if (acpi_is_wakeup_s3())
 		return NULL;
 
-	logo_entry = cbmem_entry_add(CBMEM_ID_BMP_LOGO, 1 * MiB);
-	if (!logo_entry)
+	allocation = (struct bmp_cbmem_allocation) {
+		.id = type == BOOTSPLASH_CENTER &&
+			CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) ?
+			CBMEM_ID_BOOT_SPLASH : CBMEM_ID_BMP_LOGO,
+	};
+	logo_buffer = cbfs_alloc(bmp_get_logo_filename(type),
+		bmp_cbmem_allocator, &allocation, logo_size);
+	logo_entry = allocation.entry;
+	if (!logo_buffer) {
+		bmp_release_logo();
 		return NULL;
-
-	logo_buffer = cbmem_entry_start(logo_entry);
-	if (!logo_buffer)
+	}
+	if (!logo_entry) {
+		*logo_size = 0;
 		return NULL;
-
-	*logo_size = cbfs_load(bmp_get_logo_filename(type), logo_buffer, 1 * MiB);
-	if (*logo_size == 0)
-		return NULL;
+	}
 
 	return logo_buffer;
 }
@@ -73,6 +109,11 @@ void *bmp_load_logo(size_t *logo_size)
 		type = BOOTSPLASH_OFF_MODE_CHARGING;
 
 	return bmp_load_logo_by_type(type, logo_size);
+}
+
+void bmp_retain_logo(void)
+{
+	logo_entry = NULL;
 }
 
 void bmp_release_logo(void)

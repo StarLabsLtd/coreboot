@@ -97,6 +97,7 @@ enum {
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
 	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
 	LB_TAG_PAYLOAD_SPI_CONSOLE	= 0x0050,
+	LB_TAG_BOOT_SPLASH		= 0x0051,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -185,11 +186,14 @@ struct lb_pcie {
 };
 
 #define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 3
+#define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION_4 4
 
 #define LB_PRH_SECTION_PCI_ROOT_BRIDGES 3
 #define LB_PRH_SECTION_PCI_ASSIGNMENTS  4
+#define LB_PRH_SECTION_BOOT_INTENT      5
 #define LB_PRH_SECTION_MEMORY_POLICY    1
 #define LB_PRH_SECTION_FRAMEBUFFER      7
+#define LB_PRH_SECTION_PCI_TOPOLOGY     8
 
 #define LB_PRH_PCI_ROOT_TOPOLOGY_ONLY 0x00000001
 
@@ -201,9 +205,13 @@ struct lb_pcie {
 #define LB_PRH_PCI_ASSIGNMENT_64BIT 0x01
 #define LB_PRH_PCI_MAX_ROOTS       16
 #define LB_PRH_PCI_MAX_ASSIGNMENTS 256
+#define LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES 512
+#define LB_PRH_PCI_TOPOLOGY_PATH_ONLY   0x01
+#define LB_PRH_PCI_TOPOLOGY_PARENT_ROOT 0xffff
 #define LB_PRH_GCD_MEMORY_TYPE_MMIO 3
 #define LB_PRH_MEMORY_GCD_AUTHORITATIVE 0x00000004
 #define LB_PRH_FRAMEBUFFER_GEOMETRY_AUTHORITATIVE 0x00000001
+#define LB_PRH_FRAMEBUFFER_PCI_OWNER_AUTHORITATIVE 0x00000002
 #define LB_PRH_FRAMEBUFFER_MEMORY_DELEGATED       0x80000000
 #define LB_PRH_SECTION_FLAG_MANDATORY     0x0001
 #define LB_PRH_SECTION_FLAG_AUTHORITATIVE 0x0002
@@ -266,6 +274,31 @@ struct lb_prh_pci_assignment {
 	lb_uint64_t attributes;
 };
 
+struct lb_prh_pci_topology {
+	uint16_t segment;
+	uint8_t bus;
+	uint8_t device;
+	uint8_t function;
+	uint8_t header_type;
+	uint16_t parent_index;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint16_t command;
+	uint8_t class_code;
+	uint8_t subclass;
+	uint8_t programming_interface;
+	uint8_t secondary_bus;
+	uint8_t subordinate_bus;
+	uint8_t flags;
+	uint32_t reserved;
+} __packed;
+
+struct lb_prh_boot_intent {
+	uint16_t topology_index;
+	uint16_t flags;
+	uint32_t reserved;
+} __packed;
+
 struct lb_prh_memory_policy {
 	lb_uint64_t base;
 	lb_uint64_t length;
@@ -292,7 +325,13 @@ struct lb_prh_framebuffer {
 	uint8_t blue_mask_size;
 	uint8_t reserved_mask_pos;
 	uint8_t reserved_mask_size;
-	uint8_t reserved[3];
+	union {
+		uint8_t reserved[3];
+		struct {
+			uint16_t topology_index;
+			uint8_t bar;
+		} __packed;
+	} __packed;
 	uint32_t owner_flags;
 };
 
@@ -304,10 +343,18 @@ _Static_assert(sizeof(struct lb_prh_pci_root_bridge) == 88,
 	       "unexpected payload resource root bridge size");
 _Static_assert(sizeof(struct lb_prh_pci_assignment) == 32,
 	       "unexpected payload resource PCI assignment size");
+_Static_assert(sizeof(struct lb_prh_pci_topology) == 24,
+	       "unexpected payload resource PCI topology size");
+_Static_assert(sizeof(struct lb_prh_boot_intent) == 8,
+	       "unexpected payload resource boot intent size");
 _Static_assert(sizeof(struct lb_prh_memory_policy) == 48,
 	       "unexpected payload resource memory policy size");
 _Static_assert(sizeof(struct lb_prh_framebuffer) == 44,
 	       "unexpected payload resource framebuffer size");
+_Static_assert(offsetof(struct lb_prh_framebuffer, topology_index) == 37,
+	       "unexpected payload resource framebuffer owner offset");
+_Static_assert(offsetof(struct lb_prh_framebuffer, bar) == 39,
+	       "unexpected payload resource framebuffer BAR offset");
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
 
@@ -456,6 +503,38 @@ struct lb_framebuffer {
 	struct lb_framebuffer_flags flags;
 	uint8_t pad;
 };
+
+/*
+ * Describes the framebuffer rectangle populated by coreboot's bootsplash.
+ * The framebuffer and BMP allocation remain owned by coreboot. The BMP is a
+ * persistent CBMEM allocation suitable for an ACPI BGRT image address.
+ */
+#define LB_BOOT_SPLASH_REVISION		2
+#define LB_BOOT_SPLASH_FLAG_DISPLAYED	(1U << 0)
+#define LB_BOOT_SPLASH_FLAG_BMP		(1U << 1)
+
+struct lb_boot_splash {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t flags;
+	lb_uint64_t framebuffer_address;
+	uint32_t image_offset_x;
+	uint32_t image_offset_y;
+	uint32_t image_width;
+	uint32_t image_height;
+	lb_uint64_t bmp_address;
+	uint32_t bmp_size;
+};
+
+_Static_assert(sizeof(struct lb_boot_splash) == 48,
+	       "boot splash record ABI changed");
+_Static_assert(offsetof(struct lb_boot_splash, framebuffer_address) == 12,
+	       "boot splash framebuffer address offset changed");
+_Static_assert(offsetof(struct lb_boot_splash, image_offset_x) == 20,
+	       "boot splash image offset changed");
+_Static_assert(offsetof(struct lb_boot_splash, bmp_address) == 36,
+	       "boot splash BMP address offset changed");
 
 struct lb_gpio {
 	uint32_t port;

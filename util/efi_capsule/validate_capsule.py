@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 
-"""Validate identity consistency between an FMP capsule and its EDK2 payload."""
+"""Validate the structure and identity of an FMP capsule."""
 
 import argparse
 import struct
@@ -136,6 +136,9 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count):
             f"expected {expected_embedded_count}"
         )
 
+    if firmware_volume is None:
+        return
+
     matching_drivers = sum(
         file_guid == expected_guid and file_type == FFS_FILETYPE_DRIVER
         for file_guid, file_type in parse_ffs_files(firmware_volume)
@@ -150,7 +153,7 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capsule", required=True, help="generated FMP capsule")
-    parser.add_argument("--firmware-volume", required=True, help="EDK2 DXE FV")
+    parser.add_argument("--firmware-volume", help="optional payload DXE FV")
     parser.add_argument("--guid", required=True, type=uuid.UUID)
     parser.add_argument("--embedded-drivers", required=True, type=int)
     args = parser.parse_args()
@@ -158,8 +161,10 @@ def main():
     try:
         with open(args.capsule, "rb") as capsule_file:
             capsule = capsule_file.read()
-        with open(args.firmware_volume, "rb") as fv_file:
-            firmware_volume = fv_file.read()
+        firmware_volume = None
+        if args.firmware_volume:
+            with open(args.firmware_volume, "rb") as fv_file:
+                firmware_volume = fv_file.read()
         validate(capsule, firmware_volume, args.guid, args.embedded_drivers)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)

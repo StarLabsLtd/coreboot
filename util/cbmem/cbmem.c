@@ -199,13 +199,85 @@ static uint64_t timestamp_get(uint64_t table_tick_freq_mhz)
 	return 0;
 }
 
+static const char *cdk2_timestamp_name(uint32_t id)
+{
+	static const char *const linear_phase_begin[] = {
+		"CDK2 handoff validation begin", "CDK2 early splash begin",
+		"CDK2 DXE services begin", "CDK2 architectural protocols begin",
+		"CDK2 minimal variables begin", "CDK2 capsule decision begin",
+		"CDK2 RAM capsule begin", "CDK2 platform tables begin",
+		"CDK2 PCI roots begin", "CDK2 PCI enumeration begin",
+		"CDK2 storage controllers begin", "CDK2 block discovery begin",
+		"CDK2 filesystems begin", "CDK2 disk capsule begin",
+		"CDK2 display adoption begin", "CDK2 input UI begin",
+		NULL, "CDK2 boot policy begin", "CDK2 OS handoff begin",
+	};
+	static const char *const linear_phase_complete[] = {
+		"CDK2 handoff validation complete", "CDK2 early splash complete",
+		"CDK2 DXE services complete", "CDK2 architectural protocols complete",
+		"CDK2 minimal variables complete", "CDK2 capsule decision complete",
+		"CDK2 RAM capsule complete", "CDK2 platform tables complete",
+		"CDK2 PCI roots complete", "CDK2 PCI enumeration complete",
+		"CDK2 storage controllers complete", "CDK2 block discovery complete",
+		"CDK2 filesystems complete", "CDK2 disk capsule complete",
+		"CDK2 display adoption complete", "CDK2 input UI complete",
+		NULL, "CDK2 boot policy complete", "CDK2 OS handoff complete",
+	};
+	static const char *const dxe_ranges[] = {
+		"CDK2 DXE PE section", "CDK2 DXE image",
+		"CDK2 DXE memory protection", "CDK2 DXE memory attributes",
+		"CDK2 DXE miscellaneous", "CDK2 DXE handle database",
+		"CDK2 DXE GCD", "CDK2 DXE memory",
+		"CDK2 DXE firmware volume", "CDK2 DXE event/TPL",
+		"CDK2 DXE dependency", "CDK2 DXE dispatcher",
+		"CDK2 DXE core",
+	};
+
+	if (id >= 0x1600 && id <= 0x1625 && (id & 1U) == 0U) {
+		const char *name = linear_phase_begin[(id - 0x1600) / 2U];
+
+		return name == NULL ? "CDK2 reserved linear phase" : name;
+	}
+	if (id >= 0x1601 && id <= 0x1625 && (id & 1U) != 0U) {
+		const char *name = linear_phase_complete[(id - 0x1601) / 2U];
+
+		return name == NULL ? "CDK2 reserved linear phase complete" : name;
+	}
+	if (id >= 0x1800 && id < 0x1a80)
+		return dxe_ranges[(id - 0x1800) / 0x20U];
+	if (id >= 0x2000 && id < 0x3000)
+		return "CDK2 upstream diagnostic";
+	switch (id) {
+	case 0x1000: return "CDK2 native entry";
+	case 0x1001: return "CDK2 native context ready";
+	case 0x1002: return "CDK2 native module failed";
+	case 0x1003: return "CDK2 native DXE handoff";
+	case 0x1100: return "CDK2 DXE entry";
+	case 0x1101: return "CDK2 DXE core ready";
+	case 0x1102: return "CDK2 DXE FV found";
+	case 0x1103: return "CDK2 DXE FV invalid";
+	case 0x1200: return "CDK2 DXE dispatch begin";
+	case 0x1201: return "CDK2 DXE driver start";
+	case 0x1202: return "CDK2 DXE driver failed";
+	case 0x1203: return "CDK2 DXE dispatch end";
+	case 0x1300: return "CDK2 BDS driver entry";
+	case 0x1301: return "CDK2 BDS protocol ready";
+	case 0x1330: return "CDK2 USB scan begin";
+	case 0x1331: return "CDK2 USB scan timeout";
+	case 0x1332: return "CDK2 USB scan end";
+	default: return NULL;
+	}
+}
+
 static const char *timestamp_name(uint32_t id)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
 		if (timestamp_ids[i].id == id)
 			return timestamp_ids[i].name;
 	}
-	return "<unknown>";
+	const char *name = cdk2_timestamp_name(id);
+
+	return name == NULL ? "<unknown>" : name;
 }
 
 static uint32_t timestamp_enum_name_to_id(const char *name)

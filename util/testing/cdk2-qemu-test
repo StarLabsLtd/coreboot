@@ -5,10 +5,15 @@ set -eu
 
 : "${CDK2_RETAINED_FV:?set CDK2_RETAINED_FV to the reviewed transition FV}"
 : "${CDK2_RETAINED_FV_SHA256:?set CDK2_RETAINED_FV_SHA256}"
+: "${CDK2_SYSTEM_FMP_FFS:?set CDK2_SYSTEM_FMP_FFS to the reviewed system FMP FFS}"
+: "${CDK2_SYSTEM_FMP_FFS_SHA256:?set CDK2_SYSTEM_FMP_FFS_SHA256}"
+: "${CDK2_SYSTEM_FMP_PE:?set CDK2_SYSTEM_FMP_PE to the reviewed system FMP executable}"
+: "${CDK2_SYSTEM_FMP_PE_SHA256:?set CDK2_SYSTEM_FMP_PE_SHA256}"
 : "${CDK2_QEMU_NVME_IMAGE:?set CDK2_QEMU_NVME_IMAGE to the test image}"
 : "${CDK2_QEMU_USB_IMAGE:?set CDK2_QEMU_USB_IMAGE to the startup image}"
 
-for file in "$CDK2_RETAINED_FV" "$CDK2_QEMU_NVME_IMAGE" "$CDK2_QEMU_USB_IMAGE"; do
+for file in "$CDK2_RETAINED_FV" "$CDK2_SYSTEM_FMP_FFS" "$CDK2_SYSTEM_FMP_PE" \
+	"$CDK2_QEMU_NVME_IMAGE" "$CDK2_QEMU_USB_IMAGE"; do
 	test -f "$file" || {
 		echo "missing CDK2 Q35 input: $file" >&2
 		exit 1
@@ -17,9 +22,12 @@ done
 
 command -v qemu-system-x86_64 >/dev/null
 command -v sha256sum >/dev/null
-command -v timeout >/dev/null
 
 printf '%s  %s\n' "$CDK2_RETAINED_FV_SHA256" "$CDK2_RETAINED_FV" |
+	sha256sum -c -
+printf '%s  %s\n' "$CDK2_SYSTEM_FMP_FFS_SHA256" "$CDK2_SYSTEM_FMP_FFS" |
+	sha256sum -c -
+printf '%s  %s\n' "$CDK2_SYSTEM_FMP_PE_SHA256" "$CDK2_SYSTEM_FMP_PE" |
 	sha256sum -c -
 
 top=$(pwd)
@@ -36,10 +44,21 @@ obj="$tmpdir/build"
 cp "${CDK2_QEMU_CONFIG:-configs/config.emulation_qemu_x86_q35_smm_tseg}" "$config"
 {
 	printf '%s\n' 'CONFIG_PAYLOAD_CDK2=y'
+	printf '%s\n' 'CONFIG_PAYLOAD_LOCAL_APIC_TIMER_INFO=y'
 	printf '%s\n' 'CONFIG_USE_X86_64_SUPPORT=y'
-	printf '%s\n' 'CONFIG_CDK2_BUILD_DEBUG=y'
+	printf '%s\n' 'CONFIG_ANY_TOOLCHAIN=y'
+	printf '%s\n' 'CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE=y'
+	printf '%s\n' 'CONFIG_CDK2_CAPSULE_MAIN_FW_GUID="00112233-4455-6677-8899-aabbccddeeff"'
+	printf '%s\n' 'CONFIG_CDK2_CPU_VENDOR_INTEL=y'
+	printf '%s\n' 'CONFIG_CDK2_QEMU_ACCEPTANCE_PROFILE=y'
+	printf '%s\n' 'CONFIG_CDK2_DEBUG=y'
+	printf '%s\n' 'CONFIG_CDK2_SETUP_UI=n'
 	printf 'CONFIG_CDK2_RETAINED_FV="%s"\n' "$CDK2_RETAINED_FV"
 	printf 'CONFIG_CDK2_RETAINED_FV_SHA256="%s"\n' "$CDK2_RETAINED_FV_SHA256"
+	printf 'CONFIG_CDK2_SYSTEM_FMP_FFS="%s"\n' "$CDK2_SYSTEM_FMP_FFS"
+	printf 'CONFIG_CDK2_SYSTEM_FMP_FFS_SHA256="%s"\n' "$CDK2_SYSTEM_FMP_FFS_SHA256"
+	printf 'CONFIG_CDK2_SYSTEM_FMP_PE="%s"\n' "$CDK2_SYSTEM_FMP_PE"
+	printf 'CONFIG_CDK2_SYSTEM_FMP_PE_SHA256="%s"\n' "$CDK2_SYSTEM_FMP_PE_SHA256"
 } >>"$config"
 
 make olddefconfig DOTCONFIG="$config" obj="$obj"
@@ -58,25 +77,60 @@ test -z "$(util/smmstoretool/smmstoretool "$tmpdir/q35.rom" list)"
 cp "$CDK2_QEMU_NVME_IMAGE" "$tmpdir/nvme.img"
 cp "$CDK2_QEMU_USB_IMAGE" "$tmpdir/usb.img"
 
-set +e
-timeout "${CDK2_QEMU_TIMEOUT:-80}" qemu-system-x86_64 \
+qemu-system-x86_64 \
 	-machine q35 -m 512M -nographic -no-reboot \
 	-drive if=pflash,format=raw,file="$tmpdir/q35.rom" \
 	-drive if=none,format=raw,file="$tmpdir/nvme.img",id=nvme \
 	-device nvme,drive=nvme,serial=cdk2 \
 	-drive if=none,format=raw,file="$tmpdir/usb.img",id=usb \
 	-device qemu-xhci -device usb-storage,drive=usb \
-	>"$tmpdir/q35.log" 2>&1
-status=$?
-set -e
+	>"$tmpdir/q35.log" 2>&1 &
+qemu_pid=$!
+status=124
+remaining="${CDK2_QEMU_TIMEOUT:-80}"
+
+# A successful EFI handoff does not return to firmware, so waiting for QEMU to
+# exit only burns the timeout.  BootLogo is emitted after the linear pipeline,
+# ReadyToBoot, and loading the configured EFI boot target.  Stop at that
+# deterministic postcondition, then check every phase below.
+while test "$remaining" -gt 0; do
+	if grep -q 'CDK2 | BootLogo | reblit and BGRT | SUCCESS' "$tmpdir/q35.log"; then
+		kill "$qemu_pid" 2>/dev/null || true
+		wait "$qemu_pid" 2>/dev/null || true
+		status=0
+		break
+	fi
+	if ! kill -0 "$qemu_pid" 2>/dev/null; then
+		set +e
+		wait "$qemu_pid"
+		status=$?
+		set -e
+		break
+	fi
+	sleep 1
+	remaining=$((remaining - 1))
+done
+if kill -0 "$qemu_pid" 2>/dev/null; then
+	kill "$qemu_pid" 2>/dev/null || true
+	wait "$qemu_pid" 2>/dev/null || true
+fi
 
 if test "$status" -ne 0 && test "$status" -ne 124; then
 	cat "$tmpdir/q35.log" >&2
 	exit "$status"
 fi
 
-for marker in 'UEFI Interactive Shell' 'CDK2_NATIVE_STARTUP' \
-	'CDK2_NATIVE_DONE' 'Reset with <null string>'; do
+for marker in \
+	'CDK2 | VARIABLES_MIN | complete | SUCCESS' \
+	'CDK2 | BLOCK_DISCOVERY | complete | SUCCESS' \
+	'CDK2 | FILESYSTEMS | complete | SUCCESS' \
+	'CDK2 | CAPSULE_DISK | complete | SUCCESS' \
+	'CDK2 | DISPLAY_ADOPT | complete | SUCCESS' \
+	'CDK2 | INPUT_UI | complete | SUCCESS' \
+	'CDK2 | BOOT_POLICY | complete | SUCCESS' \
+	'CDK2 | OS_HANDOFF | begin' \
+	'CDK2 | ReadyToBoot | signal | SUCCESS' \
+	'CDK2 | BootLogo | reblit and BGRT | SUCCESS'; do
 	if ! grep -q "$marker" "$tmpdir/q35.log"; then
 		echo "missing CDK2 Q35 marker: $marker" >&2
 		cat "$tmpdir/q35.log" >&2
