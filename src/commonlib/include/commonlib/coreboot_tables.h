@@ -95,6 +95,7 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
+	LB_TAG_CAPSULE_HANDOFF		= 0x0052,
 	LB_TAG_DMA_HANDOFF		= 0x0053,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
@@ -798,6 +799,81 @@ struct lb_efi_fw_info {
 	uint32_t lowest_supported_version;	/* Lowest allowed version for downgrades */
 	uint32_t fw_size;			/* Size of firmware in bytes */
 } __packed;
+
+#define LB_CAPSULE_HANDOFF_REVISION 2
+
+#define LB_CAPSULE_HANDOFF_AUTHENTICATED (1U << 0)
+#define LB_CAPSULE_HANDOFF_RESET_REQUIRED (1U << 1)
+#define LB_CAPSULE_HANDOFF_REQUIRED_FLAGS \
+	(LB_CAPSULE_HANDOFF_AUTHENTICATED | LB_CAPSULE_HANDOFF_RESET_REQUIRED)
+
+#define LB_CAPSULE_BROKER_COREBOOT_UPDATE 1
+#define LB_CAPSULE_BROKER_APPLY_REGIONS     (1U << 0)
+#define LB_CAPSULE_BROKER_PRESERVE_UNLISTED (1U << 1)
+#define LB_CAPSULE_BROKER_VERIFY_READBACK   (1U << 2)
+#define LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES \
+	(LB_CAPSULE_BROKER_APPLY_REGIONS | \
+	 LB_CAPSULE_BROKER_PRESERVE_UNLISTED | \
+	 LB_CAPSULE_BROKER_VERIFY_READBACK)
+
+#define LB_CAPSULE_FORMAT_FMP_V3 3
+#define LB_CAPSULE_AUTH_EFI_PKCS7 1
+#define LB_CAPSULE_BOARD_BINDING_CBFS_BUILD_INFO_V1 1
+#define LB_CAPSULE_PAYLOAD_MSS1_V1 1
+#define LB_CAPSULE_FLAGS_PERSIST_RESET 0x00050000U
+
+#define LB_CAPSULE_REGION_BIOS (1U << 0)
+#define LB_CAPSULE_REGION_VALID_FLAGS LB_CAPSULE_REGION_BIOS
+
+struct lb_capsule_update_region {
+	lb_uint64_t image_offset;
+	lb_uint64_t flash_offset;
+	lb_uint64_t size;
+	uint32_t flags;
+	uint32_t reserved;
+} __packed;
+
+struct lb_capsule_handoff {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t flags;
+	uint16_t broker_type;
+	uint16_t capsule_format;
+	uint16_t authentication_format;
+	uint16_t board_binding_format;
+	uint16_t payload_format;
+	uint16_t reserved16;
+	uint32_t broker_capabilities;
+	uint8_t image_type_guid[16];
+	uint32_t version;
+	uint32_t lowest_supported_version;
+	uint32_t capsule_flags;
+	uint32_t block_size;
+	uint32_t erase_size;
+	uint32_t region_count;
+	lb_uint64_t image_size;
+	lb_uint64_t boot_media_size;
+	lb_uint64_t smmstore_offset;
+	lb_uint64_t smmstore_size;
+	uint32_t reserved32[2];
+	struct lb_capsule_update_region regions[];
+} __packed;
+
+_Static_assert(sizeof(struct lb_capsule_update_region) == 32,
+	"capsule update region ABI");
+_Static_assert(sizeof(struct lb_capsule_handoff) == 112,
+	"capsule handoff header ABI");
+_Static_assert(offsetof(struct lb_capsule_handoff, broker_type) == 16 &&
+	offsetof(struct lb_capsule_handoff, broker_capabilities) == 28,
+	"capsule broker ABI");
+_Static_assert(offsetof(struct lb_capsule_handoff, image_type_guid) == 32 &&
+	offsetof(struct lb_capsule_handoff, version) == 48,
+	"capsule identity ABI");
+_Static_assert(offsetof(struct lb_capsule_handoff, image_size) == 72 &&
+	offsetof(struct lb_capsule_handoff, regions) == 112,
+	"capsule bounds ABI");
 struct lb_cfr {
 	uint32_t tag;
 	uint32_t size;

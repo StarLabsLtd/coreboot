@@ -30,6 +30,13 @@ config PAYLOAD_DMA_HANDOFF
 	  protection state is complete. This preparatory interface does not enroll
 	  controllers, expose a payload IOMMU protocol, or enable bus mastering.
 
+config CAPSULE_UPDATE_CONTRACT
+	bool
+	default n
+	help
+	  Build the dormant capsule handoff validator and bounded backend contract.
+	  This does not publish a coreboot table record or provide a flash backend.
+
 config ROMSTAGE_ADA
 	bool
 	help
