@@ -14,6 +14,12 @@
 #define CAPSULE_BROKER_RESULT_PENDING UINT32_MAX
 #define CAPSULE_BROKER_STATUS_PENDING UINT32_MAX
 
+/* Broker-owned description of the authenticated raw ROM in an envelope. */
+struct capsule_broker_raw_image {
+	uint64_t offset;
+	uint64_t size;
+};
+
 enum capsule_broker_operation {
 	CAPSULE_BROKER_APPLY = 1,
 	CAPSULE_BROKER_CLOSE = 2,

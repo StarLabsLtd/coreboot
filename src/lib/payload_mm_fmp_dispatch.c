@@ -36,7 +36,7 @@ static bool capsule_intent_valid(const struct payload_mm_fmp_capsule_intent *int
 		 intent->operation == PAYLOAD_MM_FMP_CAPSULE_SET) &&
 		!intent->flags && intent->broker_generation &&
 		capsule_broker_intent_matches(intent->broker_generation,
-			intent->image_size) &&
+			intent->capsule_size) &&
 		intent->transaction &&
 		intent->transaction > dispatch_authority.last_intent_transaction &&
 		intent->digest_algorithm == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 &&

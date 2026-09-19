@@ -23,9 +23,9 @@ static bool mutate_workspace_during_proof;
 static bool mutate_authority_during_proof;
 static uint64_t broker_generation = 11;
 
-bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size)
+bool capsule_broker_intent_matches(uint64_t generation, uint64_t capsule_size)
 {
-	return generation == broker_generation && image_size == 0x20000;
+	return generation == broker_generation && capsule_size == 0x20000;
 }
 
 void mock_assert(const int result, const char *const expression,
@@ -139,7 +139,7 @@ static struct payload_mm_fmp_capsule_intent intent(uint32_t operation,
 		.operation = operation,
 		.broker_generation = broker_generation,
 		.transaction = transaction,
-		.image_size = 0x20000,
+		.capsule_size = 0x20000,
 		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
 		.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
 		.attempted_version = 9,
@@ -439,7 +439,7 @@ static void intent_case(const char *name)
 	else if (!strcmp(name, "intent-zero-transaction"))
 		capsule.transaction = 0;
 	else if (!strcmp(name, "intent-zero-image"))
-		capsule.image_size = 0;
+		capsule.capsule_size = 0;
 	else if (!strcmp(name, "intent-digest"))
 		capsule.digest_algorithm++;
 	else if (!strcmp(name, "intent-digest-size"))

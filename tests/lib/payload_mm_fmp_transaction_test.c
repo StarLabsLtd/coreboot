@@ -208,7 +208,7 @@ static void setup(uint32_t operation)
 		.operation = operation,
 		.broker_generation = 9,
 		.transaction = 7,
-		.image_size = 4096,
+		.capsule_size = 4096,
 		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
 		.digest_size = sizeof(intent.digest),
 		.attempted_version = 12,

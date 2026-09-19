@@ -611,7 +611,8 @@ static bool board_matches(const uint8_t *image, size_t size)
 
 static enum cb_err authenticate(const void *image, size_t image_size,
 	uint32_t attempted_version,
-	const struct payload_mm_fmp_owner_record *expected_record)
+	const struct payload_mm_fmp_owner_record *expected_record,
+	struct capsule_broker_raw_image *raw_image)
 {
 	struct payload_mm_fmp_owner_record record;
 	struct payload_mm_authenticated_image authenticated;
@@ -663,6 +664,20 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 	payload += dependency_size + header_size;
 	payload_size -= dependency_size + header_size;
 	valid = board_matches(payload, payload_size);
+	if (valid) {
+		uintptr_t image_address = (uintptr_t)image;
+		uintptr_t payload_address = (uintptr_t)payload;
+
+		if (payload_address < image_address ||
+		    payload_address - image_address > image_size ||
+		    payload_size > image_size - (payload_address - image_address))
+			valid = false;
+		else
+			*raw_image = (struct capsule_broker_raw_image) {
+				.offset = payload_address - image_address,
+				.size = payload_size,
+			};
+	}
 out:
 	memset(&record, 0, sizeof(record));
 	memset(&authenticated, 0, sizeof(authenticated));
@@ -670,23 +685,32 @@ out:
 }
 
 enum cb_err payload_mm_fmp_authenticate_provider(const void *context,
-	const void *image, size_t image_size, uint32_t attempted_version,
-	const struct payload_mm_fmp_owner_record *owner_record)
+	const void *capsule, size_t capsule_size, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *owner_record,
+	struct capsule_broker_raw_image *raw_image)
 {
 	struct payload_mm_fmp_owner_record owner_snapshot;
 	enum cb_err status = CB_ERR;
 
-	if (context || !auth_policy.installed || auth_policy.busy || !image ||
-	    !image_size || !owner_record || !owner_record->sequence ||
-	    payload_mm_fmp_owner_storage_overlaps(image, image_size) ||
-	    payload_mm_authvar_buffers_overlap(image, image_size, &auth_policy,
+	if (!raw_image || payload_mm_authvar_buffers_overlap(raw_image,
+		sizeof(*raw_image), &auth_policy, sizeof(auth_policy)) ||
+	    (capsule && payload_mm_authvar_buffers_overlap(raw_image,
+		sizeof(*raw_image), capsule, capsule_size)))
+		return CB_ERR;
+	memset(raw_image, 0, sizeof(*raw_image));
+	if (context || !auth_policy.installed || auth_policy.busy || !capsule ||
+	    !capsule_size || !owner_record || !owner_record->sequence ||
+	    payload_mm_fmp_owner_storage_overlaps(capsule, capsule_size) ||
+	    payload_mm_authvar_buffers_overlap(capsule, capsule_size, &auth_policy,
 		sizeof(auth_policy)))
 		return CB_ERR;
 	owner_snapshot = *owner_record;
 	auth_policy.busy = true;
-	status = authenticate(image, image_size, attempted_version,
-		&owner_snapshot);
+	status = authenticate(capsule, capsule_size, attempted_version,
+		&owner_snapshot, raw_image);
 	auth_policy.busy = false;
+	if (status != CB_SUCCESS)
+		memset(raw_image, 0, sizeof(*raw_image));
 	return status;
 }
 

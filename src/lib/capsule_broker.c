@@ -24,11 +24,13 @@ static struct {
 	uint64_t grant_transaction;
 	uint32_t grant_version;
 	uint8_t grant_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image grant_raw_image;
 	uint64_t authenticated_transaction;
 	uint64_t authenticated_owner_sequence;
 	uint64_t grant_owner_sequence;
 	uint32_t authenticated_version;
 	uint8_t authenticated_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image authenticated_raw_image;
 	bool grant_valid;
 	bool authentication_valid;
 	bool authentication_in_progress;
@@ -36,6 +38,28 @@ static struct {
 	bool install_attempted;
 	bool closed;
 } broker;
+
+static void clear_authentication(void)
+{
+	broker.authentication_valid = false;
+	broker.authenticated_transaction = 0;
+	broker.authenticated_owner_sequence = 0;
+	broker.authenticated_version = 0;
+	memset(broker.authenticated_digest, 0,
+		sizeof(broker.authenticated_digest));
+	memset(&broker.authenticated_raw_image, 0,
+		sizeof(broker.authenticated_raw_image));
+}
+
+static void clear_grant(void)
+{
+	broker.grant_valid = false;
+	broker.grant_transaction = 0;
+	broker.grant_owner_sequence = 0;
+	broker.grant_version = 0;
+	memset(broker.grant_digest, 0, sizeof(broker.grant_digest));
+	memset(&broker.grant_raw_image, 0, sizeof(broker.grant_raw_image));
+}
 
 static bool authentication_state_valid(void)
 {
@@ -74,10 +98,11 @@ bool capsule_broker_generation_matches(uint64_t generation)
 		generation == unpack64(broker.policy.endpoint.generation);
 }
 
-bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size)
+bool capsule_broker_intent_matches(uint64_t generation, uint64_t capsule_size)
 {
 	return capsule_broker_generation_matches(generation) &&
-		image_size == unpack64(broker.policy.endpoint.staging_size);
+		capsule_size &&
+		capsule_size <= unpack64(broker.policy.endpoint.staging_size);
 }
 
 bool capsule_broker_buffer_available(const void *buffer, size_t size)
@@ -102,7 +127,8 @@ static bool endpoint_valid(const struct lb_capsule_broker_endpoint *endpoint,
 	uint64_t staging_base;
 	uint64_t staging_size;
 
-	if (!endpoint || endpoint->tag != LB_TAG_CAPSULE_BROKER_ENDPOINT ||
+	if (!endpoint || !image_size ||
+	    endpoint->tag != LB_TAG_CAPSULE_BROKER_ENDPOINT ||
 	    endpoint->size != sizeof(*endpoint) ||
 	    endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_REVISION ||
 	    endpoint->header_size != sizeof(*endpoint) ||
@@ -121,7 +147,7 @@ static bool endpoint_valid(const struct lb_capsule_broker_endpoint *endpoint,
 	staging_size = unpack64(endpoint->staging_size);
 	if (!unpack64(endpoint->generation) || !communication_base ||
 	    communication_base % sizeof(uint64_t) || !staging_base ||
-	    staging_base % sizeof(uint64_t) || staging_size != image_size ||
+	    staging_base % sizeof(uint64_t) || staging_size < image_size ||
 	    !range_addressable(communication_base, endpoint->communication_size) ||
 	    !range_addressable(staging_base, staging_size) ||
 	    ranges_overlap(communication_base, endpoint->communication_size,
@@ -167,6 +193,8 @@ struct broker_control_state {
 	uint32_t authenticated_version;
 	uint8_t grant_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	uint8_t authenticated_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image grant_raw_image;
+	struct capsule_broker_raw_image authenticated_raw_image;
 	bool grant_valid;
 	bool authentication_valid;
 	bool authentication_in_progress;
@@ -189,6 +217,8 @@ static struct broker_control_state control_state(void)
 		.authentication_in_progress = broker.authentication_in_progress,
 		.installed = broker.installed,
 		.closed = broker.closed,
+		.grant_raw_image = broker.grant_raw_image,
+		.authenticated_raw_image = broker.authenticated_raw_image,
 	};
 
 	memcpy(state.grant_digest, broker.grant_digest,
@@ -215,6 +245,11 @@ static bool control_state_matches(const struct broker_control_state *expected)
 			sizeof(current.grant_digest)) &&
 		!memcmp(current.authenticated_digest, expected->authenticated_digest,
 			sizeof(current.authenticated_digest)) &&
+		!memcmp(&current.grant_raw_image, &expected->grant_raw_image,
+			sizeof(current.grant_raw_image)) &&
+		!memcmp(&current.authenticated_raw_image,
+			&expected->authenticated_raw_image,
+			sizeof(current.authenticated_raw_image)) &&
 		current.grant_valid == expected->grant_valid &&
 		current.authentication_valid == expected->authentication_valid &&
 		current.authentication_in_progress ==
@@ -279,8 +314,8 @@ enum cb_err capsule_broker_policy_install(
 	staging_size = unpack64(snapshot.endpoint.staging_size);
 	if (snapshot.revision != CAPSULE_BROKER_POLICY_REVISION ||
 	    snapshot.size != sizeof(snapshot) ||
-	    !snapshot.image_size ||
-	    !endpoint_valid(&snapshot.endpoint, snapshot.image_size) ||
+	    !snapshot.raw_image_size ||
+	    !endpoint_valid(&snapshot.endpoint, snapshot.raw_image_size) ||
 	    !snapshot.boot_media_size || !snapshot.smmstore_size ||
 	    snapshot.smmstore_offset > snapshot.boot_media_size ||
 	    snapshot.smmstore_size > snapshot.boot_media_size -
@@ -362,13 +397,26 @@ static enum cb_err authenticate_intent(
 	struct payload_mm_fmp_owner_record expected_owner;
 	uint8_t context[CAPSULE_BROKER_CONTEXT_SIZE] __aligned(8);
 	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image callback_raw_image = { 0 };
+	struct capsule_broker_raw_image raw_image = { 0 };
 	const void *authenticate_context = NULL;
 	void *staging;
+	enum cb_err callback_status;
 	enum cb_err status = CB_ERR;
 
-	if (!broker.installed || broker.closed || broker.grant_valid ||
-	    broker.authentication_valid || broker.authentication_in_progress ||
-	    !intent_source || !owner_source ||
+	if (!broker.installed || broker.closed || broker.authentication_in_progress)
+		return CB_ERR;
+	if (broker.grant_valid) {
+		clear_grant();
+		broker.closed = true;
+		return CB_ERR;
+	}
+	if (broker.authentication_valid) {
+		clear_authentication();
+		broker.closed = true;
+		return CB_ERR;
+	}
+	if (!intent_source || !owner_source ||
 	    intent_source != payload_mm_fmp_dispatch_capsule_intent())
 		return CB_ERR;
 	memcpy(&intent, intent_source, sizeof(intent));
@@ -380,7 +428,7 @@ static enum cb_err authenticate_intent(
 	     intent.operation != PAYLOAD_MM_FMP_CAPSULE_SET) || intent.flags ||
 	    !intent.transaction || intent.reserved ||
 	    !capsule_broker_intent_matches(intent.broker_generation,
-		intent.image_size) ||
+		intent.capsule_size) ||
 	    intent.digest_algorithm != PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 ||
 	    intent.digest_size != sizeof(intent.digest))
 		return CB_ERR;
@@ -390,7 +438,7 @@ static enum cb_err authenticate_intent(
 	if (!execution_guard() || !authentication_state_valid())
 		goto out;
 	if (broker.policy.sha256(broker.policy.sha256_context, staging,
-		(size_t)intent.image_size, digest) != CB_SUCCESS ||
+		(size_t)intent.capsule_size, digest) != CB_SUCCESS ||
 	    !authentication_state_valid() || !execution_guard() ||
 	    !authentication_state_valid() ||
 	    memcmp(digest, intent.digest, sizeof(digest)))
@@ -401,15 +449,22 @@ static enum cb_err authenticate_intent(
 			broker.policy.authenticate_context_size);
 	if (broker.policy.authenticate_context_size)
 		authenticate_context = context;
-	if (broker.policy.authenticate(authenticate_context, staging,
-		(size_t)intent.image_size, intent.attempted_version,
-		&owner) != CB_SUCCESS ||
+	callback_status = broker.policy.authenticate(authenticate_context, staging,
+		(size_t)intent.capsule_size, intent.attempted_version,
+		&owner, &callback_raw_image);
+	raw_image = callback_raw_image;
+	memset(&callback_raw_image, 0, sizeof(callback_raw_image));
+	if (callback_status != CB_SUCCESS ||
 	    memcmp(&owner, &expected_owner, sizeof(owner)) ||
-	    !authentication_state_valid() || !execution_guard() ||
-	    !authentication_state_valid())
+	    !authentication_state_valid() || !raw_image.size ||
+	    raw_image.size != broker.policy.raw_image_size ||
+	    raw_image.offset > intent.capsule_size ||
+	    raw_image.size > intent.capsule_size - raw_image.offset)
+		goto out;
+	if (!execution_guard() || !authentication_state_valid())
 		goto out;
 	if (broker.policy.sha256(broker.policy.sha256_context, staging,
-		(size_t)intent.image_size, digest) != CB_SUCCESS ||
+		(size_t)intent.capsule_size, digest) != CB_SUCCESS ||
 	    !authentication_state_valid() || !execution_guard() ||
 	    !authentication_state_valid() ||
 	    memcmp(digest, intent.digest, sizeof(digest)))
@@ -420,11 +475,17 @@ static enum cb_err authenticate_intent(
 		broker.authenticated_version = intent.attempted_version;
 		memcpy(broker.authenticated_digest, intent.digest,
 			sizeof(broker.authenticated_digest));
+		broker.authenticated_raw_image = raw_image;
 		broker.authentication_valid = true;
 	}
 	status = CB_SUCCESS;
 out:
 	broker.authentication_in_progress = false;
+	memset(&callback_raw_image, 0, sizeof(callback_raw_image));
+	memset(&raw_image, 0, sizeof(raw_image));
+	if (status != CB_SUCCESS ||
+	    intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK)
+		clear_authentication();
 	return status;
 }
 
@@ -442,6 +503,8 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 	uint64_t authenticated_sequence, uint64_t checkpoint_sequence,
 	const uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE])
 {
+	struct capsule_broker_raw_image raw_image;
+
 	if (!authenticated_sequence || !checkpoint_sequence || !digest ||
 	    !broker.installed || broker.closed || broker.grant_valid ||
 	    broker.authentication_in_progress || !broker.authentication_valid ||
@@ -454,19 +517,25 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 	     (authenticated_sequence == UINT64_MAX ||
 	      checkpoint_sequence != authenticated_sequence + 1)) ||
 	    memcmp(digest, broker.authenticated_digest,
-		CAPSULE_BROKER_DIGEST_SIZE))
+		CAPSULE_BROKER_DIGEST_SIZE)) {
+		if (broker.authentication_valid) {
+			clear_authentication();
+			broker.closed = true;
+		}
+		if (broker.grant_valid) {
+			clear_grant();
+			broker.closed = true;
+		}
 		return CB_ERR;
+	}
+	raw_image = broker.authenticated_raw_image;
 	broker.grant_transaction = transaction;
 	broker.grant_owner_sequence = checkpoint_sequence;
 	broker.grant_version = attempted_version;
 	memcpy(broker.grant_digest, broker.authenticated_digest,
 		sizeof(broker.grant_digest));
-	broker.authentication_valid = false;
-	broker.authenticated_transaction = 0;
-	broker.authenticated_owner_sequence = 0;
-	broker.authenticated_version = 0;
-	memset(broker.authenticated_digest, 0,
-		sizeof(broker.authenticated_digest));
+	broker.grant_raw_image = raw_image;
+	clear_authentication();
 	broker.grant_valid = true;
 	return CB_SUCCESS;
 }
@@ -506,21 +575,22 @@ static enum cb_err apply_capsule(
 	struct capsule_media_policy media_policy;
 	struct capsule_media_backend media;
 	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image raw_image = broker.grant_raw_image;
+	uintptr_t staging = (uintptr_t)
+		unpack64(broker.policy.endpoint.staging_base);
 	enum cb_err status;
 
 	broker.closed = true;
-	broker.grant_valid = false;
-	broker.authentication_valid = false;
+	clear_grant();
+	clear_authentication();
 	if (!execution_guard() ||
 	    broker.policy.sha256(broker.policy.sha256_context,
-		(void *)(uintptr_t)unpack64(broker.policy.endpoint.staging_base),
-		(size_t)intent->image_size, digest) != CB_SUCCESS ||
+		(void *)staging, (size_t)intent->capsule_size, digest) != CB_SUCCESS ||
 	    !execution_guard() || memcmp(digest, intent->digest, sizeof(digest)))
 		return CB_ERR;
 	plan = (struct capsule_update_plan) {
-		.image = (const void *)(uintptr_t)
-			unpack64(broker.policy.endpoint.staging_base),
-		.image_bytes = (size_t)intent->image_size,
+		.image = (const void *)(staging + (uintptr_t)raw_image.offset),
+		.image_bytes = (size_t)raw_image.size,
 		.regions = broker.regions,
 		.region_count = broker.policy.region_count,
 	};
@@ -549,10 +619,14 @@ enum cb_err capsule_broker_apply_intent(
 	const struct payload_mm_fmp_capsule_intent *intent_source)
 {
 	struct payload_mm_fmp_capsule_intent intent;
+	bool consume = broker.grant_valid;
 
 	if (!intent_source ||
-	    intent_source != payload_mm_fmp_dispatch_capsule_intent())
+	    intent_source != payload_mm_fmp_dispatch_capsule_intent()) {
+		if (consume)
+			capsule_broker_close_for_s3();
 		return CB_ERR;
+	}
 	memcpy(&intent, intent_source, sizeof(intent));
 	if (intent.revision != PAYLOAD_MM_FMP_CAPSULE_INTENT_REVISION ||
 	    intent.size != sizeof(intent) ||
@@ -560,17 +634,27 @@ enum cb_err capsule_broker_apply_intent(
 	    intent.broker_generation !=
 		unpack64(broker.policy.endpoint.generation) ||
 	    !intent.transaction ||
-	    intent.image_size !=
+	    !intent.capsule_size || intent.capsule_size >
 		unpack64(broker.policy.endpoint.staging_size) ||
 	    intent.digest_algorithm != PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 ||
 	    intent.digest_size != sizeof(intent.digest) || intent.reserved ||
 	    !broker.grant_valid || !broker.grant_owner_sequence ||
+	    !broker.grant_raw_image.size ||
+	    broker.grant_raw_image.size != broker.policy.raw_image_size ||
+	    broker.grant_raw_image.offset > intent.capsule_size ||
+	    broker.grant_raw_image.size >
+		intent.capsule_size - broker.grant_raw_image.offset ||
 	    intent.transaction != broker.grant_transaction ||
 	    intent.attempted_version != broker.grant_version ||
-	    memcmp(intent.digest, broker.grant_digest, sizeof(intent.digest)))
+	    memcmp(intent.digest, broker.grant_digest, sizeof(intent.digest))) {
+		if (consume)
+			capsule_broker_close_for_s3();
 		return CB_ERR;
-	if (intent.transaction <= broker.last_transaction)
+	}
+	if (intent.transaction <= broker.last_transaction) {
+		capsule_broker_close_for_s3();
 		return CB_ERR;
+	}
 	broker.last_transaction = intent.transaction;
 	return apply_capsule(&intent);
 }
@@ -578,6 +662,6 @@ enum cb_err capsule_broker_apply_intent(
 void capsule_broker_close_for_s3(void)
 {
 	broker.closed = true;
-	broker.grant_valid = false;
-	broker.authentication_valid = false;
+	clear_grant();
+	clear_authentication();
 }

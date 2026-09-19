@@ -8,6 +8,9 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
+printf '%s\n' '#include <stdint.h>' 'typedef uint8_t u8;' \
+	'typedef uint32_t u32;' 'typedef uint64_t u64;' > \
+	"$temporary/include/coreboot-integer-types.h"
 
 cases='success dependency dependency-declared dependency-guid
 dependency-declared-mismatch dependency-declared-truncated
@@ -112,6 +115,34 @@ done
 	"$root/src/lib/payload_mm_crypto/mbedtls_verify_wrap.c" $objects \
 	-Wl,--gc-sections,--wrap=mbedtls_rsa_parse_pubkey -o "$temporary/real"
 "$temporary/real" real "$temporary/auth-image" "$temporary/trust.xdr"
+dd if="$temporary/payload" of="$temporary/raw-rom" bs=1 skip=16 \
+	status=none
+"${CC:-cc}" -std=gnu11 -O2 -Wall -Wextra -Werror -fno-builtin \
+	-ffunction-sections -fdata-sections \
+	-DREAL_AUTH -D__TEST__ -D__COREBOOT__ -D__SMM__ \
+	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"' \
+	-include "$root/src/include/kconfig.h" \
+	-include "$root/src/include/rules.h" \
+	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+	-include "$temporary/include/coreboot-integer-types.h" \
+	-I"$root/src" -I"$root/src/lib" \
+	-I"$root/src/lib/payload_mm_crypto" \
+	-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+	-idirafter "$root/src/include" \
+	-I"$root/src/arch/x86/include" -I"$temporary/include" \
+	-I"$root/3rdparty/mbedtls/include" -I"$root/3rdparty/mbedtls/library" \
+	"$root/tests/lib/payload_mm_fmp_capsule_composed_test.c" \
+	"$root/src/lib/payload_mm_fmp_auth_policy.c" \
+	"$root/src/lib/capsule_broker.c" \
+	"$root/src/lib/capsule_update_backend.c" \
+	"$root/src/lib/payload_mm_crypto/cms.c" \
+	"$root/src/lib/payload_mm_crypto/crypto.c" \
+	"$root/src/lib/payload_mm_crypto/mbedtls_verify_wrap.c" $objects \
+	-Wl,--gc-sections,--wrap=mbedtls_rsa_parse_pubkey \
+	-o "$temporary/composed"
+"$temporary/composed" "$temporary/auth-image" "$temporary/trust.xdr" \
+	"$temporary/raw-rom"
 printf '%s\n' 'Payload-MM FMP authentication policy O0/O2/ASan+UBSan: PASS'
 printf 'Payload-MM FMP real CMS/OpenSSL root oracle: PASS (%s)\n' \
 	"$(openssl version)"
+printf '%s\n' 'Payload-MM FMP signed-envelope broker composition: PASS'

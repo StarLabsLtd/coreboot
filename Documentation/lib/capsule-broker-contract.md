@@ -8,29 +8,32 @@ flash service, a generic SMMSTORE extension or an OS runtime interface.
 
 Trusted coreboot initialization owns the immutable writable-region policy,
 boot-media and erase geometry, SMMSTORE exclusion, media backend, scratch
-storage, generation, reserved communication range and full-image staging span. The
-complete policy is copied into protected SMM storage exactly once. Installation
+storage, generation, reserved communication range and capsule staging
+capacity. The complete policy is copied into protected SMM storage exactly
+once. Installation
 requires platform proofs for reserved communication and staging memory, DMA
 protection, SMM-only SPI ownership, absence of raw flash access and active CPU
 rendezvous.
 
 Callback pointers and their media, digest, authentication and proof contexts
-are part of that
-snapshot. Each non-null context has an explicit size capped at 128 bytes and is
+are part of that snapshot. Each non-null context has an explicit size capped
+at 128 bytes and is
 copied into the protected authority before installation succeeds. Callbacks
 receive only those copies. Context shape is checked before copying, then the
 policy snapshot is repointed to the protected copies before any context-
 dependent proof callback runs. The exact validated snapshot is committed;
 caller-owned context bytes are never reread afterward. Contexts must be
-self-contained authority: an
-embedded pointer may address media data or hardware, but
+self-contained authority: an embedded pointer may address media data or
+hardware, but
 must not redirect policy or proof decisions to mutable payload memory.
 
 The same rules apply to the authentication callback and its bounded context.
 The callback's success contract is complete authentication and policy approval
-of the exact fixed staging image, including signature, capsule format,
-dependency and board binding. The unselected Payload-MM provider implements
-that contract without a callback context. Its one-attempt policy install copies
+of the exact staged capsule envelope, including signature, capsule format,
+dependency and board binding. It returns a bounded offset and size for the raw
+ROM inside that envelope, never a pointer. The unselected Payload-MM provider
+implements that contract without a callback context. Its one-attempt policy
+install copies
 the XDR trust set, image GUID, platform version floor, ROM size and mainboard
 vendor/part into protected storage; no caller pointer is retained. Installation
 requires vendor/part to equal coreboot's internal mainboard configuration, so a
@@ -39,18 +42,20 @@ platform installs that policy or supplies trust anchors in this tree.
 
 `LB_TAG_CAPSULE_BROKER_ENDPOINT` is an 80-byte public description of the
 already-installed endpoint. It carries one nonzero cold-boot generation, one
-reserved compatibility communication range, one fixed full-image staging span
-and a typed byte-wide APM trigger. It carries no flash offset, writable route or
+reserved compatibility communication range, one fixed staging capacity and a
+typed byte-wide APM trigger. It carries no flash offset, writable route or
 raw media command. No broker code parses the compatibility message range and
 there is no shared-message APPLY entry point. The table record is not authority
 and this commit provides no producer for it.
 
 ## Checkpoint and immutable image
 
-CDK2 must copy the raw image into the fixed staging span before authentication.
-Authentication, MSS1 parsing, dependency checking, board binding, hashing and
-the broker call must all use that exact span. The span and reserved
-communication range remain DMA-inaccessible through writer completion.
+CDK2 must copy the complete authenticated capsule envelope into the staging
+capacity before authentication and report its exact nonzero byte count in the
+typed intent. Authentication, MSS1 parsing, dependency checking, board binding,
+hashing and the broker call must all use that exact envelope. The occupied span
+and reserved communication range remain DMA-inaccessible through writer
+completion.
 SMM also requires CPU rendezvous while hashing and writing.
 
 The broker accepts APPLY only from the exact capsule intent retained by typed
@@ -60,25 +65,30 @@ existing bounded writer. Media callbacks recheck the DMA, rendezvous, SMM-SPI
 and no-raw-flash proofs before every operation.
 
 Before an executor may treat a staged CHECK or SET as valid, the broker hashes
-its fixed staging span and matches the staged digest, invokes the sealed
-authentication callback with a protected local copy of its context, then
-rechecks the DMA/rendezvous guard and hashes the complete span again. The
-callback receives the complete protected owner snapshot and must not retain its
+the complete occupied envelope and matches the staged digest, invokes the sealed
+authentication callback with a protected local copy of its context, validates
+the returned raw-ROM offset, exact sealed ROM size and overflow-safe
+containment, then rechecks the DMA/rendezvous guard and hashes the complete
+envelope again. The callback receives the complete protected owner snapshot and
+must not retain its
 synchronous image, owner or local-context arguments. The native provider
 independently rereads the owner and requires an exact record match, including
 sequence and data. Staging mutation fails the second digest check. Only SET
-retains an exact transaction, attempted
-version and digest authorization. CHECK is validation-only and cannot enable a
-checkpoint grant. The checkpoint consumes the SET authorization and the staged
-intent must match its digest, so no unauthenticated or substituted image can
-reach media through the internal grant path.
+retains an exact transaction, attempted version, digest and raw-ROM span
+authorization. CHECK is validation-only and
+retains neither a span nor a checkpoint grant. The checkpoint consumes the SET
+authorization and seals that same span into the grant. APPLY rehashes the whole
+envelope but gives the bounded writer only the sealed raw-ROM subspan, so
+authentication headers and signatures can never be written as firmware bytes.
+No unauthenticated or substituted image can reach media through the internal
+grant path.
 
 The unselected synchronous transaction executor provides a composed path. It
 keeps typed dispatch busy while it snapshots the protected owner record,
 authenticates the exact staged intent, then reads the owner record again for
 both CHECK and SET and rejects any interleaving change. Its durable checkpoint
-requires that authenticated
-sequence and passes the read-back sequence plus the same digest into the
+requires that authenticated sequence and passes the read-back sequence plus the
+same digest into the
 broker's grant. The broker accepts APPLY directly from the still-staged intent;
 no separately mutable APPLY message exists. SET closes the executor and broker
 whether media succeeds or fails. CHECK completes dispatch without a checkpoint,
@@ -113,9 +123,12 @@ series supplies no reset-safe, rollback-protected variable backend.
 A malformed installation consumes the sole installation attempt. Typed
 dispatch rejects malformed or stale intents before the executor can run. A
 valid SET consumes its grant and closes the broker before hashing or media
-access, so digest, erase, write, read or verification failure cannot be retried
-in the same boot. CHECK creates no grant and leaves the path available for a
-later increasing transaction. S3 closure is irreversible.
+access, so malformed APPLY state, digest, erase, write, read or verification
+failure cannot be retried in the same boot. Every close, failed authentication,
+rejected checkpoint grant and rejected APPLY clears retained raw-span state.
+CHECK creates no grant or span
+and leaves the path available for a later increasing transaction. S3 closure
+is irreversible.
 
 The production phase owner must close the broker before loading any external
 EFI image, handing control to an OS or resuming from S3. The digest proves that
