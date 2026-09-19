@@ -59,7 +59,8 @@ static void write32(uint8_t *data, uint32_t value)
 	data[3] = (uint8_t)(value >> 24);
 }
 
-static bool state_canonical(const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
+bool payload_mm_fmp_state_data_valid(
+	const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
 {
 	for (size_t i = 0; i < 4; i++)
 		if (state[i] > 1)
@@ -67,13 +68,16 @@ static bool state_canonical(const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
 	return true;
 }
 
-static bool state_transition_valid(const uint8_t *current,
+bool payload_mm_fmp_state_transition_valid(const uint8_t *current,
 	const uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
 {
-	if (!state_canonical(candidate))
+	if (!payload_mm_fmp_state_data_valid(candidate))
+		return false;
+	if (candidate[1] && read32(candidate + 8) <
+	    state_authority.policy.trusted_lowest_version)
 		return false;
 	if (current != NULL) {
-		if (!state_canonical(current))
+		if (!payload_mm_fmp_state_data_valid(current))
 			return false;
 		for (size_t i = 0; i < 4; i++)
 			if (current[i] && !candidate[i])
@@ -131,10 +135,11 @@ static bool build_name(struct payload_mm_fmp_state_command *command)
 	return true;
 }
 
-static bool build_identity_name(struct payload_mm_fmp_state_identity *identity)
+static bool build_identity_name(uint32_t key,
+	struct payload_mm_fmp_state_identity *identity)
 {
 	struct payload_mm_fmp_state_command command = {
-		.message.key = PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		.message.key = key,
 	};
 
 	if (!build_name(&command))
@@ -153,6 +158,13 @@ bool payload_mm_fmp_state_authority_ready(void)
 enum cb_err payload_mm_fmp_state_identity_get(
 	struct payload_mm_fmp_state_identity *identity)
 {
+	return payload_mm_fmp_state_identity_get_for_key(
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, identity);
+}
+
+enum cb_err payload_mm_fmp_state_identity_get_for_key(uint32_t key,
+	struct payload_mm_fmp_state_identity *identity)
+{
 	if (!payload_mm_fmp_state_authority_ready() || !identity)
 		return CB_ERR;
 	memset(identity, 0, sizeof(*identity));
@@ -160,7 +172,7 @@ enum cb_err payload_mm_fmp_state_identity_get(
 	identity->hardware_instance = state_authority.policy.hardware_instance;
 	identity->trusted_lowest_version =
 		state_authority.policy.trusted_lowest_version;
-	return build_identity_name(identity) ? CB_SUCCESS : CB_ERR;
+	return build_identity_name(key, identity) ? CB_SUCCESS : CB_ERR;
 }
 
 enum cb_err payload_mm_fmp_state_checkpoint_build(
@@ -171,7 +183,7 @@ enum cb_err payload_mm_fmp_state_checkpoint_build(
 	uint32_t lowest_version;
 
 	if (!payload_mm_fmp_state_authority_ready() || !current || !identity ||
-	    !candidate || !state_canonical(current))
+	    !candidate || !payload_mm_fmp_state_data_valid(current))
 		return CB_ERR;
 	lowest_version = state_authority.policy.trusted_lowest_version;
 	if (current[1] && read32(current + 8) > lowest_version)
@@ -227,7 +239,7 @@ static bool message_shape_valid(const struct payload_mm_fmp_state_message *messa
 			message->attributes ==
 			PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES &&
 			message->data_size == PAYLOAD_MM_FMP_STATE_WIRE_SIZE &&
-			state_transition_valid(current, message->data);
+			payload_mm_fmp_state_transition_valid(current, message->data);
 	case PAYLOAD_MM_FMP_STATE_REMOVE_LEGACY:
 		return message->key >= PAYLOAD_MM_FMP_STATE_KEY_VERSION &&
 			message->key <=
@@ -278,7 +290,7 @@ enum cb_err payload_mm_fmp_state_command_prepare(const void *trusted_message,
 	if (current_state != NULL) {
 		memcpy(current, current_state, sizeof(current));
 		current_pointer = current;
-		if (!state_canonical(current))
+		if (!payload_mm_fmp_state_data_valid(current))
 			return CB_ERR;
 	}
 	if (message.revision != PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION ||
