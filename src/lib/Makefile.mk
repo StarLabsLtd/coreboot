@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+ramstage-$(CONFIG_CAPSULE_UPDATE_CONTRACT) += capsule_update.c
+
 ifeq ($(CONFIG_UBSAN),y)
 ramstage-y += ubsan.c
 CFLAGS_ramstage += -fsanitize=undefined
