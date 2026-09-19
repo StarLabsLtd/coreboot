@@ -5,6 +5,13 @@
 
 #include "payload_mm_authvar_internal.h"
 #include "payload_mm_fmp_dispatch_internal.h"
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+#include "capsule_broker_internal.h"
+
+_Static_assert(PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 ==
+	CAPSULE_BROKER_DIGEST_SHA256 && PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE ==
+	CAPSULE_BROKER_DIGEST_SIZE, "Payload-MM capsule digest ABI mismatch");
+#endif
 
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM FMP dispatch staging must only be built in SMM"
@@ -15,7 +22,27 @@ static struct {
 	bool installed;
 	bool install_attempted;
 	bool busy;
+	bool capsule_intent;
+	uint64_t last_intent_transaction;
 } dispatch_authority;
+
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+static bool capsule_intent_valid(const struct payload_mm_fmp_capsule_intent *intent)
+{
+	return payload_mm_fmp_state_authority_ready() &&
+		intent->revision == PAYLOAD_MM_FMP_CAPSULE_INTENT_REVISION &&
+		intent->size == sizeof(*intent) &&
+		(intent->operation == PAYLOAD_MM_FMP_CAPSULE_CHECK ||
+		 intent->operation == PAYLOAD_MM_FMP_CAPSULE_SET) &&
+		!intent->flags && intent->broker_generation &&
+		capsule_broker_intent_matches(intent->broker_generation,
+			intent->image_size) &&
+		intent->transaction &&
+		intent->transaction > dispatch_authority.last_intent_transaction &&
+		intent->digest_algorithm == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 &&
+		intent->digest_size == sizeof(intent->digest) && !intent->reserved;
+}
+#endif
 
 bool payload_mm_fmp_dispatch_ready(void)
 {
@@ -66,6 +93,7 @@ enum cb_err payload_mm_fmp_dispatch_prepare(uint64_t request_address,
 {
 	struct payload_mm_fmp_dispatch_workspace *workspace =
 		dispatch_authority.workspace;
+	bool prepared = false;
 
 	if (!dispatch_authority.installed || dispatch_authority.busy ||
 	    ((current_state == NULL) != (current_state_size == 0)) ||
@@ -82,30 +110,66 @@ enum cb_err payload_mm_fmp_dispatch_prepare(uint64_t request_address,
 		(const void *)(uintptr_t)request_address,
 		sizeof(struct payload_mm_authvar_request),
 		(const void *)(uintptr_t)workspace->request.message_address,
-		workspace->request.message_size) ||
-	    workspace->message_size != sizeof(struct payload_mm_fmp_state_message) ||
-	    payload_mm_fmp_state_command_prepare(workspace->message,
+		workspace->request.message_size))
+		goto fail;
+	if (workspace->message_size == sizeof(struct payload_mm_fmp_state_message))
+		prepared = payload_mm_fmp_state_command_prepare(workspace->message,
 		workspace->message_size, current_state, current_state_size,
-		&workspace->command) != CB_SUCCESS) {
+		&workspace->command) == CB_SUCCESS;
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+	else if (workspace->message_size ==
+		 sizeof(struct payload_mm_fmp_capsule_intent) && !current_state &&
+		 !current_state_size) {
+		struct payload_mm_fmp_capsule_intent intent;
+
+		memcpy(&intent, workspace->message, sizeof(intent));
+		if (capsule_intent_valid(&intent)) {
+			workspace->intent = intent;
+			dispatch_authority.last_intent_transaction =
+				intent.transaction;
+			dispatch_authority.capsule_intent = true;
+			prepared = true;
+		}
+	}
+#endif
+	if (!prepared) {
+fail:
 		memset(workspace, 0, sizeof(*workspace));
 		dispatch_authority.busy = false;
 		return CB_ERR;
 	}
+	if (workspace->message_size == sizeof(struct payload_mm_fmp_state_message))
+		dispatch_authority.capsule_intent = false;
 	return CB_SUCCESS;
 }
 
 const struct payload_mm_fmp_state_command *payload_mm_fmp_dispatch_command(void)
 {
-	return dispatch_authority.busy ? &dispatch_authority.workspace->command : NULL;
+	return dispatch_authority.busy && !dispatch_authority.capsule_intent ?
+		&dispatch_authority.workspace->command : NULL;
+}
+
+const struct payload_mm_fmp_capsule_intent *
+payload_mm_fmp_dispatch_capsule_intent(void)
+{
+	return dispatch_authority.busy && dispatch_authority.capsule_intent ?
+		&dispatch_authority.workspace->intent : NULL;
 }
 
 enum cb_err payload_mm_fmp_dispatch_complete(uint64_t transaction)
 {
-	if (!dispatch_authority.busy ||
-	    dispatch_authority.workspace->command.message.transaction != transaction)
+	uint64_t expected;
+
+	if (!dispatch_authority.busy)
+		return CB_ERR;
+	expected = dispatch_authority.capsule_intent ?
+		dispatch_authority.workspace->intent.transaction :
+		dispatch_authority.workspace->command.message.transaction;
+	if (expected != transaction)
 		return CB_ERR;
 	memset(dispatch_authority.workspace, 0,
 		sizeof(*dispatch_authority.workspace));
 	dispatch_authority.busy = false;
+	dispatch_authority.capsule_intent = false;
 	return CB_SUCCESS;
 }

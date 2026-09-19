@@ -55,6 +55,7 @@ enum cb_err capsule_broker_policy_install(
 	const struct capsule_broker_policy *trusted_policy,
 	capsule_broker_protected_storage_fn storage_is_protected, void *context);
 bool capsule_broker_generation_matches(uint64_t generation);
+bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size);
 bool capsule_broker_buffer_available(const void *buffer, size_t size);
 
 /* Called only by the protected variable owner after durable checkpoint commit. */

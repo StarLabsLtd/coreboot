@@ -330,14 +330,19 @@ static void generation_match_case(void)
 
 	initialize(&fixture);
 	assert(!capsule_broker_generation_matches(GENERATION));
+	assert(!capsule_broker_intent_matches(GENERATION, IMAGE_SIZE));
 	install(&fixture);
 	assert(capsule_broker_generation_matches(GENERATION));
+	assert(capsule_broker_intent_matches(GENERATION, IMAGE_SIZE));
+	assert(!capsule_broker_intent_matches(GENERATION, IMAGE_SIZE - 1));
+	assert(!capsule_broker_intent_matches(GENERATION + 1, IMAGE_SIZE));
 	assert(!capsule_broker_generation_matches(0));
 	assert(!capsule_broker_generation_matches(GENERATION + 1));
 	fixture.policy.endpoint.generation++;
 	assert(capsule_broker_generation_matches(GENERATION));
 	capsule_broker_close_for_s3();
 	assert(!capsule_broker_generation_matches(GENERATION));
+	assert(!capsule_broker_intent_matches(GENERATION, IMAGE_SIZE));
 }
 
 static void endpoint_mutations(void)

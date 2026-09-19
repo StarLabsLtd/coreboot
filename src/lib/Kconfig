@@ -63,7 +63,9 @@ config CAPSULE_BROKER_CONTRACT
 	  backend or selected payload service. It includes an unselected typed port
 	  which uses the protected SystemFmp owner to issue a checkpoint grant only
 	  after the owner's atomic backend commits and reads back the exact failure
-	  state. A future platform must provide that backend, the protected policy,
+	  state. It also admits a separate, fixed authenticated-capsule CHECK/SET
+	  intent into protected staging; generic state writes cannot imply SET. A
+	  future platform must provide the executor, backend, protected policy,
 	  DMA-isolated staging and complete close-before-external-code lifecycle.
 
 config ROMSTAGE_ADA

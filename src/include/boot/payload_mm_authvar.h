@@ -36,6 +36,9 @@
 #define PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES 0x00000003U
 #define PAYLOAD_MM_FMP_STATE_RESULT_PENDING UINT64_MAX
 #define PAYLOAD_MM_FMP_STATE_NAME_CAPACITY 35U
+#define PAYLOAD_MM_FMP_CAPSULE_INTENT_REVISION 1U
+#define PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 1U
+#define PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE 32U
 
 enum payload_mm_fmp_state_operation {
 	PAYLOAD_MM_FMP_STATE_READ = 1,
@@ -51,6 +54,11 @@ enum payload_mm_fmp_state_key {
 	PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_STATUS = 3,
 	PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION = 4,
 	PAYLOAD_MM_FMP_STATE_KEY_NONE = UINT32_MAX,
+};
+
+enum payload_mm_fmp_capsule_operation {
+	PAYLOAD_MM_FMP_CAPSULE_CHECK = 1,
+	PAYLOAD_MM_FMP_CAPSULE_SET = 2,
 };
 
 /* Installed once from trusted coreboot state and retained only in SMRAM. */
@@ -74,6 +82,22 @@ struct payload_mm_fmp_state_message {
 	uint32_t data_size;
 	uint64_t result;
 	uint8_t data[PAYLOAD_MM_FMP_STATE_WIRE_SIZE];
+	uint32_t reserved;
+} __aligned(8);
+
+/* Fixed authenticated-capsule intent carried in the opaque request message. */
+struct payload_mm_fmp_capsule_intent {
+	uint32_t revision;
+	uint32_t size;
+	uint32_t operation;
+	uint32_t flags;
+	uint64_t broker_generation;
+	uint64_t transaction;
+	uint64_t image_size;
+	uint32_t digest_algorithm;
+	uint32_t digest_size;
+	uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+	uint32_t attempted_version;
 	uint32_t reserved;
 } __aligned(8);
 
@@ -160,6 +184,16 @@ _Static_assert(offsetof(struct payload_mm_fmp_state_message, transaction) == 16 
 	offsetof(struct payload_mm_fmp_state_message, data) == 40 &&
 	offsetof(struct payload_mm_fmp_state_message, reserved) == 60,
 	"payload_mm_fmp_state_message layout changed");
+_Static_assert(sizeof(struct payload_mm_fmp_capsule_intent) == 88,
+	"payload_mm_fmp_capsule_intent ABI changed");
+_Static_assert(_Alignof(struct payload_mm_fmp_capsule_intent) == 8,
+	"payload_mm_fmp_capsule_intent alignment changed");
+_Static_assert(offsetof(struct payload_mm_fmp_capsule_intent,
+	broker_generation) == 16 &&
+	offsetof(struct payload_mm_fmp_capsule_intent, digest_algorithm) == 40 &&
+	offsetof(struct payload_mm_fmp_capsule_intent, digest) == 48 &&
+	offsetof(struct payload_mm_fmp_capsule_intent, attempted_version) == 80,
+	"payload_mm_fmp_capsule_intent layout changed");
 
 enum cb_err payload_mm_authvar_contract_build(
 	struct payload_mm_authvar_contract *contract,
