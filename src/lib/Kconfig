@@ -47,8 +47,10 @@ config PAYLOAD_MM_AUTHVAR_CONTRACT
 	  Build the dormant coreboot/Payload-MM authenticated-variable boundary.
 	  This validates platform-owned SMM, communication-buffer and variable-store
 	  geometry, but does not install an MM dispatcher, publish a service or grant
-	  raw flash access. A platform must select this together with a matched native
-	  payload and provide the missing SMM/SPI ownership hooks.
+	  raw flash access. The compiled SMM object also contains an unselected typed
+	  SystemFmp state-message policy, but no identity producer, variable engine or
+	  persistence claim. A platform must select this together with a matched
+	  native payload and provide the missing SMM/SPI ownership hooks.
 
 config ROMSTAGE_ADA
 	bool

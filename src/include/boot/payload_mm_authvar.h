@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <types.h>
+#include <uuid.h>
 
 #define PAYLOAD_MM_AUTHVAR_REVISION 1U
 #define PAYLOAD_MM_AUTHVAR_REQUEST_REVISION 1U
@@ -28,6 +29,63 @@
 #define PAYLOAD_MM_AUTHVAR_COMMUNICATE 1U
 #define PAYLOAD_MM_AUTHVAR_MIN_COMM_BYTES 64U
 #define PAYLOAD_MM_AUTHVAR_MIN_STORE_BLOCKS 3U
+
+#define PAYLOAD_MM_FMP_STATE_POLICY_REVISION 1U
+#define PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION 1U
+#define PAYLOAD_MM_FMP_STATE_WIRE_SIZE 20U
+#define PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES 0x00000003U
+#define PAYLOAD_MM_FMP_STATE_RESULT_PENDING UINT64_MAX
+#define PAYLOAD_MM_FMP_STATE_NAME_CAPACITY 35U
+
+enum payload_mm_fmp_state_operation {
+	PAYLOAD_MM_FMP_STATE_READ = 1,
+	PAYLOAD_MM_FMP_STATE_WRITE_STATE = 2,
+	PAYLOAD_MM_FMP_STATE_REMOVE_LEGACY = 3,
+	PAYLOAD_MM_FMP_STATE_CLOSE_STATE = 4,
+};
+
+enum payload_mm_fmp_state_key {
+	PAYLOAD_MM_FMP_STATE_KEY_STATE = 0,
+	PAYLOAD_MM_FMP_STATE_KEY_VERSION = 1,
+	PAYLOAD_MM_FMP_STATE_KEY_LOWEST_VERSION = 2,
+	PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_STATUS = 3,
+	PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION = 4,
+	PAYLOAD_MM_FMP_STATE_KEY_NONE = UINT32_MAX,
+};
+
+/* Installed once from trusted coreboot state and retained only in SMRAM. */
+struct payload_mm_fmp_state_policy {
+	uint32_t revision;
+	uint32_t size;
+	guid_t namespace_guid;
+	uint64_t hardware_instance;
+	uint32_t trusted_lowest_version;
+	uint32_t reserved;
+};
+
+/* Fixed request ABI carried inside payload_mm_authvar_request.message. */
+struct payload_mm_fmp_state_message {
+	uint32_t revision;
+	uint32_t size;
+	uint32_t operation;
+	uint32_t key;
+	uint64_t transaction;
+	uint32_t attributes;
+	uint32_t data_size;
+	uint64_t result;
+	uint8_t data[PAYLOAD_MM_FMP_STATE_WIRE_SIZE];
+	uint32_t reserved;
+} __aligned(8);
+
+/* SMM-owned parsed output. It is not a shared-memory ABI. */
+struct payload_mm_fmp_state_command {
+	struct payload_mm_fmp_state_message message;
+	guid_t namespace_guid;
+	uint64_t hardware_instance;
+	uint32_t trusted_lowest_version;
+	uint32_t variable_name_bytes;
+	uint16_t variable_name[PAYLOAD_MM_FMP_STATE_NAME_CAPACITY];
+};
 
 struct payload_mm_authvar_range {
 	uint64_t base;
@@ -92,6 +150,16 @@ _Static_assert(sizeof(struct payload_mm_authvar_contract) == 96,
 	"payload_mm_authvar_contract ABI changed");
 _Static_assert(sizeof(struct payload_mm_authvar_request) == 40,
 	"payload_mm_authvar_request ABI changed");
+_Static_assert(sizeof(struct payload_mm_fmp_state_policy) == 40,
+	"payload_mm_fmp_state_policy ABI changed");
+_Static_assert(sizeof(struct payload_mm_fmp_state_message) == 64,
+	"payload_mm_fmp_state_message ABI changed");
+_Static_assert(_Alignof(struct payload_mm_fmp_state_message) == 8,
+	"payload_mm_fmp_state_message alignment changed");
+_Static_assert(offsetof(struct payload_mm_fmp_state_message, transaction) == 16 &&
+	offsetof(struct payload_mm_fmp_state_message, data) == 40 &&
+	offsetof(struct payload_mm_fmp_state_message, reserved) == 60,
+	"payload_mm_fmp_state_message layout changed");
 
 enum cb_err payload_mm_authvar_contract_build(
 	struct payload_mm_authvar_contract *contract,
@@ -111,5 +179,19 @@ enum cb_err payload_mm_authvar_authority_install(
 enum cb_err payload_mm_authvar_request_copy(uint64_t request_address,
 	struct payload_mm_authvar_request *trusted_request, void *trusted_message,
 	size_t trusted_message_capacity, size_t *trusted_message_size);
+
+/* Called once after payload_mm_authvar_authority_install() from trusted init. */
+enum cb_err payload_mm_fmp_state_policy_install(
+	const struct payload_mm_fmp_state_policy *trusted_policy,
+	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+
+/*
+ * Snapshot and validate one already-copied SMM message. current_state is either
+ * NULL/zero for no combined value or one protected 20-byte combined value.
+ * This validates policy only; it performs no variable or flash operation.
+ */
+enum cb_err payload_mm_fmp_state_command_prepare(const void *trusted_message,
+	size_t trusted_message_size, const void *current_state,
+	size_t current_state_size, struct payload_mm_fmp_state_command *command);
 
 #endif

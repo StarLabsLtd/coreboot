@@ -25,9 +25,18 @@ run_test()
 		"$root/tests/lib/payload_mm_authvar_test.c" \
 		"$root/src/lib/payload_mm_authvar.c" \
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
+		"$root/src/lib/payload_mm_fmp_state.c" \
 		-o "$temporary/$name"
 	"$temporary/$name"
 	"$temporary/$name" reject-authority
+	"$temporary/$name" state-before-authority
+	"$temporary/$name" state-bad-revision
+	"$temporary/$name" state-bad-size
+	"$temporary/$name" state-zero-guid
+	"$temporary/$name" state-reserved
+	"$temporary/$name" state-unprotected
+	"$temporary/$name" instance
+	"$temporary/$name" max-transaction
 }
 
 run_test ordinary
