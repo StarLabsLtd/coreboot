@@ -15,7 +15,13 @@ struct payload_mm_fmp_state_identity {
 
 bool payload_mm_fmp_state_authority_ready(void);
 bool payload_mm_fmp_state_staging_buffer(const void *buffer, size_t size);
+bool payload_mm_fmp_state_data_valid(
+	const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]);
+bool payload_mm_fmp_state_transition_valid(const uint8_t *current,
+	const uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]);
 enum cb_err payload_mm_fmp_state_identity_get(
+	struct payload_mm_fmp_state_identity *identity);
+enum cb_err payload_mm_fmp_state_identity_get_for_key(uint32_t key,
 	struct payload_mm_fmp_state_identity *identity);
 enum cb_err payload_mm_fmp_state_checkpoint_build(
 	const uint8_t current[PAYLOAD_MM_FMP_STATE_WIRE_SIZE],

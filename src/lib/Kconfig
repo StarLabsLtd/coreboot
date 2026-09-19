@@ -48,10 +48,10 @@ config PAYLOAD_MM_AUTHVAR_CONTRACT
 	  This validates platform-owned SMM, communication-buffer and variable-store
 	  geometry, but does not install an MM dispatcher, publish a service or grant
 	  raw flash access. The compiled SMM object also contains unselected typed
-	  SystemFmp state parsing and protected staging, but no identity producer,
-	  operation executor, variable backend or persistence claim. A platform must
-	  select this together with a matched native payload and provide the missing
-	  SMM/SPI ownership hooks.
+	  SystemFmp state parsing, protected staging and a fixed typed variable-owner
+	  port. It provides no identity producer, operation executor, variable backend
+	  or persistence claim. A platform must select this together with a matched
+	  native payload and provide the missing SMM/SPI ownership hooks.
 
 config CAPSULE_BROKER_CONTRACT
 	bool

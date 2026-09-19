@@ -81,6 +81,38 @@ snapshot from its authoritative rollback-protected store before calling the
 internal API. Consequently this commit still executes no read, write, removal
 or close operation and supplies no result writer.
 
+## Protected SystemFmp variable owner port
+
+The next internal prerequisite fixes the storage boundary without pretending
+that a storage engine exists. Trusted initialization installs one owner port
+after the SystemFmp identity authority. Its callbacks and at most 128 bytes of
+context are copied once into protected SMM storage. The context passed to a
+callback is immutable. Any pointer embedded in it must refer only to a
+protected variable owner, never payload-visible state or a caller-selected
+route.
+
+The port exposes only five sealed SystemFmp keys. Coreboot constructs the exact
+namespace, hardware-instance suffix and key-specific variable name; the caller
+cannot provide any of them. Records are fixed, eight-byte-aligned 48-byte
+objects containing a rollback-protected sequence, canonical presence bit,
+exact attributes and size, and at most the canonical 20-byte combined state.
+Legacy values are exactly four bytes with a zero tail. An absent record has no
+attributes, size or data.
+
+Reads accept only protected output storage and validate the complete returned
+record. State commits require protected, nonaliasing current and candidate
+records, sequence plus one, canonical nondecreasing validity and lowest
+supported version. Legacy removal is the same operation with an exact absent
+candidate. The backend `commit` is compare-and-commit against the supplied
+current record. Success must mean the candidate is atomically reset-safe and
+rollback-protected, while failure preserves the prior readable record. The port
+then performs a fresh authoritative read and requires exact byte equality.
+
+This tree supplies no backend satisfying that contract. The port is not a
+generic variable API and cannot select a GUID, name, attributes, data size or
+arbitrary deletion. The staged-command executor remains open; it must source
+its current state through this owner rather than shared RAM.
+
 This layer deliberately provides no SMI number, producer, dispatcher, generic
 `SetVariable`, SMMSTORE command, flash backend or persistence claim. The
 capsule-broker build adds one internal checkpoint-only engine described below;
@@ -134,6 +166,7 @@ failure before grant invocation can be retried with a newer transaction.
 | --- | --- |
 | Sealed identity and semantic message validation | Implemented, unselected |
 | Protected request snapshot and typed staging | Implemented, unselected |
+| Protected typed SystemFmp variable owner port | Implemented, unselected |
 | Trusted platform identity producer | Open |
 | SMI transport, operation executor and result writer | Open |
 | Typed checkpoint engine and exact readback | Implemented, unselected |
@@ -170,7 +203,7 @@ platform-owned verification hooks, never caller-supplied trust booleans:
 * a trusted SystemFmp identity producer and mandatory state-channel close before
   any external EFI image, OS handoff or S3 resume;
 * a resident variable backend whose successful state write means reset-safe,
-  rollback-protected nonvolatile commit and verified readback;
+  rollback-protected nonvolatile compare-and-commit and verified readback;
 * serialized SMM dispatch for the checkpoint engine and its one-shot broker;
 * hostile QEMU evidence followed by Intel and AMD hardware validation.
 
@@ -183,4 +216,5 @@ Host evidence is provided by:
 ```
 tests/lib/payload_mm_authvar_test.sh
 tests/lib/payload_mm_fmp_dispatch_test.sh
+tests/lib/payload_mm_fmp_owner_test.sh
 ```
