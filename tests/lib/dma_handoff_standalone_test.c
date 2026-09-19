@@ -33,6 +33,17 @@ static const struct dma_handoff_table tables[] = {
 	  DMA_HANDOFF_TABLE_FLAGS, 0 },
 };
 
+static const struct dma_handoff_requester q35_requester = {
+	0, 0x0018, 1, DMA_HANDOFF_REQUESTER_FLAGS, 0, 1, 2, 0, GENERATION
+};
+
+static const struct dma_handoff_table q35_tables[] = {
+	{ 0x100000, 1, DMA_HANDOFF_TABLE_GLOBAL, 0, 0, DMA_HANDOFF_TABLE_FLAGS, 0 },
+	{ 0x101000, 1, DMA_HANDOFF_TABLE_BUS, 0, 0, DMA_HANDOFF_TABLE_FLAGS, 0 },
+	{ 0x102000, 4, DMA_HANDOFF_TABLE_REQUESTER, 0, 0x18,
+	  DMA_HANDOFF_TABLE_FLAGS, 0 },
+};
+
 static bool revision4_published;
 static uint64_t revision4_generation;
 static bool platform_blob_present;
@@ -73,6 +84,16 @@ static size_t make_blob(uint8_t *blob)
 	assert(dma_handoff_build(blob, 256, GENERATION, requesters,
 		ARRAY_SIZE(requesters), tables, ARRAY_SIZE(tables), &written) == CB_SUCCESS);
 	assert(written == 244);
+	return written;
+}
+
+static size_t make_q35_blob(uint8_t *blob)
+{
+	size_t written = 0;
+
+	assert(dma_handoff_build(blob, 256, GENERATION, &q35_requester, 1,
+		q35_tables, ARRAY_SIZE(q35_tables), &written) == CB_SUCCESS);
+	assert(written == 156);
 	return written;
 }
 
@@ -174,6 +195,10 @@ int main(int argc, char **argv)
 
 	if (argc == 2 && !strcmp(argv[1], "--fixture"))
 		return write(STDOUT_FILENO, blob, bytes) == (ssize_t)bytes ? 0 : 1;
+	if (argc == 2 && !strcmp(argv[1], "--q35-fixture")) {
+		bytes = make_q35_blob(blob);
+		return write(STDOUT_FILENO, blob, bytes) == (ssize_t)bytes ? 0 : 1;
+	}
 	assert(argc == 1);
 	assert(dma_handoff_validate(NULL, 0) == CB_ERR);
 	mutations();

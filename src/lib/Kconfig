@@ -23,6 +23,7 @@ config PAYLOAD_RESOURCE_HANDOFF
 
 config PAYLOAD_DMA_HANDOFF
 	bool
+	depends on PAYLOAD_RESOURCE_HANDOFF
 	help
 	  Publish a versioned reference to a bounded, platform-prepared DMA
 	  protection description. The record is rejected unless a platform
