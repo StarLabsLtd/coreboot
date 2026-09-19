@@ -41,6 +41,9 @@ struct payload_mm_fmp_owner_backend {
 	size_t context_size;
 };
 
+bool payload_mm_fmp_owner_record_valid(uint32_t key,
+	const struct payload_mm_fmp_owner_record *record);
+
 enum cb_err payload_mm_fmp_owner_install(
 	const struct payload_mm_fmp_owner_backend *trusted_backend,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
