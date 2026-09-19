@@ -52,11 +52,12 @@ writer. Media callbacks recheck the DMA, rendezvous, SMM-SPI and no-raw-flash
 proofs before every operation.
 
 An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
-the same generation, transaction and attempted version. Only the future
-protected variable owner may create that grant, and only after the combined
-FMP state has been atomically committed with unsuccessful attempt status. The
-grant API is a typed prerequisite; this commit does not implement the variable
-engine and does not claim durable checkpoint authority.
+the same generation, transaction and attempted version. Only the protected
+variable owner may create that grant, and only after the combined FMP state has
+been atomically committed with unsuccessful attempt status. The companion
+internal checkpoint engine performs the exact-state transition and readback,
+but remains dormant because this series supplies no reset-safe,
+rollback-protected variable backend.
 
 ## Lifecycle
 
@@ -92,7 +93,8 @@ specific status values. A partial-media failure remains a reset/recovery case.
 | Endpoint/message ABI and sealed state machine | Implemented, unselected |
 | Hostile O0/O2/ASan/UBSan model | Implemented |
 | Trusted endpoint/policy producer | Open |
-| Atomic variable engine and checkpoint grant | Open |
+| Typed checkpoint engine and grant ordering | Implemented, unselected |
+| Atomic rollback-protected variable backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
 | SMI dispatcher and endpoint publication | Open |
 | Production SPI backend | Open |
@@ -105,4 +107,5 @@ provider. Host evidence is provided by:
 
 ```
 tests/lib/capsule_broker_test.sh
+tests/lib/payload_mm_fmp_checkpoint_test.sh
 ```

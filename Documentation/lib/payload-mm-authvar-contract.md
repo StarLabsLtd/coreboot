@@ -65,19 +65,61 @@ SMM-owned command containing the sealed identity and constructed name. It does
 not execute that command.
 
 This layer deliberately provides no SMI number, producer, dispatcher, generic
-`SetVariable`, SMMSTORE command, variable engine, flash backend or persistence
-claim. Its write result cannot satisfy the CDK2 durable-state callback until a
-future resident variable owner proves atomic, reset-safe, rollback-protected
-commit and readback. The platform must also source the identity from trusted
-live firmware facts; a payload-provided GUID or hardware instance is not
-authority.
+`SetVariable`, SMMSTORE command, flash backend or persistence claim. The
+capsule-broker build adds one internal checkpoint-only engine described below;
+it is not reachable through this state-message ABI. The platform must source
+the identity from trusted live firmware facts; a payload-provided GUID or
+hardware instance is not authority.
+
+## Internal durable checkpoint engine
+
+When both dormant contracts are built, the SMM module contains one internal
+bridge from the SystemFmp state authority to the capsule broker's typed grant.
+It has no communication operation and cannot write an arbitrary namespace,
+name, attributes or value. Its only mutation preserves the authoritative
+20-byte combined state, sets canonical `LastAttemptStatus` and
+`LastAttemptVersion` validity, records unsuccessful status and the admitted
+attempted version, and retains the existing version and lowest-supported
+version fields.
+
+Trusted initialization installs one backend snapshot. Callback pointers and a
+bounded context of at most 128 bytes are copied into protected SMM storage. The
+copy is complete before the protection callback can mutate caller storage, and
+the caller's backend or context is never reread. An embedded pointer in that
+context may identify the protected storage engine, but must not redirect policy
+to payload-visible memory.
+
+The backend API is intentionally state-specific. `read` returns the exact
+combined variable together with its rollback-protected sequence. `commit`
+performs a compare-and-commit from that exact current record to sequence plus
+one. Success has a strict contract: the new record is atomically committed to
+reset-safe rollback-protected nonvolatile media before return; power loss or
+failure leaves the prior record completely readable. The engine then performs
+a second authoritative read and requires exact sequence, attributes, size,
+canonical data and byte equality. Callback inputs are fresh snapshots and any
+attempt to modify their identity or record bytes fails closed. This commit
+supplies no backend that can make
+those guarantees and does not treat a generic SMMSTORE write as one.
+
+Missing, malformed or noncanonical state, sequence wrap, a version below the
+sealed or durable floor, commit failure, and failed or mismatched readback all
+stop before the broker grant. An already identical failure checkpoint avoids a
+write but still requires an authoritative exact read. Cold-boot generation and
+strictly increasing transaction values prevent replay. Only after this proof
+does the engine call the broker's typed grant with the same generation,
+transaction and attempted version. Grant failure remains fail-closed after the
+safe durable checkpoint and can never reach media erase. The bridge consumes
+its authority before that first grant invocation. Later requests cannot replace
+the durable checkpoint while an earlier broker grant remains live; only a
+failure before grant invocation can be retried with a newer transaction.
 
 | State gate | Status |
 | --- | --- |
 | Sealed identity and semantic message validation | Implemented, unselected |
 | Trusted platform identity producer | Open |
 | SMI transport and Payload-MM dispatcher | Open |
-| Atomic rollback-protected variable owner | Open |
+| Typed checkpoint engine and exact readback | Implemented, unselected |
+| Atomic rollback-protected variable backend | Open |
 | Mandatory pre-handoff and S3 lifecycle closure | Open |
 
 ## Source comparison
@@ -108,8 +150,9 @@ platform-owned verification hooks, never caller-supplied trust booleans:
   closes registration before OS handoff;
 * a trusted SystemFmp identity producer and mandatory state-channel close before
   any external EFI image, OS handoff or S3 resume;
-* a resident variable engine whose successful state write means reset-safe,
+* a resident variable backend whose successful state write means reset-safe,
   rollback-protected nonvolatile commit and verified readback;
+* serialized SMM dispatch for the checkpoint engine and its one-shot broker;
 * hostile QEMU evidence followed by Intel and AMD hardware validation.
 
 The generic SMMSTORE raw read/write/clear interface and its capsule full-flash

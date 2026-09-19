@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
+#include "payload_mm_fmp_state_internal.h"
 
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM FMP state policy must only be built in SMM"
@@ -48,6 +49,14 @@ static uint32_t read32(const uint8_t *data)
 {
 	return data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 |
 		(uint32_t)data[3] << 24;
+}
+
+static void write32(uint8_t *data, uint32_t value)
+{
+	data[0] = (uint8_t)value;
+	data[1] = (uint8_t)(value >> 8);
+	data[2] = (uint8_t)(value >> 16);
+	data[3] = (uint8_t)(value >> 24);
 }
 
 static bool state_canonical(const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
@@ -108,16 +117,75 @@ static bool build_name(struct payload_mm_fmp_state_command *command)
 		if (length + 16 >= ARRAY_SIZE(command->variable_name))
 			return false;
 		for (size_t i = 0; i < 16; i++) {
-			unsigned int shift = (15U - i) * 4U;
+			unsigned int shift = (unsigned int)(15U - i) * 4U;
 
 			command->variable_name[length + i] =
-				hex[(state_authority.policy.hardware_instance >> shift) & 0xfU];
+				(uint16_t)hex[(state_authority.policy.hardware_instance >>
+					shift) & 0xfU];
 		}
 		length += 16;
 	}
 	command->variable_name[length] = 0;
-	command->variable_name_bytes = (length + 1U) * sizeof(uint16_t);
+	command->variable_name_bytes =
+		(uint32_t)((length + 1U) * sizeof(uint16_t));
 	return true;
+}
+
+static bool build_identity_name(struct payload_mm_fmp_state_identity *identity)
+{
+	struct payload_mm_fmp_state_command command = {
+		.message.key = PAYLOAD_MM_FMP_STATE_KEY_STATE,
+	};
+
+	if (!build_name(&command))
+		return false;
+	identity->variable_name_bytes = command.variable_name_bytes;
+	memcpy(identity->variable_name, command.variable_name,
+		sizeof(identity->variable_name));
+	return true;
+}
+
+bool payload_mm_fmp_state_authority_ready(void)
+{
+	return state_authority.installed && !state_authority.closed;
+}
+
+enum cb_err payload_mm_fmp_state_identity_get(
+	struct payload_mm_fmp_state_identity *identity)
+{
+	if (!payload_mm_fmp_state_authority_ready() || !identity)
+		return CB_ERR;
+	memset(identity, 0, sizeof(*identity));
+	identity->namespace_guid = state_authority.policy.namespace_guid;
+	identity->hardware_instance = state_authority.policy.hardware_instance;
+	identity->trusted_lowest_version =
+		state_authority.policy.trusted_lowest_version;
+	return build_identity_name(identity) ? CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err payload_mm_fmp_state_checkpoint_build(
+	const uint8_t current[PAYLOAD_MM_FMP_STATE_WIRE_SIZE],
+	uint32_t attempted_version, struct payload_mm_fmp_state_identity *identity,
+	uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
+{
+	uint32_t lowest_version;
+
+	if (!payload_mm_fmp_state_authority_ready() || !current || !identity ||
+	    !candidate || !state_canonical(current))
+		return CB_ERR;
+	lowest_version = state_authority.policy.trusted_lowest_version;
+	if (current[1] && read32(current + 8) > lowest_version)
+		lowest_version = read32(current + 8);
+	if (attempted_version < lowest_version)
+		return CB_ERR;
+	if (payload_mm_fmp_state_identity_get(identity) != CB_SUCCESS)
+		return CB_ERR;
+	memcpy(candidate, current, PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	candidate[2] = 1;
+	candidate[3] = 1;
+	write32(candidate + 12, 1U);
+	write32(candidate + 16, attempted_version);
+	return CB_SUCCESS;
 }
 
 enum cb_err payload_mm_fmp_state_policy_install(
