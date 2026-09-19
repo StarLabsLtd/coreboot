@@ -60,8 +60,14 @@ cc -std=gnu11 -O2 -ffunction-sections -fdata-sections \
 	"$root/src/lib/dma_handoff.c" -Wl,--gc-sections -o "$temporary/fixture"
 "$temporary/fixture" --fixture > "$temporary/coreboot-dma-handoff.bin"
 test "$(wc -c < "$temporary/coreboot-dma-handoff.bin")" -eq 244
+"$temporary/fixture" --q35-fixture > "$temporary/coreboot-q35-dma-handoff.bin"
+test "$(wc -c < "$temporary/coreboot-q35-dma-handoff.bin")" -eq 156
 if [ -n "${DMA_HANDOFF_FIXTURE_OUTPUT:-}" ]; then
 	cp "$temporary/coreboot-dma-handoff.bin" "$DMA_HANDOFF_FIXTURE_OUTPUT"
+fi
+if [ -n "${Q35_DMA_HANDOFF_FIXTURE_OUTPUT:-}" ]; then
+	cp "$temporary/coreboot-q35-dma-handoff.bin" \
+		"$Q35_DMA_HANDOFF_FIXTURE_OUTPUT"
 fi
 printf '%s\n' \
 	'DMA handoff producer ordinary/O2/ASan+UBSan/generation-mutant tests: PASS'

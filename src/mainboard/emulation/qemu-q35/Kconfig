@@ -2,6 +2,15 @@
 
 if BOARD_EMULATION_QEMU_X86_Q35
 
+config Q35_VTD_DMA_TEST_BACKEND
+	bool "QEMU-only VT-d DMA handoff backend"
+	depends on PAYLOAD_RESOURCE_HANDOFF
+	select PAYLOAD_DMA_HANDOFF
+	help
+	  Establish an empty-root, default-deny VT-d domain before the payload
+	  and publish one explicitly bounded EDU requester through the DMA
+	  handoff. This is a QEMU test backend, not production Intel support.
+
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select CPU_QEMU_X86
