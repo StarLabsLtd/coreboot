@@ -69,6 +69,16 @@ config CAPSULE_BROKER_CONTRACT
 	  provider, executor, backend, protected policy, DMA-isolated staging and
 	  complete close-before-external-code lifecycle.
 
+config PAYLOAD_MM_CMS_VERIFY
+	bool
+	default n
+	depends on CAPSULE_BROKER_CONTRACT
+	help
+	  Build the dormant SMM-safe authenticated-capsule verification core. It
+	  accepts bounded canonical DER/CMS with RSA/SHA-256 X.509 chains and uses
+	  a fixed protected arena which is wiped after every call. This selects no
+	  trust policy, provider, executor, transport, SMI command or flash backend.
+
 config ROMSTAGE_ADA
 	bool
 	help

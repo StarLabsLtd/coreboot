@@ -54,21 +54,21 @@ typedef int64_t  s64;
 typedef uint64_t u64;
 
 /* Limits of integer types */
-#define INT8_MIN   ((int8_t)0x80)
-#define INT8_MAX   ((int8_t)0x7F)
-#define UINT8_MAX  ((uint8_t)0xFF)
+#define INT8_MIN   (-127 - 1)
+#define INT8_MAX   127
+#define UINT8_MAX  0xFFU
 
-#define INT16_MIN  ((int16_t)0x8000)
-#define INT16_MAX  ((int16_t)0x7FFF)
-#define UINT16_MAX ((uint16_t)0xFFFF)
+#define INT16_MIN  (-32767 - 1)
+#define INT16_MAX  32767
+#define UINT16_MAX 0xFFFFU
 
-#define INT32_MIN  ((int32_t)0x80000000)
-#define INT32_MAX  ((int32_t)0x7FFFFFFF)
-#define UINT32_MAX ((uint32_t)0xFFFFFFFF)
+#define INT32_MIN  (-2147483647 - 1)
+#define INT32_MAX  2147483647
+#define UINT32_MAX 0xFFFFFFFFU
 
-#define INT64_MIN  ((int64_t)0x8000000000000000)
-#define INT64_MAX  ((int64_t)0x7FFFFFFFFFFFFFFF)
-#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFF)
+#define INT64_MIN  (-9223372036854775807LL - 1)
+#define INT64_MAX  9223372036854775807LL
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 
 #define INTMAX_MIN  INT64_MIN
 #define INTMAX_MAX  INT64_MAX
