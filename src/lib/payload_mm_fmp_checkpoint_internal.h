@@ -19,12 +19,15 @@ _Static_assert(_Alignof(struct payload_mm_fmp_checkpoint_workspace) == 8,
 enum cb_err payload_mm_fmp_checkpoint_owner_bind(uint64_t broker_generation,
 	struct payload_mm_fmp_checkpoint_workspace *trusted_workspace,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+bool payload_mm_fmp_checkpoint_ready(void);
 #if ENV_TEST
 const void *payload_mm_fmp_checkpoint_test_authority(size_t *size);
 bool payload_mm_fmp_checkpoint_test_storage_overlaps(const void *buffer,
 	size_t size);
 #endif
-enum cb_err payload_mm_fmp_checkpoint_commit(uint64_t generation,
-	uint64_t transaction, uint32_t attempted_version);
+enum cb_err payload_mm_fmp_checkpoint_commit_bound(uint64_t generation,
+	uint64_t transaction, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *authenticated_record,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE]);
 
 #endif

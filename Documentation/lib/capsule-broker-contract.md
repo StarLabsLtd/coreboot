@@ -8,7 +8,7 @@ flash service, a generic SMMSTORE extension or an OS runtime interface.
 
 Trusted coreboot initialization owns the immutable writable-region policy,
 boot-media and erase geometry, SMMSTORE exclusion, media backend, scratch
-storage, generation, communication message and full-image staging span. The
+storage, generation, reserved communication range and full-image staging span. The
 complete policy is copied into protected SMM storage exactly once. Installation
 requires platform proofs for reserved communication and staging memory, DMA
 protection, SMM-only SPI ownership, absence of raw flash access and active CPU
@@ -23,7 +23,7 @@ policy snapshot is repointed to the protected copies before any context-
 dependent proof callback runs. The exact validated snapshot is committed;
 caller-owned context bytes are never reread afterward. Contexts must be
 self-contained authority: an
-embedded pointer may address media data, the fixed message or hardware, but
+embedded pointer may address media data or hardware, but
 must not redirect policy or proof decisions to mutable payload memory.
 
 The same rules apply to the authentication callback and its bounded context.
@@ -39,45 +39,54 @@ platform installs that policy or supplies trust anchors in this tree.
 
 `LB_TAG_CAPSULE_BROKER_ENDPOINT` is an 80-byte public description of the
 already-installed endpoint. It carries one nonzero cold-boot generation, one
-fixed 96-byte communication message, one fixed full-image staging span and a
-typed byte-wide APM trigger. It carries no flash offset, writable route or raw
-media command. The table record is not authority and this commit provides no
-producer for it.
-
-The fixed, eight-byte-aligned message is 96 bytes. `APPLY` supplies only the
-generation, increasing transaction, exact image size, attempted version and a
-SHA-256 digest of the fixed staging span. `CLOSE` requires every image and
-digest field to be zero. There are no caller addresses or region arrays.
+reserved compatibility communication range, one fixed full-image staging span
+and a typed byte-wide APM trigger. It carries no flash offset, writable route or
+raw media command. No broker code parses the compatibility message range and
+there is no shared-message APPLY entry point. The table record is not authority
+and this commit provides no producer for it.
 
 ## Checkpoint and immutable image
 
 CDK2 must copy the raw image into the fixed staging span before authentication.
 Authentication, MSS1 parsing, dependency checking, board binding, hashing and
-the broker call must all use that exact span. The span and communication
-message remain DMA-inaccessible from before the copy through writer completion.
+the broker call must all use that exact span. The span and reserved
+communication range remain DMA-inaccessible through writer completion.
 SMM also requires CPU rendezvous while hashing and writing.
 
-The broker snapshots the shared message once and never rereads request fields.
-It recomputes SHA-256 in SMM, constructs the writer plan exclusively from its
-sealed staging address and sealed routes, and calls the existing bounded
-writer. Media callbacks recheck the DMA, rendezvous, SMM-SPI and no-raw-flash
-proofs before every operation.
+The broker accepts APPLY only from the exact capsule intent retained by typed
+protected dispatch. It recomputes SHA-256 in SMM, constructs the writer plan
+exclusively from its sealed staging address and sealed routes, and calls the
+existing bounded writer. Media callbacks recheck the DMA, rendezvous, SMM-SPI
+and no-raw-flash proofs before every operation.
 
 Before an executor may treat a staged CHECK or SET as valid, the broker hashes
 its fixed staging span and matches the staged digest, invokes the sealed
 authentication callback with a protected local copy of its context, then
 rechecks the DMA/rendezvous guard and hashes the complete span again. The
-callback receives no sealed-context address and must not retain its synchronous
-image or local-context arguments. Staging mutation fails the second digest
-check. Only SET retains an exact transaction, attempted
+callback receives the complete protected owner snapshot and must not retain its
+synchronous image, owner or local-context arguments. The native provider
+independently rereads the owner and requires an exact record match, including
+sequence and data. Staging mutation fails the second digest check. Only SET
+retains an exact transaction, attempted
 version and digest authorization. CHECK is validation-only and cannot enable a
-checkpoint grant. The checkpoint consumes the SET authorization and the APPLY
-message must match its digest, so no unauthenticated or substituted image can
+checkpoint grant. The checkpoint consumes the SET authorization and the staged
+intent must match its digest, so no unauthenticated or substituted image can
 reach media through the internal grant path.
+
+The unselected synchronous transaction executor provides a composed path. It
+keeps typed dispatch busy while it snapshots the protected owner record,
+authenticates the exact staged intent, then reads the owner record again for
+both CHECK and SET and rejects any interleaving change. Its durable checkpoint
+requires that authenticated
+sequence and passes the read-back sequence plus the same digest into the
+broker's grant. The broker accepts APPLY directly from the still-staged intent;
+no separately mutable APPLY message exists. SET closes the executor and broker
+whether media succeeds or fails. CHECK completes dispatch without a checkpoint,
+grant or APPLY.
 
 Authentication is protected by a fail-closed in-progress latch established
 before the first proof or hash callback. Nested authentication, checkpoint
-grant and broker handling are rejected while it is set. Broker state is
+grant and staged APPLY are rejected while it is set. Broker state is
 revalidated after every callback boundary. A provider-triggered S3 close is
 irreversible and causes the outer authentication to fail; the latch is cleared
 on every ordinary success and failure return.
@@ -101,13 +110,12 @@ series supplies no reset-safe, rollback-protected variable backend.
 
 ## Lifecycle
 
-A malformed installation consumes the sole installation attempt. A matching-
-generation malformed request poisons the channel. A valid `APPLY` consumes its
-grant and closes the broker before hashing or media access, so digest, erase,
-write, read or verification failure cannot be retried in the same boot. A
-valid `CLOSE` is also irreversible. A stale generation is rejected without
-opening new authority. S3 forces the channel closed and cannot reinstall or
-reuse its generation.
+A malformed installation consumes the sole installation attempt. Typed
+dispatch rejects malformed or stale intents before the executor can run. A
+valid SET consumes its grant and closes the broker before hashing or media
+access, so digest, erase, write, read or verification failure cannot be retried
+in the same boot. CHECK creates no grant and leaves the path available for a
+later increasing transaction. S3 closure is irreversible.
 
 The production phase owner must close the broker before loading any external
 EFI image, handing control to an OS or resuming from S3. The digest proves that
@@ -122,21 +130,22 @@ immutable route policy, excludes SMMSTORE, touches only erase-aligned listed
 regions and compares readback after each block. Every unlisted byte is
 preserved.
 
-The writer currently returns only success or failure. The broker therefore
-returns FMP success or generic unsuccessful status and does not invent device-
-specific status values. A partial-media failure remains a reset/recovery case.
+The writer currently returns only success or failure. The future selected
+coordinator must map that result into FMP status without inventing device-
+specific values. A partial-media failure remains a reset/recovery case.
 
 ## Gate
 
 | Broker gate | Status |
 | --- | --- |
-| Endpoint/message ABI and sealed state machine | Implemented, unselected |
+| Endpoint/staged-intent ABI and sealed state machine | Implemented, unselected |
 | Hostile O0/O2/ASan/UBSan model | Implemented |
 | Trusted endpoint/policy producer | Open |
 | Protected authentication-provider port | Implemented, unselected |
 | Protected authentication provider | Implemented, unselected |
 | Platform policy producer and trust anchors | Open |
 | Typed checkpoint engine and grant ordering | Implemented, unselected |
+| Synchronous staged-intent transaction executor | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
 | SMI dispatcher and endpoint publication | Open |
@@ -152,4 +161,5 @@ provider. Host evidence is provided by:
 tests/lib/capsule_broker_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
+tests/lib/payload_mm_fmp_transaction_test.sh
 ```

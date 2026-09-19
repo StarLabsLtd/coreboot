@@ -49,6 +49,12 @@ static enum cb_err finish(enum cb_err status)
 	return status;
 }
 
+bool payload_mm_fmp_checkpoint_ready(void)
+{
+	return checkpoint_authority.installed &&
+		!checkpoint_authority.grant_invoked;
+}
+
 enum cb_err payload_mm_fmp_checkpoint_owner_bind(uint64_t broker_generation,
 	struct payload_mm_fmp_checkpoint_workspace *trusted_workspace,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context)
@@ -92,22 +98,32 @@ enum cb_err payload_mm_fmp_checkpoint_owner_bind(uint64_t broker_generation,
 	return CB_SUCCESS;
 }
 
-enum cb_err payload_mm_fmp_checkpoint_commit(uint64_t generation,
-	uint64_t transaction, uint32_t attempted_version)
+enum cb_err payload_mm_fmp_checkpoint_commit_bound(uint64_t generation,
+	uint64_t transaction, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *authenticated_record,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])
 {
+	struct payload_mm_fmp_owner_record authenticated_snapshot;
+	uint8_t digest_snapshot[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
 	struct payload_mm_fmp_checkpoint_workspace *workspace =
 		checkpoint_authority.workspace;
 	struct payload_mm_fmp_state_identity identity;
 	enum cb_err status = CB_ERR;
 
-	if (!checkpoint_authority.installed || checkpoint_authority.grant_invoked ||
+	if (!authenticated_record || !authenticated_record->sequence || !digest ||
+	    !checkpoint_authority.installed || checkpoint_authority.grant_invoked ||
 	    generation != checkpoint_authority.broker_generation || !transaction ||
 	    transaction <= checkpoint_authority.last_transaction)
 		return CB_ERR;
+	authenticated_snapshot = *authenticated_record;
+	memcpy(digest_snapshot, digest, sizeof(digest_snapshot));
 	checkpoint_authority.last_transaction = transaction;
 	memset(workspace, 0, sizeof(*workspace));
 	if (payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE,
 		&workspace->current) != CB_SUCCESS || !workspace->current.present)
+		goto out;
+	if (memcmp(&workspace->current, &authenticated_snapshot,
+		 sizeof(workspace->current)))
 		goto out;
 	workspace->candidate = workspace->current;
 	if (payload_mm_fmp_state_checkpoint_build(workspace->current.data,
@@ -129,8 +145,9 @@ enum cb_err payload_mm_fmp_checkpoint_commit(uint64_t generation,
 		sizeof(workspace->verified)) != 0)
 		goto out;
 	checkpoint_authority.grant_invoked = true;
-	status = capsule_broker_checkpoint_grant(generation, transaction,
-		attempted_version);
+	status = capsule_broker_checkpoint_grant_bound(generation,
+		transaction, attempted_version, authenticated_snapshot.sequence,
+		workspace->verified.sequence, digest_snapshot);
 out:
 	return finish(status);
 }

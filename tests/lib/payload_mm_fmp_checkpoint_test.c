@@ -36,6 +36,8 @@ static size_t trace_size;
 static unsigned int grants;
 static uint64_t granted_transaction;
 static uint32_t granted_version;
+static uint64_t granted_sequence;
+static uint8_t granted_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
 static bool grant_fails;
 static bool grant_live;
 static bool binding;
@@ -134,7 +136,7 @@ static enum cb_err commit_record(const void *opaque,
 	return CB_SUCCESS;
 }
 
-enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,
+static enum cb_err record_grant(uint64_t generation,
 	uint64_t transaction, uint32_t attempted_version)
 {
 	mark('G');
@@ -146,6 +148,31 @@ enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,
 		return CB_ERR;
 	grant_live = true;
 	return CB_SUCCESS;
+}
+
+enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
+	uint64_t transaction, uint32_t attempted_version,
+	uint64_t authenticated_sequence, uint64_t checkpoint_sequence,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])
+{
+	assert(authenticated_sequence >= 7);
+	assert(checkpoint_sequence == authenticated_sequence ||
+		checkpoint_sequence == authenticated_sequence + 1);
+	assert(digest != NULL);
+	granted_sequence = checkpoint_sequence;
+	memcpy(granted_digest, digest, sizeof(granted_digest));
+	return record_grant(generation, transaction,
+		attempted_version);
+}
+
+static enum cb_err checkpoint(struct store *store, uint64_t generation,
+	uint64_t transaction, uint32_t attempted_version)
+{
+	uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+
+	memset(digest, 0x5a, sizeof(digest));
+	return payload_mm_fmp_checkpoint_commit_bound(generation, transaction,
+		attempted_version, &store->record, digest);
 }
 
 bool payload_mm_fmp_dispatch_ready(void)
@@ -388,7 +415,7 @@ static bool install_case(const char *name, struct backend_context *context)
 	broker_ready = true;
 	broker_buffer_available = true;
 	assert(bind(area, 9) == CB_ERR);
-	assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
+	assert(checkpoint(context->store, 9, 1, 6) == CB_ERR);
 	expect_trace("");
 	assert(!context->store->reads && !context->store->commits && !grants);
 	return true;
@@ -462,19 +489,55 @@ static void run_case(const char *name)
 	}
 
 	if (!strcmp(name, "wrong-generation")) {
-		assert(payload_mm_fmp_checkpoint_commit(8, 1, 6) == CB_ERR);
+		assert(checkpoint(&store, 8, 1, 6) == CB_ERR);
 		expect_trace("");
 		return;
 	}
+	if (!strcmp(name, "bound-sequence")) {
+		uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE] = { 1 };
+
+		assert(payload_mm_fmp_checkpoint_commit_bound(9, 1, 6,
+			&(struct payload_mm_fmp_owner_record) {
+				.sequence = store.record.sequence + 1,
+			}, digest) == CB_ERR);
+		expect_trace("R");
+		assert(!grants);
+		expect_workspace_clear();
+		return;
+	}
+	if (!strcmp(name, "bound-record")) {
+		struct payload_mm_fmp_owner_record expected = store.record;
+		uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE] = { 1 };
+
+		expected.data[0] ^= 1;
+		assert(payload_mm_fmp_checkpoint_commit_bound(9, 1, 6,
+			&expected, digest) == CB_ERR);
+		expect_trace("R");
+		assert(!grants);
+		expect_workspace_clear();
+		return;
+	}
+	if (!strcmp(name, "bound-success")) {
+		uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+
+		memset(digest, 0x5a, sizeof(digest));
+		assert(payload_mm_fmp_checkpoint_commit_bound(9, 1, 6,
+			&store.record, digest) == CB_SUCCESS);
+		expect_trace("RCRRG");
+		assert(granted_sequence == store.record.sequence);
+		assert(!memcmp(granted_digest, digest, sizeof(digest)));
+		expect_workspace_clear();
+		return;
+	}
 	if (!strcmp(name, "zero-transaction")) {
-		assert(payload_mm_fmp_checkpoint_commit(9, 0, 6) == CB_ERR);
+		assert(checkpoint(&store, 9, 0, 6) == CB_ERR);
 		expect_trace("");
 		return;
 	}
 	if (!strcmp(name, "low-version") || !strcmp(name, "durable-lsv")) {
 		uint32_t low = !strcmp(name, "low-version") ? 3 : 6;
 
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, low) == CB_ERR);
+		assert(checkpoint(&store, 9, 1, low) == CB_ERR);
 		expect_trace("R");
 		expect_workspace_clear();
 		return;
@@ -483,10 +546,10 @@ static void run_case(const char *name)
 		grant_fails = true;
 	if (!strcmp(name, "replay-after-failure")) {
 		store.fail_read = 1;
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
+		assert(checkpoint(&store, 9, 1, 6) == CB_ERR);
 		store.fail_read = 0;
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
-		assert(payload_mm_fmp_checkpoint_commit(9, 2, 6) == CB_SUCCESS);
+		assert(checkpoint(&store, 9, 1, 6) == CB_ERR);
+		assert(checkpoint(&store, 9, 2, 6) == CB_SUCCESS);
 		expect_trace("RRCRRG");
 		expect_workspace_clear();
 		return;
@@ -494,9 +557,9 @@ static void run_case(const char *name)
 	if (!strcmp(name, "outstanding-grant")) {
 		struct payload_mm_fmp_owner_record committed;
 
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_SUCCESS);
+		assert(checkpoint(&store, 9, 1, 6) == CB_SUCCESS);
 		committed = store.record;
-		assert(payload_mm_fmp_checkpoint_commit(9, 2, 7) == CB_ERR);
+		assert(checkpoint(&store, 9, 2, 7) == CB_ERR);
 		assert(!memcmp(&committed, &store.record, sizeof(committed)));
 		expect_trace("RCRRG");
 		assert(grants == 1 && granted_transaction == 1 && granted_version == 6);
@@ -509,29 +572,28 @@ static void run_case(const char *name)
 	    !strcmp(name, "grant-failure") || !strcmp(name, "max-transaction")) {
 		uint64_t transaction = !strcmp(name, "max-transaction") ?
 			UINT64_MAX : 1;
-		enum cb_err status = payload_mm_fmp_checkpoint_commit(9, transaction,
-			version);
+		enum cb_err status = checkpoint(&store, 9, transaction, version);
 
 		assert(status == (grant_fails ? CB_ERR : CB_SUCCESS));
 		expect_trace("RCRRG");
 		assert(store.commits == 1 && grants == 1);
 		assert(store.record.sequence == 8);
 		assert(!memcmp(store.record.data + 16, &version, sizeof(version)));
-		assert(payload_mm_fmp_checkpoint_commit(9, transaction, version) ==
+		assert(checkpoint(&store, 9, transaction, version) ==
 			CB_ERR);
 		expect_workspace_clear();
 		return;
 	}
 	if (!strcmp(name, "idempotent") ||
 	    !strcmp(name, "idempotent-sequence-max")) {
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_SUCCESS);
+		assert(checkpoint(&store, 9, 1, 6) == CB_SUCCESS);
 		expect_trace("RRG");
 		assert(!store.commits && grants == 1);
 		expect_workspace_clear();
 		return;
 	}
 
-	assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
+	assert(checkpoint(&store, 9, 1, 6) == CB_ERR);
 	assert(!grants);
 	if (!strcmp(name, "commit-failure") ||
 	    !strcmp(name, "commit-input-mutation"))
@@ -542,6 +604,8 @@ static void run_case(const char *name)
 		expect_trace("RCR");
 	else if (!strcmp(name, "checkpoint-readback-failure"))
 		expect_trace("RCRR");
+	else if (!strcmp(name, "bad-sequence"))
+		expect_trace("");
 	else
 		expect_trace("R");
 	expect_workspace_clear();

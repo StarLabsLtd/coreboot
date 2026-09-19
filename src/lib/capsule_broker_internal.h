@@ -7,13 +7,16 @@
 #include <boot/payload_mm_authvar.h>
 #include "capsule_update_internal.h"
 
+struct payload_mm_fmp_owner_record;
+
 typedef bool capsule_broker_range_proof_fn(void *context, uint64_t base,
 	uint64_t size);
 typedef bool capsule_broker_state_proof_fn(void *context);
 typedef enum cb_err capsule_broker_sha256_fn(void *context, const void *data,
 	size_t size, uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE]);
 typedef enum cb_err capsule_broker_authenticate_fn(const void *context,
-	const void *image, size_t image_size, uint32_t attempted_version);
+	const void *image, size_t image_size, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *owner_record);
 
 struct capsule_broker_proofs {
 	capsule_broker_range_proof_fn *communication_reserved;
@@ -63,17 +66,24 @@ enum cb_err capsule_broker_policy_install(
 bool capsule_broker_generation_matches(uint64_t generation);
 bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size);
 bool capsule_broker_buffer_available(const void *buffer, size_t size);
-enum cb_err capsule_broker_authenticate_intent(
-	const struct payload_mm_fmp_capsule_intent *intent);
+bool capsule_broker_execution_ready(void);
+enum cb_err capsule_broker_authenticate_intent_bound(
+	const struct payload_mm_fmp_capsule_intent *intent,
+	const struct payload_mm_fmp_owner_record *owner_record);
 
 /*
  * Called only by the protected variable owner after a matching SET was
  * authenticated and its durable failure checkpoint committed.
  */
-enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,
-	uint64_t transaction, uint32_t attempted_version);
+enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
+	uint64_t transaction, uint32_t attempted_version,
+	uint64_t authenticated_sequence, uint64_t checkpoint_sequence,
+	const uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE]);
 
-enum cb_err capsule_broker_handle(void);
+/* Execute only the exact SET intent currently retained by dispatch. */
+enum cb_err capsule_broker_apply_intent(
+	const struct payload_mm_fmp_capsule_intent *intent);
+
 void capsule_broker_close_for_s3(void);
 
 #endif

@@ -9,6 +9,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c
+smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_transaction.c
 
 payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
 payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \

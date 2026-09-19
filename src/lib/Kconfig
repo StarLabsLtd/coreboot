@@ -65,9 +65,11 @@ config CAPSULE_BROKER_CONTRACT
 	  after the owner's atomic backend commits and reads back the exact failure
 	  state. It also admits a separate, fixed authenticated-capsule CHECK/SET
 	  intent into protected staging and a sealed authentication-provider port;
-	  generic state writes cannot imply SET. A future platform must provide the
-	  executor, backend, protected policy producer, DMA-isolated staging and
-	  complete close-before-external-code lifecycle.
+	  generic state writes cannot imply SET. An unselected synchronous executor
+	  keeps dispatch busy across authentication, exact owner-state checkpoint
+	  and broker APPLY. A future platform must still provide the backend,
+	  protected policy producer, DMA-isolated staging and complete close-before-
+	  external-code lifecycle.
 
 config PAYLOAD_MM_CMS_VERIFY
 	bool

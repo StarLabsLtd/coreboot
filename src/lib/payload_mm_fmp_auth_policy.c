@@ -610,7 +610,8 @@ static bool board_matches(const uint8_t *image, size_t size)
 }
 
 static enum cb_err authenticate(const void *image, size_t image_size,
-	uint32_t attempted_version)
+	uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *expected_record)
 {
 	struct payload_mm_fmp_owner_record record;
 	struct payload_mm_authenticated_image authenticated;
@@ -629,7 +630,9 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 	memset(&record, 0, sizeof(record));
 	memset(&authenticated, 0, sizeof(authenticated));
 	if (payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE,
-		&record) != CB_SUCCESS || !record.present || !record.data[0])
+		&record) != CB_SUCCESS ||
+	    memcmp(&record, expected_record, sizeof(record)) ||
+	    !record.present || !record.data[0])
 		goto out;
 	installed_version = read_le32(record.data + 4);
 	lowest_version = auth_policy.trusted_lowest_version;
@@ -667,17 +670,22 @@ out:
 }
 
 enum cb_err payload_mm_fmp_authenticate_provider(const void *context,
-	const void *image, size_t image_size, uint32_t attempted_version)
+	const void *image, size_t image_size, uint32_t attempted_version,
+	const struct payload_mm_fmp_owner_record *owner_record)
 {
+	struct payload_mm_fmp_owner_record owner_snapshot;
 	enum cb_err status = CB_ERR;
 
 	if (context || !auth_policy.installed || auth_policy.busy || !image ||
-	    !image_size || payload_mm_fmp_owner_storage_overlaps(image, image_size) ||
+	    !image_size || !owner_record || !owner_record->sequence ||
+	    payload_mm_fmp_owner_storage_overlaps(image, image_size) ||
 	    payload_mm_authvar_buffers_overlap(image, image_size, &auth_policy,
 		sizeof(auth_policy)))
 		return CB_ERR;
+	owner_snapshot = *owner_record;
 	auth_policy.busy = true;
-	status = authenticate(image, image_size, attempted_version);
+	status = authenticate(image, image_size, attempted_version,
+		&owner_snapshot);
 	auth_policy.busy = false;
 	return status;
 }
