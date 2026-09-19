@@ -42,7 +42,8 @@ config Q35_CAPSULE_BROKER_TEST_PROOF
 	help
 	  Compile the unselected one-shot broker state machine in SMM. This option
 	  publishes no endpoint, registers no SMI command and supplies no flash or
-	  checkpoint provider.
+	  durable-variable backend. The checkpoint bridge is test-only until such a
+	  backend provides atomic, reset-safe, rollback-protected persistence.
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
