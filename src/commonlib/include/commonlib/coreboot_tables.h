@@ -95,6 +95,7 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
+	LB_TAG_DMA_HANDOFF		= 0x0053,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -812,6 +813,18 @@ struct lb_panel_poweroff {
 	/* MIPI DSI poweroff commands from panel_serializable_data. */
 	uint8_t cmd[];
 };
+
+struct lb_dma_handoff {
+	uint32_t tag;
+	uint32_t size;
+	lb_uint64_t address;
+	uint32_t bytes;
+	uint16_t revision;
+	uint16_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct lb_dma_handoff) == 24,
+	"unexpected DMA handoff reference size");
 
 enum boot_mode_t {
 	/* Regular boot scenarios */
