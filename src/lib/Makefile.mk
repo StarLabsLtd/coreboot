@@ -10,6 +10,27 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c
 
+payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
+payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \
+	bignum_mod.c bignum_mod_raw.c constant_time.c md.c oid.c pk.c pkparse.c \
+	platform_util.c rsa.c sha256.c x509.c x509_crt.c
+
+smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/cms.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/crypto.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/mbedtls_verify_wrap.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += \
+	$(addprefix $(payload_mm_mbedtls_dir)/library/,$(payload_mm_mbedtls_sources))
+ifeq ($(CONFIG_PAYLOAD_MM_CMS_VERIFY),y)
+CPPFLAGS_common += \
+	-I$(payload_mm_mbedtls_dir)/include \
+	-I$(payload_mm_mbedtls_dir)/library \
+	-I$(src)/lib/payload_mm_crypto \
+	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"'
+$(obj)/smm/smm.elf-ldflags += --wrap=mbedtls_rsa_parse_pubkey
+$(addprefix $(obj)/smm/mbedtls/library/,\
+	$(payload_mm_mbedtls_sources:.c=.o)): CFLAGS_smm += -Wno-redundant-decls
+endif
+
 ifeq ($(CONFIG_UBSAN),y)
 ramstage-y += ubsan.c
 CFLAGS_ramstage += -fsanitize=undefined

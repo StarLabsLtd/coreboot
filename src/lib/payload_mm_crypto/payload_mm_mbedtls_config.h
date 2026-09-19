@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#ifndef PAYLOAD_MM_MBEDTLS_CONFIG_H
+#define PAYLOAD_MM_MBEDTLS_CONFIG_H
+
+#define MBEDTLS_ASN1_PARSE_C
+#define MBEDTLS_BIGNUM_C
+#define MBEDTLS_MD_C
+#define MBEDTLS_NO_UDBL_DIVISION
+#define MBEDTLS_OID_C
+#define MBEDTLS_PK_C
+#define MBEDTLS_PK_PARSE_C
+#define MBEDTLS_PKCS1_V15
+#define MBEDTLS_PLATFORM_C
+#define MBEDTLS_PLATFORM_CALLOC_MACRO payload_mm_crypto_calloc
+#define MBEDTLS_PLATFORM_FREE_MACRO payload_mm_crypto_free
+#define MBEDTLS_PLATFORM_MEMORY
+#define MBEDTLS_PLATFORM_NO_STD_FUNCTIONS
+#define MBEDTLS_PLATFORM_SNPRINTF_MACRO payload_mm_crypto_snprintf
+#define MBEDTLS_PLATFORM_STD_MEM_HDR "payload_mm_crypto_platform.h"
+#define MBEDTLS_PLATFORM_ZEROIZE_ALT
+#define MBEDTLS_RSA_C
+#define MBEDTLS_SHA256_C
+#define MBEDTLS_X509_CRT_PARSE_C
+#define MBEDTLS_X509_CRT_NO_HOSTNAME
+#define MBEDTLS_X509_USE_C
+
+#endif

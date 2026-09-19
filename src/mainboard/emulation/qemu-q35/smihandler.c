@@ -10,6 +10,19 @@
 #include <southbridge/intel/common/pmutil.h>
 #include <string.h>
 
+#if CONFIG(PAYLOAD_MM_CMS_VERIFY)
+#include <payload_mm_cms.h>
+
+static struct payload_mm_crypto_owner cms_link_proof_owner;
+
+static void payload_mm_cms_link_proof(void)
+{
+	/* Root the dormant verifier and its protected arena; do not call it. */
+	asm volatile("" : : "r"(payload_mm_authenticate_image),
+		"r"(&cms_link_proof_owner) : "memory");
+}
+#endif
+
 /*
  * SMM in QEMU is unlike that on real hardware. Most notable differences:
  *
@@ -303,6 +316,9 @@ void cpu_smi_handler(void)
 		}
 
 		southbridge_finalize_all();
+#if CONFIG(PAYLOAD_MM_CMS_VERIFY)
+		payload_mm_cms_link_proof();
+#endif
 		mainboard_finalized = 1;
 		break;
 	case APM_CNT_ELOG_GSMI:

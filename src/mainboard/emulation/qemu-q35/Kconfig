@@ -40,11 +40,13 @@ config Q35_CAPSULE_BROKER_TEST_PROOF
 	select CAPSULE_UPDATE_CONTRACT
 	select PAYLOAD_MM_AUTHVAR_CONTRACT
 	select CAPSULE_BROKER_CONTRACT
+	select PAYLOAD_MM_CMS_VERIFY
 	help
 	  Compile the unselected one-shot broker state machine in SMM. This option
 	  publishes no endpoint, registers no SMI command and supplies no flash or
-	  durable-variable backend. The checkpoint bridge is test-only until such a
-	  backend provides atomic, reset-safe, rollback-protected persistence.
+	  durable-variable backend. Its fixed-arena CMS verifier has no trust-policy
+	  provider. The checkpoint bridge is test-only until a backend provides
+	  atomic, reset-safe, rollback-protected persistence.
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
