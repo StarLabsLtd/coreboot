@@ -42,11 +42,27 @@ platform installs that policy or supplies trust anchors in this tree.
 
 `LB_TAG_CAPSULE_BROKER_ENDPOINT` is an 80-byte public description of the
 already-installed endpoint. It carries one nonzero cold-boot generation, one
-reserved compatibility communication range, one fixed staging capacity and a
-typed byte-wide APM trigger. It carries no flash offset, writable route or
-raw media command. No broker code parses the compatibility message range and
-there is no shared-message APPLY entry point. The table record is not authority
-and this commit provides no producer for it.
+reserved 168-byte communication range, one fixed staging capacity and a typed
+byte-wide APM trigger. It carries no flash offset, writable route or raw media
+command. The communication range has a fixed, pointer-free layout: a 40-byte
+request at offset 0, the 88-byte capsule intent at offset 40 and a 40-byte
+result at offset 128. Request and intent repeat the generation and transaction;
+both pairs must match the installed broker and each other. There is no caller-
+selected message address and no shared-message APPLY entry point. The table
+record is not authority and this commit provides no producer for it.
+
+The dormant transport dispatcher copies the request and intent into protected
+locals, validates their fixed revisions, sizes, offsets, reserved fields and
+bindings, then calls only the synchronous staged-intent executor. Increasing
+transactions are consumed before execution, so failure, replay and stale
+requests cannot invoke it again. A busy latch rejects reentry. The result is
+bound to the copied generation, transaction and attempted version. Its status
+and completion marker remain pending during execution; status is committed
+after all other response bytes and the result marker is committed last. A
+caller must read the result marker first after notification, then reject a
+response whose revision, size, generation or transaction does not match its
+request. This commit registers no SMI, publishes no endpoint and selects no
+platform transport.
 
 ## Checkpoint and immutable image
 
@@ -161,7 +177,8 @@ specific values. A partial-media failure remains a reset/recovery case.
 | Synchronous staged-intent transaction executor | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
-| SMI dispatcher and endpoint publication | Open |
+| Fixed typed transport dispatcher | Implemented, unselected |
+| SMI entry and endpoint publication | Open |
 | Production SPI backend | Open |
 | CDK2 composition and close-before-external-code proof | Open |
 | QEMU power-loss and Intel/AMD hardware evidence | Open |
@@ -172,6 +189,7 @@ provider. Host evidence is provided by:
 
 ```
 tests/lib/capsule_broker_test.sh
+tests/lib/capsule_broker_transport_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
 tests/lib/payload_mm_fmp_transaction_test.sh

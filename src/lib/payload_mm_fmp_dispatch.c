@@ -143,6 +143,38 @@ fail:
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_fmp_dispatch_prepare_intent(
+	const struct payload_mm_fmp_capsule_intent *intent_source)
+{
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+	struct payload_mm_fmp_dispatch_workspace *workspace =
+		dispatch_authority.workspace;
+	struct payload_mm_fmp_capsule_intent intent;
+
+	if (!dispatch_authority.installed || dispatch_authority.busy ||
+	    !intent_source ||
+	    !payload_mm_fmp_dispatch_buffer_available(intent_source,
+		sizeof(*intent_source)))
+		return CB_ERR;
+	dispatch_authority.busy = true;
+	memset(workspace, 0, sizeof(*workspace));
+	memcpy(&intent, intent_source, sizeof(intent));
+	if (!capsule_intent_valid(&intent))
+		goto fail;
+	workspace->message_size = sizeof(intent);
+	workspace->intent = intent;
+	dispatch_authority.last_intent_transaction = intent.transaction;
+	dispatch_authority.capsule_intent = true;
+	return CB_SUCCESS;
+fail:
+	memset(workspace, 0, sizeof(*workspace));
+	dispatch_authority.busy = false;
+#else
+	(void)intent_source;
+#endif
+	return CB_ERR;
+}
+
 const struct payload_mm_fmp_state_command *payload_mm_fmp_dispatch_command(void)
 {
 	return dispatch_authority.busy && !dispatch_authority.capsule_intent ?

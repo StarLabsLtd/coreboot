@@ -133,8 +133,8 @@ static bool endpoint_valid(const struct lb_capsule_broker_endpoint *endpoint,
 	    endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_REVISION ||
 	    endpoint->header_size != sizeof(*endpoint) ||
 	    endpoint->flags != LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ||
-	    endpoint->communication_size != sizeof(struct capsule_broker_message) ||
-	    endpoint->message_size != sizeof(struct capsule_broker_message) ||
+	    endpoint->communication_size != CAPSULE_BROKER_TRANSPORT_SIZE ||
+	    endpoint->message_size != CAPSULE_BROKER_TRANSPORT_SIZE ||
 	    endpoint->transport != LB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8 ||
 	    endpoint->trigger_width != sizeof(uint8_t) ||
 	    !endpoint->trigger_address || endpoint->trigger_address > UINT16_MAX ||
@@ -153,6 +153,18 @@ static bool endpoint_valid(const struct lb_capsule_broker_endpoint *endpoint,
 	    ranges_overlap(communication_base, endpoint->communication_size,
 		staging_base, staging_size))
 		return false;
+	return true;
+}
+
+bool capsule_broker_transport_buffer(void **buffer, size_t *size,
+	uint64_t *generation)
+{
+	if (!buffer || !size || !generation || !broker.installed || broker.closed)
+		return false;
+	*buffer = (void *)(uintptr_t)
+		unpack64(broker.policy.endpoint.communication_base);
+	*size = broker.policy.endpoint.communication_size;
+	*generation = unpack64(broker.policy.endpoint.generation);
 	return true;
 }
 

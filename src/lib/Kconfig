@@ -59,7 +59,7 @@ config CAPSULE_BROKER_CONTRACT
 	depends on CAPSULE_UPDATE_CONTRACT && PAYLOAD_MM_AUTHVAR_CONTRACT
 	help
 	  Build the dormant one-shot SMM capsule-broker contract. This adds no
-	  producer, table publication, SMI command, dispatcher, production flash
+	  producer, table publication, SMI entry or production flash
 	  backend or selected payload service. It includes an unselected typed port
 	  which uses the protected SystemFmp owner to issue a checkpoint grant only
 	  after the owner's atomic backend commits and reads back the exact failure
@@ -67,7 +67,9 @@ config CAPSULE_BROKER_CONTRACT
 	  intent into protected staging and a sealed authentication-provider port;
 	  generic state writes cannot imply SET. An unselected synchronous executor
 	  keeps dispatch busy across authentication, exact owner-state checkpoint
-	  and broker APPLY. A future platform must still provide the backend,
+	  and broker APPLY. A fixed pointer-free transport can call only that staged
+	  executor, but remains unreachable without a platform SMI entry. A future
+	  platform must still provide the backend,
 	  protected policy producer, DMA-isolated staging and complete close-before-
 	  external-code lifecycle.
 
@@ -80,8 +82,8 @@ config PAYLOAD_MM_CMS_VERIFY
 	  accepts bounded canonical DER/CMS with RSA/SHA-256 X.509 chains and uses
 	  a fixed protected arena which is wiped after every call. It also builds an
 	  unselected protected SystemFmp authentication-policy owner and capsule-
-	  broker provider. This selects no policy producer, executor, transport, SMI
-	  command or flash backend. A platform must seal its trust roots, image
+	  broker provider. This selects no policy producer, SMI entry or flash
+	  backend. A platform must seal its trust roots, image
 	  identity, board identity and version floor before installing it.
 
 config ROMSTAGE_ADA

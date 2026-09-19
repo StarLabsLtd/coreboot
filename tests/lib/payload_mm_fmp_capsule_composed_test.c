@@ -16,7 +16,7 @@
 #define MEDIA_SIZE (16U * 1024U)
 #define ERASE_SIZE 4096U
 
-static uint8_t communication[sizeof(struct capsule_broker_message)]
+static uint8_t communication[CAPSULE_BROKER_TRANSPORT_SIZE]
 	__aligned(8);
 static uint8_t staging[STAGING_SIZE] __aligned(8);
 static uint8_t media[MEDIA_SIZE];

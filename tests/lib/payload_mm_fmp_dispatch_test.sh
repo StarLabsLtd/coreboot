@@ -10,7 +10,7 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_CAPSULE_BROKER_CONTRACT 1' > \
 	"$temporary/include/config.h"
 
-cases='success write intent-check intent-set intent-snapshot intent-busy intent-replay intent-max intent-distinct intent-after-close intent-current intent-generation intent-operation intent-revision intent-size intent-flags intent-zero-transaction intent-zero-image intent-digest intent-digest-size intent-reserved intent-message-short intent-message-large intent-adjacent-before intent-adjacent-after intent-overlap-before intent-overlap-after adjacent-before adjacent-after close max-transaction request-before request-misaligned request-generation
+cases='success write intent-check intent-set intent-direct intent-snapshot intent-busy intent-replay intent-max intent-distinct intent-after-close intent-current intent-generation intent-operation intent-revision intent-size intent-flags intent-zero-transaction intent-zero-image intent-digest intent-digest-size intent-reserved intent-message-short intent-message-large intent-adjacent-before intent-adjacent-after intent-overlap-before intent-overlap-after adjacent-before adjacent-after close max-transaction request-before request-misaligned request-generation
 request-flags message-before message-misaligned message-short message-large
 message-request-alias message-request-overlap-before message-request-overlap-after
 message-revision current-null-size current-no-size
