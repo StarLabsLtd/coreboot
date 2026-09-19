@@ -21,6 +21,15 @@ config PAYLOAD_RESOURCE_HANDOFF
 	  revision-4 topology and boot-controller policy before that revision is
 	  published.
 
+config PAYLOAD_DMA_HANDOFF
+	bool
+	help
+	  Publish a versioned reference to a bounded, platform-prepared DMA
+	  protection description. The record is rejected unless a platform
+	  revision-4 resource handoff was successfully published and the supplied
+	  protection state is complete. This preparatory interface does not enroll
+	  controllers, expose a payload IOMMU protocol, or enable bus mastering.
+
 config ROMSTAGE_ADA
 	bool
 	help

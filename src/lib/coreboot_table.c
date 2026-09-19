@@ -9,6 +9,7 @@
 #include <console/uart.h>
 #include <identity.h>
 #include <boot/coreboot_tables.h>
+#include <boot/dma_handoff.h>
 #include <boot/tables.h>
 #include <boot_device.h>
 #include <string.h>
@@ -623,6 +624,9 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
 	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
 		die("Payload resource handoff is not trustworthy\n");
+
+	if (CONFIG(PAYLOAD_DMA_HANDOFF) && lb_add_dma_handoff(head) != CB_SUCCESS)
+		die("Payload DMA handoff is not trustworthy\n");
 
 	/* Add board-specific table entries, if any. */
 	lb_board(head);
