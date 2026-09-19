@@ -562,7 +562,7 @@ static enum cb_err walk_variables(struct region_device *rdev,
 				  void *walker_arg)
 {
 	AUTHENTICATED_VARIABLE_HEADER auth_hdr;
-	size_t header_size, var_size;
+	size_t header_size, var_size, region_size;
 	VARIABLE_HEADER hdr;
 	CHAR16 terminator;
 	bool erased;
@@ -579,6 +579,7 @@ static enum cb_err walk_variables(struct region_device *rdev,
 		header_size = sizeof(VARIABLE_HEADER);
 
 	do {
+		region_size = region_device_sz(rdev);
 		if (region_device_sz(rdev) < header_size) {
 			ret = region_is_erased(rdev, &erased);
 			if (ret != CB_SUCCESS)
@@ -620,6 +621,7 @@ static enum cb_err walk_variables(struct region_device *rdev,
 		print_guid(BIOS_SPEW, &hdr.VendorGuid);
 		printk(BIOS_SPEW, "\n");
 
+<<<<<<< HEAD
 		if (hdr.NameSize > SIZE_MAX - header_size)
 			return CB_EFI_VS_CORRUPTED_INVALID;
 		var_size = header_size + hdr.NameSize;
@@ -651,9 +653,9 @@ static enum cb_err walk_variables(struct region_device *rdev,
 				walker_done = hdr.State == VAR_ADDED;
 			}
 		}
-		if (var_size == region_device_sz(rdev))
+		if (var_size == region_size)
 			return CB_EFI_VS_CORRUPTED_INVALID;
-		if (rdev_chain(rdev, rdev, var_size, region_device_sz(rdev) - var_size))
+		if (rdev_chain(rdev, rdev, var_size, region_size - var_size))
 			return CB_EFI_ACCESS_ERROR;
 	} while (true);
 }
