@@ -31,8 +31,14 @@ static bool plan_allowed(const struct capsule_update_plan *plan,
 	size_t bios_regions = 0;
 
 	if (!plan || !plan->image || !plan->regions || !policy ||
-	    !policy->regions || !plan->region_count ||
+	    !policy->regions || !policy->owner_layout || !plan->region_count ||
 	    plan->region_count != policy->region_count || !policy->erase_size ||
+	    !payload_mm_fmp_layout_valid(policy->owner_layout) ||
+	    policy->owner_layout->media_size != policy->media_size ||
+	    policy->owner_layout->erase_size != policy->erase_size ||
+	    policy->owner_layout->smmstore.offset != policy->smmstore_offset ||
+	    policy->owner_layout->smmstore.size != policy->smmstore_size ||
+	    policy->owner_layout->route_count != policy->region_count ||
 	    !range_valid(policy->smmstore_offset, policy->smmstore_size,
 		policy->media_size))
 		return false;
@@ -40,6 +46,7 @@ static bool plan_allowed(const struct capsule_update_plan *plan,
 		const struct lb_capsule_update_region *region = &plan->regions[i];
 
 		if (!region_equal(region, &policy->regions[i]) ||
+		    !region_equal(region, &policy->owner_layout->route[i]) ||
 		    region->flags & ~LB_CAPSULE_REGION_VALID_FLAGS ||
 		    !range_valid(region->image_offset, region->size,
 			plan->image_bytes) ||

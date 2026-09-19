@@ -199,6 +199,7 @@ struct media_fixture {
 	u8 bytes[TEST_MEDIA_SIZE];
 	struct lb_capsule_update_region plan_region;
 	struct lb_capsule_update_region policy_region;
+	struct fmp_owner_layout owner_layout;
 	size_t reads;
 	size_t erases;
 	size_t writes;
@@ -253,6 +254,25 @@ static void small_fixture(struct capsule_update_plan *plan,
 	memset(fixture->bytes, 0x5a, sizeof(fixture->bytes));
 	fixture->plan_region = region;
 	fixture->policy_region = region;
+	fixture->owner_layout = (struct fmp_owner_layout) {
+		.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
+		.size = sizeof(fixture->owner_layout),
+		.media_size = TEST_MEDIA_SIZE,
+		.erase_size = 0x1000,
+		.slot_size = 0x1000,
+		.route_count = 1,
+		.state = {
+			{ .offset = 0x8000, .size = 0x2000 },
+			{ .offset = 0xa000, .size = 0x2000 },
+		},
+		.smmstore = { .offset = 0xe000, .size = 0x1000 },
+		.route = {{
+			.image_offset = 0x2000,
+			.flash_offset = 0x4000,
+			.size = 0x2000,
+			.flags = LB_CAPSULE_REGION_BIOS,
+		}},
+	};
 	for (size_t i = 0; i < TEST_MEDIA_SIZE; i++)
 		image[i] = (u8)i;
 	*plan = (struct capsule_update_plan) {
@@ -268,6 +288,7 @@ static void small_fixture(struct capsule_update_plan *plan,
 		.smmstore_size = 0x1000,
 		.regions = &fixture->policy_region,
 		.region_count = 1,
+		.owner_layout = &fixture->owner_layout,
 	};
 	*media = (struct capsule_media_backend) {
 		.context = fixture,
@@ -340,6 +361,41 @@ static void verified_apply_contract(void)
 	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+
+#define REJECT_LAYOUT(member, value) do { \
+	small_fixture(&plan, &policy, &media, &fixture, image); \
+	fixture.owner_layout.member = (value); \
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch, \
+		sizeof(scratch)) == CB_ERR); \
+	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
+} while (0)
+	REJECT_LAYOUT(state[0].offset, 0xa000);
+	REJECT_LAYOUT(state[0].offset, TEST_MEDIA_SIZE);
+	REJECT_LAYOUT(state[0].offset, 0xe000);
+	REJECT_LAYOUT(state[0].offset, 0x8001);
+	REJECT_LAYOUT(state[0].size, 0x1000);
+	REJECT_LAYOUT(state[0].size, UINT64_MAX);
+	REJECT_LAYOUT(smmstore.offset, TEST_MEDIA_SIZE);
+	REJECT_LAYOUT(smmstore.size, UINT64_MAX);
+	REJECT_LAYOUT(slot_size, 0x1800);
+#undef REJECT_LAYOUT
+
+#define REJECT_ROUTE(offset) do { \
+	u64 rejected_offset = (offset); \
+	small_fixture(&plan, &policy, &media, &fixture, image); \
+	fixture.plan_region.flash_offset = rejected_offset; \
+	fixture.policy_region.flash_offset = rejected_offset; \
+	fixture.owner_layout.route[0] = fixture.policy_region; \
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch, \
+		sizeof(scratch)) == CB_ERR); \
+	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
+} while (0)
+	REJECT_ROUTE(0x8000);
+	REJECT_ROUTE(0xa000);
+	REJECT_ROUTE(0xe000);
+	REJECT_ROUTE(TEST_MEDIA_SIZE);
+#undef REJECT_ROUTE
+
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	fixture.corrupt_readback = true;
 	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,

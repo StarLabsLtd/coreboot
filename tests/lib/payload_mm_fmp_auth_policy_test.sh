@@ -134,6 +134,7 @@ dd if="$temporary/payload" of="$temporary/raw-rom" bs=1 skip=16 \
 	"$root/tests/lib/payload_mm_fmp_capsule_composed_test.c" \
 	"$root/src/lib/payload_mm_fmp_auth_policy.c" \
 	"$root/src/lib/capsule_broker.c" \
+	"$root/src/lib/payload_mm_fmp_owner_layout.c" \
 	"$root/src/lib/capsule_update_backend.c" \
 	"$root/src/lib/payload_mm_crypto/cms.c" \
 	"$root/src/lib/payload_mm_crypto/crypto.c" \

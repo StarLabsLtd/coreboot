@@ -4,6 +4,7 @@
 #define LIB_CAPSULE_UPDATE_INTERNAL_H
 
 #include <boot/capsule_update.h>
+#include "payload_mm_fmp_owner_layout_internal.h"
 
 typedef enum cb_err capsule_media_read_fn(void *, u64, void *, size_t);
 typedef enum cb_err capsule_media_erase_fn(void *, u64, size_t);
@@ -25,6 +26,7 @@ struct capsule_media_policy {
 	u64 smmstore_size;
 	const struct lb_capsule_update_region *regions;
 	size_t region_count;
+	const struct fmp_owner_layout *owner_layout;
 };
 
 enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan,
