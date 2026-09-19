@@ -1416,18 +1416,22 @@ static void write_efi_option_suspend(void)
 	acpigen_emit_byte(LOCAL0_OP);
 	acpigen_emit_byte(LOCAL1_OP);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOKS", EC_ACPI_FIELD("KLSE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 	write_efi_option_set_ec_read("EOKB", EC_ACPI_FIELD("KLBE"));
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
+	write_ec_write_integer(0, EC_ACPI_FIELD("OSFG"));
 	acpigen_write_return_integer(1);
 	acpigen_write_if_end();
 }
