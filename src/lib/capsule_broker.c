@@ -57,6 +57,12 @@ bool capsule_broker_generation_matches(uint64_t generation)
 		generation == unpack64(broker.policy.endpoint.generation);
 }
 
+bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size)
+{
+	return capsule_broker_generation_matches(generation) &&
+		image_size == unpack64(broker.policy.endpoint.staging_size);
+}
+
 bool capsule_broker_buffer_available(const void *buffer, size_t size)
 {
 	return !ranges_overlap((uintptr_t)buffer, size, (uintptr_t)&broker,

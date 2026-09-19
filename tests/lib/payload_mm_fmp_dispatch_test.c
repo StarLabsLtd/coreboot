@@ -21,6 +21,12 @@ static bool protection_ok = true;
 static bool workspace_protection_ok = true;
 static bool mutate_workspace_during_proof;
 static bool mutate_authority_during_proof;
+static uint64_t broker_generation = 11;
+
+bool capsule_broker_intent_matches(uint64_t generation, uint64_t image_size)
+{
+	return generation == broker_generation && image_size == 0x20000;
+}
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -124,6 +130,60 @@ static uint64_t publish_at(struct payload_mm_fmp_state_message *state,
 	return (uintptr_t)&communication[request_offset];
 }
 
+static struct payload_mm_fmp_capsule_intent intent(uint32_t operation,
+	uint64_t transaction)
+{
+	struct payload_mm_fmp_capsule_intent capsule = {
+		.revision = PAYLOAD_MM_FMP_CAPSULE_INTENT_REVISION,
+		.size = sizeof(capsule),
+		.operation = operation,
+		.broker_generation = broker_generation,
+		.transaction = transaction,
+		.image_size = 0x20000,
+		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+		.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+		.attempted_version = 9,
+	};
+
+	memset(capsule.digest, 0x5a, sizeof(capsule.digest));
+	return capsule;
+}
+
+static uint64_t publish_intent(struct payload_mm_fmp_capsule_intent *intent)
+{
+	struct payload_mm_authvar_request request = {
+		.revision = PAYLOAD_MM_AUTHVAR_REQUEST_REVISION,
+		.size = sizeof(request),
+		.operation = PAYLOAD_MM_AUTHVAR_COMMUNICATE,
+		.generation = 7,
+		.message_address = (uintptr_t)&communication[512],
+		.message_size = sizeof(*intent),
+	};
+
+	memset(communication, 0, sizeof(communication));
+	memcpy(&communication[512], intent, sizeof(*intent));
+	memcpy(communication, &request, sizeof(request));
+	return (uintptr_t)communication;
+}
+
+static uint64_t publish_intent_at(struct payload_mm_fmp_capsule_intent *intent,
+	size_t request_offset, size_t message_offset)
+{
+	struct payload_mm_authvar_request request = {
+		.revision = PAYLOAD_MM_AUTHVAR_REQUEST_REVISION,
+		.size = sizeof(request),
+		.operation = PAYLOAD_MM_AUTHVAR_COMMUNICATE,
+		.generation = 7,
+		.message_address = (uintptr_t)&communication[message_offset],
+		.message_size = sizeof(*intent),
+	};
+
+	memset(communication, 0, sizeof(communication));
+	memcpy(&communication[message_offset], intent, sizeof(*intent));
+	memcpy(&communication[request_offset], &request, sizeof(request));
+	return (uintptr_t)&communication[request_offset];
+}
+
 static void install_parent(void)
 {
 	struct payload_mm_authvar_contract authvar = contract();
@@ -217,6 +277,7 @@ static void successful_snapshot(void)
 
 	assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_SUCCESS);
 	command = payload_mm_fmp_dispatch_command();
+	assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
 	assert(command == &smram.workspace.command);
 	assert(command->message.transaction == 1);
 	assert(command->variable_name[0] == 'F');
@@ -355,6 +416,134 @@ static void max_transaction(void)
 	assert(payload_mm_fmp_dispatch_prepare(publish(&state), NULL, 0) == CB_ERR);
 }
 
+static void intent_case(const char *name)
+{
+	struct payload_mm_fmp_capsule_intent capsule = intent(
+		!strcmp(name, "intent-set") ? PAYLOAD_MM_FMP_CAPSULE_SET :
+		PAYLOAD_MM_FMP_CAPSULE_CHECK, 1);
+	const struct payload_mm_fmp_capsule_intent *staged;
+	uint64_t address;
+	uint64_t staged_transaction;
+	bool overlap = false;
+
+	if (!strcmp(name, "intent-revision"))
+		capsule.revision++;
+	else if (!strcmp(name, "intent-size"))
+		capsule.size--;
+	else if (!strcmp(name, "intent-flags"))
+		capsule.flags = 1;
+	else if (!strcmp(name, "intent-generation"))
+		capsule.broker_generation++;
+	else if (!strcmp(name, "intent-operation"))
+		capsule.operation = 3;
+	else if (!strcmp(name, "intent-zero-transaction"))
+		capsule.transaction = 0;
+	else if (!strcmp(name, "intent-zero-image"))
+		capsule.image_size = 0;
+	else if (!strcmp(name, "intent-digest"))
+		capsule.digest_algorithm++;
+	else if (!strcmp(name, "intent-digest-size"))
+		capsule.digest_size--;
+	else if (!strcmp(name, "intent-reserved"))
+		capsule.reserved = 1;
+	if (!strcmp(name, "intent-adjacent-before"))
+		address = publish_intent_at(&capsule, 128, 40);
+	else if (!strcmp(name, "intent-adjacent-after"))
+		address = publish_intent_at(&capsule, 128, 168);
+	else if (!strcmp(name, "intent-overlap-before")) {
+		address = publish_intent_at(&capsule, 128, 88);
+		overlap = true;
+	} else if (!strcmp(name, "intent-overlap-after")) {
+		address = publish_intent_at(&capsule, 128, 152);
+		overlap = true;
+	} else
+		address = publish_intent(&capsule);
+	if (!strcmp(name, "intent-after-close")) {
+		struct payload_mm_fmp_state_message close = message(
+			PAYLOAD_MM_FMP_STATE_CLOSE_STATE,
+			PAYLOAD_MM_FMP_STATE_KEY_NONE, 1);
+
+		close.data_size = 0;
+		assert(payload_mm_fmp_dispatch_prepare(publish(&close), NULL, 0) ==
+			CB_SUCCESS);
+		assert(payload_mm_fmp_dispatch_complete(1) == CB_SUCCESS);
+		address = publish_intent(&capsule);
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+		assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
+		return;
+	}
+	if (!strcmp(name, "intent-message-short"))
+		((struct payload_mm_authvar_request *)(uintptr_t)address)->message_size--;
+	else if (!strcmp(name, "intent-message-large"))
+		((struct payload_mm_authvar_request *)(uintptr_t)address)->message_size += 8;
+	if (overlap) {
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+		assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
+		return;
+	}
+	if (!strcmp(name, "intent-current")) {
+		assert(payload_mm_fmp_dispatch_prepare(address, smram.current,
+			sizeof(smram.current)) == CB_ERR);
+		assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
+		return;
+	}
+	if (!strcmp(name, "intent-revision") || !strcmp(name, "intent-size") ||
+	    !strcmp(name, "intent-flags") || !strcmp(name, "intent-generation") ||
+	    !strcmp(name, "intent-operation") ||
+	    !strcmp(name, "intent-zero-transaction") ||
+	    !strcmp(name, "intent-zero-image") || !strcmp(name, "intent-digest") ||
+	    !strcmp(name, "intent-digest-size") ||
+	    !strcmp(name, "intent-reserved") ||
+	    !strcmp(name, "intent-message-short") ||
+	    !strcmp(name, "intent-message-large")) {
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+		assert(payload_mm_fmp_dispatch_capsule_intent() == NULL);
+		return;
+	}
+	assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_SUCCESS);
+	staged = payload_mm_fmp_dispatch_capsule_intent();
+	assert(staged == &smram.workspace.intent);
+	assert(payload_mm_fmp_dispatch_command() == NULL);
+	assert(staged->transaction == capsule.transaction);
+	assert(staged->attempted_version == capsule.attempted_version);
+	staged_transaction = capsule.transaction;
+	if (!strcmp(name, "intent-snapshot")) {
+		memset(communication, 0xa5, sizeof(communication));
+		broker_generation++;
+		assert(staged->transaction == 1 && staged->digest[0] == 0x5a);
+		broker_generation--;
+	}
+	if (!strcmp(name, "intent-busy")) {
+		capsule.transaction = 2;
+		address = publish_intent(&capsule);
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+		assert(payload_mm_fmp_dispatch_capsule_intent() == staged);
+	}
+	assert(payload_mm_fmp_dispatch_complete(staged_transaction + 1) == CB_ERR);
+	assert(payload_mm_fmp_dispatch_complete(staged_transaction) == CB_SUCCESS);
+	assert(payload_mm_fmp_dispatch_capsule_intent() == NULL && workspace_zero());
+	if (!strcmp(name, "intent-distinct")) {
+		struct payload_mm_fmp_state_message state = message(
+			PAYLOAD_MM_FMP_STATE_READ, PAYLOAD_MM_FMP_STATE_KEY_STATE, 1);
+
+		assert(payload_mm_fmp_dispatch_prepare(publish(&state), NULL, 0) ==
+			CB_SUCCESS);
+		assert(payload_mm_fmp_dispatch_command() != NULL);
+		assert(payload_mm_fmp_dispatch_complete(1) == CB_SUCCESS);
+	} else if (!strcmp(name, "intent-replay")) {
+		address = publish_intent(&capsule);
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+	} else if (!strcmp(name, "intent-max")) {
+		capsule.transaction = UINT64_MAX;
+		address = publish_intent(&capsule);
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_SUCCESS);
+		assert(payload_mm_fmp_dispatch_complete(UINT64_MAX) == CB_SUCCESS);
+		capsule.transaction--;
+		address = publish_intent(&capsule);
+		assert(payload_mm_fmp_dispatch_prepare(address, NULL, 0) == CB_ERR);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
@@ -373,6 +562,8 @@ int main(int argc, char **argv)
 		close_state();
 	else if (!strcmp(argv[1], "max-transaction"))
 		max_transaction();
+	else if (!strncmp(argv[1], "intent-", 7))
+		intent_case(argv[1]);
 	else
 		reject_case(argv[1]);
 	return 0;

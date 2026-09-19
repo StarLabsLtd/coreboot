@@ -120,6 +120,31 @@ it is not reachable through this state-message ABI. The platform must source
 the identity from trusted live firmware facts; a payload-provided GUID or
 hardware instance is not authority.
 
+## Authenticated capsule intent
+
+The capsule-broker build extends the same protected, one-request dispatch
+workspace with a distinct fixed 88-byte capsule-intent message. `CHECK` and
+`SET` carry a nonzero installed broker generation, an increasing transaction,
+the immutable image size, attempted version and SHA-256 digest. The dispatcher
+copies the complete outer request and message once, checks the broker
+generation, and exposes only the protected snapshot. Mutation of shared memory
+after staging cannot change it. Capsule-intent and generic state transactions
+have separate replay domains; `WRITE_STATE` is never interpreted as `SET`.
+
+Only one state command or capsule intent may be staged at a time. Completion
+must name its exact transaction and clears the complete workspace exactly once.
+Malformed, aliased, stale-generation and replayed intents expose no command.
+`CLOSE_STATE` also irreversibly rejects later capsule intents.
+The broker itself remains the authority for its fixed staging size, checkpoint
+grant and one-shot lifecycle.
+
+This is intent shape and staging, not authentication authority. A later
+internal executor must prove that authentication and all policy checks apply to
+the exact fixed image snapshot represented by these fields, source current FMP
+state through the protected owner, persist the failure checkpoint before a SET
+grant, and map a bounded result. This commit supplies no such executor or
+payload-callable transport.
+
 ## Internal durable checkpoint engine
 
 When both dormant contracts are built, the SMM module contains one internal
@@ -176,7 +201,8 @@ failure before grant invocation can be retried with a newer transaction.
 | Protected request snapshot and typed staging | Implemented, unselected |
 | Protected typed SystemFmp variable owner port | Implemented, unselected |
 | Trusted platform identity producer | Open |
-| Authenticated CHECK/SET intent and operation executor | Open |
+| Authenticated CHECK/SET intent and protected staging | Implemented, unselected |
+| Authenticated operation executor and bounded result | Open |
 | SMI transport and bounded result writer | Open |
 | Typed checkpoint engine and exact readback | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
