@@ -29,8 +29,13 @@ must not redirect policy or proof decisions to mutable payload memory.
 The same rules apply to the authentication callback and its bounded context.
 The callback's success contract is complete authentication and policy approval
 of the exact fixed staging image, including signature, capsule format,
-dependency and board binding. This tree defines and seals that port but
-supplies no provider or trust anchors.
+dependency and board binding. The unselected Payload-MM provider implements
+that contract without a callback context. Its one-attempt policy install copies
+the XDR trust set, image GUID, platform version floor, ROM size and mainboard
+vendor/part into protected storage; no caller pointer is retained. Installation
+requires vendor/part to equal coreboot's internal mainboard configuration, so a
+public table or payload build argument cannot select board authority. No
+platform installs that policy or supplies trust anchors in this tree.
 
 `LB_TAG_CAPSULE_BROKER_ENDPOINT` is an 80-byte public description of the
 already-installed endpoint. It carries one nonzero cold-boot generation, one
@@ -77,6 +82,15 @@ revalidated after every callback boundary. A provider-triggered S3 close is
 irreversible and causes the outer authentication to fail; the latch is cleared
 on every ordinary success and failure return.
 
+The provider reads current version and durable lowest-supported-version only
+through the protected typed FMP owner. It verifies the authenticated-image CMS,
+requires the signed MSS1 version to equal the staged attempted version, applies
+the greater of the sealed platform floor and durable floor, and evaluates the
+bounded dependency expression against the protected installed version. It then
+requires exactly one valid FMAP, COREBOOT region and raw `build_info` file and
+matches its vendor/part identity to the sealed board identity. Public coreboot
+tables, payload build arguments and candidate metadata never select policy.
+
 An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected
 variable owner may create that grant, and only after the combined FMP state has
@@ -120,7 +134,8 @@ specific status values. A partial-media failure remains a reset/recovery case.
 | Hostile O0/O2/ASan/UBSan model | Implemented |
 | Trusted endpoint/policy producer | Open |
 | Protected authentication-provider port | Implemented, unselected |
-| Authentication provider and trust anchors | Open |
+| Protected authentication provider | Implemented, unselected |
+| Platform policy producer and trust anchors | Open |
 | Typed checkpoint engine and grant ordering | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
@@ -136,4 +151,5 @@ provider. Host evidence is provided by:
 ```
 tests/lib/capsule_broker_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
+tests/lib/payload_mm_fmp_auth_policy_test.sh
 ```

@@ -11,15 +11,13 @@
 #include <string.h>
 
 #if CONFIG(PAYLOAD_MM_CMS_VERIFY)
-#include <payload_mm_cms.h>
-
-static struct payload_mm_crypto_owner cms_link_proof_owner;
+#include <payload_mm_fmp_auth_policy.h>
 
 static void payload_mm_cms_link_proof(void)
 {
-	/* Root the dormant verifier and its protected arena; do not call it. */
-	asm volatile("" : : "r"(payload_mm_authenticate_image),
-		"r"(&cms_link_proof_owner) : "memory");
+	/* Root the dormant policy owner and provider; do not install or call it. */
+	asm volatile("" : : "r"(payload_mm_fmp_authenticate_provider),
+		"r"(payload_mm_fmp_auth_policy_install) : "memory");
 }
 #endif
 
