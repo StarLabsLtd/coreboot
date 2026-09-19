@@ -43,6 +43,9 @@ struct payload_mm_fmp_owner_backend {
 enum cb_err payload_mm_fmp_owner_install(
 	const struct payload_mm_fmp_owner_backend *trusted_backend,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+bool payload_mm_fmp_owner_ready(void);
+bool payload_mm_fmp_owner_storage_overlaps(const void *buffer, size_t size);
+bool payload_mm_fmp_owner_buffer_available(const void *buffer, size_t size);
 enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record);
 enum cb_err payload_mm_fmp_owner_commit_state(

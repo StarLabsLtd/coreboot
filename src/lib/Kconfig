@@ -61,10 +61,10 @@ config CAPSULE_BROKER_CONTRACT
 	  Build the dormant one-shot SMM capsule-broker contract. This adds no
 	  producer, table publication, SMI command, dispatcher, production flash
 	  backend or selected payload service. It includes an unselected typed port
-	  which can issue a checkpoint grant only after an atomic variable backend
-	  commits and reads back the exact failure state. A future platform must
-	  provide that backend, the protected policy, DMA-isolated staging and
-	  complete close-before-external-code lifecycle.
+	  which uses the protected SystemFmp owner to issue a checkpoint grant only
+	  after the owner's atomic backend commits and reads back the exact failure
+	  state. A future platform must provide that backend, the protected policy,
+	  DMA-isolated staging and complete close-before-external-code lifecycle.
 
 config ROMSTAGE_ADA
 	bool

@@ -51,6 +51,22 @@ static bool ranges_overlap(uint64_t left_base, uint64_t left_size,
 	return left_base < right_end && right_base < left_end;
 }
 
+bool capsule_broker_generation_matches(uint64_t generation)
+{
+	return broker.installed && !broker.closed &&
+		generation == unpack64(broker.policy.endpoint.generation);
+}
+
+bool capsule_broker_buffer_available(const void *buffer, size_t size)
+{
+	return !ranges_overlap((uintptr_t)buffer, size, (uintptr_t)&broker,
+			sizeof(broker)) &&
+		(!broker.installed ||
+		 !ranges_overlap((uintptr_t)buffer, size,
+			(uintptr_t)broker.policy.scratch,
+			broker.policy.scratch_size));
+}
+
 static bool range_addressable(uint64_t base, uint64_t size)
 {
 	return size && base <= UINTPTR_MAX && size - 1 <= UINTPTR_MAX - base;

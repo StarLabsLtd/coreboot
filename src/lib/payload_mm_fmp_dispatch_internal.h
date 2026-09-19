@@ -23,6 +23,8 @@ _Static_assert(offsetof(struct payload_mm_fmp_dispatch_workspace, request) == 0 
 enum cb_err payload_mm_fmp_dispatch_workspace_install(
 	struct payload_mm_fmp_dispatch_workspace *trusted_workspace,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+bool payload_mm_fmp_dispatch_ready(void);
+bool payload_mm_fmp_dispatch_buffer_available(const void *buffer, size_t size);
 enum cb_err payload_mm_fmp_dispatch_prepare(uint64_t request_address,
 	const void *current_state, size_t current_state_size);
 const struct payload_mm_fmp_state_command *payload_mm_fmp_dispatch_command(void);

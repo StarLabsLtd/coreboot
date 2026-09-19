@@ -9,14 +9,21 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
-cases='success wide-version source-mutation idempotent commit-failure commit-lie read-failure
-readback-failure readback-corrupt bad-attributes bad-size bad-reserved bad-sequence
-sequence-wrap bad-validity wrong-generation zero-transaction low-version durable-lsv
-grant-failure install-no-state install-revision install-size install-generation
-install-read install-commit install-context-null install-context-zero
-install-context-large install-protection read-input-mutation readback-input-mutation
-commit-input-mutation replay-after-failure max-transaction idempotent-sequence-max
-outstanding-grant'
+cases='success wide-version bind-authority-mutation bind-workspace-mutation
+idempotent commit-failure commit-lie read-failure owner-readback-failure
+checkpoint-readback-failure readback-corrupt bad-attributes bad-size bad-reserved
+bad-reserved2 bad-sequence bad-present absent sequence-wrap bad-validity
+wrong-generation zero-transaction low-version durable-lsv grant-failure
+read-input-mutation commit-input-mutation replay-after-failure max-transaction
+idempotent-sequence-max outstanding-grant install-no-owner
+install-zero-generation install-generation-mismatch install-null install-misaligned install-outside
+install-no-proof install-authority-unprotected install-workspace-unprotected
+install-authority-mutation-failure install-workspace-mutation-failure'
+cases="$cases install-dispatch-not-ready install-broker-not-ready
+install-dispatch-overlap install-broker-overlap"
+cases="$cases install-checkpoint-full install-checkpoint-leading
+install-checkpoint-trailing install-checkpoint-adjacent-before
+install-checkpoint-adjacent-after"
 
 run_test()
 {
@@ -35,6 +42,7 @@ run_test()
 		"$root/src/lib/payload_mm_authvar.c" \
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_fmp_state.c" \
+		"$root/src/lib/payload_mm_fmp_owner.c" \
 		"$root/src/lib/payload_mm_fmp_checkpoint.c" -o "$temporary/$name"
 	for test_case in $cases; do
 		"$temporary/$name" "$test_case"

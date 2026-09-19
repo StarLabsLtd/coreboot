@@ -324,6 +324,22 @@ static void happy(void)
 	assert(fixture.message.result == CAPSULE_BROKER_RESULT_CLOSED);
 }
 
+static void generation_match_case(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	assert(!capsule_broker_generation_matches(GENERATION));
+	install(&fixture);
+	assert(capsule_broker_generation_matches(GENERATION));
+	assert(!capsule_broker_generation_matches(0));
+	assert(!capsule_broker_generation_matches(GENERATION + 1));
+	fixture.policy.endpoint.generation++;
+	assert(capsule_broker_generation_matches(GENERATION));
+	capsule_broker_close_for_s3();
+	assert(!capsule_broker_generation_matches(GENERATION));
+}
+
 static void endpoint_mutations(void)
 {
 	struct fixture fixture;
@@ -627,6 +643,8 @@ int main(int argc, char **argv)
 		install_source_mutation_case();
 	else if (!strcmp(argv[1], "grant-edges"))
 		grant_edges();
+	else if (!strcmp(argv[1], "generation-match"))
+		generation_match_case();
 	else if (!strncmp(argv[1], "install-", 8))
 		invalid_install(argv[1] + 8);
 	else

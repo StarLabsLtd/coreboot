@@ -35,6 +35,9 @@ static size_t trace_size;
 static bool protect_ok = true;
 static struct backend_context *mutate_source;
 static bool mutate_authority;
+static bool installing_owner;
+static const void *owner_storage;
+static size_t owner_storage_size;
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -125,6 +128,10 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 {
 	(void)context;
 	assert(storage != NULL);
+	if (installing_owner) {
+		owner_storage = storage;
+		owner_storage_size = size;
+	}
 	assert(size >= sizeof(struct payload_mm_fmp_state_policy));
 	if (mutate_source && size > PAYLOAD_MM_FMP_OWNER_CONTEXT_SIZE)
 		mutate_source->route = 0;
@@ -214,8 +221,11 @@ static void install(struct backend_context *context)
 	struct payload_mm_fmp_owner_backend port = backend(context);
 
 	install_parent_authority();
+	installing_owner = true;
 	assert(payload_mm_fmp_owner_install(&port, protected_storage, NULL) ==
 		CB_SUCCESS);
+	installing_owner = false;
+	assert(owner_storage != NULL);
 }
 
 static void expect_trace(const char *expected)
@@ -296,6 +306,22 @@ static void run_case(const char *name)
 		mutate_authority = true;
 	install(&context);
 	context.route = 0;
+	if (!strcmp(name, "authority-ranges")) {
+		const uint8_t *base = owner_storage;
+		const size_t size = 3 * sizeof(struct payload_mm_fmp_owner_record);
+
+		assert(owner_storage_size >= size);
+		assert(payload_mm_fmp_owner_storage_overlaps(base, size));
+		assert(payload_mm_fmp_owner_storage_overlaps(
+			(const void *)((uintptr_t)base - 8), size));
+		assert(payload_mm_fmp_owner_storage_overlaps(
+			base + owner_storage_size - 8, size));
+		assert(!payload_mm_fmp_owner_storage_overlaps(
+			(const void *)((uintptr_t)base - size), size));
+		assert(!payload_mm_fmp_owner_storage_overlaps(
+			base + owner_storage_size, size));
+		return;
+	}
 	if (!strcmp(name, "read-failure"))
 		store.read_fails = true;
 	else if (!strcmp(name, "bad-sequence"))

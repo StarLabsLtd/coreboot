@@ -108,6 +108,23 @@ enum cb_err payload_mm_fmp_owner_install(
 	return CB_SUCCESS;
 }
 
+bool payload_mm_fmp_owner_ready(void)
+{
+	return owner_authority.installed;
+}
+
+bool payload_mm_fmp_owner_storage_overlaps(const void *buffer, size_t size)
+{
+	return payload_mm_authvar_buffers_overlap(buffer, size, &owner_authority,
+		sizeof(owner_authority));
+}
+
+bool payload_mm_fmp_owner_buffer_available(const void *buffer, size_t size)
+{
+	return payload_mm_fmp_state_staging_buffer(buffer, size) &&
+		!payload_mm_fmp_owner_storage_overlaps(buffer, size);
+}
+
 enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record)
 {
