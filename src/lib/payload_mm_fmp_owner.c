@@ -15,6 +15,7 @@ static struct {
 	uint8_t context[PAYLOAD_MM_FMP_OWNER_CONTEXT_SIZE] __aligned(8);
 	bool installed;
 	bool install_attempted;
+	bool busy;
 } owner_authority;
 
 static bool bytes_zero(const uint8_t *data, size_t size)
@@ -132,7 +133,8 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_state_identity identity;
 	struct payload_mm_fmp_state_identity expected_identity;
 
-	if (!owner_authority.installed || !key_valid(key) || !record ||
+	if (!owner_authority.installed || owner_authority.busy ||
+	    !key_valid(key) || !record ||
 	    !owner_buffer(record, sizeof(*record)))
 		return CB_ERR;
 	memset(record, 0, sizeof(*record));
@@ -160,8 +162,10 @@ static enum cb_err commit(uint32_t key,
 	struct payload_mm_fmp_owner_record verified;
 	struct payload_mm_fmp_state_identity identity;
 	struct payload_mm_fmp_state_identity expected_identity;
+	bool inputs_unchanged;
+	bool readback_valid;
 
-	if (!owner_authority.installed)
+	if (!owner_authority.installed || owner_authority.busy)
 		return CB_ERR;
 	if (!record_valid(key, &current) || !record_valid(key, &candidate) ||
 	    current.sequence == UINT64_MAX ||
@@ -170,19 +174,23 @@ static enum cb_err commit(uint32_t key,
 	if (payload_mm_fmp_state_identity_get_for_key(key, &identity) != CB_SUCCESS)
 		return CB_ERR;
 	expected_identity = identity;
-	if (owner_authority.backend.commit(owner_authority.backend.context, &identity,
-		key, &current, &candidate) != CB_SUCCESS ||
-	    memcmp(&identity, &expected_identity, sizeof(identity)) != 0 ||
-	    memcmp(&current, &expected_current, sizeof(current)) != 0 ||
-	    memcmp(&candidate, &expected_candidate, sizeof(candidate)) != 0)
-		return CB_ERR;
+	owner_authority.busy = true;
+	(void)owner_authority.backend.commit(owner_authority.backend.context,
+		&identity, key, &current, &candidate);
+	inputs_unchanged =
+		memcmp(&identity, &expected_identity, sizeof(identity)) == 0 &&
+		memcmp(&current, &expected_current, sizeof(current)) == 0 &&
+		memcmp(&candidate, &expected_candidate, sizeof(candidate)) == 0;
 	identity = expected_identity;
 	memset(&verified, 0, sizeof(verified));
-	if (owner_authority.backend.read(owner_authority.backend.context, &identity,
-		key, &verified) != CB_SUCCESS ||
-	    memcmp(&identity, &expected_identity, sizeof(identity)) != 0 ||
-	    !record_valid(key, &verified) ||
-	    memcmp(&verified, &candidate, sizeof(verified)) != 0)
+	readback_valid =
+		owner_authority.backend.read(owner_authority.backend.context,
+			&identity, key, &verified) == CB_SUCCESS &&
+		memcmp(&identity, &expected_identity, sizeof(identity)) == 0 &&
+		record_valid(key, &verified);
+	owner_authority.busy = false;
+	if (!inputs_unchanged || !readback_valid ||
+	    memcmp(&verified, &expected_candidate, sizeof(verified)) != 0)
 		return CB_ERR;
 	return CB_SUCCESS;
 }

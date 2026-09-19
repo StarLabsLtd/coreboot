@@ -130,9 +130,15 @@ An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected
 variable owner may create that grant, and only after the combined FMP state has
 been atomically committed with unsuccessful attempt status. The companion
-internal checkpoint engine reads and commits through that same protected owner,
-then performs a separate exact-state readback. It remains dormant because this
-series supplies no reset-safe, rollback-protected variable backend.
+internal checkpoint engine reads and commits through that same protected owner.
+Every backend commit invocation, whether it reports success or error, is
+followed by a fresh authoritative read while owner reentry remains blocked. An
+exact candidate record is success even after an ambiguous callback error; the
+exact prior record is failure, and unavailable, invalid, torn or any other
+valid record fails closed. Callback mutation of the identity or either record
+also fails closed. The checkpoint performs its own exact-state read after the
+owner has reconciled that outcome. It remains dormant because this series
+supplies no reset-safe, rollback-protected variable backend.
 
 ## Lifecycle
 

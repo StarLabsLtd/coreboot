@@ -10,7 +10,9 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
 cases='success wide-version bind-authority-mutation bind-workspace-mutation
-idempotent commit-failure commit-lie read-failure owner-readback-failure
+idempotent commit-failure commit-error-candidate commit-lie
+commit-success-other commit-error-other commit-success-torn commit-error-torn
+same-sequence-distinct reentry read-failure owner-readback-failure
 checkpoint-readback-failure readback-corrupt bad-attributes bad-size bad-reserved
 bad-reserved2 bad-sequence bad-present absent sequence-wrap bad-validity
 wrong-generation zero-transaction low-version durable-lsv grant-failure

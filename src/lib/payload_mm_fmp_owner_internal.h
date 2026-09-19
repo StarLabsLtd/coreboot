@@ -26,6 +26,7 @@ _Static_assert(_Alignof(struct payload_mm_fmp_owner_record) == 8,
 typedef enum cb_err payload_mm_fmp_owner_read_fn(const void *context,
 	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
 	struct payload_mm_fmp_owner_record *record);
+/* Commit status is advisory; a fresh read decides the authoritative outcome. */
 typedef enum cb_err payload_mm_fmp_owner_commit_fn(const void *context,
 	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
 	const struct payload_mm_fmp_owner_record *current,
