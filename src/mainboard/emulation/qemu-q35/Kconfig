@@ -11,6 +11,17 @@ config Q35_VTD_DMA_TEST_BACKEND
 	  and publish one explicitly bounded EDU requester through the DMA
 	  handoff. This is a QEMU test backend, not production Intel support.
 
+config Q35_CAPSULE_UPDATE_TEST_PROOF
+	bool "QEMU-only bounded capsule writer proof"
+	default n
+	select CAPSULE_UPDATE_CONTRACT
+	help
+	  Compile the dormant contract and verified region-writer prerequisite
+	  for QEMU testing. This option publishes no handoff record and provides
+	  no payload-callable broker: ordinary QEMU CBFS build_info is not an
+	  authenticated live-ROM identity. The host proof uses an immutable test
+	  route policy; it is not firmware authority.
+
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select CPU_QEMU_X86

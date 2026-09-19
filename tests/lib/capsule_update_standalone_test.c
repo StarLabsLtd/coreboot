@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <boot/capsule_update.h>
+#include "../../src/lib/capsule_update_internal.h"
 #include <string.h>
 #include <unistd.h>
 
@@ -193,12 +194,166 @@ static void bounded_backend_contract(void)
 	assert(backend.apply_regions == backend_contract);
 }
 
+#define TEST_MEDIA_SIZE 0x10000U
+struct media_fixture {
+	u8 bytes[TEST_MEDIA_SIZE];
+	struct lb_capsule_update_region plan_region;
+	struct lb_capsule_update_region policy_region;
+	size_t reads;
+	size_t erases;
+	size_t writes;
+	bool corrupt_readback;
+};
+
+static enum cb_err media_read(void *context, u64 offset, void *buffer,
+			      size_t size)
+{
+	struct media_fixture *media = context;
+
+	media->reads++;
+	memcpy(buffer, &media->bytes[offset], size);
+	if (media->corrupt_readback)
+		((u8 *)buffer)[0] ^= 1;
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_erase(void *context, u64 offset, size_t size)
+{
+	struct media_fixture *media = context;
+
+	media->erases++;
+	memset(&media->bytes[offset], 0xff, size);
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_write(void *context, u64 offset,
+			       const void *buffer, size_t size)
+{
+	struct media_fixture *media = context;
+
+	media->writes++;
+	memcpy(&media->bytes[offset], buffer, size);
+	return CB_SUCCESS;
+}
+
+static void small_fixture(struct capsule_update_plan *plan,
+			  struct capsule_media_policy *policy,
+			  struct capsule_media_backend *media,
+			  struct media_fixture *fixture,
+			  u8 image[TEST_MEDIA_SIZE])
+{
+	const struct lb_capsule_update_region region = {
+		.image_offset = 0x2000,
+		.flash_offset = 0x4000,
+		.size = 0x2000,
+		.flags = LB_CAPSULE_REGION_BIOS,
+	};
+
+	memset(fixture, 0, sizeof(*fixture));
+	memset(fixture->bytes, 0x5a, sizeof(fixture->bytes));
+	fixture->plan_region = region;
+	fixture->policy_region = region;
+	for (size_t i = 0; i < TEST_MEDIA_SIZE; i++)
+		image[i] = (u8)i;
+	*plan = (struct capsule_update_plan) {
+		.image = image,
+		.image_bytes = TEST_MEDIA_SIZE,
+		.regions = &fixture->plan_region,
+		.region_count = 1,
+	};
+	*policy = (struct capsule_media_policy) {
+		.media_size = TEST_MEDIA_SIZE,
+		.erase_size = 0x1000,
+		.smmstore_offset = 0xe000,
+		.smmstore_size = 0x1000,
+		.regions = &fixture->policy_region,
+		.region_count = 1,
+	};
+	*media = (struct capsule_media_backend) {
+		.context = fixture,
+		.size = TEST_MEDIA_SIZE,
+		.erase_size = 0x1000,
+		.read = media_read,
+		.erase = media_erase,
+		.write = media_write,
+	};
+}
+
+static void verified_apply_contract(void)
+{
+	struct capsule_update_plan plan;
+	struct capsule_media_policy policy;
+	struct capsule_media_backend media;
+	struct media_fixture fixture;
+	u8 image[TEST_MEDIA_SIZE];
+	u8 before[TEST_MEDIA_SIZE];
+	u8 scratch[0x1000];
+
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	memcpy(before, fixture.bytes, sizeof(before));
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_SUCCESS);
+	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.reads == 2);
+	assert(!memcmp(&fixture.bytes[0x4000], &image[0x2000], 0x2000));
+	assert(!memcmp(fixture.bytes, before, 0x4000));
+	assert(!memcmp(&fixture.bytes[0x6000], &before[0x6000],
+		       TEST_MEDIA_SIZE - 0x6000));
+
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.size--;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.erase_size <<= 1;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	plan.image_bytes = 0x3fff;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch) - 1) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.write = NULL;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.plan_region.flash_offset++;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.plan_region.flash_offset = 0xe000;
+	fixture.policy_region.flash_offset = 0xe000;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.plan_region.flags = 0;
+	fixture.policy_region.flags = 0;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.corrupt_readback = true;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+					     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 1 && fixture.writes == 1 && fixture.reads == 1);
+}
+
 int main(int argc, char **argv)
 {
 	valid_fixture();
 	header_rejections();
 	region_rejections();
 	bounded_backend_contract();
+	verified_apply_contract();
 	if (argc == 2 && !strcmp(argv[1], "--fixture")) {
 		reset_fixture();
 		return write(STDOUT_FILENO, blob, bytes) == (ssize_t)bytes ? 0 : 1;

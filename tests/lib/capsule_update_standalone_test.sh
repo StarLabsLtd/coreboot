@@ -19,7 +19,8 @@ build_and_run() {
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		-I"$temporary/include" "$@" \
 		"$root/tests/lib/capsule_update_standalone_test.c" \
-		"$root/src/lib/capsule_update.c" -Wl,--gc-sections \
+		"$root/src/lib/capsule_update.c" \
+		"$root/src/lib/capsule_update_backend.c" -Wl,--gc-sections \
 		-o "$temporary/$name"
 	"$temporary/$name"
 }
@@ -46,6 +47,12 @@ if [ -n "${CDK2_ROOT:-}" ]; then
 	"$temporary/cdk2-fixture" > "$temporary/cdk2-capsule-handoff.bin"
 	cmp "$temporary/coreboot-capsule-handoff.bin" \
 		"$temporary/cdk2-capsule-handoff.bin"
+	cc -std=gnu11 -Wall -Wextra -Werror -ffunction-sections \
+		-fdata-sections -I"$CDK2_ROOT/include" -I"$CDK2_ROOT/src/boot" \
+		"$root/tests/lib/capsule_update_cdk2_parser_test.c" \
+		"$CDK2_ROOT/src/modules/system_fmp/handoff.c" \
+		-Wl,--gc-sections -o "$temporary/cdk2-parser"
+	"$temporary/cdk2-parser" "$temporary/coreboot-capsule-handoff.bin"
 fi
 printf '%s\n' \
 	'Capsule contract ordinary/O2/ASan+UBSan/ABI fixture tests: PASS'

@@ -35,8 +35,9 @@ config CAPSULE_UPDATE_CONTRACT
 	bool
 	default n
 	help
-	  Build the dormant capsule handoff validator and bounded backend contract.
-	  This does not publish a coreboot table record or provide a flash backend.
+	  Build the capsule handoff validator and private verified bounded-region
+	  writer prerequisite. This does not build a producer, publish a coreboot
+	  table record or register a payload-callable flash broker.
 
 config ROMSTAGE_ADA
 	bool
