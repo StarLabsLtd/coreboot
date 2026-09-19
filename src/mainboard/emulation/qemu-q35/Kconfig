@@ -28,9 +28,9 @@ config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
 	depends on HAVE_SMI_HANDLER
 	select PAYLOAD_MM_AUTHVAR_CONTRACT
 	help
-	  Compile the dormant typed boundary for hostile QEMU testing. This does
-	  not install a producer, SMI command, MM dispatcher or authenticated-
-	  variable service. It grants no SPI access.
+	  Compile the dormant typed boundary and protected SystemFmp staging for
+	  hostile QEMU testing. This does not install a producer, SMI command, MM
+	  dispatcher or authenticated-variable service. It grants no SPI access.
 
 config Q35_CAPSULE_BROKER_TEST_PROOF
 	bool "QEMU-only dormant capsule broker proof"

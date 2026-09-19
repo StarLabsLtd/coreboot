@@ -14,6 +14,7 @@ struct payload_mm_fmp_state_identity {
 };
 
 bool payload_mm_fmp_state_authority_ready(void);
+bool payload_mm_fmp_state_staging_buffer(const void *buffer, size_t size);
 enum cb_err payload_mm_fmp_state_identity_get(
 	struct payload_mm_fmp_state_identity *identity);
 enum cb_err payload_mm_fmp_state_checkpoint_build(
