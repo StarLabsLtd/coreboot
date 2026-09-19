@@ -39,6 +39,17 @@ config CAPSULE_UPDATE_CONTRACT
 	  writer prerequisite. This does not build a producer, publish a coreboot
 	  table record or register a payload-callable flash broker.
 
+config PAYLOAD_MM_AUTHVAR_CONTRACT
+	bool
+	default n
+	depends on BOOT_DEVICE_SUPPORTS_WRITES && HAVE_SMI_HANDLER
+	help
+	  Build the dormant coreboot/Payload-MM authenticated-variable boundary.
+	  This validates platform-owned SMM, communication-buffer and variable-store
+	  geometry, but does not install an MM dispatcher, publish a service or grant
+	  raw flash access. A platform must select this together with a matched native
+	  payload and provide the missing SMM/SPI ownership hooks.
+
 config ROMSTAGE_ADA
 	bool
 	help

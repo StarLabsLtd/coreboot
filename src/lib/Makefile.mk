@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 ramstage-$(CONFIG_CAPSULE_UPDATE_CONTRACT) += capsule_update.c capsule_update_backend.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar_runtime.c
 
 ifeq ($(CONFIG_UBSAN),y)
 ramstage-y += ubsan.c
