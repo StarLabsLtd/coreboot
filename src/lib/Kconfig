@@ -7,6 +7,20 @@ config MISSING_BOARD_RESET
 	  implementation. This activates a stub that logs the missing
 	  board reset and halts execution.
 
+config PAYLOAD_RESOURCE_HANDOFF
+	bool "Publish assigned PCI resources to the payload"
+	default n
+	depends on PCI && ECAM_MMCONF_SUPPORT
+	help
+	  Serialize PCI root topology and exact coreboot-assigned resources for
+	  payloads that consume the resource handoff. Revision 3 remains the safe
+	  default; boards with a trustworthy PCI tree and boot-controller policy
+	  may opt in to revision 4 topology and boot-intent sections. Before the
+	  record is published, bus mastering is disabled and verified for every
+	  serialized function. A platform must explicitly provide trustworthy
+	  revision-4 topology and boot-controller policy before that revision is
+	  published.
+
 config ROMSTAGE_ADA
 	bool
 	help
