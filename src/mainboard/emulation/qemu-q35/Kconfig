@@ -32,6 +32,18 @@ config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
 	  not install a producer, SMI command, MM dispatcher or authenticated-
 	  variable service. It grants no SPI access.
 
+config Q35_CAPSULE_BROKER_TEST_PROOF
+	bool "QEMU-only dormant capsule broker proof"
+	default n
+	depends on HAVE_SMI_HANDLER
+	select CAPSULE_UPDATE_CONTRACT
+	select PAYLOAD_MM_AUTHVAR_CONTRACT
+	select CAPSULE_BROKER_CONTRACT
+	help
+	  Compile the unselected one-shot broker state machine in SMM. This option
+	  publishes no endpoint, registers no SMI command and supplies no flash or
+	  checkpoint provider.
+
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select CPU_QEMU_X86

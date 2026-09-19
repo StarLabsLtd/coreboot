@@ -1,0 +1,635 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <assert.h>
+#include <boot/capsule_broker.h>
+#include "../../src/lib/capsule_broker_internal.h"
+#include <string.h>
+
+#define GENERATION 0x1122334455667788ULL
+#define IMAGE_SIZE 0x2000U
+#define MEDIA_SIZE 0x8000U
+#define ERASE_SIZE 0x1000U
+
+struct media_context {
+	uint8_t *bytes;
+	size_t *reads;
+	size_t *erases;
+	size_t *writes;
+	bool corrupt_readback;
+	bool fail_erase;
+	bool fail_write;
+	bool fail_read;
+};
+
+struct sha256_context {
+	struct capsule_broker_message *message;
+	bool mutate_message;
+	bool drop_guard;
+};
+
+struct proof_context {
+	uint64_t communication;
+	uint64_t communication_size;
+	uint64_t staging;
+	uint64_t staging_size;
+	bool communication_reserved;
+	bool staging_reserved;
+	bool dma_protected;
+	bool smm_spi_owned;
+	bool no_raw_flash;
+	bool rendezvous;
+};
+
+static bool runtime_dma_guard;
+static struct proof_context *install_mutation_target;
+
+void mock_assert(const int result, const char *const expression,
+	const char *const file, const int line)
+{
+	(void)expression;
+	(void)file;
+	(void)line;
+	if (!result)
+		__builtin_trap();
+}
+
+struct fixture {
+	struct capsule_broker_message message __aligned(8);
+	uint8_t staging[IMAGE_SIZE] __aligned(8);
+	uint8_t media[MEDIA_SIZE];
+	uint8_t original[MEDIA_SIZE];
+	uint8_t scratch[ERASE_SIZE] __aligned(8);
+	struct media_context media_context;
+	struct sha256_context sha256_context;
+	struct proof_context proof_context;
+	struct capsule_broker_policy policy;
+	struct lb_capsule_handoff handoff;
+	bool storage_protected;
+	size_t reads;
+	size_t erases;
+	size_t writes;
+};
+
+static bool storage_protected(void *context, const void *storage, size_t size)
+{
+	struct fixture *fixture = context;
+
+	(void)storage;
+	(void)size;
+	return fixture->storage_protected;
+}
+
+static bool communication_reserved(void *context, uint64_t base, uint64_t size)
+{
+	struct proof_context *proof = context;
+	bool valid = proof->communication_reserved &&
+		base == proof->communication && size == proof->communication_size;
+
+	if (install_mutation_target != NULL) {
+		install_mutation_target->communication += 8;
+		install_mutation_target = NULL;
+	}
+	return valid;
+}
+
+static bool staging_reserved(void *context, uint64_t base, uint64_t size)
+{
+	struct proof_context *proof = context;
+
+	return proof->staging_reserved && base == proof->staging &&
+		size == proof->staging_size;
+}
+
+static bool dma_protected(void *context, uint64_t base, uint64_t size)
+{
+	struct proof_context *proof = context;
+	bool range_matches;
+
+	range_matches = (base == proof->communication &&
+		size == proof->communication_size) ||
+		(base == proof->staging && size == proof->staging_size);
+	return proof->dma_protected && runtime_dma_guard && range_matches;
+}
+
+static bool smm_spi_owned(void *context)
+{
+	return ((struct proof_context *)context)->smm_spi_owned;
+}
+
+static bool no_raw_flash(void *context)
+{
+	return ((struct proof_context *)context)->no_raw_flash;
+}
+
+static bool rendezvous(void *context)
+{
+	return ((struct proof_context *)context)->rendezvous;
+}
+
+static void calculate_digest(const void *data, size_t size,
+	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE])
+{
+	const uint8_t *bytes = data;
+
+	memset(digest, 0, CAPSULE_BROKER_DIGEST_SIZE);
+	for (size_t i = 0; i < size; i++)
+		digest[i % CAPSULE_BROKER_DIGEST_SIZE] ^= bytes[i] + (uint8_t)i;
+}
+
+static enum cb_err sha256(void *context, const void *data, size_t size,
+	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE])
+{
+	struct sha256_context *sha_context = context;
+
+	calculate_digest(data, size, digest);
+	if (sha_context->mutate_message)
+		sha_context->message->transaction++;
+	if (sha_context->drop_guard)
+		runtime_dma_guard = false;
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_read(void *context, u64 offset, void *data, size_t size)
+{
+	struct media_context *media = context;
+
+	(*media->reads)++;
+	if (media->fail_read)
+		return CB_ERR;
+	memcpy(data, &media->bytes[offset], size);
+	if (media->corrupt_readback)
+		((uint8_t *)data)[0] ^= 1;
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_erase(void *context, u64 offset, size_t size)
+{
+	struct media_context *media = context;
+
+	(*media->erases)++;
+	if (media->fail_erase)
+		return CB_ERR;
+	memset(&media->bytes[offset], 0xff, size);
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_write(void *context, u64 offset, const void *data,
+	size_t size)
+{
+	struct media_context *media = context;
+
+	(*media->writes)++;
+	if (media->fail_write)
+		return CB_ERR;
+	memcpy(&media->bytes[offset], data, size);
+	return CB_SUCCESS;
+}
+
+static void initialize(struct fixture *fixture)
+{
+	memset(fixture, 0, sizeof(*fixture));
+	memset(fixture->media, 0x5a, sizeof(fixture->media));
+	memcpy(fixture->original, fixture->media, sizeof(fixture->media));
+	for (size_t i = 0; i < sizeof(fixture->staging); i++)
+		fixture->staging[i] = (uint8_t)i;
+	fixture->storage_protected = true;
+	runtime_dma_guard = true;
+	fixture->media_context = (struct media_context) {
+		.bytes = fixture->media,
+		.reads = &fixture->reads,
+		.erases = &fixture->erases,
+		.writes = &fixture->writes,
+	};
+	fixture->sha256_context = (struct sha256_context) {
+		.message = &fixture->message,
+	};
+	fixture->proof_context = (struct proof_context) {
+		.communication = (uintptr_t)&fixture->message,
+		.communication_size = sizeof(fixture->message),
+		.staging = (uintptr_t)fixture->staging,
+		.staging_size = sizeof(fixture->staging),
+		.communication_reserved = true,
+		.staging_reserved = true,
+		.dma_protected = true,
+		.smm_spi_owned = true,
+		.no_raw_flash = true,
+		.rendezvous = true,
+	};
+	fixture->handoff = (struct lb_capsule_handoff) {
+		.tag = LB_TAG_CAPSULE_HANDOFF,
+		.size = sizeof(fixture->handoff),
+		.revision = LB_CAPSULE_HANDOFF_REVISION,
+		.header_size = sizeof(fixture->handoff),
+		.image_size = IMAGE_SIZE,
+	};
+	fixture->policy = (struct capsule_broker_policy) {
+		.revision = CAPSULE_BROKER_POLICY_REVISION,
+		.size = sizeof(fixture->policy),
+		.endpoint = {
+			.tag = LB_TAG_CAPSULE_BROKER_ENDPOINT,
+			.size = sizeof(struct lb_capsule_broker_endpoint),
+			.revision = LB_CAPSULE_BROKER_ENDPOINT_REVISION,
+			.header_size = sizeof(struct lb_capsule_broker_endpoint),
+			.flags = LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS,
+			.generation = GENERATION,
+			.communication_base = (uintptr_t)&fixture->message,
+			.communication_size = sizeof(fixture->message),
+			.message_size = sizeof(fixture->message),
+			.staging_base = (uintptr_t)fixture->staging,
+			.staging_size = sizeof(fixture->staging),
+			.transport = LB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8,
+			.trigger_width = 1,
+			.trigger_address = 0xb2,
+			.trigger_value = 0x91,
+		},
+		.image_size = IMAGE_SIZE,
+		.boot_media_size = MEDIA_SIZE,
+		.smmstore_offset = 0x6000,
+		.smmstore_size = 0x1000,
+		.erase_size = ERASE_SIZE,
+		.region_count = 1,
+		.regions = {{
+			.image_offset = 0,
+			.flash_offset = 0x1000,
+			.size = IMAGE_SIZE,
+			.flags = LB_CAPSULE_REGION_BIOS,
+		}},
+		.media = {
+			.context = &fixture->media_context,
+			.size = MEDIA_SIZE,
+			.erase_size = ERASE_SIZE,
+			.read = media_read,
+			.erase = media_erase,
+			.write = media_write,
+		},
+		.media_context_size = sizeof(fixture->media_context),
+		.scratch = fixture->scratch,
+		.scratch_size = sizeof(fixture->scratch),
+		.sha256 = sha256,
+		.sha256_context = &fixture->sha256_context,
+		.sha256_context_size = sizeof(fixture->sha256_context),
+		.proofs = {
+			.communication_reserved = communication_reserved,
+			.staging_reserved = staging_reserved,
+			.dma_protected = dma_protected,
+			.smm_spi_owned = smm_spi_owned,
+			.no_raw_flash = no_raw_flash,
+			.cpu_rendezvous_active = rendezvous,
+			.context = &fixture->proof_context,
+			.context_size = sizeof(fixture->proof_context),
+		},
+	};
+	fixture->message = (struct capsule_broker_message) {
+		.revision = CAPSULE_BROKER_MESSAGE_REVISION,
+		.size = sizeof(fixture->message),
+		.operation = CAPSULE_BROKER_APPLY,
+		.generation = GENERATION,
+		.transaction = 1,
+		.image_size = IMAGE_SIZE,
+		.digest_algorithm = CAPSULE_BROKER_DIGEST_SHA256,
+		.digest_size = CAPSULE_BROKER_DIGEST_SIZE,
+		.result = CAPSULE_BROKER_RESULT_PENDING,
+		.last_attempt_status = CAPSULE_BROKER_STATUS_PENDING,
+		.attempted_version = 11,
+	};
+	calculate_digest(fixture->staging, sizeof(fixture->staging),
+		fixture->message.digest);
+}
+
+static void install(struct fixture *fixture)
+{
+	assert(capsule_broker_endpoint_validate(&fixture->policy.endpoint,
+		&fixture->handoff) == CB_SUCCESS);
+	assert(capsule_broker_policy_install(&fixture->policy, storage_protected,
+		fixture) == CB_SUCCESS);
+}
+
+static void happy(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	install(&fixture);
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(capsule_broker_handle() == CB_SUCCESS);
+	assert(fixture.message.result == CAPSULE_BROKER_RESULT_SUCCESS);
+	assert(fixture.message.last_attempt_status ==
+		CAPSULE_BROKER_LAST_ATTEMPT_SUCCESS);
+	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.reads == 2);
+	assert(!memcmp(&fixture.media[0x1000], fixture.staging, IMAGE_SIZE));
+	assert(!memcmp(fixture.media, fixture.original, 0x1000));
+	assert(!memcmp(&fixture.media[0x3000], &fixture.original[0x3000],
+		MEDIA_SIZE - 0x3000));
+	assert(capsule_broker_handle() == CB_ERR);
+	assert(fixture.message.result == CAPSULE_BROKER_RESULT_CLOSED);
+}
+
+static void endpoint_mutations(void)
+{
+	struct fixture fixture;
+	struct lb_capsule_broker_endpoint endpoint;
+
+	initialize(&fixture);
+#define REJECT(member, value) do { \
+	endpoint = fixture.policy.endpoint; \
+	endpoint.member = (value); \
+	assert(capsule_broker_endpoint_validate(&endpoint, &fixture.handoff) == \
+		CB_ERR); \
+} while (0)
+	REJECT(tag, 0);
+	REJECT(size, 79);
+	REJECT(revision, 2);
+	REJECT(header_size, 76);
+	REJECT(flags, LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ^ 1U);
+	REJECT(generation, 0);
+	REJECT(communication_base, 0);
+	REJECT(communication_base, (uintptr_t)&fixture.message + 1);
+	REJECT(communication_size, 95);
+	REJECT(message_size, 88);
+	REJECT(staging_base, 0);
+	REJECT(staging_base, (uintptr_t)fixture.staging + 1);
+	REJECT(staging_size, IMAGE_SIZE - 1);
+	REJECT(transport, 2);
+	REJECT(trigger_width, 4);
+	REJECT(trigger_address, 0);
+	REJECT(trigger_address, 0x10000);
+	REJECT(trigger_value, 0);
+	REJECT(trigger_value, 0x100);
+#undef REJECT
+	endpoint = fixture.policy.endpoint;
+	endpoint.reserved[2] = 1;
+	assert(capsule_broker_endpoint_validate(&endpoint, &fixture.handoff) ==
+		CB_ERR);
+	endpoint = fixture.policy.endpoint;
+	endpoint.staging_base = endpoint.communication_base;
+	assert(capsule_broker_endpoint_validate(&endpoint, &fixture.handoff) ==
+		CB_ERR);
+	fixture.handoff.image_size = IMAGE_SIZE + 1;
+	assert(capsule_broker_endpoint_validate(&fixture.policy.endpoint,
+		&fixture.handoff) == CB_ERR);
+	fixture.handoff.image_size = IMAGE_SIZE;
+	fixture.handoff.tag = 0;
+	assert(capsule_broker_endpoint_validate(&fixture.policy.endpoint,
+		&fixture.handoff) == CB_ERR);
+}
+
+static void invalid_install(const char *mode)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	if (!strcmp(mode, "storage"))
+		fixture.storage_protected = false;
+	else if (!strcmp(mode, "communication"))
+		fixture.proof_context.communication_reserved = false;
+	else if (!strcmp(mode, "staging"))
+		fixture.proof_context.staging_reserved = false;
+	else if (!strcmp(mode, "dma"))
+		fixture.proof_context.dma_protected = false;
+	else if (!strcmp(mode, "spi"))
+		fixture.proof_context.smm_spi_owned = false;
+	else if (!strcmp(mode, "raw"))
+		fixture.proof_context.no_raw_flash = false;
+	else if (!strcmp(mode, "rendezvous"))
+		fixture.proof_context.rendezvous = false;
+	else if (!strcmp(mode, "scratch"))
+		fixture.policy.scratch_size--;
+	else if (!strcmp(mode, "geometry"))
+		fixture.policy.media.erase_size *= 2;
+	else if (!strcmp(mode, "image-size"))
+		fixture.policy.image_size--;
+	else if (!strcmp(mode, "scratch-communication"))
+		fixture.policy.scratch = &fixture.message;
+	else if (!strcmp(mode, "scratch-staging"))
+		fixture.policy.scratch = fixture.staging;
+	else if (!strcmp(mode, "region-count"))
+		fixture.policy.region_count = 0;
+	else if (!strcmp(mode, "missing-hash"))
+		fixture.policy.sha256 = NULL;
+	else if (!strcmp(mode, "media-context-null"))
+		fixture.policy.media.context = NULL;
+	else if (!strcmp(mode, "media-context-large"))
+		fixture.policy.media_context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "sha-context-null"))
+		fixture.policy.sha256_context = NULL;
+	else if (!strcmp(mode, "sha-context-large"))
+		fixture.policy.sha256_context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "proof-context-null"))
+		fixture.policy.proofs.context = NULL;
+	else if (!strcmp(mode, "proof-context-large"))
+		fixture.policy.proofs.context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else
+		assert(0);
+	assert(capsule_broker_policy_install(&fixture.policy, storage_protected,
+		&fixture) == CB_ERR);
+	assert(capsule_broker_policy_install(&fixture.policy, storage_protected,
+		&fixture) == CB_ERR);
+	assert(!fixture.reads && !fixture.erases && !fixture.writes);
+}
+
+static void rejected_apply(const char *mode)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	if (!strcmp(mode, "preflight"))
+		fixture.policy.regions[0].flash_offset = 0x1800;
+	else if (!strcmp(mode, "preflight-range"))
+		fixture.policy.regions[0].size = MEDIA_SIZE;
+	else if (!strcmp(mode, "preflight-smmstore"))
+		fixture.policy.regions[0].flash_offset = 0x6000;
+	else if (!strcmp(mode, "preflight-policy"))
+		fixture.policy.regions[0].flags = 0;
+	else if (!strcmp(mode, "guard"))
+		fixture.sha256_context.drop_guard = true;
+	else if (!strcmp(mode, "media-erase"))
+		fixture.media_context.fail_erase = true;
+	else if (!strcmp(mode, "media-write"))
+		fixture.media_context.fail_write = true;
+	else if (!strcmp(mode, "media-read"))
+		fixture.media_context.fail_read = true;
+	else if (!strcmp(mode, "media-verify"))
+		fixture.media_context.corrupt_readback = true;
+	install(&fixture);
+	if (strcmp(mode, "no-grant")) {
+		uint64_t transaction = !strcmp(mode, "grant-transaction") ? 2 : 1;
+		uint32_t version = !strcmp(mode, "grant-version") ? 12 : 11;
+
+		assert(capsule_broker_checkpoint_grant(GENERATION, transaction,
+			version) == CB_SUCCESS);
+	}
+	if (!strcmp(mode, "digest"))
+		fixture.message.digest[0] ^= 1;
+	else if (!strcmp(mode, "malformed"))
+		fixture.message.reserved = 1;
+	else if (!strcmp(mode, "message-revision"))
+		fixture.message.revision++;
+	else if (!strcmp(mode, "message-size"))
+		fixture.message.size--;
+	else if (!strcmp(mode, "message-operation"))
+		fixture.message.operation = 3;
+	else if (!strcmp(mode, "message-flags"))
+		fixture.message.flags = 1;
+	else if (!strcmp(mode, "message-transaction"))
+		fixture.message.transaction = 0;
+	else if (!strcmp(mode, "message-image"))
+		fixture.message.image_size--;
+	else if (!strcmp(mode, "message-algorithm"))
+		fixture.message.digest_algorithm++;
+	else if (!strcmp(mode, "message-digest-size"))
+		fixture.message.digest_size--;
+	else if (!strcmp(mode, "message-result"))
+		fixture.message.result = 0;
+	else if (!strcmp(mode, "message-status"))
+		fixture.message.last_attempt_status = 0;
+	assert(capsule_broker_handle() == CB_ERR);
+	assert(fixture.message.last_attempt_status ==
+		CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL);
+	if (strncmp(mode, "media-", 6)) {
+		assert(!fixture.reads && !fixture.erases && !fixture.writes);
+	} else if (!strcmp(mode, "media-erase")) {
+		assert(!fixture.reads && fixture.erases == 1 && !fixture.writes);
+	} else if (!strcmp(mode, "media-write")) {
+		assert(!fixture.reads && fixture.erases == 1 && fixture.writes == 1);
+	} else {
+		assert(fixture.reads == 1 && fixture.erases == 1 &&
+			fixture.writes == 1);
+	}
+	assert(capsule_broker_handle() == CB_ERR);
+}
+
+static void stale_then_happy(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	install(&fixture);
+	fixture.message.generation++;
+	assert(capsule_broker_handle() == CB_ERR);
+	assert(fixture.message.result == CAPSULE_BROKER_RESULT_REPLAY);
+	fixture.message.generation = GENERATION;
+	fixture.message.result = CAPSULE_BROKER_RESULT_PENDING;
+	fixture.message.last_attempt_status = CAPSULE_BROKER_STATUS_PENDING;
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(capsule_broker_handle() == CB_SUCCESS);
+}
+
+static void close_case(bool s3)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	install(&fixture);
+	if (s3) {
+		capsule_broker_close_for_s3();
+		assert(capsule_broker_handle() == CB_ERR);
+		return;
+	}
+	memset(fixture.message.digest, 0, sizeof(fixture.message.digest));
+	fixture.message.operation = CAPSULE_BROKER_CLOSE;
+	fixture.message.image_size = 0;
+	fixture.message.digest_algorithm = 0;
+	fixture.message.digest_size = 0;
+	fixture.message.attempted_version = 0;
+	assert(capsule_broker_handle() == CB_SUCCESS);
+	assert(fixture.message.result == CAPSULE_BROKER_RESULT_SUCCESS);
+	assert(capsule_broker_handle() == CB_ERR);
+}
+
+static void snapshot_case(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	fixture.sha256_context.mutate_message = true;
+	install(&fixture);
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(capsule_broker_handle() == CB_SUCCESS);
+	assert(fixture.message.transaction == 1);
+}
+
+static void policy_snapshot_case(void)
+{
+	struct fixture fixture;
+	struct fixture decoy;
+
+	initialize(&fixture);
+	initialize(&decoy);
+	install(&fixture);
+	fixture.policy.regions[0].flash_offset = 0x4000;
+	fixture.policy.media.write = NULL;
+	fixture.media_context.bytes = decoy.media;
+	fixture.media_context.reads = &decoy.reads;
+	fixture.media_context.erases = &decoy.erases;
+	fixture.media_context.writes = &decoy.writes;
+	fixture.sha256_context.message = &decoy.message;
+	fixture.proof_context.communication = (uintptr_t)&decoy.message;
+	fixture.proof_context.staging = (uintptr_t)decoy.staging;
+	fixture.proof_context.dma_protected = false;
+	fixture.proof_context.smm_spi_owned = false;
+	fixture.proof_context.no_raw_flash = false;
+	fixture.proof_context.rendezvous = false;
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(capsule_broker_handle() == CB_SUCCESS);
+	assert(!memcmp(&fixture.media[0x1000], fixture.staging, IMAGE_SIZE));
+	assert(!memcmp(&fixture.media[0x4000], &fixture.original[0x4000],
+		IMAGE_SIZE));
+}
+
+static void install_source_mutation_case(void)
+{
+	struct fixture fixture;
+	uint64_t original_communication;
+
+	initialize(&fixture);
+	original_communication = fixture.proof_context.communication;
+	install_mutation_target = &fixture.proof_context;
+	install(&fixture);
+	assert(install_mutation_target == NULL);
+	assert(fixture.proof_context.communication == original_communication + 8);
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(capsule_broker_handle() == CB_SUCCESS);
+}
+
+static void grant_edges(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	install(&fixture);
+	assert(capsule_broker_checkpoint_grant(GENERATION + 1, 1, 11) == CB_ERR);
+	assert(capsule_broker_checkpoint_grant(GENERATION, 0, 11) == CB_ERR);
+	assert(capsule_broker_checkpoint_grant(GENERATION, UINT64_MAX, 11) ==
+		CB_SUCCESS);
+	assert(capsule_broker_checkpoint_grant(GENERATION, UINT64_MAX, 11) ==
+		CB_ERR);
+	fixture.message.transaction = UINT64_MAX;
+	assert(capsule_broker_handle() == CB_SUCCESS);
+}
+
+int main(int argc, char **argv)
+{
+	if (argc == 1)
+		happy();
+	else if (!strcmp(argv[1], "endpoint"))
+		endpoint_mutations();
+	else if (!strcmp(argv[1], "stale"))
+		stale_then_happy();
+	else if (!strcmp(argv[1], "close"))
+		close_case(false);
+	else if (!strcmp(argv[1], "s3"))
+		close_case(true);
+	else if (!strcmp(argv[1], "snapshot"))
+		snapshot_case();
+	else if (!strcmp(argv[1], "policy-snapshot"))
+		policy_snapshot_case();
+	else if (!strcmp(argv[1], "source-mutation"))
+		install_source_mutation_case();
+	else if (!strcmp(argv[1], "grant-edges"))
+		grant_edges();
+	else if (!strncmp(argv[1], "install-", 8))
+		invalid_install(argv[1] + 8);
+	else
+		rejected_apply(argv[1]);
+	return 0;
+}

@@ -5,6 +5,7 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar_runtime.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
+smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker.c
 
 ifeq ($(CONFIG_UBSAN),y)
 ramstage-y += ubsan.c

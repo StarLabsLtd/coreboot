@@ -97,6 +97,7 @@ enum {
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x004b,
 	LB_TAG_CAPSULE_HANDOFF		= 0x0052,
 	LB_TAG_DMA_HANDOFF		= 0x0053,
+	LB_TAG_CAPSULE_BROKER_ENDPOINT	= 0x0054,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -874,6 +875,58 @@ _Static_assert(offsetof(struct lb_capsule_handoff, image_type_guid) == 32 &&
 _Static_assert(offsetof(struct lb_capsule_handoff, image_size) == 72 &&
 	offsetof(struct lb_capsule_handoff, regions) == 112,
 	"capsule bounds ABI");
+
+#define LB_CAPSULE_BROKER_ENDPOINT_REVISION 1
+
+#define LB_CAPSULE_ENDPOINT_COREBOOT_SMM_OWNER    (1U << 0)
+#define LB_CAPSULE_ENDPOINT_SMM_ONLY_SPI          (1U << 1)
+#define LB_CAPSULE_ENDPOINT_FIXED_COMMUNICATION   (1U << 2)
+#define LB_CAPSULE_ENDPOINT_DMA_PROTECTED         (1U << 3)
+#define LB_CAPSULE_ENDPOINT_CPU_RENDEZVOUS        (1U << 4)
+#define LB_CAPSULE_ENDPOINT_ONE_SHOT              (1U << 5)
+#define LB_CAPSULE_ENDPOINT_NO_RAW_FLASH          (1U << 6)
+#define LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS \
+	(LB_CAPSULE_ENDPOINT_COREBOOT_SMM_OWNER | \
+	 LB_CAPSULE_ENDPOINT_SMM_ONLY_SPI | \
+	 LB_CAPSULE_ENDPOINT_FIXED_COMMUNICATION | \
+	 LB_CAPSULE_ENDPOINT_DMA_PROTECTED | \
+	 LB_CAPSULE_ENDPOINT_CPU_RENDEZVOUS | \
+	 LB_CAPSULE_ENDPOINT_ONE_SHOT | \
+	 LB_CAPSULE_ENDPOINT_NO_RAW_FLASH)
+
+#define LB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8 1
+
+/*
+ * Public description of a separately sealed, one-shot SMM endpoint. This
+ * record is not authority and contains no writable route or raw media command.
+ */
+struct lb_capsule_broker_endpoint {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t flags;
+	lb_uint64_t generation;
+	lb_uint64_t communication_base;
+	uint32_t communication_size;
+	uint32_t message_size;
+	lb_uint64_t staging_base;
+	lb_uint64_t staging_size;
+	uint16_t transport;
+	uint16_t trigger_width;
+	uint32_t trigger_address;
+	uint32_t trigger_value;
+	uint32_t reserved[3];
+} __packed;
+
+_Static_assert(sizeof(struct lb_capsule_broker_endpoint) == 80,
+	"capsule broker endpoint ABI");
+_Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
+	offsetof(struct lb_capsule_broker_endpoint, communication_base) == 24 &&
+	offsetof(struct lb_capsule_broker_endpoint, staging_base) == 40 &&
+	offsetof(struct lb_capsule_broker_endpoint, transport) == 56 &&
+	offsetof(struct lb_capsule_broker_endpoint, reserved) == 68,
+	"capsule broker endpoint layout");
 struct lb_cfr {
 	uint32_t tag;
 	uint32_t size;
