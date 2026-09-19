@@ -29,7 +29,7 @@ static bool guid_present(const guid_t *guid)
 	return bits != 0;
 }
 
-static bool state_smram_buffer(const void *buffer, size_t size)
+bool payload_mm_fmp_state_staging_buffer(const void *buffer, size_t size)
 {
 	return payload_mm_authvar_smram_buffer(buffer, size) &&
 		!payload_mm_authvar_buffers_overlap(buffer, size, &state_authority,
@@ -252,12 +252,13 @@ enum cb_err payload_mm_fmp_state_command_prepare(const void *trusted_message,
 	const uint8_t *current_pointer = NULL;
 
 	if (!state_authority.installed || state_authority.closed || !command ||
-	    !state_smram_buffer(command, sizeof(*command)))
+	    !payload_mm_fmp_state_staging_buffer(command, sizeof(*command)))
 		return CB_ERR;
 	if (!trusted_message ||
 	    trusted_message_size != sizeof(struct payload_mm_fmp_state_message) ||
 	    (uintptr_t)trusted_message % sizeof(uint64_t) ||
-	    !state_smram_buffer(trusted_message, trusted_message_size) ||
+	    !payload_mm_fmp_state_staging_buffer(trusted_message,
+		trusted_message_size) ||
 	    payload_mm_authvar_buffers_overlap(trusted_message,
 		trusted_message_size, command, sizeof(*command)))
 		return CB_ERR;
@@ -265,7 +266,8 @@ enum cb_err payload_mm_fmp_state_command_prepare(const void *trusted_message,
 	    (current_state != NULL &&
 	     (current_state_size != sizeof(current) ||
 	      (uintptr_t)current_state % sizeof(uint32_t) ||
-	      !state_smram_buffer(current_state, current_state_size) ||
+	      !payload_mm_fmp_state_staging_buffer(current_state,
+		current_state_size) ||
 	      payload_mm_authvar_buffers_overlap(current_state, current_state_size,
 		trusted_message, trusted_message_size) ||
 	      payload_mm_authvar_buffers_overlap(current_state, current_state_size,

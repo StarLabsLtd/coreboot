@@ -64,6 +64,23 @@ output or either authority, and never rereads the input. It emits a typed
 SMM-owned command containing the sealed identity and constructed name. It does
 not execute that command.
 
+The internal request-staging adapter composes these two accepted parsers without
+adding another wire format. Trusted initialization seals one exact, aligned
+workspace in SMRAM after independently proving both the adapter authority and
+the whole workspace are protected. Installation is one-attempt and fail-closed.
+Each request descriptor and its exact 64-byte SystemFmp message are copied once
+into that workspace before semantic parsing. Shared request or message mutation
+afterward cannot change the staged command.
+
+Only one command may be outstanding. A second prepare is rejected without
+touching the snapshot, and completion requires the exact staged transaction
+before the workspace is cleared. Invalid bounds, alignment, generation, size,
+aliasing, replay or message semantics leave no staged command. The adapter does
+not source `current_state`: a future protected variable owner must read that
+snapshot from its authoritative rollback-protected store before calling the
+internal API. Consequently this commit still executes no read, write, removal
+or close operation and supplies no result writer.
+
 This layer deliberately provides no SMI number, producer, dispatcher, generic
 `SetVariable`, SMMSTORE command, flash backend or persistence claim. The
 capsule-broker build adds one internal checkpoint-only engine described below;
@@ -116,8 +133,9 @@ failure before grant invocation can be retried with a newer transaction.
 | State gate | Status |
 | --- | --- |
 | Sealed identity and semantic message validation | Implemented, unselected |
+| Protected request snapshot and typed staging | Implemented, unselected |
 | Trusted platform identity producer | Open |
-| SMI transport and Payload-MM dispatcher | Open |
+| SMI transport, operation executor and result writer | Open |
 | Typed checkpoint engine and exact readback | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | Mandatory pre-handoff and S3 lifecycle closure | Open |
@@ -146,8 +164,9 @@ platform-owned verification hooks, never caller-supplied trust booleans:
   protected-memory range before copying a request snapshot;
 * an SMM-only SPI backend whose descriptor/FMAP policy proves exact ownership
   of the variable-store region and keeps BIOS/full-flash access unreachable;
-* a matched native CDK2 handler that validates authenticated-variable policy and
-  closes registration before OS handoff;
+* a matched native CDK2 handler that validates authenticated-variable policy,
+  sources authoritative current state, executes typed commands, writes bounded
+  results and closes registration before OS handoff;
 * a trusted SystemFmp identity producer and mandatory state-channel close before
   any external EFI image, OS handoff or S3 resume;
 * a resident variable backend whose successful state write means reset-safe,
@@ -163,4 +182,5 @@ Host evidence is provided by:
 
 ```
 tests/lib/payload_mm_authvar_test.sh
+tests/lib/payload_mm_fmp_dispatch_test.sh
 ```
