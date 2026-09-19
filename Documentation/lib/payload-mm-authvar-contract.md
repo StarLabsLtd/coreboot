@@ -131,24 +131,32 @@ name, attributes or value. Its only mutation preserves the authoritative
 attempted version, and retains the existing version and lowest-supported
 version fields.
 
-Trusted initialization installs one backend snapshot. Callback pointers and a
-bounded context of at most 128 bytes are copied into protected SMM storage. The
-copy is complete before the protection callback can mutate caller storage, and
-the caller's backend or context is never reread. An embedded pointer in that
-context may identify the protected storage engine, but must not redirect policy
-to payload-visible memory.
+Trusted initialization binds the checkpoint engine to the already installed
+protected SystemFmp owner, initialized dispatch and broker, a sealed broker
+generation and one 144-byte eight-byte-aligned protected workspace. It installs
+no second storage callback or context. The workspace must be disjoint from the
+authenticated-variable, state, owner, dispatch, checkpoint and broker
+authorities, the dispatch workspace and the broker scratch buffer. Full and
+partial overlap fail before the workspace is written; exact adjacency is valid.
+Requiring dispatch and broker initialization before this final binding prevents
+a later workspace or scratch installation from reversing that proof.
+The requested generation must exactly match the immutable generation in the
+installed broker endpoint; a merely nonzero caller value is not authority.
+Closing the broker invalidates the match, and its one-attempt policy install
+prevents replacement after binding.
+Checkpoint and ordinary state operations therefore cannot acquire independent
+stores or disagree about the authoritative state. The workspace is cleared
+after every admitted transaction, including failures.
 
-The backend API is intentionally state-specific. `read` returns the exact
-combined variable together with its rollback-protected sequence. `commit`
-performs a compare-and-commit from that exact current record to sequence plus
-one. Success has a strict contract: the new record is atomically committed to
-reset-safe rollback-protected nonvolatile media before return; power loss or
-failure leaves the prior record completely readable. The engine then performs
-a second authoritative read and requires exact sequence, attributes, size,
-canonical data and byte equality. Callback inputs are fresh snapshots and any
-attempt to modify their identity or record bytes fails closed. This commit
-supplies no backend that can make
-those guarantees and does not treat a generic SMMSTORE write as one.
+The owner supplies the exact combined variable together with its
+rollback-protected sequence. Its compare-and-commit success contract remains
+strict: the new record is atomically committed to reset-safe
+rollback-protected nonvolatile media before return; power loss or failure
+leaves the prior record completely readable. The owner performs its mandatory
+readback, then the checkpoint engine performs a separate fresh authoritative
+read and requires exact sequence, attributes, size, canonical data and byte
+equality before granting the broker. This tree supplies no backend that can
+make those guarantees and does not treat a generic SMMSTORE write as one.
 
 Missing, malformed or noncanonical state, sequence wrap, a version below the
 sealed or durable floor, commit failure, and failed or mismatched readback all
@@ -168,7 +176,8 @@ failure before grant invocation can be retried with a newer transaction.
 | Protected request snapshot and typed staging | Implemented, unselected |
 | Protected typed SystemFmp variable owner port | Implemented, unselected |
 | Trusted platform identity producer | Open |
-| SMI transport, operation executor and result writer | Open |
+| Authenticated CHECK/SET intent and operation executor | Open |
+| SMI transport and bounded result writer | Open |
 | Typed checkpoint engine and exact readback | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | Mandatory pre-handoff and S3 lifecycle closure | Open |
@@ -204,7 +213,8 @@ platform-owned verification hooks, never caller-supplied trust booleans:
   any external EFI image, OS handoff or S3 resume;
 * a resident variable backend whose successful state write means reset-safe,
   rollback-protected nonvolatile compare-and-commit and verified readback;
-* serialized SMM dispatch for the checkpoint engine and its one-shot broker;
+* serialized SMM dispatch for the owner-bound checkpoint engine and its
+  one-shot broker;
 * hostile QEMU evidence followed by Intel and AMD hardware validation.
 
 The generic SMMSTORE raw read/write/clear interface and its capsule full-flash

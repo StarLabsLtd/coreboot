@@ -21,7 +21,7 @@ message-transaction message-image message-algorithm message-digest-size
 message-result message-status preflight preflight-range preflight-smmstore
 preflight-policy
 media-erase media-write media-read media-verify stale close s3 snapshot
-policy-snapshot grant-edges'
+policy-snapshot grant-edges generation-match'
 cases="$cases source-mutation"
 
 run_test()

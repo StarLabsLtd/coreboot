@@ -15,17 +15,15 @@ static const guid_t state_guid = GUID_INIT(0x975cd0e6, 0xc540, 0x4e2b,
 	0x90, 0x6c, 0x72, 0xc0, 0xd0, 0xd1, 0xe4, 0x0d);
 
 struct store {
-	struct payload_mm_fmp_checkpoint_record record;
-	bool read_fails;
-	bool commit_fails;
-	bool commit_lies;
-	bool readback_fails;
-	bool corrupt_readback;
-	bool mutate_first_read_identity;
-	bool mutate_readback_identity;
-	bool mutate_commit_inputs;
+	struct payload_mm_fmp_owner_record record;
 	unsigned int reads;
 	unsigned int commits;
+	unsigned int fail_read;
+	bool commit_fails;
+	bool commit_lies;
+	bool corrupt_readback;
+	bool mutate_read_identity;
+	bool mutate_commit_inputs;
 };
 
 struct backend_context {
@@ -33,15 +31,25 @@ struct backend_context {
 	uint32_t route;
 };
 
-static char trace[16];
+static char trace[32];
 static size_t trace_size;
 static unsigned int grants;
+static uint64_t granted_transaction;
 static uint32_t granted_version;
 static bool grant_fails;
-static bool grant_valid;
-static uint64_t granted_transaction;
-static bool protect_ok = true;
-static struct backend_context *mutate_source;
+static bool grant_live;
+static bool binding;
+static bool protect_authority = true;
+static bool protect_workspace = true;
+static bool mutate_binding_authority;
+static bool mutate_binding_workspace;
+static bool dispatch_ready = true;
+static bool dispatch_buffer_available = true;
+static bool broker_ready = true;
+static bool broker_buffer_available = true;
+static bool installing_owner;
+static const void *owner_storage;
+static size_t owner_storage_size;
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -53,18 +61,25 @@ void mock_assert(const int result, const char *const expression,
 		__builtin_trap();
 }
 
+static struct payload_mm_fmp_checkpoint_workspace *workspace(void)
+{
+	return (void *)(smram + 2048);
+}
+
 static void mark(char event)
 {
 	assert(trace_size < sizeof(trace));
 	trace[trace_size++] = event;
 }
 
-static void check_identity(const struct payload_mm_fmp_state_identity *identity)
+static void check_identity(const struct payload_mm_fmp_state_identity *identity,
+	uint32_t key)
 {
 	static const uint16_t name[] = {
 		'F', 'm', 'p', 'S', 't', 'a', 't', 'e', 0,
 	};
 
+	assert(key == PAYLOAD_MM_FMP_STATE_KEY_STATE);
 	assert(!memcmp(&identity->namespace_guid, &state_guid, sizeof(state_guid)));
 	assert(!identity->hardware_instance);
 	assert(identity->trusted_lowest_version == 4);
@@ -72,56 +87,49 @@ static void check_identity(const struct payload_mm_fmp_state_identity *identity)
 	assert(!memcmp(identity->variable_name, name, sizeof(name)));
 }
 
-static enum cb_err read_state(void *opaque,
-	const struct payload_mm_fmp_state_identity *identity,
-	struct payload_mm_fmp_checkpoint_record *record)
+static enum cb_err read_record(const void *opaque,
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	struct payload_mm_fmp_owner_record *record)
 {
-	struct backend_context *context = opaque;
-	struct store *store;
+	const struct backend_context *context = opaque;
+	struct store *store = context->store;
 
-	assert(context->route == 0x46504d31U);
-	check_identity(identity);
-	store = context->store;
+	assert(context->route == 0x4f574e52U);
+	check_identity(identity, key);
 	mark('R');
 	store->reads++;
-	if (store->read_fails || (store->readback_fails && store->reads > 1))
+	if (store->reads == store->fail_read)
 		return CB_ERR;
 	*record = store->record;
-	if ((store->mutate_first_read_identity && store->reads == 1) ||
-	    (store->mutate_readback_identity && store->reads > 1))
+	if (store->corrupt_readback && store->commits)
+		record->sequence++;
+	if (store->mutate_read_identity)
 		((struct payload_mm_fmp_state_identity *)identity)->hardware_instance++;
-	if (store->corrupt_readback && store->reads > 1)
-		record->data[16]++;
 	return CB_SUCCESS;
 }
 
-static enum cb_err commit_state(void *opaque,
-	const struct payload_mm_fmp_state_identity *identity,
-	const struct payload_mm_fmp_checkpoint_record *current,
-	const struct payload_mm_fmp_checkpoint_record *candidate)
+static enum cb_err commit_record(const void *opaque,
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate)
 {
-	struct backend_context *context = opaque;
+	const struct backend_context *context = opaque;
 	struct store *store = context->store;
 
-	assert(context->route == 0x46504d31U);
-	check_identity(identity);
+	assert(context->route == 0x4f574e52U);
+	check_identity(identity, key);
 	mark('C');
 	store->commits++;
 	assert(!memcmp(current, &store->record, sizeof(*current)));
 	assert(candidate->sequence == current->sequence + 1);
-	assert(candidate->attributes == PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES);
-	assert(candidate->data_size == PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
-	assert(candidate->data[2] == 1 && candidate->data[3] == 1);
-	assert(candidate->data[12] == 1 && !candidate->data[13] &&
-		!candidate->data[14] && !candidate->data[15]);
 	if (store->commit_fails)
 		return CB_ERR;
 	if (!store->commit_lies)
 		store->record = *candidate;
 	if (store->mutate_commit_inputs) {
 		((struct payload_mm_fmp_state_identity *)identity)->hardware_instance++;
-		((struct payload_mm_fmp_checkpoint_record *)current)->sequence++;
-		((struct payload_mm_fmp_checkpoint_record *)candidate)->sequence++;
+		((struct payload_mm_fmp_owner_record *)current)->sequence++;
+		((struct payload_mm_fmp_owner_record *)candidate)->sequence++;
 	}
 	return CB_SUCCESS;
 }
@@ -130,36 +138,59 @@ enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,
 	uint64_t transaction, uint32_t attempted_version)
 {
 	mark('G');
-	assert(generation == 9);
-	assert(transaction);
-	assert(attempted_version >= 4);
-	granted_version = attempted_version;
+	assert(generation == 9 && transaction && attempted_version >= 4);
 	grants++;
-	if (grant_fails || grant_valid)
-		return CB_ERR;
-	grant_valid = true;
 	granted_transaction = transaction;
+	granted_version = attempted_version;
+	if (grant_fails || grant_live)
+		return CB_ERR;
+	grant_live = true;
 	return CB_SUCCESS;
 }
 
-static bool consume_grant(uint64_t generation, uint64_t transaction,
-	uint32_t attempted_version)
+bool payload_mm_fmp_dispatch_ready(void)
 {
-	if (!grant_valid || generation != 9 || transaction != granted_transaction ||
-	    attempted_version != granted_version)
-		return false;
-	grant_valid = false;
-	return true;
+	return dispatch_ready;
+}
+
+bool payload_mm_fmp_dispatch_buffer_available(const void *buffer, size_t size)
+{
+	(void)buffer;
+	(void)size;
+	return dispatch_buffer_available;
+}
+
+bool capsule_broker_generation_matches(uint64_t generation)
+{
+	return broker_ready && generation == 9;
+}
+
+bool capsule_broker_buffer_available(const void *buffer, size_t size)
+{
+	(void)buffer;
+	(void)size;
+	return broker_buffer_available;
 }
 
 static bool protected_storage(void *context, const void *storage, size_t size)
 {
 	(void)context;
 	assert(storage != NULL);
-	assert(size >= sizeof(struct payload_mm_fmp_state_policy));
-	if (mutate_source && size > PAYLOAD_MM_FMP_CHECKPOINT_CONTEXT_SIZE)
-		mutate_source->route = 0;
-	return protect_ok;
+	if (installing_owner) {
+		owner_storage = storage;
+		owner_storage_size = size;
+	}
+	if (!binding)
+		return true;
+	if (storage == workspace()) {
+		assert(size == sizeof(*workspace()));
+		if (mutate_binding_workspace)
+			memset((void *)storage, 0xa5, size);
+		return protect_workspace;
+	}
+	if (mutate_binding_authority)
+		memset((void *)storage, 0xa5, size);
+	return protect_authority;
 }
 
 static struct payload_mm_authvar_contract contract(void)
@@ -180,10 +211,11 @@ static struct payload_mm_authvar_contract contract(void)
 	};
 }
 
-static struct payload_mm_fmp_checkpoint_record initial_record(void)
+static struct payload_mm_fmp_owner_record initial_record(void)
 {
-	struct payload_mm_fmp_checkpoint_record record = {
+	struct payload_mm_fmp_owner_record record = {
 		.sequence = 7,
+		.present = 1,
 		.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES,
 		.data_size = PAYLOAD_MM_FMP_STATE_WIRE_SIZE,
 	};
@@ -195,21 +227,7 @@ static struct payload_mm_fmp_checkpoint_record initial_record(void)
 	return record;
 }
 
-static struct payload_mm_fmp_checkpoint_backend backend(
-	struct backend_context *context)
-{
-	return (struct payload_mm_fmp_checkpoint_backend) {
-		.revision = PAYLOAD_MM_FMP_CHECKPOINT_BACKEND_REVISION,
-		.size = sizeof(struct payload_mm_fmp_checkpoint_backend),
-		.broker_generation = 9,
-		.read = read_state,
-		.commit = commit_state,
-		.context = context,
-		.context_size = sizeof(*context),
-	};
-}
-
-static void install_parent_authority(void)
+static void install_parent(struct backend_context *context, bool owner)
 {
 	struct payload_mm_authvar_contract authvar = contract();
 	struct payload_mm_fmp_state_policy policy = {
@@ -218,60 +236,38 @@ static void install_parent_authority(void)
 		.namespace_guid = state_guid,
 		.trusted_lowest_version = 4,
 	};
+	struct payload_mm_fmp_owner_backend backend = {
+		.revision = PAYLOAD_MM_FMP_OWNER_REVISION,
+		.size = sizeof(backend),
+		.read = read_record,
+		.commit = commit_record,
+		.context = context,
+		.context_size = sizeof(*context),
+	};
+
 	assert(payload_mm_authvar_authority_install(&authvar, protected_storage,
 		NULL) == CB_SUCCESS);
 	assert(payload_mm_fmp_state_policy_install(&policy, protected_storage,
 		NULL) == CB_SUCCESS);
-}
-
-static void install(struct backend_context *context)
-{
-	struct payload_mm_fmp_checkpoint_backend port = backend(context);
-
-	install_parent_authority();
-	assert(payload_mm_fmp_checkpoint_backend_install(&port, protected_storage,
-		NULL) == CB_SUCCESS);
-}
-
-static bool install_case(const char *name, struct backend_context *context)
-{
-	struct payload_mm_fmp_checkpoint_backend port = backend(context);
-
-	if (strncmp(name, "install-", 8))
-		return false;
-	if (!strcmp(name, "install-no-state")) {
-		struct payload_mm_authvar_contract authvar = contract();
-
-		assert(payload_mm_authvar_authority_install(&authvar,
-			protected_storage, NULL) == CB_SUCCESS);
-	} else {
-		install_parent_authority();
+	if (owner) {
+		installing_owner = true;
+		assert(payload_mm_fmp_owner_install(&backend, protected_storage,
+			NULL) == CB_SUCCESS);
+		installing_owner = false;
+		assert(owner_storage != NULL);
 	}
-	if (!strcmp(name, "install-revision"))
-		port.revision++;
-	else if (!strcmp(name, "install-size"))
-		port.size--;
-	else if (!strcmp(name, "install-generation"))
-		port.broker_generation = 0;
-	else if (!strcmp(name, "install-read"))
-		port.read = NULL;
-	else if (!strcmp(name, "install-commit"))
-		port.commit = NULL;
-	else if (!strcmp(name, "install-context-null"))
-		port.context = NULL;
-	else if (!strcmp(name, "install-context-zero"))
-		port.context_size = 0;
-	else if (!strcmp(name, "install-context-large"))
-		port.context_size = PAYLOAD_MM_FMP_CHECKPOINT_CONTEXT_SIZE + 1U;
-	else if (!strcmp(name, "install-protection"))
-		protect_ok = false;
-	assert(payload_mm_fmp_checkpoint_backend_install(&port, protected_storage,
-		NULL) == CB_ERR);
-	protect_ok = true;
-	assert(payload_mm_fmp_checkpoint_backend_install(&port, protected_storage,
-		NULL) == CB_ERR);
-	assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
-	return true;
+}
+
+static enum cb_err bind(struct payload_mm_fmp_checkpoint_workspace *area,
+	uint64_t generation)
+{
+	enum cb_err status;
+
+	binding = true;
+	status = payload_mm_fmp_checkpoint_owner_bind(generation, area,
+		protected_storage, NULL);
+	binding = false;
+	return status;
 }
 
 static void expect_trace(const char *expected)
@@ -280,36 +276,158 @@ static void expect_trace(const char *expected)
 	assert(!memcmp(trace, expected, trace_size));
 }
 
+static void expect_workspace_clear(void)
+{
+	const uint8_t *bytes = (const void *)workspace();
+	uint8_t bits = 0;
+
+	for (size_t i = 0; i < sizeof(*workspace()); i++)
+		bits |= bytes[i];
+	assert(bits == 0);
+}
+
+static bool install_case(const char *name, struct backend_context *context)
+{
+	struct payload_mm_fmp_checkpoint_workspace *area = workspace();
+	const bool checkpoint_range_case =
+		!strncmp(name, "install-checkpoint-", 19);
+
+	if (strncmp(name, "install-", 8))
+		return false;
+	if (!strcmp(name, "install-no-owner"))
+		install_parent(context, false);
+	else
+		install_parent(context, true);
+	if (checkpoint_range_case) {
+		size_t authority_size;
+		const uint8_t *authority =
+			payload_mm_fmp_checkpoint_test_authority(&authority_size);
+		uint8_t snapshot[64];
+		bool overlap = true;
+
+		assert(authority_size <= sizeof(snapshot));
+		if (!strcmp(name, "install-checkpoint-full"))
+			area = (void *)authority;
+		else if (!strcmp(name, "install-checkpoint-leading"))
+			area = (void *)((uintptr_t)authority - 8);
+		else if (!strcmp(name, "install-checkpoint-trailing"))
+			area = (void *)((uintptr_t)authority + authority_size - 8);
+		else if (!strcmp(name, "install-checkpoint-adjacent-before")) {
+			area = (void *)((uintptr_t)authority - sizeof(*area));
+			overlap = false;
+		} else if (!strcmp(name, "install-checkpoint-adjacent-after")) {
+			area = (void *)((uintptr_t)authority + authority_size);
+			overlap = false;
+		} else {
+			assert(false);
+		}
+		assert(payload_mm_fmp_checkpoint_test_storage_overlaps(area,
+			sizeof(*area)) == overlap);
+		memcpy(snapshot, authority, authority_size);
+		assert(bind(area, 9) == CB_ERR);
+		if (overlap) {
+			assert(!memcmp(snapshot, authority, authority_size));
+			assert(bind(workspace(), 9) == CB_SUCCESS);
+			expect_workspace_clear();
+		} else {
+			assert(bind(workspace(), 9) == CB_ERR);
+		}
+		expect_trace("");
+		assert(!context->store->reads && !context->store->commits && !grants);
+		return true;
+	}
+	if (!strcmp(name, "install-zero-generation")) {
+		assert(bind(area, 0) == CB_ERR);
+	} else if (!strcmp(name, "install-generation-mismatch")) {
+		assert(bind(area, 8) == CB_ERR);
+	} else if (!strcmp(name, "install-null")) {
+		assert(bind(NULL, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-misaligned")) {
+		assert(bind((void *)((uint8_t *)area + 1), 9) == CB_ERR);
+	} else if (!strcmp(name, "install-outside")) {
+		assert(bind((void *)communication, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-no-proof")) {
+		binding = true;
+		assert(payload_mm_fmp_checkpoint_owner_bind(9, area, NULL, NULL) ==
+			CB_ERR);
+		binding = false;
+	} else if (!strcmp(name, "install-authority-unprotected")) {
+		protect_authority = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-workspace-unprotected")) {
+		protect_workspace = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-authority-mutation-failure")) {
+		mutate_binding_authority = true;
+		protect_authority = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-workspace-mutation-failure")) {
+		mutate_binding_workspace = true;
+		protect_workspace = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-dispatch-not-ready")) {
+		dispatch_ready = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-broker-not-ready")) {
+		broker_ready = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-dispatch-overlap")) {
+		dispatch_buffer_available = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else if (!strcmp(name, "install-broker-overlap")) {
+		broker_buffer_available = false;
+		assert(bind(area, 9) == CB_ERR);
+	} else {
+		assert(!strcmp(name, "install-no-owner"));
+		assert(bind(area, 9) == CB_ERR);
+	}
+	protect_authority = true;
+	protect_workspace = true;
+	dispatch_ready = true;
+	dispatch_buffer_available = true;
+	broker_ready = true;
+	broker_buffer_available = true;
+	assert(bind(area, 9) == CB_ERR);
+	assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
+	expect_trace("");
+	assert(!context->store->reads && !context->store->commits && !grants);
+	return true;
+}
+
 static void run_case(const char *name)
 {
 	struct store store = { .record = initial_record() };
 	struct backend_context context = {
 		.store = &store,
-		.route = 0x46504d31U,
+		.route = 0x4f574e52U,
 	};
-	uint32_t attempted_version = !strcmp(name, "wide-version") ?
-		0x12345678U : 6U;
+	uint32_t version = !strcmp(name, "wide-version") ? 0x12345678U : 6U;
 
 	if (install_case(name, &context))
 		return;
-	if (!strcmp(name, "source-mutation"))
-		mutate_source = &context;
-	install(&context);
+	install_parent(&context, true);
+	if (!strcmp(name, "bind-authority-mutation"))
+		mutate_binding_authority = true;
+	if (!strcmp(name, "bind-workspace-mutation"))
+		mutate_binding_workspace = true;
+	assert(bind(workspace(), 9) == CB_SUCCESS);
 	context.route = 0;
+	expect_workspace_clear();
+
 	if (!strcmp(name, "commit-failure"))
 		store.commit_fails = true;
 	else if (!strcmp(name, "commit-lie"))
 		store.commit_lies = true;
 	else if (!strcmp(name, "read-failure"))
-		store.read_fails = true;
-	else if (!strcmp(name, "readback-failure"))
-		store.readback_fails = true;
+		store.fail_read = 1;
+	else if (!strcmp(name, "owner-readback-failure"))
+		store.fail_read = 2;
+	else if (!strcmp(name, "checkpoint-readback-failure"))
+		store.fail_read = 3;
 	else if (!strcmp(name, "readback-corrupt"))
 		store.corrupt_readback = true;
 	else if (!strcmp(name, "read-input-mutation"))
-		store.mutate_first_read_identity = true;
-	else if (!strcmp(name, "readback-input-mutation"))
-		store.mutate_readback_identity = true;
+		store.mutate_read_identity = true;
 	else if (!strcmp(name, "commit-input-mutation"))
 		store.mutate_commit_inputs = true;
 	else if (!strcmp(name, "bad-attributes"))
@@ -318,22 +436,29 @@ static void run_case(const char *name)
 		store.record.data_size--;
 	else if (!strcmp(name, "bad-reserved"))
 		store.record.reserved = 1;
+	else if (!strcmp(name, "bad-reserved2"))
+		store.record.reserved2 = 1;
 	else if (!strcmp(name, "bad-sequence"))
 		store.record.sequence = 0;
+	else if (!strcmp(name, "bad-present"))
+		store.record.present = 2;
+	else if (!strcmp(name, "absent")) {
+		memset(&store.record, 0, sizeof(store.record));
+		store.record.sequence = 8;
+	} else if (!strcmp(name, "bad-validity"))
+		store.record.data[0] = 2;
 	else if (!strcmp(name, "sequence-wrap"))
 		store.record.sequence = UINT64_MAX;
-	else if (!strcmp(name, "bad-validity"))
-		store.record.data[0] = 2;
+	else if (!strcmp(name, "durable-lsv"))
+		store.record.data[8] = 7;
 	else if (!strcmp(name, "idempotent") ||
 		 !strcmp(name, "idempotent-sequence-max")) {
-		if (!strcmp(name, "idempotent-sequence-max"))
-			store.record.sequence = UINT64_MAX;
 		store.record.data[2] = 1;
 		store.record.data[3] = 1;
 		store.record.data[12] = 1;
 		store.record.data[16] = 6;
-	} else if (!strcmp(name, "durable-lsv")) {
-		store.record.data[8] = 7;
+		if (!strcmp(name, "idempotent-sequence-max"))
+			store.record.sequence = UINT64_MAX;
 	}
 
 	if (!strcmp(name, "wrong-generation")) {
@@ -346,62 +471,55 @@ static void run_case(const char *name)
 		expect_trace("");
 		return;
 	}
-	if (!strcmp(name, "low-version")) {
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 3) == CB_ERR);
+	if (!strcmp(name, "low-version") || !strcmp(name, "durable-lsv")) {
+		uint32_t low = !strcmp(name, "low-version") ? 3 : 6;
+
+		assert(payload_mm_fmp_checkpoint_commit(9, 1, low) == CB_ERR);
 		expect_trace("R");
-		return;
-	}
-	if (!strcmp(name, "durable-lsv")) {
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
-		expect_trace("R");
+		expect_workspace_clear();
 		return;
 	}
 	if (!strcmp(name, "grant-failure"))
 		grant_fails = true;
-	if (!strcmp(name, "outstanding-grant")) {
-		struct payload_mm_fmp_checkpoint_record checkpoint;
-
-		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_SUCCESS);
-		checkpoint = store.record;
-		assert(payload_mm_fmp_checkpoint_commit(9, 2, 7) == CB_ERR);
-		expect_trace("RCRG");
-		assert(store.reads == 2 && store.commits == 1 && grants == 1);
-		assert(!memcmp(&store.record, &checkpoint, sizeof(checkpoint)));
-		assert(consume_grant(9, 1, 6));
-		return;
-	}
 	if (!strcmp(name, "replay-after-failure")) {
-		store.commit_fails = true;
+		store.fail_read = 1;
 		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
-		store.commit_fails = false;
+		store.fail_read = 0;
 		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
 		assert(payload_mm_fmp_checkpoint_commit(9, 2, 6) == CB_SUCCESS);
-		expect_trace("RCRCRG");
-		assert(store.commits == 2 && grants == 1);
+		expect_trace("RRCRRG");
+		expect_workspace_clear();
 		return;
 	}
+	if (!strcmp(name, "outstanding-grant")) {
+		struct payload_mm_fmp_owner_record committed;
 
+		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_SUCCESS);
+		committed = store.record;
+		assert(payload_mm_fmp_checkpoint_commit(9, 2, 7) == CB_ERR);
+		assert(!memcmp(&committed, &store.record, sizeof(committed)));
+		expect_trace("RCRRG");
+		assert(grants == 1 && granted_transaction == 1 && granted_version == 6);
+		expect_workspace_clear();
+		return;
+	}
 	if (!strcmp(name, "success") || !strcmp(name, "wide-version") ||
-	    !strcmp(name, "source-mutation") || !strcmp(name, "grant-failure") ||
-	    !strcmp(name, "max-transaction")) {
+	    !strcmp(name, "bind-authority-mutation") ||
+	    !strcmp(name, "bind-workspace-mutation") ||
+	    !strcmp(name, "grant-failure") || !strcmp(name, "max-transaction")) {
 		uint64_t transaction = !strcmp(name, "max-transaction") ?
 			UINT64_MAX : 1;
-		enum cb_err result = payload_mm_fmp_checkpoint_commit(9, transaction,
-			attempted_version);
+		enum cb_err status = payload_mm_fmp_checkpoint_commit(9, transaction,
+			version);
 
-		assert(result == (grant_fails ? CB_ERR : CB_SUCCESS));
-		expect_trace("RCRG");
+		assert(status == (grant_fails ? CB_ERR : CB_SUCCESS));
+		expect_trace("RCRRG");
 		assert(store.commits == 1 && grants == 1);
 		assert(store.record.sequence == 8);
-		assert(store.record.data[16] == (uint8_t)attempted_version);
-		assert(store.record.data[17] == (uint8_t)(attempted_version >> 8));
-		assert(store.record.data[18] == (uint8_t)(attempted_version >> 16));
-		assert(store.record.data[19] == (uint8_t)(attempted_version >> 24));
-		assert(granted_version == attempted_version);
-		assert(payload_mm_fmp_checkpoint_commit(9,
-			transaction == UINT64_MAX ? transaction : transaction + 1,
-			attempted_version) == CB_ERR);
-		assert(store.reads == 2 && store.commits == 1 && grants == 1);
+		assert(!memcmp(store.record.data + 16, &version, sizeof(version)));
+		assert(payload_mm_fmp_checkpoint_commit(9, transaction, version) ==
+			CB_ERR);
+		expect_workspace_clear();
 		return;
 	}
 	if (!strcmp(name, "idempotent") ||
@@ -409,26 +527,24 @@ static void run_case(const char *name)
 		assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_SUCCESS);
 		expect_trace("RRG");
 		assert(!store.commits && grants == 1);
-		assert(store.record.sequence ==
-			(!strcmp(name, "idempotent-sequence-max") ? UINT64_MAX : 7));
+		expect_workspace_clear();
 		return;
 	}
 
 	assert(payload_mm_fmp_checkpoint_commit(9, 1, 6) == CB_ERR);
 	assert(!grants);
-	if (!strcmp(name, "commit-failure")) {
+	if (!strcmp(name, "commit-failure") ||
+	    !strcmp(name, "commit-input-mutation"))
 		expect_trace("RC");
-		assert(store.record.sequence == 7);
-		assert(!store.record.data[2] && !store.record.data[3]);
-	} else if (!strcmp(name, "commit-lie") ||
-		 !strcmp(name, "readback-failure") ||
-		 !strcmp(name, "readback-corrupt") ||
-		 !strcmp(name, "readback-input-mutation"))
+	else if (!strcmp(name, "commit-lie") ||
+		 !strcmp(name, "owner-readback-failure") ||
+		 !strcmp(name, "readback-corrupt"))
 		expect_trace("RCR");
-	else if (!strcmp(name, "commit-input-mutation"))
-		expect_trace("RC");
+	else if (!strcmp(name, "checkpoint-readback-failure"))
+		expect_trace("RCRR");
 	else
 		expect_trace("R");
+	expect_workspace_clear();
 }
 
 int main(int argc, char **argv)

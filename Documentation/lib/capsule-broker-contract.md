@@ -55,9 +55,9 @@ An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected
 variable owner may create that grant, and only after the combined FMP state has
 been atomically committed with unsuccessful attempt status. The companion
-internal checkpoint engine performs the exact-state transition and readback,
-but remains dormant because this series supplies no reset-safe,
-rollback-protected variable backend.
+internal checkpoint engine reads and commits through that same protected owner,
+then performs a separate exact-state readback. It remains dormant because this
+series supplies no reset-safe, rollback-protected variable backend.
 
 ## Lifecycle
 

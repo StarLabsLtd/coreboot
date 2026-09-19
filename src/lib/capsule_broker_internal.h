@@ -54,6 +54,8 @@ typedef bool capsule_broker_protected_storage_fn(void *context,
 enum cb_err capsule_broker_policy_install(
 	const struct capsule_broker_policy *trusted_policy,
 	capsule_broker_protected_storage_fn storage_is_protected, void *context);
+bool capsule_broker_generation_matches(uint64_t generation);
+bool capsule_broker_buffer_available(const void *buffer, size_t size);
 
 /* Called only by the protected variable owner after durable checkpoint commit. */
 enum cb_err capsule_broker_checkpoint_grant(uint64_t generation,

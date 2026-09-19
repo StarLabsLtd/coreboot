@@ -17,6 +17,21 @@ static struct {
 	bool busy;
 } dispatch_authority;
 
+bool payload_mm_fmp_dispatch_ready(void)
+{
+	return dispatch_authority.installed;
+}
+
+bool payload_mm_fmp_dispatch_buffer_available(const void *buffer, size_t size)
+{
+	return !payload_mm_authvar_buffers_overlap(buffer, size,
+			&dispatch_authority, sizeof(dispatch_authority)) &&
+		(!dispatch_authority.installed ||
+		 !payload_mm_authvar_buffers_overlap(buffer, size,
+			dispatch_authority.workspace,
+			sizeof(*dispatch_authority.workspace)));
+}
+
 enum cb_err payload_mm_fmp_dispatch_workspace_install(
 	struct payload_mm_fmp_dispatch_workspace *trusted_workspace,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context)

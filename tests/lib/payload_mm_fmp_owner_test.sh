@@ -9,7 +9,7 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
-cases='read read-absent read-legacy source-mutation authority-mutation read-outside read-key read-misaligned
+cases='read read-absent read-legacy source-mutation authority-mutation authority-ranges read-outside read-key read-misaligned
 read-failure bad-sequence bad-present bad-attributes bad-size bad-reserved
 bad-reserved2 bad-validity bad-absent bad-legacy-tail success
 commit-failure commit-lie readback-corrupt input-mutation state-regression
