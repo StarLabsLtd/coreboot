@@ -14,7 +14,8 @@ requires platform proofs for reserved communication and staging memory, DMA
 protection, SMM-only SPI ownership, absence of raw flash access and active CPU
 rendezvous.
 
-Callback pointers and their media, digest and proof contexts are part of that
+Callback pointers and their media, digest, authentication and proof contexts
+are part of that
 snapshot. Each non-null context has an explicit size capped at 128 bytes and is
 copied into the protected authority before installation succeeds. Callbacks
 receive only those copies. Context shape is checked before copying, then the
@@ -24,6 +25,12 @@ caller-owned context bytes are never reread afterward. Contexts must be
 self-contained authority: an
 embedded pointer may address media data, the fixed message or hardware, but
 must not redirect policy or proof decisions to mutable payload memory.
+
+The same rules apply to the authentication callback and its bounded context.
+The callback's success contract is complete authentication and policy approval
+of the exact fixed staging image, including signature, capsule format,
+dependency and board binding. This tree defines and seals that port but
+supplies no provider or trust anchors.
 
 `LB_TAG_CAPSULE_BROKER_ENDPOINT` is an 80-byte public description of the
 already-installed endpoint. It carries one nonzero cold-boot generation, one
@@ -50,6 +57,25 @@ It recomputes SHA-256 in SMM, constructs the writer plan exclusively from its
 sealed staging address and sealed routes, and calls the existing bounded
 writer. Media callbacks recheck the DMA, rendezvous, SMM-SPI and no-raw-flash
 proofs before every operation.
+
+Before an executor may treat a staged CHECK or SET as valid, the broker hashes
+its fixed staging span and matches the staged digest, invokes the sealed
+authentication callback with a protected local copy of its context, then
+rechecks the DMA/rendezvous guard and hashes the complete span again. The
+callback receives no sealed-context address and must not retain its synchronous
+image or local-context arguments. Staging mutation fails the second digest
+check. Only SET retains an exact transaction, attempted
+version and digest authorization. CHECK is validation-only and cannot enable a
+checkpoint grant. The checkpoint consumes the SET authorization and the APPLY
+message must match its digest, so no unauthenticated or substituted image can
+reach media through the internal grant path.
+
+Authentication is protected by a fail-closed in-progress latch established
+before the first proof or hash callback. Nested authentication, checkpoint
+grant and broker handling are rejected while it is set. Broker state is
+revalidated after every callback boundary. A provider-triggered S3 close is
+irreversible and causes the outer authentication to fail; the latch is cleared
+on every ordinary success and failure return.
 
 An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected
@@ -93,6 +119,8 @@ specific status values. A partial-media failure remains a reset/recovery case.
 | Endpoint/message ABI and sealed state machine | Implemented, unselected |
 | Hostile O0/O2/ASan/UBSan model | Implemented |
 | Trusted endpoint/policy producer | Open |
+| Protected authentication-provider port | Implemented, unselected |
+| Authentication provider and trust anchors | Open |
 | Typed checkpoint engine and grant ordering | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |

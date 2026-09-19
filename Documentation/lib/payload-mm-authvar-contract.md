@@ -139,11 +139,11 @@ The broker itself remains the authority for its fixed staging size, checkpoint
 grant and one-shot lifecycle.
 
 This is intent shape and staging, not authentication authority. A later
-internal executor must prove that authentication and all policy checks apply to
-the exact fixed image snapshot represented by these fields, source current FMP
-state through the protected owner, persist the failure checkpoint before a SET
-grant, and map a bounded result. This commit supplies no such executor or
-payload-callable transport.
+internal executor must invoke the broker's protected authentication-provider
+port for the exact fixed image snapshot represented by these fields, source
+current FMP state through the protected owner, persist the failure checkpoint
+before a SET grant, and map a bounded result. The port is present but this tree
+supplies no authentication provider, executor or payload-callable transport.
 
 ## Internal durable checkpoint engine
 
@@ -202,6 +202,8 @@ failure before grant invocation can be retried with a newer transaction.
 | Protected typed SystemFmp variable owner port | Implemented, unselected |
 | Trusted platform identity producer | Open |
 | Authenticated CHECK/SET intent and protected staging | Implemented, unselected |
+| Protected capsule-authentication provider port | Implemented, unselected |
+| Capsule-authentication provider and trust anchors | Open |
 | Authenticated operation executor and bounded result | Open |
 | SMI transport and bounded result writer | Open |
 | Typed checkpoint engine and exact readback | Implemented, unselected |

@@ -27,6 +27,12 @@ struct sha256_context {
 	bool drop_guard;
 };
 
+struct authenticate_context {
+	uint32_t magic;
+	uint32_t expected_version;
+	bool allow;
+};
+
 struct proof_context {
 	uint64_t communication;
 	uint64_t communication_size;
@@ -42,6 +48,45 @@ struct proof_context {
 
 static bool runtime_dma_guard;
 static struct proof_context *install_mutation_target;
+static struct authenticate_context *install_auth_mutation_target;
+static size_t authenticate_calls;
+static bool authenticate_mutates_image;
+static bool authenticate_mutates_context;
+static bool authenticate_drops_guard;
+static const struct payload_mm_fmp_capsule_intent *staged_intent;
+static struct payload_mm_fmp_capsule_intent *callback_intent;
+static bool authenticate_reenters;
+static bool authenticate_attempts_grant;
+static bool authenticate_attempts_handle;
+static bool authenticate_attempts_close;
+static bool authenticate_mutates_intent;
+static enum cb_err nested_authenticate_status;
+static enum cb_err nested_grant_status;
+static enum cb_err nested_handle_status;
+enum callback_attack {
+	CALLBACK_ATTACK_NONE,
+	CALLBACK_ATTACK_CLOSE,
+	CALLBACK_ATTACK_REENTER_GRANT,
+};
+enum proof_callback {
+	PROOF_DMA_COMMUNICATION = 1,
+	PROOF_DMA_STAGING,
+	PROOF_SPI,
+	PROOF_NO_RAW,
+	PROOF_RENDEZVOUS,
+	PROOF_COUNT,
+};
+static enum callback_attack callback_attack;
+static enum proof_callback proof_attack_target;
+static size_t proof_calls[PROOF_COUNT];
+static size_t sha256_calls;
+static size_t sha256_attack_call;
+
+const struct payload_mm_fmp_capsule_intent *
+payload_mm_fmp_dispatch_capsule_intent(void)
+{
+	return staged_intent;
+}
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -53,6 +98,33 @@ void mock_assert(const int result, const char *const expression,
 		__builtin_trap();
 }
 
+static void callback_attack_once(void)
+{
+	const enum callback_attack attack = callback_attack;
+
+	callback_attack = CALLBACK_ATTACK_NONE;
+	if (attack == CALLBACK_ATTACK_CLOSE) {
+		capsule_broker_close_for_s3();
+		return;
+	}
+	if (attack == CALLBACK_ATTACK_REENTER_GRANT) {
+		nested_authenticate_status =
+			capsule_broker_authenticate_intent(staged_intent);
+		nested_grant_status = capsule_broker_checkpoint_grant(
+			callback_intent->broker_generation,
+			callback_intent->transaction,
+			callback_intent->attempted_version);
+	}
+}
+
+static void proof_callback_enter(enum proof_callback callback)
+{
+	proof_calls[callback]++;
+	if (callback == proof_attack_target &&
+	    callback_attack != CALLBACK_ATTACK_NONE)
+		callback_attack_once();
+}
+
 struct fixture {
 	struct capsule_broker_message message __aligned(8);
 	uint8_t staging[IMAGE_SIZE] __aligned(8);
@@ -61,6 +133,7 @@ struct fixture {
 	uint8_t scratch[ERASE_SIZE] __aligned(8);
 	struct media_context media_context;
 	struct sha256_context sha256_context;
+	struct authenticate_context authenticate_context;
 	struct proof_context proof_context;
 	struct capsule_broker_policy policy;
 	struct lb_capsule_handoff handoff;
@@ -89,6 +162,10 @@ static bool communication_reserved(void *context, uint64_t base, uint64_t size)
 		install_mutation_target->communication += 8;
 		install_mutation_target = NULL;
 	}
+	if (install_auth_mutation_target != NULL) {
+		install_auth_mutation_target->allow = false;
+		install_auth_mutation_target = NULL;
+	}
 	return valid;
 }
 
@@ -104,7 +181,11 @@ static bool dma_protected(void *context, uint64_t base, uint64_t size)
 {
 	struct proof_context *proof = context;
 	bool range_matches;
+	enum proof_callback callback;
 
+	callback = base == proof->communication ? PROOF_DMA_COMMUNICATION :
+		PROOF_DMA_STAGING;
+	proof_callback_enter(callback);
 	range_matches = (base == proof->communication &&
 		size == proof->communication_size) ||
 		(base == proof->staging && size == proof->staging_size);
@@ -113,16 +194,19 @@ static bool dma_protected(void *context, uint64_t base, uint64_t size)
 
 static bool smm_spi_owned(void *context)
 {
+	proof_callback_enter(PROOF_SPI);
 	return ((struct proof_context *)context)->smm_spi_owned;
 }
 
 static bool no_raw_flash(void *context)
 {
+	proof_callback_enter(PROOF_NO_RAW);
 	return ((struct proof_context *)context)->no_raw_flash;
 }
 
 static bool rendezvous(void *context)
 {
+	proof_callback_enter(PROOF_RENDEZVOUS);
 	return ((struct proof_context *)context)->rendezvous;
 }
 
@@ -141,12 +225,53 @@ static enum cb_err sha256(void *context, const void *data, size_t size,
 {
 	struct sha256_context *sha_context = context;
 
+	sha256_calls++;
+	if (sha256_calls == sha256_attack_call &&
+	    callback_attack != CALLBACK_ATTACK_NONE)
+		callback_attack_once();
 	calculate_digest(data, size, digest);
 	if (sha_context->mutate_message)
 		sha_context->message->transaction++;
 	if (sha_context->drop_guard)
 		runtime_dma_guard = false;
 	return CB_SUCCESS;
+}
+
+static enum cb_err authenticate(const void *opaque, const void *image,
+	size_t image_size, uint32_t attempted_version)
+{
+	const struct authenticate_context *context = opaque;
+	bool allowed;
+
+	authenticate_calls++;
+	if (!context || context->magic != 0x41555448U ||
+	    context->expected_version != attempted_version ||
+	    image_size != IMAGE_SIZE || ((const uint8_t *)image)[0] != 0)
+		return CB_ERR;
+	allowed = context->allow;
+	if (authenticate_mutates_context)
+		((struct authenticate_context *)context)->allow = false;
+	if (authenticate_mutates_image)
+		((uint8_t *)image)[0] ^= 1;
+	if (authenticate_drops_guard)
+		runtime_dma_guard = false;
+	if (authenticate_reenters)
+		nested_authenticate_status =
+			capsule_broker_authenticate_intent(staged_intent);
+	if (authenticate_attempts_grant)
+		nested_grant_status = capsule_broker_checkpoint_grant(
+			callback_intent->broker_generation,
+			callback_intent->transaction,
+			callback_intent->attempted_version);
+	if (authenticate_attempts_handle)
+		nested_handle_status = capsule_broker_handle();
+	if (authenticate_mutates_intent) {
+		callback_intent->transaction++;
+		callback_intent->digest[0] ^= 1;
+	}
+	if (authenticate_attempts_close)
+		capsule_broker_close_for_s3();
+	return allowed ? CB_SUCCESS : CB_ERR;
 }
 
 static enum cb_err media_read(void *context, u64 offset, void *data, size_t size)
@@ -194,6 +319,26 @@ static void initialize(struct fixture *fixture)
 		fixture->staging[i] = (uint8_t)i;
 	fixture->storage_protected = true;
 	runtime_dma_guard = true;
+	authenticate_calls = 0;
+	authenticate_mutates_image = false;
+	authenticate_mutates_context = false;
+	authenticate_drops_guard = false;
+	staged_intent = NULL;
+	callback_intent = NULL;
+	authenticate_reenters = false;
+	authenticate_attempts_grant = false;
+	authenticate_attempts_handle = false;
+	authenticate_attempts_close = false;
+	authenticate_mutates_intent = false;
+	nested_authenticate_status = CB_SUCCESS;
+	nested_grant_status = CB_SUCCESS;
+	nested_handle_status = CB_SUCCESS;
+	callback_attack = CALLBACK_ATTACK_NONE;
+	proof_attack_target = 0;
+	memset(proof_calls, 0, sizeof(proof_calls));
+	sha256_calls = 0;
+	sha256_attack_call = 0;
+	install_auth_mutation_target = NULL;
 	fixture->media_context = (struct media_context) {
 		.bytes = fixture->media,
 		.reads = &fixture->reads,
@@ -202,6 +347,11 @@ static void initialize(struct fixture *fixture)
 	};
 	fixture->sha256_context = (struct sha256_context) {
 		.message = &fixture->message,
+	};
+	fixture->authenticate_context = (struct authenticate_context) {
+		.magic = 0x41555448U,
+		.expected_version = 11,
+		.allow = true,
 	};
 	fixture->proof_context = (struct proof_context) {
 		.communication = (uintptr_t)&fixture->message,
@@ -268,6 +418,9 @@ static void initialize(struct fixture *fixture)
 		.sha256 = sha256,
 		.sha256_context = &fixture->sha256_context,
 		.sha256_context_size = sizeof(fixture->sha256_context),
+		.authenticate = authenticate,
+		.authenticate_context = &fixture->authenticate_context,
+		.authenticate_context_size = sizeof(fixture->authenticate_context),
 		.proofs = {
 			.communication_reserved = communication_reserved,
 			.staging_reserved = staging_reserved,
@@ -296,6 +449,47 @@ static void initialize(struct fixture *fixture)
 		fixture->message.digest);
 }
 
+static struct payload_mm_fmp_capsule_intent intent(const struct fixture *fixture,
+	uint32_t operation, uint64_t transaction, uint32_t attempted_version)
+{
+	struct payload_mm_fmp_capsule_intent capsule = {
+		.revision = PAYLOAD_MM_FMP_CAPSULE_INTENT_REVISION,
+		.size = sizeof(capsule),
+		.operation = operation,
+		.broker_generation = GENERATION,
+		.transaction = transaction,
+		.image_size = IMAGE_SIZE,
+		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+		.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+		.attempted_version = attempted_version,
+	};
+
+	memcpy(capsule.digest, fixture->message.digest, sizeof(capsule.digest));
+	return capsule;
+}
+
+static enum cb_err authenticate_intent(
+	struct payload_mm_fmp_capsule_intent *capsule)
+{
+	enum cb_err status;
+
+	staged_intent = capsule;
+	callback_intent = capsule;
+	status = capsule_broker_authenticate_intent(staged_intent);
+	staged_intent = NULL;
+	callback_intent = NULL;
+	return status;
+}
+
+static void authenticate_set(struct fixture *fixture, uint64_t transaction,
+	uint32_t attempted_version)
+{
+	struct payload_mm_fmp_capsule_intent capsule = intent(fixture,
+		PAYLOAD_MM_FMP_CAPSULE_SET, transaction, attempted_version);
+
+	assert(authenticate_intent(&capsule) == CB_SUCCESS);
+}
+
 static void install(struct fixture *fixture)
 {
 	assert(capsule_broker_endpoint_validate(&fixture->policy.endpoint,
@@ -310,6 +504,7 @@ static void happy(void)
 
 	initialize(&fixture);
 	install(&fixture);
+	authenticate_set(&fixture, 1, 11);
 	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(capsule_broker_handle() == CB_SUCCESS);
 	assert(fixture.message.result == CAPSULE_BROKER_RESULT_SUCCESS);
@@ -427,6 +622,8 @@ static void invalid_install(const char *mode)
 		fixture.policy.region_count = 0;
 	else if (!strcmp(mode, "missing-hash"))
 		fixture.policy.sha256 = NULL;
+	else if (!strcmp(mode, "missing-authenticate"))
+		fixture.policy.authenticate = NULL;
 	else if (!strcmp(mode, "media-context-null"))
 		fixture.policy.media.context = NULL;
 	else if (!strcmp(mode, "media-context-large"))
@@ -435,6 +632,11 @@ static void invalid_install(const char *mode)
 		fixture.policy.sha256_context = NULL;
 	else if (!strcmp(mode, "sha-context-large"))
 		fixture.policy.sha256_context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "authenticate-context-null"))
+		fixture.policy.authenticate_context = NULL;
+	else if (!strcmp(mode, "authenticate-context-large"))
+		fixture.policy.authenticate_context_size =
+			CAPSULE_BROKER_CONTEXT_SIZE + 1U;
 	else if (!strcmp(mode, "proof-context-null"))
 		fixture.policy.proofs.context = NULL;
 	else if (!strcmp(mode, "proof-context-large"))
@@ -472,12 +674,22 @@ static void rejected_apply(const char *mode)
 	else if (!strcmp(mode, "media-verify"))
 		fixture.media_context.corrupt_readback = true;
 	install(&fixture);
-	if (strcmp(mode, "no-grant")) {
+	if (!strcmp(mode, "guard")) {
+		struct payload_mm_fmp_capsule_intent capsule = intent(&fixture,
+			PAYLOAD_MM_FMP_CAPSULE_SET, 1, 11);
+
+		assert(authenticate_intent(&capsule) == CB_ERR);
+	} else {
+		authenticate_set(&fixture, 1, 11);
+	}
+	if (strcmp(mode, "no-grant") && strcmp(mode, "guard")) {
 		uint64_t transaction = !strcmp(mode, "grant-transaction") ? 2 : 1;
 		uint32_t version = !strcmp(mode, "grant-version") ? 12 : 11;
+		enum cb_err expected = (!strcmp(mode, "grant-transaction") ||
+			!strcmp(mode, "grant-version")) ? CB_ERR : CB_SUCCESS;
 
 		assert(capsule_broker_checkpoint_grant(GENERATION, transaction,
-			version) == CB_SUCCESS);
+			version) == expected);
 	}
 	if (!strcmp(mode, "digest"))
 		fixture.message.digest[0] ^= 1;
@@ -506,6 +718,8 @@ static void rejected_apply(const char *mode)
 	assert(capsule_broker_handle() == CB_ERR);
 	assert(fixture.message.last_attempt_status ==
 		CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL);
+	if (!strcmp(mode, "digest"))
+		assert(fixture.message.result == CAPSULE_BROKER_RESULT_CHECKPOINT);
 	if (strncmp(mode, "media-", 6)) {
 		assert(!fixture.reads && !fixture.erases && !fixture.writes);
 	} else if (!strcmp(mode, "media-erase")) {
@@ -531,6 +745,7 @@ static void stale_then_happy(void)
 	fixture.message.generation = GENERATION;
 	fixture.message.result = CAPSULE_BROKER_RESULT_PENDING;
 	fixture.message.last_attempt_status = CAPSULE_BROKER_STATUS_PENDING;
+	authenticate_set(&fixture, 1, 11);
 	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(capsule_broker_handle() == CB_SUCCESS);
 }
@@ -564,6 +779,8 @@ static void snapshot_case(void)
 	initialize(&fixture);
 	fixture.sha256_context.mutate_message = true;
 	install(&fixture);
+	authenticate_set(&fixture, 1, 11);
+	fixture.message.transaction = 1;
 	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(capsule_broker_handle() == CB_SUCCESS);
 	assert(fixture.message.transaction == 1);
@@ -584,12 +801,15 @@ static void policy_snapshot_case(void)
 	fixture.media_context.erases = &decoy.erases;
 	fixture.media_context.writes = &decoy.writes;
 	fixture.sha256_context.message = &decoy.message;
+	fixture.authenticate_context.allow = false;
+	fixture.policy.authenticate = NULL;
 	fixture.proof_context.communication = (uintptr_t)&decoy.message;
 	fixture.proof_context.staging = (uintptr_t)decoy.staging;
 	fixture.proof_context.dma_protected = false;
 	fixture.proof_context.smm_spi_owned = false;
 	fixture.proof_context.no_raw_flash = false;
 	fixture.proof_context.rendezvous = false;
+	authenticate_set(&fixture, 1, 11);
 	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(capsule_broker_handle() == CB_SUCCESS);
 	assert(!memcmp(&fixture.media[0x1000], fixture.staging, IMAGE_SIZE));
@@ -605,9 +825,13 @@ static void install_source_mutation_case(void)
 	initialize(&fixture);
 	original_communication = fixture.proof_context.communication;
 	install_mutation_target = &fixture.proof_context;
+	install_auth_mutation_target = &fixture.authenticate_context;
 	install(&fixture);
 	assert(install_mutation_target == NULL);
+	assert(install_auth_mutation_target == NULL);
 	assert(fixture.proof_context.communication == original_communication + 8);
+	assert(!fixture.authenticate_context.allow);
+	authenticate_set(&fixture, 1, 11);
 	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(capsule_broker_handle() == CB_SUCCESS);
 }
@@ -618,14 +842,214 @@ static void grant_edges(void)
 
 	initialize(&fixture);
 	install(&fixture);
+	fixture.message.transaction = UINT64_MAX;
+	authenticate_set(&fixture, UINT64_MAX, 11);
 	assert(capsule_broker_checkpoint_grant(GENERATION + 1, 1, 11) == CB_ERR);
 	assert(capsule_broker_checkpoint_grant(GENERATION, 0, 11) == CB_ERR);
 	assert(capsule_broker_checkpoint_grant(GENERATION, UINT64_MAX, 11) ==
 		CB_SUCCESS);
 	assert(capsule_broker_checkpoint_grant(GENERATION, UINT64_MAX, 11) ==
 		CB_ERR);
-	fixture.message.transaction = UINT64_MAX;
 	assert(capsule_broker_handle() == CB_SUCCESS);
+}
+
+static void authentication_case(const char *mode)
+{
+	struct fixture fixture;
+	struct payload_mm_fmp_capsule_intent capsule;
+
+	initialize(&fixture);
+	if (!strcmp(mode, "reject"))
+		fixture.authenticate_context.allow = false;
+	install(&fixture);
+	capsule = intent(&fixture, PAYLOAD_MM_FMP_CAPSULE_CHECK, 1, 11);
+	if (!strcmp(mode, "source-mutation")) {
+		fixture.authenticate_context.allow = false;
+		fixture.policy.authenticate = NULL;
+	} else if (!strcmp(mode, "context-mutation")) {
+		authenticate_mutates_context = true;
+	} else if (!strcmp(mode, "image-mutation")) {
+		authenticate_mutates_image = true;
+	} else if (!strcmp(mode, "guard")) {
+		authenticate_drops_guard = true;
+	} else if (!strcmp(mode, "digest")) {
+		capsule.digest[0] ^= 1;
+	} else if (!strcmp(mode, "generation")) {
+		capsule.broker_generation++;
+	} else if (!strcmp(mode, "image-size")) {
+		capsule.image_size--;
+	} else if (!strcmp(mode, "operation")) {
+		capsule.operation = 3;
+	} else if (!strcmp(mode, "flags")) {
+		capsule.flags = 1;
+	} else if (!strcmp(mode, "revision")) {
+		capsule.revision++;
+	} else if (!strcmp(mode, "size")) {
+		capsule.size--;
+	} else if (!strcmp(mode, "transaction")) {
+		capsule.transaction = 0;
+	} else if (!strcmp(mode, "algorithm")) {
+		capsule.digest_algorithm++;
+	} else if (!strcmp(mode, "digest-size")) {
+		capsule.digest_size--;
+	} else if (!strcmp(mode, "reserved")) {
+		capsule.reserved = 1;
+	} else if (!strcmp(mode, "version")) {
+		capsule.attempted_version++;
+	} else if (!strcmp(mode, "closed")) {
+		capsule_broker_close_for_s3();
+	} else if (!strcmp(mode, "unstaged")) {
+		assert(capsule_broker_authenticate_intent(&capsule) == CB_ERR);
+		assert(authenticate_calls == 0);
+		return;
+	}
+	if (!strcmp(mode, "reenter"))
+		authenticate_reenters = true;
+	else if (!strcmp(mode, "callback-grant")) {
+		authenticate_reenters = true;
+		authenticate_attempts_grant = true;
+		capsule.operation = PAYLOAD_MM_FMP_CAPSULE_SET;
+	} else if (!strcmp(mode, "callback-handle")) {
+		authenticate_attempts_handle = true;
+		capsule.operation = PAYLOAD_MM_FMP_CAPSULE_SET;
+	} else if (!strcmp(mode, "callback-close")) {
+		authenticate_attempts_close = true;
+	} else if (!strcmp(mode, "callback-mutation")) {
+		authenticate_mutates_intent = true;
+		capsule.operation = PAYLOAD_MM_FMP_CAPSULE_SET;
+	}
+	if (!strcmp(mode, "reenter")) {
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		assert(nested_authenticate_status == CB_ERR);
+		assert(authenticate_calls == 1);
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		assert(nested_authenticate_status == CB_ERR);
+		assert(authenticate_calls == 2);
+		return;
+	}
+	if (!strcmp(mode, "callback-grant") ||
+	    !strcmp(mode, "callback-handle")) {
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		if (!strcmp(mode, "callback-grant"))
+			assert(nested_authenticate_status == CB_ERR);
+		assert((!strcmp(mode, "callback-grant") ? nested_grant_status :
+			nested_handle_status) == CB_ERR);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) ==
+			CB_SUCCESS);
+		return;
+	}
+	if (!strcmp(mode, "callback-close")) {
+		assert(authenticate_intent(&capsule) == CB_ERR);
+		assert(!capsule_broker_generation_matches(GENERATION));
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_ERR);
+		return;
+	}
+	if (!strcmp(mode, "callback-mutation")) {
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		assert(capsule.transaction == 2 && capsule.digest[0] !=
+			fixture.message.digest[0]);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 2, 11) == CB_ERR);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) ==
+			CB_SUCCESS);
+		return;
+	}
+	if (!strcmp(mode, "happy") || !strcmp(mode, "source-mutation") ||
+	    !strcmp(mode, "context-mutation") || !strcmp(mode, "check-only")) {
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		assert(authenticate_calls == 1);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_ERR);
+		if (!strcmp(mode, "context-mutation")) {
+			capsule.transaction++;
+			assert(authenticate_intent(&capsule) == CB_SUCCESS);
+			assert(authenticate_calls == 2);
+		}
+		return;
+	}
+	if (!strcmp(mode, "set-one-shot")) {
+		struct payload_mm_fmp_capsule_intent second;
+
+		capsule.operation = PAYLOAD_MM_FMP_CAPSULE_SET;
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		second = capsule;
+		second.transaction++;
+		assert(authenticate_intent(&second) == CB_ERR);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 2, 11) == CB_ERR);
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) ==
+			CB_SUCCESS);
+		assert(authenticate_intent(&second) == CB_ERR);
+		assert(authenticate_calls == 1);
+		return;
+	}
+	assert(authenticate_intent(&capsule) == CB_ERR);
+	if (!strcmp(mode, "digest") || !strcmp(mode, "generation") ||
+	    !strcmp(mode, "image-size") || !strcmp(mode, "operation") ||
+	    !strcmp(mode, "flags") || !strcmp(mode, "revision") ||
+	    !strcmp(mode, "size") || !strcmp(mode, "transaction") ||
+	    !strcmp(mode, "algorithm") || !strcmp(mode, "digest-size") ||
+	    !strcmp(mode, "reserved") || !strcmp(mode, "closed") ||
+	    !strcmp(mode, "unstaged")) {
+		assert(authenticate_calls == 0);
+	} else {
+		assert(authenticate_calls == 1);
+	}
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_ERR);
+	assert(!fixture.reads && !fixture.erases && !fixture.writes);
+	if (!strcmp(mode, "guard")) {
+		authenticate_drops_guard = false;
+		runtime_dma_guard = true;
+		assert(authenticate_intent(&capsule) == CB_SUCCESS);
+		assert(authenticate_calls == 2);
+	}
+}
+
+static void callback_boundary_case(const char *mode)
+{
+	struct fixture fixture;
+	struct payload_mm_fmp_capsule_intent capsule;
+	const bool proof = !strncmp(mode, "proof-", 6);
+	const bool close = strstr(mode, "-close-") != NULL;
+	const size_t target = (size_t)(mode[strlen(mode) - 1] - '0');
+	size_t expected_proofs;
+
+	initialize(&fixture);
+	install(&fixture);
+	memset(proof_calls, 0, sizeof(proof_calls));
+	sha256_calls = 0;
+	capsule = intent(&fixture, PAYLOAD_MM_FMP_CAPSULE_SET, 1, 11);
+	callback_attack = close ? CALLBACK_ATTACK_CLOSE :
+		CALLBACK_ATTACK_REENTER_GRANT;
+	if (proof)
+		proof_attack_target = (enum proof_callback)target;
+	else
+		sha256_attack_call = target;
+	if (close) {
+		assert(authenticate_intent(&capsule) == CB_ERR);
+		assert(!capsule_broker_generation_matches(GENERATION));
+		assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_ERR);
+		if (proof) {
+			for (size_t i = PROOF_DMA_COMMUNICATION;
+			     i < PROOF_COUNT; i++)
+				assert(proof_calls[i] == (i <= target));
+			assert(sha256_calls == 0);
+			assert(authenticate_calls == 0);
+		} else {
+			expected_proofs = target == 1 ? 1 : 3;
+			for (size_t i = PROOF_DMA_COMMUNICATION;
+			     i < PROOF_COUNT; i++)
+				assert(proof_calls[i] == expected_proofs);
+			assert(sha256_calls == target);
+			assert(authenticate_calls == (target == 2));
+		}
+		return;
+	}
+	assert(authenticate_intent(&capsule) == CB_SUCCESS);
+	assert(nested_authenticate_status == CB_ERR);
+	assert(nested_grant_status == CB_ERR);
+	assert(authenticate_calls == 1);
+	for (size_t i = PROOF_DMA_COMMUNICATION; i < PROOF_COUNT; i++)
+		assert(proof_calls[i] == 4);
+	assert(sha256_calls == 2);
+	assert(capsule_broker_checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 }
 
 int main(int argc, char **argv)
@@ -650,6 +1074,13 @@ int main(int argc, char **argv)
 		grant_edges();
 	else if (!strcmp(argv[1], "generation-match"))
 		generation_match_case();
+	else if (!strncmp(argv[1], "authenticate-", 13))
+		authentication_case(argv[1] + 13);
+	else if (!strncmp(argv[1], "proof-close-", 12) ||
+		 !strncmp(argv[1], "proof-reenter-", 14) ||
+		 !strncmp(argv[1], "hash-close-", 11) ||
+		 !strncmp(argv[1], "hash-reenter-", 13))
+		callback_boundary_case(argv[1]);
 	else if (!strncmp(argv[1], "install-", 8))
 		invalid_install(argv[1] + 8);
 	else
