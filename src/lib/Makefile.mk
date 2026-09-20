@@ -2,6 +2,9 @@
 
 ramstage-$(CONFIG_CAPSULE_UPDATE_CONTRACT) += capsule_update.c capsule_update_backend.c
 ramstage-$(CONFIG_CAPSULE_UPDATE_CONTRACT) += payload_mm_fmp_owner_layout.c
+ramstage-$(CONFIG_CAPSULE_TPM_ANCHOR_TRANSITION) += \
+	payload_mm_fmp_owner_journal_format.c \
+	payload_mm_fmp_owner_prepared_reader.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar_runtime.c
@@ -12,6 +15,7 @@ smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_info.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_layout.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_journal.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_journal_format.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_rdev.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c

@@ -62,10 +62,26 @@ input, failed durable proof, mutation, stale ownership, an unexpected anchor,
 failed readback or replay produces no grant. The coordinator is excluded from
 SMM and neither SMM nor the grant consumer can access the TPM.
 
+The coordinator includes a default-off, read-only proof component for the
+first item. A platform gives it exactly two already bounded `region_device`
+children for the validated owner-journal layout, the layout itself, a SHA-256
+provider, and an immutable current-anchor snapshot obtained by the pre-OS TPM
+owner. It hashes the layout rather than trusting a supplied storage-domain
+value, scans every bounded slot, and requires the exact current manifest,
+candidate manifest and one `PREPARED` companion named by the coordinator's
+grant argument. Current and candidate must retain one identity binding. The
+generation, transaction, current and candidate tuple must match exactly.
+Every non-erased malformed companion, ambiguous candidate, stale prepared
+tuple, short read or changed sealed input fails closed. The exact current and
+candidate slots are read back before the one proof attempt is consumed.
+
+The version-1 journal format has no CRC field. Manifest integrity is the
+anchor's SHA-256 digest; companion integrity is its exact fixed tuple, one-way
+state encoding and durable readback. The reader preserves this ABI rather than
+inventing an incompatible checksum interpretation for the reserved field.
+
 There is still no production provider because the tree does not yet have:
 
-* a non-SMM reader which independently verifies the exact durable `PREPARED`
-  journal sidecar and candidate manifest;
 * a provider which executes the fixed `PolicyNvWritten(true)`, exact-current
   `PolicyNV`, exact replacement-write `PolicyCpHash`, external-key signature
   verification and `PolicyAuthorize` sequence through the supplied lifecycle
@@ -74,9 +90,10 @@ There is still no production provider because the tree does not yet have:
 
 Consequently no platform selects the coordinator and no TPM mutation becomes
 reachable. The callback contract does not turn an assertion into proof: a
-production prepared callback must reread durable media, and the authorization
-callback must recompute and use the exact cpHash rather than trusting the
-input bytes alone.
+selected platform must source the reader's bounded media and current-anchor
+snapshot from the same immutable pre-OS ownership policy, and the authorization
+callback must recompute and use the exact cpHash rather than trusting the input
+bytes alone.
 
 Advancing the TPM first would create a power-loss interval in which the only
 authoritative anchor names a manifest that does not exist. A production split
@@ -106,3 +123,9 @@ one SMM call. The new prepared/reconcile entry points are compiled only with
 this default-off option and are not selected by a platform. Factory
 provisioning remains a separate operation. No TPM call, SMI, table publication,
 platform route or raw-flash access is added.
+
+Host coverage for the reader is in
+`tests/lib/payload_mm_fmp_owner_prepared_reader_test.sh`. It runs O0, O2,
+strict-warning, ASan and UBSan builds over exact success, one-shot replay,
+torn companions, tuple replay, stale anchors, duplicate preparation, short
+reads, media mutation, split identity binding and committed-only media.

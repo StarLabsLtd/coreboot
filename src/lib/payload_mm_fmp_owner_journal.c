@@ -11,9 +11,6 @@
 #error "Payload-MM FMP owner journal must only be built in SMM"
 #endif
 
-#define OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL /* "PMMPJNL1" */
-#define OWNER_PREPARED_MAGIC 0x31504552504d4d50ULL /* "PMMPREP1" */
-
 struct journal_policy {
 	struct payload_mm_fmp_owner_journal_port port;
 	uint8_t context[PAYLOAD_MM_FMP_OWNER_JOURNAL_CONTEXT_SIZE] __aligned(8);
@@ -148,21 +145,7 @@ static enum cb_err media_program(uint64_t offset, const void *buffer,
 static bool prepared_shape_valid(
 	const struct payload_mm_fmp_owner_prepared *prepared)
 {
-	return prepared->magic == OWNER_PREPARED_MAGIC &&
-		prepared->revision == PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION &&
-		prepared->size == sizeof(*prepared) &&
-		(prepared->state == PAYLOAD_MM_FMP_OWNER_PREPARED_STATE ||
-		 prepared->state == PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE) &&
-		!prepared->reserved && prepared->generation && prepared->transaction &&
-		prepared->current.epoch &&
-		prepared->current.epoch != UINT64_MAX &&
-		prepared->candidate.epoch == prepared->current.epoch + 1 &&
-		!bytes_equal_value(prepared->current.digest,
-			sizeof(prepared->current.digest), 0) &&
-		!bytes_equal_value(prepared->candidate.digest,
-			sizeof(prepared->candidate.digest), 0) &&
-		memcmp(prepared->current.digest, prepared->candidate.digest,
-			sizeof(prepared->current.digest)) != 0;
+	return payload_mm_fmp_owner_journal_prepared_shape_valid(prepared);
 }
 
 static enum cb_err prepared_read(uint64_t slot_offset,
@@ -202,8 +185,7 @@ static bool anchor_equal(
 	const struct payload_mm_fmp_owner_journal_anchor *left,
 	const struct payload_mm_fmp_owner_journal_anchor *right)
 {
-	return left->epoch == right->epoch &&
-		!memcmp(left->digest, right->digest, sizeof(left->digest));
+	return payload_mm_fmp_owner_journal_anchor_equal(left, right);
 }
 
 static bool anchor_cleared(
@@ -228,26 +210,15 @@ static enum cb_err anchor_read(
 static bool manifest_shape_valid(
 	const struct payload_mm_fmp_owner_journal_manifest *manifest)
 {
-	if (manifest->magic != OWNER_JOURNAL_MAGIC ||
-	    manifest->revision != PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION ||
-	    manifest->size != sizeof(*manifest) ||
-	    manifest->slot_size != journal.policy.port.layout.slot_size ||
-	    manifest->owner_record_size !=
-		sizeof(struct payload_mm_fmp_owner_record) ||
-	    manifest->owner_record_count != PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS ||
-	    manifest->format != PAYLOAD_MM_FMP_OWNER_JOURNAL_FORMAT ||
-	    !manifest->epoch ||
+	if (!payload_mm_fmp_owner_journal_manifest_shape_valid(manifest,
+		journal.policy.port.layout.slot_size) ||
 	    memcmp(manifest->storage_domain,
 		journal.storage_domain,
 		sizeof(manifest->storage_domain)) != 0 ||
 	    memcmp(manifest->identity_binding, journal.identity_binding,
 		sizeof(manifest->identity_binding)) != 0)
 		return false;
-	for (uint32_t key = 0; key < PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS; key++)
-		if (!payload_mm_fmp_owner_record_valid(key,
-			&manifest->record[key]))
-			return false;
-	return true;
+	return payload_mm_fmp_owner_journal_manifest_records_valid(manifest);
 }
 
 static enum cb_err slot_erased(uint64_t offset, bool *erased)
@@ -706,7 +677,7 @@ enum cb_err payload_mm_fmp_owner_journal_prepare(
 	if (write_manifest(domain, slot, &next) != CB_SUCCESS)
 		goto out;
 	prepared = (struct payload_mm_fmp_owner_prepared) {
-		.magic = OWNER_PREPARED_MAGIC,
+		.magic = PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC,
 		.revision = PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION,
 		.size = sizeof(prepared),
 		.state = PAYLOAD_MM_FMP_OWNER_PREPARED_STATE,
@@ -878,7 +849,7 @@ enum cb_err payload_mm_fmp_owner_journal_factory_provision(
 	struct payload_mm_fmp_owner_record
 		record_snapshot[PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS];
 	struct payload_mm_fmp_owner_journal_manifest manifest = {
-		.magic = OWNER_JOURNAL_MAGIC,
+		.magic = PAYLOAD_MM_FMP_OWNER_JOURNAL_MAGIC,
 		.revision = PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION,
 		.size = sizeof(manifest),
 		.slot_size = journal.policy.port.layout.slot_size,
