@@ -13,9 +13,16 @@
 #define Q35_VTD_RTADDR 0x20U
 #define Q35_VTD_CCMD 0x28U
 #define Q35_VTD_FSTS 0x34U
+#define Q35_VTD_PMEN 0x64U
+#define Q35_VTD_PLMBASE 0x68U
+#define Q35_VTD_PLMLIMIT 0x6cU
+#define Q35_VTD_PHMBASE 0x70U
+#define Q35_VTD_PHMLIMIT 0x78U
 #define Q35_VTD_ROOT_SET (1U << 30)
 #define Q35_VTD_TRANSLATION_ENABLE (1U << 31)
 #define Q35_VTD_FAULT_PENDING (1U << 1)
+#define Q35_VTD_PMR_ENABLE (1U << 31)
+#define Q35_VTD_PMR_STATUS (1U << 0)
 
 struct q35_vtd_io {
 	void *context;
@@ -25,5 +32,6 @@ struct q35_vtd_io {
 };
 
 int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys);
+int q35_vtd_invalidate(const struct q35_vtd_io *io);
 
 #endif

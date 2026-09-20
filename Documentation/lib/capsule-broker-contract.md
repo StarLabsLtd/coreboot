@@ -67,6 +67,13 @@ independently isolate the exact communication and staging reservations from DMA
 and keep that isolation through writer completion before it may install or
 publish the endpoint.
 
+The separate default-off QEMU `Q35_CAPSULE_DMA_TEST_PROOF` option supplies a
+test-only `dma_protected` callback for the fixed geometry.  It rereads VT-d,
+PMR, immutable table, enabled-requester and BME state and performs real denied
+EDU writes into both allocations plus a mapped positive control on every call.
+It does not install this policy, set the endpoint flag, register an SMI or
+publish an endpoint; those remain composition responsibilities.
+
 The same rules apply to the authentication callback and its bounded context.
 The callback's success contract is complete authentication and policy approval
 of the exact staged capsule envelope, including signature, capsule format,

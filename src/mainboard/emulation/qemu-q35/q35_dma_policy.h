@@ -18,6 +18,27 @@ struct q35_dma_facts {
 	bool bus_master_clear;
 };
 
+struct q35_capsule_dma_geometry {
+	uint64_t communication_base;
+	uint64_t communication_reserved_size;
+	uint64_t communication_size;
+	uint64_t staging_base;
+	uint64_t staging_size;
+};
+
+struct q35_dma_pmr_state {
+	uint32_t enable;
+	uint32_t low_base;
+	uint32_t low_limit;
+	uint64_t high_base;
+	uint64_t high_limit;
+};
+
 bool q35_dma_facts_valid(const struct q35_dma_facts *facts);
+bool q35_capsule_dma_range_valid(
+	const struct q35_capsule_dma_geometry *geometry,
+	uint64_t base, uint64_t size);
+bool q35_dma_pmr_state_matches(const struct q35_dma_pmr_state *expected,
+	const struct q35_dma_pmr_state *observed);
 
 #endif

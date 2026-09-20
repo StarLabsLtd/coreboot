@@ -51,6 +51,15 @@ static int iotlb_offset(const struct q35_vtd_io *io, uint32_t *iotlb)
 	return *iotlb < 0x40U || *iotlb > 0xff0U ? -1 : 0;
 }
 
+int q35_vtd_invalidate(const struct q35_vtd_io *io)
+{
+	uint32_t iotlb;
+
+	if (!io || !io->read32 || !io->write32 || iotlb_offset(io, &iotlb))
+		return -1;
+	return invalidate(io, iotlb);
+}
+
 int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys)
 {
 	uint32_t iotlb;
@@ -76,7 +85,7 @@ int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys)
 	io->write32(io->context, Q35_VTD_GCMD, Q35_VTD_ROOT_SET);
 	if (wait_for(io, Q35_VTD_GSTS, Q35_VTD_ROOT_SET, Q35_VTD_ROOT_SET))
 		return -6;
-	if (invalidate(io, iotlb))
+	if (q35_vtd_invalidate(io))
 		return -7;
 	io->write32(io->context, Q35_VTD_GCMD, Q35_VTD_TRANSLATION_ENABLE);
 	if (wait_for(io, Q35_VTD_GSTS, Q35_VTD_TRANSLATION_ENABLE,
