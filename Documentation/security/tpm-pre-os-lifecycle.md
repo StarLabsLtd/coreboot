@@ -79,6 +79,12 @@ exact reconciliation phases, but no platform selects them. The tree still does
 not supply the signed authorization or TPM-owner producer required to advance
 the provisioned index and install that grant safely.
 
+The dormant transition coordinator now enforces this lifecycle boundary for a
+future capsule provider. It acquires one token, exposes only a transmit proxy
+to that provider, resolves an authorized write by exact NV readback, and calls
+the grant-install boundary only after `handoff()` has quiesced and released
+the transport. No transition coordinator object is linked into SMM.
+
 ## Provider requirements
 
 Discrete FIFO/MMIO, SPI and I2C providers must finish or abort to

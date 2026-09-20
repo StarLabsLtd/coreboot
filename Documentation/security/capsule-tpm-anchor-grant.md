@@ -36,10 +36,47 @@ candidate merely because its anchor has advanced. A torn or malformed
 companion is ignored while the old anchor remains authoritative; ambiguous
 commit-marker writes are accepted only after exact readback.
 
-There is still no producer because the tree does not yet have:
+The default-off `CAPSULE_TPM_ANCHOR_TRANSITION` option adds the bounded pre-OS
+coordinator contract for this ordering. Its fixed 1312-byte authorization
+snapshot binds the descriptor policy revision and NV index, boot generation,
+transaction, exact current and candidate anchors, approved policy, write
+cpHash, authority Name, policy reference, caller nonce, RSA public modulus and
+RSASSA signature. Only RSA-2048, RSA-3072 and RSA-4096 material is admitted;
+unused tails and reserved fields must be zero. The structure contains no
+private key, password, address or callable object.
 
-* a signed `PolicyAuthorize` input and platform provider bound to the capsule
-  authority and exact NV write.
+The coordinator is atomic and one-shot. It snapshots every caller-owned input,
+requires a synchronous provider to prove the exact durable `PREPARED` record,
+and permits TPM traffic only through an acquired pre-OS lifecycle token. It
+checks that the provider did not alter its proof argument, discards that
+argument, and rebuilds the final grant from the immutable authorization
+snapshot. It reads the anchor before mutation. A current anchor permits one
+authorized replacement-write attempt; a candidate anchor means a prior
+ambiguous write already completed and is not replayed. The write status is
+advisory in either case: a second authoritative read must return the exact
+candidate before a grant can be produced. Every other value fails closed.
+
+The lifecycle is ended, quiesced and released before the exact grant and
+binding are handed to the provider for one protected SMM installation. Invalid
+input, failed durable proof, mutation, stale ownership, an unexpected anchor,
+failed readback or replay produces no grant. The coordinator is excluded from
+SMM and neither SMM nor the grant consumer can access the TPM.
+
+There is still no production provider because the tree does not yet have:
+
+* a non-SMM reader which independently verifies the exact durable `PREPARED`
+  journal sidecar and candidate manifest;
+* a provider which executes the fixed `PolicyNvWritten(true)`, exact-current
+  `PolicyNV`, exact replacement-write `PolicyCpHash`, external-key signature
+  verification and `PolicyAuthorize` sequence through the supplied lifecycle
+  transport; or
+* a protected pre-payload route which installs the one-shot grant in SMM.
+
+Consequently no platform selects the coordinator and no TPM mutation becomes
+reachable. The callback contract does not turn an assertion into proof: a
+production prepared callback must reread durable media, and the authorization
+callback must recompute and use the exact cpHash rather than trusting the
+input bytes alone.
 
 Advancing the TPM first would create a power-loss interval in which the only
 authoritative anchor names a manifest that does not exist. A production split
