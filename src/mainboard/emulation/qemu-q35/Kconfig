@@ -48,6 +48,17 @@ config Q35_CAPSULE_BROKER_TEST_PROOF
 	  provider. The checkpoint bridge is test-only until a backend provides
 	  atomic, reset-safe, rollback-protected persistence.
 
+config Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF
+	bool "QEMU-only fixed capsule buffer reservation proof"
+	default n
+	select Q35_CAPSULE_BROKER_TEST_PROOF
+	select CAPSULE_BROKER_FIXED_BUFFERS
+	help
+	  Reserve fixed communication and bounded staging memory from the QEMU
+	  resource map and compile protected SMM scratch. This proves allocation
+	  and lifetime only. It does not claim DMA protection, install the broker,
+	  register an SMI route or publish an endpoint.
+
 config Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF
 	bool "QEMU-only Payload-MM owner FMAP proof"
 	default n

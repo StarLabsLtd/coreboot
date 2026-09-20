@@ -33,6 +33,40 @@ self-contained authority: an embedded pointer may address media data or
 hardware, but
 must not redirect policy or proof decisions to mutable payload memory.
 
+### Fixed-buffer allocation prerequisite
+
+`CAPSULE_BROKER_FIXED_BUFFERS` provides allocation and lifetime ownership
+without installing or advertising the broker. The QEMU Q35 proof carves one
+contiguous page-aligned reservation immediately below TSEG by lowering the
+coreboot CBMEM ceiling and adding the exact carved range to the northbridge
+resource map. The communication page and staging range are then derived from
+that immutable boundary in every stage. Before the `LB_MEM_*` map is
+serialized, coreboot requires both complete subranges to be `BM_MEM_RESERVED`.
+Payload segment loading therefore cannot target them, and the operating system
+sees them as reserved for the rest of the boot. Reservation fails closed if the
+platform does not supply an aligned nonzero staging capacity, the address
+calculation underflows, either range is not reserved, the CBMEM ceiling does not
+equal the communication base, or the ranges overlap.
+
+The communication allocation is one page, but only the fixed 168-byte transport
+prefix is eligible for a future endpoint. The staging capacity is immutable
+platform policy. The QEMU Q35 proof derives it from the configured ROM extent
+plus one MiB for the bounded authentication and FMP envelope; neither address
+comes from a PCD, payload build argument or caller pointer. The exact geometry
+is copied directly into the protected SMM module parameters before lock, never
+reconstructed from a public table. Both complete allocations are zeroed before
+their geometry becomes available and the SMM owner provides an explicit full
+scrub operation. Protected writer scratch is a
+separate page-aligned 4 KiB arena in the SMM module, zeroed on its one permitted
+acquisition and explicitly scrubbed after use.
+
+This is deliberately not a DMA claim. The option does not provide a
+`dma_protected` proof, set `LB_CAPSULE_ENDPOINT_DMA_PROTECTED`, install a broker,
+register an SMI or publish either capsule table record. A later composition must
+independently isolate the exact communication and staging reservations from DMA
+and keep that isolation through writer completion before it may install or
+publish the endpoint.
+
 The same rules apply to the authentication callback and its bounded context.
 The callback's success contract is complete authentication and policy approval
 of the exact staged capsule envelope, including signature, capsule format,

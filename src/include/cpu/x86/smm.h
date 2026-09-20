@@ -111,6 +111,13 @@ struct smm_runtime {
 	uintptr_t opal_s3_state_base;
 	size_t opal_s3_state_size;
 #endif
+#if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
+	uintptr_t capsule_communication_base;
+	size_t capsule_communication_reserved_size;
+	size_t capsule_communication_size;
+	uintptr_t capsule_staging_base;
+	size_t capsule_staging_size;
+#endif
 } __packed;
 
 struct smm_module_params {
@@ -256,6 +263,11 @@ void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
+struct capsule_broker_buffer_reservation;
+void smm_get_capsule_broker_buffers(
+	struct capsule_broker_buffer_reservation *reservation);
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif
