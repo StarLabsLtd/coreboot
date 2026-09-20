@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 tests-y += efivars-test
+tests-y += payload_spi_console-test
+
+payload_spi_console-test-srcs += tests/drivers/payload_spi_console-test.c
+payload_spi_console-test-srcs += src/drivers/spi/payload_spi_console.c
 
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c

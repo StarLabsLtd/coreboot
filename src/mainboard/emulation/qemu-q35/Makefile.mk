@@ -14,6 +14,7 @@ ramstage-y += cpu.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += payload_resource_handoff.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_dma_handoff.c q35_dma_policy.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_registers.c
+ramstage-$(CONFIG_PAYLOAD_LOCAL_APIC_TIMER_INFO) += lapic_timer.c
 
 all-y += ../qemu-i440fx/bootmode.c
 all-y += memmap.c

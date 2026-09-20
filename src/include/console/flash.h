@@ -4,12 +4,17 @@
 #define CONSOLE_FLASH_H 1
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 
 void flashconsole_init(void);
 void flashconsole_tx_byte(unsigned char c);
 void flashconsole_tx_flush(void);
+bool flashconsole_append(const uint8_t *data, size_t length);
 
-#define __CONSOLE_FLASH_ENABLE__	CONFIG(CONSOLE_SPI_FLASH)
+#define __CONSOLE_FLASH_ENABLE__ \
+	(CONFIG(CONSOLE_SPI_FLASH) && \
+	 (!CONFIG(BOARD_EMULATION_QEMU_X86_Q35) || ENV_RAMSTAGE || ENV_SMM))
 
 #if __CONSOLE_FLASH_ENABLE__
 static inline void __flashconsole_init(void)	{ flashconsole_init(); }

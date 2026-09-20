@@ -6,6 +6,7 @@
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <console/console.h>
+#include <console/payload_spi_console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
 #include <device/device.h>
@@ -366,6 +367,18 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		}
 		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
 		mod_params->smmstore_com_buffer_size = info.block_size;
+	}
+
+	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)) {
+		void *ptr = cbmem_add(CBMEM_ID_PAYLOAD_SPI_CONSOLE,
+			PAYLOAD_SPI_CONSOLE_BUFFER_SIZE);
+		if (!ptr) {
+			printk(BIOS_ERR, "Payload SPI console: no communication buffer\n");
+		} else {
+			mod_params->payload_spi_console_buffer_base = (uintptr_t)ptr;
+			mod_params->payload_spi_console_buffer_size =
+				PAYLOAD_SPI_CONSOLE_BUFFER_SIZE;
+		}
 	}
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
