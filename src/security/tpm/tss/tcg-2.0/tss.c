@@ -16,6 +16,45 @@
  * TPM2 specification.
  */
 
+static void *scoped_process_command(const struct tlcl2_transport *transport,
+	TPM_CC command, void *command_body, uint8_t *buffer, size_t buffer_size,
+	struct tpm2_response *response)
+{
+	struct obuf ob;
+	struct ibuf ib;
+	size_t out_size;
+	size_t in_size;
+	const uint8_t *sendb;
+	/* Command/response buffer. */
+
+	if (!transport || !transport->sendrecv || !response) {
+		printk(BIOS_ERR, "Attempted use of uninitialized TSS 2.0 stack\n");
+		return NULL;
+	}
+
+	obuf_init(&ob, buffer, buffer_size);
+
+	if (tpm_marshal_command(command, command_body, &ob) < 0) {
+		printk(BIOS_ERR, "command %#x\n", command);
+		return NULL;
+	}
+
+	sendb = obuf_contents(&ob, &out_size);
+
+	in_size = buffer_size;
+	if (transport->sendrecv(transport->context, sendb, out_size, buffer,
+		&in_size)) {
+		printk(BIOS_ERR, "tpm transaction failed\n");
+		return NULL;
+	}
+	if (in_size > buffer_size)
+		return NULL;
+
+	ibuf_init(&ib, buffer, in_size);
+
+	return tpm_unmarshal_response_to(command, &ib, response);
+}
+
 void *tlcl2_process_command(TPM_CC command, void *command_body)
 {
 	struct obuf ob;
@@ -216,7 +255,46 @@ tpm_result_t tlcl2_physical_presence_cmd_enable(void)
 	return TPM_SUCCESS;
 }
 
-tpm_result_t tlcl2_read(uint32_t index, void *data, uint32_t length)
+static struct tpm2_response *auth_read_command(
+	const struct tlcl2_transport *transport, uint32_t index, uint32_t length,
+	uint8_t *buffer, struct tpm2_response *response)
+{
+	struct obuf output;
+	struct ibuf input;
+	size_t request_size;
+	size_t response_size = TPM_BUFFER_SIZE;
+
+	if (length > UINT16_MAX)
+		return NULL;
+	memset(buffer, 0, TPM_BUFFER_SIZE);
+	obuf_init(&output, buffer, TPM_BUFFER_SIZE);
+	if (obuf_write_be16(&output, TPM_ST_SESSIONS) ||
+	    obuf_write_be32(&output, 0) ||
+	    obuf_write_be32(&output, TPM2_NV_Read) ||
+	    obuf_write_be32(&output, HR_NV_INDEX + index) ||
+	    obuf_write_be32(&output, HR_NV_INDEX + index) ||
+	    obuf_write_be32(&output, 9) ||
+	    obuf_write_be32(&output, TPM_RS_PW) ||
+	    obuf_write_be16(&output, 0) || obuf_write_be8(&output, 0) ||
+	    obuf_write_be16(&output, 0) || obuf_write_be16(&output, length) ||
+	    obuf_write_be16(&output, 0))
+		return NULL;
+	request_size = obuf_nr_written(&output);
+	buffer[2] = request_size >> 24;
+	buffer[3] = request_size >> 16;
+	buffer[4] = request_size >> 8;
+	buffer[5] = request_size;
+	if (transport->sendrecv(transport->context, buffer, request_size, buffer,
+		&response_size) || response_size > TPM_BUFFER_SIZE)
+		return NULL;
+	ibuf_init(&input, buffer, response_size);
+	return tpm_unmarshal_response_to(TPM2_NV_Read, &input, response);
+}
+
+static tpm_result_t read_scoped(const struct tlcl2_transport *transport,
+	uint32_t index, void *data, uint32_t length, bool index_auth,
+	uint8_t *buffer,
+	struct tpm2_response *scoped_response)
 {
 	struct tpm2_nv_read_cmd nv_readc;
 	struct tpm2_response *response;
@@ -226,7 +304,12 @@ tpm_result_t tlcl2_read(uint32_t index, void *data, uint32_t length)
 	nv_readc.nvIndex = HR_NV_INDEX + index;
 	nv_readc.size = length;
 
-	response = tlcl2_process_command(TPM2_NV_Read, &nv_readc);
+	if (index_auth)
+		response = auth_read_command(transport, index, length, buffer,
+			scoped_response);
+	else
+		response = scoped_process_command(transport, TPM2_NV_Read,
+			&nv_readc, buffer, TPM_BUFFER_SIZE, scoped_response);
 
 	/* Need to map tpm error codes into internal values. */
 	if (!response)
@@ -263,6 +346,85 @@ tpm_result_t tlcl2_read(uint32_t index, void *data, uint32_t length)
 	memcpy(data, response->nvr.buffer.t.buffer, length);
 
 	return TPM_SUCCESS;
+}
+
+tpm_result_t tlcl2_read(uint32_t index, void *data, uint32_t length)
+{
+	struct tpm2_nv_read_cmd nv_readc;
+	struct tpm2_response *response;
+
+	memset(&nv_readc, 0, sizeof(nv_readc));
+
+	nv_readc.nvIndex = HR_NV_INDEX + index;
+	nv_readc.size = length;
+
+	response = tlcl2_process_command(TPM2_NV_Read, &nv_readc);
+
+	/* Need to map tpm error codes into internal values. */
+	if (!response)
+		return TPM_CB_READ_FAILURE;
+	printk(BIOS_INFO, "%s:%d index %#x return code %#x\n",
+	       __FILE__, __LINE__, index, response->hdr.tpm_code);
+	switch (response->hdr.tpm_code) {
+	case 0:
+		break;
+
+		/* Uninitialized, returned if the space hasn't been written. */
+	case TPM_RC_NV_UNINITIALIZED:
+		/*
+		 * Bad index, cr50 specific value, returned if the space
+		 * hasn't been defined.
+		 */
+	case TPM_RC_CR50_NV_UNDEFINED:
+		return TPM_BADINDEX;
+
+	case TPM_RC_NV_RANGE:
+		return TPM_CB_RANGE;
+
+	default:
+		return TPM_CB_READ_FAILURE;
+	}
+	if (length > response->nvr.buffer.t.size)
+		return TPM_CB_RESPONSE_TOO_LARGE;
+
+	if (length < response->nvr.buffer.t.size)
+		return TPM_CB_READ_EMPTY;
+
+	memcpy(data, response->nvr.buffer.t.buffer, length);
+
+	return TPM_SUCCESS;
+}
+
+tpm_result_t tlcl2_read_on(const struct tlcl2_transport *transport,
+	uint32_t index, void *data, uint32_t length)
+{
+	struct tlcl2_transport snapshot;
+	struct tpm2_response response;
+	uint8_t buffer[TPM_BUFFER_SIZE];
+
+	if (!transport || !data || index > 0x00ffffffU)
+		return TPM_CB_RANGE;
+	snapshot = *transport;
+	if (!snapshot.sendrecv)
+		return TPM_CB_RANGE;
+	return read_scoped(&snapshot, index, data, length, false, buffer,
+		&response);
+}
+
+tpm_result_t tlcl2_read_auth_on(const struct tlcl2_transport *transport,
+	uint32_t index, void *data, uint32_t length)
+{
+	struct tlcl2_transport snapshot;
+	struct tpm2_response response;
+	uint8_t buffer[TPM_BUFFER_SIZE];
+
+	if (!transport || !data || index > 0x00ffffffU)
+		return TPM_CB_RANGE;
+	snapshot = *transport;
+	if (!snapshot.sendrecv)
+		return TPM_CB_RANGE;
+	return read_scoped(&snapshot, index, data, length, true, buffer,
+		&response);
 }
 
 tpm_result_t tlcl2_self_test_full(void)
@@ -467,6 +629,41 @@ tpm_result_t tlcl2_get_capability(TPM_CAP capability, uint32_t property,
 	return TPM_SUCCESS;
 }
 
+static tpm_result_t read_public_scoped(
+	const struct tlcl2_transport *transport,
+	uint32_t index, struct tlcl2_nv_public *public, uint8_t *buffer,
+	struct tpm2_response *scoped_response)
+{
+	struct tpm2_nv_read_public_cmd command = {
+		.nv_index = HR_NV_INDEX + index,
+	};
+	struct tpm2_response *response;
+	struct tlcl2_nv_public result;
+
+	if (!public)
+		return TPM_CB_RANGE;
+	memset(public, 0, sizeof(*public));
+	if (index > 0x00ffffff)
+		return TPM_CB_RANGE;
+	response = scoped_process_command(transport, TPM2_NV_ReadPublic, &command,
+		buffer, TPM_BUFFER_SIZE, scoped_response);
+	if (!response || response->hdr.tpm_code != TPM2_RC_SUCCESS ||
+	    response->hdr.tpm_tag != TPM_ST_NO_SESSIONS ||
+	    response->nvrp.nv_index != command.nv_index)
+		return TPM_CB_READ_FAILURE;
+	result = (struct tlcl2_nv_public) {
+		.index = index,
+		.name_alg = response->nvrp.name_alg,
+		.attributes = response->nvrp.attributes,
+		.auth_policy_size = response->nvrp.auth_policy_size,
+		.data_size = response->nvrp.data_size,
+	};
+	memcpy(result.auth_policy, response->nvrp.auth_policy,
+		result.auth_policy_size);
+	*public = result;
+	return TPM_SUCCESS;
+}
+
 tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public)
 {
 	struct tpm2_nv_read_public_cmd command = {
@@ -496,4 +693,25 @@ tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public)
 		result.auth_policy_size);
 	*public = result;
 	return TPM_SUCCESS;
+}
+
+tpm_result_t tlcl2_read_public_on(const struct tlcl2_transport *transport,
+	uint32_t index, struct tlcl2_nv_public *public)
+{
+	struct tlcl2_transport snapshot;
+	struct tpm2_response response;
+	uint8_t buffer[TPM_BUFFER_SIZE];
+
+	if (!transport) {
+		if (public)
+			memset(public, 0, sizeof(*public));
+		return TPM_CB_RANGE;
+	}
+	snapshot = *transport;
+	if (!snapshot.sendrecv) {
+		if (public)
+			memset(public, 0, sizeof(*public));
+		return TPM_CB_RANGE;
+	}
+	return read_public_scoped(&snapshot, index, public, buffer, &response);
 }

@@ -39,5 +39,7 @@ int tpm_marshal_command(TPM_CC command, const void *tpm_command_body,
  * unmarshaling problems.
  */
 struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib);
+struct tpm2_response *tpm_unmarshal_response_to(TPM_CC command,
+	struct ibuf *ib, struct tpm2_response *response);
 
 #endif // TCG2_TSS_MARSHALING_H_

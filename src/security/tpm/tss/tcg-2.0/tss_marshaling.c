@@ -670,9 +670,9 @@ static int unmarshal_vendor_command(struct ibuf *ib,
 	return 0;
 }
 
-struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
+struct tpm2_response *tpm_unmarshal_response_to(TPM_CC command,
+	struct ibuf *ib, struct tpm2_response *response)
 {
-	static struct tpm2_response tpm2_static_resp;
 	uint16_t response_tag;
 	uint32_t response_size;
 	uint32_t response_code;
@@ -684,11 +684,11 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 
 	if (rc != 0)
 		return NULL;
-	tpm2_static_resp.hdr.tpm_tag = response_tag;
-	tpm2_static_resp.hdr.tpm_size = response_size;
-	tpm2_static_resp.hdr.tpm_code = response_code;
+	response->hdr.tpm_tag = response_tag;
+	response->hdr.tpm_size = response_size;
+	response->hdr.tpm_code = response_code;
 
-	if (ibuf_capacity(ib) != tpm2_static_resp.hdr.tpm_size) {
+	if (ibuf_capacity(ib) != response->hdr.tpm_size) {
 		printk(BIOS_ERR,
 		       "%s: size mismatch in response to command %#x\n",
 		       __func__, command);
@@ -698,8 +698,8 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 	/* On errors, we're not sure what the TPM is returning. None of the
 	   commands we use actually expect useful data payloads for errors, so
 	   just ignore any data after the header. */
-	if (tpm2_static_resp.hdr.tpm_code != TPM2_RC_SUCCESS)
-		return &tpm2_static_resp;
+	if (response->hdr.tpm_code != TPM2_RC_SUCCESS)
+		return response;
 
 	switch (command) {
 	case TPM2_Startup:
@@ -708,15 +708,15 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		break;
 
 	case TPM2_GetCapability:
-		rc |= unmarshal_get_capability(ib, &tpm2_static_resp.gc);
+		rc |= unmarshal_get_capability(ib, &response->gc);
 		break;
 
 	case TPM2_NV_Read:
-		rc |= unmarshal_nv_read(ib, &tpm2_static_resp.nvr);
+		rc |= unmarshal_nv_read(ib, &response->nvr);
 		break;
 
 	case TPM2_NV_ReadPublic:
-		rc |= unmarshal_nv_read_public(ib, &tpm2_static_resp.nvrp);
+		rc |= unmarshal_nv_read_public(ib, &response->nvrp);
 		break;
 
 	case TPM2_Hierarchy_Control:
@@ -732,7 +732,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		break;
 
 	case TPM2_CR50_VENDOR_COMMAND:
-		rc |= unmarshal_vendor_command(ib, &tpm2_static_resp.vcr);
+		rc |= unmarshal_vendor_command(ib, &response->vcr);
 		break;
 
 	default:
@@ -745,7 +745,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 			       "Request to unmarshal unexpected command %#x,"
 			       " code %#x",
 			       __func__, __LINE__, command,
-			       tpm2_static_resp.hdr.tpm_code);
+			       response->hdr.tpm_code);
 
 			sz_left = ibuf_remaining(ib);
 			data = ibuf_oob_drain(ib, sz_left);
@@ -764,7 +764,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		printk(BIOS_INFO,
 		       "%s:%d got %d bytes back in response to %#x,"
 		       " failed to parse (%zd)\n",
-		       __func__, __LINE__, tpm2_static_resp.hdr.tpm_size,
+		       __func__, __LINE__, response->hdr.tpm_size,
 		       command, ibuf_remaining(ib));
 		return NULL;
 	}
@@ -775,5 +775,12 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 	}
 
 	/* The entire message have been parsed. */
-	return &tpm2_static_resp;
+	return response;
+}
+
+struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
+{
+	static struct tpm2_response response;
+
+	return tpm_unmarshal_response_to(command, ib, &response);
 }
