@@ -19,7 +19,20 @@
 struct capsule_broker_raw_image {
 	uint64_t offset;
 	uint64_t size;
+	uint32_t lowest_supported_version;
+	uint32_t reserved;
 };
+
+/* Protected completion metadata released only after verified media success. */
+struct capsule_broker_success {
+	uint32_t version;
+	uint32_t lowest_supported_version;
+};
+
+_Static_assert(sizeof(struct capsule_broker_raw_image) == 24,
+	"capsule broker authenticated image layout");
+_Static_assert(sizeof(struct capsule_broker_success) == 8,
+	"capsule broker success layout");
 
 enum capsule_broker_result {
 	CAPSULE_BROKER_RESULT_SUCCESS = 0,

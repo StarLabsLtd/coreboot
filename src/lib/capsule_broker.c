@@ -28,11 +28,17 @@ static struct {
 	uint64_t authenticated_transaction;
 	uint64_t authenticated_owner_sequence;
 	uint64_t grant_owner_sequence;
+	uint64_t success_transaction;
+	uint64_t success_owner_sequence;
 	uint32_t authenticated_version;
+	uint32_t success_version;
+	uint32_t success_lowest_supported_version;
 	uint8_t authenticated_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	uint8_t success_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_raw_image authenticated_raw_image;
 	bool grant_valid;
 	bool authentication_valid;
+	bool success_valid;
 	bool authentication_in_progress;
 	bool installed;
 	bool install_attempted;
@@ -49,6 +55,16 @@ static void clear_authentication(void)
 		sizeof(broker.authenticated_digest));
 	memset(&broker.authenticated_raw_image, 0,
 		sizeof(broker.authenticated_raw_image));
+}
+
+static void clear_success(void)
+{
+	broker.success_valid = false;
+	broker.success_transaction = 0;
+	broker.success_owner_sequence = 0;
+	broker.success_version = 0;
+	broker.success_lowest_supported_version = 0;
+	memset(broker.success_digest, 0, sizeof(broker.success_digest));
 }
 
 static void clear_grant(void)
@@ -201,14 +217,20 @@ struct broker_control_state {
 	uint64_t authenticated_transaction;
 	uint64_t authenticated_owner_sequence;
 	uint64_t grant_owner_sequence;
+	uint64_t success_transaction;
+	uint64_t success_owner_sequence;
 	uint32_t grant_version;
 	uint32_t authenticated_version;
+	uint32_t success_version;
+	uint32_t success_lowest_supported_version;
 	uint8_t grant_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	uint8_t authenticated_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	uint8_t success_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_raw_image grant_raw_image;
 	struct capsule_broker_raw_image authenticated_raw_image;
 	bool grant_valid;
 	bool authentication_valid;
+	bool success_valid;
 	bool authentication_in_progress;
 	bool installed;
 	bool closed;
@@ -222,10 +244,16 @@ static struct broker_control_state control_state(void)
 		.authenticated_transaction = broker.authenticated_transaction,
 		.authenticated_owner_sequence = broker.authenticated_owner_sequence,
 		.grant_owner_sequence = broker.grant_owner_sequence,
+		.success_transaction = broker.success_transaction,
+		.success_owner_sequence = broker.success_owner_sequence,
 		.grant_version = broker.grant_version,
 		.authenticated_version = broker.authenticated_version,
+		.success_version = broker.success_version,
+		.success_lowest_supported_version =
+			broker.success_lowest_supported_version,
 		.grant_valid = broker.grant_valid,
 		.authentication_valid = broker.authentication_valid,
+		.success_valid = broker.success_valid,
 		.authentication_in_progress = broker.authentication_in_progress,
 		.installed = broker.installed,
 		.closed = broker.closed,
@@ -237,6 +265,8 @@ static struct broker_control_state control_state(void)
 		sizeof(state.grant_digest));
 	memcpy(state.authenticated_digest, broker.authenticated_digest,
 		sizeof(state.authenticated_digest));
+	memcpy(state.success_digest, broker.success_digest,
+		sizeof(state.success_digest));
 	return state;
 }
 
@@ -251,12 +281,19 @@ static bool control_state_matches(const struct broker_control_state *expected)
 		current.authenticated_owner_sequence ==
 			expected->authenticated_owner_sequence &&
 		current.grant_owner_sequence == expected->grant_owner_sequence &&
+		current.success_transaction == expected->success_transaction &&
+		current.success_owner_sequence == expected->success_owner_sequence &&
 		current.grant_version == expected->grant_version &&
 		current.authenticated_version == expected->authenticated_version &&
+		current.success_version == expected->success_version &&
+		current.success_lowest_supported_version ==
+			expected->success_lowest_supported_version &&
 		!memcmp(current.grant_digest, expected->grant_digest,
 			sizeof(current.grant_digest)) &&
 		!memcmp(current.authenticated_digest, expected->authenticated_digest,
 			sizeof(current.authenticated_digest)) &&
+		!memcmp(current.success_digest, expected->success_digest,
+			sizeof(current.success_digest)) &&
 		!memcmp(&current.grant_raw_image, &expected->grant_raw_image,
 			sizeof(current.grant_raw_image)) &&
 		!memcmp(&current.authenticated_raw_image,
@@ -264,6 +301,7 @@ static bool control_state_matches(const struct broker_control_state *expected)
 			sizeof(current.authenticated_raw_image)) &&
 		current.grant_valid == expected->grant_valid &&
 		current.authentication_valid == expected->authentication_valid &&
+		current.success_valid == expected->success_valid &&
 		current.authentication_in_progress ==
 			expected->authentication_in_progress &&
 		current.installed == expected->installed &&
@@ -479,6 +517,8 @@ static enum cb_err authenticate_intent(
 	    memcmp(&owner, &expected_owner, sizeof(owner)) ||
 	    !authentication_state_valid() || !raw_image.size ||
 	    raw_image.size != broker.policy.raw_image_size ||
+	    raw_image.lowest_supported_version > intent.attempted_version ||
+	    raw_image.reserved ||
 	    raw_image.offset > intent.capsule_size ||
 	    raw_image.size > intent.capsule_size - raw_image.offset)
 		goto out;
@@ -597,6 +637,7 @@ static enum cb_err apply_capsule(
 	struct capsule_media_backend media;
 	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_raw_image raw_image = broker.grant_raw_image;
+	uint64_t owner_sequence = broker.grant_owner_sequence;
 	uintptr_t staging = (uintptr_t)
 		unpack64(broker.policy.endpoint.staging_base);
 	enum cb_err status;
@@ -634,6 +675,16 @@ static enum cb_err apply_capsule(
 	};
 	status = capsule_apply_policy_verified(&plan, &media_policy, &media,
 		broker.policy.scratch, broker.policy.scratch_size);
+	if (status == CB_SUCCESS) {
+		broker.success_transaction = intent->transaction;
+		broker.success_owner_sequence = owner_sequence;
+		broker.success_version = intent->attempted_version;
+		broker.success_lowest_supported_version =
+			raw_image.lowest_supported_version;
+		memcpy(broker.success_digest, intent->digest,
+			sizeof(broker.success_digest));
+		broker.success_valid = true;
+	}
 	return status;
 }
 
@@ -666,6 +717,7 @@ enum cb_err capsule_broker_apply_intent(
 	    broker.grant_raw_image.offset > intent.capsule_size ||
 	    broker.grant_raw_image.size >
 		intent.capsule_size - broker.grant_raw_image.offset ||
+	    broker.grant_raw_image.reserved ||
 	    intent.transaction != broker.grant_transaction ||
 	    intent.attempted_version != broker.grant_version ||
 	    memcmp(intent.digest, broker.grant_digest, sizeof(intent.digest))) {
@@ -681,9 +733,51 @@ enum cb_err capsule_broker_apply_intent(
 	return apply_capsule(&intent);
 }
 
+enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
+	uint64_t transaction, uint64_t checkpoint_sequence,
+	const uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE],
+	struct capsule_broker_success *success)
+{
+	struct capsule_broker_success result;
+
+	if (!success || (uintptr_t)success % _Alignof(*success) || !digest ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		(uintptr_t)&broker, sizeof(broker)) ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		(uintptr_t)digest, CAPSULE_BROKER_DIGEST_SIZE) ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		unpack64(broker.policy.endpoint.communication_base),
+		broker.policy.endpoint.communication_size) ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		unpack64(broker.policy.endpoint.staging_base),
+		unpack64(broker.policy.endpoint.staging_size)) ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		(uintptr_t)broker.policy.scratch, broker.policy.scratch_size))
+		return CB_ERR;
+	memset(success, 0, sizeof(*success));
+	if (!broker.installed || !broker.closed || !broker.success_valid ||
+	    generation != unpack64(broker.policy.endpoint.generation) ||
+	    !transaction || transaction != broker.success_transaction ||
+	    !checkpoint_sequence ||
+	    checkpoint_sequence != broker.success_owner_sequence ||
+	    memcmp(digest, broker.success_digest, sizeof(broker.success_digest))) {
+		clear_success();
+		return CB_ERR;
+	}
+	result = (struct capsule_broker_success) {
+		.version = broker.success_version,
+		.lowest_supported_version =
+			broker.success_lowest_supported_version,
+	};
+	clear_success();
+	*success = result;
+	return CB_SUCCESS;
+}
+
 void capsule_broker_close_for_s3(void)
 {
 	broker.closed = true;
 	clear_grant();
 	clear_authentication();
+	clear_success();
 }

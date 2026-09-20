@@ -376,6 +376,7 @@ static void initialize(struct fixture *fixture)
 	callback_raw_image = (struct capsule_broker_raw_image) {
 		.offset = RAW_OFFSET,
 		.size = IMAGE_SIZE,
+		.lowest_supported_version = 7,
 	};
 	retained_raw_image = NULL;
 	retain_raw_image = false;
@@ -538,6 +539,14 @@ static enum cb_err apply_staged(void)
 	return capsule_broker_apply_intent(staged_intent);
 }
 
+static enum cb_err claim_success(uint64_t generation, uint64_t transaction,
+	uint64_t sequence, const uint8_t *digest,
+	struct capsule_broker_success *success)
+{
+	return capsule_broker_success_claim_bound(generation, transaction,
+		sequence, digest, success);
+}
+
 static void authenticate_set(struct fixture *fixture, uint64_t transaction,
 	uint32_t attempted_version)
 {
@@ -558,6 +567,7 @@ static void install(struct fixture *fixture)
 static void happy(void)
 {
 	struct fixture fixture;
+	struct capsule_broker_success success;
 
 	initialize(&fixture);
 	install(&fixture);
@@ -570,7 +580,66 @@ static void happy(void)
 	assert(!memcmp(fixture.media, fixture.original, 0x1000));
 	assert(!memcmp(&fixture.media[0x3000], &fixture.original[0x3000],
 		MEDIA_SIZE - 0x3000));
+	assert(claim_success(GENERATION, 1, owner_record.sequence + 1,
+		fixture.capsule.digest, &success) == CB_SUCCESS);
+	assert(success.version == 11 && success.lowest_supported_version == 7);
+	memset(&success, 0xa5, sizeof(success));
+	assert(claim_success(GENERATION, 1, owner_record.sequence + 1,
+		fixture.capsule.digest, &success) == CB_ERR);
+	assert(!success.version && !success.lowest_supported_version);
 	assert(apply_staged() == CB_ERR);
+}
+
+static void success_claim_case(const char *mode)
+{
+	struct fixture fixture;
+	struct capsule_broker_success success = { 0 };
+	uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+	uint8_t misaligned[sizeof(success) + 1] __aligned(8);
+	uint64_t generation = GENERATION;
+	uint64_t transaction = 1;
+	uint64_t sequence;
+
+	initialize(&fixture);
+	sequence = owner_record.sequence + 1;
+	install(&fixture);
+	authenticate_set(&fixture, 1, 11);
+	assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	if (!strcmp(mode, "write-failure"))
+		fixture.media_context.fail_write = true;
+	assert(apply_staged() == (!strcmp(mode, "write-failure") ?
+		CB_ERR : CB_SUCCESS));
+	memcpy(digest, fixture.capsule.digest, sizeof(digest));
+	if (!strcmp(mode, "generation")) {
+		generation++;
+	} else if (!strcmp(mode, "transaction")) {
+		transaction++;
+	} else if (!strcmp(mode, "sequence")) {
+		sequence++;
+	} else if (!strcmp(mode, "digest")) {
+		digest[0] ^= 1;
+	} else if (!strcmp(mode, "close")) {
+		capsule_broker_close_for_s3();
+	} else if (!strcmp(mode, "output-overlap")) {
+		assert(claim_success(generation, transaction, sequence, digest,
+			(void *)digest) == CB_ERR);
+		assert(!memcmp(digest, fixture.capsule.digest, sizeof(digest)));
+		return;
+	} else if (!strcmp(mode, "output-misaligned")) {
+		assert(claim_success(generation, transaction, sequence, digest,
+			(void *)(misaligned + 1)) == CB_ERR);
+		return;
+	}
+	assert(claim_success(generation, transaction, sequence, digest, &success) ==
+		(!strcmp(mode, "happy") ? CB_SUCCESS : CB_ERR));
+	if (!strcmp(mode, "happy")) {
+		assert(success.version == 11 &&
+			success.lowest_supported_version == 7);
+	} else {
+		assert(!success.version && !success.lowest_supported_version);
+		assert(claim_success(GENERATION, 1, owner_record.sequence + 1,
+			fixture.capsule.digest, &success) == CB_ERR);
+	}
 }
 
 static void generation_match_case(void)
@@ -969,6 +1038,10 @@ static void authentication_case(const char *mode)
 		callback_raw_image.size = 2;
 	} else if (!strcmp(mode, "raw-wrong-size")) {
 		callback_raw_image.size--;
+	} else if (!strcmp(mode, "lsv-high")) {
+		callback_raw_image.lowest_supported_version = 12;
+	} else if (!strcmp(mode, "raw-reserved")) {
+		callback_raw_image.reserved = 1;
 	} else if (!strcmp(mode, "raw-output-mutation")) {
 		retain_raw_image = true;
 	} else if (!strcmp(mode, "owner-mutation")) {
@@ -1201,6 +1274,8 @@ int main(int argc, char **argv)
 		grant_max();
 	else if (!strcmp(argv[1], "generation-match"))
 		generation_match_case();
+	else if (!strncmp(argv[1], "success-", 8))
+		success_claim_case(argv[1] + 8);
 	else if (!strncmp(argv[1], "bound-", 6))
 		bound_transaction_case(argv[1] + 6);
 	else if (!strncmp(argv[1], "authenticate-", 13))

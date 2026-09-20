@@ -10,7 +10,7 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
 cases='set check replay close prepare-failure auth-failure owner-interleave
-checkpoint-failure apply-failure callback-mutation reentry install-not-ready
+checkpoint-failure apply-failure finalize-failure callback-mutation reentry install-not-ready
 install-unprotected install-mutation'
 cases="$cases guard-entry guard-owner guard-auth guard-readback guard-reentry"
 cases="$cases lifecycle-close"

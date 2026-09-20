@@ -676,6 +676,9 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 			*raw_image = (struct capsule_broker_raw_image) {
 				.offset = payload_address - image_address,
 				.size = payload_size,
+				.lowest_supported_version =
+					read_le32(authenticated.payload.data +
+						dependency_size + 12),
 			};
 	}
 out:

@@ -154,7 +154,8 @@ name, attributes or value. Its only mutation preserves the authoritative
 20-byte combined state, sets canonical `LastAttemptStatus` and
 `LastAttemptVersion` validity, records unsuccessful status and the admitted
 attempted version, and retains the existing version and lowest-supported
-version fields.
+version fields. That failure record is the required reset-safe checkpoint
+before any boot-media mutation.
 
 Trusted initialization binds the checkpoint engine to the already installed
 protected SystemFmp owner, initialized dispatch and broker, a sealed broker
@@ -195,6 +196,20 @@ its authority before that first grant invocation. Later requests cannot replace
 the durable checkpoint while an earlier broker grant remains live; only a
 failure before grant invocation can be retried with a newer transaction.
 
+The authentication provider also returns the signed image's
+lowest-supported-version in broker-owned metadata. The broker carries that
+value through the exact authenticated grant but exposes no completion grant
+until the bounded media writer has erased, programmed and read back every
+selected region successfully. The checkpoint engine then consumes that
+one-shot completion grant and requires the same generation, transaction,
+digest and checkpoint sequence plus an exact fresh read of the failure record.
+Only that path may atomically commit the installed version, the maximum of the
+trusted, durable and signed lowest-supported versions, and successful
+last-attempt status. A mismatch, replay, interrupted write, failed readback or
+failed state commit leaves the durable failure checkpoint authoritative.
+Power loss after media success but before state finalization therefore reports
+the attempt as unsuccessful rather than accepting unproved version state.
+
 | State gate | Status |
 | --- | --- |
 | Sealed identity and semantic message validation | Implemented, unselected |
@@ -206,7 +221,7 @@ failure before grant invocation can be retried with a newer transaction.
 | Capsule-authentication provider and trust anchors | Open |
 | Authenticated operation executor and bounded result | Open |
 | SMI transport and bounded result writer | Open |
-| Typed checkpoint engine and exact readback | Implemented, unselected |
+| Typed failure checkpoint and success finalizer | Implemented, unselected |
 | Atomic rollback-protected variable backend | Open |
 | Mandatory pre-handoff and S3 lifecycle closure | Open |
 

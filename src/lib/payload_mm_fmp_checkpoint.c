@@ -16,9 +16,13 @@ static struct {
 	struct payload_mm_fmp_checkpoint_workspace *workspace;
 	uint64_t broker_generation;
 	uint64_t last_transaction;
+	uint64_t pending_transaction;
+	struct payload_mm_fmp_owner_record pending_record;
+	uint8_t pending_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
 	bool installed;
 	bool install_attempted;
 	bool grant_invoked;
+	bool finalize_invoked;
 } checkpoint_authority;
 
 static bool checkpoint_storage_overlaps(const void *buffer, size_t size)
@@ -148,6 +152,77 @@ enum cb_err payload_mm_fmp_checkpoint_commit_bound(uint64_t generation,
 	status = capsule_broker_checkpoint_grant_bound(generation,
 		transaction, attempted_version, authenticated_snapshot.sequence,
 		workspace->verified.sequence, digest_snapshot);
+	if (status == CB_SUCCESS) {
+		checkpoint_authority.pending_transaction = transaction;
+		checkpoint_authority.pending_record = workspace->verified;
+		memcpy(checkpoint_authority.pending_digest, digest_snapshot,
+			sizeof(checkpoint_authority.pending_digest));
+	}
 out:
+	return finish(status);
+}
+
+enum cb_err payload_mm_fmp_checkpoint_finalize_bound(uint64_t generation,
+	uint64_t transaction,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])
+{
+	struct payload_mm_fmp_checkpoint_workspace *workspace =
+		checkpoint_authority.workspace;
+	struct payload_mm_fmp_owner_record pending;
+	struct capsule_broker_success success;
+	uint8_t digest_snapshot[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+	enum cb_err status = CB_ERR;
+
+	if (!digest || !checkpoint_authority.installed ||
+	    !checkpoint_authority.grant_invoked ||
+	    checkpoint_authority.finalize_invoked ||
+	    generation != checkpoint_authority.broker_generation ||
+	    !transaction ||
+	    transaction != checkpoint_authority.pending_transaction ||
+	    memcmp(digest, checkpoint_authority.pending_digest,
+		sizeof(digest_snapshot)))
+		return CB_ERR;
+	checkpoint_authority.finalize_invoked = true;
+	pending = checkpoint_authority.pending_record;
+	memcpy(digest_snapshot, checkpoint_authority.pending_digest,
+		sizeof(digest_snapshot));
+	memset(workspace, 0, sizeof(*workspace));
+	if (!pending.present || !pending.sequence ||
+	    payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		&workspace->current) != CB_SUCCESS ||
+	    memcmp(&workspace->current, &pending, sizeof(pending)))
+		goto out;
+	memset(&success, 0, sizeof(success));
+	if (capsule_broker_success_claim_bound(generation, transaction,
+		pending.sequence, digest_snapshot, &success) != CB_SUCCESS ||
+	    checkpoint_authority.broker_generation != generation ||
+	    !checkpoint_authority.installed ||
+	    !checkpoint_authority.grant_invoked ||
+	    !checkpoint_authority.finalize_invoked ||
+	    memcmp(&checkpoint_authority.pending_record, &pending,
+		sizeof(pending)) ||
+	    checkpoint_authority.pending_transaction != transaction ||
+	    memcmp(checkpoint_authority.pending_digest, digest_snapshot,
+		sizeof(digest_snapshot)))
+		goto out;
+	workspace->candidate = workspace->current;
+	if (payload_mm_fmp_state_success_build(workspace->current.data,
+		success.version, success.lowest_supported_version,
+		workspace->candidate.data) != CB_SUCCESS ||
+	    workspace->current.sequence == UINT64_MAX)
+		goto out;
+	workspace->candidate.sequence++;
+	if (payload_mm_fmp_owner_commit_state(&workspace->current,
+		&workspace->candidate) != CB_SUCCESS ||
+	    payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		&workspace->verified) != CB_SUCCESS ||
+	    memcmp(&workspace->verified, &workspace->candidate,
+		sizeof(workspace->verified)))
+		goto out;
+	status = CB_SUCCESS;
+out:
+	memset(&success, 0, sizeof(success));
+	memset(&pending, 0, sizeof(pending));
+	memset(digest_snapshot, 0, sizeof(digest_snapshot));
 	return finish(status);
 }

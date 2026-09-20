@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar.h>
 #include <commonlib/bsd/helpers.h>
 #include <stdint.h>
@@ -43,6 +44,10 @@ static uint64_t granted_sequence;
 static uint8_t granted_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
 static bool grant_fails;
 static bool grant_live;
+static bool success_claim_fails;
+static bool success_claim_bad_version;
+static bool success_claim_bad_lowest_version;
+static bool success_claim_mutates_authority;
 static bool binding;
 static bool protect_authority = true;
 static bool protect_workspace = true;
@@ -182,6 +187,34 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 		attempted_version);
 }
 
+enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
+	uint64_t transaction, uint64_t checkpoint_sequence,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE],
+	struct capsule_broker_success *success)
+{
+	mark('S');
+	assert(generation == 9 && transaction == granted_transaction);
+	assert(checkpoint_sequence == granted_sequence);
+	assert(!memcmp(digest, granted_digest, sizeof(granted_digest)));
+	assert(grant_live && success);
+	grant_live = false;
+	*success = (struct capsule_broker_success) {
+		.version = success_claim_bad_version ? granted_version + 1 :
+			granted_version,
+		.lowest_supported_version = success_claim_bad_lowest_version ?
+			granted_version + 1 : 5,
+	};
+	if (success_claim_mutates_authority) {
+		size_t size;
+		uint8_t *authority = (uint8_t *)
+			payload_mm_fmp_checkpoint_test_authority(&size);
+
+		assert(size > sizeof(void *));
+		authority[sizeof(void *)] ^= 1;
+	}
+	return success_claim_fails ? CB_ERR : CB_SUCCESS;
+}
+
 static enum cb_err checkpoint(struct store *store, uint64_t generation,
 	uint64_t transaction, uint32_t attempted_version)
 {
@@ -190,6 +223,15 @@ static enum cb_err checkpoint(struct store *store, uint64_t generation,
 	memset(digest, 0x5a, sizeof(digest));
 	return payload_mm_fmp_checkpoint_commit_bound(generation, transaction,
 		attempted_version, &store->record, digest);
+}
+
+static enum cb_err finalize(uint64_t generation, uint64_t transaction)
+{
+	uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+
+	memset(digest, 0x5a, sizeof(digest));
+	return payload_mm_fmp_checkpoint_finalize_bound(generation, transaction,
+		digest);
 }
 
 bool payload_mm_fmp_dispatch_ready(void)
@@ -346,7 +388,7 @@ static bool install_case(const char *name, struct backend_context *context)
 		size_t authority_size;
 		const uint8_t *authority =
 			payload_mm_fmp_checkpoint_test_authority(&authority_size);
-		uint8_t snapshot[64];
+		uint8_t snapshot[256];
 		bool overlap = true;
 
 		assert(authority_size <= sizeof(snapshot));
@@ -457,6 +499,75 @@ static void run_case(const char *name)
 	assert(bind(workspace(), 9) == CB_SUCCESS);
 	context.route = 0;
 	expect_workspace_clear();
+
+	if (!strncmp(name, "finalize-", 9)) {
+		uint8_t checkpoint_state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE];
+
+		assert(checkpoint(&store, 9, 1, 6) == CB_SUCCESS);
+		memcpy(checkpoint_state, store.record.data,
+			sizeof(checkpoint_state));
+		assert(store.record.data[12] == 1 && store.record.data[16] == 6);
+		if (!strcmp(name, "finalize-interruption")) {
+			assert(!store.record.data[0] || store.record.data[4] == 3);
+			assert(store.record.data[12] == 1);
+			return;
+		}
+		if (!strcmp(name, "finalize-stale"))
+			store.record.data[4]++;
+		else if (!strcmp(name, "finalize-write-failure"))
+			store.commit_current = true;
+		else if (!strcmp(name, "finalize-claim-failure"))
+			success_claim_fails = true;
+		else if (!strcmp(name, "finalize-bad-version"))
+			success_claim_bad_version = true;
+		else if (!strcmp(name, "finalize-bad-lsv"))
+			success_claim_bad_lowest_version = true;
+		else if (!strcmp(name, "finalize-authority-mutation"))
+			success_claim_mutates_authority = true;
+		if (!strcmp(name, "finalize-wrong-generation")) {
+			assert(finalize(8, 1) == CB_ERR);
+			assert(!memcmp(store.record.data, checkpoint_state,
+				sizeof(checkpoint_state)));
+			return;
+		}
+		if (!strcmp(name, "finalize-wrong-transaction")) {
+			assert(finalize(9, 2) == CB_ERR);
+			assert(!memcmp(store.record.data, checkpoint_state,
+				sizeof(checkpoint_state)));
+			return;
+		}
+		if (!strcmp(name, "finalize-wrong-digest")) {
+			uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE] = { 0 };
+
+			assert(payload_mm_fmp_checkpoint_finalize_bound(9, 1,
+				digest) == CB_ERR);
+			assert(!memcmp(store.record.data, checkpoint_state,
+				sizeof(checkpoint_state)));
+			return;
+		}
+		if (!strcmp(name, "finalize-success") ||
+		    !strcmp(name, "finalize-replay")) {
+			assert(finalize(9, 1) == CB_SUCCESS);
+			assert(store.record.sequence == 9);
+			assert(store.record.data[0] == 1 &&
+				store.record.data[1] == 1 &&
+				store.record.data[2] == 1 &&
+				store.record.data[3] == 1 &&
+				store.record.data[4] == 6 &&
+				store.record.data[8] == 5 &&
+				store.record.data[12] == 0 &&
+				store.record.data[16] == 6);
+			if (!strcmp(name, "finalize-replay"))
+				assert(finalize(9, 1) == CB_ERR);
+			return;
+		}
+		assert(finalize(9, 1) == CB_ERR);
+		if (strcmp(name, "finalize-stale"))
+			assert(!memcmp(store.record.data, checkpoint_state,
+				sizeof(checkpoint_state)));
+		assert(finalize(9, 1) == CB_ERR);
+		return;
+	}
 
 	if (!strcmp(name, "commit-failure") ||
 	    !strcmp(name, "commit-error-candidate") ||

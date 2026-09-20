@@ -323,7 +323,9 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
 		assert(raw_image.size == rom_size &&
-			raw_image.offset + raw_image.size == auth_used);
+			raw_image.offset + raw_image.size == auth_used &&
+			raw_image.lowest_supported_version == 2 &&
+			!raw_image.reserved);
 		return 0;
 	}
 #endif
@@ -339,7 +341,9 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
 		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
-			raw_image.size <= auth_used - raw_image.offset);
+			raw_image.size <= auth_used - raw_image.offset &&
+			raw_image.lowest_supported_version == 2 &&
+			!raw_image.reserved);
 		return 0;
 	}
 #endif
@@ -467,7 +471,9 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
 		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
-			raw_image.size <= auth_used - raw_image.offset);
+			raw_image.size <= auth_used - raw_image.offset &&
+			raw_image.lowest_supported_version == 2 &&
+			!raw_image.reserved);
 	} else {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &state, &raw_image) == CB_ERR);

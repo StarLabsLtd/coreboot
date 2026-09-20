@@ -34,6 +34,7 @@ authenticate-image-mutation authenticate-before-callback-mutation
 authenticate-raw-zero authenticate-raw-oob authenticate-raw-overflow
 authenticate-raw-wrong-size authenticate-raw-source-mutation
 authenticate-raw-output-mutation
+authenticate-lsv-high authenticate-raw-reserved
 authenticate-owner-mutation authenticate-guard authenticate-digest
 authenticate-generation authenticate-image-size authenticate-operation
 authenticate-flags authenticate-revision authenticate-size
@@ -53,6 +54,9 @@ policy-snapshot grant-edges grant-max generation-match'
 cases="$cases bound-happy bound-sequence bound-digest bound-unstaged
 bound-mutation"
 cases="$cases source-mutation"
+cases="$cases success-happy success-generation success-transaction
+success-sequence success-digest success-close success-write-failure
+success-output-overlap success-output-misaligned"
 
 run_test()
 {

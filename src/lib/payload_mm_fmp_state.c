@@ -200,6 +200,34 @@ enum cb_err payload_mm_fmp_state_checkpoint_build(
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_fmp_state_success_build(
+	const uint8_t current[PAYLOAD_MM_FMP_STATE_WIRE_SIZE], uint32_t version,
+	uint32_t lowest_supported_version,
+	uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE])
+{
+	uint32_t durable_lowest_version;
+
+	if (!payload_mm_fmp_state_authority_ready() || !current || !candidate ||
+	    !payload_mm_fmp_state_data_valid(current) || !current[2] ||
+	    !current[3] || read32(current + 12) != 1U ||
+	    read32(current + 16) != version || lowest_supported_version > version)
+		return CB_ERR;
+	durable_lowest_version = state_authority.policy.trusted_lowest_version;
+	if (current[1] && read32(current + 8) > durable_lowest_version)
+		durable_lowest_version = read32(current + 8);
+	if (lowest_supported_version > durable_lowest_version)
+		durable_lowest_version = lowest_supported_version;
+	if (version < durable_lowest_version)
+		return CB_ERR;
+	memcpy(candidate, current, PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	candidate[0] = 1;
+	candidate[1] = 1;
+	write32(candidate + 4, version);
+	write32(candidate + 8, durable_lowest_version);
+	write32(candidate + 12, 0U);
+	return CB_SUCCESS;
+}
+
 enum cb_err payload_mm_fmp_state_policy_install(
 	const struct payload_mm_fmp_state_policy *trusted_policy,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context)
