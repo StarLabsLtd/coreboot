@@ -14,11 +14,22 @@
 #define TPM2_CC_POLICY_NV_WRITTEN 0x0000018fU
 #define TPM2_CC_START_AUTH_SESSION 0x00000176U
 #define TPM2_CC_FLUSH_CONTEXT 0x00000165U
+#define TPM2_CC_LOAD_EXTERNAL 0x00000167U
+#define TPM2_CC_POLICY_AUTHORIZE 0x0000016aU
+#define TPM2_CC_VERIFY_SIGNATURE 0x00000177U
 
 #define TPM2_POLICY_SESSION_TYPE 1U
+#define TPM2_ALG_RSA 0x0001U
+#define TPM2_ALG_RSASSA 0x0014U
+#define TPM2_ST_VERIFIED 0x8022U
+#define TPM2_OBJECT_NODA BIT(10)
+#define TPM2_OBJECT_SIGN BIT(18)
+#define TPM2_HR_TRANSIENT 0x80000000U
+#define TPM2_RH_OWNER 0x40000001U
+#define TPM2_POLICY_COMMAND_BUFFER_SIZE 640U
 
 struct policy_command {
-	uint8_t bytes[TPM_BUFFER_SIZE];
+	uint8_t bytes[TPM2_POLICY_COMMAND_BUFFER_SIZE];
 	struct obuf output;
 };
 
@@ -138,6 +149,11 @@ static bool valid_policy_handle(uint32_t handle)
 	return (handle & 0xff000000U) == HR_POLICY_SESSION;
 }
 
+static bool valid_transient_handle(uint32_t handle)
+{
+	return (handle & 0xff000000U) == TPM2_HR_TRANSIENT;
+}
+
 static bool response_policy_handle(const uint8_t *response,
 	size_t response_size, uint32_t *handle)
 {
@@ -155,6 +171,28 @@ static bool response_policy_handle(const uint8_t *response,
 	    ibuf_read_be32(&input, &code) || code != TPM2_RC_SUCCESS ||
 	    ibuf_read_be32(&input, &candidate) ||
 	    !valid_policy_handle(candidate))
+		return false;
+	*handle = candidate;
+	return true;
+}
+
+static bool response_transient_handle(const uint8_t *response,
+	size_t response_size, uint32_t *handle)
+{
+	struct ibuf input;
+	uint16_t tag;
+	uint32_t declared_size;
+	uint32_t code;
+	uint32_t candidate;
+
+	if (response_size > TPM_BUFFER_SIZE)
+		return false;
+	ibuf_init(&input, response, response_size);
+	if (ibuf_read_be16(&input, &tag) ||
+	    ibuf_read_be32(&input, &declared_size) ||
+	    ibuf_read_be32(&input, &code) || code != TPM2_RC_SUCCESS ||
+	    ibuf_read_be32(&input, &candidate) ||
+	    !valid_transient_handle(candidate))
 		return false;
 	*handle = candidate;
 	return true;
@@ -198,6 +236,26 @@ static tpm_result_t flush_policy_handle(uint32_t handle)
 	struct policy_command command;
 
 	if (!valid_policy_handle(handle)) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	if (command_begin(&command, TPM_ST_NO_SESSIONS,
+		TPM2_CC_FLUSH_CONTEXT)) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	if (obuf_write_be32(&command.output, handle)) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+}
+
+static tpm_result_t flush_transient_handle(uint32_t handle)
+{
+	struct policy_command command;
+
+	if (!valid_transient_handle(handle)) {
 		secure_clear(&command, sizeof(command));
 		return TPM_CB_RANGE;
 	}
@@ -471,4 +529,367 @@ out:
 	secure_clear(response, sizeof(response));
 	secure_clear(&command, sizeof(command));
 	return result;
+}
+
+static bool valid_rsa_size(size_t size)
+{
+	return size == 256 || size == 384 || size == 512;
+}
+
+static bool valid_external_object(const struct tlcl2_external_object *object)
+{
+	return object && valid_transient_handle(object->handle) &&
+		object->name_size == SHA256_DIGEST_SIZE + sizeof(uint16_t) &&
+		object->name[0] == 0 && object->name[1] == TPM_ALG_SHA256 &&
+		valid_rsa_size(object->rsa_modulus_size);
+}
+
+static bool valid_digest_size(size_t size)
+{
+	return size == SHA1_DIGEST_SIZE || size == SHA256_DIGEST_SIZE ||
+		size == SHA384_DIGEST_SIZE || size == SHA512_DIGEST_SIZE;
+}
+
+static int marshal_external_rsa_public(struct obuf *output,
+	const struct tlcl2_rsa_public_key *public_key)
+{
+	if (!public_key || !valid_rsa_size(public_key->modulus_size) ||
+	    !(public_key->modulus[0] & 0x80) ||
+	    !(public_key->modulus[public_key->modulus_size - 1] & 1))
+		return -1;
+	if (obuf_write_be16(output, TPM2_ALG_RSA))
+		return -1;
+	if (obuf_write_be16(output, TPM_ALG_SHA256))
+		return -1;
+	if (obuf_write_be32(output, TPM2_OBJECT_NODA | TPM2_OBJECT_SIGN))
+		return -1;
+	if (write_sized_bytes(output, NULL, 0))
+		return -1;
+	if (obuf_write_be16(output, TPM_ALG_NULL))
+		return -1;
+	if (obuf_write_be16(output, TPM2_ALG_RSASSA))
+		return -1;
+	if (obuf_write_be16(output, TPM_ALG_SHA256))
+		return -1;
+	if (obuf_write_be16(output, public_key->modulus_size * 8))
+		return -1;
+	if (obuf_write_be32(output, 0))
+		return -1;
+	return write_sized_bytes(output, public_key->modulus,
+		public_key->modulus_size);
+}
+
+tpm_result_t tlcl2_load_external_rsa(
+	const struct tlcl2_rsa_public_key *public_key,
+	struct tlcl2_external_object *object)
+{
+	uint8_t public_bytes[24 + TLCL2_RSA_MODULUS_MAX_SIZE];
+	struct obuf public_output;
+	struct policy_command command;
+	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
+	size_t response_size = sizeof(response);
+	struct ibuf parameters;
+	struct tlcl2_external_object result = { 0 };
+	struct vb2_hash public_hash;
+	tpm_result_t status = TPM_CB_RANGE;
+	tpm_result_t flush_status;
+	bool received = false;
+	bool flush = false;
+
+	if (!object)
+		return TPM_CB_RANGE;
+	memset(object, 0, sizeof(*object));
+	obuf_init(&public_output, public_bytes, sizeof(public_bytes));
+	if (marshal_external_rsa_public(&public_output, public_key))
+		goto out;
+	if (vb2_hash_calculate(false, public_bytes,
+		obuf_nr_written(&public_output), VB2_HASH_SHA256,
+		&public_hash) != VB2_SUCCESS)
+		goto out;
+	if (command_begin(&command, TPM_ST_NO_SESSIONS,
+		TPM2_CC_LOAD_EXTERNAL))
+		goto out;
+	if (write_sized_bytes(&command.output, NULL, 0))
+		goto out;
+	if (write_sized_bytes(&command.output, public_bytes,
+		obuf_nr_written(&public_output)))
+		goto out;
+	if (obuf_write_be32(&command.output, TPM2_RH_OWNER))
+		goto out;
+	status = command_send(&command, TPM_ST_NO_SESSIONS, response,
+		&response_size, &parameters, &received);
+	if (status != TPM_SUCCESS) {
+		if (received && response_transient_handle(response, response_size,
+			&result.handle))
+			flush = true;
+		goto out;
+	}
+	if (ibuf_read_be32(&parameters, &result.handle) ||
+	    !valid_transient_handle(result.handle)) {
+		status = TPM_CB_CORRUPTED_STATE;
+		goto out;
+	}
+	flush = true;
+	if (ibuf_read_be16(&parameters, &result.name_size) ||
+	    result.name_size != SHA256_DIGEST_SIZE + sizeof(uint16_t) ||
+	    ibuf_read(&parameters, result.name, result.name_size) ||
+	    ibuf_remaining(&parameters) || result.name[0] ||
+	    result.name[1] != TPM_ALG_SHA256 ||
+	    memcmp(result.name + sizeof(uint16_t), public_hash.raw,
+		SHA256_DIGEST_SIZE)) {
+		status = TPM_CB_CORRUPTED_STATE;
+		goto out;
+	}
+	result.rsa_modulus_size = public_key->modulus_size;
+	*object = result;
+	flush = false;
+out:
+	if (flush) {
+		flush_status = flush_transient_handle(result.handle);
+		if (flush_status != TPM_SUCCESS)
+			status = flush_status;
+	}
+	secure_clear(&public_hash, sizeof(public_hash));
+	secure_clear(&result, sizeof(result));
+	secure_clear(response, sizeof(response));
+	secure_clear(&command, sizeof(command));
+	secure_clear(public_bytes, sizeof(public_bytes));
+	return status;
+}
+
+tpm_result_t tlcl2_external_object_flush(
+	struct tlcl2_external_object *object)
+{
+	tpm_result_t result = TPM_CB_RANGE;
+
+	if (!object)
+		return TPM_CB_RANGE;
+	if (valid_external_object(object))
+		result = flush_transient_handle(object->handle);
+	secure_clear(object, sizeof(*object));
+	return result;
+}
+
+tpm_result_t tlcl2_external_object_run(
+	const struct tlcl2_rsa_public_key *public_key,
+	tlcl2_external_object_fn run, void *context)
+{
+	struct tlcl2_external_object object = { 0 };
+	uint32_t handle;
+	tpm_result_t result;
+	tpm_result_t flush_result;
+
+	if (!run)
+		return TPM_CB_RANGE;
+	result = tlcl2_load_external_rsa(public_key, &object);
+	if (result != TPM_SUCCESS)
+		return result;
+	handle = object.handle;
+	result = run(&object, context);
+	flush_result = flush_transient_handle(handle);
+	secure_clear(&object, sizeof(object));
+	return flush_result == TPM_SUCCESS ? result : flush_result;
+}
+
+tpm_result_t tlcl2_verify_rsa_signature(
+	const struct tlcl2_external_object *object, const uint8_t *digest,
+	size_t digest_size, const uint8_t *signature, size_t signature_size,
+	struct tlcl2_verified_ticket *ticket)
+{
+	struct policy_command command;
+	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
+	size_t response_size = sizeof(response);
+	struct ibuf parameters;
+	struct tlcl2_verified_ticket result = { 0 };
+	tpm_result_t status = TPM_CB_RANGE;
+
+	if (!ticket)
+		return TPM_CB_RANGE;
+	memset(ticket, 0, sizeof(*ticket));
+	if (!valid_external_object(object) || !digest ||
+	    digest_size != SHA256_DIGEST_SIZE || !signature ||
+	    signature_size != object->rsa_modulus_size)
+		goto out;
+	if (command_begin(&command, TPM_ST_NO_SESSIONS,
+		TPM2_CC_VERIFY_SIGNATURE))
+		goto out;
+	if (obuf_write_be32(&command.output, object->handle))
+		goto out;
+	if (write_sized_bytes(&command.output, digest, digest_size))
+		goto out;
+	if (obuf_write_be16(&command.output, TPM2_ALG_RSASSA))
+		goto out;
+	if (obuf_write_be16(&command.output, TPM_ALG_SHA256))
+		goto out;
+	if (write_sized_bytes(&command.output, signature, signature_size))
+		goto out;
+	status = command_send(&command, TPM_ST_NO_SESSIONS, response,
+		&response_size, &parameters, NULL);
+	if (status != TPM_SUCCESS)
+		goto out;
+	if (ibuf_read_be16(&parameters, &result.tag) ||
+	    result.tag != TPM2_ST_VERIFIED ||
+	    ibuf_read_be32(&parameters, &result.hierarchy) ||
+	    result.hierarchy != TPM2_RH_OWNER ||
+	    ibuf_read_be16(&parameters, &result.digest_size) ||
+	    !valid_digest_size(result.digest_size) ||
+	    ibuf_read(&parameters, result.digest, result.digest_size) ||
+	    ibuf_remaining(&parameters)) {
+		status = TPM_CB_CORRUPTED_STATE;
+		goto out;
+	}
+	*ticket = result;
+out:
+	secure_clear(&result, sizeof(result));
+	secure_clear(response, sizeof(response));
+	secure_clear(&command, sizeof(command));
+	return status;
+}
+
+static bool valid_verified_ticket(const struct tlcl2_verified_ticket *ticket)
+{
+	return ticket && ticket->tag == TPM2_ST_VERIFIED &&
+		ticket->hierarchy == TPM2_RH_OWNER &&
+		valid_digest_size(ticket->digest_size);
+}
+
+tpm_result_t tlcl2_policy_authorize(
+	const struct tlcl2_policy_session *session,
+	const uint8_t *approved_policy, size_t approved_policy_size,
+	const uint8_t *policy_ref, size_t policy_ref_size,
+	const uint8_t *key_name, size_t key_name_size,
+	const struct tlcl2_verified_ticket *ticket)
+{
+	struct policy_command command;
+
+	if (!valid_policy_session(session) || !approved_policy ||
+	    approved_policy_size != hash_size(session->hash_algorithm) ||
+	    policy_ref_size > TLCL2_POLICY_OPERAND_MAX_SIZE ||
+	    (policy_ref_size && !policy_ref) || !key_name ||
+	    key_name_size != SHA256_DIGEST_SIZE + sizeof(uint16_t) ||
+	    key_name[0] || key_name[1] != TPM_ALG_SHA256 ||
+	    !valid_verified_ticket(ticket)) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	if (command_begin(&command, TPM_ST_NO_SESSIONS,
+		TPM2_CC_POLICY_AUTHORIZE))
+		goto fail;
+	if (obuf_write_be32(&command.output, session->handle))
+		goto fail;
+	if (write_sized_bytes(&command.output, approved_policy,
+		approved_policy_size))
+		goto fail;
+	if (write_sized_bytes(&command.output, policy_ref, policy_ref_size))
+		goto fail;
+	if (write_sized_bytes(&command.output, key_name, key_name_size))
+		goto fail;
+	if (obuf_write_be16(&command.output, ticket->tag))
+		goto fail;
+	if (obuf_write_be32(&command.output, ticket->hierarchy))
+		goto fail;
+	if (write_sized_bytes(&command.output, ticket->digest,
+		ticket->digest_size))
+		goto fail;
+	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+fail:
+	secure_clear(&command, sizeof(command));
+	return TPM_CB_RANGE;
+}
+
+static int write_policy_authorization(struct obuf *output,
+	const struct tlcl2_policy_session *session)
+{
+	const struct tlcl2_policy_authorization authorization = {
+		.handle = session->handle,
+		.attributes = 1,
+	};
+
+	return write_authorization(output, &authorization);
+}
+
+static tpm_result_t send_policy_authorized(struct policy_command *command,
+	const struct tlcl2_policy_session *session)
+{
+	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
+	size_t response_size = sizeof(response);
+	struct ibuf parameters;
+	uint32_t parameter_size;
+	uint16_t field_size;
+	uint8_t attributes;
+	tpm_result_t result;
+
+	result = command_send(command, TPM_ST_SESSIONS, response,
+		&response_size, &parameters, NULL);
+	if (result != TPM_SUCCESS)
+		goto out;
+	/*
+	 * These mutations are intended as the terminal use of this session. Keep
+	 * it alive so a scoped caller can deterministically flush it afterward.
+	 */
+	if (ibuf_read_be32(&parameters, &parameter_size) || parameter_size ||
+	    ibuf_read_be16(&parameters, &field_size) ||
+	    field_size != hash_size(session->hash_algorithm) ||
+	    !ibuf_oob_drain(&parameters, field_size) ||
+	    ibuf_read_be8(&parameters, &attributes) || attributes != 1 ||
+	    ibuf_read_be16(&parameters, &field_size) || field_size ||
+	    ibuf_remaining(&parameters))
+		result = TPM_CB_CORRUPTED_STATE;
+out:
+	secure_clear(response, sizeof(response));
+	secure_clear(command, sizeof(*command));
+	return result;
+}
+
+tpm_result_t tlcl2_policy_nv_write(
+	const struct tlcl2_policy_session *session, uint32_t nv_index,
+	const uint8_t *data, size_t data_size, uint16_t offset)
+{
+	struct policy_command command;
+
+	if (!valid_policy_session(session) || nv_index > 0x00ffffffU ||
+	    !data || !data_size || data_size > TLCL2_POLICY_OPERAND_MAX_SIZE ||
+	    offset + data_size > UINT16_MAX) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	if (command_begin(&command, TPM_ST_SESSIONS, TPM2_NV_Write))
+		goto fail;
+	if (obuf_write_be32(&command.output, HR_NV_INDEX + nv_index))
+		goto fail;
+	if (obuf_write_be32(&command.output, HR_NV_INDEX + nv_index))
+		goto fail;
+	if (write_policy_authorization(&command.output, session))
+		goto fail;
+	if (write_sized_bytes(&command.output, data, data_size))
+		goto fail;
+	if (obuf_write_be16(&command.output, offset))
+		goto fail;
+	return send_policy_authorized(&command, session);
+fail:
+	secure_clear(&command, sizeof(command));
+	return TPM_CB_RANGE;
+}
+
+tpm_result_t tlcl2_policy_nv_write_lock(
+	const struct tlcl2_policy_session *session, uint32_t nv_index)
+{
+	struct policy_command command;
+
+	if (!valid_policy_session(session) || nv_index > 0x00ffffffU) {
+		secure_clear(&command, sizeof(command));
+		return TPM_CB_RANGE;
+	}
+	if (command_begin(&command, TPM_ST_SESSIONS, TPM2_NV_WriteLock))
+		goto fail;
+	if (obuf_write_be32(&command.output, HR_NV_INDEX + nv_index))
+		goto fail;
+	if (obuf_write_be32(&command.output, HR_NV_INDEX + nv_index))
+		goto fail;
+	if (write_policy_authorization(&command.output, session))
+		goto fail;
+	return send_policy_authorized(&command, session);
+fail:
+	secure_clear(&command, sizeof(command));
+	return TPM_CB_RANGE;
 }

@@ -222,6 +222,24 @@ flush it, and reports a flush failure even when the callback also failed.
 External-key tickets, authorized NV mutation and a capsule provider remain
 separate dependencies.
 
+The companion external-key transport accepts only caller-supplied RSA-2048,
+RSA-3072 or RSA-4096 public moduli and RSASSA-SHA256 signatures. It constructs
+one unrestricted signing public area with SHA-256 Name algorithm and the TPM
+canonical zero encoding for exponent 65537, recomputes the returned Name, and
+uses the owner hierarchy so a successful verification produces a usable
+owner-hierarchy ticket. Ticket digests are opaque context-integrity values;
+the transport accepts the bounded SHA-1, SHA-256, SHA-384 and SHA-512 digest
+sizes rather than assuming the RSA scheme selects their length. Loaded
+objects are transient and the scoped helper always flushes its snapshotted
+handle. Policy-authorized NV write and write lock request continuation only so
+a future provider can deterministically flush the policy session. The
+transport API does not enforce terminal use; a provider must invoke either
+mutation only as the final operation inside `tlcl2_policy_session_run()`. The
+returned nonce is validated and discarded, and this interface is not a
+reusable HMAC-session state machine. The transport embeds no public key,
+signature, policy digest, policy reference, NV index or provider choice, and
+it does not install or execute a capsule policy.
+
 The journal media descriptor is pointer-free and canonical. Platform code must
 fill it from immutable FMAP and update-route policy, never from a payload table
 or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,
