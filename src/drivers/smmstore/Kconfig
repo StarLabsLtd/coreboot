@@ -29,4 +29,13 @@ config SMMSTORE_BLOCK_SIZE
 	  Sets the logical block size used by the SMMSTORE protocol. This is
 	  an internal SoC or board policy value, not a user-visible option.
 
+config SMMSTORE_FULL_FLASH_ACCESS
+	bool
+	default y if DRIVERS_EFI_UPDATE_CAPSULES && !CAPSULE_BROKER_CONTRACT
+	help
+	  Compile the legacy capsule-update modifier that redirects SMMSTORE raw
+	  commands from the variable-store region to the complete writable boot
+	  device. The typed capsule broker has a separate bounded writer and must
+	  never expose this generic route.
+
 endif

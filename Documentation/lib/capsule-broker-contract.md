@@ -15,6 +15,12 @@ requires platform proofs for reserved communication and staging memory, DMA
 protection, SMM-only SPI ownership, absence of raw flash access and active CPU
 rendezvous.
 
+Selecting the typed broker contract makes the legacy EFI capsule driver
+unavailable and compiles the SMMSTORE full-flash modifier out. Unmodified
+SMMSTORE variable commands remain scoped to the `SMMSTORE` FMAP region. This
+is a build-time route exclusion, not proof of the platform runtime-isolation
+gates below.
+
 Callback pointers and their media, digest, authentication and proof contexts
 are part of that snapshot. Each non-null context has an explicit size capped
 at 128 bytes and is
@@ -330,6 +336,7 @@ specific values. A partial-media failure remains a reset/recovery case.
 | DMA-protected staging and SMM rendezvous | Open |
 | Fixed typed EXECUTE/INFO transport dispatcher | Implemented, unselected |
 | Authenticated current-image INFO policy producer | Open |
+| Legacy SMMSTORE full-flash route exclusion | Implemented |
 | SMI entry and endpoint publication | Open |
 | Production SPI backend | Open |
 | CDK2 composition and close-before-external-code proof | Open |
@@ -349,6 +356,7 @@ still installs no owner, broker, transport or SMI entry.
 tests/lib/capsule_broker_test.sh
 tests/lib/capsule_broker_transport_test.sh
 tests/lib/capsule_broker_info_test.sh
+tests/lib/smmstore_full_flash_exclusion_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
 tests/lib/payload_mm_fmp_transaction_test.sh

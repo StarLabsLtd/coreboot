@@ -53,10 +53,13 @@ config DRIVERS_EFI_MAIN_FW_LSV
 config DRIVERS_EFI_UPDATE_CAPSULES
 	bool "Include EFI update capsules driver"
 	depends on DRIVERS_EFI_VARIABLE_STORE && SMMSTORE && DRIVERS_EFI_FW_INFO
+	depends on !CAPSULE_BROKER_CONTRACT
 	help
 	  Adds a driver that is able to parse CapsuleUpdateData* EFI variables
 	  to discover firmware updates and expose them for tianocore thorough
 	  CBMEM for execution.  tianocore is responsible for erasing the variables.
+	  This legacy path uses generic full-flash SMMSTORE commands and is
+	  mutually exclusive with the typed capsule broker.
 
 config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 	bool "Support EFI capsules on disk"
