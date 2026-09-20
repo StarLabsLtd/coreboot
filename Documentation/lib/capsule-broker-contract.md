@@ -180,6 +180,18 @@ manifest. A cleared anchor never initializes at runtime; a separate explicit
 factory-provision operation is the only creation path. No anchor provider,
 flash range or platform selection is supplied.
 
+TPM2 support does not currently satisfy that protected-anchor contract. The
+bounded `NV_ReadPublic` helper can inspect a pre-provisioned index's exact
+algorithm, attributes, authorization policy and size, but the existing TLCL
+NV read and write helpers authorize an empty platform-password session. The
+StarLabs Lite ADL and StarBook MTL configurations define neither a dedicated
+index nor an ownership, policy-session or factory-provisioning contract for
+one. Consequently no TPM anchor is selected and there is no fallback to an
+ordinary flash or RAM anchor. A production provider must first add a sealed
+authorization mechanism, verify the public metadata on every installation,
+define monotonic and power-loss behavior, and require explicit external
+provisioning; normal boot must never define, clear or repair the index.
+
 The journal media descriptor is pointer-free and canonical. Platform code must
 fill it from immutable FMAP and update-route policy, never from a payload table
 or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,

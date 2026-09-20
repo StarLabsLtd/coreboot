@@ -397,7 +397,7 @@ uint16_t tlcl2_get_hash_size_from_algo(TPMI_ALG_HASH hash_algo)
 
 	switch (hash_algo) {
 	case TPM_ALG_ERROR:
-		value = 1;
+		value = 0;
 		break;
 	case TPM_ALG_SHA1:
 		value = SHA1_DIGEST_SIZE;
@@ -464,5 +464,36 @@ tpm_result_t tlcl2_get_capability(TPM_CAP capability, uint32_t property,
 	}
 
 	memcpy(capability_data, &response->gc.cd, sizeof(TPMS_CAPABILITY_DATA));
+	return TPM_SUCCESS;
+}
+
+tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public)
+{
+	struct tpm2_nv_read_public_cmd command = {
+		.nv_index = HR_NV_INDEX + index,
+	};
+	struct tpm2_response *response;
+	struct tlcl2_nv_public result;
+
+	if (!public)
+		return TPM_CB_RANGE;
+	memset(public, 0, sizeof(*public));
+	if (index > 0x00ffffff)
+		return TPM_CB_RANGE;
+	response = tlcl2_process_command(TPM2_NV_ReadPublic, &command);
+	if (!response || response->hdr.tpm_code != TPM2_RC_SUCCESS ||
+	    response->hdr.tpm_tag != TPM_ST_NO_SESSIONS ||
+	    response->nvrp.nv_index != command.nv_index)
+		return TPM_CB_READ_FAILURE;
+	result = (struct tlcl2_nv_public) {
+		.index = index,
+		.name_alg = response->nvrp.name_alg,
+		.attributes = response->nvrp.attributes,
+		.auth_policy_size = response->nvrp.auth_policy_size,
+		.data_size = response->nvrp.data_size,
+	};
+	memcpy(result.auth_policy, response->nvrp.auth_policy,
+		result.auth_policy_size);
+	*public = result;
 	return TPM_SUCCESS;
 }

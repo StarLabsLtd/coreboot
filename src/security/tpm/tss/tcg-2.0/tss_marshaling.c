@@ -255,6 +255,12 @@ static int marshal_nv_read(struct obuf *ob,
 	return rc;
 }
 
+static int marshal_nv_read_public(struct obuf *ob,
+				  const struct tpm2_nv_read_public_cmd *command_body)
+{
+	return marshal_TPM_HANDLE(ob, command_body->nv_index);
+}
+
 /* TPM2_Clear command does not require parameters. */
 static int marshal_clear(struct obuf *ob)
 {
@@ -395,6 +401,10 @@ int tpm_marshal_command(TPM_CC command, const void *tpm_command_body, struct obu
 
 	case TPM2_NV_Read:
 		rc |= marshal_nv_read(ob, tpm_command_body);
+		break;
+
+	case TPM2_NV_ReadPublic:
+		rc |= marshal_nv_read_public(ob, tpm_command_body);
 		break;
 
 	case TPM2_NV_DefineSpace:
@@ -563,6 +573,70 @@ static int unmarshal_nv_read(struct ibuf *ib, struct nv_read_response *nvr)
 	return 0;
 }
 
+static int unmarshal_nv_read_public(struct ibuf *ib,
+				    struct nv_read_public_response *response)
+{
+	struct ibuf public;
+	struct vb2_hash public_hash;
+	const uint8_t *public_bytes;
+	enum vb2_hash_algorithm hash_algorithm;
+	uint16_t public_size;
+	uint16_t embedded_name_alg;
+	uint16_t digest_size;
+
+	if (ibuf_read_be16(ib, &public_size) ||
+	    ibuf_splice_current(ib, &public, public_size))
+		return -1;
+	public_bytes = ibuf_oob_drain(ib, public_size);
+	if (!public_bytes ||
+	    ibuf_read_be32(&public, &response->nv_index) ||
+	    ibuf_read_be16(&public, &response->name_alg) ||
+	    ibuf_read_be32(&public, &response->attributes) ||
+	    ibuf_read_be16(&public, &response->auth_policy_size) ||
+	    response->auth_policy_size > sizeof(response->auth_policy) ||
+	    ibuf_read(&public, response->auth_policy,
+		response->auth_policy_size) ||
+	    ibuf_read_be16(&public, &response->data_size) ||
+	    ibuf_remaining(&public))
+		return -1;
+
+	switch (response->name_alg) {
+	case TPM_ALG_SHA1:
+		hash_algorithm = VB2_HASH_SHA1;
+		break;
+	case TPM_ALG_SHA256:
+		hash_algorithm = VB2_HASH_SHA256;
+		break;
+	case TPM_ALG_SHA384:
+		hash_algorithm = VB2_HASH_SHA384;
+		break;
+	case TPM_ALG_SHA512:
+		hash_algorithm = VB2_HASH_SHA512;
+		break;
+	case TPM_ALG_ERROR:
+	default:
+		return -1;
+	}
+	digest_size = vb2_digest_size(hash_algorithm);
+	if (!digest_size || digest_size > SHA512_DIGEST_SIZE ||
+	    (response->auth_policy_size &&
+	     response->auth_policy_size != digest_size) ||
+	    ibuf_read_be16(ib, &response->name_size) ||
+	    response->name_size != sizeof(embedded_name_alg) + digest_size ||
+	    response->name_size > sizeof(response->name) ||
+	    ibuf_read(ib, response->name, response->name_size))
+		return -1;
+
+	embedded_name_alg = ((uint16_t)response->name[0] << 8) |
+		response->name[1];
+	if (embedded_name_alg != response->name_alg ||
+	    vb2_hash_calculate(false, public_bytes, public_size, hash_algorithm,
+		&public_hash) != VB2_SUCCESS)
+		return -1;
+	return memcmp(public_hash.raw, response->name + sizeof(embedded_name_alg),
+		digest_size) ? -1 : 0;
+}
+
 static int unmarshal_vendor_command(struct ibuf *ib,
 				    struct vendor_command_response *vcr)
 {
@@ -599,14 +673,20 @@ static int unmarshal_vendor_command(struct ibuf *ib,
 struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 {
 	static struct tpm2_response tpm2_static_resp;
+	uint16_t response_tag;
+	uint32_t response_size;
+	uint32_t response_code;
 	int rc = 0;
 
-	rc |= ibuf_read_be16(ib, &tpm2_static_resp.hdr.tpm_tag);
-	rc |= ibuf_read_be32(ib, &tpm2_static_resp.hdr.tpm_size);
-	rc |= unmarshal_TPM_CC(ib, &tpm2_static_resp.hdr.tpm_code);
+	rc |= ibuf_read_be16(ib, &response_tag);
+	rc |= ibuf_read_be32(ib, &response_size);
+	rc |= unmarshal_TPM_CC(ib, &response_code);
 
 	if (rc != 0)
 		return NULL;
+	tpm2_static_resp.hdr.tpm_tag = response_tag;
+	tpm2_static_resp.hdr.tpm_size = response_size;
+	tpm2_static_resp.hdr.tpm_code = response_code;
 
 	if (ibuf_capacity(ib) != tpm2_static_resp.hdr.tpm_size) {
 		printk(BIOS_ERR,
@@ -633,6 +713,10 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 
 	case TPM2_NV_Read:
 		rc |= unmarshal_nv_read(ib, &tpm2_static_resp.nvr);
+		break;
+
+	case TPM2_NV_ReadPublic:
+		rc |= unmarshal_nv_read_public(ib, &tpm2_static_resp.nvrp);
 		break;
 
 	case TPM2_Hierarchy_Control:
@@ -684,9 +768,11 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		       command, ibuf_remaining(ib));
 		return NULL;
 	}
-	if (rc)
+	if (rc) {
 		printk(BIOS_WARNING, "%s had one or more failures.\n",
 					__func__);
+		return NULL;
+	}
 
 	/* The entire message have been parsed. */
 	return &tpm2_static_resp;

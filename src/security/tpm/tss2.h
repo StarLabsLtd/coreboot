@@ -35,6 +35,22 @@ tpm_result_t tlcl2_get_capability(TPM_CAP capability, uint32_t property,
 				  uint32_t property_count,
 				  TPMS_CAPABILITY_DATA *capability_data);
 
+/* Canonical, bounded metadata returned by TPM2_NV_ReadPublic. */
+struct tlcl2_nv_public {
+	uint32_t index;
+	uint16_t name_alg;
+	uint32_t attributes;
+	uint16_t auth_policy_size;
+	uint8_t auth_policy[SHA512_DIGEST_SIZE];
+	uint16_t data_size;
+};
+
+/*
+ * Read an existing NV index's public metadata without authorizing access to
+ * its contents. The caller-visible output is cleared on every failure.
+ */
+tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public);
+
 /* Issue TPM2_NV_SetBits command */
 tpm_result_t tlcl2_set_bits(uint32_t index, uint64_t bits);
 
