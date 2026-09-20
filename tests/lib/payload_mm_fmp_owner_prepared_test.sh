@@ -38,6 +38,7 @@ build_and_run()
 		"$root/src/lib/payload_mm_fmp_state.c" \
 		"$root/src/lib/payload_mm_fmp_owner.c" \
 		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
+		"$root/src/lib/payload_mm_fmp_owner_journal_format.c" \
 		"$root/src/lib/payload_mm_fmp_owner_journal.c" \
 		"$root/src/security/tpm/capsule_anchor_grant.c" \
 		"$root/src/lib/payload_mm_fmp_checkpoint.c" \

@@ -16,6 +16,8 @@
 #define PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION 1U
 #define PAYLOAD_MM_FMP_OWNER_PREPARED_STATE 0xfffffffeU
 #define PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE 0xfffffffcU
+#define PAYLOAD_MM_FMP_OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL
+#define PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC 0x31504552504d4d50ULL
 
 struct payload_mm_fmp_owner_journal_anchor {
 	uint64_t epoch;
@@ -56,6 +58,19 @@ _Static_assert(sizeof(struct payload_mm_fmp_owner_journal_manifest) == 344,
 	"Payload-MM FMP owner journal manifest layout");
 _Static_assert(sizeof(struct payload_mm_fmp_owner_prepared) == 120,
 	"Payload-MM FMP owner prepared layout");
+
+bool payload_mm_fmp_owner_journal_anchor_valid(
+	const struct payload_mm_fmp_owner_journal_anchor *anchor);
+bool payload_mm_fmp_owner_journal_anchor_equal(
+	const struct payload_mm_fmp_owner_journal_anchor *left,
+	const struct payload_mm_fmp_owner_journal_anchor *right);
+bool payload_mm_fmp_owner_journal_manifest_shape_valid(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	u32 slot_size);
+bool payload_mm_fmp_owner_journal_manifest_records_valid(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest);
+bool payload_mm_fmp_owner_journal_prepared_shape_valid(
+	const struct payload_mm_fmp_owner_prepared *prepared);
 
 typedef enum cb_err payload_mm_fmp_owner_journal_read_fn(const void *context,
 	uint64_t offset, void *buffer, size_t size);

@@ -98,12 +98,14 @@ config CAPSULE_TPM_ANCHOR_GRANT
 config CAPSULE_TPM_ANCHOR_TRANSITION
 	bool
 	default n
-	depends on CAPSULE_TPM_ANCHOR_GRANT && ARCH_X86
+	depends on CAPSULE_TPM_ANCHOR_GRANT && CAPSULE_UPDATE_CONTRACT && ARCH_X86
 	help
-	  Build the dormant pre-OS rollback-anchor transition coordinator. No
-	  platform selects this option and no provider is included. A future
-	  provider must independently prove the exact durable PREPARED journal
-	  record before this coordinator permits an authorized TPM transition.
+	  Build the dormant pre-OS rollback-anchor transition coordinator and its
+	  bounded, read-only owner-journal PREPARED proof reader. No platform
+	  selects this option. The reader accepts only an immutable current-anchor
+	  snapshot from the pre-OS TPM owner and two bounded state region devices;
+	  it adds no complete provider, TPM policy commands, SMM grant route or
+	  platform selection.
 
 config PAYLOAD_MM_CMS_VERIFY
 	bool
