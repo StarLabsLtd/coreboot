@@ -102,10 +102,11 @@ config CAPSULE_TPM_ANCHOR_TRANSITION
 	help
 	  Build the dormant pre-OS rollback-anchor transition coordinator and its
 	  bounded, read-only owner-journal PREPARED proof reader. No platform
-	  selects this option. The reader accepts only an immutable current-anchor
-	  snapshot from the pre-OS TPM owner and two bounded state region devices;
-	  it adds no complete provider, TPM policy commands, SMM grant route or
-	  platform selection.
+	  selects this option and no TPM provider is included. The reader accepts
+	  only an immutable current-anchor snapshot and two bounded state devices.
+	  A future provider must execute separately authorized replacement-write
+	  and write-lock operations, then return authoritative public state and
+	  value readback. This adds no SMM grant route or platform selection.
 
 config PAYLOAD_MM_CMS_VERIFY
 	bool

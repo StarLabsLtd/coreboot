@@ -81,9 +81,10 @@ the provisioned index and install that grant safely.
 
 The dormant transition coordinator now enforces this lifecycle boundary for a
 future capsule provider. It acquires one token, exposes only a transmit proxy
-to that provider, resolves an authorized write by exact NV readback, and calls
-the grant-install boundary only after `handoff()` has quiesced and released
-the transport. No transition coordinator object is linked into SMM.
+to that provider, resolves separately authorized replacement-write and
+write-lock operations by exact value and public-state readback, and calls the
+grant-install boundary only after `handoff()` has quiesced and released the
+transport. No transition coordinator object is linked into SMM.
 
 ## Provider requirements
 
