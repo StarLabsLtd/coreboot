@@ -310,6 +310,16 @@ bool cse_is_me_state_requested_enabled(void)
 	return me_state == 0;
 }
 
+bool cse_dsp_enable_allowed(bool requested)
+{
+	if (requested && !cse_is_me_state_requested_enabled()) {
+		printk(BIOS_INFO, "Disabling HDA DSP because ME is disabled\n");
+		return false;
+	}
+
+	return requested;
+}
+
 #if ENV_RAMSTAGE
 bool cse_is_me_enabled(void)
 {

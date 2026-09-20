@@ -513,6 +513,9 @@ bool cse_is_me_operational(void);
  */
 bool cse_is_me_state_requested_enabled(void);
 
+/* Return whether the HDA DSP may be enabled under the ME policy. */
+bool cse_dsp_enable_allowed(bool requested);
+
 #if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is both requested enabled and operational.

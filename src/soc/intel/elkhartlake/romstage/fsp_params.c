@@ -216,7 +216,8 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	mainboard_memory_init_params(mupd);
 
 	/* DSP firmware authentication requires ME, including after board overrides. */
-	mupd->FspmConfig.PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+	mupd->FspmConfig.PchHdaDspEnable =
+		cse_dsp_enable_allowed(mupd->FspmConfig.PchHdaDspEnable);
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)

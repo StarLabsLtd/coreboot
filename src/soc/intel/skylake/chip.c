@@ -518,7 +518,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	soc_irq_settings(params);
 
 	/* DSP firmware authentication requires ME, including after board overrides. */
-	params->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+	params->PchHdaDspEnable = cse_dsp_enable_allowed(params->PchHdaDspEnable);
 }
 
 /* Mainboard FSP Configuration */

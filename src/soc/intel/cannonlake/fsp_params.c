@@ -797,7 +797,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	printk(BIOS_INFO, "IRQ: Using dynamically assigned PCI IO-APIC IRQs\n");
 
 	/* DSP firmware authentication requires ME, including after board overrides. */
-	s_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+	s_cfg->PchHdaDspEnable = cse_dsp_enable_allowed(s_cfg->PchHdaDspEnable);
 }
 
 /* Mainboard GPIO Configuration */
