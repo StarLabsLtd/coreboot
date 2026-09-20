@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <cbmem.h>
 #include <arch/io.h>
 #include <arch/romstage.h>
+#include <cbmem.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <device/fw_cfg.h>
@@ -17,6 +18,11 @@
 #define HIGH_HIGHRAM_ADDR 0x5d
 #define MID_HIGHRAM_ADDR 0x5c
 #define LOW_HIGHRAM_ADDR 0x5b
+
+size_t __weak mainboard_cbmem_top_reservation_size(void)
+{
+	return 0;
+}
 
 unsigned long qemu_get_high_memory_size(void)
 {
@@ -54,6 +60,12 @@ uintptr_t cbmem_top_chipset(void)
 	if (CONFIG(BOARD_EMULATION_QEMU_X86_Q35)) {
 		size_t smm_size;
 		smm_region(&top, &smm_size);
+	}
+	const size_t reservation_size = mainboard_cbmem_top_reservation_size();
+	if (reservation_size) {
+		if (!IS_ALIGNED(reservation_size, 4096) || top < reservation_size)
+			die("Invalid mainboard CBMEM reservation\n");
+		top -= reservation_size;
 	}
 
 	return top;

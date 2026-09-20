@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
+#include <boot/capsule_broker_buffers.h>
 #include <arch/exception.h>
 #include <commonlib/region.h>
 #include <console/cbmem_console.h>
@@ -71,6 +72,21 @@ void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size)
 	*base = smm_runtime.payload_spi_console_buffer_base;
 	*size = smm_runtime.payload_spi_console_buffer_size;
 }
+
+#if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
+void smm_get_capsule_broker_buffers(
+	struct capsule_broker_buffer_reservation *reservation)
+{
+	*reservation = (struct capsule_broker_buffer_reservation) {
+		.communication_base = smm_runtime.capsule_communication_base,
+		.communication_reserved_size =
+			smm_runtime.capsule_communication_reserved_size,
+		.communication_size = smm_runtime.capsule_communication_size,
+		.staging_base = smm_runtime.capsule_staging_base,
+		.staging_size = smm_runtime.capsule_staging_size,
+	};
+}
+#endif
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)

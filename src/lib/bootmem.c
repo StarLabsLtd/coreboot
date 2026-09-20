@@ -7,6 +7,7 @@
 #include <drivers/efi/capsules.h>
 #include <symbols.h>
 #include <assert.h>
+#include <boot/capsule_broker_buffers.h>
 #include <types.h>
 
 static int initialized;
@@ -125,6 +126,9 @@ static void bootmem_init(void)
 
 	bootmem_arch_add_ranges();
 	bootmem_platform_add_ranges();
+	if (CONFIG(CAPSULE_BROKER_FIXED_BUFFERS) &&
+	    !capsule_broker_buffers_reserve())
+		die("Capsule broker buffer reservation failed\n");
 }
 
 void bootmem_add_range(uint64_t start, uint64_t size,

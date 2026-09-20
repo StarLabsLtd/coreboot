@@ -3,6 +3,8 @@
 #define __SIMPLE_DEVICE__
 
 #include <assert.h>
+#include <boot/capsule_broker_buffers.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <device/fw_cfg.h>
@@ -11,6 +13,23 @@
 #include <cpu/intel/smm_reloc.h>
 
 #include "q35.h"
+
+size_t platform_capsule_broker_staging_size(void)
+{
+	if (!CONFIG(Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF))
+		return 0;
+	/* Accommodate the ROM plus bounded authentication and FMP metadata. */
+	return ALIGN_UP(CONFIG_ROM_SIZE + 1 * MiB, 4096);
+}
+
+size_t mainboard_cbmem_top_reservation_size(void)
+{
+	const size_t staging_size = platform_capsule_broker_staging_size();
+
+	if (!staging_size)
+		return 0;
+	return staging_size + CAPSULE_BROKER_COMMUNICATION_RESERVATION_SIZE;
+}
 
 static uint32_t encode_pciexbar_length(void)
 {

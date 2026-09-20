@@ -50,6 +50,8 @@ The 26.09 tree provides some authoritative facts, but not the full chain:
 | Canonical image identity | CBFS `build_info` | Present, not authenticated on ordinary Q35 |
 | Board-to-image binding | `LB_MAINBOARD` versus `build_info` | No authenticated comparison hook |
 | Payload-callable broker | Dormant typed one-shot SMM contract | Unselected; no producer or dispatcher |
+| Fixed communication/staging ownership | Reserved bootmem allocation | Q35 test-only; no DMA proof or publication |
+| Protected writer scratch | Fixed SMM-module arena | Q35 test-only; uninstalled |
 | Durable update checkpoint | None in this contract | Missing |
 
 The dormant broker ABI and state machine are described in

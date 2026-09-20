@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <types.h>
+#include <boot/capsule_broker.h>
+#include <boot/capsule_broker_buffers.h>
 
 #define SMM_CODE_SEGMENT_SIZE 0x10000
 
@@ -380,6 +382,29 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 				PAYLOAD_SPI_CONSOLE_BUFFER_SIZE;
 		}
 	}
+
+#if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
+	{
+		const size_t staging_size =
+			platform_capsule_broker_staging_size();
+		const size_t communication_size =
+			CAPSULE_BROKER_COMMUNICATION_RESERVATION_SIZE;
+
+		if (!staging_size || staging_size > tseg_base ||
+		    communication_size > tseg_base - staging_size ||
+		    tseg_base - staging_size - communication_size != cbmem_top())
+			die("Invalid capsule broker memory reservation\n");
+		mod_params->capsule_communication_base =
+			tseg_base - staging_size - communication_size;
+		mod_params->capsule_communication_reserved_size =
+			communication_size;
+		mod_params->capsule_communication_size =
+			CAPSULE_BROKER_TRANSPORT_SIZE;
+		mod_params->capsule_staging_base =
+			mod_params->capsule_communication_base + communication_size;
+		mod_params->capsule_staging_size = staging_size;
+	}
+#endif
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	/*

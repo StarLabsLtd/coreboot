@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
+#include <boot/capsule_broker_buffers.h>
+#include <console/console.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
+#include <mainboard/emulation/qemu-i440fx/memory.h>
 #include <pc80/keyboard.h>
 #include <cpu/x86/smm.h>
 
@@ -60,6 +63,15 @@ static void qemu_nb_read_resources(struct device *dev)
 
 	smm_region(&tseg_base, &tseg_size);
 	reserved_ram_range(dev, ESMRAMC, tseg_base, tseg_size);
+	if (CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)) {
+		const size_t reservation_size =
+			mainboard_cbmem_top_reservation_size();
+
+		if (!reservation_size || tseg_base < reservation_size)
+			die("Invalid capsule broker memory reservation\n");
+		reserved_ram_range(dev, ESMRAMC + 1,
+			tseg_base - reservation_size, reservation_size);
+	}
 }
 
 
