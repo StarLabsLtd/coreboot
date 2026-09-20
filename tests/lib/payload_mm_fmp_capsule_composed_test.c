@@ -247,6 +247,7 @@ int main(int argc, char **argv)
 			.cpu_rendezvous_active = state_proof,
 		},
 	};
+	struct capsule_broker_success success;
 
 	assert(argc == 4);
 	capsule_size = read_file(argv[1], staging, sizeof(staging));
@@ -289,6 +290,9 @@ int main(int argc, char **argv)
 	assert(capsule_broker_checkpoint_grant_bound(GENERATION, 1, 3, 1, 2,
 		intent.digest) == CB_SUCCESS);
 	assert(capsule_broker_apply_intent(staged_intent) == CB_SUCCESS);
+	assert(capsule_broker_success_claim_bound(GENERATION, 1, 2,
+		intent.digest, &success) == CB_SUCCESS);
+	assert(success.version == 3 && success.lowest_supported_version == 2);
 	assert(!memcmp(media + ERASE_SIZE, expected_rom, ROM_SIZE));
 	assert(!memcmp(media, original, ERASE_SIZE));
 	assert(!memcmp(media + 2 * ERASE_SIZE, original + 2 * ERASE_SIZE,

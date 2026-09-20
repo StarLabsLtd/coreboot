@@ -88,6 +88,10 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 /* Execute only the exact SET intent currently retained by dispatch. */
 enum cb_err capsule_broker_apply_intent(
 	const struct payload_mm_fmp_capsule_intent *intent);
+enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
+	uint64_t transaction, uint64_t checkpoint_sequence,
+	const uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE],
+	struct capsule_broker_success *success);
 
 void capsule_broker_close_for_s3(void);
 

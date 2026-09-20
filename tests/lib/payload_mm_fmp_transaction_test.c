@@ -23,6 +23,7 @@ static bool prepare_fails;
 static bool auth_fails;
 static bool checkpoint_fails;
 static bool apply_fails;
+static bool finalize_fails;
 static bool mutate_owner;
 static bool auth_mutates_owner;
 static bool auth_observes_aba;
@@ -36,6 +37,7 @@ static bool close_during_auth;
 static unsigned int owner_reads;
 static unsigned int checkpoint_calls;
 static unsigned int apply_calls;
+static unsigned int finalize_calls;
 static unsigned int closes;
 
 void mock_assert(const int result, const char *const expression,
@@ -193,6 +195,19 @@ enum cb_err capsule_broker_apply_intent(
 	return apply_fails ? CB_ERR : CB_SUCCESS;
 }
 
+enum cb_err payload_mm_fmp_checkpoint_finalize_bound(uint64_t generation,
+	uint64_t transaction,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])
+{
+	mark('F');
+	finalize_calls++;
+	assert(generation == intent.broker_generation);
+	assert(transaction == intent.transaction);
+	assert(!memcmp(digest, intent.digest, sizeof(intent.digest)));
+	mutate_authority();
+	return finalize_fails ? CB_ERR : CB_SUCCESS;
+}
+
 void capsule_broker_close_for_s3(void)
 {
 	mark('L');
@@ -283,6 +298,8 @@ int main(int argc, char **argv)
 		checkpoint_fails = true;
 	else if (!strcmp(test, "apply-failure"))
 		apply_fails = true;
+	else if (!strcmp(test, "finalize-failure"))
+		finalize_fails = true;
 	else if (!strcmp(test, "callback-mutation"))
 		mutate_control = true;
 	else if (!strcmp(test, "reentry"))
@@ -307,8 +324,9 @@ int main(int argc, char **argv)
 		return 2;
 	assert(payload_mm_fmp_transaction_execute(0x1000) == expected);
 	if (!strcmp(test, "set")) {
-		expect_trace("GGDRGAGRGCPXL");
-		assert(checkpoint_calls == 1 && apply_calls == 1 && closes == 1);
+		expect_trace("GGDRGAGRGCPFXL");
+		assert(checkpoint_calls == 1 && apply_calls == 1 &&
+			finalize_calls == 1 && closes == 1);
 	} else if (!strcmp(test, "check")) {
 		expect_trace("GGDRGAGRGX");
 		assert(!checkpoint_calls && !apply_calls && !closes);

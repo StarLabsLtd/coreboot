@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar.h>
 #include <commonlib/bsd/helpers.h>
 #include <stddef.h>
@@ -126,6 +127,19 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 	assert(authenticated_sequence == 1 && checkpoint_sequence == 2 && bits);
 	grant_called = true;
 	return CB_SUCCESS;
+}
+
+enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
+	uint64_t transaction, uint64_t checkpoint_sequence,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE],
+	struct capsule_broker_success *success)
+{
+	(void)generation;
+	(void)transaction;
+	(void)checkpoint_sequence;
+	(void)digest;
+	(void)success;
+	return CB_ERR;
 }
 
 void mock_assert(const int result, const char *const expression,

@@ -27,6 +27,11 @@ install-dispatch-overlap install-broker-overlap"
 cases="$cases install-checkpoint-full install-checkpoint-leading
 install-checkpoint-trailing install-checkpoint-adjacent-before
 install-checkpoint-adjacent-after"
+cases="$cases finalize-success finalize-replay finalize-interruption
+finalize-stale finalize-write-failure finalize-claim-failure
+finalize-bad-version finalize-bad-lsv finalize-authority-mutation
+finalize-wrong-generation finalize-wrong-transaction
+finalize-wrong-digest"
 
 run_test()
 {

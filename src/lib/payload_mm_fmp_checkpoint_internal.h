@@ -29,5 +29,8 @@ enum cb_err payload_mm_fmp_checkpoint_commit_bound(uint64_t generation,
 	uint64_t transaction, uint32_t attempted_version,
 	const struct payload_mm_fmp_owner_record *authenticated_record,
 	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE]);
+enum cb_err payload_mm_fmp_checkpoint_finalize_bound(uint64_t generation,
+	uint64_t transaction,
+	const uint8_t digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE]);
 
 #endif

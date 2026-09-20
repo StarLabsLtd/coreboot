@@ -179,6 +179,10 @@ static enum cb_err execute(uint64_t request_address,
 	if (capsule_broker_apply_intent(staged) != CB_SUCCESS ||
 	    !control_matches(&expected))
 		goto out;
+	if (payload_mm_fmp_checkpoint_finalize_bound(intent.broker_generation,
+		intent.transaction, intent.digest) != CB_SUCCESS ||
+	    !control_matches(&expected))
+		goto out;
 	status = CB_SUCCESS;
 out:
 	memset(&before, 0, sizeof(before));

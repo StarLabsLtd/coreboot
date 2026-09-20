@@ -27,5 +27,9 @@ enum cb_err payload_mm_fmp_state_checkpoint_build(
 	const uint8_t current[PAYLOAD_MM_FMP_STATE_WIRE_SIZE],
 	uint32_t attempted_version, struct payload_mm_fmp_state_identity *identity,
 	uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]);
+enum cb_err payload_mm_fmp_state_success_build(
+	const uint8_t current[PAYLOAD_MM_FMP_STATE_WIRE_SIZE], uint32_t version,
+	uint32_t lowest_supported_version,
+	uint8_t candidate[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]);
 
 #endif
