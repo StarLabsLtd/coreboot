@@ -85,6 +85,16 @@ config CAPSULE_TPM_ANCHOR_GRANT
 	  exact one-shot reconciliation path. This supplies no authorization
 	  material, TPM mutation, SMI route or platform selection.
 
+config CAPSULE_TPM_ANCHOR_TRANSITION
+	bool
+	default n
+	depends on CAPSULE_TPM_ANCHOR_GRANT && ARCH_X86
+	help
+	  Build the dormant pre-OS rollback-anchor transition coordinator. No
+	  platform selects this option and no provider is included. A future
+	  provider must independently prove the exact durable PREPARED journal
+	  record before this coordinator permits an authorized TPM transition.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n
