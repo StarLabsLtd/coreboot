@@ -74,8 +74,10 @@ SMRAM, not revisit the TPM.
 
 The default-off [capsule rollback-anchor grant](capsule-tpm-anchor-grant.md)
 defines the pointer-free one-shot handoff shape for that future split
-transaction. It deliberately does not supply the signed authorization provider
-or the journal prepared phase required to produce a grant safely.
+transaction. The dormant owner journal supplies the reset-safe prepared and
+exact reconciliation phases, but no platform selects them. The tree still does
+not supply the signed authorization or TPM-owner producer required to advance
+the provisioned index and install that grant safely.
 
 ## Provider requirements
 

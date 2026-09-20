@@ -17,13 +17,29 @@ mutation during installation, mismatched consume, alias or replay fails closed;
 the grant cannot be retried or redirected.
 
 The flags are assertions made by a future trusted producer, not evidence by
-themselves. This patch deliberately provides no producer because the tree does
-not yet have either required prerequisite:
+themselves. The owner journal now supplies the storage-side prerequisite. It
+keeps its version-1 manifest and 40-byte anchor ABI unchanged and writes a
+fixed 120-byte companion after a candidate manifest. An erased companion keeps
+an existing slot's legacy meaning. A valid companion binds `PREPARED` to the
+exact generation, transaction, current anchor and candidate anchor. The
+prepared path requires a slot large enough for both records; smaller legacy
+layouts retain their existing behavior but cannot enter this path.
+
+Preparation writes, reads back and synchronizes the candidate before writing,
+synchronizing and reading back its companion. The old anchor remains
+authoritative, and ordinary owner commits are refused while one exact prepared
+transition exists. Reconciliation accepts exactly one prepared transition,
+requires the old manifest still to exist, consumes the one-shot grant, requires
+the protected anchor view to name the exact candidate, and then changes only a
+one-way `PREPARED` state bit to `COMMITTED`. Recovery never exposes a prepared
+candidate merely because its anchor has advanced. A torn or malformed
+companion is ignored while the old anchor remains authoritative; ambiguous
+commit-marker writes are accepted only after exact readback.
+
+There is still no producer because the tree does not yet have:
 
 * a signed `PolicyAuthorize` input and platform provider bound to the capsule
-  authority and exact NV write; or
-* a journal `PREPARED` phase which makes the candidate manifest durable and
-  verifies its digest while the old TPM anchor remains authoritative.
+  authority and exact NV write.
 
 Advancing the TPM first would create a power-loss interval in which the only
 authoritative anchor names a manifest that does not exist. A production split
@@ -48,7 +64,8 @@ loss during the command is resolved by the next pre-OS read. Power loss after
 the advance is safe because the matching candidate was durable before the TPM
 changed. A grant is volatile and never substitutes for either durable state.
 
-The existing journal still performs media write and anchor advance in one SMM
-call and therefore cannot consume this contract. Wiring it before adding the
-`PREPARED` phase would violate the ordering above. Factory provisioning remains
-a separate operation.
+The legacy journal commit continues to perform its abstract anchor advance in
+one SMM call. The new prepared/reconcile entry points are compiled only with
+this default-off option and are not selected by a platform. Factory
+provisioning remains a separate operation. No TPM call, SMI, table publication,
+platform route or raw-flash access is added.
