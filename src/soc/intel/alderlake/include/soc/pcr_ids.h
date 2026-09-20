@@ -12,7 +12,11 @@
 /*
  * Port ids
  */
+#if CONFIG(SOC_INTEL_RAPTORLAKE)
+#define PID_GPIOCOM0	0x6d
+#else
 #define PID_GPIOCOM0	0x6e
+#endif
 #define PID_GPIOCOM1	0x6d
 #define PID_GPIOCOM2	0x6c
 #define PID_GPIOCOM3	0x6b

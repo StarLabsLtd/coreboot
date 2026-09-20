@@ -24,7 +24,11 @@
 		(NUM_GPIO_COM4_GPI_REGS) +\
 		(NUM_GPIO_COM5_GPI_REGS))
 
+#if CONFIG(SOC_INTEL_RAPTORLAKE)
+#define PAD_CFG_LOCK_OFFSET			0x110
+#else
 #define PAD_CFG_LOCK_OFFSET			0x80
+#endif
 
 /*
  * IOxAPIC IRQs for the GPIOs
