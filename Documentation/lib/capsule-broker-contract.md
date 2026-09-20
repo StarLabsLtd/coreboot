@@ -240,6 +240,25 @@ reusable HMAC-session state machine. The transport embeds no public key,
 signature, policy digest, policy reference, NV index or provider choice, and
 it does not install or execute a capsule policy.
 
+The offline `util/capsule_tpm_provision` utility deterministically generates
+and validates review artifacts for initial factory provisioning. It accepts an
+explicit full NV handle, initial anchor, RSA authority modulus and policy
+reference, and never opens a TPM or accepts a private key, signature, password
+or ownership secret. Its static policy contains separately command-bound
+`NV_Write` and `NV_WriteLock` branches after `PolicyAuthorize`, joined by one
+canonically sorted `PolicyOR`. The initial write authorization binds
+`PolicyNvWritten(false)` and the exact complete-write cpHash; the initial lock
+authorization separately binds `PolicyNvWritten(true)` and its exact lock
+cpHash. The utility does not provision the index or generate update
+authorization. A future updater must additionally bind
+`PolicyNvWritten(true)`, `PolicyNV` equality against the exact current 40-byte
+anchor, and the exact replacement-write cpHash before authorization. Thus the
+static policy can support a ratchet without creating an arbitrary-write path,
+but no such provider is selected or executable yet.
+Because the exact index attributes include `PLATFORMCREATE`, factory definition
+must use explicit platform-hierarchy authorization; owner-hierarchy definition
+is not compatible with the generated public area.
+
 The journal media descriptor is pointer-free and canonical. Platform code must
 fill it from immutable FMAP and update-route policy, never from a payload table
 or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,
