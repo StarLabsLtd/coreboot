@@ -27,6 +27,7 @@ endif # CONFIG_TPM1
 ifeq ($(CONFIG_TPM2),y)
 
 ramstage-y += capsule_anchor.c
+ramstage-y += tss/tcg-2.0/policy.c
 
 ramstage-y += tss/tcg-2.0/tss_marshaling.c
 ramstage-y += tss/tcg-2.0/tss.c

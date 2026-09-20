@@ -206,6 +206,22 @@ The descriptor has no default instance, index, board selection,
 provisioning path, secret, policy-session implementation or runtime endpoint,
 and validating it does not install an anchor provider.
 
+The TPM2 policy-session transport is likewise dormant. It supplies bounded
+wire primitives for an unsalted, unbound policy session and the assertions
+needed to construct a policy transcript. The caller supplies every nonce,
+digest, comparison operand and authorization bytes; the transport chooses no
+index, policy, password or secret. `PolicyNV` accepts only the canonical
+password authorization encoding and requires an empty response authorization;
+HMAC and policy authorization require future state and response verification.
+Every bounded success-code `StartAuthSession` response whose actual bytes
+contain a complete valid policy handle is flushed when later validation fails,
+even if its tag, declared size or nonce framing is malformed. Transport
+failures, oversized responses and incomplete or invalid handles are never
+salvaged. Its scoped callback snapshots the created handle, always attempts to
+flush it, and reports a flush failure even when the callback also failed.
+External-key tickets, authorized NV mutation and a capsule provider remain
+separate dependencies.
+
 The journal media descriptor is pointer-free and canonical. Platform code must
 fill it from immutable FMAP and update-route policy, never from a payload table
 or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,
