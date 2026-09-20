@@ -47,8 +47,24 @@ static bool binding_valid(const struct capsule_tpm_anchor_binding *binding)
 		binding->policy_ref_size <= CAPSULE_TPM_ANCHOR_POLICY_REF_MAX_SIZE &&
 		bytes_zero(binding->policy_ref + binding->policy_ref_size,
 			sizeof(binding->policy_ref) - binding->policy_ref_size) &&
-		binding->write_locked == 1 &&
+		binding->write_locked <= 1 &&
 		bytes_zero(binding->reserved, sizeof(binding->reserved));
+}
+
+static bool policy_authorization_valid(
+	const struct capsule_tpm_anchor_policy_authorization *policy,
+	size_t modulus_size)
+{
+	return !bytes_zero(policy->approved_policy,
+			sizeof(policy->approved_policy)) &&
+		!bytes_zero(policy->cp_hash, sizeof(policy->cp_hash)) &&
+		!bytes_zero(policy->nonce, sizeof(policy->nonce)) &&
+		policy->signature_size == modulus_size &&
+		bytes_zero(policy->reserved, sizeof(policy->reserved)) &&
+		!bytes_zero(policy->signature, policy->signature_size) &&
+		bytes_zero(policy->signature + policy->signature_size,
+			sizeof(policy->signature) - policy->signature_size) &&
+		!policy->reserved2;
 }
 
 static bool authorization_valid(
@@ -73,28 +89,27 @@ static bool authorization_valid(
 		memcmp(authorization->current.digest,
 			authorization->candidate.digest,
 			sizeof(authorization->current.digest)) &&
-		!bytes_zero(authorization->approved_policy,
-			sizeof(authorization->approved_policy)) &&
-		!bytes_zero(authorization->cp_hash,
-			sizeof(authorization->cp_hash)) &&
 		!memcmp(authorization->authority_name, binding->authority_name,
 			sizeof(authorization->authority_name)) &&
 		authorization->policy_ref_size == binding->policy_ref_size &&
 		!memcmp(authorization->policy_ref, binding->policy_ref,
 			sizeof(authorization->policy_ref)) && modulus_size_valid &&
-		authorization->signature_size == authorization->modulus_size &&
 		!authorization->reserved &&
-		!bytes_zero(authorization->nonce, sizeof(authorization->nonce)) &&
 		!bytes_zero(authorization->modulus,
 			authorization->modulus_size) &&
 		bytes_zero(authorization->modulus + authorization->modulus_size,
 			sizeof(authorization->modulus) - authorization->modulus_size) &&
-		!bytes_zero(authorization->signature,
-			authorization->signature_size) &&
-		bytes_zero(authorization->signature +
-			authorization->signature_size,
-			sizeof(authorization->signature) -
-			authorization->signature_size) && !authorization->reserved2;
+		!authorization->reserved2 &&
+		policy_authorization_valid(&authorization->write,
+			authorization->modulus_size) &&
+		policy_authorization_valid(&authorization->lock,
+			authorization->modulus_size) &&
+		memcmp(authorization->write.approved_policy,
+			authorization->lock.approved_policy,
+			sizeof(authorization->write.approved_policy)) &&
+		memcmp(authorization->write.cp_hash,
+			authorization->lock.cp_hash,
+			sizeof(authorization->write.cp_hash));
 }
 
 static bool provider_valid(
@@ -103,8 +118,19 @@ static bool provider_valid(
 	return provider->revision ==
 			CAPSULE_TPM_ANCHOR_TRANSITION_PROVIDER_REVISION &&
 		provider->size == sizeof(*provider) && provider->prepared &&
-		provider->read && provider->advance && provider->install &&
+		provider->read && provider->write && provider->lock &&
+		provider->install &&
 		(!!provider->context == !!provider->context_size);
+}
+
+static bool same_binding_policy(
+	const struct capsule_tpm_anchor_binding *expected,
+	const struct capsule_tpm_anchor_binding *observed)
+{
+	struct capsule_tpm_anchor_binding normalized = *observed;
+
+	normalized.write_locked = expected->write_locked;
+	return !memcmp(expected, &normalized, sizeof(*expected));
 }
 
 static enum cb_err transmit(void *opaque, const uint8_t *request,
@@ -171,6 +197,10 @@ enum cb_err capsule_tpm_anchor_transition_run(
 	struct capsule_tpm_anchor_grant prepared_argument = { 0 };
 	struct capsule_tpm_anchor_grant install_argument = { 0 };
 	struct capsule_tpm_anchor_value value = { 0 };
+	struct capsule_tpm_anchor_binding observed_binding = { 0 };
+	struct capsule_tpm_anchor_binding final_binding = { 0 };
+	struct capsule_tpm_anchor_binding install_binding_argument = { 0 };
+	struct capsule_tpm_anchor_binding operation_binding_argument = { 0 };
 	struct tpm_pre_os_token token = { 0 };
 	struct transport_context transport_context = {
 		.lifecycle = lifecycle,
@@ -179,6 +209,7 @@ enum cb_err capsule_tpm_anchor_transition_run(
 	enum cb_err result = CB_ERR;
 	bool acquired = false;
 	bool handed_off = false;
+	bool write_attempted = false;
 
 	if (!claim(transition))
 		return CB_ERR;
@@ -207,28 +238,71 @@ enum cb_err capsule_tpm_anchor_transition_run(
 		goto handoff;
 	acquired = true;
 	if (provider_snapshot.read(provider_snapshot.context, transmit,
-		&transport_context, &binding_snapshot, &value) != CB_SUCCESS ||
+		&transport_context, &binding_snapshot, &observed_binding,
+		&value) != CB_SUCCESS ||
+	    !binding_valid(&observed_binding) ||
+	    !same_binding_policy(&binding_snapshot, &observed_binding) ||
 	    !inputs_unchanged(binding, &binding_snapshot, authorization,
 		&authorization_snapshot, provider, &provider_snapshot))
 		goto release;
-	if (!memcmp(&value, &authorization_snapshot.current, sizeof(value))) {
+	if (!memcmp(&value, &authorization_snapshot.current, sizeof(value)) &&
+	    !observed_binding.write_locked) {
 		/* The write result is advisory; exact readback resolves ambiguity. */
-		(void)provider_snapshot.advance(provider_snapshot.context, transmit,
-			&transport_context, &binding_snapshot,
+		write_attempted = true;
+		operation_binding_argument = observed_binding;
+		(void)provider_snapshot.write(provider_snapshot.context, transmit,
+			&transport_context, &operation_binding_argument,
 			&authorization_snapshot);
-		if (!inputs_unchanged(binding, &binding_snapshot, authorization,
+		if (memcmp(&operation_binding_argument, &observed_binding,
+			sizeof(observed_binding)) ||
+		    !inputs_unchanged(binding, &binding_snapshot, authorization,
 			&authorization_snapshot, provider, &provider_snapshot))
 			goto release;
+		memset(&operation_binding_argument, 0,
+			sizeof(operation_binding_argument));
 		memset(&value, 0, sizeof(value));
+		memset(&observed_binding, 0, sizeof(observed_binding));
 		if (provider_snapshot.read(provider_snapshot.context, transmit,
-			&transport_context, &binding_snapshot, &value) !=
-			CB_SUCCESS)
+			&transport_context, &binding_snapshot, &observed_binding,
+			&value) != CB_SUCCESS ||
+		    !binding_valid(&observed_binding) ||
+		    !same_binding_policy(&binding_snapshot, &observed_binding))
 			goto release;
 	}
 	if (memcmp(&value, &authorization_snapshot.candidate, sizeof(value)) ||
+	    (write_attempted && observed_binding.write_locked) ||
+	    observed_binding.write_locked > 1 ||
 	    !inputs_unchanged(binding, &binding_snapshot, authorization,
 		&authorization_snapshot, provider, &provider_snapshot))
 		goto release;
+	if (!observed_binding.write_locked) {
+		/* The lock result is advisory; exact public readback is decisive. */
+		operation_binding_argument = observed_binding;
+		(void)provider_snapshot.lock(provider_snapshot.context, transmit,
+			&transport_context, &operation_binding_argument,
+			&authorization_snapshot);
+		if (memcmp(&operation_binding_argument, &observed_binding,
+			sizeof(observed_binding)) ||
+		    !inputs_unchanged(binding, &binding_snapshot, authorization,
+			&authorization_snapshot, provider, &provider_snapshot))
+			goto release;
+		memset(&operation_binding_argument, 0,
+			sizeof(operation_binding_argument));
+		memset(&value, 0, sizeof(value));
+		memset(&observed_binding, 0, sizeof(observed_binding));
+		if (provider_snapshot.read(provider_snapshot.context, transmit,
+			&transport_context, &binding_snapshot, &observed_binding,
+			&value) != CB_SUCCESS ||
+		    !binding_valid(&observed_binding) ||
+		    !same_binding_policy(&binding_snapshot, &observed_binding))
+			goto release;
+	}
+	if (!observed_binding.write_locked ||
+	    memcmp(&value, &authorization_snapshot.candidate, sizeof(value)) ||
+	    !inputs_unchanged(binding, &binding_snapshot, authorization,
+		&authorization_snapshot, provider, &provider_snapshot))
+		goto release;
+	final_binding = observed_binding;
 	grant.flags |= CAPSULE_TPM_ANCHOR_GRANT_TPM_ADVANCED;
 	grant.flags |= CAPSULE_TPM_ANCHOR_GRANT_TPM_READBACK_VERIFIED;
 release:
@@ -250,12 +324,18 @@ handoff:
 	grant.flags |= CAPSULE_TPM_ANCHOR_GRANT_TPM_RELEASED;
 	install_argument = build_grant(&binding_snapshot, &authorization_snapshot,
 		CAPSULE_TPM_ANCHOR_GRANT_REQUIRED_FLAGS);
+	install_binding_argument = final_binding;
 	if (memcmp(&grant, &install_argument, sizeof(grant)) ||
 	    capsule_tpm_anchor_grant_validate(&install_argument,
-		&binding_snapshot) !=
+		&install_binding_argument) !=
 		CB_SUCCESS ||
 	    provider_snapshot.install(provider_snapshot.context, &install_argument,
-		&binding_snapshot) != CB_SUCCESS)
+		&install_binding_argument) != CB_SUCCESS ||
+	    memcmp(&install_argument, &grant, sizeof(grant)) ||
+	    memcmp(&install_binding_argument, &final_binding,
+		sizeof(final_binding)) ||
+	    !inputs_unchanged(binding, &binding_snapshot, authorization,
+		&authorization_snapshot, provider, &provider_snapshot))
 		goto out;
 	result = CB_SUCCESS;
 out:
@@ -263,6 +343,12 @@ out:
 		TPM_PRE_OS_AVAILABLE)
 		(void)tpm_pre_os_lifecycle_handoff(lifecycle);
 	memset(&value, 0, sizeof(value));
+	memset(&observed_binding, 0, sizeof(observed_binding));
+	memset(&final_binding, 0, sizeof(final_binding));
+	memset(&install_binding_argument, 0,
+		sizeof(install_binding_argument));
+	memset(&operation_binding_argument, 0,
+		sizeof(operation_binding_argument));
 	memset(&token, 0, sizeof(token));
 	memset(&grant, 0, sizeof(grant));
 	memset(&prepared_argument, 0, sizeof(prepared_argument));

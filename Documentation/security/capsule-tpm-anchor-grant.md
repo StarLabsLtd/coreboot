@@ -37,24 +37,29 @@ companion is ignored while the old anchor remains authoritative; ambiguous
 commit-marker writes are accepted only after exact readback.
 
 The default-off `CAPSULE_TPM_ANCHOR_TRANSITION` option adds the bounded pre-OS
-coordinator contract for this ordering. Its fixed 1312-byte authorization
-snapshot binds the descriptor policy revision and NV index, boot generation,
-transaction, exact current and candidate anchors, approved policy, write
-cpHash, authority Name, policy reference, caller nonce, RSA public modulus and
-RSASSA signature. Only RSA-2048, RSA-3072 and RSA-4096 material is admitted;
-unused tails and reserved fields must be zero. The structure contains no
-private key, password, address or callable object.
+coordinator contract for this ordering. Its revision-2 fixed 1952-byte
+authorization snapshot binds the descriptor policy revision and NV index,
+boot generation, transaction, exact current and candidate anchors, authority
+Name, policy reference and RSA public modulus. Two fixed 624-byte records carry
+distinct approved policies, cpHashes, caller nonces and RSASSA signatures for
+the complete replacement `NV_Write` and the following `NV_WriteLock`. Only
+RSA-2048, RSA-3072 and RSA-4096 material is admitted; unused tails and reserved
+fields must be zero. The structure contains no private key, password, address
+or callable object.
 
 The coordinator is atomic and one-shot. It snapshots every caller-owned input,
 requires a synchronous provider to prove the exact durable `PREPARED` record,
 and permits TPM traffic only through an acquired pre-OS lifecycle token. It
 checks that the provider did not alter its proof argument, discards that
 argument, and rebuilds the final grant from the immutable authorization
-snapshot. It reads the anchor before mutation. A current anchor permits one
-authorized replacement-write attempt; a candidate anchor means a prior
-ambiguous write already completed and is not replayed. The write status is
-advisory in either case: a second authoritative read must return the exact
-candidate before a grant can be produced. Every other value fails closed.
+snapshot. Every read returns both the exact anchor and freshly observed public
+lock state. Current plus unlocked permits one authorized replacement-write
+attempt. Candidate plus unlocked, including reset recovery after an ambiguous
+write, skips the write and permits one separately authorized lock attempt.
+Candidate plus locked is complete recovery and replays neither operation.
+Current plus locked and every other state fail closed. Operation status is
+advisory: authoritative readback must prove candidate plus locked before a
+grant can be produced.
 
 The lifecycle is ended, quiesced and released before the exact grant and
 binding are handed to the provider for one protected SMM installation. Invalid
@@ -85,7 +90,7 @@ There is still no production provider because the tree does not yet have:
 * a provider which executes the fixed `PolicyNvWritten(true)`, exact-current
   `PolicyNV`, exact replacement-write `PolicyCpHash`, external-key signature
   verification and `PolicyAuthorize` sequence through the supplied lifecycle
-  transport; or
+  transport, then executes the distinct authorized write-lock transcript; or
 * a protected pre-payload route which installs the one-shot grant in SMM.
 
 Consequently no platform selects the coordinator and no TPM mutation becomes
