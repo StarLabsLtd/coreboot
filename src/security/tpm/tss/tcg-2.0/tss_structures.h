@@ -88,6 +88,7 @@ struct tpm_header {
 #define TPM2_Startup           ((TPM_CC)0x00000144)
 #define TPM2_Shutdown          ((TPM_CC)0x00000145)
 #define TPM2_NV_Read           ((TPM_CC)0x0000014E)
+#define TPM2_NV_ReadPublic     ((TPM_CC)0x00000169)
 #define TPM2_GetCapability     ((TPM_CC)0x0000017A)
 #define TPM2_PCR_Extend        ((TPM_CC)0x00000182)
 /* TPM2 specifies vendor commands need to have this bit set. Vendor command
@@ -346,6 +347,19 @@ struct nv_read_response {
 	TPM2B_MAX_NV_BUFFER buffer;
 };
 
+#define MAX_NV_PUBLIC_NAME_SIZE (sizeof(TPM_ALG_ID) + SHA512_DIGEST_SIZE)
+
+struct nv_read_public_response {
+	TPMI_RH_NV_INDEX nv_index;
+	TPMI_ALG_HASH name_alg;
+	uint32_t attributes;
+	uint16_t auth_policy_size;
+	uint8_t auth_policy[SHA512_DIGEST_SIZE];
+	uint16_t data_size;
+	uint16_t name_size;
+	uint8_t name[MAX_NV_PUBLIC_NAME_SIZE];
+};
+
 struct vendor_command_response {
 	uint16_t vc_subcommand;
 	union {
@@ -392,6 +406,7 @@ struct tpm2_response {
 	union {
 		struct get_cap_response gc;
 		struct nv_read_response nvr;
+		struct nv_read_public_response nvrp;
 		struct tpm2_session_header def_space;
 		struct vendor_command_response vcr;
 	};
@@ -421,6 +436,10 @@ struct tpm2_nv_read_cmd {
 	TPMI_RH_NV_INDEX nvIndex;
 	uint16_t size;
 	uint16_t offset;
+};
+
+struct tpm2_nv_read_public_cmd {
+	TPMI_RH_NV_INDEX nv_index;
 };
 
 struct tpm2_nv_write_lock_cmd {
