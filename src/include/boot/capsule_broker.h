@@ -9,7 +9,8 @@
 #include <stdint.h>
 #include <types.h>
 
-#define CAPSULE_BROKER_TRANSPORT_REVISION 1U
+#define CAPSULE_BROKER_TRANSPORT_REVISION_1 1U
+#define CAPSULE_BROKER_TRANSPORT_REVISION 2U
 #define CAPSULE_BROKER_DIGEST_SHA256 1U
 #define CAPSULE_BROKER_DIGEST_SIZE 32U
 #define CAPSULE_BROKER_RESULT_PENDING UINT32_MAX
@@ -44,7 +45,28 @@ enum capsule_broker_result {
 
 enum capsule_broker_transport_operation {
 	CAPSULE_BROKER_TRANSPORT_EXECUTE = 1,
+	CAPSULE_BROKER_TRANSPORT_READ_INFO = 2,
 };
+
+#define CAPSULE_BROKER_INFO_POLICY_REVISION 1U
+#define CAPSULE_BROKER_INFO_STATE_LAST_ATTEMPT_STATUS_VALID BIT(0)
+#define CAPSULE_BROKER_INFO_STATE_LAST_ATTEMPT_VERSION_VALID BIT(1)
+#define CAPSULE_BROKER_INFO_STATE_VALID_FLAGS \
+	(CAPSULE_BROKER_INFO_STATE_LAST_ATTEMPT_STATUS_VALID | \
+	 CAPSULE_BROKER_INFO_STATE_LAST_ATTEMPT_VERSION_VALID)
+
+/* Authenticated current-image facts sealed by trusted platform init. */
+struct capsule_broker_info_policy {
+	uint32_t revision;
+	uint32_t size;
+	guid_t image_type;
+	uint64_t hardware_instance;
+	uint32_t current_version;
+	uint32_t lowest_supported_version;
+	uint32_t image_size;
+	uint32_t capabilities;
+	uint32_t reserved[2];
+} __aligned(8);
 
 /*
  * Fixed transport header. The intent and result immediately follow this
@@ -73,9 +95,30 @@ struct capsule_broker_transport_result {
 	uint32_t result;
 } __aligned(8);
 
+/* Revision-2 READ_INFO response occupying transport bytes 40..167. */
+struct capsule_broker_transport_info {
+	uint32_t revision;
+	uint32_t size;
+	uint64_t generation;
+	uint64_t transaction;
+	guid_t image_type;
+	uint64_t hardware_instance;
+	uint32_t current_version;
+	uint32_t lowest_supported_version;
+	uint32_t image_size;
+	uint32_t capabilities;
+	uint32_t state_flags;
+	uint32_t last_attempt_version;
+	uint32_t last_attempt_status;
+	uint32_t reserved[12];
+	/* Completion marker: written only after every other response byte. */
+	uint32_t result;
+} __aligned(8);
+
 #define CAPSULE_BROKER_TRANSPORT_REQUEST_OFFSET 0U
 #define CAPSULE_BROKER_TRANSPORT_INTENT_OFFSET 40U
 #define CAPSULE_BROKER_TRANSPORT_RESULT_OFFSET 128U
+#define CAPSULE_BROKER_TRANSPORT_INFO_OFFSET 40U
 #define CAPSULE_BROKER_TRANSPORT_SIZE 168U
 
 _Static_assert(sizeof(struct capsule_broker_transport_request) == 40,
@@ -95,6 +138,25 @@ _Static_assert(offsetof(struct capsule_broker_transport_result, generation) == 8
 	offsetof(struct capsule_broker_transport_result, last_attempt_status) == 32 &&
 	offsetof(struct capsule_broker_transport_result, result) == 36,
 	"capsule broker result layout");
+_Static_assert(sizeof(struct capsule_broker_info_policy) == 56,
+	"capsule broker info policy ABI");
+_Static_assert(_Alignof(struct capsule_broker_info_policy) == 8 &&
+	offsetof(struct capsule_broker_info_policy, image_type) == 8 &&
+	offsetof(struct capsule_broker_info_policy, hardware_instance) == 24 &&
+	offsetof(struct capsule_broker_info_policy, current_version) == 32 &&
+	offsetof(struct capsule_broker_info_policy, reserved) == 48,
+	"capsule broker info policy layout");
+_Static_assert(sizeof(struct capsule_broker_transport_info) == 128,
+	"capsule broker info response ABI");
+_Static_assert(_Alignof(struct capsule_broker_transport_info) == 8 &&
+	offsetof(struct capsule_broker_transport_info, generation) == 8 &&
+	offsetof(struct capsule_broker_transport_info, image_type) == 24 &&
+	offsetof(struct capsule_broker_transport_info, hardware_instance) == 40 &&
+	offsetof(struct capsule_broker_transport_info, current_version) == 48 &&
+	offsetof(struct capsule_broker_transport_info, state_flags) == 64 &&
+	offsetof(struct capsule_broker_transport_info, reserved) == 76 &&
+	offsetof(struct capsule_broker_transport_info, result) == 124,
+	"capsule broker info response layout");
 _Static_assert(sizeof(struct capsule_broker_transport_request) ==
 	CAPSULE_BROKER_TRANSPORT_INTENT_OFFSET &&
 	CAPSULE_BROKER_TRANSPORT_INTENT_OFFSET +
@@ -104,6 +166,15 @@ _Static_assert(sizeof(struct capsule_broker_transport_request) ==
 		sizeof(struct capsule_broker_transport_result) ==
 		CAPSULE_BROKER_TRANSPORT_SIZE,
 	"capsule broker transport layout");
+_Static_assert(CAPSULE_BROKER_TRANSPORT_INFO_OFFSET +
+		sizeof(struct capsule_broker_transport_info) ==
+		CAPSULE_BROKER_TRANSPORT_SIZE,
+	"capsule broker info transport layout");
+
+/* Dormant sealed producer contract; no platform in this tree installs it. */
+enum cb_err capsule_broker_info_policy_install(
+	const struct capsule_broker_info_policy *trusted_policy,
+	payload_mm_authvar_protected_storage storage_is_protected, void *context);
 
 /* Dormant typed entry point; no SMI route or table producer calls this. */
 enum cb_err capsule_broker_transport_dispatch(void);

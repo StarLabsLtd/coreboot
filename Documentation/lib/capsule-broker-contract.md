@@ -64,6 +64,34 @@ response whose revision, size, generation or transaction does not match its
 request. This commit registers no SMI, publishes no endpoint and selects no
 platform transport.
 
+Transport revision 2 adds one read-only `READ_INFO` operation without changing
+the 40-byte request, 168-byte communication range or revision-1 `EXECUTE`
+layout. Legacy revision-1 `EXECUTE` remains accepted byte for byte; revision 2
+may use that same operation or request INFO with zero intent bytes and a fixed
+128-byte response occupying offsets 40 through 167. The INFO completion marker
+is therefore the same final word at transport offset 164 used by EXECUTE.
+`READ_INFO` is rejected at revision 1, with a nonzero intent size, or with any
+response size other than 128 bytes. INFO and EXECUTE have independent strictly
+increasing transaction domains, so inspection cannot consume an update
+transaction.
+
+INFO has a separate, one-attempt policy install contract. Trusted platform
+initialization must source the running image GUID, hardware instance, current
+version, version floor and image size from authenticated current-firmware
+identity and seal the complete policy in protected SMM storage. Capabilities
+must exactly describe the bounded preserve-unlisted/readback-verifying broker;
+the shared request cannot choose them. No platform in this tree installs that
+policy. On each read, SMM rereads the protected owner state and requires its
+durable version not to predate the sealed running version. Only the durable
+floor and validity-qualified last-attempt fields come from that state. The
+reported current version always comes from the sealed platform policy, never
+solely from a mutable owner record. Corrupt, stale, unavailable or callback-
+mutated state returns a bound failure response with all identity fields zero.
+The fixed response has explicit last-attempt validity bits; an absent attempt
+is not fabricated as a successful update. Mutation of the sealed INFO policy
+or its lifecycle during an owner callback wipes that policy and permanently
+poisons the one installation attempt; later reads cannot invoke the owner.
+
 ## Checkpoint and immutable image
 
 CDK2 must copy the complete authenticated capsule envelope into the staging
@@ -221,7 +249,8 @@ specific values. A partial-media failure remains a reset/recovery case.
 | Generic owner journal `region_device` media adapter | Implemented, unselected |
 | Protected monotonic anchor and media backend | Open |
 | DMA-protected staging and SMM rendezvous | Open |
-| Fixed typed transport dispatcher | Implemented, unselected |
+| Fixed typed EXECUTE/INFO transport dispatcher | Implemented, unselected |
+| Authenticated current-image INFO policy producer | Open |
 | SMI entry and endpoint publication | Open |
 | Production SPI backend | Open |
 | CDK2 composition and close-before-external-code proof | Open |
@@ -240,6 +269,7 @@ still installs no owner, broker, transport or SMI entry.
 ```
 tests/lib/capsule_broker_test.sh
 tests/lib/capsule_broker_transport_test.sh
+tests/lib/capsule_broker_info_test.sh
 tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
 tests/lib/payload_mm_fmp_transaction_test.sh
