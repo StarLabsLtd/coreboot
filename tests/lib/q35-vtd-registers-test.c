@@ -106,6 +106,19 @@ int main(void)
 		mock.iotlb_order < mock.enable_order,
 		"table visibility/root/invalidation/enable ordering is wrong");
 	setup(&mock);
+	failures += check(q35_vtd_invalidate(&io) == 0 &&
+		mock.context_order && mock.iotlb_order &&
+		mock.context_order < mock.iotlb_order,
+		"explicit invalidation failed");
+	setup(&mock);
+	mock.block_context = true;
+	failures += check(q35_vtd_invalidate(&io) == -1,
+		"failed explicit context invalidation accepted");
+	setup(&mock);
+	mock.registers[Q35_VTD_ECAP / 4U] = 0;
+	failures += check(q35_vtd_invalidate(&io) == -1,
+		"invalid explicit IOTLB offset accepted");
+	setup(&mock);
 	mock.registers[Q35_VTD_VERSION / 4U] = UINT32_MAX;
 	failures += check(q35_vtd_default_deny(&io, 0x100000U) == -2,
 		"missing VT-d device accepted");
