@@ -192,6 +192,20 @@ authorization mechanism, verify the public metadata on every installation,
 define monotonic and power-loss behavior, and require explicit external
 provisioning; normal boot must never define, clear or repair the index.
 
+The dormant capsule TPM anchor descriptor records the exact externally
+provisioned NV handle, SHA-256 authorization policy, 40-byte anchor size,
+authority key Name and policy reference. Its validator accepts only
+`POLICYWRITE | WRITEALL | WRITE_STCLEAR | AUTHREAD | NO_DA |
+PLATFORMCREATE`; in particular, no platform, owner or empty-index-password
+write path is permitted. It compares the descriptor with a fresh bounded
+`NV_ReadPublic` result and clears its copied binding on every mismatch or TPM
+failure. A valid live index must report `WRITTEN`; `WRITELOCKED` is accepted
+and copied so the caller can distinguish the pre-lock and post-lock phases,
+while `READLOCKED` and every other unexpected dynamic attribute fail closed.
+The descriptor has no default instance, index, board selection,
+provisioning path, secret, policy-session implementation or runtime endpoint,
+and validating it does not install an anchor provider.
+
 The journal media descriptor is pointer-free and canonical. Platform code must
 fill it from immutable FMAP and update-route policy, never from a payload table
 or build argument. Its `FMP_STATE_A` and `FMP_STATE_B` domains must be distinct,
