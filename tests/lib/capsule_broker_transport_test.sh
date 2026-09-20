@@ -9,7 +9,9 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
-cases='happy buffer-low buffer-unmapped buffer-alternate request-revision request-size request-operation
+cases='happy execute-revision2 info-happy info-revision1 info-intent-size
+info-result-size info-failure info-mutation info-authority-mutation info-close info-reentry
+info-replay info-execute-independent buffer-low buffer-unmapped buffer-alternate request-revision request-size request-operation
 request-flags intent-size-field result-size-field generation intent-generation
 transaction intent-revision intent-size intent-operation intent-flags
 intent-zero-size intent-large intent-algorithm intent-digest-size intent-reserved

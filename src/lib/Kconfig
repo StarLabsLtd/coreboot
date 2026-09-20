@@ -68,8 +68,9 @@ config CAPSULE_BROKER_CONTRACT
 	  generic state writes cannot imply SET. An unselected synchronous executor
 	  keeps dispatch busy across authentication, exact owner-state checkpoint
 	  and broker APPLY. A fixed pointer-free transport can call only that staged
-	  executor, but remains unreachable without a platform SMI entry. A future
-	  platform must still provide the backend,
+	  executor or return sealed read-only image information, but remains
+	  unreachable without a platform SMI entry. INFO has no platform policy
+	  producer. A future platform must still provide the backend,
 	  protected policy producer, DMA-isolated staging and complete close-before-
 	  external-code lifecycle.
 
