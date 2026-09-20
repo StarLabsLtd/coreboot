@@ -14,6 +14,7 @@ build_and_run()
 	name=$1
 	shift
 	"${CC:-cc}" -std=gnu11 -g -Wall -Wextra -Werror -fno-builtin \
+		-Wno-unused-parameter \
 		-ffunction-sections -fdata-sections -Wl,--gc-sections "$@" \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
 		-include "$root/src/include/kconfig.h" \
@@ -28,6 +29,11 @@ build_and_run()
 		-I"$temporary/include" \
 		"$root/tests/lib/tpm2_policy_session_test.c" \
 		"$root/src/commonlib/iobuf.c" \
+		"$root/3rdparty/vboot/firmware/2lib/2sha1.c" \
+		"$root/3rdparty/vboot/firmware/2lib/2sha256.c" \
+		"$root/3rdparty/vboot/firmware/2lib/2sha512.c" \
+		"$root/3rdparty/vboot/firmware/2lib/2sha_utility.c" \
+		"$root/3rdparty/vboot/firmware/2lib/2stub_hwcrypto.c" \
 		"$root/src/security/tpm/tss/tcg-2.0/policy.c" \
 		-o "$temporary/$name"
 	"$temporary/$name"
