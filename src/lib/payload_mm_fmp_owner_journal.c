@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
+#include <security/tpm/capsule_anchor_grant.h>
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
@@ -11,6 +12,7 @@
 #endif
 
 #define OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL /* "PMMPJNL1" */
+#define OWNER_PREPARED_MAGIC 0x31504552504d4d50ULL /* "PMMPREP1" */
 
 struct journal_policy {
 	struct payload_mm_fmp_owner_journal_port port;
@@ -37,6 +39,13 @@ struct journal_scan {
 	bool occupied[PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS];
 	bool authoritative[PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS];
 };
+
+static bool anchor_equal(
+	const struct payload_mm_fmp_owner_journal_anchor *left,
+	const struct payload_mm_fmp_owner_journal_anchor *right);
+static enum cb_err manifest_digest(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	uint8_t digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE]);
 
 static bool bytes_equal_value(const uint8_t *data, size_t size, uint8_t value)
 {
@@ -119,18 +128,64 @@ static enum cb_err media_read(uint64_t offset, void *buffer, size_t size)
 static enum cb_err media_program(uint64_t offset, const void *buffer,
 	size_t size)
 {
-	struct payload_mm_fmp_owner_journal_manifest snapshot;
+	uint8_t snapshot[sizeof(struct payload_mm_fmp_owner_journal_manifest)];
 	enum cb_err result;
 
-	if (journal.poisoned || size != sizeof(snapshot))
+	if (journal.poisoned ||
+	    (size != sizeof(struct payload_mm_fmp_owner_journal_manifest) &&
+	     size != sizeof(struct payload_mm_fmp_owner_prepared) &&
+	     size != sizeof(uint32_t)))
 		return CB_ERR;
-	memcpy(&snapshot, buffer, size);
+	memcpy(snapshot, buffer, size);
 	result = journal.policy.port.program(journal.policy.port.context, offset,
 		buffer, size);
-	if (!policy_unchanged() || memcmp(&snapshot, buffer, size) != 0)
+	if (!policy_unchanged() || memcmp(snapshot, buffer, size) != 0)
 		return CB_ERR;
 	return result;
 }
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static bool prepared_shape_valid(
+	const struct payload_mm_fmp_owner_prepared *prepared)
+{
+	return prepared->magic == OWNER_PREPARED_MAGIC &&
+		prepared->revision == PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION &&
+		prepared->size == sizeof(*prepared) &&
+		(prepared->state == PAYLOAD_MM_FMP_OWNER_PREPARED_STATE ||
+		 prepared->state == PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE) &&
+		!prepared->reserved && prepared->generation && prepared->transaction &&
+		prepared->current.epoch &&
+		prepared->current.epoch != UINT64_MAX &&
+		prepared->candidate.epoch == prepared->current.epoch + 1 &&
+		!bytes_equal_value(prepared->current.digest,
+			sizeof(prepared->current.digest), 0) &&
+		!bytes_equal_value(prepared->candidate.digest,
+			sizeof(prepared->candidate.digest), 0) &&
+		memcmp(prepared->current.digest, prepared->candidate.digest,
+			sizeof(prepared->current.digest)) != 0;
+}
+
+static enum cb_err prepared_read(uint64_t slot_offset,
+	struct payload_mm_fmp_owner_prepared *prepared, bool *erased)
+{
+	uint64_t offset = slot_offset +
+		sizeof(struct payload_mm_fmp_owner_journal_manifest);
+
+	if (journal.policy.port.layout.slot_size <
+	    sizeof(struct payload_mm_fmp_owner_journal_manifest) +
+	    sizeof(*prepared)) {
+		memset(prepared, 0xff, sizeof(*prepared));
+		*erased = true;
+		return CB_SUCCESS;
+	}
+	memset(prepared, 0, sizeof(*prepared));
+	if (media_read(offset, prepared, sizeof(*prepared)) != CB_SUCCESS)
+		return CB_ERR;
+	*erased = bytes_equal_value((const uint8_t *)prepared,
+		sizeof(*prepared), 0xff);
+	return CB_SUCCESS;
+}
+#endif
 
 static enum cb_err media_sync(void)
 {
@@ -242,6 +297,10 @@ static enum cb_err recover(struct journal_scan *scan)
 			u64 offset = journal.policy.port.layout.state[domain].offset +
 				(uint64_t)slot * journal.policy.port.layout.slot_size;
 			bool erased;
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+			bool companion_erased;
+			struct payload_mm_fmp_owner_prepared prepared;
+#endif
 
 			if (slot_erased(offset, &erased) != CB_SUCCESS)
 				return CB_ERR;
@@ -257,6 +316,15 @@ static enum cb_err recover(struct journal_scan *scan)
 			if (candidate.epoch != scan->anchor.epoch ||
 			    memcmp(digest, scan->anchor.digest, sizeof(digest)) != 0)
 				continue;
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+			if (prepared_read(offset, &prepared, &companion_erased) !=
+				CB_SUCCESS ||
+			    (!companion_erased &&
+			     (!prepared_shape_valid(&prepared) ||
+			      prepared.state != PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE ||
+			      !anchor_equal(&prepared.candidate, &scan->anchor))))
+				continue;
+#endif
 			if (found && memcmp(&scan->manifest, &candidate,
 				sizeof(candidate)) != 0)
 				return CB_ERR;
@@ -267,6 +335,52 @@ static enum cb_err recover(struct journal_scan *scan)
 	}
 	return found ? CB_SUCCESS : CB_ERR;
 }
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static enum cb_err find_prepared(
+	struct payload_mm_fmp_owner_prepared *prepared,
+	struct payload_mm_fmp_owner_journal_manifest *candidate,
+	uint64_t *slot_offset, bool *present)
+{
+	bool found = false;
+
+	*present = false;
+
+	for (size_t domain = 0; domain < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS;
+	     domain++) {
+		u32 slots = (u32)(journal.policy.port.layout.state[domain].size /
+			journal.policy.port.layout.slot_size);
+
+		for (uint32_t slot = 0; slot < slots; slot++) {
+			struct payload_mm_fmp_owner_prepared record;
+			struct payload_mm_fmp_owner_journal_manifest manifest;
+			struct payload_mm_fmp_owner_journal_anchor digest;
+			uint64_t offset =
+				journal.policy.port.layout.state[domain].offset +
+				(uint64_t)slot * journal.policy.port.layout.slot_size;
+			bool erased;
+
+			if (prepared_read(offset, &record, &erased) != CB_SUCCESS)
+				return CB_ERR;
+			if (erased || !prepared_shape_valid(&record) ||
+			    record.state != PAYLOAD_MM_FMP_OWNER_PREPARED_STATE)
+				continue;
+			if (media_read(offset, &manifest, sizeof(manifest)) != CB_SUCCESS ||
+			    manifest_digest(&manifest, digest.digest) != CB_SUCCESS)
+				return CB_ERR;
+			digest.epoch = manifest.epoch;
+			if (!anchor_equal(&digest, &record.candidate) || found)
+				return CB_ERR;
+			*prepared = record;
+			*candidate = manifest;
+			*slot_offset = offset;
+			found = true;
+		}
+	}
+	*present = found;
+	return CB_SUCCESS;
+}
+#endif
 
 static enum cb_err erase_domain(size_t domain)
 {
@@ -415,6 +529,12 @@ static enum cb_err journal_commit(const void *context,
 	struct payload_mm_fmp_owner_journal_anchor next_anchor;
 	uint8_t verified_digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
 	struct journal_scan scan;
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+	struct payload_mm_fmp_owner_prepared prepared;
+	struct payload_mm_fmp_owner_journal_manifest prepared_manifest;
+	uint64_t prepared_offset;
+	bool prepared_present;
+#endif
 	size_t domain;
 	uint32_t slot;
 	enum cb_err result = CB_ERR;
@@ -440,6 +560,11 @@ static enum cb_err journal_commit(const void *context,
 	    !payload_mm_fmp_owner_record_valid(key, &candidate_snapshot))
 		return CB_ERR;
 	journal.busy = true;
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+	if (find_prepared(&prepared, &prepared_manifest, &prepared_offset,
+		&prepared_present) != CB_SUCCESS || prepared_present)
+		goto out;
+#endif
 	if (recover(&scan) != CB_SUCCESS || scan.manifest.epoch == UINT64_MAX ||
 	    memcmp(&scan.manifest.record[key], &current_snapshot,
 		sizeof(current_snapshot)) != 0)
@@ -470,6 +595,203 @@ out:
 	journal.busy = false;
 	return result;
 }
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static enum cb_err manifest_present(
+	const struct payload_mm_fmp_owner_journal_anchor *anchor)
+{
+	bool found = false;
+
+	for (size_t domain = 0; domain < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS;
+	     domain++) {
+		u32 slots = (u32)(journal.policy.port.layout.state[domain].size /
+			journal.policy.port.layout.slot_size);
+
+		for (uint32_t slot = 0; slot < slots; slot++) {
+			struct payload_mm_fmp_owner_journal_manifest manifest;
+			struct payload_mm_fmp_owner_journal_anchor candidate;
+			u64 offset = journal.policy.port.layout.state[domain].offset +
+				(uint64_t)slot * journal.policy.port.layout.slot_size;
+			bool erased;
+
+			if (slot_erased(offset, &erased) != CB_SUCCESS)
+				return CB_ERR;
+			if (erased)
+				continue;
+			if (media_read(offset, &manifest, sizeof(manifest)) != CB_SUCCESS ||
+			    manifest_digest(&manifest, candidate.digest) != CB_SUCCESS)
+				continue;
+			candidate.epoch = manifest.epoch;
+			if (anchor_equal(anchor, &candidate))
+				found = true;
+		}
+	}
+	return found ? CB_SUCCESS : CB_ERR;
+}
+
+static enum cb_err write_prepared(uint64_t slot_offset,
+	const struct payload_mm_fmp_owner_prepared *prepared)
+{
+	struct payload_mm_fmp_owner_prepared verified;
+	uint64_t offset = slot_offset +
+		sizeof(struct payload_mm_fmp_owner_journal_manifest);
+	bool erased;
+
+	if (prepared_read(slot_offset, &verified, &erased) != CB_SUCCESS || !erased ||
+	    media_program(offset, prepared, sizeof(*prepared)) != CB_SUCCESS ||
+	    media_sync() != CB_SUCCESS ||
+	    prepared_read(slot_offset, &verified, &erased) != CB_SUCCESS || erased ||
+	    memcmp(prepared, &verified, sizeof(verified)) != 0)
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_fmp_owner_journal_prepare(
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	uint64_t generation, uint64_t transaction)
+{
+	struct payload_mm_fmp_state_identity identity_snapshot;
+	struct payload_mm_fmp_owner_record current_snapshot;
+	struct payload_mm_fmp_owner_record candidate_snapshot;
+	struct payload_mm_fmp_owner_journal_manifest next;
+	struct payload_mm_fmp_owner_prepared prepared;
+	struct payload_mm_fmp_owner_journal_anchor next_anchor;
+	struct payload_mm_fmp_owner_journal_manifest pending_manifest;
+	struct journal_scan scan;
+	uint64_t pending_offset;
+	bool pending;
+	size_t domain;
+	uint32_t slot;
+	enum cb_err result = CB_ERR;
+
+	if (!journal.installed || journal.busy || journal.poisoned || !current ||
+	    !candidate || !generation || !transaction ||
+	    journal.policy.port.layout.slot_size < sizeof(next) + sizeof(prepared) ||
+	    !identity_matches(key, identity) ||
+	    journal_storage_overlaps(identity, sizeof(*identity)) ||
+	    journal_storage_overlaps(current, sizeof(*current)) ||
+	    journal_storage_overlaps(candidate, sizeof(*candidate)) ||
+	    payload_mm_authvar_buffers_overlap(identity, sizeof(*identity), current,
+		 sizeof(*current)) ||
+	    payload_mm_authvar_buffers_overlap(identity, sizeof(*identity), candidate,
+		 sizeof(*candidate)) ||
+	    payload_mm_authvar_buffers_overlap(current, sizeof(*current), candidate,
+		 sizeof(*candidate)))
+		return CB_ERR;
+	identity_snapshot = *identity;
+	current_snapshot = *current;
+	candidate_snapshot = *candidate;
+	if (!payload_mm_fmp_owner_record_valid(key, &current_snapshot) ||
+	    !payload_mm_fmp_owner_record_valid(key, &candidate_snapshot))
+		return CB_ERR;
+
+	journal.busy = true;
+	if (find_prepared(&prepared, &pending_manifest, &pending_offset,
+		&pending) != CB_SUCCESS || pending || recover(&scan) != CB_SUCCESS ||
+	    scan.manifest.epoch == UINT64_MAX ||
+	    memcmp(&scan.manifest.record[key], &current_snapshot,
+		sizeof(current_snapshot)) != 0)
+		goto out;
+	next = scan.manifest;
+	next.epoch++;
+	next.record[key] = candidate_snapshot;
+	next_anchor.epoch = next.epoch;
+	if (manifest_digest(&next, next_anchor.digest) != CB_SUCCESS ||
+	    append_location(&scan, &domain, &slot) != CB_SUCCESS)
+		goto out;
+	pending_offset = journal.policy.port.layout.state[domain].offset +
+		(uint64_t)slot * journal.policy.port.layout.slot_size;
+	if (write_manifest(domain, slot, &next) != CB_SUCCESS)
+		goto out;
+	prepared = (struct payload_mm_fmp_owner_prepared) {
+		.magic = OWNER_PREPARED_MAGIC,
+		.revision = PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION,
+		.size = sizeof(prepared),
+		.state = PAYLOAD_MM_FMP_OWNER_PREPARED_STATE,
+		.generation = generation,
+		.transaction = transaction,
+		.current = scan.anchor,
+		.candidate = next_anchor,
+	};
+	if (write_prepared(pending_offset, &prepared) != CB_SUCCESS ||
+	    memcmp(identity, &identity_snapshot, sizeof(identity_snapshot)) != 0 ||
+	    memcmp(current, &current_snapshot, sizeof(current_snapshot)) != 0 ||
+	    memcmp(candidate, &candidate_snapshot,
+		sizeof(candidate_snapshot)) != 0 ||
+	    anchor_read(&next_anchor) != CB_SUCCESS ||
+	    !anchor_equal(&next_anchor, &prepared.current))
+		goto out;
+	result = CB_SUCCESS;
+out:
+	journal.busy = false;
+	return result;
+}
+
+enum cb_err payload_mm_fmp_owner_journal_reconcile_prepared(void)
+{
+	struct payload_mm_fmp_owner_prepared prepared;
+	struct payload_mm_fmp_owner_prepared verified;
+	struct payload_mm_fmp_owner_journal_manifest candidate;
+	struct payload_mm_fmp_owner_journal_anchor anchor;
+	struct capsule_tpm_anchor_value current;
+	struct capsule_tpm_anchor_value next;
+	struct journal_scan scan;
+	uint64_t slot_offset;
+	uint64_t state_offset;
+	uint32_t committed = PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE;
+	bool erased;
+	bool present;
+	enum cb_err sync_status;
+	enum cb_err result = CB_ERR;
+
+	if (!journal.installed || journal.busy || journal.poisoned)
+		return CB_ERR;
+	journal.busy = true;
+	if (find_prepared(&prepared, &candidate, &slot_offset, &present) !=
+		CB_SUCCESS || !present ||
+	    manifest_present(&prepared.current) != CB_SUCCESS)
+		goto out;
+	current.epoch = prepared.current.epoch;
+	memcpy(current.digest, prepared.current.digest, sizeof(current.digest));
+	next.epoch = prepared.candidate.epoch;
+	memcpy(next.digest, prepared.candidate.digest, sizeof(next.digest));
+	if (capsule_tpm_anchor_grant_consume(prepared.generation,
+		prepared.transaction, &current, &next) != CB_SUCCESS ||
+	    anchor_read(&anchor) != CB_SUCCESS ||
+	    !anchor_equal(&anchor, &prepared.candidate))
+		goto out;
+	state_offset = slot_offset +
+		offsetof(struct payload_mm_fmp_owner_prepared, state) +
+		sizeof(struct payload_mm_fmp_owner_journal_manifest);
+	(void)media_program(state_offset, &committed, sizeof(committed));
+	sync_status = media_sync();
+	if (sync_status != CB_SUCCESS) {
+		journal.poisoned = true;
+		goto out;
+	}
+	if (!policy_unchanged() ||
+	    prepared_read(slot_offset, &verified, &erased) != CB_SUCCESS || erased ||
+	    !prepared_shape_valid(&verified) ||
+	    verified.state != PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE ||
+	    memcmp(&prepared, &verified,
+		offsetof(struct payload_mm_fmp_owner_prepared, state)) != 0 ||
+	    memcmp((const uint8_t *)&prepared +
+		offsetof(struct payload_mm_fmp_owner_prepared, reserved),
+		(const uint8_t *)&verified +
+		offsetof(struct payload_mm_fmp_owner_prepared, reserved),
+		sizeof(prepared) -
+		offsetof(struct payload_mm_fmp_owner_prepared, reserved)) != 0 ||
+	    recover(&scan) != CB_SUCCESS ||
+	    memcmp(&scan.manifest, &candidate, sizeof(candidate)) != 0)
+		goto out;
+	result = CB_SUCCESS;
+out:
+	journal.busy = false;
+	return result;
+}
+#endif
 
 enum cb_err payload_mm_fmp_owner_journal_install(
 	const struct payload_mm_fmp_owner_journal_port *trusted_port,

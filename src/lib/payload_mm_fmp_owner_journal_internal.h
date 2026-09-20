@@ -13,6 +13,9 @@
 #define PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE 32U
 #define PAYLOAD_MM_FMP_OWNER_JOURNAL_CONTEXT_SIZE 128U
 #define PAYLOAD_MM_FMP_OWNER_JOURNAL_MAX_SLOTS 32U
+#define PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION 1U
+#define PAYLOAD_MM_FMP_OWNER_PREPARED_STATE 0xfffffffeU
+#define PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE 0xfffffffcU
 
 struct payload_mm_fmp_owner_journal_anchor {
 	uint64_t epoch;
@@ -34,10 +37,25 @@ struct payload_mm_fmp_owner_journal_manifest {
 		record[PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS];
 } __aligned(8);
 
+/* Append-only companion to a candidate manifest; legacy slots leave it erased. */
+struct payload_mm_fmp_owner_prepared {
+	uint64_t magic;
+	uint32_t revision;
+	uint32_t size;
+	uint32_t state;
+	uint32_t reserved;
+	uint64_t generation;
+	uint64_t transaction;
+	struct payload_mm_fmp_owner_journal_anchor current;
+	struct payload_mm_fmp_owner_journal_anchor candidate;
+} __aligned(8);
+
 _Static_assert(sizeof(struct payload_mm_fmp_owner_journal_anchor) == 40,
 	"Payload-MM FMP owner journal anchor layout");
 _Static_assert(sizeof(struct payload_mm_fmp_owner_journal_manifest) == 344,
 	"Payload-MM FMP owner journal manifest layout");
+_Static_assert(sizeof(struct payload_mm_fmp_owner_prepared) == 120,
+	"Payload-MM FMP owner prepared layout");
 
 typedef enum cb_err payload_mm_fmp_owner_journal_read_fn(const void *context,
 	uint64_t offset, void *buffer, size_t size);
@@ -85,5 +103,13 @@ enum cb_err payload_mm_fmp_owner_journal_backend(
 enum cb_err payload_mm_fmp_owner_journal_factory_provision(
 	const struct payload_mm_fmp_owner_record
 		record[PAYLOAD_MM_FMP_OWNER_JOURNAL_KEYS]);
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+enum cb_err payload_mm_fmp_owner_journal_prepare(
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	uint64_t generation, uint64_t transaction);
+enum cb_err payload_mm_fmp_owner_journal_reconcile_prepared(void);
+#endif
 
 #endif

@@ -186,6 +186,18 @@ manifest. A cleared anchor never initializes at runtime; a separate explicit
 factory-provision operation is the only creation path. No anchor provider,
 flash range or platform selection is supplied.
 
+With the default-off TPM anchor-grant prerequisite, a compatible sidecar adds
+a reset-safe split path without changing that manifest or anchor ABI. SMM first
+writes and verifies the candidate while the old anchor remains authoritative,
+then records one exact `PREPARED` generation, transaction and current/candidate
+anchor tuple. After a future trusted pre-OS owner advances and reads back the
+TPM anchor, releases the TPM and installs the matching one-shot grant, SMM can
+consume the grant and reconcile only that tuple before marking it `COMMITTED`.
+Prepared candidates are not returned by recovery. Power loss leaves either the
+old manifest authoritative, a resumable prepared tuple, or an exactly
+committed candidate; stale, replayed or mismatched grants fail closed. This
+adds no TPM call in SMM and no producer, SMI, publication or platform choice.
+
 TPM2 support does not currently satisfy that protected-anchor contract. The
 bounded `NV_ReadPublic` helper can inspect a pre-provisioned index's exact
 algorithm, attributes, authorization policy and size, but the existing TLCL

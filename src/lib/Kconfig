@@ -81,8 +81,9 @@ config CAPSULE_TPM_ANCHOR_GRANT
 	help
 	  Build the dormant split-transaction ABI for passing one exact TPM-backed
 	  rollback-anchor transition from a pre-OS TPM owner into protected SMM
-	  storage. This supplies no authorization material, TPM mutation, journal
-	  prepared-state producer, SMI route or platform selection.
+	  storage. It also builds the compatible owner-journal PREPARED sidecar and
+	  exact one-shot reconciliation path. This supplies no authorization
+	  material, TPM mutation, SMI route or platform selection.
 
 config PAYLOAD_MM_CMS_VERIFY
 	bool

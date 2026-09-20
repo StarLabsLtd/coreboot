@@ -6,6 +6,7 @@
 #include <commonlib/bsd/helpers.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <security/tpm/capsule_anchor_grant.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -93,6 +94,24 @@ static struct payload_mm_fmp_state_identity identity;
 static const void *journal_storage;
 static size_t journal_storage_size;
 static bool grant_called;
+
+static void reset_counts(void);
+static void expect_sequence(uint64_t sequence);
+static void owner_install(void);
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static struct capsule_tpm_anchor_binding prepared_binding(void)
+{
+	return (struct capsule_tpm_anchor_binding) {
+		.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION,
+		.nv_index = 0x01001234,
+		.authority_name = { 0, 0x0b, 1 },
+		.policy_ref_size = 7,
+		.policy_ref = { 'c', 'a', 'p', 's', 'u', 'l', 'e' },
+		.write_locked = 1,
+	};
+}
+#endif
 
 bool payload_mm_fmp_dispatch_ready(void)
 {
@@ -629,6 +648,186 @@ static bool manifest_for_anchor(
 	return found;
 }
 
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static struct payload_mm_fmp_owner_prepared *prepared_record(void)
+{
+	struct payload_mm_fmp_owner_prepared *found = NULL;
+
+	for (size_t domain = 0; domain < 2; domain++) {
+		for (size_t slot = 0; slot < SLOTS; slot++) {
+			struct payload_mm_fmp_owner_prepared *candidate =
+				(void *)(model.media + domain * DOMAIN_SIZE +
+				slot * SLOT_SIZE +
+				sizeof(struct payload_mm_fmp_owner_journal_manifest));
+
+			if (candidate->state != PAYLOAD_MM_FMP_OWNER_PREPARED_STATE)
+				continue;
+			assert(found == NULL);
+			found = candidate;
+		}
+	}
+	return found;
+}
+
+static void install_anchor_grant(
+	const struct payload_mm_fmp_owner_prepared *prepared, const char *mismatch)
+{
+	struct capsule_tpm_anchor_binding binding = prepared_binding();
+	struct capsule_tpm_anchor_grant grant = {
+		.revision = CAPSULE_TPM_ANCHOR_GRANT_REVISION,
+		.size = sizeof(grant),
+		.policy_revision = binding.policy_revision,
+		.nv_index = binding.nv_index,
+		.generation = prepared->generation,
+		.transaction = prepared->transaction,
+		.flags = CAPSULE_TPM_ANCHOR_GRANT_REQUIRED_FLAGS,
+		.current.epoch = prepared->current.epoch,
+		.candidate.epoch = prepared->candidate.epoch,
+	};
+
+	memcpy(grant.current.digest, prepared->current.digest,
+		sizeof(grant.current.digest));
+	memcpy(grant.candidate.digest, prepared->candidate.digest,
+		sizeof(grant.candidate.digest));
+	if (mismatch && !strcmp(mismatch, "generation"))
+		grant.generation++;
+	else if (mismatch && !strcmp(mismatch, "transaction"))
+		grant.transaction++;
+	else if (mismatch && !strcmp(mismatch, "current"))
+		grant.current.digest[0] ^= 1;
+	else if (mismatch && !strcmp(mismatch, "candidate"))
+		grant.candidate.digest[0] ^= 1;
+	else if (mismatch && !strcmp(mismatch, "epoch")) {
+		grant.current.epoch++;
+		grant.candidate.epoch++;
+	}
+	assert(capsule_tpm_anchor_grant_install(&grant, &binding,
+		protected_storage, NULL) == CB_SUCCESS);
+}
+
+static void prepare_one(void)
+{
+	install(true);
+	owner_install();
+	assert(backend->read(NULL, &identity, 0, &workspace()->current) ==
+		CB_SUCCESS);
+	workspace()->candidate = workspace()->current;
+	workspace()->candidate.sequence++;
+	workspace()->candidate.data[2] = 1;
+	assert(payload_mm_fmp_owner_journal_prepare(&identity, 0,
+		&workspace()->current, &workspace()->candidate, 9, 17) ==
+		CB_SUCCESS);
+}
+
+static void test_prepared(const char *name)
+{
+	struct payload_mm_fmp_owner_prepared prepared;
+	struct payload_mm_fmp_owner_prepared *stored;
+	const char *mismatch = NULL;
+
+	if (!strncmp(name, "cut-prepare-program-", 20)) {
+		unsigned int cut = (unsigned int)(name[20] - '0');
+
+		install(true);
+		owner_install();
+		assert(backend->read(NULL, &identity, 0, &workspace()->current) ==
+			CB_SUCCESS);
+		workspace()->candidate = workspace()->current;
+		workspace()->candidate.sequence++;
+		reset_counts();
+		model.program_cut = cut;
+		model.program_fault = FAULT_PARTIAL;
+		assert(payload_mm_fmp_owner_journal_prepare(&identity, 0,
+			&workspace()->current, &workspace()->candidate, 9, 17) ==
+			CB_ERR);
+		assert(model.fault_hit);
+		expect_sequence(1);
+		return;
+	}
+	if (!strncmp(name, "cut-prepare-sync-", 17)) {
+		unsigned int cut = (unsigned int)(name[17] - '0');
+
+		install(true);
+		owner_install();
+		assert(backend->read(NULL, &identity, 0, &workspace()->current) ==
+			CB_SUCCESS);
+		workspace()->candidate = workspace()->current;
+		workspace()->candidate.sequence++;
+		reset_counts();
+		model.sync_cut = cut;
+		model.sync_fault = FAULT_BEFORE;
+		assert(payload_mm_fmp_owner_journal_prepare(&identity, 0,
+			&workspace()->current, &workspace()->candidate, 9, 17) ==
+			CB_ERR);
+		assert(model.fault_hit);
+		expect_sequence(1);
+		return;
+	}
+	prepare_one();
+	stored = prepared_record();
+	assert(stored != NULL);
+	prepared = *stored;
+	assert(anchors_equal(&model.anchor, &prepared.current));
+	expect_sequence(1);
+	assert(payload_mm_fmp_owner_commit_state(&workspace()->current,
+		&workspace()->candidate) == CB_ERR);
+	assert(payload_mm_fmp_owner_journal_prepare(&identity, 0,
+		&workspace()->current, &workspace()->candidate, 9, 18) == CB_ERR);
+	if (!strcmp(name, "before-advance")) {
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		expect_sequence(1);
+		return;
+	}
+	if (!strcmp(name, "stale-anchor")) {
+		install_anchor_grant(&prepared, NULL);
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		assert(!capsule_tpm_anchor_grant_ready());
+		expect_sequence(1);
+		return;
+	}
+	model.anchor = prepared.candidate;
+	if (!strcmp(name, "advanced-no-grant")) {
+		assert(backend->read(NULL, &identity, 0, &workspace()->output) ==
+			CB_ERR);
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		return;
+	}
+	if (!strncmp(name, "mismatch-", 9))
+		mismatch = name + 9;
+	install_anchor_grant(&prepared, mismatch);
+	if (!strcmp(name, "cut-reconcile-program")) {
+		reset_counts();
+		model.program_cut = 1;
+		model.program_fault = FAULT_BEFORE;
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		assert(model.fault_hit);
+		return;
+	}
+	if (!strcmp(name, "cut-reconcile-sync")) {
+		reset_counts();
+		model.sync_cut = 1;
+		model.sync_fault = FAULT_BEFORE;
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		assert(model.fault_hit);
+		assert(backend->read(NULL, &identity, 0, &workspace()->output) ==
+			CB_ERR);
+		return;
+	}
+	if (mismatch) {
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+		assert(!capsule_tpm_anchor_grant_ready());
+		assert(stored->state == PAYLOAD_MM_FMP_OWNER_PREPARED_STATE);
+		return;
+	}
+	assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_SUCCESS);
+	assert(stored->state == PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE);
+	assert(backend->read(NULL, &identity, 0, &workspace()->output) ==
+		CB_SUCCESS);
+	assert(workspace()->output.sequence == 2);
+	assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_ERR);
+}
+#endif
+
 static void factory_expected(
 	struct payload_mm_fmp_owner_journal_manifest *manifest,
 	struct payload_mm_fmp_owner_journal_anchor *anchor)
@@ -853,6 +1052,13 @@ int main(int argc, char **argv)
 {
 	const char *name = argc > 1 ? argv[1] : "success";
 	unsigned int cut = argc > 2 ? parse_cut(argv[2]) : 1;
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+	if (!strncmp(name, "prepared-", 9)) {
+		test_prepared(name + 9);
+		return 0;
+	}
+#endif
 
 	if (!strcmp(name, "absent")) {
 		install(false);
