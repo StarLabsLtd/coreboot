@@ -11,6 +11,7 @@ Verified Boot <vboot/index.md>
 Measured Boot <vboot/measured_boot.md>
 Memory clearing <memory_clearing.md>
 Pre-OS TPM lifecycle <tpm-pre-os-lifecycle.md>
+Capsule rollback-anchor grant <capsule-tpm-anchor-grant.md>
 ```
 
 ## Intel TXT

@@ -72,6 +72,11 @@ OS. Capsule authentication and TPM rollback-state work must complete pre-OS;
 later SMM flash work may consume only a bounded grant already copied into
 SMRAM, not revisit the TPM.
 
+The default-off [capsule rollback-anchor grant](capsule-tpm-anchor-grant.md)
+defines the pointer-free one-shot handoff shape for that future split
+transaction. It deliberately does not supply the signed authorization provider
+or the journal prepared phase required to produce a grant safely.
+
 ## Provider requirements
 
 Discrete FIFO/MMIO, SPI and I2C providers must finish or abort to
