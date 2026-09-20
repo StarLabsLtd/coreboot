@@ -23,34 +23,40 @@ _Static_assert(FMAP_SECTION_SMMSTORE_SIZE >= SMMSTORE_MIN_SIZE,
 _Static_assert(FMAP_SECTION_SMMSTORE_SIZE >= SMM_BLOCK_SIZE,
 	       "SMMSTORE FMAP region must fit at least one logical block");
 
-static int smmstore_use_full_flash;
+#if CONFIG(SMMSTORE_FULL_FLASH_ACCESS)
+static bool smmstore_use_full_flash;
 static int has_capsules = -1;
+#endif
 
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
-		if (has_capsules == -1 && *cmd == SMMSTORE_CMD_USE_FULL_FLASH) {
-			has_capsules = !!(uintptr_t)param;
-			/*
-			 * If we have capsules, return success, otherwise let smmstore_exec()
-			 * fail on !param check, which will be 0 in that case. This informs
-			 * the caller whether capsule handling was enabled or not.
-			 */
-			return has_capsules;
-		} else if (has_capsules == 1 && *cmd & SMMSTORE_CMD_USE_FULL_FLASH) {
-			smmstore_use_full_flash = 1;
-			*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
-		} else {
-			smmstore_use_full_flash = 0;
-		}
+#if CONFIG(SMMSTORE_FULL_FLASH_ACCESS)
+	if (has_capsules == -1 && *cmd == SMMSTORE_CMD_USE_FULL_FLASH) {
+		has_capsules = !!(uintptr_t)param;
+		/*
+		 * If we have capsules, return success, otherwise let smmstore_exec()
+		 * fail on !param check, which will be 0 in that case. This informs
+		 * the caller whether capsule handling was enabled or not.
+		 */
+		return has_capsules;
+	} else if (has_capsules == 1 && *cmd & SMMSTORE_CMD_USE_FULL_FLASH) {
+		smmstore_use_full_flash = true;
+		*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
+	} else {
+		smmstore_use_full_flash = false;
 	}
+#else
+	(void)cmd;
+	(void)param;
+#endif
 
 	return 0;
 }
 
 static enum cb_err lookup_store_region(struct region *region)
 {
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash) {
+#if CONFIG(SMMSTORE_FULL_FLASH_ACCESS)
+	if (smmstore_use_full_flash) {
 		const struct region_device *rdev = boot_device_rw();
 
 		if (rdev == NULL)
@@ -59,6 +65,7 @@ static enum cb_err lookup_store_region(struct region *region)
 		*region = *region_device_region(rdev);
 		return CB_SUCCESS;
 	}
+#endif
 
 	if (fmap_locate_area(SMMSTORE_REGION, region)) {
 		printk(BIOS_WARNING,

@@ -18,10 +18,10 @@
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.
  *
- * Availability depends on CONFIG(DRIVERS_EFI_UPDATE_CAPSULES). Usage of this
- * extension requires considering which portions of the flash is read-only or
- * otherwise protected to avoid causing problems while trying to overwrite
- * them.
+ * Availability depends on CONFIG(SMMSTORE_FULL_FLASH_ACCESS). The typed
+ * capsule broker never compiles this extension. Usage requires considering
+ * which portions of the flash are read-only or otherwise protected to avoid
+ * causing problems while trying to overwrite them.
  */
 #define SMMSTORE_CMD_USE_FULL_FLASH 0x80
 

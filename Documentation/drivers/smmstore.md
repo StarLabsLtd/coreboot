@@ -218,7 +218,11 @@ running kernel.
 
 ## Capsule update API
 
-Availability of this command is tied to `CONFIG_DRIVERS_EFI_UPDATE_CAPSULES`.
+Availability of this command is tied to
+`CONFIG_SMMSTORE_FULL_FLASH_ACCESS`, which is enabled only for the legacy EFI
+capsule driver. A build containing the typed capsule broker cannot enable this
+generic full-flash route. Ordinary SMMSTORE commands remain scoped to the
+`SMMSTORE` FMAP region.
 
 To allow updating full flash content (except if locked at hardware
 level), few new calls were added. They reuse communication buffer, SMI
