@@ -28,6 +28,7 @@ ifeq ($(CONFIG_TPM2),y)
 
 ramstage-y += capsule_anchor.c
 ramstage-$(CONFIG_ARCH_X86) += pre_os_lifecycle.c
+ramstage-y += transport_release.c
 ramstage-y += tss/tcg-2.0/policy.c
 
 ramstage-y += tss/tcg-2.0/tss_marshaling.c
