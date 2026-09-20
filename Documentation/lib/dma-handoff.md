@@ -20,6 +20,11 @@ and inconsistent ownership are rejected. The reference and the generic CBMEM
 directory entry must identify the same exact allocation; this is checked by the
 consumer. The fixed bounds are contract limits, not a topology claim.
 
+On Meteor Lake, `ENABLE_EARLY_DMA_PROTECTION` also selects FSP's pre-boot DMA
+policy and reapplies the existing VT-d PMR protection after memory init. This is
+only a platform prerequisite. It does not produce this handoff or prove that a
+particular payload or capsule buffer is covered by every DMA-remapping engine.
+
 Run the producer checks with:
 
 ```
