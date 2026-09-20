@@ -34,6 +34,11 @@ struct payload_spi_console_request {
 	uint8_t data[];
 } __packed;
 
+_Static_assert(sizeof(struct payload_spi_console_request) == 16,
+	"payload SPI console request ABI changed");
+_Static_assert(offsetof(struct payload_spi_console_request, status) == 12,
+	"payload SPI console request status offset changed");
+
 typedef bool (*payload_spi_console_sink)(const uint8_t *data, size_t length,
 	void *context);
 

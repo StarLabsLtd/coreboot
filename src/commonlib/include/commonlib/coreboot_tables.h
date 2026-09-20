@@ -775,6 +775,13 @@ struct lb_payload_spi_console {
 	uint8_t reserved[3];
 };
 
+_Static_assert(sizeof(struct lb_payload_spi_console) == 36,
+	"payload SPI console record ABI changed");
+_Static_assert(offsetof(struct lb_payload_spi_console, com_buffer) == 12,
+	"payload SPI console buffer offset changed");
+_Static_assert(offsetof(struct lb_payload_spi_console, apm_cmd) == 32,
+	"payload SPI console command offset changed");
+
 enum lb_tpm_ppi_tpm_version {
 	LB_TPM_VERSION_UNSPEC = 0,
 	LB_TPM_VERSION_TPM_VERSION_1_2,
