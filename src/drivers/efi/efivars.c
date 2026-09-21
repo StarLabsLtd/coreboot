@@ -621,7 +621,6 @@ static enum cb_err walk_variables(struct region_device *rdev,
 		print_guid(BIOS_SPEW, &hdr.VendorGuid);
 		printk(BIOS_SPEW, "\n");
 
-<<<<<<< HEAD
 		if (hdr.NameSize > SIZE_MAX - header_size)
 			return CB_EFI_VS_CORRUPTED_INVALID;
 		var_size = header_size + hdr.NameSize;
