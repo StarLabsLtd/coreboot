@@ -143,6 +143,16 @@ config TPM2_PLATFORM_AUTH_CODECS
 	  these codecs. Late mutable firmware remains a weaker TCB than an earlier
 	  hardware-enforced root; closing phEnable makes no stronger claim.
 
+config CAPSULE_TPM_ANCHOR_TRUSTED_TRANSITION
+	bool
+	default n
+	depends on CAPSULE_TPM_ANCHOR_TRANSITION && TPM2_PLATFORM_AUTH_CODECS
+	help
+	  Build the dormant policy-revision-3 platform-authorized rollback-anchor
+	  transition. This supplies no platform selection, provider, resume path,
+	  SMI route, provisioning or runtime DMA proof. Late mutable firmware
+	  remains a weaker TCB than an earlier hardware-enforced root.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n

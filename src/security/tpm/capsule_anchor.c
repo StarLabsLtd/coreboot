@@ -40,6 +40,28 @@ static bool descriptor_valid(
 			sizeof(descriptor->policy_ref) - descriptor->policy_ref_size);
 }
 
+static bool platform_descriptor_valid(
+	const struct capsule_tpm_anchor_descriptor *descriptor)
+{
+	return descriptor->revision == CAPSULE_TPM_ANCHOR_DESCRIPTOR_REVISION &&
+		descriptor->size == sizeof(*descriptor) &&
+		descriptor->policy_revision ==
+			CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION &&
+		(descriptor->nv_index & 0xff000000U) == HR_NV_INDEX &&
+		descriptor->attributes == CAPSULE_TPM_ANCHOR_PLATFORM_ATTRIBUTES &&
+		descriptor->name_algorithm == TPM_ALG_SHA256 &&
+		descriptor->data_size == CAPSULE_TPM_ANCHOR_SIZE &&
+		!descriptor->auth_policy_size &&
+		!descriptor->authority_name_size && !descriptor->policy_ref_size &&
+		!descriptor->reserved && !descriptor->reserved2 &&
+		bytes_zero(descriptor->auth_policy,
+			sizeof(descriptor->auth_policy)) &&
+		bytes_zero(descriptor->authority_name,
+			sizeof(descriptor->authority_name)) &&
+		bytes_zero(descriptor->policy_ref,
+			sizeof(descriptor->policy_ref));
+}
+
 enum cb_err capsule_tpm_anchor_validate(
 	const struct capsule_tpm_anchor_descriptor *descriptor,
 	struct capsule_tpm_anchor_binding *binding)
@@ -79,6 +101,46 @@ enum cb_err capsule_tpm_anchor_validate(
 	memcpy(result.authority_name, expected.authority_name,
 		sizeof(result.authority_name));
 	memcpy(result.policy_ref, expected.policy_ref, sizeof(result.policy_ref));
+	*binding = result;
+	return CB_SUCCESS;
+}
+
+enum cb_err capsule_tpm_anchor_platform_validate(
+	const struct capsule_tpm_anchor_descriptor *descriptor,
+	struct capsule_tpm_anchor_binding *binding)
+{
+	struct capsule_tpm_anchor_descriptor expected;
+	struct tlcl2_nv_public public;
+	struct capsule_tpm_anchor_binding result;
+
+	if (!binding)
+		return CB_ERR_ARG;
+	memset(binding, 0, sizeof(*binding));
+	if (!descriptor)
+		return CB_ERR_ARG;
+	memcpy(&expected, descriptor, sizeof(expected));
+	if (!platform_descriptor_valid(&expected))
+		return CB_ERR;
+	memset(&public, 0, sizeof(public));
+	if (tlcl2_read_public(expected.nv_index & 0x00ffffffU, &public) !=
+		TPM_SUCCESS ||
+	    public.index != (expected.nv_index & 0x00ffffffU) ||
+	    public.name_alg != expected.name_algorithm ||
+	    (public.attributes & ~(CAPSULE_TPM_ANCHOR_WRITTEN |
+		CAPSULE_TPM_ANCHOR_WRITELOCKED)) != expected.attributes ||
+	    !(public.attributes & CAPSULE_TPM_ANCHOR_WRITTEN) ||
+	    public.auth_policy_size ||
+	    !bytes_zero(public.auth_policy, sizeof(public.auth_policy)) ||
+	    public.data_size != expected.data_size)
+		return CB_ERR;
+	result = (struct capsule_tpm_anchor_binding) {
+		.policy_revision = expected.policy_revision,
+		.nv_index = expected.nv_index,
+		.write_locked = !!(public.attributes &
+			CAPSULE_TPM_ANCHOR_WRITELOCKED),
+	};
+	if (!capsule_tpm_anchor_platform_binding_valid(&result))
+		return CB_ERR;
 	*binding = result;
 	return CB_SUCCESS;
 }

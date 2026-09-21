@@ -19,6 +19,8 @@
 #define AUTHORIZED_SLOT_SIZE 4096U
 #define AUTHORIZED_MIN_SLOT_SIZE 2512U
 #define AUTHORIZED_BELOW_MIN_SLOT_SIZE 2504U
+#define PLATFORM_MIN_SLOT_SIZE 528U
+#define PLATFORM_BELOW_MIN_SLOT_SIZE 520U
 #define MEDIA_SIZE (12U * AUTHORIZED_SLOT_SIZE)
 #define TEST_OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL
 #define FACTORY_FIRST_POST_PROVISION_READ 58U
@@ -113,6 +115,15 @@ static struct capsule_tpm_anchor_binding prepared_binding(void)
 		.authority_name = { 0, 0x0b, 1 },
 		.policy_ref_size = 7,
 		.policy_ref = { 'c', 'a', 'p', 's', 'u', 'l', 'e' },
+		.write_locked = 1,
+	};
+}
+
+static struct capsule_tpm_anchor_binding platform_binding(void)
+{
+	return (struct capsule_tpm_anchor_binding) {
+		.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+		.nv_index = 0x01001234,
 		.write_locked = 1,
 	};
 }
@@ -489,7 +500,9 @@ static struct payload_mm_fmp_owner_journal_port port_with_slot_size(
 {
 	u32 domain_size = slot_size * SLOTS;
 	u32 erase_size = slot_size == AUTHORIZED_MIN_SLOT_SIZE ||
-		slot_size == AUTHORIZED_BELOW_MIN_SLOT_SIZE ? 8 :
+		slot_size == AUTHORIZED_BELOW_MIN_SLOT_SIZE ||
+		slot_size == PLATFORM_MIN_SLOT_SIZE ||
+		slot_size == PLATFORM_BELOW_MIN_SLOT_SIZE ? 8 :
 		slot_size == AUTHORIZED_MIN_SLOT_SIZE - 1 ? 1 : slot_size;
 	struct payload_mm_fmp_owner_journal_port value = {
 		.revision = PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION,
@@ -687,6 +700,23 @@ static bool manifest_for_anchor(
 			test_hash(&candidate, sizeof(candidate), digest);
 #if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
 			if (active_slot_size >=
+			    PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE) {
+				const struct payload_mm_fmp_owner_prepared *prepared =
+					(const void *)(address + sizeof(candidate));
+				const struct payload_mm_fmp_owner_platform_receipt *receipt =
+					(const void *)((const u8 *)prepared + sizeof(*prepared));
+				struct payload_mm_fmp_owner_platform_anchor_input input;
+
+				if (prepared->magic ==
+					    PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC &&
+				    receipt->magic ==
+					    PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_MAGIC &&
+				    payload_mm_fmp_owner_platform_anchor_input(&candidate,
+					&prepared->current, prepared->generation,
+					prepared->transaction, receipt, &input))
+					test_hash(&input, sizeof(input), digest);
+			}
+			if (active_slot_size >=
 			    sizeof(candidate) +
 			    sizeof(struct payload_mm_fmp_owner_prepared) +
 			    sizeof(struct payload_mm_fmp_owner_transition_material)) {
@@ -776,6 +806,30 @@ static void install_anchor_grant(
 		grant.candidate.epoch++;
 	}
 	assert(capsule_tpm_anchor_grant_install(&grant, &binding,
+		protected_storage, NULL) == CB_SUCCESS);
+}
+
+static void install_platform_grant(
+	const struct payload_mm_fmp_owner_prepared *prepared)
+{
+	struct capsule_tpm_anchor_binding binding = platform_binding();
+	struct capsule_tpm_anchor_grant grant = {
+		.revision = CAPSULE_TPM_ANCHOR_GRANT_REVISION,
+		.size = sizeof(grant),
+		.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+		.nv_index = binding.nv_index,
+		.generation = prepared->generation,
+		.transaction = prepared->transaction,
+		.flags = CAPSULE_TPM_ANCHOR_GRANT_REQUIRED_FLAGS,
+		.current.epoch = prepared->current.epoch,
+		.candidate.epoch = prepared->candidate.epoch,
+	};
+
+	memcpy(grant.current.digest, prepared->current.digest,
+		sizeof(grant.current.digest));
+	memcpy(grant.candidate.digest, prepared->candidate.digest,
+		sizeof(grant.candidate.digest));
+	assert(capsule_tpm_anchor_platform_grant_install(&grant, &binding,
 		protected_storage, NULL) == CB_SUCCESS);
 }
 
@@ -876,6 +930,151 @@ static void prepare_authorized_fixture(
 	workspace()->candidate.sequence++;
 	workspace()->candidate.data[2] = 1;
 	*material = authorized_material();
+}
+
+static void platform_material(
+	struct capsule_tpm_anchor_platform_request *request,
+	struct payload_mm_fmp_owner_platform_receipt *receipt)
+{
+	struct payload_mm_fmp_owner_journal_manifest current_manifest;
+	struct payload_mm_fmp_owner_journal_manifest candidate_manifest;
+	struct payload_mm_fmp_owner_platform_anchor_input input;
+
+	*receipt = (struct payload_mm_fmp_owner_platform_receipt) {
+		.magic = PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_MAGIC,
+		.revision = PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_REVISION,
+		.size = sizeof(*receipt),
+		.capsule_size = UINT32_MAX,
+		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+		.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+		.capsule_digest = { 0x5a },
+	};
+	assert(manifest_for_anchor(&model.anchor, &current_manifest));
+	candidate_manifest = current_manifest;
+	candidate_manifest.epoch++;
+	candidate_manifest.record[0] = workspace()->candidate;
+	*request = (struct capsule_tpm_anchor_platform_request) {
+		.revision = CAPSULE_TPM_ANCHOR_PLATFORM_REQUEST_REVISION,
+		.size = sizeof(*request),
+		.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+		.nv_index = 0x01001234,
+		.generation = 9,
+		.transaction = 17,
+		.current.epoch = model.anchor.epoch,
+		.candidate.epoch = candidate_manifest.epoch,
+	};
+	memcpy(request->current.digest, model.anchor.digest,
+		sizeof(request->current.digest));
+	assert(payload_mm_fmp_owner_platform_anchor_input(&candidate_manifest,
+		&model.anchor, request->generation, request->transaction, receipt,
+		&input));
+	test_hash(&input, sizeof(input), request->candidate.digest);
+}
+
+static void test_platform_prepare(const char *name)
+{
+	struct capsule_tpm_anchor_platform_request request;
+	struct payload_mm_fmp_owner_platform_receipt receipt;
+	struct payload_mm_fmp_owner_prepared *prepared;
+	u32 slot_size = !strcmp(name, "slot-528") ? PLATFORM_MIN_SLOT_SIZE :
+		!strcmp(name, "slot-520") ? PLATFORM_BELOW_MIN_SLOT_SIZE : SLOT_SIZE * 2;
+
+	install_with_slot_size(true, slot_size);
+	owner_install();
+	assert(backend->read(NULL, &identity, 0, &workspace()->current) ==
+		CB_SUCCESS);
+	workspace()->candidate = workspace()->current;
+	workspace()->candidate.sequence++;
+	workspace()->candidate.data[2] = 1;
+	platform_material(&request, &receipt);
+	if (!strncmp(name, "program-", 8) || !strncmp(name, "sync-", 5)) {
+		size_t length = strlen(name);
+		unsigned int cut = (unsigned int)(name[length - 1] - '0');
+
+		reset_counts();
+		if (!strncmp(name, "program-", 8)) {
+			model.program_cut = cut;
+			model.program_fault = fault_from_name(name);
+		} else {
+			model.sync_cut = cut;
+			model.sync_fault = fault_from_name(name);
+		}
+		assert(payload_mm_fmp_owner_journal_prepare_platform(&identity, 0,
+			&workspace()->current, &workspace()->candidate, &request,
+			&receipt) == CB_ERR);
+		assert(model.fault_hit);
+		assert(payload_mm_fmp_owner_read(0, &workspace()->output) ==
+			CB_SUCCESS);
+		assert(workspace()->output.sequence == 1);
+		return;
+	}
+	if (!strcmp(name, "receipt-v1"))
+		receipt.revision = 1;
+	else if (!strcmp(name, "capsule-size"))
+		receipt.capsule_size--;
+	else if (!strcmp(name, "capsule-algorithm"))
+		receipt.digest_algorithm++;
+	else if (!strcmp(name, "capsule-digest"))
+		receipt.capsule_digest[0] ^= 1;
+	else if (!strcmp(name, "generation"))
+		request.generation++;
+	else if (!strcmp(name, "transaction"))
+		request.transaction++;
+	else if (!strcmp(name, "current"))
+		request.current.digest[0] ^= 1;
+	else if (!strcmp(name, "candidate"))
+		request.candidate.digest[0] ^= 1;
+	if (!strcmp(name, "slot-520") || !strcmp(name, "receipt-v1") ||
+	    !strcmp(name, "capsule-size") || !strcmp(name, "capsule-algorithm") ||
+	    !strcmp(name, "capsule-digest") || !strcmp(name, "generation") ||
+	    !strcmp(name, "transaction") || !strcmp(name, "current") ||
+	    !strcmp(name, "candidate")) {
+		assert(payload_mm_fmp_owner_journal_prepare_platform(&identity, 0,
+			&workspace()->current, &workspace()->candidate, &request,
+			&receipt) == CB_ERR);
+		return;
+	}
+	assert(payload_mm_fmp_owner_journal_prepare_platform(&identity, 0,
+		&workspace()->current, &workspace()->candidate, &request, &receipt) ==
+		CB_SUCCESS);
+	prepared = prepared_record();
+	assert(prepared != NULL);
+	assert(!memcmp((const u8 *)prepared + sizeof(*prepared), &receipt,
+		sizeof(receipt)));
+	if (!strcmp(name, "success") || !strcmp(name, "slot-528"))
+		return;
+	model.anchor = prepared->candidate;
+	install_platform_grant(prepared);
+	assert(payload_mm_fmp_owner_journal_reconcile_prepared() == CB_SUCCESS);
+	assert(prepared->state == PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE);
+	assert(payload_mm_fmp_owner_read(0, &workspace()->output) == CB_SUCCESS);
+	assert(workspace()->output.sequence == 2);
+	if (!strcmp(name, "gc-copy")) {
+		u8 saved[PLATFORM_MIN_SLOT_SIZE];
+		const u8 *source = model.media + active_slot_size;
+
+		memcpy(saved, source, sizeof(saved));
+		memcpy(model.media + 2U * active_slot_size, source,
+			active_slot_size);
+		memset(model.media, 0xff, 2U * active_slot_size);
+		assert(payload_mm_fmp_owner_read(0, &workspace()->output) ==
+			CB_SUCCESS);
+		assert(commit_next() == CB_ERR);
+		platform_material(&request, &receipt);
+		assert(payload_mm_fmp_owner_journal_prepare_platform(&identity, 0,
+			&workspace()->current, &workspace()->candidate, &request,
+			&receipt) == CB_SUCCESS);
+		assert(!memcmp(model.media + active_domain_size, saved,
+			sizeof(saved)));
+		return;
+	}
+	assert(commit_next() == CB_ERR);
+	if (!strcmp(name, "next")) {
+		platform_material(&request, &receipt);
+		assert(payload_mm_fmp_owner_journal_prepare_platform(&identity, 0,
+			&workspace()->current, &workspace()->candidate, &request,
+			&receipt) == CB_SUCCESS);
+	}
 }
 
 static void test_authorized_prepare(const char *name)
@@ -1458,6 +1657,10 @@ int main(int argc, char **argv)
 
 #if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
 	if (!strncmp(name, "prepared-", 9)) {
+		if (!strncmp(name + 9, "platform-", 9)) {
+			test_platform_prepare(name + 18);
+			return 0;
+		}
 		if (!strncmp(name + 9, "authorized-", 11)) {
 			test_authorized_prepare(name + 20);
 			return 0;

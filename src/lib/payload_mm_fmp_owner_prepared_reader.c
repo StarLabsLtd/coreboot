@@ -17,6 +17,8 @@
 #define READER_AUTH_PROVING 0x50415031U
 #define READER_AUTH_FINISHED 0x50414631U
 #define READER_AUTH_FAILED 0x504c4631U
+#define READER_PLATFORM_RUNNING 0x50545231U
+#define READER_PLATFORM_FINISHED 0x50544631U
 
 _Static_assert(__atomic_always_lock_free(sizeof(uint32_t), 0),
 	"owner PREPARED reader control must be lock-free");
@@ -109,7 +111,8 @@ static bool operation_active(
 	return reader->initialized && !reader->poisoned &&
 		(control == READER_LEGACY_RUNNING ||
 		 control == READER_AUTH_LOADING ||
-		 control == READER_AUTH_PROVING) &&
+		 control == READER_AUTH_PROVING ||
+		 control == READER_PLATFORM_RUNNING) &&
 		policy_unchanged(reader);
 }
 
@@ -738,5 +741,260 @@ out:
 	memset(&first, 0, sizeof(first));
 	memset(&second, 0, sizeof(second));
 	memset(authorization_digest, 0, sizeof(authorization_digest));
+	return result;
+}
+
+struct platform_proof_scan {
+	struct payload_mm_fmp_owner_platform_slot_prefix current;
+	struct payload_mm_fmp_owner_platform_slot_prefix candidate;
+	size_t current_domain;
+	u32 current_slot;
+	size_t candidate_domain;
+	u32 candidate_slot;
+	u32 current_count;
+	u32 candidate_count;
+	u32 prepared_count;
+};
+
+static enum cb_err read_platform_prefix(
+	struct payload_mm_fmp_owner_prepared_reader *reader, size_t domain,
+	u32 slot, struct payload_mm_fmp_owner_platform_slot_prefix *prefix)
+{
+	const struct payload_mm_fmp_owner_prepared_media *media;
+	size_t offset;
+	ssize_t result;
+
+	if (domain >= PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS || !prefix ||
+	    reader->policy.layout.slot_size < sizeof(*prefix) ||
+	    slot >= reader->policy.layout.state[domain].size /
+		reader->policy.layout.slot_size || !operation_active(reader) ||
+	    (size_t)slot > SIZE_MAX / reader->policy.layout.slot_size)
+		return CB_ERR;
+	media = &reader->policy.media[domain];
+	offset = (size_t)slot * reader->policy.layout.slot_size;
+	memset(prefix, 0, sizeof(*prefix));
+	result = media->ops.readat(media->root_device, prefix,
+		media->state.region.offset + offset, sizeof(*prefix));
+	if (!operation_active(reader) || result != sizeof(*prefix)) {
+		memset(prefix, 0, sizeof(*prefix));
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+
+static enum cb_err platform_tail_erased(
+	struct payload_mm_fmp_owner_prepared_reader *reader, size_t domain,
+	u32 slot)
+{
+	const struct payload_mm_fmp_owner_prepared_media *media;
+	u8 chunk[64];
+	size_t offset;
+	size_t remaining;
+
+	if (domain >= PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS ||
+	    reader->policy.layout.slot_size <
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE ||
+	    slot >= reader->policy.layout.state[domain].size /
+		reader->policy.layout.slot_size || !operation_active(reader) ||
+	    (size_t)slot > SIZE_MAX / reader->policy.layout.slot_size)
+		return CB_ERR;
+	media = &reader->policy.media[domain];
+	offset = (size_t)slot * reader->policy.layout.slot_size +
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE;
+	remaining = reader->policy.layout.slot_size -
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE;
+	while (remaining) {
+		size_t size = MIN(remaining, sizeof(chunk));
+		ssize_t result = media->ops.readat(media->root_device, chunk,
+			media->state.region.offset + offset, size);
+
+		if (!operation_active(reader) || result != (ssize_t)size ||
+		    !bytes_equal_value(chunk, size, 0xff))
+			return CB_ERR;
+		offset += size;
+		remaining -= size;
+	}
+	return CB_SUCCESS;
+}
+
+static enum cb_err platform_prefix_anchor(
+	struct payload_mm_fmp_owner_prepared_reader *reader,
+	const struct payload_mm_fmp_owner_platform_slot_prefix *prefix,
+	struct payload_mm_fmp_owner_journal_anchor *anchor, bool *platform)
+{
+	struct payload_mm_fmp_owner_platform_anchor_input input;
+	struct payload_mm_fmp_owner_journal_anchor legacy;
+	bool prepared_erased = bytes_equal_value((const u8 *)&prefix->prepared,
+		sizeof(prefix->prepared), 0xff);
+	bool receipt_erased = bytes_equal_value((const u8 *)&prefix->receipt,
+		sizeof(prefix->receipt), 0xff);
+
+	*platform = false;
+	if (manifest_anchor(reader, &prefix->manifest, &legacy) != CB_SUCCESS)
+		return CB_ERR;
+	if (prepared_erased) {
+		if (!receipt_erased)
+			return CB_ERR;
+		*anchor = legacy;
+		return CB_SUCCESS;
+	}
+	if (!payload_mm_fmp_owner_journal_prepared_shape_valid(
+		&prefix->prepared))
+		return CB_ERR;
+	if (receipt_erased) {
+		if (!payload_mm_fmp_owner_journal_anchor_equal(&legacy,
+			&prefix->prepared.candidate))
+			return CB_ERR;
+		*anchor = legacy;
+		return CB_SUCCESS;
+	}
+	if (!payload_mm_fmp_owner_platform_receipt_valid(&prefix->receipt) ||
+	    !payload_mm_fmp_owner_platform_anchor_input(&prefix->manifest,
+		&prefix->prepared.current, prefix->prepared.generation,
+		prefix->prepared.transaction, &prefix->receipt, &input))
+		return CB_ERR;
+	anchor->epoch = prefix->manifest.epoch;
+	if (hash(reader, &input, sizeof(input), anchor->digest) != CB_SUCCESS ||
+	    !payload_mm_fmp_owner_journal_anchor_equal(anchor,
+		&prefix->prepared.candidate))
+		return CB_ERR;
+	*platform = true;
+	return CB_SUCCESS;
+}
+
+static bool platform_manifest_shape_valid(
+	const struct payload_mm_fmp_owner_prepared_reader *reader,
+	const struct payload_mm_fmp_owner_journal_manifest *manifest)
+{
+	return payload_mm_fmp_owner_journal_manifest_shape_valid(manifest,
+			reader->policy.layout.slot_size) &&
+		payload_mm_fmp_owner_journal_manifest_records_valid(manifest) &&
+		!memcmp(manifest->storage_domain, reader->policy.storage_domain,
+			sizeof(manifest->storage_domain)) &&
+		!bytes_equal_value(manifest->identity_binding,
+			sizeof(manifest->identity_binding), 0);
+}
+
+static enum cb_err scan_platform_media(
+	struct payload_mm_fmp_owner_prepared_reader *reader,
+	const struct capsule_tpm_anchor_grant *grant,
+	struct platform_proof_scan *scan)
+{
+	memset(scan, 0, sizeof(*scan));
+	for (size_t domain = 0;
+	     domain < PAYLOAD_MM_FMP_OWNER_JOURNAL_DOMAINS; domain++) {
+		u32 slots = (u32)(reader->policy.layout.state[domain].size /
+			reader->policy.layout.slot_size);
+
+		for (u32 slot = 0; slot < slots; slot++) {
+			struct payload_mm_fmp_owner_platform_slot_prefix prefix;
+			struct payload_mm_fmp_owner_journal_anchor anchor;
+			bool platform;
+
+			if (read_platform_prefix(reader, domain, slot, &prefix) !=
+				CB_SUCCESS)
+				return CB_ERR;
+			if (bytes_equal_value((const u8 *)&prefix, sizeof(prefix), 0xff))
+				continue;
+			if (!platform_manifest_shape_valid(reader, &prefix.manifest))
+				continue;
+			if (platform_prefix_anchor(reader, &prefix, &anchor, &platform) !=
+				CB_SUCCESS)
+				return CB_ERR;
+			if (platform && platform_tail_erased(reader, domain, slot) !=
+				CB_SUCCESS)
+				return CB_ERR;
+			if (prefix.prepared.state ==
+			    PAYLOAD_MM_FMP_OWNER_PREPARED_STATE) {
+				if (!platform || !grant_tuple_equal(&prefix.prepared, grant))
+					return CB_ERR;
+				scan->candidate = prefix;
+				scan->candidate_domain = domain;
+				scan->candidate_slot = slot;
+				scan->prepared_count++;
+			}
+			if (anchor_matches_value(&anchor, &grant->current)) {
+				if (scan->current_count && memcmp(&scan->current, &prefix,
+					sizeof(prefix)))
+					return CB_ERR;
+				scan->current = prefix;
+				scan->current_domain = domain;
+				scan->current_slot = slot;
+				scan->current_count++;
+			}
+			if (anchor_matches_value(&anchor, &grant->candidate))
+				scan->candidate_count++;
+		}
+	}
+	return scan->current_count && scan->candidate_count == 1 &&
+		scan->prepared_count == 1 ? CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err payload_mm_fmp_owner_prepared_reader_prove_platform(
+	const void *context, const struct capsule_tpm_anchor_grant *grant)
+{
+	struct payload_mm_fmp_owner_prepared_reader *reader = (void *)context;
+	struct capsule_tpm_anchor_grant snapshot;
+	struct payload_mm_fmp_owner_platform_slot_prefix current;
+	struct payload_mm_fmp_owner_platform_slot_prefix candidate;
+	struct platform_proof_scan scan;
+	u32 expected = 0;
+	enum cb_err result = CB_ERR;
+
+	if (!reader || !grant || !reader->initialized || reader->poisoned ||
+	    ranges_overlap(reader, sizeof(*reader), grant, sizeof(*grant)) ||
+	    !__atomic_compare_exchange_n(&reader->control, &expected,
+		READER_PLATFORM_RUNNING, false, __ATOMIC_ACQ_REL,
+		__ATOMIC_ACQUIRE))
+		return CB_ERR;
+	snapshot = *grant;
+	if (!operation_active(reader) ||
+	    snapshot.revision != CAPSULE_TPM_ANCHOR_GRANT_REVISION ||
+	    snapshot.size != sizeof(snapshot) ||
+	    snapshot.policy_revision !=
+		CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION ||
+	    snapshot.flags || snapshot.reserved ||
+	    !capsule_tpm_anchor_platform_request_valid(
+		&(struct capsule_tpm_anchor_platform_request) {
+			.revision = CAPSULE_TPM_ANCHOR_PLATFORM_REQUEST_REVISION,
+			.size = sizeof(struct capsule_tpm_anchor_platform_request),
+			.policy_revision = snapshot.policy_revision,
+			.nv_index = snapshot.nv_index,
+			.generation = snapshot.generation,
+			.transaction = snapshot.transaction,
+			.current = snapshot.current,
+			.candidate = snapshot.candidate,
+		}, &(struct capsule_tpm_anchor_binding) {
+			.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+			.nv_index = snapshot.nv_index,
+		}) ||
+	    !anchor_matches_value(&reader->policy.current, &snapshot.current) ||
+	    memcmp(grant, &snapshot, sizeof(snapshot)) ||
+	    scan_platform_media(reader, &snapshot, &scan) != CB_SUCCESS ||
+	    memcmp(scan.current.manifest.identity_binding,
+		scan.candidate.manifest.identity_binding,
+		sizeof(scan.current.manifest.identity_binding)) ||
+	    platform_tail_erased(reader, scan.candidate_domain,
+		scan.candidate_slot) != CB_SUCCESS ||
+	    read_platform_prefix(reader, scan.current_domain, scan.current_slot,
+		&current) != CB_SUCCESS ||
+	    read_platform_prefix(reader, scan.candidate_domain,
+		scan.candidate_slot, &candidate) != CB_SUCCESS ||
+	    memcmp(&current, &scan.current, sizeof(current)) ||
+	    memcmp(&candidate, &scan.candidate, sizeof(candidate)) ||
+	    platform_tail_erased(reader, scan.current_domain,
+		scan.current_slot) != CB_SUCCESS ||
+	    platform_tail_erased(reader, scan.candidate_domain,
+		scan.candidate_slot) != CB_SUCCESS ||
+	    memcmp(grant, &snapshot, sizeof(snapshot)) || !operation_active(reader))
+		goto out;
+	result = CB_SUCCESS;
+out:
+	__atomic_store_n(&reader->control, READER_PLATFORM_FINISHED,
+		__ATOMIC_RELEASE);
+	memset(&snapshot, 0, sizeof(snapshot));
+	memset(&scan, 0, sizeof(scan));
+	memset(&current, 0, sizeof(current));
+	memset(&candidate, 0, sizeof(candidate));
 	return result;
 }

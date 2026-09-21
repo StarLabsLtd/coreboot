@@ -7,6 +7,7 @@
 
 #define CAPSULE_TPM_ANCHOR_DESCRIPTOR_REVISION 1U
 #define CAPSULE_TPM_ANCHOR_POLICY_REVISION 1U
+#define CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION 3U
 #define CAPSULE_TPM_ANCHOR_SIZE 40U
 #define CAPSULE_TPM_ANCHOR_POLICY_SIZE 32U
 #define CAPSULE_TPM_ANCHOR_AUTHORITY_NAME_SIZE 34U
@@ -14,6 +15,8 @@
 
 #define CAPSULE_TPM_ANCHOR_ATTRIBUTES \
 	(BIT(3) | BIT(12) | BIT(14) | BIT(18) | BIT(25) | BIT(30))
+#define CAPSULE_TPM_ANCHOR_PLATFORM_ATTRIBUTES \
+	(BIT(0) | BIT(12) | BIT(14) | BIT(18) | BIT(25) | BIT(30))
 #define CAPSULE_TPM_ANCHOR_WRITELOCKED BIT(11)
 #define CAPSULE_TPM_ANCHOR_WRITTEN BIT(29)
 
@@ -55,5 +58,13 @@ _Static_assert(sizeof(struct capsule_tpm_anchor_binding) == 80,
 enum cb_err capsule_tpm_anchor_validate(
 	const struct capsule_tpm_anchor_descriptor *descriptor,
 	struct capsule_tpm_anchor_binding *binding);
+
+/* Strict policy-revision-3 validator; never falls back to revision 1. */
+enum cb_err capsule_tpm_anchor_platform_validate(
+	const struct capsule_tpm_anchor_descriptor *descriptor,
+	struct capsule_tpm_anchor_binding *binding);
+
+bool capsule_tpm_anchor_platform_binding_valid(
+	const struct capsule_tpm_anchor_binding *binding);
 
 #endif /* SECURITY_TPM_CAPSULE_ANCHOR_H */
