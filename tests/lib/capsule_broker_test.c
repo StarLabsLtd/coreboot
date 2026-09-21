@@ -461,8 +461,8 @@ static void initialize(struct fixture *fixture)
 			.staging_size = sizeof(fixture->staging),
 			.transport = LB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8,
 			.trigger_width = 1,
-			.trigger_address = 0xb2,
-			.trigger_value = 0x91,
+			.trigger_address = CAPSULE_BROKER_APM_PORT,
+			.trigger_value = CAPSULE_BROKER_APM_COMMAND,
 		},
 		.raw_image_size = IMAGE_SIZE,
 		.boot_media_size = MEDIA_SIZE,
@@ -811,8 +811,10 @@ static void endpoint_mutations(void)
 	REJECT(transport, 2);
 	REJECT(trigger_width, 4);
 	REJECT(trigger_address, 0);
+	REJECT(trigger_address, CAPSULE_BROKER_APM_PORT + 1);
 	REJECT(trigger_address, 0x10000);
 	REJECT(trigger_value, 0);
+	REJECT(trigger_value, CAPSULE_BROKER_APM_COMMAND + 1);
 	REJECT(trigger_value, 0x100);
 #undef REJECT
 	endpoint = fixture.policy.endpoint;

@@ -87,6 +87,9 @@ bool capsule_broker_generation_matches(uint64_t generation);
 bool capsule_broker_intent_matches(uint64_t generation, uint64_t capsule_size);
 bool capsule_broker_buffer_available(const void *buffer, size_t size);
 bool capsule_broker_execution_ready(void);
+bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint);
+bool capsule_broker_endpoint_shape_valid(
+	const struct lb_capsule_broker_endpoint *endpoint, uint64_t image_size);
 bool capsule_broker_transport_buffer(void **buffer, size_t *size,
 	uint64_t *generation);
 enum cb_err capsule_broker_authenticate_intent_bound(

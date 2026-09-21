@@ -84,6 +84,17 @@ config CAPSULE_BROKER_FIXED_BUFFERS
 	  lifetime and non-overlap only. It does not establish DMA isolation,
 	  install a broker or publish an endpoint.
 
+config CAPSULE_BROKER_ENDPOINT_PUBLICATION
+	bool
+	default n
+	depends on CAPSULE_BROKER_FIXED_BUFFERS && ARCH_X86 && HAVE_SMI_HANDLER
+	depends on DRIVERS_EFI_FW_INFO
+	help
+	  Build the dormant, readiness-gated capsule SMI route and coreboot-table
+	  endpoint publisher. A future platform must bind the exclusive APM route,
+	  install the complete broker policy and prove it ready before publication.
+	  No platform selects this option or supplies that composition here.
+
 config CAPSULE_TPM_ANCHOR_GRANT
 	bool
 	default n

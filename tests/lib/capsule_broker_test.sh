@@ -89,6 +89,7 @@ run_test()
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/capsule_broker_test.c" \
 		"$root/src/lib/capsule_broker.c" \
+		"$root/src/lib/capsule_broker_endpoint.c" \
 		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
 		"$root/src/lib/capsule_update_backend.c" \
 		-o "$temporary/$name"

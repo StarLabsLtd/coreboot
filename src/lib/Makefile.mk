@@ -12,6 +12,8 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_info.c
+ramstage-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_endpoint.c
+smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_endpoint.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_layout.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_owner_journal.c
@@ -22,6 +24,8 @@ smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_transaction.c
 ramstage-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_buffers.c
 smm-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_scratch.c
+ramstage-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_table.c
+smm-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_smi.c
 
 payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
 payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \

@@ -151,47 +151,6 @@ bool capsule_broker_buffer_available(const void *buffer, size_t size)
 			broker.policy.write_scratch_size));
 }
 
-static bool range_addressable(uint64_t base, uint64_t size)
-{
-	return size && base <= UINTPTR_MAX && size - 1 <= UINTPTR_MAX - base;
-}
-
-static bool endpoint_valid(const struct lb_capsule_broker_endpoint *endpoint,
-	uint64_t image_size)
-{
-	uint64_t communication_base;
-	uint64_t staging_base;
-	uint64_t staging_size;
-
-	if (!endpoint || !image_size ||
-	    endpoint->tag != LB_TAG_CAPSULE_BROKER_ENDPOINT ||
-	    endpoint->size != sizeof(*endpoint) ||
-	    endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_REVISION ||
-	    endpoint->header_size != sizeof(*endpoint) ||
-	    endpoint->flags != LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ||
-	    endpoint->communication_size != CAPSULE_BROKER_TRANSPORT_SIZE ||
-	    endpoint->message_size != CAPSULE_BROKER_TRANSPORT_SIZE ||
-	    endpoint->transport != LB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8 ||
-	    endpoint->trigger_width != sizeof(uint8_t) ||
-	    !endpoint->trigger_address || endpoint->trigger_address > UINT16_MAX ||
-	    !endpoint->trigger_value || endpoint->trigger_value > UINT8_MAX ||
-	    endpoint->reserved[0] ||
-	    endpoint->reserved[1] || endpoint->reserved[2])
-		return false;
-	communication_base = unpack64(endpoint->communication_base);
-	staging_base = unpack64(endpoint->staging_base);
-	staging_size = unpack64(endpoint->staging_size);
-	if (!unpack64(endpoint->generation) || !communication_base ||
-	    communication_base % sizeof(uint64_t) || !staging_base ||
-	    staging_base % sizeof(uint64_t) || staging_size < image_size ||
-	    !range_addressable(communication_base, endpoint->communication_size) ||
-	    !range_addressable(staging_base, staging_size) ||
-	    ranges_overlap(communication_base, endpoint->communication_size,
-		staging_base, staging_size))
-		return false;
-	return true;
-}
-
 bool capsule_broker_transport_buffer(void **buffer, size_t *size,
 	uint64_t *generation)
 {
@@ -202,18 +161,6 @@ bool capsule_broker_transport_buffer(void **buffer, size_t *size,
 	*size = broker.policy.endpoint.communication_size;
 	*generation = unpack64(broker.policy.endpoint.generation);
 	return true;
-}
-
-enum cb_err capsule_broker_endpoint_validate(
-	const struct lb_capsule_broker_endpoint *endpoint,
-	const struct lb_capsule_handoff *handoff)
-{
-	if (!handoff || handoff->tag != LB_TAG_CAPSULE_HANDOFF ||
-	    handoff->revision != LB_CAPSULE_HANDOFF_REVISION ||
-	    handoff->header_size != sizeof(*handoff))
-		return CB_ERR;
-	return endpoint_valid(endpoint, unpack64(handoff->image_size)) ?
-		CB_SUCCESS : CB_ERR;
 }
 
 static bool proofs_present(const struct capsule_broker_proofs *proofs)
@@ -453,6 +400,19 @@ bool capsule_broker_execution_ready(void)
 	return execution_guard() && control_state_matches(&expected);
 }
 
+bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint)
+{
+	struct broker_control_state expected;
+
+	if (!endpoint || ranges_overlap((uintptr_t)endpoint, sizeof(*endpoint),
+		(uintptr_t)&broker, sizeof(broker)) ||
+	    !capsule_broker_execution_ready())
+		return false;
+	expected = control_state();
+	*endpoint = broker.policy.endpoint;
+	return control_state_matches(&expected) && execution_guard();
+}
+
 enum cb_err capsule_broker_policy_install(
 	const struct capsule_broker_policy *trusted_policy,
 	capsule_broker_protected_storage_fn storage_is_protected, void *context)
@@ -477,7 +437,8 @@ enum cb_err capsule_broker_policy_install(
 	if (snapshot.revision != CAPSULE_BROKER_POLICY_REVISION ||
 	    snapshot.size != sizeof(snapshot) ||
 	    !snapshot.raw_image_size ||
-	    !endpoint_valid(&snapshot.endpoint, snapshot.raw_image_size) ||
+	    !capsule_broker_endpoint_shape_valid(&snapshot.endpoint,
+		snapshot.raw_image_size) ||
 	    !snapshot.boot_media_size || !snapshot.smmstore_size ||
 	    snapshot.smmstore_offset > snapshot.boot_media_size ||
 	    snapshot.smmstore_size > snapshot.boot_media_size -
