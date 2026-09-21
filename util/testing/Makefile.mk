@@ -134,6 +134,7 @@ test-capsule-tpm-platform-anchor:
 
 .PHONY: test-capsule-protected-flash
 test-capsule-protected-flash:
+	tests/lib/capsule-memory-map-test.sh
 	tests/lib/capsule_update_standalone_test.sh
 	tests/lib/capsule_broker_test.sh
 	tests/lib/capsule_broker_transport_test.sh

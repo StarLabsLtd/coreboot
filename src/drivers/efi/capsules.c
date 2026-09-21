@@ -722,6 +722,14 @@ void efi_parse_capsules(void)
 		       IORESOURCE_ASSIGNED | IORESOURCE_CACHEABLE, IORESOURCE_MEM |
 		       IORESOURCE_FIXED | IORESOURCE_STORED | IORESOURCE_ASSIGNED |
 		       IORESOURCE_CACHEABLE, BM_MEM_RAM);
+	/* Resource discovery includes reserved cacheable DRAM in the RAM set.
+	 * Overlay both reservation classes before selecting a coalescing buffer,
+	 * just as bootmem does, so capsules never land in TSEG or other protected
+	 * platform memory. */
+	memranges_add_resources(&memory_map, IORESOURCE_RESERVE, IORESOURCE_RESERVE,
+				BM_MEM_RESERVED);
+	memranges_add_resources(&memory_map, IORESOURCE_SOFT_RESERVE,
+				IORESOURCE_SOFT_RESERVE, BM_MEM_SOFT_RESERVED);
 
 	if (ENV_X86_32)
 		init_pae_pagetables(&pae_page_tables);
