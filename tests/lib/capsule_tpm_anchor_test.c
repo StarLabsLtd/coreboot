@@ -25,6 +25,7 @@ enum public_fault {
 static enum public_fault public_fault;
 static unsigned int read_public_calls;
 static uint32_t public_attribute_xor;
+static bool platform_public;
 
 static struct capsule_tpm_anchor_descriptor valid_descriptor(void)
 {
@@ -50,9 +51,23 @@ static struct capsule_tpm_anchor_descriptor valid_descriptor(void)
 	return descriptor;
 }
 
+static struct capsule_tpm_anchor_descriptor valid_platform_descriptor(void)
+{
+	return (struct capsule_tpm_anchor_descriptor) {
+		.revision = CAPSULE_TPM_ANCHOR_DESCRIPTOR_REVISION,
+		.size = sizeof(struct capsule_tpm_anchor_descriptor),
+		.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+		.nv_index = HR_NV_INDEX | 0x1234,
+		.attributes = CAPSULE_TPM_ANCHOR_PLATFORM_ATTRIBUTES,
+		.name_algorithm = TPM_ALG_SHA256,
+		.data_size = CAPSULE_TPM_ANCHOR_SIZE,
+	};
+}
+
 tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public)
 {
-	struct capsule_tpm_anchor_descriptor descriptor = valid_descriptor();
+	struct capsule_tpm_anchor_descriptor descriptor = platform_public ?
+		valid_platform_descriptor() : valid_descriptor();
 
 	read_public_calls++;
 	memset(public, public_fault == PUBLIC_DIRTY_ERROR ? 0xa5 : 0,
@@ -253,6 +268,66 @@ static void test_exact_public_bytes(void)
 	}
 }
 
+static void test_platform_mode(void)
+{
+	struct capsule_tpm_anchor_descriptor descriptor =
+		valid_platform_descriptor();
+	struct capsule_tpm_anchor_binding binding;
+	struct capsule_tpm_anchor_descriptor legacy = valid_descriptor();
+
+	platform_public = true;
+	public_fault = PUBLIC_OK;
+	for (unsigned int locked = 0; locked <= 1; locked++) {
+		public_attribute_xor = locked ? CAPSULE_TPM_ANCHOR_WRITELOCKED : 0;
+		CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) ==
+			CB_SUCCESS);
+		CHECK(binding.policy_revision ==
+			CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION);
+		CHECK(binding.nv_index == descriptor.nv_index);
+		CHECK(binding.write_locked == locked);
+		CHECK(bytes_zero(binding.authority_name,
+			sizeof(binding.authority_name)));
+		CHECK(bytes_zero(binding.policy_ref, sizeof(binding.policy_ref)));
+	}
+	read_public_calls = 0;
+	CHECK(capsule_tpm_anchor_validate(&descriptor, &binding) == CB_ERR);
+	CHECK(read_public_calls == 0);
+	CHECK(capsule_tpm_anchor_platform_validate(&legacy, &binding) == CB_ERR);
+	CHECK(read_public_calls == 0);
+
+#define BAD_PLATFORM(field, value) do { \
+	descriptor = valid_platform_descriptor(); \
+	descriptor.field = (value); \
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == \
+		CB_ERR); \
+} while (0)
+	BAD_PLATFORM(policy_revision, CAPSULE_TPM_ANCHOR_POLICY_REVISION);
+	BAD_PLATFORM(attributes, CAPSULE_TPM_ANCHOR_PLATFORM_ATTRIBUTES | BIT(11));
+	BAD_PLATFORM(attributes, CAPSULE_TPM_ANCHOR_PLATFORM_ATTRIBUTES | BIT(29));
+	BAD_PLATFORM(auth_policy_size, 1);
+	BAD_PLATFORM(authority_name_size, 1);
+	BAD_PLATFORM(policy_ref_size, 1);
+#undef BAD_PLATFORM
+	descriptor = valid_platform_descriptor();
+	descriptor.auth_policy[31] = 1;
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == CB_ERR);
+	descriptor = valid_platform_descriptor();
+	descriptor.authority_name[33] = 1;
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == CB_ERR);
+	descriptor = valid_platform_descriptor();
+	descriptor.policy_ref[31] = 1;
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == CB_ERR);
+
+	descriptor = valid_platform_descriptor();
+	public_attribute_xor = BIT(2);
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == CB_ERR);
+	public_attribute_xor = 0;
+	public_fault = PUBLIC_POLICY;
+	CHECK(capsule_tpm_anchor_platform_validate(&descriptor, &binding) == CB_ERR);
+	public_fault = PUBLIC_OK;
+	platform_public = false;
+}
+
 int main(void)
 {
 	test_success();
@@ -261,5 +336,6 @@ int main(void)
 	test_public_mutations();
 	test_public_attribute_lifecycle();
 	test_exact_public_bytes();
+	test_platform_mode();
 	return 0;
 }

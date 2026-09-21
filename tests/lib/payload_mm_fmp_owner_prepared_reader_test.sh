@@ -15,7 +15,8 @@ build_and_run()
 {
 	name=$1
 	shift
-	"${CC:-cc}" -std=gnu11 -g -Wall -Wextra -Werror -fno-builtin "$@" \
+	"${CC:-cc}" -std=gnu11 -g -Wall -Wextra -Werror -fno-builtin \
+		-ffunction-sections -fdata-sections -Wl,--gc-sections "$@" \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
@@ -23,9 +24,14 @@ build_and_run()
 		-I"$root/src" -I"$root/src/include" -I"$root/src/lib" \
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" \
-		-I"$root/src/arch/x86/include" -I"$temporary/include" \
+		-I"$root/src/arch/x86/include" \
+		-I"$root/3rdparty/vboot/firmware/include" \
+		-I"$root/3rdparty/vboot/firmware/2lib/include" \
+		-I"$temporary/include" \
 		"$root/tests/lib/payload_mm_fmp_owner_prepared_reader_test.c" \
 		"$root/src/security/tpm/capsule_anchor_authorization.c" \
+		"$root/src/security/tpm/capsule_anchor.c" \
+		"$root/src/security/tpm/capsule_anchor_platform.c" \
 		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
 		"$root/src/lib/payload_mm_fmp_owner_journal_format.c" \
 		"$root/src/lib/payload_mm_fmp_owner_prepared_reader.c" \

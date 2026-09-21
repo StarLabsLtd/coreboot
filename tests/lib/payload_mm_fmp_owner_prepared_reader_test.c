@@ -329,6 +329,39 @@ static void initialize_model(struct model *model)
 	refresh_authorized_candidate(model);
 }
 
+static void initialize_platform_model(struct model *model)
+{
+	struct payload_mm_fmp_owner_platform_anchor_input input;
+	struct payload_mm_fmp_owner_platform_receipt receipt = {
+		.magic = PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_MAGIC,
+		.revision = PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_REVISION,
+		.size = sizeof(receipt),
+		.capsule_size = UINT32_MAX,
+		.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+		.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+		.capsule_digest = { 0x5a },
+	};
+	struct payload_mm_fmp_owner_prepared *candidate;
+	u8 *tail;
+
+	initialize_model(model);
+	candidate = prepared(model, 0, 1);
+	model->grant.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION;
+	CHECK(payload_mm_fmp_owner_platform_anchor_input(manifest(model, 0, 1),
+		&model->current, candidate->generation, candidate->transaction,
+		&receipt, &input));
+	test_hash(&input, sizeof(input), model->candidate.digest);
+	candidate->candidate = model->candidate;
+	memcpy(&model->grant.current, &model->current, sizeof(model->current));
+	memcpy(&model->grant.candidate, &model->candidate,
+		sizeof(model->candidate));
+	tail = (u8 *)candidate + sizeof(*candidate);
+	memset(tail, 0xff, SLOT_SIZE -
+		sizeof(struct payload_mm_fmp_owner_journal_manifest) -
+		sizeof(*candidate));
+	memcpy(tail, &receipt, sizeof(receipt));
+}
+
 static enum cb_err initialize_reader(struct model *model,
 	struct payload_mm_fmp_owner_prepared_reader *reader)
 {
@@ -736,6 +769,109 @@ static void authorized_interruption_matrix(void)
 	}
 }
 
+static void platform_success_and_replay(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+	struct payload_mm_fmp_owner_prepared_reader wrong_mode = { 0 };
+	struct model model;
+
+	initialize_platform_model(&model);
+	model.reader = &reader;
+	CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+	CHECK(initialize_reader(&model, &wrong_mode) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove(&wrong_mode,
+		&model.grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+		&model.grant) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+		&model.grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove(&reader,
+		&model.grant) == CB_ERR);
+	initialize_model(&model);
+	memset(&wrong_mode, 0, sizeof(wrong_mode));
+	CHECK(initialize_reader(&model, &wrong_mode) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&wrong_mode,
+		&model.grant) == CB_ERR);
+}
+
+static void expect_platform_failure(struct model *model)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+
+	model->reader = &reader;
+	CHECK(initialize_reader(model, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+		&model->grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+		&model->grant) == CB_ERR);
+}
+
+static void platform_mutations(void)
+{
+	struct model model;
+	struct payload_mm_fmp_owner_platform_receipt *receipt;
+
+	initialize_platform_model(&model);
+	receipt = (void *)material(&model, 0, 1);
+	receipt->revision = 1;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	receipt = (void *)material(&model, 0, 1);
+	receipt->capsule_size--;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	receipt = (void *)material(&model, 0, 1);
+	receipt->digest_algorithm++;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	receipt = (void *)material(&model, 0, 1);
+	receipt->capsule_digest[0] ^= 1;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	model.media[model.layout.state[0].offset + SLOT_SIZE +
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE] = 0;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	model.grant.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	model.short_read = 3;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	model.mutate_read = 5;
+	expect_platform_failure(&model);
+	initialize_platform_model(&model);
+	memcpy(model.media + model.layout.state[1].offset,
+		model.media + model.layout.state[0].offset + SLOT_SIZE, SLOT_SIZE);
+	expect_platform_failure(&model);
+}
+
+static void platform_interruption_matrix(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader;
+	struct model baseline;
+	unsigned int reads;
+
+	initialize_platform_model(&baseline);
+	memset(&reader, 0, sizeof(reader));
+	baseline.reader = &reader;
+	CHECK(initialize_reader(&baseline, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+		&baseline.grant) == CB_SUCCESS);
+	reads = baseline.reads;
+	for (unsigned int cut = 1; cut <= reads; cut++) {
+		struct model model;
+
+		initialize_platform_model(&model);
+		memset(&reader, 0, sizeof(reader));
+		model.reader = &reader;
+		model.short_read = cut;
+		CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+		CHECK(payload_mm_fmp_owner_prepared_reader_prove_platform(&reader,
+			&model.grant) == CB_ERR);
+	}
+}
+
 int main(void)
 {
 	success_and_replay();
@@ -749,5 +885,8 @@ int main(void)
 	divergent_composite_current_duplicate();
 	authorized_aliases();
 	authorized_interruption_matrix();
+	platform_success_and_replay();
+	platform_mutations();
+	platform_interruption_matrix();
 	return 0;
 }

@@ -24,6 +24,11 @@
 #define PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_DOMAIN_SIZE 32U
 #define PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_INPUT_SIZE 496U
 #define PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC 0x3152485441554d50ULL
+#define PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_REVISION 3U
+#define PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_MAGIC 0x3352485441554d50ULL
+#define PAYLOAD_MM_FMP_OWNER_PLATFORM_ANCHOR_DOMAIN_SIZE 32U
+#define PAYLOAD_MM_FMP_OWNER_PLATFORM_ANCHOR_INPUT_SIZE 496U
+#define PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE 528U
 
 struct payload_mm_fmp_owner_journal_anchor {
 	uint64_t epoch;
@@ -74,6 +79,26 @@ struct payload_mm_fmp_owner_transition_material {
 	struct payload_mm_fmp_owner_auth_receipt receipt;
 } __aligned(8);
 
+struct payload_mm_fmp_owner_platform_receipt {
+	uint64_t magic;
+	uint32_t revision;
+	uint32_t size;
+	uint64_t capsule_size;
+	uint32_t digest_algorithm;
+	uint32_t digest_size;
+	uint8_t capsule_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+} __aligned(8);
+
+struct payload_mm_fmp_owner_platform_anchor_input {
+	uint8_t bytes[PAYLOAD_MM_FMP_OWNER_PLATFORM_ANCHOR_INPUT_SIZE];
+};
+
+struct payload_mm_fmp_owner_platform_slot_prefix {
+	struct payload_mm_fmp_owner_journal_manifest manifest;
+	struct payload_mm_fmp_owner_prepared prepared;
+	struct payload_mm_fmp_owner_platform_receipt receipt;
+} __aligned(8);
+
 struct payload_mm_fmp_owner_authorized_anchor_input {
 	uint8_t bytes[PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_INPUT_SIZE];
 };
@@ -91,6 +116,16 @@ _Static_assert(sizeof(struct payload_mm_fmp_owner_transition_material) == 2048,
 _Static_assert(offsetof(struct payload_mm_fmp_owner_transition_material,
 	receipt) == 1952,
 	"Payload-MM FMP owner authorization receipt offset");
+_Static_assert(sizeof(struct payload_mm_fmp_owner_platform_receipt) == 64,
+	"Payload-MM FMP owner platform receipt layout");
+_Static_assert(offsetof(struct payload_mm_fmp_owner_platform_receipt,
+	capsule_digest) == 32,
+	"Payload-MM FMP owner platform receipt digest offset");
+_Static_assert(offsetof(struct payload_mm_fmp_owner_platform_slot_prefix,
+	receipt) == 464 &&
+	sizeof(struct payload_mm_fmp_owner_platform_slot_prefix) ==
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_MIN_SLOT_SIZE,
+	"Payload-MM FMP owner platform slot prefix layout");
 
 bool payload_mm_fmp_owner_journal_anchor_valid(
 	const struct payload_mm_fmp_owner_journal_anchor *anchor);
@@ -114,6 +149,14 @@ bool payload_mm_fmp_owner_authorized_anchor_input(
 	uint64_t generation, uint64_t transaction,
 	const struct payload_mm_fmp_owner_auth_receipt *receipt,
 	struct payload_mm_fmp_owner_authorized_anchor_input *input);
+bool payload_mm_fmp_owner_platform_receipt_valid(
+	const struct payload_mm_fmp_owner_platform_receipt *receipt);
+bool payload_mm_fmp_owner_platform_anchor_input(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	const struct payload_mm_fmp_owner_journal_anchor *current,
+	uint64_t generation, uint64_t transaction,
+	const struct payload_mm_fmp_owner_platform_receipt *receipt,
+	struct payload_mm_fmp_owner_platform_anchor_input *input);
 #endif
 
 typedef enum cb_err payload_mm_fmp_owner_journal_read_fn(const void *context,
@@ -173,6 +216,12 @@ enum cb_err payload_mm_fmp_owner_journal_prepare_authorized(
 	const struct payload_mm_fmp_owner_record *current,
 	const struct payload_mm_fmp_owner_record *candidate,
 	const struct payload_mm_fmp_owner_transition_material *material);
+enum cb_err payload_mm_fmp_owner_journal_prepare_platform(
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	const struct capsule_tpm_anchor_platform_request *request,
+	const struct payload_mm_fmp_owner_platform_receipt *receipt);
 enum cb_err payload_mm_fmp_owner_journal_reconcile_prepared(void);
 #endif
 

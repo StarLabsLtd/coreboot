@@ -104,6 +104,7 @@ endif
 ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) junit.xml-unit-tests COV=1
 	+$(MAKE) test-tpm2-platform-auth
+	+$(MAKE) test-capsule-tpm-platform-anchor
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -111,11 +112,20 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 endif
 
 test-basic: test-lint test-tools test-abuild test-payloads \
-	test-tpm2-platform-auth test-cleanup
+	test-tpm2-platform-auth test-capsule-tpm-platform-anchor test-cleanup
 
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh
+
+.PHONY: test-capsule-tpm-platform-anchor
+test-capsule-tpm-platform-anchor:
+	tests/lib/capsule_tpm_anchor_platform_test.sh
+	tests/lib/capsule_tpm_anchor_trusted_transition_test.sh
+	tests/lib/capsule_tpm_anchor_test.sh
+	tests/lib/capsule_tpm_anchor_grant_test.sh
+	tests/lib/payload_mm_fmp_owner_prepared_test.sh
+	tests/lib/payload_mm_fmp_owner_prepared_reader_test.sh
 
 test-lint:
 	util/lint/lint lint-stable $(JUNIT)

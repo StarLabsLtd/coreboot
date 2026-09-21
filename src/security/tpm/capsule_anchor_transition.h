@@ -4,6 +4,7 @@
 #define SECURITY_TPM_CAPSULE_ANCHOR_TRANSITION_H
 
 #include <security/tpm/capsule_anchor_grant.h>
+#include <security/tpm/capsule_anchor_platform.h>
 #include <security/tpm/pre_os_lifecycle.h>
 
 #define CAPSULE_TPM_ANCHOR_AUTHORIZATION_REVISION 2U
@@ -109,5 +110,31 @@ enum cb_err capsule_tpm_anchor_transition_run(
 	const struct capsule_tpm_anchor_binding *binding,
 	const struct capsule_tpm_anchor_authorization *authorization,
 	const struct capsule_tpm_anchor_transition_provider *provider);
+
+#define CAPSULE_TPM_ANCHOR_TRUSTED_TRANSITION_PROVIDER_REVISION 1U
+
+struct capsule_tpm_anchor_trusted_transition_provider {
+	uint32_t revision;
+	uint32_t size;
+	enum cb_err (*prepared)(const void *context,
+		const struct capsule_tpm_anchor_grant *grant);
+	enum cb_err (*read)(const void *context,
+		capsule_tpm_anchor_transmit_fn *transmit, void *transmit_context,
+		const struct capsule_tpm_anchor_binding *expected_binding,
+		struct capsule_tpm_anchor_binding *observed_binding,
+		struct capsule_tpm_anchor_value *value);
+	enum cb_err (*install)(const void *context,
+		const struct capsule_tpm_anchor_grant *grant,
+		const struct capsule_tpm_anchor_binding *binding);
+	const void *context;
+	size_t context_size;
+};
+
+enum cb_err capsule_tpm_anchor_transition_run_trusted(
+	struct capsule_tpm_anchor_transition *transition,
+	struct tpm_pre_os_lifecycle *lifecycle,
+	const struct capsule_tpm_anchor_binding *binding,
+	const struct capsule_tpm_anchor_platform_request *request,
+	const struct capsule_tpm_anchor_trusted_transition_provider *provider);
 
 #endif /* SECURITY_TPM_CAPSULE_ANCHOR_TRANSITION_H */

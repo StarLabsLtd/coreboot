@@ -182,6 +182,73 @@ bool payload_mm_fmp_owner_authorized_anchor_input(
 	return offset == sizeof(*input);
 }
 
+bool payload_mm_fmp_owner_platform_receipt_valid(
+	const struct payload_mm_fmp_owner_platform_receipt *receipt)
+{
+	return receipt &&
+		receipt->magic == PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_MAGIC &&
+		receipt->revision ==
+			PAYLOAD_MM_FMP_OWNER_PLATFORM_RECEIPT_REVISION &&
+		receipt->size == sizeof(*receipt) && receipt->capsule_size &&
+		receipt->capsule_size <= UINT32_MAX &&
+		receipt->capsule_size <= SIZE_MAX &&
+		receipt->digest_algorithm ==
+			PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 &&
+		receipt->digest_size == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE &&
+		!bytes_equal_value(receipt->capsule_digest,
+			sizeof(receipt->capsule_digest), 0);
+}
+
+bool payload_mm_fmp_owner_platform_anchor_input(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	const struct payload_mm_fmp_owner_journal_anchor *current,
+	uint64_t generation, uint64_t transaction,
+	const struct payload_mm_fmp_owner_platform_receipt *receipt,
+	struct payload_mm_fmp_owner_platform_anchor_input *input)
+{
+	static const uint8_t domain[
+		PAYLOAD_MM_FMP_OWNER_PLATFORM_ANCHOR_DOMAIN_SIZE] = {
+		'P', 'A', 'Y', 'L', 'O', 'A', 'D', '-',
+		'M', 'M', '-', 'F', 'M', 'P', '-', 'P',
+		'L', 'A', 'T', '-', 'A', 'N', 'C', 'H',
+		'O', 'R', '-', 'V', '3', 0, 0, 0,
+	};
+	size_t offset = 0;
+
+	if (!manifest || !current || !input || !generation || !transaction ||
+	    !payload_mm_fmp_owner_journal_anchor_valid(current) ||
+	    !payload_mm_fmp_owner_platform_receipt_valid(receipt))
+		return false;
+	memcpy(input->bytes + offset, domain, sizeof(domain));
+	offset += sizeof(domain);
+	memcpy(input->bytes + offset, manifest, sizeof(*manifest));
+	offset += sizeof(*manifest);
+	encode_le64(input->bytes + offset, current->epoch);
+	offset += sizeof(current->epoch);
+	memcpy(input->bytes + offset, current->digest, sizeof(current->digest));
+	offset += sizeof(current->digest);
+	encode_le64(input->bytes + offset, generation);
+	offset += sizeof(generation);
+	encode_le64(input->bytes + offset, transaction);
+	offset += sizeof(transaction);
+	encode_le64(input->bytes + offset, receipt->magic);
+	offset += sizeof(receipt->magic);
+	encode_le32(input->bytes + offset, receipt->revision);
+	offset += sizeof(receipt->revision);
+	encode_le32(input->bytes + offset, receipt->size);
+	offset += sizeof(receipt->size);
+	encode_le64(input->bytes + offset, receipt->capsule_size);
+	offset += sizeof(receipt->capsule_size);
+	encode_le32(input->bytes + offset, receipt->digest_algorithm);
+	offset += sizeof(receipt->digest_algorithm);
+	encode_le32(input->bytes + offset, receipt->digest_size);
+	offset += sizeof(receipt->digest_size);
+	memcpy(input->bytes + offset, receipt->capsule_digest,
+		sizeof(receipt->capsule_digest));
+	offset += sizeof(receipt->capsule_digest);
+	return offset == sizeof(*input);
+}
+
 bool payload_mm_fmp_owner_transition_material_valid(
 	const struct payload_mm_fmp_owner_transition_material *material,
 	const uint8_t authorization_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])

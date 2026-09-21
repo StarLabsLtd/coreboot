@@ -124,6 +124,46 @@ commit or preparation is refused while a composite anchor is authoritative;
 the next transition must itself be authorized, so reclamation cannot silently
 replace a composite current slot with a legacy manifest-only copy.
 
+The separate default-off trusted-platform mode uses policy revision 3 without
+changing or relaxing the revision-1 descriptor, binding, grant or validator.
+Its descriptor requires `PPWRITE`, `WRITEALL`, `WRITE_STCLEAR`, `AUTHREAD`,
+`NO_DA` and `PLATFORMCREATE`, an empty `authPolicy`, and no authority Name or
+policy reference. The immutable 112-byte transition request binds an exact NV
+index, nonzero generation and transaction, and consecutive current/candidate
+anchors. Trusted mode is selected explicitly; media is never used to sniff,
+fallback between, or combine the managed-fleet and platform modes.
+
+Platform candidates retain the 344-byte manifest and 120-byte `PREPARED`
+record, then store one 64-byte revision-3 receipt at offset 464, for a minimum
+slot size of 528 bytes. The candidate digest is SHA-256 over the exact 32-byte
+`PAYLOAD-MM-FMP-PLAT-ANCHOR-V3` domain, candidate manifest, predecessor anchor,
+generation, transaction and receipt, all integers explicitly little-endian.
+The request is rebuilt from these durable facts and is never stored. Receipt,
+manifest and tuple mutation therefore change the candidate anchor. The
+manifest and receipt are each programmed, read back and synchronized before
+`PREPARED` is programmed last. Recovery and domain reclamation preserve the
+exact committed receipt, and ordinary manifest-only operations cannot replace
+a platform-composite current slot.
+
+The trusted transition first asks an independent reader to rescan and reread
+the exact durable platform candidate. It then owns the TPM lifecycle and
+accepts only current/unlocked, candidate/unlocked or candidate/locked. It uses
+the fixed platform-auth codecs for at most one complete 40-byte write and one
+write lock, resolving delivered command errors only by exact reread. Before
+handoff it closes `phEnable` and verifies `TPM_PT_STARTUP_CLEAR` has
+`phEnable=0` and `phEnableNV=1`. A malformed response, transport loss,
+unexpected value or lock state, mutation, stale token, failed closure or replay
+is terminal and produces no grant. The final locked binding and rebuilt grant
+are installed only after verified lifecycle handoff.
+
+This mode assumes an empty `platformAuth`; non-empty authorization is
+unsupported. Reset reopens `phEnable` and clears the `WRITE_STCLEAR` lock, so a
+future platform composition must close the hierarchy on every boot and must
+not run this update transition on resume. This slice remains dormant: it adds
+no Q35 execution, CRB or AMD support, production selection, SMI route,
+provisioning, resume policy, or runtime DMA proof. Late mutable firmware remains
+in a weaker authorization TCB than an earlier hardware-enforced root.
+
 The default-off `CAPSULE_TPM_ANCHOR_POLICY_PROVIDER` supplies the TPM half of
 that contract. It derives the provisioned index policy and exact NV Name,
 recomputes the complete replacement-write or write-lock cpHash, and rejects a

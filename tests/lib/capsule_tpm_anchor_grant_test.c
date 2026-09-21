@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <security/tpm/capsule_anchor_grant.h>
+#include <security/tpm/capsule_anchor_platform.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,6 +53,23 @@ static struct capsule_tpm_anchor_grant valid_grant(void)
 		grant.current.digest[i] = i + 1;
 		grant.candidate.digest[i] = 0x80 + i;
 	}
+	return grant;
+}
+
+static struct capsule_tpm_anchor_binding valid_platform_binding(void)
+{
+	return (struct capsule_tpm_anchor_binding) {
+		.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION,
+		.nv_index = 0x01001234,
+		.write_locked = 1,
+	};
+}
+
+static struct capsule_tpm_anchor_grant valid_platform_grant(void)
+{
+	struct capsule_tpm_anchor_grant grant = valid_grant();
+
+	grant.policy_revision = CAPSULE_TPM_ANCHOR_PLATFORM_POLICY_REVISION;
 	return grant;
 }
 
@@ -150,6 +168,52 @@ static void test_validator(void)
 	binding = valid_binding();
 	binding.policy_ref[binding.policy_ref_size] = 1;
 	CHECK(capsule_tpm_anchor_grant_validate(&grant, &binding) == CB_ERR);
+}
+
+static void test_platform_validator(void)
+{
+	struct capsule_tpm_anchor_grant platform_grant = valid_platform_grant();
+	struct capsule_tpm_anchor_binding platform_binding =
+		valid_platform_binding();
+	struct capsule_tpm_anchor_grant legacy_grant = valid_grant();
+	struct capsule_tpm_anchor_binding legacy_binding = valid_binding();
+
+	CHECK(capsule_tpm_anchor_platform_grant_validate(&platform_grant,
+		&platform_binding) == CB_SUCCESS);
+	CHECK(capsule_tpm_anchor_grant_validate(&platform_grant,
+		&platform_binding) == CB_ERR);
+	CHECK(capsule_tpm_anchor_platform_grant_validate(&legacy_grant,
+		&legacy_binding) == CB_ERR);
+	platform_binding.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION;
+	CHECK(capsule_tpm_anchor_platform_grant_validate(&platform_grant,
+		&platform_binding) == CB_ERR);
+	platform_binding = valid_platform_binding();
+	platform_binding.authority_name[0] = 1;
+	CHECK(capsule_tpm_anchor_platform_grant_validate(&platform_grant,
+		&platform_binding) == CB_ERR);
+	platform_binding = valid_platform_binding();
+	platform_grant.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION;
+	CHECK(capsule_tpm_anchor_platform_grant_validate(&platform_grant,
+		&platform_binding) == CB_ERR);
+}
+
+static void test_platform_success(void)
+{
+	struct capsule_tpm_anchor_grant grant = valid_platform_grant();
+	struct capsule_tpm_anchor_binding binding = valid_platform_binding();
+	struct protection_context context = {
+		.grant = &grant,
+		.binding = &binding,
+		.protected = true,
+	};
+
+	CHECK(capsule_tpm_anchor_platform_grant_install(&grant, &binding,
+		protected_storage, &context) == CB_SUCCESS);
+	CHECK(capsule_tpm_anchor_platform_grant_ready());
+	CHECK(capsule_tpm_anchor_platform_grant_consume(grant.generation,
+		grant.transaction, &grant.current, &grant.candidate) == CB_SUCCESS);
+	CHECK(grant_cleared(&context));
+	CHECK(!capsule_tpm_anchor_platform_grant_ready());
 }
 
 static void install(struct capsule_tpm_anchor_grant *grant,
@@ -269,6 +333,10 @@ int main(int argc, char **argv)
 	CHECK(argc == 2);
 	if (!strcmp(argv[1], "validator"))
 		test_validator();
+	else if (!strcmp(argv[1], "platform-validator"))
+		test_platform_validator();
+	else if (!strcmp(argv[1], "platform-success"))
+		test_platform_success();
 	else if (!strcmp(argv[1], "success"))
 		test_success();
 	else if (!strncmp(argv[1], "mismatch-", 9))

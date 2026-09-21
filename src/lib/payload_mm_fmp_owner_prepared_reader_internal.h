@@ -66,5 +66,7 @@ enum cb_err payload_mm_fmp_owner_prepared_reader_load_authorization(
 	struct payload_mm_fmp_owner_transition_material *material);
 enum cb_err payload_mm_fmp_owner_prepared_reader_prove_loaded(
 	const void *context, const struct capsule_tpm_anchor_grant *grant);
+enum cb_err payload_mm_fmp_owner_prepared_reader_prove_platform(
+	const void *context, const struct capsule_tpm_anchor_grant *grant);
 
 #endif

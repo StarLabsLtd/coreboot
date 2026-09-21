@@ -9,7 +9,7 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
-cases='validator success mismatch-generation mismatch-transaction
+cases='validator platform-validator platform-success success mismatch-generation mismatch-transaction
 mismatch-current mismatch-candidate mismatch-null-current mismatch-alias
  mismatch-authority-overlap
 install-unprotected install-mutate-grant install-mutate-binding
@@ -34,6 +34,8 @@ build_and_run()
 		-I"$temporary/include" \
 		"$root/tests/lib/capsule_tpm_anchor_grant_test.c" \
 		"$root/src/security/tpm/capsule_anchor_grant.c" \
+		"$root/src/security/tpm/capsule_anchor.c" \
+		"$root/src/security/tpm/capsule_anchor_platform.c" \
 		-o "$temporary/$name"
 	for case_name in $cases; do
 		"$temporary/$name" "$case_name"

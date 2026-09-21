@@ -26,14 +26,17 @@ build_and_run()
 		-I"$root/3rdparty/vboot/firmware/include" \
 		-I"$root/3rdparty/vboot/firmware/2lib/include" \
 		-I"$temporary/include" \
-		"$root/tests/lib/capsule_tpm_anchor_test.c" \
+		"$root/src/security/tpm/pre_os_lifecycle.c" \
+		"$root/src/security/tpm/platform_auth.c" \
 		"$root/src/security/tpm/capsule_anchor.c" \
 		"$root/src/security/tpm/capsule_anchor_platform.c" \
+		"$root/src/security/tpm/capsule_anchor_trusted_transition.c" \
+		"$root/tests/lib/capsule_tpm_anchor_trusted_transition_test.c" \
 		-o "$temporary/$name"
 	"$temporary/$name"
 }
 
 build_and_run o0 -O0
 build_and_run o2 -O2
-build_and_run asan-ubsan -O1 -fsanitize=address,undefined \
-	-fno-omit-frame-pointer
+build_and_run asan -O1 -fsanitize=address -fno-omit-frame-pointer
+build_and_run ubsan -O1 -fsanitize=undefined -fno-omit-frame-pointer
