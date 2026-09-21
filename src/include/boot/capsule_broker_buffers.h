@@ -20,6 +20,13 @@ struct capsule_broker_buffer_reservation {
 	uint64_t staging_size;
 };
 
+struct capsule_broker_scratch_reservation {
+	uint64_t write_base;
+	uint64_t read_base;
+	uint32_t erase_size;
+	uint32_t reserved;
+};
+
 /* Platform-owned immutable capacity; zero means unavailable. */
 size_t platform_capsule_broker_staging_size(void);
 
@@ -28,8 +35,9 @@ bool capsule_broker_buffers_get(
 	struct capsule_broker_buffer_reservation *reservation);
 void capsule_broker_buffers_scrub(void);
 
-/* SMM-module-owned scratch; acquiring it is deliberately one-shot. */
-enum cb_err capsule_broker_scratch_acquire(void **scratch, size_t *size);
+/* Two distinct SMM-owned erase-block buffers; acquisition is one-shot. */
+enum cb_err capsule_broker_scratch_acquire(uint32_t erase_size,
+	struct capsule_broker_scratch_reservation *reservation);
 void capsule_broker_scratch_scrub(void);
 
 #endif

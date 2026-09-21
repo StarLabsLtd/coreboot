@@ -56,9 +56,9 @@ comes from a PCD, payload build argument or caller pointer. The exact geometry
 is copied directly into the protected SMM module parameters before lock, never
 reconstructed from a public table. Both complete allocations are zeroed before
 their geometry becomes available and the SMM owner provides an explicit full
-scrub operation. Protected writer scratch is a
-separate page-aligned 4 KiB arena in the SMM module, zeroed on its one permitted
-acquisition and explicitly scrubbed after use.
+scrub operation. Protected writer scratch consists of distinct page-aligned
+write-snapshot and readback arenas in the SMM module. Both are zeroed on their
+one permitted acquisition and explicitly scrubbed after use.
 
 This is deliberately not a DMA claim. The option does not provide a
 `dma_protected` proof, set `LB_CAPSULE_ENDPOINT_DMA_PROTECTED`, install a broker,
@@ -216,6 +216,22 @@ bounded dependency expression against the protected installed version. It then
 requires exactly one valid FMAP, COREBOOT region and raw `build_info` file and
 matches its vendor/part identity to the sealed board identity. Public coreboot
 tables, payload build arguments and candidate metadata never select policy.
+
+The hidden platform-facts prerequisite has no route, authority or publication
+side effect. In SMM it takes one fail-closed snapshot of the real boot-medium
+and SPI geometry, a bounded copy of the complete serialized FMAP inventory,
+the same firmware identity used by the coreboot table, the fixed broker
+communication and staging reservations, and two distinct SMM-owned scratch
+blocks. Each scratch block must be exactly one hardware erase block; the
+current fixed reservation therefore rejects non-4 KiB erase geometry. The
+communication, staging and scratch reservations are pointer-free, bounded and
+pairwise disjoint. FMAP areas may be nested or have an exact parent/child span,
+but partially overlapping areas are rejected.
+The collector neither interprets FMAP nesting as an update route nor invents a
+broad COREBOOT write span: a later reviewed composition must partition the
+authenticated full-media image around every immutable, preserved and SMMSTORE
+span before it can install policy or publish an endpoint. No platform selects
+this prerequisite here.
 
 An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected

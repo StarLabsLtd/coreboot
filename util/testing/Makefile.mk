@@ -12,6 +12,7 @@ test-help help::
 	@echo  '  test-abuild          - Basic: Builds all platforms'
 	@echo  '  test-payloads        - Basic: Builds internal payloads'
 	@echo  '  test-capsule-protected-flash - Run protected flash tests'
+	@echo  '  test-capsule-platform-facts - Run capsule platform-facts tests'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
 	@echo
 
@@ -107,6 +108,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-tpm2-platform-auth
 	+$(MAKE) test-capsule-tpm-platform-anchor
 	+$(MAKE) test-capsule-protected-flash
+	+$(MAKE) test-capsule-platform-facts
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -115,7 +117,7 @@ endif
 
 test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
-	test-capsule-protected-flash test-cleanup
+	test-capsule-protected-flash test-capsule-platform-facts test-cleanup
 
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
@@ -136,6 +138,13 @@ test-capsule-protected-flash:
 	tests/lib/capsule_broker_test.sh
 	tests/lib/capsule_broker_transport_test.sh
 	tests/lib/capsule_broker_endpoint_test.sh
+
+.PHONY: test-capsule-platform-facts
+test-capsule-platform-facts:
+	tests/lib/efi_fw_info_test.sh
+	tests/lib/capsule_broker_buffers_test.sh
+	tests/lib/fmap_inventory_test.sh
+	tests/lib/capsule_platform_facts_test.sh
 
 test-lint:
 	util/lint/lint lint-stable $(JUNIT)

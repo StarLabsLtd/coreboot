@@ -10,7 +10,9 @@
 #error "Capsule broker scratch must only be built in SMM"
 #endif
 
-static uint8_t broker_scratch[CAPSULE_BROKER_SCRATCH_SIZE]
+static uint8_t broker_write_scratch[CAPSULE_BROKER_SCRATCH_SIZE]
+	__aligned(CAPSULE_BROKER_BUFFER_ALIGNMENT);
+static uint8_t broker_read_scratch[CAPSULE_BROKER_SCRATCH_SIZE]
 	__aligned(CAPSULE_BROKER_BUFFER_ALIGNMENT);
 static bool scratch_acquired;
 
@@ -39,22 +41,28 @@ void capsule_broker_buffers_scrub(void)
 		reservation.staging_size);
 }
 
-enum cb_err capsule_broker_scratch_acquire(void **scratch, size_t *size)
+enum cb_err capsule_broker_scratch_acquire(uint32_t erase_size,
+	struct capsule_broker_scratch_reservation *reservation)
 {
-	if (scratch)
-		*scratch = NULL;
-	if (size)
-		*size = 0;
-	if (!scratch || !size || scratch_acquired)
+	if (reservation)
+		memset(reservation, 0, sizeof(*reservation));
+	if (!reservation || scratch_acquired ||
+	    erase_size != sizeof(broker_write_scratch) ||
+	    erase_size != sizeof(broker_read_scratch))
 		return CB_ERR;
-	memset(broker_scratch, 0, sizeof(broker_scratch));
+	memset(broker_write_scratch, 0, sizeof(broker_write_scratch));
+	memset(broker_read_scratch, 0, sizeof(broker_read_scratch));
 	scratch_acquired = true;
-	*scratch = broker_scratch;
-	*size = sizeof(broker_scratch);
+	*reservation = (struct capsule_broker_scratch_reservation) {
+		.write_base = (uintptr_t)broker_write_scratch,
+		.read_base = (uintptr_t)broker_read_scratch,
+		.erase_size = erase_size,
+	};
 	return CB_SUCCESS;
 }
 
 void capsule_broker_scratch_scrub(void)
 {
-	memset(broker_scratch, 0, sizeof(broker_scratch));
+	memset(broker_write_scratch, 0, sizeof(broker_write_scratch));
+	memset(broker_read_scratch, 0, sizeof(broker_read_scratch));
 }
