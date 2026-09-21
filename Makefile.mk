@@ -1138,7 +1138,8 @@ endif
 
 ifeq ($(CONFIG_SPD_CACHE_IN_FMAP),y)
 FMAP_SPD_CACHE_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x4000)
-FMAP_SPD_CACHE_SIZE := $(call int-multiply, $(CONFIG_DIMM_MAX) $(CONFIG_DIMM_SPD_SIZE))
+FMAP_SPD_CACHE_DATA_SIZE := $(call int-multiply, $(CONFIG_DIMM_MAX) $(CONFIG_DIMM_SPD_SIZE))
+FMAP_SPD_CACHE_SIZE := $(call int-add, $(FMAP_SPD_CACHE_DATA_SIZE) 2)
 FMAP_SPD_CACHE_SIZE := $(call int-align, $(FMAP_SPD_CACHE_SIZE), 0x1000)
 FMAP_SPD_CACHE_ENTRY := $(call strip_quotes,$(CONFIG_SPD_CACHE_FMAP_NAME))@$(call _tohex,$(FMAP_SPD_CACHE_BASE)) $(call _tohex,$(FMAP_SPD_CACHE_SIZE))
 FMAP_CURRENT_BASE := $(call int-add, $(FMAP_SPD_CACHE_BASE) $(FMAP_SPD_CACHE_SIZE))
@@ -1304,6 +1305,17 @@ $(obj)/fmap.desc: $(obj)/fmap.fmap
 $(obj)/fmap.fmap: $(obj)/fmap.fmd $(FMAPTOOL)
 	echo "    FMAP       $(FMAPTOOL) -h $(obj)/fmap_config.h $< $@"
 	$(FMAPTOOL) -h $(obj)/fmap_config.h -R $(obj)/fmap.desc $< $@
+	@if [ "$(CONFIG_SPD_CACHE_IN_FMAP)" = "y" ]; then \
+		spd_cache_size=$$(awk '$$2 == "FMAP_SECTION_$(call strip_quotes,$(CONFIG_SPD_CACHE_FMAP_NAME))_SIZE" {print $$3}' $(obj)/fmap_config.h); \
+		if [ -z "$$spd_cache_size" ]; then \
+			echo "ERROR: FMAP is missing $(call strip_quotes,$(CONFIG_SPD_CACHE_FMAP_NAME))" >&2; \
+			exit 1; \
+		fi; \
+		if [ $$((spd_cache_size)) -lt $$(( $(FMAP_SPD_CACHE_SIZE) )) ]; then \
+			echo "ERROR: $(call strip_quotes,$(CONFIG_SPD_CACHE_FMAP_NAME)) is too small: $$spd_cache_size < $(FMAP_SPD_CACHE_SIZE)" >&2; \
+			exit 1; \
+		fi; \
+	fi
 
 ifneq ($(CONFIG_INTEL_TOP_SWAP_SEPARATE_REGIONS),y)
 BB_FIT_REGION = COREBOOT
