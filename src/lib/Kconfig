@@ -132,6 +132,17 @@ config TPM2_FIFO_PRE_OS_LIFECYCLE
 	  the legacy route before installing the owner and never restores it.
 	  This supplies no TPM policy, capsule provider, SMM route or endpoint.
 
+config TPM2_PLATFORM_AUTH_CODECS
+	bool
+	default n
+	depends on TPM2_FIFO_PRE_OS_LIFECYCLE
+	help
+	  Build dormant strict TPM2 platform-authorized NV write, NV write-lock,
+	  platform-hierarchy close and startup-clear verification codecs over the
+	  exclusive pre-OS lifecycle transport. No platform selects or invokes
+	  these codecs. Late mutable firmware remains a weaker TCB than an earlier
+	  hardware-enforced root; closing phEnable makes no stronger claim.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n

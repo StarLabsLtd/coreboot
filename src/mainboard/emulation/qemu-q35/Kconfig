@@ -82,6 +82,19 @@ config Q35_TPM2_FIFO_PRE_OS_LIFECYCLE
 	  lifecycle after payload loading and relinquish locality 0 immediately
 	  before payload execution. This selects no capsule or policy provider.
 
+config Q35_TPM2_PLATFORM_AUTH_CODECS_TEST
+	bool "QEMU-only TPM2 platform authorization codecs"
+	default n
+	depends on TPM2 && MEMORY_MAPPED_TPM
+	depends on !CRB_TPM && !AMD_CRB_FTPM && !I2C_TPM && !SPI_TPM
+	select Q35_TPM2_FIFO_PRE_OS_LIFECYCLE
+	select TPM2_PLATFORM_AUTH_CODECS
+	help
+	  Compile the dormant strict platform-authorized command codecs into the
+	  QEMU FIFO lifecycle ramstage archive. There is no runtime reference, so
+	  the final image may dead-strip them. This does not execute a command,
+	  select a policy provider or publish a production platform route.
+
 config Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF
 	bool "QEMU-only Payload-MM owner FMAP proof"
 	default n

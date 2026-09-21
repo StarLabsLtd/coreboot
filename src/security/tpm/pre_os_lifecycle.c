@@ -384,6 +384,27 @@ enum cb_err tpm_pre_os_lifecycle_end(
 	return CB_SUCCESS;
 }
 
+enum cb_err tpm_pre_os_lifecycle_fail(
+	struct tpm_pre_os_lifecycle *lifecycle,
+	const struct tpm_pre_os_token *token)
+{
+	if (!lifecycle)
+		return CB_ERR_ARG;
+	if (!token || ranges_overlap(token, sizeof(*token), lifecycle,
+		sizeof(*lifecycle))) {
+		request_failure(lifecycle);
+		return CB_ERR_ARG;
+	}
+	if (!claim(lifecycle, TPM_PRE_OS_OWNED, TPM_PRE_OS_BUSY))
+		return CB_ERR;
+	if (!metadata_valid(lifecycle) || !token_valid(lifecycle, token)) {
+		seal_failed(lifecycle);
+		return CB_ERR;
+	}
+	seal_failed(lifecycle);
+	return CB_SUCCESS;
+}
+
 enum cb_err tpm_pre_os_lifecycle_handoff(
 	struct tpm_pre_os_lifecycle *lifecycle)
 {
