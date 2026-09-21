@@ -9,6 +9,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define FMAP_INVENTORY_MAX_AREAS 32U
+
+struct fmap_inventory {
+	uint64_t base;
+	uint32_t size;
+	uint16_t area_count;
+	uint16_t reserved;
+	struct fmap_area area[FMAP_INVENTORY_MAX_AREAS];
+};
+
+_Static_assert(sizeof(struct fmap_inventory) == 1360,
+	"FMAP inventory layout");
+
 #if FMAP_SECTION_FLASH_START != 0
 	#error "FMAP must always start flash address 0"
 #endif
@@ -54,5 +67,8 @@ ssize_t fmap_overwrite_area(const char *name, const void *buffer, size_t size);
 
 /* Get offset of FMAP in flash. */
 uint64_t get_fmap_flash_offset(void);
+
+/* Copy and validate the complete serialized FMAP from the real boot media. */
+int fmap_read_inventory(struct fmap_inventory *inventory);
 
 #endif

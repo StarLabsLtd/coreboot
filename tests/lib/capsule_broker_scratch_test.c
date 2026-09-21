@@ -36,8 +36,7 @@ void smm_get_capsule_broker_buffers(
 int main(void)
 {
 	struct capsule_broker_buffer_reservation reservation;
-	void *scratch = (void *)(uintptr_t)1;
-	size_t size = 1;
+	struct capsule_broker_scratch_reservation scratch;
 
 	assert(!capsule_broker_buffers_get(NULL));
 	assert(capsule_broker_buffers_get(&reservation));
@@ -50,18 +49,31 @@ int main(void)
 	for (size_t i = 0; i < sizeof(staging); i++)
 		assert(staging[i] == 0);
 
-	assert(capsule_broker_scratch_acquire(&scratch, &size) == CB_SUCCESS);
-	assert(scratch);
-	assert(size == CAPSULE_BROKER_SCRATCH_SIZE);
-	assert(((uintptr_t)scratch % CAPSULE_BROKER_BUFFER_ALIGNMENT) == 0);
-	for (size_t i = 0; i < size; i++)
-		assert(((uint8_t *)scratch)[i] == 0);
-	memset(scratch, 0xa5, size);
+	assert(capsule_broker_scratch_acquire(CAPSULE_BROKER_SCRATCH_SIZE - 1,
+		&scratch) == CB_ERR);
+	assert(!scratch.write_base && !scratch.read_base);
+	assert(capsule_broker_scratch_acquire(CAPSULE_BROKER_SCRATCH_SIZE + 1,
+		&scratch) == CB_ERR);
+	assert(capsule_broker_scratch_acquire(CAPSULE_BROKER_SCRATCH_SIZE,
+		&scratch) == CB_SUCCESS);
+	assert(scratch.write_base && scratch.read_base);
+	assert(scratch.write_base != scratch.read_base);
+	assert(scratch.erase_size == CAPSULE_BROKER_SCRATCH_SIZE);
+	assert((scratch.write_base % CAPSULE_BROKER_BUFFER_ALIGNMENT) == 0);
+	assert((scratch.read_base % CAPSULE_BROKER_BUFFER_ALIGNMENT) == 0);
+	for (size_t i = 0; i < scratch.erase_size; i++) {
+		assert(((uint8_t *)(uintptr_t)scratch.write_base)[i] == 0);
+		assert(((uint8_t *)(uintptr_t)scratch.read_base)[i] == 0);
+	}
+	memset((void *)(uintptr_t)scratch.write_base, 0xa5, scratch.erase_size);
+	memset((void *)(uintptr_t)scratch.read_base, 0x5a, scratch.erase_size);
 	capsule_broker_scratch_scrub();
-	for (size_t i = 0; i < size; i++)
-		assert(((uint8_t *)scratch)[i] == 0);
-	assert(capsule_broker_scratch_acquire(&scratch, &size) == CB_ERR);
-	assert(!scratch);
-	assert(size == 0);
+	for (size_t i = 0; i < scratch.erase_size; i++) {
+		assert(((uint8_t *)(uintptr_t)scratch.write_base)[i] == 0);
+		assert(((uint8_t *)(uintptr_t)scratch.read_base)[i] == 0);
+	}
+	assert(capsule_broker_scratch_acquire(CAPSULE_BROKER_SCRATCH_SIZE,
+		&scratch) == CB_ERR);
+	assert(!scratch.write_base && !scratch.read_base);
 	return 0;
 }

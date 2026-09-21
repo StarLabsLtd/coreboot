@@ -95,6 +95,19 @@ config CAPSULE_BROKER_ENDPOINT_PUBLICATION
 	  install the complete broker policy and prove it ready before publication.
 	  No platform selects this option or supplies that composition here.
 
+config CAPSULE_PLATFORM_FACTS
+	bool
+	default n
+	depends on CAPSULE_BROKER_FIXED_BUFFERS
+	depends on DRIVERS_EFI_FW_INFO && BOOT_DEVICE_SPI_FLASH
+	depends on ARCH_X86
+	help
+	  Build the dormant one-shot collector for pointer-free capsule platform
+	  facts. It reads the real FMAP and SPI boot-media geometry and records the
+	  fixed buffers, two erase-block SMM scratch buffers and firmware identity.
+	  It derives no writable routes, installs no authority and publishes no
+	  table. No platform selects this option.
+
 config CAPSULE_TPM_ANCHOR_GRANT
 	bool
 	default n

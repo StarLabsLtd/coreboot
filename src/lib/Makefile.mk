@@ -26,6 +26,7 @@ ramstage-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_buffers.c
 smm-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_scratch.c
 ramstage-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_table.c
 smm-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_smi.c
+smm-$(CONFIG_CAPSULE_PLATFORM_FACTS) += capsule_platform_facts.c
 
 payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
 payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \
@@ -482,6 +483,7 @@ spd.bin-type := spd
 endif
 
 ramstage-y += uuid.c
+smm-$(CONFIG_CAPSULE_PLATFORM_FACTS) += uuid.c
 
 romstage-$(CONFIG_SPD_CACHE_IN_FMAP) += spd_cache.c
 

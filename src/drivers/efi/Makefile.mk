@@ -17,4 +17,5 @@ romstage-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 ramstage-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 smm-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 
-ramstage-$(CONFIG_DRIVERS_EFI_FW_INFO)	+= info.c
+ramstage-$(CONFIG_DRIVERS_EFI_FW_INFO)	+= info.c fw_info.c
+smm-$(CONFIG_CAPSULE_PLATFORM_FACTS)	+= fw_info.c
