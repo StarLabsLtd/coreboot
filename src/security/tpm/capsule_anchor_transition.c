@@ -29,12 +29,6 @@ static bool bytes_zero(const void *data, size_t size)
 	return value == 0;
 }
 
-static bool value_valid(const struct capsule_tpm_anchor_value *value)
-{
-	return value->epoch &&
-		!bytes_zero(value->digest, sizeof(value->digest));
-}
-
 static bool binding_valid(const struct capsule_tpm_anchor_binding *binding)
 {
 	return binding->policy_revision == CAPSULE_TPM_ANCHOR_POLICY_REVISION &&
@@ -49,67 +43,6 @@ static bool binding_valid(const struct capsule_tpm_anchor_binding *binding)
 			sizeof(binding->policy_ref) - binding->policy_ref_size) &&
 		binding->write_locked <= 1 &&
 		bytes_zero(binding->reserved, sizeof(binding->reserved));
-}
-
-static bool policy_authorization_valid(
-	const struct capsule_tpm_anchor_policy_authorization *policy,
-	size_t modulus_size)
-{
-	return !bytes_zero(policy->approved_policy,
-			sizeof(policy->approved_policy)) &&
-		!bytes_zero(policy->cp_hash, sizeof(policy->cp_hash)) &&
-		!bytes_zero(policy->nonce, sizeof(policy->nonce)) &&
-		policy->signature_size == modulus_size &&
-		bytes_zero(policy->reserved, sizeof(policy->reserved)) &&
-		!bytes_zero(policy->signature, policy->signature_size) &&
-		bytes_zero(policy->signature + policy->signature_size,
-			sizeof(policy->signature) - policy->signature_size) &&
-		!policy->reserved2;
-}
-
-static bool authorization_valid(
-	const struct capsule_tpm_anchor_authorization *authorization,
-	const struct capsule_tpm_anchor_binding *binding)
-{
-	bool modulus_size_valid = authorization->modulus_size == 256 ||
-		authorization->modulus_size == 384 ||
-		authorization->modulus_size == 512;
-
-	return authorization->revision ==
-			CAPSULE_TPM_ANCHOR_AUTHORIZATION_REVISION &&
-		authorization->size == sizeof(*authorization) &&
-		authorization->policy_revision == binding->policy_revision &&
-		authorization->nv_index == binding->nv_index &&
-		authorization->generation && authorization->transaction &&
-		value_valid(&authorization->current) &&
-		value_valid(&authorization->candidate) &&
-		authorization->current.epoch != UINT64_MAX &&
-		authorization->candidate.epoch ==
-			authorization->current.epoch + 1 &&
-		memcmp(authorization->current.digest,
-			authorization->candidate.digest,
-			sizeof(authorization->current.digest)) &&
-		!memcmp(authorization->authority_name, binding->authority_name,
-			sizeof(authorization->authority_name)) &&
-		authorization->policy_ref_size == binding->policy_ref_size &&
-		!memcmp(authorization->policy_ref, binding->policy_ref,
-			sizeof(authorization->policy_ref)) && modulus_size_valid &&
-		!authorization->reserved &&
-		!bytes_zero(authorization->modulus,
-			authorization->modulus_size) &&
-		bytes_zero(authorization->modulus + authorization->modulus_size,
-			sizeof(authorization->modulus) - authorization->modulus_size) &&
-		!authorization->reserved2 &&
-		policy_authorization_valid(&authorization->write,
-			authorization->modulus_size) &&
-		policy_authorization_valid(&authorization->lock,
-			authorization->modulus_size) &&
-		memcmp(authorization->write.approved_policy,
-			authorization->lock.approved_policy,
-			sizeof(authorization->write.approved_policy)) &&
-		memcmp(authorization->write.cp_hash,
-			authorization->lock.cp_hash,
-			sizeof(authorization->write.cp_hash));
 }
 
 static bool provider_valid(
@@ -220,7 +153,8 @@ enum cb_err capsule_tpm_anchor_transition_run(
 		sizeof(authorization_snapshot));
 	memcpy(&provider_snapshot, provider, sizeof(provider_snapshot));
 	if (!binding_valid(&binding_snapshot) ||
-	    !authorization_valid(&authorization_snapshot, &binding_snapshot) ||
+	    !capsule_tpm_anchor_authorization_matches_binding(
+		&authorization_snapshot, &binding_snapshot) ||
 	    !provider_valid(&provider_snapshot))
 		goto out;
 	grant = build_grant(&binding_snapshot, &authorization_snapshot, 0);

@@ -11,6 +11,7 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	"$temporary/include/config.h"
 
 cases='prepared-success prepared-before-advance prepared-stale-anchor
+prepared-unrelated-torn
 prepared-advanced-no-grant
 prepared-mismatch-generation prepared-mismatch-transaction
 prepared-mismatch-current prepared-mismatch-candidate
@@ -18,6 +19,30 @@ prepared-mismatch-epoch
 prepared-cut-prepare-program-1 prepared-cut-prepare-program-2
 prepared-cut-prepare-sync-1 prepared-cut-prepare-sync-2
 prepared-cut-reconcile-program prepared-cut-reconcile-sync'
+
+authorized_cases='prepared-authorized-success prepared-authorized-reentry
+prepared-authorized-reconcile prepared-authorized-composite-next
+prepared-authorized-gc-copy prepared-authorized-composite-duplicate
+prepared-authorized-manifest-ambiguity
+prepared-authorized-receipt-v1
+prepared-authorized-capsule-size prepared-authorized-capsule-algorithm
+prepared-authorized-capsule-digest prepared-authorized-generation
+prepared-authorized-transaction prepared-authorized-current-anchor
+prepared-authorized-slot-2512 prepared-authorized-slot-2504
+prepared-authorized-slot-2511
+prepared-authorized-capsule-too-large prepared-authorized-digest-mismatch
+prepared-authorized-tail prepared-authorized-tuple prepared-authorized-alias
+prepared-authorized-mutation prepared-authorized-hash-input
+prepared-authorized-hash-context prepared-authorized-program-input
+prepared-authorized-program-context
+prepared-authorized-program-before-1 prepared-authorized-program-partial-1
+prepared-authorized-program-after-1 prepared-authorized-program-before-2
+prepared-authorized-program-partial-2 prepared-authorized-program-after-2
+prepared-authorized-program-before-3 prepared-authorized-program-partial-3
+prepared-authorized-program-after-3
+prepared-authorized-sync-before-1 prepared-authorized-sync-after-1
+prepared-authorized-sync-before-2 prepared-authorized-sync-after-2
+prepared-authorized-sync-before-3 prepared-authorized-sync-after-3'
 
 build_and_run()
 {
@@ -33,6 +58,7 @@ build_and_run()
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/payload_mm_fmp_owner_journal_test.c" \
+		"$root/src/security/tpm/capsule_anchor_authorization.c" \
 		"$root/src/lib/payload_mm_authvar.c" \
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_fmp_state.c" \
@@ -45,6 +71,21 @@ build_and_run()
 		-o "$temporary/$name"
 	for case_name in $cases; do
 		"$temporary/$name" "$case_name"
+	done
+	for case_name in $authorized_cases; do
+		"$temporary/$name" "$case_name"
+	done
+	for cut in 1 2 3 4 5 6; do
+		for kind in before partial after; do
+			"$temporary/$name" \
+				"prepared-authorized-gc-cut-program-$kind-$cut"
+		done
+	done
+	for cut in 1 2 3 4 5 6 7 8; do
+		for kind in before after; do
+			"$temporary/$name" \
+				"prepared-authorized-gc-cut-sync-$kind-$cut"
+		done
 	done
 }
 

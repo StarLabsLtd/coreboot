@@ -104,5 +104,98 @@ bool payload_mm_fmp_owner_journal_prepared_shape_valid(
 			sizeof(prepared->candidate.digest), 0) &&
 		prepared->candidate.epoch == prepared->current.epoch + 1 &&
 		memcmp(prepared->current.digest, prepared->candidate.digest,
-			sizeof(prepared->current.digest));
+			 sizeof(prepared->current.digest));
 }
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static bool receipt_shape_valid(
+	const struct payload_mm_fmp_owner_auth_receipt *receipt)
+{
+	return receipt &&
+		receipt->magic == PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC &&
+		receipt->revision == PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION &&
+		receipt->size == sizeof(*receipt) && receipt->capsule_size &&
+		receipt->capsule_size <= UINT32_MAX &&
+		receipt->capsule_size <= SIZE_MAX &&
+		receipt->digest_algorithm ==
+			PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 &&
+		receipt->digest_size == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE &&
+		!bytes_equal_value(receipt->capsule_digest,
+			sizeof(receipt->capsule_digest), 0);
+}
+
+static void encode_le32(uint8_t output[4], uint32_t value)
+{
+	for (size_t i = 0; i < 4; i++)
+		output[i] = (uint8_t)(value >> (i * 8));
+}
+
+static void encode_le64(uint8_t output[8], uint64_t value)
+{
+	for (size_t i = 0; i < 8; i++)
+		output[i] = (uint8_t)(value >> (i * 8));
+}
+
+bool payload_mm_fmp_owner_authorized_anchor_input(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	const struct payload_mm_fmp_owner_journal_anchor *current,
+	uint64_t generation, uint64_t transaction,
+	const struct payload_mm_fmp_owner_auth_receipt *receipt,
+	struct payload_mm_fmp_owner_authorized_anchor_input *input)
+{
+	static const uint8_t domain[
+		PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_DOMAIN_SIZE] =
+		"PAYLOAD-MM-FMP-AUTH-ANCHOR-V2";
+	size_t offset = 0;
+
+	if (!manifest || !current || !input || !generation || !transaction ||
+	    !payload_mm_fmp_owner_journal_anchor_valid(current) ||
+	    !receipt_shape_valid(receipt))
+		return false;
+	memcpy(input->bytes + offset, domain, sizeof(domain));
+	offset += sizeof(domain);
+	memcpy(input->bytes + offset, manifest, sizeof(*manifest));
+	offset += sizeof(*manifest);
+	encode_le64(input->bytes + offset, current->epoch);
+	offset += sizeof(current->epoch);
+	memcpy(input->bytes + offset, current->digest, sizeof(current->digest));
+	offset += sizeof(current->digest);
+	encode_le64(input->bytes + offset, generation);
+	offset += sizeof(generation);
+	encode_le64(input->bytes + offset, transaction);
+	offset += sizeof(transaction);
+	encode_le64(input->bytes + offset, receipt->magic);
+	offset += sizeof(receipt->magic);
+	encode_le32(input->bytes + offset, receipt->revision);
+	offset += sizeof(receipt->revision);
+	encode_le32(input->bytes + offset, receipt->size);
+	offset += sizeof(receipt->size);
+	encode_le64(input->bytes + offset, receipt->capsule_size);
+	offset += sizeof(uint64_t);
+	encode_le32(input->bytes + offset, receipt->digest_algorithm);
+	offset += sizeof(uint32_t);
+	encode_le32(input->bytes + offset, receipt->digest_size);
+	offset += sizeof(uint32_t);
+	memcpy(input->bytes + offset, receipt->capsule_digest,
+		sizeof(receipt->capsule_digest));
+	offset += sizeof(receipt->capsule_digest);
+	return offset == sizeof(*input);
+}
+
+bool payload_mm_fmp_owner_transition_material_valid(
+	const struct payload_mm_fmp_owner_transition_material *material,
+	const uint8_t authorization_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE])
+{
+	const struct payload_mm_fmp_owner_auth_receipt *receipt;
+
+	if (!material || !authorization_digest ||
+	    !capsule_tpm_anchor_authorization_shape_valid(
+		&material->authorization))
+		return false;
+	receipt = &material->receipt;
+	/* CapsuleImageSize is a UINT32; staging policy applies a tighter bound. */
+	return receipt_shape_valid(receipt) &&
+		!memcmp(receipt->authorization_digest, authorization_digest,
+			sizeof(receipt->authorization_digest));
+}
+#endif

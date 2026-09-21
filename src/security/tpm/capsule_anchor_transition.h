@@ -51,6 +51,13 @@ _Static_assert(offsetof(struct capsule_tpm_anchor_authorization, write) == 704,
 _Static_assert(offsetof(struct capsule_tpm_anchor_authorization, lock) == 1328,
 	"capsule TPM anchor lock authorization offset");
 
+/* These helpers validate the fixed authorization encoding, not its signatures. */
+bool capsule_tpm_anchor_authorization_shape_valid(
+	const struct capsule_tpm_anchor_authorization *authorization);
+bool capsule_tpm_anchor_authorization_matches_binding(
+	const struct capsule_tpm_anchor_authorization *authorization,
+	const struct capsule_tpm_anchor_binding *binding);
+
 typedef enum cb_err capsule_tpm_anchor_transmit_fn(void *context,
 	const uint8_t *request, size_t request_size, uint8_t *response,
 	size_t *response_size);

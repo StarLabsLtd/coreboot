@@ -16,7 +16,10 @@
 #define SLOT_SIZE 512U
 #define SLOTS 3U
 #define DOMAIN_SIZE (SLOT_SIZE * SLOTS)
-#define MEDIA_SIZE (4U * DOMAIN_SIZE)
+#define AUTHORIZED_SLOT_SIZE 4096U
+#define AUTHORIZED_MIN_SLOT_SIZE 2512U
+#define AUTHORIZED_BELOW_MIN_SLOT_SIZE 2504U
+#define MEDIA_SIZE (12U * AUTHORIZED_SLOT_SIZE)
 #define TEST_OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL
 #define FACTORY_FIRST_POST_PROVISION_READ 58U
 #define FACTORY_RECOVER_MANIFEST_READ 66U
@@ -94,6 +97,8 @@ static struct payload_mm_fmp_state_identity identity;
 static const void *journal_storage;
 static size_t journal_storage_size;
 static bool grant_called;
+static u32 active_slot_size = SLOT_SIZE;
+static u32 active_domain_size = DOMAIN_SIZE;
 
 static void reset_counts(void);
 static void expect_sequence(uint64_t sequence);
@@ -479,8 +484,13 @@ static struct payload_mm_fmp_owner_record record(uint32_t key,
 	return value;
 }
 
-static struct payload_mm_fmp_owner_journal_port port(void)
+static struct payload_mm_fmp_owner_journal_port port_with_slot_size(
+	u32 slot_size)
 {
+	u32 domain_size = slot_size * SLOTS;
+	u32 erase_size = slot_size == AUTHORIZED_MIN_SLOT_SIZE ||
+		slot_size == AUTHORIZED_BELOW_MIN_SLOT_SIZE ? 8 :
+		slot_size == AUTHORIZED_MIN_SLOT_SIZE - 1 ? 1 : slot_size;
 	struct payload_mm_fmp_owner_journal_port value = {
 		.revision = PAYLOAD_MM_FMP_OWNER_JOURNAL_REVISION,
 		.size = sizeof(value),
@@ -488,21 +498,21 @@ static struct payload_mm_fmp_owner_journal_port port(void)
 			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
 			.size = sizeof(struct fmp_owner_layout),
 			.media_size = MEDIA_SIZE,
-			.erase_size = SLOT_SIZE,
-			.slot_size = SLOT_SIZE,
+			.erase_size = erase_size,
+			.slot_size = slot_size,
 			.route_count = 1,
 			.state = {
-				{ .offset = 0, .size = DOMAIN_SIZE },
-				{ .offset = DOMAIN_SIZE, .size = DOMAIN_SIZE },
+				{ .offset = 0, .size = domain_size },
+				{ .offset = domain_size, .size = domain_size },
 			},
 			.smmstore = {
-				.offset = 2U * DOMAIN_SIZE,
-				.size = SLOT_SIZE,
+				.offset = 2U * domain_size,
+				.size = slot_size,
 			},
 			.route = {{
 				.image_offset = 0,
-				.flash_offset = 2U * DOMAIN_SIZE + SLOT_SIZE,
-				.size = SLOT_SIZE,
+				.flash_offset = 2U * domain_size + slot_size,
+				.size = slot_size,
 				.flags = LB_CAPSULE_REGION_BIOS,
 			}},
 		},
@@ -521,7 +531,12 @@ static struct payload_mm_fmp_owner_journal_port port(void)
 	return value;
 }
 
-static void install(bool provision)
+static struct payload_mm_fmp_owner_journal_port port(void)
+{
+	return port_with_slot_size(SLOT_SIZE);
+}
+
+static void install_with_slot_size(bool provision, u32 slot_size)
 {
 	struct payload_mm_authvar_contract authvar = authvar_contract();
 	struct payload_mm_fmp_state_policy policy = {
@@ -530,10 +545,13 @@ static void install(bool provision)
 		.namespace_guid = state_guid,
 		.trusted_lowest_version = 4,
 	};
-	struct payload_mm_fmp_owner_journal_port journal_port = port();
+	struct payload_mm_fmp_owner_journal_port journal_port =
+		port_with_slot_size(slot_size);
 
 	memset(&model, 0, sizeof(model));
 	memset(model.media, 0xff, sizeof(model.media));
+	active_slot_size = slot_size;
+	active_domain_size = slot_size * SLOTS;
 	source_context = (struct callback_context) {
 		.model = &model,
 		.route = 0x4a4e4c31U,
@@ -554,6 +572,39 @@ static void install(bool provision)
 			workspace()->record) == CB_SUCCESS);
 	assert(payload_mm_fmp_state_identity_get_for_key(0, &identity) ==
 		CB_SUCCESS);
+}
+
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+static void expect_install_rejected(u32 slot_size)
+{
+	struct payload_mm_authvar_contract authvar = authvar_contract();
+	struct payload_mm_fmp_state_policy policy = {
+		.revision = PAYLOAD_MM_FMP_STATE_POLICY_REVISION,
+		.size = sizeof(policy),
+		.namespace_guid = state_guid,
+		.trusted_lowest_version = 4,
+	};
+	struct payload_mm_fmp_owner_journal_port journal_port =
+		port_with_slot_size(slot_size);
+
+	memset(&model, 0, sizeof(model));
+	memset(model.media, 0xff, sizeof(model.media));
+	source_context = (struct callback_context) {
+		.model = &model,
+		.route = 0x4a4e4c31U,
+	};
+	assert(payload_mm_authvar_authority_install(&authvar, protected_storage,
+		NULL) == CB_SUCCESS);
+	assert(payload_mm_fmp_state_policy_install(&policy, protected_storage,
+		NULL) == CB_SUCCESS);
+	assert(payload_mm_fmp_owner_journal_install(&journal_port,
+		protected_storage, NULL) == CB_ERR);
+}
+#endif
+
+static void install(bool provision)
+{
+	install_with_slot_size(provision, SLOT_SIZE);
 }
 
 static void reset_counts(void)
@@ -627,13 +678,36 @@ static bool manifest_for_anchor(
 		for (size_t slot = 0; slot < SLOTS; slot++) {
 			struct payload_mm_fmp_owner_journal_manifest candidate;
 			uint8_t digest[PAYLOAD_MM_FMP_OWNER_JOURNAL_DIGEST_SIZE];
-			const uint8_t *address = model.media + domain * DOMAIN_SIZE +
-				slot * SLOT_SIZE;
+			const uint8_t *address = model.media +
+				domain * active_domain_size + slot * active_slot_size;
 
 			if (address[0] == 0xff)
 				continue;
 			memcpy(&candidate, address, sizeof(candidate));
 			test_hash(&candidate, sizeof(candidate), digest);
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+			if (active_slot_size >=
+			    sizeof(candidate) +
+			    sizeof(struct payload_mm_fmp_owner_prepared) +
+			    sizeof(struct payload_mm_fmp_owner_transition_material)) {
+				const struct payload_mm_fmp_owner_prepared *prepared =
+					(const void *)(address + sizeof(candidate));
+				const struct payload_mm_fmp_owner_transition_material *material =
+					(const void *)((const u8 *)prepared +
+						sizeof(*prepared));
+				struct payload_mm_fmp_owner_authorized_anchor_input input;
+
+				if (prepared->magic ==
+					    PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC &&
+				    material->receipt.revision ==
+					    PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION &&
+				    payload_mm_fmp_owner_authorized_anchor_input(
+					&candidate, &prepared->current,
+					prepared->generation, prepared->transaction,
+					&material->receipt, &input))
+					test_hash(&input, sizeof(input), digest);
+			}
+#endif
 			if (candidate.epoch != anchor->epoch ||
 			    memcmp(digest, anchor->digest, sizeof(digest)) != 0)
 				continue;
@@ -656,8 +730,8 @@ static struct payload_mm_fmp_owner_prepared *prepared_record(void)
 	for (size_t domain = 0; domain < 2; domain++) {
 		for (size_t slot = 0; slot < SLOTS; slot++) {
 			struct payload_mm_fmp_owner_prepared *candidate =
-				(void *)(model.media + domain * DOMAIN_SIZE +
-				slot * SLOT_SIZE +
+				(void *)(model.media + domain * active_domain_size +
+				slot * active_slot_size +
 				sizeof(struct payload_mm_fmp_owner_journal_manifest));
 
 			if (candidate->state != PAYLOAD_MM_FMP_OWNER_PREPARED_STATE)
@@ -717,6 +791,333 @@ static void prepare_one(void)
 	assert(payload_mm_fmp_owner_journal_prepare(&identity, 0,
 		&workspace()->current, &workspace()->candidate, 9, 17) ==
 		CB_SUCCESS);
+}
+
+static struct payload_mm_fmp_owner_transition_material authorized_material(void)
+{
+	struct payload_mm_fmp_owner_journal_manifest current_manifest;
+	struct payload_mm_fmp_owner_journal_manifest candidate_manifest;
+	struct payload_mm_fmp_owner_journal_anchor current_anchor = model.anchor;
+	struct payload_mm_fmp_owner_authorized_anchor_input anchor_input;
+	struct capsule_tpm_anchor_binding binding = prepared_binding();
+	struct payload_mm_fmp_owner_transition_material material = {
+		.authorization = {
+			.revision = CAPSULE_TPM_ANCHOR_AUTHORIZATION_REVISION,
+			.size = sizeof(struct capsule_tpm_anchor_authorization),
+			.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION,
+			.nv_index = 0x01001234,
+			.generation = 9,
+			.transaction = 17,
+			.policy_ref_size = 7,
+			.modulus_size = 256,
+		},
+		.receipt = {
+			.magic = PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC,
+			.revision = PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION,
+			.size = sizeof(struct payload_mm_fmp_owner_auth_receipt),
+			.capsule_size = UINT32_MAX,
+			.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+			.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+			.capsule_digest = { 0x5a },
+		},
+	};
+
+	assert(manifest_for_anchor(&model.anchor, &current_manifest));
+	candidate_manifest = current_manifest;
+	candidate_manifest.epoch++;
+	candidate_manifest.record[0] = workspace()->candidate;
+	memcpy(&material.authorization.current, &current_anchor,
+		sizeof(current_anchor));
+	material.authorization.candidate.epoch = candidate_manifest.epoch;
+	assert(payload_mm_fmp_owner_authorized_anchor_input(&candidate_manifest,
+		&current_anchor, material.authorization.generation,
+		material.authorization.transaction, &material.receipt, &anchor_input));
+	test_hash(&anchor_input, sizeof(anchor_input),
+		material.authorization.candidate.digest);
+	memcpy(material.authorization.authority_name, binding.authority_name,
+		sizeof(material.authorization.authority_name));
+	memcpy(material.authorization.policy_ref, binding.policy_ref,
+		sizeof(material.authorization.policy_ref));
+	memset(material.authorization.modulus, 0x88,
+		material.authorization.modulus_size);
+	memset(material.authorization.write.approved_policy, 0x55,
+		sizeof(material.authorization.write.approved_policy));
+	memset(material.authorization.write.cp_hash, 0x66,
+		sizeof(material.authorization.write.cp_hash));
+	memset(material.authorization.write.nonce, 0x77,
+		sizeof(material.authorization.write.nonce));
+	material.authorization.write.signature_size =
+		material.authorization.modulus_size;
+	memset(material.authorization.write.signature, 0x99,
+		material.authorization.write.signature_size);
+	memset(material.authorization.lock.approved_policy, 0x5c,
+		sizeof(material.authorization.lock.approved_policy));
+	memset(material.authorization.lock.cp_hash, 0x6c,
+		sizeof(material.authorization.lock.cp_hash));
+	memset(material.authorization.lock.nonce, 0x7c,
+		sizeof(material.authorization.lock.nonce));
+	material.authorization.lock.signature_size =
+		material.authorization.modulus_size;
+	memset(material.authorization.lock.signature, 0x9c,
+		material.authorization.lock.signature_size);
+	test_hash(&material.authorization, sizeof(material.authorization),
+		material.receipt.authorization_digest);
+	return material;
+}
+
+static void prepare_authorized_fixture(
+	struct payload_mm_fmp_owner_transition_material *material, u32 slot_size)
+{
+	install_with_slot_size(true, slot_size);
+	owner_install();
+	assert(backend->read(NULL, &identity, 0, &workspace()->current) ==
+		CB_SUCCESS);
+	workspace()->candidate = workspace()->current;
+	workspace()->candidate.sequence++;
+	workspace()->candidate.data[2] = 1;
+	*material = authorized_material();
+}
+
+static void test_authorized_prepare(const char *name)
+{
+	struct payload_mm_fmp_owner_transition_material material;
+	struct payload_mm_fmp_owner_prepared *prepared;
+	enum cb_err status;
+
+	if (!strcmp(name, "slot-2511")) {
+		expect_install_rejected(AUTHORIZED_MIN_SLOT_SIZE - 1);
+		return;
+	}
+	prepare_authorized_fixture(&material,
+		!strcmp(name, "slot-2512") ? AUTHORIZED_MIN_SLOT_SIZE :
+		!strcmp(name, "slot-2504") ? AUTHORIZED_BELOW_MIN_SLOT_SIZE :
+		AUTHORIZED_SLOT_SIZE);
+	if (!strcmp(name, "capsule-too-large")) {
+		material.receipt.capsule_size = (uint64_t)UINT32_MAX + 1;
+		assert(payload_mm_fmp_owner_journal_prepare_authorized(&identity, 0,
+			&workspace()->current, &workspace()->candidate, &material) ==
+			CB_ERR);
+		return;
+	}
+	if (!strcmp(name, "receipt-v1"))
+		material.receipt.revision = 1;
+	else if (!strcmp(name, "capsule-size"))
+		material.receipt.capsule_size--;
+	else if (!strcmp(name, "capsule-algorithm"))
+		material.receipt.digest_algorithm++;
+	else if (!strcmp(name, "capsule-digest"))
+		material.receipt.capsule_digest[0] ^= 1;
+	else if (!strcmp(name, "generation"))
+		material.authorization.generation++;
+	else if (!strcmp(name, "transaction"))
+		material.authorization.transaction++;
+	else if (!strcmp(name, "current-anchor"))
+		material.authorization.current.digest[0] ^= 1;
+	else if (!strcmp(name, "digest-mismatch"))
+		material.receipt.authorization_digest[0] ^= 1;
+	else if (!strcmp(name, "tail"))
+		material.authorization.modulus[256] = 1;
+	else if (!strcmp(name, "tuple"))
+		material.authorization.candidate.digest[0] ^= 1;
+	else if (!strcmp(name, "alias")) {
+		assert(payload_mm_fmp_owner_journal_prepare_authorized(&identity, 0,
+			&workspace()->current, &workspace()->candidate,
+			(const void *)&workspace()->current) == CB_ERR);
+		return;
+	} else if (!strncmp(name, "program-", 8) &&
+		   strcmp(name, "program-input") &&
+		   strcmp(name, "program-context")) {
+		const char *phase = strrchr(name, '-');
+
+		assert(phase && phase[1] >= '1' && phase[1] <= '3' && !phase[2]);
+		model.program_cut = model.programs +
+			(unsigned int)(phase[1] - '0');
+		model.program_fault = fault_from_name(name);
+	} else if (!strncmp(name, "sync-", 5)) {
+		const char *phase = strrchr(name, '-');
+
+		assert(phase && phase[1] >= '1' && phase[1] <= '3' && !phase[2]);
+		model.sync_cut = model.syncs +
+			(unsigned int)(phase[1] - '0');
+		model.sync_fault = fault_from_name(name);
+	} else if (!strcmp(name, "mutation")) {
+		model.mutate_target = &material;
+		model.mutate_size = sizeof(material);
+		model.mutate_offset = offsetof(
+			struct payload_mm_fmp_owner_transition_material,
+			receipt.capsule_digest);
+		model.mutate_on_read = model.reads + 1;
+	} else if (!strcmp(name, "hash-input")) {
+		model.hash_cut = model.hashes + 1;
+		model.hash_fault = FAULT_MUTATE_INPUT;
+	} else if (!strcmp(name, "hash-context")) {
+		model.hash_cut = model.hashes + 1;
+		model.hash_fault = FAULT_MUTATE_CONTEXT;
+	} else if (!strcmp(name, "program-input")) {
+		model.program_cut = model.programs + 2;
+		model.program_fault = FAULT_MUTATE_INPUT;
+	} else if (!strcmp(name, "program-context")) {
+		model.program_cut = model.programs + 2;
+		model.program_fault = FAULT_MUTATE_CONTEXT;
+	} else if (!strcmp(name, "reentry")) {
+		model.reenter = true;
+	}
+	status = payload_mm_fmp_owner_journal_prepare_authorized(&identity, 0,
+		&workspace()->current, &workspace()->candidate, &material);
+	if (!strcmp(name, "success") || !strcmp(name, "slot-2512") ||
+	    !strcmp(name, "reentry") || !strcmp(name, "reconcile") ||
+	    !strcmp(name, "composite-next") || !strcmp(name, "gc-copy") ||
+	    !strcmp(name, "composite-duplicate") ||
+	    !strcmp(name, "manifest-ambiguity") ||
+	    !strncmp(name, "gc-cut-", 7)) {
+		struct payload_mm_fmp_owner_transition_material next_material;
+		struct payload_mm_fmp_owner_transition_material copied_material;
+		struct payload_mm_fmp_owner_prepared prepared_copy;
+
+		assert(status == CB_SUCCESS);
+		prepared = prepared_record();
+		assert(prepared != NULL);
+		assert(!memcmp((const u8 *)prepared + sizeof(*prepared), &material,
+			sizeof(material)));
+		if (!strcmp(name, "success") || !strcmp(name, "slot-2512") ||
+		    !strcmp(name, "reentry"))
+			return;
+		if (!strcmp(name, "manifest-ambiguity")) {
+			u8 *duplicate = model.media + active_domain_size;
+			struct payload_mm_fmp_owner_transition_material *duplicate_material;
+
+			model.anchor = prepared->candidate;
+			prepared->state = PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE;
+			assert(payload_mm_fmp_owner_read(0, &workspace()->current) ==
+				CB_SUCCESS);
+			workspace()->candidate = workspace()->current;
+			workspace()->candidate.sequence++;
+			workspace()->candidate.data[3] ^= 1;
+			next_material = authorized_material();
+			assert(payload_mm_fmp_owner_journal_prepare_authorized(
+				&identity, 0, &workspace()->current,
+				&workspace()->candidate, &next_material) == CB_SUCCESS);
+			prepared = prepared_record();
+			assert(prepared != NULL);
+			prepared_copy = *prepared;
+			memcpy(duplicate, model.media + active_slot_size,
+				active_slot_size);
+			duplicate_material = (void *)(duplicate +
+				sizeof(struct payload_mm_fmp_owner_journal_manifest) +
+				sizeof(struct payload_mm_fmp_owner_prepared));
+			duplicate_material->authorization.write.nonce[0] ^= 1;
+			test_hash(&duplicate_material->authorization,
+				sizeof(duplicate_material->authorization),
+				duplicate_material->receipt.authorization_digest);
+			model.anchor = prepared_copy.candidate;
+			install_anchor_grant(&prepared_copy, NULL);
+			assert(payload_mm_fmp_owner_journal_reconcile_prepared() ==
+				CB_ERR);
+			return;
+		}
+		prepared_copy = *prepared;
+		model.anchor = prepared_copy.candidate;
+		install_anchor_grant(&prepared_copy, NULL);
+		assert(payload_mm_fmp_owner_journal_reconcile_prepared() ==
+			CB_SUCCESS);
+		assert(payload_mm_fmp_owner_read(0, &workspace()->current) ==
+			CB_SUCCESS);
+		assert(!memcmp(&workspace()->current, &workspace()->candidate,
+			sizeof(workspace()->current)));
+		assert(commit_next() == CB_ERR);
+		if (!strcmp(name, "reconcile"))
+			return;
+		if (!strcmp(name, "composite-duplicate")) {
+			u8 *duplicate = model.media + active_domain_size;
+			struct payload_mm_fmp_owner_transition_material *duplicate_material;
+
+			memcpy(duplicate, model.media + active_slot_size,
+				active_slot_size);
+			assert(payload_mm_fmp_owner_read(0, &workspace()->output) ==
+				CB_SUCCESS);
+			duplicate_material = (void *)(duplicate +
+				sizeof(struct payload_mm_fmp_owner_journal_manifest) +
+				sizeof(struct payload_mm_fmp_owner_prepared));
+			duplicate_material->receipt.capsule_digest[0] ^= 1;
+			assert(payload_mm_fmp_owner_read(0, &workspace()->output) ==
+				CB_SUCCESS);
+			return;
+		}
+		assert(payload_mm_fmp_owner_read(0, &workspace()->current) ==
+			CB_SUCCESS);
+		workspace()->candidate = workspace()->current;
+		workspace()->candidate.sequence++;
+		workspace()->candidate.data[3] ^= 1;
+		next_material = authorized_material();
+		assert(payload_mm_fmp_owner_journal_prepare_authorized(&identity, 0,
+			&workspace()->current, &workspace()->candidate,
+			&next_material) == CB_SUCCESS);
+		if (!strcmp(name, "composite-next"))
+			return;
+		prepared = prepared_record();
+		assert(prepared != NULL);
+		memcpy(&material, (const u8 *)prepared + sizeof(*prepared),
+			sizeof(material));
+		model.anchor = prepared->candidate;
+		prepared->state = PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE;
+		assert(payload_mm_fmp_owner_read(0, &workspace()->current) ==
+			CB_SUCCESS);
+		workspace()->candidate = workspace()->current;
+		workspace()->candidate.sequence++;
+		workspace()->candidate.data[4] ^= 1;
+		next_material = authorized_material();
+		if (!strncmp(name, "gc-cut-", 7)) {
+			size_t length = strlen(name);
+			unsigned int cut = (unsigned int)(name[length - 1] - '0');
+
+			assert(cut && cut <= 8);
+			reset_counts();
+			if (strstr(name, "program")) {
+				model.program_cut = cut;
+				model.program_fault = fault_from_name(name);
+			} else {
+				model.sync_cut = cut;
+				model.sync_fault = fault_from_name(name);
+			}
+			assert(payload_mm_fmp_owner_journal_prepare_authorized(
+				&identity, 0, &workspace()->current,
+				&workspace()->candidate, &next_material) == CB_ERR);
+			assert(model.fault_hit);
+			model.program_cut = 0;
+			model.sync_cut = 0;
+			assert(payload_mm_fmp_owner_read(0, &workspace()->output) ==
+				CB_SUCCESS);
+			assert(!memcmp(&workspace()->output, &workspace()->current,
+				sizeof(workspace()->output)));
+			return;
+		}
+		assert(payload_mm_fmp_owner_journal_prepare_authorized(&identity, 0,
+			&workspace()->current, &workspace()->candidate,
+			&next_material) == CB_SUCCESS);
+		memcpy(&prepared_copy, model.media + active_domain_size +
+			sizeof(struct payload_mm_fmp_owner_journal_manifest),
+			sizeof(prepared_copy));
+		memcpy(&copied_material, model.media + active_domain_size +
+			sizeof(struct payload_mm_fmp_owner_journal_manifest) +
+			sizeof(prepared_copy), sizeof(copied_material));
+		assert(prepared_copy.state ==
+			PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE);
+		assert(!memcmp(&copied_material, &material,
+			sizeof(copied_material)));
+		return;
+	}
+	assert(status == CB_ERR);
+	prepared = prepared_record();
+	if (prepared) {
+		assert(strstr(name, "-3"));
+		if (strstr(name, "program-") && strstr(name, "partial")) {
+			assert(!payload_mm_fmp_owner_journal_prepared_shape_valid(
+				prepared));
+		} else {
+			assert(payload_mm_fmp_owner_journal_prepared_shape_valid(
+				prepared));
+		}
+	}
 }
 
 static void test_prepared(const char *name)
@@ -786,6 +1187,8 @@ static void test_prepared(const char *name)
 		return;
 	}
 	model.anchor = prepared.candidate;
+	if (!strcmp(name, "unrelated-torn"))
+		model.media[DOMAIN_SIZE] = 0;
 	if (!strcmp(name, "advanced-no-grant")) {
 		assert(backend->read(NULL, &identity, 0, &workspace()->output) ==
 			CB_ERR);
@@ -1055,6 +1458,10 @@ int main(int argc, char **argv)
 
 #if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
 	if (!strncmp(name, "prepared-", 9)) {
+		if (!strncmp(name + 9, "authorized-", 11)) {
+			test_authorized_prepare(name + 20);
+			return 0;
+		}
 		test_prepared(name + 9);
 		return 0;
 	}

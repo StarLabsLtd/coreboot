@@ -80,10 +80,49 @@ Every non-erased malformed companion, ambiguous candidate, stale prepared
 tuple, short read or changed sealed input fails closed. The exact current and
 candidate slots are read back before the one proof attempt is consumed.
 
-The version-1 journal format has no CRC field. Manifest integrity is the
-anchor's SHA-256 digest; companion integrity is its exact fixed tuple, one-way
-state encoding and durable readback. The reader preserves this ABI rather than
-inventing an incompatible checksum interpretation for the reserved field.
+The version-1 journal format has no CRC field. Legacy manifest integrity is the
+manifest's SHA-256 digest; companion integrity is its exact fixed tuple,
+one-way state encoding and durable readback. The reader preserves this ABI
+rather than inventing an incompatible checksum interpretation for the reserved
+field.
+
+Authorized preparation leaves the 344-byte manifest and 120-byte version-1
+`PREPARED` companion unchanged. Slots of at least 2512 bytes may additionally
+store the exact 1952-byte authorization at offset 464 and a fixed 96-byte
+revision-2 receipt at offset 2416. The receipt binds the SHA-256 of the
+authorization and the SHA-256 and occupied size of the complete capsule
+envelope. Its capsule
+size is limited by the 32-bit UEFI `CapsuleImageSize` field; the broker's
+staging-size policy remains the tighter platform-specific bound. The unrelated
+64 MiB raw-ROM parser limit does not constrain capsule envelope overhead.
+
+An authorized candidate anchor is SHA-256 over the fixed 32-byte
+`PAYLOAD-MM-FMP-AUTH-ANCHOR-V2` domain (zero-padded), the exact 344-byte
+candidate manifest, the current anchor encoded as little-endian epoch plus its
+32-byte digest, little-endian generation and transaction, and the receipt
+prefix through the capsule digest. Integer receipt fields are little-endian.
+The authorization and its authorization digest are excluded, avoiding a
+circular candidate value. The TPM-authorized candidate consequently binds its
+predecessor, boot transaction and complete capsule identity. Revision-1
+receipts are rejected.
+
+The candidate manifest and authorization material are each written, read back
+and synchronized before `PREPARED` is written last. The independent reader
+accepts exactly one prepared candidate, checks both manifests and their
+identity binding, validates every fixed authorization field and unused tail,
+and checks the receipt's authorization digest. It then rereads the complete
+occupied candidate slot and verifies that its remaining tail is erased before
+returning a caller-owned copy. A second one-shot proof freshly rereads the
+media and requires the eventual grant tuple and authorization material to be
+identical. Slots of 344, 464 or 512 bytes retain their legacy behavior but
+cannot use authorized preparation or loading.
+
+After reconciliation, the committed authorization and receipt remain the
+candidate anchor's durable sidecar. Recovery, duplicate detection and domain
+reclamation validate and copy that sidecar with the manifest. A manifest-only
+commit or preparation is refused while a composite anchor is authoritative;
+the next transition must itself be authorized, so reclamation cannot silently
+replace a composite current slot with a legacy manifest-only copy.
 
 The default-off `CAPSULE_TPM_ANCHOR_POLICY_PROVIDER` supplies the TPM half of
 that contract. It derives the provisioned index policy and exact NV Name,
@@ -121,10 +160,11 @@ transaction must instead use this ordering:
 2. After reset, the pre-OS owner validates the provisioned index and reads the
    exact current anchor. It independently verifies that the candidate manifest
    is durable and matches the proposed candidate anchor.
-3. The pre-OS owner obtains signed authorization bound to that exact transition,
-   advances the NV value and reads it back. An ambiguous TPM result is resolved
-   only by an authoritative read: current means retry is possible, candidate
-   means the advance completed, and every other value fails closed.
+3. The pre-OS owner loads and verifies the exact durable authorization and
+   receipt written before `PREPARED`, advances the NV value and reads it back.
+   An ambiguous TPM result is resolved only by an authoritative read: current
+   means retry is possible, candidate means the advance completed, and every
+   other value fails closed.
 4. It relinquishes TPM locality and transport, then hands the sealed grant into
    protected SMM storage before any payload, option ROM or other external code.
 5. SMM consumes the grant only to reconcile the already durable candidate. It
@@ -145,7 +185,11 @@ Host coverage for the reader is in
 `tests/lib/payload_mm_fmp_owner_prepared_reader_test.sh`. It runs O0, O2,
 strict-warning, ASan and UBSan builds over exact success, one-shot replay,
 torn companions, tuple replay, stale anchors, duplicate preparation, short
-reads, media mutation, split identity binding and committed-only media.
+reads, media mutation, split identity binding, committed-only media, receipt
+and authorization mutation, output aliases, reentry, complete-slot rereads and
+every injected short-read boundary. Authorized writer coverage, including
+manifest/material/PREPARED interruption boundaries, input mutation and legacy
+slot compatibility, is in `tests/lib/payload_mm_fmp_owner_prepared_test.sh`.
 Provider coverage is in `tests/lib/capsule_tpm_anchor_policy_test.sh` and
 `tests/lib/capsule_tpm_anchor_policy_transcript_test.sh`. Both run O0, O2,
 ASan and UBSan builds. The first covers fixed tails, exact public-state

@@ -3,6 +3,8 @@
 #ifndef LIB_PAYLOAD_MM_FMP_OWNER_JOURNAL_INTERNAL_H
 #define LIB_PAYLOAD_MM_FMP_OWNER_JOURNAL_INTERNAL_H
 
+#include <security/tpm/capsule_anchor_transition.h>
+
 #include "payload_mm_fmp_owner_internal.h"
 #include "payload_mm_fmp_owner_layout_internal.h"
 
@@ -18,6 +20,10 @@
 #define PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE 0xfffffffcU
 #define PAYLOAD_MM_FMP_OWNER_JOURNAL_MAGIC 0x314c4e4a504d4d50ULL
 #define PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC 0x31504552504d4d50ULL
+#define PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION 2U
+#define PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_DOMAIN_SIZE 32U
+#define PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_INPUT_SIZE 496U
+#define PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC 0x3152485441554d50ULL
 
 struct payload_mm_fmp_owner_journal_anchor {
 	uint64_t epoch;
@@ -52,12 +58,39 @@ struct payload_mm_fmp_owner_prepared {
 	struct payload_mm_fmp_owner_journal_anchor candidate;
 } __aligned(8);
 
+struct payload_mm_fmp_owner_auth_receipt {
+	uint64_t magic;
+	uint32_t revision;
+	uint32_t size;
+	uint64_t capsule_size;
+	uint32_t digest_algorithm;
+	uint32_t digest_size;
+	uint8_t capsule_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+	uint8_t authorization_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE];
+} __aligned(8);
+
+struct payload_mm_fmp_owner_transition_material {
+	struct capsule_tpm_anchor_authorization authorization;
+	struct payload_mm_fmp_owner_auth_receipt receipt;
+} __aligned(8);
+
+struct payload_mm_fmp_owner_authorized_anchor_input {
+	uint8_t bytes[PAYLOAD_MM_FMP_OWNER_AUTHORIZED_ANCHOR_INPUT_SIZE];
+};
+
 _Static_assert(sizeof(struct payload_mm_fmp_owner_journal_anchor) == 40,
 	"Payload-MM FMP owner journal anchor layout");
 _Static_assert(sizeof(struct payload_mm_fmp_owner_journal_manifest) == 344,
 	"Payload-MM FMP owner journal manifest layout");
 _Static_assert(sizeof(struct payload_mm_fmp_owner_prepared) == 120,
 	"Payload-MM FMP owner prepared layout");
+_Static_assert(sizeof(struct payload_mm_fmp_owner_auth_receipt) == 96,
+	"Payload-MM FMP owner authorization receipt layout");
+_Static_assert(sizeof(struct payload_mm_fmp_owner_transition_material) == 2048,
+	"Payload-MM FMP owner transition material layout");
+_Static_assert(offsetof(struct payload_mm_fmp_owner_transition_material,
+	receipt) == 1952,
+	"Payload-MM FMP owner authorization receipt offset");
 
 bool payload_mm_fmp_owner_journal_anchor_valid(
 	const struct payload_mm_fmp_owner_journal_anchor *anchor);
@@ -71,6 +104,17 @@ bool payload_mm_fmp_owner_journal_manifest_records_valid(
 	const struct payload_mm_fmp_owner_journal_manifest *manifest);
 bool payload_mm_fmp_owner_journal_prepared_shape_valid(
 	const struct payload_mm_fmp_owner_prepared *prepared);
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
+bool payload_mm_fmp_owner_transition_material_valid(
+	const struct payload_mm_fmp_owner_transition_material *material,
+	const uint8_t authorization_digest[PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE]);
+bool payload_mm_fmp_owner_authorized_anchor_input(
+	const struct payload_mm_fmp_owner_journal_manifest *manifest,
+	const struct payload_mm_fmp_owner_journal_anchor *current,
+	uint64_t generation, uint64_t transaction,
+	const struct payload_mm_fmp_owner_auth_receipt *receipt,
+	struct payload_mm_fmp_owner_authorized_anchor_input *input);
+#endif
 
 typedef enum cb_err payload_mm_fmp_owner_journal_read_fn(const void *context,
 	uint64_t offset, void *buffer, size_t size);
@@ -124,6 +168,11 @@ enum cb_err payload_mm_fmp_owner_journal_prepare(
 	const struct payload_mm_fmp_owner_record *current,
 	const struct payload_mm_fmp_owner_record *candidate,
 	uint64_t generation, uint64_t transaction);
+enum cb_err payload_mm_fmp_owner_journal_prepare_authorized(
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	const struct payload_mm_fmp_owner_transition_material *material);
 enum cb_err payload_mm_fmp_owner_journal_reconcile_prepared(void);
 #endif
 

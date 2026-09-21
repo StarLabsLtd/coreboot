@@ -7,7 +7,8 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
-	'#define CONFIG_CAPSULE_TPM_ANCHOR_TRANSITION 1' > \
+	'#define CONFIG_CAPSULE_TPM_ANCHOR_TRANSITION 1' \
+	'#define CONFIG_CAPSULE_TPM_ANCHOR_GRANT 1' > \
 	"$temporary/include/config.h"
 
 build_and_run()
@@ -24,6 +25,7 @@ build_and_run()
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/payload_mm_fmp_owner_prepared_reader_test.c" \
+		"$root/src/security/tpm/capsule_anchor_authorization.c" \
 		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
 		"$root/src/lib/payload_mm_fmp_owner_journal_format.c" \
 		"$root/src/lib/payload_mm_fmp_owner_prepared_reader.c" \

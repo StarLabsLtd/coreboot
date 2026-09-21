@@ -27,6 +27,7 @@ build_and_run()
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/payload_mm_fmp_owner_journal_test.c" \
+		"$root/src/security/tpm/capsule_anchor_authorization.c" \
 		"$root/src/lib/payload_mm_authvar.c" \
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_fmp_state.c" \

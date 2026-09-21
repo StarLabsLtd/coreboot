@@ -6,7 +6,7 @@
 
 #include "payload_mm_fmp_owner_prepared_reader_internal.h"
 
-#define SLOT_SIZE 512U
+#define SLOT_SIZE 4096U
 #define DOMAIN_SIZE (2U * SLOT_SIZE)
 #define MEDIA_SIZE 0x10000U
 #define CHECK(condition) do { if (!(condition)) __builtin_trap(); } while (0)
@@ -27,11 +27,16 @@ struct model {
 	struct payload_mm_fmp_owner_journal_anchor current;
 	struct payload_mm_fmp_owner_journal_anchor candidate;
 	struct capsule_tpm_anchor_grant grant;
+	struct capsule_tpm_anchor_binding binding;
+	struct payload_mm_fmp_owner_transition_material material;
 	unsigned int reads;
 	unsigned int short_read;
 	unsigned int mutate_read;
 	unsigned int mutate_policy_read;
 	unsigned int mutate_control_read;
+	bool reenter_load;
+	bool reenter_legacy_prove;
+	bool reenter_authorized_load;
 	struct payload_mm_fmp_owner_prepared_reader *reader;
 };
 
@@ -78,6 +83,15 @@ static ssize_t readat(const struct region_device *device, void *buffer,
 		model->device.rdev.region.size--;
 	if (model->mutate_control_read == model->reads)
 		model->reader->control = 0;
+	if (model->reenter_load)
+		CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(
+			model->reader, &model->binding, &model->material) == CB_ERR);
+	if (model->reenter_legacy_prove)
+		CHECK(payload_mm_fmp_owner_prepared_reader_prove(model->reader,
+			&model->grant) == CB_ERR);
+	if (model->reenter_authorized_load)
+		CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(
+			model->reader, &model->binding, &model->material) == CB_ERR);
 	return model->short_read == model->reads ? (ssize_t)size - 1 :
 		(ssize_t)size;
 }
@@ -99,6 +113,13 @@ static struct payload_mm_fmp_owner_prepared *prepared(
 	return (void *)(model->media + model->layout.state[domain].offset +
 		slot * SLOT_SIZE +
 		sizeof(struct payload_mm_fmp_owner_journal_manifest));
+}
+
+static struct payload_mm_fmp_owner_transition_material *material(
+	struct model *model, size_t domain, u32 slot)
+{
+	return (void *)((u8 *)prepared(model, domain, slot) +
+		sizeof(struct payload_mm_fmp_owner_prepared));
 }
 
 static void build_manifest(struct model *model,
@@ -129,6 +150,68 @@ static void build_manifest(struct model *model,
 	test_hash(record, sizeof(*record), anchor->digest);
 }
 
+static void refresh_authorized_candidate(struct model *model)
+{
+	struct payload_mm_fmp_owner_authorized_anchor_input input;
+
+	CHECK(payload_mm_fmp_owner_authorized_anchor_input(manifest(model, 0, 1),
+		&model->current, model->material.authorization.generation,
+		model->material.authorization.transaction, &model->material.receipt,
+		&input));
+	test_hash(&input, sizeof(input), model->candidate.digest);
+	prepared(model, 0, 1)->current = model->current;
+	prepared(model, 0, 1)->candidate = model->candidate;
+	memcpy(&model->grant.current, &model->current, sizeof(model->current));
+	memcpy(&model->grant.candidate, &model->candidate,
+		sizeof(model->candidate));
+	model->material.authorization.current = model->grant.current;
+	model->material.authorization.candidate = model->grant.candidate;
+	test_hash(&model->material.authorization,
+		sizeof(model->material.authorization),
+		model->material.receipt.authorization_digest);
+	*material(model, 0, 1) = model->material;
+}
+
+static void make_composite_current(struct model *model)
+{
+	struct payload_mm_fmp_owner_transition_material current_material =
+		model->material;
+	struct payload_mm_fmp_owner_authorized_anchor_input input;
+	struct payload_mm_fmp_owner_journal_anchor predecessor = {
+		.epoch = 6,
+		.digest = { 0xa5 },
+	};
+	struct payload_mm_fmp_owner_prepared *current_prepared =
+		prepared(model, 0, 0);
+
+	current_material.authorization.generation = 9;
+	current_material.authorization.transaction = 10;
+	memcpy(&current_material.authorization.current, &predecessor,
+		sizeof(predecessor));
+	*current_prepared = (struct payload_mm_fmp_owner_prepared) {
+		.magic = PAYLOAD_MM_FMP_OWNER_PREPARED_MAGIC,
+		.revision = PAYLOAD_MM_FMP_OWNER_PREPARED_REVISION,
+		.size = sizeof(*current_prepared),
+		.state = PAYLOAD_MM_FMP_OWNER_COMMITTED_STATE,
+		.generation = current_material.authorization.generation,
+		.transaction = current_material.authorization.transaction,
+		.current = predecessor,
+		.candidate.epoch = manifest(model, 0, 0)->epoch,
+	};
+	CHECK(payload_mm_fmp_owner_authorized_anchor_input(manifest(model, 0, 0),
+		&predecessor, current_prepared->generation,
+		current_prepared->transaction, &current_material.receipt, &input));
+	test_hash(&input, sizeof(input), current_prepared->candidate.digest);
+	memcpy(&current_material.authorization.candidate,
+		&current_prepared->candidate, sizeof(current_prepared->candidate));
+	test_hash(&current_material.authorization,
+		sizeof(current_material.authorization),
+		current_material.receipt.authorization_digest);
+	*material(model, 0, 0) = current_material;
+	model->current = current_prepared->candidate;
+	refresh_authorized_candidate(model);
+}
+
 static void initialize_model(struct model *model)
 {
 	static const u8 identity_binding[32] = {
@@ -146,13 +229,13 @@ static void initialize_model(struct model *model)
 		.route_count = 1,
 		.state = {
 			{ .offset = 0x1000, .size = DOMAIN_SIZE },
-			{ .offset = 0x2000, .size = DOMAIN_SIZE },
+			{ .offset = 0x4000, .size = DOMAIN_SIZE },
 		},
-		.smmstore = { .offset = 0x3000, .size = 0x100 },
+		.smmstore = { .offset = 0x7000, .size = 0x1000 },
 		.route = {{
 			.image_offset = 0,
-			.flash_offset = 0x4000,
-			.size = 0x100,
+			.flash_offset = 0x8000,
+			.size = 0x1000,
 			.flags = LB_CAPSULE_REGION_BIOS,
 		}},
 	};
@@ -195,6 +278,55 @@ static void initialize_model(struct model *model)
 	memcpy(&model->grant.current, &model->current, sizeof(model->current));
 	memcpy(&model->grant.candidate, &model->candidate,
 		sizeof(model->candidate));
+	model->binding = (struct capsule_tpm_anchor_binding) {
+		.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION,
+		.nv_index = model->grant.nv_index,
+		.authority_name = { 0, 0x0b, 1 },
+		.policy_ref_size = 7,
+		.policy_ref = { 'c', 'a', 'p', 's', 'u', 'l', 'e' },
+		.write_locked = 1,
+	};
+	model->material = (struct payload_mm_fmp_owner_transition_material) {
+		.authorization = {
+			.revision = CAPSULE_TPM_ANCHOR_AUTHORIZATION_REVISION,
+			.size = sizeof(struct capsule_tpm_anchor_authorization),
+			.policy_revision = CAPSULE_TPM_ANCHOR_POLICY_REVISION,
+			.nv_index = model->grant.nv_index,
+			.generation = model->grant.generation,
+			.transaction = model->grant.transaction,
+			.current = model->grant.current,
+			.candidate = model->grant.candidate,
+			.policy_ref_size = 7,
+			.modulus_size = 256,
+		},
+		.receipt = {
+			.magic = PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC,
+			.revision = PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION,
+			.size = sizeof(struct payload_mm_fmp_owner_auth_receipt),
+			.capsule_size = UINT32_MAX,
+			.digest_algorithm = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256,
+			.digest_size = PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE,
+			.capsule_digest = { 0x5a },
+		},
+	};
+	memcpy(model->material.authorization.authority_name,
+		model->binding.authority_name,
+		sizeof(model->material.authorization.authority_name));
+	memcpy(model->material.authorization.policy_ref,
+		model->binding.policy_ref,
+		sizeof(model->material.authorization.policy_ref));
+	memset(model->material.authorization.modulus, 0x88, 256);
+	memset(model->material.authorization.write.approved_policy, 0x55, 32);
+	memset(model->material.authorization.write.cp_hash, 0x66, 32);
+	memset(model->material.authorization.write.nonce, 0x77, 32);
+	model->material.authorization.write.signature_size = 256;
+	memset(model->material.authorization.write.signature, 0x99, 256);
+	memset(model->material.authorization.lock.approved_policy, 0x5c, 32);
+	memset(model->material.authorization.lock.cp_hash, 0x6c, 32);
+	memset(model->material.authorization.lock.nonce, 0x7c, 32);
+	model->material.authorization.lock.signature_size = 256;
+	memset(model->material.authorization.lock.signature, 0x9c, 256);
+	refresh_authorized_candidate(model);
 }
 
 static enum cb_err initialize_reader(struct model *model,
@@ -217,6 +349,8 @@ static void success_and_replay(void)
 		&model.grant) == CB_SUCCESS);
 	CHECK(payload_mm_fmp_owner_prepared_reader_prove(&reader,
 		&model.grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, &model.material) == CB_ERR);
 }
 
 static void expect_failure(struct model *model)
@@ -328,11 +462,7 @@ static void terminal_epoch(void)
 	model.candidate.epoch = UINT64_MAX;
 	test_hash(manifest(&model, 0, 1), sizeof(*manifest(&model, 0, 1)),
 		model.candidate.digest);
-	prepared(&model, 0, 1)->current = model.current;
-	prepared(&model, 0, 1)->candidate = model.candidate;
-	memcpy(&model.grant.current, &model.current, sizeof(model.current));
-	memcpy(&model.grant.candidate, &model.candidate,
-		sizeof(model.candidate));
+	refresh_authorized_candidate(&model);
 	expect_success(&model);
 
 	initialize_model(&model);
@@ -375,11 +505,249 @@ static void invalid_initialization(void)
 	CHECK(initialize_reader(&model, &reader) == CB_ERR);
 }
 
+static void authorized_success_and_replay(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+	struct payload_mm_fmp_owner_transition_material output = { 0 };
+	struct model model;
+
+	initialize_model(&model);
+	model.reader = &reader;
+	CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, &output) == CB_SUCCESS);
+	CHECK(!memcmp(&output, &model.material, sizeof(output)));
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, &output) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove(&reader,
+		&model.grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+		&model.grant) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+		&model.grant) == CB_ERR);
+}
+
+static void expect_authorized_load_failure(struct model *model)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+	struct payload_mm_fmp_owner_transition_material output;
+
+	memset(&output, 0xa5, sizeof(output));
+	model->reader = &reader;
+	CHECK(initialize_reader(model, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model->binding, &output) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model->binding, &output) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove(&reader,
+		&model->grant) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+		&model->grant) == CB_ERR);
+}
+
+static void authorized_mutations(void)
+{
+	struct model model;
+
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.revision = 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.capsule_size--;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.capsule_digest[0] ^= 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.magic ^= 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.capsule_size = 0;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.capsule_size =
+		(uint64_t)UINT32_MAX + 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.digest_algorithm++;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	memset(material(&model, 0, 1)->receipt.capsule_digest, 0,
+		PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE);
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->receipt.authorization_digest[0] ^= 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->authorization.write.reserved[0] = 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->authorization.modulus[256] = 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	material(&model, 0, 1)->authorization.candidate.digest[0] ^= 1;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	model.binding.nv_index++;
+	expect_authorized_load_failure(&model);
+	initialize_model(&model);
+	model.reenter_load = true;
+	{
+		struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+		struct payload_mm_fmp_owner_transition_material output;
+
+		model.reader = &reader;
+		CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+		CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(
+			&reader, &model.binding, &output) == CB_SUCCESS);
+	}
+	initialize_model(&model);
+	model.reenter_legacy_prove = true;
+	{
+		struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+		struct payload_mm_fmp_owner_transition_material output;
+
+		model.reader = &reader;
+		CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+		CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(
+			&reader, &model.binding, &output) == CB_SUCCESS);
+	}
+	initialize_model(&model);
+	model.reenter_authorized_load = true;
+	{
+		struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+
+		model.reader = &reader;
+		CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+		CHECK(payload_mm_fmp_owner_prepared_reader_prove(&reader,
+			&model.grant) == CB_SUCCESS);
+	}
+}
+
+static void authorized_domain_vector(void)
+{
+	static const u8 domain[32] = "PAYLOAD-MM-FMP-AUTH-ANCHOR-V2";
+	struct payload_mm_fmp_owner_authorized_anchor_input input;
+	struct model model;
+
+	initialize_model(&model);
+	CHECK(payload_mm_fmp_owner_authorized_anchor_input(
+		manifest(&model, 0, 1), &model.current,
+		model.material.authorization.generation,
+		model.material.authorization.transaction, &model.material.receipt,
+		&input));
+	CHECK(!memcmp(input.bytes, domain, sizeof(domain)));
+	CHECK(!memcmp(input.bytes + 32, manifest(&model, 0, 1),
+		sizeof(*manifest(&model, 0, 1))));
+	CHECK(input.bytes[376] == (u8)model.current.epoch);
+	CHECK(!memcmp(input.bytes + 384, model.current.digest,
+		sizeof(model.current.digest)));
+	CHECK(input.bytes[416] == 11 && input.bytes[424] == 13);
+	CHECK(input.bytes[432] ==
+		(u8)PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_MAGIC);
+	CHECK(input.bytes[440] == PAYLOAD_MM_FMP_OWNER_AUTH_RECEIPT_REVISION);
+	CHECK(input.bytes[444] ==
+		sizeof(struct payload_mm_fmp_owner_auth_receipt));
+	CHECK(input.bytes[448] == 0xff && input.bytes[451] == 0xff &&
+		input.bytes[452] == 0 && input.bytes[455] == 0);
+	CHECK(input.bytes[456] == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256);
+	CHECK(input.bytes[460] == PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE);
+	CHECK(!memcmp(input.bytes + 464, model.material.receipt.capsule_digest,
+		PAYLOAD_MM_FMP_CAPSULE_DIGEST_SIZE));
+}
+
+static void authorized_double_read_mutation(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+	struct payload_mm_fmp_owner_transition_material output;
+	struct model model;
+
+	initialize_model(&model);
+	model.reader = &reader;
+	CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, &output) == CB_SUCCESS);
+	material(&model, 0, 1)->receipt.capsule_digest[0] ^= 1;
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+		&model.grant) == CB_ERR);
+}
+
+static void divergent_composite_current_duplicate(void)
+{
+	struct payload_mm_fmp_owner_transition_material *duplicate_material;
+	struct model model;
+
+	initialize_model(&model);
+	make_composite_current(&model);
+	memcpy(model.media + model.layout.state[1].offset,
+		model.media + model.layout.state[0].offset, SLOT_SIZE);
+	duplicate_material = material(&model, 1, 0);
+	duplicate_material->authorization.write.nonce[0] ^= 1;
+	test_hash(&duplicate_material->authorization,
+		sizeof(duplicate_material->authorization),
+		duplicate_material->receipt.authorization_digest);
+	expect_authorized_load_failure(&model);
+}
+
+static void authorized_aliases(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader = { 0 };
+	struct model model;
+
+	initialize_model(&model);
+	CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, (void *)&reader.loaded_material) == CB_ERR);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&model.binding, (void *)&model.binding) == CB_ERR);
+}
+
+static void authorized_interruption_matrix(void)
+{
+	struct payload_mm_fmp_owner_prepared_reader reader;
+	struct payload_mm_fmp_owner_transition_material output;
+	struct model baseline;
+	unsigned int reads;
+
+	initialize_model(&baseline);
+	memset(&reader, 0, sizeof(reader));
+	baseline.reader = &reader;
+	CHECK(initialize_reader(&baseline, &reader) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+		&baseline.binding, &output) == CB_SUCCESS);
+	CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+		&baseline.grant) == CB_SUCCESS);
+	reads = baseline.reads;
+	for (unsigned int cut = 1; cut <= reads; cut++) {
+		struct model model;
+
+		initialize_model(&model);
+		memset(&reader, 0, sizeof(reader));
+		model.reader = &reader;
+		model.short_read = cut;
+		CHECK(initialize_reader(&model, &reader) == CB_SUCCESS);
+		if (payload_mm_fmp_owner_prepared_reader_load_authorization(&reader,
+			&model.binding, &output) == CB_SUCCESS)
+			CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+				&model.grant) == CB_ERR);
+		else
+			CHECK(payload_mm_fmp_owner_prepared_reader_prove_loaded(&reader,
+				&model.grant) == CB_ERR);
+	}
+}
+
 int main(void)
 {
 	success_and_replay();
 	hostile_cases();
 	terminal_epoch();
 	invalid_initialization();
+	authorized_success_and_replay();
+	authorized_mutations();
+	authorized_domain_vector();
+	authorized_double_read_mutation();
+	divergent_composite_current_duplicate();
+	authorized_aliases();
+	authorized_interruption_matrix();
 	return 0;
 }

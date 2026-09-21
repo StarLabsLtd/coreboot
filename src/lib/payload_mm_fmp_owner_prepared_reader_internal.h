@@ -43,8 +43,11 @@ struct payload_mm_fmp_owner_prepared_policy {
 struct payload_mm_fmp_owner_prepared_reader {
 	struct payload_mm_fmp_owner_prepared_policy policy;
 	struct payload_mm_fmp_owner_prepared_policy sealed_policy;
+	struct payload_mm_fmp_owner_transition_material loaded_material;
+	struct payload_mm_fmp_owner_transition_material sealed_material;
 	u32 control;
 	bool initialized;
+	bool authorization_loaded;
 	bool poisoned;
 };
 
@@ -57,5 +60,11 @@ enum cb_err payload_mm_fmp_owner_prepared_reader_init(
 	const void *context, size_t context_size);
 enum cb_err payload_mm_fmp_owner_prepared_reader_prove(const void *context,
 	const struct capsule_tpm_anchor_grant *grant);
+enum cb_err payload_mm_fmp_owner_prepared_reader_load_authorization(
+	struct payload_mm_fmp_owner_prepared_reader *reader,
+	const struct capsule_tpm_anchor_binding *binding,
+	struct payload_mm_fmp_owner_transition_material *material);
+enum cb_err payload_mm_fmp_owner_prepared_reader_prove_loaded(
+	const void *context, const struct capsule_tpm_anchor_grant *grant);
 
 #endif
