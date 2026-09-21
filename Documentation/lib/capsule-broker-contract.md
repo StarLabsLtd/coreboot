@@ -96,7 +96,18 @@ request at offset 0, the 88-byte capsule intent at offset 40 and a 40-byte
 result at offset 128. Request and intent repeat the generation and transaction;
 both pairs must match the installed broker and each other. There is no caller-
 selected message address and no shared-message APPLY entry point. The table
-record is not authority and this commit provides no producer for it.
+record is not authority. The dormant publisher emits the exact capsule handoff
+and endpoint together, and accepts them only with an exact
+valid capsule handoff and firmware identity, and only after a trusted platform
+readiness provider proves the same sealed endpoint. It repeats that proof while
+serializing the coreboot table over the exact endpoint, handoff and firmware
+identity, and reruns both strict validators immediately before emission. Thus a
+stale proof, retained-record mutation, S3 closure or any failed prerequisite
+emits no record. Installation and serialization are one-shot;
+callback mutation and reentry fail closed. The provider is context-free and
+must consult platform-global sealed state; no transient pointer survives from
+installation to table serialization. The strict endpoint validator is shared
+unchanged by ramstage publication and the protected SMM policy install.
 
 The dormant transport dispatcher copies the request and intent into protected
 locals, validates their fixed revisions, sizes, offsets, reserved fields and
@@ -108,8 +119,13 @@ and completion marker remain pending during execution; status is committed
 after all other response bytes and the result marker is committed last. A
 caller must read the result marker first after notification, then reject a
 response whose revision, size, generation or transaction does not match its
-request. This commit registers no SMI, publishes no endpoint and selects no
-platform transport.
+request. The dormant SMM route wrapper accepts only the byte-wide APM port and
+command already sealed in the broker policy, rechecks the complete broker DMA,
+SPI, communication-range, staging-range, raw-flash-exclusion and CPU-rendezvous
+proof, then calls this existing dispatcher. Wrong port or command, stale
+generation, malformed transport, reentry and S3 closure cannot reach the
+executor. No platform registers this wrapper, supplies the readiness provider
+or selects the endpoint capability in this tree.
 
 Transport revision 2 adds one read-only `READ_INFO` operation without changing
 the 40-byte request, 168-byte communication range or revision-1 `EXECUTE`

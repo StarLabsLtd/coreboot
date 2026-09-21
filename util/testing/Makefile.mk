@@ -134,6 +134,8 @@ test-capsule-tpm-platform-anchor:
 test-capsule-protected-flash:
 	tests/lib/capsule_update_standalone_test.sh
 	tests/lib/capsule_broker_test.sh
+	tests/lib/capsule_broker_transport_test.sh
+	tests/lib/capsule_broker_endpoint_test.sh
 
 test-lint:
 	util/lint/lint lint-stable $(JUNIT)

@@ -15,6 +15,8 @@
 #define CAPSULE_BROKER_DIGEST_SIZE 32U
 #define CAPSULE_BROKER_RESULT_PENDING UINT32_MAX
 #define CAPSULE_BROKER_STATUS_PENDING UINT32_MAX
+#define CAPSULE_BROKER_APM_PORT 0xb2U
+#define CAPSULE_BROKER_APM_COMMAND 0xe8U
 
 /* Broker-owned description of the authenticated raw ROM in an envelope. */
 struct capsule_broker_raw_image {
@@ -176,8 +178,24 @@ enum cb_err capsule_broker_info_policy_install(
 	const struct capsule_broker_info_policy *trusted_policy,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
 
-/* Dormant typed entry point; no SMI route or table producer calls this. */
+/* Dormant typed entry point, reachable only through the exact route below. */
 enum cb_err capsule_broker_transport_dispatch(void);
+
+/* Platform composition proves the exact sealed endpoint before publication. */
+typedef enum cb_err (*capsule_broker_endpoint_ready_fn)(
+	const struct lb_capsule_broker_endpoint *endpoint,
+	const struct lb_capsule_handoff *handoff, size_t handoff_size,
+	const struct lb_efi_fw_info *firmware);
+
+enum cb_err capsule_broker_endpoint_publication_install(
+	const struct lb_capsule_broker_endpoint *endpoint,
+	const struct lb_capsule_handoff *handoff, size_t handoff_size,
+	const struct lb_efi_fw_info *firmware,
+	capsule_broker_endpoint_ready_fn ready);
+void capsule_broker_endpoint_publication_close(void);
+
+/* Called only by the platform's exclusive APMC handler with observed I/O. */
+enum cb_err capsule_broker_smi_dispatch(uint16_t port, uint8_t value);
 
 enum cb_err capsule_broker_endpoint_validate(
 	const struct lb_capsule_broker_endpoint *endpoint,

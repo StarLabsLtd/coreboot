@@ -650,6 +650,9 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(DRIVERS_EFI_FW_INFO))
 		lb_efi_fw_info(head);
 
+	if (CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION))
+		lb_add_capsule_broker_endpoint(head);
+
 	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
 	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
 		die("Payload resource handoff is not trustworthy\n");
