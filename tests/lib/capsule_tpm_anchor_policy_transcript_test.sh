@@ -38,6 +38,7 @@ build_and_run()
 		"$root/src/security/tpm/capsule_anchor_grant.c" \
 		"$root/src/security/tpm/capsule_anchor_policy.c" \
 		"$root/tests/lib/capsule_tpm_anchor_policy_transcript_test.c" \
+		"$root/src/security/tpm/capsule_anchor_authorization.c" \
 		-o "$tmp/test-$name"
 	"$tmp/test-$name"
 }
