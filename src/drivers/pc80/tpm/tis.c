@@ -722,6 +722,128 @@ static tpm_result_t pc80_tpm_sendrecv(const uint8_t *sendbuf, size_t send_size,
 	return tis_readresponse(recvbuf, recv_len);
 }
 
+#if CONFIG(TPM2_FIFO_PRE_OS_LIFECYCLE) && ENV_RAMSTAGE
+#if ENV_TEST
+static const struct pc80_tis_fifo_test_backend *lifecycle_test_backend;
+
+void pc80_tis_fifo_set_test_backend(
+	const struct pc80_tis_fifo_test_backend *backend)
+{
+	lifecycle_test_backend = backend;
+}
+
+static u8 lifecycle_read_access(int locality)
+{
+	return lifecycle_test_backend ?
+		lifecycle_test_backend->read_access(locality) :
+		tpm_read_access(locality);
+}
+
+static u8 lifecycle_read_status(int locality)
+{
+	return lifecycle_test_backend ?
+		lifecycle_test_backend->read_status(locality) :
+		tpm_read_status(locality);
+}
+
+static void lifecycle_write_access(u8 value, int locality)
+{
+	if (lifecycle_test_backend)
+		lifecycle_test_backend->write_access(value, locality);
+	else
+		tpm_write_access(value, locality);
+}
+
+static tpm_result_t lifecycle_command_ready(u8 locality)
+{
+	return lifecycle_test_backend ?
+		lifecycle_test_backend->command_ready(locality) :
+		tis_command_ready(locality);
+}
+
+static tpm_result_t lifecycle_wait_access(int locality, u8 mask, u8 expected)
+{
+	return lifecycle_test_backend ?
+		lifecycle_test_backend->wait_access(locality, mask, expected) :
+		tis_wait_access(locality, mask, expected);
+}
+#else
+#define lifecycle_read_access tpm_read_access
+#define lifecycle_read_status tpm_read_status
+#define lifecycle_write_access tpm_write_access
+#define lifecycle_command_ready tis_command_ready
+#define lifecycle_wait_access tis_wait_access
+#endif
+
+bool pc80_tis_is_fifo_route(tis_sendrecv_fn sendrecv)
+{
+	return sendrecv == pc80_tpm_sendrecv;
+}
+
+static bool lifecycle_owned(void)
+{
+	u8 access = lifecycle_read_access(0);
+
+	return (access & (TIS_ACCESS_TPM_REG_VALID_STS |
+		TIS_ACCESS_ACTIVE_LOCALITY)) ==
+		(TIS_ACCESS_TPM_REG_VALID_STS | TIS_ACCESS_ACTIVE_LOCALITY) &&
+		!(access & TIS_ACCESS_BEEN_SEIZED);
+}
+
+static bool lifecycle_read_idle(bool *idle)
+{
+	u8 status;
+
+	if (!idle || !lifecycle_owned())
+		return false;
+	status = lifecycle_read_status(0);
+	if (!(status & TIS_STS_VALID))
+		return false;
+	*idle = (status & TIS_STS_COMMAND_READY) &&
+		!(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT));
+	return true;
+}
+
+enum cb_err pc80_tis_fifo_validate_idle(void)
+{
+	bool idle;
+
+	/* Recheck ownership after STS so ACCESS is the last TPM read. */
+	return lifecycle_read_idle(&idle) && idle && lifecycle_owned() ?
+		CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err pc80_tis_fifo_quiesce(void)
+{
+	bool idle;
+
+	if (!lifecycle_read_idle(&idle))
+		return CB_ERR;
+	if (!idle) {
+		/* Do not touch STS after locality 0 has been lost or seized. */
+		if (!lifecycle_owned() ||
+		    lifecycle_command_ready(0) != TPM_SUCCESS)
+			return CB_ERR;
+	}
+	return pc80_tis_fifo_validate_idle();
+}
+
+enum cb_err pc80_tis_fifo_release_locality(void)
+{
+	u8 access;
+
+	if (pc80_tis_fifo_validate_idle() != CB_SUCCESS)
+		return CB_ERR;
+	lifecycle_write_access(TIS_ACCESS_ACTIVE_LOCALITY, 0);
+	if (lifecycle_wait_access(0, TIS_ACCESS_ACTIVE_LOCALITY, 0) != TPM_SUCCESS)
+		return CB_ERR;
+	access = lifecycle_read_access(0);
+	return (access & TIS_ACCESS_TPM_REG_VALID_STS) &&
+		!(access & (TIS_ACCESS_ACTIVE_LOCALITY |
+		TIS_ACCESS_BEEN_SEIZED)) ? CB_SUCCESS : CB_ERR;
+}
+#endif
+
 /*
  * pc80_tis_probe()
  *

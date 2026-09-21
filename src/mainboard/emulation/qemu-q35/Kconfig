@@ -72,6 +72,16 @@ config Q35_CAPSULE_DMA_TEST_PROOF
 	  but does not install the broker, register an SMI route or publish an
 	  endpoint.
 
+config Q35_TPM2_FIFO_PRE_OS_LIFECYCLE
+	bool "QEMU-only late TPM2 FIFO lifecycle owner"
+	depends on TPM2 && MEMORY_MAPPED_TPM
+	depends on !CRB_TPM && !AMD_CRB_FTPM && !I2C_TPM && !SPI_TPM
+	select TPM2_FIFO_PRE_OS_LIFECYCLE
+	help
+	  Transfer QEMU's initialized TPM 2.0 FIFO route to the exclusive pre-OS
+	  lifecycle after payload loading and relinquish locality 0 immediately
+	  before payload execution. This selects no capsule or policy provider.
+
 config Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF
 	bool "QEMU-only Payload-MM owner FMAP proof"
 	default n

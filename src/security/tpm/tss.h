@@ -20,6 +20,18 @@
 #include <security/tpm/tss1.h>
 #include <security/tpm/tss2.h>
 
+#if CONFIG(TPM2_FIFO_PRE_OS_LIFECYCLE) && ENV_RAMSTAGE
+#include <commonlib/bsd/cb_err.h>
+/* Set only by the transport probe in this stage. */
+extern enum tpm_family tlcl_tpm_family;
+/*
+ * Irreversibly take the initialized TPM2 FIFO route from the legacy TSS.
+ * This is a single late-ramstage ownership transfer, not a concurrent API.
+ */
+enum cb_err tlcl_take_tpm2_fifo_route(tis_sendrecv_fn *sendrecv);
+bool tlcl_tis_route_is_taken(void);
+#endif
+
 /*
  * Operations that are applicable to both TPM versions have wrappers which
  * pick the implementation based on version determined during initialization via
@@ -51,8 +63,10 @@ static inline bool tpm_is_expected_absent(void)
  */
 static inline enum tpm_family tlcl_get_family(void)
 {
+#if !CONFIG(TPM2_FIFO_PRE_OS_LIFECYCLE) || !ENV_RAMSTAGE
 	/* Defined in tss/tss.c */
 	extern enum tpm_family tlcl_tpm_family;
+#endif
 
 	if (CONFIG(TPM1) && CONFIG(TPM2))
 		return tlcl_tpm_family;

@@ -32,6 +32,7 @@ smm-$(CONFIG_CAPSULE_TPM_ANCHOR_GRANT) += capsule_anchor_grant.c
 ramstage-$(CONFIG_CAPSULE_TPM_ANCHOR_TRANSITION) += capsule_anchor_transition.c
 ramstage-$(CONFIG_CAPSULE_TPM_ANCHOR_POLICY_PROVIDER) += capsule_anchor_policy.c
 ramstage-$(CONFIG_ARCH_X86) += pre_os_lifecycle.c
+ramstage-$(CONFIG_TPM2_FIFO_PRE_OS_LIFECYCLE) += fifo_pre_os_lifecycle.c
 ramstage-y += transport_release.c
 ramstage-y += tss/tcg-2.0/policy.c
 

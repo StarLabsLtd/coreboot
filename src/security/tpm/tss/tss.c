@@ -23,6 +23,63 @@ enum tpm_family tlcl_tpm_family = TPM_UNKNOWN;
 
 tis_sendrecv_fn tlcl_tis_sendrecv;
 
+#if CONFIG(TPM2_FIFO_PRE_OS_LIFECYCLE) && ENV_RAMSTAGE
+enum tis_route_state {
+	TIS_ROUTE_PUBLIC,
+	TIS_ROUTE_TAKING,
+	TIS_ROUTE_TAKEN,
+	TIS_ROUTE_FAILED,
+};
+
+static uint32_t tis_route_state;
+
+_Static_assert(__atomic_always_lock_free(sizeof(tis_route_state),
+	&tis_route_state), "TPM route ownership must be lock-free");
+
+static void fail_closed_tis_route(void)
+{
+	tlcl_tis_sendrecv = NULL;
+	__atomic_store_n(&tis_route_state, TIS_ROUTE_FAILED, __ATOMIC_RELEASE);
+}
+
+bool tlcl_tis_route_is_taken(void)
+{
+	if (tlcl_tis_sendrecv) {
+		fail_closed_tis_route();
+		return false;
+	}
+	return __atomic_load_n(&tis_route_state, __ATOMIC_ACQUIRE) ==
+		TIS_ROUTE_TAKEN;
+}
+
+enum cb_err tlcl_take_tpm2_fifo_route(tis_sendrecv_fn *sendrecv)
+{
+	uint32_t expected = TIS_ROUTE_PUBLIC;
+
+	if (!__atomic_compare_exchange_n(&tis_route_state, &expected,
+		TIS_ROUTE_TAKING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		fail_closed_tis_route();
+		return CB_ERR;
+	}
+#if CONFIG(MEMORY_MAPPED_TPM)
+	if (!sendrecv || sendrecv == &tlcl_tis_sendrecv ||
+	    tlcl_tpm_family != TPM_2 || !tlcl_tis_sendrecv ||
+	    !pc80_tis_is_fifo_route(tlcl_tis_sendrecv)) {
+		fail_closed_tis_route();
+		return CB_ERR;
+	}
+	*sendrecv = tlcl_tis_sendrecv;
+	tlcl_tis_sendrecv = NULL;
+	__atomic_store_n(&tis_route_state, TIS_ROUTE_TAKEN, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+#else
+	(void)sendrecv;
+	fail_closed_tis_route();
+	return CB_ERR;
+#endif
+}
+#endif
+
 #if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT) && \
 	(ENV_BOOTBLOCK || ENV_SEPARATE_ROMSTAGE || ENV_RAMSTAGE || ENV_SEPARATE_VERSTAGE)
 bool tpm_is_expected_absent(void)
@@ -56,6 +113,13 @@ tpm_result_t tlcl_lib_init(void)
 {
 	/* Don't probe for TPM more than once per stage. */
 	static bool init_done;
+#if CONFIG(TPM2_FIFO_PRE_OS_LIFECYCLE) && ENV_RAMSTAGE
+	if (__atomic_load_n(&tis_route_state, __ATOMIC_ACQUIRE) !=
+	    TIS_ROUTE_PUBLIC) {
+		fail_closed_tis_route();
+		return TPM_CB_NO_DEVICE;
+	}
+#endif
 	if (init_done)
 		return tlcl_tpm_family == TPM_UNKNOWN ? TPM_CB_NO_DEVICE : TPM_SUCCESS;
 
