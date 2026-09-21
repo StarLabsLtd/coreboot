@@ -199,13 +199,164 @@ static uint64_t timestamp_get(uint64_t table_tick_freq_mhz)
 	return 0;
 }
 
+static const char *cdk2_timestamp_name(uint32_t id)
+{
+	static const char *const linear_phase_begin[] = {
+		"CDK2 handoff validation begin", "CDK2 early splash begin",
+		"CDK2 DXE services begin", "CDK2 architectural protocols begin",
+		"CDK2 minimal variables begin", "CDK2 capsule decision begin",
+		"CDK2 RAM capsule begin", "CDK2 platform tables begin",
+		"CDK2 PCI roots begin", "CDK2 PCI enumeration begin",
+		"CDK2 storage controllers begin", "CDK2 block discovery begin",
+		"CDK2 filesystems begin", "CDK2 disk capsule begin",
+		"CDK2 display adoption begin", "CDK2 input UI begin",
+		NULL, "CDK2 boot policy begin", "CDK2 OS handoff begin",
+	};
+	static const char *const linear_phase_complete[] = {
+		"CDK2 handoff validation complete", "CDK2 early splash complete",
+		"CDK2 DXE services complete", "CDK2 architectural protocols complete",
+		"CDK2 minimal variables complete", "CDK2 capsule decision complete",
+		"CDK2 RAM capsule complete", "CDK2 platform tables complete",
+		"CDK2 PCI roots complete", "CDK2 PCI enumeration complete",
+		"CDK2 storage controllers complete", "CDK2 block discovery complete",
+		"CDK2 filesystems complete", "CDK2 disk capsule complete",
+		"CDK2 display adoption complete", "CDK2 input UI complete",
+		NULL, "CDK2 boot policy complete", "CDK2 OS handoff complete",
+	};
+	/*
+	 * These are allocated CDK2 IDs, not contiguous 0x20 buckets. Keep
+	 * unallocated gaps unnamed instead of indexing beyond this table.
+	 */
+	static const struct {
+		uint32_t first, last;
+		const char *name;
+	} dxe_ranges[] = {
+		{ 0x1800, 0x1803, "CDK2 DXE PE section" },
+		{ 0x1820, 0x182e, "CDK2 DXE image" },
+		{ 0x1830, 0x1838, "CDK2 DXE image service" },
+		{ 0x1840, 0x1851, "CDK2 DXE memory protection" },
+		{ 0x1860, 0x1875, "CDK2 DXE memory attributes" },
+		{ 0x1880, 0x1880, "CDK2 DXE miscellaneous" },
+		{ 0x18a0, 0x18a2, "CDK2 DXE handle database" },
+		{ 0x1900, 0x1933, "CDK2 DXE GCD" },
+		{ 0x1960, 0x1983, "CDK2 DXE memory" },
+		{ 0x19a0, 0x19a2, "CDK2 DXE firmware volume" },
+		{ 0x19c0, 0x19c3, "CDK2 DXE event/TPL" },
+		{ 0x1a00, 0x1a20, "CDK2 DXE dependency" },
+		{ 0x1a40, 0x1a53, "CDK2 DXE dispatcher" },
+		{ 0x1a60, 0x1a68, "CDK2 DXE core" },
+	};
+
+	if (id >= 0x1600 && id <= 0x1625 && (id & 1U) == 0U) {
+		const char *name = linear_phase_begin[(id - 0x1600) / 2U];
+
+		return name;
+	}
+	if (id >= 0x1601 && id <= 0x1625 && (id & 1U) != 0U) {
+		const char *name = linear_phase_complete[(id - 0x1601) / 2U];
+
+		return name;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(dxe_ranges); i++)
+		if (id >= dxe_ranges[i].first && id <= dxe_ranges[i].last)
+			return dxe_ranges[i].name;
+	if (id >= 0x2000 && id < 0x3000)
+		return "CDK2 upstream diagnostic";
+	switch (id) {
+	case 0x1000: return "CDK2 native entry";
+	case 0x1001: return "CDK2 native context ready";
+	case 0x1003: return "CDK2 native DXE handoff";
+	case 0x1100: return "CDK2 DXE entry";
+	case 0x1101: return "CDK2 DXE core ready";
+	case 0x1102: return "CDK2 DXE FV found";
+	case 0x1103: return "CDK2 DXE FV invalid";
+	case 0x1200: return "CDK2 DXE dispatch begin";
+	case 0x1201: return "CDK2 DXE driver start";
+	case 0x1202: return "CDK2 DXE driver failed";
+	case 0x1203: return "CDK2 DXE dispatch end";
+	case 0x1300: return "CDK2 BDS driver entry";
+	case 0x1301: return "CDK2 BDS protocol ready";
+	case 0x1302: return "CDK2 BDS boot begin";
+	case 0x1303: return "CDK2 BDS BootNext failed";
+	case 0x1304: return "CDK2 BDS BootOrder failed";
+	case 0x1305: return "CDK2 BDS removable boot failed";
+	case 0x1306: return "CDK2 BDS shell failed";
+	case 0x1307: return "CDK2 BDS firmware UI result";
+	case 0x1308: return "CDK2 BDS setup wait begin";
+	case 0x1309: return "CDK2 BDS setup wait result";
+	case 0x130b: return "CDK2 BDS OS indications result";
+	case 0x130c: return "CDK2 BDS watchdog result";
+	case 0x130d: return "CDK2 BDS anti-tamper begin";
+	case 0x130e: return "CDK2 BDS anti-tamper result";
+	case 0x130f: return "CDK2 BDS deferred capsule begin";
+	case 0x1310: return "CDK2 BDS deferred capsule result";
+	case 0x1311: return "CDK2 BDS connect-all begin";
+	case 0x1312: return "CDK2 BDS connect-all end";
+	case 0x1313: return "CDK2 BDS simple filesystem handles";
+	case 0x1314: return "CDK2 BDS disk capsule begin";
+	case 0x1315: return "CDK2 BDS disk capsule result";
+	case 0x1316: return "CDK2 BDS driver order begin";
+	case 0x1317: return "CDK2 BDS driver order end";
+	case 0x1318: return "CDK2 BDS block I/O handles";
+	case 0x1319: return "CDK2 BDS disk I/O handles";
+	case 0x131a: return "CDK2 BDS PCI I/O handles";
+	case 0x131b: return "CDK2 BDS menu return";
+	case 0x131c: return "CDK2 BDS removable return";
+	case 0x131d: return "CDK2 BDS fixed fallback result";
+	case 0x131e: return "CDK2 BDS fixed return";
+	case 0x131f: return "CDK2 BDS final return";
+	case 0x1320: return "CDK2 BDS boot pass return";
+	case 0x1321 ... 0x1327: return "CDK2 BDS boot-option diagnostic";
+	case 0x1330: return "CDK2 USB scan begin";
+	case 0x1331: return "CDK2 USB scan timeout";
+	case 0x1332: return "CDK2 USB scan end";
+	case 0x1333 ... 0x133b: return "CDK2 BDS image diagnostic";
+	case 0x1340 ... 0x1342: return "CDK2 BDS load-option diagnostic";
+	case 0x1400: return "CDK2 ATA/ATAPI entry";
+	case 0x1401: return "CDK2 ATA/ATAPI publication failed";
+	case 0x1402: return "CDK2 ATA/ATAPI ready";
+	case 0x164a: return "CDK2 USB subphase scan begin";
+	case 0x164b: return "CDK2 USB subphase scan end";
+	case 0x16fe: return "CDK2 timestamp overflow";
+	case 0x1701: return "CDK2 disk capsule source";
+	case 0x1702: return "CDK2 disk capsule file";
+	case 0x1703: return "CDK2 disk capsule malformed";
+	case 0x1704: return "CDK2 disk capsule I/O error";
+	case 0x1705: return "CDK2 disk capsule delete error";
+	case 0x1706: return "CDK2 disk capsule complete";
+	case 0x17e0: return "CDK2 PCI bus start entry";
+	case 0x17e1: return "CDK2 PCI bus controller missing";
+	case 0x17e2: return "CDK2 PCI bus global start";
+	case 0x17e3: return "CDK2 PCI bus discovery callbacks missing";
+	case 0x17e4: return "CDK2 PCI bus allocation services missing";
+	case 0x17e5: return "CDK2 PCI bus topology allocation failed";
+	case 0x17e6: return "CDK2 PCI bus discovery begin";
+	case 0x17e7: return "CDK2 PCI bus discovery failed";
+	case 0x17e8: return "CDK2 PCI bus child publication begin";
+	case 0x17e9: return "CDK2 PCI bus child publication result";
+	case 0x17f0: return "CDK2 PCI discovery root HOB invalid";
+	case 0x17f1: return "CDK2 PCI discovery root configuration failed";
+	case 0x17f2: return "CDK2 PCI discovery bus descriptor invalid";
+	case 0x17f3: return "CDK2 PCI discovery root path invalid";
+	case 0x17f4: return "CDK2 PCI discovery assignment allocation failed";
+	case 0x17f5: return "CDK2 PCI discovery assigned enumeration failed";
+	case 0x17f6: return "CDK2 PCI discovery bridge scan failed";
+	case 0x17f7: return "CDK2 PCI discovery parent bridge failed";
+	case 0x17f8: return "CDK2 PCI discovery topology changed";
+	case 0x17f9: return "CDK2 PCI discovery parent path allocation failed";
+	default: return NULL;
+	}
+}
+
 static const char *timestamp_name(uint32_t id)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
 		if (timestamp_ids[i].id == id)
 			return timestamp_ids[i].name;
 	}
-	return "<unknown>";
+	const char *name = cdk2_timestamp_name(id);
+
+	return name == NULL ? "<unknown>" : name;
 }
 
 static uint32_t timestamp_enum_name_to_id(const char *name)
