@@ -140,6 +140,20 @@ config BOARD_STARLABS_STARBOOK_MTL
 	select SPI_FLASH_WINBOND
 	select TPM_MEASURED_BOOT
 
+config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL
+	select CAPSULE_UPDATE_CONTRACT
+	select PAYLOAD_MM_AUTHVAR_CONTRACT
+	select CAPSULE_BROKER_CONTRACT
+	select CAPSULE_BROKER_FIXED_BUFFERS
+	select CAPSULE_BROKER_CBMEM_BUFFERS
+	help
+	  Build the dormant contract and CBMEM allocation prerequisites for the
+	  StarBook MTL capsule broker. This does not install or publish a broker,
+	  establish DMA or SPI ownership, or enable capsule updates.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER
