@@ -19,10 +19,14 @@ struct media_context {
 	size_t *reads;
 	size_t *erases;
 	size_t *writes;
+	size_t *syncs;
 	bool corrupt_readback;
 	bool fail_erase;
 	bool fail_write;
+	bool short_write;
 	bool fail_read;
+	bool fail_sync;
+	bool drop_guard_on_erase;
 };
 
 struct sha256_context {
@@ -146,6 +150,7 @@ struct fixture {
 	uint8_t staging[STAGING_SIZE] __aligned(8);
 	uint8_t media[MEDIA_SIZE];
 	uint8_t original[MEDIA_SIZE];
+	uint8_t write_scratch[ERASE_SIZE] __aligned(8);
 	uint8_t scratch[ERASE_SIZE] __aligned(8);
 	struct media_context media_context;
 	struct sha256_context sha256_context;
@@ -154,18 +159,28 @@ struct fixture {
 	struct capsule_broker_policy policy;
 	struct lb_capsule_handoff handoff;
 	bool storage_protected;
+	bool read_scratch_protected;
+	bool write_scratch_protected;
 	size_t reads;
 	size_t erases;
 	size_t writes;
+	size_t syncs;
 };
 
 static bool storage_protected(void *context, const void *storage, size_t size)
 {
 	struct fixture *fixture = context;
+	size_t authority_size;
+	const void *authority = capsule_broker_test_authority(&authority_size);
 
-	(void)storage;
-	(void)size;
-	return fixture->storage_protected;
+	if (storage == authority && size == authority_size)
+		return fixture->storage_protected;
+	if (storage == fixture->scratch && size == sizeof(fixture->scratch))
+		return fixture->read_scratch_protected;
+	if (storage == fixture->write_scratch &&
+	    size == sizeof(fixture->write_scratch))
+		return fixture->write_scratch_protected;
+	return false;
 }
 
 static bool communication_reserved(void *context, uint64_t base, uint64_t size)
@@ -322,6 +337,8 @@ static enum cb_err media_erase(void *context, u64 offset, size_t size)
 	if (media->fail_erase)
 		return CB_ERR;
 	memset(&media->bytes[offset], 0xff, size);
+	if (media->drop_guard_on_erase)
+		runtime_dma_guard = false;
 	return CB_SUCCESS;
 }
 
@@ -333,8 +350,20 @@ static enum cb_err media_write(void *context, u64 offset, const void *data,
 	(*media->writes)++;
 	if (media->fail_write)
 		return CB_ERR;
+	if (media->short_write) {
+		memcpy(&media->bytes[offset], data, size - 1);
+		return CB_ERR;
+	}
 	memcpy(&media->bytes[offset], data, size);
 	return CB_SUCCESS;
+}
+
+static enum cb_err media_sync(void *context)
+{
+	struct media_context *media = context;
+
+	(*media->syncs)++;
+	return media->fail_sync ? CB_ERR : CB_SUCCESS;
 }
 
 static void initialize(struct fixture *fixture)
@@ -345,6 +374,8 @@ static void initialize(struct fixture *fixture)
 	for (size_t i = 0; i < sizeof(fixture->staging); i++)
 		fixture->staging[i] = (uint8_t)i;
 	fixture->storage_protected = true;
+	fixture->read_scratch_protected = true;
+	fixture->write_scratch_protected = true;
 	runtime_dma_guard = true;
 	authenticate_calls = 0;
 	authenticate_mutates_image = false;
@@ -386,6 +417,7 @@ static void initialize(struct fixture *fixture)
 		.reads = &fixture->reads,
 		.erases = &fixture->erases,
 		.writes = &fixture->writes,
+		.syncs = &fixture->syncs,
 	};
 	fixture->sha256_context = (struct sha256_context) { 0 };
 	fixture->authenticate_context = (struct authenticate_context) {
@@ -444,6 +476,16 @@ static void initialize(struct fixture *fixture)
 			.size = IMAGE_SIZE,
 			.flags = LB_CAPSULE_REGION_BIOS,
 		}},
+		.fmap_area_count = 4,
+		.fmap_areas = {
+			{ .offset = 0x1000, .size = IMAGE_SIZE, .name = "FW_MAIN" },
+			{ .offset = 0x3000, .size = 0x2000, .name = "FMP_STATE_A",
+			  .flags = FMAP_AREA_PRESERVE },
+			{ .offset = 0x5000, .size = 0x2000, .name = "FMP_STATE_B",
+			  .flags = FMAP_AREA_PRESERVE },
+			{ .offset = 0x7000, .size = 0x1000, .name = "SMMSTORE",
+			  .flags = FMAP_AREA_PRESERVE },
+		},
 		.owner_layout = {
 			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
 			.size = sizeof(struct fmp_owner_layout),
@@ -470,8 +512,11 @@ static void initialize(struct fixture *fixture)
 			.read = media_read,
 			.erase = media_erase,
 			.write = media_write,
+			.sync = media_sync,
 		},
 		.media_context_size = sizeof(fixture->media_context),
+		.write_scratch = fixture->write_scratch,
+		.write_scratch_size = sizeof(fixture->write_scratch),
 		.scratch = fixture->scratch,
 		.scratch_size = sizeof(fixture->scratch),
 		.sha256 = sha256,
@@ -718,7 +763,13 @@ static void bound_transaction_case(const char *mode)
 	}
 	if (!strcmp(mode, "mutation"))
 		capsule.digest[0] ^= 1;
-	if (!strcmp(mode, "mutation")) {
+	else if (!strcmp(mode, "mutation-generation"))
+		capsule.broker_generation++;
+	else if (!strcmp(mode, "mutation-transaction"))
+		capsule.transaction++;
+	else if (!strcmp(mode, "mutation-version"))
+		capsule.attempted_version++;
+	if (!strncmp(mode, "mutation", 8)) {
 		assert(capsule_broker_apply_intent(&capsule) == CB_ERR);
 		assert(!fixture.reads && !fixture.erases && !fixture.writes);
 	} else {
@@ -788,6 +839,10 @@ static void invalid_install(const char *mode)
 	initialize(&fixture);
 	if (!strcmp(mode, "storage"))
 		fixture.storage_protected = false;
+	else if (!strcmp(mode, "read-scratch-protection"))
+		fixture.read_scratch_protected = false;
+	else if (!strcmp(mode, "write-scratch-protection"))
+		fixture.write_scratch_protected = false;
 	else if (!strcmp(mode, "communication"))
 		fixture.proof_context.communication_reserved = false;
 	else if (!strcmp(mode, "staging"))
@@ -802,6 +857,25 @@ static void invalid_install(const char *mode)
 		fixture.proof_context.rendezvous = false;
 	else if (!strcmp(mode, "scratch"))
 		fixture.policy.scratch_size--;
+	else if (!strcmp(mode, "scratch-oversize"))
+		fixture.policy.scratch_size++;
+	else if (!strcmp(mode, "write-scratch"))
+		fixture.policy.write_scratch_size--;
+	else if (!strcmp(mode, "write-scratch-oversize"))
+		fixture.policy.write_scratch_size++;
+	else if (!strcmp(mode, "write-read-overlap"))
+		fixture.policy.write_scratch = fixture.policy.scratch;
+	else if (!strcmp(mode, "write-communication"))
+		fixture.policy.write_scratch = fixture.communication;
+	else if (!strcmp(mode, "write-staging"))
+		fixture.policy.write_scratch = fixture.staging;
+	else if (!strcmp(mode, "write-media-overlap"))
+		fixture.policy.write_scratch = fixture.policy.media.context;
+	else if (!strcmp(mode, "write-hash-overlap"))
+		fixture.policy.write_scratch = fixture.policy.sha256_context;
+	else if (!strcmp(mode, "write-auth-overlap"))
+		fixture.policy.write_scratch =
+			(void *)fixture.policy.authenticate_context;
 	else if (!strcmp(mode, "geometry"))
 		fixture.policy.media.erase_size *= 2;
 	else if (!strcmp(mode, "image-size"))
@@ -812,6 +886,37 @@ static void invalid_install(const char *mode)
 		fixture.policy.scratch = fixture.staging;
 	else if (!strcmp(mode, "region-count"))
 		fixture.policy.region_count = 0;
+	else if (!strcmp(mode, "fmap-count"))
+		fixture.policy.fmap_area_count = 0;
+	else if (!strcmp(mode, "fmap-count-large"))
+		fixture.policy.fmap_area_count = CAPSULE_BROKER_MAX_FMAP_AREAS + 1;
+	else if (!strcmp(mode, "fmap-name"))
+		memset(fixture.policy.fmap_areas[0].name, 'x',
+			sizeof(fixture.policy.fmap_areas[0].name));
+	else if (!strcmp(mode, "fmap-name-empty"))
+		fixture.policy.fmap_areas[0].name[0] = '\0';
+	else if (!strcmp(mode, "fmap-flags"))
+		fixture.policy.fmap_areas[0].flags = 1U << 15;
+	else if (!strcmp(mode, "fmap-range"))
+		fixture.policy.fmap_areas[0].size = UINT32_MAX;
+	else if (!strcmp(mode, "fmap-route"))
+		fixture.policy.fmap_areas[0].offset += ERASE_SIZE;
+	else if (!strcmp(mode, "fmap-immutable"))
+		fixture.policy.fmap_areas[0].flags = FMAP_AREA_PRESERVE;
+	else if (!strcmp(mode, "fmap-duplicate")) {
+		fixture.policy.fmap_areas[1] = fixture.policy.fmap_areas[0];
+	} else if (!strcmp(mode, "overlap-scratch-media"))
+		fixture.policy.media.context = fixture.policy.scratch;
+	else if (!strcmp(mode, "overlap-scratch-hash"))
+		fixture.policy.sha256_context = fixture.policy.scratch;
+	else if (!strcmp(mode, "overlap-scratch-auth"))
+		fixture.policy.authenticate_context = fixture.policy.scratch;
+	else if (!strcmp(mode, "overlap-media-hash"))
+		fixture.policy.sha256_context = fixture.policy.media.context;
+	else if (!strcmp(mode, "overlap-media-auth"))
+		fixture.policy.authenticate_context = fixture.policy.media.context;
+	else if (!strcmp(mode, "overlap-hash-auth"))
+		fixture.policy.authenticate_context = fixture.policy.sha256_context;
 	else if (!strcmp(mode, "missing-hash"))
 		fixture.policy.sha256 = NULL;
 	else if (!strcmp(mode, "missing-authenticate"))
@@ -820,19 +925,27 @@ static void invalid_install(const char *mode)
 		fixture.policy.media.context = NULL;
 	else if (!strcmp(mode, "media-context-large"))
 		fixture.policy.media_context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "media-context-staging"))
+		fixture.policy.media.context = fixture.staging;
 	else if (!strcmp(mode, "sha-context-null"))
 		fixture.policy.sha256_context = NULL;
 	else if (!strcmp(mode, "sha-context-large"))
 		fixture.policy.sha256_context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "sha-context-staging"))
+		fixture.policy.sha256_context = fixture.staging;
 	else if (!strcmp(mode, "authenticate-context-null"))
 		fixture.policy.authenticate_context = NULL;
 	else if (!strcmp(mode, "authenticate-context-large"))
 		fixture.policy.authenticate_context_size =
 			CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "authenticate-context-staging"))
+		fixture.policy.authenticate_context = fixture.staging;
 	else if (!strcmp(mode, "proof-context-null"))
 		fixture.policy.proofs.context = NULL;
 	else if (!strcmp(mode, "proof-context-large"))
 		fixture.policy.proofs.context_size = CAPSULE_BROKER_CONTEXT_SIZE + 1U;
+	else if (!strcmp(mode, "proof-context-staging"))
+		fixture.policy.proofs.context = fixture.staging;
 	else
 		assert(0);
 	assert(capsule_broker_policy_install(&fixture.policy, storage_protected,
@@ -861,8 +974,14 @@ static void rejected_apply(const char *mode)
 		fixture.media_context.fail_erase = true;
 	else if (!strcmp(mode, "media-write"))
 		fixture.media_context.fail_write = true;
+	else if (!strcmp(mode, "media-short-write"))
+		fixture.media_context.short_write = true;
 	else if (!strcmp(mode, "media-read"))
 		fixture.media_context.fail_read = true;
+	else if (!strcmp(mode, "media-sync"))
+		fixture.media_context.fail_sync = true;
+	else if (!strcmp(mode, "media-source-guard"))
+		fixture.media_context.drop_guard_on_erase = true;
 	else if (!strcmp(mode, "media-verify"))
 		fixture.media_context.corrupt_readback = true;
 	if (!strncmp(mode, "preflight", 9)) {
@@ -898,8 +1017,14 @@ static void rejected_apply(const char *mode)
 		assert(!fixture.reads && !fixture.erases && !fixture.writes);
 	} else if (!strcmp(mode, "media-erase")) {
 		assert(!fixture.reads && fixture.erases == 1 && !fixture.writes);
-	} else if (!strcmp(mode, "media-write")) {
+	} else if (!strcmp(mode, "media-write") ||
+		   !strcmp(mode, "media-short-write")) {
 		assert(!fixture.reads && fixture.erases == 1 && fixture.writes == 1);
+	} else if (!strcmp(mode, "media-source-guard")) {
+		assert(!fixture.reads && fixture.erases == 1 && !fixture.writes);
+	} else if (!strcmp(mode, "media-sync")) {
+		assert(!fixture.reads && fixture.erases == 1 && fixture.writes == 1 &&
+			fixture.syncs == 1);
 	} else {
 		assert(fixture.reads == 1 && fixture.erases == 1 &&
 			fixture.writes == 1);
@@ -916,6 +1041,18 @@ static void stale_then_happy(void)
 	fixture.capsule = intent(&fixture, PAYLOAD_MM_FMP_CAPSULE_SET, 1, 11);
 	fixture.capsule.broker_generation++;
 	assert(authenticate_intent(&fixture.capsule) == CB_ERR);
+	authenticate_set(&fixture, 1, 11);
+	assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+	assert(apply_staged() == CB_SUCCESS);
+}
+
+static void compressed_fmap_case(void)
+{
+	struct fixture fixture;
+
+	initialize(&fixture);
+	fixture.policy.fmap_areas[0].flags = FMAP_AREA_COMPRESSED;
+	install(&fixture);
 	authenticate_set(&fixture, 1, 11);
 	assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 	assert(apply_staged() == CB_SUCCESS);
@@ -1260,6 +1397,8 @@ int main(int argc, char **argv)
 		endpoint_mutations();
 	else if (!strcmp(argv[1], "stale"))
 		stale_then_happy();
+	else if (!strcmp(argv[1], "fmap-compressed"))
+		compressed_fmap_case();
 	else if (!strcmp(argv[1], "close"))
 		close_case(false);
 	else if (!strcmp(argv[1], "s3"))

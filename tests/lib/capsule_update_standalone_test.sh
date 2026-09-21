@@ -28,7 +28,10 @@ build_and_run() {
 
 build_and_run ordinary
 build_and_run optimized -O2
-build_and_run sanitized -O1 -g -fsanitize=address,undefined \
+build_and_run strict -O2 -Wconversion -Wsign-conversion
+build_and_run asan -O1 -g -fsanitize=address \
+	-fno-omit-frame-pointer
+build_and_run ubsan -O1 -g -fsanitize=undefined \
 	-fno-omit-frame-pointer
 
 "$temporary/optimized" --fixture > "$temporary/coreboot-capsule-handoff.bin"
@@ -56,4 +59,4 @@ if [ -n "${CDK2_ROOT:-}" ]; then
 	"$temporary/cdk2-parser" "$temporary/coreboot-capsule-handoff.bin"
 fi
 printf '%s\n' \
-	'Capsule contract ordinary/O2/ASan+UBSan/ABI fixture tests: PASS'
+	'Capsule contract O0/O2/strict/ASan/UBSan/ABI fixture tests: PASS'

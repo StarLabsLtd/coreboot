@@ -22,6 +22,7 @@ static uint8_t staging[STAGING_SIZE] __aligned(8);
 static uint8_t media[MEDIA_SIZE];
 static uint8_t original[MEDIA_SIZE];
 static uint8_t expected_rom[ROM_SIZE];
+static uint8_t write_scratch[ERASE_SIZE] __aligned(8);
 static uint8_t scratch[ERASE_SIZE] __aligned(8);
 static uint8_t trust[PAYLOAD_MM_MAX_TRUST_XDR_SIZE];
 static struct payload_mm_fmp_capsule_intent intent;
@@ -158,6 +159,12 @@ static enum cb_err media_write(void *context, u64 offset, const void *data,
 	return CB_SUCCESS;
 }
 
+static enum cb_err media_sync(void *context)
+{
+	(void)context;
+	return CB_SUCCESS;
+}
+
 int main(int argc, char **argv)
 {
 	static const char vendor[] = "Star Labs";
@@ -205,6 +212,16 @@ int main(int argc, char **argv)
 			.size = ROM_SIZE,
 			.flags = LB_CAPSULE_REGION_BIOS,
 		}},
+		.fmap_area_count = 4,
+		.fmap_areas = {
+			{ .offset = ERASE_SIZE, .size = ROM_SIZE, .name = "FW_MAIN" },
+			{ .offset = 2 * ERASE_SIZE, .size = 2 * ERASE_SIZE,
+			  .name = "FMP_STATE_A", .flags = FMAP_AREA_PRESERVE },
+			{ .offset = 4 * ERASE_SIZE, .size = 2 * ERASE_SIZE,
+			  .name = "FMP_STATE_B", .flags = FMAP_AREA_PRESERVE },
+			{ .offset = 6 * ERASE_SIZE, .size = ERASE_SIZE,
+			  .name = "SMMSTORE", .flags = FMAP_AREA_PRESERVE },
+		},
 		.owner_layout = {
 			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
 			.size = sizeof(struct fmp_owner_layout),
@@ -233,7 +250,10 @@ int main(int argc, char **argv)
 			.read = media_read,
 			.erase = media_erase,
 			.write = media_write,
+			.sync = media_sync,
 		},
+		.write_scratch = write_scratch,
+		.write_scratch_size = sizeof(write_scratch),
 		.scratch = scratch,
 		.scratch_size = sizeof(scratch),
 		.sha256 = sha256,

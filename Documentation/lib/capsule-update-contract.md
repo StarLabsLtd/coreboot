@@ -24,7 +24,11 @@ read, write or erase operation and is separate from SMMSTORE variable traffic.
 The contract library now has a private bounded-writer prerequisite. It accepts
 only a plan exactly equal to the backend's immutable route policy, validates
 the complete plan before its first media operation, erases and writes only
-listed erase-aligned regions, and compares readback after every block.
+listed erase-aligned regions, and compares readback after every block. It uses
+separate erase-block write-snapshot and readback scratch buffers and requires
+an exact source-lifetime proof before every destructive step.
+Every block must also cross an explicit durability callback before readback;
+an absent flush operation is not treated as success.
 
 The public contract still exposes only one `apply_regions(plan)` operation.
 Raw media callbacks are private implementation details, and the writer is not

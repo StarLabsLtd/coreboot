@@ -9,6 +9,8 @@
 typedef enum cb_err capsule_media_read_fn(void *, u64, void *, size_t);
 typedef enum cb_err capsule_media_erase_fn(void *, u64, size_t);
 typedef enum cb_err capsule_media_write_fn(void *, u64, const void *, size_t);
+typedef enum cb_err capsule_media_sync_fn(void *);
+typedef bool capsule_media_source_valid_fn(void *, const void *, size_t);
 
 struct capsule_media_backend {
 	void *context;
@@ -17,6 +19,8 @@ struct capsule_media_backend {
 	capsule_media_read_fn *read;
 	capsule_media_erase_fn *erase;
 	capsule_media_write_fn *write;
+	capsule_media_sync_fn *sync;
+	capsule_media_source_valid_fn *source_valid;
 };
 
 struct capsule_media_policy {
@@ -32,6 +36,7 @@ struct capsule_media_policy {
 enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan,
 					  const struct capsule_media_policy *policy,
 					  const struct capsule_media_backend *media,
-					  void *scratch, size_t scratch_bytes);
+					  void *write_scratch, void *read_scratch,
+					  size_t scratch_bytes);
 
 #endif

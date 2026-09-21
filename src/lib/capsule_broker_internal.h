@@ -5,6 +5,7 @@
 
 #include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar.h>
+#include <commonlib/bsd/fmap_serialized.h>
 #include "capsule_update_internal.h"
 #include "payload_mm_fmp_owner_layout_internal.h"
 
@@ -32,6 +33,18 @@ struct capsule_broker_proofs {
 };
 
 #define CAPSULE_BROKER_CONTEXT_SIZE 128U
+#define CAPSULE_BROKER_MAX_FMAP_AREAS 32U
+
+struct capsule_broker_flash_plan {
+	uint64_t generation;
+	uint64_t transaction;
+	uint64_t owner_sequence;
+	uint32_t version;
+	uint32_t region_count;
+	uint8_t capsule_digest[CAPSULE_BROKER_DIGEST_SIZE];
+	struct capsule_broker_raw_image raw_image;
+	struct lb_capsule_update_region regions[CAPSULE_UPDATE_MAX_REGIONS];
+};
 
 struct capsule_broker_policy {
 	uint32_t revision;
@@ -44,9 +57,13 @@ struct capsule_broker_policy {
 	uint32_t erase_size;
 	uint32_t region_count;
 	struct lb_capsule_update_region regions[CAPSULE_UPDATE_MAX_REGIONS];
+	uint32_t fmap_area_count;
+	struct fmap_area fmap_areas[CAPSULE_BROKER_MAX_FMAP_AREAS];
 	struct fmp_owner_layout owner_layout;
 	struct capsule_media_backend media;
 	size_t media_context_size;
+	void *write_scratch;
+	size_t write_scratch_size;
 	void *scratch;
 	size_t scratch_size;
 	capsule_broker_sha256_fn *sha256;
@@ -94,5 +111,9 @@ enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
 	struct capsule_broker_success *success);
 
 void capsule_broker_close_for_s3(void);
+
+#if ENV_TEST
+const void *capsule_broker_test_authority(size_t *size);
+#endif
 
 #endif

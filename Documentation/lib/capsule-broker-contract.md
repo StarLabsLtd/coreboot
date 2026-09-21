@@ -361,10 +361,43 @@ authentication authority.
 The broker calls `capsule_apply_policy_verified()`. That writer completes all
 plan and backend validation before its first media operation, accepts only the
 immutable route policy, excludes SMMSTORE, touches only erase-aligned listed
-regions and compares readback after each block. Every unlisted byte is
-preserved. The sealed internal policy also carries both owner-journal domains;
-the shared layout validator rejects a route reaching either domain before the
-first media callback.
+regions, durably synchronizes and compares readback after each block. Every
+unlisted byte is preserved. The sealed internal policy also carries both
+owner-journal domains and the complete coreboot-derived FMAP area inventory.
+Each update route must exactly match one writable FMAP area and cannot overlap
+any static, read-only or preserved area. The shared layout validator rejects a
+route reaching either journal domain or SMMSTORE before the first media
+callback.
+
+Immediately before APPLY, the existing protected broker snapshots a
+pointer-free flash plan from its exact checkpoint grant: generation,
+transaction, owner sequence, version, capsule digest, authenticated raw-image
+span and immutable routes. This is not a second planner authority or replay
+counter. The broker closes and clears the grant before execution; mutation or
+reentry is detected by the same control-state guard used throughout the
+one-shot broker.
+
+The raw image remains in the broker's fixed DMA-isolated staging allocation;
+there is no second full-image copy in SMRAM. Before each destructive block the
+writer proves the exact source pointer and length and rechecks DMA isolation,
+SPI ownership and CPU rendezvous, then copies one erase block into protected
+write scratch. It rechecks the guard before erase and write, synchronizes, and
+reads into a separate protected scratch block for comparison with the write
+snapshot. Both scratch blocks, all copied callback contexts, communication and
+staging are pairwise disjoint. Media callbacks are trusted platform backend
+code; no callback context aliases staging or either scratch block.
+Both scratch allocations are exactly one erase block, bounding protected-memory
+use and the final wipe latency.
+
+The flash plan intentionally does not duplicate board identity or image GUID.
+The trusted authenticator verifies both against the exact whole-capsule bytes;
+that whole-capsule digest and its authenticated raw-image span are retained in
+the checkpoint grant. APPLY rehashes the exact whole capsule from protected
+staging before the broker-owned plan consumes that span and its immutable
+routes. Thus the plan is transitively bound to both identities without a
+second mutable authority. Host tests exercise this chain through
+`authenticate-image-mutation`, `bound-digest`, `bound-mutation`, and the
+coordinated generation, transaction and version mutation cases.
 
 The writer currently returns only success or failure. The future selected
 coordinator must map that result into FMP status without inventing device-
