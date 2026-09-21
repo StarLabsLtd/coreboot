@@ -233,6 +233,35 @@ authenticated full-media image around every immutable, preserved and SMMSTORE
 span before it can install policy or publish an endpoint. No platform selects
 this prerequisite here.
 
+The separate hidden platform-adapter prerequisite remains equally dormant. It
+maps a validated fact snapshot onto overflow-checked operations on the live SPI
+boot `region_device`. Every operation rereads the boot-device and SPI geometry,
+and a short read, write or erase fails. Its source predicate accepts only
+subranges of the fixed staging reservation. SPI region-device calls complete
+synchronously, but the adapter deliberately makes no SMM-only SPI, DMA,
+raw-flash exclusion or CPU-rendezvous claim. Those proofs remain unavailable
+until a silicon-specific provider can establish them.
+
+The adapter also tests exact geometric containment in the live SMM region and
+derives the SystemFmp namespace, INFO identity and authentication identity from
+the same firmware-facts snapshot and coreboot's compiled mainboard identity.
+Geometric containment is not a hardware SMRAM-protection proof and is not wired
+to an authority install. Hardware instance is canonically zero. The adapter
+provides no trust XDR, owner journal, anchor, writable route, policy install,
+coordinator or endpoint.
+
+Meteor Lake activation is specifically blocked beyond this generic adapter.
+The current below-TSEG fixed-buffer reservation is a QEMU Q35 construction and
+does not account for the FSP TOLUM/TSEG boundary on MTL. Existing early VT-d
+setup covers only VTVC0 and supplies neither a complete-engine inventory nor an
+exact runtime PMR proof for both broker buffers. The SMI entry lock elects one
+handler but does not prove all-CPU rendezvous. Finally, the current WPD/INSMM
+setters do not provide the required readback and cleanup proof, and development
+`bios_lock` policy can disable SMM BIOS write protection. Follow-on work must
+therefore add MTL-safe explicit allocations, complete engine/range isolation,
+observable rendezvous and verified WPD/INSMM ownership before a thin proof
+adapter can bind these generic operations.
+
 An `APPLY` additionally requires a one-use SMM-internal checkpoint grant for
 the same generation, transaction and attempted version. Only the protected
 variable owner may create that grant, and only after the combined FMP state has
@@ -479,4 +508,5 @@ tests/lib/payload_mm_fmp_checkpoint_test.sh
 tests/lib/payload_mm_fmp_auth_policy_test.sh
 tests/lib/payload_mm_fmp_transaction_test.sh
 tests/lib/payload_mm_fmp_owner_layout_test.sh
+tests/lib/capsule_platform_adapter_test.sh
 ```
