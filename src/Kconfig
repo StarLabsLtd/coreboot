@@ -815,6 +815,7 @@ config HEAP_SIZE
 
 config STACK_SIZE
 	hex
+	default 0x3000 if CAPSULE_TPM_ANCHOR_POLICY_PROVIDER
 	default 0x2000 if ARCH_X86
 	default 0x0
 

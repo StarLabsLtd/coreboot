@@ -108,6 +108,19 @@ config CAPSULE_TPM_ANCHOR_TRANSITION
 	  and write-lock operations, then return authoritative public state and
 	  value readback. This adds no SMM grant route or platform selection.
 
+config CAPSULE_TPM_ANCHOR_POLICY_PROVIDER
+	bool
+	default n
+	depends on CAPSULE_TPM_ANCHOR_TRANSITION
+	help
+	  Build the dormant TPM 2.0 policy provider for the rollback-anchor
+	  transition. It checks separate PolicyAuthorize material for the complete
+	  replacement write and write lock and returns authoritative readback.
+	  The larger stack requirement covers the coordinator, immutable operation
+	  snapshot, TPM policy command encoders and platform transport call chain.
+	  No platform selects this option, supplies authorization material, installs
+	  a grant or publishes an SMI endpoint.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n

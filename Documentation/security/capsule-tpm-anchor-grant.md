@@ -85,20 +85,32 @@ anchor's SHA-256 digest; companion integrity is its exact fixed tuple, one-way
 state encoding and durable readback. The reader preserves this ABI rather than
 inventing an incompatible checksum interpretation for the reserved field.
 
-There is still no production provider because the tree does not yet have:
+The default-off `CAPSULE_TPM_ANCHOR_POLICY_PROVIDER` supplies the TPM half of
+that contract. It derives the provisioned index policy and exact NV Name,
+recomputes the complete replacement-write or write-lock cpHash, and rejects a
+different value before opening a policy session. Each operation executes
+`PolicyNvWritten(true)`, exact-current `PolicyNV`, the recomputed
+`PolicyCpHash`, external RSA key loading and signature verification,
+`PolicyAuthorize`, the operation-specific `PolicyCommandCode`, the fixed
+two-branch `PolicyOR`, and finally exactly one NV command. Write and lock use
+separate approved policies, cpHashes, nonces and signatures. Readback verifies
+the complete public area admitted by the fixed policy and returns its observed
+write-lock state and value. Provisioning must set `AUTHREAD` with an empty
+`authValue`; mutation remains policy-authorized only. A well-formed TPM error
+delivered for the terminal command remains advisory only when both
+transient-object and policy-session cleanup succeeded, so the coordinator can
+resolve command-level ambiguity by exact readback. A malformed reply or
+transport loss fails the pre-OS lifecycle and is not claimed recoverable in
+this boot.
 
-* a provider which executes the fixed `PolicyNvWritten(true)`, exact-current
-  `PolicyNV`, exact replacement-write `PolicyCpHash`, external-key signature
-  verification and `PolicyAuthorize` sequence through the supplied lifecycle
-  transport, then executes the distinct authorized write-lock transcript; or
-* a protected pre-payload route which installs the one-shot grant in SMM.
-
-Consequently no platform selects the coordinator and no TPM mutation becomes
-reachable. The callback contract does not turn an assertion into proof: a
-selected platform must source the reader's bounded media and current-anchor
-snapshot from the same immutable pre-OS ownership policy, and the authorization
-callback must recompute and use the exact cpHash rather than trusting the input
-bytes alone.
+This is still not a production composition. No platform selects the provider,
+supplies authorization material or durable-PREPARED callbacks, installs the
+grant into protected SMM storage, or publishes an SMI endpoint. Factory
+provisioning and authority-key management remain external. The provider uses
+the existing pre-OS lifecycle transport and makes no claim that a platform has
+protected its authorization input or later grant route. Enabling it requires a
+ramstage stack of at least 12 KiB for the coordinator, immutable snapshots,
+policy command encoders and platform TPM transport.
 
 Advancing the TPM first would create a power-loss interval in which the only
 authoritative anchor names a manifest that does not exist. A production split
@@ -134,3 +146,11 @@ Host coverage for the reader is in
 strict-warning, ASan and UBSan builds over exact success, one-shot replay,
 torn companions, tuple replay, stale anchors, duplicate preparation, short
 reads, media mutation, split identity binding and committed-only media.
+Provider coverage is in `tests/lib/capsule_tpm_anchor_policy_test.sh` and
+`tests/lib/capsule_tpm_anchor_policy_transcript_test.sh`. Both run O0, O2,
+ASan and UBSan builds. The first covers fixed tails, exact public-state
+failures, readback recovery, one-shot replay, input and callback mutation,
+attempt sealing and reentry. The second links the production TPM encoders and
+parsers and checks the exact ordered read, write and lock command transcripts
+with real RSA test material. It distinguishes a delivered terminal TPM error
+from malformed replies, transport loss and cleanup failure.
