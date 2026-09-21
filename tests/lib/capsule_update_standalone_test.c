@@ -203,7 +203,12 @@ struct media_fixture {
 	size_t reads;
 	size_t erases;
 	size_t writes;
+	size_t syncs;
 	bool corrupt_readback;
+	bool source_available;
+	bool drop_source_on_erase;
+	const void *source;
+	size_t source_size;
 };
 
 static enum cb_err media_read(void *context, u64 offset, void *buffer,
@@ -224,6 +229,8 @@ static enum cb_err media_erase(void *context, u64 offset, size_t size)
 
 	media->erases++;
 	memset(&media->bytes[offset], 0xff, size);
+	if (media->drop_source_on_erase)
+		media->source_available = false;
 	return CB_SUCCESS;
 }
 
@@ -235,6 +242,22 @@ static enum cb_err media_write(void *context, u64 offset,
 	media->writes++;
 	memcpy(&media->bytes[offset], buffer, size);
 	return CB_SUCCESS;
+}
+
+static enum cb_err media_sync(void *context)
+{
+	struct media_fixture *media = context;
+
+	media->syncs++;
+	return CB_SUCCESS;
+}
+
+static bool media_source_valid(void *context, const void *source, size_t size)
+{
+	struct media_fixture *media = context;
+
+	return media->source_available && source == media->source &&
+		size == media->source_size;
 }
 
 static void small_fixture(struct capsule_update_plan *plan,
@@ -251,6 +274,9 @@ static void small_fixture(struct capsule_update_plan *plan,
 	};
 
 	memset(fixture, 0, sizeof(*fixture));
+	fixture->source_available = true;
+	fixture->source = image;
+	fixture->source_size = TEST_MEDIA_SIZE;
 	memset(fixture->bytes, 0x5a, sizeof(fixture->bytes));
 	fixture->plan_region = region;
 	fixture->policy_region = region;
@@ -297,6 +323,8 @@ static void small_fixture(struct capsule_update_plan *plan,
 		.read = media_read,
 		.erase = media_erase,
 		.write = media_write,
+		.sync = media_sync,
+		.source_valid = media_source_valid,
 	};
 }
 
@@ -308,13 +336,16 @@ static void verified_apply_contract(void)
 	struct media_fixture fixture;
 	u8 image[TEST_MEDIA_SIZE];
 	u8 before[TEST_MEDIA_SIZE];
+	u8 write_scratch[0x1000];
 	u8 scratch[0x1000];
 
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	memcpy(before, fixture.bytes, sizeof(before));
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, write_scratch,
+				     scratch,
 					     sizeof(scratch)) == CB_SUCCESS);
-	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.reads == 2);
+	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.syncs == 2 &&
+		fixture.reads == 2);
 	assert(!memcmp(&fixture.bytes[0x4000], &image[0x2000], 0x2000));
 	assert(!memcmp(fixture.bytes, before, 0x4000));
 	assert(!memcmp(&fixture.bytes[0x6000], &before[0x6000],
@@ -322,51 +353,100 @@ static void verified_apply_contract(void)
 
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	media.size--;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	media.erase_size <<= 1;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	plan.image_bytes = 0x3fff;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch) - 1) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	media.write = NULL;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.sync = NULL;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
+				     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0 &&
+		!fixture.syncs);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.source_valid = NULL;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		write_scratch, scratch, sizeof(scratch)) == CB_ERR);
+	assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		NULL, scratch, sizeof(scratch)) == CB_ERR);
+	assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		write_scratch, NULL, sizeof(scratch)) == CB_ERR);
+	assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	plan.image++;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		write_scratch, scratch, sizeof(scratch)) == CB_ERR);
+	assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		write_scratch, write_scratch + 1, sizeof(scratch)) == CB_ERR);
+	assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.drop_source_on_erase = true;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+		write_scratch, scratch, sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 1 && !fixture.writes && !fixture.reads);
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.source_available = false;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
+				     sizeof(scratch)) == CB_ERR);
+	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0 &&
+		!fixture.syncs);
+	small_fixture(&plan, &policy, &media, &fixture, image);
 	fixture.plan_region.flash_offset++;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	fixture.plan_region.flash_offset = 0xe000;
 	fixture.policy_region.flash_offset = 0xe000;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	fixture.plan_region.flags = 0;
 	fixture.policy_region.flags = 0;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 0 && fixture.writes == 0 && fixture.reads == 0);
 
 #define REJECT_LAYOUT(member, value) do { \
 	small_fixture(&plan, &policy, &media, &fixture, image); \
 	fixture.owner_layout.member = (value); \
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch, \
-		sizeof(scratch)) == CB_ERR); \
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, \
+		write_scratch, scratch, sizeof(scratch)) == CB_ERR); \
 	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
 } while (0)
 	REJECT_LAYOUT(state[0].offset, 0xa000);
@@ -386,8 +466,8 @@ static void verified_apply_contract(void)
 	fixture.plan_region.flash_offset = rejected_offset; \
 	fixture.policy_region.flash_offset = rejected_offset; \
 	fixture.owner_layout.route[0] = fixture.policy_region; \
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch, \
-		sizeof(scratch)) == CB_ERR); \
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, \
+		write_scratch, scratch, sizeof(scratch)) == CB_ERR); \
 	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
 } while (0)
 	REJECT_ROUTE(0x8000);
@@ -398,7 +478,8 @@ static void verified_apply_contract(void)
 
 	small_fixture(&plan, &policy, &media, &fixture, image);
 	fixture.corrupt_readback = true;
-	assert(capsule_apply_policy_verified(&plan, &policy, &media, scratch,
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+				     write_scratch, scratch,
 					     sizeof(scratch)) == CB_ERR);
 	assert(fixture.erases == 1 && fixture.writes == 1 && fixture.reads == 1);
 }

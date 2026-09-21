@@ -36,14 +36,30 @@ static struct {
 	uint8_t authenticated_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	uint8_t success_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_raw_image authenticated_raw_image;
+	struct capsule_broker_flash_plan flash_plan;
 	bool grant_valid;
 	bool authentication_valid;
 	bool success_valid;
 	bool authentication_in_progress;
+	bool flash_plan_valid;
 	bool installed;
 	bool install_attempted;
 	bool closed;
 } broker;
+
+#if ENV_TEST
+const void *capsule_broker_test_authority(size_t *size)
+{
+	*size = sizeof(broker);
+	return &broker;
+}
+#endif
+
+static void clear_flash_plan(void)
+{
+	broker.flash_plan_valid = false;
+	memset(&broker.flash_plan, 0, sizeof(broker.flash_plan));
+}
 
 static void clear_authentication(void)
 {
@@ -128,7 +144,11 @@ bool capsule_broker_buffer_available(const void *buffer, size_t size)
 		(!broker.installed ||
 		 !ranges_overlap((uintptr_t)buffer, size,
 			(uintptr_t)broker.policy.scratch,
-			broker.policy.scratch_size));
+			broker.policy.scratch_size)) &&
+		(!broker.installed ||
+		 !ranges_overlap((uintptr_t)buffer, size,
+			(uintptr_t)broker.policy.write_scratch,
+			broker.policy.write_scratch_size));
 }
 
 static bool range_addressable(uint64_t base, uint64_t size)
@@ -211,6 +231,89 @@ static bool context_valid(const void *context, size_t size)
 			sizeof(broker)));
 }
 
+static bool policy_storage_disjoint(const struct capsule_broker_policy *policy,
+	uint64_t communication, uint64_t staging, uint64_t staging_size)
+{
+	const void *storage[] = {
+		policy->scratch,
+		policy->write_scratch,
+		policy->media.context,
+		policy->sha256_context,
+		policy->authenticate_context,
+		policy->proofs.context,
+	};
+	const size_t size[] = {
+		policy->scratch_size,
+		policy->write_scratch_size,
+		policy->media_context_size,
+		policy->sha256_context_size,
+		policy->authenticate_context_size,
+		policy->proofs.context_size,
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(storage); i++) {
+		if (!size[i])
+			continue;
+		if (ranges_overlap((uintptr_t)storage[i], size[i], communication,
+			policy->endpoint.communication_size) ||
+		    ranges_overlap((uintptr_t)storage[i], size[i], staging,
+			staging_size))
+			return false;
+		for (size_t j = i + 1; j < ARRAY_SIZE(storage); j++)
+			if (size[j] && ranges_overlap((uintptr_t)storage[i], size[i],
+				(uintptr_t)storage[j], size[j]))
+				return false;
+	}
+	return true;
+}
+
+static bool fmap_name_valid(const struct fmap_area *area)
+{
+	return area->name[0] &&
+		memchr(area->name, '\0', sizeof(area->name)) != NULL;
+}
+
+static bool fmap_policy_valid(const struct capsule_broker_policy *policy)
+{
+	if (!policy->fmap_area_count ||
+	    policy->fmap_area_count > CAPSULE_BROKER_MAX_FMAP_AREAS)
+		return false;
+	for (size_t i = 0; i < policy->fmap_area_count; i++) {
+		const struct fmap_area *area = &policy->fmap_areas[i];
+
+		if (!fmap_name_valid(area) ||
+		    area->flags & ~(FMAP_AREA_STATIC | FMAP_AREA_COMPRESSED |
+			FMAP_AREA_RO | FMAP_AREA_PRESERVE) ||
+		    !area->size ||
+		    area->offset > policy->boot_media_size ||
+		    area->size > policy->boot_media_size - area->offset)
+			return false;
+	}
+	for (size_t route_index = 0; route_index < policy->region_count;
+	     route_index++) {
+		const struct lb_capsule_update_region *route =
+			&policy->regions[route_index];
+		size_t writable_matches = 0;
+
+		for (size_t area_index = 0; area_index < policy->fmap_area_count;
+		     area_index++) {
+			const struct fmap_area *area = &policy->fmap_areas[area_index];
+			bool immutable = area->flags & (FMAP_AREA_STATIC |
+				FMAP_AREA_RO | FMAP_AREA_PRESERVE);
+
+			if (!immutable && area->offset == route->flash_offset &&
+			    area->size == route->size)
+				writable_matches++;
+			if (immutable && ranges_overlap(area->offset, area->size,
+				route->flash_offset, route->size))
+				return false;
+		}
+		if (writable_matches != 1)
+			return false;
+	}
+	return true;
+}
+
 struct broker_control_state {
 	uint64_t last_transaction;
 	uint64_t grant_transaction;
@@ -228,10 +331,12 @@ struct broker_control_state {
 	uint8_t success_digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_raw_image grant_raw_image;
 	struct capsule_broker_raw_image authenticated_raw_image;
+	struct capsule_broker_flash_plan flash_plan;
 	bool grant_valid;
 	bool authentication_valid;
 	bool success_valid;
 	bool authentication_in_progress;
+	bool flash_plan_valid;
 	bool installed;
 	bool closed;
 };
@@ -255,10 +360,12 @@ static struct broker_control_state control_state(void)
 		.authentication_valid = broker.authentication_valid,
 		.success_valid = broker.success_valid,
 		.authentication_in_progress = broker.authentication_in_progress,
+		.flash_plan_valid = broker.flash_plan_valid,
 		.installed = broker.installed,
 		.closed = broker.closed,
 		.grant_raw_image = broker.grant_raw_image,
 		.authenticated_raw_image = broker.authenticated_raw_image,
+		.flash_plan = broker.flash_plan,
 	};
 
 	memcpy(state.grant_digest, broker.grant_digest,
@@ -299,11 +406,14 @@ static bool control_state_matches(const struct broker_control_state *expected)
 		!memcmp(&current.authenticated_raw_image,
 			&expected->authenticated_raw_image,
 			sizeof(current.authenticated_raw_image)) &&
+		!memcmp(&current.flash_plan, &expected->flash_plan,
+			sizeof(current.flash_plan)) &&
 		current.grant_valid == expected->grant_valid &&
 		current.authentication_valid == expected->authentication_valid &&
 		current.success_valid == expected->success_valid &&
 		current.authentication_in_progress ==
 			expected->authentication_in_progress &&
+		current.flash_plan_valid == expected->flash_plan_valid &&
 		current.installed == expected->installed &&
 		current.closed == expected->closed;
 }
@@ -374,6 +484,7 @@ enum cb_err capsule_broker_policy_install(
 		snapshot.smmstore_offset || !snapshot.erase_size ||
 	    !snapshot.region_count ||
 	    snapshot.region_count > CAPSULE_UPDATE_MAX_REGIONS ||
+	    !fmap_policy_valid(&snapshot) ||
 	    !payload_mm_fmp_layout_valid(&snapshot.owner_layout) ||
 	    snapshot.owner_layout.media_size != snapshot.boot_media_size ||
 	    snapshot.owner_layout.erase_size != snapshot.erase_size ||
@@ -384,9 +495,12 @@ enum cb_err capsule_broker_policy_install(
 	    snapshot.media.size != snapshot.boot_media_size ||
 	    snapshot.media.erase_size != snapshot.erase_size ||
 	    !snapshot.media.read || !snapshot.media.erase || !snapshot.media.write ||
+	    !snapshot.media.sync ||
 	    !context_valid(snapshot.media.context,
 		snapshot.media_context_size) ||
-	    !snapshot.scratch || snapshot.scratch_size < snapshot.erase_size ||
+	    !snapshot.scratch || snapshot.scratch_size != snapshot.erase_size ||
+	    !snapshot.write_scratch ||
+	    snapshot.write_scratch_size != snapshot.erase_size ||
 	    !snapshot.sha256 ||
 	    !context_valid(snapshot.sha256_context,
 		snapshot.sha256_context_size) ||
@@ -395,7 +509,9 @@ enum cb_err capsule_broker_policy_install(
 		snapshot.authenticate_context_size) ||
 	    !proofs_present(&snapshot.proofs) ||
 	    !context_valid(snapshot.proofs.context,
-		snapshot.proofs.context_size))
+		snapshot.proofs.context_size) ||
+	    !policy_storage_disjoint(&snapshot, communication, staging,
+		staging_size))
 		return CB_ERR;
 	if (snapshot.media_context_size) {
 		memcpy(broker.media_context, snapshot.media.context,
@@ -419,6 +535,8 @@ enum cb_err capsule_broker_policy_install(
 	}
 	if (!storage_is_protected(context, snapshot.scratch,
 		snapshot.scratch_size) ||
+	    !storage_is_protected(context, snapshot.write_scratch,
+		snapshot.write_scratch_size) ||
 	    !snapshot.proofs.communication_reserved(snapshot.proofs.context,
 		communication, snapshot.endpoint.communication_size) ||
 	    !snapshot.proofs.staging_reserved(snapshot.proofs.context, staging,
@@ -435,10 +553,8 @@ enum cb_err capsule_broker_policy_install(
 		sizeof(broker)) ||
 	    ranges_overlap((uintptr_t)snapshot.scratch, snapshot.scratch_size,
 		(uintptr_t)&broker, sizeof(broker)) ||
-	    ranges_overlap(communication, snapshot.endpoint.communication_size,
-		(uintptr_t)snapshot.scratch, snapshot.scratch_size) ||
-	    ranges_overlap(staging, staging_size, (uintptr_t)snapshot.scratch,
-		snapshot.scratch_size))
+	    ranges_overlap((uintptr_t)snapshot.write_scratch,
+		snapshot.write_scratch_size, (uintptr_t)&broker, sizeof(broker)))
 		return CB_ERR;
 	broker.policy = snapshot;
 	memcpy(broker.regions, snapshot.regions,
@@ -629,6 +745,58 @@ static enum cb_err guarded_write(void *context, u64 offset, const void *data,
 		data, size);
 }
 
+static enum cb_err guarded_sync(void *context)
+{
+	(void)context;
+	if (!execution_guard())
+		return CB_ERR;
+	return broker.policy.media.sync(broker.policy.media.context);
+}
+
+static bool guarded_source_valid(void *context, const void *source, size_t size)
+{
+	uintptr_t staging = (uintptr_t)
+		unpack64(broker.policy.endpoint.staging_base);
+	uint64_t staging_size =
+		unpack64(broker.policy.endpoint.staging_size);
+	const struct capsule_broker_raw_image *raw = &broker.flash_plan.raw_image;
+
+	return context == &broker && broker.flash_plan_valid && raw->size == size &&
+		raw->offset <= staging_size && raw->size <= staging_size - raw->offset &&
+		raw->offset <= UINTPTR_MAX - staging &&
+		source == (const void *)(staging + (uintptr_t)raw->offset) &&
+		execution_guard();
+}
+
+static bool flash_plan_build(
+	const struct payload_mm_fmp_capsule_intent *intent,
+	struct capsule_broker_flash_plan *plan)
+{
+	struct capsule_broker_flash_plan candidate = {
+		.generation = unpack64(broker.policy.endpoint.generation),
+		.transaction = broker.grant_transaction,
+		.owner_sequence = broker.grant_owner_sequence,
+		.version = broker.grant_version,
+		.region_count = broker.policy.region_count,
+		.raw_image = broker.grant_raw_image,
+	};
+
+	if (!intent || !plan || !broker.grant_valid ||
+	    candidate.generation != intent->broker_generation ||
+	    candidate.transaction != intent->transaction ||
+	    candidate.version != intent->attempted_version ||
+	    !candidate.owner_sequence || !candidate.raw_image.size ||
+	    memcmp(broker.grant_digest, intent->digest,
+		sizeof(candidate.capsule_digest)))
+		return false;
+	memcpy(candidate.capsule_digest, broker.grant_digest,
+		sizeof(candidate.capsule_digest));
+	memcpy(candidate.regions, broker.regions,
+		candidate.region_count * sizeof(candidate.regions[0]));
+	*plan = candidate;
+	return true;
+}
+
 static enum cb_err apply_capsule(
 	const struct payload_mm_fmp_capsule_intent *intent)
 {
@@ -636,12 +804,20 @@ static enum cb_err apply_capsule(
 	struct capsule_media_policy media_policy;
 	struct capsule_media_backend media;
 	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE];
-	struct capsule_broker_raw_image raw_image = broker.grant_raw_image;
-	uint64_t owner_sequence = broker.grant_owner_sequence;
+	struct capsule_broker_flash_plan sealed_plan;
 	uintptr_t staging = (uintptr_t)
 		unpack64(broker.policy.endpoint.staging_base);
-	enum cb_err status;
+	enum cb_err status = CB_ERR;
 
+	if (!flash_plan_build(intent, &sealed_plan)) {
+		broker.closed = true;
+		clear_grant();
+		clear_authentication();
+		clear_flash_plan();
+		return CB_ERR;
+	}
+	broker.flash_plan = sealed_plan;
+	broker.flash_plan_valid = true;
 	broker.closed = true;
 	clear_grant();
 	clear_authentication();
@@ -649,12 +825,13 @@ static enum cb_err apply_capsule(
 	    broker.policy.sha256(broker.policy.sha256_context,
 		(void *)staging, (size_t)intent->capsule_size, digest) != CB_SUCCESS ||
 	    !execution_guard() || memcmp(digest, intent->digest, sizeof(digest)))
-		return CB_ERR;
+		goto out;
 	plan = (struct capsule_update_plan) {
-		.image = (const void *)(staging + (uintptr_t)raw_image.offset),
-		.image_bytes = (size_t)raw_image.size,
-		.regions = broker.regions,
-		.region_count = broker.policy.region_count,
+		.image = (const void *)(staging +
+			(uintptr_t)broker.flash_plan.raw_image.offset),
+		.image_bytes = (size_t)broker.flash_plan.raw_image.size,
+		.regions = broker.flash_plan.regions,
+		.region_count = broker.flash_plan.region_count,
 	};
 	media_policy = (struct capsule_media_policy) {
 		.media_size = broker.policy.boot_media_size,
@@ -672,19 +849,26 @@ static enum cb_err apply_capsule(
 		.read = guarded_read,
 		.erase = guarded_erase,
 		.write = guarded_write,
+		.sync = guarded_sync,
+		.source_valid = guarded_source_valid,
 	};
 	status = capsule_apply_policy_verified(&plan, &media_policy, &media,
-		broker.policy.scratch, broker.policy.scratch_size);
+		broker.policy.write_scratch, broker.policy.scratch,
+		broker.policy.scratch_size);
 	if (status == CB_SUCCESS) {
-		broker.success_transaction = intent->transaction;
-		broker.success_owner_sequence = owner_sequence;
-		broker.success_version = intent->attempted_version;
+		broker.success_transaction = broker.flash_plan.transaction;
+		broker.success_owner_sequence = broker.flash_plan.owner_sequence;
+		broker.success_version = broker.flash_plan.version;
 		broker.success_lowest_supported_version =
-			raw_image.lowest_supported_version;
-		memcpy(broker.success_digest, intent->digest,
+			broker.flash_plan.raw_image.lowest_supported_version;
+		memcpy(broker.success_digest, broker.flash_plan.capsule_digest,
 			sizeof(broker.success_digest));
 		broker.success_valid = true;
 	}
+out:
+	memset(broker.policy.write_scratch, 0, broker.policy.write_scratch_size);
+	memset(broker.policy.scratch, 0, broker.policy.scratch_size);
+	clear_flash_plan();
 	return status;
 }
 
@@ -752,7 +936,10 @@ enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
 		unpack64(broker.policy.endpoint.staging_base),
 		unpack64(broker.policy.endpoint.staging_size)) ||
 	    ranges_overlap((uintptr_t)success, sizeof(*success),
-		(uintptr_t)broker.policy.scratch, broker.policy.scratch_size))
+		(uintptr_t)broker.policy.scratch, broker.policy.scratch_size) ||
+	    ranges_overlap((uintptr_t)success, sizeof(*success),
+		(uintptr_t)broker.policy.write_scratch,
+		broker.policy.write_scratch_size))
 		return CB_ERR;
 	memset(success, 0, sizeof(*success));
 	if (!broker.installed || !broker.closed || !broker.success_valid ||
@@ -780,4 +967,5 @@ void capsule_broker_close_for_s3(void)
 	clear_grant();
 	clear_authentication();
 	clear_success();
+	clear_flash_plan();
 }

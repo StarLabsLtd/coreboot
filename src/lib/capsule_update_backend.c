@@ -16,6 +16,19 @@ static bool ranges_overlap(u64 left_offset, u64 left_size,
 		right_offset < left_offset + left_size;
 }
 
+static bool buffers_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	uintptr_t left_address = (uintptr_t)left;
+	uintptr_t right_address = (uintptr_t)right;
+
+	if (left_address > UINTPTR_MAX - left_size ||
+	    right_address > UINTPTR_MAX - right_size)
+		return true;
+	return left_address < right_address + right_size &&
+		right_address < left_address + left_size;
+}
+
 static bool region_equal(const struct lb_capsule_update_region *left,
 			 const struct lb_capsule_update_region *right)
 {
@@ -76,12 +89,18 @@ static bool plan_allowed(const struct capsule_update_plan *plan,
 enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan,
 					  const struct capsule_media_policy *policy,
 					  const struct capsule_media_backend *media,
-					  void *scratch, size_t scratch_bytes)
+					  void *write_scratch, void *read_scratch,
+					  size_t scratch_bytes)
 {
-	if (!plan_allowed(plan, policy) || !media || !scratch || !media->read ||
-	    !media->erase || !media->write || media->size != policy->media_size ||
+	if (!plan_allowed(plan, policy) || !media || !write_scratch ||
+	    !read_scratch || buffers_overlap(write_scratch, scratch_bytes,
+		read_scratch, scratch_bytes) || !media->read ||
+	    !media->erase || !media->write || !media->sync ||
+	    !media->source_valid ||
+	    media->size != policy->media_size ||
 	    media->erase_size != policy->erase_size ||
-	    scratch_bytes < policy->erase_size)
+	    scratch_bytes < policy->erase_size ||
+	    !media->source_valid(media->context, plan->image, plan->image_bytes))
 		return CB_ERR;
 
 	for (size_t region_index = 0; region_index < plan->region_count;
@@ -95,14 +114,27 @@ enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan
 			u64 image_offset = region->image_offset + done;
 			size_t size = policy->erase_size;
 			const u8 *source = plan->image;
+			const void *source_block = &source[image_offset];
 
-			if (media->erase(media->context, flash_offset, size) !=
+			if (!media->source_valid(media->context, plan->image,
+				plan->image_bytes))
+				return CB_ERR;
+			memcpy(write_scratch, source_block, size);
+
+			if (!media->source_valid(media->context, plan->image,
+				plan->image_bytes) ||
+			    media->erase(media->context, flash_offset, size) !=
 			    CB_SUCCESS ||
+			    !media->source_valid(media->context, plan->image,
+				plan->image_bytes) ||
 			    media->write(media->context, flash_offset,
-				&source[image_offset], size) != CB_SUCCESS ||
-			    media->read(media->context, flash_offset, scratch, size) !=
+				write_scratch, size) != CB_SUCCESS ||
+			    media->sync(media->context) != CB_SUCCESS ||
+			    media->read(media->context, flash_offset, read_scratch, size) !=
 				CB_SUCCESS ||
-			    memcmp(scratch, &source[image_offset], size))
+			    memcmp(read_scratch, write_scratch, size) ||
+			    !media->source_valid(media->context, plan->image,
+				plan->image_bytes))
 				return CB_ERR;
 		}
 	}

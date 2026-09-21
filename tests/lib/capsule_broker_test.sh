@@ -20,14 +20,27 @@ for symbol in $legacy_symbols; do
 	fi
 done
 
-cases='endpoint install-storage install-communication install-staging install-dma
-install-spi install-raw install-rendezvous install-scratch install-geometry
+cases='endpoint fmap-compressed install-storage install-read-scratch-protection
+install-write-scratch-protection install-communication install-staging install-dma
+install-spi install-raw install-rendezvous install-scratch install-scratch-oversize
+install-geometry install-write-scratch install-write-scratch-oversize
+install-write-read-overlap install-write-communication
+install-write-staging install-write-media-overlap install-write-hash-overlap
+install-write-auth-overlap
 install-image-size
 install-scratch-communication install-scratch-staging install-region-count
+install-fmap-count install-fmap-count-large install-fmap-name
+install-fmap-name-empty install-fmap-flags install-fmap-range
+install-fmap-route install-fmap-immutable install-fmap-duplicate
+install-overlap-scratch-media install-overlap-scratch-hash
+install-overlap-scratch-auth install-overlap-media-hash
+install-overlap-media-auth install-overlap-hash-auth
 install-missing-hash install-media-context-null install-media-context-large
-install-sha-context-null install-sha-context-large install-proof-context-null
+install-media-context-staging install-sha-context-null install-sha-context-large
+install-sha-context-staging install-proof-context-null
 install-missing-authenticate install-authenticate-context-null
 install-authenticate-context-large install-proof-context-large
+install-authenticate-context-staging install-proof-context-staging
 authenticate-happy authenticate-source-mutation authenticate-context-mutation
 authenticate-check-only authenticate-set-one-shot authenticate-reject
 authenticate-image-mutation authenticate-before-callback-mutation
@@ -49,10 +62,13 @@ hash-close-1 hash-close-2 hash-reenter-1 hash-reenter-2
 no-grant grant-transaction grant-version digest guard
 preflight preflight-range preflight-smmstore
 preflight-policy
-media-erase media-write media-read media-verify stale close s3
+media-erase media-write media-short-write media-sync media-source-guard
+media-read media-verify
+stale close s3
 policy-snapshot grant-edges grant-max generation-match'
 cases="$cases bound-happy bound-sequence bound-digest bound-unstaged
-bound-mutation"
+bound-mutation bound-mutation-generation bound-mutation-transaction
+bound-mutation-version"
 cases="$cases source-mutation"
 cases="$cases success-happy success-generation success-transaction
 success-sequence success-digest success-close success-write-failure
