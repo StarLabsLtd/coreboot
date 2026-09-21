@@ -31,6 +31,11 @@ struct capsule_broker_scratch_reservation {
 size_t platform_capsule_broker_staging_size(void);
 
 bool capsule_broker_buffers_reserve(void);
+bool capsule_broker_buffers_find(
+	struct capsule_broker_buffer_reservation *reservation);
+bool capsule_broker_buffers_overlap(
+	const struct capsule_broker_buffer_reservation *reservation,
+	uint64_t base, uint64_t size);
 bool capsule_broker_buffers_get(
 	struct capsule_broker_buffer_reservation *reservation);
 void capsule_broker_buffers_scrub(void);
