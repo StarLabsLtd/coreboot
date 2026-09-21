@@ -108,6 +108,18 @@ config CAPSULE_PLATFORM_FACTS
 	  It derives no writable routes, installs no authority and publishes no
 	  table. No platform selects this option.
 
+config CAPSULE_PLATFORM_ADAPTERS
+	bool
+	default n
+	depends on CAPSULE_PLATFORM_FACTS
+	depends on SPI_FLASH_SMM
+	help
+	  Build dormant adapters from the protected capsule facts to the real SPI
+	  boot-device transport, exact SMRAM containment and firmware/mainboard
+	  identity policies. These adapters deliberately provide no DMA, SMM-only
+	  SPI, raw-flash exclusion, rendezvous, journal, trust-root or route proof.
+	  No platform selects this option.
+
 config CAPSULE_TPM_ANCHOR_GRANT
 	bool
 	default n

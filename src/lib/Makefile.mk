@@ -27,6 +27,7 @@ smm-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_scratch.c
 ramstage-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_table.c
 smm-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_smi.c
 smm-$(CONFIG_CAPSULE_PLATFORM_FACTS) += capsule_platform_facts.c
+smm-$(CONFIG_CAPSULE_PLATFORM_ADAPTERS) += capsule_platform_adapter.c
 
 payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
 payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \
