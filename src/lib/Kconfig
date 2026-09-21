@@ -84,6 +84,17 @@ config CAPSULE_BROKER_FIXED_BUFFERS
 	  lifetime and non-overlap only. It does not establish DMA isolation,
 	  install a broker or publish an endpoint.
 
+config CAPSULE_BROKER_CBMEM_BUFFERS
+	bool
+	default n
+	depends on CAPSULE_BROKER_FIXED_BUFFERS
+	help
+	  Allocate the communication and staging reservations as independent,
+	  early CBMEM entries. This removes any requirement that either reservation
+	  be adjacent to SMRAM or CBMEM top. The platform staging-size provider must
+	  be linked in the CBMEM-creating stage and ramstage. No platform selects
+	  this option here.
+
 config CAPSULE_BROKER_ENDPOINT_PUBLICATION
 	bool
 	default n

@@ -23,6 +23,7 @@ smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_update_backend.c capsule_broker
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_checkpoint.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += payload_mm_fmp_transaction.c
 ramstage-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_buffers.c
+romstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker_buffers.c
 smm-$(CONFIG_CAPSULE_BROKER_FIXED_BUFFERS) += capsule_broker_scratch.c
 ramstage-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_table.c
 smm-$(CONFIG_CAPSULE_BROKER_ENDPOINT_PUBLICATION) += capsule_broker_endpoint_smi.c

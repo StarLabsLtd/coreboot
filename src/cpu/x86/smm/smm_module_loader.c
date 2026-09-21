@@ -385,6 +385,19 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
 	{
+#if CONFIG(CAPSULE_BROKER_CBMEM_BUFFERS)
+		struct capsule_broker_buffer_reservation reservation;
+
+		if (!capsule_broker_buffers_find(&reservation) ||
+		    capsule_broker_buffers_overlap(&reservation, tseg_base, tseg_size))
+			die("Invalid capsule broker CBMEM reservation\n");
+		mod_params->capsule_communication_base = reservation.communication_base;
+		mod_params->capsule_communication_reserved_size =
+			reservation.communication_reserved_size;
+		mod_params->capsule_communication_size = reservation.communication_size;
+		mod_params->capsule_staging_base = reservation.staging_base;
+		mod_params->capsule_staging_size = reservation.staging_size;
+#else
 		const size_t staging_size =
 			platform_capsule_broker_staging_size();
 		const size_t communication_size =
@@ -403,6 +416,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->capsule_staging_base =
 			mod_params->capsule_communication_base + communication_size;
 		mod_params->capsule_staging_size = staging_size;
+#endif
 	}
 #endif
 
