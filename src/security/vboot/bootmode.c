@@ -61,7 +61,8 @@ static void vboot_clear_recovery_request(void *unused)
 
 	ctx = vboot_get_context();
 	vb2api_clear_recovery(ctx);
-	save_vbnv(ctx->nvdata);
+	if (save_vbnv(ctx->nvdata))
+		die("VBNV recovery update failed\n");
 }
 
 /* This has to be called before back_up_vbnv_cmos, so BS_ON_ENTRY is used here. */
