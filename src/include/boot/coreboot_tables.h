@@ -4,6 +4,7 @@
 #define COREBOOT_TABLES_H
 
 #include <commonlib/coreboot_tables.h>
+#include <commonlib/bsd/cb_err.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -48,6 +49,7 @@ void lb_board(struct lb_header *header);
 
 /* Adds LB_TAG_EFI_FW_INFO table entry. */
 void lb_efi_fw_info(struct lb_header *header);
+enum cb_err efi_fw_info_get(struct lb_efi_fw_info *info);
 void lb_add_capsule_broker_endpoint(struct lb_header *header);
 
 /* Adds LB_TAG_CAPSULE table entries. */

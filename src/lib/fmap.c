@@ -148,6 +148,81 @@ static int find_fmap_directory(struct region_device *fmrd)
 	return rdev_chain(fmrd, boot, offset, FMAP_SIZE);
 }
 
+static bool area_name_valid(const struct fmap_area *area)
+{
+	return area->name[0] && memchr(area->name, '\0', sizeof(area->name));
+}
+
+static bool areas_partially_overlap(const struct fmap_area *left,
+	const struct fmap_area *right)
+{
+	uint64_t left_end = (uint64_t)left->offset + left->size;
+	uint64_t right_end = (uint64_t)right->offset + right->size;
+	bool overlap = left->offset < right_end && right->offset < left_end;
+	bool left_contains = left->offset <= right->offset &&
+		left_end >= right_end;
+	bool right_contains = right->offset <= left->offset &&
+		right_end >= left_end;
+
+	return overlap && !left_contains && !right_contains;
+}
+
+int fmap_read_inventory(struct fmap_inventory *inventory)
+{
+	struct region_device directory;
+	const struct region_device *boot;
+	struct fmap header;
+	size_t bytes;
+	ssize_t read;
+
+	if (!inventory)
+		return -1;
+	memset(inventory, 0, sizeof(*inventory));
+	if (find_fmap_directory(&directory) ||
+	    rdev_readat(&directory, &header, 0, sizeof(header)) != sizeof(header) ||
+	    verify_fmap(&header))
+		return -1;
+	boot_device_init();
+	boot = boot_device_ro();
+	inventory->base = le64toh(header.base);
+	inventory->size = le32toh(header.size);
+	inventory->area_count = le16toh(header.nareas);
+	if (!boot || !inventory->size ||
+	    inventory->size != region_device_sz(boot) ||
+	    !inventory->area_count ||
+	    inventory->area_count > FMAP_INVENTORY_MAX_AREAS)
+		return -1;
+	bytes = inventory->area_count * sizeof(inventory->area[0]);
+	if (sizeof(header) > region_device_sz(&directory) ||
+	    bytes > region_device_sz(&directory) - sizeof(header))
+		return -1;
+	read = rdev_readat(&directory, inventory->area, sizeof(header), bytes);
+	if (read < 0 || (size_t)read != bytes)
+		return -1;
+	for (size_t i = 0; i < inventory->area_count; i++) {
+		struct fmap_area *area = &inventory->area[i];
+
+		area->offset = le32toh(area->offset);
+		area->size = le32toh(area->size);
+		area->flags = le16toh(area->flags);
+		if (!area_name_valid(area) || !area->size ||
+		    area->offset > inventory->size ||
+		    area->size > inventory->size - area->offset ||
+		    area->flags & ~(FMAP_AREA_STATIC | FMAP_AREA_COMPRESSED |
+			FMAP_AREA_RO | FMAP_AREA_PRESERVE))
+			return -1;
+		for (size_t previous = 0; previous < i; previous++) {
+			const struct fmap_area *other = &inventory->area[previous];
+
+			if (!strcmp((const char *)area->name,
+				(const char *)other->name) ||
+			    areas_partially_overlap(area, other))
+				return -1;
+		}
+	}
+	return 0;
+}
+
 int fmap_locate_area_as_rdev(const char *name, struct region_device *area)
 {
 	struct region ar;
