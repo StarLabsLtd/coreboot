@@ -18,6 +18,8 @@ object identity and monotonically increasing generation to catch stale,
 cross-object and reentrant use; they are not cryptographic capabilities.
 Generation wrap, nested use, a wrong token, provider failure or corrupted state
 permanently poisons the lifecycle. A failed lifecycle never permits OS access.
+An owner may also explicitly fail its token after a locally decoded result is
+untrustworthy; this seals the provider without attempting further TPM traffic.
 
 The state, revision guard and complement are published in one naturally aligned,
 lock-free atomic control word. Mutators claim each transition with one compare

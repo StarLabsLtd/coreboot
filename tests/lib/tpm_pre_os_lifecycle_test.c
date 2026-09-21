@@ -446,6 +446,39 @@ static void test_tokens_and_generation(void)
 	CHECK(environment.event_count == 1);
 }
 
+static void test_explicit_failure(void)
+{
+	struct test_environment environment;
+	struct tpm_pre_os_lifecycle lifecycle;
+	struct tpm_pre_os_token token;
+
+	reset(&environment, &lifecycle, &token);
+	install(&environment, &lifecycle);
+	CHECK(tpm_pre_os_lifecycle_acquire(&lifecycle, &token) == CB_SUCCESS);
+	CHECK(tpm_pre_os_lifecycle_fail(&lifecycle, &token) == CB_SUCCESS);
+	CHECK(tpm_pre_os_lifecycle_state(&lifecycle) == TPM_PRE_OS_FAILED);
+	CHECK(!tpm_pre_os_lifecycle_os_access_allowed(&lifecycle));
+	assert_zero(&lifecycle.backend, sizeof(lifecycle.backend));
+	assert_zero(lifecycle.backend_context,
+		sizeof(lifecycle.backend_context));
+	CHECK(tpm_pre_os_lifecycle_end(&lifecycle, &token) == CB_ERR);
+
+	reset(&environment, &lifecycle, &token);
+	install(&environment, &lifecycle);
+	CHECK(tpm_pre_os_lifecycle_acquire(&lifecycle, &token) == CB_SUCCESS);
+	CHECK(tpm_pre_os_lifecycle_fail(&lifecycle, NULL) == CB_ERR_ARG);
+	CHECK(tpm_pre_os_lifecycle_state(&lifecycle) == TPM_PRE_OS_FAILED);
+
+	reset(&environment, &lifecycle, &token);
+	install(&environment, &lifecycle);
+	CHECK(tpm_pre_os_lifecycle_acquire(&lifecycle, &token) == CB_SUCCESS);
+	token.generation++;
+	CHECK(tpm_pre_os_lifecycle_fail(&lifecycle, &token) == CB_ERR);
+	CHECK(tpm_pre_os_lifecycle_state(&lifecycle) == TPM_PRE_OS_FAILED);
+
+	CHECK(tpm_pre_os_lifecycle_fail(NULL, &token) == CB_ERR_ARG);
+}
+
 static void test_transmit_failures(void)
 {
 	struct test_environment environment;
@@ -935,6 +968,7 @@ int main(void)
 	test_success();
 	test_install_failures();
 	test_tokens_and_generation();
+	test_explicit_failure();
 	test_transmit_failures();
 	test_transmit_arguments();
 	test_object_aliases_and_corruption();

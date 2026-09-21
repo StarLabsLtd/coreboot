@@ -71,6 +71,11 @@ enum cb_err tpm_pre_os_lifecycle_end(
 	struct tpm_pre_os_lifecycle *lifecycle,
 	struct tpm_pre_os_token *token);
 
+/* Permanently fail an owned lifecycle after an untrustworthy local result. */
+enum cb_err tpm_pre_os_lifecycle_fail(
+	struct tpm_pre_os_lifecycle *lifecycle,
+	const struct tpm_pre_os_token *token);
+
 /* Quiesce and relinquish exactly once before transferring control to an OS. */
 enum cb_err tpm_pre_os_lifecycle_handoff(
 	struct tpm_pre_os_lifecycle *lifecycle);
