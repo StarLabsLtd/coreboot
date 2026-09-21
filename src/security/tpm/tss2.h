@@ -9,6 +9,12 @@
 #include <security/tpm/tss/tcg-2.0/tss_structures.h>
 #include <security/tpm/tss_errors.h>
 
+struct tlcl2_transport {
+	tpm_result_t (*sendrecv)(void *context, const uint8_t *request,
+		size_t request_size, uint8_t *response, size_t *response_size);
+	void *context;
+};
+
 /*
  * TPM2-specific
  *
@@ -50,6 +56,8 @@ struct tlcl2_nv_public {
  * its contents. The caller-visible output is cleared on every failure.
  */
 tpm_result_t tlcl2_read_public(uint32_t index, struct tlcl2_nv_public *public);
+tpm_result_t tlcl2_read_public_on(const struct tlcl2_transport *transport,
+	uint32_t index, struct tlcl2_nv_public *public);
 
 /* Issue TPM2_NV_SetBits command */
 tpm_result_t tlcl2_set_bits(uint32_t index, uint64_t bits);
@@ -88,6 +96,11 @@ tpm_result_t tlcl2_resume(void);
 tpm_result_t tlcl2_startup(void);
 tpm_result_t tlcl2_self_test_full(void);
 tpm_result_t tlcl2_read(uint32_t index, void *data, uint32_t length);
+tpm_result_t tlcl2_read_on(const struct tlcl2_transport *transport,
+	uint32_t index, void *data, uint32_t length);
+/* Read an AUTHREAD index whose authValue is empty. */
+tpm_result_t tlcl2_read_auth_on(const struct tlcl2_transport *transport,
+	uint32_t index, void *data, uint32_t length);
 tpm_result_t tlcl2_write(uint32_t index, const void *data, uint32_t length);
 tpm_result_t tlcl2_assert_physical_presence(void);
 tpm_result_t tlcl2_physical_presence_cmd_enable(void);

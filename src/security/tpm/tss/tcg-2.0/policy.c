@@ -33,6 +33,15 @@ struct policy_command {
 	struct obuf output;
 };
 
+static tpm_result_t legacy_sendrecv(void *context, const uint8_t *request,
+	size_t request_size, uint8_t *response, size_t *response_size)
+{
+	(void)context;
+	if (!tlcl_tis_sendrecv)
+		return TPM_IOERROR;
+	return tlcl_tis_sendrecv(request, request_size, response, response_size);
+}
+
 static size_t hash_size(uint16_t algorithm);
 
 static void secure_clear(void *data, size_t size)
@@ -93,7 +102,8 @@ static int write_authorization(struct obuf *output,
 	return obuf_write_be32(&size_field, obuf_nr_written(output) - start);
 }
 
-static tpm_result_t command_send(struct policy_command *command,
+static tpm_result_t command_send(const struct tlcl2_transport *transport,
+	struct policy_command *command,
 	uint16_t response_tag, uint8_t *response, size_t *response_size,
 	struct ibuf *parameters, bool *received)
 {
@@ -110,8 +120,12 @@ static tpm_result_t command_send(struct policy_command *command,
 	command->bytes[3] = command_size >> 16;
 	command->bytes[4] = command_size >> 8;
 	command->bytes[5] = command_size;
-	if (!tlcl_tis_sendrecv ||
-	    tlcl_tis_sendrecv(command->bytes, command_size, response,
+	if (transport) {
+		if (!transport->sendrecv ||
+		    transport->sendrecv(transport->context, command->bytes,
+			command_size, response, response_size))
+			return TPM_IOERROR;
+	} else if (legacy_sendrecv(NULL, command->bytes, command_size, response,
 		response_size))
 		return TPM_IOERROR;
 	if (received)
@@ -214,7 +228,8 @@ static size_t hash_size(uint16_t algorithm)
 	}
 }
 
-static tpm_result_t send_empty_response(struct policy_command *command,
+static tpm_result_t send_empty_response(
+	const struct tlcl2_transport *transport, struct policy_command *command,
 	uint16_t response_tag)
 {
 	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
@@ -222,7 +237,8 @@ static tpm_result_t send_empty_response(struct policy_command *command,
 	struct ibuf parameters;
 	tpm_result_t result;
 
-	result = command_send(command, response_tag, response, &response_size,
+	result = command_send(transport, command, response_tag, response,
+		&response_size,
 		&parameters, NULL);
 	if (result == TPM_SUCCESS && ibuf_remaining(&parameters))
 		result = TPM_CB_CORRUPTED_STATE;
@@ -231,7 +247,8 @@ static tpm_result_t send_empty_response(struct policy_command *command,
 	return result;
 }
 
-static tpm_result_t flush_policy_handle(uint32_t handle)
+static tpm_result_t flush_policy_handle(
+	const struct tlcl2_transport *transport, uint32_t handle)
 {
 	struct policy_command command;
 
@@ -248,10 +265,11 @@ static tpm_result_t flush_policy_handle(uint32_t handle)
 		secure_clear(&command, sizeof(command));
 		return TPM_CB_RANGE;
 	}
-	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+	return send_empty_response(transport, &command, TPM_ST_NO_SESSIONS);
 }
 
-static tpm_result_t flush_transient_handle(uint32_t handle)
+static tpm_result_t flush_transient_handle(
+	const struct tlcl2_transport *transport, uint32_t handle)
 {
 	struct policy_command command;
 
@@ -268,13 +286,18 @@ static tpm_result_t flush_transient_handle(uint32_t handle)
 		secure_clear(&command, sizeof(command));
 		return TPM_CB_RANGE;
 	}
-	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+	return send_empty_response(transport, &command, TPM_ST_NO_SESSIONS);
 }
 
-tpm_result_t tlcl2_policy_session_start(uint16_t hash_algorithm,
+static tpm_result_t policy_session_start(
+	const struct tlcl2_transport *transport, uint16_t hash_algorithm,
 	const uint8_t *caller_nonce, size_t caller_nonce_size,
 	struct tlcl2_policy_session *session)
 {
+	const struct tlcl2_transport legacy = {
+		.sendrecv = legacy_sendrecv,
+	};
+	const struct tlcl2_transport *effective = transport ? transport : &legacy;
 	struct policy_command command;
 	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
 	size_t response_size = sizeof(response);
@@ -292,6 +315,7 @@ tpm_result_t tlcl2_policy_session_start(uint16_t hash_algorithm,
 	digest_size = hash_size(hash_algorithm);
 	if (!digest_size || caller_nonce_size != digest_size || !caller_nonce)
 		return TPM_CB_RANGE;
+	result.transport = *effective;
 	if (command_begin(&command, TPM_ST_NO_SESSIONS,
 		TPM2_CC_START_AUTH_SESSION))
 		goto out;
@@ -310,7 +334,7 @@ tpm_result_t tlcl2_policy_session_start(uint16_t hash_algorithm,
 		goto out;
 	if (obuf_write_be16(&command.output, hash_algorithm))
 		goto out;
-	status = command_send(&command, TPM_ST_NO_SESSIONS, response,
+	status = command_send(effective, &command, TPM_ST_NO_SESSIONS, response,
 		&response_size, &parameters, &received);
 	if (status != TPM_SUCCESS) {
 		if (received && response_policy_handle(response, response_size,
@@ -336,7 +360,7 @@ tpm_result_t tlcl2_policy_session_start(uint16_t hash_algorithm,
 	flush = false;
 out:
 	if (flush) {
-		flush_status = flush_policy_handle(result.handle);
+		flush_status = flush_policy_handle(&result.transport, result.handle);
 		if (flush_status != TPM_SUCCESS)
 			status = flush_status;
 	}
@@ -346,6 +370,14 @@ out:
 	return status;
 }
 
+tpm_result_t tlcl2_policy_session_start(uint16_t hash_algorithm,
+	const uint8_t *caller_nonce, size_t caller_nonce_size,
+	struct tlcl2_policy_session *session)
+{
+	return policy_session_start(NULL, hash_algorithm, caller_nonce,
+		caller_nonce_size, session);
+}
+
 tpm_result_t tlcl2_policy_session_flush(struct tlcl2_policy_session *session)
 {
 	tpm_result_t result = TPM_CB_RANGE;
@@ -353,31 +385,57 @@ tpm_result_t tlcl2_policy_session_flush(struct tlcl2_policy_session *session)
 	if (!session)
 		return TPM_CB_RANGE;
 	if (valid_policy_session(session))
-		result = flush_policy_handle(session->handle);
+		result = flush_policy_handle(&session->transport, session->handle);
 	secure_clear(session, sizeof(*session));
 	return result;
 }
 
-tpm_result_t tlcl2_policy_session_run(uint16_t hash_algorithm,
+static tpm_result_t policy_session_run(const struct tlcl2_transport *transport,
+	uint16_t hash_algorithm,
 	const uint8_t *caller_nonce, size_t caller_nonce_size,
-	tlcl2_policy_session_fn run, void *context)
+	tlcl2_policy_session_fn run, void *context, tpm_result_t *cleanup_result)
 {
 	struct tlcl2_policy_session session = { 0 };
+	struct tlcl2_transport cleanup_transport;
 	uint32_t handle;
 	tpm_result_t result;
 	tpm_result_t flush_result;
 
 	if (!run)
 		return TPM_CB_RANGE;
-	result = tlcl2_policy_session_start(hash_algorithm, caller_nonce,
+	if (cleanup_result)
+		*cleanup_result = TPM_SUCCESS;
+	result = policy_session_start(transport, hash_algorithm, caller_nonce,
 		caller_nonce_size, &session);
 	if (result != TPM_SUCCESS)
 		return result;
 	handle = session.handle;
+	cleanup_transport = session.transport;
 	result = run(&session, context);
-	flush_result = flush_policy_handle(handle);
+	flush_result = flush_policy_handle(&cleanup_transport, handle);
+	if (cleanup_result)
+		*cleanup_result = flush_result;
 	secure_clear(&session, sizeof(session));
 	return flush_result == TPM_SUCCESS ? result : flush_result;
+}
+
+tpm_result_t tlcl2_policy_session_run(uint16_t hash_algorithm,
+	const uint8_t *caller_nonce, size_t caller_nonce_size,
+	tlcl2_policy_session_fn run, void *context)
+{
+	return policy_session_run(NULL, hash_algorithm, caller_nonce,
+		caller_nonce_size, run, context, NULL);
+}
+
+tpm_result_t tlcl2_policy_session_run_on(
+	const struct tlcl2_transport *transport, uint16_t hash_algorithm,
+	const uint8_t *caller_nonce, size_t caller_nonce_size,
+	tlcl2_policy_session_fn run, void *context, tpm_result_t *cleanup_result)
+{
+	if (!transport || !transport->sendrecv)
+		return TPM_CB_RANGE;
+	return policy_session_run(transport, hash_algorithm, caller_nonce,
+		caller_nonce_size, run, context, cleanup_result);
 }
 
 static tpm_result_t send_policy_handle_command(
@@ -402,7 +460,8 @@ static tpm_result_t send_policy_handle_command(
 		secure_clear(&command, sizeof(command));
 		return TPM_CB_RANGE;
 	}
-	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+	return send_empty_response(&session->transport, &command,
+		TPM_ST_NO_SESSIONS);
 }
 
 tpm_result_t tlcl2_policy_nv_written(
@@ -511,7 +570,8 @@ tpm_result_t tlcl2_policy_nv(const struct tlcl2_policy_session *session,
 		goto out;
 	if (obuf_write_be16(&command.output, operation))
 		goto out;
-	result = command_send(&command, TPM_ST_SESSIONS, response,
+	result = command_send(&session->transport, &command, TPM_ST_SESSIONS,
+		response,
 		&response_size, &parameters, NULL);
 	if (result != TPM_SUCCESS)
 		goto out;
@@ -579,12 +639,15 @@ static int marshal_external_rsa_public(struct obuf *output,
 		public_key->modulus_size);
 }
 
-tpm_result_t tlcl2_load_external_rsa(
+static tpm_result_t load_external_rsa(
+	const struct tlcl2_transport *transport,
 	const struct tlcl2_rsa_public_key *public_key,
 	struct tlcl2_external_object *object)
 {
-	uint8_t public_bytes[24 + TLCL2_RSA_MODULUS_MAX_SIZE];
-	struct obuf public_output;
+	const struct tlcl2_transport legacy = {
+		.sendrecv = legacy_sendrecv,
+	};
+	const struct tlcl2_transport *effective = transport ? transport : &legacy;
 	struct policy_command command;
 	uint8_t response[TPM_BUFFER_SIZE] = { 0 };
 	size_t response_size = sizeof(response);
@@ -593,30 +656,35 @@ tpm_result_t tlcl2_load_external_rsa(
 	struct vb2_hash public_hash;
 	tpm_result_t status = TPM_CB_RANGE;
 	tpm_result_t flush_status;
+	size_t public_size;
+	size_t public_start;
 	bool received = false;
 	bool flush = false;
 
 	if (!object)
 		return TPM_CB_RANGE;
 	memset(object, 0, sizeof(*object));
-	obuf_init(&public_output, public_bytes, sizeof(public_bytes));
-	if (marshal_external_rsa_public(&public_output, public_key))
+	result.transport = *effective;
+	if (!public_key || !valid_rsa_size(public_key->modulus_size))
 		goto out;
-	if (vb2_hash_calculate(false, public_bytes,
-		obuf_nr_written(&public_output), VB2_HASH_SHA256,
-		&public_hash) != VB2_SUCCESS)
-		goto out;
+	public_size = 24 + public_key->modulus_size;
 	if (command_begin(&command, TPM_ST_NO_SESSIONS,
 		TPM2_CC_LOAD_EXTERNAL))
 		goto out;
 	if (write_sized_bytes(&command.output, NULL, 0))
 		goto out;
-	if (write_sized_bytes(&command.output, public_bytes,
-		obuf_nr_written(&public_output)))
+	if (obuf_write_be16(&command.output, public_size))
+		goto out;
+	public_start = obuf_nr_written(&command.output);
+	if (marshal_external_rsa_public(&command.output, public_key) ||
+	    obuf_nr_written(&command.output) - public_start != public_size)
+		goto out;
+	if (vb2_hash_calculate(false, command.bytes + public_start, public_size,
+		VB2_HASH_SHA256, &public_hash) != VB2_SUCCESS)
 		goto out;
 	if (obuf_write_be32(&command.output, TPM2_RH_OWNER))
 		goto out;
-	status = command_send(&command, TPM_ST_NO_SESSIONS, response,
+	status = command_send(effective, &command, TPM_ST_NO_SESSIONS, response,
 		&response_size, &parameters, &received);
 	if (status != TPM_SUCCESS) {
 		if (received && response_transient_handle(response, response_size,
@@ -645,7 +713,8 @@ tpm_result_t tlcl2_load_external_rsa(
 	flush = false;
 out:
 	if (flush) {
-		flush_status = flush_transient_handle(result.handle);
+		flush_status = flush_transient_handle(&result.transport,
+			result.handle);
 		if (flush_status != TPM_SUCCESS)
 			status = flush_status;
 	}
@@ -653,8 +722,27 @@ out:
 	secure_clear(&result, sizeof(result));
 	secure_clear(response, sizeof(response));
 	secure_clear(&command, sizeof(command));
-	secure_clear(public_bytes, sizeof(public_bytes));
 	return status;
+}
+
+tpm_result_t tlcl2_load_external_rsa(
+	const struct tlcl2_rsa_public_key *public_key,
+	struct tlcl2_external_object *object)
+{
+	return load_external_rsa(NULL, public_key, object);
+}
+
+tpm_result_t tlcl2_load_external_rsa_on(
+	const struct tlcl2_transport *transport,
+	const struct tlcl2_rsa_public_key *public_key,
+	struct tlcl2_external_object *object)
+{
+	if (!object)
+		return TPM_CB_RANGE;
+	memset(object, 0, sizeof(*object));
+	if (!transport || !transport->sendrecv)
+		return TPM_CB_RANGE;
+	return load_external_rsa(transport, public_key, object);
 }
 
 tpm_result_t tlcl2_external_object_flush(
@@ -665,30 +753,56 @@ tpm_result_t tlcl2_external_object_flush(
 	if (!object)
 		return TPM_CB_RANGE;
 	if (valid_external_object(object))
-		result = flush_transient_handle(object->handle);
+		result = flush_transient_handle(&object->transport, object->handle);
 	secure_clear(object, sizeof(*object));
 	return result;
 }
 
-tpm_result_t tlcl2_external_object_run(
+static tpm_result_t external_object_run(
+	const struct tlcl2_transport *transport,
 	const struct tlcl2_rsa_public_key *public_key,
-	tlcl2_external_object_fn run, void *context)
+	tlcl2_external_object_fn run, void *context, tpm_result_t *cleanup_result)
 {
 	struct tlcl2_external_object object = { 0 };
+	struct tlcl2_transport cleanup_transport;
 	uint32_t handle;
 	tpm_result_t result;
 	tpm_result_t flush_result;
 
 	if (!run)
 		return TPM_CB_RANGE;
-	result = tlcl2_load_external_rsa(public_key, &object);
+	if (cleanup_result)
+		*cleanup_result = TPM_SUCCESS;
+	result = load_external_rsa(transport, public_key, &object);
 	if (result != TPM_SUCCESS)
 		return result;
 	handle = object.handle;
+	cleanup_transport = object.transport;
 	result = run(&object, context);
-	flush_result = flush_transient_handle(handle);
+	flush_result = flush_transient_handle(&cleanup_transport, handle);
+	if (cleanup_result)
+		*cleanup_result = flush_result;
 	secure_clear(&object, sizeof(object));
 	return flush_result == TPM_SUCCESS ? result : flush_result;
+}
+
+tpm_result_t tlcl2_external_object_run(
+	const struct tlcl2_rsa_public_key *public_key,
+	tlcl2_external_object_fn run, void *context)
+{
+	return external_object_run(NULL, public_key, run, context, NULL);
+}
+
+tpm_result_t tlcl2_external_object_run_on(
+	const struct tlcl2_transport *transport,
+	const struct tlcl2_rsa_public_key *public_key,
+	tlcl2_external_object_fn run, void *context,
+	tpm_result_t *cleanup_result)
+{
+	if (!transport || !transport->sendrecv)
+		return TPM_CB_RANGE;
+	return external_object_run(transport, public_key, run, context,
+		cleanup_result);
 }
 
 tpm_result_t tlcl2_verify_rsa_signature(
@@ -723,7 +837,8 @@ tpm_result_t tlcl2_verify_rsa_signature(
 		goto out;
 	if (write_sized_bytes(&command.output, signature, signature_size))
 		goto out;
-	status = command_send(&command, TPM_ST_NO_SESSIONS, response,
+	status = command_send(&object->transport, &command, TPM_ST_NO_SESSIONS,
+		response,
 		&response_size, &parameters, NULL);
 	if (status != TPM_SUCCESS)
 		goto out;
@@ -791,7 +906,8 @@ tpm_result_t tlcl2_policy_authorize(
 	if (write_sized_bytes(&command.output, ticket->digest,
 		ticket->digest_size))
 		goto fail;
-	return send_empty_response(&command, TPM_ST_NO_SESSIONS);
+	return send_empty_response(&session->transport, &command,
+		TPM_ST_NO_SESSIONS);
 fail:
 	secure_clear(&command, sizeof(command));
 	return TPM_CB_RANGE;
@@ -819,7 +935,8 @@ static tpm_result_t send_policy_authorized(struct policy_command *command,
 	uint8_t attributes;
 	tpm_result_t result;
 
-	result = command_send(command, TPM_ST_SESSIONS, response,
+	result = command_send(&session->transport, command, TPM_ST_SESSIONS,
+		response,
 		&response_size, &parameters, NULL);
 	if (result != TPM_SUCCESS)
 		goto out;

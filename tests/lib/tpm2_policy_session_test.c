@@ -44,6 +44,11 @@ static unsigned int flush_count;
 static bool fail_flush;
 static bool fault_once;
 static uint16_t verified_ticket_size = SHA256_DIGEST_SIZE;
+static unsigned int scoped_calls;
+
+static struct tlcl2_rsa_public_key valid_rsa_key(size_t size);
+static tpm_result_t mutating_object_body(
+	const struct tlcl2_external_object *object, void *context);
 
 struct vb2_context;
 
@@ -200,12 +205,34 @@ static tpm_result_t fake_sendrecv(const uint8_t *send, size_t send_size,
 	return TPM_SUCCESS;
 }
 
+static tpm_result_t scoped_sendrecv(void *context, const uint8_t *send,
+	size_t send_size, uint8_t *receive, size_t *receive_size)
+{
+	CHECK(context == &scoped_calls);
+	scoped_calls++;
+	return fake_sendrecv(send, send_size, receive, receive_size);
+}
+
+static tpm_result_t forbidden_sendrecv(const uint8_t *send, size_t send_size,
+	uint8_t *receive, size_t *receive_size)
+{
+	(void)send;
+	(void)send_size;
+	(void)receive;
+	(void)receive_size;
+	__builtin_trap();
+}
+
 static struct tlcl2_policy_session valid_session(void)
 {
 	struct tlcl2_policy_session session = {
 		.handle = HR_POLICY_SESSION + 7,
 		.hash_algorithm = TPM_ALG_SHA256,
 		.nonce_size = SHA256_DIGEST_SIZE,
+		.transport = {
+			.sendrecv = scoped_sendrecv,
+			.context = &scoped_calls,
+		},
 	};
 
 	memset(session.nonce, 0xa5, session.nonce_size);
@@ -343,6 +370,53 @@ static tpm_result_t mutating_body(
 	mutable_session->handle = HR_POLICY_SESSION + 0x1234;
 	mutable_session->nonce_size = 0;
 	return TPM_SUCCESS;
+}
+
+static tpm_result_t mutating_transport_body(
+	const struct tlcl2_policy_session *session, void *context)
+{
+	struct tlcl2_policy_session *mutable_session =
+		(struct tlcl2_policy_session *)session;
+
+	(void)context;
+	memset(&mutable_session->transport, 0,
+		sizeof(mutable_session->transport));
+	return tlcl2_policy_nv_written(session, true);
+}
+
+static void test_scoped_transport(void)
+{
+	uint8_t nonce[SHA256_DIGEST_SIZE] = { 0 };
+	struct tlcl2_transport transport = {
+		.sendrecv = scoped_sendrecv,
+		.context = &scoped_calls,
+	};
+	struct tlcl2_rsa_public_key key = valid_rsa_key(256);
+	struct tlcl2_external_object object;
+	tpm_result_t cleanup_result = TPM_IOERROR;
+	unsigned int before;
+
+	tlcl_tis_sendrecv = forbidden_sendrecv;
+	scoped_calls = 0;
+	before = flush_count;
+	CHECK(tlcl2_policy_session_run_on(&transport, TPM_ALG_SHA256, nonce,
+		sizeof(nonce), mutating_transport_body, NULL,
+		&cleanup_result) == TPM_IOERROR);
+	CHECK(cleanup_result == TPM_SUCCESS);
+	CHECK(flush_count == before + 1);
+	CHECK(scoped_calls == 2);
+	CHECK(tlcl2_load_external_rsa_on(&transport, &key, &object) ==
+		TPM_SUCCESS);
+	CHECK(object.transport.sendrecv == scoped_sendrecv);
+	CHECK(object.transport.context == &scoped_calls);
+	CHECK(tlcl2_external_object_flush(&object) == TPM_SUCCESS);
+	CHECK(scoped_calls == 4);
+	cleanup_result = TPM_IOERROR;
+	CHECK(tlcl2_external_object_run_on(&transport, &key,
+		mutating_object_body, NULL, &cleanup_result) == TPM_SUCCESS);
+	CHECK(cleanup_result == TPM_SUCCESS);
+	CHECK(scoped_calls == 6);
+	tlcl_tis_sendrecv = fake_sendrecv;
 }
 
 static void test_guaranteed_flush(void)
@@ -575,6 +649,10 @@ static struct tlcl2_external_object valid_external_object_for_test(void)
 		.name_size = 34,
 		.name = { 0, TPM_ALG_SHA256 },
 		.rsa_modulus_size = 256,
+		.transport = {
+			.sendrecv = scoped_sendrecv,
+			.context = &scoped_calls,
+		},
 	};
 
 	return object;
@@ -633,6 +711,8 @@ static tpm_result_t mutating_object_body(
 
 	(void)context;
 	mutable_object->handle = 0x80001234U;
+	memset(&mutable_object->transport, 0,
+		sizeof(mutable_object->transport));
 	return TPM_SUCCESS;
 }
 
@@ -961,5 +1041,6 @@ int main(void)
 	test_verify_failures();
 	test_policy_authorize_inputs();
 	test_policy_nv_mutation();
+	test_scoped_transport();
 	return 0;
 }

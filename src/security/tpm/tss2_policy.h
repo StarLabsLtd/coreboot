@@ -4,6 +4,7 @@
 #define SECURITY_TPM_TSS2_POLICY_H
 
 #include <security/tpm/tss_errors.h>
+#include <security/tpm/tss2.h>
 #include <types.h>
 
 #define TLCL2_POLICY_DIGEST_MAX_SIZE 64U
@@ -17,6 +18,7 @@ struct tlcl2_policy_session {
 	uint16_t hash_algorithm;
 	uint16_t nonce_size;
 	uint8_t nonce[TLCL2_POLICY_DIGEST_MAX_SIZE];
+	struct tlcl2_transport transport;
 };
 
 struct tlcl2_policy_authorization {
@@ -38,6 +40,7 @@ struct tlcl2_external_object {
 	uint16_t name_size;
 	uint8_t name[TLCL2_RSA_NAME_SIZE];
 	uint16_t rsa_modulus_size;
+	struct tlcl2_transport transport;
 };
 
 struct tlcl2_verified_ticket {
@@ -60,6 +63,10 @@ tpm_result_t tlcl2_policy_session_flush(
 tpm_result_t tlcl2_policy_session_run(uint16_t hash_algorithm,
 	const uint8_t *caller_nonce, size_t caller_nonce_size,
 	tlcl2_policy_session_fn run, void *context);
+tpm_result_t tlcl2_policy_session_run_on(
+	const struct tlcl2_transport *transport, uint16_t hash_algorithm,
+	const uint8_t *caller_nonce, size_t caller_nonce_size,
+	tlcl2_policy_session_fn run, void *context, tpm_result_t *cleanup_result);
 
 tpm_result_t tlcl2_policy_nv_written(
 	const struct tlcl2_policy_session *session, bool written);
@@ -78,11 +85,20 @@ tpm_result_t tlcl2_policy_or(const struct tlcl2_policy_session *session,
 tpm_result_t tlcl2_load_external_rsa(
 	const struct tlcl2_rsa_public_key *public_key,
 	struct tlcl2_external_object *object);
+tpm_result_t tlcl2_load_external_rsa_on(
+	const struct tlcl2_transport *transport,
+	const struct tlcl2_rsa_public_key *public_key,
+	struct tlcl2_external_object *object);
 tpm_result_t tlcl2_external_object_flush(
 	struct tlcl2_external_object *object);
 tpm_result_t tlcl2_external_object_run(
 	const struct tlcl2_rsa_public_key *public_key,
 	tlcl2_external_object_fn run, void *context);
+tpm_result_t tlcl2_external_object_run_on(
+	const struct tlcl2_transport *transport,
+	const struct tlcl2_rsa_public_key *public_key,
+	tlcl2_external_object_fn run, void *context,
+	tpm_result_t *cleanup_result);
 tpm_result_t tlcl2_verify_rsa_signature(
 	const struct tlcl2_external_object *object, const uint8_t *digest,
 	size_t digest_size, const uint8_t *signature, size_t signature_size,
