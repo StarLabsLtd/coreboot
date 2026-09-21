@@ -121,6 +121,17 @@ config CAPSULE_TPM_ANCHOR_POLICY_PROVIDER
 	  No platform selects this option, supplies authorization material, installs
 	  a grant or publishes an SMI endpoint.
 
+config TPM2_FIFO_PRE_OS_LIFECYCLE
+	bool
+	default n
+	depends on TPM2 && MEMORY_MAPPED_TPM && ARCH_X86
+	depends on !CRB_TPM && !AMD_CRB_FTPM && !I2C_TPM && !SPI_TPM
+	help
+	  Transfer an initialized TPM 2.0 FIFO transport from the legacy TSS to
+	  one late-ramstage lifecycle owner. The transfer is one-shot: it revokes
+	  the legacy route before installing the owner and never restores it.
+	  This supplies no TPM policy, capsule provider, SMM route or endpoint.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n
