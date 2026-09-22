@@ -15,9 +15,22 @@ the exact variable-reclaim target. It returns only a typed recovery
 plan: clean, initialize a provably erased workspace, discard an uncommitted
 stage, reclaim a dirty or exhausted queue, abort before a spare was committed,
 replay a validated spare, complete an already written destination, or restore
-a valid workspace copy with an explicit empty/abort queue disposition.
-Ambiguous, malformed, truncated or
-out-of-range media fails closed.
+a valid workspace copy with an explicit empty/abort queue disposition. A
+separate spare-cleanup action is emitted before CLEAN when the authoritative
+active FV and a clean or reclaimable working queue prove that the spare is
+stale transaction residue. The spare must be either a complete valid exact copy
+of the active FV or a bitwise NOR erase-direction descendant of the active FV;
+this includes a reset partway through erasing one byte. Any surplus spare range
+must already be erased. An invalid spare alone never authorizes cleanup. The
+cleanup plan carries the complete geometry spare range, zero queue coordinates
+and no queue disposition. Its executor must erase and verify that whole range,
+stop on any media failure, and re-read and re-decode to the underlying CLEAN or
+RECLAIM_WORKSPACE result before binding cache or starting another transaction.
+Any contradictory result fails closed. An uncommitted empty-workspace stage is
+discardable only when every observed bit is on the NOR programming path from
+erased media to the canonical body for the decoded geometry; this includes a
+reset partway through programming one byte. The erased state byte alone is not
+proof. Ambiguous, malformed, truncated or out-of-range media fails closed.
 
 This library has no flash callback, erase or program operation, endpoint,
 coreboot-table producer, SMI route, CDK2 caller, or persistence claim. A later
