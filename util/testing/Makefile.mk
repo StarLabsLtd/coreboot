@@ -123,6 +123,7 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 .PHONY: test-authvar-service-abi
 test-authvar-service-abi:
 	tests/lib/payload_mm_authvar_service_abi_test.sh
+	tests/lib/payload_mm_authvar_store_test.sh
 	tests/lib/payload_mm_authvar_semantics_manifest_test.sh
 
 .PHONY: test-tpm2-platform-auth
