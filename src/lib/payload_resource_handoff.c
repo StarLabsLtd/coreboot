@@ -140,10 +140,31 @@ static bool valid_domain(const struct device *domain)
 	return true;
 }
 
+__weak uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar)
+{
+	return pci_read_config32(device, PCI_BASE_ADDRESS_0 + bar * sizeof(uint32_t));
+}
+
+static bool assignment_is_64bit(const struct device *device,
+	const struct resource *resource, uint8_t bar)
+{
+	uint32_t value;
+
+	if (resource->flags & IORESOURCE_PCI64)
+		return true;
+	if (!(resource->flags & IORESOURCE_MEM) || !(resource->flags & IORESOURCE_FIXED))
+		return false;
+
+	value = payload_resource_read_bar(device, bar);
+	return (value & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY &&
+		(value & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) == PCI_BASE_ADDRESS_MEM_LIMIT_64;
+}
+
 static bool assignment_valid(const struct device *device, const struct resource *resource)
 {
 	const struct device *domain = root_domain(device);
 	const struct device *other_device;
+	bool is_64bit;
 	uint8_t bar;
 	uint64_t end;
 
@@ -157,17 +178,16 @@ static bool assignment_valid(const struct device *device, const struct resource 
 		return false;
 	if (device->path.pci.devfn > UINT8_MAX)
 		return false;
+	is_64bit = assignment_is_64bit(device, resource, bar);
 	if ((resource->flags & IORESOURCE_IO) && end > UINT16_MAX)
 		return false;
 	if ((resource->flags & IORESOURCE_MEM) && resource->base < 4ULL * GiB && end >= 4ULL * GiB)
 		return false;
-	if ((resource->flags & IORESOURCE_MEM) && end > UINT32_MAX &&
-	    !(resource->flags & IORESOURCE_PCI64))
+	if ((resource->flags & IORESOURCE_MEM) && end > UINT32_MAX && !is_64bit)
 		return false;
-	if ((resource->flags & IORESOURCE_PCI64) &&
-	    !(resource->flags & IORESOURCE_MEM))
+	if (is_64bit && !(resource->flags & IORESOURCE_MEM))
 		return false;
-	if ((resource->flags & IORESOURCE_PCI64) && bar == 5)
+	if (is_64bit && bar == 5)
 		return false;
 	/* ECAM is configuration space, never an assigned BAR interval. */
 	if ((resource->flags & IORESOURCE_MEM) &&
@@ -192,10 +212,14 @@ static bool assignment_valid(const struct device *device, const struct resource 
 			    resource_bar(other, &other_bar) && other_device->upstream &&
 			    root_domain(other_device) == domain &&
 			    other_device->upstream->secondary == device->upstream->secondary &&
-			    other_device->path.pci.devfn == device->path.pci.devfn &&
-			    bar <= other_bar + !!(other->flags & IORESOURCE_PCI64) &&
-			    other_bar <= bar + !!(resource->flags & IORESOURCE_PCI64))
-				return false;
+			    other_device->path.pci.devfn == device->path.pci.devfn) {
+				const bool other_is_64bit =
+					assignment_is_64bit(other_device, other, other_bar);
+
+				if (bar <= other_bar + other_is_64bit &&
+				    other_bar <= bar + is_64bit)
+					return false;
+			}
 			if ((other->flags & IORESOURCE_TYPE_MASK) !=
 			    (resource->flags & IORESOURCE_TYPE_MASK))
 				continue;
@@ -304,26 +328,6 @@ __weak uint16_t payload_resource_read_command(const struct device *device)
 __weak void payload_resource_write_command(const struct device *device, uint16_t command)
 {
 	pci_write_config16(device, PCI_COMMAND, command);
-}
-
-__weak uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar)
-{
-	return pci_read_config32(device, PCI_BASE_ADDRESS_0 + bar * sizeof(uint32_t));
-}
-
-static bool assignment_is_64bit(const struct device *device,
-	const struct resource *resource, uint8_t bar)
-{
-	uint32_t value;
-
-	if (resource->flags & IORESOURCE_PCI64)
-		return true;
-	if (!(resource->flags & IORESOURCE_MEM) || !(resource->flags & IORESOURCE_FIXED))
-		return false;
-
-	value = payload_resource_read_bar(device, bar);
-	return (value & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY &&
-		(value & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) == PCI_BASE_ADDRESS_MEM_LIMIT_64;
 }
 
 static bool device_has_assignment(const struct device *device)
