@@ -86,5 +86,13 @@ compile_and_reject allow_later_begin fail-closed \
 \t__atomic_store_n(&media.poisoned, 0, __ATOMIC_RELEASE);'
 compile_and_reject remove_terminal_gates fail-closed-program-callback \
 	's/__atomic_load_n(&media[.]fail_closed, __ATOMIC_ACQUIRE)/false/g'
+compile_and_reject allow_private_buffer disjoint \
+	's/return buffer \&\& size \&\& !overlaps_media(buffer, size);/return buffer \&\& size;/'
+compile_and_reject narrow_private_state disjoint \
+	'0,/sizeof(media));/s//sizeof(media.policy));/'
+compile_and_reject omit_private_tail disjoint \
+	'0,/sizeof(media));/s//sizeof(media) - 1U);/'
+compile_and_reject omit_private_prefix disjoint \
+	'0,/&media,/s//\&media.policy.context,/'
 
 printf '%s\n' 'Payload-MM authenticated-variable media mutation tests: PASS'

@@ -29,6 +29,12 @@ only an all-`0xff` readback. A write-protected result is returned only when the
 readback proves that the media is byte-for-byte unchanged. Partial or ambiguous
 mutation permanently poisons the port.
 
+The SMM-internal buffer-disjoint predicate exposes only a boolean result. It
+rejects null, empty, wrapping, and every exact or partial overlap with the
+media policy, copied contexts, session state, or scratch buffers. It is safe
+before port installation and before a media session, and does not reveal a
+private address or prove that a disjoint buffer is otherwise trusted.
+
 An internal executor which detects a higher-level invariant failure can call
 `payload_mm_authvar_media_fail_closed()` with its active generation and owner
 token. The call invalidates every cache binding and permanently poisons the

@@ -32,7 +32,7 @@ run_test()
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		-o "$temporary/$name"
-	for mode in normal install-invalid install-unprotected-port \
+	for mode in normal disjoint install-invalid install-unprotected-port \
 		install-unprotected-context install-unprotected-callback bounds \
 		fail-closed fail-closed-wrong-generation fail-closed-wrong-token \
 		fail-closed-idle fail-closed-preinstall fail-closed-repeated \

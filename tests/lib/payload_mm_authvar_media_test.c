@@ -81,6 +81,8 @@ static enum fault_mode fault;
 static uint64_t nested_generation;
 static uint64_t nested_token;
 static const void *captured_context;
+static const void *captured_program_buffer;
+static const void *captured_end_context;
 static void *communication;
 static struct port_context test_context;
 static struct payload_mm_authvar_media_port test_port;
@@ -118,6 +120,14 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 	return storage && size;
 }
 
+static const void *previous_address(const void *address)
+{
+	const uintptr_t value = (uintptr_t)address;
+
+	assert(value);
+	return (const void *)(value - 1U);
+}
+
 static enum payload_mm_authvar_media_result begin(const void *opaque,
 	uint64_t *generation)
 {
@@ -125,6 +135,8 @@ static enum payload_mm_authvar_media_result begin(const void *opaque,
 	struct backend *state = context->backend;
 
 	captured_context = opaque;
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
 	state->begin_calls++;
 	if (fault == FAULT_BEGIN_REENTER)
 		assert(payload_mm_authvar_media_begin(&nested_generation,
@@ -151,6 +163,9 @@ static enum payload_mm_authvar_media_result read_media(const void *opaque,
 {
 	const struct port_context *context = opaque;
 
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
+	assert(!payload_mm_authvar_media_buffer_disjoint(buffer, size));
 	context->backend->read_calls++;
 	if (fault == FAULT_READ_REENTER)
 		assert(payload_mm_authvar_media_read(output_generation, output_token,
@@ -179,6 +194,10 @@ static enum payload_mm_authvar_media_result program(const void *opaque,
 	const uint8_t *source = buffer;
 	struct backend *state = context->backend;
 
+	captured_program_buffer = buffer;
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
+	assert(!payload_mm_authvar_media_buffer_disjoint(buffer, size));
 	state->program_calls++;
 	if (fault == FAULT_PROGRAM_REENTER)
 		assert(payload_mm_authvar_media_program(output_generation,
@@ -212,6 +231,8 @@ static enum payload_mm_authvar_media_result erase(const void *opaque,
 	const struct port_context *context = opaque;
 	struct backend *state = context->backend;
 
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
 	state->erase_calls++;
 	if (fault == FAULT_ERASE_REENTER)
 		assert(payload_mm_authvar_media_erase(output_generation, output_token,
@@ -240,6 +261,8 @@ static enum payload_mm_authvar_media_result sync_media(const void *opaque)
 	const struct port_context *context = opaque;
 	struct backend *state = context->backend;
 
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
 	state->sync_calls++;
 	if (fault == FAULT_SYNC_REENTER)
 		assert(payload_mm_authvar_media_read(output_generation, output_token,
@@ -259,6 +282,9 @@ static enum payload_mm_authvar_media_result end(const void *opaque)
 {
 	const struct port_context *context = opaque;
 
+	captured_end_context = opaque;
+	assert(!payload_mm_authvar_media_buffer_disjoint(opaque,
+		sizeof(struct port_context)));
 	assert((uintptr_t)opaque % _Alignof(struct port_context) == 0);
 	context->backend->end_calls++;
 	if (fault == FAULT_END_REENTER)
@@ -436,6 +462,51 @@ static void normal_case(void)
 	assert(payload_mm_authvar_media_result_status(
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR) ==
 		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+}
+
+static void disjoint_case(void)
+{
+	const uint8_t *context;
+	const uint8_t *scratch;
+
+	assert(payload_mm_authvar_media_test_private_spans_rejected());
+	assert(!payload_mm_authvar_media_buffer_disjoint(NULL, 1));
+	assert(!payload_mm_authvar_media_buffer_disjoint(io_buffer, 0));
+	assert(!payload_mm_authvar_media_buffer_disjoint(
+		(const void *)UINTPTR_MAX, 2));
+	assert(!payload_mm_authvar_media_buffer_disjoint(
+		(const void *)1, UINTPTR_MAX));
+	assert(payload_mm_authvar_media_buffer_disjoint(io_buffer,
+		sizeof(io_buffer)));
+	install();
+	assert(payload_mm_authvar_media_buffer_disjoint(io_buffer,
+		sizeof(io_buffer)));
+	start();
+	memset(io_buffer, 0xa5, sizeof(io_buffer));
+	assert(payload_mm_authvar_media_program(output_generation, output_token,
+		0, io_buffer, sizeof(io_buffer)) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
+	assert(captured_context && captured_program_buffer);
+	context = captured_context;
+	scratch = captured_program_buffer;
+	assert(!payload_mm_authvar_media_buffer_disjoint(context,
+		sizeof(struct port_context)));
+	assert(!payload_mm_authvar_media_buffer_disjoint(
+		previous_address(context), 2));
+	assert(!payload_mm_authvar_media_buffer_disjoint(context +
+		sizeof(struct port_context) - 1U, 2));
+	assert(!payload_mm_authvar_media_buffer_disjoint(scratch, BLOCK_SIZE));
+	assert(!payload_mm_authvar_media_buffer_disjoint(
+		previous_address(scratch), 2));
+	assert(!payload_mm_authvar_media_buffer_disjoint(scratch + BLOCK_SIZE - 1U,
+		2));
+	assert(payload_mm_authvar_media_buffer_disjoint(scratch + BLOCK_SIZE, 1));
+	finish(PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
+	assert(captured_end_context);
+	assert(!payload_mm_authvar_media_buffer_disjoint(captured_end_context,
+		sizeof(struct port_context)));
+	assert(!payload_mm_authvar_media_buffer_disjoint(
+		previous_address(captured_end_context), 2));
 }
 
 static void begin_fault_case(enum fault_mode mode)
@@ -687,6 +758,8 @@ int main(int argc, char **argv)
 	reset_backend();
 	if (!strcmp(name, "normal"))
 		normal_case();
+	else if (!strcmp(name, "disjoint"))
+		disjoint_case();
 	else if (!strcmp(name, "install-invalid"))
 		invalid_install_case();
 	else if (!strcmp(name, "install-unprotected-port"))
