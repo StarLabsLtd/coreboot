@@ -622,7 +622,7 @@ int get_cst_entries(const acpi_cstate_t **);
  */
 void acpigen_get_package_op_element(uint8_t package_op, unsigned int element, uint8_t dest_op);
 
-/* Set element of package op to specified op:  DeRefOf (<package>[<element>]) = <src> */
+/* Set element of package op to specified op:  <package>[<element>] = <src> */
 void acpigen_set_package_op_element_int(uint8_t package_op, unsigned int element, uint64_t src);
 
 /* Get element from package to specified op:  <dest_op> = <package>[<element>] */
