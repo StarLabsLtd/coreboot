@@ -12,7 +12,7 @@ id	area	operation	precondition	input	expected_status	expected_state
 ordinary-create	ordinary	SET	absent	NV+BS+RT nonempty	SUCCESS	value present
 ordinary-replace	ordinary	SET	present	matching attributes new data	SUCCESS	new value present
 ordinary-attr-change	ordinary	SET	present	different nonzero attributes	INVALID_PARAMETER	old value present
-ordinary-empty	ordinary	SET	absent	nonzero attributes empty data	SUCCESS	empty value present
+ordinary-empty	ordinary	SET	absent	nonzero attributes empty data	NOT_FOUND	absent
 ordinary-delete	ordinary	SET	present	zero attributes empty data	SUCCESS	absent
 ordinary-delete-missing	ordinary	SET	absent	zero attributes empty data	NOT_FOUND	absent
 ordinary-append	ordinary	SET	present	APPEND matching attributes	SUCCESS	old then new bytes
