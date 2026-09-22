@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# oracle StarLabsLtd/edk2 26.09 aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272
+# blob MdeModulePkg/Include/Guid/SystemNvDataGuid.h 9bfd8fafc75354bc79cd7a43f6df3c6b00f3ceba
+# blob MdeModulePkg/Universal/FaultTolerantWriteDxe/UpdateWorkingBlock.c caa87e95d529e83b4ff7523fd556dd921e1f0864
+# blob MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWrite.c 10a67767ebc58f99fad33fffe9d780631c6be6c0
+# blob UefiPayloadPkg/SmmStoreFvb/SmmStoreFvbRuntime.c fca063403d9f6f4c594cf5c002e138f830bb06e8
+object	size	state	identity	first-u64	second-u64	third-u64	fourth-u64
+working-header	32	20	0	24	-	-	-
+write-header	40	0	4	24	32	-	-
+write-record	40	0	-	8	16	24	32
+# caller DXE FE5CEA76-4F72-49E8-986F-2CD899DFFE5D
+# caller SMM 470CB248-E8AC-473C-BB4F-81069A1FE6FD
+# caller StandaloneMm 3AADE4EC-63CC-4A48-A928-5A374DD463EB
+# SMMSTORE FV attributes 0x00000e36
