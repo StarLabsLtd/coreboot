@@ -407,6 +407,46 @@ int main(void)
 
 	reset_fixture();
 	bar.base = 4ULL * GiB;
+	bar.flags |= IORESOURCE_FIXED;
+	aperture.base = bar.base;
+	pci_bars[0] = PCI_BASE_ADDRESS_MEM_LIMIT_64;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"fixed live 64-bit BAR above 4 GiB was rejected");
+	handoff = (const void *)(storage + sizeof(*header));
+	{
+		const struct lb_prh_pci_assignment *assignment =
+			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
+
+		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT &&
+			assignment->resource_type == LB_PRH_PCI_RESOURCE_MMIO64,
+			"fixed live 64-bit BAR lost its above-4-GiB semantics");
+	}
+
+	reset_fixture();
+	bar.index = PCI_BASE_ADDRESS_5;
+	bar.flags |= IORESOURCE_FIXED;
+	pci_bars[5] = PCI_BASE_ADDRESS_MEM_LIMIT_64;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
+		header->table_entries == 0,
+		"fixed live 64-bit BAR was accepted at BAR5");
+
+	reset_fixture();
+	bar.flags |= IORESOURCE_FIXED;
+	bar.next = &second_resource;
+	pci_bars[0] = PCI_BASE_ADDRESS_MEM_LIMIT_64;
+	second_resource = (struct resource) {
+		.base = bar.base + 0x2000,
+		.size = 0x1000,
+		.index = PCI_BASE_ADDRESS_1,
+		.flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_STORED,
+	};
+	aperture.size = 0x3000;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
+		header->table_entries == 0,
+		"fixed live 64-bit BAR upper-half collision was accepted");
+
+	reset_fixture();
+	bar.base = 4ULL * GiB;
 	bar.flags |= IORESOURCE_PCI64 | IORESOURCE_PREFETCH;
 	aperture.base = bar.base;
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
