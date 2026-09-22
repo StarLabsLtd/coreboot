@@ -20,15 +20,15 @@
 #define DTE_VALID			BIT(0)
 #define DTE_TRANSLATION_VALID		BIT(1)
 #define DTE_MODE_ONE_LEVEL		(1ULL << 9)
-#define DTE_READ			BIT(61)
-#define DTE_WRITE			BIT(62)
+#define DTE_READ			(1ULL << 61)
+#define DTE_WRITE			(1ULL << 62)
 #define DTE_ROOT_MASK			0x000ffffffffff000ULL
 #define DTE_DOMAIN_MASK			0xffffULL
 
 #define PTE_PRESENT			BIT(0)
-#define PTE_FORCE_COHERENT		BIT(60)
-#define PTE_READ				BIT(61)
-#define PTE_WRITE			BIT(62)
+#define PTE_FORCE_COHERENT		(1ULL << 60)
+#define PTE_READ				(1ULL << 61)
+#define PTE_WRITE			(1ULL << 62)
 #define PTE_ADDRESS_MASK		0x000ffffffffff000ULL
 #define AMD_IOMMU_ONE_LEVEL_ENTRIES	512U
 
