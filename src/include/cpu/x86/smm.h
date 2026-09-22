@@ -23,6 +23,7 @@
 #define APM_CNT_NOOP_SMI	0x00
 #define APM_CNT_ACPI_DISABLE	0x1e
 #define APM_CNT_ACPI_ENABLE	0xe1
+#define APM_CNT_CFR_SETTINGS	0xe4
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
 #define APM_CNT_LEGACY		0xcc
