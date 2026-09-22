@@ -88,7 +88,7 @@ static const struct sm_object power_reporting = SM_DECLARE_ENUM({
 	.default_value	= POWER_REPORTING_TRUTHFUL,
 	.runtime_apply = {
 		.method	= CONFIG(EC_STARLABS_POWER_REPORTING) ?
-			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+				  STARLABS_EC_RUNTIME_METHOD : CFR_RUNTIME_APPLY_NONE,
 		.id	= STARLABS_EFIOPT_ID_POWER_REPORTING,
 	},
 	.values		= (const struct sm_enum_value[]) {
