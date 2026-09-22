@@ -21,6 +21,7 @@ build_and_run() {
 		-I"$root/src/soc/amd/common/block/include" -I"$temporary/include" \
 		"$root/tests/soc/amd/iommu_runtime_standalone_test.c" \
 		"$root/src/soc/amd/common/block/iommu/iommu_runtime.c" \
+		"$root/src/soc/amd/common/block/iommu/iommu_dma.c" \
 		-Wl,--gc-sections "$@" -o "$temporary/$name"
 	"$temporary/$name"
 }

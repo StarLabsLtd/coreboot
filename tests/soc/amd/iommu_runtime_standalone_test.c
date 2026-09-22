@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <amdblocks/iommu_runtime.h>
+#include <amdblocks/iommu_dma.h>
 #include <string.h>
 
 #define ENABLED		1ULL
@@ -17,6 +17,57 @@ static uint8_t dma_page_tables[2 * AMD_IOMMU_PAGE_SIZE]
 	__aligned(AMD_IOMMU_PAGE_SIZE);
 static uint8_t dma_arenas[4 * AMD_IOMMU_PAGE_SIZE]
 	__aligned(AMD_IOMMU_PAGE_SIZE);
+
+struct mock_iommu {
+	uint64_t device_table;
+	uint64_t control;
+	uint64_t features;
+	const void *commit_base[2];
+	size_t commit_bytes[2];
+	size_t commit_count;
+	bool ignore_device_table_write;
+	bool ignore_enable_write;
+	bool corrupt_on_commit;
+};
+
+static uint64_t mock_read64(void *context, uint32_t offset)
+{
+	struct mock_iommu *mock = context;
+
+	switch (offset) {
+	case 0x0000:
+		return mock->device_table;
+	case 0x0018:
+		return mock->control;
+	case 0x0030:
+		return mock->features;
+	default:
+		return 0;
+	}
+}
+
+static void mock_write64(void *context, uint32_t offset, uint64_t value)
+{
+	struct mock_iommu *mock = context;
+
+	if (offset == 0x0000 && !mock->ignore_device_table_write)
+		mock->device_table = value;
+	else if (offset == 0x0018 && !(mock->ignore_enable_write && (value & 1U)))
+		mock->control = value;
+}
+
+static void mock_commit(void *context, const void *base, size_t bytes)
+{
+	struct mock_iommu *mock = context;
+
+	if (mock->commit_count < ARRAY_SIZE(mock->commit_base)) {
+		mock->commit_base[mock->commit_count] = base;
+		mock->commit_bytes[mock->commit_count] = bytes;
+	}
+	mock->commit_count++;
+	if (mock->corrupt_on_commit && mock->commit_count == 2)
+		((uint64_t *)base)[0] ^= 1ULL << 61;
+}
 
 #define CHECK(condition) do { if (!(condition)) failures++; } while (0)
 
@@ -311,6 +362,91 @@ static void test_invalid_dma_state(void)
 #undef REJECT
 }
 
+static void test_dma_transition(void)
+{
+	const struct amd_iommu_dma_requester requester = {
+		.device_id = 0x18,
+		.protection_domain = 1,
+		.arena_cpu_base = (uintptr_t)dma_arenas,
+		.arena_device_base = 0x1000,
+		.arena_pages = 1,
+	};
+	struct mock_iommu mock = {
+		.device_table = 0x100000,
+		.control = 1,
+	};
+	const struct amd_iommu_dma_io io = {
+		.context = &mock,
+		.read64 = mock_read64,
+		.write64 = mock_write64,
+		.commit_tables = mock_commit,
+	};
+
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_SUCCESS);
+	CHECK(amd_iommu_dma_replace(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_SUCCESS);
+	CHECK(mock.commit_count == 2);
+	CHECK(mock.commit_base[0] == dma_device_table);
+	CHECK(mock.commit_bytes[0] == sizeof(dma_device_table));
+	CHECK(mock.commit_base[1] == dma_page_tables);
+	CHECK(mock.commit_bytes[1] == AMD_IOMMU_PAGE_SIZE);
+	CHECK(amd_iommu_dma_active(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1));
+
+	((uint64_t *)dma_device_table)[0x18 * 4] ^= 1ULL << 61;
+	CHECK(!amd_iommu_dma_active(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1));
+	((uint64_t *)dma_device_table)[0x18 * 4] ^= 1ULL << 61;
+
+	mock = (struct mock_iommu) {
+		.device_table = 0x100000,
+		.control = 1,
+		.ignore_device_table_write = true,
+	};
+	CHECK(amd_iommu_dma_replace(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_ERR);
+	CHECK(!(mock.control & 1U));
+
+	mock = (struct mock_iommu) {
+		.device_table = 0x100000,
+		.control = 1,
+		.ignore_enable_write = true,
+	};
+	CHECK(amd_iommu_dma_replace(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_ERR);
+	CHECK(mock.control == 0);
+
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_SUCCESS);
+	mock = (struct mock_iommu) {
+		.device_table = 0x100000,
+		.control = 1,
+		.corrupt_on_commit = true,
+	};
+	CHECK(amd_iommu_dma_replace(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_ERR);
+	CHECK(mock.control == 0);
+	((uint64_t *)dma_page_tables)[0] ^= 1ULL << 61;
+
+	mock = (struct mock_iommu) {
+		.device_table = 0x100000,
+		.control = 1ULL << 34 | 1U,
+	};
+	CHECK(amd_iommu_dma_replace(&io, dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_ERR);
+	CHECK(mock.commit_count == 0);
+}
+
 int main(void)
 {
 	test_unsegmented_table();
@@ -321,5 +457,6 @@ int main(void)
 	test_bad_arguments();
 	test_owned_dma_state();
 	test_invalid_dma_state();
+	test_dma_transition();
 	return failures != 0;
 }
