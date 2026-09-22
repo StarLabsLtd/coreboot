@@ -41,6 +41,10 @@ static const uint8_t ftw_caller_guids[][16] = {
 		0xec, 0xe4, 0xad, 0x3a, 0xcc, 0x63, 0x48, 0x4a,
 		0xa9, 0x28, 0x5a, 0x37, 0x4d, 0xd4, 0x63, 0xeb,
 	},
+	{
+		0xf3, 0x2e, 0xa5, 0xc4, 0x27, 0x4e, 0xe2, 0x47,
+		0x95, 0x0b, 0xfd, 0xaa, 0xb5, 0x21, 0xb8, 0x95,
+	},
 };
 
 static uint16_t read_le16(const uint8_t *p)
@@ -192,6 +196,27 @@ static bool workspace_header_valid(const uint8_t *workspace, size_t size,
 	return read_le32(workspace + 16) == crc32(canonical, sizeof(canonical));
 }
 
+static bool workspace_uncommitted(const uint8_t *workspace, size_t size)
+{
+	return size > 20U && workspace[20] == 0xffU &&
+		!bytes_are(workspace, size, 0xffU);
+}
+
+static bool workspace_erased_subset(const uint8_t *authoritative,
+	const uint8_t *candidate, size_t size)
+{
+	bool has_data = false;
+
+	for (size_t i = 0; i < size; i++) {
+		if (candidate[i] == 0xffU)
+			continue;
+		if (candidate[i] != authoritative[i])
+			return false;
+		has_data = true;
+	}
+	return has_data;
+}
+
 static bool record_bounds_valid(const uint8_t *record,
 	const struct payload_mm_authvar_ftw_geometry *geometry,
 	uint32_t fv_header_size, uint32_t store_size)
@@ -209,13 +234,15 @@ static bool record_bounds_valid(const uint8_t *record,
 }
 
 static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspace,
-	bool active_valid, bool spare_valid,
+	bool active_valid, bool spare_valid, bool restoring_workspace,
 	const struct payload_mm_authvar_ftw_geometry *geometry,
 	uint32_t fv_header_size, uint32_t store_size, uint32_t *queue_offset,
-	uint32_t *queue_entry_size)
+	uint32_t *queue_entry_size,
+	enum payload_mm_authvar_ftw_queue_disposition *queue_disposition)
 {
 	size_t offset = FTW_WORK_HEADER_SIZE;
 	const size_t size = geometry->working_size;
+	bool completed_history = false;
 
 	while (offset < size) {
 		const uint8_t *header = workspace + offset;
@@ -226,9 +253,22 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 		uint8_t header_state;
 		uint8_t record_state;
 
-		if (bytes_are(header, size - offset, 0xff))
-			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_CLEAN :
+		if (bytes_are(header, size - offset, 0xff)) {
+			if (!active_valid)
+				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+			*queue_offset = (uint32_t)offset;
+			if (size - offset < FTW_WRITE_HEADER_SIZE + FTW_WRITE_RECORD_SIZE) {
+				return PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE;
+			}
+			if (!completed_history)
+				*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY;
+			return PAYLOAD_MM_AUTHVAR_FTW_CLEAN;
+		}
+		if (header[0] == 0xffU) {
+			*queue_offset = (uint32_t)offset;
+			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+		}
 		if (size - offset < FTW_WRITE_HEADER_SIZE)
 			return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		header_state = header[0];
@@ -271,6 +311,7 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 			}
 			offset += entry_size;
+			completed_history = true;
 			continue;
 		}
 		if (writes != 1U || private_size)
@@ -281,12 +322,14 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 			*queue_offset = (uint32_t)offset;
 			*queue_entry_size = (uint32_t)entry_size;
+			*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD;
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
 		if (record[0] == 0xffU) {
 			*queue_offset = (uint32_t)offset;
 			*queue_entry_size = (uint32_t)entry_size;
+			*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD;
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
@@ -295,6 +338,11 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 		*queue_offset = (uint32_t)offset;
 		*queue_entry_size = (uint32_t)entry_size;
 		record_state = record[0];
+		if (restoring_workspace) {
+			*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD;
+			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD :
+				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+		}
 		if (record_state == 0xfdU)
 			return spare_valid ? PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
@@ -302,6 +350,10 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+	}
+	if (active_valid) {
+		*queue_offset = (uint32_t)offset;
+		return PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE;
 	}
 	return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 }
@@ -321,6 +373,8 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 	uint32_t store_size;
 	bool active_valid;
 	bool spare_valid;
+	bool working_valid;
+	bool staged_valid;
 
 	if (plan)
 		memset(plan, 0, sizeof(*plan));
@@ -348,17 +402,98 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 		return CB_ERR;
 	candidate.fv_header_size = header_size;
 	candidate.variable_store_size = store_size;
-	if (workspace_header_valid(working, candidate.geometry.working_size, 0xfeU)) {
-		candidate.action = classify_queue(working, active_valid, spare_valid,
+	working_valid = workspace_header_valid(working,
+		candidate.geometry.working_size, 0xfeU);
+	staged_valid = active_valid && workspace_header_valid(spare,
+		candidate.geometry.working_size, 0xfeU);
+	if (working_valid && staged_valid) {
+		uint32_t old_queue_offset = 0;
+		uint32_t old_queue_entry_size = 0;
+		enum payload_mm_authvar_ftw_queue_disposition old_disposition =
+			PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE;
+		const enum payload_mm_authvar_ftw_action old_action = classify_queue(
+			working, active_valid, false, true, &candidate.geometry,
+			header_size, store_size, &old_queue_offset,
+			&old_queue_entry_size, &old_disposition);
+		const enum payload_mm_authvar_ftw_action staged_action = classify_queue(
+			spare, true, false, true, &candidate.geometry, header_size, store_size,
+			&candidate.queue_offset, &candidate.queue_entry_size,
+			&candidate.queue_disposition);
+
+		if (old_action == PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED ||
+		    !((staged_action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN &&
+		       candidate.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY) ||
+		      (staged_action == PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD &&
+		       candidate.queue_disposition ==
+			PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD))) {
+			candidate.action = PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+		} else if (!memcmp(working, spare, candidate.geometry.working_size) &&
+			   candidate.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY) {
+			candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
+			candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
+			candidate.queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE;
+		} else {
+			candidate.action = PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE;
+			candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
+		}
+	} else if (working_valid) {
+		candidate.action = classify_queue(working, active_valid, spare_valid, false,
 			&candidate.geometry, header_size, store_size,
-			&candidate.queue_offset, &candidate.queue_entry_size);
-	} else if (active_valid && workspace_header_valid(spare,
-		   candidate.geometry.working_size, 0xfeU)) {
-		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE;
+			&candidate.queue_offset, &candidate.queue_entry_size,
+			&candidate.queue_disposition);
+		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING;
+		if ((candidate.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+		     candidate.action == PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE) &&
+		    !bytes_are(spare, candidate.geometry.spare_size, 0xffU) &&
+		    !spare_valid) {
+			if (workspace_uncommitted(spare, candidate.geometry.spare_size) ||
+			    (workspace_erased_subset(working, spare,
+				candidate.geometry.working_size) &&
+			    bytes_are(spare + candidate.geometry.working_size,
+				candidate.geometry.spare_size - candidate.geometry.working_size,
+				0xffU)) ||
+			    (workspace_erased_subset(bytes, spare,
+				candidate.geometry.variable_size) &&
+			    bytes_are(spare + candidate.geometry.variable_size,
+				candidate.geometry.spare_size - candidate.geometry.variable_size,
+				0xffU))) {
+				candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
+				candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
+				candidate.queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE;
+			} else {
+				candidate.action = PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+			}
+		}
+	} else if (staged_valid) {
+		const enum payload_mm_authvar_ftw_action staged_action = classify_queue(
+			spare, true, false, true, &candidate.geometry, header_size, store_size,
+			&candidate.queue_offset, &candidate.queue_entry_size,
+			&candidate.queue_disposition);
+
+		if ((staged_action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN &&
+		     candidate.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY) ||
+		    (staged_action == PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD &&
+		     candidate.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD)) {
+			candidate.action = PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE;
+			candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
+		} else {
+			candidate.action = PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
+		}
 	} else if (active_valid &&
 		   bytes_are(working, candidate.geometry.working_size, 0xff) &&
 		   bytes_are(spare, candidate.geometry.spare_size, 0xff)) {
 		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_INITIALIZE_WORKSPACE;
+		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING;
+	} else if (active_valid && workspace_uncommitted(working,
+		   candidate.geometry.working_size) &&
+		   bytes_are(spare, candidate.geometry.spare_size, 0xff)) {
+		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
+		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING;
+	} else if (active_valid &&
+		   bytes_are(working, candidate.geometry.working_size, 0xff) &&
+		   workspace_uncommitted(spare, candidate.geometry.spare_size)) {
+		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
+		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
 	} else {
 		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 	}
