@@ -11,6 +11,7 @@ Family 15h <family15h.md>
 Family 17h <family17h.md>
 Platform Security Processor Integration <psp_integration.md>
 ROM Armor <psp_rom_armor.md>
+AMD IOMMU DMA handoff prerequisites <iommu_dma_handoff.md>
 ```
 
 ## amd_blobs Repository License
