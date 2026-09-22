@@ -15,6 +15,7 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
+#include <drivers/option/cfr_settings.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
@@ -363,6 +364,25 @@ static void southbridge_smi_payload(
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
+static void southbridge_smi_cfr_settings(void)
+{
+	const bool wp_enabled = !fast_spi_wpd_status();
+
+	if (wp_enabled) {
+		set_insmm_sts(true);
+		smmstore_drain_sync_smi();
+		fast_spi_disable_wp();
+	}
+
+	cfr_settings_smm_execute();
+	smmstore_drain_sync_smi();
+
+	if (wp_enabled) {
+		fast_spi_enable_wp();
+		set_insmm_sts(false);
+	}
+}
+
 __weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
 {
 	*num = 0;
@@ -496,6 +516,10 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_CFR_RUNTIME_APPLY:
 		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
 			cfr_runtime_apply_smi();
+		break;
+	case APM_CNT_CFR_SETTINGS:
+		if (CONFIG(DRIVERS_OPTION_CFR_SMM))
+			southbridge_smi_cfr_settings();
 		break;
 	}
 
