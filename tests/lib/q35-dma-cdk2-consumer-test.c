@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 	CHECK(fixture != NULL);
 	bytes = fread(blob, 1, sizeof(blob), fixture);
 	CHECK(!ferror(fixture) && feof(fixture) && fclose(fixture) == 0);
-	CHECK(bytes == 156);
+	CHECK(bytes == 72);
 	header->header_bytes = sizeof(*header);
 	*entry = (struct cb_cbmem_entry){
 		.tag = CB_TAG_CBMEM_ENTRY,
@@ -68,8 +68,13 @@ int main(int argc, char **argv)
 	};
 	CHECK(cdk2_dma_handoff_import(&coreboot, &state) == EFI_SUCCESS);
 	CHECK(state.valid && state.generation == GENERATION &&
-		state.requester_count == 1 && state.table_count == 3 &&
-		state.requesters[0].bdf == 0x18 && state.requesters[0].domain == 1);
+		state.requester_count == 1 &&
+		state.requesters[0].bdf == 0x18 &&
+		state.requesters[0].protection_domain == 1 &&
+		state.requesters[0].arena_cpu_base == 0x200000 &&
+		state.requesters[0].arena_device_base == 0x200000 &&
+		state.requesters[0].arena_pages == 1 &&
+		state.requesters[0].arena_flags == DMA_HANDOFF_ARENA_FLAGS);
 	entry->entry_size = 4096;
 	CHECK(cdk2_dma_handoff_import(&coreboot, &state) == EFI_COMPROMISED_DATA);
 	CHECK(!state.valid);

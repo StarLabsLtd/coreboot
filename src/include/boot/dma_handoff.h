@@ -14,7 +14,6 @@ struct lb_header;
 enum cb_err dma_handoff_build(void *buffer, size_t capacity,
 	uint64_t generation,
 	const struct dma_handoff_requester *requesters, size_t requester_count,
-	const struct dma_handoff_table *tables, size_t table_count,
 	size_t *written);
 enum cb_err dma_handoff_validate(const void *buffer, size_t bytes);
 enum cb_err lb_add_dma_handoff(struct lb_header *header);

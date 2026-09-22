@@ -39,6 +39,8 @@ bool payload_resource_revision4_ready(void);
 /* True only after a revision 4 handoff was completely serialized. */
 bool payload_resource_revision4_published(void);
 uint64_t payload_resource_revision4_generation(void);
+size_t payload_resource_revision4_boot_count(void);
+bool payload_resource_revision4_boot_requester(uint16_t segment, uint16_t bdf);
 /* Return true for a boot controller; lower priorities are serialized first. */
 bool payload_resource_boot_controller(const struct device *device, uint16_t *priority);
 

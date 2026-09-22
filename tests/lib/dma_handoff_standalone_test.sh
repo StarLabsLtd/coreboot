@@ -19,7 +19,8 @@ build_and_run() {
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		-I"$temporary/include" "$@" \
 		"$root/tests/lib/dma_handoff_standalone_test.c" \
-		"$root/src/lib/dma_handoff.c" -Wl,--gc-sections \
+		"$root/src/lib/dma_handoff.c" "$root/src/lib/crc_byte.c" \
+		-Wl,--gc-sections \
 		-o "$temporary/$name"
 	"$temporary/$name"
 }
@@ -43,7 +44,8 @@ cc -std=gnu11 -O1 -g -Wall -Wextra -Werror \
 	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 	-I"$temporary/include" "$root/tests/lib/dma_handoff_standalone_test.c" \
-	"$temporary/dma-handoff-generation-mutant.c" -Wl,--gc-sections \
+	"$temporary/dma-handoff-generation-mutant.c" "$root/src/lib/crc_byte.c" \
+	-Wl,--gc-sections \
 	-o "$temporary/generation-mutant"
 if "$temporary/generation-mutant" >/dev/null 2>&1; then
 	echo 'ERROR: producer accepted a blob from a foreign PRH generation' >&2
@@ -57,11 +59,12 @@ cc -std=gnu11 -O2 -ffunction-sections -fdata-sections \
 	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 	-I"$temporary/include" "$root/tests/lib/dma_handoff_standalone_test.c" \
-	"$root/src/lib/dma_handoff.c" -Wl,--gc-sections -o "$temporary/fixture"
+	"$root/src/lib/dma_handoff.c" "$root/src/lib/crc_byte.c" \
+	-Wl,--gc-sections -o "$temporary/fixture"
 "$temporary/fixture" --fixture > "$temporary/coreboot-dma-handoff.bin"
-test "$(wc -c < "$temporary/coreboot-dma-handoff.bin")" -eq 244
+test "$(wc -c < "$temporary/coreboot-dma-handoff.bin")" -eq 104
 "$temporary/fixture" --q35-fixture > "$temporary/coreboot-q35-dma-handoff.bin"
-test "$(wc -c < "$temporary/coreboot-q35-dma-handoff.bin")" -eq 156
+test "$(wc -c < "$temporary/coreboot-q35-dma-handoff.bin")" -eq 72
 if [ -n "${DMA_HANDOFF_FIXTURE_OUTPUT:-}" ]; then
 	cp "$temporary/coreboot-dma-handoff.bin" "$DMA_HANDOFF_FIXTURE_OUTPUT"
 fi

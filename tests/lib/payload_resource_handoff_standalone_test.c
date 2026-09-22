@@ -469,6 +469,17 @@ int main(void)
 	failures += check(payload_resource_revision4_published() &&
 		payload_resource_revision4_generation() == handoff->producer_generation,
 		"published revision 4 generation was not retained");
+	failures += check(payload_resource_revision4_boot_count() == 3 &&
+		payload_resource_revision4_boot_requester(0, 0x0018) &&
+		payload_resource_revision4_boot_requester(0, 0x0028) &&
+		payload_resource_revision4_boot_requester(0, 0x0030) &&
+		!payload_resource_revision4_boot_requester(0, 0x0038) &&
+		!payload_resource_revision4_boot_requester(1, 0x0018),
+		"published boot-controller snapshot lookup is not exact");
+	command |= PCI_COMMAND_MASTER;
+	failures += check(payload_resource_revision4_boot_requester(0, 0x0018),
+		"boot-controller lookup did not use the quiesced snapshot");
+	command &= ~PCI_COMMAND_MASTER;
 	{
 		const struct lb_prh_pci_assignment *assignments =
 			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
@@ -516,6 +527,7 @@ int main(void)
 			 LB_PRH_FRAMEBUFFER_PCI_OWNER_AUTHORITATIVE) != 0,
 			"Q35 framebuffer PCI owner is malformed");
 	}
+
 	first_size = handoff->size;
 	memcpy(first_record, handoff, first_size);
 	reset_fixture();
@@ -526,6 +538,17 @@ int main(void)
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS &&
 		memcmp(first_record, storage + sizeof(*header), first_size) == 0,
 			"Q35 revision 4 serialization is not deterministic");
+
+	/* A policy-selected controller without an assignment cannot enter rev4. */
+	reset_fixture();
+	revision4_ready = 1;
+	bar.size = 0;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
+		header->table_entries == 0 &&
+		!payload_resource_revision4_published() &&
+		payload_resource_revision4_boot_count() == 0 &&
+		!payload_resource_revision4_boot_requester(0, 0x0000),
+		"missing boot-controller assignment did not fail closed");
 
 	/* A logical LPC child is harmless, but a PCI descendant is not. */
 	reset_fixture();
