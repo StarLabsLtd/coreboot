@@ -78,6 +78,15 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 	uint64_t generation, uint64_t token, uint32_t offset, size_t size);
 enum payload_mm_authvar_media_result payload_mm_authvar_media_end(
 	uint64_t generation, uint64_t token);
+/*
+ * Terminal executor failure path. Exact active generation/token ownership is
+ * required, but every valid or invalid invocation permanently poisons the port,
+ * invalidates its cache and returns DEVICE_ERROR. It never releases ownership.
+ * An active owner must still call end() exactly once; only that sealed end
+ * callback may run after this call.
+ */
+enum payload_mm_authvar_media_result payload_mm_authvar_media_fail_closed(
+	uint64_t generation, uint64_t token);
 
 void payload_mm_authvar_media_cache_bind(uint64_t generation, uint64_t token);
 void payload_mm_authvar_media_cache_invalidate(void);

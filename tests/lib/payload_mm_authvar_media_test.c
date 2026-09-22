@@ -30,16 +30,21 @@ struct port_context {
 	struct backend *backend;
 };
 
+_Static_assert(_Alignof(struct port_context) <= __BIGGEST_ALIGNMENT__,
+	"media cleanup-context alignment is insufficient");
+
 enum fault_mode {
 	FAULT_NONE,
 	FAULT_BEGIN_ZERO,
 	FAULT_BEGIN_ERROR,
 	FAULT_BEGIN_INVALID,
 	FAULT_BEGIN_REENTER,
+	FAULT_BEGIN_FAIL_CLOSED,
 	FAULT_READ_SHORT,
 	FAULT_READ_ERROR,
 	FAULT_READ_INVALID,
 	FAULT_READ_REENTER,
+	FAULT_READ_FAIL_CLOSED,
 	FAULT_VERIFY_READ,
 	FAULT_PROGRAM_ERROR_EXACT,
 	FAULT_PROGRAM_WRITE_PROTECTED,
@@ -47,18 +52,24 @@ enum fault_mode {
 	FAULT_PROGRAM_MUTATE_INPUT,
 	FAULT_PROGRAM_INVALID,
 	FAULT_PROGRAM_REENTER,
+	FAULT_PROGRAM_FAIL_CLOSED,
 	FAULT_PROGRAM_CONTEXT_MUTATION,
+	FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED,
 	FAULT_ERASE_WRITE_PROTECTED,
 	FAULT_ERASE_ERROR_EXACT,
 	FAULT_ERASE_PARTIAL,
 	FAULT_ERASE_INVALID,
 	FAULT_ERASE_REENTER,
+	FAULT_ERASE_FAIL_CLOSED,
 	FAULT_ERASE_CONTEXT_MUTATION,
 	FAULT_SYNC,
 	FAULT_SYNC_REENTER,
+	FAULT_SYNC_FAIL_CLOSED,
 	FAULT_SYNC_CONTEXT_MUTATION,
 	FAULT_END,
 	FAULT_END_REENTER,
+	FAULT_END_FAIL_CLOSED,
+	FAULT_VERIFY_FAIL_CLOSED,
 	FAULT_CONTEXT_MUTATION,
 };
 
@@ -118,6 +129,9 @@ static enum payload_mm_authvar_media_result begin(const void *opaque,
 	if (fault == FAULT_BEGIN_REENTER)
 		assert(payload_mm_authvar_media_begin(&nested_generation,
 			&nested_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_BEGIN_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	if (fault == FAULT_CONTEXT_MUTATION)
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_BEGIN_ZERO) {
@@ -141,6 +155,12 @@ static enum payload_mm_authvar_media_result read_media(const void *opaque,
 	if (fault == FAULT_READ_REENTER)
 		assert(payload_mm_authvar_media_read(output_generation, output_token,
 			0, io_buffer, 1) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_READ_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_VERIFY_FAIL_CLOSED && context->backend->read_calls == 2)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	memcpy(buffer, context->backend->bytes + offset, size);
 	*completed = fault == FAULT_READ_SHORT ? size - 1 : size;
 	if (fault == FAULT_READ_ERROR)
@@ -164,7 +184,11 @@ static enum payload_mm_authvar_media_result program(const void *opaque,
 		assert(payload_mm_authvar_media_program(output_generation,
 			output_token, 0, io_buffer, 1) ==
 			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
-	if (fault == FAULT_PROGRAM_CONTEXT_MUTATION)
+	if (fault == FAULT_PROGRAM_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_PROGRAM_CONTEXT_MUTATION ||
+	    fault == FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED)
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_PROGRAM_WRITE_PROTECTED)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED;
@@ -192,6 +216,9 @@ static enum payload_mm_authvar_media_result erase(const void *opaque,
 	if (fault == FAULT_ERASE_REENTER)
 		assert(payload_mm_authvar_media_erase(output_generation, output_token,
 			0, BLOCK_SIZE) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_ERASE_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	if (fault == FAULT_ERASE_CONTEXT_MUTATION)
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_ERASE_WRITE_PROTECTED)
@@ -217,6 +244,10 @@ static enum payload_mm_authvar_media_result sync_media(const void *opaque)
 	if (fault == FAULT_SYNC_REENTER)
 		assert(payload_mm_authvar_media_read(output_generation, output_token,
 			0, io_buffer, 1) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_SYNC_FAIL_CLOSED ||
+	    fault == FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	if (fault == FAULT_SYNC_CONTEXT_MUTATION)
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_SYNC)
@@ -228,10 +259,14 @@ static enum payload_mm_authvar_media_result end(const void *opaque)
 {
 	const struct port_context *context = opaque;
 
+	assert((uintptr_t)opaque % _Alignof(struct port_context) == 0);
 	context->backend->end_calls++;
 	if (fault == FAULT_END_REENTER)
 		assert(payload_mm_authvar_media_end(output_generation, output_token) ==
 			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	if (fault == FAULT_END_FAIL_CLOSED)
+		assert(payload_mm_authvar_media_fail_closed(output_generation,
+			output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	if (fault == FAULT_END)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
@@ -424,7 +459,8 @@ static void read_fault_case(enum fault_mode mode)
 		io_buffer, 16) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
 	for (size_t i = 0; i < 16; i++)
 		assert(io_buffer[i] == 0);
-	finish(mode == FAULT_READ_INVALID || mode == FAULT_READ_REENTER ?
+	finish(mode == FAULT_READ_INVALID || mode == FAULT_READ_REENTER ||
+		mode == FAULT_READ_FAIL_CLOSED ?
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR :
 		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
 }
@@ -515,6 +551,135 @@ static void bounds_case(void)
 	finish(PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
 }
 
+static void fail_closed_case(bool valid_generation, bool valid_token)
+{
+	size_t reads;
+	size_t programs;
+	size_t erases;
+
+	install();
+	start();
+	payload_mm_authvar_media_cache_bind(output_generation, output_token);
+	assert(payload_mm_authvar_media_cache_valid(output_generation, output_token));
+	reads = backend.read_calls;
+	programs = backend.program_calls;
+	erases = backend.erase_calls;
+	assert(payload_mm_authvar_media_fail_closed(
+		valid_generation ? output_generation : output_generation + 1U,
+		valid_token ? output_token : output_token + 1U) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(!payload_mm_authvar_media_available());
+	assert(!payload_mm_authvar_media_cache_valid(output_generation, output_token));
+	assert(payload_mm_authvar_media_read(output_generation, output_token, 0,
+		io_buffer, 1) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(payload_mm_authvar_media_program(output_generation, output_token, 0,
+		io_buffer, 1) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(payload_mm_authvar_media_erase(output_generation, output_token, 0,
+		BLOCK_SIZE) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.read_calls == reads && backend.program_calls == programs &&
+		backend.erase_calls == erases);
+	finish(PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.end_calls == 1);
+	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.begin_calls == 1 && backend.end_calls == 1);
+}
+
+static void idle_fail_closed_case(void)
+{
+	install();
+	assert(payload_mm_authvar_media_fail_closed(0, 0) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(!payload_mm_authvar_media_available());
+	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.begin_calls == 0 && backend.end_calls == 0);
+}
+
+static void preinstall_fail_closed_case(void)
+{
+	struct payload_mm_authvar_media_port *media_port;
+
+	assert(payload_mm_authvar_media_fail_closed(0, 0) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	media_port = install_authority();
+	assert(payload_mm_authvar_media_install(media_port) == CB_ERR);
+	assert(!payload_mm_authvar_media_available());
+	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED);
+	assert(backend.begin_calls == 0 && backend.end_calls == 0);
+}
+
+static void repeated_fail_closed_case(void)
+{
+	install();
+	start();
+	payload_mm_authvar_media_cache_bind(output_generation, output_token);
+	assert(payload_mm_authvar_media_fail_closed(output_generation,
+		output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(payload_mm_authvar_media_fail_closed(output_generation,
+		output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(payload_mm_authvar_media_fail_closed(output_generation + 1U,
+		output_token + 1U) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(!payload_mm_authvar_media_available());
+	assert(!payload_mm_authvar_media_cache_valid(output_generation, output_token));
+	finish(PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.begin_calls == 1 && backend.read_calls == 0 &&
+		backend.program_calls == 0 && backend.erase_calls == 0 &&
+		backend.sync_calls == 0 && backend.end_calls == 1);
+}
+
+static void callback_fail_closed_case(enum fault_mode mode)
+{
+	install();
+	fault = mode;
+	if (mode == FAULT_BEGIN_FAIL_CLOSED) {
+		assert(payload_mm_authvar_media_begin(&output_generation,
+			&output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		assert(backend.begin_calls == 1 && backend.read_calls == 0 &&
+			backend.program_calls == 0 && backend.erase_calls == 0 &&
+			backend.sync_calls == 0 && backend.end_calls == 1);
+	} else {
+		start();
+		if (mode == FAULT_READ_FAIL_CLOSED) {
+			assert(payload_mm_authvar_media_read(output_generation,
+				output_token, 0, io_buffer, 1) ==
+				PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+			assert(backend.read_calls == 1 && backend.program_calls == 0 &&
+				backend.erase_calls == 0 && backend.sync_calls == 0);
+		} else if (mode == FAULT_PROGRAM_FAIL_CLOSED ||
+			   mode == FAULT_SYNC_FAIL_CLOSED ||
+			   mode == FAULT_VERIFY_FAIL_CLOSED ||
+			   mode ==
+				FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED) {
+			memset(io_buffer, 0xa5, 32);
+			assert(payload_mm_authvar_media_program(output_generation,
+				output_token, 0, io_buffer, 32) ==
+				PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+			assert(backend.program_calls == 1 && backend.erase_calls == 0);
+			assert(backend.sync_calls ==
+				(mode == FAULT_PROGRAM_FAIL_CLOSED ? 0 : 1));
+			assert(backend.read_calls ==
+				(mode == FAULT_VERIFY_FAIL_CLOSED ? 2 : 1));
+		} else if (mode == FAULT_ERASE_FAIL_CLOSED) {
+			memset(backend.bytes, 0, BLOCK_SIZE);
+			assert(payload_mm_authvar_media_erase(output_generation,
+				output_token, 0, BLOCK_SIZE) ==
+				PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+			assert(backend.read_calls == 1 && backend.program_calls == 0 &&
+				backend.erase_calls == 1 && backend.sync_calls == 0);
+		} else {
+			assert(mode == FAULT_END_FAIL_CLOSED);
+		}
+		finish(PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		assert(backend.end_calls == 1);
+	}
+	assert(!payload_mm_authvar_media_available());
+	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.begin_calls == 1 && backend.end_calls == 1);
+}
+
 int main(int argc, char **argv)
 {
 	const char *name = argc > 1 ? argv[1] : "normal";
@@ -532,6 +697,35 @@ int main(int argc, char **argv)
 		unprotected_install_case(2);
 	else if (!strcmp(name, "bounds"))
 		bounds_case();
+	else if (!strcmp(name, "fail-closed"))
+		fail_closed_case(true, true);
+	else if (!strcmp(name, "fail-closed-wrong-generation"))
+		fail_closed_case(false, true);
+	else if (!strcmp(name, "fail-closed-wrong-token"))
+		fail_closed_case(true, false);
+	else if (!strcmp(name, "fail-closed-idle"))
+		idle_fail_closed_case();
+	else if (!strcmp(name, "fail-closed-preinstall"))
+		preinstall_fail_closed_case();
+	else if (!strcmp(name, "fail-closed-repeated"))
+		repeated_fail_closed_case();
+	else if (!strcmp(name, "fail-closed-begin-callback"))
+		callback_fail_closed_case(FAULT_BEGIN_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-read-callback"))
+		callback_fail_closed_case(FAULT_READ_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-program-callback"))
+		callback_fail_closed_case(FAULT_PROGRAM_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-erase-callback"))
+		callback_fail_closed_case(FAULT_ERASE_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-sync-callback"))
+		callback_fail_closed_case(FAULT_SYNC_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-verify-callback"))
+		callback_fail_closed_case(FAULT_VERIFY_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-sealed-sync-callback"))
+		callback_fail_closed_case(
+			FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED);
+	else if (!strcmp(name, "fail-closed-end-callback"))
+		callback_fail_closed_case(FAULT_END_FAIL_CLOSED);
 	else if (!strcmp(name, "begin-zero"))
 		begin_fault_case(FAULT_BEGIN_ZERO);
 	else if (!strcmp(name, "begin-error"))
@@ -550,6 +744,8 @@ int main(int argc, char **argv)
 		read_fault_case(FAULT_READ_INVALID);
 	else if (!strcmp(name, "read-reenter"))
 		read_fault_case(FAULT_READ_REENTER);
+	else if (!strcmp(name, "read-fail-closed"))
+		read_fault_case(FAULT_READ_FAIL_CLOSED);
 	else if (!strcmp(name, "program-error-exact"))
 		program_fault_case(FAULT_PROGRAM_ERROR_EXACT);
 	else if (!strcmp(name, "program-wp"))

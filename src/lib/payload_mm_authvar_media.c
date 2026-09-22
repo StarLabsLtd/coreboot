@@ -15,7 +15,8 @@ struct media_policy {
 	struct payload_mm_authvar_media_port port;
 	struct payload_mm_authvar_contract contract;
 	struct payload_mm_authvar_ftw_geometry geometry;
-	uint8_t context[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY] __aligned(8);
+	uint8_t context[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY]
+		__aligned(__BIGGEST_ALIGNMENT__);
 };
 
 enum transaction_state {
@@ -36,9 +37,11 @@ static struct {
 	uint32_t transaction;
 	uint32_t callback_active;
 	uint32_t poisoned;
+	uint32_t fail_closed;
 	bool installed;
 	uint32_t cache_bound;
-	uint8_t cleanup_context[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY];
+	uint8_t cleanup_context[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY]
+		__aligned(__BIGGEST_ALIGNMENT__);
 	uint8_t scratch[4][PAYLOAD_MM_AUTHVAR_MEDIA_SCRATCH_CAPACITY];
 } media;
 
@@ -84,7 +87,8 @@ static bool policy_intact(void)
 static bool policy_unchanged(void)
 {
 	return policy_intact() &&
-		!__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE);
+		!__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE) &&
+		!__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE);
 }
 
 static bool overlaps_media(const void *buffer, size_t size)
@@ -201,11 +205,14 @@ static enum payload_mm_authvar_media_result read_backend(uint32_t offset,
 	enum payload_mm_authvar_media_result result;
 	size_t completed = 0;
 
-	if (!callback_enter())
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE) ||
+	    !callback_enter())
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	result = media.policy.port.read(media.policy.port.context, offset, buffer,
 		size, &completed);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!result_valid(result) || !policy_intact()) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -221,10 +228,13 @@ static bool sync_backend(void)
 {
 	enum payload_mm_authvar_media_result result;
 
-	if (!callback_enter())
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE) ||
+	    !callback_enter())
 		return false;
 	result = media.policy.port.sync(media.policy.port.context);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return false;
 	if (!result_valid(result) || !policy_intact()) {
 		poison();
 		return false;
@@ -253,10 +263,13 @@ static bool sync_backend_sealed(void)
 	enum payload_mm_authvar_media_result result;
 	const void *context = sealed_context_copy();
 
-	if (!callback_enter())
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE) ||
+	    !callback_enter())
 		return false;
 	result = media.sealed.port.sync(context);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return false;
 	if (!result_valid(result) || result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
 	    !sealed_context_unchanged()) {
 		poison();
@@ -271,10 +284,13 @@ static bool read_backend_sealed(uint32_t offset, void *buffer, size_t size)
 	const void *context = sealed_context_copy();
 	size_t completed = 0;
 
-	if (!callback_enter())
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE) ||
+	    !callback_enter())
 		return false;
 	result = media.sealed.port.read(context, offset, buffer, size, &completed);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return false;
 	if (!result_valid(result) || result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
 	    completed != size || !sealed_context_unchanged()) {
 		poison();
@@ -286,7 +302,11 @@ static bool read_backend_sealed(uint32_t offset, void *buffer, size_t size)
 static bool sealed_sync_readback(uint32_t offset, void *buffer, size_t size)
 {
 	bool synced = sync_backend_sealed();
-	bool read = read_backend_sealed(offset, buffer, size);
+	bool read;
+
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return false;
+	read = read_backend_sealed(offset, buffer, size);
 
 	return synced && read;
 }
@@ -476,6 +496,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	result = media.policy.port.program(media.policy.port.context, offset,
 		transfer, size);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!policy_equal()) {
 		poison();
 		(void)sealed_sync_readback(offset, after, size);
@@ -484,6 +506,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	if (!result_valid(result) || memcmp(transfer, wanted, size))
 		poison();
 	synced = sync_backend();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!policy_equal()) {
 		poison();
 		verified = sealed_sync_readback(offset, after, size);
@@ -551,6 +575,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	result = media.policy.port.erase(media.policy.port.context, offset, size);
 	callback_leave();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!policy_equal()) {
 		poison();
 		(void)sealed_sync_readback(offset, after, size);
@@ -559,6 +585,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 	if (!result_valid(result))
 		poison();
 	synced = sync_backend();
+	if (__atomic_load_n(&media.fail_closed, __ATOMIC_ACQUIRE))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!policy_equal()) {
 		poison();
 		verified = sealed_sync_readback(offset, after, size);
@@ -608,6 +636,20 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_end(
 	__atomic_store_n(&media.transaction, TRANSACTION_IDLE, __ATOMIC_RELEASE);
 	return ended ? PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS :
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+}
+
+enum payload_mm_authvar_media_result payload_mm_authvar_media_fail_closed(
+	uint64_t generation, uint64_t token)
+{
+	/* Misuse of this internal terminal path is itself a fail-closed event. */
+	__atomic_store_n(&media.fail_closed, 1, __ATOMIC_RELEASE);
+	if (__atomic_load_n(&media.callback_active, __ATOMIC_ACQUIRE) ||
+	    !session_owned(generation, token)) {
+		poison();
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	}
+	poison();
+	return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 }
 
 void payload_mm_authvar_media_cache_bind(uint64_t generation, uint64_t token)
