@@ -28,10 +28,4 @@ done
 awk '/payload_mm_authvar_store[.]c/ && $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_STORE_SCANNER/ { bad = 1 } END { exit bad }' \
 	"$root/src/lib/Makefile.mk"
 
-corpus="$root/tests/lib/payload_mm_authvar_store_corpus.tsv"
-grep -qx '# oracle	StarLabsLtd/edk2	26.09	aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272' \
-	"$corpus"
-[ "$(awk -F '\t' '!/^#/ && NF != 5 { bad++ } END { print bad + 0 }' "$corpus")" -eq 0 ]
-[ "$(grep -c '^malformed-active	may continue	ERROR' "$corpus")" -eq 1 ]
-
 printf '%s\n' 'Payload-MM authenticated-variable store scanner tests: PASS'

@@ -69,11 +69,6 @@ static bool name_valid(const uint8_t *name, uint32_t size)
 	return true;
 }
 
-static bool guid_valid(const uint8_t guid[16])
-{
-	return !bytes_are(guid, 16, 0) && !bytes_are(guid, 16, 0xff);
-}
-
 static bool state_valid(uint8_t state)
 {
 	return state == VAR_ADDED || state == VAR_HEADER_VALID_ONLY ||
@@ -90,13 +85,11 @@ static bool timestamp_valid(const uint8_t timestamp[16], uint32_t attributes)
 	const bool time_authenticated = attributes &
 		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
 	uint16_t year;
-	int16_t timezone;
 	uint8_t maximum_day;
 
 	if (!time_authenticated)
 		return bytes_are(timestamp, 16, 0);
 	year = read_le16(timestamp);
-	timezone = (int16_t)read_le16(timestamp + 12);
 	if (year < 1900 || year > 9999 || timestamp[2] < 1 || timestamp[2] > 12)
 		return false;
 	maximum_day = days_per_month[timestamp[2] - 1U];
@@ -104,9 +97,8 @@ static bool timestamp_valid(const uint8_t timestamp[16], uint32_t attributes)
 		maximum_day++;
 	if (timestamp[3] < 1 || timestamp[3] > maximum_day || timestamp[4] > 23 ||
 	    timestamp[5] > 59 || timestamp[6] > 59 || timestamp[7] ||
-	    read_le32(timestamp + 8) > 999999999U ||
-	    (timezone != 0x07ff && (timezone < -1440 || timezone > 1440)) ||
-	    (timestamp[14] & ~3U) || timestamp[15])
+	    read_le32(timestamp + 8) || read_le16(timestamp + 12) ||
+	    timestamp[14] || timestamp[15])
 		return false;
 	return true;
 }
@@ -191,6 +183,7 @@ enum cb_err payload_mm_authvar_store_scan(
 		uint32_t name_size;
 		uint32_t data_size;
 		uint8_t state;
+		bool visible;
 
 		if (bytes_are(header, store_size - offset, 0xff))
 			break;
@@ -199,6 +192,7 @@ enum cb_err payload_mm_authvar_store_scan(
 		    !state_valid(header[2]))
 			return CB_ERR;
 		state = header[2];
+		visible = state == VAR_ADDED || state == VAR_ADDED_IN_DELETED_TRANSITION;
 		attributes = read_le32(header + 4);
 		name_size = read_le32(header + 36);
 		data_size = read_le32(header + 40);
@@ -206,6 +200,8 @@ enum cb_err payload_mm_authvar_store_scan(
 		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE ||
 		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
+		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
+		    (visible &&
 		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&
 		     (attributes & (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
@@ -216,21 +212,24 @@ enum cb_err payload_mm_authvar_store_scan(
 				     PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
 		    name_size > limits->maximum_name_size ||
 		    data_size > limits->maximum_data_size ||
-		    !guid_valid(header + 44) || !timestamp_valid(header + 16, attributes) ||
+		    !timestamp_valid(header + 16, attributes) ||
 		    read_le32(header + 32) ||
 		    (read_le32(header + 12) || read_le32(header + 8)))
 			return CB_ERR;
 		if (!add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, &name_offset) ||
 		    !add_size(name_offset, name_size, &data_offset) ||
+		    !align4(data_offset, &data_offset) ||
 		    !add_size(data_offset, data_size, &record_end) ||
 		    !align4(record_end, &next) || next > store_size ||
 		    !name_valid(bytes + name_offset, name_size) ||
+		    !bytes_are(bytes + name_offset + name_size,
+			data_offset - name_offset - name_size, 0xff) ||
 		    !bytes_are(bytes + record_end, next - record_end, 0xff))
 			return CB_ERR;
 		records++;
 		if (records > limits->maximum_records)
 			return CB_ERR;
-		if (state == VAR_ADDED || state == VAR_ADDED_IN_DELETED_TRANSITION) {
+		if (visible) {
 			struct payload_mm_authvar_store_entry *entry;
 			uint32_t duplicate = entry_count;
 

@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_store.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <commonlib/helpers.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "payload_mm_authvar_store_edk2_2609_fixture.h"
 
 #define assert(c) do { if (!(c)) abort(); } while (0)
 
@@ -61,8 +64,10 @@ static size_t add_record(size_t offset, uint8_t state, uint32_t attributes,
 	const void *data, size_t data_size)
 {
 	const size_t name_size = name_words * sizeof(*name);
-	const size_t end = offset + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
-		name_size + data_size;
+	const size_t name_end = offset + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+		name_size;
+	const size_t data_offset = (name_end + 3U) & ~(size_t)3U;
+	const size_t end = data_offset + data_size;
 	const size_t next = (end + 3U) & ~(size_t)3U;
 
 	assert(next <= sizeof(store));
@@ -74,8 +79,8 @@ static size_t add_record(size_t offset, uint8_t state, uint32_t attributes,
 	put32(offset + 40, (uint32_t)data_size);
 	memcpy(store + offset + 44, guid, 16);
 	memcpy(store + offset + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, name, name_size);
-	memcpy(store + offset + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + name_size,
-		data, data_size);
+	memset(store + name_end, 0xff, data_offset - name_end);
+	memcpy(store + data_offset, data, data_size);
 	memset(store + end, 0xff, next - end);
 	return next;
 }
@@ -113,6 +118,24 @@ static void valid_store_and_semantics(void)
 	assert(payload_mm_authvar_store_next(&index, &position) != NULL);
 	assert(payload_mm_authvar_store_next(&index, &position) == NULL);
 	assert(payload_mm_authvar_store_find(&index, guid_b, beta, sizeof(beta)) != NULL);
+}
+
+static void pinned_edk2_fixture(void)
+{
+	static const uint16_t name[] = { 'F', 'x', 0 };
+	static const uint8_t zero_guid[16];
+	static const uint8_t data[] = { 0xde, 0xad, 0xbe };
+	const struct payload_mm_authvar_store_entry *entry;
+
+	init_store();
+	memcpy(store, edk2_2609_store_fixture, sizeof(edk2_2609_store_fixture));
+	assert(payload_mm_authvar_store_scan(&index, store,
+		sizeof(edk2_2609_store_fixture), &limits) == CB_SUCCESS);
+	assert(index.store_size == sizeof(edk2_2609_store_fixture));
+	assert(index.record_count == 1 && index.entry_count == 1);
+	entry = payload_mm_authvar_store_find(&index, zero_guid, name, sizeof(name));
+	assert(entry && entry->data_offset == 96 && entry->data_size == sizeof(data));
+	assert(!memcmp(payload_mm_authvar_store_data(&index, entry), data, sizeof(data)));
 }
 
 static void expect_header_failure(size_t offset, uint8_t value)
@@ -160,6 +183,7 @@ static size_t one_valid_record(const uint16_t *name, size_t words)
 static void hostile_records(void)
 {
 	static const uint16_t name[] = { 'V', 'a', 'r', 0 };
+	static const uint16_t padded_name[] = { 'P', 'd', 0 };
 	const size_t base = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 	size_t end = one_valid_record(name, 4);
 	const struct { size_t offset; uint8_t value; } mutations[] = {
@@ -173,9 +197,6 @@ static void hostile_records(void)
 		store[base + mutations[i].offset] = mutations[i].value;
 		assert(scan() == CB_ERR);
 	}
-	one_valid_record(name, 4);
-	memset(store + base + 44, 0, 16);
-	assert(scan() == CB_ERR);
 	one_valid_record(name, 4);
 	store[base + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + 2] = 0;
 	store[base + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + 3] = 0;
@@ -195,6 +216,10 @@ static void hostile_records(void)
 	assert(scan() == CB_ERR);
 	one_valid_record(name, 4);
 	store[end] = 0;
+	assert(scan() == CB_ERR);
+	one_valid_record(padded_name, ARRAY_SIZE(padded_name));
+	store[base + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+		sizeof(padded_name)] = 0;
 	assert(scan() == CB_ERR);
 }
 
@@ -227,18 +252,84 @@ static void duplicate_and_resource_caps(void)
 	assert(scan() == CB_ERR);
 }
 
-static void time_authentication_metadata(void)
+static void legal_guid_values(void)
 {
-	static const uint16_t name[] = { 'T', 0 };
+	static const uint16_t name[] = { 'G', 0 };
+	static const uint8_t all_ones_guid[16] = {
+		[0 ... 15] = 0xff,
+	};
+	static const uint8_t data = 1;
+
+	init_store();
+	add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, 0x3f, 7,
+		all_ones_guid, name, ARRAY_SIZE(name), &data, sizeof(data));
+	assert(scan() == CB_SUCCESS && index.entry_count == 1);
+	assert(payload_mm_authvar_store_find(&index, all_ones_guid, name,
+		sizeof(name)) != NULL);
+}
+
+static void attribute_combinations(void)
+{
+	static const uint16_t name[] = { 'A', 0 };
+	static const uint8_t data = 1;
+	const uint32_t invalid_visible[] = {
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE,
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE,
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR,
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(invalid_visible); i++) {
+		init_store();
+		add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, 0x3f,
+			invalid_visible[i], guid_a, name, ARRAY_SIZE(name), &data,
+			sizeof(data));
+		assert(scan() == CB_ERR);
+	}
+	init_store();
+	add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, 0x3c,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE, guid_a, name,
+		ARRAY_SIZE(name), &data, sizeof(data));
+	assert(scan() == CB_SUCCESS && !index.entry_count && index.record_count == 1);
+	init_store();
+	add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, 0x7f,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE, guid_a, name,
+		ARRAY_SIZE(name), &data, sizeof(data));
+	assert(scan() == CB_SUCCESS && !index.entry_count && index.record_count == 1);
+}
+
+static void valid_time_record(const uint16_t *name, size_t name_words)
+{
 	const size_t base = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 
-	one_valid_record(name, 2);
+	one_valid_record(name, name_words);
 	put32(base + 4, 7 | (1U << 5));
 	put16(base + 16, 2026);
 	store[base + 18] = 9;
 	store[base + 19] = 22;
 	store[base + 20] = 12;
+}
+
+static void time_authentication_metadata(void)
+{
+	static const uint16_t name[] = { 'T', 0 };
+	const size_t base = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+
+	valid_time_record(name, ARRAY_SIZE(name));
 	assert(scan() == CB_SUCCESS);
+	valid_time_record(name, ARRAY_SIZE(name));
+	put32(base + 24, 1);
+	assert(scan() == CB_ERR);
+	valid_time_record(name, ARRAY_SIZE(name));
+	put16(base + 28, 1);
+	assert(scan() == CB_ERR);
+	valid_time_record(name, ARRAY_SIZE(name));
+	store[base + 30] = 1;
+	assert(scan() == CB_ERR);
+	valid_time_record(name, ARRAY_SIZE(name));
 	store[base + 18] = 13;
 	assert(scan() == CB_ERR);
 	one_valid_record(name, 2);
@@ -249,22 +340,41 @@ static void time_authentication_metadata(void)
 static void every_buffer_boundary(void)
 {
 	static const uint16_t name[] = { 'B', 0 };
+	size_t record_end;
 
-	one_valid_record(name, 2);
+	record_end = one_valid_record(name, 2);
 	for (size_t size = 0; size < sizeof(store); size++) {
 		assert(payload_mm_authvar_store_scan(&index, store, size, &limits) ==
 			CB_ERR);
 		assert(index.store == NULL && !index.entry_count && !index.record_count);
 	}
-	assert(scan() == CB_SUCCESS);
+	for (size_t size = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE; size < record_end;
+	     size++) {
+		one_valid_record(name, 2);
+		put32(16, (uint32_t)size);
+		if (size == PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE) {
+			assert(payload_mm_authvar_store_scan(&index, store, size, &limits) ==
+				CB_SUCCESS);
+		} else {
+			assert(payload_mm_authvar_store_scan(&index, store, size, &limits) ==
+				CB_ERR);
+		}
+	}
+	one_valid_record(name, 2);
+	put32(16, (uint32_t)record_end);
+	assert(payload_mm_authvar_store_scan(&index, store, record_end, &limits) ==
+		CB_SUCCESS);
 }
 
 int main(void)
 {
 	valid_store_and_semantics();
+	pinned_edk2_fixture();
 	hostile_store_headers();
 	hostile_records();
 	duplicate_and_resource_caps();
+	legal_guid_values();
+	attribute_combinations();
 	time_authentication_metadata();
 	every_buffer_boundary();
 	return 0;
