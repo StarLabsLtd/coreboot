@@ -99,33 +99,36 @@ int vtd_transition_from_pmr(const struct vtd_transition_io *io,
 	if (vtd_transition_probe(io, &facts) || !root_physical ||
 	    (root_physical & 0xfffU) || root_physical >= (1ULL << 48) ||
 	    (facts.status & (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ||
-	    !(facts.protected_memory_enable & VTD_PROTECTED_MEMORY_ACTIVE))
+	    !(facts.protected_memory_enable & VTD_PROTECTED_MEMORY_ACTIVE) ||
+	    !facts.coherent)
 		return -1;
 
 	io->commit_tables(io->context);
+	write64(io, VTD_ROOT_ADDRESS, root_physical);
+	if (read64(io, VTD_ROOT_ADDRESS) != root_physical)
+		return -2;
+	io->write32(io->context, VTD_GLOBAL_COMMAND, VTD_ROOT_POINTER_SET);
+	if (wait32(io, VTD_GLOBAL_STATUS, VTD_ROOT_POINTER_SET,
+		VTD_ROOT_POINTER_SET))
+		return -3;
+	if (invalidate(io, &facts))
+		return -4;
+	io->write32(io->context, VTD_GLOBAL_COMMAND, VTD_TRANSLATION_ENABLE);
+	if (wait32(io, VTD_GLOBAL_STATUS, VTD_TRANSLATION_ENABLE,
+		VTD_TRANSLATION_ENABLE))
+		return -5;
+	if (read64(io, VTD_ROOT_ADDRESS) != root_physical ||
+	    (io->read32(io->context, VTD_GLOBAL_STATUS) &
+	     (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) !=
+		(VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE))
+		return -6;
+
+	/* PMR remains active until translation and its root are both proven. */
 	protected_memory = facts.protected_memory_enable &
 		~VTD_PROTECTED_MEMORY_REQUEST;
 	io->write32(io->context, VTD_PROTECTED_MEMORY_ENABLE, protected_memory);
 	if (wait32(io, VTD_PROTECTED_MEMORY_ENABLE,
 		VTD_PROTECTED_MEMORY_ACTIVE, 0))
-		return -2;
-
-	write64(io, VTD_ROOT_ADDRESS, root_physical);
-	if (read64(io, VTD_ROOT_ADDRESS) != root_physical)
-		return -3;
-	io->write32(io->context, VTD_GLOBAL_COMMAND, VTD_ROOT_POINTER_SET);
-	if (wait32(io, VTD_GLOBAL_STATUS, VTD_ROOT_POINTER_SET,
-		VTD_ROOT_POINTER_SET))
-		return -4;
-	if (invalidate(io, &facts))
-		return -5;
-	io->write32(io->context, VTD_GLOBAL_COMMAND, VTD_TRANSLATION_ENABLE);
-	if (wait32(io, VTD_GLOBAL_STATUS, VTD_TRANSLATION_ENABLE,
-		VTD_TRANSLATION_ENABLE))
-		return -6;
-	if (read64(io, VTD_ROOT_ADDRESS) != root_physical ||
-	    (io->read32(io->context, VTD_PROTECTED_MEMORY_ENABLE) &
-	     VTD_PROTECTED_MEMORY_ACTIVE))
 		return -7;
 	return 0;
 }
