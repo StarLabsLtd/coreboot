@@ -97,6 +97,31 @@ static bool overlaps_media(const void *buffer, size_t size)
 		sizeof(media));
 }
 
+bool payload_mm_authvar_media_buffer_disjoint(const void *buffer, size_t size)
+{
+	return buffer && size && !overlaps_media(buffer, size);
+}
+
+#if ENV_TEST
+bool payload_mm_authvar_media_test_private_spans_rejected(void)
+{
+	return !payload_mm_authvar_media_buffer_disjoint(&media.policy.port,
+			sizeof(media.policy.port)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.policy.contract,
+			sizeof(media.policy.contract)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.policy.geometry,
+			sizeof(media.policy.geometry)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.sealed.port,
+			sizeof(media.sealed.port)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.generation,
+			sizeof(media.generation)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.transaction,
+			sizeof(media.transaction)) &&
+		!payload_mm_authvar_media_buffer_disjoint(&media.cache_bound,
+			sizeof(media.cache_bound));
+}
+#endif
+
 static bool protected_buffer(const void *buffer, size_t size)
 {
 	return buffer && size && payload_mm_authvar_smram_buffer(buffer, size) &&

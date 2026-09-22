@@ -66,6 +66,15 @@ struct payload_mm_authvar_media_port {
 enum cb_err payload_mm_authvar_media_install(
 	const struct payload_mm_authvar_media_port *trusted_port);
 bool payload_mm_authvar_media_available(void);
+/*
+ * SMM-internal address-boundary check. It reveals no private address and is
+ * valid before installation or begin(). Invalid or private-overlapping spans
+ * return false.
+ */
+bool payload_mm_authvar_media_buffer_disjoint(const void *buffer, size_t size);
+#if ENV_TEST
+bool payload_mm_authvar_media_test_private_spans_rejected(void);
+#endif
 enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 	uint64_t *generation, uint64_t *token);
 enum payload_mm_authvar_media_result payload_mm_authvar_media_read(
