@@ -13,7 +13,9 @@ authenticated record headers, independent four-byte name/data padding, and
 four-byte record alignment.  All offsets and sizes are checked before use.  The
 caller supplies limits for the store, names, data, records, and index entries.
 Names are non-empty, terminated UTF-16 byte strings without an earlier
-terminator.  Record padding and the unused store tail must remain erased.  An
+terminator.  Visible records also carry nonempty data; a zero-data committed
+record is an impossible EDK2 state and is rejected rather than exposed as a
+successful GET.  Record padding and the unused store tail must remain erased.  An
 EFI GUID is an opaque 128-bit value, so zero and all-ones values are legal keys.
 
 The index contains visible `VAR_ADDED` records in physical store order.  An
@@ -27,9 +29,11 @@ The semantic oracle is pinned in
 `tests/lib/payload_mm_authvar_edk2_2609_semantics.tsv`.  Store scanning is
 intentionally stricter than EDK2 recovery: truncated, overlapping, malformed,
 or non-erased records invalidate the complete index instead of searching for a
-later marker.  Authentication verification, update policy, crash-safe writes,
-journalling, reclaim, endpoint dispatch, and service publication are separate
-future gates.
+later marker.  Authentication verification, authenticated update policy,
+crash-safe writes, journalling, reclaim execution, endpoint dispatch, and
+service publication are separate future gates.  The read-only GET, NEXT and
+QUERY semantics and deterministic
+reclaim plan are described in `payload-mm-authvar-store-semantics.md`.
 
 `tests/lib/payload_mm_authvar_store_edk2_2609_fixture.h` is an independent byte
 fixture derived from the pinned EDK2 format and parsing sources.  The host test

@@ -9,6 +9,7 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar_runtime.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_STORE_SCANNER) += payload_mm_authvar_store.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS) += payload_mm_authvar_store_semantics.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_FTW_DECODER) += payload_mm_authvar_ftw.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c

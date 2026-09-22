@@ -184,6 +184,7 @@ static void hostile_records(void)
 {
 	static const uint16_t name[] = { 'V', 'a', 'r', 0 };
 	static const uint16_t padded_name[] = { 'P', 'd', 0 };
+	static const uint8_t dummy;
 	const size_t base = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 	size_t end = one_valid_record(name, 4);
 	const struct { size_t offset; uint8_t value; } mutations[] = {
@@ -209,6 +210,9 @@ static void hostile_records(void)
 	assert(scan() == CB_ERR);
 	one_valid_record(name, 4);
 	put32(base + 40, limits.maximum_data_size + 1);
+	assert(scan() == CB_ERR);
+	init_store();
+	add_record(base, 0x3f, 7, guid_a, name, 4, &dummy, 0);
 	assert(scan() == CB_ERR);
 	one_valid_record(name, 4);
 	put32(base + 36, UINT32_MAX - 1U);

@@ -69,6 +69,15 @@ config PAYLOAD_MM_AUTHVAR_FTW_DECODER
 	  Build the read-only EDK2 26.09 FV/FTW geometry decoder and recovery-state
 	  planner. It exposes no flash callbacks, mutation path, service or endpoint.
 
+config PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	help
+	  Build the read-only GET, NEXT and QUERY semantic helpers and deterministic
+	  append-or-reclaim planner. It does not copy results into shared memory,
+	  mutate media, execute an FTW plan, or publish a service endpoint.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
