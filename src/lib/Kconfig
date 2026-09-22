@@ -91,6 +91,16 @@ config PAYLOAD_MM_AUTHVAR_MEDIA_PORT
 	  The supported erase block must fit the 4 KiB protected snapshot capacity.
 	  This adds no writer, FTW executor, dispatcher, endpoint or publication.
 
+config PAYLOAD_MM_AUTHVAR_WRITER
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_MEDIA_PORT
+	help
+	  Build the dormant authenticated-variable record and mutation planner. It
+	  emits canonical records and ordered state transitions, but performs no
+	  media operation. Reclaim and every plan execution remain the responsibility
+	  of the later FTW executor.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n

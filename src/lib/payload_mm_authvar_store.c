@@ -4,16 +4,8 @@
 #include <boot/payload_mm_authvar_store.h>
 #include <string.h>
 
-#define VARIABLE_DATA 0x55aaU
 #define VARIABLE_STORE_FORMATTED 0x5aU
 #define VARIABLE_STORE_HEALTHY 0xfeU
-#define VAR_IN_DELETED_TRANSITION 0xfeU
-#define VAR_DELETED 0xfdU
-#define VAR_HEADER_VALID_ONLY 0x7fU
-#define VAR_ADDED 0x3fU
-#define VAR_ADDED_IN_DELETED_TRANSITION (VAR_ADDED & VAR_IN_DELETED_TRANSITION)
-#define VAR_ADDED_DELETED (VAR_ADDED & VAR_DELETED)
-#define VAR_TRANSITION_DELETED (VAR_ADDED_IN_DELETED_TRANSITION & VAR_DELETED)
 
 static const uint8_t authenticated_store_guid[16] = {
 	0x78, 0x2c, 0xf3, 0xaa, 0x7b, 0x94, 0x9a, 0x43,
@@ -71,10 +63,11 @@ static bool name_valid(const uint8_t *name, uint32_t size)
 
 static bool state_valid(uint8_t state)
 {
-	return state == VAR_ADDED || state == VAR_HEADER_VALID_ONLY ||
-		state == VAR_ADDED_DELETED ||
-		state == VAR_TRANSITION_DELETED ||
-		state == VAR_ADDED_IN_DELETED_TRANSITION;
+	return state == PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+		state == PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY ||
+		state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED ||
+		state == PAYLOAD_MM_AUTHVAR_STATE_TRANSITION_DELETED ||
+		state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION;
 }
 
 static bool timestamp_valid(const uint8_t timestamp[16], uint32_t attributes)
@@ -158,8 +151,12 @@ enum cb_err payload_mm_authvar_store_scan(
 		index->store = NULL;
 		index->store_size = 0;
 		index->used_size = 0;
+		index->dirty_tail_offset = 0;
 		index->record_count = 0;
 		index->entry_count = 0;
+		index->maximum_name_size = 0;
+		index->maximum_data_size = 0;
+		index->maximum_records = 0;
 	}
 	if (!index || !store || !limits_valid(limits) || !index->entries ||
 	    !index->entry_capacity || buffer_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
@@ -188,11 +185,19 @@ enum cb_err payload_mm_authvar_store_scan(
 		if (bytes_are(header, store_size - offset, 0xff))
 			break;
 		if (store_size - offset < PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
-		    read_le16(header) != VARIABLE_DATA || header[3] ||
-		    !state_valid(header[2]))
+		    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID || header[3]) {
+			if (store_size - offset > 2U && header[2] == 0xff) {
+				index->dirty_tail_offset = (uint32_t)offset;
+				offset = store_size;
+				break;
+			}
 			return CB_ERR;
+		}
 		state = header[2];
-		visible = state == VAR_ADDED || state == VAR_ADDED_IN_DELETED_TRANSITION;
+		if (state != PAYLOAD_MM_AUTHVAR_STATE_ERASED && !state_valid(state))
+			return CB_ERR;
+		visible = state == PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+			state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION;
 		attributes = read_le32(header + 4);
 		name_size = read_le32(header + 36);
 		data_size = read_le32(header + 40);
@@ -201,8 +206,8 @@ enum cb_err payload_mm_authvar_store_scan(
 		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
 		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
-		    (visible && !data_size) ||
-		    (visible &&
+		    ((visible || state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) && !data_size) ||
+		    ((visible || state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) &&
 		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&
 		     (attributes & (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
@@ -216,7 +221,7 @@ enum cb_err payload_mm_authvar_store_scan(
 		    !timestamp_valid(header + 16, attributes) ||
 		    read_le32(header + 32) ||
 		    (read_le32(header + 12) || read_le32(header + 8)))
-			return CB_ERR;
+			goto malformed_record;
 		if (!add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, &name_offset) ||
 		    !add_size(name_offset, name_size, &data_offset) ||
 		    !align4(data_offset, &data_offset) ||
@@ -226,7 +231,7 @@ enum cb_err payload_mm_authvar_store_scan(
 		    !bytes_are(bytes + name_offset + name_size,
 			data_offset - name_offset - name_size, 0xff) ||
 		    !bytes_are(bytes + record_end, next - record_end, 0xff))
-			return CB_ERR;
+			goto malformed_record;
 		records++;
 		if (records > limits->maximum_records)
 			return CB_ERR;
@@ -245,8 +250,9 @@ enum cb_err payload_mm_authvar_store_scan(
 				const uint8_t previous_state = bytes[
 					index->entries[duplicate].record_offset + 2U];
 
-				if (state != VAR_ADDED ||
-				    previous_state != VAR_ADDED_IN_DELETED_TRANSITION)
+				if (state != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+				    previous_state !=
+					PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION)
 					return CB_ERR;
 				memmove(&index->entries[duplicate],
 					&index->entries[duplicate + 1U],
@@ -268,12 +274,23 @@ enum cb_err payload_mm_authvar_store_scan(
 			memcpy(entry->vendor_guid, header + 44, 16);
 		}
 		offset = next;
+		continue;
+
+malformed_record:
+		if (state != PAYLOAD_MM_AUTHVAR_STATE_ERASED)
+			return CB_ERR;
+		index->dirty_tail_offset = (uint32_t)offset;
+		offset = store_size;
+		break;
 	}
 	index->store = bytes;
 	index->store_size = (uint32_t)store_size;
 	index->used_size = (uint32_t)offset;
 	index->record_count = records;
 	index->entry_count = entry_count;
+	index->maximum_name_size = limits->maximum_name_size;
+	index->maximum_data_size = limits->maximum_data_size;
+	index->maximum_records = limits->maximum_records;
 	return CB_SUCCESS;
 }
 

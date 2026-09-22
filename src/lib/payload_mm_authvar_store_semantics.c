@@ -4,9 +4,6 @@
 #include <boot/payload_mm_authvar_store_semantics.h>
 #include <string.h>
 
-#define VAR_ADDED 0x3fU
-#define VAR_ADDED_IN_DELETED_TRANSITION 0x3eU
-
 static bool add_u32(uint32_t left, uint32_t right, uint32_t *result)
 {
 	if (right > UINT32_MAX - left)
@@ -56,6 +53,9 @@ static bool index_valid(const struct payload_mm_authvar_store_index *index)
 		index->store_size >= PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE &&
 		index->used_size >= PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE &&
 		index->used_size <= index->store_size &&
+		index->maximum_name_size >= 4U && index->maximum_data_size &&
+		index->maximum_records &&
+		index->record_count <= index->maximum_records &&
 		index->entry_count <= index->entry_capacity;
 }
 
@@ -301,11 +301,11 @@ static const struct payload_mm_authvar_store_entry *next_physical_entry(
 	return next;
 }
 
-enum cb_err payload_mm_authvar_store_reclaim_plan(
+enum cb_err payload_mm_authvar_store_reclaim_plan_forced(
 	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_store_entry *replaced,
 	const struct payload_mm_authvar_new_record *new_record, bool at_runtime,
-	struct payload_mm_authvar_reclaim_plan *plan)
+	bool force_reclaim, struct payload_mm_authvar_reclaim_plan *plan)
 {
 	struct payload_mm_authvar_reclaim_copy *copies;
 	uint32_t copy_capacity;
@@ -325,8 +325,9 @@ enum cb_err payload_mm_authvar_store_reclaim_plan(
 	    !new_record_size(new_record, &record_size))
 		return CB_ERR;
 	plan->record_size = record_size;
-	if (!record_size || (add_u32(index->used_size, record_size, &append_end) &&
-	    append_end <= index->store_size)) {
+	if (!force_reclaim && (!record_size ||
+	    (add_u32(index->used_size, record_size, &append_end) &&
+	    append_end <= index->store_size))) {
 		plan->action = PAYLOAD_MM_AUTHVAR_SPACE_APPEND;
 		plan->destination_offset = index->used_size;
 		return CB_SUCCESS;
@@ -339,7 +340,9 @@ enum cb_err payload_mm_authvar_store_reclaim_plan(
 	    (copy_capacity && !copies))
 		return CB_ERR;
 	for (uint32_t pass = 0; pass < 2U; pass++) {
-		const uint8_t state = pass ? VAR_ADDED_IN_DELETED_TRANSITION : VAR_ADDED;
+		const uint8_t state = pass ?
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION :
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED;
 		uint32_t after = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 
 		while (true) {
@@ -375,4 +378,14 @@ enum cb_err payload_mm_authvar_store_reclaim_plan(
 		plan->destination_offset = 0;
 	}
 	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_store_reclaim_plan(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_store_entry *replaced,
+	const struct payload_mm_authvar_new_record *new_record, bool at_runtime,
+	struct payload_mm_authvar_reclaim_plan *plan)
+{
+	return payload_mm_authvar_store_reclaim_plan_forced(index, replaced,
+		new_record, at_runtime, false, plan);
 }

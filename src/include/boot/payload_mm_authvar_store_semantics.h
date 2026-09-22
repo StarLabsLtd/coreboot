@@ -78,5 +78,10 @@ enum cb_err payload_mm_authvar_store_reclaim_plan(
 	const struct payload_mm_authvar_store_entry *replaced,
 	const struct payload_mm_authvar_new_record *new_record, bool at_runtime,
 	struct payload_mm_authvar_reclaim_plan *plan);
+enum cb_err payload_mm_authvar_store_reclaim_plan_forced(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_store_entry *replaced,
+	const struct payload_mm_authvar_new_record *new_record, bool at_runtime,
+	bool force_reclaim, struct payload_mm_authvar_reclaim_plan *plan);
 
 #endif
