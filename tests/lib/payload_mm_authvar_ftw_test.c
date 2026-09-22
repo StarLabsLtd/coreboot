@@ -102,6 +102,15 @@ static bool all_bytes_are(const uint8_t *bytes, size_t size, uint8_t value)
 	return true;
 }
 
+static uint8_t erase_one_programmed_bit(uint8_t value)
+{
+	for (unsigned int bit = 0; bit < 8U; bit++) {
+		if (!(value & (1U << bit)))
+			return value | (uint8_t)(1U << bit);
+	}
+	return value;
+}
+
 static void make_fv_geometry(uint8_t *bytes, uint32_t blocks,
 	uint32_t block_size)
 {
@@ -641,7 +650,7 @@ static void workspace_reclaim_reset_matrix(void)
 	assert(first.action == PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE);
 	assert(first.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD);
 	working()[32U] = 0xf8U;
-	memset(spare(), 0xff, BLOCK_SIZE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
 	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
 
 	make_workspace(working(), 0xfe);
@@ -674,33 +683,97 @@ static void workspace_reclaim_reset_matrix(void)
 
 static void completed_spare_cleanup_matrix(void)
 {
+	struct payload_mm_authvar_ftw_plan repeated;
 	struct payload_mm_authvar_ftw_plan result;
 
 	make_media();
 	make_workspace(working(), 0xfe);
-	memcpy(spare(), region, BLOCK_SIZE);
-	for (size_t cut = 1; cut < BLOCK_SIZE; cut++) {
+	for (size_t cut = 0; cut <= BLOCK_SIZE; cut++) {
 		memcpy(spare(), region, BLOCK_SIZE);
 		memset(spare(), 0xff, cut);
 		result = plan_result();
+		repeated = plan_result();
+		assert(!memcmp(&result, &repeated, sizeof(result)));
 		if (all_bytes_are(spare(), BLOCK_SIZE, 0xffU)) {
 			assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
 		} else {
-			assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED);
+			assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
 			assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+			assert(result.geometry.spare_offset == 2U * BLOCK_SIZE &&
+				result.geometry.spare_size == 2U * BLOCK_SIZE);
+			assert(result.queue_offset == 0 && result.queue_entry_size == 0);
+			assert(result.queue_disposition ==
+				PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE);
 		}
 	}
+
+	for (size_t mask = 0; mask < 5U; mask++) {
+		memcpy(spare(), region, BLOCK_SIZE);
+		for (size_t i = 0; i < BLOCK_SIZE; i++) {
+			bool erase = (mask == 0U && !(i & 1U)) ||
+				(mask == 1U && (i & 1U)) ||
+				(mask == 2U && (i == 0U || i == BLOCK_SIZE - 1U)) ||
+				(mask == 3U && i >= BLOCK_SIZE / 2U - BLOCK_SIZE / 8U &&
+				 i < BLOCK_SIZE / 2U + BLOCK_SIZE / 8U) ||
+				(mask == 4U && !(i & 3U));
+
+			if (erase)
+				spare()[i] = 0xffU;
+		}
+		result = plan_result();
+		assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+		assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+		assert(result.queue_offset == 0 && result.queue_entry_size == 0);
+		assert(result.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE);
+	}
+
+	make_media();
+	make_workspace(working(), 0xfe);
+	make_completed_entries(working(), 50U, 2U * BLOCK_SIZE, STORE_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	result = plan_result();
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+	assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+	assert(result.queue_offset == 0 && result.queue_entry_size == 0);
+	assert(result.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE);
+
+	make_media();
+	make_workspace(working(), 0xfe);
 	memcpy(spare(), region, BLOCK_SIZE);
 	spare()[0] = 0xffU;
 	spare()[20] = 0xffU;
 	spare()[511] = 0xffU;
 	spare()[2047] = 0xffU;
 	result = plan_result();
-	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED);
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+	assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+	assert(result.queue_offset == 0 && result.queue_entry_size == 0);
+	assert(result.queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
+
 	memcpy(spare(), region, BLOCK_SIZE);
 	spare()[40] ^= 1U;
 	expect_failure();
-	memset(spare(), 0xff, BLOCK_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	spare()[BLOCK_SIZE] = 0;
+	expect_failure();
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	spare()[FV_HEADER_SIZE + 28U] = 0;
+	expect_failure();
+	memcpy(spare(), region, BLOCK_SIZE);
+	spare()[20] = 0xffU;
+	spare()[40] ^= 1U;
+	expect_failure();
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	spare()[20] = 0xffU;
+	spare()[BLOCK_SIZE] = 0;
+	expect_failure();
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
 	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
 }
 
@@ -736,6 +809,27 @@ static void prefix_program_cuts(void)
 				result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
 		}
 	}
+	for (size_t mask = 0; mask < 4U; mask++) {
+		memset(spare(), 0xff, 2U * BLOCK_SIZE);
+		for (size_t i = 0; i < 32U; i++) {
+			bool program = (mask == 0U && !(i & 1U)) ||
+				(mask == 1U && (i & 1U)) ||
+				(mask == 2U && (i == 0U || i == 31U)) ||
+				(mask == 3U && !(i & 3U));
+
+			if (program)
+				spare()[i] = incomplete_workspace[i];
+		}
+		assert(payload_mm_authvar_ftw_plan(region, sizeof(region), BLOCK_SIZE,
+			&result) == CB_SUCCESS && result.action ==
+			PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED &&
+			result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+	}
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	spare()[0] = incomplete_workspace[0];
+	spare()[1] = (uint8_t)(incomplete_workspace[1] ^ 1U);
+	expect_failure();
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
 	make_workspace(spare(), 0xfe);
 	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE);
 
@@ -765,6 +859,116 @@ static void prefix_program_cuts(void)
 	expect_failure();
 }
 
+static void torn_workspace_program_bytes(void)
+{
+	uint8_t canonical[BLOCK_SIZE];
+	bool tested[UINT8_MAX + 1U] = { false };
+	struct payload_mm_authvar_ftw_plan result;
+
+	make_media();
+	make_workspace(canonical, 0xffU);
+	memset(working(), 0xff, BLOCK_SIZE);
+	for (size_t offset = 0; offset < 32U; offset++) {
+		const uint8_t target = canonical[offset];
+		size_t anchor = 0;
+
+		if (target == 0xffU || tested[target])
+			continue;
+		tested[target] = true;
+		while (anchor == offset || canonical[anchor] == 0xffU)
+			anchor++;
+		for (unsigned int observed = 0; observed <= UINT8_MAX; observed++) {
+			memset(spare(), 0xff, 2U * BLOCK_SIZE);
+			spare()[anchor] = canonical[anchor];
+			spare()[offset] = (uint8_t)observed;
+			if (((uint8_t)observed & target) == target) {
+				result = plan_result();
+				assert(result.action ==
+					PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED);
+				assert(result.workspace ==
+					PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+			} else {
+				expect_failure();
+			}
+		}
+	}
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	for (size_t offset = 0; offset < 32U; offset++) {
+		const uint8_t target = canonical[offset];
+
+		if (target != 0xffU)
+			spare()[offset] = erase_one_programmed_bit(target);
+	}
+	spare()[0] = canonical[0];
+	result = plan_result();
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	spare()[0] = canonical[0];
+	spare()[21] = 0;
+	expect_failure();
+
+	memset(working(), 0xff, BLOCK_SIZE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	working()[0] = erase_one_programmed_bit(canonical[0]);
+	result = plan_result();
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED);
+	assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING);
+	memset(working(), 0xff, BLOCK_SIZE);
+	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_INITIALIZE_WORKSPACE);
+}
+
+static void torn_spare_erase_bytes(void)
+{
+	bool tested[UINT8_MAX + 1U] = { false };
+	struct payload_mm_authvar_ftw_plan result;
+
+	make_media();
+	make_workspace(working(), 0xfeU);
+	for (size_t offset = 0; offset < BLOCK_SIZE; offset++) {
+		const uint8_t target = region[offset];
+
+		if (target == 0xffU || tested[target])
+			continue;
+		tested[target] = true;
+		for (unsigned int observed = 0; observed <= UINT8_MAX; observed++) {
+			memset(spare(), 0xff, 2U * BLOCK_SIZE);
+			memcpy(spare(), region, BLOCK_SIZE);
+			spare()[offset] = (uint8_t)observed;
+			if (((uint8_t)observed & target) == target) {
+				result = plan_result();
+				assert(result.action ==
+					PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+				assert(result.workspace ==
+					PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+			} else {
+				expect_failure();
+			}
+		}
+	}
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	for (size_t offset = 0; offset < BLOCK_SIZE; offset++) {
+		const uint8_t target = region[offset];
+
+		if (target != 0xffU)
+			spare()[offset] = erase_one_programmed_bit(target);
+	}
+	result = plan_result();
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+
+	make_media();
+	make_workspace(working(), 0xfeU);
+	make_completed_entries(working(), 50U, 2U * BLOCK_SIZE, STORE_SIZE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	memcpy(spare(), region, BLOCK_SIZE);
+	spare()[0] = erase_one_programmed_bit(region[0]);
+	result = plan_result();
+	assert(result.action == PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE);
+	assert(result.workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE);
+	memset(spare(), 0xff, 2U * BLOCK_SIZE);
+	assert(plan() == PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE);
+}
+
 int main(void)
 {
 	valid_states();
@@ -777,5 +981,7 @@ int main(void)
 	workspace_reclaim_reset_matrix();
 	completed_spare_cleanup_matrix();
 	prefix_program_cuts();
+	torn_workspace_program_bytes();
+	torn_spare_erase_bytes();
 	return 0;
 }
