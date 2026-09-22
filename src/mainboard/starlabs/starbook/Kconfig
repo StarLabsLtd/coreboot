@@ -185,6 +185,23 @@ config STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC
 	  The diagnostic performs no VT-d MMIO or PCI configuration writes.
 	  This option does not install translation tables or publish DMA arenas.
 
+config STARLABS_STARBOOK_MTL_DMA_HANDOFF
+	bool "Establish the StarBook MTL DMA handoff"
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	depends on STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
+	depends on !STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC
+	select PAYLOAD_DMA_HANDOFF
+	select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION
+	help
+	  Replace the active VTVC0 protected-memory region with default-deny
+	  translation for the exact runtime NVMe and xHCI boot requesters, using
+	  only dynamically partitioned FSP-reserved DMA memory. Publish generic
+	  revision-2 DMA arenas linked to revision-4 payload-resource intent.
+
+	  Keep this disabled until the read-only MTL DMA diagnostic output from
+	  the target firmware has been captured and independently reviewed.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

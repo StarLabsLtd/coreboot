@@ -6,3 +6,5 @@
 # could be enabled in bootblock already.
 romstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD) += vtd.c
 ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD) += vtd.c
+ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION) += vtd_translation.c
+ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION) += vtd_transition.c

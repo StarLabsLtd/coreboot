@@ -19,3 +19,8 @@ config ENABLE_EARLY_DMA_PROTECTION
 	  work.
 
 	  If unsure, say N.
+
+config SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION
+	bool
+	default n
+	depends on SOC_INTEL_COMMON_BLOCK_VTD
