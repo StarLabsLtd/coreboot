@@ -51,10 +51,13 @@ static enum starbook_mtl_boot_controller classify_device(const struct device *de
 	return starbook_mtl_boot_controller_kind(&identity);
 }
 
-static bool scan_boot_controllers(void)
+bool starbook_mtl_boot_controller_inventory(void)
 {
 	const struct device *device;
 	size_t counts[STARBOOK_MTL_BOOT_CONTROLLER_COUNT] = { 0 };
+
+	if (inventory_scanned)
+		return inventory_valid;
 
 	for (device = all_devices; device; device = device->next) {
 		enum starbook_mtl_boot_controller kind = classify_device(device);
@@ -77,14 +80,25 @@ static bool scan_boot_controllers(void)
 	return inventory_valid;
 }
 
+const struct device *starbook_mtl_boot_controller_device(
+	enum starbook_mtl_boot_controller kind)
+{
+	if (kind <= STARBOOK_MTL_BOOT_CONTROLLER_NONE ||
+	    kind >= STARBOOK_MTL_BOOT_CONTROLLER_COUNT ||
+	    !starbook_mtl_boot_controller_inventory())
+		return NULL;
+
+	return boot_controllers[kind];
+}
+
 bool payload_resource_revision4_ready(void)
 {
-	return scan_boot_controllers();
+	return starbook_mtl_boot_controller_inventory();
 }
 
 bool payload_resource_boot_controller(const struct device *device, uint16_t *priority)
 {
-	if (!device || !priority || !inventory_scanned || !inventory_valid)
+	if (!device || !priority || !starbook_mtl_boot_controller_inventory())
 		return false;
 
 	if (device == boot_controllers[STARBOOK_MTL_BOOT_CONTROLLER_NVME])

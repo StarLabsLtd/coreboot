@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct device;
+
 #define STARBOOK_MTL_RP10_DEVFN 0x31U
 #define STARBOOK_MTL_PCH_XHCI_DEVFN 0xa0U
 #define STARBOOK_MTL_TCSS_XHCI_DEVFN 0x68U
@@ -34,5 +36,8 @@ enum starbook_mtl_boot_controller starbook_mtl_boot_controller_kind(
 	const struct starbook_mtl_pci_identity *identity);
 bool starbook_mtl_boot_inventory_complete(const size_t counts[
 	STARBOOK_MTL_BOOT_CONTROLLER_COUNT]);
+bool starbook_mtl_boot_controller_inventory(void);
+const struct device *starbook_mtl_boot_controller_device(
+	enum starbook_mtl_boot_controller kind);
 
 #endif
