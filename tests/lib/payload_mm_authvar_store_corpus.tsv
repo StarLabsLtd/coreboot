@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# oracle	StarLabsLtd/edk2	26.09	aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272
+id	edk2_visibility	scanner_result	scanner_visibility	rationale
+added	visible	SUCCESS	visible	exact active record
+deleted	hidden	SUCCESS	hidden	historical record
+transition-fallback	visible	SUCCESS	visible	no later added record
+transition-then-added	later added	SUCCESS	later added	completed replacement
+duplicate-added	ambiguous	ERROR	none	fail closed
+duplicate-transition	ambiguous	ERROR	none	fail closed
+malformed-active	may continue	ERROR	none	intentional strict boundary
+truncated-record	invalid	ERROR	none	bounded parse
+non-erased-padding	invalid	ERROR	none	no hidden bytes
+non-erased-tail	invalid	ERROR	none	no hidden record stream
+invalid-auth-time	invalid	ERROR	none	bounded EFI_TIME fields
+deprecated-counter-auth	unsupported	ERROR	none	AUTHENTICATED_WRITE_ACCESS rejected
