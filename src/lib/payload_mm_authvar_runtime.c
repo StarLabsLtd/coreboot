@@ -48,6 +48,16 @@ bool payload_mm_authvar_authority_ready(void)
 	return authority.installed;
 }
 
+bool payload_mm_authvar_authority_snapshot(
+	struct payload_mm_authvar_contract *contract)
+{
+	if (!authority.installed || !contract ||
+	    !smram_output(contract, sizeof(*contract)))
+		return false;
+	*contract = authority.contract;
+	return true;
+}
+
 bool payload_mm_authvar_smram_buffer(const void *buffer, size_t size)
 {
 	return authority.installed && smram_output(buffer, size);
