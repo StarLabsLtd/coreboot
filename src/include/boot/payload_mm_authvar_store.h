@@ -1,0 +1,59 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef BOOT_PAYLOAD_MM_AUTHVAR_STORE_H
+#define BOOT_PAYLOAD_MM_AUTHVAR_STORE_H
+
+#include <stddef.h>
+#include <stdint.h>
+#include <types.h>
+
+#define PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE 28U
+#define PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE 60U
+#define PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_SIZE (16U * 1024U * 1024U)
+#define PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE 4096U
+#define PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE (1024U * 1024U)
+#define PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS 4096U
+
+struct payload_mm_authvar_store_limits {
+	uint32_t maximum_store_size;
+	uint32_t maximum_name_size;
+	uint32_t maximum_data_size;
+	uint32_t maximum_records;
+};
+
+struct payload_mm_authvar_store_entry {
+	uint32_t record_offset;
+	uint32_t name_offset;
+	uint32_t name_size;
+	uint32_t data_offset;
+	uint32_t data_size;
+	uint32_t attributes;
+	uint8_t vendor_guid[16];
+};
+
+struct payload_mm_authvar_store_index {
+	const uint8_t *store;
+	uint32_t store_size;
+	uint32_t used_size;
+	uint32_t record_count;
+	uint32_t entry_count;
+	struct payload_mm_authvar_store_entry *entries;
+	uint32_t entry_capacity;
+};
+
+enum cb_err payload_mm_authvar_store_scan(
+	struct payload_mm_authvar_store_index *index, const void *store,
+	size_t buffer_size, const struct payload_mm_authvar_store_limits *limits);
+const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_find(
+	const struct payload_mm_authvar_store_index *index,
+	const uint8_t vendor_guid[16], const void *name, size_t name_size);
+const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_next(
+	const struct payload_mm_authvar_store_index *index, size_t *position);
+const void *payload_mm_authvar_store_name(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_store_entry *entry);
+const void *payload_mm_authvar_store_data(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_store_entry *entry);
+
+#endif

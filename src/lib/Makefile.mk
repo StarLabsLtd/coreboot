@@ -8,6 +8,7 @@ ramstage-$(CONFIG_CAPSULE_TPM_ANCHOR_TRANSITION) += \
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_authvar_runtime.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_STORE_SCANNER) += payload_mm_authvar_store.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
