@@ -154,11 +154,17 @@ config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
 	  StarBook MTL capsule broker. This does not install or publish a broker,
 	  establish DMA or SPI ownership, or enable capsule updates.
 
+config STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL
+
 config STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
 	bool "Publish exact StarBook MTL payload boot-controller topology"
 	default n
 	depends on BOARD_STARLABS_STARBOOK_MTL
 	select PAYLOAD_RESOURCE_HANDOFF
+	select STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY
 	help
 	  Publish revision-4 payload resource topology only when the runtime PCI
 	  tree contains exactly one NVMe endpoint directly below RP10, the PCH
@@ -167,6 +173,17 @@ config STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
 
 	  This does not configure VT-d translation or publish DMA arenas. It is a
 	  prerequisite for a later production DMA handoff producer.
+
+config STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC
+	bool "Collect read-only StarBook MTL DMA protection facts"
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY
+	help
+	  Log the live VTVC0 capabilities and state, FSP DMA reservation, exact
+	  boot requesters, and complete segment-zero PCI bus-master inventory.
+	  The diagnostic performs no VT-d MMIO or PCI configuration writes.
+	  This option does not install translation tables or publish DMA arenas.
 
 if BOARD_STARLABS_STARBOOK_SERIES
 
