@@ -58,6 +58,15 @@ config STARLABS_MEMORY_SETTINGS_VERSION
 
 menu "Star Labs Settings"
 
+config STARLABS_DAVE
+	bool "Enable the Star Labs DAVE security profile"
+	depends on BOARD_STARLABS_STARFIGHTER_MTL
+	default n
+	help
+	  Select the Device Attestation and Verification Engine profile.
+	  This profile only selects existing security-policy options; feature
+	  implementations must remain owned by their generic Kconfig symbols.
+
 config BOOTMEDIA_SMM_BWP
 	bool
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
