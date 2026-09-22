@@ -3,13 +3,14 @@
 if BOARD_EMULATION_QEMU_X86_Q35
 
 config Q35_VTD_DMA_TEST_BACKEND
-	bool "QEMU-only VT-d DMA handoff backend"
+	bool "QEMU-only VT-d DMA test backend"
 	depends on PAYLOAD_RESOURCE_HANDOFF
-	select PAYLOAD_DMA_HANDOFF
 	help
-	  Establish an empty-root, default-deny VT-d domain before the payload
-	  and publish one explicitly bounded EDU requester through the DMA
-	  handoff. This is a QEMU test backend, not production Intel support.
+	  Establish a default-deny VT-d domain with one immutable, pre-mapped
+	  arena before the payload and prove denial with QEMU's synthetic EDU
+	  requester. EDU is not a boot controller, so this does not publish it
+	  through the payload DMA handoff. This is a QEMU test backend, not
+	  production Intel support.
 
 config Q35_CAPSULE_UPDATE_TEST_PROOF
 	bool "QEMU-only bounded capsule writer proof"

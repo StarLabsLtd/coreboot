@@ -354,6 +354,33 @@ struct topology_snapshot {
 	size_t boot_count;
 };
 
+static struct topology_snapshot revision4_snapshot;
+
+size_t payload_resource_revision4_boot_count(void)
+{
+	return revision4_published ? revision4_snapshot.boot_count : 0;
+}
+
+bool payload_resource_revision4_boot_requester(uint16_t segment, uint16_t bdf)
+{
+	if (!revision4_published)
+		return false;
+
+	for (size_t index = 0; index < revision4_snapshot.count; index++) {
+		const struct device *device = revision4_snapshot.devices[index];
+
+		if (!revision4_snapshot.boot_selected[index] ||
+		    revision4_snapshot.commands[index] & PCI_COMMAND_MASTER ||
+		    !device->upstream || device->upstream->segment_group != segment ||
+		    device->upstream->secondary > UINT8_MAX)
+			continue;
+		if ((((uint16_t)device->upstream->secondary << 8) |
+		     device->path.pci.devfn) == bdf)
+			return true;
+	}
+	return false;
+}
+
 static bool device_is_listed(const struct device *device)
 {
 	const struct device *listed;
@@ -532,6 +559,7 @@ static bool collect_topology_bus(const struct bus *bus, uint16_t parent,
 static bool collect_topology(struct topology_snapshot *snapshot)
 {
 	const struct device *device;
+	size_t expected_boot_count = 0;
 
 	memset(snapshot, 0, sizeof(*snapshot));
 	for (device = all_devices; device; device = device->next) {
@@ -548,9 +576,20 @@ static bool collect_topology(struct topology_snapshot *snapshot)
 	}
 	for (device = all_devices; device; device = device->next) {
 		size_t matches = 0;
+		uint16_t priority;
 
-		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
-		    !device_has_assignment(device))
+		if (!device->enabled || device->path.type != DEVICE_PATH_PCI)
+			continue;
+		if (payload_resource_boot_controller(device, &priority)) {
+			expected_boot_count++;
+			if (!device_has_assignment(device)) {
+				printk(BIOS_ERR,
+				       "PRH: boot controller %s has no assigned resource\n",
+				       dev_path(device));
+				return false;
+			}
+		}
+		if (!device_has_assignment(device))
 			continue;
 		for (size_t index = 0; index < snapshot->count; index++)
 			matches += snapshot->devices[index] == device;
@@ -569,7 +608,7 @@ static bool collect_topology(struct topology_snapshot *snapshot)
 		snapshot->boot_priorities[index] = priority;
 		snapshot->boot_count++;
 	}
-	return true;
+	return snapshot->boot_count == expected_boot_count;
 }
 
 static enum cb_err quiesce_assigned_devices(void)
@@ -720,7 +759,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	const struct lb_framebuffer *framebuffer = payload_resource_framebuffer();
 	const struct device *framebuffer_owner;
 	const struct device *device;
-	static struct topology_snapshot snapshot;
+	struct topology_snapshot *snapshot = &revision4_snapshot;
 	size_t root_count, assignment_count, root_index = 0, assignment_index = 0;
 	size_t section_index, section_count;
 	size_t record_size;
@@ -736,7 +775,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	if (count_records(&root_count, &assignment_count) != CB_SUCCESS)
 		return CB_ERR;
 	revision4 = payload_resource_revision4_ready();
-	if (revision4 && !collect_topology(&snapshot)) {
+	memset(snapshot, 0, sizeof(*snapshot));
+	if (revision4 && !collect_topology(snapshot)) {
 		printk(BIOS_WARNING,
 		       "PRH: revision 4 source incomplete; publishing compatible revision 3\n");
 		revision4 = false;
@@ -747,8 +787,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		return CB_ERR;
 	}
 	if (revision4 && framebuffer) {
-		for (size_t index = 0; index < snapshot.count; index++)
-			if (snapshot.devices[index] == framebuffer_owner)
+		for (size_t index = 0; index < snapshot->count; index++)
+			if (snapshot->devices[index] == framebuffer_owner)
 				framebuffer_topology_index = index;
 		if (framebuffer_topology_index == LB_PRH_PCI_TOPOLOGY_PARENT_ROOT) {
 			printk(BIOS_WARNING,
@@ -756,18 +796,18 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			revision4 = false;
 		}
 	}
-	if ((revision4 ? quiesce_topology_devices(&snapshot) : quiesce_assigned_devices()) !=
+	if ((revision4 ? quiesce_topology_devices(snapshot) : quiesce_assigned_devices()) !=
 	    CB_SUCCESS)
 		return CB_ERR;
 	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0);
 	record_size = sizeof(*handoff) + section_count * sizeof(*root_section) +
 		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments) +
-		(revision4 ? snapshot.count * sizeof(*topology) +
-		 snapshot.boot_count * sizeof(*boot_intent) : 0) +
+		(revision4 ? snapshot->count * sizeof(*topology) +
+		 snapshot->boot_count * sizeof(*boot_intent) : 0) +
 		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
 	if (record_size > UINT32_MAX || root_count > UINT32_MAX ||
 	    assignment_count > UINT32_MAX ||
-	    (revision4 && (snapshot.count > UINT32_MAX || snapshot.boot_count > UINT32_MAX)))
+	    (revision4 && (snapshot->count > UINT32_MAX || snapshot->boot_count > UINT32_MAX)))
 		return CB_ERR;
 
 	handoff = (void *)lb_new_record(header);
@@ -812,17 +852,17 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			LB_PRH_SECTION_FLAG_AUTHORITATIVE;
 		topology_section->header_length = sizeof(*topology_section);
 		topology_section->entry_size = sizeof(*topology);
-		topology_section->entry_count = snapshot.count;
+		topology_section->entry_count = snapshot->count;
 		topology_section->offset = assignment_section->offset + assignment_section->length;
-		topology_section->length = snapshot.count * sizeof(*topology);
+		topology_section->length = snapshot->count * sizeof(*topology);
 		boot_section->type = LB_PRH_SECTION_BOOT_INTENT;
 		boot_section->flags = LB_PRH_SECTION_FLAG_MANDATORY |
 			LB_PRH_SECTION_FLAG_AUTHORITATIVE;
 		boot_section->header_length = sizeof(*boot_section);
 		boot_section->entry_size = sizeof(*boot_intent);
-		boot_section->entry_count = snapshot.boot_count;
+		boot_section->entry_count = snapshot->boot_count;
 		boot_section->offset = topology_section->offset + topology_section->length;
-		boot_section->length = snapshot.boot_count * sizeof(*boot_intent);
+		boot_section->length = snapshot->boot_count * sizeof(*boot_intent);
 		topology = (void *)((uint8_t *)handoff + topology_section->offset);
 		boot_intent = (void *)((uint8_t *)handoff + boot_section->offset);
 	}
@@ -923,8 +963,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		}
 	}
 	if (revision4) {
-		for (size_t index = 0; index < snapshot.count; index++) {
-			const struct device *topology_device = snapshot.devices[index];
+		for (size_t index = 0; index < snapshot->count; index++) {
+			const struct device *topology_device = snapshot->devices[index];
 			const struct device *domain = root_domain(topology_device);
 			struct lb_prh_pci_topology *output = &topology[index];
 
@@ -933,10 +973,10 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			output->device = topology_device->path.pci.devfn >> 3;
 			output->function = topology_device->path.pci.devfn & 7;
 			output->header_type = topology_device->hdr_type;
-			output->parent_index = snapshot.parents[index];
+			output->parent_index = snapshot->parents[index];
 			output->vendor_id = topology_device->vendor;
 			output->device_id = topology_device->device;
-			output->command = snapshot.commands[index];
+			output->command = snapshot->commands[index];
 			output->class_code = topology_device->class >> 16;
 			output->subclass = topology_device->class >> 8;
 			output->programming_interface = topology_device->class;
@@ -952,27 +992,27 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			bool first = true;
 			uint16_t last_priority = 0, last_index = 0;
 
-			for (size_t output_index = 0; output_index < snapshot.boot_count;
+			for (size_t output_index = 0; output_index < snapshot->boot_count;
 			     output_index++) {
 				size_t best = SIZE_MAX;
 
-				for (size_t index = 0; index < snapshot.count; index++) {
-					if (!snapshot.boot_selected[index] ||
-					    (!first && (snapshot.boot_priorities[index] < last_priority ||
-					     (snapshot.boot_priorities[index] == last_priority &&
+				for (size_t index = 0; index < snapshot->count; index++) {
+					if (!snapshot->boot_selected[index] ||
+					    (!first && (snapshot->boot_priorities[index] < last_priority ||
+					     (snapshot->boot_priorities[index] == last_priority &&
 					      index <= last_index))))
 						continue;
 					if (best == SIZE_MAX ||
-					    snapshot.boot_priorities[index] <
-						    snapshot.boot_priorities[best] ||
-					    (snapshot.boot_priorities[index] ==
-						    snapshot.boot_priorities[best] && index < best))
+					    snapshot->boot_priorities[index] <
+						    snapshot->boot_priorities[best] ||
+					    (snapshot->boot_priorities[index] ==
+						    snapshot->boot_priorities[best] && index < best))
 						best = index;
 				}
 				if (best == SIZE_MAX)
 					return CB_ERR;
 				boot_intent[output_index].topology_index = best;
-				last_priority = snapshot.boot_priorities[best];
+				last_priority = snapshot->boot_priorities[best];
 				last_index = best;
 				first = false;
 			}

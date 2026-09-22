@@ -1,18 +1,19 @@
-# QEMU Q35 DMA handoff test backend
+# QEMU Q35 DMA test backend
 
-`Q35_VTD_DMA_TEST_BACKEND` is a test-only implementation of the DMA handoff.
-It allocates the modern `CBMEM_ID_DMA_HANDOFF` entry before table writing,
-installs a VT-d root and context entry for domain 1, verifies translation is active, and keeps
-the sole explicitly admitted QEMU EDU requester’s bus-master bit clear.  The
-handoff is emitted only after revision 4 of the payload resource handoff has
-been serialized with the same generation.
+`Q35_VTD_DMA_TEST_BACKEND` is a test-only VT-d implementation. It installs a
+VT-d root and context entry for domain 1, verifies translation is active, and
+keeps QEMU EDU's bus-master bit clear. EDU is a synthetic fault and
+positive-control oracle, not a payload boot controller. The backend therefore
+does not select `PAYLOAD_DMA_HANDOFF`, allocate `CBMEM_ID_DMA_HANDOFF`, or emit
+an `LB_TAG_DMA_HANDOFF` record for EDU. A separate real-requester producer must
+map the controllers selected by revision 4 of the payload resource handoff.
 
-The exact-sized `CBMEM_ID_DMA_HANDOFF` allocation contains only the serialized
-handoff.  A distinct `CBMEM_ID_Q35_VTD_TABLES` allocation contains six resident
+The private `CBMEM_ID_Q35_VTD_TABLES` allocation contains six resident
 pages: one root page, one context page, and a four-page requester hierarchy.  Root, context,
-and upper-level page tables are linked to the requester and domain 1.  The
-target leaf remains absent, so the requester has no mapping and cannot perform
-DMA.  There is deliberately no identity-map fallback.  On a noncoherent VT-d
+and upper-level page tables are linked to the requester and domain 1. One
+identity-mapped page is the requester's immutable DMA arena. Every other leaf
+remains absent, so the requester cannot perform DMA outside that arena. There
+is deliberately no broad identity-map fallback. On a noncoherent VT-d
 unit, every table cache line is written back before the root is installed.
 
 After enrolling EDU in the deny domain, the QEMU-only self-test temporarily
@@ -33,10 +34,9 @@ reservation and bounded staging allocation and rejects any present mapping.
 Each proof call also asks EDU to write into both protected allocations.  The
 call succeeds only when each request produces a fault for EDU's exact source
 ID and destination page and leaves the target bytes unchanged.  A separate
-page is then temporarily mapped as a positive control; EDU must change its
-contents without raising a fault.  The mapping is removed, the IOTLB is
-invalidated, and another exact EDU fault must leave that same page unchanged
-before success is returned.  The default-deny state is then reread.
+pre-mapped arena page is the positive control; EDU must change its contents
+without raising a fault or changing any VT-d table. The default-deny state is
+then reread.
 Only a request for the exact 168-byte transport or complete staging geometry
 can invoke this proof; the actual DMA checks cover the full communication
 reservation in either case.
@@ -48,11 +48,11 @@ the closed default-deny root/context topology and complete BME inventory, not
 by device-specific DMA engines.  Consequently this remains QEMU evidence, not
 a production all-device or hardware DMA-protection claim.
 
-The QEMU harness supplies `opt/q35/capsule-dma-fail` in one hostile case.  Its
-presence changes only the saved high protected-memory base, forcing the normal
-full-width PMR comparison to fail closed.  The harness waits for the capsule
-proof result rather than the earlier DMA-handoff publication and rejects an
-injected run that reaches the success marker.
+The standalone QEMU harness proves the private VT-d backend with a protected
+run and rejects missing IOMMU, missing EDU, and duplicate EDU topologies. It
+also rejects any run that emits a public DMA handoff for the synthetic device.
+Capsule-buffer fault injection remains a separate opt-in proof layered on this
+backend.
 
 This code proves the narrow QEMU contract only.  It is not an Intel or AMD
 production backend: it has no chipset discovery, protected-memory carve-outs,

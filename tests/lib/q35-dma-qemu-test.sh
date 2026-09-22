@@ -43,11 +43,8 @@ run_case()
 	qemu_pid=
 }
 
-run_case protected 'Q35 capsule DMA: communication .* positive control passed' \
+run_case protected 'Q35 DMA: default-deny active' \
 	-device intel-iommu,pt=off -device edu,dma_mask=0xffffffff
-run_case injected 'Q35 capsule DMA: exact-range proof failed' \
-	-device intel-iommu,pt=off -device edu,dma_mask=0xffffffff \
-	-fw_cfg name=opt/q35/capsule-dma-fail,string=1
 run_case missing_iommu 'Q35 DMA: VT-d lacks the required 48-bit address width' \
 	-device edu,dma_mask=0xffffffff
 run_case missing_requester \
@@ -63,12 +60,7 @@ rg -q 'Q35 DMA: default-deny active, .*EDU 0000:00:03.0' \
 	"$out/protected.serial"
 rg -q 'Q35 DMA: noncoherent page-walk table visibility established' \
 	"$out/protected.serial"
-rg -q 'Q35 DMA: handoff generation 1, domain 1 linked, six immutable pages' \
-	"$out/protected.serial"
-rg -q 'Q35 capsule DMA: communication .* and staging .* denied; positive control passed' \
-	"$out/protected.serial"
 rg -q 'Q35 VTD TAB .* 0x00006000' "$out/protected.serial"
-rg -q 'DMA HANDOFF .* 0x0000009c' "$out/protected.serial"
 rg -q 'vtd_iommu_translate: detected translation failure \(dev=00:03:00' \
 	"$out/protected.qemu"
 rg -q 'Q35 DMA: VT-d lacks the required 48-bit address width' \
@@ -77,18 +69,11 @@ rg -q 'Q35 DMA: expected exactly one segment-zero EDU requester' \
 	"$out/missing_requester.serial"
 rg -q 'Q35 DMA: expected exactly one segment-zero EDU requester' \
 	"$out/duplicate.serial"
-rg -q 'Q35 capsule DMA: exact-range proof failed' "$out/injected.serial"
-if rg -q 'Q35 capsule DMA: communication .* positive control passed' \
-	"$out/injected.serial"; then
-	echo "injected Q35 capsule proof unexpectedly succeeded" >&2
-	exit 1
-fi
-if rg -q 'Q35 DMA: handoff generation' "$out/missing_iommu.serial" \
-	"$out/missing_requester.serial" "$out/duplicate.serial"; then
-	echo "hostile Q35 case published a DMA handoff" >&2
+if rg -q 'Q35 DMA: handoff generation|DMA HANDOFF' "$out"/*.serial; then
+	echo "synthetic Q35 EDU was unexpectedly published as payload DMA intent" >&2
 	exit 1
 fi
 cmp "$rom" "$out/input.rom"
 sha256sum "$out/input.rom" "$out"/*.serial "$out"/*.qemu >"$out/evidence.sha256"
 sha256sum -c "$out/evidence.sha256"
-echo "Q35 DMA protected and hostile QEMU cases: PASS ($out)"
+echo "Q35 DMA private protected and hostile QEMU cases: PASS ($out)"

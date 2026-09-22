@@ -371,6 +371,39 @@ def validate_sources(cb, payload, cdk, cdk_handoff, cdk_diagnostic, cdk_test):
 		raise AbiMismatch("v1 SPI request must not expose an unenforced sequence")
 
 
+def validate_dma_sources(producer, consumer):
+	constants = {
+		"DMA_HANDOFF_REVISION": 2,
+		"DMA_HANDOFF_GRANULE_SHIFT": 12,
+		"DMA_HANDOFF_REQUIRED_FLAGS": 0x3f,
+		"DMA_HANDOFF_REQUESTER_FLAGS": 0xf,
+		"DMA_HANDOFF_ARENA_READ": 0x1,
+		"DMA_HANDOFF_ARENA_WRITE": 0x2,
+		"DMA_HANDOFF_ARENA_PREMAPPED": 0x4,
+		"DMA_HANDOFF_ARENA_IMMUTABLE": 0x8,
+		"DMA_HANDOFF_ARENA_COHERENT": 0x10,
+		"DMA_HANDOFF_ARENA_FLAGS": 0x1f,
+	}
+	require_constants(producer, constants, "coreboot DMA handoff")
+	require_constants(consumer, constants, "CDK2 DMA handoff")
+	producer_requester = (
+		"uint16_t segment", "uint16_t bdf", "uint16_t protection_domain",
+		"uint16_t flags", "uint64_t arena_cpu_base",
+		"uint64_t arena_device_base", "uint32_t arena_pages", "uint32_t arena_flags",
+	)
+	consumer_requester = tuple(field.replace("uint16_t", "UINT16").replace(
+		"uint32_t", "UINT32").replace("uint64_t", "UINT64")
+		for field in producer_requester)
+	require_exact_struct(producer, "dma_handoff_requester", producer_requester,
+		"__packed")
+	require_exact_struct(consumer, "dma_handoff_requester", consumer_requester,
+		"__packed")
+	for source, owner in ((producer, "producer"), (consumer, "consumer")):
+		require_unique(source,
+			r"sizeof\(struct dma_handoff_requester\) == 32U?",
+			f"{owner} DMA requester size assertion")
+
+
 def validate_capsule_sources(cb, cdk, broker, authvar, transport):
 	producer_handoff = {
 		"LB_CAPSULE_HANDOFF_REVISION": 2,
@@ -639,6 +672,8 @@ def validate(coreboot, cdk2, hostile=False):
 		"broker": coreboot / "src/include/boot/capsule_broker.h",
 		"authvar": coreboot / "src/include/boot/payload_mm_authvar.h",
 		"transport": cdk2 / "include/cdk2/system_fmp_transport.h",
+		"dma_producer": coreboot / "src/commonlib/include/commonlib/dma_handoff.h",
+		"dma_consumer": cdk2 / "include/cdk2/dma_handoff.h",
 	}
 	sources = {name: path.read_text() for name, path in paths.items()}
 	coreboot_includes = (coreboot / "src/include", coreboot / "src/commonlib/include",
@@ -657,7 +692,7 @@ def validate(coreboot, cdk2, hostile=False):
 			processed = {}
 			for name, source in raw.items():
 				includes = coreboot_includes if name in (
-					"cb", "payload", "broker", "authvar") else cdk_includes
+					"cb", "payload", "broker", "authvar", "dma_producer") else cdk_includes
 				processed[name] = toolchain(source, includes, True)
 			return processed
 
@@ -1018,6 +1053,7 @@ def validate(coreboot, cdk2, hostile=False):
 			processed["handoff"], processed["diagnostic"], processed["test"])
 		validate_capsule_sources(processed["cb"], processed["cdk"],
 			processed["broker"], processed["authvar"], processed["transport"])
+		validate_dma_sources(raw["dma_producer"], raw["dma_consumer"])
 		for name in ("cb", "broker", "authvar"):
 			toolchain(raw[name], coreboot_includes, False)
 		for name, needle, replacement, description in producer_assertions:
