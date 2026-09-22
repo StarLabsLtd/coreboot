@@ -370,7 +370,63 @@ int main(void)
 
 		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT,
 			"fixed live 64-bit BAR lost its encoding");
+		failures += check(assignment->resource_type == LB_PRH_PCI_RESOURCE_MMIO32,
+			"64-bit BAR below 4 GiB lost its 32-bit aperture");
 	}
+
+	reset_fixture();
+	bar.flags |= IORESOURCE_FIXED | IORESOURCE_PREFETCH;
+	pci_bars[0] = PCI_BASE_ADDRESS_MEM_LIMIT_64 | PCI_BASE_ADDRESS_MEM_PREFETCH;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"prefetchable fixed live 64-bit BAR was rejected");
+	handoff = (const void *)(storage + sizeof(*header));
+	{
+		const struct lb_prh_pci_assignment *assignment =
+			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
+
+		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT &&
+			assignment->resource_type == LB_PRH_PCI_RESOURCE_PREFETCH_MMIO32,
+			"prefetchable 64-bit BAR lost its below-4-GiB aperture");
+	}
+
+	reset_fixture();
+	bar.base = 4ULL * GiB;
+	bar.flags |= IORESOURCE_PCI64;
+	aperture.base = bar.base;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"64-bit BAR above 4 GiB was rejected");
+	handoff = (const void *)(storage + sizeof(*header));
+	{
+		const struct lb_prh_pci_assignment *assignment =
+			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
+
+		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT &&
+			assignment->resource_type == LB_PRH_PCI_RESOURCE_MMIO64,
+			"64-bit BAR above 4 GiB lost its aperture or encoding");
+	}
+
+	reset_fixture();
+	bar.base = 4ULL * GiB;
+	bar.flags |= IORESOURCE_PCI64 | IORESOURCE_PREFETCH;
+	aperture.base = bar.base;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS,
+		"prefetchable 64-bit BAR above 4 GiB was rejected");
+	handoff = (const void *)(storage + sizeof(*header));
+	{
+		const struct lb_prh_pci_assignment *assignment =
+			(const void *)((const uint8_t *)handoff + handoff->sections[1].offset);
+
+		failures += check(assignment->flags == LB_PRH_PCI_ASSIGNMENT_64BIT &&
+			assignment->resource_type == LB_PRH_PCI_RESOURCE_PREFETCH_MMIO64,
+			"prefetchable 64-bit BAR above 4 GiB lost its semantics");
+	}
+
+	reset_fixture();
+	bar.base = 4ULL * GiB;
+	aperture.base = bar.base;
+	failures += check(lb_add_payload_resource_handoff(header) == CB_ERR &&
+		header->table_entries == 0 && (command & PCI_COMMAND_MASTER),
+		"32-bit BAR above 4 GiB was accepted");
 
 	reset_fixture();
 	failures += check(lb_add_payload_resource_handoff(header) == CB_SUCCESS &&

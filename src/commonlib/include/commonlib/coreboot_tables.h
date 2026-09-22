@@ -200,6 +200,8 @@ struct lb_pcie {
 
 #define LB_PRH_PCI_ROOT_TOPOLOGY_ONLY 0x00000001
 
+/* Resource type describes the assigned address aperture.  The assignment
+ * flag below independently describes the BAR register encoding. */
 #define LB_PRH_PCI_RESOURCE_IO              1
 #define LB_PRH_PCI_RESOURCE_MMIO32          2
 #define LB_PRH_PCI_RESOURCE_MMIO64          3
