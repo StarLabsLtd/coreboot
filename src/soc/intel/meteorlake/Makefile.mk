@@ -34,6 +34,7 @@ ramstage-y += pmc.c
 ramstage-y += retimer.c
 ramstage-y += systemagent.c
 ramstage-y += tcss.c
+ramstage-y += vtd.c
 ramstage-y += xhci.c
 ramstage-y += soc_info.c
 
