@@ -78,6 +78,19 @@ config PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
 	  append-or-reclaim planner. It does not copy results into shared memory,
 	  mutate media, execute an FTW plan, or publish a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_MEDIA_PORT
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_CONTRACT && PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	depends on PAYLOAD_MM_AUTHVAR_FTW_DECODER
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
+	help
+	  Build the dormant SMM-only authenticated-variable media port. It seals a
+	  platform backend against the validated SMMSTORE contract and provides
+	  bounded reads plus verified NOR program and single-block erase primitives.
+	  The supported erase block must fit the 4 KiB protected snapshot capacity.
+	  This adds no writer, FTW executor, dispatcher, endpoint or publication.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
