@@ -29,9 +29,11 @@ config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
 	depends on HAVE_SMI_HANDLER
 	select PAYLOAD_MM_AUTHVAR_CONTRACT
 	select PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	select PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
 	select PAYLOAD_MM_AUTHVAR_FTW_DECODER
 	help
 	  Compile the dormant typed boundary, read-only store and FTW decoders,
+	  read-only variable semantics and reclaim planner,
 	  protected SystemFmp staging and fixed variable-owner port for hostile QEMU
 	  testing. This does not install a producer, SMI command, MM dispatcher,
 	  storage backend or authenticated-variable service. It grants no SPI access.

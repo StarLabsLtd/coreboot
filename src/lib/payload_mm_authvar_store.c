@@ -201,6 +201,7 @@ enum cb_err payload_mm_authvar_store_scan(
 		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
 		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
+		    (visible && !data_size) ||
 		    (visible &&
 		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
 		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&

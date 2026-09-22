@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# oracle	StarLabsLtd/edk2	26.09	aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c	ce7a2b6641ada05a7141267f4b52d37a136333c7
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/VariableParsing.c	8f0cc4559821ea11e56da45c0379791248971ba4
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/Reclaim.c	fe64d0a2b3dddb0f9e3304a13be30cb41b44d93e
+area	condition	result
+get	empty UTF-16 name	NOT_FOUND
+get	found and data capacity too small	BUFFER_TOO_SMALL plus required size and attributes
+get	boot-service-only record at runtime	NOT_FOUND
+next	empty name and zero GUID	first visible physical record
+next	nonempty cursor absent or runtime-hidden	INVALID_PARAMETER
+next	cursor is last visible record	NOT_FOUND
+next	name capacity too small	BUFFER_TOO_SMALL plus required size, no copied key
+query	zero attributes	INVALID_PARAMETER
+query	deprecated authenticated-write attribute	UNSUPPORTED
+query	NV alone, RT without BS, runtime without RT	INVALID_PARAMETER
+query	before runtime	remaining excludes reclaimable physical garbage
+query	at runtime	remaining includes every parsed physical record
+reclaim	selection	physical ADDED records then lone transitions
+reclaim	transition destination state	promote to ADDED
+reclaim	updated key	exclude current and paired transition
+reclaim	new record	append after compacted live records
+scope	malformed or ambiguous store	fail closed at stricter scanner
+scope	volatile, HOB, hardware-error and user quotas	not represented
+scope	media and FTW execution	not implemented

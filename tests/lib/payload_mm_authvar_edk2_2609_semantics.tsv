@@ -49,13 +49,13 @@ mode-deployed	mode	SET	physical presence policy permits	DeployedMode transition	
 mode-vendor-keys	mode	SET	key database changed	VendorKeys update	ORACLE	VendorKeys reflects customization
 mode-custom	mode	SET	trusted physical presence	CustomMode transition	ORACLE	custom bypass scoped to oracle policy
 presence-denied	mode	SET	no trustworthy presence	operation requiring presence	WRITE_PROTECTED	store unchanged
-utf16-empty	name	GET	any	empty name	INVALID_PARAMETER	store unchanged
+utf16-empty	name	GET	any	empty name	NOT_FOUND	store unchanged
 utf16-odd	name	GET	any	odd byte count	INVALID_PARAMETER	store unchanged
 utf16-unterminated	name	GET	any	no terminal UTF16 NUL	INVALID_PARAMETER	store unchanged
 utf16-non-ascii	name	SET	absent	valid non-ASCII UTF16 name	SUCCESS	value enumerable by exact name
 next-first	enumeration	NEXT	nonempty store	empty name and zero GUID	SUCCESS	first visible key
 next-successor	enumeration	NEXT	current key exists	current name and GUID	SUCCESS	next visible key in oracle order
-next-missing	enumeration	NEXT	current key absent	unknown name and GUID	NOT_FOUND	store unchanged
+next-missing	enumeration	NEXT	current key absent	unknown name and GUID	INVALID_PARAMETER	store unchanged
 next-small-buffer	enumeration	NEXT	next key exists	insufficient name capacity	BUFFER_TOO_SMALL	required size returned
 get-small-buffer	read	GET	value exists	insufficient data capacity	BUFFER_TOO_SMALL	required size and attributes returned
 get-runtime-hidden	read	GET after ENTER_RUNTIME complete	BS-only variable	name and GUID	NOT_FOUND	store unchanged
