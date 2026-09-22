@@ -11,6 +11,13 @@
 
 static int failures;
 
+static uint8_t dma_device_table[AMD_IOMMU_PAGE_SIZE]
+	__aligned(AMD_IOMMU_PAGE_SIZE);
+static uint8_t dma_page_tables[2 * AMD_IOMMU_PAGE_SIZE]
+	__aligned(AMD_IOMMU_PAGE_SIZE);
+static uint8_t dma_arenas[4 * AMD_IOMMU_PAGE_SIZE]
+	__aligned(AMD_IOMMU_PAGE_SIZE);
+
 #define CHECK(condition) do { if (!(condition)) failures++; } while (0)
 
 static void test_unsegmented_table(void)
@@ -177,6 +184,133 @@ static void test_bad_arguments(void)
 	       CB_ERR_ARG);
 }
 
+static void test_owned_dma_state(void)
+{
+	const struct amd_iommu_dma_requester requesters[] = {
+		{
+			.device_id = 0x18,
+			.protection_domain = 1,
+			.arena_cpu_base = (uintptr_t)&dma_arenas[0],
+			.arena_device_base = 0x1000,
+			.arena_pages = 1,
+		},
+		{
+			.device_id = 0x20,
+			.protection_domain = 2,
+			.arena_cpu_base = (uintptr_t)&dma_arenas[AMD_IOMMU_PAGE_SIZE],
+			.arena_device_base = 0x1000,
+			.arena_pages = 3,
+		},
+	};
+	uint64_t *device_words = (void *)dma_device_table;
+	uint64_t *page_words = (void *)dma_page_tables;
+
+	memset(dma_device_table, 0xa5, sizeof(dma_device_table));
+	memset(dma_page_tables, 0xa5, sizeof(dma_page_tables));
+	CHECK(amd_iommu_device_table_bytes(0) == AMD_IOMMU_PAGE_SIZE);
+	CHECK(amd_iommu_device_table_bytes(127) == AMD_IOMMU_PAGE_SIZE);
+	CHECK(amd_iommu_device_table_bytes(128) == 2 * AMD_IOMMU_PAGE_SIZE);
+	CHECK(amd_iommu_device_table_bytes(UINT16_MAX) == 512 * AMD_IOMMU_PAGE_SIZE);
+	CHECK(amd_iommu_build_dma_state(dma_device_table, sizeof(dma_device_table),
+		dma_page_tables, sizeof(dma_page_tables), requesters,
+		ARRAY_SIZE(requesters)) == CB_SUCCESS);
+	CHECK(amd_iommu_dma_state_matches(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, sizeof(dma_page_tables),
+		requesters, ARRAY_SIZE(requesters)));
+	CHECK(device_words[0] == 0);
+	CHECK((device_words[0x18 * 4] & 3U) == 3U);
+	CHECK(device_words[0x18 * 4 + 1] == 1);
+	CHECK(device_words[0x20 * 4 + 1] == 2);
+	CHECK(page_words[0] == 0);
+	CHECK((page_words[1] & 1U) == 1U);
+	CHECK((page_words[512 + 1] & 1U) == 1U);
+	CHECK((page_words[512 + 4] & 1U) == 0);
+
+	page_words[512 + 4] = 1;
+	CHECK(!amd_iommu_dma_state_matches(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, sizeof(dma_page_tables),
+		requesters, ARRAY_SIZE(requesters)));
+	page_words[512 + 4] = 0;
+	device_words[3] = 1;
+	CHECK(!amd_iommu_dma_state_matches(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, sizeof(dma_page_tables),
+		requesters, ARRAY_SIZE(requesters)));
+	device_words[3] = 0;
+	device_words[0x18 * 4] ^= 1ULL << 61;
+	CHECK(!amd_iommu_dma_state_matches(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, sizeof(dma_page_tables),
+		requesters, ARRAY_SIZE(requesters)));
+	device_words[0x18 * 4] ^= 1ULL << 61;
+	page_words[1] ^= 1ULL << 62;
+	CHECK(!amd_iommu_dma_state_matches(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, sizeof(dma_page_tables),
+		requesters, ARRAY_SIZE(requesters)));
+}
+
+static void test_invalid_dma_state(void)
+{
+	struct amd_iommu_dma_requester requester = {
+		.device_id = 0x18,
+		.protection_domain = 1,
+		.arena_cpu_base = (uintptr_t)dma_arenas,
+		.arena_device_base = 0x1000,
+		.arena_pages = 1,
+	};
+
+#define REJECT(field, value) do { \
+	const __typeof__(requester.field) saved = requester.field; \
+	requester.field = (value); \
+	CHECK(amd_iommu_build_dma_state(dma_device_table, sizeof(dma_device_table), \
+		dma_page_tables, AMD_IOMMU_PAGE_SIZE, &requester, 1) == CB_ERR_ARG); \
+	requester.field = saved; \
+} while (0)
+
+	REJECT(protection_domain, 0);
+	REJECT(arena_cpu_base, 0);
+	REJECT(arena_cpu_base, (uintptr_t)dma_arenas + 1);
+	REJECT(arena_cpu_base, 1ULL << 52);
+	REJECT(arena_device_base, 0);
+	REJECT(arena_device_base, 1);
+	REJECT(arena_device_base, 2 * 1024 * 1024ULL);
+	REJECT(arena_pages, 0);
+	REJECT(arena_pages, 512);
+	REJECT(device_id, 128);
+	CHECK(amd_iommu_build_dma_state(dma_device_table + 1,
+		sizeof(dma_device_table) - 1, dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_ERR_ARG);
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables + 1,
+		AMD_IOMMU_PAGE_SIZE - 1, &requester, 1) == CB_ERR_ARG);
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables,
+		2 * AMD_IOMMU_PAGE_SIZE, &requester, 1) == CB_ERR_ARG);
+	requester.arena_pages = 511;
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), dma_page_tables, AMD_IOMMU_PAGE_SIZE,
+		&requester, 1) == CB_SUCCESS);
+	requester.arena_pages = 1;
+	{
+		struct amd_iommu_dma_requester duplicate[2] = { requester, requester };
+
+		duplicate[1].device_id++;
+		CHECK(amd_iommu_build_dma_state(dma_device_table,
+			sizeof(dma_device_table), dma_page_tables,
+			2 * AMD_IOMMU_PAGE_SIZE, duplicate, ARRAY_SIZE(duplicate)) ==
+			CB_ERR_ARG);
+		duplicate[1].protection_domain++;
+		CHECK(amd_iommu_build_dma_state(dma_device_table,
+			sizeof(dma_device_table), dma_page_tables,
+			2 * AMD_IOMMU_PAGE_SIZE, duplicate, ARRAY_SIZE(duplicate)) ==
+			CB_ERR_ARG);
+		duplicate[1].arena_cpu_base += AMD_IOMMU_PAGE_SIZE;
+		CHECK(amd_iommu_build_dma_state(dma_device_table,
+			sizeof(dma_device_table), dma_page_tables,
+			2 * AMD_IOMMU_PAGE_SIZE, duplicate, ARRAY_SIZE(duplicate)) ==
+			CB_SUCCESS);
+	}
+#undef REJECT
+}
+
 int main(void)
 {
 	test_unsegmented_table();
@@ -185,5 +319,7 @@ int main(void)
 	test_sparse_segment_rejects_missing_entry();
 	test_invalid_registers_fail_closed();
 	test_bad_arguments();
+	test_owned_dma_state();
+	test_invalid_dma_state();
 	return failures != 0;
 }
