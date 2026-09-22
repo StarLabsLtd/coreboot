@@ -301,7 +301,7 @@ static void merlin_restore_options(void *unused)
 	 * Default:	Truthful
 	 *
 	 */
-	const uint8_t power_reporting[] = {POWER_REPORTING_TRUTHFUL, POWER_REPORTING_QUIET};
+	const unsigned int power_reporting[] = {POWER_REPORTING_TRUTHFUL, POWER_REPORTING_QUIET};
 
 	if (CONFIG(EC_STARLABS_POWER_REPORTING))
 		ec_write(ECRAM_POWER_REPORTING,
