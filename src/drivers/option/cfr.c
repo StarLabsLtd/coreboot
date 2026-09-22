@@ -356,7 +356,8 @@ static uint32_t sm_write_opt_bool(char *current, const struct sm_obj_bool *sm_bo
 {
 	return write_numeric_option(current, CFR_TAG_OPTION_BOOL, object_id,
 			sm_bool->opt_name, sm_bool->ui_name, sm_bool->ui_helptext,
-			sm_bool->flags, sm_bool->default_value, 0, 0, 0, 0, NULL, dep_id,
+			sm_bool->flags, sm_bool->default_value, 0, 0, 0, 0, NULL,
+			&sm_bool->runtime_apply, dep_id,
 			dep_values, num_dep_values, access_token, access_permissions,
 			publish_access);
 }
