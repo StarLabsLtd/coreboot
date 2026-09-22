@@ -55,5 +55,6 @@ uint64_t timestamp_get(void);
 uint64_t get_initial_timestamp(void);
 /* Returns timestamp tick frequency in MHz. */
 int timestamp_tick_freq_mhz(void);
+int timestamp_validate_tick_freq_mhz(unsigned long frequency);
 
 #endif
