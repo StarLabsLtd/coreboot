@@ -10,6 +10,10 @@ struct amd_iommu_dma_io {
 	uint64_t (*read64)(void *context, uint32_t offset);
 	void (*write64)(void *context, uint32_t offset, uint64_t value);
 	void (*commit_tables)(void *context, const void *base, size_t bytes);
+	/* The caller owns PCI_COMMAND and keeps every requester quiesced. */
+	bool (*quiescence_held)(void *context);
+	/* Must not return: translation may already be disabled. */
+	void (*fail_closed)(void *context);
 };
 
 enum cb_err amd_iommu_dma_replace(const struct amd_iommu_dma_io *io,

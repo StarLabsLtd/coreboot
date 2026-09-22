@@ -16,6 +16,7 @@
 #define DEVICE_TABLE_ENTRY_SIZE		AMD_IOMMU_DEVICE_TABLE_ENTRY_SIZE
 #define DEVICE_ID_COUNT			BIT(16)
 
+/* AMD IOMMU Architecture Specification 48882 DTE/PTE encodings. */
 #define DTE_VALID			BIT(0)
 #define DTE_TRANSLATION_VALID		BIT(1)
 #define DTE_MODE_ONE_LEVEL		(1ULL << 9)
@@ -37,6 +38,22 @@ static bool ranges_overlap(uint64_t first_base, uint64_t first_size,
 	return first_base < second_base + second_size &&
 		second_base < first_base + first_size;
 }
+
+static bool dma_address_range_valid(uint64_t base, size_t bytes)
+{
+	const uint64_t address_limit = DTE_ROOT_MASK + AMD_IOMMU_PAGE_SIZE;
+
+	return base && !(base & (AMD_IOMMU_PAGE_SIZE - 1U)) && bytes &&
+		!(bytes % AMD_IOMMU_PAGE_SIZE) &&
+		bytes <= address_limit && base <= address_limit - bytes;
+}
+
+#ifdef __TEST__
+bool amd_iommu_dma_test_address_range_valid(uint64_t base, size_t bytes)
+{
+	return dma_address_range_valid(base, bytes);
+}
+#endif
 
 static bool device_table_valid(const struct amd_iommu_device_table *table)
 {
@@ -152,14 +169,25 @@ size_t amd_iommu_device_table_bytes(uint16_t maximum_device_id)
 	return ALIGN_UP(bytes, AMD_IOMMU_PAGE_SIZE);
 }
 
-static bool dma_requesters_valid(const struct amd_iommu_dma_requester *requesters,
-				 size_t requester_count, size_t device_table_bytes,
-				 size_t page_table_bytes)
+static bool dma_requesters_valid(const void *device_table, size_t device_table_bytes,
+				 const void *page_tables, size_t page_table_bytes,
+				 const struct amd_iommu_dma_requester *requesters,
+				 size_t requester_count)
 {
-	if (!requesters || !requester_count ||
+	if (!device_table || !page_tables || !requesters || !requester_count ||
+	    requester_count > AMD_IOMMU_DMA_MAX_REQUESTERS ||
 	    device_table_bytes < AMD_IOMMU_PAGE_SIZE ||
 	    device_table_bytes % AMD_IOMMU_PAGE_SIZE ||
+	    device_table_bytes > (size_t)DEVICE_ID_COUNT * DEVICE_TABLE_ENTRY_SIZE ||
+	    requester_count > SIZE_MAX / AMD_IOMMU_PAGE_SIZE ||
 	    page_table_bytes != requester_count * AMD_IOMMU_PAGE_SIZE)
+		return false;
+	if (!dma_address_range_valid((uintptr_t)device_table,
+		device_table_bytes) ||
+	    !dma_address_range_valid((uintptr_t)page_tables,
+		page_table_bytes) ||
+	    ranges_overlap((uintptr_t)device_table, device_table_bytes,
+		(uintptr_t)page_tables, page_table_bytes))
 		return false;
 
 	for (size_t index = 0; index < requester_count; index++) {
@@ -179,6 +207,10 @@ static bool dma_requesters_valid(const struct amd_iommu_dma_requester *requester
 		    requester->arena_cpu_base > UINT64_MAX - arena_bytes ||
 		    requester->arena_device_base >= aperture ||
 		    arena_bytes > aperture - requester->arena_device_base ||
+		    ranges_overlap(requester->arena_cpu_base, arena_bytes,
+			(uintptr_t)device_table, device_table_bytes) ||
+		    ranges_overlap(requester->arena_cpu_base, arena_bytes,
+			(uintptr_t)page_tables, page_table_bytes) ||
 		    ((size_t)requester->device_id + 1U) * DEVICE_TABLE_ENTRY_SIZE >
 			device_table_bytes)
 			return false;
@@ -220,9 +252,8 @@ enum cb_err amd_iommu_build_dma_state(void *device_table, size_t device_table_by
 	if (!device_table || !page_tables ||
 	    ((uintptr_t)device_table & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
 	    ((uintptr_t)page_tables & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
-	    ((uintptr_t)page_tables & ~DTE_ROOT_MASK) ||
-	    !dma_requesters_valid(requesters, requester_count, device_table_bytes,
-		page_table_bytes))
+	    !dma_requesters_valid(device_table, device_table_bytes, page_tables,
+		page_table_bytes, requesters, requester_count))
 		return CB_ERR_ARG;
 
 	memset(device_table, 0, device_table_bytes);
@@ -253,9 +284,8 @@ bool amd_iommu_dma_state_matches(const void *device_table, size_t device_table_b
 	if (!device_table || !page_tables ||
 	    ((uintptr_t)device_table & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
 	    ((uintptr_t)page_tables & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
-	    ((uintptr_t)page_tables & ~DTE_ROOT_MASK) ||
-	    !dma_requesters_valid(requesters, requester_count, device_table_bytes,
-		page_table_bytes))
+	    !dma_requesters_valid(device_table, device_table_bytes, page_tables,
+		page_table_bytes, requesters, requester_count))
 		return false;
 
 	for (size_t word = 0; word < device_table_bytes / sizeof(*device_words); word++) {

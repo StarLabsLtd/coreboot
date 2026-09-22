@@ -24,6 +24,7 @@ static bool arguments_valid(const struct amd_iommu_dma_io *io,
 	const size_t pages = device_table_bytes / AMD_IOMMU_PAGE_SIZE;
 
 	return io && io->read64 && io->write64 && io->commit_tables &&
+		io->quiescence_held && io->fail_closed &&
 		device_table && page_tables && requesters && requester_count &&
 		!((uintptr_t)device_table & (AMD_IOMMU_PAGE_SIZE - 1U)) &&
 		device_table_bytes >= AMD_IOMMU_PAGE_SIZE &&
@@ -32,6 +33,18 @@ static bool arguments_valid(const struct amd_iommu_dma_io *io,
 		!((uintptr_t)device_table & ~IOMMU_DEVICE_TABLE_BASE_MASK) &&
 		amd_iommu_dma_state_matches(device_table, device_table_bytes,
 			page_tables, page_table_bytes, requesters, requester_count);
+}
+
+static void transition_failure(const struct amd_iommu_dma_io *io)
+{
+	io->fail_closed(io->context);
+	__builtin_unreachable();
+}
+
+static void require_quiescence(const struct amd_iommu_dma_io *io)
+{
+	if (!io->quiescence_held(io->context))
+		transition_failure(io);
 }
 
 static uint64_t device_table_register(const void *device_table,
@@ -53,6 +66,7 @@ bool amd_iommu_dma_active(const struct amd_iommu_dma_io *io,
 
 	if (!arguments_valid(io, device_table, device_table_bytes, page_tables,
 		page_table_bytes, requesters, requester_count) ||
+	    !io->quiescence_held(io->context) ||
 	    io->read64(io->context, IOMMU_CONTROL_OFFSET) != IOMMU_DMA_CONTROL)
 		return false;
 	segment_register = io->read64(io->context, IOMMU_DEVICE_TABLE_OFFSET);
@@ -86,6 +100,8 @@ enum cb_err amd_iommu_dma_replace(const struct amd_iommu_dma_io *io,
 	if (!arguments_valid(io, device_table, device_table_bytes, page_tables,
 		page_table_bytes, requesters, requester_count))
 		return CB_ERR_ARG;
+	if (!io->quiescence_held(io->context))
+		return CB_ERR;
 	old_control = io->read64(io->context, IOMMU_CONTROL_OFFSET);
 	features = io->read64(io->context, IOMMU_EXTENDED_FEATURES_OFFSET);
 	old_segment_register = io->read64(io->context, IOMMU_DEVICE_TABLE_OFFSET);
@@ -98,21 +114,24 @@ enum cb_err amd_iommu_dma_replace(const struct amd_iommu_dma_io *io,
 
 	/* Stop translation and every FSP-owned auxiliary queue before replacement. */
 	io->write64(io->context, IOMMU_CONTROL_OFFSET, 0);
+	require_quiescence(io);
 	if (io->read64(io->context, IOMMU_CONTROL_OFFSET) != 0)
-		return CB_ERR;
+		transition_failure(io);
 	io->commit_tables(io->context, device_table, device_table_bytes);
+	require_quiescence(io);
 	io->commit_tables(io->context, page_tables, page_table_bytes);
+	require_quiescence(io);
 	io->write64(io->context, IOMMU_DEVICE_TABLE_OFFSET,
 		device_table_register(device_table, device_table_bytes));
+	require_quiescence(io);
 	if (io->read64(io->context, IOMMU_DEVICE_TABLE_OFFSET) !=
 	    device_table_register(device_table, device_table_bytes))
-		return CB_ERR;
+		transition_failure(io);
 	/* Drop every FSP-owned auxiliary queue and enable only translation. */
 	io->write64(io->context, IOMMU_CONTROL_OFFSET, IOMMU_DMA_CONTROL);
+	require_quiescence(io);
 	if (!amd_iommu_dma_active(io, device_table, device_table_bytes, page_tables,
-		page_table_bytes, requesters, requester_count)) {
-		io->write64(io->context, IOMMU_CONTROL_OFFSET, 0);
-		return CB_ERR;
-	}
+		page_table_bytes, requesters, requester_count))
+		transition_failure(io);
 	return CB_SUCCESS;
 }
