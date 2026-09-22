@@ -100,6 +100,7 @@ enum {
 	LB_TAG_CAPSULE_HANDOFF		= 0x0052,
 	LB_TAG_DMA_HANDOFF		= 0x0053,
 	LB_TAG_CAPSULE_BROKER_ENDPOINT	= 0x0054,
+	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -962,6 +963,60 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 	offsetof(struct lb_capsule_broker_endpoint, transport) == 56 &&
 	offsetof(struct lb_capsule_broker_endpoint, reserved) == 68,
 	"capsule broker endpoint layout");
+
+#define LB_AUTHVAR_SERVICE_ENDPOINT_REVISION 1U
+
+#define LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER  (1U << 0)
+#define LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION (1U << 1)
+#define LB_AUTHVAR_ENDPOINT_DMA_PROTECTED       (1U << 2)
+#define LB_AUTHVAR_ENDPOINT_CPU_RENDEZVOUS      (1U << 3)
+#define LB_AUTHVAR_ENDPOINT_POLICY_IN_SMM       (1U << 4)
+#define LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE     (1U << 5)
+#define LB_AUTHVAR_ENDPOINT_SMM_BWP_REQUIRED    (1U << 6)
+#define LB_AUTHVAR_ENDPOINT_LIFECYCLE_SEALED    (1U << 7)
+#define LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS \
+	(LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER | \
+	 LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION | \
+	 LB_AUTHVAR_ENDPOINT_DMA_PROTECTED | \
+	 LB_AUTHVAR_ENDPOINT_CPU_RENDEZVOUS | \
+	 LB_AUTHVAR_ENDPOINT_POLICY_IN_SMM | \
+	 LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE | \
+	 LB_AUTHVAR_ENDPOINT_SMM_BWP_REQUIRED | \
+	 LB_AUTHVAR_ENDPOINT_LIFECYCLE_SEALED)
+
+#define LB_AUTHVAR_ENDPOINT_TRANSPORT_APM_IO8 1U
+
+/*
+ * Public description of a fixed authenticated-variable mailbox. Authority,
+ * SMRAM and media geometry are deliberately absent from this record.
+ */
+struct lb_authvar_service_endpoint {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t flags;
+	lb_uint64_t generation;
+	lb_uint64_t communication_base;
+	uint32_t communication_size;
+	uint32_t message_size;
+	uint16_t transport;
+	uint16_t trigger_width;
+	uint32_t trigger_address;
+	uint32_t trigger_value;
+	uint32_t maximum_name_size;
+	uint32_t maximum_data_size;
+	uint32_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct lb_authvar_service_endpoint) == 64,
+	"authenticated-variable endpoint ABI");
+_Static_assert(offsetof(struct lb_authvar_service_endpoint, generation) == 16 &&
+	offsetof(struct lb_authvar_service_endpoint, communication_base) == 24 &&
+	offsetof(struct lb_authvar_service_endpoint, transport) == 40 &&
+	offsetof(struct lb_authvar_service_endpoint, maximum_name_size) == 52 &&
+	offsetof(struct lb_authvar_service_endpoint, reserved) == 60,
+	"authenticated-variable endpoint layout");
 struct lb_cfr {
 	uint32_t tag;
 	uint32_t size;

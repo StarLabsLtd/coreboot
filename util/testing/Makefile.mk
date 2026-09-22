@@ -117,7 +117,13 @@ endif
 
 test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
-	test-capsule-protected-flash test-capsule-platform-facts test-cleanup
+	test-capsule-protected-flash test-capsule-platform-facts \
+	test-authvar-service-abi test-cleanup
+
+.PHONY: test-authvar-service-abi
+test-authvar-service-abi:
+	tests/lib/payload_mm_authvar_service_abi_test.sh
+	tests/lib/payload_mm_authvar_semantics_manifest_test.sh
 
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
