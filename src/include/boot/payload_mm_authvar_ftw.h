@@ -30,6 +30,7 @@ enum payload_mm_authvar_ftw_action {
 	PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE,
 	PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW,
 	PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE,
+	PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE,
 };
 
 enum payload_mm_authvar_ftw_workspace {
@@ -57,6 +58,10 @@ struct payload_mm_authvar_ftw_plan {
 	/*
 	 * DISCARD_UNCOMMITTED erases this complete geometry working/spare range;
 	 * no queue, FV, SMMSTORE, or media-absolute offset may replace it.
+	 * CLEANUP_SPARE erases only the complete spare range after the active FV
+	 * and working queue prove it is stale transaction residue. Its queue
+	 * coordinates are zero and disposition is NONE. The executor verifies the
+	 * whole range erased and re-decodes before cache bind or a later transaction.
 	 */
 	enum payload_mm_authvar_ftw_workspace workspace;
 	enum payload_mm_authvar_ftw_queue_disposition queue_disposition;

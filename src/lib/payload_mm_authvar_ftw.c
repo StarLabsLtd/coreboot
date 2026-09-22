@@ -198,8 +198,31 @@ static bool workspace_header_valid(const uint8_t *workspace, size_t size,
 
 static bool workspace_uncommitted(const uint8_t *workspace, size_t size)
 {
-	return size > 20U && workspace[20] == 0xffU &&
-		!bytes_are(workspace, size, 0xffU);
+	uint8_t canonical[FTW_WORK_HEADER_SIZE];
+	uint64_t queue_size;
+	uint32_t checksum;
+	bool has_data = false;
+
+	if (size < FTW_WORK_HEADER_SIZE)
+		return false;
+	queue_size = size - FTW_WORK_HEADER_SIZE;
+	memset(canonical, 0xff, sizeof(canonical));
+	memcpy(canonical, working_block_guid, sizeof(working_block_guid));
+	for (size_t i = 0; i < sizeof(queue_size); i++)
+		canonical[24U + i] = (uint8_t)(queue_size >> (8U * i));
+	checksum = crc32(canonical, sizeof(canonical));
+	for (size_t i = 0; i < sizeof(checksum); i++)
+		canonical[16U + i] = (uint8_t)(checksum >> (8U * i));
+	for (size_t i = 0; i < size; i++) {
+		const uint8_t expected = i < sizeof(canonical) ? canonical[i] : 0xffU;
+
+		if (workspace[i] == 0xffU)
+			continue;
+		if ((workspace[i] & expected) != expected)
+			return false;
+		has_data = true;
+	}
+	return has_data;
 }
 
 static bool workspace_erased_subset(const uint8_t *authoritative,
@@ -210,7 +233,7 @@ static bool workspace_erased_subset(const uint8_t *authoritative,
 	for (size_t i = 0; i < size; i++) {
 		if (candidate[i] == 0xffU)
 			continue;
-		if (candidate[i] != authoritative[i])
+		if ((candidate[i] & authoritative[i]) != authoritative[i])
 			return false;
 		has_data = true;
 	}
@@ -437,26 +460,43 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 			candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
 		}
 	} else if (working_valid) {
+		bool spare_tail_erased;
+		bool spare_fv_erased_subset;
+
 		candidate.action = classify_queue(working, active_valid, spare_valid, false,
 			&candidate.geometry, header_size, store_size,
 			&candidate.queue_offset, &candidate.queue_entry_size,
 			&candidate.queue_disposition);
 		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING;
+		spare_tail_erased = bytes_are(spare + candidate.geometry.variable_size,
+			candidate.geometry.spare_size - candidate.geometry.variable_size,
+			0xffU);
+		spare_fv_erased_subset = memcmp(bytes, spare,
+			candidate.geometry.variable_size) &&
+			workspace_erased_subset(bytes, spare,
+				candidate.geometry.variable_size) && spare_tail_erased;
 		if ((candidate.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
 		     candidate.action == PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE) &&
-		    !bytes_are(spare, candidate.geometry.spare_size, 0xffU) &&
-		    !spare_valid) {
-			if (workspace_uncommitted(spare, candidate.geometry.spare_size) ||
+		    !bytes_are(spare, candidate.geometry.spare_size, 0xffU)) {
+			if ((spare_valid && spare_tail_erased &&
+			     !memcmp(bytes, spare, candidate.geometry.variable_size)) ||
+			    spare_fv_erased_subset) {
+				candidate.action = PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE;
+				candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
+				candidate.queue_offset = 0;
+				candidate.queue_entry_size = 0;
+				candidate.queue_disposition =
+					PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE;
+			} else if ((workspace_uncommitted(spare,
+				    candidate.geometry.working_size) &&
+			     bytes_are(spare + candidate.geometry.working_size,
+				candidate.geometry.spare_size -
+					candidate.geometry.working_size, 0xffU)) ||
 			    (workspace_erased_subset(working, spare,
 				candidate.geometry.working_size) &&
-			    bytes_are(spare + candidate.geometry.working_size,
-				candidate.geometry.spare_size - candidate.geometry.working_size,
-				0xffU)) ||
-			    (workspace_erased_subset(bytes, spare,
-				candidate.geometry.variable_size) &&
-			    bytes_are(spare + candidate.geometry.variable_size,
-				candidate.geometry.spare_size - candidate.geometry.variable_size,
-				0xffU))) {
+			     bytes_are(spare + candidate.geometry.working_size,
+				candidate.geometry.spare_size -
+					candidate.geometry.working_size, 0xffU))) {
 				candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
 				candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
 				candidate.queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE;
@@ -491,7 +531,10 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING;
 	} else if (active_valid &&
 		   bytes_are(working, candidate.geometry.working_size, 0xff) &&
-		   workspace_uncommitted(spare, candidate.geometry.spare_size)) {
+		   workspace_uncommitted(spare, candidate.geometry.working_size) &&
+		   bytes_are(spare + candidate.geometry.working_size,
+			candidate.geometry.spare_size - candidate.geometry.working_size,
+			0xffU)) {
 		candidate.action = PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED;
 		candidate.workspace = PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE;
 	} else {
