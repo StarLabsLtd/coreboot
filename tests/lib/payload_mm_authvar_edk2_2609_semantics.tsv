@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# oracle	StarLabsLtd/edk2	26.09	aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272
+# blob	SecurityPkg/Library/AuthVariableLib/AuthService.c	004b6d7c2706dbef18751d41318ce629c7fd1944
+# blob	SecurityPkg/Library/AuthVariableLib/AuthVariableLib.c	dc11f38cb3367c49c2f8e7ca7894074608c372c1
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c	ce7a2b6641ada05a7141267f4b52d37a136333c7
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/VariableParsing.c	8f0cc4559821ea11e56da45c0379791248971ba4
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/Reclaim.c	fe64d0a2b3dddb0f9e3304a13be30cb41b44d93e
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmm.c	5a063254c19d57c1133a998d6cfc91d231dd7d3e
+# blob	MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe.c	51d74d73b2d769f43201adadee3ecd33818063c9
+# blob	UefiPayloadPkg/SmmStoreFvb/SmmStoreFvbRuntime.c	fca063403d9f6f4c594cf5c002e138f830bb06e8
+id	area	operation	precondition	input	expected_status	expected_state
+ordinary-create	ordinary	SET	absent	NV+BS+RT nonempty	SUCCESS	value present
+ordinary-replace	ordinary	SET	present	matching attributes new data	SUCCESS	new value present
+ordinary-attr-change	ordinary	SET	present	different nonzero attributes	INVALID_PARAMETER	old value present
+ordinary-empty	ordinary	SET	absent	nonzero attributes empty data	SUCCESS	empty value present
+ordinary-delete	ordinary	SET	present	zero attributes empty data	SUCCESS	absent
+ordinary-delete-missing	ordinary	SET	absent	zero attributes empty data	NOT_FOUND	absent
+ordinary-append	ordinary	SET	present	APPEND matching attributes	SUCCESS	old then new bytes
+ordinary-append-empty	ordinary	SET	present	APPEND empty data	SUCCESS	value unchanged
+auth2-create	authentication	SET	absent	valid AUTH2 signer and timestamp	SUCCESS	payload stored without descriptor
+auth2-replace	authentication	SET	present	valid newer AUTH2	SUCCESS	new payload and timestamp
+auth2-replay	authentication	SET	present	equal or older timestamp	SECURITY_VIOLATION	old value present
+auth2-append	authentication	SET	present	valid AUTH2 APPEND timestamp	SUCCESS	payload appended and timestamp monotonic
+auth2-delete	authentication	SET	present	valid AUTH2 descriptor empty payload	SUCCESS	absent
+auth2-malformed-time	authentication	SET	present	nonzero pad timezone nanosecond or daylight	SECURITY_VIOLATION	old value present
+auth2-malformed-cert	authentication	SET	present	bad WIN_CERT length type or DER	SECURITY_VIOLATION	old value present
+auth2-sha256	authentication	SET	trusted signer	PKCS7 SHA256	SUCCESS	new value present
+auth2-sha384	authentication	SET	trusted signer	PKCS7 SHA384	SUCCESS	new value present
+auth2-sha512	authentication	SET	trusted signer	PKCS7 SHA512	SUCCESS	new value present
+counter-auth	authentication	SET	any	AUTHENTICATED_WRITE_ACCESS	UNSUPPORTED	store unchanged
+pk-setup-enroll	secure-boot	SET	SetupMode 1	well-formed PK enrollment	SUCCESS	SetupMode 0 SecureBoot 1
+pk-user-replace	secure-boot	SET	SetupMode 0	PK-signed PK replacement	SUCCESS	new PK present
+pk-wrong-signer	secure-boot	SET	SetupMode 0	non-PK signer	SECURITY_VIOLATION	old PK present
+pk-delete	secure-boot	SET	user mode	PK-signed delete	SUCCESS	SetupMode 1 SecureBoot 0
+kek-update	secure-boot	SET	PK present	PK-signed KEK	SUCCESS	KEK updated
+kek-wrong-signer	secure-boot	SET	PK present	non-PK signer	SECURITY_VIOLATION	old KEK present
+db-pk	secure-boot	SET	PK present	PK-signed db	SUCCESS	db updated
+db-kek	secure-boot	SET	KEK present	KEK-signed db	SUCCESS	db updated
+dbx-update	secure-boot	SET	PK or KEK present	trusted dbx update	SUCCESS	dbx updated
+dbt-update	secure-boot	SET	PK or KEK present	trusted dbt update	SUCCESS	dbt updated
+signature-list-malformed	secure-boot	SET	trusted signer	truncated or inconsistent EFI signature list	INVALID_PARAMETER	old database present
+certdb-create	private-auth	SET	absent	valid ordinary authenticated variable	SUCCESS	certdb signer binding added
+certdb-replace	private-auth	SET	present	same signer newer timestamp	SUCCESS	value and certdb updated atomically
+certdb-wrong-signer	private-auth	SET	present	different signer	SECURITY_VIOLATION	value and certdb unchanged
+certdb-delete	private-auth	SET	present	valid signed delete	SUCCESS	value and certdb binding removed
+certdbv-volatile	private-auth	SET	volatile authenticated variable	valid signer	SUCCESS	certdbv binding exists until reset
+mode-audit	mode	SET	physical presence policy permits	AuditMode transition	ORACLE	mode tuple remains internally consistent
+mode-deployed	mode	SET	physical presence policy permits	DeployedMode transition	ORACLE	mode tuple remains internally consistent
+mode-vendor-keys	mode	SET	key database changed	VendorKeys update	ORACLE	VendorKeys reflects customization
+mode-custom	mode	SET	trusted physical presence	CustomMode transition	ORACLE	custom bypass scoped to oracle policy
+presence-denied	mode	SET	no trustworthy presence	operation requiring presence	WRITE_PROTECTED	store unchanged
+utf16-empty	name	GET	any	empty name	INVALID_PARAMETER	store unchanged
+utf16-odd	name	GET	any	odd byte count	INVALID_PARAMETER	store unchanged
+utf16-unterminated	name	GET	any	no terminal UTF16 NUL	INVALID_PARAMETER	store unchanged
+utf16-non-ascii	name	SET	absent	valid non-ASCII UTF16 name	SUCCESS	value enumerable by exact name
+next-first	enumeration	NEXT	nonempty store	empty name and zero GUID	SUCCESS	first visible key
+next-successor	enumeration	NEXT	current key exists	current name and GUID	SUCCESS	next visible key in oracle order
+next-missing	enumeration	NEXT	current key absent	unknown name and GUID	NOT_FOUND	store unchanged
+next-small-buffer	enumeration	NEXT	next key exists	insufficient name capacity	BUFFER_TOO_SMALL	required size returned
+get-small-buffer	read	GET	value exists	insufficient data capacity	BUFFER_TOO_SMALL	required size and attributes returned
+get-runtime-hidden	read	GET after ENTER_RUNTIME complete	BS-only variable	name and GUID	NOT_FOUND	store unchanged
+get-runtime-visible	read	GET after ENTER_RUNTIME complete	RT variable	name and GUID	SUCCESS	value returned
+query-valid	quota	QUERY	initialized store	supported attribute class	SUCCESS	maximum remaining and max-variable bounded
+query-unsupported	quota	QUERY	initialized store	unsupported or APPEND attributes	UNSUPPORTED	store unchanged
+quota-full	quota	SET	insufficient remaining space	new variable	OUT_OF_RESOURCES	old store readable
+reclaim	journal	SET	reclaim required	valid update	SUCCESS	committed values preserved
+reclaim-interrupted	journal	SET	reset at each FTW step	valid update	ORACLE	exact old or new store recovers
+fv-format	journal	BOOT	EDK2 FV plus variable working spare layout	valid committed image	SUCCESS	all active variables imported
+fv-malformed-active	journal	BOOT	bounded malformed active record	later valid record	ORACLE	later record remains discoverable
+ready-seal	lifecycle	READY_TO_BOOT	boot services	first or repeated call	SUCCESS	policy irreversibly sealed
+runtime-seal	lifecycle	ENTER_RUNTIME	READY_TO_BOOT omitted	first or repeated call	SUCCESS	policy sealed and runtime visibility active
+post-seal-policy	lifecycle	BOOTSTRAP_CHANNEL	READY_TO_BOOT complete	hypothetical policy addition	WRITE_PROTECTED	policy unchanged
+exit-boot-services	lifecycle	EBS	boot services	transition	SUCCESS	runtime visibility active
+set-virtual-address-map	lifecycle	SVA	physical mailbox sealed	converted CDK2 alias	SUCCESS	SMM physical authority unchanged
+s3-resume	lifecycle	S3	service was at runtime	first post-resume request	ORACLE	sealed runtime state restored before dispatch
+legacy-boot	lifecycle	LegacyBoot	platform supports legacy boot	transition	ORACLE	policy sealed before legacy handoff
