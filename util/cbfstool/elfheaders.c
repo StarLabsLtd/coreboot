@@ -1185,6 +1185,7 @@ int elf_writer_serialize(struct elf_writer *ew, struct buffer *out)
 		ERROR("Could not create output buffer for ELF.\n");
 		return -1;
 	}
+	memset(buffer_get(out), 0, buffer_size(out));
 
 	INFO("Created %zu output buffer for ELF file.\n", buffer_size(out));
 
@@ -1236,7 +1237,8 @@ int elf_writer_serialize(struct elf_writer *ew, struct buffer *out)
 
 		/* Output section data for all sections but SHN_UNDEF and
 		 * section header string table. */
-		if (i != SHN_UNDEF && sec != ew->shstrtab_sec)
+		if (i != SHN_UNDEF && sec != ew->shstrtab_sec &&
+		    buffer_size(&sec->content) != 0)
 			bputs(&data, buffer_get(&sec->content),
 			      buffer_size(&sec->content));
 	}

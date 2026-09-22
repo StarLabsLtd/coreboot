@@ -1139,9 +1139,9 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 	for (int i = 0; i < segments; i++) {
 		struct buffer tbuff;
 		size_t empty_sz = 0;
+		const char *name;
 
 		memset(&shdr, 0, sizeof(shdr));
-		char *name = NULL;
 
 		if (segs[i].type == PAYLOAD_SEGMENT_CODE) {
 			shdr.sh_type = SHT_PROGBITS;
@@ -1149,7 +1149,7 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_addr = segs[i].load_addr;
 			shdr.sh_size = segs[i].len;
 			empty_sz = segs[i].mem_len - segs[i].len;
-			name = strdup(".text");
+			name = ".text";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_DATA) {
@@ -1158,7 +1158,7 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_addr = segs[i].load_addr;
 			shdr.sh_size = segs[i].len;
 			empty_sz = segs[i].mem_len - segs[i].len;
-			name = strdup(".data");
+			name = ".data";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_BSS) {
@@ -1166,13 +1166,13 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
 			shdr.sh_addr = segs[i].load_addr;
 			shdr.sh_size = segs[i].len;
-			name = strdup(".bss");
+			name = ".bss";
 			buffer_splice(&tbuff, buff, 0, 0);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_DEPRECATED_PARAMS) {
 			shdr.sh_type = SHT_NOTE;
 			shdr.sh_flags = 0;
 			shdr.sh_size = segs[i].len;
-			name = strdup(".note.pinfo");
+			name = ".note.pinfo";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_ENTRY) {
@@ -1182,17 +1182,10 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			goto out;
 		}
 
-		if (!name) {
-			ERROR("out of memory\n");
-			goto out;
-		}
-
 		if (elf_writer_add_section(ew, &shdr, &tbuff, name)) {
 			ERROR("Unable to add ELF section: %s\n", name);
-			free(name);
 			goto out;
 		}
-		free(name);
 
 		if (empty_sz != 0) {
 			struct buffer b;
@@ -1203,17 +1196,11 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_flags = SHF_WRITE | SHF_ALLOC;
 			shdr.sh_addr = segs[i].load_addr + segs[i].len;
 			shdr.sh_size = empty_sz;
-			name = strdup(".empty");
-			if (!name) {
-				ERROR("out of memory\n");
-				goto out;
-			}
+			name = ".empty";
 			if (elf_writer_add_section(ew, &shdr, &b, name)) {
 				ERROR("Unable to add ELF section: %s\n", name);
-				free(name);
 				goto out;
 			}
-			free(name);
 		}
 	}
 
