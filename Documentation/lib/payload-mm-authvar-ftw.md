@@ -8,11 +8,15 @@ at least as large as the variable range and one block is the workspace.
 
 The decoder validates the system-NV FV header, block map, checksum,
 authenticated variable-store envelope, FTW workspace GUID and CRC, fixed-width
-write queue, the three pinned 26.09 DXE/SMM/StandaloneMm caller identities, and
+write queue, the three pinned 26.09 DXE/SMM/StandaloneMm caller identities, the
+stable coreboot authenticated-variable caller identity
+`C4A52EF3-4E27-47E2-950B-FDAAB521B895`, and
 the exact variable-reclaim target. It returns only a typed recovery
-plan: clean, initialize a provably erased workspace, abort before a spare was
-committed, replay a validated spare, complete an already written destination,
-or restore a valid workspace copy. Ambiguous, malformed, truncated or
+plan: clean, initialize a provably erased workspace, discard an uncommitted
+stage, reclaim a dirty or exhausted queue, abort before a spare was committed,
+replay a validated spare, complete an already written destination, or restore
+a valid workspace copy with an explicit empty/abort queue disposition.
+Ambiguous, malformed, truncated or
 out-of-range media fails closed.
 
 This library has no flash callback, erase or program operation, endpoint,
