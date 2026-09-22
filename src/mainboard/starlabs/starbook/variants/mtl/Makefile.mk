@@ -10,3 +10,5 @@ ramstage-y += gpio.c
 ramstage-y += hda_verb.c
 ramstage-y += ramstage.c
 ramstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_policy.c
