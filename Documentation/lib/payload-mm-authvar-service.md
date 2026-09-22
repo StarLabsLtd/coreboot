@@ -90,10 +90,44 @@ size cannot exceed its capacity. Responses publish operation-specific bounded
 sizes and change completion only after every other response byte.
 A blanket nonempty-NEXT rule is deliberately not used because it would remove
 the UEFI/EDK2 initial enumeration cursor pinned by the semantic oracle.
+An all-zero vendor GUID remains a legal key for every nonempty name; only the
+empty initial `NEXT` cursor assigns sentinel meaning to the zero GUID.
 
 Endpoint validation widens before adding header, name and alignment sizes. It
 proves the complete name slot, alignment gap and data slot independently fit in
 the advertised message, which is itself capped at 64 KiB.
+
+The status field carries fixed 64-bit UEFI-compatible values rather than a
+native-width `EFI_STATUS`. Both sides use the
+`PAYLOAD_MM_AUTHVAR_STATUS_*` wire constants; the wire contract does not import
+UEFI types into coreboot. A completed response is accepted only when its status
+and result fields form one of these combinations:
+
+| Operation | Status | Result fields |
+| --- | --- | --- |
+| `GET` | success | data size is within capacity and stored attributes are valid |
+| `GET` | buffer too small | required data size exceeds capacity and attributes are returned |
+| `GET` | not found, device error, security violation, unsupported | all result fields are zero |
+| `NEXT` | success | a valid name and GUID fit the name capacity |
+| `NEXT` | buffer too small | required name size exceeds capacity; no name or GUID is returned |
+| `NEXT` | not found, invalid parameter, device error, unsupported | all result fields are zero |
+| `SET` | a defined set result | all result fields are zero |
+| `QUERY` | success | nonzero maximum storage, maximum variable no larger than remaining storage, and remaining no larger than maximum storage |
+| `QUERY` | invalid parameter, unsupported | all result fields are zero |
+| lifecycle | success | all result fields are zero |
+
+The SMM side clears the complete response slots before copying bounded success
+data. On success, every byte after the returned name or data remains zero. A
+buffer-too-small or error response returns no inline bytes, and operations with
+no inline output leave both slots zero. This makes stale request bytes and data
+disclosure machine-checkable instead of relying only on result sizes.
+
+Any other status, pending value, result/status mismatch, oversized result, or
+illogical quota tuple invalidates the response. In particular, a missing
+nonempty `NEXT` cursor is invalid parameter, while an empty store or the end of
+enumeration is not found. The request ABI continues to reject an empty `GET`
+name structurally; whether a future proxy carries EDK2's empty-name
+`EFI_NOT_FOUND` result is a separate cross-repository ABI decision.
 
 Delete is `SET` with zero attributes and zero data. Append uses the standard
 append attribute and still passes authentication and timestamp policy. The
