@@ -153,7 +153,7 @@ static const struct sm_object charging_policy = SM_DECLARE_ENUM({
 	.default_value	= CHARGING_POLICY_AUTO,
 	.runtime_apply = {
 		.method	= CONFIG(EC_STARLABS_CHARGING_POLICY) ?
-			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+			  STARLABS_EC_RUNTIME_METHOD : CFR_RUNTIME_APPLY_NONE,
 		.id	= STARLABS_EFIOPT_ID_CHARGING_POLICY,
 	},
 	.values		= (const struct sm_enum_value[]) {
