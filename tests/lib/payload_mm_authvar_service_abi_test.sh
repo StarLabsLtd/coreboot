@@ -28,11 +28,14 @@ run_test()
 	"$temporary/$name"
 }
 
-run_test ordinary
-run_test optimized -O2 -fstrict-aliasing
-run_test strict -O2 -Wpedantic -Wconversion -Wshadow
-run_test sanitized -O1 -g -fno-omit-frame-pointer \
-	-fsanitize=address,undefined -fno-sanitize-recover=all
+run_test strict-O0 -O0 -fstrict-aliasing -Wpedantic -Wconversion -Wshadow
+run_test strict-O2 -O2 -fstrict-aliasing -Wpedantic -Wconversion -Wshadow
+run_test sanitized-O0 -O0 -g -fno-omit-frame-pointer -fstrict-aliasing \
+	-Wpedantic -Wconversion -Wshadow -fsanitize=address,undefined \
+	-fno-sanitize-recover=all
+run_test sanitized-O2 -O2 -g -fno-omit-frame-pointer -fstrict-aliasing \
+	-Wpedantic -Wconversion -Wshadow -fsanitize=address,undefined \
+	-fno-sanitize-recover=all
 
 if grep -Eq '(^|[^A-Za-z0-9_])(smram|store_offset|boot_media|flash_offset|block_id|spi_address)([^A-Za-z0-9_]|$)' \
 	"$root/src/include/boot/payload_mm_authvar_service.h"; then

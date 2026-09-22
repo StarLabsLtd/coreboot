@@ -120,7 +120,7 @@ enum cb_err payload_mm_authvar_service_request_validate(
 	guid_zero = bytes_zero(frame->vendor_guid, sizeof(frame->vendor_guid));
 	switch (frame->operation) {
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
-		if (guid_zero || !name_valid(endpoint, message, frame->name_size) ||
+		if (!name_valid(endpoint, message, frame->name_size) ||
 		    frame->attributes || frame->data_size || frame->name_capacity)
 			return CB_ERR;
 		break;
@@ -129,12 +129,12 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		    frame->name_capacity < sizeof(uint16_t) ||
 		    frame->name_size > frame->name_capacity ||
 		    (frame->name_size ?
-		     (guid_zero || !name_valid(endpoint, message, frame->name_size)) :
+		     !name_valid(endpoint, message, frame->name_size) :
 		     !guid_zero))
 			return CB_ERR;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
-		if (guid_zero || !name_valid(endpoint, message, frame->name_size) ||
+		if (!name_valid(endpoint, message, frame->name_size) ||
 		    frame->name_capacity || frame->data_capacity ||
 		    (!frame->attributes && frame->data_size))
 			return CB_ERR;
@@ -178,6 +178,186 @@ static bool request_identity_equal(
 		response->reserved0 == 0;
 }
 
+static bool stored_attributes_valid(uint32_t attributes)
+{
+	if (!attributes || attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED ||
+	    attributes & (PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE |
+			  PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE) ||
+	    !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS))
+		return false;
+	if ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&
+	    (attributes & (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			   PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			   PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) !=
+		(PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		 PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		 PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS))
+		return false;
+	return true;
+}
+
+static bool result_empty(const struct payload_mm_authvar_service_frame *frame)
+{
+	return !frame->maximum_storage && !frame->remaining_storage &&
+		!frame->maximum_variable && !frame->result_name_size &&
+		!frame->result_data_size && !frame->result_attributes &&
+		bytes_zero(frame->result_vendor_guid,
+			sizeof(frame->result_vendor_guid));
+}
+
+static bool name_slot_tail_zero(
+	const struct lb_authvar_service_endpoint *endpoint, const void *response,
+	uint32_t used)
+{
+	const uint8_t *bytes = response;
+	size_t data_offset;
+	size_t offset;
+
+	if (used > endpoint->maximum_name_size ||
+	    !message_layout_valid(endpoint, &data_offset))
+		return false;
+	offset = PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE + used;
+	return bytes_zero(bytes + offset, data_offset - offset);
+}
+
+static bool data_slot_tail_zero(
+	const struct lb_authvar_service_endpoint *endpoint, const void *response,
+	uint32_t used)
+{
+	const uint8_t *bytes = response;
+	size_t data_offset;
+
+	if (used > endpoint->maximum_data_size ||
+	    !message_layout_valid(endpoint, &data_offset))
+		return false;
+	return bytes_zero(bytes + data_offset + used,
+		endpoint->message_size - data_offset - used);
+}
+
+static bool get_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *request,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	if (response->result_name_size || response->maximum_storage ||
+	    response->remaining_storage || response->maximum_variable ||
+	    !bytes_zero(response->result_vendor_guid,
+		    sizeof(response->result_vendor_guid)) ||
+	    !name_slot_tail_zero(endpoint, response, 0))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+		return response->result_data_size &&
+			response->result_data_size <= request->data_capacity &&
+			stored_attributes_valid(response->result_attributes) &&
+			data_slot_tail_zero(endpoint, response,
+				response->result_data_size);
+	case PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL:
+		return response->result_data_size > request->data_capacity &&
+			stored_attributes_valid(response->result_attributes) &&
+			data_slot_tail_zero(endpoint, response, 0);
+	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+		return !response->result_data_size && !response->result_attributes &&
+			data_slot_tail_zero(endpoint, response, 0);
+	default:
+		return false;
+	}
+}
+
+static bool next_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *request,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	if (response->result_data_size || response->result_attributes ||
+	    response->maximum_storage || response->remaining_storage ||
+	    response->maximum_variable || !data_slot_tail_zero(endpoint, response, 0))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+		return response->result_name_size &&
+			response->result_name_size <= request->name_capacity &&
+			name_valid(endpoint, response, response->result_name_size) &&
+			name_slot_tail_zero(endpoint, response,
+				response->result_name_size);
+	case PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL:
+		return response->result_name_size >= 2U * sizeof(uint16_t) &&
+			!(response->result_name_size & 1U) &&
+			response->result_name_size > request->name_capacity &&
+			bytes_zero(response->result_vendor_guid,
+				sizeof(response->result_vendor_guid)) &&
+			name_slot_tail_zero(endpoint, response, 0);
+	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+		return !response->result_name_size &&
+			bytes_zero(response->result_vendor_guid,
+				sizeof(response->result_vendor_guid)) &&
+			name_slot_tail_zero(endpoint, response, 0);
+	default:
+		return false;
+	}
+}
+
+static bool set_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	if (!result_empty(response) ||
+	    !name_slot_tail_zero(endpoint, response, 0) ||
+	    !data_slot_tail_zero(endpoint, response, 0))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES:
+	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool query_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	if (response->result_name_size || response->result_data_size ||
+	    response->result_attributes ||
+	    !bytes_zero(response->result_vendor_guid,
+		    sizeof(response->result_vendor_guid)) ||
+	    !name_slot_tail_zero(endpoint, response, 0) ||
+	    !data_slot_tail_zero(endpoint, response, 0))
+		return false;
+	if (response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return response->maximum_storage &&
+			response->remaining_storage <= response->maximum_storage &&
+			response->maximum_variable <= response->remaining_storage;
+	if (response->status != PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER &&
+	    response->status != PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED)
+		return false;
+	return !response->maximum_storage && !response->remaining_storage &&
+		!response->maximum_variable;
+}
+
+static bool lifecycle_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	return response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		result_empty(response) &&
+		name_slot_tail_zero(endpoint, response, 0) &&
+		data_slot_tail_zero(endpoint, response, 0);
+}
+
 enum cb_err payload_mm_authvar_service_response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
 	const void *response, size_t message_size)
@@ -198,43 +378,20 @@ enum cb_err payload_mm_authvar_service_response_validate(
 		return CB_ERR;
 	switch (after->operation) {
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
-		if (after->result_name_size || after->maximum_storage ||
-		    after->remaining_storage || after->maximum_variable ||
-		    !bytes_zero(after->result_vendor_guid,
-			sizeof(after->result_vendor_guid)))
-			return CB_ERR;
-		break;
+		return get_response_valid(endpoint, before, after) ?
+			CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
-		if (after->result_data_size || after->result_attributes ||
-		    after->maximum_storage || after->remaining_storage ||
-		    after->maximum_variable ||
-		    (after->result_name_size ?
-		     (bytes_zero(after->result_vendor_guid,
-			sizeof(after->result_vendor_guid)) ||
-		      !name_valid(endpoint, response, after->result_name_size)) :
-		     !bytes_zero(after->result_vendor_guid,
-			sizeof(after->result_vendor_guid))))
-			return CB_ERR;
-		break;
+		return next_response_valid(endpoint, before, after) ?
+			CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
+		return set_response_valid(endpoint, after) ? CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
-		if (after->result_name_size || after->result_data_size ||
-		    after->result_attributes || after->maximum_storage ||
-		    after->remaining_storage || after->maximum_variable ||
-		    !bytes_zero(after->result_vendor_guid,
-			sizeof(after->result_vendor_guid)))
-			return CB_ERR;
-		break;
+		return lifecycle_response_valid(endpoint, after) ?
+			CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
-		if (after->result_name_size || after->result_data_size ||
-		    after->result_attributes ||
-		    !bytes_zero(after->result_vendor_guid,
-			sizeof(after->result_vendor_guid)))
-			return CB_ERR;
-		break;
+		return query_response_valid(endpoint, after) ? CB_SUCCESS : CB_ERR;
 	default:
 		return CB_ERR;
 	}
-	return CB_SUCCESS;
 }

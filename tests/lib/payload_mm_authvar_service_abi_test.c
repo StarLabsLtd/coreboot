@@ -12,6 +12,19 @@
 #define NAME_SIZE 256U
 #define DATA_SIZE (MESSAGE_SIZE - PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE - NAME_SIZE)
 
+_Static_assert(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT == (1ULL << 63),
+	"authenticated-variable status error bit");
+_Static_assert(PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS == 0ULL &&
+	PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER == ((1ULL << 63) | 2ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED == ((1ULL << 63) | 3ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL == ((1ULL << 63) | 5ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR == ((1ULL << 63) | 7ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED == ((1ULL << 63) | 8ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES == ((1ULL << 63) | 9ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND == ((1ULL << 63) | 14ULL) &&
+	PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION == ((1ULL << 63) | 26ULL),
+	"authenticated-variable status values");
+
 static uint8_t request_buffer[MESSAGE_SIZE] __aligned(8);
 static uint8_t response_buffer[MESSAGE_SIZE] __aligned(8);
 
@@ -69,6 +82,30 @@ static void set_response_name(struct payload_mm_authvar_service_frame *frame,
 	frame->result_vendor_guid[0] = 2;
 }
 
+static struct payload_mm_authvar_service_frame *new_response(
+	const struct payload_mm_authvar_service_frame *request, uint64_t status)
+{
+	struct payload_mm_authvar_service_frame *response = (void *)response_buffer;
+
+	memset(response_buffer, 0, sizeof(response_buffer));
+	memcpy(response, request, sizeof(*response));
+	response->status = status;
+	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+	return response;
+}
+
+static uint8_t *response_data(void)
+{
+	return response_buffer + PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE + NAME_SIZE;
+}
+
+static uint32_t stored_attributes(void)
+{
+	return PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+}
+
 static void valid_requests(void)
 {
 	struct payload_mm_authvar_service_frame *frame;
@@ -79,12 +116,18 @@ static void valid_requests(void)
 	frame->data_capacity = 32;
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid));
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
 
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
 	frame->name_capacity = NAME_SIZE;
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
 	set_name(frame);
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid));
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
@@ -99,6 +142,9 @@ static void valid_requests(void)
 		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
 		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
 	frame->data_size = 4;
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid));
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
 	frame->attributes = 0;
@@ -218,10 +264,11 @@ static void response_order_and_echo(void)
 	request = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
 	set_name(request);
 	request->data_capacity = 32;
-	memcpy(response_buffer, request_buffer, sizeof(response_buffer));
-	response = (void *)response_buffer;
-	response->status = 0;
+	response = new_response(request, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	response->result_data_size = 4;
+	response->result_attributes = stored_attributes();
+	memset(response_data(), 0x5a, response->result_data_size);
+	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 	assert(payload_mm_authvar_service_response_validate(&endpoint,
 		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
 	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
@@ -234,17 +281,13 @@ static void response_order_and_echo(void)
 	request = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
 	set_name(request);
 	request->name_capacity = NAME_SIZE;
-	memcpy(response_buffer, request_buffer, sizeof(response_buffer));
-	response = (void *)response_buffer;
-	response->status = 0;
-	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+	response = new_response(request, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	set_response_name(response, 'B');
 	assert(payload_mm_authvar_service_response_validate(&endpoint,
 		request_buffer, response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
-	response->result_vendor_guid[0] = 0;
+	memset(response->result_vendor_guid, 0, sizeof(response->result_vendor_guid));
 	assert(payload_mm_authvar_service_response_validate(&endpoint,
-		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
-	response->result_vendor_guid[0] = 2;
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
 	response->vendor_guid[0] = 2;
 	assert(payload_mm_authvar_service_response_validate(&endpoint,
 		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
@@ -278,7 +321,7 @@ static void deterministic_request_mutations(void)
 			frame->request_id = 0;
 			break;
 		case 6:
-			memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid));
+			request_buffer[sizeof(*frame)] = 0;
 			break;
 		case 7:
 			frame->attributes = UINT32_MAX;
@@ -314,6 +357,247 @@ static void deterministic_request_mutations(void)
 		assert(payload_mm_authvar_service_request_validate(&endpoint,
 			request_buffer, sizeof(request_buffer)) == CB_ERR);
 	}
+}
+
+static struct payload_mm_authvar_service_frame *matrix_response(
+	uint32_t operation, uint64_t status)
+{
+	struct payload_mm_authvar_service_frame *request = new_request(operation);
+	struct payload_mm_authvar_service_frame *response;
+
+	switch (operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
+		set_name(request);
+		request->data_capacity = 32;
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
+		request->name_capacity = 32;
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
+		set_name(request);
+		request->attributes = stored_attributes();
+		request->data_size = 4;
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
+		request->attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
+	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
+		break;
+	default:
+		abort();
+	}
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	response = new_response(request, status);
+	if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
+	    (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+	     status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
+		response->result_data_size = status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ?
+			4U : request->data_capacity + 1U;
+		response->result_attributes = stored_attributes();
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			memset(response_data(), 0x5a, response->result_data_size);
+	} else if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_NEXT &&
+		   status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		set_response_name(response, 'B');
+	} else if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_NEXT &&
+		   status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL) {
+		response->result_name_size = request->name_capacity + 2U;
+	} else if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_QUERY &&
+		   status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		response->maximum_storage = 1024;
+		response->remaining_storage = 512;
+		response->maximum_variable = 256;
+	}
+	return response;
+}
+
+static bool matrix_status_allowed(uint32_t operation, uint64_t status)
+{
+	switch (operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
+	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	default:
+		return false;
+	}
+}
+
+static void response_status_matrix(void)
+{
+	static const uint32_t operations[] = {
+		PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+		PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
+		PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+	};
+	static const uint64_t statuses[] = {
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER,
+		PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED,
+		PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL,
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR,
+		PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED,
+		PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES,
+		PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION,
+	};
+
+	for (size_t operation = 0; operation < ARRAY_SIZE(operations); operation++) {
+		for (size_t status = 0; status < ARRAY_SIZE(statuses); status++) {
+			matrix_response(operations[operation], statuses[status]);
+			assert((payload_mm_authvar_service_response_validate(&endpoint,
+				request_buffer, response_buffer, sizeof(response_buffer)) ==
+				CB_SUCCESS) == matrix_status_allowed(operations[operation],
+					statuses[status]));
+		}
+		matrix_response(operations[operation],
+			PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING);
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+		matrix_response(operations[operation], (1ULL << 63) | 0x1234ULL);
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	}
+}
+
+static void hostile_response_results(void)
+{
+	struct payload_mm_authvar_service_frame *response;
+
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_data_size = 0;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_data_size = 33;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+	response->result_data_size = 32;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	response_data()[0] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_buffer[sizeof(*response)] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_data()[response->result_data_size] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_name_size = 34;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+	response->result_name_size = 33;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+	response->result_name_size = 32;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+	response_buffer[sizeof(*response)] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_buffer[sizeof(*response) + response->result_name_size] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_data()[0] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->remaining_storage = response->maximum_storage + 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->maximum_variable = response->remaining_storage + 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->maximum_storage = 0;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+		PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	response->maximum_storage = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_data_size = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_buffer[sizeof(*response)] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response_data()[0] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
 }
 
 static void deterministic_endpoint_mutations(void)
@@ -392,10 +676,8 @@ static void deterministic_response_mutations(void)
 
 		set_name(request);
 		request->data_capacity = 32;
-		memcpy(response_buffer, request_buffer, sizeof(response_buffer));
-		response = (void *)response_buffer;
-		response->status = 0;
-		response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+		response = new_response(request, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		response->result_attributes = stored_attributes();
 		switch (iteration % 12U) {
 		case 0:
 			response->generation++;
@@ -444,6 +726,8 @@ int main(void)
 	valid_requests();
 	hostile_requests();
 	response_order_and_echo();
+	response_status_matrix();
+	hostile_response_results();
 	deterministic_endpoint_mutations();
 	deterministic_request_mutations();
 	deterministic_response_mutations();

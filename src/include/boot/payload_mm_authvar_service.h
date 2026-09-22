@@ -16,6 +16,27 @@
 #define PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE 0U
 #define PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING UINT64_MAX
 
+/* Fixed-width EFI_STATUS values carried by the wire ABI. */
+#define PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT \
+	(1ULL << 63)
+#define PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS 0ULL
+#define PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 2ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 3ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 5ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 7ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 8ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 9ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 14ULL)
+#define PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION \
+	(PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT | 26ULL)
+
 #define PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE        (1U << 0)
 #define PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS  (1U << 1)
 #define PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS      (1U << 2)
@@ -44,7 +65,9 @@ enum payload_mm_authvar_service_operation {
  * Fixed header at the start of the endpoint's complete message buffer. Names
  * occupy maximum_name_size bytes immediately after this header; data follows
  * at the next eight-byte boundary. There are no caller-provided offsets or
- * pointers. READY_TO_BOOT and ENTER_RUNTIME can only restrict service state.
+ * pointers. The status field uses the fixed 64-bit
+ * PAYLOAD_MM_AUTHVAR_STATUS_* wire values, independent of native word size.
+ * READY_TO_BOOT and ENTER_RUNTIME can only restrict service state.
  */
 struct payload_mm_authvar_service_frame {
 	uint32_t revision;
