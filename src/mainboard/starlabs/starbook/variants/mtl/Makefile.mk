@@ -14,3 +14,5 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_re
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_resource_policy.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC) += dma_diagnostic.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC) += dma_diagnostic_platform.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_HANDOFF) += dma_live.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_HANDOFF) += dma_live_platform.c
