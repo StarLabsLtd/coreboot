@@ -95,6 +95,11 @@ int main(void)
 	assert(vtd_transition_from_pmr(&io, 0x100000));
 	assert(!mock.commit);
 	mock = valid_mock();
+	mock.registers[PMEN / 4U] = 1U;
+	assert(vtd_transition_from_pmr(&io, 0x100000) == -1);
+	assert(!mock.commit);
+	assert(mock.registers[PMEN / 4U] & 1U);
+	mock = valid_mock();
 	mock.registers[GSTS / 4U] = 1U << 31;
 	assert(vtd_transition_from_pmr(&io, 0x100000));
 	assert(!mock.commit);

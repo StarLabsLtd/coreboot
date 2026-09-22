@@ -99,7 +99,9 @@ int vtd_transition_from_pmr(const struct vtd_transition_io *io,
 	if (vtd_transition_probe(io, &facts) || !root_physical ||
 	    (root_physical & 0xfffU) || root_physical >= (1ULL << 48) ||
 	    (facts.status & (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ||
-	    !(facts.protected_memory_enable & VTD_PROTECTED_MEMORY_ACTIVE) ||
+	    (facts.protected_memory_enable &
+	     (VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE)) !=
+		(VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE) ||
 	    !facts.coherent)
 		return -1;
 
