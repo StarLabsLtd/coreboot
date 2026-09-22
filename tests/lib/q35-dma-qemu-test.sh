@@ -13,6 +13,8 @@ test -f "$rom"
 mkdir "$out"
 cp --reflink=auto "$rom" "$out/input.rom"
 chmod a-w "$out/input.rom"
+truncate -s 1048576 "$out/nvme.raw"
+truncate -s 1048576 "$out/nvme1.raw"
 qemu_pid=
 trap 'if [ -n "$qemu_pid" ]; then kill "$qemu_pid" 2>/dev/null || true; fi' \
 	EXIT HUP INT TERM
@@ -43,37 +45,83 @@ run_case()
 	qemu_pid=
 }
 
-run_case protected 'Q35 DMA: default-deny active' \
-	-device intel-iommu,pt=off -device edu,dma_mask=0xffffffff
-run_case missing_iommu 'Q35 DMA: VT-d lacks the required 48-bit address width' \
-	-device edu,dma_mask=0xffffffff
-run_case missing_requester \
-	'Q35 DMA: expected exactly one segment-zero EDU requester' \
-	-device intel-iommu,pt=off
-run_case duplicate 'Q35 DMA: expected exactly one segment-zero EDU requester' \
+run_case protected 'Q35 DMA: handoff generation .* domains 1/2 linked' \
 	-device intel-iommu,pt=off \
-	-device edu,dma_mask=0xffffffff -device edu,dma_mask=0xffffffff
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case missing_iommu 'Q35 DMA: VT-d lacks the required 48-bit address width' \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case missing_nvme 'Q35 DMA: expected exactly one NVMe requester' \
+	-device intel-iommu,pt=off \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case missing_xhci 'Q35 DMA: expected exactly one XHCI requester' \
+	-device intel-iommu,pt=off \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case missing_edu 'Q35 DMA: expected exactly one unlisted EDU' \
+	-device intel-iommu,pt=off \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04
+run_case duplicate_nvme 'Q35 DMA: expected exactly one NVMe requester' \
+	-device intel-iommu,pt=off \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA0,bus=pcie.0,addr=03 \
+	-drive if=none,id=nvme1,format=raw,file="$out/nvme1.raw" \
+	-device nvme,drive=nvme1,serial=Q35DMA1,bus=pcie.0,addr=06 \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case duplicate_xhci 'Q35 DMA: expected exactly one XHCI requester' \
+	-device intel-iommu,pt=off \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device qemu-xhci,id=xhci0,bus=pcie.0,addr=04 \
+	-device qemu-xhci,id=xhci1,bus=pcie.0,addr=06 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05
+run_case duplicate_edu 'Q35 DMA: expected exactly one unlisted EDU' \
+	-device intel-iommu,pt=off \
+	-drive if=none,id=nvme0,format=raw,file="$out/nvme.raw" \
+	-device nvme,drive=nvme0,serial=Q35DMA,bus=pcie.0,addr=03 \
+	-device qemu-xhci,id=xhci,bus=pcie.0,addr=04 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05 \
+	-device edu,dma_mask=0xffffffff,bus=pcie.0,addr=06
 
-rg -q 'Q35 DMA: denied EDU 0x18 in domain 1, reason 0x5, target unchanged, BME clear' \
+rg -q 'Q35 DMA: denied unlisted EDU 0x28, reason 0x2, target unchanged, BME clear' \
 	"$out/protected.serial"
-rg -q 'Q35 DMA: default-deny active, .*EDU 0000:00:03.0' \
+rg -q 'Q35 DMA: default-deny active, .*NVMe 0000:00:03.0 32 pages .*XHCI 0000:00:04.0 128 pages .*EDU unlisted' \
 	"$out/protected.serial"
 rg -q 'Q35 DMA: noncoherent page-walk table visibility established' \
 	"$out/protected.serial"
-rg -q 'Q35 VTD TAB .* 0x00006000' "$out/protected.serial"
-rg -q 'vtd_iommu_translate: detected translation failure \(dev=00:03:00' \
+rg -q 'Q35 DMA: handoff generation 1, domains 1/2 linked, ten immutable table pages, 32/128 immutable arena pages' \
+	"$out/protected.serial"
+rg -q 'Q35 VTD TAB .* 0x0000a000' "$out/protected.serial"
+rg -q 'Q35 DMA ARE .* 0x000a1000' "$out/protected.serial"
+rg -q 'DMA HANDOFF .* 0x00000068' "$out/protected.serial"
+rg -q 'vtd_iommu_translate: detected translation failure \(dev=00:05:00' \
 	"$out/protected.qemu"
 rg -q 'Q35 DMA: VT-d lacks the required 48-bit address width' \
 	"$out/missing_iommu.serial"
-rg -q 'Q35 DMA: expected exactly one segment-zero EDU requester' \
-	"$out/missing_requester.serial"
-rg -q 'Q35 DMA: expected exactly one segment-zero EDU requester' \
-	"$out/duplicate.serial"
-if rg -q 'Q35 DMA: handoff generation|DMA HANDOFF' "$out"/*.serial; then
-	echo "synthetic Q35 EDU was unexpectedly published as payload DMA intent" >&2
+rg -q 'Q35 DMA: expected exactly one NVMe requester' "$out/missing_nvme.serial"
+rg -q 'Q35 DMA: expected exactly one XHCI requester' "$out/missing_xhci.serial"
+rg -q 'Q35 DMA: expected exactly one unlisted EDU' "$out/missing_edu.serial"
+rg -q 'Q35 DMA: expected exactly one NVMe requester' "$out/duplicate_nvme.serial"
+rg -q 'Q35 DMA: expected exactly one XHCI requester' "$out/duplicate_xhci.serial"
+rg -q 'Q35 DMA: expected exactly one unlisted EDU' "$out/duplicate_edu.serial"
+if rg -q 'Q35 DMA: handoff generation' "$out/missing_iommu.serial" \
+	"$out/missing_nvme.serial" "$out/missing_xhci.serial" \
+	"$out/missing_edu.serial" "$out/duplicate_nvme.serial" \
+	"$out/duplicate_xhci.serial" "$out/duplicate_edu.serial"; then
+	echo "hostile Q35 case published a DMA handoff" >&2
 	exit 1
 fi
 cmp "$rom" "$out/input.rom"
 sha256sum "$out/input.rom" "$out"/*.serial "$out"/*.qemu >"$out/evidence.sha256"
 sha256sum -c "$out/evidence.sha256"
-echo "Q35 DMA private protected and hostile QEMU cases: PASS ($out)"
+echo "Q35 DMA real-requester protected and hostile QEMU cases: PASS ($out)"

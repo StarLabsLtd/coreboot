@@ -25,10 +25,25 @@
 
 #define Q35_VTD_BASE 0xfed90000U
 #define Q35_DMA_PAGE_SIZE 4096U
-#define Q35_DMA_TABLE_PAGES 6U
+#define Q35_DMA_REQUESTERS 2U
+#define Q35_DMA_TABLE_PAGES 10U
 #define Q35_DMA_BLOB_BYTES \
-	(sizeof(struct dma_handoff_header) + sizeof(struct dma_handoff_requester))
+	(sizeof(struct dma_handoff_header) + \
+	 Q35_DMA_REQUESTERS * sizeof(struct dma_handoff_requester))
 #define Q35_DMA_TABLE_BYTES (Q35_DMA_TABLE_PAGES * Q35_DMA_PAGE_SIZE)
+#define Q35_DMA_ARENA_PAGES (32U + 128U)
+#define Q35_DMA_ARENA_BYTES \
+	((Q35_DMA_ARENA_PAGES + 1U) * Q35_DMA_PAGE_SIZE)
+#define Q35_NVME_ARENA_PAGES 32U
+#define Q35_XHCI_ARENA_PAGES 128U
+#define Q35_NVME_IOVA 0x80000000ULL
+#define Q35_XHCI_IOVA 0x90000000ULL
+#define Q35_NVME_BDF 0x0018U
+#define Q35_XHCI_BDF 0x0020U
+#define Q35_EDU_BDF 0x0028U
+#define QEMU_VENDOR 0x1b36U
+#define QEMU_NVME_DEVICE 0x0010U
+#define QEMU_XHCI_DEVICE 0x000dU
 #define EDU_VENDOR 0x1234U
 #define EDU_DEVICE 0x11e8U
 #define EDU_DMA_DESTINATION 0x88U
@@ -40,19 +55,27 @@
 #define VTD_PAGE_READ_WRITE 3ULL
 #define VTD_CONTEXT_PRESENT 1ULL
 #define VTD_CONTEXT_AW_48BIT 2ULL
-#define VTD_CONTEXT_DOMAIN_ONE (1ULL << 8)
 #define VTD_CAP_SAGAW_48BIT (1ULL << 10)
 #define VTD_ECAP_PAGE_WALK_COHERENT (1ULL << 0)
 
 static uint8_t *handoff_allocation;
 static uint8_t *table_allocation;
+static uint8_t *arena_allocation;
 static struct device *edu_requester;
-static uint16_t requester_bdf;
+static struct device *dma_devices[Q35_DMA_REQUESTERS];
+static uint16_t requester_bdfs[Q35_DMA_REQUESTERS];
+static uint16_t requester_domains[Q35_DMA_REQUESTERS] = { 1U, 2U };
+static uint8_t *requester_arenas[Q35_DMA_REQUESTERS];
+static const uint32_t requester_arena_pages[Q35_DMA_REQUESTERS] = {
+	Q35_NVME_ARENA_PAGES, Q35_XHCI_ARENA_PAGES
+};
+static const uint64_t requester_iovas[Q35_DMA_REQUESTERS] = {
+	Q35_NVME_IOVA, Q35_XHCI_IOVA
+};
 static bool backend_ready;
 static bool tables_committed;
 static bool noncoherent_writeback;
 static uint8_t dma_target[Q35_DMA_PAGE_SIZE] __aligned(Q35_DMA_PAGE_SIZE);
-static uint8_t dma_arena[Q35_DMA_PAGE_SIZE] __aligned(Q35_DMA_PAGE_SIZE);
 static uint32_t pci_requesters[Q35_DMA_MAX_PCI_FUNCTIONS];
 static size_t pci_requester_count;
 static struct q35_dma_pmr_state pmr_snapshot;
@@ -81,31 +104,38 @@ static uint64_t *table_page(size_t page)
 	return (void *)(table_allocation + page * Q35_DMA_PAGE_SIZE);
 }
 
-static void populate_requester_hierarchy(void)
+static size_t hierarchy_page(size_t requester, size_t level)
+{
+	return 2U + requester * 4U + level;
+}
+
+static void populate_requester_hierarchy(size_t requester)
 {
 	uint64_t *root = table_page(0);
 	uint64_t *context = table_page(1);
-	uint64_t *pml4 = table_page(2);
-	uint64_t *pdpt = table_page(3);
-	uint64_t *pd = table_page(4);
-	const uint64_t arena = (uintptr_t)dma_arena;
+	uint64_t *pml4 = table_page(hierarchy_page(requester, 0));
+	uint64_t *pdpt = table_page(hierarchy_page(requester, 1));
+	uint64_t *pd = table_page(hierarchy_page(requester, 2));
+	uint64_t *pt = table_page(hierarchy_page(requester, 3));
+	const uint64_t iova = requester_iovas[requester];
+	const uint64_t arena = (uintptr_t)requester_arenas[requester];
+	const uint16_t bdf = requester_bdfs[requester];
 
-	root[(requester_bdf >> 8) * 2U] = (uintptr_t)context | VTD_CONTEXT_PRESENT;
-	context[(requester_bdf & 0xffU) * 2U] =
+	root[(bdf >> 8) * 2U] = (uintptr_t)context | VTD_CONTEXT_PRESENT;
+	context[(bdf & 0xffU) * 2U] =
 		(uintptr_t)pml4 | VTD_CONTEXT_PRESENT;
-	context[(requester_bdf & 0xffU) * 2U + 1U] =
-		VTD_CONTEXT_AW_48BIT | VTD_CONTEXT_DOMAIN_ONE;
-	pml4[(arena >> 39) & 0x1ffU] = (uintptr_t)pdpt | VTD_PAGE_READ_WRITE;
-	pdpt[(arena >> 30) & 0x1ffU] = (uintptr_t)pd | VTD_PAGE_READ_WRITE;
-	pd[(arena >> 21) & 0x1ffU] =
-		(uintptr_t)table_page(5) | VTD_PAGE_READ_WRITE;
-	table_page(5)[(arena >> 12) & 0x1ffU] = arena | VTD_PAGE_READ_WRITE;
+	context[(bdf & 0xffU) * 2U + 1U] = VTD_CONTEXT_AW_48BIT |
+		((uint64_t)requester_domains[requester] << 8);
+	pml4[(iova >> 39) & 0x1ffU] = (uintptr_t)pdpt | VTD_PAGE_READ_WRITE;
+	pdpt[(iova >> 30) & 0x1ffU] = (uintptr_t)pd | VTD_PAGE_READ_WRITE;
+	pd[(iova >> 21) & 0x1ffU] = (uintptr_t)pt | VTD_PAGE_READ_WRITE;
+	for (size_t page = 0; page < requester_arena_pages[requester]; page++)
+		pt[((iova >> 12) + page) & 0x1ffU] =
+			(arena + page * Q35_DMA_PAGE_SIZE) | VTD_PAGE_READ_WRITE;
 }
 
 static bool table_pages_unchanged(void)
 {
-	const uint64_t arena = (uintptr_t)dma_arena;
-
 	if (!table_allocation)
 		return false;
 	for (size_t page = 0; page < Q35_DMA_TABLE_PAGES; page++) {
@@ -114,20 +144,45 @@ static bool table_pages_unchanged(void)
 		for (size_t slot = 0; slot < Q35_DMA_PAGE_SIZE / sizeof(*entries); slot++) {
 			uint64_t expected = 0;
 
-			if (page == 0 && slot == (requester_bdf >> 8) * 2U)
+			if (page == 0 && slot == 0U)
 				expected = (uintptr_t)table_page(1) | VTD_CONTEXT_PRESENT;
-			else if (page == 1 && slot == (requester_bdf & 0xffU) * 2U)
-				expected = (uintptr_t)table_page(2) | VTD_CONTEXT_PRESENT;
-			else if (page == 1 && slot == (requester_bdf & 0xffU) * 2U + 1U)
-				expected = VTD_CONTEXT_AW_48BIT | VTD_CONTEXT_DOMAIN_ONE;
-			else if (page == 2 && slot == ((arena >> 39) & 0x1ffU))
-				expected = (uintptr_t)table_page(3) | VTD_PAGE_READ_WRITE;
-			else if (page == 3 && slot == ((arena >> 30) & 0x1ffU))
-				expected = (uintptr_t)table_page(4) | VTD_PAGE_READ_WRITE;
-			else if (page == 4 && slot == ((arena >> 21) & 0x1ffU))
-				expected = (uintptr_t)table_page(5) | VTD_PAGE_READ_WRITE;
-			else if (page == 5 && slot == ((arena >> 12) & 0x1ffU))
-				expected = arena | VTD_PAGE_READ_WRITE;
+			for (size_t requester = 0; requester < Q35_DMA_REQUESTERS;
+			     requester++) {
+				const uint16_t bdf = requester_bdfs[requester];
+				const uint64_t iova = requester_iovas[requester];
+				const uint64_t arena =
+					(uintptr_t)requester_arenas[requester];
+
+				if (page == 1 && slot == (bdf & 0xffU) * 2U)
+					expected = (uintptr_t)table_page(
+						hierarchy_page(requester, 0)) |
+						VTD_CONTEXT_PRESENT;
+				else if (page == 1 && slot == (bdf & 0xffU) * 2U + 1U)
+					expected = VTD_CONTEXT_AW_48BIT |
+						((uint64_t)requester_domains[requester] << 8);
+				else if (page == hierarchy_page(requester, 0) &&
+					 slot == ((iova >> 39) & 0x1ffU))
+					expected = (uintptr_t)table_page(
+						hierarchy_page(requester, 1)) |
+						VTD_PAGE_READ_WRITE;
+				else if (page == hierarchy_page(requester, 1) &&
+					 slot == ((iova >> 30) & 0x1ffU))
+					expected = (uintptr_t)table_page(
+						hierarchy_page(requester, 2)) |
+						VTD_PAGE_READ_WRITE;
+				else if (page == hierarchy_page(requester, 2) &&
+					 slot == ((iova >> 21) & 0x1ffU))
+					expected = (uintptr_t)table_page(
+						hierarchy_page(requester, 3)) |
+						VTD_PAGE_READ_WRITE;
+				else if (page == hierarchy_page(requester, 3) &&
+					 slot >= ((iova >> 12) & 0x1ffU) &&
+					 slot - ((iova >> 12) & 0x1ffU) <
+					 requester_arena_pages[requester])
+					expected = (arena +
+						(slot - ((iova >> 12) & 0x1ffU)) *
+						Q35_DMA_PAGE_SIZE) | VTD_PAGE_READ_WRITE;
+			}
 			if (entries[slot] != expected)
 				return false;
 		}
@@ -149,7 +204,7 @@ static void commit_vtd_tables(void *unused)
 	tables_committed = true;
 }
 
-static bool requester_bus_master_clear(void)
+static bool edu_bus_master_clear(void)
 {
 	return edu_requester &&
 		!(pci_read_config16(edu_requester, PCI_COMMAND) & PCI_COMMAND_MASTER);
@@ -213,12 +268,12 @@ static bool vtd_runtime_state_valid(void)
 		table_pages_unchanged() && pci_inventory(false);
 }
 
-static bool dma_page_denied(uint64_t address)
+static bool dma_page_denied(size_t requester, uint64_t address)
 {
-	const uint64_t *pml4 = table_page(2);
-	const uint64_t *pdpt = table_page(3);
-	const uint64_t *pd = table_page(4);
-	const uint64_t *pt = table_page(5);
+	const uint64_t *pml4 = table_page(hierarchy_page(requester, 0));
+	const uint64_t *pdpt = table_page(hierarchy_page(requester, 1));
+	const uint64_t *pd = table_page(hierarchy_page(requester, 2));
+	const uint64_t *pt = table_page(hierarchy_page(requester, 3));
 	uint64_t entry;
 
 	entry = pml4[(address >> 39) & 0x1ffU];
@@ -239,7 +294,7 @@ static bool dma_page_denied(uint64_t address)
 	return !(pt[(address >> 12) & 0x1ffU] & VTD_CONTEXT_PRESENT);
 }
 
-static bool dma_range_denied(uint64_t base, uint64_t size)
+static bool dma_range_denied(size_t requester, uint64_t base, uint64_t size)
 {
 	uint64_t end;
 	uint64_t page;
@@ -249,12 +304,20 @@ static bool dma_range_denied(uint64_t base, uint64_t size)
 	end = base + size;
 	page = base & ~(uint64_t)(Q35_DMA_PAGE_SIZE - 1U);
 	while (page < end) {
-		if (!dma_page_denied(page))
+		if (!dma_page_denied(requester, page))
 			return false;
 		if (page > UINT64_MAX - Q35_DMA_PAGE_SIZE)
 			return false;
 		page += Q35_DMA_PAGE_SIZE;
 	}
+	return true;
+}
+
+static bool all_requesters_deny_range(uint64_t base, uint64_t size)
+{
+	for (size_t requester = 0; requester < Q35_DMA_REQUESTERS; requester++)
+		if (!dma_range_denied(requester, base, size))
+			return false;
 	return true;
 }
 
@@ -287,7 +350,7 @@ static bool edu_dma_write(uint64_t destination)
 	mdelay(200);
 	write64(mmio + EDU_DMA_COMMAND, 0);
 	pci_write_config16(edu_requester, PCI_COMMAND, command & ~PCI_COMMAND_MASTER);
-	return requester_bus_master_clear();
+	return edu_bus_master_clear();
 }
 
 static bool prove_range_fault(uint64_t base, uint64_t size)
@@ -299,7 +362,7 @@ static bool prove_range_fault(uint64_t base, uint64_t size)
 	uint32_t fault_offset;
 
 	if (size < sizeof(before) || base > UINTPTR_MAX ||
-	    !dma_range_denied(base, size))
+	    !all_requesters_deny_range(base, size))
 		return false;
 	memcpy(before, (const void *)(uintptr_t)base, sizeof(before));
 	cap = vtd_read64(Q35_VTD_CAP);
@@ -313,8 +376,8 @@ static bool prove_range_fault(uint64_t base, uint64_t size)
 	fault_high = vtd_read64(fault_offset + 8U);
 	if (!(vtd_read32((void *)(uintptr_t)Q35_VTD_BASE, Q35_VTD_FSTS) &
 	      Q35_VTD_FAULT_PENDING) || !(fault_high & (1ULL << 63)) ||
-	    (fault_high & 0xffffU) != requester_bdf ||
-	    ((fault_high >> 32) & 0xffU) != 5U ||
+	    (fault_high & 0xffffU) != Q35_EDU_BDF ||
+	    ((fault_high >> 32) & 0xffU) != 2U ||
 	    (fault_low & ~0xfffULL) != (base & ~0xfffULL) ||
 	    memcmp(before, (const void *)(uintptr_t)base, sizeof(before)))
 		return false;
@@ -323,37 +386,17 @@ static bool prove_range_fault(uint64_t base, uint64_t size)
 		Q35_VTD_FAULT_PENDING);
 }
 
-static bool prove_positive_control(void)
-{
-	const uint64_t address = (uintptr_t)dma_arena;
-	bool changed = false;
-
-	if (dma_page_denied(address) || !table_pages_unchanged())
-		return false;
-	memset(dma_arena, 0x5a, EDU_TEST_BYTES);
-	if (!edu_dma_write(address))
-		return false;
-	if (vtd_read32((void *)(uintptr_t)Q35_VTD_BASE, Q35_VTD_FSTS) &
-	    Q35_VTD_FAULT_PENDING)
-		return false;
-	for (size_t byte = 0; byte < EDU_TEST_BYTES; byte++)
-		changed |= dma_arena[byte] != 0x5a;
-	return changed && table_pages_unchanged() && !dma_page_denied(address) &&
-		requester_bus_master_clear();
-}
-
 static bool capsule_dma_proof(void)
 {
 	return vtd_runtime_state_valid() &&
-		dma_range_denied(capsule_geometry.communication_base,
+		all_requesters_deny_range(capsule_geometry.communication_base,
 			capsule_geometry.communication_reserved_size) &&
-		dma_range_denied(capsule_geometry.staging_base,
+		all_requesters_deny_range(capsule_geometry.staging_base,
 			capsule_geometry.staging_size) &&
 		prove_range_fault(capsule_geometry.communication_base,
 			capsule_geometry.communication_reserved_size) &&
 		prove_range_fault(capsule_geometry.staging_base,
-			capsule_geometry.staging_size) &&
-		prove_positive_control() && vtd_runtime_state_valid();
+			capsule_geometry.staging_size) && vtd_runtime_state_valid();
 }
 
 bool q35_capsule_dma_protected(void *context, uint64_t base, uint64_t size)
@@ -390,7 +433,7 @@ static void prove_requester_denied(void)
 	mdelay(200);
 	write64(mmio + EDU_DMA_COMMAND, 0);
 	pci_write_config16(edu_requester, PCI_COMMAND, command & ~PCI_COMMAND_MASTER);
-	if (!requester_bus_master_clear())
+	if (!edu_bus_master_clear())
 		die("Q35 DMA: EDU denial probe left BME active");
 
 	cap = vtd_read64(Q35_VTD_CAP);
@@ -400,9 +443,9 @@ static void prove_requester_denied(void)
 	fault_high = vtd_read64(fault_offset + 8U);
 	if (!(vtd_read32((void *)(uintptr_t)Q35_VTD_BASE, Q35_VTD_FSTS) &
 	      Q35_VTD_FAULT_PENDING) || !(fault_high & (1ULL << 63)) ||
-	    (fault_high & 0xffffU) != requester_bdf ||
-	    ((fault_high >> 32) & 0xffU) != 5U)
-		die("Q35 DMA: EDU DMA did not fault in domain 1's empty leaf");
+	    (fault_high & 0xffffU) != Q35_EDU_BDF ||
+	    ((fault_high >> 32) & 0xffU) != 2U)
+		die("Q35 DMA: unlisted EDU DMA did not fault at its absent context");
 	for (size_t byte = 0; byte < EDU_TEST_BYTES; byte++)
 		if (dma_target[byte] != 0x5a)
 			die("Q35 DMA: denied EDU DMA changed the target");
@@ -411,8 +454,25 @@ static void prove_requester_denied(void)
 	    Q35_VTD_FAULT_PENDING)
 		die("Q35 DMA: EDU denial fault did not clear");
 	printk(BIOS_INFO,
-	       "Q35 DMA: denied EDU %#x in domain 1, reason %#llx, target unchanged, BME clear\n",
-	       requester_bdf, (unsigned long long)((fault_high >> 32) & 0xffU));
+	       "Q35 DMA: denied unlisted EDU %#x, reason %#llx, target unchanged, BME clear\n",
+	       Q35_EDU_BDF, (unsigned long long)((fault_high >> 32) & 0xffU));
+}
+
+static struct device *exact_device(uint16_t vendor, uint16_t device,
+	uint16_t expected_bdf)
+{
+	struct device *found = dev_find_device(vendor, device, NULL);
+	struct device *duplicate = found ? dev_find_device(vendor, device, found) : NULL;
+	uint16_t bdf;
+
+	if (!found || duplicate || !found->upstream ||
+	    found->upstream->segment_group != 0 ||
+	    found->upstream->secondary > UINT8_MAX ||
+	    found->path.pci.devfn > UINT8_MAX)
+		return NULL;
+	bdf = ((uint16_t)found->upstream->secondary << 8) |
+		(uint16_t)found->path.pci.devfn;
+	return bdf == expected_bdf ? found : NULL;
 }
 
 static void q35_dma_backend_enable(void *unused)
@@ -423,28 +483,33 @@ static void q35_dma_backend_enable(void *unused)
 		.write32 = vtd_write32,
 		.commit_tables = commit_vtd_tables,
 	};
-	struct device *duplicate;
 	const struct cbmem_entry *blob_entry;
 	const struct cbmem_entry *table_entry;
+	const struct cbmem_entry *arena_entry;
 	uint8_t *root;
+	uintptr_t arena_base;
 	int result;
 
 	(void)unused;
-	edu_requester = dev_find_device(EDU_VENDOR, EDU_DEVICE, NULL);
-	duplicate = edu_requester ?
-		dev_find_device(EDU_VENDOR, EDU_DEVICE, edu_requester) : NULL;
-	if (!edu_requester || duplicate || !edu_requester->upstream ||
-	    edu_requester->upstream->segment_group != 0 ||
-	    edu_requester->upstream->secondary > UINT8_MAX ||
-	    edu_requester->path.pci.devfn > UINT8_MAX)
-		die("Q35 DMA: expected exactly one segment-zero EDU requester");
-
-	requester_bdf = ((uint16_t)edu_requester->upstream->secondary << 8) |
-		(uint16_t)edu_requester->path.pci.devfn;
+	dma_devices[0] = exact_device(QEMU_VENDOR, QEMU_NVME_DEVICE, Q35_NVME_BDF);
+	dma_devices[1] = exact_device(QEMU_VENDOR, QEMU_XHCI_DEVICE, Q35_XHCI_BDF);
+	edu_requester = exact_device(EDU_VENDOR, EDU_DEVICE, Q35_EDU_BDF);
+	if (!dma_devices[0])
+		die("Q35 DMA: expected exactly one NVMe requester at 0000:00:03.0");
+	if (!dma_devices[1])
+		die("Q35 DMA: expected exactly one XHCI requester at 0000:00:04.0");
+	if (!edu_requester)
+		die("Q35 DMA: expected exactly one unlisted EDU at 0000:00:05.0");
+	requester_bdfs[0] = Q35_NVME_BDF;
+	requester_bdfs[1] = Q35_XHCI_BDF;
+	for (size_t requester = 0; requester < Q35_DMA_REQUESTERS; requester++)
+		pci_write_config16(dma_devices[requester], PCI_COMMAND,
+			pci_read_config16(dma_devices[requester], PCI_COMMAND) &
+			~PCI_COMMAND_MASTER);
 	pci_write_config16(edu_requester, PCI_COMMAND,
 		pci_read_config16(edu_requester, PCI_COMMAND) & ~PCI_COMMAND_MASTER);
-	if (!requester_bus_master_clear())
-		die("Q35 DMA: requester BME could not be cleared");
+	if (!edu_bus_master_clear())
+		die("Q35 DMA: EDU BME could not be cleared");
 
 	if (CONFIG(PAYLOAD_DMA_HANDOFF)) {
 		blob_entry = cbmem_entry_add(CBMEM_ID_DMA_HANDOFF, Q35_DMA_BLOB_BYTES);
@@ -456,18 +521,33 @@ static void q35_dma_backend_enable(void *unused)
 	if (!table_entry || cbmem_entry_size(table_entry) != Q35_DMA_TABLE_BYTES)
 		die("Q35 DMA: resident table allocation size is not exact");
 	table_allocation = cbmem_entry_start(table_entry);
-	if ((CONFIG(PAYLOAD_DMA_HANDOFF) && !handoff_allocation) || !table_allocation ||
+	arena_entry = cbmem_entry_add(CBMEM_ID_Q35_DMA_ARENAS,
+		Q35_DMA_ARENA_BYTES);
+	if (!arena_entry || cbmem_entry_size(arena_entry) != Q35_DMA_ARENA_BYTES)
+		die("Q35 DMA: resident arena allocation size is not exact");
+	arena_allocation = cbmem_entry_start(arena_entry);
+	if (!handoff_allocation || !table_allocation || !arena_allocation ||
 	    ((uintptr_t)table_allocation & (Q35_DMA_PAGE_SIZE - 1U)))
 		die("Q35 DMA: aligned split allocations failed");
 	if (handoff_allocation)
 		memset(handoff_allocation, 0, Q35_DMA_BLOB_BYTES);
 	memset(table_allocation, 0, Q35_DMA_TABLE_BYTES);
+	memset(arena_allocation, 0, Q35_DMA_ARENA_BYTES);
+	arena_base = ALIGN_UP((uintptr_t)arena_allocation, Q35_DMA_PAGE_SIZE);
+	requester_arenas[0] = (void *)arena_base;
+	requester_arenas[1] = requester_arenas[0] +
+		Q35_NVME_ARENA_PAGES * Q35_DMA_PAGE_SIZE;
+	if ((uintptr_t)requester_arenas[1] +
+	    Q35_XHCI_ARENA_PAGES * Q35_DMA_PAGE_SIZE >
+	    (uintptr_t)arena_allocation + Q35_DMA_ARENA_BYTES)
+		die("Q35 DMA: aligned arena suballocations exceed reservation");
 	root = table_allocation;
 	if ((uintptr_t)root > UINT32_MAX - Q35_DMA_TABLE_BYTES)
 		die("Q35 DMA: QEMU legacy tables are not wholly below 4 GiB");
 	if (!(vtd_read64(Q35_VTD_CAP) & VTD_CAP_SAGAW_48BIT))
 		die("Q35 DMA: VT-d lacks the required 48-bit address width");
-	populate_requester_hierarchy();
+	for (size_t requester = 0; requester < Q35_DMA_REQUESTERS; requester++)
+		populate_requester_hierarchy(requester);
 	if (!table_pages_unchanged())
 		die("Q35 DMA: requester deny hierarchy is malformed");
 
@@ -481,7 +561,7 @@ static void q35_dma_backend_enable(void *unused)
 	prove_requester_denied();
 	if (!(vtd_read32(io.context, Q35_VTD_GSTS) &
 	      Q35_VTD_TRANSLATION_ENABLE) || !table_pages_unchanged() ||
-	    !requester_bus_master_clear())
+	    !edu_bus_master_clear())
 		die("Q35 DMA: protected state did not survive read-back");
 	pmr_snapshot = (struct q35_dma_pmr_state) {
 		.enable = vtd_read32(io.context, Q35_VTD_PMEN),
@@ -496,10 +576,9 @@ static void q35_dma_backend_enable(void *unused)
 		die("Q35 DMA: PCI requester inventory is unsafe");
 	backend_ready = true;
 	printk(BIOS_INFO,
-	       "Q35 DMA: default-deny active, %zu PCI functions BME clear, EDU %04x:%02x:%02x.%x\n",
-	       pci_requester_count,
-	       0, requester_bdf >> 8, (requester_bdf & 0xffU) >> 3,
-	       requester_bdf & 7U);
+	       "Q35 DMA: default-deny active, %zu PCI functions BME clear, NVMe 0000:00:03.0 32 pages at %#llx, XHCI 0000:00:04.0 128 pages at %#llx, EDU unlisted\n",
+	       pci_requester_count, (unsigned long long)Q35_NVME_IOVA,
+	       (unsigned long long)Q35_XHCI_IOVA);
 }
 
 BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, q35_dma_backend_enable, NULL);
@@ -528,7 +607,7 @@ static void q35_capsule_dma_proof_enable(void *unused)
 		capsule_geometry.communication_size))
 		die("Q35 capsule DMA: exact-range proof failed");
 	printk(BIOS_INFO,
-	       "Q35 capsule DMA: communication %#llx/%#llx and staging %#llx/%#llx denied; positive control passed\n",
+	       "Q35 capsule DMA: communication %#llx/%#llx and staging %#llx/%#llx denied to both admitted requesters; unlisted EDU fault passed\n",
 	       (unsigned long long)capsule_geometry.communication_base,
 	       (unsigned long long)capsule_geometry.communication_reserved_size,
 	       (unsigned long long)capsule_geometry.staging_base,
@@ -540,43 +619,43 @@ BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_EXIT,
 
 bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
 {
-	struct dma_handoff_requester requester;
+	struct dma_handoff_requester requester[Q35_DMA_REQUESTERS];
 	const uint64_t generation = payload_resource_revision4_generation();
-	const uint16_t requesters[] = { requester_bdf };
 	const struct q35_dma_facts facts = {
 		.generation = generation,
 		.resource_generation = payload_resource_revision4_generation(),
-		.requesters = requesters,
-		.requester_count = ARRAY_SIZE(requesters),
+		.requesters = requester_bdfs,
+		.requester_count = ARRAY_SIZE(requester_bdfs),
 		.translation_active = !!(vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
 			Q35_VTD_GSTS) & Q35_VTD_TRANSLATION_ENABLE),
-		.tables_resident = handoff_allocation != NULL,
+		.tables_resident = handoff_allocation != NULL &&
+			table_allocation != NULL && arena_allocation != NULL,
 		.tables_unchanged = table_pages_unchanged(),
-		.bus_master_clear = requester_bus_master_clear(),
+		.bus_master_clear = pci_inventory(false),
 	};
 	size_t written;
 
-	if (!CONFIG(PAYLOAD_DMA_HANDOFF) || !address || !bytes || !backend_ready ||
+	if (!address || !bytes || !backend_ready ||
 	    !payload_resource_revision4_published() || !q35_dma_facts_valid(&facts))
 		return false;
-	/* Synthetic EDU is a test oracle, never payload boot intent. */
-	if (!payload_resource_revision4_boot_requester(0, requester_bdf))
-		return false;
-	memset(&requester, 0, sizeof(requester));
-	requester.bdf = requester_bdf;
-	requester.protection_domain = 1;
-	requester.flags = DMA_HANDOFF_REQUESTER_FLAGS;
-	requester.arena_cpu_base = (uintptr_t)dma_arena;
-	requester.arena_device_base = (uintptr_t)dma_arena;
-	requester.arena_pages = 1;
-	requester.arena_flags = DMA_HANDOFF_ARENA_FLAGS;
+	memset(requester, 0, sizeof(requester));
+	for (size_t index = 0; index < ARRAY_SIZE(requester); index++) {
+		requester[index].bdf = requester_bdfs[index];
+		requester[index].protection_domain = requester_domains[index];
+		requester[index].flags = DMA_HANDOFF_REQUESTER_FLAGS;
+		requester[index].arena_cpu_base =
+			(uintptr_t)requester_arenas[index];
+		requester[index].arena_device_base = requester_iovas[index];
+		requester[index].arena_pages = requester_arena_pages[index];
+		requester[index].arena_flags = DMA_HANDOFF_ARENA_FLAGS;
+	}
 	if (dma_handoff_build(handoff_allocation, Q35_DMA_BLOB_BYTES, generation,
-		&requester, 1, &written) != CB_SUCCESS)
+		requester, ARRAY_SIZE(requester), &written) != CB_SUCCESS)
 		return false;
 	*address = (uintptr_t)handoff_allocation;
 	*bytes = written;
 	printk(BIOS_INFO,
-	       "Q35 DMA: handoff generation %llu, isolated domain 1, one immutable arena page\n",
+	       "Q35 DMA: handoff generation %llu, domains 1/2 linked, ten immutable table pages, 32/128 immutable arena pages\n",
 	       (unsigned long long)generation);
 	return true;
 }
