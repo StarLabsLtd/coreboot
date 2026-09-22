@@ -34,9 +34,16 @@ run_test()
 		-o "$temporary/$name"
 	for mode in normal install-invalid install-unprotected-port \
 		install-unprotected-context install-unprotected-callback bounds \
+		fail-closed fail-closed-wrong-generation fail-closed-wrong-token \
+		fail-closed-idle fail-closed-preinstall fail-closed-repeated \
+		fail-closed-begin-callback \
+		fail-closed-read-callback fail-closed-program-callback \
+		fail-closed-erase-callback fail-closed-sync-callback \
+		fail-closed-verify-callback fail-closed-sealed-sync-callback \
+		fail-closed-end-callback \
 		begin-zero begin-error begin-invalid \
 		begin-reenter context-mutation read-short read-error read-invalid \
-		read-reenter \
+		read-reenter read-fail-closed \
 		program-error-exact program-wp program-partial program-mutate \
 		program-invalid program-reenter program-context-mutation program-sync \
 		program-sync-reenter program-sync-context-mutation \

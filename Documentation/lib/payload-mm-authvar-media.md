@@ -7,7 +7,8 @@ uses that sealed authority directly to prove that the descriptor, complete
 context, every callback entry point, and destination owner state are in SMRAM;
 there is no caller-supplied protection proof. It then snapshots the contract,
 derives the EDK2 variable, working and spare spans with the FTW geometry decoder,
-and copies the immutable callback descriptor and bounded context. Callback
+and copies the immutable callback descriptor and bounded context into storage
+with the toolchain's maximum ABI alignment. Callback
 offsets are relative to the complete SMMSTORE region, never raw boot-media
 addresses. The existing FMP owner-layout validation keeps its state and update
 ranges disjoint from SMMSTORE; this port cannot express an offset outside that
@@ -27,6 +28,16 @@ decoder-authorized, aligned erase block only; the erase block must also fit the
 only an all-`0xff` readback. A write-protected result is returned only when the
 readback proves that the media is byte-for-byte unchanged. Partial or ambiguous
 mutation permanently poisons the port.
+
+An internal executor which detects a higher-level invariant failure can call
+`payload_mm_authvar_media_fail_closed()` with its active generation and owner
+token. The call invalidates every cache binding and permanently poisons the
+installed port, but deliberately retains backend exclusion. The session owner
+must still call `end()` exactly once; the sealed backend cleanup runs and the
+wrapper returns a device error. No later session or mutation is accepted for
+the remainder of the boot. An invalid owner or a call from inside a backend
+callback is also a terminal fail-closed event. This primitive is not an SMI or
+normal-world API and does not expose a media operation.
 
 This slice has no variable-record writer, state transition, FTW executor,
 recovery action, SMI dispatcher, service endpoint, backend installer, or table
