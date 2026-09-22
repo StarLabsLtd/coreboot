@@ -220,7 +220,8 @@ static void hostile_records(void)
 	assert(scan() == CB_ERR);
 	one_valid_record(name, 4);
 	store[end] = 0;
-	assert(scan() == CB_ERR);
+	assert(scan() == CB_SUCCESS);
+	assert(index.dirty_tail_offset == end && index.used_size == sizeof(store));
 	one_valid_record(padded_name, ARRAY_SIZE(padded_name));
 	store[base + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
 		sizeof(padded_name)] = 0;

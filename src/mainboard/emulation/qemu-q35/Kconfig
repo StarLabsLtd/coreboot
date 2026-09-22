@@ -32,13 +32,14 @@ config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
 	select PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
 	select PAYLOAD_MM_AUTHVAR_FTW_DECODER
 	select PAYLOAD_MM_AUTHVAR_MEDIA_PORT
+	select PAYLOAD_MM_AUTHVAR_WRITER
 	help
 	  Compile the dormant typed boundary, read-only store and FTW decoders,
 	  read-only variable semantics and reclaim planner, the sealed SMMSTORE-
 	  relative media-port prerequisite,
 	  protected SystemFmp staging and fixed variable-owner port for hostile QEMU
 	  testing. This does not install a producer, SMI command, MM dispatcher,
-	  storage backend, record writer, FTW executor or authenticated-variable
+	  storage backend, plan executor, FTW executor or authenticated-variable
 	  service. It grants no SPI access.
 
 config Q35_CAPSULE_BROKER_TEST_PROOF
