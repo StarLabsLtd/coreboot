@@ -19,10 +19,17 @@ OBJS = $(PROGRAM).o cbmem_drv.o devmem_drv.o sysfs_drv.o $(COMMONLIB)/bsd/ipchks
 
 all: $(PROGRAM)
 
+timestamp_test: cdk2_timestamp_test.c cbmem.c cbmem_drv.o devmem_drv.o sysfs_drv.o $(COMMONLIB)/bsd/ipchksum.o
+	$(CC) $(CFLAGS) $(CPPFLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer \
+		$< $(filter %.o,$^) -o $@
+
+check: timestamp_test
+	./timestamp_test
+
 $(PROGRAM): $(OBJS)
 
 clean:
-	rm -f $(PROGRAM) $(OBJS:.c=.o) .dependencies *~ junit.xml
+	rm -f $(PROGRAM) timestamp_test $(OBJS:.c=.o) .dependencies *~ junit.xml
 
 install: $(PROGRAM)
 	$(INSTALL) -d $(DESTDIR)$(PREFIX)/sbin/
@@ -39,6 +46,6 @@ help:
 	@echo "To disable warnings as errors, run make as:"
 	@echo "  make all WERROR=\"\""
 
-.PHONY: all clean distclean install help
+.PHONY: all check clean distclean install help
 
 -include .dependencies
