@@ -276,6 +276,7 @@ static enum cb_err slot_erased(uint64_t offset, bool *erased)
 	return CB_SUCCESS;
 }
 
+#if CONFIG(CAPSULE_TPM_ANCHOR_GRANT)
 static enum cb_err slot_tail_erased(uint64_t slot_offset, u32 occupied,
 	bool *erased)
 {
@@ -300,6 +301,7 @@ static enum cb_err slot_tail_erased(uint64_t slot_offset, u32 occupied,
 	}
 	return CB_SUCCESS;
 }
+#endif
 
 static enum cb_err manifest_digest(
 	const struct payload_mm_fmp_owner_journal_manifest *manifest,
