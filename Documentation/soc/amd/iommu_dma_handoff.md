@@ -1,8 +1,10 @@
-# AMD IOMMU DMA handoff prerequisites
+# AMD IOMMU DMA handoff
 
 An AMD early-DMA handoff must describe protection that firmware really owns.
-The current Cezanne initialization does not meet that requirement, so coreboot
-does not publish an AMD DMA handoff yet.
+The generic decoder only observes FSP-owned state; observation does not make
+that memory trustworthy.  Cezanne can optionally replace it with fresh,
+coreboot-owned tables by enabling `SOC_AMD_CEZANNE_DMA_HANDOFF` and supplying
+an exact mainboard boot-controller policy.
 
 AMD's device-table and page-table layout differs from Intel VT-d.  In
 particular, the existing coreboot DMA handoff validator requires the VT-d
@@ -20,15 +22,26 @@ substitute for the endpoint requester IDs observed by the IOMMU.
 The AMD common IOMMU block provides a strict decoder for device-table register
 values read from the live hardware.  It rejects disabled, reserved,
 unsupported, overlapping, and oversized state, and rejects a runtime DeviceID
-absent from a sparse table segment.  This is discovery infrastructure only; it
-neither reads nor programs hardware and does not establish ownership.
-It is intentionally not linked into production firmware until a consumer can
-meet the ownership requirements below.
+absent from a sparse table segment.  Cezanne uses that decoder only to validate
+the precondition that FSP left active, unsegmented translation.  It never
+adopts the opaque FSP tables.
 
-A production handoff additionally needs:
+The Cezanne producer allocates a zero-default device table, one page table and
+one immutable CBMEM arena per selected requester, and the public handoff blob.
+It takes a presence snapshot of every function in the complete segment-0 ECAM
+aperture, clears every present function's bus-master-enable bit, and repeats
+that full scan after each IOMMU transition step.  A missing or newly visible
+function, a restored BME, or an unexpected register value terminates in
+`die()` while the bus masters remain clear.
 
-- an architecture-neutral ABI capable of representing AMD device tables;
-- coreboot-owned device and page tables whose lifetime reaches payload exit;
-- runtime enumeration of every bus-master requester and its aliases;
-- exact arena mappings for the requesters that remain enabled; and
-- fail-closed verification after the final bus-master-enable inventory.
+PCI class discovery is not boot policy.  A mainboard opting in must implement
+`mainboard_cezanne_dma_boot_controller()` and return a typed decision only for
+each exact payload-owned controller.  The producer freezes those device
+pointers and priorities before changing hardware, and the revision-4 resource
+handoff must later publish the same set and generation.
+
+This backend currently supports one segment and natural requester IDs for
+NVMe, xHCI, and AHCI controllers.  A platform that needs requester aliases,
+multiple IOMMU segments, or another controller type must extend and test the
+typed policy and table construction before enabling the option.  The code has
+host and 32-bit ramstage build coverage; that is not hardware validation.

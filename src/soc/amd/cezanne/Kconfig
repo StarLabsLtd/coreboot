@@ -105,6 +105,21 @@ config SOC_AMD_CEZANNE
 	help
 		AMD Cezanne support
 
+config SOC_AMD_CEZANNE_DMA_HANDOFF
+	bool "Own pre-OS DMA protection for the payload"
+	depends on SOC_AMD_CEZANNE_BASE
+	select PAYLOAD_RESOURCE_HANDOFF
+	select PAYLOAD_DMA_HANDOFF
+	help
+	  Replace FSP's active IOMMU translation state after PCI enumeration with
+	  coreboot-owned, default-deny tables. Each runtime NVMe, xHCI or AHCI boot
+	  requester receives one isolated, immutable DMA arena until payload exit.
+	  The mainboard must implement mainboard_cezanne_dma_boot_controller() and
+	  select exact controllers from its boot policy; class discovery is not a
+	  policy. This scans every segment-0 ECAM function, requires all PCI bus
+	  masters to remain disabled during ownership transfer, and fails
+	  terminally if protection cannot be proven.
+
 config SOC_AMD_RENOIR
 	bool
 	select SOC_AMD_CEZANNE_BASE
