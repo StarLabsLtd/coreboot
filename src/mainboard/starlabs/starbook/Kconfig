@@ -154,6 +154,20 @@ config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
 	  StarBook MTL capsule broker. This does not install or publish a broker,
 	  establish DMA or SPI ownership, or enable capsule updates.
 
+config STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
+	bool "Publish exact StarBook MTL payload boot-controller topology"
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL
+	select PAYLOAD_RESOURCE_HANDOFF
+	help
+	  Publish revision-4 payload resource topology only when the runtime PCI
+	  tree contains exactly one NVMe endpoint directly below RP10, the PCH
+	  xHCI controller, and the TCSS xHCI controller. Missing, duplicate, or
+	  ambiguous controllers fail closed.
+
+	  This does not configure VT-d translation or publish DMA arenas. It is a
+	  prerequisite for a later production DMA handoff producer.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER
