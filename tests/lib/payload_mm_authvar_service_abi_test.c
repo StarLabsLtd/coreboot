@@ -259,23 +259,57 @@ static void deterministic_request_mutations(void)
 		set_name(frame);
 		frame->data_capacity = 32;
 		switch (iteration % 17U) {
-		case 0: frame->revision++; break;
-		case 1: frame->header_size--; break;
-		case 2: frame->operation = 0; break;
-		case 3: frame->flags = 1; break;
-		case 4: frame->generation++; break;
-		case 5: frame->request_id = 0; break;
-		case 6: memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid)); break;
-		case 7: frame->attributes = UINT32_MAX; break;
-		case 8: frame->name_size = endpoint.maximum_name_size + 2U; break;
-		case 9: frame->data_size = 1; break;
-		case 10: frame->name_capacity = 1; break;
-		case 11: frame->data_capacity = endpoint.maximum_data_size + 1U; break;
-		case 12: frame->reserved0 = 1; break;
-		case 13: frame->status = 0; break;
-		case 14: frame->result_vendor_guid[0] = 1; break;
-		case 15: frame->reserved[0] = 1; break;
-		default: frame->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE; break;
+		case 0:
+			frame->revision++;
+			break;
+		case 1:
+			frame->header_size--;
+			break;
+		case 2:
+			frame->operation = 0;
+			break;
+		case 3:
+			frame->flags = 1;
+			break;
+		case 4:
+			frame->generation++;
+			break;
+		case 5:
+			frame->request_id = 0;
+			break;
+		case 6:
+			memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid));
+			break;
+		case 7:
+			frame->attributes = UINT32_MAX;
+			break;
+		case 8:
+			frame->name_size = endpoint.maximum_name_size + 2U;
+			break;
+		case 9:
+			frame->data_size = 1;
+			break;
+		case 10:
+			frame->name_capacity = 1;
+			break;
+		case 11:
+			frame->data_capacity = endpoint.maximum_data_size + 1U;
+			break;
+		case 12:
+			frame->reserved0 = 1;
+			break;
+		case 13:
+			frame->status = 0;
+			break;
+		case 14:
+			frame->result_vendor_guid[0] = 1;
+			break;
+		case 15:
+			frame->reserved[0] = 1;
+			break;
+		default:
+			frame->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+			break;
 		}
 		assert(payload_mm_authvar_service_request_validate(&endpoint,
 			request_buffer, sizeof(request_buffer)) == CB_ERR);
@@ -288,26 +322,62 @@ static void deterministic_endpoint_mutations(void)
 		struct lb_authvar_service_endpoint changed = endpoint;
 
 		switch (iteration % 18U) {
-		case 0: changed.tag++; break;
-		case 1: changed.size--; break;
-		case 2: changed.revision++; break;
-		case 3: changed.header_size--; break;
-		case 4: changed.flags ^= LB_AUTHVAR_ENDPOINT_DMA_PROTECTED; break;
-		case 5: changed.generation = 0; break;
-		case 6: changed.communication_base = 0; break;
-		case 7: changed.communication_base++; break;
-		case 8: changed.communication_size =
-			PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE - 1U; break;
-		case 9: changed.communication_size =
-			PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE + 1U; break;
-		case 10: changed.message_size--; break;
-		case 11: changed.transport++; break;
-		case 12: changed.trigger_width++; break;
-		case 13: changed.trigger_address = 0; break;
-		case 14: changed.trigger_value = 0; break;
-		case 15: changed.maximum_name_size = 0xffffff80U; break;
-		case 16: changed.maximum_data_size = 0; break;
-		default: changed.reserved = 1; break;
+		case 0:
+			changed.tag++;
+			break;
+		case 1:
+			changed.size--;
+			break;
+		case 2:
+			changed.revision++;
+			break;
+		case 3:
+			changed.header_size--;
+			break;
+		case 4:
+			changed.flags ^= LB_AUTHVAR_ENDPOINT_DMA_PROTECTED;
+			break;
+		case 5:
+			changed.generation = 0;
+			break;
+		case 6:
+			changed.communication_base = 0;
+			break;
+		case 7:
+			changed.communication_base++;
+			break;
+		case 8:
+			changed.communication_size =
+				PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE - 1U;
+			break;
+		case 9:
+			changed.communication_size =
+				PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE + 1U;
+			break;
+		case 10:
+			changed.message_size--;
+			break;
+		case 11:
+			changed.transport++;
+			break;
+		case 12:
+			changed.trigger_width++;
+			break;
+		case 13:
+			changed.trigger_address = 0;
+			break;
+		case 14:
+			changed.trigger_value = 0;
+			break;
+		case 15:
+			changed.maximum_name_size = 0xffffff80U;
+			break;
+		case 16:
+			changed.maximum_data_size = 0;
+			break;
+		default:
+			changed.reserved = 1;
+			break;
 		}
 		assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
 	}
@@ -327,18 +397,42 @@ static void deterministic_response_mutations(void)
 		response->status = 0;
 		response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
 		switch (iteration % 12U) {
-		case 0: response->generation++; break;
-		case 1: response->request_id++; break;
-		case 2: response->reserved0 = 1; break;
-		case 3: response->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING; break;
-		case 4: response->result_name_size = endpoint.maximum_name_size + 2U; break;
-		case 5: response->result_data_size = endpoint.maximum_data_size + 1U; break;
-		case 6: response->result_attributes = UINT32_MAX; break;
-		case 7: response->result_vendor_guid[0] = 1; break;
-		case 8: response->reserved[0] = 1; break;
-		case 9: response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING; break;
-		case 10: response->vendor_guid[0]++; break;
-		default: response->data_capacity++; break;
+		case 0:
+			response->generation++;
+			break;
+		case 1:
+			response->request_id++;
+			break;
+		case 2:
+			response->reserved0 = 1;
+			break;
+		case 3:
+			response->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING;
+			break;
+		case 4:
+			response->result_name_size = endpoint.maximum_name_size + 2U;
+			break;
+		case 5:
+			response->result_data_size = endpoint.maximum_data_size + 1U;
+			break;
+		case 6:
+			response->result_attributes = UINT32_MAX;
+			break;
+		case 7:
+			response->result_vendor_guid[0] = 1;
+			break;
+		case 8:
+			response->reserved[0] = 1;
+			break;
+		case 9:
+			response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
+			break;
+		case 10:
+			response->vendor_guid[0]++;
+			break;
+		default:
+			response->data_capacity++;
+			break;
 		}
 		assert(payload_mm_authvar_service_response_validate(&endpoint,
 			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);

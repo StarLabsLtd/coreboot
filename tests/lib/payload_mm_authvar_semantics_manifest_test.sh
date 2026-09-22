@@ -10,12 +10,17 @@ grep -qx '# oracle	StarLabsLtd/edk2	26.09	aab7b589fc59b7e2b8fb7eb79519bf1a5e5a52
 [ "$(grep -c '^# blob	' "$manifest")" -eq 8 ]
 [ "$(grep -vc '^#' "$manifest")" -ge 60 ]
 [ "$(awk -F '\t' '!/^#/ && NF != 7 { bad++ } END { print bad + 0 }' "$manifest")" -eq 0 ]
-[ "$(awk -F '\t' '!/^#/ && NR > 1 { seen[$1]++ } END { for (id in seen) if (seen[id] != 1) bad++; print bad + 0 }' "$manifest")" -eq 0 ]
-for area in ordinary authentication secure-boot private-auth mode name enumeration read quota journal lifecycle; do
+[ "$(awk -F '\t' '!/^#/ && NR > 1 { seen[$1]++ } END { \
+	for (id in seen) if (seen[id] != 1) bad++; print bad + 0 }' \
+	"$manifest")" -eq 0 ]
+for area in ordinary authentication secure-boot private-auth mode name \
+	enumeration read quota journal lifecycle; do
 	awk -F '\t' -v wanted="$area" '$2 == wanted { found = 1 } END { exit !found }' \
 		"$manifest"
 done
-for term in PK KEK db dbx dbt certdb certdbv SetupMode SecureBoot AuditMode DeployedMode VendorKeys CustomMode SHA256 SHA384 SHA512 APPEND QUERY READY_TO_BOOT ENTER_RUNTIME SVA S3 LegacyBoot; do
+for term in PK KEK db dbx dbt certdb certdbv SetupMode SecureBoot AuditMode \
+	DeployedMode VendorKeys CustomMode SHA256 SHA384 SHA512 APPEND QUERY \
+	READY_TO_BOOT ENTER_RUNTIME SVA S3 LegacyBoot; do
 	grep -q "$term" "$manifest"
 done
 
