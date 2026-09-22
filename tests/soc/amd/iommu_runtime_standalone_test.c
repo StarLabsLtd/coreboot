@@ -333,6 +333,9 @@ static void test_invalid_dma_state(void)
 		sizeof(dma_device_table), dma_page_tables + 1,
 		AMD_IOMMU_PAGE_SIZE - 1, &requester, 1) == CB_ERR_ARG);
 	CHECK(amd_iommu_build_dma_state(dma_device_table,
+		sizeof(dma_device_table), (void *)(uintptr_t)(1ULL << 52),
+		AMD_IOMMU_PAGE_SIZE, &requester, 1) == CB_ERR_ARG);
+	CHECK(amd_iommu_build_dma_state(dma_device_table,
 		sizeof(dma_device_table), dma_page_tables,
 		2 * AMD_IOMMU_PAGE_SIZE, &requester, 1) == CB_ERR_ARG);
 	requester.arena_pages = 511;

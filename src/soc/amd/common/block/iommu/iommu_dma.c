@@ -96,9 +96,9 @@ enum cb_err amd_iommu_dma_replace(const struct amd_iommu_dma_io *io,
 	    observed.segment_count != 1)
 		return CB_ERR;
 
-	io->write64(io->context, IOMMU_CONTROL_OFFSET,
-		old_control & ~IOMMU_CONTROL_ENABLE);
-	if (io->read64(io->context, IOMMU_CONTROL_OFFSET) & IOMMU_CONTROL_ENABLE)
+	/* Stop translation and every FSP-owned auxiliary queue before replacement. */
+	io->write64(io->context, IOMMU_CONTROL_OFFSET, 0);
+	if (io->read64(io->context, IOMMU_CONTROL_OFFSET) != 0)
 		return CB_ERR;
 	io->commit_tables(io->context, device_table, device_table_bytes);
 	io->commit_tables(io->context, page_tables, page_table_bytes);

@@ -220,6 +220,7 @@ enum cb_err amd_iommu_build_dma_state(void *device_table, size_t device_table_by
 	if (!device_table || !page_tables ||
 	    ((uintptr_t)device_table & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
 	    ((uintptr_t)page_tables & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
+	    ((uintptr_t)page_tables & ~DTE_ROOT_MASK) ||
 	    !dma_requesters_valid(requesters, requester_count, device_table_bytes,
 		page_table_bytes))
 		return CB_ERR_ARG;
@@ -252,6 +253,7 @@ bool amd_iommu_dma_state_matches(const void *device_table, size_t device_table_b
 	if (!device_table || !page_tables ||
 	    ((uintptr_t)device_table & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
 	    ((uintptr_t)page_tables & (AMD_IOMMU_PAGE_SIZE - 1U)) ||
+	    ((uintptr_t)page_tables & ~DTE_ROOT_MASK) ||
 	    !dma_requesters_valid(requesters, requester_count, device_table_bytes,
 		page_table_bytes))
 		return false;
