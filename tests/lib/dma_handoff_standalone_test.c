@@ -29,6 +29,13 @@ static const struct dma_handoff_requester requesters[] = {
 	  0x204000, 0x800000, 2, DMA_HANDOFF_ARENA_FLAGS },
 };
 
+static const struct dma_handoff_requester q35_requesters[] = {
+	{ 0, 0x0018, 1, DMA_HANDOFF_REQUESTER_FLAGS,
+	  0x200000, 0x80000000, 32, DMA_HANDOFF_ARENA_FLAGS },
+	{ 0, 0x0020, 2, DMA_HANDOFF_REQUESTER_FLAGS,
+	  0x220000, 0x90000000, 128, DMA_HANDOFF_ARENA_FLAGS },
+};
+
 static bool revision4_published;
 static uint64_t revision4_generation;
 static bool platform_blob_present;
@@ -99,9 +106,9 @@ static size_t make_q35_blob(uint8_t *blob)
 {
 	size_t written = 0;
 
-	assert(dma_handoff_build(blob, 512, GENERATION, requesters, 1,
-		&written) == CB_SUCCESS);
-	assert(written == 72);
+	assert(dma_handoff_build(blob, 512, GENERATION, q35_requesters,
+		ARRAY_SIZE(q35_requesters), &written) == CB_SUCCESS);
+	assert(written == 104);
 	return written;
 }
 

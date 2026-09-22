@@ -15,12 +15,13 @@ test -f "$cdk2/src/boot/coreboot_dma_handoff.c"
 
 Q35_DMA_HANDOFF_FIXTURE_OUTPUT="$temporary/q35.bin" \
 	"$root/tests/lib/dma_handoff_standalone_test.sh"
-test "$(wc -c < "$temporary/q35.bin")" -eq 72
+test "$(wc -c < "$temporary/q35.bin")" -eq 104
 
 "${CC:-cc}" -std=gnu11 -O2 -Wall -Wextra -Werror \
 	-ffunction-sections -fdata-sections \
 	-I"$cdk2/include" -I"$cdk2/src/boot" \
 	"$root/tests/lib/q35-dma-cdk2-consumer-test.c" \
 	"$cdk2/src/boot/coreboot_dma_handoff.c" \
+	"$cdk2/src/boot/coreboot_checksum.c" \
 	-Wl,--gc-sections -o "$temporary/consume"
 "$temporary/consume" "$temporary/q35.bin"

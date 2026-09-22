@@ -3,14 +3,14 @@
 if BOARD_EMULATION_QEMU_X86_Q35
 
 config Q35_VTD_DMA_TEST_BACKEND
-	bool "QEMU-only VT-d DMA test backend"
+	bool "QEMU-only VT-d DMA handoff backend"
 	depends on PAYLOAD_RESOURCE_HANDOFF
+	select PAYLOAD_DMA_HANDOFF
 	help
-	  Establish a default-deny VT-d domain with one immutable, pre-mapped
-	  arena before the payload and prove denial with QEMU's synthetic EDU
-	  requester. EDU is not a boot controller, so this does not publish it
-	  through the payload DMA handoff. This is a QEMU test backend, not
-	  production Intel support.
+	  Establish default-deny VT-d domains with immutable, pre-mapped NVMe
+	  and XHCI arenas before the payload. An unlisted EDU device supplies the
+	  active denial oracle. This is a QEMU test backend, not production Intel
+	  support.
 
 config Q35_CAPSULE_UPDATE_TEST_PROOF
 	bool "QEMU-only bounded capsule writer proof"
@@ -68,10 +68,10 @@ config Q35_CAPSULE_DMA_TEST_PROOF
 	select Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF
 	help
 	  Exercise real denied EDU DMA writes against the complete fixed
-	  communication and staging reservations and one separately mapped
-	  positive-control page. This supplies a test-only range-proof callback,
-	  but does not install the broker, register an SMI route or publish an
-	  endpoint.
+	  communication and staging reservations. NVMe and XHCI retain their
+	  separately mapped positive-control arenas. This supplies a test-only
+	  range-proof callback, but does not install the broker, register an SMI
+	  route or publish an endpoint.
 
 config Q35_TPM2_FIFO_PRE_OS_LIFECYCLE
 	bool "QEMU-only late TPM2 FIFO lifecycle owner"

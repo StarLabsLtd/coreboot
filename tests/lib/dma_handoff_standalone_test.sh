@@ -64,7 +64,7 @@ cc -std=gnu11 -O2 -ffunction-sections -fdata-sections \
 "$temporary/fixture" --fixture > "$temporary/coreboot-dma-handoff.bin"
 test "$(wc -c < "$temporary/coreboot-dma-handoff.bin")" -eq 104
 "$temporary/fixture" --q35-fixture > "$temporary/coreboot-q35-dma-handoff.bin"
-test "$(wc -c < "$temporary/coreboot-q35-dma-handoff.bin")" -eq 72
+test "$(wc -c < "$temporary/coreboot-q35-dma-handoff.bin")" -eq 104
 if [ -n "${DMA_HANDOFF_FIXTURE_OUTPUT:-}" ]; then
 	cp "$temporary/coreboot-dma-handoff.bin" "$DMA_HANDOFF_FIXTURE_OUTPUT"
 fi
