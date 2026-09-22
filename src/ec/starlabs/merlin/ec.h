@@ -53,6 +53,14 @@ void merlin_fill_ssdt(const struct device *dev);
 #define ITE_CHIPID2		0x21	/* Device ID register 2 */
 #define NUVOTON_CHIPID		0x27	/* Device ID register */
 
+/* Versioned Merlin shared-memory secure-build ABI. */
+#define ECRAM_SECURE_BUILD_SIGNATURE	0x02
+#define ECRAM_SECURE_BUILD_VERSION	0x03
+#define EC_SECURE_BUILD_SIGNATURE	0xa5
+#define EC_SECURE_BUILD_VERSION		0x01
+#define ECRAM_MIRROR_FLAG		0x05
+#define EC_MIRROR_REQUEST_NOW		0xbb
+
 /*
  * CMOS Settings
  */

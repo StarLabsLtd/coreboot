@@ -2,9 +2,11 @@
 
 #include <bootstate.h>
 #include <console/console.h>
+#include <delay.h>
 #include <device/device.h>
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
+#include <halt.h>
 #include <option.h>
 #include "ecdefs.h"
 #include "ec.h"
@@ -43,7 +45,51 @@ static void merlin_restore_options(void *unused)
 
 	if (chip_id != ITE_IT5570 && chip_id != ITE_IT8987) {
 		printk(BIOS_ERR, "ITE: Unsupported chip ID 0x%04x.\n", chip_id);
+		if (CONFIG(EC_STARLABS_SECURE_MODE_REQUIRED))
+			die("DAVE requires a supported EC");
 		return;
+	}
+
+	if (CONFIG(EC_STARLABS_SECURE_MODE_REQUIRED)) {
+		u8 major_version, minor_version;
+		u8 secure_signature, secure_version;
+		u8 mirror_flag;
+		uint16_t running_version;
+		bool secure_abi_valid;
+
+		if (ec_read_checked(ECRAM_MAJOR_VERSION, &major_version) ||
+		    ec_read_checked(ECRAM_MINOR_VERSION, &minor_version))
+			die("DAVE could not read the EC firmware version");
+
+		running_version = (major_version << 8) | minor_version;
+
+		/* Secure Merlin must ignore host writes to its ABI marker. */
+		secure_abi_valid = !ec_write(ECRAM_SECURE_BUILD_SIGNATURE, 0) &&
+			!ec_write(ECRAM_SECURE_BUILD_VERSION, 0);
+		if (secure_abi_valid &&
+		    (ec_read_checked(ECRAM_SECURE_BUILD_SIGNATURE, &secure_signature) ||
+		     ec_read_checked(ECRAM_SECURE_BUILD_VERSION, &secure_version)))
+			die("DAVE could not read the EC security identity");
+		if (secure_abi_valid)
+			secure_abi_valid = secure_signature == EC_SECURE_BUILD_SIGNATURE &&
+				secure_version == EC_SECURE_BUILD_VERSION;
+
+		if (!secure_abi_valid || running_version < CONFIG_EC_STARLABS_SECURE_VERSION) {
+			if (!secure_abi_valid &&
+			    running_version > CONFIG_EC_STARLABS_SECURE_VERSION)
+				die("DAVE refuses to downgrade an incompatible secure EC");
+
+			printk(BIOS_NOTICE, "DAVE: Activating secure EC firmware 0x%04x\n",
+			       CONFIG_EC_STARLABS_SECURE_VERSION);
+			if (ec_write(ECRAM_MIRROR_FLAG, EC_MIRROR_REQUEST_NOW) ||
+			    ec_read_checked(ECRAM_MIRROR_FLAG, &mirror_flag) ||
+			    mirror_flag != EC_MIRROR_REQUEST_NOW)
+				die("DAVE could not request secure EC activation");
+
+			/* Merlin should reset the platform while mirroring in S0. */
+			mdelay(2000);
+			die("DAVE secure EC activation did not reset the platform");
+		}
 	}
 
 	/*

@@ -37,7 +37,7 @@ config EC_STARLABS_ADD_ITE_BIN
 	  your laptop unusable.
 
 config EC_STARLABS_ITE_BIN_PATH
-	string "Star Labs EC binary file path"
+	string "Star Labs EC binary file path" if !EC_STARLABS_SECURE_MODE_REQUIRED
 	depends on EC_STARLABS_ADD_ITE_BIN
 
 config EC_STARLABS_FAN
@@ -104,8 +104,25 @@ config EC_STARLABS_CHARGE_LED
 	help
 	  Select if the mainboard supports reducing the charge LED brightness
 
+config EC_STARLABS_SECURE_MODE_REQUIRED
+	bool
+	help
+	  Require a compatible secure-mode EC ABI and the selected firmware
+	  version before restoring runtime settings.
+
+config EC_STARLABS_SECURE_VERSION
+	hex
+	depends on EC_STARLABS_SECURE_MODE_REQUIRED
+	default 0x1a0a
+	help
+	  Version of the secure EC image selected by this firmware build. A
+	  compatible older running version triggers activation of the selected
+	  image. A newer compatible version is retained; a newer incompatible
+	  version stops boot rather than being downgraded.
+
 config EC_STARLABS_ADAPTER_AUTO_POWER_ON
 	bool "Enable powering on when the adapter is connected"
+	depends on !EC_STARLABS_SECURE_MODE_REQUIRED
 	default y
 	help
 	  Select if the EC should expose the adapter auto power-on setting.
