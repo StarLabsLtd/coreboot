@@ -17,8 +17,10 @@ build_and_run() {
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		-I"$root/src/soc/amd/common/block/include" \
 		-I"$root/src/soc/amd/cezanne/include" -I"$temporary/include" \
 		"$root/tests/soc/amd/cezanne_dma_guard_standalone_test.c" \
+		"$root/src/soc/amd/cezanne/dma_binding.c" \
 		"$root/src/soc/amd/cezanne/dma_guard.c" \
 		"$root/src/soc/amd/cezanne/dma_policy.c" \
 		-Wl,--gc-sections "$@" -o "$temporary/$name"

@@ -28,11 +28,12 @@ adopts the opaque FSP tables.
 
 The Cezanne producer allocates a zero-default device table, one page table and
 one immutable CBMEM arena per selected requester, and the public handoff blob.
-It takes a presence snapshot of every function in the complete segment-0 ECAM
-aperture, clears every present function's bus-master-enable bit, and repeats
-that full scan after each IOMMU transition step.  A missing or newly visible
-function, a restored BME, or an unexpected register value terminates in
-`die()` while the bus masters remain clear.
+It takes an identity snapshot (BDF, vendor, device, class, and revision) of
+every function in the configured segment-0 ECAM aperture, clears every present
+function's bus-master-enable bit, and repeats that full scan after each IOMMU
+transition step.  A missing, newly visible, or identity-swapped function, a
+restored BME, or an unexpected register value terminates in `die()` while the
+bus masters remain clear.
 
 PCI class discovery is not boot policy.  A mainboard opting in must implement
 `mainboard_cezanne_dma_boot_controller()` and return a typed decision only for

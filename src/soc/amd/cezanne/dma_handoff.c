@@ -15,6 +15,7 @@
 #include <device/pci_ops.h>
 #include <device/resource.h>
 #include <halt.h>
+#include <soc/dma_binding.h>
 #include <soc/dma_guard.h>
 #include <soc/dma_handoff.h>
 #include <soc/dma_policy.h>
@@ -105,6 +106,20 @@ static uint16_t ecam_read_command(void *unused, uint16_t bdf)
 		PCI_COMMAND);
 }
 
+static uint16_t ecam_read_device(void *unused, uint16_t bdf)
+{
+	(void)unused;
+	return pci_s_read_config16(PCI_DEV(bdf >> 8, PCI_SLOT(bdf), PCI_FUNC(bdf)),
+		PCI_DEVICE_ID);
+}
+
+static uint32_t ecam_read_class_revision(void *unused, uint16_t bdf)
+{
+	(void)unused;
+	return pci_s_read_config32(PCI_DEV(bdf >> 8, PCI_SLOT(bdf), PCI_FUNC(bdf)),
+		PCI_CLASS_REVISION);
+}
+
 static void ecam_write_command(void *unused, uint16_t bdf, uint16_t command)
 {
 	(void)unused;
@@ -114,6 +129,8 @@ static void ecam_write_command(void *unused, uint16_t bdf, uint16_t command)
 
 static const struct cezanne_dma_pci_io pci_io = {
 	.read_vendor = ecam_read_vendor,
+	.read_device = ecam_read_device,
+	.read_class_revision = ecam_read_class_revision,
 	.read_command = ecam_read_command,
 	.write_command = ecam_write_command,
 };
@@ -167,6 +184,7 @@ static void allocate_dma_state(uint16_t maximum_device_id, size_t arena_pages)
 	const struct cbmem_entry *entry;
 	size_t arena_bytes;
 	size_t table_bytes;
+	uintptr_t aligned;
 	uint8_t *allocation;
 
 	device_table_bytes = amd_iommu_device_table_bytes(maximum_device_id);
@@ -184,22 +202,25 @@ static void allocate_dma_state(uint16_t maximum_device_id, size_t arena_pages)
 		requester_count * sizeof(struct dma_handoff_requester);
 
 	entry = cbmem_entry_add(CBMEM_ID_AMD_IOMMU_TABLES, table_bytes);
-	if (!entry || cbmem_entry_size(entry) != table_bytes)
+	if (!entry || !cezanne_dma_cbmem_layout((uintptr_t)cbmem_entry_start(entry),
+		cbmem_entry_size(entry), device_table_bytes + page_table_bytes,
+		AMD_IOMMU_PAGE_SIZE, &aligned))
 		die("Cezanne DMA: table allocation failed");
-	allocation = cbmem_entry_start(entry);
-	device_table = (void *)ALIGN_UP((uintptr_t)allocation, AMD_IOMMU_PAGE_SIZE);
+	allocation = (void *)aligned;
+	device_table = allocation;
 	page_tables = device_table + device_table_bytes;
 
 	if (arena_bytes > SIZE_MAX - (AMD_IOMMU_PAGE_SIZE - 1U))
 		die("Cezanne DMA: arena allocation size overflow");
 	entry = cbmem_entry_add(CBMEM_ID_AMD_IOMMU_ARENAS,
 		arena_bytes + AMD_IOMMU_PAGE_SIZE - 1U);
-	if (!entry || cbmem_entry_size(entry) !=
-	    arena_bytes + AMD_IOMMU_PAGE_SIZE - 1U)
+	if (!entry || !cezanne_dma_cbmem_layout((uintptr_t)cbmem_entry_start(entry),
+		cbmem_entry_size(entry), arena_bytes, AMD_IOMMU_PAGE_SIZE,
+		&aligned))
 		die("Cezanne DMA: arena allocation failed");
+	allocation = (void *)aligned;
 	{
-		uint8_t *arena = (void *)ALIGN_UP((uintptr_t)cbmem_entry_start(entry),
-			AMD_IOMMU_PAGE_SIZE);
+		uint8_t *arena = allocation;
 		size_t offset = 0;
 
 		for (size_t index = 0; index < requester_count; index++) {
@@ -239,6 +260,8 @@ static void collect_boot_requesters(size_t *arena_pages, uint16_t *maximum_devic
 			continue;
 		if (requester_count >= ARRAY_SIZE(dma_requesters) ||
 		    !pci_identity(device, &segment, &bdf) || segment != 0 ||
+		    !cezanne_dma_requester_in_aperture(bdf,
+			CONFIG_ECAM_MMCONF_BUS_NUMBER * 256U) ||
 		    cezanne_dma_policy_add(&boot_policy, device, device->class,
 			controller, priority, &pages) != CB_SUCCESS ||
 		    *arena_pages > SIZE_MAX - pages)
@@ -262,7 +285,6 @@ static void cezanne_dma_enable(void *unused)
 {
 	struct device *iommu_device;
 	struct resource *iommu_resource;
-	uint64_t programmed_base;
 	uint32_t base_high;
 	uint32_t base_low;
 	size_t arena_pages;
@@ -280,13 +302,12 @@ static void cezanne_dma_enable(void *unused)
 		probe_resource(iommu_device, IOMMU_CAP_BASE_LO) : NULL;
 	if (!iommu_device || !iommu_device->enabled || !iommu_resource ||
 	    (iommu_resource->flags & (IORESOURCE_MEM | IORESOURCE_ASSIGNED)) !=
-		(IORESOURCE_MEM | IORESOURCE_ASSIGNED) ||
-	    iommu_resource->size < 512 * KiB)
+		(IORESOURCE_MEM | IORESOURCE_ASSIGNED))
 		die("Cezanne DMA: live IOMMU resource is unavailable");
 	base_low = pci_read_config32(iommu_device, IOMMU_CAP_BASE_LO);
 	base_high = pci_read_config32(iommu_device, IOMMU_CAP_BASE_HI);
-	programmed_base = ((uint64_t)base_high << 32) | (base_low & 0xffffc000U);
-	if (!(base_low & IOMMU_ENABLE) || programmed_base != iommu_resource->base)
+	if (!cezanne_dma_iommu_resource_valid(iommu_resource->base,
+		iommu_resource->size, base_low, base_high, UINTPTR_MAX))
 		die("Cezanne DMA: programmed IOMMU resource does not match coreboot");
 	iommu_context.registers = res2mmio(iommu_resource, 0, 0);
 
@@ -304,21 +325,26 @@ static void cezanne_dma_enable(void *unused)
 
 BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, cezanne_dma_enable, NULL);
 
+static bool prh_contains(void *unused, uint16_t segment, uint16_t bdf)
+{
+	(void)unused;
+	return payload_resource_revision4_boot_requester(segment, bdf);
+}
+
 bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
 {
 	const uint64_t generation = payload_resource_revision4_generation();
 	size_t written;
 
-	if (!address || !bytes || !backend_ready || !generation ||
-	    !payload_resource_revision4_published() ||
-	    payload_resource_revision4_boot_count() != requester_count ||
+	if (!address || !bytes || !backend_ready ||
+	    !cezanne_dma_prh_matches(generation,
+		payload_resource_revision4_published(),
+		payload_resource_revision4_boot_count(), dma_requesters,
+		requester_count, prh_contains, NULL) ||
 	    !amd_iommu_dma_active(&iommu_io, device_table, device_table_bytes,
 		page_tables, page_table_bytes, dma_requesters, requester_count))
 		return false;
 	for (size_t index = 0; index < requester_count; index++) {
-		if (!payload_resource_revision4_boot_requester(0,
-			dma_requesters[index].device_id))
-			return false;
 		public_requesters[index] = (struct dma_handoff_requester) {
 			.segment = 0,
 			.bdf = dma_requesters[index].device_id,
