@@ -152,6 +152,8 @@ static void starbook_mtl_dma_enable(void *unused)
 	size_t dma_size;
 	void *dma_buffer;
 	uint16_t bus_count;
+	bool engine_valid;
+	bool pci_valid;
 	int result;
 
 	(void)unused;
@@ -186,8 +188,10 @@ static void starbook_mtl_dma_enable(void *unused)
 	if (!dma_layout)
 		die("StarBook MTL DMA: protected layout unavailable");
 	resident_table_crc = table_crc();
-	if (!engine_state_valid(&transition) ||
-	    !starbook_mtl_dma_live_verify_active(&pci_io, bus_count))
+	engine_valid = engine_state_valid(&transition);
+	pci_valid = starbook_mtl_dma_live_verify_active(&pci_io, bus_count);
+
+	if (!engine_valid || !pci_valid)
 		die("StarBook MTL DMA: protected state failed final read-back");
 	backend_ready = true;
 	printk(BIOS_INFO,
@@ -213,15 +217,23 @@ bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
 	};
 	struct dma_handoff_requester requesters[STARBOOK_MTL_DMA_LIVE_REQUESTERS];
 	const uint64_t generation = payload_resource_revision4_generation();
+	bool engine_valid;
+	bool pci_valid;
 	size_t written;
 
-	if (!address || !bytes || !backend_ready ||
+	if (!backend_ready)
+		return false;
+	engine_valid = engine_state_valid(&transition);
+	pci_valid = starbook_mtl_dma_live_verify_active(&pci_io,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER);
+	if (!engine_valid || !pci_valid) {
+		backend_ready = false;
+		return false;
+	}
+	if (!address || !bytes ||
 	    !payload_resource_revision4_published() || !generation ||
 	    payload_resource_revision4_boot_count() !=
-		STARBOOK_MTL_DMA_LIVE_REQUESTERS ||
-	    !engine_state_valid(&transition) ||
-	    !starbook_mtl_dma_live_verify_active(&pci_io,
-		CONFIG_ECAM_MMCONF_BUS_NUMBER))
+		STARBOOK_MTL_DMA_LIVE_REQUESTERS)
 		return false;
 	for (size_t index = 0; index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++)
 		if (!payload_resource_revision4_boot_requester(0,

@@ -321,8 +321,13 @@ int starbook_mtl_dma_live_establish(
 bool starbook_mtl_dma_live_verify_active(
 	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count)
 {
-	return live_state.phase == DMA_LIVE_ACTIVE &&
-		!verify_pci(pci_io, bus_count, &live_state.snapshot);
+	if (live_state.phase != DMA_LIVE_ACTIVE)
+		return false;
+	if (!verify_pci(pci_io, bus_count, &live_state.snapshot))
+		return true;
+	live_state.phase = DMA_LIVE_FAILED;
+	terminal_quiesce_pci(pci_io, bus_count);
+	return false;
 }
 
 const struct starbook_mtl_dma_live_layout *starbook_mtl_dma_live_layout(void)

@@ -205,12 +205,19 @@ int main(int argc, char **argv)
 		add_pci(&pci, 0x0200, 0x1d97, 1, 0x010802, 0);
 		add_pci(&pci, 0x00a0, 0x8086, 0x7e7d, 0x0c0330, 0);
 		add_pci(&pci, 0x0068, 0x8086, 0x7ec0, 0x0c0330, 0);
-	} else
-		assert(!strcmp(argv[1], "success"));
+	} else if (strcmp(argv[1], "success") &&
+		   strcmp(argv[1], "active-selected-bme") &&
+		   strcmp(argv[1], "active-unlisted-bme") &&
+		   strcmp(argv[1], "active-topology")) {
+		assert(false);
+	}
 
 	result = starbook_mtl_dma_live_establish(&pci_io, 4, expected, memory,
 		0x800000, memory_size, &transition);
-	if (strcmp(argv[1], "success")) {
+	if (strcmp(argv[1], "success") &&
+	    strcmp(argv[1], "active-selected-bme") &&
+	    strcmp(argv[1], "active-unlisted-bme") &&
+	    strcmp(argv[1], "active-topology")) {
 		void *second;
 		const size_t reads = pci.reads;
 		const size_t writes = pci.writes;
@@ -260,8 +267,37 @@ int main(int argc, char **argv)
 		assert(pci.reads == reads && pci.writes == writes);
 		free(second);
 	}
-	pci.functions[0][0xa0].command |= 4;
-	assert(!starbook_mtl_dma_live_verify_active(&pci_io, 4));
+	if (!strcmp(argv[1], "success")) {
+		assert(starbook_mtl_dma_live_verify_active(&pci_io, 4));
+	} else {
+		void *second;
+		size_t reads;
+		size_t writes;
+
+		if (!strcmp(argv[1], "active-selected-bme"))
+			pci.functions[0][0xa0].command |= 4;
+		else if (!strcmp(argv[1], "active-unlisted-bme"))
+			pci.functions[1][0].command |= 4;
+		else
+			add_pci(&pci, 0x0300, 0x8086, 0xabcd, 0x060400, 4);
+		assert(!starbook_mtl_dma_live_verify_active(&pci_io, 4));
+		for (uint16_t bus = 0; bus < 4; bus++)
+			for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++)
+				if ((uint16_t)pci.functions[bus][devfn].vendor_device !=
+				    UINT16_MAX)
+					assert(!(pci.functions[bus][devfn].command & 4));
+		assert(!starbook_mtl_dma_live_layout());
+		assert(!starbook_mtl_dma_live_handoff_requesters(handoff));
+		reads = pci.reads;
+		writes = pci.writes;
+		assert(!posix_memalign(&second, 4096, memory_size));
+		memset(second, 0xa5, memory_size);
+		assert(starbook_mtl_dma_live_establish(&pci_io, 4, expected, second,
+			0xa00000, memory_size, &transition));
+		assert(memory_is(second, memory_size, 0xa5));
+		assert(pci.reads == reads && pci.writes == writes);
+		free(second);
+	}
 	free(memory);
 	return 0;
 }

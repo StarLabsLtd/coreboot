@@ -22,7 +22,8 @@ for flags in '-O0' '-O2' '-O1 -fsanitize=address,undefined'; do
 		"$root/src/soc/intel/common/block/vtd/vtd_transition.c" \
 		-o "$temporary/test"
 	for scenario in snapshot-failure clear-failure topology-boundary \
-		bme-boundary noncoherent capacity success; do
+		bme-boundary noncoherent capacity success active-selected-bme \
+		active-unlisted-bme active-topology; do
 		"$temporary/test" "$scenario"
 	done
 done
