@@ -91,19 +91,23 @@ static int map_page(struct vtd_translation_image *image, size_t pml4_page,
 	return 0;
 }
 
-static int requester_valid(const struct vtd_translation_requester *requesters,
-	size_t index)
+static int requester_valid(const struct vtd_translation_image *image,
+	const struct vtd_translation_requester *requesters, size_t index)
 {
 	const struct vtd_translation_requester *requester = &requesters[index];
+	const uint64_t table_end = image->physical_base +
+		image->capacity_pages * VTD_TRANSLATION_PAGE_SIZE;
+	const uint64_t bytes = (uint64_t)requester->pages <<
+		VTD_TRANSLATION_PAGE_SHIFT;
 
 	if (requester->segment || !requester->domain ||
 	    !range_valid(requester->cpu_base, requester->pages) ||
-	    !range_valid(requester->device_base, requester->pages))
+	    !range_valid(requester->device_base, requester->pages) ||
+	    (requester->cpu_base < table_end &&
+	     image->physical_base < requester->cpu_base + bytes))
 		return -1;
 	for (size_t prior = 0; prior < index; prior++) {
 		const struct vtd_translation_requester *other = &requesters[prior];
-		const uint64_t bytes = (uint64_t)requester->pages <<
-			VTD_TRANSLATION_PAGE_SHIFT;
 		const uint64_t other_bytes = (uint64_t)other->pages <<
 			VTD_TRANSLATION_PAGE_SHIFT;
 
@@ -144,7 +148,7 @@ int vtd_translation_build(struct vtd_translation_image *image,
 		size_t context_page;
 		size_t pml4_page;
 
-		if (requester_valid(requesters, index))
+		if (requester_valid(image, requesters, index))
 			return -1;
 		if (root[(size_t)bus * 2U] & VTD_ENTRY_PRESENT) {
 			if (entry_page(image, root[(size_t)bus * 2U], &context_page))

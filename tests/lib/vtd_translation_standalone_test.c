@@ -63,8 +63,26 @@ int main(void)
 		.capacity_pages = TEST_PAGES,
 	};
 	assert(!vtd_translation_build(&image, requesters, 3));
-	assert(image.used_pages > 15U);
-	assert((((uint64_t *)memory)[0] & 3U) == PRESENT);
+	assert(image.used_pages == 16U);
+	assert(((uint64_t *)memory)[0] == 0x107001);
+	assert(((uint64_t *)memory)[2U * 2U] == 0x101001);
+	assert(table(0x101000)[0] == 0x102001);
+	assert(table(0x101000)[1] == 0x102);
+	assert(table(0x107000)[0xa0U * 2U] == 0x108001);
+	assert(table(0x107000)[0xa0U * 2U + 1U] == 0x202);
+	assert(table(0x107000)[0x68U * 2U] == 0x10c001);
+	assert(table(0x107000)[0x68U * 2U + 1U] == 0x302);
+	assert(table(0x102000)[0] == 0x103003);
+	assert(table(0x103000)[0] == 0x104003);
+	assert(table(0x104000)[0] == 0x105003);
+	assert(table(0x104000)[1] == 0x106003);
+	assert(table(0x105000)[0x1ffU] == 0x400003);
+	assert(table(0x106000)[0] == 0x401003);
+	assert(table(0x108000)[0] == 0x109003);
+	assert(table(0x109000)[2] == 0x10a003);
+	assert(table(0x10a000)[0] == 0x10b003);
+	assert(table(0x10b000)[0] == 0x800003);
+	assert(table(0x10b000)[127] == 0x87f003);
 	assert((translate(0x0200, 0x1ff000) & ADDRESS_MASK) == 0x400000);
 	assert((translate(0x0200, 0x200000) & ADDRESS_MASK) == 0x401000);
 	assert((translate(0x00a0, 0x8007f000) & ADDRESS_MASK) == 0x87f000);
@@ -81,6 +99,9 @@ int main(void)
 	assert(vtd_translation_build(&image, requesters, 3));
 	requesters[1].bdf = 0x00a0;
 	image.capacity_pages = 4;
+	assert(vtd_translation_build(&image, requesters, 3));
+	image.capacity_pages = TEST_PAGES;
+	requesters[1].cpu_base = 0x110000;
 	assert(vtd_translation_build(&image, requesters, 3));
 	free(allocation);
 	return 0;
