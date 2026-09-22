@@ -102,7 +102,8 @@ rg -q 'Q35 DMA: noncoherent page-walk table visibility established' \
 rg -q 'Q35 DMA: handoff generation 1, domains 1/2 linked, ten immutable table pages, 32/128 immutable arena pages' \
 	"$out/protected.serial"
 rg -q 'Q35 VTD TAB .* 0x0000a000' "$out/protected.serial"
-rg -q 'Q35 DMA ARE .* 0x000a1000' "$out/protected.serial"
+rg -q 'Q35 DMA ARE[[:digit:]]+\. 0x[[:xdigit:]]+ 0x000a1000' \
+	"$out/protected.serial"
 rg -q 'DMA HANDOFF .* 0x00000068' "$out/protected.serial"
 rg -q 'vtd_iommu_translate: detected translation failure \(dev=00:05:00' \
 	"$out/protected.qemu"
