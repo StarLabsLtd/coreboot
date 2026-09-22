@@ -76,13 +76,24 @@ publishes only generation, mailbox geometry, bounded name/data capacities and
 an eight-bit APM trigger. It exposes no SMRAM, SPI, store, block, erase, or raw
 flash address or operation.
 
-The fixed 128-byte message header is followed by exactly
+The fixed 144-byte message header is followed by exactly
 `maximum_name_size` bytes for UTF-16 names and then, on an eight-byte boundary,
 exactly `maximum_data_size` bytes. The endpoint message size must equal that
 complete layout. Inline fields contain no address or offset. Requests initialize
 status and completion to their pending sentinels. Responses echo immutable
-request identity, publish operation-specific bounded sizes, and change
-completion only after every other response byte.
+request identity. `NEXT` returns its distinct vendor GUID in the result field;
+it never overwrites the input cursor GUID. A canonical initial `NEXT` cursor is
+the sole empty-name exception: zero name size and zero input GUID, with capacity
+for at least one UTF-16 code unit. Every subsequent cursor and result has a
+nonempty, NUL-terminated UTF-16 name with no embedded NUL, and its input name
+size cannot exceed its capacity. Responses publish operation-specific bounded
+sizes and change completion only after every other response byte.
+A blanket nonempty-NEXT rule is deliberately not used because it would remove
+the UEFI/EDK2 initial enumeration cursor pinned by the semantic oracle.
+
+Endpoint validation widens before adding header, name and alignment sizes. It
+proves the complete name slot, alignment gap and data slot independently fit in
+the advertised message, which is itself capped at 64 KiB.
 
 Delete is `SET` with zero attributes and zero data. Append uses the standard
 append attribute and still passes authentication and timestamp policy. The

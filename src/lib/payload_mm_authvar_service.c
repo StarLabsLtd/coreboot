@@ -3,10 +3,25 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <string.h>
 
-static size_t data_offset(const struct lb_authvar_service_endpoint *endpoint)
+static bool message_layout_valid(
+	const struct lb_authvar_service_endpoint *endpoint, size_t *data_offset)
 {
-	return ALIGN_UP(PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE +
-		endpoint->maximum_name_size, sizeof(uint64_t));
+	uint64_t name_end;
+	uint64_t aligned_data;
+	uint64_t data_end;
+
+	name_end = (uint64_t)PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE +
+		(uint64_t)endpoint->maximum_name_size;
+	if (name_end > endpoint->message_size || name_end > UINT64_MAX - 7U)
+		return false;
+	aligned_data = (name_end + 7U) & ~(uint64_t)7U;
+	if (aligned_data > endpoint->message_size)
+		return false;
+	data_end = aligned_data + (uint64_t)endpoint->maximum_data_size;
+	if (data_end > UINT32_MAX || data_end != endpoint->message_size)
+		return false;
+	*data_offset = (size_t)aligned_data;
+	return true;
 }
 
 static bool bytes_zero(const void *buffer, size_t size)
@@ -25,9 +40,16 @@ static bool name_valid(const struct lb_authvar_service_endpoint *endpoint,
 	const uint8_t *name = (const uint8_t *)message +
 		PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE;
 
-	return size >= sizeof(uint16_t) && !(size & 1U) &&
-		size <= endpoint->maximum_name_size && !name[size - 1] &&
-		!name[size - 2];
+	if (size < 2U * sizeof(uint16_t) || (size & 1U) ||
+	    size > endpoint->maximum_name_size || name[size - 1] ||
+	    name[size - 2])
+		return false;
+	for (uint32_t offset = 0; offset + sizeof(uint16_t) < size;
+	     offset += sizeof(uint16_t)) {
+		if (!name[offset] && !name[offset + 1U])
+			return false;
+	}
+	return true;
 }
 
 enum cb_err payload_mm_authvar_service_endpoint_validate(
@@ -52,14 +74,11 @@ enum cb_err payload_mm_authvar_service_endpoint_validate(
 	    endpoint->trigger_width != sizeof(uint8_t) ||
 	    !endpoint->trigger_address || endpoint->trigger_address > UINT16_MAX ||
 	    !endpoint->trigger_value || endpoint->trigger_value > UINT8_MAX ||
-	    endpoint->maximum_name_size < sizeof(uint16_t) ||
+	    endpoint->maximum_name_size < 2U * sizeof(uint16_t) ||
 	    endpoint->maximum_name_size & 1U ||
 	    !endpoint->maximum_data_size || endpoint->reserved)
 		return CB_ERR;
-	required = data_offset(endpoint);
-	if (required > endpoint->message_size ||
-	    endpoint->maximum_data_size > endpoint->message_size - required ||
-	    required + endpoint->maximum_data_size != endpoint->message_size ||
+	if (!message_layout_valid(endpoint, &required) ||
 	    endpoint->message_size - 1U > UINTPTR_MAX -
 		(uintptr_t)endpoint->communication_base)
 		return CB_ERR;
@@ -73,6 +92,8 @@ static bool pending_result_valid(
 		!frame->maximum_storage && !frame->remaining_storage &&
 		!frame->maximum_variable && !frame->result_name_size &&
 		!frame->result_data_size && !frame->result_attributes &&
+		bytes_zero(frame->result_vendor_guid,
+			sizeof(frame->result_vendor_guid)) &&
 		!frame->reserved[0] && !frame->reserved[1] &&
 		frame->completion == PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 }
@@ -106,6 +127,7 @@ enum cb_err payload_mm_authvar_service_request_validate(
 	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
 		if (frame->attributes || frame->data_size || frame->data_capacity ||
 		    frame->name_capacity < sizeof(uint16_t) ||
+		    frame->name_size > frame->name_capacity ||
 		    (frame->name_size ?
 		     (guid_zero || !name_valid(endpoint, message, frame->name_size)) :
 		     !guid_zero))
@@ -177,15 +199,21 @@ enum cb_err payload_mm_authvar_service_response_validate(
 	switch (after->operation) {
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		if (after->result_name_size || after->maximum_storage ||
-		    after->remaining_storage || after->maximum_variable)
+		    after->remaining_storage || after->maximum_variable ||
+		    !bytes_zero(after->result_vendor_guid,
+			sizeof(after->result_vendor_guid)))
 			return CB_ERR;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
 		if (after->result_data_size || after->result_attributes ||
 		    after->maximum_storage || after->remaining_storage ||
 		    after->maximum_variable ||
-		    (after->result_name_size &&
-		     !name_valid(endpoint, response, after->result_name_size)))
+		    (after->result_name_size ?
+		     (bytes_zero(after->result_vendor_guid,
+			sizeof(after->result_vendor_guid)) ||
+		      !name_valid(endpoint, response, after->result_name_size)) :
+		     !bytes_zero(after->result_vendor_guid,
+			sizeof(after->result_vendor_guid))))
 			return CB_ERR;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
@@ -193,12 +221,16 @@ enum cb_err payload_mm_authvar_service_response_validate(
 	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
 		if (after->result_name_size || after->result_data_size ||
 		    after->result_attributes || after->maximum_storage ||
-		    after->remaining_storage || after->maximum_variable)
+		    after->remaining_storage || after->maximum_variable ||
+		    !bytes_zero(after->result_vendor_guid,
+			sizeof(after->result_vendor_guid)))
 			return CB_ERR;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
 		if (after->result_name_size || after->result_data_size ||
-		    after->result_attributes)
+		    after->result_attributes ||
+		    !bytes_zero(after->result_vendor_guid,
+			sizeof(after->result_vendor_guid)))
 			return CB_ERR;
 		break;
 	default:

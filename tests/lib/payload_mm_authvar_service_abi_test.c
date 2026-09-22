@@ -58,6 +58,17 @@ static void set_name(struct payload_mm_authvar_service_frame *frame)
 	frame->vendor_guid[0] = 1;
 }
 
+static void set_response_name(struct payload_mm_authvar_service_frame *frame,
+	uint16_t character)
+{
+	uint16_t *name = (void *)(response_buffer + sizeof(*frame));
+
+	name[0] = character;
+	name[1] = 0;
+	frame->result_name_size = 2U * sizeof(*name);
+	frame->result_vendor_guid[0] = 2;
+}
+
 static void valid_requests(void)
 {
 	struct payload_mm_authvar_service_frame *frame;
@@ -76,6 +87,11 @@ static void valid_requests(void)
 	set_name(frame);
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
+	frame->name_capacity = NAME_SIZE;
+	frame->vendor_guid[0] = 1;
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
 
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_SET);
 	set_name(frame);
@@ -107,6 +123,7 @@ static void hostile_requests(void)
 {
 	struct payload_mm_authvar_service_frame *frame;
 	struct lb_authvar_service_endpoint changed;
+	uint16_t *name;
 
 	changed = endpoint;
 	changed.flags ^= LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE;
@@ -117,10 +134,61 @@ static void hostile_requests(void)
 	changed = endpoint;
 	changed.communication_base++;
 	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	changed = endpoint;
+	changed.maximum_name_size = 0xffffff80U;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	changed = endpoint;
+	changed.communication_size = PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE;
+	changed.message_size = changed.communication_size;
+	changed.maximum_name_size = 512;
+	changed.maximum_data_size = changed.message_size -
+		PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE - changed.maximum_name_size;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_SUCCESS);
+	changed.communication_size++;
+	changed.message_size++;
+	changed.maximum_data_size++;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
 
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
 	set_name(frame);
 	request_buffer[sizeof(*frame) + frame->name_size - 1] = 1;
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	frame->vendor_guid[0] = 1;
+	frame->name_size = sizeof(uint16_t);
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	set_name(frame);
+	frame->name_size--;
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	set_name(frame);
+	name = (void *)(request_buffer + sizeof(*frame));
+	name[1] = 'B';
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	set_name(frame);
+	name = (void *)(request_buffer + sizeof(*frame));
+	name[1] = 0;
+	name[2] = 0x03a9;
+	name[3] = 0;
+	frame->name_size = 4U * sizeof(*name);
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	set_name(frame);
+	name = (void *)(request_buffer + sizeof(*frame));
+	name[0] = 0x03a9;
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
+	frame->name_capacity = NAME_SIZE;
+	set_name(frame);
+	frame->name_capacity = frame->name_size - (uint32_t)sizeof(uint16_t);
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_ERR);
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_SET);
@@ -162,21 +230,118 @@ static void response_order_and_echo(void)
 	response->request_id++;
 	assert(payload_mm_authvar_service_response_validate(&endpoint,
 		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+
+	request = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_NEXT);
+	set_name(request);
+	request->name_capacity = NAME_SIZE;
+	memcpy(response_buffer, request_buffer, sizeof(response_buffer));
+	response = (void *)response_buffer;
+	response->status = 0;
+	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+	set_response_name(response, 'B');
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response->result_vendor_guid[0] = 0;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->result_vendor_guid[0] = 2;
+	response->vendor_guid[0] = 2;
+	assert(payload_mm_authvar_service_response_validate(&endpoint,
+		request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
 }
 
-static void deterministic_fuzz(void)
+static void deterministic_request_mutations(void)
 {
-	unsigned int seed = 1;
-
 	for (size_t iteration = 0; iteration < 10000; iteration++) {
-		struct payload_mm_authvar_service_frame *frame = (void *)request_buffer;
+		struct payload_mm_authvar_service_frame *frame =
+			new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
 
-		for (size_t i = 0; i < sizeof(*frame); i++) {
-			seed = seed * 1103515245U + 12345U;
-			request_buffer[i] = (uint8_t)(seed >> 16);
+		set_name(frame);
+		frame->data_capacity = 32;
+		switch (iteration % 17U) {
+		case 0: frame->revision++; break;
+		case 1: frame->header_size--; break;
+		case 2: frame->operation = 0; break;
+		case 3: frame->flags = 1; break;
+		case 4: frame->generation++; break;
+		case 5: frame->request_id = 0; break;
+		case 6: memset(frame->vendor_guid, 0, sizeof(frame->vendor_guid)); break;
+		case 7: frame->attributes = UINT32_MAX; break;
+		case 8: frame->name_size = endpoint.maximum_name_size + 2U; break;
+		case 9: frame->data_size = 1; break;
+		case 10: frame->name_capacity = 1; break;
+		case 11: frame->data_capacity = endpoint.maximum_data_size + 1U; break;
+		case 12: frame->reserved0 = 1; break;
+		case 13: frame->status = 0; break;
+		case 14: frame->result_vendor_guid[0] = 1; break;
+		case 15: frame->reserved[0] = 1; break;
+		default: frame->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE; break;
 		}
-		(void)payload_mm_authvar_service_request_validate(&endpoint,
-			request_buffer, sizeof(request_buffer));
+		assert(payload_mm_authvar_service_request_validate(&endpoint,
+			request_buffer, sizeof(request_buffer)) == CB_ERR);
+	}
+}
+
+static void deterministic_endpoint_mutations(void)
+{
+	for (size_t iteration = 0; iteration < 10000; iteration++) {
+		struct lb_authvar_service_endpoint changed = endpoint;
+
+		switch (iteration % 18U) {
+		case 0: changed.tag++; break;
+		case 1: changed.size--; break;
+		case 2: changed.revision++; break;
+		case 3: changed.header_size--; break;
+		case 4: changed.flags ^= LB_AUTHVAR_ENDPOINT_DMA_PROTECTED; break;
+		case 5: changed.generation = 0; break;
+		case 6: changed.communication_base = 0; break;
+		case 7: changed.communication_base++; break;
+		case 8: changed.communication_size =
+			PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE - 1U; break;
+		case 9: changed.communication_size =
+			PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE + 1U; break;
+		case 10: changed.message_size--; break;
+		case 11: changed.transport++; break;
+		case 12: changed.trigger_width++; break;
+		case 13: changed.trigger_address = 0; break;
+		case 14: changed.trigger_value = 0; break;
+		case 15: changed.maximum_name_size = 0xffffff80U; break;
+		case 16: changed.maximum_data_size = 0; break;
+		default: changed.reserved = 1; break;
+		}
+		assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	}
+}
+
+static void deterministic_response_mutations(void)
+{
+	for (size_t iteration = 0; iteration < 10000; iteration++) {
+		struct payload_mm_authvar_service_frame *request =
+			new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+		struct payload_mm_authvar_service_frame *response;
+
+		set_name(request);
+		request->data_capacity = 32;
+		memcpy(response_buffer, request_buffer, sizeof(response_buffer));
+		response = (void *)response_buffer;
+		response->status = 0;
+		response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+		switch (iteration % 12U) {
+		case 0: response->generation++; break;
+		case 1: response->request_id++; break;
+		case 2: response->reserved0 = 1; break;
+		case 3: response->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING; break;
+		case 4: response->result_name_size = endpoint.maximum_name_size + 2U; break;
+		case 5: response->result_data_size = endpoint.maximum_data_size + 1U; break;
+		case 6: response->result_attributes = UINT32_MAX; break;
+		case 7: response->result_vendor_guid[0] = 1; break;
+		case 8: response->reserved[0] = 1; break;
+		case 9: response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING; break;
+		case 10: response->vendor_guid[0]++; break;
+		default: response->data_capacity++; break;
+		}
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
 	}
 }
 
@@ -185,6 +350,8 @@ int main(void)
 	valid_requests();
 	hostile_requests();
 	response_order_and_echo();
-	deterministic_fuzz();
+	deterministic_endpoint_mutations();
+	deterministic_request_mutations();
+	deterministic_response_mutations();
 	return 0;
 }

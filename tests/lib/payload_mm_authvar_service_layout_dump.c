@@ -16,6 +16,7 @@ int main(void)
 		offsetof(struct payload_mm_authvar_service_frame, vendor_guid),
 		offsetof(struct payload_mm_authvar_service_frame, maximum_storage),
 		offsetof(struct payload_mm_authvar_service_frame, status),
+		offsetof(struct payload_mm_authvar_service_frame, result_vendor_guid),
 		offsetof(struct payload_mm_authvar_service_frame, completion),
 		LB_TAG_AUTHVAR_SERVICE_ENDPOINT, LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS,
 		PAYLOAD_MM_AUTHVAR_SERVICE_REVISION,

@@ -9,7 +9,7 @@
 #include <types.h>
 
 #define PAYLOAD_MM_AUTHVAR_SERVICE_REVISION 1U
-#define PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE 128U
+#define PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE 144U
 #define PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE 512U
 #define PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE (64U * 1024U)
 #define PAYLOAD_MM_AUTHVAR_SERVICE_PENDING UINT32_MAX
@@ -67,6 +67,7 @@ struct payload_mm_authvar_service_frame {
 	uint32_t result_name_size;
 	uint32_t result_data_size;
 	uint32_t result_attributes;
+	uint8_t result_vendor_guid[16];
 	uint32_t reserved[2];
 	uint32_t completion;
 } __aligned(8);
@@ -80,7 +81,8 @@ _Static_assert(offsetof(struct payload_mm_authvar_service_frame, generation) == 
 	offsetof(struct payload_mm_authvar_service_frame, vendor_guid) == 32 &&
 	offsetof(struct payload_mm_authvar_service_frame, maximum_storage) == 72 &&
 	offsetof(struct payload_mm_authvar_service_frame, status) == 96 &&
-	offsetof(struct payload_mm_authvar_service_frame, completion) == 124,
+	offsetof(struct payload_mm_authvar_service_frame, result_vendor_guid) == 116 &&
+	offsetof(struct payload_mm_authvar_service_frame, completion) == 140,
 	"authenticated-variable service frame layout");
 
 enum cb_err payload_mm_authvar_service_endpoint_validate(
