@@ -1548,6 +1548,12 @@ static void write_efi_option_apply(void)
 	/* EAPL applies a validated saved preference, without holding EOMX over EC I/O. */
 	acpigen_write_method_serialized("EAPL", 2);
 	{
+		/* Initialise the EC access handshake before checking its status. */
+		acpigen_emit_byte(STORE_OP);
+		write_method_call(EC_ACPI_METHOD("ECGT"));
+		acpigen_emit_byte(REF_OF_OP);
+		acpigen_emit_namestring(EC_ACPI_FIELD("ECAV"));
+		acpigen_emit_byte(LOCAL3_OP);
 		acpigen_write_if();
 		{
 			acpigen_emit_byte(LNOT_OP);
