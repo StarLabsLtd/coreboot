@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
+#include <boot/payload_mm_authvar_candidate.h>
+#endif
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
@@ -195,6 +198,135 @@ static struct trace_entry direct_baseline[TRACE_CAPACITY];
 static uint32_t direct_baseline_count;
 static uint32_t direct_fault_counts[FAULT_END + 1U];
 
+/* Immutable reclaim transcript from f3f0a22bdbea90e1da2726da78dee2d7ddf526b0. */
+static const struct trace_entry legacy_reclaim_trace[] = {
+	{ 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 8, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x59f8663f693e42e4ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xb345f99759ba2fa9ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 4128, 80, 80, 0, 1, 1, 0, 0, 0x13bfedc245d54143ULL },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0xa64add8f2b6d296bULL },
+	{ 0, 2, 4129, 39, 39, 0, 1, 1, 0xa64add8f2b6d296bULL,
+		0x2fea6cbdf38d651eULL, 0x2fea6cbdf38d651eULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0x2fea6cbdf38d651eULL },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0x2fea6cbdf38d651eULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd25d473cced67ULL,
+		0x44bd24d473ccebb4ULL, 0x44bd24d473ccebb4ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd24d473ccebb4ULL,
+		0x44bd26d473ccef1aULL, 0x44bd26d473ccef1aULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0xa64add8f2b6d296bULL },
+	{ 0, 2, 4169, 39, 39, 0, 1, 1, 0xa64add8f2b6d296bULL,
+		0x80a4e785895a7dccULL, 0x80a4e785895a7dccULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0x80a4e785895a7dccULL },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0x80a4e785895a7dccULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 3, 8192, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 2, 8192, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0x6b8011b0de5cfa19ULL, 0x6b8011b0de5cfa19ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 2, 4168, 1, 1, 0, 1, 1, 0x44bd25d473cced67ULL,
+		0x44bd27d473ccf0cdULL, 0x44bd27d473ccf0cdULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x59f8663f693e42e4ULL },
+	{ 0, 3, 0, 4096, 4096, 0, 1, 1, 0x59f8663f693e42e4ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 2, 0, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0x6b8011b0de5cfa19ULL, 0x6b8011b0de5cfa19ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 2, 4168, 1, 1, 0, 1, 1, 0x44bd27d473ccf0cdULL,
+		0x44bd23d473ccea01ULL, 0x44bd23d473ccea01ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd23d473ccea01ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd26d473ccef1aULL,
+		0x44bd22d473cce84eULL, 0x44bd22d473cce84eULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd22d473cce84eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 3, 8192, 4096, 4096, 0, 1, 1, 0x6b8011b0de5cfa19ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xacca9ff1c65fd60eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xacca9ff1c65fd60eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 9, 0, 12288, 0, 0, 1, 1, 1, 0x3c169c3a9330ca64ULL,
+		0x3c169c3a9330ca64ULL },
+	{ 0, 5, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+};
+
+static const uint8_t legacy_reclaim_primary[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x8d, 0x2b, 0xf1, 0xff, 0x96, 0x76, 0x8b, 0x4c,
+	0xa9, 0x85, 0x27, 0x47, 0x07, 0x5b, 0x4f, 0x50,
+	0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x5f, 0x46, 0x56, 0x48, 0x36, 0x0e, 0x00, 0x00,
+	0x48, 0x00, 0x05, 0xba, 0x00, 0x00, 0x00, 0x02,
+	0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x78, 0x2c, 0xf3, 0xaa, 0x7b, 0x94, 0x9a, 0x43,
+	0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92,
+	0xb8, 0x0f, 0x00, 0x00, 0x5a, 0xfe, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xaa, 0x55, 0x3f, 0x00,
+	0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+	0xf3, 0x2e, 0xa5, 0xc4, 0x27, 0x4e, 0xe2, 0x47,
+	0x95, 0x0b, 0xfd, 0xaa, 0xb5, 0x21, 0xb8, 0x95,
+	0x41, 0x00, 0x00, 0x00, 0x09, 0x08, 0x07, 0x06,
+};
+
+static const uint8_t legacy_reclaim_workspace[] = {
+	0x2b, 0x29, 0x58, 0x9e, 0x68, 0x7c, 0x7d, 0x49,
+	0xa0, 0xce, 0x65, 0x00, 0xfd, 0x9f, 0x1b, 0x95,
+	0x2c, 0xaf, 0x2c, 0x64, 0xfe, 0xff, 0xff, 0xff,
+	0xe0, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf8, 0xff, 0xff, 0xff, 0xf3, 0x2e, 0xa5, 0xc4,
+	0x27, 0x4e, 0xe2, 0x47, 0x95, 0x0b, 0xfd, 0xaa,
+	0xb5, 0x21, 0xb8, 0x95, 0xff, 0xff, 0xff, 0xff,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xb8, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0xe0,
+};
+
 extern char _start[];
 
 static const uint8_t fv_guid[16] = {
@@ -216,6 +348,19 @@ static const uint8_t variable_guid[16] = {
 static const uint8_t variable_name[] = { 'A', 0, 0, 0 };
 static const uint8_t variable_data[] = { 1, 2, 3, 4 };
 static const uint8_t replacement_data[] = { 9, 8, 7, 6 };
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
+enum payload_mm_verify_status payload_mm_sha256(const void *message,
+	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
+{
+	const uint8_t *bytes = message;
+
+	memset(digest, 0, PAYLOAD_MM_SHA256_SIZE);
+	for (size_t i = 0; i < message_size; i++)
+		digest[i % PAYLOAD_MM_SHA256_SIZE] ^= bytes[i];
+	return PAYLOAD_MM_VERIFY_OK;
+}
+#endif
 
 static void output(int fd, const void *buffer, size_t size)
 {
@@ -370,6 +515,40 @@ static uint64_t trace_digest(const void *buffer, size_t size)
 		digest *= 1099511628211ULL;
 	}
 	return digest;
+}
+
+static bool trace_equal(const struct trace_entry *left,
+	const struct trace_entry *right)
+{
+	return left->boot == right->boot && left->kind == right->kind &&
+		left->offset == right->offset && left->size == right->size &&
+		left->completed == right->completed && left->result == right->result &&
+		left->generation == right->generation && left->token == right->token &&
+		left->before_digest == right->before_digest &&
+		left->input_digest == right->input_digest &&
+		left->after_digest == right->after_digest;
+}
+
+static void assert_legacy_reclaim_golden(const struct shared_state *shared)
+{
+	uint8_t expected[REGION_SIZE];
+
+	_Static_assert(sizeof(legacy_reclaim_primary) == 168U,
+		"legacy primary prefix changed");
+	_Static_assert(sizeof(legacy_reclaim_workspace) == 106U,
+		"legacy workspace prefix changed");
+	assert(reclaim_baseline_count == ARRAY_SIZE(legacy_reclaim_trace));
+	for (uint32_t i = 0; i < reclaim_baseline_count; i++)
+		assert(trace_equal(&reclaim_baseline[i], &legacy_reclaim_trace[i]));
+
+	memset(expected, 0xff, sizeof(expected));
+	memcpy(expected, legacy_reclaim_primary,
+		sizeof(legacy_reclaim_primary));
+	memcpy(expected + WORKING_OFFSET, legacy_reclaim_workspace,
+		sizeof(legacy_reclaim_workspace));
+	assert(trace_digest(expected, sizeof(expected)) == 0x3c169c3a9330ca64ULL);
+	assert(trace_digest(shared->media, REGION_SIZE) == 0x3c169c3a9330ca64ULL);
+	assert(!memcmp(shared->media, expected, sizeof(expected)));
 }
 
 static void trace_add_digests(struct shared_state *shared, enum trace_kind kind,
@@ -2241,24 +2420,32 @@ int main(int argc, char **argv)
 	uint32_t reclaim_erase_count;
 	uint32_t fault_counts[FAULT_END + 1U] = { 0 };
 	bool fault_only = argc == 2 && !strcmp(argv[1], "fault-only");
+	bool golden_only = argc == 2 && !strcmp(argv[1], "golden-only");
 
-	assert(shared != MAP_FAILED && (argc == 1 || fault_only));
+	assert(shared != MAP_FAILED && (argc == 1 || fault_only || golden_only));
 	trace_negative_selftests();
 	memset(shared, 0, sizeof(*shared));
 	program_count = run_clean_and_direct(shared, program_sizes,
 		ARRAY_SIZE(program_sizes));
-	for (uint32_t occurrence = 1; !fault_only && occurrence <= program_count;
+	for (uint32_t occurrence = 1;
+	     !fault_only && !golden_only && occurrence <= program_count;
 	     occurrence++)
 		for (uint32_t prefix = 0; prefix <= program_sizes[occurrence - 1U];
 		     prefix++)
 			run_program_cut(shared, occurrence, MASK_PREFIX, prefix);
-	for (uint32_t occurrence = 1; !fault_only && occurrence <= program_count;
+	for (uint32_t occurrence = 1;
+	     !fault_only && !golden_only && occurrence <= program_count;
 	     occurrence++)
 		for (enum cut_mask mask = MASK_EVEN; mask <= MASK_PARTIAL_BITS; mask++)
 			run_program_cut(shared, occurrence, mask, 0);
 	reclaim_program_count = discover_reclaim_programs(shared,
 		reclaim_program_sizes,
 		ARRAY_SIZE(reclaim_program_sizes), &reclaim_erase_count, fault_counts);
+	assert_legacy_reclaim_golden(shared);
+	if (golden_only) {
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
 	for (uint32_t occurrence = 1; !fault_only && occurrence <= reclaim_program_count;
 	     occurrence++)
 		for (uint32_t prefix = 0;
