@@ -29,6 +29,7 @@ static bool omits_raw_flash;
 static bool reserves_communication;
 static unsigned int ownership_calls;
 static bool protects_authority = true;
+static uint64_t expected_store_size = 0x60000U;
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -73,7 +74,7 @@ static bool store_owned(void *context, uint64_t offset, uint64_t size)
 {
 	assert(context == &ownership_calls);
 	assert(offset == 0x600000U);
-	assert(size == 0x60000U);
+	assert(size == expected_store_size);
 	ownership_calls++;
 	return owns_store;
 }
@@ -107,8 +108,8 @@ static struct payload_mm_authvar_platform valid_platform(void)
 		.boot_media_size = 0x1000000,
 		.store_offset = 0x600000,
 		.store_size = 0x60000,
-		.block_size = 0x1000,
-		.erase_size = 0x10000,
+		.block_size = 0x2000,
+		.erase_size = 0x1000,
 		.smm_entry_owned = smm_owned,
 		.spi_writes_restricted_to_smm = spi_restricted,
 		.raw_flash_transport_absent = no_raw_flash,
@@ -155,9 +156,20 @@ static void contract_mutations(void)
 	REJECT(store_offset, platform.boot_media_size - platform.store_size + 1U);
 	REJECT(store_offset, platform.store_offset + 1U);
 	REJECT(store_size, platform.erase_size * 2U);
+	REJECT(store_size, platform.erase_size * 3U);
 	REJECT(block_size, 0x1800);
 	REJECT(erase_size, 0x18000);
+	REJECT(erase_size, 0x4000);
 #undef REJECT
+
+	platform = valid_platform();
+	platform.block_size = platform.erase_size;
+	assert(payload_mm_authvar_contract_build(&output, &platform) == CB_SUCCESS);
+	platform = valid_platform();
+	platform.store_size = platform.block_size * 3U;
+	expected_store_size = platform.store_size;
+	assert(payload_mm_authvar_contract_build(&output, &platform) == CB_SUCCESS);
+	expected_store_size = valid_platform().store_size;
 
 	platform = valid_platform();
 	owns_smm = false;

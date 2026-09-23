@@ -78,6 +78,9 @@ enum fault_mode {
 };
 
 static struct backend backend;
+static uint32_t install_erase_size = BLOCK_SIZE;
+static void start(void);
+static void finish(enum payload_mm_authvar_media_result expected);
 static uint64_t output_generation;
 static uint64_t output_token;
 static uint8_t io_buffer[BLOCK_SIZE];
@@ -342,7 +345,7 @@ static struct payload_mm_authvar_media_port *install_authority(void)
 		.store_offset = 0x600000,
 		.store_size = STORE_SIZE,
 		.block_size = BLOCK_SIZE,
-		.erase_size = BLOCK_SIZE,
+		.erase_size = install_erase_size,
 		.smm_entry_owned = yes,
 		.spi_writes_restricted_to_smm = yes,
 		.raw_flash_transport_absent = yes,
@@ -363,6 +366,27 @@ static void install(void)
 	struct payload_mm_authvar_media_port *media_port = install_authority();
 
 	assert(payload_mm_authvar_media_install(media_port) == CB_SUCCESS);
+}
+
+static void suberase_case(void)
+{
+	install_erase_size = BLOCK_SIZE / 2U;
+	install();
+	start();
+	memset(backend.bytes, 0, BLOCK_SIZE);
+	assert(payload_mm_authvar_media_erase(output_generation, output_token, 0,
+		BLOCK_SIZE / 2U) == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
+	assert(backend.erase_calls == 1U);
+	assert(payload_mm_authvar_media_erase(output_generation, output_token,
+		BLOCK_SIZE / 2U, BLOCK_SIZE / 2U) ==
+		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
+	assert(backend.erase_calls == 2U);
+	assert(payload_mm_authvar_media_erase(output_generation, output_token, 0,
+		BLOCK_SIZE) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(payload_mm_authvar_media_erase(output_generation, output_token, 1U,
+		BLOCK_SIZE / 2U) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	assert(backend.erase_calls == 2U);
+	finish(PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
 }
 
 static void invalid_install_case(void)
@@ -799,6 +823,8 @@ int main(int argc, char **argv)
 	reset_backend();
 	if (!strcmp(name, "normal"))
 		normal_case();
+	else if (!strcmp(name, "suberase"))
+		suberase_case();
 	else if (!strcmp(name, "disjoint"))
 		disjoint_case();
 	else if (!strcmp(name, "install-invalid"))
