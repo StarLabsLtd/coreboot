@@ -351,6 +351,10 @@ static void time_authentication_metadata(void)
 	static const uint16_t name[] = { 'T', 0 };
 	const size_t base = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 
+	/* EDK2 certdb/VendorKeys initialization stores this zero sentinel. */
+	one_valid_record(name, ARRAY_SIZE(name));
+	put32(base + 4, 7 | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED);
+	assert(scan() == CB_SUCCESS);
 	valid_time_record(name, ARRAY_SIZE(name));
 	assert(scan() == CB_SUCCESS);
 	valid_time_record(name, ARRAY_SIZE(name));
