@@ -67,3 +67,46 @@ impossible plans, marker/readback mismatches, control mutation, or
 non-convergence call media fail-close with the immutable session owner and then
 perform exactly one sealed end. End failure invalidates any cache binding and
 turns an otherwise successful operation into `DEVICE_ERROR`.
+
+## Dormant read transaction
+
+The executor also exposes an internal SMM-only GET, NEXT and QUERY transaction.
+It uses the same nonwaiting gate, media session, FTW recovery and fresh store
+scan as SET; it is not a parallel reader, authority path, wire endpoint or
+cache. Reads neither require nor invoke the policy provider and do not advance
+READY_TO_BOOT or runtime state.
+
+Request and result descriptors, the input cursor, and bounded output name/data
+spans must be protected, mutually disjoint and outside executor and
+media-private storage. The cursor is copied before media access. Store-helper
+entries never escape: selected bytes and scalar metadata are staged in the
+protected arena and caller buffers are published only after the mandatory
+media end succeeds. No caller output span is exposed to the media port or
+policy provider. Completion is stored last with release ordering. Success
+zeroes unused output capacity. `BUFFER_TOO_SMALL` publishes only the required
+size, plus GET attributes, and no partial bytes or NEXT GUID. Other semantic
+failures publish no payload metadata. Media-end failure publishes only
+`DEVICE_ERROR` and leaves caller byte buffers untouched. The complete arena is
+scrubbed before releasing the gate.
+
+A busy or provider-recursive call fails without modifying its result or output
+spans. The single-flight gate remains held through result publication and the
+release-store of COMPLETE; it is released only after the caller can observe a
+complete result. Media-begin failure also leaves caller byte outputs untouched,
+because no media session existed whose successful end could authorize output
+publication.
+
+GET and NEXT use committed winners from the freshly scanned index even when a
+later torn record leaves a dirty tail. QUERY rejects that tail with
+`DEVICE_ERROR`, because uncommitted physical bytes cannot safely contribute to
+quota accounting; a later mutating recovery/reclaim must canonicalize it.
+QUERY quotas come only from sealed executor limits and decoded store geometry,
+never caller input. Although GET, NEXT and QUERY perform no logical variable
+write, the shared recovery path may repair or complete an interrupted durable
+FTW transaction before reading.
+
+This slice installs no shared-memory descriptor, dispatcher, SMI route or
+persistent read cache. The dormant service-frame validator remains a separate
+composition boundary and must be aligned with EDK2 QUERY APPEND and unknown-bit
+behavior before any endpoint is published. Its current QUERY response rules
+also cannot represent the `DEVICE_ERROR` returned for dirty-tail quota state.
