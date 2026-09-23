@@ -526,6 +526,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		m_cfg->SerialDebugMrcLevel = 0;
 		arch_upd->FspEventHandler = 0;
 	}
+	if (CONFIG(INTEL_VTD_FIXED)) {
+		mupd->FspmConfig.VtdDisable = 0;
+		mupd->FspmConfig.VtdIopEnable = 1;
+	}
 
 	/* DSP firmware authentication requires ME, even after board overrides. */
 	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();

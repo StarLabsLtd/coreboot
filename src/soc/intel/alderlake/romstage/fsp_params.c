@@ -529,6 +529,10 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
+	if (CONFIG(INTEL_VTD_FIXED)) {
+		mupd->FspmConfig.VtdDisable = 0;
+		mupd->FspmConfig.VtdIopEnable = 1;
+	}
 
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
@@ -542,6 +546,20 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;
+
+	/* Early silicon hangs with VT-d; board/debug overrides must not enable it. */
+	const uint32_t cpuid = cpu_get_cpuid();
+	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0) {
+		if (CONFIG(INTEL_VTD_FIXED))
+			die("Fixed VT-d policy is unsupported on this CPU stepping\n");
+		m_cfg->VtdDisable = 1;
+	}
+
+	/* DSP firmware authentication requires ME, including after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
