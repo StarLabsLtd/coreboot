@@ -90,6 +90,16 @@ static void merlin_restore_options(void *unused)
 			mdelay(2000);
 			die("DAVE secure EC activation did not reset the platform");
 		}
+
+		/* Close the reset-opened update window before handing off to the payload. */
+		if (ec_write(ECRAM_MIRROR_FLAG, 0) ||
+		    ec_read_checked(ECRAM_MIRROR_FLAG, &mirror_flag) || mirror_flag)
+			die("DAVE could not close the EC update window");
+
+		/* If closure failed, this request resets the platform instead of booting. */
+		if (ec_write(ECRAM_MIRROR_FLAG, EC_MIRROR_REQUEST_NOW) ||
+		    ec_read_checked(ECRAM_MIRROR_FLAG, &mirror_flag) || mirror_flag)
+			die("DAVE EC update window remained open");
 	}
 
 	/*

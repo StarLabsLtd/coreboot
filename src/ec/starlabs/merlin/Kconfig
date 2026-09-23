@@ -113,7 +113,7 @@ config EC_STARLABS_SECURE_MODE_REQUIRED
 config EC_STARLABS_SECURE_VERSION
 	hex
 	depends on EC_STARLABS_SECURE_MODE_REQUIRED
-	default 0x1a0a
+	default 0x1a0b
 	help
 	  Version of the secure EC image selected by this firmware build. A
 	  compatible older running version triggers activation of the selected
