@@ -3,6 +3,9 @@
 #include "payload_mm_cms.h"
 #include "payload_mm_crypto_platform.h"
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
+#include <commonlib/helpers.h>
+#endif
 #include <mbedtls/pk.h>
 #include <mbedtls/sha256.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
@@ -470,3 +473,194 @@ enum payload_mm_verify_status payload_mm_x509_chain_verify_detailed(
 	mbedtls_x509_crt_free(&chain);
 	return status;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
+static enum payload_mm_verify_status authvar_x509_chain_verify_detailed(
+	const struct payload_mm_crypto_span *leaf,
+	const struct payload_mm_crypto_span *intermediates,
+	size_t intermediate_count,
+	const struct payload_mm_crypto_span *trust_anchor,
+	enum payload_mm_crypto_failure_source *failure_source)
+{
+	mbedtls_x509_crt chain;
+	mbedtls_x509_crt trust;
+	struct payload_mm_crypto_span leaf_set[1];
+	enum payload_mm_verify_status status;
+	size_t certificate_count;
+	size_t total = 0U;
+	uint32_t flags = 0U;
+	int result;
+
+	if (failure_source == NULL)
+		return PAYLOAD_MM_VERIFY_INVALID;
+	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRANSIENT;
+	if (!valid_span(leaf, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
+	    intermediate_count > PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U ||
+	    !valid_span(trust_anchor, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE))
+		return PAYLOAD_MM_VERIFY_INVALID;
+	leaf_set[0] = *leaf;
+	if (!valid_certificate_set(leaf_set, 1U, &total) ||
+	    !valid_certificate_set(intermediates, intermediate_count, &total) ||
+	    !valid_certificate_set(trust_anchor, 1U, &total))
+		return PAYLOAD_MM_VERIFY_INVALID;
+	certificate_count = 2U + intermediate_count;
+	if (certificate_count > PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES + 1U)
+		return PAYLOAD_MM_VERIFY_INVALID;
+
+	mbedtls_x509_crt_init(&chain);
+	mbedtls_x509_crt_init(&trust);
+	result = parse_certificates(&chain, leaf_set, 1U);
+	if (result == 0)
+		result = parse_certificates(&chain, intermediates,
+			intermediate_count);
+	if (result != 0) {
+		status = PAYLOAD_MM_VERIFY_MALFORMED;
+		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
+	} else if (validate_rsa_certificates(&chain) != PAYLOAD_MM_VERIFY_OK) {
+		status = PAYLOAD_MM_VERIFY_REJECTED;
+		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
+	} else if (parse_certificates(&trust, trust_anchor, 1U) != 0) {
+		status = PAYLOAD_MM_VERIFY_MALFORMED;
+		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
+	} else if (validate_rsa_certificates(&trust) != PAYLOAD_MM_VERIFY_OK) {
+		status = PAYLOAD_MM_VERIFY_REJECTED;
+		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
+	} else if (mbedtls_x509_crt_verify(&chain, &trust, NULL, NULL, &flags,
+		NULL, NULL) != 0 || flags != 0U) {
+		status = PAYLOAD_MM_VERIFY_REJECTED;
+		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_SIGNATURE;
+	} else {
+		status = PAYLOAD_MM_VERIFY_OK;
+	}
+	mbedtls_x509_crt_free(&trust);
+	mbedtls_x509_crt_free(&chain);
+	return status;
+}
+
+static uint8_t ascii_lower(uint8_t character)
+{
+	return character >= 'A' && character <= 'Z' ? character + 'a' - 'A' :
+		character;
+}
+
+static bool x509_string_equal(const mbedtls_x509_buf *left,
+	const mbedtls_x509_buf *right)
+{
+	size_t index;
+
+	if (left->tag == right->tag && left->len == right->len &&
+	    !memcmp(left->p, right->p, left->len))
+		return true;
+	if ((left->tag != MBEDTLS_ASN1_UTF8_STRING &&
+	     left->tag != MBEDTLS_ASN1_PRINTABLE_STRING) ||
+	    (right->tag != MBEDTLS_ASN1_UTF8_STRING &&
+	     right->tag != MBEDTLS_ASN1_PRINTABLE_STRING) ||
+	    left->len != right->len)
+		return false;
+	for (index = 0U; index < left->len; index++)
+		if (ascii_lower(left->p[index]) != ascii_lower(right->p[index]))
+			return false;
+	return true;
+}
+
+static bool x509_name_equal(const mbedtls_x509_name *left,
+	const mbedtls_x509_name *right)
+{
+	while (left != NULL || right != NULL) {
+		if (left == NULL || right == NULL ||
+		    left->oid.tag != right->oid.tag ||
+		    left->oid.len != right->oid.len ||
+		    memcmp(left->oid.p, right->oid.p, left->oid.len) ||
+		    !x509_string_equal(&left->val, &right->val) ||
+		    left->MBEDTLS_PRIVATE(next_merged) !=
+			right->MBEDTLS_PRIVATE(next_merged))
+			return false;
+		left = left->next;
+		right = right->next;
+	}
+	return true;
+}
+
+enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
+	const struct payload_mm_crypto_span *leaf,
+	const struct payload_mm_crypto_span *intermediates,
+	size_t intermediate_count,
+	const struct payload_mm_crypto_span *trust_anchor,
+	enum payload_mm_crypto_failure_source *failure_source)
+{
+	mbedtls_x509_crt parsed[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U];
+	struct payload_mm_crypto_span ordered[
+		PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U];
+	mbedtls_x509_crt parsed_anchor;
+	mbedtls_x509_crt parsed_leaf;
+	const mbedtls_x509_crt *child;
+	bool used[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U] = { false };
+	enum payload_mm_verify_status status = PAYLOAD_MM_VERIFY_MALFORMED;
+	size_t ordered_count = 0U;
+	size_t match;
+	size_t matches;
+	size_t index;
+	int result;
+
+	if (failure_source == NULL ||
+	    !valid_span(leaf, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
+	    !valid_span(trust_anchor, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
+	    intermediate_count > PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U ||
+	    (intermediate_count != 0U && intermediates == NULL))
+		return PAYLOAD_MM_VERIFY_INVALID;
+
+	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
+	mbedtls_x509_crt_init(&parsed_leaf);
+	mbedtls_x509_crt_init(&parsed_anchor);
+	for (index = 0U; index < ARRAY_SIZE(parsed); index++)
+		mbedtls_x509_crt_init(&parsed[index]);
+	result = mbedtls_x509_crt_parse_der_nocopy(&parsed_leaf, leaf->data,
+		leaf->size);
+	if (result == 0 && (parsed_leaf.raw.len != leaf->size || parsed_leaf.next))
+		result = MBEDTLS_ERR_X509_INVALID_FORMAT;
+	if (result == 0)
+		result = mbedtls_x509_crt_parse_der_nocopy(&parsed_anchor,
+			trust_anchor->data, trust_anchor->size);
+	if (result == 0 && (parsed_anchor.raw.len != trust_anchor->size ||
+	    parsed_anchor.next))
+		result = MBEDTLS_ERR_X509_INVALID_FORMAT;
+	for (index = 0U; result == 0 && index < intermediate_count; index++) {
+		result = mbedtls_x509_crt_parse_der_nocopy(&parsed[index],
+			intermediates[index].data, intermediates[index].size);
+		if (result == 0 &&
+		    (parsed[index].raw.len != intermediates[index].size ||
+		     parsed[index].next))
+			result = MBEDTLS_ERR_X509_INVALID_FORMAT;
+	}
+	if (result != 0)
+		goto out;
+
+	child = &parsed_leaf;
+	while (!x509_name_equal(&child->issuer, &parsed_anchor.subject)) {
+		matches = 0U;
+		match = 0U;
+		for (index = 0U; index < intermediate_count; index++) {
+			if (!used[index] && x509_name_equal(&child->issuer,
+				&parsed[index].subject)) {
+				match = index;
+				matches++;
+			}
+		}
+		if (matches != 1U) {
+			status = PAYLOAD_MM_VERIFY_REJECTED;
+			goto out;
+		}
+		used[match] = true;
+		ordered[ordered_count++] = intermediates[match];
+		child = &parsed[match];
+	}
+	status = authvar_x509_chain_verify_detailed(leaf, ordered, ordered_count,
+		trust_anchor, failure_source);
+out:
+	for (index = 0U; index < ARRAY_SIZE(parsed); index++)
+		mbedtls_x509_crt_free(&parsed[index]);
+	mbedtls_x509_crt_free(&parsed_anchor);
+	mbedtls_x509_crt_free(&parsed_leaf);
+	return status;
+}
+#endif

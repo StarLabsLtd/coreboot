@@ -44,5 +44,13 @@ enum payload_mm_verify_status payload_mm_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *trust_anchors,
 	size_t trust_anchor_count,
 	enum payload_mm_crypto_failure_source *failure_source);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
+enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
+	const struct payload_mm_crypto_span *leaf,
+	const struct payload_mm_crypto_span *intermediates,
+	size_t intermediate_count,
+	const struct payload_mm_crypto_span *trust_anchor,
+	enum payload_mm_crypto_failure_source *failure_source);
+#endif
 
 #endif

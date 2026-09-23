@@ -106,6 +106,19 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	struct payload_mm_cms_verified_signer *verified);
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
+/*
+ * Check one previously verified CMS signer chain against one protected-store
+ * X.509 anchor. All certificate views must be exact, disjoint subranges of
+ * signed_data. This is a trust mechanic, not a variable-policy decision.
+ */
+enum payload_mm_verify_status payload_mm_authvar_trust_anchor_verify(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_cms_verified_signer *verified,
+	const struct payload_mm_crypto_span *trust_anchor);
+#endif
+
 /* The production entry point derives the signed digest from image bytes. */
 enum payload_mm_verify_status payload_mm_authenticate_image(
 	struct payload_mm_crypto_owner *owner,
