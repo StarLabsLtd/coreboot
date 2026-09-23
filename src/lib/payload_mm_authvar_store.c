@@ -232,6 +232,12 @@ enum cb_err payload_mm_authvar_store_scan(
 			data_offset - name_offset - name_size, 0xff) ||
 		    !bytes_are(bytes + record_end, next - record_end, 0xff))
 			goto malformed_record;
+		/* ERASED is an uncommitted body and cannot authorize traversal. */
+		if (state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {
+			index->dirty_tail_offset = (uint32_t)offset;
+			offset = store_size;
+			break;
+		}
 		records++;
 		if (records > limits->maximum_records)
 			return CB_ERR;

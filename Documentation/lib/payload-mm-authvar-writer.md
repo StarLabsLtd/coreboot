@@ -24,10 +24,11 @@ transient append attribute is never persisted.
 The extra `0xff -> 0x7f -> 0x3f` markers are a compatible hardening over the
 pinned EDK2 implementation's direct `0xff -> 0x3f`: each boundary clears one
 NOR bit; the later executor must program and verify each marker and does not
-assume that either program is atomic. A complete erased-state record is
-consumed but invisible. A torn erased-state tail is recorded by the scanner as
-dirty, consumes the remaining append space, and therefore forces reclaim
-rather than being overwritten.
+assume that either program is atomic. Any erased-state record terminates
+scanner traversal as a dirty tail, consumes the remaining append space, and
+therefore forces reclaim rather than being overwritten. This applies even when
+the body appears complete: after reset, omitted bytes whose intended value was
+`0xff` cannot be distinguished from bytes that were durably programmed.
 
 Every record and step offset is authenticated-variable-store-relative. Gate G
 adds the decoder-validated FV header translation. Each state step requires an
