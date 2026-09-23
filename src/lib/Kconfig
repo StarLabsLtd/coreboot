@@ -186,6 +186,16 @@ config PAYLOAD_MM_AUTHVAR_CANDIDATE
 	  provenance-bound replacement image, but performs no media operation,
 	  installs no provider and publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_CANDIDATE
+	help
+	  Build the dormant same-lease whole-store candidate commit prerequisite.
+	  It admits a provenance-bound candidate under the active media generation
+	  and token, then uses the existing EDK2-compatible FTW state machine. It
+	  installs no backend or provider and publishes no endpoint.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n

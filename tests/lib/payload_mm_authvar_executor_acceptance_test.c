@@ -1,10 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
+#include <boot/payload_mm_authvar_candidate.h>
+#endif
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
 #include <boot/payload_mm_authvar_service.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#include "../../src/lib/payload_mm_authvar_internal.h"
+#endif
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -136,6 +142,18 @@ struct mutation_journal_entry {
 };
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+enum candidate_checkpoint_target {
+	CANDIDATE_CHECKPOINT_NONE,
+	CANDIDATE_CHECKPOINT_SPARE_COMPLETE = 7,
+	CANDIDATE_CHECKPOINT_PRIMARY_ERASE,
+	CANDIDATE_CHECKPOINT_PRIMARY_IMAGE,
+	CANDIDATE_CHECKPOINT_DESTINATION_COMPLETE,
+	CANDIDATE_CHECKPOINT_JOURNAL_COMPLETE,
+	CANDIDATE_CHECKPOINT_SPARE_CLEAN,
+};
+#endif
+
 struct shared_state {
 	uint8_t media[REGION_SIZE];
 	uint8_t trace_read_image[REGION_SIZE];
@@ -174,6 +192,16 @@ struct shared_state {
 	uint64_t trace_generation;
 	uint64_t trace_token;
 	uint64_t trace_next_token;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	uint32_t candidate_mutation_enabled;
+	uint32_t candidate_mutation_offset;
+	uint32_t candidate_mutation_seen;
+	uint32_t candidate_prepare_seen;
+	uint32_t candidate_checkpoint_target;
+	uint32_t candidate_checkpoint_injected;
+	uint32_t candidate_checkpoint_restored;
+	uint32_t candidate_published_modes;
+#endif
 #ifdef RECURSIVE_MUTATION_JOURNAL
 	struct mutation_journal_entry mutation_journal[MUTATION_JOURNAL_CAPACITY];
 	uint32_t mutation_journal_count;
@@ -191,9 +219,143 @@ static struct payload_mm_authvar_media_port media_port;
 static void *communication;
 static struct trace_entry reclaim_baseline[TRACE_CAPACITY];
 static uint32_t reclaim_baseline_count;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static uint8_t *candidate_staged_image;
+static uint8_t candidate_staged_original;
+static bool candidate_staged_corrupt;
+#endif
 static struct trace_entry direct_baseline[TRACE_CAPACITY];
 static uint32_t direct_baseline_count;
 static uint32_t direct_fault_counts[FAULT_END + 1U];
+
+/* Immutable reclaim transcript from f3f0a22bdbea90e1da2726da78dee2d7ddf526b0. */
+static const struct trace_entry legacy_reclaim_trace[] = {
+	{ 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 8, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x59f8663f693e42e4ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xb345f99759ba2fa9ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 4128, 80, 80, 0, 1, 1, 0, 0, 0x13bfedc245d54143ULL },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0xa64add8f2b6d296bULL },
+	{ 0, 2, 4129, 39, 39, 0, 1, 1, 0xa64add8f2b6d296bULL,
+		0x2fea6cbdf38d651eULL, 0x2fea6cbdf38d651eULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0x2fea6cbdf38d651eULL },
+	{ 0, 1, 4129, 39, 39, 0, 1, 1, 0, 0, 0x2fea6cbdf38d651eULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd25d473cced67ULL,
+		0x44bd24d473ccebb4ULL, 0x44bd24d473ccebb4ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd24d473ccebb4ULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd24d473ccebb4ULL,
+		0x44bd26d473ccef1aULL, 0x44bd26d473ccef1aULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0xa64add8f2b6d296bULL },
+	{ 0, 2, 4169, 39, 39, 0, 1, 1, 0xa64add8f2b6d296bULL,
+		0x80a4e785895a7dccULL, 0x80a4e785895a7dccULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0x80a4e785895a7dccULL },
+	{ 0, 1, 4169, 39, 39, 0, 1, 1, 0, 0, 0x80a4e785895a7dccULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 3, 8192, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 2, 8192, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0x6b8011b0de5cfa19ULL, 0x6b8011b0de5cfa19ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd25d473cced67ULL },
+	{ 0, 2, 4168, 1, 1, 0, 1, 1, 0x44bd25d473cced67ULL,
+		0x44bd27d473ccf0cdULL, 0x44bd27d473ccf0cdULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x59f8663f693e42e4ULL },
+	{ 0, 3, 0, 4096, 4096, 0, 1, 1, 0x59f8663f693e42e4ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 2, 0, 4096, 4096, 0, 1, 1, 0xf3bb53b198336383ULL,
+		0x6b8011b0de5cfa19ULL, 0x6b8011b0de5cfa19ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd27d473ccf0cdULL },
+	{ 0, 2, 4168, 1, 1, 0, 1, 1, 0x44bd27d473ccf0cdULL,
+		0x44bd23d473ccea01ULL, 0x44bd23d473ccea01ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4168, 1, 1, 0, 1, 1, 0, 0, 0x44bd23d473ccea01ULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd26d473ccef1aULL },
+	{ 0, 2, 4128, 1, 1, 0, 1, 1, 0x44bd26d473ccef1aULL,
+		0x44bd22d473cce84eULL, 0x44bd22d473cce84eULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 4128, 1, 1, 0, 1, 1, 0, 0, 0x44bd22d473cce84eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 3, 8192, 4096, 4096, 0, 1, 1, 0x6b8011b0de5cfa19ULL,
+		0, 0xf3bb53b198336383ULL },
+	{ 0, 4, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xacca9ff1c65fd60eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 1, 0, 4096, 4096, 0, 1, 1, 0, 0, 0x6b8011b0de5cfa19ULL },
+	{ 0, 1, 4096, 4096, 4096, 0, 1, 1, 0, 0, 0xacca9ff1c65fd60eULL },
+	{ 0, 1, 8192, 4096, 4096, 0, 1, 1, 0, 0, 0xf3bb53b198336383ULL },
+	{ 0, 9, 0, 12288, 0, 0, 1, 1, 1, 0x3c169c3a9330ca64ULL,
+		0x3c169c3a9330ca64ULL },
+	{ 0, 5, 0, 0, 0, 0, 1, 1, 0, 0, 0 },
+};
+
+static const uint8_t legacy_reclaim_primary[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x8d, 0x2b, 0xf1, 0xff, 0x96, 0x76, 0x8b, 0x4c,
+	0xa9, 0x85, 0x27, 0x47, 0x07, 0x5b, 0x4f, 0x50,
+	0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x5f, 0x46, 0x56, 0x48, 0x36, 0x0e, 0x00, 0x00,
+	0x48, 0x00, 0x05, 0xba, 0x00, 0x00, 0x00, 0x02,
+	0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x78, 0x2c, 0xf3, 0xaa, 0x7b, 0x94, 0x9a, 0x43,
+	0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92,
+	0xb8, 0x0f, 0x00, 0x00, 0x5a, 0xfe, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xaa, 0x55, 0x3f, 0x00,
+	0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+	0xf3, 0x2e, 0xa5, 0xc4, 0x27, 0x4e, 0xe2, 0x47,
+	0x95, 0x0b, 0xfd, 0xaa, 0xb5, 0x21, 0xb8, 0x95,
+	0x41, 0x00, 0x00, 0x00, 0x09, 0x08, 0x07, 0x06,
+};
+
+static const uint8_t legacy_reclaim_workspace[] = {
+	0x2b, 0x29, 0x58, 0x9e, 0x68, 0x7c, 0x7d, 0x49,
+	0xa0, 0xce, 0x65, 0x00, 0xfd, 0x9f, 0x1b, 0x95,
+	0x2c, 0xaf, 0x2c, 0x64, 0xfe, 0xff, 0xff, 0xff,
+	0xe0, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf8, 0xff, 0xff, 0xff, 0xf3, 0x2e, 0xa5, 0xc4,
+	0x27, 0x4e, 0xe2, 0x47, 0x95, 0x0b, 0xfd, 0xaa,
+	0xb5, 0x21, 0xb8, 0x95, 0xff, 0xff, 0xff, 0xff,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xb8, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0xe0,
+};
 
 extern char _start[];
 
@@ -216,6 +378,20 @@ static const uint8_t variable_guid[16] = {
 static const uint8_t variable_name[] = { 'A', 0, 0, 0 };
 static const uint8_t variable_data[] = { 1, 2, 3, 4 };
 static const uint8_t replacement_data[] = { 9, 8, 7, 6 };
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
+enum payload_mm_verify_status payload_mm_sha256(const void *message,
+	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
+{
+	const uint8_t *bytes = message;
+
+	memset(digest, 0, PAYLOAD_MM_SHA256_SIZE);
+	for (size_t i = 0; i < message_size; i++)
+		digest[i % PAYLOAD_MM_SHA256_SIZE] ^=
+			(uint8_t)(bytes[i] + (uint8_t)i);
+	return PAYLOAD_MM_VERIFY_OK;
+}
+#endif
 
 static void output(int fd, const void *buffer, size_t size)
 {
@@ -370,6 +546,40 @@ static uint64_t trace_digest(const void *buffer, size_t size)
 		digest *= 1099511628211ULL;
 	}
 	return digest;
+}
+
+static bool trace_equal(const struct trace_entry *left,
+	const struct trace_entry *right)
+{
+	return left->boot == right->boot && left->kind == right->kind &&
+		left->offset == right->offset && left->size == right->size &&
+		left->completed == right->completed && left->result == right->result &&
+		left->generation == right->generation && left->token == right->token &&
+		left->before_digest == right->before_digest &&
+		left->input_digest == right->input_digest &&
+		left->after_digest == right->after_digest;
+}
+
+static void assert_legacy_reclaim_golden(const struct shared_state *shared)
+{
+	uint8_t expected[REGION_SIZE];
+
+	_Static_assert(sizeof(legacy_reclaim_primary) == 168U,
+		"legacy primary prefix changed");
+	_Static_assert(sizeof(legacy_reclaim_workspace) == 106U,
+		"legacy workspace prefix changed");
+	assert(reclaim_baseline_count == ARRAY_SIZE(legacy_reclaim_trace));
+	for (uint32_t i = 0; i < reclaim_baseline_count; i++)
+		assert(trace_equal(&reclaim_baseline[i], &legacy_reclaim_trace[i]));
+
+	memset(expected, 0xff, sizeof(expected));
+	memcpy(expected, legacy_reclaim_primary,
+		sizeof(legacy_reclaim_primary));
+	memcpy(expected + WORKING_OFFSET, legacy_reclaim_workspace,
+		sizeof(legacy_reclaim_workspace));
+	assert(trace_digest(expected, sizeof(expected)) == 0x3c169c3a9330ca64ULL);
+	assert(trace_digest(shared->media, REGION_SIZE) == 0x3c169c3a9330ca64ULL);
+	assert(!memcmp(shared->media, expected, sizeof(expected)));
 }
 
 static void trace_add_digests(struct shared_state *shared, enum trace_kind kind,
@@ -753,6 +963,40 @@ static size_t program_partial_fault(struct shared_state *shared,
 	return changed;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+void payload_mm_authvar_candidate_checkpoint_test_hook(uint8_t *image,
+	unsigned int phase, bool before)
+{
+	struct shared_state *shared = backend.shared;
+
+	if (shared->candidate_checkpoint_target != phase)
+		return;
+	assert(image);
+	if (before) {
+		assert(!shared->candidate_checkpoint_injected);
+		candidate_staged_image = image;
+		candidate_staged_original = image[0];
+		if (phase == CANDIDATE_CHECKPOINT_SPARE_COMPLETE)
+			shared->media[FV_HEADER_SIZE +
+				PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE] ^= 1U;
+		else
+			candidate_staged_image[0] ^= 1U;
+		candidate_staged_corrupt = true;
+		shared->candidate_checkpoint_injected++;
+	} else {
+		assert(shared->candidate_checkpoint_injected &&
+			candidate_staged_corrupt);
+		if (phase == CANDIDATE_CHECKPOINT_SPARE_COMPLETE)
+			shared->media[FV_HEADER_SIZE +
+				PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE] ^= 1U;
+		else
+			candidate_staged_image[0] = candidate_staged_original;
+		candidate_staged_corrupt = false;
+		shared->candidate_checkpoint_restored++;
+	}
+}
+#endif
+
 static enum payload_mm_authvar_media_result backend_program(const void *context,
 	uint32_t offset, const void *buffer, size_t size)
 {
@@ -845,6 +1089,17 @@ static enum payload_mm_authvar_media_result backend_program(const void *context,
 		if (cut && shared->cut_mask != MASK_PREFIX)
 			completed++;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	if (shared->candidate_mutation_enabled &&
+	    shared->candidate_mutation_offset < VARIABLE_SIZE &&
+	    offset == SPARE_OFFSET && size == VARIABLE_SIZE) {
+		uint8_t *mutable = (uint8_t *)(uintptr_t)buffer;
+
+		mutable[shared->candidate_mutation_offset] ^= 1U;
+		shared->candidate_mutation_seen++;
+		shared->candidate_mutation_enabled = 0;
+	}
+#endif
 #if SPARE_SIZE > VARIABLE_SIZE
 	if (shared->checkpoint_kind == CHECKPOINT_SPARE_SUFFIX &&
 	    offset >= SPARE_OFFSET && offset + size == SPARE_OFFSET + VARIABLE_SIZE) {
@@ -1097,6 +1352,125 @@ static uint64_t apply_once(bool replace)
 	return test_policy_apply(&source);
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static void make_candidate_source(struct shared_state *shared)
+{
+	static const uint8_t vendor_keys_guid[16] = {
+		0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
+		0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
+	};
+	static const uint8_t vendor_keys_name[] = {
+		'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
+		'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
+	};
+	static const uint8_t value;
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = vendor_keys_name,
+		.name_size = sizeof(vendor_keys_name),
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = &value,
+		.size = sizeof(value),
+	};
+	uint8_t *record = shared->media + FV_HEADER_SIZE +
+		PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	uint32_t record_size;
+
+	memcpy(descriptor.vendor_guid, vendor_keys_guid, sizeof(vendor_keys_guid));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO, record,
+		STORE_SIZE - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, &record_size));
+	record[2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+}
+
+static uint64_t prepare_candidate(
+	const struct payload_mm_authvar_store_index *source,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	void *candidate_buffer, size_t candidate_capacity,
+	struct payload_mm_authvar_store_entry *scan_entries,
+	size_t scan_entry_capacity,
+	struct payload_mm_authvar_candidate_result *result, void *context)
+{
+	static const uint8_t candidate_guid[16] = { 0x42U };
+	static const uint8_t timestamp[16] = { 0xe8U, 0x07U, 1U, 1U };
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = variable_name,
+		.name_size = sizeof(variable_name),
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = replacement_data,
+		.size = sizeof(replacement_data),
+	};
+	uint8_t *candidate = candidate_buffer;
+	uint32_t record_size;
+	struct payload_mm_authvar_store_index check = {
+		.entries = scan_entries,
+		.entry_capacity = (uint32_t)scan_entry_capacity,
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = 64U,
+	};
+
+	((struct shared_state *)context)->candidate_prepare_seen++;
+	assert(scan_entry_capacity <= UINT32_MAX);
+	assert(candidate_capacity == STORE_SIZE);
+	memset(candidate, 0xff, candidate_capacity);
+	memcpy(candidate, source->store, source->used_size);
+	memcpy(descriptor.vendor_guid, candidate_guid, sizeof(candidate_guid));
+	memcpy(descriptor.timestamp, timestamp, sizeof(timestamp));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		candidate + source->used_size,
+		candidate_capacity - source->used_size, &record_size));
+	candidate[source->used_size + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	memset(result, 0, sizeof(*result));
+	result->binding = *binding;
+	result->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_record_size = STORE_SIZE,
+		.maximum_records = 64U,
+	};
+	result->source_used_size = source->used_size;
+	result->candidate_used_size = source->used_size + record_size;
+	result->candidate_record_count = source->entry_count + 1U;
+	result->volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP;
+	assert(payload_mm_sha256(source->store, source->store_size,
+		result->source_digest) == PAYLOAD_MM_VERIFY_OK);
+	assert(payload_mm_sha256(candidate, candidate_capacity,
+		result->candidate_digest) == PAYLOAD_MM_VERIFY_OK);
+	assert(payload_mm_authvar_store_scan(&check, candidate, candidate_capacity,
+		&limits) == CB_SUCCESS);
+	assert(check.used_size == result->candidate_used_size);
+	assert(check.record_count == result->candidate_record_count);
+	assert(check.entry_count == result->candidate_record_count);
+	assert(!check.dirty_tail_offset);
+	assert(payload_mm_authvar_candidate_projection_valid(source, &check, binding,
+		result->volatile_modes));
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+static uint64_t commit_candidate(void)
+{
+	u8 modes = 0;
+	uint64_t status;
+
+	status = payload_mm_authvar_executor_test_commit_candidate(prepare_candidate,
+		backend.shared, PAYLOAD_MM_AUTHVAR_MODE_SETUP, &modes);
+	backend.shared->candidate_published_modes = modes;
+	return status;
+}
+#endif
+
 enum child_operation {
 	CHILD_RECOVER,
 	CHILD_RECOVER_RETRY,
@@ -1104,6 +1478,9 @@ enum child_operation {
 	CHILD_APPLY_REPLACE,
 	CHILD_APPLY_ADD_RETRY,
 	CHILD_APPLY_REPLACE_RETRY,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	CHILD_COMMIT_CANDIDATE,
+#endif
 };
 
 static int run_child(struct shared_state *shared, enum child_operation operation)
@@ -1138,6 +1515,10 @@ static int run_child(struct shared_state *shared, enum child_operation operation
 		install_stack(shared);
 		if (operation == CHILD_RECOVER || operation == CHILD_RECOVER_RETRY)
 			result = payload_mm_authvar_executor_recover();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+		else if (operation == CHILD_COMMIT_CANDIDATE)
+			result = commit_candidate();
+#endif
 		else
 			result = apply_once(operation == CHILD_APPLY_REPLACE ||
 				operation == CHILD_APPLY_REPLACE_RETRY);
@@ -1693,6 +2074,200 @@ static uint32_t discover_reclaim_programs(struct shared_state *shared,
 	return count;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static void recover_candidate_cut(struct shared_state *shared,
+	const uint8_t old_primary[VARIABLE_SIZE],
+	const uint8_t new_primary[VARIABLE_SIZE])
+{
+	for (unsigned int boot = 0; boot < 4U; boot++) {
+		if (!run_child(shared, CHILD_RECOVER))
+			break;
+		assert(boot != 3U);
+	}
+	assert(independent_ftw_clean(shared->media));
+	assert(!memcmp(shared->media, old_primary, VARIABLE_SIZE) ||
+		!memcmp(shared->media, new_primary, VARIABLE_SIZE));
+	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	trace_sessions_valid(shared);
+}
+
+static void candidate_final_images(struct shared_state *shared,
+	uint8_t old_primary[VARIABLE_SIZE],
+	uint8_t new_primary[VARIABLE_SIZE], uint32_t *program_sizes,
+	size_t program_capacity, uint32_t *program_count, uint32_t *erase_count)
+{
+	struct payload_mm_authvar_store_entry source_entries[64];
+	struct payload_mm_authvar_store_entry scratch_entries[64];
+	struct payload_mm_authvar_store_index source = {
+		.entries = source_entries,
+		.entry_capacity = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_candidate_binding binding = {
+		.generation = 1U,
+		.token = 1U,
+		.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+	};
+	struct payload_mm_authvar_candidate_result expected_result;
+	uint8_t expected_store[STORE_SIZE];
+	uint32_t commit_boot;
+
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	make_candidate_source(shared);
+	memcpy(old_primary, shared->media, VARIABLE_SIZE);
+	assert(payload_mm_authvar_store_scan(&source,
+		shared->media + FV_HEADER_SIZE, STORE_SIZE, &limits) == CB_SUCCESS);
+	assert(prepare_candidate(&source, &binding, expected_store,
+		sizeof(expected_store), scratch_entries, ARRAY_SIZE(scratch_entries),
+		&expected_result, shared) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	memcpy(new_primary, old_primary, FV_HEADER_SIZE);
+	memcpy(new_primary + FV_HEADER_SIZE, expected_store,
+		sizeof(expected_store));
+	shared->candidate_prepare_seen = 0;
+	{
+		int status = run_child(shared, CHILD_COMMIT_CANDIDATE);
+
+		assert(shared->candidate_prepare_seen == 1U);
+		assert(status == 0);
+	}
+	assert(shared->child_result == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(independent_ftw_clean(shared->media));
+	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	assert(memcmp(new_primary, old_primary, VARIABLE_SIZE));
+	assert(!memcmp(shared->media, new_primary, VARIABLE_SIZE));
+	commit_boot = shared->boot;
+	*program_count = 0;
+	for (uint32_t i = 0; i < shared->trace_count; i++) {
+		const struct trace_entry *entry = &shared->trace[i];
+
+		if (entry->boot != commit_boot || entry->kind != TRACE_PROGRAM)
+			continue;
+		assert(*program_count < program_capacity && entry->size);
+		program_sizes[(*program_count)++] = entry->size;
+	}
+	assert(*program_count == shared->program_count && *program_count);
+	*erase_count = shared->erase_count;
+	assert(*erase_count);
+	trace_sessions_valid(shared);
+}
+
+static void run_candidate_cut(struct shared_state *shared,
+	const uint8_t old_primary[VARIABLE_SIZE],
+	const uint8_t new_primary[VARIABLE_SIZE], enum cut_kind kind,
+	uint32_t occurrence, enum cut_mask mask, uint32_t prefix)
+{
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, old_primary, VARIABLE_SIZE);
+	/* The clean workspace lies outside the active FV. */
+	make_clean_image(shared);
+	memcpy(shared->media, old_primary, VARIABLE_SIZE);
+	shared->cut_kind = kind;
+	shared->cut_occurrence = occurrence;
+	shared->cut_bytes = prefix;
+	shared->cut_mask = mask;
+	assert(run_child(shared, CHILD_COMMIT_CANDIDATE) == CHILD_CUT_EXIT);
+	shared->cut_kind = CUT_NONE;
+	recover_candidate_cut(shared, old_primary, new_primary);
+}
+
+static void run_candidate_image_mutation(struct shared_state *shared,
+	const uint8_t old_primary[VARIABLE_SIZE], uint32_t offset)
+{
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	memcpy(shared->media, old_primary, VARIABLE_SIZE);
+	shared->candidate_mutation_enabled = 1U;
+	shared->candidate_mutation_offset = offset;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_COMMIT_CANDIDATE) == 1);
+	assert(shared->child_result != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(shared->candidate_mutation_seen == 1U);
+	recover_candidate_cut(shared, old_primary, old_primary);
+}
+
+static void run_candidate_checkpoint(struct shared_state *shared,
+	const uint8_t old_primary[VARIABLE_SIZE],
+	const uint8_t new_primary[VARIABLE_SIZE],
+	enum candidate_checkpoint_target target)
+{
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	memcpy(shared->media, old_primary, VARIABLE_SIZE);
+	shared->candidate_checkpoint_target = (uint32_t)target;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_COMMIT_CANDIDATE) == 1);
+	assert(shared->child_result == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(shared->candidate_published_modes == 0U);
+	assert(shared->candidate_checkpoint_injected == 1U);
+	assert(shared->candidate_checkpoint_restored == 1U);
+	for (uint32_t i = 0; i < shared->trace_count; i++)
+		assert(shared->trace[i].kind != TRACE_CACHE_BIND);
+	shared->candidate_checkpoint_target = CANDIDATE_CHECKPOINT_NONE;
+	recover_candidate_cut(shared, old_primary, new_primary);
+}
+
+static void candidate_checkpoint_tests(struct shared_state *shared)
+{
+	uint8_t old_primary[VARIABLE_SIZE];
+	uint8_t new_primary[VARIABLE_SIZE];
+	uint32_t program_sizes[64];
+	uint32_t program_count;
+	uint32_t erase_count;
+
+	candidate_final_images(shared, old_primary, new_primary, program_sizes,
+		ARRAY_SIZE(program_sizes), &program_count, &erase_count);
+	assert(program_count && erase_count);
+	for (enum candidate_checkpoint_target target =
+	     CANDIDATE_CHECKPOINT_SPARE_COMPLETE;
+	     target <= CANDIDATE_CHECKPOINT_SPARE_CLEAN; target++)
+		run_candidate_checkpoint(shared, old_primary, new_primary, target);
+}
+
+static void candidate_power_cut_tests(struct shared_state *shared,
+	bool mutations_only)
+{
+	uint8_t old_primary[VARIABLE_SIZE];
+	uint8_t new_primary[VARIABLE_SIZE];
+	uint32_t program_sizes[64];
+	uint32_t program_count;
+	uint32_t erase_count;
+
+	candidate_final_images(shared, old_primary, new_primary, program_sizes,
+		ARRAY_SIZE(program_sizes), &program_count, &erase_count);
+	if (!mutations_only) {
+		for (uint32_t occurrence = 1U; occurrence <= program_count;
+		     occurrence++) {
+			for (uint32_t prefix = 0; prefix <= program_sizes[occurrence - 1U];
+			     prefix++)
+				run_candidate_cut(shared, old_primary, new_primary,
+					CUT_PROGRAM, occurrence, MASK_PREFIX, prefix);
+			for (enum cut_mask mask = MASK_EVEN; mask <= MASK_PARTIAL_BITS;
+			     mask++)
+				run_candidate_cut(shared, old_primary, new_primary,
+					CUT_PROGRAM, occurrence, mask, 0);
+		}
+		for (uint32_t occurrence = 1U; occurrence <= erase_count; occurrence++) {
+			for (uint32_t prefix = 0; prefix <= ERASE_SIZE; prefix++)
+				run_candidate_cut(shared, old_primary, new_primary,
+					CUT_ERASE, occurrence, MASK_PREFIX, prefix);
+			for (enum cut_mask mask = MASK_EVEN; mask <= MASK_PARTIAL_BITS;
+			     mask++)
+				run_candidate_cut(shared, old_primary, new_primary,
+					CUT_ERASE, occurrence, mask, 0);
+		}
+	}
+	if (mutations_only)
+		for (uint32_t offset = 0; offset < VARIABLE_SIZE; offset++)
+			run_candidate_image_mutation(shared, old_primary, offset);
+}
+#endif
+
 static enum trace_kind fault_trace_kind(enum fault_kind kind)
 {
 	switch (kind) {
@@ -2241,24 +2816,55 @@ int main(int argc, char **argv)
 	uint32_t reclaim_erase_count;
 	uint32_t fault_counts[FAULT_END + 1U] = { 0 };
 	bool fault_only = argc == 2 && !strcmp(argv[1], "fault-only");
+	bool golden_only = argc == 2 && !strcmp(argv[1], "golden-only");
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	bool candidate_only = argc == 2 && !strcmp(argv[1], "candidate-only");
+	bool candidate_mutations = argc == 2 &&
+		!strcmp(argv[1], "candidate-mutations");
+	bool candidate_checkpoints = argc == 2 &&
+		!strcmp(argv[1], "candidate-checkpoints");
+#endif
 
-	assert(shared != MAP_FAILED && (argc == 1 || fault_only));
+	assert(shared != MAP_FAILED && (argc == 1 || fault_only || golden_only
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+		|| candidate_only || candidate_mutations || candidate_checkpoints
+#endif
+		));
 	trace_negative_selftests();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	if (candidate_only || candidate_mutations) {
+		candidate_power_cut_tests(shared, candidate_mutations);
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
+	if (candidate_checkpoints) {
+		candidate_checkpoint_tests(shared);
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
+#endif
 	memset(shared, 0, sizeof(*shared));
 	program_count = run_clean_and_direct(shared, program_sizes,
 		ARRAY_SIZE(program_sizes));
-	for (uint32_t occurrence = 1; !fault_only && occurrence <= program_count;
+	for (uint32_t occurrence = 1;
+	     !fault_only && !golden_only && occurrence <= program_count;
 	     occurrence++)
 		for (uint32_t prefix = 0; prefix <= program_sizes[occurrence - 1U];
 		     prefix++)
 			run_program_cut(shared, occurrence, MASK_PREFIX, prefix);
-	for (uint32_t occurrence = 1; !fault_only && occurrence <= program_count;
+	for (uint32_t occurrence = 1;
+	     !fault_only && !golden_only && occurrence <= program_count;
 	     occurrence++)
 		for (enum cut_mask mask = MASK_EVEN; mask <= MASK_PARTIAL_BITS; mask++)
 			run_program_cut(shared, occurrence, mask, 0);
 	reclaim_program_count = discover_reclaim_programs(shared,
 		reclaim_program_sizes,
 		ARRAY_SIZE(reclaim_program_sizes), &reclaim_erase_count, fault_counts);
+	assert_legacy_reclaim_golden(shared);
+	if (golden_only) {
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
 	for (uint32_t occurrence = 1; !fault_only && occurrence <= reclaim_program_count;
 	     occurrence++)
 		for (uint32_t prefix = 0;

@@ -68,6 +68,44 @@ non-convergence call media fail-close with the immutable session owner and then
 perform exactly one sealed end. End failure invalidates any cache binding and
 turns an otherwise successful operation into `DEVICE_ERROR`.
 
+## Whole-store candidate commit prerequisite
+
+`PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT` builds a dormant same-lease commit stage.
+It is not a public prebuilt-image API: the generation and token in a candidate
+result are meaningful only inside the media session which produced them. A
+later coordinator must build the authority, bundle and candidate under that
+same ownership and then invoke the internal commit helper.
+
+The protected arena has a distinct full-store candidate slot and a second
+scanner array. This keeps builder output separate from the authoritative media
+snapshot. After candidate construction, the executor rereads the complete
+SMMSTORE, decodes FTW CLEAN again, rescans the source, and proves its exact
+index, header and digest before allocating a journal entry. It independently
+rescans the candidate, checks the exact binding and policy, source/candidate
+digests, used size, record count and packed volatile projection, then composes
+the unchanged FV header plus candidate store in protected spare staging. A
+separate sealed digest covers that complete staged FV image around every media
+callback, so the store digest cannot leave its copied FV header unbound.
+
+The durable half is the same helper used by legacy reclaim; there is no second
+FTW implementation. Candidate and owner/control seals are checked around every
+phase, and the active source is freshly compared before the first journal byte
+and every old-source phase. Recovery therefore retains the established
+all-old/all-new `fe/fc/fd/f9/f8` sequence. Volatile modes are only staged; the
+test harness publishes them after durable proof and a successful media end.
+Production builds publish no provider, route, dispatcher or endpoint.
+
+The candidate harness fixes the legacy FTW program/erase trace as an immutable
+golden sequence, injects every backend callback failure, resets at every commit
+callback, and resets again at every callback of the ensuing recovery. Each
+case must finish with the complete active FV/variable image byte-exactly old or
+new, a CLEAN FTW decode, and the whole spare erased. CLEAN working-journal bytes
+are intentionally not compared with one canonical byte pattern: empty,
+aborted-complete and destination-complete entries are all valid CLEAN states.
+Arbitrary-depth recovery closure is supplied by the existing exhaustive
+recursive FTW harness over this same unchanged recovery implementation; the
+golden trace proves candidate commit enters that shared state machine.
+
 ## Dormant read transaction
 
 The executor also exposes an internal SMM-only GET, NEXT and QUERY transaction.

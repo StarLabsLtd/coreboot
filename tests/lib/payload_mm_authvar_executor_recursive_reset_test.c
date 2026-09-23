@@ -43,6 +43,9 @@ static size_t progress_current;
 static uint64_t progress_recoveries;
 static uint64_t progress_candidates;
 static unsigned int progress_seed;
+static bool candidate_expectation_active;
+static uint8_t candidate_old_media[REGION_SIZE];
+static uint8_t candidate_new_media[REGION_SIZE];
 
 static bool recursive_byte_selected(enum cut_mask mask, size_t index,
 	size_t size, size_t prefix)
@@ -388,6 +391,63 @@ static void record_fixture(struct seed_fixture *fixtures, const uint8_t *media)
 		fixtures[plan.action].present = true;
 		memcpy(fixtures[plan.action].media, media, REGION_SIZE);
 	}
+}
+
+static void discover_candidate_fixtures(struct shared_state *shared,
+	struct seed_fixture *fixtures)
+{
+	static const enum cut_mask masks[] = {
+		MASK_EVEN,
+		MASK_ODD,
+		MASK_FIRST_LAST,
+		MASK_MIDDLE_QUARTER,
+		MASK_EVERY_FOURTH,
+		MASK_RANDOM_BYTES,
+		MASK_PARTIAL_BITS,
+	};
+	struct recovery_operation operations[MUTATION_JOURNAL_CAPACITY];
+	uint8_t journal_media[REGION_SIZE];
+	uint8_t cut_media[REGION_SIZE];
+	size_t operation_count;
+
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	make_candidate_source(shared);
+	memcpy(candidate_old_media, shared->media, REGION_SIZE);
+	memcpy(journal_media, shared->media, REGION_SIZE);
+	record_fixture(fixtures, shared->media);
+	assert(run_child(shared, CHILD_COMMIT_CANDIDATE) == 0);
+	assert(shared->child_result == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(independent_ftw_clean(shared->media));
+	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	memcpy(candidate_new_media, shared->media, REGION_SIZE);
+	record_fixture(fixtures, shared->media);
+	operation_count = trace_operations(shared, operations,
+		ARRAY_SIZE(operations));
+	assert(operation_count && operation_count == shared->mutation_journal_count);
+	for (size_t operation = 0; operation < operation_count; operation++) {
+		const struct recovery_operation *item = &operations[operation];
+		const struct mutation_journal_entry *entry =
+			&shared->mutation_journal[operation];
+
+		assert(item->kind == (entry->kind == TRACE_PROGRAM ?
+			CUT_PROGRAM : CUT_ERASE));
+		assert(item->offset == entry->offset && item->size == entry->size);
+		assert(!memcmp(journal_media + item->offset, entry->before,
+			item->size));
+		for (uint32_t prefix = 0; prefix <= item->size; prefix++) {
+			make_cut_image(cut_media, journal_media, item, entry,
+				MASK_PREFIX, prefix);
+			record_fixture(fixtures, cut_media);
+		}
+		for (size_t mask = 0; mask < ARRAY_SIZE(masks); mask++) {
+			make_cut_image(cut_media, journal_media, item, entry,
+				masks[mask], 0);
+			record_fixture(fixtures, cut_media);
+		}
+		memcpy(journal_media + item->offset, entry->after, item->size);
+	}
+	assert(!memcmp(journal_media, candidate_new_media, REGION_SIZE));
 }
 
 static void capture_apply_boundaries(struct shared_state *shared,
@@ -805,7 +865,14 @@ static size_t explore_action(struct shared_state *shared,
 	}
 	assert(independent_ftw_clean(shared->media));
 	expected_value = independent_logical_value(shared->media);
-	assert(expected_value == LOGICAL_FIRST || expected_value == LOGICAL_SECOND);
+	if (!candidate_expectation_active)
+		assert(expected_value == LOGICAL_FIRST ||
+			expected_value == LOGICAL_SECOND);
+	if (candidate_expectation_active) {
+		assert(!memcmp(shared->media, candidate_old_media, VARIABLE_SIZE) ||
+			!memcmp(shared->media, candidate_new_media, VARIABLE_SIZE));
+		assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	}
 	memcpy(expected_media, shared->media, REGION_SIZE);
 	memset(shared, 0, sizeof(*shared));
 	memcpy(shared->media, seed_media, REGION_SIZE);
@@ -931,14 +998,19 @@ int main(int argc, char **argv)
 		PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	struct seed_fixture *fixtures = calloc(
 		PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE + 1U, sizeof(*fixtures));
+	struct seed_fixture *candidate_fixtures = calloc(
+		PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE + 1U,
+		sizeof(*candidate_fixtures));
 	uint8_t malformed[REGION_SIZE];
 	size_t total_states = 0;
 
-	assert(shared != MAP_FAILED && fixtures);
+	assert(shared != MAP_FAILED && fixtures && candidate_fixtures);
 	assert(argc == 1 || (argc == 2 && (!strcmp(argv[1], "seeds") ||
 		(strlen(argv[1]) == 1U && argv[1][0] >= '1' && argv[1][0] <= '9'))));
 	discover_fixtures(shared, fixtures);
+	discover_candidate_fixtures(shared, candidate_fixtures);
 	if (argc == 2 && !strcmp(argv[1], "seeds")) {
+		free(candidate_fixtures);
 		free(fixtures);
 		assert(munmap(shared, sizeof(*shared)) == 0);
 		return 0;
@@ -971,6 +1043,27 @@ int main(int argc, char **argv)
 		assert(length > 0 && (size_t)length < sizeof(message));
 		output(1, message, (size_t)length);
 	}
+	candidate_expectation_active = true;
+	for (enum payload_mm_authvar_ftw_action action = PAYLOAD_MM_AUTHVAR_FTW_CLEAN;
+	     action <= PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE; action++) {
+		char message[112];
+		size_t states;
+		int length;
+
+		if (!candidate_fixtures[action].present ||
+		    (argc == 2 && action !=
+		     (enum payload_mm_authvar_ftw_action)(argv[1][0] - '0')))
+			continue;
+		states = explore_action(shared, action,
+			candidate_fixtures[action].media);
+		total_states += states;
+		length = snprintf(message, sizeof(message),
+			"recursive candidate action=%u states=%zu\n",
+			(unsigned int)action, states);
+		assert(length > 0 && (size_t)length < sizeof(message));
+		output(1, message, (size_t)length);
+	}
+	candidate_expectation_active = false;
 	{
 		char message[96];
 		int length = snprintf(message, sizeof(message),
@@ -979,6 +1072,7 @@ int main(int argc, char **argv)
 		assert(length > 0 && (size_t)length < sizeof(message));
 		output(1, message, (size_t)length);
 	}
+	free(candidate_fixtures);
 	free(fixtures);
 	assert(munmap(shared, sizeof(*shared)) == 0);
 	return 0;

@@ -7,6 +7,7 @@
 #include <commonlib/helpers.h>
 #include <string.h>
 
+#include "payload_mm_authvar_internal.h"
 #include "payload_mm_crypto/crypto.h"
 
 #if !ENV_SMM && !ENV_TEST
@@ -453,6 +454,10 @@ static bool projection_matches(
 	const u32 nv_bs_time = nv_bs |
 		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
 
+	if (!payload_mm_authvar_candidate_projection_valid(source, built, binding,
+		bundle->volatile_modes))
+		return false;
+
 	if ((binding->at_runtime && vendor_mutation) ||
 	    binding->source_volatile_modes &
 		~(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
@@ -491,6 +496,101 @@ static bool projection_matches(
 		payload_mm_authvar_store_find(source, secure_boot_enable_guid,
 					      secure_boot_enable_name,
 			sizeof(secure_boot_enable_name)) != NULL;
+}
+
+bool payload_mm_authvar_candidate_projection_valid(
+	const struct payload_mm_authvar_store_index *source,
+	const struct payload_mm_authvar_store_index *candidate,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	u8 volatile_modes)
+{
+	const u32 nv_bs = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+	const u32 nv_bs_time = nv_bs |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	const u8 mode_mask = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	const struct payload_mm_authvar_store_entry *source_pk;
+	const struct payload_mm_authvar_store_entry *candidate_pk;
+	const struct payload_mm_authvar_store_entry *source_enable;
+	const struct payload_mm_authvar_store_entry *candidate_enable;
+	const struct payload_mm_authvar_store_entry *source_vendor;
+	const struct payload_mm_authvar_store_entry *candidate_vendor;
+	const u8 *source_enable_data;
+	const u8 *candidate_enable_data;
+	const u8 *source_vendor_data;
+	const u8 *candidate_vendor_data;
+	bool source_secure;
+	bool secure;
+	bool enable_changed;
+
+	if (!payload_mm_authvar_store_index_valid(source) ||
+	    !payload_mm_authvar_store_index_valid(candidate) || !binding ||
+	    binding->at_runtime > 1U ||
+	    binding->source_volatile_modes & ~mode_mask ||
+	    volatile_modes & ~mode_mask)
+		return false;
+	source_pk = payload_mm_authvar_store_find(source, global_guid, pk_name,
+		sizeof(pk_name));
+	candidate_pk = payload_mm_authvar_store_find(candidate, global_guid, pk_name,
+		sizeof(pk_name));
+	source_enable = payload_mm_authvar_store_find(source, secure_boot_enable_guid,
+		secure_boot_enable_name, sizeof(secure_boot_enable_name));
+	candidate_enable = payload_mm_authvar_store_find(candidate,
+		secure_boot_enable_guid, secure_boot_enable_name,
+		sizeof(secure_boot_enable_name));
+	source_vendor = payload_mm_authvar_store_find(source, vendor_keys_nv_guid,
+		vendor_keys_nv_name, sizeof(vendor_keys_nv_name));
+	candidate_vendor = payload_mm_authvar_store_find(candidate,
+		vendor_keys_nv_guid, vendor_keys_nv_name, sizeof(vendor_keys_nv_name));
+	source_enable_data = payload_mm_authvar_store_data(source, source_enable);
+	candidate_enable_data = payload_mm_authvar_store_data(candidate,
+		candidate_enable);
+	source_vendor_data = payload_mm_authvar_store_data(source, source_vendor);
+	candidate_vendor_data = payload_mm_authvar_store_data(candidate,
+		candidate_vendor);
+	if (!!(binding->source_volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) ==
+	    !!source_pk || !source_vendor || !source_vendor_data ||
+	    source_vendor->attributes != nv_bs_time ||
+	    source_vendor->data_size != 1U || *source_vendor_data > 1U ||
+	    !bytes_are_zero(source->store + source_vendor->record_offset + 16U,
+		16U) ||
+	    !!(binding->source_volatile_modes &
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) != !!*source_vendor_data ||
+	    !candidate_vendor || !candidate_vendor_data ||
+	    candidate_vendor->attributes != nv_bs_time ||
+	    candidate_vendor->data_size != 1U || *candidate_vendor_data > 1U ||
+	    !bytes_are_zero(candidate->store + candidate_vendor->record_offset + 16U,
+		16U) ||
+	    !!(volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) !=
+		!!*candidate_vendor_data ||
+	    !!(volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) == !!candidate_pk ||
+	    (source_enable && (!source_enable_data ||
+	     source_enable->attributes != nv_bs || source_enable->data_size != 1U ||
+	     *source_enable_data > 1U ||
+	     !bytes_are_zero(source->store + source_enable->record_offset + 16U,
+		16U))) ||
+	    (candidate_enable && (!candidate_enable_data ||
+	     candidate_enable->attributes != nv_bs ||
+	     candidate_enable->data_size != 1U || *candidate_enable_data > 1U ||
+	     !bytes_are_zero(candidate->store + candidate_enable->record_offset + 16U,
+		16U))))
+		return false;
+	source_secure = binding->source_volatile_modes &
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+	secure = volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+	enable_changed = !!source_enable != !!candidate_enable ||
+		(source_enable && *source_enable_data != *candidate_enable_data);
+	if (binding->at_runtime)
+		return !enable_changed && secure == source_secure;
+	if ((source_pk && !source_enable) ||
+	    (candidate_pk && !candidate_enable))
+		return false;
+	return source_secure ==
+		(!!source_pk && !!source_enable && !!*source_enable_data) &&
+		secure ==
+		(!!candidate_pk && !!candidate_enable && !!*candidate_enable_data);
 }
 
 static bool result_disjoint_from_inputs(

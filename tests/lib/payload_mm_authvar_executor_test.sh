@@ -187,16 +187,16 @@ mutation_test record-f9-stage \
 	's/PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE);/PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE);/g' \
 	reclaim
 mutation_test final-full-compare \
-	'/result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = verify_media(state, 0, snapshot(), state->contract.store_size);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/' \
+	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = verify_media(state, 0, snapshot(), state->contract.store_size);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
 	final-compare-mutation
 mutation_test bind-before-final-proof \
-	'0,/result = verify_media(state, 0, snapshot(), state->contract.store_size);/ s//payload_mm_authvar_media_cache_bind(state->generation, state->token); result = verify_media(state, 0, snapshot(), state->contract.store_size);/' \
+	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { 0,/result = verify_media(state, 0, snapshot(), state->contract.store_size);/ s//payload_mm_authvar_media_cache_bind(state->generation, state->token); result = verify_media(state, 0, snapshot(), state->contract.store_size);/ }' \
 	final-compare-mutation
 mutation_test final-fresh-snapshot \
-	'/result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = snapshot_read(state);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/' \
+	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = snapshot_read(state);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
 	final-fresh-read-mutation
 mutation_test final-ftw-clean \
-	'/result = verify_media(state, 0/,/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/ s/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/false/' \
+	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/ s/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/false/ }' \
 	final-ftw-action-mutation
 mutation_test final-logical-proof \
 	'/if (!final_data/,/goto end;/ { s/status = poison_session();/status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;/; s/goto end;//; }' \
