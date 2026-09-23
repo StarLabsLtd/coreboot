@@ -142,6 +142,18 @@ struct mutation_journal_entry {
 };
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+enum candidate_checkpoint_target {
+	CANDIDATE_CHECKPOINT_NONE,
+	CANDIDATE_CHECKPOINT_SPARE_COMPLETE = 7,
+	CANDIDATE_CHECKPOINT_PRIMARY_ERASE,
+	CANDIDATE_CHECKPOINT_PRIMARY_IMAGE,
+	CANDIDATE_CHECKPOINT_DESTINATION_COMPLETE,
+	CANDIDATE_CHECKPOINT_JOURNAL_COMPLETE,
+	CANDIDATE_CHECKPOINT_SPARE_CLEAN,
+};
+#endif
+
 struct shared_state {
 	uint8_t media[REGION_SIZE];
 	uint8_t trace_read_image[REGION_SIZE];
@@ -185,6 +197,10 @@ struct shared_state {
 	uint32_t candidate_mutation_offset;
 	uint32_t candidate_mutation_seen;
 	uint32_t candidate_prepare_seen;
+	uint32_t candidate_checkpoint_target;
+	uint32_t candidate_checkpoint_injected;
+	uint32_t candidate_checkpoint_restored;
+	uint32_t candidate_published_modes;
 #endif
 #ifdef RECURSIVE_MUTATION_JOURNAL
 	struct mutation_journal_entry mutation_journal[MUTATION_JOURNAL_CAPACITY];
@@ -203,6 +219,11 @@ static struct payload_mm_authvar_media_port media_port;
 static void *communication;
 static struct trace_entry reclaim_baseline[TRACE_CAPACITY];
 static uint32_t reclaim_baseline_count;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static uint8_t *candidate_staged_image;
+static uint8_t candidate_staged_original;
+static bool candidate_staged_corrupt;
+#endif
 static struct trace_entry direct_baseline[TRACE_CAPACITY];
 static uint32_t direct_baseline_count;
 static uint32_t direct_fault_counts[FAULT_END + 1U];
@@ -942,6 +963,40 @@ static size_t program_partial_fault(struct shared_state *shared,
 	return changed;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+void payload_mm_authvar_candidate_checkpoint_test_hook(uint8_t *image,
+	unsigned int phase, bool before)
+{
+	struct shared_state *shared = backend.shared;
+
+	if (shared->candidate_checkpoint_target != phase)
+		return;
+	assert(image);
+	if (before) {
+		assert(!shared->candidate_checkpoint_injected);
+		candidate_staged_image = image;
+		candidate_staged_original = image[0];
+		if (phase == CANDIDATE_CHECKPOINT_SPARE_COMPLETE)
+			shared->media[FV_HEADER_SIZE +
+				PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE] ^= 1U;
+		else
+			candidate_staged_image[0] ^= 1U;
+		candidate_staged_corrupt = true;
+		shared->candidate_checkpoint_injected++;
+	} else {
+		assert(shared->candidate_checkpoint_injected &&
+			candidate_staged_corrupt);
+		if (phase == CANDIDATE_CHECKPOINT_SPARE_COMPLETE)
+			shared->media[FV_HEADER_SIZE +
+				PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE] ^= 1U;
+		else
+			candidate_staged_image[0] = candidate_staged_original;
+		candidate_staged_corrupt = false;
+		shared->candidate_checkpoint_restored++;
+	}
+}
+#endif
+
 static enum payload_mm_authvar_media_result backend_program(const void *context,
 	uint32_t offset, const void *buffer, size_t size)
 {
@@ -1407,9 +1462,12 @@ static uint64_t prepare_candidate(
 static uint64_t commit_candidate(void)
 {
 	u8 modes = 0;
+	uint64_t status;
 
-	return payload_mm_authvar_executor_test_commit_candidate(prepare_candidate,
+	status = payload_mm_authvar_executor_test_commit_candidate(prepare_candidate,
 		backend.shared, PAYLOAD_MM_AUTHVAR_MODE_SETUP, &modes);
+	backend.shared->candidate_published_modes = modes;
+	return status;
 }
 #endif
 
@@ -2133,6 +2191,44 @@ static void run_candidate_image_mutation(struct shared_state *shared,
 	recover_candidate_cut(shared, old_primary, old_primary);
 }
 
+static void run_candidate_checkpoint(struct shared_state *shared,
+	const uint8_t old_primary[VARIABLE_SIZE],
+	const uint8_t new_primary[VARIABLE_SIZE],
+	enum candidate_checkpoint_target target)
+{
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	memcpy(shared->media, old_primary, VARIABLE_SIZE);
+	shared->candidate_checkpoint_target = (uint32_t)target;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_COMMIT_CANDIDATE) == 1);
+	assert(shared->child_result == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(shared->candidate_published_modes == 0U);
+	assert(shared->candidate_checkpoint_injected == 1U);
+	assert(shared->candidate_checkpoint_restored == 1U);
+	for (uint32_t i = 0; i < shared->trace_count; i++)
+		assert(shared->trace[i].kind != TRACE_CACHE_BIND);
+	shared->candidate_checkpoint_target = CANDIDATE_CHECKPOINT_NONE;
+	recover_candidate_cut(shared, old_primary, new_primary);
+}
+
+static void candidate_checkpoint_tests(struct shared_state *shared)
+{
+	uint8_t old_primary[VARIABLE_SIZE];
+	uint8_t new_primary[VARIABLE_SIZE];
+	uint32_t program_sizes[64];
+	uint32_t program_count;
+	uint32_t erase_count;
+
+	candidate_final_images(shared, old_primary, new_primary, program_sizes,
+		ARRAY_SIZE(program_sizes), &program_count, &erase_count);
+	assert(program_count && erase_count);
+	for (enum candidate_checkpoint_target target =
+	     CANDIDATE_CHECKPOINT_SPARE_COMPLETE;
+	     target <= CANDIDATE_CHECKPOINT_SPARE_CLEAN; target++)
+		run_candidate_checkpoint(shared, old_primary, new_primary, target);
+}
+
 static void candidate_power_cut_tests(struct shared_state *shared,
 	bool mutations_only)
 {
@@ -2725,17 +2821,24 @@ int main(int argc, char **argv)
 	bool candidate_only = argc == 2 && !strcmp(argv[1], "candidate-only");
 	bool candidate_mutations = argc == 2 &&
 		!strcmp(argv[1], "candidate-mutations");
+	bool candidate_checkpoints = argc == 2 &&
+		!strcmp(argv[1], "candidate-checkpoints");
 #endif
 
 	assert(shared != MAP_FAILED && (argc == 1 || fault_only || golden_only
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
-		|| candidate_only || candidate_mutations
+		|| candidate_only || candidate_mutations || candidate_checkpoints
 #endif
 		));
 	trace_negative_selftests();
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	if (candidate_only || candidate_mutations) {
 		candidate_power_cut_tests(shared, candidate_mutations);
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
+	if (candidate_checkpoints) {
+		candidate_checkpoint_tests(shared);
 		assert(munmap(shared, sizeof(*shared)) == 0);
 		return 0;
 	}
