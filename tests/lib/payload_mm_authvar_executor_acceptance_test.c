@@ -2038,12 +2038,40 @@ static void candidate_final_images(struct shared_state *shared,
 	uint8_t new_primary[VARIABLE_SIZE], uint32_t *program_sizes,
 	size_t program_capacity, uint32_t *program_count, uint32_t *erase_count)
 {
+	struct payload_mm_authvar_store_entry source_entries[64];
+	struct payload_mm_authvar_store_entry scratch_entries[64];
+	struct payload_mm_authvar_store_index source = {
+		.entries = source_entries,
+		.entry_capacity = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_candidate_binding binding = {
+		.generation = 1U,
+		.token = 1U,
+		.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+	};
+	struct payload_mm_authvar_candidate_result expected_result;
+	uint8_t expected_store[STORE_SIZE];
 	uint32_t commit_boot;
 
 	memset(shared, 0, sizeof(*shared));
 	make_clean_image(shared);
 	make_candidate_source(shared);
 	memcpy(old_primary, shared->media, VARIABLE_SIZE);
+	assert(payload_mm_authvar_store_scan(&source,
+		shared->media + FV_HEADER_SIZE, STORE_SIZE, &limits) == CB_SUCCESS);
+	assert(prepare_candidate(&source, &binding, expected_store,
+		sizeof(expected_store), scratch_entries, ARRAY_SIZE(scratch_entries),
+		&expected_result, shared) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	memcpy(new_primary, old_primary, FV_HEADER_SIZE);
+	memcpy(new_primary + FV_HEADER_SIZE, expected_store,
+		sizeof(expected_store));
+	shared->candidate_prepare_seen = 0;
 	{
 		int status = run_child(shared, CHILD_COMMIT_CANDIDATE);
 
@@ -2053,8 +2081,8 @@ static void candidate_final_images(struct shared_state *shared,
 	assert(shared->child_result == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	assert(independent_ftw_clean(shared->media));
 	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
-	assert(memcmp(shared->media, old_primary, VARIABLE_SIZE));
-	memcpy(new_primary, shared->media, VARIABLE_SIZE);
+	assert(memcmp(new_primary, old_primary, VARIABLE_SIZE));
+	assert(!memcmp(shared->media, new_primary, VARIABLE_SIZE));
 	commit_boot = shared->boot;
 	*program_count = 0;
 	for (uint32_t i = 0; i < shared->trace_count; i++) {

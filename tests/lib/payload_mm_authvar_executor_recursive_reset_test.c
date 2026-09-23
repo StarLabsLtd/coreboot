@@ -866,8 +866,7 @@ static size_t explore_action(struct shared_state *shared,
 	assert(independent_ftw_clean(shared->media));
 	expected_value = independent_logical_value(shared->media);
 	if (!candidate_expectation_active)
-		assert(expected_value == LOGICAL_ABSENT ||
-			expected_value == LOGICAL_FIRST ||
+		assert(expected_value == LOGICAL_FIRST ||
 			expected_value == LOGICAL_SECOND);
 	if (candidate_expectation_active) {
 		assert(!memcmp(shared->media, candidate_old_media, VARIABLE_SIZE) ||
