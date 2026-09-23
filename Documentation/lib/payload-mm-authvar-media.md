@@ -26,8 +26,13 @@ calls the backend once, syncs, and compares an exact readback. Erase accepts one
 decoder-authorized, aligned erase block only; the erase block must also fit the
 4 KiB protected snapshot capacity. It snapshots the whole block and accepts
 only an all-`0xff` readback. A write-protected result is returned only when the
-readback proves that the media is byte-for-byte unchanged. Partial or ambiguous
-mutation permanently poisons the port.
+readback proves that the media is byte-for-byte unchanged. Any valid backend
+error is likewise preserved when readback proves the media unchanged, including
+when the requested postcondition already held before the callback. If the
+callback reports an error but exact readback proves that it changed the complete
+span to the requested postcondition, the operation is idempotently successful.
+A changed span which is neither the original nor the complete requested value,
+or an invalid backend result, permanently poisons the port.
 
 The SMM-internal buffer-disjoint predicate exposes only a boolean result. It
 rejects null, empty, wrapping, and every exact or partial overlap with the
