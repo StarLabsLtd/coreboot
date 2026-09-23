@@ -22,6 +22,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_store_semantics_test.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		-o "$tmp/test-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done
@@ -47,6 +48,7 @@ check_mutant()
 			-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_store_semantics_test.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" "$mutant" \
+			"$root/src/lib/payload_mm_authvar_record.c" \
 			-o "$binary"
 		if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
 			echo "ERROR: $name O$optimization mutant survived" >&2

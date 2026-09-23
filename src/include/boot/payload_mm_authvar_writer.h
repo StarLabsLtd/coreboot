@@ -3,6 +3,7 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_WRITER_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_WRITER_H
 
+#include <boot/payload_mm_authvar_record.h>
 #include <boot/payload_mm_authvar_store_semantics.h>
 #include <stddef.h>
 #include <stdint.h>

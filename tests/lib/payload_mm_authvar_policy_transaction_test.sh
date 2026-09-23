@@ -27,6 +27,7 @@ compile()
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$binary"
 }
 
@@ -77,6 +78,7 @@ compile_real()
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$binary"
 }
 

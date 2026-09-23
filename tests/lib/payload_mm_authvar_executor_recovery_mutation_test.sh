@@ -53,6 +53,7 @@ compile_mutant()
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+			"$root/src/lib/payload_mm_authvar_record.c" \
 			"$root/src/lib/payload_mm_authvar_writer.c" \
 			-Wl,--wrap=payload_mm_authvar_store_scan -o "$binary" \
 			>"$log" 2>&1; then
@@ -71,6 +72,7 @@ compile_special_baselines()
 		common="$root/src/lib/payload_mm_authvar_ftw.c
 $root/src/lib/payload_mm_authvar_store.c
 $root/src/lib/payload_mm_authvar_store_semantics.c
+$root/src/lib/payload_mm_authvar_record.c
 $root/src/lib/payload_mm_authvar_writer.c"
 		base="$tmp/baseline-scan-O$optimization"
 		cc -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \

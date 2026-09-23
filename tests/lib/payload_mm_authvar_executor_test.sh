@@ -23,6 +23,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$tmp/test-O$optimization"
 	for case in misaligned-arena second-install invalid-geometry null-arena zero-arena null-limits \
 		undersize-arena record-limits geometry-limits overflow-layout \
@@ -63,6 +64,7 @@ cc -std=gnu11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
 	"$root/src/lib/payload_mm_authvar_ftw.c" \
 	"$root/src/lib/payload_mm_authvar_store.c" \
 	"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+	"$root/src/lib/payload_mm_authvar_record.c" \
 	"$root/src/lib/payload_mm_authvar_writer.c" -o "$tmp/real-media"
 for case in clean initialize; do
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/real-media" "$case"
@@ -103,6 +105,7 @@ mutation_test()
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+			"$root/src/lib/payload_mm_authvar_record.c" \
 			"$root/src/lib/payload_mm_authvar_writer.c" -o "$binary" \
 			>"$log" 2>&1; then
 			echo "ERROR: $name O$optimization mutant did not compile" >&2

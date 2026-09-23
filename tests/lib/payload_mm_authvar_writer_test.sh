@@ -22,6 +22,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_writer_test.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$tmp/test-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done

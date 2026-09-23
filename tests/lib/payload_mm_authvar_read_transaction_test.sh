@@ -31,13 +31,15 @@ compile()
 		"$root/tests/lib/payload_mm_authvar_read_transaction_test.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" "$semantics_source" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$binary"
 }
 
 for optimization in 0 2; do
 	binary="$tmp/read-O$optimization"
 	compile "$optimization" "$root/src/lib/payload_mm_authvar_executor.c" \
-		"$root/src/lib/payload_mm_authvar_store_semantics.c" "$binary"
+		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$binary"
 	for case in get get-small next next-small query query-unknown not-found \
 		invalid runtime dirty-tail next-dirty-tail begin-failure read-failure \
 		end-failure end-not-found end-bts publication-order \

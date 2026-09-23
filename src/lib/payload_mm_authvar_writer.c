@@ -8,26 +8,6 @@
 #error "Payload-MM authenticated-variable writer must only be built in SMM"
 #endif
 
-static void write_le16(uint8_t *p, uint16_t value)
-{
-	p[0] = (uint8_t)value;
-	p[1] = (uint8_t)(value >> 8);
-}
-
-static void write_le32(uint8_t *p, uint32_t value)
-{
-	for (size_t i = 0; i < sizeof(value); i++)
-		p[i] = (uint8_t)(value >> (8U * i));
-}
-
-static bool add_size(size_t left, size_t right, size_t *result)
-{
-	if (right > SIZE_MAX - left)
-		return false;
-	*result = left + right;
-	return true;
-}
-
 static bool multiply_size(size_t left, size_t right, size_t *result)
 {
 	if (left && right > SIZE_MAX / left)
@@ -49,14 +29,6 @@ static bool buffers_overlap(const void *left, size_t left_size,
 		return true;
 	return left_base <= right_base + right_size - 1U &&
 		right_base <= left_base + left_size - 1U;
-}
-
-static bool align4(size_t value, size_t *result)
-{
-	if (value > SIZE_MAX - 3U)
-		return false;
-	*result = (value + 3U) & ~(size_t)3U;
-	return true;
 }
 
 static bool all_zero(const uint8_t *bytes, size_t size)
@@ -180,13 +152,8 @@ static bool key_matches(const struct payload_mm_authvar_store_index *index,
 static bool record_size(const struct payload_mm_authvar_record_source *source,
 	size_t data_size, size_t *size, size_t *data_offset)
 {
-	size_t name_end;
-	size_t data_end;
-
-	return add_size(PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, source->name_size,
-		&name_end) && align4(name_end, data_offset) &&
-		add_size(*data_offset, data_size, &data_end) && align4(data_end, size) &&
-		*size <= UINT32_MAX;
+	return payload_mm_authvar_record_layout(source->name_size, data_size, size,
+		data_offset);
 }
 
 static bool add_step(struct payload_mm_authvar_write_plan *plan,
@@ -261,10 +228,10 @@ static bool build_record(const struct payload_mm_authvar_store_index *index,
 	const bool append = source->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
 	const uint8_t *old_data = NULL;
 	size_t old_size = 0;
-	size_t size;
-	size_t data_offset;
-	uint8_t *bytes = record;
 	const uint8_t *timestamp = source->timestamp;
+	struct payload_mm_authvar_record_descriptor descriptor;
+	struct payload_mm_authvar_record_span spans[2];
+	size_t span_count = 0U;
 
 	if (append && replaced) {
 		old_data = payload_mm_authvar_store_data(index, replaced);
@@ -276,29 +243,30 @@ static bool build_record(const struct payload_mm_authvar_store_index *index,
 			source->timestamp) > 0)
 			timestamp = index->store + replaced->record_offset + 16U;
 	}
-	if (source->data_size > SIZE_MAX - old_size ||
-	    !record_size(source, old_size + source->data_size, &size, &data_offset) ||
-	    !bytes || capacity < size)
+	if (source->data_size > SIZE_MAX - old_size)
 		return false;
-	memset(bytes, PAYLOAD_MM_AUTHVAR_STATE_ERASED, size);
-	write_le16(bytes, PAYLOAD_MM_AUTHVAR_RECORD_START_ID);
-	bytes[2] = PAYLOAD_MM_AUTHVAR_STATE_ERASED;
-	bytes[3] = 0;
-	write_le32(bytes + 4, source->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE);
-	memset(bytes + 8, 0, 8);
-	memcpy(bytes + 16, timestamp, 16);
-	write_le32(bytes + 32, 0);
-	write_le32(bytes + 36, (uint32_t)source->name_size);
-	write_le32(bytes + 40, (uint32_t)(old_size + source->data_size));
-	memcpy(bytes + 44, source->vendor_guid, 16);
-	memcpy(bytes + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, source->name,
-		source->name_size);
+	descriptor = (struct payload_mm_authvar_record_descriptor) {
+		.name = source->name,
+		.name_size = source->name_size,
+		.attributes = source->attributes &
+			~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE,
+	};
+	memcpy(descriptor.vendor_guid, source->vendor_guid,
+		sizeof(descriptor.vendor_guid));
+	memcpy(descriptor.timestamp, timestamp, sizeof(descriptor.timestamp));
 	if (old_size)
-		memcpy(bytes + data_offset, old_data, old_size);
+		spans[span_count++] = (struct payload_mm_authvar_record_span) {
+			.data = old_data,
+			.size = old_size,
+		};
 	if (source->data_size)
-		memcpy(bytes + data_offset + old_size, source->data, source->data_size);
-	*output_size = (uint32_t)size;
-	return true;
+		spans[span_count++] = (struct payload_mm_authvar_record_span) {
+			.data = source->data,
+			.size = source->data_size,
+		};
+	return payload_mm_authvar_record_encode(&descriptor, spans, span_count,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED, record, capacity,
+		output_size);
 }
 
 uint64_t payload_mm_authvar_write_plan_build(

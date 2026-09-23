@@ -43,6 +43,7 @@ compile_and_kill()
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+			"$root/src/lib/payload_mm_authvar_record.c" \
 			"$root/src/lib/payload_mm_authvar_writer.c" \
 			-Wl,--wrap=payload_mm_authvar_media_fail_closed \
 			-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \
