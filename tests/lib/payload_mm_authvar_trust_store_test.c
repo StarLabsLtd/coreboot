@@ -663,6 +663,11 @@ static void hostile_inputs(const struct buffer *content, const struct buffer *cm
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
 		&content_span, 1U, &store_index, NULL) == PAYLOAD_MM_VERIFY_INVALID,
 		"NULL plan accepted");
+	signed_data.data = (const uint8_t *)(UINTPTR_MAX - signed_data.size + 1U);
+	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+		&content_span, 1U, &store_index, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		"wrapping CMS span accepted");
+	signed_data = (struct payload_mm_crypto_span) { cms->data, cms->size };
 
 	bad = plan;
 	bad.target = PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE;
@@ -682,6 +687,12 @@ static void hostile_inputs(const struct buffer *content, const struct buffer *cm
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
 		&content_span, 1U, &forged, &plan) == PAYLOAD_MM_VERIFY_INVALID,
 		"oversized index accepted");
+	forged = store_index;
+	forged.entries = (struct payload_mm_authvar_store_entry *)
+		((uint8_t *)store_index.entries + 1U);
+	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+		&content_span, 1U, &forged, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		"misaligned index entries accepted");
 	forged = store_index;
 	forged.entries[0].data_offset = forged.store_size;
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
