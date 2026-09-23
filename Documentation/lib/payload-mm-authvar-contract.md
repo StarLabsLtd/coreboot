@@ -9,7 +9,11 @@ The contract accepts platform facts only when coreboot owns SMM entry, SPI write
 are SMM-only, the complete variable-store region is owned by that SMM path, the
 communication buffer is bounded and outside SMRAM, and no raw/full-flash
 transport remains available. The store must be a proper subset of boot media,
-use power-of-two geometry and contain at least three erase blocks.
+use power-of-two geometry and contain at least three logical FV/FVB blocks.
+`block_size` is that logical layout block size, not the SPI program-page size;
+`erase_size` is the physical erase granularity. `block_size` is an integral
+multiple of `erase_size`, the store base is erase-aligned, and `store_size` is
+an integral multiple of `block_size`.
 
 The ramstage builder validates the proposed contract. The separate SMM runtime
 installs one private copy in its own static storage, exactly once. A mandatory
@@ -40,7 +44,7 @@ eight-byte alignment. The only operations are a fixed-size read, a 20-byte `FmpS
 write, removal of one legacy state variable, and irreversible closure of this
 state channel.
 
-Coreboot trusted initialization must install the namespace `guid_t` in common
+coreboot trusted initialization must install the namespace `guid_t` in common
 UEFI in-memory byte order, hardware
 instance and trusted lowest supported version once. The complete policy is
 copied into protected SMM storage only after the parent authority is installed.
@@ -91,7 +95,7 @@ callback is immutable. Any pointer embedded in it must refer only to a
 protected variable owner, never payload-visible state or a caller-selected
 route.
 
-The port exposes only five sealed SystemFmp keys. Coreboot constructs the exact
+The port exposes only five sealed SystemFmp keys. coreboot constructs the exact
 namespace, hardware-instance suffix and key-specific variable name; the caller
 cannot provide any of them. Records are fixed, eight-byte-aligned 48-byte
 objects containing a rollback-protected sequence, canonical presence bit,

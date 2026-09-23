@@ -63,11 +63,11 @@ mutation_test()
 mutation_test workspace-crc \
 	's/== crc32(canonical/!= crc32(canonical/'
 mutation_test committed-state \
-	's/ != 0xf8U)/ != 0xfbU \&\& header_state != 0xf8U)/'
+	's/header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE)/header_state != 0xfbU \&\& header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE)/'
 mutation_test dirty-tail \
-	's/if (header\[0\] == 0xffU) {/if (false \&\& header[0] == 0xffU) {/'
+	's/if (header\[0\] == PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) {/if (false \&\& header[0] == PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) {/'
 mutation_test queue-threshold \
-	's/offset < FTW_WRITE/offset <= FTW_WRITE/'
+	's/offset < PAYLOAD_MM_AUTHVAR_FTW_WRITE/offset <= PAYLOAD_MM_AUTHVAR_FTW_WRITE/'
 mutation_test restore-validation \
 	's/old_action == PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED/old_action == PAYLOAD_MM_AUTHVAR_FTW_INITIALIZE_WORKSPACE/'
 mutation_test record-bounds \
