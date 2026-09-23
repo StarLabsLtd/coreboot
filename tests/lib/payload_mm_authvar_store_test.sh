@@ -25,6 +25,31 @@ for optimization in 0 2; do
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done
 
+zero_time_mutant="$tmp/payload_mm_authvar_store-zero-time.c"
+sed 's/if (bytes_are(timestamp, 16, 0))/if (false \&\& bytes_are(timestamp, 16, 0))/' \
+	"$root/src/lib/payload_mm_authvar_store.c" > "$zero_time_mutant"
+if cmp -s "$zero_time_mutant" "$root/src/lib/payload_mm_authvar_store.c"; then
+	echo 'ERROR: zero-time mutant changed nothing' >&2
+	exit 1
+fi
+for optimization in 0 2; do
+	binary="$tmp/mutant-zero-time-O$optimization"
+	cc -std=gnu11 -O"$optimization" -Wall -Wextra -Werror -Wconversion \
+		-Wshadow -Wstrict-prototypes -fsanitize=address,undefined \
+		-fno-sanitize-recover=all -fno-builtin -D__TEST__ -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$tmp/include" -I"$root/src" -I"$root/src/include" \
+		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" \
+		"$root/tests/lib/payload_mm_authvar_store_test.c" "$zero_time_mutant" \
+		-o "$binary"
+	if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
+		echo "ERROR: zero-time O$optimization mutant survived" >&2
+		exit 1
+	fi
+done
+
 mutant="$tmp/payload_mm_authvar_store-erased-tail.c"
 sed 's/if (state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {/if (false \&\& state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {/' \
 	"$root/src/lib/payload_mm_authvar_store.c" > "$mutant"

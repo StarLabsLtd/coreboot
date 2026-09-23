@@ -171,6 +171,74 @@ static void read_semantics(void)
 		plan.destination_offset == index.used_size && !plan.copy_count);
 }
 
+static void pinned_edk2_initial_next_order(void)
+{
+	static const uint8_t value = 1;
+	static const uint16_t name_c[] = { 'C', 0 };
+	static const uint16_t name_d[] = { 'D', 0 };
+	static const uint8_t guid_c[16] = { 3 };
+	static const uint8_t guid_d[16] = { 4 };
+	const uint32_t boot_attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+	const uint32_t runtime_attributes = boot_attributes |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	struct payload_mm_authvar_next_result next;
+	size_t transition_a;
+	size_t transition_b;
+	size_t added_a;
+
+	/* FindVariableEx returns the first ADDED record, not an earlier fallback. */
+	init_store(STORE_CAPACITY);
+	transition_a = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	transition_b = add_record(transition_a,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		boot_attributes, guid_a, name_a, 2, &value, sizeof(value));
+	added_a = add_record(transition_b,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		boot_attributes, guid_b, name_b, 2, &value, sizeof(value));
+	add_record(added_a, PAYLOAD_MM_AUTHVAR_STATE_ADDED, boot_attributes,
+		guid_a, name_a, 2, &value, sizeof(value));
+	scan_store();
+	assert(payload_mm_authvar_store_get_next(&index, zero_guid, NULL, 0,
+		sizeof(name_a), false, &next) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(next.entry->record_offset == added_a);
+	assert(payload_mm_authvar_store_get_next(&index, guid_a, name_a,
+		sizeof(name_a), sizeof(name_a), false, &next) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+
+	/* With no ADDED record, FindVariableEx retains the last transition. */
+	init_store(STORE_CAPACITY);
+	transition_a = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	transition_b = add_record(transition_a,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		boot_attributes, guid_a, name_a, 2, &value, sizeof(value));
+	add_record(transition_b,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		boot_attributes, guid_b, name_b, 2, &value, sizeof(value));
+	scan_store();
+	assert(payload_mm_authvar_store_get_next(&index, zero_guid, NULL, 0,
+		sizeof(name_b), false, &next) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(next.entry->record_offset == transition_b);
+
+	/* Runtime filtering is applied before the same selection rule. */
+	init_store(STORE_CAPACITY);
+	transition_a = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	transition_b = add_record(transition_a,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		runtime_attributes, guid_b, name_b, 2, &value, sizeof(value));
+	added_a = add_record(transition_b, PAYLOAD_MM_AUTHVAR_STATE_ADDED,
+		boot_attributes, guid_a, name_a, 2, &value, sizeof(value));
+	added_a = add_record(added_a,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION,
+		runtime_attributes, guid_c, name_c, 2, &value, sizeof(value));
+	add_record(added_a, PAYLOAD_MM_AUTHVAR_STATE_ADDED, runtime_attributes,
+		guid_d, name_d, 2, &value, sizeof(value));
+	scan_store();
+	assert(payload_mm_authvar_store_get_next(&index, zero_guid, NULL, 0,
+		sizeof(name_d), true, &next) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(next.entry->record_offset == added_a);
+}
+
 static void query_and_space_plan(void)
 {
 	static const uint8_t value = 1;
@@ -219,6 +287,20 @@ static void query_and_space_plan(void)
 		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
 	assert(payload_mm_authvar_store_query(&index, &policy,
 		attributes | PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE, false, &query) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(query.maximum_storage == 996U && query.remaining_storage == 928U &&
+		query.maximum_variable == 196U);
+	assert(payload_mm_authvar_store_query(&index, &policy, 1U << 31, false,
+		&query) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(payload_mm_authvar_store_query(&index, &policy,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | (1U << 31), false, &query) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(payload_mm_authvar_store_query(&index, &policy,
+		attributes | (1U << 31), false, &query) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(payload_mm_authvar_store_query(&index, &policy,
+		attributes | PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE |
+			(1U << 31), false, &query) ==
 		PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
 	assert(payload_mm_authvar_store_reclaim_plan(&index, NULL,
 		&zero_data_candidate, false, &plan) == CB_ERR);
@@ -235,6 +317,52 @@ static void query_and_space_plan(void)
 	assert(payload_mm_authvar_store_reclaim_plan(&index, NULL, &candidate,
 		true, &plan) == CB_SUCCESS);
 	assert(plan.action == PAYLOAD_MM_AUTHVAR_SPACE_OUT_OF_RESOURCES);
+}
+
+static void dirty_tail_query_requires_recovery(void)
+{
+	static const uint8_t value = 1;
+	const uint32_t attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	const struct payload_mm_authvar_store_policy policy = {
+		.maximum_storage = STORE_CAPACITY - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		.maximum_record_size = 256,
+	};
+	struct payload_mm_authvar_query_result query = {
+		.maximum_storage = UINT64_MAX,
+		.remaining_storage = UINT64_MAX,
+		.maximum_variable = UINT64_MAX,
+	};
+	size_t end;
+
+	init_store(STORE_CAPACITY);
+	end = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, attributes, guid_a, name_a, 2,
+		&value, sizeof(value));
+	store[end] = 0;
+	scan_store();
+	assert(index.dirty_tail_offset == end && index.used_size == STORE_CAPACITY);
+	assert(payload_mm_authvar_store_query(&index, &policy, attributes, false,
+		&query) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(!query.maximum_storage && !query.remaining_storage &&
+		!query.maximum_variable);
+	assert(payload_mm_authvar_store_query(&index, &policy, attributes, true,
+		&query) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(!query.maximum_storage && !query.remaining_storage &&
+		!query.maximum_variable);
+
+	init_store(STORE_CAPACITY);
+	add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ERASED, attributes, guid_a, name_a, 2,
+		&value, sizeof(value));
+	scan_store();
+	assert(index.dirty_tail_offset == PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE &&
+		index.used_size == STORE_CAPACITY);
+	assert(payload_mm_authvar_store_query(&index, &policy, attributes, false,
+		&query) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(!query.maximum_storage && !query.remaining_storage &&
+		!query.maximum_variable);
 }
 
 static void reclaim_order_and_replacement(void)
@@ -377,7 +505,9 @@ static void zero_guid_is_a_legal_key(void)
 int main(void)
 {
 	read_semantics();
+	pinned_edk2_initial_next_order();
 	query_and_space_plan();
+	dirty_tail_query_requires_recovery();
 	reclaim_order_and_replacement();
 	query_class_isolation();
 	hostile_inputs_fail_closed();

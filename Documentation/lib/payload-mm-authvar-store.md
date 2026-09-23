@@ -18,6 +18,13 @@ record is an impossible EDK2 state and is rejected rather than exposed as a
 successful GET.  Record padding and the unused store tail must remain erased.  An
 EFI GUID is an opaque 128-bit value, so zero and all-ones values are legal keys.
 
+A time-authenticated record may contain the all-zero EFI_TIME sentinel used by
+EDK2 when it initializes variables such as its certificate database and
+`VendorKeysNv` without a signed update. Nonzero timestamps retain the scanner's
+stricter calendar and reserved-field validation. EDK2 26.09's store walk does
+not range-check those calendar fields, so this remains an intentional malformed
+store admission difference rather than a claim of byte-for-byte parser parity.
+
 The index contains visible `VAR_ADDED` records in physical store order.  An
 `VAR_IN_DELETED_TRANSITION & VAR_ADDED` record is a fallback, as in EDK2 26.09;
 a later added record with the same key replaces it at the later physical

@@ -82,6 +82,12 @@ static bool timestamp_valid(const uint8_t timestamp[16], uint32_t attributes)
 
 	if (!time_authenticated)
 		return bytes_are(timestamp, 16, 0);
+	/*
+	 * EDK2 initializes some time-authenticated variables without a signed
+	 * update, so their stored timestamp is the all-zero EFI_TIME sentinel.
+	 */
+	if (bytes_are(timestamp, 16, 0))
+		return true;
 	year = read_le16(timestamp);
 	if (year < 1900 || year > 9999 || timestamp[2] < 1 || timestamp[2] > 12)
 		return false;

@@ -61,7 +61,8 @@ get-small-buffer	read	GET	value exists	insufficient data capacity	BUFFER_TOO_SMA
 get-runtime-hidden	read	GET after ENTER_RUNTIME complete	BS-only variable	name and GUID	NOT_FOUND	store unchanged
 get-runtime-visible	read	GET after ENTER_RUNTIME complete	RT variable	name and GUID	SUCCESS	value returned
 query-valid	quota	QUERY	initialized store	supported attribute class	SUCCESS	maximum remaining and max-variable bounded
-query-unsupported	quota	QUERY	initialized store	unsupported or APPEND attributes	UNSUPPORTED	store unchanged
+query-append	quota	QUERY	initialized store	supported class plus APPEND	SUCCESS	quota for recognized class
+query-unsupported	quota	QUERY	initialized store	unsupported recognized class	UNSUPPORTED	store unchanged
 quota-full	quota	SET	insufficient remaining space	new variable	OUT_OF_RESOURCES	old store readable
 reclaim	journal	SET	reclaim required	valid update	SUCCESS	committed values preserved
 reclaim-interrupted	journal	SET	reset at each FTW step	valid update	ORACLE	exact old or new store recovers
