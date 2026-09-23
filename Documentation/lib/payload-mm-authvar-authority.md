@@ -34,3 +34,22 @@ SecureBoot, VendorKeys, or a private signer binding. Those are not permission
 to commit the target alone. A future composer must turn the mutation and every
 intent into one recoverable multi-variable transaction. Until then the library
 must remain unselected by production boards.
+
+`PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN` is the next dormant, pure stage. It consumes a
+final authority decision, a freshly validated canonical store index, and
+trusted boot/runtime mode facts. `NOOP` and `NOT_FOUND` produce no mutation or
+mode effect. A mutation produces a deterministic role order: target first,
+optional `SecureBootEnable` second, and optional `VendorKeysNv` last. The only
+persistent roles are those three; `SetupMode`, `SecureBoot`, and `VendorKeys`
+exist solely in one packed next-volatile-mode projection.
+
+Pre-runtime PK enrollment writes `SecureBootEnable=1`; PK deletion removes it
+when present. At runtime the EDK2 26.09 rule changes only the projected
+`SetupMode`, retaining `SecureBoot` and `SecureBootEnable`. A required
+non-runtime `VendorKeysNv` update rejects the complete runtime operation. The
+planner requires the canonical `VendorKeysNv` record outside bootstrap, uses
+its exact NV+BS+TIME_AUTH attributes and zero timestamp sentinel, and never
+rewrites an already-modified value. It rejects every internal/derived variable
+as a target, private certdb binding intents, aliases, malformed ranges, and
+inconsistent target or mode facts. It still performs no media operation,
+candidate-image construction, provider selection, or endpoint publication.
