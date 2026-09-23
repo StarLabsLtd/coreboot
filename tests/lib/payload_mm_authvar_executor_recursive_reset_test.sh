@@ -35,6 +35,7 @@ for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" \
 		-Wl,--wrap=payload_mm_authvar_media_fail_closed \
 		-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \

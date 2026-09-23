@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_record.h>
 #include <boot/payload_mm_authvar_store_semantics.h>
 #include <string.h>
 
@@ -149,20 +150,18 @@ static bool physical_record(const struct payload_mm_authvar_store_index *index,
 static bool new_record_size(const struct payload_mm_authvar_new_record *record,
 	uint32_t *size)
 {
-	uint32_t name_end;
-	uint32_t data_end;
+	size_t record_size;
+	size_t data_offset;
 
 	if (!record) {
 		*size = 0;
 		return true;
 	}
 	if (record->name_size < 4U || (record->name_size & 1U) ||
-	    !record->data_size ||
-	    !add_u32(PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, record->name_size,
-		&name_end) || !align4_u32(name_end, &name_end) ||
-	    !add_u32(name_end, record->data_size, &data_end) ||
-	    !align4_u32(data_end, size))
+	    !record->data_size || !payload_mm_authvar_record_layout(
+		record->name_size, record->data_size, &record_size, &data_offset))
 		return false;
+	*size = (uint32_t)record_size;
 	return true;
 }
 

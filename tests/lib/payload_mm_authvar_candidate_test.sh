@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 set -eu
-
 root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -19,16 +18,15 @@ for optimization in 0 2; do
 		-I"$tmp/include" -I"$root/src" -I"$root/src/include" \
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
-		"$root/tests/lib/payload_mm_authvar_writer_test.c" \
+		"$root/tests/lib/payload_mm_authvar_candidate_test.c" \
+		"$root/src/lib/payload_mm_authvar_candidate.c" \
+		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
-		"$root/src/lib/payload_mm_authvar_record.c" \
-		"$root/src/lib/payload_mm_authvar_writer.c" -o "$tmp/test-O$optimization"
+		"$root/src/lib/payload_mm_authvar_format.c" \
+		-o "$tmp/test-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done
 
-awk '/payload_mm_authvar_writer[.]c/ && \
-     $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_WRITER/ { bad = 1 } \
-     END { exit bad }' "$root/src/lib/Makefile.mk"
-
-printf '%s\n' 'Payload-MM authenticated-variable writer tests: PASS'
+printf '%s\n' 'Payload-MM authenticated-variable candidate tests: PASS'

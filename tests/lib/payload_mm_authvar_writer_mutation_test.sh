@@ -26,6 +26,7 @@ compile_and_reject()
 		"$root/tests/lib/payload_mm_authvar_writer_test.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$tmp/$name.c" -o "$tmp/$name"
 	if ASAN_OPTIONS=detect_leaks=1 "$tmp/$name" >/dev/null 2>&1; then
 		printf 'mutation survived: %s\n' "$name" >&2
@@ -36,7 +37,7 @@ compile_and_reject()
 compile_and_reject direct_added \
 	'0,/PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY)/s//PAYLOAD_MM_AUTHVAR_STATE_ADDED)/'
 compile_and_reject persist_append \
-	's/source->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE/source->attributes/'
+	-e 's/~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE/~0U/'
 compile_and_reject reverse_timestamp \
 	's/source->timestamp) > 0/source->timestamp) < 0/'
 compile_and_reject skip_transition \
