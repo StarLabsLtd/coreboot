@@ -11,6 +11,8 @@
 #error "Payload-MM authenticated-variable media must only be built in SMM"
 #endif
 
+#define PROVIDER_SCOPE_CHECK_DOMAIN 0xa79ce19b527d8046ULL
+
 struct media_policy {
 	struct payload_mm_authvar_media_port port;
 	struct payload_mm_authvar_contract contract;
@@ -36,6 +38,11 @@ static struct {
 	uint32_t install_attempted;
 	uint32_t transaction;
 	uint32_t callback_active;
+	uint32_t provider_active;
+	uint32_t provider_violation;
+	uint64_t provider_cookie;
+	uint64_t provider_check;
+	uint64_t next_provider_cookie;
 	uint32_t poisoned;
 	uint32_t fail_closed;
 	bool installed;
@@ -49,6 +56,78 @@ static void poison(void)
 {
 	__atomic_store_n(&media.poisoned, 1, __ATOMIC_RELEASE);
 	__atomic_store_n(&media.cache_bound, 0, __ATOMIC_RELEASE);
+}
+
+static bool provider_reentry(void)
+{
+	if (!__atomic_load_n(&media.provider_active, __ATOMIC_ACQUIRE))
+		return false;
+	__atomic_store_n(&media.provider_violation, 1, __ATOMIC_RELEASE);
+	poison();
+	return true;
+}
+
+bool payload_mm_authvar_media_provider_enter(
+	struct payload_mm_authvar_media_provider_scope *scope)
+{
+	uint32_t expected = 0;
+	uint64_t cookie;
+
+	if (!scope || __atomic_load_n(&media.provider_active, __ATOMIC_ACQUIRE)) {
+		__atomic_store_n(&media.provider_violation, 1, __ATOMIC_RELEASE);
+		poison();
+		return false;
+	}
+	if (__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE))
+		return false;
+	if (!__atomic_compare_exchange_n(&media.provider_active, &expected, 1,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+		__atomic_store_n(&media.provider_violation, 1, __ATOMIC_RELEASE);
+		poison();
+		return false;
+	}
+	if (__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE))
+		goto fail;
+	do {
+		if (media.next_provider_cookie == UINT64_MAX)
+			goto fail;
+		cookie = ++media.next_provider_cookie;
+	} while (cookie == media.generation || cookie == media.token);
+	media.provider_cookie = cookie;
+	media.provider_check = cookie ^ PROVIDER_SCOPE_CHECK_DOMAIN;
+	*scope = (struct payload_mm_authvar_media_provider_scope) {
+		.cookie = cookie,
+		.check = media.provider_check,
+	};
+	return true;
+fail:
+	__atomic_store_n(&media.provider_violation, 1, __ATOMIC_RELEASE);
+	poison();
+	__atomic_store_n(&media.provider_active, 0, __ATOMIC_RELEASE);
+	return false;
+}
+
+bool payload_mm_authvar_media_provider_leave(
+	struct payload_mm_authvar_media_provider_scope *scope)
+{
+	if (!scope || !scope->cookie ||
+	    !__atomic_load_n(&media.provider_active, __ATOMIC_ACQUIRE) ||
+	    scope->cookie != media.provider_cookie ||
+	    scope->check != media.provider_check) {
+		__atomic_store_n(&media.provider_violation, 1, __ATOMIC_RELEASE);
+		poison();
+		return false;
+	}
+	media.provider_cookie = 0;
+	media.provider_check = 0;
+	*scope = (struct payload_mm_authvar_media_provider_scope) { 0 };
+	__atomic_store_n(&media.provider_active, 0, __ATOMIC_RELEASE);
+	return true;
+}
+
+bool payload_mm_authvar_media_provider_violated(void)
+{
+	return __atomic_load_n(&media.provider_violation, __ATOMIC_ACQUIRE) != 0;
 }
 
 static bool result_valid(enum payload_mm_authvar_media_result result)
@@ -99,12 +178,16 @@ static bool overlaps_media(const void *buffer, size_t size)
 
 bool payload_mm_authvar_media_buffer_disjoint(const void *buffer, size_t size)
 {
+	if (provider_reentry())
+		return false;
 	return buffer && size && !overlaps_media(buffer, size);
 }
 
 #if ENV_TEST
 bool payload_mm_authvar_media_test_private_spans_rejected(void)
 {
+	if (provider_reentry())
+		return false;
 	return !payload_mm_authvar_media_buffer_disjoint(&media.policy.port,
 			sizeof(media.policy.port)) &&
 		!payload_mm_authvar_media_buffer_disjoint(&media.policy.contract,
@@ -362,6 +445,8 @@ enum cb_err payload_mm_authvar_media_install(
 	uint8_t context_copy[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY];
 	uint32_t expected = 0;
 
+	if (provider_reentry())
+		return CB_ERR;
 	if (!__atomic_compare_exchange_n(&media.install_attempted, &expected, 1,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
 		return CB_ERR;
@@ -408,6 +493,8 @@ enum cb_err payload_mm_authvar_media_install(
 
 bool payload_mm_authvar_media_available(void)
 {
+	if (provider_reentry())
+		return false;
 	return media.installed &&
 		!__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE) && policy_unchanged();
 }
@@ -420,6 +507,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 	uint32_t expected = 0;
 	bool valid;
 
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!media.installed)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED;
 	if (callback_reentry())
@@ -478,7 +567,7 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_read(
 {
 	uint8_t *snapshot = media.scratch[0];
 
-	if (callback_reentry())
+	if (provider_reentry() || callback_reentry())
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (!protected_buffer(buffer, size) ||
 	    size > PAYLOAD_MM_AUTHVAR_MEDIA_SCRATCH_CAPACITY)
@@ -504,7 +593,7 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	bool synced;
 	bool verified;
 
-	if (callback_reentry() || !protected_buffer(buffer, size) ||
+	if (provider_reentry() || callback_reentry() || !protected_buffer(buffer, size) ||
 	    size > PAYLOAD_MM_AUTHVAR_MEDIA_SCRATCH_CAPACITY ||
 	    !session_valid(generation, token) || !span_valid(offset, size))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -591,7 +680,7 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 	bool synced;
 	bool verified;
 
-	if (callback_reentry() || !session_valid(generation, token) ||
+	if (provider_reentry() || callback_reentry() || !session_valid(generation, token) ||
 	    !erase_authorized(offset, size))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (read_backend(offset, before, size, false) !=
@@ -648,6 +737,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_end(
 	uint32_t expected = TRANSACTION_ACTIVE;
 	bool ended;
 
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	if (__atomic_load_n(&media.callback_active, __ATOMIC_ACQUIRE)) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -669,6 +760,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_fail_closed(
 	uint64_t generation, uint64_t token)
 {
 	/* Misuse of this internal terminal path is itself a fail-closed event. */
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	__atomic_store_n(&media.fail_closed, 1, __ATOMIC_RELEASE);
 	if (__atomic_load_n(&media.callback_active, __ATOMIC_ACQUIRE) ||
 	    !session_owned(generation, token)) {
@@ -681,6 +774,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_fail_closed(
 
 void payload_mm_authvar_media_cache_bind(uint64_t generation, uint64_t token)
 {
+	if (provider_reentry())
+		return;
 	if (!session_valid(generation, token)) {
 		__atomic_store_n(&media.cache_bound, 0, __ATOMIC_RELEASE);
 		return;
@@ -691,11 +786,15 @@ void payload_mm_authvar_media_cache_bind(uint64_t generation, uint64_t token)
 
 void payload_mm_authvar_media_cache_invalidate(void)
 {
+	if (provider_reentry())
+		return;
 	__atomic_store_n(&media.cache_bound, 0, __ATOMIC_RELEASE);
 }
 
 bool payload_mm_authvar_media_cache_valid(uint64_t generation, uint64_t token)
 {
+	if (provider_reentry())
+		return false;
 	return session_valid(generation, token) &&
 		__atomic_load_n(&media.cache_bound, __ATOMIC_ACQUIRE) &&
 		media.cache_generation == generation;
@@ -704,6 +803,8 @@ bool payload_mm_authvar_media_cache_valid(uint64_t generation, uint64_t token)
 uint64_t payload_mm_authvar_media_result_status(
 	enum payload_mm_authvar_media_result result)
 {
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	switch (result) {
 	case PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS:
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;

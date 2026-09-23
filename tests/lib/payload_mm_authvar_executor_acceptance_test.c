@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "payload_mm_authvar_policy_test_provider.h"
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -37,7 +38,7 @@
 #define FV_HEADER_SIZE 72U
 #define STORE_SIZE (VARIABLE_SIZE - FV_HEADER_SIZE)
 #define POLICY_RECORD_SIZE (STORE_SIZE < 8192U ? STORE_SIZE : 8192U)
-#define ARENA_SIZE (64U * 1024U)
+#define ARENA_SIZE (128U * 1024U)
 #define TRACE_CAPACITY 16384U
 #define CHILD_CUT_EXIT 77
 #define RANDOM_MASK_SEED 0x7a13c9e5U
@@ -1074,6 +1075,7 @@ static void install_stack(struct shared_state *shared)
 	assert(payload_mm_authvar_media_install(&media_port) == CB_SUCCESS);
 	assert(payload_mm_authvar_executor_install(arena, sizeof(arena), &limits) ==
 		CB_SUCCESS);
+	assert(test_policy_install() == CB_SUCCESS);
 }
 
 static uint64_t apply_once(bool replace)
@@ -1091,14 +1093,8 @@ static uint64_t apply_once(bool replace)
 			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
 	};
-	struct payload_mm_authvar_write_policy policy = {
-		.maximum_name_size = 128,
-		.maximum_record_size = POLICY_RECORD_SIZE,
-		.maximum_data_size = 2048,
-		.maximum_records = replace ? 1U : 64U,
-	};
 
-	return payload_mm_authvar_executor_apply(&source, &policy, false);
+	return test_policy_apply(&source);
 }
 
 enum child_operation {
@@ -1652,6 +1648,10 @@ static void prepare_first_value(struct shared_state *shared)
 	assert(run_child(shared, CHILD_APPLY_ADD) == 0);
 	assert(independent_logical_value(shared->media) == LOGICAL_FIRST);
 	assert(independent_ftw_clean(shared->media));
+	/* Model a torn append: occupied tail space must be reclaimed, not reused. */
+	shared->media[FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE +
+		((PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + sizeof(variable_name) + 3U) &
+		 ~(size_t)3U) + ((sizeof(variable_data) + 3U) & ~(size_t)3U)] = 0xaaU;
 }
 
 static uint32_t discover_reclaim_programs(struct shared_state *shared,
