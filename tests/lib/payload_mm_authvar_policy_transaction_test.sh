@@ -15,7 +15,7 @@ compile()
 	binary="$3"
 	cc -std=gnu11 -O"$optimization" -Wall -Wextra -Werror -Wconversion \
 		-Wshadow -Wstrict-prototypes -fsanitize=address,undefined \
-		-fno-sanitize-recover=all -fno-builtin -D__TEST__ -D__COREBOOT__ \
+		-fno-sanitize-recover=all -fno-builtin -pthread -D__TEST__ -D__COREBOOT__ \
 		-DEXECUTOR_SOURCE_INCLUDE="\"$source\"" \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
@@ -46,7 +46,7 @@ for optimization in 0 2; do
 		invalid-delete delete-attributes delete-data zero-write \
 		invalid-status recover-reentry transaction-reentry \
 		install-reentry lifecycle session-binding store-pressure after-recovery \
-		end-failure; do
+		end-failure publication-gate; do
 		ASAN_OPTIONS=detect_leaks=1 "$binary" "$case"
 	done
 	if nm -g "$binary" | rg 'payload_mm_authvar_executor_apply'; then
@@ -161,6 +161,19 @@ mutation zero-nonappend-write \
 	's/!mutation->data_size \&\&/false \&\&/' zero-write
 mutation delete-timestamp \
 	's/memcmp(mutation->timestamp, zero_timestamp, sizeof(zero_timestamp))/(false \&\& memcmp(mutation->timestamp, zero_timestamp, sizeof(zero_timestamp)))/' invalid-delete
+early_gate_release='
+1a\
+extern uint32_t gate_release_observed;
+/^uint64_t payload_mm_authvar_policy_transaction(/,/^}/ {
+	/__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);/d
+	s/memset(executor.sealed.arena, 0, executor.sealed.required_size);/&\
+	__atomic_store_n(\&executor.busy, 0, __ATOMIC_RELEASE);\
+	while (!__atomic_load_n(\&gate_release_observed, __ATOMIC_ACQUIRE))\
+		;/
+}'
+mutation early-gate-release \
+	"$early_gate_release" \
+	publication-gate
 
 # Independent public-header negative checks; declarations cannot regain raw apply.
 for forbidden in raw-apply media-token mutation-offset; do
