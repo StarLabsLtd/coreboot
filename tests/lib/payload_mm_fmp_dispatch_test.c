@@ -65,8 +65,8 @@ static struct payload_mm_authvar_contract contract(void)
 		.boot_media_size = 0x1000000,
 		.store_offset = 0x600000,
 		.store_size = 0x60000,
-		.block_size = 0x1000,
-		.erase_size = 0x10000,
+		.block_size = 0x10000,
+		.erase_size = 0x1000,
 	};
 }
 

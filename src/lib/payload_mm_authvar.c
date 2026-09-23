@@ -73,10 +73,11 @@ bool payload_mm_authvar_contract_valid(
 		0, contract->boot_media_size) ||
 	    !power_of_two(contract->block_size) ||
 	    !power_of_two(contract->erase_size) ||
-	    contract->erase_size % contract->block_size ||
+	    contract->block_size % contract->erase_size ||
 	    contract->store_offset % contract->erase_size ||
 	    contract->store_size % contract->erase_size ||
-	    contract->store_size / contract->erase_size <
+	    contract->store_size % contract->block_size ||
+	    contract->store_size / contract->block_size <
 		PAYLOAD_MM_AUTHVAR_MIN_STORE_BLOCKS)
 		return false;
 	return true;

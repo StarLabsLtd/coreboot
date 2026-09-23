@@ -116,6 +116,12 @@ struct payload_mm_authvar_range {
 	uint64_t size;
 };
 
+/*
+ * The block size describes the logical FV/FVB layout block, not an SPI page.
+ * The erase size is the physical erase granularity. Both are powers of two,
+ * block_size is an integral multiple of erase_size, store_offset is erase
+ * aligned, and store_size contains at least three integral logical blocks.
+ */
 /* Immutable facts established by coreboot before any Payload-MM dispatch. */
 struct payload_mm_authvar_contract {
 	uint32_t revision;
