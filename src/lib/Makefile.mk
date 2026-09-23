@@ -15,6 +15,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MEDIA_PORT) += payload_mm_authvar_media.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_WRITER) += payload_mm_authvar_writer.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_EXECUTOR) += payload_mm_authvar_executor.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_FORMAT_PARSER) += payload_mm_authvar_format.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SIGNATURE_DB) += payload_mm_authvar_signature_db.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_ROUTE) += payload_mm_authvar_route.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_TRUST_STORE) += payload_mm_authvar_trust_store.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c

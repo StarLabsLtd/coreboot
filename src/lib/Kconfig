@@ -119,6 +119,17 @@ config PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
 	  It performs bounded byte-wise decoding only and supplies no cryptography,
 	  trust policy, mutation authority, dispatcher or service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_SIGNATURE_DB
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	select PAYLOAD_MM_CMS_CORE
+	help
+	  Build the dormant protected-snapshot Secure Boot signature-database
+	  semantic validator and allocation-free append filter. It validates every
+	  X.509 certificate with the bounded crypto arena, but grants no trust,
+	  authorization, store mutation, provider or endpoint.
+
 config PAYLOAD_MM_AUTHVAR_ROUTE
 	bool
 	default n
@@ -134,6 +145,7 @@ config PAYLOAD_MM_AUTHVAR_TRUST_STORE
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_STORE_SCANNER
 	depends on PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	depends on PAYLOAD_MM_AUTHVAR_SIGNATURE_DB
 	depends on PAYLOAD_MM_AUTHVAR_ROUTE
 	depends on PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR
 	help
