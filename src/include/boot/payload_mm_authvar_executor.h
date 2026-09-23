@@ -7,6 +7,10 @@
 #include <stdint.h>
 #include <types.h>
 
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#include <boot/payload_mm_authvar_candidate.h>
+#endif
+
 struct payload_mm_authvar_executor_limits {
 	uint32_t maximum_store_size;
 	uint32_t maximum_name_size;
@@ -63,5 +67,20 @@ uint64_t payload_mm_authvar_executor_recover(void);
 uint64_t payload_mm_authvar_read_transaction(
 	const struct payload_mm_authvar_read_request *request,
 	struct payload_mm_authvar_read_result *result);
+
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+typedef uint64_t (*payload_mm_authvar_candidate_prepare_test_fn)(
+	const struct payload_mm_authvar_store_index *source,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	void *candidate, size_t candidate_capacity,
+	struct payload_mm_authvar_store_entry *scan_entries,
+	size_t scan_entry_capacity,
+	struct payload_mm_authvar_candidate_result *result, void *context);
+
+/* Test-only in-session admission hook; no production endpoint is emitted. */
+uint64_t payload_mm_authvar_executor_test_commit_candidate(
+	payload_mm_authvar_candidate_prepare_test_fn prepare, void *context,
+	u8 source_volatile_modes, u8 *published_volatile_modes);
+#endif
 
 #endif

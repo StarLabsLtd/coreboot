@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_executor.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#include <boot/payload_mm_authvar_candidate.h>
+#include <payload_mm_cms.h>
+#endif
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
 #include <boot/payload_mm_authvar_policy.h>
@@ -10,6 +14,9 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#include "payload_mm_crypto/crypto.h"
+#endif
 
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM authenticated-variable executor must only be built in SMM"
@@ -30,6 +37,14 @@ struct executor_session {
 	struct payload_mm_authvar_policy_request request;
 	struct payload_mm_authvar_policy_view view;
 	struct payload_mm_authvar_read_result read_result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	struct payload_mm_authvar_candidate_result candidate_result;
+	struct payload_mm_authvar_candidate_binding candidate_binding;
+	uint8_t candidate_image_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint32_t candidate_size;
+	uint32_t candidate_phase;
+	uint8_t staged_volatile_modes;
+#endif
 	uint64_t generation;
 	uint64_t token;
 	uint32_t read_name_capacity;
@@ -45,7 +60,9 @@ struct executor_policy {
 	size_t arena_size;
 	struct payload_mm_authvar_executor_limits limits;
 	size_t snapshot_offset;
+	size_t candidate_offset;
 	size_t entries_offset;
+	size_t candidate_entries_offset;
 	size_t copies_offset;
 	size_t record_offset;
 	size_t name_offset;
@@ -165,7 +182,14 @@ static bool layout_build(struct executor_policy *policy)
 		sizeof(struct payload_mm_authvar_reclaim_copy), &copies_size) ||
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->snapshot_offset) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	    !add_area(&cursor, policy->limits.maximum_store_size,
+		&policy->candidate_offset) ||
+#endif
 	    !add_area(&cursor, entries_size, &policy->entries_offset) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	    !add_area(&cursor, entries_size, &policy->candidate_entries_offset) ||
+#endif
 	    !add_area(&cursor, copies_size, &policy->copies_offset) ||
 	    !add_area(&cursor, policy->limits.maximum_record_size,
 		&policy->record_offset) ||
@@ -241,6 +265,15 @@ struct executor_control_seal {
 	struct payload_mm_authvar_policy_request request;
 	struct payload_mm_authvar_policy_view view;
 	struct payload_mm_authvar_read_result read_result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	struct payload_mm_authvar_candidate_result candidate_result;
+	struct payload_mm_authvar_candidate_binding candidate_binding;
+	uint8_t candidate_image_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint32_t candidate_size;
+	uint32_t candidate_phase;
+	uint8_t staged_volatile_modes;
+	uint8_t candidate_padding[3];
+#endif
 	uint8_t source_guid[16];
 	uint8_t source_timestamp[16];
 	uint64_t generation;
@@ -288,6 +321,15 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->request = state->request;
 	seal->view = state->view;
 	seal->read_result = state->read_result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	seal->candidate_result = state->candidate_result;
+	seal->candidate_binding = state->candidate_binding;
+	memcpy(seal->candidate_image_digest, state->candidate_image_digest,
+		sizeof(seal->candidate_image_digest));
+	seal->candidate_size = state->candidate_size;
+	seal->candidate_phase = state->candidate_phase;
+	seal->staged_volatile_modes = state->staged_volatile_modes;
+#endif
 	memcpy(seal->source_guid, state->source.vendor_guid,
 		sizeof(seal->source_guid));
 	memcpy(seal->source_timestamp, state->source.timestamp,
@@ -1188,6 +1230,384 @@ static enum payload_mm_authvar_media_result advance_marker(
 	return result;
 }
 
+enum candidate_commit_phase {
+	CANDIDATE_PHASE_ADMITTED = 1,
+	CANDIDATE_PHASE_JOURNAL_HEADER,
+	CANDIDATE_PHASE_JOURNAL_ALLOCATED,
+	CANDIDATE_PHASE_JOURNAL_RECORD,
+	CANDIDATE_PHASE_SPARE_ERASE,
+	CANDIDATE_PHASE_SPARE_IMAGE,
+	CANDIDATE_PHASE_SPARE_COMPLETE,
+	CANDIDATE_PHASE_PRIMARY_ERASE,
+	CANDIDATE_PHASE_PRIMARY_IMAGE,
+	CANDIDATE_PHASE_DESTINATION_COMPLETE,
+	CANDIDATE_PHASE_JOURNAL_COMPLETE,
+	CANDIDATE_PHASE_SPARE_CLEAN,
+	CANDIDATE_PHASE_DURABLE,
+};
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static bool digest_matches(const void *data, size_t size,
+	const uint8_t expected[PAYLOAD_MM_SHA256_SIZE])
+{
+	uint8_t digest[PAYLOAD_MM_SHA256_SIZE];
+	enum payload_mm_verify_status status = payload_mm_sha256(data, size, digest);
+	bool matches = status == PAYLOAD_MM_VERIFY_OK &&
+		!memcmp(digest, expected, sizeof(digest));
+
+	memset(digest, 0, sizeof(digest));
+	return matches;
+}
+
+static enum payload_mm_authvar_media_result candidate_checkpoint(
+	struct executor_session *state, const uint8_t *image,
+	enum candidate_commit_phase phase, bool source_must_match)
+{
+	struct executor_control_seal before;
+	uint32_t store_base;
+
+	state->candidate_phase = phase;
+	if (!ftw_store_base(state, &store_base) || !owner_equal(state) ||
+	    !control_snapshot(state, &before, false) ||
+	    state->candidate_size != state->ftw.variable_store_size ||
+	    !digest_matches(image, state->ftw.geometry.variable_size,
+		state->candidate_image_digest) ||
+	    !digest_matches(image + store_base, state->candidate_size,
+		state->candidate_result.candidate_digest) ||
+	    !control_unchanged(state, &before, false))
+		goto contradiction;
+	if (!source_must_match)
+		return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+	{
+		enum payload_mm_authvar_media_result result = verify_media(state,
+			state->ftw.geometry.variable_offset, snapshot(),
+			state->ftw.geometry.variable_size);
+
+		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+			return result;
+	}
+	if (!digest_matches(snapshot() + store_base, state->candidate_size,
+		state->candidate_result.source_digest) ||
+	    !control_unchanged(state, &before, false))
+		goto contradiction;
+	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+
+contradiction:
+	state->invariant_failure = true;
+	return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+}
+
+static enum payload_mm_authvar_media_result candidate_source_fresh(
+	struct executor_session *state)
+{
+	const struct payload_mm_authvar_ftw_geometry *geometry =
+		&state->ftw.geometry;
+	enum payload_mm_authvar_media_result result;
+
+	/* The three verified spans exactly cover the sealed SMMSTORE geometry. */
+	result = verify_media(state, geometry->variable_offset, snapshot(),
+		geometry->variable_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_media(state, geometry->working_offset,
+			snapshot() + geometry->working_offset,
+			geometry->working_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_erased(state, geometry->spare_offset,
+			geometry->spare_size);
+	return result;
+}
+#endif
+
+static enum payload_mm_authvar_media_result candidate_phase_checkpoint(
+	struct executor_session *state, const uint8_t *image,
+	bool candidate_commit, enum candidate_commit_phase phase,
+	bool source_must_match,
+	enum payload_mm_authvar_media_result current)
+{
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	if (candidate_commit && current == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return candidate_checkpoint(state, image, phase, source_must_match);
+#else
+	(void)state;
+	(void)image;
+	(void)candidate_commit;
+	(void)phase;
+	(void)source_must_match;
+#endif
+	return current;
+}
+
+static enum payload_mm_authvar_media_result execute_ftw_image(
+	struct executor_session *state, const uint8_t *image,
+	bool candidate_commit)
+{
+	const struct payload_mm_authvar_ftw_geometry *geometry =
+		&state->ftw.geometry;
+	uint32_t queue = geometry->working_offset + state->ftw.queue_offset;
+	uint8_t *header = snapshot() + queue;
+	uint8_t *record_header = header + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE;
+	enum payload_mm_authvar_media_result result;
+
+	if (!image || state->ftw.queue_offset > geometry->working_size ||
+	    PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+		PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE >
+		geometry->working_size - state->ftw.queue_offset) {
+		state->invariant_failure = true;
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	}
+	memset(header, 0xff, PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+		PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE);
+	memcpy(header + 4U, payload_mm_authvar_ftw_coreboot_caller_guid,
+		sizeof(payload_mm_authvar_ftw_coreboot_caller_guid));
+	write_le64(header + 24U, 1U);
+	write_le64(header + 32U, 0U);
+	write_le64(record_header + 8U, 0U);
+	write_le64(record_header + 16U, state->ftw.fv_header_size);
+	write_le64(record_header + 24U, state->ftw.variable_store_size);
+	write_le64(record_header + 32U,
+		(uint64_t)-(int64_t)geometry->spare_offset);
+	result = verify_erased(state, queue,
+		PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+		PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE);
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return result;
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_ADMITTED, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = checked_program(state, queue + 1U, header + 1U,
+			PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE - 1U);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_media(state, queue + 1U, header + 1U,
+			PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE - 1U);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_JOURNAL_HEADER, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = advance_marker(state, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = advance_marker(state, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_JOURNAL_ALLOCATED, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = checked_program(state,
+			queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + 1U,
+			record_header + 1U,
+			PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE - 1U);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_media(state, queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + 1U,
+			record_header + 1U,
+			PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE - 1U);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_JOURNAL_RECORD, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = erase_span(state, geometry->spare_offset,
+			geometry->spare_size);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_SPARE_ERASE, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = checked_program(state, geometry->spare_offset, image,
+			geometry->variable_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_media(state, geometry->spare_offset, image,
+			geometry->variable_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&
+	    geometry->spare_size > geometry->variable_size)
+		result = verify_erased(state,
+			geometry->spare_offset + geometry->variable_size,
+			geometry->spare_size - geometry->variable_size);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_SPARE_IMAGE, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = advance_marker(state,
+			queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE,
+			PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
+			PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_SPARE_COMPLETE, true, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = erase_span(state, geometry->variable_offset,
+			geometry->variable_size);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_PRIMARY_ERASE, false, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = checked_program(state, geometry->variable_offset, image,
+			geometry->variable_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = verify_media(state, geometry->variable_offset, image,
+			geometry->variable_size);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_PRIMARY_IMAGE, false, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = advance_marker(state,
+			queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE,
+			PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_DESTINATION_COMPLETE, false, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = advance_marker(state, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_JOURNAL_COMPLETE, false, result);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = erase_span(state, geometry->spare_offset,
+			geometry->spare_size);
+	result = candidate_phase_checkpoint(state, image, candidate_commit,
+		CANDIDATE_PHASE_SPARE_CLEAN, false, result);
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return result;
+	memmove(snapshot(), image, geometry->variable_size);
+	memset(snapshot() + geometry->spare_offset, 0xff, geometry->spare_size);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	if (candidate_commit)
+		state->candidate_phase = CANDIDATE_PHASE_DURABLE;
+#endif
+	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+}
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static bool zero_bytes(const void *data, size_t size)
+{
+	const uint8_t *bytes = data;
+	uint8_t combined = 0;
+
+	while (size--)
+		combined |= *bytes++;
+	return combined == 0;
+}
+
+static bool exact_index_equal(
+	const struct payload_mm_authvar_store_index *left,
+	const struct payload_mm_authvar_store_index *right)
+{
+	return left->store == right->store &&
+		left->store_size == right->store_size &&
+		left->used_size == right->used_size &&
+		left->dirty_tail_offset == right->dirty_tail_offset &&
+		left->record_count == right->record_count &&
+		left->entry_count == right->entry_count &&
+		left->entry_capacity == right->entry_capacity &&
+		left->maximum_name_size == right->maximum_name_size &&
+		left->maximum_data_size == right->maximum_data_size &&
+		left->maximum_records == right->maximum_records &&
+		!memcmp(left->entries, right->entries,
+			(size_t)left->entry_count * sizeof(left->entries[0]));
+}
+
+static enum payload_mm_authvar_media_result __maybe_unused
+commit_candidate_image(
+	struct executor_session *state, uint8_t *candidate_store,
+	const struct payload_mm_authvar_candidate_result *result)
+{
+	const struct payload_mm_authvar_store_index source_index = state->index;
+	struct payload_mm_authvar_ftw_plan fresh_ftw;
+	struct payload_mm_authvar_store_index candidate_index = {
+		.entries = arena_at(executor.sealed.candidate_entries_offset),
+		.entry_capacity = executor.sealed.limits.maximum_records,
+	};
+	struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	const uint8_t mode_mask = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	uint8_t *image = snapshot() + state->ftw.geometry.spare_offset;
+	enum payload_mm_authvar_media_result media_result;
+	uint32_t store_base;
+
+	if (!ftw_store_base(state, &store_base) ||
+	    candidate_store != arena_at(executor.sealed.candidate_offset) ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    state->ftw.geometry.variable_size != store_base +
+		state->ftw.variable_store_size ||
+	    state->index.store != snapshot() + store_base ||
+	    state->index.store_size != state->ftw.variable_store_size ||
+	    !payload_mm_authvar_store_index_valid(&state->index) ||
+	    result != &state->candidate_result ||
+	    memcmp(&result->binding, &state->candidate_binding,
+		sizeof(result->binding)) ||
+	    result->binding.generation != state->generation ||
+	    result->binding.token != state->token ||
+	    result->binding.at_runtime > 1U ||
+	    result->binding.at_runtime != state->at_runtime ||
+	    result->binding.source_volatile_modes & ~mode_mask ||
+	    result->volatile_modes & ~mode_mask ||
+	    !zero_bytes(result->binding.reserved,
+		sizeof(result->binding.reserved)) ||
+	    !zero_bytes(result->reserved, sizeof(result->reserved)) ||
+	    memcmp(&result->policy, &state->policy, sizeof(state->policy)) ||
+	    result->source_used_size != state->index.used_size ||
+	    !result->candidate_record_count ||
+	    result->candidate_record_count > state->policy.maximum_records ||
+	    result->candidate_used_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
+	    result->candidate_used_size > state->ftw.variable_store_size ||
+	    !digest_matches(candidate_store, state->ftw.variable_store_size,
+		result->candidate_digest))
+		goto contradiction;
+	/* Candidate staging is disjoint, so this is a literal last-media view. */
+	media_result = snapshot_read(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return media_result;
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &fresh_ftw) != CB_SUCCESS ||
+	    fresh_ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    memcmp(&fresh_ftw, &state->ftw, sizeof(fresh_ftw)))
+		goto contradiction;
+	memset(candidate_index.entries, 0,
+		(size_t)candidate_index.entry_capacity *
+		sizeof(candidate_index.entries[0]));
+	if (payload_mm_authvar_store_scan(&candidate_index,
+		snapshot() + store_base, state->ftw.variable_store_size,
+		&limits) != CB_SUCCESS ||
+	    !exact_index_equal(&source_index, &candidate_index) ||
+	    !digest_matches(candidate_index.store, candidate_index.store_size,
+		result->source_digest))
+		goto contradiction;
+	memset(candidate_index.entries, 0,
+		(size_t)candidate_index.entry_capacity *
+		sizeof(candidate_index.entries[0]));
+	if (payload_mm_authvar_store_scan(&candidate_index, candidate_store,
+		state->ftw.variable_store_size, &limits) != CB_SUCCESS ||
+	    !payload_mm_authvar_store_index_valid(&candidate_index) ||
+	    candidate_index.store_size != state->ftw.variable_store_size ||
+	    candidate_index.used_size != result->candidate_used_size ||
+	    candidate_index.record_count != result->candidate_record_count ||
+	    candidate_index.entry_count != result->candidate_record_count ||
+	    candidate_index.dirty_tail_offset ||
+	    !payload_mm_authvar_candidate_projection_valid(&source_index,
+		&candidate_index, &state->candidate_binding,
+		result->volatile_modes))
+		goto contradiction;
+	memcpy(image, snapshot(), store_base);
+	memcpy(image + store_base, candidate_store,
+		state->ftw.variable_store_size);
+	state->candidate_size = state->ftw.variable_store_size;
+	state->staged_volatile_modes = result->volatile_modes;
+	if (payload_mm_sha256(image, state->ftw.geometry.variable_size,
+		state->candidate_image_digest) != PAYLOAD_MM_VERIFY_OK)
+		goto contradiction;
+	media_result = candidate_source_fresh(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return media_result;
+	media_result = candidate_checkpoint(state, image,
+		CANDIDATE_PHASE_ADMITTED, true);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return media_result;
+	return execute_ftw_image(state, image, true);
+
+contradiction:
+	state->invariant_failure = true;
+	return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+}
+#endif
+
 static enum payload_mm_authvar_media_result execute_reclaim(
 	struct executor_session *state,
 	const struct payload_mm_authvar_store_entry *replaced)
@@ -1196,21 +1616,14 @@ static enum payload_mm_authvar_media_result execute_reclaim(
 		&state->ftw.geometry;
 	uint32_t image_store_base;
 	uint32_t media_store_base;
-	uint32_t queue = geometry->working_offset + state->ftw.queue_offset;
-	uint8_t *header = snapshot() + queue;
-	uint8_t *record_header = header + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE;
 	uint8_t *image = snapshot() + geometry->spare_offset;
 	uint8_t *record = arena_at(executor.sealed.record_offset);
-	enum payload_mm_authvar_media_result result;
 	uint32_t destination = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 
 	if (!ftw_store_base(state, &media_store_base))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	image_store_base = media_store_base;
-	if (state->ftw.queue_offset > geometry->working_size ||
-	    PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE >
-		geometry->working_size - state->ftw.queue_offset ||
-	    state->reclaim.action != PAYLOAD_MM_AUTHVAR_SPACE_RECLAIM ||
+	if (state->reclaim.action != PAYLOAD_MM_AUTHVAR_SPACE_RECLAIM ||
 	    state->reclaim.copy_count > state->reclaim.copy_capacity ||
 	    state->reclaim.copy_count > executor.sealed.limits.maximum_records ||
 	    state->reclaim.copy_count != state->index.entry_count -
@@ -1315,83 +1728,7 @@ static enum payload_mm_authvar_media_result execute_reclaim(
 		}
 		memset(&state->index, 0, sizeof(state->index));
 	}
-	memset(header, 0xff, PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
-		PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE);
-	memcpy(header + 4U, payload_mm_authvar_ftw_coreboot_caller_guid,
-		sizeof(payload_mm_authvar_ftw_coreboot_caller_guid));
-	write_le64(header + 24U, 1U);
-	write_le64(header + 32U, 0U);
-	write_le64(record_header + 8U, 0U);
-	write_le64(record_header + 16U, state->ftw.fv_header_size);
-	write_le64(record_header + 24U, state->ftw.variable_store_size);
-	write_le64(record_header + 32U,
-		(uint64_t)-(int64_t)geometry->spare_offset);
-	result = verify_erased(state, queue,
-		PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE);
-	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		return result;
-	result = checked_program(state, queue + 1U, header + 1U,
-		PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE - 1U);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = verify_media(state, queue + 1U, header + 1U,
-			PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE - 1U);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = advance_marker(state, queue,
-			PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
-			PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = advance_marker(state, queue,
-			PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED,
-			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = checked_program(state, queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + 1U,
-			record_header + 1U, PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE - 1U);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = verify_media(state, queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE + 1U,
-			record_header + 1U, PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE - 1U);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = erase_span(state, geometry->spare_offset,
-			geometry->spare_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = checked_program(state, geometry->spare_offset, image,
-			geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = verify_media(state, geometry->spare_offset, image,
-			geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&
-	    geometry->spare_size > geometry->variable_size)
-		result = verify_erased(state,
-			geometry->spare_offset + geometry->variable_size,
-			geometry->spare_size - geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = advance_marker(state, queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE,
-			PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
-			PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = erase_span(state, geometry->variable_offset,
-			geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = checked_program(state, geometry->variable_offset, image,
-			geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = verify_media(state, geometry->variable_offset, image,
-			geometry->variable_size);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = advance_marker(state, queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE,
-			PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
-			PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = advance_marker(state, queue,
-			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
-			PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE);
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		result = erase_span(state, geometry->spare_offset,
-			geometry->spare_size);
-	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
-		return result;
-	memmove(snapshot(), image, geometry->variable_size);
-	memset(snapshot() + geometry->spare_offset, 0xff, geometry->spare_size);
-	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+	return execute_ftw_image(state, image, false);
 
 contradiction:
 	state->invariant_failure = true;
@@ -1712,6 +2049,178 @@ out:
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
+
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+uint64_t payload_mm_authvar_executor_test_commit_candidate(
+	payload_mm_authvar_candidate_prepare_test_fn prepare, void *context,
+	u8 source_volatile_modes, u8 *published_volatile_modes)
+{
+	struct payload_mm_authvar_candidate_binding binding;
+	struct payload_mm_authvar_candidate_result prepared;
+	struct executor_control_seal before_prepare;
+	struct payload_mm_authvar_store_limits scan_limits;
+	struct executor_session *state;
+	enum payload_mm_authvar_media_result media_result;
+	enum payload_mm_authvar_media_result end_result =
+		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	uint8_t *candidate_store;
+	uint8_t source_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t entries_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t check_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint64_t status;
+	uint32_t expected = 0;
+	uint32_t store_base;
+	size_t entries_size;
+
+	if (!prepare || !published_volatile_modes || source_volatile_modes &
+	    ~(PAYLOAD_MM_AUTHVAR_MODE_SETUP | PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+	      PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) ||
+	    !external_protected_span(published_volatile_modes,
+		sizeof(*published_volatile_modes)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	*published_volatile_modes = 0;
+	if (provider_reentry() || !executor.installed || !policy_equal())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	state = session();
+	memset(state, 0, sizeof(*state));
+	state->at_runtime = executor.at_runtime;
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+		status = poison_session();
+		goto end;
+	}
+	status = recover_session(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	if (!ftw_store_base(state, &store_base)) {
+		status = poison_session();
+		goto end;
+	}
+	state->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_record_size = executor.sealed.limits.maximum_record_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	if (state->policy.maximum_record_size > state->index.store_size)
+		state->policy.maximum_record_size = state->index.store_size;
+	if (state->policy.maximum_data_size > state->policy.maximum_record_size)
+		state->policy.maximum_data_size = state->policy.maximum_record_size;
+	binding = (struct payload_mm_authvar_candidate_binding) {
+		.generation = state->generation,
+		.token = state->token,
+		.source_volatile_modes = source_volatile_modes,
+		.at_runtime = state->at_runtime,
+	};
+	state->candidate_binding = binding;
+	candidate_store = arena_at(executor.sealed.candidate_offset);
+	memset(&state->candidate_result, 0, sizeof(state->candidate_result));
+	memset(&prepared, 0, sizeof(prepared));
+	entries_size = (size_t)state->index.entry_count *
+		sizeof(state->index.entries[0]);
+	if (!control_snapshot(state, &before_prepare, false) ||
+	    payload_mm_sha256(state->index.store, state->index.store_size,
+		source_digest) != PAYLOAD_MM_VERIFY_OK ||
+	    payload_mm_sha256(state->index.entries, entries_size,
+		entries_digest) != PAYLOAD_MM_VERIFY_OK) {
+		status = poison_session();
+		goto end;
+	}
+	status = prepare(&state->index, &binding, candidate_store,
+		state->ftw.variable_store_size,
+		arena_at(executor.sealed.candidate_entries_offset),
+		executor.sealed.limits.maximum_records,
+		&prepared, context);
+	/* A hostile test callback may know the caller output through its context. */
+	*published_volatile_modes = 0;
+	if (!owner_equal(state) || !control_unchanged(state, &before_prepare, false) ||
+	    payload_mm_sha256(state->index.store, state->index.store_size,
+		check_digest) != PAYLOAD_MM_VERIFY_OK ||
+	    memcmp(check_digest, source_digest, sizeof(check_digest)) ||
+	    payload_mm_sha256(state->index.entries, entries_size,
+		check_digest) != PAYLOAD_MM_VERIFY_OK ||
+	    memcmp(check_digest, entries_digest, sizeof(check_digest))) {
+		status = poison_session();
+		goto end;
+	}
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	state->candidate_result = prepared;
+	media_result = commit_candidate_image(state, candidate_store,
+		&state->candidate_result);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(media_result);
+		goto end;
+	}
+	media_result = verify_media(state, 0, snapshot(), state->contract.store_size);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(media_result);
+		goto end;
+	}
+	media_result = snapshot_read(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(media_result);
+		goto end;
+	}
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    !ftw_store_base(state, &store_base) ||
+	    !digest_matches(snapshot() + store_base,
+		state->ftw.variable_store_size,
+		state->candidate_result.candidate_digest)) {
+		status = poison_session();
+		goto end;
+	}
+	scan_limits = (struct payload_mm_authvar_store_limits) {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	memset(&state->index, 0, sizeof(state->index));
+	state->index.entries = arena_at(executor.sealed.entries_offset);
+	state->index.entry_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&state->index, snapshot() + store_base,
+		state->ftw.variable_store_size, &scan_limits) != CB_SUCCESS ||
+	    state->index.used_size != state->candidate_result.candidate_used_size ||
+	    state->index.entry_count !=
+		state->candidate_result.candidate_record_count) {
+		status = poison_session();
+		goto end;
+	}
+	payload_mm_authvar_media_cache_bind(state->generation, state->token);
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+end:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+	    end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		*published_volatile_modes = state->staged_volatile_modes;
+out:
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		*published_volatile_modes = 0;
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+#endif
 
 uint64_t payload_mm_authvar_read_transaction(
 	const struct payload_mm_authvar_read_request *request,
