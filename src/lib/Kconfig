@@ -153,6 +153,19 @@ config PAYLOAD_MM_AUTHVAR_TRUST_STORE
 	  only an immutable scanner-produced index and canonical user-mode route,
 	  but performs no Auth2, replay, payload or mutation decision.
 
+config PAYLOAD_MM_AUTHVAR_AUTHORITY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_EXECUTOR
+	depends on PAYLOAD_MM_AUTHVAR_SIGNATURE_DB
+	depends on PAYLOAD_MM_AUTHVAR_ROUTE
+	help
+	  Build the dormant allocation-free Auth2 policy authority. It consumes one
+	  immutable protected store snapshot, emits one canonical target mutation
+	  and typed derived-state intents, but installs no provider or endpoint and
+	  performs no store or media operation. A later atomic multi-variable
+	  composer is required before this authority may be selected for service.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n

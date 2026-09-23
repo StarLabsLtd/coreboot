@@ -143,6 +143,82 @@ static bool entry_span_valid(const struct payload_mm_authvar_store_index *index,
 	return offset <= index->store_size && size <= index->store_size - offset;
 }
 
+static bool range_valid(const void *data, size_t size)
+{
+	return size == 0U ||
+		(data && (uintptr_t)data <= UINTPTR_MAX - size);
+}
+
+bool payload_mm_authvar_store_index_valid(
+	const struct payload_mm_authvar_store_index *index)
+{
+	size_t entry_bytes;
+
+	if (!index || (uintptr_t)index % _Alignof(*index) ||
+	    !range_valid(index, sizeof(*index)) || !index->store || !index->entries ||
+	    (uintptr_t)index->entries % _Alignof(index->entries[0]) ||
+	    index->store_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
+	    index->store_size > PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_SIZE ||
+	    index->used_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
+	    index->used_size > index->store_size ||
+	    index->record_count > index->maximum_records ||
+	    index->entry_count > index->entry_capacity ||
+	    index->entry_count > index->record_count ||
+	    index->entry_count > index->maximum_records ||
+	    index->maximum_name_size < 2U * sizeof(uint16_t) ||
+	    index->maximum_name_size >
+		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE ||
+	    (index->maximum_name_size & 1U) || !index->maximum_data_size ||
+	    index->maximum_data_size >
+		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE ||
+	    !index->maximum_records || index->maximum_records >
+		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS ||
+	    __builtin_mul_overflow((size_t)index->entry_count,
+		sizeof(index->entries[0]), &entry_bytes) ||
+	    !range_valid(index->store, index->store_size) ||
+	    !range_valid(index->entries, entry_bytes))
+		return false;
+	for (uint32_t i = 0U; i < index->entry_count; i++) {
+		const struct payload_mm_authvar_store_entry *entry = &index->entries[i];
+		const uint8_t *header;
+		size_t data_offset;
+
+		if (!entry_span_valid(index, entry->record_offset,
+			PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE) ||
+		    entry->record_offset >= index->used_size ||
+		    PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE >
+			index->used_size - entry->record_offset ||
+		    entry->name_offset != entry->record_offset +
+			PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
+		    !entry_span_valid(index, entry->name_offset, entry->name_size) ||
+		    !entry_span_valid(index, entry->data_offset, entry->data_size) ||
+		    entry->name_offset > index->used_size ||
+		    entry->name_size > index->used_size - entry->name_offset ||
+		    entry->data_offset > index->used_size ||
+		    entry->data_size > index->used_size - entry->data_offset ||
+		    entry->name_size > index->maximum_name_size ||
+		    entry->data_size > index->maximum_data_size)
+			return false;
+		header = index->store + entry->record_offset;
+		data_offset = (size_t)entry->name_offset + entry->name_size;
+		if (!align4(data_offset, &data_offset) ||
+		    data_offset != entry->data_offset ||
+		    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID ||
+		    header[3] ||
+		    (header[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED &&
+		     header[2] !=
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION) ||
+		    read_le32(header + 4U) != entry->attributes ||
+		    read_le32(header + 36U) != entry->name_size ||
+		    read_le32(header + 40U) != entry->data_size ||
+		    memcmp(header + 44U, entry->vendor_guid,
+			sizeof(entry->vendor_guid)) ||
+		    !name_valid(index->store + entry->name_offset, entry->name_size))
+			return false;
+	}
+	return true;
+}
+
 enum cb_err payload_mm_authvar_store_scan(
 	struct payload_mm_authvar_store_index *index, const void *store,
 	size_t buffer_size, const struct payload_mm_authvar_store_limits *limits)

@@ -62,6 +62,9 @@ struct payload_mm_authvar_store_index {
 enum cb_err payload_mm_authvar_store_scan(
 	struct payload_mm_authvar_store_index *index, const void *store,
 	size_t buffer_size, const struct payload_mm_authvar_store_limits *limits);
+/* Revalidate every scanner/index invariant before policy consumes a snapshot. */
+bool payload_mm_authvar_store_index_valid(
+	const struct payload_mm_authvar_store_index *index);
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_find(
 	const struct payload_mm_authvar_store_index *index,
 	const uint8_t vendor_guid[16], const void *name, size_t name_size);
