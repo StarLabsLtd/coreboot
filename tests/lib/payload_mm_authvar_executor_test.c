@@ -65,6 +65,27 @@ static bool fake_provider_violation;
 static unsigned int cache_bind_count;
 static unsigned int fail_operation;
 static unsigned int operation_count;
+enum test_callback_kind {
+	TEST_CALLBACK_BEGIN = 1,
+	TEST_CALLBACK_READ,
+	TEST_CALLBACK_PROGRAM,
+	TEST_CALLBACK_ERASE,
+	TEST_CALLBACK_SYNC,
+	TEST_CALLBACK_END,
+};
+static uint8_t callback_trace[256];
+static unsigned int callback_trace_count;
+#if !defined(EXECUTOR_REAL_MEDIA) || CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static enum payload_mm_authvar_media_result generic_fault_result =
+	PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+static const uint8_t candidate_callback_golden[] = {
+	1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 2,
+	2, 3, 2, 3, 2, 3, 2, 2, 4, 4, 2, 3, 2, 2, 2, 2, 3, 2, 4, 3,
+	2, 2, 3, 2, 3, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 6,
+};
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 enum candidate_media_fault_kind {
 	CANDIDATE_MEDIA_FAULT_NONE,
@@ -82,6 +103,9 @@ static unsigned int reset_operation;
 static bool mutate_on_program;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 static bool mutate_candidate_header_on_program;
+static bool mutate_candidate_source_on_program;
+static size_t candidate_image_mutation_offset;
+static unsigned int candidate_image_mutation_bit;
 #endif
 static bool mutate_record_on_read;
 static bool mutate_control_on_read;
@@ -303,9 +327,11 @@ static void make_clean(void)
 	make_workspace(working(), 0xfeU);
 }
 
-static bool fault(void)
+static bool fault(enum test_callback_kind kind)
 {
 	operation_count++;
+	assert(callback_trace_count < ARRAY_SIZE(callback_trace));
+	callback_trace[callback_trace_count++] = (uint8_t)kind;
 #ifdef EXECUTOR_REAL_MEDIA
 	if (reset_operation && operation_count == reset_operation)
 		_exit(77);
@@ -407,8 +433,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 		reenter_on_begin = false;
 		nested_status = payload_mm_authvar_executor_recover();
 	}
-	if (fault())
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (fault(TEST_CALLBACK_BEGIN))
+		return generic_fault_result;
 	*generation = 1;
 	*token = 2;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
@@ -439,9 +465,9 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_read(
 		}
 		start_alternate_snapshot = false;
 	}
-	if (fault() || generation != 1 || token != 2 ||
+	if (fault(TEST_CALLBACK_READ) || generation != 1 || token != 2 ||
 	    offset > MEDIA_SIZE || size > MEDIA_SIZE - offset)
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+		return generic_fault_result;
 	if (offset == 3U * BLOCK_SIZE)
 		tail_read_count++;
 	if (fake_erased_reads && offset >= 2U * BLOCK_SIZE) {
@@ -522,8 +548,16 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	}
 	if (mutate_candidate_header_on_program && offset == 2U * BLOCK_SIZE &&
 	    size == BLOCK_SIZE) {
-		((uint8_t *)buffer)[0] ^= 1U;
+		assert(candidate_image_mutation_offset < size &&
+			candidate_image_mutation_bit < 8U);
+		((uint8_t *)buffer)[candidate_image_mutation_offset] ^=
+			(uint8_t)(1U << candidate_image_mutation_bit);
 		mutate_candidate_header_on_program = false;
+	}
+	if (mutate_candidate_source_on_program && offset == BLOCK_SIZE +
+	    PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE + 1U) {
+		media[FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE] ^= 1U;
+		mutate_candidate_source_on_program = false;
 	}
 #endif
 	if (program_count <= ARRAY_SIZE(program_trace))
@@ -564,9 +598,9 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	    offset == BLOCK_SIZE + PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE &&
 	    wanted[0] == PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE)
 		restore_queue_committed = true;
-	if (fault() || generation != 1 || token != 2 ||
+	if (fault(TEST_CALLBACK_PROGRAM) || generation != 1 || token != 2 ||
 	    offset > MEDIA_SIZE || size > MEDIA_SIZE - offset)
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+		return generic_fault_result;
 	for (size_t i = 0; i < size; i++) {
 		if ((media[offset + i] & wanted[i]) != wanted[i])
 			return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -653,10 +687,11 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 			.offset = offset,
 			.size = (uint32_t)size,
 		};
-	if (fault() || generation != 1 || token != 2 || size != BLOCK_SIZE ||
+	if (fault(TEST_CALLBACK_ERASE) || generation != 1 || token != 2 ||
+	    size != BLOCK_SIZE ||
 	    offset % BLOCK_SIZE || offset > MEDIA_SIZE ||
 	    size > MEDIA_SIZE - offset)
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+		return generic_fault_result;
 	if (!erase_noop)
 		memset(media + offset, 0xff, size);
 	else if (offset + size == MEDIA_SIZE)
@@ -678,8 +713,9 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_end(
 	uint64_t generation, uint64_t token)
 {
 	end_count++;
-	if (generation != 1 || token != 2 || fault() || poisoned || fail_end)
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (generation != 1 || token != 2 || fault(TEST_CALLBACK_END) || poisoned ||
+	    fail_end)
+		return generic_fault_result;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
 }
 
@@ -769,7 +805,7 @@ static enum payload_mm_authvar_media_result real_begin(const void *context,
 	const struct real_context *real = context;
 
 	begin_count++;
-	if (real->marker != 0x5245414cU || fault())
+	if (real->marker != 0x5245414cU || fault(TEST_CALLBACK_BEGIN))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	*generation = 1;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
@@ -781,7 +817,8 @@ static enum payload_mm_authvar_media_result real_read(const void *context,
 	const struct real_context *real = context;
 
 	read_count++;
-	if (real->marker != 0x5245414cU || fault() || offset > MEDIA_SIZE ||
+	if (real->marker != 0x5245414cU || fault(TEST_CALLBACK_READ) ||
+	    offset > MEDIA_SIZE ||
 	    size > MEDIA_SIZE - offset)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	memcpy(buffer, media + offset, size);
@@ -796,7 +833,8 @@ static enum payload_mm_authvar_media_result real_program(const void *context,
 	const uint8_t *wanted = buffer;
 
 	program_count++;
-	if (real->marker != 0x5245414cU || fault() || offset > MEDIA_SIZE ||
+	if (real->marker != 0x5245414cU || fault(TEST_CALLBACK_PROGRAM) ||
+	    offset > MEDIA_SIZE ||
 	    size > MEDIA_SIZE - offset)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	for (size_t i = 0; i < size; i++)
@@ -810,7 +848,8 @@ static enum payload_mm_authvar_media_result real_erase(const void *context,
 	const struct real_context *real = context;
 
 	erase_count++;
-	if (real->marker != 0x5245414cU || fault() || offset > MEDIA_SIZE ||
+	if (real->marker != 0x5245414cU || fault(TEST_CALLBACK_ERASE) ||
+	    offset > MEDIA_SIZE ||
 	    size > MEDIA_SIZE - offset)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	memset(media + offset, 0xff, size);
@@ -821,7 +860,7 @@ static enum payload_mm_authvar_media_result real_sync(const void *context)
 {
 	const struct real_context *real = context;
 
-	return real->marker == 0x5245414cU && !fault() ?
+	return real->marker == 0x5245414cU && !fault(TEST_CALLBACK_SYNC) ?
 		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS :
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 }
@@ -831,7 +870,7 @@ static enum payload_mm_authvar_media_result real_end(const void *context)
 	const struct real_context *real = context;
 
 	end_count++;
-	return real->marker == 0x5245414cU && !fault() ?
+	return real->marker == 0x5245414cU && !fault(TEST_CALLBACK_END) ?
 		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS :
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 }
@@ -1240,6 +1279,8 @@ static bool erased(const uint8_t *bytes, size_t size)
 }
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+_Static_assert(sizeof(struct payload_mm_authvar_candidate_result) == 120U,
+	"candidate result mutation matrix changed");
 enum candidate_prepare_mode {
 	CANDIDATE_PREPARE_OK,
 	CANDIDATE_PREPARE_BINDING,
@@ -1268,6 +1309,9 @@ enum candidate_prepare_mode {
 	CANDIDATE_PREPARE_QUEUE_MEDIA,
 	CANDIDATE_PREPARE_SPARE_MEDIA,
 	CANDIDATE_PREPARE_IMAGE_CALLBACK,
+	CANDIDATE_PREPARE_SOURCE_CALLBACK,
+	CANDIDATE_PREPARE_DIRTY_TAIL,
+	CANDIDATE_PREPARE_RESULT_BIT,
 };
 
 struct candidate_prepare_context {
@@ -1275,6 +1319,8 @@ struct candidate_prepare_context {
 	u8 *published_modes;
 	enum candidate_media_fault_kind media_fault;
 	enum payload_mm_authvar_media_result media_fault_result;
+	size_t result_mutation_offset;
+	unsigned int result_mutation_bit;
 };
 
 enum payload_mm_verify_status payload_mm_sha256(const void *message,
@@ -1402,6 +1448,19 @@ static uint64_t prepare_candidate(
 		spare()[0] = 0x7fU;
 	else if (context->mode == CANDIDATE_PREPARE_IMAGE_CALLBACK)
 		mutate_candidate_header_on_program = true;
+	else if (context->mode == CANDIDATE_PREPARE_SOURCE_CALLBACK)
+		mutate_candidate_source_on_program = true;
+	else if (context->mode == CANDIDATE_PREPARE_DIRTY_TAIL) {
+		candidate[record_offset + 2U] =
+			PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY;
+		assert(payload_mm_sha256(candidate, candidate_capacity,
+			result->candidate_digest) == PAYLOAD_MM_VERIFY_OK);
+	} else if (context->mode == CANDIDATE_PREPARE_RESULT_BIT) {
+		assert(context->result_mutation_offset < sizeof(*result) &&
+			context->result_mutation_bit < 8U);
+		((uint8_t *)result)[context->result_mutation_offset] ^=
+			(uint8_t)(1U << context->result_mutation_bit);
+	}
 	if (context->media_fault != CANDIDATE_MEDIA_FAULT_NONE) {
 		candidate_media_fault = context->media_fault;
 		candidate_media_fault_result = context->media_fault_result;
@@ -1479,6 +1538,9 @@ static void candidate_commit_case(enum candidate_prepare_mode mode,
 		assert(erase_count == ARRAY_SIZE(golden_erase));
 		assert(!memcmp(program_trace, golden_program, sizeof(golden_program)));
 		assert(!memcmp(erase_trace, golden_erase, sizeof(golden_erase)));
+		assert(callback_trace_count == ARRAY_SIZE(candidate_callback_golden));
+		assert(!memcmp(callback_trace, candidate_callback_golden,
+			sizeof(candidate_callback_golden)));
 #else
 		(void)golden_program;
 		(void)golden_erase;
@@ -1514,6 +1576,66 @@ static void candidate_media_error_case(enum candidate_media_fault_kind kind,
 		assert(program_count == 0U && erase_count == 0U);
 }
 
+static void candidate_result_bit_case(size_t offset, unsigned int bit)
+{
+	struct candidate_prepare_context context = {
+		.mode = CANDIDATE_PREPARE_RESULT_BIT,
+		.result_mutation_offset = offset,
+		.result_mutation_bit = bit,
+	};
+	u8 published_modes = 0xffU;
+	uint64_t status;
+
+	context.published_modes = &published_modes;
+	make_candidate_source();
+	install();
+	status = payload_mm_authvar_executor_test_commit_candidate(
+		prepare_candidate, &context, PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+		&published_modes);
+	assert(status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(published_modes == 0U && !cache_bound && cache_bind_count == 0U);
+	assert(begin_count == 1U && end_count == 1U);
+	assert(program_count == 0U && erase_count == 0U);
+}
+
+static void candidate_callback_fault_case(unsigned int fail_at,
+	enum payload_mm_authvar_media_result media_result)
+{
+	struct candidate_prepare_context context = {
+		.mode = CANDIDATE_PREPARE_OK,
+	};
+	u8 published_modes = 0xffU;
+	uint64_t expected_status;
+	uint64_t status;
+	uint8_t target;
+
+	context.published_modes = &published_modes;
+	make_candidate_source();
+	fail_operation = fail_at;
+	generic_fault_result = media_result;
+	install();
+	status = payload_mm_authvar_executor_test_commit_candidate(
+		prepare_candidate, &context, PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+		&published_modes);
+	assert(fail_at && fail_at <= ARRAY_SIZE(candidate_callback_golden));
+	assert(callback_trace_count >= fail_at);
+	assert(!memcmp(callback_trace, candidate_callback_golden, fail_at));
+	target = candidate_callback_golden[fail_at - 1U];
+	expected_status = target == TEST_CALLBACK_END ?
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR :
+		payload_mm_authvar_media_result_status(media_result);
+	assert(status == expected_status && published_modes == 0U && !cache_bound);
+	assert(cache_bind_count == (target == TEST_CALLBACK_END ? 1U : 0U));
+	if (target == TEST_CALLBACK_BEGIN) {
+		assert(callback_trace_count == fail_at && end_count == 0U);
+	} else if (target == TEST_CALLBACK_END) {
+		assert(callback_trace_count == fail_at && end_count == 1U);
+	} else {
+		assert(callback_trace_count == fail_at + 1U && end_count == 1U);
+		assert(callback_trace[callback_trace_count - 1U] == TEST_CALLBACK_END);
+	}
+}
+
 static unsigned int candidate_fault_number(const char *text)
 {
 	unsigned int value = 0;
@@ -1525,6 +1647,22 @@ static unsigned int candidate_fault_number(const char *text)
 		value = value * 10U + (unsigned int)(*text++ - '0');
 	}
 	return value;
+}
+
+static void candidate_fault_pair(const char *text, unsigned int *first,
+	unsigned int *second)
+{
+	const char *separator = strchr(text, '-');
+	char number[32];
+	size_t length;
+
+	assert(separator);
+	length = (size_t)(separator - text);
+	assert(length && length < sizeof(number));
+	memcpy(number, text, length);
+	number[length] = 0;
+	*first = candidate_fault_number(number);
+	*second = candidate_fault_number(separator + 1U);
 }
 
 static bool candidate_reject_mode(const char *name,
@@ -1715,12 +1853,51 @@ int main(int argc, char **argv)
 		assert(fault_at);
 		candidate_commit_case(CANDIDATE_PREPARE_OK, fault_at, false);
 		return 0;
+	} else if (!strncmp(argv[1], "candidate-result-bit-", 21U)) {
+		unsigned int offset;
+		unsigned int bit;
+
+		candidate_fault_pair(argv[1] + 21U, &offset, &bit);
+		candidate_result_bit_case(offset, bit);
+		return 0;
+	} else if (!strncmp(argv[1], "candidate-image-byte-", 21U)) {
+		unsigned int offset = candidate_fault_number(argv[1] + 21U);
+
+		assert(offset < BLOCK_SIZE);
+		candidate_image_mutation_offset = offset;
+		candidate_image_mutation_bit = offset & 7U;
+		candidate_commit_case(CANDIDATE_PREPARE_IMAGE_CALLBACK, 0U, false);
+		assert(program_count && !mutate_candidate_header_on_program);
+		assert(!ftw_spare_marker_programmed &&
+			!ftw_destination_marker_programmed &&
+			primary_erase_count == 0U);
+		return 0;
+	} else if (!strncmp(argv[1], "candidate-callback-device-", 26U)) {
+		candidate_callback_fault_case(candidate_fault_number(argv[1] + 26U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		return 0;
+	} else if (!strncmp(argv[1], "candidate-callback-unsupported-", 31U)) {
+		candidate_callback_fault_case(candidate_fault_number(argv[1] + 31U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED);
+		return 0;
+	} else if (!strncmp(argv[1], "candidate-callback-write-protected-", 35U)) {
+		candidate_callback_fault_case(candidate_fault_number(argv[1] + 35U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED);
+		return 0;
 	} else if (!strcmp(argv[1], "candidate-image-callback")) {
 		candidate_commit_case(CANDIDATE_PREPARE_IMAGE_CALLBACK, 0U, false);
 		assert(program_count && !mutate_candidate_header_on_program);
 		assert(!ftw_spare_marker_programmed &&
 			!ftw_destination_marker_programmed &&
 			primary_erase_count == 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "candidate-source-callback")) {
+		candidate_commit_case(CANDIDATE_PREPARE_SOURCE_CALLBACK, 0U, false);
+		assert(program_count && !mutate_candidate_source_on_program);
+		assert(primary_erase_count == 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "candidate-dirty-tail")) {
+		candidate_commit_case(CANDIDATE_PREPARE_DIRTY_TAIL, 0U, false);
 		return 0;
 	} else if (!strcmp(argv[1], "candidate-unsupported-read")) {
 		candidate_media_error_case(CANDIDATE_MEDIA_FAULT_READ,
