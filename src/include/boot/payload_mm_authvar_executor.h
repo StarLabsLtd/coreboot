@@ -3,7 +3,6 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_EXECUTOR_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_EXECUTOR_H
 
-#include <boot/payload_mm_authvar_writer.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <types.h>
@@ -29,8 +28,5 @@ enum cb_err payload_mm_authvar_executor_install(
 	void *trusted_smram_arena, size_t arena_size,
 	const struct payload_mm_authvar_executor_limits *limits);
 uint64_t payload_mm_authvar_executor_recover(void);
-uint64_t payload_mm_authvar_executor_apply(
-	const struct payload_mm_authvar_record_source *source,
-	const struct payload_mm_authvar_write_policy *policy, bool at_runtime);
 
 #endif

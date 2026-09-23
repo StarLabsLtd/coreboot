@@ -3,8 +3,10 @@
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
+#include <boot/payload_mm_authvar_policy.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_store.h>
+#include <boot/payload_mm_authvar_writer.h>
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
@@ -25,6 +27,8 @@ struct executor_session {
 	struct payload_mm_authvar_write_plan write;
 	struct payload_mm_authvar_record_source source;
 	struct payload_mm_authvar_write_policy policy;
+	struct payload_mm_authvar_policy_request request;
+	struct payload_mm_authvar_policy_view view;
 	uint64_t generation;
 	uint64_t token;
 	uint32_t recovery_count;
@@ -45,19 +49,30 @@ struct executor_policy {
 	size_t data_offset;
 	size_t transfer_offset;
 	size_t session_offset;
+	size_t provider_seal_offset;
+	size_t mutation_offset;
+	size_t mutation_data_offset;
 	size_t required_size;
+	struct payload_mm_authvar_policy_provider provider;
 };
 
 static struct {
 	struct executor_policy policy;
 	struct executor_policy sealed;
 	uint32_t install_attempted;
+	uint32_t provider_install_attempted;
 	uint32_t busy;
+	uint32_t provider_active;
+	uint32_t provider_violation;
 	uint64_t owner_generation;
 	uint64_t owner_token;
 	uint64_t sealed_owner_generation;
 	uint64_t sealed_owner_token;
 	bool installed;
+	bool ready_to_boot;
+	bool at_runtime;
+	bool sealed_ready_to_boot;
+	bool sealed_at_runtime;
 } executor;
 
 static bool owner_equal(const struct executor_session *state)
@@ -67,6 +82,14 @@ static bool owner_equal(const struct executor_session *state)
 		executor.owner_token == executor.sealed_owner_token &&
 		state->generation == executor.sealed_owner_generation &&
 		state->token == executor.sealed_owner_token;
+}
+
+static bool provider_reentry(void)
+{
+	if (!__atomic_load_n(&executor.provider_active, __ATOMIC_ACQUIRE))
+		return false;
+	__atomic_store_n(&executor.provider_violation, 1, __ATOMIC_RELEASE);
+	return true;
 }
 
 static bool add_size(size_t left, size_t right, size_t *result)
@@ -109,7 +132,9 @@ static bool add_area(size_t *cursor, size_t size, size_t *offset)
 static bool policy_equal(void)
 {
 	return !memcmp(&executor.policy, &executor.sealed,
-		sizeof(executor.policy));
+		sizeof(executor.policy)) &&
+		executor.ready_to_boot == executor.sealed_ready_to_boot &&
+		executor.at_runtime == executor.sealed_at_runtime;
 }
 
 static bool limits_valid(
@@ -147,7 +172,16 @@ static bool layout_build(struct executor_policy *policy)
 		&policy->data_offset) ||
 	    !add_area(&cursor, EXECUTOR_TRANSFER_SIZE, &policy->transfer_offset) ||
 	    !add_area(&cursor, sizeof(struct executor_session),
-		&policy->session_offset) || !align_size(cursor, &policy->required_size))
+		&policy->session_offset) || !align_size(cursor, &cursor))
+		return false;
+	/* Byte-exact seal of all provider inputs and executor control, not a CRC. */
+	policy->provider_seal_offset = cursor;
+	if (!add_size(cursor, cursor, &cursor) ||
+	    !add_area(&cursor, sizeof(struct payload_mm_authvar_policy_mutation),
+		&policy->mutation_offset) ||
+	    !add_area(&cursor, policy->limits.maximum_data_size,
+		&policy->mutation_data_offset) ||
+	    !align_size(cursor, &policy->required_size))
 		return false;
 	return policy->required_size <= policy->arena_size;
 }
@@ -155,6 +189,16 @@ static bool layout_build(struct executor_policy *policy)
 static void *arena_at(size_t offset)
 {
 	return (uint8_t *)executor.sealed.arena + offset;
+}
+
+static bool external_protected_span(const void *buffer, size_t size)
+{
+	return buffer && size && payload_mm_authvar_smram_buffer(buffer, size) &&
+		payload_mm_authvar_media_buffer_disjoint(buffer, size) &&
+		!payload_mm_authvar_buffers_overlap(buffer, size, &executor,
+			sizeof(executor)) &&
+		!payload_mm_authvar_buffers_overlap(buffer, size,
+			executor.sealed.arena, executor.sealed.arena_size);
 }
 
 static uint8_t *snapshot(void)
@@ -191,6 +235,8 @@ struct executor_control_seal {
 	struct payload_mm_authvar_ftw_plan previous_ftw;
 	struct payload_mm_authvar_write_plan write;
 	struct payload_mm_authvar_write_policy policy;
+	struct payload_mm_authvar_policy_request request;
+	struct payload_mm_authvar_policy_view view;
 	uint8_t source_guid[16];
 	uint8_t source_timestamp[16];
 	uint64_t generation;
@@ -233,6 +279,8 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->previous_ftw = state->previous_ftw;
 	seal->write = state->write;
 	seal->policy = state->policy;
+	seal->request = state->request;
+	seal->view = state->view;
 	memcpy(seal->source_guid, state->source.vendor_guid,
 		sizeof(seal->source_guid));
 	memcpy(seal->source_timestamp, state->source.timestamp,
@@ -345,6 +393,8 @@ enum cb_err payload_mm_authvar_executor_install(
 	struct executor_policy policy = { 0 };
 	uint32_t expected = 0;
 
+	if (provider_reentry())
+		return CB_ERR;
 	if (!__atomic_compare_exchange_n(&executor.install_attempted, &expected, 1,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
 		return CB_ERR;
@@ -381,6 +431,39 @@ enum cb_err payload_mm_authvar_executor_install(
 		return CB_ERR;
 	executor.installed = true;
 	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_policy_install(
+	const struct payload_mm_authvar_policy_provider *provider)
+{
+	struct payload_mm_authvar_policy_provider copied;
+	uint32_t expected = 0;
+	enum cb_err result = CB_ERR;
+
+	if (provider_reentry())
+		return CB_ERR;
+	if (!__atomic_compare_exchange_n(&executor.provider_install_attempted,
+		&expected, 1, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
+		return CB_ERR;
+	expected = 0;
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return CB_ERR;
+	if (!executor.installed || !policy_equal() ||
+	    !external_protected_span(provider, sizeof(*provider)))
+		goto out;
+	memcpy(&copied, provider, sizeof(copied));
+	if (copied.revision != PAYLOAD_MM_AUTHVAR_POLICY_REVISION ||
+	    copied.size != sizeof(copied) || !copied.authorize ||
+	    !external_protected_span((const void *)(uintptr_t)copied.authorize, 1) ||
+	    memcmp(&copied, provider, sizeof(copied)))
+		goto out;
+	executor.policy.provider = copied;
+	executor.sealed.provider = copied;
+	result = CB_SUCCESS;
+out:
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return result;
 }
 
 static enum payload_mm_authvar_media_result media_read(
@@ -1307,88 +1390,55 @@ contradiction:
 }
 
 static bool copy_request(struct executor_session *state,
-	const struct payload_mm_authvar_record_source *source,
-	const struct payload_mm_authvar_write_policy *policy)
+	const struct payload_mm_authvar_policy_request *request)
 {
-	struct payload_mm_authvar_record_source copied_source;
-	struct payload_mm_authvar_write_policy copied_policy;
+	struct payload_mm_authvar_policy_request copied = *request;
 
-	if (!source || !policy ||
-	    !payload_mm_authvar_smram_buffer(source, sizeof(*source)) ||
-	    !payload_mm_authvar_smram_buffer(policy, sizeof(*policy)))
+	if (copied.name_size)
+		memcpy(arena_at(executor.sealed.name_offset), copied.name, copied.name_size);
+	if (copied.data_size)
+		memcpy(arena_at(executor.sealed.data_offset), copied.data, copied.data_size);
+	if (memcmp(request, &copied, sizeof(copied)) ||
+	    (copied.name_size && memcmp(copied.name,
+		arena_at(executor.sealed.name_offset), copied.name_size)) ||
+	    (copied.data_size && memcmp(copied.data,
+		arena_at(executor.sealed.data_offset), copied.data_size)))
 		return false;
-	memcpy(&copied_source, source, sizeof(copied_source));
-	memcpy(&copied_policy, policy, sizeof(copied_policy));
-	if (!copied_source.name || copied_source.name_size >
-		executor.sealed.limits.maximum_name_size ||
-	    copied_source.data_size > executor.sealed.limits.maximum_data_size ||
-	    !payload_mm_authvar_smram_buffer(copied_source.name,
-		copied_source.name_size) ||
-	    (copied_source.data_size && (!copied_source.data ||
-	     !payload_mm_authvar_smram_buffer(copied_source.data,
-		copied_source.data_size))) ||
-	    copied_policy.maximum_name_size >
-		executor.sealed.limits.maximum_name_size ||
-	    copied_policy.maximum_data_size >
-		executor.sealed.limits.maximum_data_size ||
-	    copied_policy.maximum_record_size >
-		executor.sealed.limits.maximum_record_size ||
-	    copied_policy.maximum_records > executor.sealed.limits.maximum_records)
-		return false;
-	memcpy(arena_at(executor.sealed.name_offset), copied_source.name,
-		copied_source.name_size);
-	if (copied_source.data_size)
-		memcpy(arena_at(executor.sealed.data_offset), copied_source.data,
-			copied_source.data_size);
-	if (memcmp(source, &copied_source, sizeof(copied_source)) ||
-	    memcmp(policy, &copied_policy, sizeof(copied_policy)) ||
-	    memcmp(copied_source.name, arena_at(executor.sealed.name_offset),
-		copied_source.name_size) ||
-	    (copied_source.data_size && memcmp(copied_source.data,
-		arena_at(executor.sealed.data_offset), copied_source.data_size)))
-		return false;
-	state->source = copied_source;
-	state->source.name = arena_at(executor.sealed.name_offset);
-	state->source.data = copied_source.data_size ?
+	state->request = copied;
+	state->request.name = copied.name_size ?
+		arena_at(executor.sealed.name_offset) : NULL;
+	state->request.data = copied.data_size ?
 		arena_at(executor.sealed.data_offset) : NULL;
-	state->policy = copied_policy;
+	state->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_record_size = executor.sealed.limits.maximum_record_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
 	return true;
 }
 
 static bool request_disjoint(
-	const struct payload_mm_authvar_record_source *source,
-	const struct payload_mm_authvar_write_policy *policy)
+	const struct payload_mm_authvar_policy_request *request,
+	const struct payload_mm_authvar_policy_result *result)
 {
-	struct payload_mm_authvar_record_source copied;
+	struct payload_mm_authvar_policy_request copied;
 	const void *parts[4];
 	size_t sizes[4];
 
-	if (!source || !policy ||
-	    !payload_mm_authvar_smram_buffer(source, sizeof(*source)) ||
-	    !payload_mm_authvar_smram_buffer(policy, sizeof(*policy)) ||
-	    !payload_mm_authvar_media_buffer_disjoint(source, sizeof(*source)) ||
-	    !payload_mm_authvar_media_buffer_disjoint(policy, sizeof(*policy)) ||
-	    payload_mm_authvar_buffers_overlap(source, sizeof(*source),
-		executor.sealed.arena, executor.sealed.arena_size) ||
-	    payload_mm_authvar_buffers_overlap(policy, sizeof(*policy),
-		executor.sealed.arena, executor.sealed.arena_size) ||
-	    payload_mm_authvar_buffers_overlap(source, sizeof(*source), &executor,
-		sizeof(executor)) ||
-	    payload_mm_authvar_buffers_overlap(policy, sizeof(*policy), &executor,
-		sizeof(executor)))
+	if (!external_protected_span(request, sizeof(*request)) ||
+	    !external_protected_span(result, sizeof(*result)) ||
+	    (uintptr_t)request % _Alignof(struct payload_mm_authvar_policy_request) ||
+	    (uintptr_t)result % _Alignof(struct payload_mm_authvar_policy_result))
 		return false;
-	memcpy(&copied, source, sizeof(copied));
-	if (!copied.name || !copied.name_size ||
-	    copied.name_size > executor.sealed.limits.maximum_name_size ||
-	    copied.data_size > executor.sealed.limits.maximum_data_size ||
-	    !payload_mm_authvar_smram_buffer(copied.name, copied.name_size) ||
-	    (copied.data_size && (!copied.data ||
-	     !payload_mm_authvar_smram_buffer(copied.data, copied.data_size))))
+	memcpy(&copied, request, sizeof(copied));
+	if (copied.name_size > executor.sealed.limits.maximum_name_size ||
+	    copied.data_size > executor.sealed.limits.maximum_data_size)
 		return false;
-	parts[0] = source;
-	sizes[0] = sizeof(*source);
-	parts[1] = policy;
-	sizes[1] = sizeof(*policy);
+	parts[0] = request;
+	sizes[0] = sizeof(*request);
+	parts[1] = result;
+	sizes[1] = sizeof(*result);
 	parts[2] = copied.name;
 	sizes[2] = copied.name_size;
 	parts[3] = copied.data;
@@ -1396,18 +1446,102 @@ static bool request_disjoint(
 	for (size_t i = 0; i < 4; i++) {
 		if (!sizes[i])
 			continue;
-		if (!payload_mm_authvar_media_buffer_disjoint(parts[i], sizes[i]) ||
-		    payload_mm_authvar_buffers_overlap(parts[i], sizes[i],
-			executor.sealed.arena, executor.sealed.arena_size) ||
-		    payload_mm_authvar_buffers_overlap(parts[i], sizes[i], &executor,
-			sizeof(executor)))
+		if (!external_protected_span(parts[i], sizes[i]))
 			return false;
 		for (size_t j = i + 1; j < 4; j++)
 			if (sizes[j] && payload_mm_authvar_buffers_overlap(parts[i],
 				sizes[i], parts[j], sizes[j]))
 				return false;
 	}
-	return !memcmp(source, &copied, sizeof(copied));
+	return !memcmp(request, &copied, sizeof(copied));
+}
+
+static bool set_request_valid(const struct payload_mm_authvar_policy_request *request)
+{
+	const uint8_t *name = request->name;
+
+	if (!name || request->name_size < 4U || (request->name_size & 1U) ||
+	    name[request->name_size - 1U] || name[request->name_size - 2U] ||
+	    request->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
+		return false;
+	for (size_t i = 0; i + 2U < request->name_size; i += 2U)
+		if (!name[i] && !name[i + 1U])
+			return false;
+	return true;
+}
+
+static bool provider_status_valid(uint64_t status)
+{
+	return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ||
+		status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+}
+
+static uint64_t authorize_mutation(struct executor_session *state)
+{
+	struct payload_mm_authvar_policy_mutation *mutation =
+		arena_at(executor.sealed.mutation_offset);
+	void *data = arena_at(executor.sealed.mutation_data_offset);
+	void *before = arena_at(executor.sealed.provider_seal_offset);
+	void *protected_arena = executor.sealed.arena;
+	size_t sealed_size = executor.sealed.provider_seal_offset;
+	size_t capacity = executor.sealed.limits.maximum_data_size;
+	uint64_t status;
+	struct payload_mm_authvar_media_provider_scope provider_scope;
+	static const uint8_t zero_timestamp[16];
+
+	if (!policy_equal() || !owner_equal(state) || !executor.sealed.provider.authorize)
+		return poison_session();
+	state->view.index = &state->index;
+	state->view.ready_to_boot = executor.ready_to_boot;
+	state->view.at_runtime = executor.at_runtime;
+	memset(mutation, 0, sizeof(*mutation));
+	memset(data, 0, capacity);
+	memcpy(before, protected_arena, sealed_size);
+	if (!payload_mm_authvar_media_provider_enter(&provider_scope))
+		return poison_session();
+	__atomic_store_n(&executor.provider_active, 1, __ATOMIC_RELEASE);
+	status = executor.sealed.provider.authorize(&state->request, &state->view,
+		mutation, data, capacity);
+	if (!payload_mm_authvar_media_provider_leave(&provider_scope))
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	__atomic_store_n(&executor.provider_active, 0, __ATOMIC_RELEASE);
+	if (!policy_equal() || !owner_equal(state) ||
+	    __atomic_load_n(&executor.provider_violation, __ATOMIC_ACQUIRE) ||
+	    payload_mm_authvar_media_provider_violated() ||
+	    memcmp(before, protected_arena, sealed_size) || !provider_status_valid(status)) {
+		/* Restore controls before the single mandatory end, never execute output. */
+		memcpy(protected_arena, before, sealed_size);
+		return poison_session();
+	}
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	if (mutation->data_size > capacity ||
+	    (mutation->kind != PAYLOAD_MM_AUTHVAR_MUTATION_WRITE &&
+	     mutation->kind != PAYLOAD_MM_AUTHVAR_MUTATION_DELETE) ||
+	    (mutation->kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE &&
+	     (mutation->data_size || mutation->attributes ||
+	      memcmp(mutation->timestamp, zero_timestamp, sizeof(zero_timestamp)))) ||
+	    (mutation->kind == PAYLOAD_MM_AUTHVAR_MUTATION_WRITE &&
+	     !mutation->data_size &&
+	     !(mutation->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE)))
+		return poison_session();
+	memcpy(state->source.vendor_guid, state->request.vendor_guid, 16);
+	state->source.name = state->request.name;
+	state->source.name_size = state->request.name_size;
+	state->source.attributes = mutation->attributes;
+	memcpy(state->source.timestamp, mutation->timestamp, 16);
+	state->source.data_size = mutation->data_size;
+	state->source.data = mutation->data_size ?
+		arena_at(executor.sealed.data_offset) : NULL;
+	if (mutation->data_size)
+		memcpy(arena_at(executor.sealed.data_offset), data, mutation->data_size);
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
 uint64_t payload_mm_authvar_executor_recover(void)
@@ -1418,6 +1552,8 @@ uint64_t payload_mm_authvar_executor_recover(void)
 	uint64_t status;
 	uint32_t expected = 0;
 
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (!executor.installed)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (!policy_equal()) {
@@ -1456,14 +1592,14 @@ end:
 			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
 out:
-	memset(state, 0, sizeof(*state));
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
 
-uint64_t payload_mm_authvar_executor_apply(
-	const struct payload_mm_authvar_record_source *source,
-	const struct payload_mm_authvar_write_policy *policy, bool at_runtime)
+uint64_t payload_mm_authvar_policy_transaction(
+	const struct payload_mm_authvar_policy_request *request,
+	struct payload_mm_authvar_policy_result *completion)
 {
 	struct executor_session *state;
 	const struct payload_mm_authvar_store_entry *replaced;
@@ -1480,27 +1616,58 @@ uint64_t payload_mm_authvar_executor_apply(
 	bool expected_present;
 	uint32_t store_base;
 
-	if (!executor.installed)
+	if (provider_reentry())
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (!policy_equal()) {
 		executor.installed = false;
 		(void)payload_mm_authvar_media_fail_closed(0, 0);
-		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		if (!request_disjoint(request, completion))
+			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete;
+	}
+	if (!request_disjoint(request, completion))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	memset(completion, 0, sizeof(*completion));
+	completion->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
+	completion->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING;
+	if (!executor.installed || !executor.sealed.provider.authorize) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete;
 	}
 	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
-		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
-		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-	if (!request_disjoint(source, policy)) {
-		__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
-		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete;
 	}
 	state = session();
 	memset(state, 0, sizeof(*state));
-	if (!copy_request(state, source, policy)) {
+	if (!copy_request(state, request)) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 		goto out;
 	}
-	state->at_runtime = at_runtime;
+	if (state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET &&
+	    state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT &&
+	    state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		goto out;
+	}
+	if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_SET) {
+		if (!set_request_valid(&state->request)) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			goto out;
+		}
+	} else {
+		static const uint8_t zero_guid[16];
+
+		if (state->request.name_size || state->request.data_size ||
+		    state->request.attributes ||
+		    memcmp(state->request.vendor_guid, zero_guid, sizeof(zero_guid))) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			goto out;
+		}
+	}
+	state->at_runtime = executor.at_runtime;
 	result = media_begin(state);
 	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
 		status = payload_mm_authvar_media_result_status(result);
@@ -1516,6 +1683,23 @@ uint64_t payload_mm_authvar_executor_apply(
 	status = recover_session(state);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
+	if (state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET) {
+		executor.ready_to_boot = true;
+		executor.sealed_ready_to_boot = true;
+		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME) {
+			executor.at_runtime = true;
+			executor.sealed_at_runtime = true;
+		}
+		payload_mm_authvar_media_cache_bind(state->generation, state->token);
+		goto end;
+	}
+	status = authorize_mutation(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	if (state->policy.maximum_record_size > state->index.store_size)
+		state->policy.maximum_record_size = state->index.store_size;
+	if (state->policy.maximum_data_size > state->policy.maximum_record_size)
+		state->policy.maximum_data_size = state->policy.maximum_record_size;
 	replaced = payload_mm_authvar_store_find(&state->index,
 		state->source.vendor_guid, state->source.name,
 		state->source.name_size);
@@ -1529,7 +1713,7 @@ uint64_t payload_mm_authvar_executor_apply(
 	state->reclaim.copies = arena_at(executor.sealed.copies_offset);
 	state->reclaim.copy_capacity = executor.sealed.limits.maximum_records;
 	status = payload_mm_authvar_write_plan_build(&state->index, replaced,
-		writer_source, &state->policy, at_runtime,
+		writer_source, &state->policy, state->at_runtime,
 		arena_at(executor.sealed.record_offset),
 		executor.sealed.limits.maximum_record_size, &state->reclaim,
 		&state->write);
@@ -1639,7 +1823,12 @@ end:
 			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
 out:
-	memset(state, 0, sizeof(*state));
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+complete:
+	memset(completion, 0, sizeof(*completion));
+	completion->status = status;
+	__atomic_store_n(&completion->completion, PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE,
+		__ATOMIC_RELEASE);
 	return status;
 }

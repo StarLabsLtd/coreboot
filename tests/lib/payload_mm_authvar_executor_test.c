@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include "../../src/lib/payload_mm_authvar_internal.h"
+#include "payload_mm_authvar_policy_test_provider.h"
 #ifdef EXECUTOR_REAL_MEDIA
 #include <boot/payload_mm_authvar.h>
 #include <sys/mman.h>
@@ -35,7 +37,7 @@ static uint8_t *media;
 static uint8_t media[REGION_SIZE];
 #endif
 #define MEDIA_SIZE REGION_SIZE
-static uint8_t arena[65536] __aligned(__BIGGEST_ALIGNMENT__);
+static uint8_t arena[131072] __aligned(__BIGGEST_ALIGNMENT__);
 static bool poisoned;
 static bool cache_bound;
 static unsigned int begin_count;
@@ -44,6 +46,10 @@ static unsigned int read_count;
 static unsigned int program_count;
 static unsigned int erase_count;
 static unsigned int fail_closed_count;
+#ifndef EXECUTOR_REAL_MEDIA
+static bool fake_provider_active;
+static bool fake_provider_violation;
+#endif
 static unsigned int cache_bind_count;
 static unsigned int fail_operation;
 static unsigned int operation_count;
@@ -324,7 +330,47 @@ bool payload_mm_authvar_buffers_overlap(const void *left, size_t left_size,
 
 bool payload_mm_authvar_media_buffer_disjoint(const void *buffer, size_t size)
 {
+	if (fake_provider_active) {
+		fake_provider_violation = true;
+		poisoned = true;
+		cache_bound = false;
+		return false;
+	}
 	return buffer && size;
+}
+
+bool payload_mm_authvar_media_provider_enter(
+	struct payload_mm_authvar_media_provider_scope *scope)
+{
+	if (fake_provider_active) {
+		fake_provider_violation = true;
+		poisoned = true;
+		return false;
+	}
+	fake_provider_active = true;
+	*scope = (struct payload_mm_authvar_media_provider_scope) {
+		.cookie = 3,
+		.check = 4,
+	};
+	return true;
+}
+
+bool payload_mm_authvar_media_provider_leave(
+	struct payload_mm_authvar_media_provider_scope *scope)
+{
+	if (!scope || !fake_provider_active || scope->cookie != 3 ||
+	    scope->check != 4) {
+		fake_provider_violation = true;
+		poisoned = true;
+		return false;
+	}
+	fake_provider_active = false;
+	return true;
+}
+
+bool payload_mm_authvar_media_provider_violated(void)
+{
+	return fake_provider_violation;
 }
 
 enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
@@ -577,7 +623,7 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_end(
 enum payload_mm_authvar_media_result payload_mm_authvar_media_fail_closed(
 	uint64_t generation, uint64_t token)
 {
-	assert(generation == 1 && token == 2);
+	assert((generation == 1 && token == 2) || (!generation && !token));
 	fail_closed_count++;
 	poisoned = true;
 	cache_bound = false;
@@ -782,6 +828,7 @@ static void install(void)
 
 	assert(payload_mm_authvar_executor_install(arena, sizeof(arena), &limits) ==
 		CB_SUCCESS);
+	assert(test_policy_install() == CB_SUCCESS);
 }
 
 #ifdef EXECUTOR_SOURCE_INCLUDE
@@ -917,18 +964,13 @@ static void direct_write(enum write_case test_case)
 			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
 	};
-	struct payload_mm_authvar_write_policy policy = {
-		.maximum_name_size = 128,
-		.maximum_record_size = STORE_SIZE,
-		.maximum_data_size = 2048,
-		.maximum_records = test_case == WRITE_RECLAIM ||
+	bool force_reclaim = test_case == WRITE_RECLAIM ||
 			test_case == WRITE_RECLAIM_SCAN_REJECT ||
 			test_case == WRITE_SPARE_SUFFIX_MUTATE ||
 			test_case == WRITE_SPARE_BODY_MUTATE ||
 			test_case == WRITE_QUEUE_HEADER_MUTATE ||
 			test_case == WRITE_QUEUE_RECORD_MUTATE ||
-			test_case == WRITE_PRIMARY_BODY_MUTATE ? 1U : 64U,
-	};
+			test_case == WRITE_PRIMARY_BODY_MUTATE;
 	uint64_t status;
 	char message[96];
 
@@ -951,7 +993,7 @@ static void direct_write(enum write_case test_case)
 	corrupt_before_final_verify = test_case == WRITE_FINAL_COMPARE_MUTATE;
 	stage_spare_after_final_verify = test_case == WRITE_FINAL_FTW_ACTION_MUTATE;
 	corrupt_marker_expected_read = test_case == WRITE_MARKER_EXPECTED_MUTATE;
-	status = payload_mm_authvar_executor_apply(&source, &policy, false);
+	status = test_policy_apply(&source);
 	if (test_case == WRITE_MARKER_EXPECTED_MUTATE) {
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
 		assert(poisoned && !record_state_marker_programmed && end_count == 1);
@@ -1003,12 +1045,17 @@ static void direct_write(enum write_case test_case)
 	    test_case == WRITE_QUEUE_RECORD_MUTATE ||
 	    test_case == WRITE_PRIMARY_BODY_MUTATE) {
 		data[0] = 9U;
+		/* A torn, uncommitted tail is unavailable for append until reclaim. */
+		if (force_reclaim)
+			media[FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE +
+				PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + sizeof(name) + sizeof(data)] =
+				0xaaU;
 		if (test_case == WRITE_RECLAIM_SCAN_REJECT) {
 			reject_precommit_scan = true;
 			wrapped_scan_count = 0;
 			precommit_program_count = program_count;
 		}
-		status = payload_mm_authvar_executor_apply(&source, &policy, false);
+		status = test_policy_apply(&source);
 		if (test_case == WRITE_RECLAIM_SCAN_REJECT) {
 			assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
 			assert(poisoned && program_count == precommit_program_count &&
@@ -1044,13 +1091,13 @@ static void direct_write(enum write_case test_case)
 	} else if (test_case == WRITE_DELETE) {
 		source.data = NULL;
 		source.data_size = 0;
-		status = payload_mm_authvar_executor_apply(&source, &policy, false);
+		status = test_policy_apply(&source);
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	} else if (test_case == WRITE_EMPTY_APPEND_EXISTING) {
 		source.data = NULL;
 		source.data_size = 0;
 		source.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
-		status = payload_mm_authvar_executor_apply(&source, &policy, false);
+		status = test_policy_apply(&source);
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	}
 	assert(begin_count == ((test_case == WRITE_RECLAIM ||

@@ -136,7 +136,7 @@ mutation_test recovery-limit-bound \
 	's/state->recovery_count < EXECUTOR_RECOVERY_LIMIT;/state->recovery_count <= EXECUTOR_RECOVERY_LIMIT;/' \
 	recovery-limit
 mutation_test single-flight \
-	'0,/if (!__atomic_compare_exchange_n(\&executor.busy/s//if (false \&\& !__atomic_compare_exchange_n(\&executor.busy/' \
+	'/^uint64_t payload_mm_authvar_executor_recover/,/^uint64_t payload_mm_authvar_policy_transaction/ s/if (!__atomic_compare_exchange_n(\&executor.busy/if (false \&\& !__atomic_compare_exchange_n(\&executor.busy/' \
 	single-flight-reentry
 mutation_test record-body-marker \
 	's/result = program_body(state, media_offset, record, step->size, 2U);/result = checked_program(state, media_offset, record, step->size);/' \
