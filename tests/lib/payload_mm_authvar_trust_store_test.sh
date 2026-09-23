@@ -41,19 +41,39 @@ make_signer()
 		-out "$temporary/$name-signer.pem" >/dev/null 2>&1
 }
 
-make_ca pk
+make_ca parent
 make_ca kek
 make_ca wrong
+printf '%s\n' 'basicConstraints=critical,CA:TRUE' \
+	'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' > \
+	"$temporary/pk.ext"
+openssl req -new -newkey rsa:2048 -nodes -subj /CN=payload-mm-current-pk \
+	-keyout "$temporary/pk.key" -out "$temporary/pk.csr" >/dev/null 2>&1
+openssl x509 -req -in "$temporary/pk.csr" -days 1 -sha256 \
+	-CA "$temporary/parent.pem" -CAkey "$temporary/parent.key" \
+	-CAcreateserial -extfile "$temporary/pk.ext" -out "$temporary/pk.pem" \
+	>/dev/null 2>&1
+openssl x509 -in "$temporary/pk.pem" -outform DER -out "$temporary/pk.der"
 make_signer pk pk
 make_signer kek kek
 
 openssl cms -sign -binary -in "$temporary/content.bin" \
-	-signer "$temporary/pk-signer.pem" -inkey "$temporary/pk-signer.key" \
-	-certfile "$temporary/pk.pem" -md sha256 -outform DER \
+	-signer "$temporary/pk.pem" -inkey "$temporary/pk.key" \
+	-certfile "$temporary/parent.pem" -md sha256 -outform DER \
 	-out "$temporary/pk-embedded.der"
 openssl cms -sign -binary -in "$temporary/content.bin" \
 	-signer "$temporary/pk-signer.pem" -inkey "$temporary/pk-signer.key" \
 	-md sha256 -outform DER -out "$temporary/pk-omitted.der"
+openssl cms -sign -binary -in "$temporary/content.bin" \
+	-signer "$temporary/pk-signer.pem" -inkey "$temporary/pk-signer.key" \
+	-certfile "$temporary/pk.pem" -md sha256 -outform DER \
+	-out "$temporary/pk-chain-no-parent.der"
+( openssl x509 -in "$temporary/pk.pem"; \
+	openssl x509 -in "$temporary/parent.pem" ) > "$temporary/pk-chain.pem"
+openssl cms -sign -binary -in "$temporary/content.bin" \
+	-signer "$temporary/pk-signer.pem" -inkey "$temporary/pk-signer.key" \
+	-certfile "$temporary/pk-chain.pem" -md sha256 -outform DER \
+	-out "$temporary/pk-chain.der"
 openssl cms -sign -binary -in "$temporary/content.bin" \
 	-signer "$temporary/kek-signer.pem" -inkey "$temporary/kek-signer.key" \
 	-certfile "$temporary/kek.pem" -md sha256 -outform DER \

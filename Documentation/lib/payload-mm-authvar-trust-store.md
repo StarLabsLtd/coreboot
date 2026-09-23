@@ -9,8 +9,9 @@ publishes no token, provider, endpoint or mutation authority.
 
 PK and KEK updates require the current PK. db, dbx and dbt try the current PK
 first and then each X.509 certificate in the current KEK, matching EDK2 26.09.
-The PK path requires its X.509 certificate to appear exactly once in the CMS
-certificate set before verifying the signer chain against it. KEK iteration
+The PK path requires its X.509 certificate to be the exact CMS signer and to
+appear exactly once in the CMS certificate set; PK authorization permits no
+certificate chaining. KEK iteration
 skips supported non-X.509 lists and admits at most 64 X.509 trust anchors, which
 bounds certificate parsing and arena wiping in SMM. Selected signature-list
 streams are validated completely against EDK2 26.09's 12 supported signature

@@ -319,8 +319,6 @@ static enum payload_mm_verify_status verify_anchor(
 }
 
 static enum payload_mm_verify_status verify_platform_key(
-	struct payload_mm_crypto_owner *owner,
-	const struct payload_mm_crypto_span *signed_data,
 	const struct payload_mm_cms_verified_signer *verified,
 	const void *data, size_t size)
 {
@@ -338,9 +336,10 @@ static enum payload_mm_verify_status verify_platform_key(
 		PAYLOAD_MM_AUTHVAR_FORMAT_OK ||
 	    !payload_mm_authvar_signature_at(&list, 0U, &signature))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
-	status = verify_anchor(owner, signed_data, verified, &signature);
-	if (status != PAYLOAD_MM_VERIFY_OK)
-		return status;
+	if (verified->signer_certificate.size != signature.data.size ||
+	    memcmp(verified->signer_certificate.data, signature.data.data,
+		signature.data.size))
+		return PAYLOAD_MM_VERIFY_REJECTED;
 	for (size_t certificate = 0U;
 	     certificate < verified->certificate_count; certificate++)
 		if (verified->certificates[certificate].size == signature.data.size &&
@@ -425,7 +424,7 @@ static enum payload_mm_verify_status verify_with_signer(
 			return PAYLOAD_MM_VERIFY_INVALID;
 		status = plan->authorities[authority] ==
 			PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK ?
-			verify_platform_key(owner, signed_data, verified, data,
+			verify_platform_key(verified, data,
 				entry->data_size) :
 			verify_exchange_keys(owner, signed_data, verified, data,
 				entry->data_size);

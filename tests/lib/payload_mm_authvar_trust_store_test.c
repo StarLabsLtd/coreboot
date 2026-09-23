@@ -368,6 +368,7 @@ static bool owner_clean(const struct payload_mm_crypto_owner *owner)
 
 static void normal_policy(const struct buffer *content,
 	const struct buffer *pk_cms, const struct buffer *pk_omitted,
+	const struct buffer *pk_chain_no_parent, const struct buffer *pk_chain,
 	const struct buffer *kek_cms, const struct buffer *pk_cert,
 	const struct buffer *kek_cert, const struct buffer *wrong_cert)
 {
@@ -400,6 +401,14 @@ static void normal_policy(const struct buffer *content,
 	memset(&owner, 0, sizeof(owner));
 	expect(verify(&owner, pk_omitted, content, &plan) ==
 		PAYLOAD_MM_VERIFY_REJECTED, "omitted current PK was accepted");
+	memset(&owner, 0, sizeof(owner));
+	expect(verify(&owner, pk_chain_no_parent, content, &plan) ==
+		PAYLOAD_MM_VERIFY_REJECTED,
+		"leaf signer chaining through current PK was accepted");
+	memset(&owner, 0, sizeof(owner));
+	expect(verify(&owner, pk_chain, content, &plan) ==
+		PAYLOAD_MM_VERIFY_REJECTED,
+		"leaf signer chaining through current PK and parent was accepted");
 
 	expect(scan_store(&wrong_list, &kek_list), "fallback store scan failed");
 	plan = db_plan();
@@ -736,6 +745,8 @@ int main(int argc, char **argv)
 	struct buffer content;
 	struct buffer pk_cms;
 	struct buffer pk_omitted;
+	struct buffer pk_chain_no_parent;
+	struct buffer pk_chain;
 	struct buffer kek_cms;
 	struct buffer pk_cert;
 	struct buffer kek_cert;
@@ -746,16 +757,19 @@ int main(int argc, char **argv)
 	content = read_file(argv[1], "content.bin");
 	pk_cms = read_file(argv[1], "pk-embedded.der");
 	pk_omitted = read_file(argv[1], "pk-omitted.der");
+	pk_chain_no_parent = read_file(argv[1], "pk-chain-no-parent.der");
+	pk_chain = read_file(argv[1], "pk-chain.der");
 	kek_cms = read_file(argv[1], "kek-embedded.der");
 	pk_cert = read_file(argv[1], "pk.der");
 	kek_cert = read_file(argv[1], "kek.der");
 	wrong_cert = read_file(argv[1], "wrong.der");
-	expect(content.data && pk_cms.data && pk_omitted.data && kek_cms.data &&
+	expect(content.data && pk_cms.data && pk_omitted.data &&
+		pk_chain_no_parent.data && pk_chain.data && kek_cms.data &&
 		pk_cert.data && kek_cert.data && wrong_cert.data,
 		"could not read generated fixtures");
 	if (!failures) {
-		normal_policy(&content, &pk_cms, &pk_omitted, &kek_cms, &pk_cert,
-			&kek_cert, &wrong_cert);
+		normal_policy(&content, &pk_cms, &pk_omitted, &pk_chain_no_parent,
+			&pk_chain, &kek_cms, &pk_cert, &kek_cert, &wrong_cert);
 		list_policy(&content, &kek_cms, &kek_cert);
 		duplicate_pk(&content, &pk_cms, &pk_cert);
 		attribute_policy(&content, &pk_cms, &kek_cms, &pk_cert, &kek_cert);
@@ -765,6 +779,8 @@ int main(int argc, char **argv)
 	free(kek_cert.data);
 	free(pk_cert.data);
 	free(kek_cms.data);
+	free(pk_chain.data);
+	free(pk_chain_no_parent.data);
 	free(pk_omitted.data);
 	free(pk_cms.data);
 	free(content.data);
