@@ -2125,7 +2125,12 @@ end:
 	}
 out:
 	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	memset(completion, 0, sizeof(*completion));
+	completion->status = status;
+	__atomic_store_n(&completion->completion, PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE,
+		__ATOMIC_RELEASE);
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
 complete:
 	memset(completion, 0, sizeof(*completion));
 	completion->status = status;
