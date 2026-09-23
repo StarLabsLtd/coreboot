@@ -222,6 +222,34 @@ static void hostile_records(void)
 	store[end] = 0;
 	assert(scan() == CB_SUCCESS);
 	assert(index.dirty_tail_offset == end && index.used_size == sizeof(store));
+	init_store();
+	end = add_record(base, PAYLOAD_MM_AUTHVAR_STATE_ERASED, 7, guid_a,
+		name, 4, (const uint8_t[]) { 0xff, 0xff, 0xff }, 3);
+	add_record(end, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b,
+		name, 4, (const uint8_t[]) { 1 }, 1);
+	assert(scan() == CB_SUCCESS);
+	assert(index.dirty_tail_offset == base && index.used_size == sizeof(store) &&
+		!index.record_count && !index.entry_count);
+	init_store();
+	end = add_record(base,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION, 7, guid_a,
+		name, 4, (const uint8_t[]) { 2 }, 1);
+	{
+		size_t erased = end;
+
+		end = add_record(erased, PAYLOAD_MM_AUTHVAR_STATE_ERASED, 7, guid_b,
+			name, 4, (const uint8_t[]) { 0xff, 0xff }, 2);
+		add_record(end, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b,
+			name, 4, (const uint8_t[]) { 3 }, 1);
+		assert(scan() == CB_SUCCESS);
+		assert(index.dirty_tail_offset == erased &&
+			index.used_size == sizeof(store) && index.record_count == 1 &&
+			index.entry_count == 1);
+		assert(payload_mm_authvar_store_find(&index, guid_a, name,
+			sizeof(name)) != NULL);
+		assert(payload_mm_authvar_store_find(&index, guid_b, name,
+			sizeof(name)) == NULL);
+	}
 	one_valid_record(padded_name, ARRAY_SIZE(padded_name));
 	store[base + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
 		sizeof(padded_name)] = 0;

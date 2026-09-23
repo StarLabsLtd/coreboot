@@ -580,8 +580,20 @@ static void recovery_and_reclaim(void)
 		(const uint8_t[16]) { 0 });
 	add_record(tail, 0xff, value, sizeof(value), (const uint8_t[16]) { 0 });
 	scan();
-	assert(!index.dirty_tail_offset && index.record_count == 2 &&
-		index.entry_count == 1 && index.used_size > tail);
+	assert(index.dirty_tail_offset == tail && index.record_count == 1 &&
+		index.entry_count == 1 && index.used_size == STORE_SIZE);
+	input.vendor_guid[0] = 2;
+	reclaim = reclaim_plan();
+	assert(payload_mm_authvar_write_plan_build(&index, NULL, &input,
+		&policy, false, output, sizeof(output), &reclaim, &plan) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(plan.action == PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM);
+	reclaim = reclaim_plan();
+	assert(payload_mm_authvar_write_plan_build(&index, NULL, &input,
+		&policy, true, output, sizeof(output), &reclaim, &plan) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES);
+	assert(plan.action == PAYLOAD_MM_AUTHVAR_WRITE_OUT_OF_RESOURCES &&
+		!plan.step_count);
 }
 
 static void physical_and_logical_caps_are_independent(void)
