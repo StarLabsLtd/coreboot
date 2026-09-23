@@ -49,6 +49,7 @@ endif
 smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/cms.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/crypto.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/mbedtls_verify_wrap.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR) += payload_mm_authvar_trust_anchor.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_fmp_auth_policy.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += \
 	$(addprefix $(payload_mm_mbedtls_dir)/library/,$(payload_mm_mbedtls_sources))
