@@ -129,6 +129,18 @@ config PAYLOAD_MM_AUTHVAR_ROUTE
 	  KEK, payload-certificate or certdb authorities and post-success intent,
 	  but performs no trust, replay, payload-format or mutation decision.
 
+config PAYLOAD_MM_AUTHVAR_TRUST_STORE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	depends on PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	depends on PAYLOAD_MM_AUTHVAR_ROUTE
+	depends on PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR
+	help
+	  Build the dormant protected-store PK/KEK trust-policy matcher. It consumes
+	  only an immutable scanner-produced index and canonical user-mode route,
+	  but performs no Auth2, replay, payload or mutation decision.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
