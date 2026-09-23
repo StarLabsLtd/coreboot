@@ -110,6 +110,15 @@ config PAYLOAD_MM_AUTHVAR_EXECUTOR
 	  sealed protected arena, bounded FTW recovery and exact writer-plan
 	  execution without exposing raw media coordinates or a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_EXECUTOR
+	help
+	  Build the dormant SMM-only Auth2 envelope and EFI signature-list parser.
+	  It performs bounded byte-wise decoding only and supplies no cryptography,
+	  trust policy, mutation authority, dispatcher or service endpoint.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
