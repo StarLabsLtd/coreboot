@@ -29,8 +29,11 @@ struct executor_session {
 	struct payload_mm_authvar_write_policy policy;
 	struct payload_mm_authvar_policy_request request;
 	struct payload_mm_authvar_policy_view view;
+	struct payload_mm_authvar_read_result read_result;
 	uint64_t generation;
 	uint64_t token;
+	uint32_t read_name_capacity;
+	uint32_t read_data_capacity;
 	uint32_t recovery_count;
 	bool have_previous_ftw;
 	bool invariant_failure;
@@ -237,6 +240,7 @@ struct executor_control_seal {
 	struct payload_mm_authvar_write_policy policy;
 	struct payload_mm_authvar_policy_request request;
 	struct payload_mm_authvar_policy_view view;
+	struct payload_mm_authvar_read_result read_result;
 	uint8_t source_guid[16];
 	uint8_t source_timestamp[16];
 	uint64_t generation;
@@ -252,6 +256,8 @@ struct executor_control_seal {
 	uint32_t reclaim_copy_count;
 	uint32_t reclaim_copy_capacity;
 	uint32_t recovery_count;
+	uint32_t read_name_capacity;
+	uint32_t read_data_capacity;
 	uint32_t index_store_size;
 	uint32_t index_used_size;
 	uint32_t index_dirty_tail_offset;
@@ -281,6 +287,7 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->policy = state->policy;
 	seal->request = state->request;
 	seal->view = state->view;
+	seal->read_result = state->read_result;
 	memcpy(seal->source_guid, state->source.vendor_guid,
 		sizeof(seal->source_guid));
 	memcpy(seal->source_timestamp, state->source.timestamp,
@@ -303,6 +310,8 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->reclaim_copy_count = state->reclaim.copy_count;
 	seal->reclaim_copy_capacity = state->reclaim.copy_capacity;
 	seal->recovery_count = state->recovery_count;
+	seal->read_name_capacity = state->read_name_capacity;
+	seal->read_data_capacity = state->read_data_capacity;
 	seal->index_store_size = state->index.store_size;
 	seal->index_used_size = state->index.used_size;
 	seal->index_dirty_tail_offset = state->index.dirty_tail_offset;
@@ -1456,6 +1465,113 @@ static bool request_disjoint(
 	return !memcmp(request, &copied, sizeof(copied));
 }
 
+static bool read_request_disjoint(
+	const struct payload_mm_authvar_read_request *request,
+	const struct payload_mm_authvar_read_result *result,
+	struct payload_mm_authvar_read_request *snapshot_request)
+{
+	struct payload_mm_authvar_read_request copied;
+	const void *parts[5];
+	size_t sizes[5];
+
+	if (!external_protected_span(request, sizeof(*request)) ||
+	    !external_protected_span(result, sizeof(*result)) ||
+	    (uintptr_t)request % _Alignof(struct payload_mm_authvar_read_request) ||
+	    (uintptr_t)result % _Alignof(struct payload_mm_authvar_read_result))
+		return false;
+	memcpy(&copied, request, sizeof(copied));
+	if (copied.name_size > executor.sealed.limits.maximum_name_size ||
+	    copied.name_capacity > executor.sealed.limits.maximum_name_size ||
+	    copied.data_capacity > executor.sealed.limits.maximum_data_size)
+		return false;
+	parts[0] = request;
+	sizes[0] = sizeof(*request);
+	parts[1] = result;
+	sizes[1] = sizeof(*result);
+	parts[2] = copied.name;
+	sizes[2] = copied.name_size;
+	parts[3] = copied.result_name;
+	sizes[3] = copied.name_capacity;
+	parts[4] = copied.result_data;
+	sizes[4] = copied.data_capacity;
+	for (size_t i = 0; i < 5; i++) {
+		if (!sizes[i])
+			continue;
+		if (!external_protected_span(parts[i], sizes[i]))
+			return false;
+		for (size_t j = i + 1; j < 5; j++)
+			if (sizes[j] && payload_mm_authvar_buffers_overlap(parts[i],
+				sizes[i], parts[j], sizes[j]))
+				return false;
+	}
+	if (memcmp(request, &copied, sizeof(copied)))
+		return false;
+	*snapshot_request = copied;
+	return true;
+}
+
+static bool read_request_copy(struct executor_session *state,
+	const struct payload_mm_authvar_read_request *request,
+	struct payload_mm_authvar_read_request *copied)
+{
+	/* Keep the descriptor admitted by read_request_disjoint(), not a reread. */
+	if (memcmp(request, copied, sizeof(*copied)))
+		return false;
+	if (copied->name_size)
+		memcpy(arena_at(executor.sealed.name_offset), copied->name,
+			copied->name_size);
+	if (memcmp(request, copied, sizeof(*copied)) ||
+	    (copied->name_size && memcmp(copied->name,
+		arena_at(executor.sealed.name_offset), copied->name_size)))
+		return false;
+	copied->name = copied->name_size ?
+		arena_at(executor.sealed.name_offset) : NULL;
+	state->request.operation = copied->operation;
+	state->request.attributes = copied->attributes;
+	memcpy(state->request.vendor_guid, copied->vendor_guid,
+		sizeof(state->request.vendor_guid));
+	state->request.name = copied->name;
+	state->request.name_size = copied->name_size;
+	state->read_name_capacity = (uint32_t)copied->name_capacity;
+	state->read_data_capacity = (uint32_t)copied->data_capacity;
+	state->at_runtime = executor.at_runtime;
+	return true;
+}
+
+static bool bytes_all_zero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+	uint8_t value = 0;
+
+	while (size--)
+		value |= *bytes++;
+	return value == 0;
+}
+
+static bool read_operation_valid(
+	const struct payload_mm_authvar_read_request *request)
+{
+	switch (request->operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
+		return !request->attributes && request->name_size &&
+			!request->name_capacity && !request->result_name &&
+			(request->result_data != NULL) == (request->data_capacity != 0);
+	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
+		return !request->attributes && request->name_capacity >= 2U &&
+			request->name_size <= request->name_capacity &&
+			request->result_name && !request->data_capacity &&
+			!request->result_data;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
+		return !request->name_size && !request->name &&
+			!request->name_capacity && !request->result_name &&
+			!request->data_capacity && !request->result_data &&
+			bytes_all_zero(request->vendor_guid,
+				sizeof(request->vendor_guid));
+	default:
+		return false;
+	}
+}
+
 static bool set_request_valid(const struct payload_mm_authvar_policy_request *request)
 {
 	const uint8_t *name = request->name;
@@ -1594,6 +1710,191 @@ end:
 out:
 	memset(executor.sealed.arena, 0, executor.sealed.required_size);
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+
+uint64_t payload_mm_authvar_read_transaction(
+	const struct payload_mm_authvar_read_request *request,
+	struct payload_mm_authvar_read_result *completion)
+{
+	struct payload_mm_authvar_read_request copied;
+	struct payload_mm_authvar_read_result published;
+	struct payload_mm_authvar_get_result get;
+	struct payload_mm_authvar_next_result next;
+	struct payload_mm_authvar_query_result query;
+	struct payload_mm_authvar_store_policy query_policy;
+	struct executor_session *state;
+	enum payload_mm_authvar_media_result media_result;
+	enum payload_mm_authvar_media_result end_result;
+	const void *bytes;
+	uint64_t status;
+	uint32_t expected = 0;
+	bool began = false;
+
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!policy_equal()) {
+		executor.installed = false;
+		(void)payload_mm_authvar_media_fail_closed(0, 0);
+		if (!read_request_disjoint(request, completion, &copied))
+			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete_without_arena;
+	}
+	if (!read_request_disjoint(request, completion, &copied))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_NEXT &&
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_QUERY) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		goto complete_without_arena;
+	}
+	if (!read_operation_valid(&copied)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		goto complete_without_arena;
+	}
+	if (!executor.installed) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete_without_arena;
+	}
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	memset(completion, 0, sizeof(*completion));
+	completion->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING;
+	completion->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
+	state = session();
+	memset(state, 0, sizeof(*state));
+	if (!read_request_copy(state, request, &copied)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		goto out;
+	}
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	began = true;
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+		status = poison_session();
+		goto end;
+	}
+	status = recover_session(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	memset(&state->read_result, 0, sizeof(state->read_result));
+	switch (state->request.operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
+		status = payload_mm_authvar_store_get(&state->index,
+			state->request.vendor_guid, state->request.name,
+			state->request.name_size, state->read_data_capacity,
+			state->at_runtime, &get);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL) {
+			state->read_result.required_data_size = get.required_data_size;
+			state->read_result.attributes = get.attributes;
+		}
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			bytes = payload_mm_authvar_store_data(&state->index, get.entry);
+			if (!bytes || get.required_data_size > state->read_data_capacity) {
+				status = poison_session();
+				break;
+			}
+			memcpy(arena_at(executor.sealed.data_offset), bytes,
+				get.required_data_size);
+		}
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
+		status = payload_mm_authvar_store_get_next(&state->index,
+			state->request.vendor_guid, state->request.name,
+			state->request.name_size, state->read_name_capacity,
+			state->at_runtime, &next);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
+			state->read_result.required_name_size = next.required_name_size;
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			bytes = payload_mm_authvar_store_name(&state->index, next.entry);
+			if (!bytes || next.required_name_size > state->read_name_capacity) {
+				status = poison_session();
+				break;
+			}
+			memcpy(arena_at(executor.sealed.name_offset), bytes,
+				next.required_name_size);
+			memcpy(state->read_result.vendor_guid, next.entry->vendor_guid,
+				sizeof(state->read_result.vendor_guid));
+		}
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
+		query_policy.maximum_storage = state->index.store_size -
+			PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+		query_policy.maximum_record_size =
+			executor.sealed.limits.maximum_record_size;
+		if (query_policy.maximum_record_size > state->index.store_size)
+			query_policy.maximum_record_size = state->index.store_size;
+		status = payload_mm_authvar_store_query(&state->index, &query_policy,
+			state->request.attributes, state->at_runtime, &query);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			state->read_result.maximum_storage = query.maximum_storage;
+			state->read_result.remaining_storage = query.remaining_storage;
+			state->read_result.maximum_variable = query.maximum_variable;
+		}
+		break;
+	default:
+		status = poison_session();
+		break;
+	}
+	if (executor.installed && policy_equal() && owner_equal(state))
+		payload_mm_authvar_media_cache_bind(state->generation, state->token);
+end:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		memset(&state->read_result, 0, sizeof(state->read_result));
+	}
+	state->read_result.status = status;
+	published = state->read_result;
+	/* Publication is allowed only after the media session ended successfully. */
+	if (end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		if (copied.name_capacity)
+			memset(copied.result_name, 0, copied.name_capacity);
+		if (copied.data_capacity)
+			memset(copied.result_data, 0, copied.data_capacity);
+	}
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET)
+			memcpy(copied.result_data,
+				arena_at(executor.sealed.data_offset),
+				published.required_data_size);
+		else if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_NEXT)
+			memcpy(copied.result_name,
+				arena_at(executor.sealed.name_offset),
+				published.required_name_size);
+	}
+out:
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	if (!began)
+		memset(&published, 0, sizeof(published));
+	published.status = status;
+	memset(completion, 0, sizeof(*completion));
+	memcpy(completion, &published, offsetof(struct payload_mm_authvar_read_result,
+		completion));
+	__atomic_store_n(&completion->completion,
+		PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE, __ATOMIC_RELEASE);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+
+complete_without_arena:
+	memset(&published, 0, sizeof(published));
+	published.status = status;
+	memset(completion, 0, sizeof(*completion));
+	memcpy(completion, &published, offsetof(struct payload_mm_authvar_read_result,
+		completion));
+	__atomic_store_n(&completion->completion,
+		PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE, __ATOMIC_RELEASE);
 	return status;
 }
 

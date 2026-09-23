@@ -15,6 +15,32 @@ struct payload_mm_authvar_executor_limits {
 	uint32_t maximum_records;
 };
 
+/* Internal protected request/result, not a wire ABI. */
+struct payload_mm_authvar_read_request {
+	uint32_t operation;
+	uint32_t attributes;
+	uint8_t vendor_guid[16];
+	const void *name;
+	size_t name_size;
+	void *result_name;
+	size_t name_capacity;
+	void *result_data;
+	size_t data_capacity;
+};
+
+struct payload_mm_authvar_read_result {
+	uint64_t status;
+	uint64_t maximum_storage;
+	uint64_t remaining_storage;
+	uint64_t maximum_variable;
+	uint32_t required_name_size;
+	uint32_t required_data_size;
+	uint32_t attributes;
+	uint8_t vendor_guid[16];
+	uint32_t completion;
+	uint32_t reserved;
+};
+
 /*
  * Internal SMM-only service. Installation is one-shot and requires mutually
  * disjoint protected-SMRAM arena/limits spans. The copied limits and computed
@@ -28,5 +54,14 @@ enum cb_err payload_mm_authvar_executor_install(
 	void *trusted_smram_arena, size_t arena_size,
 	const struct payload_mm_authvar_executor_limits *limits);
 uint64_t payload_mm_authvar_executor_recover(void);
+
+/*
+ * GET, NEXT and QUERY only. Descriptors, input and bounded output spans must
+ * be mutually disjoint protected memory. Output bytes and scalar results are
+ * published only after the single media session ends successfully.
+ */
+uint64_t payload_mm_authvar_read_transaction(
+	const struct payload_mm_authvar_read_request *request,
+	struct payload_mm_authvar_read_result *result);
 
 #endif
