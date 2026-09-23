@@ -41,14 +41,17 @@ payload_mm_mbedtls_dir := $(top)/3rdparty/mbedtls
 payload_mm_mbedtls_sources := asn1parse.c bignum.c bignum_core.c \
 	bignum_mod.c bignum_mod_raw.c constant_time.c md.c oid.c pk.c pkparse.c \
 	platform_util.c rsa.c sha256.c x509.c x509_crt.c
+ifeq ($(CONFIG_PAYLOAD_MM_AUTHVAR_CMS_VERIFY),y)
+payload_mm_mbedtls_sources += sha512.c
+endif
 
-smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/cms.c
-smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/crypto.c
-smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_crypto/mbedtls_verify_wrap.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/cms.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/crypto.c
+smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += payload_mm_crypto/mbedtls_verify_wrap.c
 smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += payload_mm_fmp_auth_policy.c
-smm-$(CONFIG_PAYLOAD_MM_CMS_VERIFY) += \
+smm-$(CONFIG_PAYLOAD_MM_CMS_CORE) += \
 	$(addprefix $(payload_mm_mbedtls_dir)/library/,$(payload_mm_mbedtls_sources))
-ifeq ($(CONFIG_PAYLOAD_MM_CMS_VERIFY),y)
+ifeq ($(CONFIG_PAYLOAD_MM_CMS_CORE),y)
 CPPFLAGS_common += \
 	-I$(payload_mm_mbedtls_dir)/include \
 	-I$(payload_mm_mbedtls_dir)/library \

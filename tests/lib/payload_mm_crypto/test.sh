@@ -49,9 +49,11 @@ done
 
 ${HOSTCC:-cc} -std=c11 "${OPTIMIZE:--O2}" -Wall -Wextra -Werror \
 	-ffunction-sections -fdata-sections ${SANITIZE:--fsanitize=address,undefined} \
+	'-DCONFIG(option)=CONFIG_##option' \
 	-DPAYLOAD_MM_AUTH_TEST \
 	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"' \
 	-I"$root/src/commonlib/bsd/include" -idirafter "$root/src/include" \
+	-I"$root/src/commonlib/include" \
 	-I"$root/src/lib/payload_mm_crypto" \
 	-I"$root/3rdparty/mbedtls/include" -I"$root/3rdparty/mbedtls/library" \
 	"$root/tests/lib/payload_mm_crypto/cms_test.c" \

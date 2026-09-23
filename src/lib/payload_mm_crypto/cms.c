@@ -4,6 +4,9 @@
 
 #include "crypto.h"
 
+#include <commonlib/helpers.h>
+#include <mbedtls/platform_util.h>
+
 struct der_cursor {
 	const uint8_t *data;
 	size_t size;
@@ -29,6 +32,14 @@ static const uint8_t data_oid[] = {
 static const uint8_t sha256_oid[] = {
 	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
 };
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+static const uint8_t sha384_oid[] = {
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
+};
+static const uint8_t sha512_oid[] = {
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+};
+#endif
 static const uint8_t rsa_oid[] = {
 	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
 };
@@ -301,6 +312,32 @@ static bool algorithm_is(struct der_object *object, const uint8_t *oid,
 		cursor.size == 0U;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+static bool hash_algorithm(const struct der_object *object,
+	enum payload_mm_hash_algorithm *algorithm)
+{
+	struct der_object copy;
+
+	if (!algorithm)
+		return false;
+	copy = *object;
+	if (algorithm_is(&copy, sha256_oid, sizeof(sha256_oid)))
+		*algorithm = PAYLOAD_MM_HASH_SHA256;
+	else {
+		copy = *object;
+		if (algorithm_is(&copy, sha384_oid, sizeof(sha384_oid)))
+			*algorithm = PAYLOAD_MM_HASH_SHA384;
+		else {
+			copy = *object;
+			if (!algorithm_is(&copy, sha512_oid, sizeof(sha512_oid)))
+				return false;
+			*algorithm = PAYLOAD_MM_HASH_SHA512;
+		}
+	}
+	return true;
+}
+#endif
+
 static int span_order(const struct payload_mm_crypto_span *left,
 	const struct payload_mm_crypto_span *right)
 {
@@ -450,9 +487,22 @@ enum signed_attributes_result {
 	SIGNED_ATTRIBUTES_VALID,
 };
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+struct cms_content {
+	const uint8_t *digest;
+	size_t digest_size;
+	const struct payload_mm_crypto_span *spans;
+	size_t span_count;
+};
+#endif
+
 static enum signed_attributes_result parse_signed_attributes(
 	const struct der_object *attributes,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	const uint8_t *content_digest, size_t content_digest_size)
+#else
 	const uint8_t content_digest[PAYLOAD_MM_SHA256_SIZE])
+#endif
 {
 	struct der_cursor cursor = { attributes->value.data,
 		attributes->value.size };
@@ -496,11 +546,20 @@ static enum signed_attributes_result parse_signed_attributes(
 		} else if (oid_is(&oid, message_digest_oid,
 			sizeof(message_digest_oid))) {
 			if (message_digest || !der_expect(&values, 0x04U, &object) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+			    object.value.size != content_digest_size ||
+#else
 			    object.value.size != PAYLOAD_MM_SHA256_SIZE ||
+#endif
 			    values.size != 0U)
 				return SIGNED_ATTRIBUTES_FORMAT;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+			if (!bytes_equal(object.value.data, content_digest,
+				content_digest_size))
+#else
 			if (!bytes_equal(object.value.data, content_digest,
 				PAYLOAD_MM_SHA256_SIZE))
+#endif
 				return SIGNED_ATTRIBUTES_AUTHENTICATED;
 			message_digest = true;
 		} else if (oid_is(&oid, signing_time_oid,
@@ -526,11 +585,18 @@ static enum signed_attributes_result parse_signed_attributes(
 
 static enum payload_mm_verify_status parse_cms(
 	const struct payload_mm_crypto_span *signed_data,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	const struct cms_content *content,
+#else
 	const uint8_t content_digest[PAYLOAD_MM_SHA256_SIZE],
+#endif
 	struct payload_mm_crypto_span *certificates,
 	size_t *certificate_count, size_t *signer_index,
 	struct payload_mm_crypto_span *signed_attributes,
 	struct payload_mm_crypto_span *signature,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	enum payload_mm_hash_algorithm *digest_algorithm,
+#endif
 	enum payload_mm_crypto_failure_source *failure_source)
 {
 	struct certificate_identity identities[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
@@ -544,10 +610,19 @@ static enum payload_mm_verify_status parse_cms(
 	struct der_object first;
 	struct payload_mm_crypto_span certificate;
 	struct certificate_identity identity;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	uint8_t computed_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
+	const uint8_t *content_digest;
+	size_t content_digest_size;
+#endif
 	size_t matches = 0U;
 	size_t objects = 0U;
 	size_t index;
 	int order;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	enum payload_mm_hash_algorithm signer_algorithm;
+	enum payload_mm_verify_status status;
+#endif
 	enum signed_attributes_result attributes_result;
 
 	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
@@ -576,8 +651,28 @@ static enum payload_mm_verify_status parse_cms(
 	contents.size = object.value.size;
 	if (!der_expect(&contents, 0x30U, &algorithm) || contents.size != 0U)
 		return PAYLOAD_MM_VERIFY_MALFORMED;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	if (!hash_algorithm(&algorithm, digest_algorithm))
+		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
+	content_digest_size = payload_mm_hash_digest_size(*digest_algorithm);
+	if (content->span_count) {
+		if (content->digest || content->digest_size)
+			return PAYLOAD_MM_VERIFY_INVALID;
+		status = payload_mm_hash_spans(*digest_algorithm, content->spans,
+			content->span_count, computed_digest);
+		if (status != PAYLOAD_MM_VERIFY_OK)
+			return status;
+		content_digest = computed_digest;
+	} else {
+		if (content->spans || !content->digest ||
+		    content->digest_size != content_digest_size)
+			return PAYLOAD_MM_VERIFY_UNSUPPORTED;
+		content_digest = content->digest;
+	}
+#else
 	if (!algorithm_is(&algorithm, sha256_oid, sizeof(sha256_oid)))
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
+#endif
 	if (!der_expect(&fields, 0x30U, &object))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
 	contents.data = object.value.data;
@@ -636,11 +731,21 @@ static enum payload_mm_verify_status parse_cms(
 	signer_serial = object.value;
 	if (!der_expect(&fields, 0x30U, &algorithm))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	if (!hash_algorithm(&algorithm, &signer_algorithm) ||
+	    signer_algorithm != *digest_algorithm)
+#else
 	if (!algorithm_is(&algorithm, sha256_oid, sizeof(sha256_oid)))
+#endif
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	if (!der_expect(&fields, 0xa0U, &object))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	attributes_result = parse_signed_attributes(&object, content_digest,
+		content_digest_size);
+#else
 	attributes_result = parse_signed_attributes(&object, content_digest);
+#endif
 	if (attributes_result != SIGNED_ATTRIBUTES_VALID) {
 		if (attributes_result == SIGNED_ATTRIBUTES_AUTHENTICATED)
 			*failure_source =
@@ -678,6 +783,12 @@ static enum payload_mm_verify_status cms_verify_detailed(
 	const struct payload_mm_crypto_span *trust_xdr,
 	enum payload_mm_crypto_failure_source *failure_source)
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	const struct cms_content content = {
+		.digest = content_digest,
+		.digest_size = PAYLOAD_MM_SHA256_SIZE,
+	};
+#endif
 	struct payload_mm_crypto_span certificates[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
 	struct payload_mm_crypto_span intermediates[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
 	struct payload_mm_crypto_span anchors[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
@@ -685,7 +796,12 @@ static enum payload_mm_verify_status cms_verify_detailed(
 	struct payload_mm_crypto_span signature;
 	struct payload_mm_crypto_span hash_spans[2];
 	uint8_t attribute_tag = 0x31U;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	uint8_t attribute_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
+	enum payload_mm_hash_algorithm digest_algorithm;
+#else
 	uint8_t attribute_digest[PAYLOAD_MM_SHA256_SIZE];
+#endif
 	size_t certificate_count;
 	size_t intermediate_count = 0U;
 	size_t anchor_count;
@@ -706,12 +822,22 @@ static enum payload_mm_verify_status cms_verify_detailed(
 		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
 		return status;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	status = parse_cms(signed_data, &content, certificates,
+		&certificate_count, &signer, &attributes, &signature,
+		&digest_algorithm, failure_source);
+#else
 	status = parse_cms(signed_data, content_digest, certificates,
 		&certificate_count, &signer, &attributes, &signature,
 		failure_source);
+#endif
 	if (status != PAYLOAD_MM_VERIFY_OK) {
 		return status;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	if (digest_algorithm != PAYLOAD_MM_HASH_SHA256)
+		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
+#endif
 	for (index = 0U; index < certificate_count; index++) {
 		if (index != signer)
 			intermediates[intermediate_count++] = certificates[index];
@@ -725,11 +851,22 @@ static enum payload_mm_verify_status cms_verify_detailed(
 	hash_spans[0].size = 1U;
 	hash_spans[1].data = attributes.data + 1U;
 	hash_spans[1].size = attributes.size - 1U;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	status = payload_mm_hash_spans(digest_algorithm, hash_spans, 2U,
+		attribute_digest);
+#else
 	status = payload_mm_sha256_spans(hash_spans, 2U, attribute_digest);
+#endif
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	status = payload_mm_rsa_verify(&certificates[signer], digest_algorithm,
+		attribute_digest, payload_mm_hash_digest_size(digest_algorithm),
+		&signature);
+#else
 	status = payload_mm_rsa_sha256_verify(&certificates[signer],
 		attribute_digest, &signature);
+#endif
 	if (status == PAYLOAD_MM_VERIFY_MALFORMED || status == PAYLOAD_MM_VERIFY_UNSUPPORTED ||
 	    status == PAYLOAD_MM_VERIFY_REJECTED)
 		*failure_source = status == PAYLOAD_MM_VERIFY_REJECTED ?
@@ -737,6 +874,134 @@ static enum payload_mm_verify_status cms_verify_detailed(
 			PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
 	return status;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+static bool address_range_valid(const void *data, size_t size)
+{
+	return size == 0U || (data && (uintptr_t)data <= UINTPTR_MAX - size);
+}
+
+static bool address_ranges_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	uintptr_t left_address = (uintptr_t)left;
+	uintptr_t right_address = (uintptr_t)right;
+
+	if (!address_range_valid(left, left_size) ||
+	    !address_range_valid(right, right_size))
+		return true;
+	if (left_size == 0U || right_size == 0U)
+		return false;
+	return left_address < right_address + right_size &&
+		right_address < left_address + left_size;
+}
+
+static bool authvar_cms_buffers_disjoint(
+	const struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content, size_t content_count,
+	const struct payload_mm_cms_verified_signer *verified)
+{
+	const void *mutable_data[] = { owner, verified };
+	const size_t mutable_sizes[] = { sizeof(*owner), sizeof(*verified) };
+	const void *immutable_data[PAYLOAD_MM_HASH_MAX_SPANS + 3U];
+	size_t immutable_sizes[PAYLOAD_MM_HASH_MAX_SPANS + 3U];
+	size_t immutable_count = 0U;
+	size_t left;
+	size_t right;
+
+	if (!address_range_valid(content, content_count * sizeof(*content)))
+		return false;
+	immutable_data[immutable_count] = signed_data;
+	immutable_sizes[immutable_count++] = sizeof(*signed_data);
+	immutable_data[immutable_count] = signed_data->data;
+	immutable_sizes[immutable_count++] = signed_data->size;
+	immutable_data[immutable_count] = content;
+	immutable_sizes[immutable_count++] = content_count * sizeof(*content);
+	for (left = 0U; left < content_count; left++) {
+		immutable_data[immutable_count] = content[left].data;
+		immutable_sizes[immutable_count++] = content[left].size;
+	}
+	for (left = 0U; left < ARRAY_SIZE(mutable_data); left++) {
+		if (!address_range_valid(mutable_data[left], mutable_sizes[left]))
+			return false;
+		for (right = left + 1U; right < ARRAY_SIZE(mutable_data); right++)
+			if (address_ranges_overlap(mutable_data[left], mutable_sizes[left],
+				mutable_data[right], mutable_sizes[right]))
+				return false;
+		for (right = 0U; right < immutable_count; right++)
+			if (address_ranges_overlap(mutable_data[left], mutable_sizes[left],
+				immutable_data[right], immutable_sizes[right]))
+				return false;
+	}
+	for (left = 0U; left < immutable_count; left++)
+		if (!address_range_valid(immutable_data[left], immutable_sizes[left]))
+			return false;
+	return true;
+}
+
+enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content_spans, size_t content_count,
+	struct payload_mm_cms_verified_signer *verified)
+{
+	const struct cms_content content = {
+		.spans = content_spans,
+		.span_count = content_count,
+	};
+	struct payload_mm_cms_verified_signer published = { 0 };
+	struct payload_mm_crypto_span attributes;
+	struct payload_mm_crypto_span signature;
+	struct payload_mm_crypto_span hash_spans[2];
+	enum payload_mm_crypto_failure_source failure_source;
+	enum payload_mm_verify_status status;
+	uint8_t attribute_tag = 0x31U;
+	uint8_t attribute_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
+	size_t signer;
+
+	if (!owner || !verified || !signed_data || !content_spans ||
+	    !address_range_valid(owner, sizeof(*owner)) ||
+	    !address_range_valid(verified, sizeof(*verified)) ||
+	    !address_range_valid(signed_data, sizeof(*signed_data)) ||
+	    (uintptr_t)owner % _Alignof(*owner) ||
+	    (uintptr_t)verified % _Alignof(*verified) ||
+	    (uintptr_t)signed_data % _Alignof(*signed_data) ||
+	    (uintptr_t)content_spans % _Alignof(*content_spans) ||
+	    !signed_data->data ||
+	    !signed_data->size || signed_data->size > PAYLOAD_MM_MAX_CMS_SIZE ||
+	    !content_count || content_count > PAYLOAD_MM_HASH_MAX_SPANS ||
+	    !authvar_cms_buffers_disjoint(owner, signed_data, content_spans,
+		content_count, verified))
+		return PAYLOAD_MM_VERIFY_INVALID;
+	status = payload_mm_crypto_begin(owner);
+	if (status != PAYLOAD_MM_VERIFY_OK)
+		return status;
+	status = parse_cms(signed_data, &content, published.certificates,
+		&published.certificate_count, &signer, &attributes, &signature,
+		&published.digest_algorithm, &failure_source);
+	if (status == PAYLOAD_MM_VERIFY_OK) {
+		hash_spans[0].data = &attribute_tag;
+		hash_spans[0].size = 1U;
+		hash_spans[1].data = attributes.data + 1U;
+		hash_spans[1].size = attributes.size - 1U;
+		status = payload_mm_hash_spans(published.digest_algorithm,
+			hash_spans, 2U, attribute_digest);
+	}
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		status = payload_mm_rsa_verify(&published.certificates[signer],
+			published.digest_algorithm, attribute_digest,
+			payload_mm_hash_digest_size(published.digest_algorithm),
+			&signature);
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		published.signer_certificate = published.certificates[signer];
+	status = payload_mm_crypto_end(owner, status);
+	mbedtls_platform_zeroize(attribute_digest, sizeof(attribute_digest));
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		*verified = published;
+	return status;
+}
+#endif
 
 #ifdef PAYLOAD_MM_AUTH_TEST
 enum payload_mm_verify_status payload_mm_cms_verify(

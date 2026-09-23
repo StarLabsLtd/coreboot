@@ -266,10 +266,18 @@ config CAPSULE_TPM_ANCHOR_TRUSTED_TRANSITION
 	  SMI route, provisioning or runtime DMA proof. Late mutable firmware
 	  remains a weaker TCB than an earlier hardware-enforced root.
 
+config PAYLOAD_MM_CMS_CORE
+	bool
+	default n
+	help
+	  Build the dormant SMM-safe bounded DER, CMS, RSA and X.509 verification
+	  core. This supplies no trust-policy producer, provider, endpoint or route.
+
 config PAYLOAD_MM_CMS_VERIFY
 	bool
 	default n
 	depends on CAPSULE_BROKER_CONTRACT
+	select PAYLOAD_MM_CMS_CORE
 	help
 	  Build the dormant SMM-safe authenticated-capsule verification core. It
 	  accepts bounded canonical DER/CMS with RSA/SHA-256 X.509 chains and uses
@@ -278,6 +286,17 @@ config PAYLOAD_MM_CMS_VERIFY
 	  broker provider. This selects no policy producer, SMI entry or flash
 	  backend. A platform must seal its trust roots, image
 	  identity, board identity and version floor before installing it.
+
+config PAYLOAD_MM_AUTHVAR_CMS_VERIFY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	select PAYLOAD_MM_CMS_CORE
+	help
+	  Build the dormant untrusted detached-CMS verifier for authenticated
+	  variables. It verifies bounded RSA/SHA-256, SHA-384 or SHA-512 CMS
+	  mechanics and exposes input-backed signer views, but makes no trust,
+	  variable-policy or authorization decision and publishes no endpoint.
 
 config ROMSTAGE_ADA
 	bool

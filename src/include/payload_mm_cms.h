@@ -8,7 +8,11 @@
 #include <commonlib/bsd/compiler.h>
 
 #define PAYLOAD_MM_SHA256_SIZE 32U
+#define PAYLOAD_MM_SHA384_SIZE 48U
+#define PAYLOAD_MM_SHA512_SIZE 64U
+#define PAYLOAD_MM_MAX_DIGEST_SIZE PAYLOAD_MM_SHA512_SIZE
 #define PAYLOAD_MM_SHA256_MAX_SPANS 2U
+#define PAYLOAD_MM_HASH_MAX_SPANS 5U
 #define PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE (128U * 1024U * 1024U)
 #define PAYLOAD_MM_MAX_SIGNED_BODY_SIZE \
 	(PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE - sizeof(uint64_t))
@@ -40,6 +44,12 @@ enum payload_mm_verify_status {
 	PAYLOAD_MM_VERIFY_REJECTED,
 	PAYLOAD_MM_VERIFY_INTERNAL,
 	PAYLOAD_MM_VERIFY_CHANGED,
+};
+
+enum payload_mm_hash_algorithm {
+	PAYLOAD_MM_HASH_SHA256 = 1,
+	PAYLOAD_MM_HASH_SHA384 = 2,
+	PAYLOAD_MM_HASH_SHA512 = 3,
 };
 
 enum payload_mm_auth_failure_source {
@@ -76,6 +86,25 @@ struct payload_mm_authenticated_image {
 	uint64_t monotonic_count;
 	enum payload_mm_auth_failure_source failure_source;
 };
+
+/*
+ * Signature verification only: these input-backed certificate views are not
+ * trust decisions and expire with the caller's immutable CMS buffer.
+ */
+struct payload_mm_cms_verified_signer {
+	enum payload_mm_hash_algorithm digest_algorithm;
+	struct payload_mm_crypto_span signer_certificate;
+	struct payload_mm_crypto_span certificates[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
+	size_t certificate_count;
+};
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content, size_t content_count,
+	struct payload_mm_cms_verified_signer *verified);
+#endif
 
 /* The production entry point derives the signed digest from image bytes. */
 enum payload_mm_verify_status payload_mm_authenticate_image(
