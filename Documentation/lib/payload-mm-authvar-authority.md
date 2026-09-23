@@ -53,3 +53,29 @@ rewrites an already-modified value. It rejects every internal/derived variable
 as a target, private certdb binding intents, aliases, malformed ranges, and
 inconsistent target or mode facts. It still performs no media operation,
 candidate-image construction, provider selection, or endpoint publication.
+
+`PAYLOAD_MM_AUTHVAR_CANDIDATE` is the dormant pure image-construction stage.
+It independently rescans the complete source, compares the supplied index,
+copies the exact store header, compacts surviving ADDED records before promoted
+transition records, then emits fixed roles in target/enable/vendor order. It
+rescans the complete replacement image, checks every surviving and mutated key,
+requires exact internal-variable representations, and publishes full-store
+source and candidate SHA-256 digests with a nonzero generation/token binding.
+No media is read or written by this stage.
+
+The write policy is immutable trusted platform policy held in protected SMRAM,
+not request or media data. The coordinator binds it to the active transaction;
+the candidate result carries an exact policy copy so the later executor seal
+can prove which limits admitted the image.
+
+The binding also carries the trusted source volatile-mode projection and the
+runtime phase. SetupMode and VendorKeys are independently checked against PK
+and VendorKeysNv. Before runtime, SecureBoot is also checked against
+SecureBootEnable. At runtime SecureBoot has no authoritative persistent source:
+EDK2 deliberately preserves its current volatile value while a PK transition
+does not update SecureBootEnable. The protected transaction coordinator must
+therefore bind that volatile source fact to the generation/token; the candidate
+builder requires an absent derived role to preserve it exactly. Persistent
+SecureBootEnable and VendorKeysNv roles are rejected at runtime. The resulting
+projection is checked against final PK/VendorKeysNv state and every explicit
+SecureBootEnable transition.

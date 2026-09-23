@@ -61,5 +61,7 @@ struct payload_mm_authvar_bundle_plan {
 enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	const struct payload_mm_authvar_bundle_snapshot *snapshot,
 	struct payload_mm_authvar_bundle_plan *plan);
+bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
+	const void *name, size_t name_size);
 
 #endif

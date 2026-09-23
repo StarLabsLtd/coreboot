@@ -21,6 +21,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_ROUTE) += payload_mm_authvar_route.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_TRUST_STORE) += payload_mm_authvar_trust_store.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY) += payload_mm_authvar_authority.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN) += payload_mm_authvar_bundle.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE) += payload_mm_authvar_candidate.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c

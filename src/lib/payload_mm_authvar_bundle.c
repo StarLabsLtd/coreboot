@@ -182,8 +182,8 @@ static bool target_matches(const struct payload_mm_authvar_policy_request *reque
 	return false;
 }
 
-static bool reserved_internal_key(
-	const struct payload_mm_authvar_policy_request *request)
+bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
+	const void *name, size_t name_size)
 {
 	static const struct {
 		const uint8_t *guid;
@@ -212,9 +212,15 @@ static bool reserved_internal_key(
 			sizeof(cert_db_volatile_name) },
 	};
 
+	if (!vendor_guid || !name || !name_size ||
+	    (uintptr_t)vendor_guid > UINTPTR_MAX - 16U ||
+	    (uintptr_t)name > UINTPTR_MAX - name_size)
+		return false;
+
 	for (size_t i = 0U; i < ARRAY_SIZE(keys); i++)
-		if (key_is(request, keys[i].guid, keys[i].name,
-			keys[i].name_size))
+		if (name_size == keys[i].name_size &&
+		    !memcmp(vendor_guid, keys[i].guid, 16U) &&
+		    !memcmp(name, keys[i].name, name_size))
 			return true;
 	return false;
 }
@@ -361,14 +367,15 @@ static bool add_mutation(struct payload_mm_authvar_bundle_plan *plan,
 {
 	struct payload_mm_authvar_bundle_mutation *mutation;
 
-	if (plan->mutation_count >= PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS)
+	if (plan->mutation_count >= PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS ||
+	    data_size > UINT32_MAX)
 		return false;
 	mutation = &plan->mutations[plan->mutation_count++];
 
 	mutation->role = role;
 	mutation->mutation.kind = kind;
 	mutation->mutation.attributes = attributes;
-	mutation->mutation.data_size = data_size;
+	mutation->mutation.data_size = (uint32_t)data_size;
 	memcpy(mutation->vendor_guid, guid, sizeof(mutation->vendor_guid));
 	mutation->name = name;
 	mutation->name_size = name_size;
@@ -403,7 +410,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	request = snapshot->request;
 	if (!decision_valid(decision) ||
 	    !target_matches(request, decision->target) ||
-	    reserved_internal_key(request) ||
+	    payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
+		request->name, request->name_size) ||
 	    (snapshot->facts.at_runtime && !snapshot->facts.ready_to_boot))
 		return PAYLOAD_MM_VERIFY_INVALID;
 	if (!decision_data_safe(snapshot))
@@ -506,7 +514,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		return PAYLOAD_MM_VERIFY_INTERNAL;
 	draft.mutations[0].mutation = decision->mutation;
 	if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE) {
-		draft.volatile_modes &= ~PAYLOAD_MM_AUTHVAR_MODE_SETUP;
+		draft.volatile_modes &=
+			(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_SETUP;
 		if (!snapshot->facts.at_runtime) {
 			draft.volatile_modes |= PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 			if (!add_mutation(&draft,
@@ -522,7 +531,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	} else if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE) {
 		draft.volatile_modes |= PAYLOAD_MM_AUTHVAR_MODE_SETUP;
 		if (!snapshot->facts.at_runtime) {
-			draft.volatile_modes &= ~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+			draft.volatile_modes &=
+				(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 			if (secure_boot_enable)
 				if (!add_mutation(&draft,
 					PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE,
@@ -533,7 +543,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		}
 	}
 	if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS) {
-		draft.volatile_modes &= ~PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+		draft.volatile_modes &=
+			(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 		if (needs_vendor_write) {
 			if (!add_mutation(&draft,
 				PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV,

@@ -176,6 +176,16 @@ config PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
 	  persistent mutations plus a packed volatile mode projection. It writes no
 	  media, creates no candidate image and installs no provider or endpoint.
 
+config PAYLOAD_MM_AUTHVAR_CANDIDATE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
+	help
+	  Build the dormant pure authenticated-variable whole-store candidate
+	  composer. It independently rescans the source and emits one canonical,
+	  provenance-bound replacement image, but performs no media operation,
+	  installs no provider and publishes no endpoint.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
