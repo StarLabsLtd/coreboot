@@ -119,6 +119,16 @@ config PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
 	  It performs bounded byte-wise decoding only and supplies no cryptography,
 	  trust policy, mutation authority, dispatcher or service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_ROUTE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
+	help
+	  Build the dormant allocation-free authenticated-variable authorization
+	  router. It classifies protected request snapshots and emits ordered PK,
+	  KEK, payload-certificate or certdb authorities and post-success intent,
+	  but performs no trust, replay, payload-format or mutation decision.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
