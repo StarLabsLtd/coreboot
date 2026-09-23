@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_format.h>
+#include <boot/payload_mm_authvar_signature_db.h>
 #include <boot/payload_mm_authvar_trust_store.h>
 
 #include <commonlib/helpers.h>
@@ -19,42 +20,7 @@ static const uint8_t x509_guid[16] = {
 static const uint8_t pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
 static const uint8_t kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 
-#define MAX_KEK_TRUST_ANCHORS 64U
-#define VARIABLE_X509_SIZE UINT32_MAX
-
-struct signature_type {
-	uint8_t guid[16];
-	uint32_t data_size;
-};
-
-/* EDK2 26.09 AuthService.c:mSupportSigItem, in EFI byte order. */
-static const struct signature_type signature_types[] = {
-	{ { 0x26, 0x16, 0xc4, 0xc1, 0x4c, 0x50, 0x92, 0x40,
-	    0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28 }, 32U },
-	{ { 0xe8, 0x66, 0x57, 0x3c, 0x9c, 0x26, 0x34, 0x4e,
-	    0xaa, 0x14, 0xed, 0x77, 0x6e, 0x85, 0xb3, 0xb6 }, 256U },
-	{ { 0x90, 0x61, 0xb3, 0xe2, 0x9b, 0x87, 0x3d, 0x4a,
-	    0xad, 0x8d, 0xf2, 0xe7, 0xbb, 0xa3, 0x27, 0x84 }, 256U },
-	{ { 0x12, 0xa5, 0x6c, 0x82, 0x10, 0xcf, 0xc9, 0x4a,
-	    0xb1, 0x87, 0xbe, 0x01, 0x49, 0x66, 0x31, 0xbd }, 20U },
-	{ { 0x4f, 0x44, 0xf8, 0x67, 0x43, 0x87, 0xf1, 0x48,
-	    0xa3, 0x28, 0x1e, 0xaa, 0xb8, 0x73, 0x60, 0x80 }, 256U },
-	{ { 0xa1, 0x59, 0xc0, 0xa5, 0xe4, 0x94, 0xa7, 0x4a,
-	    0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72 },
-	    VARIABLE_X509_SIZE },
-	{ { 0x33, 0x52, 0x6e, 0x0b, 0x5c, 0xa6, 0xc9, 0x44,
-	    0x94, 0x07, 0xd9, 0xab, 0x83, 0xbf, 0xc8, 0xbd }, 28U },
-	{ { 0x07, 0x53, 0x3e, 0xff, 0xd0, 0x9f, 0xc9, 0x48,
-	    0x85, 0xf1, 0x8a, 0xd5, 0x6c, 0x70, 0x1e, 0x01 }, 48U },
-	{ { 0xae, 0x0f, 0x3e, 0x09, 0xc4, 0xa6, 0x50, 0x4f,
-	    0x9f, 0x1b, 0xd4, 0x1e, 0x2b, 0x89, 0xc1, 0x9a }, 64U },
-	{ { 0x92, 0xa4, 0xd2, 0x3b, 0xc0, 0x96, 0x79, 0x40,
-	    0xb4, 0x20, 0xfc, 0xf9, 0x8e, 0xf1, 0x03, 0xed }, 48U },
-	{ { 0x6e, 0x87, 0x76, 0x70, 0xc2, 0x80, 0xe6, 0x4e,
-	    0xaa, 0xd2, 0x28, 0xb3, 0x49, 0xa6, 0x86, 0x5b }, 64U },
-	{ { 0x63, 0xbf, 0x6d, 0x44, 0x02, 0x25, 0xda, 0x4c,
-	    0xbc, 0xfa, 0x24, 0x65, 0xd2, 0xb0, 0xfe, 0x9d }, 80U },
-};
+#define MAX_KEK_TRUST_ANCHORS PAYLOAD_MM_AUTHVAR_SIGNATURE_DB_MAX_X509
 
 #define SECURE_BOOT_VARIABLE_ATTRIBUTES \
 	(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE | \
@@ -256,53 +222,6 @@ static bool list_is_x509(
 	return !memcmp(list->type_guid, x509_guid, sizeof(x509_guid));
 }
 
-static bool list_semantics_valid(
-	const struct payload_mm_authvar_signature_list_view *list)
-{
-	for (size_t type = 0U; type < ARRAY_SIZE(signature_types); type++) {
-		if (memcmp(list->type_guid, signature_types[type].guid,
-			sizeof(list->type_guid)))
-			continue;
-		if (list->header.size || !list->signature_count)
-			return false;
-		return signature_types[type].data_size == VARIABLE_X509_SIZE ?
-			list->signature_size > 16U :
-			list->signature_size == 16U +
-				signature_types[type].data_size;
-	}
-	return false;
-}
-
-static enum payload_mm_verify_status stream_valid(const void *data, size_t size,
-	bool platform_key)
-{
-	struct payload_mm_authvar_signature_list_cursor cursor;
-	struct payload_mm_authvar_signature_list_view list;
-	enum payload_mm_authvar_format_result result;
-	size_t list_count = 0U;
-	size_t anchors = 0U;
-
-	if (!payload_mm_authvar_signature_list_begin(&cursor, data, size))
-		return PAYLOAD_MM_VERIFY_MALFORMED;
-	while ((result = payload_mm_authvar_signature_list_next(&cursor, &list)) ==
-		PAYLOAD_MM_AUTHVAR_FORMAT_OK) {
-		list_count++;
-		if (!list_semantics_valid(&list))
-			return PAYLOAD_MM_VERIFY_MALFORMED;
-		if (list_is_x509(&list)) {
-			anchors += list.signature_count;
-			if (anchors > MAX_KEK_TRUST_ANCHORS)
-				return PAYLOAD_MM_VERIFY_UNSUPPORTED;
-		}
-		if (platform_key && (!list_is_x509(&list) || list.header.size ||
-		    list.signature_count != 1U || list.signature_size <= 16U ||
-		    list_count != 1U))
-			return PAYLOAD_MM_VERIFY_MALFORMED;
-	}
-	if (result != PAYLOAD_MM_AUTHVAR_FORMAT_DONE || !list_count)
-		return PAYLOAD_MM_VERIFY_MALFORMED;
-	return PAYLOAD_MM_VERIFY_OK;
-}
 
 static enum payload_mm_verify_status verify_anchor(
 	struct payload_mm_crypto_owner *owner,
@@ -319,6 +238,7 @@ static enum payload_mm_verify_status verify_anchor(
 }
 
 static enum payload_mm_verify_status verify_platform_key(
+	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_cms_verified_signer *verified,
 	const void *data, size_t size)
 {
@@ -328,7 +248,8 @@ static enum payload_mm_verify_status verify_platform_key(
 	enum payload_mm_verify_status status;
 	size_t matches = 0U;
 
-	status = stream_valid(data, size, true);
+	status = payload_mm_authvar_signature_db_validate(owner, data, size,
+		PAYLOAD_MM_AUTHVAR_PLATFORM_KEY, 1U, NULL);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
 	payload_mm_authvar_signature_list_begin(&cursor, data, size);
@@ -361,7 +282,8 @@ static enum payload_mm_verify_status verify_exchange_keys(
 	enum payload_mm_authvar_format_result result;
 	enum payload_mm_verify_status status;
 
-	status = stream_valid(data, size, false);
+	status = payload_mm_authvar_signature_db_validate(owner, data, size,
+		PAYLOAD_MM_AUTHVAR_SIGNATURE_DB, MAX_KEK_TRUST_ANCHORS, NULL);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
 	payload_mm_authvar_signature_list_begin(&cursor, data, size);
@@ -424,7 +346,7 @@ static enum payload_mm_verify_status verify_with_signer(
 			return PAYLOAD_MM_VERIFY_INVALID;
 		status = plan->authorities[authority] ==
 			PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK ?
-			verify_platform_key(verified, data,
+			verify_platform_key(owner, verified, data,
 				entry->data_size) :
 			verify_exchange_keys(owner, signed_data, verified, data,
 				entry->data_size);

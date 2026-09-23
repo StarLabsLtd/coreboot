@@ -4,6 +4,11 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+mbedtls_root="$root/3rdparty/mbedtls"
+if [ ! -f "$mbedtls_root/library/x509_crt.c" ]; then
+	common_dir=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)
+	mbedtls_root=$(CDPATH= cd -- "$(dirname -- "$common_dir")/3rdparty/mbedtls" && pwd)
+fi
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/payload-mm-authvar-trust-store.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
@@ -83,7 +88,7 @@ sources='asn1parse bignum bignum_core bignum_mod bignum_mod_raw constant_time
 md oid pk pkparse platform_util rsa sha256 sha512 x509 x509_crt'
 mbedtls_sources=
 for source in $sources; do
-	mbedtls_sources="$mbedtls_sources $root/3rdparty/mbedtls/library/$source.c"
+	mbedtls_sources="$mbedtls_sources $mbedtls_root/library/$source.c"
 done
 
 for optimization in 0 2; do
@@ -98,16 +103,18 @@ for optimization in 0 2; do
 		-DCONFIG_PAYLOAD_MM_AUTHVAR_CMS_VERIFY=1 \
 		-DCONFIG_PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR=1 \
 		-DCONFIG_PAYLOAD_MM_AUTHVAR_TRUST_STORE=1 \
+		-DCONFIG_PAYLOAD_MM_AUTHVAR_SIGNATURE_DB=1 \
 		-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"' \
 		-I"$temporary/include" -I"$root/src" \
 		-I"$root/src/commonlib/bsd/include" -idirafter "$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/lib" \
 		-I"$root/src/arch/x86/include" \
 		-I"$root/src/lib/payload_mm_crypto" \
-		-I"$root/3rdparty/mbedtls/include" \
-		-I"$root/3rdparty/mbedtls/library" \
+		-I"$mbedtls_root/include" \
+		-I"$mbedtls_root/library" \
 		"$root/tests/lib/payload_mm_authvar_trust_store_test.c" \
 		"$root/src/lib/payload_mm_authvar_trust_store.c" \
+		"$root/src/lib/payload_mm_authvar_signature_db.c" \
 		"$root/src/lib/payload_mm_authvar_trust_anchor.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
