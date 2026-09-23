@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../src/lib/payload_mm_authvar_internal.h"
+
 #define assert(c) do { if (!(c)) __builtin_abort(); } while (0)
 #define STORE_SIZE 1024U
 #define MAX_ENTRIES 16U
@@ -171,6 +173,130 @@ static void append_target(u8 state, const uint8_t record_timestamp[16])
 	};
 	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
 					     &limits) == CB_SUCCESS);
+}
+
+static void append_projection_record(const u8 guid[16], const u8 *name,
+	size_t name_size, u32 attributes, const u8 *data, size_t data_size,
+	enum payload_mm_authvar_record_timestamp mode)
+{
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = name,
+		.name_size = name_size,
+		.attributes = attributes,
+	};
+
+	memcpy(descriptor.vendor_guid, guid, 16U);
+	if (mode == PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED &&
+	    attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED)
+		memcpy(descriptor.timestamp, timestamp, sizeof(timestamp));
+	(void)add_record(index.used_size, &descriptor, data, data_size, mode,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED);
+	memset(entries, 0, sizeof(entries));
+	index = (struct payload_mm_authvar_store_index) {
+		.entries = entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
+		&limits) == CB_SUCCESS);
+}
+
+static void test_projection_oracle(void)
+{
+	static const u8 one = 1U;
+	struct payload_mm_authvar_store_entry candidate_entries[MAX_ENTRIES];
+	struct payload_mm_authvar_store_index built = {
+		.entries = candidate_entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	struct payload_mm_authvar_candidate_binding binding;
+	const struct payload_mm_authvar_store_entry *pk;
+	const struct payload_mm_authvar_store_entry *enable;
+
+	init_source();
+	append_projection_record(global_guid, pk_name, sizeof(pk_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		&one, sizeof(one), PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+	append_projection_record(enable_guid, enable_name, sizeof(enable_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		&one, sizeof(one), PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+	binding = (struct payload_mm_authvar_candidate_binding) {
+		.generation = 1U,
+		.token = 2U,
+		.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
+	};
+	memcpy(candidate, store, sizeof(candidate));
+	pk = payload_mm_authvar_store_find(&index, global_guid, pk_name,
+		sizeof(pk_name));
+	assert(pk);
+	candidate[pk->record_offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	binding.at_runtime = 1U;
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.at_runtime = 0U;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&built, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	binding.at_runtime = 1U;
+	enable = payload_mm_authvar_store_find(&built, enable_guid, enable_name,
+		sizeof(enable_name));
+	assert(enable);
+	candidate[enable->data_offset] = 0U;
+	memset(candidate_entries, 0, sizeof(candidate_entries));
+	built = (struct payload_mm_authvar_store_index) {
+		.entries = candidate_entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.at_runtime = 0U;
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&built, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	memcpy(candidate, store, sizeof(candidate));
+	enable = payload_mm_authvar_store_find(&index, enable_guid, enable_name,
+		sizeof(enable_name));
+	assert(enable);
+	candidate[enable->record_offset + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	memset(candidate_entries, 0, sizeof(candidate_entries));
+	built = (struct payload_mm_authvar_store_index) {
+		.entries = candidate_entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	init_source();
 }
 
 static struct payload_mm_authvar_bundle_plan target_write(void)
@@ -713,6 +839,7 @@ static void test_real_out_of_resources(void)
 int main(void)
 {
 	init_source();
+	test_projection_oracle();
 	test_build();
 	test_rejections();
 	test_bundle_roles_and_projection();
