@@ -5,6 +5,9 @@
 
 #include <mbedtls/pk.h>
 #include <mbedtls/sha256.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+#include <mbedtls/sha512.h>
+#endif
 #include <mbedtls/x509_crt.h>
 
 #include "crypto.h"
@@ -198,6 +201,19 @@ enum payload_mm_verify_status payload_mm_sha256_spans(
 	const struct payload_mm_crypto_span *spans, size_t count,
 	uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	uint8_t full_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
+	enum payload_mm_verify_status status;
+
+	if (count > PAYLOAD_MM_SHA256_MAX_SPANS || digest == NULL)
+		return PAYLOAD_MM_VERIFY_INVALID;
+	status = payload_mm_hash_spans(PAYLOAD_MM_HASH_SHA256, spans, count,
+		full_digest);
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		memcpy(digest, full_digest, PAYLOAD_MM_SHA256_SIZE);
+	mbedtls_platform_zeroize(full_digest, sizeof(full_digest));
+	return status;
+#else
 	mbedtls_sha256_context context;
 	size_t total = 0U;
 	size_t index;
@@ -223,13 +239,139 @@ enum payload_mm_verify_status payload_mm_sha256_spans(
 		result = mbedtls_sha256_finish(&context, digest);
 	mbedtls_sha256_free(&context);
 	return result == 0 ? PAYLOAD_MM_VERIFY_OK : PAYLOAD_MM_VERIFY_INTERNAL;
+#endif
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+size_t payload_mm_hash_digest_size(enum payload_mm_hash_algorithm algorithm)
+{
+	switch (algorithm) {
+	case PAYLOAD_MM_HASH_SHA256:
+		return PAYLOAD_MM_SHA256_SIZE;
+	case PAYLOAD_MM_HASH_SHA384:
+		return PAYLOAD_MM_SHA384_SIZE;
+	case PAYLOAD_MM_HASH_SHA512:
+		return PAYLOAD_MM_SHA512_SIZE;
+	default:
+		return 0U;
+	}
+}
+
+enum payload_mm_verify_status payload_mm_hash_spans(
+	enum payload_mm_hash_algorithm algorithm,
+	const struct payload_mm_crypto_span *spans, size_t count,
+	uint8_t digest[PAYLOAD_MM_MAX_DIGEST_SIZE])
+{
+	mbedtls_sha256_context sha256;
+	mbedtls_sha512_context sha512;
+	size_t total = 0U;
+	size_t index;
+	int result;
+
+	if (!payload_mm_hash_digest_size(algorithm) || spans == NULL || count == 0U ||
+	    count > PAYLOAD_MM_HASH_MAX_SPANS || digest == NULL)
+		return PAYLOAD_MM_VERIFY_INVALID;
+	memset(digest, 0, PAYLOAD_MM_MAX_DIGEST_SIZE);
+	for (index = 0U; index < count; index++) {
+		if ((spans[index].size != 0U && spans[index].data == NULL) ||
+		    (spans[index].size != 0U &&
+		     (uintptr_t)spans[index].data >
+			UINTPTR_MAX - spans[index].size) ||
+		    spans[index].size > PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE - total)
+			return PAYLOAD_MM_VERIFY_INVALID;
+		total += spans[index].size;
+	}
+	if (algorithm == PAYLOAD_MM_HASH_SHA256) {
+		mbedtls_sha256_init(&sha256);
+		result = mbedtls_sha256_starts(&sha256, 0);
+		for (index = 0U; result == 0 && index < count; index++)
+			result = mbedtls_sha256_update(&sha256, spans[index].data,
+				spans[index].size);
+		if (result == 0)
+			result = mbedtls_sha256_finish(&sha256, digest);
+		mbedtls_sha256_free(&sha256);
+	} else {
+		mbedtls_sha512_init(&sha512);
+		result = mbedtls_sha512_starts(&sha512,
+			algorithm == PAYLOAD_MM_HASH_SHA384);
+		for (index = 0U; result == 0 && index < count; index++)
+			result = mbedtls_sha512_update(&sha512, spans[index].data,
+				spans[index].size);
+		if (result == 0)
+			result = mbedtls_sha512_finish(&sha512, digest);
+		mbedtls_sha512_free(&sha512);
+	}
+	if (result != 0)
+		memset(digest, 0, PAYLOAD_MM_MAX_DIGEST_SIZE);
+	return result == 0 ? PAYLOAD_MM_VERIFY_OK : PAYLOAD_MM_VERIFY_INTERNAL;
+}
+
+enum payload_mm_verify_status payload_mm_rsa_verify(
+	const struct payload_mm_crypto_span *certificate,
+	enum payload_mm_hash_algorithm algorithm, const uint8_t *digest,
+	size_t digest_size,
+	const struct payload_mm_crypto_span *signature)
+{
+	mbedtls_x509_crt parsed;
+	enum payload_mm_verify_status status;
+	mbedtls_md_type_t mbedtls_algorithm;
+	size_t expected_digest_size;
+	int result;
+
+	expected_digest_size = payload_mm_hash_digest_size(algorithm);
+	switch (algorithm) {
+	case PAYLOAD_MM_HASH_SHA256:
+		mbedtls_algorithm = MBEDTLS_MD_SHA256;
+		break;
+	case PAYLOAD_MM_HASH_SHA384:
+		mbedtls_algorithm = MBEDTLS_MD_SHA384;
+		break;
+	case PAYLOAD_MM_HASH_SHA512:
+		mbedtls_algorithm = MBEDTLS_MD_SHA512;
+		break;
+	default:
+		return PAYLOAD_MM_VERIFY_INVALID;
+	}
+	if (!valid_span(certificate,
+		PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) || digest == NULL ||
+	    digest_size != expected_digest_size ||
+	    !valid_span(signature, PAYLOAD_MM_CRYPTO_MAX_SIGNATURE_SIZE))
+		return PAYLOAD_MM_VERIFY_INVALID;
+
+	mbedtls_x509_crt_init(&parsed);
+	result = mbedtls_x509_crt_parse_der_nocopy(&parsed, certificate->data,
+		certificate->size);
+	if (result != 0 || parsed.raw.len != certificate->size) {
+		status = PAYLOAD_MM_VERIFY_MALFORMED;
+	} else if (!mbedtls_pk_can_do(&parsed.pk, MBEDTLS_PK_RSA)) {
+		status = PAYLOAD_MM_VERIFY_UNSUPPORTED;
+	} else if (mbedtls_pk_get_bitlen(&parsed.pk) <
+		   PAYLOAD_MM_CRYPTO_MIN_RSA_BITS ||
+		   mbedtls_pk_get_bitlen(&parsed.pk) >
+		   PAYLOAD_MM_CRYPTO_MAX_RSA_BITS ||
+		   mbedtls_pk_get_len(&parsed.pk) != signature->size) {
+		status = PAYLOAD_MM_VERIFY_REJECTED;
+	} else if (mbedtls_pk_verify(&parsed.pk, mbedtls_algorithm, digest,
+		digest_size, signature->data,
+		signature->size) != 0) {
+		status = PAYLOAD_MM_VERIFY_REJECTED;
+	} else {
+		status = PAYLOAD_MM_VERIFY_OK;
+	}
+	mbedtls_x509_crt_free(&parsed);
+	return status;
+}
+#endif
 
 enum payload_mm_verify_status payload_mm_rsa_sha256_verify(
 	const struct payload_mm_crypto_span *certificate,
 	const uint8_t digest[PAYLOAD_MM_SHA256_SIZE],
 	const struct payload_mm_crypto_span *signature)
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+	return payload_mm_rsa_verify(certificate, PAYLOAD_MM_HASH_SHA256, digest,
+		PAYLOAD_MM_SHA256_SIZE, signature);
+#else
 	mbedtls_x509_crt parsed;
 	enum payload_mm_verify_status status;
 	int result;
@@ -261,6 +403,7 @@ enum payload_mm_verify_status payload_mm_rsa_sha256_verify(
 	}
 	mbedtls_x509_crt_free(&parsed);
 	return status;
+#endif
 }
 
 enum payload_mm_verify_status payload_mm_x509_chain_verify_detailed(

@@ -22,6 +22,17 @@ enum payload_mm_verify_status payload_mm_sha256(const void *message,
 enum payload_mm_verify_status payload_mm_sha256_spans(
 	const struct payload_mm_crypto_span *spans, size_t count,
 	uint8_t digest[PAYLOAD_MM_SHA256_SIZE]);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
+size_t payload_mm_hash_digest_size(enum payload_mm_hash_algorithm algorithm);
+enum payload_mm_verify_status payload_mm_hash_spans(
+	enum payload_mm_hash_algorithm algorithm,
+	const struct payload_mm_crypto_span *spans, size_t count,
+	uint8_t digest[PAYLOAD_MM_MAX_DIGEST_SIZE]);
+enum payload_mm_verify_status payload_mm_rsa_verify(
+	const struct payload_mm_crypto_span *certificate,
+	enum payload_mm_hash_algorithm algorithm, const uint8_t *digest,
+	size_t digest_size, const struct payload_mm_crypto_span *signature);
+#endif
 enum payload_mm_verify_status payload_mm_rsa_sha256_verify(
 	const struct payload_mm_crypto_span *certificate,
 	const uint8_t digest[PAYLOAD_MM_SHA256_SIZE],
