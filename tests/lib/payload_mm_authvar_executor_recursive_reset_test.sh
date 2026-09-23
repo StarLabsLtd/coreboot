@@ -7,7 +7,10 @@ root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 mkdir -p "$tmp/include"
-printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > "$tmp/include/config.h"
+printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
+	> "$tmp/include/config.h"
 
 for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 	case "$optimization" in
@@ -32,6 +35,9 @@ for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_candidate.c" \
+		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \

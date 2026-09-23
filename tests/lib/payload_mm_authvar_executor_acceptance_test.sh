@@ -70,6 +70,10 @@ for optimization in 0 2; do
 		-o "$tmp/acceptance-candidate-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 \
 		"$tmp/acceptance-candidate-O$optimization" golden-only
+	ASAN_OPTIONS=detect_leaks=1 \
+		"$tmp/acceptance-candidate-O$optimization" candidate-only
+	ASAN_OPTIONS=detect_leaks=1 \
+		"$tmp/acceptance-candidate-O$optimization" candidate-mutations
 done
 
 printf '%s\n' 'Payload-MM authenticated-variable executor integrated acceptance: PASS'
