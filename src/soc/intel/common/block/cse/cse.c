@@ -1514,8 +1514,12 @@ static void cse_set_state(struct device *dev)
 	 * buffer would otherwise look like MKHI success. The attempt still
 	 * counts, but an incomplete reply skips the reset.
 	 */
-	if (rx_status != CSE_TX_RX_SUCCESS || reply_size < sizeof(*reply_hdr) ||
-	    !reply_hdr->is_resp) {
+	if (rx_status != CSE_TX_RX_SUCCESS ||
+	    reply_size != (disable_me ? sizeof(disable_reply) : sizeof(enable_reply)) ||
+	    reply_hdr->group_id != (disable_me ? MKHI_GROUP_ID_FWCAPS :
+					       MKHI_GROUP_ID_BUP_COMMON) ||
+	    reply_hdr->command != (disable_me ? MKHI_SET_ME_DISABLE : MKHI_SET_ME_ENABLE) ||
+	    !reply_hdr->is_resp || (disable_me && disable_reply.rule_id != ME_DISABLE_RULE_ID)) {
 		printk(BIOS_ERR, "HECI: ME state reply incomplete, skipping global reset\n");
 		return;
 	}
