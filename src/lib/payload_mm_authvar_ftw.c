@@ -12,9 +12,6 @@
 #define VARIABLE_STORE_HEADER_SIZE 28U
 #define VARIABLE_STORE_FORMATTED 0x5aU
 #define VARIABLE_STORE_HEALTHY 0xfeU
-#define FTW_WORK_HEADER_SIZE 32U
-#define FTW_WRITE_HEADER_SIZE 40U
-#define FTW_WRITE_RECORD_SIZE 40U
 
 static const uint8_t system_nv_data_fv_guid[16] = {
 	0x8d, 0x2b, 0xf1, 0xff, 0x96, 0x76, 0x8b, 0x4c,
@@ -24,9 +21,13 @@ static const uint8_t authenticated_store_guid[16] = {
 	0x78, 0x2c, 0xf3, 0xaa, 0x7b, 0x94, 0x9a, 0x43,
 	0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92,
 };
-static const uint8_t working_block_guid[16] = {
+const uint8_t payload_mm_authvar_ftw_working_block_guid[16] = {
 	0x2b, 0x29, 0x58, 0x9e, 0x68, 0x7c, 0x7d, 0x49,
 	0xa0, 0xce, 0x65, 0x00, 0xfd, 0x9f, 0x1b, 0x95,
+};
+const uint8_t payload_mm_authvar_ftw_coreboot_caller_guid[16] = {
+	0xf3, 0x2e, 0xa5, 0xc4, 0x27, 0x4e, 0xe2, 0x47,
+	0x95, 0x0b, 0xfd, 0xaa, 0xb5, 0x21, 0xb8, 0x95,
 };
 static const uint8_t ftw_caller_guids[][16] = {
 	{
@@ -40,10 +41,6 @@ static const uint8_t ftw_caller_guids[][16] = {
 	{
 		0xec, 0xe4, 0xad, 0x3a, 0xcc, 0x63, 0x48, 0x4a,
 		0xa9, 0x28, 0x5a, 0x37, 0x4d, 0xd4, 0x63, 0xeb,
-	},
-	{
-		0xf3, 0x2e, 0xa5, 0xc4, 0x27, 0x4e, 0xe2, 0x47,
-		0x95, 0x0b, 0xfd, 0xaa, 0xb5, 0x21, 0xb8, 0x95,
 	},
 };
 
@@ -78,6 +75,9 @@ static bool bytes_are(const uint8_t *p, size_t size, uint8_t value)
 
 static bool caller_guid_valid(const uint8_t *guid)
 {
+	if (!memcmp(guid, payload_mm_authvar_ftw_coreboot_caller_guid,
+		sizeof(payload_mm_authvar_ftw_coreboot_caller_guid)))
+		return true;
 	for (size_t i = 0; i < sizeof(ftw_caller_guids) /
 	     sizeof(ftw_caller_guids[0]); i++) {
 		if (!memcmp(guid, ftw_caller_guids[i], sizeof(ftw_caller_guids[i])))
@@ -184,12 +184,15 @@ static bool fv_valid(const uint8_t *fv, size_t available, size_t complete_size,
 static bool workspace_header_valid(const uint8_t *workspace, size_t size,
 	uint8_t expected_state)
 {
-	uint8_t canonical[FTW_WORK_HEADER_SIZE];
+	uint8_t canonical[PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE];
 
-	if (size < FTW_WORK_HEADER_SIZE ||
-	    memcmp(workspace, working_block_guid, sizeof(working_block_guid)) ||
-	    workspace[20] != expected_state || !bytes_are(workspace + 21, 3, 0xff) ||
-	    read_le64(workspace + 24) != size - FTW_WORK_HEADER_SIZE)
+	if (size < PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE ||
+	    memcmp(workspace, payload_mm_authvar_ftw_working_block_guid,
+		sizeof(payload_mm_authvar_ftw_working_block_guid)) ||
+	    workspace[PAYLOAD_MM_AUTHVAR_FTW_WORK_STATE_OFFSET] != expected_state ||
+	    !bytes_are(workspace + PAYLOAD_MM_AUTHVAR_FTW_WORK_STATE_OFFSET + 1U,
+		3, PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) ||
+	    read_le64(workspace + 24) != size - PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE)
 		return false;
 	memcpy(canonical, workspace, sizeof(canonical));
 	memset(canonical + 16, 0xff, 8);
@@ -198,16 +201,17 @@ static bool workspace_header_valid(const uint8_t *workspace, size_t size,
 
 static bool workspace_uncommitted(const uint8_t *workspace, size_t size)
 {
-	uint8_t canonical[FTW_WORK_HEADER_SIZE];
+	uint8_t canonical[PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE];
 	uint64_t queue_size;
 	uint32_t checksum;
 	bool has_data = false;
 
-	if (size < FTW_WORK_HEADER_SIZE)
+	if (size < PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE)
 		return false;
-	queue_size = size - FTW_WORK_HEADER_SIZE;
+	queue_size = size - PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE;
 	memset(canonical, 0xff, sizeof(canonical));
-	memcpy(canonical, working_block_guid, sizeof(working_block_guid));
+	memcpy(canonical, payload_mm_authvar_ftw_working_block_guid,
+		sizeof(payload_mm_authvar_ftw_working_block_guid));
 	for (size_t i = 0; i < sizeof(queue_size); i++)
 		canonical[24U + i] = (uint8_t)(queue_size >> (8U * i));
 	checksum = crc32(canonical, sizeof(canonical));
@@ -263,7 +267,7 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 	uint32_t *queue_entry_size,
 	enum payload_mm_authvar_ftw_queue_disposition *queue_disposition)
 {
-	size_t offset = FTW_WORK_HEADER_SIZE;
+	size_t offset = PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE;
 	const size_t size = geometry->working_size;
 	bool completed_history = false;
 
@@ -280,55 +284,63 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 			if (!active_valid)
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 			*queue_offset = (uint32_t)offset;
-			if (size - offset < FTW_WRITE_HEADER_SIZE + FTW_WRITE_RECORD_SIZE) {
+			if (size - offset < PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+			    PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE) {
 				return PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE;
 			}
 			if (!completed_history)
 				*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY;
 			return PAYLOAD_MM_AUTHVAR_FTW_CLEAN;
 		}
-		if (header[0] == 0xffU) {
+		if (header[0] == PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) {
 			*queue_offset = (uint32_t)offset;
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
-		if (size - offset < FTW_WRITE_HEADER_SIZE)
+		if (size - offset < PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE)
 			return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		header_state = header[0];
 		writes = read_le64(header + 24);
 		private_size = read_le64(header + 32);
-		if ((header_state != 0xfeU && header_state != 0xfcU &&
-		     header_state != 0xfaU && header_state != 0xf8U) ||
+		if ((header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED &&
+		     header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED &&
+		     header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED &&
+		     header_state != PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE) ||
 		    !bytes_are(header + 1, 3, 0xff) ||
 		    !caller_guid_valid(header + 4) ||
 		    !bytes_are(header + 20, 4, 0xff) ||
-		    !writes || writes > (size - offset) / FTW_WRITE_RECORD_SIZE ||
+		    !writes || writes > (size - offset) / PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE ||
 		    private_size > size ||
-		    writes > (SIZE_MAX - FTW_WRITE_HEADER_SIZE) /
-			(FTW_WRITE_RECORD_SIZE + private_size))
+		    writes > (SIZE_MAX - PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE) /
+			(PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE + private_size))
 			return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-		entry_size = FTW_WRITE_HEADER_SIZE +
-			(size_t)writes * (FTW_WRITE_RECORD_SIZE + (size_t)private_size);
+		entry_size = PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+			(size_t)writes * (PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE + (size_t)private_size);
 		if (entry_size > size - offset)
 			return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		for (uint64_t i = 0; i < writes; i++) {
-			record = header + FTW_WRITE_HEADER_SIZE +
-				(size_t)i * (FTW_WRITE_RECORD_SIZE + (size_t)private_size);
-			if ((record[0] != 0xffU && record[0] != 0xfdU &&
-			     record[0] != 0xf9U) || !bytes_are(record + 1, 7, 0xff))
+			record = header + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+				(size_t)i * (PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE + (size_t)private_size);
+			if ((record[0] != PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED &&
+			     record[0] != PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE &&
+			     record[0] !=
+				PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE) ||
+			    !bytes_are(record + 1, 7, 0xff))
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
-		if (header_state == 0xfaU || header_state == 0xf8U) {
+		if (header_state == PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED ||
+		    header_state == PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE) {
 			if (private_size || writes != 1U)
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-			record = header + FTW_WRITE_HEADER_SIZE;
-			if (header_state == 0xfaU) {
-				if (!bytes_are(record, FTW_WRITE_RECORD_SIZE, 0xff))
+			record = header + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE;
+			if (header_state == PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED) {
+				if (!bytes_are(record, PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE, 0xff))
 					return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-			} else if (record[0] == 0xffU) {
+			} else if (record[0] == PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) {
 				if (!bytes_are(record + 1, 7, 0xff))
 					return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-			} else if (record[0] != 0xf9U ||
+			} else if (record[0] !=
+				   PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE ||
 				   !record_bounds_valid(record, geometry, fv_header_size,
 					store_size)) {
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
@@ -339,9 +351,9 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 		}
 		if (writes != 1U || private_size)
 			return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-		record = header + FTW_WRITE_HEADER_SIZE;
-		if (header_state == 0xfeU) {
-			if (!bytes_are(record, FTW_WRITE_RECORD_SIZE, 0xff))
+		record = header + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE;
+		if (header_state == PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED) {
+			if (!bytes_are(record, PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE, 0xff))
 				return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 			*queue_offset = (uint32_t)offset;
 			*queue_entry_size = (uint32_t)entry_size;
@@ -349,7 +361,7 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
-		if (record[0] == 0xffU) {
+		if (record[0] == PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED) {
 			*queue_offset = (uint32_t)offset;
 			*queue_entry_size = (uint32_t)entry_size;
 			*queue_disposition = PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD;
@@ -366,10 +378,11 @@ static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspac
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		}
-		if (record_state == 0xfdU)
+		if (record_state == PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE)
 			return spare_valid ? PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
-		if (record_state == 0xf9U)
+		if (record_state ==
+		    PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE)
 			return active_valid ? PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW :
 				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
 		return PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED;
@@ -426,9 +439,9 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 	candidate.fv_header_size = header_size;
 	candidate.variable_store_size = store_size;
 	working_valid = workspace_header_valid(working,
-		candidate.geometry.working_size, 0xfeU);
+		candidate.geometry.working_size, PAYLOAD_MM_AUTHVAR_FTW_WORK_VALID);
 	staged_valid = active_valid && workspace_header_valid(spare,
-		candidate.geometry.working_size, 0xfeU);
+		candidate.geometry.working_size, PAYLOAD_MM_AUTHVAR_FTW_WORK_VALID);
 	if (working_valid && staged_valid) {
 		uint32_t old_queue_offset = 0;
 		uint32_t old_queue_entry_size = 0;
