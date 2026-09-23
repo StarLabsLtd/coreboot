@@ -101,6 +101,15 @@ config PAYLOAD_MM_AUTHVAR_WRITER
 	  media operation. Reclaim and every plan execution remain the responsibility
 	  of the later FTW executor.
 
+config PAYLOAD_MM_AUTHVAR_EXECUTOR
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_WRITER
+	help
+	  Build the dormant SMM-only authenticated-variable executor. It owns a
+	  sealed protected arena, bounded FTW recovery and exact writer-plan
+	  execution without exposing raw media coordinates or a service endpoint.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n

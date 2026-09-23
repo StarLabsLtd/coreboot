@@ -42,6 +42,18 @@ config Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
 	  storage backend, plan executor, FTW executor or authenticated-variable
 	  service. It grants no SPI access.
 
+config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
+	bool "QEMU-only Payload-MM authenticated-variable executor proof"
+	default n
+	depends on HAVE_SMI_HANDLER
+	select Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
+	select PAYLOAD_MM_AUTHVAR_EXECUTOR
+	help
+	  Compile the dormant linear SMM-only variable-plan/FTW executor and its
+	  sealed arena for QEMU build proof. This installs no arena, media backend,
+	  endpoint, SMI route or MM dispatcher and publishes no service. It grants
+	  no SPI access and makes no production authenticated-variable claim.
+
 config Q35_CAPSULE_BROKER_TEST_PROOF
 	bool "QEMU-only dormant capsule broker proof"
 	default n
