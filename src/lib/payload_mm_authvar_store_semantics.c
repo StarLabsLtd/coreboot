@@ -84,6 +84,30 @@ static bool entry_visible(const struct payload_mm_authvar_store_entry *entry,
 		(entry->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
 }
 
+static const struct payload_mm_authvar_store_entry *first_entry(
+	const struct payload_mm_authvar_store_index *index, bool at_runtime)
+{
+	const struct payload_mm_authvar_store_entry *transition = NULL;
+
+	/*
+	 * EDK2 FindVariableEx() retains the last matching transition while it
+	 * walks, but returns immediately on the first added record.
+	 */
+	for (uint32_t i = 0; i < index->entry_count; i++) {
+		const struct payload_mm_authvar_store_entry *entry = &index->entries[i];
+
+		if (!entry_visible(entry, at_runtime))
+			continue;
+		if (entry->record_offset > index->store_size - 3U)
+			return NULL;
+		if (index->store[entry->record_offset + 2U] ==
+		    PAYLOAD_MM_AUTHVAR_STATE_ADDED)
+			return entry;
+		transition = entry;
+	}
+	return transition;
+}
+
 static bool entry_size(const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_store_entry *entry, uint32_t *size)
 {
@@ -195,10 +219,14 @@ uint64_t payload_mm_authvar_store_get_next(
 			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 		start = (uint32_t)(current - index->entries) + 1U;
 	}
-	for (uint32_t i = start; i < index->entry_count; i++) {
-		if (entry_visible(&index->entries[i], at_runtime)) {
-			next = &index->entries[i];
-			break;
+	if (!name_size) {
+		next = first_entry(index, at_runtime);
+	} else {
+		for (uint32_t i = start; i < index->entry_count; i++) {
+			if (entry_visible(&index->entries[i], at_runtime)) {
+				next = &index->entries[i];
+				break;
+			}
 		}
 	}
 	if (!next)
@@ -229,11 +257,12 @@ uint64_t payload_mm_authvar_store_query(
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	if (!attributes)
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE ||
-	    attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
-	    attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
+	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
-	if (attributes == PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE ||
+	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	if ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED) ==
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE ||
 	    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
 	     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
 	    (at_runtime && !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
@@ -243,6 +272,9 @@ uint64_t payload_mm_authvar_store_query(
 	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) ||
 	    (attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR))
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	/* Recovery must canonicalize a torn append before quota is authoritative. */
+	if (index->dirty_tail_offset)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (at_runtime) {
 		uint32_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 

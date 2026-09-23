@@ -7,15 +7,21 @@ area	condition	result
 get	empty UTF-16 name	NOT_FOUND
 get	found and data capacity too small	BUFFER_TOO_SMALL plus required size and attributes
 get	boot-service-only record at runtime	NOT_FOUND
-next	empty name and zero GUID	first visible physical record
+next	empty name and zero GUID	first visible ADDED, otherwise last visible transition
 next	nonempty cursor absent or runtime-hidden	INVALID_PARAMETER
 next	cursor is last visible record	NOT_FOUND
 next	name capacity too small	BUFFER_TOO_SMALL plus required size, no copied key
+next	initial cursor with transitions and an added record	first visible ADDED record
+next	initial cursor with transitions only	last visible transition record
 query	zero attributes	INVALID_PARAMETER
 query	deprecated authenticated-write attribute	UNSUPPORTED
+query	APPEND in a supported persistent class	recognized; continue normal query
+query	unknown bits plus a supported persistent class	ignore unknown bits; continue normal query
+query	unknown bits only	UNSUPPORTED
 query	NV alone, RT without BS, runtime without RT	INVALID_PARAMETER
 query	before runtime	remaining excludes reclaimable physical garbage
 query	at runtime	remaining includes every parsed physical record
+query	coreboot index has a dirty tail	DEVICE_ERROR with zero result until recovery/reclaim
 reclaim	selection	physical ADDED records then lone transitions
 reclaim	transition destination state	promote to ADDED
 reclaim	updated key	exclude current and paired transition
