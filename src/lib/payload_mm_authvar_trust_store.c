@@ -28,21 +28,10 @@ static const uint8_t kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS | \
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH)
 
-static uint16_t read_le16(const uint8_t *data)
-{
-	return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
-}
-
-static uint32_t read_le32(const uint8_t *data)
-{
-	return (uint32_t)data[0] | ((uint32_t)data[1] << 8) |
-		((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
-}
-
 static bool range_valid(const void *data, size_t size)
 {
 	return size == 0U ||
-		(data != NULL && (uintptr_t)data <= UINTPTR_MAX - (size - 1U));
+		(data != NULL && (uintptr_t)data <= UINTPTR_MAX - size);
 }
 
 static bool ranges_overlap(const void *left, size_t left_size,
@@ -55,93 +44,9 @@ static bool ranges_overlap(const void *left, size_t left_size,
 		return true;
 	if (!left_size || !right_size)
 		return false;
-	return left_address < right_address + right_size &&
-		right_address < left_address + left_size;
-}
-
-static bool span_inside(size_t limit, uint32_t offset, uint32_t size)
-{
-	return offset <= limit && size <= limit - offset;
-}
-
-static bool name_valid(const uint8_t *name, uint32_t size)
-{
-	if (size < sizeof(uint16_t) || (size & 1U) || name[size - 2U] ||
-	    name[size - 1U])
-		return false;
-	for (uint32_t offset = 0U; offset + sizeof(uint16_t) < size;
-	     offset += sizeof(uint16_t))
-		if (!name[offset] && !name[offset + 1U])
-			return false;
-	return true;
-}
-
-static bool entry_matches_record(
-	const struct payload_mm_authvar_store_index *index,
-	const struct payload_mm_authvar_store_entry *entry)
-{
-	const uint8_t *header;
-	size_t data_offset;
-
-	if (!span_inside(index->used_size, entry->record_offset,
-		PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE) ||
-	    entry->name_offset != entry->record_offset +
-		PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
-	    !span_inside(index->used_size, entry->name_offset, entry->name_size) ||
-	    !span_inside(index->used_size, entry->data_offset, entry->data_size) ||
-	    entry->name_size > index->maximum_name_size ||
-	    entry->data_size > index->maximum_data_size)
-		return false;
-	header = index->store + entry->record_offset;
-	data_offset = (size_t)entry->name_offset + entry->name_size;
-	if (data_offset > SIZE_MAX - 3U)
-		return false;
-	data_offset = (data_offset + 3U) & ~(size_t)3U;
-	return data_offset == entry->data_offset && read_le16(header) ==
-		PAYLOAD_MM_AUTHVAR_RECORD_START_ID && header[3] == 0U &&
-		(header[2] == PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
-		 header[2] == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION) &&
-		read_le32(header + 4U) == entry->attributes &&
-		read_le32(header + 36U) == entry->name_size &&
-		read_le32(header + 40U) == entry->data_size &&
-		!memcmp(header + 44U, entry->vendor_guid,
-			sizeof(entry->vendor_guid)) &&
-		name_valid(index->store + entry->name_offset, entry->name_size);
-}
-
-static bool index_safe(const struct payload_mm_authvar_store_index *index)
-{
-	size_t entry_bytes;
-
-	if (index == NULL || (uintptr_t)index % _Alignof(*index) ||
-	    !range_valid(index, sizeof(*index)) || !index->store || !index->entries ||
-	    index->store_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
-	    index->store_size > PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_SIZE ||
-	    index->used_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
-	    index->used_size > index->store_size ||
-	    index->record_count > index->maximum_records ||
-	    index->entry_count > index->entry_capacity ||
-	    index->entry_count > index->record_count ||
-	    index->entry_count > index->maximum_records ||
-	    index->maximum_name_size < sizeof(uint16_t) ||
-	    index->maximum_name_size >
-		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE ||
-	    (index->maximum_name_size & 1U) || !index->maximum_data_size ||
-	    index->maximum_data_size >
-		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE ||
-	    !index->maximum_records || index->maximum_records >
-		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS ||
-	    __builtin_mul_overflow(
-		(size_t)index->entry_count, sizeof(index->entries[0]),
-		&entry_bytes))
-		return false;
-	if (!range_valid(index->store, index->store_size) ||
-	    !range_valid(index->entries, entry_bytes))
-		return false;
-	for (uint32_t entry = 0U; entry < index->entry_count; entry++)
-		if (!entry_matches_record(index, &index->entries[entry]))
-			return false;
-	return true;
+	if (left_address <= right_address)
+		return right_address - left_address < left_size;
+	return left_address - right_address < right_size;
 }
 
 static bool plan_valid(const struct payload_mm_authvar_route_plan *plan)
@@ -318,7 +223,7 @@ static enum payload_mm_verify_status verify_with_signer(
 	const void *data;
 	enum payload_mm_verify_status status;
 
-	if (!index_safe(index) || !plan_valid(plan) ||
+	if (!payload_mm_authvar_store_index_valid(index) || !plan_valid(plan) ||
 	    !inputs_disjoint(owner, signed_data, verified, index, plan))
 		return PAYLOAD_MM_VERIFY_INVALID;
 	index_snapshot = *index;
@@ -369,7 +274,7 @@ enum payload_mm_verify_status payload_mm_authvar_trust_store_verify(
 	enum payload_mm_verify_status status;
 
 	/* Protect scanner and route state before crypto can write or wipe owner. */
-	if (!index_safe(index) || !plan_valid(plan) ||
+	if (!payload_mm_authvar_store_index_valid(index) || !plan_valid(plan) ||
 	    !inputs_disjoint(owner, signed_data, &verified, index, plan))
 		return PAYLOAD_MM_VERIFY_INVALID;
 	status = payload_mm_cms_verify_detached_untrusted(owner, signed_data,
