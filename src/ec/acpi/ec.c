@@ -109,18 +109,33 @@ void ec_clear_out_queue(void)
 		printk(BIOS_SPEW, "EC output queue has been cleared.\n");
 }
 
+int ec_read_checked(u8 addr, u8 *data)
+{
+	int value;
+
+	if (send_ec_command(RD_EC) || send_ec_data(addr))
+		return -1;
+
+	value = recv_ec_data();
+	if (value < 0)
+		return -1;
+
+	*data = value;
+	return 0;
+}
+
 u8 ec_read(u8 addr)
 {
-	send_ec_command(RD_EC);
-	send_ec_data(addr);
+	u8 data;
 
-	return recv_ec_data();
+	return ec_read_checked(addr, &data) ? 0xff : data;
 }
 
 int ec_write(u8 addr, u8 data)
 {
-	send_ec_command(WR_EC);
-	send_ec_data(addr);
+	if (send_ec_command(WR_EC) || send_ec_data(addr))
+		return -1;
+
 	return send_ec_data(data);
 }
 
