@@ -18,6 +18,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_FORMAT_PARSER) += payload_mm_authvar_format.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SIGNATURE_DB) += payload_mm_authvar_signature_db.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_ROUTE) += payload_mm_authvar_route.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_TRUST_STORE) += payload_mm_authvar_trust_store.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY) += payload_mm_authvar_authority.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
