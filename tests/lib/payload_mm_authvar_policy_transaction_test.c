@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <pthread.h>
+
 #ifndef EXECUTOR_SOURCE_INCLUDE
 #define EXECUTOR_SOURCE_INCLUDE "../../src/lib/payload_mm_authvar_executor.c"
 #endif
@@ -13,8 +15,27 @@ static unsigned int expected_entries;
 static bool expected_runtime;
 static bool expected_ready;
 static bool expect_recovered;
+static bool observe_gate_release;
+static uint32_t gate_watcher_ready;
+uint32_t gate_release_observed;
 static uint8_t request_name[] = { 'P', 0, 0, 0 };
 static uint8_t request_data[] = { 0x41, 0x42, 0x43, 0x44 };
+
+static void *watch_gate_release(void *argument)
+{
+	struct payload_mm_authvar_policy_result *result = argument;
+	uint32_t completion;
+
+	while (__atomic_load_n(&executor.busy, __ATOMIC_ACQUIRE) != 1U)
+		;
+	__atomic_store_n(&gate_watcher_ready, 1U, __ATOMIC_RELEASE);
+	while (__atomic_load_n(&executor.busy, __ATOMIC_ACQUIRE) != 0U)
+		;
+	completion = __atomic_load_n(&result->completion, __ATOMIC_ACQUIRE);
+	__atomic_store_n(&gate_release_observed, 1U, __ATOMIC_RELEASE);
+	assert(completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	return NULL;
+}
 
 static struct payload_mm_authvar_policy_request make_request(void)
 {
@@ -42,6 +63,9 @@ static uint64_t authorize(
 	struct payload_mm_authvar_policy_result nested_result;
 
 	authorize_count++;
+	if (observe_gate_release)
+		while (!__atomic_load_n(&gate_watcher_ready, __ATOMIC_ACQUIRE))
+			;
 	assert(begin_count == end_count + 1U && read_count >= REGION_SIZE / BLOCK_SIZE);
 	assert(owner_equal(session()));
 	assert(view->index == &session()->index);
@@ -227,6 +251,7 @@ static void alias_tests(struct payload_mm_authvar_policy_request *request)
 int main(int argc, char **argv)
 {
 	struct payload_mm_authvar_policy_request request = make_request();
+	struct payload_mm_authvar_policy_result gate_result;
 	struct payload_mm_authvar_policy_provider provider = {
 		.revision = PAYLOAD_MM_AUTHVAR_POLICY_REVISION,
 		.size = sizeof(provider),
@@ -234,6 +259,7 @@ int main(int argc, char **argv)
 	};
 	uint8_t old_media[REGION_SIZE];
 	uint64_t status;
+	pthread_t watcher;
 
 	assert(argc == 2);
 	policy_case = argv[1];
@@ -376,11 +402,23 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	memcpy(old_media, media, sizeof(old_media));
-	if (!strcmp(policy_case, "end-failure"))
-		fail_end = true;
-	status = transact(&request);
+	if (!strcmp(policy_case, "publication-gate")) {
+		memset(&gate_result, 0xa5, sizeof(gate_result));
+		observe_gate_release = true;
+		assert(!pthread_create(&watcher, NULL, watch_gate_release, &gate_result));
+		status = payload_mm_authvar_policy_transaction(&request, &gate_result);
+		assert(!pthread_join(watcher, NULL));
+		assert(gate_result.status == status &&
+			gate_result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+			!gate_result.reserved);
+		assert(all_zero_bytes(arena, executor.sealed.required_size));
+	} else {
+		if (!strcmp(policy_case, "end-failure"))
+			fail_end = true;
+		status = transact(&request);
+	}
 	assert(authorize_count == 1 && begin_count == 1 && end_count == 1);
-	if (!strcmp(policy_case, "allow")) {
+	if (!strcmp(policy_case, "allow") || !strcmp(policy_case, "publication-gate")) {
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 		assert(media[FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE +
 			PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + sizeof(request_name)] == 0x99);
