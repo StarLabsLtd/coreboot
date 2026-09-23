@@ -1520,6 +1520,17 @@ static void cse_set_state(struct device *dev)
 		return;
 	}
 
+	if ((disable_me && (reply_size != sizeof(disable_reply) ||
+			    reply_hdr->group_id != MKHI_GROUP_ID_FWCAPS ||
+			    reply_hdr->command != MKHI_SET_ME_DISABLE ||
+			    disable_reply.rule_id != ME_DISABLE_RULE_ID)) ||
+	    (!disable_me && (reply_size != sizeof(enable_reply) ||
+			     reply_hdr->group_id != MKHI_GROUP_ID_BUP_COMMON ||
+			     reply_hdr->command != MKHI_SET_ME_ENABLE))) {
+		printk(BIOS_ERR, "HECI: Invalid ME state reply, skipping global reset\n");
+		return;
+	}
+
 	printk(BIOS_DEBUG, "HECI: ME state change result %s!\n",
 	       !reply_hdr->result ? "success" : "failure");
 	if (reply_hdr->result) {
