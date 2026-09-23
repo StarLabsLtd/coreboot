@@ -44,10 +44,13 @@ run_test()
 		begin-zero begin-error begin-invalid \
 		begin-reenter context-mutation read-short read-error read-invalid \
 		read-reenter read-fail-closed \
-		program-error-exact program-wp program-partial program-mutate \
+		program-error-exact program-error-unchanged \
+		program-unsupported-unchanged program-wp program-wp-unchanged \
+		program-partial program-mutate \
 		program-invalid program-reenter program-context-mutation program-sync \
 		program-sync-reenter program-sync-context-mutation \
-		program-postread erase-wp erase-error-exact erase-partial \
+		program-postread erase-wp erase-wp-unchanged erase-error-exact \
+		erase-error-unchanged erase-unsupported-unchanged erase-partial \
 		erase-invalid erase-reenter erase-context-mutation erase-sync \
 		erase-sync-context-mutation erase-postread end-error \
 		end-reenter; do

@@ -94,5 +94,13 @@ compile_and_reject omit_private_tail disjoint \
 	'0,/sizeof(media));/s//sizeof(media) - 1U);/'
 compile_and_reject omit_private_prefix disjoint \
 	'0,/&media,/s//\&media.policy.context,/'
+result_guard='if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&'
+disabled_guard='if (false \&\& result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS \&\&'
+compile_and_reject mask_program_unchanged_error program-error-unchanged \
+	"0,/$result_guard/s//$disabled_guard/"
+compile_and_reject mask_erase_unchanged_error erase-error-unchanged \
+	-e "0,/$result_guard/b" -e "s/$result_guard/$disabled_guard/"
+compile_and_reject accept_invalid_begin begin-invalid \
+	'/if (!result_valid(result))/s//if (false \&\& !result_valid(result))/'
 
 printf '%s\n' 'Payload-MM authenticated-variable media mutation tests: PASS'

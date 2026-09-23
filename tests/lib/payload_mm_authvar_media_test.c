@@ -47,6 +47,8 @@ enum fault_mode {
 	FAULT_READ_FAIL_CLOSED,
 	FAULT_VERIFY_READ,
 	FAULT_PROGRAM_ERROR_EXACT,
+	FAULT_PROGRAM_ERROR_UNCHANGED,
+	FAULT_PROGRAM_UNSUPPORTED_UNCHANGED,
 	FAULT_PROGRAM_WRITE_PROTECTED,
 	FAULT_PROGRAM_PARTIAL,
 	FAULT_PROGRAM_MUTATE_INPUT,
@@ -57,6 +59,8 @@ enum fault_mode {
 	FAULT_PROGRAM_CONTEXT_MUTATION_SEALED_SYNC_FAIL_CLOSED,
 	FAULT_ERASE_WRITE_PROTECTED,
 	FAULT_ERASE_ERROR_EXACT,
+	FAULT_ERASE_ERROR_UNCHANGED,
+	FAULT_ERASE_UNSUPPORTED_UNCHANGED,
 	FAULT_ERASE_PARTIAL,
 	FAULT_ERASE_INVALID,
 	FAULT_ERASE_REENTER,
@@ -211,6 +215,10 @@ static enum payload_mm_authvar_media_result program(const void *opaque,
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_PROGRAM_WRITE_PROTECTED)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED;
+	if (fault == FAULT_PROGRAM_ERROR_UNCHANGED)
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (fault == FAULT_PROGRAM_UNSUPPORTED_UNCHANGED)
+		return PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED;
 	if (fault == FAULT_PROGRAM_MUTATE_INPUT)
 		((uint8_t *)buffer)[0] ^= 1;
 	if (fault == FAULT_PROGRAM_PARTIAL)
@@ -244,6 +252,10 @@ static enum payload_mm_authvar_media_result erase(const void *opaque,
 		((struct port_context *)context)->backend = NULL;
 	if (fault == FAULT_ERASE_WRITE_PROTECTED)
 		return PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED;
+	if (fault == FAULT_ERASE_ERROR_UNCHANGED)
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (fault == FAULT_ERASE_UNSUPPORTED_UNCHANGED)
+		return PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED;
 	if (fault == FAULT_ERASE_PARTIAL)
 		size /= 2;
 	memset(state->bytes + offset, 0xff, size);
@@ -511,6 +523,8 @@ static void disjoint_case(void)
 
 static void begin_fault_case(enum fault_mode mode)
 {
+	size_t begin_calls;
+
 	install();
 	fault = mode;
 	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
@@ -518,6 +532,13 @@ static void begin_fault_case(enum fault_mode mode)
 	assert(output_generation == 0 && output_token == 0);
 	assert(backend.end_calls == (mode == FAULT_BEGIN_ZERO ||
 		mode == FAULT_BEGIN_REENTER || mode == FAULT_CONTEXT_MUTATION));
+	if (mode == FAULT_BEGIN_INVALID) {
+		begin_calls = backend.begin_calls;
+		assert(!payload_mm_authvar_media_available());
+		assert(payload_mm_authvar_media_begin(&output_generation,
+			&output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		assert(backend.begin_calls == begin_calls);
+	}
 }
 
 static void read_fault_case(enum fault_mode mode)
@@ -591,6 +612,26 @@ static void erase_fault_case(enum fault_mode mode)
 		mode == FAULT_ERASE_ERROR_EXACT ?
 		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS :
 		PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+}
+
+static void unchanged_result_case(bool erase_operation, enum fault_mode mode,
+	enum payload_mm_authvar_media_result expected)
+{
+	install();
+	memset(io_buffer, 0xa5, 32);
+	if (!erase_operation)
+		memcpy(backend.bytes, io_buffer, 32);
+	start();
+	fault = mode;
+	if (erase_operation) {
+		assert(payload_mm_authvar_media_erase(output_generation, output_token,
+			0, BLOCK_SIZE) == expected);
+	} else {
+		assert(payload_mm_authvar_media_program(output_generation, output_token,
+			0, io_buffer, 32) == expected);
+	}
+	assert(backend.sync_calls == 1 && backend.read_calls == 2);
+	finish(PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
 }
 
 static void bounds_case(void)
@@ -821,6 +862,15 @@ int main(int argc, char **argv)
 		read_fault_case(FAULT_READ_FAIL_CLOSED);
 	else if (!strcmp(name, "program-error-exact"))
 		program_fault_case(FAULT_PROGRAM_ERROR_EXACT);
+	else if (!strcmp(name, "program-error-unchanged"))
+		unchanged_result_case(false, FAULT_PROGRAM_ERROR_UNCHANGED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	else if (!strcmp(name, "program-unsupported-unchanged"))
+		unchanged_result_case(false, FAULT_PROGRAM_UNSUPPORTED_UNCHANGED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED);
+	else if (!strcmp(name, "program-wp-unchanged"))
+		unchanged_result_case(false, FAULT_PROGRAM_WRITE_PROTECTED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED);
 	else if (!strcmp(name, "program-wp"))
 		program_fault_case(FAULT_PROGRAM_WRITE_PROTECTED);
 	else if (!strcmp(name, "program-partial"))
@@ -845,6 +895,15 @@ int main(int argc, char **argv)
 		erase_fault_case(FAULT_ERASE_WRITE_PROTECTED);
 	else if (!strcmp(name, "erase-error-exact"))
 		erase_fault_case(FAULT_ERASE_ERROR_EXACT);
+	else if (!strcmp(name, "erase-error-unchanged"))
+		unchanged_result_case(true, FAULT_ERASE_ERROR_UNCHANGED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	else if (!strcmp(name, "erase-unsupported-unchanged"))
+		unchanged_result_case(true, FAULT_ERASE_UNSUPPORTED_UNCHANGED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED);
+	else if (!strcmp(name, "erase-wp-unchanged"))
+		unchanged_result_case(true, FAULT_ERASE_WRITE_PROTECTED,
+			PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED);
 	else if (!strcmp(name, "erase-partial"))
 		erase_fault_case(FAULT_ERASE_PARTIAL);
 	else if (!strcmp(name, "erase-invalid"))

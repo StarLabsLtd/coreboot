@@ -446,6 +446,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 	result = media.policy.port.begin(media.policy.port.context,
 		&external_generation);
 	callback_leave();
+	if (!result_valid(result))
+		poison();
 	valid = result_valid(result) && policy_unchanged();
 	if (!valid || result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
 	    !external_generation || media.next_token == UINT64_MAX) {
@@ -548,11 +550,11 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 	}
 	if (__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&
+	    !memcmp(after, before, size))
+		return result;
 	if (!memcmp(after, wanted, size))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
-	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED &&
-	    !memcmp(after, before, size))
-		return PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED;
 	if (!memcmp(after, before, size))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	poison();
@@ -626,11 +628,11 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 	}
 	if (__atomic_load_n(&media.poisoned, __ATOMIC_ACQUIRE))
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&
+	    !memcmp(after, before, size))
+		return result;
 	for (size_t i = 0; i < size; i++) {
 		if (after[i] != 0xff) {
-			if (result == PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED &&
-			    !memcmp(after, before, size))
-				return PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED;
 			if (!memcmp(after, before, size))
 				return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 			poison();
