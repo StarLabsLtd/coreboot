@@ -446,6 +446,8 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 	result = media.policy.port.begin(media.policy.port.context,
 		&external_generation);
 	callback_leave();
+	if (!result_valid(result))
+		poison();
 	valid = result_valid(result) && policy_unchanged();
 	if (!valid || result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
 	    !external_generation || media.next_token == UINT64_MAX) {

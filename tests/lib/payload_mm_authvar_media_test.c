@@ -523,6 +523,8 @@ static void disjoint_case(void)
 
 static void begin_fault_case(enum fault_mode mode)
 {
+	size_t begin_calls;
+
 	install();
 	fault = mode;
 	assert(payload_mm_authvar_media_begin(&output_generation, &output_token) ==
@@ -530,6 +532,13 @@ static void begin_fault_case(enum fault_mode mode)
 	assert(output_generation == 0 && output_token == 0);
 	assert(backend.end_calls == (mode == FAULT_BEGIN_ZERO ||
 		mode == FAULT_BEGIN_REENTER || mode == FAULT_CONTEXT_MUTATION));
+	if (mode == FAULT_BEGIN_INVALID) {
+		begin_calls = backend.begin_calls;
+		assert(!payload_mm_authvar_media_available());
+		assert(payload_mm_authvar_media_begin(&output_generation,
+			&output_token) == PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		assert(backend.begin_calls == begin_calls);
+	}
 }
 
 static void read_fault_case(enum fault_mode mode)
