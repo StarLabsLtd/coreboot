@@ -7,6 +7,14 @@ and the exact signed content spans. CMS verification and protected-store trust
 matching occur in one call; no caller-provided signer view is accepted. It
 publishes no token, provider, endpoint or mutation authority.
 
+The call initializes its admitted authority output to `NONE`. Only an `OK`
+result publishes the exact route entry which accepted the signature:
+`CURRENT_PK` or `CURRENT_KEK`. Rejection and every format, resource or internal
+failure retain `NONE`. Publication occurs after route and index descriptors are
+confirmed unchanged and the crypto owner is idle and wiped. The authority is a
+scalar result for the enclosing synchronous policy decision, not a reusable
+capability.
+
 PK and KEK updates require the current PK. db, dbx and dbt try the current PK
 first and then each X.509 certificate in the current KEK, matching EDK2 26.09.
 The PK path requires its X.509 certificate to be the exact CMS signer and to

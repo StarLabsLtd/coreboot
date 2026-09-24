@@ -91,8 +91,12 @@ for source in $sources; do
 	mbedtls_sources="$mbedtls_sources $mbedtls_root/library/$source.c"
 done
 
-for optimization in 0 2; do
-	output="$temporary/test-O$optimization"
+compile_test()
+{
+	trust_store_source=$1
+	output=$2
+	optimization=$3
+
 	${HOSTCC:-cc} -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \
 		-ffunction-sections -fdata-sections -fsanitize=address,undefined \
 		-fno-sanitize-recover=all -fno-builtin -D__TEST__ -D__COREBOOT__ \
@@ -113,7 +117,7 @@ for optimization in 0 2; do
 		-I"$mbedtls_root/include" \
 		-I"$mbedtls_root/library" \
 		"$root/tests/lib/payload_mm_authvar_trust_store_test.c" \
-		"$root/src/lib/payload_mm_authvar_trust_store.c" \
+		"$trust_store_source" \
 		"$root/src/lib/payload_mm_authvar_signature_db.c" \
 		"$root/src/lib/payload_mm_authvar_trust_anchor.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
@@ -123,7 +127,47 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_crypto/mbedtls_verify_wrap.c" \
 		$mbedtls_sources -Wl,--gc-sections,--wrap=mbedtls_rsa_parse_pubkey \
 		-o "$output"
+}
+
+for optimization in 0 2; do
+	output="$temporary/test-O$optimization"
+	compile_test "$root/src/lib/payload_mm_authvar_trust_store.c" "$output" \
+		"$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$output" "$temporary"
 done
+
+compile_and_kill()
+{
+	name=$1
+	expression=$2
+	mutant="$temporary/trust-store-$name.c"
+
+	sed "$expression" "$root/src/lib/payload_mm_authvar_trust_store.c" > "$mutant"
+	if cmp -s "$mutant" "$root/src/lib/payload_mm_authvar_trust_store.c"; then
+		printf 'mutation changed nothing: %s\n' "$name" >&2
+		exit 1
+	fi
+	for optimization in 0 2; do
+		output="$temporary/mutant-$name-O$optimization"
+		compile_test "$mutant" "$output" "$optimization"
+		if ASAN_OPTIONS=detect_leaks=1 "$output" "$temporary" \
+			>/dev/null 2>&1; then
+			printf 'mutation survived: %s O%s\n' "$name" \
+				"$optimization" >&2
+			exit 1
+		fi
+	done
+}
+
+compile_and_kill accepted-route \
+	's/\*accepted_authority = plan->authorities\[authority\];/*accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;/'
+compile_and_kill none-initialization \
+	'/Protect scanner and route state/,/signed_data_snapshot/ { /\*accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;/d; }'
+compile_and_kill ordered-fallback \
+	'/if (!entry) {/,/}/ { s/continue;/return status;/; }'
+compile_and_kill immutable-publication \
+	's/if (changed)/if (changed \&\& false)/'
+compile_and_kill clean-publication \
+	's/payload_mm_crypto_owner_is_clean(owner)/true/'
 
 printf 'Payload-MM authvar trust-store tests: PASS (%s)\n' "$(openssl version)"

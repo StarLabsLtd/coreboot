@@ -11,13 +11,16 @@
  * Verify detached CMS and its current PK or KEK trust route in one protected
  * call. Consume only an immutable index produced by
  * payload_mm_authvar_store_scan() in the same transaction. Success is not
- * reusable mutation authority.
+ * reusable mutation authority. accepted_authority is initialized to NONE and
+ * receives the exact successful route authority only after verification and
+ * protected cleanup complete.
  */
 enum payload_mm_verify_status payload_mm_authvar_trust_store_verify(
 	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_crypto_span *signed_data,
 	const struct payload_mm_crypto_span *content, size_t content_count,
 	const struct payload_mm_authvar_store_index *index,
-	const struct payload_mm_authvar_route_plan *plan);
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority);
 
 #endif
