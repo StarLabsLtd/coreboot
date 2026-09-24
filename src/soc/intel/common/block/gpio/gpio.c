@@ -784,6 +784,12 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 	return ret;
 }
 
+__weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
+{
+	*num = 0;
+	return NULL;
+}
+
 static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
 {
 	if (!pad_info) {
