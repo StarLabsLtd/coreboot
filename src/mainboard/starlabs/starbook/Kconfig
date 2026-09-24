@@ -154,6 +154,17 @@ config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
 	  StarBook MTL capsule broker. This does not install or publish a broker,
 	  establish DMA or SPI ownership, or enable capsule updates.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_SMM_CAPACITY
+	bool
+	default y if PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL
+	help
+	  Reserve the FSP-documented 16 MiB TSEG required to host the protected
+	  authenticated-variable arena without reducing IED, the external stage
+	  cache or OPAL S3 state. This is a dormant capacity prerequisite only; it
+	  does not install the authenticated-variable service or publish an endpoint.
+
 config STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY
 	bool
 	default n
