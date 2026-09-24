@@ -30,6 +30,7 @@ tests-y += bootmem-dram-provenance-test
 tests-y += bootmem-aligned-reservation-test
 tests-y += payload-mm-authvar-mor-live-inventory-test
 tests-y += starbook-mtl-mor-live-inventory-test
+tests-y += starbook-mtl-mor-clear-x86-binding-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
 tests-y += payload_resource_handoff-test
@@ -175,6 +176,11 @@ payload-mm-authvar-mor-live-inventory-test-no_test_framework = 1
 starbook-mtl-mor-live-inventory-test-srcs += tests/lib/starbook_mtl_mor_live_inventory_test.c
 starbook-mtl-mor-live-inventory-test-srcs += src/mainboard/starlabs/starbook/variants/mtl/mor_live_inventory.c
 starbook-mtl-mor-live-inventory-test-no_test_framework = 1
+
+starbook-mtl-mor-clear-x86-binding-test-srcs += tests/lib/starbook_mtl_mor_clear_x86_binding_test.c
+starbook-mtl-mor-clear-x86-binding-test-srcs += src/mainboard/starlabs/starbook/variants/mtl/mor_clear_x86.c
+starbook-mtl-mor-clear-x86-binding-test-config += CONFIG_BOOTMEM_ALIGNED_RESERVATIONS=1
+starbook-mtl-mor-clear-x86-binding-test-no_test_framework = 1
 
 dimm_info_util-test-srcs += tests/lib/dimm_info_util-test.c
 dimm_info_util-test-srcs += src/device/dram/spd.c

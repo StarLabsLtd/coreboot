@@ -6,7 +6,7 @@
 #include <boot/payload_mm_authvar_mor_clear.h>
 
 #define PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_REVISION 1U
-#define PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_MAX_OVERLAYS 8U
+#define PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_MAX_OVERLAYS 10U
 
 struct payload_mm_authvar_mor_live_inventory_overlay {
 	uint64_t base;
@@ -28,7 +28,7 @@ struct payload_mm_authvar_mor_live_inventory_request {
 
 _Static_assert(sizeof(struct payload_mm_authvar_mor_live_inventory_overlay) == 24,
 	"MOR live-inventory overlay ABI changed");
-_Static_assert(sizeof(struct payload_mm_authvar_mor_live_inventory_request) == 248,
+_Static_assert(sizeof(struct payload_mm_authvar_mor_live_inventory_request) == 296,
 	"MOR live-inventory request ABI changed");
 
 enum cb_err payload_mm_authvar_mor_live_inventory_compose(
