@@ -10,6 +10,7 @@ mkdir -p "$tmp/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY 1' \
 	> "$tmp/include/config.h"
 
 for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
@@ -35,6 +36,7 @@ for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_default_store.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
@@ -48,8 +50,11 @@ for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 		-Wl,--wrap=payload_mm_authvar_media_fail_closed \
 		-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \
 		-Wl,--wrap=payload_mm_authvar_media_cache_bind \
+		-Wl,--wrap=payload_mm_authvar_default_store_compose \
 		-o "$tmp/test-O$optimization"
-	if [ "${RECURSIVE_SEEDS_ONLY:-0}" = 1 ]; then
+	if [ "${RECURSIVE_DEFAULT_ONLY:-0}" = 1 ]; then
+		ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization" default
+	elif [ "${RECURSIVE_SEEDS_ONLY:-0}" = 1 ]; then
 		ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization" seeds
 	elif [ -n "${RECURSIVE_ACTION:-}" ]; then
 		ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization" \

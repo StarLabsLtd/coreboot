@@ -120,6 +120,17 @@ config PAYLOAD_MM_AUTHVAR_EXECUTOR
 	  sealed protected arena, bounded FTW recovery and exact writer-plan
 	  execution without exposing raw media coordinates or a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_EXECUTOR
+	depends on PAYLOAD_MM_AUTHVAR_DEFAULT_STORE
+	help
+	  Build the dormant same-lease erased-media bootstrap prerequisite. It
+	  monotonically programs the canonical default store before lifecycle freeze
+	  and then enters the existing FTW recovery path. It publishes no backend,
+	  dispatcher, service or endpoint.
+
 config PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
 	bool
 	default n

@@ -11,6 +11,7 @@ mkdir -p "$tmp/candidate/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY 1' \
 	> "$tmp/candidate/include/config.h"
 
 for optimization in 0 2; do
@@ -38,7 +39,9 @@ for optimization in 0 2; do
 		-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \
 		-Wl,--wrap=payload_mm_authvar_media_cache_bind \
 		-o "$tmp/acceptance-O$optimization"
-	if [ "${ACCEPTANCE_FAULT_ONLY:-0}" = 1 ]; then
+	if [ "${ACCEPTANCE_DEFAULT_RECOVERY_ONLY:-0}" = 1 ]; then
+		:
+	elif [ "${ACCEPTANCE_FAULT_ONLY:-0}" = 1 ]; then
 		ASAN_OPTIONS=detect_leaks=1 "$tmp/acceptance-O$optimization" fault-only
 	else
 		ASAN_OPTIONS=detect_leaks=1 "$tmp/acceptance-O$optimization"
@@ -63,6 +66,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
 		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" \
+		"$root/src/lib/payload_mm_authvar_default_store.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
@@ -70,7 +74,13 @@ for optimization in 0 2; do
 		-Wl,--wrap=payload_mm_authvar_media_fail_closed \
 		-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \
 		-Wl,--wrap=payload_mm_authvar_media_cache_bind \
+		-Wl,--wrap=payload_mm_authvar_default_store_compose \
 		-o "$tmp/acceptance-candidate-O$optimization"
+	ASAN_OPTIONS=detect_leaks=1 \
+		"$tmp/acceptance-candidate-O$optimization" default-recovery
+	if [ "${ACCEPTANCE_DEFAULT_RECOVERY_ONLY:-0}" = 1 ]; then
+		continue
+	fi
 	if [ "${ACCEPTANCE_CANDIDATE_CHECKPOINT_ONLY:-0}" = 1 ]; then
 		:
 	else
@@ -82,6 +92,12 @@ for optimization in 0 2; do
 			"$tmp/acceptance-candidate-O$optimization" candidate-mutations
 	fi
 done
+
+if [ "${ACCEPTANCE_DEFAULT_RECOVERY_ONLY:-0}" = 1 ]; then
+	printf '%s\n' \
+		'Payload-MM authenticated-variable default recovery acceptance: PASS'
+	exit 0
+fi
 
 instrumented="$tmp/executor-checkpoint-base.c"
 sed -e '/#include "payload_mm_authvar_internal.h"/a\
@@ -129,13 +145,15 @@ for phase in BASE SPARE_COMPLETE PRIMARY_ERASE PRIMARY_IMAGE \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
 			"$root/src/lib/payload_mm_authvar_record.c" \
 			"$root/src/lib/payload_mm_authvar_writer.c" \
+			"$root/src/lib/payload_mm_authvar_default_store.c" \
 			"$root/src/lib/payload_mm_authvar_candidate.c" \
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
 			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_format.c" \
 			-Wl,--wrap=payload_mm_authvar_media_fail_closed \
 			-Wl,--wrap=payload_mm_authvar_media_cache_invalidate \
-			-Wl,--wrap=payload_mm_authvar_media_cache_bind -o "$binary"
+			-Wl,--wrap=payload_mm_authvar_media_cache_bind \
+			-Wl,--wrap=payload_mm_authvar_default_store_compose -o "$binary"
 		if [ "$phase" = BASE ]; then
 			ASAN_OPTIONS=detect_leaks=1 "$binary" candidate-checkpoints
 		elif ASAN_OPTIONS=detect_leaks=1 "$binary" candidate-checkpoints \

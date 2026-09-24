@@ -46,6 +46,10 @@ static unsigned int progress_seed;
 static bool candidate_expectation_active;
 static uint8_t candidate_old_media[REGION_SIZE];
 static uint8_t candidate_new_media[REGION_SIZE];
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+static bool default_expectation_active;
+static uint8_t default_target_media[REGION_SIZE];
+#endif
 
 static bool recursive_byte_selected(enum cut_mask mask, size_t index,
 	size_t size, size_t prefix)
@@ -260,8 +264,15 @@ static size_t recovery_operations(struct shared_state *shared,
 	assert(run_child(shared, CHILD_RECOVER) == 0);
 	trace_sessions_valid(shared);
 	assert(independent_ftw_clean(shared->media));
-	assert(independent_logical_value(shared->media) == expected_value);
-	assert(!memcmp(shared->media, expected_media, REGION_SIZE));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	if (default_expectation_active)
+		assert_default_store_final(shared, default_target_media);
+	else
+#endif
+	{
+		assert(independent_logical_value(shared->media) == expected_value);
+		assert(!memcmp(shared->media, expected_media, REGION_SIZE));
+	}
 	for (uint32_t i = 0; i < shared->trace_count; i++) {
 		const struct trace_entry *entry = &shared->trace[i];
 
@@ -574,8 +585,16 @@ static void synthesize_operation_states(struct durable_state *states,
 		journal->occurrence == operation->occurrence);
 	assert(!memcmp(before + operation->offset, journal->before,
 		operation->size));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	if (payload_mm_authvar_ftw_plan(before, REGION_SIZE, BLOCK_SIZE,
+		&owner_plan) != CB_SUCCESS) {
+		assert(default_expectation_active);
+		memset(&owner_plan, 0, sizeof(owner_plan));
+	}
+#else
 	assert(payload_mm_authvar_ftw_plan(before, REGION_SIZE, BLOCK_SIZE,
 		&owner_plan) == CB_SUCCESS);
+#endif
 	assert(normal->before_digest ==
 		trace_digest(before + operation->offset, operation->size));
 	assert(normal->after_digest ==
@@ -992,6 +1011,85 @@ static size_t explore_action(struct shared_state *shared,
 	return state_count;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+static size_t explore_default_store(struct shared_state *shared,
+	const uint8_t seed_media[REGION_SIZE], unsigned int seed_id)
+{
+	struct durable_state *states = calloc(RECURSIVE_STATE_LIMIT, sizeof(*states));
+	uint32_t *slots = calloc(RECURSIVE_HASH_SLOTS, sizeof(*slots));
+	uint8_t *journal_media = malloc(REGION_SIZE);
+	struct trace_entry *baseline = malloc(sizeof(*baseline) * TRACE_CAPACITY);
+	struct mutation_journal_entry *journal = malloc(sizeof(*journal) *
+		MUTATION_JOURNAL_CAPACITY);
+	size_t state_count = 0;
+	uint64_t recovery_count = 0;
+	uint64_t candidate_count = 0;
+
+	assert(states && slots && journal_media && baseline && journal);
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, seed_media, REGION_SIZE);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	trace_sessions_valid(shared);
+	assert_default_store_final(shared, default_target_media);
+	assert(enqueue_state(states, slots, &state_count, seed_media, 0));
+	for (size_t current = 0; current < state_count; current++) {
+		struct recovery_operation operations[64];
+		size_t operation_count;
+		uint32_t baseline_count;
+
+		progress_seed = seed_id;
+		progress_current = current;
+		progress_recoveries = recovery_count;
+		progress_candidates = candidate_count;
+		memcpy(shared->media, states[current].media, REGION_SIZE);
+		recovery_count++;
+		operation_count = recovery_operations(shared, operations,
+			ARRAY_SIZE(operations), default_target_media, LOGICAL_ABSENT);
+		if (!operation_count)
+			continue;
+		if (states[current].depth >= RECOVERY_RESET_BUDGET)
+			continue;
+		assert(shared->mutation_journal_count == operation_count);
+		baseline_count = shared->trace_count;
+		assert(baseline_count <= TRACE_CAPACITY);
+		memcpy(baseline, shared->trace,
+			baseline_count * sizeof(*baseline));
+		memcpy(journal, shared->mutation_journal,
+			operation_count * sizeof(*journal));
+		if (!current)
+			calibrate_journal(shared, states[current].media, operations,
+				operation_count, journal, baseline, baseline_count);
+		memcpy(journal_media, states[current].media, REGION_SIZE);
+		for (size_t operation = 0; operation < operation_count; operation++) {
+			candidate_count += (uint64_t)operations[operation].size + 8U;
+			synthesize_operation_states(states, slots, &state_count,
+				&states[current], (uint32_t)current,
+				PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED,
+				&operations[operation], &journal[operation],
+				&baseline[operations[operation].trace_index],
+				journal_media);
+		}
+	}
+	{
+		char message[128];
+		int length = snprintf(message, sizeof(message),
+			"recursive default seed=%u states=%zu recoveries=%llu "
+			"candidates=%llu\n", seed_id, state_count,
+			(unsigned long long)recovery_count,
+			(unsigned long long)candidate_count);
+
+		assert(length > 0 && (size_t)length < sizeof(message));
+		output(1, message, (size_t)length);
+	}
+	free(journal);
+	free(baseline);
+	free(journal_media);
+	free(slots);
+	free(states);
+	return state_count;
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	struct shared_state *shared = mmap(NULL, sizeof(*shared),
@@ -1003,10 +1101,29 @@ int main(int argc, char **argv)
 		sizeof(*candidate_fixtures));
 	uint8_t malformed[REGION_SIZE];
 	size_t total_states = 0;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	uint8_t default_seed[REGION_SIZE];
+#endif
 
 	assert(shared != MAP_FAILED && fixtures && candidate_fixtures);
 	assert(argc == 1 || (argc == 2 && (!strcmp(argv[1], "seeds") ||
+		!strcmp(argv[1], "default") ||
 		(strlen(argv[1]) == 1U && argv[1][0] >= '1' && argv[1][0] <= '9'))));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	if (argc == 2 && !strcmp(argv[1], "default")) {
+		make_default_store_target(default_target_media);
+		default_expectation_active = true;
+		memset(default_seed, 0xff, sizeof(default_seed));
+		total_states += explore_default_store(shared, default_seed, 10U);
+		memcpy(default_seed, default_target_media, 200U);
+		total_states += explore_default_store(shared, default_seed, 11U);
+		default_expectation_active = false;
+		free(candidate_fixtures);
+		free(fixtures);
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return total_states ? 0 : 1;
+	}
+#endif
 	discover_fixtures(shared, fixtures);
 	discover_candidate_fixtures(shared, candidate_fixtures);
 	if (argc == 2 && !strcmp(argv[1], "seeds")) {

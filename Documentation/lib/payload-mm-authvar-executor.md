@@ -68,6 +68,28 @@ non-convergence call media fail-close with the immutable session owner and then
 perform exactly one sealed end. End failure invalidates any cache binding and
 turns an otherwise successful operation into `DEVICE_ERROR`.
 
+## Default-store recovery prerequisite
+
+`PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY` optionally recognizes erased media
+or a monotonic NOR subset of the canonical SetupMode default store under the
+existing media lease. The complete working and spare ranges must still be
+erased. `FOREIGN` input falls through to the normal FTW decoder, so an existing
+store is never replaced merely because it differs from factory defaults.
+`INVALID` input fails closed.
+
+Before `READY_TO_BOOT` only, recovery programs the variable-store body in one
+bounded transfer per resnapshot and writes the 72-byte FV header last. Each
+callback is followed by a complete reread and fresh composition. Once a
+snapshot classifies as `COMPLETE`, recovery enters the unchanged FTW path to
+initialize the workspace, rescan the store, and bind the cache. After
+`READY_TO_BOOT` or runtime entry, `ERASED`, `NOR_SUBSET`, and `COMPLETE` media
+fail closed without a write because they contradict the frozen lifecycle.
+
+The reset harness cuts every fresh-store program and subsequent FTW operation
+at every byte prefix and seven non-prefix masks. Every recoverable image must
+finish with the independently encoded default active FV, a CLEAN FTW decode,
+and an erased spare. Unrecoverable callback corruption must fail closed.
+
 ## Whole-store candidate commit prerequisite
 
 `PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT` builds a dormant same-lease commit stage.
