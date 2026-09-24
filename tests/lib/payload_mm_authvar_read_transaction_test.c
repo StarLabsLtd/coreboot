@@ -64,7 +64,9 @@ static bool observe_end;
 static bool nested_read_on_begin;
 static uint64_t nested_read_status;
 static struct payload_mm_authvar_read_result nested_read_result;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 static bool callback_read_attempted;
+#endif
 static bool observe_gate_release;
 static uint32_t gate_watcher_ready;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
@@ -403,6 +405,7 @@ static void alias_matrix(void)
 	assert(!begin_count && !end_count);
 }
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 static uint64_t authorize_with_read(
 	const struct payload_mm_authvar_policy_request *request,
 	const struct payload_mm_authvar_policy_view *view,
@@ -436,6 +439,7 @@ static uint64_t authorize_with_read(
 	memcpy(data, read_value, sizeof(read_value));
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -1182,6 +1186,7 @@ int main(int argc, char **argv)
 		assert(!memcmp(before, &result, sizeof(result)));
 		assert(filled_with(output, 0xa5, sizeof(output)));
 		assert(!begin_count && !end_count);
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	} else if (!strcmp(argv[1], "provider-callback")) {
 		struct payload_mm_authvar_policy_provider provider = {
 			.revision = PAYLOAD_MM_AUTHVAR_POLICY_REVISION,
@@ -1204,6 +1209,7 @@ int main(int argc, char **argv)
 			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
 		assert(callback_read_attempted && poisoned && end_count == 1U);
 		assert(policy_result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+#endif
 	} else if (!strcmp(argv[1], "lifecycle")) {
 		struct payload_mm_authvar_policy_request phase = {
 			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
@@ -1212,7 +1218,9 @@ int main(int argc, char **argv)
 		struct payload_mm_authvar_read_request request =
 			get_request(output, sizeof(output));
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 		assert(test_policy_install() == CB_SUCCESS);
+#endif
 		assert(payload_mm_authvar_policy_transaction(&phase, &phase_result) ==
 			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 		assert(executor.ready_to_boot && !executor.at_runtime);
@@ -1308,7 +1316,9 @@ int main(int argc, char **argv)
 	} else {
 		assert(false);
 	}
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (strcmp(argv[1], "provider-callback") && strcmp(argv[1], "lifecycle"))
 		assert(!executor.sealed.provider.authorize);
+#endif
 	return 0;
 }

@@ -45,7 +45,9 @@ struct executor_session {
 	struct payload_mm_authvar_record_source source;
 	struct payload_mm_authvar_write_policy policy;
 	struct payload_mm_authvar_policy_request request;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	struct payload_mm_authvar_policy_view view;
+#endif
 	struct payload_mm_authvar_read_result read_result;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	struct payload_mm_authvar_candidate_result candidate_result;
@@ -79,19 +81,27 @@ struct executor_policy {
 	size_t data_offset;
 	size_t transfer_offset;
 	size_t session_offset;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	size_t provider_seal_offset;
 	size_t mutation_offset;
+#endif
 	size_t mutation_data_offset;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	size_t coordinator_context_offset;
+#endif
 	size_t required_size;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	struct payload_mm_authvar_policy_provider provider;
+#endif
 };
 
 static struct {
 	struct executor_policy policy;
 	struct executor_policy sealed;
 	uint32_t install_attempted;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	uint32_t provider_install_attempted;
+#endif
 	uint32_t busy;
 	uint32_t provider_active;
 	uint32_t provider_violation;
@@ -236,12 +246,15 @@ static bool layout_build(struct executor_policy *policy)
 	    !add_area(&cursor, sizeof(struct executor_session),
 		&policy->session_offset) || !align_size(cursor, &cursor))
 		return false;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	/* Byte-exact seal of all provider inputs and executor control, not a CRC. */
 	policy->provider_seal_offset = cursor;
 	if (!add_size(cursor, cursor, &cursor) ||
 	    !add_area(&cursor, sizeof(struct payload_mm_authvar_policy_mutation),
-		&policy->mutation_offset) ||
-	    !add_area(&cursor, policy->limits.maximum_data_size,
+		&policy->mutation_offset))
+		return false;
+#endif
+	if (!add_area(&cursor, policy->limits.maximum_data_size,
 		&policy->mutation_data_offset) ||
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	    !add_area(&cursor, PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX,
@@ -302,7 +315,9 @@ struct executor_control_seal {
 	struct payload_mm_authvar_write_plan write;
 	struct payload_mm_authvar_write_policy policy;
 	struct payload_mm_authvar_policy_request request;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	struct payload_mm_authvar_policy_view view;
+#endif
 	struct payload_mm_authvar_read_result read_result;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	struct payload_mm_authvar_candidate_result candidate_result;
@@ -358,7 +373,9 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->write = state->write;
 	seal->policy = state->policy;
 	seal->request = state->request;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	seal->view = state->view;
+#endif
 	seal->read_result = state->read_result;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	seal->candidate_result = state->candidate_result;
@@ -523,6 +540,7 @@ enum cb_err payload_mm_authvar_executor_install(
 	return CB_SUCCESS;
 }
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 enum cb_err payload_mm_authvar_policy_install(
 	const struct payload_mm_authvar_policy_provider *provider)
 {
@@ -555,6 +573,7 @@ out:
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return result;
 }
+#endif
 
 static enum payload_mm_authvar_media_result media_read(
 	struct executor_session *state, uint32_t offset, void *buffer, size_t size)
@@ -2029,6 +2048,7 @@ static bool set_request_valid(const struct payload_mm_authvar_policy_request *re
 	return true;
 }
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 static bool provider_status_valid(uint64_t status)
 {
 	return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
@@ -2102,6 +2122,7 @@ static uint64_t authorize_mutation(struct executor_session *state)
 		memcpy(arena_at(executor.sealed.data_offset), data, mutation->data_size);
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
+#endif
 
 uint64_t payload_mm_authvar_executor_recover(void)
 {
@@ -3115,6 +3136,7 @@ uint64_t payload_mm_authvar_policy_transaction(
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	struct payload_mm_authvar_set_snapshot set_snapshot;
 	struct payload_mm_authvar_set_plan set_plan;
+	struct payload_mm_authvar_view current_view;
 #endif
 	enum payload_mm_authvar_media_result result;
 	enum payload_mm_authvar_media_result end_result;
@@ -3126,6 +3148,8 @@ uint64_t payload_mm_authvar_policy_transaction(
 	bool expected_present;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	bool reconcile_modes = false;
+	bool modes_validated = false;
+	u8 source_modes;
 #endif
 	uint32_t store_base;
 
@@ -3144,10 +3168,16 @@ uint64_t payload_mm_authvar_policy_transaction(
 	memset(completion, 0, sizeof(*completion));
 	completion->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 	completion->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING;
-	if (!executor.installed || !executor.sealed.provider.authorize) {
+	if (!executor.installed) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		goto complete;
 	}
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (!executor.sealed.provider.authorize) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto complete;
+	}
+#endif
 	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
 		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -3196,27 +3226,27 @@ uint64_t payload_mm_authvar_policy_transaction(
 	status = recover_session(state);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
-	if (state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET) {
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-		u8 source_modes;
-
-		reconcile_modes = executor.sealed_modes_need_reconcile;
-		if (!(reconcile_modes ?
-			payload_mm_authvar_coordinator_reconcile_modes(&state->index,
-				state->at_runtime, executor.sealed_volatile_modes,
-				&source_modes) :
-			payload_mm_authvar_coordinator_source_modes(&state->index,
-				state->at_runtime,
-				executor.sealed_volatile_modes_valid,
-				executor.sealed_volatile_modes, &source_modes))) {
-			status = poison_session();
-			goto end;
-		}
-		executor.volatile_modes = source_modes;
-		executor.sealed_volatile_modes = source_modes;
-		executor.volatile_modes_valid = true;
-		executor.sealed_volatile_modes_valid = true;
+	reconcile_modes = executor.sealed_modes_need_reconcile;
+	if (!(reconcile_modes ?
+		payload_mm_authvar_coordinator_reconcile_modes(&state->index,
+			state->at_runtime, executor.sealed_volatile_modes,
+			&source_modes) :
+		payload_mm_authvar_coordinator_source_modes(&state->index,
+			state->at_runtime, executor.sealed_volatile_modes_valid,
+			executor.sealed_volatile_modes, &source_modes)) ||
+	    payload_mm_authvar_view_init(&current_view, &state->index, source_modes,
+		state->at_runtime) != CB_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+	executor.volatile_modes = source_modes;
+	executor.sealed_volatile_modes = source_modes;
+	executor.volatile_modes_valid = true;
+	executor.sealed_volatile_modes_valid = true;
+	modes_validated = true;
 #endif
+	if (state->request.operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET) {
 		executor.ready_to_boot = true;
 		executor.sealed_ready_to_boot = true;
 		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME) {
@@ -3243,22 +3273,17 @@ uint64_t payload_mm_authvar_policy_transaction(
 		payload_mm_authvar_media_cache_bind(state->generation, state->token);
 		goto end;
 	}
-#endif
+	memcpy(state->source.vendor_guid, state->request.vendor_guid,
+		sizeof(state->source.vendor_guid));
+	state->source.name = state->request.name;
+	state->source.name_size = state->request.name_size;
+	state->source.data = state->request.data;
+	state->source.data_size = state->request.data_size;
+	state->source.attributes = state->request.attributes;
+#else
 	status = authorize_mutation(state);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-	if ((set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE) !=
-		(!state->source.data_size &&
-		 !(state->source.attributes &
-		   PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE)) ||
-	    (set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE &&
-	     (state->source.attributes != state->request.attributes ||
-	      !bytes_all_zero(state->source.timestamp,
-		  sizeof(state->source.timestamp))))) {
-		status = poison_session();
-		goto end;
-	}
 #endif
 	if (state->policy.maximum_record_size > state->index.store_size)
 		state->policy.maximum_record_size = state->index.store_size;
@@ -3272,7 +3297,11 @@ uint64_t payload_mm_authvar_policy_transaction(
 	}
 	append = !!(state->source.attributes &
 		PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	deletion = set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE;
+#else
 	deletion = !state->source.data_size && !append;
+#endif
 	writer_source = deletion ? NULL : &state->source;
 	state->reclaim.copies = arena_at(executor.sealed.copies_offset);
 	state->reclaim.copy_capacity = executor.sealed.limits.maximum_records;
@@ -3332,6 +3361,13 @@ uint64_t payload_mm_authvar_policy_transaction(
 		status = poison_session();
 		goto end;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (payload_mm_authvar_view_init(&current_view, &state->index, source_modes,
+		state->at_runtime) != CB_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+#endif
 	final = payload_mm_authvar_store_find(&state->index,
 		state->source.vendor_guid, state->source.name,
 		state->source.name_size);
@@ -3387,8 +3423,8 @@ end:
 			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-	if (reconcile_modes && status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
-	    end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+	if (reconcile_modes && modes_validated && executor.installed &&
+	    policy_equal() && end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
 		executor.modes_need_reconcile = false;
 		executor.sealed_modes_need_reconcile = false;
 	}

@@ -21,6 +21,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_candidate_test.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
@@ -54,6 +55,7 @@ for guard in source candidate; do
 			-I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_candidate_test.c" "$mutant" \
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
+			"$root/src/lib/payload_mm_authvar_view.c" \
 			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_record.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \

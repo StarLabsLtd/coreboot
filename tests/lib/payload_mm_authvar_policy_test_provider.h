@@ -9,6 +9,7 @@
 /* Deliberately unauthenticated fixture provider, never linked into firmware. */
 static unsigned int test_policy_authorize_count;
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 enum test_policy_attack {
 	TEST_POLICY_ATTACK_NONE,
 	TEST_POLICY_ATTACK_FLIP_KIND,
@@ -64,6 +65,7 @@ static enum cb_err test_policy_install(void)
 
 	return payload_mm_authvar_policy_install(&provider);
 }
+#endif
 
 static uint64_t test_policy_apply(const struct payload_mm_authvar_record_source *source)
 {
