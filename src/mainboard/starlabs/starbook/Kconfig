@@ -252,6 +252,19 @@ config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
 	  active and every segment-zero PCI function has been quiesced. This is
 	  a dormant prerequisite and does not enable MOR clearing.
 
+config STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
+	select STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
+	select SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD
+	help
+	  Prepare the dormant MOR DMA authority from the final exhaustive ECAM
+	  quiescence immediately before FSP-S. The protected early identity must
+	  match the later enumerated model exactly. This adds no MOR endpoint or
+	  platform-support claim.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

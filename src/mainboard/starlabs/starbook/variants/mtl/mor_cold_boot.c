@@ -315,4 +315,24 @@ enum cb_err starbook_mtl_mor_cold_ramstage_consume(uint64_t *generation)
 		(uintptr_t)cbmem_entry_start(entry), cbmem_entry_size(entry),
 		&ramstage_ops, generation);
 }
+
+enum cb_err starbook_mtl_mor_cold_ramstage_consume_snapshot(
+	uint64_t *generation, struct pci_bme_quiesce_snapshot *snapshot)
+{
+	if (!object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)))
+		return CB_ERR_ARG;
+	memset(snapshot, 0, sizeof(*snapshot));
+	if (!object_valid(generation, sizeof(*generation), _Alignof(*generation)) ||
+	    objects_overlap(generation, sizeof(*generation), snapshot,
+		 sizeof(*snapshot)))
+		return CB_ERR_ARG;
+	if (starbook_mtl_mor_cold_ramstage_consume(generation) != CB_SUCCESS ||
+	    pci_snapshot.failed || !pci_snapshot.count ||
+	    pci_snapshot.count > PCI_BME_QUIESCE_MAX_FUNCTIONS) {
+		*generation = 0;
+		return CB_ERR;
+	}
+	memcpy(snapshot, &pci_snapshot, sizeof(*snapshot));
+	return CB_SUCCESS;
+}
 #endif

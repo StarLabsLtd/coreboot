@@ -160,9 +160,36 @@ enum guard_phase {
 
 static struct {
 	enum guard_phase phase;
+	bool seeded;
+	uint64_t generation;
+	uint8_t identity[32];
 	struct starbook_mtl_dma_guard_snapshot baseline;
 	struct payload_mm_authvar_mor_clear_plan bound_plan;
 } guard_authority;
+
+enum cb_err starbook_mtl_dma_guard_seed(uint64_t generation,
+	const uint8_t identity[32])
+{
+	const uintptr_t base = (uintptr_t)identity;
+	uint8_t combined = 0;
+
+	if (!identity || base > (uintptr_t)-1 - 31U || !generation ||
+	    guard_authority.phase != GUARD_EMPTY)
+		return CB_ERR_ARG;
+	for (size_t index = 0; index < sizeof(guard_authority.identity); index++)
+		combined |= identity[index];
+	if (!combined)
+		return CB_ERR;
+	if (guard_authority.seeded)
+		return guard_authority.generation == generation &&
+			!memcmp(guard_authority.identity, identity,
+				sizeof(guard_authority.identity)) ? CB_SUCCESS : CB_ERR;
+	guard_authority.generation = generation;
+	memcpy(guard_authority.identity, identity,
+		sizeof(guard_authority.identity));
+	guard_authority.seeded = true;
+	return CB_SUCCESS;
+}
 
 static bool object_valid(const void *object, size_t size, size_t alignment)
 {
@@ -258,6 +285,8 @@ enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	memcpy(&ops_copy, ops, sizeof(ops_copy));
 	if (!ops_copy.ensure || !ops_copy.observe || !ops_copy.random64 ||
 	    !ops_copy.poison ||
+	    (CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD) &&
+	     !guard_authority.seeded) ||
 	    guard_authority.phase == GUARD_POISONED)
 		return CB_ERR;
 	guard_authority.phase = GUARD_POISONED;
@@ -269,6 +298,10 @@ enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	if (original_phase == GUARD_PREPARED || original_phase == GUARD_BOUND) {
 		candidate.generation = guard_authority.baseline.generation;
 		memcpy(candidate.identity, guard_authority.baseline.identity,
+			sizeof(candidate.identity));
+	} else if (guard_authority.seeded) {
+		candidate.generation = guard_authority.generation;
+		memcpy(candidate.identity, guard_authority.identity,
 			sizeof(candidate.identity));
 	} else {
 		for (size_t index = 0; index < 5U; index++)

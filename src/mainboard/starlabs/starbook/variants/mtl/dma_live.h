@@ -45,6 +45,8 @@ int starbook_mtl_dma_live_establish(
 	void *table_mirror, uint64_t table_mirror_physical,
 	size_t table_mirror_size,
 	const struct vtd_transition_io *transition);
+int starbook_mtl_dma_live_prepare_early(
+	const struct pci_bme_quiesce_snapshot *snapshot);
 int starbook_mtl_dma_live_table_mirror_size(uint64_t physical_base, size_t size,
 	size_t *mirror_size);
 bool starbook_mtl_dma_live_verify_active(

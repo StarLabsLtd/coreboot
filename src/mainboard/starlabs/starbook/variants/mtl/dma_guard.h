@@ -92,6 +92,8 @@ _Static_assert(offsetof(struct starbook_mtl_dma_guard_snapshot, generation) == 8
 
 enum cb_err starbook_mtl_dma_guard_prepare(
 	struct starbook_mtl_dma_guard_snapshot *snapshot);
+enum cb_err starbook_mtl_dma_guard_seed(uint64_t generation,
+	const uint8_t identity[32]);
 enum cb_err starbook_mtl_dma_guard_bind(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *prepared,

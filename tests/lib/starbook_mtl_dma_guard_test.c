@@ -266,8 +266,36 @@ int main(int argc, char **argv)
 		.poison = mock_poison,
 	};
 	mock.ops = &ops;
-
 	CHECK(argc == 2);
+	if (!strcmp(argv[1], "seed-zero")) {
+		CHECK(starbook_mtl_dma_guard_seed(0, snapshot.identity) != CB_SUCCESS);
+		memset(snapshot.identity, 0, sizeof(snapshot.identity));
+		CHECK(starbook_mtl_dma_guard_seed(1, snapshot.identity) != CB_SUCCESS);
+		return 0;
+	}
+	if (!strcmp(argv[1], "seeded-prepare")) {
+		uint8_t identity[32] = { 0x5a };
+
+		CHECK(starbook_mtl_dma_guard_seed(0x1122334455667788ULL,
+			identity) == CB_SUCCESS);
+		CHECK(starbook_mtl_dma_guard_seed(0x1122334455667788ULL,
+			identity) == CB_SUCCESS);
+		CHECK(starbook_mtl_dma_guard_seed(0x1122334455667789ULL,
+			identity) != CB_SUCCESS);
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
+			CB_SUCCESS);
+		CHECK(snapshot.generation == 0x1122334455667788ULL);
+		CHECK(!memcmp(snapshot.identity, identity, sizeof(identity)));
+		CHECK(mock.randoms == 0);
+		return 0;
+	}
+	if (!strcmp(argv[1], "early-seed-required")) {
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) !=
+			CB_SUCCESS);
+		CHECK(!mock.ensures && !mock.observes && !mock.randoms && !mock.poisons);
+		return 0;
+	}
+
 	if (!strcmp(argv[1], "snapshot-builder")) {
 		snapshot_builder_tests();
 		return 0;

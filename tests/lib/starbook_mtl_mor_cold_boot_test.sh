@@ -92,7 +92,6 @@ mutant one-shot-wipe \
 mutant capture-record-alias \
 	's/objects_overlap(capture, sizeof(\*capture), record, sizeof(\*record)) ||/false ||/' \
 	publish-capture-record-alias
-
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 printf '\nconfig TEST_MTL_MOR_COLD_SELECTOR\n\tbool\n\tdefault y\n\tselect STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION\n' >> \
 	"$temporary/Kconfig"
@@ -108,18 +107,48 @@ done
 ! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_MOR_DMA_GUARD=y$' "$temporary/config"
 
 romstage_source="$root/src/soc/intel/meteorlake/romstage/romstage.c"
+romstage_header="$root/src/soc/intel/meteorlake/include/soc/romstage.h"
+
+check_publication_policy()
+{
+	source=$1
+	test "$(grep -Fxc '		if (result != CB_SUCCESS && !s3wake)' "$source")" -eq 1
+	publication=$(grep -n 'mainboard_mor_cold_publish()' "$source" | cut -d: -f1)
+	policy=$(grep -nF 'if (result != CB_SUCCESS && !s3wake)' "$source" | cut -d: -f1)
+	failure=$(grep -n 'die("MTL MOR cold-boot classification' "$source" | cut -d: -f1)
+	test "$publication" -lt "$policy"
+	test "$policy" -lt "$failure"
+}
+
+check_publication_policy "$romstage_source"
+! grep -q 'starbook_mtl' "$romstage_source" "$romstage_header"
+sed 's/result != CB_SUCCESS && !s3wake/result != CB_SUCCESS/' \
+	"$romstage_source" > "$temporary/s3-fatal-romstage.c"
+if check_publication_policy "$temporary/s3-fatal-romstage.c" 2>/dev/null; then
+	echo 'ERROR: S3-fatal publication mutant survived' >&2
+	exit 1
+fi
+sed 's/result != CB_SUCCESS && !s3wake/result != CB_SUCCESS \&\& false/' \
+	"$romstage_source" > "$temporary/cold-nonfatal-romstage.c"
+if check_publication_policy "$temporary/cold-nonfatal-romstage.c" 2>/dev/null; then
+	echo 'ERROR: cold-nonfatal publication mutant survived' >&2
+	exit 1
+fi
+
 capture_line=$(grep -n 'mainboard_mor_cold_capture(s3wake)' "$romstage_source" |
 	cut -d: -f1)
 fspm_line=$(grep -n '^[[:space:]]*fsp_memory_init(s3wake)' "$romstage_source" |
 	cut -d: -f1)
 vtd_line=$(grep -n '^[[:space:]]*vtd_enable_dma_protection()' "$romstage_source" |
 	cut -d: -f1)
-publish_line=$(grep -n '^[[:space:]]*mainboard_mor_cold_publish()' "$romstage_source" |
+publish_line=$(grep -n 'mainboard_mor_cold_publish()' "$romstage_source" |
 	cut -d: -f1)
 test "$capture_line" -lt "$fspm_line"
 test "$fspm_line" -lt "$vtd_line"
 test "$vtd_line" -lt "$publish_line"
 test "$(grep -R -E -n --include='*.c' --include='*.h' \
-	'starbook_mtl_mor_cold_ramstage_consume\(' "$root/src" | wc -l)" -eq 2
+	'starbook_mtl_mor_cold_ramstage_consume\(' "$root/src" | wc -l)" -eq 3
+test "$(grep -R -E -n --include='*.c' --include='*.h' \
+	'starbook_mtl_mor_cold_ramstage_consume_snapshot\(' "$root/src" | wc -l)" -eq 3
 
 printf '%s\n' 'StarBook MTL MOR cold-boot tests: PASS'

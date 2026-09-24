@@ -494,4 +494,9 @@ config SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION
 	bool
 	default n
 
+config SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD
+	bool
+	default n
+	depends on SOC_INTEL_METEORLAKE
+
 endif
