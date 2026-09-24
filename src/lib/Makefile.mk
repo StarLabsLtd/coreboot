@@ -44,6 +44,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN) += payload_mm_authvar_mor_clear_plan.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT) += payload_mm_authvar_mor_clear.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR) += payload_mm_authvar_mor_clear_executor.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
