@@ -336,6 +336,17 @@ config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
 	  endpoint or MOR support claim; receipt fields are assertions until a
 	  trusted producer is separately composed.
 
+config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER
+	select PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
+	help
+	  Build a dormant private fixed-channel adapter that can install or close
+	  the protected MOR completion grant exactly once. A platform must compose
+	  its own authenticated SMM trigger and independently observed caller facts.
+	  This adds no APM/SMMSTORE endpoint, boot hook, or MOR support claim.
+
 config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
 	bool
 	default n
