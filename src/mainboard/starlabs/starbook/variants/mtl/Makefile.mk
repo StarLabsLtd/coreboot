@@ -17,4 +17,5 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC) += dma_diagnostic_platfo
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND) += dma_live.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND) += dma_live_platform.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_DMA_GUARD) += dma_guard.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_DMA_GUARD) += mor_live_inventory.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_HANDOFF) += dma_live_handoff.c

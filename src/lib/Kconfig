@@ -15,6 +15,15 @@ config BOOTMEM_DRAM_PROVENANCE
 	  and expose their exact intersections with final bootmem ownership tags.
 	  This adds no consumer, boot hook or memory-clear support claim.
 
+config PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY
+	bool
+	default n
+	select BOOTMEM_DRAM_PROVENANCE
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
+	help
+	  Build the dormant allocation-free memory-clear inventory composer.
+	  This adds no boot hook, clear operation, endpoint or support claim.
+
 config PAYLOAD_RESOURCE_HANDOFF
 	bool "Publish assigned PCI resources to the payload"
 	default n
