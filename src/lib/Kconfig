@@ -78,6 +78,15 @@ config PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
 	  append-or-reclaim planner. It does not copy results into shared memory,
 	  mutate media, execute an FTW plan, or publish a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_VOLATILE_VIEW
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
+	help
+	  Build the pure immutable EDK2 26.09 volatile-variable view. It projects
+	  five synthetic read-only values ahead of persistent variables without
+	  creating store records, accessing media or publishing a service endpoint.
+
 config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE
 	bool
 	default n
@@ -191,6 +200,7 @@ config PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
 	bool
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_AUTHORITY
+	select PAYLOAD_MM_AUTHVAR_VOLATILE_VIEW
 	help
 	  Build the dormant fixed-role atomic bundle planner. It expands one final
 	  Auth2 authority outcome into target, SecureBootEnable and VendorKeysNv

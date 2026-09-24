@@ -2,6 +2,7 @@
 
 #include <boot/payload_mm_authvar_bundle.h>
 #include <boot/payload_mm_authvar_format.h>
+#include <boot/payload_mm_authvar_view.h>
 #include <commonlib/helpers.h>
 #include <string.h>
 
@@ -26,23 +27,6 @@ static const uint8_t dbx_name[] = { 'd', 0, 'b', 0, 'x', 0, 0, 0 };
 static const uint8_t dbt_name[] = { 'd', 0, 'b', 0, 't', 0, 0, 0 };
 
 /* Written out to keep the reserved-key audit independent of host wchar_t. */
-static const uint8_t setup_mode_name[] = {
-	'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0, 'M', 0, 'o', 0, 'd', 0,
-	'e', 0, 0, 0,
-};
-static const uint8_t secure_boot_name[] = {
-	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
-	'o', 0, 't', 0, 0, 0,
-};
-static const uint8_t signature_support_name[] = {
-	'S', 0, 'i', 0, 'g', 0, 'n', 0, 'a', 0, 't', 0, 'u', 0, 'r', 0,
-	'e', 0, 'S', 0, 'u', 0, 'p', 0, 'p', 0, 'o', 0, 'r', 0, 't', 0,
-	0, 0,
-};
-static const uint8_t vendor_keys_name[] = {
-	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
-	'y', 0, 's', 0, 0, 0,
-};
 static const uint8_t audit_mode_name[] = {
 	'A', 0, 'u', 0, 'd', 0, 'i', 0, 't', 0, 'M', 0, 'o', 0, 'd', 0,
 	'e', 0, 0, 0,
@@ -73,9 +57,6 @@ static const uint8_t dbt_default_name[] = {
 };
 static const uint8_t cert_db_name[] = {
 	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
-};
-static const uint8_t cert_db_volatile_name[] = {
-	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 'v', 0, 0, 0,
 };
 static const uint8_t vendor_keys_modified;
 static const uint8_t secure_boot_enabled = 1U;
@@ -170,11 +151,6 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 		const uint8_t *name;
 		size_t name_size;
 	} keys[] = {
-		{ global_guid, setup_mode_name, sizeof(setup_mode_name) },
-		{ global_guid, secure_boot_name, sizeof(secure_boot_name) },
-		{ global_guid, signature_support_name,
-			sizeof(signature_support_name) },
-		{ global_guid, vendor_keys_name, sizeof(vendor_keys_name) },
 		{ global_guid, audit_mode_name, sizeof(audit_mode_name) },
 		{ global_guid, deployed_mode_name, sizeof(deployed_mode_name) },
 		{ global_guid, kek_default_name, sizeof(kek_default_name) },
@@ -183,8 +159,6 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 		{ global_guid, dbx_default_name, sizeof(dbx_default_name) },
 		{ global_guid, dbt_default_name, sizeof(dbt_default_name) },
 		{ cert_db_guid, cert_db_name, sizeof(cert_db_name) },
-		{ cert_db_guid, cert_db_volatile_name,
-			sizeof(cert_db_volatile_name) },
 	};
 
 	if (!vendor_guid || !name || !name_size ||
@@ -197,6 +171,8 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 		if (payload_mm_authvar_mode_key_matches(vendor_guid, name,
 			name_size, key))
 			return true;
+	if (payload_mm_authvar_view_key_reserved(vendor_guid, name, name_size))
+		return true;
 
 	for (size_t i = 0U; i < ARRAY_SIZE(keys); i++)
 		if (name_size == keys[i].name_size &&

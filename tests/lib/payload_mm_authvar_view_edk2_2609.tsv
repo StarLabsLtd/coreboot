@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# StarLabsLtd/edk2 26.09 aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272
+# AuthVariableLib.c initializes volatile variables in this order.
+order	name	guid-bytes	attributes	data
+0	SetupMode	61dfe48bca93d211aa0d00e098032b8c	00000006	MODE_SETUP
+1	SignatureSupport	61dfe48bca93d211aa0d00e098032b8c	00000006	12a56c8210cfc94ab187be01496631bd2616c4c14c509240aca941f93693432807533effd09fc94885f18ad56c701e01ae0f3e09c4a6504f9f1bd41e2b89c19ae866573c9c26344eaa14ed776e85b3b6a159c0a5e494a74a87b5ab155c2bf072
+2	SecureBoot	61dfe48bca93d211aa0d00e098032b8c	00000006	MODE_SECURE_BOOT
+3	certdbv	6ee5bed9dc75d949b4d7b534210f637a	00000026	04000000
+4	VendorKeys	61dfe48bca93d211aa0d00e098032b8c	00000006	MODE_VENDOR_KEYS
