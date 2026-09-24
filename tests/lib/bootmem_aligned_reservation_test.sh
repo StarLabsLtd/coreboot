@@ -18,7 +18,9 @@ build_and_run()
 		-Wno-unused-parameter -Wno-sign-compare \
 		-Wstrict-prototypes -fno-builtin -fno-pie -fno-pic "$@" \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -D__TEST_SRCOBJ__ \
+		-DBOOTMEM_RECEIPT_TEST \
 		-include "$root/src/include/kconfig.h" \
+		-include "$root/tests/lib/bootmem_reservation_receipt_config.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$config" -I"$root/tests/include/mocks" -I"$root/tests/include" \
@@ -26,9 +28,13 @@ build_and_run()
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		-I"$root/build/tests" \
 		"$root/tests/lib/bootmem_aligned_reservation_test.c" "$source" \
+		"$root/src/lib/bootmem_reservation_receipt.c" \
 		"$root/src/lib/memrange.c" "$root/src/device/device_util.c" \
 		-no-pie -o "$temporary/$name"
-	for case_name in success bounded atomic-capacity; do
+	for case_name in success bounded atomic-capacity \
+		receipt-handle-signer-alias receipt-handle-receipt-alias \
+		receipt-signer-first-alias receipt-receipt-first-alias \
+		receipt-boundary-arithmetic; do
 		if ! ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
 			UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/$name" "$case_name"; then
@@ -87,6 +93,18 @@ mutant_test duplicate-registration \
 mutant_test late-registration \
 	'bootmem_is_initialized() || request_count >' \
 	'false || request_count >'
+mutant_test receipt-handle-signer-alias \
+	'objects_overlap(handle, sizeof(\*handle), signer, sizeof(\*signer)) ||' \
+	'false ||'
+mutant_test receipt-handle-receipt-alias \
+	'objects_overlap(handle, sizeof(\*handle), receipt, sizeof(\*receipt)) ||' \
+	'false ||'
+mutant_test receipt-signer-receipt-alias \
+	'objects_overlap(signer, sizeof(\*signer), receipt, sizeof(\*receipt))' \
+	'false'
+mutant_test receipt-one-past-overflow \
+	'receipt_start + receipt_size - 1U' \
+	'receipt_start + receipt_size'
 
 mkdir -p "$temporary/config" "$temporary/build"
 printf '%s\n' \

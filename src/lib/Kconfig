@@ -411,6 +411,16 @@ config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
 	  its own authenticated SMM trigger and independently observed caller facts.
 	  This adds no APM/SMMSTORE endpoint, boot hook, or MOR support claim.
 
+config BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	bool
+	default n
+	depends on BOOTMEM_ALIGNED_RESERVATIONS
+	help
+	  Build a dormant one-shot authenticated receipt for one exact final
+	  BM_MEM_TABLE aligned reservation. It uses a fixed HMAC-SHA-256 and the
+	  caller provisions equal boot-local signer and protected verifier authorities.
+	  This adds no SMI trigger, endpoint, table publication or support claim.
+
 config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
 	bool
 	default n

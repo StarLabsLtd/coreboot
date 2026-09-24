@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootmem.h>
+#include <bootmem_reservation_receipt.h>
 #include <device/device.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -306,6 +307,111 @@ static void capacity_failure(void)
 	__builtin_trap();
 }
 
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
+void bootmem_receipt_test_outside_authority_spans(uintptr_t receipt_start,
+	size_t receipt_size, uintptr_t signer_start, size_t signer_size,
+	size_t spans[3]);
+
+static bool zero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+	uint8_t combined = 0;
+
+	for (size_t index = 0; index < size; index++)
+		combined |= bytes[index];
+	return !combined;
+}
+
+static bool authority_terminal_and_scrubbed(
+	const struct bootmem_reservation_receipt_authority *authority)
+{
+	struct bootmem_reservation_receipt_authority copy = *authority;
+
+	CHECK(copy.state == 4);
+	copy.state = 0;
+	return zero(&copy, sizeof(copy));
+}
+
+static void receipt_alias(bool handle_in_signer)
+{
+	struct bootmem_aligned_reservation_request value = request(0x1000,
+		0x1000, 0x2000000, BM_MEM_TABLE);
+	struct bootmem_aligned_reservation_handle handle;
+	struct bootmem_reservation_receipt_authority signer = {0};
+	struct bootmem_reservation_receipt_authority verifier = {0};
+	struct bootmem_reservation_receipt receipt = {0};
+	uint8_t key[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE];
+
+	memset(key, 0x5a, sizeof(key));
+	CHECK(!bootmem_aligned_reservation_register(&value, &handle));
+	initialize();
+	CHECK(bootmem_reservation_receipt_provision(&signer, &verifier, key,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 1, &handle) == CB_SUCCESS);
+	CHECK(zero(key, sizeof(key)));
+	if (handle_in_signer) {
+		CHECK(bootmem_aligned_reservation_receipt_emit(&signer.handle,
+			&signer, &receipt) != CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+	} else {
+		receipt.handle = handle;
+		CHECK(bootmem_aligned_reservation_receipt_emit(&receipt.handle,
+			&signer, &receipt) != CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+	}
+	CHECK(authority_terminal_and_scrubbed(&signer));
+	bootmem_reservation_receipt_close(&verifier);
+	CHECK(authority_terminal_and_scrubbed(&verifier));
+}
+
+static void signer_receipt_alias(bool receipt_first)
+{
+	struct bootmem_aligned_reservation_request value = request(0x1000,
+		0x1000, 0x2000000, BM_MEM_TABLE);
+	struct bootmem_aligned_reservation_handle handle;
+	uint8_t storage[128] __aligned(8);
+	struct bootmem_reservation_receipt_authority *signer =
+		(void *)(storage + (receipt_first ? 32 : 0));
+	struct bootmem_reservation_receipt *receipt =
+		(void *)(storage + (receipt_first ? 0 : 32));
+	const size_t union_size = receipt_first ? sizeof(*receipt) :
+		32 + sizeof(*receipt);
+	struct bootmem_reservation_receipt_authority verifier = {0};
+	uint8_t key[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE];
+
+	memset(storage, 0xa5, sizeof(storage));
+	memset(signer, 0, sizeof(*signer));
+	memset(key, 0x5a, sizeof(key));
+	CHECK(!bootmem_aligned_reservation_register(&value, &handle));
+	initialize();
+	CHECK(bootmem_reservation_receipt_provision(signer, &verifier, key,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 1, &handle) == CB_SUCCESS);
+	CHECK(bootmem_aligned_reservation_receipt_emit(&handle, signer,
+		receipt) != CB_SUCCESS);
+	for (size_t index = 0; index < union_size; index++) {
+		const uint8_t expected = &storage[index] == &signer->state ? 4 : 0;
+
+		CHECK(storage[index] == expected);
+	}
+	bootmem_reservation_receipt_close(&verifier);
+	CHECK(authority_terminal_and_scrubbed(&verifier));
+}
+
+static void receipt_boundary_arithmetic(void)
+{
+	size_t spans[3];
+
+	bootmem_receipt_test_outside_authority_spans(UINTPTR_MAX - 95U, 96,
+		UINTPTR_MAX - 63U, 64, spans);
+	CHECK(spans[0] == 32 && spans[1] == 0 && spans[2] == 0);
+	bootmem_receipt_test_outside_authority_spans(UINTPTR_MAX - 95U, 96,
+		UINTPTR_MAX - 95U, 64, spans);
+	CHECK(spans[0] == 0 && spans[1] == 64 && spans[2] == 32);
+	bootmem_receipt_test_outside_authority_spans(UINTPTR_MAX - 127U, 96,
+		UINTPTR_MAX - 95U, 64, spans);
+	CHECK(spans[0] == 32 && spans[1] == 0 && spans[2] == 0);
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	CHECK(argc == 2);
@@ -317,6 +423,18 @@ int main(int argc, char **argv)
 		capacity_failure();
 	else if (!strcmp(argv[1], "atomic-capacity"))
 		atomic_capacity();
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
+	else if (!strcmp(argv[1], "receipt-handle-signer-alias"))
+		receipt_alias(true);
+	else if (!strcmp(argv[1], "receipt-handle-receipt-alias"))
+		receipt_alias(false);
+	else if (!strcmp(argv[1], "receipt-signer-first-alias"))
+		signer_receipt_alias(false);
+	else if (!strcmp(argv[1], "receipt-receipt-first-alias"))
+		signer_receipt_alias(true);
+	else if (!strcmp(argv[1], "receipt-boundary-arithmetic"))
+		receipt_boundary_arithmetic();
+#endif
 	else
 		CHECK(false);
 	return 0;

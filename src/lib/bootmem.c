@@ -2,6 +2,9 @@
 
 #include <console/console.h>
 #include <bootmem.h>
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
+#include "bootmem_reservation_receipt_internal.h"
+#endif
 #include <cbmem.h>
 #include <device/device.h>
 #include <device/resource.h>
@@ -214,6 +217,153 @@ int bootmem_aligned_reservation_query(
 	*reservation = aligned_reservations[snapshot.opaque[0] - 1U].result;
 	return 0;
 }
+
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
+static bool range_targets_type(const struct memranges *ranges, uint64_t start,
+	uint64_t size, enum bootmem_type tag);
+
+static enum cb_err sign_resolved_reservation(
+	struct bootmem_reservation_receipt_authority *signer,
+	const struct bootmem_aligned_reservation_handle *handle,
+	const struct bootmem_aligned_reservation *reservation,
+	struct bootmem_reservation_receipt *receipt)
+{
+	const bool signer_valid = object_valid(signer, sizeof(*signer),
+		_Alignof(*signer));
+	const bool receipt_valid = object_valid(receipt, sizeof(*receipt),
+		_Alignof(*receipt));
+	struct bootmem_reservation_receipt_authority authority = { 0 };
+	struct bootmem_reservation_receipt candidate = { 0 };
+	enum cb_err status = CB_ERR;
+
+	if (!signer_valid || !receipt_valid ||
+	    objects_overlap(signer, sizeof(*signer), receipt, sizeof(*receipt)) ||
+	    !bootmem_reservation_receipt_authority_claim(signer, &authority))
+		goto out;
+	candidate = (struct bootmem_reservation_receipt) {
+		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
+		.size = sizeof(candidate), .boot_kind = authority.boot_kind,
+		.generation = authority.generation, .sequence = authority.sequence,
+		.handle = *handle, .base = reservation->base,
+		.bytes = reservation->size, .tag = reservation->tag,
+		.use = BOOTMEM_RESERVATION_RECEIPT_ACTIVE_FIRMWARE,
+	};
+	if (memcmp(&candidate.handle, &authority.handle, sizeof(candidate.handle)) ||
+	    bootmem_reservation_receipt_mac(authority.secret, &candidate,
+		offsetof(struct bootmem_reservation_receipt, mac), candidate.mac) !=
+		CB_SUCCESS)
+		goto out;
+	memcpy(receipt, &candidate, sizeof(candidate));
+	status = CB_SUCCESS;
+out:
+	if (status != CB_SUCCESS && receipt_valid)
+		bootmem_reservation_receipt_scrub(receipt, sizeof(*receipt));
+	if (signer_valid)
+		bootmem_reservation_receipt_close(signer);
+	bootmem_reservation_receipt_scrub(&authority, sizeof(authority));
+	bootmem_reservation_receipt_scrub(&candidate, sizeof(candidate));
+	return status;
+}
+
+static void receipt_outside_authority_spans(uintptr_t receipt_start,
+	size_t receipt_size, uintptr_t signer_start, size_t signer_size,
+	size_t *prefix_size, size_t *suffix_offset, size_t *suffix_size)
+{
+	const uintptr_t receipt_last = receipt_start + receipt_size - 1U;
+	const uintptr_t signer_last = signer_start + signer_size - 1U;
+
+	*prefix_size = 0;
+	*suffix_offset = 0;
+	*suffix_size = 0;
+	if (receipt_start < signer_start)
+		*prefix_size = MIN(receipt_last, signer_start - 1U) -
+			receipt_start + 1U;
+	if (signer_last < receipt_last) {
+		const uintptr_t suffix_start = MAX(receipt_start, signer_last + 1U);
+
+		*suffix_offset = suffix_start - receipt_start;
+		*suffix_size = receipt_last - suffix_start + 1U;
+	}
+}
+
+#if defined(BOOTMEM_RECEIPT_TEST)
+void bootmem_receipt_test_outside_authority_spans(uintptr_t receipt_start,
+	size_t receipt_size, uintptr_t signer_start, size_t signer_size,
+	size_t spans[3])
+{
+	receipt_outside_authority_spans(receipt_start, receipt_size,
+		signer_start, signer_size, &spans[0], &spans[1], &spans[2]);
+}
+#endif
+
+static void scrub_receipt_outside_authority(
+	struct bootmem_reservation_receipt *receipt,
+	const struct bootmem_reservation_receipt_authority *signer)
+{
+	size_t prefix_size;
+	size_t suffix_offset;
+	size_t suffix_size;
+
+	receipt_outside_authority_spans((uintptr_t)receipt, sizeof(*receipt),
+		(uintptr_t)signer, sizeof(*signer), &prefix_size, &suffix_offset,
+		&suffix_size);
+	bootmem_reservation_receipt_scrub(receipt, prefix_size);
+	bootmem_reservation_receipt_scrub((uint8_t *)receipt + suffix_offset,
+		suffix_size);
+}
+
+enum cb_err bootmem_aligned_reservation_receipt_emit(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt *receipt)
+{
+	struct bootmem_aligned_reservation_handle snapshot;
+	const struct aligned_reservation_state *state;
+	const bool handle_valid = object_valid(handle, sizeof(*handle),
+		_Alignof(*handle));
+	const bool signer_valid = object_valid(signer, sizeof(*signer),
+		_Alignof(*signer));
+	const bool receipt_valid = object_valid(receipt, sizeof(*receipt),
+		_Alignof(*receipt));
+
+	if (!handle_valid || !signer_valid || !receipt_valid ||
+	    objects_overlap(handle, sizeof(*handle), signer, sizeof(*signer)) ||
+	    objects_overlap(handle, sizeof(*handle), receipt, sizeof(*receipt)) ||
+	    objects_overlap(signer, sizeof(*signer), receipt, sizeof(*receipt)))
+		goto fail;
+	memcpy(&snapshot, handle, sizeof(snapshot));
+	if (!aligned_reservations_resolved || !snapshot.opaque[0] ||
+	    snapshot.opaque[0] > aligned_reservation_count ||
+	    snapshot.opaque[1] !=
+		(ALIGNED_RESERVATION_HANDLE_CHECK ^ snapshot.opaque[0]))
+		goto fail;
+	state = &aligned_reservations[snapshot.opaque[0] - 1U];
+	if (memcmp(&snapshot, &state->handle, sizeof(snapshot)) ||
+	    memcmp(&snapshot, handle, sizeof(snapshot)) ||
+	    state->request.tag != BM_MEM_TABLE ||
+	    state->result.tag != state->request.tag ||
+	    state->result.size != state->request.bytes ||
+	    state->result.base % state->request.alignment ||
+	    state->result.base > state->request.limit_exclusive - state->result.size ||
+	    !range_targets_type(&bootmem, state->result.base, state->result.size,
+		BM_MEM_TABLE) ||
+	    !range_targets_type(&bootmem_os, state->result.base, state->result.size,
+		BM_MEM_TABLE))
+		goto fail;
+	return sign_resolved_reservation(signer, &snapshot, &state->result, receipt);
+fail:
+	if (receipt_valid) {
+		if (signer_valid && objects_overlap(receipt, sizeof(*receipt),
+			signer, sizeof(*signer)))
+			scrub_receipt_outside_authority(receipt, signer);
+		else
+			bootmem_reservation_receipt_scrub(receipt, sizeof(*receipt));
+	}
+	if (signer_valid)
+		bootmem_reservation_receipt_close(signer);
+	return CB_ERR;
+}
+#endif
 
 static bool range_targets_type(const struct memranges *ranges, uint64_t start,
 	uint64_t size, enum bootmem_type tag)
