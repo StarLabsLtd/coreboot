@@ -22,12 +22,15 @@ struct mock {
 	uint32_t drop_offset;
 	uint32_t drop_value;
 	uint32_t corrupt_root_after_translation;
+	uint32_t reads;
+	uint32_t writes;
 };
 
 static uint32_t mock_read(void *context, uint32_t offset)
 {
 	struct mock *mock = context;
 
+	mock->reads++;
 	return mock->registers[offset / sizeof(uint32_t)];
 }
 
@@ -35,6 +38,7 @@ static void mock_write(void *context, uint32_t offset, uint32_t value)
 {
 	struct mock *mock = context;
 
+	mock->writes++;
 	if (offset == mock->drop_offset &&
 	    (!mock->drop_value || value == mock->drop_value))
 		return;
@@ -80,8 +84,32 @@ int main(void)
 		.commit_tables = mock_commit,
 	};
 	struct vtd_transition_facts facts;
+	const struct vtd_transition_io read_only_io = {
+		.context = &mock,
+		.read32 = mock_read,
+	};
+	struct mock missing_write_mock = valid_mock();
+	const struct vtd_transition_io missing_write_io = {
+		.context = &missing_write_mock,
+		.read32 = mock_read,
+		.commit_tables = mock_commit,
+	};
+	struct mock missing_commit_mock = valid_mock();
+	const struct vtd_transition_io missing_commit_io = {
+		.context = &missing_commit_mock,
+		.read32 = mock_read,
+		.write32 = mock_write,
+	};
 
 	assert(!vtd_transition_probe(&io, &facts));
+	assert(!vtd_transition_probe(&read_only_io, &facts));
+	assert(vtd_transition_from_pmr(&read_only_io, 0x100000) == -1);
+	assert(vtd_transition_from_pmr(&missing_write_io, 0x100000) == -1);
+	assert(!missing_write_mock.reads && !missing_write_mock.writes &&
+		!missing_write_mock.commit);
+	assert(vtd_transition_from_pmr(&missing_commit_io, 0x100000) == -1);
+	assert(!missing_commit_mock.reads && !missing_commit_mock.writes &&
+		!missing_commit_mock.commit);
 	assert(facts.coherent);
 	assert(facts.iotlb_offset == IOTLB);
 	assert(!vtd_transition_from_pmr(&io, 0x100000));

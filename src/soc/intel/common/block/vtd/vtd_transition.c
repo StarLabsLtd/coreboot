@@ -51,7 +51,7 @@ int vtd_transition_probe(const struct vtd_transition_io *io,
 {
 	uint32_t iotlb;
 
-	if (!io || !facts || !io->read32 || !io->write32 || !io->commit_tables)
+	if (!io || !facts || !io->read32)
 		return -1;
 	*facts = (struct vtd_transition_facts) {
 		.version = io->read32(io->context, VTD_VERSION),
@@ -96,7 +96,8 @@ int vtd_transition_from_pmr(const struct vtd_transition_io *io,
 	struct vtd_transition_facts facts;
 	uint32_t protected_memory;
 
-	if (vtd_transition_probe(io, &facts) || !root_physical ||
+	if (!io || !io->write32 || !io->commit_tables ||
+	    vtd_transition_probe(io, &facts) || !root_physical ||
 	    (root_physical & 0xfffU) || root_physical >= (1ULL << 48) ||
 	    (facts.status & (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ||
 	    (facts.protected_memory_enable &
