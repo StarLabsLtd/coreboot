@@ -82,6 +82,17 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	  route or MM dispatcher and publishes no service. It grants no SPI access
 	  and makes no production authenticated-variable claim.
 
+config Q35_PAYLOAD_MM_MOR_TEST_ADAPTER
+	bool "QEMU-only MOR platform-adapter prerequisites"
+	default n
+	depends on !SMMSTORE
+	select SMMSTORE_READ_REGION
+	help
+	  Keep read-only FMAP discovery available while excluding the legacy raw
+	  SMMSTORE mutation endpoint. This is only the configuration boundary for
+	  the future Q35 MOR adapter: it installs no SMM bootstrap, media backend,
+	  private channel, orchestrator or support claim.
+
 config Q35_CAPSULE_BROKER_TEST_PROOF
 	bool "QEMU-only dormant capsule broker proof"
 	default n
