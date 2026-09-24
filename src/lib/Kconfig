@@ -57,9 +57,10 @@ config PAYLOAD_MM_AUTHVAR_STORE_SCANNER
 	bool
 	default n
 	help
-	  Build the read-only authenticated-variable store scanner and bounded
-	  caller-owned index. This does not publish a service, install an SMI
-	  endpoint or provide any variable-store write path.
+	  Build the read-only authenticated-variable store scanner, bounded
+	  caller-owned index and allocation-free exact-key lookup. This does not
+	  publish a service, install an SMI endpoint or provide any variable-store
+	  write path.
 
 config PAYLOAD_MM_AUTHVAR_FTW_DECODER
 	bool

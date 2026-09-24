@@ -1,7 +1,8 @@
 # Read-only authenticated-variable store scanner
 
-The scanner validates an EDK2 authenticated-variable store and builds a
-caller-owned, bounded in-memory index.  It is built only when
+The scanner validates an EDK2 authenticated-variable store and either builds a
+caller-owned, bounded in-memory index or returns one exact-key winner without
+an index allocation. It is built only when
 `PAYLOAD_MM_AUTHVAR_STORE_SCANNER` is selected.  The option is off by default
 and does not publish a coreboot table, install an SMI handler, expose a write
 path, or change the authenticated-variable service ABI.
@@ -31,6 +32,15 @@ a later added record with the same key replaces it at the later physical
 position.  Deleted and header-only records are not visible.  Two added records,
 two transition records, or another ambiguous live-key history invalidate the
 whole store.  Lookup compares the complete vendor GUID and UTF-16 name.
+
+`payload_mm_authvar_store_find_one()` applies the same complete-store decoder
+and winner rules without allocating the full index. It performs bounded prefix
+rescans to detect ambiguous histories for every key, including keys unrelated
+to the requested result. This constant-memory path is intended for early,
+read-only consumers which need one fixed variable and cannot allocate an index;
+it does not make malformed unrelated records ignorable. Query and output
+pointers are caller-owned. Overlapping inputs and outputs are rejected without
+modifying the inputs, and safe disjoint outputs are cleared on failure.
 
 The semantic oracle is pinned in
 `tests/lib/payload_mm_authvar_edk2_2609_semantics.tsv`.  Store scanning is
