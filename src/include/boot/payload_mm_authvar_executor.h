@@ -62,6 +62,20 @@ enum cb_err payload_mm_authvar_executor_install(
 	const struct payload_mm_authvar_executor_limits *limits);
 uint64_t payload_mm_authvar_executor_recover(void);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+/* Private SMM composition point; no wire command or dispatcher is provided. */
+uint64_t payload_mm_authvar_mor_control_clear_transaction(void);
+#if ENV_TEST
+enum payload_mm_authvar_mor_seal_test_mutation {
+	PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_RECORD_PAIR = 1,
+	PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_COPIES_PAIR,
+	PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_CANONICAL_PAIR,
+};
+bool payload_mm_authvar_executor_test_mutate_mor_seal(
+	enum payload_mm_authvar_mor_seal_test_mutation mutation);
+#endif
+#endif
+
 /*
  * GET, NEXT and QUERY only. Descriptors, input and bounded output spans must
  * be mutually disjoint protected memory. Output bytes and scalar results are

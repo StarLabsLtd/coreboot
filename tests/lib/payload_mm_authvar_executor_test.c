@@ -1,10 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_executor.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+#include <payload_mm_cms.h>
+#endif
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
 #include <boot/payload_mm_authvar_record.h>
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+#include <boot/payload_mm_authvar_mor_grant.h>
+#include <boot/payload_mm_authvar_mor_identity.h>
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include <boot/payload_mm_authvar_signature_db.h>
@@ -61,6 +70,12 @@ static unsigned int end_count;
 static unsigned int read_count;
 static unsigned int program_count;
 static unsigned int erase_count;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+static bool mor_take_observed;
+static enum payload_mm_authvar_mor_seal_test_mutation mor_seal_mutation;
+static bool mor_seal_mutate_on_grant;
+static bool mor_seal_mutate_on_read;
+#endif
 struct write_trace_entry {
 	uint32_t offset;
 	uint32_t size;
@@ -548,6 +563,19 @@ bool payload_mm_authvar_authority_snapshot(
 
 bool payload_mm_authvar_smram_buffer(const void *buffer, size_t size)
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	if (size == sizeof(struct payload_mm_authvar_mor_grant) &&
+	    (uintptr_t)buffer >= (uintptr_t)arena &&
+	    (uintptr_t)buffer - (uintptr_t)arena <=
+		sizeof(arena) - sizeof(struct payload_mm_authvar_mor_grant)) {
+		mor_take_observed = true;
+		if (mor_seal_mutate_on_grant) {
+			assert(payload_mm_authvar_executor_test_mutate_mor_seal(
+				mor_seal_mutation));
+			mor_seal_mutate_on_grant = false;
+		}
+	}
+#endif
 	return buffer && size;
 }
 
@@ -679,6 +707,13 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_read(
 	} else {
 		memcpy(buffer, media + offset, size);
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	if (mor_take_observed && mor_seal_mutate_on_read) {
+		assert(payload_mm_authvar_executor_test_mutate_mor_seal(
+			mor_seal_mutation));
+		mor_seal_mutate_on_read = false;
+	}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	if (recovery_image_to_mutate &&
 	    offset == recovery_image_mutation_read_offset &&
@@ -758,6 +793,9 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 		PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + 2U;
 
 	program_count++;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	assert(mor_take_observed);
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	if (candidate_media_fault_armed &&
 	    candidate_media_fault == CANDIDATE_MEDIA_FAULT_PROGRAM) {
@@ -893,6 +931,9 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_erase(
 	uint64_t generation, uint64_t token, uint32_t offset, size_t size)
 {
 	erase_count++;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	assert(mor_take_observed);
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	if (candidate_media_fault_armed &&
 	    candidate_media_fault == CANDIDATE_MEDIA_FAULT_ERASE) {
@@ -1503,6 +1544,21 @@ static bool erased(const uint8_t *bytes, size_t size)
 	return true;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+enum payload_mm_verify_status payload_mm_sha256(const void *message,
+	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
+{
+	const uint8_t *bytes = message;
+
+	memset(digest, 0, PAYLOAD_MM_SHA256_SIZE);
+	for (size_t i = 0; i < message_size; i++)
+		digest[i % PAYLOAD_MM_SHA256_SIZE] ^=
+			(uint8_t)(bytes[i] + (uint8_t)i);
+	return PAYLOAD_MM_VERIFY_OK;
+}
+#endif
+
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 _Static_assert(sizeof(struct payload_mm_authvar_candidate_result) == 120U,
 	"candidate result mutation matrix changed");
@@ -1547,18 +1603,6 @@ struct candidate_prepare_context {
 	size_t result_mutation_offset;
 	unsigned int result_mutation_bit;
 };
-
-enum payload_mm_verify_status payload_mm_sha256(const void *message,
-	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
-{
-	const uint8_t *bytes = message;
-
-	memset(digest, 0, PAYLOAD_MM_SHA256_SIZE);
-	for (size_t i = 0; i < message_size; i++)
-		digest[i % PAYLOAD_MM_SHA256_SIZE] ^=
-			(uint8_t)(bytes[i] + (uint8_t)i);
-	return PAYLOAD_MM_VERIFY_OK;
-}
 
 static uint64_t prepare_candidate(
 	const struct payload_mm_authvar_store_index *source,
@@ -4724,6 +4768,215 @@ static void recovery_planner_test(const char *name)
 }
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+static bool mor_protected(void *unused, const void *storage, size_t size)
+{
+	(void)unused;
+	return storage && size;
+}
+
+static struct payload_mm_authvar_mor_grant mor_grant(uint8_t value)
+{
+	struct payload_mm_authvar_mor_grant grant = {
+		.revision = PAYLOAD_MM_AUTHVAR_MOR_GRANT_REVISION,
+		.size = sizeof(grant),
+		.cold_boot_generation = 1U,
+		.entry = { .present = 1U, .value = value },
+		.flags = PAYLOAD_MM_AUTHVAR_MOR_GRANT_REQUIRED_FLAGS,
+		.dma_policy_generation = 2U,
+		.inventory_generation = 3U,
+		.total_bytes = 0x1000U,
+		.cleared_bytes = 0x1000U,
+		.total_spans = 1U,
+		.cleared_spans = 1U,
+		.spans = { {
+			.base = 0x1000U,
+			.size = 0x1000U,
+			.span_class = PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_CLEARED,
+		} },
+	};
+
+	for (size_t i = 0; i < sizeof(grant.dma_policy_identity); i++) {
+		grant.dma_policy_identity[i] = (uint8_t)i + 1U;
+		grant.inventory_identity[i] = (uint8_t)i + 0x41U;
+	}
+	return grant;
+}
+
+static uint32_t mor_append_control(uint8_t value)
+{
+	const struct payload_mm_authvar_mor_identity *identity =
+		&payload_mm_authvar_mor_control_identity;
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = identity->name,
+		.name_size = identity->name_size,
+		.attributes = PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = &value,
+		.size = 1U,
+	};
+	uint32_t record_size;
+
+	memcpy(descriptor.vendor_guid, identity->vendor_guid,
+		sizeof(descriptor.vendor_guid));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		media + FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		STORE_SIZE - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, &record_size));
+	media[FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	return PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + record_size;
+}
+
+static uint32_t mor_append_filler(uint32_t used)
+{
+	static const uint8_t guid[16] = { 0x71U };
+	static const uint8_t name[] = { 'F', 0, 0, 0 };
+	static const uint8_t data = 0x5aU;
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = name,
+		.name_size = sizeof(name),
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = &data,
+		.size = sizeof(data),
+	};
+	uint32_t record_size;
+
+	assert(used < STORE_SIZE);
+	memcpy(descriptor.vendor_guid, guid, sizeof(guid));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		media + FV_HEADER_SIZE + used, STORE_SIZE - used, &record_size));
+	media[FV_HEADER_SIZE + used + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	return used + record_size;
+}
+
+static uint8_t mor_read_control(void)
+{
+	const struct payload_mm_authvar_mor_identity *identity =
+		&payload_mm_authvar_mor_control_identity;
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = REGION_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = 64U,
+	};
+	struct payload_mm_authvar_store_entry entry;
+	bool found;
+
+	assert(payload_mm_authvar_store_find_one(&entry, &found,
+		media + FV_HEADER_SIZE, STORE_SIZE, &limits,
+		identity->vendor_guid, identity->name, identity->name_size) ==
+		CB_SUCCESS);
+	assert(found && entry.data_size == 1U);
+	return media[FV_HEADER_SIZE + entry.data_offset];
+}
+
+static void mor_control_clear_test(const char *name)
+{
+	uint8_t value = !strcmp(name, "mor-upper-bits") ? 0xa5U : 1U;
+	struct payload_mm_authvar_mor_grant grant;
+	uint32_t used = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	uint64_t status;
+	bool fault_case = !strncmp(name, "mor-fault-", 10U);
+	bool mutate_record = strstr(name, "mutate-record") != NULL;
+	bool mutate_copies = strstr(name, "mutate-copies") != NULL;
+	bool mutate_canonical = strstr(name, "mutate-canonical") != NULL;
+	bool mutate_grant = strstr(name, "-grant") != NULL;
+	bool mutation_case = mutate_record || mutate_copies || mutate_canonical;
+
+	if (fault_case) {
+		const char *digit = name + 10U;
+
+		fail_operation = 0U;
+		while (*digit >= '0' && *digit <= '9') {
+			fail_operation = fail_operation * 10U +
+				(unsigned int)(*digit - '0');
+			digit++;
+		}
+		assert(fail_operation && !*digit);
+	}
+
+	if (strcmp(name, "mor-missing"))
+		used = mor_append_control(value);
+	if (mutate_copies)
+		used = mor_append_filler(used);
+	if (!strcmp(name, "mor-recovery-abort")) {
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		memcpy(spare(), media, BLOCK_SIZE);
+	} else if (!strcmp(name, "mor-recovery-replay")) {
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		memcpy(spare(), media, BLOCK_SIZE);
+	} else if (!strcmp(name, "mor-reclaim") || mutate_copies) {
+		assert(used < STORE_SIZE);
+		media[FV_HEADER_SIZE + used] = 0xaaU;
+	} else if (!strcmp(name, "mor-bad-attributes")) {
+		put32(media + FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + 4U,
+			PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES &
+				~PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+	}
+	install();
+	if (mutation_case) {
+		mor_seal_mutation = mutate_record ?
+			PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_RECORD_PAIR :
+			mutate_copies ? PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_COPIES_PAIR :
+			PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_CANONICAL_PAIR;
+		mor_seal_mutate_on_grant = mutate_grant;
+		mor_seal_mutate_on_read = !mutate_grant;
+	}
+	grant = mor_grant(!strcmp(name, "mor-grant-mismatch") ? 3U : value);
+	if (strncmp(name, "mor-no-grant", 12U))
+		assert(payload_mm_authvar_mor_grant_install(&grant, mor_protected, NULL) ==
+			CB_SUCCESS);
+	status = payload_mm_authvar_mor_control_clear_transaction();
+	if (mutation_case) {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(!mor_seal_mutate_on_grant && !mor_seal_mutate_on_read);
+		assert(program_count == 0U && erase_count == 0U && end_count == 1U);
+		return;
+	}
+	if (fault_case) {
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			assert(fail_operation > operation_count);
+		else
+			assert(fail_operation <= operation_count);
+		if (fail_operation <= 5U)
+			assert(program_count == 0U && erase_count == 0U);
+		return;
+	}
+	if (!strcmp(name, "mor-success") || !strcmp(name, "mor-upper-bits") ||
+	    !strcmp(name, "mor-recovery-abort") ||
+	    !strcmp(name, "mor-recovery-replay") ||
+	    !strcmp(name, "mor-reclaim")) {
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			char message[160];
+			int length = snprintf(message, sizeof(message),
+				"MOR clear status: 0x%llx, programs=%u, erases=%u, reads=%u, poisoned=%u\n",
+				(unsigned long long)status, program_count, erase_count,
+				read_count, poisoned);
+
+			if (length > 0)
+				(void)write(2, message, (unsigned long)length);
+		}
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(mor_read_control() == (uint8_t)(value & ~1U));
+		assert(program_count && end_count == 1U && !poisoned);
+		assert(payload_mm_authvar_mor_control_clear_transaction() ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	} else {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(program_count == 0U && erase_count == 0U && end_count == 1U);
+	}
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
@@ -4734,6 +4987,12 @@ int main(int argc, char **argv)
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	if (!strncmp(argv[1], "planner-", 8U)) {
 		recovery_planner_test(argv[1]);
+		return 0;
+	}
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	if (!strncmp(argv[1], "mor-", 4U)) {
+		mor_control_clear_test(argv[1]);
 		return 0;
 	}
 #endif

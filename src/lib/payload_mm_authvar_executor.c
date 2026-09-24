@@ -6,10 +6,17 @@
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 #include <boot/payload_mm_authvar_candidate.h>
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
 #include <payload_mm_cms.h>
 #endif
 #include <boot/payload_mm_authvar_ftw.h>
 #include <boot/payload_mm_authvar_media.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+#include <boot/payload_mm_authvar_mor_grant.h>
+#include <boot/payload_mm_authvar_mor_identity.h>
+#endif
 #include <boot/payload_mm_authvar_policy.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_store.h>
@@ -25,7 +32,8 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "payload_mm_authvar_coordinator.h"
 #endif
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
 #include "payload_mm_crypto/crypto.h"
 #endif
 
@@ -82,6 +90,14 @@ struct executor_session {
 	struct executor_recovery_plan recovery_sealed;
 	bool recovery_plan_active;
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	struct payload_mm_authvar_mor_grant mor_grant;
+	struct payload_mm_authvar_write_plan mor_write_sealed;
+	struct payload_mm_authvar_reclaim_plan mor_reclaim_sealed;
+	bool mor_plan_sealed;
+	bool mor_clear_active;
+	bool mor_write_active;
+#endif
 };
 
 struct executor_policy {
@@ -92,6 +108,11 @@ struct executor_policy {
 	size_t candidate_offset;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	size_t recovery_image_seal_offset;
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	size_t mor_record_seal_offset;
+	size_t mor_copies_seal_offset;
 #endif
 	size_t entries_offset;
 	size_t candidate_entries_offset;
@@ -256,6 +277,12 @@ static bool layout_build(struct executor_policy *policy)
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->recovery_image_seal_offset) ||
 #endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	    !add_area(&cursor, policy->limits.maximum_record_size,
+		&policy->mor_record_seal_offset) ||
+	    !add_area(&cursor, copies_size, &policy->mor_copies_seal_offset) ||
+#endif
 	    !add_area(&cursor, entries_size, &policy->entries_offset) ||
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	    !add_area(&cursor, entries_size, &policy->candidate_entries_offset) ||
@@ -399,7 +426,188 @@ struct executor_control_seal {
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	uint8_t recovery_plan_active;
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	struct payload_mm_authvar_mor_grant mor_grant;
+	struct payload_mm_authvar_write_plan mor_write_sealed;
+	struct payload_mm_authvar_reclaim_plan mor_reclaim_sealed;
+	uint8_t mor_record_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_record_seal_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_copies_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_copies_seal_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_canonical_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_canonical_seal_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t mor_plan_sealed;
+	uint8_t mor_clear_active;
+	uint8_t mor_write_active;
+#endif
 };
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+static bool mor_reclaim_image_valid(const struct executor_session *state)
+{
+	const struct payload_mm_authvar_fv_geometry *geometry =
+		&state->ftw.geometry;
+	const uint8_t *canonical = arena_at(executor.sealed.candidate_offset);
+	const uint8_t *image = snapshot() + geometry->spare_offset;
+	const uint8_t *record = arena_at(executor.sealed.mor_record_seal_offset);
+	uint32_t store_base;
+	uint32_t destination = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	size_t prefix;
+
+	store_base = state->ftw.fv_header_size;
+	if (state->ftw.geometry.variable_offset ||
+	    state->ftw.fv_header_size > state->contract.store_size ||
+	    state->ftw.variable_store_size >
+		state->contract.store_size - state->ftw.fv_header_size ||
+	    geometry->variable_size > geometry->spare_size ||
+	    state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM ||
+	    state->reclaim.action != PAYLOAD_MM_AUTHVAR_SPACE_RECLAIM ||
+	    state->reclaim.copy_count > state->reclaim.copy_capacity ||
+	    state->reclaim.copy_count > executor.sealed.limits.maximum_records ||
+	    store_base > geometry->variable_size ||
+	    PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE >
+		geometry->variable_size - store_base)
+		return false;
+	prefix = (size_t)store_base + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	if (memcmp(image, canonical, prefix))
+		return false;
+	for (uint32_t i = 0; i < state->reclaim.copy_count; i++) {
+		const struct payload_mm_authvar_reclaim_copy *copy =
+			&state->reclaim.copies[i];
+		uint64_t source_end = (uint64_t)copy->source_offset + copy->size;
+		uint64_t destination_end =
+			(uint64_t)copy->destination_offset + copy->size;
+		const uint8_t *source;
+		const uint8_t *built;
+
+		if (copy->destination_offset != destination || copy->size < 3U ||
+		    source_end > state->ftw.variable_store_size ||
+		    destination_end > state->ftw.variable_store_size)
+			return false;
+		source = canonical + store_base + copy->source_offset;
+		built = image + store_base + copy->destination_offset;
+		if (memcmp(source, built, 2U) ||
+		    built[2] != (copy->promote_transition ?
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED : source[2]) ||
+		    memcmp(source + 3U, built + 3U, copy->size - 3U))
+			return false;
+		destination += copy->size;
+	}
+	if (state->write.record_offset != destination ||
+	    state->write.record_size < 3U ||
+	    (uint64_t)destination + state->write.record_size >
+		state->ftw.variable_store_size)
+		return false;
+	{
+		const uint8_t *built = image + store_base + destination;
+
+		if (memcmp(record, built, 2U) ||
+		    built[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+		    memcmp(record + 3U, built + 3U,
+			state->write.record_size - 3U))
+			return false;
+	}
+	destination += state->write.record_size;
+	for (size_t offset = (size_t)store_base + destination;
+	     offset < geometry->variable_size; offset++)
+		if (image[offset] != 0xffU)
+			return false;
+	return true;
+}
+
+static bool mor_clear_state_valid(const struct executor_session *state)
+{
+	size_t copies_size;
+
+	if (!state->mor_plan_sealed)
+		return !state->mor_clear_active && !state->mor_write_active;
+	if (state->write.record_size >
+		executor.sealed.limits.maximum_record_size ||
+	    state->reclaim.copies != arena_at(executor.sealed.copies_offset) ||
+	    state->reclaim.copy_capacity !=
+		executor.sealed.limits.maximum_records ||
+	    state->reclaim.copy_count > state->reclaim.copy_capacity ||
+	    memcmp(&state->write, &state->mor_write_sealed,
+		sizeof(state->write)) ||
+	    memcmp(&state->reclaim, &state->mor_reclaim_sealed,
+		sizeof(state->reclaim)) ||
+	    state->source.name != arena_at(executor.sealed.name_offset) ||
+	    state->source.data != arena_at(executor.sealed.data_offset) ||
+	    state->source.name_size !=
+		payload_mm_authvar_mor_control_identity.name_size ||
+	    state->source.data_size != 1U ||
+	    state->source.attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
+	    memcmp(state->source.vendor_guid,
+		payload_mm_authvar_mor_control_identity.vendor_guid,
+		sizeof(state->source.vendor_guid)) ||
+	    memcmp(state->source.name,
+		payload_mm_authvar_mor_control_identity.name,
+		state->source.name_size) ||
+	    (*(const uint8_t *)state->source.data & 1U) ||
+	    memcmp(arena_at(executor.sealed.record_offset),
+		arena_at(executor.sealed.mor_record_seal_offset),
+		state->write.record_size) ||
+	    !multiply_size(state->reclaim.copy_count,
+		sizeof(state->reclaim.copies[0]), &copies_size) ||
+	    memcmp(state->reclaim.copies,
+		arena_at(executor.sealed.mor_copies_seal_offset), copies_size) ||
+	    !recovery_image_unchanged(state))
+		return false;
+	(void)copies_size;
+	return !state->mor_clear_active || !state->mor_write_active ||
+		state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM ||
+		mor_reclaim_image_valid(state);
+}
+
+static bool mor_digest(const void *data, size_t size,
+	uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
+{
+	return payload_mm_sha256(data, size, digest) == PAYLOAD_MM_VERIFY_OK;
+}
+
+static bool mor_record_snapshot_digests(const struct executor_session *state,
+	struct executor_control_seal *seal)
+{
+	return mor_digest(arena_at(executor.sealed.record_offset),
+			state->write.record_size, seal->mor_record_digest) &&
+		mor_digest(arena_at(executor.sealed.mor_record_seal_offset),
+			state->write.record_size, seal->mor_record_seal_digest);
+}
+
+static bool mor_copies_snapshot_digests(const struct executor_session *state,
+	struct executor_control_seal *seal, size_t copies_size)
+{
+	return mor_digest(state->reclaim.copies, copies_size,
+			seal->mor_copies_digest) &&
+		mor_digest(arena_at(executor.sealed.mor_copies_seal_offset),
+			copies_size, seal->mor_copies_seal_digest);
+}
+
+static bool mor_canonical_snapshot_digests(
+	const struct executor_session *state, struct executor_control_seal *seal)
+{
+	return mor_digest(arena_at(executor.sealed.candidate_offset),
+			state->contract.store_size, seal->mor_canonical_digest) &&
+		mor_digest(arena_at(executor.sealed.recovery_image_seal_offset),
+			state->contract.store_size, seal->mor_canonical_seal_digest);
+}
+
+static bool mor_snapshot_digests(const struct executor_session *state,
+	struct executor_control_seal *seal)
+{
+	size_t copies_size;
+
+	if (!state->mor_plan_sealed)
+		return true;
+	if (!mor_clear_state_valid(state) ||
+	    !multiply_size(state->reclaim.copy_count,
+		sizeof(state->reclaim.copies[0]), &copies_size))
+		return false;
+	return mor_record_snapshot_digests(state, seal) &&
+		mor_copies_snapshot_digests(state, seal, copies_size) &&
+		mor_canonical_snapshot_digests(state, seal);
+}
+#endif
 
 static bool control_snapshot(const struct executor_session *state,
 	struct executor_control_seal *seal, bool omit_session_id)
@@ -481,6 +689,16 @@ static bool control_snapshot(const struct executor_session *state,
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	seal->recovery_plan_active = state->recovery_plan_active;
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+	seal->mor_grant = state->mor_grant;
+	seal->mor_write_sealed = state->mor_write_sealed;
+	seal->mor_reclaim_sealed = state->mor_reclaim_sealed;
+	seal->mor_plan_sealed = state->mor_plan_sealed;
+	seal->mor_clear_active = state->mor_clear_active;
+	seal->mor_write_active = state->mor_write_active;
+	if (!mor_snapshot_digests(state, seal))
+		return false;
+#endif
 	return (!state->source.name_size ||
 		state->source.name == arena_at(executor.sealed.name_offset)) &&
 		state->source.name_size <= executor.sealed.limits.maximum_name_size &&
@@ -496,6 +714,9 @@ static bool control_snapshot(const struct executor_session *state,
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 		&& !memcmp(&state->recovery, &state->recovery_sealed,
 			sizeof(state->recovery))
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+		&& mor_clear_state_valid(state)
 #endif
 		;
 }
@@ -2153,6 +2374,306 @@ contradiction:
 	state->invariant_failure = true;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
+static bool mor_grant_output_protected(void *unused, const void *storage,
+	size_t size)
+{
+	(void)unused;
+	return payload_mm_authvar_smram_buffer(storage, size);
+}
+
+static bool mor_control_plan(struct executor_session *state,
+	const uint8_t *image, uint8_t *control_value)
+{
+	const struct payload_mm_authvar_mor_identity *identity =
+		&payload_mm_authvar_mor_control_identity;
+	const struct payload_mm_authvar_store_entry *entry;
+	const uint8_t *data;
+	struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	uint32_t store_base;
+
+	if (payload_mm_authvar_ftw_plan(image, state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    !ftw_store_base(state, &store_base))
+		return false;
+	memset(&state->index, 0, sizeof(state->index));
+	state->index.entries = arena_at(executor.sealed.entries_offset);
+	state->index.entry_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&state->index, image + store_base,
+		state->ftw.variable_store_size, &limits) != CB_SUCCESS)
+		return false;
+	entry = payload_mm_authvar_store_find(&state->index, identity->vendor_guid,
+		identity->name, identity->name_size);
+	if (!entry || entry->attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
+	    entry->data_size != 1U)
+		return false;
+	data = payload_mm_authvar_store_data(&state->index, entry);
+	if (!data || !(*data & 1U))
+		return false;
+	*control_value = *data;
+	memcpy(arena_at(executor.sealed.name_offset), identity->name,
+		identity->name_size);
+	*(uint8_t *)arena_at(executor.sealed.data_offset) =
+		(uint8_t)(*data & (uint8_t)~1U);
+	memset(&state->source, 0, sizeof(state->source));
+	memcpy(state->source.vendor_guid, identity->vendor_guid,
+		sizeof(state->source.vendor_guid));
+	state->source.name = arena_at(executor.sealed.name_offset);
+	state->source.name_size = identity->name_size;
+	state->source.data = arena_at(executor.sealed.data_offset);
+	state->source.data_size = 1U;
+	state->source.attributes = PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES;
+	state->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_record_size = executor.sealed.limits.maximum_record_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	if (state->policy.maximum_record_size > state->index.store_size)
+		state->policy.maximum_record_size = state->index.store_size;
+	if (state->policy.maximum_data_size > state->policy.maximum_record_size)
+		state->policy.maximum_data_size = state->policy.maximum_record_size;
+	state->reclaim.copies = arena_at(executor.sealed.copies_offset);
+	state->reclaim.copy_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_write_plan_build(&state->index, entry,
+		&state->source, &state->policy, false,
+		arena_at(executor.sealed.record_offset),
+		executor.sealed.limits.maximum_record_size, &state->reclaim,
+		&state->write) != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+	    (state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_TAIL_APPEND &&
+	     state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM))
+		return false;
+	return true;
+}
+
+static bool mor_control_seal_plan(struct executor_session *state)
+{
+	size_t copies_size;
+
+	if (!multiply_size(state->reclaim.copy_count,
+		sizeof(state->reclaim.copies[0]), &copies_size))
+		return false;
+	state->mor_write_sealed = state->write;
+	state->mor_reclaim_sealed = state->reclaim;
+	memcpy(arena_at(executor.sealed.mor_record_seal_offset),
+		arena_at(executor.sealed.record_offset), state->write.record_size);
+	memcpy(arena_at(executor.sealed.mor_copies_seal_offset),
+		state->reclaim.copies, copies_size);
+	return true;
+}
+
+#if ENV_TEST
+bool payload_mm_authvar_executor_test_mutate_mor_seal(
+	enum payload_mm_authvar_mor_seal_test_mutation mutation)
+{
+	struct executor_session *state = session();
+	size_t copies_size;
+
+	if (!state->mor_plan_sealed || !mor_clear_state_valid(state) ||
+	    !multiply_size(state->reclaim.copy_count,
+		sizeof(state->reclaim.copies[0]), &copies_size))
+		return false;
+	switch (mutation) {
+	case PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_RECORD_PAIR:
+		if (!state->write.record_size)
+			return false;
+		*(uint8_t *)arena_at(executor.sealed.record_offset) ^= 1U;
+		*(uint8_t *)arena_at(executor.sealed.mor_record_seal_offset) ^= 1U;
+		return true;
+	case PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_COPIES_PAIR:
+		if (!copies_size)
+			return false;
+		*(uint8_t *)state->reclaim.copies ^= 1U;
+		*(uint8_t *)arena_at(executor.sealed.mor_copies_seal_offset) ^= 1U;
+		return true;
+	case PAYLOAD_MM_AUTHVAR_MOR_SEAL_TEST_CANONICAL_PAIR:
+		if (!state->contract.store_size)
+			return false;
+		((uint8_t *)arena_at(executor.sealed.candidate_offset))
+			[state->contract.store_size - 1U] ^= 1U;
+		((uint8_t *)arena_at(executor.sealed.recovery_image_seal_offset))
+			[state->contract.store_size - 1U] ^= 1U;
+		return true;
+	default:
+		return false;
+	}
+}
+#endif
+
+static bool mor_control_plan_matches(struct executor_session *state,
+	uint8_t expected_value)
+{
+	size_t copies_size;
+	struct payload_mm_authvar_write_plan write = state->mor_write_sealed;
+	struct payload_mm_authvar_reclaim_plan reclaim = state->mor_reclaim_sealed;
+
+	if (!mor_control_plan(state, snapshot(), &expected_value) ||
+	    expected_value != state->mor_grant.entry.value ||
+	    memcmp(&state->write, &write, sizeof(write)) ||
+	    memcmp(&state->reclaim, &reclaim, sizeof(reclaim)) ||
+	    memcmp(arena_at(executor.sealed.record_offset),
+		arena_at(executor.sealed.mor_record_seal_offset),
+		state->write.record_size) ||
+	    !multiply_size(state->reclaim.copy_count,
+		sizeof(state->reclaim.copies[0]), &copies_size) ||
+	    memcmp(state->reclaim.copies,
+		arena_at(executor.sealed.mor_copies_seal_offset), copies_size))
+		return false;
+	return true;
+}
+
+static bool mor_control_final(struct executor_session *state,
+	uint8_t expected_value)
+{
+	const struct payload_mm_authvar_mor_identity *identity =
+		&payload_mm_authvar_mor_control_identity;
+	const struct payload_mm_authvar_store_entry *entry;
+	const uint8_t *data;
+	struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	uint32_t store_base;
+
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    !ftw_store_base(state, &store_base))
+		return false;
+	memset(&state->index, 0, sizeof(state->index));
+	state->index.entries = arena_at(executor.sealed.entries_offset);
+	state->index.entry_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&state->index, snapshot() + store_base,
+		state->ftw.variable_store_size, &limits) != CB_SUCCESS)
+		return false;
+	entry = payload_mm_authvar_store_find(&state->index, identity->vendor_guid,
+		identity->name, identity->name_size);
+	if (!entry || entry->attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
+	    entry->data_size != 1U)
+		return false;
+	data = payload_mm_authvar_store_data(&state->index, entry);
+	return data && *data == expected_value;
+}
+
+uint64_t payload_mm_authvar_mor_control_clear_transaction(void)
+{
+	struct executor_session *state;
+	struct executor_control_seal grant_before;
+	struct payload_mm_authvar_mor_grant taken_grant;
+	enum payload_mm_authvar_media_result media_result;
+	enum payload_mm_authvar_media_result end_result;
+	enum cb_err take_result;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	uint32_t expected = 0;
+	uint8_t control_value;
+	bool grant_taken = false;
+
+	if (provider_reentry() || !executor.installed || !policy_equal() ||
+	    !__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	state = session();
+	memset(state, 0, sizeof(*state));
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits) ||
+	    snapshot_read(state) != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+	    !recovery_plan_build(state) ||
+	    !mor_control_plan(state,
+		arena_at(executor.sealed.candidate_offset), &control_value) ||
+	    !mor_control_seal_plan(state)) {
+		status = poison_session();
+		goto end;
+	}
+	memset(&state->index, 0, sizeof(state->index));
+	state->mor_plan_sealed = true;
+	if (!control_snapshot(state, &grant_before, false)) {
+		status = poison_session();
+		goto end;
+	}
+	take_result = payload_mm_authvar_mor_grant_take(&state->mor_grant,
+		mor_grant_output_protected, NULL, 0);
+	memcpy(&taken_grant, &state->mor_grant, sizeof(taken_grant));
+	memset(&state->mor_grant, 0, sizeof(state->mor_grant));
+	if (!control_unchanged(state, &grant_before, false)) {
+		memset(&taken_grant, 0, sizeof(taken_grant));
+		status = poison_session();
+		goto end;
+	}
+	if (take_result != CB_SUCCESS) {
+		memset(&taken_grant, 0, sizeof(taken_grant));
+		goto end;
+	}
+	memcpy(&state->mor_grant, &taken_grant, sizeof(state->mor_grant));
+	memset(&taken_grant, 0, sizeof(taken_grant));
+	grant_taken = true;
+	if (!state->mor_grant.entry.present ||
+	    state->mor_grant.entry.reserved ||
+	    state->mor_grant.entry.value != control_value ||
+	    !(state->mor_grant.entry.value & 1U)) {
+		status = poison_session();
+		goto end;
+	}
+	state->mor_clear_active = true;
+	status = recovery_plan_execute(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+	    !mor_control_plan_matches(state, control_value)) {
+		status = poison_session();
+		goto end;
+	}
+	state->mor_write_active = true;
+	if (state->write.action == PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM)
+		media_result = execute_reclaim(state,
+			payload_mm_authvar_store_find(&state->index,
+				state->source.vendor_guid, state->source.name,
+				state->source.name_size));
+	else
+		media_result = execute_direct(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+	state->mor_write_active = false;
+	media_result = snapshot_read(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+	    !mor_control_final(state,
+		(uint8_t)(control_value & (uint8_t)~1U))) {
+		status = poison_session();
+		goto end;
+	}
+	payload_mm_authvar_media_cache_bind(state->generation, state->token);
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+end:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		executor.installed = false;
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	} else if (grant_taken && status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+out:
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+#endif
 
 static bool copy_request(struct executor_session *state,
 	const struct payload_mm_authvar_policy_request *request)
