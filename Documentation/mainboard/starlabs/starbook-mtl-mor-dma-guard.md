@@ -37,10 +37,13 @@ reverifies the complete topology and BME-clear state before publishing success.
 
 Preparation is deliberately independent of a MOR clear plan. It establishes
 and twice observes the hardware, then retains an exact snapshot with a nonzero
-64-bit generation and opaque 256-bit identity generated from checked coreboot
-RNG calls. These values are private, boot-local capability names, not digests.
-Repeated preparation is idempotent and revalidates the hardware without
-regenerating the token.
+64-bit generation and opaque 256-bit identity. The standalone dormant guard
+generates these private boot-local capability names from checked coreboot RNG
+calls. When the early guard prerequisite is selected, it instead requires the
+already checked cold-boot generation and the identity sealed over the early
+ECAM snapshot; it cannot fall back to a later unrelated nonce. Repeated
+preparation is idempotent and revalidates the hardware without regenerating
+the token.
 
 `STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION` retains the authoritative
 PM1-derived cold-versus-S3 decision in CAR before FSP-M clears the wake state.
@@ -59,17 +62,26 @@ its exact generation once and is then wiped. An invalid record is wiped only
 after its location has been proven protected; a failure before that proof does
 not write through an untrusted recovered pointer.
 
-This classifier is intentionally not connected to the current guard. Guard
-preparation calls the DMA-live platform `ensure` path, which builds requester
-identity from enumerated `struct device` objects. Those objects are unavailable
-at `BS_PRE_DEVICE`, before FSP-S, so claiming an immediate classifier-to-guard
-transition there would be false. The smallest follow-on prerequisite is a
-direct-ECAM early guard preparation path that consumes the retained PCI BME
-snapshot identities, followed at bind time by exact equality with the later
-enumerated model. Until that exists, no boot hook consumes this record and no
-MOR support is claimed. The eventual caller must place the final ECAM quiesce,
-one-shot consume, and direct guard preparation contiguously, with no FSP-S or
-callback-bearing work between them.
+`STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD` connects that classifier to the
+guard at the exact boundary required by the hardware. Meteor Lake enters FSP-S
+from `soc_init_pre_device()` during `BS_DEV_INIT_CHIPS`; the mainboard operation
+is the immediately preceding call. It consumes the cold record, adopts the
+final exhaustive direct-ECAM snapshot, rechecks PMR coverage, writes identical
+sealed copies into a dedicated protected CBMEM record, and seeds the guard with
+the retained generation and snapshot identity. No callback-bearing work or
+FSP code intervenes before FSP-S. S3, a missing record, or any failed check
+leaves the guard unseeded, and the early configuration forbids later fallback
+preparation; normal resume may continue without destructive MOR authority.
+
+The DMA-live backend retains the complete early segment-zero snapshot. After
+normal enumeration it derives the three boot-requester identities from the
+runtime `struct device` model, then requires them to exist byte-exactly in that
+snapshot and revalidates the complete live ECAM image before constructing any
+translation table. Hot addition/removal, vendor/device/class drift, any BME,
+or a change to the retained non-BME command bits fails closed and terminally
+quiesces segment zero. Only after that equality does the existing guarded PMR
+transition proceed. This prerequisite remains hidden and default-off; it
+publishes no MOR endpoint or platform-support claim.
 
 Binding is a separate terminal transition. The caller supplies the prepared
 snapshot and an already canonical MOR clear plan whose inventory generation

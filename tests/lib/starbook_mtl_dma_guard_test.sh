@@ -32,10 +32,33 @@ for flags in '-O0' '-O2' '-O1 -fsanitize=address' \
 		bind-idempotent bind-token-mismatch bind-plan-mutation \
 		bind-prepared-mutation bind-output-mutation bind-dma-mutation \
 		bind-ops-mutation bind-prepared-output-alias bind-output-dma-alias \
-		bind-plan-prepared-alias bound-prepare-idempotent bound-plan-change; do
+		bind-plan-prepared-alias bound-prepare-idempotent bound-plan-change \
+		seed-zero seeded-prepare; do
 		"$temporary/test" "$case_name"
 	done
 done
+
+printf '#define %s %s\n' CONFIG_STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD 1 > \
+	"$temporary/include/config.h"
+printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 >> \
+	"$temporary/include/config.h"
+"${CC:-cc}" -std=gnu11 -g -Wall -Wextra -Werror -fno-builtin -O2 \
+	-ffunction-sections -fdata-sections -Wl,--gc-sections \
+	-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
+	-include "$root/src/include/kconfig.h" \
+	-include "$root/src/include/rules.h" \
+	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" \
+	-I"$root/src/mainboard/starlabs/starbook/variants/mtl" \
+	-I"$root/src/arch/x86/include" -I"$temporary/include" \
+	"$root/tests/lib/starbook_mtl_dma_guard_test.c" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_guard.c" \
+	"$root/src/lib/payload_mm_authvar_mor_clear_plan.c" \
+	-o "$temporary/early-test"
+"$temporary/early-test" early-seed-required
+printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 > \
+	"$temporary/include/config.h"
 
 mutant()
 {

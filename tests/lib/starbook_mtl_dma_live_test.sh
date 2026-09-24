@@ -27,7 +27,9 @@ for flags in '-O0' '-O2' '-O1 -fsanitize=address,undefined'; do
 		bme-boundary noncoherent capacity unaligned-size mirror-virtual-misaligned \
 		mirror-physical-misaligned mirror-physical-alias mirror-virtual-overlap \
 		success active-selected-bme \
-		active-unlisted-bme active-topology active-combined-poison; do
+		active-unlisted-bme active-topology active-combined-poison \
+		early-success early-hot-add early-remove early-identity early-class \
+		early-command early-bme early-model; do
 		"$temporary/test" "$scenario"
 	done
 done

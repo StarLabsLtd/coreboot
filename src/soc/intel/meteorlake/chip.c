@@ -179,6 +179,10 @@ void soc_init_pre_device(void *chip_info)
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_TRACEHUB))
 		soc_enable_tracehub();
 
+	/* Nothing may regain DMA authority between this guard and FSP-S. */
+	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD))
+		(void)mainboard_mor_early_dma_prepare();
+
 	/* Perform silicon specific init. */
 	fsp_silicon_init();
 

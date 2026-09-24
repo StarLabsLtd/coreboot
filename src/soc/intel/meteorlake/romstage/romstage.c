@@ -68,7 +68,10 @@ void mainboard_romstage_entry(void)
 
 	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION))
 		vtd_enable_dma_protection();
-	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION) &&
-	    mainboard_mor_cold_publish() != CB_SUCCESS)
-		die("MTL MOR cold-boot classification was not sealed\n");
+	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION)) {
+		const enum cb_err result = mainboard_mor_cold_publish();
+
+		if (result != CB_SUCCESS && !s3wake)
+			die("MTL MOR cold-boot classification was not sealed\n");
+	}
 }

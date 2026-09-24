@@ -18,6 +18,7 @@
 
 enum dma_live_phase {
 	DMA_LIVE_EMPTY,
+	DMA_LIVE_EARLY_PREPARED,
 	DMA_LIVE_FAILED,
 	DMA_LIVE_ACTIVE,
 };
@@ -83,6 +84,38 @@ static bool expected_snapshot_valid(
 		if (!found[index])
 			return false;
 	return true;
+}
+
+int starbook_mtl_dma_live_prepare_early(
+	const struct pci_bme_quiesce_snapshot *snapshot)
+{
+	const uintptr_t base = (uintptr_t)snapshot;
+
+	if (live_state.phase != DMA_LIVE_EMPTY || !snapshot ||
+	    base % _Alignof(*snapshot) ||
+	    base > (uintptr_t)-1 - (sizeof(*snapshot) - 1U) || snapshot->failed ||
+	    !snapshot->bus_count || snapshot->bus_count > 256U || !snapshot->count ||
+	    snapshot->count > PCI_BME_QUIESCE_MAX_FUNCTIONS)
+		return -1;
+	live_state.phase = DMA_LIVE_FAILED;
+	for (size_t index = 0; index < snapshot->count; index++) {
+		const struct pci_bme_quiesce_function *function =
+			&snapshot->functions[index];
+
+		if ((function->command & (1U << 2)) ||
+		    (index && function[-1].bdf >= function->bdf) ||
+		    (function->bdf >> 8) >= snapshot->bus_count)
+			return -1;
+	}
+	for (size_t index = snapshot->count;
+	     index < PCI_BME_QUIESCE_MAX_FUNCTIONS; index++)
+		if (memcmp(&snapshot->functions[index],
+			&(const struct pci_bme_quiesce_function) { 0 },
+			sizeof(snapshot->functions[index])))
+			return -1;
+	memcpy(&live_state.snapshot, snapshot, sizeof(live_state.snapshot));
+	live_state.phase = DMA_LIVE_EARLY_PREPARED;
+	return 0;
 }
 
 static size_t span_count(uint64_t base, uint64_t bytes, unsigned int shift)
@@ -218,7 +251,9 @@ int starbook_mtl_dma_live_establish(
 		STARBOOK_MTL_DMA_LIVE_REQUESTERS] = { 0 };
 	struct vtd_translation_image image;
 
-	if (live_state.phase != DMA_LIVE_EMPTY)
+	const bool early_prepared = live_state.phase == DMA_LIVE_EARLY_PREPARED;
+
+	if (live_state.phase != DMA_LIVE_EMPTY && !early_prepared)
 		return -1;
 	live_state.phase = DMA_LIVE_FAILED;
 	if (!pci_io || !requesters || !transition ||
@@ -229,10 +264,18 @@ int starbook_mtl_dma_live_establish(
 	     (VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE)) !=
 		(VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE) ||
 	    !expected_valid(requesters, bus_count) ||
-	    pci_bme_quiesce(pci_io, bus_count, &live_state.snapshot,
-		&live_state.snapshot_workspace) != CB_SUCCESS ||
-	    !expected_snapshot_valid(&live_state.snapshot, requesters))
+	    (early_prepared ?
+		(pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
+			&live_state.snapshot_workspace) != CB_SUCCESS) :
+		(pci_bme_quiesce(pci_io, bus_count, &live_state.snapshot,
+			&live_state.snapshot_workspace) != CB_SUCCESS)) ||
+	    live_state.snapshot.bus_count != bus_count ||
+	    !expected_snapshot_valid(&live_state.snapshot, requesters)) {
+		if (early_prepared)
+			pci_bme_quiesce_terminal(pci_io,
+				live_state.snapshot.bus_count);
 		return -1;
+	}
 	if (pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
 		&live_state.snapshot_workspace) ||
 	    partition_buffer(memory, physical_base, size, table_mirror,

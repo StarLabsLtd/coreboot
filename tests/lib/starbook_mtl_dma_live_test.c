@@ -153,7 +153,7 @@ static bool memory_is(const uint8_t *memory, size_t size, uint8_t value)
 
 int main(int argc, char **argv)
 {
-	const struct starbook_mtl_dma_live_identity expected[] = {
+	struct starbook_mtl_dma_live_identity expected[] = {
 		{ .bdf = 0x0200, .vendor = 0x1d97, .device = 1,
 		  .class = 0x010802 },
 		{ .bdf = 0x00a0, .vendor = 0x8086, .device = 0x7e7d,
@@ -184,6 +184,9 @@ int main(int argc, char **argv)
 	size_t mirror_size;
 	size_t establish_size = memory_size;
 	int result;
+	struct pci_bme_quiesce_snapshot early_snapshot;
+	struct pci_bme_quiesce_snapshot early_workspace;
+	const bool early = !strncmp(argv[1], "early-", 6);
 
 	assert(argc == 2);
 	assert(!posix_memalign(&memory, 4096, memory_size));
@@ -230,14 +233,35 @@ int main(int argc, char **argv)
 		   strcmp(argv[1], "active-selected-bme") &&
 		   strcmp(argv[1], "active-unlisted-bme") &&
 		   strcmp(argv[1], "active-topology") &&
-		   strcmp(argv[1], "active-combined-poison")) {
+		   strcmp(argv[1], "active-combined-poison") && !early) {
 		assert(false);
+	}
+	if (early) {
+		assert(pci_bme_quiesce(&pci_io, 4, &early_snapshot,
+			&early_workspace) == CB_SUCCESS);
+		assert(!starbook_mtl_dma_live_prepare_early(&early_snapshot));
+		if (!strcmp(argv[1], "early-hot-add"))
+			add_pci(&pci, 0x0300, 0x8086, 0xabcd, 0x060400, 0);
+		else if (!strcmp(argv[1], "early-remove"))
+			pci.functions[2][0].vendor_device = UINT32_MAX;
+		else if (!strcmp(argv[1], "early-identity"))
+			pci.functions[2][0].vendor_device ^= 1U << 16;
+		else if (!strcmp(argv[1], "early-class"))
+			pci.functions[2][0].class_revision ^= 1U << 8;
+		else if (!strcmp(argv[1], "early-command"))
+			pci.functions[2][0].command ^= 1U;
+		else if (!strcmp(argv[1], "early-bme"))
+			pci.functions[2][0].command |= 4U;
+		else if (!strcmp(argv[1], "early-model"))
+			expected[0].device ^= 1U;
+		else if (strcmp(argv[1], "early-success"))
+			assert(false);
 	}
 
 	result = starbook_mtl_dma_live_establish(&pci_io, 4, expected, memory,
 		0x800000, establish_size, establish_mirror,
 		establish_mirror_physical, mirror_size, &transition);
-	if (strcmp(argv[1], "success") &&
+	if (strcmp(argv[1], "success") && strcmp(argv[1], "early-success") &&
 	    strcmp(argv[1], "active-selected-bme") &&
 	    strcmp(argv[1], "active-unlisted-bme") &&
 	    strcmp(argv[1], "active-topology") &&
@@ -259,6 +283,8 @@ int main(int argc, char **argv)
 			assert(!pci.writes);
 		else
 			assert(pci.writes);
+		if (!strcmp(argv[1], "early-bme"))
+			assert(!(pci.functions[2][0].command & 4U));
 		if (!strcmp(argv[1], "bme-boundary"))
 			assert(!(pci.functions[0][0xa0].command & 4));
 		assert(!posix_memalign(&second, 4096, memory_size));
@@ -322,7 +348,7 @@ int main(int argc, char **argv)
 		assert(pci.reads == reads && pci.writes == writes);
 		free(second);
 	}
-	if (!strcmp(argv[1], "success")) {
+	if (!strcmp(argv[1], "success") || !strcmp(argv[1], "early-success")) {
 		assert(starbook_mtl_dma_live_verify_active(&pci_io, 4));
 	} else {
 		void *second;
