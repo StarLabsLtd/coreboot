@@ -38,6 +38,49 @@ enum bootmem_type {
 	BM_MEM_LAST,		/* Last entry in this list */
 };
 
+#define BOOTMEM_ALIGNED_RESERVATION_REVISION 1U
+#define BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS 8U
+
+struct bootmem_aligned_reservation_request {
+	uint32_t revision;
+	uint32_t size;
+	uint64_t bytes;
+	uint64_t alignment;
+	uint64_t limit_exclusive;
+	uint32_t tag;
+	uint32_t reserved;
+};
+
+struct bootmem_aligned_reservation_handle {
+	uint32_t opaque[2];
+};
+
+struct bootmem_aligned_reservation {
+	uint64_t base;
+	uint64_t size;
+	uint32_t tag;
+	uint32_t reserved;
+};
+
+_Static_assert(sizeof(struct bootmem_aligned_reservation_request) == 40,
+	"bootmem reservation request ABI changed");
+_Static_assert(sizeof(struct bootmem_aligned_reservation_handle) == 8,
+	"bootmem reservation handle ABI changed");
+_Static_assert(sizeof(struct bootmem_aligned_reservation) == 24,
+	"bootmem reservation result ABI changed");
+
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATIONS)
+/* Register before bootmem initialization; the exclusive limit is at most 4 GiB. */
+int bootmem_aligned_reservation_register(
+	const struct bootmem_aligned_reservation_request *request,
+	struct bootmem_aligned_reservation_handle *handle);
+
+/* Query only after bootmem initialization completed successfully. */
+int bootmem_aligned_reservation_query(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_aligned_reservation *reservation);
+#endif
+
 /**
  * Write memory coreboot table. Current resource map is serialized into
  * memtable (LB_MEM_* types). bootmem library is unusable until this function

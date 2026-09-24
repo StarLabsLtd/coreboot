@@ -15,6 +15,15 @@ config BOOTMEM_DRAM_PROVENANCE
 	  and expose their exact intersections with final bootmem ownership tags.
 	  This adds no consumer, boot hook or memory-clear support claim.
 
+config BOOTMEM_ALIGNED_RESERVATIONS
+	bool
+	default n
+	help
+	  Allow dormant clients to register a bounded set of exact, aligned DRAM
+	  reservations before bootmem initialization. All requests are resolved
+	  atomically from final RAM ownership before the OS memory table is written.
+	  This option registers no request and installs no platform hook.
+
 config PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY
 	bool
 	default n

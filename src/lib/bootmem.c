@@ -15,6 +15,18 @@ static int initialized;
 static int table_written;
 static struct memranges bootmem;
 static struct memranges bootmem_os;
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATIONS)
+struct aligned_reservation_state {
+	struct bootmem_aligned_reservation_request request;
+	struct bootmem_aligned_reservation_handle handle;
+	struct bootmem_aligned_reservation result;
+};
+
+static struct aligned_reservation_state aligned_reservations[
+	BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS];
+static size_t aligned_reservation_count;
+static bool aligned_reservations_resolved;
+#endif
 #if CONFIG(BOOTMEM_DRAM_PROVENANCE)
 static struct memranges bootmem_dram;
 #endif
@@ -61,6 +73,177 @@ static int bootmem_memory_table_written(void)
 {
 	return table_written;
 }
+
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATIONS)
+#define ALIGNED_RESERVATION_HANDLE_CHECK 0x42524d52U
+#define BOOTMEM_MINIMUM_GRANULARITY 4096U
+
+static bool object_valid(const void *object, size_t size, size_t alignment)
+{
+	const uintptr_t base = (uintptr_t)object;
+
+	return object && size && !(base % alignment) &&
+		base <= UINTPTR_MAX - (size - 1U);
+}
+
+static bool objects_overlap(const void *first, size_t first_size,
+	const void *second, size_t second_size)
+{
+	const uintptr_t first_base = (uintptr_t)first;
+	const uintptr_t second_base = (uintptr_t)second;
+
+	if (first_base <= second_base)
+		return second_base - first_base < first_size;
+	return first_base - second_base < second_size;
+}
+
+static bool aligned_request_valid(
+	const struct bootmem_aligned_reservation_request *request)
+{
+	return request->revision == BOOTMEM_ALIGNED_RESERVATION_REVISION &&
+		request->size == sizeof(*request) && request->bytes &&
+		!(request->bytes % BOOTMEM_MINIMUM_GRANULARITY) &&
+		request->alignment >= BOOTMEM_MINIMUM_GRANULARITY &&
+		!(request->alignment & (request->alignment - 1U)) &&
+		request->alignment <= (1ULL << 32) &&
+		request->limit_exclusive &&
+		request->limit_exclusive <= (1ULL << 32) &&
+		request->bytes <= request->limit_exclusive &&
+		(request->tag == BM_MEM_RESERVED || request->tag == BM_MEM_TABLE) &&
+		!request->reserved;
+}
+
+int bootmem_aligned_reservation_register(
+	const struct bootmem_aligned_reservation_request *request,
+	struct bootmem_aligned_reservation_handle *handle)
+{
+	struct bootmem_aligned_reservation_request snapshot;
+	const bool handle_valid = object_valid(handle, sizeof(*handle),
+		_Alignof(*handle));
+
+	if (handle_valid)
+		memset(handle, 0, sizeof(*handle));
+	if (!handle_valid || !object_valid(request, sizeof(*request),
+		_Alignof(*request)) || objects_overlap(request, sizeof(*request),
+		handle, sizeof(*handle)) || bootmem_is_initialized() ||
+		aligned_reservation_count == ARRAY_SIZE(aligned_reservations))
+		return -1;
+	memcpy(&snapshot, request, sizeof(snapshot));
+	if (!aligned_request_valid(&snapshot))
+		return -1;
+	for (size_t index = 0; index < aligned_reservation_count; index++)
+		if (!memcmp(&snapshot, &aligned_reservations[index].request,
+			sizeof(snapshot)))
+			return -1;
+	if (memcmp(&snapshot, request, sizeof(snapshot)))
+		return -1;
+	const uint32_t slot = aligned_reservation_count + 1U;
+	const struct bootmem_aligned_reservation_handle candidate = {
+		.opaque = { slot, ALIGNED_RESERVATION_HANDLE_CHECK ^ slot },
+	};
+	aligned_reservations[aligned_reservation_count].request = snapshot;
+	aligned_reservations[aligned_reservation_count].handle = candidate;
+	aligned_reservation_count++;
+	*handle = candidate;
+	return 0;
+}
+
+int bootmem_aligned_reservation_query(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_aligned_reservation *reservation)
+{
+	struct bootmem_aligned_reservation_handle snapshot;
+	const bool result_valid = object_valid(reservation, sizeof(*reservation),
+		_Alignof(*reservation));
+
+	if (result_valid)
+		memset(reservation, 0, sizeof(*reservation));
+	if (!result_valid || !object_valid(handle, sizeof(*handle),
+		_Alignof(*handle)) || objects_overlap(handle, sizeof(*handle),
+		reservation, sizeof(*reservation)))
+		return -1;
+	memcpy(&snapshot, handle, sizeof(snapshot));
+	if (!bootmem_is_initialized() || !aligned_reservations_resolved ||
+	    !snapshot.opaque[0] ||
+	    snapshot.opaque[0] > aligned_reservation_count ||
+	    snapshot.opaque[1] !=
+		(ALIGNED_RESERVATION_HANDLE_CHECK ^ snapshot.opaque[0]) ||
+	    memcmp(&snapshot,
+		&aligned_reservations[snapshot.opaque[0] - 1U].handle,
+		sizeof(snapshot)) || memcmp(&snapshot, handle, sizeof(snapshot)))
+		return -1;
+	*reservation = aligned_reservations[snapshot.opaque[0] - 1U].result;
+	return 0;
+}
+
+static bool range_targets_type(const struct memranges *ranges, uint64_t start,
+	uint64_t size, enum bootmem_type tag)
+{
+	const struct range_entry *range;
+	uint64_t end;
+
+	if (!size || start > UINT64_MAX - size)
+		return false;
+	end = start + size;
+	memranges_each_entry(range, ranges) {
+		if (end <= range_entry_base(range))
+			break;
+		if (start >= range_entry_base(range) &&
+		    end <= range_entry_end(range))
+			return range_entry_tag(range) == tag;
+	}
+	return false;
+}
+
+static bool process_aligned_reservations(void)
+{
+	struct memranges candidate;
+	struct memranges os_candidate;
+	struct bootmem_aligned_reservation results[
+		BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS] = { 0 };
+
+	if (!aligned_reservation_count) {
+		aligned_reservations_resolved = true;
+		return true;
+	}
+	memranges_clone(&candidate, &bootmem);
+	memranges_clone(&os_candidate, &bootmem_os);
+	for (size_t index = 0; index < aligned_reservation_count; index++) {
+		const struct bootmem_aligned_reservation_request *request =
+			&aligned_reservations[index].request;
+		resource_t base;
+		const unsigned int shift = __builtin_ctzll(request->alignment);
+
+		if (!memranges_steal(&candidate, request->limit_exclusive - 1U,
+			request->bytes, shift, BM_MEM_RAM, &base, true) ||
+		    base % request->alignment ||
+		    base > request->limit_exclusive - request->bytes ||
+		    !range_targets_type(&os_candidate, base, request->bytes,
+			BM_MEM_RAM))
+			goto fail;
+		memranges_insert(&candidate, base, request->bytes, request->tag);
+		memranges_insert(&os_candidate, base, request->bytes, request->tag);
+		results[index] = (struct bootmem_aligned_reservation) {
+			.base = base,
+			.size = request->bytes,
+			.tag = request->tag,
+		};
+	}
+	memranges_teardown(&bootmem);
+	memranges_teardown(&bootmem_os);
+	bootmem = candidate;
+	bootmem_os = os_candidate;
+	for (size_t index = 0; index < aligned_reservation_count; index++)
+		aligned_reservations[index].result = results[index];
+	aligned_reservations_resolved = true;
+	return true;
+
+fail:
+	memranges_teardown(&candidate);
+	memranges_teardown(&os_candidate);
+	return false;
+}
+#endif
 
 #if CONFIG(BOOTMEM_DRAM_PROVENANCE)
 static int domain_dram_resource(struct device *dev, struct resource *res)
@@ -196,6 +379,10 @@ static void bootmem_init(void)
 	if (CONFIG(CAPSULE_BROKER_FIXED_BUFFERS) &&
 	    !capsule_broker_buffers_reserve())
 		die("Capsule broker buffer reservation failed\n");
+#if CONFIG(BOOTMEM_ALIGNED_RESERVATIONS)
+	if (!process_aligned_reservations())
+		die("Could not satisfy aligned bootmem reservations\n");
+#endif
 }
 
 void bootmem_add_range(uint64_t start, uint64_t size,
