@@ -106,7 +106,7 @@ bool payload_mm_authvar_coordinator_source_modes(
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 	const struct payload_mm_authvar_store_entry *pk;
 	const struct payload_mm_authvar_store_entry *enable;
-	u8 enable_value = 0;
+	bool enable_value = false;
 	u8 vendor_value;
 	u8 modes;
 
@@ -119,7 +119,7 @@ bool payload_mm_authvar_coordinator_source_modes(
 	if (!payload_mm_authvar_mode_value(index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV, nv_bs_time,
 		&vendor_value) ||
-	    (enable && !payload_mm_authvar_mode_value(index,
+	    (enable && !payload_mm_authvar_mode_enabled(index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, nv_bs,
 		&enable_value)))
 		return false;
@@ -182,17 +182,15 @@ static bool custom_mode(
 	const struct payload_mm_authvar_store_entry *entry =
 		payload_mm_authvar_mode_find(index,
 			PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE);
-	u8 value;
 
 	/* EDK2 treats an absent CustomMode variable as StandardMode. */
 	if (!entry) {
 		*enabled = false;
 		return true;
 	}
-	if (!payload_mm_authvar_mode_value(index,
-		PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE, attributes, &value))
+	if (!payload_mm_authvar_mode_enabled(index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE, attributes, enabled))
 		return false;
-	*enabled = value != 0U;
 	return true;
 }
 
@@ -276,6 +274,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		.request = coordinator->request,
 		.index = index,
 		.at_runtime = binding->at_runtime,
+		.trusted_physical_presence =
+			coordinator->trusted_physical_presence,
 	};
 	efi_status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
 	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)

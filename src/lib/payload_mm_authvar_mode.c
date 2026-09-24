@@ -3,6 +3,7 @@
 #include <boot/payload_mm_authvar_bundle.h>
 #include <boot/payload_mm_authvar_store.h>
 #include <commonlib/helpers.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
@@ -72,6 +73,12 @@ static const struct mode_key_descriptor *mode_key(
 	return &mode_keys[key];
 }
 
+static bool range_valid(const void *pointer, size_t size)
+{
+	return size && pointer &&
+		(uintptr_t)pointer <= UINTPTR_MAX - (size - 1U);
+}
+
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_mode_find(
 	const struct payload_mm_authvar_store_index *index,
 	enum payload_mm_authvar_mode_key key)
@@ -89,7 +96,8 @@ bool payload_mm_authvar_mode_key_matches(const uint8_t vendor_guid[16],
 {
 	const struct mode_key_descriptor *descriptor = mode_key(key);
 
-	return descriptor && vendor_guid && name &&
+	return descriptor && range_valid(vendor_guid, 16U) &&
+		range_valid(name, name_size) &&
 		name_size == descriptor->name_size &&
 		!memcmp(vendor_guid, descriptor->vendor_guid, 16U) &&
 		!memcmp(name, descriptor->name, name_size);
@@ -119,10 +127,27 @@ bool payload_mm_authvar_mode_value(
 	const uint8_t *data = payload_mm_authvar_store_data(index, entry);
 
 	if (!entry || !data || !value || entry->attributes != attributes ||
-	    entry->data_size != 1U || *data > 1U ||
+	    entry->data_size != 1U ||
+	    (key != PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE &&
+	     key != PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE && *data > 1U) ||
 	    memcmp(index->store + entry->record_offset + RECORD_TIMESTAMP_OFFSET,
 		(uint8_t[RECORD_TIMESTAMP_SIZE]) { 0 }, RECORD_TIMESTAMP_SIZE))
 		return false;
 	*value = *data;
+	return true;
+}
+
+bool payload_mm_authvar_mode_enabled(
+	const struct payload_mm_authvar_store_index *index,
+	enum payload_mm_authvar_mode_key key, uint32_t attributes, bool *enabled)
+{
+	uint8_t value;
+
+	if (!enabled ||
+	    (key != PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE &&
+	     key != PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE) ||
+	    !payload_mm_authvar_mode_value(index, key, attributes, &value))
+		return false;
+	*enabled = value == 1U;
 	return true;
 }

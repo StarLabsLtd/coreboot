@@ -246,6 +246,19 @@ static void expect_target(unsigned int count)
 
 static void test_mode_oracle(void)
 {
+	const struct payload_mm_authvar_store_entry *enable;
+
+	/* Nonboolean persisted values project disabled, never truthy. */
+	base(true, true, true);
+	enable = payload_mm_authvar_store_find(&store_index, enable_guid,
+		enable_name, sizeof(enable_name));
+	expect(enable != NULL);
+	store[enable->data_offset] = 2U;
+	snapshot.facts.secure_boot = false;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	snapshot.facts.secure_boot = true;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);
+
 	base(false, true, false);
 	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE;
 	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);

@@ -498,7 +498,7 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	const struct payload_mm_authvar_store_entry *secure_boot_enable;
 	const struct payload_mm_authvar_store_entry *target_entry;
 	uint8_t vendor_keys_nv_data;
-	uint8_t secure_boot_enable_data = 0U;
+	bool secure_boot_enable_data = false;
 	const uint32_t mode_intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE |
 		PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE |
 		PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS;
@@ -550,7 +550,7 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	    snapshot->facts.vendor_keys != !!vendor_keys_nv_data)
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (secure_boot_enable &&
-	    !payload_mm_authvar_mode_value(snapshot->index,
+	    !payload_mm_authvar_mode_enabled(snapshot->index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
 		(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
 		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS),
@@ -560,7 +560,7 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	    ((snapshot->facts.setup_mode && snapshot->facts.secure_boot) ||
 	     (!snapshot->facts.setup_mode &&
 	      (!secure_boot_enable || snapshot->facts.secure_boot !=
-		      !!secure_boot_enable_data))))
+		      secure_boot_enable_data))))
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (decision->outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION) {
 		target_entry = payload_mm_authvar_store_find(snapshot->index,

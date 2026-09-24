@@ -31,6 +31,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
 		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
+		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
@@ -67,7 +68,8 @@ for optimization in 0 2; do
 		coordinator-attack-result \
 		coordinator-context-max coordinator-context-over \
 		coordinator-runtime-pk-delete coordinator-runtime-missing-enable \
-		coordinator-vendor-reconcile coordinator-native-reconcile \
+		coordinator-vendor-reconcile coordinator-nonboolean-modes \
+		coordinator-native-reconcile \
 		coordinator-end-failure \
 		coordinator-runtime-end-failure coordinator-preexisting-crypto; do
 		# Keep the admission matrix separate for a precise untouched-output oracle.
@@ -133,6 +135,7 @@ compile_mutant()
 		"$mutant_source" "$root/src/lib/payload_mm_authvar_coordinator.c" \
 		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
+		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
@@ -225,6 +228,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
 	"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
+	"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 	"$root/src/lib/payload_mm_authvar_view.c" \
 	"$root/src/lib/payload_mm_authvar_authority.c" \
 	"$root/src/lib/payload_mm_authvar_candidate.c" \

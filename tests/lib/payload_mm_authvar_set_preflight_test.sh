@@ -30,6 +30,7 @@ compile()
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_set_preflight_test.c" \
 		"$preflight_source" \
+		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
 		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
@@ -135,5 +136,33 @@ mutant="$temporary/no-access-delete.c"
 sed '/if (append && !request->data_size)/,$ s/if (!(request->attributes \&/if ((request->attributes \&/' \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
 check_mutant no-access-delete "$mutant"
+
+mutant="$temporary/controlled-property.c"
+sed 's/policy_status = payload_mm_authvar_controlled_mode_property(controlled_mode,/policy_status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS; (void)payload_mm_authvar_controlled_mode_property(controlled_mode,/' \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
+check_mutant controlled-property "$mutant"
+
+mutant="$temporary/controlled-presence.c"
+sed 's/policy_status = payload_mm_authvar_controlled_mode_authorize(controlled_mode,/policy_status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS; (void)payload_mm_authvar_controlled_mode_authorize(controlled_mode,/' \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
+check_mutant controlled-presence "$mutant"
+
+mutant="$temporary/controlled-presence-order.c"
+sed '/existing = payload_mm_authvar_store_find(index,/i\
+\tif (controlled_mode != PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE \&\&\
+\t    !snapshot->trusted_physical_presence)\
+\t\treturn PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;' \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
+check_mutant controlled-presence-order "$mutant"
+
+mutant="$temporary/controlled-reserved.c"
+sed 's/controlled_mode == PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE \&\&/true \&\&/' \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
+check_mutant controlled-reserved "$mutant"
+
+mutant="$temporary/counter-payload.c"
+sed 's/payload_size = 0U;/payload_size = request->data_size;/' \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" > "$mutant"
+check_mutant counter-payload "$mutant"
 
 printf '%s\n' 'Payload-MM authenticated-variable SET preflight tests: PASS'

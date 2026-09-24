@@ -3261,6 +3261,8 @@ uint64_t payload_mm_authvar_policy_transaction(
 		.request = &state->request,
 		.index = &state->index,
 		.at_runtime = state->at_runtime,
+		/* No production physical-presence source is published yet. */
+		.trusted_physical_presence = false,
 	};
 	status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)

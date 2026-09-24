@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_bundle.h>
+#include <boot/payload_mm_authvar_controlled_mode.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_route.h>
 #include <stdint.h>
@@ -40,6 +41,9 @@ uint64_t payload_mm_authvar_set_preflight(
 	const struct payload_mm_authvar_store_entry *existing;
 	size_t entry_bytes;
 	uint32_t stored_attributes;
+	enum payload_mm_authvar_controlled_mode controlled_mode;
+	size_t payload_size;
+	uint64_t policy_status;
 	uint8_t combined;
 	bool append;
 
@@ -113,6 +117,18 @@ uint64_t payload_mm_authvar_set_preflight(
 	    payload_mm_authvar_auth2_parse(request->data, request->data_size,
 		&auth2) != PAYLOAD_MM_AUTHVAR_FORMAT_OK)
 		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+	if (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED)
+		payload_size = auth2.payload.size;
+	else if (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE)
+		payload_size = 0U;
+	else
+		payload_size = request->data_size;
+	controlled_mode = payload_mm_authvar_controlled_mode_classify(
+		request->vendor_guid, request->name, request->name_size);
+	policy_status = payload_mm_authvar_controlled_mode_property(controlled_mode,
+		request->attributes, payload_size);
+	if (policy_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return policy_status;
 	existing = payload_mm_authvar_store_find(index, request->vendor_guid,
 		request->name, request->name_size);
 	if (snapshot->at_runtime && existing &&
@@ -130,6 +146,10 @@ uint64_t payload_mm_authvar_set_preflight(
 		(PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE |
 		 PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED))
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	policy_status = payload_mm_authvar_controlled_mode_authorize(controlled_mode,
+		snapshot->trusted_physical_presence);
+	if (policy_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return policy_status;
 	if (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	if (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
@@ -140,7 +160,8 @@ uint64_t payload_mm_authvar_set_preflight(
 		    !payload_mm_authvar_timestamp_store_valid(auth2.timestamp) ||
 		    !combined)
 			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		if (payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
+		if (controlled_mode == PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE &&
+		    payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
 			request->name, request->name_size))
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 		plan->kind = PAYLOAD_MM_AUTHVAR_SET_AUTH2;
@@ -161,7 +182,8 @@ uint64_t payload_mm_authvar_set_preflight(
 			plan->post_auth_status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	}
-	if (payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
+	if (controlled_mode == PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE &&
+	    payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
 		request->name, request->name_size))
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 	memset(&route_request, 0, sizeof(route_request));

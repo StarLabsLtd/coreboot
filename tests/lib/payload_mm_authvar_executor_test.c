@@ -2790,14 +2790,50 @@ static void coordinator_native_ordinary(void)
 	make_candidate_source();
 	coordinator_install_executor();
 	test_policy_authorize_count = 0U;
+	programs = program_count;
+	erases = erase_count;
+	begins = begin_count;
+	ends = end_count;
+	request.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+	request.name = coordinator_enable_name;
+	request.name_size = sizeof(coordinator_enable_name);
+	request.data = first;
+	request.data_size = 1U;
+	memcpy(request.vendor_guid, coordinator_enable_guid,
+		sizeof(request.vendor_guid));
+	assert(payload_mm_authvar_policy_transaction(&request, &result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		program_count == programs && erase_count == erases &&
+		begin_count == begins + 1U && end_count == ends + 1U && !poisoned);
+	request.name = coordinator_custom_name;
+	request.name_size = sizeof(coordinator_custom_name);
+	memcpy(request.vendor_guid, coordinator_custom_guid,
+		sizeof(request.vendor_guid));
+	assert(payload_mm_authvar_policy_transaction(&request, &result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		program_count == programs && erase_count == erases &&
+		begin_count == begins + 2U && end_count == ends + 2U && !poisoned);
+	request.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	request.name = name;
+	request.name_size = sizeof(name);
+	request.data = first;
+	request.data_size = sizeof(first);
+	memcpy(request.vendor_guid, guid, sizeof(guid));
 	assert(payload_mm_authvar_policy_transaction(&request, &result) ==
 		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
 		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
 	native_assert_value(guid, name, sizeof(name), request.attributes,
 		first, sizeof(first));
-	assert(test_policy_authorize_count == 0U && begin_count == 1U &&
-		end_count == 1U && !poisoned);
+	assert(test_policy_authorize_count == 0U && begin_count == begins + 3U &&
+		end_count == ends + 3U && !poisoned);
 
 	programs = program_count;
 	erases = erase_count;
@@ -3420,6 +3456,52 @@ static void coordinator_vendor_reconcile(void)
 		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
 		coordinator_verify_calls == 0U && coordinator_vendor_value() == 0U &&
 		!poisoned);
+}
+
+static void coordinator_nonboolean_modes(void)
+{
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries,
+		.entry_capacity = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_entry *entry;
+	struct coordinator_fixture fixture;
+	uint8_t source_modes;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, true);
+	assert(payload_mm_authvar_store_scan(&index, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	entry = payload_mm_authvar_mode_find(&index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
+	assert(entry);
+	media[FV_HEADER_SIZE + entry->data_offset] = 2U;
+	assert(payload_mm_authvar_coordinator_source_modes(&index, false, false,
+		0U, &source_modes));
+	assert(source_modes == PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+
+	coordinator_make_user_source(&fixture, true);
+	assert(payload_mm_authvar_store_scan(&index, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	entry = payload_mm_authvar_mode_find(&index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE);
+	assert(entry);
+	media[FV_HEADER_SIZE + entry->data_offset] = 2U;
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(coordinator_kek_name);
+	fixture.request.trusted_physical_presence = 1U;
+	coordinator_verify_status = PAYLOAD_MM_VERIFY_REJECTED;
+	install();
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	assert(coordinator_verify_calls == 1U && !poisoned);
 }
 
 static void coordinator_native_reconcile(void)
@@ -4682,6 +4764,9 @@ int main(int argc, char **argv)
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-vendor-reconcile")) {
 		coordinator_vendor_reconcile();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-nonboolean-modes")) {
+		coordinator_nonboolean_modes();
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-native-reconcile")) {
 		coordinator_native_reconcile();

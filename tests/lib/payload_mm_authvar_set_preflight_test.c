@@ -65,6 +65,13 @@ static const uint16_t pk_name[] = { 'P', 'K', 0U };
 static const uint16_t secure_boot_name[] = {
 	'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0U,
 };
+static const uint16_t secure_boot_enable_name[] = {
+	'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 'E', 'n', 'a', 'b',
+	'l', 'e', 0U,
+};
+static const uint16_t custom_mode_name[] = {
+	'C', 'u', 's', 't', 'o', 'm', 'M', 'o', 'd', 'e', 0U,
+};
 static const uint32_t nv_bs = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
 	PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
 static const uint32_t nv_bs_rt = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
@@ -110,6 +117,11 @@ static void make_existing(uint32_t attributes)
 	uint8_t timestamp[16] = { 0 };
 
 	make_empty_store();
+	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
+		put16(timestamp, 0U, 2026U);
+		timestamp[2] = 9U;
+		timestamp[3] = 24U;
+	}
 	memset(store + offset, 0, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE);
 	put16(store, offset, PAYLOAD_MM_AUTHVAR_RECORD_START_ID);
 	store[offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
@@ -133,6 +145,46 @@ static void make_existing(uint32_t attributes)
 	};
 	expect(payload_mm_authvar_store_scan(&index, store, sizeof(store),
 		&limits) == CB_SUCCESS);
+}
+
+static enum cb_err make_existing_key_scan(const uint8_t guid[16], const void *name,
+	size_t name_size, uint32_t attributes, uint8_t value)
+{
+	const size_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	const size_t name_offset = offset + PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE;
+	const size_t data_offset = (name_offset + name_size + 3U) & ~3U;
+	uint8_t timestamp[16] = { 0 };
+
+	make_empty_store();
+	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
+		timestamp[0] = 0xeaU;
+		timestamp[1] = 0x07U;
+		timestamp[2] = 9U;
+		timestamp[3] = 24U;
+	}
+	memset(store + offset, 0, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE);
+	put16(store, offset, PAYLOAD_MM_AUTHVAR_RECORD_START_ID);
+	store[offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	put32(store, offset + 4U, attributes);
+	memcpy(store + offset + 16U, timestamp, sizeof(timestamp));
+	put32(store, offset + 36U, (uint32_t)name_size);
+	put32(store, offset + 40U, 1U);
+	memcpy(store + offset + 44U, guid, 16U);
+	memcpy(store + name_offset, name, name_size);
+	store[data_offset] = value;
+	memset(entries, 0, sizeof(entries));
+	index = (struct payload_mm_authvar_store_index) {
+		.entries = entries,
+		.entry_capacity = ENTRY_COUNT,
+	};
+	return payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits);
+}
+
+static void make_existing_key(const uint8_t guid[16], const void *name,
+	size_t name_size, uint32_t attributes, uint8_t value)
+{
+	expect(make_existing_key_scan(guid, name, name_size, attributes, value) ==
+		CB_SUCCESS);
 }
 
 static size_t make_auth2(uint8_t *data, const void *payload, size_t payload_size)
@@ -205,6 +257,264 @@ static void check_post(struct payload_mm_authvar_policy_request *request,
 		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	expect(plan.kind == PAYLOAD_MM_AUTHVAR_SET_AUTH2);
 	expect(plan.post_auth_status == expected_post);
+}
+
+static void check_presence(struct payload_mm_authvar_policy_request *request,
+	bool present, uint64_t expected_status,
+	enum payload_mm_authvar_set_kind expected_kind)
+{
+	struct payload_mm_authvar_set_snapshot snapshot = {
+		.request = request,
+		.index = &index,
+		.trusted_physical_presence = present,
+	};
+	struct payload_mm_authvar_set_plan plan;
+
+	memset(&plan, 0xa5, sizeof(plan));
+	expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+		expected_status);
+	if (expected_status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		expect(plan.kind == expected_kind);
+	else
+		expect(!memcmp(&plan, &(struct payload_mm_authvar_set_plan) { 0 },
+			sizeof(plan)));
+}
+
+static void controlled_modes(void)
+{
+	static const uint16_t near_mode_name[] = {
+		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 'E', 'n', 'a',
+		'b', 'l', 'e', 'x', 0U,
+	};
+	static const uint8_t values[] = { 0U, 1U, 2U, 0xffU };
+	uint8_t counter_auth[PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE] = { 0 };
+	uint8_t mode_auth2[43] = { 0 };
+	uint8_t value = 2U;
+	struct payload_mm_authvar_policy_request request;
+
+	make_empty_store();
+	request = request_for(secure_boot_enable_name,
+		sizeof(secure_boot_enable_name), nv_bs, &value, sizeof(value));
+	memcpy(request.vendor_guid, enable_guid, sizeof(enable_guid));
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	for (size_t i = 0U; i < ARRAY_SIZE(values); i++) {
+		value = values[i];
+		check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+			PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE);
+	}
+	request.data_size = 2U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	request.data_size = 1U;
+	request.attributes = nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	check_presence(&request, true,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	request.attributes = nv_bs_rt;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	request.attributes = nv_bs;
+	request.name = near_mode_name;
+	request.name_size = sizeof(near_mode_name);
+	check_presence(&request, false, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE);
+	request.name = secure_boot_enable_name;
+	request.name_size = sizeof(secure_boot_enable_name);
+	request.vendor_guid[0] ^= 1U;
+	check_presence(&request, false, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE);
+	request.vendor_guid[0] ^= 1U;
+	request.attributes = nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE;
+	request.data = counter_auth;
+	request.data_size = sizeof(counter_auth);
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED, 0);
+
+	request = request_for(custom_mode_name, sizeof(custom_mode_name), nv_bs,
+		&value, sizeof(value));
+	memcpy(request.vendor_guid, custom_guid, sizeof(custom_guid));
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	for (size_t i = 0U; i < ARRAY_SIZE(values); i++) {
+		value = values[i];
+		check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+			PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE);
+	}
+
+	/* APPEND is deliberately rejected before presence and store facts. */
+	request.attributes = nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	request.data_size = 1U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	check_presence(&request, true,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	request.data_size = 0U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	check_presence(&request, true,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs, 1U);
+	request.data_size = 1U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	check_presence(&request, true,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	request.data_size = 0U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	check_presence(&request, true,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+
+	/* Delete is property-exempt but remains presence controlled. */
+	make_empty_store();
+	request.attributes = 0U;
+	request.data_size = 0U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND, 0);
+	request.attributes = nv_bs;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND, 0);
+	{
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		snapshot.trusted_physical_presence = true;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	}
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs, 1U);
+	request.attributes = 0U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE);
+	request.attributes = nv_bs;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE);
+
+	/* Existing/runtime and attribute checks retain precedence over presence. */
+	for (size_t i = 0U; i < 2U; i++) {
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+
+		request.attributes = i ? nv_bs : 0U;
+		request.data_size = 0U;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+		snapshot.trusted_physical_presence = true;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+	}
+	make_existing_key(enable_guid, secure_boot_enable_name,
+		sizeof(secure_boot_enable_name), nv_bs, 1U);
+	request.name = secure_boot_enable_name;
+	request.name_size = sizeof(secure_boot_enable_name);
+	memcpy(request.vendor_guid, enable_guid, sizeof(enable_guid));
+	for (size_t i = 0U; i < 2U; i++) {
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+
+		request.attributes = i ? nv_bs : 0U;
+		request.data_size = 0U;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+		snapshot.trusted_physical_presence = true;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+	}
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs, 1U);
+	request.name = custom_mode_name;
+	request.name_size = sizeof(custom_mode_name);
+	memcpy(request.vendor_guid, custom_guid, sizeof(custom_guid));
+	request.attributes = nv_bs;
+	request.data = &value;
+	request.data_size = 1U;
+	{
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+	}
+	request.attributes = nv_bs_rt;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs_rt, 1U);
+	request.attributes = nv_bs;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+	make_empty_store();
+	request.attributes = nv_bs;
+	{
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		snapshot.trusted_physical_presence = true;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	}
+
+	/* Generic Auth2 parsing precedes property and presence policy. */
+	request.attributes = nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	request.data = mode_auth2;
+	request.data_size = 40U;
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	request.data_size = make_auth2(mode_auth2, values, 2U);
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, 0);
+
+	/* Property rejection precedes lookup-derived runtime protection. */
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs, 1U);
+	request.attributes = nv_bs;
+	request.data = values;
+	request.data_size = 2U;
+	{
+		struct payload_mm_authvar_set_snapshot snapshot = {
+			.request = &request, .index = &index, .at_runtime = true,
+		};
+		struct payload_mm_authvar_set_plan plan;
+		expect(payload_mm_authvar_set_preflight(&snapshot, &plan) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	}
+
+	/* Noncanonical authenticated mode records never take ordinary delete. */
+	make_existing_key(custom_guid, custom_mode_name, sizeof(custom_mode_name),
+		nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED, 1U);
+	request.attributes = nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	request.data = mode_auth2;
+	request.data_size = make_auth2(mode_auth2, NULL, 0U);
+	check_presence(&request, false,
+		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, 0);
+	check_presence(&request, true, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		PAYLOAD_MM_AUTHVAR_SET_AUTH2);
+
+	/* Deprecated authenticated records are rejected by the store scanner. */
+	expect(make_existing_key_scan(custom_guid, custom_mode_name,
+		sizeof(custom_mode_name),
+		nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE, 1U) !=
+		CB_SUCCESS);
 }
 
 static void ordinary_matrix(void)
@@ -437,7 +747,10 @@ static void reserved_matrix(void)
 			&value, sizeof(value));
 		memcpy(request.vendor_guid, reserved[key].guid,
 			sizeof(request.vendor_guid));
-		check(&request, false, PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED, 0);
+		check(&request, false,
+			key == 10U || key == 13U ?
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION :
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED, 0);
 		memcpy(request.vendor_guid, private_guid,
 			sizeof(request.vendor_guid));
 		check(&request, false, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
@@ -796,6 +1109,7 @@ int main(void)
 {
 	ordinary_matrix();
 	attribute_and_auth2_matrix();
+	controlled_modes();
 	protected_keys();
 	reserved_matrix();
 	name_boundaries();

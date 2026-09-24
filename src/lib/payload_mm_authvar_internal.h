@@ -40,6 +40,9 @@ const struct payload_mm_authvar_store_entry *payload_mm_authvar_mode_find(
 bool payload_mm_authvar_mode_value(
 	const struct payload_mm_authvar_store_index *index,
 	enum payload_mm_authvar_mode_key key, uint32_t attributes, uint8_t *value);
+bool payload_mm_authvar_mode_enabled(
+	const struct payload_mm_authvar_store_index *index,
+	enum payload_mm_authvar_mode_key key, uint32_t attributes, bool *enabled);
 bool payload_mm_authvar_mode_key_matches(const uint8_t vendor_guid[16],
 	const void *name, size_t name_size, enum payload_mm_authvar_mode_key key);
 bool payload_mm_authvar_mode_mutation_key(

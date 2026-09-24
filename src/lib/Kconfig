@@ -266,6 +266,7 @@ config PAYLOAD_MM_AUTHVAR_COORDINATOR
 	bool
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
+	select PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE
 	help
 	  Build the dormant authenticated-variable coordinator. It derives every
 	  mode fact from the active protected store and sealed executor lifecycle,
@@ -285,6 +286,16 @@ config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	  variable coordinator. It selects protected PK/KEK or private signer trust
 	  from the canonical route and normalizes private authentication failures,
 	  but installs no endpoint and performs no media operation.
+
+config PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
+	help
+	  Build the dormant EDK2 26.09-derived, fail-closed SecureBootEnable and
+	  CustomMode policy.
+	  It enforces their fixed property and trusted physical-presence gates, but
+	  performs no store or media operation and publishes no endpoint.
 
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
