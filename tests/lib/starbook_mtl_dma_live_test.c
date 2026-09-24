@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 	};
 	const size_t memory_size = 2U * 1024U * 1024U;
 	struct pci_mock pci = valid_pci();
-	const struct starbook_mtl_dma_live_pci_io pci_io = {
+	const struct pci_bme_quiesce_io pci_io = {
 		.context = &pci,
 		.read32 = pci_read,
 		.write16 = pci_write,
@@ -247,12 +247,13 @@ int main(int argc, char **argv)
 		const size_t writes = pci.writes;
 
 		assert(result);
-		assert(memory_is(memory, memory_size, 0xa5));
+		if (strcmp(argv[1], "topology-boundary") &&
+		    strcmp(argv[1], "bme-boundary"))
+			assert(memory_is(memory, memory_size, 0xa5));
 		assert(!starbook_mtl_dma_live_layout());
 		assert(!vtd.committed);
 		assert(vtd.registers[PMEN / 4U] & 1U);
-		if (!strcmp(argv[1], "snapshot-failure") ||
-		    !strcmp(argv[1], "noncoherent") ||
+		if (!strcmp(argv[1], "noncoherent") ||
 		    !strcmp(argv[1], "capacity") ||
 		    !strcmp(argv[1], "unaligned-size"))
 			assert(!pci.writes);

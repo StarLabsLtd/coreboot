@@ -14,10 +14,12 @@ fi
 
 for flags in '-O0' '-O2' '-O1 -fsanitize=address,undefined'; do
 	cc -std=gnu11 -Wall -Wextra -Werror $flags \
+		-idirafter "$root/src/include" \
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		"$root/tests/lib/starbook_mtl_dma_live_test.c" \
 		"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live.c" \
+		"$root/src/lib/pci_bme_quiesce.c" \
 		"$root/src/soc/intel/common/block/vtd/vtd_translation.c" \
 		"$root/src/soc/intel/common/block/vtd/vtd_transition.c" \
 		-o "$temporary/test"

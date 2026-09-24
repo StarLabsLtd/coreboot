@@ -4,20 +4,13 @@
 #define MAINBOARD_STARLABS_STARBOOK_MTL_DMA_LIVE_H
 
 #include <commonlib/dma_handoff.h>
+#include <device/pci_bme_quiesce.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define STARBOOK_MTL_DMA_LIVE_REQUESTERS 3U
-#define STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS 512U
-
-struct starbook_mtl_dma_live_pci_io {
-	void *context;
-	uint32_t (*read32)(void *context, uint8_t bus, uint8_t devfn,
-		uint16_t offset);
-	void (*write16)(void *context, uint8_t bus, uint8_t devfn,
-		uint16_t offset, uint16_t value);
-};
+#define STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS PCI_BME_QUIESCE_MAX_FUNCTIONS
 
 struct starbook_mtl_dma_live_identity {
 	uint16_t bdf;
@@ -45,7 +38,7 @@ struct starbook_mtl_dma_live_layout {
 struct vtd_transition_io;
 
 int starbook_mtl_dma_live_establish(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count,
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count,
 	const struct starbook_mtl_dma_live_identity requesters[
 		STARBOOK_MTL_DMA_LIVE_REQUESTERS],
 	void *memory, uint64_t physical_base, size_t size,
@@ -55,16 +48,16 @@ int starbook_mtl_dma_live_establish(
 int starbook_mtl_dma_live_table_mirror_size(uint64_t physical_base, size_t size,
 	size_t *mirror_size);
 bool starbook_mtl_dma_live_verify_active(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count);
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count);
 const struct starbook_mtl_dma_live_layout *starbook_mtl_dma_live_layout(void);
 bool starbook_mtl_dma_live_handoff_requesters(
 	struct dma_handoff_requester output[STARBOOK_MTL_DMA_LIVE_REQUESTERS]);
 bool starbook_mtl_dma_live_devices_are_verified(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count,
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count,
 	const uint16_t *bdfs, size_t count);
 bool starbook_mtl_dma_live_tables_match(
 	const struct starbook_mtl_dma_live_layout *layout);
 void starbook_mtl_dma_live_poison(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count);
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count);
 
 #endif

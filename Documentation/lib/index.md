@@ -14,5 +14,6 @@ Firmware Configuration Interface <fw_config.md>
 Relocatable Modules <rmodules.md>
 Timers, Stopwatch, and Delays <stopwatch.md>
 Threads <threads.md>
+PCI bus-master quiescence <pci-bme-quiesce.md>
 Ramstage Bootstates & Bootstate Callbacks <ramstage_bootstates.md>
 ```
