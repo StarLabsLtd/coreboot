@@ -16,7 +16,8 @@ compile_binary()
 {
 	name=$1
 	clear_source=$2
-	shift 2
+	plan_source=$3
+	shift 3
 	"${CC:-cc}" -std=gnu11 -g -Wall -Wextra -Werror -fno-builtin \
 		-ffunction-sections -fdata-sections -Wl,--gc-sections "$@" \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
@@ -24,11 +25,13 @@ compile_binary()
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$root/src" -I"$root/src/include" \
+		-I"$root/src/lib" \
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/payload_mm_authvar_mor_clear_test.c" \
-		"$clear_source" "$root/src/lib/payload_mm_authvar_mor_grant.c" \
+		"$clear_source" "$plan_source" \
+		"$root/src/lib/payload_mm_authvar_mor_grant.c" \
 		-o "$temporary/$name"
 }
 
@@ -36,18 +39,22 @@ build_and_run()
 {
 	name=$1
 	source=$2
-	shift 2
-	compile_binary "$name" "$source" "$@"
+	plan_source=$3
+	shift 3
+	compile_binary "$name" "$source" "$plan_source" "$@"
 	for case_name in $cases; do
 		"$temporary/$name" "$case_name"
 	done
 }
 
 source_file="$root/src/lib/payload_mm_authvar_mor_clear.c"
-build_and_run o0 "$source_file" -O0
-build_and_run o2 "$source_file" -O2
-build_and_run asan "$source_file" -O1 -fsanitize=address -fno-omit-frame-pointer
-build_and_run ubsan "$source_file" -O1 -fsanitize=undefined -fno-omit-frame-pointer
+plan_source="$root/src/lib/payload_mm_authvar_mor_clear_plan.c"
+build_and_run o0 "$source_file" "$plan_source" -O0
+build_and_run o2 "$source_file" "$plan_source" -O2
+build_and_run asan "$source_file" "$plan_source" -O1 \
+	-fsanitize=address -fno-omit-frame-pointer
+build_and_run ubsan "$source_file" "$plan_source" -O1 \
+	-fsanitize=undefined -fno-omit-frame-pointer
 
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
@@ -56,7 +63,13 @@ build_and_run ubsan "$source_file" -O1 -fsanitize=undefined -fno-omit-frame-poin
 	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
-	-I"$temporary/include" -c "$source_file" -o "$temporary/clear-stack.o"
+		-I"$temporary/include" -c "$source_file" -o "$temporary/clear-stack.o"
+"${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
+	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-I"$temporary/include" -c "$plan_source" -o "$temporary/plan-stack.o"
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
 	-include "$root/src/include/kconfig.h" \
@@ -83,7 +96,8 @@ awk -F '\t' '
 			exit 1
 		}
 	}
-' "$temporary/clear-stack.su" > "$temporary/clear-stack-result"
+	' "$temporary/plan-stack.su" "$temporary/clear-stack.su" > \
+		"$temporary/clear-stack-result"
 awk -F '\t' '
 	$1 ~ /:payload_mm_authvar_mor_grant_validate$/ { validate = $2 + 0 }
 	END {
@@ -106,16 +120,20 @@ fi
 mutant_test()
 {
 	name=$1
-	old=$2
-	new=$3
-	case_name=$4
+	target=$2
+	old=$3
+	new=$4
+	case_name=$5
 	mutant="$temporary/$name.c"
-	sed "s#$old#$new#" "$source_file" > "$mutant"
-	if cmp -s "$source_file" "$mutant"; then
+	sed "s#$old#$new#" "$target" > "$mutant"
+	if cmp -s "$target" "$mutant"; then
 		echo "ERROR: $name mutation was not applied" >&2
 		exit 1
 	fi
-	if ! compile_binary "$name" "$mutant" -O2; then
+	mutant_clear=$source_file
+	mutant_plan=$plan_source
+	if test "$target" = "$source_file"; then mutant_clear=$mutant; else mutant_plan=$mutant; fi
+	if ! compile_binary "$name" "$mutant_clear" "$mutant_plan" -O2; then
 		echo "ERROR: $name mutant did not compile" >&2
 		exit 1
 	fi
@@ -125,23 +143,24 @@ mutant_test()
 	fi
 }
 
-mutant_test merge-adjacent 'previous && span->base == previous_end &&' \
+mutant_test merge-adjacent "$plan_source" 'previous && span->base == previous_end &&' \
 	'previous \&\& true \&\&' plan
-mutant_test inventory-recheck 'memcmp(\&snapshot, inventory, sizeof(snapshot))' \
+mutant_test inventory-recheck "$plan_source" 'memcmp(\&snapshot, inventory, sizeof(snapshot))' \
 	'memcmp(inventory, inventory, sizeof(snapshot))' plan-mutation
-mutant_test dma-revalidation \
+mutant_test dma-revalidation "$source_file" \
 	'memcmp(\&facts_snapshot.dma_before, \&facts_snapshot.dma_after,' \
 	'memcmp(\&facts_snapshot.dma_before, \&facts_snapshot.dma_before,' \
 	dma-mismatch
-mutant_test written-count 'record->written_bytes != span->size' \
+mutant_test written-count "$source_file" 'record->written_bytes != span->size' \
 	'false' written-count
-mutant_test final-validator \
+mutant_test final-validator "$source_file" \
 	'payload_mm_authvar_mor_grant_validate(\&candidate) != CB_SUCCESS' \
 	'true' receipt
-mutant_test receipt-recheck 'memcmp(\&plan_snapshot, plan, sizeof(plan_snapshot))' \
+mutant_test receipt-recheck "$source_file" 'memcmp(\&plan_snapshot, plan, sizeof(plan_snapshot))' \
 	'memcmp(plan, plan, sizeof(plan_snapshot))' receipt-mutation
 
 mkdir -p "$temporary/config-default" "$temporary/build-default" \
+	"$temporary/config-plan" "$temporary/build-plan" \
 	"$temporary/config-clear" "$temporary/build-clear"
 cat > "$temporary/config-default/.config" <<'EOF'
 CONFIG_VENDOR_EMULATION=y
@@ -152,6 +171,31 @@ make -C "$root" obj="$temporary/build-default" \
 ! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
 	"$temporary/config-default/.config"
 
+cp "$root/src/Kconfig" "$temporary/Kconfig-plan"
+cat >> "$temporary/Kconfig-plan" <<'EOF'
+
+config TEST_MOR_CLEAR_PLAN_SELECTOR
+	bool
+	default y
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
+EOF
+cp "$temporary/config-default/.config" "$temporary/config-plan/.config"
+make -C "$root" obj="$temporary/build-plan" KBUILD_KCONFIG="$temporary/Kconfig-plan" \
+	DOTCONFIG="$temporary/config-plan/.config" olddefconfig >/dev/null
+grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN=y' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT=y$' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR=y$' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY=y$' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
+	"$temporary/config-plan/.config"
+! grep -q '^CONFIG_SMMSTORE=y$' "$temporary/config-plan/.config"
+
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 cat >> "$temporary/Kconfig" <<'EOF'
 
@@ -159,12 +203,15 @@ config TEST_MOR_CLEAR_SELECTOR
 	bool
 	default y
 	select PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
 	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
 EOF
 cp "$temporary/config-default/.config" "$temporary/config-clear/.config"
 make -C "$root" obj="$temporary/build-clear" KBUILD_KCONFIG="$temporary/Kconfig" \
 	DOTCONFIG="$temporary/config-clear/.config" olddefconfig >/dev/null
 grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT=y' \
+	"$temporary/config-clear/.config"
+grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN=y' \
 	"$temporary/config-clear/.config"
 grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y' \
 	"$temporary/config-clear/.config"
@@ -178,6 +225,10 @@ grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y' \
 
 grep -qx 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT) += payload_mm_authvar_mor_clear.c' \
 	"$root/src/lib/Makefile.mk"
+grep -qx 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN) += payload_mm_authvar_mor_clear_plan.c' \
+	"$root/src/lib/Makefile.mk"
+test "$(rg -n 'payload_mm_authvar_mor_clear_plan[.]c' "$root/src" \
+	-g Makefile.mk | wc -l)" -eq 1
 test "$(rg -n 'payload_mm_authvar_mor_clear[.]c' "$root/src" \
 	-g Makefile.mk | wc -l)" -eq 1
 

@@ -103,6 +103,9 @@ enum cb_err payload_mm_authvar_mor_clear_plan_build(
 	const struct payload_mm_authvar_mor_clear_inventory *inventory,
 	struct payload_mm_authvar_mor_clear_plan *plan);
 
+enum cb_err payload_mm_authvar_mor_clear_plan_validate(
+	const struct payload_mm_authvar_mor_clear_plan *plan);
+
 enum cb_err payload_mm_authvar_mor_clear_receipt_build(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct payload_mm_authvar_mor_entry *entry,
