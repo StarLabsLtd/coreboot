@@ -2023,6 +2023,12 @@ static const uint8_t coordinator_enable_name[] = {
 	'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0,
 	0, 0,
 };
+#ifdef EXECUTOR_REAL_MEDIA
+static const uint8_t coordinator_secure_name[] = {
+	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
+	'o', 0, 't', 0, 0, 0,
+};
+#endif
 static const uint8_t coordinator_custom_guid[16] = {
 	0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
 	0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f,
@@ -3368,8 +3374,15 @@ static void coordinator_reset(unsigned int cut)
 {
 	struct coordinator_fixture fixture;
 	struct payload_mm_authvar_ftw_plan plan;
+	struct payload_mm_authvar_read_request read_request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		.name = coordinator_secure_name,
+		.name_size = sizeof(coordinator_secure_name),
+	};
+	struct payload_mm_authvar_read_result read_result;
 	uint8_t old_primary[BLOCK_SIZE];
 	uint8_t expected_primary[BLOCK_SIZE];
+	uint8_t secure_boot = 0;
 	int child_status;
 	pid_t child;
 
@@ -3393,8 +3406,19 @@ static void coordinator_reset(unsigned int cut)
 		WIFEXITED(child_status) && WEXITSTATUS(child_status) == 77);
 	operation_count = 0U;
 	install();
-	assert(payload_mm_authvar_executor_recover() ==
+	memcpy(read_request.vendor_guid, coordinator_global_guid,
+		sizeof(read_request.vendor_guid));
+	read_request.result_data = &secure_boot;
+	read_request.data_capacity = sizeof(secure_boot);
+	memset(&read_result, 0, sizeof(read_result));
+	assert(payload_mm_authvar_read_transaction(&read_request, &read_result) ==
 		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(read_result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		read_result.required_data_size == sizeof(secure_boot) &&
+		read_result.attributes == (PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
+		read_result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		secure_boot == 1U);
 	assert(!memcmp(media, old_primary, sizeof(old_primary)) ||
 		!memcmp(media, expected_primary, sizeof(expected_primary)));
 	assert(payload_mm_authvar_ftw_plan(media, MEDIA_SIZE, BLOCK_SIZE, &plan) ==

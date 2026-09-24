@@ -16,6 +16,47 @@
 
 static const uint8_t read_name[] = { 'R', 0, 0, 0 };
 static const uint8_t read_value[] = { 0x11, 0x22, 0x33, 0x44 };
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static const uint8_t setup_mode_name[] = {
+	'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0, 'M', 0, 'o', 0, 'd', 0,
+	'e', 0, 0, 0,
+};
+static const uint8_t signature_support_name[] = {
+	'S', 0, 'i', 0, 'g', 0, 'n', 0, 'a', 0, 't', 0, 'u', 0, 'r', 0,
+	'e', 0, 'S', 0, 'u', 0, 'p', 0, 'p', 0, 'o', 0, 'r', 0, 't', 0,
+	0, 0,
+};
+static const uint8_t secure_boot_name[] = {
+	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
+	'o', 0, 't', 0, 0, 0,
+};
+static const uint8_t cert_db_volatile_name[] = {
+	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 'v', 0, 0, 0,
+};
+static const uint8_t vendor_keys_name[] = {
+	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
+	'y', 0, 's', 0, 0, 0,
+};
+static const uint8_t cert_db_guid[16] = {
+	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+};
+static const uint8_t signature_support[] = {
+	0x12, 0xa5, 0x6c, 0x82, 0x10, 0xcf, 0xc9, 0x4a,
+	0xb1, 0x87, 0xbe, 0x01, 0x49, 0x66, 0x31, 0xbd,
+	0x26, 0x16, 0xc4, 0xc1, 0x4c, 0x50, 0x92, 0x40,
+	0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28,
+	0x07, 0x53, 0x3e, 0xff, 0xd0, 0x9f, 0xc9, 0x48,
+	0x85, 0xf1, 0x8a, 0xd5, 0x6c, 0x70, 0x1e, 0x01,
+	0xae, 0x0f, 0x3e, 0x09, 0xc4, 0xa6, 0x50, 0x4f,
+	0x9f, 0x1b, 0xd4, 0x1e, 0x2b, 0x89, 0xc1, 0x9a,
+	0xe8, 0x66, 0x57, 0x3c, 0x9c, 0x26, 0x34, 0x4e,
+	0xaa, 0x14, 0xed, 0x77, 0x6e, 0x85, 0xb3, 0xb6,
+	0xa1, 0x59, 0xc0, 0xa5, 0xe4, 0x94, 0xa7, 0x4a,
+	0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72,
+};
+static uint32_t view_used_offset;
+#endif
 static struct payload_mm_authvar_read_result *observed_result;
 static uint8_t *observed_output;
 static size_t observed_output_size;
@@ -26,6 +67,46 @@ static struct payload_mm_authvar_read_result nested_read_result;
 static bool callback_read_attempted;
 static bool observe_gate_release;
 static uint32_t gate_watcher_ready;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static bool force_view_get_device_error;
+static bool force_view_query_out_of_range;
+
+uint64_t __real_payload_mm_authvar_view_get(
+	const struct payload_mm_authvar_view *view, const uint8_t vendor_guid[16],
+	const void *name, size_t name_size, uint32_t data_capacity,
+	struct payload_mm_authvar_view_value *value);
+
+uint64_t __wrap_payload_mm_authvar_view_get(
+	const struct payload_mm_authvar_view *view, const uint8_t vendor_guid[16],
+	const void *name, size_t name_size, uint32_t data_capacity,
+	struct payload_mm_authvar_view_value *value)
+{
+	if (force_view_get_device_error) {
+		memset(value, 0, sizeof(*value));
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	return __real_payload_mm_authvar_view_get(view, vendor_guid, name,
+		name_size, data_capacity, value);
+}
+
+uint64_t __real_payload_mm_authvar_view_query(
+	const struct payload_mm_authvar_view *view,
+	const struct payload_mm_authvar_store_policy *policy, uint32_t attributes,
+	struct payload_mm_authvar_query_result *result);
+
+uint64_t __wrap_payload_mm_authvar_view_query(
+	const struct payload_mm_authvar_view *view,
+	const struct payload_mm_authvar_store_policy *policy, uint32_t attributes,
+	struct payload_mm_authvar_query_result *result)
+{
+	if (force_view_query_out_of_range) {
+		memset(result, 0, sizeof(*result));
+		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	}
+	return __real_payload_mm_authvar_view_query(view, policy, attributes,
+		result);
+}
+#endif
 
 static void *watch_gate_release(void *argument)
 {
@@ -181,6 +262,45 @@ static void assert_empty_metadata(const struct payload_mm_authvar_read_result *r
 		zero_buffer(result->vendor_guid, sizeof(result->vendor_guid)));
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static void expect_view_get(const uint8_t guid[16], const uint8_t *name,
+	size_t name_size, const void *expected, size_t expected_size,
+	uint32_t attributes)
+{
+	struct payload_mm_authvar_read_result result;
+	uint8_t output[128];
+	struct payload_mm_authvar_read_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		.name = name,
+		.name_size = name_size,
+		.result_data = output,
+		.data_capacity = sizeof(output),
+	};
+
+	memcpy(request.vendor_guid, guid, sizeof(request.vendor_guid));
+	memset(output, 0xa5, sizeof(output));
+	memset(&result, 0xa5, sizeof(result));
+	assert(payload_mm_authvar_read_transaction(&request, &result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(result.required_data_size == expected_size &&
+		result.attributes == attributes &&
+		!memcmp(output, expected, expected_size));
+	assert(zero_buffer(output + expected_size,
+		sizeof(output) - expected_size));
+}
+
+static void arm_view_reconcile(uint8_t modes)
+{
+	executor.volatile_modes = modes;
+	executor.sealed_volatile_modes = modes;
+	executor.volatile_modes_valid = true;
+	executor.sealed_volatile_modes_valid = true;
+	executor.modes_need_reconcile = true;
+	executor.sealed_modes_need_reconcile = true;
+}
+#endif
+
 static void alias_matrix(void)
 {
 	for (unsigned int test = 0; test < 18U; test++) {
@@ -328,11 +448,524 @@ int main(int argc, char **argv)
 	assert(argc == 2);
 	make_clean();
 	seed_record(attributes);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	{
+		static const uint8_t zero_timestamp[16];
+		static const uint8_t one = 1U;
+		const uint32_t record_size = (PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+			sizeof(read_name) + sizeof(read_value) + 3U) & ~3U;
+		const uint32_t nv_bs_time = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+
+		view_used_offset = coordinator_append_record(
+			PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + record_size,
+			coordinator_vendor_guid, coordinator_vendor_name,
+			sizeof(coordinator_vendor_name), nv_bs_time, zero_timestamp,
+			&one, sizeof(one),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO);
+	}
+#endif
 	install_without_provider();
 	memset(output, 0xa5, sizeof(output));
 	memset(&result, 0xa5, sizeof(result));
 
-	if (!strcmp(argv[1], "get") || !strcmp(argv[1], "end-failure")) {
+	if (!strcmp(argv[1], "view-get-all")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t disabled;
+		static const uint8_t enabled = 1U;
+		static const uint8_t cert_db_empty[] = { 4, 0, 0, 0 };
+		const uint32_t bs_rt = PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+
+		expect_view_get(coordinator_global_guid, setup_mode_name,
+			sizeof(setup_mode_name), &enabled, sizeof(enabled), bs_rt);
+		expect_view_get(coordinator_global_guid, signature_support_name,
+			sizeof(signature_support_name), signature_support,
+			sizeof(signature_support), bs_rt);
+		expect_view_get(coordinator_global_guid, secure_boot_name,
+			sizeof(secure_boot_name), &disabled, sizeof(disabled), bs_rt);
+		expect_view_get(cert_db_guid, cert_db_volatile_name,
+			sizeof(cert_db_volatile_name), cert_db_empty,
+			sizeof(cert_db_empty),
+			bs_rt | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED);
+		expect_view_get(coordinator_global_guid, vendor_keys_name,
+			sizeof(vendor_keys_name), &enabled, sizeof(enabled), bs_rt);
+		assert(executor.sealed_volatile_modes_valid &&
+			executor.sealed_volatile_modes ==
+				(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+				 PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-next-all")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t *const names[] = {
+			setup_mode_name, signature_support_name, secure_boot_name,
+			cert_db_volatile_name, vendor_keys_name, read_name,
+			coordinator_vendor_name,
+		};
+		static const size_t sizes[] = {
+			sizeof(setup_mode_name), sizeof(signature_support_name),
+			sizeof(secure_boot_name), sizeof(cert_db_volatile_name),
+			sizeof(vendor_keys_name), sizeof(read_name),
+			sizeof(coordinator_vendor_name),
+		};
+		static const uint8_t *const guids[] = {
+			coordinator_global_guid, coordinator_global_guid,
+			coordinator_global_guid, cert_db_guid,
+			coordinator_global_guid, caller_guid, coordinator_vendor_guid,
+		};
+		uint8_t cursor[64] = { 0 };
+		uint8_t cursor_guid[16] = { 0 };
+		size_t cursor_size = 0U;
+
+		for (size_t i = 0U; i < ARRAY_SIZE(names); i++) {
+			uint8_t next_name[64];
+			struct payload_mm_authvar_read_request request = {
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+				.name = cursor_size ? cursor : NULL,
+				.name_size = cursor_size,
+				.result_name = next_name,
+				.name_capacity = sizeof(next_name),
+			};
+
+			memcpy(request.vendor_guid, cursor_guid,
+				sizeof(request.vendor_guid));
+			memset(next_name, 0xa5, sizeof(next_name));
+			memset(&result, 0xa5, sizeof(result));
+			assert(payload_mm_authvar_read_transaction(&request, &result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+			assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+			assert(result.required_name_size == sizes[i] &&
+				!memcmp(result.vendor_guid, guids[i], 16U) &&
+				!memcmp(next_name, names[i], sizes[i]));
+			memcpy(cursor, next_name, sizes[i]);
+			memcpy(cursor_guid, result.vendor_guid, sizeof(cursor_guid));
+			cursor_size = sizes[i];
+		}
+		{
+			uint8_t next_name[64];
+			struct payload_mm_authvar_read_request request = {
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+				.name = cursor,
+				.name_size = cursor_size,
+				.result_name = next_name,
+				.name_capacity = sizeof(next_name),
+			};
+
+			memcpy(request.vendor_guid, cursor_guid,
+				sizeof(request.vendor_guid));
+			memset(next_name, 0xa5, sizeof(next_name));
+			memset(&result, 0xa5, sizeof(result));
+			assert(payload_mm_authvar_read_transaction(&request, &result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+			assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+			assert(zero_buffer(next_name, sizeof(next_name)));
+			assert_empty_metadata(&result);
+		}
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-small")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = signature_support_name,
+			.name_size = sizeof(signature_support_name),
+			.result_data = output,
+			.data_capacity = sizeof(output),
+		};
+
+		memcpy(request.vendor_guid, coordinator_global_guid,
+			sizeof(request.vendor_guid));
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+		assert(result.required_data_size == sizeof(signature_support) &&
+			result.attributes == (PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+				PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS));
+		assert(zero_buffer(output, sizeof(output)));
+		request = (struct payload_mm_authvar_read_request) {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+			.result_name = output,
+			.name_capacity = sizeof(output),
+		};
+		memset(output, 0xa5, sizeof(output));
+		memset(&result, 0xa5, sizeof(result));
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL);
+		assert(result.required_name_size == sizeof(setup_mode_name) &&
+			zero_buffer(output, sizeof(output)) &&
+			zero_buffer(result.vendor_guid, sizeof(result.vendor_guid)));
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-reconcile-statuses")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t missing_name[] = { 'Z', 0, 0, 0 };
+		const uint8_t modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+
+		for (unsigned int test = 0U; test < 6U; test++) {
+			struct payload_mm_authvar_read_request request = { 0 };
+			uint64_t expected_status;
+
+			arm_view_reconcile(modes);
+			memset(output, 0xa5, sizeof(output));
+			memset(&result, 0xa5, sizeof(result));
+			switch (test) {
+			case 0U:
+				request = get_request(output, sizeof(output));
+				request.name = missing_name;
+				expected_status = PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+				break;
+			case 1U:
+				request = (struct payload_mm_authvar_read_request) {
+					.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+					.name = signature_support_name,
+					.name_size = sizeof(signature_support_name),
+					.result_data = output,
+					.data_capacity = sizeof(output),
+				};
+				memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+				expected_status =
+					PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+				break;
+			case 2U:
+				request = (struct payload_mm_authvar_read_request) {
+					.operation = PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+					.name = missing_name,
+					.name_size = sizeof(missing_name),
+					.result_name = output,
+					.name_capacity = sizeof(output),
+				};
+				memcpy(request.vendor_guid, caller_guid, 16U);
+				expected_status =
+					PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+				break;
+			case 3U:
+				request.operation = PAYLOAD_MM_AUTHVAR_SERVICE_QUERY;
+				request.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE;
+				expected_status =
+					PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+				break;
+			case 4U:
+				request.operation = PAYLOAD_MM_AUTHVAR_SERVICE_QUERY;
+				request.attributes =
+					PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+				expected_status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+				break;
+			case 5U:
+				media[FV_HEADER_SIZE + view_used_offset] = 0xaaU;
+				request.operation = PAYLOAD_MM_AUTHVAR_SERVICE_QUERY;
+				request.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+					PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+				expected_status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+				break;
+			default:
+				abort();
+			}
+			assert(payload_mm_authvar_read_transaction(&request, &result) ==
+				expected_status);
+			assert_complete(&result, expected_status);
+			assert(!executor.modes_need_reconcile &&
+				!executor.sealed_modes_need_reconcile && !poisoned);
+		}
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-reconcile-end-failure")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t missing_name[] = { 'Z', 0, 0, 0 };
+		const uint8_t modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = setup_mode_name,
+			.name_size = sizeof(setup_mode_name),
+			.result_data = output,
+			.data_capacity = sizeof(output),
+		};
+
+		memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		arm_view_reconcile(modes);
+		fail_end = true;
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(filled_with(output, 0xa5, sizeof(output)) &&
+			executor.modes_need_reconcile &&
+			executor.sealed_modes_need_reconcile &&
+			executor.sealed_volatile_modes == modes);
+		fail_end = false;
+		request.name = missing_name;
+		request.name_size = sizeof(missing_name);
+		memset(&result, 0xa5, sizeof(result));
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+		assert(!executor.modes_need_reconcile &&
+			!executor.sealed_modes_need_reconcile);
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-boot-drift")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t enabled = 1U;
+		const uint32_t vendor_offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE +
+			((PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE + sizeof(read_name) +
+			  sizeof(read_value) + 3U) & ~3U);
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = setup_mode_name,
+			.name_size = sizeof(setup_mode_name),
+			.result_data = output,
+			.data_capacity = sizeof(output),
+		};
+
+		expect_view_get(coordinator_global_guid, setup_mode_name,
+			sizeof(setup_mode_name), &enabled, sizeof(enabled),
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+		media[FV_HEADER_SIZE + vendor_offset +
+			((PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+			  sizeof(coordinator_vendor_name) + 3U) & ~3U)] = 0U;
+		memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		memset(output, 0xa5, sizeof(output));
+		memset(&result, 0xa5, sizeof(result));
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(poisoned && filled_with(output, 0xa5, sizeof(output)));
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-runtime-unsealed")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = setup_mode_name,
+			.name_size = sizeof(setup_mode_name),
+			.result_data = output,
+			.data_capacity = sizeof(output),
+		};
+
+		executor.at_runtime = true;
+		executor.sealed_at_runtime = true;
+		memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(poisoned && filled_with(output, 0xa5, sizeof(output)));
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-runtime-reconcile")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t zero_timestamp[16];
+		static const uint8_t one = 1U;
+		static const uint8_t pk_data = 0x5aU;
+		static const uint8_t enabled = 1U;
+		const uint32_t nv_bs = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+		uint32_t pk_offset = view_used_offset;
+		uint32_t enable_offset;
+
+		view_used_offset = coordinator_append_record(view_used_offset,
+			coordinator_global_guid, coordinator_pk_name,
+			sizeof(coordinator_pk_name), nv_bs |
+				PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+				PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+			zero_timestamp, &pk_data, sizeof(pk_data),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO);
+		enable_offset = view_used_offset;
+		view_used_offset = coordinator_append_record(view_used_offset,
+			coordinator_enable_guid, coordinator_enable_name,
+			sizeof(coordinator_enable_name), nv_bs, zero_timestamp,
+			&one, sizeof(one),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+		expect_view_get(coordinator_global_guid, secure_boot_name,
+			sizeof(secure_boot_name), &enabled, sizeof(enabled),
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+		executor.at_runtime = true;
+		executor.sealed_at_runtime = true;
+		media[FV_HEADER_SIZE + pk_offset + 2U] =
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+		media[FV_HEADER_SIZE + enable_offset +
+			((PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+			  sizeof(coordinator_enable_name) + 3U) & ~3U)] = 0U;
+		{
+			struct payload_mm_authvar_store_entry entries[64];
+			struct payload_mm_authvar_store_index index = {
+				.entries = entries,
+				.entry_capacity = ARRAY_SIZE(entries),
+			};
+			const struct payload_mm_authvar_store_limits limits = {
+				.maximum_store_size = STORE_SIZE,
+				.maximum_name_size = 128U,
+				.maximum_data_size = 2048U,
+				.maximum_records = ARRAY_SIZE(entries),
+			};
+			u8 modes;
+
+			assert(payload_mm_authvar_store_scan(&index,
+				media + FV_HEADER_SIZE, STORE_SIZE, &limits) == CB_SUCCESS);
+			assert(payload_mm_authvar_coordinator_reconcile_modes(&index, true,
+				PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+				PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS, &modes));
+			assert(modes == (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+				PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+				PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+		}
+		arm_view_reconcile(PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+		expect_view_get(coordinator_global_guid, setup_mode_name,
+			sizeof(setup_mode_name), &enabled, sizeof(enabled),
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+		assert(executor.sealed_volatile_modes ==
+			(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+			 PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			 PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) &&
+			!executor.sealed_modes_need_reconcile);
+		expect_view_get(coordinator_global_guid, secure_boot_name,
+			sizeof(secure_boot_name), &enabled, sizeof(enabled),
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-first-end-failure") ||
+		   !strcmp(argv[1], "view-next-end-failure")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		bool next = !strcmp(argv[1], "view-next-end-failure");
+		uint8_t next_output[32];
+		uint8_t *caller_output = next ? next_output : output;
+		size_t caller_capacity = next ? sizeof(next_output) : sizeof(output);
+		struct payload_mm_authvar_read_request request = {
+			.operation = next ? PAYLOAD_MM_AUTHVAR_SERVICE_NEXT :
+				PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = next ? NULL : setup_mode_name,
+			.name_size = next ? 0U : sizeof(setup_mode_name),
+			.result_name = next ? caller_output : NULL,
+			.name_capacity = next ? caller_capacity : 0U,
+			.result_data = next ? NULL : caller_output,
+			.data_capacity = next ? 0U : caller_capacity,
+		};
+
+		if (!next)
+			memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		memset(caller_output, 0xa5, caller_capacity);
+		fail_end = true;
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(filled_with(caller_output, 0xa5, caller_capacity) &&
+			executor.sealed_volatile_modes_valid &&
+			executor.sealed_volatile_modes ==
+				(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+				 PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) &&
+			!executor.sealed_modes_need_reconcile);
+#else
+		assert(false);
+#endif
+	} else if (!strncmp(argv[1], "view-collision-", 15U)) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t zero_timestamp[16];
+		static const uint8_t one = 1U;
+		struct payload_mm_authvar_read_request request = { 0 };
+
+		(void)coordinator_append_record(view_used_offset,
+			coordinator_global_guid, setup_mode_name,
+			sizeof(setup_mode_name),
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+				PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
+			zero_timestamp, &one, sizeof(one),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+		if (!strcmp(argv[1], "view-collision-get")) {
+			request = (struct payload_mm_authvar_read_request) {
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+				.name = setup_mode_name,
+				.name_size = sizeof(setup_mode_name),
+				.result_data = output,
+				.data_capacity = sizeof(output),
+			};
+			memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		} else if (!strcmp(argv[1], "view-collision-next")) {
+			request = (struct payload_mm_authvar_read_request) {
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_NEXT,
+				.result_name = output,
+				.name_capacity = sizeof(output),
+			};
+		} else {
+			assert(!strcmp(argv[1], "view-collision-query"));
+			request.operation = PAYLOAD_MM_AUTHVAR_SERVICE_QUERY;
+			request.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+		}
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(poisoned && filled_with(output, 0xa5, sizeof(output)));
+		assert_empty_metadata(&result);
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-get-malformed") ||
+		   !strcmp(argv[1], "view-get-device")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		static const uint8_t malformed_name[] = {
+			'B', 0, 0, 0, 'X', 0, 0, 0,
+		};
+		bool device = !strcmp(argv[1], "view-get-device");
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+			.name = device ? setup_mode_name : malformed_name,
+			.name_size = device ? sizeof(setup_mode_name) :
+				sizeof(malformed_name),
+			.result_data = output,
+			.data_capacity = sizeof(output),
+		};
+		uint64_t expected_status = device ?
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR :
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+
+		memcpy(request.vendor_guid, coordinator_global_guid, 16U);
+		arm_view_reconcile(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+		force_view_get_device_error = device;
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			expected_status);
+		assert_complete(&result, expected_status);
+		assert(!poisoned && zero_buffer(output, sizeof(output)) &&
+			!executor.sealed_modes_need_reconcile);
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "view-query-out-of-range")) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		struct payload_mm_authvar_read_request request = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
+			.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		};
+
+		arm_view_reconcile(PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+		force_view_query_out_of_range = true;
+		assert(payload_mm_authvar_read_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert_complete(&result, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(poisoned && executor.modes_need_reconcile &&
+			executor.sealed_modes_need_reconcile);
+		assert_empty_metadata(&result);
+#else
+		assert(false);
+#endif
+	} else if (!strcmp(argv[1], "get") || !strcmp(argv[1], "end-failure")) {
 		struct payload_mm_authvar_read_request request =
 			get_request(output, sizeof(output));
 
