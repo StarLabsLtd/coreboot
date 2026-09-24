@@ -160,6 +160,15 @@ config PAYLOAD_MM_AUTHVAR_SIGNATURE_DB
 	  X.509 certificate with the bounded crypto arena, but grants no trust,
 	  authorization, store mutation, provider or endpoint.
 
+config PAYLOAD_MM_AUTHVAR_CERTDB
+	bool
+	default n
+	help
+	  Build the dormant allocation-free EDK2 26.09 private authenticated-variable
+	  certdb codec. It validates complete packed snapshots and composes bounded
+	  add or remove replacements, but performs no cryptography, authorization,
+	  store mutation, media operation, provider or endpoint publication.
+
 config PAYLOAD_MM_AUTHVAR_ROUTE
 	bool
 	default n

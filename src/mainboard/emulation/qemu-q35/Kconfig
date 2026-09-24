@@ -50,6 +50,7 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	select PAYLOAD_MM_AUTHVAR_EXECUTOR
 	select PAYLOAD_MM_AUTHVAR_FORMAT_PARSER
 	select PAYLOAD_MM_AUTHVAR_SIGNATURE_DB
+	select PAYLOAD_MM_AUTHVAR_CERTDB
 	select PAYLOAD_MM_AUTHVAR_ROUTE
 	select PAYLOAD_MM_AUTHVAR_CMS_VERIFY
 	select PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR
@@ -68,8 +69,8 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	  protected-store PK/KEK trust policy, dormant Auth2 policy authority,
 	  fixed-role atomic bundle planner, same-lease candidate commit, dormant
 	  linear authority-to-commit coordinator, pure default-store composer,
-	  same-lease pre-lifecycle erased-media recovery and immutable synthetic
-	  volatile-variable view,
+	  same-lease pre-lifecycle erased-media recovery, immutable synthetic
+	  volatile-variable view and pure private-variable certdb codec,
 	  untrusted detached-CMS verifier and
 	  one-anchor X.509 matcher for QEMU build proof. This installs no arena,
 	  media backend, authority, endpoint, SMI
