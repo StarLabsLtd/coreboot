@@ -384,6 +384,16 @@ config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
 	  platform integration must provide reviewed mapping, cache, fence, and
 	  DMA-policy snapshot operations.
 
+config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND
+	bool
+	default n
+	depends on ARCH_X86 && PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
+	help
+	  Build a dormant generic x86 PAE mapping and cache-maintenance backend for
+	  the MOR clear executor. It allocates nothing, installs no boot hook and
+	  makes no platform-support claim. A platform must supply excluded page-table
+	  backing and a reserved fixed virtual aperture.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
