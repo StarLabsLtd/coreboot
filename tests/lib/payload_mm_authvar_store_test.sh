@@ -50,8 +50,60 @@ for optimization in 0 2; do
 	fi
 done
 
+find_one_mutant="$tmp/payload_mm_authvar_store-find-one-duplicate.c"
+sed 's/(predecessor &&/(false \&\& predecessor \&\&/' \
+	"$root/src/lib/payload_mm_authvar_store.c" > "$find_one_mutant"
+if cmp -s "$find_one_mutant" "$root/src/lib/payload_mm_authvar_store.c"; then
+	echo 'ERROR: find-one duplicate mutant changed nothing' >&2
+	exit 1
+fi
+for optimization in 0 2; do
+	binary="$tmp/mutant-find-one-duplicate-O$optimization"
+	cc -std=gnu11 -O"$optimization" -Wall -Wextra -Werror -Wconversion \
+		-Wshadow -Wstrict-prototypes -fsanitize=address,undefined \
+		-fno-sanitize-recover=all -fno-builtin -D__TEST__ -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$tmp/include" -I"$root/src" -I"$root/src/include" \
+		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" \
+		"$root/tests/lib/payload_mm_authvar_store_test.c" "$find_one_mutant" \
+		-o "$binary"
+	if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
+		echo "ERROR: find-one duplicate O$optimization mutant survived" >&2
+		exit 1
+	fi
+done
+
+winner_mutant="$tmp/payload_mm_authvar_store-find-one-winner.c"
+sed '/enum cb_err payload_mm_authvar_store_find_one/,/^}/s/copy_record(entry, bytes, \&record);/if (!*found) copy_record(entry, bytes, \&record);/' \
+	"$root/src/lib/payload_mm_authvar_store.c" > "$winner_mutant"
+if cmp -s "$winner_mutant" "$root/src/lib/payload_mm_authvar_store.c"; then
+	echo 'ERROR: find-one winner mutant changed nothing' >&2
+	exit 1
+fi
+for optimization in 0 2; do
+	binary="$tmp/mutant-find-one-winner-O$optimization"
+	cc -std=gnu11 -O"$optimization" -Wall -Wextra -Werror -Wconversion \
+		-Wshadow -Wstrict-prototypes -fsanitize=address,undefined \
+		-fno-sanitize-recover=all -fno-builtin -D__TEST__ -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$tmp/include" -I"$root/src" -I"$root/src/include" \
+		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" \
+		"$root/tests/lib/payload_mm_authvar_store_test.c" "$winner_mutant" \
+		-o "$binary"
+	if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
+		echo "ERROR: find-one winner O$optimization mutant survived" >&2
+		exit 1
+	fi
+done
+
 mutant="$tmp/payload_mm_authvar_store-erased-tail.c"
-sed 's/if (state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {/if (false \&\& state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {/' \
+sed 's/if (record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED)/if (false \&\& record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED)/' \
 	"$root/src/lib/payload_mm_authvar_store.c" > "$mutant"
 if cmp -s "$mutant" "$root/src/lib/payload_mm_authvar_store.c"; then
 	echo 'ERROR: erased-tail mutant changed nothing' >&2

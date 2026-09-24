@@ -90,6 +90,371 @@ static enum cb_err scan(void)
 	return payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits);
 }
 
+static size_t one_valid_record(const uint16_t *name, size_t words);
+
+static void assert_find_matches_scan(const uint8_t guid[16],
+	const uint16_t *name, size_t name_size)
+{
+	struct payload_mm_authvar_store_entry result;
+	struct payload_mm_authvar_store_entry zero = { 0 };
+	const struct payload_mm_authvar_store_entry *expected;
+	bool found = true;
+	const enum cb_err scan_result = scan();
+	const enum cb_err find_result = payload_mm_authvar_store_find_one(&result,
+		&found, store, sizeof(store), &limits, guid, name, name_size);
+
+	assert(find_result == scan_result);
+	if (scan_result != CB_SUCCESS) {
+		assert(!found && !memcmp(&result, &zero, sizeof(result)));
+		return;
+	}
+	expected = payload_mm_authvar_store_find(&index, guid, name, name_size);
+	assert(found == (expected != NULL));
+	if (expected)
+		assert(!memcmp(&result, expected, sizeof(result)));
+	else
+		assert(!memcmp(&result, &zero, sizeof(result)));
+}
+
+static void assert_find_matches_scan_with_limits(const uint8_t guid[16],
+	const uint16_t *name, size_t name_size,
+	const struct payload_mm_authvar_store_limits *test_limits)
+{
+	struct payload_mm_authvar_store_entry result;
+	struct payload_mm_authvar_store_entry zero = { 0 };
+	const struct payload_mm_authvar_store_entry *expected;
+	bool found = true;
+	const enum cb_err scan_result = payload_mm_authvar_store_scan(&index, store,
+		sizeof(store), test_limits);
+	const enum cb_err find_result = payload_mm_authvar_store_find_one(&result,
+		&found, store, sizeof(store), test_limits, guid, name, name_size);
+
+	assert(find_result == scan_result);
+	if (scan_result != CB_SUCCESS) {
+		assert(!found && !memcmp(&result, &zero, sizeof(result)));
+		return;
+	}
+	expected = payload_mm_authvar_store_find(&index, guid, name, name_size);
+	assert(found == (expected != NULL));
+	if (expected)
+		assert(!memcmp(&result, expected, sizeof(result)));
+	else
+		assert(!memcmp(&result, &zero, sizeof(result)));
+}
+
+static void single_key_differential(void)
+{
+	static const uint16_t target[] = { 'M', 'O', 'R', 0 };
+	static const uint16_t other[] = { 'O', 't', 'h', 'e', 'r', 0 };
+	static const uint16_t absent[] = { 'N', 'o', 'n', 'e', 0 };
+	static const uint8_t first[] = { 1 };
+	static const uint8_t second[] = { 2, 3 };
+	struct payload_mm_authvar_store_entry result;
+	struct payload_mm_authvar_store_entry zero = { 0 };
+	bool found;
+	size_t offset;
+
+	init_store();
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY, 7, guid_a, other,
+		ARRAY_SIZE(other), first, sizeof(first));
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b,
+		other, ARRAY_SIZE(other), first, sizeof(first));
+	offset = add_record(offset,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION, 7, guid_a,
+		target, ARRAY_SIZE(target), first, sizeof(first));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), second, sizeof(second));
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+	assert_find_matches_scan(guid_a, absent, sizeof(absent));
+
+	/* A malformed duplicate for an unrelated key must reject the lookup. */
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), first, sizeof(first));
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b,
+		other, ARRAY_SIZE(other), first, sizeof(first));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b, other,
+		ARRAY_SIZE(other), second, sizeof(second));
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+
+	/* A transition may only be replaced by one subsequent added record. */
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION, 7, guid_b,
+		other, ARRAY_SIZE(other), first, sizeof(first));
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b,
+		other, ARRAY_SIZE(other), second, sizeof(second));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), first, sizeof(first));
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+
+	memset(&result, 0xa5, sizeof(result));
+	found = true;
+	assert(payload_mm_authvar_store_find_one(&result, &found, store,
+		sizeof(store), &limits, guid_a, target, sizeof(target) - 1U) == CB_SUCCESS);
+	assert(!found && !memcmp(&result, &zero, sizeof(result)));
+	memset(&result, 0xa5, sizeof(result));
+	assert(payload_mm_authvar_store_find_one(&result, NULL, store,
+		sizeof(store), &limits, guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!memcmp(&result, &zero, sizeof(result)));
+}
+
+static void single_key_state_and_limit_differential(void)
+{
+	static const uint16_t target[] = { 'M', 'O', 'R', 0 };
+	static const uint16_t near_name[] = { 'M', 'O', 'S', 0 };
+	static const uint8_t near_guid[16] = { 1, 2, 3, 4, 5, 6, 7, 8,
+		9, 10, 11, 12, 13, 14, 15, 17 };
+	static const uint8_t data[] = { 1, 2 };
+	static const uint8_t states[] = {
+		PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED,
+		PAYLOAD_MM_AUTHVAR_STATE_TRANSITION_DELETED,
+	};
+	struct payload_mm_authvar_store_limits changed = limits;
+	struct payload_mm_authvar_store_entry result;
+	struct payload_mm_authvar_store_entry zero = { 0 };
+	bool found = true;
+	size_t offset;
+
+	for (size_t i = 0; i < ARRAY_SIZE(states); i++) {
+		init_store();
+		add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, states[i], 7, guid_a,
+			target, ARRAY_SIZE(target), data, sizeof(data));
+		assert_find_matches_scan(guid_a, target, sizeof(target));
+	}
+
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, near_guid, target,
+		ARRAY_SIZE(target), data, sizeof(data));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, near_name,
+		ARRAY_SIZE(near_name), data, sizeof(data));
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+	assert(payload_mm_authvar_store_find_one(&result, &found, store,
+		sizeof(store), &limits, guid_a, target, (size_t)UINT32_MAX + 1U) ==
+		CB_SUCCESS);
+	assert(!found && !memcmp(&result, &zero, sizeof(result)));
+
+	/* Preserve a winner before either accepted form of dirty tail. */
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), data, sizeof(data));
+	store[offset] = 0;
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), data, sizeof(data));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ERASED, 7, guid_b, near_name,
+		ARRAY_SIZE(near_name), data, sizeof(data));
+	put32(offset + 36U, limits.maximum_name_size + 2U);
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+
+	/* Deleted records count toward the exact record cap without consuming index. */
+	changed.maximum_records = 2;
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED, 7, guid_a, target,
+		ARRAY_SIZE(target), data, sizeof(data));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_TRANSITION_DELETED, 7, guid_b,
+		near_name, ARRAY_SIZE(near_name), data, sizeof(data));
+	assert_find_matches_scan_with_limits(guid_a, target, sizeof(target), &changed);
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_TRANSITION_DELETED, 7,
+		near_guid, near_name, ARRAY_SIZE(near_name), data, sizeof(data));
+	assert_find_matches_scan_with_limits(guid_a, target, sizeof(target), &changed);
+
+	/* Structural corruption of an unrelated record still invalidates the store. */
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), data, sizeof(data));
+	add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b, near_name,
+		ARRAY_SIZE(near_name), data, sizeof(data));
+	store[offset + 3U] = 1;
+	assert_find_matches_scan(guid_a, target, sizeof(target));
+}
+
+static void single_key_many_unique(void)
+{
+	static const uint8_t data = 1;
+	size_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	uint16_t names[MAX_ENTRIES][2];
+
+	init_store();
+	for (size_t i = 0; i < MAX_ENTRIES; i++) {
+		names[i][0] = (uint16_t)('A' + i);
+		names[i][1] = 0;
+		offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a,
+			names[i], ARRAY_SIZE(names[i]), &data, sizeof(data));
+	}
+	assert_find_matches_scan(guid_a, names[MAX_ENTRIES - 1U],
+		sizeof(names[MAX_ENTRIES - 1U]));
+}
+
+static void single_key_rejects_aliases(void)
+{
+	static const uint16_t target[] = { 'M', 'O', 'R', 0 };
+	static const uint8_t data = 1;
+	union {
+		struct payload_mm_authvar_store_entry alignment;
+		uint8_t bytes[sizeof(struct payload_mm_authvar_store_entry)];
+	} shared;
+	union {
+		struct payload_mm_authvar_store_entry alignment;
+		uint8_t bytes[64];
+	} aliased_input;
+	uint8_t saved_input[sizeof(aliased_input)];
+	struct payload_mm_authvar_store_entry entry;
+	uint8_t saved_store[STORE_SIZE];
+	bool found;
+
+	init_store();
+	add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a, target,
+		ARRAY_SIZE(target), &data, sizeof(data));
+	memcpy(saved_store, store, sizeof(store));
+	memset(&shared, 0xa5, sizeof(shared));
+	assert(payload_mm_authvar_store_find_one(
+		(struct payload_mm_authvar_store_entry *)shared.bytes,
+		(bool *)shared.bytes, store, sizeof(store), &limits, guid_a, target,
+		sizeof(target)) == CB_ERR);
+	for (size_t i = 0; i < sizeof(shared); i++)
+		assert(shared.bytes[i] == 0xa5);
+
+	/* An output within the mapped store must not modify that input. */
+	assert(!((uintptr_t)store % _Alignof(struct payload_mm_authvar_store_entry)));
+	assert(payload_mm_authvar_store_find_one(
+		(struct payload_mm_authvar_store_entry *)store, &found, store,
+		sizeof(store), &limits, guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!memcmp(store, saved_store, sizeof(store)));
+	assert(payload_mm_authvar_store_find_one(&entry, (bool *)store, store,
+		sizeof(store), &limits, guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!memcmp(store, saved_store, sizeof(store)));
+
+	memset(&aliased_input, 0x5a, sizeof(aliased_input));
+	memcpy(saved_input, &aliased_input, sizeof(saved_input));
+	assert(payload_mm_authvar_store_find_one(
+		(struct payload_mm_authvar_store_entry *)aliased_input.bytes, &found,
+		store, sizeof(store),
+		(const struct payload_mm_authvar_store_limits *)aliased_input.bytes,
+		guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!memcmp(&aliased_input, saved_input, sizeof(saved_input)));
+	assert(payload_mm_authvar_store_find_one(
+		(struct payload_mm_authvar_store_entry *)aliased_input.bytes, &found,
+		store, sizeof(store), &limits, aliased_input.bytes, target,
+		sizeof(target)) == CB_ERR);
+	assert(!memcmp(&aliased_input, saved_input, sizeof(saved_input)));
+	assert(payload_mm_authvar_store_find_one(
+		(struct payload_mm_authvar_store_entry *)aliased_input.bytes, &found,
+		store, sizeof(store), &limits, guid_a, aliased_input.bytes,
+		sizeof(target)) == CB_ERR);
+	assert(!memcmp(&aliased_input, saved_input, sizeof(saved_input)));
+
+	memset(&entry, 0xa5, sizeof(entry));
+	found = true;
+	assert(payload_mm_authvar_store_find_one(&entry, NULL, store, sizeof(store),
+		&limits, guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!memcmp(&entry, &(struct payload_mm_authvar_store_entry) { 0 },
+		sizeof(entry)));
+	memset(&entry, 0xa5, sizeof(entry));
+	assert(payload_mm_authvar_store_find_one(NULL, &found, store, sizeof(store),
+		&limits, guid_a, target, sizeof(target)) == CB_ERR);
+	assert(!found);
+	memset(&entry, 0xa5, sizeof(entry));
+	found = true;
+	assert(payload_mm_authvar_store_find_one(&entry, &found, store,
+		sizeof(store), &limits, NULL, target, sizeof(target)) == CB_ERR);
+	assert(!found && !memcmp(&entry,
+		&(struct payload_mm_authvar_store_entry) { 0 }, sizeof(entry)));
+	memset(&entry, 0xa5, sizeof(entry));
+	found = true;
+	assert(payload_mm_authvar_store_find_one(&entry, &found, store,
+		sizeof(store), &limits, guid_a, NULL, sizeof(target)) == CB_ERR);
+	assert(!found && !memcmp(&entry,
+		&(struct payload_mm_authvar_store_entry) { 0 }, sizeof(entry)));
+}
+
+static void single_key_byte_mutation_differential(void)
+{
+	static const uint16_t target[] = { 'M', 'O', 'R', 0 };
+	static const uint16_t other[] = { 'O', 't', 'h', 'e', 'r', 0 };
+	static const uint16_t absent[] = { 'A', 'b', 's', 'e', 'n', 't', 0 };
+	static const uint8_t first[] = { 1, 2 };
+	static const uint8_t second[] = { 3, 4, 5 };
+	uint8_t baseline[STORE_SIZE];
+	size_t offset;
+	size_t used_end;
+
+	init_store();
+	offset = add_record(PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_b, other,
+		ARRAY_SIZE(other), first, sizeof(first));
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED, 7,
+		guid_a, other, ARRAY_SIZE(other), first, sizeof(first));
+	offset = add_record(offset,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION, 7, guid_a,
+		target, ARRAY_SIZE(target), first, sizeof(first));
+	offset = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_ADDED, 7, guid_a,
+		target, ARRAY_SIZE(target), second, sizeof(second));
+	used_end = add_record(offset, PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY, 7,
+		guid_b, target, ARRAY_SIZE(target), first, sizeof(first));
+	memcpy(baseline, store, sizeof(baseline));
+
+	for (size_t position = 0; position < used_end + 4U; position++) {
+		const uint8_t values[] = {
+			0x00, 0xff, (uint8_t)(baseline[position] ^ 1U),
+		};
+
+		for (size_t value = 0; value < ARRAY_SIZE(values); value++) {
+			if (values[value] == baseline[position])
+				continue;
+			memcpy(store, baseline, sizeof(store));
+			store[position] = values[value];
+			assert_find_matches_scan(guid_a, target, sizeof(target));
+			assert_find_matches_scan(guid_a, absent, sizeof(absent));
+		}
+	}
+	memcpy(store, baseline, sizeof(store));
+}
+
+static void single_key_every_buffer_boundary(void)
+{
+	static const uint16_t name[] = { 'B', 0 };
+	struct payload_mm_authvar_store_entry result;
+	struct payload_mm_authvar_store_entry zero = { 0 };
+	bool found;
+	size_t record_end;
+
+	one_valid_record(name, ARRAY_SIZE(name));
+	for (size_t size = 0; size < sizeof(store); size++) {
+		memset(&result, 0xa5, sizeof(result));
+		found = true;
+		assert(payload_mm_authvar_store_find_one(&result, &found, store, size,
+			&limits, guid_a, name, sizeof(name)) == CB_ERR);
+		assert(!found && !memcmp(&result, &zero, sizeof(result)));
+	}
+	record_end = one_valid_record(name, ARRAY_SIZE(name));
+	for (size_t size = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE; size <= record_end;
+	     size++) {
+		one_valid_record(name, ARRAY_SIZE(name));
+		put32(16U, (uint32_t)size);
+		memset(&result, 0xa5, sizeof(result));
+		found = true;
+		assert(payload_mm_authvar_store_find_one(&result, &found, store, size,
+			&limits, guid_a, name, sizeof(name)) ==
+			(size == PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE || size == record_end ?
+			 CB_SUCCESS : CB_ERR));
+		assert(found == (size == record_end));
+	}
+}
+
 static void valid_store_and_semantics(void)
 {
 	static const uint16_t alpha[] = { 'A', 'l', 'p', 'h', 'a', 0 };
@@ -414,5 +779,11 @@ int main(void)
 	attribute_combinations();
 	time_authentication_metadata();
 	every_buffer_boundary();
+	single_key_differential();
+	single_key_state_and_limit_differential();
+	single_key_many_unique();
+	single_key_rejects_aliases();
+	single_key_byte_mutation_differential();
+	single_key_every_buffer_boundary();
 	return 0;
 }

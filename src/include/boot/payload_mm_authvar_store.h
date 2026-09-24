@@ -62,6 +62,17 @@ struct payload_mm_authvar_store_index {
 enum cb_err payload_mm_authvar_store_scan(
 	struct payload_mm_authvar_store_index *index, const void *store,
 	size_t buffer_size, const struct payload_mm_authvar_store_limits *limits);
+/*
+ * Validate the complete store and return the winner for one exact key.
+ * The output and key pointers are required. Outputs must not overlap each
+ * other or any input. Aliasing is rejected without modifying the input;
+ * otherwise outputs are zeroed on error.
+ */
+enum cb_err payload_mm_authvar_store_find_one(
+	struct payload_mm_authvar_store_entry *entry, bool *found,
+	const void *store, size_t buffer_size,
+	const struct payload_mm_authvar_store_limits *limits,
+	const uint8_t vendor_guid[16], const void *name, size_t name_size);
 /* Revalidate every scanner/index invariant before policy consumes a snapshot. */
 bool payload_mm_authvar_store_index_valid(
 	const struct payload_mm_authvar_store_index *index);

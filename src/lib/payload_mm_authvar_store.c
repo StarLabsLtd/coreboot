@@ -149,6 +149,16 @@ static bool range_valid(const void *data, size_t size)
 		(data && (uintptr_t)data <= UINTPTR_MAX - size);
 }
 
+static bool ranges_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	const uintptr_t left_address = (uintptr_t)left;
+	const uintptr_t right_address = (uintptr_t)right;
+
+	return left_size && right_size && left_address < right_address + right_size &&
+		right_address < left_address + left_size;
+}
+
 bool payload_mm_authvar_store_index_valid(
 	const struct payload_mm_authvar_store_index *index)
 {
@@ -219,6 +229,119 @@ bool payload_mm_authvar_store_index_valid(
 	return true;
 }
 
+enum record_result {
+	RECORD_VALID,
+	RECORD_END,
+	RECORD_DIRTY_TAIL,
+	RECORD_INVALID,
+};
+
+struct record_view {
+	size_t offset;
+	size_t name_offset;
+	size_t data_offset;
+	size_t next;
+	uint32_t attributes;
+	uint32_t name_size;
+	uint32_t data_size;
+	uint8_t state;
+	bool visible;
+};
+
+static enum cb_err store_size_valid(const uint8_t *store, size_t buffer_size,
+	const struct payload_mm_authvar_store_limits *limits, size_t *store_size)
+{
+	if (!store || !limits_valid(limits) ||
+	    buffer_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
+	    buffer_size > limits->maximum_store_size ||
+	    memcmp(store, authenticated_store_guid, sizeof(authenticated_store_guid)) ||
+	    store[20] != VARIABLE_STORE_FORMATTED || store[21] != VARIABLE_STORE_HEALTHY ||
+	    read_le16(store + 22U) || read_le32(store + 24U))
+		return CB_ERR;
+	*store_size = read_le32(store + 16U);
+	if (*store_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
+	    *store_size > buffer_size || *store_size > limits->maximum_store_size)
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
+static enum record_result decode_record(const uint8_t *store, size_t store_size,
+	size_t offset, const struct payload_mm_authvar_store_limits *limits,
+	struct record_view *record)
+{
+	const uint8_t *header = store + offset;
+	size_t record_end;
+
+	memset(record, 0, sizeof(*record));
+	if (bytes_are(header, store_size - offset, 0xff))
+		return RECORD_END;
+	if (store_size - offset < PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
+	    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID || header[3])
+		return store_size - offset > 2U && header[2] == 0xff ?
+			RECORD_DIRTY_TAIL : RECORD_INVALID;
+	record->state = header[2];
+	if (record->state != PAYLOAD_MM_AUTHVAR_STATE_ERASED &&
+	    !state_valid(record->state))
+		return RECORD_INVALID;
+	record->offset = offset;
+	record->visible = record->state == PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+		record->state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION;
+	record->attributes = read_le32(header + 4U);
+	record->name_size = read_le32(header + 36U);
+	record->data_size = read_le32(header + 40U);
+	if (!record->attributes ||
+	    record->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED ||
+	    record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE ||
+	    record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
+	    ((record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
+	     !(record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
+	    ((record->visible || record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) &&
+	     !record->data_size) ||
+	    ((record->visible || record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) &&
+	     !(record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
+	    ((record->attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&
+	     (record->attributes & (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				   PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+				   PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) !=
+			   (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				    PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+				    PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
+	    record->name_size > limits->maximum_name_size ||
+	    record->data_size > limits->maximum_data_size ||
+	    !timestamp_valid(header + 16U, record->attributes) ||
+	    read_le32(header + 32U) || read_le32(header + 12U) || read_le32(header + 8U) ||
+	    !add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE,
+		&record->name_offset) ||
+	    !add_size(record->name_offset, record->name_size, &record->data_offset) ||
+	    !align4(record->data_offset, &record->data_offset) ||
+	    !add_size(record->data_offset, record->data_size, &record_end) ||
+	    !align4(record_end, &record->next) || record->next > store_size ||
+	    !name_valid(store + record->name_offset, record->name_size) ||
+	    !bytes_are(store + record->name_offset + record->name_size,
+		record->data_offset - record->name_offset - record->name_size, 0xff) ||
+	    !bytes_are(store + record_end, record->next - record_end, 0xff))
+		return record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED ?
+			RECORD_DIRTY_TAIL : RECORD_INVALID;
+	/* ERASED is an uncommitted body and cannot authorize traversal. */
+	if (record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED)
+		return RECORD_DIRTY_TAIL;
+	return RECORD_VALID;
+}
+
+static void copy_record(struct payload_mm_authvar_store_entry *entry,
+	const uint8_t *store, const struct record_view *record)
+{
+	*entry = (struct payload_mm_authvar_store_entry) {
+		.record_offset = (uint32_t)record->offset,
+		.name_offset = (uint32_t)record->name_offset,
+		.name_size = record->name_size,
+		.data_offset = (uint32_t)record->data_offset,
+		.data_size = record->data_size,
+		.attributes = record->attributes,
+	};
+	memcpy(entry->vendor_guid, store + record->offset + 44U, 16U);
+}
+
 enum cb_err payload_mm_authvar_store_scan(
 	struct payload_mm_authvar_store_index *index, const void *store,
 	size_t buffer_size, const struct payload_mm_authvar_store_limits *limits)
@@ -230,115 +353,49 @@ enum cb_err payload_mm_authvar_store_scan(
 	uint32_t entry_count = 0;
 
 	if (index) {
-		index->store = NULL;
-		index->store_size = 0;
-		index->used_size = 0;
-		index->dirty_tail_offset = 0;
-		index->record_count = 0;
-		index->entry_count = 0;
-		index->maximum_name_size = 0;
-		index->maximum_data_size = 0;
-		index->maximum_records = 0;
+		struct payload_mm_authvar_store_entry *entries = index->entries;
+		uint32_t capacity = index->entry_capacity;
+
+		*index = (struct payload_mm_authvar_store_index) {
+			.entries = entries,
+			.entry_capacity = capacity,
+		};
 	}
-	if (!index || !store || !limits_valid(limits) || !index->entries ||
-	    !index->entry_capacity || buffer_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
-	    buffer_size > limits->maximum_store_size ||
-	    memcmp(bytes, authenticated_store_guid, sizeof(authenticated_store_guid)) ||
-	    bytes[20] != VARIABLE_STORE_FORMATTED || bytes[21] != VARIABLE_STORE_HEALTHY ||
-	    read_le16(bytes + 22) || read_le32(bytes + 24))
-		return CB_ERR;
-	store_size = read_le32(bytes + 16);
-	if (store_size < PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE ||
-	    store_size > buffer_size || store_size > limits->maximum_store_size)
+	if (!index || !index->entries || !index->entry_capacity ||
+	    store_size_valid(bytes, buffer_size, limits, &store_size) != CB_SUCCESS)
 		return CB_ERR;
 	offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 	while (offset < store_size) {
-		const uint8_t *header = bytes + offset;
-		size_t name_offset;
-		size_t data_offset;
-		size_t record_end;
-		size_t next;
-		uint32_t attributes;
-		uint32_t name_size;
-		uint32_t data_size;
-		uint8_t state;
-		bool visible;
+		struct record_view record;
+		const enum record_result result = decode_record(bytes, store_size, offset,
+			limits, &record);
 
-		if (bytes_are(header, store_size - offset, 0xff))
+		if (result == RECORD_END)
 			break;
-		if (store_size - offset < PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
-		    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID || header[3]) {
-			if (store_size - offset > 2U && header[2] == 0xff) {
-				index->dirty_tail_offset = (uint32_t)offset;
-				offset = store_size;
-				break;
-			}
-			return CB_ERR;
-		}
-		state = header[2];
-		if (state != PAYLOAD_MM_AUTHVAR_STATE_ERASED && !state_valid(state))
-			return CB_ERR;
-		visible = state == PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
-			state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION;
-		attributes = read_le32(header + 4);
-		name_size = read_le32(header + 36);
-		data_size = read_le32(header + 40);
-		if (!attributes || attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED ||
-		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE ||
-		    attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE ||
-		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
-		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
-		    ((visible || state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) && !data_size) ||
-		    ((visible || state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) &&
-		     !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS)) ||
-		    ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) &&
-		     (attributes & (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
-				    PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
-				    PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) !=
-			    (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
-				     PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
-				     PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
-		    name_size > limits->maximum_name_size ||
-		    data_size > limits->maximum_data_size ||
-		    !timestamp_valid(header + 16, attributes) ||
-		    read_le32(header + 32) ||
-		    (read_le32(header + 12) || read_le32(header + 8)))
-			goto malformed_record;
-		if (!add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, &name_offset) ||
-		    !add_size(name_offset, name_size, &data_offset) ||
-		    !align4(data_offset, &data_offset) ||
-		    !add_size(data_offset, data_size, &record_end) ||
-		    !align4(record_end, &next) || next > store_size ||
-		    !name_valid(bytes + name_offset, name_size) ||
-		    !bytes_are(bytes + name_offset + name_size,
-			data_offset - name_offset - name_size, 0xff) ||
-		    !bytes_are(bytes + record_end, next - record_end, 0xff))
-			goto malformed_record;
-		/* ERASED is an uncommitted body and cannot authorize traversal. */
-		if (state == PAYLOAD_MM_AUTHVAR_STATE_ERASED) {
+		if (result == RECORD_DIRTY_TAIL) {
 			index->dirty_tail_offset = (uint32_t)offset;
 			offset = store_size;
 			break;
 		}
-		records++;
-		if (records > limits->maximum_records)
+		if (result != RECORD_VALID || ++records > limits->maximum_records)
 			return CB_ERR;
-		if (visible) {
+		if (record.visible) {
 			struct payload_mm_authvar_store_entry *entry;
 			uint32_t duplicate = entry_count;
 
 			for (uint32_t i = 0; i < entry_count; i++) {
-				if (entry_key_equal(bytes, &index->entries[i], header + 44,
-					bytes + name_offset, name_size)) {
+				if (entry_key_equal(bytes, &index->entries[i],
+					bytes + record.offset + 44U,
+					bytes + record.name_offset, record.name_size)) {
 					duplicate = i;
 					break;
 				}
 			}
 			if (duplicate < entry_count) {
-				const uint8_t previous_state = bytes[
-					index->entries[duplicate].record_offset + 2U];
+				const uint8_t previous_state =
+					bytes[index->entries[duplicate].record_offset + 2U];
 
-				if (state != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+				if (record.state != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
 				    previous_state !=
 					PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION)
 					return CB_ERR;
@@ -351,25 +408,9 @@ enum cb_err payload_mm_authvar_store_scan(
 			if (entry_count >= index->entry_capacity)
 				return CB_ERR;
 			entry = &index->entries[entry_count++];
-			*entry = (struct payload_mm_authvar_store_entry) {
-				.record_offset = (uint32_t)offset,
-				.name_offset = (uint32_t)name_offset,
-				.name_size = name_size,
-				.data_offset = (uint32_t)data_offset,
-				.data_size = data_size,
-				.attributes = attributes,
-			};
-			memcpy(entry->vendor_guid, header + 44, 16);
+			copy_record(entry, bytes, &record);
 		}
-		offset = next;
-		continue;
-
-malformed_record:
-		if (state != PAYLOAD_MM_AUTHVAR_STATE_ERASED)
-			return CB_ERR;
-		index->dirty_tail_offset = (uint32_t)offset;
-		offset = store_size;
-		break;
+		offset = record.next;
 	}
 	index->store = bytes;
 	index->store_size = (uint32_t)store_size;
@@ -380,6 +421,119 @@ malformed_record:
 	index->maximum_data_size = limits->maximum_data_size;
 	index->maximum_records = limits->maximum_records;
 	return CB_SUCCESS;
+}
+
+static enum cb_err previous_visible(const uint8_t *store, size_t limit,
+	const struct payload_mm_authvar_store_limits *limits,
+	const struct record_view *wanted, bool *found, uint8_t *state)
+{
+	size_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+
+	*found = false;
+	*state = 0;
+	while (offset < limit) {
+		struct record_view record;
+
+		if (decode_record(store, limit, offset, limits, &record) != RECORD_VALID)
+			return CB_ERR;
+		if (record.visible && record.name_size == wanted->name_size &&
+		    !memcmp(store + record.offset + 44U,
+			store + wanted->offset + 44U, 16U) &&
+		    !memcmp(store + record.name_offset, store + wanted->name_offset,
+			record.name_size)) {
+			if (*found && (record.state != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+					*state != PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION))
+				return CB_ERR;
+			*found = true;
+			*state = record.state;
+		}
+		offset = record.next;
+	}
+	return offset == limit ? CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err payload_mm_authvar_store_find_one(
+	struct payload_mm_authvar_store_entry *entry, bool *found,
+	const void *store, size_t buffer_size,
+	const struct payload_mm_authvar_store_limits *limits,
+	const uint8_t vendor_guid[16], const void *name, size_t name_size)
+{
+	const uint8_t *bytes = store;
+	size_t store_size;
+	size_t offset;
+	uint32_t records = 0;
+	const bool entry_valid = entry && !((uintptr_t)entry % _Alignof(*entry)) &&
+		range_valid(entry, sizeof(*entry));
+	const bool found_valid = found && !((uintptr_t)found % _Alignof(*found)) &&
+		range_valid(found, sizeof(*found));
+	const bool inputs_valid = range_valid(store, buffer_size) &&
+		range_valid(limits, sizeof(*limits)) && range_valid(vendor_guid, 16U) &&
+		range_valid(name, name_size);
+
+	if (!entry_valid || !found_valid) {
+		if (entry_valid)
+			memset(entry, 0, sizeof(*entry));
+		if (found_valid)
+			*found = false;
+		return CB_ERR;
+	}
+	if (!inputs_valid) {
+		memset(entry, 0, sizeof(*entry));
+		*found = false;
+		return CB_ERR;
+	}
+	if (ranges_overlap(entry, sizeof(*entry), found,
+		sizeof(*found)) || ranges_overlap(entry, sizeof(*entry), store,
+		buffer_size) || ranges_overlap(found, sizeof(*found), store, buffer_size) ||
+	    ranges_overlap(entry, sizeof(*entry), limits, sizeof(*limits)) ||
+	    ranges_overlap(found, sizeof(*found), limits, sizeof(*limits)) ||
+	    ranges_overlap(entry, sizeof(*entry), vendor_guid, 16U) ||
+	    ranges_overlap(found, sizeof(*found), vendor_guid, 16U) ||
+	    ranges_overlap(entry, sizeof(*entry), name, name_size) ||
+	    ranges_overlap(found, sizeof(*found), name, name_size))
+		return CB_ERR;
+	if (entry_valid)
+		memset(entry, 0, sizeof(*entry));
+	if (found_valid)
+		*found = false;
+	if (!vendor_guid || !name ||
+	    store_size_valid(bytes, buffer_size, limits, &store_size) != CB_SUCCESS)
+		return CB_ERR;
+	offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	while (offset < store_size) {
+		struct record_view record;
+		bool predecessor;
+		uint8_t predecessor_state;
+		const enum record_result result = decode_record(bytes, store_size, offset,
+			limits, &record);
+
+		if (result == RECORD_END || result == RECORD_DIRTY_TAIL)
+			break;
+		if (result != RECORD_VALID || ++records > limits->maximum_records)
+			goto error;
+		if (record.visible) {
+			if (previous_visible(bytes, offset, limits, &record, &predecessor,
+				&predecessor_state) != CB_SUCCESS ||
+			    (predecessor &&
+			     (record.state != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+			      predecessor_state !=
+				PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION)))
+				goto error;
+			if (name_size <= UINT32_MAX && record.name_size == name_size &&
+			    !memcmp(bytes + record.offset + 44U, vendor_guid, 16U) &&
+			    !memcmp(bytes + record.name_offset, name, name_size)) {
+				copy_record(entry, bytes, &record);
+				*found = true;
+			}
+		}
+		offset = record.next;
+	}
+	return CB_SUCCESS;
+
+error:
+	memset(entry, 0, sizeof(*entry));
+	*found = false;
+	return CB_ERR;
 }
 
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_find(
