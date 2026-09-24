@@ -202,6 +202,19 @@ config PAYLOAD_MM_AUTHVAR_PRIVATE_BINDING
 	  opaque certdb binding bytes, and performs no trust, certdb mutation,
 	  variable authorization, media operation or endpoint publication.
 
+config PAYLOAD_MM_AUTHVAR_PRIVATE_TRUST
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	depends on PAYLOAD_MM_AUTHVAR_CERTDB
+	depends on PAYLOAD_MM_AUTHVAR_ROUTE
+	depends on PAYLOAD_MM_AUTHVAR_PRIVATE_BINDING
+	help
+	  Build the dormant EDK2 26.09 private authenticated-variable signer-trust
+	  decision. It verifies detached CMS against a strict certdb binding, or
+	  derives a new binding, but performs no store mutation, media operation,
+	  authorization composition, provider or endpoint publication.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY
 	bool
 	default n
