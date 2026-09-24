@@ -76,7 +76,8 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
 	  arbitrary values.
 
 	  Lock the pad configuration from the SMM finalize handler after board
-	  GPIO setup is finished so the pad mode can no longer be changed. Only
+	  GPIO setup is finished. The lock also requires protection against
+	  host writes to the lock register where the hardware permits them. Only
 	  the configuration is locked. The Tx state is left writable, as it has
 	  no effect while the pad drives PLTRST#.
 
@@ -88,6 +89,7 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
 	  and the lock path works. Locking a pad already in GPIO mode does not
 	  prevent software from driving it. Some platforms leave P2SB SBI
 	  unusable in SMM and ignore host PADCFGLOCK writes (e.g. Comet Lake 1).
+
 
 # Indicate if SoC supports 4 bits Pad Mode with PAD_CFG_DW0 registers
 config SOC_INTEL_COMMON_BLOCK_GPIO_PMODE_4BITS
