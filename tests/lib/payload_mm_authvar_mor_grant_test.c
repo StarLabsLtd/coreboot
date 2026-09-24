@@ -19,6 +19,39 @@ struct protection_context {
 	size_t authority_size;
 };
 
+struct authority_layout {
+	struct payload_mm_authvar_mor_grant grant;
+	struct payload_mm_authvar_mor_grant candidate;
+	bool installed;
+	bool install_attempted;
+	bool consumed;
+	bool poisoned;
+};
+
+struct take_context {
+	struct authority_layout *authority;
+	struct payload_mm_authvar_mor_grant *output;
+	bool protected;
+	bool mutate_output;
+	bool mutate_grant;
+	bool mutate_candidate;
+	bool mutate_state;
+	bool mutate_context;
+	uint8_t context_byte;
+};
+
+static unsigned int take_callback_calls;
+
+static bool buffer_zero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+	uint8_t combined = 0;
+
+	for (size_t i = 0; i < size; i++)
+		combined |= bytes[i];
+	return !combined;
+}
+
 static struct payload_mm_authvar_mor_grant valid_grant(void)
 {
 	struct payload_mm_authvar_mor_grant grant = {
@@ -92,6 +125,133 @@ static bool authority_receipts_zero(const struct protection_context *context)
 	     i < 2 * sizeof(struct payload_mm_authvar_mor_grant); i++)
 		combined |= bytes[i];
 	return combined == 0;
+}
+
+static bool __aligned(8) take_storage_protected(void *opaque,
+	const void *storage, size_t size)
+{
+	struct take_context *context = opaque;
+
+	CHECK(storage && size);
+	take_callback_calls++;
+	if (storage == context->output) {
+		CHECK(size == sizeof(*context->output));
+		if (context->mutate_output)
+			context->output->cold_boot_generation = 1;
+		if (context->mutate_grant)
+			context->authority->grant.cold_boot_generation++;
+		if (context->mutate_candidate)
+			context->authority->candidate.cold_boot_generation++;
+		if (context->mutate_state)
+			context->authority->installed = false;
+		if (context->mutate_context)
+			context->context_byte++;
+	}
+	return context->protected;
+}
+
+static void install_for_take(struct payload_mm_authvar_mor_grant *grant,
+	struct protection_context *install, struct take_context *take)
+{
+	CHECK(payload_mm_authvar_mor_grant_install(grant, protected_storage,
+		install) == CB_SUCCESS);
+	take->authority = (void *)install->authority;
+	CHECK(payload_mm_authvar_mor_grant_ready());
+}
+
+static void test_take_success(void)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct payload_mm_authvar_mor_grant output = { 0 };
+	struct protection_context install = {
+		.grant = &grant,
+		.protected = true,
+	};
+	struct take_context take = {
+		.output = &output,
+		.protected = true,
+	};
+
+	install_for_take(&grant, &install, &take);
+	CHECK(payload_mm_authvar_mor_grant_take(&output, take_storage_protected,
+		&take, sizeof(take)) == CB_SUCCESS);
+	CHECK(take_callback_calls == 3);
+	CHECK(!memcmp(&output, &grant, sizeof(output)));
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(authority_receipts_zero(&install));
+	CHECK(payload_mm_authvar_mor_grant_take(&output, take_storage_protected,
+		&take, sizeof(take)) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_consume(&grant) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+}
+
+static void test_take_failure(const char *name)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct payload_mm_authvar_mor_grant output = { 0 };
+	struct protection_context install = {
+		.grant = &grant,
+		.protected = true,
+	};
+	struct take_context take = {
+		.output = &output,
+		.protected = true,
+	};
+	struct payload_mm_authvar_mor_grant *output_pointer = &output;
+	struct payload_mm_authvar_mor_grant rejected_alias_before;
+	payload_mm_authvar_mor_grant_protected_storage callback =
+		take_storage_protected;
+	void *context = &take;
+	size_t context_size = sizeof(take);
+
+	install_for_take(&grant, &install, &take);
+	if (!strcmp(name, "take-unprotected"))
+		take.protected = false;
+	else if (!strcmp(name, "take-output-nonzero"))
+		output.cold_boot_generation = 1;
+	else if (!strcmp(name, "take-mutate-output"))
+		take.mutate_output = true;
+	else if (!strcmp(name, "take-mutate-grant"))
+		take.mutate_grant = true;
+	else if (!strcmp(name, "take-mutate-candidate"))
+		take.mutate_candidate = true;
+	else if (!strcmp(name, "take-mutate-state"))
+		take.mutate_state = true;
+	else if (!strcmp(name, "take-mutate-context"))
+		take.mutate_context = true;
+	else if (!strcmp(name, "take-null-output"))
+		output_pointer = NULL;
+	else if (!strcmp(name, "take-misaligned-output"))
+		output_pointer = (void *)((uintptr_t)&output + 1U);
+	else if (!strcmp(name, "take-null-callback"))
+		callback = NULL;
+	else if (!strcmp(name, "take-context-alias")) {
+		memset(&output, 0xa5, sizeof(output));
+		rejected_alias_before = output;
+		context = &output;
+		context_size = 1;
+	} else if (!strcmp(name, "take-context-too-large")) {
+		context_size = PAYLOAD_MM_AUTHVAR_MOR_GRANT_TAKE_CONTEXT_MAX + 1U;
+	} else if (!strcmp(name, "take-output-authority-alias")) {
+		output_pointer = (void *)take.authority;
+	} else if (!strcmp(name, "take-output-callback-alias")) {
+		output_pointer = (void *)(uintptr_t)take_storage_protected;
+	} else {
+		CHECK(false);
+	}
+	CHECK(payload_mm_authvar_mor_grant_take(output_pointer, callback, context,
+		context_size) == CB_ERR);
+	if (!strcmp(name, "take-output-nonzero"))
+		CHECK(take_callback_calls == 3);
+	if (!strcmp(name, "take-context-alias")) {
+		CHECK(!take_callback_calls);
+		CHECK(!memcmp(&output, &rejected_alias_before, sizeof(output)));
+	}
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(authority_receipts_zero(&install));
+	if (output_pointer == &output && strcmp(name, "take-context-alias"))
+		CHECK(buffer_zero(&output, sizeof(output)));
+	CHECK(payload_mm_authvar_mor_grant_consume(&grant) == CB_ERR);
 }
 
 static void test_validator(void)
@@ -385,6 +545,10 @@ int main(int argc, char **argv)
 		test_close_before_install();
 	else if (!strcmp(argv[1], "close-after-install"))
 		test_close_after_install();
+	else if (!strcmp(argv[1], "take-success"))
+		test_take_success();
+	else if (!strncmp(argv[1], "take-", 5))
+		test_take_failure(argv[1]);
 	else if (!strncmp(argv[1], "consume-mismatch-", 17)) {
 		CHECK(argv[1][17] >= '0' && argv[1][17] <= '5' && !argv[1][18]);
 		test_consume_mismatch((unsigned int)(argv[1][17] - '0'));

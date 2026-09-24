@@ -211,6 +211,7 @@ static enum cb_err consume_finish(bool valid)
 {
 	memset(&authority.grant, 0, sizeof(authority.grant));
 	memset(&authority.candidate, 0, sizeof(authority.candidate));
+	authority.installed = false;
 	if (!valid)
 		authority.poisoned = true;
 	return valid ? CB_SUCCESS : CB_ERR;
@@ -235,6 +236,75 @@ enum cb_err payload_mm_authvar_mor_grant_consume(
 			sizeof(authority.candidate)) &&
 		!memcmp(expected_grant, &authority.candidate,
 			sizeof(authority.candidate));
+	return consume_finish(valid);
+}
+
+enum cb_err payload_mm_authvar_mor_grant_take(
+	struct payload_mm_authvar_mor_grant *output,
+	payload_mm_authvar_mor_grant_protected_storage storage_is_protected,
+	void *context, size_t context_size)
+{
+	uint8_t context_snapshot[PAYLOAD_MM_AUTHVAR_MOR_GRANT_TAKE_CONTEXT_MAX];
+	const void *callback = (const void *)(uintptr_t)storage_is_protected;
+	bool output_structurally_valid;
+	bool output_cleanup_safe = false;
+	bool valid = false;
+
+	if (!payload_mm_authvar_mor_grant_ready())
+		return CB_ERR;
+	authority.consumed = true;
+	output_structurally_valid =
+		object_valid(output, sizeof(*output), _Alignof(*output)) &&
+		!ranges_overlap(output, sizeof(*output), &authority,
+			sizeof(authority));
+	if (!output_structurally_valid || !storage_is_protected ||
+	    ((context == NULL) != (context_size == 0)) ||
+	    context_size > sizeof(context_snapshot) ||
+	    (context_size &&
+	     (!object_valid(context, context_size, 1) ||
+	      ranges_overlap(context, context_size, output, sizeof(*output)) ||
+	      ranges_overlap(context, context_size, &authority,
+		      sizeof(authority)))) ||
+	    ranges_overlap(callback, 1, output, sizeof(*output)) ||
+	    ranges_overlap(callback, 1, &authority, sizeof(authority)) ||
+	    (context_size && ranges_overlap(callback, 1, context, context_size)))
+		goto out;
+	memset(context_snapshot, 0, sizeof(context_snapshot));
+	if (context_size)
+		memcpy(context_snapshot, context, context_size);
+	authority.candidate = authority.grant;
+	if (grant_snapshot_valid(&authority.candidate) != CB_SUCCESS ||
+	    memcmp(&authority.candidate, &authority.grant,
+		sizeof(authority.candidate)))
+		goto out;
+	output_cleanup_safe =
+		storage_is_protected(context, output, sizeof(*output));
+	valid = output_cleanup_safe &&
+		storage_is_protected(context, callback, 1) &&
+		(!context_size || storage_is_protected(context, context,
+			context_size));
+	valid = valid && authority.install_attempted && authority.installed &&
+		authority.consumed && !authority.poisoned &&
+		grant_snapshot_valid(&authority.grant) == CB_SUCCESS &&
+		grant_snapshot_valid(&authority.candidate) == CB_SUCCESS &&
+		!memcmp(&authority.grant, &authority.candidate,
+			sizeof(authority.grant)) &&
+		bytes_zero(output, sizeof(*output)) &&
+		(!context_size || !memcmp(context_snapshot, context, context_size));
+	if (!valid)
+		goto out;
+	memcpy(output, &authority.candidate, sizeof(*output));
+	valid = !memcmp(output, &authority.candidate, sizeof(*output)) &&
+		!memcmp(&authority.grant, &authority.candidate,
+			sizeof(authority.grant)) &&
+		authority.install_attempted && authority.installed &&
+		authority.consumed && !authority.poisoned &&
+		(!context_size || !memcmp(context_snapshot, context, context_size));
+
+out:
+	memset(context_snapshot, 0, sizeof(context_snapshot));
+	if (!valid && output_cleanup_safe)
+		memset(output, 0, sizeof(*output));
 	return consume_finish(valid);
 }
 
