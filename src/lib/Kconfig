@@ -78,6 +78,16 @@ config PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
 	  append-or-reclaim planner. It does not copy results into shared memory,
 	  mutate media, execute an FTW plan, or publish a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_FTW_DECODER
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SEMANTICS
+	help
+	  Build the dormant pure EDK2 26.09 SetupMode default-store composer.
+	  It creates and classifies protected candidate bytes, but performs no
+	  media operation, recovery, service dispatch or endpoint publication.
+
 config PAYLOAD_MM_AUTHVAR_MEDIA_PORT
 	bool
 	default n
