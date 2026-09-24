@@ -45,6 +45,37 @@ without changing or destroying the ready protected receipt. This primitive is
 dormant and supplies no transport, boot hook, platform selector, or support
 claim.
 
+## Private completion seal adapter
+
+`PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL` adds a dormant, fixed-size adapter
+between a trusted ramstage producer and the SMM grant authority. It is not an
+APM or SMMSTORE command and installs no dispatcher or boot-state hook. A future
+platform composition must privately provision the same 64-byte channel
+descriptor to both stages and supply its own authenticated trigger.
+
+The channel fixes the only accepted 552-byte transport range, a boot-local
+256-bit capability, and the independently observed caller and caller-context
+values expected by SMM. Those observations are inputs from the future platform
+handler; they never come from the request. SMM accepts one channel provisioning
+attempt and one request attempt. An exact authenticated install delegates to
+the protected grant authority, while an exact close consumes the unused slot.
+Every malformed, unknown, incorrectly ranged, or incorrectly authenticated
+first request terminally closes the grant opportunity. The shared transport
+and protected candidate are scrubbed on every terminal request path. SMM uses
+the pre-callback fixed transport address for scrubbing, rechecks the retained
+channel and callbacks inside the grant protection callback before allowing an
+install to commit, then erases the retained capability, channel, callbacks, and
+candidate. A callback mutation therefore cannot redirect cleanup or leave a
+ready grant behind an adapter failure.
+
+The ramstage sender publishes only a canonical install or close message into
+the fixed range, calls the platform-private trigger, requires SMM to have
+scrubbed the range, and then scrubs both the range and its mutable channel copy.
+This slice deliberately supplies no capability generator or distributor,
+platform selector, SMI handler, OS endpoint, MOR support claim, or lifecycle
+call site. Those composition steps must ensure the no-request path invokes
+close before handing control to less-trusted software.
+
 The receipt flags and identities are assertions, not authentication or evidence
 by themselves. This slice has no cross-stage seal, trusted cold-boot generator,
 DMA verifier, inventory producer or memory-clear accounting producer. Mutable
