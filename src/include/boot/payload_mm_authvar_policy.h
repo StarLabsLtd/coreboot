@@ -67,13 +67,21 @@ struct payload_mm_authvar_policy_result {
 	uint32_t reserved;
 };
 
-/* One attempt, after executor installation; descriptor and code must be SMRAM. */
+/*
+ * Legacy coordinator-disabled compatibility only. One attempt, after executor
+ * installation; descriptor and code must be SMRAM. Coordinator builds use the
+ * native ordinary-variable path and do not emit this installer.
+ */
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 enum cb_err payload_mm_authvar_policy_install(
 	const struct payload_mm_authvar_policy_provider *provider);
+#endif
 
 /*
  * SET and monotone READY_TO_BOOT/ENTER_RUNTIME only. Other operations return
- * UNSUPPORTED. No endpoint, dispatch route, or production provider is supplied.
+ * UNSUPPORTED. Coordinator builds execute ordinary persistent SET natively;
+ * they neither require nor invoke a policy provider. No endpoint or dispatch
+ * route is supplied.
  * Request, result, name, and data must be mutually disjoint protected spans,
  * outside executor/media private storage. An alias/invalid-span rejection or
  * unsafe or aliasing output and forbidden provider reentry are untouched.

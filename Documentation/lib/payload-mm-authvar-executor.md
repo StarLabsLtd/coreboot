@@ -120,7 +120,7 @@ Production builds publish no provider, route, dispatcher or endpoint.
 ## Dormant SET preflight
 
 The coordinator build shares one private, pure SET preflight between the
-legacy policy transaction and the Auth2 coordinator. It consumes only the
+native ordinary transaction and the Auth2 coordinator. It consumes only the
 copied request and the freshly recovered scanner index. It performs no media
 operation, cryptography or authorization and publishes no public API.
 
@@ -151,11 +151,25 @@ deferred status; an absent request with neither boot-service nor runtime access
 similarly authenticates before returning not found. The coordinator applies
 these results after authority succeeds and before bundle planning or any write.
 Malformed metadata or failed trust thus retains EDK2's earlier security result.
-The legacy policy transaction rejects
-valid Auth2 as unsupported and constrains an ordinary provider result to the
-preflight kind, exact admitted attributes and a zero timestamp. A provider
-cannot turn an ordinary request into an authenticated or hardware-error
-record.
+The ordinary transaction rejects valid Auth2 as unsupported. In coordinator
+builds it writes the protected copied request directly: the preflight kind
+selects write or deletion, APPEND is only a writer instruction, and the stored
+timestamp is zero. It never requires or calls the legacy policy provider, and
+that provider installer and descriptor state are compiled out. Builds without
+the coordinator retain the legacy provider contract and its existing generic
+mutation-output validation; they do not use this preflight.
+
+Native ordinary SET uses the same lease, writer, reclaim and FTW recovery as
+the authenticated path. It validates the recovered mode projection and
+synthetic view before request semantics and validates the resulting view again
+before publication. A global store/mode contradiction therefore fails closed
+ahead of an otherwise ordinary request error. Reconciliation is cleared only
+after successful media end, including no-op and not-found transactions.
+
+This dormant slice implements common persistent-store create, replace, append,
+delete and no-op semantics. It does not implement EDK2's memory-overwrite handling,
+language-variable mirroring or VarCheckLib variable-specific policy. No public
+dispatcher or endpoint may select it until equivalent policy is composed.
 
 Counter-bit structural admission is enabled only with the coordinator build
 and only for SET, so the preflight can return its exact unsupported status.

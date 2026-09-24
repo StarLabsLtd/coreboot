@@ -45,8 +45,10 @@ for optimization in 0 2; do
 	for case in \
 		coordinator-success \
 		coordinator-preflight-consumers \
-		coordinator-policy-flip coordinator-policy-attributes \
-		coordinator-policy-timestamp \
+		coordinator-native-ordinary \
+		coordinator-native-collision coordinator-native-invalid \
+		coordinator-native-post-collision coordinator-native-reclaim \
+		coordinator-native-copy \
 		coordinator-status-invalid coordinator-status-busy \
 		coordinator-status-no-memory coordinator-status-malformed \
 		coordinator-status-rejected coordinator-status-unsupported \
@@ -60,7 +62,7 @@ for optimization in 0 2; do
 		coordinator-attack-result \
 		coordinator-context-max coordinator-context-over \
 		coordinator-runtime-pk-delete coordinator-runtime-missing-enable \
-		coordinator-vendor-reconcile \
+		coordinator-vendor-reconcile coordinator-native-reconcile \
 		coordinator-end-failure \
 		coordinator-runtime-end-failure coordinator-preexisting-crypto; do
 		# Keep the admission matrix separate for a precise untouched-output oracle.
@@ -107,6 +109,95 @@ for optimization in 0 2; do
 	done
 done
 
+compile_mutant()
+{
+	mutant_source="$1"
+	mutant_output="$2"
+	mutant_optimization="$3"
+	${HOSTCC:-cc} -std=gnu11 -O"$mutant_optimization" -Wall -Wextra -Werror \
+		-Wshadow -Wstrict-prototypes \
+		-fsanitize=address,undefined -fno-sanitize-recover=all -fno-builtin \
+		-D__TEST__ -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+		-I"$root/src/include" -I"$root/src/commonlib/include" \
+		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
+		"$mutant_source" "$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
+		"$root/src/lib/payload_mm_authvar_view.c" \
+		"$root/src/lib/payload_mm_authvar_authority.c" \
+		"$root/src/lib/payload_mm_authvar_candidate.c" \
+		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_mode.c" \
+		"$root/src/lib/payload_mm_authvar_format.c" \
+		"$root/src/lib/payload_mm_authvar_route.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
+		"$root/src/lib/payload_mm_authvar_ftw.c" \
+		"$root/src/lib/payload_mm_authvar_store.c" \
+		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
+		"$root/src/lib/payload_mm_authvar_record.c" \
+		"$root/src/lib/payload_mm_authvar_writer.c" -o "$mutant_output"
+}
+
+for optimization in 0 2; do
+	for mutant in timestamp deletion external-source pre-view post-view \
+		reconcile-clear; do
+		mutant_source="$temporary/executor-$mutant-O$optimization.c"
+		mutant_output="$temporary/mutant-$mutant-O$optimization"
+		case "$mutant" in
+		timestamp)
+			sed '/state->source.data_size = state->request.data_size;/a\
+\tstate->source.timestamp[0] = 1U;' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-ordinary
+			;;
+		deletion)
+			sed 's/deletion = set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE;/deletion = set_plan.kind != PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE;/' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-ordinary
+			;;
+		external-source)
+			sed '/memcpy(state->source.vendor_guid, state->request.vendor_guid,/,/state->source.data_size =/ s/state->request\./request->/g' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-copy
+			;;
+		pre-view)
+			awk 'BEGIN { in_policy = 0; changed = 0 } \
+				/uint64_t payload_mm_authvar_policy_transaction/ { in_policy = 1 } \
+				{ if (in_policy && !changed && \
+				      /state->at_runtime\) != CB_SUCCESS/) { \
+					sub(/!= CB_SUCCESS/, "== CB_SUCCESS"); changed = 1 } \
+				  print }' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-collision
+			;;
+		post-view)
+			sed 's/if (payload_mm_authvar_view_init(&current_view/if (false \&\& payload_mm_authvar_view_init(\&current_view/' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-post-collision
+			;;
+		reconcile-clear)
+			sed '/uint64_t payload_mm_authvar_policy_transaction/,/^}/ s/if (reconcile_modes \&\& modes_validated/if (false \&\& reconcile_modes \&\& modes_validated/' \
+				"$root/src/lib/payload_mm_authvar_executor.c" > "$mutant_source"
+			mutant_case=coordinator-native-reconcile
+			;;
+		esac
+		if cmp -s "$root/src/lib/payload_mm_authvar_executor.c" "$mutant_source"; then
+			echo "ERROR: $mutant O$optimization mutation was not applied" >&2
+			exit 1
+		fi
+		compile_mutant "$mutant_source" "$mutant_output" "$optimization"
+		if ASAN_OPTIONS=detect_leaks=1 "$mutant_output" "$mutant_case" \
+			>/dev/null 2>&1; then
+			echo "ERROR: $mutant O$optimization mutant survived" >&2
+			exit 1
+		fi
+	done
+done
+
 for real_optimization in 0 2; do
 real_output="$temporary/test-real-O$real_optimization"
 ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
@@ -145,5 +236,13 @@ cut=1
 while [ "$cut" -le "$reset_count" ]; do
 	ASAN_OPTIONS=detect_leaks=1 "$real_output" "coordinator-reset-$cut"
 	cut=$((cut + 1))
+done
+native_reset_count="$(ASAN_OPTIONS=detect_leaks=1 "$real_output" \
+	coordinator-native-reset-count)"
+native_cut=1
+while [ "$native_cut" -le "$native_reset_count" ]; do
+	ASAN_OPTIONS=detect_leaks=1 "$real_output" \
+		"coordinator-native-reset-$native_cut"
+	native_cut=$((native_cut + 1))
 done
 done
