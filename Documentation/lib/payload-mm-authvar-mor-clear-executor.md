@@ -10,11 +10,13 @@ every `CLEARED` span in the supplied plan.
 The executor snapshots and validates the canonical clear plan, MOR entry, and
 operations table before its first callback. It ignores excluded spans. Each
 cleared span is processed through bounded physical windows, so addresses above
-4 GiB do not depend on host pointer width. For every window it performs each
-volatile zero write itself, invokes cache writeback and a completion fence, and
-unmaps. Only after all writes are durable does a separate pass map each window,
-writeback-invalidates and fences it, volatile-reads every byte, requires zero,
-and unmaps it. Every successful map is
+4 GiB do not depend on host pointer width. A mapping request never crosses a
+`window_bytes`-aligned physical boundary, so each callback receives exactly one
+physical window even when a cleared span starts unaligned. For every window it
+performs each volatile zero write itself, invokes cache writeback and a
+completion fence, and unmaps. Only after all writes are durable does a separate
+pass map each window, writeback-invalidates and fences it, volatile-reads every
+byte, requires zero, and unmaps it. Every successful map is
 matched by an unmap attempt, including error paths. A failed map must leave no
 active mapping; a successful map must return exactly the requested number of
 accessible bytes. A map failure must set its output to `NULL` and leave no

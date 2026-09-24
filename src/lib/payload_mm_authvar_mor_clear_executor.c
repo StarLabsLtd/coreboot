@@ -37,6 +37,21 @@ static bool bytes_zero(const void *buffer, size_t size)
 	return !combined;
 }
 
+static size_t physical_window_chunk(uint64_t physical, uint64_t remaining,
+	size_t window_bytes)
+{
+	size_t until_boundary;
+	size_t bounded_remaining;
+
+	if (!window_bytes)
+		return 0;
+	until_boundary = window_bytes - physical % window_bytes;
+	bounded_remaining = remaining > window_bytes ? window_bytes :
+		(size_t)remaining;
+
+	return MIN(bounded_remaining, until_boundary);
+}
+
 static bool public_objects_valid(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct payload_mm_authvar_mor_entry *entry,
@@ -215,12 +230,11 @@ enum cb_err payload_mm_authvar_mor_clear_execute(
 		while (state.iteration.offset < state.iteration.span->size) {
 			state.iteration.remaining =
 				state.iteration.span->size - state.iteration.offset;
-			state.iteration.chunk =
-				state.iteration.remaining > state.ops_snapshot.window_bytes ?
-				state.ops_snapshot.window_bytes :
-				(size_t)state.iteration.remaining;
 			state.iteration.physical =
 				state.iteration.span->base + state.iteration.offset;
+			state.iteration.chunk = physical_window_chunk(
+				state.iteration.physical, state.iteration.remaining,
+				state.ops_snapshot.window_bytes);
 			state.iteration.mapping = NULL;
 			if (!state.iteration.chunk ||
 			    state.ops_snapshot.map_window(state.ops_snapshot.context,
@@ -277,12 +291,11 @@ enum cb_err payload_mm_authvar_mor_clear_execute(
 		while (state.iteration.offset < state.iteration.span->size) {
 			state.iteration.remaining =
 				state.iteration.span->size - state.iteration.offset;
-			state.iteration.chunk =
-				state.iteration.remaining > state.ops_snapshot.window_bytes ?
-				state.ops_snapshot.window_bytes :
-				(size_t)state.iteration.remaining;
 			state.iteration.physical =
 				state.iteration.span->base + state.iteration.offset;
+			state.iteration.chunk = physical_window_chunk(
+				state.iteration.physical, state.iteration.remaining,
+				state.ops_snapshot.window_bytes);
 			state.iteration.mapping = NULL;
 			if (!state.iteration.chunk ||
 			    state.ops_snapshot.map_window(state.ops_snapshot.context,

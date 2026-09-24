@@ -25,6 +25,8 @@ struct mock {
 	void *alias_mapping;
 	void *mutate;
 	size_t mutate_size;
+	uint64_t mapped_physical[32];
+	size_t mapped_size[32];
 	struct payload_mm_authvar_mor_clear_dma_snapshot dma[2];
 };
 
@@ -55,6 +57,9 @@ static enum cb_err map_window(void *context, uint64_t physical, size_t size,
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_MAP];
 
+	CHECK(call <= 32);
+	mock->mapped_physical[call - 1U] = physical;
+	mock->mapped_size[call - 1U] = size;
 	mutate(mock);
 	if (mock->fail_operation == OP_MAP && mock->fail_call == call) {
 		*mapping = mock->failed_map_nonnull ? mock->first : NULL;
@@ -89,8 +94,8 @@ static enum cb_err cache_writeback_invalidate(void *context, uint64_t physical,
 	(void)mapping;
 	(void)size;
 	mutate(mock);
-	/* Five write windows precede the five readback invalidations. */
-	if (mock->corrupt_readback && call == 6)
+	/* Six write windows precede the six readback invalidations. */
+	if (mock->corrupt_readback && call == 7)
 		mock->first[0] = 1;
 	if (mock->fail_operation == OP_CACHE && mock->fail_call == call)
 		return CB_ERR;
@@ -207,9 +212,9 @@ static void test_success(void)
 	assert_zero(mock.second, sizeof(mock.second));
 	for (size_t index = 0; index < sizeof(mock.excluded); index++)
 		CHECK(mock.excluded[index] == 0x5a);
-	CHECK(mock.calls[OP_DMA] == 2 && mock.calls[OP_MAP] == 10);
-	CHECK(mock.calls[OP_CACHE] == 10 && mock.calls[OP_FENCE] == 10);
-	CHECK(mock.calls[OP_UNMAP] == 10);
+	CHECK(mock.calls[OP_DMA] == 2 && mock.calls[OP_MAP] == 12);
+	CHECK(mock.calls[OP_CACHE] == 12 && mock.calls[OP_FENCE] == 12);
+	CHECK(mock.calls[OP_UNMAP] == 12);
 	CHECK(transcript.cleared_span_count == 2);
 	CHECK(transcript.records[0].written_bytes == 19);
 	CHECK(transcript.records[0].zero_readback_bytes == 19);
@@ -220,7 +225,7 @@ static void test_success(void)
 static void test_failures(void)
 {
 	for (enum operation operation = OP_DMA; operation <= OP_UNMAP; operation++) {
-		const unsigned int maximum = operation == OP_DMA ? 2 : 10;
+		const unsigned int maximum = operation == OP_DMA ? 2 : 12;
 		for (unsigned int call = 1; call <= maximum; call++) {
 			struct mock mock;
 			struct payload_mm_authvar_mor_clear_executor_ops ops;
@@ -345,6 +350,96 @@ static void test_object_boundaries(void)
 	CHECK(mock.calls[OP_MAP] == 2 && transcript.records[0].written_bytes == 10);
 }
 
+struct expected_window {
+	uint64_t physical;
+	size_t size;
+};
+
+static void check_physical_windows(uint64_t base, uint64_t size,
+	size_t window_bytes, const struct expected_window *expected,
+	size_t expected_count)
+{
+	struct mock mock;
+	struct payload_mm_authvar_mor_clear_executor_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct payload_mm_authvar_mor_entry entry = { 1, 1, 0 };
+	struct payload_mm_authvar_mor_clear_transcript transcript;
+	struct payload_mm_authvar_mor_grant grant;
+
+	plan.revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
+	plan.size = sizeof(plan);
+	plan.inventory_generation = 3;
+	plan.inventory_identity[0] = 1;
+	plan.span_count = 1;
+	plan.spans[0] = (struct payload_mm_authvar_mor_grant_span) {
+		.base = base,
+		.size = size,
+		.span_class = PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_CLEARED,
+	};
+	initialize(&mock, &ops);
+	ops.window_bytes = window_bytes;
+	mock.accept_any = true;
+	CHECK(execute(&mock, &plan, &entry, &ops, &transcript, &grant) ==
+		CB_SUCCESS);
+	CHECK(mock.calls[OP_MAP] == expected_count * 2U);
+	for (size_t pass = 0; pass < 2; pass++) {
+		for (size_t index = 0; index < expected_count; index++) {
+			const size_t call = pass * expected_count + index;
+
+			CHECK(mock.mapped_physical[call] == expected[index].physical);
+			CHECK(mock.mapped_size[call] == expected[index].size);
+			CHECK(mock.mapped_size[call] <= window_bytes);
+			CHECK(mock.mapped_physical[call] / window_bytes ==
+				(mock.mapped_physical[call] + mock.mapped_size[call] - 1U) /
+				window_bytes);
+		}
+	}
+}
+
+static void test_physical_window_boundaries(void)
+{
+	static const struct expected_window physical_zero[] = {
+		{ 0, 8 }, { 8, 8 }, { 16, 1 },
+	};
+	static const struct expected_window unaligned[] = {
+		{ 5, 3 }, { 8, 8 }, { 16, 8 }, { 24, 1 },
+	};
+	static const struct expected_window four_gib[] = {
+		{ 0xffffffffULL, 1 }, { 0x100000000ULL, 2 },
+		{ 0x100000002ULL, 1 },
+	};
+	static const struct expected_window uint64_end[] = {
+		{ UINT64_MAX - 14U, 7 }, { UINT64_MAX - 7U, 7 },
+	};
+	struct mock mock;
+	struct payload_mm_authvar_mor_clear_executor_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan = valid_plan();
+	struct payload_mm_authvar_mor_entry entry = { 1, 1, 0 };
+	struct payload_mm_authvar_mor_clear_transcript transcript;
+	struct payload_mm_authvar_mor_grant grant;
+
+	check_physical_windows(0, 17, 8, physical_zero,
+		ARRAY_SIZE(physical_zero));
+	check_physical_windows(5, 20, 8, unaligned, ARRAY_SIZE(unaligned));
+	check_physical_windows(0xffffffffULL, 4, 2, four_gib,
+		ARRAY_SIZE(four_gib));
+	check_physical_windows(UINT64_MAX - 14U, 14, 8, uint64_end,
+		ARRAY_SIZE(uint64_end));
+
+	initialize(&mock, &ops);
+	plan.span_count = 1;
+	plan.spans[0] = (struct payload_mm_authvar_mor_grant_span) {
+		.base = UINT64_MAX - 3U,
+		.size = 4,
+		.span_class = PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_CLEARED,
+	};
+	CHECK(execute(&mock, &plan, &entry, &ops, &transcript, &grant) !=
+		CB_SUCCESS);
+	CHECK(mock.calls[OP_DMA] == 0 && mock.calls[OP_MAP] == 0);
+	assert_zero(&transcript, sizeof(transcript));
+	assert_zero(&grant, sizeof(grant));
+}
+
 int main(int argc, char **argv)
 {
 	CHECK(argc == 2);
@@ -356,6 +451,8 @@ int main(int argc, char **argv)
 		test_hostile();
 	else if (!strcmp(argv[1], "objects"))
 		test_object_boundaries();
+	else if (!strcmp(argv[1], "windows"))
+		test_physical_window_boundaries();
 	else
 		CHECK(false);
 	return 0;
