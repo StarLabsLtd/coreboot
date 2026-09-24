@@ -204,13 +204,19 @@ static void test_projection_oracle(void)
 {
 	static const u8 one = 1U;
 	struct payload_mm_authvar_store_entry candidate_entries[MAX_ENTRIES];
+	struct payload_mm_authvar_store_entry setup_entries[MAX_ENTRIES];
 	struct payload_mm_authvar_store_index built = {
 		.entries = candidate_entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	struct payload_mm_authvar_store_index setup = {
+		.entries = setup_entries,
 		.entry_capacity = MAX_ENTRIES,
 	};
 	struct payload_mm_authvar_candidate_binding binding;
 	const struct payload_mm_authvar_store_entry *pk;
 	const struct payload_mm_authvar_store_entry *enable;
+	u8 setup_store[STORE_SIZE];
 
 	init_source();
 	append_projection_record(global_guid, pk_name, sizeof(pk_name),
@@ -294,6 +300,35 @@ static void test_projection_oracle(void)
 	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.at_runtime = 1U;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	assert(!payload_mm_authvar_candidate_projection_valid(&built, &index,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	assert(!payload_mm_authvar_candidate_projection_valid(&built, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	pk = payload_mm_authvar_store_find(&built, global_guid, pk_name,
+		sizeof(pk_name));
+	assert(pk);
+	memcpy(setup_store, candidate, sizeof(setup_store));
+	setup_store[pk->record_offset + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	assert(payload_mm_authvar_store_scan(&setup, setup_store,
+		sizeof(setup_store),
+		&limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&built, &setup,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(!payload_mm_authvar_candidate_projection_valid(&setup, &built,
 		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
 	init_source();

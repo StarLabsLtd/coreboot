@@ -37,6 +37,7 @@ for optimization in ${RECURSIVE_OPTIMIZATIONS:-0 2}; do
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \

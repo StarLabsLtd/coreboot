@@ -582,11 +582,11 @@ bool payload_mm_authvar_candidate_projection_valid(
 	secure = volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	enable_changed = !!source_enable != !!candidate_enable ||
 		(source_enable && *source_enable_data != *candidate_enable_data);
-	if (binding->at_runtime)
-		return !enable_changed && secure == source_secure;
 	if ((source_pk && !source_enable) ||
 	    (candidate_pk && !candidate_enable))
 		return false;
+	if (binding->at_runtime)
+		return !enable_changed && secure == source_secure;
 	return source_secure ==
 		(!!source_pk && !!source_enable && !!*source_enable_data) &&
 		secure ==

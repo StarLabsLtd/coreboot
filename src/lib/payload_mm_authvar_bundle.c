@@ -5,6 +5,8 @@
 #include <commonlib/helpers.h>
 #include <string.h>
 
+#include "payload_mm_authvar_internal.h"
+
 static const uint8_t global_guid[16] = {
 	0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
 	0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
@@ -13,37 +15,15 @@ static const uint8_t image_guid[16] = {
 	0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
 	0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
 };
-static const uint8_t vendor_keys_nv_guid[16] = {
-	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
-	0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
-};
-static const uint8_t secure_boot_enable_guid[16] = {
-	0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
-	0x99, 0xc4, 0x00, 0x10, 0x09, 0xc9, 0x3a, 0x44,
-};
-static const uint8_t custom_mode_guid[16] = {
-	0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
-	0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f,
-};
 static const uint8_t cert_db_guid[16] = {
 	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
 	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
 };
 
-static const uint8_t pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
 static const uint8_t kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 static const uint8_t db_name[] = { 'd', 0, 'b', 0, 0, 0 };
 static const uint8_t dbx_name[] = { 'd', 0, 'b', 0, 'x', 0, 0, 0 };
 static const uint8_t dbt_name[] = { 'd', 0, 'b', 0, 't', 0, 0, 0 };
-static const uint8_t vendor_keys_nv_name[] = {
-	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
-	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
-};
-static const uint8_t secure_boot_enable_name[] = {
-	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
-	'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0,
-	0, 0,
-};
 
 /* Written out to keep the reserved-key audit independent of host wchar_t. */
 static const uint8_t setup_mode_name[] = {
@@ -90,10 +70,6 @@ static const uint8_t dbx_default_name[] = {
 static const uint8_t dbt_default_name[] = {
 	'd', 0, 'b', 0, 't', 0, 'D', 0, 'e', 0, 'f', 0, 'a', 0, 'u', 0,
 	'l', 0, 't', 0, 0, 0,
-};
-static const uint8_t custom_mode_name[] = {
-	'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
-	'd', 0, 'e', 0, 0, 0,
 };
 static const uint8_t cert_db_name[] = {
 	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
@@ -163,7 +139,9 @@ static bool target_matches(const struct payload_mm_authvar_policy_request *reque
 {
 	switch (target) {
 	case PAYLOAD_MM_AUTHVAR_TARGET_PK:
-		return key_is(request, global_guid, pk_name, sizeof(pk_name));
+		return payload_mm_authvar_mode_key_matches(request->vendor_guid,
+			request->name, request->name_size,
+			PAYLOAD_MM_AUTHVAR_MODE_KEY_PK);
 	case PAYLOAD_MM_AUTHVAR_TARGET_KEK:
 		return key_is(request, global_guid, kek_name, sizeof(kek_name));
 	case PAYLOAD_MM_AUTHVAR_TARGET_DB:
@@ -173,7 +151,9 @@ static bool target_matches(const struct payload_mm_authvar_policy_request *reque
 	case PAYLOAD_MM_AUTHVAR_TARGET_DBT:
 		return key_is(request, image_guid, dbt_name, sizeof(dbt_name));
 	case PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE:
-		return !key_is(request, global_guid, pk_name, sizeof(pk_name)) &&
+		return !payload_mm_authvar_mode_key_matches(request->vendor_guid,
+				request->name, request->name_size,
+				PAYLOAD_MM_AUTHVAR_MODE_KEY_PK) &&
 			!key_is(request, global_guid, kek_name, sizeof(kek_name)) &&
 			!key_is(request, image_guid, db_name, sizeof(db_name)) &&
 			!key_is(request, image_guid, dbx_name, sizeof(dbx_name)) &&
@@ -202,11 +182,6 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 		{ global_guid, db_default_name, sizeof(db_default_name) },
 		{ global_guid, dbx_default_name, sizeof(dbx_default_name) },
 		{ global_guid, dbt_default_name, sizeof(dbt_default_name) },
-		{ secure_boot_enable_guid, secure_boot_enable_name,
-			sizeof(secure_boot_enable_name) },
-		{ vendor_keys_nv_guid, vendor_keys_nv_name,
-			sizeof(vendor_keys_nv_name) },
-		{ custom_mode_guid, custom_mode_name, sizeof(custom_mode_name) },
 		{ cert_db_guid, cert_db_name, sizeof(cert_db_name) },
 		{ cert_db_guid, cert_db_volatile_name,
 			sizeof(cert_db_volatile_name) },
@@ -216,6 +191,12 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 	    (uintptr_t)vendor_guid > UINTPTR_MAX - 16U ||
 	    (uintptr_t)name > UINTPTR_MAX - name_size)
 		return false;
+	for (enum payload_mm_authvar_mode_key key =
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE;
+	     key <= PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE; key++)
+		if (payload_mm_authvar_mode_key_matches(vendor_guid, name,
+			name_size, key))
+			return true;
 
 	for (size_t i = 0U; i < ARRAY_SIZE(keys); i++)
 		if (name_size == keys[i].name_size &&
@@ -384,6 +365,26 @@ static bool add_mutation(struct payload_mm_authvar_bundle_plan *plan,
 	return true;
 }
 
+static bool add_mode_mutation(struct payload_mm_authvar_bundle_plan *plan,
+	enum payload_mm_authvar_bundle_role role, uint32_t kind,
+	uint32_t attributes, enum payload_mm_authvar_mode_key key,
+	const void *data, size_t data_size)
+{
+	struct payload_mm_authvar_bundle_mutation *mutation;
+
+	if (plan->mutation_count >= PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS ||
+	    data_size > UINT32_MAX)
+		return false;
+	mutation = &plan->mutations[plan->mutation_count++];
+	mutation->role = role;
+	mutation->mutation.kind = kind;
+	mutation->mutation.attributes = attributes;
+	mutation->mutation.data_size = (uint32_t)data_size;
+	mutation->data = data;
+	mutation->data_size = data_size;
+	return payload_mm_authvar_mode_mutation_key(mutation, key);
+}
+
 enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	const struct payload_mm_authvar_bundle_snapshot *snapshot,
 	struct payload_mm_authvar_bundle_plan *plan)
@@ -392,11 +393,10 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	const struct payload_mm_authvar_authority_decision *decision;
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_store_entry *pk;
-	const struct payload_mm_authvar_store_entry *vendor_keys_nv;
 	const struct payload_mm_authvar_store_entry *secure_boot_enable;
 	const struct payload_mm_authvar_store_entry *target_entry;
-	const uint8_t *vendor_keys_nv_data;
-	const uint8_t *secure_boot_enable_data;
+	uint8_t vendor_keys_nv_data;
+	uint8_t secure_boot_enable_data = 0U;
 	const uint32_t mode_intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE |
 		PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE |
 		PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS;
@@ -431,41 +431,32 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	     bytes_are_zero(decision->mutation.timestamp,
 		sizeof(decision->mutation.timestamp))))
 		return PAYLOAD_MM_VERIFY_CHANGED;
-	pk = payload_mm_authvar_store_find(snapshot->index, global_guid,
-		pk_name, sizeof(pk_name));
+	pk = payload_mm_authvar_mode_find(snapshot->index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_PK);
 	if (snapshot->facts.setup_mode == (pk != NULL))
 		return PAYLOAD_MM_VERIFY_CHANGED;
-	vendor_keys_nv = payload_mm_authvar_store_find(snapshot->index,
-		vendor_keys_nv_guid, vendor_keys_nv_name, sizeof(vendor_keys_nv_name));
-	secure_boot_enable = payload_mm_authvar_store_find(snapshot->index,
-		secure_boot_enable_guid, secure_boot_enable_name,
-		sizeof(secure_boot_enable_name));
-	vendor_keys_nv_data = payload_mm_authvar_store_data(snapshot->index,
-		vendor_keys_nv);
-	secure_boot_enable_data = payload_mm_authvar_store_data(snapshot->index,
-		secure_boot_enable);
-	if (!vendor_keys_nv || vendor_keys_nv->attributes !=
-		(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
-		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
-		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH) ||
-	    vendor_keys_nv->data_size != 1U || !vendor_keys_nv_data ||
-	    memcmp(snapshot->index->store + vendor_keys_nv->record_offset + 16U,
-		(uint8_t[16]) { 0 }, 16U) ||
-	    *vendor_keys_nv_data > 1U ||
-	    snapshot->facts.vendor_keys != !!*vendor_keys_nv_data)
+	secure_boot_enable = payload_mm_authvar_mode_find(snapshot->index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
+	if (!payload_mm_authvar_mode_value(snapshot->index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV,
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
+		&vendor_keys_nv_data) ||
+	    snapshot->facts.vendor_keys != !!vendor_keys_nv_data)
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (secure_boot_enable &&
-	    (secure_boot_enable->attributes !=
+	    !payload_mm_authvar_mode_value(snapshot->index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
 		(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
-		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS) ||
-	     secure_boot_enable->data_size != 1U || !secure_boot_enable_data ||
-	     *secure_boot_enable_data > 1U))
+		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS),
+		&secure_boot_enable_data))
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (!snapshot->facts.at_runtime &&
 	    ((snapshot->facts.setup_mode && snapshot->facts.secure_boot) ||
 	     (!snapshot->facts.setup_mode &&
 	      (!secure_boot_enable || snapshot->facts.secure_boot !=
-	       !!*secure_boot_enable_data))))
+		      !!secure_boot_enable_data))))
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (decision->outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION) {
 		target_entry = payload_mm_authvar_store_find(snapshot->index,
@@ -518,13 +509,12 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 			(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_SETUP;
 		if (!snapshot->facts.at_runtime) {
 			draft.volatile_modes |= PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
-			if (!add_mutation(&draft,
+			if (!add_mode_mutation(&draft,
 				PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE,
 				PAYLOAD_MM_AUTHVAR_MUTATION_WRITE,
 				PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
 				PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS,
-				secure_boot_enable_guid, secure_boot_enable_name,
-				sizeof(secure_boot_enable_name),
+				PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
 				&secure_boot_enabled, 1U))
 				return PAYLOAD_MM_VERIFY_INTERNAL;
 		}
@@ -534,11 +524,11 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 			draft.volatile_modes &=
 				(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 			if (secure_boot_enable)
-				if (!add_mutation(&draft,
+				if (!add_mode_mutation(&draft,
 					PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE,
 					PAYLOAD_MM_AUTHVAR_MUTATION_DELETE, 0U,
-					secure_boot_enable_guid, secure_boot_enable_name,
-					sizeof(secure_boot_enable_name), NULL, 0U))
+					PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
+					NULL, 0U))
 					return PAYLOAD_MM_VERIFY_INTERNAL;
 		}
 	}
@@ -546,14 +536,13 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		draft.volatile_modes &=
 			(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 		if (needs_vendor_write) {
-			if (!add_mutation(&draft,
+			if (!add_mode_mutation(&draft,
 				PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV,
 				PAYLOAD_MM_AUTHVAR_MUTATION_WRITE,
 				PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
 				PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
 				PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
-				vendor_keys_nv_guid, vendor_keys_nv_name,
-				sizeof(vendor_keys_nv_name),
+				PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV,
 				&vendor_keys_modified, 1U))
 				return PAYLOAD_MM_VERIFY_INTERNAL;
 		}
