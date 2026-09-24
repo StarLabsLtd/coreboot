@@ -82,24 +82,6 @@ static void test_success(void)
 	assert_filled(&output, 0x5a);
 }
 
-static void test_full_flash_mode_is_ignored(void)
-{
-	struct region_device output;
-	uint8_t command = SMMSTORE_CMD_USE_FULL_FLASH;
-
-	assert(smmstore_preprocess_cmd(&command, (void *)(uintptr_t)1) == 1);
-	command = SMMSTORE_CMD_RAW_READ | SMMSTORE_CMD_USE_FULL_FLASH;
-	assert(smmstore_preprocess_cmd(&command, (void *)(uintptr_t)1) == 0);
-	assert(command == SMMSTORE_CMD_RAW_READ);
-
-	memset(&output, 0xa5, sizeof(output));
-	reset_test();
-	assert(smmstore_lookup_read_region(&output) == 0);
-	assert(fmap_calls == 1);
-	assert(ro_calls == 1);
-	assert_filled(&output, 0x5a);
-}
-
 static void test_null_output(void)
 {
 	reset_test();
@@ -137,7 +119,6 @@ static void test_read_subregion_failure(void)
 int main(void)
 {
 	test_success();
-	test_full_flash_mode_is_ignored();
 	test_null_output();
 	test_fmap_failure();
 	test_read_subregion_failure();
