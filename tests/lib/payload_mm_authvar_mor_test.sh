@@ -20,7 +20,9 @@ compile()
 		-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
-		"$root/tests/lib/payload_mm_authvar_mor_test.c" "$source" -o "$output"
+		"$root/tests/lib/payload_mm_authvar_mor_test.c" \
+		"$root/src/lib/payload_mm_authvar_mor_identity.c" \
+		"$source" -o "$output"
 }
 
 run_source()
@@ -53,7 +55,8 @@ sed 's/snapshot->trusted_platform_support ?/false ?/' \
 	"$source" > "$mutant"
 run_source support "$mutant" 1
 mutant="$temporary/shape.c"
-sed 's/request->attributes != MOR_ATTRIBUTES/false/' "$source" > "$mutant"
+sed 's/request->attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES/false/' \
+	"$source" > "$mutant"
 run_source shape "$mutant" 1
 mutant="$temporary/lock.c"
 sed 's/state->lock_state != PAYLOAD_MM_AUTHVAR_MOR_UNLOCKED/false/' \

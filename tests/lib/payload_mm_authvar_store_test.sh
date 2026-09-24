@@ -134,7 +134,9 @@ for optimization in 0 2; do
 	fi
 done
 
-awk '/payload_mm_authvar_store[.]c/ && $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_STORE_SCANNER/ { bad = 1 } END { exit bad }' \
+awk '/payload_mm_authvar_store[.]c/ && \
+     $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_(STORE_SCANNER|MOR_ENTRY_PROBE)/ \
+     { bad = 1 } END { exit bad }' \
 	"$root/src/lib/Makefile.mk"
 
 printf '%s\n' 'Payload-MM authenticated-variable store scanner tests: PASS'
