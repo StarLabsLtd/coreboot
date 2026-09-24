@@ -239,6 +239,19 @@ config STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
 	  the generic x86 MOR clear backend. It emits no boot hook, endpoint or MOR
 	  support claim. ACPI S3 is deliberately ineligible for destructive work.
 
+config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select PCI_BME_QUIESCE
+	select RANDOM_GENERATOR_IN_ROMSTAGE
+	select SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION
+	help
+	  Retain the PM1-derived cold-versus-S3 result across FSP-M in a sealed
+	  CBMEM record. The record is not written until VT-d protected memory is
+	  active and every segment-zero PCI function has been quiesced. This is
+	  a dormant prerequisite and does not enable MOR clearing.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

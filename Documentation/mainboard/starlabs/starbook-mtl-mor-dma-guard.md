@@ -38,9 +38,38 @@ reverifies the complete topology and BME-clear state before publishing success.
 Preparation is deliberately independent of a MOR clear plan. It establishes
 and twice observes the hardware, then retains an exact snapshot with a nonzero
 64-bit generation and opaque 256-bit identity generated from checked coreboot
-RNG calls. This value is a private, boot-local capability name, not a digest.
+RNG calls. These values are private, boot-local capability names, not digests.
 Repeated preparation is idempotent and revalidates the hardware without
 regenerating the token.
+
+`STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION` retains the authoritative
+PM1-derived cold-versus-S3 decision in CAR before FSP-M clears the wake state.
+Cold boot allocates an exact 64-byte CBMEM record; S3 recovery only locates the
+existing record and does not overwrite its stale bytes. After FSP-M returns,
+romstage verifies that VTVC0 protected memory is active and covers the whole
+record, clears and reads back BME over the complete segment-zero ECAM space,
+rechecks the same protected limit, and only then overwrites the record with
+identical sealed copies and a fresh RDRAND generation. Failure is terminal
+before ramstage, so an old S3 record cannot become authority.
+
+The dormant ramstage consumer first checks protected-memory coverage, captures
+the record, performs a fresh full ECAM quiesce, and rechecks both the protected
+limit and every record byte. S3 is always rejected. A valid cold record yields
+its exact generation once and is then wiped. An invalid record is wiped only
+after its location has been proven protected; a failure before that proof does
+not write through an untrusted recovered pointer.
+
+This classifier is intentionally not connected to the current guard. Guard
+preparation calls the DMA-live platform `ensure` path, which builds requester
+identity from enumerated `struct device` objects. Those objects are unavailable
+at `BS_PRE_DEVICE`, before FSP-S, so claiming an immediate classifier-to-guard
+transition there would be false. The smallest follow-on prerequisite is a
+direct-ECAM early guard preparation path that consumes the retained PCI BME
+snapshot identities, followed at bind time by exact equality with the later
+enumerated model. Until that exists, no boot hook consumes this record and no
+MOR support is claimed. The eventual caller must place the final ECAM quiesce,
+one-shot consume, and direct guard preparation contiguously, with no FSP-S or
+callback-bearing work between them.
 
 Binding is a separate terminal transition. The caller supplies the prepared
 snapshot and an already canonical MOR clear plan whose inventory generation

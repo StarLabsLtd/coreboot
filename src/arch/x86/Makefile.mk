@@ -257,6 +257,7 @@ ramstage-$(CONFIG_DEBUG_NULL_DEREF_BREAKPOINTS) += null_breakpoint.c
 ramstage-$(CONFIG_DEBUG_STACK_OVERFLOW_BREAKPOINTS) += stack_canary_breakpoint.c
 ramstage-$(CONFIG_GENERATE_PIRQ_TABLE) += pirq_routing.c
 ramstage-y += rdrand.c
+romstage-$(CONFIG_RANDOM_GENERATOR_IN_ROMSTAGE) += rdrand.c
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios.c
 ramstage-y += tables.c
 ramstage-$(CONFIG_COOP_MULTITASKING) += thread.c
