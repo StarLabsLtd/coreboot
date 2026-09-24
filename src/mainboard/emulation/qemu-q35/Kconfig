@@ -94,12 +94,13 @@ config Q35_PAYLOAD_MM_MOR_TEST_ADAPTER
 	bool "QEMU-only MOR platform-adapter prerequisites"
 	default n
 	depends on !SMMSTORE
-	select SMMSTORE_READ_REGION
+	select Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF
+	select PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
 	help
-	  Keep read-only FMAP discovery available while excluding the legacy raw
+	  Compile the Q35 pflash media backend while excluding the legacy raw
 	  SMMSTORE mutation endpoint. This is only the configuration boundary for
-	  the future Q35 MOR adapter: it installs no SMM bootstrap, media backend,
-	  private channel, orchestrator or support claim.
+	  the future Q35 adapter: it invokes no SMM bootstrap or backend
+	  installer and adds no private channel, orchestrator or support claim.
 
 config Q35_CAPSULE_BROKER_TEST_PROOF
 	bool "QEMU-only dormant capsule broker proof"

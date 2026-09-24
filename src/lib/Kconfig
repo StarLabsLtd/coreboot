@@ -158,6 +158,19 @@ config PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND
 	  variable media port. Each media transaction owns one SPI volatile lease.
 	  This adds no dispatcher, SMI route, endpoint or production caller.
 
+config PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
+	bool
+	default n
+	depends on BOARD_EMULATION_QEMU_X86_Q35 && HAVE_SMI_HANDLER
+	depends on PAYLOAD_MM_AUTHVAR_MEDIA_PORT && !SMMSTORE
+	select QEMU_PFLASH_VOLATILE_LEASE
+	select SMMSTORE_READ_REGION
+	help
+	  Build the private Q35 pflash SMMSTORE-region backend for the
+	  authenticated-variable media port. Each transaction owns one QEMU
+	  pflash lease. This adds no dispatcher, SMI route, endpoint, caller or
+	  authenticated-variable support claim.
+
 config PAYLOAD_MM_AUTHVAR_WRITER
 	bool
 	default n
