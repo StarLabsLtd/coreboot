@@ -14,6 +14,14 @@ This can be used by the OS or the payload to implement persistent
 storage to hold for instance configuration data, without needing to
 implement a (platform specific) storage driver in the payload itself.
 
+coreboot also has a hidden `SMMSTORE_READ_REGION` capability for firmware
+components that only need fixed, read-only discovery of the `SMMSTORE` FMAP
+area. `SMMSTORE` selects it, so existing writable configurations retain the
+same region and geometry. A read-only consumer may select it without requiring
+a writable boot device, an SMI handler, a communication buffer, or any
+SMMSTORE command path. Its helper always uses the fixed FMAP region and cannot
+be redirected by the legacy full-flash capsule state.
+
 ### Storage size and alignment
 
 SMMSTORE uses a configurable logical block size
@@ -58,8 +66,10 @@ region. The region must be aligned to the logical block size and should
 be aligned to the largest flash erase block. The FMAP region must be at
 least 64 KiB even when the logical block size is smaller.
 
-When a default generated FMAP is used, the size of the FMAP region is
-equal to `CONFIG_SMMSTORE_SIZE`. UEFI payloads expect at least 64 KiB.
+When a default generated FMAP is used, `SMMSTORE_READ_REGION` owns emission of
+the region and the `SMMSTORE_SIZE` and `SMMSTORE_BLOCK_SIZE` geometry options.
+The size of the FMAP region is equal to `CONFIG_SMMSTORE_SIZE`. UEFI payloads
+expect at least 64 KiB.
 To support a fault tolerant write mechanism, at least a multiple of
 this size is recommended.
 

@@ -65,7 +65,7 @@ config PAYLOAD_MM_AUTHVAR_STORE_SCANNER
 config PAYLOAD_MM_AUTHVAR_FTW_DECODER
 	bool
 	default n
-	depends on PAYLOAD_MM_AUTHVAR_CONTRACT && PAYLOAD_MM_AUTHVAR_STORE_SCANNER
+	depends on PAYLOAD_MM_AUTHVAR_STORE_SCANNER
 	help
 	  Build the read-only EDK2 26.09 FV/FTW geometry decoder and recovery-state
 	  planner. It exposes no flash callbacks, mutation path, service or endpoint.

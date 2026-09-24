@@ -10,7 +10,6 @@ printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 1' \
 	'#define CONFIG_SMMSTORE_BLOCK_SIZE 65536' \
-	'#define CONFIG_SMMSTORE_FULL_FLASH_ACCESS 1' \
 	> "$temporary/config.h"
 printf '%s\n' \
 	'#define FMAP_SECTION_SMMSTORE_START 0' \
@@ -32,21 +31,23 @@ build_and_run()
 
 	# shellcheck disable=SC2086
 	cc $common_flags "$optimization" -fsanitize=address,undefined -c \
-		"$root/src/drivers/smmstore/store.c" \
-		-o "$temporary/$name/store.o"
+		"$root/src/drivers/smmstore/read_region.c" \
+		-o "$temporary/$name/read_region.o"
 	relocations=$(objdump -r -j .text.smmstore_lookup_read_region \
-		"$temporary/$name/store.o")
+		"$temporary/$name/read_region.o")
 	printf '%s\n' "$relocations" | grep -q boot_device_ro_subregion
 	! printf '%s\n' "$relocations" | \
 		grep -Eq 'boot_device_rw|lookup_store_region'
 	# shellcheck disable=SC2086
 	cc $common_flags "$optimization" -fsanitize=address,undefined \
 		"$root/tests/lib/smmstore_read_region_test.c" \
-		"$temporary/$name/store.o" -Wl,--gc-sections \
+		"$temporary/$name/read_region.o" -Wl,--gc-sections \
 		-o "$temporary/$name/test"
 
 	"$temporary/$name/test"
 	! nm -u "$temporary/$name/test" | grep -q 'boot_device_rw'
+	! nm "$temporary/$name/read_region.o" | \
+		grep -Eq 'smmstore_(preprocess_cmd|lookup_region)|boot_device_rw'
 }
 
 build_and_run debug -O0

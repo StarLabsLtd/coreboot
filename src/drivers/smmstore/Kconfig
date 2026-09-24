@@ -1,16 +1,23 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config SMMSTORE_READ_REGION
+	bool
+	help
+	  Provide fixed read-only discovery of the SMMSTORE FMAP region. This
+	  does not require a writable boot device or an SMI handler.
+
 config SMMSTORE
 	bool "Support for flash based, SMM mediated data store"
 	depends on BOOT_DEVICE_SUPPORTS_WRITES && HAVE_SMI_HANDLER
 	default y if PAYLOAD_EDK2 || PAYLOAD_CRABEFI
+	select SMMSTORE_READ_REGION
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	help
 	  SMMSTORE allows secure communication with SMM and makes no
 	  assumptions on the structure of the data stored within. It splits
 	  the store into blocks to allow fault tolerant writes.
 
-if SMMSTORE
+if SMMSTORE_READ_REGION
 
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"
@@ -28,6 +35,10 @@ config SMMSTORE_BLOCK_SIZE
 	help
 	  Sets the logical block size used by the SMMSTORE protocol. This is
 	  an internal SoC or board policy value, not a user-visible option.
+
+endif
+
+if SMMSTORE
 
 config SMMSTORE_FULL_FLASH_ACCESS
 	bool
