@@ -12,6 +12,7 @@
 
 #define PAYLOAD_MM_AUTHVAR_MOR_GRANT_REVISION 1U
 #define PAYLOAD_MM_AUTHVAR_MOR_GRANT_MAX_SPANS 15U
+#define PAYLOAD_MM_AUTHVAR_MOR_GRANT_TAKE_CONTEXT_MAX 32U
 
 #define PAYLOAD_MM_AUTHVAR_MOR_GRANT_COLD_BOOT (1U << 0)
 #define PAYLOAD_MM_AUTHVAR_MOR_GRANT_DMA_HELD_BEFORE_CLEAR (1U << 1)
@@ -97,6 +98,19 @@ enum cb_err payload_mm_authvar_mor_grant_close(void);
 /* The first consume attempt is terminal, including a mismatched attempt. */
 enum cb_err payload_mm_authvar_mor_grant_consume(
 	const struct payload_mm_authvar_mor_grant *expected_grant);
+
+/*
+ * Atomically consume the ready grant into initially-zero protected storage.
+ * The protection callback is called for the output, its own code address, and
+ * the context when one is supplied. It is pure: it must not retain pointers
+ * or mutate its context, output, or the grant authority. A non-NULL context must have a
+ * nonzero size no larger than PAYLOAD_MM_AUTHVAR_MOR_GRANT_TAKE_CONTEXT_MAX.
+ * Every take attempt made while a grant is ready is terminal.
+ */
+enum cb_err payload_mm_authvar_mor_grant_take(
+	struct payload_mm_authvar_mor_grant *output,
+	payload_mm_authvar_mor_grant_protected_storage storage_is_protected,
+	void *context, size_t context_size);
 
 bool payload_mm_authvar_mor_grant_ready(void);
 #endif

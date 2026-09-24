@@ -37,6 +37,23 @@ storage, and rejects aliases or source mutation. Consumption compares the
 whole expected immutable receipt, then scrubs the protected copy; mismatch
 also poisons it.
 
+An SMM-only take operation avoids retaining a second expected receipt after
+the private seal transport has been scrubbed. It accepts only aligned,
+initially-zero output independently attested as protected and disjoint from the
+authority, callback, and bounded immutable callback context. It rechecks the
+complete authority, output, callback context, and one-shot state before
+publishing, then terminally consumes and scrubs the internal receipt. Failure
+never publishes receipt bytes and poisons a ready grant take opportunity.
+
+This take operation is only a prerequisite for a future protected MOR
+consumer. That consumer must acquire the authvar executor's exclusive media
+lease, recover and scan the current store, verify the exact canonical Control
+record, consume the grant immediately before the first mutation, and perform
+durable commit, sync, readback, rescan, and lease release. Consuming outside
+that lease and then issuing an ordinary SET would race a newer request; writing
+before consuming could clear Control without proof of completed memory erase.
+Neither composition is supplied here.
+
 Trusted SMM initialization may instead close the unused install opportunity.
 Close is terminal: it succeeds only before any installation attempt, poisons
 the authority, and scrubs both receipt buffers. Repeated close and every later

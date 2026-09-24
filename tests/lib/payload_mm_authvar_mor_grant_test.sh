@@ -10,6 +10,11 @@ printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 > \
 	"$temporary/include/config.h"
 
 cases='validator misaligned success close-before-install close-after-install
+take-success take-unprotected take-output-nonzero take-mutate-output
+take-mutate-grant take-mutate-candidate take-mutate-state take-mutate-context
+take-null-output take-misaligned-output take-null-callback take-context-alias
+take-context-too-large
+take-output-authority-alias take-output-callback-alias
 consume-mismatch-0 consume-mismatch-1
 consume-mismatch-2 consume-mismatch-3 consume-mismatch-4 consume-mismatch-5 consume-null
 consume-alias
@@ -71,6 +76,7 @@ awk -F '\t' '
 	$1 ~ /:payload_mm_authvar_mor_grant_install$/ ||
 	$1 ~ /:payload_mm_authvar_mor_grant_close$/ ||
 	$1 ~ /:payload_mm_authvar_mor_grant_consume$/ ||
+	$1 ~ /:payload_mm_authvar_mor_grant_take$/ ||
 	$1 ~ /:grant_snapshot_valid([.][^:]*)?$/ {
 		if (!seen[$1]++)
 			count++
@@ -80,7 +86,7 @@ awk -F '\t' '
 		}
 	}
 	END {
-		if (count != 4) {
+		if (count != 5) {
 			print "ERROR: incomplete SMM stack-usage evidence" > "/dev/stderr"
 			exit 1
 		}
@@ -126,6 +132,30 @@ mutant_test consume-binding \
 mutant_test close-one-shot \
 	'if (authority.install_attempted || authority.poisoned)' \
 	'if (false)' close-after-install
+mutant_test take-protection \
+	'output_cleanup_safe =' \
+	'output_cleanup_safe = true ||' take-unprotected
+mutant_test take-output-zero \
+	'bytes_zero(output, sizeof(\*output)) \&\&' \
+	'true \&\&' take-output-nonzero
+mutant_test take-grant-recheck \
+	'!memcmp(\&authority.grant, \&authority.candidate,' \
+	'!memcmp(\&authority.candidate, \&authority.candidate,' take-mutate-grant
+mutant_test take-state-recheck \
+	'authority.install_attempted \&\& authority.installed \&\&' \
+	'authority.install_attempted \&\& true \&\&' take-mutate-state
+mutant_test take-context-recheck \
+	'(!context_size || !memcmp(context_snapshot, context, context_size));' \
+	'true;' take-mutate-context
+mutant_test take-output-mutation \
+	'bytes_zero(output, sizeof(\*output)) \&\&' \
+	'true \&\&' take-mutate-output
+mutant_test take-one-shot \
+	'authority.consumed = true;' \
+	'authority.consumed = false;' take-success
+mutant_test take-cleanup-authority \
+	'if (!valid \&\& output_cleanup_safe)' \
+	'if (!valid \&\& output_structurally_valid)' take-output-callback-alias
 
 mutant_range_test()
 {
@@ -172,6 +202,7 @@ mkdir -p "$temporary/config-default" "$temporary/build-default" \
 cat > "$temporary/config-default/.config" <<'EOF'
 CONFIG_VENDOR_EMULATION=y
 CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
+CONFIG_ANY_TOOLCHAIN=y
 EOF
 make -C "$root" obj="$temporary/build-default" \
 	DOTCONFIG="$temporary/config-default/.config" olddefconfig >/dev/null
@@ -200,11 +231,26 @@ grep -qx 'CONFIG_HAVE_SMI_HANDLER=y' "$temporary/config-grant/.config"
 	"$temporary/config-grant/.config"
 ! grep -q '^CONFIG_SMMSTORE=y$' "$temporary/config-grant/.config"
 
+make -C "$root" obj="$temporary/build-grant" \
+	KBUILD_KCONFIG="$temporary/Kconfig" \
+	DOTCONFIG="$temporary/config-grant/.config" -j2 >/dev/null
+test -f "$temporary/build-grant/smm/lib/payload_mm_authvar_mor_grant.o"
+nm -g --defined-only \
+	"$temporary/build-grant/smm/lib/payload_mm_authvar_mor_grant.o" |
+	grep -q ' payload_mm_authvar_mor_grant_take$'
+test -f "$temporary/build-grant/ramstage/lib/payload_mm_authvar_mor_grant.o"
+! nm -g --defined-only \
+	"$temporary/build-grant/ramstage/lib/payload_mm_authvar_mor_grant.o" |
+	grep -q ' payload_mm_authvar_mor_grant_take$'
+
 grep -qx 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c' \
 	"$root/src/lib/Makefile.mk"
 grep -qx 'smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c' \
 	"$root/src/lib/Makefile.mk"
 test "$(rg -n 'payload_mm_authvar_mor_grant[.]c' "$root/src" \
 	-g Makefile.mk | wc -l)" -eq 2
+
+nm -g --defined-only "$temporary/smm-stack.o" |
+	grep -q ' payload_mm_authvar_mor_grant_take$'
 
 echo 'payload_mm_authvar_mor_grant tests: PASS'
