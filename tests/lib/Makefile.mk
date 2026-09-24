@@ -27,6 +27,8 @@ tests-y += memrange-test
 tests-y += uuid-test
 tests-y += bootmem-test
 tests-y += bootmem-dram-provenance-test
+tests-y += payload-mm-authvar-mor-live-inventory-test
+tests-y += starbook-mtl-mor-live-inventory-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
 tests-y += payload_resource_handoff-test
@@ -154,6 +156,17 @@ bootmem-dram-provenance-test-srcs += src/lib/bootmem.c
 bootmem-dram-provenance-test-srcs += src/lib/memrange.c
 bootmem-dram-provenance-test-config += CONFIG_BOOTMEM_DRAM_PROVENANCE=1
 bootmem-dram-provenance-test-no_test_framework = 1
+
+payload-mm-authvar-mor-live-inventory-test-srcs += tests/lib/payload_mm_authvar_mor_live_inventory_test.c
+payload-mm-authvar-mor-live-inventory-test-srcs += src/lib/payload_mm_authvar_mor_live_inventory.c
+payload-mm-authvar-mor-live-inventory-test-srcs += src/lib/payload_mm_authvar_mor_clear_plan.c
+payload-mm-authvar-mor-live-inventory-test-config += CONFIG_BOOTMEM_DRAM_PROVENANCE=1
+payload-mm-authvar-mor-live-inventory-test-config += CONFIG_PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY=1
+payload-mm-authvar-mor-live-inventory-test-no_test_framework = 1
+
+starbook-mtl-mor-live-inventory-test-srcs += tests/lib/starbook_mtl_mor_live_inventory_test.c
+starbook-mtl-mor-live-inventory-test-srcs += src/mainboard/starlabs/starbook/variants/mtl/mor_live_inventory.c
+starbook-mtl-mor-live-inventory-test-no_test_framework = 1
 
 dimm_info_util-test-srcs += tests/lib/dimm_info_util-test.c
 dimm_info_util-test-srcs += src/device/dram/spd.c
