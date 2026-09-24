@@ -15,6 +15,9 @@
 #include <string.h>
 #include <limits.h>
 #include "../../src/lib/payload_mm_authvar_internal.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+#include "../../src/lib/payload_mm_authvar_recovery.h"
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "../../src/lib/payload_mm_authvar_coordinator.h"
 #include "../../src/lib/payload_mm_authvar_set_preflight.h"
@@ -50,7 +53,7 @@ static uint8_t *media;
 static uint8_t media[REGION_SIZE];
 #endif
 #define MEDIA_SIZE REGION_SIZE
-static uint8_t arena[131072] __aligned(__BIGGEST_ALIGNMENT__);
+static uint8_t arena[196608] __aligned(__BIGGEST_ALIGNMENT__);
 static bool poisoned;
 static bool cache_bound;
 static unsigned int begin_count;
@@ -195,6 +198,13 @@ static uint32_t authority_store_size = REGION_SIZE;
 static bool alternate_recovery_plans;
 static bool start_alternate_snapshot;
 static unsigned int alternate_snapshot_count;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+static uint8_t *recovery_image_to_mutate;
+static size_t recovery_image_to_mutate_size;
+static uint32_t recovery_image_mutation_read_offset;
+static size_t recovery_image_mutation_read_size;
+static unsigned int recovery_image_mutation_matches_to_skip;
+#endif
 #ifndef EXECUTOR_REAL_MEDIA
 static unsigned int tail_read_count;
 #endif
@@ -669,6 +679,21 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_read(
 	} else {
 		memcpy(buffer, media + offset, size);
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	if (recovery_image_to_mutate &&
+	    offset == recovery_image_mutation_read_offset &&
+	    size == recovery_image_mutation_read_size) {
+		if (recovery_image_mutation_matches_to_skip) {
+			recovery_image_mutation_matches_to_skip--;
+		} else {
+			assert(recovery_image_to_mutate_size);
+			recovery_image_to_mutate[
+				recovery_image_to_mutate_size - 1U] ^= 1U;
+			recovery_image_to_mutate = NULL;
+			recovery_image_to_mutate_size = 0U;
+		}
+	}
+#endif
 	if (corrupt_marker_expected_read && size == 1U &&
 	    offset == FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE + 2U) {
 		((uint8_t *)buffer)[0] = PAYLOAD_MM_AUTHVAR_STATE_HEADER_VALID_ONLY;
@@ -4639,6 +4664,66 @@ static void coordinator_native_reset(unsigned int cut, bool print_count)
 #endif
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+void payload_mm_authvar_recovery_test_arm_image_mutation(void *image,
+	size_t size, uint32_t read_offset, size_t read_size,
+	unsigned int matches_to_skip)
+{
+	assert(image && size && !recovery_image_to_mutate &&
+		!recovery_image_to_mutate_size);
+	recovery_image_to_mutate = image;
+	recovery_image_to_mutate_size = size;
+	recovery_image_mutation_read_offset = read_offset;
+	recovery_image_mutation_read_size = read_size;
+	recovery_image_mutation_matches_to_skip = matches_to_skip;
+}
+
+static void recovery_planner_test(const char *name)
+{
+	enum payload_mm_authvar_recovery_test_mutation mutation =
+		PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_NONE;
+	bool execute = strcmp(name, "planner-zero-write") != 0;
+	uint64_t expected = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+
+	memset(working(), 0xff, BLOCK_SIZE);
+	if (!strcmp(name, "planner-abort-read-image-mutation")) {
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED);
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_ABORT_READ_IMAGE;
+	} else if (!strcmp(name, "planner-replay-read-image-mutation")) {
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		memcpy(spare(), media, BLOCK_SIZE);
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_REPLAY_READ_IMAGE;
+	}
+	if (!strcmp(name, "planner-snapshot-mutation"))
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_SNAPSHOT;
+	else if (!strcmp(name, "planner-geometry-mutation"))
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_GEOMETRY;
+	else if (!strcmp(name, "planner-step-mutation"))
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_STEP;
+	else if (!strcmp(name, "planner-token-mutation"))
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_TOKEN;
+	else if (!strcmp(name, "planner-callback-image-mutation"))
+		mutation = PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_CALLBACK_IMAGE;
+	else if (!strcmp(name, "planner-abort-read-image-mutation") ||
+		 !strcmp(name, "planner-replay-read-image-mutation"))
+		;
+	else if (!strcmp(name, "planner-zero-write") ||
+		 !strcmp(name, "planner-execute"))
+		expected = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	else
+		assert(false);
+	install();
+	assert(payload_mm_authvar_executor_test_recovery_plan(mutation, execute) ==
+		expected);
+	if (!execute || mutation != PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_NONE)
+		assert(program_count == 0U && erase_count == 0U);
+	else
+		assert(program_count && erase_count);
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
@@ -4646,6 +4731,12 @@ int main(int argc, char **argv)
 	real_media_prepare();
 #endif
 	make_clean();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	if (!strncmp(argv[1], "planner-", 8U)) {
+		recovery_planner_test(argv[1]);
+		return 0;
+	}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (!strcmp(argv[1], "coordinator-success")) {
 		coordinator_success();
