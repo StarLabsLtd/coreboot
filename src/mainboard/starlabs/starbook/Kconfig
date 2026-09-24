@@ -192,6 +192,7 @@ config STARLABS_STARBOOK_MTL_DMA_HANDOFF
 	depends on STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
 	depends on !STARLABS_STARBOOK_MTL_DMA_DIAGNOSTIC
 	select PAYLOAD_DMA_HANDOFF
+	select STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND
 	select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION
 	help
 	  Replace the active VTVC0 protected-memory region with default-deny
@@ -201,6 +202,24 @@ config STARLABS_STARBOOK_MTL_DMA_HANDOFF
 
 	  Keep this disabled until the read-only MTL DMA diagnostic output from
 	  the target firmware has been captured and independently reviewed.
+
+config STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION
+	select STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY
+
+config STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
+	select STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND
+	help
+	  Build the dormant synchronous Meteor Lake MOR DMA guard. It reuses the
+	  exact StarBook DMA-live transition and emits no boot hook, endpoint or
+	  MOR support claim.
 
 if BOARD_STARLABS_STARBOOK_SERIES
 
