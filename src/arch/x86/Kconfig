@@ -8,6 +8,12 @@ config ARCH_X86
 
 if ARCH_X86
 
+config RANDOM_GENERATOR_IN_ROMSTAGE
+	bool
+	default n
+	help
+	  Make the architecture RDRAND helper available in romstage.
+
 # stage selectors for x86
 
 config ARCH_BOOTBLOCK_X86_32

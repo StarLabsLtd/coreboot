@@ -490,4 +490,8 @@ config SOC_INTEL_SPI_PSF_DESTINATION_ID
 	hex
 	default 0x5140
 
+config SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION
+	bool
+	default n
+
 endif

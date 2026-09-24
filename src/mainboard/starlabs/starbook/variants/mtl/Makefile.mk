@@ -3,12 +3,14 @@
 bootblock-y += gpio.c
 
 romstage-y += romstage.c
+romstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION) += mor_cold_boot.c
 romstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker.c
 
 ramstage-y += devtree.c
 ramstage-y += gpio.c
 ramstage-y += hda_verb.c
 ramstage-y += ramstage.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION) += mor_cold_boot.c
 ramstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_resource_handoff.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_resource_policy.c
