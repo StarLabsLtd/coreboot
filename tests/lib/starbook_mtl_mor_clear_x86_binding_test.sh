@@ -64,6 +64,14 @@ mutant_test stale-plan-on-invalid-binding \
 	'if (plan_valid)' 'if (false)'
 mutant_test stale-binding-on-invalid-plan \
 	'if (binding_valid)' 'if (false)'
+mutant_test no-authority-seal \
+	'authority->seal == authority_seal(authority) &&' 'true &&'
+mutant_test no-guard-revalidation \
+	'!guard_revalidate(binding, MTL_MOR_CLEAR_BUSY, &authority)' 'false'
+mutant_test omit-plan-lifetime-overlay \
+	'[.]base = (uintptr_t)plan,' '.base = (uintptr_t)\&binding->backend,'
+mutant_test replay-caller-binding \
+	'if (!lifecycle_advance[(]' 'if (false \&\& !lifecycle_advance('
 
 mkdir -p "$temporary/config-default" "$temporary/build-default"
 cp "$root/configs/config.starlabs_starbook_mtl" \
@@ -97,6 +105,8 @@ for symbol in \
 	PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT \
 	PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR \
 	PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND \
+	STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION \
+	STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD \
 	STARLABS_STARBOOK_MTL_MOR_DMA_GUARD; do
 	grep -qx "CONFIG_${symbol}=y" "$temporary/config-selected/.config"
 done
@@ -105,6 +115,10 @@ make -C "$root" obj="$temporary/build-selected" \
 	DOTCONFIG="$temporary/config-selected/.config" -j4 \
 	"$temporary/build-selected/ramstage/mainboard/starlabs/starbook/variants/mtl/mor_clear_x86.o" \
 	"$temporary/build-selected/ramstage/mainboard/starlabs/starbook/variants/mtl/mor_live_inventory.o" \
+	"$temporary/build-selected/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_guard.o" \
+	"$temporary/build-selected/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o" \
+	"$temporary/build-selected/ramstage/lib/payload_mm_authvar_mor_clear_executor.o" \
+	"$temporary/build-selected/ramstage/lib/payload_mm_authvar_mor_clear_x86.o" \
 	"$temporary/build-selected/ramstage/lib/bootmem.o" >/dev/null
 nm -g --defined-only \
 	"$temporary/build-selected/ramstage/mainboard/starlabs/starbook/variants/mtl/mor_clear_x86.o" | \
