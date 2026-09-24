@@ -6,17 +6,17 @@
 
 static void geometry_table(void)
 {
-	struct payload_mm_authvar_ftw_geometry geometry;
+	struct payload_mm_authvar_fv_geometry geometry;
 
 	for (size_t blocks = 0; blocks < 3U; blocks++)
-		assert(payload_mm_authvar_ftw_geometry(&geometry,
-			blocks * BLOCK_SIZE, BLOCK_SIZE) == CB_ERR);
+		assert(!payload_mm_authvar_fv_geometry(&geometry,
+			blocks * BLOCK_SIZE, BLOCK_SIZE));
 	for (size_t blocks = 3U; blocks <= 8U; blocks++) {
 		size_t spare_blocks = blocks / 2U;
 		size_t variable_blocks = blocks - spare_blocks - 1U;
 
-		assert(payload_mm_authvar_ftw_geometry(&geometry,
-			blocks * BLOCK_SIZE, BLOCK_SIZE) == CB_SUCCESS);
+		assert(payload_mm_authvar_fv_geometry(&geometry,
+			blocks * BLOCK_SIZE, BLOCK_SIZE));
 		assert(geometry.variable_offset == 0U &&
 			geometry.variable_size == variable_blocks * BLOCK_SIZE &&
 			geometry.working_offset == geometry.variable_size &&
@@ -24,11 +24,11 @@ static void geometry_table(void)
 			geometry.spare_offset == geometry.working_offset + BLOCK_SIZE &&
 			geometry.spare_size == spare_blocks * BLOCK_SIZE);
 	}
-	assert(payload_mm_authvar_ftw_geometry(&geometry, REGION_SIZE - 1U,
-		BLOCK_SIZE) == CB_ERR);
-	assert(payload_mm_authvar_ftw_geometry(&geometry, REGION_SIZE, 0) == CB_ERR);
-	assert(payload_mm_authvar_ftw_geometry(&geometry, (size_t)UINT32_MAX + 1U,
-		BLOCK_SIZE) == CB_ERR);
+	assert(!payload_mm_authvar_fv_geometry(&geometry, REGION_SIZE - 1U,
+		BLOCK_SIZE));
+	assert(!payload_mm_authvar_fv_geometry(&geometry, REGION_SIZE, 0));
+	assert(!payload_mm_authvar_fv_geometry(&geometry, (size_t)UINT32_MAX + 1U,
+		BLOCK_SIZE));
 }
 
 int main(void)

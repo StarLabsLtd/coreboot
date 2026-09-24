@@ -351,19 +351,19 @@ static void completed_history(void)
 static void hostile_inputs(void)
 {
 	struct payload_mm_authvar_ftw_plan result;
-	struct payload_mm_authvar_ftw_geometry geometry;
+	struct payload_mm_authvar_fv_geometry geometry;
 	const uint8_t zero[sizeof(result)] = { 0 };
 
-	assert(payload_mm_authvar_ftw_geometry(&geometry, 3U * BLOCK_SIZE,
-		BLOCK_SIZE) == CB_SUCCESS && geometry.variable_size == BLOCK_SIZE &&
+	assert(payload_mm_authvar_fv_geometry(&geometry, 3U * BLOCK_SIZE,
+		BLOCK_SIZE) && geometry.variable_size == BLOCK_SIZE &&
 		geometry.spare_size == BLOCK_SIZE);
-	assert(payload_mm_authvar_ftw_geometry(&geometry, REGION_SIZE - 1U,
-		BLOCK_SIZE) == CB_ERR);
-	assert(payload_mm_authvar_ftw_geometry(&geometry, 5U * BLOCK_SIZE,
-		BLOCK_SIZE) == CB_SUCCESS && geometry.variable_size == 2U * BLOCK_SIZE &&
+	assert(!payload_mm_authvar_fv_geometry(&geometry, REGION_SIZE - 1U,
+		BLOCK_SIZE));
+	assert(payload_mm_authvar_fv_geometry(&geometry, 5U * BLOCK_SIZE,
+		BLOCK_SIZE) && geometry.variable_size == 2U * BLOCK_SIZE &&
 		geometry.spare_size == 2U * BLOCK_SIZE);
-	assert(payload_mm_authvar_ftw_geometry(&geometry, 6U * BLOCK_SIZE,
-		BLOCK_SIZE) == CB_SUCCESS && geometry.variable_size == 2U * BLOCK_SIZE &&
+	assert(payload_mm_authvar_fv_geometry(&geometry, 6U * BLOCK_SIZE,
+		BLOCK_SIZE) && geometry.variable_size == 2U * BLOCK_SIZE &&
 		geometry.spare_size == 3U * BLOCK_SIZE);
 	memset(&result, 0xa5, sizeof(result));
 	assert(payload_mm_authvar_ftw_plan(NULL, REGION_SIZE, BLOCK_SIZE,

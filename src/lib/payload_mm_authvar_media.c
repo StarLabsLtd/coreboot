@@ -16,7 +16,7 @@
 struct media_policy {
 	struct payload_mm_authvar_media_port port;
 	struct payload_mm_authvar_contract contract;
-	struct payload_mm_authvar_ftw_geometry geometry;
+	struct payload_mm_authvar_fv_geometry geometry;
 	uint8_t context[PAYLOAD_MM_AUTHVAR_MEDIA_CONTEXT_CAPACITY]
 		__aligned(__BIGGEST_ALIGNMENT__);
 };
@@ -212,7 +212,7 @@ static bool protected_buffer(const void *buffer, size_t size)
 }
 
 static bool geometry_valid(const struct payload_mm_authvar_contract *contract,
-	const struct payload_mm_authvar_ftw_geometry *geometry)
+	const struct payload_mm_authvar_fv_geometry *geometry)
 {
 	uint64_t end;
 
@@ -472,9 +472,9 @@ enum cb_err payload_mm_authvar_media_install(
 	if (!payload_mm_authvar_authority_snapshot(&media.policy.contract) ||
 	    media.policy.contract.erase_size >
 		PAYLOAD_MM_AUTHVAR_MEDIA_SCRATCH_CAPACITY ||
-	    payload_mm_authvar_ftw_geometry(&media.policy.geometry,
+	    !payload_mm_authvar_fv_geometry(&media.policy.geometry,
 		media.policy.contract.store_size,
-		media.policy.contract.block_size) != CB_SUCCESS ||
+		media.policy.contract.block_size) ||
 	    !geometry_valid(&media.policy.contract, &media.policy.geometry))
 		return CB_ERR;
 	media.policy.port = port;
@@ -652,7 +652,7 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_program(
 
 static bool erase_authorized(uint32_t offset, size_t size)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&media.policy.geometry;
 	const uint32_t starts[] = { geometry->variable_offset,
 		geometry->working_offset, geometry->spare_offset };

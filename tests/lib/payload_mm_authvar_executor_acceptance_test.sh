@@ -28,6 +28,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -56,6 +57,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -121,6 +123,7 @@ for phase in BASE SPARE_COMPLETE PRIMARY_ERASE PRIMARY_IMAGE \
 			"$root/src/lib/payload_mm_authvar.c" \
 			"$root/src/lib/payload_mm_authvar_runtime.c" \
 			"$root/src/lib/payload_mm_authvar_media.c" "$mutant" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \

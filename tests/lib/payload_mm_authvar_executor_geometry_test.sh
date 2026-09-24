@@ -37,6 +37,7 @@ for spec in 3:4096:4096 4:4096:4096 5:4096:4096 6:4096:4096 \
 			"$root/src/lib/payload_mm_authvar_runtime.c" \
 			"$root/src/lib/payload_mm_authvar_media.c" \
 			"$root/src/lib/payload_mm_authvar_executor.c" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \

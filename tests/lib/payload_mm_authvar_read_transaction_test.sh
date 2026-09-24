@@ -29,6 +29,7 @@ compile()
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_read_transaction_test.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" "$semantics_source" \
 		"$root/src/lib/payload_mm_authvar_record.c" \

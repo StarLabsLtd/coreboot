@@ -28,6 +28,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -93,6 +94,7 @@ mutation_test_file()
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
 			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_format.c" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -272,6 +274,7 @@ cc -std=gnu11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
 	"$root/src/lib/payload_mm_authvar_bundle.c" \
 	"$root/src/lib/payload_mm_authvar_mode.c" \
 	"$root/src/lib/payload_mm_authvar_format.c" \
+	"$root/src/lib/payload_mm_authvar_fv.c" \
 	"$root/src/lib/payload_mm_authvar_ftw.c" \
 	"$root/src/lib/payload_mm_authvar_store.c" \
 	"$root/src/lib/payload_mm_authvar_store_semantics.c" \

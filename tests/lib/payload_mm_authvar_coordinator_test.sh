@@ -34,6 +34,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_route.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -125,6 +126,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_mode.c" \
 	"$root/src/lib/payload_mm_authvar_format.c" \
 	"$root/src/lib/payload_mm_authvar_route.c" \
+	"$root/src/lib/payload_mm_authvar_fv.c" \
 	"$root/src/lib/payload_mm_authvar_ftw.c" \
 	"$root/src/lib/payload_mm_authvar_store.c" \
 	"$root/src/lib/payload_mm_authvar_store_semantics.c" \

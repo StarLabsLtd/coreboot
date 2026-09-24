@@ -50,6 +50,7 @@ compile_mutant()
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_executor_test.c" $executor_source \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -69,7 +70,8 @@ compile_mutant()
 compile_special_baselines()
 {
 	for optimization in 0 2; do
-		common="$root/src/lib/payload_mm_authvar_ftw.c
+		common="$root/src/lib/payload_mm_authvar_fv.c
+$root/src/lib/payload_mm_authvar_ftw.c
 $root/src/lib/payload_mm_authvar_store.c
 $root/src/lib/payload_mm_authvar_store_semantics.c
 $root/src/lib/payload_mm_authvar_record.c
