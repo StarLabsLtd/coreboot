@@ -34,6 +34,7 @@ ramstage-y += sd.c
 ramstage-$(CONFIG_EHL_TSN_DRIVER) += tsn_gbe.c
 
 smm-y += gpio.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) += gpio_lock.c
 smm-y += p2sb.c
 smm-y += pmutil.c
 smm-y += smihandler.c
