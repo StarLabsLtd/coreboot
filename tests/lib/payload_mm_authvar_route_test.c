@@ -148,24 +148,29 @@ static void secure_target_routes(void)
 	assert(plan.target == PAYLOAD_MM_AUTHVAR_TARGET_PK);
 	assert_authorities(&plan, PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE, 1);
+	assert(!plan.mark_vendor_keys_modified);
 	request = request_for(global_guid, kek_name, sizeof(kek_name));
 	plan = route_ok(&request);
 	assert_authorities(&plan, PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE, 1);
+	assert(!plan.mark_vendor_keys_modified);
 
 	/* Image databases try PK first and KEK second, exactly in that order. */
 	request = request_for(image_security_guid, db_name, sizeof(db_name));
 	plan = route_ok(&request);
 	assert_authorities(&plan, PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK, 2);
+	assert(!plan.mark_vendor_keys_modified);
 	request = request_for(image_security_guid, dbx_name, sizeof(dbx_name));
 	plan = route_ok(&request);
 	assert_authorities(&plan, PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK, 2);
+	assert(!plan.mark_vendor_keys_modified);
 	request = request_for(image_security_guid, dbt_name, sizeof(dbt_name));
 	plan = route_ok(&request);
 	assert_authorities(&plan, PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK, 2);
+	assert(!plan.mark_vendor_keys_modified);
 
 	/* Setup mode bypasses all secure targets, except self-signed PK policy. */
 	request = request_for(global_guid, pk_name, sizeof(pk_name));

@@ -10,6 +10,9 @@
 #if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 #include <boot/payload_mm_authvar_candidate.h>
 #endif
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#include <boot/payload_mm_authvar_authority.h>
+#endif
 
 struct payload_mm_authvar_executor_limits {
 	uint32_t maximum_store_size;
@@ -81,6 +84,41 @@ typedef uint64_t (*payload_mm_authvar_candidate_prepare_test_fn)(
 uint64_t payload_mm_authvar_executor_test_commit_candidate(
 	payload_mm_authvar_candidate_prepare_test_fn prepare, void *context,
 	u8 source_volatile_modes, u8 *published_volatile_modes);
+void payload_mm_authvar_executor_test_corrupt_policy(bool corrupt);
+#endif
+
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#define PAYLOAD_MM_AUTHVAR_COORDINATOR_TEST_REVISION 1U
+
+struct payload_mm_authvar_coordinator_test_request {
+	uint32_t revision;
+	uint32_t size;
+	const struct payload_mm_authvar_policy_request *request;
+	struct payload_mm_crypto_owner *owner;
+	payload_mm_authvar_authority_verify_fn *verify;
+	void *verify_context;
+	size_t verify_context_size;
+	uint8_t trusted_physical_presence;
+	uint8_t reserved[7];
+};
+
+struct payload_mm_authvar_coordinator_test_result {
+	uint64_t status;
+	uint32_t outcome;
+	uint8_t volatile_modes;
+	uint8_t reserved[3];
+	uint32_t completion;
+};
+void payload_mm_authvar_executor_test_corrupt_coordinate_policy(void);
+
+/* Test-only proof hook; the production coordinator remains private. */
+uint64_t payload_mm_authvar_executor_test_coordinate(
+	const struct payload_mm_authvar_coordinator_test_request *request,
+	struct payload_mm_authvar_coordinator_test_result *result);
+bool payload_mm_authvar_executor_test_coordinator_spans(
+	const void *const parts[7], const size_t sizes[7]);
+bool payload_mm_authvar_executor_test_coordinator_lengths(size_t name_size,
+	size_t data_size, size_t context_size);
 #endif
 
 #endif
