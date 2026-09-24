@@ -66,7 +66,7 @@ static void pci_write16(void *unused, uint8_t bus, uint8_t devfn,
 	write16p(address, value);
 }
 
-static void poison_backend(const struct starbook_mtl_dma_live_pci_io *pci_io)
+static void poison_backend(const struct pci_bme_quiesce_io *pci_io)
 {
 	starbook_mtl_dma_live_poison(pci_io,
 		CONFIG_ECAM_MMCONF_BUS_NUMBER);
@@ -148,7 +148,7 @@ static bool collect_requester_identity(void)
 enum cb_err starbook_mtl_dma_live_backend_ensure(void)
 {
 	struct live_context context = { .vtd_base = soc_vtd_iop_base() };
-	const struct starbook_mtl_dma_live_pci_io pci_io = {
+	const struct pci_bme_quiesce_io pci_io = {
 		.read32 = pci_read32,
 		.write16 = pci_write16,
 	};
@@ -270,7 +270,7 @@ static enum cb_err platform_observe(void *unused,
 	const struct cbmem_entry *mirror_entry;
 	const uint64_t gfxvtbar = MCHBAR64(GFXVTBAR);
 	const uint16_t integrated_requesters[] = { PCI_DEVFN_IGD, PCI_DEVFN_IPU };
-	const struct starbook_mtl_dma_live_pci_io pci_io = {
+	const struct pci_bme_quiesce_io pci_io = {
 		.read32 = pci_read32,
 		.write16 = pci_write16,
 	};
@@ -353,7 +353,7 @@ static enum cb_err platform_random64(void *unused, uint64_t *value)
 
 static void platform_poison(void *unused)
 {
-	const struct starbook_mtl_dma_live_pci_io pci_io = {
+	const struct pci_bme_quiesce_io pci_io = {
 		.read32 = pci_read32,
 		.write16 = pci_write16,
 	};
@@ -391,7 +391,7 @@ enum cb_err starbook_mtl_dma_guard_bind(
 bool starbook_mtl_dma_live_backend_handoff(uintptr_t *address, size_t *bytes)
 {
 	struct live_context context = { .vtd_base = soc_vtd_iop_base() };
-	const struct starbook_mtl_dma_live_pci_io pci_io = {
+	const struct pci_bme_quiesce_io pci_io = {
 		.read32 = pci_read32,
 		.write16 = pci_write16,
 	};

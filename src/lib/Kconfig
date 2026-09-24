@@ -7,6 +7,14 @@ config MISSING_BOARD_RESET
 	  implementation. This activates a stub that logs the missing
 	  board reset and halts execution.
 
+config PCI_BME_QUIESCE
+	bool
+	default n
+	help
+	  Build the dormant allocation-free segment-zero PCI topology snapshot,
+	  complete Bus Master Enable quiesce and exact revalidation helper in
+	  romstage and ramstage. This adds no caller, hook or support claim.
+
 config BOOTMEM_DRAM_PROVENANCE
 	bool
 	default n

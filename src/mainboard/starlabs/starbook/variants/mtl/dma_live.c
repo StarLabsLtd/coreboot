@@ -7,10 +7,6 @@
 #include "../../../../../soc/intel/common/block/vtd/vtd_transition.h"
 #include "../../../../../soc/intel/common/block/vtd/vtd_translation.h"
 
-#define PCI_VENDOR_DEVICE 0x00U
-#define PCI_COMMAND 0x04U
-#define PCI_CLASS_REVISION 0x08U
-#define PCI_COMMAND_MASTER (1U << 2)
 #define DMA_LIVE_PAGE_SIZE VTD_TRANSLATION_PAGE_SIZE
 #define DMA_LIVE_HANDOFF_BYTES \
 	(sizeof(struct dma_handoff_header) + STARBOOK_MTL_DMA_LIVE_REQUESTERS * \
@@ -20,16 +16,6 @@
 #define VTD_PROTECTED_MEMORY_ACTIVE (1U << 0)
 #define VTD_PROTECTED_MEMORY_REQUEST (1U << 31)
 
-struct dma_live_function {
-	struct starbook_mtl_dma_live_identity identity;
-	uint16_t command;
-};
-
-struct dma_live_snapshot {
-	struct dma_live_function functions[STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS];
-	size_t count;
-};
-
 enum dma_live_phase {
 	DMA_LIVE_EMPTY,
 	DMA_LIVE_FAILED,
@@ -38,7 +24,8 @@ enum dma_live_phase {
 
 struct dma_live_state {
 	enum dma_live_phase phase;
-	struct dma_live_snapshot snapshot;
+	struct pci_bme_quiesce_snapshot snapshot;
+	struct pci_bme_quiesce_snapshot snapshot_workspace;
 	struct starbook_mtl_dma_live_identity requesters[
 		STARBOOK_MTL_DMA_LIVE_REQUESTERS];
 	struct starbook_mtl_dma_live_layout layout;
@@ -68,144 +55,34 @@ static bool expected_valid(const struct starbook_mtl_dma_live_identity expected[
 	return true;
 }
 
-static int snapshot_pci(const struct starbook_mtl_dma_live_pci_io *io,
-	uint16_t bus_count,
+static bool expected_snapshot_valid(
+	const struct pci_bme_quiesce_snapshot *snapshot,
 	const struct starbook_mtl_dma_live_identity expected[
-		STARBOOK_MTL_DMA_LIVE_REQUESTERS],
-	struct dma_live_snapshot *snapshot)
+		STARBOOK_MTL_DMA_LIVE_REQUESTERS])
 {
 	bool found[STARBOOK_MTL_DMA_LIVE_REQUESTERS] = { false };
 
-	memset(snapshot, 0, sizeof(*snapshot));
-	if (!io || !io->read32 || !bus_count || bus_count > 256U || !expected ||
-	    !expected_valid(expected, bus_count))
-		return -1;
-	for (uint16_t bus = 0; bus < bus_count; bus++) {
-		for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++) {
-			const uint32_t vendor_device = io->read32(io->context, bus,
-				devfn, PCI_VENDOR_DEVICE);
-			struct dma_live_function *function;
-
-			if ((uint16_t)vendor_device == UINT16_MAX)
-				continue;
-			if (snapshot->count == STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS)
-				return -1;
-			function = &snapshot->functions[snapshot->count++];
-			function->identity = (struct starbook_mtl_dma_live_identity) {
-				.bdf = bus << 8 | devfn,
-				.vendor = vendor_device,
-				.device = vendor_device >> 16,
-				.class = io->read32(io->context, bus, devfn,
-					PCI_CLASS_REVISION) >> 8,
+	if (!snapshot || snapshot->failed)
+		return false;
+	for (size_t function = 0; function < snapshot->count; function++)
+		for (size_t index = 0; index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++) {
+			const struct pci_bme_quiesce_function *entry =
+				&snapshot->functions[function];
+			struct starbook_mtl_dma_live_identity identity = {
+				.bdf = entry->bdf, .vendor = entry->vendor,
+				.device = entry->device, .class = entry->class,
 			};
-			function->command = io->read32(io->context, bus, devfn,
-				PCI_COMMAND);
-			for (size_t index = 0;
-			     index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++) {
-				if (function->identity.bdf != expected[index].bdf)
-					continue;
-				if (!identity_equal(&function->identity, &expected[index]))
-					return -1;
+
+			if (identity.bdf == expected[index].bdf) {
+				if (!identity_equal(&identity, &expected[index]))
+					return false;
 				found[index] = true;
 			}
 		}
-	}
-	if (!snapshot->count)
-		return -1;
 	for (size_t index = 0; index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++)
 		if (!found[index])
-			return -1;
-	return 0;
-}
-
-static int verify_pci(const struct starbook_mtl_dma_live_pci_io *io,
-	uint16_t bus_count, const struct dma_live_snapshot *snapshot)
-{
-	size_t index = 0;
-
-	if (!io || !io->read32 || !bus_count || bus_count > 256U || !snapshot ||
-	    !snapshot->count ||
-	    snapshot->count > STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS)
-		return -1;
-	for (uint16_t bus = 0; bus < bus_count; bus++) {
-		for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++) {
-			const uint32_t vendor_device = io->read32(io->context, bus,
-				devfn, PCI_VENDOR_DEVICE);
-			struct starbook_mtl_dma_live_identity identity;
-			uint16_t command;
-
-			if ((uint16_t)vendor_device == UINT16_MAX)
-				continue;
-			if (index == snapshot->count)
-				return -1;
-			identity = (struct starbook_mtl_dma_live_identity) {
-				.bdf = bus << 8 | devfn,
-				.vendor = vendor_device,
-				.device = vendor_device >> 16,
-				.class = io->read32(io->context, bus, devfn,
-					PCI_CLASS_REVISION) >> 8,
-			};
-			command = io->read32(io->context, bus, devfn, PCI_COMMAND);
-			if (!identity_equal(&identity,
-				&snapshot->functions[index].identity) ||
-			    (command & PCI_COMMAND_MASTER) ||
-			    (command & ~PCI_COMMAND_MASTER) !=
-				(snapshot->functions[index].command & ~PCI_COMMAND_MASTER))
-				return -1;
-			index++;
-		}
-	}
-	return index == snapshot->count ? 0 : -1;
-}
-
-static int quiesce_pci(const struct starbook_mtl_dma_live_pci_io *io,
-	uint16_t bus_count, const struct dma_live_snapshot *snapshot)
-{
-	if (!io || !io->write16)
-		return -1;
-	for (size_t index = 0; index < snapshot->count; index++) {
-		const struct dma_live_function *function = &snapshot->functions[index];
-
-		io->write16(io->context, function->identity.bdf >> 8,
-			function->identity.bdf, PCI_COMMAND,
-			function->command & ~PCI_COMMAND_MASTER);
-	}
-	return verify_pci(io, bus_count, snapshot);
-}
-
-static void terminal_quiesce_pci(const struct starbook_mtl_dma_live_pci_io *io,
-	uint16_t bus_count)
-{
-	if (!io || !io->read32 || !io->write16 || !bus_count || bus_count > 256U)
-		return;
-	for (uint16_t bus = 0; bus < bus_count; bus++) {
-		for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++) {
-			uint32_t vendor_device = io->read32(io->context, bus, devfn,
-				PCI_VENDOR_DEVICE);
-			uint16_t command;
-
-			if ((uint16_t)vendor_device == UINT16_MAX)
-				continue;
-			command = io->read32(io->context, bus, devfn, PCI_COMMAND);
-			io->write16(io->context, bus, devfn, PCI_COMMAND,
-				command & ~PCI_COMMAND_MASTER);
-		}
-	}
-	/* Read every command register back; retry a device that retained BME. */
-	for (uint16_t bus = 0; bus < bus_count; bus++) {
-		for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++) {
-			const uint32_t vendor_device = io->read32(io->context, bus,
-				devfn, PCI_VENDOR_DEVICE);
-			uint16_t command;
-
-			if ((uint16_t)vendor_device == UINT16_MAX)
-				continue;
-			command = io->read32(io->context, bus, devfn, PCI_COMMAND);
-			if (command & PCI_COMMAND_MASTER)
-				io->write16(io->context, bus, devfn, PCI_COMMAND,
-					command & ~PCI_COMMAND_MASTER);
-		}
-	}
+			return false;
+	return true;
 }
 
 static size_t span_count(uint64_t base, uint64_t bytes, unsigned int shift)
@@ -328,7 +205,7 @@ static int partition_buffer(void *memory, uint64_t physical_base, size_t size,
 }
 
 int starbook_mtl_dma_live_establish(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count,
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count,
 	const struct starbook_mtl_dma_live_identity requesters[
 		STARBOOK_MTL_DMA_LIVE_REQUESTERS],
 	void *memory, uint64_t physical_base, size_t size,
@@ -351,13 +228,16 @@ int starbook_mtl_dma_live_establish(
 	    (facts.protected_memory_enable &
 	     (VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE)) !=
 		(VTD_PROTECTED_MEMORY_REQUEST | VTD_PROTECTED_MEMORY_ACTIVE) ||
-	    snapshot_pci(pci_io, bus_count, requesters, &live_state.snapshot) ||
-	    quiesce_pci(pci_io, bus_count, &live_state.snapshot))
+	    !expected_valid(requesters, bus_count) ||
+	    pci_bme_quiesce(pci_io, bus_count, &live_state.snapshot,
+		&live_state.snapshot_workspace) != CB_SUCCESS ||
+	    !expected_snapshot_valid(&live_state.snapshot, requesters))
 		return -1;
-	if (verify_pci(pci_io, bus_count, &live_state.snapshot) ||
+	if (pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
+		&live_state.snapshot_workspace) ||
 	    partition_buffer(memory, physical_base, size, table_mirror,
 		table_mirror_physical, table_mirror_size, &live_state.layout)) {
-		terminal_quiesce_pci(pci_io, bus_count);
+		pci_bme_quiesce_terminal(pci_io, bus_count);
 		return -1;
 	}
 	memcpy(live_state.requesters, requesters, sizeof(live_state.requesters));
@@ -380,12 +260,14 @@ int starbook_mtl_dma_live_establish(
 	live_state.layout.table_used_pages = image.used_pages;
 	memcpy(live_state.layout.table_mirror, live_state.layout.table_memory,
 		live_state.layout.table_used_pages * DMA_LIVE_PAGE_SIZE);
-	if (verify_pci(pci_io, bus_count, &live_state.snapshot) ||
+	if (pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
+		&live_state.snapshot_workspace) ||
 	    !starbook_mtl_dma_live_tables_match(&live_state.layout) ||
 	    vtd_transition_from_pmr(transition, live_state.layout.table_physical) ||
 	    !starbook_mtl_dma_live_tables_match(&live_state.layout) ||
-	    verify_pci(pci_io, bus_count, &live_state.snapshot)) {
-		terminal_quiesce_pci(pci_io, bus_count);
+	    pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
+		&live_state.snapshot_workspace)) {
+		pci_bme_quiesce_terminal(pci_io, bus_count);
 		return -1;
 	}
 	live_state.phase = DMA_LIVE_ACTIVE;
@@ -393,14 +275,15 @@ int starbook_mtl_dma_live_establish(
 }
 
 bool starbook_mtl_dma_live_verify_active(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count)
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count)
 {
 	if (live_state.phase != DMA_LIVE_ACTIVE)
 		return false;
-	if (!verify_pci(pci_io, bus_count, &live_state.snapshot))
+	if (!pci_bme_quiesce_revalidate(pci_io, &live_state.snapshot,
+		&live_state.snapshot_workspace))
 		return true;
 	live_state.phase = DMA_LIVE_FAILED;
-	terminal_quiesce_pci(pci_io, bus_count);
+	pci_bme_quiesce_terminal(pci_io, bus_count);
 	return false;
 }
 
@@ -430,7 +313,7 @@ bool starbook_mtl_dma_live_handoff_requesters(
 }
 
 bool starbook_mtl_dma_live_devices_are_verified(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count,
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count,
 	const uint16_t *bdfs, size_t count)
 {
 	if (!starbook_mtl_dma_live_verify_active(pci_io, bus_count) ||
@@ -440,7 +323,7 @@ bool starbook_mtl_dma_live_devices_are_verified(
 		bool found = false;
 
 		for (size_t index = 0; index < live_state.snapshot.count; index++)
-			found |= live_state.snapshot.functions[index].identity.bdf ==
+			found |= live_state.snapshot.functions[index].bdf ==
 				bdfs[wanted];
 		if (!found)
 			return false;
@@ -449,10 +332,10 @@ bool starbook_mtl_dma_live_devices_are_verified(
 }
 
 void starbook_mtl_dma_live_poison(
-	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count)
+	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count)
 {
 	live_state.phase = DMA_LIVE_FAILED;
-	terminal_quiesce_pci(pci_io, bus_count);
+	pci_bme_quiesce_terminal(pci_io, bus_count);
 }
 
 bool starbook_mtl_dma_live_tables_match(
