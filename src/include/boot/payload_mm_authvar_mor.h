@@ -3,6 +3,7 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_MOR_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_MOR_H
 
+#include <boot/payload_mm_authvar_mor_identity.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -22,12 +23,6 @@
  * then pass durable_commit=true. Ambiguous mutation or lease failure poisons
  * the service until reset. Scrub retained inputs, plans, and keys afterwards.
  */
-
-enum payload_mm_authvar_mor_variable {
-	PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_NONE,
-	PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_CONTROL,
-	PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_LOCK,
-};
 
 enum payload_mm_authvar_mor_lock_state {
 	PAYLOAD_MM_AUTHVAR_MOR_UNLOCKED,
@@ -151,9 +146,6 @@ enum payload_mm_authvar_mor_finalize_result {
 	/* RTB clear failed after this boot was terminalized; durable bit 0 remains. */
 	PAYLOAD_MM_AUTHVAR_MOR_FINALIZE_PUBLISHED_READY_CLEAR_FAILED,
 };
-
-enum payload_mm_authvar_mor_variable payload_mm_authvar_mor_classify(
-	const uint8_t vendor_guid[16], const void *name, size_t name_size);
 
 uint64_t payload_mm_authvar_mor_init_plan(
 	const struct payload_mm_authvar_mor_state *state,

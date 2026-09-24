@@ -99,6 +99,8 @@ grep -q '^write-record[[:space:]]40[[:space:]]0[[:space:]]-[[:space:]]8[[:space:
 	"$root/tests/lib/payload_mm_authvar_ftw_edk2_2609_layout.tsv"
 grep -q '^# caller coreboot C4A52EF3-4E27-47E2-950B-FDAAB521B895$' \
 	"$root/tests/lib/payload_mm_authvar_ftw_edk2_2609_layout.tsv"
-awk '/payload_mm_authvar_ftw[.]c/ && $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_FTW_DECODER/ { bad = 1 } END { exit bad }' \
+awk '/payload_mm_authvar_ftw[.]c/ && \
+     $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_(FTW_DECODER|MOR_ENTRY_PROBE)/ \
+     { bad = 1 } END { exit bad }' \
 	"$root/src/lib/Makefile.mk"
 printf '%s\n' 'Payload-MM EDK2-compatible FV/FTW decoder and mutation tests: PASS'

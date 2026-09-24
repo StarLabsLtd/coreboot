@@ -4,29 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MOR_ATTRIBUTES (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | \
-	PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS | \
-	PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)
-
-static const uint8_t control_guid[16] = {
-	0xbe, 0x39, 0x09, 0xe2, 0xd4, 0x32, 0xbe, 0x41,
-	0xa1, 0x50, 0x89, 0x7f, 0x85, 0xd4, 0x98, 0x29,
-};
-static const uint8_t lock_guid[16] = {
-	0xcf, 0x3c, 0x98, 0xbb, 0x1d, 0x15, 0xe1, 0x40,
-	0xa0, 0x7b, 0x4a, 0x17, 0xbe, 0x16, 0x82, 0x92,
-};
-static const uint16_t control_name[] = {
-	'M', 'e', 'm', 'o', 'r', 'y', 'O', 'v', 'e', 'r', 'w', 'r', 'i', 't',
-	'e', 'R', 'e', 'q', 'u', 'e', 's', 't', 'C', 'o', 'n', 't', 'r', 'o',
-	'l', 0U,
-};
-static const uint16_t lock_name[] = {
-	'M', 'e', 'm', 'o', 'r', 'y', 'O', 'v', 'e', 'r', 'w', 'r', 'i', 't',
-	'e', 'R', 'e', 'q', 'u', 'e', 's', 't', 'C', 'o', 'n', 't', 'r', 'o',
-	'l', 'L', 'o', 'c', 'k', 0U,
-};
-
 static bool range_valid(const void *pointer, size_t size)
 {
 	return !size || (pointer &&
@@ -80,22 +57,6 @@ static bool state_valid(const struct payload_mm_authvar_mor_state *state)
 	return !combined;
 }
 
-enum payload_mm_authvar_mor_variable payload_mm_authvar_mor_classify(
-	const uint8_t vendor_guid[16], const void *name, size_t name_size)
-{
-	if (!range_valid(vendor_guid, 16U) || !range_valid(name, name_size))
-		return PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_NONE;
-	if (name_size == sizeof(control_name) &&
-	    !memcmp(vendor_guid, control_guid, sizeof(control_guid)) &&
-	    !memcmp(name, control_name, sizeof(control_name)))
-		return PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_CONTROL;
-	if (name_size == sizeof(lock_name) &&
-	    !memcmp(vendor_guid, lock_guid, sizeof(lock_guid)) &&
-	    !memcmp(name, lock_name, sizeof(lock_name)))
-		return PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_LOCK;
-	return PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_NONE;
-}
-
 static void begin_plan(const struct payload_mm_authvar_mor_state *state,
 	struct payload_mm_authvar_mor_plan *plan,
 	enum payload_mm_authvar_mor_transition transition)
@@ -117,7 +78,7 @@ static void mutation(struct payload_mm_authvar_mor_plan *plan,
 	target->kind = kind;
 	target->variable = variable;
 	target->attributes = kind == PAYLOAD_MM_AUTHVAR_MOR_MUTATION_WRITE ?
-		MOR_ATTRIBUTES : 0U;
+		PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES : 0U;
 	target->value = value;
 }
 
@@ -190,10 +151,10 @@ uint64_t payload_mm_authvar_mor_init_plan(
 	}
 	if (snapshot->trusted_platform_support &&
 	    ((snapshot->control_present &&
-	      (snapshot->control_attributes != MOR_ATTRIBUTES ||
+	      (snapshot->control_attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
 	       snapshot->control_size != 1U)) ||
 	     (snapshot->lock_present &&
-	      (snapshot->lock_attributes != MOR_ATTRIBUTES ||
+	      (snapshot->lock_attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
 	       snapshot->lock_size != 1U || snapshot->lock_value > 2U)))) {
 		plan->status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		return plan->status;
@@ -260,7 +221,8 @@ uint64_t payload_mm_authvar_mor_set_plan(
 		return plan->status;
 	plan->matched = true;
 	if (variable == PAYLOAD_MM_AUTHVAR_MOR_VARIABLE_CONTROL) {
-		if (request->attributes != MOR_ATTRIBUTES || request->data_size != 1U) {
+		if (request->attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
+		    request->data_size != 1U) {
 			plan->status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 			return plan->status;
 		}
@@ -269,7 +231,7 @@ uint64_t payload_mm_authvar_mor_set_plan(
 			plan->status = PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 			return plan->status;
 		}
-		if (request->attributes != MOR_ATTRIBUTES ||
+		if (request->attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
 		    (request->data_size != 1U &&
 		     request->data_size != PAYLOAD_MM_AUTHVAR_MOR_KEY_SIZE)) {
 			plan->status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
@@ -376,7 +338,8 @@ uint64_t payload_mm_authvar_mor_ready_to_boot_plan(
 		plan->projected_state.ready_complete = true;
 		return plan->status;
 	}
-	if (!control_present || control_attributes != MOR_ATTRIBUTES ||
+	if (!control_present ||
+	    control_attributes != PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES ||
 	    control_size != 1U) {
 		plan->status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		return plan->status;
@@ -420,7 +383,7 @@ static bool write_is(const struct payload_mm_authvar_mor_plan *plan,
 	return index < plan->mutation_count &&
 		plan->mutations[index].kind == PAYLOAD_MM_AUTHVAR_MOR_MUTATION_WRITE &&
 		plan->mutations[index].variable == variable &&
-		plan->mutations[index].attributes == MOR_ATTRIBUTES &&
+		plan->mutations[index].attributes == PAYLOAD_MM_AUTHVAR_MOR_ATTRIBUTES &&
 		plan->mutations[index].value == value;
 }
 
