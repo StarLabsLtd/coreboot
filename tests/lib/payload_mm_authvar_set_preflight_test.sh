@@ -31,6 +31,7 @@ compile()
 		"$root/tests/lib/payload_mm_authvar_set_preflight_test.c" \
 		"$preflight_source" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_route.c" \

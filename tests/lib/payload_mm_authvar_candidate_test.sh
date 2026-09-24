@@ -21,6 +21,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_candidate_test.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_record.c" \
@@ -31,13 +32,25 @@ for optimization in 0 2; do
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done
 
-for guard in source candidate; do
+for guard in source candidate certdb-exact private-key runtime-write source-proof; do
 	mutant="$tmp/candidate-$guard.c"
 	if [ "$guard" = source ]; then
 		sed 's/(source_pk && !source_enable) ||/false ||/' \
 			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
-	else
+	elif [ "$guard" = candidate ]; then
 		sed 's/(candidate_pk && !candidate_enable))/false)/' \
+			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
+	elif [ "$guard" = certdb-exact ]; then
+		sed 's/!memcmp(workspace, certdb->data, expected_size)/!memcmp(workspace, certdb->data, 0U)/' \
+			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
+	elif [ "$guard" = private-key ]; then
+		sed 's/if (!private_key(target->vendor_guid, target->name, target->name_size))/if (false \&\& !private_key(target->vendor_guid, target->name, target->name_size))/' \
+			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
+	elif [ "$guard" = runtime-write ]; then
+		sed 's/if (at_runtime \&\& bundle->mutations/if (false \&\& at_runtime \&\& bundle->mutations/' \
+			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
+	else
+		sed 's/if (source_target \&\&/if (source_target \&\& false \&\&/' \
 			"$root/src/lib/payload_mm_authvar_candidate.c" > "$mutant"
 	fi
 	for optimization in 0 2; do
@@ -55,6 +68,7 @@ for guard in source candidate; do
 			-I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_candidate_test.c" "$mutant" \
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 			"$root/src/lib/payload_mm_authvar_view.c" \
 			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_record.c" \
@@ -62,7 +76,7 @@ for guard in source candidate; do
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
 			"$root/src/lib/payload_mm_authvar_format.c" -o "$binary"
 		if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
-			echo "ERROR: runtime missing-Enable $guard mutant survived" >&2
+			echo "ERROR: candidate $guard mutant survived" >&2
 			exit 1
 		fi
 	done

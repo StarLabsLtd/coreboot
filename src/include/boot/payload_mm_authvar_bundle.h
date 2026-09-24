@@ -4,6 +4,7 @@
 #define BOOT_PAYLOAD_MM_AUTHVAR_BUNDLE_H
 
 #include <boot/payload_mm_authvar_authority.h>
+#include <boot/payload_mm_authvar_certdb.h>
 
 #define PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS 3U
 
@@ -13,6 +14,7 @@
 
 enum payload_mm_authvar_bundle_role {
 	PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET = 0,
+	PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB,
 	PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE,
 	PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV,
 };
@@ -29,6 +31,8 @@ struct payload_mm_authvar_bundle_snapshot {
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_authority_decision *decision;
 	const struct payload_mm_authvar_store_index *index;
+	void *certdb_workspace;
+	size_t certdb_workspace_size;
 	struct payload_mm_authvar_bundle_facts facts;
 };
 
@@ -48,6 +52,9 @@ struct payload_mm_authvar_bundle_plan {
 	uint8_t volatile_modes;
 	struct payload_mm_authvar_bundle_mutation mutations[
 		PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS];
+	enum payload_mm_authvar_certdb_operation certdb_operation;
+	size_t private_binding_size;
+	uint8_t private_binding[PAYLOAD_MM_MAX_DIGEST_SIZE];
 };
 
 /*
@@ -55,8 +62,11 @@ struct payload_mm_authvar_bundle_plan {
  * The output is a description only: it writes no media, installs no provider
  * and publishes no endpoint. All mutations and the volatile projection must
  * be committed together before success becomes observable. Target name/data
- * pointers borrow the authority snapshot lifetime; fixed derived bytes and
- * keys have static lifetime.
+ * pointers borrow the authority snapshot lifetime. Fixed keys have static
+ * lifetime. A CERTDB mutation borrows certdb_workspace through candidate
+ * construction; that protected workspace must cover index.maximum_data_size.
+ * The codec leaves it untouched on failure and fills the complete replacement
+ * on success, even if a later invariant rejects the plan.
  */
 enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	const struct payload_mm_authvar_bundle_snapshot *snapshot,

@@ -21,6 +21,7 @@ for optimization in 0 2; do
 		-I"$root/src/commonlib/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_bundle_test.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \

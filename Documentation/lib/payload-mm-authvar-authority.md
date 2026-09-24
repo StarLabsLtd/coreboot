@@ -28,20 +28,29 @@ format are still enforced. On signed paths, authority acceptance precedes
 payload-format validation, matching the EDK2 26.09 decision order.
 
 Success returns an explicit mutation, no-op, or authenticated-not-found outcome.
-The latter maps to `EFI_NOT_FOUND` only in the future service composer; it is
-not a signature rejection. A mutation carries typed intents for SetupMode,
-SecureBoot, VendorKeys, or a private signer binding. Those are not permission
-to commit the target alone. A future composer must turn the mutation and every
-intent into one recoverable multi-variable transaction. Until then the library
-must remain unselected by production boards.
+The latter is not a signature rejection. The synchronous verifier returns its
+accepted authority and any new private binding in one fixed inline result. The
+authority seals and validates that result before copying it into the decision.
+Only a new, non-empty private write may carry a 32-, 48-, or 64-byte binding;
+every other path requires canonical zero binding storage.
 
 `PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN` is the next dormant, pure stage. It consumes a
 final authority decision, a freshly validated canonical store index, and
 trusted boot/runtime mode facts. `NOOP` and `NOT_FOUND` produce no mutation or
 mode effect. A mutation produces a deterministic role order: target first,
-optional `SecureBootEnable` second, and optional `VendorKeysNv` last. The only
-persistent roles are those three; `SetupMode`, `SecureBoot`, and `VendorKeys`
-exist solely in one packed next-volatile-mode projection.
+optional persistent `certdb` second, optional `SecureBootEnable` next, and
+optional `VendorKeysNv` last. A certdb role cannot coexist with a mode role.
+`SetupMode`, `SecureBoot`, and `VendorKeys` exist solely in one packed
+next-volatile-mode projection.
+
+For a new non-empty private target, the bundle strictly adds the inline signer
+binding to persistent certdb. Deleting an existing private target strictly
+removes its binding. Existing writes emit no certdb role and preserve certdb
+byte-for-byte. The protected certdb workspace must cover the store's logical
+maximum data size; a successful plan borrows its complete replacement through
+candidate construction. Malformed, stale, or missing binding state fails
+closed. Persistent certdb is the only admitted profile; volatile `certdbv` is
+not synthesized.
 
 Pre-runtime PK enrollment writes `SecureBootEnable=1`; PK deletion removes it
 when present. At runtime the EDK2 26.09 rule changes only the projected
@@ -50,18 +59,25 @@ non-runtime `VendorKeysNv` update rejects the complete runtime operation. The
 planner requires the canonical `VendorKeysNv` record outside bootstrap, uses
 its exact NV+BS+TIME_AUTH attributes and zero timestamp sentinel, and never
 rewrites an already-modified value. It rejects every internal/derived variable
-as a target, private certdb binding intents, aliases, malformed ranges, and
-inconsistent target or mode facts. It still performs no media operation,
+as a target, aliases, malformed ranges, and inconsistent target, binding, or
+mode facts. It still performs no media operation,
 candidate-image construction, provider selection, or endpoint publication.
 
 `PAYLOAD_MM_AUTHVAR_CANDIDATE` is the dormant pure image-construction stage.
 It independently rescans the complete source, compares the supplied index,
 copies the exact store header, compacts surviving ADDED records before promoted
-transition records, then emits fixed roles in target/enable/vendor order. It
-rescans the complete replacement image, checks every surviving and mutated key,
+transition records, then emits fixed roles in canonical order. Before emission
+it independently recomposes a certdb transition into the disjoint candidate
+buffer and compares every byte with the planned replacement. It then rebuilds,
+rescans, and re-finds the final binding against the same source target and
+certdb. It checks every surviving and mutated key,
 requires exact internal-variable representations, and publishes full-store
 source and candidate SHA-256 digests with a nonzero generation/token binding.
-No media is read or written by this stage.
+No media is read or written by this stage. Target and certdb therefore enter one
+later FTW transaction, deliberately strengthening EDK2's separate writes and
+orphan cleanup. The future provider must normalize private authentication and
+continuity failures to `EFI_SECURITY_VIOLATION`; generic whole-candidate
+capacity remains `EFI_OUT_OF_RESOURCES`.
 
 The write policy is immutable trusted platform policy held in protected SMRAM,
 not request or media data. The coordinator binds it to the active transaction;

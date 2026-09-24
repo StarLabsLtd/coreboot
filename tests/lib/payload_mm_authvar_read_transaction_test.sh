@@ -84,6 +84,7 @@ view_compile()
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_route.c" \

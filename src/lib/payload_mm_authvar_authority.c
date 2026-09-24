@@ -180,6 +180,33 @@ static uint32_t route_intents(const struct payload_mm_authvar_route_plan *route,
 	return intents;
 }
 
+static bool verification_result_valid(
+	const struct payload_mm_authvar_authority_verification *result,
+	const struct payload_mm_authvar_route_plan *route, bool target_exists,
+	size_t payload_size)
+{
+	bool accepted = false;
+
+	for (uint8_t i = 0U; i < route->authority_count; i++)
+		if (result->accepted_authority == route->authorities[i])
+			accepted = true;
+	if (!accepted ||
+	    (result->new_binding_size != 0U &&
+	     result->new_binding_size != 32U &&
+	     result->new_binding_size != 48U &&
+	     result->new_binding_size != 64U) ||
+	    !bytes_are_zero(result->new_binding + result->new_binding_size,
+			   sizeof(result->new_binding) - result->new_binding_size))
+		return false;
+	if (result->accepted_authority !=
+	    PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER)
+		return !result->new_binding_size;
+	if (route->target != PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE || target_exists)
+		return false;
+	return payload_size ? result->new_binding_size != 0U :
+		result->new_binding_size == 0U;
+}
+
 enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 	const struct payload_mm_authvar_authority_snapshot *snapshot,
 	struct payload_mm_authvar_authority_decision *decision)
@@ -214,8 +241,8 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 	size_t filtered_size = 0U;
 	bool append;
 	bool deleting;
-	enum payload_mm_authvar_authority accepted_authority =
-		PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;
+	struct payload_mm_authvar_authority_verification verification = { 0 };
+	struct payload_mm_authvar_authority_verification verified = { 0 };
 	enum payload_mm_verify_status status;
 	enum payload_mm_verify_status callback_status;
 	enum payload_mm_authvar_route_result route_status;
@@ -332,8 +359,9 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 			&before_digest);
 		if (status != PAYLOAD_MM_VERIFY_OK)
 			return status;
-		callback_status = snapshot->verify(snapshot->verify_context, &verify_request,
-			&accepted_authority);
+		callback_status = snapshot->verify(snapshot->verify_context,
+			&verify_request, &verification);
+		verified = verification;
 		status = protected_digest(request, snapshot->index,
 			snapshot->append_workspace, snapshot->append_workspace_size,
 			&after_digest);
@@ -358,12 +386,13 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 			return PAYLOAD_MM_VERIFY_CHANGED;
 		if (callback_status != PAYLOAD_MM_VERIFY_OK)
 			return callback_status;
-		for (uint8_t i = 0U; i < route.authority_count; i++)
-			if (accepted_authority == route.authorities[i])
-				goto authority_verified;
-		return PAYLOAD_MM_VERIFY_REJECTED;
+		if (!verification_result_valid(&verified, &route,
+			existing != NULL, auth2.payload.size))
+			return PAYLOAD_MM_VERIFY_REJECTED;
+		goto authority_verified;
 	}
-	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS;
+	verification.accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS;
+	verified = verification;
 
 authority_verified:
 	if (route.require_signature_list && auth2.payload.size) {
@@ -380,16 +409,20 @@ authority_verified:
 	}
 
 	draft.target = route.target;
-	draft.accepted_authority = accepted_authority;
+	draft.accepted_authority = verified.accepted_authority;
 	/* EDK2 authenticates this request, then maps absence to EFI_NOT_FOUND. */
 	if (!append && !existing && !auth2.payload.size) {
 		draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND;
+		if (memcmp(&verification, &verified, sizeof(verification)))
+			return PAYLOAD_MM_VERIFY_CHANGED;
 		*decision = draft;
 		return PAYLOAD_MM_VERIFY_OK;
 	}
 	/* Empty APPEND to an absent target creates nothing and changes no state. */
 	if (append && !existing && !auth2.payload.size) {
 		draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_NOOP;
+		if (memcmp(&verification, &verified, sizeof(verification)))
+			return PAYLOAD_MM_VERIFY_CHANGED;
 		*decision = draft;
 		return PAYLOAD_MM_VERIFY_OK;
 	}
@@ -408,6 +441,8 @@ authority_verified:
 		draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION;
 		if (route.target == PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE)
 			draft.intents |= PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+		if (memcmp(&verification, &verified, sizeof(verification)))
+			return PAYLOAD_MM_VERIFY_CHANGED;
 		*decision = draft;
 		return PAYLOAD_MM_VERIFY_OK;
 	}
@@ -447,9 +482,16 @@ authority_verified:
 	}
 	if (!existing && route.target == PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE)
 		draft.intents |= PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	if (draft.intents & PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING) {
+		draft.new_binding_size = verified.new_binding_size;
+		memcpy(draft.new_binding, verified.new_binding,
+			verified.new_binding_size);
+	}
 	if (draft.data_size > UINT32_MAX)
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	draft.mutation.data_size = draft.data_size;
+	if (memcmp(&verification, &verified, sizeof(verification)))
+		return PAYLOAD_MM_VERIFY_CHANGED;
 	*decision = draft;
 	return PAYLOAD_MM_VERIFY_OK;
 }

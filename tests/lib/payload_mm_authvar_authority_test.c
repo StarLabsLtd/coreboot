@@ -46,6 +46,9 @@ static enum payload_mm_authvar_authority verifier_authority;
 static bool verify_before_validate;
 static uint8_t mutate_verified_input;
 static size_t workspace_capacity;
+static size_t verifier_binding_size;
+static bool verifier_dirty_tail;
+static bool verifier_nonnew_binding;
 
 static void put16(uint8_t *p, uint16_t value)
 {
@@ -117,7 +120,7 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
 
 static enum payload_mm_verify_status verify(void *context,
 	const struct payload_mm_authvar_authority_verify_request *request,
-	enum payload_mm_authvar_authority *accepted)
+	struct payload_mm_authvar_authority_verification *verification)
 {
 	const struct payload_mm_authvar_policy_request *original = context;
 	const uint8_t *attributes = request->content[2].data;
@@ -139,7 +142,22 @@ static enum payload_mm_verify_status verify(void *context,
 			request->content[4].size));
 	expect(request->pkcs7->size == 1U && request->pkcs7->data[0] == 0x30U);
 	verify_calls++;
-	*accepted = verifier_authority;
+	verification->accepted_authority = verifier_authority;
+	if (verifier_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER &&
+	    request->new_payload->size) {
+		verification->new_binding_size = verifier_binding_size;
+		memset(verification->new_binding, 0xa5,
+			verifier_binding_size < sizeof(verification->new_binding) ?
+				verifier_binding_size :
+				sizeof(verification->new_binding));
+	}
+	if (verifier_nonnew_binding) {
+		verification->new_binding_size = 32U;
+		memset(verification->new_binding, 0xa5, 32U);
+	}
+	if (verifier_dirty_tail &&
+	    verification->new_binding_size < sizeof(verification->new_binding))
+		verification->new_binding[verification->new_binding_size] = 1U;
 	if (mutate_verified_input == 1U)
 		((uint8_t *)original->name)[0] ^= 1U;
 	else if (mutate_verified_input == 2U)
@@ -186,6 +204,9 @@ static void reset_index(void)
 	verify_before_validate = false;
 	mutate_verified_input = 0U;
 	workspace_capacity = sizeof(workspace);
+	verifier_binding_size = 32U;
+	verifier_dirty_tail = false;
+	verifier_nonnew_binding = false;
 }
 
 static void add_existing(const uint8_t guid[16], const uint8_t *name,
@@ -441,7 +462,43 @@ int main(void)
 	expect(decide(&request, (struct payload_mm_authvar_authority_facts) { 0 },
 		&decision) == PAYLOAD_MM_VERIFY_OK);
 	expect(decision.intents == PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING &&
-		!validate_calls);
+		decision.new_binding_size == 32U &&
+		!memcmp(decision.new_binding, (uint8_t[32]) { [0 ... 31] = 0xa5 },
+			32U) && !validate_calls);
+	for (size_t invalid = 0U; invalid < 6U; invalid++) {
+		static const size_t sizes[] = { 1U, 31U, 33U, 47U, 49U, 63U };
+
+		reset_index();
+		size = auth2(data, 2U, payload, sizeof(payload));
+		request = request_for(private_guid, private_name,
+			sizeof(private_name), secure, data, size);
+		verifier_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+		verifier_binding_size = sizes[invalid];
+		memset(&decision, 0xa5, sizeof(decision));
+		expect(decide(&request,
+			(struct payload_mm_authvar_authority_facts) { 0 },
+			&decision) == PAYLOAD_MM_VERIFY_REJECTED);
+		expect(!memcmp(&decision,
+			&(struct payload_mm_authvar_authority_decision) { 0 },
+			sizeof(decision)));
+	}
+	reset_index();
+	size = auth2(data, 2U, payload, sizeof(payload));
+	request = request_for(private_guid, private_name, sizeof(private_name),
+		secure, data, size);
+	verifier_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	verifier_dirty_tail = true;
+	expect(decide(&request, (struct payload_mm_authvar_authority_facts) { 0 },
+		&decision) == PAYLOAD_MM_VERIFY_REJECTED);
+	reset_index();
+	add_existing(image_guid, db, sizeof(db), secure, 1U);
+	size = auth2(data, 2U, payload, sizeof(payload));
+	request = request_for(image_guid, db, sizeof(db), secure, data, size);
+	verifier_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
+	verifier_nonnew_binding = true;
+	expect(decide(&request, (struct payload_mm_authvar_authority_facts) { 0 },
+		&decision) == PAYLOAD_MM_VERIFY_REJECTED);
 
 	/* Zero timestamp, malformed metadata, and verifier failure stay closed. */
 	reset_index();

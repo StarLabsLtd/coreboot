@@ -199,6 +199,21 @@ static bool canonical_name(const void *name, size_t size)
 static bool decision_valid(
 	const struct payload_mm_authvar_authority_decision *decision)
 {
+	const uint32_t private_intents =
+		PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
+		PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	const bool binding_size_valid = decision->new_binding_size == 32U ||
+		decision->new_binding_size == 48U ||
+		decision->new_binding_size == 64U;
+	const bool binding_tail_zero =
+		decision->new_binding_size <= sizeof(decision->new_binding) &&
+		bytes_are_zero(decision->new_binding +
+			MIN(decision->new_binding_size,
+				sizeof(decision->new_binding)),
+			sizeof(decision->new_binding) -
+			MIN(decision->new_binding_size,
+				sizeof(decision->new_binding)));
+
 	if (decision->outcome < PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION ||
 	    decision->outcome > PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND ||
 	    decision->target < PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE ||
@@ -213,18 +228,37 @@ static bool decision_valid(
 			!decision->mutation.data_size &&
 			!memcmp(decision->mutation.timestamp,
 				(uint8_t[16]) { 0 }, 16U) && !decision->data &&
-			!decision->data_size && !decision->intents;
+			!decision->data_size && !decision->intents &&
+			!decision->new_binding_size &&
+			bytes_are_zero(decision->new_binding,
+				sizeof(decision->new_binding));
 	if (decision->outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION ||
 	    (decision->mutation.kind != PAYLOAD_MM_AUTHVAR_MUTATION_WRITE &&
 	     decision->mutation.kind != PAYLOAD_MM_AUTHVAR_MUTATION_DELETE))
 		return false;
-	if (decision->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE)
+	if (decision->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE) {
+		if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING ||
+		    decision->new_binding_size ||
+		    !bytes_are_zero(decision->new_binding,
+			sizeof(decision->new_binding)))
+			return false;
 		return !decision->mutation.attributes &&
 			!decision->mutation.data_size &&
 			!memcmp(decision->mutation.timestamp,
 				(uint8_t[16]) { 0 }, 16U) && !decision->data &&
 			!decision->data_size;
-	return decision->mutation.data_size == decision->data_size &&
+	}
+	if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING)
+		return false;
+	if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING)
+		return binding_size_valid && binding_tail_zero &&
+			decision->mutation.data_size == decision->data_size &&
+			range_valid(decision->data, decision->data_size);
+	return !(decision->intents & private_intents) &&
+		!decision->new_binding_size &&
+		bytes_are_zero(decision->new_binding,
+			sizeof(decision->new_binding)) &&
+		decision->mutation.data_size == decision->data_size &&
 		range_valid(decision->data, decision->data_size);
 }
 
@@ -269,8 +303,9 @@ static bool inputs_valid(const struct payload_mm_authvar_bundle_snapshot *snapsh
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_authority_decision *decision;
 	size_t entries_size;
-	const void *parts[9];
-	size_t sizes[9];
+	size_t part_count = 9U;
+	const void *parts[10];
+	size_t sizes[10];
 
 	if (!snapshot || !plan || (uintptr_t)snapshot % _Alignof(*snapshot) ||
 	    (uintptr_t)plan % _Alignof(*plan) ||
@@ -301,13 +336,104 @@ static bool inputs_valid(const struct payload_mm_authvar_bundle_snapshot *snapsh
 	parts[6] = request->data; sizes[6] = request->data_size;
 	parts[7] = snapshot->index->store; sizes[7] = snapshot->index->store_size;
 	parts[8] = snapshot->index->entries; sizes[8] = entries_size;
-	for (size_t left = 0U; left < ARRAY_SIZE(parts); left++)
-		for (size_t right = left + 1U; right < ARRAY_SIZE(parts); right++)
+	if (decision->intents &
+	    (PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
+	     PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING)) {
+		parts[9] = snapshot->certdb_workspace;
+		sizes[9] = snapshot->certdb_workspace_size;
+		part_count++;
+	}
+	for (size_t left = 0U; left < part_count; left++)
+		for (size_t right = left + 1U; right < part_count; right++)
 			if (ranges_overlap(parts[left], sizes[left], parts[right],
 				sizes[right]))
 				return false;
 	return !ranges_overlap(decision->data, decision->data_size, plan,
 		sizeof(*plan));
+}
+
+static enum payload_mm_verify_status certdb_status(
+	enum payload_mm_authvar_certdb_result result)
+{
+	switch (result) {
+	case PAYLOAD_MM_AUTHVAR_CERTDB_OK:
+		return PAYLOAD_MM_VERIFY_OK;
+	case PAYLOAD_MM_AUTHVAR_CERTDB_INVALID:
+		return PAYLOAD_MM_VERIFY_INVALID;
+	case PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED:
+		return PAYLOAD_MM_VERIFY_MALFORMED;
+	case PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_CERTDB_EXISTS:
+	case PAYLOAD_MM_AUTHVAR_CERTDB_NO_SPACE:
+	default:
+		return PAYLOAD_MM_VERIFY_REJECTED;
+	}
+}
+
+static enum payload_mm_verify_status add_certdb_mutation(
+	const struct payload_mm_authvar_bundle_snapshot *snapshot,
+	struct payload_mm_authvar_bundle_plan *plan,
+	const struct payload_mm_authvar_authority_decision *decision,
+	enum payload_mm_authvar_certdb_operation operation)
+{
+	const struct payload_mm_authvar_policy_request *request = snapshot->request;
+	const uint32_t attributes = PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH;
+	const struct payload_mm_authvar_store_entry *entry;
+	const void *source;
+	size_t replacement_size;
+	enum payload_mm_authvar_certdb_result result;
+	struct payload_mm_authvar_bundle_mutation *mutation;
+
+	if (!snapshot->certdb_workspace ||
+	    snapshot->certdb_workspace_size < snapshot->index->maximum_data_size ||
+	    ranges_overlap(snapshot->certdb_workspace,
+		snapshot->certdb_workspace_size, decision->data,
+		decision->data_size))
+		return PAYLOAD_MM_VERIFY_INVALID;
+	entry = payload_mm_authvar_store_find(snapshot->index, cert_db_guid,
+		cert_db_name, sizeof(cert_db_name));
+	if (!entry || entry->attributes != attributes ||
+	    !bytes_are_zero(snapshot->index->store + entry->record_offset + 16U,
+		16U))
+		return PAYLOAD_MM_VERIFY_MALFORMED;
+	source = payload_mm_authvar_store_data(snapshot->index, entry);
+	if (!source)
+		return PAYLOAD_MM_VERIFY_INVALID;
+	result = payload_mm_authvar_certdb_compose(source, entry->data_size,
+		operation, request->vendor_guid, request->name,
+		request->name_size - sizeof(uint16_t),
+		operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ?
+			decision->new_binding : NULL,
+		operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ?
+			decision->new_binding_size : 0U,
+		snapshot->certdb_workspace, snapshot->index->maximum_data_size,
+		&replacement_size);
+	if (result != PAYLOAD_MM_AUTHVAR_CERTDB_OK)
+		return certdb_status(result);
+	if (plan->mutation_count >= PAYLOAD_MM_AUTHVAR_BUNDLE_MAX_MUTATIONS ||
+	    replacement_size > UINT32_MAX)
+		return PAYLOAD_MM_VERIFY_INTERNAL;
+	mutation = &plan->mutations[plan->mutation_count++];
+	mutation->role = PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB;
+	mutation->mutation.kind = PAYLOAD_MM_AUTHVAR_MUTATION_WRITE;
+	mutation->mutation.attributes = attributes;
+	mutation->mutation.data_size = (uint32_t)replacement_size;
+	memcpy(mutation->vendor_guid, cert_db_guid,
+		sizeof(mutation->vendor_guid));
+	mutation->name = cert_db_name;
+	mutation->name_size = sizeof(cert_db_name);
+	mutation->data = snapshot->certdb_workspace;
+	mutation->data_size = replacement_size;
+	plan->certdb_operation = operation;
+	if (operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD) {
+		plan->private_binding_size = decision->new_binding_size;
+		memcpy(plan->private_binding, decision->new_binding,
+			decision->new_binding_size);
+	}
+	return PAYLOAD_MM_VERIFY_OK;
 }
 
 static uint8_t mode_projection(const struct payload_mm_authvar_bundle_facts *facts)
@@ -378,6 +504,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS;
 	bool final_pk;
 	bool needs_vendor_write;
+	uint32_t private_intents;
+	enum payload_mm_verify_status certdb_result;
 
 	if (!inputs_valid(snapshot, plan))
 		return PAYLOAD_MM_VERIFY_INVALID;
@@ -446,14 +574,41 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		*plan = draft;
 		return PAYLOAD_MM_VERIFY_OK;
 	}
+	private_intents = decision->intents &
+		(PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
+		 PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING);
 	if (decision->intents & ~(mode_intents |
 		PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
 		PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING) ||
-	    decision->intents & (PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
+	    private_intents == (PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
 		PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING) ||
+	    (private_intents && decision->intents & mode_intents) ||
 	    (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE &&
 	     decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE))
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
+	if (decision->target == PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE) {
+		target_entry = payload_mm_authvar_store_find(snapshot->index,
+			request->vendor_guid, request->name, request->name_size);
+		if (decision->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE) {
+			if (decision->accepted_authority !=
+				PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB ||
+			    !target_entry ||
+			    private_intents !=
+				PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING)
+				return PAYLOAD_MM_VERIFY_CHANGED;
+		} else if (decision->accepted_authority ==
+			   PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER) {
+			if (target_entry || private_intents !=
+				PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING)
+				return PAYLOAD_MM_VERIFY_CHANGED;
+		} else if (decision->accepted_authority !=
+			   PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB ||
+			   !target_entry || private_intents) {
+			return PAYLOAD_MM_VERIFY_CHANGED;
+		}
+	} else if (private_intents) {
+		return PAYLOAD_MM_VERIFY_CHANGED;
+	}
 	if (decision->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE &&
 	    !payload_mm_authvar_store_find(snapshot->index, request->vendor_guid,
 		request->name, request->name_size))
@@ -480,6 +635,14 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		decision->data, decision->data_size))
 		return PAYLOAD_MM_VERIFY_INTERNAL;
 	draft.mutations[0].mutation = decision->mutation;
+	if (private_intents) {
+		certdb_result = add_certdb_mutation(snapshot, &draft, decision,
+			private_intents & PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING ?
+				PAYLOAD_MM_AUTHVAR_CERTDB_ADD :
+				PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+		if (certdb_result != PAYLOAD_MM_VERIFY_OK)
+			return certdb_result;
+	}
 	if (decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE) {
 		draft.volatile_modes &=
 			(uint8_t)~PAYLOAD_MM_AUTHVAR_MODE_SETUP;
