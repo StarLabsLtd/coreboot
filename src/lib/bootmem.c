@@ -113,39 +113,78 @@ static bool aligned_request_valid(
 		!request->reserved;
 }
 
+static bool bytes_zero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+	uint8_t combined = 0;
+
+	for (size_t index = 0; index < size; index++)
+		combined |= bytes[index];
+	return !combined;
+}
+
+int bootmem_aligned_reservations_register(
+	const struct bootmem_aligned_reservation_request *requests,
+	size_t request_count, struct bootmem_aligned_reservation_handle *handles)
+{
+	struct bootmem_aligned_reservation_request snapshots[
+		BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS];
+	struct bootmem_aligned_reservation_handle candidates[
+		BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS];
+	size_t request_bytes;
+	size_t handle_bytes;
+
+	if (!request_count ||
+	    request_count > BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS)
+		return -1;
+	request_bytes = request_count * sizeof(*requests);
+	handle_bytes = request_count * sizeof(*handles);
+	if (!object_valid(handles, handle_bytes, _Alignof(*handles)))
+		return -1;
+	memset(handles, 0, handle_bytes);
+	if (!object_valid(requests, request_bytes, _Alignof(*requests)) ||
+	    objects_overlap(requests, request_bytes, handles, handle_bytes) ||
+	    bootmem_is_initialized() || request_count >
+		ARRAY_SIZE(aligned_reservations) - aligned_reservation_count)
+		return -1;
+	memcpy(snapshots, requests, request_bytes);
+	for (size_t index = 0; index < request_count; index++) {
+		if (!aligned_request_valid(&snapshots[index]))
+			return -1;
+		for (size_t existing = 0; existing < aligned_reservation_count;
+		     existing++)
+			if (!memcmp(&snapshots[index],
+				&aligned_reservations[existing].request,
+				sizeof(snapshots[index])))
+				return -1;
+		for (size_t prior = 0; prior < index; prior++)
+			if (!memcmp(&snapshots[index], &snapshots[prior],
+				sizeof(snapshots[index])))
+				return -1;
+		const uint32_t slot = aligned_reservation_count + index + 1U;
+		candidates[index] = (struct bootmem_aligned_reservation_handle) {
+			.opaque = { slot, ALIGNED_RESERVATION_HANDLE_CHECK ^ slot },
+		};
+	}
+	if (memcmp(snapshots, requests, request_bytes) ||
+	    !bytes_zero(handles, handle_bytes))
+		return -1;
+	for (size_t index = 0; index < request_count; index++) {
+		aligned_reservations[aligned_reservation_count + index].request =
+			snapshots[index];
+		aligned_reservations[aligned_reservation_count + index].handle =
+			candidates[index];
+	}
+	aligned_reservation_count += request_count;
+	memcpy(handles, candidates, handle_bytes);
+	return 0;
+}
+
 int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
 	struct bootmem_aligned_reservation_handle *handle)
 {
-	struct bootmem_aligned_reservation_request snapshot;
-	const bool handle_valid = object_valid(handle, sizeof(*handle),
-		_Alignof(*handle));
-
-	if (handle_valid)
-		memset(handle, 0, sizeof(*handle));
-	if (!handle_valid || !object_valid(request, sizeof(*request),
-		_Alignof(*request)) || objects_overlap(request, sizeof(*request),
-		handle, sizeof(*handle)) || bootmem_is_initialized() ||
-		aligned_reservation_count == ARRAY_SIZE(aligned_reservations))
-		return -1;
-	memcpy(&snapshot, request, sizeof(snapshot));
-	if (!aligned_request_valid(&snapshot))
-		return -1;
-	for (size_t index = 0; index < aligned_reservation_count; index++)
-		if (!memcmp(&snapshot, &aligned_reservations[index].request,
-			sizeof(snapshot)))
-			return -1;
-	if (memcmp(&snapshot, request, sizeof(snapshot)))
-		return -1;
-	const uint32_t slot = aligned_reservation_count + 1U;
-	const struct bootmem_aligned_reservation_handle candidate = {
-		.opaque = { slot, ALIGNED_RESERVATION_HANDLE_CHECK ^ slot },
-	};
-	aligned_reservations[aligned_reservation_count].request = snapshot;
-	aligned_reservations[aligned_reservation_count].handle = candidate;
-	aligned_reservation_count++;
-	*handle = candidate;
-	return 0;
+	return bootmem_aligned_reservations_register(request, 1, handle);
 }
 
 int bootmem_aligned_reservation_query(

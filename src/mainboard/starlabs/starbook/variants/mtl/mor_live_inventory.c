@@ -3,30 +3,60 @@
 #include "mor_live_inventory.h"
 
 #include <boot/payload_mm_authvar_mor_live_inventory.h>
+#include <commonlib/helpers.h>
 #include <string.h>
 
-enum cb_err starbook_mtl_mor_live_inventory_compose(
+static bool object_valid(const void *object, size_t size, size_t alignment)
+{
+	const uintptr_t base = (uintptr_t)object;
+
+	return object && size && !(base % alignment) &&
+		base <= (uintptr_t)-1 - (size - 1U);
+}
+
+static bool objects_overlap(const void *first, size_t first_size,
+	const void *second, size_t second_size)
+{
+	const uintptr_t first_base = (uintptr_t)first;
+	const uintptr_t second_base = (uintptr_t)second;
+
+	if (first_base <= second_base)
+		return second_base - first_base < first_size;
+	return first_base - second_base < second_size;
+}
+
+enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays(
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
-	struct payload_mm_authvar_mor_clear_plan *plan)
+	const struct payload_mm_authvar_mor_live_inventory_overlay *overlays,
+	size_t overlay_count, struct payload_mm_authvar_mor_clear_plan *plan)
 {
 	struct starbook_mtl_dma_guard_snapshot snapshot;
+	struct payload_mm_authvar_mor_live_inventory_overlay overlay_snapshot[4];
 	struct payload_mm_authvar_mor_live_inventory_request request = {
 		.revision = PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_REVISION,
 		.size = sizeof(request),
-		.overlay_count = 3U + STARBOOK_MTL_DMA_GUARD_ARENAS,
+		.overlay_count = 3U + STARBOOK_MTL_DMA_GUARD_ARENAS + overlay_count,
 	};
 	struct payload_mm_authvar_mor_clear_plan candidate;
 
-	if (!plan || (uintptr_t)plan % _Alignof(*plan) ||
-	    (uintptr_t)plan > (uintptr_t)-1 - (sizeof(*plan) - 1U))
+	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)))
 		return CB_ERR_ARG;
 	memset(plan, 0, sizeof(*plan));
-	if (!prepared || (uintptr_t)prepared % _Alignof(*prepared) ||
-	    (uintptr_t)prepared > (uintptr_t)-1 - (sizeof(*prepared) - 1U) ||
-	    ((uintptr_t)prepared <= (uintptr_t)plan + sizeof(*plan) - 1U &&
-	     (uintptr_t)plan <= (uintptr_t)prepared + sizeof(*prepared) - 1U))
+	if (!object_valid(prepared, sizeof(*prepared), _Alignof(*prepared)) ||
+	    objects_overlap(prepared, sizeof(*prepared), plan, sizeof(*plan)) ||
+	    overlay_count > ARRAY_SIZE(overlay_snapshot) ||
+	    (overlay_count &&
+	     (!object_valid(overlays, overlay_count * sizeof(*overlays),
+		_Alignof(*overlays)) ||
+	      objects_overlap(overlays, overlay_count * sizeof(*overlays), plan,
+		sizeof(*plan)) ||
+	      objects_overlap(overlays, overlay_count * sizeof(*overlays), prepared,
+		sizeof(*prepared)))))
 		return CB_ERR_ARG;
 	memcpy(&snapshot, prepared, sizeof(snapshot));
+	if (overlay_count)
+		memcpy(overlay_snapshot, overlays,
+			overlay_count * sizeof(*overlays));
 	request.generation = snapshot.generation;
 	memcpy(request.identity, snapshot.identity, sizeof(request.identity));
 	request.overlays[0] = (struct payload_mm_authvar_mor_live_inventory_overlay) {
@@ -55,10 +85,15 @@ enum cb_err starbook_mtl_mor_live_inventory_compose(
 				.exclusion_reason =
 					PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED,
 			};
+	for (size_t index = 0; index < overlay_count; index++)
+		request.overlays[3U + STARBOOK_MTL_DMA_GUARD_ARENAS + index] =
+			overlay_snapshot[index];
 	if (payload_mm_authvar_mor_live_inventory_compose(&request, &candidate) !=
 		CB_SUCCESS ||
 	    starbook_mtl_dma_guard_policy_validate(&candidate, &snapshot) !=
 		CB_SUCCESS || memcmp(&snapshot, prepared, sizeof(snapshot)) ||
+	    (overlay_count && memcmp(overlay_snapshot, overlays,
+		overlay_count * sizeof(*overlays))) ||
 	    memcmp(plan, &(const struct payload_mm_authvar_mor_clear_plan) { 0 },
 		sizeof(*plan)))
 		goto fail;
@@ -68,6 +103,14 @@ enum cb_err starbook_mtl_mor_live_inventory_compose(
 fail:
 	memset(plan, 0, sizeof(*plan));
 	return CB_ERR;
+}
+
+enum cb_err starbook_mtl_mor_live_inventory_compose(
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	return starbook_mtl_mor_live_inventory_compose_with_overlays(prepared,
+		NULL, 0, plan);
 }
 
 enum cb_err starbook_mtl_mor_live_inventory_validate(void *context,

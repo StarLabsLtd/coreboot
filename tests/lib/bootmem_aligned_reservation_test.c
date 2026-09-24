@@ -253,6 +253,43 @@ static void bounded(void)
 	}
 }
 
+static void atomic_capacity(void)
+{
+	struct bootmem_aligned_reservation_handle singles[
+		BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS];
+	struct bootmem_aligned_reservation_request batch[2] = {
+		request(0x9000, 0x1000, 0x2100000, BM_MEM_RESERVED),
+		request(0xa000, 0x1000, 0x2100000, BM_MEM_TABLE),
+	};
+	struct bootmem_aligned_reservation_handle batch_handles[2] = {
+		{ .opaque = { 1, 1 } }, { .opaque = { 2, 2 } },
+	};
+	struct bootmem_aligned_reservation result;
+
+	for (size_t index = 0;
+	     index < BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS - 1U; index++) {
+		struct bootmem_aligned_reservation_request value = request(
+			0x1000U * (index + 1U), 0x1000, 0x2100000,
+			BM_MEM_RESERVED);
+
+		CHECK(!bootmem_aligned_reservation_register(&value, &singles[index]));
+	}
+	CHECK(bootmem_aligned_reservations_register(batch, 2, batch_handles));
+	CHECK(!batch_handles[0].opaque[0] && !batch_handles[0].opaque[1] &&
+		!batch_handles[1].opaque[0] && !batch_handles[1].opaque[1]);
+	CHECK(!bootmem_aligned_reservation_register(&batch[0],
+		&singles[BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS - 1U]));
+	batch_handles[0].opaque[0] = 1;
+	batch_handles[1].opaque[0] = 2;
+	CHECK(bootmem_aligned_reservations_register(&batch[1], 1,
+		batch_handles));
+	CHECK(!batch_handles[0].opaque[0] && !batch_handles[0].opaque[1]);
+	initialize();
+	for (size_t index = 0;
+	     index < BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS; index++)
+		CHECK(!bootmem_aligned_reservation_query(&singles[index], &result));
+}
+
 static void capacity_failure(void)
 {
 	struct bootmem_aligned_reservation_request first = request(0x200000,
@@ -278,6 +315,8 @@ int main(int argc, char **argv)
 		bounded();
 	else if (!strcmp(argv[1], "capacity"))
 		capacity_failure();
+	else if (!strcmp(argv[1], "atomic-capacity"))
+		atomic_capacity();
 	else
 		CHECK(false);
 	return 0;

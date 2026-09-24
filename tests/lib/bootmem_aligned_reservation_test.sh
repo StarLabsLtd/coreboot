@@ -28,7 +28,7 @@ build_and_run()
 		"$root/tests/lib/bootmem_aligned_reservation_test.c" "$source" \
 		"$root/src/lib/memrange.c" "$root/src/device/device_util.c" \
 		-no-pie -o "$temporary/$name"
-	for case_name in success bounded; do
+	for case_name in success bounded atomic-capacity; do
 		if ! ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
 			UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/$name" "$case_name"; then
@@ -82,11 +82,11 @@ mutant_test os-map-retag \
 	'memranges_insert(&os_candidate, base, request->bytes, request->tag);' \
 	'(void)os_candidate;'
 mutant_test duplicate-registration \
-	'if (!memcmp(&snapshot, &aligned_reservations\[index\].request,' \
-	'if (false \&\& !memcmp(\&snapshot, \&aligned_reservations[index].request,'
+	'if (!memcmp(&snapshots\[index\],' \
+	'if (false \&\& !memcmp(\&snapshots[index],'
 mutant_test late-registration \
-	'handle, sizeof(\*handle)) || bootmem_is_initialized() ||' \
-	'handle, sizeof(*handle)) || false ||'
+	'bootmem_is_initialized() || request_count >' \
+	'false || request_count >'
 
 mkdir -p "$temporary/config" "$temporary/build"
 printf '%s\n' \
@@ -117,6 +117,8 @@ make -C "$root" obj="$temporary/build-selected" \
 	-j"$(getconf _NPROCESSORS_ONLN)" >/dev/null
 nm -g --defined-only "$temporary/build-selected/ramstage/lib/bootmem.o" | \
 	grep -q ' bootmem_aligned_reservation_register$'
+nm -g --defined-only "$temporary/build-selected/ramstage/lib/bootmem.o" | \
+	grep -q ' bootmem_aligned_reservations_register$'
 nm -g --defined-only "$temporary/build-selected/ramstage/lib/bootmem.o" | \
 	grep -q ' bootmem_aligned_reservation_query$'
 

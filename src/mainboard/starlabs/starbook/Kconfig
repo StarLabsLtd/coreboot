@@ -223,6 +223,22 @@ config STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
 	  exact StarBook DMA-live transition and emits no boot hook, endpoint or
 	  MOR support claim.
 
+config STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
+	depends on ENABLE_EARLY_DMA_PROTECTION
+	select BOOTMEM_ALIGNED_RESERVATIONS
+	select PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
+	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND
+	select STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
+	help
+	  Build the dormant Meteor Lake reservation and binding prerequisite for
+	  the generic x86 MOR clear backend. It emits no boot hook, endpoint or MOR
+	  support claim. ACPI S3 is deliberately ineligible for destructive work.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

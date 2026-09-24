@@ -5,9 +5,15 @@
 
 #include "dma_guard.h"
 
+#include <boot/payload_mm_authvar_mor_live_inventory.h>
+
 enum cb_err starbook_mtl_mor_live_inventory_compose(
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
 	struct payload_mm_authvar_mor_clear_plan *plan);
+enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays(
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	const struct payload_mm_authvar_mor_live_inventory_overlay *overlays,
+	size_t overlay_count, struct payload_mm_authvar_mor_clear_plan *plan);
 enum cb_err starbook_mtl_mor_live_inventory_validate(void *context,
 	const struct payload_mm_authvar_mor_clear_plan *plan);
 

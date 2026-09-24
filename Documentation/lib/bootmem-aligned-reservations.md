@@ -4,12 +4,14 @@
 for clients that need exact physical backing before the OS memory map is
 published. It installs no request, platform hook, or feature-support claim.
 
-A client registers a fixed request before bootmem initialization. The request
+A client registers one fixed request or an atomic batch before bootmem
+initialization. Each request
 contains a nonzero page-multiple byte count, a power-of-two alignment of at
 least one page, an explicit exclusive address limit no greater than 4 GiB, and
 either the `BM_MEM_RESERVED` or `BM_MEM_TABLE` destination tag. Registration
-copies the request and returns an opaque handle. Duplicate, malformed, aliased,
-late, or excess requests fail without publishing a handle.
+copies every request and returns opaque handles. A batch is validated completely
+before any registry slot is consumed. Duplicate, malformed, aliased, late, or
+excess requests fail without publishing a handle or retaining a partial batch.
 
 After all existing CBMEM, capsule, ramstage, architecture, and platform ranges
 have been applied, bootmem clones both its internal and OS-visible maps. It

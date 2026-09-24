@@ -3,6 +3,7 @@
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/mor_live_inventory.h"
 
 #include <boot/payload_mm_authvar_mor_live_inventory.h>
+#include <commonlib/helpers.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -13,6 +14,7 @@ static bool compose_fail;
 static bool policy_fail;
 static unsigned int compose_calls;
 static unsigned int policy_calls;
+static size_t expected_extra;
 
 static struct payload_mm_authvar_mor_clear_plan composed_plan(
 	const struct payload_mm_authvar_mor_live_inventory_request *request)
@@ -50,11 +52,19 @@ enum cb_err payload_mm_authvar_mor_live_inventory_compose(
 	compose_calls++;
 	CHECK(request->revision == PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_REVISION &&
 		request->size == sizeof(*request) && request->generation == 9 &&
-		request->identity[0] == 0x99 && request->overlay_count == 6);
+		request->identity[0] == 0x99 &&
+		request->overlay_count == 6 + expected_extra);
 	for (size_t index = 0; index < 6; index++) {
 		CHECK(request->overlays[index].base == 0x1000 + index * 0x1000);
 		CHECK(request->overlays[index].size == 0x1000);
 		CHECK(request->overlays[index].exclusion_reason == reasons[index]);
+	}
+	for (size_t index = 0; index < expected_extra; index++) {
+		CHECK(request->overlays[6 + index].base ==
+			0x10000 + index * 0x1000);
+		CHECK(request->overlays[6 + index].size == 0x1000);
+		CHECK(request->overlays[6 + index].exclusion_reason ==
+			PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE);
 	}
 	if (mutate) {
 		((uint8_t *)mutate)[0] ^= 1;
@@ -109,12 +119,32 @@ int main(void)
 	struct starbook_mtl_dma_guard_snapshot snapshot = prepared();
 	struct payload_mm_authvar_mor_clear_plan plan;
 	struct payload_mm_authvar_mor_clear_plan original;
+	struct payload_mm_authvar_mor_live_inventory_overlay overlays[4];
+
+	for (size_t index = 0; index < ARRAY_SIZE(overlays); index++)
+		overlays[index] = (struct payload_mm_authvar_mor_live_inventory_overlay) {
+			.base = 0x10000 + index * 0x1000,
+			.size = 0x1000,
+			.exclusion_reason =
+				PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+		};
 
 	CHECK(starbook_mtl_mor_live_inventory_compose(&snapshot, &plan) ==
 		CB_SUCCESS && compose_calls == 1 && policy_calls == 1);
 	original = plan;
 	CHECK(starbook_mtl_mor_live_inventory_validate(&snapshot, &plan) ==
 		CB_SUCCESS && compose_calls == 2 && policy_calls == 2);
+	expected_extra = ARRAY_SIZE(overlays);
+	memset(&plan, 0, sizeof(plan));
+	CHECK(starbook_mtl_mor_live_inventory_compose_with_overlays(&snapshot,
+		overlays, ARRAY_SIZE(overlays), &plan) == CB_SUCCESS);
+	mutate = overlays;
+	memset(&plan, 0xa5, sizeof(plan));
+	CHECK(starbook_mtl_mor_live_inventory_compose_with_overlays(&snapshot,
+		overlays, ARRAY_SIZE(overlays), &plan) != CB_SUCCESS);
+	expect_zero(&plan, sizeof(plan));
+	overlays[0].base = 0x10000;
+	expected_extra = 0;
 	plan.inventory_generation++;
 	CHECK(starbook_mtl_mor_live_inventory_validate(&snapshot, &plan) !=
 		CB_SUCCESS);

@@ -75,6 +75,11 @@ int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
 	struct bootmem_aligned_reservation_handle *handle);
 
+/* Atomically register one or more requests in array order. */
+int bootmem_aligned_reservations_register(
+	const struct bootmem_aligned_reservation_request *requests,
+	size_t request_count, struct bootmem_aligned_reservation_handle *handles);
+
 /* Query only after bootmem initialization completed successfully. */
 int bootmem_aligned_reservation_query(
 	const struct bootmem_aligned_reservation_handle *handle,
