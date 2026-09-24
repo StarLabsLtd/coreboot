@@ -111,6 +111,14 @@ grep -qx 'CONFIG_SMMSTORE_READ_REGION=y' "$temporary/config/.config"
 ! grep -qx 'CONFIG_SMMSTORE=y' "$temporary/config/.config"
 grep -qx 'CONFIG_Q35_PAYLOAD_MM_MOR_TEST_ADAPTER=y' \
 	"$temporary/config/.config"
+grep -qx 'CONFIG_Q35_PAYLOAD_MM_AUTHVAR_TEST_PROOF=y' \
+	"$temporary/config/.config"
+grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MEDIA_PORT=y' \
+	"$temporary/config/.config"
+grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND=y' \
+	"$temporary/config/.config"
+grep -qx 'CONFIG_QEMU_PFLASH_VOLATILE_LEASE=y' \
+	"$temporary/config/.config"
 ! grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND=y' \
 	"$temporary/config/.config"
 

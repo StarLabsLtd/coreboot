@@ -19,6 +19,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MEDIA_PORT) += payload_mm_authvar_media.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND) += payload_mm_authvar_smmstore.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) += payload_mm_authvar_smm_bootstrap.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) += payload_mm_authvar_smm_loader.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND) += payload_mm_authvar_qemu_pflash.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_WRITER) += payload_mm_authvar_writer.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_EXECUTOR) += payload_mm_authvar_executor.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_FORMAT_PARSER) += payload_mm_authvar_format.c
