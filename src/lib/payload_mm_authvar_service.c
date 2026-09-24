@@ -258,8 +258,8 @@ static bool get_response_valid(
 			data_slot_tail_zero(endpoint, response, 0);
 	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
 	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
-	case PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION:
 	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
 		return !response->result_data_size && !response->result_attributes &&
 			data_slot_tail_zero(endpoint, response, 0);
 	default:
@@ -294,6 +294,7 @@ static bool next_response_valid(
 	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
 	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
 	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
 		return !response->result_name_size &&
 			bytes_zero(response->result_vendor_guid,
 				sizeof(response->result_vendor_guid)) &&
@@ -342,7 +343,9 @@ static bool query_response_valid(
 			response->remaining_storage <= response->maximum_storage &&
 			response->maximum_variable <= response->remaining_storage;
 	if (response->status != PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER &&
-	    response->status != PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED)
+	    response->status != PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED &&
+	    response->status != PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+	    response->status != PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED)
 		return false;
 	return !response->maximum_storage && !response->remaining_storage &&
 		!response->maximum_variable;
@@ -352,7 +355,10 @@ static bool lifecycle_response_valid(
 	const struct lb_authvar_service_endpoint *endpoint,
 	const struct payload_mm_authvar_service_frame *response)
 {
-	return response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+	return (response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		response->status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED ||
+		response->status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR ||
+		response->status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED) &&
 		result_empty(response) &&
 		name_slot_tail_zero(endpoint, response, 0) &&
 		data_slot_tail_zero(endpoint, response, 0);
