@@ -302,6 +302,7 @@
 #define GPIO_MISCCFG				0x10
 #define  GPE_DW_SHIFT				8
 #define  GPE_DW_MASK				0xfff00
+#define PAD_CFG_LOCK				0x80
 #define HOSTSW_OWN_REG_0			0xc0
 #define GPI_INT_STS_0				0x100
 #define GPI_INT_EN_0				0x120
