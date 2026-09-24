@@ -334,12 +334,6 @@ static void southbridge_smi_store(
 	}
 }
 
-__weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
-{
-	*num = 0;
-	return NULL;
-}
-
 __weak int soc_gpio_lock_finalize(void)
 {
 	return 0;

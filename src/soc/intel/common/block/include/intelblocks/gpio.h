@@ -258,6 +258,8 @@ int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action);
  * the p2sb_unhide() and p2sb_hide() calls between each gpio lock that would
  * occur if gpio_lock_pad() were used to lock each pad in the list.
  *
+ * Call from SMM when SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS is set.
+ *
  * @param pad_list: array of gpio_lock_config structures, one for each gpio to lock
  * @param count: number of gpio_lock_config structs in the pad_list array
  * @return 0 if successful,
