@@ -761,6 +761,24 @@ static bool maximum_record_fits(
 		size <= limits->maximum_store_size;
 }
 
+enum cb_err payload_mm_authvar_executor_required_size(
+	const struct payload_mm_authvar_executor_limits *limits, size_t *size)
+{
+	struct executor_policy policy = { 0 };
+
+	if (!size)
+		return CB_ERR;
+	*size = 0;
+	if (!limits || !limits_valid(limits) || !maximum_record_fits(limits))
+		return CB_ERR;
+	policy.limits = *limits;
+	policy.arena_size = SIZE_MAX;
+	if (!layout_build(&policy))
+		return CB_ERR;
+	*size = policy.required_size;
+	return CB_SUCCESS;
+}
+
 enum cb_err payload_mm_authvar_executor_install(
 	void *trusted_smram_arena, size_t arena_size,
 	const struct payload_mm_authvar_executor_limits *limits)

@@ -48,6 +48,10 @@ struct payload_mm_authvar_read_result {
 	uint32_t reserved;
 };
 
+/* Return the exact protected-arena size required by this build's executor. */
+enum cb_err payload_mm_authvar_executor_required_size(
+	const struct payload_mm_authvar_executor_limits *limits, size_t *size);
+
 /*
  * Internal SMM-only service. Installation is one-shot and requires mutually
  * disjoint protected-SMRAM arena/limits spans. The copied limits and computed

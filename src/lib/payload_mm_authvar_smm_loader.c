@@ -1,0 +1,125 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <boot/payload_mm_authvar_smm_loader.h>
+#include <commonlib/helpers.h>
+#include <string.h>
+
+#if !ENV_RAMSTAGE && !ENV_TEST
+#error "Payload-MM authenticated-variable arena reservation is ramstage-only"
+#endif
+
+__weak bool platform_payload_mm_authvar_smm_arena_seed(
+	struct payload_mm_authvar_smm_arena_seed *seed)
+{
+	if (seed)
+		memset(seed, 0, sizeof(*seed));
+	return false;
+}
+
+static bool nonzero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+	uint8_t combined = 0;
+
+	for (size_t index = 0; index < size; index++)
+		combined |= bytes[index];
+	return combined;
+}
+
+static bool range_end(uint64_t base, uint64_t size, uint64_t *end)
+{
+	if (!size || base > UINT64_MAX - size)
+		return false;
+	*end = base + size;
+	return true;
+}
+
+static bool ranges_overlap(const struct payload_mm_authvar_range *left,
+	const struct payload_mm_authvar_range *right)
+{
+	uint64_t left_end;
+	uint64_t right_end;
+
+	return !range_end(left->base, left->size, &left_end) ||
+		!range_end(right->base, right->size, &right_end) ||
+		(left->base < right_end && right->base < left_end);
+}
+
+static bool seed_valid(const struct payload_mm_authvar_smm_arena_seed *seed)
+{
+	return seed && seed->revision == PAYLOAD_MM_AUTHVAR_SMM_ARENA_REVISION &&
+		seed->size == sizeof(*seed) && seed->cold_boot_generation &&
+		nonzero(seed->owner, sizeof(seed->owner)) &&
+		!seed->reserved[0] && !seed->reserved[1];
+}
+
+enum cb_err payload_mm_authvar_smm_arena_reserve(
+	struct payload_mm_authvar_smm_arena_receipt *receipt,
+	uint64_t smram_base, uint64_t smram_size,
+	const struct payload_mm_authvar_range *occupied, size_t occupied_count,
+	const struct payload_mm_authvar_smm_arena_seed *seed)
+{
+	struct payload_mm_authvar_smm_arena_seed seed_copy;
+	uint64_t smram_end;
+	uint64_t cursor;
+	uint64_t best_base = 0;
+	uint64_t best_size = 0;
+
+	if (!receipt)
+		return CB_ERR;
+	memset(receipt, 0, sizeof(*receipt));
+	if (!occupied || !occupied_count || !seed ||
+	    !range_end(smram_base, smram_size, &smram_end))
+		return CB_ERR;
+	memcpy(&seed_copy, seed, sizeof(seed_copy));
+	if (!seed_valid(&seed_copy) || memcmp(&seed_copy, seed, sizeof(seed_copy)))
+		return CB_ERR;
+	for (size_t index = 0; index < occupied_count; index++) {
+		uint64_t end;
+
+		if (!range_end(occupied[index].base, occupied[index].size, &end) ||
+		    occupied[index].base < smram_base || end > smram_end)
+			return CB_ERR;
+		for (size_t other = 0; other < index; other++)
+			if (ranges_overlap(&occupied[index], &occupied[other]))
+				return CB_ERR;
+	}
+	cursor = smram_base;
+	while (cursor < smram_end) {
+		uint64_t next_base = smram_end;
+		uint64_t next_end = smram_end;
+		uint64_t aligned;
+
+		if (cursor > UINT64_MAX - (__BIGGEST_ALIGNMENT__ - 1U))
+			return CB_ERR;
+		aligned = ALIGN_UP(cursor, (uint64_t)__BIGGEST_ALIGNMENT__);
+
+		for (size_t index = 0; index < occupied_count; index++) {
+			uint64_t end = occupied[index].base + occupied[index].size;
+
+			if (occupied[index].base >= cursor &&
+			    occupied[index].base < next_base) {
+				next_base = occupied[index].base;
+				next_end = end;
+			}
+		}
+		if (aligned < next_base && next_base - aligned > best_size) {
+			best_base = aligned;
+			best_size = next_base - aligned;
+		}
+		if (next_base == smram_end)
+			break;
+		cursor = next_end;
+	}
+	if (!best_size || memcmp(&seed_copy, seed, sizeof(seed_copy)))
+		return CB_ERR;
+	*receipt = (struct payload_mm_authvar_smm_arena_receipt) {
+		.revision = PAYLOAD_MM_AUTHVAR_SMM_ARENA_REVISION,
+		.size = sizeof(*receipt),
+		.cold_boot_generation = seed_copy.cold_boot_generation,
+		.smram = { .base = smram_base, .size = smram_size },
+		.arena = { .base = best_base, .size = best_size },
+	};
+	memcpy(receipt->owner, seed_copy.owner, sizeof(receipt->owner));
+	return CB_SUCCESS;
+}

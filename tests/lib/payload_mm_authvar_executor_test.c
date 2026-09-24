@@ -1190,11 +1190,15 @@ static void coordinator_install_executor(void)
 		.maximum_record_size = 8192,
 		.maximum_records = 64,
 	};
+	size_t required_size = 0;
 
 #ifdef EXECUTOR_REAL_MEDIA
 	real_stack_install();
 #endif
 
+	assert(payload_mm_authvar_executor_required_size(&limits, &required_size) ==
+		CB_SUCCESS);
+	assert(required_size && required_size <= sizeof(arena));
 	assert(payload_mm_authvar_executor_install(arena, sizeof(arena), &limits) ==
 		CB_SUCCESS);
 }

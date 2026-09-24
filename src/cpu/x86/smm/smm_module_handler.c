@@ -11,6 +11,9 @@
 #include <rmodule.h>
 #include <types.h>
 #include <security/intel/stm/SmmStm.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+#include <boot/payload_mm_authvar_smm_loader.h>
+#endif
 
 #if CONFIG(SPI_FLASH_SMM)
 #include <spi-generic.h>
@@ -109,6 +112,22 @@ void smm_get_cbmemc_buffer(void **buffer_out, size_t *size_out)
 	*buffer_out = smm_runtime.cbmemc;
 	*size_out = smm_runtime.cbmemc_size;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+bool smm_take_payload_mm_authvar_arena_receipt(
+	struct payload_mm_authvar_smm_arena_receipt *receipt)
+{
+	return payload_mm_authvar_smm_arena_slot_take(
+		(volatile struct payload_mm_authvar_smm_arena_slot *)
+		&smm_runtime.authvar_arena, receipt);
+}
+
+bool smm_payload_mm_authvar_arena_receipt_consumed(void)
+{
+	return payload_mm_authvar_smm_arena_slot_consumed(
+		&smm_runtime.authvar_arena);
+}
+#endif
 
 void smm_region(uintptr_t *start, size_t *size)
 {
