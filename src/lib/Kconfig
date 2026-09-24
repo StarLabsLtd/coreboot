@@ -329,11 +329,13 @@ config PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE
 	default n
 	select SMMSTORE_READ_REGION
 	help
-	  Build the dormant romstage read-only probe for the canonical entry MOR
-	  Control value in a clean EDK2 variable store, with private romstage copies
-	  of the pure FV/FTW decoder and store scanner. This does not clear memory,
-	  establish platform support, build an SMM path, install a grant or publish
-	  an endpoint.
+	  Build the dormant ramstage read-only probe for the canonical entry MOR
+	  Control value in a clean EDK2 variable store, with private ramstage copies
+	  of the pure FV/FTW decoder and store scanner. A future composition must
+	  invoke it only after preparing the platform DMA guard and establishing a
+	  trusted cold-boot classification. This does not add a caller, produce a
+	  boot generation, clear memory, establish platform support, build an SMM
+	  path, install a grant or publish an endpoint.
 
 config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
 	bool
