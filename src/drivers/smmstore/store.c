@@ -53,6 +53,18 @@ int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 	return 0;
 }
 
+static enum cb_err lookup_smmstore_fmap_region(struct region *region)
+{
+	if (fmap_locate_area(SMMSTORE_REGION, region)) {
+		printk(BIOS_WARNING,
+		       "smm store: Unable to find SMM store FMAP region '%s'\n",
+		       SMMSTORE_REGION);
+		return CB_ERR;
+	}
+
+	return CB_SUCCESS;
+}
+
 static enum cb_err lookup_store_region(struct region *region)
 {
 #if CONFIG(SMMSTORE_FULL_FLASH_ACCESS)
@@ -67,14 +79,25 @@ static enum cb_err lookup_store_region(struct region *region)
 	}
 #endif
 
-	if (fmap_locate_area(SMMSTORE_REGION, region)) {
-		printk(BIOS_WARNING,
-		       "smm store: Unable to find SMM store FMAP region '%s'\n",
-		       SMMSTORE_REGION);
-		return CB_ERR;
-	}
+	return lookup_smmstore_fmap_region(region);
+}
 
-	return CB_SUCCESS;
+int smmstore_lookup_read_region(struct region_device *rstore)
+{
+	struct region region;
+	struct region_device read_rdev;
+
+	if (!rstore)
+		return -1;
+
+	if (lookup_smmstore_fmap_region(&region) != CB_SUCCESS)
+		return -1;
+
+	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
+		return -1;
+
+	*rstore = read_rdev;
+	return 0;
 }
 
 /*
