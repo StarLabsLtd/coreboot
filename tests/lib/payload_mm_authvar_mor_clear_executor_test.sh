@@ -24,7 +24,7 @@ compile_and_run()
 		"$root/src/lib/payload_mm_authvar_mor_clear_plan.c" \
 		"$root/src/lib/payload_mm_authvar_mor_clear.c" \
 		"$root/src/lib/payload_mm_authvar_mor_grant.c" -o "$temporary/$name"
-	for case_name in success failures hostile objects; do
+	for case_name in success failures hostile objects windows; do
 		"$temporary/$name" "$case_name"
 	done
 }
@@ -58,7 +58,8 @@ mutant_test()
 	if "$temporary/$name" success >/dev/null 2>&1 &&
 	   "$temporary/$name" failures >/dev/null 2>&1 &&
 	   "$temporary/$name" hostile >/dev/null 2>&1 &&
-	   "$temporary/$name" objects >/dev/null 2>&1; then
+	   "$temporary/$name" objects >/dev/null 2>&1 &&
+	   "$temporary/$name" windows >/dev/null 2>&1; then
 		echo "ERROR: $name mutation survived" >&2
 		exit 1
 	fi
@@ -78,6 +79,8 @@ mutant_test output-recheck \
 	's/!bytes_zero(state.transcript_output, sizeof(\*state.transcript_output))/(false \&\& !bytes_zero(state.transcript_output, sizeof(*state.transcript_output)))/'
 mutant_test final-plan-recheck \
 	'/payload_mm_authvar_mor_clear_receipt_build/,/goto fail;/ s/memcmp(&state.plan_snapshot, state.plan_input/memcmp(state.plan_input, state.plan_input/'
+mutant_test physical-window-boundary \
+	's/return MIN(bounded_remaining, until_boundary);/return MIN(bounded_remaining, until_boundary | window_bytes);/'
 
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
