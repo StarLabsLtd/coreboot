@@ -90,18 +90,27 @@ _Static_assert(offsetof(struct starbook_mtl_dma_guard_snapshot, generation) == 8
 	offsetof(struct starbook_mtl_dma_guard_snapshot, handoff) == 152,
 	"MTL DMA guard snapshot fields moved");
 
-enum cb_err starbook_mtl_dma_guard_capture(
-	const struct payload_mm_authvar_mor_clear_plan *plan,
+enum cb_err starbook_mtl_dma_guard_prepare(
 	struct starbook_mtl_dma_guard_snapshot *snapshot);
+enum cb_err starbook_mtl_dma_guard_bind(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma);
 enum cb_err starbook_mtl_dma_guard_policy_validate(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *snapshot);
 enum cb_err starbook_mtl_dma_guard_snapshot_build(
 	const struct starbook_mtl_dma_guard_facts *facts,
 	struct starbook_mtl_dma_guard_snapshot *snapshot);
-enum cb_err starbook_mtl_dma_guard_capture_with_ops(
-	const struct payload_mm_authvar_mor_clear_plan *plan,
+enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	struct starbook_mtl_dma_guard_snapshot *snapshot,
+	const struct starbook_mtl_dma_guard_ops *ops);
+enum cb_err starbook_mtl_dma_guard_bind_with_ops(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
 	const struct starbook_mtl_dma_guard_ops *ops);
 
 #endif

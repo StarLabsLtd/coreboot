@@ -35,16 +35,26 @@ VTVC0 to the default-deny root, and rechecks all table bytes. Under that root
 neither the live table nor its mirror is mapped for a requester. Finally it
 reverifies the complete topology and BME-clear state before publishing success.
 
-The fixed snapshot carries a nonzero 64-bit generation and opaque 256-bit
-identity generated from checked coreboot RNG calls. This value is a private,
-boot-local capability name, not a digest. It is returned unchanged only after
-the complete retained policy has been revalidated. Any later mismatch poisons
-the authority.
+Preparation is deliberately independent of a MOR clear plan. It establishes
+and twice observes the hardware, then retains an exact snapshot with a nonzero
+64-bit generation and opaque 256-bit identity generated from checked coreboot
+RNG calls. This value is a private, boot-local capability name, not a digest.
+Repeated preparation is idempotent and revalidates the hardware without
+regenerating the token.
 
-The caller supplies an already canonical MOR clear plan. Every byte of the
+Binding is a separate terminal transition. The caller supplies the prepared
+snapshot and an already canonical MOR clear plan whose inventory generation
+and identity exactly match the retained guard token. Every byte of the
 handoff page, live table, and table mirror must be contained by an explicit
 `ACTIVE_FIRMWARE` exclusion. Each delegated payload DMA arena requires an
 explicit `PLATFORM_RESERVED` exclusion. A gap or partial, ambiguous, or
-wrong-reason exclusion fails closed. The plan and output are range/alignment
-checked, cannot alias, mutable input is snapshotted and rechecked, and output is
-published once only after final hardware revalidation.
+wrong-reason exclusion fails closed. Binding reobserves the hardware and
+returns both the exact bound snapshot and the generic DMA token used by the
+clear executor. Repeated binding accepts only the identical retained plan.
+
+The authority follows `EMPTY -> PREPARED -> BOUND`; any operational failure
+after a transition begins invokes the platform poison callback and enters the
+terminal `POISONED` state. Inputs and outputs are range/alignment checked and
+cannot alias. Mutable inputs and callback operations are snapshotted and
+rechecked, outputs remain zero until final publication, and no path installs a
+boot-state hook or advertises MOR support.

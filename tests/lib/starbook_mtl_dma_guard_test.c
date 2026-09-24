@@ -180,10 +180,15 @@ struct mock_context {
 	bool random_failure;
 	bool zero_generation;
 	bool zero_identity;
+	unsigned int mutation_observe;
 	struct payload_mm_authvar_mor_clear_plan *plan;
 	struct starbook_mtl_dma_guard_snapshot *output;
+	struct starbook_mtl_dma_guard_snapshot *prepared;
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma;
 	bool mutate_plan;
+	bool mutate_prepared;
 	bool mutate_output;
+	bool mutate_dma;
 	bool mutate_ops;
 	struct starbook_mtl_dma_guard_ops *ops;
 };
@@ -209,13 +214,17 @@ static enum cb_err mock_observe(void *context,
 	memset(snapshot->identity, 0, sizeof(snapshot->identity));
 	if (mock->invalid_observation)
 		snapshot->engines[0].root += 0x1000;
-	if (mock->mutate_hardware && mock->observes == 2U)
+	if (mock->mutate_hardware && mock->observes == mock->mutation_observe)
 		snapshot->engines[0].status ^= 1U;
-	if (mock->mutate_plan && mock->observes == 2U)
+	if (mock->mutate_plan && mock->observes == mock->mutation_observe)
 		mock->plan->inventory_generation++;
-	if (mock->mutate_output && mock->observes == 2U)
+	if (mock->mutate_prepared && mock->observes == mock->mutation_observe)
+		mock->prepared->reserved[0] = 1;
+	if (mock->mutate_output && mock->observes == mock->mutation_observe)
 		mock->output->reserved[0] = 1;
-	if (mock->mutate_ops && mock->observes == 2U)
+	if (mock->mutate_dma && mock->observes == mock->mutation_observe)
+		mock->dma->reserved[0] = 1;
+	if (mock->mutate_ops && mock->observes == mock->mutation_observe)
 		mock->ops->random64 = NULL;
 	return CB_SUCCESS;
 }
@@ -245,7 +254,12 @@ int main(int argc, char **argv)
 	struct payload_mm_authvar_mor_clear_plan plan = valid_plan();
 	struct starbook_mtl_dma_guard_snapshot snapshot = valid_snapshot();
 	struct starbook_mtl_dma_guard_snapshot second;
-	struct mock_context mock = { .plan = &plan, .output = &snapshot };
+	struct starbook_mtl_dma_guard_snapshot bound;
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma;
+	struct mock_context mock = {
+		.mutation_observe = 2, .plan = &plan, .output = &snapshot,
+		.prepared = &snapshot, .dma = &dma,
+	};
 	struct starbook_mtl_dma_guard_ops ops = {
 		.context = &mock, .ensure = mock_ensure, .observe = mock_observe,
 		.random64 = mock_random64,
@@ -259,7 +273,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (!strcmp(argv[1], "ops-output-alias")) {
-		CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &snapshot,
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot,
 			(const struct starbook_mtl_dma_guard_ops *)&snapshot) == CB_ERR_ARG);
 		CHECK(!memcmp(&snapshot,
 			&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
@@ -267,21 +281,118 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (!strcmp(argv[1], "ops-plan-alias")) {
-		CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &snapshot,
-			(const struct starbook_mtl_dma_guard_ops *)&plan) == CB_ERR_ARG);
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot,
+			(const struct starbook_mtl_dma_guard_ops *)&snapshot) == CB_ERR_ARG);
 		return 0;
 	}
-	if (!strcmp(argv[1], "capture") || !strcmp(argv[1], "idempotent")) {
-		CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &snapshot, &ops) ==
+	if (!strcmp(argv[1], "prepare") || !strcmp(argv[1], "idempotent")) {
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
 			CB_SUCCESS);
 		CHECK(snapshot.generation && snapshot.identity[0]);
 		CHECK(mock.ensures == 1U && mock.observes == 2U && mock.randoms == 5U);
 		if (!strcmp(argv[1], "idempotent")) {
-			CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &second, &ops) ==
+			CHECK(starbook_mtl_dma_guard_prepare_with_ops(&second, &ops) ==
 				CB_SUCCESS);
 			CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)));
 			CHECK(mock.ensures == 2U && mock.observes == 4U &&
 				mock.randoms == 5U);
+		}
+		return 0;
+	}
+	if (!strcmp(argv[1], "bind") || !strcmp(argv[1], "bind-idempotent") ||
+	    !strcmp(argv[1], "bind-token-mismatch") ||
+	    !strcmp(argv[1], "bind-plan-mutation") ||
+	    !strcmp(argv[1], "bind-prepared-mutation") ||
+	    !strcmp(argv[1], "bind-output-mutation") ||
+	    !strcmp(argv[1], "bind-dma-mutation") ||
+	    !strcmp(argv[1], "bind-ops-mutation") ||
+	    !strcmp(argv[1], "bind-prepared-output-alias") ||
+	    !strcmp(argv[1], "bind-output-dma-alias") ||
+	    !strcmp(argv[1], "bind-plan-prepared-alias") ||
+	    !strcmp(argv[1], "bound-prepare-idempotent") ||
+	    !strcmp(argv[1], "bound-plan-change")) {
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
+			CB_SUCCESS);
+		plan.inventory_generation = snapshot.generation;
+		memcpy(plan.inventory_identity, snapshot.identity,
+			sizeof(plan.inventory_identity));
+		mock.mutation_observe = 3;
+		mock.output = &bound;
+		if (!strcmp(argv[1], "bind-prepared-output-alias")) {
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+				&snapshot, &dma, &ops) == CB_ERR_ARG);
+			CHECK(!memcmp(&snapshot,
+				&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
+				sizeof(snapshot)));
+			return 0;
+		}
+		if (!strcmp(argv[1], "bind-output-dma-alias")) {
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+				&bound,
+				(struct payload_mm_authvar_mor_clear_dma_snapshot *)&bound,
+				&ops) == CB_ERR_ARG);
+			return 0;
+		}
+		if (!strcmp(argv[1], "bind-plan-prepared-alias")) {
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan,
+				(const struct starbook_mtl_dma_guard_snapshot *)&plan,
+				&bound, &dma, &ops) == CB_ERR_ARG);
+			return 0;
+		}
+		if (!strcmp(argv[1], "bind-token-mismatch"))
+			plan.inventory_generation++;
+		else if (!strcmp(argv[1], "bind-plan-mutation"))
+			mock.mutate_plan = true;
+		else if (!strcmp(argv[1], "bind-prepared-mutation"))
+			mock.mutate_prepared = true;
+		else if (!strcmp(argv[1], "bind-output-mutation"))
+			mock.mutate_output = true;
+		else if (!strcmp(argv[1], "bind-dma-mutation"))
+			mock.mutate_dma = true;
+		else if (!strcmp(argv[1], "bind-ops-mutation"))
+			mock.mutate_ops = true;
+		memset(&bound, 0xa5, sizeof(bound));
+		memset(&dma, 0xa5, sizeof(dma));
+		if (strcmp(argv[1], "bind") && strcmp(argv[1], "bind-idempotent") &&
+		    strcmp(argv[1], "bound-prepare-idempotent") &&
+		    strcmp(argv[1], "bound-plan-change")) {
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+				&bound, &dma, &ops) != CB_SUCCESS);
+			CHECK(!memcmp(&bound,
+				&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
+				sizeof(bound)));
+			CHECK(!memcmp(&dma,
+				&(const struct payload_mm_authvar_mor_clear_dma_snapshot) { 0 },
+				sizeof(dma)));
+			CHECK(mock.poisons == 1U);
+			CHECK(starbook_mtl_dma_guard_prepare_with_ops(&second, &ops) !=
+				CB_SUCCESS);
+			return 0;
+		}
+		CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+			&bound, &dma, &ops) == CB_SUCCESS);
+		CHECK(!memcmp(&bound, &snapshot, sizeof(bound)));
+		CHECK(dma.generation == snapshot.generation);
+		CHECK(!memcmp(dma.identity, snapshot.identity, sizeof(dma.identity)));
+		if (!strcmp(argv[1], "bound-prepare-idempotent")) {
+			CHECK(starbook_mtl_dma_guard_prepare_with_ops(&second, &ops) ==
+				CB_SUCCESS);
+			CHECK(!memcmp(&second, &snapshot, sizeof(second)));
+			return 0;
+		}
+		if (!strcmp(argv[1], "bound-plan-change")) {
+			plan.spans[0].size--;
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+				&bound, &dma, &ops) != CB_SUCCESS);
+			CHECK(mock.poisons == 1U);
+			return 0;
+		}
+		if (!strcmp(argv[1], "bind-idempotent")) {
+			memset(&bound, 0xa5, sizeof(bound));
+			memset(&dma, 0xa5, sizeof(dma));
+			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
+				&bound, &dma, &ops) == CB_SUCCESS);
+			CHECK(!memcmp(&bound, &snapshot, sizeof(bound)));
 		}
 		return 0;
 	}
@@ -299,8 +410,6 @@ int main(int argc, char **argv)
 		mock.zero_generation = true;
 	else if (!strcmp(argv[1], "zero-identity"))
 		mock.zero_identity = true;
-	else if (!strcmp(argv[1], "plan-mutation"))
-		mock.mutate_plan = true;
 	else if (!strcmp(argv[1], "output-mutation"))
 		mock.mutate_output = true;
 	else if (!strcmp(argv[1], "ops-mutation"))
@@ -309,7 +418,7 @@ int main(int argc, char **argv)
 		CHECK(false);
 	if (strcmp(argv[1], "policy")) {
 		memset(&snapshot, 0xa5, sizeof(snapshot));
-		CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &snapshot, &ops) !=
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) !=
 			CB_SUCCESS);
 		CHECK(!memcmp(&snapshot,
 			&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
@@ -321,12 +430,11 @@ int main(int argc, char **argv)
 		mock.random_failure = false;
 		mock.zero_generation = false;
 		mock.zero_identity = false;
-		mock.mutate_plan = false;
 		mock.mutate_output = false;
 		mock.mutate_ops = false;
 		ops.random64 = mock_random64;
 		plan = valid_plan();
-		CHECK(starbook_mtl_dma_guard_capture_with_ops(&plan, &snapshot, &ops) !=
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) !=
 			CB_SUCCESS);
 		return 0;
 	}
@@ -353,6 +461,9 @@ int main(int argc, char **argv)
 	CHECK(starbook_mtl_dma_guard_policy_validate(&plan, &snapshot) != CB_SUCCESS);
 	snapshot = valid_snapshot();
 	snapshot.identity[0] = 0;
+	CHECK(starbook_mtl_dma_guard_policy_validate(&plan, &snapshot) != CB_SUCCESS);
+	snapshot = valid_snapshot();
+	snapshot.identity[1] = 1;
 	CHECK(starbook_mtl_dma_guard_policy_validate(&plan, &snapshot) != CB_SUCCESS);
 	snapshot = valid_snapshot();
 	snapshot.reserved[15] = 1;
