@@ -146,5 +146,5 @@ FTW transaction before reading.
 This slice installs no shared-memory descriptor, dispatcher, SMI route or
 persistent read cache. The dormant service-frame validator remains a separate
 composition boundary and must be aligned with EDK2 QUERY APPEND and unknown-bit
-behavior before any endpoint is published. Its current QUERY response rules
-also cannot represent the `DEVICE_ERROR` returned for dirty-tail quota state.
+behavior before any endpoint is published. Its response status domains cover
+the semantic and media failures reachable from these dormant transactions.

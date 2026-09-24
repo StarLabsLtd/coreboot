@@ -107,14 +107,22 @@ and result fields form one of these combinations:
 | --- | --- | --- |
 | `GET` | success | data size is within capacity and stored attributes are valid |
 | `GET` | buffer too small | required data size exceeds capacity and attributes are returned |
-| `GET` | not found, device error, security violation, unsupported | all result fields are zero |
+| `GET` | not found, unsupported, write protected, device error | all result fields are zero |
 | `NEXT` | success | a valid name and GUID fit the name capacity |
 | `NEXT` | buffer too small | required name size exceeds capacity; no name or GUID is returned |
-| `NEXT` | not found, invalid parameter, device error, unsupported | all result fields are zero |
+| `NEXT` | not found, invalid parameter, unsupported, write protected, device error | all result fields are zero |
 | `SET` | a defined set result | all result fields are zero |
 | `QUERY` | success | nonzero maximum storage, maximum variable no larger than remaining storage, and remaining no larger than maximum storage |
-| `QUERY` | invalid parameter, unsupported | all result fields are zero |
-| lifecycle | success | all result fields are zero |
+| `QUERY` | invalid parameter, unsupported, write protected, device error | all result fields are zero |
+| lifecycle | success, unsupported, write protected, device error | all result fields are zero |
+
+These domains are the union of the protected executor's semantic result and
+the media-port result mapping. GET adds buffer-too-small and not-found; NEXT
+also adds invalid-parameter for a missing cursor; QUERY adds invalid-parameter
+for an invalid attribute class. Every operation which opens a media session can
+return unsupported, write-protected or device-error. SET additionally carries
+the bounded policy/coordinator results shown above. Reads do not invoke an
+authorization provider, so GET cannot return security-violation.
 
 The SMM side clears the complete response slots before copying bounded success
 data. On success, every byte after the returned name or data remains zero. A
