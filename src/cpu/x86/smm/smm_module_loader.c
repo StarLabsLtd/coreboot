@@ -16,6 +16,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <types.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+#include <boot/payload_mm_authvar_smm_loader.h>
+#endif
 #include <boot/capsule_broker.h>
 #include <boot/capsule_broker_buffers.h>
 
@@ -464,8 +467,8 @@ static void print_region(const char *name, const struct region region)
 	       region_last(&region));
 }
 
-/* STM + Handler + (Stub + Save state) * CONFIG_MAX_CPUS + stacks + page tables*/
-#define SMM_REGIONS_ARRAY_SIZE (1  + 1 + CONFIG_MAX_CPUS * 2 + 1 + 1)
+/* STM + handler + (stub + save state) * CPUs + stacks + page tables + arena. */
+#define SMM_REGIONS_ARRAY_SIZE (1 + 1 + CONFIG_MAX_CPUS * 2 + 1 + 1 + 1)
 
 static int append_and_check_region(const struct region smram,
 				   const struct region region,
@@ -577,6 +580,9 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	 * this back to the BSP stack.
 	 */
 	static struct region region_list[SMM_REGIONS_ARRAY_SIZE] = {};
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	struct payload_mm_authvar_smm_arena_receipt authvar_arena = { 0 };
+#endif
 
 	struct rmodule smi_handler;
 	if (rmodule_parse(&_binary_smm_start, &smi_handler))
@@ -638,12 +644,48 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	if (append_and_check_region(smram, stacks, region_list, "stacks"))
 		return -1;
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	{
+		struct payload_mm_authvar_smm_arena_seed seed;
+		struct payload_mm_authvar_range occupied[SMM_REGIONS_ARRAY_SIZE];
+		size_t occupied_count = 0;
+
+		memset(&seed, 0, sizeof(seed));
+		if (!platform_payload_mm_authvar_smm_arena_seed(&seed))
+			return -1;
+		for (size_t index = 0; index < SMM_REGIONS_ARRAY_SIZE; index++) {
+			if (!region_sz(&region_list[index]))
+				continue;
+			occupied[occupied_count++] = (struct payload_mm_authvar_range) {
+				.base = region_offset(&region_list[index]),
+				.size = region_sz(&region_list[index]),
+			};
+		}
+		if (payload_mm_authvar_smm_arena_reserve(&authvar_arena,
+			smram_base, smram_size, occupied, occupied_count,
+			&seed) != CB_SUCCESS ||
+		    append_and_check_region(smram,
+			region_create(authvar_arena.arena.base,
+				authvar_arena.arena.size),
+			region_list, "AUTHVAR"))
+			return -1;
+	}
+#endif
+
 	if (rmodule_load((void *)handler_base, &smi_handler))
 		return -1;
 
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
 	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	smihandler_params->authvar_arena.state =
+		PAYLOAD_MM_AUTHVAR_SMM_ARENA_EMPTY;
+	memcpy(&smihandler_params->authvar_arena.receipt, &authvar_arena,
+		sizeof(authvar_arena));
+	__atomic_store_n(&smihandler_params->authvar_arena.state,
+		PAYLOAD_MM_AUTHVAR_SMM_ARENA_READY, __ATOMIC_RELEASE);
+#endif
 
 	return smm_module_setup_stub(stub_segment_base, smram_size, params);
 }

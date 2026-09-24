@@ -200,6 +200,21 @@ config PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
 	  variable. It publishes no dispatcher, SMI command, boot hook or support
 	  claim.
 
+config PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND
+	depends on PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
+	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	depends on PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
+	depends on !SMMSTORE
+	help
+	  Build the dormant private SMM composition that derives the authenticated-
+	  variable contract from live SMM, SPI and FMAP facts. A platform must
+	  privately supply a cold-boot generation, loader-reserved SMRAM arena,
+	  fixed MOR seal channel and a live chipset SPI-write restriction proof.
+	  This publishes no endpoint and does not enable legacy raw SMMSTORE.
+
 config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY
 	bool
 	default n

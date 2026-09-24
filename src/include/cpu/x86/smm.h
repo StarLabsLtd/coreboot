@@ -9,6 +9,9 @@
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+#include <boot/payload_mm_authvar_smm_loader.h>
+#endif
 
 #define SMM_DEFAULT_BASE 0x30000
 #define SMM_DEFAULT_SIZE 0x10000
@@ -117,6 +120,9 @@ struct smm_runtime {
 	size_t capsule_communication_size;
 	uintptr_t capsule_staging_base;
 	size_t capsule_staging_size;
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	struct payload_mm_authvar_smm_arena_slot authvar_arena;
 #endif
 } __packed;
 
