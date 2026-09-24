@@ -31,6 +31,7 @@ tests-y += bootmem-aligned-reservation-test
 tests-y += payload-mm-authvar-mor-live-inventory-test
 tests-y += starbook-mtl-mor-live-inventory-test
 tests-y += starbook-mtl-mor-clear-x86-binding-test
+tests-y += q35-mor-fixture-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
 tests-y += payload_resource_handoff-test
@@ -181,6 +182,19 @@ starbook-mtl-mor-clear-x86-binding-test-srcs += tests/lib/starbook_mtl_mor_clear
 starbook-mtl-mor-clear-x86-binding-test-srcs += src/mainboard/starlabs/starbook/variants/mtl/mor_clear_x86.c
 starbook-mtl-mor-clear-x86-binding-test-config += CONFIG_BOOTMEM_ALIGNED_RESERVATIONS=1
 starbook-mtl-mor-clear-x86-binding-test-no_test_framework = 1
+
+q35-mor-fixture-test-srcs += tests/lib/q35_mor_fixture_test.c
+q35-mor-fixture-test-srcs += tests/lib/q35_mor_fixture.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_fv.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_ftw.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_store.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_record.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_store_semantics.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_writer.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_mor_identity.c
+q35-mor-fixture-test-srcs += src/lib/payload_mm_authvar_mor_probe.c
+q35-mor-fixture-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=4096
+q35-mor-fixture-test-no_test_framework = 1
 
 dimm_info_util-test-srcs += tests/lib/dimm_info_util-test.c
 dimm_info_util-test-srcs += src/device/dram/spd.c
