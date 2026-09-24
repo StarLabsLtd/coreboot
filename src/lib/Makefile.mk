@@ -32,6 +32,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE) += payload_mm_authvar_candidate.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_coordinator.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_set_preflight.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_authority_provider.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c

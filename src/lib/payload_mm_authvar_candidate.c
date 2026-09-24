@@ -619,8 +619,6 @@ static bool projection_matches(
 			sizeof(secure_boot_enable_name));
 	const u8 *source_vendor_data =
 		payload_mm_authvar_store_data(source, source_vendor);
-	const u8 *source_enable_data =
-		payload_mm_authvar_store_data(source, source_enable);
 	const bool source_setup = binding->source_volatile_modes &
 		PAYLOAD_MM_AUTHVAR_MODE_SETUP;
 	const bool source_secure = binding->source_volatile_modes &
@@ -632,6 +630,7 @@ static bool projection_matches(
 		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	const bool vendor_keys = bundle->volatile_modes &
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	bool source_enable_enabled = false;
 
 	const u32 nv_bs = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
 		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
@@ -640,6 +639,10 @@ static bool projection_matches(
 
 	if (!payload_mm_authvar_candidate_projection_valid(source, built, binding,
 		bundle->volatile_modes))
+		return false;
+	if (source_enable && !payload_mm_authvar_mode_enabled(source,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, nv_bs,
+		&source_enable_enabled))
 		return false;
 
 	if ((binding->at_runtime && vendor_mutation) ||
@@ -654,16 +657,10 @@ static bool projection_matches(
 		16U) ||
 	    *source_vendor_data > 1U ||
 	    source_vendor_keys != !!*source_vendor_data ||
-	    (source_enable && (source_enable->attributes != nv_bs ||
-	     source_enable->data_size != 1U || !source_enable_data ||
-	     *source_enable_data > 1U ||
-	     !bytes_are_zero(source->store + source_enable->record_offset + 16U,
-		16U))) ||
 	    (!binding->at_runtime &&
 	     ((source_setup && source_secure) ||
-	      (!source_setup && (!source_enable || !source_enable_data ||
-	       source_enable->data_size != 1U || *source_enable_data > 1U ||
-	       source_secure != !!*source_enable_data)))) ||
+	      (!source_setup && (!source_enable ||
+	       source_secure != source_enable_enabled)))) ||
 	    setup == !!pk || !vendor || vendor->attributes != nv_bs_time ||
 	    vendor->data_size != 1U ||
 	    !vendor_data || *vendor_data > 1U || vendor_keys != !!*vendor_data)
@@ -708,6 +705,8 @@ bool payload_mm_authvar_candidate_projection_valid(
 	bool source_secure;
 	bool secure;
 	bool enable_changed;
+	bool source_enable_enabled = false;
+	bool candidate_enable_enabled = false;
 
 	if (!payload_mm_authvar_store_index_valid(source) ||
 	    !payload_mm_authvar_store_index_valid(candidate) || !binding ||
@@ -734,6 +733,13 @@ bool payload_mm_authvar_candidate_projection_valid(
 	source_vendor_data = payload_mm_authvar_store_data(source, source_vendor);
 	candidate_vendor_data = payload_mm_authvar_store_data(candidate,
 		candidate_vendor);
+	if ((source_enable && !payload_mm_authvar_mode_enabled(source,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, nv_bs,
+		&source_enable_enabled)) ||
+	    (candidate_enable && !payload_mm_authvar_mode_enabled(candidate,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, nv_bs,
+		&candidate_enable_enabled)))
+		return false;
 	if (!!(binding->source_volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) ==
 	    !!source_pk || !source_vendor || !source_vendor_data ||
 	    source_vendor->attributes != nv_bs_time ||
@@ -749,17 +755,7 @@ bool payload_mm_authvar_candidate_projection_valid(
 		16U) ||
 	    !!(volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) !=
 		!!*candidate_vendor_data ||
-	    !!(volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) == !!candidate_pk ||
-	    (source_enable && (!source_enable_data ||
-	     source_enable->attributes != nv_bs || source_enable->data_size != 1U ||
-	     *source_enable_data > 1U ||
-	     !bytes_are_zero(source->store + source_enable->record_offset + 16U,
-		16U))) ||
-	    (candidate_enable && (!candidate_enable_data ||
-	     candidate_enable->attributes != nv_bs ||
-	     candidate_enable->data_size != 1U || *candidate_enable_data > 1U ||
-	     !bytes_are_zero(candidate->store + candidate_enable->record_offset + 16U,
-		16U))))
+	    !!(volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) == !!candidate_pk)
 		return false;
 	source_secure = binding->source_volatile_modes &
 		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
@@ -771,10 +767,8 @@ bool payload_mm_authvar_candidate_projection_valid(
 		return false;
 	if (binding->at_runtime)
 		return !enable_changed && secure == source_secure;
-	return source_secure ==
-		(!!source_pk && !!source_enable && !!*source_enable_data) &&
-		secure ==
-		(!!candidate_pk && !!candidate_enable && !!*candidate_enable_data);
+	return source_secure == (!!source_pk && source_enable_enabled) &&
+		secure == (!!candidate_pk && candidate_enable_enabled);
 }
 
 static bool result_disjoint_from_inputs(

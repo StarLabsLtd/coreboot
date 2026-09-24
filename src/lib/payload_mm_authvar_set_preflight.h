@@ -22,6 +22,7 @@ struct payload_mm_authvar_set_snapshot {
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_store_index *index;
 	bool at_runtime;
+	bool trusted_physical_presence;
 };
 
 struct payload_mm_authvar_set_plan {

@@ -82,6 +82,7 @@ view_compile()
 		"$root/tests/lib/payload_mm_authvar_read_transaction_test.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
+		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
 		"$root/src/lib/payload_mm_authvar_certdb.c" \
