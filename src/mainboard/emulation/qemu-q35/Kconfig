@@ -2,6 +2,14 @@
 
 if BOARD_EMULATION_QEMU_X86_Q35
 
+config QEMU_PFLASH_VOLATILE_LEASE
+	bool
+	default n
+	help
+	  Provide a private owner-bound lease for QEMU pflash operations. Ordinary
+	  region-device writes and erases are excluded for the complete lease. This
+	  publishes no SMI endpoint and has no consumer unless separately selected.
+
 config Q35_VTD_DMA_TEST_BACKEND
 	bool "QEMU-only VT-d DMA handoff backend"
 	depends on PAYLOAD_RESOURCE_HANDOFF
