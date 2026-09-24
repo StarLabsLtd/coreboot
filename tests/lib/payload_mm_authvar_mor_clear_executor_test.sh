@@ -76,11 +76,16 @@ mutant_test dma-equality \
 mutant_test unmap-failure \
 	's/return unmap_error;/(void)unmap_error; return CB_SUCCESS;/'
 mutant_test output-recheck \
-	's/!bytes_zero(state.transcript_output, sizeof(\*state.transcript_output))/(false \&\& !bytes_zero(state.transcript_output, sizeof(*state.transcript_output)))/'
+	'/bytes_zero(state->transcript_output,/,+1c\
+\t\ttrue \&\&'
 mutant_test final-plan-recheck \
-	'/payload_mm_authvar_mor_clear_receipt_build/,/goto fail;/ s/memcmp(&state.plan_snapshot, state.plan_input/memcmp(state.plan_input, state.plan_input/'
+	's/!memcmp(&state->plan_snapshot, state->plan_input,/!memcmp(state->plan_input, state->plan_input,/'
 mutant_test physical-window-boundary \
 	's/return MIN(bounded_remaining, until_boundary);/return MIN(bounded_remaining, until_boundary | window_bytes);/'
+mutant_test initial-inventory-validation \
+	'0,/live_inventory_validate(&state)/ s/live_inventory_validate(&state)/CB_SUCCESS/'
+mutant_test late-inventory-validation \
+	'/state.candidate.dma_after =/,/payload_mm_authvar_mor_clear_receipt_build/ s/live_inventory_validate(&state)/CB_SUCCESS/'
 
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \

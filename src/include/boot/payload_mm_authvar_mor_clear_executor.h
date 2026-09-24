@@ -17,6 +17,10 @@ struct payload_mm_authvar_mor_clear_executor_ops {
 	enum cb_err (*fence)(void *context);
 	enum cb_err (*unmap_window)(void *context, uint64_t physical,
 		void *mapping, size_t size);
+	/* Appended while this contract is dormant; preserve the existing prefix. */
+	void *inventory_context;
+	enum cb_err (*inventory_validate)(void *context,
+		const struct payload_mm_authvar_mor_clear_plan *plan);
 };
 
 enum cb_err payload_mm_authvar_mor_clear_execute(

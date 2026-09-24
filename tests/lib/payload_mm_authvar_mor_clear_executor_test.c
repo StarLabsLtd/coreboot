@@ -10,13 +10,18 @@
 #define BASEX (BASE0 + 19)
 #define BASE1 (BASEX + 5)
 
-enum operation { OP_DMA, OP_MAP, OP_CACHE, OP_FENCE, OP_UNMAP };
+enum operation { OP_INVENTORY, OP_DMA, OP_MAP, OP_CACHE, OP_FENCE, OP_UNMAP };
 
 struct mock {
 	uint8_t first[19];
 	uint8_t excluded[5];
 	uint8_t second[11];
-	unsigned int calls[5];
+	unsigned int calls[6];
+	unsigned int sequence;
+	unsigned int inventory_sequence[2];
+	unsigned int dma_sequence[2];
+	unsigned int first_map_sequence;
+	unsigned int last_unmap_sequence;
 	enum operation fail_operation;
 	unsigned int fail_call;
 	bool failed_map_nonnull;
@@ -25,9 +30,12 @@ struct mock {
 	void *alias_mapping;
 	void *mutate;
 	size_t mutate_size;
+	unsigned int inventory_mutate_call;
+	void *inventory_mutate;
 	uint64_t mapped_physical[32];
 	size_t mapped_size[32];
 	struct payload_mm_authvar_mor_clear_dma_snapshot dma[2];
+	struct payload_mm_authvar_mor_clear_plan expected_plan;
 };
 
 static void mutate(struct mock *mock)
@@ -38,12 +46,30 @@ static void mutate(struct mock *mock)
 	}
 }
 
+static enum cb_err inventory_validate(void *context,
+	const struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	struct mock *mock = context;
+	unsigned int call = ++mock->calls[OP_INVENTORY];
+
+	CHECK(call <= 2);
+	mock->inventory_sequence[call - 1U] = ++mock->sequence;
+	if (memcmp(plan, &mock->expected_plan, sizeof(*plan)))
+		return CB_ERR;
+	if (mock->inventory_mutate_call == call && mock->inventory_mutate)
+		((uint8_t *)mock->inventory_mutate)[0] ^= 1;
+	if (mock->fail_operation == OP_INVENTORY && mock->fail_call == call)
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
 static enum cb_err dma_snapshot(void *context,
 	struct payload_mm_authvar_mor_clear_dma_snapshot *snapshot)
 {
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_DMA];
 
+	mock->dma_sequence[call - 1U] = ++mock->sequence;
 	mutate(mock);
 	if (mock->fail_operation == OP_DMA && mock->fail_call == call)
 		return CB_ERR;
@@ -57,6 +83,10 @@ static enum cb_err map_window(void *context, uint64_t physical, size_t size,
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_MAP];
 
+	if (!mock->first_map_sequence)
+		mock->first_map_sequence = ++mock->sequence;
+	else
+		mock->sequence++;
 	CHECK(call <= 32);
 	mock->mapped_physical[call - 1U] = physical;
 	mock->mapped_size[call - 1U] = size;
@@ -90,6 +120,7 @@ static enum cb_err cache_writeback_invalidate(void *context, uint64_t physical,
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_CACHE];
 
+	mock->sequence++;
 	(void)physical;
 	(void)mapping;
 	(void)size;
@@ -107,6 +138,7 @@ static enum cb_err fence(void *context)
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_FENCE];
 
+	mock->sequence++;
 	mutate(mock);
 	if (mock->fail_operation == OP_FENCE && mock->fail_call == call)
 		return CB_ERR;
@@ -119,6 +151,7 @@ static enum cb_err unmap_window(void *context, uint64_t physical, void *mapping,
 	struct mock *mock = context;
 	unsigned int call = ++mock->calls[OP_UNMAP];
 
+	mock->last_unmap_sequence = ++mock->sequence;
 	(void)physical;
 	(void)mapping;
 	(void)size;
@@ -167,6 +200,8 @@ static void initialize(struct mock *mock,
 	*ops = (struct payload_mm_authvar_mor_clear_executor_ops) {
 		.context = mock,
 		.window_bytes = 7,
+		.inventory_context = mock,
+		.inventory_validate = inventory_validate,
 		.dma_snapshot = dma_snapshot,
 		.map_window = map_window,
 		.cache_writeback_invalidate = cache_writeback_invalidate,
@@ -192,7 +227,7 @@ static enum cb_err execute(struct mock *mock,
 {
 	memset(transcript, 0xa5, sizeof(*transcript));
 	memset(grant, 0xa5, sizeof(*grant));
-	(void)mock;
+	mock->expected_plan = *plan;
 	return payload_mm_authvar_mor_clear_execute(plan, entry, 11, ops,
 		transcript, grant);
 }
@@ -213,8 +248,13 @@ static void test_success(void)
 	for (size_t index = 0; index < sizeof(mock.excluded); index++)
 		CHECK(mock.excluded[index] == 0x5a);
 	CHECK(mock.calls[OP_DMA] == 2 && mock.calls[OP_MAP] == 12);
+	CHECK(mock.calls[OP_INVENTORY] == 2);
 	CHECK(mock.calls[OP_CACHE] == 12 && mock.calls[OP_FENCE] == 12);
 	CHECK(mock.calls[OP_UNMAP] == 12);
+	CHECK(mock.inventory_sequence[0] < mock.dma_sequence[0]);
+	CHECK(mock.dma_sequence[0] < mock.first_map_sequence);
+	CHECK(mock.last_unmap_sequence < mock.dma_sequence[1]);
+	CHECK(mock.dma_sequence[1] < mock.inventory_sequence[1]);
 	CHECK(transcript.cleared_span_count == 2);
 	CHECK(transcript.records[0].written_bytes == 19);
 	CHECK(transcript.records[0].zero_readback_bytes == 19);
@@ -224,8 +264,10 @@ static void test_success(void)
 
 static void test_failures(void)
 {
-	for (enum operation operation = OP_DMA; operation <= OP_UNMAP; operation++) {
-		const unsigned int maximum = operation == OP_DMA ? 2 : 12;
+	for (enum operation operation = OP_INVENTORY;
+	     operation <= OP_UNMAP; operation++) {
+		const unsigned int maximum = operation == OP_INVENTORY ||
+			operation == OP_DMA ? 2 : 12;
 		for (unsigned int call = 1; call <= maximum; call++) {
 			struct mock mock;
 			struct payload_mm_authvar_mor_clear_executor_ops ops;
@@ -241,6 +283,10 @@ static void test_failures(void)
 				&grant) != CB_SUCCESS);
 			assert_zero(&transcript, sizeof(transcript));
 			assert_zero(&grant, sizeof(grant));
+			if (operation == OP_INVENTORY && call == 1)
+				CHECK(mock.calls[OP_DMA] == 0 && mock.calls[OP_MAP] == 0);
+			if (operation == OP_INVENTORY && call == 2)
+				CHECK(mock.calls[OP_DMA] == 2 && mock.calls[OP_MAP] == 12);
 			if (operation == OP_CACHE)
 				CHECK(mock.calls[OP_FENCE] >= call);
 			if (operation != OP_MAP)
@@ -278,7 +324,17 @@ static void test_hostile(void)
 	FAIL_HOSTILE(mock.mutate = &ops; mock.mutate_size = sizeof(ops));
 	FAIL_HOSTILE(mock.mutate = &transcript; mock.mutate_size = sizeof(transcript));
 	FAIL_HOSTILE(mock.mutate = &grant; mock.mutate_size = sizeof(grant));
+	FAIL_HOSTILE(mock.inventory_mutate_call = 1;
+		mock.inventory_mutate = &ops);
+	FAIL_HOSTILE(mock.inventory_mutate_call = 1;
+		mock.inventory_mutate = &ops.inventory_context);
+	FAIL_HOSTILE(mock.inventory_mutate_call = 2;
+		mock.inventory_mutate = &ops.inventory_validate);
+	FAIL_HOSTILE(mock.inventory_mutate_call = 2;
+		mock.inventory_mutate = &plan);
+	plan = valid_plan();
 	FAIL_HOSTILE(ops.window_bytes = 0);
+	FAIL_HOSTILE(ops.inventory_validate = NULL);
 	FAIL_HOSTILE(entry.present = 0);
 	entry = (struct payload_mm_authvar_mor_entry) { 1, 2, 0 };
 	FAIL_HOSTILE((void)0);
