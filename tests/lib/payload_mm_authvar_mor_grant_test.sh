@@ -9,7 +9,8 @@ mkdir -p "$temporary/include"
 printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 > \
 	"$temporary/include/config.h"
 
-cases='validator misaligned success consume-mismatch-0 consume-mismatch-1
+cases='validator misaligned success close-before-install close-after-install
+consume-mismatch-0 consume-mismatch-1
 consume-mismatch-2 consume-mismatch-3 consume-mismatch-4 consume-mismatch-5 consume-null
 consume-alias
 install-unprotected install-mutate-grant install-mutate-authority
@@ -68,6 +69,7 @@ build_and_run ubsan "$source_file" -O1 -fsanitize=undefined -fno-omit-frame-poin
 	-I"$temporary/include" -c "$source_file" -o "$temporary/smm-stack.o"
 awk -F '\t' '
 	$1 ~ /:payload_mm_authvar_mor_grant_install$/ ||
+	$1 ~ /:payload_mm_authvar_mor_grant_close$/ ||
 	$1 ~ /:payload_mm_authvar_mor_grant_consume$/ ||
 	$1 ~ /:grant_snapshot_valid([.][^:]*)?$/ {
 		if (!seen[$1]++)
@@ -78,7 +80,7 @@ awk -F '\t' '
 		}
 	}
 	END {
-		if (count != 3) {
+		if (count != 4) {
 			print "ERROR: incomplete SMM stack-usage evidence" > "/dev/stderr"
 			exit 1
 		}
@@ -121,6 +123,49 @@ mutant_test consume-binding \
 	'!memcmp(\&authority.candidate, \&authority.grant,' \
 	'!memcmp(\&authority.candidate, \&authority.candidate,' \
 	consume-mismatch-1
+mutant_test close-one-shot \
+	'if (authority.install_attempted || authority.poisoned)' \
+	'if (false)' close-after-install
+
+mutant_range_test()
+{
+	name=$1
+	old=$2
+	new=$3
+	mutant="$temporary/$name.c"
+	range_source="$temporary/$name-range.c"
+	binary="$temporary/$name-range"
+	sed "s#$old#$new#" "$source_file" > "$mutant"
+	if cmp -s "$source_file" "$mutant"; then
+		echo "ERROR: $name mutation was not applied" >&2
+		exit 1
+	fi
+	sed "s#../../src/lib/payload_mm_authvar_mor_grant.c#$mutant#" \
+		"$root/tests/lib/payload_mm_authvar_mor_grant_range_test.c" > \
+		"$range_source"
+	"${CC:-cc}" -std=gnu11 -g -O2 -Wall -Wextra -Werror -fno-builtin \
+		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		-I"$temporary/include" "$range_source" -o "$binary"
+	if "$binary" >/dev/null 2>&1; then
+		echo "ERROR: $name mutation survived" >&2
+		exit 1
+	fi
+}
+
+mutant_range_test close-poison \
+	'authority.poisoned = true;' \
+	'authority.poisoned = false;'
+mutant_range_test close-grant-scrub \
+	'memset(\&authority.grant, 0, sizeof(authority.grant));' \
+	'memset(\&authority.grant, 0xa5, sizeof(authority.grant));'
+mutant_range_test close-candidate-scrub \
+	'memset(\&authority.candidate, 0, sizeof(authority.candidate));' \
+	'memset(\&authority.candidate, 0x5a, sizeof(authority.candidate));'
 
 mkdir -p "$temporary/config-default" "$temporary/build-default" \
 	"$temporary/config-grant" "$temporary/build-grant"

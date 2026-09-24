@@ -211,6 +211,43 @@ static void test_success(void)
 	CHECK(!payload_mm_authvar_mor_grant_ready());
 	CHECK(authority_receipts_zero(&context));
 	CHECK(payload_mm_authvar_mor_grant_consume(&grant) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+}
+
+static void test_close_before_install(void)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct protection_context context = {
+		.grant = &grant,
+		.protected = true,
+	};
+
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_SUCCESS);
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_install(&grant, protected_storage,
+		&context) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+}
+
+static void test_close_after_install(void)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct protection_context context = {
+		.grant = &grant,
+		.protected = true,
+	};
+
+	CHECK(payload_mm_authvar_mor_grant_install(&grant, protected_storage,
+		&context) == CB_SUCCESS);
+	CHECK(payload_mm_authvar_mor_grant_ready());
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_ready());
+	CHECK(payload_mm_authvar_mor_grant_consume(&grant) == CB_SUCCESS);
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(authority_receipts_zero(&context));
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
 }
 
 static void test_consume_mismatch(unsigned int mutation)
@@ -306,6 +343,7 @@ static void test_install_failure(bool protected, bool mutate_grant,
 		CHECK(authority_receipts_zero(&context));
 	CHECK(payload_mm_authvar_mor_grant_install(&grant, protected_storage,
 		&context) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
 }
 
 static void test_install_bad_argument(unsigned int kind)
@@ -331,6 +369,7 @@ static void test_install_bad_argument(unsigned int kind)
 	CHECK(!payload_mm_authvar_mor_grant_ready());
 	CHECK(payload_mm_authvar_mor_grant_install(&valid, protected_storage,
 		&context) == CB_ERR);
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
 }
 
 int main(int argc, char **argv)
@@ -342,6 +381,10 @@ int main(int argc, char **argv)
 		test_misaligned();
 	else if (!strcmp(argv[1], "success"))
 		test_success();
+	else if (!strcmp(argv[1], "close-before-install"))
+		test_close_before_install();
+	else if (!strcmp(argv[1], "close-after-install"))
+		test_close_after_install();
 	else if (!strncmp(argv[1], "consume-mismatch-", 17)) {
 		CHECK(argv[1][17] >= '0' && argv[1][17] <= '5' && !argv[1][18]);
 		test_consume_mismatch((unsigned int)(argv[1][17] - '0'));
