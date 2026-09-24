@@ -26,6 +26,7 @@ tests-y += crc_byte-test
 tests-y += memrange-test
 tests-y += uuid-test
 tests-y += bootmem-test
+tests-y += bootmem-dram-provenance-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
 tests-y += payload_resource_handoff-test
@@ -146,6 +147,13 @@ bootmem-test-srcs += tests/stubs/console.c
 bootmem-test-srcs += src/device/device_util.c
 bootmem-test-srcs += src/lib/bootmem.c
 bootmem-test-srcs += src/lib/memrange.c
+
+bootmem-dram-provenance-test-srcs += tests/lib/bootmem_dram_provenance_test.c
+bootmem-dram-provenance-test-srcs += src/device/device_util.c
+bootmem-dram-provenance-test-srcs += src/lib/bootmem.c
+bootmem-dram-provenance-test-srcs += src/lib/memrange.c
+bootmem-dram-provenance-test-config += CONFIG_BOOTMEM_DRAM_PROVENANCE=1
+bootmem-dram-provenance-test-no_test_framework = 1
 
 dimm_info_util-test-srcs += tests/lib/dimm_info_util-test.c
 dimm_info_util-test-srcs += src/device/dram/spd.c
