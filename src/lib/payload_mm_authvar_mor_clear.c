@@ -13,6 +13,19 @@ static bool dma_snapshot_valid(
 		bytes_zero(snapshot->reserved, sizeof(snapshot->reserved));
 }
 
+enum cb_err payload_mm_authvar_mor_clear_dma_snapshot_validate(
+	const struct payload_mm_authvar_mor_clear_dma_snapshot *snapshot)
+{
+	struct payload_mm_authvar_mor_clear_dma_snapshot copy;
+
+	if (!object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)))
+		return CB_ERR_ARG;
+	memcpy(&copy, snapshot, sizeof(copy));
+	if (!dma_snapshot_valid(&copy) || memcmp(&copy, snapshot, sizeof(copy)))
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
 enum cb_err payload_mm_authvar_mor_clear_receipt_build(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct payload_mm_authvar_mor_entry *entry,

@@ -346,6 +346,16 @@ config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
 	  It performs no clear, readback, cache operation or DMA transition and adds
 	  no producer, endpoint or MOR support claim.
 
+config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
+	help
+	  Build the dormant, platform-neutral bounded memory-clear executor.
+	  This adds no boot hook and makes no platform-support claim. A future
+	  platform integration must provide reviewed mapping, cache, fence, and
+	  DMA-policy snapshot operations.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
