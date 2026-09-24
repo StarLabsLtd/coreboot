@@ -105,6 +105,21 @@ bool bootmem_walk_os_mem(range_action_t action, void *arg);
  */
 bool bootmem_walk(range_action_t action, void *arg);
 
+#if CONFIG(BOOTMEM_DRAM_PROVENANCE)
+/**
+ * Walk exact intersections between authoritative domain DRAM resources and
+ * the final bootmem map. Each callback range carries its final bootmem tag.
+ * Reservations outside domain DRAM are never reported.
+ *
+ * The caller has to return false to stop the walk or true to continue.
+ *
+ * @param action The function to call for each intersection.
+ * @param arg Pointer passed to function @action. Set to NULL if unused.
+ * @return true if the function 'action' returned false.
+ */
+bool bootmem_walk_dram(range_action_t action, void *arg);
+#endif
+
 /* Returns 1 if the requested memory range is all tagged as type dest_type.
  * Otherwise returns 0.
  */

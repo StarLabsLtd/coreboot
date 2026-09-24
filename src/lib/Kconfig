@@ -7,6 +7,14 @@ config MISSING_BOARD_RESET
 	  implementation. This activates a stub that logs the missing
 	  board reset and halts execution.
 
+config BOOTMEM_DRAM_PROVENANCE
+	bool
+	default n
+	help
+	  Retain the cacheable memory resources owned by enabled device domains
+	  and expose their exact intersections with final bootmem ownership tags.
+	  This adds no consumer, boot hook or memory-clear support claim.
+
 config PAYLOAD_RESOURCE_HANDOFF
 	bool "Publish assigned PCI resources to the payload"
 	default n

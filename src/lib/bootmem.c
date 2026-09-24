@@ -3,6 +3,7 @@
 #include <console/console.h>
 #include <bootmem.h>
 #include <cbmem.h>
+#include <device/device.h>
 #include <device/resource.h>
 #include <drivers/efi/capsules.h>
 #include <symbols.h>
@@ -14,6 +15,9 @@ static int initialized;
 static int table_written;
 static struct memranges bootmem;
 static struct memranges bootmem_os;
+#if CONFIG(BOOTMEM_DRAM_PROVENANCE)
+static struct memranges bootmem_dram;
+#endif
 
 struct range_strings {
 	enum bootmem_type tag;
@@ -57,6 +61,55 @@ static int bootmem_memory_table_written(void)
 {
 	return table_written;
 }
+
+#if CONFIG(BOOTMEM_DRAM_PROVENANCE)
+static int domain_dram_resource(struct device *dev, struct resource *res)
+{
+	return dev->path.type == DEVICE_PATH_DOMAIN && res->size &&
+		res->base <= UINT64_MAX - res->size;
+}
+
+#if ENV_TEST
+bool bootmem_domain_dram_resource_valid_for_test(struct device *dev,
+	struct resource *res)
+{
+	return domain_dram_resource(dev, res);
+}
+#endif
+
+static bool domain_dram_range_covered(resource_t base, resource_t size)
+{
+	const struct range_entry *range;
+	resource_t cursor = base;
+	resource_t end;
+
+	if (!size || base > UINT64_MAX - size)
+		return false;
+	end = base + size;
+	memranges_each_entry(range, &bootmem_dram) {
+		if (range_entry_end(range) <= cursor)
+			continue;
+		if (range_entry_base(range) > cursor)
+			return false;
+		if (range_entry_end(range) >= end)
+			return true;
+		cursor = range_entry_end(range);
+	}
+	return false;
+}
+
+static void validate_domain_dram_resource(void *argument, struct device *dev,
+	struct resource *res)
+{
+	bool *valid = argument;
+
+	if (dev->path.type != DEVICE_PATH_DOMAIN || !res->size)
+		return;
+	if (res->base > UINT64_MAX - res->size ||
+	    !domain_dram_range_covered(res->base, res->size))
+		*valid = false;
+}
+#endif
 
 /* Platform hook to add bootmem areas the platform / board controls. */
 void __attribute__((weak)) bootmem_platform_add_ranges(void)
@@ -103,6 +156,20 @@ static void bootmem_init(void)
 	struct memranges *bm = &bootmem;
 
 	initialized = 1;
+
+#if CONFIG(BOOTMEM_DRAM_PROVENANCE)
+	bool dram_provenance_valid = true;
+
+	/* Keep source provenance separate from all later ownership overlays. */
+	memranges_init_empty_with_alignment(&bootmem_dram, NULL, 0, 0);
+	memranges_add_resources_filter(&bootmem_dram, cacheable, cacheable,
+		BM_MEM_RAM, domain_dram_resource);
+	search_global_resources(cacheable | IORESOURCE_MEM,
+		cacheable | IORESOURCE_MEM, validate_domain_dram_resource,
+		&dram_provenance_valid);
+	if (!dram_provenance_valid)
+		die("Could not retain authoritative DRAM provenance\n");
+#endif
 
 	/*
 	 * Fill the memory map out. The order of operations is important in
@@ -225,6 +292,37 @@ bool bootmem_walk(range_action_t action, void *arg)
 
 	return false;
 }
+
+#if CONFIG(BOOTMEM_DRAM_PROVENANCE)
+bool bootmem_walk_dram(range_action_t action, void *arg)
+{
+	const struct range_entry *dram;
+	const struct range_entry *final;
+
+	assert(bootmem_is_initialized());
+
+	memranges_each_entry(dram, &bootmem_dram) {
+		memranges_each_entry(final, &bootmem) {
+			struct range_entry intersection;
+			resource_t base;
+			resource_t end;
+
+			if (range_entry_end(final) <= range_entry_base(dram))
+				continue;
+			if (range_entry_base(final) >= range_entry_end(dram))
+				break;
+			base = MAX(range_entry_base(dram), range_entry_base(final));
+			end = MIN(range_entry_end(dram), range_entry_end(final));
+			range_entry_init(&intersection, base, end,
+				range_entry_tag(final));
+			if (!action(&intersection, arg))
+				return true;
+		}
+	}
+
+	return false;
+}
+#endif
 
 int bootmem_region_targets_type(uint64_t start, uint64_t size,
 				enum bootmem_type dest_type)
