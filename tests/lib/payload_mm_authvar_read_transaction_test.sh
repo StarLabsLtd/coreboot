@@ -81,8 +81,12 @@ view_compile()
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_read_transaction_test.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
+		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
+		"$root/src/lib/payload_mm_authvar_route.c" \
 		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \

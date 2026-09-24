@@ -117,6 +117,52 @@ all-old/all-new `fe/fc/fd/f9/f8` sequence. Volatile modes are only staged; the
 test harness publishes them after durable proof and a successful media end.
 Production builds publish no provider, route, dispatcher or endpoint.
 
+## Dormant SET preflight
+
+The coordinator build shares one private, pure SET preflight between the
+legacy policy transaction and the Auth2 coordinator. It consumes only the
+copied request and the freshly recovered scanner index. It performs no media
+operation, cryptography or authorization and publishes no public API.
+
+The ordering follows EDK2 26.09. Invalid attribute combinations and a
+structurally truncated Auth2 descriptor are rejected before store lookup.
+After lookup, a runtime-hidden winner is write protected and nonzero attribute
+drift, ignoring APPEND, is invalid before authentication. An unsigned update
+cannot change or delete an authenticated winner. Legacy counter authentication
+is unsupported and cannot be persisted. Auth2 metadata and timestamp failures
+are security violations. Exact internal and synthetic identities are write
+protected; an ordinary near-miss remains ordinary.
+
+The plan distinguishes ordinary write, delete, empty-append no-op and Auth2.
+As in EDK2, a request without boot-service/runtime access requests deletion
+regardless of payload size. Auth2 authenticates before reporting a missing
+target for this case.
+Absent empty non-append is not found, including a request outside the supported
+persistent storage class, while empty APPEND succeeds without invoking the
+legacy provider. Ordinary nonempty writes are intentionally persistent-only;
+unsupported volatile writes are reported honestly and hardware-error records
+are invalid because no hardware-error store is configured. Runtime nonempty
+creation requires both nonvolatile and runtime access.
+
+Some Auth2 constraints are necessarily post-authentication. In particular, an
+absent runtime request without the persistent/runtime storage class must still
+authenticate before returning invalid parameter. The preflight records that
+deferred status; an absent request with neither boot-service nor runtime access
+similarly authenticates before returning not found. The coordinator applies
+these results after authority succeeds and before bundle planning or any write.
+Malformed metadata or failed trust thus retains EDK2's earlier security result.
+The legacy policy transaction rejects
+valid Auth2 as unsupported and constrains an ordinary provider result to the
+preflight kind, exact admitted attributes and a zero timestamp. A provider
+cannot turn an ordinary request into an authenticated or hardware-error
+record.
+
+Counter-bit structural admission is enabled only with the coordinator build
+and only for SET, so the preflight can return its exact unsupported status.
+Non-SET operations and executor builds without the preflight retain the prior
+attribute mask. Stored records and response attributes never admit the counter
+or APPEND bits.
+
 The candidate harness fixes the legacy FTW program/erase trace as an immutable
 golden sequence, injects every backend callback failure, resets at every commit
 callback, and resets again at every callback of the ensuing recovery. Each

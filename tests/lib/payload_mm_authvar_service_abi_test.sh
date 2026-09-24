@@ -18,7 +18,8 @@ run_test()
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
-		-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+		-I"$root/src/include" \
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
@@ -36,6 +37,10 @@ run_test sanitized-O0 -O0 -g -fno-omit-frame-pointer -fstrict-aliasing \
 run_test sanitized-O2 -O2 -g -fno-omit-frame-pointer -fstrict-aliasing \
 	-Wpedantic -Wconversion -Wshadow -fsanitize=address,undefined \
 	-fno-sanitize-recover=all
+run_test coordinator-O0 -O0 -DCONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=1 \
+	-fsanitize=address,undefined -fno-sanitize-recover=all
+run_test coordinator-O2 -O2 -DCONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=1 \
+	-fsanitize=address,undefined -fno-sanitize-recover=all
 
 compile_and_kill()
 {
@@ -57,7 +62,8 @@ compile_and_kill()
 			-include "$root/src/include/kconfig.h" \
 			-include "$root/src/include/rules.h" \
 			-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
-			-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
+			-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+			-I"$root/src/include" \
 			-I"$root/src/commonlib/include" \
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$root/src/arch/x86/include" \

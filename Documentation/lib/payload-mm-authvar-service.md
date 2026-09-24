@@ -137,11 +137,16 @@ enumeration is not found. The request ABI continues to reject an empty `GET`
 name structurally; whether a future proxy carries EDK2's empty-name
 `EFI_NOT_FOUND` result is a separate cross-repository ABI decision.
 
-Delete is `SET` with zero attributes and zero data. Append uses the standard
-append attribute and still passes authentication and timestamp policy. The
-counter-based authenticated-write attribute is structurally rejected; the
-target supports `EFI_VARIABLE_AUTHENTICATION_2` time-based writes. Structural
-admission does not imply semantic acceptance by a future authority.
+Delete is `SET` with zero data or without boot-service/runtime access. Append
+uses the standard append attribute and still passes authentication and
+timestamp policy. When
+the dormant native coordinator is compiled, SET alone admits the deprecated
+counter-authentication bit far enough for the private preflight to return
+`UNSUPPORTED`; it is never a stored or response attribute. Other builds and
+all non-SET requests reject that bit structurally. Time-based writes use
+`EFI_VARIABLE_AUTHENTICATION_2`. Structural admission does not imply semantic
+acceptance by an authority, and this slice publishes no dispatcher, endpoint
+or provider.
 
 ## Required EDK2-compatible semantics
 

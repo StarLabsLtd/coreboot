@@ -3,6 +3,8 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <string.h>
 
+#include "payload_mm_authvar_set_preflight.h"
+
 static bool message_layout_valid(
 	const struct lb_authvar_service_endpoint *endpoint, size_t *data_offset)
 {
@@ -111,7 +113,10 @@ enum cb_err payload_mm_authvar_service_request_validate(
 	    frame->header_size != sizeof(*frame) || !frame->request_id ||
 	    frame->generation != endpoint->generation || frame->flags ||
 	    frame->reserved0 || !pending_result_valid(frame) ||
-	    frame->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED ||
+	    frame->attributes & ~(CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR) &&
+		frame->operation == PAYLOAD_MM_AUTHVAR_SERVICE_SET ?
+		PAYLOAD_MM_AUTHVAR_SET_REQUEST_ATTRIBUTES :
+		PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED) ||
 	    frame->name_size > endpoint->maximum_name_size ||
 	    frame->data_size > endpoint->maximum_data_size ||
 	    frame->name_capacity > endpoint->maximum_name_size ||

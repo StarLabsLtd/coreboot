@@ -240,6 +240,16 @@ static void hostile_requests(void)
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_SET);
 	set_name(frame);
 	frame->attributes = PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+#else
+	assert(payload_mm_authvar_service_request_validate(&endpoint,
+		request_buffer, sizeof(request_buffer)) == CB_ERR);
+#endif
+	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_GET);
+	set_name(frame);
+	frame->attributes = PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE;
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_ERR);
 	frame = new_request(PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT);
