@@ -45,6 +45,7 @@ smm-y += smihandler.c
 smm-y += spi.c
 smm-y += uart.c
 smm-y += elog.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) += gpio_lock.c
 smm-y += xhci.c
 
 ramstage-$(CONFIG_HAVE_ACPI_TABLES) += acpi.c
