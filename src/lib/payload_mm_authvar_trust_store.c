@@ -4,6 +4,8 @@
 #include <boot/payload_mm_authvar_signature_db.h>
 #include <boot/payload_mm_authvar_trust_store.h>
 
+#include "payload_mm_crypto/crypto.h"
+
 #include <commonlib/helpers.h>
 #include <string.h>
 
@@ -27,6 +29,20 @@ static const uint8_t kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS | \
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS | \
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH)
+
+#ifdef PAYLOAD_MM_AUTH_TEST
+__weak void payload_mm_authvar_trust_store_test_before_publish(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
+{
+	(void)owner;
+	(void)index;
+	(void)plan;
+	(void)accepted_authority;
+}
+#endif
 
 static bool range_valid(const void *data, size_t size)
 {
@@ -118,6 +134,52 @@ static bool inputs_disjoint(const struct payload_mm_crypto_owner *owner,
 			if (ranges_overlap(protected_ranges[left], protected_sizes[left],
 				protected_ranges[right], protected_sizes[right]))
 				return false;
+	return true;
+}
+
+static bool authority_output_valid(
+	const enum payload_mm_authvar_authority *accepted_authority,
+	const struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content, size_t content_count,
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_route_plan *plan)
+{
+	const void *descriptors[] = { owner, signed_data, content, index, plan };
+	const size_t descriptor_sizes[] = {
+		sizeof(*owner), sizeof(*signed_data),
+		content_count * sizeof(*content), sizeof(*index), sizeof(*plan),
+	};
+	size_t entry_bytes;
+
+	if (!accepted_authority ||
+	    (uintptr_t)accepted_authority % _Alignof(*accepted_authority) ||
+	    !range_valid(accepted_authority, sizeof(*accepted_authority)) ||
+	    !content || (uintptr_t)content % _Alignof(*content) ||
+	    !content_count || content_count > PAYLOAD_MM_HASH_MAX_SPANS ||
+	    !range_valid(content, content_count * sizeof(*content)))
+		return false;
+	for (size_t span = 0U; span < content_count; span++)
+		if (!range_valid(content[span].data, content[span].size))
+			return false;
+	entry_bytes = (size_t)index->entry_count * sizeof(index->entries[0]);
+	for (size_t descriptor = 0U; descriptor < ARRAY_SIZE(descriptors);
+	     descriptor++)
+		if (ranges_overlap(accepted_authority, sizeof(*accepted_authority),
+			descriptors[descriptor], descriptor_sizes[descriptor]))
+			return false;
+	if (ranges_overlap(accepted_authority, sizeof(*accepted_authority),
+		signed_data->data, signed_data->size) ||
+	    ranges_overlap(accepted_authority, sizeof(*accepted_authority),
+		index->store, index->store_size) ||
+	    ranges_overlap(accepted_authority, sizeof(*accepted_authority),
+		index->entries, entry_bytes))
+		return false;
+	for (size_t span = 0U; span < content_count; span++)
+		if (ranges_overlap(accepted_authority,
+			sizeof(*accepted_authority), content[span].data,
+			content[span].size))
+			return false;
 	return true;
 }
 
@@ -215,7 +277,8 @@ static enum payload_mm_verify_status verify_with_signer(
 	const struct payload_mm_crypto_span *signed_data,
 	const struct payload_mm_cms_verified_signer *verified,
 	const struct payload_mm_authvar_store_index *index,
-	const struct payload_mm_authvar_route_plan *plan)
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
 {
 	struct payload_mm_authvar_store_index index_snapshot;
 	struct payload_mm_authvar_route_plan plan_snapshot;
@@ -255,8 +318,10 @@ static enum payload_mm_verify_status verify_with_signer(
 				entry->data_size) :
 			verify_exchange_keys(owner, signed_data, verified, data,
 				entry->data_size);
-		if (status == PAYLOAD_MM_VERIFY_OK)
+		if (status == PAYLOAD_MM_VERIFY_OK) {
+			*accepted_authority = plan->authorities[authority];
 			return status;
+		}
 		if (status != PAYLOAD_MM_VERIFY_REJECTED)
 			return status;
 	}
@@ -268,18 +333,61 @@ enum payload_mm_verify_status payload_mm_authvar_trust_store_verify(
 	const struct payload_mm_crypto_span *signed_data,
 	const struct payload_mm_crypto_span *content, size_t content_count,
 	const struct payload_mm_authvar_store_index *index,
-	const struct payload_mm_authvar_route_plan *plan)
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
 {
 	struct payload_mm_cms_verified_signer verified = { 0 };
+	struct payload_mm_crypto_span signed_data_snapshot;
+	struct payload_mm_crypto_span content_snapshot[PAYLOAD_MM_HASH_MAX_SPANS];
+	struct payload_mm_authvar_store_index index_snapshot;
+	struct payload_mm_authvar_route_plan plan_snapshot;
+	enum payload_mm_authvar_authority accepted =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;
 	enum payload_mm_verify_status status;
+	bool changed;
+	bool clean;
 
 	/* Protect scanner and route state before crypto can write or wipe owner. */
 	if (!payload_mm_authvar_store_index_valid(index) || !plan_valid(plan) ||
-	    !inputs_disjoint(owner, signed_data, &verified, index, plan))
+	    !inputs_disjoint(owner, signed_data, &verified, index, plan) ||
+	    !authority_output_valid(accepted_authority, owner, signed_data,
+		content, content_count, index, plan))
 		return PAYLOAD_MM_VERIFY_INVALID;
+	*accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;
+	signed_data_snapshot = *signed_data;
+	memcpy(content_snapshot, content, content_count * sizeof(*content));
+	index_snapshot = *index;
+	plan_snapshot = *plan;
 	status = payload_mm_cms_verify_detached_untrusted(owner, signed_data,
 		content, content_count, &verified);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
-	return verify_with_signer(owner, signed_data, &verified, index, plan);
+	status = verify_with_signer(owner, signed_data, &verified, index, plan,
+		&accepted);
+	if (status != PAYLOAD_MM_VERIFY_OK)
+		return status;
+#ifdef PAYLOAD_MM_AUTH_TEST
+	payload_mm_authvar_trust_store_test_before_publish(owner, index, plan,
+		accepted_authority);
+#endif
+	changed = memcmp(signed_data, &signed_data_snapshot,
+		sizeof(*signed_data)) ||
+	    memcmp(content, content_snapshot,
+		content_count * sizeof(*content)) ||
+	    memcmp(index, &index_snapshot, sizeof(*index)) ||
+	    memcmp(plan, &plan_snapshot, sizeof(*plan)) ||
+	    *accepted_authority != PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;
+	clean = payload_mm_crypto_idle() &&
+		payload_mm_crypto_owner_is_clean(owner);
+	if (!clean)
+		payload_mm_crypto_abort(owner);
+	*accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE;
+	if (changed)
+		return PAYLOAD_MM_VERIFY_CHANGED;
+	if (!clean)
+		return PAYLOAD_MM_VERIFY_INTERNAL;
+	if (accepted == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE)
+		return PAYLOAD_MM_VERIFY_INTERNAL;
+	*accepted_authority = accepted;
+	return PAYLOAD_MM_VERIFY_OK;
 }

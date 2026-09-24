@@ -5,6 +5,7 @@
 
 #include "crypto.h"
 
+#include <commonlib/helpers.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,44 @@ static uint8_t store[STORE_SIZE];
 static struct payload_mm_authvar_store_entry entries[ENTRY_COUNT];
 static struct payload_mm_authvar_store_index store_index;
 static int failures;
+
+enum publish_attack {
+	PUBLISH_ATTACK_NONE = 0,
+	PUBLISH_ATTACK_OUTPUT,
+	PUBLISH_ATTACK_PLAN,
+	PUBLISH_ATTACK_INDEX,
+	PUBLISH_ATTACK_OWNER,
+};
+
+static enum publish_attack publish_attack;
+
+void payload_mm_authvar_trust_store_test_before_publish(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
+{
+	switch (publish_attack) {
+	case PUBLISH_ATTACK_OUTPUT:
+		*accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK;
+		break;
+	case PUBLISH_ATTACK_PLAN:
+		((struct payload_mm_authvar_route_plan *)(uintptr_t)plan)->target =
+			PAYLOAD_MM_AUTHVAR_TARGET_KEK;
+		break;
+	case PUBLISH_ATTACK_INDEX:
+		((struct payload_mm_authvar_store_index *)(uintptr_t)index)->used_size++;
+		break;
+	case PUBLISH_ATTACK_OWNER:
+		owner->arena[0] = 0xa5U;
+		owner->arena_used = 1U;
+		owner->allocation_failed = true;
+		owner->busy = true;
+		break;
+	case PUBLISH_ATTACK_NONE:
+		break;
+	}
+}
 
 static void expect(bool condition, const char *message)
 {
@@ -342,10 +381,11 @@ static enum payload_mm_verify_status prepare_cms(
 		&content_span, 1U, verified);
 }
 
-static enum payload_mm_verify_status verify(
+static enum payload_mm_verify_status verify_authority(
 	struct payload_mm_crypto_owner *owner, const struct buffer *cms,
 	const struct buffer *content,
-	const struct payload_mm_authvar_route_plan *plan)
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
 {
 	const struct payload_mm_crypto_span signed_data = { cms->data, cms->size };
 	const struct payload_mm_crypto_span content_span = {
@@ -353,7 +393,23 @@ static enum payload_mm_verify_status verify(
 	};
 
 	return payload_mm_authvar_trust_store_verify(owner, &signed_data,
-		&content_span, 1U, &store_index, plan);
+		&content_span, 1U, &store_index, plan, accepted_authority);
+}
+
+static enum payload_mm_verify_status verify(
+	struct payload_mm_crypto_owner *owner, const struct buffer *cms,
+	const struct buffer *content,
+	const struct payload_mm_authvar_route_plan *plan)
+{
+	enum payload_mm_authvar_authority accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	enum payload_mm_verify_status status;
+
+	status = verify_authority(owner, cms, content, plan, &accepted_authority);
+	if (status != PAYLOAD_MM_VERIFY_OK && status != PAYLOAD_MM_VERIFY_INVALID)
+		expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE,
+			"admitted failure published an authority");
+	return status;
 }
 
 static bool owner_clean(const struct payload_mm_crypto_owner *owner)
@@ -377,6 +433,7 @@ static void normal_policy(const struct buffer *content,
 	struct payload_mm_cms_verified_signer omitted_verified;
 	struct payload_mm_cms_verified_signer kek_verified;
 	struct payload_mm_authvar_route_plan plan;
+	enum payload_mm_authvar_authority accepted_authority;
 	struct buffer pk_list = make_list(x509_guid, pk_cert, 1U);
 	struct buffer wrong_list = make_list(x509_guid, wrong_cert, 1U);
 	struct buffer kek_list;
@@ -395,12 +452,20 @@ static void normal_policy(const struct buffer *content,
 	expect(scan_store(&pk_list, NULL), "PK store scan failed");
 	plan = pk_plan();
 	memset(&owner, 0, sizeof(owner));
-	expect(verify(&owner, pk_cms, content, &plan) == PAYLOAD_MM_VERIFY_OK,
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, pk_cms, content, &plan,
+		&accepted_authority) == PAYLOAD_MM_VERIFY_OK,
 		"embedded current PK was rejected");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
+		"PK success published the wrong authority");
 	expect(owner_clean(&owner), "PK success retained protected state");
 	memset(&owner, 0, sizeof(owner));
-	expect(verify(&owner, pk_omitted, content, &plan) ==
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, pk_omitted, content, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_REJECTED, "omitted current PK was accepted");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE,
+		"PK rejection published an authority");
 	memset(&owner, 0, sizeof(owner));
 	expect(verify(&owner, pk_chain_no_parent, content, &plan) ==
 		PAYLOAD_MM_VERIFY_REJECTED,
@@ -413,17 +478,29 @@ static void normal_policy(const struct buffer *content,
 	expect(scan_store(&wrong_list, &kek_list), "fallback store scan failed");
 	plan = db_plan();
 	memset(&owner, 0, sizeof(owner));
-	expect(verify(&owner, kek_cms, content, &plan) == PAYLOAD_MM_VERIFY_OK,
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, kek_cms, content, &plan,
+		&accepted_authority) == PAYLOAD_MM_VERIFY_OK,
 		"db did not fall back from wrong PK to current KEK");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK,
+		"PK-to-KEK fallback published the wrong authority");
 
 	expect(scan_store(NULL, &kek_list), "KEK-only store scan failed");
 	memset(&owner, 0, sizeof(owner));
-	expect(verify(&owner, kek_cms, content, &plan) == PAYLOAD_MM_VERIFY_OK,
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, kek_cms, content, &plan,
+		&accepted_authority) == PAYLOAD_MM_VERIFY_OK,
 		"db did not fall back from absent PK to KEK");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK,
+		"absent-PK fallback published the wrong authority");
 	expect(scan_store(NULL, NULL), "empty store scan failed");
 	memset(&owner, 0, sizeof(owner));
-	expect(verify(&owner, pk_cms, content, &plan) ==
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, pk_cms, content, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_REJECTED, "absent authorities did not reject");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE,
+		"absent authorities published an authority");
 
 	free(kek_list.data);
 	free(wrong_list.data);
@@ -525,6 +602,7 @@ static void duplicate_pk(const struct buffer *content, const struct buffer *cms,
 static void alias_inputs(const struct buffer *cms, const struct buffer *content)
 {
 	static struct payload_mm_crypto_owner owner;
+	enum payload_mm_authvar_authority accepted_authority;
 	struct payload_mm_authvar_route_plan *inside_plan;
 	struct payload_mm_crypto_span signed_data;
 	struct payload_mm_crypto_span content_span = { content->data, content->size };
@@ -544,7 +622,8 @@ static void alias_inputs(const struct buffer *cms, const struct buffer *content)
 	};
 	memset(&owner, 0, sizeof(owner));
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &store_index, inside_plan) ==
+		&content_span, 1U, &store_index, inside_plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID,
 		"plan descriptor inside CMS accepted");
 	free(aliased);
@@ -581,7 +660,8 @@ static enum payload_mm_verify_status verify_direct(
 	struct payload_mm_crypto_owner *owner, const struct buffer *cms,
 	const struct buffer *content,
 	const struct payload_mm_authvar_store_index *candidate,
-	const struct payload_mm_authvar_route_plan *plan)
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
 {
 	const struct payload_mm_crypto_span signed_data = { cms->data, cms->size };
 	const struct payload_mm_crypto_span content_span = {
@@ -589,12 +669,13 @@ static enum payload_mm_verify_status verify_direct(
 	};
 
 	return payload_mm_authvar_trust_store_verify(owner, &signed_data,
-		&content_span, 1U, candidate, plan);
+		&content_span, 1U, candidate, plan, accepted_authority);
 }
 
 static void owner_overlap(const struct buffer *content, const struct buffer *cms)
 {
 	struct payload_mm_crypto_owner *owner = aligned_alloc(16U, sizeof(*owner));
+	enum payload_mm_authvar_authority accepted_authority;
 	struct payload_mm_authvar_store_index candidate;
 	struct payload_mm_authvar_store_index *inside_index;
 	struct payload_mm_authvar_store_entry *inside_entries;
@@ -610,7 +691,8 @@ static void owner_overlap(const struct buffer *content, const struct buffer *cms
 	candidate = store_index;
 	memcpy(owner->arena, store, sizeof(store));
 	candidate.store = owner->arena;
-	expect(verify_direct(owner, cms, content, &candidate, &plan) ==
+	expect(verify_direct(owner, cms, content, &candidate, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "owner/store overlap accepted");
 
 	memset(owner, 0, sizeof(*owner));
@@ -618,21 +700,116 @@ static void owner_overlap(const struct buffer *content, const struct buffer *cms
 	inside_entries = (void *)owner->arena;
 	memcpy(inside_entries, entries, entry_bytes);
 	candidate.entries = inside_entries;
-	expect(verify_direct(owner, cms, content, &candidate, &plan) ==
+	expect(verify_direct(owner, cms, content, &candidate, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "owner/entries overlap accepted");
 
 	memset(owner, 0, sizeof(*owner));
 	inside_index = (void *)owner->arena;
 	*inside_index = store_index;
-	expect(verify_direct(owner, cms, content, inside_index, &plan) ==
+	expect(verify_direct(owner, cms, content, inside_index, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "owner/index overlap accepted");
 
 	memset(owner, 0, sizeof(*owner));
 	inside_plan = (void *)owner->arena;
 	*inside_plan = plan;
-	expect(verify_direct(owner, cms, content, &store_index, inside_plan) ==
+	expect(verify_direct(owner, cms, content, &store_index, inside_plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "owner/plan overlap accepted");
 	free(owner);
+}
+
+static enum payload_mm_authvar_authority *aligned_authority(void *data)
+{
+	uintptr_t address = (uintptr_t)data;
+	size_t alignment = _Alignof(enum payload_mm_authvar_authority);
+
+	return (void *)((address + alignment - 1U) & ~(uintptr_t)(alignment - 1U));
+}
+
+static void output_aliases(const struct buffer *content, const struct buffer *cms)
+{
+	static struct payload_mm_crypto_owner owner;
+	struct payload_mm_crypto_span signed_data = { cms->data, cms->size };
+	struct payload_mm_crypto_span content_span = { content->data, content->size };
+	struct payload_mm_authvar_route_plan plan = pk_plan();
+	enum payload_mm_authvar_authority *aliases[] = {
+		(enum payload_mm_authvar_authority *)(void *)&owner,
+		aligned_authority(owner.arena + 16U),
+		(enum payload_mm_authvar_authority *)(void *)&signed_data,
+		(enum payload_mm_authvar_authority *)(void *)&content_span,
+		(enum payload_mm_authvar_authority *)(void *)&store_index,
+		(enum payload_mm_authvar_authority *)(void *)&plan,
+		aligned_authority(cms->data),
+		aligned_authority(content->data),
+		aligned_authority(store),
+		(enum payload_mm_authvar_authority *)(void *)entries,
+	};
+	static const char *const labels[] = {
+		"owner", "owner arena", "CMS descriptor", "content descriptor",
+		"index", "plan", "CMS bytes", "content bytes", "store bytes",
+		"entries",
+	};
+	uint8_t snapshot[sizeof(*aliases[0])];
+
+	for (size_t alias = 0U; alias < ARRAY_SIZE(aliases); alias++) {
+		memset(&owner, 0, sizeof(owner));
+		memcpy(snapshot, aliases[alias], sizeof(snapshot));
+		expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+			&content_span, 1U, &store_index, &plan, aliases[alias]) ==
+			PAYLOAD_MM_VERIFY_INVALID, labels[alias]);
+		expect(!memcmp(snapshot, aliases[alias], sizeof(snapshot)),
+			"rejected authority alias was modified");
+	}
+}
+
+static void publication_guards(const struct buffer *content,
+	const struct buffer *cms, const struct buffer *pk_cert)
+{
+	static struct payload_mm_crypto_owner owner;
+	struct payload_mm_authvar_route_plan plan = pk_plan();
+	struct payload_mm_authvar_route_plan plan_snapshot;
+	struct payload_mm_authvar_store_index index_snapshot;
+	struct buffer pk_list = make_list(x509_guid, pk_cert, 1U);
+	struct buffer malformed_cms = {
+		.data = (uint8_t *)(uintptr_t)"bad",
+		.size = 3U,
+	};
+	enum payload_mm_authvar_authority accepted_authority;
+
+	expect(scan_store(&pk_list, NULL), "publication-guard store scan failed");
+	output_aliases(content, cms);
+	memset(&owner, 0, sizeof(owner));
+	accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	expect(verify_authority(&owner, &malformed_cms, content, &plan,
+		&accepted_authority) == PAYLOAD_MM_VERIFY_MALFORMED,
+		"malformed CMS status changed");
+	expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE,
+		"malformed CMS published authority");
+	expect(owner_clean(&owner), "malformed CMS retained crypto state");
+	for (publish_attack = PUBLISH_ATTACK_OUTPUT;
+	     publish_attack <= PUBLISH_ATTACK_OWNER; publish_attack++) {
+		memset(&owner, 0, sizeof(owner));
+		accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+		plan_snapshot = plan;
+		index_snapshot = store_index;
+		enum payload_mm_verify_status expected =
+			publish_attack == PUBLISH_ATTACK_OWNER ?
+			PAYLOAD_MM_VERIFY_INTERNAL : PAYLOAD_MM_VERIFY_CHANGED;
+
+		expect(verify_authority(&owner, cms, content, &plan,
+			&accepted_authority) == expected,
+			"hostile pre-publication mutation was not rejected");
+		expect(accepted_authority == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE,
+			"hostile pre-publication mutation published authority");
+		expect(owner_clean(&owner),
+			"hostile pre-publication mutation retained crypto state");
+		plan = plan_snapshot;
+		store_index = index_snapshot;
+	}
+	publish_attack = PUBLISH_ATTACK_NONE;
+	free(pk_list.data);
 }
 
 static void hostile_inputs(const struct buffer *content, const struct buffer *cms,
@@ -646,28 +823,50 @@ static void hostile_inputs(const struct buffer *content, const struct buffer *cm
 	struct buffer pk_list = make_list(x509_guid, pk_cert, 1U);
 	struct payload_mm_crypto_span signed_data = { cms->data, cms->size };
 	struct payload_mm_crypto_span content_span = { content->data, content->size };
+	enum payload_mm_authvar_authority accepted_authority;
+	union {
+		enum payload_mm_authvar_authority aligned;
+		uint8_t bytes[sizeof(enum payload_mm_authvar_authority) + 1U];
+	} output_storage;
 	size_t allocations;
 
 	expect(scan_store(&pk_list, NULL), "hostile-input store scan failed");
 	alias_inputs(cms, content);
 	memset(&owner, 0, sizeof(owner));
 	expect(payload_mm_authvar_trust_store_verify(&owner, NULL, &content_span, 1U,
-		&store_index, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&store_index, &plan, &accepted_authority) == PAYLOAD_MM_VERIFY_INVALID,
 		"NULL CMS span accepted");
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data, NULL, 1U,
-		&store_index, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&store_index, &plan, &accepted_authority) == PAYLOAD_MM_VERIFY_INVALID,
 		"NULL content span accepted");
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, NULL, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, NULL, &plan, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"NULL index accepted");
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &store_index, NULL) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, &store_index, NULL, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"NULL plan accepted");
 	signed_data.data = (const uint8_t *)(UINTPTR_MAX - signed_data.size + 1U);
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &store_index, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, &store_index, &plan, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"wrapping CMS span accepted");
 	signed_data = (struct payload_mm_crypto_span) { cms->data, cms->size };
+	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+		&content_span, 1U, &store_index, &plan, NULL) ==
+		PAYLOAD_MM_VERIFY_INVALID, "NULL authority output accepted");
+	memset(&output_storage, 0xa5, sizeof(output_storage));
+	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+		&content_span, 1U, &store_index, &plan,
+		(void *)(output_storage.bytes + 1U)) == PAYLOAD_MM_VERIFY_INVALID,
+		"misaligned authority output accepted");
+	expect(output_storage.bytes[1] == 0xa5U,
+		"misaligned authority output was modified");
+	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
+		&content_span, 1U, &store_index, &plan,
+		(void *)(UINTPTR_MAX - 1U)) == PAYLOAD_MM_VERIFY_INVALID,
+		"wrapping authority output accepted");
 
 	bad = plan;
 	bad.target = PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE;
@@ -685,46 +884,55 @@ static void hostile_inputs(const struct buffer *content, const struct buffer *cm
 	forged = store_index;
 	forged.entry_count = forged.entry_capacity + 1U;
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &forged, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, &forged, &plan, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"oversized index accepted");
 	forged = store_index;
 	forged.entries = (struct payload_mm_authvar_store_entry *)
 		((uint8_t *)store_index.entries + 1U);
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &forged, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, &forged, &plan, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"misaligned index entries accepted");
 	forged = store_index;
 	forged.entries[0].data_offset = forged.store_size;
 	expect(payload_mm_authvar_trust_store_verify(&owner, &signed_data,
-		&content_span, 1U, &forged, &plan) == PAYLOAD_MM_VERIFY_INVALID,
+		&content_span, 1U, &forged, &plan, &accepted_authority) ==
+		PAYLOAD_MM_VERIFY_INVALID,
 		"forged entry accepted");
 	expect(scan_store(&pk_list, NULL), "could not restore hostile store");
 	forged = store_index;
 	forged.used_size = forged.entries[0].data_offset;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "record beyond used size accepted");
 	forged = store_index;
 	forged.record_count = forged.maximum_records + 1U;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "record count above limit accepted");
 	forged = store_index;
 	forged.record_count = forged.entry_count - 1U;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "more entries than records accepted");
 	forged = store_index;
 	forged.maximum_name_size =
 		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE + 2U;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "excessive name limit accepted");
 	forged = store_index;
 	forged.maximum_data_size =
 		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE + 1U;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "excessive data limit accepted");
 	forged = store_index;
 	forged.maximum_records =
 		PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS + 1U;
-	expect(verify_direct(&owner, cms, content, &forged, &plan) ==
+	expect(verify_direct(&owner, cms, content, &forged, &plan,
+		&accepted_authority) ==
 		PAYLOAD_MM_VERIFY_INVALID, "excessive record limit accepted");
 	owner_overlap(content, cms);
 
@@ -784,6 +992,7 @@ int main(int argc, char **argv)
 		list_policy(&content, &kek_cms, &kek_cert);
 		duplicate_pk(&content, &pk_cms, &pk_cert);
 		attribute_policy(&content, &pk_cms, &kek_cms, &pk_cert, &kek_cert);
+		publication_guards(&content, &pk_cms, &pk_cert);
 		hostile_inputs(&content, &pk_cms, &pk_cert);
 	}
 	free(wrong_cert.data);
