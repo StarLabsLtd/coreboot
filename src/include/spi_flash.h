@@ -149,6 +149,16 @@ struct spi_flash {
 	struct spi_flash_rpmc_cap rpmc_caps;
 };
 
+/*
+ * Opaque owner handle for a session-wide SPI flash lease. A lease excludes
+ * ordinary SPI flash reads and volatile groups until its owner ends it. The
+ * object must be zeroed before begin and must not be copied or modified while
+ * owned.
+ */
+struct spi_flash_volatile_lease {
+	uintptr_t private_data[4];
+};
+
 void lb_spi_flash(struct lb_header *header);
 
 /* SPI Flash Driver Public API */
@@ -237,6 +247,25 @@ spi_flash_set_write_protected(const struct spi_flash *flash,
  */
 int spi_flash_volatile_group_begin(const struct spi_flash *flash);
 int spi_flash_volatile_group_end(const struct spi_flash *flash);
+
+/*
+ * Hold one exclusive volatile group across several operations. Only the exact
+ * owner object returned by begin may use or end the lease. Operations invoke
+ * the flash callbacks directly while the outer volatile group remains held.
+ */
+int spi_flash_volatile_lease_begin(const struct spi_flash *flash,
+	struct spi_flash_volatile_lease *lease);
+int spi_flash_volatile_lease_read(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len,
+	void *buf);
+int spi_flash_volatile_lease_write(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len,
+	const void *buf);
+int spi_flash_volatile_lease_erase(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len);
+int spi_flash_volatile_lease_sync(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease);
+int spi_flash_volatile_lease_end(struct spi_flash_volatile_lease *lease);
 
 /*
  * These are callbacks for marking the start and end of volatile group as

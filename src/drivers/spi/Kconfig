@@ -170,6 +170,13 @@ config SPI_FLASH_HAS_VOLATILE_GROUP
 	  Allows chipset to group write/erase operations under a single volatile
 	  group.
 
+config SPI_FLASH_VOLATILE_LEASE
+	bool
+	default n
+	help
+	  Provide an owner-bound SPI lease that excludes ordinary flash access
+	  across a sequence of read, write and erase operations.
+
 config SPI_FLASH_EXIT_4_BYTE_ADDR_MODE
 	bool
 	default n
