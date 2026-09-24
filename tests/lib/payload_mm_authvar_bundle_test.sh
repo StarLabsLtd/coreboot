@@ -12,6 +12,7 @@ for optimization in 0 2; do
 	output="$temporary/test-O$optimization"
 	${HOSTCC:-cc} -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \
 		-fsanitize=address,undefined -fno-sanitize-recover=all -fno-builtin \
+		-ffunction-sections -fdata-sections -Wl,--gc-sections \
 		-D__TEST__ -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -20,6 +21,7 @@ for optimization in 0 2; do
 		-I"$root/src/commonlib/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_bundle_test.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" -o "$output"
