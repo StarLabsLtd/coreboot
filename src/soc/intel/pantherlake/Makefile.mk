@@ -48,6 +48,7 @@ ramstage-$(CONFIG_DRIVERS_INTEL_TOUCH) += touch.c
 
 smm-y += elog.c
 smm-y += gpio.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) += gpio_lock.c
 smm-y += p2sb.c
 smm-y += xhci.c
 CPPFLAGS_common += -I$(src)/soc/intel/pantherlake
