@@ -7,6 +7,7 @@
 
 #include "payload_mm_authvar_internal.h"
 #include "payload_mm_authvar_coordinator.h"
+#include "payload_mm_authvar_set_preflight.h"
 
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM authenticated-variable coordinator must only be built in SMM"
@@ -237,6 +238,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	struct payload_mm_authvar_coordinator_result draft = { 0 };
 	struct payload_mm_authvar_authority_snapshot authority;
 	struct payload_mm_authvar_bundle_snapshot bundle_snapshot;
+	struct payload_mm_authvar_set_snapshot set_snapshot;
+	struct payload_mm_authvar_set_plan set_plan;
 	enum payload_mm_verify_status status;
 	bool in_custom_mode;
 	u8 derived_modes;
@@ -269,6 +272,16 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		invariant_failure))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	memset(result, 0, sizeof(*result));
+	set_snapshot = (struct payload_mm_authvar_set_snapshot) {
+		.request = coordinator->request,
+		.index = index,
+		.at_runtime = binding->at_runtime,
+	};
+	efi_status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
+	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return efi_status;
+	if (set_plan.kind != PAYLOAD_MM_AUTHVAR_SET_AUTH2)
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	if (!payload_mm_authvar_coordinator_source_modes(index,
 		binding->at_runtime, true, binding->source_volatile_modes,
 		&derived_modes) || derived_modes != binding->source_volatile_modes ||
@@ -298,6 +311,14 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	efi_status = verify_status(status, invariant_failure);
 	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return efi_status;
+	if (set_plan.post_auth_status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
+		draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND;
+		draft.volatile_modes = binding->source_volatile_modes;
+		*result = draft;
+		return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+	}
+	if (set_plan.post_auth_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return set_plan.post_auth_status;
 	bundle_snapshot = (struct payload_mm_authvar_bundle_snapshot) {
 		.request = coordinator->request,
 		.decision = &decision,

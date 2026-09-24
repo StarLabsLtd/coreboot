@@ -28,6 +28,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
@@ -43,6 +44,9 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$output"
 	for case in \
 		coordinator-success \
+		coordinator-preflight-consumers \
+		coordinator-policy-flip coordinator-policy-attributes \
+		coordinator-policy-timestamp \
 		coordinator-status-invalid coordinator-status-busy \
 		coordinator-status-no-memory coordinator-status-malformed \
 		coordinator-status-rejected coordinator-status-unsupported \
@@ -121,6 +125,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 	"$root/src/lib/payload_mm_authvar_view.c" \
 	"$root/src/lib/payload_mm_authvar_authority.c" \
 	"$root/src/lib/payload_mm_authvar_candidate.c" \

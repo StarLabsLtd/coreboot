@@ -17,6 +17,7 @@
 #include "../../src/lib/payload_mm_authvar_internal.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "../../src/lib/payload_mm_authvar_coordinator.h"
+#include "../../src/lib/payload_mm_authvar_set_preflight.h"
 #endif
 #include "payload_mm_authvar_policy_test_provider.h"
 #ifdef EXECUTOR_REAL_MEDIA
@@ -2041,6 +2042,8 @@ static struct payload_mm_crypto_owner coordinator_owner;
 static struct payload_mm_crypto_owner coordinator_alternate_owner;
 static unsigned int coordinator_verify_calls;
 static unsigned int coordinator_verify_operation;
+static enum payload_mm_authvar_authority coordinator_accepted_authority =
+	PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
 static struct payload_mm_authvar_coordinator_test_request *coordinator_descriptor;
 static struct payload_mm_authvar_coordinator_test_result *coordinator_result;
 static struct payload_mm_authvar_policy_request *coordinator_policy_request;
@@ -2144,12 +2147,13 @@ static enum payload_mm_verify_status coordinator_verify(void *context,
 	case COORDINATOR_ATTACK_NONE:
 		break;
 	}
-	*accepted = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
+	*accepted = coordinator_accepted_authority;
 	return coordinator_verify_status;
 }
 
 struct coordinator_fixture {
 	uint8_t auth2[42];
+	uint8_t counter_auth[PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE];
 	uint8_t payload;
 	uint8_t kek_name[sizeof(coordinator_kek_name)]
 		__aligned(__BIGGEST_ALIGNMENT__);
@@ -2240,6 +2244,7 @@ static void coordinator_fixture_build(struct coordinator_fixture *fixture)
 	coordinator_verify_status = PAYLOAD_MM_VERIFY_OK;
 	coordinator_verify_calls = 0U;
 	coordinator_verify_operation = 0U;
+	coordinator_accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
 	coordinator_attack = COORDINATOR_ATTACK_NONE;
 	coordinator_descriptor = &fixture->request;
 	coordinator_result = &fixture->result;
@@ -2349,6 +2354,150 @@ static void coordinator_success(void)
 	assert(begin_count == 2U && end_count == 2U && !poisoned);
 	assert(coordinator_owner.allocation_count == 1U &&
 		payload_mm_crypto_idle());
+}
+
+static void coordinator_preflight_consumers(void)
+{
+	static const uint8_t ordinary_name[] = { 'Z', 0U, 0U, 0U };
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request lifecycle = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+	};
+	struct payload_mm_authvar_policy_result result;
+	unsigned int programs;
+	unsigned int verifies;
+	const uint32_t counter_attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE;
+
+	coordinator_fixture_init(&fixture);
+	fixture.policy_request.name = ordinary_name;
+	fixture.policy_request.name_size = sizeof(ordinary_name);
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	fixture.policy_request.data = NULL;
+	fixture.policy_request.data_size = 0U;
+	test_policy_authorize_count = 0U;
+	programs = program_count;
+	assert(payload_mm_authvar_policy_transaction(&fixture.policy_request,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		test_policy_authorize_count == 0U && program_count == programs);
+
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	fixture.policy_request.data = fixture.auth2;
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		&fixture.payload, sizeof(fixture.payload));
+	assert(payload_mm_authvar_policy_transaction(&fixture.policy_request,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(test_policy_authorize_count == 0U && program_count == programs);
+
+	fixture.policy_request.attributes = counter_attributes;
+	fixture.policy_request.data = fixture.counter_auth;
+	fixture.policy_request.data_size = PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE - 1U;
+	assert(payload_mm_authvar_policy_transaction(&fixture.policy_request,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	fixture.policy_request.data_size = PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE;
+	assert(payload_mm_authvar_policy_transaction(&fixture.policy_request,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(test_policy_authorize_count == 0U && program_count == programs);
+
+	verifies = coordinator_verify_calls;
+	fixture.policy_request.data_size = PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE - 1U;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	fixture.policy_request.data_size = PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(coordinator_verify_calls == verifies && program_count == programs &&
+		!poisoned);
+
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	fixture.policy_request.data = fixture.auth2;
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		&fixture.payload, sizeof(fixture.payload));
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	coordinator_accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	verifies = coordinator_verify_calls;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND &&
+		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		coordinator_verify_calls == verifies + 1U && program_count == programs &&
+		!poisoned);
+
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+
+	assert(payload_mm_authvar_policy_transaction(&lifecycle, &result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	coordinator_accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	verifies = coordinator_verify_calls;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		coordinator_verify_calls == verifies + 1U && program_count == programs &&
+		!poisoned);
+
+	coordinator_accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION &&
+		coordinator_verify_calls == verifies + 2U && program_count == programs &&
+		!poisoned);
+}
+
+static void coordinator_policy_attack_case(enum test_policy_attack attack)
+{
+	static const uint8_t ordinary_name[] = { 'Z', 0U, 0U, 0U };
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_result result;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	fixture.policy_request.name = ordinary_name;
+	fixture.policy_request.name_size = sizeof(ordinary_name);
+	fixture.policy_request.attributes =
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	fixture.policy_request.data = &fixture.payload;
+	fixture.policy_request.data_size = sizeof(fixture.payload);
+	test_policy_attack = attack;
+	test_policy_authorize_count = 0U;
+	programs = program_count;
+	assert(payload_mm_authvar_policy_transaction(&fixture.policy_request,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		test_policy_authorize_count == 1U && program_count == programs &&
+		poisoned);
 }
 
 static void coordinator_status_case(enum payload_mm_verify_status verify_status,
@@ -3438,6 +3587,18 @@ int main(int argc, char **argv)
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (!strcmp(argv[1], "coordinator-success")) {
 		coordinator_success();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-preflight-consumers")) {
+		coordinator_preflight_consumers();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-policy-flip")) {
+		coordinator_policy_attack_case(TEST_POLICY_ATTACK_FLIP_KIND);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-policy-attributes")) {
+		coordinator_policy_attack_case(TEST_POLICY_ATTACK_ATTRIBUTES);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-policy-timestamp")) {
+		coordinator_policy_attack_case(TEST_POLICY_ATTACK_TIMESTAMP);
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-status-invalid")) {
 		coordinator_status_case(PAYLOAD_MM_VERIFY_INVALID,

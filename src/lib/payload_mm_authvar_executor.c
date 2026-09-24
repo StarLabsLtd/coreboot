@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
+#include "payload_mm_authvar_set_preflight.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "payload_mm_authvar_coordinator.h"
 #endif
@@ -2018,7 +2019,9 @@ static bool set_request_valid(const struct payload_mm_authvar_policy_request *re
 
 	if (!name || request->name_size < 4U || (request->name_size & 1U) ||
 	    name[request->name_size - 1U] || name[request->name_size - 2U] ||
-	    request->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
+	    request->attributes & ~(CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR) ?
+		PAYLOAD_MM_AUTHVAR_SET_REQUEST_ATTRIBUTES :
+		PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED))
 		return false;
 	for (size_t i = 0; i + 2U < request->name_size; i += 2U)
 		if (!name[i] && !name[i + 1U])
@@ -3109,6 +3112,10 @@ uint64_t payload_mm_authvar_policy_transaction(
 	const struct payload_mm_authvar_store_entry *final;
 	const struct payload_mm_authvar_record_source *writer_source;
 	struct payload_mm_authvar_store_limits scan_limits;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	struct payload_mm_authvar_set_snapshot set_snapshot;
+	struct payload_mm_authvar_set_plan set_plan;
+#endif
 	enum payload_mm_authvar_media_result result;
 	enum payload_mm_authvar_media_result end_result;
 	uint64_t status;
@@ -3219,9 +3226,40 @@ uint64_t payload_mm_authvar_policy_transaction(
 		payload_mm_authvar_media_cache_bind(state->generation, state->token);
 		goto end;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	set_snapshot = (struct payload_mm_authvar_set_snapshot) {
+		.request = &state->request,
+		.index = &state->index,
+		.at_runtime = state->at_runtime,
+	};
+	status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	if (set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_AUTH2) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		goto end;
+	}
+	if (set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_NOOP) {
+		payload_mm_authvar_media_cache_bind(state->generation, state->token);
+		goto end;
+	}
+#endif
 	status = authorize_mutation(state);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if ((set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE) !=
+		(!state->source.data_size &&
+		 !(state->source.attributes &
+		   PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE)) ||
+	    (set_plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE &&
+	     (state->source.attributes != state->request.attributes ||
+	      !bytes_all_zero(state->source.timestamp,
+		  sizeof(state->source.timestamp))))) {
+		status = poison_session();
+		goto end;
+	}
+#endif
 	if (state->policy.maximum_record_size > state->index.store_size)
 		state->policy.maximum_record_size = state->index.store_size;
 	if (state->policy.maximum_data_size > state->policy.maximum_record_size)

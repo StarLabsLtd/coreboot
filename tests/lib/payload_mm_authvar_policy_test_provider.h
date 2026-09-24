@@ -7,6 +7,17 @@
 #include <boot/payload_mm_authvar_writer.h>
 
 /* Deliberately unauthenticated fixture provider, never linked into firmware. */
+static unsigned int test_policy_authorize_count;
+
+enum test_policy_attack {
+	TEST_POLICY_ATTACK_NONE,
+	TEST_POLICY_ATTACK_FLIP_KIND,
+	TEST_POLICY_ATTACK_ATTRIBUTES,
+	TEST_POLICY_ATTACK_TIMESTAMP,
+};
+
+static enum test_policy_attack test_policy_attack;
+
 static uint64_t test_policy_authorize(
 	const struct payload_mm_authvar_policy_request *request,
 	const struct payload_mm_authvar_policy_view *view,
@@ -14,6 +25,7 @@ static uint64_t test_policy_authorize(
 	void *data, size_t capacity)
 {
 	(void)view;
+	test_policy_authorize_count++;
 	if (request->data_size > capacity)
 		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 	mutation->kind = !request->data_size &&
@@ -25,6 +37,20 @@ static uint64_t test_policy_authorize(
 		if (request->data_size)
 			memcpy(data, request->data, request->data_size);
 	}
+	if (test_policy_attack == TEST_POLICY_ATTACK_FLIP_KIND) {
+		if (mutation->kind == PAYLOAD_MM_AUTHVAR_MUTATION_WRITE) {
+			mutation->kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE;
+			mutation->attributes = 0U;
+			mutation->data_size = 0U;
+			memset(mutation->timestamp, 0, sizeof(mutation->timestamp));
+		} else {
+			mutation->kind = PAYLOAD_MM_AUTHVAR_MUTATION_WRITE;
+			mutation->attributes = request->attributes;
+		}
+	} else if (test_policy_attack == TEST_POLICY_ATTACK_ATTRIBUTES)
+		mutation->attributes |= PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	else if (test_policy_attack == TEST_POLICY_ATTACK_TIMESTAMP)
+		mutation->timestamp[0] = 1U;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
