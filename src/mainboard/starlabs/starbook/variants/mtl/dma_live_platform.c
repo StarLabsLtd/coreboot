@@ -1,17 +1,28 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
+#include <cbmem.h>
+#include <commonlib/bsd/cbmem_id.h>
 #include <boot/dma_handoff.h>
-#include <bootstate.h>
 #include <commonlib/helpers.h>
+#include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
-#include <crc_byte.h>
 #include <device/device.h>
 #include <device/mmio.h>
 #include <intelblocks/vtd.h>
+#include <intelblocks/systemagent.h>
 #include <soc/vtd.h>
+#include <soc/iomap.h>
+#include <soc/pci_devs.h>
+#include <soc/systemagent.h>
+#include <random.h>
+#include <string.h>
 
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_DMA_GUARD)
+#include "dma_guard.h"
+#endif
 #include "dma_live.h"
+#include "dma_live_platform.h"
 #include "payload_resource_policy.h"
 #include "../../../../../soc/intel/common/block/vtd/vtd_transition.h"
 
@@ -32,8 +43,8 @@ static struct starbook_mtl_dma_live_identity requester_identity[
 	STARBOOK_MTL_DMA_LIVE_REQUESTERS];
 static const struct starbook_mtl_dma_live_layout *dma_layout;
 static bool backend_ready;
+static bool backend_poisoned;
 static bool tables_committed;
-static uint32_t resident_table_crc;
 
 static uint32_t pci_read32(void *unused, uint8_t bus, uint8_t devfn,
 	uint16_t offset)
@@ -55,6 +66,14 @@ static void pci_write16(void *unused, uint8_t bus, uint8_t devfn,
 	write16p(address, value);
 }
 
+static void poison_backend(const struct starbook_mtl_dma_live_pci_io *pci_io)
+{
+	starbook_mtl_dma_live_poison(pci_io,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER);
+	backend_poisoned = true;
+	backend_ready = false;
+}
+
 static uint32_t engine_read32(void *context, uint32_t offset)
 {
 	return read32p(((const struct live_context *)context)->vtd_base + offset);
@@ -72,34 +91,27 @@ static void commit_tables(void *unused)
 	tables_committed = true;
 }
 
-static uint32_t table_crc(void)
-{
-	const uint8_t *bytes = dma_layout->table_memory;
-	const size_t size = dma_layout->table_used_pages *
-		(1U << DMA_HANDOFF_GRANULE_SHIFT);
-	uint32_t crc = 0;
-
-	for (size_t index = 0; index < size; index++)
-		crc = crc32_byte(crc, bytes[index]);
-	return crc;
-}
-
-static bool engine_state_valid(const struct vtd_transition_io *transition)
+static bool engine_state_valid(const struct vtd_transition_io *transition,
+	struct vtd_transition_facts *observed)
 {
 	struct vtd_transition_facts facts;
 
-	return dma_layout && !vtd_transition_probe(transition, &facts) &&
-		facts.coherent &&
-		(facts.status &
-		 (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ==
-			(VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE) &&
-		facts.root == dma_layout->table_physical &&
-		!(facts.protected_memory_enable & (PMEN_EPM | PMEN_PRS)) &&
-		tables_committed && dma_layout->table_used_pages &&
-		table_crc() == resident_table_crc;
+	if (!starbook_mtl_dma_live_tables_match(dma_layout))
+		return false;
+	if (vtd_transition_probe(transition, &facts) ||
+	    !facts.coherent ||
+	    (facts.status & (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) !=
+		(VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE) ||
+	    facts.root != dma_layout->table_physical ||
+	    (facts.protected_memory_enable & (PMEN_EPM | PMEN_PRS)) ||
+	    !tables_committed || !starbook_mtl_dma_live_tables_match(dma_layout))
+		return false;
+	if (observed)
+		*observed = facts;
+	return true;
 }
 
-static void collect_requester_identity(void)
+static bool collect_requester_identity(void)
 {
 	static const enum starbook_mtl_boot_controller kinds[] = {
 		STARBOOK_MTL_BOOT_CONTROLLER_NVME,
@@ -109,7 +121,7 @@ static void collect_requester_identity(void)
 
 	if (ARRAY_SIZE(kinds) != STARBOOK_MTL_DMA_LIVE_REQUESTERS ||
 	    !starbook_mtl_boot_controller_inventory())
-		die("StarBook MTL DMA: exact requester inventory unavailable");
+		return false;
 	for (size_t index = 0; index < ARRAY_SIZE(kinds); index++) {
 		const struct device *device =
 			starbook_mtl_boot_controller_device(kinds[index]);
@@ -120,7 +132,7 @@ static void collect_requester_identity(void)
 		    device->path.pci.devfn > UINT8_MAX ||
 		    device->vendor > UINT16_MAX || device->device > UINT16_MAX ||
 		    device->class > 0xffffffU)
-			die("StarBook MTL DMA: requester identity is not representable");
+			return false;
 		requester_identity[index] =
 			(struct starbook_mtl_dma_live_identity) {
 				.bdf = (uint16_t)device->upstream->secondary << 8 |
@@ -130,9 +142,10 @@ static void collect_requester_identity(void)
 				.class = device->class,
 			};
 	}
+	return true;
 }
 
-static void starbook_mtl_dma_enable(void *unused)
+enum cb_err starbook_mtl_dma_live_backend_ensure(void)
 {
 	struct live_context context = { .vtd_base = soc_vtd_iop_base() };
 	const struct starbook_mtl_dma_live_pci_io pci_io = {
@@ -150,59 +163,222 @@ static void starbook_mtl_dma_enable(void *unused)
 	const uint64_t ecam_bytes =
 		(uint64_t)CONFIG_ECAM_MMCONF_BUS_NUMBER << 20;
 	size_t dma_size;
+	size_t mirror_size;
 	void *dma_buffer;
+	void *table_mirror;
+	const struct cbmem_entry *mirror_entry;
 	uint16_t bus_count;
 	bool engine_valid;
 	bool pci_valid;
 	int result;
 
-	(void)unused;
+	if (backend_poisoned)
+		return CB_ERR;
+	if (backend_ready) {
+		if (starbook_mtl_dma_live_verify_active(&pci_io,
+			CONFIG_ECAM_MMCONF_BUS_NUMBER) &&
+		    engine_state_valid(&transition, NULL))
+			return CB_SUCCESS;
+		poison_backend(&pci_io);
+		return CB_ERR;
+	}
+	/* Establishment is terminal: every later return keeps this poisoned. */
+	backend_poisoned = true;
 	if (!context.vtd_base || (context.vtd_base & 0xfffU) ||
 	    context.vtd_base > (uintptr_t)-1 - 0x1000U)
-		die("StarBook MTL DMA: VTVC0 aperture is not representable");
+		return CB_ERR;
 	if (!CONFIG_ECAM_MMCONF_BUS_NUMBER ||
 	    CONFIG_ECAM_MMCONF_BUS_NUMBER > 256U ||
 	    (ecam_base & ((1U << 20) - 1U)) ||
 	    ecam_bytes > CONFIG_ECAM_MMCONF_LENGTH ||
 	    ecam_bytes - 1U > (uintptr_t)-1 - ecam_base)
-		die("StarBook MTL DMA: ECAM aperture is not representable");
+		return CB_ERR;
 	bus_count = CONFIG_ECAM_MMCONF_BUS_NUMBER;
-	collect_requester_identity();
+	if (!collect_requester_identity())
+		return CB_ERR;
 	if (vtd_transition_probe(&transition, &facts) || !facts.coherent ||
 	    (facts.status & (VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ||
 	    (facts.protected_memory_enable & (PMEN_EPM | PMEN_PRS)) !=
 		(PMEN_EPM | PMEN_PRS) || !(facts.capability & CAP_PMR_LO))
-		die("StarBook MTL DMA: VTVC0 is not ready for a protected transition");
+		return CB_ERR;
 	dma_buffer = vtd_get_dma_buffer(&dma_size);
 	if (!dma_buffer || !dma_size || vtd_read32(context.vtd_base, PLMBASE_REG) ||
 	    vtd_read32(context.vtd_base, PLMLIMIT_REG) == UINT32_MAX ||
 	    (uint64_t)vtd_read32(context.vtd_base, PLMLIMIT_REG) + 1U !=
 		(uintptr_t)dma_buffer)
-		die("StarBook MTL DMA: FSP buffer does not match the active low PMR");
+		return CB_ERR;
+	if (starbook_mtl_dma_live_table_mirror_size((uintptr_t)dma_buffer,
+		dma_size, &mirror_size))
+		return CB_ERR;
+	table_mirror = cbmem_add(CBMEM_ID_MTL_DMA_MIRROR, mirror_size);
+	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
+	if (!table_mirror || (uintptr_t)table_mirror > (uintptr_t)-1 - mirror_size ||
+	    (uintptr_t)table_mirror + mirror_size > (uintptr_t)dma_buffer ||
+	    !mirror_entry || cbmem_entry_start(mirror_entry) != table_mirror ||
+	    cbmem_entry_size(mirror_entry) != mirror_size)
+		return CB_ERR;
 	result = starbook_mtl_dma_live_establish(&pci_io, bus_count,
 		requester_identity, dma_buffer, (uintptr_t)dma_buffer, dma_size,
+		table_mirror, (uintptr_t)table_mirror, mirror_size,
 		&transition);
-	if (result)
-		die("StarBook MTL DMA: protected transaction failed: %d", result);
+	if (result) {
+		poison_backend(&pci_io);
+		return CB_ERR;
+	}
 	dma_layout = starbook_mtl_dma_live_layout();
-	if (!dma_layout)
-		die("StarBook MTL DMA: protected layout unavailable");
-	resident_table_crc = table_crc();
-	engine_valid = engine_state_valid(&transition);
+	if (!dma_layout) {
+		poison_backend(&pci_io);
+		return CB_ERR;
+	}
 	pci_valid = starbook_mtl_dma_live_verify_active(&pci_io, bus_count);
+	engine_valid = engine_state_valid(&transition, NULL);
 
-	if (!engine_valid || !pci_valid)
-		die("StarBook MTL DMA: protected state failed final read-back");
+	if (!engine_valid || !pci_valid) {
+		poison_backend(&pci_io);
+		return CB_ERR;
+	}
 	backend_ready = true;
+	backend_poisoned = false;
 	printk(BIOS_INFO,
 	       "StarBook MTL DMA: default-deny active; complete ECAM BME-clear, %zu/%zu table pages, three %u-page arenas\n",
 	       dma_layout->table_used_pages, dma_layout->table_capacity_pages,
 	       dma_layout->arena_pages[0]);
+	return CB_SUCCESS;
 }
 
-BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, starbook_mtl_dma_enable, NULL);
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_DMA_GUARD)
+static enum cb_err platform_observe(void *unused,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	struct starbook_mtl_dma_guard_facts observed = { 0 };
+	struct live_context vtvc0_context = { .vtd_base = soc_vtd_iop_base() };
+	struct live_context gfx_context = { .vtd_base = GFXVT_BASE_ADDRESS };
+	const struct vtd_transition_io vtvc0 = {
+		.context = &vtvc0_context,
+		.read32 = engine_read32,
+		.write32 = engine_write32,
+		.commit_tables = commit_tables,
+	};
+	const struct vtd_transition_io gfx = {
+		.context = &gfx_context,
+		.read32 = engine_read32,
+	};
+	struct vtd_transition_facts vtvc0_facts;
+	struct vtd_transition_facts gfx_facts;
+	size_t current_dma_size;
+	void *current_dma_buffer;
+	const struct cbmem_entry *mirror_entry;
+	const uint64_t gfxvtbar = MCHBAR64(GFXVTBAR);
+	const uint16_t integrated_requesters[] = { PCI_DEVFN_IGD, PCI_DEVFN_IPU };
+	const struct starbook_mtl_dma_live_pci_io pci_io = {
+		.read32 = pci_read32,
+		.write16 = pci_write16,
+	};
+	bool integrated_verified;
+	(void)unused;
+	current_dma_buffer = vtd_get_dma_buffer(&current_dma_size);
+	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
+	/* Always run the fail-closed full-ECAM verifier before engine checks. */
+	integrated_verified = starbook_mtl_dma_live_devices_are_verified(&pci_io,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER, integrated_requesters,
+		ARRAY_SIZE(integrated_requesters));
+	if (!(gfxvtbar & VTBAR_ENABLED) ||
+	    (gfxvtbar & VTBAR_MASK) != GFXVT_BASE_ADDRESS ||
+	    !dma_layout || !current_dma_buffer || !mirror_entry ||
+	    dma_layout->buffer != (void *)(uintptr_t)dma_layout->buffer_physical ||
+	    dma_layout->handoff != dma_layout->buffer ||
+	    dma_layout->table_memory != (uint8_t *)dma_layout->buffer +
+		(1U << DMA_HANDOFF_GRANULE_SHIFT) ||
+	    dma_layout->table_mirror !=
+		(void *)(uintptr_t)dma_layout->table_mirror_physical ||
+	    !engine_state_valid(&vtvc0, &vtvc0_facts) ||
+	    vtd_transition_probe(&gfx, &gfx_facts) || !gfx_facts.coherent) {
+		return CB_ERR;
+	}
+	observed = (struct starbook_mtl_dma_guard_facts) {
+		.live_buffer = { dma_layout->buffer_physical,
+			dma_layout->buffer_size },
+		.current_fsp_buffer = { (uintptr_t)current_dma_buffer,
+			current_dma_size },
+		.table_mirror = { dma_layout->table_mirror_physical,
+			(uint64_t)dma_layout->table_capacity_pages <<
+			DMA_HANDOFF_GRANULE_SHIFT },
+		.current_cbmem_mirror = { (uintptr_t)cbmem_entry_start(mirror_entry),
+			cbmem_entry_size(mirror_entry) },
+		.handoff = { dma_layout->table_physical -
+			(1U << DMA_HANDOFF_GRANULE_SHIFT),
+			1U << DMA_HANDOFF_GRANULE_SHIFT },
+		.table = { dma_layout->table_physical,
+			dma_layout->table_capacity_pages << DMA_HANDOFF_GRANULE_SHIFT },
+		.gfxvtbar = gfxvtbar,
+		.tables_match = starbook_mtl_dma_live_tables_match(dma_layout),
+		.integrated_requesters_verified = integrated_verified,
+	};
+	observed.engines[0] = (struct starbook_mtl_dma_guard_engine) {
+		.base = vtvc0_context.vtd_base, .root = vtvc0_facts.root,
+		.capability = vtvc0_facts.capability,
+		.extended_capability = vtvc0_facts.extended_capability,
+		.version = vtvc0_facts.version, .status = vtvc0_facts.status,
+		.protected_memory_enable = vtvc0_facts.protected_memory_enable,
+		.mode = STARBOOK_MTL_DMA_GUARD_DEFAULT_DENY_TRANSLATION,
+	};
+	observed.engines[1] = (struct starbook_mtl_dma_guard_engine) {
+		.base = gfx_context.vtd_base, .root = gfx_facts.root,
+		.capability = gfx_facts.capability,
+		.extended_capability = gfx_facts.extended_capability,
+		.version = gfx_facts.version, .status = gfx_facts.status,
+		.protected_memory_enable = gfx_facts.protected_memory_enable,
+		.mode = STARBOOK_MTL_DMA_GUARD_BME_QUIESCED,
+	};
+	for (size_t index = 0; index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++)
+		observed.arenas[index] = (struct starbook_mtl_dma_guard_range) {
+			.base = dma_layout->arena_base[index],
+			.size = (uint64_t)dma_layout->arena_pages[index] <<
+				DMA_HANDOFF_GRANULE_SHIFT,
+		};
+	return starbook_mtl_dma_guard_snapshot_build(&observed, snapshot);
+}
 
-bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
+static enum cb_err platform_ensure(void *unused)
+{
+	(void)unused;
+	return starbook_mtl_dma_live_backend_ensure();
+}
+
+static enum cb_err platform_random64(void *unused, uint64_t *value)
+{
+	(void)unused;
+	return get_random_number_64(value);
+}
+
+static void platform_poison(void *unused)
+{
+	const struct starbook_mtl_dma_live_pci_io pci_io = {
+		.read32 = pci_read32,
+		.write16 = pci_write16,
+	};
+
+	(void)unused;
+	poison_backend(&pci_io);
+}
+
+enum cb_err starbook_mtl_dma_guard_capture(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	const struct starbook_mtl_dma_guard_ops ops = {
+		.ensure = platform_ensure,
+		.observe = platform_observe,
+		.random64 = platform_random64,
+		.poison = platform_poison,
+	};
+
+	return starbook_mtl_dma_guard_capture_with_ops(plan, snapshot, &ops);
+}
+#endif
+
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_HANDOFF)
+bool starbook_mtl_dma_live_backend_handoff(uintptr_t *address, size_t *bytes)
 {
 	struct live_context context = { .vtd_base = soc_vtd_iop_base() };
 	const struct starbook_mtl_dma_live_pci_io pci_io = {
@@ -223,11 +399,11 @@ bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
 
 	if (!backend_ready)
 		return false;
-	engine_valid = engine_state_valid(&transition);
 	pci_valid = starbook_mtl_dma_live_verify_active(&pci_io,
 		CONFIG_ECAM_MMCONF_BUS_NUMBER);
+	engine_valid = engine_state_valid(&transition, NULL);
 	if (!engine_valid || !pci_valid) {
-		backend_ready = false;
+		poison_backend(&pci_io);
 		return false;
 	}
 	if (!address || !bytes ||
@@ -248,3 +424,4 @@ bool payload_dma_handoff_blob(uintptr_t *address, size_t *bytes)
 	*bytes = written;
 	return true;
 }
+#endif

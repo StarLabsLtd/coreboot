@@ -27,10 +27,15 @@ struct starbook_mtl_dma_live_identity {
 };
 
 struct starbook_mtl_dma_live_layout {
+	void *buffer;
+	uint64_t buffer_physical;
+	size_t buffer_size;
 	void *handoff;
 	size_t handoff_capacity;
 	void *table_memory;
 	uint64_t table_physical;
+	void *table_mirror;
+	uint64_t table_mirror_physical;
 	size_t table_capacity_pages;
 	size_t table_used_pages;
 	uint64_t arena_base[STARBOOK_MTL_DMA_LIVE_REQUESTERS];
@@ -44,11 +49,22 @@ int starbook_mtl_dma_live_establish(
 	const struct starbook_mtl_dma_live_identity requesters[
 		STARBOOK_MTL_DMA_LIVE_REQUESTERS],
 	void *memory, uint64_t physical_base, size_t size,
+	void *table_mirror, uint64_t table_mirror_physical,
+	size_t table_mirror_size,
 	const struct vtd_transition_io *transition);
+int starbook_mtl_dma_live_table_mirror_size(uint64_t physical_base, size_t size,
+	size_t *mirror_size);
 bool starbook_mtl_dma_live_verify_active(
 	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count);
 const struct starbook_mtl_dma_live_layout *starbook_mtl_dma_live_layout(void);
 bool starbook_mtl_dma_live_handoff_requesters(
 	struct dma_handoff_requester output[STARBOOK_MTL_DMA_LIVE_REQUESTERS]);
+bool starbook_mtl_dma_live_devices_are_verified(
+	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count,
+	const uint16_t *bdfs, size_t count);
+bool starbook_mtl_dma_live_tables_match(
+	const struct starbook_mtl_dma_live_layout *layout);
+void starbook_mtl_dma_live_poison(
+	const struct starbook_mtl_dma_live_pci_io *pci_io, uint16_t bus_count);
 
 #endif

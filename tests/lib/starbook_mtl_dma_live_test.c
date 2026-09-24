@@ -178,11 +178,21 @@ int main(int argc, char **argv)
 	struct dma_handoff_requester handoff[STARBOOK_MTL_DMA_LIVE_REQUESTERS];
 	const struct starbook_mtl_dma_live_layout *layout;
 	void *memory;
+	void *mirror;
+	void *establish_mirror;
+	uint64_t establish_mirror_physical = 0x400000;
+	size_t mirror_size;
+	size_t establish_size = memory_size;
 	int result;
 
 	assert(argc == 2);
 	assert(!posix_memalign(&memory, 4096, memory_size));
+	assert(!starbook_mtl_dma_live_table_mirror_size(0x800000, memory_size,
+		&mirror_size));
+	assert(!posix_memalign(&mirror, 4096, mirror_size));
 	memset(memory, 0xa5, memory_size);
+	memset(mirror, 0xa5, mirror_size);
+	establish_mirror = mirror;
 	if (!strcmp(argv[1], "snapshot-failure"))
 		pci.functions[2][0].vendor_device ^= 1U << 16;
 	else if (!strcmp(argv[1], "clear-failure"))
@@ -205,19 +215,33 @@ int main(int argc, char **argv)
 		add_pci(&pci, 0x0200, 0x1d97, 1, 0x010802, 0);
 		add_pci(&pci, 0x00a0, 0x8086, 0x7e7d, 0x0c0330, 0);
 		add_pci(&pci, 0x0068, 0x8086, 0x7ec0, 0x0c0330, 0);
+	} else if (!strcmp(argv[1], "unaligned-size")) {
+		establish_size--;
+	} else if (!strcmp(argv[1], "mirror-virtual-misaligned")) {
+		establish_mirror = (uint8_t *)mirror + 1U;
+	} else if (!strcmp(argv[1], "mirror-physical-misaligned")) {
+		establish_mirror_physical++;
+	} else if (!strcmp(argv[1], "mirror-physical-alias")) {
+		/* Distinct virtual storage must not alias the live physical range. */
+		establish_mirror_physical = 0x800000;
+	} else if (!strcmp(argv[1], "mirror-virtual-overlap")) {
+		establish_mirror = memory;
 	} else if (strcmp(argv[1], "success") &&
 		   strcmp(argv[1], "active-selected-bme") &&
 		   strcmp(argv[1], "active-unlisted-bme") &&
-		   strcmp(argv[1], "active-topology")) {
+		   strcmp(argv[1], "active-topology") &&
+		   strcmp(argv[1], "active-combined-poison")) {
 		assert(false);
 	}
 
 	result = starbook_mtl_dma_live_establish(&pci_io, 4, expected, memory,
-		0x800000, memory_size, &transition);
+		0x800000, establish_size, establish_mirror,
+		establish_mirror_physical, mirror_size, &transition);
 	if (strcmp(argv[1], "success") &&
 	    strcmp(argv[1], "active-selected-bme") &&
 	    strcmp(argv[1], "active-unlisted-bme") &&
-	    strcmp(argv[1], "active-topology")) {
+	    strcmp(argv[1], "active-topology") &&
+	    strcmp(argv[1], "active-combined-poison")) {
 		void *second;
 		const size_t reads = pci.reads;
 		const size_t writes = pci.writes;
@@ -229,7 +253,8 @@ int main(int argc, char **argv)
 		assert(vtd.registers[PMEN / 4U] & 1U);
 		if (!strcmp(argv[1], "snapshot-failure") ||
 		    !strcmp(argv[1], "noncoherent") ||
-		    !strcmp(argv[1], "capacity"))
+		    !strcmp(argv[1], "capacity") ||
+		    !strcmp(argv[1], "unaligned-size"))
 			assert(!pci.writes);
 		else
 			assert(pci.writes);
@@ -238,11 +263,13 @@ int main(int argc, char **argv)
 		assert(!posix_memalign(&second, 4096, memory_size));
 		memset(second, 0xa5, memory_size);
 		assert(starbook_mtl_dma_live_establish(&pci_io, 4, expected, second,
-			0xa00000, memory_size, &transition));
+			0xa00000, memory_size, mirror, 0x400000, mirror_size,
+			&transition));
 		assert(memory_is(second, memory_size, 0xa5));
 		assert(pci.reads == reads && pci.writes == writes);
 		free(second);
 		free(memory);
+		free(mirror);
 		return 0;
 	}
 
@@ -251,7 +278,33 @@ int main(int argc, char **argv)
 	assert(starbook_mtl_dma_live_verify_active(&pci_io, 4));
 	layout = starbook_mtl_dma_live_layout();
 	assert(layout && layout->table_used_pages <= layout->table_capacity_pages);
+	assert(layout->table_mirror == mirror &&
+		layout->table_mirror_physical == 0x400000);
+	assert(layout->arena_base[STARBOOK_MTL_DMA_LIVE_REQUESTERS - 1U] +
+		(uint64_t)layout->arena_pages[
+			STARBOOK_MTL_DMA_LIVE_REQUESTERS - 1U] * 4096U ==
+		0x800000U + memory_size);
+	assert(!memcmp(layout->table_memory, layout->table_mirror,
+		layout->table_capacity_pages * 4096U));
+	assert(starbook_mtl_dma_live_tables_match(layout));
+	((uint8_t *)layout->table_memory)[0] ^= 1U;
+	assert(!starbook_mtl_dma_live_tables_match(layout));
+	((uint8_t *)layout->table_memory)[0] ^= 1U;
+	((uint8_t *)layout->table_mirror)[
+		layout->table_capacity_pages * 4096U - 1U] ^= 1U;
+	assert(!starbook_mtl_dma_live_tables_match(layout));
+	((uint8_t *)layout->table_mirror)[
+		layout->table_capacity_pages * 4096U - 1U] ^= 1U;
 	assert(starbook_mtl_dma_live_handoff_requesters(handoff));
+	{
+		const uint16_t present[] = { expected[0].bdf, expected[1].bdf };
+		const uint16_t missing[] = { expected[0].bdf, 0x00ff };
+
+		assert(starbook_mtl_dma_live_devices_are_verified(&pci_io, 4,
+			present, 2));
+		assert(!starbook_mtl_dma_live_devices_are_verified(&pci_io, 4,
+			missing, 2));
+	}
 	for (size_t index = 0; index < STARBOOK_MTL_DMA_LIVE_REQUESTERS; index++)
 		assert(handoff[index].bdf == expected[index].bdf);
 	{
@@ -262,7 +315,8 @@ int main(int argc, char **argv)
 		assert(!posix_memalign(&second, 4096, memory_size));
 		memset(second, 0xa5, memory_size);
 		assert(starbook_mtl_dma_live_establish(&pci_io, 4, expected, second,
-			0xa00000, memory_size, &transition));
+			0xa00000, memory_size, mirror, 0x400000, mirror_size,
+			&transition));
 		assert(memory_is(second, memory_size, 0xa5));
 		assert(pci.reads == reads && pci.writes == writes);
 		free(second);
@@ -278,9 +332,15 @@ int main(int argc, char **argv)
 			pci.functions[0][0xa0].command |= 4;
 		else if (!strcmp(argv[1], "active-unlisted-bme"))
 			pci.functions[1][0].command |= 4;
-		else
+		else if (!strcmp(argv[1], "active-topology"))
 			add_pci(&pci, 0x0300, 0x8086, 0xabcd, 0x060400, 4);
-		assert(!starbook_mtl_dma_live_verify_active(&pci_io, 4));
+		else {
+			((uint8_t *)layout->table_memory)[0] ^= 1U;
+			pci.functions[1][0].command |= 4;
+			starbook_mtl_dma_live_poison(&pci_io, 4);
+		}
+		if (strcmp(argv[1], "active-combined-poison"))
+			assert(!starbook_mtl_dma_live_verify_active(&pci_io, 4));
 		for (uint16_t bus = 0; bus < 4; bus++)
 			for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++)
 				if ((uint16_t)pci.functions[bus][devfn].vendor_device !=
@@ -293,11 +353,13 @@ int main(int argc, char **argv)
 		assert(!posix_memalign(&second, 4096, memory_size));
 		memset(second, 0xa5, memory_size);
 		assert(starbook_mtl_dma_live_establish(&pci_io, 4, expected, second,
-			0xa00000, memory_size, &transition));
+			0xa00000, memory_size, mirror, 0x400000, mirror_size,
+			&transition));
 		assert(memory_is(second, memory_size, 0xa5));
 		assert(pci.reads == reads && pci.writes == writes);
 		free(second);
 	}
 	free(memory);
+	free(mirror);
 	return 0;
 }
