@@ -106,10 +106,22 @@ if rg -n 'smmstore_lookup_region|boot_device_rw|rdev_(write|erase)' \
 	exit 1
 fi
 
-mkdir -p "$temporary/config-probe" "$temporary/build-probe"
+mkdir -p "$temporary/config-default" "$temporary/build-default" \
+	"$temporary/config-probe" "$temporary/build-probe"
+cat > "$temporary/config-default/.config" <<'EOF'
+CONFIG_VENDOR_EMULATION=y
+CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
+CONFIG_ANY_TOOLCHAIN=y
+EOF
+make -C "$root" obj="$temporary/build-default" \
+	DOTCONFIG="$temporary/config-default/.config" olddefconfig >/dev/null
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE=y$' \
+	"$temporary/config-default/.config"
+
 cat > "$temporary/config-probe/.config" <<'EOF'
 CONFIG_VENDOR_EMULATION=y
-CONFIG_BOARD_EMULATION_QEMU_X86_I440FX=y
+CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
+CONFIG_ANY_TOOLCHAIN=y
 EOF
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 cat >> "$temporary/Kconfig" <<'EOF'
@@ -125,8 +137,6 @@ make -C "$root" obj="$temporary/build-probe" \
 grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE=y' \
 	"$temporary/config-probe/.config"
 grep -qx 'CONFIG_SMMSTORE_READ_REGION=y' "$temporary/config-probe/.config"
-grep -qx 'CONFIG_NO_SMM=y' "$temporary/config-probe/.config"
-! grep -q '^CONFIG_HAVE_SMI_HANDLER=y$' "$temporary/config-probe/.config"
 ! grep -q '^CONFIG_SMMSTORE=y$' "$temporary/config-probe/.config"
 ! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
 	"$temporary/config-probe/.config"
@@ -136,5 +146,22 @@ grep -qx 'CONFIG_NO_SMM=y' "$temporary/config-probe/.config"
 	"$temporary/config-probe/.config"
 ! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_FTW_DECODER=y$' \
 	"$temporary/config-probe/.config"
+
+make -C "$root" obj="$temporary/build-probe" \
+	KBUILD_KCONFIG="$temporary/Kconfig" \
+	DOTCONFIG="$temporary/config-probe/.config" -j2 >/dev/null
+for object in payload_mm_authvar_fv payload_mm_authvar_ftw \
+	payload_mm_authvar_store payload_mm_authvar_mor_identity \
+	payload_mm_authvar_mor_probe; do
+	test -f "$temporary/build-probe/ramstage/lib/$object.o"
+	test ! -e "$temporary/build-probe/romstage/lib/$object.o"
+	test ! -e "$temporary/build-probe/smm/lib/$object.o"
+done
+nm -g --defined-only \
+	"$temporary/build-probe/ramstage/lib/payload_mm_authvar_mor_probe.o" |
+	grep -q ' payload_mm_authvar_mor_probe_entry$'
+! find "$temporary/build-probe/romstage" "$temporary/build-probe/smm" \
+	-type f -name '*.o' -exec nm -g --defined-only {} + 2>/dev/null |
+	grep -q ' payload_mm_authvar_mor_probe_entry$'
 
 printf '%s\n' 'Payload-MM MOR entry probe orchestration tests: PASS'
