@@ -24,6 +24,7 @@ struct vtd_transition_facts {
 	bool coherent;
 };
 
+/* Probe is read-only and requires only io->read32. */
 int vtd_transition_probe(const struct vtd_transition_io *io,
 	struct vtd_transition_facts *facts);
 int vtd_transition_from_pmr(const struct vtd_transition_io *io,
