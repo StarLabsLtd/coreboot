@@ -26,6 +26,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
@@ -35,6 +36,8 @@ for optimization in 0 2; do
 	for test_case in success binding header source index output; do
 		ASAN_OPTIONS=detect_leaks=1 "$binary" "candidate-$test_case"
 	done
+	ASAN_OPTIONS=detect_leaks=1 "$binary" candidate-uninstalled
+	ASAN_OPTIONS=detect_leaks=1 "$binary" candidate-corrupt-policy
 	for reject in generation token runtime binding-reserved policy source-used \
 		candidate-used count modes mode-setup mode-secure mode-vendor \
 		result-reserved source-digest \
@@ -88,6 +91,7 @@ mutation_test_file()
 			"$root/tests/lib/payload_mm_authvar_executor_test.c" "$mutant" \
 			"$root/src/lib/payload_mm_authvar_candidate.c" \
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
+			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_format.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
@@ -266,6 +270,7 @@ cc -std=gnu11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_candidate.c" \
 	"$root/src/lib/payload_mm_authvar_bundle.c" \
+	"$root/src/lib/payload_mm_authvar_mode.c" \
 	"$root/src/lib/payload_mm_authvar_format.c" \
 	"$root/src/lib/payload_mm_authvar_ftw.c" \
 	"$root/src/lib/payload_mm_authvar_store.c" \

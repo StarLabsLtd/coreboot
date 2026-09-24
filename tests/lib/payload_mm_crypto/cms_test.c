@@ -24,6 +24,30 @@ enum {
 };
 
 static int failures;
+static bool begin_claim_hook_armed;
+static bool begin_claim_abort_result;
+static bool abort_load_hook_armed;
+static enum payload_mm_verify_status abort_load_begin_status;
+static struct payload_mm_crypto_owner abort_load_snapshot;
+
+void payload_mm_crypto_test_begin_claimed(
+	struct payload_mm_crypto_owner *owner)
+{
+	(void)owner;
+	if (!begin_claim_hook_armed)
+		return;
+	begin_claim_hook_armed = false;
+	begin_claim_abort_result = payload_mm_crypto_abort_active();
+}
+
+void payload_mm_crypto_test_abort_loaded(struct payload_mm_crypto_owner *owner)
+{
+	if (!abort_load_hook_armed)
+		return;
+	abort_load_hook_armed = false;
+	abort_load_begin_status = payload_mm_crypto_begin(owner);
+	memcpy(&abort_load_snapshot, owner, sizeof(abort_load_snapshot));
+}
 
 static void expect(bool condition, const char *message)
 {
@@ -189,6 +213,153 @@ static void check_arena_bounds(void)
 	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
 		PAYLOAD_MM_VERIFY_NO_MEMORY && arena_is_zero(&owner),
 		"arena-size failure did not unwind");
+}
+
+static void check_owner_abort(void)
+{
+	static struct payload_mm_crypto_owner owner;
+	static struct payload_mm_crypto_owner stranger;
+	size_t retained_count;
+
+	expect(payload_mm_crypto_owner_is_clean(&owner),
+		"zero crypto owner was not clean");
+	expect(payload_mm_crypto_begin(&owner) == PAYLOAD_MM_VERIFY_OK,
+		"could not start normal crypto owner telemetry test");
+	expect(payload_mm_crypto_calloc(17U, 1U) != NULL,
+		"normal crypto owner telemetry allocation failed");
+	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK,
+		"normal crypto owner telemetry end failed");
+	retained_count = owner.allocation_count;
+	expect(retained_count == 1U && arena_is_zero(&owner) && !owner.busy,
+		"normal crypto owner telemetry was not retained cleanly");
+	expect(payload_mm_crypto_owner_is_clean(&owner) &&
+		owner.allocation_count == retained_count,
+		"clean-owner check rejected retained allocation telemetry");
+	expect(payload_mm_crypto_begin(&owner) == PAYLOAD_MM_VERIFY_OK,
+		"could not start mismatched crypto end test");
+	expect(payload_mm_crypto_calloc(19U, 1U) != NULL,
+		"mismatched crypto end allocation failed");
+	expect(!payload_mm_crypto_owner_is_clean(&owner) && owner.busy &&
+		owner.arena_used != 0U,
+		"clean-owner check altered or accepted active owner");
+	expect(!payload_mm_crypto_owner_is_clean(&stranger) && !stranger.busy &&
+		stranger.arena_used == 0U,
+		"clean-owner check altered clean owner during alternate activity");
+	expect(payload_mm_crypto_end(&stranger, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_INTERNAL,
+		"mismatched crypto end did not fail internally");
+	expect(owner.busy && owner.arena_used != 0U && !stranger.busy &&
+		stranger.arena_used == 0U,
+		"mismatched crypto end altered an owner");
+	expect(payload_mm_crypto_begin(&stranger) == PAYLOAD_MM_VERIFY_BUSY,
+		"mismatched crypto end released active owner");
+	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK && payload_mm_crypto_idle(),
+		"exact crypto end did not clean after mismatch");
+	owner.arena[0] = 1U;
+	expect(!payload_mm_crypto_owner_is_clean(&owner) && owner.arena[0] == 1U,
+		"clean-owner check altered or accepted dirty arena");
+	expect(payload_mm_crypto_abort(&owner),
+		"dirty arena cleanup failed");
+	owner.arena_used = 1U;
+	expect(!payload_mm_crypto_owner_is_clean(&owner) && owner.arena_used == 1U,
+		"clean-owner check altered or accepted arena usage");
+	expect(payload_mm_crypto_abort(&owner),
+		"dirty arena-usage cleanup failed");
+	owner.allocation_failed = true;
+	expect(!payload_mm_crypto_owner_is_clean(&owner) && owner.allocation_failed,
+		"clean-owner check altered or accepted allocation failure");
+	expect(payload_mm_crypto_abort(&owner),
+		"dirty allocation-failure cleanup failed");
+	owner.busy = true;
+	expect(!payload_mm_crypto_owner_is_clean(&owner) && owner.busy,
+		"clean-owner check altered or accepted busy owner");
+	expect(payload_mm_crypto_abort(&owner),
+		"dirty busy-owner cleanup failed");
+	memset(stranger.arena, 0xa5, sizeof(stranger.arena));
+	stranger.arena_used = sizeof(stranger.arena);
+	stranger.allocation_count = 4U;
+	stranger.allocation_failed = true;
+	stranger.busy = true;
+	expect(payload_mm_crypto_abort(&stranger),
+		"inactive dirty crypto owner abort failed");
+	expect(arena_is_zero(&stranger) && !stranger.busy &&
+		stranger.arena_used == 0U && stranger.allocation_count == 0U &&
+		!stranger.allocation_failed,
+		"inactive dirty crypto owner retained protected state");
+	memset(stranger.arena, 0x3c, sizeof(stranger.arena));
+	stranger.arena_used = 32U;
+	stranger.allocation_count = 7U;
+	stranger.allocation_failed = true;
+	stranger.busy = true;
+
+	expect(payload_mm_crypto_begin(&owner) == PAYLOAD_MM_VERIFY_OK,
+		"could not start abandoned crypto owner test");
+	expect(payload_mm_crypto_calloc(17U, 1U) != NULL,
+		"abandoned crypto owner allocation failed");
+	expect(!payload_mm_crypto_abort(&stranger),
+		"mismatched crypto owner released active owner");
+	expect(stranger.busy && stranger.arena_used == 32U &&
+		stranger.allocation_count == 7U && stranger.allocation_failed &&
+		stranger.arena[0] == 0x3c,
+		"mismatched crypto abort altered inactive owner");
+	expect(payload_mm_crypto_begin(&stranger) == PAYLOAD_MM_VERIFY_BUSY,
+		"mismatched abort released a different active owner");
+	expect(owner.busy && owner.arena_used != 0U,
+		"mismatched crypto owner altered active owner");
+	expect(payload_mm_crypto_abort(&owner),
+		"active crypto owner abort failed");
+	expect(arena_is_zero(&owner) && !owner.busy &&
+		owner.arena_used == 0U && owner.allocation_count == 0U &&
+		!owner.allocation_failed,
+		"active crypto owner abort retained protected state");
+	expect(payload_mm_crypto_abort(&stranger),
+		"dirty inactive stranger cleanup failed after mismatch test");
+	expect(payload_mm_crypto_abort(&owner),
+		"inactive clean crypto owner could not be claimed and reset");
+	expect(payload_mm_crypto_begin(&owner) == PAYLOAD_MM_VERIFY_OK,
+		"crypto owner remained wedged after abort");
+	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK,
+		"crypto owner could not finish after abort recovery");
+	expect(payload_mm_crypto_idle(),
+		"crypto global state not idle after normal end");
+	begin_claim_hook_armed = true;
+	begin_claim_abort_result = true;
+	expect(payload_mm_crypto_begin(&owner) == PAYLOAD_MM_VERIFY_OK &&
+		!begin_claim_hook_armed && !begin_claim_abort_result && owner.busy,
+		"begin guard did not exclude abort-active transition");
+	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK,
+		"begin guard interleaving did not finish cleanly");
+	memset(&owner, 0, sizeof(owner));
+	abort_load_hook_armed = true;
+	abort_load_begin_status = PAYLOAD_MM_VERIFY_INTERNAL;
+	expect(!payload_mm_crypto_abort(&owner) && !abort_load_hook_armed &&
+		abort_load_begin_status == PAYLOAD_MM_VERIFY_OK,
+		"abort did not reject owner acquired after its idle load");
+	expect(owner.busy && !payload_mm_crypto_idle() &&
+		!memcmp(&abort_load_snapshot, &owner, sizeof(owner)),
+		"failed abort CAS altered the newly active owner");
+	expect(payload_mm_crypto_end(&owner, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK && payload_mm_crypto_idle(),
+		"owner acquired during abort could not end cleanly");
+	expect(payload_mm_crypto_begin(&stranger) == PAYLOAD_MM_VERIFY_OK,
+		"could not start alternate active-owner cleanup test");
+	expect(payload_mm_crypto_calloc(31U, 1U) != NULL,
+		"alternate active-owner allocation failed");
+	expect(payload_mm_crypto_abort_active(),
+		"alternate active owner was not aborted");
+	expect(payload_mm_crypto_idle() && arena_is_zero(&stranger) &&
+		!stranger.busy && stranger.arena_used == 0U &&
+		stranger.allocation_count == 0U,
+		"alternate active owner retained protected state");
+	expect(payload_mm_crypto_begin(&stranger) == PAYLOAD_MM_VERIFY_OK,
+		"alternate owner remained wedged after global abort");
+	expect(payload_mm_crypto_end(&stranger, PAYLOAD_MM_VERIFY_OK) ==
+		PAYLOAD_MM_VERIFY_OK,
+		"alternate owner could not finish after global abort");
 }
 
 static size_t wrap_sequence(uint8_t *storage, size_t offset, size_t size)
@@ -684,6 +855,7 @@ int main(int argc, char **argv)
 	check_der_bounds();
 	check_time_bounds();
 	check_arena_bounds();
+	check_owner_abort();
 	check_signed_artifacts(argv[1]);
 	if (argc == 3)
 		check_real_capsule(argv[1], argv[2]);

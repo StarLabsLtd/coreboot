@@ -6,12 +6,18 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 #include <boot/payload_mm_authvar_record.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#include <boot/payload_mm_authvar_signature_db.h>
+#endif
 #include <boot/payload_mm_authvar_service.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include "../../src/lib/payload_mm_authvar_internal.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#include "../../src/lib/payload_mm_authvar_coordinator.h"
+#endif
 #include "payload_mm_authvar_policy_test_provider.h"
 #ifdef EXECUTOR_REAL_MEDIA
 #include <boot/payload_mm_authvar.h>
@@ -75,6 +81,22 @@ enum test_callback_kind {
 };
 static uint8_t callback_trace[256];
 static unsigned int callback_trace_count;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+enum coordinator_media_attack {
+	COORDINATOR_MEDIA_ATTACK_NONE,
+	COORDINATOR_MEDIA_ATTACK_RESULT,
+	COORDINATOR_MEDIA_ATTACK_CONTEXT,
+	COORDINATOR_MEDIA_ATTACK_OWNER_DIRTY,
+	COORDINATOR_MEDIA_ATTACK_ALTERNATE_OWNER,
+};
+static enum coordinator_media_attack coordinator_media_attack;
+static enum test_callback_kind coordinator_media_attack_callback;
+static struct payload_mm_authvar_coordinator_test_result *
+	coordinator_media_result;
+static struct payload_mm_crypto_owner *coordinator_media_owner;
+static struct payload_mm_crypto_owner *coordinator_media_alternate_owner;
+static uint8_t *coordinator_media_context;
+#endif
 #if !defined(EXECUTOR_REAL_MEDIA) || CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 static enum payload_mm_authvar_media_result generic_fault_result =
 	PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -164,6 +186,120 @@ static unsigned int tail_read_count;
 #endif
 #ifndef EXECUTOR_REAL_MEDIA
 static unsigned int fake_erased_reads;
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static enum payload_mm_verify_status coordinator_verify_status;
+static struct payload_mm_crypto_owner *coordinator_active_owner;
+
+enum payload_mm_verify_status payload_mm_crypto_begin(
+	struct payload_mm_crypto_owner *owner)
+{
+	if (!owner)
+		return PAYLOAD_MM_VERIFY_INVALID;
+	if (owner->busy || coordinator_active_owner)
+		return PAYLOAD_MM_VERIFY_BUSY;
+	coordinator_active_owner = owner;
+	owner->busy = true;
+	owner->arena_used = 0U;
+	owner->allocation_count = 0U;
+	owner->allocation_failed = false;
+	memset(owner->arena, 0, sizeof(owner->arena));
+	return PAYLOAD_MM_VERIFY_OK;
+}
+
+bool payload_mm_crypto_abort(struct payload_mm_crypto_owner *owner)
+{
+	if (!owner)
+		return false;
+	if (coordinator_active_owner && coordinator_active_owner != owner)
+		return false;
+	memset(owner->arena, 0, sizeof(owner->arena));
+	owner->arena_used = 0U;
+	owner->allocation_count = 0U;
+	owner->allocation_failed = false;
+	owner->busy = false;
+	coordinator_active_owner = NULL;
+	return true;
+}
+
+enum payload_mm_verify_status payload_mm_crypto_end(
+	struct payload_mm_crypto_owner *owner,
+	enum payload_mm_verify_status status)
+{
+	if (!owner || coordinator_active_owner != owner)
+		return PAYLOAD_MM_VERIFY_INTERNAL;
+	if (owner->allocation_failed)
+		status = PAYLOAD_MM_VERIFY_NO_MEMORY;
+	memset(owner->arena, 0, sizeof(owner->arena));
+	owner->arena_used = 0U;
+	owner->allocation_failed = false;
+	owner->busy = false;
+	coordinator_active_owner = NULL;
+	return status;
+}
+
+bool payload_mm_crypto_idle(void)
+{
+	return coordinator_active_owner == NULL;
+}
+
+bool payload_mm_crypto_owner_is_clean(
+	const struct payload_mm_crypto_owner *owner)
+{
+	uint8_t combined = 0U;
+
+	if (!owner || coordinator_active_owner)
+		return false;
+	for (size_t index = 0U; index < sizeof(owner->arena); index++)
+		combined |= owner->arena[index];
+	return !owner->arena_used && !owner->busy &&
+		!owner->allocation_failed && combined == 0U;
+}
+
+bool payload_mm_crypto_abort_active(void)
+{
+	struct payload_mm_crypto_owner *owner = coordinator_active_owner;
+
+	if (!owner)
+		return false;
+	memset(owner->arena, 0, sizeof(owner->arena));
+	owner->arena_used = 0U;
+	owner->allocation_count = 0U;
+	owner->allocation_failed = false;
+	owner->busy = false;
+	coordinator_active_owner = NULL;
+	return true;
+}
+
+enum payload_mm_verify_status payload_mm_authvar_signature_db_validate(
+	struct payload_mm_crypto_owner *owner, const void *data, size_t size,
+	enum payload_mm_authvar_signature_db_profile profile,
+	uint32_t maximum_x509, struct payload_mm_authvar_signature_db_stats *stats)
+{
+	(void)owner;
+	(void)profile;
+	(void)maximum_x509;
+	(void)stats;
+	if (!data || !size)
+		abort();
+	return PAYLOAD_MM_VERIFY_OK;
+}
+
+enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
+	struct payload_mm_crypto_owner *owner, const void *current,
+	size_t current_size, const void *append, size_t append_size,
+	void *output, size_t output_capacity, size_t *output_size)
+{
+	(void)owner;
+	if (!current || !current_size || !append || !output || !output_size)
+		abort();
+	if (append_size > output_capacity)
+		return PAYLOAD_MM_VERIFY_NO_MEMORY;
+	memcpy(output, append, append_size);
+	*output_size = append_size;
+	return PAYLOAD_MM_VERIFY_OK;
+}
 #endif
 
 #ifdef EXECUTOR_SCAN_WRAP
@@ -332,6 +468,32 @@ static bool fault(enum test_callback_kind kind)
 	operation_count++;
 	assert(callback_trace_count < ARRAY_SIZE(callback_trace));
 	callback_trace[callback_trace_count++] = (uint8_t)kind;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (kind == coordinator_media_attack_callback) {
+		switch (coordinator_media_attack) {
+		case COORDINATOR_MEDIA_ATTACK_RESULT:
+			coordinator_media_result->status ^= 1U;
+			break;
+		case COORDINATOR_MEDIA_ATTACK_CONTEXT:
+			coordinator_media_context[0] ^= 1U;
+			break;
+		case COORDINATOR_MEDIA_ATTACK_OWNER_DIRTY:
+			coordinator_media_owner->arena[0] = 0xa5U;
+			coordinator_media_owner->arena_used = 1U;
+			break;
+		case COORDINATOR_MEDIA_ATTACK_ALTERNATE_OWNER:
+			assert(payload_mm_crypto_begin(
+				coordinator_media_alternate_owner) ==
+				PAYLOAD_MM_VERIFY_OK);
+			coordinator_media_alternate_owner->arena[0] = 0xa5U;
+			coordinator_media_alternate_owner->arena_used = 1U;
+			break;
+		case COORDINATOR_MEDIA_ATTACK_NONE:
+			break;
+		}
+		coordinator_media_attack = COORDINATOR_MEDIA_ATTACK_NONE;
+	}
+#endif
 #ifdef EXECUTOR_REAL_MEDIA
 	if (reset_operation && operation_count == reset_operation)
 		_exit(77);
@@ -1469,6 +1631,8 @@ static uint64_t prepare_candidate(
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
+static uint8_t candidate_source_vendor_value;
+
 static void make_candidate_source(void)
 {
 	static const uint8_t vknv_guid[16] = {
@@ -1479,7 +1643,6 @@ static void make_candidate_source(void)
 		'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
 		'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
 	};
-	static const uint8_t value = 0;
 	struct payload_mm_authvar_record_descriptor descriptor = {
 		.name = vknv_name,
 		.name_size = sizeof(vknv_name),
@@ -1488,8 +1651,8 @@ static void make_candidate_source(void)
 			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
 	};
 	const struct payload_mm_authvar_record_span span = {
-		.data = &value,
-		.size = sizeof(value),
+		.data = &candidate_source_vendor_value,
+		.size = sizeof(candidate_source_vendor_value),
 	};
 	uint32_t record_size;
 
@@ -1549,6 +1712,35 @@ static void candidate_commit_case(enum candidate_prepare_mode mode,
 		assert(status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 		assert(published_modes == 0U && !cache_bound);
 	}
+}
+
+static void candidate_admission_case(bool corrupt_policy)
+{
+	struct candidate_prepare_context context = {
+		.mode = CANDIDATE_PREPARE_OK,
+	};
+	u8 published_modes = 0xffU;
+
+	context.published_modes = &published_modes;
+	make_candidate_source();
+	if (corrupt_policy) {
+		install();
+		payload_mm_authvar_executor_test_corrupt_policy(true);
+	}
+	assert(payload_mm_authvar_executor_test_commit_candidate(
+		prepare_candidate, &context, PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+		&published_modes) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(published_modes == 0U && begin_count == 0U && end_count == 0U &&
+		read_count == 0U && program_count == 0U && erase_count == 0U &&
+		operation_count == 0U && callback_trace_count == 0U &&
+		cache_bind_count == 0U);
+	if (corrupt_policy)
+		payload_mm_authvar_executor_test_corrupt_policy(false);
+	else
+		install();
+	assert(payload_mm_authvar_executor_test_commit_candidate(
+		prepare_candidate, &context, PAYLOAD_MM_AUTHVAR_MODE_SETUP,
+		&published_modes) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 }
 
 static void candidate_media_error_case(enum candidate_media_fault_kind kind,
@@ -1801,6 +1993,1417 @@ static void reset_candidate_commit(unsigned int cut, unsigned int recovery_cut,
 #endif
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static const uint8_t coordinator_global_guid[16] = {
+	0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+	0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+};
+static const uint8_t coordinator_pkcs7_guid[16] = {
+	0x9d, 0xd2, 0xaf, 0x4a, 0xdf, 0x68, 0xee, 0x49,
+	0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7,
+};
+static const uint8_t coordinator_pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
+static const uint8_t coordinator_kek_name[] = {
+	'K', 0, 'E', 0, 'K', 0, 0, 0,
+};
+static const uint8_t coordinator_vendor_guid[16] = {
+	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
+	0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
+};
+static const uint8_t coordinator_vendor_name[] = {
+	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
+	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
+};
+static const uint8_t coordinator_enable_guid[16] = {
+	0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
+	0x99, 0xc4, 0x00, 0x10, 0x09, 0xc9, 0x3a, 0x44,
+};
+static const uint8_t coordinator_enable_name[] = {
+	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
+	'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0,
+	0, 0,
+};
+static const uint8_t coordinator_custom_guid[16] = {
+	0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
+	0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f,
+};
+static const uint8_t coordinator_custom_name[] = {
+	'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
+	'd', 0, 'e', 0, 0, 0,
+};
+static struct payload_mm_crypto_owner coordinator_owner;
+static struct payload_mm_crypto_owner coordinator_alternate_owner;
+static unsigned int coordinator_verify_calls;
+static unsigned int coordinator_verify_operation;
+static struct payload_mm_authvar_coordinator_test_request *coordinator_descriptor;
+static struct payload_mm_authvar_coordinator_test_result *coordinator_result;
+static struct payload_mm_authvar_policy_request *coordinator_policy_request;
+static uint8_t *coordinator_context;
+
+enum coordinator_attack {
+	COORDINATOR_ATTACK_NONE,
+	COORDINATOR_ATTACK_OWNER_ABANDON,
+	COORDINATOR_ATTACK_ALTERNATE_OWNER_ABANDON,
+	COORDINATOR_ATTACK_OWNER_DIRTY,
+	COORDINATOR_ATTACK_DESCRIPTOR,
+	COORDINATOR_ATTACK_REQUEST,
+	COORDINATOR_ATTACK_NAME,
+	COORDINATOR_ATTACK_DATA,
+	COORDINATOR_ATTACK_CONTEXT,
+	COORDINATOR_ATTACK_INTERNAL_CONTEXT,
+	COORDINATOR_ATTACK_RESULT,
+};
+
+static enum coordinator_attack coordinator_attack;
+
+static size_t coordinator_auth2(uint8_t *data, const void *payload,
+	size_t payload_size)
+{
+	memset(data, 0, 41U + payload_size);
+	put16(data, 2026U);
+	data[2] = 9U;
+	data[3] = 23U;
+	data[6] = 1U;
+	put32(data + 16U, 25U);
+	put16(data + 20U, 0x0200U);
+	put16(data + 22U, 0x0ef1U);
+	memcpy(data + 24U, coordinator_pkcs7_guid,
+		sizeof(coordinator_pkcs7_guid));
+	data[40] = 0x30U;
+	memcpy(data + 41U, payload, payload_size);
+	return 41U + payload_size;
+}
+
+static enum payload_mm_verify_status coordinator_verify(void *context,
+	const struct payload_mm_authvar_authority_verify_request *request,
+	enum payload_mm_authvar_authority *accepted)
+{
+	assert(request->owner == &coordinator_owner);
+	assert(coordinator_result->status ==
+		PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING &&
+		coordinator_result->outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		coordinator_result->volatile_modes == 0U &&
+		coordinator_result->completion == PAYLOAD_MM_AUTHVAR_SERVICE_PENDING);
+	for (size_t i = 0U; i < sizeof(coordinator_result->reserved); i++)
+		assert(coordinator_result->reserved[i] == 0U);
+	coordinator_verify_calls++;
+	coordinator_verify_operation = operation_count;
+	assert(payload_mm_crypto_begin(&coordinator_owner) ==
+		PAYLOAD_MM_VERIFY_OK);
+	coordinator_owner.arena[0] = 0x5aU;
+	coordinator_owner.arena_used = 1U;
+	coordinator_owner.allocation_count = 1U;
+	assert(payload_mm_crypto_end(&coordinator_owner,
+		PAYLOAD_MM_VERIFY_OK) == PAYLOAD_MM_VERIFY_OK);
+	switch (coordinator_attack) {
+	case COORDINATOR_ATTACK_OWNER_ABANDON:
+		assert(payload_mm_crypto_begin(&coordinator_owner) ==
+			PAYLOAD_MM_VERIFY_OK);
+		coordinator_owner.arena[0] = 0xa5U;
+		coordinator_owner.arena_used = 1U;
+		coordinator_owner.allocation_count = 1U;
+		break;
+	case COORDINATOR_ATTACK_ALTERNATE_OWNER_ABANDON:
+		assert(payload_mm_crypto_begin(&coordinator_alternate_owner) ==
+			PAYLOAD_MM_VERIFY_OK);
+		coordinator_alternate_owner.arena[0] = 0xa5U;
+		coordinator_alternate_owner.arena_used = 1U;
+		coordinator_alternate_owner.allocation_count = 1U;
+		break;
+	case COORDINATOR_ATTACK_OWNER_DIRTY:
+		coordinator_owner.arena[0] = 0xa5U;
+		coordinator_owner.arena_used = 1U;
+		break;
+	case COORDINATOR_ATTACK_DESCRIPTOR:
+		coordinator_descriptor->reserved[0] ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_REQUEST:
+		coordinator_policy_request->name_size ^= 2U;
+		break;
+	case COORDINATOR_ATTACK_NAME:
+		((uint8_t *)(uintptr_t)coordinator_policy_request->name)[0] ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_DATA:
+		((uint8_t *)(uintptr_t)coordinator_policy_request->data)[0] ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_CONTEXT:
+		coordinator_context[0] ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_INTERNAL_CONTEXT:
+		((uint8_t *)context)[0] ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_RESULT:
+		coordinator_result->status ^= 1U;
+		break;
+	case COORDINATOR_ATTACK_NONE:
+		break;
+	}
+	*accepted = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
+	return coordinator_verify_status;
+}
+
+struct coordinator_fixture {
+	uint8_t auth2[42];
+	uint8_t payload;
+	uint8_t kek_name[sizeof(coordinator_kek_name)]
+		__aligned(__BIGGEST_ALIGNMENT__);
+	uint8_t context[257];
+	struct payload_mm_authvar_policy_request policy_request;
+	struct payload_mm_authvar_coordinator_test_request request;
+	struct payload_mm_authvar_coordinator_test_result result;
+};
+
+#ifdef EXECUTOR_REAL_MEDIA
+static void coordinator_expected_candidate(
+	const struct coordinator_fixture *fixture, uint8_t expected[BLOCK_SIZE])
+{
+	struct payload_mm_authvar_store_entry source_entries[64];
+	struct payload_mm_authvar_store_index source = {
+		.entries = source_entries,
+		.entry_capacity = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(source_entries),
+	};
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = fixture->kek_name,
+		.name_size = sizeof(fixture->kek_name),
+		.attributes = fixture->policy_request.attributes,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = &fixture->payload,
+		.size = sizeof(fixture->payload),
+	};
+	uint8_t candidate[STORE_SIZE];
+	uint32_t record_size;
+
+	assert(payload_mm_authvar_store_scan(&source, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	memset(candidate, 0xff, sizeof(candidate));
+	memcpy(candidate, source.store, source.used_size);
+	memcpy(descriptor.vendor_guid, fixture->policy_request.vendor_guid,
+		sizeof(descriptor.vendor_guid));
+	memcpy(descriptor.timestamp, fixture->auth2,
+		sizeof(descriptor.timestamp));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		candidate + source.used_size, sizeof(candidate) - source.used_size,
+		&record_size));
+	candidate[source.used_size + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	memcpy(expected, media, FV_HEADER_SIZE);
+	memcpy(expected + FV_HEADER_SIZE, candidate, sizeof(candidate));
+}
+#endif
+
+static void coordinator_fixture_build(struct coordinator_fixture *fixture)
+{
+	memset(fixture, 0, sizeof(*fixture));
+	fixture->payload = 0xa5U;
+	memcpy(fixture->kek_name, coordinator_kek_name,
+		sizeof(fixture->kek_name));
+	fixture->context[0] = 0x3cU;
+	fixture->policy_request = (struct payload_mm_authvar_policy_request) {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		.name = coordinator_pk_name,
+		.name_size = sizeof(coordinator_pk_name),
+		.data = fixture->auth2,
+		.data_size = coordinator_auth2(fixture->auth2, &fixture->payload,
+			sizeof(fixture->payload)),
+	};
+	fixture->request = (struct payload_mm_authvar_coordinator_test_request) {
+		.revision = PAYLOAD_MM_AUTHVAR_COORDINATOR_TEST_REVISION,
+		.size = sizeof(fixture->request),
+		.request = &fixture->policy_request,
+		.owner = &coordinator_owner,
+		.verify = coordinator_verify,
+		.verify_context = fixture->context,
+		.verify_context_size = 1U,
+	};
+	memcpy(fixture->policy_request.vendor_guid, coordinator_global_guid,
+		sizeof(coordinator_global_guid));
+	memset(&coordinator_owner, 0, sizeof(coordinator_owner));
+	memset(&coordinator_alternate_owner, 0,
+		sizeof(coordinator_alternate_owner));
+	coordinator_verify_status = PAYLOAD_MM_VERIFY_OK;
+	coordinator_verify_calls = 0U;
+	coordinator_verify_operation = 0U;
+	coordinator_attack = COORDINATOR_ATTACK_NONE;
+	coordinator_descriptor = &fixture->request;
+	coordinator_result = &fixture->result;
+	coordinator_policy_request = &fixture->policy_request;
+	coordinator_context = fixture->context;
+	coordinator_media_attack = COORDINATOR_MEDIA_ATTACK_NONE;
+	coordinator_media_attack_callback = 0;
+	coordinator_media_result = &fixture->result;
+	coordinator_media_owner = &coordinator_owner;
+	coordinator_media_alternate_owner = &coordinator_alternate_owner;
+	coordinator_media_context = fixture->context;
+}
+
+static uint32_t coordinator_append_record(uint32_t offset,
+	const uint8_t guid[16], const uint8_t *name, size_t name_size,
+	uint32_t attributes, const uint8_t timestamp[16], const void *data,
+	size_t data_size, enum payload_mm_authvar_record_timestamp time_state)
+{
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = name,
+		.name_size = name_size,
+		.attributes = attributes,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = data,
+		.size = data_size,
+	};
+	uint32_t record_size;
+
+	memcpy(descriptor.vendor_guid, guid, sizeof(descriptor.vendor_guid));
+	memcpy(descriptor.timestamp, timestamp, sizeof(descriptor.timestamp));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		time_state, media + FV_HEADER_SIZE + offset, STORE_SIZE - offset,
+		&record_size));
+	media[FV_HEADER_SIZE + offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	return offset + record_size;
+}
+
+static void coordinator_make_user_source(const struct coordinator_fixture *fixture,
+	bool custom_mode)
+{
+	static const uint8_t zero_timestamp[16];
+	static const uint8_t one = 1U;
+	const uint32_t nv_bs = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+	uint32_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+
+	make_clean();
+	offset = coordinator_append_record(offset, coordinator_vendor_guid,
+		coordinator_vendor_name, sizeof(coordinator_vendor_name),
+		nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		zero_timestamp, &one, sizeof(one),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO);
+	offset = coordinator_append_record(offset, coordinator_global_guid,
+		coordinator_pk_name, sizeof(coordinator_pk_name),
+		nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		fixture->auth2, &fixture->payload, sizeof(fixture->payload),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+	offset = coordinator_append_record(offset, coordinator_enable_guid,
+		coordinator_enable_name, sizeof(coordinator_enable_name), nv_bs,
+		zero_timestamp, &one, sizeof(one),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+	if (custom_mode)
+		(void)coordinator_append_record(offset, coordinator_custom_guid,
+			coordinator_custom_name, sizeof(coordinator_custom_name), nv_bs,
+			zero_timestamp, &one, sizeof(one),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+}
+
+static void coordinator_fixture_init(struct coordinator_fixture *fixture)
+{
+	coordinator_fixture_build(fixture);
+	make_candidate_source();
+	install();
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture->request,
+		&fixture->result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture->result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		fixture->result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		fixture->result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		fixture->result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(program_count && erase_count);
+#ifndef EXECUTOR_REAL_MEDIA
+	assert(cache_bound && cache_bind_count == 1U);
+#endif
+	assert(begin_count == 1U && end_count == 1U && !poisoned);
+	assert(coordinator_verify_calls == 0U);
+	fixture->policy_request.name = fixture->kek_name;
+	fixture->policy_request.name_size = sizeof(coordinator_kek_name);
+}
+
+static void coordinator_success(void)
+{
+	struct coordinator_fixture fixture;
+
+	coordinator_fixture_init(&fixture);
+	memset(&fixture.result, 0xa5, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(coordinator_verify_calls == 1U && cache_bind_count == 2U);
+	assert(begin_count == 2U && end_count == 2U && !poisoned);
+	assert(coordinator_owner.allocation_count == 1U &&
+		payload_mm_crypto_idle());
+}
+
+static void coordinator_status_case(enum payload_mm_verify_status verify_status,
+	uint64_t expected_status, bool expected_poison)
+{
+	struct coordinator_fixture fixture;
+	unsigned int programs;
+	unsigned int erases;
+	unsigned int binds;
+
+	coordinator_fixture_init(&fixture);
+	coordinator_verify_status = verify_status;
+	programs = program_count;
+	erases = erase_count;
+	binds = cache_bind_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == expected_status);
+	assert(fixture.result.status == expected_status &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(coordinator_verify_calls == 1U);
+	assert(poisoned == expected_poison);
+	if (verify_status == PAYLOAD_MM_VERIFY_OK) {
+		assert(program_count > programs && erase_count > erases &&
+			cache_bind_count == binds + 1U);
+		assert(fixture.result.outcome ==
+			PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION);
+	} else {
+		assert(program_count == programs && erase_count == erases &&
+			cache_bind_count == binds);
+		assert(fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+			fixture.result.volatile_modes == 0U);
+	}
+	assert(payload_mm_crypto_idle() && !coordinator_owner.busy &&
+		!coordinator_owner.arena_used);
+}
+
+static void coordinator_no_write_case(bool append)
+{
+	struct coordinator_fixture fixture;
+	unsigned int programs;
+	unsigned int erases;
+	unsigned int begins;
+	unsigned int ends;
+	unsigned int binds;
+	uint64_t expected_status = append ? PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS :
+		PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+	uint32_t expected_outcome = append ? PAYLOAD_MM_AUTHVAR_OUTCOME_NOOP :
+		PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND;
+
+	coordinator_fixture_init(&fixture);
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2, NULL, 0U);
+	if (append)
+		fixture.policy_request.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	programs = program_count;
+	erases = erase_count;
+	binds = cache_bind_count;
+	begins = begin_count;
+	ends = end_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == expected_status);
+	assert(fixture.result.status == expected_status &&
+		fixture.result.outcome == expected_outcome &&
+		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(program_count == programs && erase_count == erases &&
+		cache_bind_count == binds && !cache_bound);
+	assert(begin_count == begins + 1U && end_count == ends + 1U &&
+		coordinator_verify_calls == 1U && !poisoned);
+}
+
+static void coordinator_assert_committed_original(void)
+{
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries,
+		.entry_capacity = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_entry *entry;
+	const uint8_t *data;
+
+	assert(payload_mm_authvar_store_scan(&index, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	entry = payload_mm_authvar_store_find(&index, coordinator_global_guid,
+		coordinator_kek_name, sizeof(coordinator_kek_name));
+	assert(entry && entry->data_size == 1U);
+	data = payload_mm_authvar_store_data(&index, entry);
+	assert(data && data[0] == 0xa5U);
+}
+
+static void coordinator_attack_case(enum coordinator_attack attack,
+	bool copied_bytes_may_change)
+{
+	struct coordinator_fixture fixture;
+	unsigned int programs;
+	unsigned int erases;
+	unsigned int begins;
+	unsigned int ends;
+	unsigned int binds;
+	uint64_t expected_status = copied_bytes_may_change ?
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS :
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+
+	coordinator_fixture_init(&fixture);
+	coordinator_attack = attack;
+	programs = program_count;
+	erases = erase_count;
+	binds = cache_bind_count;
+	begins = begin_count;
+	ends = end_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == expected_status);
+	assert(fixture.result.status == expected_status &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(coordinator_verify_calls == 1U && payload_mm_crypto_idle());
+	assert(!coordinator_owner.busy && !coordinator_owner.arena_used &&
+		!coordinator_alternate_owner.busy &&
+		!coordinator_alternate_owner.arena_used);
+	if (copied_bytes_may_change) {
+		assert(!poisoned && program_count > programs && erase_count > erases &&
+			cache_bind_count == binds + 1U &&
+			fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION);
+		coordinator_assert_committed_original();
+	} else {
+		assert(poisoned && program_count == programs && erase_count == erases &&
+			cache_bind_count == binds && !cache_bound &&
+			fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+			fixture.result.volatile_modes == 0U);
+	}
+	assert(begin_count == begins + 1U && end_count == ends + 1U);
+	assert(payload_mm_crypto_begin(&coordinator_alternate_owner) ==
+		PAYLOAD_MM_VERIFY_OK);
+	assert(payload_mm_crypto_end(&coordinator_alternate_owner,
+		PAYLOAD_MM_VERIFY_OK) == PAYLOAD_MM_VERIFY_OK);
+}
+
+static void coordinator_context_boundary(bool accepted)
+{
+	struct coordinator_fixture fixture;
+	unsigned int begins;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	fixture.request.verify_context_size = accepted ? 256U : 257U;
+	begins = begin_count;
+	programs = program_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == (accepted ? PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS :
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER));
+	if (accepted) {
+		assert(coordinator_verify_calls == 1U && begin_count == begins + 1U &&
+			program_count > programs);
+	} else {
+		assert(coordinator_verify_calls == 0U && begin_count == begins &&
+			program_count == programs);
+	}
+}
+
+static void coordinator_runtime_pk_delete(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request lifecycle = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+	};
+	struct payload_mm_authvar_policy_result lifecycle_result;
+	uint8_t expected_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+
+	coordinator_fixture_init(&fixture);
+	assert(payload_mm_authvar_policy_transaction(&lifecycle,
+		&lifecycle_result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(lifecycle_result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		lifecycle_result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	fixture.policy_request.name = coordinator_pk_name;
+	fixture.policy_request.name_size = sizeof(coordinator_pk_name);
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2, NULL, 0U);
+	fixture.auth2[6] = 2U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		fixture.result.volatile_modes == expected_modes && !poisoned);
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2, NULL, 0U);
+	fixture.auth2[6] = 3U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND &&
+		fixture.result.volatile_modes == expected_modes &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		!poisoned);
+	/* SetupMode bypass applies after runtime PK deletion. */
+	assert(coordinator_verify_calls == 1U);
+}
+
+static void coordinator_runtime_missing_enable(void)
+{
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries,
+		.entry_capacity = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(entries),
+	};
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request lifecycle = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+	};
+	struct payload_mm_authvar_policy_result lifecycle_result;
+	const struct payload_mm_authvar_store_entry *enable;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	assert(payload_mm_authvar_policy_transaction(&lifecycle,
+		&lifecycle_result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(payload_mm_authvar_store_scan(&index, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	enable = payload_mm_authvar_mode_find(&index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
+	assert(enable);
+	media[FV_HEADER_SIZE + enable->record_offset + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	programs = program_count;
+	coordinator_verify_calls = 0U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		coordinator_verify_calls == 0U && program_count == programs && poisoned);
+}
+
+static uint8_t coordinator_vendor_value(void)
+{
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries,
+		.entry_capacity = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(entries),
+	};
+	uint8_t value;
+
+	assert(payload_mm_authvar_store_scan(&index, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	assert(payload_mm_authvar_mode_value(&index,
+		PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED, &value));
+	return value;
+}
+
+static void coordinator_vendor_reconcile(void)
+{
+	struct coordinator_fixture fixture;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, true);
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	fixture.request.trusted_physical_presence = 1U;
+	install();
+	assert(coordinator_vendor_value() == 1U);
+	fail_end = true;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		coordinator_verify_calls == 0U && !poisoned && !cache_bound &&
+		coordinator_vendor_value() == 0U);
+	fail_end = false;
+	fixture.payload = 0x5aU;
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		&fixture.payload, sizeof(fixture.payload));
+	fixture.auth2[6] = 2U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		coordinator_verify_calls == 0U && coordinator_vendor_value() == 0U &&
+		!poisoned);
+}
+
+static void coordinator_end_failure_recovery(void)
+{
+	struct coordinator_fixture fixture;
+
+	memset(&fixture, 0, sizeof(fixture));
+	fixture.payload = 0xa5U;
+	fixture.context[0] = 0x3cU;
+	memcpy(fixture.kek_name, coordinator_kek_name,
+		sizeof(fixture.kek_name));
+	fixture.policy_request = (struct payload_mm_authvar_policy_request) {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		.name = coordinator_pk_name,
+		.name_size = sizeof(coordinator_pk_name),
+		.data = fixture.auth2,
+		.data_size = coordinator_auth2(fixture.auth2, &fixture.payload, 1U),
+	};
+	memcpy(fixture.policy_request.vendor_guid, coordinator_global_guid, 16U);
+	fixture.request = (struct payload_mm_authvar_coordinator_test_request) {
+		.revision = PAYLOAD_MM_AUTHVAR_COORDINATOR_TEST_REVISION,
+		.size = sizeof(fixture.request),
+		.request = &fixture.policy_request,
+		.owner = &coordinator_owner,
+		.verify = coordinator_verify,
+		.verify_context = fixture.context,
+		.verify_context_size = 1U,
+	};
+	memset(&coordinator_owner, 0, sizeof(coordinator_owner));
+	memset(&coordinator_alternate_owner, 0,
+		sizeof(coordinator_alternate_owner));
+	coordinator_verify_status = PAYLOAD_MM_VERIFY_OK;
+	coordinator_verify_calls = 0U;
+	coordinator_attack = COORDINATOR_ATTACK_NONE;
+	coordinator_descriptor = &fixture.request;
+	coordinator_result = &fixture.result;
+	coordinator_policy_request = &fixture.policy_request;
+	coordinator_context = fixture.context;
+	make_candidate_source();
+	install();
+	fail_end = true;
+	generic_fault_result = PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		!cache_bound && !poisoned);
+	assert(begin_count == 1U && end_count == 1U && program_count && erase_count);
+	fail_end = false;
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		fixture.result.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT &&
+		!poisoned);
+	assert(begin_count == 2U && end_count == 2U);
+}
+
+static void coordinator_runtime_end_failure(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request lifecycle = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+	};
+	struct payload_mm_authvar_policy_result lifecycle_result;
+	uint8_t expected_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+
+	coordinator_fixture_init(&fixture);
+	assert(payload_mm_authvar_policy_transaction(&lifecycle,
+		&lifecycle_result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	fixture.policy_request.name = coordinator_pk_name;
+	fixture.policy_request.name_size = sizeof(coordinator_pk_name);
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2, NULL, 0U);
+	fixture.auth2[6] = 2U;
+	fail_end = true;
+	generic_fault_result = PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		!cache_bound && !poisoned);
+	fail_end = false;
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2, NULL, 0U);
+	fixture.auth2[6] = 3U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	assert(fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NOT_FOUND &&
+		fixture.result.volatile_modes == expected_modes && !poisoned);
+}
+
+static void coordinator_preexisting_crypto_owner(void)
+{
+	struct coordinator_fixture fixture;
+	unsigned int begins;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	assert(payload_mm_crypto_begin(&coordinator_alternate_owner) ==
+		PAYLOAD_MM_VERIFY_OK);
+	coordinator_alternate_owner.arena[0] = 0xa5U;
+	coordinator_alternate_owner.arena_used = 1U;
+	coordinator_alternate_owner.allocation_count = 1U;
+	begins = begin_count;
+	programs = program_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		begin_count == begins && program_count == programs && !poisoned);
+	assert(coordinator_alternate_owner.busy &&
+		coordinator_alternate_owner.arena_used == 1U &&
+		!payload_mm_crypto_idle());
+	assert(payload_mm_crypto_end(&coordinator_alternate_owner,
+		PAYLOAD_MM_VERIFY_OK) == PAYLOAD_MM_VERIFY_OK &&
+		payload_mm_crypto_idle());
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+}
+
+static void coordinator_admission_matrix(void)
+{
+	static union {
+		struct payload_mm_crypto_owner alignment;
+		uint8_t bytes[sizeof(struct payload_mm_crypto_owner) + 64U];
+	} overlap;
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_coordinator_test_request base_request;
+	struct payload_mm_authvar_policy_request base_policy;
+	struct payload_mm_authvar_coordinator_test_result untouched;
+	struct payload_mm_authvar_coordinator_test_result *result;
+	unsigned int begins;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	base_request = fixture.request;
+	base_policy = fixture.policy_request;
+	memset(&untouched, 0xa5, sizeof(untouched));
+	for (unsigned int test = 0U; test < 20U; test++) {
+		fixture.request = base_request;
+		fixture.policy_request = base_policy;
+		memcpy(&fixture.result, &untouched, sizeof(untouched));
+		result = &fixture.result;
+		switch (test) {
+		case 0U:
+			fixture.request.revision++;
+			break;
+		case 1U:
+			fixture.request.size--;
+			break;
+		case 2U:
+			fixture.request.reserved[0] = 1U;
+			break;
+		case 3U:
+			fixture.request.trusted_physical_presence = 2U;
+			break;
+		case 4U:
+			fixture.request.verify_context = NULL;
+			break;
+		case 5U:
+			fixture.request.owner =
+				(struct payload_mm_crypto_owner *)((uint8_t *)&coordinator_owner + 1U);
+			break;
+		case 6U:
+			fixture.request.request =
+				(const struct payload_mm_authvar_policy_request *)
+				((const uint8_t *)&fixture.policy_request + 1U);
+			break;
+		case 7U:
+			result = (struct payload_mm_authvar_coordinator_test_result *)
+				(void *)&fixture.request;
+			break;
+		case 8U:
+			fixture.policy_request.data = fixture.policy_request.name;
+			fixture.policy_request.data_size = 1U;
+			break;
+		case 9U:
+			fixture.request.verify_context = &coordinator_owner;
+			fixture.request.verify_context_size = 1U;
+			break;
+		case 10U:
+			fixture.policy_request.name = NULL;
+			fixture.policy_request.name_size = 0U;
+			break;
+		case 11U:
+			fixture.policy_request.data = NULL;
+			fixture.policy_request.data_size = 0U;
+			break;
+		case 12U:
+			fixture.request.verify_context_size = 257U;
+			break;
+		case 13U:
+			fixture.request.request = NULL;
+			break;
+		case 14U:
+			fixture.request.owner = NULL;
+			break;
+		case 15U:
+			fixture.request.verify = NULL;
+			break;
+		case 16U:
+			fixture.request.verify_context_size = 0U;
+			break;
+		case 17U:
+			fixture.policy_request.name_size = 129U;
+			break;
+		case 18U:
+			fixture.policy_request.data_size = 2049U;
+			break;
+		case 19U:
+			fixture.policy_request.name =
+				(const void *)(uintptr_t)(UINTPTR_MAX - 1U);
+			fixture.policy_request.name_size = 4U;
+			break;
+		}
+		begins = begin_count;
+		programs = program_count;
+		assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		assert(begin_count == begins && program_count == programs &&
+			coordinator_verify_calls == 0U && !poisoned);
+		if (result == &fixture.result)
+			assert(!memcmp(&fixture.result, &untouched, sizeof(untouched)));
+	}
+	for (unsigned int left = 0U; left < 7U; left++) {
+		for (unsigned int right = left + 1U; right < 7U; right++) {
+			uint8_t spans[14];
+			const void *parts[7];
+			size_t sizes[7];
+
+			for (size_t part = 0U; part < 7U; part++) {
+				parts[part] = &spans[part * 2U];
+				sizes[part] = 1U;
+			}
+			parts[right] = parts[left];
+			assert(!payload_mm_authvar_executor_test_coordinator_spans(parts,
+				sizes));
+		}
+	}
+	{
+		uint8_t spans[14];
+		const void *parts[7];
+		size_t sizes[7];
+
+		for (size_t part = 0U; part < 7U; part++) {
+			parts[part] = &spans[part * 2U];
+			sizes[part] = 2U;
+		}
+		assert(payload_mm_authvar_executor_test_coordinator_spans(parts, sizes));
+	}
+	assert(payload_mm_authvar_executor_test_coordinator_lengths(128U, 2048U,
+		256U));
+	assert(payload_mm_authvar_executor_test_coordinator_lengths(128U, 2048U,
+		0U));
+	assert(!payload_mm_authvar_executor_test_coordinator_lengths(129U, 2048U,
+		256U));
+	assert(!payload_mm_authvar_executor_test_coordinator_lengths(128U, 2049U,
+		256U));
+	assert(!payload_mm_authvar_executor_test_coordinator_lengths(128U, 2048U,
+		257U));
+	memcpy(overlap.bytes + 1U, &base_request, sizeof(base_request));
+	memcpy(&fixture.result, &untouched, sizeof(untouched));
+	begins = begin_count;
+	assert(payload_mm_authvar_executor_test_coordinate(
+		(const struct payload_mm_authvar_coordinator_test_request *)
+		(void *)(overlap.bytes + 1U), &fixture.result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(begin_count == begins &&
+		!memcmp(&fixture.result, &untouched, sizeof(untouched)));
+	memset(overlap.bytes + 1U, 0xa5, sizeof(fixture.result));
+	begins = begin_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&base_request,
+		(struct payload_mm_authvar_coordinator_test_result *)
+		(void *)(overlap.bytes + 1U)) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(begin_count == begins);
+	memcpy(&fixture.result, &untouched, sizeof(untouched));
+	assert(payload_mm_authvar_executor_test_coordinate(NULL,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(!memcmp(&fixture.result, &untouched, sizeof(untouched)));
+	assert(payload_mm_authvar_executor_test_coordinate(&base_request, NULL) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	fixture.request = base_request;
+	fixture.policy_request = base_policy;
+	fixture.request.verify_context = NULL;
+	fixture.request.verify_context_size = 0U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(coordinator_verify_calls == 1U && !poisoned);
+}
+
+static void coordinator_media_attack_case(enum coordinator_media_attack attack,
+	enum test_callback_kind callback)
+{
+	struct coordinator_fixture fixture;
+	unsigned int begins;
+	unsigned int ends;
+
+	coordinator_fixture_init(&fixture);
+	coordinator_media_attack = attack;
+	coordinator_media_attack_callback = callback;
+	begins = begin_count;
+	ends = end_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		poisoned && !cache_bound && payload_mm_crypto_idle());
+	assert(!coordinator_owner.busy && !coordinator_owner.arena_used &&
+		!coordinator_alternate_owner.busy &&
+		!coordinator_alternate_owner.arena_used);
+	assert(begin_count == begins + 1U && end_count == ends + 1U);
+	begins = begin_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(begin_count == begins &&
+		fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+}
+
+static void coordinator_callback_trace(void)
+{
+	struct coordinator_fixture fixture;
+
+	coordinator_fixture_init(&fixture);
+	operation_count = 0U;
+	callback_trace_count = 0U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(callback_trace_count == ARRAY_SIZE(candidate_callback_golden) &&
+		!memcmp(callback_trace, candidate_callback_golden,
+			sizeof(candidate_callback_golden)));
+}
+
+static void coordinator_begin_attack_case(enum coordinator_media_attack attack)
+{
+	struct coordinator_fixture fixture;
+	unsigned int ends;
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	coordinator_media_attack = attack;
+	coordinator_media_attack_callback = TEST_CALLBACK_BEGIN;
+	operation_count = 0U;
+	fail_operation = 1U;
+	generic_fault_result = PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	ends = end_count;
+	programs = program_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		end_count == ends && program_count == programs && poisoned &&
+		payload_mm_crypto_idle() && !coordinator_owner.busy &&
+		!coordinator_alternate_owner.busy);
+}
+
+static void coordinator_callback_fault(unsigned int fail_at,
+	enum payload_mm_authvar_media_result media_failure)
+{
+	struct coordinator_fixture fixture;
+	uint64_t expected_status;
+	uint8_t target;
+
+	assert(fail_at && fail_at <= ARRAY_SIZE(candidate_callback_golden));
+	coordinator_fixture_init(&fixture);
+	operation_count = 0U;
+	callback_trace_count = 0U;
+	fail_operation = fail_at;
+	generic_fault_result = media_failure;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	target = candidate_callback_golden[fail_at - 1U];
+	expected_status = target == TEST_CALLBACK_END ?
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR :
+		payload_mm_authvar_media_result_status(media_failure);
+	assert(fixture.result.status == expected_status &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	if (target != TEST_CALLBACK_BEGIN)
+		assert(!cache_bound);
+	assert(callback_trace_count >= fail_at &&
+		!memcmp(callback_trace, candidate_callback_golden, fail_at));
+	if (target == TEST_CALLBACK_BEGIN)
+		assert(callback_trace_count == fail_at);
+	else if (target == TEST_CALLBACK_END)
+		assert(callback_trace_count == fail_at);
+	else
+		assert(callback_trace_count == fail_at + 1U &&
+			callback_trace[callback_trace_count - 1U] == TEST_CALLBACK_END);
+}
+
+static void coordinator_forced_fault(
+	enum payload_mm_authvar_coordinator_test_fault fault,
+	uint64_t expected_status, bool expected_poison)
+{
+	struct coordinator_fixture fixture;
+	unsigned int programs;
+	unsigned int erases;
+	unsigned int binds;
+
+	coordinator_fixture_init(&fixture);
+	payload_mm_authvar_coordinator_test_set_fault(fault);
+	programs = program_count;
+	erases = erase_count;
+	binds = cache_bind_count;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == expected_status);
+	assert(fixture.result.status == expected_status &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.volatile_modes == 0U &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		program_count == programs && erase_count == erases &&
+		cache_bind_count == binds && poisoned == expected_poison &&
+		coordinator_verify_calls == 1U && payload_mm_crypto_idle());
+}
+
+static void coordinator_policy_race(void)
+{
+	struct coordinator_fixture fixture;
+	unsigned int begins;
+	unsigned int ends;
+	unsigned int reads;
+	unsigned int programs;
+	unsigned int operations;
+	unsigned int binds;
+
+	coordinator_fixture_init(&fixture);
+	begins = begin_count;
+	ends = end_count;
+	reads = read_count;
+	programs = program_count;
+	operations = operation_count;
+	binds = cache_bind_count;
+	payload_mm_authvar_executor_test_corrupt_coordinate_policy();
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
+		fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE &&
+		fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE &&
+		begin_count == begins && end_count == ends && read_count == reads &&
+		program_count == programs && operation_count == operations &&
+		cache_bind_count == binds);
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+}
+
+static void coordinator_output_alias(void)
+{
+	struct alias_span {
+		void *pointer;
+		size_t size;
+	};
+	struct payload_mm_authvar_store_entry source_entries[64];
+	struct payload_mm_authvar_store_entry candidate_entries[64];
+	struct payload_mm_authvar_store_index source = {
+		.entries = source_entries,
+		.entry_capacity = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_write_policy policy = {
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_record_size = STORE_SIZE,
+		.maximum_records = ARRAY_SIZE(source_entries),
+	};
+	const struct payload_mm_authvar_candidate_binding binding = {
+		.generation = 1U,
+		.token = 2U,
+		.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT,
+	};
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_coordinator_policy coordinator;
+	struct payload_mm_authvar_coordinator_result result;
+	uint8_t append_workspace[2048] __aligned(__BIGGEST_ALIGNMENT__);
+	uint8_t candidate[STORE_SIZE] __aligned(__BIGGEST_ALIGNMENT__);
+	uint8_t source_before[sizeof(result)];
+	uint8_t auth2_before[sizeof(fixture.auth2)];
+	uint8_t before[sizeof(result)];
+	uint8_t store_copy[STORE_SIZE];
+	uint8_t workspace_copy[sizeof(append_workspace)];
+	uint8_t candidate_copy[sizeof(candidate)];
+	struct payload_mm_authvar_store_entry entries_copy[64];
+	struct payload_mm_authvar_store_entry source_entries_copy[64];
+	struct payload_mm_authvar_coordinator_result result_copy;
+	struct coordinator_fixture fixture_copy;
+	bool invariant_failure = false;
+
+	coordinator_fixture_init(&fixture);
+	assert(payload_mm_authvar_store_scan(&source, media + FV_HEADER_SIZE,
+		STORE_SIZE, &limits) == CB_SUCCESS);
+	coordinator = (struct payload_mm_authvar_coordinator_policy) {
+		.request = &fixture.policy_request,
+		.owner = &coordinator_owner,
+		.verify = coordinator_verify,
+		.verify_context = fixture.context,
+		.verify_context_size = 1U,
+	};
+	memset(&result, 0xa5, sizeof(result));
+	memset(append_workspace, 0x3c, sizeof(append_workspace));
+	memset(candidate, 0x5a, sizeof(candidate));
+	memset(candidate_entries, 0x69, sizeof(candidate_entries));
+	memcpy(auth2_before, fixture.auth2, sizeof(auth2_before));
+	coordinator_verify_calls = 0U;
+	assert(payload_mm_authvar_coordinator_prepare(&coordinator, &source,
+		&policy, &binding, false, append_workspace,
+		sizeof(append_workspace), candidate, sizeof(candidate),
+		candidate_entries, ARRAY_SIZE(candidate_entries), &result,
+		(bool *)fixture.auth2) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(!memcmp(auth2_before, fixture.auth2, sizeof(auth2_before)) &&
+		coordinator_verify_calls == 0U);
+	memcpy(source_before, media + FV_HEADER_SIZE, sizeof(source_before));
+	assert(payload_mm_authvar_coordinator_prepare(&coordinator, &source,
+		&policy, &binding, false, append_workspace,
+		sizeof(append_workspace), candidate, sizeof(candidate),
+		candidate_entries, ARRAY_SIZE(candidate_entries),
+		(struct payload_mm_authvar_coordinator_result *)(void *)
+			(media + FV_HEADER_SIZE), &invariant_failure) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	assert(!memcmp(source_before, media + FV_HEADER_SIZE,
+		sizeof(source_before)) && !invariant_failure &&
+		coordinator_verify_calls == 0U);
+	{
+		const struct alias_span spans[] = {
+			{ &coordinator_owner, sizeof(coordinator_owner) },
+			{ (void *)source.store, source.store_size },
+			{ source.entries, source.entry_count * sizeof(*source.entries) },
+			{ (void *)fixture.policy_request.name,
+				fixture.policy_request.name_size },
+			{ (void *)fixture.policy_request.data,
+				fixture.policy_request.data_size },
+			{ append_workspace, sizeof(append_workspace) },
+			{ candidate, sizeof(candidate) },
+			{ candidate_entries, sizeof(candidate_entries) },
+		};
+
+		for (size_t i = 0U; i < ARRAY_SIZE(spans); i++) {
+			uint8_t byte = *(uint8_t *)spans[i].pointer;
+
+			memset(&result, 0xa5, sizeof(result));
+			memcpy(&result_copy, &result, sizeof(result_copy));
+			memcpy(store_copy, source.store, sizeof(store_copy));
+			memcpy(workspace_copy, append_workspace, sizeof(workspace_copy));
+			memcpy(candidate_copy, candidate, sizeof(candidate_copy));
+			memcpy(entries_copy, candidate_entries, sizeof(entries_copy));
+			memcpy(source_entries_copy, source_entries,
+				sizeof(source_entries_copy));
+			memcpy(&fixture_copy, &fixture, sizeof(fixture_copy));
+			invariant_failure = false;
+			assert(payload_mm_authvar_coordinator_prepare(&coordinator,
+				&source, &policy, &binding, false, append_workspace,
+				sizeof(append_workspace), candidate, sizeof(candidate),
+				candidate_entries, ARRAY_SIZE(candidate_entries), &result,
+				(bool *)spans[i].pointer) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+			assert(*(uint8_t *)spans[i].pointer == byte &&
+				!memcmp(&result, &result_copy, sizeof(result)) &&
+				!memcmp(store_copy, source.store, sizeof(store_copy)) &&
+				!memcmp(workspace_copy, append_workspace,
+					sizeof(workspace_copy)) &&
+				!memcmp(candidate_copy, candidate, sizeof(candidate_copy)) &&
+				!memcmp(entries_copy, candidate_entries,
+					sizeof(entries_copy)) &&
+				!memcmp(source_entries_copy, source_entries,
+					sizeof(source_entries_copy)) &&
+				!memcmp(&fixture_copy, &fixture, sizeof(fixture_copy)) &&
+				payload_mm_crypto_owner_is_clean(&coordinator_owner) &&
+				coordinator_owner.allocation_count == 0U &&
+				coordinator_verify_calls == 0U);
+			if ((uintptr_t)spans[i].pointer % _Alignof(result))
+				continue;
+			memcpy(before, spans[i].pointer, sizeof(before));
+			memcpy(store_copy, source.store, sizeof(store_copy));
+			memcpy(workspace_copy, append_workspace, sizeof(workspace_copy));
+			memcpy(candidate_copy, candidate, sizeof(candidate_copy));
+			memcpy(entries_copy, candidate_entries, sizeof(entries_copy));
+			memcpy(source_entries_copy, source_entries,
+				sizeof(source_entries_copy));
+			memcpy(&fixture_copy, &fixture, sizeof(fixture_copy));
+			invariant_failure = false;
+			assert(payload_mm_authvar_coordinator_prepare(&coordinator,
+				&source, &policy, &binding, false, append_workspace,
+				sizeof(append_workspace), candidate, sizeof(candidate),
+				candidate_entries, ARRAY_SIZE(candidate_entries),
+				(struct payload_mm_authvar_coordinator_result *)
+					spans[i].pointer, &invariant_failure) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+			assert(!memcmp(before, spans[i].pointer, sizeof(before)) &&
+				!invariant_failure &&
+				!memcmp(store_copy, source.store, sizeof(store_copy)) &&
+				!memcmp(workspace_copy, append_workspace,
+					sizeof(workspace_copy)) &&
+				!memcmp(candidate_copy, candidate, sizeof(candidate_copy)) &&
+				!memcmp(entries_copy, candidate_entries,
+					sizeof(entries_copy)) &&
+				!memcmp(source_entries_copy, source_entries,
+					sizeof(source_entries_copy)) &&
+				!memcmp(&fixture_copy, &fixture, sizeof(fixture_copy)) &&
+				payload_mm_crypto_owner_is_clean(&coordinator_owner) &&
+				coordinator_owner.allocation_count == 0U &&
+				coordinator_verify_calls == 0U);
+		}
+	}
+}
+
+static void coordinator_recovery_case(unsigned int recovery_case,
+	unsigned int fail_at)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_ftw_plan plan;
+
+	coordinator_fixture_init(&fixture);
+	switch (recovery_case) {
+	case 0U:
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		memcpy(spare(), media, BLOCK_SIZE);
+		break;
+	case 1U:
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		memcpy(spare(), media, BLOCK_SIZE);
+		break;
+	case 2U:
+		make_write(PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED);
+		break;
+	case 3U:
+		make_workspace(spare(), PAYLOAD_MM_AUTHVAR_FTW_WORK_VALID);
+		memset(working(), 0xff, BLOCK_SIZE);
+		break;
+	default:
+		abort();
+	}
+	operation_count = 0U;
+	if (fail_at) {
+		fail_operation = fail_at;
+		coordinator_verify_calls = 0U;
+		assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(fixture.result.status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_NONE);
+		assert(fixture.result.volatile_modes == 0U);
+		assert(fixture.result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+		assert(coordinator_verify_calls == 0U);
+		fail_operation = 0U;
+		/* A partial recovery marker may deliberately fail closed until reset. */
+		if (poisoned)
+			return;
+	}
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(fixture.result.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		coordinator_verify_calls == 1U && !poisoned);
+	assert(payload_mm_authvar_ftw_plan(media, MEDIA_SIZE, BLOCK_SIZE, &plan) ==
+		CB_SUCCESS && plan.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
+	assert(erased(spare(), 2U * BLOCK_SIZE));
+}
+
+static void coordinator_recovery_count(unsigned int recovery_case)
+{
+	char count[32];
+	int length;
+
+	coordinator_recovery_case(recovery_case, 0U);
+	assert(coordinator_verify_operation > 1U);
+	length = snprintf(count, sizeof(count), "%u\n",
+		coordinator_verify_operation);
+	assert(length > 0 && (size_t)length < sizeof(count));
+	assert(write(1, count, (unsigned long)length) == length);
+}
+
+#ifdef EXECUTOR_REAL_MEDIA
+static void coordinator_reset_count(void)
+{
+	struct coordinator_fixture fixture;
+	char count[32];
+	int length;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, false);
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	install();
+	operation_count = 0U;
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(coordinator_verify_calls == 1U &&
+		fixture.result.volatile_modes == (PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	length = snprintf(count, sizeof(count), "%u\n", operation_count);
+	assert(length > 0 && (size_t)length < sizeof(count));
+	assert(write(1, count, (unsigned long)length) == length);
+}
+
+static void coordinator_reset(unsigned int cut)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_ftw_plan plan;
+	uint8_t old_primary[BLOCK_SIZE];
+	uint8_t expected_primary[BLOCK_SIZE];
+	int child_status;
+	pid_t child;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, false);
+	fixture.policy_request.name = fixture.kek_name;
+	fixture.policy_request.name_size = sizeof(fixture.kek_name);
+	memcpy(old_primary, media, sizeof(old_primary));
+	coordinator_expected_candidate(&fixture, expected_primary);
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		operation_count = 0U;
+		reset_operation = cut;
+		install();
+		(void)payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result);
+		_exit(0);
+	}
+	assert(waitpid(child, &child_status, 0) == child &&
+		WIFEXITED(child_status) && WEXITSTATUS(child_status) == 77);
+	operation_count = 0U;
+	install();
+	assert(payload_mm_authvar_executor_recover() ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(!memcmp(media, old_primary, sizeof(old_primary)) ||
+		!memcmp(media, expected_primary, sizeof(expected_primary)));
+	assert(payload_mm_authvar_ftw_plan(media, MEDIA_SIZE, BLOCK_SIZE, &plan) ==
+		CB_SUCCESS && plan.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
+	assert(erased(spare(), 2U * BLOCK_SIZE));
+}
+#endif
+#endif
+
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
@@ -1808,9 +3411,319 @@ int main(int argc, char **argv)
 	real_media_prepare();
 #endif
 	make_clean();
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (!strcmp(argv[1], "coordinator-success")) {
+		coordinator_success();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-invalid")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_INVALID,
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-busy")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_BUSY,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-no-memory")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_NO_MEMORY,
+			PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-malformed")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_MALFORMED,
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-rejected")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_REJECTED,
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-unsupported")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_UNSUPPORTED,
+			PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-internal")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_INTERNAL,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-changed")) {
+		coordinator_status_case(PAYLOAD_MM_VERIFY_CHANGED,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-status-out-of-range")) {
+		coordinator_status_case((enum payload_mm_verify_status)99,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-noop")) {
+		coordinator_no_write_case(true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-not-found")) {
+		coordinator_no_write_case(false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-owner")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_OWNER_ABANDON, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-alternate")) {
+		coordinator_attack_case(
+			COORDINATOR_ATTACK_ALTERNATE_OWNER_ABANDON, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-owner-dirty")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_OWNER_DIRTY, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-descriptor")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_DESCRIPTOR, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-request")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_REQUEST, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-name")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_NAME, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-data")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_DATA, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-context")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_CONTEXT, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-internal-context")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_INTERNAL_CONTEXT, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-attack-result")) {
+		coordinator_attack_case(COORDINATOR_ATTACK_RESULT, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-context-max")) {
+		coordinator_context_boundary(true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-context-over")) {
+		coordinator_context_boundary(false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-runtime-pk-delete")) {
+		coordinator_runtime_pk_delete();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-runtime-missing-enable")) {
+		coordinator_runtime_missing_enable();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-vendor-reconcile")) {
+		coordinator_vendor_reconcile();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-end-failure")) {
+		coordinator_end_failure_recovery();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-runtime-end-failure")) {
+		coordinator_runtime_end_failure();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-preexisting-crypto")) {
+		coordinator_preexisting_crypto_owner();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-admission")) {
+		coordinator_admission_matrix();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-result-read")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_RESULT,
+			TEST_CALLBACK_READ);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-result-program")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_RESULT,
+			TEST_CALLBACK_PROGRAM);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-result-erase")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_RESULT,
+			TEST_CALLBACK_ERASE);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-result-end")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_RESULT,
+			TEST_CALLBACK_END);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-owner-program")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_OWNER_DIRTY,
+			TEST_CALLBACK_PROGRAM);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-owner-read")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_OWNER_DIRTY,
+			TEST_CALLBACK_READ);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-alternate-read")) {
+		coordinator_media_attack_case(
+			COORDINATOR_MEDIA_ATTACK_ALTERNATE_OWNER,
+			TEST_CALLBACK_READ);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-alternate-erase")) {
+		coordinator_media_attack_case(
+			COORDINATOR_MEDIA_ATTACK_ALTERNATE_OWNER,
+			TEST_CALLBACK_ERASE);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-media-context-read")) {
+		coordinator_media_attack_case(COORDINATOR_MEDIA_ATTACK_CONTEXT,
+			TEST_CALLBACK_READ);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-callback-trace")) {
+		coordinator_callback_trace();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-callback-count")) {
+		char count[32];
+		int length;
+
+		coordinator_callback_trace();
+		length = snprintf(count, sizeof(count), "%u\n", operation_count);
+		assert(length > 0 && (size_t)length < sizeof(count));
+		assert(write(1, count, (unsigned long)length) == length);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-begin-result")) {
+		coordinator_begin_attack_case(COORDINATOR_MEDIA_ATTACK_RESULT);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-begin-context")) {
+		coordinator_begin_attack_case(COORDINATOR_MEDIA_ATTACK_CONTEXT);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-begin-owner")) {
+		coordinator_begin_attack_case(COORDINATOR_MEDIA_ATTACK_OWNER_DIRTY);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-begin-alternate")) {
+		coordinator_begin_attack_case(
+			COORDINATOR_MEDIA_ATTACK_ALTERNATE_OWNER);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-callback-device-", 28U)) {
+		coordinator_callback_fault(candidate_fault_number(argv[1] + 28U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-callback-unsupported-", 33U)) {
+		coordinator_callback_fault(candidate_fault_number(argv[1] + 33U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_UNSUPPORTED);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-callback-write-protected-", 37U)) {
+		coordinator_callback_fault(candidate_fault_number(argv[1] + 37U),
+			PAYLOAD_MM_AUTHVAR_MEDIA_WRITE_PROTECTED);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-callback-invalid-", 29U)) {
+		coordinator_callback_fault(candidate_fault_number(argv[1] + 29U),
+			(enum payload_mm_authvar_media_result)99);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-invalid")) {
+		coordinator_forced_fault(PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_INVALID,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-internal")) {
+		coordinator_forced_fault(PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_INTERNAL,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-changed")) {
+		coordinator_forced_fault(PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_CHANGED,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-unsupported")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_UNSUPPORTED,
+			PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-rejected")) {
+		coordinator_forced_fault(PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_REJECTED,
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-outcome-none")) {
+		coordinator_forced_fault(PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_OUTCOME_NONE,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-outcome-none")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_OUTCOME_NONE,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-bundle-outcome-range")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_BUNDLE_OUTCOME_RANGE,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-noop-notfound")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_NOOP_NOT_FOUND,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-notfound-success")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_NOT_FOUND_SUCCESS,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-mutation-notfound")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_MUTATION_NOT_FOUND,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-candidate-invalid")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_CANDIDATE_INVALID,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-candidate-security")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_CANDIDATE_SECURITY,
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-force-candidate-no-memory")) {
+		coordinator_forced_fault(
+			PAYLOAD_MM_AUTHVAR_COORDINATOR_FAULT_CANDIDATE_NO_MEMORY,
+			PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-abort")) {
+		coordinator_recovery_case(0U, 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-replay")) {
+		coordinator_recovery_case(1U, 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-complete")) {
+		coordinator_recovery_case(2U, 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-restore")) {
+		coordinator_recovery_case(3U, 0U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-count-abort")) {
+		coordinator_recovery_count(0U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-count-replay")) {
+		coordinator_recovery_count(1U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-count-complete")) {
+		coordinator_recovery_count(2U);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-recovery-count-restore")) {
+		coordinator_recovery_count(3U);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-recovery-fault-abort-", 33U)) {
+		coordinator_recovery_case(0U,
+			candidate_fault_number(argv[1] + 33U));
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-recovery-fault-replay-", 34U)) {
+		coordinator_recovery_case(1U,
+			candidate_fault_number(argv[1] + 34U));
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-recovery-fault-complete-", 36U)) {
+		coordinator_recovery_case(2U,
+			candidate_fault_number(argv[1] + 36U));
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-recovery-fault-restore-", 35U)) {
+		coordinator_recovery_case(3U,
+			candidate_fault_number(argv[1] + 35U));
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-policy-race")) {
+		coordinator_policy_race();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-output-alias")) {
+		coordinator_output_alias();
+		return 0;
+#ifdef EXECUTOR_REAL_MEDIA
+	} else if (!strcmp(argv[1], "coordinator-reset-count")) {
+		coordinator_reset_count();
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-reset-", 18U)) {
+		coordinator_reset(candidate_fault_number(argv[1] + 18U));
+		return 0;
+#endif
+	}
+#endif
+	#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	if (!strcmp(argv[1], "candidate-success")) {
 		candidate_commit_case(CANDIDATE_PREPARE_OK, 0U, true);
+		return 0;
+	} else if (!strcmp(argv[1], "candidate-uninstalled")) {
+		candidate_admission_case(false);
+		return 0;
+	} else if (!strcmp(argv[1], "candidate-corrupt-policy")) {
+		candidate_admission_case(true);
 		return 0;
 	} else if (!strcmp(argv[1], "candidate-binding")) {
 		candidate_commit_case(CANDIDATE_PREPARE_BINDING, 0U, false);

@@ -196,6 +196,25 @@ config PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
 	  and token, then uses the existing EDK2-compatible FTW state machine. It
 	  installs no backend or provider and publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_COORDINATOR
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
+	help
+	  Build the dormant authenticated-variable coordinator. It derives every
+	  mode fact from the active protected store and sealed executor lifecycle,
+	  then performs authority, fixed-role bundle, whole-store composition and
+	  same-lease commit in one linear transaction. It installs no provider and
+	  publishes no endpoint.
+
+config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	help
+	  Require a new platform key enrolled through CustomMode physical-presence
+	  bypass to be self-signed. This matches EDK2's disabled default.
+
 config CAPSULE_BROKER_CONTRACT
 	bool
 	default n
