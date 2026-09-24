@@ -99,40 +99,8 @@ static uint32_t crc32(const uint8_t *data, size_t size)
 	return ~crc;
 }
 
-enum cb_err payload_mm_authvar_ftw_geometry(
-	struct payload_mm_authvar_ftw_geometry *geometry, size_t region_size,
-	size_t block_size)
-{
-	size_t blocks;
-	size_t spare_blocks;
-	size_t variable_blocks;
-
-	if (geometry)
-		memset(geometry, 0, sizeof(*geometry));
-	if (!geometry || !block_size || block_size > UINT32_MAX ||
-	    region_size > UINT32_MAX || region_size % block_size)
-		return CB_ERR;
-	blocks = region_size / block_size;
-	if (blocks < PAYLOAD_MM_AUTHVAR_FTW_MIN_BLOCKS || blocks > UINT32_MAX)
-		return CB_ERR;
-	spare_blocks = blocks / 2U;
-	variable_blocks = blocks - spare_blocks - 1U;
-	if (!variable_blocks || spare_blocks < variable_blocks)
-		return CB_ERR;
-	*geometry = (struct payload_mm_authvar_ftw_geometry) {
-		.block_size = (uint32_t)block_size,
-		.block_count = (uint32_t)blocks,
-		.variable_size = (uint32_t)(variable_blocks * block_size),
-		.working_offset = (uint32_t)(variable_blocks * block_size),
-		.working_size = (uint32_t)block_size,
-		.spare_offset = (uint32_t)((variable_blocks + 1U) * block_size),
-		.spare_size = (uint32_t)(spare_blocks * block_size),
-	};
-	return CB_SUCCESS;
-}
-
 static bool fv_valid(const uint8_t *fv, size_t available, size_t complete_size,
-	const struct payload_mm_authvar_ftw_geometry *geometry,
+	const struct payload_mm_authvar_fv_geometry *geometry,
 	uint32_t *header_size, uint32_t *store_size)
 {
 	uint16_t checksum = 0;
@@ -245,7 +213,7 @@ static bool workspace_erased_subset(const uint8_t *authoritative,
 }
 
 static bool record_bounds_valid(const uint8_t *record,
-	const struct payload_mm_authvar_ftw_geometry *geometry,
+	const struct payload_mm_authvar_fv_geometry *geometry,
 	uint32_t fv_header_size, uint32_t store_size)
 {
 	const uint8_t state = record[0];
@@ -262,7 +230,7 @@ static bool record_bounds_valid(const uint8_t *record,
 
 static enum payload_mm_authvar_ftw_action classify_queue(const uint8_t *workspace,
 	bool active_valid, bool spare_valid, bool restoring_workspace,
-	const struct payload_mm_authvar_ftw_geometry *geometry,
+	const struct payload_mm_authvar_fv_geometry *geometry,
 	uint32_t fv_header_size, uint32_t store_size, uint32_t *queue_offset,
 	uint32_t *queue_entry_size,
 	enum payload_mm_authvar_ftw_queue_disposition *queue_disposition)
@@ -414,8 +382,8 @@ enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 
 	if (plan)
 		memset(plan, 0, sizeof(*plan));
-	if (!region || !plan || payload_mm_authvar_ftw_geometry(&candidate.geometry,
-		region_size, block_size) != CB_SUCCESS)
+	if (!region || !plan || !payload_mm_authvar_fv_geometry(&candidate.geometry,
+		region_size, block_size))
 		return CB_ERR;
 	working = bytes + candidate.geometry.working_offset;
 	spare = bytes + candidate.geometry.spare_offset;

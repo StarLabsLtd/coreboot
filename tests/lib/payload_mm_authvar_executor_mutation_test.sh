@@ -40,6 +40,7 @@ compile_and_kill()
 			"$root/src/lib/payload_mm_authvar.c" \
 			"$root/src/lib/payload_mm_authvar_runtime.c" \
 			"$root/src/lib/payload_mm_authvar_media.c" "$mutant" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \

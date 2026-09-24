@@ -30,6 +30,7 @@ for optimization in 0 2; do
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_ftw_interop_test.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" -o "$tmp/decoder-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/decoder-O$optimization" "$fixtures"
 
@@ -48,6 +49,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \

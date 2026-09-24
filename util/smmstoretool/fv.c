@@ -2,6 +2,7 @@
 
 #include "fv.h"
 
+#include <commonlib/payload_mm_authvar_fv.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -37,58 +38,12 @@ static uint16_t calc_checksum(const uint16_t *hdr, size_t size)
 
 bool fv_init(struct mem_range_t fv)
 {
-	if (fv.length % SMM_BLOCK_SIZE != 0) {
+	if (!payload_mm_authvar_fv_format(fv.start, fv.length, SMM_BLOCK_SIZE)) {
 		fprintf(stderr,
-			"Firmware Volume size is not a multiple of the block size (%dKiB)\n",
+			"Cannot format Firmware Volume with a %dKiB block size\n",
 			SMM_BLOCK_SIZE / 1024);
 		return false;
 	}
-
-	uint32_t number_of_blocks = fv.length / SMM_BLOCK_SIZE;
-	memset(fv.start, 0xff, fv.length);
-
-	const EFI_FIRMWARE_VOLUME_HEADER vol_hdr = {
-		.FileSystemGuid = EfiSystemNvDataFvGuid,
-		.FvLength = fv.length,
-		.Signature = EFI_FVH_SIGNATURE,
-		.Attributes = EFI_FVB2_READ_ENABLED_CAP
-					| EFI_FVB2_READ_STATUS
-					| EFI_FVB2_WRITE_ENABLED_CAP
-					| EFI_FVB2_WRITE_STATUS
-					| EFI_FVB2_STICKY_WRITE
-					| EFI_FVB2_MEMORY_MAPPED
-					| EFI_FVB2_ERASE_POLARITY,
-		.HeaderLength = sizeof(vol_hdr)
-			      + sizeof(EFI_FV_BLOCK_MAP_ENTRY),
-		.Revision = EFI_FVH_REVISION,
-		.BlockMap[0] = {
-			.NumBlocks = number_of_blocks,
-			.Length = SMM_BLOCK_SIZE,
-		},
-	};
-
-	EFI_FIRMWARE_VOLUME_HEADER *vol_hdr_dst = (void *)fv.start;
-	*vol_hdr_dst = vol_hdr;
-	vol_hdr_dst->BlockMap[1].NumBlocks = 0;
-	vol_hdr_dst->BlockMap[1].Length = 0;
-
-	vol_hdr_dst->Checksum =
-		~calc_checksum((const void *)vol_hdr_dst, vol_hdr.HeaderLength);
-	++vol_hdr_dst->Checksum;
-
-	const VARIABLE_STORE_HEADER var_store_hdr = {
-		.Signature = EfiAuthenticatedVariableGuid,
-		// Actual size of the storage is `n / 2 - 1` blocks, the rest is
-		// Fault Tolerant Write (FTW) space and the FTW spare space.
-		.Size = ((number_of_blocks / 2 - 1) * SMM_BLOCK_SIZE) - vol_hdr.HeaderLength,
-		.Format = VARIABLE_STORE_FORMATTED,
-		.State = VARIABLE_STORE_HEALTHY,
-	};
-
-	VARIABLE_STORE_HEADER *var_store_hdr_dst =
-		(void *)(fv.start + vol_hdr.HeaderLength);
-	*var_store_hdr_dst = var_store_hdr;
-
 	return true;
 }
 

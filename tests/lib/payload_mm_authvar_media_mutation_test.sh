@@ -52,6 +52,7 @@ EOF
 			-I"$root/src/arch/x86/include" -I"$temporary/include" \
 			"$temporary/test.c" "$root/src/lib/payload_mm_authvar.c" \
 			"$root/src/lib/payload_mm_authvar_runtime.c" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$temporary/$name.c" -o "$binary"; then
 			printf 'mutation did not compile: %s O%s\n' "$name" \

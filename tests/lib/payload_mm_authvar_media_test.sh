@@ -29,6 +29,7 @@ run_test()
 		"$root/tests/lib/payload_mm_authvar_media_test.c" \
 		"$root/src/lib/payload_mm_authvar.c" \
 		"$root/src/lib/payload_mm_authvar_runtime.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_media.c" \
 		-o "$temporary/$name"

@@ -19,6 +19,7 @@ for optimization in 0 2; do
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_ftw_test.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" -o "$tmp/test-O$optimization"
 	ASAN_OPTIONS=detect_leaks=1 "$tmp/test-O$optimization"
 done
@@ -47,7 +48,8 @@ mutation_test()
 			-I"$root/src/commonlib/include" \
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$root/src/arch/x86/include" \
-			"$root/tests/lib/payload_mm_authvar_ftw_test.c" "$mutant" \
+			"$root/tests/lib/payload_mm_authvar_ftw_test.c" \
+			"$root/src/lib/payload_mm_authvar_fv.c" "$mutant" \
 			-o "$binary" >"$log" 2>&1; then
 			echo "ERROR: $name O$optimization mutant did not compile" >&2
 			cat "$log" >&2

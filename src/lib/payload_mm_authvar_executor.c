@@ -438,15 +438,15 @@ static bool control_unchanged(const struct executor_session *state,
 static bool contract_allowed(const struct payload_mm_authvar_contract *contract,
 	const struct payload_mm_authvar_executor_limits *limits)
 {
-	struct payload_mm_authvar_ftw_geometry geometry;
+	struct payload_mm_authvar_fv_geometry geometry;
 
 	return payload_mm_authvar_contract_valid(contract) &&
 		contract->store_size <= limits->maximum_store_size &&
 		contract->store_size <= UINT32_MAX && contract->block_size &&
 		contract->erase_size && contract->erase_size <= EXECUTOR_TRANSFER_SIZE &&
 		contract->block_size % contract->erase_size == 0 &&
-		payload_mm_authvar_ftw_geometry(&geometry, contract->store_size,
-			contract->block_size) == CB_SUCCESS;
+		payload_mm_authvar_fv_geometry(&geometry, contract->store_size,
+			contract->block_size);
 }
 
 static bool maximum_record_fits(
@@ -887,7 +887,7 @@ static enum payload_mm_authvar_media_result marker(
 static enum payload_mm_authvar_media_result workspace_rebuild(
 	struct executor_session *state, bool invalidate_working)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	uint8_t *image = snapshot() + geometry->spare_offset;
 	enum payload_mm_authvar_media_result result;
@@ -973,7 +973,7 @@ static enum payload_mm_authvar_media_result recover_abort(
 static enum payload_mm_authvar_media_result replay_spare(
 	struct executor_session *state)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	uint32_t queue = geometry->working_offset + state->ftw.queue_offset;
 	uint8_t *image = snapshot() + geometry->spare_offset;
@@ -1015,7 +1015,7 @@ static enum payload_mm_authvar_media_result replay_spare(
 static enum payload_mm_authvar_media_result restore_workspace(
 	struct executor_session *state)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	uint8_t *image = snapshot() + geometry->spare_offset;
 	uint32_t queue = geometry->working_offset + state->ftw.queue_offset;
@@ -1070,7 +1070,7 @@ static enum payload_mm_authvar_media_result restore_workspace(
 static enum payload_mm_authvar_media_result recover_once(
 	struct executor_session *state)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 
 	payload_mm_authvar_media_cache_invalidate();
@@ -1331,7 +1331,7 @@ contradiction:
 static enum payload_mm_authvar_media_result candidate_source_fresh(
 	struct executor_session *state)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	enum payload_mm_authvar_media_result result;
 
@@ -1372,7 +1372,7 @@ static enum payload_mm_authvar_media_result execute_ftw_image(
 	struct executor_session *state, const uint8_t *image,
 	bool candidate_commit)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	uint32_t queue = geometry->working_offset + state->ftw.queue_offset;
 	uint8_t *header = snapshot() + queue;
@@ -1643,7 +1643,7 @@ static enum payload_mm_authvar_media_result execute_reclaim(
 	struct executor_session *state,
 	const struct payload_mm_authvar_store_entry *replaced)
 {
-	const struct payload_mm_authvar_ftw_geometry *geometry =
+	const struct payload_mm_authvar_fv_geometry *geometry =
 		&state->ftw.geometry;
 	uint32_t image_store_base;
 	uint32_t media_store_base;

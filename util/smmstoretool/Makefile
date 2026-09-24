@@ -32,6 +32,7 @@ endif
 
 # there files are in this directory
 SRC := data.c fv.c guids.c main.c storage.c utils.c vs.c
+SRC += payload_mm_authvar_fv.c
 # and these are in $(TOP)/util/cbfstool/flashmap/
 SRC += fmap.c kv_pair.c valstr.c
 
@@ -60,6 +61,9 @@ $(PRG): $(OBJ)
 	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
 
 %.o: $(TOP)/util/cbfstool/flashmap/%.c
+	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
+
+payload_mm_authvar_fv.o: $(ROOT)/lib/payload_mm_authvar_fv.c
 	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
 
 -include $(DEP)

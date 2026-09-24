@@ -3,11 +3,11 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_FTW_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_FTW_H
 
+#include <commonlib/payload_mm_authvar_fv.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <types.h>
 
-#define PAYLOAD_MM_AUTHVAR_FTW_MIN_BLOCKS 3U
 #define PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE 32U
 #define PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE 40U
 #define PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE 40U
@@ -24,17 +24,6 @@
 
 extern const uint8_t payload_mm_authvar_ftw_coreboot_caller_guid[16];
 extern const uint8_t payload_mm_authvar_ftw_working_block_guid[16];
-
-struct payload_mm_authvar_ftw_geometry {
-	uint32_t block_size;
-	uint32_t block_count;
-	uint32_t variable_offset;
-	uint32_t variable_size;
-	uint32_t working_offset;
-	uint32_t working_size;
-	uint32_t spare_offset;
-	uint32_t spare_size;
-};
 
 enum payload_mm_authvar_ftw_action {
 	PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED = 0,
@@ -64,7 +53,7 @@ enum payload_mm_authvar_ftw_queue_disposition {
 struct payload_mm_authvar_ftw_plan {
 	enum payload_mm_authvar_ftw_action action;
 	/* All geometry offsets are relative to the complete SMMSTORE region. */
-	struct payload_mm_authvar_ftw_geometry geometry;
+	struct payload_mm_authvar_fv_geometry geometry;
 	/* These sizes come only from the decoder-validated active/spare FV. */
 	uint32_t fv_header_size;
 	uint32_t variable_store_size;
@@ -83,9 +72,6 @@ struct payload_mm_authvar_ftw_plan {
 	enum payload_mm_authvar_ftw_queue_disposition queue_disposition;
 };
 
-enum cb_err payload_mm_authvar_ftw_geometry(
-	struct payload_mm_authvar_ftw_geometry *geometry, size_t region_size,
-	size_t block_size);
 enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
 	size_t block_size, struct payload_mm_authvar_ftw_plan *plan);
 

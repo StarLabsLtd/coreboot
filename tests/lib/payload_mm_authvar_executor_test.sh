@@ -20,6 +20,7 @@ for optimization in 0 2; do
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_fv.c" \
 		"$root/src/lib/payload_mm_authvar_ftw.c" \
 		"$root/src/lib/payload_mm_authvar_store.c" \
 		"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -61,6 +62,7 @@ cc -std=gnu11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
 	"$root/src/lib/payload_mm_authvar_runtime.c" \
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
+	"$root/src/lib/payload_mm_authvar_fv.c" \
 	"$root/src/lib/payload_mm_authvar_ftw.c" \
 	"$root/src/lib/payload_mm_authvar_store.c" \
 	"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -102,6 +104,7 @@ mutation_test()
 			-I"$root/src/include" -I"$root/src/commonlib/include" \
 			-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_executor_test.c" "$mutant" \
+			"$root/src/lib/payload_mm_authvar_fv.c" \
 			"$root/src/lib/payload_mm_authvar_ftw.c" \
 			"$root/src/lib/payload_mm_authvar_store.c" \
 			"$root/src/lib/payload_mm_authvar_store_semantics.c" \
@@ -130,7 +133,7 @@ mutation_test record-capacity \
 	's/return size <= limits->maximum_record_size \&\&/return (true || size <= limits->maximum_record_size) \&\&/' \
 	record-limits
 mutation_test contract-ftw-geometry \
-	's/payload_mm_authvar_ftw_geometry(\&geometry, contract->store_size,/payload_mm_authvar_ftw_geometry(\&geometry, limits->maximum_store_size,/' \
+	's/payload_mm_authvar_fv_geometry(\&geometry, contract->store_size,/payload_mm_authvar_fv_geometry(\&geometry, limits->maximum_store_size,/' \
 	invalid-geometry
 mutation_test recovery-nonprogress \
 	's/if (state->have_previous_ftw \&\&/if (false \&\& state->have_previous_ftw \&\&/' \
