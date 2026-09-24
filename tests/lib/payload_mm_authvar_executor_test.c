@@ -19,6 +19,9 @@
 #include "../../src/lib/payload_mm_authvar_coordinator.h"
 #include "../../src/lib/payload_mm_authvar_set_preflight.h"
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+#include "../../src/lib/payload_mm_authvar_authority_provider.h"
+#endif
 #include "payload_mm_authvar_policy_test_provider.h"
 #ifdef EXECUTOR_REAL_MEDIA
 #include <boot/payload_mm_authvar.h>
@@ -2191,6 +2194,55 @@ static enum payload_mm_verify_status coordinator_verify(void *context,
 	return coordinator_verify_status;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+enum payload_mm_verify_status payload_mm_authvar_private_trust_verify(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content, size_t content_count,
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_route_plan *plan,
+	struct payload_mm_authvar_authority_verification *verification)
+{
+	const struct payload_mm_authvar_authority_verify_request request = {
+		.owner = owner,
+		.pkcs7 = signed_data,
+		.content = content,
+		.content_count = content_count,
+		.index = index,
+		.route = plan,
+		.new_payload = &content[4],
+	};
+
+	return coordinator_verify(NULL, &request, verification);
+}
+
+enum payload_mm_verify_status payload_mm_authvar_trust_store_verify(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content, size_t content_count,
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_route_plan *plan,
+	enum payload_mm_authvar_authority *accepted_authority)
+{
+	struct payload_mm_authvar_authority_verification verification = { 0 };
+	const struct payload_mm_authvar_authority_verify_request request = {
+		.owner = owner,
+		.pkcs7 = signed_data,
+		.content = content,
+		.content_count = content_count,
+		.index = index,
+		.route = plan,
+		.new_payload = &content[4],
+	};
+	enum payload_mm_verify_status status =
+		coordinator_verify(NULL, &request, &verification);
+
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		*accepted_authority = verification.accepted_authority;
+	return status;
+}
+#endif
+
 struct coordinator_fixture {
 	uint8_t auth2[42];
 	uint8_t counter_auth[PAYLOAD_MM_AUTHVAR_COUNTER_AUTH_SIZE];
@@ -2614,7 +2666,7 @@ static void coordinator_private_fixture_init(struct coordinator_fixture *fixture
 		sizeof(empty_certdb), PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO);
 }
 
-static void coordinator_private_atomic(void)
+static void coordinator_private_atomic(bool concrete_provider)
 {
 	static const uint8_t guid[16] = { 0x42 };
 	static const uint8_t name[] = { 'P', 0, 'r', 0, 'i', 0, 'v', 0, 0, 0 };
@@ -2636,6 +2688,16 @@ static void coordinator_private_atomic(void)
 	uint64_t status;
 
 	coordinator_private_fixture_init(&fixture);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+	if (concrete_provider) {
+		fixture.request.verify =
+			payload_mm_authvar_authority_provider_verify;
+		fixture.request.verify_context = NULL;
+		fixture.request.verify_context_size = 0U;
+	}
+#else
+	assert(!concrete_provider);
+#endif
 	install();
 	fixture.policy_request.name = name;
 	fixture.policy_request.name_size = sizeof(name);
@@ -4507,7 +4569,10 @@ int main(int argc, char **argv)
 		coordinator_success();
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-private-atomic")) {
-		coordinator_private_atomic();
+		coordinator_private_atomic(false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-private-provider")) {
+		coordinator_private_atomic(true);
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-preflight-consumers")) {
 		coordinator_preflight_consumers();
