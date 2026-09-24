@@ -318,6 +318,16 @@ config PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE
 	  establish platform support, build an SMM path, install a grant or publish
 	  an endpoint.
 
+config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER
+	help
+	  Build a dormant fixed completion-receipt validator and one-shot protected
+	  SMM authority. This supplies no producer, transport, endpoint or MOR
+	  support claim; receipt fields are assertions until a trusted producer is
+	  separately composed.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
