@@ -232,7 +232,8 @@ spi_flash_set_write_protected(const struct spi_flash *flash,
  * volatile_group_begin at the start of function and volatile_group_end after
  * erase/write operation is performed. These functions can also be used by any
  * components that wish to club multiple volatile operations into a single
- * group.
+ * group. A failed outer begin acquires no logical ownership. An outer end
+ * releases its logical ownership even if chipset cleanup reports an error.
  */
 int spi_flash_volatile_group_begin(const struct spi_flash *flash);
 int spi_flash_volatile_group_end(const struct spi_flash *flash);

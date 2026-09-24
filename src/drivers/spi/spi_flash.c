@@ -769,6 +769,16 @@ int spi_flash_set_write_protected(const struct spi_flash *flash,
 
 static uint32_t volatile_group_count;
 
+#if ENV_TEST
+uint32_t spi_flash_volatile_group_test_exchange_count(uint32_t count)
+{
+	uint32_t previous = volatile_group_count;
+
+	volatile_group_count = count;
+	return previous;
+}
+#endif
+
 int spi_flash_volatile_group_begin(const struct spi_flash *flash)
 {
 	uint32_t count;
@@ -778,12 +788,17 @@ int spi_flash_volatile_group_begin(const struct spi_flash *flash)
 		return ret;
 
 	count = volatile_group_count;
-	if (count == 0)
+	if (count == UINT32_MAX)
+		return -1;
+	if (count == 0) {
 		ret = chipset_volatile_group_begin(flash);
+		if (ret)
+			return ret;
+	}
 
 	count++;
 	volatile_group_count = count;
-	return ret;
+	return 0;
 }
 
 int spi_flash_volatile_group_end(const struct spi_flash *flash)
@@ -795,12 +810,17 @@ int spi_flash_volatile_group_end(const struct spi_flash *flash)
 		return ret;
 
 	count = volatile_group_count;
-	assert(count == 0);
-	count--;
-	volatile_group_count = count;
-
+	assert(count != 0);
 	if (count == 0)
-		ret = chipset_volatile_group_end(flash);
+		return -1;
+	if (count > 1) {
+		volatile_group_count = count - 1;
+		return 0;
+	}
+
+	ret = chipset_volatile_group_end(flash);
+	/* The matching logical ownership ends even when chipset cleanup fails. */
+	volatile_group_count = 0;
 
 	return ret;
 }
