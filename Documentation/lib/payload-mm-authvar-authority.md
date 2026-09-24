@@ -79,6 +79,10 @@ orphan cleanup. The future provider must normalize private authentication and
 continuity failures to `EFI_SECURITY_VIOLATION`; generic whole-candidate
 capacity remains `EFI_OUT_OF_RESOURCES`.
 
+`PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER` supplies that dormant concrete trust
+dispatcher. It admits exact canonical routes only, keeps volatile `certdbv`
+outside the persistent profile, and publishes no service or media backend.
+
 The write policy is immutable trusted platform policy held in protected SMRAM,
 not request or media data. The coordinator binds it to the active transaction;
 the candidate result carries an exact policy copy so the later executor seal

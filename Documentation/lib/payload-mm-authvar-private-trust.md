@@ -40,5 +40,8 @@ crypto arena is idle and wiped before an authority or new binding is
 published. The helper itself remains a synchronous policy fact and performs no
 mutation. Its typed inline result now flows through authority and bundle into a
 fixed persistent-certdb candidate role, so target and binding replacement are
-composed atomically in one candidate. Concrete verifier/provider wiring, media
-access and endpoint publication remain later slices.
+composed atomically in one candidate. The concrete authority provider now
+dispatches this helper from the canonical private route, validates its exact
+result tuple, and normalizes its detailed authentication failures at the
+coordinator boundary. Media backend integration and endpoint publication
+remain later slices.

@@ -10,6 +10,7 @@ printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK 0' \
 	> "$temporary/include/config.h"
 
@@ -28,6 +29,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
@@ -46,6 +48,7 @@ for optimization in 0 2; do
 	for case in \
 		coordinator-success \
 		coordinator-private-atomic \
+		coordinator-private-provider \
 		coordinator-preflight-consumers \
 		coordinator-native-ordinary \
 		coordinator-native-collision coordinator-native-invalid \
@@ -128,6 +131,7 @@ compile_mutant()
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$mutant_source" "$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
@@ -219,6 +223,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 	"$root/src/lib/payload_mm_authvar_view.c" \
 	"$root/src/lib/payload_mm_authvar_authority.c" \

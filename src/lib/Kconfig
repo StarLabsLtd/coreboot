@@ -273,10 +273,22 @@ config PAYLOAD_MM_AUTHVAR_COORDINATOR
 	  same-lease commit in one linear transaction. It installs no provider and
 	  publishes no endpoint.
 
-config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
+config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	depends on !PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
+	depends on PAYLOAD_MM_AUTHVAR_TRUST_STORE
+	depends on PAYLOAD_MM_AUTHVAR_PRIVATE_TRUST
+	help
+	  Build the dormant concrete authority verifier used by the authenticated-
+	  variable coordinator. It selects protected PK/KEK or private signer trust
+	  from the canonical route and normalizes private authentication failures,
+	  but installs no endpoint and performs no media operation.
+
+config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
+	bool
+	default n
 	help
 	  Require a new platform key enrolled through CustomMode physical-presence
 	  bypass to be self-signed. This matches EDK2's disabled default.
