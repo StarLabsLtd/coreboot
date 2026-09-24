@@ -44,6 +44,10 @@ void mb_devtree_update(void)
 		disable_dev_if_present(DEV_PTR(tcss_dma0));
 	}
 
+	/* UART0 is connected only to the external debug header. */
+	if (CONFIG(NO_DEBUG_EGRESS))
+		DEV_PTR(uart0)->enabled = 0;
+
 	/* Enable/Disable GNA based on CMOS settings */
 	if (get_uint_option("gna", 0) == 0)
 		DEV_PTR(gna)->enabled = 0;

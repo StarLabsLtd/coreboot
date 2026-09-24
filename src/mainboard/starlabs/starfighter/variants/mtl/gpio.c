@@ -39,8 +39,13 @@ const struct pad_config *variant_nvme_power_sequence_post_pads(size_t *num)
 /* clang-format off */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
+#if CONFIG(NO_DEBUG_EGRESS)
+	PAD_NC(GPP_H08, NONE),						/* RXD */
+	PAD_NC(GPP_H09, NONE),						/* TXD */
+#else
 	PAD_CFG_NF(GPP_H08, NONE, DEEP, NF1),				/* RXD */
 	PAD_CFG_NF(GPP_H09, NONE, DEEP, NF1),				/* TXD */
+#endif
 
 	/* SMBus */
 	PAD_CFG_NF(GPP_C00, NONE, DEEP, NF1),				/* Clock */
@@ -73,6 +78,12 @@ const struct pad_config *variant_early_gpio_table(size_t *num)
 /* Pad configuration in ramstage. */
 /* clang-format off */
 const struct pad_config gpio_table[] = {
+	/* Debug Connector */
+#if CONFIG(NO_DEBUG_EGRESS)
+	PAD_NC_LOCK(GPP_H08, NONE, LOCK_CONFIG),				/* RXD */
+	PAD_NC_LOCK(GPP_H09, NONE, LOCK_CONFIG),				/* TXD */
+#endif
+
 	/* General Purpose I/O Deep */
 	PAD_CFG_NF_IOSTANDBY_IGNORE(GPP_V00, NONE, DEEP, NF1),		/* Battery Low */
 	PAD_CFG_NF_IOSTANDBY_IGNORE(GPP_V01, NONE, DEEP, NF1),		/* Charger Connected */
