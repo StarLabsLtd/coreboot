@@ -27,6 +27,7 @@ tests-y += memrange-test
 tests-y += uuid-test
 tests-y += bootmem-test
 tests-y += bootmem-dram-provenance-test
+tests-y += bootmem-aligned-reservation-test
 tests-y += payload-mm-authvar-mor-live-inventory-test
 tests-y += starbook-mtl-mor-live-inventory-test
 tests-y += dimm_info_util-test
@@ -156,6 +157,13 @@ bootmem-dram-provenance-test-srcs += src/lib/bootmem.c
 bootmem-dram-provenance-test-srcs += src/lib/memrange.c
 bootmem-dram-provenance-test-config += CONFIG_BOOTMEM_DRAM_PROVENANCE=1
 bootmem-dram-provenance-test-no_test_framework = 1
+
+bootmem-aligned-reservation-test-srcs += tests/lib/bootmem_aligned_reservation_test.c
+bootmem-aligned-reservation-test-srcs += src/device/device_util.c
+bootmem-aligned-reservation-test-srcs += src/lib/bootmem.c
+bootmem-aligned-reservation-test-srcs += src/lib/memrange.c
+bootmem-aligned-reservation-test-config += CONFIG_BOOTMEM_ALIGNED_RESERVATIONS=1
+bootmem-aligned-reservation-test-no_test_framework = 1
 
 payload-mm-authvar-mor-live-inventory-test-srcs += tests/lib/payload_mm_authvar_mor_live_inventory_test.c
 payload-mm-authvar-mor-live-inventory-test-srcs += src/lib/payload_mm_authvar_mor_live_inventory.c
