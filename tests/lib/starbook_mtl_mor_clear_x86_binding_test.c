@@ -22,9 +22,34 @@ static unsigned int register_calls;
 static unsigned int query_calls;
 static unsigned int compose_calls;
 static unsigned int backend_calls;
+static unsigned int guard_calls;
 static unsigned int fail_register_call;
 static unsigned int fail_query_call;
+static unsigned int fail_guard_call;
 static void *mutate;
+static void *mutate_second;
+static struct starbook_mtl_mor_clear_x86_binding *reenter_binding;
+static const struct payload_mm_authvar_mor_clear_plan *reenter_plan;
+
+static void apply_mutation(void)
+{
+	if (mutate) {
+		((uint8_t *)mutate)[0] ^= 1;
+		mutate = NULL;
+	}
+	if (mutate_second) {
+		((uint8_t *)mutate_second)[0] ^= 1;
+		mutate_second = NULL;
+	}
+}
+
+enum cb_err payload_mm_authvar_mor_clear_plan_validate(
+	const struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	return plan && plan->revision == PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION &&
+		plan->size == sizeof(*plan) && plan->inventory_generation == 9 &&
+		plan->inventory_identity[0] == 0x99 ? CB_SUCCESS : CB_ERR;
+}
 
 int bootmem_aligned_reservations_register(
 	const struct bootmem_aligned_reservation_request *requests,
@@ -63,10 +88,7 @@ int bootmem_aligned_reservation_query(
 	CHECK(handle->opaque[0] == query_calls &&
 		handle->opaque[1] == (0x55aa0000U | query_calls));
 	*reservation = query_calls == 1 ? page_result : aperture_result;
-	if (mutate) {
-		((uint8_t *)mutate)[0] ^= 1;
-		mutate = NULL;
-	}
+	apply_mutation();
 	return 0;
 }
 
@@ -83,22 +105,32 @@ enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays(
 	};
 
 	compose_calls++;
+	if (reenter_binding) {
+		struct starbook_mtl_mor_clear_x86_binding *binding = reenter_binding;
+		const struct payload_mm_authvar_mor_clear_plan *outer = reenter_plan;
+
+		reenter_binding = NULL;
+		reenter_plan = NULL;
+		CHECK(binding->ops.inventory_validate(
+			binding->ops.inventory_context, outer) != CB_SUCCESS);
+	}
 	CHECK(dma_guard->generation == 9 && overlay_count == 4);
 	CHECK(overlays[0].base == page_result.base &&
 		overlays[0].size == page_result.size);
 	CHECK(overlays[1].base == aperture_result.base &&
 		overlays[1].size == aperture_result.size);
+	CHECK(overlays[2].size == sizeof(*plan) &&
+		overlays[3].size == sizeof(struct starbook_mtl_mor_clear_x86_binding));
 	for (size_t index = 0; index < overlay_count; index++)
 		CHECK(overlays[index].exclusion_reason == reasons[index] &&
 			!overlays[index].reserved);
-	if (mutate) {
-		((uint8_t *)mutate)[0] ^= 1;
-		mutate = NULL;
-	}
+	apply_mutation();
 	memset(plan, 0, sizeof(*plan));
 	plan->revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
 	plan->size = sizeof(*plan);
 	plan->inventory_generation = dma_guard->generation;
+	memcpy(plan->inventory_identity, dma_guard->identity,
+		sizeof(plan->inventory_identity));
 	plan->span_count = overlay_count;
 	for (size_t index = 0; index < overlay_count; index++) {
 		plan->spans[index].base = overlays[index].base;
@@ -107,6 +139,27 @@ enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays(
 			PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_EXCLUDED;
 		plan->spans[index].exclusion_reason = reasons[index];
 	}
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_dma_guard_bind(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma)
+{
+	guard_calls++;
+	apply_mutation();
+	if (guard_calls == fail_guard_call)
+		return CB_ERR;
+	CHECK(plan->inventory_generation == prepared->generation &&
+		!memcmp(plan->inventory_identity, prepared->identity,
+			sizeof(plan->inventory_identity)));
+	*bound = *prepared;
+	*dma = (struct payload_mm_authvar_mor_clear_dma_snapshot) {
+		.generation = prepared->generation,
+	};
+	memcpy(dma->identity, prepared->identity, sizeof(dma->identity));
 	return CB_SUCCESS;
 }
 
@@ -123,6 +176,8 @@ enum cb_err payload_mm_authvar_mor_clear_x86_prepare(
 	memset(backend, 0, sizeof(*backend));
 	backend->revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_REVISION;
 	backend->size = sizeof(*backend);
+	backend->page_tables = (uintptr_t)page_tables;
+	backend->aperture = (uintptr_t)aperture;
 	backend->prepared = true;
 	memset(ops, 0, sizeof(*ops));
 	ops->context = backend;
@@ -131,6 +186,7 @@ enum cb_err payload_mm_authvar_mor_clear_x86_prepare(
 
 static void reset(void)
 {
+	starbook_mtl_mor_clear_x86_lifecycle_reset_test();
 	page_result = (struct bootmem_aligned_reservation) {
 		.base = 0x200000,
 		.size = PAE_PGTL_SIZE,
@@ -145,9 +201,14 @@ static void reset(void)
 	query_calls = 0;
 	compose_calls = 0;
 	backend_calls = 0;
+	guard_calls = 0;
 	fail_register_call = 0;
 	fail_query_call = 0;
+	fail_guard_call = 0;
 	mutate = NULL;
+	mutate_second = NULL;
+	reenter_binding = NULL;
+	reenter_plan = NULL;
 }
 
 static struct starbook_mtl_mor_clear_x86_reservations registered(void)
@@ -164,6 +225,7 @@ static struct starbook_mtl_dma_guard_snapshot guard(void)
 		.revision = STARBOOK_MTL_DMA_GUARD_REVISION,
 		.size = sizeof(struct starbook_mtl_dma_guard_snapshot),
 		.generation = 9,
+		.identity = { 0x99 },
 	};
 }
 
@@ -185,11 +247,195 @@ static void success_and_repeat(void)
 	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
 		&plan, &binding) == CB_SUCCESS);
 	CHECK(query_calls == 2 && compose_calls == 1 && backend_calls == 1 &&
-		binding.backend.prepared && binding.ops.context == &binding.backend);
+		guard_calls == 1 && binding.backend.prepared &&
+		binding.ops.context == &binding.backend && binding.ops.dma_snapshot &&
+		binding.ops.inventory_context == &binding.backend &&
+		binding.ops.inventory_validate);
 	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
 		&plan, &binding) != CB_SUCCESS);
 	expect_zero(&plan, sizeof(plan));
 	expect_zero(&binding, sizeof(binding));
+}
+
+static void callback_sequence(void)
+{
+	struct starbook_mtl_mor_clear_x86_reservations reservations = registered();
+	struct starbook_mtl_dma_guard_snapshot snapshot = guard();
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct starbook_mtl_mor_clear_x86_binding binding = { 0 };
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma = { 0 };
+
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS && compose_calls == 2 && guard_calls == 2);
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) == CB_SUCCESS &&
+		dma.generation == 9 && dma.identity[0] == 0x99 && guard_calls == 3);
+	memset(&dma, 0, sizeof(dma));
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) == CB_SUCCESS &&
+		dma.generation == 9 && dma.identity[0] == 0x99 && guard_calls == 4);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS && compose_calls == 3 && guard_calls == 5);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+}
+
+static void callback_mutations_fail_closed(void)
+{
+	struct starbook_mtl_mor_clear_x86_reservations reservations = registered();
+	struct starbook_mtl_dma_guard_snapshot snapshot = guard();
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct starbook_mtl_mor_clear_x86_binding binding = { 0 };
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma = { .generation = 1 };
+
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	mutate = &binding.authority.seal;
+	mutate_second = &binding.authority_mirror.seal;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	mutate = &binding.ops;
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) != CB_SUCCESS);
+	expect_zero(&dma, sizeof(dma));
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	fail_guard_call = guard_calls + 1U;
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) != CB_SUCCESS);
+	expect_zero(&dma, sizeof(dma));
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	binding.authority_mirror.seal++;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	reenter_binding = &binding;
+	reenter_plan = &plan;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	CHECK(binding.ops.dma_snapshot(binding.ops.context,
+		(struct payload_mm_authvar_mor_clear_dma_snapshot *)
+		&binding.authority) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	plan.inventory_generation++;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+}
+
+static void restored_binding_cannot_replay(void)
+{
+	struct starbook_mtl_mor_clear_x86_reservations reservations = registered();
+	struct starbook_mtl_dma_guard_snapshot snapshot = guard();
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct starbook_mtl_mor_clear_x86_binding binding = { 0 };
+	struct starbook_mtl_mor_clear_x86_binding saved;
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma = { 0 };
+
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	saved = binding;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) == CB_SUCCESS);
+	memset(&dma, 0, sizeof(dma));
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) == CB_SUCCESS);
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	binding = saved;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	memset(&dma, 0, sizeof(dma));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	saved = binding;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) == CB_SUCCESS);
+	fail_guard_call = guard_calls + 1U;
+	CHECK(binding.ops.dma_snapshot(binding.ops.context, &dma) != CB_SUCCESS);
+	binding = saved;
+	CHECK(binding.ops.inventory_validate(binding.ops.inventory_context,
+		&plan) != CB_SUCCESS);
+}
+
+static void hostile_callback_contexts(void)
+{
+	struct starbook_mtl_mor_clear_x86_reservations reservations = registered();
+	struct starbook_mtl_dma_guard_snapshot snapshot = guard();
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct starbook_mtl_mor_clear_x86_binding binding = { 0 };
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma = { 0 };
+	_Alignas(struct starbook_mtl_mor_clear_x86_binding)
+		uint8_t truncated[sizeof(binding.backend)] = { 0 };
+	enum cb_err (*dma_callback)(void *context,
+		struct payload_mm_authvar_mor_clear_dma_snapshot *output);
+
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	dma_callback = binding.ops.dma_snapshot;
+	CHECK(dma_callback(truncated, &dma) != CB_SUCCESS);
+
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	memset(&plan, 0, sizeof(plan));
+	memset(&binding, 0, sizeof(binding));
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) == CB_SUCCESS);
+	CHECK(dma_callback((void *)(UINTPTR_MAX &
+		~(uintptr_t)(_Alignof(binding) - 1U)), &dma) != CB_SUCCESS);
 }
 
 static void invalid_output_clears_valid_peer(void)
@@ -326,6 +572,14 @@ static void failures(void)
 	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, true,
 		&plan, &binding) != CB_SUCCESS && !query_calls && !compose_calls &&
 		!backend_calls);
+	reset();
+	reservations = registered();
+	snapshot = guard();
+	fail_guard_call = 1;
+	CHECK(starbook_mtl_mor_clear_x86_prepare(&reservations, &snapshot, false,
+		&plan, &binding) != CB_SUCCESS);
+	expect_zero(&plan, sizeof(plan));
+	expect_zero(&binding, sizeof(binding));
 }
 
 static void aliases(void)
@@ -347,6 +601,14 @@ int main(void)
 {
 	reset();
 	success_and_repeat();
+	reset();
+	callback_sequence();
+	reset();
+	callback_mutations_fail_closed();
+	reset();
+	restored_binding_cannot_replay();
+	reset();
+	hostile_callback_contexts();
 	reset();
 	invalid_output_clears_valid_peer();
 	reset();

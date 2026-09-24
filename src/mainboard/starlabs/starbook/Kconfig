@@ -233,11 +233,12 @@ config STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
 	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
 	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
 	select PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND
-	select STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
+	select STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD
 	help
-	  Build the dormant Meteor Lake reservation and binding prerequisite for
-	  the generic x86 MOR clear backend. It emits no boot hook, endpoint or MOR
-	  support claim. ACPI S3 is deliberately ineligible for destructive work.
+	  Build the dormant Meteor Lake reservation, DMA guard and live-inventory
+	  binding prerequisite for the generic x86 MOR clear executor. It emits no
+	  boot hook, endpoint or MOR support claim. ACPI S3 is deliberately
+	  ineligible for destructive work.
 
 config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
 	bool
