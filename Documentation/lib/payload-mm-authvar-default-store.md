@@ -40,7 +40,7 @@ For every structurally valid call, including `FOREIGN`, the output buffer is
 the same deterministic candidate. A caller must consume it only after an
 accepted classification. Invalid arguments leave the output untouched.
 
-This component is not a bootstrap executor. A later same-lease FTW integration
-must recover interrupted NOR programming, validate readback, and decide when a
-candidate may be written. Until then the composer remains unreachable from any
-service, provider, SMI route, or coreboot-table record.
+The optional same-lease default-store recovery prerequisite consumes only
+`ERASED`, `NOR_SUBSET`, and `COMPLETE` before lifecycle freeze. The composer
+itself remains a pure component and neither component publishes a service,
+provider, SMI route, or coreboot-table record.

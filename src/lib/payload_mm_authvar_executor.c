@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_executor.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+#include <boot/payload_mm_authvar_default_store.h>
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 #include <boot/payload_mm_authvar_candidate.h>
 #include <payload_mm_cms.h>
@@ -209,7 +212,8 @@ static bool layout_build(struct executor_policy *policy)
 		sizeof(struct payload_mm_authvar_reclaim_copy), &copies_size) ||
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->snapshot_offset) ||
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->candidate_offset) ||
 #endif
@@ -1148,17 +1152,82 @@ static uint64_t poison_session(void)
 	return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+static bool bytes_erased(const uint8_t *bytes, size_t size)
+{
+	while (size--)
+		if (*bytes++ != 0xffU)
+			return false;
+	return true;
+}
+#endif
+
 static uint64_t recover_session(struct executor_session *state)
 {
 	for (state->recovery_count = 0;
 	     state->recovery_count < EXECUTOR_RECOVERY_LIMIT;
 	     state->recovery_count++) {
 		enum payload_mm_authvar_media_result result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+		struct payload_mm_authvar_fv_geometry geometry;
+		enum payload_mm_authvar_default_store_source source;
+		uint8_t *target = arena_at(executor.sealed.candidate_offset);
+		uint8_t *current = snapshot();
+		size_t offset;
+		size_t size;
+#endif
 
 		result = snapshot_read(state);
 		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
 			return state->invariant_failure ? poison_session() :
 				payload_mm_authvar_media_result_status(result);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+		if (!payload_mm_authvar_fv_geometry(&geometry,
+			state->contract.store_size, state->contract.block_size) ||
+		    geometry.variable_offset ||
+		    geometry.variable_size < PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE)
+			return poison_session();
+		if (!bytes_erased(current + geometry.working_offset,
+			geometry.working_size) ||
+		    !bytes_erased(current + geometry.spare_offset,
+			geometry.spare_size))
+			goto plan_ftw;
+		source = payload_mm_authvar_default_store_compose(current, target,
+			state->contract.store_size, state->contract.block_size);
+		if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID)
+			return poison_session();
+		if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_FOREIGN)
+			goto plan_ftw;
+		if (executor.ready_to_boot || executor.at_runtime)
+			return poison_session();
+		if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_COMPLETE)
+			goto plan_ftw;
+		if (source != PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED &&
+		    source != PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET)
+			return poison_session();
+		for (offset = PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+		     offset < geometry.variable_size &&
+		     current[offset] == target[offset]; offset++)
+			;
+		if (offset < geometry.variable_size) {
+			size = geometry.variable_size - offset;
+			if (size > EXECUTOR_TRANSFER_SIZE)
+				size = EXECUTOR_TRANSFER_SIZE;
+		} else if (memcmp(current, target,
+			PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE)) {
+			offset = 0;
+			size = PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+		} else {
+			return poison_session();
+		}
+		result = checked_program(state, (uint32_t)offset,
+			target + offset, size);
+		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+			return state->invariant_failure ? poison_session() :
+				payload_mm_authvar_media_result_status(result);
+		continue;
+plan_ftw:
+#endif
 		if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
 			state->contract.block_size, &state->ftw) != CB_SUCCESS)
 			return poison_session();

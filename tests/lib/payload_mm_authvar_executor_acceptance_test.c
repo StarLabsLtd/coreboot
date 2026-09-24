@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+#include <boot/payload_mm_authvar_default_store.h>
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
 #include <boot/payload_mm_authvar_candidate.h>
 #endif
@@ -44,7 +47,10 @@
 #define FV_HEADER_SIZE 72U
 #define STORE_SIZE (VARIABLE_SIZE - FV_HEADER_SIZE)
 #define POLICY_RECORD_SIZE (STORE_SIZE < 8192U ? STORE_SIZE : 8192U)
-#define ARENA_SIZE (128U * 1024U)
+#ifndef TEST_ARENA_SIZE
+#define TEST_ARENA_SIZE (128U * 1024U)
+#endif
+#define ARENA_SIZE TEST_ARENA_SIZE
 #define TRACE_CAPACITY 16384U
 #define CHILD_CUT_EXIT 77
 #define RANDOM_MASK_SEED 0x7a13c9e5U
@@ -192,6 +198,9 @@ struct shared_state {
 	uint64_t trace_generation;
 	uint64_t trace_token;
 	uint64_t trace_next_token;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	uint32_t default_store_force_invalid;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	uint32_t candidate_mutation_enabled;
 	uint32_t candidate_mutation_offset;
@@ -227,6 +236,22 @@ static bool candidate_staged_corrupt;
 static struct trace_entry direct_baseline[TRACE_CAPACITY];
 static uint32_t direct_baseline_count;
 static uint32_t direct_fault_counts[FAULT_END + 1U];
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+enum payload_mm_authvar_default_store_source
+__real_payload_mm_authvar_default_store_compose(const void *source,
+	void *candidate, size_t region_size, size_t block_size);
+
+enum payload_mm_authvar_default_store_source
+__wrap_payload_mm_authvar_default_store_compose(const void *source,
+	void *candidate, size_t region_size, size_t block_size)
+{
+	if (backend.shared && backend.shared->default_store_force_invalid)
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	return __real_payload_mm_authvar_default_store_compose(source, candidate,
+		region_size, block_size);
+}
+#endif
 
 /* Immutable reclaim transcript from f3f0a22bdbea90e1da2726da78dee2d7ddf526b0. */
 static const struct trace_entry legacy_reclaim_trace[] = {
@@ -379,6 +404,37 @@ static const uint8_t variable_name[] = { 'A', 0, 0, 0 };
 static const uint8_t variable_data[] = { 1, 2, 3, 4 };
 static const uint8_t replacement_data[] = { 9, 8, 7, 6 };
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+#define DEFAULT_RECORDS_OFFSET 100U
+#define DEFAULT_RECORDS_SIZE 260U
+
+/* Fixed independently from the production default-store record encoder. */
+static const uint8_t default_store_records[DEFAULT_RECORDS_SIZE] = {
+	0xaa, 0x55, 0x3f, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x16, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0c, 0xec, 0x76, 0xc0,
+	0x28, 0x70, 0x99, 0x43, 0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f,
+	0x43, 0x00, 0x75, 0x00, 0x73, 0x00, 0x74, 0x00, 0x6f, 0x00, 0x6d, 0x00,
+	0x4d, 0x00, 0x6f, 0x00, 0x64, 0x00, 0x65, 0x00, 0x00, 0x00, 0xff, 0xff,
+	0x00, 0xff, 0xff, 0xff, 0xaa, 0x55, 0x3f, 0x00, 0x27, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49, 0xb4, 0xd7, 0xb5, 0x34,
+	0x21, 0x0f, 0x63, 0x7a, 0x63, 0x00, 0x65, 0x00, 0x72, 0x00, 0x74, 0x00,
+	0x64, 0x00, 0x62, 0x00, 0x00, 0x00, 0xff, 0xff, 0x04, 0x00, 0x00, 0x00,
+	0xaa, 0x55, 0x3f, 0x00, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x1a, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xe0, 0xe4, 0x73, 0x90,
+	0xec, 0x60, 0x6e, 0x4b, 0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
+	0x56, 0x00, 0x65, 0x00, 0x6e, 0x00, 0x64, 0x00, 0x6f, 0x00, 0x72, 0x00,
+	0x4b, 0x00, 0x65, 0x00, 0x79, 0x00, 0x73, 0x00, 0x4e, 0x00, 0x76, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x01, 0xff, 0xff, 0xff,
+};
+#endif
+
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE)
 enum payload_mm_verify_status payload_mm_sha256(const void *message,
 	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
@@ -503,6 +559,65 @@ static uint32_t independent_crc32(const uint8_t *data, size_t size)
 	}
 	return ~crc;
 }
+
+static bool independent_ftw_clean(const uint8_t *media);
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+static void make_default_store_target(uint8_t target[REGION_SIZE])
+{
+	uint16_t checksum = 0;
+
+	memset(target, 0xff, REGION_SIZE);
+	memset(target, 0, 16U);
+	memcpy(target + 16U, fv_guid, sizeof(fv_guid));
+	write_le64(target + 32U, REGION_SIZE);
+	write_le32(target + 40U, 0x4856465fU);
+	write_le32(target + 44U, 0x00000e36U);
+	write_le16(target + 48U, FV_HEADER_SIZE);
+	write_le16(target + 50U, 0U);
+	write_le16(target + 52U, 0U);
+	target[54] = 0U;
+	target[55] = 2U;
+	write_le32(target + 56U, BLOCK_COUNT);
+	write_le32(target + 60U, BLOCK_SIZE);
+	memset(target + 64U, 0, 8U);
+	for (size_t i = 0; i < FV_HEADER_SIZE; i += 2U)
+		checksum = (uint16_t)(checksum + read_le16(target + i));
+	write_le16(target + 50U, (uint16_t)(0U - checksum));
+	memcpy(target + FV_HEADER_SIZE, store_guid, sizeof(store_guid));
+	write_le32(target + FV_HEADER_SIZE + 16U, STORE_SIZE);
+	target[FV_HEADER_SIZE + 20U] = 0x5aU;
+	target[FV_HEADER_SIZE + 21U] = 0xfeU;
+	memset(target + FV_HEADER_SIZE + 22U, 0, 6U);
+	memcpy(target + DEFAULT_RECORDS_OFFSET, default_store_records,
+		sizeof(default_store_records));
+}
+
+static void assert_default_store_final(const struct shared_state *shared,
+	const uint8_t target[REGION_SIZE])
+{
+	struct payload_mm_authvar_store_entry entries[4];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries,
+		.entry_capacity = ARRAY_SIZE(entries),
+	};
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = STORE_SIZE,
+		.maximum_name_size = 128U,
+		.maximum_data_size = 2048U,
+		.maximum_records = ARRAY_SIZE(entries),
+	};
+
+	assert(!memcmp(shared->media, target, VARIABLE_SIZE));
+	assert(independent_ftw_clean(shared->media));
+	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	assert(payload_mm_authvar_store_scan(&index,
+		shared->media + FV_HEADER_SIZE, STORE_SIZE, &limits) == CB_SUCCESS);
+	assert(index.record_count == 3U && index.entry_count == 3U &&
+		index.used_size == DEFAULT_RECORDS_OFFSET + DEFAULT_RECORDS_SIZE -
+			FV_HEADER_SIZE && !index.dirty_tail_offset);
+}
+#endif
 
 static void make_clean_image(struct shared_state *shared)
 {
@@ -1481,6 +1596,10 @@ enum child_operation {
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	CHILD_COMMIT_CANDIDATE,
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	CHILD_READY_THEN_ERASE_RECOVER,
+	CHILD_RUNTIME_THEN_ERASE_RECOVER,
+#endif
 };
 
 static int run_child(struct shared_state *shared, enum child_operation operation)
@@ -1515,6 +1634,32 @@ static int run_child(struct shared_state *shared, enum child_operation operation
 		install_stack(shared);
 		if (operation == CHILD_RECOVER || operation == CHILD_RECOVER_RETRY)
 			result = payload_mm_authvar_executor_recover();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+		else if (operation == CHILD_READY_THEN_ERASE_RECOVER ||
+			 operation == CHILD_RUNTIME_THEN_ERASE_RECOVER) {
+			struct payload_mm_authvar_policy_request request = {
+				.operation = operation == CHILD_READY_THEN_ERASE_RECOVER ?
+					PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT :
+					PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+			};
+			struct payload_mm_authvar_policy_result completion;
+
+			result = payload_mm_authvar_executor_recover();
+			if (result == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+				result = payload_mm_authvar_policy_transaction(&request,
+					&completion);
+			if (result == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+				shared->callbacks_before_retry = shared->program_count +
+					shared->erase_count;
+				memset(shared->media, 0xff, REGION_SIZE);
+				shared->retry_result =
+					payload_mm_authvar_executor_recover();
+				shared->callbacks_after_retry = shared->program_count +
+					shared->erase_count;
+				result = shared->retry_result;
+			}
+		}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 		else if (operation == CHILD_COMMIT_CANDIDATE)
 			result = commit_candidate();
@@ -2805,6 +2950,228 @@ static void run_workspace_checkpoint(struct shared_state *shared)
 	trace_sessions_valid(shared);
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+static void run_default_store_fault(struct shared_state *shared,
+	const uint8_t target[REGION_SIZE], enum fault_kind kind,
+	uint32_t occurrence, enum fault_mode mode)
+{
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	shared->fault_kind = (uint32_t)kind;
+	shared->fault_occurrence = occurrence;
+	shared->fault_mode = (uint32_t)mode;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_RECOVER) == 1);
+	trace_sessions_valid(shared);
+	shared->fault_kind = FAULT_NONE;
+	if (mode == FAULT_MODE_PARTIAL_DEVICE && !shared->fault_recoverable) {
+		int status = run_child(shared, CHILD_RECOVER);
+
+		assert(status == 0 || status == 1);
+		if (!status)
+			assert_default_store_final(shared, target);
+		trace_sessions_valid(shared);
+		return;
+	}
+	shared->suppress_diagnostics = 0U;
+	if (run_child(shared, CHILD_RECOVER) != 0) {
+		char message[128];
+		int length = snprintf(message, sizeof(message),
+			"default fault recovery kind=%u occurrence=%u mode=%u\n",
+			(unsigned int)kind, occurrence, (unsigned int)mode);
+
+		assert(length > 0 && (size_t)length < sizeof(message));
+		output(2, message, (size_t)length);
+		assert(false);
+	}
+	assert_default_store_final(shared, target);
+	trace_sessions_valid(shared);
+}
+
+static void default_store_recovery_tests(struct shared_state *shared, bool faults)
+{
+	uint8_t target[REGION_SIZE];
+	uint8_t foreign_primary[VARIABLE_SIZE];
+	uint32_t fault_counts[FAULT_END + 1U] = { 0 };
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.name = variable_name,
+		.name_size = sizeof(variable_name),
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
+	};
+	const struct payload_mm_authvar_record_span span = {
+		.data = variable_data,
+		.size = sizeof(variable_data),
+	};
+	uint32_t record_size;
+	uint32_t active_programs;
+	bool erase_seen;
+
+	make_default_store_target(target);
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert_default_store_final(shared, target);
+	active_programs = 0;
+	erase_seen = false;
+	for (uint32_t i = 0; i < shared->trace_count; i++) {
+		const struct trace_entry *entry = &shared->trace[i];
+
+		if (entry->kind == TRACE_ERASE)
+			erase_seen = true;
+		if (entry->kind != TRACE_PROGRAM || entry->offset >= VARIABLE_SIZE)
+			continue;
+		assert(!erase_seen);
+		if (!active_programs)
+			assert(entry->offset == FV_HEADER_SIZE &&
+				entry->size == MIN(VARIABLE_SIZE - FV_HEADER_SIZE,
+					4096U));
+		else if (active_programs == 1U)
+			assert(!entry->offset && entry->size == FV_HEADER_SIZE);
+		else
+			assert(false);
+		active_programs++;
+	}
+	assert(active_programs == 2U && shared->erase_count);
+	fault_counts[FAULT_BEGIN] = shared->begin_count;
+	fault_counts[FAULT_READ] = shared->read_count;
+	fault_counts[FAULT_PROGRAM] = shared->program_count;
+	fault_counts[FAULT_ERASE] = shared->erase_count;
+	fault_counts[FAULT_SYNC] = shared->sync_count;
+	fault_counts[FAULT_END] = shared->end_count;
+	for (enum fault_kind kind = FAULT_BEGIN; kind <= FAULT_END; kind++)
+		assert(fault_counts[kind]);
+	trace_sessions_valid(shared);
+
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, target, REGION_SIZE);
+	memset(shared->media + DEFAULT_RECORDS_OFFSET, 0xff,
+		DEFAULT_RECORDS_SIZE);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert_default_store_final(shared, target);
+	assert(shared->program_count && shared->erase_count);
+
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	memcpy(shared->media, target, 200U);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert_default_store_final(shared, target);
+
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, target, REGION_SIZE);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert_default_store_final(shared, target);
+	for (uint32_t i = 0; i < shared->trace_count; i++)
+		assert(shared->trace[i].kind != TRACE_PROGRAM ||
+			shared->trace[i].offset >= WORKING_OFFSET);
+
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, target, REGION_SIZE);
+	shared->media[0] = 0xffU;
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert_default_store_final(shared, target);
+	for (uint32_t i = 0; i < shared->trace_count; i++) {
+		if (shared->trace[i].kind != TRACE_PROGRAM)
+			continue;
+		assert(!shared->trace[i].offset &&
+			shared->trace[i].size == FV_HEADER_SIZE);
+		break;
+	}
+
+	memset(shared, 0, sizeof(*shared));
+	make_clean_image(shared);
+	memset(shared->media + WORKING_OFFSET, 0xff,
+		BLOCK_SIZE + SPARE_SIZE);
+	memcpy(descriptor.vendor_guid, variable_guid, sizeof(variable_guid));
+	assert(payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		shared->media + DEFAULT_RECORDS_OFFSET,
+		STORE_SIZE - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE, &record_size));
+	shared->media[DEFAULT_RECORDS_OFFSET + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	memcpy(foreign_primary, shared->media, VARIABLE_SIZE);
+	assert(run_child(shared, CHILD_RECOVER) == 0);
+	assert(!memcmp(shared->media, foreign_primary, VARIABLE_SIZE));
+	assert(independent_ftw_clean(shared->media));
+	assert(bytes_are(shared->media + SPARE_OFFSET, SPARE_SIZE, 0xffU));
+	for (uint32_t i = 0; i < shared->trace_count; i++)
+		assert(shared->trace[i].kind != TRACE_PROGRAM ||
+			shared->trace[i].offset >= WORKING_OFFSET);
+
+	memset(shared, 0, sizeof(*shared));
+	memcpy(shared->media, target, REGION_SIZE);
+	shared->media[40] &= 0xfeU;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_RECOVER) == 1);
+	assert(!shared->program_count && !shared->erase_count);
+
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	shared->default_store_force_invalid = 1U;
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_RECOVER) == 1);
+	assert(!shared->program_count && !shared->erase_count);
+
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_READY_THEN_ERASE_RECOVER) == 1);
+	assert(shared->retry_result == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(shared->callbacks_before_retry == shared->callbacks_after_retry);
+	assert(bytes_are(shared->media, REGION_SIZE, 0xffU));
+
+	memset(shared, 0, sizeof(*shared));
+	memset(shared->media, 0xff, REGION_SIZE);
+	shared->suppress_diagnostics = 1U;
+	assert(run_child(shared, CHILD_RUNTIME_THEN_ERASE_RECOVER) == 1);
+	assert(shared->retry_result == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(shared->callbacks_before_retry == shared->callbacks_after_retry);
+	assert(bytes_are(shared->media, REGION_SIZE, 0xffU));
+	if (!faults)
+		return;
+
+	for (enum fault_kind kind = FAULT_BEGIN; kind <= FAULT_END; kind++)
+		for (uint32_t occurrence = 1; occurrence <= fault_counts[kind];
+		     occurrence++)
+			run_default_store_fault(shared, target, kind, occurrence,
+				FAULT_MODE_DEVICE_UNCHANGED);
+	for (enum fault_mode mode = FAULT_MODE_UNSUPPORTED;
+	     mode <= FAULT_MODE_WRITE_PROTECTED; mode++) {
+		for (uint32_t occurrence = 1;
+		     occurrence <= fault_counts[FAULT_BEGIN]; occurrence++)
+			run_default_store_fault(shared, target, FAULT_BEGIN,
+				occurrence, mode);
+		for (enum fault_kind kind = FAULT_PROGRAM; kind <= FAULT_ERASE;
+		     kind++)
+			for (uint32_t occurrence = 1;
+			     occurrence <= fault_counts[kind]; occurrence++)
+				run_default_store_fault(shared, target, kind,
+					occurrence, mode);
+	}
+	for (enum fault_kind kind = FAULT_PROGRAM; kind <= FAULT_ERASE; kind++)
+		for (uint32_t occurrence = 1; occurrence <= fault_counts[kind];
+		     occurrence++)
+			run_default_store_fault(shared, target, kind, occurrence,
+				FAULT_MODE_PARTIAL_DEVICE);
+	for (enum fault_kind kind = FAULT_BEGIN; kind <= FAULT_END; kind++) {
+		for (uint32_t occurrence = 1; occurrence <= fault_counts[kind];
+		     occurrence++) {
+			run_default_store_fault(shared, target, kind, occurrence,
+				FAULT_MODE_INVALID_RESULT);
+			run_default_store_fault(shared, target, kind, occurrence,
+				FAULT_MODE_CONTEXT_MUTATION);
+			run_default_store_fault(shared, target, kind, occurrence,
+				FAULT_MODE_REENTRY);
+		}
+	}
+	for (uint32_t occurrence = 1;
+	     occurrence <= fault_counts[FAULT_PROGRAM]; occurrence++)
+		run_default_store_fault(shared, target, FAULT_PROGRAM, occurrence,
+			FAULT_MODE_INPUT_MUTATION);
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	struct shared_state *shared = mmap(NULL, sizeof(*shared),
@@ -2824,13 +3191,29 @@ int main(int argc, char **argv)
 	bool candidate_checkpoints = argc == 2 &&
 		!strcmp(argv[1], "candidate-checkpoints");
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	bool default_recovery = argc == 2 &&
+		!strcmp(argv[1], "default-recovery");
+	bool default_recovery_geometry = argc == 2 &&
+		!strcmp(argv[1], "default-recovery-geometry");
+#endif
 
 	assert(shared != MAP_FAILED && (argc == 1 || fault_only || golden_only
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 		|| candidate_only || candidate_mutations || candidate_checkpoints
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+		|| default_recovery || default_recovery_geometry
+#endif
 		));
 	trace_negative_selftests();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
+	if (default_recovery || default_recovery_geometry) {
+		default_store_recovery_tests(shared, default_recovery);
+		assert(munmap(shared, sizeof(*shared)) == 0);
+		return 0;
+	}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	if (candidate_only || candidate_mutations) {
 		candidate_power_cut_tests(shared, candidate_mutations);
