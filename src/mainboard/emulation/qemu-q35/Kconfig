@@ -58,11 +58,13 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	select PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
 	select PAYLOAD_MM_AUTHVAR_CANDIDATE
 	select PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
+	select PAYLOAD_MM_AUTHVAR_COORDINATOR
 	help
 	  Compile the dormant linear SMM-only variable-plan/FTW executor, its sealed
 	  arena, the pure Auth2/signature-list parser, authorization router,
 	  protected-store PK/KEK trust policy, dormant Auth2 policy authority,
-	  fixed-role atomic bundle planner and same-lease candidate commit,
+	  fixed-role atomic bundle planner, same-lease candidate commit and dormant
+	  linear authority-to-commit coordinator,
 	  untrusted detached-CMS verifier and
 	  one-anchor X.509 matcher for QEMU build proof. This installs no arena,
 	  media backend, authority, endpoint, SMI
