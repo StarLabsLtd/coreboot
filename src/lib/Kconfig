@@ -164,6 +164,16 @@ config PAYLOAD_MM_AUTHVAR_EXECUTOR
 	  sealed protected arena, bounded FTW recovery and exact writer-plan
 	  execution without exposing raw media coordinates or a service endpoint.
 
+config PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_EXECUTOR
+	help
+	  Build the dormant, allocation-free FTW recovery planner. It derives a
+	  byte-exact canonical post-recovery image in protected executor scratch
+	  before executing the sealed recovery sequence. This publishes no endpoint
+	  and makes no authenticated-variable or MOR support claim.
+
 config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY
 	bool
 	default n

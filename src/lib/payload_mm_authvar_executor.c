@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
+#include "payload_mm_authvar_recovery.h"
 #include "payload_mm_authvar_set_preflight.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "payload_mm_authvar_coordinator.h"
@@ -35,6 +36,17 @@
 #define EXECUTOR_ALIGNMENT ((size_t)__BIGGEST_ALIGNMENT__)
 #define EXECUTOR_TRANSFER_SIZE 4096U
 #define EXECUTOR_RECOVERY_LIMIT 16U
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+struct executor_recovery_plan {
+	uint64_t generation;
+	uint64_t token;
+	uint32_t count;
+	uint32_t reserved;
+	struct payload_mm_authvar_ftw_plan steps[EXECUTOR_RECOVERY_LIMIT];
+};
+#endif
+
 struct executor_session {
 	struct payload_mm_authvar_contract contract;
 	struct payload_mm_authvar_ftw_plan ftw;
@@ -65,6 +77,11 @@ struct executor_session {
 	bool have_previous_ftw;
 	bool invariant_failure;
 	bool at_runtime;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	struct executor_recovery_plan recovery;
+	struct executor_recovery_plan recovery_sealed;
+	bool recovery_plan_active;
+#endif
 };
 
 struct executor_policy {
@@ -73,6 +90,9 @@ struct executor_policy {
 	struct payload_mm_authvar_executor_limits limits;
 	size_t snapshot_offset;
 	size_t candidate_offset;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	size_t recovery_image_seal_offset;
+#endif
 	size_t entries_offset;
 	size_t candidate_entries_offset;
 	size_t copies_offset;
@@ -227,9 +247,14 @@ static bool layout_build(struct executor_policy *policy)
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->snapshot_offset) ||
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER) || \
 	CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
 	    !add_area(&cursor, policy->limits.maximum_store_size,
 		&policy->candidate_offset) ||
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	    !add_area(&cursor, policy->limits.maximum_store_size,
+		&policy->recovery_image_seal_offset) ||
 #endif
 	    !add_area(&cursor, entries_size, &policy->entries_offset) ||
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
@@ -284,6 +309,19 @@ static uint8_t *snapshot(void)
 {
 	return arena_at(executor.sealed.snapshot_offset);
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+static bool recovery_image_unchanged(const struct executor_session *state);
+
+static bool recovery_read_valid(struct executor_session *state)
+{
+	if (state->recovery_plan_active && !recovery_image_unchanged(state)) {
+		state->invariant_failure = true;
+		return false;
+	}
+	return true;
+}
+#endif
 
 static uint8_t *transfer(void)
 {
@@ -358,6 +396,9 @@ struct executor_control_seal {
 	uint8_t have_previous_ftw;
 	uint8_t invariant_failure;
 	uint8_t at_runtime;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	uint8_t recovery_plan_active;
+#endif
 };
 
 static bool control_snapshot(const struct executor_session *state,
@@ -437,6 +478,9 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->have_previous_ftw = state->have_previous_ftw;
 	seal->invariant_failure = state->invariant_failure;
 	seal->at_runtime = state->at_runtime;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	seal->recovery_plan_active = state->recovery_plan_active;
+#endif
 	return (!state->source.name_size ||
 		state->source.name == arena_at(executor.sealed.name_offset)) &&
 		state->source.name_size <= executor.sealed.limits.maximum_name_size &&
@@ -448,7 +492,12 @@ static bool control_snapshot(const struct executor_session *state,
 		state->reclaim.copy_capacity <= executor.sealed.limits.maximum_records &&
 		(!state->index.entries || state->index.entries ==
 		 arena_at(executor.sealed.entries_offset)) &&
-		state->index.entry_capacity <= executor.sealed.limits.maximum_records;
+		state->index.entry_capacity <= executor.sealed.limits.maximum_records
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+		&& !memcmp(&state->recovery, &state->recovery_sealed,
+			sizeof(state->recovery))
+#endif
+		;
 }
 
 static bool control_unchanged(const struct executor_session *state,
@@ -599,6 +648,10 @@ static enum payload_mm_authvar_media_result media_read(
 		state->invariant_failure = true;
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	if (!recovery_read_valid(state))
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+#endif
 	return result;
 }
 
@@ -609,7 +662,6 @@ static enum payload_mm_authvar_media_result media_program(
 	struct executor_control_seal before;
 	bool sealed = control_snapshot(state, &before, false);
 	enum payload_mm_authvar_media_result result;
-
 	if (!sealed || !owner_equal(state)) {
 		state->generation = executor.sealed_owner_generation;
 		state->token = executor.sealed_owner_token;
@@ -636,7 +688,6 @@ static enum payload_mm_authvar_media_result media_erase(
 	struct executor_control_seal before;
 	bool sealed = control_snapshot(state, &before, false);
 	enum payload_mm_authvar_media_result result;
-
 	if (!sealed || !owner_equal(state)) {
 		state->generation = executor.sealed_owner_generation;
 		state->token = executor.sealed_owner_token;
@@ -1158,6 +1209,7 @@ static enum payload_mm_authvar_media_result recover_once(
 	}
 }
 
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 static bool same_recovery(const struct payload_mm_authvar_ftw_plan *left,
 	const struct payload_mm_authvar_ftw_plan *right)
 {
@@ -1166,6 +1218,217 @@ static bool same_recovery(const struct payload_mm_authvar_ftw_plan *left,
 		left->queue_offset == right->queue_offset &&
 		left->queue_entry_size == right->queue_entry_size;
 }
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+static uint64_t poison_session(void);
+
+static bool recovery_image_marker(uint8_t *image, size_t size, uint32_t offset,
+	uint8_t expected, uint8_t wanted)
+{
+	if (offset >= size || image[offset] != expected ||
+	    wanted != (expected & wanted))
+		return false;
+	image[offset] = wanted;
+	return true;
+}
+
+static bool recovery_image_apply(uint8_t *image, size_t size,
+	const struct payload_mm_authvar_ftw_plan *plan)
+{
+	const struct payload_mm_authvar_fv_geometry *geometry = &plan->geometry;
+	uint32_t queue;
+	uint8_t *working;
+	uint8_t *spare;
+
+	if (geometry->variable_offset > size ||
+	    geometry->variable_size > size - geometry->variable_offset ||
+	    geometry->working_offset > size ||
+	    geometry->working_size > size - geometry->working_offset ||
+	    geometry->spare_offset > size ||
+	    geometry->spare_size > size - geometry->spare_offset ||
+	    plan->queue_offset > geometry->working_size)
+		return false;
+	working = image + geometry->working_offset;
+	spare = image + geometry->spare_offset;
+	queue = geometry->working_offset + plan->queue_offset;
+	switch (plan->action) {
+	case PAYLOAD_MM_AUTHVAR_FTW_INITIALIZE_WORKSPACE:
+	case PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE:
+		empty_workspace(working, geometry->working_size);
+		working[PAYLOAD_MM_AUTHVAR_FTW_WORK_STATE_OFFSET] =
+			PAYLOAD_MM_AUTHVAR_FTW_WORK_VALID;
+		memset(spare, 0xff, geometry->spare_size);
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED:
+		if (plan->workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING)
+			memset(working, 0xff, geometry->working_size);
+		else if (plan->workspace == PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE)
+			memset(spare, 0xff, geometry->spare_size);
+		else
+			return false;
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE:
+		memset(spare, 0xff, geometry->spare_size);
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD:
+		if (plan->queue_entry_size != PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE +
+		    PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE || queue >= size)
+			return false;
+		if (image[queue] == PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED)
+			return recovery_image_marker(image, size, queue,
+				PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED,
+				PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED);
+		if (image[queue] != PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED ||
+		    queue > size - PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE ||
+		    image[queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE] !=
+			PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED)
+			return false;
+		memset(spare, 0xff, geometry->spare_size);
+		return recovery_image_marker(image, size, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE);
+	case PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE:
+		if (geometry->variable_size > geometry->spare_size ||
+		    queue > size - PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE)
+			return false;
+		memcpy(image + geometry->variable_offset, spare,
+			geometry->variable_size);
+		if (!recovery_image_marker(image, size,
+			queue + PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE,
+			PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE,
+			PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE) ||
+		    !recovery_image_marker(image, size, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE))
+			return false;
+		memset(spare, 0xff, geometry->spare_size);
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW:
+		if (!recovery_image_marker(image, size, queue,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
+			PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE))
+			return false;
+		memset(spare, 0xff, geometry->spare_size);
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE:
+		if (geometry->working_size > geometry->spare_size)
+			return false;
+		memcpy(working, spare, geometry->working_size);
+		if (plan->queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD) {
+			if (image[queue] == PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED) {
+				if (!recovery_image_marker(image, size, queue,
+					PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED,
+					PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED))
+					return false;
+			} else if (!recovery_image_marker(image, size, queue,
+				PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED,
+				PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE)) {
+				return false;
+			}
+		} else if (plan->queue_disposition !=
+			   PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY) {
+			return false;
+		}
+		memset(spare, 0xff, geometry->spare_size);
+		return true;
+	case PAYLOAD_MM_AUTHVAR_FTW_CLEAN:
+	case PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED:
+	default:
+		return false;
+	}
+}
+
+static bool recovery_plan_build(struct executor_session *state)
+{
+	uint8_t *canonical = arena_at(executor.sealed.candidate_offset);
+	uint8_t *canonical_sealed =
+		arena_at(executor.sealed.recovery_image_seal_offset);
+
+	memset(&state->recovery, 0, sizeof(state->recovery));
+	state->recovery.generation = state->generation;
+	state->recovery.token = state->token;
+	memcpy(canonical, snapshot(), state->contract.store_size);
+	for (state->recovery.count = 0;
+	     state->recovery.count < EXECUTOR_RECOVERY_LIMIT;
+	     state->recovery.count++) {
+		struct payload_mm_authvar_ftw_plan *step =
+			&state->recovery.steps[state->recovery.count];
+
+		if (payload_mm_authvar_ftw_plan(canonical, state->contract.store_size,
+			state->contract.block_size, step) != CB_SUCCESS)
+			return false;
+		if (step->action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN) {
+			memset(step, 0, sizeof(*step));
+			memcpy(canonical_sealed, canonical,
+				state->contract.store_size);
+			state->recovery_sealed = state->recovery;
+			return true;
+		}
+		if (!recovery_image_apply(canonical, state->contract.store_size, step))
+			return false;
+	}
+	return false;
+}
+
+static bool recovery_image_unchanged(const struct executor_session *state)
+{
+	return !memcmp(arena_at(executor.sealed.candidate_offset),
+		arena_at(executor.sealed.recovery_image_seal_offset),
+		state->contract.store_size);
+}
+
+static uint64_t recovery_plan_execute(struct executor_session *state)
+{
+	uint8_t *canonical = arena_at(executor.sealed.candidate_offset);
+
+	if (memcmp(&state->recovery, &state->recovery_sealed,
+		sizeof(state->recovery)) || !owner_equal(state) ||
+	    state->recovery.generation != state->generation ||
+	    state->recovery.token != state->token ||
+	    !recovery_image_unchanged(state))
+		return poison_session();
+	state->recovery_plan_active = true;
+	if (verify_media(state, 0, snapshot(), state->contract.store_size) !=
+		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS || !recovery_image_unchanged(state))
+		return poison_session();
+	for (state->recovery_count = 0;
+	     state->recovery_count < state->recovery.count;
+	     state->recovery_count++) {
+		struct payload_mm_authvar_ftw_plan observed;
+		enum payload_mm_authvar_media_result result;
+
+		if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+			state->contract.block_size, &observed) != CB_SUCCESS ||
+		    memcmp(&observed,
+			&state->recovery.steps[state->recovery_count], sizeof(observed)))
+			return poison_session();
+		state->ftw = observed;
+		if (!recovery_image_unchanged(state))
+			return poison_session();
+		result = recover_once(state);
+
+		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+			return state->invariant_failure ? poison_session() :
+				payload_mm_authvar_media_result_status(result);
+		if (!recovery_image_unchanged(state))
+			return poison_session();
+		result = snapshot_read(state);
+		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+			return state->invariant_failure ? poison_session() :
+				payload_mm_authvar_media_result_status(result);
+		if (!recovery_image_unchanged(state))
+			return poison_session();
+	}
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    memcmp(snapshot(), canonical, state->contract.store_size))
+		return poison_session();
+	state->recovery_plan_active = false;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+#endif
 
 static uint64_t poison_session(void)
 {
@@ -1191,6 +1454,9 @@ static uint64_t recover_session(struct executor_session *state)
 	     state->recovery_count < EXECUTOR_RECOVERY_LIMIT;
 	     state->recovery_count++) {
 		enum payload_mm_authvar_media_result result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+		uint64_t recovery_status;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY)
 		struct payload_mm_authvar_fv_geometry geometry;
 		enum payload_mm_authvar_default_store_source source;
@@ -1251,6 +1517,35 @@ static uint64_t recover_session(struct executor_session *state)
 		continue;
 plan_ftw:
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+		if (!recovery_plan_build(state))
+			return poison_session();
+		recovery_status = recovery_plan_execute(state);
+
+		if (recovery_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			return recovery_status;
+		{
+			uint32_t store_base;
+			struct payload_mm_authvar_store_limits limits = {
+				.maximum_store_size =
+					executor.sealed.limits.maximum_store_size,
+				.maximum_name_size = executor.sealed.limits.maximum_name_size,
+				.maximum_data_size = executor.sealed.limits.maximum_data_size,
+				.maximum_records = executor.sealed.limits.maximum_records,
+			};
+
+			memset(&state->index, 0, sizeof(state->index));
+			state->index.entries = arena_at(executor.sealed.entries_offset);
+			state->index.entry_capacity =
+				executor.sealed.limits.maximum_records;
+			if (!ftw_store_base(state, &store_base) ||
+			    payload_mm_authvar_store_scan(&state->index,
+				snapshot() + store_base,
+				state->ftw.variable_store_size, &limits) != CB_SUCCESS)
+				return poison_session();
+			return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		}
+#else
 		if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
 			state->contract.block_size, &state->ftw) != CB_SUCCESS)
 			return poison_session();
@@ -1283,6 +1578,7 @@ plan_ftw:
 			return poison_session();
 		if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
 			return payload_mm_authvar_media_result_status(result);
+#endif
 	}
 	return poison_session();
 }
@@ -2176,6 +2472,97 @@ out:
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
+
+#if ENV_TEST && CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+uint64_t payload_mm_authvar_executor_test_recovery_plan(
+	enum payload_mm_authvar_recovery_test_mutation mutation, bool execute)
+{
+	struct executor_session *state;
+	enum payload_mm_authvar_media_result result;
+	enum payload_mm_authvar_media_result end_result;
+	uint64_t status;
+	uint32_t expected = 0;
+
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!executor.installed || !policy_equal()) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto out;
+	}
+	state = session();
+	memset(state, 0, sizeof(*state));
+	result = media_begin(state);
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(result);
+		goto out;
+	}
+	if (!payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits) ||
+	    snapshot_read(state) != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+	    !recovery_plan_build(state)) {
+		status = poison_session();
+		goto end;
+	}
+	switch (mutation) {
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_NONE:
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_SNAPSHOT:
+		snapshot()[state->contract.store_size - 1U] ^= 1U;
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_GEOMETRY:
+		if (!state->recovery.count) {
+			status = poison_session();
+			goto end;
+		}
+		state->recovery.steps[0].geometry.block_size ^= 1U;
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_STEP:
+		if (!state->recovery.count) {
+			status = poison_session();
+			goto end;
+		}
+		state->recovery.steps[0].queue_offset ^= 1U;
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_TOKEN:
+		state->recovery.token ^= 1U;
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_CALLBACK_IMAGE:
+		payload_mm_authvar_recovery_test_arm_image_mutation(
+			arena_at(executor.sealed.candidate_offset),
+			state->contract.store_size, 0, EXECUTOR_TRANSFER_SIZE, 0);
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_ABORT_READ_IMAGE:
+		payload_mm_authvar_recovery_test_arm_image_mutation(
+			arena_at(executor.sealed.candidate_offset),
+			state->contract.store_size,
+			state->contract.block_size +
+				PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE,
+			1, 0);
+		break;
+	case PAYLOAD_MM_AUTHVAR_RECOVERY_TEST_REPLAY_READ_IMAGE:
+		payload_mm_authvar_recovery_test_arm_image_mutation(
+			arena_at(executor.sealed.candidate_offset),
+			state->contract.store_size,
+			state->recovery.steps[0].geometry.spare_offset,
+			state->recovery.steps[0].geometry.variable_size, 1);
+		break;
+	default:
+		status = poison_session();
+		goto end;
+	}
+	status = execute ? recovery_plan_execute(state) :
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+end:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+out:
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 static uint64_t verify_committed_candidate(struct executor_session *state)
