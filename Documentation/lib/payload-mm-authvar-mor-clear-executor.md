@@ -8,7 +8,11 @@ operations. It must keep callback context and scratch physical backing outside
 every `CLEARED` span in the supplied plan.
 
 The executor snapshots and validates the canonical clear plan, MOR entry, and
-operations table before its first callback. It ignores excluded spans. Each
+operations table before its first callback. The operations table includes a
+separate context and allocation-free live-inventory validator. That validator
+must reconstruct or otherwise prove that the supplied canonical plan still
+describes the complete live DRAM inventory; an orchestrator-only prior check is
+not sufficient. It ignores excluded spans. Each
 cleared span is processed through bounded physical windows, so addresses above
 4 GiB do not depend on host pointer width. A mapping request never crosses a
 `window_bytes`-aligned physical boundary, so each callback receives exactly one
@@ -23,8 +27,16 @@ accessible bytes. A map failure must set its output to `NULL` and leave no
 mapping to release. Cache writeback/invalidation is complete only after the
 following fence.
 
-DMA snapshots are acquired through the callback before clearing and after full
-readback. Both snapshots must be individually valid and byte-identical. The
+The live inventory is validated immediately before the first DMA snapshot, and
+again after the final DMA snapshot and before receipt construction. An initial
+mismatch therefore fails before a map or write. A late mismatch fails without
+publishing a transcript or grant. The validator receives the const plan input,
+returns status, and must not retain or modify it. The executor compares that
+input with its private snapshot immediately after each validation.
+
+DMA snapshots are acquired through the callback after initial inventory
+validation and after full readback. Both snapshots must be individually valid
+and byte-identical. The
 executor derives exact per-span byte counts, constructs its own facts and
 transcript, and publishes a transcript and completion grant only through the
 existing receipt builder. It accepts no producer boolean, count, transcript,
@@ -32,9 +44,10 @@ receipt, or grant assertion.
 
 All public objects must be aligned, nonoverlapping native objects. Mapped host
 ranges must not alias public objects or the executor's live immutable state.
-Inputs and the operations table are checked again before publication, and both
-outputs must remain zero until publication. Any malformed input, callback
-failure, bad mapping, nonzero readback, DMA change, or mutation leaves both
-outputs zero. The physical mapping, cache, fence, and DMA facts remain trusted
-platform callbacks; this generic mechanism does not prove their hardware
-implementation.
+Inputs and the operations table, including both callback contexts, are checked
+after each inventory validation and again before publication. Both outputs
+must remain zero until publication. Any malformed input, inventory mismatch,
+callback failure, bad mapping, nonzero readback, DMA change, or mutation leaves
+both outputs zero. The inventory, physical mapping, cache, fence, and DMA facts
+remain trusted platform callbacks; this generic mechanism does not prove their
+hardware implementation.

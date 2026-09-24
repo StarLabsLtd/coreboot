@@ -136,6 +136,25 @@ struct executor_state {
 	size_t protected_sizes[5];
 } __aligned(8);
 
+static enum cb_err live_inventory_validate(const struct executor_state *state)
+{
+	return state->ops_snapshot.inventory_validate(
+		state->ops_snapshot.inventory_context, state->plan_input);
+}
+
+static bool execution_boundary_unchanged(const struct executor_state *state)
+{
+	return !memcmp(&state->plan_snapshot, state->plan_input,
+			sizeof(state->plan_snapshot)) &&
+		!memcmp(&state->entry_snapshot, state->entry_input,
+			sizeof(state->entry_snapshot)) &&
+		!memcmp(&state->ops_snapshot, state->ops_input,
+			sizeof(state->ops_snapshot)) &&
+		bytes_zero(state->transcript_output,
+			sizeof(*state->transcript_output)) &&
+		bytes_zero(state->grant_output, sizeof(*state->grant_output));
+}
+
 enum cb_err payload_mm_authvar_mor_clear_execute(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct payload_mm_authvar_mor_entry *entry,
@@ -181,6 +200,7 @@ enum cb_err payload_mm_authvar_mor_clear_execute(
 	    state.entry_snapshot.present != 1 ||
 	    !(state.entry_snapshot.value & 1U) || state.entry_snapshot.reserved ||
 	    !state.cold_boot_generation || !state.ops_snapshot.window_bytes ||
+	    !state.ops_snapshot.inventory_validate ||
 	    !state.ops_snapshot.dma_snapshot || !state.ops_snapshot.map_window ||
 	    !state.ops_snapshot.cache_writeback_invalidate ||
 	    !state.ops_snapshot.fence || !state.ops_snapshot.unmap_window ||
@@ -198,7 +218,9 @@ enum cb_err payload_mm_authvar_mor_clear_execute(
 	state.facts.inventory_generation = state.plan_snapshot.inventory_generation;
 	memcpy(state.facts.inventory_identity, state.plan_snapshot.inventory_identity,
 		sizeof(state.facts.inventory_identity));
-	if (state.ops_snapshot.dma_snapshot(state.ops_snapshot.context,
+	if (live_inventory_validate(&state) != CB_SUCCESS ||
+	    !execution_boundary_unchanged(&state) ||
+	    state.ops_snapshot.dma_snapshot(state.ops_snapshot.context,
 		&state.facts.dma_before) != CB_SUCCESS ||
 	    payload_mm_authvar_mor_clear_dma_snapshot_validate(
 		&state.facts.dma_before) != CB_SUCCESS)
@@ -345,17 +367,12 @@ enum cb_err payload_mm_authvar_mor_clear_execute(
 		sizeof(state.facts.dma_before)))
 		goto fail;
 	state.candidate.dma_after = state.facts.dma_after;
-	if (payload_mm_authvar_mor_clear_receipt_build(&state.plan_snapshot,
+	if (live_inventory_validate(&state) != CB_SUCCESS ||
+	    !execution_boundary_unchanged(&state) ||
+	    payload_mm_authvar_mor_clear_receipt_build(&state.plan_snapshot,
 		&state.entry_snapshot, &state.facts, &state.candidate,
 		&state.grant_candidate) != CB_SUCCESS ||
-	    memcmp(&state.plan_snapshot, state.plan_input,
-		sizeof(state.plan_snapshot)) ||
-	    memcmp(&state.entry_snapshot, state.entry_input,
-		sizeof(state.entry_snapshot)) ||
-	    memcmp(&state.ops_snapshot, state.ops_input,
-		sizeof(state.ops_snapshot)) ||
-	    !bytes_zero(state.transcript_output, sizeof(*state.transcript_output)) ||
-	    !bytes_zero(state.grant_output, sizeof(*state.grant_output)))
+	    !execution_boundary_unchanged(&state))
 		goto fail;
 	memcpy(state.transcript_output, &state.candidate, sizeof(state.candidate));
 	memcpy(state.grant_output, &state.grant_candidate,
