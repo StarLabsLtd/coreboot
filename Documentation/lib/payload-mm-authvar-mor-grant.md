@@ -37,6 +37,14 @@ storage, and rejects aliases or source mutation. Consumption compares the
 whole expected immutable receipt, then scrubs the protected copy; mismatch
 also poisons it.
 
+Trusted SMM initialization may instead close the unused install opportunity.
+Close is terminal: it succeeds only before any installation attempt, poisons
+the authority, and scrubs both receipt buffers. Repeated close and every later
+install fail. A close attempted after successful installation also fails
+without changing or destroying the ready protected receipt. This primitive is
+dormant and supplies no transport, boot hook, platform selector, or support
+claim.
+
 The receipt flags and identities are assertions, not authentication or evidence
 by themselves. This slice has no cross-stage seal, trusted cold-boot generator,
 DMA verifier, inventory producer or memory-clear accounting producer. Mutable

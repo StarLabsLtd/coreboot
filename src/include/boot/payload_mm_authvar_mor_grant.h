@@ -91,6 +91,9 @@ enum cb_err payload_mm_authvar_mor_grant_install(
 	payload_mm_authvar_mor_grant_protected_storage storage_is_protected,
 	void *context);
 
+/* Permanently consume the still-unused install opportunity without a grant. */
+enum cb_err payload_mm_authvar_mor_grant_close(void);
+
 /* The first consume attempt is terminal, including a mismatched attempt. */
 enum cb_err payload_mm_authvar_mor_grant_consume(
 	const struct payload_mm_authvar_mor_grant *expected_grant);

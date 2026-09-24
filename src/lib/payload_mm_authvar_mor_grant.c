@@ -191,6 +191,17 @@ enum cb_err payload_mm_authvar_mor_grant_install(
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_authvar_mor_grant_close(void)
+{
+	if (authority.install_attempted || authority.poisoned)
+		return CB_ERR;
+	authority.install_attempted = true;
+	authority.poisoned = true;
+	memset(&authority.grant, 0, sizeof(authority.grant));
+	memset(&authority.candidate, 0, sizeof(authority.candidate));
+	return CB_SUCCESS;
+}
+
 bool payload_mm_authvar_mor_grant_ready(void)
 {
 	return authority.installed && !authority.consumed && !authority.poisoned;

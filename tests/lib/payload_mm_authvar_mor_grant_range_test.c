@@ -29,6 +29,16 @@ int main(void)
 	CHECK(ranges_overlap(last_byte_safe, size, last_byte_safe, size));
 	CHECK(!ranges_overlap(last_byte_safe, size, (const void *)0x1000, size));
 
+	/* Close scrubs both private receipt buffers and seals the install slot. */
+	memset(&authority.grant, 0xa5, sizeof(authority.grant));
+	memset(&authority.candidate, 0x5a, sizeof(authority.candidate));
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_SUCCESS);
+	CHECK(authority.install_attempted && authority.poisoned);
+	CHECK(bytes_zero(&authority.grant, sizeof(authority.grant)));
+	CHECK(bytes_zero(&authority.candidate, sizeof(authority.candidate)));
+	CHECK(payload_mm_authvar_mor_grant_close() == CB_ERR);
+	memset(&authority, 0, sizeof(authority));
+
 	/* An input aliasing any byte of protected authority is rejected terminally. */
 	CHECK(payload_mm_authvar_mor_grant_install(
 		(const struct payload_mm_authvar_mor_grant *)&authority,
