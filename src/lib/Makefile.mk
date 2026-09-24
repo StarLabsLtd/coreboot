@@ -42,6 +42,7 @@ romstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_mor_
 romstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_mor_probe.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT) += payload_mm_authvar_mor_clear.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c
