@@ -89,6 +89,10 @@ config SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
 	  prevent software from driving it. Some platforms leave P2SB SBI
 	  unusable in SMM and ignore host PADCFGLOCK writes (e.g. Comet Lake 1).
 
+	  On Meteor Lake, this also blocks host access to GPIO community 5.
+	  Enable it only if the board does not need runtime GPIO access to
+	  that community.
+
 # Indicate if SoC supports 4 bits Pad Mode with PAD_CFG_DW0 registers
 config SOC_INTEL_COMMON_BLOCK_GPIO_PMODE_4BITS
 	bool

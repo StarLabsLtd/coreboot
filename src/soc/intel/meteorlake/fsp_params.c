@@ -426,6 +426,8 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->PchLockDownGlobalSmi = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosInterface = lockdown_by_fsp;
 	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp;
+	/* SMM must lock the pads before locking their sideband endpoint masks. */
+	s_cfg->PchSbAccessUnlock = CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD);
 	/* FSP must lock the protected RTC CMOS ranges during silicon init. */
 	s_cfg->RtcMemoryLock = lockdown_by_fsp ||
 		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
