@@ -297,6 +297,15 @@ config PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE
 	  It enforces their fixed property and trusted physical-presence gates, but
 	  performs no store or media operation and publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_MOR_POLICY
+	bool
+	default n
+	help
+	  Build the dormant EDK2 26.09-derived secure memory-overwrite-request
+	  policy planner. It publishes no endpoint. Support and lifecycle facts are
+	  protected snapshots from trusted coreboot code, never request fields or
+	  build arguments.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
