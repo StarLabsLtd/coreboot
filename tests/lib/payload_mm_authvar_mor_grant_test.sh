@@ -15,6 +15,12 @@ take-mutate-grant take-mutate-candidate take-mutate-state take-mutate-context
 take-null-output take-misaligned-output take-null-callback take-context-alias
 take-context-too-large
 take-output-authority-alias take-output-callback-alias
+discard-ready discard-empty discard-after-take discard-unprotected
+discard-mutate-grant discard-mutate-candidate discard-mutate-state
+discard-mutate-context discard-recursive discard-null-callback
+discard-context-null-size discard-context-too-large
+discard-context-authority-alias discard-context-callback-alias
+discard-callback-authority-alias discard-malformed-grant discard-dirty-candidate
 consume-mismatch-0 consume-mismatch-1
 consume-mismatch-2 consume-mismatch-3 consume-mismatch-4 consume-mismatch-5 consume-null
 consume-alias
@@ -77,6 +83,7 @@ awk -F '\t' '
 	$1 ~ /:payload_mm_authvar_mor_grant_close$/ ||
 	$1 ~ /:payload_mm_authvar_mor_grant_consume$/ ||
 	$1 ~ /:payload_mm_authvar_mor_grant_take$/ ||
+	$1 ~ /:payload_mm_authvar_mor_grant_discard$/ ||
 	$1 ~ /:grant_snapshot_valid([.][^:]*)?$/ {
 		if (!seen[$1]++)
 			count++
@@ -86,7 +93,7 @@ awk -F '\t' '
 		}
 	}
 	END {
-		if (count != 5) {
+		if (count != 6) {
 			print "ERROR: incomplete SMM stack-usage evidence" > "/dev/stderr"
 			exit 1
 		}
@@ -156,6 +163,18 @@ mutant_test take-one-shot \
 mutant_test take-cleanup-authority \
 	'if (!valid \&\& output_cleanup_safe)' \
 	'if (!valid \&\& output_structurally_valid)' take-output-callback-alias
+mutant_test discard-protection \
+	'valid = storage_is_protected(context, \&authority, sizeof(authority));' \
+	'valid = true;' discard-unprotected
+mutant_test discard-state-recheck \
+	'authority.installed == grant_installed \&\& !authority.consumed \&\&' \
+	'true \&\& !authority.consumed \&\&' discard-mutate-state
+mutant_test discard-context-recheck \
+	'(!context_size || !memcmp(context_snapshot, context, context_size));' \
+	'true;' discard-mutate-context
+mutant_test discard-idempotence \
+	'if (authority.discarded) {' \
+	'if (false \&\& authority.discarded) {' discard-ready
 
 mutant_range_test()
 {
@@ -238,10 +257,16 @@ test -f "$temporary/build-grant/smm/lib/payload_mm_authvar_mor_grant.o"
 nm -g --defined-only \
 	"$temporary/build-grant/smm/lib/payload_mm_authvar_mor_grant.o" |
 	grep -q ' payload_mm_authvar_mor_grant_take$'
+nm -g --defined-only \
+	"$temporary/build-grant/smm/lib/payload_mm_authvar_mor_grant.o" |
+	grep -q ' payload_mm_authvar_mor_grant_discard$'
 test -f "$temporary/build-grant/ramstage/lib/payload_mm_authvar_mor_grant.o"
 ! nm -g --defined-only \
 	"$temporary/build-grant/ramstage/lib/payload_mm_authvar_mor_grant.o" |
 	grep -q ' payload_mm_authvar_mor_grant_take$'
+! nm -g --defined-only \
+	"$temporary/build-grant/ramstage/lib/payload_mm_authvar_mor_grant.o" |
+	grep -q ' payload_mm_authvar_mor_grant_discard$'
 
 grep -qx 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c' \
 	"$root/src/lib/Makefile.mk"
@@ -252,5 +277,17 @@ test "$(rg -n 'payload_mm_authvar_mor_grant[.]c' "$root/src" \
 
 nm -g --defined-only "$temporary/smm-stack.o" |
 	grep -q ' payload_mm_authvar_mor_grant_take$'
+nm -g --defined-only "$temporary/smm-stack.o" |
+	grep -q ' payload_mm_authvar_mor_grant_discard$'
+
+if command -v qemu-system-x86_64 >/dev/null; then
+	qemu_status=0
+	timeout 10s qemu-system-x86_64 -M q35 -m 1G \
+		-bios "$temporary/build-grant/coreboot.rom" -display none \
+		-serial stdio -monitor none -no-reboot > "$temporary/qemu.log" 2>&1 || \
+		qemu_status=$?
+	test "$qemu_status" -eq 0 || test "$qemu_status" -eq 124
+	grep -qi 'coreboot' "$temporary/qemu.log"
+fi
 
 echo 'payload_mm_authvar_mor_grant tests: PASS'
