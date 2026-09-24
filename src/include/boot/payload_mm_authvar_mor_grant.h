@@ -112,6 +112,16 @@ enum cb_err payload_mm_authvar_mor_grant_take(
 	payload_mm_authvar_mor_grant_protected_storage storage_is_protected,
 	void *context, size_t context_size);
 
+/*
+ * Terminally discard a ready grant, or close a still-unused install slot.
+ * The protection callback is pure and follows the take callback contract.
+ * A completed discard is idempotent; a malformed or concurrent attempt
+ * poisons the authority and returns an error.
+ */
+enum cb_err payload_mm_authvar_mor_grant_discard(
+	payload_mm_authvar_mor_grant_protected_storage storage_is_protected,
+	void *context, size_t context_size);
+
 bool payload_mm_authvar_mor_grant_ready(void);
 #endif
 

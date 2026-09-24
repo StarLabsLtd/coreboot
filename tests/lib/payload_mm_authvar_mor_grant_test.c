@@ -26,6 +26,8 @@ struct authority_layout {
 	bool install_attempted;
 	bool consumed;
 	bool poisoned;
+	bool discarded;
+	bool discarding;
 };
 
 struct take_context {
@@ -41,6 +43,48 @@ struct take_context {
 };
 
 static unsigned int take_callback_calls;
+
+struct discard_context {
+	struct authority_layout *authority;
+	bool protected;
+	bool mutate_grant;
+	bool mutate_candidate;
+	bool mutate_state;
+	bool mutate_context;
+	bool recurse;
+	uint8_t context_byte;
+};
+
+static unsigned int discard_callback_calls;
+static struct authority_layout *discard_authority;
+
+static bool __aligned(8) discard_storage_protected(void *opaque,
+	const void *storage, size_t size)
+{
+	struct discard_context *context = opaque;
+
+	CHECK(storage && size);
+	discard_callback_calls++;
+	if (!discard_authority && size >= sizeof(*discard_authority))
+		discard_authority = (void *)storage;
+	if (storage == discard_authority) {
+		if (context->mutate_grant)
+			discard_authority->grant.cold_boot_generation++;
+		if (context->mutate_candidate)
+			discard_authority->candidate.cold_boot_generation++;
+		if (context->mutate_state)
+			discard_authority->installed = !discard_authority->installed;
+		if (context->mutate_context)
+			context->context_byte++;
+		if (context->recurse) {
+			context->recurse = false;
+			CHECK(payload_mm_authvar_mor_grant_discard(
+				discard_storage_protected, context,
+				sizeof(*context)) == CB_ERR);
+		}
+	}
+	return context->protected;
+}
 
 static bool buffer_zero(const void *buffer, size_t size)
 {
@@ -252,6 +296,119 @@ static void test_take_failure(const char *name)
 	if (output_pointer == &output && strcmp(name, "take-context-alias"))
 		CHECK(buffer_zero(&output, sizeof(output)));
 	CHECK(payload_mm_authvar_mor_grant_consume(&grant) == CB_ERR);
+}
+
+static void test_discard_success(bool installed)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct protection_context install = {
+		.grant = &grant,
+		.protected = true,
+	};
+	struct discard_context discard = { .protected = true };
+
+	if (installed)
+		CHECK(payload_mm_authvar_mor_grant_install(&grant,
+			protected_storage, &install) == CB_SUCCESS);
+	CHECK(payload_mm_authvar_mor_grant_discard(discard_storage_protected,
+		&discard, sizeof(discard)) == CB_SUCCESS);
+	CHECK(discard_callback_calls == 3);
+	CHECK(discard_authority &&
+		buffer_zero(&discard_authority->grant,
+			sizeof(discard_authority->grant)) &&
+		buffer_zero(&discard_authority->candidate,
+			sizeof(discard_authority->candidate)));
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(payload_mm_authvar_mor_grant_discard(NULL, NULL, 0) == CB_SUCCESS);
+	CHECK(discard_callback_calls == 3);
+	CHECK(payload_mm_authvar_mor_grant_install(&grant, protected_storage,
+		&install) == CB_ERR);
+}
+
+static void test_discard_failure(const char *name)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct protection_context install = {
+		.grant = &grant,
+		.protected = true,
+	};
+	struct discard_context discard = { .protected = true };
+	payload_mm_authvar_mor_grant_protected_storage callback =
+		discard_storage_protected;
+	void *context = &discard;
+	size_t context_size = sizeof(discard);
+
+	CHECK(payload_mm_authvar_mor_grant_install(&grant, protected_storage,
+		&install) == CB_SUCCESS);
+	discard.authority = (void *)install.authority;
+	discard_authority = discard.authority;
+	if (!strcmp(name, "discard-unprotected"))
+		discard.protected = false;
+	else if (!strcmp(name, "discard-mutate-grant"))
+		discard.mutate_grant = true;
+	else if (!strcmp(name, "discard-mutate-candidate"))
+		discard.mutate_candidate = true;
+	else if (!strcmp(name, "discard-mutate-state"))
+		discard.mutate_state = true;
+	else if (!strcmp(name, "discard-mutate-context"))
+		discard.mutate_context = true;
+	else if (!strcmp(name, "discard-recursive"))
+		discard.recurse = true;
+	else if (!strcmp(name, "discard-null-callback"))
+		callback = NULL;
+	else if (!strcmp(name, "discard-context-null-size"))
+		context_size = 0;
+	else if (!strcmp(name, "discard-context-too-large"))
+		context_size = PAYLOAD_MM_AUTHVAR_MOR_GRANT_TAKE_CONTEXT_MAX + 1U;
+	else if (!strcmp(name, "discard-context-authority-alias")) {
+		context = discard.authority;
+		context_size = 1;
+	} else if (!strcmp(name, "discard-context-callback-alias")) {
+		context = (void *)(uintptr_t)discard_storage_protected;
+		context_size = 1;
+	} else if (!strcmp(name, "discard-callback-authority-alias")) {
+		callback = (payload_mm_authvar_mor_grant_protected_storage)
+			(uintptr_t)discard.authority;
+	} else if (!strcmp(name, "discard-malformed-grant")) {
+		discard.authority->grant.cold_boot_generation = 0;
+	} else if (!strcmp(name, "discard-dirty-candidate")) {
+		discard.authority->candidate.cold_boot_generation = 1;
+	} else {
+		CHECK(false);
+	}
+	CHECK(payload_mm_authvar_mor_grant_discard(callback, context,
+		context_size) == CB_ERR);
+	CHECK(!payload_mm_authvar_mor_grant_ready());
+	CHECK(buffer_zero(&discard_authority->grant,
+		sizeof(discard_authority->grant)));
+	CHECK(buffer_zero(&discard_authority->candidate,
+		sizeof(discard_authority->candidate)));
+	CHECK(payload_mm_authvar_mor_grant_discard(discard_storage_protected,
+		&discard, sizeof(discard)) == CB_ERR);
+}
+
+static void test_discard_after_take(void)
+{
+	struct payload_mm_authvar_mor_grant grant = valid_grant();
+	struct payload_mm_authvar_mor_grant output = { 0 };
+	struct protection_context install = {
+		.grant = &grant,
+		.protected = true,
+	};
+	struct take_context take = {
+		.output = &output,
+		.protected = true,
+	};
+	struct discard_context discard = { .protected = true };
+
+	install_for_take(&grant, &install, &take);
+	CHECK(payload_mm_authvar_mor_grant_take(&output, take_storage_protected,
+		&take, sizeof(take)) == CB_SUCCESS);
+	discard.authority = take.authority;
+	discard_authority = discard.authority;
+	CHECK(payload_mm_authvar_mor_grant_discard(discard_storage_protected,
+		&discard, sizeof(discard)) == CB_ERR);
+	CHECK(!discard_callback_calls);
 }
 
 static void test_validator(void)
@@ -549,6 +706,14 @@ int main(int argc, char **argv)
 		test_take_success();
 	else if (!strncmp(argv[1], "take-", 5))
 		test_take_failure(argv[1]);
+	else if (!strcmp(argv[1], "discard-ready"))
+		test_discard_success(true);
+	else if (!strcmp(argv[1], "discard-empty"))
+		test_discard_success(false);
+	else if (!strcmp(argv[1], "discard-after-take"))
+		test_discard_after_take();
+	else if (!strncmp(argv[1], "discard-", 8))
+		test_discard_failure(argv[1]);
 	else if (!strncmp(argv[1], "consume-mismatch-", 17)) {
 		CHECK(argv[1][17] >= '0' && argv[1][17] <= '5' && !argv[1][18]);
 		test_consume_mismatch((unsigned int)(argv[1][17] - '0'));

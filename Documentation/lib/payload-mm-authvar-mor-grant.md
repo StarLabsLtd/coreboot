@@ -45,6 +45,14 @@ complete authority, output, callback context, and one-shot state before
 publishing, then terminally consumes and scrubs the internal receipt. Failure
 never publishes receipt bytes and poisons a ready grant take opportunity.
 
+Before take, protected SMM code may instead discard either a ready grant or a
+still-unused install slot without supplying an external receipt copy. Discard
+attests its callback, bounded immutable context, and the complete private
+authority; malformed, aliased, mutated, or reentrant attempts fail closed.
+Every terminal path scrubs both private receipt buffers. A completed discard
+is idempotent, while a poisoned or already-consumed authority remains an
+error. Discard performs no variable-media operation and publishes no endpoint.
+
 This take operation is only a prerequisite for a future protected MOR
 consumer. That consumer must acquire the authvar executor's exclusive media
 lease, recover and scan the current store, verify the exact canonical Control
