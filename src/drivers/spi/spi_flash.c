@@ -653,10 +653,97 @@ int spi_flash_probe(unsigned int bus, unsigned int cs, struct spi_flash *flash)
 	return 0;
 }
 
+#define VOLATILE_LEASE_CHECK_DOMAIN ((uintptr_t)0x9d8737c52a41b6e3ULL)
+
+enum volatile_lease_state {
+	VOLATILE_LEASE_IDLE = 0,
+	VOLATILE_LEASE_ACTIVE,
+	VOLATILE_LEASE_BUSY,
+	VOLATILE_LEASE_POISONED,
+};
+
+static struct {
+	uint32_t lock;
+	uint32_t group_count;
+	uint32_t read_count;
+	bool boundary;
+	enum volatile_lease_state lease_state;
+	uintptr_t next_cookie;
+	uintptr_t cookie;
+	const struct spi_flash *flash;
+	const struct spi_flash_ops *ops;
+	const struct spi_flash_volatile_lease *owner;
+	int (*read)(const struct spi_flash *flash, u32 offset, size_t len,
+		void *buf);
+	int (*write)(const struct spi_flash *flash, u32 offset, size_t len,
+		const void *buf);
+	int (*erase)(const struct spi_flash *flash, u32 offset, size_t len);
+	int (*status)(const struct spi_flash *flash, u8 *reg);
+} volatile_state;
+
+static bool volatile_lock(void)
+{
+	uint32_t expected = 0;
+
+	return __atomic_compare_exchange_n(&volatile_state.lock, &expected, 1,
+		false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
+}
+
+static void volatile_unlock(void)
+{
+	__atomic_store_n(&volatile_state.lock, 0, __ATOMIC_RELEASE);
+}
+
+static void volatile_lock_wait(void)
+{
+	while (!volatile_lock())
+		;
+}
+
+static int volatile_read_begin(void)
+{
+	int ret = -1;
+
+	if (!volatile_lock())
+		return ret;
+	if (!volatile_state.boundary &&
+	    volatile_state.lease_state == VOLATILE_LEASE_IDLE &&
+	    volatile_state.read_count != UINT32_MAX) {
+		volatile_state.read_count++;
+		ret = 0;
+	}
+	volatile_unlock();
+	return ret;
+}
+
+static int volatile_read_end(void)
+{
+	int ret = -1;
+
+	volatile_lock_wait();
+	assert(volatile_state.read_count != 0);
+	if (volatile_state.read_count) {
+		volatile_state.read_count--;
+		ret = 0;
+	}
+	volatile_unlock();
+	return ret;
+}
+
 int spi_flash_read(const struct spi_flash *flash, u32 offset, size_t len,
 		void *buf)
 {
-	return flash->ops->read(flash, offset, len, buf);
+	int ret;
+
+	if (!CONFIG(SPI_FLASH_VOLATILE_LEASE))
+		return flash->ops->read(flash, offset, len, buf);
+	if (volatile_read_begin())
+		return -1;
+	ret = flash->ops->read(flash, offset, len, buf);
+	if (volatile_read_end())
+		return -1;
+
+	return ret;
 }
 
 int spi_flash_write(const struct spi_flash *flash, u32 offset, size_t len,
@@ -767,14 +854,16 @@ int spi_flash_set_write_protected(const struct spi_flash *flash,
 	return ret;
 }
 
-static uint32_t volatile_group_count;
-
 #if ENV_TEST
 uint32_t spi_flash_volatile_group_test_exchange_count(uint32_t count)
 {
-	uint32_t previous = volatile_group_count;
+	uint32_t previous;
 
-	volatile_group_count = count;
+	if (!volatile_lock())
+		return UINT32_MAX;
+	previous = volatile_state.group_count;
+	volatile_state.group_count = count;
+	volatile_unlock();
 	return previous;
 }
 #endif
@@ -784,21 +873,49 @@ int spi_flash_volatile_group_begin(const struct spi_flash *flash)
 	uint32_t count;
 	int ret = 0;
 
-	if (!CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
-		return ret;
-
-	count = volatile_group_count;
-	if (count == UINT32_MAX)
-		return -1;
-	if (count == 0) {
-		ret = chipset_volatile_group_begin(flash);
-		if (ret)
-			return ret;
+	if (!CONFIG(SPI_FLASH_VOLATILE_LEASE)) {
+		if (!CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
+			return 0;
+		count = volatile_state.group_count;
+		if (count == UINT32_MAX)
+			return -1;
+		if (!count) {
+			ret = chipset_volatile_group_begin(flash);
+			if (ret)
+				return ret;
+		}
+		volatile_state.group_count = count + 1;
+		return 0;
 	}
-
-	count++;
-	volatile_group_count = count;
+	if (!volatile_lock())
+		return -1;
+	if (volatile_state.boundary ||
+	    volatile_state.lease_state != VOLATILE_LEASE_IDLE) {
+		volatile_unlock();
+		return -1;
+	}
+	count = volatile_state.group_count;
+	if (count == UINT32_MAX)
+		goto fail;
+	if (count) {
+		volatile_state.group_count = count + 1;
+		volatile_unlock();
+		return 0;
+	}
+	volatile_state.boundary = 1;
+	volatile_unlock();
+	if (CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
+		ret = chipset_volatile_group_begin(flash);
+	volatile_lock_wait();
+	volatile_state.boundary = 0;
+	if (ret)
+		goto fail;
+	volatile_state.group_count = 1;
+	volatile_unlock();
 	return 0;
+fail:
+	volatile_unlock();
+	return ret ? ret : -1;
 }
 
 int spi_flash_volatile_group_end(const struct spi_flash *flash)
@@ -806,23 +923,279 @@ int spi_flash_volatile_group_end(const struct spi_flash *flash)
 	uint32_t count;
 	int ret = 0;
 
-	if (!CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
+	if (!CONFIG(SPI_FLASH_VOLATILE_LEASE)) {
+		if (!CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
+			return 0;
+		count = volatile_state.group_count;
+		assert(count != 0);
+		if (!count)
+			return -1;
+		if (count > 1) {
+			volatile_state.group_count = count - 1;
+			return 0;
+		}
+		ret = chipset_volatile_group_end(flash);
+		volatile_state.group_count = 0;
 		return ret;
-
-	count = volatile_group_count;
-	assert(count != 0);
-	if (count == 0)
+	}
+	if (!volatile_lock())
 		return -1;
+	if (volatile_state.boundary ||
+	    volatile_state.lease_state != VOLATILE_LEASE_IDLE) {
+		volatile_unlock();
+		return -1;
+	}
+	count = volatile_state.group_count;
+	assert(count != 0);
+	if (count == 0) {
+		volatile_unlock();
+		return -1;
+	}
 	if (count > 1) {
-		volatile_group_count = count - 1;
+		volatile_state.group_count = count - 1;
+		volatile_unlock();
 		return 0;
 	}
 
-	ret = chipset_volatile_group_end(flash);
+	volatile_state.boundary = 1;
+	volatile_unlock();
+	if (CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP))
+		ret = chipset_volatile_group_end(flash);
+	volatile_lock_wait();
 	/* The matching logical ownership ends even when chipset cleanup fails. */
-	volatile_group_count = 0;
+	volatile_state.group_count = 0;
+	volatile_state.boundary = 0;
+	volatile_unlock();
 
 	return ret;
+}
+
+static bool volatile_lease_handle_valid(
+	const struct spi_flash_volatile_lease *lease)
+{
+	return lease == volatile_state.owner &&
+		lease->private_data[0] == volatile_state.cookie &&
+		lease->private_data[1] ==
+			(volatile_state.cookie ^ VOLATILE_LEASE_CHECK_DOMAIN) &&
+		lease->private_data[2] == (uintptr_t)volatile_state.flash &&
+		lease->private_data[3] ==
+			((uintptr_t)lease ^ volatile_state.cookie ^
+			 VOLATILE_LEASE_CHECK_DOMAIN);
+}
+
+static bool volatile_lease_callbacks_valid(void)
+{
+	return volatile_state.flash && volatile_state.flash->ops ==
+		volatile_state.ops && volatile_state.ops &&
+		volatile_state.ops->read == volatile_state.read &&
+		volatile_state.ops->write == volatile_state.write &&
+		volatile_state.ops->erase == volatile_state.erase &&
+		volatile_state.ops->status == volatile_state.status;
+}
+
+static int volatile_lease_enter(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease)
+{
+	if (!volatile_lock())
+		return -1;
+	if (volatile_state.lease_state != VOLATILE_LEASE_ACTIVE ||
+	    flash != volatile_state.flash ||
+	    !volatile_lease_handle_valid(lease) ||
+	    !volatile_lease_callbacks_valid()) {
+		if (lease == volatile_state.owner)
+			volatile_state.lease_state = VOLATILE_LEASE_POISONED;
+		volatile_unlock();
+		return -1;
+	}
+	volatile_state.lease_state = VOLATILE_LEASE_BUSY;
+	volatile_unlock();
+	return 0;
+}
+
+static int volatile_lease_leave(int callback_result)
+{
+	volatile_lock_wait();
+	if (!volatile_lease_handle_valid(volatile_state.owner) ||
+	    !volatile_lease_callbacks_valid() ||
+	    volatile_state.lease_state != VOLATILE_LEASE_BUSY) {
+		volatile_state.lease_state = VOLATILE_LEASE_POISONED;
+		callback_result = -1;
+	} else
+		volatile_state.lease_state = VOLATILE_LEASE_ACTIVE;
+	volatile_unlock();
+	return callback_result;
+}
+
+static bool volatile_lease_span_valid(const struct spi_flash *flash,
+	u32 offset, size_t len)
+{
+	return flash && len && offset <= flash->size &&
+		len <= flash->size - offset;
+}
+
+int spi_flash_volatile_lease_begin(const struct spi_flash *flash,
+	struct spi_flash_volatile_lease *lease)
+{
+	const struct spi_flash_ops *ops;
+	int (*read)(const struct spi_flash *active_flash, u32 offset, size_t len,
+		void *buf);
+	int (*write)(const struct spi_flash *active_flash, u32 offset, size_t len,
+		const void *buf);
+	int (*erase)(const struct spi_flash *active_flash, u32 offset, size_t len);
+	int (*status)(const struct spi_flash *active_flash, u8 *reg);
+	uintptr_t cookie;
+	int ret = 0;
+
+	if (!CONFIG(SPI_FLASH_VOLATILE_LEASE) || !flash || !flash->ops ||
+	    !flash->ops->read || !flash->ops->write ||
+	    !flash->ops->erase || !lease ||
+	    memcmp(lease, &(struct spi_flash_volatile_lease){ 0 },
+		    sizeof(*lease)) || !volatile_lock())
+		return -1;
+	if (volatile_state.lease_state != VOLATILE_LEASE_IDLE ||
+	    volatile_state.boundary || volatile_state.group_count ||
+	    volatile_state.read_count ||
+	    volatile_state.next_cookie == UINTPTR_MAX)
+		goto fail;
+	ops = flash->ops;
+	read = ops->read;
+	write = ops->write;
+	erase = ops->erase;
+	status = ops->status;
+	if (CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP)) {
+		volatile_state.boundary = 1;
+		volatile_unlock();
+		ret = chipset_volatile_group_begin(flash);
+		volatile_lock_wait();
+		volatile_state.boundary = 0;
+		if (ret)
+			goto fail;
+		if (memcmp(lease, &(struct spi_flash_volatile_lease){ 0 },
+			   sizeof(*lease)) || flash->ops != ops ||
+		    ops->read != read || ops->write != write ||
+		    ops->erase != erase || ops->status != status) {
+			volatile_state.boundary = 1;
+			volatile_unlock();
+			(void)chipset_volatile_group_end(flash);
+			volatile_lock_wait();
+			volatile_state.boundary = 0;
+			goto fail;
+		}
+	}
+	cookie = ++volatile_state.next_cookie;
+	volatile_state.cookie = cookie;
+	volatile_state.flash = flash;
+	volatile_state.ops = ops;
+	volatile_state.owner = lease;
+	volatile_state.read = read;
+	volatile_state.write = write;
+	volatile_state.erase = erase;
+	volatile_state.status = status;
+	lease->private_data[0] = cookie;
+	lease->private_data[1] = cookie ^ VOLATILE_LEASE_CHECK_DOMAIN;
+	lease->private_data[2] = (uintptr_t)flash;
+	lease->private_data[3] = (uintptr_t)lease ^ cookie ^
+		VOLATILE_LEASE_CHECK_DOMAIN;
+	volatile_state.lease_state = VOLATILE_LEASE_ACTIVE;
+	volatile_unlock();
+	return 0;
+fail:
+	volatile_unlock();
+	return ret ? ret : -1;
+}
+
+int spi_flash_volatile_lease_read(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len,
+	void *buf)
+{
+	int ret;
+
+	if (!buf || !volatile_lease_span_valid(flash, offset, len) ||
+	    volatile_lease_enter(flash, lease))
+		return -1;
+	ret = volatile_state.read(flash, offset, len, buf);
+	return volatile_lease_leave(ret);
+}
+
+int spi_flash_volatile_lease_write(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len,
+	const void *buf)
+{
+	int ret;
+
+	if (!buf || !volatile_lease_span_valid(flash, offset, len) ||
+	    volatile_lease_enter(flash, lease))
+		return -1;
+	ret = volatile_state.write(flash, offset, len, buf);
+	return volatile_lease_leave(ret);
+}
+
+int spi_flash_volatile_lease_erase(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease, u32 offset, size_t len)
+{
+	int ret;
+
+	if (!volatile_lease_span_valid(flash, offset, len) ||
+	    volatile_lease_enter(flash, lease))
+		return -1;
+	ret = volatile_state.erase(flash, offset, len);
+	return volatile_lease_leave(ret);
+}
+
+int spi_flash_volatile_lease_sync(const struct spi_flash *flash,
+	const struct spi_flash_volatile_lease *lease)
+{
+	u8 status;
+	int ret = 0;
+
+	if (volatile_lease_enter(flash, lease))
+		return -1;
+	if (volatile_state.status)
+		ret = volatile_state.status(flash, &status);
+	return volatile_lease_leave(ret);
+}
+
+int spi_flash_volatile_lease_end(struct spi_flash_volatile_lease *lease)
+{
+	const struct spi_flash *flash;
+	bool valid;
+	int ret = 0;
+
+	if (!lease || !volatile_lock())
+		return -1;
+	if (lease != volatile_state.owner ||
+	    volatile_state.lease_state == VOLATILE_LEASE_IDLE ||
+	    volatile_state.lease_state == VOLATILE_LEASE_BUSY ||
+	    volatile_state.boundary) {
+		volatile_unlock();
+		return -1;
+	}
+	flash = volatile_state.flash;
+	valid = volatile_state.lease_state == VOLATILE_LEASE_ACTIVE &&
+		volatile_lease_handle_valid(lease) &&
+		volatile_lease_callbacks_valid();
+	if (CONFIG(SPI_FLASH_HAS_VOLATILE_GROUP)) {
+		volatile_state.boundary = 1;
+		volatile_unlock();
+		ret = chipset_volatile_group_end(flash);
+		volatile_lock_wait();
+		volatile_state.boundary = 0;
+	}
+	if (!volatile_lease_handle_valid(lease) ||
+	    !volatile_lease_callbacks_valid())
+		valid = false;
+	memset(lease, 0, sizeof(*lease));
+	volatile_state.cookie = 0;
+	volatile_state.flash = NULL;
+	volatile_state.ops = NULL;
+	volatile_state.owner = NULL;
+	volatile_state.read = NULL;
+	volatile_state.write = NULL;
+	volatile_state.erase = NULL;
+	volatile_state.status = NULL;
+	volatile_state.lease_state = VOLATILE_LEASE_IDLE;
+	volatile_unlock();
+	return valid && !ret ? 0 : -1;
 }
 
 void lb_spi_flash(struct lb_header *header)

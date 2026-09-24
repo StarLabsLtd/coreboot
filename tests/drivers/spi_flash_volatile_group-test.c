@@ -201,12 +201,15 @@ static void write_wrapper_boundaries(void)
 static void disabled_noop(void)
 {
 	reset_state();
-	CHECK(spi_flash_volatile_group_test_exchange_count(UINT32_MAX) == 0);
 	CHECK(spi_flash_volatile_group_begin(&flash) == 0);
+	CHECK(group_count() == 1);
+	CHECK(spi_flash_volatile_group_begin(&flash) == 0);
+	CHECK(group_count() == 2);
 	CHECK(spi_flash_volatile_group_end(&flash) == 0);
-	CHECK(group_count() == UINT32_MAX && begin_calls == 0 && end_calls == 0);
+	CHECK(group_count() == 1);
+	CHECK(spi_flash_volatile_group_end(&flash) == 0);
+	CHECK(group_count() == 0 && begin_calls == 0 && end_calls == 0);
 	CHECK(assertion_failures == 0);
-	(void)spi_flash_volatile_group_test_exchange_count(0);
 }
 
 int main(void)
