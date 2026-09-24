@@ -328,6 +328,15 @@ config PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
 	  support claim; receipt fields are assertions until a trusted producer is
 	  separately composed.
 
+config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT
+	help
+	  Build a dormant pure canonical clear-plan and completion-receipt builder.
+	  It performs no clear, readback, cache operation or DMA transition and adds
+	  no producer, endpoint or MOR support claim.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
