@@ -39,6 +39,7 @@ ramstage-y += soc_info.c
 
 smm-y += elog.c
 smm-y += gpio.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD) += gpio_lock.c
 smm-y += p2sb.c
 smm-y += soc_info.c
 smm-y += xhci.c
