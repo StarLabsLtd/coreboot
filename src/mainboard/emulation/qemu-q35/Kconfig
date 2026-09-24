@@ -53,6 +53,7 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	select PAYLOAD_MM_AUTHVAR_CERTDB
 	select PAYLOAD_MM_AUTHVAR_ROUTE
 	select PAYLOAD_MM_AUTHVAR_CMS_VERIFY
+	select PAYLOAD_MM_AUTHVAR_PRIVATE_BINDING
 	select PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR
 	select PAYLOAD_MM_AUTHVAR_TRUST_STORE
 	select PAYLOAD_MM_AUTHVAR_AUTHORITY
@@ -71,7 +72,7 @@ config Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
 	  linear authority-to-commit coordinator, pure default-store composer,
 	  same-lease pre-lifecycle erased-media recovery, immutable synthetic
 	  volatile-variable view and pure private-variable certdb codec,
-	  untrusted detached-CMS verifier and
+	  untrusted detached-CMS verifier, pure private-signer binding matcher and
 	  one-anchor X.509 matcher for QEMU build proof. This installs no arena,
 	  media backend, authority, endpoint, SMI
 	  route or MM dispatcher and publishes no service. It grants no SPI access
