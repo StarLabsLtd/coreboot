@@ -92,6 +92,17 @@ static bool snapshot_structure_valid(
 	return true;
 }
 
+static bool prepared_snapshot_valid(
+	const struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	return snapshot->revision == STARBOOK_MTL_DMA_GUARD_REVISION &&
+		snapshot->size == sizeof(*snapshot) &&
+		!snapshot->generation &&
+		bytes_zero(snapshot->identity, sizeof(snapshot->identity)) &&
+		bytes_zero(snapshot->reserved, sizeof(snapshot->reserved)) &&
+		snapshot_structure_valid(snapshot);
+}
+
 enum cb_err starbook_mtl_dma_guard_snapshot_build(
 	const struct starbook_mtl_dma_guard_facts *facts,
 	struct starbook_mtl_dma_guard_snapshot *snapshot)
@@ -142,14 +153,43 @@ enum cb_err starbook_mtl_dma_guard_snapshot_build(
 
 enum guard_phase {
 	GUARD_EMPTY,
-	GUARD_ACTIVE,
+	GUARD_PREPARED,
+	GUARD_BOUND,
 	GUARD_POISONED,
 };
 
 static struct {
 	enum guard_phase phase;
 	struct starbook_mtl_dma_guard_snapshot baseline;
+	struct payload_mm_authvar_mor_clear_plan bound_plan;
 } guard_authority;
+
+static bool object_valid(const void *object, size_t size, size_t alignment)
+{
+	const uintptr_t base = (uintptr_t)object;
+
+	return object && !(base % alignment) &&
+		base <= UINTPTR_MAX - (size - 1U);
+}
+
+static bool objects_overlap(const void *first, size_t first_size,
+	const void *second, size_t second_size)
+{
+	const uintptr_t first_base = (uintptr_t)first;
+	const uintptr_t second_base = (uintptr_t)second;
+
+	if (first_base <= second_base)
+		return second_base - first_base < first_size;
+	return first_base - second_base < second_size;
+}
+
+static void guard_poison(const struct starbook_mtl_dma_guard_ops *ops)
+{
+	ops->poison(ops->context);
+	memset(&guard_authority.baseline, 0, sizeof(guard_authority.baseline));
+	memset(&guard_authority.bound_plan, 0, sizeof(guard_authority.bound_plan));
+	guard_authority.phase = GUARD_POISONED;
+}
 
 enum cb_err starbook_mtl_dma_guard_policy_validate(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
@@ -178,6 +218,9 @@ enum cb_err starbook_mtl_dma_guard_policy_validate(
 	    snapshot_copy.arena_count != STARBOOK_MTL_DMA_GUARD_ARENAS ||
 	    !bytes_zero(snapshot_copy.reserved, sizeof(snapshot_copy.reserved)) ||
 	    !snapshot_structure_valid(&snapshot_copy) ||
+	    plan_copy.inventory_generation != snapshot_copy.generation ||
+	    memcmp(plan_copy.inventory_identity, snapshot_copy.identity,
+		sizeof(plan_copy.inventory_identity)) ||
 	    !range_covered(&plan_copy, &snapshot_copy.handoff,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE) ||
 	    !range_covered(&plan_copy, &snapshot_copy.table,
@@ -195,48 +238,35 @@ enum cb_err starbook_mtl_dma_guard_policy_validate(
 	return CB_SUCCESS;
 }
 
-enum cb_err starbook_mtl_dma_guard_capture_with_ops(
-	const struct payload_mm_authvar_mor_clear_plan *plan,
+enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	struct starbook_mtl_dma_guard_snapshot *snapshot,
 	const struct starbook_mtl_dma_guard_ops *ops)
 {
-	struct payload_mm_authvar_mor_clear_plan plan_copy;
 	struct starbook_mtl_dma_guard_snapshot candidate;
 	struct starbook_mtl_dma_guard_snapshot recheck;
 	struct starbook_mtl_dma_guard_ops ops_copy;
 	uint64_t random_words[5];
 	bool identity_nonzero = false;
-	const uintptr_t plan_base = (uintptr_t)plan;
-	const uintptr_t output_base = (uintptr_t)snapshot;
+	const enum guard_phase original_phase = guard_authority.phase;
 
-	if (!snapshot || output_base > (uintptr_t)-1 - (sizeof(*snapshot) - 1U) ||
-	    output_base % _Alignof(*snapshot))
+	if (!object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)))
 		return CB_ERR_ARG;
 	memset(snapshot, 0, sizeof(*snapshot));
-	if (!plan || plan_base > (uintptr_t)-1 - (sizeof(*plan) - 1U) ||
-	    plan_base % _Alignof(*plan) ||
-	    (plan_base <= output_base + sizeof(*snapshot) - 1U &&
-	     output_base <= plan_base + sizeof(*plan) - 1U) || !ops ||
-	    (uintptr_t)ops > (uintptr_t)-1 - (sizeof(*ops) - 1U) ||
-	    (uintptr_t)ops % _Alignof(*ops) ||
-	    ((uintptr_t)ops <= output_base + sizeof(*snapshot) - 1U &&
-	     output_base <= (uintptr_t)ops + sizeof(*ops) - 1U) ||
-	    ((uintptr_t)ops <= plan_base + sizeof(*plan) - 1U &&
-	     plan_base <= (uintptr_t)ops + sizeof(*ops) - 1U))
+	if (!object_valid(ops, sizeof(*ops), _Alignof(*ops)) ||
+	    objects_overlap(snapshot, sizeof(*snapshot), ops, sizeof(*ops)))
 		return CB_ERR_ARG;
-	memcpy(&plan_copy, plan, sizeof(plan_copy));
 	memcpy(&ops_copy, ops, sizeof(ops_copy));
-	if (payload_mm_authvar_mor_clear_plan_validate(&plan_copy) != CB_SUCCESS ||
-	    !ops_copy.ensure || !ops_copy.observe || !ops_copy.random64 ||
+	if (!ops_copy.ensure || !ops_copy.observe || !ops_copy.random64 ||
 	    !ops_copy.poison ||
 	    guard_authority.phase == GUARD_POISONED)
 		return CB_ERR;
 	guard_authority.phase = GUARD_POISONED;
 	memset(&candidate, 0, sizeof(candidate));
 	if (ops_copy.ensure(ops_copy.context) != CB_SUCCESS ||
-	    ops_copy.observe(ops_copy.context, &candidate) != CB_SUCCESS)
+	    ops_copy.observe(ops_copy.context, &candidate) != CB_SUCCESS ||
+	    !prepared_snapshot_valid(&candidate))
 		goto fail;
-	if (guard_authority.baseline.generation) {
+	if (original_phase == GUARD_PREPARED || original_phase == GUARD_BOUND) {
 		candidate.generation = guard_authority.baseline.generation;
 		memcpy(candidate.identity, guard_authority.baseline.identity,
 			sizeof(candidate.identity));
@@ -255,32 +285,107 @@ enum cb_err starbook_mtl_dma_guard_capture_with_ops(
 		memcpy(candidate.identity, &random_words[1],
 			sizeof(candidate.identity));
 	}
-	if (starbook_mtl_dma_guard_policy_validate(&plan_copy, &candidate) !=
-		CB_SUCCESS)
-		goto fail;
-	if (guard_authority.baseline.generation &&
+	if (original_phase != GUARD_EMPTY &&
 	    memcmp(&candidate, &guard_authority.baseline, sizeof(candidate)))
 		goto fail;
 	memset(&recheck, 0, sizeof(recheck));
-	if (ops_copy.observe(ops_copy.context, &recheck) != CB_SUCCESS)
+	if (ops_copy.observe(ops_copy.context, &recheck) != CB_SUCCESS ||
+	    !prepared_snapshot_valid(&recheck))
 		goto fail;
 	recheck.generation = candidate.generation;
 	memcpy(recheck.identity, candidate.identity, sizeof(recheck.identity));
 	if (memcmp(&candidate, &recheck, sizeof(candidate)) ||
-	    memcmp(&plan_copy, plan, sizeof(plan_copy)) ||
 	    memcmp(&ops_copy, ops, sizeof(ops_copy)) ||
 	    memcmp(snapshot, &(const struct starbook_mtl_dma_guard_snapshot) { 0 },
 		sizeof(*snapshot)))
 		goto fail;
-	if (!guard_authority.baseline.generation)
+	if (original_phase == GUARD_EMPTY)
 		guard_authority.baseline = candidate;
-	guard_authority.phase = GUARD_ACTIVE;
+	guard_authority.phase = original_phase == GUARD_BOUND ?
+		GUARD_BOUND : GUARD_PREPARED;
 	memcpy(snapshot, &candidate, sizeof(candidate));
 	return CB_SUCCESS;
 
 fail:
-	ops_copy.poison(ops_copy.context);
-	memset(&guard_authority.baseline, 0, sizeof(guard_authority.baseline));
+	guard_poison(&ops_copy);
 	memset(snapshot, 0, sizeof(*snapshot));
+	return CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_guard_bind_with_ops(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
+	const struct starbook_mtl_dma_guard_ops *ops)
+{
+	struct payload_mm_authvar_mor_clear_plan plan_copy;
+	struct starbook_mtl_dma_guard_snapshot prepared_copy;
+	struct starbook_mtl_dma_guard_snapshot observed;
+	struct starbook_mtl_dma_guard_ops ops_copy;
+	const bool bound_valid = object_valid(bound, sizeof(*bound), _Alignof(*bound));
+	const bool dma_valid = object_valid(dma, sizeof(*dma), _Alignof(*dma));
+	const void *objects[] = { plan, prepared, bound, dma, ops };
+	const size_t sizes[] = { sizeof(*plan), sizeof(*prepared), sizeof(*bound),
+		sizeof(*dma), sizeof(*ops) };
+	const size_t alignments[] = { _Alignof(*plan), _Alignof(*prepared),
+		_Alignof(*bound), _Alignof(*dma), _Alignof(*ops) };
+
+	if (bound_valid)
+		memset(bound, 0, sizeof(*bound));
+	if (dma_valid)
+		memset(dma, 0, sizeof(*dma));
+	if (!bound_valid || !dma_valid)
+		return CB_ERR_ARG;
+	for (size_t index = 0; index < ARRAY_SIZE(objects); index++) {
+		if (!object_valid(objects[index], sizes[index], alignments[index]))
+			return CB_ERR_ARG;
+		for (size_t other = 0; other < index; other++)
+			if (objects_overlap(objects[index], sizes[index], objects[other],
+				sizes[other]))
+				return CB_ERR_ARG;
+	}
+	memcpy(&plan_copy, plan, sizeof(plan_copy));
+	memcpy(&prepared_copy, prepared, sizeof(prepared_copy));
+	memcpy(&ops_copy, ops, sizeof(ops_copy));
+	if (!ops_copy.ensure || !ops_copy.observe || !ops_copy.poison ||
+	    guard_authority.phase == GUARD_EMPTY ||
+	    guard_authority.phase == GUARD_POISONED)
+		return CB_ERR;
+	guard_authority.phase = GUARD_POISONED;
+	if (memcmp(&prepared_copy, &guard_authority.baseline,
+		sizeof(prepared_copy)) ||
+	    starbook_mtl_dma_guard_policy_validate(&plan_copy, &prepared_copy) !=
+		CB_SUCCESS ||
+	    (guard_authority.bound_plan.revision &&
+	     memcmp(&plan_copy, &guard_authority.bound_plan, sizeof(plan_copy))) ||
+	    ops_copy.ensure(ops_copy.context) != CB_SUCCESS)
+		goto fail;
+	memset(&observed, 0, sizeof(observed));
+	if (ops_copy.observe(ops_copy.context, &observed) != CB_SUCCESS ||
+	    !prepared_snapshot_valid(&observed))
+		goto fail;
+	observed.generation = guard_authority.baseline.generation;
+	memcpy(observed.identity, guard_authority.baseline.identity,
+		sizeof(observed.identity));
+	if (memcmp(&observed, &guard_authority.baseline, sizeof(observed)) ||
+	    memcmp(&plan_copy, plan, sizeof(plan_copy)) ||
+	    memcmp(&prepared_copy, prepared, sizeof(prepared_copy)) ||
+	    memcmp(&ops_copy, ops, sizeof(ops_copy)) ||
+	    !bytes_zero(bound, sizeof(*bound)) || !bytes_zero(dma, sizeof(*dma)))
+		goto fail;
+	if (!guard_authority.bound_plan.revision)
+		guard_authority.bound_plan = plan_copy;
+	guard_authority.phase = GUARD_BOUND;
+	memcpy(bound, &guard_authority.baseline, sizeof(*bound));
+	dma->generation = guard_authority.baseline.generation;
+	memcpy(dma->identity, guard_authority.baseline.identity,
+		sizeof(dma->identity));
+	return CB_SUCCESS;
+
+fail:
+	guard_poison(&ops_copy);
+	memset(bound, 0, sizeof(*bound));
+	memset(dma, 0, sizeof(*dma));
 	return CB_ERR;
 }

@@ -26,10 +26,13 @@ for flags in '-O0' '-O2' '-O1 -fsanitize=address' \
 		"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_guard.c" \
 		"$root/src/lib/payload_mm_authvar_mor_clear_plan.c" \
 		-o "$temporary/test"
-	for case_name in snapshot-builder policy capture idempotent ensure-failure observe-failure \
+	for case_name in snapshot-builder policy prepare idempotent ensure-failure observe-failure \
 		hardware-mutation invalid-observation random-failure zero-generation zero-identity \
-		plan-mutation output-mutation ops-mutation ops-output-alias \
-		ops-plan-alias; do
+		output-mutation ops-mutation ops-output-alias ops-plan-alias bind \
+		bind-idempotent bind-token-mismatch bind-plan-mutation \
+		bind-prepared-mutation bind-output-mutation bind-dma-mutation \
+		bind-ops-mutation bind-prepared-output-alias bind-output-dma-alias \
+		bind-plan-prepared-alias bound-prepare-idempotent bound-plan-change; do
 		"$temporary/test" "$case_name"
 	done
 done
@@ -68,7 +71,7 @@ mutant hardware-recheck \
 	's/if (memcmp(&candidate, &recheck, sizeof(candidate)) ||/if (false ||/' \
 	hardware-mutation
 mutant plan-recheck \
-	's/memcmp(&plan_copy, plan, sizeof(plan_copy)) ||/false ||/' plan-mutation
+	's/memcmp(&plan_copy, plan, sizeof(plan_copy)) ||/false ||/' bind-plan-mutation
 mutant ops-recheck \
 	's/memcmp(&ops_copy, ops, sizeof(ops_copy)) ||/false ||/' ops-mutation
 mutant output-recheck \
@@ -83,6 +86,9 @@ mutant exclusion-reason \
 mutant contiguous-geometry \
 	's/end != snapshot->table.base ||/false ||/' \
 	policy
+mutant token-binding \
+	's/plan_copy.inventory_generation != snapshot_copy.generation ||/false ||/' \
+	bind-token-mismatch
 
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 printf '\nconfig TEST_MTL_MOR_DMA_GUARD_SELECTOR\n\tbool\n\tdefault y\n\tselect STARLABS_STARBOOK_MTL_MOR_DMA_GUARD\n' >> \

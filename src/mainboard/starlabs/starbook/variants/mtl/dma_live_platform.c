@@ -362,18 +362,28 @@ static void platform_poison(void *unused)
 	poison_backend(&pci_io);
 }
 
-enum cb_err starbook_mtl_dma_guard_capture(
-	const struct payload_mm_authvar_mor_clear_plan *plan,
+static const struct starbook_mtl_dma_guard_ops platform_guard_ops = {
+	.ensure = platform_ensure,
+	.observe = platform_observe,
+	.random64 = platform_random64,
+	.poison = platform_poison,
+};
+
+enum cb_err starbook_mtl_dma_guard_prepare(
 	struct starbook_mtl_dma_guard_snapshot *snapshot)
 {
-	const struct starbook_mtl_dma_guard_ops ops = {
-		.ensure = platform_ensure,
-		.observe = platform_observe,
-		.random64 = platform_random64,
-		.poison = platform_poison,
-	};
+	return starbook_mtl_dma_guard_prepare_with_ops(snapshot,
+		&platform_guard_ops);
+}
 
-	return starbook_mtl_dma_guard_capture_with_ops(plan, snapshot, &ops);
+enum cb_err starbook_mtl_dma_guard_bind(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma)
+{
+	return starbook_mtl_dma_guard_bind_with_ops(plan, prepared, bound, dma,
+		&platform_guard_ops);
 }
 #endif
 
