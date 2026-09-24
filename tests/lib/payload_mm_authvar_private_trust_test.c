@@ -65,7 +65,7 @@ void payload_mm_authvar_private_trust_test_before_publish(
 	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_authvar_store_index *store_index,
 	const struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision)
+	struct payload_mm_authvar_authority_verification *decision)
 {
 	switch (attack) {
 	case ATTACK_OUTPUT:
@@ -212,7 +212,7 @@ static struct payload_mm_authvar_route_plan plan_for(
 static enum payload_mm_verify_status verify(struct payload_mm_crypto_owner *owner,
 	const struct buffer *cms, struct payload_mm_crypto_span content[5],
 	struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision)
+	struct payload_mm_authvar_authority_verification *decision)
 {
 	struct payload_mm_crypto_span signed_data = { cms->data, cms->size };
 
@@ -226,7 +226,7 @@ static void expect_failure(enum payload_mm_verify_status expected,
 	struct payload_mm_crypto_span content[5],
 	struct payload_mm_authvar_route_plan *plan)
 {
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	enum payload_mm_verify_status actual;
 
 	memset(&decision, 0xa5, sizeof(decision));
@@ -269,7 +269,7 @@ static void native_algorithms(const char *directory)
 		struct payload_mm_crypto_owner owner = { 0 };
 		struct payload_mm_authvar_route_plan plan = plan_for(
 			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
-		struct payload_mm_authvar_private_trust_decision decision;
+		struct payload_mm_authvar_authority_verification decision;
 		uint8_t native_binding[PAYLOAD_MM_MAX_DIGEST_SIZE];
 		uint8_t database[4096];
 		size_t database_size;
@@ -342,7 +342,7 @@ static void empty_new_ignores_certdb(const char *directory)
 	struct payload_mm_crypto_owner owner = { 0 };
 	struct payload_mm_authvar_route_plan plan = plan_for(
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	uint8_t malformed[] = { 5, 0, 0, 0, 0 };
 
 	content_spans(&serialized, content, true);
@@ -377,7 +377,7 @@ static void legacy_and_certdb_edges(const char *directory)
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
 	struct payload_mm_authvar_route_plan old_plan = plan_for(
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB);
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	uint8_t legacy[4096];
 	uint8_t database[4096];
 	uint8_t malformed[] = { 5, 0, 0, 0, 0 };
@@ -448,6 +448,16 @@ static void legacy_and_certdb_edges(const char *directory)
 	reset_index();
 	add_record(certdb_guid, certdb_name, sizeof(certdb_name),
 		CERTDB_ATTRIBUTES, database, database_size);
+	store[entries[0].record_offset + 16U] = 1U;
+	expect_failure(PAYLOAD_MM_VERIFY_MALFORMED, &owner, &cms, content,
+		&new_plan);
+	add_record(vendor_guid, stored_name, sizeof(stored_name),
+		REQUEST_ATTRIBUTES, "x", 1U);
+	expect_failure(PAYLOAD_MM_VERIFY_MALFORMED, &owner, &cms, content,
+		&old_plan);
+	reset_index();
+	add_record(certdb_guid, certdb_name, sizeof(certdb_name),
+		CERTDB_ATTRIBUTES, database, database_size);
 	add_record(vendor_guid, stored_name, sizeof(stored_name), 0x23U, "x", 1U);
 	expect_failure(PAYLOAD_MM_VERIFY_REJECTED, &owner, &cms, content,
 		&old_plan);
@@ -482,7 +492,7 @@ static void fail_closed_and_sealed(const char *directory)
 	struct payload_mm_crypto_owner owner = { 0 };
 	struct payload_mm_authvar_route_plan plan = plan_for(
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	uint8_t database[4096];
 	size_t database_size;
 
@@ -538,7 +548,7 @@ static void invalid_contract_and_cms(const char *directory)
 	struct payload_mm_crypto_owner owner = { 0 };
 	struct payload_mm_authvar_route_plan plan = plan_for(
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	struct payload_mm_crypto_span saved;
 	uint8_t saved_byte;
 	enum payload_mm_verify_status status;
@@ -615,7 +625,7 @@ static void append_empty_and_near_keys(const char *directory)
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER);
 	struct payload_mm_authvar_route_plan old_plan = plan_for(
 		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB);
-	struct payload_mm_authvar_private_trust_decision decision;
+	struct payload_mm_authvar_authority_verification decision;
 	uint8_t database[4096];
 	uint8_t malformed[] = { 5, 0, 0, 0, 0 };
 	size_t database_size;

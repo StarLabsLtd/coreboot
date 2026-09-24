@@ -69,6 +69,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_default_store.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
@@ -149,6 +150,7 @@ for phase in BASE SPARE_COMPLETE PRIMARY_ERASE PRIMARY_IMAGE \
 			"$root/src/lib/payload_mm_authvar_default_store.c" \
 			"$root/src/lib/payload_mm_authvar_candidate.c" \
 			"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 			"$root/src/lib/payload_mm_authvar_view.c" \
 			"$root/src/lib/payload_mm_authvar_mode.c" \
 			"$root/src/lib/payload_mm_authvar_format.c" \

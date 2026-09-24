@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_candidate.h>
+#include <boot/payload_mm_authvar_certdb.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_record.h>
 #include <boot/payload_mm_authvar_service.h>
@@ -22,9 +23,17 @@ static const u8 global_guid[16] = {
 	0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
 	0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
 };
+static const u8 image_guid[16] = {
+	0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
+	0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
+};
 static const u8 secure_boot_enable_guid[16] = {
 	0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
 	0x99, 0xc4, 0x00, 0x10, 0x09, 0xc9, 0x3a, 0x44,
+};
+static const u8 certdb_guid[16] = {
+	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
 };
 static const u8 vendor_keys_nv_name[] = {
 	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
@@ -36,6 +45,13 @@ static const u8 secure_boot_enable_name[] = {
 	0, 0,
 };
 static const u8 pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
+static const u8 kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
+static const u8 db_name[] = { 'd', 0, 'b', 0, 0, 0 };
+static const u8 dbx_name[] = { 'd', 0, 'b', 0, 'x', 0, 0, 0 };
+static const u8 dbt_name[] = { 'd', 0, 'b', 0, 't', 0, 0, 0 };
+static const u8 certdb_name[] = {
+	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+};
 
 static bool range_valid(const void *data, size_t size)
 {
@@ -113,6 +129,21 @@ static bool key_equal(const u8 left_guid[16], const void *left_name,
 		!memcmp(left_name, right_name, left_size);
 }
 
+static bool private_key(const u8 guid[16], const void *name, size_t name_size)
+{
+	return !payload_mm_authvar_bundle_key_reserved(guid, name, name_size) &&
+		!key_is(guid, name, name_size, global_guid, pk_name,
+			sizeof(pk_name)) &&
+		!key_is(guid, name, name_size, global_guid, kek_name,
+			sizeof(kek_name)) &&
+		!key_is(guid, name, name_size, image_guid, db_name,
+			sizeof(db_name)) &&
+		!key_is(guid, name, name_size, image_guid, dbx_name,
+			sizeof(dbx_name)) &&
+		!key_is(guid, name, name_size, image_guid, dbt_name,
+			sizeof(dbt_name));
+}
+
 static bool mutation_valid(const struct payload_mm_authvar_bundle_mutation *item,
 			   enum payload_mm_authvar_bundle_role role)
 {
@@ -156,6 +187,14 @@ static bool mutation_valid(const struct payload_mm_authvar_bundle_mutation *item
 			 payload_mm_authvar_timestamp_store_valid(
 				item->mutation.timestamp) &&
 			 !bytes_are_zero(item->mutation.timestamp, 16U)));
+	if (role == PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB)
+		return key_is(item->vendor_guid, item->name, item->name_size,
+			certdb_guid, certdb_name, sizeof(certdb_name)) && !delete &&
+			item->mutation.attributes ==
+				(nv_bs | PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+				 PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) &&
+			item->data_size >= sizeof(uint32_t) &&
+			bytes_are_zero(item->mutation.timestamp, 16U);
 	if (role == PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE)
 		return key_is(item->vendor_guid, item->name, item->name_size,
 			secure_boot_enable_guid, secure_boot_enable_name,
@@ -172,7 +211,12 @@ static bool mutation_valid(const struct payload_mm_authvar_bundle_mutation *item
 		bytes_are_zero(item->mutation.timestamp, 16U);
 }
 
-static bool bundle_valid(const struct payload_mm_authvar_bundle_plan *bundle)
+static const struct payload_mm_authvar_bundle_mutation *bundle_role(
+	const struct payload_mm_authvar_bundle_plan *bundle,
+	enum payload_mm_authvar_bundle_role role);
+
+static bool bundle_valid(const struct payload_mm_authvar_bundle_plan *bundle,
+	bool at_runtime)
 {
 	size_t next = 1U;
 
@@ -185,6 +229,16 @@ static bool bundle_valid(const struct payload_mm_authvar_bundle_plan *bundle)
 	    !mutation_valid(&bundle->mutations[0],
 		PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET))
 		return false;
+	if (at_runtime && bundle->mutations[0].mutation.kind ==
+		PAYLOAD_MM_AUTHVAR_MUTATION_WRITE &&
+	    !(bundle->mutations[0].mutation.attributes &
+	      PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS))
+		return false;
+	if (next < bundle->mutation_count && bundle->mutations[next].role ==
+	    PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB &&
+	    !mutation_valid(&bundle->mutations[next++],
+		PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB))
+		return false;
 	if (next < bundle->mutation_count && bundle->mutations[next].role ==
 	    PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE &&
 	    !mutation_valid(&bundle->mutations[next++],
@@ -195,7 +249,28 @@ static bool bundle_valid(const struct payload_mm_authvar_bundle_plan *bundle)
 	    !mutation_valid(&bundle->mutations[next++],
 		PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV))
 		return false;
-	return next == bundle->mutation_count;
+	if (next != bundle->mutation_count)
+		return false;
+	if (!bundle_role(bundle, PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB))
+		return bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD &&
+			!bundle->private_binding_size &&
+			bytes_are_zero(bundle->private_binding,
+				sizeof(bundle->private_binding));
+	if (bundle->mutation_count != 2U ||
+	    bundle->mutations[1].role != PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB)
+		return false;
+	if (bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD)
+		return (bundle->private_binding_size == 32U ||
+			bundle->private_binding_size == 48U ||
+			bundle->private_binding_size == 64U) &&
+			bytes_are_zero(bundle->private_binding +
+				bundle->private_binding_size,
+				sizeof(bundle->private_binding) -
+				bundle->private_binding_size);
+	return bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE &&
+		!bundle->private_binding_size &&
+		bytes_are_zero(bundle->private_binding,
+			sizeof(bundle->private_binding));
 }
 
 static const struct payload_mm_authvar_bundle_mutation *bundle_role(
@@ -206,6 +281,81 @@ static const struct payload_mm_authvar_bundle_mutation *bundle_role(
 		if (bundle->mutations[i].role == role)
 			return &bundle->mutations[i];
 	return NULL;
+}
+
+static bool certdb_replacement_matches(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_bundle_plan *bundle, void *workspace,
+	size_t workspace_size, bool at_runtime)
+{
+	const uint32_t attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	const struct payload_mm_authvar_bundle_mutation *target =
+		&bundle->mutations[0];
+	const struct payload_mm_authvar_bundle_mutation *certdb =
+		bundle_role(bundle, PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB);
+	const struct payload_mm_authvar_store_entry *source_target;
+	const struct payload_mm_authvar_store_entry *source_certdb;
+	const void *source_data;
+	size_t expected_size;
+	enum payload_mm_authvar_certdb_result result;
+
+	if (!certdb)
+		return true;
+	if (!private_key(target->vendor_guid, target->name, target->name_size))
+		return false;
+	source_target = payload_mm_authvar_store_find(index, target->vendor_guid,
+		target->name, target->name_size);
+	if ((bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD &&
+	     (source_target || target->mutation.kind !=
+		PAYLOAD_MM_AUTHVAR_MUTATION_WRITE)) ||
+	    (bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE &&
+	     (!source_target || target->mutation.kind !=
+		PAYLOAD_MM_AUTHVAR_MUTATION_DELETE)))
+		return false;
+	if (source_target &&
+	    ((source_target->attributes &
+	      (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+	       PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+	       PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED)) !=
+	     (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+	      PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+	      PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) ||
+	     source_target->attributes &
+		(PAYLOAD_MM_AUTHVAR_ATTR_AUTHENTICATED_WRITE |
+		 PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE |
+		 PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR) ||
+	     source_target->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED ||
+	     (at_runtime && !(source_target->attributes &
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
+	     !payload_mm_authvar_timestamp_store_valid(index->store +
+		source_target->record_offset + 16U) ||
+	     bytes_are_zero(index->store + source_target->record_offset + 16U,
+		16U)))
+		return false;
+	source_certdb = payload_mm_authvar_store_find(index, certdb_guid,
+		certdb_name, sizeof(certdb_name));
+	if (!source_certdb || source_certdb->attributes != attributes ||
+	    !bytes_are_zero(index->store + source_certdb->record_offset + 16U,
+		16U))
+		return false;
+	source_data = payload_mm_authvar_store_data(index, source_certdb);
+	if (!source_data)
+		return false;
+	result = payload_mm_authvar_certdb_compose(source_data,
+		source_certdb->data_size, bundle->certdb_operation,
+		target->vendor_guid, target->name,
+		target->name_size - sizeof(uint16_t),
+		bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ?
+			bundle->private_binding : NULL,
+		bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ?
+			bundle->private_binding_size : 0U,
+		workspace, workspace_size, &expected_size);
+	return result == PAYLOAD_MM_AUTHVAR_CERTDB_OK &&
+		expected_size == certdb->data_size &&
+		!memcmp(workspace, certdb->data, expected_size);
 }
 
 static bool index_equal(const struct payload_mm_authvar_store_index *left,
@@ -339,7 +489,8 @@ static bool emit_mutations(const struct payload_mm_authvar_bundle_plan *bundle,
 		};
 		memcpy(descriptor.vendor_guid, item->vendor_guid, 16U);
 		memcpy(descriptor.timestamp, item->mutation.timestamp, 16U);
-		if (item->role == PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV)
+		if (item->role == PAYLOAD_MM_AUTHVAR_BUNDLE_VENDOR_KEYS_NV ||
+		    item->role == PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB)
 			timestamp_mode =
 				PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO;
 		if (!encode_at(candidate, capacity, used, &descriptor, item->data,
@@ -402,6 +553,39 @@ static bool candidate_matches(const struct payload_mm_authvar_store_index *sourc
 		    PAYLOAD_MM_AUTHVAR_STATE_ADDED)
 			return false;
 	return true;
+}
+
+static bool final_certdb_matches(
+	const struct payload_mm_authvar_store_index *built,
+	const struct payload_mm_authvar_bundle_plan *bundle)
+{
+	const struct payload_mm_authvar_bundle_mutation *target =
+		&bundle->mutations[0];
+	const struct payload_mm_authvar_bundle_mutation *certdb =
+		bundle_role(bundle, PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB);
+	const struct payload_mm_authvar_store_entry *entry;
+	struct payload_mm_authvar_certdb_binding binding;
+	const void *data;
+	enum payload_mm_authvar_certdb_result result;
+
+	if (!certdb)
+		return true;
+	entry = payload_mm_authvar_store_find(built, certdb_guid, certdb_name,
+		sizeof(certdb_name));
+	if (!entry || entry->attributes != certdb->mutation.attributes ||
+	    !bytes_are_zero(built->store + entry->record_offset + 16U, 16U))
+		return false;
+	data = payload_mm_authvar_store_data(built, entry);
+	if (!data)
+		return false;
+	result = payload_mm_authvar_certdb_find(data, entry->data_size,
+		target->vendor_guid, target->name,
+		target->name_size - sizeof(uint16_t), &binding);
+	if (bundle->certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE)
+		return result == PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND;
+	return result == PAYLOAD_MM_AUTHVAR_CERTDB_OK &&
+		binding.size == bundle->private_binding_size &&
+		!memcmp(binding.data, bundle->private_binding, binding.size);
 }
 
 static bool projection_matches(
@@ -685,7 +869,8 @@ uint64_t payload_mm_authvar_candidate_build(
 					 candidate, scan_entries, scan_entry_capacity, result, &entry_bytes))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	memset(result, 0, sizeof(*result));
-	if (!payload_mm_authvar_store_index_valid(index) || !bundle_valid(bundle) ||
+	if (!payload_mm_authvar_store_index_valid(index) ||
+	    !bundle_valid(bundle, binding->at_runtime) ||
 	    !binding->generation || !binding->token || binding->at_runtime > 1U ||
 	    !bytes_are_zero(binding->reserved, sizeof(binding->reserved)) ||
 	    scan_entry_capacity < index->maximum_records ||
@@ -743,8 +928,10 @@ uint64_t payload_mm_authvar_candidate_build(
 		.maximum_records = index->maximum_records,
 	};
 	if (payload_mm_authvar_store_scan(&scan, index->store, index->store_size,
-					  &limits) != CB_SUCCESS || !index_equal(index, &scan) ||
-	    !mutations_fit_and_match(index, bundle, policy))
+				  &limits) != CB_SUCCESS || !index_equal(index, &scan) ||
+	    !mutations_fit_and_match(index, bundle, policy) ||
+	    !certdb_replacement_matches(index, bundle, candidate,
+		index->store_size, binding->at_runtime))
 		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 	memset(candidate, 0xff, index->store_size);
 	memcpy(candidate, index->store, PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE);
@@ -763,8 +950,9 @@ uint64_t payload_mm_authvar_candidate_build(
 		.entry_capacity = (uint32_t)scan_entry_capacity,
 	};
 	if (payload_mm_authvar_store_scan(&scan, candidate, index->store_size,
-					  &limits) != CB_SUCCESS ||
+				  &limits) != CB_SUCCESS ||
 	    !candidate_matches(index, &scan, bundle, used, count) ||
+	    !final_certdb_matches(&scan, bundle) ||
 	    !projection_matches(index, &scan, bundle, binding))
 		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 	hash_status = payload_mm_sha256(index->store, index->store_size,

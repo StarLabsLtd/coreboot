@@ -32,6 +32,7 @@ static const uint8_t certdb_guid[16] = {
 static const uint8_t certdb_name[] = {
 	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
 };
+static const uint8_t zero_timestamp[16];
 
 struct protected_digest {
 	uint8_t signed_data[PAYLOAD_MM_SHA256_SIZE];
@@ -45,7 +46,7 @@ __weak void payload_mm_authvar_private_trust_test_before_publish(
 	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision)
+	struct payload_mm_authvar_authority_verification *decision)
 {
 	(void)owner;
 	(void)index;
@@ -114,7 +115,7 @@ static bool inputs_valid(struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_crypto_span *content, size_t content_count,
 	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision)
+	struct payload_mm_authvar_authority_verification *decision)
 {
 	const void *descriptors[] = {
 		owner, signed_data, content, index, plan, decision,
@@ -254,9 +255,9 @@ enum payload_mm_verify_status payload_mm_authvar_private_trust_verify(
 	const struct payload_mm_crypto_span *content, size_t content_count,
 	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision)
+	struct payload_mm_authvar_authority_verification *decision)
 {
-	struct payload_mm_authvar_private_trust_decision draft = { 0 };
+	struct payload_mm_authvar_authority_verification draft = { 0 };
 	struct payload_mm_authvar_private_binding binding = { 0 };
 	struct payload_mm_authvar_certdb_binding stored;
 	struct payload_mm_cms_verified_signer verified = { 0 };
@@ -319,7 +320,9 @@ enum payload_mm_verify_status payload_mm_authvar_private_trust_verify(
 		status = PAYLOAD_MM_VERIFY_REJECTED;
 		goto out;
 	}
-	if (certdb_entry->attributes != CERTDB_ATTRIBUTES) {
+	if (certdb_entry->attributes != CERTDB_ATTRIBUTES ||
+	    memcmp(index_copy.store + certdb_entry->record_offset + 16U,
+		zero_timestamp, sizeof(zero_timestamp))) {
 		status = PAYLOAD_MM_VERIFY_MALFORMED;
 		goto out;
 	}
@@ -376,7 +379,7 @@ out:
 	    memcmp(plan, &plan_copy, sizeof(*plan)) ||
 	    memcmp(&before, &after, sizeof(before)) ||
 	    memcmp(decision,
-		&(struct payload_mm_authvar_private_trust_decision) { 0 },
+		&(struct payload_mm_authvar_authority_verification) { 0 },
 		sizeof(*decision)))
 		status = PAYLOAD_MM_VERIFY_CHANGED;
 	clean = payload_mm_crypto_idle() && payload_mm_crypto_owner_is_clean(owner);

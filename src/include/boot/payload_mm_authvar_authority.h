@@ -9,6 +9,12 @@
 
 #define PAYLOAD_MM_AUTHVAR_AUTHORITY_SIGNED_SPANS 5U
 
+struct payload_mm_authvar_authority_verification {
+	enum payload_mm_authvar_authority accepted_authority;
+	size_t new_binding_size;
+	uint8_t new_binding[PAYLOAD_MM_MAX_DIGEST_SIZE];
+};
+
 enum payload_mm_authvar_authority_intent {
 	PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE = 1U << 0,
 	PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE = 1U << 1,
@@ -38,7 +44,7 @@ struct payload_mm_authvar_authority_verify_request {
 typedef enum payload_mm_verify_status payload_mm_authvar_authority_verify_fn(
 	void *context,
 	const struct payload_mm_authvar_authority_verify_request *request,
-	enum payload_mm_authvar_authority *accepted_authority);
+	struct payload_mm_authvar_authority_verification *verification);
 
 struct payload_mm_authvar_authority_snapshot {
 	const struct payload_mm_authvar_policy_request *request;
@@ -66,6 +72,8 @@ struct payload_mm_authvar_authority_decision {
 	uint32_t intents;
 	enum payload_mm_authvar_target target;
 	enum payload_mm_authvar_authority accepted_authority;
+	size_t new_binding_size;
+	uint8_t new_binding[PAYLOAD_MM_MAX_DIGEST_SIZE];
 };
 
 /*

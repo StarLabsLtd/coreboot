@@ -2119,7 +2119,7 @@ static size_t coordinator_auth2(uint8_t *data, const void *payload,
 
 static enum payload_mm_verify_status coordinator_verify(void *context,
 	const struct payload_mm_authvar_authority_verify_request *request,
-	enum payload_mm_authvar_authority *accepted)
+	struct payload_mm_authvar_authority_verification *verification)
 {
 	assert(request->owner == &coordinator_owner);
 	assert(coordinator_result->status ==
@@ -2181,7 +2181,13 @@ static enum payload_mm_verify_status coordinator_verify(void *context,
 	case COORDINATOR_ATTACK_NONE:
 		break;
 	}
-	*accepted = coordinator_accepted_authority;
+	verification->accepted_authority = coordinator_accepted_authority;
+	if (coordinator_accepted_authority ==
+	    PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER &&
+	    request->new_payload->size) {
+		verification->new_binding_size = 32U;
+		memset(verification->new_binding, 0xa5, 32U);
+	}
 	return coordinator_verify_status;
 }
 
@@ -2581,6 +2587,101 @@ static void native_assert_value(const uint8_t guid[16], const uint8_t *name,
 	for (size_t i = 0U; i < 16U; i++)
 		combined |= timestamp[i];
 	assert(!combined);
+}
+
+static void coordinator_private_fixture_init(struct coordinator_fixture *fixture)
+{
+	static const uint8_t certdb_guid[16] = {
+		0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+		0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+	};
+	static const uint8_t certdb_name[] = {
+		'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+	};
+	static const uint8_t empty_certdb[] = { 4U, 0U, 0U, 0U };
+	static const uint8_t zero_timestamp[16];
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+
+	coordinator_fixture_build(fixture);
+	coordinator_make_user_source(fixture, false);
+	(void)native_find(certdb_guid, certdb_name, sizeof(certdb_name), &index,
+		entries, ARRAY_SIZE(entries));
+	assert(!payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+		sizeof(certdb_name)));
+	(void)coordinator_append_record(index.used_size, certdb_guid, certdb_name,
+		sizeof(certdb_name), 0x27U, zero_timestamp, empty_certdb,
+		sizeof(empty_certdb), PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO);
+}
+
+static void coordinator_private_atomic(void)
+{
+	static const uint8_t guid[16] = { 0x42 };
+	static const uint8_t name[] = { 'P', 0, 'r', 0, 'i', 0, 'v', 0, 0, 0 };
+	static const uint8_t certdb_guid[16] = {
+		0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+		0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+	};
+	static const uint8_t certdb_name[] = {
+		'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+	};
+	static const uint8_t expected_binding[32] = { [0 ... 31] = 0xa5 };
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	struct payload_mm_authvar_certdb_binding certdb_binding;
+	struct coordinator_fixture fixture;
+	const struct payload_mm_authvar_store_entry *target;
+	const struct payload_mm_authvar_store_entry *certdb;
+	const void *certdb_data;
+	uint64_t status;
+
+	coordinator_private_fixture_init(&fixture);
+	install();
+	fixture.policy_request.name = name;
+	fixture.policy_request.name_size = sizeof(name);
+	memcpy(fixture.policy_request.vendor_guid, guid, sizeof(guid));
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		&fixture.payload, sizeof(fixture.payload));
+	coordinator_accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	status = payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result);
+	assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	target = native_find(guid, name, sizeof(name), &index, entries,
+		ARRAY_SIZE(entries));
+	assert(target && target->data_size == sizeof(fixture.payload) &&
+		*(const uint8_t *)payload_mm_authvar_store_data(&index, target) ==
+			fixture.payload);
+	certdb = payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+		sizeof(certdb_name));
+	certdb_data = payload_mm_authvar_store_data(&index, certdb);
+	assert(certdb && certdb_data && certdb->attributes == 0x27U &&
+		payload_mm_authvar_certdb_find(certdb_data, certdb->data_size,
+			guid, name, sizeof(name) - 2U, &certdb_binding) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK &&
+		certdb_binding.size == sizeof(expected_binding) &&
+		!memcmp(certdb_binding.data, expected_binding,
+			sizeof(expected_binding)));
+
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		NULL, 0U);
+	fixture.auth2[6] = 2U;
+	coordinator_accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	memset(&fixture.result, 0, sizeof(fixture.result));
+	assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+		&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	target = native_find(guid, name, sizeof(name), &index, entries,
+		ARRAY_SIZE(entries));
+	assert(!target);
+	certdb = payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+		sizeof(certdb_name));
+	certdb_data = payload_mm_authvar_store_data(&index, certdb);
+	assert(certdb && certdb_data &&
+		payload_mm_authvar_certdb_find(certdb_data, certdb->data_size,
+			guid, name, sizeof(name) - 2U, &certdb_binding) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND);
 }
 
 static void coordinator_native_ordinary(void)
@@ -4105,6 +4206,160 @@ static void coordinator_reset(unsigned int cut)
 	assert(erased(spare(), 2U * BLOCK_SIZE));
 }
 
+static void coordinator_private_reset(unsigned int cut, bool removing,
+	bool print_count)
+{
+	static const uint8_t guid[16] = { 0x42 };
+	static const uint8_t name[] = { 'P', 0, 'r', 0, 'i', 0, 'v', 0, 0, 0 };
+	static const uint8_t certdb_guid[16] = {
+		0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+		0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+	};
+	static const uint8_t certdb_name[] = {
+		'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+	};
+	static const uint8_t expected_binding[32] = { [0 ... 31] = 0xa5 };
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	struct payload_mm_authvar_certdb_binding stored_binding;
+	struct payload_mm_authvar_ftw_plan plan;
+	struct payload_mm_authvar_read_request recovery_request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_GET,
+		.name = coordinator_pk_name,
+		.name_size = sizeof(coordinator_pk_name),
+	};
+	struct payload_mm_authvar_read_result recovery_result;
+	struct coordinator_fixture fixture;
+	const struct payload_mm_authvar_store_entry *target;
+	const struct payload_mm_authvar_store_entry *certdb;
+	const void *certdb_data;
+	uint8_t old_media[MEDIA_SIZE];
+	uint8_t expected_primary[BLOCK_SIZE];
+	uint8_t recovery_data;
+	bool new_state;
+	int child_status;
+	pid_t child;
+
+	coordinator_private_fixture_init(&fixture);
+	fixture.policy_request.name = name;
+	fixture.policy_request.name_size = sizeof(name);
+	memcpy(fixture.policy_request.vendor_guid, guid, sizeof(guid));
+	fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+		&fixture.payload, sizeof(fixture.payload));
+	coordinator_accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	if (removing) {
+		child = fork();
+		assert(child >= 0);
+		if (!child) {
+			install();
+			assert(payload_mm_authvar_executor_test_coordinate(
+				&fixture.request, &fixture.result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+			_exit(0);
+		}
+		assert(waitpid(child, &child_status, 0) == child &&
+			WIFEXITED(child_status) && !WEXITSTATUS(child_status));
+		coordinator_fixture_build(&fixture);
+		fixture.policy_request.name = name;
+		fixture.policy_request.name_size = sizeof(name);
+		memcpy(fixture.policy_request.vendor_guid, guid, sizeof(guid));
+		fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+			NULL, 0U);
+		fixture.auth2[6] = 2U;
+		coordinator_accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	}
+	memcpy(old_media, media, sizeof(old_media));
+	if (print_count) {
+		char count[32];
+		int length;
+
+		install();
+		operation_count = 0U;
+		assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		length = snprintf(count, sizeof(count), "%u\n", operation_count);
+		assert(length > 0 && (size_t)length < sizeof(count));
+		assert(write(1, count, (unsigned long)length) == length);
+		return;
+	}
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		install();
+		assert(payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		_exit(0);
+	}
+	assert(waitpid(child, &child_status, 0) == child &&
+		WIFEXITED(child_status) && !WEXITSTATUS(child_status));
+	memcpy(expected_primary, media, sizeof(expected_primary));
+	memcpy(media, old_media, sizeof(old_media));
+	coordinator_fixture_build(&fixture);
+	fixture.policy_request.name = name;
+	fixture.policy_request.name_size = sizeof(name);
+	memcpy(fixture.policy_request.vendor_guid, guid, sizeof(guid));
+	if (removing) {
+		fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+			NULL, 0U);
+		fixture.auth2[6] = 2U;
+		coordinator_accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	} else {
+		fixture.policy_request.data_size = coordinator_auth2(fixture.auth2,
+			&fixture.payload, sizeof(fixture.payload));
+		coordinator_accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	}
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		operation_count = 0U;
+		reset_operation = cut;
+		install();
+		(void)payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result);
+		_exit(0);
+	}
+	assert(waitpid(child, &child_status, 0) == child &&
+		WIFEXITED(child_status) && WEXITSTATUS(child_status) == 77);
+	install();
+	memcpy(recovery_request.vendor_guid, coordinator_global_guid,
+		sizeof(recovery_request.vendor_guid));
+	recovery_request.result_data = &recovery_data;
+	recovery_request.data_capacity = sizeof(recovery_data);
+	memset(&recovery_result, 0, sizeof(recovery_result));
+	assert(payload_mm_authvar_read_transaction(&recovery_request,
+		&recovery_result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(recovery_result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		recovery_result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	new_state = !memcmp(media, expected_primary, sizeof(expected_primary));
+	assert(new_state || !memcmp(media, old_media, sizeof(expected_primary)));
+	target = native_find(guid, name, sizeof(name), &index, entries,
+		ARRAY_SIZE(entries));
+	certdb = payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+		sizeof(certdb_name));
+	certdb_data = payload_mm_authvar_store_data(&index, certdb);
+	assert(certdb && certdb_data);
+	if (new_state != removing) {
+		assert(target && target->data_size == sizeof(fixture.payload));
+		assert(payload_mm_authvar_certdb_find(certdb_data, certdb->data_size,
+			guid, name, sizeof(name) - 2U, &stored_binding) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK &&
+			stored_binding.size == sizeof(expected_binding) &&
+			!memcmp(stored_binding.data, expected_binding,
+				sizeof(expected_binding)));
+	} else {
+		assert(!target && payload_mm_authvar_certdb_find(certdb_data,
+			certdb->data_size, guid, name, sizeof(name) - 2U,
+			&stored_binding) == PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND);
+	}
+	assert(payload_mm_authvar_ftw_plan(media, MEDIA_SIZE, BLOCK_SIZE, &plan) ==
+		CB_SUCCESS && plan.action == PAYLOAD_MM_AUTHVAR_FTW_CLEAN);
+	assert(erased(spare(), 2U * BLOCK_SIZE));
+}
+
 static void coordinator_native_reset(unsigned int cut, bool print_count)
 {
 	static const uint8_t guid[16] = {
@@ -4250,6 +4505,9 @@ int main(int argc, char **argv)
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (!strcmp(argv[1], "coordinator-success")) {
 		coordinator_success();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-private-atomic")) {
+		coordinator_private_atomic();
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-preflight-consumers")) {
 		coordinator_preflight_consumers();
@@ -4571,6 +4829,20 @@ int main(int argc, char **argv)
 		return 0;
 	} else if (!strncmp(argv[1], "coordinator-reset-", 18U)) {
 		coordinator_reset(candidate_fault_number(argv[1] + 18U));
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-private-add-reset-count")) {
+		coordinator_private_reset(0U, false, true);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-private-add-reset-", 30U)) {
+		coordinator_private_reset(candidate_fault_number(argv[1] + 30U),
+			false, false);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-private-remove-reset-count")) {
+		coordinator_private_reset(0U, true, true);
+		return 0;
+	} else if (!strncmp(argv[1], "coordinator-private-remove-reset-", 33U)) {
+		coordinator_private_reset(candidate_fault_number(argv[1] + 33U),
+			true, false);
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-native-reset-count")) {
 		coordinator_native_reset(0U, true);

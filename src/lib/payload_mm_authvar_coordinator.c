@@ -323,6 +323,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		.request = coordinator->request,
 		.decision = &decision,
 		.index = index,
+		.certdb_workspace = append_workspace,
+		.certdb_workspace_size = append_workspace_size,
 		.facts = {
 			.ready_to_boot = ready_to_boot,
 			.at_runtime = binding->at_runtime,

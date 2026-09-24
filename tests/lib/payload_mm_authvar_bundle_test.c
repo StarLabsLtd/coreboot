@@ -51,16 +51,29 @@ static const uint8_t enable_name[] = {
 	'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0,
 	0, 0,
 };
+static const uint8_t certdb_name[] = {
+	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+};
 
 static uint8_t store[2048];
 static struct payload_mm_authvar_store_entry entries[8];
 static struct payload_mm_authvar_store_index store_index;
 static uint8_t request_data[8];
 static uint8_t target_data = 0xa5;
+static uint8_t certdb_workspace[128];
 static struct payload_mm_authvar_policy_request request;
 static struct payload_mm_authvar_authority_decision decision;
 static struct payload_mm_authvar_bundle_snapshot snapshot;
 static struct payload_mm_authvar_bundle_plan plan;
+
+static void base(bool user_mode, bool vendor_keys, bool enable);
+static void use_private_target(void);
+
+static void expect_empty_plan(void)
+{
+	expect(!memcmp(&plan, &(struct payload_mm_authvar_bundle_plan) { 0 },
+		sizeof(plan)));
+}
 
 static void put16(uint8_t *p, uint16_t value)
 {
@@ -98,8 +111,8 @@ static void reset_store(void)
 	};
 }
 
-static void add_record(const uint8_t guid[16], const uint8_t *name,
-	size_t name_size, uint32_t attributes, uint8_t value)
+static void add_blob(const uint8_t guid[16], const uint8_t *name,
+	size_t name_size, uint32_t attributes, const void *value, size_t value_size)
 {
 	struct payload_mm_authvar_store_entry *entry =
 		&entries[store_index.entry_count++];
@@ -111,19 +124,58 @@ static void add_record(const uint8_t guid[16], const uint8_t *name,
 	entry->name_size = name_size;
 	data = (entry->name_offset + name_size + 3U) & ~3U;
 	entry->data_offset = data;
-	entry->data_size = 1U;
+	entry->data_size = value_size;
 	entry->attributes = attributes;
 	memcpy(entry->vendor_guid, guid, 16U);
 	put16(store + record, PAYLOAD_MM_AUTHVAR_RECORD_START_ID);
 	store[record + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
 	put32(store + record + 4U, attributes);
 	put32(store + record + 36U, name_size);
-	put32(store + record + 40U, 1U);
+	put32(store + record + 40U, value_size);
 	memcpy(store + record + 44U, guid, 16U);
 	memcpy(store + entry->name_offset, name, name_size);
-	store[data] = value;
+	memcpy(store + data, value, value_size);
 	store_index.record_count = store_index.entry_count;
-	store_index.used_size = data + 1U;
+	store_index.used_size = data + value_size;
+}
+
+static void add_record(const uint8_t guid[16], const uint8_t *name,
+	size_t name_size, uint32_t attributes, uint8_t value)
+{
+	add_blob(guid, name, name_size, attributes, &value, sizeof(value));
+}
+
+static void replace_last_data(const void *data, size_t size)
+{
+	struct payload_mm_authvar_store_entry *entry =
+		&entries[store_index.entry_count - 1U];
+
+	expect(entry->data_offset + size <= sizeof(store));
+	memcpy(store + entry->data_offset, data, size);
+	entry->data_size = size;
+	put32(store + entry->record_offset + 40U, size);
+	store_index.used_size = entry->data_offset + size;
+}
+
+static void private_existing_source(void)
+{
+	static const uint8_t binding[32] = { 0x5a };
+	static const uint8_t empty[] = { 4U, 0U, 0U, 0U };
+	uint8_t database[128];
+	size_t database_size;
+
+	base(false, true, false);
+	store_index.entry_count--;
+	store_index.record_count--;
+	store_index.used_size = entries[store_index.entry_count].record_offset;
+	add_record(private_guid, private_name, sizeof(private_name), 0x27U, 0x11U);
+	expect(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD, private_guid, private_name,
+		sizeof(private_name) - 2U, binding, sizeof(binding), database,
+		sizeof(database), &database_size) == PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	add_blob(cert_guid, certdb_name, sizeof(certdb_name), 0x27U, database,
+		database_size);
+	use_private_target();
 }
 
 static void base(bool user_mode, bool vendor_keys, bool enable)
@@ -135,6 +187,8 @@ static void base(bool user_mode, bool vendor_keys, bool enable)
 		vendor_keys);
 	if (enable)
 		add_record(enable_guid, enable_name, sizeof(enable_name), 0x03U, 1U);
+	add_blob(cert_guid, certdb_name, sizeof(certdb_name), 0x27U,
+		(uint8_t[]) { 4U, 0U, 0U, 0U }, 4U);
 	request = (struct payload_mm_authvar_policy_request) {
 		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
 		.attributes = 0x27U,
@@ -161,6 +215,8 @@ static void base(bool user_mode, bool vendor_keys, bool enable)
 		.request = &request,
 		.decision = &decision,
 		.index = &store_index,
+		.certdb_workspace = certdb_workspace,
+		.certdb_workspace_size = sizeof(certdb_workspace),
 		.facts = {
 			.setup_mode = !user_mode,
 			.secure_boot = user_mode,
@@ -312,6 +368,307 @@ static void test_runtime_mode_carry(void)
 	expect(plan.volatile_modes == PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
 }
 
+static void use_private_target(void)
+{
+	request.name = private_name;
+	request.name_size = sizeof(private_name);
+	memcpy(request.vendor_guid, private_guid, sizeof(private_guid));
+	decision.target = PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE;
+}
+
+static void test_private_certdb_roles(void)
+{
+	struct payload_mm_authvar_certdb_binding binding;
+	static const uint8_t empty[] = { 4U, 0U, 0U, 0U };
+	static const size_t invalid_sizes[] = { 1U, 31U, 33U, 47U, 49U, 63U };
+	const void *workspace_aliases[] = {
+		&snapshot, &request, &decision, &store_index, store, entries,
+		private_name, &plan,
+	};
+
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, decision.new_binding_size);
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect_target(2U);
+	expect(plan.mutations[1].role == PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB);
+	expect(plan.mutations[1].data == certdb_workspace);
+	expect(plan.mutations[1].mutation.attributes == 0x27U);
+	expect(!memcmp(plan.mutations[1].mutation.timestamp,
+		(uint8_t[16]) { 0 }, 16U));
+	expect(payload_mm_authvar_certdb_find(plan.mutations[1].data,
+		plan.mutations[1].data_size, private_guid, private_name,
+		sizeof(private_name) - 2U, &binding) ==
+		PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	expect(binding.size == 32U &&
+		!memcmp(binding.data, decision.new_binding, 32U));
+	expect(plan.private_binding_size == 32U &&
+		!memcmp(plan.private_binding, decision.new_binding, 32U));
+
+	for (size_t i = 0U; i < ARRAY_SIZE(invalid_sizes); i++) {
+		base(false, true, false);
+		use_private_target();
+		decision.accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+		decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+		decision.new_binding_size = invalid_sizes[i];
+		memset(decision.new_binding, 0x5a, invalid_sizes[i]);
+		expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
+		expect_empty_plan();
+	}
+
+	/* Ordinary existing updates may borrow the append workspace unchanged. */
+	base(false, true, false);
+	store_index.entry_count--;
+	store_index.record_count--;
+	store_index.used_size = entries[store_index.entry_count].record_offset;
+	add_record(private_guid, private_name, sizeof(private_name), 0x27U, 0x11U);
+	add_blob(cert_guid, certdb_name, sizeof(certdb_name), 0x27U,
+		(uint8_t[]) { 4U, 0U, 0U, 0U }, 4U);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.data = certdb_workspace;
+	decision.data_size = decision.mutation.data_size = 1U;
+	certdb_workspace[0] = 0x33U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(plan.outcome == PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION &&
+		plan.mutation_count == 1U &&
+		plan.mutations[0].role == PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET &&
+		plan.mutations[0].data == certdb_workspace);
+	expect(!plan.private_binding_size);
+
+	/* ADD may never overwrite target data through its certdb workspace. */
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	decision.data = certdb_workspace;
+	decision.data_size = decision.mutation.data_size = 1U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
+	expect_empty_plan();
+
+	/* Private composition workspace is protected from every sealed input. */
+	for (size_t i = 0U; i < ARRAY_SIZE(workspace_aliases); i++) {
+		base(false, true, false);
+		use_private_target();
+		decision.accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+		decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+		decision.new_binding_size = 32U;
+		memset(decision.new_binding, 0x5a, 32U);
+		snapshot.certdb_workspace = (void *)workspace_aliases[i];
+		snapshot.certdb_workspace_size = store_index.maximum_data_size;
+		expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
+		expect(((const uint8_t *)&plan)[0] == 0xa5U);
+	}
+
+	private_existing_source();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(plan.mutation_count == 2U &&
+		plan.mutations[1].role == PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB &&
+		plan.certdb_operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE &&
+		!plan.private_binding_size && plan.mutations[1].data_size ==
+			sizeof(empty) &&
+		!memcmp(plan.mutations[1].data, empty, sizeof(empty)));
+
+	/* Missing binding, stale ADD and malformed fixed-store metadata fail closed. */
+	private_existing_source();
+	replace_last_data(empty, sizeof(empty));
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_REJECTED);
+	expect_empty_plan();
+	private_existing_source();
+	store[entries[store_index.entry_count - 1U].data_offset] ^= 1U;
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	private_existing_source();
+	entries[store_index.entry_count - 1U].attributes ^= 1U;
+	put32(store + entries[store_index.entry_count - 1U].record_offset + 4U,
+		entries[store_index.entry_count - 1U].attributes);
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	private_existing_source();
+	store[entries[store_index.entry_count - 1U].record_offset + 16U] = 1U;
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_REMOVE_PRIVATE_BINDING;
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	{
+		uint8_t database[128];
+		size_t database_size;
+
+		expect(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+			PAYLOAD_MM_AUTHVAR_CERTDB_ADD, private_guid, private_name,
+			sizeof(private_name) - 2U, decision.new_binding, 32U,
+			database, sizeof(database), &database_size) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+		replace_last_data(database, database_size);
+	}
+	expect(make_plan() == PAYLOAD_MM_VERIFY_REJECTED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	store[entries[store_index.entry_count - 1U].data_offset] ^= 1U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	entries[store_index.entry_count - 1U].attributes ^= 1U;
+	put32(store + entries[store_index.entry_count - 1U].record_offset + 4U,
+		entries[store_index.entry_count - 1U].attributes);
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	store[entries[store_index.entry_count - 1U].record_offset + 16U] = 1U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	snapshot.certdb_workspace = NULL;
+	snapshot.certdb_workspace_size = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	snapshot.certdb_workspace_size = store_index.maximum_data_size - 1U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	store_index.maximum_data_size = 63U;
+	expect(snapshot.certdb_workspace_size == sizeof(certdb_workspace));
+	expect(make_plan() == PAYLOAD_MM_VERIFY_REJECTED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	store_index.entry_count--;
+	store_index.record_count--;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_MALFORMED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	{
+		static const uint8_t other_guid[16] = { 0x77 };
+		static const uint8_t other_name[] = { 'y', 0 };
+		uint8_t database[128];
+		uint8_t large_binding[64] = { 0x88 };
+		size_t database_size;
+
+		expect(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+			PAYLOAD_MM_AUTHVAR_CERTDB_ADD, other_guid, other_name,
+			sizeof(other_name), large_binding, sizeof(large_binding),
+			database, sizeof(database), &database_size) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+		replace_last_data(database, database_size);
+	}
+	expect(make_plan() == PAYLOAD_MM_VERIFY_REJECTED);
+	expect_empty_plan();
+	base(false, true, false);
+	use_private_target();
+	decision.accepted_authority =
+		PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING |
+		PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS;
+	decision.new_binding_size = 32U;
+	memset(decision.new_binding, 0x5a, 32U);
+	expect(make_plan() == PAYLOAD_MM_VERIFY_UNSUPPORTED);
+	expect_empty_plan();
+}
+
 static void test_outcomes_and_failures(void)
 {
 	uint8_t before[sizeof(plan)];
@@ -352,7 +709,7 @@ static void test_outcomes_and_failures(void)
 
 	base(true, true, true);
 	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
-	expect(make_plan() == PAYLOAD_MM_VERIFY_UNSUPPORTED);
+	expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
 	expect(!memcmp(&plan, &(struct payload_mm_authvar_bundle_plan) { 0 },
 		sizeof(plan)));
 	base(true, true, true);
@@ -376,9 +733,7 @@ static void test_outcomes_and_failures(void)
 	base(true, true, true);
 	store[entries[2].data_offset] = 0U;
 	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);
-	base(true, true, true);
-	store_index.entry_count--;
-	store_index.record_count--;
+	base(true, true, false);
 	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);
 
 	base(false, true, false);
@@ -488,8 +843,13 @@ static void test_reserved_keys(void)
 		expect(make_plan() == PAYLOAD_MM_VERIFY_INVALID);
 		/* Exact key matching: the same name under a private GUID is ordinary. */
 		memcpy(request.vendor_guid, private_guid, 16U);
+		decision.accepted_authority =
+			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER;
+		decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ADD_PRIVATE_BINDING;
+		decision.new_binding_size = 32U;
+		memset(decision.new_binding, 0x5a, 32U);
 		expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
-		expect_target(1U);
+		expect_target(2U);
 	}
 }
 
@@ -498,6 +858,7 @@ int main(void)
 	test_mode_oracle();
 	test_vendor_oracle();
 	test_runtime_mode_carry();
+	test_private_certdb_roles();
 	test_outcomes_and_failures();
 	test_reserved_keys();
 	puts("payload-mm authenticated-variable bundle tests passed");

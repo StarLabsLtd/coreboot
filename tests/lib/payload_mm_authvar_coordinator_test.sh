@@ -33,6 +33,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_route.c" \
@@ -44,6 +45,7 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$output"
 	for case in \
 		coordinator-success \
+		coordinator-private-atomic \
 		coordinator-preflight-consumers \
 		coordinator-native-ordinary \
 		coordinator-native-collision coordinator-native-invalid \
@@ -131,6 +133,7 @@ compile_mutant()
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
+		"$root/src/lib/payload_mm_authvar_certdb.c" \
 		"$root/src/lib/payload_mm_authvar_mode.c" \
 		"$root/src/lib/payload_mm_authvar_format.c" \
 		"$root/src/lib/payload_mm_authvar_route.c" \
@@ -221,6 +224,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_authority.c" \
 	"$root/src/lib/payload_mm_authvar_candidate.c" \
 	"$root/src/lib/payload_mm_authvar_bundle.c" \
+	"$root/src/lib/payload_mm_authvar_certdb.c" \
 	"$root/src/lib/payload_mm_authvar_mode.c" \
 	"$root/src/lib/payload_mm_authvar_format.c" \
 	"$root/src/lib/payload_mm_authvar_route.c" \
@@ -236,6 +240,16 @@ cut=1
 while [ "$cut" -le "$reset_count" ]; do
 	ASAN_OPTIONS=detect_leaks=1 "$real_output" "coordinator-reset-$cut"
 	cut=$((cut + 1))
+done
+for operation in add remove; do
+	private_reset_count="$(ASAN_OPTIONS=detect_leaks=1 "$real_output" \
+		"coordinator-private-$operation-reset-count")"
+	private_cut=1
+	while [ "$private_cut" -le "$private_reset_count" ]; do
+		ASAN_OPTIONS=detect_leaks=1 "$real_output" \
+			"coordinator-private-$operation-reset-$private_cut"
+		private_cut=$((private_cut + 1))
+	done
 done
 native_reset_count="$(ASAN_OPTIONS=detect_leaks=1 "$real_output" \
 	coordinator-native-reset-count)"

@@ -3,15 +3,7 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_PRIVATE_TRUST_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_PRIVATE_TRUST_H
 
-#include <boot/payload_mm_authvar_route.h>
-#include <boot/payload_mm_authvar_store.h>
-#include <payload_mm_cms.h>
-
-struct payload_mm_authvar_private_trust_decision {
-	enum payload_mm_authvar_authority accepted_authority;
-	size_t new_binding_size;
-	uint8_t new_binding[PAYLOAD_MM_MAX_DIGEST_SIZE];
-};
+#include <boot/payload_mm_authvar_authority.h>
 
 /*
  * Verify detached CMS and one EDK2 26.09 private-variable signer route in one
@@ -27,6 +19,6 @@ enum payload_mm_verify_status payload_mm_authvar_private_trust_verify(
 	const struct payload_mm_crypto_span *content, size_t content_count,
 	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_authvar_route_plan *plan,
-	struct payload_mm_authvar_private_trust_decision *decision);
+	struct payload_mm_authvar_authority_verification *verification);
 
 #endif

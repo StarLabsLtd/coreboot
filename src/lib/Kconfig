@@ -232,12 +232,14 @@ config PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
 	bool
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_AUTHORITY
+	select PAYLOAD_MM_AUTHVAR_CERTDB
 	select PAYLOAD_MM_AUTHVAR_VOLATILE_VIEW
 	help
 	  Build the dormant fixed-role atomic bundle planner. It expands one final
-	  Auth2 authority outcome into target, SecureBootEnable and VendorKeysNv
-	  persistent mutations plus a packed volatile mode projection. It writes no
-	  media, creates no candidate image and installs no provider or endpoint.
+	  Auth2 authority outcome into target, persistent certdb,
+	  SecureBootEnable and VendorKeysNv mutations plus a packed volatile mode
+	  projection. It writes no media, creates no candidate image and installs no
+	  provider or endpoint.
 
 config PAYLOAD_MM_AUTHVAR_CANDIDATE
 	bool
@@ -245,9 +247,10 @@ config PAYLOAD_MM_AUTHVAR_CANDIDATE
 	depends on PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN
 	help
 	  Build the dormant pure authenticated-variable whole-store candidate
-	  composer. It independently rescans the source and emits one canonical,
-	  provenance-bound replacement image, but performs no media operation,
-	  installs no provider and publishes no endpoint.
+	  composer. It independently rescans the source, verifies any paired target
+	  and persistent-certdb transition, and emits one canonical, provenance-bound
+	  replacement image. It performs no media operation, installs no provider
+	  and publishes no endpoint.
 
 config PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
 	bool

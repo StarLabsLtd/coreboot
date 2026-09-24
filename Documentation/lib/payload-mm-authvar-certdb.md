@@ -26,7 +26,8 @@ remains opaque so stores containing the legacy full signer-certificate stack
 remain readable; later cryptographic policy alone decides whether a binding is
 a native SHA-256/384/512 digest or that legacy serialization.
 
-The later fixed-role bundle must compose the target variable and its certdb
-replacement into one whole-store candidate and commit both through the same
-FTW transaction. This codec never reproduces EDK2's separate writes or its
-boot-time orphan cleanup.
+The fixed-role bundle composes the target variable and its persistent certdb
+replacement. The candidate independently proves that exact transition before
+placing both in one whole-store image for one later FTW transaction. This
+deliberately avoids EDK2's separate writes and boot-time orphan cleanup. The
+current profile does not implement or fabricate volatile `certdbv`.

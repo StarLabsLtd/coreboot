@@ -36,13 +36,20 @@ static const u8 enable_guid[16] = {
 	0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
 	0x99, 0xc4, 0x00, 0x10, 0x09, 0xc9, 0x3a, 0x44,
 };
+static const u8 certdb_guid[16] = {
+	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+};
 static const u8 vknv_name[] = {
 	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
 	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
 };
 static const u8 target_guid[16] = { 0x42 };
 static const u8 target_name[] = { 'F', 0, 'o', 0, 'o', 0, 0, 0 };
+static const u8 other_guid[16] = { 0x77 };
+static const u8 other_name[] = { 'O', 0, 't', 0, 'h', 0, 'e', 0, 'r', 0, 0, 0 };
 static const u8 pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
+static const u8 kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 static const u8 setup_name[] = {
 	'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0, 'M', 0, 'o', 0, 'd', 0,
 	'e', 0, 0, 0,
@@ -51,6 +58,9 @@ static const u8 enable_name[] = {
 	'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
 	'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0,
 	0, 0,
+};
+static const u8 certdb_name[] = {
+	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
 };
 static const u8 timestamp[16] = { 0xe8, 0x07, 1, 2, 3, 4, 5 };
 static const struct payload_mm_authvar_store_limits limits = {
@@ -148,6 +158,101 @@ static void init_source(void)
 	};
 	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
 					     &limits) == CB_SUCCESS);
+}
+
+static void init_private_source(bool target_exists, bool binding_exists)
+{
+	static const u8 vknv = 1U;
+	static const u8 target_value[] = { 1U, 2U };
+	static const u8 empty_certdb[] = { 4U, 0U, 0U, 0U };
+	static const u8 private_binding[32] = { 0x5a };
+	u8 database[128];
+	size_t database_size = sizeof(empty_certdb);
+	size_t at = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	struct payload_mm_authvar_record_descriptor descriptor = {
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+	};
+
+	memcpy(database, empty_certdb, sizeof(empty_certdb));
+	if (binding_exists)
+		assert(payload_mm_authvar_certdb_compose(empty_certdb,
+			sizeof(empty_certdb), PAYLOAD_MM_AUTHVAR_CERTDB_ADD,
+			target_guid, target_name, sizeof(target_name) - 2U,
+			private_binding, sizeof(private_binding), database,
+			sizeof(database), &database_size) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	memset(store, 0xff, sizeof(store));
+	memcpy(store, store_guid, sizeof(store_guid));
+	put32(store, 16U, sizeof(store));
+	store[20] = 0x5aU;
+	store[21] = 0xfeU;
+	put16(store, 22U, 0U);
+	put32(store, 24U, 0U);
+	descriptor.name = vknv_name;
+	descriptor.name_size = sizeof(vknv_name);
+	memcpy(descriptor.vendor_guid, vknv_guid, 16U);
+	at = add_record(at, &descriptor, &vknv, sizeof(vknv),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED);
+	if (target_exists) {
+		descriptor.name = target_name;
+		descriptor.name_size = sizeof(target_name);
+		descriptor.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+		memcpy(descriptor.vendor_guid, target_guid, 16U);
+		memcpy(descriptor.timestamp, timestamp, sizeof(timestamp));
+		at = add_record(at, &descriptor, target_value,
+			sizeof(target_value),
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+			PAYLOAD_MM_AUTHVAR_STATE_ADDED);
+		descriptor.attributes &= ~PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+		memset(descriptor.timestamp, 0, sizeof(descriptor.timestamp));
+	}
+	descriptor.name = certdb_name;
+	descriptor.name_size = sizeof(certdb_name);
+	descriptor.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	memcpy(descriptor.vendor_guid, certdb_guid, 16U);
+	(void)add_record(at, &descriptor, database, database_size,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		PAYLOAD_MM_AUTHVAR_STATE_ADDED);
+	memset(entries, 0, sizeof(entries));
+	index = (struct payload_mm_authvar_store_index) {
+		.entries = entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
+		&limits) == CB_SUCCESS);
+}
+
+static void add_source_certdb_binding(void)
+{
+	static const u8 binding[1] = { 0x77 };
+	const struct payload_mm_authvar_store_entry *entry =
+		payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+			sizeof(certdb_name));
+	u8 database[256];
+	size_t database_size;
+	const void *source;
+
+	assert(entry);
+	source = payload_mm_authvar_store_data(&index, entry);
+	assert(source && payload_mm_authvar_certdb_compose(source, entry->data_size,
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD, other_guid, other_name,
+		sizeof(other_name) - 2U, binding, sizeof(binding), database,
+		sizeof(database), &database_size) == PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	assert(entry->data_offset + database_size <= sizeof(store));
+	memcpy(store + entry->data_offset, database, database_size);
+	put32(store, entry->record_offset + 40U, (uint32_t)database_size);
+	memset(store + entry->data_offset + database_size, 0xff,
+		sizeof(store) - entry->data_offset - database_size);
+	memset(entries, 0, sizeof(entries));
+	index = (struct payload_mm_authvar_store_index) {
+		.entries = entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
+		&limits) == CB_SUCCESS);
 }
 
 static void append_target(u8 state, const uint8_t record_timestamp[16])
@@ -406,6 +511,406 @@ static struct payload_mm_authvar_candidate_binding source_binding(void)
 		.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SETUP |
 			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
 	};
+}
+
+static void expect_safe_failure(const struct payload_mm_authvar_store_index *input,
+	const struct payload_mm_authvar_bundle_plan *bundle,
+	const struct payload_mm_authvar_write_policy *write_policy,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	size_t capacity, uint64_t expected);
+
+static struct payload_mm_authvar_bundle_plan private_certdb_plan(
+	enum payload_mm_authvar_certdb_operation operation)
+{
+	static u8 replacement[256];
+	static const u8 private_binding[32] = { 0x5a };
+	struct payload_mm_authvar_bundle_plan bundle = target_write();
+	struct payload_mm_authvar_bundle_mutation *target = &bundle.mutations[0];
+	struct payload_mm_authvar_bundle_mutation *certdb = &bundle.mutations[1];
+	const struct payload_mm_authvar_store_entry *source_certdb =
+		payload_mm_authvar_store_find(&index, certdb_guid, certdb_name,
+			sizeof(certdb_name));
+	const void *source_data = payload_mm_authvar_store_data(&index,
+		source_certdb);
+	size_t replacement_size;
+
+	assert(source_certdb && source_data);
+	bundle.mutation_count = 2U;
+	bundle.certdb_operation = operation;
+	if (operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD) {
+		bundle.private_binding_size = sizeof(private_binding);
+		memcpy(bundle.private_binding, private_binding,
+			sizeof(private_binding));
+	} else {
+		target->mutation = (struct payload_mm_authvar_policy_mutation) {
+			.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+		};
+		target->data = NULL;
+		target->data_size = 0U;
+	}
+	assert(payload_mm_authvar_certdb_compose(source_data,
+		source_certdb->data_size, operation, target_guid, target_name,
+		sizeof(target_name) - 2U,
+		operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ? private_binding : NULL,
+		operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD ?
+			sizeof(private_binding) : 0U,
+		replacement, sizeof(replacement), &replacement_size) ==
+		PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	assert(replacement_size <= UINT32_MAX);
+	*certdb = (struct payload_mm_authvar_bundle_mutation) {
+		.role = PAYLOAD_MM_AUTHVAR_BUNDLE_CERTDB,
+		.mutation = {
+			.kind = PAYLOAD_MM_AUTHVAR_MUTATION_WRITE,
+			.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+				PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+				PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+			.data_size = (uint32_t)replacement_size,
+		},
+		.name = certdb_name,
+		.name_size = sizeof(certdb_name),
+		.data = replacement,
+		.data_size = replacement_size,
+	};
+	memcpy(certdb->vendor_guid, certdb_guid, 16U);
+	return bundle;
+}
+
+static void test_private_certdb_candidate(void)
+{
+	struct payload_mm_authvar_candidate_binding binding = source_binding();
+	struct payload_mm_authvar_candidate_result result;
+	struct payload_mm_authvar_store_entry built_entries[MAX_ENTRIES];
+	struct payload_mm_authvar_store_index built = {
+		.entries = built_entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	struct payload_mm_authvar_certdb_binding stored;
+	struct payload_mm_authvar_bundle_plan bundle;
+	const struct payload_mm_authvar_store_entry *certdb;
+	const void *data;
+
+	for (enum payload_mm_authvar_certdb_operation operation =
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD;
+	     operation <= PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE; operation++) {
+		init_private_source(operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE,
+			operation == PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+		bundle = private_certdb_plan(operation);
+		memset(&result, 0, sizeof(result));
+		assert(payload_mm_authvar_candidate_build(&index, &bundle, &policy,
+			&binding, candidate, sizeof(candidate), scratch,
+			MAX_ENTRIES, &result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(payload_mm_authvar_store_scan(&built, candidate,
+			sizeof(candidate), &limits) == CB_SUCCESS);
+		certdb = payload_mm_authvar_store_find(&built, certdb_guid,
+			certdb_name, sizeof(certdb_name));
+		assert(certdb && certdb->attributes == 0x27U &&
+			all_zero(candidate + certdb->record_offset + 16U, 16U));
+		data = payload_mm_authvar_store_data(&built, certdb);
+		assert(data);
+		if (operation == PAYLOAD_MM_AUTHVAR_CERTDB_ADD)
+			assert(payload_mm_authvar_certdb_find(data, certdb->data_size,
+				target_guid, target_name, sizeof(target_name) - 2U,
+				&stored) == PAYLOAD_MM_AUTHVAR_CERTDB_OK &&
+				stored.size == 32U && stored.data[0] == 0x5aU);
+		else
+			assert(payload_mm_authvar_certdb_find(data, certdb->data_size,
+				target_guid, target_name, sizeof(target_name) - 2U,
+				&stored) == PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND);
+	}
+
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	((u8 *)(uintptr_t)bundle.mutations[1].data)[4] ^= 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	((u8 *)(uintptr_t)bundle.mutations[1].data)[4] ^= 1U;
+	bundle.certdb_operation = PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	bundle.certdb_operation = PAYLOAD_MM_AUTHVAR_CERTDB_ADD;
+	bundle.private_binding[32] = 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].vendor_guid[0] ^= 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].mutation.attributes ^=
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].mutation.timestamp[0] = 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	{
+		struct payload_mm_authvar_bundle_mutation temporary =
+			bundle.mutations[0];
+
+		bundle.mutations[0] = bundle.mutations[1];
+		bundle.mutations[1] = temporary;
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[2] = bundle.mutations[1];
+	bundle.mutation_count = 3U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+
+	init_private_source(true, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	init_private_source(false, false);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	{
+		struct payload_mm_authvar_store_entry *target =
+			(struct payload_mm_authvar_store_entry *)
+			payload_mm_authvar_store_find(&index, target_guid,
+				target_name, sizeof(target_name));
+
+		assert(target);
+		target->attributes &= ~PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+		put32(store, target->record_offset + 4U, target->attributes);
+	}
+	memset(&result, 0, sizeof(result));
+	assert(payload_mm_authvar_candidate_build(&index, &bundle, &policy,
+		&binding, candidate, sizeof(candidate), scratch, MAX_ENTRIES,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	{
+		struct payload_mm_authvar_store_entry *target =
+			(struct payload_mm_authvar_store_entry *)
+			payload_mm_authvar_store_find(&index, target_guid,
+				target_name, sizeof(target_name));
+
+		assert(target);
+		target->attributes &= ~PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+		put32(store, target->record_offset + 4U, target->attributes);
+	}
+	binding.at_runtime = true;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	binding.at_runtime = false;
+
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[0].mutation.attributes &=
+		~PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+	memset(&result, 0, sizeof(result));
+	assert(payload_mm_authvar_candidate_build(&index, &bundle, &policy,
+		&binding, candidate, sizeof(candidate), scratch, MAX_ENTRIES,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	binding.at_runtime = true;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	binding.at_runtime = false;
+
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	{
+		const struct payload_mm_authvar_store_entry *target =
+			payload_mm_authvar_store_find(&index, target_guid,
+				target_name, sizeof(target_name));
+
+		assert(target);
+		memset(store + target->record_offset + 16U, 0, 16U);
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	{
+		const struct payload_mm_authvar_store_entry *target =
+			payload_mm_authvar_store_find(&index, target_guid,
+				target_name, sizeof(target_name));
+
+		assert(target);
+		store[target->record_offset + 18U] = 13U;
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+
+	init_private_source(true, true);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE);
+	{
+		struct payload_mm_authvar_store_entry *target =
+			(struct payload_mm_authvar_store_entry *)
+			payload_mm_authvar_store_find(&index, target_guid,
+				target_name, sizeof(target_name));
+
+		assert(target);
+		target->attributes &= ~PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+		put32(store, target->record_offset + 4U, target->attributes);
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+
+	/* Plans without a CERTDB role must carry no hidden CERTDB metadata. */
+	init_source();
+	bundle = target_write();
+	bundle.certdb_operation = PAYLOAD_MM_AUTHVAR_CERTDB_REMOVE;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	bundle = target_write();
+	bundle.private_binding_size = 32U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	bundle = target_write();
+	bundle.private_binding[0] = 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+
+	/* The source CERTDB metadata is independently part of the proof. */
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	{
+		struct payload_mm_authvar_store_entry *source_certdb =
+			(struct payload_mm_authvar_store_entry *)
+			payload_mm_authvar_store_find(&index, certdb_guid,
+				certdb_name, sizeof(certdb_name));
+
+		assert(source_certdb);
+		source_certdb->attributes ^= PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS;
+		put32(store, source_certdb->record_offset + 4U,
+			source_certdb->attributes);
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	{
+		const struct payload_mm_authvar_store_entry *source_certdb =
+			payload_mm_authvar_store_find(&index, certdb_guid,
+				certdb_name, sizeof(certdb_name));
+
+		assert(source_certdb);
+		store[source_certdb->record_offset + 16U] = 1U;
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+
+	/* Fixed role order, key and mode separation are strict. */
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].name = target_name;
+	bundle.mutations[1].name_size = sizeof(target_name);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].name_size -= 2U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.mutations[1].role = PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+
+	/* Exact recomposition preserves unrelated bindings and canonical length. */
+	init_private_source(false, false);
+	add_source_certdb_binding();
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	{
+		struct payload_mm_authvar_certdb_binding unrelated;
+
+		assert(payload_mm_authvar_certdb_find(bundle.mutations[1].data,
+			bundle.mutations[1].data_size, other_guid, other_name,
+			sizeof(other_name) - 2U, &unrelated) ==
+			PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+		assert(unrelated.size == 1U);
+		((u8 *)(uintptr_t)unrelated.data)[0] ^= 1U;
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	((u8 *)(uintptr_t)bundle.mutations[1].data)[bundle.mutations[1].data_size] = 0U;
+	bundle.mutations[1].data_size++;
+	bundle.mutations[1].mutation.data_size++;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	put32((u8 *)(uintptr_t)bundle.mutations[1].data, 0U,
+		(uint32_t)bundle.mutations[1].data_size - 1U);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	bundle.private_binding[0] ^= 1U;
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+
+	/* A CERTDB side effect cannot turn a standard or internal key private. */
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	memcpy(bundle.mutations[0].vendor_guid, global_guid, 16U);
+	bundle.mutations[0].name = kek_name;
+	bundle.mutations[0].name_size = sizeof(kek_name);
+	{
+		static const u8 empty[] = { 4U, 0U, 0U, 0U };
+		static const u8 private_binding[32] = { 0x5a };
+		size_t replacement_size;
+		u8 *replacement = (u8 *)(uintptr_t)bundle.mutations[1].data;
+
+		assert(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+			PAYLOAD_MM_AUTHVAR_CERTDB_ADD, global_guid, kek_name,
+			sizeof(kek_name) - 2U, private_binding,
+			sizeof(private_binding), replacement, 256U,
+			&replacement_size) == PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+		bundle.mutations[1].data_size = replacement_size;
+		bundle.mutations[1].mutation.data_size =
+			(uint32_t)replacement_size;
+	}
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	memcpy(bundle.mutations[0].vendor_guid, certdb_guid, 16U);
+	bundle.mutations[0].name = certdb_name;
+	bundle.mutations[0].name_size = sizeof(certdb_name);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+
+	/* Exact store exhaustion stays atomic for the two-mutation candidate. */
+	init_private_source(false, false);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	memset(&result, 0, sizeof(result));
+	assert(payload_mm_authvar_candidate_build(&index, &bundle, &policy,
+		&binding, candidate, sizeof(candidate), scratch, MAX_ENTRIES,
+		&result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(result.candidate_used_size > index.used_size);
+	init_private_source(false, false);
+	put32(store, 16U, result.candidate_used_size - 1U);
+	memset(entries, 0, sizeof(entries));
+	index = (struct payload_mm_authvar_store_index) {
+		.entries = entries,
+		.entry_capacity = MAX_ENTRIES,
+	};
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store),
+		&limits) == CB_SUCCESS);
+	bundle = private_certdb_plan(PAYLOAD_MM_AUTHVAR_CERTDB_ADD);
+	expect_safe_failure(&index, &bundle, &policy, &binding,
+		sizeof(candidate), PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES);
+	init_source();
 }
 
 static void expect_safe_failure(const struct payload_mm_authvar_store_index *input,
@@ -875,6 +1380,7 @@ int main(void)
 {
 	init_source();
 	test_projection_oracle();
+	test_private_certdb_candidate();
 	test_build();
 	test_rejections();
 	test_bundle_roles_and_projection();
