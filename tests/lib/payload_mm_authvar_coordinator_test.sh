@@ -28,6 +28,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_view.c" \
 		"$root/src/lib/payload_mm_authvar_authority.c" \
 		"$root/src/lib/payload_mm_authvar_candidate.c" \
 		"$root/src/lib/payload_mm_authvar_bundle.c" \
@@ -120,6 +121,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_view.c" \
 	"$root/src/lib/payload_mm_authvar_authority.c" \
 	"$root/src/lib/payload_mm_authvar_candidate.c" \
 	"$root/src/lib/payload_mm_authvar_bundle.c" \

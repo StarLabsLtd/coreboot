@@ -45,3 +45,14 @@ filtering, collisions and deleted history, QUERY equivalence, hostile aliases
 and atomic output. Directed compile-success mutants alter identities, order,
 attributes, values, mode bits, collision handling, persistent ordering, QUERY
 delegation and SET reservation.
+
+With the dormant coordinator selected, the executor constructs this view only
+after same-lease FTW recovery and mode derivation or reconciliation. The first
+boot read that completes those stages seals the validated projection before
+ending the media lease; external bytes and metadata are still published only
+after a successful end. Runtime construction requires the sealed projection
+and preserves its frozen SecureBoot bit while SetupMode and VendorKeys are
+reconciled from durable state. Reconciliation is cleared only after successful
+media end, including for expected semantic read errors. This integration
+remains internal: it adds no backend, dispatcher, service descriptor or
+endpoint.

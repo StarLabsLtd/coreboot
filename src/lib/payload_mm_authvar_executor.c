@@ -13,6 +13,9 @@
 #include <boot/payload_mm_authvar_policy.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_store.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#include <boot/payload_mm_authvar_view.h>
+#endif
 #include <boot/payload_mm_authvar_writer.h>
 #include <string.h>
 
@@ -2817,8 +2820,13 @@ uint64_t payload_mm_authvar_read_transaction(
 {
 	struct payload_mm_authvar_read_request copied;
 	struct payload_mm_authvar_read_result published;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	struct payload_mm_authvar_view read_view;
+	struct payload_mm_authvar_view_value value;
+#else
 	struct payload_mm_authvar_get_result get;
 	struct payload_mm_authvar_next_result next;
+#endif
 	struct payload_mm_authvar_query_result query;
 	struct payload_mm_authvar_store_policy query_policy;
 	struct executor_session *state;
@@ -2828,6 +2836,11 @@ uint64_t payload_mm_authvar_read_transaction(
 	uint64_t status;
 	uint32_t expected = 0;
 	bool began = false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	u8 source_modes;
+	bool reconcile_modes = false;
+	bool modes_validated = false;
+#endif
 
 	if (provider_reentry())
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -2884,8 +2897,53 @@ uint64_t payload_mm_authvar_read_transaction(
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
 	memset(&state->read_result, 0, sizeof(state->read_result));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	reconcile_modes = executor.sealed_modes_need_reconcile;
+	if (!(reconcile_modes ?
+		payload_mm_authvar_coordinator_reconcile_modes(&state->index,
+			state->at_runtime, executor.sealed_volatile_modes,
+			&source_modes) :
+		payload_mm_authvar_coordinator_source_modes(&state->index,
+			state->at_runtime, executor.sealed_volatile_modes_valid,
+			executor.sealed_volatile_modes, &source_modes)) ||
+	    payload_mm_authvar_view_init(&read_view, &state->index, source_modes,
+		state->at_runtime) != CB_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+	executor.volatile_modes = source_modes;
+	executor.sealed_volatile_modes = source_modes;
+	executor.volatile_modes_valid = true;
+	executor.sealed_volatile_modes_valid = true;
+	modes_validated = true;
+#endif
 	switch (state->request.operation) {
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		memset(&value, 0, sizeof(value));
+		status = payload_mm_authvar_view_get(&read_view,
+			state->request.vendor_guid, state->request.name,
+			state->request.name_size, state->read_data_capacity, &value);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL) {
+			state->read_result.required_data_size = value.data_size;
+			state->read_result.attributes = value.attributes;
+		}
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			bytes = value.data;
+			if (!bytes || value.data_size > state->read_data_capacity) {
+				status = poison_session();
+				break;
+			}
+			memcpy(arena_at(executor.sealed.data_offset), bytes,
+				value.data_size);
+		} else if (status != PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL &&
+			   status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+			   status != PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER &&
+			   status != PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR) {
+			status = poison_session();
+		}
+#else
 		status = payload_mm_authvar_store_get(&state->index,
 			state->request.vendor_guid, state->request.name,
 			state->request.name_size, state->read_data_capacity,
@@ -2904,8 +2962,34 @@ uint64_t payload_mm_authvar_read_transaction(
 			memcpy(arena_at(executor.sealed.data_offset), bytes,
 				get.required_data_size);
 		}
+#endif
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		memset(&value, 0, sizeof(value));
+		status = payload_mm_authvar_view_get_next(&read_view,
+			state->request.vendor_guid, state->request.name,
+			state->request.name_size, state->read_name_capacity, &value);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
+			state->read_result.required_name_size = value.name_size;
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			bytes = value.name;
+			if (!bytes || !value.vendor_guid ||
+			    value.name_size > state->read_name_capacity) {
+				status = poison_session();
+				break;
+			}
+			memcpy(arena_at(executor.sealed.name_offset), bytes,
+				value.name_size);
+			memcpy(state->read_result.vendor_guid, value.vendor_guid,
+				sizeof(state->read_result.vendor_guid));
+		} else if (status != PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL &&
+			   status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+			   status != PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER) {
+			status = poison_session();
+		}
+#else
 		status = payload_mm_authvar_store_get_next(&state->index,
 			state->request.vendor_guid, state->request.name,
 			state->request.name_size, state->read_name_capacity,
@@ -2924,6 +3008,7 @@ uint64_t payload_mm_authvar_read_transaction(
 			memcpy(state->read_result.vendor_guid, next.entry->vendor_guid,
 				sizeof(state->read_result.vendor_guid));
 		}
+#endif
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
 		query_policy.maximum_storage = state->index.store_size -
@@ -2932,13 +3017,25 @@ uint64_t payload_mm_authvar_read_transaction(
 			executor.sealed.limits.maximum_record_size;
 		if (query_policy.maximum_record_size > state->index.store_size)
 			query_policy.maximum_record_size = state->index.store_size;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		status = payload_mm_authvar_view_query(&read_view, &query_policy,
+			state->request.attributes, &query);
+#else
 		status = payload_mm_authvar_store_query(&state->index, &query_policy,
 			state->request.attributes, state->at_runtime, &query);
+#endif
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
 			state->read_result.maximum_storage = query.maximum_storage;
 			state->read_result.remaining_storage = query.remaining_storage;
 			state->read_result.maximum_variable = query.maximum_variable;
 		}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		    status != PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER &&
+		    status != PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED &&
+		    status != PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR)
+			status = poison_session();
+#endif
 		break;
 	default:
 		status = poison_session();
@@ -2953,6 +3050,13 @@ end:
 		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		memset(&state->read_result, 0, sizeof(state->read_result));
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (reconcile_modes && modes_validated && executor.installed &&
+	    end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		executor.modes_need_reconcile = false;
+		executor.sealed_modes_need_reconcile = false;
+	}
+#endif
 	state->read_result.status = status;
 	published = state->read_result;
 	/* Publication is allowed only after the media session ended successfully. */

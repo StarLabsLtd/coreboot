@@ -165,6 +165,28 @@ never caller input. Although GET, NEXT and QUERY perform no logical variable
 write, the shared recovery path may repair or complete an interrupted durable
 FTW transaction before reading.
 
+When the dormant coordinator is selected, every read first validates the
+authoritative volatile-mode projection and initializes the synthetic view
+under that same media lease. GET and NEXT expose `SetupMode`,
+`SignatureSupport`, `SecureBoot`, `certdbv` and `VendorKeys` before persistent
+variables; QUERY continues to report persistent-store quota only. A live
+persistent collision with any synthetic identity is an invariant failure for
+all three operations, including QUERY.
+
+The first boot read that completes recovery, mode derivation and view
+validation seals the projection before the mandatory media end. An end failure
+still retains that internally authoritative seal, but publishes no caller
+bytes. At runtime, reads require a valid sealed projection: reconciliation may
+update SetupMode and VendorKeys, but SecureBoot remains frozen at its boot-time
+value. A pending reconciliation flag is cleared only after mode and view
+validation followed by a successful media end. Expected semantic results such
+as `NOT_FOUND`,
+`BUFFER_TOO_SMALL`, an invalid NEXT cursor or QUERY attribute errors do not
+leave reconciliation spuriously armed. Scanner admission rejects visible
+zero-data records; the lower store helper nevertheless maps a hostile
+zero-sized indexed winner to `DEVICE_ERROR`, and the integrated status seam
+preserves that declared result without poisoning the service.
+
 This slice installs no shared-memory descriptor, dispatcher, SMI route or
 persistent read cache. The dormant service-frame validator remains a separate
 composition boundary and must be aligned with EDK2 QUERY APPEND and unknown-bit
