@@ -49,6 +49,15 @@
 #define EXECUTOR_TRANSFER_SIZE 4096U
 #define EXECUTOR_RECOVERY_LIMIT 16U
 
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+enum executor_fmp_phase {
+	EXECUTOR_FMP_PHASE_NONE,
+	EXECUTOR_FMP_PHASE_RECONCILED,
+	EXECUTOR_FMP_PHASE_ACTIVE,
+	EXECUTOR_FMP_PHASE_POISONED,
+};
+#endif
+
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 struct executor_recovery_plan {
 	uint64_t generation;
@@ -168,6 +177,10 @@ static struct {
 	bool at_runtime;
 	bool sealed_ready_to_boot;
 	bool sealed_at_runtime;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	uint32_t fmp_phase;
+	uint32_t sealed_fmp_phase;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	uint8_t volatile_modes;
 	uint8_t sealed_volatile_modes;
@@ -246,6 +259,10 @@ static bool policy_equal(void)
 		sizeof(executor.policy)) &&
 		executor.ready_to_boot == executor.sealed_ready_to_boot &&
 		executor.at_runtime == executor.sealed_at_runtime
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		&& executor.fmp_phase == executor.sealed_fmp_phase &&
+		executor.fmp_phase <= EXECUTOR_FMP_PHASE_POISONED
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 		&& executor.volatile_modes == executor.sealed_volatile_modes &&
 		executor.volatile_modes_valid == executor.sealed_volatile_modes_valid &&
@@ -254,6 +271,18 @@ static bool policy_equal(void)
 #endif
 		;
 }
+
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+static void fmp_complete_abort_after_fail_closed(void)
+{
+	if (executor.fmp_phase != EXECUTOR_FMP_PHASE_POISONED &&
+	    executor.sealed_fmp_phase != EXECUTOR_FMP_PHASE_POISONED)
+		return;
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+	executor.installed = false;
+}
+#endif
 
 static bool limits_valid(
 	const struct payload_mm_authvar_executor_limits *limits)
@@ -1013,6 +1042,9 @@ static enum payload_mm_authvar_media_result media_begin(
 	if (!sealed || !policy_equal()) {
 		(void)payload_mm_authvar_media_fail_closed(0, 0);
 		executor.installed = false;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		fmp_complete_abort_after_fail_closed();
+#endif
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
 	result = payload_mm_authvar_media_begin(&state->generation, &state->token);
@@ -1035,6 +1067,9 @@ static enum payload_mm_authvar_media_result media_begin(
 			(void)payload_mm_authvar_media_fail_closed(0, 0);
 		}
 		executor.installed = false;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		fmp_complete_abort_after_fail_closed();
+#endif
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
 	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
@@ -1059,6 +1094,9 @@ static enum payload_mm_authvar_media_result media_end(
 		(void)payload_mm_authvar_media_fail_closed(generation, token);
 		result = payload_mm_authvar_media_end(generation, token);
 		executor.installed = false;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		fmp_complete_abort_after_fail_closed();
+#endif
 		goto clear_owner;
 	}
 	result = payload_mm_authvar_media_end(generation, token);
@@ -1068,6 +1106,9 @@ static enum payload_mm_authvar_media_result media_end(
 		state->token = before.token;
 		executor.installed = false;
 		(void)payload_mm_authvar_media_fail_closed(0, 0);
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		fmp_complete_abort_after_fail_closed();
+#endif
 		result = PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
 
@@ -1727,6 +1768,10 @@ static uint64_t recovery_plan_execute(struct executor_session *state)
 
 static uint64_t poison_session(void)
 {
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+#endif
 	executor.installed = false;
 	(void)payload_mm_authvar_media_fail_closed(
 		executor.sealed_owner_generation, executor.sealed_owner_token);
@@ -4642,10 +4687,14 @@ uint64_t payload_mm_authvar_fmp_state_initialize(
 	if (!executor.installed)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (!policy_equal()) {
+		executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+		executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
 		executor.installed = false;
 		(void)payload_mm_authvar_media_fail_closed(0, 0);
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
+	if (executor.fmp_phase != EXECUTOR_FMP_PHASE_NONE)
+		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
 	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
 		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -4876,11 +4925,15 @@ final_verify:
 		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		goto out;
 	}
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_RECONCILED;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_RECONCILED;
 	*published = verified_authoritative;
 	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	goto out;
 
 fail_closed:
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
 	executor.installed = false;
 	(void)payload_mm_authvar_media_fail_closed(0, 0);
 out:
@@ -4893,11 +4946,11 @@ out:
 	return status;
 }
 
-uint64_t payload_mm_authvar_fmp_state_transaction(
+static uint64_t fmp_state_transaction(
 	enum payload_mm_authvar_fmp_operation operation,
 	const struct payload_mm_fmp_owner_record *current,
 	const struct payload_mm_fmp_owner_record *candidate,
-	struct payload_mm_fmp_owner_record *published)
+	struct payload_mm_fmp_owner_record *published, bool activation_read)
 {
 	struct payload_mm_fmp_state_identity *identity;
 	struct payload_mm_fmp_owner_record *expected;
@@ -4951,9 +5004,18 @@ uint64_t payload_mm_authvar_fmp_state_transaction(
 	if (!executor.installed)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (!policy_equal()) {
+		executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+		executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
 		executor.installed = false;
 		(void)payload_mm_authvar_media_fail_closed(0, 0);
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (activation_read) {
+		if (operation != PAYLOAD_MM_AUTHVAR_FMP_READ_STATE ||
+		    executor.fmp_phase != EXECUTOR_FMP_PHASE_RECONCILED)
+			return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+	} else if (executor.fmp_phase != EXECUTOR_FMP_PHASE_ACTIVE) {
+		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
 	}
 	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
 		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
@@ -5194,6 +5256,84 @@ out:
 	return status;
 }
 
+uint64_t payload_mm_authvar_fmp_state_transaction(
+	enum payload_mm_authvar_fmp_operation operation,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	struct payload_mm_fmp_owner_record *published)
+{
+	return fmp_state_transaction(operation, current, candidate, published,
+		false);
+}
+
+uint64_t payload_mm_authvar_fmp_state_activation_read(
+	struct payload_mm_fmp_owner_record *published)
+{
+	return fmp_state_transaction(PAYLOAD_MM_AUTHVAR_FMP_READ_STATE, NULL, NULL,
+		published, true);
+}
+
+bool payload_mm_authvar_fmp_state_reconciliation_retryable(void)
+{
+	if (!policy_equal()) {
+		(void)poison_session();
+		return false;
+	}
+	return executor.installed &&
+		executor.fmp_phase == EXECUTOR_FMP_PHASE_NONE;
+}
+
+enum cb_err payload_mm_authvar_fmp_state_activate(void)
+{
+	uint32_t expected_busy = 0;
+
+	if (!executor.installed)
+		return CB_ERR;
+	if (!policy_equal()) {
+		(void)poison_session();
+		return CB_ERR;
+	}
+	if (
+	    executor.fmp_phase != EXECUTOR_FMP_PHASE_RECONCILED ||
+	    executor.ready_to_boot || executor.at_runtime ||
+	    !payload_mm_fmp_owner_ready() ||
+	    !__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return CB_ERR;
+	if (!policy_equal() ||
+	    executor.fmp_phase != EXECUTOR_FMP_PHASE_RECONCILED ||
+	    !payload_mm_fmp_owner_ready()) {
+		__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+		return CB_ERR;
+	}
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_ACTIVE;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_ACTIVE;
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+}
+
+void payload_mm_authvar_fmp_state_activation_abort(void)
+{
+	uint32_t expected_busy = 0;
+
+	if (policy_equal() && !executor.installed &&
+	    executor.fmp_phase == EXECUTOR_FMP_PHASE_POISONED &&
+	    executor.sealed_fmp_phase == EXECUTOR_FMP_PHASE_POISONED)
+		return;
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		/* Leave a mismatch for the owning session to close exactly once. */
+		executor.fmp_phase = EXECUTOR_FMP_PHASE_POISONED;
+		executor.installed = false;
+		return;
+	}
+	if (!policy_equal() || executor.installed ||
+	    executor.fmp_phase != EXECUTOR_FMP_PHASE_POISONED ||
+	    executor.sealed_fmp_phase != EXECUTOR_FMP_PHASE_POISONED)
+		(void)poison_session();
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+}
+
 #if ENV_TEST
 bool payload_mm_authvar_fmp_test_layout(
 	struct payload_mm_authvar_fmp_layout_test *layout)
@@ -5298,6 +5438,24 @@ void payload_mm_authvar_fmp_test_mutate_control(unsigned int part)
 		session()->fmp_record_active = !session()->fmp_record_active;
 	else if (part == 1U)
 		((uint8_t *)arena_at(executor.sealed.record_offset))[0] ^= 1U;
+}
+
+void payload_mm_authvar_fmp_test_mutate_phase(bool sealed)
+{
+	uint32_t *phase = sealed ? &executor.sealed_fmp_phase : &executor.fmp_phase;
+
+	*phase ^= 1U;
+}
+
+unsigned int payload_mm_authvar_fmp_test_phase(void)
+{
+	return executor.fmp_phase;
+}
+
+void payload_mm_authvar_fmp_test_force_active(void)
+{
+	executor.fmp_phase = EXECUTOR_FMP_PHASE_ACTIVE;
+	executor.sealed_fmp_phase = EXECUTOR_FMP_PHASE_ACTIVE;
 }
 
 bool payload_mm_authvar_fmp_test_installed(void)

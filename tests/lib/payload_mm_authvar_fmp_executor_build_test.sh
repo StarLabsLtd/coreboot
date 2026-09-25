@@ -54,6 +54,9 @@ for optimization in 0 2; do
 		fmp-initialize-policy-live fmp-initialize-policy-sealed \
 		fmp-initialize-source-modes-invalid \
 		fmp-initialize-ready-to-boot fmp-initialize-runtime \
+		fmp-phase-activation fmp-phase-mutate-live \
+		fmp-phase-mutate-sealed fmp-phase-abort \
+		fmp-phase-abort-policy-mutate fmp-phase-abort-busy \
 		fmp-initialize-wrong-size-combined \
 		fmp-initialize-wrong-size-combined-zero \
 		fmp-initialize-wrong-size-combined-oversize \

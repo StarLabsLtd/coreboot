@@ -208,6 +208,8 @@ static size_t fmp_reject_smram_span_size;
 static const void *fmp_reject_media_span;
 static size_t fmp_reject_media_span_size;
 static bool fmp_reenter_on_begin;
+static bool fmp_abort_on_begin;
+static unsigned int fmp_activation_read_count;
 static unsigned int fmp_initialize_reenter_session;
 static unsigned int fmp_mutate_caller;
 static unsigned int fmp_mutate_caller_session;
@@ -731,6 +733,10 @@ enum payload_mm_authvar_media_result payload_mm_authvar_media_begin(
 		fmp_nested_status = payload_mm_authvar_fmp_state_transaction(
 			PAYLOAD_MM_AUTHVAR_FMP_READ_STATE, NULL, NULL,
 			&fmp_nested_output);
+	}
+	if (fmp_abort_on_begin) {
+		fmp_abort_on_begin = false;
+		payload_mm_authvar_fmp_state_activation_abort();
 	}
 	if (fmp_initialize_reenter_session == begin_count) {
 		fmp_initialize_reenter_session = 0;
@@ -1676,6 +1682,55 @@ static bool fmp_protected(void *unused, const void *storage, size_t size)
 	return storage && size;
 }
 
+static enum cb_err fmp_activation_backend_read(const void *unused,
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	struct payload_mm_fmp_owner_record *record)
+{
+	struct payload_mm_fmp_state_identity expected;
+	uint64_t status;
+
+	(void)unused;
+	if (key != PAYLOAD_MM_FMP_STATE_KEY_STATE ||
+	    payload_mm_fmp_owner_authvar_identity(key, &expected) != CB_SUCCESS ||
+	    memcmp(identity, &expected, sizeof(expected)))
+		return CB_ERR;
+	status = payload_mm_authvar_fmp_state_activation_read(record);
+	assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	fmp_activation_read_count++;
+	record->sequence = 1U;
+	assert(payload_mm_fmp_owner_observed_record_valid(key, record));
+	return CB_SUCCESS;
+}
+
+static enum cb_err fmp_activation_backend_commit(const void *unused,
+	const struct payload_mm_fmp_state_identity *identity, uint32_t key,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate)
+{
+	(void)unused;
+	(void)identity;
+	(void)key;
+	(void)current;
+	(void)candidate;
+	return CB_ERR;
+}
+
+static void fmp_install_checked_owner(
+	const struct payload_mm_fmp_owner_record *initial)
+{
+	const uint8_t context = 0x5aU;
+	const struct payload_mm_fmp_owner_backend backend = {
+		.revision = PAYLOAD_MM_FMP_OWNER_REVISION,
+		.size = sizeof(backend),
+		.read = fmp_activation_backend_read,
+		.commit = fmp_activation_backend_commit,
+		.context = &context,
+		.context_size = sizeof(context),
+	};
+	assert(payload_mm_fmp_owner_install_checked(&backend, fmp_protected, NULL,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, initial) == CB_SUCCESS);
+}
+
 static void fmp_install_state_policy(uint32_t trusted_lowest_version)
 {
 	struct payload_mm_fmp_state_policy policy = {
@@ -1856,6 +1911,7 @@ static void fmp_hostile_case(const char *name)
 	output = sentinel;
 	fmp_prepare_modes();
 	install();
+	payload_mm_authvar_fmp_test_force_active();
 	if (!strcmp(name, "fmp-runtime-read") ||
 	    !strcmp(name, "fmp-runtime-compare")) {
 		struct payload_mm_authvar_policy_request lifecycle = {
@@ -2011,7 +2067,7 @@ static void fmp_hostile_case(const char *name)
 	} else if (!strncmp(name, "fmp-admission-state-owner-", 26U) ||
 		   !strncmp(name, "fmp-admission-state-authority-", 30U) ||
 		   !strncmp(name, "fmp-admission-authvar-owner-", 28U)) {
-		uint8_t owner_before[256];
+		uint8_t owner_before[4096];
 		size_t owner_size;
 		const bool state = !strncmp(name, "fmp-admission-state-authority-", 30U);
 		const bool authvar = !strncmp(name, "fmp-admission-authvar-owner-", 28U);
@@ -2123,6 +2179,99 @@ static void fmp_state_case(const char *name)
 		return;
 	}
 	install();
+	if (!strcmp(name, "fmp-phase-activation") ||
+	    !strcmp(name, "fmp-phase-mutate-live") ||
+	    !strcmp(name, "fmp-phase-mutate-sealed") ||
+	    !strcmp(name, "fmp-phase-abort") ||
+	    !strcmp(name, "fmp-phase-abort-policy-mutate") ||
+	    !strcmp(name, "fmp-phase-abort-busy")) {
+		struct payload_mm_fmp_owner_record checked = sentinel;
+		struct payload_mm_fmp_owner_record rejected = sentinel;
+		unsigned int begins;
+		unsigned int programs;
+
+		fmp_install_state_policy(0U);
+		assert(payload_mm_authvar_fmp_test_phase() == 0U);
+		assert(payload_mm_authvar_fmp_state_reconciliation_retryable());
+		assert(payload_mm_authvar_fmp_state_transaction(
+			PAYLOAD_MM_AUTHVAR_FMP_READ_STATE, NULL, NULL, &rejected) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+			!memcmp(&rejected, &sentinel, sizeof(rejected)) && !begin_count);
+		assert(payload_mm_authvar_fmp_state_initialize(&output) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+			payload_mm_authvar_fmp_test_phase() == 1U);
+		assert(!payload_mm_authvar_fmp_state_reconciliation_retryable());
+		begins = begin_count;
+		programs = program_count;
+		rejected = sentinel;
+		assert(payload_mm_authvar_fmp_state_initialize(&rejected) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+			!memcmp(&rejected, &sentinel, sizeof(rejected)) &&
+			begin_count == begins && program_count == programs);
+		if (!strcmp(name, "fmp-phase-mutate-live") ||
+		    !strcmp(name, "fmp-phase-mutate-sealed")) {
+			payload_mm_authvar_fmp_test_mutate_phase(
+				!strcmp(name, "fmp-phase-mutate-sealed"));
+			assert(!payload_mm_authvar_fmp_state_reconciliation_retryable() &&
+				poisoned &&
+				!payload_mm_authvar_fmp_test_installed() &&
+				payload_mm_authvar_fmp_test_phase() == 3U &&
+				fail_closed_count == 1U);
+			return;
+		}
+		if (!strcmp(name, "fmp-phase-abort")) {
+			payload_mm_authvar_fmp_state_activation_abort();
+			payload_mm_authvar_fmp_state_activation_abort();
+			assert(payload_mm_authvar_fmp_test_phase() == 3U &&
+				!payload_mm_authvar_fmp_test_installed() &&
+				fail_closed_count == 1U);
+			return;
+		}
+		if (!strcmp(name, "fmp-phase-abort-policy-mutate")) {
+			payload_mm_authvar_fmp_state_activation_abort();
+			assert(fail_closed_count == 1U &&
+				payload_mm_authvar_fmp_test_phase() == 3U);
+			payload_mm_authvar_fmp_test_corrupt_offset(0U, false);
+			payload_mm_authvar_fmp_state_activation_abort();
+			assert(fail_closed_count == 2U &&
+				!payload_mm_authvar_fmp_test_installed() &&
+				payload_mm_authvar_fmp_test_phase() == 3U);
+			return;
+		}
+		if (!strcmp(name, "fmp-phase-abort-busy")) {
+			fmp_abort_on_begin = true;
+			assert(payload_mm_authvar_fmp_state_activation_read(&checked) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR && !fmp_abort_on_begin &&
+				payload_mm_authvar_fmp_test_phase() == 3U &&
+				!payload_mm_authvar_fmp_test_installed() &&
+				fail_closed_count == 1U);
+			payload_mm_authvar_fmp_state_activation_abort();
+			payload_mm_authvar_fmp_state_activation_abort();
+			assert(fail_closed_count == 1U &&
+				payload_mm_authvar_fmp_test_phase() == 3U);
+			return;
+		}
+		checked = output;
+		checked.sequence = 1U;
+		fmp_activation_read_count = 0U;
+		fmp_install_checked_owner(&checked);
+		assert(fmp_activation_read_count == 1U);
+		assert(payload_mm_fmp_owner_ready() &&
+			payload_mm_authvar_fmp_test_installed() &&
+			payload_mm_authvar_fmp_test_phase() == 1U);
+		assert(payload_mm_authvar_fmp_state_activate() == CB_SUCCESS &&
+			payload_mm_authvar_fmp_test_phase() == 2U &&
+			payload_mm_authvar_fmp_state_activate() == CB_ERR &&
+			!payload_mm_authvar_fmp_state_reconciliation_retryable());
+		rejected = sentinel;
+		assert(payload_mm_authvar_fmp_state_activation_read(&rejected) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+			!memcmp(&rejected, &sentinel, sizeof(rejected)));
+		assert(payload_mm_authvar_fmp_state_transaction(
+			PAYLOAD_MM_AUTHVAR_FMP_READ_STATE, NULL, NULL, &checked) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && checked.present && !poisoned);
+		return;
+	}
 	if (!strcmp(name, "fmp-initialize-source-modes-invalid")) {
 		struct payload_mm_authvar_store_entry entries[64];
 		struct payload_mm_authvar_store_index index;
@@ -2139,6 +2288,10 @@ static void fmp_state_case(const char *name)
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR && poisoned &&
 			!memcmp(&output, &sentinel, sizeof(output)) &&
 			fail_closed_count == 1U && begin_count == 1U && end_count == 1U);
+		assert(!payload_mm_authvar_fmp_state_reconciliation_retryable());
+		payload_mm_authvar_fmp_state_activation_abort();
+		payload_mm_authvar_fmp_state_activation_abort();
+		assert(fail_closed_count == 1U);
 		status = payload_mm_authvar_fmp_state_initialize(&rejected);
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
 			!memcmp(&rejected, &sentinel, sizeof(rejected)) &&
@@ -2495,14 +2648,11 @@ static void fmp_state_case(const char *name)
 			!strcmp(name, "fmp-read-does-not-migrate") ? NULL : &current,
 			!strcmp(name, "fmp-read-does-not-migrate") ? NULL : &candidate,
 			&output);
-		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !poisoned &&
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED && !poisoned &&
 			fmp_key_entry(PAYLOAD_MM_FMP_STATE_KEY_VERSION, &index, entries,
 				ARRAY_SIZE(entries)) != NULL);
-		if (!strcmp(name, "fmp-read-does-not-migrate"))
-			assert(!output.present && program_count == programs);
-		else
-			assert(output.present &&
-				!memcmp(output.data, candidate.data, candidate.data_size));
+		assert(!memcmp(&output, &sentinel, sizeof(output)) &&
+			program_count == programs);
 		return;
 	}
 	if (!strcmp(name, "fmp-initialize-authoritative-end-fail") ||
@@ -2525,6 +2675,7 @@ static void fmp_state_case(const char *name)
 		status = payload_mm_authvar_fmp_state_initialize(&output);
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR &&
 			!memcmp(&output, &sentinel, sizeof(output)) && !poisoned);
+		assert(payload_mm_authvar_fmp_state_reconciliation_retryable());
 		memset(&retry, 0xa5, sizeof(retry));
 		assert(payload_mm_authvar_fmp_state_initialize(&retry) ==
 			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !poisoned &&
@@ -2561,13 +2712,17 @@ static void fmp_state_case(const char *name)
 					&index, entries, ARRAY_SIZE(entries)) != NULL);
 		}
 		memset(&retry, 0xa5, sizeof(retry));
-		assert(payload_mm_authvar_fmp_state_initialize(&retry) ==
-			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
-			fmp_key_entry(PAYLOAD_MM_FMP_STATE_KEY_VERSION, &index, entries,
-				ARRAY_SIZE(entries)) == NULL && !poisoned);
-		fmp_assert_version_record(&retry, 0x12345678U);
-		if (strcmp(failure, "end"))
-			assert(!memcmp(&retry, &output, sizeof(retry)));
+		if (!strcmp(failure, "end")) {
+			assert(payload_mm_authvar_fmp_state_initialize(&retry) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+				fmp_key_entry(PAYLOAD_MM_FMP_STATE_KEY_VERSION, &index,
+					entries, ARRAY_SIZE(entries)) == NULL && !poisoned);
+			fmp_assert_version_record(&retry, 0x12345678U);
+		} else {
+			assert(payload_mm_authvar_fmp_state_initialize(&retry) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+				!memcmp(&retry, &sentinel, sizeof(retry)) && !poisoned);
+		}
 		return;
 	}
 	if (!strcmp(name, "fmp-initialize-combined-wins")) {
@@ -2664,8 +2819,8 @@ static void fmp_state_case(const char *name)
 		programs = program_count;
 		memset(&second, 0xa5, sizeof(second));
 		assert(payload_mm_authvar_fmp_state_initialize(&second) ==
-			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
-			!memcmp(&second, &output, sizeof(output)) &&
+			PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+			!memcmp(&second, &sentinel, sizeof(second)) &&
 			program_count == programs && !poisoned);
 		return;
 	}
@@ -2710,8 +2865,8 @@ static void fmp_state_case(const char *name)
 		programs = program_count;
 		memset(&second, 0xa5, sizeof(second));
 		assert(payload_mm_authvar_fmp_state_initialize(&second) ==
-			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
-			!memcmp(&second, &output, sizeof(output)) && program_count == programs &&
+			PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED &&
+			!memcmp(&second, &sentinel, sizeof(second)) && program_count == programs &&
 			begin_count == end_count && !poisoned);
 		return;
 	}
@@ -2755,6 +2910,7 @@ static void fmp_state_case(const char *name)
 		}
 		return;
 	}
+	payload_mm_authvar_fmp_test_force_active();
 	if (!strcmp(name, "fmp-offset-corrupt") ||
 	    !strncmp(name, "fmp-policy-", 11U)) {
 		static const char *const field_names[] = {
