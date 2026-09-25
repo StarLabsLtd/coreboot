@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sched.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/mor_platform.h"
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/mor_clear_x86.h"
@@ -42,6 +43,8 @@ static void *boundary_context = &private_context;
 static size_t boundary_context_size = sizeof(private_context);
 static struct payload_mm_authvar_smm_arena_seed reentry_seed;
 static struct payload_mm_authvar_mor_linear_ops reentry_ops;
+static struct payload_mm_authvar_mor_clear_plan *prepared_plan;
+static struct starbook_mtl_mor_clear_x86_binding *prepared_binding;
 
 enum cb_err get_random_number_64(uint64_t *value)
 {
@@ -75,7 +78,7 @@ enum cb_err starbook_mtl_mor_clear_x86_register(
 static enum cb_err executor_stub(void *context,
 	struct payload_mm_authvar_mor_clear_dma_snapshot *snapshot)
 {
-	(void)context;
+	CHECK(context == prepared_binding);
 	(void)snapshot;
 	return CB_SUCCESS;
 }
@@ -83,8 +86,7 @@ static enum cb_err executor_stub(void *context,
 static enum cb_err inventory_stub(void *context,
 	const struct payload_mm_authvar_mor_clear_plan *plan)
 {
-	(void)context;
-	(void)plan;
+	CHECK(context == prepared_binding && plan == prepared_plan);
 	return CB_SUCCESS;
 }
 
@@ -98,15 +100,20 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	(void)guard;
 	(void)resume_from_s3;
 	prepare_calls++;
+	prepared_plan = plan;
+	prepared_binding = binding;
 	memset(plan, 0, sizeof(*plan));
 	memset(binding, 0, sizeof(*binding));
+	binding->ops.context = binding;
 	binding->ops.window_bytes = 4096;
 	binding->ops.dma_snapshot = executor_stub;
 	binding->ops.map_window = (void *)1;
 	binding->ops.cache_writeback_invalidate = (void *)1;
 	binding->ops.fence = (void *)1;
 	binding->ops.unmap_window = (void *)1;
+	binding->ops.inventory_context = binding;
 	binding->ops.inventory_validate = inventory_stub;
+	binding->authority.plan = *plan;
 	return CB_SUCCESS;
 }
 
@@ -217,6 +224,8 @@ static void reset_test(void)
 	__atomic_store_n(&leave_release, 0U, __ATOMIC_RELAXED);
 	scratch_alias = 0;
 	memset(&reentry_ops, 0, sizeof(reentry_ops));
+	prepared_plan = NULL;
+	prepared_binding = NULL;
 	boundary_context = &private_context;
 	boundary_context_size = sizeof(private_context);
 }
@@ -269,6 +278,13 @@ struct concurrent_resolution_call {
 	enum cb_err result;
 };
 
+struct concurrent_shared_resolution_call {
+	struct payload_mm_authvar_mor_linear_ops *ops;
+	struct payload_mm_authvar_mor_clear_plan *plan;
+	struct payload_mm_authvar_mor_clear_executor_ops *executor;
+	enum cb_err result;
+};
+
 struct concurrent_complete_call {
 	struct payload_mm_authvar_mor_linear_ops *ops;
 	const struct payload_mm_authvar_mor_grant *grant;
@@ -305,6 +321,16 @@ static void *concurrent_resolution(void *argument)
 		sched_yield();
 	call->result = call->ops->resolve_binding(call->ops->context, 7,
 		&call->plan, &call->executor);
+	__atomic_add_fetch(&concurrent_completed, 1U, __ATOMIC_RELEASE);
+	return NULL;
+}
+
+static void *concurrent_shared_resolution(void *argument)
+{
+	struct concurrent_shared_resolution_call *call = argument;
+
+	call->result = call->ops->resolve_binding(call->ops->context, 7,
+		call->plan, call->executor);
 	__atomic_add_fetch(&concurrent_completed, 1U, __ATOMIC_RELEASE);
 	return NULL;
 }
@@ -508,6 +534,64 @@ static void competing_resolution_poison(void)
 	CHECK(starbook_mtl_mor_platform_owner_zero_test());
 }
 
+static void competing_shared_resolution_never_touches_outputs(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct concurrent_shared_resolution_call calls[2];
+	struct payload_mm_authvar_mor_clear_plan original_plan;
+	struct payload_mm_authvar_mor_clear_executor_ops original_executor;
+	struct payload_mm_authvar_mor_clear_plan *plan;
+	struct payload_mm_authvar_mor_clear_executor_ops *executor;
+	void *page;
+	pthread_t threads[2];
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	page = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	CHECK(page != MAP_FAILED);
+	plan = page;
+	executor = (void *)((uint8_t *)page + 2048);
+	memset(&original_plan, 0x5a, sizeof(original_plan));
+	memset(&original_executor, 0xa5, sizeof(original_executor));
+	*plan = original_plan;
+	*executor = original_executor;
+	for (size_t index = 0; index < 2; index++) {
+		calls[index] = (struct concurrent_shared_resolution_call) {
+			.ops = &ops,
+			.plan = plan,
+			.executor = executor,
+			.result = CB_SUCCESS,
+		};
+	}
+	concurrent_hold = true;
+	CHECK(!pthread_create(&threads[0], NULL, concurrent_shared_resolution,
+		&calls[0]));
+	while (!__atomic_load_n(&concurrent_entered, __ATOMIC_ACQUIRE))
+		sched_yield();
+	/* The owner has modified the outputs and now holds the provider claim. */
+	CHECK(!mprotect(page, 4096, PROT_NONE));
+	CHECK(!pthread_create(&threads[1], NULL, concurrent_shared_resolution,
+		&calls[1]));
+	while (__atomic_load_n(&concurrent_completed, __ATOMIC_ACQUIRE) != 1U)
+		sched_yield();
+	CHECK(!pthread_join(threads[1], NULL));
+	CHECK(calls[1].result == CB_ERR);
+	CHECK(!mprotect(page, 4096, PROT_READ | PROT_WRITE));
+	__atomic_store_n(&concurrent_release, 1U, __ATOMIC_RELEASE);
+	CHECK(!pthread_join(threads[0], NULL));
+	CHECK(calls[0].result == CB_ERR &&
+		!memcmp(plan, &original_plan, sizeof(original_plan)) &&
+		!memcmp(executor, &original_executor, sizeof(original_executor)));
+	CHECK(private_calls == 3 && prepare_calls == 1 &&
+		starbook_mtl_mor_platform_poisoned_test() &&
+		starbook_mtl_mor_platform_owner_zero_test());
+	CHECK(!munmap(page, 4096));
+}
+
 static void boundary_failure_is_terminal(void)
 {
 	struct payload_mm_authvar_smm_arena_seed seed;
@@ -556,6 +640,7 @@ static void cold_path(void)
 	struct payload_mm_authvar_mor_linear_boot boot;
 	struct payload_mm_authvar_mor_clear_plan plan;
 	struct payload_mm_authvar_mor_clear_executor_ops executor;
+	struct payload_mm_authvar_mor_clear_dma_snapshot dma;
 	struct payload_mm_authvar_mor_grant grant = { 0 };
 
 	reset_test();
@@ -573,6 +658,11 @@ static void cold_path(void)
 	memset(&plan, 0, sizeof(plan));
 	memset(&executor, 0, sizeof(executor));
 	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_SUCCESS);
+	CHECK(prepared_plan == &plan && executor.context == prepared_binding &&
+		executor.inventory_context == prepared_binding);
+	CHECK(executor.inventory_validate(executor.inventory_context, &plan) ==
+		CB_SUCCESS);
+	CHECK(executor.dma_snapshot(executor.context, &dma) == CB_SUCCESS);
 	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
 	CHECK(executor.window_bytes == 4096);
 	CHECK(ops.private_complete(ops.context, ops.context) == CB_ERR);
@@ -764,6 +854,7 @@ int main(void)
 	claim_conflict_blocks_terminal_completion();
 	competing_reservation_poison();
 	competing_resolution_poison();
+	competing_shared_resolution_never_touches_outputs();
 	boundary_failure_is_terminal();
 	classification_failure_is_terminal();
 	descriptor_context_alias();

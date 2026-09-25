@@ -443,11 +443,9 @@ static enum cb_err resolve_binding(void *context, uint64_t generation,
 {
 	struct mtl_mor_platform *state = context;
 	struct mtl_mor_platform frozen = { 0 };
-	struct payload_mm_authvar_mor_clear_plan plan_candidate = { 0 };
-	struct starbook_mtl_mor_clear_x86_binding binding_candidate = { 0 };
-	uint8_t plan_original[sizeof(*plan)];
-	uint8_t executor_original[sizeof(*executor)];
-	bool published = false;
+	uint8_t plan_original[sizeof(*plan)] = { 0 };
+	uint8_t executor_original[sizeof(*executor)] = { 0 };
+	bool outputs_owned = false;
 
 	if (state != &platform ||
 	    !object_valid(plan, sizeof(*plan), _Alignof(*plan)) ||
@@ -457,57 +455,55 @@ static enum cb_err resolve_binding(void *context, uint64_t generation,
 	    ranges_overlap(executor, sizeof(*executor), &platform,
 		sizeof(platform)))
 		return CB_ERR;
-	memcpy(plan_original, plan, sizeof(plan_original));
-	memcpy(executor_original, executor, sizeof(executor_original));
 	if (!private_callback_enter())
 		return CB_ERR;
 	if (platform.resolved) {
 		(void)private_callback_leave(true);
+		scrub(&plan_original, sizeof(plan_original));
+		scrub(&executor_original, sizeof(executor_original));
 		return CB_ERR;
 	}
 	if (!private_context_disjoint(plan, sizeof(*plan)) ||
 	    !private_context_disjoint(executor, sizeof(*executor)) ||
 	    !private_context_disjoint(&frozen, sizeof(frozen)) ||
-	    !private_context_disjoint(&plan_candidate, sizeof(plan_candidate)) ||
-	    !private_context_disjoint(&binding_candidate, sizeof(binding_candidate)) ||
 	    !private_context_disjoint(plan_original, sizeof(plan_original)) ||
 	    !private_context_disjoint(executor_original, sizeof(executor_original)) ||
 	    platform.reserved != 1U ||
+	    bytes_nonzero(&platform.binding, sizeof(platform.binding)) ||
 	    __atomic_load_n(&platform.seed_state, __ATOMIC_ACQUIRE) !=
 		MTL_MOR_SEEDED ||
 	    generation != platform.generation)
 		goto fail;
+	memcpy(plan_original, plan, sizeof(plan_original));
+	memcpy(executor_original, executor, sizeof(executor_original));
+	memset(plan, 0, sizeof(*plan));
+	memset(executor, 0, sizeof(*executor));
+	outputs_owned = true;
 	if (starbook_mtl_mor_clear_x86_prepare(&platform.reservations,
-		&platform.guard, false, &plan_candidate, &binding_candidate) != CB_SUCCESS)
+		&platform.guard, false, plan, &platform.binding) != CB_SUCCESS)
 		goto fail;
 	platform_snapshot(&frozen);
 	if (platform.private.resolve(platform.private.context, generation,
-		platform.owner) != CB_SUCCESS || !platform_matches(&frozen))
+		platform.owner) != CB_SUCCESS || !platform_matches(&frozen) ||
+	    memcmp(plan, &platform.binding.authority.plan, sizeof(*plan)))
 		goto fail;
-	platform.binding = binding_candidate;
-	*plan = plan_candidate;
-	*executor = binding_candidate.ops;
+	*executor = platform.binding.ops;
 	platform.resolved = 1U;
-	published = true;
 	if (!private_callback_leave(true))
 		goto fail_without_leave;
-	scrub(&plan_candidate, sizeof(plan_candidate));
-	scrub(&binding_candidate, sizeof(binding_candidate));
 	scrub(&plan_original, sizeof(plan_original));
 	scrub(&executor_original, sizeof(executor_original));
 	return CB_SUCCESS;
 fail:
 	(void)private_callback_leave(false);
 fail_without_leave:
-	if (published) {
+	if (outputs_owned) {
 		memcpy(plan, plan_original, sizeof(plan_original));
 		memcpy(executor, executor_original, sizeof(executor_original));
 	}
 	platform.resolved = 0;
 	scrub(&platform.binding, sizeof(platform.binding));
 	provider_terminal_poison();
-	scrub(&plan_candidate, sizeof(plan_candidate));
-	scrub(&binding_candidate, sizeof(binding_candidate));
 	scrub(&plan_original, sizeof(plan_original));
 	scrub(&executor_original, sizeof(executor_original));
 	return CB_ERR;

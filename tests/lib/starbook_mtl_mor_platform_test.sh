@@ -84,6 +84,12 @@ reject_mutant classify-boot-context-alias sed \
 reject_mutant resolve-plan-context-alias sed \
 	'0,/!private_context_disjoint(plan, sizeof(\*plan)) ||/s//false ||/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant resolve-transient-plan sed \
+	'/&platform.guard, false, plan, &platform.binding/s/plan, &platform.binding/\&frozen.binding.authority.plan, \&platform.binding/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant resolve-transient-binding sed \
+	'/&platform.guard, false, plan, &platform.binding/s/&platform.binding/\&frozen.binding/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant completion-grant-context-alias sed \
 	'0,/!seeded_and_disjoint(grant, sizeof(\*grant)) ||/s//!seeded_and_disjoint(NULL, 0) ||/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
@@ -92,6 +98,9 @@ reject_mutant reservation-without-operation-claim sed \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant resolution-without-operation-claim sed \
 	'/static enum cb_err resolve_binding/,/static enum cb_err private_complete/s/if (!private_callback_enter())/if (false \&\& !private_callback_enter())/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant resolution-preclaim-output-read sed \
+	'/static enum cb_err resolve_binding/,/static enum cb_err private_complete/s/if (!private_callback_enter())/if ((memcpy(plan_original, plan, sizeof(plan_original)), false) || !private_callback_enter())/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant reservation-without-final-release sed \
 	'/static enum cb_err reservations_register/,/static enum cb_err resolve_binding/s/if (!private_callback_leave(true)) {/if (false) {/' \
