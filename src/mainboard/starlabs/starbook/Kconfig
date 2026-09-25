@@ -140,7 +140,7 @@ config BOARD_STARLABS_STARBOOK_MTL
 	select SPI_FLASH_WINBOND
 	select TPM_MEASURED_BOOT
 
-config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
+config STARLABS_STARBOOK_MTL_CAPSULE_PLATFORM_PREREQUISITES
 	bool
 	default n
 	depends on BOARD_STARLABS_STARBOOK_MTL
@@ -149,10 +149,14 @@ config STARLABS_STARBOOK_MTL_CAPSULE_BUFFER_PREREQUISITES
 	select CAPSULE_BROKER_CONTRACT
 	select CAPSULE_BROKER_FIXED_BUFFERS
 	select CAPSULE_BROKER_CBMEM_BUFFERS
+	select CAPSULE_PLATFORM_FACTS
+	select CAPSULE_PLATFORM_ADAPTERS
+	select SPI_FLASH_SMM
 	help
-	  Build the dormant contract and CBMEM allocation prerequisites for the
-	  StarBook MTL capsule broker. This does not install or publish a broker,
-	  establish DMA or SPI ownership, or enable capsule updates.
+	  Build the dormant contract, CBMEM allocation, platform-fact collector and
+	  boot-media adapters for the StarBook MTL capsule broker. This does not
+	  install or publish a broker, establish DMA or SPI ownership, supply a
+	  writable-region policy, or enable capsule updates.
 
 config STARLABS_STARBOOK_MTL_AUTHVAR_SMM_CAPACITY
 	bool

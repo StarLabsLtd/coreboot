@@ -179,6 +179,7 @@ test-capsule-platform-facts:
 	tests/lib/fmap_inventory_test.sh
 	tests/lib/capsule_platform_facts_test.sh
 	tests/lib/capsule_platform_adapter_test.sh
+	tests/lib/starbook_mtl_capsule_platform_prerequisites_test.sh
 
 test-lint:
 	util/lint/lint lint-stable $(JUNIT)
