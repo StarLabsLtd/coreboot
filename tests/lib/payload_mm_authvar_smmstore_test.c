@@ -42,6 +42,48 @@ static int lease_end_failure;
 static int mutate_policy;
 static int mutate_context;
 static int lease_owned;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+static int window_owned;
+static int window_failure;
+static int window_end_failure;
+static int cleanup_order;
+static int lease_end_order;
+static int window_end_order;
+
+int intel_smm_spi_window_begin(struct intel_smm_spi_window *window,
+	enum intel_smm_spi_window_owner owner, const void *context)
+{
+	CHECK(window == &backend.window && !window_owned);
+	CHECK(owner == INTEL_SMM_SPI_WINDOW_AUTHVAR &&
+		context == &backend.context);
+	if (window_failure == 1)
+		return -1;
+	window_owned = 1;
+	window->private_data[0] = 1;
+	return 0;
+}
+
+int intel_smm_spi_window_prove(const struct intel_smm_spi_window *window,
+	enum intel_smm_spi_window_owner owner, const void *context)
+{
+	CHECK(window == &backend.window && window_owned);
+	CHECK(owner == INTEL_SMM_SPI_WINDOW_AUTHVAR &&
+		context == &backend.context);
+	return window_failure == 2 ? -1 : 0;
+}
+
+int intel_smm_spi_window_end(struct intel_smm_spi_window *window,
+	enum intel_smm_spi_window_owner owner, const void *context)
+{
+	CHECK(window == &backend.window && window_owned);
+	CHECK(owner == INTEL_SMM_SPI_WINDOW_AUTHVAR &&
+		context == &backend.context);
+	window_end_order = ++cleanup_order;
+	window_owned = 0;
+	memset(window, 0, sizeof(*window));
+	return window_end_failure ? -1 : 0;
+}
+#endif
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -120,6 +162,38 @@ int spi_flash_volatile_lease_begin(const struct spi_flash *active_flash,
 	return 0;
 }
 
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+static void install(void);
+
+static void test_window_failure(const char *mode)
+{
+	uint64_t generation = 1;
+
+	install();
+	if (!strcmp(mode, "window-begin"))
+		window_failure = 1;
+	else if (!strcmp(mode, "window-proof"))
+		window_failure = 2;
+	else if (!strcmp(mode, "window-end"))
+		window_end_failure = 1;
+	else
+		__builtin_trap();
+	if (!strcmp(mode, "window-end")) {
+		CHECK(installed_port.begin(installed_port.context, &generation) ==
+			PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
+		CHECK(installed_port.end(installed_port.context) ==
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+		CHECK(lease_end_order < window_end_order);
+	} else {
+		CHECK(installed_port.begin(installed_port.context, &generation) ==
+			PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR);
+	}
+	CHECK(!lease_owned && !window_owned);
+	CHECK(generation == (!strcmp(mode, "window-end") ?
+		contract.generation : 0));
+}
+#endif
+
 int spi_flash_volatile_lease_read(const struct spi_flash *active_flash,
 	const struct spi_flash_volatile_lease *lease, uint32_t offset, size_t size,
 	void *buffer)
@@ -171,6 +245,9 @@ int spi_flash_volatile_lease_end(struct spi_flash_volatile_lease *lease)
 	record(OP_END);
 	CHECK(lease_owned);
 	lease_owned = 0;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	lease_end_order = ++cleanup_order;
+#endif
 	memset(lease, 0, sizeof(*lease));
 	return lease_end_failure ? -1 : 0;
 }
@@ -192,6 +269,14 @@ static void initialize(void)
 	mutate_policy = 0;
 	mutate_context = 0;
 	lease_owned = 0;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	window_owned = 0;
+	window_failure = 0;
+	window_end_failure = 0;
+	cleanup_order = 0;
+	lease_end_order = 0;
+	window_end_order = 0;
+#endif
 	flash.size = 0x1000000U;
 	flash.sector_size = 0x1000U;
 	store.region.offset = 0x0c00000U;
@@ -241,6 +326,10 @@ static void test_transaction(void)
 	CHECK(installed_port.end(installed_port.context) ==
 		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS);
 	CHECK(!lease_owned);
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	CHECK(!window_owned && lease_end_order &&
+		lease_end_order < window_end_order);
+#endif
 	CHECK(trace_count == 6 && trace[0] == OP_BEGIN && trace[1] == OP_READ &&
 		trace[2] == OP_WRITE && trace[3] == OP_ERASE &&
 		trace[4] == OP_SYNC && trace[5] == OP_END);
@@ -423,6 +512,10 @@ int main(int argc, char **argv)
 		test_context_mutation();
 	else if (!strcmp(argv[1], "close-failure"))
 		test_close_failure();
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	else if (!strncmp(argv[1], "window-", 7))
+		test_window_failure(argv[1]);
+#endif
 	else
 		abort();
 	return 0;

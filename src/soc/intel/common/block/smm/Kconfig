@@ -5,6 +5,15 @@ config SOC_INTEL_COMMON_BLOCK_SMM
 	help
 	  Intel Processor common SMM support
 
+config SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW
+	bool
+	default y
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	help
+	  Build the owner-bound SMM-only Fast SPI write window used by the common
+	  SMMSTORE handler and private firmware-owned media transactions.
+
 config SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 	bool
 	depends on SOC_INTEL_COMMON_BLOCK_SMM

@@ -150,13 +150,19 @@ config PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_MEDIA_PORT
 	depends on HAVE_SMI_HANDLER && BOOT_DEVICE_SPI_FLASH && SPI_FLASH
+	depends on !SOC_INTEL_COMMON_BLOCK_SMM || BOOTMEDIA_SMM_BWP
+	depends on !SOC_INTEL_COMMON_BLOCK_SMM || !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
+	depends on !SOC_INTEL_COMMON_BLOCK_SMM || \
+		SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW
 	select SMMSTORE_READ_REGION
 	select SPI_FLASH_SMM
 	select SPI_FLASH_VOLATILE_LEASE
 	help
 	  Build the private SMMSTORE-region SPI backend for the authenticated-
-	  variable media port. Each media transaction owns one SPI volatile lease.
-	  This adds no dispatcher, SMI route, endpoint or production caller.
+	  variable media port. Each media transaction owns one SPI volatile lease
+	  inside the Intel owner-bound SMM write window when built on the Intel
+	  common SMM block. This adds no dispatcher, SMI route, endpoint or
+	  production caller.
 
 config PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
 	bool

@@ -60,6 +60,8 @@ function canonical(node,    candidate, found, name, source)
 
 function bind_site(site, target_name, target_source)
 {
+	if (site == omit_site)
+		return
 	if (site in callback_name) {
 		print "ERROR: duplicate selected SMM callback site " site > "/dev/stderr"
 		failed = 1
@@ -98,6 +100,16 @@ function require_edge(from, to, description,    i)
 	failed = 1
 }
 
+function require_reachable(name, source, description,    node)
+{
+	node = find_node(name, source, 0)
+	if (node == "" || !reachable[canonical(node)]) {
+		print "ERROR: selected SMM graph does not reach " description \
+			> "/dev/stderr"
+		failed = 1
+	}
+}
+
 function frame(node, description)
 {
 	node = canonical(node)
@@ -132,6 +144,13 @@ function bound(node,    child, child_bound, edge_index, largest, node_frame)
 		if (child == "__indirect_call")
 			continue
 		if (runtime_div_absent && function_name[child] == "__divdi3")
+			continue
+		if (function_name[canonical(child)] == omit_edge_name)
+			continue
+		# The selected Intel fast-SPI probe is total and returns success. Its
+		# generic JEDEC fallback successor is therefore infeasible on MTL.
+		if (mtl && function_name[node] == "spi_flash_probe" &&
+		    function_name[canonical(child)] == "spi_flash_generic_probe")
 			continue
 		child_bound = call_return_bytes + bound(child)
 		if (child_bound > largest)
@@ -195,10 +214,15 @@ END {
 	call_return_bytes = 4
 
 	# Bind the exact compiler-observed callback sites for this selected path.
-	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:128:10", "media_facts", "payload_mm_authvar_smm_media_qemu.c")
+	bootstrap_media_source = mtl ? "payload_mm_authvar_smm_media_spi.c" : \
+		"payload_mm_authvar_smm_media_qemu.c"
+	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:128:10", "media_facts",
+		bootstrap_media_source)
 	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:206:15", "writes_are_private", "mor_platform_smm.c")
-	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:367:6", "media_facts", "payload_mm_authvar_smm_media_qemu.c")
-	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:466:6", "media_install", "payload_mm_authvar_smm_media_qemu.c")
+	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:367:6", "media_facts",
+		bootstrap_media_source)
+	bind_site("src/lib/payload_mm_authvar_smm_bootstrap.c:466:6", "media_install",
+		bootstrap_media_source)
 	bind_site("src/lib/payload_mm_authvar_mor_seal.c:223:7", "fixed_transport", "payload_mm_authvar_smm_bootstrap.c")
 	bind_site("src/lib/payload_mm_authvar_mor_seal.c:131:14", "protected_storage", "payload_mm_authvar_smm_bootstrap.c")
 	bind_site("src/lib/payload_mm_authvar_mor_grant.c:187:14", "grant_storage_is_protected", "payload_mm_authvar_mor_seal.c")
@@ -210,7 +234,9 @@ END {
 	bind_site("src/lib/payload_mm_authvar_mor_grant.c:390:21", "grant_storage_protected", "payload_mm_authvar_mor_private_smi_receiver.c")
 	bind_site("src/lib/payload_mm_authvar_mor_private_smi_receiver.c:173:3", "protected_storage", "payload_mm_authvar_smm_bootstrap.c")
 	bind_site("src/lib/payload_mm_authvar_mor_private_smi_receiver.c:162:3", "protected_storage", "payload_mm_authvar_smm_bootstrap.c")
-	bind_site("src/mainboard/emulation/qemu-i440fx/rom_media.c:473:11", "mdev_readat", "commonlib/region.c")
+	if (!mtl)
+		bind_site("src/mainboard/emulation/qemu-i440fx/rom_media.c:473:11",
+			"mdev_readat", "commonlib/region.c")
 	bind_site("src/commonlib/region.c:63:9", "mdev_mmap", "commonlib/region.c")
 	bind_site("src/commonlib/region.c:75:9", "mdev_munmap", "commonlib/region.c")
 	bind_site("src/lib/payload_mm_authvar.c:116:7", "smm_entry_owned", "payload_mm_authvar_smm_bootstrap.c")
@@ -230,14 +256,30 @@ END {
 	bind_site("src/lib/payload_mm_authvar_mor_seal.c:180:3", "protected_storage", "payload_mm_authvar_smm_bootstrap.c")
 	bind_site("src/lib/payload_mm_authvar_mor_seal.c:181:3", "protected_storage", "payload_mm_authvar_smm_bootstrap.c")
 	bind_site("src/lib/payload_mm_authvar_mor_seal.c:182:11", "fixed_transport", "payload_mm_authvar_smm_bootstrap.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:319:11", "read_media", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:342:11", "sync_media", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:377:11", "sync_media", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:398:11", "read_media", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:430:11", "end", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:535:11", "begin", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:612:11", "program", "payload_mm_authvar_qemu_pflash.c")
-	bind_site("src/lib/payload_mm_authvar_media.c:692:11", "erase", "payload_mm_authvar_qemu_pflash.c")
+	media_source = mtl ? "payload_mm_authvar_smmstore.c" : \
+		"payload_mm_authvar_qemu_pflash.c"
+	bind_site("src/lib/payload_mm_authvar_media.c:319:11", "read_media", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:342:11", "sync_media", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:377:11", "sync_media", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:398:11", "read_media", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:430:11", "end", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:535:11", "begin", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:612:11", "program", media_source)
+	bind_site("src/lib/payload_mm_authvar_media.c:692:11", "erase", media_source)
+	if (mtl) {
+		bind_site("src/drivers/spi/spi_flash.c:611:9", "fast_spi_flash_probe",
+			"fast_spi_flash.c")
+		bind_site("src/drivers/spi/spi-generic.c:145:10",
+			"fast_spi_flash_ctrlr_setup", "fast_spi_flash.c")
+		bind_site("src/drivers/spi/spi_flash.c:1116:8", "fast_spi_flash_read",
+			"fast_spi_flash.c")
+		bind_site("src/drivers/spi/spi_flash.c:1129:8", "fast_spi_flash_write",
+			"fast_spi_flash.c")
+		bind_site("src/drivers/spi/spi_flash.c:1141:8", "fast_spi_flash_erase",
+			"fast_spi_flash.c")
+		bind_site("src/drivers/spi/spi_flash.c:1154:9", "fast_spi_flash_status",
+			"fast_spi_flash.c")
+	}
 
 	if (runtime_div_bytes) runtime_bytes["__divdi3"] = runtime_div_bytes
 	if (runtime_udiv_bytes) runtime_bytes["__udivdi3"] = runtime_udiv_bytes
@@ -275,6 +317,16 @@ END {
 		print "ERROR: selected SMM bootstrap spine is incomplete (platform=" \
 			reachable[platform] ", bootstrap=" reachable[bootstrap] ")" > "/dev/stderr"
 		failed = 1
+	}
+	if (mtl) {
+		require_reachable("payload_mm_authvar_smmstore_install",
+			"payload_mm_authvar_smmstore.c", "authenticated SMMSTORE install")
+		require_reachable("intel_smm_spi_window_begin", "smm_spi_window.c",
+			"Intel SPI window begin")
+		require_reachable("intel_smm_spi_window_prove", "smm_spi_window.c",
+			"Intel SPI window proof")
+		require_reachable("intel_smm_spi_window_end", "smm_spi_window.c",
+			"Intel SPI window close")
 	}
 	if (selected_bound > limit) {
 		print "ERROR: selected SMM bootstrap exceeds stack budget (" \

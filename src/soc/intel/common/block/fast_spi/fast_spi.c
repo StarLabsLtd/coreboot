@@ -439,8 +439,13 @@ bool fast_spi_clear_sync_smi_status(void)
 /* Read SPI Write Protect disable status. */
 bool fast_spi_wpd_status(void)
 {
-	return pci_read_config16(PCH_DEV_SPI, SPI_BIOS_CONTROL) &
+	return fast_spi_bios_control() &
 		SPI_BIOS_CONTROL_WPD;
+}
+
+uint16_t fast_spi_bios_control(void)
+{
+	return pci_read_config16(PCH_DEV_SPI, SPI_BIOS_CONTROL);
 }
 
 /* Enable SPI Write Protect. */

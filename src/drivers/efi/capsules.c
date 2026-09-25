@@ -11,7 +11,6 @@
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
 #include <memrange.h>
-#include <smm_call.h>
 #include <smmstore.h>
 #include <string.h>
 #include <stdio.h>
@@ -115,7 +114,7 @@ static bool efi_is_disk_capsules_boot(void)
 	uint64_t os_indications = 0;
 	uint32_t size = sizeof(os_indications);
 
-	if (smmstore_lookup_region(&rdev))
+	if (smmstore_lookup_read_region(&rdev))
 		return false;
 
 	if (efi_fv_get_option(&rdev, &efi_global_variable_guid, "OsIndications",
@@ -713,7 +712,7 @@ void efi_parse_capsules(void)
 	}
 
 	struct region_device rdev;
-	if (smmstore_lookup_region(&rdev)) {
+	if (smmstore_lookup_read_region(&rdev)) {
 		printk(BIOS_INFO, "capsules: no SMMSTORE region, no update capsules.\n");
 		return;
 	}
@@ -846,16 +845,3 @@ static void parse_capsules(void *unused)
 BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_EXIT, parse_capsules, NULL);
 
 #endif
-
-static void enable_capsule_smi(void *unused)
-{
-	uint32_t ret;
-	const bool supported = get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE;
-	ret = call_smm(APM_CNT_SMMSTORE, SMMSTORE_CMD_USE_FULL_FLASH,
-		       (void *)(uintptr_t)supported);
-
-	printk(BIOS_INFO, "%sabled capsule update SMI handler\n",
-	       ret == SMMSTORE_RET_SUCCESS ? "En" : "Dis");
-}
-
-BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, enable_capsule_smi, NULL);

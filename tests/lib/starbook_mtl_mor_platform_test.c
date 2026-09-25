@@ -17,7 +17,13 @@ static uint32_t boot_kind = STARBOOK_MTL_MOR_BOOT_COLD;
 static unsigned int entropy_index;
 static unsigned int private_calls;
 static unsigned int private_close_calls;
+static unsigned int substituted_close_calls;
 static unsigned int prepare_calls;
+static bool prepare_failure;
+static bool complete_callback_failure;
+static bool mutate_resolve_descriptor;
+static bool mutate_resolve_preflight_descriptor;
+static bool fail_resolve_release;
 static bool mutate_provider;
 static bool seed_callback_failure;
 static bool descriptor_context;
@@ -29,6 +35,7 @@ static bool classification_failure;
 static uint32_t boundary_revision;
 static uint32_t boundary_callback_stack_bytes;
 static uint32_t boundary_reserved;
+static unsigned int boundary_transport_fault;
 static bool concurrent_hold;
 static unsigned int boundary_load_calls;
 static unsigned int classification_calls;
@@ -97,7 +104,8 @@ static enum cb_err inventory_stub(void *context,
 
 enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	const struct starbook_mtl_mor_clear_x86_reservations *reservations,
-	const struct starbook_mtl_dma_guard_snapshot *guard, bool resume_from_s3,
+	const struct starbook_mtl_dma_guard_snapshot *guard,
+	const struct bootmem_aligned_reservation *transport, bool resume_from_s3,
 	struct payload_mm_authvar_mor_clear_plan *plan,
 	struct starbook_mtl_mor_clear_x86_binding *binding)
 {
@@ -106,8 +114,13 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 
 	(void)reservations;
 	(void)guard;
+	CHECK(transport->base == 0x300000 &&
+		transport->size == STARBOOK_MTL_MOR_PRIVATE_TRANSPORT_SIZE &&
+		transport->tag == BM_MEM_TABLE && !transport->reserved);
 	(void)resume_from_s3;
 	prepare_calls++;
+	if (prepare_failure)
+		return CB_ERR;
 	prepared_plan = plan;
 	prepared_binding = binding;
 	memset(plan, 0, sizeof(*plan));
@@ -178,23 +191,86 @@ static enum cb_err boundary_register(void *context, uint64_t generation)
 	return boundary_call(context, generation, owner);
 }
 
+static enum cb_err boundary_resolve(void *context, uint64_t generation,
+	const uint8_t owner[STARBOOK_MTL_MOR_PRIVATE_OWNER_SIZE],
+	struct bootmem_aligned_reservation *transport)
+{
+	const enum cb_err status = boundary_call(context, generation, owner);
+
+	if (status != CB_SUCCESS)
+		return status;
+	*transport = (struct bootmem_aligned_reservation) {
+		.base = 0x300000,
+		.size = STARBOOK_MTL_MOR_PRIVATE_TRANSPORT_SIZE,
+		.tag = BM_MEM_TABLE,
+	};
+	if (boundary_transport_fault == 1)
+		transport->size--;
+	else if (boundary_transport_fault == 2)
+		transport->base++;
+	else if (boundary_transport_fault == 3)
+		transport->tag = BM_MEM_RESERVED;
+	else if (boundary_transport_fault == 4)
+		transport->reserved = 1;
+	return CB_SUCCESS;
+}
+
 static enum cb_err boundary_complete(void *context,
 	const struct payload_mm_authvar_mor_grant *grant)
 {
 	CHECK(context == boundary_context && grant);
 	CHECK(!starbook_mtl_mor_platform_scratch_zero_test());
 	private_calls++;
-	return CB_SUCCESS;
+	if (callback_reentry) {
+		callback_reentry = false;
+		CHECK(reentry_ops.private_close(reentry_ops.context) == CB_ERR);
+	}
+	return complete_callback_failure ? CB_ERR : CB_SUCCESS;
 }
 
 static enum cb_err boundary_close(void *context)
 {
 	CHECK(context == boundary_context);
-	CHECK(!starbook_mtl_mor_platform_scratch_zero_test() ||
-		starbook_mtl_mor_platform_poisoned_test());
 	private_calls++;
 	private_close_calls++;
 	return CB_SUCCESS;
+}
+
+static enum cb_err substituted_close(void *context)
+{
+	CHECK(context == &substituted_close_calls);
+	substituted_close_calls++;
+	return CB_SUCCESS;
+}
+
+void starbook_mtl_mor_platform_resolve_return_test_hook(
+	struct starbook_mtl_mor_private_boundary_ops *ops)
+{
+	if (!mutate_resolve_descriptor)
+		return;
+	mutate_resolve_descriptor = false;
+	ops->context = &substituted_close_calls;
+	ops->context_size = sizeof(substituted_close_calls);
+	ops->close = substituted_close;
+}
+
+void starbook_mtl_mor_platform_resolve_preflight_test_hook(
+	struct starbook_mtl_mor_private_boundary_ops *ops)
+{
+	if (!mutate_resolve_preflight_descriptor)
+		return;
+	mutate_resolve_preflight_descriptor = false;
+	ops->context = &substituted_close_calls;
+	ops->context_size = sizeof(substituted_close_calls);
+	ops->close = substituted_close;
+}
+
+void starbook_mtl_mor_platform_resolve_release_test_hook(void)
+{
+	if (!fail_resolve_release)
+		return;
+	fail_resolve_release = false;
+	CHECK(starbook_mtl_mor_platform_scratch_contend_test());
 }
 
 bool starbook_mtl_mor_private_boundary(
@@ -213,7 +289,7 @@ bool starbook_mtl_mor_private_boundary(
 		.reserved = boundary_reserved,
 		.arena_seed = boundary_call,
 		.reservations_register = boundary_register,
-		.resolve = boundary_call,
+		.resolve = boundary_resolve,
 		.complete = boundary_complete,
 		.close = boundary_close,
 	};
@@ -227,7 +303,13 @@ static void reset_test(void)
 	entropy_index = 0;
 	private_calls = 0;
 	private_close_calls = 0;
+	substituted_close_calls = 0;
 	prepare_calls = 0;
+	prepare_failure = false;
+	complete_callback_failure = false;
+	mutate_resolve_descriptor = false;
+	mutate_resolve_preflight_descriptor = false;
+	fail_resolve_release = false;
 	mutate_provider = false;
 	seed_callback_failure = false;
 	descriptor_context = false;
@@ -240,6 +322,7 @@ static void reset_test(void)
 	boundary_callback_stack_bytes =
 		STARBOOK_MTL_MOR_PRIVATE_CALLBACK_STACK_MAX;
 	boundary_reserved = 0;
+	boundary_transport_fault = 0;
 	concurrent_hold = false;
 	boundary_load_calls = 0;
 	classification_calls = 0;
@@ -553,11 +636,11 @@ static void competing_reservation_poison(void)
 	CHECK(!pthread_join(threads[0], NULL));
 	CHECK(!pthread_join(threads[1], NULL));
 	CHECK(calls[0].result == CB_ERR && calls[1].result == CB_ERR);
-	CHECK(private_calls == 2 && prepare_calls == 0);
+	CHECK(private_calls == 3 && private_close_calls == 1 && prepare_calls == 0);
 	CHECK(starbook_mtl_mor_platform_poisoned_test());
 	CHECK(starbook_mtl_mor_platform_owner_zero_test());
 	CHECK(ops.reservations_register(ops.context) == CB_ERR);
-	CHECK(private_calls == 2 && prepare_calls == 0);
+	CHECK(private_calls == 3 && private_close_calls == 1 && prepare_calls == 0);
 }
 
 static void competing_resolution_poison(void)
@@ -599,7 +682,7 @@ static void competing_resolution_poison(void)
 				sizeof(unchanged_plan)) &&
 			!memcmp(&calls[index].executor, &unchanged_executor,
 				sizeof(unchanged_executor)));
-	CHECK(private_calls == 3 && prepare_calls == 1);
+	CHECK(private_calls == 4 && private_close_calls == 1 && prepare_calls == 0);
 	CHECK(starbook_mtl_mor_platform_poisoned_test());
 	CHECK(starbook_mtl_mor_platform_owner_zero_test());
 }
@@ -656,7 +739,7 @@ static void competing_shared_resolution_never_touches_outputs(void)
 	CHECK(calls[0].result == CB_ERR &&
 		!memcmp(plan, &original_plan, sizeof(original_plan)) &&
 		!memcmp(executor, &original_executor, sizeof(original_executor)));
-	CHECK(private_calls == 3 && prepare_calls == 1 &&
+	CHECK(private_calls == 4 && private_close_calls == 1 && prepare_calls == 0 &&
 		starbook_mtl_mor_platform_poisoned_test() &&
 		starbook_mtl_mor_platform_owner_zero_test());
 	CHECK(!munmap(page, 4096));
@@ -757,7 +840,9 @@ static void cold_path(void)
 	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
 	CHECK(boot.kind == PAYLOAD_MM_AUTHVAR_MOR_LINEAR_COLD_BOOT &&
 		boot.generation == 7);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
 	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(platform_payload_mm_authvar_smm_arena_required());
 	CHECK(starbook_mtl_mor_platform_scratch_zero_test() &&
 		starbook_mtl_mor_platform_scratch_idle_test());
 	CHECK(ops.reservations_register(ops.context) == CB_ERR);
@@ -779,6 +864,7 @@ static void cold_path(void)
 	CHECK(executor.window_bytes == 4096);
 	CHECK(ops.private_complete(ops.context, ops.context) == CB_ERR);
 	CHECK(ops.private_complete(ops.context, &grant) == CB_SUCCESS);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
 	CHECK(starbook_mtl_mor_platform_scratch_zero_test() &&
 		!starbook_mtl_mor_platform_scratch_idle_test());
 	CHECK(private_calls == 4);
@@ -799,20 +885,44 @@ static void s3_path(void)
 	CHECK(boot.kind == PAYLOAD_MM_AUTHVAR_MOR_LINEAR_S3_RESUME &&
 		boot.generation == 0);
 	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
 	CHECK(starbook_mtl_mor_platform_scratch_zero_test() &&
 		!starbook_mtl_mor_platform_scratch_idle_test());
 	boot_kind = STARBOOK_MTL_MOR_BOOT_COLD;
 }
 
+static void cold_no_request_path(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(boot.kind == PAYLOAD_MM_AUTHVAR_MOR_LINEAR_COLD_BOOT &&
+		!platform_payload_mm_authvar_smm_arena_required());
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required() &&
+		starbook_mtl_mor_platform_owner_zero_test());
+}
+
 static void loader_abort_closes_private(void)
 {
 	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
 
 	reset_test();
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
 	CHECK(platform_payload_mm_authvar_smm_arena_required());
 	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
 	platform_payload_mm_authvar_smm_arena_abort();
-	CHECK(private_calls == 2);
+	CHECK(private_calls == 3 && private_close_calls == 1);
+	CHECK(!platform_payload_mm_authvar_smm_arena_required());
 	CHECK(starbook_mtl_mor_platform_poisoned_test());
 	CHECK(starbook_mtl_mor_platform_owner_zero_test());
 	CHECK(starbook_mtl_mor_platform_scratch_zero_test());
@@ -902,34 +1012,20 @@ static void constructor_scratch_context_alias(void)
 	}
 }
 
-static void callback_reentry_poison(void)
+static void callback_reentry_close_rejected(void)
 {
 	struct payload_mm_authvar_smm_arena_seed seed;
-	struct payload_mm_authvar_smm_arena_seed failed_seed;
-	struct payload_mm_authvar_smm_arena_seed failed_seed_unchanged;
 	struct payload_mm_authvar_mor_linear_ops ops;
-	struct payload_mm_authvar_mor_linear_ops failed_ops;
-	struct payload_mm_authvar_mor_linear_ops failed_ops_unchanged;
 
 	reset_test();
 	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
 	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
 	reentry_ops = ops;
 	callback_reentry = true;
-	CHECK(ops.reservations_register(ops.context) == CB_ERR);
-	CHECK(private_calls == 2 && prepare_calls == 0);
-	CHECK(starbook_mtl_mor_platform_poisoned_test());
-	CHECK(starbook_mtl_mor_platform_owner_zero_test());
-	memset(&failed_seed, 0x5a, sizeof(failed_seed));
-	failed_seed_unchanged = failed_seed;
-	memset(&failed_ops, 0xa5, sizeof(failed_ops));
-	failed_ops_unchanged = failed_ops;
-	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&failed_seed));
-	CHECK(!platform_payload_mm_authvar_mor_linear_ops(&failed_ops));
-	CHECK(!memcmp(&failed_seed, &failed_seed_unchanged, sizeof(failed_seed)) &&
-		!memcmp(&failed_ops, &failed_ops_unchanged, sizeof(failed_ops)));
-	CHECK(ops.reservations_register(ops.context) == CB_ERR);
-	CHECK(private_calls == 2 && prepare_calls == 0);
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(private_calls == 2 && private_close_calls == 0 && prepare_calls == 0);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_calls == 3 && private_close_calls == 1 && prepare_calls == 0);
 }
 
 static void exact_gap_and_failure_restoration(void)
@@ -959,11 +1055,13 @@ static void exact_gap_and_failure_restoration(void)
 	original_executor = *executor;
 	callback_reentry = true;
 	reentry_ops = ops;
-	CHECK(ops.resolve_binding(ops.context, 7, plan, executor) == CB_ERR);
-	CHECK(!memcmp(plan, &original_plan, sizeof(*plan)) &&
-		!memcmp(executor, &original_executor, sizeof(*executor)));
+	CHECK(ops.resolve_binding(ops.context, 7, plan, executor) == CB_SUCCESS);
+	CHECK(memcmp(plan, &original_plan, sizeof(*plan)) &&
+		memcmp(executor, &original_executor, sizeof(*executor)));
 	CHECK(starbook_mtl_mor_platform_scratch_zero_test() &&
-		!starbook_mtl_mor_platform_scratch_idle_test());
+		starbook_mtl_mor_platform_scratch_idle_test());
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1);
 }
 
 static void scratch_private_context_exact_gap(void)
@@ -1125,7 +1223,228 @@ static void resolve_context_alias(void)
 	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
 	CHECK(!memcmp(&plan, &plan_unchanged, sizeof(plan)));
 	CHECK(!memcmp(&executor, &executor_unchanged, sizeof(executor)));
-	CHECK(prepare_calls == 0 && private_calls == 2);
+	CHECK(prepare_calls == 0 && private_calls == 3 && private_close_calls == 1);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(prepare_calls == 0 && private_calls == 3 && private_close_calls == 1);
+}
+
+static void invalid_private_transport_is_terminal(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_executor_ops executor;
+	struct payload_mm_authvar_mor_clear_plan plan_original;
+	struct payload_mm_authvar_mor_clear_executor_ops executor_original;
+
+	for (boundary_transport_fault = 1; boundary_transport_fault <= 4;
+	     boundary_transport_fault++) {
+		const unsigned int fault = boundary_transport_fault;
+
+		reset_test();
+		boundary_transport_fault = fault;
+		CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+		CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+		CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+		memset(&plan, 0x5a, sizeof(plan));
+		memset(&executor, 0xa5, sizeof(executor));
+		plan_original = plan;
+		executor_original = executor;
+		CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
+		CHECK(!memcmp(&plan, &plan_original, sizeof(plan)) &&
+			!memcmp(&executor, &executor_original, sizeof(executor)) &&
+			prepare_calls == 0 && private_close_calls == 1 &&
+			starbook_mtl_mor_platform_poisoned_test() &&
+			starbook_mtl_mor_platform_owner_zero_test());
+	}
+}
+
+static void post_resolve_prepare_failure_closes_private(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_executor_ops executor;
+	struct payload_mm_authvar_mor_clear_plan plan_original;
+	struct payload_mm_authvar_mor_clear_executor_ops executor_original;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	memset(&plan, 0x5a, sizeof(plan));
+	memset(&executor, 0xa5, sizeof(executor));
+	plan_original = plan;
+	executor_original = executor;
+	prepare_failure = true;
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
+	CHECK(!memcmp(&plan, &plan_original, sizeof(plan)) &&
+		!memcmp(&executor, &executor_original, sizeof(executor)) &&
+		prepare_calls == 1 && private_close_calls == 1 &&
+		private_calls == 4 && starbook_mtl_mor_platform_poisoned_test() &&
+		starbook_mtl_mor_platform_owner_zero_test());
+}
+
+static void resolve_descriptor_mutation_uses_frozen_close(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_executor_ops executor;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	memset(&plan, 0, sizeof(plan));
+	memset(&executor, 0, sizeof(executor));
+	mutate_resolve_descriptor = true;
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
+	CHECK(private_close_calls == 1 && substituted_close_calls == 0 &&
+		private_calls == 4 && starbook_mtl_mor_platform_poisoned_test() &&
+		starbook_mtl_mor_platform_owner_zero_test());
+}
+
+static void resolve_release_failure_uses_retained_close(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_executor_ops executor;
+	struct payload_mm_authvar_mor_clear_plan plan_original;
+	struct payload_mm_authvar_mor_clear_executor_ops executor_original;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	memset(&plan, 0x5a, sizeof(plan));
+	memset(&executor, 0xa5, sizeof(executor));
+	plan_original = plan;
+	executor_original = executor;
+	fail_resolve_release = true;
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
+	CHECK(!memcmp(&plan, &plan_original, sizeof(plan)) &&
+		!memcmp(&executor, &executor_original, sizeof(executor)) &&
+		private_close_calls == 1 && substituted_close_calls == 0 &&
+		private_calls == 4 && starbook_mtl_mor_platform_poisoned_test() &&
+		starbook_mtl_mor_platform_owner_zero_test() &&
+		starbook_mtl_mor_platform_scratch_zero_test() &&
+		!starbook_mtl_mor_platform_scratch_idle_test());
+}
+
+static void classify_failure_closes_once(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	classification_failure = true;
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_ERR);
+	CHECK(private_close_calls == 1 && private_calls == 2);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1 && private_calls == 2);
+}
+
+static void reservation_failures_close_once(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	seed_callback_failure = true;
+	CHECK(ops.reservations_register(ops.context) == CB_ERR);
+	CHECK(private_close_calls == 1 && private_calls == 3);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1 && private_calls == 3);
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(!starbook_mtl_mor_platform_scratch_contend_test());
+	CHECK(ops.reservations_register(ops.context) == CB_ERR);
+	CHECK(private_close_calls == 1 && private_calls == 2 &&
+		starbook_mtl_mor_platform_scratch_zero_test() &&
+		!starbook_mtl_mor_platform_scratch_idle_test());
+}
+
+static void resolve_claim_failure_uses_original_close(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct payload_mm_authvar_mor_clear_executor_ops executor = { 0 };
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(!starbook_mtl_mor_platform_scratch_contend_test());
+	mutate_resolve_preflight_descriptor = true;
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_ERR);
+	CHECK(private_close_calls == 1 && substituted_close_calls == 0 &&
+		private_calls == 3);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1 && substituted_close_calls == 0);
+}
+
+static void complete_failure_ownership(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+	struct payload_mm_authvar_mor_linear_boot boot;
+	struct payload_mm_authvar_mor_clear_plan plan = { 0 };
+	struct payload_mm_authvar_mor_clear_executor_ops executor = { 0 };
+	struct payload_mm_authvar_mor_grant grant = { 0 };
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(ops.private_complete(ops.context, &grant) == CB_ERR);
+	CHECK(private_close_calls == 1 && private_calls == 3);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1 && private_calls == 3);
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_SUCCESS);
+	complete_callback_failure = true;
+	CHECK(ops.private_complete(ops.context, &grant) == CB_ERR);
+	CHECK(private_close_calls == 1 && private_calls == 5);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 1 && private_calls == 5);
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+	CHECK(ops.classify_guard(ops.context, &boot) == CB_SUCCESS);
+	CHECK(ops.reservations_register(ops.context) == CB_SUCCESS);
+	CHECK(ops.resolve_binding(ops.context, 7, &plan, &executor) == CB_SUCCESS);
+	reentry_ops = ops;
+	callback_reentry = true;
+	CHECK(ops.private_complete(ops.context, &grant) == CB_SUCCESS);
+	CHECK(private_close_calls == 0 && private_calls == 4);
+	CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+	CHECK(private_close_calls == 0 && private_calls == 4);
+}
+
+static void corrupted_cleanup_never_dispatches(void)
+{
+	struct payload_mm_authvar_mor_linear_ops ops;
+
+	for (unsigned int mirror = 0; mirror < 2; mirror++) {
+		reset_test();
+		CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
+		starbook_mtl_mor_platform_cleanup_mutate_test(mirror);
+		CHECK(ops.private_close(ops.context) == CB_ERR);
+		CHECK(private_close_calls == 0 && private_calls == 1);
+		CHECK(ops.private_close(ops.context) == CB_SUCCESS);
+		CHECK(private_close_calls == 0 && private_calls == 1);
+	}
 }
 
 static void classify_context_alias(void)
@@ -1164,13 +1483,14 @@ static void completion_context_alias(void)
 	unchanged = grant;
 	CHECK(ops.private_complete(ops.context, &grant) == CB_ERR);
 	CHECK(!memcmp(&grant, &unchanged, sizeof(grant)));
-	CHECK(private_calls == 3);
+	CHECK(private_calls == 4 && private_close_calls == 1);
 }
 
 int main(void)
 {
 	cold_path();
 	s3_path();
+	cold_no_request_path();
 	loader_abort_closes_private();
 	seed_reentry_poison();
 	seed_callback_failure_closes_private();
@@ -1186,13 +1506,22 @@ int main(void)
 	classification_failure_is_terminal();
 	descriptor_context_alias();
 	constructor_scratch_context_alias();
-	callback_reentry_poison();
+	callback_reentry_close_rejected();
 	exact_gap_and_failure_restoration();
 	scratch_private_context_exact_gap();
 	public_provider_storage_and_overflow_rejected();
 	private_context_api_boundaries();
 	classify_context_alias();
 	resolve_context_alias();
+	invalid_private_transport_is_terminal();
+	post_resolve_prepare_failure_closes_private();
+	resolve_descriptor_mutation_uses_frozen_close();
+	resolve_release_failure_uses_retained_close();
+	classify_failure_closes_once();
+	reservation_failures_close_once();
+	resolve_claim_failure_uses_original_close();
+	complete_failure_ownership();
+	corrupted_cleanup_never_dispatches();
 	completion_context_alias();
 	return 0;
 }

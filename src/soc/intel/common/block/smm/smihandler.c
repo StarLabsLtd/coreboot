@@ -6,12 +6,14 @@
 #include <cpu/x86/cache.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/smm.h>
+#include <cpu/intel/msr.h>
 #include <cpu/intel/em64t100_save_state.h>
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/x86/save_state.h>
-#include <cpu/intel/msr.h>
 #include <delay.h>
+#if !CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
 #include <device/mmio.h>
+#endif
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
@@ -21,6 +23,9 @@
 #include <intelblocks/oc_wdt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smihandler.h>
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+#include <intelblocks/smm_spi_window.h>
+#endif
 #include <intelblocks/tco.h>
 #include <intelblocks/uart.h>
 #include <intelblocks/wadt_wake.h>
@@ -70,6 +75,7 @@ __weak void mainboard_smi_espi_handler(void)
 	/* no-op */
 }
 
+#if !CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
 #define SMMSTORE_SYNC_SMI_SETTLE_USEC 50
 #define SMMSTORE_SYNC_SMI_CLEAR_TRIES 8
 
@@ -83,6 +89,18 @@ static void smmstore_drain_sync_smi(void)
 		udelay(SMMSTORE_SYNC_SMI_SETTLE_USEC);
 	}
 }
+
+static void set_insmm_sts(bool enable_writes)
+{
+	msr_t msr = { .lo = read32p(0xfed30880), .hi = 0 };
+
+	if (enable_writes)
+		msr.lo |= 1;
+	else
+		msr.lo &= ~1;
+	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
+}
+#endif
 
 /* Inherited from cpu/x86/smm.h resulting in a different signature */
 void southbridge_smi_set_eos(void)
@@ -277,23 +295,26 @@ static void southbridge_smi_gsmi(
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
-static void set_insmm_sts(const bool enable_writes)
-{
-	msr_t msr = {
-		.lo = read32p(0xfed30880),
-		.hi = 0,
-	};
-	if (enable_writes)
-		msr.lo |= 1;
-	else
-		msr.lo &= ~1;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+struct smmstore_operation {
+	u8 command;
+	void *parameter;
+};
 
-	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
+static int smmstore_operation_execute(void *context)
+{
+	const struct smmstore_operation *operation = context;
+
+	return smmstore_exec(operation->command, operation->parameter);
 }
+#endif
 
 static void southbridge_smi_store(
 	const struct smm_save_state_ops *save_state_ops)
 {
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	struct smmstore_operation operation;
+#endif
 	u8 sub_command, ret;
 	int node;
 	uint32_t eax_val, reg_ebx;
@@ -309,27 +330,32 @@ static void southbridge_smi_store(
 	if (save_state_ops->get_reg(RBX, node, &reg_ebx, sizeof(reg_ebx)) != 0)
 		return;
 
+	ret = SMMSTORE_RET_FAILURE;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+	operation = (struct smmstore_operation) {
+		.command = sub_command,
+		.parameter = (void *)(uintptr_t)reg_ebx,
+	};
+	/* drivers/smmstore/smi.c */
+	ret = (u8)intel_smm_spi_window_run(
+		INTEL_SMM_SPI_WINDOW_LEGACY_SMMSTORE, save_state_ops,
+		smmstore_operation_execute, &operation, SMMSTORE_RET_FAILURE);
+#else
 	const bool wp_enabled = !fast_spi_wpd_status();
+
 	if (wp_enabled) {
 		set_insmm_sts(true);
-		/*
-		 * As per BWG, clearing "SPI_BIOS_CONTROL_SYNC_SS"
-		 * bit is a must prior setting SPI_BIOS_CONTROL_WPD" bit
-		 * to avoid 3-strike error.
-		 */
 		smmstore_drain_sync_smi();
 		fast_spi_disable_wp();
 	}
-
-	/* drivers/smmstore/smi.c */
 	ret = smmstore_exec(sub_command, (void *)(uintptr_t)reg_ebx);
 	smmstore_drain_sync_smi();
-	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
-
 	if (wp_enabled) {
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
 	}
+#endif
+	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
 __weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
@@ -402,8 +428,12 @@ static void finalize(void)
 		fast_spi_init();
 
 	if (enable_smm_bios_protection()) {
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+		(void)intel_smm_spi_window_restore_ro();
+#else
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
+#endif
 	}
 
 	/*
@@ -511,8 +541,12 @@ void smihandler_southbridge_tco(
 		 * box.
 		 */
 		printk(BIOS_DEBUG, "Switching SPI back to RO\n");
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+		(void)intel_smm_spi_window_restore_ro();
+#else
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
+#endif
 	}
 
 	/* Any TCO event? */

@@ -10,7 +10,8 @@ romstage-$(CONFIG_DRIVERS_EFI_VARIABLE_STORE)	+= efivars.c
 ramstage-$(CONFIG_DRIVERS_EFI_VARIABLE_STORE)	+= efivars.c
 smm-$(CONFIG_DRIVERS_EFI_VARIABLE_STORE)	+= efivars.c
 
-ramstage-$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)	+= capsules.c
+ramstage-$(CONFIG_DRIVERS_EFI_CAPSULE_RAM_HANDOFF)	+= capsules.c
+ramstage-$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)		+= capsules_legacy.c
 
 bootblock-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 romstage-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c

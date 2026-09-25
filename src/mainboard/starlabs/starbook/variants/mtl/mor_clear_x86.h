@@ -9,8 +9,9 @@
 #include <boot/payload_mm_authvar_mor_live_inventory.h>
 #include <bootmem.h>
 
-#define STARBOOK_MTL_MOR_CLEAR_X86_REVISION 1U
-#define STARBOOK_MTL_MOR_CLEAR_X86_OVERLAYS 5U
+#define STARBOOK_MTL_MOR_CLEAR_X86_REVISION 2U
+#define STARBOOK_MTL_MOR_CLEAR_X86_OVERLAYS 6U
+#define STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE 4096U
 
 struct starbook_mtl_mor_clear_x86_reservations {
 	uint32_t revision;
@@ -27,6 +28,7 @@ struct starbook_mtl_mor_clear_x86_authority {
 	uintptr_t plan_address;
 	uintptr_t page_tables;
 	uintptr_t aperture;
+	struct bootmem_aligned_reservation transport;
 	struct starbook_mtl_dma_guard_snapshot prepared;
 	struct starbook_mtl_dma_guard_snapshot bound;
 	struct payload_mm_authvar_mor_clear_dma_snapshot dma;
@@ -60,7 +62,8 @@ enum cb_err starbook_mtl_mor_clear_x86_register(
 enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	const struct starbook_mtl_mor_clear_x86_reservations *reservations,
 	const struct starbook_mtl_dma_guard_snapshot *dma_guard,
-	bool resume_from_s3, struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct bootmem_aligned_reservation *transport, bool resume_from_s3,
+	struct payload_mm_authvar_mor_clear_plan *plan,
 	struct starbook_mtl_mor_clear_x86_binding *binding);
 
 #if ENV_TEST

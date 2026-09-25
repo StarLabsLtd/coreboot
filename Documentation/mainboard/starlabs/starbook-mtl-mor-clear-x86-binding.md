@@ -12,13 +12,15 @@ Before bootmem initialization, the adapter registers an exact 20 KiB,
 ranges and rejects changed handles, wrong sizes, tags, alignments, limits, or
 overlap.
 
-The adapter adds the page tables, aperture, returned plan, and its complete
-binding state to the canonical live inventory. Page tables, plan, and binding
-are active firmware; the virtual aperture's identity physical range is
-platform-reserved. Only then does it prepare the generic backend with the exact
-returned addresses. Input mutation, aliases, nonzero or repeated outputs, late
-or partial reservations, and S3 preparation fail closed with no published plan
-or operations table.
+The adapter adds the page tables, aperture, returned plan, its complete binding
+state, and the private boundary's authenticated transport page to the canonical
+live inventory. Page tables, plan, binding, and the exact aligned 4 KiB
+`BM_MEM_TABLE` transport are active firmware; the virtual aperture's identity
+physical range is platform-reserved. Only then does it prepare the generic
+backend with the exact returned addresses. Transport mutation, a wrong size,
+alignment or tag, overlap, input aliases, nonzero or repeated outputs, late or
+partial reservations, and S3 preparation fail closed with no published plan or
+operations table.
 
 The binding fills the executor's DMA-snapshot and live-inventory operations
 from the already prepared Meteor Lake guard. It does not rediscover hardware.

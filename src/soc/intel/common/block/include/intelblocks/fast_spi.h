@@ -80,6 +80,8 @@ bool fast_spi_clear_sync_smi_status(void);
  * Read SPI Write protect disable bit.
  */
 bool fast_spi_wpd_status(void);
+/* Read the live BIOS control register. */
+uint16_t fast_spi_bios_control(void);
 /*
  * Enable SPI Write protect.
  */

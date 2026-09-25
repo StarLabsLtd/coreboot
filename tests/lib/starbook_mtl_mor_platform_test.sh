@@ -102,6 +102,21 @@ reject_mutant provider-excess-stack-budget-accepted sed \
 reject_mutant provider-reserved-field-accepted sed \
 	'0,/!ops->reserved &&/s//true \&\&/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant invalid-private-transport-accepted sed \
+	'0,/!transport_valid(&transport)/s//false/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant resolve-failure-without-private-close sed \
+	'/static enum cb_err resolve_binding/,/static enum cb_err private_complete/s/cleanup_failure();/(void)0;/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant resolve-failure-uses-mutated-close sed \
+	'0,/status = authority.close(authority.context);/s//status = platform.private.close(platform.private.context);/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant cleanup-authority-mirror-ignored sed \
+	'0,/memcmp(&cleanup.authority, &cleanup.mirror,/s//false \&\& memcmp(\&cleanup.authority, \&cleanup.mirror,/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant complete-dispatch-with-open-cleanup sed \
+	'0,/if (cleanup_take(false) != CB_SUCCESS)/s//if (false)/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant classification-failure-ignored sed \
 	'0,/if (classify_retained() != CB_SUCCESS)/s//if (false)/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
@@ -118,10 +133,10 @@ reject_mutant resolve-plan-context-alias sed \
 	'0,/!private_context_disjoint(plan, sizeof(\*plan)) ||/s//false ||/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant resolve-transient-plan sed \
-	'/&platform.guard, false, plan, &platform.binding/s/plan, &platform.binding/\&frozen->binding.authority.plan, \&platform.binding/' \
+	'/&platform.guard, &platform.transport, false, plan,/s/plan,/\&frozen->binding.authority.plan,/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant resolve-transient-binding sed \
-	'/&platform.guard, false, plan, &platform.binding/s/&platform.binding/\&frozen->binding/' \
+	'/&platform.guard, &platform.transport, false, plan,/{n;s/&platform.binding/\&frozen->binding/;}' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant completion-grant-context-alias sed \
 	'0,/!seeded_and_disjoint(grant, sizeof(\*grant)) ||/s//!seeded_and_disjoint(NULL, 0) ||/' \
@@ -148,13 +163,13 @@ reject_mutant loader-abort-without-private-close sed \
 	'/void platform_payload_mm_authvar_smm_arena_abort/,/^}/s/if (private_close(&platform) != CB_SUCCESS)/if (false \&\& private_close(\&platform) != CB_SUCCESS)/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant poisoned-seed-without-private-close sed \
-	'/static void close_private_seed/,/^}/s/(void)platform.private.close(platform.private.context);/(void)0;/' \
+	'/static void close_private_seed/,/^}/s/cleanup_failure();/(void)0;/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant failed-seed-without-private-close sed \
-	'/platform_snapshot(frozen);/{n;s/private_seed_live = true;/private_seed_live = false;/;}' \
+	'/.close = frozen->private.close,/,/private_seed_live = true;/s/private_seed_live = true;/private_seed_live = false;/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant conflict-without-atomic-poison sed \
-	'/static bool private_callback_enter/,/static bool private_callback_leave/s/MTL_MOR_CALLBACK_ACTIVE : MTL_MOR_CALLBACK_POISONED/MTL_MOR_CALLBACK_ACTIVE : MTL_MOR_CALLBACK_ACTIVE/' \
+	'/static bool private_callback_enter/,/static bool private_callback_leave/s/MTL_MOR_SEED_POISONED,/MTL_MOR_SEEDED,/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant constructor-candidate-context-alias sed \
 	'0,/!private_context_disjoint(candidate, candidate_size) ||/s//false ||/' \
@@ -171,4 +186,15 @@ reject_mutant snapshot-without-scrub sed \
 reject_mutant provider-object-allows-scratch sed \
 	'/static bool provider_object_valid/,/^}/s/!ranges_overlap(object, size, \&scratch, sizeof(scratch))/true/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+resolve_line=$(grep -n 'platform[.]private[.]resolve' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c" | \
+	cut -d: -f1)
+clear_line=$(grep -n 'starbook_mtl_mor_clear_x86_prepare' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c" | \
+	cut -d: -f1)
+[ "$resolve_line" -lt "$clear_line" ]
+grep -q '^#define STARBOOK_MTL_MOR_PRIVATE_BOUNDARY_REVISION 3U$' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.h"
+grep -q '^[[:space:]]*depends on PAYLOAD_MM_AUTHVAR_MOR_EARLY_DISCOVERY$' \
+	"$root/src/mainboard/starlabs/starbook/Kconfig"
 printf '%s\n' 'StarBook MTL MOR platform provider tests: PASS'

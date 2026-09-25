@@ -664,7 +664,7 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_board(head);
 
 	/* Possibly add UEFI capsules. */
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES))
+	if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF))
 		lb_efi_capsules(head);
 
 	if (CONFIG(CHROMEOS_RAMOOPS))
