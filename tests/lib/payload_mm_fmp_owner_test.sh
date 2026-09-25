@@ -9,13 +9,21 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > \
 	"$temporary/include/config.h"
 
-cases='read read-absent read-legacy source-mutation authority-mutation authority-ranges read-outside read-key read-misaligned
+cases='ready-before-install seed-success seed-null seed-mismatch seed-identity-mutation
+seed-context-mutation seed-backend-mutation seed-control-mutation seed-read-reentry
+seed-protect-reentry
+sealed-backend-active sealed-backend-copy sealed-control-active sealed-control-copy
+sealed-identity-active sealed-identity-copy identity-source-closure
+read read-reentry read-context-mutation read-backend-mutation read-control-mutation
+read-absent read-legacy source-mutation authority-mutation authority-ranges read-outside read-key read-misaligned
 read-failure bad-sequence bad-present bad-attributes bad-size bad-reserved
 bad-reserved2 bad-validity bad-absent bad-legacy-tail success
+sequence-only
 commit-error-candidate commit-error-current commit-success-current
 commit-success-other commit-error-other commit-success-torn commit-error-torn
 readback-failure same-sequence-distinct commit-identity-mutation
 commit-input-mutation readback-identity-mutation reentry state-regression
+commit-context-mutation commit-backend-mutation commit-control-mutation
 lsv-regression trusted-floor validity-regressions sequence-gap sequence-wrap outside misaligned alias remove remove-state
 remove-absent remove-wrap install-no-state install-revision install-size
 install-read install-commit install-context-null install-context-zero

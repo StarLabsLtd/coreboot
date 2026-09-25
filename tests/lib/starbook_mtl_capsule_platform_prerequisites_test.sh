@@ -83,7 +83,8 @@ grep -qx 'CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y' "$temporary/config-default"
 grep -qx 'CONFIG_DRIVERS_EFI_GENERATE_CAPSULE=y' "$temporary/config-default"
 grep -qx 'CONFIG_SMMSTORE=y' "$temporary/config-default"
 for symbol in CAPSULE_BROKER_CONTRACT CAPSULE_PLATFORM_FACTS \
-	CAPSULE_PLATFORM_ADAPTERS PAYLOAD_MM_FMP_OWNER_AUTHVAR; do
+	CAPSULE_PLATFORM_ADAPTERS PAYLOAD_MM_FMP_OWNER_AUTHVAR \
+	PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT; do
 	if grep -q "^CONFIG_${symbol}=y$" "$temporary/config-default"; then
 		printf 'ERROR: default config selected %s\n' "$symbol" >&2
 		exit 1
@@ -123,6 +124,7 @@ config TEST_STARBOOK_MTL_CAPSULE_PLATFORM_PREREQUISITES
 	select PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
 	select PAYLOAD_MM_AUTHVAR_COORDINATOR
 	select PAYLOAD_MM_FMP_OWNER_AUTHVAR
+	select PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT
 EOF
 sed -e '/^CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION=/d' \
 	-e '/^CONFIG_SMM_MODULE_STACK_SIZE=/d' \
@@ -153,6 +155,7 @@ for symbol in \
 	PAYLOAD_MM_AUTHVAR_EXECUTOR \
 	PAYLOAD_MM_AUTHVAR_COORDINATOR \
 	PAYLOAD_MM_FMP_OWNER_AUTHVAR \
+	PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT \
 	PAYLOAD_MM_CMS_CORE \
 	SPI_FLASH_SMM; do
 	grep -qx "CONFIG_${symbol}=y" "$temporary/config-selected"
@@ -169,8 +172,9 @@ done
 
 selected_build="$temporary/build-selected"
 stack_flags='-fstack-usage -fcallgraph-info=su -fdump-ipa-cgraph -save-temps=obj'
-fmp_roots='-u payload_mm_authvar_fmp_state_transaction -u payload_mm_authvar_fmp_state_initialize -u payload_mm_fmp_owner_authvar_reservation -u payload_mm_fmp_owner_authvar_identity_install'
+fmp_roots='-u payload_mm_fmp_owner_authvar_boot_install'
 wrapper_root='--wrap=mbedtls_rsa_parse_pubkey -u __wrap_mbedtls_rsa_parse_pubkey'
+test "$fmp_roots" = '-u payload_mm_fmp_owner_authvar_boot_install'
 make -C "$root" -j4 obj="$selected_build" \
 	KBUILD_KCONFIG="$temporary/Kconfig-selected" \
 	DOTCONFIG="$temporary/config-selected" \
@@ -227,12 +231,28 @@ make -C "$root" -j4 obj="$release_build" \
 	cat "$temporary/build-default.log" >&2
 	exit 1
 }
-"$cross_nm" -g --defined-only "$release_build/smm/smm.elf" > \
+"$cross_nm" --defined-only "$release_build/smm/smm.elf" > \
 	"$default_final_symbols"
-for symbol in payload_mm_authvar_fmp_state_transaction \
+for symbol in payload_mm_fmp_owner_authvar_boot_install \
+	payload_mm_authvar_fmp_state_transaction \
 	payload_mm_authvar_fmp_state_initialize \
-	payload_mm_fmp_owner_authvar_reservation \
-	payload_mm_fmp_owner_authvar_identity_install; do
+	payload_mm_authvar_fmp_state_activation_read \
+	payload_mm_authvar_fmp_state_reconciliation_retryable \
+	payload_mm_authvar_fmp_state_activate \
+	payload_mm_authvar_fmp_state_activation_abort \
+	payload_mm_fmp_owner_install_checked \
+	payload_mm_fmp_owner_ready \
+	payload_mm_fmp_owner_storage_overlaps \
+	payload_mm_fmp_owner_buffer_available \
+	payload_mm_fmp_owner_read \
+	payload_mm_fmp_owner_commit_state \
+	payload_mm_fmp_owner_remove_legacy \
+	payload_mm_fmp_owner_record_valid \
+	payload_mm_fmp_owner_observed_record_valid \
+	payload_mm_fmp_owner_authvar_identity_install \
+	payload_mm_fmp_owner_authvar_identity \
+	payload_mm_fmp_owner_authvar_storage_overlaps \
+	payload_mm_fmp_owner_authvar_reservation; do
 	if awk -v symbol="$symbol" '$3 == symbol { found = 1 }
 		END { exit !found }' "$default_final_symbols"; then
 		printf 'ERROR: default-off final SMM contains forbidden symbol: %s\n' \
@@ -240,19 +260,43 @@ for symbol in payload_mm_authvar_fmp_state_transaction \
 		exit 1
 	fi
 done
+for object in payload_mm_authvar_executor payload_mm_fmp_owner \
+	payload_mm_fmp_owner_authvar payload_mm_fmp_owner_authvar_boot; do
+	if test -e "$release_build/smm/lib/$object.o"; then
+		printf 'ERROR: default-off SMM contains forbidden object: %s\n' \
+			"$object" >&2
+		exit 1
+	fi
+done
 
 "$cross_nm" -g --defined-only "$selected_build/smm/smm.a" > \
 	"$archive_symbols"
-"$cross_nm" -g --defined-only \
+"$cross_nm" --defined-only \
 	"$selected_build/smm/smm.elf" > "$final_symbols"
-"$cross_nm" -g --defined-only \
+"$cross_nm" --defined-only \
 	"$selected_build/ramstage/cpu/x86/smm/smm.manual" > "$manual_symbols"
-"$cross_nm" -g --defined-only \
+"$cross_nm" --defined-only \
 	"$selected_build/cbfs/fallback/ramstage.debug" > "$ramstage_symbols"
-for symbol in payload_mm_authvar_fmp_state_transaction \
+for symbol in payload_mm_fmp_owner_authvar_boot_install \
+	payload_mm_authvar_fmp_state_transaction \
 	payload_mm_authvar_fmp_state_initialize \
-	payload_mm_fmp_owner_authvar_reservation \
-	payload_mm_fmp_owner_authvar_identity_install; do
+	payload_mm_authvar_fmp_state_activation_read \
+	payload_mm_authvar_fmp_state_reconciliation_retryable \
+	payload_mm_authvar_fmp_state_activate \
+	payload_mm_authvar_fmp_state_activation_abort \
+	payload_mm_fmp_owner_install_checked \
+	payload_mm_fmp_owner_ready \
+	payload_mm_fmp_owner_storage_overlaps \
+	payload_mm_fmp_owner_buffer_available \
+	payload_mm_fmp_owner_read \
+	payload_mm_fmp_owner_commit_state \
+	payload_mm_fmp_owner_remove_legacy \
+	payload_mm_fmp_owner_record_valid \
+	payload_mm_fmp_owner_observed_record_valid \
+	payload_mm_fmp_owner_authvar_identity_install \
+	payload_mm_fmp_owner_authvar_identity \
+	payload_mm_fmp_owner_authvar_storage_overlaps \
+	payload_mm_fmp_owner_authvar_reservation; do
 	if awk -v symbol="$symbol" '$3 == symbol { found = 1 }
 		END { exit !found }' "$ramstage_symbols"; then
 		printf 'ERROR: selected ramstage contains forbidden SMM symbol: %s\n' \
@@ -278,15 +322,16 @@ for symbol in \
 	fi
 done
 
-# These are deliberately dormant smm.elf measurement roots, not a runtime
-# composition in the GC-converted smm.manual. The transaction, initialization,
-# and reservation roots share the selected real SMM closure. Identity
-# installation remains a separate root until a platform binds a concrete
-# protected-storage callback.
+# The selected dormant composition is the sole forced SMM root. Its exact
+# closure must retain reconciliation, owner publication, and the sealed raw
+# executor only through the boot-local adapter callbacks.
 for symbol in \
+	payload_mm_fmp_owner_authvar_boot_install \
 	payload_mm_authvar_fmp_state_transaction \
 	payload_mm_authvar_fmp_state_initialize \
-	payload_mm_fmp_owner_authvar_reservation \
+	payload_mm_authvar_fmp_state_reconciliation_retryable \
+	payload_mm_authvar_fmp_state_activate \
+	payload_mm_fmp_owner_install_checked \
 	payload_mm_fmp_owner_authvar_identity_install \
 	payload_mm_sha256 \
 	payload_mm_fmp_owner_record_valid \
@@ -296,22 +341,44 @@ for symbol in \
 done
 
 # Forced dormant measurement roots belong only to smm.elf. The production-like
-# GC link remains free of an uncomposed initialization entry point.
-if awk '$3 == "payload_mm_authvar_fmp_state_initialize" { found = 1 }
-	END { exit !found }' "$manual_symbols"; then
-	printf '%s\n' \
-		'ERROR: dormant FMP initialization root reached smm.manual' >&2
-	exit 1
-fi
+# GC link must contain no composer, owner, identity, or raw executor entry point.
+for symbol in payload_mm_fmp_owner_authvar_boot_install \
+	payload_mm_authvar_fmp_state_transaction \
+	payload_mm_authvar_fmp_state_initialize \
+	payload_mm_authvar_fmp_state_activation_read \
+	payload_mm_authvar_fmp_state_reconciliation_retryable \
+	payload_mm_authvar_fmp_state_activate \
+	payload_mm_authvar_fmp_state_activation_abort \
+	payload_mm_fmp_owner_install_checked \
+	payload_mm_fmp_owner_ready \
+	payload_mm_fmp_owner_storage_overlaps \
+	payload_mm_fmp_owner_buffer_available \
+	payload_mm_fmp_owner_read \
+	payload_mm_fmp_owner_commit_state \
+	payload_mm_fmp_owner_remove_legacy \
+	payload_mm_fmp_owner_record_valid \
+	payload_mm_fmp_owner_observed_record_valid \
+	payload_mm_fmp_owner_authvar_identity_install \
+	payload_mm_fmp_owner_authvar_identity \
+	payload_mm_fmp_owner_authvar_storage_overlaps \
+	payload_mm_fmp_owner_authvar_reservation; do
+	if awk -v symbol="$symbol" '$3 == symbol { found = 1 }
+		END { exit !found }' "$manual_symbols"; then
+		printf 'ERROR: dormant FMP symbol reached smm.manual: %s\n' \
+			"$symbol" >&2
+		exit 1
+	fi
+done
 
 # This independent dormant root proves that the selected link retained the
 # existing --wrap contract. It is not part of, or reachable from, the FMP
-# transaction and initialization roots and must be excluded from their later
+# boot-owner, owner READ, and owner CAS roots and must be excluded from their
 # independent rooted stack maxima.
 awk '$3 == "__wrap_mbedtls_rsa_parse_pubkey" { found = 1 }
 	END { exit !found }' "$final_symbols"
 
-for object in payload_mm_authvar_executor payload_mm_fmp_owner_authvar; do
+for object in payload_mm_authvar_executor payload_mm_fmp_owner \
+	payload_mm_fmp_owner_authvar payload_mm_fmp_owner_authvar_boot; do
 	test -f "$selected_build/smm/lib/$object.o"
 	if test -e "$selected_build/ramstage/lib/$object.o"; then
 		printf 'ERROR: SMM-only object reached ramstage: %s\n' "$object" >&2
@@ -411,11 +478,24 @@ graph_run()
 		-f "$root/tests/lib/starbook_mtl_fmp_stack_graph.awk" "$selected_ci"
 }
 
-graph_run
+graph_output=$(graph_run)
+printf '%s\n' "$graph_output"
+install_maximum=$(printf '%s\n' "$graph_output" | awk \
+	'$1 == "FMP" && $2 == "boot" { sub(/;$/, "", $5); print $5; found++ }
+	END { if (found != 1) exit 1 }')
+read_maximum=$(printf '%s\n' "$graph_output" | awk \
+	'$1 == "FMP" && $2 == "owner" && $3 == "READ" { sub(/;$/, "", $5); print $5; found++ }
+	END { if (found != 1) exit 1 }')
+cas_maximum=$(printf '%s\n' "$graph_output" | awk \
+	'$1 == "FMP" && $2 == "owner" && $3 == "CAS" { sub(/;$/, "", $5); print $5; found++ }
+	END { if (found != 1) exit 1 }')
+selected_maximum=$(printf '%s\n' "$graph_output" | awk \
+	'$1 == "FMP" && $2 == "selected" { sub(/;$/, "", $4); print $4; found++ }
+	END { if (found != 1) exit 1 }')
 
 killed=0
 if graph_run -v omit_root=1 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: omitted FMP transaction root survived' >&2
+	printf '%s\n' 'ERROR: omitted FMP boot-owner root survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
@@ -426,29 +506,38 @@ while IFS= read -r edge; do
 	fi
 	killed=$((killed + 1))
 done <<'EOF'
-payload_mm_authvar_fmp_state_transaction|media_begin
-payload_mm_authvar_fmp_state_transaction|recover_session
-payload_mm_authvar_fmp_state_transaction|execute_direct
-payload_mm_authvar_fmp_state_transaction|execute_reclaim
-payload_mm_authvar_fmp_state_transaction|verify_media
-payload_mm_authvar_fmp_state_transaction|payload_mm_authvar_store_scan
+payload_mm_fmp_owner_authvar_boot_install|identities_install_unchanged
+identities_install_unchanged|payload_mm_fmp_owner_authvar_identity_install
+payload_mm_fmp_owner_authvar_boot_install|authority_snapshot_unchanged
+authority_snapshot_unchanged|payload_mm_authvar_authority_snapshot
+payload_mm_fmp_owner_authvar_boot_install|initialize_unchanged
+initialize_unchanged|payload_mm_authvar_fmp_state_initialize
+payload_mm_fmp_owner_authvar_boot_install|reconciliation_retryable_unchanged
+reconciliation_retryable_unchanged|payload_mm_authvar_fmp_state_reconciliation_retryable
+payload_mm_fmp_owner_authvar_boot_install|owner_install_expected.constprop
+owner_install_expected.constprop|payload_mm_fmp_owner_install_checked
+payload_mm_fmp_owner_authvar_boot_install|activate_unchanged
+activate_unchanged|payload_mm_authvar_fmp_state_activate
+owner_install.constprop|authvar_read
+payload_mm_fmp_owner_read|authvar_read
+commit|authvar_commit
+commit|authvar_read
+authvar_read|read_combined_unchanged
+read_combined_unchanged|payload_mm_authvar_fmp_state_activation_read
+read_combined_unchanged|payload_mm_authvar_fmp_state_transaction
+authvar_commit|transaction_unchanged
+transaction_unchanged|payload_mm_authvar_fmp_state_transaction
+payload_mm_authvar_fmp_state_transaction|fmp_state_transaction
+fmp_state_transaction|media_begin
+fmp_state_transaction|recover_session
+fmp_state_transaction|execute_direct
+fmp_state_transaction|execute_reclaim
+fmp_state_transaction|verify_media
+fmp_state_transaction|payload_mm_authvar_store_scan
 payload_mm_authvar_media_begin|begin
 begin|intel_smm_spi_window_begin
 begin|intel_smm_spi_window_prove
 end|intel_smm_spi_window_end
-EOF
-if graph_run -v omit_initialize_root=1 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: omitted FMP initialization root survived' >&2
-	exit 1
-fi
-killed=$((killed + 1))
-while IFS= read -r edge; do
-	if graph_run -v omit_edge="$edge" > /dev/null 2>&1; then
-		printf 'ERROR: omitted initialization edge survived: %s\n' "$edge" >&2
-		exit 1
-	fi
-	killed=$((killed + 1))
-done <<'EOF'
 payload_mm_authvar_fmp_state_initialize|media_begin
 payload_mm_authvar_fmp_state_initialize|recover_session
 payload_mm_authvar_fmp_state_initialize|fmp_mutate
@@ -459,125 +548,147 @@ fmp_mutate|verify_media
 fmp_mutate|snapshot_read
 fmp_mutate|payload_mm_authvar_store_scan
 EOF
-if graph_run -v maximum_limit=4367 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: one-byte-under transaction bound survived' >&2
+if graph_run -v maximum_limit=$((install_maximum - 1)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under boot install bound survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-if graph_run -v total_limit=4879 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: one-byte-under total bound survived' >&2
+if graph_run -v total_limit=$((install_maximum + 511)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under boot install total survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-if graph_run -v initialize_maximum_limit=4511 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: one-byte-under initialization bound survived' >&2
+if graph_run -v read_maximum_limit=$((read_maximum - 1)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under owner READ bound survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-if graph_run -v initialize_total_limit=5023 > /dev/null 2>&1; then
-	printf '%s\n' 'ERROR: one-byte-under initialization total survived' >&2
+if graph_run -v read_total_limit=$((read_maximum + 511)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under owner READ total survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-if graph_run -v combined_total_limit=5023 > /dev/null 2>&1; then
+if graph_run -v cas_maximum_limit=$((cas_maximum - 1)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under owner CAS bound survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+if graph_run -v cas_total_limit=$((cas_maximum + 511)) > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under owner CAS total survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+if graph_run -v combined_total_limit=$((selected_maximum + 511)) > /dev/null 2>&1; then
 	printf '%s\n' 'ERROR: one-byte-under selected total survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-test "$killed" -eq 26
-printf 'FMP rooted stack mutants killed: %u/26\n' "$killed"
+test "$killed" -eq 49
+printf 'FMP rooted stack mutants killed: %u/49\n' "$killed"
 
 hostile_killed=0
 for mutation in \
 	mutate_root_frame \
-	mutate_initialize_root_frame \
+	mutate_read_root_frame \
+	mutate_cas_root_frame \
 	mutate_control_frame \
 	mutate_unknown_indirect \
 	mutate_shifted_indirect \
 	mutate_duplicate_indirect \
-	mutate_deep_direct; do
+	mutate_deep_direct \
+	mutate_adapter_unknown_indirect \
+	mutate_adapter_shifted_indirect \
+	mutate_adapter_duplicate_indirect \
+	mutate_extra_raw_caller; do
 	if graph_run -v "$mutation=1" > /dev/null 2>&1; then
 		printf 'ERROR: hostile stack mutation survived: %s\n' "$mutation" >&2
 		exit 1
 	fi
 	hostile_killed=$((hostile_killed + 1))
 done
-test "$hostile_killed" -eq 7
-printf 'FMP hostile stack mutants killed: %u/7\n' "$hostile_killed"
+test "$hostile_killed" -eq 12
+printf 'FMP hostile stack mutants killed: %u/12\n' "$hostile_killed"
 
 if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 	artifact_killed=0
-	for mutation in missing_fmp_root missing_initialize_root default_off_symbol \
-		ramstage_symbols missing_cms_root ci_only_symbol \
-		ci_only_initialize_symbol manual_initialize_symbol; do
+	for mutation in missing_boot_root independent_raw_root selected_off_config \
+		default_off_symbol ramstage_symbols missing_cms_root \
+		ci_only_composer_symbol manual_composer_symbol manual_raw_symbol \
+		missing_boot_object default_off_object; do
 		mutant="$temporary/artifact-$mutation.sh"
 		awk -v mutation="$mutation" '
 		mutation == "ramstage_symbols" && pending_ramstage_symbols {
 			print
 			if (index($0, "ramstage.debug\" > \"$ramstage_symbols\"")) {
+				print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_boot_install\047 >> \"$ramstage_symbols\""
 				print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_transaction\047 >> \"$ramstage_symbols\""
-				print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$ramstage_symbols\""
-				print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_reservation\047 >> \"$ramstage_symbols\""
 				changed++
 			}
 			pending_ramstage_symbols = 0
 			next
 		}
 		mutation == "ramstage_symbols" &&
-		$0 == "\"$cross_nm\" -g --defined-only \\" {
+		$0 == "\"$cross_nm\" --defined-only \\" {
 			pending_ramstage_symbols = 1
 		}
 		mutation == "default_off_symbol" && pending_default_symbols {
 			print
-			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_transaction\047 >> \"$default_final_symbols\""
-			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$default_final_symbols\""
-			print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_reservation\047 >> \"$default_final_symbols\""
+			print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_boot_install\047 >> \"$default_final_symbols\""
 			pending_default_symbols = 0
 			changed++
 			next
 		}
 		mutation == "default_off_symbol" &&
-		$0 ~ /^"\$cross_nm" -g --defined-only "\$release_build\/smm\/smm.elf"/ {
+		$0 ~ /^"\$cross_nm" --defined-only "\$release_build\/smm\/smm.elf"/ {
 			pending_default_symbols = 1
 		}
-		mutation == "missing_fmp_root" &&
-		/^fmp_roots=/ && index($0, "-u payload_mm_authvar_fmp_state_transaction") {
-			if (gsub(/-u payload_mm_authvar_fmp_state_transaction /, "") != 1)
+		mutation == "default_off_object" &&
+		$0 ~ /^"\$cross_nm" --defined-only "\$release_build\/smm\/smm.elf"/ {
+			print "mkdir -p \"$release_build/smm/lib\""
+			print ": > \"$release_build/smm/lib/payload_mm_fmp_owner_authvar_boot.o\""
+			changed++
+		}
+		mutation == "missing_boot_root" &&
+		/^fmp_roots=/ && index($0, "-u payload_mm_fmp_owner_authvar_boot_install") {
+			if (gsub(/-u payload_mm_fmp_owner_authvar_boot_install/, "") != 1)
 				exit 2
 			changed++
 		}
-		mutation == "missing_initialize_root" &&
-		/^fmp_roots=/ && index($0, "-u payload_mm_authvar_fmp_state_initialize") {
-			if (gsub(/-u payload_mm_authvar_fmp_state_initialize /, "") != 1)
-				exit 2
+		mutation == "independent_raw_root" && /^fmp_roots=/ {
+			sub(/\047$/, " -u payload_mm_authvar_fmp_state_transaction\047")
 			changed++
 		}
-		mutation == "ramstage_objects" &&
-		$0 == "for object in payload_mm_authvar_executor payload_mm_fmp_owner_authvar; do" {
-			print "mkdir -p \"$selected_build/ramstage/lib\""
-			print ": > \"$selected_build/ramstage/lib/payload_mm_authvar_executor.o\""
-			print ": > \"$selected_build/ramstage/lib/payload_mm_fmp_owner_authvar.o\""
+		mutation == "selected_off_config" &&
+		$0 == "\tselect PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT" {
+			print "\t# PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT deliberately omitted"
 			changed++
+			next
 		}
 		mutation == "missing_cms_root" && /^wrapper_root=/ {
 			$0 = "wrapper_root=\047\047"
 			changed++
 		}
-		mutation == "ci_only_symbol" &&
+		mutation == "ci_only_composer_symbol" &&
 		$0 == "# Selection must place the concrete implementations in the MTL SMM link input," {
-			print "grep -v \047 payload_mm_authvar_fmp_state_transaction$\047 \"$final_symbols\" > \"$temporary/final-without-fmp\""
-			print "mv \"$temporary/final-without-fmp\" \"$final_symbols\""
+			print "grep -v \047 payload_mm_fmp_owner_authvar_boot_install$\047 \"$final_symbols\" > \"$temporary/final-without-composer\""
+			print "mv \"$temporary/final-without-composer\" \"$final_symbols\""
 			changed++
 		}
-		mutation == "ci_only_initialize_symbol" &&
-		$0 == "# Selection must place the concrete implementations in the MTL SMM link input," {
-			print "grep -v \047 payload_mm_authvar_fmp_state_initialize$\047 \"$final_symbols\" > \"$temporary/final-without-fmp-init\""
-			print "mv \"$temporary/final-without-fmp-init\" \"$final_symbols\""
-			changed++
+		$0 == "for object in payload_mm_authvar_executor payload_mm_fmp_owner \\" {
+			object_loop++
+			if (mutation == "missing_boot_object" && object_loop == 2) {
+				print "rm -f \"$selected_build/smm/lib/payload_mm_fmp_owner_authvar_boot.o\""
+				changed++
+			}
 		}
-		mutation == "manual_initialize_symbol" &&
+		mutation == "manual_composer_symbol" &&
 		$0 == "# Forced dormant measurement roots belong only to smm.elf. The production-like" {
-			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$manual_symbols\""
+			print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_boot_install\047 >> \"$manual_symbols\""
+			changed++
+		}
+		mutation == "manual_raw_symbol" &&
+		$0 == "# Forced dormant measurement roots belong only to smm.elf. The production-like" {
+			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_transaction\047 >> \"$manual_symbols\""
 			changed++
 		}
 		{ print }
@@ -600,8 +711,8 @@ if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 		fi
 		artifact_killed=$((artifact_killed + 1))
 	done
-	test "$artifact_killed" -eq 8
-	printf 'FMP selected-artifact mutants killed: %u/8\n' "$artifact_killed"
+	test "$artifact_killed" -eq 11
+	printf 'FMP selected-artifact mutants killed: %u/11\n' "$artifact_killed"
 fi
 
 printf '%s\n' \

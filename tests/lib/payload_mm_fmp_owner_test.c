@@ -25,7 +25,14 @@ struct store {
 	bool mutate_commit_identity;
 	bool mutate_commit_records;
 	bool mutate_read_identity;
+	bool mutate_context;
+	bool corrupt_backend;
+	bool corrupt_control;
+	bool mutate_commit_context;
+	bool corrupt_commit_backend;
+	bool corrupt_commit_control;
 	bool reenter;
+	bool reenter_read;
 	unsigned int reads;
 	unsigned int commits;
 };
@@ -40,6 +47,7 @@ static size_t trace_size;
 static bool protect_ok = true;
 static struct backend_context *mutate_source;
 static bool mutate_authority;
+static bool protect_reenter;
 static bool installing_owner;
 static const void *owner_storage;
 static size_t owner_storage_size;
@@ -97,6 +105,12 @@ static enum cb_err read_record(const void *opaque,
 	store = context->store;
 	mark('R');
 	store->reads++;
+	if (store->reenter_read) {
+		struct payload_mm_fmp_owner_record before = *reentry_output;
+
+		assert(payload_mm_fmp_owner_read(key, reentry_output) == CB_ERR);
+		assert(!memcmp(reentry_output, &before, sizeof(before)));
+	}
 	if (store->read_fails || (store->readback_fails && store->commits))
 		return CB_ERR;
 	if (store->reenter && store->commits && store->reads == 1) {
@@ -107,6 +121,12 @@ static enum cb_err read_record(const void *opaque,
 	*record = store->record[key];
 	if (store->mutate_read_identity)
 		((struct payload_mm_fmp_state_identity *)identity)->hardware_instance++;
+	if (store->mutate_context)
+		((struct backend_context *)context)->route++;
+	if (store->corrupt_backend)
+		payload_mm_fmp_owner_test_corrupt_backend(false);
+	if (store->corrupt_control)
+		payload_mm_fmp_owner_test_corrupt_control(false);
 	return CB_SUCCESS;
 }
 
@@ -140,6 +160,12 @@ static enum cb_err commit_record(const void *opaque,
 		assert(payload_mm_fmp_owner_commit_state(reentry_current,
 							 reentry_candidate) == CB_ERR);
 	}
+	if (store->mutate_commit_context)
+		((struct backend_context *)context)->route++;
+	if (store->corrupt_commit_backend)
+		payload_mm_fmp_owner_test_corrupt_backend(false);
+	if (store->corrupt_commit_control)
+		payload_mm_fmp_owner_test_corrupt_control(false);
 	return store->commit_fails ? CB_ERR : CB_SUCCESS;
 }
 
@@ -156,6 +182,12 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 		mutate_source->route = 0;
 	if (mutate_authority && size > PAYLOAD_MM_FMP_OWNER_CONTEXT_SIZE)
 		memset((void *)storage, 0xa5, size);
+	if (protect_reenter && installing_owner) {
+		struct payload_mm_fmp_owner_record before = *reentry_output;
+
+		assert(payload_mm_fmp_owner_read(0, reentry_output) == CB_ERR);
+		assert(!memcmp(reentry_output, &before, sizeof(before)));
+	}
 	return protect_ok;
 }
 
@@ -245,6 +277,21 @@ static void install(struct backend_context *context)
 		CB_SUCCESS);
 	installing_owner = false;
 	assert(owner_storage != NULL);
+	trace_size = 0;
+}
+
+static enum cb_err install_checked(struct backend_context *context,
+	const struct payload_mm_fmp_owner_record *initial)
+{
+	struct payload_mm_fmp_owner_backend port = backend(context);
+	enum cb_err result;
+
+	install_parent_authority();
+	installing_owner = true;
+	result = payload_mm_fmp_owner_install_checked(&port, protected_storage,
+		NULL, PAYLOAD_MM_FMP_STATE_KEY_STATE, initial);
+	installing_owner = false;
+	return result;
 }
 
 static void expect_trace(const char *expected)
@@ -319,12 +366,109 @@ static void run_case(const char *name)
 		run_install_case(name, &context);
 		return;
 	}
+	if (!strcmp(name, "ready-before-install")) {
+		assert(!payload_mm_fmp_owner_ready());
+		install(&context);
+		assert(payload_mm_fmp_owner_ready());
+		return;
+	}
+	if (!strncmp(name, "seed-", 5)) {
+		struct payload_mm_fmp_owner_record initial = store.record[0];
+
+		reentry_output = output;
+		memset(output, 0x5a, sizeof(*output));
+		if (!strcmp(name, "seed-null")) {
+			assert(install_checked(&context, NULL) == CB_ERR);
+			assert(!payload_mm_fmp_owner_ready());
+			assert(payload_mm_fmp_owner_install_checked(NULL, NULL, NULL,
+				0U, NULL) == CB_ERR);
+			expect_trace("");
+			return;
+		} else if (!strcmp(name, "seed-mismatch"))
+			initial.data[4]++;
+		else if (!strcmp(name, "seed-identity-mutation"))
+			store.mutate_read_identity = true;
+		else if (!strcmp(name, "seed-context-mutation"))
+			store.mutate_context = true;
+		else if (!strcmp(name, "seed-backend-mutation"))
+			store.corrupt_backend = true;
+		else if (!strcmp(name, "seed-control-mutation"))
+			store.corrupt_control = true;
+		else if (!strcmp(name, "seed-protect-reentry"))
+			protect_reenter = true;
+		else if (!strcmp(name, "seed-read-reentry"))
+			store.reenter_read = true;
+		if (!strcmp(name, "seed-success") ||
+		    !strcmp(name, "seed-read-reentry")) {
+			assert(install_checked(&context, &initial) == CB_SUCCESS);
+			assert(payload_mm_fmp_owner_ready());
+			assert(payload_mm_fmp_owner_install_checked(NULL, NULL, NULL,
+				0U, NULL) == CB_ERR);
+			expect_trace("R");
+		} else {
+			assert(install_checked(&context, &initial) == CB_ERR);
+			assert(!payload_mm_fmp_owner_ready());
+			assert(payload_mm_fmp_owner_install_checked(NULL, NULL, NULL,
+				0U, NULL) == CB_ERR);
+			expect_trace(!strcmp(name, "seed-protect-reentry") ? "" : "R");
+		}
+		return;
+	}
+	if (!strcmp(name, "authority-mutation")) {
+		struct payload_mm_fmp_owner_backend port = backend(&context);
+
+		install_parent_authority();
+		mutate_authority = true;
+		assert(payload_mm_fmp_owner_install(&port, protected_storage, NULL) ==
+			CB_ERR);
+		assert(!payload_mm_fmp_owner_ready());
+		return;
+	}
 	if (!strcmp(name, "source-mutation"))
 		mutate_source = &context;
-	if (!strcmp(name, "authority-mutation"))
-		mutate_authority = true;
 	install(&context);
 	context.route = 0;
+	if (!strcmp(name, "identity-source-closure")) {
+		struct payload_mm_fmp_state_message *message = (void *)(smram + 2048);
+		struct payload_mm_fmp_state_command *command = (void *)(smram + 2560);
+
+		*message = (struct payload_mm_fmp_state_message) {
+			.revision = PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION,
+			.size = sizeof(*message),
+			.operation = PAYLOAD_MM_FMP_STATE_CLOSE_STATE,
+			.key = PAYLOAD_MM_FMP_STATE_KEY_NONE,
+			.transaction = 1U,
+			.result = PAYLOAD_MM_FMP_STATE_RESULT_PENDING,
+		};
+		assert(payload_mm_fmp_state_command_prepare(message, sizeof(*message),
+			NULL, 0, command) == CB_SUCCESS);
+		assert(!payload_mm_fmp_state_authority_ready());
+		assert(payload_mm_fmp_owner_read(0, output) == CB_SUCCESS);
+		expect_trace("R");
+		return;
+	}
+	if (!strncmp(name, "sealed-", 7)) {
+		memset(output, 0x5a, sizeof(*output));
+		if (!strcmp(name, "sealed-backend-active"))
+			payload_mm_fmp_owner_test_corrupt_backend(false);
+		else if (!strcmp(name, "sealed-backend-copy"))
+			payload_mm_fmp_owner_test_corrupt_backend(true);
+		else if (!strcmp(name, "sealed-control-active"))
+			payload_mm_fmp_owner_test_corrupt_control(false);
+		else if (!strcmp(name, "sealed-control-copy"))
+			payload_mm_fmp_owner_test_corrupt_control(true);
+		else if (!strcmp(name, "sealed-identity-active"))
+			payload_mm_fmp_owner_test_corrupt_identity(false);
+		else
+			payload_mm_fmp_owner_test_corrupt_identity(true);
+		struct payload_mm_fmp_owner_record before = *output;
+
+		assert(payload_mm_fmp_owner_read(0, output) == CB_ERR);
+		assert(!memcmp(output, &before, sizeof(before)));
+		assert(payload_mm_fmp_owner_read(0, output) == CB_ERR);
+		expect_trace("");
+		return;
+	}
 	if (!strcmp(name, "authority-ranges")) {
 		const uint8_t *base = owner_storage;
 		const size_t size = 3 * sizeof(struct payload_mm_fmp_owner_record);
@@ -341,6 +485,7 @@ static void run_case(const char *name)
 			base + owner_storage_size, size));
 		return;
 	}
+	reentry_output = output;
 	if (!strcmp(name, "read-failure"))
 		store.read_fails = true;
 	else if (!strcmp(name, "bad-sequence"))
@@ -389,11 +534,44 @@ static void run_case(const char *name)
 		store.mutate_read_identity = true;
 	else if (!strcmp(name, "reentry"))
 		store.reenter = true;
+	else if (!strcmp(name, "read-reentry"))
+		store.reenter_read = true;
+	else if (!strcmp(name, "read-context-mutation"))
+		store.mutate_context = true;
+	else if (!strcmp(name, "read-backend-mutation"))
+		store.corrupt_backend = true;
+	else if (!strcmp(name, "read-control-mutation"))
+		store.corrupt_control = true;
+	else if (!strcmp(name, "commit-context-mutation"))
+		store.mutate_commit_context = true;
+	else if (!strcmp(name, "commit-backend-mutation"))
+		store.corrupt_commit_backend = true;
+	else if (!strcmp(name, "commit-control-mutation"))
+		store.corrupt_commit_control = true;
 
-	if (!strcmp(name, "read") || !strcmp(name, "source-mutation") ||
-	    !strcmp(name, "authority-mutation")) {
+	if (!strcmp(name, "read") || !strcmp(name, "source-mutation")) {
 		assert(payload_mm_fmp_owner_read(0, output) == CB_SUCCESS);
 		assert(!memcmp(output, &store.record[0], sizeof(*output)));
+		expect_trace("R");
+		return;
+	}
+	if (!strcmp(name, "read-reentry")) {
+		memset(output, 0x5a, sizeof(*output));
+		assert(payload_mm_fmp_owner_read(0, output) == CB_SUCCESS);
+		assert(!memcmp(output, &store.record[0], sizeof(*output)));
+		expect_trace("R");
+		return;
+	}
+	if (!strcmp(name, "read-context-mutation") ||
+	    !strcmp(name, "read-backend-mutation") ||
+	    !strcmp(name, "read-control-mutation")) {
+		struct payload_mm_fmp_owner_record before;
+
+		memset(output, 0x5a, sizeof(*output));
+		before = *output;
+		assert(payload_mm_fmp_owner_read(0, output) == CB_ERR);
+		assert(!memcmp(output, &before, sizeof(before)));
+		assert(payload_mm_fmp_owner_read(0, output) == CB_ERR);
 		expect_trace("R");
 		return;
 	}
@@ -449,7 +627,12 @@ static void run_case(const char *name)
 		return;
 	}
 	if (!strcmp(name, "read-failure") || !strncmp(name, "bad-", 4)) {
+		struct payload_mm_fmp_owner_record before;
+
+		memset(output, 0x5a, sizeof(*output));
+		before = *output;
 		assert(payload_mm_fmp_owner_read(0, output) == CB_ERR);
+		assert(!memcmp(output, &before, sizeof(before)));
 		expect_trace("R");
 		return;
 	}
@@ -462,6 +645,8 @@ static void run_case(const char *name)
 	reentry_current = current;
 	reentry_candidate = candidate;
 	reentry_output = output;
+	if (!strcmp(name, "sequence-only"))
+		memcpy(candidate->data, current->data, sizeof(candidate->data));
 	if (!strcmp(name, "state-regression"))
 		candidate->data[1] = 0;
 	else if (!strcmp(name, "lsv-regression"))
@@ -533,12 +718,21 @@ static void run_case(const char *name)
 	}
 
 	if (!strcmp(name, "success") ||
+	    !strcmp(name, "sequence-only") ||
 	    !strcmp(name, "commit-error-candidate") ||
 	    !strcmp(name, "reentry")) {
 		assert(payload_mm_fmp_owner_commit_state(current, candidate) ==
 			CB_SUCCESS);
 		expect_trace("CR");
 		assert(store.record[0].sequence == 8);
+		return;
+	}
+	if (!strcmp(name, "commit-context-mutation") ||
+	    !strcmp(name, "commit-backend-mutation") ||
+	    !strcmp(name, "commit-control-mutation")) {
+		assert(payload_mm_fmp_owner_commit_state(current, candidate) == CB_ERR);
+		assert(payload_mm_fmp_owner_commit_state(current, candidate) == CB_ERR);
+		expect_trace("C");
 		return;
 	}
 	assert(payload_mm_fmp_owner_commit_state(current, candidate) == CB_ERR);
