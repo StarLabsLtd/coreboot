@@ -8,20 +8,35 @@
 extern const void *payload_mm_fmp_test_owner_storage;
 extern size_t payload_mm_fmp_test_owner_storage_size;
 static uint8_t authvar_owner_storage[256] __aligned(8);
+extern uint64_t payload_mm_fmp_test_hardware_instance;
 
 enum cb_err payload_mm_fmp_owner_authvar_identity(uint32_t key,
 	struct payload_mm_fmp_state_identity *identity)
 {
-	static const uint16_t name[] = {
-		'F', 'm', 'p', 'S', 't', 'a', 't', 'e', 0,
+	static const char *const names[] = {
+		"FmpState", "FmpVersion", "FmpLsv", "LastAttemptStatus",
+		"LastAttemptVersion",
 	};
+	static const char hex[] = "0123456789ABCDEF";
+	size_t length;
 
-	if (key != PAYLOAD_MM_FMP_STATE_KEY_STATE || !identity)
+	if (key >= ARRAY_SIZE(names) || !identity)
 		return CB_ERR;
 	memset(identity, 0, sizeof(*identity));
 	identity->namespace_guid.b[0] = 1;
-	identity->variable_name_bytes = sizeof(name);
-	memcpy(identity->variable_name, name, sizeof(name));
+	identity->hardware_instance = payload_mm_fmp_test_hardware_instance;
+	length = strlen(names[key]);
+	for (size_t i = 0; i < length; i++)
+		identity->variable_name[i] = (uint8_t)names[key][i];
+	if (identity->hardware_instance)
+		for (size_t i = 0; i < 16U; i++) {
+			unsigned int shift = (unsigned int)(15U - i) * 4U;
+
+			identity->variable_name[length + i] = (uint8_t)
+				hex[(identity->hardware_instance >> shift) & 0xfU];
+		}
+	length += identity->hardware_instance ? 16U : 0U;
+	identity->variable_name_bytes = (length + 1U) * sizeof(uint16_t);
 	return CB_SUCCESS;
 }
 
@@ -52,7 +67,9 @@ payload_mm_fmp_owner_authvar_reservation(const uint8_t vendor_guid[16],
 	return PAYLOAD_MM_FMP_OWNER_AUTHVAR_NOT_RESERVED;
 }
 
+#ifndef EXECUTOR_REAL_MEDIA
 bool payload_mm_authvar_authority_ready(void)
 {
 	return true;
 }
+#endif
