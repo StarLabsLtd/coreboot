@@ -221,6 +221,16 @@ config PAYLOAD_MM_FMP_OWNER_AUTHVAR
 	  install an owner, select a platform or endpoint, or provide a rollback
 	  anchor.
 
+config PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT
+	bool
+	default n
+	depends on PAYLOAD_MM_FMP_OWNER_AUTHVAR
+	help
+	  Build the dormant SMM-only boot-local FMP owner composition. It first
+	  reconciles the authenticated-variable FMP state, then installs the owner
+	  with a protected boot-local epoch. This publishes no endpoint, platform
+	  selection, persistent sequence or rollback-protection claim.
+
 config PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
 	bool
 	default n
