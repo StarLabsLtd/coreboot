@@ -79,12 +79,16 @@ static bool ranges_overlap(const void *left, size_t left_size,
 {
 	uintptr_t left_base = (uintptr_t)left;
 	uintptr_t right_base = (uintptr_t)right;
+	uintptr_t left_last;
+	uintptr_t right_last;
 
-	if (!left_size || !right_size || left_base > UINTPTR_MAX - left_size ||
-	    right_base > UINTPTR_MAX - right_size)
+	if (!left || !right || !left_size || !right_size ||
+	    left_base > UINTPTR_MAX - (left_size - 1U) ||
+	    right_base > UINTPTR_MAX - (right_size - 1U))
 		return true;
-	return left_base < right_base + right_size &&
-		right_base < left_base + left_size;
+	left_last = left_base + left_size - 1U;
+	right_last = right_base + right_size - 1U;
+	return left_base <= right_last && right_base <= left_last;
 }
 
 enum cb_err capsule_tpm_anchor_grant_install(
