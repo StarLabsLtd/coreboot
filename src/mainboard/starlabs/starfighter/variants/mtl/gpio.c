@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <bootstate.h>
+#include <console/console.h>
+#include <security/vboot/vboot_common.h>
 #include <variants.h>
 #include <common/nvme_seq.h>
 
@@ -316,3 +319,15 @@ const struct pad_config *variant_gpio_table(size_t *num)
 	*num = ARRAY_SIZE(gpio_table);
 	return gpio_table;
 }
+
+static void verify_debug_pad_locks(void *unused)
+{
+	if (!CONFIG(NO_DEBUG_EGRESS) || vboot_recovery_mode_enabled())
+		return;
+
+	if (gpio_lock_pad(GPP_H08, GPIO_LOCK_CONFIG) ||
+	    gpio_lock_pad(GPP_H09, GPIO_LOCK_CONFIG))
+		die("Failed to lock debug UART pads\n");
+}
+
+BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_EXIT, verify_debug_pad_locks, NULL);
