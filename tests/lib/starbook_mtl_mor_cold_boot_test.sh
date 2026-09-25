@@ -79,7 +79,7 @@ mutant()
 }
 
 mutant s3-authority \
-	's/saved.primary.boot_kind != STARBOOK_MTL_MOR_BOOT_COLD/false/' s3
+	's/if (boot_kind != STARBOOK_MTL_MOR_BOOT_COLD)/if (false)/' s3
 mutant mirror-seal \
 	's/memcmp(&saved.primary, &saved.mirror, sizeof(saved.primary))/false/' \
 	corrupt-mirror
@@ -149,6 +149,6 @@ test "$vtd_line" -lt "$publish_line"
 test "$(grep -R -E -n --include='*.c' --include='*.h' \
 	'starbook_mtl_mor_cold_ramstage_consume\(' "$root/src" | wc -l)" -eq 3
 test "$(grep -R -E -n --include='*.c' --include='*.h' \
-	'starbook_mtl_mor_cold_ramstage_consume_snapshot\(' "$root/src" | wc -l)" -eq 3
+	'starbook_mtl_mor_cold_ramstage_consume_snapshot\(' "$root/src" | wc -l)" -eq 2
 
 printf '%s\n' 'StarBook MTL MOR cold-boot tests: PASS'

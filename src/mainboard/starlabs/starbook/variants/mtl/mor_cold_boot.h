@@ -58,10 +58,17 @@ enum cb_err starbook_mtl_mor_cold_consume(
 	struct starbook_mtl_mor_cold_record *record, uintptr_t entry_base,
 	size_t entry_size, const struct starbook_mtl_mor_cold_ops *ops,
 	uint64_t *generation);
+enum cb_err starbook_mtl_mor_cold_consume_classified(
+	struct starbook_mtl_mor_cold_record *record, uintptr_t entry_base,
+	size_t entry_size, const struct starbook_mtl_mor_cold_ops *ops,
+	uint32_t *boot_kind, uint64_t *generation);
 void mainboard_mor_cold_capture(int s3wake);
 enum cb_err mainboard_mor_cold_publish(void);
 enum cb_err starbook_mtl_mor_cold_ramstage_consume(uint64_t *generation);
 enum cb_err starbook_mtl_mor_cold_ramstage_consume_snapshot(
 	uint64_t *generation, struct pci_bme_quiesce_snapshot *snapshot);
+enum cb_err starbook_mtl_mor_cold_ramstage_classify(
+	uint32_t *boot_kind, uint64_t *generation,
+	struct pci_bme_quiesce_snapshot *snapshot);
 
 #endif

@@ -23,4 +23,5 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_LIVE_BACKEND) += dma_live_platform.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_DMA_GUARD) += dma_guard.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_DMA_GUARD) += mor_live_inventory.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING) += mor_clear_x86.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_HANDOFF) += dma_live_handoff.c

@@ -143,29 +143,37 @@ enum cb_err starbook_mtl_mor_cold_publish(
 	return CB_SUCCESS;
 }
 
-enum cb_err starbook_mtl_mor_cold_consume(
+enum cb_err starbook_mtl_mor_cold_consume_classified(
 	struct starbook_mtl_mor_cold_record *record, uintptr_t entry_base,
 	size_t entry_size, const struct starbook_mtl_mor_cold_ops *ops,
-	uint64_t *generation)
+	uint32_t *boot_kind, uint64_t *generation)
 {
 	struct starbook_mtl_mor_cold_record saved;
 	struct starbook_mtl_mor_cold_ops operations;
 	uint64_t first_limit;
 	uint64_t final_limit;
 	uint64_t saved_generation = 0;
+	uint32_t saved_boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
 	enum cb_err result = CB_ERR;
 	bool safe_to_wipe = false;
 
 	if (!common_inputs_valid(record, entry_base, entry_size, ops) ||
+	    !object_valid(boot_kind, sizeof(*boot_kind), _Alignof(*boot_kind)) ||
 	    !object_valid(generation, sizeof(*generation), _Alignof(*generation)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), generation,
+		 sizeof(*generation)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), record, sizeof(*record)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), ops, sizeof(*ops)) ||
 	    objects_overlap(record, sizeof(*record), ops, sizeof(*ops)) ||
 	    objects_overlap(generation, sizeof(*generation), record, sizeof(*record)) ||
 	    objects_overlap(generation, sizeof(*generation), ops, sizeof(*ops)) ||
 	    object_contains(record, sizeof(*record), ops->context) ||
 	    object_contains(ops, sizeof(*ops), ops->context) ||
+	    object_contains(boot_kind, sizeof(*boot_kind), ops->context) ||
 	    object_contains(generation, sizeof(*generation), ops->context) ||
 	    !ops->protected_limit || !ops->quiesce)
 		return CB_ERR_ARG;
+	*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
 	*generation = 0;
 	memcpy(&operations, ops, sizeof(operations));
 	if (operations.protected_limit(operations.context, &first_limit) != CB_SUCCESS ||
@@ -181,18 +189,39 @@ enum cb_err starbook_mtl_mor_cold_consume(
 	if (memcmp(&saved, record, sizeof(saved)) ||
 	    memcmp(&operations, ops, sizeof(operations)) ||
 	    !payload_valid(&saved.primary) ||
-	    memcmp(&saved.primary, &saved.mirror, sizeof(saved.primary)) ||
-	    saved.primary.boot_kind != STARBOOK_MTL_MOR_BOOT_COLD)
+	    memcmp(&saved.primary, &saved.mirror, sizeof(saved.primary)))
 		goto out;
 	saved_generation = saved.primary.generation;
+	saved_boot_kind = saved.primary.boot_kind;
 	result = CB_SUCCESS;
 out:
 	memset(&saved, 0, sizeof(saved));
 	if (safe_to_wipe)
 		memset(record, 0, sizeof(*record));
-	if (result == CB_SUCCESS)
+	if (result == CB_SUCCESS) {
+		*boot_kind = saved_boot_kind;
 		*generation = saved_generation;
+	}
 	return result;
+}
+
+enum cb_err starbook_mtl_mor_cold_consume(
+	struct starbook_mtl_mor_cold_record *record, uintptr_t entry_base,
+	size_t entry_size, const struct starbook_mtl_mor_cold_ops *ops,
+	uint64_t *generation)
+{
+	uint32_t boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
+	enum cb_err status;
+
+	status = starbook_mtl_mor_cold_consume_classified(record, entry_base,
+		entry_size, ops, &boot_kind, generation);
+	if (status != CB_SUCCESS)
+		return status;
+	if (boot_kind != STARBOOK_MTL_MOR_BOOT_COLD) {
+		*generation = 0;
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
 }
 
 #if ENV_SEPARATE_ROMSTAGE || ENV_RAMSTAGE
@@ -329,6 +358,43 @@ enum cb_err starbook_mtl_mor_cold_ramstage_consume_snapshot(
 	if (starbook_mtl_mor_cold_ramstage_consume(generation) != CB_SUCCESS ||
 	    pci_snapshot.failed || !pci_snapshot.count ||
 	    pci_snapshot.count > PCI_BME_QUIESCE_MAX_FUNCTIONS) {
+		*generation = 0;
+		return CB_ERR;
+	}
+	memcpy(snapshot, &pci_snapshot, sizeof(*snapshot));
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_mor_cold_ramstage_classify(
+	uint32_t *boot_kind, uint64_t *generation,
+	struct pci_bme_quiesce_snapshot *snapshot)
+{
+	struct starbook_mtl_mor_cold_record *record;
+	const struct cbmem_entry *entry;
+
+	if (!object_valid(boot_kind, sizeof(*boot_kind), _Alignof(*boot_kind)) ||
+	    !object_valid(generation, sizeof(*generation), _Alignof(*generation)) ||
+	    !object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), generation,
+		 sizeof(*generation)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), snapshot,
+		 sizeof(*snapshot)) ||
+	    objects_overlap(generation, sizeof(*generation), snapshot,
+		 sizeof(*snapshot)))
+		return CB_ERR_ARG;
+	*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
+	*generation = 0;
+	memset(snapshot, 0, sizeof(*snapshot));
+	entry = cbmem_entry_find(CBMEM_ID_MTL_MOR_COLD);
+	record = cbmem_find(CBMEM_ID_MTL_MOR_COLD);
+	if (!entry || !record || cbmem_entry_start(entry) != record ||
+	    cbmem_entry_size(entry) != sizeof(*record) ||
+	    starbook_mtl_mor_cold_consume_classified(record,
+		(uintptr_t)cbmem_entry_start(entry), cbmem_entry_size(entry),
+		&ramstage_ops, boot_kind, generation) != CB_SUCCESS ||
+	    pci_snapshot.failed || !pci_snapshot.count ||
+	    pci_snapshot.count > PCI_BME_QUIESCE_MAX_FUNCTIONS) {
+		*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
 		*generation = 0;
 		return CB_ERR;
 	}

@@ -277,6 +277,20 @@ config STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD
 	  match the later enumerated model exactly. This adds no MOR endpoint or
 	  platform-support claim.
 
+config STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
+	depends on ENABLE_EARLY_DMA_PROTECTION
+	depends on PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR
+	depends on PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	depends on STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
+	help
+	  Build the dormant StarBook MTL provider for the linear MOR coordinator.
+	  A separately reviewed private SMI boundary must provide the protected
+	  arena and transport-page receipts, SMM bootstrap, chipset SPI-write proof,
+	  and terminal completion/close operations. No board selects this option.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER
