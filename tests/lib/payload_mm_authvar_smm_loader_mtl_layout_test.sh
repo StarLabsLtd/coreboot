@@ -83,7 +83,7 @@ stub_size=$1
 stub_alignment=$2
 
 # Force review when the linked production inputs to the exact layout drift.
-test "$handler_size" = 0x0ed88
+test "$handler_size" = 0x0ee48
 test "$handler_alignment" = 0x20
 test "$stub_size" = 0x001c0
 test "$stub_alignment" = 0x4

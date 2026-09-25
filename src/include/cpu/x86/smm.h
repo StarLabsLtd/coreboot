@@ -12,6 +12,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 #include <boot/payload_mm_authvar_smm_loader.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+#include <boot/payload_mm_authvar_mor_private_smi.h>
+#endif
 
 #define SMM_DEFAULT_BASE 0x30000
 #define SMM_DEFAULT_SIZE 0x10000
@@ -124,7 +127,17 @@ struct smm_runtime {
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 	struct payload_mm_authvar_smm_arena_slot authvar_arena;
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	struct payload_mm_authvar_mor_private_smi_slot authvar_mor_channel
+		__aligned(8);
+#endif
 } __packed;
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+_Static_assert(offsetof(struct smm_runtime, authvar_mor_channel) %
+	_Alignof(struct payload_mm_authvar_mor_private_smi_slot) == 0,
+	"MOR private SMI slot is not aligned in SMM parameters");
+#endif
 
 struct smm_module_params {
 	size_t cpu;
@@ -164,6 +177,10 @@ asmlinkage void smm_handler_start(void *params);
 /* Retrieve SMM save state for a given CPU. WARNING: This does not take into
  * account CPUs which are configured to not save their state to RAM. */
 void *smm_get_save_state(int cpu);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+struct payload_mm_authvar_mor_private_smi_slot *
+	smm_get_payload_mm_authvar_mor_private_smi_slot(void);
+#endif
 
 /* Returns true if the region overlaps with the SMM */
 bool smm_region_overlaps_handler(const struct region *r);

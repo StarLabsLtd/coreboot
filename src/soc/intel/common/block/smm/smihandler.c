@@ -634,6 +634,12 @@ static int em64t100_get_reg(const enum cpu_reg reg, const int node, void *out, c
 	case RDX:
 		value = state->rdx;
 		break;
+	case RSI:
+		value = state->rsi;
+		break;
+	case RDI:
+		value = state->rdi;
+		break;
 	default:
 		return -1;
 	}
@@ -669,6 +675,12 @@ static int em64t100_set_reg(const enum cpu_reg reg, const int node, void *in, co
 		break;
 	case RDX:
 		state->rdx = value;
+		break;
+	case RSI:
+		state->rsi = value;
+		break;
+	case RDI:
+		state->rdi = value;
 		break;
 	default:
 		return -1;
@@ -739,6 +751,12 @@ static int em64t101_get_reg(const enum cpu_reg reg, const int node, void *out, c
 	case RDX:
 		value = state->rdx;
 		break;
+	case RSI:
+		value = state->rsi;
+		break;
+	case RDI:
+		value = state->rdi;
+		break;
 	default:
 		return -1;
 	}
@@ -774,6 +792,12 @@ static int em64t101_set_reg(const enum cpu_reg reg, const int node, void *in, co
 		break;
 	case RDX:
 		state->rdx = value;
+		break;
+	case RSI:
+		state->rsi = value;
+		break;
+	case RDI:
+		state->rdi = value;
 		break;
 	default:
 		return -1;

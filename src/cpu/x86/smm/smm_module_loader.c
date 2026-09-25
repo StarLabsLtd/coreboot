@@ -19,6 +19,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 #include <boot/payload_mm_authvar_smm_loader.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+#include <boot/payload_mm_authvar_mor_private_smi.h>
+#endif
 #include <boot/capsule_broker.h>
 #include <boot/capsule_broker_buffers.h>
 
@@ -686,6 +689,17 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	__atomic_store_n(&smihandler_params->authvar_arena.state,
 		PAYLOAD_MM_AUTHVAR_SMM_ARENA_READY, __ATOMIC_RELEASE);
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	memset(&smihandler_params->authvar_mor_channel, 0,
+		sizeof(smihandler_params->authvar_mor_channel));
+#endif
 
-	return smm_module_setup_stub(stub_segment_base, smram_size, params);
+	if (smm_module_setup_stub(stub_segment_base, smram_size, params))
+		return -1;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	if (payload_mm_authvar_mor_private_smi_loader_provision(
+		&smihandler_params->authvar_mor_channel) != CB_SUCCESS)
+		return -1;
+#endif
+	return 0;
 }

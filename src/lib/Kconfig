@@ -230,6 +230,20 @@ config PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
 	  across every installation callback.
 	  This publishes no endpoint and does not enable legacy raw SMMSTORE.
 
+config PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI
+	bool
+	default n
+	depends on X86
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	depends on PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	depends on PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
+	help
+	  Build the dormant, one-shot ramstage-to-SMM MOR completion channel.
+	  A platform must register its private page before bootmem initialization,
+	  provision fresh cold-boot secrets during permanent SMM loading, install
+	  the authenticated-variable bootstrap, and invoke the sender before the
+	  payload. This adds no APM, SMMSTORE or operating-system endpoint.
+
 config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY
 	bool
 	default n

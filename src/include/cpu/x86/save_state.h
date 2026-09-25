@@ -9,7 +9,9 @@ enum cpu_reg {
 	RAX,
 	RBX,
 	RCX,
-	RDX
+	RDX,
+	RSI,
+	RDI
 };
 
 #define SMM_REV_INVALID 0xffffffff
@@ -27,7 +29,7 @@ struct smm_save_state_ops {
 /* Return -1 on failure, otherwise returns which CPU node issued an APMC IO write */
 int get_apmc_node(u8 cmd);
 /* Return -1 on failure, 0 on success.
-   Accessors for the SMM save state CPU registers RAX, RBX, RCX and RDX */
+   Accessors for the SMM save state general-purpose registers above. */
 int get_save_state_reg(const enum cpu_reg reg, const int node, void *out, const uint8_t length);
 int set_save_state_reg(const enum cpu_reg reg, const int node, void *in, const uint8_t length);
 
