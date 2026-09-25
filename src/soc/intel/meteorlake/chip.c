@@ -5,6 +5,7 @@
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <halt.h>
 #include <intelblocks/acpi.h>
 #include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
@@ -180,8 +181,9 @@ void soc_init_pre_device(void *chip_info)
 		soc_enable_tracehub();
 
 	/* Nothing may regain DMA authority between this guard and FSP-S. */
-	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD))
-		(void)mainboard_mor_early_dma_prepare();
+	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD) &&
+	    mainboard_mor_early_dma_prepare() != CB_SUCCESS)
+		die("MTL MOR early DMA guard failed\n");
 
 	/* Perform silicon specific init. */
 	fsp_silicon_init();

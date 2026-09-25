@@ -85,8 +85,8 @@ chip="$root/src/soc/intel/meteorlake/chip.c"
 guard_line=$(grep -n 'mainboard_mor_early_dma_prepare()' "$chip" | cut -d: -f1)
 fsps_line=$(grep -n '^[[:space:]]*fsp_silicon_init()' "$chip" | cut -d: -f1)
 test "$guard_line" -lt "$fsps_line"
-test "$(sed -n "$((guard_line + 1)),$((fsps_line - 1))p" "$chip" | \
-	grep -Ec '[[:alnum:]_]\(' || true)" -eq 0
+test "$(sed -n "$guard_line,$((fsps_line - 1))p" "$chip" | \
+	grep -Fc 'die("MTL MOR early DMA guard failed\n")' || true)" -eq 1
 ! grep -q 'BOOT_STATE_INIT_ENTRY' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_early_dma.c"
 

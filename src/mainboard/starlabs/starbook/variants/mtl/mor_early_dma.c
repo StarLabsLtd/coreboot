@@ -180,11 +180,18 @@ CBMEM_CREATION_HOOK(allocate_early_record);
 #endif
 
 #if ENV_RAMSTAGE
+static struct {
+	uint32_t boot_kind;
+	uint32_t ready;
+	uint64_t generation;
+} retained_classification;
+
 enum cb_err mainboard_mor_early_dma_prepare(void)
 {
 	struct starbook_mtl_mor_early_dma_record *record =
 		cbmem_find(CBMEM_ID_MTL_MOR_EARLY_DMA);
 	uint8_t identity[32];
+	uint32_t boot_kind;
 	uint64_t generation = 0;
 	uint64_t limit;
 	const struct cbmem_entry *entry =
@@ -192,8 +199,18 @@ enum cb_err mainboard_mor_early_dma_prepare(void)
 
 	if (!entry || !record || cbmem_entry_start(entry) != record ||
 	    cbmem_entry_size(entry) != sizeof(*record) ||
-	    starbook_mtl_mor_cold_ramstage_consume_snapshot(&generation,
-		&record->mirror.pci) != CB_SUCCESS ||
+	    retained_classification.ready ||
+	    starbook_mtl_mor_cold_ramstage_classify(&boot_kind, &generation,
+		&record->mirror.pci) != CB_SUCCESS)
+		return CB_ERR;
+	if (boot_kind == STARBOOK_MTL_MOR_BOOT_S3) {
+		retained_classification.boot_kind = boot_kind;
+		retained_classification.generation = generation;
+		retained_classification.ready = 1U;
+		memset(record, 0, sizeof(*record));
+		return CB_SUCCESS;
+	}
+	if (boot_kind != STARBOOK_MTL_MOR_BOOT_COLD ||
 	    protected_limit(&limit) != CB_SUCCESS ||
 	    (uintptr_t)record >= limit ||
 	    sizeof(*record) > limit - (uintptr_t)record ||
@@ -204,6 +221,39 @@ enum cb_err mainboard_mor_early_dma_prepare(void)
 		&record->primary.pci, identity) != CB_SUCCESS ||
 	    starbook_mtl_dma_guard_seed(generation, identity) != CB_SUCCESS)
 		return CB_ERR;
+	retained_classification.boot_kind = boot_kind;
+	retained_classification.generation = generation;
+	retained_classification.ready = 1U;
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_mor_early_dma_classify(uint32_t *boot_kind,
+	uint64_t *generation, struct starbook_mtl_dma_guard_snapshot *guard)
+{
+	if (!object_valid(boot_kind, sizeof(*boot_kind), _Alignof(*boot_kind)) ||
+	    !object_valid(generation, sizeof(*generation), _Alignof(*generation)) ||
+	    !object_valid(guard, sizeof(*guard), _Alignof(*guard)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), generation,
+		 sizeof(*generation)) ||
+	    objects_overlap(boot_kind, sizeof(*boot_kind), guard, sizeof(*guard)) ||
+	    objects_overlap(generation, sizeof(*generation), guard, sizeof(*guard)))
+		return CB_ERR_ARG;
+	*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
+	*generation = 0;
+	memset(guard, 0, sizeof(*guard));
+	if (retained_classification.ready != 1U ||
+	    (retained_classification.boot_kind != STARBOOK_MTL_MOR_BOOT_COLD &&
+	     retained_classification.boot_kind != STARBOOK_MTL_MOR_BOOT_S3) ||
+	    !retained_classification.generation)
+		return CB_ERR;
+	if (retained_classification.boot_kind == STARBOOK_MTL_MOR_BOOT_COLD &&
+	    (starbook_mtl_dma_guard_prepare(guard) != CB_SUCCESS ||
+	     guard->generation != retained_classification.generation)) {
+		memset(guard, 0, sizeof(*guard));
+		return CB_ERR;
+	}
+	*boot_kind = retained_classification.boot_kind;
+	*generation = retained_classification.generation;
 	return CB_SUCCESS;
 }
 #endif
