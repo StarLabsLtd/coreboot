@@ -15,6 +15,21 @@
 #define PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CAPABILITY_SIZE 32U
 #define PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_IDENTITY 0x4d4f5253UL
 
+static inline uint64_t payload_mm_authvar_mor_private_smi_identity(
+	const uint8_t capability[PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CAPABILITY_SIZE],
+	uint64_t generation)
+{
+	uint64_t identity = generation ^ PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_IDENTITY;
+
+	for (size_t index = 0;
+	     index < PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CAPABILITY_SIZE; index++) {
+		identity = (identity << 7) | (identity >> 57);
+		identity ^= capability[index];
+	}
+	identity &= UINTPTR_MAX;
+	return identity ? identity : PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_IDENTITY;
+}
+
 static inline uint64_t payload_mm_authvar_mor_private_smi_cookie(
 	uint64_t identity, uint64_t page_base, uint64_t generation,
 	uint32_t owner_cpu, uint32_t maximum_cpus)
@@ -94,6 +109,10 @@ void payload_mm_authvar_mor_private_smi_close_unused(void);
 #endif
 
 #if ENV_SMM || ENV_TEST
+/* One private first-use composition, invoked only after receipt verification. */
+enum cb_err platform_payload_mm_authvar_mor_private_smi_bootstrap(
+	struct payload_mm_authvar_mor_private_smi_slot *protected_slot,
+	const struct payload_mm_authvar_mor_seal_channel *seal_channel);
 /* Called by bootstrap after the fixed seal transport has been resolved. */
 enum cb_err payload_mm_authvar_mor_private_smi_channel_install(
 	struct payload_mm_authvar_mor_private_smi_slot *protected_slot,
@@ -119,7 +138,12 @@ void payload_mm_authvar_mor_private_smi_test_set_trigger(
 enum cb_err payload_mm_authvar_mor_private_smi_test_receive(
 	uint64_t identity, uint64_t page_base, uint64_t cookie,
 	unsigned int cpu, uint64_t *status);
+enum cb_err payload_mm_authvar_mor_private_smi_test_bootstrap_receive(
+	struct payload_mm_authvar_mor_private_smi_slot *protected_slot,
+	uint64_t identity, uint64_t page_base, uint64_t cookie,
+	unsigned int cpu, uint64_t *status);
 void payload_mm_authvar_mor_private_smi_test_mutate_policy(void);
+void payload_mm_authvar_mor_private_smi_test_mutate_policy_identity(void);
 #endif
 
 #endif /* BOOT_PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_H */

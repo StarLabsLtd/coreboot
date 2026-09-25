@@ -5,6 +5,7 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <bootmem.h>
 #include <cpu/x86/save_state.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +22,130 @@ static struct payload_mm_authvar_mor_seal_channel channel;
 static const char *test_case;
 static unsigned int control_calls;
 static unsigned int protected_calls;
+static unsigned int bootstrap_calls;
 static bool mutate_during_verify;
+static uintptr_t smi_identity[CONFIG_MAX_CPUS];
+static uintptr_t smi_page_base[CONFIG_MAX_CPUS];
+static uintptr_t smi_cookie[CONFIG_MAX_CPUS];
+static uintptr_t smi_result[CONFIG_MAX_CPUS];
+static pthread_barrier_t claim_barrier;
+static pthread_barrier_t install_enter_barrier;
+static pthread_barrier_t install_done_barrier;
+static pthread_barrier_t abort_claim_barrier;
+static unsigned int terminal_cleanup_calls;
+
+static bool page_is_zero(void);
+
+struct concurrent_receive {
+	struct payload_mm_authvar_mor_private_smi_slot *slot;
+	uint64_t identity;
+	uint64_t cookie;
+	enum cb_err result;
+	uint64_t status;
+};
+
+struct concurrent_dispatch {
+	unsigned int cpu;
+	bool handled;
+	uintptr_t result;
+};
+
+static void *concurrent_bootstrap_receive(void *argument)
+{
+	struct concurrent_receive *call = argument;
+
+	call->status = 99;
+	call->result = payload_mm_authvar_mor_private_smi_test_bootstrap_receive(
+		call->slot, call->identity, (uintptr_t)page, call->cookie, 0,
+		&call->status);
+	return NULL;
+}
+
+static void *concurrent_private_dispatch(void *argument)
+{
+	struct concurrent_dispatch *call = argument;
+
+	if (!strcmp(test_case, "install-dispatch-barrier")) {
+		int status = pthread_barrier_wait(&install_enter_barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+	smi_result[call->cpu] = 99;
+	call->handled = payload_mm_authvar_mor_private_smi_dispatch(call->cpu);
+	call->result = smi_result[call->cpu];
+	if (!strcmp(test_case, "install-dispatch-barrier")) {
+		int status = pthread_barrier_wait(&install_done_barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+	return NULL;
+}
+
+void payload_mm_authvar_mor_private_smi_test_before_claim(void)
+{
+	if (!strcmp(test_case, "installed-barrier") ||
+	    !strcmp(test_case, "abort-dispatch-barrier")) {
+		pthread_barrier_t *barrier = !strcmp(test_case, "installed-barrier") ?
+			&claim_barrier : &abort_claim_barrier;
+		const int status = pthread_barrier_wait(barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+}
+
+void payload_mm_authvar_mor_private_smi_test_during_install(void)
+{
+	if (!strcmp(test_case, "install-dispatch-barrier")) {
+		int status = pthread_barrier_wait(&install_enter_barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+		status = pthread_barrier_wait(&install_done_barrier);
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+}
+
+void payload_mm_authvar_mor_private_smi_test_during_terminal(void)
+{
+	pthread_t thread;
+	struct concurrent_dispatch dispatch = { .cpu = 1 };
+
+	__atomic_add_fetch(&terminal_cleanup_calls, 1, __ATOMIC_RELAXED);
+	if (strcmp(test_case, "terminal-concurrent"))
+		return;
+	assert(!pthread_create(&thread, NULL, concurrent_private_dispatch,
+		&dispatch));
+	assert(!pthread_join(thread, NULL));
+	assert(dispatch.handled &&
+		dispatch.result == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+}
+
+void payload_mm_authvar_mor_private_smi_test_before_abort_claim(void)
+{
+	if (!strcmp(test_case, "abort-dispatch-barrier")) {
+		const int status = pthread_barrier_wait(&abort_claim_barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+}
+
+void payload_mm_authvar_mor_private_smi_test_during_tombstone_publish(
+	uint64_t identity)
+{
+	pthread_t thread;
+	struct concurrent_dispatch dispatch = { .cpu = 1 };
+
+	if (strcmp(test_case, "tombstone-publishing-dispatch"))
+		return;
+	for (unsigned int index = 0; index < CONFIG_MAX_CPUS; index++) {
+		smi_identity[index] = identity;
+		smi_page_base[index] = (uintptr_t)page;
+		smi_cookie[index] = channel.caller_context;
+	}
+	assert(!pthread_create(&thread, NULL, concurrent_private_dispatch,
+		&dispatch));
+	assert(!pthread_join(thread, NULL));
+	assert(!dispatch.handled);
+}
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -127,11 +251,70 @@ static bool grant_protected(void *context, const void *base, size_t size)
 	return base && size;
 }
 
+enum cb_err platform_payload_mm_authvar_mor_private_smi_bootstrap(
+	struct payload_mm_authvar_mor_private_smi_slot *protected_slot,
+	const struct payload_mm_authvar_mor_seal_channel *seal_channel)
+{
+	uint64_t nested_status = 99;
+	pthread_t thread;
+	struct concurrent_receive concurrent = {
+		.slot = protected_slot,
+		.identity = seal_channel->caller,
+		.cookie = seal_channel->caller_context,
+	};
+	struct concurrent_dispatch dispatch = { .cpu = 1 };
+
+	bootstrap_calls++;
+	if (!strcmp(test_case, "bootstrap-failure") ||
+	    !strcmp(test_case, "bootstrap-failure-replay"))
+		return CB_ERR;
+	if (!strcmp(test_case, "bootstrap-reentry"))
+		assert(payload_mm_authvar_mor_private_smi_test_bootstrap_receive(
+			protected_slot, seal_channel->caller, (uintptr_t)page,
+			seal_channel->caller_context, 0, &nested_status) == CB_ERR &&
+			nested_status == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	if (!strcmp(test_case, "bootstrap-concurrent")) {
+		assert(!pthread_create(&thread, NULL, concurrent_bootstrap_receive,
+			&concurrent));
+		assert(!pthread_join(thread, NULL));
+		assert(concurrent.result == CB_ERR &&
+			concurrent.status == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	}
+	if (payload_mm_authvar_mor_private_smi_channel_install(protected_slot,
+		seal_channel, protected) != CB_SUCCESS)
+		return CB_ERR;
+	if (payload_mm_authvar_mor_seal_channel_install(seal_channel,
+		protected, fixed_transport) != CB_SUCCESS)
+		return CB_ERR;
+	if (!strcmp(test_case, "bootstrap-after-install-dispatch")) {
+		assert(!pthread_create(&thread, NULL, concurrent_private_dispatch,
+			&dispatch));
+		assert(!pthread_join(thread, NULL));
+		assert(dispatch.handled &&
+			dispatch.result == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	}
+	if (!strcmp(test_case, "bootstrap-callback-header"))
+		((struct payload_mm_authvar_mor_private_smi_request *)page)->
+			cold_boot_generation++;
+	if (!strcmp(test_case, "bootstrap-callback-padding"))
+		page[sizeof(struct payload_mm_authvar_mor_private_smi_request)] = 1;
+	return CB_SUCCESS;
+}
+
 uint64_t payload_mm_authvar_mor_control_clear_transaction(void)
 {
 	struct payload_mm_authvar_mor_grant grant = { 0 };
+	pthread_t thread;
+	struct concurrent_dispatch dispatch = { .cpu = 1 };
 
 	control_calls++;
+	if (!strcmp(test_case, "installed-concurrent")) {
+		assert(!pthread_create(&thread, NULL, concurrent_private_dispatch,
+			&dispatch));
+		assert(!pthread_join(thread, NULL));
+		assert(dispatch.handled &&
+			dispatch.result == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	}
 	if (!strcmp(test_case, "transaction-before-take-failure"))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	assert(payload_mm_authvar_mor_grant_take(&grant, grant_protected,
@@ -144,21 +327,38 @@ uint64_t payload_mm_authvar_mor_control_clear_transaction(void)
 int get_save_state_reg(const enum cpu_reg reg, const int cpu, void *output,
 	const uint8_t length)
 {
-	(void)reg;
-	(void)cpu;
-	(void)output;
-	(void)length;
-	return -1;
+	if (cpu < 0 || cpu >= CONFIG_MAX_CPUS || !output ||
+	    length != sizeof(uintptr_t))
+		return -1;
+	switch (reg) {
+	case RBX:
+		*(uintptr_t *)output = smi_identity[cpu];
+		return 0;
+	case RSI:
+		*(uintptr_t *)output = smi_page_base[cpu];
+		return 0;
+	case RDI:
+		*(uintptr_t *)output = smi_cookie[cpu];
+		return 0;
+	default:
+		return -1;
+	}
 }
 
 int set_save_state_reg(const enum cpu_reg reg, const int cpu, void *input,
 	const uint8_t length)
 {
-	(void)reg;
-	(void)cpu;
-	(void)input;
-	(void)length;
-	return -1;
+	if (cpu < 0 || cpu >= CONFIG_MAX_CPUS || reg != RAX || !input ||
+	    length != sizeof(uintptr_t))
+		return -1;
+	smi_result[cpu] = *(uintptr_t *)input;
+	return 0;
+}
+
+struct payload_mm_authvar_mor_private_smi_slot *
+smm_get_payload_mm_authvar_mor_private_smi_slot(void)
+{
+	return &slot;
 }
 
 static enum cb_err trigger(
@@ -171,6 +371,9 @@ static enum cb_err trigger(
 	uint64_t page_base = descriptor->page_base;
 	uint64_t cookie = descriptor->cookie;
 	unsigned int cpu = 0;
+	pthread_t competing_thread;
+	struct concurrent_dispatch competing = { .cpu = 1 };
+	bool competing_started = false;
 
 	(void)unused;
 	if (!strcmp(test_case, "xapic-clobber") ||
@@ -186,7 +389,8 @@ static enum cb_err trigger(
 		assert(page_base == (uintptr_t)page);
 		assert(cookie == channel.caller_context);
 	}
-	if (!strcmp(test_case, "identity"))
+	if (!strcmp(test_case, "identity") ||
+	    !strcmp(test_case, "bootstrap-identity"))
 		identity ^= 1;
 	else if (!strcmp(test_case, "page"))
 		page_base += sizeof(page);
@@ -194,7 +398,8 @@ static enum cb_err trigger(
 		cookie ^= 1;
 	else if (!strcmp(test_case, "cpu"))
 		cpu = CONFIG_MAX_CPUS;
-	else if (!strcmp(test_case, "other-cpu"))
+	else if (!strcmp(test_case, "other-cpu") ||
+		 !strcmp(test_case, "bootstrap-other-cpu"))
 		cpu = 1;
 	else if (!strcmp(test_case, "non-owner-race")) {
 		uint64_t first = 99;
@@ -210,20 +415,58 @@ static enum cb_err trigger(
 		return CB_SUCCESS;
 	} else if (!strcmp(test_case, "policy-mismatch"))
 		payload_mm_authvar_mor_private_smi_test_mutate_policy();
-	else if (!strcmp(test_case, "generation"))
+	else if (!strcmp(test_case, "tombstone-mismatch"))
+		payload_mm_authvar_mor_private_smi_test_mutate_policy_identity();
+	else if (!strcmp(test_case, "generation") ||
+		 !strcmp(test_case, "bootstrap-generation"))
 		request->cold_boot_generation++;
-	else if (!strcmp(test_case, "capability"))
+	else if (!strcmp(test_case, "capability") ||
+		 !strcmp(test_case, "bootstrap-capability"))
 		request->capability[0] ^= 1;
-	else if (!strcmp(test_case, "receipt"))
+	else if (!strcmp(test_case, "receipt") ||
+		 !strcmp(test_case, "bootstrap-receipt"))
 		request->receipt.mac[0] ^= 1;
-	else if (!strcmp(test_case, "padding"))
+	else if (!strcmp(test_case, "padding") ||
+		 !strcmp(test_case, "bootstrap-padding"))
 		page[sizeof(*request)] = 1;
 	else if (!strcmp(test_case, "seal"))
 		request->seal.capability[0] ^= 1;
 	else if (!strcmp(test_case, "callback-mutation"))
 		mutate_during_verify = true;
-	return payload_mm_authvar_mor_private_smi_test_receive(identity, page_base,
-		cookie, cpu, status);
+	else if (!strcmp(test_case, "bootstrap-slot-cpus"))
+		slot.maximum_cpus++;
+	else if (!strcmp(test_case, "bootstrap-slot-cookie"))
+		slot.descriptor_cookie = 1;
+	else if (!strcmp(test_case, "bootstrap-slot-reserved"))
+		slot.reserved[0] = 1;
+	for (unsigned int index = 0; index < CONFIG_MAX_CPUS; index++) {
+		smi_identity[index] = identity;
+		smi_page_base[index] = page_base;
+		smi_cookie[index] = cookie;
+		smi_result[index] = PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED;
+	}
+	if (!strcmp(test_case, "installed-barrier")) {
+		assert(!pthread_create(&competing_thread, NULL,
+			concurrent_private_dispatch, &competing));
+		competing_started = true;
+	}
+	if (!payload_mm_authvar_mor_private_smi_dispatch(cpu))
+		return CB_ERR;
+	if (competing_started) {
+		assert(!pthread_join(competing_thread, NULL));
+		assert(competing.handled && competing.result ==
+			PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	}
+	*status = smi_result[cpu];
+	if (!strcmp(test_case, "bootstrap-generation") ||
+	    !strcmp(test_case, "bootstrap-capability") ||
+	    !strcmp(test_case, "bootstrap-padding") ||
+	    !strcmp(test_case, "bootstrap-callback-header") ||
+	    !strcmp(test_case, "bootstrap-callback-padding"))
+		assert(page_is_zero());
+	if (!strcmp(test_case, "bootstrap-receipt"))
+		assert(!page_is_zero());
+	return CB_SUCCESS;
 }
 
 static struct payload_mm_authvar_mor_grant valid_grant(void)
@@ -278,14 +521,35 @@ int main(int argc, char **argv)
 	uint64_t replay_status = 99;
 	bool close;
 	bool successful;
+	bool bootstrap;
+	pthread_t install_dispatch_thread;
+	struct concurrent_dispatch install_dispatch = { .cpu = 1 };
 
 	assert(argc == 2);
 	test_case = argv[1];
-	close = !strcmp(test_case, "close");
+	if (!strcmp(test_case, "installed-barrier"))
+		assert(!pthread_barrier_init(&claim_barrier, NULL, 2));
+	if (!strcmp(test_case, "install-dispatch-barrier")) {
+		assert(!pthread_barrier_init(&install_enter_barrier, NULL, 2));
+		assert(!pthread_barrier_init(&install_done_barrier, NULL, 2));
+	}
+	if (!strcmp(test_case, "abort-dispatch-barrier")) {
+		assert(!pthread_barrier_init(&abort_claim_barrier, NULL, 2));
+	}
+	bootstrap = !strncmp(test_case, "bootstrap-", 10);
+	close = !strcmp(test_case, "close") ||
+		!strcmp(test_case, "bootstrap-close");
 	successful = !strcmp(test_case, "success") ||
 		!strcmp(test_case, "replay") ||
 		!strcmp(test_case, "xapic-clobber") ||
-		!strcmp(test_case, "x2apic-clobber");
+		!strcmp(test_case, "x2apic-clobber") ||
+		!strcmp(test_case, "install-dispatch-barrier") ||
+		!strcmp(test_case, "tombstone-publishing-dispatch") ||
+		!strcmp(test_case, "installed-concurrent") ||
+		!strcmp(test_case, "terminal-concurrent") ||
+		!strcmp(test_case, "bootstrap-success") ||
+		!strcmp(test_case, "bootstrap-replay") ||
+		!strcmp(test_case, "bootstrap-after-install-dispatch");
 	assert(payload_mm_authvar_mor_private_smi_loader_provision(&slot) ==
 		CB_SUCCESS);
 	assert(payload_mm_authvar_mor_private_smi_seal_channel_resolve(&channel) ==
@@ -298,13 +562,53 @@ int main(int argc, char **argv)
 		assert(terminal_slot_is_clean());
 		return 0;
 	}
-	assert(payload_mm_authvar_mor_private_smi_channel_install(&slot, &channel,
-		protected) == CB_SUCCESS);
-	assert(payload_mm_authvar_mor_seal_channel_install(&channel, protected,
-		fixed_transport) == CB_SUCCESS);
+	if (!bootstrap) {
+		if (!strcmp(test_case, "install-dispatch-barrier")) {
+			for (unsigned int index = 0; index < CONFIG_MAX_CPUS; index++) {
+				smi_identity[index] = channel.caller;
+				smi_page_base[index] = (uintptr_t)page;
+				smi_cookie[index] = channel.caller_context;
+			}
+			assert(!pthread_create(&install_dispatch_thread, NULL,
+				concurrent_private_dispatch, &install_dispatch));
+		}
+		assert(payload_mm_authvar_mor_private_smi_channel_install(&slot,
+			&channel, protected) == CB_SUCCESS);
+		if (!strcmp(test_case, "install-dispatch-barrier")) {
+			assert(!pthread_join(install_dispatch_thread, NULL));
+			assert(!install_dispatch.handled);
+		}
+		assert(payload_mm_authvar_mor_seal_channel_install(&channel,
+			protected, fixed_transport) == CB_SUCCESS);
+		if (!strcmp(test_case, "abort-dispatch-barrier")) {
+			pthread_t thread;
+			struct concurrent_dispatch dispatch = { .cpu = 1 };
+
+			for (unsigned int index = 0; index < CONFIG_MAX_CPUS; index++) {
+				smi_identity[index] = channel.caller;
+				smi_page_base[index] = (uintptr_t)page;
+				smi_cookie[index] = channel.caller_context;
+			}
+			assert(!pthread_create(&thread, NULL,
+				concurrent_private_dispatch, &dispatch));
+			payload_mm_authvar_mor_private_smi_channel_abort();
+			assert(!pthread_join(thread, NULL));
+			assert(dispatch.handled);
+			assert(__atomic_load_n(&terminal_cleanup_calls,
+				__ATOMIC_RELAXED) == 1);
+			assert(page_is_zero() && terminal_slot_is_clean());
+			assert(!pthread_barrier_destroy(&abort_claim_barrier));
+			return 0;
+		}
+	}
 	payload_mm_authvar_mor_private_smi_test_set_trigger(trigger, NULL);
 	if (close) {
 		payload_mm_authvar_mor_private_smi_close_unused();
+	} else if (!strcmp(test_case, "installed-barrier")) {
+		const enum cb_err status =
+			payload_mm_authvar_mor_private_smi_send_install(&grant);
+
+		assert(status == CB_SUCCESS || status == CB_ERR);
 	} else if (successful) {
 		assert(payload_mm_authvar_mor_private_smi_send_install(&grant) ==
 			CB_SUCCESS);
@@ -313,6 +617,18 @@ int main(int argc, char **argv)
 			CB_ERR);
 	}
 	assert(page_is_zero());
+	assert(bootstrap_calls == (bootstrap && !close &&
+		strcmp(test_case, "bootstrap-identity") &&
+		strcmp(test_case, "bootstrap-generation") &&
+		strcmp(test_case, "bootstrap-capability") &&
+		strcmp(test_case, "bootstrap-receipt") &&
+		strcmp(test_case, "bootstrap-padding") &&
+		strcmp(test_case, "bootstrap-other-cpu") &&
+		strcmp(test_case, "bootstrap-slot-cpus") &&
+		strcmp(test_case, "bootstrap-slot-cookie") &&
+		strcmp(test_case, "bootstrap-slot-reserved")));
+	if (bootstrap && strcmp(test_case, "bootstrap-identity"))
+		assert(terminal_slot_is_clean());
 	if (!strcmp(test_case, "transaction-before-take-failure")) {
 		struct payload_mm_authvar_mor_grant output = { 0 };
 
@@ -322,13 +638,30 @@ int main(int argc, char **argv)
 		assert(!memcmp(&output,
 			&(struct payload_mm_authvar_mor_grant){ 0 }, sizeof(output)));
 	}
-	assert(control_calls == (close ? 0U :
-		(successful ||
-		 !strcmp(test_case, "transaction-before-take-failure"))));
-	if (!strcmp(test_case, "replay"))
-		assert(payload_mm_authvar_mor_private_smi_test_receive(
-			channel.caller, (uintptr_t)page, channel.caller_context,
-			1, &replay_status) == CB_ERR &&
-			replay_status == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	if (!strcmp(test_case, "installed-barrier")) {
+		assert(control_calls <= 1);
+	} else {
+		assert(control_calls == (close ? 0U :
+			(successful ||
+			 !strcmp(test_case, "transaction-before-take-failure"))));
+	}
+	if (!strcmp(test_case, "replay") ||
+	    !strcmp(test_case, "tombstone-mismatch") ||
+	    !strcmp(test_case, "bootstrap-replay") ||
+	    !strcmp(test_case, "bootstrap-failure-replay")) {
+		smi_identity[1] = channel.caller;
+		smi_page_base[1] = (uintptr_t)page;
+		smi_cookie[1] = channel.caller_context;
+		smi_result[1] = 99;
+		assert(payload_mm_authvar_mor_private_smi_dispatch(1));
+		replay_status = smi_result[1];
+		assert(replay_status == PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_CLOSED);
+	}
+	if (!strcmp(test_case, "installed-barrier"))
+		assert(!pthread_barrier_destroy(&claim_barrier));
+	if (!strcmp(test_case, "install-dispatch-barrier")) {
+		assert(!pthread_barrier_destroy(&install_enter_barrier));
+		assert(!pthread_barrier_destroy(&install_done_barrier));
+	}
 	return 0;
 }

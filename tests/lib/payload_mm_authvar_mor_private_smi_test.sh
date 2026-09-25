@@ -19,13 +19,13 @@ printf '%s\n' \
 	'#include "bootmem_reservation_receipt_internal.h"' > \
 	"$temporary/include/payload_mm_authvar_mor_private_smi_test_internal_source.h"
 
-cases='success replay xapic-clobber x2apic-clobber close identity page cookie cpu other-cpu non-owner-race policy-mismatch generation capability receipt padding seal callback-mutation transaction-before-take-failure install-cut-1 install-cut-2 install-cut-3 install-cut-4 install-cut-5 install-cut-6 install-mutate-slot install-mutate-channel'
+cases='success replay tombstone-mismatch tombstone-publishing-dispatch installed-concurrent terminal-concurrent installed-barrier install-dispatch-barrier abort-dispatch-barrier xapic-clobber x2apic-clobber close identity page cookie cpu other-cpu non-owner-race policy-mismatch generation capability receipt padding seal callback-mutation transaction-before-take-failure install-cut-1 install-cut-2 install-cut-3 install-cut-4 install-cut-5 install-cut-6 install-mutate-slot install-mutate-channel bootstrap-success bootstrap-close bootstrap-replay bootstrap-after-install-dispatch bootstrap-failure bootstrap-failure-replay bootstrap-reentry bootstrap-concurrent bootstrap-identity bootstrap-other-cpu bootstrap-generation bootstrap-capability bootstrap-receipt bootstrap-padding bootstrap-callback-header bootstrap-callback-padding bootstrap-slot-cpus bootstrap-slot-cookie bootstrap-slot-reserved'
 
 build_and_run()
 {
 	flags=$1
 	receiver=${2:-$root/src/lib/payload_mm_authvar_mor_private_smi_receiver.c}
-	"${CC:-cc}" -std=gnu11 $flags -Wall -Wextra -Werror \
+	"${CC:-cc}" -std=gnu11 $flags -pthread -Wall -Wextra -Werror \
 		-Wshadow -Wstrict-prototypes -fno-builtin -D__TEST__ -D__COREBOOT__ \
 		-DBOOTMEM_RECEIPT_TEST \
 		-include "$root/src/include/kconfig.h" \
@@ -74,3 +74,6 @@ mutant final-slot-recheck 's/!slot_equal(slot, \&slot_snapshot)/false/g'
 mutant terminal-slot-scrub 's/scrub(slot, sizeof(\*slot));/scrub(slot, sizeof(*slot)); slot->reserved[0] = 1;/'
 mutant terminal-grant-discard '/payload_mm_authvar_mor_grant_discard/,+1c\
 \t(void)payload_mm_authvar_mor_grant_close();'
+mutant receiver-claim 's/if (!__atomic_compare_exchange_n(\&receiver.phase, \&expected,/if (false \&\& !__atomic_compare_exchange_n(\&receiver.phase, \&expected,/'
+mutant tombstone-rewrite 's/return state == 1 \&\& identity ==/__atomic_store_n(\&receiver.tombstone_identity, identity, __ATOMIC_RELEASE); return state == 1 \&\& identity ==/'
+mutant tombstone-nonzero-valid 's/__atomic_load_n(\&receiver.tombstone_valid, __ATOMIC_ACQUIRE) != 1/!__atomic_load_n(\&receiver.tombstone_valid, __ATOMIC_ACQUIRE)/g'
