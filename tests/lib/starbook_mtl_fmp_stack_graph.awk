@@ -301,8 +301,12 @@ END {
 
 	root = find_node("payload_mm_authvar_fmp_state_transaction",
 		"payload_mm_authvar_executor.c")
+	initialize_root = find_node("payload_mm_authvar_fmp_state_initialize",
+		"payload_mm_authvar_executor.c")
 	if (mutate_root_frame)
 		stack_bytes[root] = stack_size
+	if (mutate_initialize_root_frame)
+		stack_bytes[initialize_root] = stack_size
 	if (mutate_control_frame) {
 		control_node = find_node("control_unchanged",
 			"payload_mm_authvar_executor.c")
@@ -316,6 +320,10 @@ END {
 		printf "ERROR: required FMP transaction root omitted\n" > "/dev/stderr"
 		failed = 1
 	}
+	if (omit_initialize_root) {
+		printf "ERROR: required FMP initialization root omitted\n" > "/dev/stderr"
+		failed = 1
+	}
 	require_edge("payload_mm_authvar_fmp_state_transaction", "payload_mm_authvar_executor.c",
 		"media_begin", "payload_mm_authvar_executor.c")
 	require_edge("payload_mm_authvar_fmp_state_transaction", "payload_mm_authvar_executor.c",
@@ -327,6 +335,26 @@ END {
 	require_edge("payload_mm_authvar_fmp_state_transaction", "payload_mm_authvar_executor.c",
 		"verify_media", "payload_mm_authvar_executor.c")
 	require_edge("payload_mm_authvar_fmp_state_transaction", "payload_mm_authvar_executor.c",
+		"payload_mm_authvar_store_scan", "payload_mm_authvar_store.c")
+	require_edge("payload_mm_authvar_fmp_state_initialize", "payload_mm_authvar_executor.c",
+		"media_begin", "payload_mm_authvar_executor.c")
+	require_edge("payload_mm_authvar_fmp_state_initialize", "payload_mm_authvar_executor.c",
+		"recover_session", "payload_mm_authvar_executor.c")
+	require_edge("payload_mm_authvar_fmp_state_initialize", "payload_mm_authvar_executor.c",
+		"fmp_mutate", "payload_mm_authvar_executor.c")
+	require_edge("payload_mm_authvar_fmp_state_initialize", "payload_mm_authvar_executor.c",
+		"media_end", "payload_mm_authvar_executor.c")
+	require_edge("fmp_mutate", "payload_mm_authvar_executor.c",
+		"execute_direct", "payload_mm_authvar_executor.c")
+	require_edge("fmp_mutate", "payload_mm_authvar_executor.c",
+		"execute_reclaim", "payload_mm_authvar_executor.c")
+	# The selected -O2 SMM build inlines fmp_refresh into fmp_mutate. Bind the
+	# exact emitted edges rather than inventing a frame absent from .ci/.su.
+	require_edge("fmp_mutate", "payload_mm_authvar_executor.c",
+		"verify_media", "payload_mm_authvar_executor.c")
+	require_edge("fmp_mutate", "payload_mm_authvar_executor.c",
+		"snapshot_read", "payload_mm_authvar_executor.c")
+	require_edge("fmp_mutate", "payload_mm_authvar_executor.c",
 		"payload_mm_authvar_store_scan", "payload_mm_authvar_store.c")
 	require_edge("payload_mm_authvar_media_begin", "payload_mm_authvar_media.c",
 		"begin", "payload_mm_authvar_smmstore.c")
@@ -355,6 +383,43 @@ END {
 	if (total_limit && maximum + caller_reserve > total_limit) {
 		printf "ERROR: transaction plus reserve %u exceeds mutant limit %u\n", \
 			maximum + caller_reserve, total_limit > "/dev/stderr"
+		failed = 1
+	}
+	discover(initialize_root)
+	initialize_maximum = stack_bound(initialize_root)
+	printf "FMP initialization maximum %u; caller reserve %u; stack %u; headroom %u\n", \
+		initialize_maximum, caller_reserve, stack_size, \
+		stack_size - initialize_maximum - caller_reserve
+	printf "initialization deepest path: "
+	print_path(initialize_root)
+	if (initialize_maximum + caller_reserve > stack_size) {
+		printf "ERROR: FMP initialization plus caller reserve exceeds stack\n" \
+			> "/dev/stderr"
+		failed = 1
+	}
+	if (initialize_maximum_limit &&
+	    initialize_maximum > initialize_maximum_limit) {
+		printf "ERROR: initialization maximum %u exceeds mutant limit %u\n", \
+			initialize_maximum, initialize_maximum_limit > "/dev/stderr"
+		failed = 1
+	}
+	if (initialize_total_limit &&
+	    initialize_maximum + caller_reserve > initialize_total_limit) {
+		printf "ERROR: initialization plus reserve %u exceeds mutant limit %u\n", \
+			initialize_maximum + caller_reserve, initialize_total_limit \
+			> "/dev/stderr"
+		failed = 1
+	}
+	selected_maximum = maximum > initialize_maximum ? maximum : \
+		initialize_maximum
+	printf "FMP selected maximum %u; caller reserve %u; stack %u; headroom %u\n", \
+		selected_maximum, caller_reserve, stack_size, \
+		stack_size - selected_maximum - caller_reserve
+	if (combined_total_limit &&
+	    selected_maximum + caller_reserve > combined_total_limit) {
+		printf "ERROR: selected maximum plus reserve %u exceeds mutant limit %u\n", \
+			selected_maximum + caller_reserve, combined_total_limit \
+			> "/dev/stderr"
 		failed = 1
 	}
 	if (failed)

@@ -169,7 +169,7 @@ done
 
 selected_build="$temporary/build-selected"
 stack_flags='-fstack-usage -fcallgraph-info=su -fdump-ipa-cgraph -save-temps=obj'
-fmp_roots='-u payload_mm_authvar_fmp_state_transaction -u payload_mm_fmp_owner_authvar_reservation -u payload_mm_fmp_owner_authvar_identity_install'
+fmp_roots='-u payload_mm_authvar_fmp_state_transaction -u payload_mm_authvar_fmp_state_initialize -u payload_mm_fmp_owner_authvar_reservation -u payload_mm_fmp_owner_authvar_identity_install'
 wrapper_root='--wrap=mbedtls_rsa_parse_pubkey -u __wrap_mbedtls_rsa_parse_pubkey'
 make -C "$root" -j4 obj="$selected_build" \
 	KBUILD_KCONFIG="$temporary/Kconfig-selected" \
@@ -230,6 +230,7 @@ make -C "$root" -j4 obj="$release_build" \
 "$cross_nm" -g --defined-only "$release_build/smm/smm.elf" > \
 	"$default_final_symbols"
 for symbol in payload_mm_authvar_fmp_state_transaction \
+	payload_mm_authvar_fmp_state_initialize \
 	payload_mm_fmp_owner_authvar_reservation \
 	payload_mm_fmp_owner_authvar_identity_install; do
 	if awk -v symbol="$symbol" '$3 == symbol { found = 1 }
@@ -249,6 +250,7 @@ done
 "$cross_nm" -g --defined-only \
 	"$selected_build/cbfs/fallback/ramstage.debug" > "$ramstage_symbols"
 for symbol in payload_mm_authvar_fmp_state_transaction \
+	payload_mm_authvar_fmp_state_initialize \
 	payload_mm_fmp_owner_authvar_reservation \
 	payload_mm_fmp_owner_authvar_identity_install; do
 	if awk -v symbol="$symbol" '$3 == symbol { found = 1 }
@@ -277,11 +279,13 @@ for symbol in \
 done
 
 # These are deliberately dormant smm.elf measurement roots, not a runtime
-# composition in the GC-converted smm.manual. The transaction and reservation
-# share the selected real SMM closure. Identity installation remains a separate
-# root until a platform binds a concrete protected-storage callback.
+# composition in the GC-converted smm.manual. The transaction, initialization,
+# and reservation roots share the selected real SMM closure. Identity
+# installation remains a separate root until a platform binds a concrete
+# protected-storage callback.
 for symbol in \
 	payload_mm_authvar_fmp_state_transaction \
+	payload_mm_authvar_fmp_state_initialize \
 	payload_mm_fmp_owner_authvar_reservation \
 	payload_mm_fmp_owner_authvar_identity_install \
 	payload_mm_sha256 \
@@ -291,9 +295,19 @@ for symbol in \
 		END { exit !found }' "$final_symbols"
 done
 
+# Forced dormant measurement roots belong only to smm.elf. The production-like
+# GC link remains free of an uncomposed initialization entry point.
+if awk '$3 == "payload_mm_authvar_fmp_state_initialize" { found = 1 }
+	END { exit !found }' "$manual_symbols"; then
+	printf '%s\n' \
+		'ERROR: dormant FMP initialization root reached smm.manual' >&2
+	exit 1
+fi
+
 # This independent dormant root proves that the selected link retained the
 # existing --wrap contract. It is not part of, or reachable from, the FMP
-# transaction root and must be excluded from its later rooted stack maximum.
+# transaction and initialization roots and must be excluded from their later
+# independent rooted stack maxima.
 awk '$3 == "__wrap_mbedtls_rsa_parse_pubkey" { found = 1 }
 	END { exit !found }' "$final_symbols"
 
@@ -423,22 +437,60 @@ begin|intel_smm_spi_window_begin
 begin|intel_smm_spi_window_prove
 end|intel_smm_spi_window_end
 EOF
-if graph_run -v maximum_limit=4319 > /dev/null 2>&1; then
+if graph_run -v omit_initialize_root=1 > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: omitted FMP initialization root survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+while IFS= read -r edge; do
+	if graph_run -v omit_edge="$edge" > /dev/null 2>&1; then
+		printf 'ERROR: omitted initialization edge survived: %s\n' "$edge" >&2
+		exit 1
+	fi
+	killed=$((killed + 1))
+done <<'EOF'
+payload_mm_authvar_fmp_state_initialize|media_begin
+payload_mm_authvar_fmp_state_initialize|recover_session
+payload_mm_authvar_fmp_state_initialize|fmp_mutate
+payload_mm_authvar_fmp_state_initialize|media_end
+fmp_mutate|execute_direct
+fmp_mutate|execute_reclaim
+fmp_mutate|verify_media
+fmp_mutate|snapshot_read
+fmp_mutate|payload_mm_authvar_store_scan
+EOF
+if graph_run -v maximum_limit=4367 > /dev/null 2>&1; then
 	printf '%s\n' 'ERROR: one-byte-under transaction bound survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-if graph_run -v total_limit=4831 > /dev/null 2>&1; then
+if graph_run -v total_limit=4879 > /dev/null 2>&1; then
 	printf '%s\n' 'ERROR: one-byte-under total bound survived' >&2
 	exit 1
 fi
 killed=$((killed + 1))
-test "$killed" -eq 13
-printf 'FMP rooted stack mutants killed: %u/13\n' "$killed"
+if graph_run -v initialize_maximum_limit=4511 > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under initialization bound survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+if graph_run -v initialize_total_limit=5023 > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under initialization total survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+if graph_run -v combined_total_limit=5023 > /dev/null 2>&1; then
+	printf '%s\n' 'ERROR: one-byte-under selected total survived' >&2
+	exit 1
+fi
+killed=$((killed + 1))
+test "$killed" -eq 26
+printf 'FMP rooted stack mutants killed: %u/26\n' "$killed"
 
 hostile_killed=0
 for mutation in \
 	mutate_root_frame \
+	mutate_initialize_root_frame \
 	mutate_control_frame \
 	mutate_unknown_indirect \
 	mutate_shifted_indirect \
@@ -450,19 +502,21 @@ for mutation in \
 	fi
 	hostile_killed=$((hostile_killed + 1))
 done
-test "$hostile_killed" -eq 6
-printf 'FMP hostile stack mutants killed: %u/6\n' "$hostile_killed"
+test "$hostile_killed" -eq 7
+printf 'FMP hostile stack mutants killed: %u/7\n' "$hostile_killed"
 
 if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 	artifact_killed=0
-	for mutation in missing_fmp_root default_off_symbol ramstage_symbols \
-		missing_cms_root ci_only_symbol; do
+	for mutation in missing_fmp_root missing_initialize_root default_off_symbol \
+		ramstage_symbols missing_cms_root ci_only_symbol \
+		ci_only_initialize_symbol manual_initialize_symbol; do
 		mutant="$temporary/artifact-$mutation.sh"
 		awk -v mutation="$mutation" '
 		mutation == "ramstage_symbols" && pending_ramstage_symbols {
 			print
 			if (index($0, "ramstage.debug\" > \"$ramstage_symbols\"")) {
 				print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_transaction\047 >> \"$ramstage_symbols\""
+				print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$ramstage_symbols\""
 				print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_reservation\047 >> \"$ramstage_symbols\""
 				changed++
 			}
@@ -476,6 +530,7 @@ if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 		mutation == "default_off_symbol" && pending_default_symbols {
 			print
 			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_transaction\047 >> \"$default_final_symbols\""
+			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$default_final_symbols\""
 			print "printf \047%s\\n\047 \04700000000 T payload_mm_fmp_owner_authvar_reservation\047 >> \"$default_final_symbols\""
 			pending_default_symbols = 0
 			changed++
@@ -488,6 +543,12 @@ if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 		mutation == "missing_fmp_root" &&
 		/^fmp_roots=/ && index($0, "-u payload_mm_authvar_fmp_state_transaction") {
 			if (gsub(/-u payload_mm_authvar_fmp_state_transaction /, "") != 1)
+				exit 2
+			changed++
+		}
+		mutation == "missing_initialize_root" &&
+		/^fmp_roots=/ && index($0, "-u payload_mm_authvar_fmp_state_initialize") {
+			if (gsub(/-u payload_mm_authvar_fmp_state_initialize /, "") != 1)
 				exit 2
 			changed++
 		}
@@ -506,6 +567,17 @@ if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 		$0 == "# Selection must place the concrete implementations in the MTL SMM link input," {
 			print "grep -v \047 payload_mm_authvar_fmp_state_transaction$\047 \"$final_symbols\" > \"$temporary/final-without-fmp\""
 			print "mv \"$temporary/final-without-fmp\" \"$final_symbols\""
+			changed++
+		}
+		mutation == "ci_only_initialize_symbol" &&
+		$0 == "# Selection must place the concrete implementations in the MTL SMM link input," {
+			print "grep -v \047 payload_mm_authvar_fmp_state_initialize$\047 \"$final_symbols\" > \"$temporary/final-without-fmp-init\""
+			print "mv \"$temporary/final-without-fmp-init\" \"$final_symbols\""
+			changed++
+		}
+		mutation == "manual_initialize_symbol" &&
+		$0 == "# Forced dormant measurement roots belong only to smm.elf. The production-like" {
+			print "printf \047%s\\n\047 \04700000000 T payload_mm_authvar_fmp_state_initialize\047 >> \"$manual_symbols\""
 			changed++
 		}
 		{ print }
@@ -528,8 +600,8 @@ if [ "${FMP_ARTIFACT_MUTANT_CHILD:-0}" != 1 ]; then
 		fi
 		artifact_killed=$((artifact_killed + 1))
 	done
-	test "$artifact_killed" -eq 5
-	printf 'FMP selected-artifact mutants killed: %u/5\n' "$artifact_killed"
+	test "$artifact_killed" -eq 8
+	printf 'FMP selected-artifact mutants killed: %u/8\n' "$artifact_killed"
 fi
 
 printf '%s\n' \

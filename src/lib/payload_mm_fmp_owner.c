@@ -32,8 +32,8 @@ static bool key_valid(uint32_t key)
 	return key <= PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION;
 }
 
-bool payload_mm_fmp_owner_record_valid(uint32_t key,
-	const struct payload_mm_fmp_owner_record *record)
+static bool record_valid(uint32_t key,
+	const struct payload_mm_fmp_owner_record *record, bool emitted)
 {
 	uint32_t expected_size = key == PAYLOAD_MM_FMP_STATE_KEY_STATE ?
 		PAYLOAD_MM_FMP_STATE_WIRE_SIZE : sizeof(uint32_t);
@@ -50,8 +50,20 @@ bool payload_mm_fmp_owner_record_valid(uint32_t key,
 	     !bytes_zero(record->data + sizeof(uint32_t),
 		sizeof(record->data) - sizeof(uint32_t))))
 		return false;
-	return key != PAYLOAD_MM_FMP_STATE_KEY_STATE ||
+	return key != PAYLOAD_MM_FMP_STATE_KEY_STATE || !emitted ||
 		payload_mm_fmp_state_data_valid(record->data);
+}
+
+bool payload_mm_fmp_owner_record_valid(uint32_t key,
+	const struct payload_mm_fmp_owner_record *record)
+{
+	return record_valid(key, record, true);
+}
+
+bool payload_mm_fmp_owner_observed_record_valid(uint32_t key,
+	const struct payload_mm_fmp_owner_record *record)
+{
+	return record_valid(key, record, false);
 }
 
 static bool owner_buffer(const void *buffer, size_t size)
@@ -154,7 +166,7 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	if (owner_authority.backend.read(owner_authority.backend.context, &identity,
 		key, &snapshot) != CB_SUCCESS ||
 	    memcmp(&identity, &expected_identity, sizeof(identity)) != 0 ||
-	    !payload_mm_fmp_owner_record_valid(key, &snapshot))
+	    !payload_mm_fmp_owner_observed_record_valid(key, &snapshot))
 		return CB_ERR;
 	*record = snapshot;
 	return CB_SUCCESS;
@@ -176,7 +188,7 @@ static enum cb_err commit(uint32_t key,
 
 	if (!owner_authority.installed || owner_authority.busy)
 		return CB_ERR;
-	if (!payload_mm_fmp_owner_record_valid(key, &current) ||
+	if (!payload_mm_fmp_owner_observed_record_valid(key, &current) ||
 	    !payload_mm_fmp_owner_record_valid(key, &candidate) ||
 	    current.sequence == UINT64_MAX ||
 	    candidate.sequence != current.sequence + 1)
@@ -197,7 +209,7 @@ static enum cb_err commit(uint32_t key,
 		owner_authority.backend.read(owner_authority.backend.context,
 			&identity, key, &verified) == CB_SUCCESS &&
 		memcmp(&identity, &expected_identity, sizeof(identity)) == 0 &&
-		payload_mm_fmp_owner_record_valid(key, &verified);
+		payload_mm_fmp_owner_observed_record_valid(key, &verified);
 	owner_authority.busy = false;
 	if (!inputs_unchanged || !readback_valid ||
 	    memcmp(&verified, &expected_candidate, sizeof(verified)) != 0)
@@ -239,7 +251,7 @@ enum cb_err payload_mm_fmp_owner_remove_legacy(uint32_t key,
 	    !owner_buffer(current, sizeof(*current)))
 		return CB_ERR;
 	current_snapshot = *current;
-	if (!payload_mm_fmp_owner_record_valid(key, &current_snapshot) ||
+	if (!payload_mm_fmp_owner_observed_record_valid(key, &current_snapshot) ||
 	    !current_snapshot.present ||
 	    current_snapshot.sequence == UINT64_MAX)
 		return CB_ERR;

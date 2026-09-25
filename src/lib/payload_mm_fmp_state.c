@@ -86,10 +86,8 @@ bool payload_mm_fmp_state_transition_valid(const uint8_t *current,
 	    state_authority.policy.trusted_lowest_version)
 		return false;
 	if (current != NULL) {
-		if (!payload_mm_fmp_state_data_valid(current))
-			return false;
 		for (size_t i = 0; i < 4; i++)
-			if (current[i] && !candidate[i])
+			if (!!current[i] && !candidate[i])
 				return false;
 		if (current[1] && read32(candidate + 8) < read32(current + 8))
 			return false;
@@ -192,7 +190,7 @@ enum cb_err payload_mm_fmp_state_checkpoint_build(
 	uint32_t lowest_version;
 
 	if (!payload_mm_fmp_state_authority_ready() || !current || !identity ||
-	    !candidate || !payload_mm_fmp_state_data_valid(current))
+	    !candidate)
 		return CB_ERR;
 	lowest_version = state_authority.policy.trusted_lowest_version;
 	if (current[1] && read32(current + 8) > lowest_version)
@@ -202,6 +200,8 @@ enum cb_err payload_mm_fmp_state_checkpoint_build(
 	if (payload_mm_fmp_state_identity_get(identity) != CB_SUCCESS)
 		return CB_ERR;
 	memcpy(candidate, current, PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	for (size_t i = 0; i < 4; i++)
+		candidate[i] = !!candidate[i];
 	candidate[2] = 1;
 	candidate[3] = 1;
 	write32(candidate + 12, 1U);
@@ -217,7 +217,7 @@ enum cb_err payload_mm_fmp_state_success_build(
 	uint32_t durable_lowest_version;
 
 	if (!payload_mm_fmp_state_authority_ready() || !current || !candidate ||
-	    !payload_mm_fmp_state_data_valid(current) || !current[2] ||
+	    !current[2] ||
 	    !current[3] || read32(current + 12) != 1U ||
 	    read32(current + 16) != version || lowest_supported_version > version)
 		return CB_ERR;
@@ -229,6 +229,8 @@ enum cb_err payload_mm_fmp_state_success_build(
 	if (version < durable_lowest_version)
 		return CB_ERR;
 	memcpy(candidate, current, PAYLOAD_MM_FMP_STATE_WIRE_SIZE);
+	for (size_t i = 0; i < 4; i++)
+		candidate[i] = !!candidate[i];
 	candidate[0] = 1;
 	candidate[1] = 1;
 	write32(candidate + 4, version);
@@ -266,7 +268,8 @@ static bool message_shape_valid(const struct payload_mm_fmp_state_message *messa
 {
 	switch (message->operation) {
 	case PAYLOAD_MM_FMP_STATE_READ:
-		return key_name(message->key) != NULL && !message->attributes &&
+		return current == NULL && key_name(message->key) != NULL &&
+			!message->attributes &&
 			message->data_size ==
 			(message->key == PAYLOAD_MM_FMP_STATE_KEY_STATE ?
 			 PAYLOAD_MM_FMP_STATE_WIRE_SIZE : sizeof(uint32_t)) &&
@@ -327,8 +330,6 @@ enum cb_err payload_mm_fmp_state_command_prepare(const void *trusted_message,
 	if (current_state != NULL) {
 		memcpy(current, current_state, sizeof(current));
 		current_pointer = current;
-		if (!payload_mm_fmp_state_data_valid(current))
-			return CB_ERR;
 	}
 	if (message.revision != PAYLOAD_MM_FMP_STATE_MESSAGE_REVISION ||
 	    message.size != sizeof(message) || !message.transaction ||

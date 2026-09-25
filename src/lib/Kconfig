@@ -214,9 +214,12 @@ config PAYLOAD_MM_FMP_OWNER_AUTHVAR
 	depends on PAYLOAD_MM_CMS_CORE
 	help
 	  Build the dormant SMM-only sealed FMP identity reservation and exact
-	  combined-state read/compare-write prerequisite over the authenticated-
-	  variable executor. This stage does not install an owner, migrate legacy
-	  variables, select a platform or endpoint, or provide a rollback anchor.
+	  combined-state read/compare-write and initialization-only legacy migration
+	  prerequisite over the authenticated-variable executor. Initialization owns
+	  one executor authority, durably verifies combined state, then attempts
+	  legacy cleanup in separate retryable media sessions. This stage does not
+	  install an owner, select a platform or endpoint, or provide a rollback
+	  anchor.
 
 config PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
 	bool

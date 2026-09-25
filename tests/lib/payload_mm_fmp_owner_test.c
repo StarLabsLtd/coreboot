@@ -415,6 +415,19 @@ static void run_case(const char *name)
 		expect_trace("RRRR");
 		return;
 	}
+	if (!strcmp(name, "bad-validity")) {
+		assert(payload_mm_fmp_owner_read(0, output) == CB_SUCCESS &&
+			output->data[0] == 2U);
+		*current = *output;
+		*candidate = *current;
+		candidate->sequence++;
+		for (size_t i = 0; i < 4U; i++)
+			candidate->data[i] = !!candidate->data[i];
+		assert(payload_mm_fmp_owner_commit_state(current, candidate) ==
+			CB_SUCCESS);
+		expect_trace("RCR");
+		return;
+	}
 	if (!strcmp(name, "read-outside")) {
 		assert(payload_mm_fmp_owner_read(0, (void *)communication) == CB_ERR);
 		expect_trace("");

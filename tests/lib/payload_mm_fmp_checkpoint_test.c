@@ -707,6 +707,7 @@ static void run_case(const char *name)
 		return;
 	}
 	if (!strcmp(name, "success") || !strcmp(name, "wide-version") ||
+	    !strcmp(name, "bad-validity") ||
 	    !strcmp(name, "commit-error-candidate") ||
 	    !strcmp(name, "reentry") ||
 	    !strcmp(name, "bind-authority-mutation") ||
@@ -720,6 +721,8 @@ static void run_case(const char *name)
 		expect_trace("RCRRG");
 		assert(store.commits == 1 && grants == 1);
 		assert(store.record.sequence == 8);
+		for (size_t i = 0; i < 4U; i++)
+			assert(store.record.data[i] <= 1U);
 		assert(!memcmp(store.record.data + 16, &version, sizeof(version)));
 		assert(checkpoint(&store, 9, transaction, version) ==
 			CB_ERR);
