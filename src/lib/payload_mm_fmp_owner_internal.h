@@ -46,14 +46,22 @@ bool payload_mm_fmp_owner_record_valid(uint32_t key,
 bool payload_mm_fmp_owner_observed_record_valid(uint32_t key,
 	const struct payload_mm_fmp_owner_record *record);
 
-enum cb_err payload_mm_fmp_owner_install(
+enum cb_err payload_mm_fmp_owner_install_checked(
 	const struct payload_mm_fmp_owner_backend *trusted_backend,
-	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+	payload_mm_authvar_protected_storage storage_is_protected, void *context,
+	uint32_t initial_key,
+	const struct payload_mm_fmp_owner_record *initial_record);
 bool payload_mm_fmp_owner_ready(void);
 bool payload_mm_fmp_owner_storage_overlaps(const void *buffer, size_t size);
 bool payload_mm_fmp_owner_buffer_available(const void *buffer, size_t size);
 #if ENV_TEST
+enum cb_err payload_mm_fmp_owner_install(
+	const struct payload_mm_fmp_owner_backend *trusted_backend,
+	payload_mm_authvar_protected_storage storage_is_protected, void *context);
 const void *payload_mm_fmp_owner_test_storage(size_t *size);
+void payload_mm_fmp_owner_test_corrupt_backend(bool sealed);
+void payload_mm_fmp_owner_test_corrupt_control(bool sealed);
+void payload_mm_fmp_owner_test_corrupt_identity(bool sealed);
 #endif
 enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record);
