@@ -48,10 +48,96 @@ for opt in 0 2; do
 		small-smram transport-alias context-overlap concurrent two-taker \
 		pre-take post-take callback-retake state-mutation torn-publication \
 		receipt-owner receipt-generation \
+		media-context-alias media-facts-mutation \
+		media-facts-reserved media-ops-reserved media-ops-missing-install \
+		media-install-failure \
 		mutate1 mutate2 mutate3 mutate4 mutate5; do
 		ASAN_OPTIONS=detect_leaks=0 "$tmp/test-$opt" "$mode"
 	done
 done
+
+# Exercise the real platform wrappers, not just the bootstrap's hostile mock.
+for provider in spi qemu; do
+	case "$provider" in
+	spi)
+		provider_source="$root/src/lib/payload_mm_authvar_smm_media_spi.c"
+		modes="success store-failure flash-absent flash-size flash-sector media-store-drift"
+		;;
+	qemu)
+		provider_source="$root/src/lib/payload_mm_authvar_smm_media_qemu.c"
+		modes="success store-failure flash-absent media-store-drift media-size-drift"
+		;;
+	esac
+	for opt in 0 2; do
+		build_test "$provider-provider-$opt" "$opt" \
+			"$root/src/lib/payload_mm_authvar_smm_bootstrap.c" \
+			-DTEST_EXTERNAL_MEDIA_PROVIDER "$provider_source" \
+			-fsanitize=address,undefined -fno-sanitize-recover=all \
+			-fno-omit-frame-pointer
+		for mode in $modes; do
+			ASAN_OPTIONS=detect_leaks=0 \
+				"$tmp/$provider-provider-$opt" "$mode"
+		done
+	done
+done
+
+# Prove the default-off boundary and the selected Q35 SMM composition.
+mkdir -p "$tmp/q35-default" "$tmp/q35-selected"
+cat > "$tmp/q35-default/.config" <<'EOF'
+CONFIG_VENDOR_EMULATION=y
+CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
+CONFIG_ANY_TOOLCHAIN=y
+EOF
+make -s -C "$root" obj="$tmp/q35-default/out" \
+	DOTCONFIG="$tmp/q35-default/.config" olddefconfig >/dev/null
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP=y$' \
+	"$tmp/q35-default/.config"
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND=y$' \
+	"$tmp/q35-default/.config"
+
+cp "$root/src/Kconfig" "$tmp/q35-selected/Kconfig"
+cat >> "$tmp/q35-selected/Kconfig" <<'EOF'
+
+config TEST_Q35_AUTHVAR_BOOTSTRAP_SELECTOR
+	bool
+	default y
+	select Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
+	select Q35_PAYLOAD_MM_MOR_TEST_ADAPTER
+	select PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
+	select PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
+	select PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+EOF
+cat > "$tmp/q35-selected/.config" <<'EOF'
+CONFIG_VENDOR_EMULATION=y
+CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
+CONFIG_ANY_TOOLCHAIN=y
+# CONFIG_SMMSTORE is not set
+EOF
+make -s -C "$root" obj="$tmp/q35-selected/out" \
+	KBUILD_KCONFIG="$tmp/q35-selected/Kconfig" \
+	DOTCONFIG="$tmp/q35-selected/.config" olddefconfig >/dev/null
+for option in PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP \
+	PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND SMMSTORE_READ_REGION; do
+	grep -qx "CONFIG_$option=y" "$tmp/q35-selected/.config"
+done
+! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND=y$' \
+	"$tmp/q35-selected/.config"
+! grep -q '^CONFIG_SMMSTORE=y$' "$tmp/q35-selected/.config"
+make -s -C "$root" obj="$tmp/q35-selected/out" \
+	KBUILD_KCONFIG="$tmp/q35-selected/Kconfig" \
+	DOTCONFIG="$tmp/q35-selected/.config" \
+	"$tmp/q35-selected/out/smm/smm.elf-ldflags=-u payload_mm_authvar_smm_bootstrap_install" \
+	"$tmp/q35-selected/out/smm/smm.elf" -j4 >/dev/null
+for symbol in payload_mm_authvar_smm_bootstrap_install \
+	platform_payload_mm_authvar_smm_media_ops \
+	payload_mm_authvar_qemu_pflash_install payload_mm_authvar_executor_install \
+	payload_mm_authvar_authority_install \
+	payload_mm_authvar_mor_seal_channel_install; do
+	nm -g --defined-only "$tmp/q35-selected/out/smm/smm.elf" |
+		grep -Eq " T $symbol$"
+done
+! nm -g --defined-only "$tmp/q35-selected/out/smm/smm.elf" |
+	grep -Eq ' T payload_mm_authvar_smmstore_install$'
 
 objdump -d "$tmp/test-2" | awk '
 	/<scrub>:/ { inside = 1 }
@@ -70,7 +156,7 @@ TSAN_OPTIONS=halt_on_error=1 "$tmp/thread-sanitized" concurrent
 TSAN_OPTIONS=halt_on_error=1 "$tmp/thread-sanitized" two-taker
 
 for mutation in 1 2 3 4 5; do
-	occurrence=$((mutation + 1))
+	occurrence=$((mutation + 2))
 	mutant="$tmp/mutant-$mutation.c"
 	awk -v target="$occurrence" '
 		{
@@ -89,7 +175,7 @@ for mutation in 1 2 3 4 5; do
 	fi
 done
 
-for scrubbed in receipt input frozen; do
+for scrubbed in receipt facts media input frozen; do
 	scrub_mutant="$tmp/scrub-mutant-$scrubbed.c"
 	awk -v target="scrub(&$scrubbed, sizeof($scrubbed));" '
 		index($0, target) { next }

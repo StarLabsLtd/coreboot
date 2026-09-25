@@ -8,6 +8,7 @@
 #include <commonlib/region.h>
 #include <cpu/x86/smm.h>
 #include <spi_flash.h>
+#include <smmstore.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,7 @@ static struct payload_mm_authvar_smm_arena_slot receipt_slot;
 static struct payload_mm_authvar_contract installed_contract;
 static struct spi_flash flash;
 static struct region_device store;
+static struct region_device qemu_root;
 static uint8_t arena[4U * 1024U * 1024U] __aligned(8);
 static uint8_t protected_object[64];
 static uint8_t *transport;
@@ -38,6 +40,73 @@ static size_t runtime_smram_size = 16U * 1024U * 1024U;
 static bool callback_retake;
 static bool mutate_consumed_state;
 static unsigned int scrub_calls;
+static unsigned int store_lookups;
+static unsigned int root_lookups;
+static bool store_drift;
+static bool root_drift;
+static void *media_context;
+static size_t media_context_size;
+static bool media_facts_mutate_seed;
+static bool media_facts_reserved;
+static bool media_install_failure;
+static bool media_ops_reserved;
+static bool media_ops_missing_install;
+
+enum cb_err payload_mm_authvar_smmstore_install(void);
+
+#if !defined(TEST_EXTERNAL_MEDIA_PROVIDER)
+static enum cb_err test_media_facts(void *unused,
+	struct payload_mm_authvar_smm_media_facts *facts)
+{
+	assert(unused == media_context);
+	if (media_facts_mutate_seed)
+		seed.cold_boot_generation++;
+	if (!facts || !flash_present || !flash.size || !flash.sector_size ||
+	    store_failure)
+		return CB_ERR;
+	*facts = (struct payload_mm_authvar_smm_media_facts) {
+		.revision = PAYLOAD_MM_AUTHVAR_SMM_MEDIA_REVISION,
+		.size = sizeof(*facts),
+		.boot_media_size = flash.size,
+		.store_offset = store.region.offset,
+		.store_size = store.region.size,
+		.block_size = SMM_BLOCK_SIZE,
+		.erase_size = flash.sector_size,
+	};
+	if (media_facts_reserved)
+		facts->reserved[0] = 1;
+	return CB_SUCCESS;
+}
+
+static enum cb_err test_media_install(void *unused)
+{
+	(void)unused;
+	if (payload_mm_authvar_smmstore_install() != CB_SUCCESS ||
+	    media_install_failure)
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
+bool platform_payload_mm_authvar_smm_media_ops(
+	struct payload_mm_authvar_smm_media_ops *ops)
+{
+	if (!ops)
+		return false;
+	*ops = (struct payload_mm_authvar_smm_media_ops) {
+		.revision = PAYLOAD_MM_AUTHVAR_SMM_MEDIA_REVISION,
+		.size = sizeof(*ops),
+		.facts = test_media_facts,
+		.install = test_media_install,
+		.context = media_context,
+		.context_size = media_context_size,
+	};
+	if (media_ops_reserved)
+		ops->reserved[0] = 1;
+	if (media_ops_missing_install)
+		ops->install = NULL;
+	return true;
+}
+#endif
 
 static void *install_thread(void *argument)
 {
@@ -89,6 +158,14 @@ const struct spi_flash *boot_device_spi_flash(void)
 	return flash_present ? &flash : NULL;
 }
 
+const struct region_device *boot_device_rw(void)
+{
+	root_lookups++;
+	if (root_drift && root_lookups > 1U)
+		qemu_root.region.size--;
+	return flash_present ? &qemu_root : NULL;
+}
+
 bool smm_take_payload_mm_authvar_arena_receipt(
 	struct payload_mm_authvar_smm_arena_receipt *output)
 {
@@ -103,6 +180,9 @@ bool smm_payload_mm_authvar_arena_receipt_consumed(void)
 int smmstore_lookup_read_region(struct region_device *output)
 {
 	*output = store;
+	store_lookups++;
+	if (store_drift && store_lookups > 1U)
+		output->region.offset++;
 	return store_failure ? -1 : 0;
 }
 
@@ -142,6 +222,15 @@ enum cb_err payload_mm_authvar_authority_install(
 }
 
 enum cb_err payload_mm_authvar_smmstore_install(void)
+{
+	assert(step == 2);
+	step++;
+	if (mutate_at == step)
+		seed.seal_channel.caller++;
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_qemu_pflash_install(void)
 {
 	assert(step == 2);
 	step++;
@@ -198,6 +287,7 @@ static void initialize(void)
 	flash.sector_size = 4096U;
 	store.region.offset = 12U * 1024U * 1024U;
 	store.region.size = 3U * 64U * 1024U;
+	qemu_root.region.size = flash.size;
 	seed = (struct payload_mm_authvar_smm_bootstrap) {
 		.revision = PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP_REVISION,
 		.size = sizeof(seed),
@@ -300,6 +390,39 @@ int main(int argc, char **argv)
 		flash.sector_size = 0;
 		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
 		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-store-drift")) {
+		store_drift = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-size-drift")) {
+		root_drift = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 1);
+	} else if (!strcmp(argv[1], "media-context-alias")) {
+		media_context = arena;
+		media_context_size = sizeof(protected_object);
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-facts-mutation")) {
+		media_facts_mutate_seed = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-facts-reserved")) {
+		media_facts_reserved = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-ops-reserved")) {
+		media_ops_reserved = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-ops-missing-install")) {
+		media_ops_missing_install = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 0);
+	} else if (!strcmp(argv[1], "media-install-failure")) {
+		media_install_failure = true;
+		assert(payload_mm_authvar_smm_bootstrap_install(&seed) == CB_ERR);
+		assert(step == 3);
 	} else if (!strcmp(argv[1], "small-smram")) {
 		runtime_smram_size = (uintptr_t)arena + sizeof(arena) - 0x400000U - 1U;
 		receipt.smram.size = runtime_smram_size;
@@ -382,8 +505,8 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "two-taker"))
 		assert(scrub_calls == 0);
 	else if (!strcmp(argv[1], "concurrent") || !strcmp(argv[1], "repeat"))
-		assert(scrub_calls == 6);
+		assert(scrub_calls == 10);
 	else
-		assert(scrub_calls == 3);
+		assert(scrub_calls == 5);
 	return 0;
 }

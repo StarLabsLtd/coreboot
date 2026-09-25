@@ -5,14 +5,11 @@
 #include <boot/payload_mm_authvar_mor_seal.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
 #include <boot/payload_mm_authvar_smm_loader.h>
-#include <boot/payload_mm_authvar_smmstore.h>
 #include <boot/payload_mm_authvar_store.h>
-#include <boot_device.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <cpu/x86/smm.h>
 #include <smmstore.h>
-#include <spi_flash.h>
 #include <string.h>
 
 #if !ENV_SMM && !ENV_TEST
@@ -37,9 +34,11 @@ struct bootstrap_policy {
 	struct payload_mm_authvar_range arena;
 	struct payload_mm_authvar_range store;
 	uint64_t boot_media_size;
+	uint32_t block_size;
 	uint32_t erase_size;
 	struct payload_mm_authvar_executor_limits limits;
 	struct payload_mm_authvar_mor_seal_channel channel;
+	struct payload_mm_authvar_smm_media_ops media;
 	payload_mm_authvar_smm_spi_restricted spi_restricted;
 	void *spi_context;
 	size_t spi_context_size;
@@ -88,6 +87,54 @@ static bool policy_matches(const struct bootstrap_policy *snapshot)
 {
 	return snapshot && policy_equal() &&
 		!memcmp(snapshot, &provider.sealed, sizeof(*snapshot));
+}
+
+static void scrub(void *buffer, size_t size);
+
+static bool media_ops_valid(const struct payload_mm_authvar_smm_media_ops *ops)
+{
+	return ops->revision == PAYLOAD_MM_AUTHVAR_SMM_MEDIA_REVISION &&
+		ops->size == sizeof(*ops) && ops->facts && ops->install &&
+		!ops->reserved[0] && !ops->reserved[1] &&
+		(!!ops->context == !!ops->context_size);
+}
+
+static bool media_facts_valid(
+	const struct payload_mm_authvar_smm_media_facts *facts,
+	const struct region_device *store)
+{
+	return facts->revision == PAYLOAD_MM_AUTHVAR_SMM_MEDIA_REVISION &&
+		facts->size == sizeof(*facts) && facts->boot_media_size &&
+		facts->store_size && facts->block_size && facts->erase_size &&
+		!facts->reserved[0] && !facts->reserved[1] &&
+		facts->store_offset == region_device_offset(store) &&
+		facts->store_size == region_device_sz(store) &&
+		facts->store_offset <= facts->boot_media_size &&
+		facts->store_size <= facts->boot_media_size - facts->store_offset;
+}
+
+static bool media_revalidate(const struct bootstrap_policy *snapshot)
+{
+	struct payload_mm_authvar_smm_media_facts facts = { 0 };
+	const struct payload_mm_authvar_smm_media_ops media =
+		provider.sealed.media;
+	bool valid;
+
+	if (!policy_matches(snapshot) || !media_ops_valid(&media))
+		return false;
+	valid = media.facts(media.context, &facts) == CB_SUCCESS &&
+		facts.revision == PAYLOAD_MM_AUTHVAR_SMM_MEDIA_REVISION &&
+		facts.size == sizeof(facts) &&
+		facts.boot_media_size == provider.sealed.boot_media_size &&
+		facts.store_offset == provider.sealed.store.base &&
+		facts.store_size == provider.sealed.store.size &&
+		facts.block_size == provider.sealed.block_size &&
+		facts.erase_size == provider.sealed.erase_size &&
+		!facts.reserved[0] && !facts.reserved[1] &&
+		policy_matches(snapshot) &&
+		!memcmp(&media, &provider.sealed.media, sizeof(media));
+	scrub(&facts, sizeof(facts));
+	return valid;
 }
 
 static bool bytes_nonzero(const void *buffer, size_t size)
@@ -190,7 +237,7 @@ static uint32_t aligned_record_size(uint32_t name_size, uint32_t data_size)
 	return size <= UINT32_MAX ? (uint32_t)size : 0;
 }
 
-static bool limits_build(uint64_t store_size,
+static bool limits_build(uint64_t store_size, uint32_t block_size,
 	struct payload_mm_authvar_executor_limits *limits)
 {
 	uint32_t bounded_store;
@@ -200,8 +247,9 @@ static bool limits_build(uint64_t store_size,
 	uint32_t available;
 
 	if (!limits || store_size > UINT32_MAX ||
-	    store_size < PAYLOAD_MM_AUTHVAR_MIN_STORE_BLOCKS * SMM_BLOCK_SIZE ||
-	    store_size % SMM_BLOCK_SIZE)
+	    !block_size ||
+	    store_size < PAYLOAD_MM_AUTHVAR_MIN_STORE_BLOCKS * block_size ||
+	    store_size % block_size)
 		return false;
 	bounded_store = (uint32_t)store_size;
 	available = bounded_store - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE;
@@ -236,7 +284,7 @@ enum cb_err payload_mm_authvar_smm_bootstrap_arena_size(uint64_t store_size,
 	if (!arena_size)
 		return CB_ERR;
 	*arena_size = 0;
-	if (!limits_build(store_size, &limits))
+	if (!limits_build(store_size, SMM_BLOCK_SIZE, &limits))
 		return CB_ERR;
 	return payload_mm_authvar_executor_required_size(&limits, arena_size);
 }
@@ -245,12 +293,13 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	const struct payload_mm_authvar_smm_bootstrap *bootstrap)
 {
 	struct payload_mm_authvar_smm_bootstrap input = { 0 };
+	struct payload_mm_authvar_smm_media_ops media = { 0 };
+	struct payload_mm_authvar_smm_media_facts facts = { 0 };
 	struct payload_mm_authvar_contract contract;
 	struct payload_mm_authvar_platform platform;
 	struct bootstrap_policy frozen = { 0 };
 	struct payload_mm_authvar_smm_arena_receipt receipt = { 0 };
 	struct region_device store;
-	const struct spi_flash *flash;
 	uintptr_t smram_base;
 	size_t smram_size;
 	size_t required_size;
@@ -269,7 +318,6 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		smram_base, smram_size))
 		goto cleanup;
 	memcpy(&input, bootstrap, sizeof(input));
-	flash = boot_device_spi_flash();
 	if (input.revision != PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP_REVISION ||
 	    input.size != sizeof(input) || !input.cold_boot_generation ||
 	    input.reserved[0] || input.reserved[1] ||
@@ -294,8 +342,29 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		receipt.smram.base, receipt.smram.size) ||
 	    memcmp(receipt.owner, input.seal_channel.capability,
 		sizeof(receipt.owner)) ||
-	    smmstore_lookup_read_region(&store) < 0 || !flash ||
-	    !flash->size || !flash->sector_size)
+	    smmstore_lookup_read_region(&store) < 0 ||
+	    !platform_payload_mm_authvar_smm_media_ops(&media) ||
+	    !media_ops_valid(&media) ||
+	    !span_within((uintptr_t)media.facts, 1, smram_base, smram_size) ||
+	    !span_within((uintptr_t)media.install, 1, smram_base, smram_size) ||
+	    (media.context &&
+	     !span_within((uintptr_t)media.context, media.context_size,
+		smram_base, smram_size)) ||
+	    (media.context &&
+	     (spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)bootstrap, sizeof(*bootstrap)) ||
+	      spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)&input, sizeof(input)) ||
+	      spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)&media, sizeof(media)) ||
+	      spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)&facts, sizeof(facts)) ||
+	      spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)&receipt, sizeof(receipt)))) ||
+	    media.facts(media.context, &facts) != CB_SUCCESS ||
+	    !media_ops_valid(&media) ||
+	    !media_facts_valid(&facts, &store) ||
+	    memcmp(&input, bootstrap, sizeof(input)))
 		goto cleanup;
 	provider.policy = (struct bootstrap_policy) {
 		.generation = input.cold_boot_generation,
@@ -310,14 +379,17 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 			.base = region_device_offset(&store),
 			.size = region_device_sz(&store),
 		},
-		.boot_media_size = flash->size,
-		.erase_size = flash->sector_size,
+		.boot_media_size = facts.boot_media_size,
+		.block_size = facts.block_size,
+		.erase_size = facts.erase_size,
 		.channel = input.seal_channel,
+		.media = media,
 		.spi_restricted = input.spi_writes_restricted_to_smm,
 		.spi_context = input.spi_context,
 		.spi_context_size = input.spi_context_size,
 	};
-	if (!limits_build(provider.policy.store.size, &provider.policy.limits) ||
+	if (!limits_build(provider.policy.store.size, provider.policy.block_size,
+		&provider.policy.limits) ||
 	    payload_mm_authvar_executor_required_size(&provider.policy.limits,
 		&required_size) != CB_SUCCESS ||
 	    required_size > provider.policy.arena.size)
@@ -332,6 +404,16 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	    !protected_storage((const void *)(uintptr_t)provider.sealed.arena.base,
 		provider.sealed.arena.size) ||
 	    !protected_storage((const void *)input.spi_writes_restricted_to_smm, 1) ||
+	    !protected_storage((const void *)media.facts, 1) ||
+	    !protected_storage((const void *)media.install, 1) ||
+	    memcmp(&media, &provider.sealed.media, sizeof(media)) ||
+	    (media.context && !protected_storage(media.context,
+		media.context_size)) ||
+	    (media.context &&
+	     (spans_overlap((uintptr_t)media.context, media.context_size,
+		(uintptr_t)&provider, sizeof(provider)) ||
+	      spans_overlap((uintptr_t)media.context, media.context_size,
+		provider.sealed.arena.base, provider.sealed.arena.size))) ||
 	    (input.spi_context && !protected_storage(input.spi_context,
 		input.spi_context_size)) ||
 	    spans_overlap(provider.sealed.arena.base, provider.sealed.arena.size,
@@ -360,7 +442,7 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		.boot_media_size = provider.sealed.boot_media_size,
 		.store_offset = provider.sealed.store.base,
 		.store_size = provider.sealed.store.size,
-		.block_size = SMM_BLOCK_SIZE,
+		.block_size = provider.sealed.block_size,
 		.erase_size = provider.sealed.erase_size,
 		.smm_entry_owned = smm_entry_owned,
 		.spi_writes_restricted_to_smm = spi_writes_restricted,
@@ -370,16 +452,21 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	};
 	if (payload_mm_authvar_contract_build(&contract, &platform) != CB_SUCCESS ||
 	    !policy_matches(&frozen) ||
+	    !media_revalidate(&frozen) ||
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
 	    payload_mm_authvar_authority_install(&contract, authority_storage,
 		NULL) != CB_SUCCESS || !policy_matches(&frozen) ||
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
-	    payload_mm_authvar_smmstore_install() != CB_SUCCESS ||
+	    !media_revalidate(&frozen) ||
+	    provider.sealed.media.install(provider.sealed.media.context) !=
+		CB_SUCCESS ||
 	    !policy_matches(&frozen) ||
+	    !media_revalidate(&frozen) ||
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
+	    memcmp(&media, &provider.sealed.media, sizeof(media)) ||
 	    payload_mm_authvar_executor_install(
 		(void *)(uintptr_t)provider.sealed.arena.base,
 		provider.sealed.arena.size,
@@ -401,10 +488,14 @@ cleanup:
 		scrub(&provider.sealed, sizeof(provider.sealed));
 	}
 	scrub(&receipt, sizeof(receipt));
+	scrub(&facts, sizeof(facts));
+	scrub(&media, sizeof(media));
 	scrub(&input, sizeof(input));
 	scrub(&frozen, sizeof(frozen));
 #if ENV_TEST
 	payload_mm_authvar_smm_bootstrap_scrub_observe(&receipt, sizeof(receipt));
+	payload_mm_authvar_smm_bootstrap_scrub_observe(&facts, sizeof(facts));
+	payload_mm_authvar_smm_bootstrap_scrub_observe(&media, sizeof(media));
 	payload_mm_authvar_smm_bootstrap_scrub_observe(&input, sizeof(input));
 	payload_mm_authvar_smm_bootstrap_scrub_observe(&frozen, sizeof(frozen));
 #endif

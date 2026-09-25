@@ -216,16 +216,18 @@ config PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
 config PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
 	bool
 	default n
-	depends on PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND
+	depends on PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND || PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
 	depends on PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
 	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
 	depends on PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
 	depends on !SMMSTORE
 	help
 	  Build the dormant private SMM composition that derives the authenticated-
-	  variable contract from live SMM, SPI and FMAP facts. A platform must
-	  privately supply a cold-boot generation, loader-reserved SMRAM arena,
-	  fixed MOR seal channel and a live chipset SPI-write restriction proof.
+	  variable contract from live SMM, selected boot-media and FMAP facts. A
+	  platform must privately supply a cold-boot generation, loader-reserved
+	  SMRAM arena, fixed MOR seal channel, a live write-restriction proof and
+	  exactly one typed SMM media binding. The binding is sealed and re-read
+	  across every installation callback.
 	  This publishes no endpoint and does not enable legacy raw SMMSTORE.
 
 config PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_RECOVERY
