@@ -17,7 +17,8 @@
  * The implementation owns its transport reservation and protected receipt
  * authorities.  resolve() may succeed only after the loader receipt, its
  * transport-page receipt, the SMM bootstrap and the chipset SPI-write proof
- * have all been verified for this generation and owner.
+ * have all been verified for this generation and owner. close() rolls back
+ * every arena_seed() attempt, including one that returns an error.
  */
 struct starbook_mtl_mor_private_boundary_ops {
 	uint32_t revision;

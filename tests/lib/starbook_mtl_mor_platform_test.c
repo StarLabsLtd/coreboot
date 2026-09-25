@@ -16,8 +16,10 @@
 static uint32_t boot_kind = STARBOOK_MTL_MOR_BOOT_COLD;
 static unsigned int entropy_index;
 static unsigned int private_calls;
+static unsigned int private_close_calls;
 static unsigned int prepare_calls;
 static bool mutate_provider;
+static bool seed_callback_failure;
 static bool descriptor_context;
 static bool seed_reentry;
 static bool seed_reentry_result;
@@ -162,6 +164,10 @@ static enum cb_err boundary_call(void *context, uint64_t generation,
 		/* Re-entry cannot replace the already frozen provider. */
 		CHECK(platform_payload_mm_authvar_mor_linear_ops(&ops));
 	}
+	if (seed_callback_failure) {
+		seed_callback_failure = false;
+		return CB_ERR;
+	}
 	return CB_SUCCESS;
 }
 
@@ -184,8 +190,10 @@ static enum cb_err boundary_complete(void *context,
 static enum cb_err boundary_close(void *context)
 {
 	CHECK(context == boundary_context);
-	CHECK(!starbook_mtl_mor_platform_scratch_zero_test());
+	CHECK(!starbook_mtl_mor_platform_scratch_zero_test() ||
+		starbook_mtl_mor_platform_poisoned_test());
 	private_calls++;
+	private_close_calls++;
 	return CB_SUCCESS;
 }
 
@@ -218,8 +226,10 @@ static void reset_test(void)
 	boot_kind = STARBOOK_MTL_MOR_BOOT_COLD;
 	entropy_index = 0;
 	private_calls = 0;
+	private_close_calls = 0;
 	prepare_calls = 0;
 	mutate_provider = false;
+	seed_callback_failure = false;
 	descriptor_context = false;
 	seed_reentry = false;
 	seed_reentry_result = true;
@@ -427,7 +437,8 @@ static void competing_seed_poison(void)
 	CHECK(!memcmp(&calls[0].seed, &unchanged, sizeof(unchanged)) &&
 		!memcmp(&calls[1].seed, &unchanged, sizeof(unchanged)));
 	CHECK(boundary_load_calls == 1 && classification_calls == 1 &&
-		entropy_index == 4 && private_calls == 1);
+		entropy_index == 4 && private_calls == 2 &&
+		private_close_calls == 1);
 }
 
 static void claim_conflict_blocks_owner_release(void)
@@ -463,7 +474,8 @@ static void claim_conflict_blocks_owner_release(void)
 	CHECK(!calls[1].result &&
 		!memcmp(&calls[1].seed, &unchanged, sizeof(unchanged)));
 	CHECK(boundary_load_calls == 1 && classification_calls == 1 &&
-		entropy_index == 4 && private_calls == 1 &&
+		entropy_index == 4 && private_calls == 2 &&
+		private_close_calls == 1 &&
 		__atomic_load_n(&concurrent_completed, __ATOMIC_ACQUIRE) == 2U);
 }
 
@@ -792,6 +804,21 @@ static void s3_path(void)
 	boot_kind = STARBOOK_MTL_MOR_BOOT_COLD;
 }
 
+static void loader_abort_closes_private(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+
+	reset_test();
+	CHECK(platform_payload_mm_authvar_smm_arena_required());
+	CHECK(platform_payload_mm_authvar_smm_arena_seed(&seed));
+	platform_payload_mm_authvar_smm_arena_abort();
+	CHECK(private_calls == 2);
+	CHECK(starbook_mtl_mor_platform_poisoned_test());
+	CHECK(starbook_mtl_mor_platform_owner_zero_test());
+	CHECK(starbook_mtl_mor_platform_scratch_zero_test());
+	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&seed));
+}
+
 static void seed_reentry_poison(void)
 {
 	struct payload_mm_authvar_smm_arena_seed seed;
@@ -802,11 +829,32 @@ static void seed_reentry_poison(void)
 	unchanged = seed;
 	seed_reentry = true;
 	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&seed));
-	CHECK(!seed_reentry_result && entropy_index == 4 && private_calls == 1);
+	CHECK(!seed_reentry_result && entropy_index == 4 && private_calls == 2);
+	CHECK(private_close_calls == 1);
 	CHECK(!memcmp(&seed, &unchanged, sizeof(seed)));
 	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&seed));
-	CHECK(entropy_index == 4 && private_calls == 1);
+	CHECK(entropy_index == 4 && private_calls == 2);
+	CHECK(private_close_calls == 1);
 	CHECK(!memcmp(&seed, &unchanged, sizeof(seed)));
+}
+
+static void seed_callback_failure_closes_private(void)
+{
+	struct payload_mm_authvar_smm_arena_seed seed;
+	struct payload_mm_authvar_smm_arena_seed unchanged;
+
+	reset_test();
+	memset(&seed, 0x5a, sizeof(seed));
+	unchanged = seed;
+	seed_callback_failure = true;
+	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(!memcmp(&seed, &unchanged, sizeof(seed)));
+	CHECK(private_calls == 2 && private_close_calls == 1);
+	CHECK(starbook_mtl_mor_platform_poisoned_test());
+	CHECK(starbook_mtl_mor_platform_owner_zero_test());
+	CHECK(starbook_mtl_mor_platform_scratch_zero_test());
+	CHECK(!platform_payload_mm_authvar_smm_arena_seed(&seed));
+	CHECK(private_calls == 2 && private_close_calls == 1);
 }
 
 static void descriptor_context_alias(void)
@@ -1123,7 +1171,9 @@ int main(void)
 {
 	cold_path();
 	s3_path();
+	loader_abort_closes_private();
 	seed_reentry_poison();
+	seed_callback_failure_closes_private();
 	competing_seed_poison();
 	competing_scratch_poison();
 	claim_conflict_blocks_owner_release();

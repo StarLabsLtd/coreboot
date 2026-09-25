@@ -14,6 +14,7 @@ test-help help::
 	@echo  '  test-capsule-protected-flash - Run protected flash tests'
 	@echo  '  test-capsule-platform-facts - Run capsule platform-facts tests'
 	@echo  '  test-mor-stack-bound - Check the bounded MOR clear call graph'
+	@echo  '  test-authvar-smm-loader - Check SMM authvar loader failure atomicity'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
 	@echo
 
@@ -111,6 +112,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-capsule-protected-flash
 	+$(MAKE) test-capsule-platform-facts
 	+$(MAKE) test-mor-stack-bound
+	+$(MAKE) test-authvar-smm-loader
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -120,7 +122,12 @@ endif
 test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
 	test-capsule-protected-flash test-capsule-platform-facts \
-	test-authvar-service-abi test-mor-stack-bound test-cleanup
+	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound test-cleanup
+
+.PHONY: test-authvar-smm-loader
+test-authvar-smm-loader:
+	tests/lib/payload_mm_authvar_smm_loader_failure_atomic_test.sh
+	tests/lib/payload_mm_authvar_smm_loader_artifact_test.sh
 
 .PHONY: test-mor-stack-bound
 test-mor-stack-bound:

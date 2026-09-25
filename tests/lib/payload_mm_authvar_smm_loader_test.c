@@ -10,6 +10,18 @@
 		__builtin_trap(); \
 } while (0)
 
+static unsigned int scrub_calls;
+void payload_mm_authvar_smm_loader_scrub_test_hook(const void *buffer,
+	size_t size)
+{
+	const uint8_t *bytes = buffer;
+
+	CHECK(size == sizeof(struct payload_mm_authvar_smm_arena_seed));
+	for (size_t index = 0; index < size; index++)
+		CHECK(bytes[index] == 0);
+	scrub_calls++;
+}
+
 static bool overlap(const struct payload_mm_authvar_range *left,
 	const struct payload_mm_authvar_range *right)
 {
@@ -48,6 +60,7 @@ int main(void)
 
 	CHECK(payload_mm_authvar_smm_arena_reserve(&receipt, base, size,
 		occupied, ARRAY_SIZE(occupied), &valid) == CB_SUCCESS);
+	CHECK(scrub_calls == 1);
 	CHECK(receipt.revision == PAYLOAD_MM_AUTHVAR_SMM_ARENA_REVISION &&
 		receipt.size == sizeof(receipt) &&
 		receipt.cold_boot_generation == valid.cold_boot_generation &&
@@ -65,6 +78,7 @@ int main(void)
 
 		CHECK(payload_mm_authvar_smm_arena_reserve(&receipt, base, size,
 			bad, ARRAY_SIZE(bad), &valid) == CB_ERR);
+		CHECK(scrub_calls == 2);
 	}
 	occupied[0].base = UINT64_MAX - 8U;
 	occupied[0].size = 16U;
@@ -72,9 +86,11 @@ int main(void)
 		occupied, ARRAY_SIZE(occupied), &valid) == CB_ERR);
 	CHECK(payload_mm_authvar_smm_arena_reserve(&receipt, UINT64_MAX - 7U,
 		16U, occupied, ARRAY_SIZE(occupied), &valid) == CB_ERR);
+	CHECK(scrub_calls == 4);
 	valid.owner[0] = 0;
 	CHECK(payload_mm_authvar_smm_arena_reserve(&receipt, base, size,
 		occupied + 1, ARRAY_SIZE(occupied) - 1U, &valid) == CB_ERR);
+	CHECK(scrub_calls == 5);
 	{
 		union {
 			struct payload_mm_authvar_smm_arena_seed seed;
@@ -84,6 +100,10 @@ int main(void)
 		CHECK(payload_mm_authvar_smm_arena_reserve(&alias.receipt, base, size,
 			occupied + 1, ARRAY_SIZE(occupied) - 1U,
 			&alias.seed) == CB_ERR);
+		CHECK(scrub_calls == 6);
 	}
+	CHECK(payload_mm_authvar_smm_arena_reserve(NULL, base, size,
+		occupied + 1, ARRAY_SIZE(occupied) - 1U, &valid) == CB_ERR);
+	CHECK(scrub_calls == 7);
 	return 0;
 }

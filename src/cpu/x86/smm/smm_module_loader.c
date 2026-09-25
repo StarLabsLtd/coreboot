@@ -54,6 +54,18 @@ struct cpu_smm_info {
 };
 struct cpu_smm_info cpus[CONFIG_MAX_CPUS] = { 0 };
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+static __noinline void scrub_authvar_loader(void *buffer, size_t size)
+{
+	volatile uint8_t *bytes = buffer;
+
+	while (size--)
+		*bytes++ = 0;
+	__asm__ __volatile__("" : : "r" (bytes) : "memory");
+}
+#endif
+
 /*
  * This method creates a map of all the CPU entry points, save state locations
  * and the beginning and end of code segments for each CPU. This map is used
@@ -584,12 +596,29 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	 */
 	static struct region region_list[SMM_REGIONS_ARRAY_SIZE] = {};
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	struct payload_mm_authvar_smm_arena_seed authvar_seed = { 0 };
 	struct payload_mm_authvar_smm_arena_receipt authvar_arena = { 0 };
+	struct payload_mm_authvar_smm_arena_slot *published_arena = NULL;
+	const bool authvar_arena_required =
+		platform_payload_mm_authvar_smm_arena_required();
+	bool authvar_arena_started = false;
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	struct payload_mm_authvar_mor_private_smi_slot *published_channel = NULL;
+	const bool authvar_channel_required =
+		platform_payload_mm_authvar_mor_private_smi_required();
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) && \
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	if (authvar_channel_required && !authvar_arena_required)
+		goto fail;
 #endif
 
 	struct rmodule smi_handler;
 	if (rmodule_parse(&_binary_smm_start, &smi_handler))
-		return -1;
+		goto fail;
+	memset(region_list, 0, sizeof(region_list));
 
 	const struct region smram = region_create(smram_base, smram_size);
 	const uintptr_t smram_top = region_last(&smram) + 1;
@@ -600,7 +629,7 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	if (CONFIG(STM)) {
 		struct region stm = region_create(smram_top - stm_size, stm_size);
 		if (append_and_check_region(smram, stm, region_list, "STM"))
-			return -1;
+			goto fail;
 		printk(BIOS_DEBUG, "MSEG size     0x%x\n", CONFIG_MSEG_SIZE);
 		printk(BIOS_DEBUG, "BIOS res list 0x%x\n", CONFIG_BIOS_RESOURCE_LIST_SIZE);
 	}
@@ -612,14 +641,14 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 			   handler_alignment);
 	struct region handler = region_create(handler_base, handler_size);
 	if (append_and_check_region(smram, handler, region_list, "HANDLER"))
-		return -1;
+		goto fail;
 
 	uintptr_t stub_segment_base;
 	if (ENV_X86_64) {
 		uintptr_t pt_base = install_page_table(handler_base);
 		struct region page_tables = region_create(pt_base, handler_base - pt_base);
 		if (append_and_check_region(smram, page_tables, region_list, "PAGE TABLES"))
-			return -1;
+			goto fail;
 		params->cr3 = pt_base;
 		stub_segment_base = pt_base - SMM_CODE_SEGMENT_SIZE;
 	} else {
@@ -628,34 +657,33 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 
 	if (!smm_create_map(stub_segment_base, params->num_concurrent_save_states, params)) {
 		printk(BIOS_ERR, "%s: Error creating CPU map\n", __func__);
-		return -1;
+		goto fail;
 	}
 	for (unsigned int i = 0; i < params->num_concurrent_save_states; i++) {
 		printk(BIOS_DEBUG, "\nCPU %u\n", i);
 		char string[13];
 		snprintf(string, sizeof(string), "  ss%d", i);
 		if (append_and_check_region(smram, cpus[i].ss, region_list, string))
-			return -1;
+			goto fail;
 		snprintf(string, sizeof(string), "  stub%d", i);
 		if (append_and_check_region(smram, cpus[i].stub_code, region_list, string))
-			return -1;
+			goto fail;
 	}
 
 	struct region stacks = region_create(smram_base,
 			params->num_concurrent_save_states * CONFIG_SMM_MODULE_STACK_SIZE);
 	printk(BIOS_DEBUG, "\n");
 	if (append_and_check_region(smram, stacks, region_list, "stacks"))
-		return -1;
+		goto fail;
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
-	{
-		struct payload_mm_authvar_smm_arena_seed seed;
+	if (authvar_arena_required) {
 		struct payload_mm_authvar_range occupied[SMM_REGIONS_ARRAY_SIZE];
 		size_t occupied_count = 0;
 
-		memset(&seed, 0, sizeof(seed));
-		if (!platform_payload_mm_authvar_smm_arena_seed(&seed))
-			return -1;
+		authvar_arena_started = true;
+		if (!platform_payload_mm_authvar_smm_arena_seed(&authvar_seed))
+			goto fail;
 		for (size_t index = 0; index < SMM_REGIONS_ARRAY_SIZE; index++) {
 			if (!region_sz(&region_list[index]))
 				continue;
@@ -666,40 +694,61 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		}
 		if (payload_mm_authvar_smm_arena_reserve(&authvar_arena,
 			smram_base, smram_size, occupied, occupied_count,
-			&seed) != CB_SUCCESS ||
+			&authvar_seed) != CB_SUCCESS ||
 		    append_and_check_region(smram,
 			region_create(authvar_arena.arena.base,
 				authvar_arena.arena.size),
 			region_list, "AUTHVAR"))
-			return -1;
+			goto fail;
 	}
 #endif
 
 	if (rmodule_load((void *)handler_base, &smi_handler))
-		return -1;
+		goto fail;
 
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
 	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
-	smihandler_params->authvar_arena.state =
-		PAYLOAD_MM_AUTHVAR_SMM_ARENA_EMPTY;
-	memcpy(&smihandler_params->authvar_arena.receipt, &authvar_arena,
-		sizeof(authvar_arena));
-	__atomic_store_n(&smihandler_params->authvar_arena.state,
-		PAYLOAD_MM_AUTHVAR_SMM_ARENA_READY, __ATOMIC_RELEASE);
+	published_arena = &smihandler_params->authvar_arena;
+	scrub_authvar_loader(published_arena, sizeof(*published_arena));
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
-	memset(&smihandler_params->authvar_mor_channel, 0,
-		sizeof(smihandler_params->authvar_mor_channel));
+	published_channel = &smihandler_params->authvar_mor_channel;
+	scrub_authvar_loader(published_channel, sizeof(*published_channel));
 #endif
 
 	if (smm_module_setup_stub(stub_segment_base, smram_size, params))
-		return -1;
+		goto fail;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 	if (payload_mm_authvar_mor_private_smi_loader_provision(
-		&smihandler_params->authvar_mor_channel) != CB_SUCCESS)
-		return -1;
+		published_channel, authvar_channel_required) != CB_SUCCESS)
+		goto fail;
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	if (authvar_arena_required) {
+		memcpy(&published_arena->receipt, &authvar_arena,
+			sizeof(authvar_arena));
+		__atomic_store_n(&published_arena->state,
+			PAYLOAD_MM_AUTHVAR_SMM_ARENA_READY, __ATOMIC_RELEASE);
+	}
+	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
+	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
 #endif
 	return 0;
+
+fail:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	if (published_channel)
+		scrub_authvar_loader(published_channel, sizeof(*published_channel));
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	if (published_arena)
+		scrub_authvar_loader(published_arena, sizeof(*published_arena));
+	if (authvar_arena_started)
+		platform_payload_mm_authvar_smm_arena_abort();
+	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
+	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
+#endif
+	return -1;
 }

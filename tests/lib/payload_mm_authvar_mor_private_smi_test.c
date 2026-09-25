@@ -32,7 +32,10 @@ static pthread_barrier_t claim_barrier;
 static pthread_barrier_t install_enter_barrier;
 static pthread_barrier_t install_done_barrier;
 static pthread_barrier_t abort_claim_barrier;
+static pthread_barrier_t provision_enter_barrier;
+static pthread_barrier_t provision_release_barrier;
 static unsigned int terminal_cleanup_calls;
+static unsigned int seed_calls;
 
 static bool page_is_zero(void);
 
@@ -49,6 +52,31 @@ struct concurrent_dispatch {
 	bool handled;
 	uintptr_t result;
 };
+
+struct concurrent_provision {
+	struct payload_mm_authvar_mor_private_smi_slot *slot;
+	enum cb_err result;
+};
+
+static void *concurrent_provision_channel(void *argument)
+{
+	struct concurrent_provision *call = argument;
+
+	call->result = payload_mm_authvar_mor_private_smi_loader_provision(
+		call->slot, true);
+	return NULL;
+}
+
+void payload_mm_authvar_mor_private_smi_test_during_provision(void)
+{
+	if (!strcmp(test_case, "provision-concurrent-terminal")) {
+		int status = pthread_barrier_wait(&provision_enter_barrier);
+
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+		status = pthread_barrier_wait(&provision_release_barrier);
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	}
+}
 
 static void *concurrent_bootstrap_receive(void *argument)
 {
@@ -161,6 +189,7 @@ void mock_assert(const int result, const char *const expression,
 bool platform_payload_mm_authvar_mor_private_smi_seed(
 	struct payload_mm_authvar_mor_private_smi_seed *seed)
 {
+	seed_calls++;
 	*seed = (struct payload_mm_authvar_mor_private_smi_seed) {
 		.revision = PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_REVISION,
 		.size = sizeof(*seed),
@@ -536,6 +565,28 @@ int main(int argc, char **argv)
 	if (!strcmp(test_case, "abort-dispatch-barrier")) {
 		assert(!pthread_barrier_init(&abort_claim_barrier, NULL, 2));
 	}
+	if (!strcmp(test_case, "provision-concurrent-terminal")) {
+		pthread_t thread;
+		struct concurrent_provision call = { .slot = &slot };
+		int status;
+
+		assert(!pthread_barrier_init(&provision_enter_barrier, NULL, 2));
+		assert(!pthread_barrier_init(&provision_release_barrier, NULL, 2));
+		assert(!pthread_create(&thread, NULL, concurrent_provision_channel,
+			&call));
+		status = pthread_barrier_wait(&provision_enter_barrier);
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+		assert(payload_mm_authvar_mor_private_smi_close_unused() == CB_ERR);
+		status = pthread_barrier_wait(&provision_release_barrier);
+		assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+		assert(!pthread_join(thread, NULL));
+		assert(call.result == CB_SUCCESS && seed_calls == 1);
+		assert(payload_mm_authvar_mor_private_smi_seal_channel_resolve(
+			&channel) == CB_SUCCESS);
+		assert(!pthread_barrier_destroy(&provision_enter_barrier));
+		assert(!pthread_barrier_destroy(&provision_release_barrier));
+		return 0;
+	}
 	bootstrap = !strncmp(test_case, "bootstrap-", 10);
 	close = !strcmp(test_case, "close") ||
 		!strcmp(test_case, "bootstrap-close");
@@ -550,8 +601,19 @@ int main(int argc, char **argv)
 		!strcmp(test_case, "bootstrap-success") ||
 		!strcmp(test_case, "bootstrap-replay") ||
 		!strcmp(test_case, "bootstrap-after-install-dispatch");
-	assert(payload_mm_authvar_mor_private_smi_loader_provision(&slot) ==
+	if (!strcmp(test_case, "optional")) {
+		memset(&slot, 0xa5, sizeof(slot));
+		assert(payload_mm_authvar_mor_private_smi_loader_provision(&slot,
+			false) == CB_SUCCESS);
+		assert(!seed_calls);
+		assert(!memcmp(&slot,
+			&(struct payload_mm_authvar_mor_private_smi_slot){ 0 },
+			sizeof(slot)));
+		return 0;
+	}
+	assert(payload_mm_authvar_mor_private_smi_loader_provision(&slot, true) ==
 		CB_SUCCESS);
+	assert(seed_calls == 1);
 	assert(payload_mm_authvar_mor_private_smi_seal_channel_resolve(&channel) ==
 		CB_SUCCESS);
 	if (!strncmp(test_case, "install-mutate-", 15) ||
@@ -603,7 +665,8 @@ int main(int argc, char **argv)
 	}
 	payload_mm_authvar_mor_private_smi_test_set_trigger(trigger, NULL);
 	if (close) {
-		payload_mm_authvar_mor_private_smi_close_unused();
+		assert(payload_mm_authvar_mor_private_smi_close_unused() ==
+			CB_SUCCESS);
 	} else if (!strcmp(test_case, "installed-barrier")) {
 		const enum cb_err status =
 			payload_mm_authvar_mor_private_smi_send_install(&grant);

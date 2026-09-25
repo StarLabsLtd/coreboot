@@ -144,6 +144,15 @@ reject_mutant resolution-without-final-release sed \
 reject_mutant terminal-owner-not-scrubbed sed \
 	'/static void provider_terminal_poison/,/^}/s/scrub(platform.owner, sizeof(platform.owner));/scrub(platform.owner, 0);/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant loader-abort-without-private-close sed \
+	'/void platform_payload_mm_authvar_smm_arena_abort/,/^}/s/if (private_close(&platform) != CB_SUCCESS)/if (false \&\& private_close(\&platform) != CB_SUCCESS)/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant poisoned-seed-without-private-close sed \
+	'/static void close_private_seed/,/^}/s/(void)platform.private.close(platform.private.context);/(void)0;/' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
+reject_mutant failed-seed-without-private-close sed \
+	'/platform_snapshot(frozen);/{n;s/private_seed_live = true;/private_seed_live = false;/;}' \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
 reject_mutant conflict-without-atomic-poison sed \
 	'/static bool private_callback_enter/,/static bool private_callback_leave/s/MTL_MOR_CALLBACK_ACTIVE : MTL_MOR_CALLBACK_POISONED/MTL_MOR_CALLBACK_ACTIVE : MTL_MOR_CALLBACK_ACTIVE/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c"
