@@ -78,17 +78,6 @@ static bool ranges_overlap(const void *first, size_t first_size,
 	return first_base - second_base < second_size;
 }
 
-static uint64_t derive_identity(const uint8_t capability[32], uint64_t generation)
-{
-	uint64_t identity = generation ^ PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_IDENTITY;
-
-	for (size_t index = 0; index < 32; index++)
-		identity = (identity << 7) | (identity >> 57),
-		identity ^= capability[index];
-	identity &= UINTPTR_MAX;
-	return identity ? identity : PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_IDENTITY;
-}
-
 __weak bool platform_payload_mm_authvar_mor_private_smi_seed(
 	struct payload_mm_authvar_mor_private_smi_seed *seed)
 {
@@ -112,7 +101,6 @@ enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
 	struct payload_mm_authvar_mor_private_smi_slot *slot)
 {
 	struct payload_mm_authvar_mor_private_smi_seed seed = { 0 };
-	struct bootmem_aligned_reservation page = { 0 };
 	uint8_t expected = CHANNEL_EMPTY;
 	enum cb_err status = CB_ERR;
 
@@ -133,15 +121,8 @@ enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
 	sender.handle = seed.page_handle;
 	sender.generation = seed.cold_boot_generation;
 	memcpy(sender.capability, seed.capability, sizeof(sender.capability));
-	sender.identity = derive_identity(sender.capability, sender.generation);
-	if (bootmem_aligned_reservation_query(&sender.handle, &page) ||
-	    page.tag != BM_MEM_TABLE ||
-	    page.size != PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_PAGE_SIZE ||
-	    page.base % PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_PAGE_SIZE ||
-	    page.base > UINTPTR_MAX)
-		goto out;
-	sender.cookie = payload_mm_authvar_mor_private_smi_cookie(sender.identity,
-		page.base, sender.generation, 0, CONFIG_MAX_CPUS);
+	sender.identity = payload_mm_authvar_mor_private_smi_identity(
+		sender.capability, sender.generation);
 	if (bootmem_reservation_receipt_provision(&sender.signer,
 		&slot->verifier, seed.receipt_secret,
 		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, sender.generation,
@@ -149,7 +130,7 @@ enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
 		goto out;
 	slot->cold_boot_generation = sender.generation;
 	slot->channel_identity = sender.identity;
-	slot->descriptor_cookie = sender.cookie;
+	slot->descriptor_cookie = 0;
 	slot->owner_cpu = 0;
 	slot->maximum_cpus = CONFIG_MAX_CPUS;
 	memcpy(slot->capability, sender.capability, sizeof(slot->capability));
@@ -177,6 +158,8 @@ static enum cb_err resolve(struct bootmem_aligned_reservation *page)
 	    page->base > UINTPTR_MAX ||
 	    page->base > UINT64_MAX - page->size)
 		return CB_ERR;
+	sender.cookie = payload_mm_authvar_mor_private_smi_cookie(sender.identity,
+		page->base, sender.generation, 0, CONFIG_MAX_CPUS);
 	return CB_SUCCESS;
 }
 
