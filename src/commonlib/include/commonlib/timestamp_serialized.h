@@ -62,6 +62,12 @@ enum timestamp_id {
 	TS_READ_UCODE_END = 113,
 	TS_ELOG_INIT_START = 114,
 	TS_ELOG_INIT_END = 115,
+	TS_MOR_DISCOVERY_START = 116,
+	TS_MOR_DISCOVERY_END = 117,
+	TS_MOR_CLEAR_START = 118,
+	TS_MOR_CLEAR_END = 119,
+	TS_MOR_COMMIT_START = 120,
+	TS_MOR_COMMIT_END = 121,
 
 	/* 500+ reserved for vendorcode extensions (500-600: google/chromeos) */
 	TS_COPYVER_START = 501,
@@ -263,6 +269,15 @@ static const struct timestamp_id_to_name {
 	TS_NAME_DEF(TS_READ_UCODE_END, 0, "finished reading uCode"),
 	TS_NAME_DEF(TS_ELOG_INIT_START, TS_ELOG_INIT_END, "started elog init"),
 	TS_NAME_DEF(TS_ELOG_INIT_END, 0, "finished elog init"),
+	TS_NAME_DEF(TS_MOR_DISCOVERY_START, TS_MOR_DISCOVERY_END,
+		"starting MOR request discovery"),
+	TS_NAME_DEF(TS_MOR_DISCOVERY_END, 0, "finished MOR request discovery"),
+	TS_NAME_DEF(TS_MOR_CLEAR_START, TS_MOR_CLEAR_END,
+		"starting MOR memory clear"),
+	TS_NAME_DEF(TS_MOR_CLEAR_END, 0, "finished MOR memory clear"),
+	TS_NAME_DEF(TS_MOR_COMMIT_START, TS_MOR_COMMIT_END,
+		"starting MOR completion commit"),
+	TS_NAME_DEF(TS_MOR_COMMIT_END, 0, "finished MOR completion commit"),
 
 	/* Google related timestamps */
 	TS_NAME_DEF(TS_COPYVER_START, TS_COPYVER_START, "starting to load verstage"),
