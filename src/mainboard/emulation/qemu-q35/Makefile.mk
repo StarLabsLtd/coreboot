@@ -14,6 +14,9 @@ ramstage-y += cpu.c
 ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_dma_handoff.c q35_dma_policy.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_registers.c
+ramstage-$(CONFIG_Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER) += q35_mor_pci_guard.c
+ramstage-$(CONFIG_Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER) += mor_platform.c
+smm-$(CONFIG_Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER) += mor_platform_smm.c
 ramstage-$(CONFIG_PAYLOAD_LOCAL_APIC_TIMER_INFO) += lapic_timer.c
 
 all-y += ../qemu-i440fx/bootmode.c

@@ -517,6 +517,17 @@ config PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR
 	  a private SMM completion channel. This option makes no platform-support
 	  claim and publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_MOR_EARLY_DISCOVERY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR
+	help
+	  Run the linear MOR discovery callback at pre-device exit, after a
+	  platform's entry guard and before device initialization or permanent SMM
+	  loading.
+	  Platforms whose SMM bootstrap depends on discovery must explicitly
+	  require this schedule. This adds no provider or endpoint.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
