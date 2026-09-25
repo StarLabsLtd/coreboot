@@ -13,11 +13,8 @@
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
 #include <acpi/acpi_gnvs.h>
 #include <cpu/x86/smm.h>
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-#include <cpu/intel/msr.h>
-#include <cpu/x86/msr.h>
-#include <device/mmio.h>
-#include <intelblocks/fast_spi.h>
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+#include <intelblocks/smm_spi_window.h>
 #endif
 #include <soc/nvs.h>
 #endif
@@ -27,53 +24,6 @@
 #include "ecdefs.h"
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-static void set_insmm_sts(const bool enable_writes)
-{
-	msr_t msr = {
-		.lo = read32p(0xfed30880),
-		.hi = 0,
-	};
-
-	if (enable_writes)
-		msr.lo |= 1;
-	else
-		msr.lo &= ~1;
-
-	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
-}
-#endif
-
-static bool chipset_disable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	const bool wp_enabled = !fast_spi_wpd_status();
-
-	if (wp_enabled) {
-		set_insmm_sts(true);
-		/*
-		 * As per BWG, clearing "SPI_BIOS_CONTROL_SYNC_SS"
-		 * bit is a must prior setting SPI_BIOS_CONTROL_WPD" bit
-		 * to avoid 3-strike error.
-		 */
-		fast_spi_clear_sync_smi_status();
-		fast_spi_disable_wp();
-	}
-
-	return wp_enabled;
-#endif
-
-	return false;
-}
-
-static void chipset_enable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	fast_spi_enable_wp();
-	set_insmm_sts(false);
-#endif
-}
-
 static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 {
 	if (!gnvs)
@@ -85,6 +35,20 @@ static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 	base += gnvs_size;
 	return (struct starlabs_dnvs_efiopt *)base;
 }
+
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+struct option_store_operation {
+	const char *name;
+	uint32_t value;
+};
+
+static int option_store_execute(void *context)
+{
+	const struct option_store_operation *operation = context;
+
+	return set_uint_option(operation->name, operation->value);
+}
+#endif
 #endif
 
 struct starlabs_efiopt_entry {
@@ -567,14 +531,24 @@ int mainboard_smi_apmc(u8 data)
 		break;
 	case STARLABS_EFIOPT_CMD_SET: {
 		uint32_t value = dnvs->value;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+		struct option_store_operation operation;
+#endif
 		dnvs->status = normalize_value(id, &value);
 		if (dnvs->status != CB_SUCCESS)
 			break;
 
-		const bool wp_enabled = chipset_disable_wp();
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+		operation = (struct option_store_operation) {
+			.name = opt->name,
+			.value = value,
+		};
+		dnvs->status = intel_smm_spi_window_run(
+			INTEL_SMM_SPI_WINDOW_OPTION_STORE, dnvs,
+			option_store_execute, &operation, CB_ERR);
+#else
 		dnvs->status = set_uint_option(opt->name, value);
-		if (wp_enabled)
-			chipset_enable_wp();
+#endif
 		if (dnvs->status == CB_SUCCESS)
 			dnvs->status = apply_runtime_efiopt(id, value);
 		break;

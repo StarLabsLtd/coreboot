@@ -34,18 +34,25 @@ run_test()
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/payload_mm_authvar_smmstore_test.c" \
 		-o "$temporary/$name"
-	for mode in transaction geometry-offset geometry-size geometry-media \
-		geometry-block geometry-erase contention begin-mutation alias \
-		bounds-one-past bounds-crossing bounds-overflow bounds-erase \
-		operation-failure callback-mutation context-mutation close-failure; do
+	for mode in $test_modes; do
 		"$temporary/$name" "$mode"
 	done
 }
 
+test_modes="transaction geometry-offset geometry-size geometry-media
+geometry-block geometry-erase contention begin-mutation alias
+bounds-one-past bounds-crossing bounds-overflow bounds-erase
+operation-failure callback-mutation context-mutation close-failure"
 run_test sanitized-O0 -O0 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
 run_test sanitized-O2 -O2 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
+
+test_modes="$test_modes window-begin window-proof window-end"
+run_test intel-window-O2 -O2 -g -fno-omit-frame-pointer \
+	-fsanitize=address,undefined -fno-sanitize-recover=all \
+	-DCONFIG_SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW=1 \
+	-I"$root/src/soc/intel/common/block/include"
 
 mutant()
 {

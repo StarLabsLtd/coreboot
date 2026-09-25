@@ -9,6 +9,13 @@
 #include <spi_flash.h>
 #include <string.h>
 
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW)
+#include <intelblocks/smm_spi_window.h>
+#define AUTHVAR_INTEL_SMM_WINDOW 1
+#else
+#define AUTHVAR_INTEL_SMM_WINDOW 0
+#endif
+
 #include "payload_mm_authvar_internal.h"
 
 #if !ENV_SMM && !ENV_TEST
@@ -44,8 +51,13 @@ static struct {
 	struct backend_context context;
 	struct payload_mm_authvar_media_port port;
 	struct spi_flash_volatile_lease lease;
+#if AUTHVAR_INTEL_SMM_WINDOW
+	struct intel_smm_spi_window window;
+	uint32_t window_owned;
+#endif
 	uint32_t install_attempted;
 	uint32_t transaction;
+	uint32_t lease_owned;
 	uint32_t poisoned;
 } backend;
 
@@ -108,25 +120,45 @@ static enum payload_mm_authvar_media_result begin(const void *opaque,
 	    backend.sealed.flash->size < backend.policy.store_offset ||
 	    backend.policy.store_size >
 		backend.sealed.flash->size - backend.policy.store_offset ||
-	    backend.sealed.flash->sector_size != backend.policy.erase_size ||
-	    spi_flash_volatile_lease_begin(backend.sealed.flash,
-		&backend.lease)) {
-		poison();
-		__atomic_store_n(&backend.transaction, BACKEND_IDLE,
-			__ATOMIC_RELEASE);
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
-	}
+	    backend.sealed.flash->sector_size != backend.policy.erase_size)
+		goto fail;
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (intel_smm_spi_window_begin(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context))
+		goto fail;
+	__atomic_store_n(&backend.window_owned, 1, __ATOMIC_RELEASE);
+	if (intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context))
+		goto fail;
+#endif
+	if (spi_flash_volatile_lease_begin(backend.sealed.flash,
+		&backend.lease))
+		goto fail;
+	__atomic_store_n(&backend.lease_owned, 1, __ATOMIC_RELEASE);
 	valid = context_valid(opaque) &&
 		!__atomic_load_n(&backend.poisoned, __ATOMIC_ACQUIRE);
+#if AUTHVAR_INTEL_SMM_WINDOW
+	valid = valid && !intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context);
+#endif
 	if (!valid) {
 		(void)spi_flash_volatile_lease_end(&backend.lease);
-		__atomic_store_n(&backend.transaction, BACKEND_IDLE,
-			__ATOMIC_RELEASE);
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+		__atomic_store_n(&backend.lease_owned, 0, __ATOMIC_RELEASE);
+		goto fail;
 	}
 	*generation = backend.policy.generation;
 	__atomic_store_n(&backend.transaction, BACKEND_ACTIVE, __ATOMIC_RELEASE);
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+
+fail:
+	poison();
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (__atomic_exchange_n(&backend.window_owned, 0, __ATOMIC_ACQ_REL))
+		(void)intel_smm_spi_window_end(&backend.window,
+			INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context);
+#endif
+	__atomic_store_n(&backend.transaction, BACKEND_IDLE, __ATOMIC_RELEASE);
+	return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 }
 
 static enum payload_mm_authvar_media_result read_media(const void *opaque,
@@ -143,7 +175,12 @@ static enum payload_mm_authvar_media_result read_media(const void *opaque,
 	    !buffer_disjoint(buffer, size) ||
 	    !context_valid(opaque) ||
 	    __atomic_load_n(&backend.transaction, __ATOMIC_ACQUIRE) !=
-		BACKEND_ACTIVE || !span_valid(offset, size, &absolute)) {
+	    BACKEND_ACTIVE || !span_valid(offset, size, &absolute)
+#if AUTHVAR_INTEL_SMM_WINDOW
+	    || intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)
+#endif
+	    ) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
@@ -153,6 +190,13 @@ static enum payload_mm_authvar_media_result read_media(const void *opaque,
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)) {
+		poison();
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	}
+#endif
 	*completed = size;
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
 }
@@ -165,7 +209,12 @@ static enum payload_mm_authvar_media_result program(const void *opaque,
 
 	if (!buffer_disjoint(buffer, size) || !context_valid(opaque) ||
 	    __atomic_load_n(&backend.transaction, __ATOMIC_ACQUIRE) !=
-		BACKEND_ACTIVE || !span_valid(offset, size, &absolute)) {
+	    BACKEND_ACTIVE || !span_valid(offset, size, &absolute)
+#if AUTHVAR_INTEL_SMM_WINDOW
+	    || intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)
+#endif
+	    ) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
@@ -175,6 +224,13 @@ static enum payload_mm_authvar_media_result program(const void *opaque,
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)) {
+		poison();
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	}
+#endif
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
 }
 
@@ -189,7 +245,12 @@ static enum payload_mm_authvar_media_result erase(const void *opaque,
 		BACKEND_ACTIVE || size != backend.policy.erase_size ||
 	    offset % backend.policy.erase_size ||
 	    !span_valid(offset, size, &absolute) ||
-	    absolute % backend.policy.erase_size) {
+	    absolute % backend.policy.erase_size
+#if AUTHVAR_INTEL_SMM_WINDOW
+	    || intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)
+#endif
+	    ) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
@@ -199,6 +260,13 @@ static enum payload_mm_authvar_media_result erase(const void *opaque,
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	}
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)) {
+		poison();
+		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
+	}
+#endif
 	return PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
 }
 
@@ -208,12 +276,21 @@ static enum payload_mm_authvar_media_result sync_media(const void *opaque)
 	bool valid = context_valid(opaque);
 
 	if (__atomic_load_n(&backend.transaction, __ATOMIC_ACQUIRE) !=
-	    BACKEND_ACTIVE)
+	    BACKEND_ACTIVE
+#if AUTHVAR_INTEL_SMM_WINDOW
+	    || intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context)
+#endif
+	    )
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
 	/* Attempt the hardware fence even after a prior operation poisoned policy. */
 	result = spi_flash_volatile_lease_sync(backend.sealed.flash,
 		&backend.lease);
 	if (result || !valid || !context_valid(opaque) ||
+#if AUTHVAR_INTEL_SMM_WINDOW
+	    intel_smm_spi_window_prove(&backend.window,
+		INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context) ||
+#endif
 	    __atomic_load_n(&backend.poisoned, __ATOMIC_ACQUIRE)) {
 		poison();
 		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
@@ -225,15 +302,19 @@ static enum payload_mm_authvar_media_result end(const void *opaque)
 {
 	uint32_t expected = BACKEND_ACTIVE;
 	bool valid = context_valid(opaque);
-	int result;
+	int result = 0;
 
 	if (!__atomic_compare_exchange_n(&backend.transaction, &expected,
-		BACKEND_ENDING, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+		BACKEND_ENDING, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
 		poison();
-		return PAYLOAD_MM_AUTHVAR_MEDIA_DEVICE_ERROR;
-	}
 	/* Cleanup uses only the private owner handle, never mutable context. */
-	result = spi_flash_volatile_lease_end(&backend.lease);
+	if (__atomic_exchange_n(&backend.lease_owned, 0, __ATOMIC_ACQ_REL))
+		result = spi_flash_volatile_lease_end(&backend.lease);
+#if AUTHVAR_INTEL_SMM_WINDOW
+	if (__atomic_exchange_n(&backend.window_owned, 0, __ATOMIC_ACQ_REL))
+		result |= intel_smm_spi_window_end(&backend.window,
+			INTEL_SMM_SPI_WINDOW_AUTHVAR, &backend.context);
+#endif
 	if (result || !valid || !context_valid(opaque) ||
 	    __atomic_load_n(&backend.poisoned, __ATOMIC_ACQUIRE))
 		poison();
