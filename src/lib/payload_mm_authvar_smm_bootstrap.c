@@ -3,6 +3,9 @@
 #include <boot/payload_mm_authvar.h>
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_mor_seal.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+#include <boot/payload_mm_authvar_mor_private_smi.h>
+#endif
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
 #include <boot/payload_mm_authvar_smm_loader.h>
 #include <boot/payload_mm_authvar_store.h>
@@ -474,6 +477,13 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	    !policy_matches(&frozen) ||
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	    payload_mm_authvar_mor_private_smi_channel_install(
+		smm_get_payload_mm_authvar_mor_private_smi_slot(),
+		&provider.sealed.channel, protected_storage) != CB_SUCCESS ||
+	    !policy_matches(&frozen) ||
+	    memcmp(&input, bootstrap, sizeof(input)) ||
+#endif
 	    payload_mm_authvar_mor_seal_channel_install(&provider.sealed.channel,
 		protected_storage, fixed_transport) != CB_SUCCESS ||
 	    !policy_matches(&frozen) ||
@@ -484,6 +494,9 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 
 cleanup:
 	if (owns_attempt && result != CB_SUCCESS) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+		payload_mm_authvar_mor_private_smi_channel_abort();
+#endif
 		scrub(&provider.policy, sizeof(provider.policy));
 		scrub(&provider.sealed, sizeof(provider.sealed));
 	}

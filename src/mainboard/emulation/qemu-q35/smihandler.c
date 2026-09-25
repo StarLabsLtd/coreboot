@@ -70,6 +70,12 @@ static int amd64_get_reg(const enum cpu_reg reg, const int node, void *out,
 	case RBX:
 		memcpy(out, &save_state->rbx, length);
 		return 0;
+	case RSI:
+		memcpy(out, &save_state->rsi, length);
+		return 0;
+	case RDI:
+		memcpy(out, &save_state->rdi, length);
+		return 0;
 	}
 
 	return -1;
@@ -99,6 +105,14 @@ static int amd64_set_reg(const enum cpu_reg reg, const int node, void *in,
 	case RBX:
 		save_state->rbx = 0;
 		memcpy(&save_state->rbx, in, length);
+		return 0;
+	case RSI:
+		save_state->rsi = 0;
+		memcpy(&save_state->rsi, in, length);
+		return 0;
+	case RDI:
+		save_state->rdi = 0;
+		memcpy(&save_state->rdi, in, length);
 		return 0;
 	}
 
@@ -173,6 +187,12 @@ static int legacy_get_reg(const enum cpu_reg reg, const int node, void *out,
 	case RBX:
 		memcpy(out, &save_state->ebx, length);
 		return 0;
+	case RSI:
+		memcpy(out, &save_state->esi, length);
+		return 0;
+	case RDI:
+		memcpy(out, &save_state->edi, length);
+		return 0;
 	}
 
 	return -1;
@@ -202,6 +222,14 @@ static int legacy_set_reg(const enum cpu_reg reg, const int node, void *in,
 	case RBX:
 		save_state->ebx = 0;
 		memcpy(&save_state->ebx, in, length);
+		return 0;
+	case RSI:
+		save_state->esi = 0;
+		memcpy(&save_state->esi, in, length);
+		return 0;
+	case RDI:
+		save_state->edi = 0;
+		memcpy(&save_state->edi, in, length);
 		return 0;
 	}
 

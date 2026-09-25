@@ -14,6 +14,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 #include <boot/payload_mm_authvar_smm_loader.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+#include <boot/payload_mm_authvar_mor_private_smi.h>
+#endif
 
 #if CONFIG(SPI_FLASH_SMM)
 #include <spi-generic.h>
@@ -129,6 +132,15 @@ bool smm_payload_mm_authvar_arena_receipt_consumed(void)
 }
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+struct payload_mm_authvar_mor_private_smi_slot *
+	smm_get_payload_mm_authvar_mor_private_smi_slot(void)
+{
+	return (struct payload_mm_authvar_mor_private_smi_slot *)
+		&smm_runtime.authvar_mor_channel;
+}
+#endif
+
 void smm_region(uintptr_t *start, size_t *size)
 {
 	*start = smm_runtime.smbase;
@@ -199,6 +211,7 @@ asmlinkage void smm_handler_start(void *arg)
 	int cpu;
 	uintptr_t actual_canary;
 	uintptr_t expected_canary;
+	bool private_smi_handled = false;
 
 	p = arg;
 	cpu = p->cpu;
@@ -244,9 +257,15 @@ asmlinkage void smm_handler_start(void *arg)
 		do_driver_init = 0;
 	}
 
-	cpu_smi_handler();
-	northbridge_smi_handler();
-	southbridge_smi_handler();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	private_smi_handled = payload_mm_authvar_mor_private_smi_dispatch(cpu);
+#endif
+
+	if (!private_smi_handled) {
+		cpu_smi_handler();
+		northbridge_smi_handler();
+		southbridge_smi_handler();
+	}
 
 	smi_restore_pci_address();
 

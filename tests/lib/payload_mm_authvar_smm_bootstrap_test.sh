@@ -156,18 +156,29 @@ TSAN_OPTIONS=halt_on_error=1 "$tmp/thread-sanitized" concurrent
 TSAN_OPTIONS=halt_on_error=1 "$tmp/thread-sanitized" two-taker
 
 for mutation in 1 2 3 4 5; do
-	occurrence=$((mutation + 2))
+	case "$mutation" in
+	1) boundary=payload_mm_authvar_contract_build ;;
+	2) boundary=payload_mm_authvar_authority_install ;;
+	3) boundary=provider.sealed.media.install ;;
+	4) boundary=payload_mm_authvar_executor_install ;;
+	5) boundary=payload_mm_authvar_mor_seal_channel_install ;;
+	esac
 	mutant="$tmp/mutant-$mutation.c"
-	awk -v target="$occurrence" '
+	awk -v boundary="$boundary" '
 		{
-			if (index($0, "memcmp(&input, bootstrap")) {
-				seen++
-				if (seen == target)
-					sub("memcmp\\(&input, bootstrap, sizeof\\(input\\)\\)",
-						"false")
+			if (index($0, boundary))
+				active = 1
+			if (active && index($0, "memcmp(&input, bootstrap")) {
+				sub("memcmp\\(&input, bootstrap, sizeof\\(input\\)\\)",
+					"false")
+				active = 0
+				changed++
 			}
 			print
-		}' "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" > "$mutant"
+		}
+		END { if (changed != 1) exit 1 }
+	' "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" > "$mutant"
+	! cmp -s "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" "$mutant"
 	build_test "mutant-$mutation" 2 "$mutant"
 	if "$tmp/mutant-$mutation" "mutate$mutation" >/dev/null 2>&1; then
 		echo "mutation-boundary mutant $mutation survived" >&2
