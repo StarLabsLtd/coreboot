@@ -126,6 +126,15 @@ bool payload_mm_fmp_owner_buffer_available(const void *buffer, size_t size)
 		!payload_mm_fmp_owner_storage_overlaps(buffer, size);
 }
 
+#if ENV_TEST
+const void *payload_mm_fmp_owner_test_storage(size_t *size)
+{
+	if (size)
+		*size = sizeof(owner_authority);
+	return &owner_authority;
+}
+#endif
+
 enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record)
 {

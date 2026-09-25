@@ -50,6 +50,9 @@ enum cb_err payload_mm_fmp_owner_install(
 bool payload_mm_fmp_owner_ready(void);
 bool payload_mm_fmp_owner_storage_overlaps(const void *buffer, size_t size);
 bool payload_mm_fmp_owner_buffer_available(const void *buffer, size_t size);
+#if ENV_TEST
+const void *payload_mm_fmp_owner_test_storage(size_t *size);
+#endif
 enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record);
 enum cb_err payload_mm_fmp_owner_commit_state(

@@ -206,6 +206,18 @@ config PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
 	  before executing the sealed recovery sequence. This publishes no endpoint
 	  and makes no authenticated-variable or MOR support claim.
 
+config PAYLOAD_MM_FMP_OWNER_AUTHVAR
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	depends on PAYLOAD_MM_AUTHVAR_CONTRACT
+	depends on PAYLOAD_MM_CMS_CORE
+	help
+	  Build the dormant SMM-only sealed FMP identity reservation and exact
+	  combined-state read/compare-write prerequisite over the authenticated-
+	  variable executor. This stage does not install an owner, migrate legacy
+	  variables, select a platform or endpoint, or provide a rollback anchor.
+
 config PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION
 	bool
 	default n

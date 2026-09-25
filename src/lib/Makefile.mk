@@ -26,6 +26,7 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI) += payload_mm_authvar_mor_
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI) += payload_mm_authvar_mor_private_smi_receiver.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_WRITER) += payload_mm_authvar_writer.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_EXECUTOR) += payload_mm_authvar_executor.c
+smm-$(CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR) += payload_mm_fmp_owner_authvar.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_FORMAT_PARSER) += payload_mm_authvar_format.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SIGNATURE_DB) += payload_mm_authvar_signature_db.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CERTDB) += payload_mm_authvar_certdb.c

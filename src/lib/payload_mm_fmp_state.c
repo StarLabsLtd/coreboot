@@ -36,6 +36,15 @@ bool payload_mm_fmp_state_staging_buffer(const void *buffer, size_t size)
 			sizeof(state_authority));
 }
 
+#if ENV_TEST
+const void *payload_mm_fmp_state_test_storage(size_t *size)
+{
+	if (size)
+		*size = sizeof(state_authority);
+	return &state_authority;
+}
+#endif
+
 static bool bytes_zero(const uint8_t *data, size_t size)
 {
 	uint8_t bits = 0;
