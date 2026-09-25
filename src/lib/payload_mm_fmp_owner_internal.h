@@ -43,6 +43,8 @@ struct payload_mm_fmp_owner_backend {
 
 bool payload_mm_fmp_owner_record_valid(uint32_t key,
 	const struct payload_mm_fmp_owner_record *record);
+bool payload_mm_fmp_owner_observed_record_valid(uint32_t key,
+	const struct payload_mm_fmp_owner_record *record);
 
 enum cb_err payload_mm_fmp_owner_install(
 	const struct payload_mm_fmp_owner_backend *trusted_backend,
