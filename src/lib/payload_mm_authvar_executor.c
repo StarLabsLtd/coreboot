@@ -4432,8 +4432,17 @@ complete:
 }
 
 #if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
-static bool fmp_observe(const struct payload_mm_authvar_store_index *index,
+enum fmp_observation_result {
+	FMP_OBSERVATION_INVALID = 0,
+	FMP_OBSERVATION_ABSENT,
+	FMP_OBSERVATION_VALID,
+	FMP_OBSERVATION_WRONG_SIZE,
+};
+
+static enum fmp_observation_result fmp_observe_key(
+	const struct payload_mm_authvar_store_index *index,
 	const struct payload_mm_fmp_state_identity *identity,
+	uint32_t key,
 	struct payload_mm_fmp_owner_record *observation)
 {
 	const struct payload_mm_authvar_store_entry *entry =
@@ -4443,21 +4452,34 @@ static bool fmp_observe(const struct payload_mm_authvar_store_index *index,
 
 	memset(observation, 0, sizeof(*observation));
 	if (!entry)
-		return true;
+		return FMP_OBSERVATION_ABSENT;
 	data = payload_mm_authvar_store_data(index, entry);
-	if (!data || entry->data_size > sizeof(observation->data))
-		return false;
+	if (!data || entry->attributes != PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES)
+		return FMP_OBSERVATION_INVALID;
+	if (entry->data_size != (key == PAYLOAD_MM_FMP_STATE_KEY_STATE ?
+		PAYLOAD_MM_FMP_STATE_WIRE_SIZE : sizeof(uint32_t)))
+		return FMP_OBSERVATION_WRONG_SIZE;
 	observation->present = 1;
 	observation->attributes = entry->attributes;
 	observation->data_size = entry->data_size;
 	memcpy(observation->data, data, entry->data_size);
 	/* The protected owner assigns the boot-local epoch after reconciliation. */
 	observation->sequence = 1U;
-	if (!payload_mm_fmp_owner_record_valid(PAYLOAD_MM_FMP_STATE_KEY_STATE,
-		observation))
-		return false;
+	if (!payload_mm_fmp_owner_observed_record_valid(key, observation))
+		return FMP_OBSERVATION_INVALID;
 	observation->sequence = 0U;
-	return true;
+	return FMP_OBSERVATION_VALID;
+}
+
+static bool fmp_observe(const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_fmp_state_identity *identity,
+	struct payload_mm_fmp_owner_record *observation)
+{
+	enum fmp_observation_result result = fmp_observe_key(index, identity,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, observation);
+
+	return result == FMP_OBSERVATION_ABSENT ||
+		result == FMP_OBSERVATION_VALID;
 }
 
 static bool fmp_observation_equal(
@@ -4470,6 +4492,407 @@ static bool fmp_observation_equal(
 		!memcmp(expected->data, observed->data, sizeof(expected->data));
 }
 
+static uint64_t fmp_refresh(struct executor_session *state, uint32_t *store_base)
+{
+	struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	enum payload_mm_authvar_media_result result;
+
+	result = verify_media(state, 0, snapshot(), state->contract.store_size);
+	if (result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		result = snapshot_read(state);
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(result);
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    !ftw_store_base(state, store_base))
+		return poison_session();
+	memset(&state->index, 0, sizeof(state->index));
+	state->index.entries = arena_at(executor.sealed.entries_offset);
+	state->index.entry_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&state->index, snapshot() + *store_base,
+		state->ftw.variable_store_size, &limits) != CB_SUCCESS)
+		return poison_session();
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+static uint64_t fmp_mutate(struct executor_session *state,
+	const struct payload_mm_fmp_state_identity *identity, const void *data,
+	size_t data_size, bool deletion, uint32_t key)
+{
+	const struct payload_mm_authvar_store_entry *replaced;
+	struct payload_mm_fmp_owner_record *observed =
+		arena_at(executor.sealed.fmp_observation_offset);
+	enum payload_mm_authvar_media_result result;
+	uint64_t status;
+	uint32_t store_base;
+
+	if (identity->variable_name_bytes > executor.sealed.limits.maximum_name_size ||
+	    data_size > executor.sealed.limits.maximum_data_size)
+		return poison_session();
+	memcpy(arena_at(executor.sealed.name_offset), identity->variable_name,
+		identity->variable_name_bytes);
+	if (data_size)
+		memcpy(arena_at(executor.sealed.data_offset), data, data_size);
+	memcpy(state->source.vendor_guid, identity->namespace_guid.b,
+		sizeof(state->source.vendor_guid));
+	state->source.name = arena_at(executor.sealed.name_offset);
+	state->source.name_size = identity->variable_name_bytes;
+	state->source.data = arena_at(executor.sealed.data_offset);
+	state->source.data_size = data_size;
+	state->source.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+	state->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_record_size = executor.sealed.limits.maximum_record_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	if (state->policy.maximum_record_size > state->index.store_size)
+		state->policy.maximum_record_size = state->index.store_size;
+	replaced = payload_mm_authvar_store_find(&state->index,
+		state->source.vendor_guid, state->source.name, state->source.name_size);
+	state->reclaim.copies = arena_at(executor.sealed.copies_offset);
+	state->reclaim.copy_capacity = executor.sealed.limits.maximum_records;
+	status = payload_mm_authvar_write_plan_build(&state->index, replaced,
+		deletion ? NULL : &state->source, &state->policy, false,
+		arena_at(executor.sealed.record_offset),
+		executor.sealed.limits.maximum_record_size, &state->reclaim,
+		&state->write);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	state->fmp_record_active = !deletion &&
+		state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_NOOP;
+	result = state->write.action == PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM ?
+		execute_reclaim(state, replaced) :
+		state->write.action == PAYLOAD_MM_AUTHVAR_WRITE_NOOP ?
+		PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS : execute_direct(state);
+	if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		return state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(result);
+	status = fmp_refresh(state, &store_base);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	if (deletion)
+		return fmp_observe_key(&state->index, identity, key, observed) ==
+			FMP_OBSERVATION_ABSENT ? PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS :
+			poison_session();
+	if (fmp_observe_key(&state->index, identity, key, observed) !=
+	    FMP_OBSERVATION_VALID || observed->data_size != data_size ||
+	    memcmp(observed->data, data, data_size))
+		return poison_session();
+	if (state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_NOOP) {
+		const struct payload_mm_authvar_store_entry *final =
+			payload_mm_authvar_store_find(&state->index,
+				identity->namespace_guid.b, identity->variable_name,
+				identity->variable_name_bytes);
+		const uint8_t *physical;
+		const uint8_t *canonical = arena_at(executor.sealed.record_offset);
+		uint64_t end, size;
+
+		if (!final)
+			return poison_session();
+		physical = snapshot() + store_base + final->record_offset;
+		end = ((uint64_t)final->data_offset + final->data_size + 3U) & ~3ULL;
+		size = end >= final->record_offset ? end - final->record_offset :
+			UINT64_MAX;
+		if (final->record_offset != state->write.record_offset ||
+		    size != state->write.record_size || state->write.record_size < 3U ||
+		    canonical[2] != PAYLOAD_MM_AUTHVAR_STATE_ERASED ||
+		    physical[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+		    memcmp(physical, canonical, 2U) ||
+		    memcmp(physical + 3U, canonical + 3U,
+			state->write.record_size - 3U))
+			return poison_session();
+	}
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+uint64_t payload_mm_authvar_fmp_state_initialize(
+	struct payload_mm_fmp_owner_record *published)
+{
+	struct payload_mm_fmp_state_identity *identity =
+		arena_at(executor.sealed.fmp_identity_offset);
+	struct payload_mm_fmp_owner_record *authoritative =
+		arena_at(executor.sealed.fmp_current_offset);
+	struct payload_mm_fmp_owner_record *legacy =
+		arena_at(executor.sealed.fmp_candidate_offset);
+	struct payload_mm_fmp_owner_record original_published;
+	struct payload_mm_fmp_owner_record verified_authoritative;
+	struct executor_session *state;
+	enum payload_mm_authvar_media_result media_result, end_result;
+	enum fmp_observation_result observed;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	uint32_t expected_busy = 0;
+	bool began = false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	struct payload_mm_authvar_view current_view;
+	u8 source_modes;
+	bool reconcile_modes = false;
+#endif
+
+	if (!published || (uintptr_t)published % _Alignof(*published) ||
+	    !external_protected_span(published, sizeof(*published)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (!executor.installed)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!policy_equal()) {
+		executor.installed = false;
+		(void)payload_mm_authvar_media_fail_closed(0, 0);
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	original_published = *published;
+	if (executor.ready_to_boot || executor.at_runtime) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		goto out;
+	}
+	if (payload_mm_fmp_owner_authvar_identity(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		identity) != CB_SUCCESS)
+		goto fail_closed;
+	state = session();
+	memset(state, 0, sizeof(*state));
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	began = true;
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+		status = poison_session();
+		goto end_combined;
+	}
+	status = recover_session(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end_combined;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	reconcile_modes = executor.sealed_modes_need_reconcile;
+	if (!(reconcile_modes ? payload_mm_authvar_coordinator_reconcile_modes(
+		&state->index, false, executor.sealed_volatile_modes, &source_modes) :
+		payload_mm_authvar_coordinator_source_modes(&state->index, false,
+			executor.sealed_volatile_modes_valid,
+			executor.sealed_volatile_modes, &source_modes)) ||
+	    payload_mm_authvar_view_init(&current_view,
+		&state->index, source_modes, false) != CB_SUCCESS) {
+		status = poison_session();
+		goto end_combined;
+	}
+	executor.volatile_modes = source_modes;
+	executor.sealed_volatile_modes = source_modes;
+	executor.volatile_modes_valid = true;
+	executor.sealed_volatile_modes_valid = true;
+#endif
+	observed = fmp_observe_key(&state->index, identity,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, authoritative);
+	if (observed == FMP_OBSERVATION_INVALID) {
+		status = poison_session();
+		goto end_combined;
+	}
+	if (observed != FMP_OBSERVATION_VALID) {
+		memset(authoritative, 0, sizeof(*authoritative));
+		authoritative->present = 1U;
+		authoritative->attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+		authoritative->data_size = PAYLOAD_MM_FMP_STATE_WIRE_SIZE;
+		for (uint32_t key = PAYLOAD_MM_FMP_STATE_KEY_VERSION;
+		     key <= PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION; key++) {
+			if (payload_mm_fmp_owner_authvar_identity(key, identity) !=
+			    CB_SUCCESS) {
+				status = poison_session();
+				goto end_combined;
+			}
+			observed = fmp_observe_key(&state->index, identity, key, legacy);
+			if (observed == FMP_OBSERVATION_INVALID) {
+				status = poison_session();
+				goto end_combined;
+			}
+			if (observed == FMP_OBSERVATION_VALID) {
+				size_t slot = key - PAYLOAD_MM_FMP_STATE_KEY_VERSION;
+
+				authoritative->data[slot] = 1U;
+				memcpy(authoritative->data + 4U + slot * 4U,
+					legacy->data, sizeof(uint32_t));
+			}
+		}
+		authoritative->sequence = 1U;
+		if (!payload_mm_fmp_owner_record_valid(
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, authoritative)) {
+			status = poison_session();
+			goto end_combined;
+		}
+		authoritative->sequence = 0U;
+		if (payload_mm_fmp_owner_authvar_identity(
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, identity) != CB_SUCCESS) {
+			status = poison_session();
+			goto end_combined;
+		}
+		status = fmp_mutate(state, identity, authoritative->data,
+			authoritative->data_size, false,
+			PAYLOAD_MM_FMP_STATE_KEY_STATE);
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			goto end_combined;
+		*authoritative = *(struct payload_mm_fmp_owner_record *)
+			arena_at(executor.sealed.fmp_observation_offset);
+	}
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+end_combined:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto out;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (reconcile_modes) {
+		executor.modes_need_reconcile = false;
+		executor.sealed_modes_need_reconcile = false;
+	}
+#endif
+	/* Cleanup starts only after authoritative combined-state media_end. */
+	for (uint32_t key = PAYLOAD_MM_FMP_STATE_KEY_VERSION;
+	     key <= PAYLOAD_MM_FMP_STATE_KEY_LAST_ATTEMPT_VERSION; key++) {
+		memset(state, 0, sizeof(*state));
+		media_result = media_begin(state);
+		if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+			goto final_verify;
+		}
+		payload_mm_authvar_media_cache_invalidate();
+		if (!policy_equal() ||
+		    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+		    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+			status = poison_session();
+			(void)media_end(state);
+			goto out;
+		}
+		status = recover_session(state);
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+			end_result = media_end(state);
+			if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+			    !executor.installed || !policy_equal()) {
+				payload_mm_authvar_media_cache_invalidate();
+				goto out;
+			}
+			status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+			goto final_verify;
+		}
+		if (
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		    !payload_mm_authvar_coordinator_source_modes(&state->index, false,
+			executor.sealed_volatile_modes_valid,
+			executor.sealed_volatile_modes, &source_modes) ||
+		    payload_mm_authvar_view_init(&current_view, &state->index,
+			source_modes, false) != CB_SUCCESS ||
+#endif
+		    payload_mm_fmp_owner_authvar_identity(
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, identity) != CB_SUCCESS ||
+		    fmp_observe_key(&state->index, identity,
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, legacy) !=
+			FMP_OBSERVATION_VALID ||
+		    !fmp_observation_equal(authoritative, legacy)) {
+			status = poison_session();
+			(void)media_end(state);
+			goto out;
+		}
+		if (payload_mm_fmp_owner_authvar_identity(key, identity) != CB_SUCCESS) {
+			status = poison_session();
+			(void)media_end(state);
+			goto out;
+		}
+		observed = fmp_observe_key(&state->index, identity, key, legacy);
+		if (observed == FMP_OBSERVATION_VALID) {
+			status = fmp_mutate(state, identity, NULL, 0U, true, key);
+			if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+				end_result = media_end(state);
+				if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+				    !executor.installed || !policy_equal()) {
+					payload_mm_authvar_media_cache_invalidate();
+					goto out;
+				}
+				status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+				goto final_verify;
+			}
+		}
+		if (media_end(state) != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+			payload_mm_authvar_media_cache_invalidate();
+			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+			goto out;
+		}
+	}
+	/* Publish only the unexposed copy retained before the final callback. */
+final_verify:
+	memset(state, 0, sizeof(*state));
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+		status = poison_session();
+		(void)media_end(state);
+		goto out;
+	}
+	status = recover_session(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		end_result = media_end(state);
+		if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+			payload_mm_authvar_media_cache_invalidate();
+		goto out;
+	}
+	if (
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	    !payload_mm_authvar_coordinator_source_modes(&state->index, false,
+		executor.sealed_volatile_modes_valid,
+		executor.sealed_volatile_modes, &source_modes) ||
+	    payload_mm_authvar_view_init(&current_view, &state->index,
+		source_modes, false) != CB_SUCCESS ||
+#endif
+	    payload_mm_fmp_owner_authvar_identity(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		identity) != CB_SUCCESS ||
+	    fmp_observe_key(&state->index, identity,
+		PAYLOAD_MM_FMP_STATE_KEY_STATE, legacy) != FMP_OBSERVATION_VALID ||
+	    !fmp_observation_equal(authoritative, legacy)) {
+		status = poison_session();
+		(void)media_end(state);
+		goto out;
+	}
+	verified_authoritative = *legacy;
+	if (media_end(state) != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto out;
+	}
+	*published = verified_authoritative;
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	goto out;
+
+fail_closed:
+	executor.installed = false;
+	(void)payload_mm_authvar_media_fail_closed(0, 0);
+out:
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		*published = original_published;
+	if (began && status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		payload_mm_authvar_media_cache_invalidate();
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+
 uint64_t payload_mm_authvar_fmp_state_transaction(
 	enum payload_mm_authvar_fmp_operation operation,
 	const struct payload_mm_fmp_owner_record *current,
@@ -4480,6 +4903,7 @@ uint64_t payload_mm_authvar_fmp_state_transaction(
 	struct payload_mm_fmp_owner_record *expected;
 	struct payload_mm_fmp_owner_record *wanted;
 	struct payload_mm_fmp_owner_record *observed;
+	struct payload_mm_fmp_owner_record original_published;
 	struct payload_mm_authvar_store_limits scan_limits;
 	struct executor_session *state;
 	const struct payload_mm_authvar_store_entry *replaced;
@@ -4534,6 +4958,7 @@ uint64_t payload_mm_authvar_fmp_state_transaction(
 	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
 		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	original_published = *published;
 	identity = arena_at(executor.sealed.fmp_identity_offset);
 	expected = arena_at(executor.sealed.fmp_current_offset);
 	wanted = arena_at(executor.sealed.fmp_candidate_offset);
@@ -4554,7 +4979,7 @@ uint64_t payload_mm_authvar_fmp_state_transaction(
 		*wanted = *candidate;
 		if (memcmp(current, expected, sizeof(*current)) ||
 		    memcmp(candidate, wanted, sizeof(*candidate)) ||
-		    !payload_mm_fmp_owner_record_valid(
+		    !payload_mm_fmp_owner_observed_record_valid(
 			PAYLOAD_MM_FMP_STATE_KEY_STATE, expected) ||
 		    !payload_mm_fmp_owner_record_valid(
 			PAYLOAD_MM_FMP_STATE_KEY_STATE, wanted) ||
@@ -4760,6 +5185,8 @@ end:
 	}
 #endif
 out:
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		*published = original_published;
 	if (began && status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		payload_mm_authvar_media_cache_invalidate();
 	memset(executor.sealed.arena, 0, executor.sealed.required_size);

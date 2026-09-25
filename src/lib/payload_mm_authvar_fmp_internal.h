@@ -17,6 +17,10 @@ uint64_t payload_mm_authvar_fmp_state_transaction(
 	const struct payload_mm_fmp_owner_record *candidate,
 	struct payload_mm_fmp_owner_record *observation);
 
+/* One-shot legacy import and cleanup; result is published after media end. */
+uint64_t payload_mm_authvar_fmp_state_initialize(
+	struct payload_mm_fmp_owner_record *observation);
+
 #if ENV_TEST
 struct payload_mm_authvar_fmp_layout_test {
 	size_t required_size;
