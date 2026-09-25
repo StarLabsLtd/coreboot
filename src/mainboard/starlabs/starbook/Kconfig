@@ -282,16 +282,26 @@ config STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER
 	default n
 	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
 	depends on ENABLE_EARLY_DMA_PROTECTION
+	depends on !SMMSTORE
+	depends on !DRIVERS_EFI_UPDATE_CAPSULES
+	depends on !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
+	depends on BOOTMEDIA_SMM_BWP
+	depends on SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
 	depends on PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR
 	depends on PAYLOAD_MM_AUTHVAR_MOR_EARLY_DISCOVERY
+	depends on PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI
 	depends on PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	depends on PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
 	depends on STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
 	help
-	  Build the dormant StarBook MTL provider for the linear MOR coordinator.
-	  A separately reviewed private SMI boundary must provide the protected
-	  arena and transport-page receipts and terminal completion/close
-	  operations. A later slice must add the SMM bootstrap and chipset
-	  SPI-write proof before any board selects this option.
+	  Build the dormant StarBook MTL provider, private SMI boundary and SMM
+	  bootstrap for the linear MOR coordinator. The selected composition uses
+	  the authenticated-variable SMMSTORE backend with static SMM BIOS write
+	  protection and no legacy raw SMMSTORE endpoint. Legacy EFI capsules are
+	  deliberately incompatible until their update path is converted to the
+	  typed capsule broker.
 
 if BOARD_STARLABS_STARBOOK_SERIES
 

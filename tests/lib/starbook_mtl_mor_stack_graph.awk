@@ -244,13 +244,12 @@ function stack_bound(node,    child, child_bound, edge_index, largest, site_inde
 		child = edge[node, edge_index]
 		if (child == "__indirect_call")
 			continue
-		# The selected final ELF supplies only the verified weak provider,
-		# which returns false unconditionally. Its success successor is not
-		# feasible in the selected fail-closed composition.
+		# Mutation fixtures may deliberately disable the provider contract. In
+		# that mode the provider-success successor is intentionally unreachable.
 		if (!provider_contract && function_name[node] == "mor_before_bootmem" &&
 		    function_name[canonical(child)] == "payload_mm_authvar_mor_linear_before_bootmem")
 			continue
-		child_bound = stack_bound(child)
+		child_bound = call_return_bytes + stack_bound(child)
 		if (child_bound > largest)
 			largest = child_bound
 	}
@@ -311,10 +310,6 @@ function stack_bound(node,    child, child_bound, edge_index, largest, site_inde
 
 END {
 	call_return_bytes = 4
-	private_cap = "@private_callback"
-	stack_bytes[private_cap] = private_callback_bytes + 0
-	function_name[private_cap] = private_cap
-	location[private_cap] = "audited private-boundary contract"
 	region_cap = "@selected_boot_region_mmap_callback"
 	xlate_node = find_node("xlate_mmap", "region.c")
 	rdev_node = find_node("rdev_mmap", "region.c")
@@ -335,8 +330,8 @@ END {
 	function_name[region_unmap_cap] = region_unmap_cap
 	location[region_unmap_cap] = "Intel fast-SPI xlate munmap boundary"
 
-	# Provider glue cannot enter the selected image until a private provider is
-	# supplied. Audit it separately from the selected fail-closed image.
+	# Bind provider callbacks only when auditing the selected strong-provider
+	# composition. Mutation fixtures can disable the contract explicitly.
 	if (provider_contract) {
 	bind_direct("mor_before_bootmem", "payload_mm_authvar_mor_linear.c",
 		"platform_payload_mm_authvar_mor_linear_ops", "mor_platform.c")
@@ -453,15 +448,16 @@ END {
 		"payload_mm_authvar_mor_live_inventory.c", 1)
 
 	if (provider_contract) {
-	bind_cap("cleanup_take", "mor_platform.c", private_cap)
+	bind("cleanup_take", "mor_platform.c", "close", "mor_private_boundary.c")
 	expect_indirect("cleanup_take", "mor_platform.c", 1)
-	bind_cap("ensure_seed", "mor_platform.c", private_cap)
+	bind("ensure_seed", "mor_platform.c", "seed", "mor_private_boundary.c")
 	expect_indirect("ensure_seed", "mor_platform.c", 1)
-	bind_cap("reservations_register", "mor_platform.c", private_cap)
+	bind("reservations_register", "mor_platform.c", "reservations_register",
+		"mor_private_boundary.c")
 	expect_indirect("reservations_register", "mor_platform.c", 1)
-	bind_cap("resolve_binding", "mor_platform.c", private_cap)
+	bind("resolve_binding", "mor_platform.c", "resolve", "mor_private_boundary.c")
 	expect_indirect("resolve_binding", "mor_platform.c", 1)
-	bind_cap("private_complete", "mor_platform.c", private_cap)
+	bind("private_complete", "mor_platform.c", "complete", "mor_private_boundary.c")
 	expect_indirect("private_complete", "mor_platform.c", 1)
 	}
 
@@ -492,11 +488,11 @@ END {
 			"src/lib/payload_mm_authvar_mor_linear.c", "462:18", "private_complete")
 		permit_sites("close_retained_authority",
 			"src/lib/payload_mm_authvar_mor_linear.c", "169:9", "private_close")
-		permit_sites("cleanup_take", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "209:12", "@private_callback")
-		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "515:6", "@private_callback")
-		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "660:6", "@private_callback")
-		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "735:6", "@private_callback")
-		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "805:11", "@private_callback")
+		permit_sites("cleanup_take", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "209:12", "close")
+		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "515:6", "seed")
+		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "660:6", "reservations_register")
+		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "735:6", "resolve")
+		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "805:11", "complete")
 	}
 	permit_sites("call_inventory", "src/lib/payload_mm_authvar_mor_clear_executor.c", "280:29", "executor_inventory_validate")
 	permit_sites("call_dma", "src/lib/payload_mm_authvar_mor_clear_executor.c", "297:29", "executor_dma_snapshot")
@@ -563,6 +559,31 @@ END {
 	if (early_dma_bound > core_bound)
 		core_bound = early_dma_bound
 	if (provider_contract) {
+		private_seed = find_node("seed", "mor_private_boundary.c")
+		private_register = find_node("reservations_register",
+			"mor_private_boundary.c")
+		private_resolve = find_node("resolve", "mor_private_boundary.c")
+		private_complete_node = find_node("complete", "mor_private_boundary.c")
+		private_close_node = find_node("close", "mor_private_boundary.c")
+		private_maximum = stack_bound(private_seed)
+		private_bound = stack_bound(private_register)
+		if (private_bound > private_maximum)
+			private_maximum = private_bound
+		private_bound = stack_bound(private_resolve)
+		if (private_bound > private_maximum)
+			private_maximum = private_bound
+		private_bound = stack_bound(private_complete_node)
+		if (private_bound > private_maximum)
+			private_maximum = private_bound
+		private_bound = stack_bound(private_close_node)
+		if (private_bound > private_maximum)
+			private_maximum = private_bound
+		if (private_callback_bytes <= 0 ||
+		    private_maximum > private_callback_bytes) {
+			print "ERROR: concrete private callbacks exceed advertised ceiling" \
+				> "/dev/stderr"
+			failed = 1
+		}
 		provider = find_node("platform_payload_mm_authvar_mor_linear_ops",
 			"mor_platform.c")
 		provider_bound = stack_bound(provider)
@@ -612,9 +633,10 @@ END {
 			print "ERROR: wrapper frame contract drift" > "/dev/stderr"
 			exit 1
 		}
-		printf "binding %u; executor %u; early-dma %u; provider-glue %u; linear-pre %u; linear-post %u; wrapper-pre %u (frame %u); wrapper-post %u (frame %u); contract-maximum %u\n", \
-			binding_bound, executor_bound, early_dma_bound, provider_bound, \
-			linear_before_bound, linear_after_bound, pre_wrapper_bound, \
+		printf "binding %u; executor %u; early-dma %u; private %u/%u; provider-glue %u; linear-pre %u; linear-post %u; wrapper-pre %u (frame %u); wrapper-post %u (frame %u); contract-maximum %u\n", \
+			binding_bound, executor_bound, early_dma_bound, private_maximum, \
+			private_callback_bytes, provider_bound, linear_before_bound, \
+			linear_after_bound, pre_wrapper_bound, \
 			stack_bytes[pre_wrapper], post_wrapper_bound, stack_bytes[post_wrapper], \
 			core_bound
 	} else
