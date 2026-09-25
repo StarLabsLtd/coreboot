@@ -26,3 +26,20 @@ for opt in 0 2; do
 		-o "$tmp/loader-$opt"
 	"$tmp/loader-$opt"
 done
+
+mutant="$tmp/no-seed-scrub.c"
+sed 's/\*bytes++ = 0;/bytes++;/' \
+	"$root/src/lib/payload_mm_authvar_smm_loader.c" > "$mutant"
+"${CC:-cc}" -std=gnu11 -O2 -Wall -Wextra -Werror \
+	-Wconversion -Wshadow -Wstrict-prototypes -fno-builtin \
+	-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$tmp/include" \
+	"$root/tests/lib/payload_mm_authvar_smm_loader_test.c" "$mutant" \
+	-o "$tmp/no-seed-scrub"
+if "$tmp/no-seed-scrub" >/dev/null 2>&1; then
+	echo 'ERROR: seed-copy scrub mutant survived' >&2
+	exit 1
+fi

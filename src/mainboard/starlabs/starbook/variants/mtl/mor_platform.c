@@ -348,6 +348,13 @@ static enum cb_err classify_retained(void)
 	return CB_SUCCESS;
 }
 
+static void close_private_seed(void)
+{
+	__atomic_store_n(&platform.seed_state, MTL_MOR_SEED_POISONED,
+		__ATOMIC_RELEASE);
+	(void)platform.private.close(platform.private.context);
+}
+
 static enum cb_err ensure_seed(const void *live_object, size_t live_size,
 	const void *candidate, size_t candidate_size,
 	const void *original, size_t original_size)
@@ -356,6 +363,7 @@ static enum cb_err ensure_seed(const void *live_object, size_t live_size,
 	struct mtl_mor_platform *frozen = NULL;
 	uint32_t state;
 	uint32_t expected;
+	bool private_seed_live = false;
 
 	if (load_private() != CB_SUCCESS ||
 	    !private_context_disjoint(live_object, live_size) ||
@@ -373,6 +381,7 @@ static enum cb_err ensure_seed(const void *live_object, size_t live_size,
 		return CB_ERR;
 	}
 	if (state == MTL_MOR_SEEDED) {
+		private_seed_live = true;
 		if (!bytes_nonzero(platform.owner, sizeof(platform.owner)))
 			goto fail;
 		expected = MTL_MOR_SEEDING;
@@ -395,9 +404,11 @@ static enum cb_err ensure_seed(const void *live_object, size_t live_size,
 	if (!bytes_nonzero(platform.owner, sizeof(platform.owner)))
 		goto fail;
 	platform_snapshot(frozen);
+	private_seed_live = true;
 	if (platform.private.arena_seed(platform.private.context,
-		platform.generation, platform.owner) != CB_SUCCESS ||
-	    !platform_matches(frozen))
+		platform.generation, platform.owner) != CB_SUCCESS)
+		goto fail;
+	if (!platform_matches(frozen))
 		goto fail;
 	if (!scratch_release(MTL_MOR_SCRATCH_SEED)) {
 		frozen = NULL;
@@ -416,7 +427,14 @@ fail:
 	scrub(platform.owner, sizeof(platform.owner));
 	if (frozen)
 		scratch_abort(MTL_MOR_SCRATCH_SEED);
+	if (private_seed_live)
+		close_private_seed();
 	return CB_ERR;
+}
+
+bool platform_payload_mm_authvar_smm_arena_required(void)
+{
+	return true;
 }
 
 bool platform_payload_mm_authvar_smm_arena_seed(
@@ -424,6 +442,7 @@ bool platform_payload_mm_authvar_smm_arena_seed(
 {
 	struct payload_mm_authvar_smm_arena_seed candidate;
 	uint8_t original[sizeof(*seed)];
+	bool private_seed_live = false;
 
 	if (!provider_object_valid(seed, sizeof(*seed), _Alignof(*seed)))
 		return false;
@@ -437,6 +456,7 @@ bool platform_payload_mm_authvar_smm_arena_seed(
 	if (ensure_seed(seed, sizeof(*seed), &candidate, sizeof(candidate),
 		&original, sizeof(original)) != CB_SUCCESS)
 		goto fail;
+	private_seed_live = true;
 	if (!seeded_and_disjoint(seed, sizeof(*seed)))
 		goto fail;
 	candidate = (struct payload_mm_authvar_smm_arena_seed) {
@@ -456,6 +476,8 @@ bool platform_payload_mm_authvar_smm_arena_seed(
 fail:
 	(void)private_callback_leave(false);
 fail_without_leave:
+	if (private_seed_live)
+		close_private_seed();
 	provider_terminal_poison();
 	scrub(&candidate, sizeof(candidate));
 	scrub(&original, sizeof(original));
@@ -697,11 +719,18 @@ fail:
 	return CB_ERR;
 }
 
+void platform_payload_mm_authvar_smm_arena_abort(void)
+{
+	if (private_close(&platform) != CB_SUCCESS)
+		provider_terminal_poison();
+}
+
 bool platform_payload_mm_authvar_mor_linear_ops(
 	struct payload_mm_authvar_mor_linear_ops *ops)
 {
 	struct payload_mm_authvar_mor_linear_ops candidate;
 	uint8_t original[sizeof(*ops)];
+	bool private_seed_live = false;
 
 	if (!provider_object_valid(ops, sizeof(*ops), _Alignof(*ops)))
 		return false;
@@ -715,6 +744,7 @@ bool platform_payload_mm_authvar_mor_linear_ops(
 	if (ensure_seed(ops, sizeof(*ops), &candidate, sizeof(candidate),
 		&original, sizeof(original)) != CB_SUCCESS)
 		goto fail;
+	private_seed_live = true;
 	if (!seeded_and_disjoint(ops, sizeof(*ops)))
 		goto fail;
 	candidate = (struct payload_mm_authvar_mor_linear_ops) {
@@ -737,6 +767,8 @@ bool platform_payload_mm_authvar_mor_linear_ops(
 fail:
 	(void)private_callback_leave(false);
 fail_without_leave:
+	if (private_seed_live)
+		close_private_seed();
 	provider_terminal_poison();
 	scrub(&candidate, sizeof(candidate));
 	scrub(&original, sizeof(original));

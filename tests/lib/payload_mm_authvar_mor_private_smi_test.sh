@@ -19,7 +19,22 @@ printf '%s\n' \
 	'#include "bootmem_reservation_receipt_internal.h"' > \
 	"$temporary/include/payload_mm_authvar_mor_private_smi_test_internal_source.h"
 
-cases='success replay tombstone-mismatch tombstone-publishing-dispatch installed-concurrent terminal-concurrent installed-barrier install-dispatch-barrier abort-dispatch-barrier xapic-clobber x2apic-clobber close identity page cookie cpu other-cpu non-owner-race policy-mismatch generation capability receipt padding seal callback-mutation transaction-before-take-failure install-cut-1 install-cut-2 install-cut-3 install-cut-4 install-cut-5 install-cut-6 install-mutate-slot install-mutate-channel bootstrap-success bootstrap-close bootstrap-replay bootstrap-after-install-dispatch bootstrap-failure bootstrap-failure-replay bootstrap-reentry bootstrap-concurrent bootstrap-identity bootstrap-other-cpu bootstrap-generation bootstrap-capability bootstrap-receipt bootstrap-padding bootstrap-callback-header bootstrap-callback-padding bootstrap-slot-cpus bootstrap-slot-cookie bootstrap-slot-reserved'
+cases='optional provision-concurrent-terminal success replay'
+cases="$cases tombstone-mismatch"
+cases="$cases tombstone-publishing-dispatch installed-concurrent terminal-concurrent"
+cases="$cases installed-barrier install-dispatch-barrier abort-dispatch-barrier"
+cases="$cases xapic-clobber x2apic-clobber close identity page cookie cpu"
+cases="$cases other-cpu non-owner-race policy-mismatch generation capability"
+cases="$cases receipt padding seal callback-mutation"
+cases="$cases transaction-before-take-failure install-cut-1 install-cut-2"
+cases="$cases install-cut-3 install-cut-4 install-cut-5 install-cut-6"
+cases="$cases install-mutate-slot install-mutate-channel bootstrap-success"
+cases="$cases bootstrap-close bootstrap-replay bootstrap-after-install-dispatch"
+cases="$cases bootstrap-failure bootstrap-failure-replay bootstrap-reentry"
+cases="$cases bootstrap-concurrent bootstrap-identity bootstrap-other-cpu"
+cases="$cases bootstrap-generation bootstrap-capability bootstrap-receipt"
+cases="$cases bootstrap-padding bootstrap-callback-header bootstrap-callback-padding"
+cases="$cases bootstrap-slot-cpus bootstrap-slot-cookie bootstrap-slot-reserved"
 
 build_and_run()
 {

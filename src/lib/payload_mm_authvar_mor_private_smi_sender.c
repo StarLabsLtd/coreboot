@@ -14,6 +14,7 @@
 #endif
 
 #define CHANNEL_EMPTY 0U
+#define CHANNEL_PROVISIONING 0x33U
 #define CHANNEL_READY 0xa5U
 #define CHANNEL_TERMINAL 0xc3U
 
@@ -30,9 +31,10 @@ static struct {
 #if ENV_TEST
 static payload_mm_authvar_mor_private_smi_test_trigger test_trigger;
 static void *test_trigger_context;
+void payload_mm_authvar_mor_private_smi_test_during_provision(void);
 #endif
 
-static __attribute__((noinline)) void scrub(void *buffer, size_t size)
+static __noinline void scrub(void *buffer, size_t size)
 {
 	volatile uint8_t *bytes = buffer;
 
@@ -86,6 +88,11 @@ __weak bool platform_payload_mm_authvar_mor_private_smi_seed(
 	return false;
 }
 
+__weak bool platform_payload_mm_authvar_mor_private_smi_required(void)
+{
+	return true;
+}
+
 static void close_sender(void)
 {
 	bootmem_reservation_receipt_close(&sender.signer);
@@ -98,7 +105,7 @@ static void close_sender(void)
 }
 
 enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
-	struct payload_mm_authvar_mor_private_smi_slot *slot)
+	struct payload_mm_authvar_mor_private_smi_slot *slot, bool required)
 {
 	struct payload_mm_authvar_mor_private_smi_seed seed = { 0 };
 	uint8_t expected = CHANNEL_EMPTY;
@@ -106,10 +113,18 @@ enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
 
 	if (!object_valid(slot, sizeof(*slot), _Alignof(*slot)) ||
 	    ranges_overlap(slot, sizeof(*slot), &sender, sizeof(sender)) ||
-	    !__atomic_compare_exchange_n(&sender.state, &expected, CHANNEL_READY,
+	    !__atomic_compare_exchange_n(&sender.state, &expected,
+		CHANNEL_PROVISIONING,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return CB_ERR;
+#if ENV_TEST
+	payload_mm_authvar_mor_private_smi_test_during_provision();
+#endif
 	memset(slot, 0, sizeof(*slot));
+	if (!required) {
+		close_sender();
+		return CB_SUCCESS;
+	}
 	if (!platform_payload_mm_authvar_mor_private_smi_seed(&seed) ||
 	    seed.revision != PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_REVISION ||
 	    seed.size != sizeof(seed) || !seed.cold_boot_generation ||
@@ -135,6 +150,10 @@ enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
 	slot->maximum_cpus = CONFIG_MAX_CPUS;
 	memcpy(slot->capability, sender.capability, sizeof(slot->capability));
 	__atomic_store_n(&slot->state, CHANNEL_READY, __ATOMIC_RELEASE);
+	expected = CHANNEL_PROVISIONING;
+	if (!__atomic_compare_exchange_n(&sender.state, &expected, CHANNEL_READY,
+		false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto out;
 	status = CB_SUCCESS;
 
 out:
@@ -149,8 +168,7 @@ out:
 
 static enum cb_err resolve(struct bootmem_aligned_reservation *page)
 {
-	if (__atomic_load_n(&sender.state, __ATOMIC_ACQUIRE) != CHANNEL_READY ||
-	    !sender.generation || !sender.identity ||
+	if (!sender.generation || !sender.identity ||
 	    bootmem_aligned_reservation_query(&sender.handle, page) ||
 	    page->tag != BM_MEM_TABLE ||
 	    page->size != PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI_PAGE_SIZE ||
@@ -170,6 +188,7 @@ enum cb_err payload_mm_authvar_mor_private_smi_seal_channel_resolve(
 	struct payload_mm_authvar_mor_seal_channel candidate = { 0 };
 
 	if (!object_valid(channel, sizeof(*channel), _Alignof(*channel)) ||
+	    __atomic_load_n(&sender.state, __ATOMIC_ACQUIRE) != CHANNEL_READY ||
 	    resolve(&page) != CB_SUCCESS ||
 	    ranges_overlap(channel, sizeof(*channel), &sender, sizeof(sender)) ||
 	    ranges_overlap(channel, sizeof(*channel),
@@ -243,14 +262,15 @@ static enum cb_err send(uint32_t command,
 	if ((command != PAYLOAD_MM_AUTHVAR_MOR_SEAL_INSTALL &&
 	     command != PAYLOAD_MM_AUTHVAR_MOR_SEAL_CLOSE) ||
 	    (command == PAYLOAD_MM_AUTHVAR_MOR_SEAL_INSTALL &&
-	     !object_valid(grant, sizeof(*grant), _Alignof(*grant))) ||
-	    resolve(&page) != CB_SUCCESS) {
-		close_sender();
+	     !object_valid(grant, sizeof(*grant), _Alignof(*grant))))
 		return CB_ERR;
-	}
 	if (!__atomic_compare_exchange_n(&sender.state, &expected, CHANNEL_TERMINAL,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return CB_ERR;
+	if (resolve(&page) != CB_SUCCESS) {
+		close_sender();
+		return CB_ERR;
+	}
 	request = (void *)(uintptr_t)page.base;
 	if (grant && (ranges_overlap(grant, sizeof(*grant), request, page.size) ||
 	    ranges_overlap(grant, sizeof(*grant), &sender, sizeof(sender))))
@@ -300,10 +320,11 @@ enum cb_err payload_mm_authvar_mor_private_smi_send_install(
 	return send(PAYLOAD_MM_AUTHVAR_MOR_SEAL_INSTALL, grant);
 }
 
-void payload_mm_authvar_mor_private_smi_close_unused(void)
+enum cb_err payload_mm_authvar_mor_private_smi_close_unused(void)
 {
-	if (send(PAYLOAD_MM_AUTHVAR_MOR_SEAL_CLOSE, NULL) != CB_SUCCESS)
-		close_sender();
+	const enum cb_err status = send(PAYLOAD_MM_AUTHVAR_MOR_SEAL_CLOSE, NULL);
+
+	return status;
 }
 
 #if ENV_TEST

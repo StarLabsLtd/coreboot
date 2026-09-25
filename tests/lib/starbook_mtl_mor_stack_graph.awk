@@ -453,6 +453,8 @@ END {
 		"payload_mm_authvar_mor_live_inventory.c", 1)
 
 	if (provider_contract) {
+	bind_cap("close_private_seed", "mor_platform.c", private_cap)
+	expect_indirect("close_private_seed", "mor_platform.c", 1)
 	bind_cap("ensure_seed", "mor_platform.c", private_cap)
 	expect_indirect("ensure_seed", "mor_platform.c", 1)
 	bind_cap("reservations_register", "mor_platform.c", private_cap)
@@ -492,11 +494,12 @@ END {
 			"src/lib/payload_mm_authvar_mor_linear.c", "462:18", "private_complete")
 		permit_sites("close_retained_authority",
 			"src/lib/payload_mm_authvar_mor_linear.c", "169:9", "private_close")
-		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "398:6", "@private_callback")
-		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "523:6", "@private_callback")
-		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "594:6", "@private_callback")
-		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "646:11", "@private_callback")
-		permit_sites("private_close", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "681:11", "@private_callback")
+		permit_sites("close_private_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "355:8", "@private_callback")
+		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "408:6", "@private_callback")
+		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "545:6", "@private_callback")
+		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "616:6", "@private_callback")
+		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "668:11", "@private_callback")
+		permit_sites("private_close", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "703:11", "@private_callback")
 	}
 	permit_sites("call_inventory", "src/lib/payload_mm_authvar_mor_clear_executor.c", "280:29", "executor_inventory_validate")
 	permit_sites("call_dma", "src/lib/payload_mm_authvar_mor_clear_executor.c", "297:29", "executor_dma_snapshot")

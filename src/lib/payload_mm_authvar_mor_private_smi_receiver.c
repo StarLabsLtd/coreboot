@@ -76,7 +76,7 @@ __weak enum cb_err platform_payload_mm_authvar_mor_private_smi_bootstrap(
 	return CB_ERR;
 }
 
-static __attribute__((noinline)) void scrub(void *buffer, size_t size)
+static __noinline void scrub(void *buffer, size_t size)
 {
 	volatile uint8_t *bytes = buffer;
 
@@ -443,6 +443,7 @@ out:
 	return status;
 }
 
+#if ENV_TEST
 static enum cb_err receive(uint64_t identity, uint64_t page_base,
 	uint64_t cookie, unsigned int cpu, uint64_t *result)
 {
@@ -462,6 +463,7 @@ static enum cb_err receive(uint64_t identity, uint64_t page_base,
 		return CB_ERR;
 	return receive_owned(identity, page_base, cookie, cpu, result);
 }
+#endif
 
 static void close_loader_slot(
 	struct payload_mm_authvar_mor_private_smi_slot *slot, uint64_t page_base)

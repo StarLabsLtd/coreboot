@@ -48,6 +48,8 @@ _Static_assert(sizeof(struct payload_mm_authvar_smm_arena_receipt) == 88,
 	"SMM arena receipt ABI changed");
 
 #if ENV_RAMSTAGE || ENV_TEST
+bool platform_payload_mm_authvar_smm_arena_required(void);
+void platform_payload_mm_authvar_smm_arena_abort(void);
 bool platform_payload_mm_authvar_smm_arena_seed(
 	struct payload_mm_authvar_smm_arena_seed *seed);
 enum cb_err payload_mm_authvar_smm_arena_reserve(

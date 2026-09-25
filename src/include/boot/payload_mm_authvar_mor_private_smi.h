@@ -97,15 +97,17 @@ _Static_assert(sizeof(struct payload_mm_authvar_mor_private_smi_request) <=
 	"MOR private SMI request no longer fits its page");
 
 #if ENV_RAMSTAGE || ENV_TEST
+bool platform_payload_mm_authvar_mor_private_smi_required(void);
 bool platform_payload_mm_authvar_mor_private_smi_seed(
 	struct payload_mm_authvar_mor_private_smi_seed *seed);
 enum cb_err payload_mm_authvar_mor_private_smi_loader_provision(
-	struct payload_mm_authvar_mor_private_smi_slot *protected_slot);
+	struct payload_mm_authvar_mor_private_smi_slot *protected_slot,
+	bool required);
 enum cb_err payload_mm_authvar_mor_private_smi_seal_channel_resolve(
 	struct payload_mm_authvar_mor_seal_channel *channel);
 enum cb_err payload_mm_authvar_mor_private_smi_send_install(
 	const struct payload_mm_authvar_mor_grant *grant);
-void payload_mm_authvar_mor_private_smi_close_unused(void);
+enum cb_err payload_mm_authvar_mor_private_smi_close_unused(void);
 #endif
 
 #if ENV_SMM || ENV_TEST
