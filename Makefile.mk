@@ -248,6 +248,7 @@ ifeq ($(CONFIG_COVERAGE),y)
 ramstage-c-ccopts += -fprofile-arcs -ftest-coverage
 endif
 ramstage-c-ccopts += $(STACK_AUDIT_CFLAGS)
+smm-c-ccopts += $(STACK_AUDIT_CFLAGS)
 ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
 $(info Updating git submodules.)

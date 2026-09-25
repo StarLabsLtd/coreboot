@@ -32,6 +32,8 @@ struct q35_vtd_io {
 };
 
 int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys);
+int q35_vtd_switch_root(const struct q35_vtd_io *io,
+	uint32_t expected_root_phys, uint32_t root_phys);
 int q35_vtd_invalidate(const struct q35_vtd_io *io);
 
 #endif

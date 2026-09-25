@@ -14,6 +14,7 @@ test-help help::
 	@echo  '  test-capsule-protected-flash - Run protected flash tests'
 	@echo  '  test-capsule-platform-facts - Run capsule platform-facts tests'
 	@echo  '  test-mor-stack-bound - Check the bounded MOR clear call graph'
+	@echo  '  test-q35-mor-linear - Check the Q35 linear MOR platform slice'
 	@echo  '  test-authvar-smm-loader - Check SMM authvar loader failure atomicity'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
 	@echo
@@ -112,6 +113,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-capsule-protected-flash
 	+$(MAKE) test-capsule-platform-facts
 	+$(MAKE) test-mor-stack-bound
+	+$(MAKE) test-q35-mor-linear
 	+$(MAKE) test-authvar-smm-loader
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
@@ -122,7 +124,8 @@ endif
 test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
 	test-capsule-protected-flash test-capsule-platform-facts \
-	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound test-cleanup
+	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
+	test-q35-mor-linear test-cleanup
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
@@ -132,6 +135,15 @@ test-authvar-smm-loader:
 .PHONY: test-mor-stack-bound
 test-mor-stack-bound:
 	tests/lib/starbook_mtl_mor_full_stack_test.sh
+
+.PHONY: test-q35-mor-linear
+test-q35-mor-linear:
+	tests/lib/q35_mor_pci_guard_test.sh
+	tests/lib/q35_mor_platform_test.sh
+	tests/lib/q35_mor_early_dma_source_test.sh
+	tests/lib/q35_mor_vtd_switch_test.sh
+	tests/lib/q35_mor_smm_stack_graph_test.sh
+	tests/lib/q35_mor_linear_artifact_test.sh
 
 .PHONY: test-authvar-service-abi
 test-authvar-service-abi:
@@ -236,5 +248,5 @@ test-cleanup:
 	$(MAKE) -C src/soc/nvidia/tegra210/lp0 clean
 
 .PHONY: test-basic test-lint test-abuild test-payloads
-.PHONY: test-tools test-cleanup test-help test-mor-stack-bound
+.PHONY: test-tools test-cleanup test-help test-mor-stack-bound test-q35-mor-linear
 .PHONY: lint lint-stable what-jenkins-does

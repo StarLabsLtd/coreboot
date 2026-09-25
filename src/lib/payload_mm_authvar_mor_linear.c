@@ -550,6 +550,10 @@ static void mor_after_bootmem(void *unused)
 		halt_failure();
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_EARLY_DISCOVERY)
+BOOT_STATE_INIT_ENTRY(BS_PRE_DEVICE, BS_ON_EXIT, mor_before_bootmem, NULL);
+#else
 BOOT_STATE_INIT_ENTRY(BS_OS_RESUME_CHECK, BS_ON_ENTRY, mor_before_bootmem, NULL);
+#endif
 BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_EXIT, mor_after_bootmem, NULL);
 #endif

@@ -94,3 +94,33 @@ int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys)
 	return (io->read32(io->context, Q35_VTD_GSTS) &
 		Q35_VTD_TRANSLATION_ENABLE) ? 0 : -9;
 }
+
+int q35_vtd_switch_root(const struct q35_vtd_io *io,
+	uint32_t expected_root_phys, uint32_t root_phys)
+{
+	const uint32_t active = Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE;
+
+	if (!io || !io->read32 || !io->write32 || !io->commit_tables ||
+	    !expected_root_phys || (expected_root_phys & 0xfffU) || !root_phys ||
+	    (root_phys & 0xfffU) || root_phys == expected_root_phys)
+		return -1;
+	if ((io->read32(io->context, Q35_VTD_GSTS) & active) != active ||
+	    read_pair(io, Q35_VTD_RTADDR) != expected_root_phys)
+		return -2;
+	io->commit_tables(io->context);
+	io->write32(io->context, Q35_VTD_RTADDR, root_phys);
+	io->write32(io->context, Q35_VTD_RTADDR + 4U, 0);
+	if (read_pair(io, Q35_VTD_RTADDR) != root_phys)
+		return -3;
+	/* Keep translation set while atomically adopting the replacement root. */
+	io->write32(io->context, Q35_VTD_GCMD, active);
+	if (wait_for(io, Q35_VTD_GSTS, active, active) ||
+	    read_pair(io, Q35_VTD_RTADDR) != root_phys)
+		return -4;
+	if (q35_vtd_invalidate(io))
+		return -5;
+	if ((io->read32(io->context, Q35_VTD_GSTS) & active) != active ||
+	    read_pair(io, Q35_VTD_RTADDR) != root_phys)
+		return -6;
+	return 0;
+}

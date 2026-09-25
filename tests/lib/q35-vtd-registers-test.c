@@ -19,6 +19,7 @@ struct mock {
 	unsigned int enable_order;
 	unsigned int roots;
 	unsigned int enables;
+	uint32_t last_gcmd;
 	bool block_root;
 	bool block_enable;
 	bool block_context;
@@ -37,18 +38,29 @@ static void mock_write(void *context, uint32_t offset, uint32_t value)
 	struct mock *mock = context;
 
 	if (offset == Q35_VTD_GCMD) {
+		const bool translation_enabled =
+			mock->registers[Q35_VTD_GSTS / 4U] &
+			Q35_VTD_TRANSLATION_ENABLE;
+
+		mock->last_gcmd = value;
 		if (value & Q35_VTD_ROOT_SET) {
 			mock->roots++;
 			mock->root_order = ++mock->sequence;
 			if (!mock->block_root)
 				mock->registers[Q35_VTD_GSTS / 4U] |= Q35_VTD_ROOT_SET;
 		}
-		if (value & Q35_VTD_TRANSLATION_ENABLE) {
+		if (!!(value & Q35_VTD_TRANSLATION_ENABLE) !=
+		    translation_enabled) {
 			mock->enables++;
 			mock->enable_order = ++mock->sequence;
-			if (!mock->block_enable)
-				mock->registers[Q35_VTD_GSTS / 4U] |=
-					Q35_VTD_TRANSLATION_ENABLE;
+			if (!mock->block_enable) {
+				if (value & Q35_VTD_TRANSLATION_ENABLE)
+					mock->registers[Q35_VTD_GSTS / 4U] |=
+						Q35_VTD_TRANSLATION_ENABLE;
+				else
+					mock->registers[Q35_VTD_GSTS / 4U] &=
+						~Q35_VTD_TRANSLATION_ENABLE;
+			}
 		}
 	} else if (offset == Q35_VTD_CCMD + 4U && (value & (1U << 31))) {
 		mock->context_order = ++mock->sequence;
@@ -145,6 +157,36 @@ int main(void)
 	mock.block_iotlb = true;
 	failures += check(q35_vtd_default_deny(&io, 0x100000U) == -7 &&
 		!mock.enables, "failed IOTLB invalidation still enabled translation");
+	setup(&mock);
+	mock.registers[Q35_VTD_GSTS / 4U] =
+		Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE;
+	mock.registers[Q35_VTD_RTADDR / 4U] = 0x100000U;
+	failures += check(q35_vtd_switch_root(&io, 0x100000U, 0x200000U) == 0,
+		"active root replacement failed");
+	failures += check(mock.last_gcmd ==
+		(Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE) &&
+		(mock.registers[Q35_VTD_GSTS / 4U] &
+		 Q35_VTD_TRANSLATION_ENABLE),
+		"root replacement did not preserve translation");
+	failures += check(mock.commit_order < mock.root_order &&
+		mock.root_order < mock.context_order &&
+		mock.context_order < mock.iotlb_order,
+		"replacement commit/root/invalidation ordering is wrong");
+	setup(&mock);
+	mock.registers[Q35_VTD_GSTS / 4U] =
+		Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE;
+	mock.registers[Q35_VTD_RTADDR / 4U] = 0x100000U;
+	mock.block_context = true;
+	failures += check(q35_vtd_switch_root(&io, 0x100000U, 0x200000U) == -5 &&
+		(mock.registers[Q35_VTD_GSTS / 4U] &
+		 Q35_VTD_TRANSLATION_ENABLE),
+		"replacement invalidation failure disabled translation");
+	setup(&mock);
+	mock.registers[Q35_VTD_GSTS / 4U] =
+		Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE;
+	mock.registers[Q35_VTD_RTADDR / 4U] = 0x100000U;
+	failures += check(q35_vtd_switch_root(&io, 0x300000U, 0x200000U) == -2 &&
+		!mock.commit_order, "unexpected active root was replaced");
 	if (!failures)
 		puts("Q35 VT-d register contract: PASS");
 	return failures != 0;

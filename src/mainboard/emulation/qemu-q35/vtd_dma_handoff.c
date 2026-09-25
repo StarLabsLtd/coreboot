@@ -21,6 +21,10 @@
 
 #include "q35_dma_policy.h"
 #include "q35_capsule_dma_proof.h"
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+#include "q35_mor_dma.h"
+#include "q35_mor_pci_guard.h"
+#endif
 #include "vtd_registers.h"
 
 #define Q35_VTD_BASE 0xfed90000U
@@ -80,6 +84,21 @@ static uint32_t pci_requesters[Q35_DMA_MAX_PCI_FUNCTIONS];
 static size_t pci_requester_count;
 static struct q35_dma_pmr_state pmr_snapshot;
 static struct q35_capsule_dma_geometry capsule_geometry;
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+enum q35_mor_dma_phase {
+	Q35_MOR_DMA_EMPTY,
+	Q35_MOR_DMA_EARLY_DENY,
+	Q35_MOR_DMA_FINAL_ACTIVE,
+	Q35_MOR_DMA_FAILED,
+};
+
+static uint64_t mor_early_root[Q35_DMA_PAGE_SIZE / sizeof(uint64_t)]
+	__aligned(Q35_DMA_PAGE_SIZE);
+static struct q35_mor_pci_requester mor_pci_requesters[Q35_DMA_MAX_PCI_FUNCTIONS];
+static size_t mor_pci_requester_count;
+static uint8_t mor_dma_phase;
+static bool mor_early_tables_committed;
+#endif
 
 static uint32_t vtd_read32(void *context, uint32_t offset)
 {
@@ -204,6 +223,30 @@ static void commit_vtd_tables(void *unused)
 	tables_committed = true;
 }
 
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+static bool mor_early_root_unchanged(void)
+{
+	for (size_t index = 0; index < ARRAY_SIZE(mor_early_root); index++)
+		if (mor_early_root[index])
+			return false;
+	return true;
+}
+
+static void commit_mor_early_root(void *unused)
+{
+	(void)unused;
+	if (!(vtd_read64(Q35_VTD_ECAP) & VTD_ECAP_PAGE_WALK_COHERENT)) {
+		if (clflush_supported())
+			clflush_region((uintptr_t)mor_early_root,
+				Q35_DMA_PAGE_SIZE);
+		else
+			wbinvd();
+	}
+	asm volatile("mfence" ::: "memory");
+	mor_early_tables_committed = true;
+}
+#endif
+
 static bool edu_bus_master_clear(void)
 {
 	return edu_requester &&
@@ -244,6 +287,150 @@ static bool pci_inventory(bool capture)
 	return count && count == pci_requester_count;
 }
 
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+static uint16_t mor_pci_read16(void *unused, uintptr_t address)
+{
+	(void)unused;
+	return read16((void *)address);
+}
+
+static void mor_pci_write16(void *unused, uintptr_t address, uint16_t value)
+{
+	(void)unused;
+	write16((void *)address, value);
+}
+
+static const struct q35_mor_pci_io mor_pci_io = {
+	.read16 = mor_pci_read16,
+	.write16 = mor_pci_write16,
+};
+
+static bool q35_mor_dma_early_default_deny(void)
+{
+	const struct q35_vtd_io io = {
+		.context = (void *)(uintptr_t)Q35_VTD_BASE,
+		.read32 = vtd_read32,
+		.write32 = vtd_write32,
+		.commit_tables = commit_mor_early_root,
+	};
+	const uintptr_t root = (uintptr_t)mor_early_root;
+
+	if (__atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE) !=
+		Q35_MOR_DMA_EMPTY || root > UINT32_MAX ||
+	    root & (Q35_DMA_PAGE_SIZE - 1U))
+		return false;
+	memset(mor_early_root, 0, sizeof(mor_early_root));
+	mor_early_tables_committed = false;
+	if (!mor_early_root_unchanged() ||
+	    q35_vtd_default_deny(&io, (uint32_t)root) ||
+	    !mor_early_tables_committed || !mor_early_root_unchanged())
+		return false;
+	return true;
+}
+
+static bool q35_mor_dma_capture_pre_device_inventory(void)
+{
+	return q35_mor_pci_guard_capture(&mor_pci_io,
+		CONFIG_ECAM_MMCONF_BASE_ADDRESS, CONFIG_ECAM_MMCONF_BUS_NUMBER,
+		mor_pci_requesters, ARRAY_SIZE(mor_pci_requesters),
+		&mor_pci_requester_count) == CB_SUCCESS;
+}
+
+static void q35_mor_dma_pre_device_guard_capture(void *unused)
+{
+	(void)unused;
+	if (!q35_mor_dma_early_default_deny() ||
+	    !q35_mor_dma_capture_pre_device_inventory()) {
+		__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_FAILED,
+			__ATOMIC_RELEASE);
+		printk(BIOS_ERR,
+		       "Q35 MOR DMA: early default-deny establishment failed\n");
+		return;
+	}
+	__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_EARLY_DENY,
+		__ATOMIC_RELEASE);
+	printk(BIOS_INFO,
+	       "Q35 MOR DMA: early empty-root deny active before device init\n");
+}
+
+static bool q35_mor_dma_early_root_valid(void)
+{
+	const uint32_t status = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
+		Q35_VTD_GSTS);
+
+	return __atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE) ==
+		Q35_MOR_DMA_EARLY_DENY &&
+		(status & (Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE)) ==
+		(Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE) &&
+		vtd_read64(Q35_VTD_RTADDR) == (uintptr_t)mor_early_root &&
+		mor_early_root_unchanged();
+}
+
+bool q35_mor_dma_pre_device_guard_valid(void)
+{
+	const uint8_t phase = __atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE);
+	const uint32_t status = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
+		Q35_VTD_GSTS);
+	const uintptr_t expected_root = phase == Q35_MOR_DMA_EARLY_DENY ?
+		(uintptr_t)mor_early_root : (uintptr_t)table_page(0);
+
+	return (phase == Q35_MOR_DMA_EARLY_DENY ||
+		phase == Q35_MOR_DMA_FINAL_ACTIVE) &&
+		(status & (Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE)) ==
+		(Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE) &&
+		vtd_read64(Q35_VTD_RTADDR) == expected_root &&
+		mor_early_root_unchanged() &&
+		q35_mor_pci_guard_validate(&mor_pci_io,
+			CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+			CONFIG_ECAM_MMCONF_BUS_NUMBER, mor_pci_requesters,
+			mor_pci_requester_count) == CB_SUCCESS;
+}
+
+static bool q35_mor_dma_requiesce_after_device_init(void)
+{
+	if (!q35_mor_dma_early_root_valid() ||
+	    q35_mor_pci_guard_requiesce(&mor_pci_io,
+		CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER, mor_pci_requesters,
+		mor_pci_requester_count) != CB_SUCCESS ||
+	    !q35_mor_dma_early_root_valid() ||
+	    q35_mor_pci_guard_validate(&mor_pci_io,
+		CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER, mor_pci_requesters,
+		mor_pci_requester_count) != CB_SUCCESS) {
+		__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_FAILED,
+			__ATOMIC_RELEASE);
+		return false;
+	}
+	printk(BIOS_INFO,
+	       "Q35 MOR DMA: retained PCI topology revalidated and BME re-quiesced under early deny\n");
+	return true;
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PRE_DEVICE, BS_ON_ENTRY,
+	q35_mor_dma_pre_device_guard_capture, NULL);
+
+static int q35_mor_dma_switch_protected_root(const struct q35_vtd_io *io,
+	uint32_t final_root)
+{
+	const uint32_t early_root = (uintptr_t)mor_early_root;
+	int status;
+
+	if (__atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE) !=
+		Q35_MOR_DMA_EARLY_DENY || !q35_mor_dma_pre_device_guard_valid() ||
+	    !mor_early_root_unchanged()) {
+		__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_FAILED,
+			__ATOMIC_RELEASE);
+		return -1;
+	}
+	status = q35_vtd_switch_root(io, early_root, final_root);
+	if (status)
+		__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_FAILED,
+			__ATOMIC_RELEASE);
+	return status;
+}
+#endif
+
 static bool vtd_runtime_state_valid(void)
 {
 	const uint32_t status = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
@@ -267,6 +454,83 @@ static bool vtd_runtime_state_valid(void)
 		q35_dma_pmr_state_matches(&pmr_snapshot, &pmr) &&
 		table_pages_unchanged() && pci_inventory(false);
 }
+
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+enum cb_err q35_mor_dma_snapshot(
+	struct payload_mm_authvar_mor_clear_dma_snapshot *snapshot)
+{
+	uint64_t identity = 0xcbf29ce484222325ULL;
+	const uint64_t generation = payload_resource_revision4_generation();
+	const uint32_t status = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
+		Q35_VTD_GSTS);
+	const uint64_t root = vtd_read64(Q35_VTD_RTADDR);
+	const struct q35_dma_pmr_state pmr = {
+		.enable = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE, Q35_VTD_PMEN),
+		.low_base = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
+			Q35_VTD_PLMBASE),
+		.low_limit = vtd_read32((void *)(uintptr_t)Q35_VTD_BASE,
+			Q35_VTD_PLMLIMIT),
+		.high_base = vtd_read64(Q35_VTD_PHMBASE),
+		.high_limit = vtd_read64(Q35_VTD_PHMLIMIT),
+	};
+	const uint8_t *table = table_allocation;
+
+	if (!snapshot || !backend_ready || !generation ||
+	    __atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE) !=
+		Q35_MOR_DMA_FINAL_ACTIVE ||
+	    !payload_resource_revision4_published() || !vtd_runtime_state_valid() ||
+	    !q35_mor_dma_pre_device_guard_valid())
+		return CB_ERR;
+	identity ^= mor_pci_requester_count;
+	identity *= 0x100000001b3ULL;
+	for (size_t index = 0; index < mor_pci_requester_count; index++) {
+		identity ^= mor_pci_requesters[index].bdf;
+		identity *= 0x100000001b3ULL;
+		identity ^= mor_pci_requesters[index].vendor_id;
+		identity *= 0x100000001b3ULL;
+		identity ^= mor_pci_requesters[index].device_id;
+		identity *= 0x100000001b3ULL;
+	}
+	identity ^= (uintptr_t)mor_early_root;
+	identity *= 0x100000001b3ULL;
+	identity ^= __atomic_load_n(&mor_dma_phase, __ATOMIC_ACQUIRE);
+	identity *= 0x100000001b3ULL;
+	for (size_t index = 0; index < sizeof(mor_early_root); index++) {
+		identity ^= ((const uint8_t *)mor_early_root)[index];
+		identity *= 0x100000001b3ULL;
+	}
+	identity ^= status;
+	identity *= 0x100000001b3ULL;
+	identity ^= root;
+	identity *= 0x100000001b3ULL;
+	identity ^= pmr.enable;
+	identity *= 0x100000001b3ULL;
+	identity ^= pmr.low_base;
+	identity *= 0x100000001b3ULL;
+	identity ^= pmr.low_limit;
+	identity *= 0x100000001b3ULL;
+	identity ^= pmr.high_base;
+	identity *= 0x100000001b3ULL;
+	identity ^= pmr.high_limit;
+	identity *= 0x100000001b3ULL;
+	for (size_t index = 0; index < Q35_DMA_TABLE_BYTES; index++) {
+		identity ^= table[index];
+		identity *= 0x100000001b3ULL;
+	}
+	if (!mor_early_root_unchanged() || !table_pages_unchanged())
+		return CB_ERR;
+	identity ^= generation;
+	memset(snapshot, 0, sizeof(*snapshot));
+	snapshot->generation = generation;
+	for (size_t index = 0; index < sizeof(snapshot->identity); index++) {
+		identity ^= identity >> 12;
+		identity ^= identity << 25;
+		identity ^= identity >> 27;
+		snapshot->identity[index] = identity;
+	}
+	return CB_SUCCESS;
+}
+#endif
 
 static bool dma_page_denied(size_t requester, uint64_t address)
 {
@@ -491,6 +755,10 @@ static void q35_dma_backend_enable(void *unused)
 	int result;
 
 	(void)unused;
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+	if (!q35_mor_dma_requiesce_after_device_init())
+		die("Q35 MOR DMA: device-init PCI re-quiesce failed");
+#endif
 	dma_devices[0] = exact_device(QEMU_VENDOR, QEMU_NVME_DEVICE, Q35_NVME_BDF);
 	dma_devices[1] = exact_device(QEMU_VENDOR, QEMU_XHCI_DEVICE, Q35_XHCI_BDF);
 	edu_requester = exact_device(EDU_VENDOR, EDU_DEVICE, Q35_EDU_BDF);
@@ -551,11 +819,24 @@ static void q35_dma_backend_enable(void *unused)
 	if (!table_pages_unchanged())
 		die("Q35 DMA: requester deny hierarchy is malformed");
 
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+	result = q35_mor_dma_switch_protected_root(&io,
+		(uint32_t)(uintptr_t)root);
+	if (result)
+		die("Q35 MOR DMA: protected-root switch failed %d", result);
+#else
 	result = q35_vtd_default_deny(&io, (uint32_t)(uintptr_t)root);
 	if (result)
 		die("Q35 DMA: default-deny enable failed %d", result);
+#endif
 	if (!tables_committed)
 		die("Q35 DMA: VT-d tables were not committed before enable");
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+	__atomic_store_n(&mor_dma_phase, Q35_MOR_DMA_FINAL_ACTIVE,
+		__ATOMIC_RELEASE);
+	printk(BIOS_INFO,
+	       "Q35 MOR DMA: empty-root deny switched to final protected root without disabling translation\n");
+#endif
 	printk(BIOS_INFO, "Q35 DMA: %s page-walk table visibility established\n",
 	       noncoherent_writeback ? "noncoherent" : "coherent");
 	prove_requester_denied();
@@ -572,8 +853,18 @@ static void q35_dma_backend_enable(void *unused)
 	};
 	if (pmr_snapshot.enable & (Q35_VTD_PMR_ENABLE | Q35_VTD_PMR_STATUS))
 		die("Q35 DMA: PMR state is active");
+#if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
+	if (!q35_mor_dma_pre_device_guard_valid())
+		die("Q35 MOR: pre-device PCI guard changed");
+	if (mor_pci_requester_count > ARRAY_SIZE(pci_requesters))
+		die("Q35 MOR DMA: retained PCI inventory exceeds runtime storage");
+	for (size_t index = 0; index < mor_pci_requester_count; index++)
+		pci_requesters[index] = mor_pci_requesters[index].bdf;
+	pci_requester_count = mor_pci_requester_count;
+#else
 	if (!pci_inventory(true))
 		die("Q35 DMA: PCI requester inventory is unsafe");
+#endif
 	backend_ready = true;
 	printk(BIOS_INFO,
 	       "Q35 DMA: default-deny active, %zu PCI functions BME clear, NVMe 0000:00:03.0 32 pages at %#llx, XHCI 0000:00:04.0 128 pages at %#llx, EDU unlisted\n",
