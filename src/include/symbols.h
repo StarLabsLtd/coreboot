@@ -61,6 +61,8 @@ DECLARE_REGION(data_load)
 DECLARE_REGION(payload)
 /* "program" always refers to the current execution unit. */
 DECLARE_REGION(program)
+/* Executable code and read-only data in the current execution unit. */
+DECLARE_REGION(text)
 /* _<stage>_size is always the maximum amount allocated in memlayout, whereas
    _program_size gives the actual memory footprint *used* by current stage. */
 DECLARE_REGION(decompressor)

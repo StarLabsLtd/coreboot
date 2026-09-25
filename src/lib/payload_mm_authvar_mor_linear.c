@@ -36,12 +36,16 @@ enum lifecycle_phase {
 static struct {
 	uintptr_t owner;
 	uint64_t generation;
+	void *close_context;
+	enum cb_err (*private_close)(void *context);
 	uint8_t phase;
+	uint8_t authority_open;
+	uint8_t poisoned;
 } lifecycle;
 
 static void lifecycle_poison(void)
 {
-	__atomic_store_n(&lifecycle.phase, LIFECYCLE_FAILED, __ATOMIC_RELEASE);
+	__atomic_store_n(&lifecycle.poisoned, 1, __ATOMIC_RELEASE);
 }
 
 static bool lifecycle_claim(
@@ -71,7 +75,8 @@ static bool lifecycle_advance(
 {
 	uint8_t expected = expected_phase;
 
-	if (__atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE) !=
+	if (__atomic_load_n(&lifecycle.poisoned, __ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE) !=
 	    (uintptr_t)state ||
 	    !__atomic_compare_exchange_n(&lifecycle.phase, &expected, next_phase,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
@@ -84,7 +89,8 @@ static bool lifecycle_advance(
 static bool lifecycle_owned(const struct payload_mm_authvar_mor_linear_state *state,
 	enum lifecycle_phase phase)
 {
-	return __atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE) ==
+	return !__atomic_load_n(&lifecycle.poisoned, __ATOMIC_ACQUIRE) &&
+		__atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE) ==
 		(uintptr_t)state &&
 		__atomic_load_n(&lifecycle.phase, __ATOMIC_ACQUIRE) == phase;
 }
@@ -121,6 +127,26 @@ static bool ranges_overlap(const void *left, size_t left_size,
 	return left_base - right_base < right_size;
 }
 
+static bool excluded_range(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const void *object, size_t size)
+{
+	const uintptr_t base = (uintptr_t)object;
+
+	if (!object_valid(object, size, 1))
+		return false;
+	for (size_t index = 0; index < plan->span_count; index++) {
+		const struct payload_mm_authvar_mor_grant_span *span =
+			&plan->spans[index];
+
+		if (span->span_class == PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_EXCLUDED &&
+		    base >= span->base && size <= span->size &&
+		    base - span->base <= span->size - size)
+			return true;
+	}
+	return false;
+}
+
 static void scrub_work(struct payload_mm_authvar_mor_linear_state *state)
 {
 	const uint32_t phase = state->phase;
@@ -133,11 +159,23 @@ static void scrub_work(struct payload_mm_authvar_mor_linear_state *state)
 	state->failure = failure;
 }
 
+static enum cb_err close_retained_authority(void)
+{
+	if (!__atomic_exchange_n(&lifecycle.authority_open, 0,
+		__ATOMIC_ACQ_REL))
+		return CB_SUCCESS;
+	if (!lifecycle.close_context || !lifecycle.private_close)
+		return CB_ERR;
+	return lifecycle.private_close(lifecycle.close_context);
+}
+
 static enum payload_mm_authvar_mor_linear_result fail(
 	struct payload_mm_authvar_mor_linear_state *state,
 	enum payload_mm_authvar_mor_linear_failure failure)
 {
 	lifecycle_poison();
+	(void)close_retained_authority();
+	__atomic_store_n(&lifecycle.phase, LIFECYCLE_FAILED, __ATOMIC_RELEASE);
 	state->phase = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILED;
 	state->failure = failure;
 	scrub_work(state);
@@ -183,19 +221,21 @@ static bool state_unchanged(
 
 static enum payload_mm_authvar_mor_linear_result close_authority(
 	struct payload_mm_authvar_mor_linear_state *state,
-	enum lifecycle_phase expected_phase)
+	enum lifecycle_phase expected_phase,
+	struct payload_mm_authvar_mor_linear_state *snapshot)
 {
-	struct payload_mm_authvar_mor_linear_ops ops = state->ops;
-	struct payload_mm_authvar_mor_linear_state frozen;
 	bool unchanged;
 
+	if (!object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)) ||
+	    ranges_overlap(snapshot, sizeof(*snapshot), state, sizeof(*state)))
+		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_CLOSE);
 	if (!lifecycle_advance(state, expected_phase, LIFECYCLE_CLOSING))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
-	memcpy(&frozen, state, sizeof(frozen));
-	const enum cb_err status = ops.private_close(ops.context);
-	unchanged = !memcmp(state, &frozen, sizeof(frozen)) &&
+	memcpy(snapshot, state, sizeof(*snapshot));
+	const enum cb_err status = close_retained_authority();
+	unchanged = !memcmp(state, snapshot, sizeof(*snapshot)) &&
 		lifecycle_owned(state, LIFECYCLE_CLOSING);
-	memset(&frozen, 0, sizeof(frozen));
+	memset(snapshot, 0, sizeof(*snapshot));
 	if (status != CB_SUCCESS || !unchanged)
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_CLOSE);
 	if (!lifecycle_advance(state, LIFECYCLE_CLOSING, LIFECYCLE_CLOSED))
@@ -208,27 +248,53 @@ static enum payload_mm_authvar_mor_linear_result close_authority(
 enum payload_mm_authvar_mor_linear_result
 payload_mm_authvar_mor_linear_before_bootmem(
 	struct payload_mm_authvar_mor_linear_state *state,
-	const struct payload_mm_authvar_mor_linear_ops *ops)
+	const struct payload_mm_authvar_mor_linear_ops *ops,
+	struct payload_mm_authvar_mor_linear_state *callback_snapshot)
 {
 	struct payload_mm_authvar_mor_linear_ops frozen_ops;
-	struct payload_mm_authvar_mor_linear_state frozen_state;
 	struct payload_mm_authvar_mor_linear_boot boot = { 0 };
 	struct payload_mm_authvar_mor_entry entry = { 0 };
 
-	if (!object_valid(state, sizeof(*state), _Alignof(*state))) {
+	if (!object_valid(state, sizeof(*state), _Alignof(*state)) ||
+	    !object_valid(ops, sizeof(*ops), _Alignof(*ops)) ||
+	    !object_valid(callback_snapshot, sizeof(*callback_snapshot),
+		_Alignof(*callback_snapshot)) ||
+	    ranges_overlap(state, sizeof(*state), callback_snapshot,
+		sizeof(*callback_snapshot)) ||
+	    ranges_overlap(ops, sizeof(*ops), callback_snapshot,
+		sizeof(*callback_snapshot)) ||
+	    (object_valid(ops->context, ops->context_size, 1) &&
+	     ranges_overlap(ops->context, ops->context_size, callback_snapshot,
+		sizeof(*callback_snapshot)))) {
 		lifecycle_poison();
 		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
 	}
 	/* Own the state before reading it; rejected entrants must not touch it. */
 	if (!lifecycle_claim(state))
 		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
-	if (!bytes_zero(state, sizeof(*state)) || !ops_valid(ops, state)) {
+	if (!ops_valid(ops, state)) {
 		memset(state, 0, sizeof(*state));
 		state->revision = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_REVISION;
 		state->size = sizeof(*state);
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PROVIDER);
 	}
 	memcpy(&frozen_ops, ops, sizeof(frozen_ops));
+	if (!ops_valid(&frozen_ops, state) ||
+	    memcmp(ops, &frozen_ops, sizeof(frozen_ops))) {
+		memset(state, 0, sizeof(*state));
+		state->revision = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_REVISION;
+		state->size = sizeof(*state);
+		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PROVIDER);
+	}
+	lifecycle.close_context = frozen_ops.context;
+	lifecycle.private_close = frozen_ops.private_close;
+	__atomic_store_n(&lifecycle.authority_open, 1, __ATOMIC_RELEASE);
+	if (!bytes_zero(state, sizeof(*state))) {
+		memset(state, 0, sizeof(*state));
+		state->revision = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_REVISION;
+		state->size = sizeof(*state);
+		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PROVIDER);
+	}
 	*state = (struct payload_mm_authvar_mor_linear_state) {
 		.revision = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_REVISION,
 		.size = sizeof(*state),
@@ -238,13 +304,13 @@ payload_mm_authvar_mor_linear_before_bootmem(
 	if (!lifecycle_owned(state, LIFECYCLE_CLASSIFYING))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
 	timestamp_add_now(TS_MOR_DISCOVERY_START);
-	memcpy(&frozen_state, state, sizeof(frozen_state));
+	memcpy(callback_snapshot, state, sizeof(*callback_snapshot));
 	const enum cb_err classify_status =
 		frozen_ops.classify_guard(frozen_ops.context, &boot);
 	const bool classify_unchanged =
-		!memcmp(state, &frozen_state, sizeof(frozen_state)) &&
+		!memcmp(state, callback_snapshot, sizeof(*callback_snapshot)) &&
 		lifecycle_owned(state, LIFECYCLE_CLASSIFYING);
-	memset(&frozen_state, 0, sizeof(frozen_state));
+	memset(callback_snapshot, 0, sizeof(*callback_snapshot));
 	if (classify_status != CB_SUCCESS || !classify_unchanged ||
 	    memcmp(ops, &frozen_ops, sizeof(frozen_ops)) || !boot_valid(&boot))
 		return fail(state,
@@ -252,7 +318,8 @@ payload_mm_authvar_mor_linear_before_bootmem(
 	state->generation = boot.generation;
 	if (boot.kind == PAYLOAD_MM_AUTHVAR_MOR_LINEAR_S3_RESUME) {
 		timestamp_add_now(TS_MOR_DISCOVERY_END);
-		return close_authority(state, LIFECYCLE_CLASSIFYING);
+		return close_authority(state, LIFECYCLE_CLASSIFYING,
+			callback_snapshot);
 	}
 	__atomic_store_n(&lifecycle.generation, boot.generation, __ATOMIC_RELEASE);
 	if (!lifecycle_advance(state, LIFECYCLE_CLASSIFYING,
@@ -268,20 +335,20 @@ payload_mm_authvar_mor_linear_before_bootmem(
 	state->entry = entry;
 	if (!entry.present || !(entry.value & 1U)) {
 		timestamp_add_now(TS_MOR_DISCOVERY_END);
-		return close_authority(state, LIFECYCLE_PROBING);
+		return close_authority(state, LIFECYCLE_PROBING, callback_snapshot);
 	}
 	if (!lifecycle_advance(state, LIFECYCLE_PROBING,
 		LIFECYCLE_RESERVING))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
-	memcpy(&frozen_state, state, sizeof(frozen_state));
+	memcpy(callback_snapshot, state, sizeof(*callback_snapshot));
 	const enum cb_err reservation_status =
 		frozen_ops.reservations_register(frozen_ops.context);
 	const bool reservation_unchanged =
-		!memcmp(state, &frozen_state, sizeof(frozen_state)) &&
+		!memcmp(state, callback_snapshot, sizeof(*callback_snapshot)) &&
 		lifecycle_owned(state, LIFECYCLE_RESERVING) &&
 		__atomic_load_n(&lifecycle.generation, __ATOMIC_ACQUIRE) ==
 			boot.generation;
-	memset(&frozen_state, 0, sizeof(frozen_state));
+	memset(callback_snapshot, 0, sizeof(*callback_snapshot));
 	if (reservation_status != CB_SUCCESS || !reservation_unchanged ||
 	    memcmp(ops, &frozen_ops, sizeof(frozen_ops)))
 		return fail(state,
@@ -295,24 +362,50 @@ payload_mm_authvar_mor_linear_before_bootmem(
 
 enum payload_mm_authvar_mor_linear_result
 payload_mm_authvar_mor_linear_after_bootmem(
-	struct payload_mm_authvar_mor_linear_state *state)
+	struct payload_mm_authvar_mor_linear_state *state,
+	struct payload_mm_authvar_mor_clear_workspace *workspace,
+	struct payload_mm_authvar_mor_linear_state *callback_snapshot)
 {
 	struct payload_mm_authvar_mor_linear_ops ops;
 	struct payload_mm_authvar_mor_entry entry;
-	struct payload_mm_authvar_mor_linear_state completed;
 	uint64_t generation;
 	bool commit_unchanged;
 	enum cb_err commit_status;
 
-	if (!object_valid(state, sizeof(*state), _Alignof(*state))) {
+	if (!object_valid(state, sizeof(*state), _Alignof(*state)) ||
+	    !object_valid(workspace, sizeof(*workspace), _Alignof(*workspace)) ||
+	    !object_valid(callback_snapshot, sizeof(*callback_snapshot),
+		_Alignof(*callback_snapshot)) ||
+	    ranges_overlap(state, sizeof(*state), callback_snapshot,
+		sizeof(*callback_snapshot)) ||
+	    ranges_overlap(state, sizeof(*state), workspace, sizeof(*workspace)) ||
+	    ranges_overlap(workspace, sizeof(*workspace), callback_snapshot,
+		sizeof(*callback_snapshot))) {
 		lifecycle_poison();
 		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
 	}
-	/* A rejected entrant may alias the owner's state: never write it. */
-	if (!lifecycle_owned(state, LIFECYCLE_RESERVED)) {
+	/*
+	 * Take exclusive ownership before reading the retained state. A losing
+	 * entrant poisons the winner but must not race it by writing that state.
+	 */
+	if (__atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE) !=
+	    (uintptr_t)state) {
 		lifecycle_poison();
 		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
 	}
+	if (__atomic_load_n(&lifecycle.poisoned, __ATOMIC_ACQUIRE)) {
+		/* RESERVED has no active post-bootmem owner to perform the close. */
+		uint8_t expected = LIFECYCLE_RESERVED;
+
+		if (__atomic_compare_exchange_n(&lifecycle.phase, &expected,
+		    LIFECYCLE_CLOSING, false, __ATOMIC_ACQ_REL,
+		    __ATOMIC_ACQUIRE))
+			return fail(state,
+				PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
+		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
+	}
+	if (!lifecycle_advance(state, LIFECYCLE_RESERVED, LIFECYCLE_RESOLVING))
+		return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT;
 	if (state->phase != PAYLOAD_MM_AUTHVAR_MOR_LINEAR_RESERVED ||
 	    state->failure != PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_NONE ||
 	    state->revision != PAYLOAD_MM_AUTHVAR_MOR_LINEAR_REVISION ||
@@ -325,17 +418,24 @@ payload_mm_authvar_mor_linear_after_bootmem(
 	    !bytes_zero(&state->transcript, sizeof(state->transcript)) ||
 	    !bytes_zero(&state->grant, sizeof(state->grant)))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
+	if (ranges_overlap(state->ops.context, state->ops.context_size, workspace,
+		sizeof(*workspace)) ||
+	    ranges_overlap(state->ops.context, state->ops.context_size,
+		callback_snapshot, sizeof(*callback_snapshot)))
+		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
 	ops = state->ops;
 	entry = state->entry;
 	generation = state->generation;
-	if (!lifecycle_advance(state, LIFECYCLE_RESERVED, LIFECYCLE_RESOLVING))
-		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PHASE);
 	if (ops.resolve_binding(ops.context, generation, &state->plan,
 		&state->executor) != CB_SUCCESS ||
 	    !lifecycle_owned(state, LIFECYCLE_RESOLVING) ||
 	    !state_unchanged(state, &ops, generation, &entry,
 		PAYLOAD_MM_AUTHVAR_MOR_LINEAR_RESERVED) ||
 	    payload_mm_authvar_mor_clear_plan_validate(&state->plan) != CB_SUCCESS ||
+	    !excluded_range(&state->plan, state, sizeof(*state)) ||
+	    !excluded_range(&state->plan, workspace, sizeof(*workspace)) ||
+	    !excluded_range(&state->plan, callback_snapshot,
+		sizeof(*callback_snapshot)) ||
 	    !state->executor.window_bytes || !state->executor.dma_snapshot ||
 	    !state->executor.map_window ||
 	    !state->executor.cache_writeback_invalidate ||
@@ -346,7 +446,7 @@ payload_mm_authvar_mor_linear_after_bootmem(
 		LIFECYCLE_CLEARING))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_BINDING);
 	timestamp_add_now(TS_MOR_CLEAR_START);
-	if (payload_mm_authvar_mor_clear_execute(&state->plan, &state->entry,
+	if (payload_mm_authvar_mor_clear_execute(workspace, &state->plan, &state->entry,
 		generation, &state->executor, &state->transcript,
 		&state->grant) != CB_SUCCESS ||
 	    !lifecycle_owned(state, LIFECYCLE_CLEARING) ||
@@ -358,12 +458,16 @@ payload_mm_authvar_mor_linear_after_bootmem(
 		LIFECYCLE_COMMITTING))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_CLEAR);
 	timestamp_add_now(TS_MOR_COMMIT_START);
-	memcpy(&completed, state, sizeof(completed));
+	memcpy(callback_snapshot, state, sizeof(*callback_snapshot));
 	commit_status = ops.private_complete(ops.context, &state->grant);
-	commit_unchanged = !memcmp(state, &completed, sizeof(completed)) &&
+	commit_unchanged = !memcmp(state, callback_snapshot,
+		sizeof(*callback_snapshot)) &&
 		lifecycle_owned(state, LIFECYCLE_COMMITTING);
-	memset(&completed, 0, sizeof(completed));
+	memset(callback_snapshot, 0, sizeof(*callback_snapshot));
 	if (commit_status != CB_SUCCESS || !commit_unchanged)
+		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_COMMIT);
+	if (!__atomic_exchange_n(&lifecycle.authority_open, 0,
+		__ATOMIC_ACQ_REL))
 		return fail(state, PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_COMMIT);
 	timestamp_add_now(TS_MOR_COMMIT_END);
 	if (!lifecycle_advance(state, LIFECYCLE_COMMITTING,
@@ -409,12 +513,16 @@ void payload_mm_authvar_mor_linear_reset_test(void)
 	memset(&lifecycle, 0, sizeof(lifecycle));
 }
 #else
-static struct payload_mm_authvar_mor_linear_state boot_state;
+static struct {
+	struct payload_mm_authvar_mor_linear_state state;
+	struct payload_mm_authvar_mor_clear_workspace workspace;
+	struct payload_mm_authvar_mor_linear_state callback_snapshot;
+} boot;
 
 static void halt_failure(void)
 {
 	printk(BIOS_EMERG, "MOR: fatal linear boot failure: %s\n",
-		payload_mm_authvar_mor_linear_failure_name(boot_state.failure));
+		payload_mm_authvar_mor_linear_failure_name(boot.state.failure));
 	die("MOR linear boot cannot continue\n");
 }
 
@@ -423,19 +531,21 @@ static void mor_before_bootmem(void *unused)
 	struct payload_mm_authvar_mor_linear_ops ops = { 0 };
 
 	if (!platform_payload_mm_authvar_mor_linear_ops(&ops)) {
-		boot_state.failure = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PROVIDER;
+		boot.state.failure = PAYLOAD_MM_AUTHVAR_MOR_LINEAR_FAILURE_PROVIDER;
 		halt_failure();
 	}
-	if (payload_mm_authvar_mor_linear_before_bootmem(&boot_state, &ops) ==
+	if (payload_mm_authvar_mor_linear_before_bootmem(&boot.state, &ops,
+		&boot.callback_snapshot) ==
 	    PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT)
 		halt_failure();
 }
 
 static void mor_after_bootmem(void *unused)
 {
-	if (boot_state.phase != PAYLOAD_MM_AUTHVAR_MOR_LINEAR_RESERVED)
+	if (boot.state.phase != PAYLOAD_MM_AUTHVAR_MOR_LINEAR_RESERVED)
 		return;
-	if (payload_mm_authvar_mor_linear_after_bootmem(&boot_state) ==
+	if (payload_mm_authvar_mor_linear_after_bootmem(&boot.state,
+		&boot.workspace, &boot.callback_snapshot) ==
 	    PAYLOAD_MM_AUTHVAR_MOR_LINEAR_HALT)
 		halt_failure();
 }

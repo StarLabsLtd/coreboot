@@ -155,7 +155,9 @@ static void expect_ops_zero(void)
 static enum cb_err inventory_validate(void *context,
 	const struct payload_mm_authvar_mor_clear_plan *plan)
 {
-	return memcmp(context, plan, sizeof(*plan)) ? CB_ERR : CB_SUCCESS;
+	return context == &backend &&
+		payload_mm_authvar_mor_clear_plan_validate(plan) == CB_SUCCESS ?
+		CB_SUCCESS : CB_ERR;
 }
 
 static enum cb_err dma_snapshot(void *unused,
@@ -176,15 +178,67 @@ static void test_execute_high(void)
 	struct payload_mm_authvar_mor_entry entry = { 1, 1, 0 };
 	struct payload_mm_authvar_mor_clear_transcript transcript;
 	struct payload_mm_authvar_mor_grant grant;
+	struct payload_mm_authvar_mor_clear_workspace workspace = { 0 };
 
 	initialize(&plan, &arch);
 	memset(aperture, 0xa5, 0x1000);
 	CHECK(payload_mm_authvar_mor_clear_x86_prepare_with_ops(&plan,
 		page_tables, aperture, &backend, &executor_ops, &arch) == CB_SUCCESS);
 	executor_ops.dma_snapshot = dma_snapshot;
-	executor_ops.inventory_context = &plan;
+	executor_ops.inventory_context = &backend;
+	executor_ops.inventory_context_size = sizeof(backend);
 	executor_ops.inventory_validate = inventory_validate;
-	CHECK(payload_mm_authvar_mor_clear_execute(&plan, &entry, 11,
+	const uintptr_t callbacks[] = { (uintptr_t)executor_ops.dma_snapshot,
+		(uintptr_t)executor_ops.map_window,
+		(uintptr_t)executor_ops.cache_writeback_invalidate,
+		(uintptr_t)executor_ops.fence, (uintptr_t)executor_ops.unmap_window,
+		(uintptr_t)executor_ops.inventory_validate };
+	const void *stack_objects[] = { &workspace, &plan, &entry, &arch,
+		&transcript, &grant };
+	const size_t stack_sizes[] = { sizeof(workspace), sizeof(plan), sizeof(entry),
+		sizeof(arch), sizeof(transcript), sizeof(grant) };
+	uintptr_t code_base = callbacks[0];
+	uintptr_t code_end = callbacks[0] + 1U;
+	uintptr_t stack_base = (uintptr_t)stack_objects[0];
+	uintptr_t stack_end = stack_base + stack_sizes[0];
+	for (size_t index = 1; index < ARRAY_SIZE(callbacks); index++) {
+		if (callbacks[index] < code_base)
+			code_base = callbacks[index];
+		if (callbacks[index] + 1U > code_end)
+			code_end = callbacks[index] + 1U;
+	}
+	for (size_t index = 1; index < ARRAY_SIZE(stack_objects);
+	     index++) {
+		const uintptr_t base = (uintptr_t)stack_objects[index];
+		if (base < stack_base)
+			stack_base = base;
+		if (base + stack_sizes[index] > stack_end)
+			stack_end = base + stack_sizes[index];
+	}
+	plan.spans[plan.span_count++] = (struct payload_mm_authvar_mor_grant_span) {
+		.base = code_base, .size = code_end - code_base,
+		.span_class = PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_EXCLUDED,
+		.exclusion_reason = PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+	};
+	plan.spans[plan.span_count++] = (struct payload_mm_authvar_mor_grant_span) {
+		.base = stack_base, .size = stack_end - stack_base,
+		.span_class = PAYLOAD_MM_AUTHVAR_MOR_GRANT_SPAN_EXCLUDED,
+		.exclusion_reason = PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+	};
+	for (size_t index = 1; index < plan.span_count; index++) {
+		struct payload_mm_authvar_mor_grant_span span = plan.spans[index];
+		size_t insert = index;
+		while (insert && plan.spans[insert - 1U].base > span.base) {
+			plan.spans[insert] = plan.spans[insert - 1U];
+			insert--;
+		}
+		plan.spans[insert] = span;
+	}
+	executor_ops.executable_owner = (void *)code_base;
+	executor_ops.executable_owner_size = code_end - code_base;
+	executor_ops.stack_owner = (void *)stack_base;
+	executor_ops.stack_owner_size = stack_end - stack_base;
+	CHECK(payload_mm_authvar_mor_clear_execute(&workspace, &plan, &entry, 11,
 		&executor_ops, &transcript, &grant) == CB_SUCCESS);
 	CHECK(mock.mapped_physical == 0x100000000ULL);
 	CHECK(mock.mapped_aperture == aperture);

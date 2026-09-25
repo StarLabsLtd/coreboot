@@ -9,6 +9,20 @@
 		__builtin_trap(); \
 } while (0)
 
+static void *pre_copy_context;
+static size_t pre_copy_context_size;
+
+void starbook_mtl_dma_guard_pre_copy_test_hook(
+	const struct starbook_mtl_dma_guard_ops *ops)
+{
+	if (!pre_copy_context)
+		return;
+	((struct starbook_mtl_dma_guard_ops *)ops)->context = pre_copy_context;
+	((struct starbook_mtl_dma_guard_ops *)ops)->context_size =
+		pre_copy_context_size;
+	pre_copy_context = NULL;
+}
+
 static struct payload_mm_authvar_mor_clear_plan valid_plan(void)
 {
 	struct payload_mm_authvar_mor_clear_plan plan = {
@@ -256,12 +270,14 @@ int main(int argc, char **argv)
 	struct starbook_mtl_dma_guard_snapshot second;
 	struct starbook_mtl_dma_guard_snapshot bound;
 	struct payload_mm_authvar_mor_clear_dma_snapshot dma;
+	struct starbook_mtl_dma_guard_bind_workspace bind_workspace;
 	struct mock_context mock = {
 		.mutation_observe = 2, .plan = &plan, .output = &snapshot,
 		.prepared = &snapshot, .dma = &dma,
 	};
 	struct starbook_mtl_dma_guard_ops ops = {
-		.context = &mock, .ensure = mock_ensure, .observe = mock_observe,
+		.context = &mock, .context_size = sizeof(mock),
+		.ensure = mock_ensure, .observe = mock_observe,
 		.random64 = mock_random64,
 		.poison = mock_poison,
 	};
@@ -301,16 +317,44 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (!strcmp(argv[1], "ops-output-alias")) {
+		second = snapshot;
 		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot,
 			(const struct starbook_mtl_dma_guard_ops *)&snapshot) == CB_ERR_ARG);
-		CHECK(!memcmp(&snapshot,
-			&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
-			sizeof(snapshot)));
+		CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)));
 		return 0;
 	}
 	if (!strcmp(argv[1], "ops-plan-alias")) {
 		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot,
 			(const struct starbook_mtl_dma_guard_ops *)&snapshot) == CB_ERR_ARG);
+		return 0;
+	}
+	if (!strcmp(argv[1], "prepare-context-output-alias")) {
+		second = snapshot;
+		ops.context = &snapshot;
+		ops.context_size = sizeof(snapshot);
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
+			CB_ERR_ARG);
+		CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)));
+		return 0;
+	}
+	if (!strcmp(argv[1], "prepare-context-ops-alias")) {
+		second = snapshot;
+		ops.context = &ops;
+		ops.context_size = sizeof(ops);
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
+			CB_ERR_ARG);
+		CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)));
+		return 0;
+	}
+	if (!strcmp(argv[1], "prepare-pre-copy-mutation")) {
+		second = snapshot;
+		pre_copy_context = &snapshot;
+		pre_copy_context_size = sizeof(snapshot);
+		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
+			CB_ERR_ARG);
+		CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)) &&
+			!mock.ensures && !mock.observes && !mock.randoms &&
+			!mock.poisons);
 		return 0;
 	}
 	if (!strcmp(argv[1], "prepare") || !strcmp(argv[1], "idempotent")) {
@@ -337,6 +381,13 @@ int main(int argc, char **argv)
 	    !strcmp(argv[1], "bind-prepared-output-alias") ||
 	    !strcmp(argv[1], "bind-output-dma-alias") ||
 	    !strcmp(argv[1], "bind-plan-prepared-alias") ||
+	    !strcmp(argv[1], "bind-context-plan-alias") ||
+	    !strcmp(argv[1], "bind-context-prepared-alias") ||
+	    !strcmp(argv[1], "bind-context-output-alias") ||
+	    !strcmp(argv[1], "bind-context-dma-alias") ||
+	    !strcmp(argv[1], "bind-context-ops-alias") ||
+	    !strcmp(argv[1], "bind-context-workspace-alias") ||
+	    !strcmp(argv[1], "bind-pre-copy-mutation") ||
 	    !strcmp(argv[1], "bound-prepare-idempotent") ||
 	    !strcmp(argv[1], "bound-plan-change")) {
 		CHECK(starbook_mtl_dma_guard_prepare_with_ops(&snapshot, &ops) ==
@@ -346,12 +397,26 @@ int main(int argc, char **argv)
 			sizeof(plan.inventory_identity));
 		mock.mutation_observe = 3;
 		mock.output = &bound;
+		if (!strcmp(argv[1], "bind-pre-copy-mutation")) {
+			memset(&bound, 0xa5, sizeof(bound));
+			memset(&dma, 0xa5, sizeof(dma));
+			memset(&bind_workspace, 0xa5, sizeof(bind_workspace));
+			pre_copy_context = &bound;
+			pre_copy_context_size = sizeof(bound);
+			CHECK(starbook_mtl_dma_guard_bind_with_ops_owned(&plan,
+				&snapshot, &bound, &dma, &ops, &bind_workspace) ==
+				CB_ERR_ARG);
+			for (size_t index = 0; index < sizeof(bound); index++)
+				CHECK(((const uint8_t *)&bound)[index] == 0xa5);
+			for (size_t index = 0; index < sizeof(dma); index++)
+				CHECK(((const uint8_t *)&dma)[index] == 0xa5);
+			return 0;
+		}
 		if (!strcmp(argv[1], "bind-prepared-output-alias")) {
+			second = snapshot;
 			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan, &snapshot,
 				&snapshot, &dma, &ops) == CB_ERR_ARG);
-			CHECK(!memcmp(&snapshot,
-				&(const struct starbook_mtl_dma_guard_snapshot) { 0 },
-				sizeof(snapshot)));
+			CHECK(!memcmp(&snapshot, &second, sizeof(snapshot)));
 			return 0;
 		}
 		if (!strcmp(argv[1], "bind-output-dma-alias")) {
@@ -365,6 +430,38 @@ int main(int argc, char **argv)
 			CHECK(starbook_mtl_dma_guard_bind_with_ops(&plan,
 				(const struct starbook_mtl_dma_guard_snapshot *)&plan,
 				&bound, &dma, &ops) == CB_ERR_ARG);
+			return 0;
+		}
+		if (!strncmp(argv[1], "bind-context-", 13)) {
+			memset(&bound, 0xa5, sizeof(bound));
+			memset(&dma, 0xa5, sizeof(dma));
+			memset(&bind_workspace, 0xa5, sizeof(bind_workspace));
+			if (!strcmp(argv[1], "bind-context-plan-alias")) {
+				ops.context = &plan;
+				ops.context_size = sizeof(plan);
+			} else if (!strcmp(argv[1], "bind-context-prepared-alias")) {
+				ops.context = &snapshot;
+				ops.context_size = sizeof(snapshot);
+			} else if (!strcmp(argv[1], "bind-context-output-alias")) {
+				ops.context = &bound;
+				ops.context_size = sizeof(bound);
+			} else if (!strcmp(argv[1], "bind-context-dma-alias")) {
+				ops.context = &dma;
+				ops.context_size = sizeof(dma);
+			} else if (!strcmp(argv[1], "bind-context-ops-alias")) {
+				ops.context = &ops;
+				ops.context_size = sizeof(ops);
+			} else {
+				ops.context = &bind_workspace;
+				ops.context_size = sizeof(bind_workspace);
+			}
+			CHECK(starbook_mtl_dma_guard_bind_with_ops_owned(&plan,
+				&snapshot, &bound, &dma, &ops, &bind_workspace) ==
+				CB_ERR_ARG);
+			for (size_t index = 0; index < sizeof(bound); index++)
+				CHECK(((const uint8_t *)&bound)[index] == 0xa5);
+			for (size_t index = 0; index < sizeof(dma); index++)
+				CHECK(((const uint8_t *)&dma)[index] == 0xa5);
 			return 0;
 		}
 		if (!strcmp(argv[1], "bind-token-mismatch"))

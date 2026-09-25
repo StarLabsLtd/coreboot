@@ -245,6 +245,89 @@ static void test_plan_mutation(void)
 	assert_zero(&plan, sizeof(plan));
 }
 
+static void test_plan_owned(void)
+{
+	struct payload_mm_authvar_mor_clear_inventory inventory = valid_inventory();
+	struct payload_mm_authvar_mor_clear_plan original;
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_plan_workspace workspace;
+
+	memset(&plan, 0x5a, sizeof(plan));
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory, &plan,
+		&workspace) == CB_SUCCESS);
+	CHECK(plan.span_count == 3);
+	assert_zero(&workspace, sizeof(workspace));
+
+	memset(&plan, 0x6b, sizeof(plan));
+	original = plan;
+	inventory.revision++;
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	assert_zero(&workspace, sizeof(workspace));
+
+	inventory = valid_inventory();
+	memset(&workspace, 0xa5, sizeof(workspace));
+	mutate_object = &plan;
+	mutate_size = sizeof(plan);
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	assert_zero(&workspace, sizeof(workspace));
+}
+
+static void test_plan_owned_aliases(void)
+{
+	union {
+		struct payload_mm_authvar_mor_clear_plan_workspace workspace;
+		struct payload_mm_authvar_mor_clear_inventory inventory;
+		struct payload_mm_authvar_mor_clear_plan plan;
+		uint8_t bytes[sizeof(struct payload_mm_authvar_mor_clear_plan_workspace)];
+	} shared;
+	struct payload_mm_authvar_mor_clear_inventory inventory = valid_inventory();
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_plan original;
+	struct payload_mm_authvar_mor_clear_plan_workspace workspace;
+	uint8_t before[sizeof(shared)];
+
+	memset(&shared, 0xa5, sizeof(shared));
+	memcpy(before, shared.bytes, sizeof(before));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory,
+		&shared.plan, &shared.workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(before, shared.bytes, sizeof(before)));
+
+	memset(&shared, 0xa5, sizeof(shared));
+	memcpy(before, shared.bytes, sizeof(before));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&shared.inventory,
+		&plan, &shared.workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(before, shared.bytes, sizeof(before)));
+
+	memset(&plan, 0x6b, sizeof(plan));
+	original = plan;
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(NULL, &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	assert_zero(&workspace, sizeof(workspace));
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(
+		(const void *)(uintptr_t)(UINTPTR_MAX - 7), &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	assert_zero(&workspace, sizeof(workspace));
+
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory, &plan,
+		(void *)((uint8_t *)&workspace + 1)) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	CHECK(((uint8_t *)&workspace)[0] == 0xa5);
+	CHECK(payload_mm_authvar_mor_clear_plan_build_owned(&inventory, &plan,
+		(void *)(uintptr_t)(UINTPTR_MAX - 7)) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+}
+
 static void test_receipt(void)
 {
 	struct payload_mm_authvar_mor_clear_plan plan = valid_plan();
@@ -502,6 +585,10 @@ int main(int argc, char **argv)
 		test_plan_reject();
 	else if (!strcmp(argv[1], "plan-mutation"))
 		test_plan_mutation();
+	else if (!strcmp(argv[1], "plan-owned"))
+		test_plan_owned();
+	else if (!strcmp(argv[1], "plan-owned-aliases"))
+		test_plan_owned_aliases();
 	else if (!strcmp(argv[1], "receipt"))
 		test_receipt();
 	else if (!strcmp(argv[1], "receipt-reject"))

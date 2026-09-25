@@ -70,11 +70,25 @@ struct starbook_mtl_dma_guard_facts {
 
 struct starbook_mtl_dma_guard_ops {
 	void *context;
+	size_t context_size;
 	enum cb_err (*ensure)(void *context);
 	enum cb_err (*observe)(void *context,
 		struct starbook_mtl_dma_guard_snapshot *snapshot);
 	enum cb_err (*random64)(void *context, uint64_t *value);
 	void (*poison)(void *context);
+};
+
+struct starbook_mtl_dma_guard_policy_workspace {
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct starbook_mtl_dma_guard_snapshot snapshot;
+};
+
+struct starbook_mtl_dma_guard_bind_workspace {
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct starbook_mtl_dma_guard_snapshot prepared;
+	struct starbook_mtl_dma_guard_snapshot observed;
+	struct starbook_mtl_dma_guard_ops ops;
+	struct starbook_mtl_dma_guard_policy_workspace policy;
 };
 
 _Static_assert(sizeof(struct starbook_mtl_dma_guard_engine) == 48,
@@ -94,25 +108,50 @@ enum cb_err starbook_mtl_dma_guard_prepare(
 	struct starbook_mtl_dma_guard_snapshot *snapshot);
 enum cb_err starbook_mtl_dma_guard_seed(uint64_t generation,
 	const uint8_t identity[32]);
+#if ENV_TEST
 enum cb_err starbook_mtl_dma_guard_bind(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
 	struct starbook_mtl_dma_guard_snapshot *bound,
 	struct payload_mm_authvar_mor_clear_dma_snapshot *dma);
+#endif
+enum cb_err starbook_mtl_dma_guard_bind_owned(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
+	struct starbook_mtl_dma_guard_bind_workspace *workspace);
+#if ENV_TEST
 enum cb_err starbook_mtl_dma_guard_policy_validate(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *snapshot);
+#endif
+enum cb_err starbook_mtl_dma_guard_policy_validate_owned(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *snapshot,
+	struct starbook_mtl_dma_guard_policy_workspace *workspace);
 enum cb_err starbook_mtl_dma_guard_snapshot_build(
 	const struct starbook_mtl_dma_guard_facts *facts,
 	struct starbook_mtl_dma_guard_snapshot *snapshot);
 enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	struct starbook_mtl_dma_guard_snapshot *snapshot,
 	const struct starbook_mtl_dma_guard_ops *ops);
+#if ENV_TEST
 enum cb_err starbook_mtl_dma_guard_bind_with_ops(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
 	struct starbook_mtl_dma_guard_snapshot *bound,
 	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
 	const struct starbook_mtl_dma_guard_ops *ops);
+void starbook_mtl_dma_guard_pre_copy_test_hook(
+	const struct starbook_mtl_dma_guard_ops *ops);
+#endif
+enum cb_err starbook_mtl_dma_guard_bind_with_ops_owned(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
+	const struct starbook_mtl_dma_guard_ops *ops,
+	struct starbook_mtl_dma_guard_bind_workspace *workspace);
 
 #endif

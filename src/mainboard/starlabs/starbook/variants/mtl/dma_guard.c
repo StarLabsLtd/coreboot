@@ -210,6 +210,20 @@ static bool objects_overlap(const void *first, size_t first_size,
 	return first_base - second_base < second_size;
 }
 
+static bool context_disjoint(const struct starbook_mtl_dma_guard_ops *ops,
+	const void *const *objects, const size_t *sizes, size_t count)
+{
+	if (!ops->context && !ops->context_size)
+		return true;
+	if (!object_valid(ops->context, ops->context_size, 1))
+		return false;
+	for (size_t index = 0; index < count; index++)
+		if (objects_overlap(ops->context, ops->context_size,
+			objects[index], sizes[index]))
+			return false;
+	return true;
+}
+
 static void guard_poison(const struct starbook_mtl_dma_guard_ops *ops)
 {
 	ops->poison(ops->context);
@@ -218,57 +232,84 @@ static void guard_poison(const struct starbook_mtl_dma_guard_ops *ops)
 	guard_authority.phase = GUARD_POISONED;
 }
 
-enum cb_err starbook_mtl_dma_guard_policy_validate(
+enum cb_err starbook_mtl_dma_guard_policy_validate_owned(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
-	const struct starbook_mtl_dma_guard_snapshot *snapshot)
+	const struct starbook_mtl_dma_guard_snapshot *snapshot,
+	struct starbook_mtl_dma_guard_policy_workspace *workspace)
 {
-	struct payload_mm_authvar_mor_clear_plan plan_copy;
-	struct starbook_mtl_dma_guard_snapshot snapshot_copy;
 	const uintptr_t plan_base = (uintptr_t)plan;
 	const uintptr_t snapshot_base = (uintptr_t)snapshot;
 
-	if (!plan || plan_base > (uintptr_t)-1 - (sizeof(*plan) - 1U) ||
+	if (!object_valid(workspace, sizeof(*workspace), _Alignof(*workspace)) ||
+	    !plan || plan_base > (uintptr_t)-1 - (sizeof(*plan) - 1U) ||
 	    plan_base % _Alignof(*plan) || !snapshot ||
 	    snapshot_base > (uintptr_t)-1 - (sizeof(*snapshot) - 1U) ||
 	    (uintptr_t)snapshot % _Alignof(*snapshot) ||
 	    (plan_base <= snapshot_base + sizeof(*snapshot) - 1U &&
-	     snapshot_base <= plan_base + sizeof(*plan) - 1U))
+	     snapshot_base <= plan_base + sizeof(*plan) - 1U) ||
+	    objects_overlap(workspace, sizeof(*workspace), plan, sizeof(*plan)) ||
+	    objects_overlap(workspace, sizeof(*workspace), snapshot,
+		sizeof(*snapshot)))
 		return CB_ERR_ARG;
-	memcpy(&plan_copy, plan, sizeof(plan_copy));
-	memcpy(&snapshot_copy, snapshot, sizeof(snapshot_copy));
-	if (payload_mm_authvar_mor_clear_plan_validate(&plan_copy) != CB_SUCCESS ||
-	    snapshot_copy.revision != STARBOOK_MTL_DMA_GUARD_REVISION ||
-	    snapshot_copy.size != sizeof(snapshot_copy) ||
-	    !snapshot_copy.generation ||
-	    bytes_zero(snapshot_copy.identity, sizeof(snapshot_copy.identity)) ||
-	    snapshot_copy.engine_count != STARBOOK_MTL_DMA_GUARD_ENGINES ||
-	    snapshot_copy.arena_count != STARBOOK_MTL_DMA_GUARD_ARENAS ||
-	    !bytes_zero(snapshot_copy.reserved, sizeof(snapshot_copy.reserved)) ||
-	    !snapshot_structure_valid(&snapshot_copy) ||
-	    plan_copy.inventory_generation != snapshot_copy.generation ||
-	    memcmp(plan_copy.inventory_identity, snapshot_copy.identity,
-		sizeof(plan_copy.inventory_identity)) ||
-	    !range_covered(&plan_copy, &snapshot_copy.handoff,
+	memset(workspace, 0, sizeof(*workspace));
+	memcpy(&workspace->plan, plan, sizeof(workspace->plan));
+	memcpy(&workspace->snapshot, snapshot, sizeof(workspace->snapshot));
+	if (payload_mm_authvar_mor_clear_plan_validate(&workspace->plan) !=
+		CB_SUCCESS ||
+	    workspace->snapshot.revision != STARBOOK_MTL_DMA_GUARD_REVISION ||
+	    workspace->snapshot.size != sizeof(workspace->snapshot) ||
+	    !workspace->snapshot.generation ||
+	    bytes_zero(workspace->snapshot.identity,
+		sizeof(workspace->snapshot.identity)) ||
+	    workspace->snapshot.engine_count != STARBOOK_MTL_DMA_GUARD_ENGINES ||
+	    workspace->snapshot.arena_count != STARBOOK_MTL_DMA_GUARD_ARENAS ||
+	    !bytes_zero(workspace->snapshot.reserved,
+		sizeof(workspace->snapshot.reserved)) ||
+	    !snapshot_structure_valid(&workspace->snapshot) ||
+	    workspace->plan.inventory_generation != workspace->snapshot.generation ||
+	    memcmp(workspace->plan.inventory_identity, workspace->snapshot.identity,
+		sizeof(workspace->plan.inventory_identity)) ||
+	    !range_covered(&workspace->plan, &workspace->snapshot.handoff,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE) ||
-	    !range_covered(&plan_copy, &snapshot_copy.table,
+	    !range_covered(&workspace->plan, &workspace->snapshot.table,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE) ||
-	    !range_covered(&plan_copy, &snapshot_copy.table_mirror,
+	    !range_covered(&workspace->plan, &workspace->snapshot.table_mirror,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE))
-		return CB_ERR;
+		goto fail;
 	for (size_t index = 0; index < STARBOOK_MTL_DMA_GUARD_ARENAS; index++)
-		if (!range_covered(&plan_copy, &snapshot_copy.arenas[index],
+		if (!range_covered(&workspace->plan,
+			&workspace->snapshot.arenas[index],
 			PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED))
-			return CB_ERR;
-	if (memcmp(&plan_copy, plan, sizeof(plan_copy)) ||
-	    memcmp(&snapshot_copy, snapshot, sizeof(snapshot_copy)))
-		return CB_ERR;
+			goto fail;
+	if (memcmp(&workspace->plan, plan, sizeof(*plan)) ||
+	    memcmp(&workspace->snapshot, snapshot, sizeof(*snapshot)))
+		goto fail;
+	memset(workspace, 0, sizeof(*workspace));
 	return CB_SUCCESS;
+
+fail:
+	memset(workspace, 0, sizeof(*workspace));
+	return CB_ERR;
 }
+
+#if ENV_TEST
+enum cb_err starbook_mtl_dma_guard_policy_validate(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	struct starbook_mtl_dma_guard_policy_workspace workspace;
+
+	return starbook_mtl_dma_guard_policy_validate_owned(plan, snapshot,
+		&workspace);
+}
+#endif
 
 enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 	struct starbook_mtl_dma_guard_snapshot *snapshot,
 	const struct starbook_mtl_dma_guard_ops *ops)
 {
+	const void *objects[] = { snapshot, ops };
+	const size_t sizes[] = { sizeof(*snapshot), sizeof(*ops) };
 	struct starbook_mtl_dma_guard_snapshot candidate;
 	struct starbook_mtl_dma_guard_snapshot recheck;
 	struct starbook_mtl_dma_guard_ops ops_copy;
@@ -278,11 +319,18 @@ enum cb_err starbook_mtl_dma_guard_prepare_with_ops(
 
 	if (!object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)))
 		return CB_ERR_ARG;
-	memset(snapshot, 0, sizeof(*snapshot));
 	if (!object_valid(ops, sizeof(*ops), _Alignof(*ops)) ||
-	    objects_overlap(snapshot, sizeof(*snapshot), ops, sizeof(*ops)))
+	    objects_overlap(snapshot, sizeof(*snapshot), ops, sizeof(*ops)) ||
+	    !context_disjoint(ops, objects, sizes, ARRAY_SIZE(objects)))
 		return CB_ERR_ARG;
+#if ENV_TEST
+	starbook_mtl_dma_guard_pre_copy_test_hook(ops);
+#endif
 	memcpy(&ops_copy, ops, sizeof(ops_copy));
+	if (!context_disjoint(&ops_copy, objects, sizes, ARRAY_SIZE(objects)) ||
+	    memcmp(&ops_copy, ops, sizeof(ops_copy)))
+		return CB_ERR_ARG;
+	memset(snapshot, 0, sizeof(*snapshot));
 	if (!ops_copy.ensure || !ops_copy.observe || !ops_copy.random64 ||
 	    !ops_copy.poison ||
 	    (CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD) &&
@@ -345,29 +393,24 @@ fail:
 	return CB_ERR;
 }
 
-enum cb_err starbook_mtl_dma_guard_bind_with_ops(
+enum cb_err starbook_mtl_dma_guard_bind_with_ops_owned(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
 	struct starbook_mtl_dma_guard_snapshot *bound,
 	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
-	const struct starbook_mtl_dma_guard_ops *ops)
+	const struct starbook_mtl_dma_guard_ops *ops,
+	struct starbook_mtl_dma_guard_bind_workspace *workspace)
 {
-	struct payload_mm_authvar_mor_clear_plan plan_copy;
-	struct starbook_mtl_dma_guard_snapshot prepared_copy;
-	struct starbook_mtl_dma_guard_snapshot observed;
-	struct starbook_mtl_dma_guard_ops ops_copy;
 	const bool bound_valid = object_valid(bound, sizeof(*bound), _Alignof(*bound));
 	const bool dma_valid = object_valid(dma, sizeof(*dma), _Alignof(*dma));
-	const void *objects[] = { plan, prepared, bound, dma, ops };
+	const void *objects[] = { plan, prepared, bound, dma, ops, workspace };
 	const size_t sizes[] = { sizeof(*plan), sizeof(*prepared), sizeof(*bound),
-		sizeof(*dma), sizeof(*ops) };
+		sizeof(*dma), sizeof(*ops), sizeof(*workspace) };
 	const size_t alignments[] = { _Alignof(*plan), _Alignof(*prepared),
-		_Alignof(*bound), _Alignof(*dma), _Alignof(*ops) };
+		_Alignof(*bound), _Alignof(*dma), _Alignof(*ops),
+		_Alignof(*workspace) };
+	struct starbook_mtl_dma_guard_ops ops_copy;
 
-	if (bound_valid)
-		memset(bound, 0, sizeof(*bound));
-	if (dma_valid)
-		memset(dma, 0, sizeof(*dma));
 	if (!bound_valid || !dma_valid)
 		return CB_ERR_ARG;
 	for (size_t index = 0; index < ARRAY_SIZE(objects); index++) {
@@ -378,47 +421,84 @@ enum cb_err starbook_mtl_dma_guard_bind_with_ops(
 				sizes[other]))
 				return CB_ERR_ARG;
 	}
-	memcpy(&plan_copy, plan, sizeof(plan_copy));
-	memcpy(&prepared_copy, prepared, sizeof(prepared_copy));
+	if (!context_disjoint(ops, objects, sizes, ARRAY_SIZE(objects)))
+		return CB_ERR_ARG;
+#if ENV_TEST
+	starbook_mtl_dma_guard_pre_copy_test_hook(ops);
+#endif
 	memcpy(&ops_copy, ops, sizeof(ops_copy));
-	if (!ops_copy.ensure || !ops_copy.observe || !ops_copy.poison ||
+	if (!context_disjoint(&ops_copy, objects, sizes, ARRAY_SIZE(objects)) ||
+	    memcmp(&ops_copy, ops, sizeof(ops_copy)))
+		return CB_ERR_ARG;
+	memset(bound, 0, sizeof(*bound));
+	memset(dma, 0, sizeof(*dma));
+	memset(workspace, 0, sizeof(*workspace));
+	memcpy(&workspace->plan, plan, sizeof(workspace->plan));
+	memcpy(&workspace->prepared, prepared, sizeof(workspace->prepared));
+	workspace->ops = ops_copy;
+	if (!workspace->ops.ensure || !workspace->ops.observe ||
+	    !workspace->ops.poison ||
 	    guard_authority.phase == GUARD_EMPTY ||
 	    guard_authority.phase == GUARD_POISONED)
-		return CB_ERR;
+		goto fail_without_poison;
 	guard_authority.phase = GUARD_POISONED;
-	if (memcmp(&prepared_copy, &guard_authority.baseline,
-		sizeof(prepared_copy)) ||
-	    starbook_mtl_dma_guard_policy_validate(&plan_copy, &prepared_copy) !=
-		CB_SUCCESS ||
+	if (memcmp(&workspace->prepared, &guard_authority.baseline,
+		sizeof(workspace->prepared)) ||
+	    starbook_mtl_dma_guard_policy_validate_owned(&workspace->plan,
+		&workspace->prepared, &workspace->policy) != CB_SUCCESS ||
 	    (guard_authority.bound_plan.revision &&
-	     memcmp(&plan_copy, &guard_authority.bound_plan, sizeof(plan_copy))) ||
-	    ops_copy.ensure(ops_copy.context) != CB_SUCCESS)
+	     memcmp(&workspace->plan, &guard_authority.bound_plan,
+		sizeof(workspace->plan))) ||
+	    workspace->ops.ensure(workspace->ops.context) != CB_SUCCESS)
 		goto fail;
-	memset(&observed, 0, sizeof(observed));
-	if (ops_copy.observe(ops_copy.context, &observed) != CB_SUCCESS ||
-	    !prepared_snapshot_valid(&observed))
+	memset(&workspace->observed, 0, sizeof(workspace->observed));
+	if (workspace->ops.observe(workspace->ops.context,
+		&workspace->observed) != CB_SUCCESS ||
+	    !prepared_snapshot_valid(&workspace->observed))
 		goto fail;
-	observed.generation = guard_authority.baseline.generation;
-	memcpy(observed.identity, guard_authority.baseline.identity,
-		sizeof(observed.identity));
-	if (memcmp(&observed, &guard_authority.baseline, sizeof(observed)) ||
-	    memcmp(&plan_copy, plan, sizeof(plan_copy)) ||
-	    memcmp(&prepared_copy, prepared, sizeof(prepared_copy)) ||
-	    memcmp(&ops_copy, ops, sizeof(ops_copy)) ||
+	workspace->observed.generation = guard_authority.baseline.generation;
+	memcpy(workspace->observed.identity, guard_authority.baseline.identity,
+		sizeof(workspace->observed.identity));
+	if (memcmp(&workspace->observed, &guard_authority.baseline,
+		sizeof(workspace->observed)) ||
+	    memcmp(&workspace->plan, plan, sizeof(*plan)) ||
+	    memcmp(&workspace->prepared, prepared, sizeof(*prepared)) ||
+	    memcmp(&workspace->ops, ops, sizeof(*ops)) ||
 	    !bytes_zero(bound, sizeof(*bound)) || !bytes_zero(dma, sizeof(*dma)))
 		goto fail;
 	if (!guard_authority.bound_plan.revision)
-		guard_authority.bound_plan = plan_copy;
+		guard_authority.bound_plan = workspace->plan;
 	guard_authority.phase = GUARD_BOUND;
 	memcpy(bound, &guard_authority.baseline, sizeof(*bound));
 	dma->generation = guard_authority.baseline.generation;
 	memcpy(dma->identity, guard_authority.baseline.identity,
 		sizeof(dma->identity));
+	memset(workspace, 0, sizeof(*workspace));
 	return CB_SUCCESS;
 
 fail:
-	guard_poison(&ops_copy);
+	guard_poison(&workspace->ops);
 	memset(bound, 0, sizeof(*bound));
 	memset(dma, 0, sizeof(*dma));
+	memset(workspace, 0, sizeof(*workspace));
+	return CB_ERR;
+
+fail_without_poison:
+	memset(workspace, 0, sizeof(*workspace));
 	return CB_ERR;
 }
+
+#if ENV_TEST
+enum cb_err starbook_mtl_dma_guard_bind_with_ops(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
+	const struct starbook_mtl_dma_guard_ops *ops)
+{
+	struct starbook_mtl_dma_guard_bind_workspace workspace;
+
+	return starbook_mtl_dma_guard_bind_with_ops_owned(plan, prepared, bound, dma,
+		ops, &workspace);
+}
+#endif

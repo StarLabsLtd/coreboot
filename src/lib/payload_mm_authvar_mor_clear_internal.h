@@ -8,6 +8,22 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <commonlib/bsd/cb_err.h>
+
+struct payload_mm_authvar_mor_clear_plan;
+struct payload_mm_authvar_mor_entry;
+struct payload_mm_authvar_mor_clear_facts;
+struct payload_mm_authvar_mor_clear_transcript;
+struct payload_mm_authvar_mor_grant;
+
+/* All inputs must be immutable snapshots in an exclusively claimed workspace. */
+enum cb_err payload_mm_authvar_mor_clear_receipt_build_owned(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct payload_mm_authvar_mor_entry *entry,
+	const struct payload_mm_authvar_mor_clear_facts *facts,
+	const struct payload_mm_authvar_mor_clear_transcript *transcript,
+	struct payload_mm_authvar_mor_grant *grant);
+
 static inline bool bytes_zero(const void *buffer, size_t size)
 {
 	const uint8_t *bytes = buffer;

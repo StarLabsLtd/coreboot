@@ -10,7 +10,7 @@
 #include <bootmem.h>
 
 #define STARBOOK_MTL_MOR_CLEAR_X86_REVISION 1U
-#define STARBOOK_MTL_MOR_CLEAR_X86_OVERLAYS 4U
+#define STARBOOK_MTL_MOR_CLEAR_X86_OVERLAYS 5U
 
 struct starbook_mtl_mor_clear_x86_reservations {
 	uint32_t revision;
@@ -65,6 +65,8 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 
 #if ENV_TEST
 void starbook_mtl_mor_clear_x86_lifecycle_reset_test(void);
+bool starbook_mtl_mor_clear_x86_scratch_zero_test(void);
+bool starbook_mtl_mor_clear_x86_scratch_idle_test(void);
 #endif
 
 #endif /* MAINBOARD_STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_H */

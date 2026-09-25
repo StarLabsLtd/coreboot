@@ -15,7 +15,7 @@ build_and_run()
 	source=$2
 	shift 2
 	"${CC:-cc}" -std=gnu23 -Wall -Wextra -Werror -Wundef \
-		-Wstrict-prototypes -fno-builtin -fno-pie -fno-pic "$@" \
+		-Wstrict-prototypes -fno-builtin -fno-pie -fno-pic -pthread "$@" \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -D__TEST_SRCOBJ__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
@@ -34,6 +34,7 @@ build_and_run o0 "$source_file" -O0
 build_and_run o2 "$source_file" -O2
 build_and_run asan "$source_file" -O1 -fsanitize=address -fno-omit-frame-pointer
 build_and_run ubsan "$source_file" -O1 -fsanitize=undefined -fno-omit-frame-pointer
+build_and_run tsan "$source_file" -O1 -fsanitize=thread -fno-omit-frame-pointer
 
 mutant_test()
 {
@@ -56,18 +57,25 @@ mutant_test()
 mutant_test allow-s3 'resume_from_s3)' 'false)'
 mutant_test wrong-page-type 'reservation->tag == request->tag' 'true'
 mutant_test wrong-alignment '![(]reservation->base % request->alignment[)]' 'true'
-mutant_test no-state-recheck 'memcmp[(]\&state, reservations, sizeof[(]state[)][)]' 'false'
+mutant_test no-state-recheck \
+	'memcmp[(]\&workspace->reservations, reservations,' 'false \&\& memcmp(reservations, reservations,'
 mutant_test aperture-active-firmware \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED' \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE'
-mutant_test stale-plan-on-invalid-binding \
-	'if (plan_valid)' 'if (false)'
-mutant_test stale-binding-on-invalid-plan \
-	'if (binding_valid)' 'if (false)'
 mutant_test no-authority-seal \
 	'authority->seal == authority_seal(authority) &&' 'true &&'
 mutant_test no-guard-revalidation \
-	'!guard_revalidate(binding, MTL_MOR_CLEAR_BUSY, &authority)' 'false'
+	'!guard_revalidate(binding, MTL_MOR_CLEAR_BUSY,' \
+	'false \&\& guard_revalidate(binding, MTL_MOR_CLEAR_BUSY,'
+mutant_test executable-owner-output \
+	'[(]uintptr_t[)]workspace->authority[.]ops[.]executable_owner,' \
+	'(uintptr_t)snapshot + sizeof(*snapshot),'
+mutant_test dma-output-in-scratch \
+	'!disjoint_from_scratch(snapshot, sizeof[(][*]snapshot[)]) ||' \
+	'false ||'
+mutant_test inventory-plan-in-scratch \
+	'!disjoint_from_scratch(plan, sizeof[(][*]plan[)]) ||' \
+	'false ||'
 mutant_test omit-plan-lifetime-overlay \
 	'[.]base = (uintptr_t)plan,' '.base = (uintptr_t)\&binding->backend,'
 mutant_test replay-caller-binding \

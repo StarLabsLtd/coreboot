@@ -34,6 +34,14 @@ struct payload_mm_authvar_mor_clear_plan {
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_MAX_SPANS];
 } __aligned(8);
 
+/* Caller-owned scratch for constructing a plan without a large stack frame. */
+struct payload_mm_authvar_mor_clear_plan_workspace {
+	struct payload_mm_authvar_mor_clear_inventory inventory_snapshot;
+	struct payload_mm_authvar_mor_clear_inventory inventory_working;
+	struct payload_mm_authvar_mor_clear_plan candidate;
+	struct payload_mm_authvar_mor_clear_plan output_snapshot;
+} __aligned(8);
+
 struct payload_mm_authvar_mor_clear_dma_snapshot {
 	uint64_t generation;
 	uint8_t identity[32];
@@ -80,6 +88,8 @@ _Static_assert(sizeof(struct payload_mm_authvar_mor_clear_inventory) == 824,
 	"MOR clear inventory ABI changed");
 _Static_assert(sizeof(struct payload_mm_authvar_mor_clear_plan) == 416,
 	"MOR clear plan ABI changed");
+_Static_assert(sizeof(struct payload_mm_authvar_mor_clear_plan_workspace) == 2480,
+	"MOR clear-plan workspace layout changed");
 _Static_assert(sizeof(struct payload_mm_authvar_mor_clear_dma_snapshot) == 48,
 	"MOR clear DMA snapshot ABI changed");
 _Static_assert(sizeof(struct payload_mm_authvar_mor_clear_facts) == 160,
@@ -99,9 +109,16 @@ _Static_assert(offsetof(struct payload_mm_authvar_mor_clear_inventory, spans) ==
 	offsetof(struct payload_mm_authvar_mor_clear_transcript, records) == 168,
 	"MOR clear ABI fields moved");
 
+#if ENV_TEST
 enum cb_err payload_mm_authvar_mor_clear_plan_build(
 	const struct payload_mm_authvar_mor_clear_inventory *inventory,
 	struct payload_mm_authvar_mor_clear_plan *plan);
+#endif
+
+enum cb_err payload_mm_authvar_mor_clear_plan_build_owned(
+	const struct payload_mm_authvar_mor_clear_inventory *inventory,
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct payload_mm_authvar_mor_clear_plan_workspace *workspace);
 
 enum cb_err payload_mm_authvar_mor_clear_plan_validate(
 	const struct payload_mm_authvar_mor_clear_plan *plan);
@@ -109,11 +126,13 @@ enum cb_err payload_mm_authvar_mor_clear_plan_validate(
 enum cb_err payload_mm_authvar_mor_clear_dma_snapshot_validate(
 	const struct payload_mm_authvar_mor_clear_dma_snapshot *snapshot);
 
+#if ENV_TEST
 enum cb_err payload_mm_authvar_mor_clear_receipt_build(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct payload_mm_authvar_mor_entry *entry,
 	const struct payload_mm_authvar_mor_clear_facts *facts,
 	const struct payload_mm_authvar_mor_clear_transcript *transcript,
 	struct payload_mm_authvar_mor_grant *grant);
+#endif
 
 #endif /* BOOT_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_H */
