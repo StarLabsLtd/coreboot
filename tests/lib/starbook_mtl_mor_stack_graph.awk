@@ -453,8 +453,8 @@ END {
 		"payload_mm_authvar_mor_live_inventory.c", 1)
 
 	if (provider_contract) {
-	bind_cap("close_private_seed", "mor_platform.c", private_cap)
-	expect_indirect("close_private_seed", "mor_platform.c", 1)
+	bind_cap("cleanup_take", "mor_platform.c", private_cap)
+	expect_indirect("cleanup_take", "mor_platform.c", 1)
 	bind_cap("ensure_seed", "mor_platform.c", private_cap)
 	expect_indirect("ensure_seed", "mor_platform.c", 1)
 	bind_cap("reservations_register", "mor_platform.c", private_cap)
@@ -463,8 +463,6 @@ END {
 	expect_indirect("resolve_binding", "mor_platform.c", 1)
 	bind_cap("private_complete", "mor_platform.c", private_cap)
 	expect_indirect("private_complete", "mor_platform.c", 1)
-	bind_cap("private_close", "mor_platform.c", private_cap)
-	expect_indirect("private_close", "mor_platform.c", 1)
 	}
 
 	# Region-device and console callbacks are selected coreboot implementation
@@ -494,12 +492,11 @@ END {
 			"src/lib/payload_mm_authvar_mor_linear.c", "462:18", "private_complete")
 		permit_sites("close_retained_authority",
 			"src/lib/payload_mm_authvar_mor_linear.c", "169:9", "private_close")
-		permit_sites("close_private_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "355:8", "@private_callback")
-		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "408:6", "@private_callback")
-		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "545:6", "@private_callback")
-		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "616:6", "@private_callback")
-		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "668:11", "@private_callback")
-		permit_sites("private_close", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "703:11", "@private_callback")
+		permit_sites("cleanup_take", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "209:12", "@private_callback")
+		permit_sites("ensure_seed", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "515:6", "@private_callback")
+		permit_sites("reservations_register", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "660:6", "@private_callback")
+		permit_sites("resolve_binding", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "735:6", "@private_callback")
+		permit_sites("private_complete", "src/mainboard/starlabs/starbook/variants/mtl/mor_platform.c", "805:11", "@private_callback")
 	}
 	permit_sites("call_inventory", "src/lib/payload_mm_authvar_mor_clear_executor.c", "280:29", "executor_inventory_validate")
 	permit_sites("call_dma", "src/lib/payload_mm_authvar_mor_clear_executor.c", "297:29", "executor_dma_snapshot")

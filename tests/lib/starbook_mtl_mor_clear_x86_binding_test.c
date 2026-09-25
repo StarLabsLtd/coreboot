@@ -21,6 +21,11 @@ static struct bootmem_aligned_reservation aperture_result = {
 	.size = PAE_VMEM_SIZE,
 	.tag = BM_MEM_RESERVED,
 };
+static struct bootmem_aligned_reservation transport_result = {
+	.base = 0xc00000,
+	.size = STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE,
+	.tag = BM_MEM_TABLE,
+};
 static unsigned int register_calls;
 static unsigned int query_calls;
 static unsigned int compose_calls;
@@ -110,6 +115,7 @@ enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays_owned(
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 	};
 
 	compose_calls++;
@@ -128,14 +134,16 @@ enum cb_err starbook_mtl_mor_live_inventory_compose_with_overlays_owned(
 		CHECK(binding->ops.inventory_validate(
 			binding->ops.inventory_context, outer) != CB_SUCCESS);
 	}
-	CHECK(dma_guard->generation == 9 && overlay_count == 5);
+	CHECK(dma_guard->generation == 9 && overlay_count == 6);
 	CHECK(overlays[0].base == page_result.base &&
 		overlays[0].size == page_result.size);
 	CHECK(overlays[1].base == aperture_result.base &&
 		overlays[1].size == aperture_result.size);
 	CHECK(overlays[2].size == sizeof(*plan) &&
 		overlays[3].size == sizeof(struct starbook_mtl_mor_clear_x86_binding) &&
-		overlays[4].base && overlays[4].size);
+		overlays[4].base && overlays[4].size &&
+		overlays[5].base == transport_result.base &&
+		overlays[5].size == transport_result.size);
 	for (size_t index = 0; index < overlay_count; index++)
 		CHECK(overlays[index].exclusion_reason == reasons[index] &&
 			!overlays[index].reserved);
@@ -202,7 +210,7 @@ enum cb_err payload_mm_authvar_mor_clear_x86_prepare(
 	static uint8_t stack_owner[1];
 
 	backend_calls++;
-	CHECK(plan->span_count == 5 &&
+	CHECK(plan->span_count == 6 &&
 		(uintptr_t)page_tables == page_result.base &&
 		(uintptr_t)aperture == aperture_result.base);
 	memset(backend, 0, sizeof(*backend));
@@ -234,6 +242,11 @@ static void reset(void)
 		.size = PAE_VMEM_SIZE,
 		.tag = BM_MEM_RESERVED,
 	};
+	transport_result = (struct bootmem_aligned_reservation) {
+		.base = 0xc00000,
+		.size = STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE,
+		.tag = BM_MEM_TABLE,
+	};
 	register_calls = 0;
 	query_calls = 0;
 	compose_calls = 0;
@@ -250,6 +263,19 @@ static void reset(void)
 	__atomic_store_n(&concurrent_entered, 0U, __ATOMIC_RELEASE);
 	__atomic_store_n(&concurrent_release, 0U, __ATOMIC_RELEASE);
 }
+
+static enum cb_err prepare(
+	const struct starbook_mtl_mor_clear_x86_reservations *reservations,
+	const struct starbook_mtl_dma_guard_snapshot *snapshot, bool resume_from_s3,
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct starbook_mtl_mor_clear_x86_binding *binding)
+{
+	return starbook_mtl_mor_clear_x86_prepare(reservations, snapshot,
+		&transport_result, resume_from_s3, plan, binding);
+}
+
+#define starbook_mtl_mor_clear_x86_prepare(reservations, snapshot, resume, \
+	plan, binding) prepare(reservations, snapshot, resume, plan, binding)
 
 static struct starbook_mtl_mor_clear_x86_reservations registered(void)
 {
@@ -377,6 +403,8 @@ static void success_and_repeat(void)
 		&plan, &binding) == CB_SUCCESS);
 	CHECK(query_calls == 2 && compose_calls == 1 && backend_calls == 1 &&
 		guard_calls == 1 && binding.backend.prepared &&
+		!memcmp(&binding.authority.transport, &transport_result,
+			sizeof(transport_result)) &&
 		binding.ops.context == &binding.backend &&
 		binding.ops.context_size == sizeof(binding.backend) &&
 		binding.ops.dma_snapshot &&
@@ -737,12 +765,59 @@ static void mutated_guard(struct starbook_mtl_mor_clear_x86_reservations *state,
 	mutate = snapshot;
 }
 
+static void bad_transport_size(
+	struct starbook_mtl_mor_clear_x86_reservations *state,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	(void)state;
+	(void)snapshot;
+	transport_result.size--;
+}
+
+static void bad_transport_alignment(
+	struct starbook_mtl_mor_clear_x86_reservations *state,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	(void)state;
+	(void)snapshot;
+	transport_result.base++;
+}
+
+static void bad_transport_type(
+	struct starbook_mtl_mor_clear_x86_reservations *state,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	(void)state;
+	(void)snapshot;
+	transport_result.tag = BM_MEM_RESERVED;
+}
+
+static void transport_overlaps_page_tables(
+	struct starbook_mtl_mor_clear_x86_reservations *state,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	(void)state;
+	(void)snapshot;
+	transport_result.base = page_result.base;
+}
+
+static void mutated_transport(
+	struct starbook_mtl_mor_clear_x86_reservations *state,
+	struct starbook_mtl_dma_guard_snapshot *snapshot)
+{
+	(void)state;
+	(void)snapshot;
+	mutate = &transport_result;
+}
+
 static void failures(void)
 {
 	void (*const cases[])(struct starbook_mtl_mor_clear_x86_reservations *,
 		struct starbook_mtl_dma_guard_snapshot *) = {
 		bad_page_size, bad_page_alignment, bad_aperture_type, bad_limit,
-		overlap, mutated_state, mutated_guard,
+		overlap, mutated_state, mutated_guard, bad_transport_size,
+		bad_transport_alignment, bad_transport_type,
+		transport_overlaps_page_tables, mutated_transport,
 	};
 
 	for (size_t index = 0; index < ARRAY_SIZE(cases); index++) {

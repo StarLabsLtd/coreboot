@@ -12,16 +12,19 @@ registering any clear reservations.
 The SMM loader seed uses the retained runtime generation and fresh ramstage
 entropy. An asserted MOR request conditionally registers the existing MTL PAE
 page-table and aperture reservations plus the private boundary's transport
-reservation. After bootmem resolution, the provider uses the existing MTL x86
-binding, then requires the private boundary to attest its loader-owned arena,
-transport-page receipt, bootstrap installation, and live chipset SPI-write
-restriction before it exposes the executor operations. Completion and close
-can only cross that typed boundary.
+reservation. Early discovery is a hard dependency: it seeds the owner and
+registers every reservation before permanent SMM loading can consume the arena
+seed. After bootmem resolution, the provider first requires the private
+boundary to return its authenticated transport receipt as an exact aligned
+4 KiB `BM_MEM_TABLE` range. Only then does it construct the MTL x86 binding,
+which excludes that page from clearing as active firmware. Completion and
+close can only cross the typed boundary.
 
 The private SMI boundary is deliberately an injection point in this change.
-The accepted tree does not yet contain a frozen platform binding that can
-install the loader receipt, verify the bootmem transport receipt in protected
-SMM, prove the chipset write restriction, and perform the terminal typed
-completion or close. Until that implementation is reviewed and supplies all
-five callbacks, the weak boundary rejects composition and the boot coordinator
-halts. No raw SMMSTORE or generic APM fallback is introduced.
+The accepted tree does not yet contain the protected implementation that
+authenticates the loader and bootmem receipts, installs the SMM bootstrap,
+proves the chipset write restriction, and performs terminal completion or
+close. This change deliberately stops before installing that implementation:
+until a later reviewed slice supplies all five callbacks, the weak boundary
+rejects composition and the boot coordinator halts. No endpoint, raw SMMSTORE,
+or generic APM fallback is introduced.

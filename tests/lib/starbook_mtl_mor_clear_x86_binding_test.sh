@@ -59,6 +59,13 @@ mutant_test wrong-page-type 'reservation->tag == request->tag' 'true'
 mutant_test wrong-alignment '![(]reservation->base % request->alignment[)]' 'true'
 mutant_test no-state-recheck \
 	'memcmp[(]\&workspace->reservations, reservations,' 'false \&\& memcmp(reservations, reservations,'
+mutant_test wrong-transport-type \
+	'workspace->transport[.]tag != BM_MEM_TABLE' 'false'
+mutant_test no-transport-state-recheck \
+	'memcmp[(]\&workspace->transport, transport,' \
+	'false \&\& memcmp(\&workspace->transport, transport,'
+mutant_test omit-transport-exclusion \
+	'[.]base = workspace->transport[.]base,' '.base = workspace->page_tables.base,'
 mutant_test aperture-active-firmware \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED' \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE'

@@ -47,6 +47,7 @@ struct mtl_mor_clear_prepare_workspace {
 	struct starbook_mtl_dma_guard_snapshot guard;
 	struct bootmem_aligned_reservation page_tables;
 	struct bootmem_aligned_reservation aperture;
+	struct bootmem_aligned_reservation transport;
 	struct payload_mm_authvar_mor_live_inventory_overlay overlays[
 		STARBOOK_MTL_MOR_CLEAR_X86_OVERLAYS];
 	struct payload_mm_authvar_mor_clear_plan candidate;
@@ -279,6 +280,14 @@ static bool authority_fields_valid(
 			(uintptr_t)binding, sizeof(*binding)) &&
 		authority->page_tables == binding->backend.page_tables &&
 		authority->aperture == binding->backend.aperture &&
+		authority->transport.size ==
+			STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE &&
+		authority->transport.tag == BM_MEM_TABLE &&
+		!authority->transport.reserved &&
+		!(authority->transport.base %
+			STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE) &&
+		authority->transport.base <=
+			UINTPTR_MAX - (authority->transport.size - 1U) &&
 		authority->prepared.generation &&
 		authority->prepared.generation == authority->bound.generation &&
 		authority->prepared.generation == authority->dma.generation &&
@@ -328,7 +337,12 @@ static bool authority_fields_valid(
 		authority->overlays[4].size == sizeof(clear_scratch) &&
 		authority->overlays[4].exclusion_reason ==
 			PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE &&
-		!authority->overlays[4].reserved;
+		!authority->overlays[4].reserved &&
+		authority->overlays[5].base == authority->transport.base &&
+		authority->overlays[5].size == authority->transport.size &&
+		authority->overlays[5].exclusion_reason ==
+			PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE &&
+		!authority->overlays[5].reserved;
 }
 
 static bool authority_capture(
@@ -574,7 +588,8 @@ bool starbook_mtl_mor_clear_x86_scratch_idle_test(void)
 enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	const struct starbook_mtl_mor_clear_x86_reservations *reservations,
 	const struct starbook_mtl_dma_guard_snapshot *dma_guard,
-	bool resume_from_s3, struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct bootmem_aligned_reservation *transport, bool resume_from_s3,
+	struct payload_mm_authvar_mor_clear_plan *plan,
 	struct starbook_mtl_mor_clear_x86_binding *binding)
 {
 	struct mtl_mor_clear_prepare_workspace *workspace;
@@ -587,10 +602,12 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    !object_valid(reservations, sizeof(*reservations),
 		_Alignof(*reservations)) ||
 	    !object_valid(dma_guard, sizeof(*dma_guard), _Alignof(*dma_guard)) ||
+	    !object_valid(transport, sizeof(*transport), _Alignof(*transport)) ||
 	    !disjoint_from_scratch(plan, sizeof(*plan)) ||
 	    !disjoint_from_scratch(binding, sizeof(*binding)) ||
 	    !disjoint_from_scratch(reservations, sizeof(*reservations)) ||
 	    !disjoint_from_scratch(dma_guard, sizeof(*dma_guard)) ||
+	    !disjoint_from_scratch(transport, sizeof(*transport)) ||
 	    ranges_overlap((uintptr_t)plan, sizeof(*plan), (uintptr_t)binding,
 		sizeof(*binding)) ||
 	    ranges_overlap((uintptr_t)plan, sizeof(*plan), (uintptr_t)reservations,
@@ -602,6 +619,14 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    ranges_overlap((uintptr_t)binding, sizeof(*binding),
 		(uintptr_t)dma_guard, sizeof(*dma_guard)) ||
 	    ranges_overlap((uintptr_t)reservations, sizeof(*reservations),
+		(uintptr_t)dma_guard, sizeof(*dma_guard)) ||
+	    ranges_overlap((uintptr_t)transport, sizeof(*transport),
+		(uintptr_t)plan, sizeof(*plan)) ||
+	    ranges_overlap((uintptr_t)transport, sizeof(*transport),
+		(uintptr_t)binding, sizeof(*binding)) ||
+	    ranges_overlap((uintptr_t)transport, sizeof(*transport),
+		(uintptr_t)reservations, sizeof(*reservations)) ||
+	    ranges_overlap((uintptr_t)transport, sizeof(*transport),
 		(uintptr_t)dma_guard, sizeof(*dma_guard)))
 		return CB_ERR_ARG;
 	workspace = scratch_claim(MTL_MOR_CLEAR_SCRATCH_PREPARE);
@@ -615,7 +640,15 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	memcpy(&workspace->reservations, reservations,
 		sizeof(workspace->reservations));
 	memcpy(&workspace->guard, dma_guard, sizeof(workspace->guard));
+	memcpy(&workspace->transport, transport, sizeof(workspace->transport));
 	if (!reservations_valid(&workspace->reservations) ||
+	    workspace->transport.size != STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE ||
+	    workspace->transport.tag != BM_MEM_TABLE ||
+	    workspace->transport.reserved ||
+	    (workspace->transport.base %
+		STARBOOK_MTL_MOR_CLEAR_X86_TRANSPORT_SIZE) ||
+	    workspace->transport.base >
+		UINTPTR_MAX - (workspace->transport.size - 1U) ||
 	    bootmem_aligned_reservation_query(&workspace->reservations.handles[0],
 		&workspace->page_tables) ||
 	    !scratch_owned(MTL_MOR_CLEAR_SCRATCH_PREPARE) ||
@@ -646,8 +679,24 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 		(uintptr_t)dma_guard, sizeof(*dma_guard)) ||
 	    ranges_overlap(workspace->aperture.base, workspace->aperture.size,
 		(uintptr_t)&clear_scratch, sizeof(clear_scratch)) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		workspace->page_tables.base, workspace->page_tables.size) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		workspace->aperture.base, workspace->aperture.size) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		(uintptr_t)plan, sizeof(*plan)) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		(uintptr_t)binding, sizeof(*binding)) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		(uintptr_t)reservations, sizeof(*reservations)) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		(uintptr_t)dma_guard, sizeof(*dma_guard)) ||
+	    ranges_overlap(workspace->transport.base, workspace->transport.size,
+		(uintptr_t)&clear_scratch, sizeof(clear_scratch)) ||
 	    memcmp(&workspace->reservations, reservations,
-		sizeof(workspace->reservations)))
+		sizeof(workspace->reservations)) ||
+	    memcmp(&workspace->transport, transport,
+		sizeof(workspace->transport)))
 		goto out;
 	workspace->overlays[0] =
 		(struct payload_mm_authvar_mor_live_inventory_overlay) {
@@ -684,6 +733,13 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 			.exclusion_reason =
 				PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		};
+	workspace->overlays[5] =
+		(struct payload_mm_authvar_mor_live_inventory_overlay) {
+			.base = workspace->transport.base,
+			.size = workspace->transport.size,
+			.exclusion_reason =
+				PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+		};
 	if (starbook_mtl_mor_live_inventory_compose_with_overlays_owned(
 		&workspace->guard, workspace->overlays,
 		ARRAY_SIZE(workspace->overlays), &workspace->candidate,
@@ -692,6 +748,8 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    memcmp(&workspace->reservations, reservations,
 		sizeof(workspace->reservations)) ||
 	    memcmp(&workspace->guard, dma_guard, sizeof(workspace->guard)) ||
+	    memcmp(&workspace->transport, transport,
+		sizeof(workspace->transport)) ||
 	    payload_mm_authvar_mor_clear_x86_prepare(&workspace->candidate,
 		(void *)(uintptr_t)workspace->page_tables.base,
 		(void *)(uintptr_t)workspace->aperture.base, &binding->backend,
@@ -699,7 +757,9 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    !scratch_owned(MTL_MOR_CLEAR_SCRATCH_PREPARE) ||
 	    memcmp(&workspace->reservations, reservations,
 		sizeof(workspace->reservations)) ||
-	    memcmp(&workspace->guard, dma_guard, sizeof(workspace->guard)))
+	    memcmp(&workspace->guard, dma_guard, sizeof(workspace->guard)) ||
+	    memcmp(&workspace->transport, transport,
+		sizeof(workspace->transport)))
 		goto out;
 	if (!lifecycle_claim(binding, workspace->guard.generation)) {
 		(void)poison_binding(NULL);
@@ -712,6 +772,8 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    memcmp(&workspace->reservations, reservations,
 		sizeof(workspace->reservations)) ||
 	    memcmp(&workspace->guard, dma_guard, sizeof(workspace->guard)) ||
+	    memcmp(&workspace->transport, transport,
+		sizeof(workspace->transport)) ||
 	    !bytes_zero(plan, sizeof(*plan)))
 		goto out;
 	binding->ops.dma_snapshot = executor_dma_snapshot;
@@ -725,6 +787,7 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	binding->authority.plan_address = (uintptr_t)plan;
 	binding->authority.page_tables = workspace->page_tables.base;
 	binding->authority.aperture = workspace->aperture.base;
+	binding->authority.transport = workspace->transport;
 	binding->authority.prepared = workspace->guard;
 	binding->authority.bound = workspace->bound;
 	binding->authority.dma = workspace->dma;
@@ -741,6 +804,8 @@ enum cb_err starbook_mtl_mor_clear_x86_prepare(
 	    memcmp(&workspace->reservations, reservations,
 		sizeof(workspace->reservations)) ||
 	    memcmp(&workspace->guard, dma_guard, sizeof(workspace->guard)) ||
+	    memcmp(&workspace->transport, transport,
+		sizeof(workspace->transport)) ||
 	    !bytes_zero(plan, sizeof(*plan)) ||
 	    !scratch_owned(MTL_MOR_CLEAR_SCRATCH_PREPARE))
 		goto out;
