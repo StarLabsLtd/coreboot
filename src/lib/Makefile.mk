@@ -55,6 +55,7 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY) += payload_mm_authvar_m
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT) += payload_mm_authvar_mor_clear.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR) += payload_mm_authvar_mor_clear_executor.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND) += payload_mm_authvar_mor_clear_x86.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR) += payload_mm_authvar_mor_linear.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_state.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT) += payload_mm_fmp_dispatch.c
 smm-$(CONFIG_CAPSULE_BROKER_CONTRACT) += capsule_broker_transport.c

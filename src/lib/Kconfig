@@ -487,6 +487,20 @@ config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_X86_BACKEND
 	  makes no platform-support claim. A platform must supply excluded page-table
 	  backing and a reserved fixed virtual aperture.
 
+config PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE
+	depends on PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR
+	help
+	  Build the dormant, platform-neutral two-phase MOR boot coordinator. It
+	  probes and conditionally registers reservations immediately before
+	  bootmem initialization, then resolves those reservations and completes
+	  the clear after the final memory map exists. A platform must provide the
+	  retained cold/DMA classification, reservation and binding callbacks, and
+	  a private SMM completion channel. This option makes no platform-support
+	  claim and publishes no endpoint.
+
 config PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
 	bool
 	default n
