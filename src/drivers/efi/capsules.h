@@ -3,7 +3,7 @@
 #ifndef _EDK2_CAPSULES_H_
 #define _EDK2_CAPSULES_H_
 
-#if CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)
+#if CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF)
 
 void efi_parse_capsules(void);
 
