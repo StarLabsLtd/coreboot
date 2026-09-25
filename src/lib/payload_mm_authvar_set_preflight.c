@@ -8,6 +8,9 @@
 #include <string.h>
 
 #include "payload_mm_authvar_set_preflight.h"
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+#include "payload_mm_fmp_owner_authvar_internal.h"
+#endif
 
 static bool range_valid(const void *buffer, size_t size)
 {
@@ -90,6 +93,12 @@ uint64_t payload_mm_authvar_set_preflight(
 		if (!((const uint8_t *)request->name)[offset] &&
 		    !((const uint8_t *)request->name)[offset + 1U])
 			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	if (payload_mm_fmp_owner_authvar_reservation(request->vendor_guid,
+		request->name, request->name_size) !=
+		PAYLOAD_MM_FMP_OWNER_AUTHVAR_NOT_RESERVED)
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+#endif
 	if ((request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
 	    !(request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS))
 		return request->attributes &

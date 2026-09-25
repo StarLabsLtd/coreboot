@@ -29,6 +29,10 @@
 #include "payload_mm_authvar_internal.h"
 #include "payload_mm_authvar_recovery.h"
 #include "payload_mm_authvar_set_preflight.h"
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+#include "payload_mm_authvar_fmp_internal.h"
+#include "payload_mm_crypto/crypto.h"
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "payload_mm_authvar_coordinator.h"
 #endif
@@ -85,6 +89,9 @@ struct executor_session {
 	bool have_previous_ftw;
 	bool invariant_failure;
 	bool at_runtime;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	bool fmp_record_active;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
 	struct executor_recovery_plan recovery;
 	struct executor_recovery_plan recovery_sealed;
@@ -127,6 +134,12 @@ struct executor_policy {
 	size_t mutation_offset;
 #endif
 	size_t mutation_data_offset;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	size_t fmp_identity_offset;
+	size_t fmp_current_offset;
+	size_t fmp_candidate_offset;
+	size_t fmp_observation_offset;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	size_t coordinator_context_offset;
 #endif
@@ -308,6 +321,16 @@ static bool layout_build(struct executor_policy *policy)
 #endif
 	if (!add_area(&cursor, policy->limits.maximum_data_size,
 		&policy->mutation_data_offset) ||
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	    !add_area(&cursor, sizeof(struct payload_mm_fmp_state_identity),
+		&policy->fmp_identity_offset) ||
+	    !add_area(&cursor, sizeof(struct payload_mm_fmp_owner_record),
+		&policy->fmp_current_offset) ||
+	    !add_area(&cursor, sizeof(struct payload_mm_fmp_owner_record),
+		&policy->fmp_candidate_offset) ||
+	    !add_area(&cursor, sizeof(struct payload_mm_fmp_owner_record),
+		&policy->fmp_observation_offset) ||
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	    !add_area(&cursor, PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX,
 		&policy->coordinator_context_offset) ||
@@ -326,6 +349,10 @@ static bool external_protected_span(const void *buffer, size_t size)
 {
 	return buffer && size && payload_mm_authvar_smram_buffer(buffer, size) &&
 		payload_mm_authvar_media_buffer_disjoint(buffer, size) &&
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+		payload_mm_fmp_owner_buffer_available(buffer, size) &&
+		!payload_mm_fmp_owner_authvar_storage_overlaps(buffer, size) &&
+#endif
 		!payload_mm_authvar_buffers_overlap(buffer, size, &executor,
 			sizeof(executor)) &&
 		!payload_mm_authvar_buffers_overlap(buffer, size,
@@ -384,6 +411,14 @@ struct executor_control_seal {
 	struct payload_mm_authvar_policy_view view;
 #endif
 	struct payload_mm_authvar_read_result read_result;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	struct payload_mm_fmp_state_identity fmp_identity;
+	struct payload_mm_fmp_owner_record fmp_current;
+	struct payload_mm_fmp_owner_record fmp_candidate;
+	struct payload_mm_fmp_owner_record fmp_observation;
+	uint8_t fmp_record_digest[PAYLOAD_MM_SHA256_SIZE];
+	uint8_t fmp_record_active;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	struct payload_mm_authvar_candidate_result candidate_result;
 	struct payload_mm_authvar_candidate_binding candidate_binding;
@@ -626,6 +661,27 @@ static bool control_snapshot(const struct executor_session *state,
 	seal->view = state->view;
 #endif
 	seal->read_result = state->read_result;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	memcpy(&seal->fmp_identity,
+		arena_at(executor.sealed.fmp_identity_offset),
+		sizeof(seal->fmp_identity));
+	memcpy(&seal->fmp_current,
+		arena_at(executor.sealed.fmp_current_offset),
+		sizeof(seal->fmp_current));
+	memcpy(&seal->fmp_candidate,
+		arena_at(executor.sealed.fmp_candidate_offset),
+		sizeof(seal->fmp_candidate));
+	memcpy(&seal->fmp_observation,
+		arena_at(executor.sealed.fmp_observation_offset),
+		sizeof(seal->fmp_observation));
+	seal->fmp_record_active = state->fmp_record_active;
+	if (state->fmp_record_active &&
+	    (state->write.record_size > executor.sealed.limits.maximum_record_size ||
+	     payload_mm_sha256(arena_at(executor.sealed.record_offset),
+		state->write.record_size, seal->fmp_record_digest) !=
+		PAYLOAD_MM_VERIFY_OK))
+		return false;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
 	seal->candidate_result = state->candidate_result;
 	seal->candidate_binding = state->candidate_binding;
@@ -2691,6 +2747,7 @@ out:
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
+
 #endif
 
 static bool copy_request(struct executor_session *state,
@@ -3101,6 +3158,7 @@ out:
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
+
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
@@ -4372,3 +4430,519 @@ complete:
 		__ATOMIC_RELEASE);
 	return status;
 }
+
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+static bool fmp_observe(const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_fmp_state_identity *identity,
+	struct payload_mm_fmp_owner_record *observation)
+{
+	const struct payload_mm_authvar_store_entry *entry =
+		payload_mm_authvar_store_find(index, identity->namespace_guid.b,
+			identity->variable_name, identity->variable_name_bytes);
+	const void *data;
+
+	memset(observation, 0, sizeof(*observation));
+	if (!entry)
+		return true;
+	data = payload_mm_authvar_store_data(index, entry);
+	if (!data || entry->data_size > sizeof(observation->data))
+		return false;
+	observation->present = 1;
+	observation->attributes = entry->attributes;
+	observation->data_size = entry->data_size;
+	memcpy(observation->data, data, entry->data_size);
+	/* The protected owner assigns the boot-local epoch after reconciliation. */
+	observation->sequence = 1U;
+	if (!payload_mm_fmp_owner_record_valid(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		observation))
+		return false;
+	observation->sequence = 0U;
+	return true;
+}
+
+static bool fmp_observation_equal(
+	const struct payload_mm_fmp_owner_record *expected,
+	const struct payload_mm_fmp_owner_record *observed)
+{
+	return expected->present == observed->present &&
+		expected->attributes == observed->attributes &&
+		expected->data_size == observed->data_size &&
+		!memcmp(expected->data, observed->data, sizeof(expected->data));
+}
+
+uint64_t payload_mm_authvar_fmp_state_transaction(
+	enum payload_mm_authvar_fmp_operation operation,
+	const struct payload_mm_fmp_owner_record *current,
+	const struct payload_mm_fmp_owner_record *candidate,
+	struct payload_mm_fmp_owner_record *published)
+{
+	struct payload_mm_fmp_state_identity *identity;
+	struct payload_mm_fmp_owner_record *expected;
+	struct payload_mm_fmp_owner_record *wanted;
+	struct payload_mm_fmp_owner_record *observed;
+	struct payload_mm_authvar_store_limits scan_limits;
+	struct executor_session *state;
+	const struct payload_mm_authvar_store_entry *replaced;
+	const struct payload_mm_authvar_store_entry *final;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	struct payload_mm_authvar_view current_view;
+	u8 source_modes;
+	bool reconcile_modes = false;
+	bool modes_validated = false;
+#endif
+	enum payload_mm_authvar_media_result media_result;
+	enum payload_mm_authvar_media_result end_result;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	uint32_t expected_busy = 0;
+	uint32_t store_base;
+	bool began = false;
+
+	if (!published || (uintptr_t)published % _Alignof(*published) ||
+	    !external_protected_span(published, sizeof(*published)) ||
+	    payload_mm_fmp_owner_authvar_storage_overlaps(published,
+		sizeof(*published)) ||
+	    (operation != PAYLOAD_MM_AUTHVAR_FMP_READ_STATE &&
+	     operation != PAYLOAD_MM_AUTHVAR_FMP_COMPARE_WRITE_STATE))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (operation == PAYLOAD_MM_AUTHVAR_FMP_COMPARE_WRITE_STATE &&
+	    (!current || !candidate ||
+	     (uintptr_t)current % _Alignof(*current) ||
+	     (uintptr_t)candidate % _Alignof(*candidate) ||
+	     !external_protected_span(current, sizeof(*current)) ||
+	     !external_protected_span(candidate, sizeof(*candidate)) ||
+	     payload_mm_fmp_owner_authvar_storage_overlaps(current,
+		sizeof(*current)) ||
+	     payload_mm_fmp_owner_authvar_storage_overlaps(candidate,
+		sizeof(*candidate)) ||
+	     payload_mm_authvar_buffers_overlap(current, sizeof(*current), candidate,
+		 sizeof(*candidate)) ||
+	     payload_mm_authvar_buffers_overlap(current, sizeof(*current), published,
+		 sizeof(*published)) ||
+	     payload_mm_authvar_buffers_overlap(candidate, sizeof(*candidate),
+		 published, sizeof(*published))))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (operation == PAYLOAD_MM_AUTHVAR_FMP_READ_STATE &&
+	    (current != NULL || candidate != NULL))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (!executor.installed)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!policy_equal()) {
+		executor.installed = false;
+		(void)payload_mm_authvar_media_fail_closed(0, 0);
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected_busy, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	identity = arena_at(executor.sealed.fmp_identity_offset);
+	expected = arena_at(executor.sealed.fmp_current_offset);
+	wanted = arena_at(executor.sealed.fmp_candidate_offset);
+	observed = arena_at(executor.sealed.fmp_observation_offset);
+	if (payload_mm_fmp_owner_authvar_identity(PAYLOAD_MM_FMP_STATE_KEY_STATE,
+		identity) != CB_SUCCESS) {
+		executor.installed = false;
+		(void)payload_mm_authvar_media_fail_closed(0, 0);
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto out;
+	}
+	if (executor.at_runtime) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		goto out;
+	}
+	if (operation == PAYLOAD_MM_AUTHVAR_FMP_COMPARE_WRITE_STATE) {
+		*expected = *current;
+		*wanted = *candidate;
+		if (memcmp(current, expected, sizeof(*current)) ||
+		    memcmp(candidate, wanted, sizeof(*candidate)) ||
+		    !payload_mm_fmp_owner_record_valid(
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, expected) ||
+		    !payload_mm_fmp_owner_record_valid(
+			PAYLOAD_MM_FMP_STATE_KEY_STATE, wanted) ||
+		    !wanted->present || expected->sequence == UINT64_MAX ||
+		    wanted->sequence != expected->sequence + 1U ||
+		    !payload_mm_fmp_state_transition_valid(
+			expected->present ? expected->data : NULL, wanted->data)) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			goto out;
+		}
+	}
+	state = session();
+	memset(state, 0, sizeof(*state));
+	media_result = media_begin(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = payload_mm_authvar_media_result_status(media_result);
+		goto out;
+	}
+	began = true;
+	payload_mm_authvar_media_cache_invalidate();
+	if (!policy_equal() ||
+	    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+	    !contract_allowed(&state->contract, &executor.sealed.limits)) {
+		status = poison_session();
+		goto end;
+	}
+	status = recover_session(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	if (!fmp_observe(&state->index, identity, observed)) {
+		status = poison_session();
+		goto end;
+	}
+	if (operation == PAYLOAD_MM_AUTHVAR_FMP_READ_STATE) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		goto end;
+	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	reconcile_modes = executor.sealed_modes_need_reconcile;
+	if (!(reconcile_modes ?
+		payload_mm_authvar_coordinator_reconcile_modes(&state->index,
+			false, executor.sealed_volatile_modes, &source_modes) :
+		payload_mm_authvar_coordinator_source_modes(&state->index, false,
+			executor.sealed_volatile_modes_valid,
+			executor.sealed_volatile_modes, &source_modes)) ||
+	    payload_mm_authvar_view_init(&current_view, &state->index, source_modes,
+		false) != CB_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+	executor.volatile_modes = source_modes;
+	executor.sealed_volatile_modes = source_modes;
+	executor.volatile_modes_valid = true;
+	executor.sealed_volatile_modes_valid = true;
+	modes_validated = true;
+#endif
+	if (!fmp_observation_equal(expected, observed)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+		goto end;
+	}
+	if (identity->variable_name_bytes > executor.sealed.limits.maximum_name_size ||
+	    wanted->data_size > executor.sealed.limits.maximum_data_size) {
+		status = poison_session();
+		goto end;
+	}
+	memcpy(arena_at(executor.sealed.name_offset), identity->variable_name,
+		identity->variable_name_bytes);
+	memcpy(arena_at(executor.sealed.data_offset), wanted->data,
+		wanted->data_size);
+	if (memcmp(arena_at(executor.sealed.name_offset), identity->variable_name,
+		identity->variable_name_bytes) ||
+	    memcmp(arena_at(executor.sealed.data_offset), wanted->data,
+		wanted->data_size)) {
+		status = poison_session();
+		goto end;
+	}
+	memcpy(state->source.vendor_guid, identity->namespace_guid.b,
+		sizeof(state->source.vendor_guid));
+	state->source.name = arena_at(executor.sealed.name_offset);
+	state->source.name_size = identity->variable_name_bytes;
+	state->source.data = arena_at(executor.sealed.data_offset);
+	state->source.data_size = wanted->data_size;
+	state->source.attributes = PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES;
+	state->policy = (struct payload_mm_authvar_write_policy) {
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_record_size = executor.sealed.limits.maximum_record_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	if (state->policy.maximum_record_size > state->index.store_size)
+		state->policy.maximum_record_size = state->index.store_size;
+	if (state->policy.maximum_data_size > state->policy.maximum_record_size)
+		state->policy.maximum_data_size = state->policy.maximum_record_size;
+	replaced = payload_mm_authvar_store_find(&state->index,
+		state->source.vendor_guid, state->source.name,
+		state->source.name_size);
+	state->reclaim.copies = arena_at(executor.sealed.copies_offset);
+	state->reclaim.copy_capacity = executor.sealed.limits.maximum_records;
+	status = payload_mm_authvar_write_plan_build(&state->index, replaced,
+		&state->source, &state->policy, false,
+		arena_at(executor.sealed.record_offset),
+		executor.sealed.limits.maximum_record_size, &state->reclaim,
+		&state->write);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
+	state->fmp_record_active = true;
+	if (state->write.action == PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM)
+		media_result = execute_reclaim(state, replaced);
+	else if (state->write.action == PAYLOAD_MM_AUTHVAR_WRITE_NOOP)
+		media_result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;
+	else
+		media_result = execute_direct(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(media_result);
+		goto end;
+	}
+	media_result = verify_media(state, 0, snapshot(), state->contract.store_size);
+	if (media_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS)
+		media_result = snapshot_read(state);
+	if (media_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		status = state->invariant_failure ? poison_session() :
+			payload_mm_authvar_media_result_status(media_result);
+		goto end;
+	}
+	if (payload_mm_authvar_ftw_plan(snapshot(), state->contract.store_size,
+		state->contract.block_size, &state->ftw) != CB_SUCCESS ||
+	    state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+	    !ftw_store_base(state, &store_base)) {
+		status = poison_session();
+		goto end;
+	}
+	scan_limits = (struct payload_mm_authvar_store_limits) {
+		.maximum_store_size = executor.sealed.limits.maximum_store_size,
+		.maximum_name_size = executor.sealed.limits.maximum_name_size,
+		.maximum_data_size = executor.sealed.limits.maximum_data_size,
+		.maximum_records = executor.sealed.limits.maximum_records,
+	};
+	memset(&state->index, 0, sizeof(state->index));
+	state->index.entries = arena_at(executor.sealed.entries_offset);
+	state->index.entry_capacity = executor.sealed.limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&state->index, snapshot() + store_base,
+		state->ftw.variable_store_size, &scan_limits) != CB_SUCCESS ||
+	    !fmp_observe(&state->index, identity, observed) ||
+	    !fmp_observation_equal(wanted, observed)) {
+		status = poison_session();
+		goto end;
+	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (payload_mm_authvar_view_init(&current_view, &state->index, source_modes,
+		false) != CB_SUCCESS) {
+		status = poison_session();
+		goto end;
+	}
+#endif
+	final = payload_mm_authvar_store_find(&state->index,
+		state->source.vendor_guid, state->source.name,
+		state->source.name_size);
+	if (!final) {
+		status = poison_session();
+		goto end;
+	}
+	if (state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_NOOP) {
+		const uint8_t *final_record = snapshot() + store_base +
+			final->record_offset;
+		const uint8_t *canonical_record =
+			arena_at(executor.sealed.record_offset);
+		uint64_t physical_end = (uint64_t)final->data_offset +
+			final->data_size;
+		uint64_t physical_size;
+
+		physical_end = (physical_end + 3U) & ~3ULL;
+		physical_size = physical_end >= final->record_offset ?
+			physical_end - final->record_offset : UINT64_MAX;
+		if (final->record_offset != state->write.record_offset ||
+		    physical_size != state->write.record_size ||
+		    state->write.record_size < 3U ||
+		    canonical_record[2] != PAYLOAD_MM_AUTHVAR_STATE_ERASED ||
+		    final_record[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED ||
+		    memcmp(final_record, canonical_record, 2U) ||
+		    memcmp(final_record + 3U, canonical_record + 3U,
+			state->write.record_size - 3U)) {
+			status = poison_session();
+			goto end;
+		}
+	}
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+end:
+	end_result = media_end(state);
+	if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		payload_mm_authvar_media_cache_invalidate();
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	} else if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		*published = *observed;
+	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (reconcile_modes && modes_validated && executor.installed &&
+	    policy_equal() && end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS &&
+	    status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		executor.modes_need_reconcile = false;
+		executor.sealed_modes_need_reconcile = false;
+	}
+#endif
+out:
+	if (began && status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		payload_mm_authvar_media_cache_invalidate();
+	memset(executor.sealed.arena, 0, executor.sealed.required_size);
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+
+#if ENV_TEST
+bool payload_mm_authvar_fmp_test_layout(
+	struct payload_mm_authvar_fmp_layout_test *layout)
+{
+	size_t count = 0;
+
+	if (!layout || !executor.installed || !policy_equal())
+		return false;
+	memset(layout, 0, sizeof(*layout));
+	layout->required_size = executor.sealed.required_size;
+	layout->offsets[0] = executor.sealed.fmp_identity_offset;
+	layout->offsets[1] = executor.sealed.fmp_current_offset;
+	layout->offsets[2] = executor.sealed.fmp_candidate_offset;
+	layout->offsets[3] = executor.sealed.fmp_observation_offset;
+#define ADD_PROTECTED_AREA(offset, size) do { \
+	layout->protected_offsets[count] = (offset); \
+	layout->protected_sizes[count++] = (size); \
+} while (0)
+	ADD_PROTECTED_AREA(executor.sealed.snapshot_offset,
+		executor.sealed.limits.maximum_store_size);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	ADD_PROTECTED_AREA(executor.sealed.candidate_offset,
+		executor.sealed.limits.maximum_store_size);
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
+	ADD_PROTECTED_AREA(executor.sealed.recovery_image_seal_offset,
+		executor.sealed.limits.maximum_store_size);
+#endif
+	ADD_PROTECTED_AREA(executor.sealed.entries_offset,
+		executor.sealed.limits.maximum_records *
+			sizeof(struct payload_mm_authvar_store_entry));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT)
+	ADD_PROTECTED_AREA(executor.sealed.candidate_entries_offset,
+		executor.sealed.limits.maximum_records *
+			sizeof(struct payload_mm_authvar_store_entry));
+#endif
+	ADD_PROTECTED_AREA(executor.sealed.copies_offset,
+		executor.sealed.limits.maximum_records *
+			sizeof(struct payload_mm_authvar_reclaim_copy));
+	ADD_PROTECTED_AREA(executor.sealed.record_offset,
+		executor.sealed.limits.maximum_record_size);
+	ADD_PROTECTED_AREA(executor.sealed.name_offset,
+		executor.sealed.limits.maximum_name_size);
+	ADD_PROTECTED_AREA(executor.sealed.data_offset,
+		executor.sealed.limits.maximum_data_size);
+	ADD_PROTECTED_AREA(executor.sealed.transfer_offset, EXECUTOR_TRANSFER_SIZE);
+	ADD_PROTECTED_AREA(executor.sealed.session_offset,
+		sizeof(struct executor_session));
+	ADD_PROTECTED_AREA(executor.sealed.mutation_data_offset,
+		executor.sealed.limits.maximum_data_size);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	ADD_PROTECTED_AREA(executor.sealed.coordinator_context_offset,
+		PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX);
+#endif
+	layout->protected_count = count;
+#undef ADD_PROTECTED_AREA
+	return true;
+}
+
+void payload_mm_authvar_fmp_test_corrupt_offset(unsigned int part, bool sealed)
+{
+	static const size_t offsets[] = {
+		offsetof(struct executor_policy, fmp_identity_offset),
+		offsetof(struct executor_policy, fmp_current_offset),
+		offsetof(struct executor_policy, fmp_candidate_offset),
+		offsetof(struct executor_policy, fmp_observation_offset),
+	};
+	struct executor_policy *policy = sealed ? &executor.sealed : &executor.policy;
+	size_t *offset;
+
+	if (part >= ARRAY_SIZE(offsets))
+		return;
+	offset = (size_t *)((uint8_t *)policy + offsets[part]);
+	(*offset)++;
+}
+
+void payload_mm_authvar_fmp_test_mutate_workspace(unsigned int part)
+{
+	static const size_t offsets[] = {
+		offsetof(struct executor_policy, fmp_identity_offset),
+		offsetof(struct executor_policy, fmp_current_offset),
+		offsetof(struct executor_policy, fmp_candidate_offset),
+		offsetof(struct executor_policy, fmp_observation_offset),
+	};
+	const size_t *offset;
+
+	if (part >= ARRAY_SIZE(offsets))
+		return;
+	offset = (const size_t *)((const uint8_t *)&executor.sealed + offsets[part]);
+	((uint8_t *)arena_at(*offset))[0] ^= 1U;
+}
+
+void payload_mm_authvar_fmp_test_mutate_record(size_t offset)
+{
+	if (offset < executor.sealed.limits.maximum_record_size)
+		((uint8_t *)arena_at(executor.sealed.record_offset))[offset] ^= 1U;
+}
+
+void payload_mm_authvar_fmp_test_mutate_control(unsigned int part)
+{
+	if (!part)
+		session()->fmp_record_active = !session()->fmp_record_active;
+	else if (part == 1U)
+		((uint8_t *)arena_at(executor.sealed.record_offset))[0] ^= 1U;
+}
+
+bool payload_mm_authvar_fmp_test_installed(void)
+{
+	return executor.installed;
+}
+
+bool payload_mm_authvar_fmp_test_record_binding_active(void)
+{
+	struct executor_control_seal seal;
+	uint8_t digest[PAYLOAD_MM_SHA256_SIZE];
+	struct executor_session *state = session();
+
+	return state->fmp_record_active && state->write.record_size &&
+		state->write.record_size <= executor.sealed.limits.maximum_record_size &&
+		control_snapshot(state, &seal, false) && seal.fmp_record_active &&
+		payload_mm_sha256(arena_at(executor.sealed.record_offset),
+			state->write.record_size, digest) == PAYLOAD_MM_VERIFY_OK &&
+		!memcmp(digest, seal.fmp_record_digest, sizeof(digest));
+}
+
+bool payload_mm_authvar_fmp_test_record_target(const void *buffer, size_t size,
+	bool tail, bool padding, size_t *buffer_offset, size_t *record_offset,
+	bool *separate_image)
+{
+	const uint8_t *base = arena_at(executor.sealed.record_offset);
+	const uint8_t *bytes = buffer;
+	struct executor_session *state = session();
+	size_t target;
+	size_t base_offset;
+	size_t name_end;
+	size_t aligned_name_end;
+	uint32_t store_base;
+
+	if (!buffer || !buffer_offset || !record_offset || !separate_image ||
+	    !state->fmp_record_active || !state->write.record_size ||
+	    state->write.record_size > executor.sealed.limits.maximum_record_size)
+		return false;
+	target = tail ? state->write.record_size - 1U : 0U;
+	if (padding) {
+		name_end = PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE +
+			state->source.name_size;
+		if (name_end > SIZE_MAX - 3U)
+			return false;
+		aligned_name_end = (name_end + 3U) & ~(size_t)3U;
+		if (name_end >= aligned_name_end ||
+		    aligned_name_end > state->write.record_size)
+			return false;
+		target = name_end;
+	}
+	if (bytes >= base && (size_t)(bytes - base) <= state->write.record_size) {
+		base_offset = (size_t)(bytes - base);
+		if (size > state->write.record_size - base_offset ||
+		    target < base_offset || target - base_offset >= size)
+			return false;
+		*buffer_offset = target - base_offset;
+		*record_offset = target;
+		*separate_image = false;
+		return true;
+	}
+	if (state->write.action != PAYLOAD_MM_AUTHVAR_WRITE_RECLAIM ||
+	    !ftw_store_base(state, &store_base) ||
+	    bytes != snapshot() + state->ftw.geometry.spare_offset ||
+	    size != state->ftw.geometry.variable_size ||
+	    state->reclaim.destination_offset != state->write.record_offset ||
+	    state->reclaim.record_size != state->write.record_size ||
+	    (uint64_t)store_base + state->write.record_offset + target >= size)
+		return false;
+	*buffer_offset = store_base + state->write.record_offset + target;
+	*record_offset = target;
+	*separate_image = true;
+	return bytes[*buffer_offset] == base[target];
+}
+#endif
+#endif

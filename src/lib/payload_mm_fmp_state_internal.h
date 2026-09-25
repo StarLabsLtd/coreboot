@@ -15,6 +15,9 @@ struct payload_mm_fmp_state_identity {
 
 bool payload_mm_fmp_state_authority_ready(void);
 bool payload_mm_fmp_state_staging_buffer(const void *buffer, size_t size);
+#if ENV_TEST
+const void *payload_mm_fmp_state_test_storage(size_t *size);
+#endif
 bool payload_mm_fmp_state_data_valid(
 	const uint8_t state[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]);
 bool payload_mm_fmp_state_transition_valid(const uint8_t *current,
