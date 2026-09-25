@@ -60,6 +60,7 @@ test -s "$tmp/out/smm/smm.elf"
 test -s "$tmp/out/smmstub/smmstub.elf"
 
 for symbol in payload_mm_authvar_smm_bootstrap_install \
+	platform_payload_mm_authvar_smm_media_ops \
 	payload_mm_authvar_executor_install \
 	payload_mm_authvar_authority_install \
 	payload_mm_authvar_smmstore_install \
@@ -82,7 +83,7 @@ stub_size=$1
 stub_alignment=$2
 
 # Force review when the linked production inputs to the exact layout drift.
-test "$handler_size" = 0x0e648
+test "$handler_size" = 0x0ed88
 test "$handler_alignment" = 0x20
 test "$stub_size" = 0x001c0
 test "$stub_alignment" = 0x4
