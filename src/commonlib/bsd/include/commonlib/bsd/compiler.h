@@ -58,6 +58,11 @@
 #define __always_inline inline __attribute__((__always_inline__))
 #endif
 
+#ifndef __noinline
+/* Keep call-boundary annotations consistent with the other attribute aliases. */
+#define __noinline __attribute__((__noinline__))
+#endif
+
 #ifndef __fallthrough
 #define __fallthrough __attribute__((__fallthrough__))
 #endif

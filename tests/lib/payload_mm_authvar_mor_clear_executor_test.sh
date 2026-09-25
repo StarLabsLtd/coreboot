@@ -18,6 +18,7 @@ compile_and_run()
 		-include "$root/src/include/rules.h" \
 		-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		-I"$root/src/lib" \
 		-I"$temporary/include" \
 		"$root/tests/lib/payload_mm_authvar_mor_clear_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_mor_clear_executor.c" \
@@ -50,6 +51,7 @@ mutant_test()
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		-I"$root/src/lib" \
 		-I"$temporary/include" \
 		"$root/tests/lib/payload_mm_authvar_mor_clear_executor_test.c" "$mutant" \
 		"$root/src/lib/payload_mm_authvar_mor_clear_plan.c" \
@@ -66,26 +68,23 @@ mutant_test()
 }
 
 mutant_test plan-validation \
-	's/payload_mm_authvar_mor_clear_plan_validate(&state.plan_snapshot)/CB_SUCCESS/'
+	's/payload_mm_authvar_mor_clear_plan_validate(&state->plan_snapshot)/CB_SUCCESS/'
 mutant_test volatile-readback \
-	's/if (((const volatile uint8_t \*)state.iteration.mapping)/if (false \&\& ((const volatile uint8_t *)state.iteration.mapping)/'
+	's/if (((const volatile uint8_t \*)state->iteration.mapping)/if (false \&\& ((const volatile uint8_t *)state->iteration.mapping)/'
 mutant_test cache-fence-order \
-	's/state.ops_snapshot.fence(state.ops_snapshot.context);/state.iteration.chunk_error == CB_SUCCESS ? state.ops_snapshot.fence(state.ops_snapshot.context) : CB_SUCCESS;/'
-mutant_test dma-equality \
-	'/memcmp(&state.facts.dma_before/,/goto fail;/ s/goto fail;/state.facts.dma_after = state.facts.dma_before;/'
-mutant_test unmap-failure \
-	's/return unmap_error;/(void)unmap_error; return CB_SUCCESS;/'
+	's/call_fence(state, workspace, transcript, grant);/state->iteration.chunk_error == CB_SUCCESS ? call_fence(state, workspace, transcript, grant) : CB_SUCCESS;/'
+mutant_test trusted-unmap-cleanup \
+	's/if (map_active)/if (false \&\& map_active)/'
 mutant_test output-recheck \
-	'/bytes_zero(state->transcript_output,/,+1c\
-\t\ttrue \&\&'
+	's/bytes_zero(transcript, sizeof(\*transcript))/(bytes_zero(transcript, sizeof(*transcript)) || true)/'
 mutant_test final-plan-recheck \
 	's/!memcmp(&state->plan_snapshot, state->plan_input,/!memcmp(state->plan_input, state->plan_input,/'
 mutant_test physical-window-boundary \
 	's/return MIN(bounded_remaining, until_boundary);/return MIN(bounded_remaining, until_boundary | window_bytes);/'
 mutant_test initial-inventory-validation \
-	'0,/live_inventory_validate(&state)/ s/live_inventory_validate(&state)/CB_SUCCESS/'
+	'0,/call_inventory(state,/ s/call_inventory(state, workspace, transcript, grant)/CB_SUCCESS/'
 mutant_test late-inventory-validation \
-	'/state.candidate.dma_after =/,/payload_mm_authvar_mor_clear_receipt_build/ s/live_inventory_validate(&state)/CB_SUCCESS/'
+	'/state->candidate.dma_after =/,/payload_mm_authvar_mor_clear_receipt_build/ s/call_inventory(state, workspace, transcript, grant)/CB_SUCCESS/'
 
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
@@ -109,17 +108,76 @@ mutant_test late-inventory-validation \
 	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 	-I"$temporary/include" -c "$root/src/lib/payload_mm_authvar_mor_grant.c" \
 	-o "$temporary/grant-stack.o"
+
+"${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
+	-fstack-usage -D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-I"$temporary/include" -c "$root/src/lib/payload_mm_authvar_mor_linear.c" \
+	-o "$temporary/linear-stack.o"
+"${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
+	-fstack-usage -D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -D__ARCH_x86_32__ \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-I"$temporary/include" -c "$root/src/lib/payload_mm_authvar_mor_clear_x86.c" \
+	-o "$temporary/x86-stack.o"
+
 stack_total=$(awk -F '\t' '
+	$1 ~ /:payload_mm_authvar_mor_linear_after_bootmem$/ { linear = $2 + 0 }
 	$1 ~ /:payload_mm_authvar_mor_clear_execute$/ { executor = $2 + 0 }
-	$1 ~ /:payload_mm_authvar_mor_clear_receipt_build$/ { receipt = $2 + 0 }
+	$1 ~ /:payload_mm_authvar_mor_clear_receipt_build_owned$/ { receipt = $2 + 0 }
 	$1 ~ /:payload_mm_authvar_mor_grant_validate$/ { grant = $2 + 0 }
-	END {
-		if (!executor || !receipt || !grant) exit 1
-		print executor + receipt + grant
+	$1 ~ /:map_window$/ || $1 ~ /:cache_writeback_invalidate$/ ||
+	$1 ~ /:fence$/ || $1 ~ /:unmap_window$/ {
+		if ($2 + 0 > backend) backend = $2 + 0
 	}
-' "$temporary/executor-stack.su" "$temporary/clear-stack.su" \
-	"$temporary/grant-stack.su")
-test "$stack_total" -le 6144
+	$1 ~ /:prepare_with_ops$/ { prepare = $2 + 0 }
+	END {
+		if (!linear || !executor || !receipt || !grant || !backend || !prepare)
+			exit 1
+		clear = linear + executor + backend + receipt + grant
+		resolve = linear + prepare
+		if (resolve > clear) clear = resolve
+		print clear
+	}
+' "$temporary/linear-stack.su" "$temporary/executor-stack.su" \
+	"$temporary/clear-stack.su" "$temporary/grant-stack.su" \
+	"$temporary/x86-stack.su")
+if test "$stack_total" -gt 4096; then
+	echo "ERROR: generic MOR clear path stack bound exceeded: $stack_total" >&2
+	exit 1
+fi
+linear_stack=$(awk -F '\t' \
+	'$1 ~ /:payload_mm_authvar_mor_linear_after_bootmem$/ { print $2 }' \
+	"$temporary/linear-stack.su")
+sed '/payload_mm_authvar_mor_linear_after_bootmem(/,/^{$/ {
+	/^{$/a\
+\tvolatile uint8_t stack_bound_mutant[4096];\
+\t__asm__ __volatile__("" : : "r" (stack_bound_mutant) : "memory");
+}' "$root/src/lib/payload_mm_authvar_mor_linear.c" > \
+	"$temporary/linear-stack-mutant.c"
+if cmp -s "$root/src/lib/payload_mm_authvar_mor_linear.c" \
+	"$temporary/linear-stack-mutant.c"; then
+	echo "ERROR: stack-bound mutation was not applied" >&2
+	exit 1
+fi
+"${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
+	-fstack-usage -D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ \
+	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
+	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-I"$temporary/include" -c "$temporary/linear-stack-mutant.c" \
+	-o "$temporary/linear-stack-mutant.o"
+mutant_linear_stack=$(awk -F '\t' \
+	'$1 ~ /:payload_mm_authvar_mor_linear_after_bootmem$/ { print $2 }' \
+	"$temporary/linear-stack-mutant.su")
+if test -z "$linear_stack" || test -z "$mutant_linear_stack" ||
+	test "$((stack_total - linear_stack + mutant_linear_stack))" -le 4096; then
+	echo "ERROR: stack-bound mutant was not rejected" >&2
+	exit 1
+fi
 
 mkdir -p "$temporary/config" "$temporary/build"
 cat > "$temporary/config/.config" <<'EOF'
@@ -129,8 +187,11 @@ CONFIG_ANY_TOOLCHAIN=y
 EOF
 make -C "$root" obj="$temporary/build" DOTCONFIG="$temporary/config/.config" \
 	olddefconfig >/dev/null
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR=y$' \
-	"$temporary/config/.config"
+if grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR=y$' \
+	"$temporary/config/.config"; then
+	echo "ERROR: dormant executor enabled by default" >&2
+	exit 1
+fi
 
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 cat >> "$temporary/Kconfig" <<'EOF'

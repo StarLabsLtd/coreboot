@@ -27,7 +27,7 @@ build_and_run()
 		"$root/tests/lib/payload_mm_authvar_mor_live_inventory_test.c" \
 		"$source" "$root/src/lib/payload_mm_authvar_mor_clear_plan.c" \
 		-no-pie -o "$temporary/$name"
-	for case_name in success failures boundaries; do
+	for case_name in success failures boundaries owned owned-aliases; do
 		if ! "$temporary/$name" "$case_name"; then
 			return 1
 		fi
@@ -40,6 +40,7 @@ build_and_run o0 "$source_file" -O0
 build_and_run o2 "$source_file" -O2
 build_and_run asan "$source_file" -O1 -fsanitize=address -fno-omit-frame-pointer
 build_and_run ubsan "$source_file" -O1 -fsanitize=undefined -fno-omit-frame-pointer
+build_and_run tsan "$source_file" -O1 -fsanitize=thread -fno-omit-frame-pointer
 
 mutant_test()
 {
@@ -65,10 +66,11 @@ mutant_test active-firmware-tags \
 	'tag == BM_MEM_RAMSTAGE || tag == BM_MEM_TABLE ||' \
 	'tag == BM_MEM_RAMSTAGE \&\& tag == BM_MEM_TABLE ||'
 mutant_test overlay-coverage \
-	'context.overlay_covered\[index\] != snapshot.overlays\[index\].size' \
-	'false'
+	'workspace->overlay_covered\[index\] !=' \
+	'workspace->request_snapshot.overlays[index].size !='
 mutant_test input-mutation \
-	'memcmp(\&snapshot, request, sizeof(snapshot))' 'false'
+	'memcmp(\&workspace->request_snapshot, request,' \
+	'memcmp(request, request,'
 mutant_test unsupported-tag \
 	'tag <= BM_MEM_FIRST || tag >= BM_MEM_LAST' 'false'
 
@@ -93,8 +95,20 @@ mutant_test unsupported-tag \
 	-I"$config" -I"$root/src" -I"$root/src/include" \
 	-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 	-I"$root/src/arch/x86/include" -I"$root/build/tests" \
-	-c "$source_file" -o "$temporary/live-inventory.o"
+	-fstack-usage -c "$source_file" -o "$temporary/live-inventory.o"
 nm -g --defined-only "$temporary/live-inventory.o" |
-	grep -q ' payload_mm_authvar_mor_live_inventory_compose$'
+	grep -q ' payload_mm_authvar_mor_live_inventory_compose_owned$'
+if nm -g --defined-only "$temporary/live-inventory.o" |
+	grep -q ' payload_mm_authvar_mor_live_inventory_compose$'; then
+	echo 'ERROR: stack-allocating live-inventory wrapper reached ramstage' >&2
+	exit 1
+fi
+owned_stack=$(awk -F '\t' \
+	'$1 ~ /:payload_mm_authvar_mor_live_inventory_compose_owned$/ { print $2 }' \
+	"$temporary/live-inventory.su")
+if test -z "$owned_stack" || test "$owned_stack" -gt 256; then
+	echo "ERROR: owned live-inventory stack bound missing or exceeded: ${owned_stack:-missing}" >&2
+	exit 1
+fi
 
 echo 'payload MM MOR live-inventory validation: PASS'

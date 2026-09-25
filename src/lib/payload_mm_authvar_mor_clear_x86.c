@@ -7,6 +7,10 @@
 #include <limits.h>
 #include <string.h>
 
+#if !ENV_TEST
+#include <symbols.h>
+#endif
+
 #if !ENV_X86
 #error "The MOR clear x86 backend requires x86"
 #endif
@@ -333,6 +337,7 @@ static enum cb_err prepare_with_ops(
 	    !bytes_zero(ops, sizeof(*ops)))
 		return backend_fail(backend);
 	ops->context = backend;
+	ops->context_size = sizeof(*backend);
 	ops->window_bytes = PAE_VMEM_SIZE;
 	ops->map_window = map_window;
 	ops->cache_writeback_invalidate = cache_writeback_invalidate;
@@ -397,7 +402,15 @@ enum cb_err payload_mm_authvar_mor_clear_x86_prepare(
 	struct payload_mm_authvar_mor_clear_x86_backend *backend,
 	struct payload_mm_authvar_mor_clear_executor_ops *ops)
 {
-	return prepare_with_ops(plan, page_tables, aperture, backend, ops,
-		&production_arch);
+	enum cb_err result = prepare_with_ops(plan, page_tables, aperture, backend,
+		ops, &production_arch);
+
+	if (result != CB_SUCCESS)
+		return result;
+	ops->executable_owner = _text;
+	ops->executable_owner_size = REGION_SIZE(text);
+	ops->stack_owner = _stack;
+	ops->stack_owner_size = REGION_SIZE(stack);
+	return CB_SUCCESS;
 }
 #endif

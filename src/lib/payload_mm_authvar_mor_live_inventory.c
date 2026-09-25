@@ -8,7 +8,7 @@
 struct compose_context {
 	const struct payload_mm_authvar_mor_live_inventory_request *request;
 	struct payload_mm_authvar_mor_clear_inventory *inventory;
-	uint64_t overlay_covered[PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_MAX_OVERLAYS];
+	uint64_t *overlay_covered;
 	uint64_t previous_end;
 	bool have_previous;
 	bool failed;
@@ -41,6 +41,34 @@ static bool objects_overlap(const void *left, size_t left_size,
 	if (left_base <= right_base)
 		return right_base - left_base < left_size;
 	return left_base - right_base < right_size;
+}
+
+static bool output_untouched(
+	const struct payload_mm_authvar_mor_live_inventory_workspace *workspace,
+	const struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	return !memcmp(&workspace->output_snapshot, plan, sizeof(*plan)) &&
+		!memcmp(&workspace->plan_workspace.output_snapshot, plan,
+			sizeof(*plan));
+}
+
+static void restore_callback_output(
+	const struct payload_mm_authvar_mor_live_inventory_workspace *workspace,
+	struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	const struct payload_mm_authvar_mor_clear_plan *outer =
+		&workspace->output_snapshot;
+	const struct payload_mm_authvar_mor_clear_plan *backup =
+		&workspace->plan_workspace.output_snapshot;
+
+	/* A callback may corrupt one copy; retain a two-of-three restoration path. */
+	if (!memcmp(outer, backup, sizeof(*plan)) ||
+	    !memcmp(outer, plan, sizeof(*plan)))
+		memcpy(plan, outer, sizeof(*plan));
+	else if (!memcmp(backup, plan, sizeof(*plan)))
+		memcpy(plan, backup, sizeof(*plan));
+	else
+		memset(plan, 0, sizeof(*plan));
 }
 
 static bool request_valid(
@@ -186,45 +214,90 @@ fail:
 	return false;
 }
 
+enum cb_err payload_mm_authvar_mor_live_inventory_compose_owned(
+	const struct payload_mm_authvar_mor_live_inventory_request *request,
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct payload_mm_authvar_mor_live_inventory_workspace *workspace)
+{
+	struct compose_context context;
+	enum cb_err result = CB_ERR;
+	bool plan_workspace_consumed = false;
+
+	/* Validate every address before reading or writing any caller object. */
+	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)) ||
+	    !object_valid(workspace, sizeof(*workspace), _Alignof(*workspace)))
+		return CB_ERR_ARG;
+	if (objects_overlap(plan, sizeof(*plan), workspace, sizeof(*workspace)) ||
+	    !object_valid(request, sizeof(*request), _Alignof(*request))) {
+		if (!objects_overlap(plan, sizeof(*plan), workspace, sizeof(*workspace)))
+			memset(workspace, 0, sizeof(*workspace));
+		return CB_ERR_ARG;
+	}
+	if (objects_overlap(request, sizeof(*request), plan, sizeof(*plan)) ||
+	    objects_overlap(request, sizeof(*request), workspace,
+		sizeof(*workspace)))
+		return CB_ERR_ARG;
+
+	memset(workspace, 0, sizeof(*workspace));
+	memcpy(&workspace->output_snapshot, plan, sizeof(*plan));
+	memcpy(&workspace->plan_workspace.output_snapshot, plan, sizeof(*plan));
+	memcpy(&workspace->request_snapshot, request, sizeof(*request));
+	if (!request_valid(&workspace->request_snapshot))
+		goto restore;
+	workspace->inventory.revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
+	workspace->inventory.size = sizeof(workspace->inventory);
+	workspace->inventory.generation = workspace->request_snapshot.generation;
+	memcpy(workspace->inventory.identity, workspace->request_snapshot.identity,
+		sizeof(workspace->inventory.identity));
+	context = (struct compose_context) {
+		.request = &workspace->request_snapshot,
+		.inventory = &workspace->inventory,
+		.overlay_covered = workspace->overlay_covered,
+	};
+	if (bootmem_walk_dram(collect_range, &context) || context.failed ||
+	    !workspace->inventory.span_count)
+		goto restore;
+	for (size_t index = 0;
+	     index < workspace->request_snapshot.overlay_count; index++)
+		if (workspace->overlay_covered[index] !=
+		    workspace->request_snapshot.overlays[index].size)
+			goto restore;
+	if (memcmp(&workspace->request_snapshot, request, sizeof(*request)) ||
+	    !output_untouched(workspace, plan))
+		goto restore;
+	plan_workspace_consumed = true;
+	if (payload_mm_authvar_mor_clear_plan_build_owned(&workspace->inventory,
+		plan, &workspace->plan_workspace) != CB_SUCCESS)
+		goto restore;
+	if (memcmp(&workspace->request_snapshot, request, sizeof(*request)))
+		goto restore;
+	result = CB_SUCCESS;
+	goto scrub;
+
+restore:
+	if (plan_workspace_consumed)
+		memcpy(plan, &workspace->output_snapshot, sizeof(*plan));
+	else
+		restore_callback_output(workspace, plan);
+scrub:
+	memset(workspace, 0, sizeof(*workspace));
+	return result;
+}
+
+#if ENV_TEST
 enum cb_err payload_mm_authvar_mor_live_inventory_compose(
 	const struct payload_mm_authvar_mor_live_inventory_request *request,
 	struct payload_mm_authvar_mor_clear_plan *plan)
 {
-	struct payload_mm_authvar_mor_live_inventory_request snapshot;
-	struct payload_mm_authvar_mor_clear_inventory inventory = { 0 };
-	struct payload_mm_authvar_mor_clear_plan candidate;
-	struct compose_context context = {
-		.request = &snapshot,
-		.inventory = &inventory,
-	};
+	struct payload_mm_authvar_mor_live_inventory_workspace workspace;
+	enum cb_err result;
 
 	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)))
 		return CB_ERR_ARG;
-	memset(plan, 0, sizeof(*plan));
-	if (!object_valid(request, sizeof(*request), _Alignof(*request)) ||
-	    objects_overlap(request, sizeof(*request), plan, sizeof(*plan)))
-		return CB_ERR_ARG;
-	memcpy(&snapshot, request, sizeof(snapshot));
-	if (!request_valid(&snapshot))
-		goto fail;
-	inventory.revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
-	inventory.size = sizeof(inventory);
-	inventory.generation = snapshot.generation;
-	memcpy(inventory.identity, snapshot.identity, sizeof(inventory.identity));
-	if (bootmem_walk_dram(collect_range, &context) || context.failed ||
-	    !inventory.span_count)
-		goto fail;
-	for (size_t index = 0; index < snapshot.overlay_count; index++)
-		if (context.overlay_covered[index] != snapshot.overlays[index].size)
-			goto fail;
-	if (payload_mm_authvar_mor_clear_plan_build(&inventory, &candidate) !=
-		CB_SUCCESS || memcmp(&snapshot, request, sizeof(snapshot)) ||
-		!bytes_zero(plan, sizeof(*plan)))
-		goto fail;
-	*plan = candidate;
-	return CB_SUCCESS;
-
-fail:
-	memset(plan, 0, sizeof(*plan));
-	return CB_ERR;
+	result = payload_mm_authvar_mor_live_inventory_compose_owned(request, plan,
+		&workspace);
+	if (result != CB_SUCCESS)
+		memset(plan, 0, sizeof(*plan));
+	return result;
 }
+#endif

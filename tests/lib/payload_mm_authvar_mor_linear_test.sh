@@ -36,8 +36,11 @@ grep -q 'BOOT_STATE_INIT_ENTRY(BS_OS_RESUME_CHECK, BS_ON_ENTRY, mor_before_bootm
 	"$root/src/lib/payload_mm_authvar_mor_linear.c"
 grep -q 'BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_EXIT, mor_after_bootmem' \
 	"$root/src/lib/payload_mm_authvar_mor_linear.c"
-! grep -R -q 'select PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR' \
-	"$root/src/mainboard" "$root/src/soc"
+if grep -R -q 'select PAYLOAD_MM_AUTHVAR_MOR_LINEAR_ORCHESTRATOR' \
+	"$root/src/mainboard" "$root/src/soc"; then
+	echo "ERROR: unexpected direct linear orchestrator selector" >&2
+	exit 1
+fi
 probe_line=$(grep -n 'payload_mm_authvar_mor_probe_entry(&entry)' \
 	"$root/src/lib/payload_mm_authvar_mor_linear.c" | cut -d: -f1)
 reserve_line=$(grep -n 'frozen_ops.reservations_register' \
@@ -74,12 +77,12 @@ mutant_test()
 mutant_test probe-error \
 	-e 's/payload_mm_authvar_mor_probe_entry(&entry) != CB_SUCCESS/false/'
 mutant_test s3-no-close \
-	-e 's/return close_authority(state, LIFECYCLE_CLASSIFYING);/return PAYLOAD_MM_AUTHVAR_MOR_LINEAR_CONTINUE;/'
+	-e 's/close_authority(state, LIFECYCLE_CLASSIFYING,/close_authority(state, LIFECYCLE_PROBING,/'
 mutant_test clear-error \
 	-e '/&state->grant) != CB_SUCCESS ||/s/!=/==/'
 mutant_test commit-mutation \
 	-e 's/commit_status != CB_SUCCESS || !commit_unchanged/commit_status != CB_SUCCESS/'
 mutant_test reentry-no-poison \
-	-e '/__atomic_store_n(&lifecycle.phase, LIFECYCLE_FAILED, __ATOMIC_RELEASE);/d'
+	-e '/__atomic_store_n(&lifecycle.poisoned, 1, __ATOMIC_RELEASE);/d'
 mutant_test owner-substitution \
 	-e 's/__atomic_load_n(&lifecycle.owner, __ATOMIC_ACQUIRE)/(uintptr_t)state/g'

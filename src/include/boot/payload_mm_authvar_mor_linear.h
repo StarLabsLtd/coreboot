@@ -84,11 +84,14 @@ struct payload_mm_authvar_mor_linear_state {
 enum payload_mm_authvar_mor_linear_result
 payload_mm_authvar_mor_linear_before_bootmem(
 	struct payload_mm_authvar_mor_linear_state *state,
-	const struct payload_mm_authvar_mor_linear_ops *ops);
+	const struct payload_mm_authvar_mor_linear_ops *ops,
+	struct payload_mm_authvar_mor_linear_state *callback_snapshot);
 
 enum payload_mm_authvar_mor_linear_result
 payload_mm_authvar_mor_linear_after_bootmem(
-	struct payload_mm_authvar_mor_linear_state *state);
+	struct payload_mm_authvar_mor_linear_state *state,
+	struct payload_mm_authvar_mor_clear_workspace *workspace,
+	struct payload_mm_authvar_mor_linear_state *callback_snapshot);
 
 const char *payload_mm_authvar_mor_linear_failure_name(
 	enum payload_mm_authvar_mor_linear_failure failure);

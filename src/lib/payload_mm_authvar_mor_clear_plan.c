@@ -68,77 +68,130 @@ enum cb_err payload_mm_authvar_mor_clear_plan_validate(
 	return CB_SUCCESS;
 }
 
-enum cb_err payload_mm_authvar_mor_clear_plan_build(
+enum cb_err payload_mm_authvar_mor_clear_plan_build_owned(
 	const struct payload_mm_authvar_mor_clear_inventory *inventory,
-	struct payload_mm_authvar_mor_clear_plan *plan)
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct payload_mm_authvar_mor_clear_plan_workspace *workspace)
 {
-	struct payload_mm_authvar_mor_clear_inventory snapshot;
-	struct payload_mm_authvar_mor_clear_inventory working;
-	struct payload_mm_authvar_mor_clear_plan candidate = { 0 };
 	uint64_t previous_end = 0;
+	enum cb_err result = CB_ERR;
 
-	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)))
+	/* Validate every address before reading or writing any caller object. */
+	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)) ||
+	    !object_valid(workspace, sizeof(*workspace), _Alignof(*workspace)))
 		return CB_ERR_ARG;
-	if (!object_valid(inventory, sizeof(*inventory), _Alignof(*inventory)) ||
-	    ranges_overlap(inventory, sizeof(*inventory), plan, sizeof(*plan))) {
-		memset(plan, 0, sizeof(*plan));
+	if (ranges_overlap(plan, sizeof(*plan), workspace, sizeof(*workspace)) ||
+	    !object_valid(inventory, sizeof(*inventory), _Alignof(*inventory))) {
+		if (!ranges_overlap(plan, sizeof(*plan), workspace, sizeof(*workspace)))
+			memset(workspace, 0, sizeof(*workspace));
 		return CB_ERR_ARG;
 	}
-	memcpy(&snapshot, inventory, sizeof(snapshot));
-	memcpy(&working, &snapshot, sizeof(working));
-	memset(plan, 0, sizeof(*plan));
-	if (snapshot.revision != PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION ||
-	    snapshot.size != sizeof(snapshot) || !snapshot.generation ||
-	    bytes_zero(snapshot.identity, sizeof(snapshot.identity)) ||
-	    !snapshot.span_count ||
-	    snapshot.span_count > PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RAW_MAX_SPANS ||
-	    snapshot.reserved)
-		return CB_ERR;
-	for (size_t index = snapshot.span_count;
-	     index < PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RAW_MAX_SPANS; index++)
-		if (!bytes_zero(&snapshot.spans[index], sizeof(snapshot.spans[index])))
-			return CB_ERR;
+	if (ranges_overlap(inventory, sizeof(*inventory), plan, sizeof(*plan)) ||
+	    ranges_overlap(inventory, sizeof(*inventory), workspace,
+		sizeof(*workspace)))
+		return CB_ERR_ARG;
 
-	for (size_t index = 1; index < working.span_count; index++) {
-		struct payload_mm_authvar_mor_grant_span selected = working.spans[index];
+	memset(workspace, 0, sizeof(*workspace));
+	memcpy(&workspace->output_snapshot, plan, sizeof(*plan));
+	memcpy(&workspace->inventory_snapshot, inventory, sizeof(*inventory));
+	memcpy(&workspace->inventory_working, &workspace->inventory_snapshot,
+		sizeof(workspace->inventory_working));
+	if (workspace->inventory_snapshot.revision !=
+		PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION ||
+	    workspace->inventory_snapshot.size !=
+		sizeof(workspace->inventory_snapshot) ||
+	    !workspace->inventory_snapshot.generation ||
+	    bytes_zero(workspace->inventory_snapshot.identity,
+		sizeof(workspace->inventory_snapshot.identity)) ||
+	    !workspace->inventory_snapshot.span_count ||
+	    workspace->inventory_snapshot.span_count >
+		PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RAW_MAX_SPANS ||
+	    workspace->inventory_snapshot.reserved)
+		goto restore;
+	for (size_t index = workspace->inventory_snapshot.span_count;
+	     index < PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RAW_MAX_SPANS; index++)
+		if (!bytes_zero(&workspace->inventory_snapshot.spans[index],
+			sizeof(workspace->inventory_snapshot.spans[index])))
+			goto restore;
+
+	for (size_t index = 1;
+	     index < workspace->inventory_working.span_count; index++) {
+		struct payload_mm_authvar_mor_grant_span selected =
+			workspace->inventory_working.spans[index];
 		size_t position = index;
 
-		while (position && working.spans[position - 1].base > selected.base) {
-			working.spans[position] = working.spans[position - 1];
+		while (position && workspace->inventory_working.spans[position - 1].base >
+		       selected.base) {
+			workspace->inventory_working.spans[position] =
+				workspace->inventory_working.spans[position - 1];
 			position--;
 		}
-		working.spans[position] = selected;
+		workspace->inventory_working.spans[position] = selected;
 	}
 
-	candidate.revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
-	candidate.size = sizeof(candidate);
-	candidate.inventory_generation = snapshot.generation;
-	memcpy(candidate.inventory_identity, snapshot.identity,
-		sizeof(candidate.inventory_identity));
-	for (size_t index = 0; index < working.span_count; index++) {
-		const struct payload_mm_authvar_mor_grant_span *span = &working.spans[index];
-		struct payload_mm_authvar_mor_grant_span *previous = candidate.span_count ?
-			&candidate.spans[candidate.span_count - 1] : NULL;
+	workspace->candidate.revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
+	workspace->candidate.size = sizeof(workspace->candidate);
+	workspace->candidate.inventory_generation =
+		workspace->inventory_snapshot.generation;
+	memcpy(workspace->candidate.inventory_identity,
+		workspace->inventory_snapshot.identity,
+		sizeof(workspace->candidate.inventory_identity));
+	for (size_t index = 0;
+	     index < workspace->inventory_working.span_count; index++) {
+		const struct payload_mm_authvar_mor_grant_span *span =
+			&workspace->inventory_working.spans[index];
+		struct payload_mm_authvar_mor_grant_span *previous =
+			workspace->candidate.span_count ?
+			&workspace->candidate.spans[
+				workspace->candidate.span_count - 1] : NULL;
 
 		if (!span_valid(span) || (index && span->base < previous_end))
-			return CB_ERR;
+			goto restore;
 		if (previous && span->base == previous_end &&
 		    previous->span_class == span->span_class &&
 		    previous->exclusion_reason == span->exclusion_reason) {
 			if (previous->size > UINT64_MAX - span->size)
-				return CB_ERR;
+				goto restore;
 			previous->size += span->size;
 		} else {
-			if (candidate.span_count >=
+			if (workspace->candidate.span_count >=
 			    PAYLOAD_MM_AUTHVAR_MOR_GRANT_MAX_SPANS)
-				return CB_ERR;
-			candidate.spans[candidate.span_count++] = *span;
+				goto restore;
+			workspace->candidate.spans[
+				workspace->candidate.span_count++] = *span;
 		}
 		previous_end = span->base + span->size;
 	}
-	if (!plan_snapshot_valid(&candidate) ||
-	    memcmp(&snapshot, inventory, sizeof(snapshot)))
-		return CB_ERR;
-	*plan = candidate;
-	return CB_SUCCESS;
+	if (!plan_snapshot_valid(&workspace->candidate) ||
+	    memcmp(&workspace->inventory_snapshot, inventory,
+		sizeof(*inventory)) ||
+	    memcmp(&workspace->output_snapshot, plan, sizeof(*plan)))
+		goto restore;
+	memcpy(plan, &workspace->candidate, sizeof(*plan));
+	result = CB_SUCCESS;
+	goto scrub;
+
+restore:
+	memcpy(plan, &workspace->output_snapshot, sizeof(*plan));
+scrub:
+	memset(workspace, 0, sizeof(*workspace));
+	return result;
 }
+
+#if ENV_TEST
+enum cb_err payload_mm_authvar_mor_clear_plan_build(
+	const struct payload_mm_authvar_mor_clear_inventory *inventory,
+	struct payload_mm_authvar_mor_clear_plan *plan)
+{
+	struct payload_mm_authvar_mor_clear_plan_workspace workspace;
+	enum cb_err result;
+
+	if (!object_valid(plan, sizeof(*plan), _Alignof(*plan)))
+		return CB_ERR_ARG;
+	result = payload_mm_authvar_mor_clear_plan_build_owned(inventory, plan,
+		&workspace);
+	if (result != CB_SUCCESS)
+		memset(plan, 0, sizeof(*plan));
+	return result;
+}
+#endif

@@ -177,16 +177,152 @@ static void boundaries(void)
 	expect_zero(&plan, sizeof(plan));
 }
 
+static void maximum_overlays(void)
+{
+	struct payload_mm_authvar_mor_live_inventory_request input = request();
+	struct payload_mm_authvar_mor_clear_plan plan;
+
+	input.overlay_count = PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_MAX_OVERLAYS;
+	for (size_t index = 0; index < input.overlay_count; index++)
+		input.overlays[index] =
+			(struct payload_mm_authvar_mor_live_inventory_overlay) {
+				.base = 0x1000 + index * 0x1000,
+				.size = 0x1000,
+				.exclusion_reason =
+					PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
+			};
+	sources[0] = (struct source_range) {
+		.base = 0x1000,
+		.size = input.overlay_count * 0x1000,
+		.tag = BM_MEM_RAM,
+	};
+	source_count = 1;
+	CHECK(payload_mm_authvar_mor_live_inventory_compose(&input, &plan) ==
+		CB_SUCCESS);
+	input.overlay_count++;
+	memset(&plan, 0xa5, sizeof(plan));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose(&input, &plan) !=
+		CB_SUCCESS);
+	expect_zero(&plan, sizeof(plan));
+}
+
+static void owned(void)
+{
+	struct payload_mm_authvar_mor_live_inventory_request input = request();
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_plan original;
+	struct payload_mm_authvar_mor_live_inventory_workspace workspace;
+
+	set_success_sources();
+	memset(&plan, 0x5a, sizeof(plan));
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		&workspace) == CB_SUCCESS);
+	CHECK(plan.span_count == 7);
+	expect_zero(&workspace, sizeof(workspace));
+
+	memset(&plan, 0x6b, sizeof(plan));
+	original = plan;
+	input.revision++;
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+
+	input = request();
+	set_success_sources();
+	memset(&workspace, 0xa5, sizeof(workspace));
+	mutate = &plan;
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+
+	set_success_sources();
+	memset(&workspace, 0xa5, sizeof(workspace));
+	mutate = &workspace.request_snapshot;
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+
+	set_success_sources();
+	memset(&workspace, 0xa5, sizeof(workspace));
+	mutate = &workspace.output_snapshot;
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		&workspace) == CB_ERR);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+}
+
+static void owned_aliases(void)
+{
+	union {
+		struct payload_mm_authvar_mor_live_inventory_workspace workspace;
+		struct payload_mm_authvar_mor_live_inventory_request request;
+		struct payload_mm_authvar_mor_clear_plan plan;
+		uint8_t bytes[sizeof(struct payload_mm_authvar_mor_live_inventory_workspace)];
+	} shared;
+	union {
+		struct payload_mm_authvar_mor_live_inventory_request request;
+		struct payload_mm_authvar_mor_clear_plan plan;
+	} input_output;
+	struct payload_mm_authvar_mor_live_inventory_request input = request();
+	struct payload_mm_authvar_mor_clear_plan plan;
+	struct payload_mm_authvar_mor_clear_plan original;
+	struct payload_mm_authvar_mor_live_inventory_workspace workspace;
+	uint8_t before[sizeof(shared)];
+
+	memset(&shared, 0xa5, sizeof(shared));
+	memcpy(before, shared.bytes, sizeof(before));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input,
+		&shared.plan, &shared.workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(before, shared.bytes, sizeof(before)));
+
+	memset(&shared, 0xa5, sizeof(shared));
+	memcpy(before, shared.bytes, sizeof(before));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&shared.request,
+		&plan, &shared.workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(before, shared.bytes, sizeof(before)));
+
+	memset(&input_output, 0xa5, sizeof(input_output));
+	memcpy(&shared, &input_output, sizeof(input_output));
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(
+		&input_output.request, &input_output.plan, &workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&shared, &input_output, sizeof(input_output)));
+
+	memset(&plan, 0x6b, sizeof(plan));
+	original = plan;
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(NULL, &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+	memset(&workspace, 0xa5, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(
+		(const void *)(uintptr_t)(UINTPTR_MAX - 7), &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+	expect_zero(&workspace, sizeof(workspace));
+	CHECK(payload_mm_authvar_mor_live_inventory_compose_owned(&input, &plan,
+		(void *)(uintptr_t)(UINTPTR_MAX - 7)) == CB_ERR_ARG);
+	CHECK(!memcmp(&plan, &original, sizeof(plan)));
+}
+
 #if defined(MOCK_PLAN_BUILDER)
 static size_t expected_raw_count;
 static size_t builder_calls;
 
-enum cb_err payload_mm_authvar_mor_clear_plan_build(
+enum cb_err payload_mm_authvar_mor_clear_plan_build_owned(
 	const struct payload_mm_authvar_mor_clear_inventory *inventory,
-	struct payload_mm_authvar_mor_clear_plan *plan)
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct payload_mm_authvar_mor_clear_plan_workspace *workspace)
 {
 	builder_calls++;
 	CHECK(inventory->span_count == expected_raw_count);
+	memset(workspace, 0, sizeof(*workspace));
 	memset(plan, 0, sizeof(*plan));
 	plan->revision = PAYLOAD_MM_AUTHVAR_MOR_CLEAR_REVISION;
 	plan->size = sizeof(*plan);
@@ -236,6 +372,7 @@ int main(int argc, char **argv)
 		success();
 		failures();
 		boundaries();
+		maximum_overlays();
 		return 0;
 	}
 	CHECK(argc == 2);
@@ -245,6 +382,12 @@ int main(int argc, char **argv)
 		failures();
 	else if (!strcmp(argv[1], "boundaries"))
 		boundaries();
+	else if (!strcmp(argv[1], "maximum-overlays"))
+		maximum_overlays();
+	else if (!strcmp(argv[1], "owned"))
+		owned();
+	else if (!strcmp(argv[1], "owned-aliases"))
+		owned_aliases();
 #if defined(MOCK_PLAN_BUILDER)
 	else if (!strcmp(argv[1], "raw-count"))
 		raw_count();

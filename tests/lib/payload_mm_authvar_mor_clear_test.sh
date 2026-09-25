@@ -9,8 +9,18 @@ mkdir -p "$temporary/include"
 printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 > \
 	"$temporary/include/config.h"
 
-cases='plan plan-reject plan-mutation receipt receipt-reject alias-range
+cases='plan plan-reject plan-mutation plan-owned plan-owned-aliases receipt receipt-reject alias-range
 alias-pairs receipt-mutation dma-mismatch written-count'
+
+assert_absent()
+{
+	pattern=$1
+	file=$2
+	if grep -q "$pattern" "$file"; then
+		echo "ERROR: unexpected pattern '$pattern' in $file" >&2
+		exit 1
+	fi
+}
 
 compile_binary()
 {
@@ -55,6 +65,8 @@ build_and_run asan "$source_file" "$plan_source" -O1 \
 	-fsanitize=address -fno-omit-frame-pointer
 build_and_run ubsan "$source_file" "$plan_source" -O1 \
 	-fsanitize=undefined -fno-omit-frame-pointer
+build_and_run tsan "$source_file" "$plan_source" -O1 \
+	-fsanitize=thread -fno-omit-frame-pointer
 
 "${CC:-cc}" -std=gnu11 -Os -m32 -Wall -Wextra -Werror -fno-builtin \
 	-fstack-usage -D__COREBOOT__ -D__RAMSTAGE__ \
@@ -80,11 +92,16 @@ build_and_run ubsan "$source_file" "$plan_source" -O1 \
 	-I"$temporary/include" -c "$root/src/lib/payload_mm_authvar_mor_grant.c" \
 	-o "$temporary/grant-stack.o"
 awk -F '\t' '
-	$1 ~ /:payload_mm_authvar_mor_clear_plan_build$/ ||
-	$1 ~ /:payload_mm_authvar_mor_clear_receipt_build$/ {
+	$1 ~ /:payload_mm_authvar_mor_clear_plan_build_owned$/ ||
+	$1 ~ /:payload_mm_authvar_mor_clear_receipt_build_owned$/ {
 		seen++
-		if ($1 ~ /:payload_mm_authvar_mor_clear_receipt_build$/)
+		if ($1 ~ /:payload_mm_authvar_mor_clear_receipt_build_owned$/)
 			receipt = $2 + 0
+		if ($1 ~ /:payload_mm_authvar_mor_clear_plan_build_owned$/ &&
+		    $2 + 0 > 256) {
+			print "ERROR: owned plan stack bound exceeded by " $1 ": " $2 > "/dev/stderr"
+			exit 1
+		}
 		if ($2 + 0 > 4096) {
 			print "ERROR: ramstage stack bound exceeded by " $1 ": " $2 > "/dev/stderr"
 			exit 1
@@ -109,7 +126,7 @@ awk -F '\t' '
 	}
 ' "$temporary/grant-stack.su" > "$temporary/grant-stack-result"
 receipt_stack=$(awk -F '\t' \
-	'$1 ~ /:payload_mm_authvar_mor_clear_receipt_build$/ { print $2 }' \
+	'$1 ~ /:payload_mm_authvar_mor_clear_receipt_build_owned$/ { print $2 }' \
 	"$temporary/clear-stack.su")
 grant_stack=$(cat "$temporary/grant-stack-result")
 if test "$((receipt_stack + grant_stack))" -gt 4096; then
@@ -145,19 +162,21 @@ mutant_test()
 
 mutant_test merge-adjacent "$plan_source" 'previous && span->base == previous_end &&' \
 	'previous \&\& true \&\&' plan
-mutant_test inventory-recheck "$plan_source" 'memcmp(\&snapshot, inventory, sizeof(snapshot))' \
-	'memcmp(inventory, inventory, sizeof(snapshot))' plan-mutation
+mutant_test inventory-recheck "$plan_source" \
+	'memcmp(\&workspace->inventory_snapshot, inventory,' \
+	'memcmp(inventory, inventory,' plan-mutation
 mutant_test dma-revalidation "$source_file" \
-	'memcmp(\&facts_snapshot.dma_before, \&facts_snapshot.dma_after,' \
-	'memcmp(\&facts_snapshot.dma_before, \&facts_snapshot.dma_before,' \
+	'memcmp(\&facts->dma_before, \&facts->dma_after,' \
+	'memcmp(\&facts->dma_before, \&facts->dma_before,' \
 	dma-mismatch
 mutant_test written-count "$source_file" 'record->written_bytes != span->size' \
 	'false' written-count
 mutant_test final-validator "$source_file" \
-	'payload_mm_authvar_mor_grant_validate(\&candidate) != CB_SUCCESS' \
+	'payload_mm_authvar_mor_grant_validate(grant) != CB_SUCCESS' \
 	'true' receipt
-mutant_test receipt-recheck "$source_file" 'memcmp(\&plan_snapshot, plan, sizeof(plan_snapshot))' \
-	'memcmp(plan, plan, sizeof(plan_snapshot))' receipt-mutation
+mutant_test receipt-recheck "$source_file" \
+	'!memcmp(\&scratch->plan, plan, sizeof(scratch->plan))' \
+	'!memcmp(plan, plan, sizeof(scratch->plan))' receipt-mutation
 
 mkdir -p "$temporary/config-default" "$temporary/build-default" \
 	"$temporary/config-plan" "$temporary/build-plan" \
@@ -168,7 +187,7 @@ CONFIG_BOARD_EMULATION_QEMU_X86_Q35=y
 EOF
 make -C "$root" obj="$temporary/build-default" \
 	DOTCONFIG="$temporary/config-default/.config" olddefconfig >/dev/null
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
 	"$temporary/config-default/.config"
 
 cp "$root/src/Kconfig" "$temporary/Kconfig-plan"
@@ -184,17 +203,17 @@ make -C "$root" obj="$temporary/build-plan" KBUILD_KCONFIG="$temporary/Kconfig-p
 	DOTCONFIG="$temporary/config-plan/.config" olddefconfig >/dev/null
 grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN=y' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y$' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT=y$' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_EXECUTOR=y$' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY=y$' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
 	"$temporary/config-plan/.config"
-! grep -q '^CONFIG_SMMSTORE=y$' "$temporary/config-plan/.config"
+assert_absent '^CONFIG_SMMSTORE=y$' "$temporary/config-plan/.config"
 
 cp "$root/src/Kconfig" "$temporary/Kconfig"
 cat >> "$temporary/Kconfig" <<'EOF'
@@ -215,13 +234,13 @@ grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN=y' \
 	"$temporary/config-clear/.config"
 grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT=y' \
 	"$temporary/config-clear/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE=y$' \
 	"$temporary/config-clear/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY=y$' \
 	"$temporary/config-clear/.config"
-! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
+assert_absent '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' \
 	"$temporary/config-clear/.config"
-! grep -q '^CONFIG_SMMSTORE=y$' "$temporary/config-clear/.config"
+assert_absent '^CONFIG_SMMSTORE=y$' "$temporary/config-clear/.config"
 
 grep -qx 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CLEAR_RECEIPT) += payload_mm_authvar_mor_clear.c' \
 	"$root/src/lib/Makefile.mk"

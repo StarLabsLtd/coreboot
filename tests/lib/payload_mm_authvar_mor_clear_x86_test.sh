@@ -96,6 +96,12 @@ mutant callback-mutation \
 nm -g --defined-only "$temporary/production.o" | \
 	grep -q 'payload_mm_authvar_mor_clear_x86_prepare$'
 ! nm -g --defined-only "$temporary/production.o" | grep -q 'prepare_with_ops'
+grep -q 'ops->executable_owner = _text;' \
+	"$root/src/lib/payload_mm_authvar_mor_clear_x86.c"
+grep -q 'ops->executable_owner_size = REGION_SIZE(text);' \
+	"$root/src/lib/payload_mm_authvar_mor_clear_x86.c"
+! grep -q 'ops->executable_owner = _program;' \
+	"$root/src/lib/payload_mm_authvar_mor_clear_x86.c"
 
 mkdir -p "$temporary/config" "$temporary/build"
 printf '%s\n' \
