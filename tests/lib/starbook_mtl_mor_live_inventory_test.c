@@ -36,12 +36,12 @@ static struct payload_mm_authvar_mor_clear_plan composed_plan(
 	return plan;
 }
 
-enum cb_err payload_mm_authvar_mor_live_inventory_compose(
+enum cb_err payload_mm_authvar_mor_live_inventory_compose_owned(
 	const struct payload_mm_authvar_mor_live_inventory_request *request,
-	struct payload_mm_authvar_mor_clear_plan *plan)
+	struct payload_mm_authvar_mor_clear_plan *plan,
+	struct payload_mm_authvar_mor_live_inventory_workspace *workspace)
 {
 	static const uint32_t reasons[] = {
-		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE,
 		PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED,
@@ -50,20 +50,23 @@ enum cb_err payload_mm_authvar_mor_live_inventory_compose(
 	};
 
 	compose_calls++;
+	CHECK(workspace != NULL);
 	CHECK(request->revision == PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY_REVISION &&
 		request->size == sizeof(*request) && request->generation == 9 &&
 		request->identity[0] == 0x99 &&
-		request->overlay_count == 6 + expected_extra);
-	for (size_t index = 0; index < 6; index++) {
-		CHECK(request->overlays[index].base == 0x1000 + index * 0x1000);
-		CHECK(request->overlays[index].size == 0x1000);
+		request->overlay_count == 5 + expected_extra);
+	for (size_t index = 0; index < 5; index++) {
+		CHECK(request->overlays[index].base ==
+			0x1000 + (index ? index + 1U : 0U) * 0x1000);
+		CHECK(request->overlays[index].size ==
+			(index ? 0x1000 : 0x2000));
 		CHECK(request->overlays[index].exclusion_reason == reasons[index]);
 	}
 	for (size_t index = 0; index < expected_extra; index++) {
-		CHECK(request->overlays[6 + index].base ==
+		CHECK(request->overlays[5 + index].base ==
 			0x10000 + index * 0x1000);
-		CHECK(request->overlays[6 + index].size == 0x1000);
-		CHECK(request->overlays[6 + index].exclusion_reason ==
+		CHECK(request->overlays[5 + index].size == 0x1000);
+		CHECK(request->overlays[5 + index].exclusion_reason ==
 			PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE);
 	}
 	if (mutate) {
@@ -73,14 +76,17 @@ enum cb_err payload_mm_authvar_mor_live_inventory_compose(
 	if (compose_fail)
 		return CB_ERR;
 	*plan = composed_plan(request);
+	memset(workspace, 0, sizeof(*workspace));
 	return CB_SUCCESS;
 }
 
-enum cb_err starbook_mtl_dma_guard_policy_validate(
+enum cb_err starbook_mtl_dma_guard_policy_validate_owned(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
-	const struct starbook_mtl_dma_guard_snapshot *snapshot)
+	const struct starbook_mtl_dma_guard_snapshot *snapshot,
+	struct starbook_mtl_dma_guard_policy_workspace *workspace)
 {
 	(void)plan;
+	CHECK(workspace != NULL);
 	policy_calls++;
 	CHECK(snapshot->generation == 9 && snapshot->identity[0] == 0x99);
 	return policy_fail ? CB_ERR : CB_SUCCESS;
@@ -116,10 +122,12 @@ static void expect_zero(const void *object, size_t size)
 
 int main(void)
 {
+	static struct starbook_mtl_mor_live_inventory_workspace workspace;
+	static uint8_t workspace_before[sizeof(workspace)];
 	struct starbook_mtl_dma_guard_snapshot snapshot = prepared();
 	struct payload_mm_authvar_mor_clear_plan plan;
 	struct payload_mm_authvar_mor_clear_plan original;
-	struct payload_mm_authvar_mor_live_inventory_overlay overlays[4];
+	struct payload_mm_authvar_mor_live_inventory_overlay overlays[5];
 
 	for (size_t index = 0; index < ARRAY_SIZE(overlays); index++)
 		overlays[index] = (struct payload_mm_authvar_mor_live_inventory_overlay) {
@@ -155,6 +163,21 @@ int main(void)
 		CB_SUCCESS);
 	expect_zero(&plan, sizeof(plan));
 	snapshot = prepared();
+	memset(&workspace, 0xa5, sizeof(workspace));
+	memcpy(workspace_before, &workspace, sizeof(workspace));
+	memset(&plan, 0x6b, sizeof(plan));
+	original = plan;
+	CHECK(starbook_mtl_mor_live_inventory_compose_with_overlays_owned(
+		(const void *)((const uint8_t *)&workspace + 1U), NULL, 0, &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&workspace, workspace_before, sizeof(workspace)) &&
+		!memcmp(&plan, &original, sizeof(plan)));
+	CHECK(starbook_mtl_mor_live_inventory_compose_with_overlays_owned(
+		&snapshot,
+		(const void *)((const uint8_t *)&workspace + 1U), 1, &plan,
+		&workspace) == CB_ERR_ARG);
+	CHECK(!memcmp(&workspace, workspace_before, sizeof(workspace)) &&
+		!memcmp(&plan, &original, sizeof(plan)));
 	mutate = &plan;
 	memset(&plan, 0xa5, sizeof(plan));
 	CHECK(starbook_mtl_mor_live_inventory_compose(&snapshot, &plan) !=

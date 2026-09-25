@@ -57,7 +57,7 @@ mutant_test arena-policy \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_PLATFORM_RESERVED' \
 	'PAYLOAD_MM_AUTHVAR_MOR_GRANT_EXCLUSION_ACTIVE_FIRMWARE'
 mutant_test prepared-mutation \
-	'memcmp(\&snapshot, prepared, sizeof(snapshot))' 'false'
+	'memcmp(\&workspace->snapshot, prepared,' 'memcmp(prepared, prepared,'
 mutant_test validator-exact-plan \
 	'memcmp(\&snapshot, \&expected, sizeof(snapshot))' 'false'
 
@@ -70,6 +70,11 @@ mutant_test validator-exact-plan \
 	-I"$root/src/arch/x86/include" -I"$root/build/tests" \
 	-c "$source_file" -o "$temporary/mtl-live-inventory.o"
 nm -g --defined-only "$temporary/mtl-live-inventory.o" |
-	grep -q ' starbook_mtl_mor_live_inventory_validate$'
+	grep -q ' starbook_mtl_mor_live_inventory_compose_with_overlays_owned$'
+if nm -g --defined-only "$temporary/mtl-live-inventory.o" |
+	grep -q ' starbook_mtl_mor_live_inventory_compose_with_overlays$'; then
+	echo 'ERROR: stack-allocating MTL inventory wrapper reached ramstage' >&2
+	exit 1
+fi
 
 echo 'StarBook MTL MOR live-inventory adapter validation: PASS'

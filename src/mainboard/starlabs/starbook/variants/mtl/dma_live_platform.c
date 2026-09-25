@@ -376,6 +376,7 @@ enum cb_err starbook_mtl_dma_guard_prepare(
 		&platform_guard_ops);
 }
 
+#if ENV_TEST
 enum cb_err starbook_mtl_dma_guard_bind(
 	const struct payload_mm_authvar_mor_clear_plan *plan,
 	const struct starbook_mtl_dma_guard_snapshot *prepared,
@@ -384,6 +385,18 @@ enum cb_err starbook_mtl_dma_guard_bind(
 {
 	return starbook_mtl_dma_guard_bind_with_ops(plan, prepared, bound, dma,
 		&platform_guard_ops);
+}
+#endif
+
+enum cb_err starbook_mtl_dma_guard_bind_owned(
+	const struct payload_mm_authvar_mor_clear_plan *plan,
+	const struct starbook_mtl_dma_guard_snapshot *prepared,
+	struct starbook_mtl_dma_guard_snapshot *bound,
+	struct payload_mm_authvar_mor_clear_dma_snapshot *dma,
+	struct starbook_mtl_dma_guard_bind_workspace *workspace)
+{
+	return starbook_mtl_dma_guard_bind_with_ops_owned(plan, prepared, bound, dma,
+		&platform_guard_ops, workspace);
 }
 #endif
 
