@@ -719,6 +719,34 @@ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
 	return gpio_pad_config_lock(pad_info);
 }
 
+bool gpio_pad_is_locked(const gpio_t pad, enum gpio_lock_action lock_action)
+{
+	const struct pad_community *comm = gpio_get_community(pad);
+	const size_t rel_pad = relative_pad_in_comm(comm, pad);
+	uint16_t offset = comm->pad_cfg_lock_offset;
+	const uint32_t bit_mask = gpio_bitmask_within_group(comm, rel_pad);
+	uint32_t value;
+
+	if (!(lock_action & GPIO_LOCK_FULL) || (lock_action & ~GPIO_LOCK_FULL) || !offset)
+		return false;
+
+	offset += gpio_group_index_scaled(comm, rel_pad, 2 * sizeof(uint32_t));
+
+	if (lock_action & GPIO_LOCK_CONFIG) {
+		value = pcr_read32(comm->port, offset);
+		if (value == UINT32_MAX || !(value & bit_mask))
+			return false;
+	}
+
+	if (lock_action & GPIO_LOCK_TX) {
+		value = pcr_read32(comm->port, offset + sizeof(uint32_t));
+		if (value == UINT32_MAX || !(value & bit_mask))
+			return false;
+	}
+
+	return true;
+}
+
 int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action)
 {
 	/* Skip locking GPIO PAD in early stages or in recovery mode */

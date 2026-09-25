@@ -325,8 +325,8 @@ static void verify_debug_pad_locks(void *unused)
 	if (!CONFIG(NO_DEBUG_EGRESS) || vboot_recovery_mode_enabled())
 		return;
 
-	if (gpio_lock_pad(GPP_H08, GPIO_LOCK_CONFIG) ||
-	    gpio_lock_pad(GPP_H09, GPIO_LOCK_CONFIG))
+	if (!gpio_pad_is_locked(GPP_H08, GPIO_LOCK_CONFIG) ||
+	    !gpio_pad_is_locked(GPP_H09, GPIO_LOCK_CONFIG))
 		die("Failed to lock debug UART pads\n");
 }
 
