@@ -91,6 +91,7 @@ struct write_trace_entry {
 };
 
 #ifndef EXECUTOR_REAL_MEDIA
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
 static bool write_trace_disjoint(const struct write_trace_entry *trace,
 	uint32_t protected_offset, uint32_t protected_size)
 {
@@ -104,6 +105,7 @@ static bool write_trace_disjoint(const struct write_trace_entry *trace,
 	protected_end = protected_offset + protected_size;
 	return trace_end <= protected_offset || protected_end <= trace->offset;
 }
+#endif
 static struct write_trace_entry program_trace[32];
 static struct write_trace_entry erase_trace[16];
 #endif
