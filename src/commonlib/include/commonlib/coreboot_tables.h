@@ -1012,6 +1012,8 @@ enum boot_mode_t {
 	 * to run in this boot mode.
 	 */
 	LB_BOOT_MODE_FLASH_UPDATE,
+	/* Device is resuming an operating-system hibernation image. */
+	LB_BOOT_MODE_S4_RESUME,
 };
 
 /*

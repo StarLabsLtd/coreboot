@@ -469,6 +469,10 @@ enum boot_mode_t {
 	CB_BOOT_MODE_RTC_WAKE,
 	/* Device is booting in "no-battery" */
 	CB_BOOT_MODE_NO_BATTERY,
+	/* Device is booting with flash protections disabled. */
+	CB_BOOT_MODE_FLASH_UPDATE,
+	/* Device is resuming an operating-system hibernation image. */
+	CB_BOOT_MODE_S4_RESUME,
 };
 
 /*

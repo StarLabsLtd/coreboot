@@ -198,9 +198,18 @@ uintptr_t get_coreboot_rsdp(void)
 	return ebda_base;
 }
 
+static bool resuming_s4;
+static enum boot_mode_t configured_boot_mode = LB_BOOT_MODE_NORMAL;
+static enum boot_mode_t expected_boot_mode = LB_BOOT_MODE_NORMAL;
+
 enum boot_mode_t get_boot_mode(void)
 {
-	return LB_BOOT_MODE_NORMAL;
+	return configured_boot_mode;
+}
+
+int platform_is_resuming_s4(void)
+{
+	return resuming_s4;
 }
 
 struct resource mock_bootmem_ranges[] = {
@@ -285,6 +294,9 @@ static int setup_write_tables_test(void **state)
 
 	if (!top_ptr)
 		return -1;
+	resuming_s4 = false;
+	configured_boot_mode = LB_BOOT_MODE_NORMAL;
+	expected_boot_mode = LB_BOOT_MODE_NORMAL;
 
 	*state = top_ptr;
 
@@ -447,7 +459,7 @@ static void test_write_tables(void **state)
 			assert_int_equal(sizeof(struct lb_boot_mode), record->size);
 
 			const struct lb_boot_mode *boot_mode = (struct lb_boot_mode *)record;
-			assert_int_equal(LB_BOOT_MODE_NORMAL, boot_mode->boot_mode);
+			assert_int_equal(expected_boot_mode, boot_mode->boot_mode);
 			break;
 		case LB_TAG_CBMEM_ENTRY:
 			assert_int_equal(sizeof(struct lb_cbmem_entry), record->size);
@@ -501,6 +513,21 @@ static void test_write_tables(void **state)
 	}
 }
 
+static void test_write_tables_s4(void **state)
+{
+	resuming_s4 = true;
+	expected_boot_mode = LB_BOOT_MODE_S4_RESUME;
+	test_write_tables(state);
+}
+
+static void test_write_tables_flash_update_over_s4(void **state)
+{
+	resuming_s4 = true;
+	configured_boot_mode = LB_BOOT_MODE_FLASH_UPDATE;
+	expected_boot_mode = LB_BOOT_MODE_FLASH_UPDATE;
+	test_write_tables(state);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -510,6 +537,12 @@ int main(void)
 		cmocka_unit_test_setup(test_multiple_entries, setup_test_header),
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),
 		cmocka_unit_test_setup_teardown(test_write_tables, setup_write_tables_test,
+						teardown_write_tables_test),
+		cmocka_unit_test_setup_teardown(test_write_tables_s4,
+						setup_write_tables_test,
+						teardown_write_tables_test),
+		cmocka_unit_test_setup_teardown(test_write_tables_flash_update_over_s4,
+						setup_write_tables_test,
 						teardown_write_tables_test),
 	};
 

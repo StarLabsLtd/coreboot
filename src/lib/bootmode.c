@@ -73,6 +73,11 @@ __weak int platform_is_resuming(void)
 	return 0;
 }
 
+__weak int platform_is_resuming_s4(void)
+{
+	return 0;
+}
+
 /*
  * Check if the platform is resuming from S3 and force a reboot when
  * S3 resume is not supported (e.g. !CONFIG(HAVE_ACPI_RESUME)).
