@@ -203,12 +203,15 @@ dimm_info_util-test-srcs += tests/stubs/console.c
 
 coreboot_table-test-srcs += tests/lib/coreboot_table-test.c
 coreboot_table-test-srcs += tests/stubs/console.c
+coreboot_table-test-srcs += tests/stubs/die.c
 coreboot_table-test-srcs += src/commonlib/bsd/ipchksum.c
 coreboot_table-test-srcs += src/lib/coreboot_table.c
+coreboot_table-test-srcs += src/lib/payload_mm_authvar_presence_publication.c
 coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
+coreboot_table-test-config += CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION=1
 
 payload_resource_handoff-test-srcs += tests/lib/payload_resource_handoff-test.c
 payload_resource_handoff-test-srcs += tests/stubs/console.c
