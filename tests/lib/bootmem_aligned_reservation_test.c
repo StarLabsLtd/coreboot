@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <boot/payload_mm_authvar_presence_producer.h>
 #include <bootmem.h>
 #include <bootmem_reservation_receipt.h>
 #include <device/device.h>
@@ -225,6 +226,25 @@ static void success(void)
 	CHECK(bootmem_aligned_reservation_register(&tables, &forged));
 }
 
+static void presence_producer_contract(void)
+{
+	struct bootmem_aligned_reservation_request value = request(
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT, 1ULL << 32,
+		BM_MEM_RESERVED);
+	struct bootmem_aligned_reservation_handle handle;
+	struct bootmem_aligned_reservation result;
+
+	CHECK(!bootmem_aligned_reservation_register(&value, &handle));
+	initialize();
+	CHECK(!bootmem_aligned_reservation_query(&handle, &result));
+	CHECK(result.base && result.size == PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE &&
+		result.tag == BM_MEM_RESERVED && !result.reserved &&
+		!(result.base % PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT) &&
+		result.base + PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE <=
+		result.base + result.size);
+}
+
 static void bounded(void)
 {
 	struct bootmem_aligned_reservation_handle handles[
@@ -423,6 +443,8 @@ int main(int argc, char **argv)
 		capacity_failure();
 	else if (!strcmp(argv[1], "atomic-capacity"))
 		atomic_capacity();
+	else if (!strcmp(argv[1], "presence-producer-contract"))
+		presence_producer_contract();
 #if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
 	else if (!strcmp(argv[1], "receipt-handle-signer-alias"))
 		receipt_alias(true);

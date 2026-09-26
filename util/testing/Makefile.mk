@@ -160,6 +160,10 @@ test-authvar-presence-authority:
 	tests/lib/payload_mm_authvar_presence_authority_test.sh
 	tests/lib/payload_mm_authvar_presence_composed_test.sh
 
+.PHONY: test-authvar-presence-producer
+test-authvar-presence-producer:
+	tests/lib/payload_mm_authvar_presence_producer_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

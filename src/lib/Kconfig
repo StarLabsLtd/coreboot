@@ -433,6 +433,18 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
 	  the fixed internal PK-deletion coordinator. No platform selects this
 	  option, emits its coreboot-table endpoint or installs an APM route here.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
+	bool
+	default n
+	depends on BOOTMEM_ALIGNED_RESERVATIONS
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
+	help
+	  Build the dormant ramstage composition boundary for the fixed presence
+	  authority. It reserves page-granular backing for an exact 80-byte one-shot
+	  boot-local mailbox, but has no platform selection, route or coreboot-table
+	  writer. A future platform must inject every protection and lifecycle proof
+	  and explicitly consume the publication handoff.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n
