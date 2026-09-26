@@ -168,6 +168,10 @@ test-authvar-presence-producer:
 test-authvar-presence-publication:
 	tests/lib/payload_mm_authvar_presence_publication_test.sh
 
+.PHONY: test-authvar-presence-handoff
+test-authvar-presence-handoff:
+	tests/lib/payload_mm_authvar_presence_handoff_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh
