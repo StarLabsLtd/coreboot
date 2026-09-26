@@ -101,6 +101,7 @@ enum {
 	LB_TAG_DMA_HANDOFF		= 0x0053,
 	LB_TAG_CAPSULE_BROKER_ENDPOINT	= 0x0054,
 	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
+	LB_TAG_AUTHVAR_PRESENCE_ENDPOINT = 0x0056,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -1019,6 +1020,64 @@ _Static_assert(offsetof(struct lb_authvar_service_endpoint, generation) == 16 &&
 	offsetof(struct lb_authvar_service_endpoint, maximum_name_size) == 52 &&
 	offsetof(struct lb_authvar_service_endpoint, reserved) == 60,
 	"authenticated-variable endpoint layout");
+
+#define LB_AUTHVAR_PRESENCE_ENDPOINT_REVISION 1U
+
+#define LB_AUTHVAR_PRESENCE_COREBOOT_SMM_OWNER  (1U << 0)
+#define LB_AUTHVAR_PRESENCE_FIXED_COMMUNICATION (1U << 1)
+#define LB_AUTHVAR_PRESENCE_DMA_PROTECTED       (1U << 2)
+#define LB_AUTHVAR_PRESENCE_CPU_RENDEZVOUS      (1U << 3)
+#define LB_AUTHVAR_PRESENCE_ONE_SHOT_CAPABILITY (1U << 4)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_SEALED    (1U << 5)
+#define LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS \
+	(LB_AUTHVAR_PRESENCE_COREBOOT_SMM_OWNER | \
+	 LB_AUTHVAR_PRESENCE_FIXED_COMMUNICATION | \
+	 LB_AUTHVAR_PRESENCE_DMA_PROTECTED | \
+	 LB_AUTHVAR_PRESENCE_CPU_RENDEZVOUS | \
+	 LB_AUTHVAR_PRESENCE_ONE_SHOT_CAPABILITY | \
+	 LB_AUTHVAR_PRESENCE_LIFECYCLE_SEALED)
+
+#define LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8 1U
+#define LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE 1U
+#define LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE 32U
+
+/*
+ * Public description of the fixed physical-presence mailbox. The capability
+ * size describes the message field; capability bytes are never in this table.
+ */
+struct lb_authvar_presence_endpoint {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t flags;
+	lb_uint64_t generation;
+	lb_uint64_t communication_base;
+	uint32_t communication_size;
+	uint32_t message_size;
+	uint16_t transport;
+	uint16_t trigger_width;
+	uint32_t trigger_address;
+	uint32_t trigger_value;
+	uint32_t action_scope;
+	uint32_t capability_size;
+	uint32_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct lb_authvar_presence_endpoint) == 64,
+	"authenticated-variable presence endpoint ABI");
+_Static_assert(offsetof(struct lb_authvar_presence_endpoint, generation) == 16 &&
+	offsetof(struct lb_authvar_presence_endpoint, communication_base) == 24 &&
+	offsetof(struct lb_authvar_presence_endpoint, communication_size) == 32 &&
+	offsetof(struct lb_authvar_presence_endpoint, message_size) == 36 &&
+	offsetof(struct lb_authvar_presence_endpoint, transport) == 40 &&
+	offsetof(struct lb_authvar_presence_endpoint, trigger_width) == 42 &&
+	offsetof(struct lb_authvar_presence_endpoint, trigger_address) == 44 &&
+	offsetof(struct lb_authvar_presence_endpoint, trigger_value) == 48 &&
+	offsetof(struct lb_authvar_presence_endpoint, action_scope) == 52 &&
+	offsetof(struct lb_authvar_presence_endpoint, capability_size) == 56 &&
+	offsetof(struct lb_authvar_presence_endpoint, reserved) == 60,
+	"authenticated-variable presence endpoint layout");
 struct lb_cfr {
 	uint32_t tag;
 	uint32_t size;

@@ -151,6 +151,10 @@ test-authvar-service-abi:
 	tests/lib/payload_mm_authvar_store_test.sh
 	tests/lib/payload_mm_authvar_semantics_manifest_test.sh
 
+.PHONY: test-authvar-presence-abi
+test-authvar-presence-abi:
+	tests/lib/payload_mm_authvar_presence_abi_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh
