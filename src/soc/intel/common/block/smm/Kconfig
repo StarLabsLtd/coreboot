@@ -2,6 +2,12 @@
 
 config SOC_INTEL_COMMON_BLOCK_SMM
 	bool
+	select SMM_APMC_ROUTE_ACPI_CONTROL
+	select SMM_APMC_ROUTE_CFR
+	select SMM_APMC_ROUTE_ELOG
+	select SMM_APMC_ROUTE_FINALIZE
+	select SMM_APMC_ROUTE_OPAL
+	select SMM_APMC_ROUTE_SMMSTORE
 	help
 	  Intel Processor common SMM support
 

@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only
+CHECK|CAMELCASE|src/cpu/x86/smm_command.c:7|Avoid CamelCase: <_Static_assert>|_Static_assert(!CONFIG(SMM_APMC_COMMAND_REGISTRY) ||
+CHECK|MACRO_ARG_REUSE|src/cpu/x86/smm_command.c:31|Macro argument reuse 'value' - possible side-effects?|#define ENABLED_CASE(value, command_owner, command_role, bindings) \
+CHECK|MACRO_ARG_REUSE|src/include/cpu/x86/smm_command.h:110|Macro argument reuse 'ENTRY' - possible side-effects?|#define SMM_APMC_LIFECYCLE_CLAIMS(ENTRY) \
+CHECK|MACRO_ARG_REUSE|src/include/cpu/x86/smm_command.h:141|Macro argument reuse 'ENTRY' - possible side-effects?|#define SMM_APMC_OPAL_CLAIMS(ENTRY) \
+CHECK|MACRO_ARG_REUSE|src/include/cpu/x86/smm_command.h:187|Macro argument reuse 'ENTRY' - possible side-effects?|#define SMM_APMC_ENABLED_CLAIMS(ENTRY) \
+CHECK|MACRO_ARG_REUSE|src/include/cpu/x86/smm_command.h:39|Macro argument reuse 'ENTRY' - possible side-effects?|#define SMM_APMC_RESERVED_COMMANDS(ENTRY) \
+CHECK|MACRO_ARG_REUSE|src/include/cpu/x86/smm_command.h:93|Macro argument reuse 'ENTRY' - possible side-effects?|#define SMM_APMC_ACPI_CLAIMS(ENTRY) \
+CHECK|PARENTHESIS_ALIGNMENT|src/cpu/x86/smm_command.c:50|Alignment should match open parenthesis|enum smm_apmc_dispatch_result smm_apmc_command_classify(u8 command,
+CHECK|PARENTHESIS_ALIGNMENT|src/include/cpu/x86/smm_command.h:226|Alignment should match open parenthesis|enum smm_apmc_dispatch_result smm_apmc_command_classify(u8 command,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:104|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(SMM_APMC_CAPSULE_BROKER,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:113|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(SMM_APMC_STARLABS_EFI_OPTION,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:120|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(SMM_APMC_ACER_BOARD,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:37|Alignment should match open parenthesis|		assert(smm_apmc_command_classify(command,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:50|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(0x7aU, SMM_APMC_OWNER_HANDLED,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:52|Alignment should match open parenthesis|	assert(!memcmp(&descriptor, &(struct smm_apmc_descriptor) { 0 },
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:66|Alignment should match open parenthesis|		assert(smm_apmc_command_classify(expected->command,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:72|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(APM_CNT_ACPI_ENABLE,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:79|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(APM_CNT_ACPI_ENABLE,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:81|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(APM_CNT_ACPI_ENABLE,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:85|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(SMM_APMC_SPI_CONSOLE,
+CHECK|PARENTHESIS_ALIGNMENT|tests/cpu/x86/smm_command_test.c:96|Alignment should match open parenthesis|	assert(smm_apmc_command_classify(SMM_APMC_SPI_CONSOLE,
+ERROR|COMPLEX_MACRO|src/include/cpu/x86/smm_command.h:110|Macros with complex values should be enclosed in parentheses|#define SMM_APMC_LIFECYCLE_CLAIMS(ENTRY) \
+ERROR|COMPLEX_MACRO|src/include/cpu/x86/smm_command.h:141|Macros with complex values should be enclosed in parentheses|#define SMM_APMC_OPAL_CLAIMS(ENTRY) \
+ERROR|COMPLEX_MACRO|src/include/cpu/x86/smm_command.h:187|Macros with complex values should be enclosed in parentheses|#define SMM_APMC_ENABLED_CLAIMS(ENTRY) \
+ERROR|COMPLEX_MACRO|src/include/cpu/x86/smm_command.h:39|Macros with complex values should be enclosed in parentheses|#define SMM_APMC_RESERVED_COMMANDS(ENTRY) \
+ERROR|COMPLEX_MACRO|src/include/cpu/x86/smm_command.h:93|Macros with complex values should be enclosed in parentheses|#define SMM_APMC_ACPI_CLAIMS(ENTRY) \
+ERROR|MULTISTATEMENT_MACRO_USE_DO_WHILE|src/cpu/x86/smm_command.c:19|Macros with multiple statements should be enclosed in a do - while loop|#define RESERVED_CASE(value) case value: return true;
+ERROR|MULTISTATEMENT_MACRO_USE_DO_WHILE|src/cpu/x86/smm_command.c:31|Macros with multiple statements should be enclosed in a do - while loop|#define ENABLED_CASE(value, command_owner, command_role, bindings) \
+ERROR|SPACING|src/cpu/x86/smm_command.c:22|spaces required around that ':' (ctx:VxE)|	default:
+ERROR|SPACING|src/cpu/x86/smm_command.c:44|spaces required around that ':' (ctx:VxE)|	default:
+WARNING|MACRO_WITH_FLOW_CONTROL|src/cpu/x86/smm_command.c:19|Macros with flow control statements should be avoided|#define RESERVED_CASE(value) case value: return true;
+WARNING|MACRO_WITH_FLOW_CONTROL|src/cpu/x86/smm_command.c:31|Macros with flow control statements should be avoided|#define ENABLED_CASE(value, command_owner, command_role, bindings) \
+WARNING|TRAILING_SEMICOLON|src/cpu/x86/smm_command.c:11|macros should not use a trailing semicolon|#define ASSERT_ONE_BINDING(value, owner, role, bindings) \
+WARNING|TRAILING_SEMICOLON|src/cpu/x86/smm_command.c:19|macros should not use a trailing semicolon|#define RESERVED_CASE(value) case value: return true;
+WARNING|TRAILING_SEMICOLON|src/cpu/x86/smm_command.c:31|macros should not use a trailing semicolon|#define ENABLED_CASE(value, command_owner, command_role, bindings) \

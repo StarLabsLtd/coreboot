@@ -111,6 +111,7 @@ config DRIVERS_OPTION_CFR_RUNTIME_APPLY
 config STARLABS_SMM_OPTION_HANDLER
 	def_bool y if STARLABS_ACPI_EFI_OPTION_SMI
 	default y if DRIVERS_OPTION_CFR_RUNTIME_APPLY
+	select SMM_APMC_COMPOSITION_ATTESTED if SOC_INTEL_COMMON_BLOCK_SMM
 
 config STARLABS_LEGACY_PL4
 	bool
@@ -163,6 +164,7 @@ config STARLABS_ACPI_EFI_OPTION_SMI
 	depends on USE_UEFI_VARIABLE_STORE
 	depends on HAVE_ACPI_TABLES
 	default y
+	select SMM_APMC_ROUTE_STARLABS_EFI_OPTION
 	help
 	  Provide ACPI methods that proxy a restricted set of coreboot options
 	  (e.g. keyboard backlight and trackpad state) to the UEFI variable
