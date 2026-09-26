@@ -8,10 +8,12 @@ Before bootmem initialization, `payload_mm_authvar_presence_producer_reserve()`
 registers one page-sized, page-aligned, below-4-GiB `BM_MEM_RESERVED` backing
 range. The public endpoint exposes only the exact 80-byte mailbox at its start.
 The DMA proof covers the complete backing page; the lifecycle proof gates the
-mailbox and endpoint publication. Any failure after the reservation resolves
-scrubs that complete page. A failure before resolution cannot address or scrub
-the page, but no capability has been generated or written and no endpoint is
-published. The reservation itself cannot be returned.
+mailbox and endpoint publication. Cleanup ownership starts with the reservation
+handle, moves to the resolved producer page, and moves to protected authority
+only when an exact private transaction acknowledgement reports transfer. An
+abort acknowledgement reports that protected authority already cleaned the
+page. Failures before composition query the exact reservation handle and scrub
+the resolved page before publishing the terminal producer state.
 
 After bootmem initialization, a future platform supplies one immutable policy
 and copied context. The policy must prove a cold boot, transfer the private seed
@@ -20,7 +22,8 @@ protection, active CPU rendezvous, cold-reset readiness, lifecycle closure and
 the complete platform route/local-presence composition. The install callback
 must copy and consume the seed using a protected SMM-loader mechanism; retaining
 the ramstage pointer is invalid. Failure is terminal for the boot and closes any
-possibly installed authority, scrubs resolved backing and exposes no record.
+possibly installed authority; exactly one current owner scrubs resolved backing
+and no record is exposed.
 The producer becomes irreversibly terminal and returns an error; the future
 platform caller must turn that error into a boot stop. This dormant boundary
 does not yet install that caller.

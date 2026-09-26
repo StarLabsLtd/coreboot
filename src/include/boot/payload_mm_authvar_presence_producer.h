@@ -5,17 +5,15 @@
 
 #include <boot/payload_mm_authvar_presence.h>
 
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION 2U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX 128U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE 4096U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT 4096U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION 1U
-
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION 2U
 /* Private, one-use ramstage-to-SMM input. It is not a wire or table ABI. */
 struct payload_mm_authvar_presence_seed {
 	uint32_t revision;
 	uint32_t size;
 	struct lb_authvar_presence_endpoint endpoint;
+	struct payload_mm_authvar_presence_backing backing;
 	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE];
 };
 
@@ -72,8 +70,12 @@ enum cb_err payload_mm_authvar_presence_producer_publication_take(
 void payload_mm_authvar_presence_producer_abort(void);
 
 #if ENV_TEST
+typedef void (*payload_mm_authvar_presence_producer_test_hook_fn)(void);
+
 void payload_mm_authvar_presence_producer_reset_test(void);
 const void *payload_mm_authvar_presence_producer_test_state(size_t *size);
+void payload_mm_authvar_presence_producer_before_prepare_test_hook(
+	payload_mm_authvar_presence_producer_test_hook_fn hook);
 #endif
 
 #endif

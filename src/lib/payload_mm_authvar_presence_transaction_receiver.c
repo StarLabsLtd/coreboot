@@ -141,6 +141,10 @@ static void make_ack(
 		.binding = *binding, .decision = decision,
 		.transport_status = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED,
 		.operation_status = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED,
+		.backing_status =
+			decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
+			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
+			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED,
 	};
 }
 

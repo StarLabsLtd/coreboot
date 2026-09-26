@@ -6,7 +6,7 @@
 #include <boot/payload_mm_authvar.h>
 #include <boot/payload_mm_authvar_presence.h>
 
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION 2U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX 128U
 
 typedef enum cb_err (*payload_mm_authvar_presence_provision_fn)(void *context,
@@ -16,16 +16,20 @@ typedef bool (*payload_mm_authvar_presence_range_proof_fn)(void *context,
 	uint64_t base, uint64_t size);
 typedef bool (*payload_mm_authvar_presence_state_proof_fn)(void *context);
 typedef void (*payload_mm_authvar_presence_cold_reset_fn)(void *context);
+typedef void (*payload_mm_authvar_presence_fail_stop_fn)(void *context)
+	__noreturn;
 
 /* Protected SMM installation policy; this is not a shared-memory ABI. */
 struct payload_mm_authvar_presence_policy {
 	uint32_t revision;
 	uint32_t size;
 	struct lb_authvar_presence_endpoint endpoint;
+	struct payload_mm_authvar_presence_backing backing;
 	payload_mm_authvar_presence_provision_fn provision;
 	payload_mm_authvar_presence_range_proof_fn dma_protected;
 	payload_mm_authvar_presence_state_proof_fn cpu_rendezvous_active;
 	payload_mm_authvar_presence_cold_reset_fn cold_reset;
+	payload_mm_authvar_presence_fail_stop_fn fail_stop;
 	void *context;
 	size_t context_size;
 };
@@ -59,6 +63,12 @@ typedef void (*payload_mm_authvar_presence_restrict_test_hook_fn)(void);
 void payload_mm_authvar_presence_authority_reset_test(void);
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size);
 void payload_mm_authvar_presence_authority_restrict_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_restrict_claim_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_dispatch_finish_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_cleanup_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 #endif
 
