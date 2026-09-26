@@ -44,6 +44,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_coordinator.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_set_preflight.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) += \
 	payload_mm_authvar_presence.c \
+	payload_mm_authvar_presence_backing.c \
 	payload_mm_authvar_presence_authority.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 	payload_mm_authvar_presence.c \

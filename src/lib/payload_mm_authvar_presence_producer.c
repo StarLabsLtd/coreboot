@@ -18,12 +18,20 @@ enum producer_state {
 	PRODUCER_ABORT_REQUESTED,
 };
 
+enum producer_backing_owner {
+	PRODUCER_BACKING_NONE,
+	PRODUCER_BACKING_RESERVATION,
+	PRODUCER_BACKING_PRODUCER,
+	PRODUCER_BACKING_AUTHORITY,
+};
+
 struct producer_storage {
 	uint32_t state;
 	struct bootmem_aligned_reservation_handle reservation;
 	struct lb_authvar_presence_endpoint endpoint;
 	uint64_t backing_base;
 	uint32_t backing_size;
+	uint32_t backing_owner;
 	struct payload_mm_authvar_presence_composition policy;
 	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX];
 	uint8_t sealed_context[PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX];
@@ -32,6 +40,9 @@ struct producer_storage {
 };
 
 static struct producer_storage producer;
+#if ENV_TEST
+static payload_mm_authvar_presence_producer_test_hook_fn before_prepare_hook;
+#endif
 
 _Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE >=
 	PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE,
@@ -51,13 +62,8 @@ static __noinline void scrub(void *buffer, size_t size)
 
 static bool claim(uint32_t from, uint32_t to)
 {
-	if (__atomic_compare_exchange_n(&producer.state, &from, to, false,
-		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
-		return true;
-	if (from == PRODUCER_BUSY)
-		(void)__atomic_compare_exchange_n(&producer.state, &from,
-			PRODUCER_FAILED, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
-	return false;
+	return __atomic_compare_exchange_n(&producer.state, &from, to, false,
+		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
 }
 
 static bool busy(void)
@@ -140,7 +146,10 @@ static __noreturn void fail_stop(void);
 
 static void rollback(void)
 {
-	if (producer.policy.authority_abort && producer.sealed_transaction.generation &&
+	struct bootmem_aligned_reservation reservation;
+
+	if (producer.backing_owner == PRODUCER_BACKING_AUTHORITY &&
+	    producer.policy.authority_abort && producer.sealed_transaction.generation &&
 	    producer.sealed_transaction.transaction_id &&
 	    (__atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) ==
 		PRODUCER_BUSY ||
@@ -169,10 +178,20 @@ static void rollback(void)
 		scrub(&ack, sizeof(ack));
 		scrub(&work, sizeof(work));
 	}
-	if (producer.backing_base && producer.backing_size ==
+	if (producer.backing_owner == PRODUCER_BACKING_PRODUCER &&
+	    producer.backing_base && producer.backing_size ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE)
 		scrub((void *)(uintptr_t)producer.backing_base,
 			producer.backing_size);
+	if (producer.backing_owner == PRODUCER_BACKING_RESERVATION &&
+	    !bootmem_aligned_reservation_query(&producer.reservation,
+		&reservation) &&
+	    reservation.base &&
+	    reservation.size == PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE &&
+	    reservation.tag == BM_MEM_RESERVED && !reservation.reserved &&
+	    reservation.base <= UINTPTR_MAX - reservation.size &&
+	    !(reservation.base % PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT))
+		scrub((void *)(uintptr_t)reservation.base, reservation.size);
 	clear_storage();
 	__atomic_store_n(&producer.state, PRODUCER_FAILED, __ATOMIC_RELEASE);
 }
@@ -186,7 +205,8 @@ static __noreturn void fail_stop(void)
 
 	if (context_size)
 		memcpy(context, producer.context, context_size);
-	if (producer.backing_base && producer.backing_size ==
+	if (producer.backing_owner == PRODUCER_BACKING_PRODUCER &&
+	    producer.backing_base && producer.backing_size ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE)
 		scrub((void *)(uintptr_t)producer.backing_base,
 			producer.backing_size);
@@ -214,6 +234,7 @@ enum cb_err payload_mm_authvar_presence_producer_reserve(void)
 		rollback();
 		return CB_ERR;
 	}
+	producer.backing_owner = PRODUCER_BACKING_RESERVATION;
 	if (!claim(PRODUCER_BUSY, PRODUCER_RESERVED)) {
 		rollback();
 		return CB_ERR;
@@ -282,6 +303,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 		goto fail;
 	producer.backing_base = reservation.base;
 	producer.backing_size = (uint32_t)reservation.size;
+	producer.backing_owner = PRODUCER_BACKING_PRODUCER;
 	scrub((void *)(uintptr_t)reservation.base, reservation.size);
 
 	memset(&seed, 0, sizeof(seed));
@@ -311,6 +333,14 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 		.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
 		.capability_size = LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE,
 	};
+	seed.backing = (struct payload_mm_authvar_presence_backing) {
+		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
+		.size = sizeof(seed.backing),
+		.base = reservation.base,
+		.bytes = reservation.size,
+		.generation = seed.endpoint.generation,
+		.tag = reservation.tag,
+	};
 	memcpy(seed.capability, &random[2], sizeof(seed.capability));
 	if (payload_mm_authvar_presence_endpoint_validate(&seed.endpoint) != CB_SUCCESS)
 		goto fail_local;
@@ -339,6 +369,10 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	memcpy(producer.transaction.capability, &transaction_random[2],
 		sizeof(producer.transaction.capability));
 	producer.sealed_transaction = producer.transaction;
+#if ENV_TEST
+	if (before_prepare_hook)
+		before_prepare_hook();
+#endif
 	if (!claim(PRODUCER_BUSY, PRODUCER_PREPARING))
 		goto fail_local;
 	transaction_work = producer.sealed_transaction;
@@ -372,13 +406,19 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 				&producer.sealed_transaction,
 				PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT,
 				&transaction_ack, transaction_rax))
-				fail_stop();
+				{
+					producer.backing_owner =
+						PRODUCER_BACKING_AUTHORITY;
+					fail_stop();
+				}
 		}
+		producer.backing_owner = PRODUCER_BACKING_NONE;
 		scrub(&transaction_ack, sizeof(transaction_ack));
 		scrub(&transaction_work, sizeof(transaction_work));
 		scrub(&abort_work, sizeof(abort_work));
 		goto fail_aborted;
 	}
+	producer.backing_owner = PRODUCER_BACKING_AUTHORITY;
 	scrub(&transaction_ack, sizeof(transaction_ack));
 	scrub(&transaction_work, sizeof(transaction_work));
 	scrub(&abort_work, sizeof(abort_work));
@@ -413,7 +453,8 @@ fail_aborted:
 	scrub(&message, sizeof(message));
 	scrub(random, sizeof(random));
 	scrub(transaction_random, sizeof(transaction_random));
-	if (producer.backing_base && producer.backing_size ==
+	if (producer.backing_owner == PRODUCER_BACKING_PRODUCER &&
+	    producer.backing_base && producer.backing_size ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE)
 		scrub((void *)(uintptr_t)producer.backing_base,
 			producer.backing_size);
@@ -493,7 +534,14 @@ void payload_mm_authvar_presence_producer_abort(void)
 		if (state == PRODUCER_FINALIZING || state == PRODUCER_PUBLISHED ||
 		    state == PRODUCER_FAILED || state == PRODUCER_ABORT_REQUESTED)
 			return;
-		if (state == PRODUCER_BUSY || state == PRODUCER_EMPTY) {
+		if (state == PRODUCER_BUSY) {
+			if (__atomic_compare_exchange_n(&producer.state, &expected,
+				PRODUCER_ABORT_REQUESTED, false, __ATOMIC_ACQ_REL,
+				__ATOMIC_ACQUIRE))
+				return;
+			continue;
+		}
+		if (state == PRODUCER_EMPTY) {
 			if (__atomic_compare_exchange_n(&producer.state, &expected,
 				PRODUCER_FAILED, false, __ATOMIC_ACQ_REL,
 				__ATOMIC_ACQUIRE))
@@ -525,6 +573,7 @@ void payload_mm_authvar_presence_producer_abort(void)
 void payload_mm_authvar_presence_producer_reset_test(void)
 {
 	scrub(&producer, sizeof(producer));
+	before_prepare_hook = NULL;
 }
 
 const void *payload_mm_authvar_presence_producer_test_state(size_t *size)
@@ -532,5 +581,11 @@ const void *payload_mm_authvar_presence_producer_test_state(size_t *size)
 	if (size)
 		*size = sizeof(producer);
 	return &producer;
+}
+
+void payload_mm_authvar_presence_producer_before_prepare_test_hook(
+	payload_mm_authvar_presence_producer_test_hook_fn hook)
+{
+	before_prepare_hook = hook;
 }
 #endif

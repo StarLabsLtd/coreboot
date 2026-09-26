@@ -27,10 +27,12 @@ build_test()
 	sender=${3:-$root/src/lib/payload_mm_authvar_presence_handoff_sender.c}
 	receiver=${4:-$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c}
 	receipt=${5:-$root/src/lib/bootmem_reservation_receipt.c}
+	backing=${6:-$root/src/lib/payload_mm_authvar_presence_backing.c}
 	objects=
 	for source in \
 		"$root/tests/lib/payload_mm_authvar_presence_handoff_test.c" \
 		"$sender" "$receiver" \
+		"$backing" \
 		"$root/src/lib/payload_mm_authvar_presence.c"; do
 		object="$temporary/$name-$(basename "$source").o"
 		# Deliberate normal flag splitting for this host-only strict harness.
@@ -136,11 +138,13 @@ mutation mutable-request \
 	's/memcmp(\&observed, request, sizeof(observed))/false/g'
 
 for verifier in transfer mailbox; do
-	legacy="$temporary/legacy-$verifier-receiver.c"
+	legacy="$temporary/legacy-$verifier.c"
 	if [ "$verifier" = transfer ]; then
 		range='/candidate.transfer_receipt.bytes/,/BM_MEM_RESERVED)/'
+		source="$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c"
 	else
-		range='/candidate.mailbox_receipt.bytes/,/BM_MEM_RESERVED)/'
+		range='/valid = bootmem_reservation/,/BM_MEM_RESERVED)/'
+		source="$root/src/lib/payload_mm_authvar_presence_backing.c"
 	fi
 	sed \
 	-e '/#include <string.h>/a\
@@ -152,17 +156,57 @@ static enum cb_err legacy_presence_verify(\
 \treturn bootmem_reservation_receipt_verify_consume(verifier, receipt);\
 }' \
 	-e "$range s/bootmem_reservation_receipt_verify_consume_exact_tag(/legacy_presence_verify(/" \
-		"$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c" > "$legacy"
+		"$source" > "$legacy"
 	for optimization in 0 2; do
-		build_test "legacy-$verifier-O$optimization" "-O$optimization" \
-			"$root/src/lib/payload_mm_authvar_presence_handoff_sender.c" \
-			"$legacy"
+		if [ "$verifier" = transfer ]; then
+			build_test "legacy-$verifier-O$optimization" "-O$optimization" \
+				"$root/src/lib/payload_mm_authvar_presence_handoff_sender.c" \
+				"$legacy"
+		else
+			build_test "legacy-$verifier-O$optimization" "-O$optimization" \
+				"$root/src/lib/payload_mm_authvar_presence_handoff_sender.c" \
+				"$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c" \
+				"$root/src/lib/bootmem_reservation_receipt.c" "$legacy"
+		fi
 		if "$temporary/legacy-$verifier-O$optimization" >/dev/null 2>&1; then
 			printf 'mutation survived: legacy %s receipt wrapper O%s\n' \
 				"$verifier" "$optimization" >&2
 			exit 1
 		fi
 	done
+done
+
+backing_mutant="$temporary/no-receipt-backing-generation.c"
+sed 's/receipt_snapshot.generation != backing_snapshot.generation/false/' \
+	"$root/src/lib/payload_mm_authvar_presence_backing.c" > "$backing_mutant"
+for optimization in 0 2; do
+	build_test "no-receipt-backing-generation-O$optimization" \
+		"-O$optimization" \
+		"$root/src/lib/payload_mm_authvar_presence_handoff_sender.c" \
+		"$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c" \
+		"$root/src/lib/bootmem_reservation_receipt.c" "$backing_mutant"
+	if "$temporary/no-receipt-backing-generation-O$optimization" \
+		>/dev/null 2>&1; then
+		printf 'mutation survived: no receipt/backing generation O%s\n' \
+			"$optimization" >&2
+		exit 1
+	fi
+done
+
+backing_mutant="$temporary/early-evidence-terminal.c"
+sed '/phase == EVIDENCE_READY || phase == EVIDENCE_CONSUMED/,+5s/EVIDENCE_CLOSING/EVIDENCE_TERMINAL/' \
+	"$root/src/lib/payload_mm_authvar_presence_backing.c" > "$backing_mutant"
+for optimization in 0 2; do
+	build_test "early-evidence-terminal-O$optimization" "-O$optimization" \
+		"$root/src/lib/payload_mm_authvar_presence_handoff_sender.c" \
+		"$root/src/lib/payload_mm_authvar_presence_handoff_receiver.c" \
+		"$root/src/lib/bootmem_reservation_receipt.c" "$backing_mutant"
+	if "$temporary/early-evidence-terminal-O$optimization" \
+		>/dev/null 2>&1; then
+		printf 'mutation survived: early evidence terminal O%s\n' \
+			"$optimization" >&2
+		exit 1
+	fi
 done
 
 # Compile once with stack reports and reject unexpectedly large host frames.

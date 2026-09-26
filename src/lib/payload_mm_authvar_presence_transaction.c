@@ -64,7 +64,10 @@ bool payload_mm_authvar_presence_transaction_ack_valid(
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED &&
 		ack->operation_status ==
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED &&
-		!ack->reserved &&
+		ack->backing_status ==
+			(decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
+			 PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
+			 PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED) &&
 		saved_rax == payload_mm_authvar_presence_transaction_rax(binding,
 			decision);
 }

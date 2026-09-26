@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_presence_handoff.h>
+#include <boot/payload_mm_authvar_presence_backing.h>
 #include <string.h>
 
 #if !ENV_SMM && !ENV_TEST
@@ -158,6 +159,13 @@ static bool seed_valid(const struct payload_mm_authvar_presence_seed *seed,
 		seed->endpoint.communication_base == mailbox_base &&
 		seed->endpoint.communication_size ==
 			PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE &&
+		seed->backing.revision ==
+			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION &&
+		seed->backing.size == sizeof(seed->backing) &&
+		seed->backing.base == mailbox_base &&
+		seed->backing.bytes == PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE &&
+		seed->backing.generation == generation &&
+		seed->backing.tag == BM_MEM_RESERVED && !seed->backing.reserved &&
 		payload_mm_authvar_presence_endpoint_validate(&seed->endpoint) ==
 			CB_SUCCESS && nonzero(seed->capability, sizeof(seed->capability));
 }
@@ -255,11 +263,7 @@ enum cb_err payload_mm_authvar_presence_handoff_receive(
 	authenticated = true;
 	if (candidate.mailbox_size != PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE ||
 	    candidate.mailbox_receipt.base != candidate.mailbox_base ||
-	    candidate.mailbox_receipt.bytes != candidate.mailbox_size ||
-	    bootmem_reservation_receipt_verify_consume_exact_tag(
-		&slot->mailbox_verifier, &candidate.mailbox_receipt,
-		BM_MEM_RESERVED) != CB_SUCCESS ||
-	    !zero(&candidate.mailbox_receipt, sizeof(candidate.mailbox_receipt)))
+	    candidate.mailbox_receipt.bytes != candidate.mailbox_size)
 		goto out;
 	if (__atomic_load_n(&slot->state, __ATOMIC_ACQUIRE) != HANDOFF_TAKING ||
 	    candidate.revision != PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF_REVISION ||
@@ -286,8 +290,12 @@ enum cb_err payload_mm_authvar_presence_handoff_receive(
 		metadata.channel_generation))
 		goto out;
 	sealed_seed = candidate.seed;
-	if (platform_payload_mm_authvar_presence_handoff_receiver_install(
+	if (payload_mm_authvar_presence_backing_evidence_publish(
+		&slot->mailbox_verifier, &candidate.mailbox_receipt,
+		&sealed_seed.backing) != CB_SUCCESS ||
+	    platform_payload_mm_authvar_presence_handoff_receiver_install(
 		&candidate.seed) != CB_SUCCESS ||
+	    !payload_mm_authvar_presence_backing_evidence_consumed() ||
 	    memcmp(&candidate.seed, &sealed_seed, sizeof(sealed_seed)) ||
 	    memcmp(&observed, request, sizeof(observed)) ||
 	    memcmp(&frozen, descriptor, sizeof(frozen)) ||
@@ -298,6 +306,7 @@ enum cb_err payload_mm_authvar_presence_handoff_receive(
 	status = CB_SUCCESS;
 
 out:
+	payload_mm_authvar_presence_backing_evidence_close();
 	if (authenticated)
 		scrub(request, PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF_TRANSFER_SIZE);
 	terminal_close(slot);
@@ -330,6 +339,7 @@ void payload_mm_authvar_presence_handoff_receiver_abort(void)
 void payload_mm_authvar_presence_handoff_receiver_reset_test(void)
 {
 	scrub(&receiver_phase, sizeof(receiver_phase));
+	payload_mm_authvar_presence_backing_evidence_reset_test();
 }
 
 bool payload_mm_authvar_presence_handoff_slot_terminal_test(

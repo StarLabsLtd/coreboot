@@ -13,6 +13,20 @@
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_PENDING UINT32_MAX
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_COMPLETE 0U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_PENDING UINT64_MAX
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE 4096U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT 4096U
+
+/* Private descriptor sealed only after exact reserved-page authentication. */
+struct payload_mm_authvar_presence_backing {
+	uint32_t revision;
+	uint32_t size;
+	uint64_t base;
+	uint64_t bytes;
+	uint64_t generation;
+	uint32_t tag;
+	uint32_t reserved;
+};
 
 /* Fixed-width EFI_STATUS values carried by the wire ABI. */
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_ERROR_BIT (1ULL << 63)

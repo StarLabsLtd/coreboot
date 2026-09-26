@@ -20,6 +20,7 @@ static unsigned int random_calls;
 static unsigned int prepare_calls;
 static unsigned int commit_calls;
 static unsigned int abort_calls;
+static unsigned int authority_scrubs;
 static bool prepared;
 static bool committed;
 static bool aborted;
@@ -32,10 +33,17 @@ static bool prepare_entered;
 static bool prepare_release;
 static bool commit_entered;
 static bool commit_release;
+static bool block_query;
+static bool query_entered;
+static bool query_release;
+static bool before_prepare_entered;
+static bool before_prepare_release;
 static pthread_mutex_t commit_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t commit_cond = PTHREAD_COND_INITIALIZER;
 static enum cb_err finalize_result;
 static enum cb_err compose_result;
+
+static void *compose_thread(void *unused);
 
 int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
@@ -53,6 +61,14 @@ int bootmem_aligned_reservation_query(
 	struct bootmem_aligned_reservation *reservation)
 {
 	assert(handle->opaque[0] == 1U && handle->opaque[1] == 2U);
+	if (block_query && !query_entered) {
+		assert(!pthread_mutex_lock(&commit_mutex));
+		query_entered = true;
+		assert(!pthread_cond_broadcast(&commit_cond));
+		while (!query_release)
+			assert(!pthread_cond_wait(&commit_cond, &commit_mutex));
+		assert(!pthread_mutex_unlock(&commit_mutex));
+	}
 	*reservation = (struct bootmem_aligned_reservation) {
 		.base = (uintptr_t)backing,
 		.size = sizeof(backing),
@@ -90,6 +106,10 @@ static void ack(const struct payload_mm_authvar_presence_transaction_binding *b,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED,
 		.operation_status =
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED,
+		.backing_status =
+			decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
+			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
+			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED,
 	};
 	*rax = payload_mm_authvar_presence_transaction_rax(b, decision);
 }
@@ -103,6 +123,8 @@ static enum cb_err prepare_authority(void *context,
 	assert(seed->endpoint.generation == binding->generation);
 	prepare_calls++;
 	prepared = true;
+	backing[80] = 0xa5U;
+	backing[sizeof(backing) - 1U] = 0x5aU;
 	if (block_prepare) {
 		assert(!pthread_mutex_lock(&commit_mutex));
 		prepare_entered = true;
@@ -144,6 +166,8 @@ static enum cb_err abort_authority(void *context,
 	abort_calls++;
 	aborted = true;
 	prepared = false;
+	memset(backing, 0, sizeof(backing));
+	authority_scrubs++;
 	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, result, rax);
 	return CB_SUCCESS;
 }
@@ -184,10 +208,13 @@ static void reset_fixture(void)
 	payload_mm_authvar_presence_producer_reset_test();
 	memset(backing, 0, sizeof(backing));
 	random_calls = prepare_calls = commit_calls = abort_calls = 0;
+	authority_scrubs = 0;
 	prepared = committed = aborted = false;
 	prepare_error = commit_error = bad_prepare_ack = false;
 	block_commit = commit_entered = commit_release = false;
 	block_prepare = prepare_entered = prepare_release = false;
+	block_query = query_entered = query_release = false;
+	before_prepare_entered = before_prepare_release = false;
 	finalize_result = CB_ERR;
 	compose_result = CB_ERR;
 }
@@ -223,6 +250,8 @@ static void success_and_abort(void)
 	compose();
 	payload_mm_authvar_presence_producer_abort();
 	assert(abort_calls == 1U && aborted && !commit_calls);
+	assert(authority_scrubs == 1U);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
 	assert(payload_mm_authvar_presence_producer_publication_take(&endpoint) ==
 		CB_ERR);
 }
@@ -241,6 +270,8 @@ static void ambiguous(void)
 	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_ERR);
 	assert(prepare_calls == 1U && abort_calls == 1U && aborted);
+	assert(authority_scrubs == 1U);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
 
 	reset_fixture();
 	bad_prepare_ack = true;
@@ -259,6 +290,82 @@ static void ambiguous(void)
 	}
 	assert(waitpid(child, &wait_status, 0) == child);
 	assert(WIFSIGNALED(wait_status) && WTERMSIG(wait_status) == SIGABRT);
+}
+
+static void reservation_owner_cleanup(void)
+{
+	uint32_t context = 0x12345678U;
+	struct payload_mm_authvar_presence_composition policy =
+		composition(&context);
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	memset(backing, 0x69, sizeof(backing));
+	policy.revision++;
+	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_ERR);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
+	assert(!prepare_calls && !abort_calls && !authority_scrubs);
+}
+
+static void busy_abort_owner_cleanup(void)
+{
+	pthread_t thread;
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	memset(backing, 0x96, sizeof(backing));
+	block_query = true;
+	assert(!pthread_create(&thread, NULL, compose_thread, NULL));
+	assert(!pthread_mutex_lock(&commit_mutex));
+	while (!query_entered)
+		assert(!pthread_cond_wait(&commit_cond, &commit_mutex));
+	assert(backing[80] == 0x96U && backing[sizeof(backing) - 1U] == 0x96U);
+	payload_mm_authvar_presence_producer_abort();
+	assert(backing[80] == 0x96U && backing[sizeof(backing) - 1U] == 0x96U);
+	query_release = true;
+	assert(!pthread_cond_broadcast(&commit_cond));
+	assert(!pthread_mutex_unlock(&commit_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(compose_result == CB_ERR);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
+}
+
+static void block_before_prepare_once(void)
+{
+	payload_mm_authvar_presence_producer_before_prepare_test_hook(NULL);
+	backing[80] = 0x3cU;
+	backing[sizeof(backing) - 1U] = 0xc3U;
+	assert(!pthread_mutex_lock(&commit_mutex));
+	before_prepare_entered = true;
+	assert(!pthread_cond_broadcast(&commit_cond));
+	while (!before_prepare_release)
+		assert(!pthread_cond_wait(&commit_cond, &commit_mutex));
+	assert(!pthread_mutex_unlock(&commit_mutex));
+}
+
+static void transaction_created_abort_owner_cleanup(void)
+{
+	pthread_t thread;
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	payload_mm_authvar_presence_producer_before_prepare_test_hook(
+		block_before_prepare_once);
+	assert(!pthread_create(&thread, NULL, compose_thread, NULL));
+	assert(!pthread_mutex_lock(&commit_mutex));
+	while (!before_prepare_entered)
+		assert(!pthread_cond_wait(&commit_cond, &commit_mutex));
+	assert(!pthread_mutex_unlock(&commit_mutex));
+	payload_mm_authvar_presence_producer_abort();
+	assert(!abort_calls && backing[80] == 0x3cU &&
+		backing[sizeof(backing) - 1U] == 0xc3U);
+	assert(!pthread_mutex_lock(&commit_mutex));
+	before_prepare_release = true;
+	assert(!pthread_cond_broadcast(&commit_cond));
+	assert(!pthread_mutex_unlock(&commit_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(compose_result == CB_ERR && !abort_calls);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
 }
 
 static void *finalize_thread(void *unused)
@@ -326,6 +433,9 @@ int main(void)
 {
 	success_and_abort();
 	ambiguous();
+	reservation_owner_cleanup();
+	busy_abort_owner_cleanup();
+	transaction_created_abort_owner_cleanup();
 	prepare_abort_race();
 	finalize_wins();
 	return 0;

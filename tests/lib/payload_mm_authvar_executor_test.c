@@ -3,6 +3,7 @@
 #include <boot/payload_mm_authvar_executor.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 #include <boot/payload_mm_authvar_presence_authority.h>
+#include <bootmem.h>
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
@@ -4846,7 +4847,11 @@ static void coordinator_presence_durable_failure(bool end_failure)
 }
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-static struct payload_mm_authvar_presence_message presence_mailbox __aligned(8);
+static union {
+	struct payload_mm_authvar_presence_message message;
+	uint8_t bytes[PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE];
+} presence_page __aligned(PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT);
+#define presence_mailbox presence_page.message
 static uint8_t presence_capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE];
 static unsigned int presence_reset_calls;
 
@@ -4854,13 +4859,13 @@ static bool presence_protected_storage(void *context, const void *storage,
 	size_t size)
 {
 	uintptr_t start = (uintptr_t)storage;
-	uintptr_t mailbox_start = (uintptr_t)&presence_mailbox;
+	uintptr_t mailbox_start = (uintptr_t)&presence_page;
 
 	(void)context;
 	return storage && size &&
 		(start > mailbox_start || mailbox_start - start >= size) &&
 		(mailbox_start > start || start - mailbox_start >=
-			sizeof(presence_mailbox));
+			 sizeof(presence_page));
 }
 
 static enum cb_err presence_provision(void *context, uint64_t generation,
@@ -4877,8 +4882,16 @@ static enum cb_err presence_provision(void *context, uint64_t generation,
 static bool presence_dma_protected(void *context, uint64_t base, uint64_t size)
 {
 	(void)context;
-	return base == (uintptr_t)&presence_mailbox &&
-		size == sizeof(presence_mailbox);
+	return base == (uintptr_t)&presence_page && size == sizeof(presence_page);
+}
+
+enum cb_err payload_mm_authvar_presence_backing_evidence_take(
+	const struct payload_mm_authvar_presence_backing *backing)
+{
+	return backing && backing->base == (uintptr_t)&presence_page &&
+		backing->bytes == sizeof(presence_page) &&
+		backing->generation == 7U && backing->tag == BM_MEM_RESERVED ?
+		CB_SUCCESS : CB_ERR;
 }
 
 static bool presence_rendezvous(void *context)
@@ -4891,6 +4904,12 @@ static void presence_cold_reset(void *context)
 {
 	(void)context;
 	presence_reset_calls++;
+}
+
+static __noreturn void presence_fail_stop(void *context)
+{
+	(void)context;
+	abort();
 }
 
 static void coordinator_presence_authority_noop(void)
@@ -4906,7 +4925,7 @@ static void coordinator_presence_authority_noop(void)
 			.header_size = sizeof(struct lb_authvar_presence_endpoint),
 			.flags = LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS,
 			.generation = 7U,
-			.communication_base = (uintptr_t)&presence_mailbox,
+			.communication_base = (uintptr_t)&presence_page,
 			.communication_size = sizeof(presence_mailbox),
 			.message_size = sizeof(presence_mailbox),
 			.transport = LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8,
@@ -4916,10 +4935,19 @@ static void coordinator_presence_authority_noop(void)
 			.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
 			.capability_size = LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE,
 		},
+		.backing = {
+			.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
+			.size = sizeof(struct payload_mm_authvar_presence_backing),
+			.base = (uintptr_t)&presence_page,
+			.bytes = sizeof(presence_page),
+			.generation = 7U,
+			.tag = BM_MEM_RESERVED,
+		},
 		.provision = presence_provision,
 		.dma_protected = presence_dma_protected,
 		.cpu_rendezvous_active = presence_rendezvous,
 		.cold_reset = presence_cold_reset,
+		.fail_stop = presence_fail_stop,
 	};
 	bool reset_required = false;
 	unsigned int programs;
@@ -4946,11 +4974,10 @@ static void coordinator_presence_authority_noop(void)
 	programs = program_count;
 	erases = erase_count;
 	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
-	assert(presence_mailbox.status ==
-		PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_SUCCESS &&
-		presence_mailbox.completion == PAYLOAD_MM_AUTHVAR_PRESENCE_COMPLETE &&
-		presence_reset_calls == 1U && program_count == programs &&
+	assert(presence_reset_calls == 1U && program_count == programs &&
 		erase_count == erases);
+	for (size_t index = 0; index < sizeof(presence_page); index++)
+		assert(!presence_page.bytes[index]);
 }
 #endif
 

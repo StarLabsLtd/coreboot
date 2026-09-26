@@ -57,6 +57,14 @@ static struct payload_mm_authvar_presence_seed seed(void)
 	struct payload_mm_authvar_presence_seed value = {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION,
 		.size = sizeof(value), .endpoint = { .generation = 7U },
+		.backing = {
+			.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
+			.size = sizeof(struct payload_mm_authvar_presence_backing),
+			.base = 0x100000U,
+			.bytes = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE,
+			.generation = 7U,
+			.tag = BM_MEM_RESERVED,
+		},
 	};
 	memset(value.capability, 0xa5, sizeof(value.capability));
 	return value;
@@ -242,8 +250,25 @@ static void request(uint32_t decision)
 static void exact_ack(uint32_t decision)
 {
 	struct payload_mm_authvar_presence_transaction_binding b = binding();
+	struct payload_mm_authvar_presence_transaction_ack altered;
+	uint32_t expected_backing;
+
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
 		&page.ack, published_rax));
+	altered = page.ack;
+	altered.backing_status = 0;
+	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
+		&altered, published_rax));
+	expected_backing = decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED;
+	altered.backing_status = expected_backing ^ 0x01010101U;
+	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
+		&altered, published_rax));
+	altered = page.ack;
+	altered.binding.revision = 1U;
+	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
+		&altered, published_rax));
 	assert(zero(&page.request, sizeof(page.request)));
 }
 

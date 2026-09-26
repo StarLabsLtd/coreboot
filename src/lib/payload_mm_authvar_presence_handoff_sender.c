@@ -295,6 +295,14 @@ enum cb_err payload_mm_authvar_presence_handoff_install(void *context,
 	    sealed_seed.endpoint.communication_base != mailbox.base ||
 	    sealed_seed.endpoint.communication_size !=
 		PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE ||
+	    sealed_seed.backing.revision !=
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION ||
+	    sealed_seed.backing.size != sizeof(sealed_seed.backing) ||
+	    sealed_seed.backing.base != mailbox.base ||
+	    sealed_seed.backing.bytes != mailbox.size ||
+	    sealed_seed.backing.generation != sender.generation ||
+	    sealed_seed.backing.tag != BM_MEM_RESERVED ||
+	    sealed_seed.backing.reserved ||
 	    payload_mm_authvar_presence_endpoint_validate(&sealed_seed.endpoint) !=
 		CB_SUCCESS || memcmp(seed, &sealed_seed, sizeof(sealed_seed)) ||
 	    !nonzero(sealed_seed.capability, sizeof(sealed_seed.capability)))

@@ -111,6 +111,10 @@ mutation no-ack-transaction \
 mutation no-ack-capability \
 	payload_mm_authvar_presence_transaction.c \
 	's/!memcmp(ack->binding.capability, binding->capability,/!memcmp(binding->capability, binding->capability,/'
+mutation no-backing-status \
+	payload_mm_authvar_presence_transaction.c \
+	's/ack->backing_status ==/(ack->backing_status == ack->backing_status || ack->backing_status ==/;
+	 s/PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED) \&\&/PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED)) \&\&/'
 mutation no-saved-rax \
 	payload_mm_authvar_presence_transaction.c \
 	'/saved_rax == payload_mm_authvar_presence_transaction_rax/,+1c\

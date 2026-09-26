@@ -2,7 +2,9 @@
 
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_presence_authority.h>
+#include <boot/payload_mm_authvar_presence_backing.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <bootmem.h>
 #if !ENV_TEST
 #include <halt.h>
 #endif
@@ -15,6 +17,9 @@
 enum presence_phase {
 	PRESENCE_EMPTY,
 	PRESENCE_OPEN,
+	PRESENCE_EXECUTING,
+	PRESENCE_RESTRICT_REQUESTED,
+	PRESENCE_POISON_REQUESTED,
 	PRESENCE_RESTRICTING,
 	PRESENCE_ATTEMPTED,
 	PRESENCE_CLOSED,
@@ -39,6 +44,9 @@ static struct {
 
 #if ENV_TEST
 static payload_mm_authvar_presence_restrict_test_hook_fn restrict_test_hook;
+static payload_mm_authvar_presence_restrict_test_hook_fn restrict_claim_test_hook;
+static payload_mm_authvar_presence_restrict_test_hook_fn dispatch_finish_test_hook;
+static payload_mm_authvar_presence_restrict_test_hook_fn cleanup_test_hook;
 #endif
 
 static __noinline void scrub(void *buffer, size_t size)
@@ -128,10 +136,28 @@ static bool install_phase_empty(void)
 }
 
 static void mailbox_scrub(
-	const struct lb_authvar_presence_endpoint *endpoint)
+	const struct payload_mm_authvar_presence_policy *policy)
 {
-	scrub((void *)(uintptr_t)endpoint->communication_base,
-		endpoint->communication_size);
+	scrub((void *)(uintptr_t)policy->backing.base, policy->backing.bytes);
+}
+
+static bool backing_valid(
+	const struct payload_mm_authvar_presence_policy *policy)
+{
+	const struct payload_mm_authvar_presence_backing *backing =
+		&policy->backing;
+	const struct lb_authvar_presence_endpoint *endpoint = &policy->endpoint;
+
+	return backing->revision == PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION &&
+		backing->size == sizeof(*backing) && backing->base &&
+		backing->bytes == PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE &&
+		backing->generation == endpoint->generation &&
+		backing->tag == BM_MEM_RESERVED && !backing->reserved &&
+		backing->base <= UINTPTR_MAX - backing->bytes &&
+		!(backing->base % PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT) &&
+		endpoint->communication_base == backing->base &&
+		endpoint->communication_size == PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE &&
+		endpoint->communication_size <= backing->bytes;
 }
 
 static bool callback_protected(payload_mm_authvar_protected_storage proof,
@@ -145,8 +171,14 @@ static bool mailbox_unprotected(payload_mm_authvar_protected_storage proof,
 {
 	return !proof(context,
 		(const void *)(uintptr_t)endpoint->communication_base,
-		endpoint->communication_size);
+		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE);
 }
+
+static bool page_guard(
+	const struct payload_mm_authvar_presence_policy *snapshot);
+static __noreturn void cleanup_fail_stop(
+	payload_mm_authvar_presence_fail_stop_fn callback,
+	const void *failure_context, size_t failure_context_size);
 
 enum cb_err payload_mm_authvar_presence_authority_install(
 	const struct payload_mm_authvar_presence_policy *trusted_policy,
@@ -154,7 +186,10 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	void *storage_context)
 {
 	struct payload_mm_authvar_presence_policy candidate;
+	struct payload_mm_authvar_presence_policy snapshot;
 	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE] = { 0 };
+	uint8_t failure_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	payload_mm_authvar_presence_fail_stop_fn failure_callback;
 	uint32_t expected = 0;
 	enum cb_err result;
 
@@ -176,8 +211,10 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	if (candidate.revision != PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION ||
 	    candidate.size != sizeof(candidate) ||
 	    payload_mm_authvar_presence_endpoint_validate(&candidate.endpoint) !=
-		CB_SUCCESS || !candidate.provision || !candidate.dma_protected ||
+		CB_SUCCESS || !backing_valid(&candidate) || !candidate.provision ||
+	    !candidate.dma_protected ||
 	    !candidate.cpu_rendezvous_active || !candidate.cold_reset ||
+	    !candidate.fail_stop ||
 	    (candidate.context == NULL) != (candidate.context_size == 0U) ||
 	    candidate.context_size > PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX ||
 	    !mailbox_unprotected(storage_is_protected, storage_context,
@@ -193,6 +230,8 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 		(const void *)(uintptr_t)candidate.cpu_rendezvous_active) ||
 	    !callback_protected(storage_is_protected, storage_context,
 		(const void *)(uintptr_t)candidate.cold_reset) ||
+	    !callback_protected(storage_is_protected, storage_context,
+		(const void *)(uintptr_t)candidate.fail_stop) ||
 	    memcmp(&candidate, trusted_policy, sizeof(candidate)))
 		return CB_ERR;
 	if (candidate.context_size) {
@@ -205,13 +244,37 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	presence.policy.context = candidate.context_size ? presence.context : NULL;
 	presence.sealed.context = candidate.context_size ?
 		presence.sealed_context : NULL;
+	if (payload_mm_authvar_presence_backing_evidence_take(
+		&candidate.backing) != CB_SUCCESS ||
+	    memcmp(&candidate, trusted_policy, sizeof(candidate)) ||
+	    !policy_equal()) {
+		restriction_scrub();
+		__atomic_store_n(&presence.phase, PRESENCE_POISONED,
+			__ATOMIC_RELEASE);
+		return CB_ERR;
+	}
+	snapshot = presence.sealed;
+	failure_callback = snapshot.fail_stop;
+	if (snapshot.context_size)
+		memcpy(failure_context, presence.sealed_context,
+			snapshot.context_size);
+	if (!page_guard(&snapshot))
+		cleanup_fail_stop(failure_callback, failure_context,
+			snapshot.context_size);
 	result = presence.sealed.provision(presence.sealed.context,
 		presence.sealed.endpoint.generation, capability);
 	if (result != CB_SUCCESS || bytes_zero(capability, sizeof(capability)) ||
 	    memcmp(&candidate, trusted_policy, sizeof(candidate)) ||
-	    !policy_equal()) {
+	    !policy_equal() || !page_guard(&snapshot)) {
 		scrub(capability, sizeof(capability));
-		mailbox_scrub(&candidate.endpoint);
+		if (!page_guard(&snapshot))
+			cleanup_fail_stop(failure_callback, failure_context,
+				snapshot.context_size);
+		mailbox_scrub(&snapshot);
+		restriction_scrub();
+		scrub(failure_context, sizeof(failure_context));
+		scrub(&snapshot, sizeof(snapshot));
+		scrub(&candidate, sizeof(candidate));
 		__atomic_store_n(&presence.phase, PRESENCE_POISONED,
 			__ATOMIC_RELEASE);
 		return CB_ERR;
@@ -223,6 +286,9 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	__atomic_store_n(&presence.lifecycle_generation,
 		candidate.endpoint.generation, __ATOMIC_RELEASE);
 	scrub(capability, sizeof(capability));
+	scrub(failure_context, sizeof(failure_context));
+	scrub(&snapshot, sizeof(snapshot));
+	scrub(&candidate, sizeof(candidate));
 	__atomic_store_n(&presence.phase, PRESENCE_OPEN, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
 }
@@ -230,52 +296,87 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 enum cb_err payload_mm_authvar_presence_authority_restrict(
 	uint64_t generation)
 {
-	uint32_t phase = __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE);
+	struct payload_mm_authvar_presence_policy snapshot;
+	uint8_t failure_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	uint32_t phase;
 	uint32_t expected;
-	bool valid;
+	bool clean, valid;
 
-	if (phase == PRESENCE_CLOSED) {
-		if (generation && presence.closed_generation == generation &&
-		    presence.sealed_closed_generation == generation &&
-		    __atomic_load_n(&presence.lifecycle_generation,
-			    __ATOMIC_ACQUIRE) == generation &&
-		    presence.policy.endpoint.generation == generation &&
-		    presence.sealed.endpoint.generation == generation &&
-		    install_gate_sealed() && policy_equal() &&
-		    restriction_scrubbed())
-			return CB_SUCCESS;
-		expected = PRESENCE_CLOSED;
-		__atomic_compare_exchange_n(&presence.phase, &expected,
-			PRESENCE_POISONED, false, __ATOMIC_ACQ_REL,
-			__ATOMIC_ACQUIRE);
-		return CB_ERR;
+	for (;;) {
+		phase = __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE);
+		if (phase == PRESENCE_CLOSED) {
+			if (generation && presence.closed_generation == generation &&
+			    presence.sealed_closed_generation == generation &&
+			    __atomic_load_n(&presence.lifecycle_generation,
+				    __ATOMIC_ACQUIRE) == generation &&
+			    presence.policy.endpoint.generation == generation &&
+			    presence.sealed.endpoint.generation == generation &&
+			    install_gate_sealed() && policy_equal() &&
+			    restriction_scrubbed())
+				return CB_SUCCESS;
+			expected = PRESENCE_CLOSED;
+			(void)__atomic_compare_exchange_n(&presence.phase, &expected,
+				PRESENCE_POISONED, false, __ATOMIC_ACQ_REL,
+				__ATOMIC_ACQUIRE);
+			return CB_ERR;
+		}
+		if (phase == PRESENCE_RESTRICTING ||
+		    phase == PRESENCE_RESTRICT_REQUESTED ||
+		    phase == PRESENCE_POISON_REQUESTED)
+			return CB_ERR;
+		valid = generation && presence.generation == generation &&
+			presence.sealed_generation == generation &&
+			__atomic_load_n(&presence.lifecycle_generation,
+				__ATOMIC_ACQUIRE) == generation &&
+			install_gate_sealed() && policy_equal() &&
+			backing_valid(&presence.sealed);
+		if (phase == PRESENCE_EXECUTING) {
+			expected = PRESENCE_EXECUTING;
+#if ENV_TEST
+			if (restrict_claim_test_hook)
+				restrict_claim_test_hook();
+#endif
+			if (!__atomic_compare_exchange_n(&presence.phase, &expected,
+				valid ? PRESENCE_RESTRICT_REQUESTED :
+					PRESENCE_POISON_REQUESTED,
+				false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+				continue;
+			return CB_ERR;
+		}
+		if (phase != PRESENCE_OPEN && phase != PRESENCE_ATTEMPTED)
+			return CB_ERR;
+		expected = phase;
+#if ENV_TEST
+		if (restrict_claim_test_hook)
+			restrict_claim_test_hook();
+#endif
+		if (__atomic_compare_exchange_n(&presence.phase, &expected,
+			PRESENCE_RESTRICTING, false, __ATOMIC_ACQ_REL,
+			__ATOMIC_ACQUIRE))
+			break;
 	}
-	if (phase == PRESENCE_RESTRICTING) {
-		expected = PRESENCE_RESTRICTING;
-		__atomic_compare_exchange_n(&presence.phase, &expected,
-			PRESENCE_POISONED, false, __ATOMIC_ACQ_REL,
-			__ATOMIC_ACQUIRE);
-		return CB_ERR;
-	}
-	if (phase != PRESENCE_OPEN)
-		return CB_ERR;
-	expected = PRESENCE_OPEN;
-	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
-		PRESENCE_RESTRICTING, false, __ATOMIC_ACQ_REL,
-		__ATOMIC_ACQUIRE))
-		return payload_mm_authvar_presence_authority_restrict(generation);
 
 #if ENV_TEST
 	if (restrict_test_hook)
 		restrict_test_hook();
 #endif
+	snapshot = presence.sealed;
+	if (snapshot.context_size)
+		memcpy(failure_context, presence.sealed_context,
+			snapshot.context_size);
 	valid = generation && presence.generation == generation &&
 		presence.sealed_generation == generation &&
 		__atomic_load_n(&presence.lifecycle_generation,
 			__ATOMIC_ACQUIRE) == generation &&
 		presence.policy.endpoint.generation == generation &&
 		presence.sealed.endpoint.generation == generation &&
-		install_gate_sealed() && policy_equal();
+		install_gate_sealed() && policy_equal() &&
+		backing_valid(&snapshot);
+	capability_scrub();
+	clean = page_guard(&snapshot);
+	if (!clean)
+		cleanup_fail_stop(snapshot.fail_stop, failure_context,
+			snapshot.context_size);
 	if (valid) {
 		presence.closed_generation = generation;
 		presence.sealed_closed_generation = generation;
@@ -283,7 +384,14 @@ enum cb_err payload_mm_authvar_presence_authority_restrict(
 		presence.closed_generation = 0;
 		presence.sealed_closed_generation = 0;
 	}
+	mailbox_scrub(&snapshot);
 	restriction_scrub();
+#if ENV_TEST
+	if (cleanup_test_hook)
+		cleanup_test_hook();
+#endif
+	scrub(failure_context, sizeof(failure_context));
+	scrub(&snapshot, sizeof(snapshot));
 	expected = PRESENCE_RESTRICTING;
 	if (!valid) {
 		__atomic_compare_exchange_n(&presence.phase, &expected,
@@ -339,29 +447,147 @@ static void publish_completion(
 	scrub(&response, sizeof(response));
 }
 
-static bool execution_guard(void)
+static bool page_guard(
+	const struct payload_mm_authvar_presence_policy *snapshot)
 {
-	struct payload_mm_authvar_presence_policy snapshot = presence.sealed;
 	bool valid;
 
-	valid = snapshot.dma_protected(snapshot.context,
-		snapshot.endpoint.communication_base,
-		snapshot.endpoint.communication_size);
-	if (!valid || !policy_equal() ||
-	    memcmp(&snapshot, &presence.sealed, sizeof(snapshot)))
+	if (!snapshot || !backing_valid(snapshot) || !policy_equal() ||
+	    memcmp(snapshot, &presence.sealed, sizeof(*snapshot)))
 		return false;
-	valid = snapshot.cpu_rendezvous_active(snapshot.context);
+	valid = snapshot->dma_protected(snapshot->context,
+		snapshot->backing.base, snapshot->backing.bytes);
+	if (!valid || !policy_equal() ||
+	    memcmp(snapshot, &presence.sealed, sizeof(*snapshot)))
+		return false;
+	valid = snapshot->cpu_rendezvous_active(snapshot->context);
 	return valid && policy_equal() &&
-		!memcmp(&snapshot, &presence.sealed, sizeof(snapshot));
+		!memcmp(snapshot, &presence.sealed, sizeof(*snapshot));
+}
+
+static __noreturn void cleanup_fail_stop(
+	payload_mm_authvar_presence_fail_stop_fn callback,
+	const void *failure_context, size_t failure_context_size)
+{
+	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+
+	if (!callback || failure_context_size > sizeof(context))
+		__builtin_trap();
+	if (failure_context_size)
+		memcpy(context, failure_context, failure_context_size);
+	restriction_scrub();
+	__atomic_store_n(&presence.phase, PRESENCE_POISONED, __ATOMIC_RELEASE);
+	callback(failure_context_size ? context : NULL);
+	__builtin_trap();
+}
+
+static bool dispatch_close(
+	const struct payload_mm_authvar_presence_policy *snapshot,
+	uint32_t from, bool exact)
+{
+	const uint64_t generation = presence.sealed_generation;
+	uint8_t failure_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	uint32_t expected = from;
+	bool clean, valid;
+
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
+		PRESENCE_RESTRICTING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return false;
+	valid = exact && generation && presence.generation == generation &&
+		__atomic_load_n(&presence.lifecycle_generation,
+			__ATOMIC_ACQUIRE) == generation && install_gate_sealed() &&
+		policy_equal() && !memcmp(snapshot, &presence.sealed,
+			sizeof(*snapshot));
+	capability_scrub();
+	if (snapshot->context_size)
+		memcpy(failure_context, presence.sealed_context,
+			snapshot->context_size);
+	clean = page_guard(snapshot);
+	if (!clean)
+		cleanup_fail_stop(snapshot->fail_stop, failure_context,
+			snapshot->context_size);
+	if (valid) {
+		presence.closed_generation = generation;
+		presence.sealed_closed_generation = generation;
+	} else {
+		presence.closed_generation = 0;
+		presence.sealed_closed_generation = 0;
+	}
+	mailbox_scrub(snapshot);
+	restriction_scrub();
+#if ENV_TEST
+	if (cleanup_test_hook)
+		cleanup_test_hook();
+#endif
+	scrub(failure_context, sizeof(failure_context));
+	scrub((void *)snapshot, sizeof(*snapshot));
+	expected = PRESENCE_RESTRICTING;
+	(void)__atomic_compare_exchange_n(&presence.phase, &expected,
+		valid ? PRESENCE_CLOSED : PRESENCE_POISONED, false,
+		__ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+	return true;
+}
+
+static void dispatch_finish(
+	const struct payload_mm_authvar_presence_policy *snapshot,
+	bool response_live, bool close)
+{
+	uint32_t state;
+	uint32_t expected;
+
+	for (;;) {
+		state = __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE);
+		if (state == PRESENCE_RESTRICT_REQUESTED) {
+			if (dispatch_close(snapshot, state, true))
+				return;
+			continue;
+		}
+		if (state == PRESENCE_POISON_REQUESTED) {
+			if (dispatch_close(snapshot, state, false))
+				return;
+			continue;
+		}
+		if (state != PRESENCE_EXECUTING)
+			return;
+		if (close || !response_live) {
+#if ENV_TEST
+			if (dispatch_finish_test_hook)
+				dispatch_finish_test_hook();
+#endif
+			if (dispatch_close(snapshot, state, true))
+				return;
+			continue;
+		}
+		expected = PRESENCE_EXECUTING;
+#if ENV_TEST
+		if (dispatch_finish_test_hook)
+			dispatch_finish_test_hook();
+#endif
+		if (__atomic_compare_exchange_n(&presence.phase, &expected,
+			PRESENCE_ATTEMPTED, false, __ATOMIC_RELEASE,
+			__ATOMIC_ACQUIRE))
+			return;
+	}
 }
 
 static enum cb_err reset_or_failstop(
 	const struct payload_mm_authvar_presence_policy *policy,
 	uint8_t reset_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX])
 {
-	policy->cold_reset(policy->context_size ? reset_context : NULL);
+	payload_mm_authvar_presence_cold_reset_fn callback = policy->cold_reset;
+	const size_t context_size = policy->context_size;
+
+	dispatch_finish(policy, false, true);
+	callback(context_size ? reset_context : NULL);
 	scrub(reset_context, PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX);
-	__atomic_store_n(&presence.phase, PRESENCE_POISONED, __ATOMIC_RELEASE);
+	{
+		uint32_t expected = PRESENCE_CLOSED;
+
+		(void)__atomic_compare_exchange_n(&presence.phase, &expected,
+			PRESENCE_POISONED, false, __ATOMIC_RELEASE,
+			__ATOMIC_ACQUIRE);
+	}
+	scrub((void *)policy, sizeof(*policy));
 #if !ENV_TEST
 	halt();
 #endif
@@ -376,47 +602,59 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE];
 	uint8_t reset_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
 	bool reset_required = false;
+	bool response_live = false;
 	uint32_t expected = PRESENCE_OPEN;
 	uint64_t status;
 
 	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
-		PRESENCE_ATTEMPTED, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		PRESENCE_EXECUTING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
 		return CB_ERR;
 	}
 	policy = presence.sealed;
+	if (policy.context_size)
+		memcpy(reset_context, presence.sealed_context, policy.context_size);
 	memcpy(capability, presence.sealed_capability, sizeof(capability));
 	capability_scrub();
 	if (!policy_equal() ||
 	    memcmp(&policy, &presence.sealed, sizeof(policy)) ||
 	    bytes_zero(capability, sizeof(capability))) {
 		scrub(capability, sizeof(capability));
-		scrub(reset_context, sizeof(reset_context));
-		return CB_ERR;
+		cleanup_fail_stop(policy.fail_stop, reset_context,
+			policy.context_size);
 	}
-	if (policy.context_size)
-		memcpy(reset_context, policy.context, policy.context_size);
-	if (!execution_guard()) {
+	if (!page_guard(&policy)) {
 		scrub(capability, sizeof(capability));
-		scrub(reset_context, sizeof(reset_context));
-		return CB_ERR;
+		cleanup_fail_stop(policy.fail_stop, reset_context,
+			policy.context_size);
 	}
 	mailbox = (const void *)(uintptr_t)policy.endpoint.communication_base;
 	memcpy(&request, mailbox, sizeof(request));
-	if (!policy_equal() || !execution_guard() ||
-	    payload_mm_authvar_presence_request_validate(&policy.endpoint,
+	if (!policy_equal() || !page_guard(&policy)) {
+		scrub(&request, sizeof(request));
+		scrub(capability, sizeof(capability));
+		cleanup_fail_stop(policy.fail_stop, reset_context,
+			policy.context_size);
+	}
+	if (payload_mm_authvar_presence_request_validate(&policy.endpoint,
 		&request, sizeof(request)) != CB_SUCCESS) {
 		scrub(&request, sizeof(request));
 		scrub(capability, sizeof(capability));
 		scrub(reset_context, sizeof(reset_context));
+		dispatch_finish(&policy, false, false);
+		scrub(&policy, sizeof(policy));
 		return CB_ERR;
 	}
 	if (!capability_equal(request.capability, capability)) {
-		if (execution_guard())
+		if (page_guard(&policy)) {
 			publish_completion(&policy, &request,
 				PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_SECURITY_VIOLATION);
+			response_live = true;
+		}
 		scrub(&request, sizeof(request));
 		scrub(capability, sizeof(capability));
 		scrub(reset_context, sizeof(reset_context));
+		dispatch_finish(&policy, response_live, false);
+		scrub(&policy, sizeof(policy));
 		return CB_ERR;
 	}
 	scrub(capability, sizeof(capability));
@@ -425,23 +663,19 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 	if (status == PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_SUCCESS &&
 	    !reset_required)
 		status = PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_DEVICE_ERROR;
-	if (!policy_equal()) {
-		status = PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_DEVICE_ERROR;
-		__atomic_store_n(&presence.phase, PRESENCE_POISONED,
-			__ATOMIC_RELEASE);
-	}
-	if (!execution_guard()) {
+	if (!policy_equal() || !page_guard(&policy)) {
 		scrub(&request, sizeof(request));
-		if (reset_required)
-			return reset_or_failstop(&policy, reset_context);
-		scrub(reset_context, sizeof(reset_context));
-		return CB_ERR;
+		cleanup_fail_stop(policy.fail_stop, reset_context,
+			policy.context_size);
 	}
 	publish_completion(&policy, &request, status);
+	response_live = true;
 	scrub(&request, sizeof(request));
 	if (reset_required)
 		return reset_or_failstop(&policy, reset_context);
 	scrub(reset_context, sizeof(reset_context));
+	dispatch_finish(&policy, response_live, false);
+	scrub(&policy, sizeof(policy));
 	return CB_ERR;
 }
 
@@ -462,6 +696,9 @@ void payload_mm_authvar_presence_authority_reset_test(void)
 {
 	scrub(&presence, sizeof(presence));
 	restrict_test_hook = NULL;
+	restrict_claim_test_hook = NULL;
+	dispatch_finish_test_hook = NULL;
+	cleanup_test_hook = NULL;
 }
 
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size)
@@ -475,5 +712,23 @@ void payload_mm_authvar_presence_authority_restrict_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook)
 {
 	restrict_test_hook = hook;
+}
+
+void payload_mm_authvar_presence_authority_restrict_claim_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook)
+{
+	restrict_claim_test_hook = hook;
+}
+
+void payload_mm_authvar_presence_authority_dispatch_finish_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook)
+{
+	dispatch_finish_test_hook = hook;
+}
+
+void payload_mm_authvar_presence_authority_cleanup_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook)
+{
+	cleanup_test_hook = hook;
 }
 #endif

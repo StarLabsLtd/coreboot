@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION 2U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CAPABILITY_SIZE 32U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE 4096U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL UINT64_MAX
@@ -23,6 +23,11 @@ enum payload_mm_authvar_presence_transaction_decision {
 
 enum payload_mm_authvar_presence_transaction_status {
 	PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ACCEPTED = 0x41555448U,
+};
+
+enum payload_mm_authvar_presence_backing_status {
+	PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED = 0x4f574e44U,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED = 0x434c454eU,
 };
 
 struct payload_mm_authvar_presence_transaction_binding {
@@ -52,7 +57,7 @@ struct payload_mm_authvar_presence_transaction_ack {
 	uint32_t decision;
 	uint32_t transport_status;
 	uint32_t operation_status;
-	uint32_t reserved;
+	uint32_t backing_status;
 } __aligned(8);
 
 struct payload_mm_authvar_presence_transaction_page {
@@ -75,7 +80,7 @@ typedef enum cb_err (*payload_mm_authvar_presence_transaction_decide_fn)(
 	uint64_t *saved_rax);
 
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX 128U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 2U
 typedef enum cb_err (*payload_mm_authvar_presence_transaction_smm_prepare_fn)(
 	void *context, const struct payload_mm_authvar_presence_seed *seed,
 	uint64_t generation);

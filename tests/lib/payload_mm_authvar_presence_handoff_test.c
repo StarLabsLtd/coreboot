@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_handoff.h>
+#include <boot/payload_mm_authvar_presence_backing.h>
 #include "../../src/lib/bootmem_reservation_receipt_internal.h"
 #include <pthread.h>
 #include <stdlib.h>
@@ -59,12 +60,15 @@ static bool mutate_source_transfer_query;
 static bool mutate_source_mailbox_emit;
 static bool mutate_source_transfer_emit;
 static struct payload_mm_authvar_presence_seed *hostile_seed_source;
+static struct payload_mm_authvar_presence_backing *hostile_backing_source;
 static bool block_after_receiver_claim;
 static bool receiver_claim_entered;
 static bool receiver_claim_release;
 static bool block_during_cleanup;
 static bool cleanup_entered;
 static bool cleanup_release;
+static bool evidence_close_entered;
+static bool evidence_close_release;
 static pthread_mutex_t receiver_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t receiver_cond = PTHREAD_COND_INITIALIZER;
 static struct payload_mm_authvar_presence_seed installed;
@@ -242,6 +246,9 @@ enum cb_err platform_payload_mm_authvar_presence_handoff_receiver_install(
 {
 	install_calls++;
 	installed = *seed;
+	if (payload_mm_authvar_presence_backing_evidence_take(&seed->backing) !=
+	    CB_SUCCESS)
+		return CB_ERR;
 	if (mutate_seed)
 		((struct payload_mm_authvar_presence_seed *)(uintptr_t)seed)->size++;
 	return install_fail ? CB_ERR : CB_SUCCESS;
@@ -336,6 +343,10 @@ void bootmem_receipt_test_after_verifier_publish(
 void bootmem_receipt_test_after_claim_cas(
 	struct bootmem_reservation_receipt_authority *authority)
 {
+	if (hostile_backing_source) {
+		hostile_backing_source->generation++;
+		hostile_backing_source = NULL;
+	}
 	if (mutate_during_verify &&
 	    (authority == &slot.transfer_verifier ||
 	     authority == &slot.mailbox_verifier)) {
@@ -360,6 +371,23 @@ static void *receive_thread(void *argument)
 
 	arguments->status = payload_mm_authvar_presence_handoff_receive(&slot,
 		arguments->descriptor, 0, arguments->result);
+	return NULL;
+}
+
+static void block_evidence_close(void)
+{
+	assert(!pthread_mutex_lock(&receiver_mutex));
+	evidence_close_entered = true;
+	assert(!pthread_cond_broadcast(&receiver_cond));
+	while (!evidence_close_release)
+		assert(!pthread_cond_wait(&receiver_cond, &receiver_mutex));
+	assert(!pthread_mutex_unlock(&receiver_mutex));
+}
+
+static void *evidence_close_thread(void *unused)
+{
+	(void)unused;
+	payload_mm_authvar_presence_backing_evidence_close();
 	return NULL;
 }
 
@@ -404,6 +432,14 @@ static struct payload_mm_authvar_presence_seed authority_seed(void)
 			.trigger_value = 0xe8,
 			.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
 			.capability_size = LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE,
+		},
+		.backing = {
+			.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
+			.size = sizeof(struct payload_mm_authvar_presence_backing),
+			.base = (uintptr_t)mailbox,
+			.bytes = sizeof(mailbox),
+			.generation = 7U,
+			.tag = BM_MEM_RESERVED,
 		},
 	};
 
@@ -452,12 +488,15 @@ static void reset_fixture(void)
 	mutate_source_mailbox_emit = false;
 	mutate_source_transfer_emit = false;
 	hostile_seed_source = NULL;
+	hostile_backing_source = NULL;
 	block_after_receiver_claim = false;
 	receiver_claim_entered = false;
 	receiver_claim_release = false;
 	block_during_cleanup = false;
 	cleanup_entered = false;
 	cleanup_release = false;
+	evidence_close_entered = false;
+	evidence_close_release = false;
 	receive_cpu = 0;
 	install_calls = 0;
 	self_smi_calls = 0;
@@ -948,6 +987,91 @@ static void provision_and_delivery_races(void)
 	assert(bytes_zero(transfer, sizeof(transfer)));
 }
 
+static void forged_backing_evidence_rejected(void)
+{
+	struct bootmem_reservation_receipt_authority signer = { 0 };
+	struct bootmem_reservation_receipt_authority verifier = { 0 };
+	struct bootmem_reservation_receipt receipt = { 0 };
+	struct payload_mm_authvar_presence_seed seed = authority_seed();
+	uint8_t secret[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE];
+
+	payload_mm_authvar_presence_backing_evidence_reset_test();
+	receipt.base = seed.backing.base;
+	receipt.bytes = seed.backing.bytes;
+	assert(payload_mm_authvar_presence_backing_evidence_publish(&verifier,
+		&receipt, &seed.backing) == CB_ERR);
+	assert(payload_mm_authvar_presence_backing_evidence_take(&seed.backing) ==
+		CB_ERR);
+	assert(!payload_mm_authvar_presence_backing_evidence_consumed());
+
+	payload_mm_authvar_presence_backing_evidence_reset_test();
+	for (size_t index = 0; index < sizeof(secret); index++)
+		secret[index] = (uint8_t)(0x31U + index);
+	assert(bootmem_reservation_receipt_provision(&signer, &verifier, secret,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 7U,
+		&mailbox_handle) == CB_SUCCESS);
+	assert(bootmem_aligned_reservation_receipt_emit_exact_tag(&mailbox_handle,
+		&signer, &receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	seed.backing.generation++;
+	assert(payload_mm_authvar_presence_backing_evidence_publish(&verifier,
+		&receipt, &seed.backing) == CB_ERR);
+	assert(payload_mm_authvar_presence_backing_evidence_take(&seed.backing) ==
+		CB_ERR);
+	bootmem_reservation_receipt_close(&verifier);
+
+	payload_mm_authvar_presence_backing_evidence_reset_test();
+	memset(&signer, 0, sizeof(signer));
+	memset(&verifier, 0, sizeof(verifier));
+	memset(&receipt, 0, sizeof(receipt));
+	seed = authority_seed();
+	for (size_t index = 0; index < sizeof(secret); index++)
+		secret[index] = (uint8_t)(0x51U + index);
+	assert(bootmem_reservation_receipt_provision(&signer, &verifier, secret,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 7U,
+		&mailbox_handle) == CB_SUCCESS);
+	assert(bootmem_aligned_reservation_receipt_emit_exact_tag(&mailbox_handle,
+		&signer, &receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	hostile_backing_source = &seed.backing;
+	assert(payload_mm_authvar_presence_backing_evidence_publish(&verifier,
+		&receipt, &seed.backing) == CB_ERR);
+	assert(payload_mm_authvar_presence_backing_terminal_test());
+	assert(payload_mm_authvar_presence_backing_scrubbed_test());
+}
+
+static void backing_evidence_close_order(void)
+{
+	struct bootmem_reservation_receipt_authority signer = { 0 };
+	struct bootmem_reservation_receipt_authority verifier = { 0 };
+	struct bootmem_reservation_receipt receipt = { 0 };
+	struct payload_mm_authvar_presence_seed seed = authority_seed();
+	uint8_t secret[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE];
+	pthread_t thread;
+
+	reset_fixture();
+	for (size_t index = 0; index < sizeof(secret); index++)
+		secret[index] = (uint8_t)(0x71U + index);
+	assert(bootmem_reservation_receipt_provision(&signer, &verifier, secret,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 7U,
+		&mailbox_handle) == CB_SUCCESS);
+	assert(bootmem_aligned_reservation_receipt_emit_exact_tag(&mailbox_handle,
+		&signer, &receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_backing_evidence_publish(&verifier,
+		&receipt, &seed.backing) == CB_SUCCESS);
+	payload_mm_authvar_presence_backing_close_test_hook(block_evidence_close);
+	assert(!pthread_create(&thread, NULL, evidence_close_thread, NULL));
+	assert(!pthread_mutex_lock(&receiver_mutex));
+	while (!evidence_close_entered)
+		assert(!pthread_cond_wait(&receiver_cond, &receiver_mutex));
+	assert(!payload_mm_authvar_presence_backing_terminal_test());
+	assert(!payload_mm_authvar_presence_backing_scrubbed_test());
+	evidence_close_release = true;
+	assert(!pthread_cond_broadcast(&receiver_cond));
+	assert(!pthread_mutex_unlock(&receiver_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(payload_mm_authvar_presence_backing_terminal_test());
+	assert(payload_mm_authvar_presence_backing_scrubbed_test());
+}
+
 int main(void)
 {
 	success();
@@ -960,5 +1084,7 @@ int main(void)
 	provision_and_delivery_races();
 	receiver_ownership_races();
 	receiver_cleanup_publication_order();
+	forged_backing_evidence_rejected();
+	backing_evidence_close_order();
 	return 0;
 }
