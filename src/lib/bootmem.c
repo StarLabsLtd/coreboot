@@ -312,10 +312,11 @@ static void scrub_receipt_outside_authority(
 		suffix_size);
 }
 
-enum cb_err bootmem_aligned_reservation_receipt_emit(
+enum cb_err bootmem_aligned_reservation_receipt_emit_exact_tag(
 	const struct bootmem_aligned_reservation_handle *handle,
 	struct bootmem_reservation_receipt_authority *signer,
-	struct bootmem_reservation_receipt *receipt)
+	struct bootmem_reservation_receipt *receipt,
+	enum bootmem_type expected_tag)
 {
 	struct bootmem_aligned_reservation_handle snapshot;
 	const struct aligned_reservation_state *state;
@@ -340,15 +341,16 @@ enum cb_err bootmem_aligned_reservation_receipt_emit(
 	state = &aligned_reservations[snapshot.opaque[0] - 1U];
 	if (memcmp(&snapshot, &state->handle, sizeof(snapshot)) ||
 	    memcmp(&snapshot, handle, sizeof(snapshot)) ||
-	    state->request.tag != BM_MEM_TABLE ||
+	    (expected_tag != BM_MEM_TABLE && expected_tag != BM_MEM_RESERVED) ||
+	    state->request.tag != expected_tag ||
 	    state->result.tag != state->request.tag ||
 	    state->result.size != state->request.bytes ||
 	    state->result.base % state->request.alignment ||
 	    state->result.base > state->request.limit_exclusive - state->result.size ||
 	    !range_targets_type(&bootmem, state->result.base, state->result.size,
-		BM_MEM_TABLE) ||
+		expected_tag) ||
 	    !range_targets_type(&bootmem_os, state->result.base, state->result.size,
-		BM_MEM_TABLE))
+		expected_tag))
 		goto fail;
 	return sign_resolved_reservation(signer, &snapshot, &state->result, receipt);
 fail:
@@ -363,6 +365,23 @@ fail:
 		bootmem_reservation_receipt_close(signer);
 	return CB_ERR;
 }
+
+enum cb_err bootmem_aligned_reservation_receipt_emit(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt *receipt)
+{
+	return bootmem_aligned_reservation_receipt_emit_exact_tag(handle, signer,
+		receipt, BM_MEM_TABLE);
+}
+
+#if defined(BOOTMEM_RECEIPT_TEST)
+void bootmem_receipt_test_retag_map(bool os_map, uint64_t base, uint64_t size,
+	enum bootmem_type tag)
+{
+	memranges_insert(os_map ? &bootmem_os : &bootmem, base, size, tag);
+}
+#endif
 #endif
 
 static bool range_targets_type(const struct memranges *ranges, uint64_t start,

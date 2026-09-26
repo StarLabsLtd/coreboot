@@ -283,7 +283,14 @@ static bool equal(const uint8_t *a, const uint8_t *b, size_t n)
 		d |= a[i]^b[i];
 	return !d;
 }
-enum cb_err bootmem_reservation_receipt_verify_consume(struct bootmem_reservation_receipt_authority *v, struct bootmem_reservation_receipt *r)
+static bool receipt_tag_supported(enum bootmem_type tag)
+{
+	return tag == BM_MEM_TABLE || tag == BM_MEM_RESERVED;
+}
+
+enum cb_err bootmem_reservation_receipt_verify_consume_exact_tag(
+	struct bootmem_reservation_receipt_authority *v,
+	struct bootmem_reservation_receipt *r, enum bootmem_type expected_tag)
 {
 	bool vv = valid(v, sizeof(*v), _Alignof(*v)), rv = valid(r, sizeof(*r), _Alignof(*r)); struct bootmem_reservation_receipt_authority a = {0}; struct bootmem_reservation_receipt c = {0}; uint8_t mac[32] = {0}; enum cb_err status = CB_ERR;
 	if (!vv || !rv || overlaps(v, sizeof(*v), r, sizeof(*r)))
@@ -295,7 +302,8 @@ enum cb_err bootmem_reservation_receipt_verify_consume(struct bootmem_reservatio
 	    c.size == sizeof(c) && c.boot_kind == a.boot_kind && !c.reserved &&
 	    c.generation == a.generation && c.sequence == a.sequence &&
 	    !memcmp(&c.handle, &a.handle, sizeof(c.handle)) && c.base && c.bytes &&
-	    c.base <= UINT64_MAX-c.bytes && c.tag == BM_MEM_TABLE &&
+	    c.base <= UINT64_MAX-c.bytes && receipt_tag_supported(expected_tag) &&
+	    c.tag == (uint32_t)expected_tag &&
 	    c.use == BOOTMEM_RESERVATION_RECEIPT_ACTIVE_FIRMWARE &&
 	    bootmem_reservation_receipt_mac(a.secret, &c,
 		offsetof(struct bootmem_reservation_receipt, mac), mac) == CB_SUCCESS &&
@@ -310,4 +318,10 @@ out:
 	bootmem_reservation_receipt_scrub(&c, sizeof(c));
 	bootmem_reservation_receipt_scrub(mac, 32);
 	return status;
+}
+
+enum cb_err bootmem_reservation_receipt_verify_consume(struct bootmem_reservation_receipt_authority *v, struct bootmem_reservation_receipt *r)
+{
+	return bootmem_reservation_receipt_verify_consume_exact_tag(v, r,
+		BM_MEM_TABLE);
 }

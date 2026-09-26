@@ -34,7 +34,8 @@ build_and_run()
 	for case_name in success bounded atomic-capacity \
 		receipt-handle-signer-alias receipt-handle-receipt-alias \
 		receipt-signer-first-alias receipt-receipt-first-alias \
-		receipt-boundary-arithmetic; do
+		receipt-boundary-arithmetic receipt-exact-tags \
+		receipt-os-map-mismatch receipt-firmware-map-mismatch; do
 		if ! ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
 			UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/$name" "$case_name"; then
@@ -87,6 +88,12 @@ mutant_test exact-retag \
 mutant_test os-map-retag \
 	'memranges_insert(&os_candidate, base, request->bytes, request->tag);' \
 	'(void)os_candidate;'
+mutant_test receipt-os-map-exact-tag \
+	'!range_targets_type(&bootmem_os, state->result.base, state->result.size,' \
+	'!range_targets_type(\&bootmem, state->result.base, state->result.size,'
+mutant_test receipt-firmware-map-exact-tag \
+	'!range_targets_type(&bootmem, state->result.base, state->result.size,' \
+	'!range_targets_type(\&bootmem_os, state->result.base, state->result.size,'
 mutant_test duplicate-registration \
 	'if (!memcmp(&snapshots\[index\],' \
 	'if (false \&\& !memcmp(\&snapshots[index],'

@@ -19,7 +19,8 @@ for optimization in 0 2; do
 		"$root/tests/lib/bootmem_reservation_receipt_test.c" \
 		"$root/src/lib/bootmem_reservation_receipt.c" \
 		-o "$tmp/test-$optimization"
-	for case in kat success replay stale s3 alias tag mac malformed \
+	for case in kat success exact-table exact-reserved exact-wrong-tag \
+		exact-unsupported-tag exact-replay replay stale s3 alias tag mac malformed \
 		abort-signer abort-verifier close-ready-verifier ordering \
 		double-close-before-fill double-close-during-fill claim-close; do
 		ASAN_OPTIONS=detect_leaks=1 "$tmp/test-$optimization" "$case"
@@ -78,7 +79,8 @@ build_mutant()
 }
 
 build_mutant mac-binding mac 's/equal(mac, c.mac, 32)/true/'
-build_mutant exact-tag tag 's/c.tag == BM_MEM_TABLE/true/'
+build_mutant exact-tag exact-wrong-tag \
+	's/c.tag == (uint32_t)expected_tag/true/'
 build_mutant terminal-malformed malformed \
 	's/if (rv)/if (false \&\& rv)/'
 build_mutant publication-order ordering \
