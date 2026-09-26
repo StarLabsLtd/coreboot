@@ -106,6 +106,23 @@ int platform_is_resuming(void)
 	return acpi_get_sleep_type() == ACPI_S3;
 }
 
+int platform_is_resuming_s4(void)
+{
+	if (ENV_RAMSTAGE) {
+		const struct chipset_power_state *ps;
+
+		if (acpi_fetch_pm_state(&ps, PS_CLAIMER_WAKE) < 0)
+			return 0;
+		return (ps->gpe_state.pm1_sts & WAK_STS) != 0 &&
+			ps->gpe_state.previous_sx_state == ACPI_S4;
+	}
+
+	if (!(acpi_read16(MMIO_ACPI_PM1_STS) & WAK_STS))
+		return 0;
+
+	return acpi_get_sleep_type() == ACPI_S4;
+}
+
 /* If a system reset is about to be requested, modify the PM1 register so it
  * will never be misinterpreted as an S3 resume. */
 void set_pm1cnt_s5(void)

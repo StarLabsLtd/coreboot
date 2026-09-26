@@ -25,6 +25,7 @@ void gfx_set_init_done(int done);
  * not resuming, > 0 if resuming, and < 0 on error.
  */
 int platform_is_resuming(void);
+int platform_is_resuming_s4(void);
 
 /*
  * Check if the platform is resuming from S3 and force a reboot when

@@ -543,11 +543,15 @@ static void lb_add_acpi_rsdp(struct lb_header *head)
 static void lb_add_boot_mode(struct lb_header *header)
 {
 	struct lb_boot_mode *mode = (struct lb_boot_mode *)lb_new_record(header);
+	enum boot_mode_t boot_mode = get_boot_mode();
+
 	memset(mode, 0, sizeof(*mode));
+	if (boot_mode == LB_BOOT_MODE_NORMAL && platform_is_resuming_s4() > 0)
+		boot_mode = LB_BOOT_MODE_S4_RESUME;
 
 	mode->tag = LB_TAG_BOOT_MODE;
 	mode->size = sizeof(*mode);
-	mode->boot_mode = get_boot_mode();
+	mode->boot_mode = boot_mode;
 }
 
 size_t write_coreboot_forwarding_table(uintptr_t entry, uintptr_t target)

@@ -576,6 +576,17 @@ int platform_is_resuming(void)
 	return acpi_sleep_from_pm1(pmc_read_pm1_control()) == ACPI_S3;
 }
 
+int platform_is_resuming_s4(void)
+{
+	if (ENV_RAMSTAGE)
+		return acpi_get_sleep_type() == ACPI_S4;
+
+	if (!(inw(ACPI_BASE_ADDRESS + PM1_STS) & WAK_STS))
+		return 0;
+
+	return acpi_sleep_from_pm1(pmc_read_pm1_control()) == ACPI_S4;
+}
+
 /* Read and clear GPE status (defined in acpi/acpi.h) */
 int acpi_get_gpe(int gpe)
 {
