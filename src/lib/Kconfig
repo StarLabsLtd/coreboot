@@ -420,6 +420,19 @@ config PAYLOAD_MM_AUTHVAR_COORDINATOR
 	  same-lease commit in one linear transaction. It installs no provider and
 	  publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	depends on PAYLOAD_MM_AUTHVAR_CONTRACT
+	help
+	  Build the protected one-shot ENTER_SETUP_MODE authority around the fixed
+	  authenticated-variable presence mailbox. It provisions and retains a
+	  boot-local capability in SMM, requires DMA isolation and CPU rendezvous,
+	  claims the first exact routed trigger before validation, and invokes only
+	  the fixed internal PK-deletion coordinator. No platform selects this
+	  option, emits its coreboot-table endpoint or installs an APM route here.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n

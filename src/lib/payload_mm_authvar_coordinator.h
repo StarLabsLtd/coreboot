@@ -57,4 +57,15 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	struct payload_mm_authvar_coordinator_result *result,
 	bool *invariant_failure);
 
+/* Fixed physical-presence PK deletion; no public SetVariable input exists. */
+uint64_t payload_mm_authvar_presence_prepare(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_write_policy *policy,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	bool ready_to_boot, void *candidate, size_t candidate_capacity,
+	struct payload_mm_authvar_store_entry *scan_entries,
+	size_t scan_entry_capacity,
+	struct payload_mm_authvar_coordinator_result *result,
+	bool *invariant_failure);
+
 #endif

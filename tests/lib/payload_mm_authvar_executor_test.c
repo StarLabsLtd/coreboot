@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_executor.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_authority.h>
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
 #include <payload_mm_cms.h>
@@ -4725,6 +4728,232 @@ static const struct payload_mm_authvar_store_entry *native_find(
 	return payload_mm_authvar_store_find(index, guid, name, name_size);
 }
 
+static void coordinator_presence_enter_setup(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	const struct payload_mm_authvar_store_entry *pk;
+	const struct payload_mm_authvar_store_entry *enable;
+	const struct payload_mm_authvar_store_entry *custom;
+	const struct payload_mm_authvar_store_entry *kek;
+	uint32_t programs;
+	uint32_t erases;
+	bool reset_required;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, true);
+	(void)native_find(coordinator_global_guid, coordinator_pk_name,
+		sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries));
+	(void)coordinator_append_record(index.used_size, coordinator_global_guid,
+		coordinator_kek_name, sizeof(coordinator_kek_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		fixture.auth2, &fixture.payload, sizeof(fixture.payload),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED);
+	install();
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(reset_required);
+	pk = native_find(coordinator_global_guid, coordinator_pk_name,
+		sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries));
+	enable = payload_mm_authvar_store_find(&index, coordinator_enable_guid,
+		coordinator_enable_name, sizeof(coordinator_enable_name));
+	custom = payload_mm_authvar_store_find(&index, coordinator_custom_guid,
+		coordinator_custom_name, sizeof(coordinator_custom_name));
+	kek = payload_mm_authvar_store_find(&index, coordinator_global_guid,
+		coordinator_kek_name, sizeof(coordinator_kek_name));
+	assert(!pk && !enable && custom && kek && !poisoned);
+	programs = program_count;
+	erases = erase_count;
+	reset_required = false;
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(reset_required && program_count == programs &&
+		erase_count == erases && !poisoned);
+}
+
+static void coordinator_presence_inconsistent_setup(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	const struct payload_mm_authvar_store_entry *pk;
+	bool reset_required = true;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, false);
+	pk = native_find(coordinator_global_guid, coordinator_pk_name,
+		sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries));
+	assert(pk);
+	media[FV_HEADER_SIZE + pk->record_offset + 2U] =
+		PAYLOAD_MM_AUTHVAR_STATE_DELETED;
+	install();
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(!reset_required && poisoned);
+}
+
+static void coordinator_presence_lifecycle_backstop(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
+	};
+	struct payload_mm_authvar_policy_result result;
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	bool reset_required = true;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, false);
+	install();
+	assert(payload_mm_authvar_policy_transaction(&request, &result) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+	assert(!reset_required && native_find(coordinator_global_guid,
+		coordinator_pk_name,
+		sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries)));
+}
+
+static void coordinator_presence_durable_failure(bool end_failure)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	bool reset_required = false;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, false);
+	install();
+	operation_count = 0U;
+	if (end_failure)
+		fail_end = true;
+	else
+		fail_operation = ARRAY_SIZE(candidate_callback_golden) - 1U;
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	fail_end = false;
+	fail_operation = 0U;
+	assert(reset_required && !native_find(coordinator_global_guid,
+		coordinator_pk_name, sizeof(coordinator_pk_name), &index, entries,
+		ARRAY_SIZE(entries)));
+}
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+static struct payload_mm_authvar_presence_message presence_mailbox __aligned(8);
+static uint8_t presence_capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE];
+static unsigned int presence_reset_calls;
+
+static bool presence_protected_storage(void *context, const void *storage,
+	size_t size)
+{
+	uintptr_t start = (uintptr_t)storage;
+	uintptr_t mailbox_start = (uintptr_t)&presence_mailbox;
+
+	(void)context;
+	return storage && size &&
+		(start > mailbox_start || mailbox_start - start >= size) &&
+		(mailbox_start > start || start - mailbox_start >=
+			sizeof(presence_mailbox));
+}
+
+static enum cb_err presence_provision(void *context, uint64_t generation,
+	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE])
+{
+	(void)context;
+	assert(generation == 7U);
+	for (size_t index = 0; index < sizeof(presence_capability); index++)
+		capability[index] = (uint8_t)(index + 1U);
+	memcpy(presence_capability, capability, sizeof(presence_capability));
+	return CB_SUCCESS;
+}
+
+static bool presence_dma_protected(void *context, uint64_t base, uint64_t size)
+{
+	(void)context;
+	return base == (uintptr_t)&presence_mailbox &&
+		size == sizeof(presence_mailbox);
+}
+
+static bool presence_rendezvous(void *context)
+{
+	(void)context;
+	return true;
+}
+
+static void presence_cold_reset(void *context)
+{
+	(void)context;
+	presence_reset_calls++;
+}
+
+static void coordinator_presence_authority_noop(void)
+{
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_presence_policy policy = {
+		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION,
+		.size = sizeof(policy),
+		.endpoint = {
+			.tag = LB_TAG_AUTHVAR_PRESENCE_ENDPOINT,
+			.size = sizeof(struct lb_authvar_presence_endpoint),
+			.revision = LB_AUTHVAR_PRESENCE_ENDPOINT_REVISION,
+			.header_size = sizeof(struct lb_authvar_presence_endpoint),
+			.flags = LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS,
+			.generation = 7U,
+			.communication_base = (uintptr_t)&presence_mailbox,
+			.communication_size = sizeof(presence_mailbox),
+			.message_size = sizeof(presence_mailbox),
+			.transport = LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8,
+			.trigger_width = sizeof(uint8_t),
+			.trigger_address = 0xb2U,
+			.trigger_value = 0xe8U,
+			.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
+			.capability_size = LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE,
+		},
+		.provision = presence_provision,
+		.dma_protected = presence_dma_protected,
+		.cpu_rendezvous_active = presence_rendezvous,
+		.cold_reset = presence_cold_reset,
+	};
+	bool reset_required = false;
+	unsigned int programs;
+	unsigned int erases;
+
+	coordinator_fixture_build(&fixture);
+	coordinator_make_user_source(&fixture, true);
+	install();
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
+	assert(payload_mm_authvar_presence_authority_install(&policy,
+		presence_protected_storage, NULL) == CB_SUCCESS);
+	presence_mailbox = (struct payload_mm_authvar_presence_message) {
+		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_REVISION,
+		.size = sizeof(presence_mailbox),
+		.action = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
+		.generation = 7U,
+		.request_id = 1U,
+		.status = PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_PENDING,
+		.completion = PAYLOAD_MM_AUTHVAR_PRESENCE_PENDING,
+	};
+	memcpy(presence_mailbox.capability, presence_capability,
+		sizeof(presence_capability));
+	programs = program_count;
+	erases = erase_count;
+	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
+	assert(presence_mailbox.status ==
+		PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_SUCCESS &&
+		presence_mailbox.completion == PAYLOAD_MM_AUTHVAR_PRESENCE_COMPLETE &&
+		presence_reset_calls == 1U && program_count == programs &&
+		erase_count == erases);
+}
+#endif
+
 static void native_assert_value(const uint8_t guid[16], const uint8_t *name,
 	size_t name_size, uint32_t attributes, const uint8_t *data,
 	size_t data_size)
@@ -7120,6 +7349,26 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "coordinator-success")) {
 		coordinator_success();
 		return 0;
+	} else if (!strcmp(argv[1], "coordinator-presence")) {
+		coordinator_presence_enter_setup();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-presence-inconsistent")) {
+		coordinator_presence_inconsistent_setup();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-presence-lifecycle")) {
+		coordinator_presence_lifecycle_backstop();
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-presence-end-failure")) {
+		coordinator_presence_durable_failure(true);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-presence-verify-failure")) {
+		coordinator_presence_durable_failure(false);
+		return 0;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+	} else if (!strcmp(argv[1], "coordinator-presence-authority-noop")) {
+		coordinator_presence_authority_noop();
+		return 0;
+#endif
 	} else if (!strcmp(argv[1], "coordinator-private-atomic")) {
 		coordinator_private_atomic(false);
 		return 0;
