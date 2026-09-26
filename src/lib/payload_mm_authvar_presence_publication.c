@@ -13,7 +13,7 @@ enum publication_state {
 	PUBLICATION_BUSY,
 	PUBLICATION_DISABLED,
 	PUBLICATION_RESERVED,
-	PUBLICATION_COMMITTING,
+	PUBLICATION_FINALIZING,
 	PUBLICATION_PUBLISHED,
 	PUBLICATION_FAILED,
 };
@@ -79,7 +79,7 @@ static enum cb_err fail(void)
 
 	for (;;) {
 		if (state == PUBLICATION_DISABLED || state == PUBLICATION_PUBLISHED ||
-		    state == PUBLICATION_FAILED)
+		    state == PUBLICATION_FAILED || state == PUBLICATION_FINALIZING)
 			return CB_ERR;
 #if ENV_TEST
 		payload_mm_authvar_presence_publication_pre_poison_test_hook(state);
@@ -126,8 +126,8 @@ enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
 	state = __atomic_load_n(&publication_state, __ATOMIC_ACQUIRE);
 	if (state == PUBLICATION_DISABLED)
 		return CB_SUCCESS;
-	if (state == PUBLICATION_COMMITTING)
-		return fail();
+	if (state == PUBLICATION_FINALIZING)
+		return CB_ERR;
 	if (state == PUBLICATION_PUBLISHED || state == PUBLICATION_FAILED)
 		return CB_ERR;
 	if (!header)
@@ -142,11 +142,11 @@ enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
 		PUBLICATION_BUSY ||
 	    payload_mm_authvar_presence_producer_compose(&composition) !=
 		CB_SUCCESS ||
-	    !claim(PUBLICATION_BUSY, PUBLICATION_COMMITTING))
+	    !claim(PUBLICATION_BUSY, PUBLICATION_FINALIZING))
 		goto out;
 	if (payload_mm_authvar_presence_producer_publication_take(&endpoint) !=
 	    CB_SUCCESS ||
-	    !claim(PUBLICATION_COMMITTING, PUBLICATION_PUBLISHED))
+	    !claim(PUBLICATION_FINALIZING, PUBLICATION_PUBLISHED))
 		goto out;
 	/* No callback or fallible operation is permitted after this commit. */
 	record = (void *)lb_new_record(header);
@@ -155,8 +155,17 @@ enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
 out:
 	scrub(&composition, sizeof(composition));
 	scrub(&endpoint, sizeof(endpoint));
-	if (status != CB_SUCCESS)
+	if (status != CB_SUCCESS) {
+		if (__atomic_load_n(&publication_state, __ATOMIC_ACQUIRE) ==
+		    PUBLICATION_FINALIZING) {
+			uint32_t expected = PUBLICATION_FINALIZING;
+			(void)__atomic_compare_exchange_n(&publication_state, &expected,
+				PUBLICATION_FAILED, false, __ATOMIC_RELEASE,
+				__ATOMIC_ACQUIRE);
+			return CB_ERR;
+		}
 		return fail();
+	}
 	return CB_SUCCESS;
 }
 

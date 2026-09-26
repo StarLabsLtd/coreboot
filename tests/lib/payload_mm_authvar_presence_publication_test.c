@@ -262,7 +262,7 @@ static void failures(void)
 	assert(payload_mm_authvar_presence_publication_reserve() == CB_SUCCESS);
 	take_status = CB_ERR;
 	assert(lb_add_payload_mm_authvar_presence_endpoint(active_header) == CB_ERR);
-	assert(abort_calls == 1 && take_calls == 1 && !record_calls);
+	assert(!abort_calls && take_calls == 1 && !record_calls);
 
 	reset();
 	assert(payload_mm_authvar_presence_publication_reserve() == CB_SUCCESS);
@@ -294,11 +294,11 @@ static void hostile_reentry(void)
 	assert(payload_mm_authvar_presence_publication_reserve() == CB_SUCCESS);
 	reenter_take = true;
 	assert(lb_add_payload_mm_authvar_presence_endpoint(active_header) ==
-		CB_ERR);
-	assert(take_calls == 1 && record_calls == 0 && abort_calls >= 1);
+		CB_SUCCESS);
+	assert(take_calls == 1 && record_calls == 1 && !abort_calls);
 	assert(lb_add_payload_mm_authvar_presence_endpoint(active_header) ==
 		CB_ERR);
-	assert(record_calls == 0);
+	assert(record_calls == 1);
 }
 
 static void *owner_thread(void *unused)
@@ -360,8 +360,8 @@ static void publication_races(void)
 	assert(!pthread_create(&owner, NULL, owner_thread, NULL));
 	assert(!pthread_join(owner, NULL));
 	assert(!pthread_join(contender, NULL));
-	assert(owner_status == CB_ERR && contender_status == CB_ERR);
-	assert(record_calls == 0 && take_calls == 1 && abort_calls == 1);
+	assert(owner_status == CB_SUCCESS && contender_status == CB_ERR);
+	assert(record_calls == 1 && take_calls == 1 && abort_calls == 0);
 }
 
 int main(void)

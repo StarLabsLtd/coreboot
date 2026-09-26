@@ -22,9 +22,20 @@ struct payload_mm_authvar_presence_seed {
 typedef bool (*payload_mm_authvar_presence_producer_state_fn)(void *context);
 typedef bool (*payload_mm_authvar_presence_producer_range_fn)(void *context,
 	uint64_t base, uint64_t size);
-typedef enum cb_err (*payload_mm_authvar_presence_producer_install_fn)(
-	void *context, const struct payload_mm_authvar_presence_seed *seed);
-typedef void (*payload_mm_authvar_presence_producer_close_fn)(void *context);
+struct payload_mm_authvar_presence_transaction_binding;
+struct payload_mm_authvar_presence_transaction_ack;
+typedef enum cb_err (*payload_mm_authvar_presence_producer_prepare_fn)(
+	void *context, const struct payload_mm_authvar_presence_seed *seed,
+	const struct payload_mm_authvar_presence_transaction_binding *binding,
+	struct payload_mm_authvar_presence_transaction_ack *ack,
+	uint64_t *saved_rax);
+typedef enum cb_err (*payload_mm_authvar_presence_producer_decide_fn)(
+	void *context,
+	const struct payload_mm_authvar_presence_transaction_binding *binding,
+	struct payload_mm_authvar_presence_transaction_ack *ack,
+	uint64_t *saved_rax);
+typedef void (*payload_mm_authvar_presence_producer_fail_stop_fn)(
+	void *context) __noreturn;
 
 /* All callbacks and context are trusted platform composition inputs. */
 struct payload_mm_authvar_presence_composition {
@@ -32,9 +43,13 @@ struct payload_mm_authvar_presence_composition {
 	uint32_t size;
 	uint32_t trigger_address;
 	uint32_t trigger_value;
+	uint32_t transaction_initiator_cpu;
+	uint32_t transaction_maximum_cpus;
 	payload_mm_authvar_presence_producer_state_fn cold_boot;
-	payload_mm_authvar_presence_producer_install_fn authority_install;
-	payload_mm_authvar_presence_producer_close_fn authority_close;
+	payload_mm_authvar_presence_producer_prepare_fn authority_prepare;
+	payload_mm_authvar_presence_producer_decide_fn authority_commit;
+	payload_mm_authvar_presence_producer_decide_fn authority_abort;
+	payload_mm_authvar_presence_producer_fail_stop_fn fail_stop;
 	payload_mm_authvar_presence_producer_range_fn dma_protected;
 	payload_mm_authvar_presence_producer_state_fn cpu_rendezvous_ready;
 	payload_mm_authvar_presence_producer_state_fn cold_reset_ready;

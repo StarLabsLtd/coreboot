@@ -172,6 +172,12 @@ test-authvar-presence-publication:
 test-authvar-presence-handoff:
 	tests/lib/payload_mm_authvar_presence_handoff_test.sh
 
+.PHONY: test-authvar-presence-transaction
+test-authvar-presence-transaction:
+	tests/lib/payload_mm_authvar_presence_transaction_test.sh
+	tests/lib/payload_mm_authvar_presence_producer_test.sh
+	tests/lib/payload_mm_authvar_presence_publication_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

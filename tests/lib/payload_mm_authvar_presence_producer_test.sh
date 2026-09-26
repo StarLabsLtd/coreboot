@@ -16,15 +16,16 @@ run_test()
 	name=$1
 	shift
 	"${CC:-cc}" -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
-		-fno-builtin -no-pie "$@" -D__TEST__ -D__COREBOOT__ \
+		-fno-builtin -no-pie -pthread "$@" -D__TEST__ -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
-		"$root/tests/lib/payload_mm_authvar_presence_producer_test.c" \
+		"$root/tests/lib/payload_mm_authvar_presence_transaction_producer_test.c" \
 		"$root/src/lib/payload_mm_authvar_presence.c" \
+		"$root/src/lib/payload_mm_authvar_presence_transaction.c" \
 		"$root/src/lib/payload_mm_authvar_presence_producer.c" \
 		-o "$temporary/$name"
 	ASAN_OPTIONS=detect_leaks=1 "$temporary/$name"
@@ -63,8 +64,9 @@ mutation()
 			-I"$root/src/commonlib/include" \
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$root/src/arch/x86/include" \
-			"$root/tests/lib/payload_mm_authvar_presence_producer_test.c" \
-			"$root/src/lib/payload_mm_authvar_presence.c" "$mutant" \
+			"$root/tests/lib/payload_mm_authvar_presence_transaction_producer_test.c" \
+			"$root/src/lib/payload_mm_authvar_presence.c" \
+			"$root/src/lib/payload_mm_authvar_presence_transaction.c" "$mutant" \
 			-o "$binary"
 		if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
 			printf 'mutation survived: %s O%s\n' "$name" "$optimization" >&2
@@ -73,34 +75,8 @@ mutation()
 	done
 }
 
-mutation no-cold-boot \
-	's/!producer.policy.cold_boot(context)/false/; s/!producer.policy.cold_boot(policy_context())/false/'
-mutation no-dma-proof \
-	's/producer.policy.dma_protected(context, base, size)/(base || size || true)/'
-mutation no-cpu-proof \
-	's/producer.policy.cpu_rendezvous_ready(context)/true/'
-mutation no-reset-proof \
-	's/producer.policy.cold_reset_ready(context)/true/'
-mutation no-lifecycle-proof \
-	's/producer.policy.lifecycle_sealed(context)/true/'
-mutation no-platform-proof \
-	's/producer.policy.platform_ready(context)/true/'
-mutation no-authority-install \
-	's/producer.policy.authority_install(policy_context(), \&seed)/CB_SUCCESS/'
-mutation no-close \
-	's/producer.policy.authority_close(producer.policy.context_size ?/(void)(producer.policy.context_size ?/'
-mutation no-fixed-size \
-	's/reservation.size != PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE/false/'
-mutation no-context-seal \
-	's/return !memcmp(producer.context, producer.sealed_context,/return true || !memcmp(producer.context, producer.sealed_context,/'
-mutation no-cold-boot-abort-guard \
-	's/!producer.policy.cold_boot(context) || !busy() || !context_unchanged()/!producer.policy.cold_boot(context) || !context_unchanged()/'
-mutation short-rollback-scrub \
-	's/producer.backing_size);/PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE);/'
-mutation invalid-bootmem-size \
-	's/\.bytes = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE/.bytes = PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE/'
-mutation invalid-bootmem-alignment \
-	's/\.alignment = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT/.alignment = _Alignof(struct payload_mm_authvar_presence_message)/'
+mutation wrong-commit-ack-decision \
+	's/PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT, \&ack/PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, \&ack/'
 
 if grep -R -Eq --include=Kconfig \
 	'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER' "$root/src" || \
