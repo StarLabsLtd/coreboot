@@ -20,11 +20,24 @@ The endpoint remains open only during its boot-only presence window.
 implemented, not that a newly published endpoint is already closed. Revision 1
 has no public close command. Valid authenticated-variable `READY_TO_BOOT` and
 `ENTER_RUNTIME` lifecycle transactions therefore close and scrub this channel
-under the existing global executor gate. The private close entry is available
-for a future paired producer's mandatory pre-external-image, S3, and platform
-restriction hooks; this slice installs none of those platform hooks. No
+under the existing global executor gate. The private restriction entry accepts
+only the nonzero generation installed with the authority. It atomically
+excludes dispatch, scrubs both capability and private-context copies, and only
+then publishes the closed state. Repeating that exact generation is an
+idempotent success; zero, stale generations, mutated state, reentry during
+restriction, and every non-open/non-closed state fail closed. The compatibility
+close wrapper derives the protected installed generation and uses this checked
+primitive. The entry never reads the shared mailbox or invokes the
+authenticated-variable executor. It is available for a future paired
+producer's mandatory pre-external-image, S3, and platform restriction hooks;
+this slice installs none of those platform hooks. No
 platform may publish the endpoint or assert `LIFECYCLE_SEALED` until those
 concrete hooks are composed and tested. Closure itself is irreversible.
+Both open and closed validation bind the one-shot installation gate. Install
+also requires the empty phase before and after claiming that gate, so corrupting
+the gate cannot reinstall over or reopen a closed authority. Closed validation
+requires the transient generation pair, both capability copies, and both
+private-context copies to remain scrubbed.
 
 ## Dispatch and consumption
 

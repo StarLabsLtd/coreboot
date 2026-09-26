@@ -36,9 +36,16 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	void *storage_context);
 
 /*
- * Irreversibly close and scrub the capability. A future paired platform
- * producer must call this from its pre-external-image and S3 restriction hooks.
+ * Irreversibly restrict an authority installed for exactly generation.
+ * Restricting the open matching generation closes it and scrubs its private
+ * capability and context. Repeating the same generation after closure is an
+ * idempotent success. Zero, stale, mutated, or otherwise invalid authority
+ * state fails closed.
  */
+enum cb_err payload_mm_authvar_presence_authority_restrict(
+	uint64_t generation);
+
+/* Compatibility wrapper for existing internal lifecycle callers. */
 void payload_mm_authvar_presence_authority_close(void);
 
 /* Exact fixed-mailbox dispatch and optional platform APM route. */
@@ -47,8 +54,12 @@ enum cb_err payload_mm_authvar_presence_smi_dispatch(uint16_t port,
 	uint8_t value);
 
 #if ENV_TEST
+typedef void (*payload_mm_authvar_presence_restrict_test_hook_fn)(void);
+
 void payload_mm_authvar_presence_authority_reset_test(void);
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size);
+void payload_mm_authvar_presence_authority_restrict_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 #endif
 
 #endif

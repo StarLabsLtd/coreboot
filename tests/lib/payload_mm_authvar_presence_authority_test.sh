@@ -16,7 +16,7 @@ run_test()
 	name=$1
 	shift
 	"${CC:-cc}" -std=gnu11 -Wall -Wextra -Werror -Wconversion \
-		-Wshadow -fno-builtin "$@" -D__TEST__ -D__COREBOOT__ \
+		-Wshadow -fno-builtin -pthread "$@" -D__TEST__ -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -53,7 +53,7 @@ mutation()
 	for optimization in 0 2; do
 		binary="$temporary/$name-O$optimization"
 		"${CC:-cc}" -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \
-			-Wconversion -Wshadow -fno-builtin \
+			-Wconversion -Wshadow -fno-builtin -pthread \
 			-fsanitize=address,undefined -fno-sanitize-recover=all \
 			-D__TEST__ -D__COREBOOT__ \
 			-include "$root/src/include/kconfig.h" \
@@ -93,6 +93,28 @@ mutation mutable-reset-context \
 	's/policy->context_size ? reset_context : NULL/policy->context/'
 mutation no-reset \
 	's/policy->cold_reset(policy->context_size ? reset_context : NULL);/(void)policy;/'
+mutation unbound-restriction \
+	'/valid = generation &&/,/policy_equal();/c\
+\tvalid = presence.generation \&\&\
+\t\tpresence.generation == presence.sealed_generation \&\&\
+\t\tpresence.policy.endpoint.generation ==\
+\t\tpresence.sealed.endpoint.generation \&\& policy_equal();'
+mutation no-context-restriction-scrub \
+	's/scrub(presence.context, sizeof(presence.context));/(void)presence.context;/'
+mutation closed-wrong-generation \
+	's/generation && presence.closed_generation == generation &&/presence.closed_generation \&\& presence.closed_generation == presence.sealed_closed_generation \&\&/
+s/presence.sealed_closed_generation == generation/presence.sealed_closed_generation == presence.closed_generation/
+s/) == generation &&/) == presence.closed_generation \&\&/
+s/presence.policy.endpoint.generation == generation/presence.policy.endpoint.generation == presence.closed_generation/
+s/presence.sealed.endpoint.generation == generation/presence.sealed.endpoint.generation == presence.closed_generation/'
+mutation reentry-not-terminal \
+	'/if (phase == PRESENCE_RESTRICTING) {/,/^\t}/s/PRESENCE_POISONED/PRESENCE_RESTRICTING/'
+mutation no-scrubbed-generation-check \
+	's/return presence.generation == 0 && presence.sealed_generation == 0 &&/return true \&\&/'
+mutation no-install-gate-binding \
+	's/return __atomic_load_n(\&presence.install_attempted, __ATOMIC_ACQUIRE) == 1;/return true;/'
+mutation no-install-phase-guard \
+	's/return __atomic_load_n(\&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EMPTY;/return true;/'
 
 if grep -Eq '(^|[^A-Za-z0-9_])(variable_name|vendor_guid|data_size|SetVariable)([^A-Za-z0-9_]|$)' \
 	"$root/src/include/boot/payload_mm_authvar_presence_authority.h"; then
