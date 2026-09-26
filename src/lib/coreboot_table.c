@@ -597,6 +597,9 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&
+	    lb_add_payload_mm_authvar_presence_endpoint(head) != CB_SUCCESS)
+		die("Authenticated-variable presence publication failed\n");
 
 	/* Record our motherboard */
 	lb_mainboard(head);
@@ -717,6 +720,8 @@ void *write_tables(void)
 	if (cbtable_size > max_table_size) {
 		printk(BIOS_ERR, "%s: coreboot table didn't fit (%zx/%zx)\n",
 			__func__, cbtable_size, max_table_size);
+		if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION))
+			die("Authenticated-variable presence table overflow\n");
 	}
 
 	printk(BIOS_DEBUG, "coreboot table: %zd bytes.\n", cbtable_size);

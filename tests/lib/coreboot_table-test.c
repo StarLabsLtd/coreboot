@@ -3,6 +3,7 @@
 #include <tests/test.h>
 #include <boardid.h>
 #include <boot/coreboot_tables.h>
+#include <boot/payload_mm_authvar_presence_publication.h>
 #include <boot/tables.h>
 #include <cbfs.h>
 #include <cbmem.h>
@@ -84,6 +85,103 @@ static int setup_test_header(void **state)
 	*state = lb_table_init((uintptr_t)tables_buffer);
 
 	return 0;
+}
+
+static bool presence_required;
+static unsigned int presence_reserve_calls;
+static unsigned int presence_compose_calls;
+static unsigned int presence_take_calls;
+static unsigned int presence_abort_calls;
+
+static const struct lb_authvar_presence_endpoint presence_endpoint = {
+	.tag = LB_TAG_AUTHVAR_PRESENCE_ENDPOINT,
+	.size = sizeof(struct lb_authvar_presence_endpoint),
+	.revision = LB_AUTHVAR_PRESENCE_ENDPOINT_REVISION,
+	.header_size = sizeof(struct lb_authvar_presence_endpoint),
+	.flags = LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS,
+	.generation = 0x12345678,
+	.communication_base = 0x12345000,
+	.communication_size = PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE,
+	.message_size = PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE,
+	.transport = LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8,
+	.trigger_width = 1,
+	.trigger_address = 0xb2,
+	.trigger_value = 0xe2,
+	.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE,
+	.capability_size = LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE,
+};
+
+bool platform_payload_mm_authvar_presence_required(void)
+{
+	return presence_required;
+}
+
+bool platform_payload_mm_authvar_presence_composition(
+	struct payload_mm_authvar_presence_composition *composition)
+{
+	memset(composition, 0, sizeof(*composition));
+	return true;
+}
+
+enum cb_err payload_mm_authvar_presence_producer_reserve(void)
+{
+	presence_reserve_calls++;
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_presence_producer_compose(
+	const struct payload_mm_authvar_presence_composition *composition)
+{
+	assert_non_null(composition);
+	presence_compose_calls++;
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_presence_producer_publication_take(
+	struct lb_authvar_presence_endpoint *endpoint)
+{
+	presence_take_calls++;
+	*endpoint = presence_endpoint;
+	return CB_SUCCESS;
+}
+
+void payload_mm_authvar_presence_producer_abort(void)
+{
+	presence_abort_calls++;
+}
+
+static void reset_presence(bool required)
+{
+	payload_mm_authvar_presence_publication_reset_test();
+	presence_required = required;
+	presence_reserve_calls = 0;
+	presence_compose_calls = 0;
+	presence_take_calls = 0;
+	presence_abort_calls = 0;
+}
+
+static void test_presence_publication_record(void **state)
+{
+	struct lb_header *header = *state;
+	struct lb_authvar_presence_endpoint *record;
+
+	reset_presence(true);
+	assert_int_equal(payload_mm_authvar_presence_publication_reserve(),
+		CB_SUCCESS);
+	assert_int_equal(lb_add_payload_mm_authvar_presence_endpoint(header),
+		CB_SUCCESS);
+	assert_int_equal(header->table_entries, 1);
+	record = (void *)lb_first_record(header);
+	assert_memory_equal(record, &presence_endpoint, sizeof(*record));
+
+	/* Finalize the endpoint's size in the real lb_new_record implementation. */
+	(void)lb_new_record(header);
+	assert_int_equal(header->table_entries, 2);
+	assert_int_equal(header->table_bytes, sizeof(*record));
+	assert_int_equal(presence_reserve_calls, 1);
+	assert_int_equal(presence_compose_calls, 1);
+	assert_int_equal(presence_take_calls, 1);
+	assert_int_equal(presence_abort_calls, 0);
 }
 
 static void test_lb_new_record(void **state)
@@ -272,6 +370,7 @@ uintptr_t cbmem_top_chipset(void)
 
 static int teardown_write_tables_test(void **state)
 {
+	payload_mm_authvar_presence_publication_reset_test();
 	free(*state);
 	_cbmem_top_ptr = 0;
 	return 0;
@@ -279,6 +378,11 @@ static int teardown_write_tables_test(void **state)
 
 static int setup_write_tables_test(void **state)
 {
+	/* The real bootstate hook is deliberately absent from host tests. */
+	reset_presence(false);
+	assert_int_equal(payload_mm_authvar_presence_publication_reserve(),
+		CB_SUCCESS);
+
 	/* Allocate more data to have space for alignment */
 	void *top_ptr = malloc(CBMEM_SIZE + DYN_CBMEM_ALIGN_SIZE);
 	int32_t *mmc_status = NULL;
@@ -506,6 +610,8 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_lb_add_gpios),
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
+		cmocka_unit_test_setup(test_presence_publication_record,
+					setup_test_header),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),
 		cmocka_unit_test_setup(test_multiple_entries, setup_test_header),
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),

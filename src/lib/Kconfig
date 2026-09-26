@@ -445,6 +445,16 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
 	  writer. A future platform must inject every protection and lifecycle proof
 	  and explicitly consume the publication handoff.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
+	help
+	  Build the dormant generic reservation, composition and coreboot-table
+	  publication boundary for the fixed presence endpoint. Its weak platform
+	  opt-in is inert, no board selects it, and it installs no APM route. An
+	  opted-in composition fails the boot unless every producer proof succeeds.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n

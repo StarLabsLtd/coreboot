@@ -53,6 +53,8 @@ void lb_board(struct lb_header *header);
 void lb_efi_fw_info(struct lb_header *header);
 enum cb_err efi_fw_info_get(struct lb_efi_fw_info *info);
 void lb_add_capsule_broker_endpoint(struct lb_header *header);
+enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
+	struct lb_header *header);
 
 /* Adds LB_TAG_CAPSULE table entries. */
 void lb_efi_capsules(struct lb_header *header);
