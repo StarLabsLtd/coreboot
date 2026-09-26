@@ -45,6 +45,9 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_set_preflight
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) += \
 	payload_mm_authvar_presence.c \
 	payload_mm_authvar_presence_authority.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
+	payload_mm_authvar_presence.c \
+	payload_mm_authvar_presence_producer.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_authority_provider.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor.c
