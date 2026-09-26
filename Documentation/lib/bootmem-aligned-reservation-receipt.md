@@ -20,12 +20,18 @@ The verifier destination must already be protected; the receipt code does not
 infer that property from a caller-supplied address.
 
 After `process_aligned_reservations()` commits the final map,
-`bootmem_aligned_reservation_receipt_emit()` is the only signing route. It
+`bootmem_aligned_reservation_receipt_emit()` is the table-only signing route. It
 looks up bootmem's private registration state and checks the original request,
 opaque handle, final base, size, alignment, limit, `BM_MEM_TABLE` tag, and both
 the firmware and OS views. It then authenticates a sequence-one
 `ACTIVE_FIRMWARE` receipt with the fixed HMAC-SHA-256 implementation. The
 signer is terminally wiped whether signing succeeds or fails.
+
+The exact-tag variants additionally admit `BM_MEM_RESERVED`, for protected
+firmware communication pages which must not become payload RAM. The caller
+must demand one exact tag; no other tag is accepted. Emission checks that same
+tag in the original request, resolved result, firmware map and OS map. The
+legacy emit and verify wrappers remain strictly `BM_MEM_TABLE`-only.
 
 The protected consumer verifies the HMAC and every bound field, consumes the
 receipt exactly once, and wipes both the input receipt and verifier authority

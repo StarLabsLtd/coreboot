@@ -62,6 +62,15 @@ enum cb_err bootmem_reservation_receipt_verify_consume(
 	struct bootmem_reservation_receipt_authority *verifier,
 	struct bootmem_reservation_receipt *receipt);
 
+/*
+ * Verify and consume a receipt only for the exact supported bootmem tag.
+ * BM_MEM_TABLE and BM_MEM_RESERVED are the only admitted tags. The legacy
+ * wrapper above remains BM_MEM_TABLE-only.
+ */
+enum cb_err bootmem_reservation_receipt_verify_consume_exact_tag(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt, enum bootmem_type expected_tag);
+
 void bootmem_reservation_receipt_close(
 	struct bootmem_reservation_receipt_authority *authority);
 
@@ -71,6 +80,13 @@ enum cb_err bootmem_aligned_reservation_receipt_emit(
 	const struct bootmem_aligned_reservation_handle *handle,
 	struct bootmem_reservation_receipt_authority *signer,
 	struct bootmem_reservation_receipt *receipt);
+
+/* Emit only when both committed bootmem maps have the exact supported tag. */
+enum cb_err bootmem_aligned_reservation_receipt_emit_exact_tag(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt *receipt,
+	enum bootmem_type expected_tag);
 #endif
 
 #endif /* BOOTMEM_RESERVATION_RECEIPT_H */

@@ -111,9 +111,9 @@ static enum cb_err provision(struct bootmem_reservation_receipt_authority *signe
 		boot_kind, 0x1122334455667788ULL, &handle);
 }
 
-static void make(struct bootmem_reservation_receipt_authority *signer,
+static void make_tag(struct bootmem_reservation_receipt_authority *signer,
 	struct bootmem_reservation_receipt_authority *verifier,
-	struct bootmem_reservation_receipt *receipt)
+	struct bootmem_reservation_receipt *receipt, enum bootmem_type tag)
 {
 	uint8_t key[32];
 
@@ -129,12 +129,19 @@ static void make(struct bootmem_reservation_receipt_authority *signer,
 		.handle = {.opaque = {3, 0x42524d51}},
 		.base = 0x180000,
 		.bytes = 0x1000,
-		.tag = BM_MEM_TABLE,
+		.tag = tag,
 		.use = 1,
 	};
 	CHECK(bootmem_reservation_receipt_mac(test_key, receipt,
 		offsetof(struct bootmem_reservation_receipt, mac), receipt->mac) ==
 		CB_SUCCESS);
+}
+
+static void make(struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt)
+{
+	make_tag(signer, verifier, receipt, BM_MEM_TABLE);
 }
 
 static void check_kats(void)
@@ -261,7 +268,38 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "success"))
 		CHECK(bootmem_reservation_receipt_verify_consume(&verifier,
 			&receipt) == CB_SUCCESS);
-	else if (!strcmp(argv[1], "replay")) {
+	else if (!strcmp(argv[1], "exact-table"))
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&receipt, BM_MEM_TABLE) == CB_SUCCESS);
+	else if (!strcmp(argv[1], "exact-reserved")) {
+		bootmem_reservation_receipt_close(&signer);
+		bootmem_reservation_receipt_close(&verifier);
+		memset(&signer, 0, sizeof(signer));
+		memset(&verifier, 0, sizeof(verifier));
+		make_tag(&signer, &verifier, &receipt, BM_MEM_RESERVED);
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+	} else if (!strcmp(argv[1], "exact-wrong-tag")) {
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&receipt, BM_MEM_RESERVED) != CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+		CHECK(terminal_and_scrubbed(&verifier));
+	} else if (!strcmp(argv[1], "exact-unsupported-tag")) {
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&receipt, BM_MEM_RAM) != CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+		CHECK(terminal_and_scrubbed(&verifier));
+	} else if (!strcmp(argv[1], "exact-replay")) {
+		saved = receipt;
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&receipt, BM_MEM_TABLE) == CB_SUCCESS);
+		CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+			&saved, BM_MEM_TABLE) != CB_SUCCESS);
+		CHECK(zero(&receipt, sizeof(receipt)));
+		CHECK(zero(&saved, sizeof(saved)));
+		CHECK(terminal_and_scrubbed(&verifier));
+	} else if (!strcmp(argv[1], "replay")) {
 		saved = receipt;
 		CHECK(bootmem_reservation_receipt_verify_consume(&verifier,
 			&receipt) == CB_SUCCESS);
