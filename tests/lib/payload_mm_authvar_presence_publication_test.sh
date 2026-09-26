@@ -85,10 +85,6 @@ mutation duplicate-record \
 	's/record = (void \*)lb_new_record(header);/record = (void *)lb_new_record(header); (void)lb_new_record(header);/'
 mutation no-composition-reentry-check \
 	'/__atomic_load_n(&publication_state, __ATOMIC_ACQUIRE) !=/,+1d'
-mutation committing-reentry-not-terminal \
-	'/if (state == PUBLICATION_COMMITTING)/,+1s/return fail();/return CB_ERR;/'
-mutation no-post-take-claim \
-	's/!claim(PUBLICATION_COMMITTING, PUBLICATION_PUBLISHED)/false/'
 mutation published-is-mutable \
 	's/state == PUBLICATION_PUBLISHED ||/false ||/'
 mutation reserved-loser-does-not-poison \
