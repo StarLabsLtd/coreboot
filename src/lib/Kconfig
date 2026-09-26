@@ -455,6 +455,19 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
 	  opt-in is inert, no board selects it, and it installs no APM route. An
 	  opted-in composition fails the boot unless every producer proof succeeds.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	help
+	  Build the dormant private two-phase ramstage-to-SMM transport for one
+	  authenticated-variable presence seed. It owns a distinct reserved transfer
+	  page and authenticates both that page and the producer mailbox with
+	  independent exact-tag receipts. This installs no trigger, route, selector,
+	  board policy or public record and no platform selects it in this slice.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n

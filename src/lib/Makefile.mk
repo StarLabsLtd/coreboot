@@ -50,6 +50,10 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 	payload_mm_authvar_presence_producer.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) += \
 	payload_mm_authvar_presence_publication.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF) += \
+	payload_mm_authvar_presence_handoff_sender.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF) += \
+	payload_mm_authvar_presence_handoff_receiver.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_authority_provider.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor.c
