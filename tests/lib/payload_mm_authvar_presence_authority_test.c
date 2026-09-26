@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_authority.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,6 +37,12 @@ struct callback_context {
 static struct callback_context callback_context;
 
 static bool state_contains_capability(void);
+
+static pthread_mutex_t restrict_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t restrict_cond = PTHREAD_COND_INITIALIZER;
+static bool restrict_hook_entered;
+static bool restrict_hook_release;
+static enum cb_err restrict_thread_result;
 
 static bool test_bytes_zero(const void *buffer, size_t size)
 {
@@ -222,6 +229,98 @@ static bool state_contains_capability(void)
 	return false;
 }
 
+static bool state_contains(const void *value, size_t value_size)
+{
+	const uint8_t *state;
+	size_t state_size;
+
+	state = payload_mm_authvar_presence_authority_test_state(&state_size);
+	for (size_t offset = 0; offset + value_size <= state_size; offset++)
+		if (!memcmp(state + offset, value, value_size))
+			return true;
+	return false;
+}
+
+static void corrupt_generation(void)
+{
+	uint8_t *state;
+	size_t size;
+	const uint64_t generation = 7U;
+	bool changed = false;
+
+	state = (void *)(uintptr_t)
+		payload_mm_authvar_presence_authority_test_state(&size);
+	for (size_t offset = 0; offset + sizeof(generation) <= size; offset++) {
+		if (memcmp(state + offset, &generation, sizeof(generation)))
+			continue;
+		state[offset] ^= 1U;
+		changed = true;
+		offset += sizeof(generation) - 1U;
+	}
+	assert(changed);
+}
+
+static uint8_t *authority_generation_tail(void)
+{
+	const size_t tail_size = 5U * sizeof(uint64_t) + 2U * sizeof(uint32_t);
+	uint8_t *state;
+	size_t size;
+
+	state = (void *)(uintptr_t)
+		payload_mm_authvar_presence_authority_test_state(&size);
+	assert(size >= tail_size);
+	return state + size - tail_size;
+}
+
+static uint64_t tail_generation(size_t index)
+{
+	uint64_t value;
+
+	assert(index < 5U);
+	memcpy(&value, authority_generation_tail() + index * sizeof(value),
+		sizeof(value));
+	return value;
+}
+
+static void set_tail_generation(size_t index, uint64_t value)
+{
+	assert(index < 5U);
+	memcpy(authority_generation_tail() + index * sizeof(value), &value,
+		sizeof(value));
+}
+
+static void clear_install_gate(void)
+{
+	const uint32_t value = 0;
+	uint8_t *tail = authority_generation_tail();
+
+	memcpy(tail + 5U * sizeof(uint64_t) + sizeof(uint32_t), &value,
+		sizeof(value));
+}
+
+static void reenter_restrict(void)
+{
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+}
+
+static void block_restrict(void)
+{
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	restrict_hook_entered = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	while (!restrict_hook_release)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+}
+
+static void *restrict_thread(void *unused)
+{
+	(void)unused;
+	restrict_thread_result =
+		payload_mm_authvar_presence_authority_restrict(7U);
+	return NULL;
+}
+
 static void install_validation(void)
 {
 	struct payload_mm_authvar_presence_policy value;
@@ -337,8 +436,138 @@ static void hostile_requests(void)
 	assert(!state_contains_capability());
 }
 
-static void lifecycle_close(void)
+static void lifecycle_restrict(void)
 {
+	struct payload_mm_authvar_presence_message before;
+	struct callback_context context_copy;
+	pthread_t thread;
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(tail_generation(0) == 0 && tail_generation(1) == 0 &&
+		tail_generation(2) == 7U && tail_generation(3) == 7U &&
+		tail_generation(4) == 7U);
+	set_tail_generation(0, 1U);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!state_contains_capability());
+
+	reset_fixture();
+	install();
+	assert(tail_generation(0) == 7U && tail_generation(1) == 7U);
+	clear_install_gate();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!state_contains_capability());
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	clear_install_gate();
+	{
+		struct payload_mm_authvar_presence_policy value = policy();
+
+		assert(payload_mm_authvar_presence_authority_install(&value,
+			protected_storage, NULL) == CB_ERR);
+	}
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!state_contains_capability());
+
+	reset_fixture();
+	install();
+	memset(&mailbox, 0xa5, sizeof(mailbox));
+	before = mailbox;
+	context_copy = callback_context;
+	assert(state_contains_capability());
+	assert(state_contains(&context_copy, sizeof(context_copy)));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(!state_contains_capability());
+	assert(!state_contains(&context_copy, sizeof(context_copy)));
+	assert(!memcmp(&mailbox, &before, sizeof(mailbox)));
+	assert(!executor_calls);
+	assert(payload_mm_authvar_presence_authority_restrict(8U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	{
+		uint8_t *state;
+		size_t state_size;
+
+		state = (void *)(uintptr_t)
+			payload_mm_authvar_presence_authority_test_state(&state_size);
+		assert(state_size);
+		state[0] ^= 1U;
+	}
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	memset(&mailbox, 0x5a, sizeof(mailbox));
+	before = mailbox;
+	assert(payload_mm_authvar_presence_authority_restrict(0U) == CB_ERR);
+	assert(!state_contains_capability());
+	assert(!memcmp(&mailbox, &before, sizeof(mailbox)));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(8U) == CB_ERR);
+	assert(!state_contains_capability());
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	corrupt_generation();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!state_contains_capability());
+
+	reset_fixture();
+	install();
+	payload_mm_authvar_presence_authority_restrict_test_hook(reenter_restrict);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!state_contains_capability());
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	restrict_hook_entered = false;
+	restrict_hook_release = false;
+	restrict_thread_result = CB_SUCCESS;
+	payload_mm_authvar_presence_authority_restrict_test_hook(block_restrict);
+	assert(!pthread_create(&thread, NULL, restrict_thread, NULL));
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	while (!restrict_hook_entered)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	restrict_hook_release = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(restrict_thread_result == CB_ERR);
+	assert(!state_contains_capability());
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	provision_zero = true;
+	{
+		struct payload_mm_authvar_presence_policy value = policy();
+
+		assert(payload_mm_authvar_presence_authority_install(&value,
+			protected_storage, NULL) == CB_ERR);
+	}
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	make_request();
+	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
 	reset_fixture();
 	install();
 	assert(state_contains_capability());
@@ -435,7 +664,7 @@ int main(void)
 {
 	install_validation();
 	hostile_requests();
-	lifecycle_close();
+	lifecycle_restrict();
 	status_and_reset();
 	proof_transition_after_executor();
 	return 0;
