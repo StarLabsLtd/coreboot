@@ -48,6 +48,9 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$output"
 	for case in \
 		coordinator-success \
+		coordinator-presence coordinator-presence-inconsistent \
+		coordinator-presence-lifecycle coordinator-presence-end-failure \
+		coordinator-presence-verify-failure \
 		coordinator-private-atomic \
 		coordinator-private-provider \
 		coordinator-preflight-consumers \

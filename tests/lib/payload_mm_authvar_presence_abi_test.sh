@@ -101,9 +101,12 @@ if grep -Eq '(^|[^A-Za-z0-9_])(smram|store_offset|boot_media|flash_offset|block_
 	printf '%s\n' 'presence ABI exposes variable or private authority data' >&2
 	exit 1
 fi
-if grep -R -Fq 'payload_mm_authvar_presence.c' \
-	"$root/src"/*/Makefile.mk "$root/src"/Makefile.mk 2>/dev/null; then
-	printf '%s\n' 'presence ABI has a firmware caller' >&2
+callers=$(grep -R -l -F 'payload_mm_authvar_presence.c' \
+	"$root/src"/*/Makefile.mk "$root/src"/Makefile.mk 2>/dev/null || true)
+if [ "$callers" != "$root/src/lib/Makefile.mk" ] ||
+	! grep -Fq 'smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)' \
+		"$root/src/lib/Makefile.mk"; then
+	printf '%s\n' 'presence ABI has an unexpected firmware caller' >&2
 	exit 1
 fi
 

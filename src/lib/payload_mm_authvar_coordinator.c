@@ -430,3 +430,115 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 #endif
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
+
+uint64_t payload_mm_authvar_presence_prepare(
+	const struct payload_mm_authvar_store_index *index,
+	const struct payload_mm_authvar_write_policy *policy,
+	const struct payload_mm_authvar_candidate_binding *binding,
+	bool ready_to_boot, void *candidate, size_t candidate_capacity,
+	struct payload_mm_authvar_store_entry *scan_entries,
+	size_t scan_entry_capacity,
+	struct payload_mm_authvar_coordinator_result *result,
+	bool *invariant_failure)
+{
+	static const uint8_t global_guid[16] = {
+		0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+		0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+	};
+	static const uint8_t pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
+	struct payload_mm_authvar_coordinator_result draft = { 0 };
+	struct payload_mm_authvar_policy_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
+		.name = pk_name,
+		.name_size = sizeof(pk_name),
+	};
+	struct payload_mm_authvar_authority_decision decision = {
+		.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION,
+		.mutation.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+		.intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE,
+		.target = PAYLOAD_MM_AUTHVAR_TARGET_PK,
+		.accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS,
+	};
+	struct payload_mm_authvar_bundle_snapshot snapshot;
+	struct payload_mm_authvar_bundle_plan bundle;
+	enum payload_mm_verify_status verify;
+	u8 source_modes;
+	u64 status;
+
+	if (!index || !policy || !binding || !candidate || !candidate_capacity ||
+	    !scan_entries || !scan_entry_capacity || !result || !invariant_failure ||
+	    (uintptr_t)index % _Alignof(*index) ||
+	    (uintptr_t)policy % _Alignof(*policy) ||
+	    (uintptr_t)binding % _Alignof(*binding) ||
+	    (uintptr_t)scan_entries % _Alignof(*scan_entries) ||
+	    (uintptr_t)result % _Alignof(*result) ||
+	    (uintptr_t)invariant_failure % _Alignof(*invariant_failure))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	memset(result, 0, sizeof(*result));
+	if (ready_to_boot || binding->at_runtime)
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	if (!payload_mm_authvar_store_index_valid(index) ||
+	    !payload_mm_authvar_coordinator_source_modes(index, false, true,
+		binding->source_volatile_modes, &source_modes) ||
+	    source_modes != binding->source_volatile_modes) {
+		*invariant_failure = true;
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (source_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) {
+		if (payload_mm_authvar_mode_find(index,
+			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE)) {
+			*invariant_failure = true;
+			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		}
+		draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_NOOP;
+		draft.volatile_modes = source_modes &
+			(u8)~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+		*result = draft;
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	}
+	memcpy(request.vendor_guid, global_guid, sizeof(global_guid));
+	snapshot = (struct payload_mm_authvar_bundle_snapshot) {
+		.request = &request,
+		.decision = &decision,
+		.index = index,
+		.facts = {
+			.setup_mode = false,
+			.secure_boot = source_modes &
+				PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT,
+			.vendor_keys = source_modes &
+				PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
+		},
+	};
+	verify = payload_mm_authvar_bundle_plan(&snapshot, &bundle);
+	if (verify != PAYLOAD_MM_VERIFY_OK) {
+		if (verify == PAYLOAD_MM_VERIFY_INVALID ||
+		    verify == PAYLOAD_MM_VERIFY_INTERNAL ||
+		    verify == PAYLOAD_MM_VERIFY_CHANGED)
+			*invariant_failure = true;
+		return verify_status(verify, invariant_failure);
+	}
+	if (bundle.outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION ||
+	    !(bundle.volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) ||
+	    bundle.volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT) {
+		*invariant_failure = true;
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	status = payload_mm_authvar_candidate_build(index, &bundle, policy,
+		binding, candidate, candidate_capacity, scan_entries,
+		scan_entry_capacity, &draft.candidate);
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+	    status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION) {
+		*invariant_failure = true;
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION;
+	draft.volatile_modes = draft.candidate.volatile_modes;
+	*result = draft;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}

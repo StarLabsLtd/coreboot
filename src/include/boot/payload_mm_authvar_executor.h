@@ -66,6 +66,15 @@ enum cb_err payload_mm_authvar_executor_install(
 	const struct payload_mm_authvar_executor_limits *limits);
 uint64_t payload_mm_authvar_executor_recover(void);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+/*
+ * Private fixed action; acquires the global transaction gate. reset_required
+ * is true for a valid no-op success or once a mutation may have become durable,
+ * including when the returned status reports a later failure.
+ */
+uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required);
+#endif
+
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
 /* Private SMM composition point; no wire command or dispatcher is provided. */
 uint64_t payload_mm_authvar_mor_control_clear_transaction(void);

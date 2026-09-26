@@ -42,6 +42,9 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_BUNDLE_PLAN) += payload_mm_authvar_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE) += payload_mm_authvar_candidate.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_coordinator.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_set_preflight.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) += \
+	payload_mm_authvar_presence.c \
+	payload_mm_authvar_presence_authority.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_authority_provider.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor.c

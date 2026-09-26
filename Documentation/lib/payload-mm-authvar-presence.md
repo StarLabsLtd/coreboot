@@ -52,7 +52,10 @@ bytes:
 
 Revision and header size are exact. Required flags assert coreboot SMM
 ownership, fixed communication, DMA protection, CPU rendezvous, one-shot
-capability semantics, and mandatory lifecycle closure before external code.
+capability semantics, and an implemented mandatory lifecycle seal. The
+`LIFECYCLE_SEALED` flag does not mean that a freshly published endpoint is
+already closed; it asserts that the installed authority will irreversibly close
+the open endpoint before external code can execute.
 The generation and aligned communication base are
 nonzero. The address range must not overflow either the wire address or native
 address space. Communication size and message size are both exactly 80 bytes.
