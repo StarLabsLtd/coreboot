@@ -304,4 +304,46 @@ config RUNTIME_CONFIGURABLE_SMM_LOGLEVEL
 	  value can be passed via the member variable in struct smm_runtime and
 	  be referenced directly in SMM.
 
+config SMM_APMC_COMMAND_REGISTRY
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED
+	help
+	  Build the dormant common APMC command ownership registry. Platforms
+	  must not select this until their SMM dispatcher is composed with its
+	  recognized-command consumption contract.
+
+config SMM_APMC_COMPOSITION_ATTESTED
+	bool
+
+# Build-time evidence selected only by the source family containing the case.
+config SMM_APMC_ROUTE_ACPI_CONTROL
+	bool
+config SMM_APMC_ROUTE_FINALIZE
+	bool
+config SMM_APMC_ROUTE_XHCI
+	bool
+config SMM_APMC_ROUTE_LEGACY
+	bool
+config SMM_APMC_ROUTE_CFR
+	bool
+config SMM_APMC_ROUTE_OPAL
+	bool
+config SMM_APMC_ROUTE_ROM_ARMOR
+	bool
+config SMM_APMC_ROUTE_SMMINFO
+	bool
+config SMM_APMC_ROUTE_SMMSTORE
+	bool
+config SMM_APMC_ROUTE_ELOG
+	bool
+config SMM_APMC_ROUTE_SPI_CONSOLE
+	bool
+config SMM_APMC_ROUTE_CAPSULE_BROKER
+	bool
+config SMM_APMC_ROUTE_STARLABS_EFI_OPTION
+	bool
+config SMM_APMC_ROUTE_ACER_BOARD
+	bool
+
 endif # ARCH_X86

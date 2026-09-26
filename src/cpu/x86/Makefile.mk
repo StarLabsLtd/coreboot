@@ -29,6 +29,7 @@ ramstage-$(CONFIG_PARALLEL_MP) += mp_init.c
 ramstage-y += backup_default_smm.c
 ramstage-y += smi_trigger.c
 smm-y += smi_trigger.c
+smm-$(CONFIG_SMM_APMC_COMMAND_REGISTRY) += smm_command.c
 
 subdirs-$(CONFIG_CPU_INTEL_COMMON_SMM) += ../intel/smm
 
