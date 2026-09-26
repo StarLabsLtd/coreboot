@@ -189,6 +189,10 @@ test-authvar-presence-mailbox-scrub:
 test-smm-apmc-command-registry:
 	tests/cpu/x86/smm_command_test.sh
 
+.PHONY: test-smm-invocation-evidence
+test-smm-invocation-evidence:
+	tests/cpu/x86/smm_invocation_evidence_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

@@ -2,6 +2,15 @@
 
 if ARCH_X86
 
+config SMM_INVOCATION_EVIDENCE
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER
+	help
+	  Compile a dormant protected state machine for exact initiating-CPU and
+	  all-installed-SMM-participant evidence. No platform selects this and it
+	  has no entry, command-dispatch or lifecycle callsite.
+
 config PARALLEL_MP
 	def_bool y
 	help
