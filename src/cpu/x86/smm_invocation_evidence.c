@@ -268,6 +268,7 @@ static bool admission_reserve(struct smm_invocation_evidence *evidence,
 	reserved = (control & INVOCATION_LATCH_MASK) |
 		(nonce << ADMISSION_NONCE_SHIFT) |
 		(kind << ADMISSION_KIND_SHIFT) | ADMISSION_BUSY | owned_phase;
+	TEST_HOOK(58);
 	return __atomic_compare_exchange_n(&evidence->state,
 		&control, reserved, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
 }
@@ -456,6 +457,8 @@ static void __noreturn invocation_fail_stop(void)
 static enum cb_err invocation_open_owned(
 	struct smm_invocation_evidence *evidence)
 {
+	uint64_t generation;
+
 	invocation_scrub(evidence);
 	evidence->closed_generation = 0;
 	evidence->closed_loader_instance_nonce =
@@ -463,11 +466,11 @@ static enum cb_err invocation_open_owned(
 	evidence->closed_lifecycle = 0;
 	__atomic_store_n(&evidence->closed_eos_consumed, 0U,
 		__ATOMIC_RELAXED);
-	if (smm_invocation_evidence_shutdown_requested(evidence) ||
-	    evidence->generation == UINT64_MAX)
+	if (smm_invocation_evidence_shutdown_requested(evidence))
 		return poison_owned(evidence, SMM_INVOCATION_OPENING);
-	evidence->generation++;
-	if (!evidence->generation)
+	generation = __atomic_add_fetch(&evidence->generation, 1U,
+		__ATOMIC_RELEASE);
+	if (!generation)
 		return poison_owned(evidence, SMM_INVOCATION_OPENING);
 	if (!phase_claim(evidence, SMM_INVOCATION_OPENING,
 		SMM_INVOCATION_COLLECTING)) {
@@ -509,6 +512,7 @@ retry_phase:
 		if (!admission_reserve(evidence,
 			SMM_INVOCATION_ADMISSION_ARRIVE,
 			SMM_INVOCATION_READY, SMM_INVOCATION_OPENING)) {
+			TEST_HOOK(70);
 			if (admission_retry_token(evidence, token,
 				SMM_INVOCATION_ADMISSION_ARRIVE,
 				__atomic_load_n(&evidence->generation,
@@ -516,10 +520,11 @@ retry_phase:
 				return SMM_INVOCATION_TRY_RETRY;
 			if (!resampled) {
 				resampled = true;
+				TEST_HOOK(71);
 				goto retry_phase;
 			}
-			(void)poison_owned(evidence, SMM_INVOCATION_READY);
-			return SMM_INVOCATION_TRY_ERROR;
+			TEST_HOOK(72);
+			return SMM_INVOCATION_TRY_RETRY;
 		}
 		admission_token_fill(evidence, token,
 			SMM_INVOCATION_ADMISSION_ARRIVE,
@@ -528,7 +533,10 @@ retry_phase:
 		opening_owner = true;
 		TEST_HOOK(1);
 	} else {
-		if (phase == SMM_INVOCATION_OPENING ||
+		if (phase == SMM_INVOCATION_ACK_ARMING)
+			TEST_HOOK(69);
+		if (phase == SMM_INVOCATION_ACK_ARMING ||
+		    phase == SMM_INVOCATION_OPENING ||
 		    phase == SMM_INVOCATION_ARRIVAL_ADMITTING) {
 			TEST_HOOK(20);
 			if (admission_retry_token(evidence, token,
@@ -538,9 +546,10 @@ retry_phase:
 				return SMM_INVOCATION_TRY_RETRY;
 			if (!resampled) {
 				resampled = true;
+				TEST_HOOK(59);
 				goto retry_phase;
 			}
-			return SMM_INVOCATION_TRY_ERROR;
+			return SMM_INVOCATION_TRY_RETRY;
 		}
 		if (phase != SMM_INVOCATION_COLLECTING)
 			return SMM_INVOCATION_TRY_ERROR;
@@ -556,10 +565,10 @@ retry_phase:
 				return SMM_INVOCATION_TRY_RETRY;
 			if (!resampled) {
 				resampled = true;
+				TEST_HOOK(60);
 				goto retry_phase;
 			}
-			(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);
-			return SMM_INVOCATION_TRY_ERROR;
+			return SMM_INVOCATION_TRY_RETRY;
 		}
 		admission_token_fill(evidence, token,
 			SMM_INVOCATION_ADMISSION_ARRIVE,
@@ -622,7 +631,7 @@ retry_phase:
 		__ATOMIC_ACQ_REL);
 	*generation = evidence->generation;
 	TEST_HOOK(7);
-	__atomic_fetch_sub(&evidence->arrival_writers, 1U, __ATOMIC_RELEASE);
+	TEST_HOOK(67);
 	rendezvous_failed = __atomic_load_n(
 		&evidence->rendezvous_fail_requested,
 		__ATOMIC_ACQUIRE);
@@ -634,6 +643,8 @@ retry_phase:
 	    __atomic_load_n(&evidence->arrival_failed, __ATOMIC_ACQUIRE) ||
 	    smm_invocation_evidence_shutdown_requested(evidence)) {
 		*generation = 0;
+		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
+			__ATOMIC_RELEASE);
 		(void)admission_complete(evidence,
 			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		poison_finish_if_quiescent(evidence);
@@ -646,9 +657,13 @@ retry_phase:
 		INVOCATION_SHUTDOWN_REQUESTED) ||
 	    !invocation_progress_phase(completed_control & STATE_PHASE_MASK)) {
 		*generation = 0;
+		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
+			__ATOMIC_RELEASE);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
+	TEST_HOOK(68);
+	__atomic_fetch_sub(&evidence->arrival_writers, 1U, __ATOMIC_RELEASE);
 	return SMM_INVOCATION_TRY_SUCCESS;
 }
 
@@ -700,14 +715,25 @@ retry_phase:
 	expected = __atomic_load_n(&evidence->rendezvous_ack_required,
 		__ATOMIC_ACQUIRE);
 	if (expected == 1U) {
+		TEST_HOOK(74);
 		phase = phase_load(evidence);
-		if (phase == SMM_INVOCATION_ACK_ARMING) {
-			if (!smm_invocation_loader_instance_nonce_equal(
+		if (!smm_invocation_loader_instance_nonce_equal(
 				nonce_load(&evidence->loader_instance_nonce),
 				loader_instance_nonce) ||
-			    __atomic_load_n(&evidence->loader_lifecycle,
+		    __atomic_load_n(&evidence->loader_lifecycle,
 				__ATOMIC_ACQUIRE) != lifecycle)
-				return SMM_INVOCATION_TRY_ERROR;
+			return SMM_INVOCATION_TRY_ERROR;
+		expected = __atomic_load_n(&evidence->rendezvous_ack_required,
+			__ATOMIC_ACQUIRE);
+		TEST_HOOK(75);
+		if (!expected) {
+			TEST_HOOK(76);
+			return SMM_INVOCATION_TRY_RETRY;
+		}
+		if (expected != 1U)
+			return SMM_INVOCATION_TRY_ERROR;
+		if (phase == SMM_INVOCATION_ACK_ARMING) {
+			TEST_HOOK(63);
 			if (admission_retry_token(evidence, token,
 				SMM_INVOCATION_ADMISSION_ARM, 0, phase))
 				return SMM_INVOCATION_TRY_RETRY;
@@ -715,23 +741,38 @@ retry_phase:
 				resampled = true;
 				goto retry_phase;
 			}
-			return SMM_INVOCATION_TRY_ERROR;
+			TEST_HOOK(65);
+			return SMM_INVOCATION_TRY_RETRY;
 		}
 		if (phase != SMM_INVOCATION_READY &&
 		    phase != SMM_INVOCATION_OPENING &&
 		    phase != SMM_INVOCATION_ARRIVAL_ADMITTING &&
 		    phase != SMM_INVOCATION_COLLECTING)
 			return SMM_INVOCATION_TRY_ERROR;
-		return smm_invocation_loader_instance_nonce_equal(
-				nonce_load(&evidence->loader_instance_nonce),
-				loader_instance_nonce) &&
-			__atomic_load_n(&evidence->loader_lifecycle,
-				__ATOMIC_ACQUIRE) == lifecycle ?
-			SMM_INVOCATION_TRY_SUCCESS : SMM_INVOCATION_TRY_ERROR;
+		return SMM_INVOCATION_TRY_SUCCESS;
 	}
 	if (expected)
 		return SMM_INVOCATION_TRY_ERROR;
+	TEST_HOOK(73);
 	phase = phase_load(evidence);
+	expected = __atomic_load_n(&evidence->rendezvous_ack_required,
+		__ATOMIC_ACQUIRE);
+	if (expected == 1U) {
+		if (!smm_invocation_loader_instance_nonce_equal(
+				nonce_load(&evidence->loader_instance_nonce),
+				loader_instance_nonce) ||
+		    __atomic_load_n(&evidence->loader_lifecycle,
+				__ATOMIC_ACQUIRE) != lifecycle)
+			return SMM_INVOCATION_TRY_ERROR;
+		if (phase == SMM_INVOCATION_OPENING ||
+		    phase == SMM_INVOCATION_ARRIVAL_ADMITTING ||
+		    phase == SMM_INVOCATION_COLLECTING ||
+		    phase == SMM_INVOCATION_READY ||
+		    phase == SMM_INVOCATION_ACK_ARMING)
+			return SMM_INVOCATION_TRY_RETRY;
+	}
+	if (expected)
+		return SMM_INVOCATION_TRY_ERROR;
 	if (phase == SMM_INVOCATION_ACK_ARMING) {
 		TEST_HOOK(19);
 		if (admission_retry_token(evidence, token,
@@ -739,12 +780,30 @@ retry_phase:
 			return SMM_INVOCATION_TRY_RETRY;
 		if (!resampled) {
 			resampled = true;
+			TEST_HOOK(61);
 			goto retry_phase;
 		}
+		TEST_HOOK(64);
+		return SMM_INVOCATION_TRY_RETRY;
+	}
+	if (phase != SMM_INVOCATION_READY) {
+		phase = phase_load(evidence);
+		expected = __atomic_load_n(&evidence->rendezvous_ack_required,
+			__ATOMIC_ACQUIRE);
+		if (expected == 1U &&
+		    (phase == SMM_INVOCATION_READY ||
+		     phase == SMM_INVOCATION_ACK_ARMING ||
+		     phase == SMM_INVOCATION_OPENING ||
+		     phase == SMM_INVOCATION_ARRIVAL_ADMITTING ||
+		     phase == SMM_INVOCATION_COLLECTING) &&
+		    smm_invocation_loader_instance_nonce_equal(
+			nonce_load(&evidence->loader_instance_nonce),
+			loader_instance_nonce) &&
+		    __atomic_load_n(&evidence->loader_lifecycle,
+			__ATOMIC_ACQUIRE) == lifecycle)
+			return SMM_INVOCATION_TRY_RETRY;
 		return SMM_INVOCATION_TRY_ERROR;
 	}
-	if (phase != SMM_INVOCATION_READY)
-		return SMM_INVOCATION_TRY_ERROR;
 	TEST_HOOK(27);
 	if (!admission_reserve(evidence, SMM_INVOCATION_ADMISSION_ARM,
 		SMM_INVOCATION_READY, SMM_INVOCATION_ACK_ARMING)) {
@@ -753,10 +812,11 @@ retry_phase:
 			return SMM_INVOCATION_TRY_RETRY;
 		if (!resampled) {
 			resampled = true;
+			TEST_HOOK(62);
 			goto retry_phase;
 		}
-		(void)poison_owned(evidence, SMM_INVOCATION_READY);
-		return SMM_INVOCATION_TRY_ERROR;
+		TEST_HOOK(66);
+		return SMM_INVOCATION_TRY_RETRY;
 	}
 	admission_token_fill(evidence, token, SMM_INVOCATION_ADMISSION_ARM, 0);
 	TEST_HOOK(16);
@@ -945,9 +1005,10 @@ retry_phase:
 			return SMM_INVOCATION_TRY_RETRY;
 		if (!resampled) {
 			resampled = true;
+			TEST_HOOK(55);
 			goto retry_phase;
 		}
-		return SMM_INVOCATION_TRY_ERROR;
+		return SMM_INVOCATION_TRY_RETRY;
 	}
 	if (phase != SMM_INVOCATION_COLLECTING)
 		return SMM_INVOCATION_TRY_ERROR;
@@ -959,10 +1020,10 @@ retry_phase:
 			return SMM_INVOCATION_TRY_RETRY;
 		if (!resampled) {
 			resampled = true;
+			TEST_HOOK(57);
 			goto retry_phase;
 		}
-		(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);
-		return SMM_INVOCATION_TRY_ERROR;
+		return SMM_INVOCATION_TRY_RETRY;
 	}
 	admission_token_fill(evidence, token, SMM_INVOCATION_ADMISSION_ACK,
 		generation);
