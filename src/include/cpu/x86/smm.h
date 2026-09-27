@@ -141,11 +141,24 @@ _Static_assert(offsetof(struct smm_runtime, authvar_mor_channel) %
 
 struct smm_module_params {
 	size_t cpu;
+#if CONFIG(SMM_INVOCATION_ENTRY)
+	u32 initial_apic_id;
+#endif
 	/* A canary value that has been placed at the end of the stack.
 	 * If (uintptr_t)canary != *canary then a stack overflow has occurred.
 	 */
 	const uintptr_t *canary;
 };
+
+#if CONFIG(SMM_INVOCATION_ENTRY)
+_Static_assert(offsetof(struct smm_module_params, initial_apic_id) ==
+	sizeof(size_t), "SMM entry APIC ID ABI offset changed");
+#else
+_Static_assert(offsetof(struct smm_module_params, canary) == sizeof(size_t),
+	"disabled SMM entry ABI changed");
+_Static_assert(sizeof(struct smm_module_params) == 2 * sizeof(size_t),
+	"disabled SMM entry ABI size changed");
+#endif
 
 /* These parameters are used by the SMM stub code. A pointer to the params
  * is also passed to the C-base handler. */
@@ -160,7 +173,11 @@ struct smm_stub_params {
 	 * initializes this array with a 1:1 mapping. If the APIC ids are not
 	 * contiguous like the 1:1 mapping it is up to the caller of the stub
 	 * loader to adjust this mapping. */
+#if CONFIG(SMM_INVOCATION_ENTRY)
+	u32 apic_id_to_cpu[CONFIG_MAX_CPUS];
+#else
 	u16 apic_id_to_cpu[CONFIG_MAX_CPUS];
+#endif
 } __packed;
 
 /* smm_handler_t is called with arg of smm_module_params pointer. */

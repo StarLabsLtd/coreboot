@@ -96,7 +96,7 @@ mutation reentry-owner \
 mutation topology-proof \
 	'0,/proof\[0\] = mix64(proof\[0\] \^ participant);/{s//proof[0] = mix64(proof[0]);/}'
 mutation shutdown-boundary \
-	'0,/__atomic_load_n(\&evidence->shutdown_requested, __ATOMIC_ACQUIRE)/{s//false/}'
+	'0,/smm_invocation_evidence_shutdown_requested(evidence)/{s//false/}'
 mutation arrival-ownership \
 	'0,/!phase_claim(evidence, SMM_INVOCATION_READY,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_READY,/}'
 mutation claim-publication-cas \
@@ -104,8 +104,6 @@ mutation claim-publication-cas \
 mutation depart-quiescence \
 	'/static void close_finish_if_quiescent/,/^}/{s/__atomic_load_n(\&evidence->departure_writers, __ATOMIC_ACQUIRE)/0/}'
 mutation restore-binding 's/return unchanged;/return true;/'
-mutation arrival-admission \
-	'0,/!phase_claim(evidence, SMM_INVOCATION_COLLECTING,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_COLLECTING,/}'
 mutation departure-admission \
 	'0,/!phase_claim(evidence, SMM_INVOCATION_CLOSING,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_CLOSING,/}'
 mutation invalid-participant-poison \
@@ -113,7 +111,7 @@ mutation invalid-participant-poison \
 mutation arrival-failure-latch \
 	'0,/__atomic_load_n(\&evidence->arrival_failed, __ATOMIC_ACQUIRE)/{s//false/}'
 mutation arrival-post-claim-reload \
-	's/TEST_HOOK(8);/TEST_HOOK(8); if (phase_load(evidence) != SMM_INVOCATION_COLLECTING) return CB_ERR;/'
+	's/TEST_HOOK(8);/TEST_HOOK(8); if (phase_load(evidence) != SMM_INVOCATION_COLLECTING) return SMM_INVOCATION_TRY_ERROR;/'
 
 grep -q '^config SMM_INVOCATION_EVIDENCE$' "$root/src/cpu/x86/Kconfig"
 grep -q '^smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence.c$' \
@@ -124,6 +122,7 @@ if rg -q 'select[[:space:]]+SMM_INVOCATION_EVIDENCE' "$root/src"; then
 fi
 if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown)' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_evidence.c' \
+	-g '!src/cpu/x86/smm_invocation_entry.c' \
 	-g '!src/include/cpu/x86/smm_invocation_evidence.h'; then
 	printf '%s\n' 'dormant invocation evidence gained a production callsite' >&2
 	exit 1

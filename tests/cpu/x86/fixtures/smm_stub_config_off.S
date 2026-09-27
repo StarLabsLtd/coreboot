@@ -30,11 +30,7 @@ cr3:
  * APIC id is found at the given index, the contiguous CPU number is index
  * into the table. */
 apic_to_cpu_num:
-#if CONFIG(SMM_INVOCATION_ENTRY)
-.fill CONFIG_MAX_CPUS,4,0xffffffff
-#else
 .fill CONFIG_MAX_CPUS,2,0xffff
-#endif
 
 .data
 /* Provide fallback stack to use when a valid CPU number cannot be found. */
@@ -161,18 +157,11 @@ xapic:
 	shr	$24, %eax
 
 apicid_end:
-#if CONFIG(SMM_INVOCATION_ENTRY)
-	mov	%eax, %esi
-#endif
 	mov	$(apic_to_cpu_num), %ebx
 	xor	%ecx, %ecx
 
 1:
-#if CONFIG(SMM_INVOCATION_ENTRY)
-	cmp	(%ebx, %ecx, 4), %eax
-#else
 	cmp	(%ebx, %ecx, 2), %ax
-#endif
 	je	1f
 	inc	%ecx
 	cmp	$CONFIG_MAX_CPUS, %ecx
@@ -203,7 +192,7 @@ align_stack:
 
 	/* Call into the c-based SMM relocation function with the platform
 	 * parameters. Equivalent to:
-	 *   struct arg = { cpu_num, [initial_apic_id,] canary };
+	 *   struct arg = { cpu_num, canary };
 	 *   c_handler(&arg)
 	 */
 #if ENV_X86_64
@@ -214,9 +203,6 @@ align_stack:
 
 
 	push	%rbx /* uintptr_t *canary */
-#if CONFIG(SMM_INVOCATION_ENTRY)
-	push	%rsi /* u32 initial_apic_id plus padding */
-#endif
 	push	%rcx /* size_t cpu */
 
 	mov	%rsp, %rdi	/* *arg */
@@ -224,13 +210,8 @@ align_stack:
 	movabs	c_handler, %eax
 	call	*%rax
 #else
-#if !CONFIG(SMM_INVOCATION_ENTRY)
 	push	$0x0 /* Padding */
-#endif
 	push	%ebx /* uintptr_t *canary */
-#if CONFIG(SMM_INVOCATION_ENTRY)
-	push	%esi /* u32 initial_apic_id */
-#endif
 	push	%ecx /* size_t cpu */
 	push	%esp /* smm_module_params *arg (allocated on stack). */
 	mov	c_handler, %eax

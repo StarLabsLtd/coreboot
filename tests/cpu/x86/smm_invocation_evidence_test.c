@@ -47,6 +47,23 @@ static void test_hook_wait_and_release(void)
 	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
 }
 
+static enum cb_err test_arrive(struct smm_invocation_evidence *evidence,
+	uint32_t cpu, uint32_t apic_id, uint64_t *generation)
+{
+	struct smm_invocation_admission_token token;
+
+	return smm_invocation_evidence_arrive_try(evidence, cpu, apic_id,
+		generation, &token) == SMM_INVOCATION_TRY_SUCCESS ?
+		CB_SUCCESS : CB_ERR;
+}
+
+static enum cb_err test_depart(struct smm_invocation_evidence *evidence,
+	uint32_t cpu, uint64_t generation)
+{
+	return smm_invocation_evidence_depart_try(evidence, cpu, generation) ==
+		SMM_INVOCATION_TRY_SUCCESS ? CB_SUCCESS : CB_ERR;
+}
+
 struct mock_state {
 	uint64_t rax[TEST_CPUS];
 	uint32_t matched;
@@ -225,7 +242,7 @@ static void *arrive_thread(void *opaque)
 {
 	struct thread_arg *arg = opaque;
 
-	arg->result = smm_invocation_evidence_arrive(&arg->fixture->evidence,
+	arg->result = test_arrive(&arg->fixture->evidence,
 		arg->cpu, arg->fixture->seed.participant_apic_ids[arg->cpu],
 		&arg->generation);
 	return NULL;
@@ -235,7 +252,7 @@ static void *depart_thread(void *opaque)
 {
 	struct thread_arg *arg = opaque;
 
-	arg->result = smm_invocation_evidence_depart(&arg->fixture->evidence,
+	arg->result = test_depart(&arg->fixture->evidence,
 		arg->cpu, arg->generation);
 	return NULL;
 }
@@ -270,7 +287,7 @@ static void *terminal_observer_thread(void *opaque)
 {
 	struct observer_arg *arg = opaque;
 
-	while (__atomic_load_n(&arg->evidence->phase, __ATOMIC_ACQUIRE) !=
+	while (smm_invocation_evidence_phase(arg->evidence) !=
 		arg->terminal_phase)
 		__asm__ volatile ("pause");
 	assert(!bytes_nonzero(&arg->evidence->token,
@@ -287,7 +304,7 @@ static uint64_t arrive_all(struct fixture *fixture)
 	uint64_t first_generation = 0;
 
 	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++) {
-		assert(smm_invocation_evidence_arrive(&fixture->evidence, cpu,
+		assert(test_arrive(&fixture->evidence, cpu,
 			fixture->seed.participant_apic_ids[cpu], &generation) ==
 			CB_SUCCESS);
 		if (!cpu)
@@ -300,7 +317,7 @@ static uint64_t arrive_all(struct fixture *fixture)
 static void depart_all(struct fixture *fixture, uint64_t generation)
 {
 	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++)
-		assert(smm_invocation_evidence_depart(&fixture->evidence, cpu,
+		assert(test_depart(&fixture->evidence, cpu,
 			generation) == CB_SUCCESS);
 }
 
@@ -330,15 +347,15 @@ static void test_happy_path(void)
 	};
 	assert(!pthread_create(&observer_thread, NULL, terminal_observer_thread,
 		&observer));
-	assert(smm_invocation_evidence_depart(&fixture.evidence, 0,
+	assert(test_depart(&fixture.evidence, 0,
 		generation + 1U) == CB_ERR);
 	depart_all(&fixture, generation);
 	assert(!pthread_join(observer_thread, NULL));
-	assert(fixture.evidence.phase == SMM_INVOCATION_READY);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_READY);
 	assert(!bytes_nonzero(&fixture.evidence.token,
 		sizeof(fixture.evidence.token)));
 	assert(smm_invocation_evidence_shutdown(&fixture.evidence) == CB_SUCCESS);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_CLOSED);
 }
 
 static void test_missing_and_wrong_participant(void)
@@ -348,16 +365,16 @@ static void test_missing_and_wrong_participant(void)
 	uint64_t generation;
 
 	fixture_init(&fixture);
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 0, 99,
+	assert(test_arrive(&fixture.evidence, 0, 99,
 		&generation) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 	fixture_init(&fixture);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1; cpu++)
-		assert(smm_invocation_evidence_arrive(&fixture.evidence, cpu,
+		assert(test_arrive(&fixture.evidence, cpu,
 			10U + cpu, &generation) == CB_SUCCESS);
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 3, 13,
+	assert(test_arrive(&fixture.evidence, 3, 13,
 		&generation) == CB_SUCCESS);
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
@@ -377,14 +394,14 @@ static void test_exact_one_and_bsp(void)
 	fixture.mock.second_match = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
 	fixture.mock.matched = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 static void test_save_state_failures_and_mutation(void)
@@ -397,7 +414,7 @@ static void test_save_state_failures_and_mutation(void)
 	fixture.mock.fail_write = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 	assert(fixture.mock.rax[0] == TEST_COMMAND);
 
 	fixture_init(&fixture);
@@ -412,7 +429,7 @@ static void test_save_state_failures_and_mutation(void)
 	fixture.mock.mutate_ops = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 static void test_publish_guard_and_active_shutdown(void)
@@ -430,26 +447,26 @@ static void test_publish_guard_and_active_shutdown(void)
 	fixture.mock.rax[0] ^= 1U;
 	assert(smm_invocation_evidence_publish(&fixture.evidence, &token,
 		0x77ULL, &fixture.ops) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
 	fixture.mock.shutdown_reenter = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	generation = arrive_all(&fixture);
 	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
 	assert(!pthread_create(&thread, NULL, shutdown_thread, &shutdown));
-	while (__atomic_load_n(&fixture.evidence.phase, __ATOMIC_ACQUIRE) !=
+	while (smm_invocation_evidence_phase(&fixture.evidence) !=
 		SMM_INVOCATION_CLOSING)
 		__asm__ volatile ("pause");
 	depart_all(&fixture, generation);
 	assert(!pthread_join(thread, NULL));
 	assert(shutdown.result == CB_SUCCESS);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_CLOSED);
 }
 
 static void test_reentry_stale_and_collision(void)
@@ -466,7 +483,7 @@ static void test_reentry_stale_and_collision(void)
 	fixture.mock.reenter = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	generation = arrive_all(&fixture);
@@ -475,7 +492,7 @@ static void test_reentry_stale_and_collision(void)
 	stale = token;
 	assert(smm_invocation_evidence_publish(&fixture.evidence, &token,
 		TEST_SENTINEL, &fixture.ops) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSING);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_CLOSING);
 	depart_all(&fixture, generation);
 
 	generation = arrive_all(&fixture);
@@ -512,10 +529,10 @@ static void test_invalid_match_and_aliases(void)
 	fixture.mock.invalid_match = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 0, 10,
+	assert(test_arrive(&fixture.evidence, 0, 10,
 		&fixture.evidence.boot_generation) == CB_ERR);
 
 	fixture_init(&fixture);
@@ -598,11 +615,11 @@ static void test_invalid_seed_and_duplicate(void)
 		&fixture.seed, test_fail_stop, NULL, 0) == CB_ERR);
 
 	fixture_init(&fixture);
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 0, 10,
+	assert(test_arrive(&fixture.evidence, 0, 10,
 		&generation) == CB_SUCCESS);
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 0, 10,
+	assert(test_arrive(&fixture.evidence, 0, 10,
 		&generation) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 static void test_post_result_ambiguity_fail_stop(void)
@@ -656,7 +673,7 @@ static void test_terminal_fail_stop_and_exhaustion(void)
 	assert(child >= 0);
 	if (!child) {
 		fixture_init(&fixture);
-		__atomic_store_n(&fixture.evidence.phase, UINT32_MAX,
+		__atomic_store_n(&fixture.evidence.state, UINT32_MAX,
 			__ATOMIC_RELEASE);
 		(void)smm_invocation_evidence_shutdown(&fixture.evidence);
 		_exit(0);
@@ -666,9 +683,9 @@ static void test_terminal_fail_stop_and_exhaustion(void)
 
 	fixture_init(&fixture);
 	fixture.evidence.generation = UINT64_MAX;
-	assert(smm_invocation_evidence_arrive(&fixture.evidence, 0, 10,
+	assert(test_arrive(&fixture.evidence, 0, 10,
 		&generation) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 static void test_abort_restore_mutation_and_reentry(void)
@@ -683,7 +700,7 @@ static void test_abort_restore_mutation_and_reentry(void)
 	fixture.mock.mutate_ops_on_write = 1;
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
@@ -692,20 +709,24 @@ static void test_abort_restore_mutation_and_reentry(void)
 	fixture.mock.shutdown_on_write = 1;
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 static void test_shutdown_at_callback_boundaries(void)
 {
 	struct fixture fixture;
 	struct smm_invocation_token token;
+	struct smm_invocation_token token_before;
 	struct operation_arg operation;
 	struct shutdown_arg shutdown;
 	pthread_t operation_thread;
 	pthread_t stop_thread;
+	uint64_t generation;
 
 	fixture_init(&fixture);
-	(void)arrive_all(&fixture);
+	generation = arrive_all(&fixture);
+	memset(&token, 0x5b, sizeof(token));
+	memcpy(&token_before, &token, sizeof(token_before));
 	__atomic_store_n(&fixture.mock.block_match, 1U, __ATOMIC_RELEASE);
 	operation = (struct operation_arg) {
 		.fixture = &fixture,
@@ -717,18 +738,26 @@ static void test_shutdown_at_callback_boundaries(void)
 		__asm__ volatile ("pause");
 	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
 	assert(!pthread_create(&stop_thread, NULL, shutdown_thread, &shutdown));
-	while (!__atomic_load_n(&fixture.evidence.shutdown_requested,
-		__ATOMIC_ACQUIRE))
+	while (!smm_invocation_evidence_shutdown_requested(&fixture.evidence))
 		__asm__ volatile ("pause");
 	__atomic_store_n(&fixture.mock.match_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(operation_thread, NULL));
 	assert(operation.result == CB_ERR);
+	assert(!memcmp(&token, &token_before, sizeof(token)));
 	assert(!pthread_join(stop_thread, NULL));
 	assert(shutdown.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	if (smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_CLOSING) {
+		depart_all(&fixture, generation);
+		assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+			SMM_INVOCATION_CLOSED);
+	} else {
+		assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+			SMM_INVOCATION_POISONED);
+	}
 
 	fixture_init(&fixture);
-	(void)arrive_all(&fixture);
+	generation = arrive_all(&fixture);
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
 	__atomic_store_n(&fixture.mock.block_read, 1U, __ATOMIC_RELEASE);
@@ -742,15 +771,23 @@ static void test_shutdown_at_callback_boundaries(void)
 		__asm__ volatile ("pause");
 	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
 	assert(!pthread_create(&stop_thread, NULL, shutdown_thread, &shutdown));
-	while (!__atomic_load_n(&fixture.evidence.shutdown_requested,
-		__ATOMIC_ACQUIRE))
+	while (!smm_invocation_evidence_shutdown_requested(&fixture.evidence))
 		__asm__ volatile ("pause");
 	__atomic_store_n(&fixture.mock.read_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(operation_thread, NULL));
 	assert(operation.result == CB_ERR);
+	assert(fixture.mock.rax[0] == TEST_COMMAND);
 	assert(!pthread_join(stop_thread, NULL));
 	assert(shutdown.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	if (smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_CLOSING) {
+		depart_all(&fixture, generation);
+		assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+			SMM_INVOCATION_CLOSED);
+	} else {
+		assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+			SMM_INVOCATION_POISONED);
+	}
 }
 
 static void test_linearization_gaps(void)
@@ -758,6 +795,7 @@ static void test_linearization_gaps(void)
 	struct fixture fixture;
 	struct smm_invocation_token token;
 	struct operation_arg operation;
+	enum smm_invocation_evidence_phase phase;
 	struct shutdown_arg shutdown;
 	struct thread_arg participant;
 	pthread_t first;
@@ -772,14 +810,13 @@ static void test_linearization_gaps(void)
 		__asm__ volatile ("pause");
 	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
 	assert(!pthread_create(&second, NULL, shutdown_thread, &shutdown));
-	while (!__atomic_load_n(&fixture.evidence.shutdown_requested,
-		__ATOMIC_ACQUIRE))
+	while (!smm_invocation_evidence_shutdown_requested(&fixture.evidence))
 		__asm__ volatile ("pause");
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(!pthread_join(second, NULL));
 	assert(participant.result == CB_ERR && shutdown.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	generation = arrive_all(&fixture);
@@ -798,7 +835,7 @@ static void test_linearization_gaps(void)
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(operation.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	generation = arrive_all(&fixture);
@@ -807,7 +844,7 @@ static void test_linearization_gaps(void)
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_SUCCESS);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
-		assert(smm_invocation_evidence_depart(&fixture.evidence, cpu,
+		assert(test_depart(&fixture.evidence, cpu,
 			generation) == CB_SUCCESS);
 	test_hook_arm(3);
 	participant = (struct thread_arg) {
@@ -818,13 +855,15 @@ static void test_linearization_gaps(void)
 	assert(!pthread_create(&first, NULL, depart_thread, &participant));
 	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
-	assert(smm_invocation_evidence_depart(&fixture.evidence, TEST_CPUS - 1U,
-		generation) == CB_SUCCESS);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSE_CLEANING);
+	assert(smm_invocation_evidence_depart_try(&fixture.evidence,
+		TEST_CPUS - 1U, generation) == SMM_INVOCATION_TRY_RETRY);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_DEPARTURE_ADMITTING);
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(participant.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_READY);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
 	generation = arrive_all(&fixture);
@@ -845,9 +884,14 @@ static void test_linearization_gaps(void)
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(operation.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSING);
-	depart_all(&fixture, generation);
-	assert(fixture.evidence.phase == SMM_INVOCATION_CLOSED);
+	phase = smm_invocation_evidence_phase(&fixture.evidence);
+	assert(phase == SMM_INVOCATION_CLOSING ||
+		phase == SMM_INVOCATION_POISONED);
+	if (phase == SMM_INVOCATION_CLOSING) {
+		depart_all(&fixture, generation);
+		assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+			SMM_INVOCATION_CLOSED);
+	}
 }
 
 static void test_admission_and_duplicate_gaps(void)
@@ -863,7 +907,7 @@ static void test_admission_and_duplicate_gaps(void)
 
 	fixture_init(&fixture);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
-		assert(smm_invocation_evidence_arrive(&fixture.evidence, cpu,
+		assert(test_arrive(&fixture.evidence, cpu,
 			fixture.seed.participant_apic_ids[cpu], &generation) ==
 			CB_SUCCESS);
 	test_hook_arm(5);
@@ -876,13 +920,12 @@ static void test_admission_and_duplicate_gaps(void)
 		__asm__ volatile ("pause");
 	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
 	assert(!pthread_create(&second, NULL, shutdown_thread, &shutdown));
-	while (!__atomic_load_n(&fixture.evidence.shutdown_requested,
-		__ATOMIC_ACQUIRE))
+	while (!smm_invocation_evidence_shutdown_requested(&fixture.evidence))
 		__asm__ volatile ("pause");
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(first_arg.result == CB_ERR);
-	while (__atomic_load_n(&fixture.evidence.phase, __ATOMIC_ACQUIRE) !=
+	while (smm_invocation_evidence_phase(&fixture.evidence) !=
 		SMM_INVOCATION_CLOSING)
 		__asm__ volatile ("pause");
 	depart_all(&fixture, generation);
@@ -896,7 +939,7 @@ static void test_admission_and_duplicate_gaps(void)
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_SUCCESS);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
-		assert(smm_invocation_evidence_depart(&fixture.evidence, cpu,
+		assert(test_depart(&fixture.evidence, cpu,
 			generation) == CB_SUCCESS);
 	test_hook_arm(6);
 	first_arg = (struct thread_arg) {
@@ -907,15 +950,15 @@ static void test_admission_and_duplicate_gaps(void)
 	assert(!pthread_create(&first, NULL, depart_thread, &first_arg));
 	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
-	assert(fixture.evidence.phase == SMM_INVOCATION_DEPARTURE_ADMITTING);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_DEPARTURE_ADMITTING);
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(first_arg.result == CB_SUCCESS);
-	assert(fixture.evidence.phase == SMM_INVOCATION_READY);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_READY);
 
 	fixture_init(&fixture);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
-		assert(smm_invocation_evidence_arrive(&fixture.evidence, cpu,
+		assert(test_arrive(&fixture.evidence, cpu,
 			fixture.seed.participant_apic_ids[cpu], &generation) ==
 			CB_SUCCESS);
 	test_hook_arm(8);
@@ -948,8 +991,10 @@ static void test_admission_and_duplicate_gaps(void)
 	assert(second_arg.result == CB_ERR);
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
-	assert(first_arg.result == CB_ERR);
-	assert(fixture.evidence.phase == SMM_INVOCATION_POISONED);
+	assert(first_arg.result == CB_SUCCESS);
+	assert(test_arrive(&fixture.evidence, 0, 10,
+		&second_arg.generation) == CB_ERR);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
 int main(void)

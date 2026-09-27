@@ -23,6 +23,28 @@ enum smm_invocation_match {
 	SMM_INVOCATION_MATCHED,
 };
 
+enum smm_invocation_try_result {
+	SMM_INVOCATION_TRY_ERROR = -1,
+	SMM_INVOCATION_TRY_SUCCESS,
+	SMM_INVOCATION_TRY_RETRY,
+};
+
+enum smm_invocation_admission_kind {
+	SMM_INVOCATION_ADMISSION_ARM = 1,
+	SMM_INVOCATION_ADMISSION_ARRIVE,
+	SMM_INVOCATION_ADMISSION_ACK,
+};
+
+struct smm_invocation_admission_token {
+	uintptr_t evidence_identity;
+	uint32_t attempt_nonce;
+	uint32_t token_reserved;
+	uint64_t boot_generation;
+	uint64_t invocation_generation;
+	uint32_t lifecycle;
+	uint32_t kind;
+};
+
 struct smm_invocation_loader_seed {
 	uint32_t revision;
 	uint32_t size;
@@ -72,9 +94,13 @@ enum smm_invocation_evidence_phase {
 	SMM_INVOCATION_EMPTY,
 	SMM_INVOCATION_PROVISIONING,
 	SMM_INVOCATION_READY,
+	SMM_INVOCATION_ACK_ARMING,
+	SMM_INVOCATION_EOS_ADMITTING,
 	SMM_INVOCATION_OPENING,
 	SMM_INVOCATION_COLLECTING,
 	SMM_INVOCATION_ARRIVAL_ADMITTING,
+	SMM_INVOCATION_ACK_ADMITTING,
+	SMM_INVOCATION_ADMISSION_FAILED,
 	SMM_INVOCATION_CLAIMING,
 	SMM_INVOCATION_CLAIMED,
 	SMM_INVOCATION_ABORTING,
@@ -83,10 +109,14 @@ enum smm_invocation_evidence_phase {
 	SMM_INVOCATION_COMPLETING,
 	SMM_INVOCATION_CLOSING,
 	SMM_INVOCATION_DEPARTURE_ADMITTING,
+	SMM_INVOCATION_DEPARTURE_COMMITTING,
+	SMM_INVOCATION_DEPARTURE_FAIL_ADMITTING,
 	SMM_INVOCATION_CLOSE_CLEANING,
 	SMM_INVOCATION_CLOSE_SCRUBBING,
+	SMM_INVOCATION_POISON_ADMITTING,
 	SMM_INVOCATION_POISONING,
 	SMM_INVOCATION_POISON_CLEANING,
+	SMM_INVOCATION_TERMINAL_SCRUBBING,
 	SMM_INVOCATION_CLOSED,
 	SMM_INVOCATION_POISONED,
 };
@@ -104,19 +134,28 @@ struct smm_invocation_participant {
 };
 
 struct smm_invocation_evidence {
-	uint32_t phase;
+	uint32_t state;
 	uint32_t active_cpus;
 	uint32_t bsp_cpu;
-	uint32_t shutdown_requested;
-	uint32_t reentry_detected;
+	uint32_t shutdown_reserved;
+	uint32_t reentry_reserved;
 	uint32_t arrival_failed;
+	uint32_t rendezvous_fail_requested;
+	uint32_t admission_reserved;
 	uint32_t arrival_writers;
 	uint32_t departure_writers;
-	uint32_t writer_reserved;
+	uint32_t departure_failed;
 	uint64_t boot_generation;
 	uint64_t generation;
+	uint64_t closed_generation;
+	uint64_t closed_boot_generation;
+	uint32_t loader_lifecycle;
+	uint32_t closed_lifecycle;
+	uint32_t closed_eos_consumed;
+	uint32_t close_receipt_reserved;
 	uint64_t expected_cpus;
 	uint64_t arrived_cpus;
+	uint64_t rendezvous_ack_cpus;
 	uint64_t departed_cpus;
 	uint64_t sentinel;
 	uint64_t original_rax;
@@ -126,7 +165,8 @@ struct smm_invocation_evidence {
 	struct smm_invocation_participant
 		participants[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
 	struct smm_invocation_token token;
-	uint32_t close_requested;
+	uint32_t close_reserved;
+	uint32_t rendezvous_ack_required;
 	uint32_t reserved;
 	smm_invocation_fail_stop_fn fail_stop;
 	uint8_t fail_context[SMM_INVOCATION_EVIDENCE_CONTEXT_MAX];
@@ -138,9 +178,30 @@ enum cb_err smm_invocation_evidence_provision(
 	const struct smm_invocation_loader_seed *seed,
 	smm_invocation_fail_stop_fn fail_stop, const void *fail_context,
 	size_t fail_context_size);
-enum cb_err smm_invocation_evidence_arrive(
-	struct smm_invocation_evidence *evidence, uint32_t cpu, uint32_t apic_id,
-	uint64_t *generation);
+uint32_t smm_invocation_evidence_phase(
+	const struct smm_invocation_evidence *evidence);
+bool smm_invocation_evidence_shutdown_requested(
+	const struct smm_invocation_evidence *evidence);
+enum smm_invocation_try_result smm_invocation_evidence_arrive_try(
+	struct smm_invocation_evidence *evidence, uint32_t cpu,
+	uint32_t apic_id, uint64_t *generation,
+	struct smm_invocation_admission_token *token);
+bool smm_invocation_evidence_rendezvous_ready(
+	const struct smm_invocation_evidence *evidence, uint64_t generation);
+enum smm_invocation_try_result
+smm_invocation_evidence_require_rendezvous_ack_try(
+	struct smm_invocation_evidence *evidence, uint64_t boot_generation,
+	uint32_t lifecycle, struct smm_invocation_admission_token *token);
+enum cb_err smm_invocation_evidence_admission_fail(
+	struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_admission_token *token);
+enum smm_invocation_try_result smm_invocation_evidence_rendezvous_ack_try(
+	struct smm_invocation_evidence *evidence, uint64_t generation,
+	uint32_t cpu, struct smm_invocation_admission_token *token);
+bool smm_invocation_evidence_rendezvous_ack_ready(
+	const struct smm_invocation_evidence *evidence, uint64_t generation);
+enum cb_err smm_invocation_evidence_rendezvous_fail(
+	struct smm_invocation_evidence *evidence, uint64_t generation);
 enum cb_err smm_invocation_evidence_claim(
 	struct smm_invocation_evidence *evidence, uint8_t command,
 	uint64_t sentinel, const struct smm_invocation_save_state_ops *ops,
@@ -156,9 +217,14 @@ enum cb_err smm_invocation_evidence_abort(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_token *token,
 	const struct smm_invocation_save_state_ops *ops);
-enum cb_err smm_invocation_evidence_depart(
+enum smm_invocation_try_result smm_invocation_evidence_depart_try(
 	struct smm_invocation_evidence *evidence, uint32_t cpu,
 	uint64_t generation);
+enum cb_err smm_invocation_evidence_ticket_fail(
+	struct smm_invocation_evidence *evidence, uint64_t generation);
+bool smm_invocation_evidence_eos_consume(
+	struct smm_invocation_evidence *evidence, uint64_t generation,
+	uint64_t boot_generation, uint32_t lifecycle, uint32_t cpu);
 enum cb_err smm_invocation_evidence_shutdown(
 	struct smm_invocation_evidence *evidence);
 

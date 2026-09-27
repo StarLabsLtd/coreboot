@@ -11,6 +11,34 @@ config SMM_INVOCATION_EVIDENCE
 	  all-installed-SMM-participant evidence. No platform selects this and it
 	  has no entry, command-dispatch or lifecycle callsite.
 
+config SMM_INVOCATION_ENTRY_PLATFORM
+	bool
+	default n
+	depends on SMM_INVOCATION_EVIDENCE
+	help
+	  Internal capability supplied only by a platform composition which can
+	  prove a shared private APMC cause, fresh loader generation, installed
+	  participant topology and a non-returning SMM reset path. No platform
+	  selects this capability yet.
+
+config SMM_INVOCATION_ENTRY
+	bool
+	default n
+	depends on SMM_INVOCATION_ENTRY_PLATFORM
+	help
+	  Compile the dormant pre-lock rendezvous instrumentation contract. This
+	  does not install a command, dispatch route or board selection.
+
+config SMM_INVOCATION_INTEL_ADAPTER
+	bool
+	default n
+	depends on SMM_INVOCATION_ENTRY
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Compile the exact Intel EM64T 0x30100/0x30101 save-state adapter. The
+	  adapter has no callsite until a platform composition supplies the
+	  entry and dispatch capabilities.
+
 config PARALLEL_MP
 	def_bool y
 	help
