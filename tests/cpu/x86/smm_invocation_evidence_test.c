@@ -20,6 +20,9 @@
 static uint32_t test_hook_point;
 static uint32_t test_hook_entered;
 static uint32_t test_hook_release;
+static uint8_t fail_stop_exit_code;
+static uint32_t fail_stop_thread_exit;
+static uint32_t fail_stop_calls;
 
 void smm_invocation_evidence_test_hook(uint32_t point)
 {
@@ -202,9 +205,16 @@ static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
 	return CB_SUCCESS;
 }
 
-static void __noreturn test_fail_stop(void *context)
+void __noreturn smm_invocation_platform_fail_stop(void)
 {
-	(void)context;
+	const uint32_t calls = __atomic_add_fetch(&fail_stop_calls, 1U,
+		__ATOMIC_RELAXED);
+
+	if (fail_stop_thread_exit)
+		pthread_exit(NULL);
+	if (fail_stop_exit_code)
+		_exit(calls == 1U ? fail_stop_exit_code :
+			(uint8_t)(fail_stop_exit_code + 1U));
 	abort();
 }
 
@@ -235,7 +245,7 @@ static void fixture_init(struct fixture *fixture)
 		.context_size = sizeof(fixture->mock),
 	};
 	assert(smm_invocation_evidence_provision(&fixture->evidence,
-		&fixture->seed, test_fail_stop, NULL, 0) == CB_SUCCESS);
+		&fixture->seed) == CB_SUCCESS);
 }
 
 static void *arrive_thread(void *opaque)
@@ -521,8 +531,7 @@ static void test_invalid_match_and_aliases(void)
 	assert(smm_invocation_evidence_provision(
 		(struct smm_invocation_evidence *)overlap.bytes,
 		(struct smm_invocation_loader_seed *)(overlap.bytes +
-			sizeof(struct smm_invocation_evidence) - 1U),
-		test_fail_stop, NULL, 0) == CB_ERR);
+			sizeof(struct smm_invocation_evidence) - 1U)) == CB_ERR);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
@@ -580,8 +589,7 @@ static void test_token_binds_loader_and_topology(void)
 	memset(&second.evidence, 0, sizeof(second.evidence));
 	second.seed.boot_generation++;
 	second.seed.participant_apic_ids[1] = 21;
-	assert(smm_invocation_evidence_provision(&second.evidence, &second.seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&second.evidence, &second.seed) == CB_SUCCESS);
 	generation = arrive_all(&second);
 	assert(smm_invocation_evidence_claim(&second.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &second.ops, &second_token) == CB_SUCCESS);
@@ -608,11 +616,11 @@ static void test_invalid_seed_and_duplicate(void)
 		.lifecycle = SMM_INVOCATION_LOADER_COLD,
 	};
 	assert(smm_invocation_evidence_provision(&fixture.evidence,
-		&fixture.seed, test_fail_stop, NULL, 0) == CB_ERR);
+		&fixture.seed) == CB_ERR);
 	fixture.seed.participant_apic_ids[1] = 3;
 	fixture.seed.lifecycle = 0;
 	assert(smm_invocation_evidence_provision(&fixture.evidence,
-		&fixture.seed, test_fail_stop, NULL, 0) == CB_ERR);
+		&fixture.seed) == CB_ERR);
 
 	fixture_init(&fixture);
 	assert(test_arrive(&fixture.evidence, 0, 10,
@@ -653,6 +661,8 @@ static void test_terminal_fail_stop_and_exhaustion(void)
 	int status;
 	struct fixture fixture;
 	uint64_t generation;
+	struct shutdown_arg shutdown;
+	pthread_t owner;
 
 	child = fork();
 	assert(child >= 0);
@@ -680,6 +690,45 @@ static void test_terminal_fail_stop_and_exhaustion(void)
 	}
 	assert(waitpid(child, &status, 0) == child);
 	assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+
+	fixture_init(&fixture);
+	test_hook_arm(38);
+	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
+	assert(!pthread_create(&owner, NULL, shutdown_thread, &shutdown));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	fail_stop_thread_exit = 1;
+	__atomic_store_n(&fail_stop_calls, 0U, __ATOMIC_RELAXED);
+	struct shutdown_arg timeout = { .evidence = &fixture.evidence };
+	pthread_t waiter;
+	assert(!pthread_create(&waiter, NULL, shutdown_thread, &timeout));
+	assert(!pthread_join(waiter, NULL));
+	assert(__atomic_load_n(&fail_stop_calls, __ATOMIC_RELAXED) == 1U);
+	fail_stop_thread_exit = 0;
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(owner, NULL));
+	assert(shutdown.result == CB_SUCCESS);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_CLOSED);
+
+	fail_stop_exit_code = 97;
+	__atomic_store_n(&fail_stop_calls, 0U, __ATOMIC_RELAXED);
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		fixture_init(&fixture);
+		test_hook_arm(38);
+		shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
+		assert(!pthread_create(&owner, NULL, shutdown_thread, &shutdown));
+		while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+			__asm__ volatile ("pause");
+		(void)smm_invocation_evidence_shutdown(&fixture.evidence);
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert(WIFEXITED(status) && WEXITSTATUS(status) == fail_stop_exit_code);
+	fail_stop_exit_code = 0;
+	__atomic_store_n(&fail_stop_calls, 0U, __ATOMIC_RELAXED);
 
 	fixture_init(&fixture);
 	fixture.evidence.generation = UINT64_MAX;

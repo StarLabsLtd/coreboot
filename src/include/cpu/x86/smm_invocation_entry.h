@@ -6,20 +6,14 @@
 #include <cpu/x86/smm_invocation_evidence.h>
 
 #define SMM_INVOCATION_ENTRY_CAUSE_REVISION 1U
-#define SMM_INVOCATION_ENTRY_POLICY_REVISION 1U
-#define SMM_INVOCATION_ENTRY_CONTEXT_MAX 64U
+#define SMM_INVOCATION_ENTRY_POLICY_REVISION 2U
 #define SMM_INVOCATION_ENTRY_MAX_POLLS 10000000U
-
-typedef void (*smm_invocation_entry_reset_fn)(void *context) __noreturn;
 
 struct smm_invocation_entry_policy {
 	uint32_t revision;
 	uint32_t size;
 	uint32_t max_polls;
 	uint32_t reserved;
-	smm_invocation_entry_reset_fn reset;
-	const void *reset_context;
-	size_t reset_context_size;
 };
 
 /*
@@ -43,10 +37,18 @@ struct smm_invocation_entry_ticket {
 	uint32_t lifecycle;
 	uint32_t max_polls;
 	uint32_t reserved;
-	smm_invocation_entry_reset_fn reset;
-	uint8_t reset_context[SMM_INVOCATION_ENTRY_CONTEXT_MAX];
-	size_t reset_context_size;
-};
+} __aligned(8);
+
+_Static_assert(sizeof(struct smm_invocation_entry_policy) == 16,
+	"SMM invocation entry policy ABI changed");
+_Static_assert(sizeof(struct smm_invocation_entry_ticket) == 32,
+	"SMM invocation entry ticket ABI changed");
+_Static_assert(_Alignof(struct smm_invocation_entry_ticket) == 8,
+	"SMM invocation entry ticket alignment changed");
+_Static_assert(offsetof(struct smm_invocation_entry_ticket, generation) == 0,
+	"SMM invocation entry ticket generation offset changed");
+_Static_assert(offsetof(struct smm_invocation_entry_ticket, max_polls) == 24,
+	"SMM invocation entry ticket poll-bound offset changed");
 
 enum cb_err smm_invocation_entry_arrive(
 	struct smm_invocation_evidence *evidence,

@@ -41,7 +41,12 @@ authenticator, or a capability. Callers must not use it as authority.
 Shutdown requests are observed around every fallible adapter boundary. Before
 the sentinel is written, callback reentry poisons the invocation. After the
 write, abort restores and verifies the original full RAX; any ambiguous restore
-or result publication invokes the provisioned nonreturning fail-stop policy.
+or result publication invokes the strongly linked platform fail-stop action.
+No function pointer or context is transported through loader, evidence, policy,
+or ticket state. The hidden platform capability has no selector; a future
+platform implementation must attempt a platform-wide reset, use a
+platform-wide fallback reset or watchdog if needed, and terminally halt only as
+the final fallback. It must never return or merely stop the calling CPU.
 The generic shutdown operation waits for participants already inside the SMI.
 Production composition therefore also requires a nonreturning platform
 timeout/reset path for a participant that never arrives or departs.
@@ -49,6 +54,7 @@ timeout/reset path for a participant that never arrives or departs.
 Production integration remains blocked on platform entry instrumentation that
 can call arrival before locking and departure afterward on every installed SMM
 participant, a revision-specific Intel save-state adapter, a trusted loader BSP
-and boot/resume-generation source, and a nonreturning timeout/reset policy for
+and boot/resume-generation source, and a strongly linked nonreturning
+timeout/reset implementation for
 a missing participant. Adding those callsites changes production SMM behavior
 and is deliberately outside this prerequisite.
