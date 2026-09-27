@@ -377,6 +377,12 @@ mutate_component eos-one-use \
 mutate_component policy-source-stability \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
 	's/!memcmp(policy, policy_snapshot, sizeof(\*policy_snapshot))/(!memcmp(policy, policy_snapshot, sizeof(*policy_snapshot)) || true)/'
+mutate_component ticket-command-publication \
+	"$root/src/cpu/x86/smm_invocation_entry.c" \
+	's/ticket_snapshot.command = snapshot.command;/ticket_snapshot.command = 0U;/'
+mutate_component ticket-reserved-validation \
+	"$root/src/cpu/x86/smm_invocation_entry.c" \
+	's/!memcmp(ticket->reserved, zero, sizeof(zero))/(!memcmp(ticket->reserved, zero, sizeof(zero)) || true)/'
 mutate_component linked-fail-stop \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
 	's/smm_invocation_platform_fail_stop();/__builtin_trap();/'
@@ -560,8 +566,8 @@ while IFS= read -r file; do
 done
 
 ledger_lines=$(wc -l < "$ledger")
-if [ "$ledger_lines" -ne 105 ]; then
-	printf 'execution ledger incomplete: got %s expected 105\n' \
+if [ "$ledger_lines" -ne 109 ]; then
+	printf 'execution ledger incomplete: got %s expected 109\n' \
 		"$ledger_lines" >&2
 	exit 1
 fi
