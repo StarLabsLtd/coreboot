@@ -3,7 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-base=bf50e21e59a5113f59ccba6b6ad02db8beb869ac
+base=275b2812f07ef6c957103d3024ab06eda00a0065
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 
@@ -232,6 +232,14 @@ mutation selection-consumption baseline \
 	'/smm_apmc_command_finish(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/\*selection = snapshot;/}'
 mutation selection-output-clear baseline \
 	'/smm_apmc_command_select(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/do { } while (0);/}'
+mutation consume-command baseline \
+	'/smm_apmc_command_consume(/,/^}/{s/selection_matches(&snapshot, expected_command, &claim)/selection_matches(\&snapshot, snapshot.command, \&claim)/}'
+mutation consume-owner baseline \
+	'/smm_apmc_command_consume(/,/^}/{s/claim.owner == expected_owner/claim.owner != expected_owner/}'
+mutation consume-selection baseline \
+	'/smm_apmc_command_consume(/,/^}/{s/selection_matches(&snapshot, expected_command, &claim)/((void)snapshot, true)/}'
+mutation consume-clear baseline \
+	'/smm_apmc_command_consume(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/\*selection = snapshot;/}'
 
 binding_mutant="$temporary/ignore-binding.c"
 sed 's/(bindings) == 1/(bindings) >= 0/' \
@@ -273,6 +281,10 @@ grep -Eq '^#define STARLABS_APMC_CMD_EFI_OPTION[[:space:]]+0x[Ee]2$' \
 	"$root/src/mainboard/starlabs/common/include/starlabs/efi_option_smi.h"
 grep -Eq '^#define APM_CNT_BOARD_SMI[[:space:]]+0x[Dd][Dd]$' \
 	"$root/src/mainboard/acer/aspire_vn7_572g/smihandler.c"
+grep -Eq '^#define SMM_APMC_AUTHVAR_PRESENCE[[:space:]]+0xffU$' \
+	"$root/src/include/cpu/x86/smm_command.h"
+test "$(grep -c 'ENTRY(SMM_APMC_AUTHVAR_PRESENCE)' \
+	"$root/src/include/cpu/x86/smm_command.h")" -eq 1
 grep -q 'case PAYLOAD_SPI_CONSOLE_APM_CMD:' \
 	"$root/src/mainboard/emulation/qemu-q35/smihandler.c"
 for command in APM_CNT_ACPI_DISABLE APM_CNT_ACPI_ENABLE APM_CNT_FINALIZE \
@@ -358,7 +370,7 @@ if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src"; then
 fi
 grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
-if rg -q 'smm_apmc_command_(select|finish)' "$root/src" \
+if rg -q 'smm_apmc_command_(select|finish|consume)' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h'; then
 	printf '%s\n' 'dormant registry gained a production callsite' >&2
@@ -380,26 +392,25 @@ fi
 # normalized to exact type/path/line/message/anchor rows; no class is ignored.
 changed_files="$temporary/changed-files.txt"
 {
-	git -C "$root" diff --name-only HEAD
+	git -C "$root" diff --name-only "$base"
 	git -C "$root" ls-files --others --exclude-standard
 } | sort -u > "$changed_files"
 cat > "$temporary/expected-files.txt" <<'EOF'
-Documentation/arch/x86/smm-apmc-command-registry.md
 src/cpu/x86/smm_command.c
 src/include/cpu/x86/smm_command.h
 tests/cpu/x86/smm_command_profiles_test.sh
 tests/cpu/x86/smm_command_test.c
 tests/cpu/x86/smm_command_test.sh
-util/testing/Makefile.mk
 EOF
 diff -u "$temporary/expected-files.txt" "$changed_files"
 checkpatch_patch="$temporary/checkpatch.patch"
 {
-	git -C "$root" diff --binary HEAD --
-	git -C "$root" ls-files --others --exclude-standard | sort | \
-	while read -r file; do
-		git -C "$root" diff --no-index -- /dev/null "$file" || true
-	done
+	git -C "$root" diff --binary "$base" -- \
+		src/cpu/x86/smm_command.c \
+		src/include/cpu/x86/smm_command.h \
+		tests/cpu/x86/smm_command_profiles_test.sh \
+		tests/cpu/x86/smm_command_test.c \
+		tests/cpu/x86/smm_command_test.sh
 } > "$checkpatch_patch"
 checkpatch_output="$temporary/checkpatch.out"
 "$root/util/lint/checkpatch.pl" --no-tree --show-types --strict \

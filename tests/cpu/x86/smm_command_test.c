@@ -97,6 +97,21 @@ static void unknown_only_falls_through(void)
 	assert_descriptor_zero(&selection);
 }
 
+static void authvar_presence_is_reserved_without_a_route(void)
+{
+	struct smm_apmc_descriptor selection;
+
+	memset(&selection, 0xa5, sizeof(selection));
+	assert(smm_apmc_command_select(SMM_APMC_AUTHVAR_PRESENCE, &selection) ==
+		SMM_APMC_SELECT_CONSUMED_REJECT);
+	assert_descriptor_zero(&selection);
+	assert(smm_apmc_command_consume(SMM_APMC_AUTHVAR_PRESENCE,
+					SMM_APMC_OWNER_AUTHVAR_PRESENCE,
+					&selection) ==
+		SMM_APMC_CONSUMED_REJECT);
+	assert_descriptor_zero(&selection);
+}
+
 static void enabled_owner_semantics(void)
 {
 	struct smm_apmc_descriptor descriptor = { 0 };
@@ -222,11 +237,62 @@ static void selection_is_exact_and_consumed(void)
 		SMM_APMC_SELECT_CONSUMED_REJECT);
 }
 
+static void exact_consume_semantics(void)
+{
+	struct smm_apmc_descriptor selection;
+	struct smm_apmc_descriptor snapshot;
+
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &selection) ==
+		SMM_APMC_SELECT_ENABLED);
+	snapshot = selection;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&selection) ==
+		SMM_APMC_CONSUMED_SUCCESS);
+	assert_descriptor_zero(&selection);
+
+#define REJECT_CONSUME(statement) do { \
+	selection = snapshot; \
+	statement; \
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE, \
+		SMM_APMC_OWNER_ACPI_CONTROL, &selection) == \
+		SMM_APMC_CONSUMED_REJECT); \
+	assert_descriptor_zero(&selection); \
+} while (0)
+	REJECT_CONSUME(selection.command = APM_CNT_ACPI_DISABLE);
+	REJECT_CONSUME(selection.owner = SMM_APMC_OWNER_FINALIZE);
+	REJECT_CONSUME(selection.role = SMM_APMC_ROLE_NONE);
+	REJECT_CONSUME(selection.binding_count = 2U);
+	REJECT_CONSUME(selection.observer_count = 1U);
+	REJECT_CONSUME(selection.reserved = false);
+	REJECT_CONSUME(selection.enabled = false);
+#undef REJECT_CONSUME
+
+	selection = snapshot;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_DISABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&selection) ==
+		SMM_APMC_CONSUMED_REJECT);
+	assert_descriptor_zero(&selection);
+	selection = snapshot;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_FINALIZE,
+					&selection) ==
+		SMM_APMC_CONSUMED_REJECT);
+	assert_descriptor_zero(&selection);
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					NULL) ==
+		SMM_APMC_CONSUMED_REJECT);
+}
+
 int main(void)
 {
 	reserved_namespace_is_unique_and_consumed();
 	unknown_only_falls_through();
+	authvar_presence_is_reserved_without_a_route();
 	enabled_owner_semantics();
 	selection_is_exact_and_consumed();
+	exact_consume_semantics();
 	return 0;
 }

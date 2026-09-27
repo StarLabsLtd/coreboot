@@ -93,3 +93,22 @@ smm_apmc_command_finish(u8 expected_command,
 		return SMM_APMC_CONSUMED_REJECT;
 	return SMM_APMC_CONSUMED_SUCCESS;
 }
+
+enum smm_apmc_dispatch_result
+smm_apmc_command_consume(u8 expected_command,
+			 enum smm_apmc_owner expected_owner,
+			 struct smm_apmc_descriptor *selection)
+{
+	struct smm_apmc_descriptor snapshot;
+	struct smm_apmc_descriptor claim = { 0 };
+	bool valid;
+
+	if (!selection)
+		return SMM_APMC_CONSUMED_REJECT;
+	snapshot = *selection;
+	*selection = (struct smm_apmc_descriptor) { 0 };
+	valid = command_enabled(expected_command, &claim) &&
+		claim.owner == expected_owner &&
+		selection_matches(&snapshot, expected_command, &claim);
+	return valid ? SMM_APMC_CONSUMED_SUCCESS : SMM_APMC_CONSUMED_REJECT;
+}
