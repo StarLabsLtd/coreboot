@@ -193,6 +193,14 @@ test-smm-apmc-command-registry:
 test-smm-invocation-evidence:
 	tests/cpu/x86/smm_invocation_evidence_test.sh
 
+.PHONY: test-smm-invocation-entry-adapter
+test-smm-invocation-entry-adapter:
+	tests/cpu/x86/smm_invocation_entry_adapter_test.sh
+
+.PHONY: test-smm-invocation-entry-profiles
+test-smm-invocation-entry-profiles:
+	tests/cpu/x86/smm_invocation_entry_profiles_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh
