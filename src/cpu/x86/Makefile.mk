@@ -32,6 +32,7 @@ smm-y += smi_trigger.c
 smm-$(CONFIG_SMM_APMC_COMMAND_REGISTRY) += smm_command.c
 smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence.c
 smm-$(CONFIG_SMM_INVOCATION_ENTRY) += smm_invocation_entry.c
+ramstage-$(CONFIG_SMM_INVOCATION_TOPOLOGY) += smm_invocation_topology.c
 
 subdirs-$(CONFIG_CPU_INTEL_COMMON_SMM) += ../intel/smm
 

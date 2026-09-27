@@ -30,8 +30,14 @@ typedef enum { SMI_LOCKED, SMI_UNLOCKED } smi_semaphore;
 static volatile
 __attribute__((aligned(4))) smi_semaphore smi_handler_status = SMI_UNLOCKED;
 
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+#define SMM_RUNTIME_ALIGNMENT 8
+#else
+#define SMM_RUNTIME_ALIGNMENT 4
+#endif
 static const volatile
-__attribute((aligned(4), __section__(".module_parameters"))) struct smm_runtime smm_runtime;
+__attribute((aligned(SMM_RUNTIME_ALIGNMENT), __section__(".module_parameters")))
+	struct smm_runtime smm_runtime;
 
 static int smi_obtain_lock(void)
 {

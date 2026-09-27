@@ -201,6 +201,11 @@ test-smm-invocation-entry-adapter:
 test-smm-invocation-entry-profiles:
 	tests/cpu/x86/smm_invocation_entry_profiles_test.sh
 
+.PHONY: test-smm-invocation-topology
+test-smm-invocation-topology:
+	tests/cpu/x86/smm_invocation_topology_test.sh
+	tests/cpu/x86/smm_invocation_topology_profiles_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

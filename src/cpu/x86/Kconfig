@@ -39,6 +39,15 @@ config SMM_INVOCATION_INTEL_ADAPTER
 	  adapter has no callsite until a platform composition supplies the
 	  entry and dispatch capabilities.
 
+config SMM_INVOCATION_TOPOLOGY
+	bool
+	default n
+	depends on SMM_INVOCATION_ENTRY
+	help
+	  Persist the exact full-width APIC topology used by the SMM entry stub
+	  in protected module parameters. This adds no command, dispatcher,
+	  public table or platform selection.
+
 config PARALLEL_MP
 	def_bool y
 	help

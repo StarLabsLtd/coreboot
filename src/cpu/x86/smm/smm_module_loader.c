@@ -9,6 +9,10 @@
 #include <console/payload_spi_console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+#include <cpu/x86/lapic.h>
+#include <cpu/x86/smm_invocation_topology.h>
+#endif
 #include <device/device.h>
 #include <device/mmio.h>
 #include <rmodule.h>
@@ -256,8 +260,14 @@ static void smm_stub_place_staggered_entry_points(const struct smm_loader_params
  * region. As this might not fit the default SMRAM region, the same region used
  * by the permanent handler can be used during relocation.
  */
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
 static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
-				 struct smm_loader_params *params)
+	struct smm_loader_params *params, struct smm_invocation_topology *topology,
+	uint32_t runtime_cpus)
+#else
+static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
+	struct smm_loader_params *params)
+#endif
 {
 	struct rmodule smm_stub;
 	if (rmodule_parse(&_binary_smmstub_start, &smm_stub)) {
@@ -290,22 +300,59 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 		printk(BIOS_ERR, "%s: Failed to find BSP struct device\n", __func__);
 		return -1;
 	}
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	struct smm_invocation_topology_builder topology_builder;
+	if (topology &&
+	    (params->num_cpus > UINT32_MAX ||
+	     params->num_cpus > ARRAY_SIZE(stub_params->apic_id_to_cpu) ||
+	     params->num_cpus != runtime_cpus ||
+	     smm_invocation_topology_begin(&topology_builder, topology,
+		params->num_cpus, initial_lapicid()) != CB_SUCCESS))
+		return -1;
+#endif
 	int i = 0;
-	for (struct device *dev = info->cpu; dev; dev = dev->sibling)
-		if (dev->enabled)
-			stub_params->apic_id_to_cpu[i++] = dev->path.apic.initial_lapicid;
+	for (struct device *dev = info->cpu; dev; dev = dev->sibling) {
+		if (dev->enabled) {
+			const uint32_t initial_apic_id =
+				dev->path.apic.initial_lapicid;
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+			if (topology) {
+				if (smm_invocation_topology_append(&topology_builder,
+					&stub_params->apic_id_to_cpu[i],
+					initial_apic_id) != CB_SUCCESS) {
+					smm_invocation_topology_scrub(topology);
+					return -1;
+				}
+				i++;
+			} else {
+#endif
+				stub_params->apic_id_to_cpu[i++] = initial_apic_id;
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+			}
+#endif
+		}
+	}
 
 	if (i != params->num_cpus) {
 		printk(BIOS_ERR, "%s: Failed to set up apic map correctly\n", __func__);
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+		if (topology)
+			smm_invocation_topology_scrub(topology);
+#endif
 		return -1;
 	}
-
 	printk(BIOS_DEBUG, "%s: stack_top = 0x%x\n", __func__, stub_params->stack_top);
 	printk(BIOS_DEBUG, "%s: per cpu stack_size = 0x%x\n", __func__,
 	       stub_params->stack_size);
 	printk(BIOS_DEBUG, "%s: runtime.smm_size = 0x%zx\n", __func__, smm_size);
 
 	smm_stub_place_staggered_entry_points(params);
+
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	if (topology && smm_invocation_topology_publish(&topology_builder,
+		stub_params->apic_id_to_cpu, i, runtime_cpus) != CB_SUCCESS)
+		return -1;
+#endif
 
 	printk(BIOS_DEBUG, "SMM Module: stub loaded at %lx. Will call %p\n", smm_stub_loc,
 	       params->handler);
@@ -337,7 +384,11 @@ int smm_setup_relocation_handler(struct smm_loader_params *params)
 		params->num_cpus = CONFIG_MAX_CPUS;
 
 	printk(BIOS_SPEW, "%s: exit\n", __func__);
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	return smm_module_setup_stub(smram, SMM_DEFAULT_SIZE, params, NULL, 0);
+#else
 	return smm_module_setup_stub(smram, SMM_DEFAULT_SIZE, params);
+#endif
 }
 
 static void setup_smihandler_params(struct smm_runtime *mod_params,
@@ -608,6 +659,9 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	const bool authvar_channel_required =
 		platform_payload_mm_authvar_mor_private_smi_required();
 #endif
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	struct smm_invocation_topology *published_topology = NULL;
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
@@ -717,8 +771,20 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	published_channel = &smihandler_params->authvar_mor_channel;
 	scrub_authvar_loader(published_channel, sizeof(*published_channel));
 #endif
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	published_topology = &smihandler_params->invocation_topology;
+	smm_invocation_topology_scrub(published_topology);
+	if (smihandler_params->num_cpus != params->num_cpus ||
+	    smihandler_params->num_cpus > SMM_INVOCATION_TOPOLOGY_MAX_CPUS)
+		goto fail;
+#endif
 
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	if (smm_module_setup_stub(stub_segment_base, smram_size, params,
+		published_topology, smihandler_params->num_cpus))
+#else
 	if (smm_module_setup_stub(stub_segment_base, smram_size, params))
+#endif
 		goto fail;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 	if (payload_mm_authvar_mor_private_smi_loader_provision(
@@ -735,7 +801,11 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
 	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
 #endif
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	return smm_invocation_topology_loader_result(published_topology, 0);
+#else
 	return 0;
+#endif
 
 fail:
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
@@ -750,5 +820,9 @@ fail:
 	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
 	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
 #endif
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	return smm_invocation_topology_loader_result(published_topology, -1);
+#else
 	return -1;
+#endif
 }
