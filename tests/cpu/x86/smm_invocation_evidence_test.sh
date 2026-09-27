@@ -9,6 +9,7 @@ mkdir -p "$temporary/include"
 printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_FAIL_STOP_PLATFORM 1' \
 	'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
 	> "$temporary/include/config.h"
 
@@ -82,6 +83,10 @@ mutation()
 }
 
 mutation exact-one 's/matches != 1U/matches == 0U/'
+mutation linked-fail-stop \
+	's/smm_invocation_platform_fail_stop();/__builtin_trap();/'
+mutation terminal-scrub-fail-stop \
+	'/phase == SMM_INVOCATION_TERMINAL_SCRUBBING/,/continue;/{s/invocation_fail_stop();/__builtin_trap();/}'
 mutation exact-bsp 's/initiator != evidence->bsp_cpu/false/'
 mutation sentinel-command 's/(uint8_t)sentinel != command/false/'
 mutation exact-apic \
@@ -112,6 +117,13 @@ mutation arrival-failure-latch \
 	'0,/__atomic_load_n(\&evidence->arrival_failed, __ATOMIC_ACQUIRE)/{s//false/}'
 mutation arrival-post-claim-reload \
 	's/TEST_HOOK(8);/TEST_HOOK(8); if (phase_load(evidence) != SMM_INVOCATION_COLLECTING) return SMM_INVOCATION_TRY_ERROR;/'
+
+if rg -n '__builtin_trap|(^|[^[:alnum:]_])abort[[:space:]]*\(|\bhlt\b' \
+	"$root/src/cpu/x86/smm_invocation_entry.c" \
+	"$root/src/cpu/x86/smm_invocation_evidence.c"; then
+	printf '%s\n' 'SMM invocation production code gained a local fail-stop' >&2
+	exit 1
+fi
 
 grep -q '^config SMM_INVOCATION_EVIDENCE$' "$root/src/cpu/x86/Kconfig"
 grep -q '^smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence.c$' \

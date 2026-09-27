@@ -9,7 +9,6 @@
 
 #define SMM_INVOCATION_EVIDENCE_REVISION 1U
 #define SMM_INVOCATION_EVIDENCE_MAX_CPUS 64U
-#define SMM_INVOCATION_EVIDENCE_CONTEXT_MAX 64U
 #define SMM_INVOCATION_TOKEN_REVISION 1U
 
 enum smm_invocation_loader_lifecycle {
@@ -80,8 +79,6 @@ typedef enum cb_err (*smm_invocation_read_rax_fn)(void *context,
 	uint32_t cpu, uint64_t *value);
 typedef enum cb_err (*smm_invocation_write_rax_fn)(void *context,
 	uint32_t cpu, uint64_t value);
-typedef void (*smm_invocation_fail_stop_fn)(void *context) __noreturn;
-
 struct smm_invocation_save_state_ops {
 	smm_invocation_match_fn match_apmc_write;
 	smm_invocation_read_rax_fn read_rax;
@@ -168,16 +165,11 @@ struct smm_invocation_evidence {
 	uint32_t close_reserved;
 	uint32_t rendezvous_ack_required;
 	uint32_t reserved;
-	smm_invocation_fail_stop_fn fail_stop;
-	uint8_t fail_context[SMM_INVOCATION_EVIDENCE_CONTEXT_MAX];
-	size_t fail_context_size;
 } __aligned(8);
 
 enum cb_err smm_invocation_evidence_provision(
 	struct smm_invocation_evidence *evidence,
-	const struct smm_invocation_loader_seed *seed,
-	smm_invocation_fail_stop_fn fail_stop, const void *fail_context,
-	size_t fail_context_size);
+	const struct smm_invocation_loader_seed *seed);
 uint32_t smm_invocation_evidence_phase(
 	const struct smm_invocation_evidence *evidence);
 bool smm_invocation_evidence_shutdown_requested(
