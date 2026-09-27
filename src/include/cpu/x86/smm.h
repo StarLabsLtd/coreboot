@@ -9,6 +9,9 @@
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+#include <cpu/x86/smm_invocation_topology.h>
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 #include <boot/payload_mm_authvar_smm_loader.h>
 #endif
@@ -131,12 +134,22 @@ struct smm_runtime {
 	struct payload_mm_authvar_mor_private_smi_slot authvar_mor_channel
 		__aligned(8);
 #endif
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+	struct smm_invocation_topology invocation_topology __aligned(8);
+#endif
 } __packed;
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 _Static_assert(offsetof(struct smm_runtime, authvar_mor_channel) %
 	_Alignof(struct payload_mm_authvar_mor_private_smi_slot) == 0,
 	"MOR private SMI slot is not aligned in SMM parameters");
+#endif
+
+#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+_Static_assert(offsetof(struct smm_runtime, invocation_topology) % 8 == 0,
+	"SMM invocation topology is not aligned");
+_Static_assert(_Alignof(struct smm_runtime) >= 8,
+	"SMM runtime does not preserve topology alignment");
 #endif
 
 struct smm_module_params {
