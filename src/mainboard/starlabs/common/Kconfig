@@ -122,6 +122,11 @@ config VBOOT_KERNEL_KEY
 config VBOOT_KEYBLOCK
 	default "\$(STARLABS_VBOOT_KEY_DIR)/firmware.keyblock" if VBOOT
 
+config VBOOT_KEYBLOCK_VERSION
+	# release_26.09 baseline; the release build rejects later LOCALVERSIONs
+	# until this signing input is advanced to the matching major.minor value.
+	default 6665 if VBOOT && STARLABS_VBOOT_RELEASE_POLICY
+
 endif # STARLABS_VBOOT_RELEASE_POLICY
 
 config DRIVERS_EFI_CAPSULE_REGIONS
