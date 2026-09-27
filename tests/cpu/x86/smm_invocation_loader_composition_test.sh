@@ -3,7 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-base=fd9e9443121bf3927248ca85544f0a9a1bd48290
+base=fce222a9cf490cc214e87c8e6ca1dbcfb94d8cb2
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
