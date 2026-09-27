@@ -11,6 +11,7 @@
 #include <identity.h>
 #include <boot/coreboot_tables.h>
 #include <boot/dma_handoff.h>
+#include <boot/payload_mm_authvar_presence_publication.h>
 #include <boot/tables.h>
 #include <boot_device.h>
 #include <string.h>
@@ -597,9 +598,6 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));
-	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&
-	    lb_add_payload_mm_authvar_presence_endpoint(head) != CB_SUCCESS)
-		die("Authenticated-variable presence publication failed\n");
 
 	/* Record our motherboard */
 	lb_mainboard(head);
@@ -691,6 +689,13 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		lb_add_acpi_rsdp(head);
 
 	lb_add_boot_mode(head);
+
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&
+	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
+	     lb_add_payload_mm_authvar_presence_endpoint(head,
+							 rom_table_end +
+							 COREBOOT_TABLE_SIZE) != CB_SUCCESS))
+		die("Authenticated-variable presence publication failed\n");
 
 	/* Remember where my valid memory ranges are */
 	return lb_table_fini(head);

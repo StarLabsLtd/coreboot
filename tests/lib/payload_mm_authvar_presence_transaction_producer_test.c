@@ -14,6 +14,23 @@
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
 
+static enum cb_err
+publication_take_and_complete(struct lb_authvar_presence_endpoint *endpoint)
+{
+	struct payload_mm_authvar_presence_receipt receipt = { 0 };
+	enum cb_err status;
+
+	status = payload_mm_authvar_presence_producer_publication_take(&receipt);
+	if (status == CB_SUCCESS) {
+		*endpoint = receipt.endpoint;
+		status = payload_mm_authvar_presence_producer_publication_complete(&receipt);
+	}
+	return status;
+}
+
+#define payload_mm_authvar_presence_producer_publication_take(endpoint) \
+	publication_take_and_complete(endpoint)
+
 static uint8_t backing[PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE]
 	__aligned(PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT);
 static unsigned int random_calls;
@@ -175,7 +192,7 @@ static enum cb_err abort_authority(void *context,
 static __noreturn void fatal(void *context)
 {
 	assert(true_state(context));
-	abort();
+	_exit(73);
 }
 
 static struct payload_mm_authvar_presence_composition composition(
@@ -289,7 +306,7 @@ static void ambiguous(void)
 		_exit(0);
 	}
 	assert(waitpid(child, &wait_status, 0) == child);
-	assert(WIFSIGNALED(wait_status) && WTERMSIG(wait_status) == SIGABRT);
+	assert(WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 73);
 }
 
 static void reservation_owner_cleanup(void)
@@ -429,6 +446,132 @@ static void finalize_wins(void)
 	assert(finalize_result == CB_SUCCESS && commit_calls == 1U && !abort_calls);
 }
 
+#undef payload_mm_authvar_presence_producer_publication_take
+
+struct complete_race_context {
+	struct payload_mm_authvar_presence_receipt *receipt;
+	enum cb_err result;
+};
+
+static u32 complete_race_start;
+
+static void *complete_race_thread(void *argument)
+{
+	struct complete_race_context *context = argument;
+
+	while (!__atomic_load_n(&complete_race_start, __ATOMIC_ACQUIRE))
+		__asm__ __volatile__("pause");
+	context->result =
+		payload_mm_authvar_presence_producer_publication_complete(context->receipt);
+	return NULL;
+}
+
+static void publication_complete_race(void)
+{
+	struct payload_mm_authvar_presence_receipt receipt = { 0 };
+	struct complete_race_context contexts[2] = {
+		{ .receipt = &receipt },
+		{ .receipt = &receipt },
+	};
+	pthread_t threads[2];
+
+	reset_fixture();
+	compose();
+	assert(payload_mm_authvar_presence_producer_publication_take(&receipt) ==
+		CB_SUCCESS);
+	__atomic_store_n(&complete_race_start, 0, __ATOMIC_RELEASE);
+	for (size_t index = 0; index < ARRAY_SIZE(threads); index++)
+		assert(!pthread_create(&threads[index], NULL, complete_race_thread,
+				       &contexts[index]));
+	__atomic_store_n(&complete_race_start, 1, __ATOMIC_RELEASE);
+	for (size_t index = 0; index < ARRAY_SIZE(threads); index++)
+		assert(!pthread_join(threads[index], NULL));
+	assert((contexts[0].result == CB_SUCCESS) !=
+	       (contexts[1].result == CB_SUCCESS));
+}
+
+static void expect_pending_fail_stop(unsigned int mutation)
+{
+	struct payload_mm_authvar_presence_receipt receipt = { 0 };
+	struct payload_mm_authvar_presence_receipt copy;
+	pid_t child;
+	int wait_status;
+
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		reset_fixture();
+		compose();
+		assert(payload_mm_authvar_presence_producer_publication_take(&receipt) ==
+			CB_SUCCESS);
+		copy = receipt;
+		switch (mutation) {
+		case 0:
+			receipt.identity++;
+			break;
+		case 1:
+			receipt.nonce++;
+			break;
+		case 2:
+			receipt.endpoint.generation++;
+			break;
+		case 3:
+			receipt.active = 0;
+			break;
+		case 4:
+			(void)payload_mm_authvar_presence_producer_publication_complete(&copy);
+			break;
+		case 5:
+			(void)payload_mm_authvar_presence_producer_publication_complete(NULL);
+			break;
+		case 6:
+			payload_mm_authvar_presence_producer_publication_marker_test(0);
+			break;
+		case 7:
+			payload_mm_authvar_presence_producer_publication_marker_test(4);
+			break;
+		case 8:
+			payload_mm_authvar_presence_producer_publication_marker_test(UINT32_MAX);
+			break;
+		default:
+			payload_mm_authvar_presence_producer_publication_fail_stop(NULL);
+			break;
+		}
+		(void)payload_mm_authvar_presence_producer_publication_complete(&receipt);
+		_exit(0);
+	}
+	assert(waitpid(child, &wait_status, 0) == child);
+	assert(WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 73);
+}
+
+static void publication_receipts(void)
+{
+	struct payload_mm_authvar_presence_receipt receipt = { 0 };
+	struct payload_mm_authvar_presence_receipt replay;
+
+	reset_fixture();
+	compose();
+	assert(payload_mm_authvar_presence_producer_publication_take(&receipt) ==
+		CB_SUCCESS);
+	assert(receipt.active == 1 && receipt.identity == (uintptr_t)&receipt &&
+	       receipt.nonce != 0);
+	replay = receipt;
+	assert(payload_mm_authvar_presence_producer_publication_complete(&receipt) ==
+		CB_SUCCESS);
+	assert(!memcmp(&receipt,
+		       &(struct payload_mm_authvar_presence_receipt) { 0 },
+		       sizeof(receipt)));
+	receipt = replay;
+	receipt.identity = (uintptr_t)&receipt;
+	assert(payload_mm_authvar_presence_producer_publication_complete(&receipt) ==
+		CB_ERR);
+	assert(!memcmp(&receipt, &replay, sizeof(receipt)));
+	memset(&receipt, 0, sizeof(receipt));
+
+	for (unsigned int mutation = 0; mutation < 10; mutation++)
+		expect_pending_fail_stop(mutation);
+}
+
 int main(void)
 {
 	success_and_abort();
@@ -438,5 +581,7 @@ int main(void)
 	transaction_created_abort_owner_cleanup();
 	prepare_abort_race();
 	finalize_wins();
+	publication_receipts();
+	publication_complete_race();
 	return 0;
 }

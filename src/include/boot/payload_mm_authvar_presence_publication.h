@@ -16,9 +16,9 @@ bool platform_payload_mm_authvar_presence_composition(
 /* Register before bootmem initialization. */
 enum cb_err payload_mm_authvar_presence_publication_reserve(void);
 
-/* Compose after bootmem resolution and append exactly one endpoint record. */
+/* Append the endpoint as the final record within the exclusive table bound. */
 enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
-	struct lb_header *header);
+	struct lb_header *header, uintptr_t table_end);
 
 #if ENV_TEST
 void payload_mm_authvar_presence_publication_reset_test(void);

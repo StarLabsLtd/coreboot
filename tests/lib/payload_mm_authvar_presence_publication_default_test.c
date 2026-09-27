@@ -24,11 +24,27 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 }
 
 enum cb_err payload_mm_authvar_presence_producer_publication_take(
-	struct lb_authvar_presence_endpoint *endpoint)
+	struct payload_mm_authvar_presence_receipt *receipt)
 {
-	(void)endpoint;
+	(void)receipt;
 	producer_calls++;
 	return CB_ERR;
+}
+
+enum cb_err
+payload_mm_authvar_presence_producer_publication_complete(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	(void)receipt;
+	producer_calls++;
+	return CB_ERR;
+}
+
+void
+payload_mm_authvar_presence_producer_publication_fail_stop(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	(void)receipt;
+	producer_calls++;
+	abort();
 }
 
 void payload_mm_authvar_presence_producer_abort(void)
@@ -46,10 +62,15 @@ struct lb_record *lb_new_record(struct lb_header *header)
 int main(void)
 {
 	struct lb_header header = { 0 };
+	const uintptr_t table_end = (uintptr_t)&header + sizeof(header) +
+		sizeof(struct lb_authvar_presence_endpoint);
+
+	header.header_bytes = sizeof(header);
 
 	payload_mm_authvar_presence_publication_reset_test();
 	assert(payload_mm_authvar_presence_publication_reserve() == CB_SUCCESS);
-	assert(lb_add_payload_mm_authvar_presence_endpoint(&header) == CB_SUCCESS);
+	assert(lb_add_payload_mm_authvar_presence_endpoint(&header, table_end) ==
+		CB_SUCCESS);
 	assert(producer_calls == 0);
 	assert(header.table_entries == 0 && header.table_bytes == 0);
 	return 0;

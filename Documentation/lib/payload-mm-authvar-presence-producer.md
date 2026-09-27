@@ -43,9 +43,14 @@ Reset readiness and the platform proof are mandatory even though they do not
 have separate public flag bits. All proofs are rerun after mailbox provisioning
 and immediately before the explicit publication handoff. Only
 `payload_mm_authvar_presence_producer_publication_take()` can release the exact
-64-byte record, once. The handoff clears the producer's copied policy, context,
-reservation handle and internal endpoint; it does not itself add tag `0x56` to
-a coreboot table.
+64-byte record once. It leaves the producer in `PUBLISHED_PENDING` and returns
+an address-bound receipt containing a private transaction nonce but no presence
+capability. The table owner must either complete that exact receipt after its
+fixed copy or use it to invoke the retained sealed platform fail-stop. While
+pending, NULL, copied, forged, stale or mutated receipts fail-stop rather than
+leave committed authority open. Successful completion consumes the receipt and
+clears the producer's copied policy, context, reservation handle and internal
+endpoint. The handoff does not itself add tag `0x56` to a coreboot table.
 
 Generation, request ID and the opaque 256-bit capability come from six
 `get_random_number_64()` calls. The capability is copied only to protected SMM

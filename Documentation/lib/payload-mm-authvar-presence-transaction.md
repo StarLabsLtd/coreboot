@@ -16,6 +16,9 @@ fallible proof and record preparation before issuing `COMMIT`. Only an exact
 commit acknowledgement permits the local committed endpoint record. An abort
 that wins first exact-restricts the same generation and prevents publication;
 a stale abort cannot close finalizing or committed authority.
+The producer retains its sealed fail-stop composition in a short
+`PUBLISHED_PENDING` phase until the final table owner consumes the exact
+address-bound publication receipt after copying the endpoint.
 
 The protected receiver accepts a loader-provisioned fixed slot and one-shot
 exact-`BM_MEM_RESERVED` receipt for the transaction page. The receipt is copied
