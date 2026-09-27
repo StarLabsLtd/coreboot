@@ -28,6 +28,9 @@ static bool dma_ok;
 static bool rendezvous_ok;
 static bool provision_zero;
 static bool reset_returned;
+static bool expect_reset_return_failstop;
+static bool mutate_reset_context;
+static bool reenter_from_reset;
 static bool mailbox_is_protected;
 static bool corrupt_on_dma;
 static bool mutate_context_on_provision;
@@ -173,6 +176,14 @@ static void cold_reset(void *context)
 	assert(value && value->magic == 0x13579bdfU);
 	reset_calls++;
 	reset_returned = true;
+	assert(test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
+	if (reenter_from_reset) {
+		assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+		assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
+		assert(executor_calls == 1U);
+	}
+	if (mutate_reset_context)
+		value->magic = 0;
 }
 
 static __noreturn void fail_stop(void *context)
@@ -180,6 +191,9 @@ static __noreturn void fail_stop(void *context)
 	struct callback_context *value = context;
 
 	assert(value && value->magic == 0x13579bdfU);
+	if (expect_reset_return_failstop)
+		assert(reset_calls == 1U && reset_returned &&
+		       test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
 	_exit(77);
 }
 
@@ -255,6 +269,8 @@ static void reset_fixture(void)
 	rendezvous_ok = true;
 	provision_zero = false;
 	reset_returned = false;
+	expect_reset_return_failstop = mutate_reset_context = false;
+	reenter_from_reset = false;
 	mailbox_is_protected = false;
 	corrupt_on_dma = false;
 	mutate_context_on_provision = false;
@@ -704,6 +720,8 @@ static void status_and_reset(void)
 		{ PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_DEVICE_ERROR },
 	};
+	pid_t child;
+	int status;
 
 	for (size_t index = 0; index < ARRAY_SIZE(cases); index++) {
 		reset_fixture();
@@ -720,19 +738,31 @@ static void status_and_reset(void)
 	make_request();
 	executor_status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	executor_reset_required = true;
-	assert(payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8) == CB_ERR);
-	assert(executor_calls == 1U && reset_calls == 1U && reset_returned);
-	assert(test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
-	assert(payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8) == CB_ERR);
-	assert(executor_calls == 1U && reset_calls == 1U);
+	expect_reset_return_failstop = true;
+	mutate_reset_context = true;
+	reenter_from_reset = true;
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		(void)payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8);
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert_fail_stopped(status);
 
 	reset_fixture();
 	install();
 	make_request();
 	executor_reset_required = true;
-	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
-	assert(executor_calls == 1U && reset_calls == 1U);
-	assert(test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
+	expect_reset_return_failstop = true;
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		(void)payload_mm_authvar_presence_authority_dispatch();
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert_fail_stopped(status);
 }
 
 static void proof_transition_after_executor(void)
@@ -786,6 +816,8 @@ static void dispatch_restrict_interleavings(void)
 {
 	pthread_t dispatch;
 	pthread_t restrictor;
+	pid_t child;
+	int status;
 
 	/* A valid close requested while the executor owns dispatch is deferred. */
 	reset_fixture();
@@ -887,27 +919,33 @@ static void dispatch_restrict_interleavings(void)
 	assert(test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
 
 	/* Reset-required close also retries and scrubs before reset returns. */
-	reset_fixture();
-	install();
-	make_request();
-	executor_reset_required = true;
-	restrict_hook_entered = false;
-	restrict_hook_release = false;
-	payload_mm_authvar_presence_authority_dispatch_finish_test_hook(
-		block_dispatch_finish_once);
-	assert(!pthread_create(&dispatch, NULL, dispatch_thread, NULL));
-	assert(!pthread_mutex_lock(&restrict_mutex));
-	while (!restrict_hook_entered)
-		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
-	assert(!pthread_mutex_unlock(&restrict_mutex));
-	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
-	assert(!pthread_mutex_lock(&restrict_mutex));
-	restrict_hook_release = true;
-	assert(!pthread_cond_broadcast(&restrict_cond));
-	assert(!pthread_mutex_unlock(&restrict_mutex));
-	assert(!pthread_join(dispatch, NULL));
-	assert(reset_calls == 1U && test_bytes_zero(&mailbox_page,
-		sizeof(mailbox_page)));
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		reset_fixture();
+		install();
+		make_request();
+		executor_reset_required = true;
+		expect_reset_return_failstop = true;
+		restrict_hook_entered = false;
+		restrict_hook_release = false;
+		payload_mm_authvar_presence_authority_dispatch_finish_test_hook(
+			block_dispatch_finish_once);
+		assert(!pthread_create(&dispatch, NULL, dispatch_thread, NULL));
+		assert(!pthread_mutex_lock(&restrict_mutex));
+		while (!restrict_hook_entered)
+			assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+		assert(!pthread_mutex_unlock(&restrict_mutex));
+		assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+		assert(!pthread_mutex_lock(&restrict_mutex));
+		restrict_hook_release = true;
+		assert(!pthread_cond_broadcast(&restrict_cond));
+		assert(!pthread_mutex_unlock(&restrict_mutex));
+		(void)pthread_join(dispatch, NULL);
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert_fail_stopped(status);
 }
 
 static void attempted_response_lifetime(void)

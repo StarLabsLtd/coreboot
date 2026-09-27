@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <limits.h>
 #include "../../src/lib/payload_mm_authvar_internal.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
@@ -59,10 +61,8 @@
 
 extern long write(int fd, const void *buffer, unsigned long size);
 extern int dprintf(int fd, const char *format, ...);
-#ifdef EXECUTOR_REAL_MEDIA
 extern pid_t fork(void);
-extern void _exit(int status);
-#endif
+extern __noreturn void _exit(int status);
 
 #ifdef EXECUTOR_REAL_MEDIA
 static uint8_t *media;
@@ -4854,6 +4854,7 @@ static union {
 #define presence_mailbox presence_page.message
 static uint8_t presence_capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE];
 static unsigned int presence_reset_calls;
+static unsigned int presence_expected_programs, presence_expected_erases;
 
 static bool presence_protected_storage(void *context, const void *storage,
 	size_t size)
@@ -4909,7 +4910,12 @@ static void presence_cold_reset(void *context)
 static __noreturn void presence_fail_stop(void *context)
 {
 	(void)context;
-	abort();
+	assert(presence_reset_calls == 1U);
+	assert(program_count == presence_expected_programs &&
+	       erase_count == presence_expected_erases);
+	for (size_t index = 0; index < sizeof(presence_page); index++)
+		assert(!presence_page.bytes[index]);
+	_exit(77);
 }
 
 static void coordinator_presence_authority_noop(void)
@@ -4952,6 +4958,8 @@ static void coordinator_presence_authority_noop(void)
 	bool reset_required = false;
 	unsigned int programs;
 	unsigned int erases;
+	pid_t child;
+	int status;
 
 	coordinator_fixture_build(&fixture);
 	coordinator_make_user_source(&fixture, true);
@@ -4973,11 +4981,18 @@ static void coordinator_presence_authority_noop(void)
 		sizeof(presence_capability));
 	programs = program_count;
 	erases = erase_count;
-	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
-	assert(presence_reset_calls == 1U && program_count == programs &&
+	presence_expected_programs = programs;
+	presence_expected_erases = erases;
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		(void)payload_mm_authvar_presence_authority_dispatch();
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert(WIFEXITED(status) && WEXITSTATUS(status) == 77);
+	assert(!presence_reset_calls && program_count == programs &&
 		erase_count == erases);
-	for (size_t index = 0; index < sizeof(presence_page); index++)
-		assert(!presence_page.bytes[index]);
 }
 #endif
 
