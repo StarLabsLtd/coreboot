@@ -186,6 +186,11 @@ test-authvar-presence-transaction:
 	tests/lib/payload_mm_authvar_presence_producer_test.sh
 	tests/lib/payload_mm_authvar_presence_publication_test.sh
 
+.PHONY: test-authvar-presence-arm
+test-authvar-presence-arm:
+	tests/lib/payload_mm_authvar_presence_arm_test.sh
+	tests/lib/payload_mm_authvar_presence_arm_profiles_test.sh
+
 .PHONY: test-authvar-presence-mailbox-scrub
 test-authvar-presence-mailbox-scrub:
 	tests/lib/payload_mm_authvar_presence_authority_test.sh

@@ -307,7 +307,8 @@ if placement_valid "$placement_owner_mutant" \
 fi
 if rg -q 'smm_invocation_loader_composition_evidence\(' "$root/src" \
 	-g '!src/cpu/x86/smm_invocation_loader_composition_gate.c' \
-	-g '!src/include/cpu/x86/smm_invocation_loader_composition.h'; then
+	-g '!src/include/cpu/x86/smm_invocation_loader_composition.h' \
+	-g '!src/lib/payload_mm_authvar_presence_arm.c'; then
 	printf '%s\n' 'composition evidence gained a bypassing production consumer' >&2
 	exit 1
 fi

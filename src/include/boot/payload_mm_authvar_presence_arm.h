@@ -1,0 +1,122 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef BOOT_PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_H
+#define BOOT_PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_H
+
+#include <boot/payload_mm_authvar_presence_transaction.h>
+#include <cpu/x86/smm_invocation_loader_composition.h>
+
+enum payload_mm_authvar_presence_arm_state {
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_EMPTY,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROVISIONING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_LOADER_READY,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_TRANSACTION_PROVISIONING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_READY,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_ABORTED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_POISONED,
+};
+
+enum payload_mm_authvar_presence_arm_audit {
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_EMPTY,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_PREPARE_REJECTED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_PREPARE_ENTERED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_PREPARED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_ABORTING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_ABORTED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_COMMITTING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_COMMITTED,
+};
+
+enum payload_mm_authvar_presence_arm_dispatch {
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_IDLE,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_CLAIMING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_CLAIMED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_COMPLETING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_DECISION_CLAIMING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_DECISION_CLAIMED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_COMMIT_PENDING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_COMMIT_COMPLETING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_COMMITTED,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_ABORT_PENDING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_ABORT_COMPLETING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_ABORTED,
+};
+
+struct payload_mm_authvar_presence_arm;
+
+struct payload_mm_authvar_presence_arm_context {
+	struct payload_mm_authvar_presence_arm *arm;
+	uintptr_t identity;
+};
+
+/* Protected, loader-provisioned, one-use state. There is no reset or rearm. */
+struct payload_mm_authvar_presence_arm {
+	uint32_t state;
+	uint32_t owner_attempt;
+	uint32_t audit;
+	uint32_t dispatch;
+	uint32_t reserved;
+	uint32_t active_cpus;
+	uint32_t bsp_cpu;
+	uint64_t completed_prepare_generation;
+	const struct smm_invocation_loader_composition *composition;
+	const struct smm_invocation_loader_instance *instance;
+	const struct smm_invocation_evidence *evidence;
+	const struct smm_invocation_loader_composition *sealed_composition;
+	const struct smm_invocation_loader_instance *sealed_instance;
+	const struct smm_invocation_evidence *sealed_evidence;
+	struct smm_invocation_loader_instance instance_snapshot;
+	struct smm_invocation_loader_instance sealed_instance_snapshot;
+	struct payload_mm_authvar_presence_transaction_binding binding;
+	struct payload_mm_authvar_presence_transaction_binding sealed_binding;
+	struct payload_mm_authvar_presence_seed seed;
+	struct payload_mm_authvar_presence_seed sealed_seed;
+	struct payload_mm_authvar_presence_transaction_invocation invocation;
+	struct payload_mm_authvar_presence_transaction_policy policy;
+	struct payload_mm_authvar_presence_transaction_policy sealed_policy;
+	struct payload_mm_authvar_presence_transaction_policy wrapped_policy;
+	uint8_t policy_context[PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+	uint8_t sealed_policy_context[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+	payload_mm_authvar_protected_storage protected_storage;
+	void *protected_storage_context;
+	payload_mm_authvar_protected_storage sealed_protected_storage;
+	void *sealed_protected_storage_context;
+	struct payload_mm_authvar_presence_arm_context callback_context;
+	struct payload_mm_authvar_presence_arm_context sealed_callback_context;
+	payload_mm_authvar_presence_transaction_fail_stop_fn failure_callback;
+	size_t failure_context_size;
+	uint8_t failure_context[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+	payload_mm_authvar_presence_transaction_fail_stop_fn sealed_failure_callback;
+	size_t sealed_failure_context_size;
+	uint8_t sealed_failure_context[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+} __aligned(8);
+
+/* Platform-owned canonical protected arm. There is deliberately no weak default. */
+struct payload_mm_authvar_presence_arm *
+platform_payload_mm_authvar_presence_arm(void);
+
+enum cb_err payload_mm_authvar_presence_arm_provision(
+	struct payload_mm_authvar_presence_arm *arm,
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context);
+
+/* Bind the exact policy and binding directly into the generic transaction. */
+enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
+	struct payload_mm_authvar_presence_arm *arm,
+	struct payload_mm_authvar_presence_transaction_slot *slot,
+	const struct payload_mm_authvar_presence_transaction_policy *policy,
+	const struct payload_mm_authvar_presence_transaction_binding *binding,
+	struct bootmem_reservation_receipt_authority *page_verifier,
+	struct bootmem_reservation_receipt *page_receipt,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context);
+
+#endif

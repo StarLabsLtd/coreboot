@@ -6,6 +6,7 @@
 #include <arch/cpu.h>
 #include <commonlib/cfr.h>
 #include <commonlib/region.h>
+#include <cpu/x86/apm.h>
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
@@ -34,7 +35,6 @@
 #define SMM_ENTRY_OFFSET 0x8000
 #define SMM_SAVE_STATE_BEGIN(x) (SMM_ENTRY_OFFSET + (x))
 
-#define APM_CNT		0xb2
 #define APM_CNT_NOOP_SMI	0x00
 #define APM_CNT_ACPI_DISABLE	0x1e
 #define APM_CNT_ACPI_ENABLE	0xe1
