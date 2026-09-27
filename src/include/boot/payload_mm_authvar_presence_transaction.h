@@ -80,7 +80,7 @@ typedef enum cb_err (*payload_mm_authvar_presence_transaction_decide_fn)(
 	uint64_t *saved_rax);
 
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX 128U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 2U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 3U
 typedef enum cb_err (*payload_mm_authvar_presence_transaction_smm_prepare_fn)(
 	void *context, const struct payload_mm_authvar_presence_seed *seed,
 	uint64_t generation);
@@ -105,11 +105,24 @@ typedef enum cb_err (*payload_mm_authvar_presence_transaction_claim_fn)(
 	void *context, uint64_t sentinel,
 	struct payload_mm_authvar_presence_transaction_invocation *invocation);
 /*
- * Success proves one initiating BSP, sentinel write/readback on its exact
- * save-state node, the actual active CPU count, and every active CPU in the
- * reported nonzero SMI/rendezvous generation. The opaque proof is immutable.
+ * Claim must zero the output on error. Success exclusively transfers one
+ * live invocation to the caller and proves one initiating BSP, sentinel
+ * write/readback on its exact save-state node, the actual active CPU count,
+ * and every active CPU in the reported nonzero SMI/rendezvous generation.
+ * The opaque proof is immutable.
+ *
+ * Complete consumes that exact invocation and publishes the nonzero result.
+ * Success means the invocation is fully closed. Error is permitted only when
+ * the provider proves the invocation remains claimed and no CPU or EOS was
+ * released. Any partial close, shutdown race or ambiguous evidence state must
+ * invoke the platform-wide fail-stop internally and must not return. The
+ * existing generic evidence publish operation does not alone provide this
+ * stronger transaction boundary; a live adapter remains a prerequisite.
+ * The caller never retries or substitutes another close outcome. Before this
+ * one-shot completion, fatal paths deliberately retain the claimed invocation
+ * and CPU rendezvous until the sealed platform-wide fail-stop resets them.
  */
-typedef enum cb_err (*payload_mm_authvar_presence_transaction_publish_fn)(
+typedef enum cb_err (*payload_mm_authvar_presence_transaction_complete_fn)(
 	void *context,
 	const struct payload_mm_authvar_presence_transaction_invocation *invocation,
 	uint64_t value);
@@ -124,10 +137,18 @@ struct payload_mm_authvar_presence_transaction_policy {
 	payload_mm_authvar_presence_transaction_smm_decide_fn abort;
 	payload_mm_authvar_presence_transaction_range_fn dma_protected;
 	payload_mm_authvar_presence_transaction_claim_fn claim_invocation;
-	payload_mm_authvar_presence_transaction_publish_fn publish_and_verify_rax;
+	payload_mm_authvar_presence_transaction_complete_fn complete_invocation;
 	payload_mm_authvar_presence_transaction_fail_stop_fn fail_stop;
 	void *context;
 	size_t context_size;
+};
+
+struct payload_mm_authvar_presence_transaction_failure_closure {
+	payload_mm_authvar_presence_transaction_fail_stop_fn callback;
+	size_t context_size;
+	uint64_t generation;
+	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+	uint32_t reserved[2];
 };
 
 struct payload_mm_authvar_presence_transaction_slot {
@@ -136,6 +157,7 @@ struct payload_mm_authvar_presence_transaction_slot {
 	struct bootmem_reservation_receipt_authority page_verifier;
 	struct bootmem_reservation_receipt page_receipt;
 	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX];
+	struct payload_mm_authvar_presence_transaction_failure_closure failure;
 	uint64_t page_base;
 	uint64_t page_size;
 	uint32_t state;
@@ -160,6 +182,8 @@ bool payload_mm_authvar_presence_transaction_ack_valid(
 	uint64_t saved_rax);
 
 #if ENV_SMM || ENV_TEST
+struct payload_mm_authvar_presence_transaction_slot *
+smm_get_payload_mm_authvar_presence_transaction_slot(void);
 enum cb_err payload_mm_authvar_presence_transaction_provision(
 	struct payload_mm_authvar_presence_transaction_slot *slot,
 	const struct payload_mm_authvar_presence_transaction_policy *policy,

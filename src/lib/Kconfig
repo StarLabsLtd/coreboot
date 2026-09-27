@@ -472,12 +472,15 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
 	bool
 	default n
 	depends on HAVE_SMI_HANDLER
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
 	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
 	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF
 	help
 	  Build the dormant private prepare, commit or exact-abort transaction that
 	  keeps the presence authority gated until publication owns its irrevocable
-	  finalization boundary. It installs no route, selector or board policy.
+	  finalization boundary. The protected transaction and its sealed callback
+	  contexts require an SMM stack of at least 16 KiB. It installs no route,
+	  selector or board policy.
 
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
