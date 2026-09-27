@@ -2,6 +2,30 @@
 
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY),y)
 ifeq ($(CONFIG_VBOOT),y)
+starlabs-vboot-localversion := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+starlabs-vboot-release-major := $(shell printf '%s\n' '$(starlabs-vboot-localversion)' | \
+	sed -n 's/^[^0-9]*\([0-9][0-9]*\)[.]\([0-9][0-9]*\).*/\1/p')
+starlabs-vboot-release-minor := $(shell printf '%s\n' '$(starlabs-vboot-localversion)' | \
+	sed -n 's/^[^0-9]*\([0-9][0-9]*\)[.]\([0-9][0-9]*\).*/\2/p')
+starlabs-vboot-release-version := $(shell \
+	major='$(starlabs-vboot-release-major)'; minor='$(starlabs-vboot-release-minor)'; \
+	if test -n "$$major" && test "$$major" -le 255 && test "$$minor" -le 255; then \
+		expr "$$major" \* 256 + "$$minor"; \
+	fi)
+ifeq ($(starlabs-vboot-release-version),)
+$(error Star Labs VBOOT requires a major.minor CONFIG_LOCALVERSION with each component <= 255)
+endif
+ifeq ($(CONFIG_DRIVERS_EFI_FW_INFO),y)
+ifneq ($(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION),0x00000000)
+$(error Star Labs VBOOT derives the EFI version from CONFIG_LOCALVERSION; explicit override forbidden)
+endif
+ifneq ($(CONFIG_DRIVERS_EFI_MAIN_FW_LSV),0x00000000)
+$(error Star Labs VBOOT derives the EFI LSV from CONFIG_LOCALVERSION; explicit override forbidden)
+endif
+endif
+ifneq ($(CONFIG_VBOOT_KEYBLOCK_VERSION),$(starlabs-vboot-release-version))
+$(error Star Labs VBOOT version $(CONFIG_VBOOT_KEYBLOCK_VERSION) does not match CONFIG_LOCALVERSION $(CONFIG_LOCALVERSION))
+endif
 ifeq ($(CONFIG_SPI_FLASH_FUDAN),y)
 ifneq ($(words $(filter y,$(CONFIG_BOOTMEDIA_LOCK_CHIP) \
 	$(CONFIG_BOOTMEDIA_LOCK_WPRO_VBOOT_RO) \
