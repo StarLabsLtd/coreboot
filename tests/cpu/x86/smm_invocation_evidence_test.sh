@@ -168,7 +168,7 @@ mutation loader-instance-high-digest \
 mutation shutdown-boundary \
 	'0,/smm_invocation_evidence_shutdown_requested(evidence)/{s//false/}'
 mutation arrival-ownership \
-	'0,/if (!admission_reserve(evidence,/{s//if (false \&\& !admission_reserve(evidence,/}'
+	'0,/reserve = admission_reserve(evidence,/{s//reserve = ADMISSION_RESERVE_SUCCESS; if (false) reserve = admission_reserve(evidence,/}'
 mutation departure-publish-order \
 	'/if ((old | (1ULL << cpu)) != evidence->expected_cpus)/,/return SMM_INVOCATION_TRY_SUCCESS;/{s/__atomic_fetch_sub(\&evidence->departure_writers, 1U,/if (false) __atomic_fetch_sub(\&evidence->departure_writers, 1U,/; s/TEST_HOOK(54);/TEST_HOOK(54); __atomic_fetch_sub(\&evidence->departure_writers, 1U, __ATOMIC_RELEASE);/}'
 mutation claim-publication-cas \
@@ -292,10 +292,18 @@ if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort
 	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
 	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
 	-g '!src/cpu/x86/smm_invocation_entry.c' \
+	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
 	-g '!src/include/cpu/x86/smm_invocation_evidence.h'; then
 	printf '%s\n' 'dormant invocation evidence gained a production callsite' >&2
 	exit 1
 fi
+route_evidence_calls=$(rg -o 'smm_invocation_evidence_[[:alnum:]_]+' \
+	"$root/src/lib/payload_mm_authvar_presence_route_session.c" | sort -u)
+test "$route_evidence_calls" = "$(printf '%s\n' \
+	smm_invocation_evidence_claim \
+	smm_invocation_evidence_phase \
+	smm_invocation_evidence_publish_and_request_close \
+	smm_invocation_evidence_ticket_fail)"
 if rg -q 'CONFIG_MAX_CPUS|boot_cpu\(|mp_run_on_all_cpus|apmc_node\(' \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	"$root/src/include/cpu/x86/smm_invocation_evidence.h"; then

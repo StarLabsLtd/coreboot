@@ -24,6 +24,11 @@ void payload_mm_authvar_presence_transaction_test_after_provision_claim(
 	const struct payload_mm_authvar_presence_transaction_policy *policy);
 void payload_mm_authvar_presence_transaction_test_after_dispatch_owner(
 	uint32_t state);
+__weak void payload_mm_authvar_presence_transaction_test_after_provision_publish(
+	struct payload_mm_authvar_presence_transaction_slot *slot)
+{
+	(void)slot;
+}
 void payload_mm_authvar_presence_transaction_test_set_orphan_state(
 	struct payload_mm_authvar_presence_transaction_slot *slot,
 	unsigned int index)
@@ -422,6 +427,9 @@ enum cb_err payload_mm_authvar_presence_transaction_provision(
 		provisioning_fail_stop(slot, p.fail_stop,
 			p.context_size ? context : NULL);
 	}
+#if ENV_TEST
+	payload_mm_authvar_presence_transaction_test_after_provision_publish(slot);
+#endif
 	scrub(context, sizeof(context));
 	return CB_SUCCESS;
 }
@@ -897,3 +905,98 @@ bool payload_mm_authvar_presence_transaction_dispatch_enabled(
 	return generation && slot->binding.generation == generation &&
 		__atomic_load_n(&slot->ack_published, __ATOMIC_ACQUIRE);
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+bool payload_mm_authvar_presence_transaction_dispatch_ack_valid(
+	const struct payload_mm_authvar_presence_transaction_slot *slot,
+	const struct payload_mm_authvar_presence_transaction_binding *binding,
+	uint32_t decision,
+	const struct payload_mm_authvar_presence_transaction_page *page)
+{
+	struct payload_mm_authvar_presence_transaction_slot slot_snapshot;
+	struct payload_mm_authvar_presence_transaction_request request_snapshot;
+	struct payload_mm_authvar_presence_transaction_ack ack_snapshot;
+	struct payload_mm_authvar_presence_transaction_binding clean;
+	uint32_t expected_state;
+	bool valid;
+
+	if (!valid_object(slot, sizeof(*slot), _Alignof(*slot)) ||
+	    slot != smm_get_payload_mm_authvar_presence_transaction_slot() ||
+	    !valid_object(binding, sizeof(*binding), _Alignof(*binding)) ||
+	    !binding_valid(binding) ||
+	    !valid_object(page, sizeof(*page), _Alignof(*page)) ||
+	    overlaps(slot, sizeof(*slot), binding, sizeof(*binding)) ||
+	    overlaps(slot, sizeof(*slot), page, sizeof(*page)) ||
+	    overlaps(binding, sizeof(*binding), page, sizeof(*page)))
+		return false;
+	if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)
+		expected_state = TRANSACTION_PREPARED;
+	else if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT)
+		expected_state = TRANSACTION_COMMITTED;
+	else if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT)
+		expected_state = TRANSACTION_ABORTED;
+	else
+		return false;
+	if (__atomic_load_n(&slot->ack_published, __ATOMIC_ACQUIRE) != 1U)
+		return false;
+	slot_snapshot = *slot;
+	request_snapshot = page->request;
+	ack_snapshot = page->ack;
+	clean = *binding;
+	if (decision != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)
+		scrub(clean.capability, sizeof(clean.capability));
+	valid = slot_snapshot.state == expected_state &&
+		!slot_snapshot.dispatch_owner && slot_snapshot.ack_published == 1U &&
+		!memcmp(&slot_snapshot.binding, &clean, sizeof(clean)) &&
+		!nonzero(&request_snapshot, sizeof(request_snapshot)) &&
+		!nonzero(page->reserved, sizeof(page->reserved)) &&
+		payload_mm_authvar_presence_transaction_ack_valid(binding, decision,
+			&ack_snapshot,
+			payload_mm_authvar_presence_transaction_rax(binding, decision));
+	if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)
+		valid = valid && policy_valid(&slot_snapshot.policy) &&
+			failure_closure_valid(&slot_snapshot.failure) &&
+			slot_snapshot.failure.generation == binding->generation &&
+			slot_snapshot.policy.fail_stop ==
+				slot_snapshot.failure.callback &&
+			slot_snapshot.policy.context_size ==
+				slot_snapshot.failure.context_size &&
+			slot_snapshot.policy.context ==
+				(slot_snapshot.policy.context_size ?
+				 (void *)slot->context : NULL) &&
+			!memcmp(slot_snapshot.context,
+				slot_snapshot.failure.context,
+				sizeof(slot_snapshot.context)) &&
+			!nonzero(&slot_snapshot.page_verifier,
+				sizeof(slot_snapshot.page_verifier)) &&
+			!nonzero(&slot_snapshot.page_receipt,
+				sizeof(slot_snapshot.page_receipt)) &&
+			slot_snapshot.page_base == (uintptr_t)page &&
+			slot_snapshot.page_size == sizeof(*page);
+	else
+		valid = valid && !nonzero(&slot_snapshot.policy,
+			sizeof(slot_snapshot.policy)) &&
+			!nonzero(slot_snapshot.context,
+				sizeof(slot_snapshot.context)) &&
+			!nonzero(&slot_snapshot.failure,
+				sizeof(slot_snapshot.failure)) &&
+			!nonzero(&slot_snapshot.page_verifier,
+				sizeof(slot_snapshot.page_verifier)) &&
+			!nonzero(&slot_snapshot.page_receipt,
+				sizeof(slot_snapshot.page_receipt)) &&
+			!slot_snapshot.page_base && !slot_snapshot.page_size;
+	valid = valid && !slot_snapshot.reserved[0] &&
+		!slot_snapshot.reserved[1];
+	valid = valid && !memcmp(&slot_snapshot, slot, sizeof(slot_snapshot)) &&
+		!memcmp(&request_snapshot, &page->request,
+			sizeof(request_snapshot)) &&
+		!memcmp(&ack_snapshot, &page->ack, sizeof(ack_snapshot)) &&
+		!nonzero(page->reserved, sizeof(page->reserved)) &&
+		__atomic_load_n(&slot->ack_published, __ATOMIC_ACQUIRE) == 1U;
+	scrub(&slot_snapshot, sizeof(slot_snapshot));
+	scrub(&request_snapshot, sizeof(request_snapshot));
+	scrub(&ack_snapshot, sizeof(ack_snapshot));
+	scrub(&clean, sizeof(clean));
+	return valid;
+}
+#endif

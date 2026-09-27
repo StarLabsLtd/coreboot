@@ -195,6 +195,13 @@ enum cb_err payload_mm_authvar_presence_transaction_provision(
 /* Called only after a platform-private cause has been recognized and consumed. */
 enum cb_err payload_mm_authvar_presence_transaction_dispatch(
 	struct payload_mm_authvar_presence_transaction_slot *slot);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+bool payload_mm_authvar_presence_transaction_dispatch_ack_valid(
+	const struct payload_mm_authvar_presence_transaction_slot *slot,
+	const struct payload_mm_authvar_presence_transaction_binding *binding,
+	uint32_t decision,
+	const struct payload_mm_authvar_presence_transaction_page *page);
+#endif
 bool payload_mm_authvar_presence_transaction_dispatch_enabled(
 	const struct payload_mm_authvar_presence_transaction_slot *slot,
 	uint64_t generation);

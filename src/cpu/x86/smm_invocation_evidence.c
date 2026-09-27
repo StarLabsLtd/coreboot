@@ -75,6 +75,14 @@ static bool close_requested(const struct smm_invocation_evidence *evidence)
 }
 
 static void __noreturn invocation_fail_stop(void);
+static bool poison_admit_state(struct smm_invocation_evidence *evidence,
+	uint32_t state, uint32_t owned_phase);
+
+enum admission_reserve_result {
+	ADMISSION_RESERVE_ERROR = -1,
+	ADMISSION_RESERVE_RETRY,
+	ADMISSION_RESERVE_SUCCESS,
+};
 
 static bool phase_claim(struct smm_invocation_evidence *evidence,
 	uint32_t from, uint32_t to)
@@ -251,7 +259,8 @@ static void terminal_scrub(struct smm_invocation_evidence *evidence)
 		__ATOMIC_RELAXED);
 }
 
-static bool admission_reserve(struct smm_invocation_evidence *evidence,
+static enum admission_reserve_result admission_reserve(
+	struct smm_invocation_evidence *evidence,
 	uint32_t kind, uint32_t expected_phase, uint32_t owned_phase)
 {
 	uint32_t control = __atomic_load_n(&evidence->state,
@@ -259,18 +268,25 @@ static bool admission_reserve(struct smm_invocation_evidence *evidence,
 	uint32_t nonce;
 	uint32_t reserved;
 
+	if (control & INVOCATION_LATCH_MASK)
+		return ADMISSION_RESERVE_ERROR;
 	if ((control & STATE_PHASE_MASK) != expected_phase ||
-	    control & (ADMISSION_BUSY | INVOCATION_LATCH_MASK))
-		return false;
+	    control & ADMISSION_BUSY)
+		return ADMISSION_RESERVE_RETRY;
 	nonce = (control >> ADMISSION_NONCE_SHIFT) + 1U;
-	if (!nonce || nonce > ADMISSION_NONCE_MAX)
-		return false;
+	if (control & ADMISSION_CONSUMED || !nonce ||
+	    nonce > ADMISSION_NONCE_MAX) {
+		TEST_HOOK(77);
+		return poison_admit_state(evidence, control, expected_phase) ?
+			ADMISSION_RESERVE_ERROR : ADMISSION_RESERVE_RETRY;
+	}
 	reserved = (control & INVOCATION_LATCH_MASK) |
 		(nonce << ADMISSION_NONCE_SHIFT) |
 		(kind << ADMISSION_KIND_SHIFT) | ADMISSION_BUSY | owned_phase;
 	TEST_HOOK(58);
 	return __atomic_compare_exchange_n(&evidence->state,
-		&control, reserved, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+		&control, reserved, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ?
+		ADMISSION_RESERVE_SUCCESS : ADMISSION_RESERVE_RETRY;
 }
 
 static bool admission_complete(struct smm_invocation_evidence *evidence,
@@ -488,6 +504,7 @@ enum smm_invocation_try_result smm_invocation_evidence_arrive_try(
 	uint32_t empty = SMM_INVOCATION_PARTICIPANT_EMPTY;
 	uint32_t completed_control;
 	uint32_t phase;
+	enum admission_reserve_result reserve;
 	bool admission_completed;
 	bool opening_owner = false;
 	bool rendezvous_failed;
@@ -509,9 +526,12 @@ retry_phase:
 	phase = phase_load(evidence);
 	if (phase == SMM_INVOCATION_READY) {
 		TEST_HOOK(27);
-		if (!admission_reserve(evidence,
+		reserve = admission_reserve(evidence,
 			SMM_INVOCATION_ADMISSION_ARRIVE,
-			SMM_INVOCATION_READY, SMM_INVOCATION_OPENING)) {
+			SMM_INVOCATION_READY, SMM_INVOCATION_OPENING);
+		if (reserve != ADMISSION_RESERVE_SUCCESS) {
+			if (reserve == ADMISSION_RESERVE_ERROR)
+				return SMM_INVOCATION_TRY_ERROR;
 			TEST_HOOK(70);
 			if (admission_retry_token(evidence, token,
 				SMM_INVOCATION_ADMISSION_ARRIVE,
@@ -554,10 +574,13 @@ retry_phase:
 		if (phase != SMM_INVOCATION_COLLECTING)
 			return SMM_INVOCATION_TRY_ERROR;
 		TEST_HOOK(27);
-		if (!admission_reserve(evidence,
+		reserve = admission_reserve(evidence,
 			SMM_INVOCATION_ADMISSION_ARRIVE,
 			SMM_INVOCATION_COLLECTING,
-			SMM_INVOCATION_ARRIVAL_ADMITTING)) {
+			SMM_INVOCATION_ARRIVAL_ADMITTING);
+		if (reserve != ADMISSION_RESERVE_SUCCESS) {
+			if (reserve == ADMISSION_RESERVE_ERROR)
+				return SMM_INVOCATION_TRY_ERROR;
 			if (admission_retry_token(evidence, token,
 				SMM_INVOCATION_ADMISSION_ARRIVE,
 				__atomic_load_n(&evidence->generation,
@@ -696,6 +719,7 @@ smm_invocation_evidence_require_rendezvous_ack_try(
 	uint32_t expected;
 	uint32_t phase;
 	uint32_t state;
+	enum admission_reserve_result reserve;
 	bool admission_completed;
 	bool resampled = false;
 
@@ -805,8 +829,11 @@ retry_phase:
 		return SMM_INVOCATION_TRY_ERROR;
 	}
 	TEST_HOOK(27);
-	if (!admission_reserve(evidence, SMM_INVOCATION_ADMISSION_ARM,
-		SMM_INVOCATION_READY, SMM_INVOCATION_ACK_ARMING)) {
+	reserve = admission_reserve(evidence, SMM_INVOCATION_ADMISSION_ARM,
+		SMM_INVOCATION_READY, SMM_INVOCATION_ACK_ARMING);
+	if (reserve != ADMISSION_RESERVE_SUCCESS) {
+		if (reserve == ADMISSION_RESERVE_ERROR)
+			return SMM_INVOCATION_TRY_ERROR;
 		if (admission_retry_token(evidence, token,
 			SMM_INVOCATION_ADMISSION_ARM, 0, phase))
 			return SMM_INVOCATION_TRY_RETRY;
@@ -985,6 +1012,7 @@ enum smm_invocation_try_result smm_invocation_evidence_rendezvous_ack_try(
 	uint32_t completed_control;
 	uint32_t phase;
 	uint32_t state;
+	enum admission_reserve_result reserve;
 	bool admission_completed;
 	bool resampled = false;
 
@@ -1013,8 +1041,11 @@ retry_phase:
 	if (phase != SMM_INVOCATION_COLLECTING)
 		return SMM_INVOCATION_TRY_ERROR;
 	TEST_HOOK(27);
-	if (!admission_reserve(evidence, SMM_INVOCATION_ADMISSION_ACK,
-		SMM_INVOCATION_COLLECTING, SMM_INVOCATION_ACK_ADMITTING)) {
+	reserve = admission_reserve(evidence, SMM_INVOCATION_ADMISSION_ACK,
+		SMM_INVOCATION_COLLECTING, SMM_INVOCATION_ACK_ADMITTING);
+	if (reserve != ADMISSION_RESERVE_SUCCESS) {
+		if (reserve == ADMISSION_RESERVE_ERROR)
+			return SMM_INVOCATION_TRY_ERROR;
 		if (admission_retry_token(evidence, token,
 			SMM_INVOCATION_ADMISSION_ACK, generation, phase))
 			return SMM_INVOCATION_TRY_RETRY;

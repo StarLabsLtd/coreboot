@@ -356,7 +356,7 @@ mutate()
 mutate immediate-out \
 	's/#define APMC_OUT_DX_BYTE_IO_MISC .*/#define APMC_OUT_DX_BYTE_IO_MISC 0x00b20083U/'
 mutate low-port-alias 's/first.io_misc != APMC_OUT_DX_BYTE_IO_MISC/(first.io_misc \& 0x00ffffffU) != APMC_OUT_DX_BYTE_IO_MISC/'
-mutate revision-binding '0,/tuple->revision == node->revision/{s//true/}'
+mutate revision-binding '0,/tuple->revision == revision/{s//true/}'
 mutate sealed-read \
 	'0,/!sealed_tuple(adapter, cpu, \&first)/{s//false/}'
 mutate_component ack-before-claim \
@@ -394,10 +394,10 @@ mutate_component eos-precommit-ticket \
 	'/smm_invocation_entry_eos_ready/,/return true;/{s/if (memcmp(ticket, \&snapshot, sizeof(snapshot)))/if (false)/}'
 mutate_component ack-phase-ownership \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/smm_invocation_evidence_rendezvous_ack_try(/,/^}/{s/SMM_INVOCATION_ACK_ADMITTING))/SMM_INVOCATION_COLLECTING))/}'
+	'/smm_invocation_evidence_rendezvous_ack_try(/,/^}/{s/SMM_INVOCATION_ACK_ADMITTING,/SMM_INVOCATION_COLLECTING,/}'
 mutate_component arm-phase-ownership \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/smm_invocation_evidence_require_rendezvous_ack_try(/,/^}/{s/SMM_INVOCATION_ACK_ARMING))/SMM_INVOCATION_READY))/}'
+	'/smm_invocation_evidence_require_rendezvous_ack_try(/,/^}/{s/SMM_INVOCATION_ACK_ARMING,/SMM_INVOCATION_READY,/}'
 mutate_component eos-phase-ownership \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/smm_invocation_evidence_eos_consume(/,/^}/{s/SMM_INVOCATION_EOS_ADMITTING))/SMM_INVOCATION_READY))/}'
@@ -433,7 +433,13 @@ mutate_component bounded-depart \
 	'/smm_invocation_entry_depart(/,/^}/{s/poll + 1U == snapshot.max_polls/false/}'
 mutate_component admission-nonce-no-wrap \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/static bool admission_reserve/,/^}/{s/!nonce || nonce > ADMISSION_NONCE_MAX/false/}'
+	'/static enum admission_reserve_result admission_reserve/,/^}/{s/nonce > ADMISSION_NONCE_MAX/false/}'
+mutate_component admission-consumed-state \
+	"$root/src/cpu/x86/smm_invocation_evidence.c" \
+	'/static enum admission_reserve_result admission_reserve/,/^}/{s/control \& ADMISSION_CONSUMED/false/}'
+mutate_component admission-invalid-state-retry \
+	"$root/src/cpu/x86/smm_invocation_evidence.c" \
+	'/static enum admission_reserve_result admission_reserve/,/^}/{s/return poison_admit_state(evidence, control, expected_phase) ?/return false ?/}'
 mutate_component arm-lost-close-cleanup \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/TEST_HOOK(9)/,/terminal_scrub(evidence)/{/admission_complete(evidence,/{N;d;}}'
@@ -442,7 +448,7 @@ mutate_component retry-token-resnapshot \
 	'/static bool admission_retry_token/,/^}/{s/invocation_generation, control);/invocation_generation, (token->attempt_nonce << ADMISSION_NONCE_SHIFT) | kind | ADMISSION_BUSY);/}'
 mutate_component packed-admission-phase \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/static bool admission_reserve/,/^}/{s/ADMISSION_BUSY | owned_phase/ADMISSION_BUSY | expected_phase | (owned_phase \& 0U)/}'
+	'/static enum admission_reserve_result admission_reserve/,/^}/{s/ADMISSION_BUSY | owned_phase/ADMISSION_BUSY | expected_phase | (owned_phase \& 0U)/}'
 mutate_component departure-final-arbitration \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/smm_invocation_evidence_depart_try(/,/^}/{s/SMM_INVOCATION_DEPARTURE_COMMITTING))/SMM_INVOCATION_CLOSING))/}'
@@ -465,6 +471,8 @@ mutate adapter-active-bound \
 	'/intel_smm_invocation_adapter_ops(/,/^}/{s/snapshot.active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS/false/}'
 mutate adapter-snapshot-stability \
 	's/if (memcmp(\&snapshot, adapter, sizeof(snapshot)))/if (false)/'
+mutate adapter-pre-write-revision \
+	'/ADAPTER_TEST_HOOK(3)/,/memcpy(rax/{s/revision != adapter->expected_revision ||/false ||/}'
 mutate adapter-nonce-sticky \
 	's/adapter->reserved = 1U;/adapter->reserved = 0U;/'
 mutate_component packed-close-owner \
@@ -476,7 +484,7 @@ mutate_component provisioning-latch-preservation \
 \t__atomic_store_n(\&evidence->state, SMM_INVOCATION_PROVISIONING, __ATOMIC_RELEASE);'
 mutate_component admission-latch-preservation \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	's/if (state \& INVOCATION_LATCH_MASK)/if (state \& INVOCATION_LATCH_MASK \&\& false)/g; s/control \& (ADMISSION_BUSY | INVOCATION_LATCH_MASK)/control \& ADMISSION_BUSY/; s/(control \& INVOCATION_LATCH_MASK) |/(control \& 0U) |/'
+	's/if (state \& INVOCATION_LATCH_MASK)/if (state \& INVOCATION_LATCH_MASK \&\& false)/g; s/if (control \& INVOCATION_LATCH_MASK)/if (false)/; s/(control \& INVOCATION_LATCH_MASK) |/(control \& 0U) |/'
 mutate_component terminal-scrub-fail-stop \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/phase == SMM_INVOCATION_TERMINAL_SCRUBBING/,/continue;/{s/invocation_fail_stop();/__builtin_trap();/}'
@@ -499,10 +507,12 @@ mutate_component departure-published-retry \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/smm_invocation_evidence_depart_try(/,/^}/{s/phase == SMM_INVOCATION_DEPARTURE_ADMITTING ||/phase == SMM_INVOCATION_DEPARTURE_ADMITTING \&\&/}'
 
-if rg -q 'smm_invocation_entry_(arrive|depart|eos_ready)' "$root/src" \
-	-g '!src/cpu/x86/smm_invocation_entry.c' \
-	-g '!src/include/cpu/x86/smm_invocation_entry.h'; then
-	printf '%s\n' 'dormant entry helper gained a production callsite' >&2
+entry_callers=$(rg -l 'smm_invocation_entry_(arrive|depart|eos_ready)' \
+	"$root/src" -g '!src/cpu/x86/smm_invocation_entry.c' \
+	-g '!src/include/cpu/x86/smm_invocation_entry.h' | sort)
+if [ "$entry_callers" != \
+	"$root/src/lib/payload_mm_authvar_presence_route_session.c" ]; then
+	printf '%s\n' 'unexpected SMM invocation entry caller set' >&2
 	exit 1
 fi
 if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)' \
@@ -566,8 +576,8 @@ while IFS= read -r file; do
 done
 
 ledger_lines=$(wc -l < "$ledger")
-if [ "$ledger_lines" -ne 109 ]; then
-	printf 'execution ledger incomplete: got %s expected 109\n' \
+if [ "$ledger_lines" -ne 115 ]; then
+	printf 'execution ledger incomplete: got %s expected 115\n' \
 		"$ledger_lines" >&2
 	exit 1
 fi

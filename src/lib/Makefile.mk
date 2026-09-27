@@ -60,8 +60,12 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION) += \
 	payload_mm_authvar_presence_transaction.c \
 	payload_mm_authvar_presence_transaction_receiver.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += \
+	payload_mm_authvar_presence.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ARM) += \
 	payload_mm_authvar_presence_arm.c
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += \
+	payload_mm_authvar_presence_route_session.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_authority_provider.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor.c

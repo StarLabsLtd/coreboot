@@ -369,12 +369,28 @@ if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src"; then
 fi
 grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
-if rg -q 'smm_apmc_command_(select|finish|consume)' "$root/src" \
+if rg -q 'smm_apmc_command_(select|finish)' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h'; then
 	printf '%s\n' 'dormant registry gained a production callsite' >&2
 	exit 1
 fi
+if rg -q 'smm_apmc_command_consume' "$root/src" \
+	-g '!src/cpu/x86/smm_command.c' \
+	-g '!src/include/cpu/x86/smm_command.h' \
+	-g '!src/lib/payload_mm_authvar_presence_route_session.c'; then
+	printf '%s\n' 'registry consume escaped the dormant route session' >&2
+	exit 1
+fi
+test "$(rg -o 'smm_apmc_command_consume' \
+	"$root/src/lib/payload_mm_authvar_presence_route_session.c" | wc -l)" -eq 1
+for symbol in PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION \
+	SMM_APMC_ROUTE_AUTHVAR_PRESENCE; do
+	if rg -q "select[[:space:]]+$symbol" "$root/src"; then
+		printf '%s\n' "$symbol became selected" >&2
+		exit 1
+	fi
+done
 # Keep the registry declarative. Patch-scope and style checks belong to the
 # commit review; this persistent regression must remain valid on later commits.
 if rg -q '__weak|out[bwl]|lb_(new_record|add)|callback|context|transport' \

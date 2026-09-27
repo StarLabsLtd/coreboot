@@ -502,6 +502,20 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
 	  transaction. It releases the arm only after exact successful COMMIT
 	  completion. No platform selects it and it installs no runtime route.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
+	depends on SMM_APMC_COMMAND_REGISTRY
+	depends on SMM_INVOCATION_ENTRY
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
+	help
+	  Build the dormant one-use private presence route session. It binds the
+	  reserved 0xff command to one loader lifecycle and two exact invocation
+	  generations, and keeps all admitted CPUs through logical EOS. This slice
+	  installs no platform provider or production SMI callsite.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n
