@@ -201,6 +201,11 @@ test-smm-invocation-entry-adapter:
 test-smm-invocation-entry-profiles:
 	tests/cpu/x86/smm_invocation_entry_profiles_test.sh
 
+.PHONY: test-smm-invocation-fail-stop-providers
+test-smm-invocation-fail-stop-providers:
+	tests/cpu/x86/smm_invocation_fail_stop_providers_test.sh
+	tests/cpu/x86/smm_invocation_fail_stop_profiles_test.sh
+
 .PHONY: test-smm-invocation-topology
 test-smm-invocation-topology:
 	tests/cpu/x86/smm_invocation_topology_test.sh

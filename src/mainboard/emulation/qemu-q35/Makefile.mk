@@ -26,3 +26,4 @@ ramstage-$(CONFIG_CHROMEOS) += chromeos.c
 
 smm-y += ../qemu-i440fx/rom_media.c
 smm-y += smihandler.c
+smm-$(CONFIG_Q35_SMM_INVOCATION_FAIL_STOP_TEST) += smm_invocation_fail_stop.c

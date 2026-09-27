@@ -44,10 +44,10 @@ the sentinel is written, callback reentry poisons the invocation. After the
 write, abort restores and verifies the original full RAX; any ambiguous restore
 or result publication invokes the strongly linked platform fail-stop action.
 No function pointer or context is transported through loader, evidence, policy,
-or ticket state. The hidden platform capability has no selector; a future
-platform implementation must attempt a platform-wide reset, use a
-platform-wide fallback reset or watchdog if needed, and terminally halt only as
-the final fallback. It must never return or merely stop the calling CPU.
+or ticket state. Hidden, default-off platform implementations must attempt a
+platform-wide reset, use a platform-wide fallback reset or watchdog if needed,
+and terminally halt only as the final fallback. It must never return or merely
+stop the calling CPU.
 The generic shutdown operation waits for participants already inside the SMI.
 Production composition therefore also requires a nonreturning platform
 timeout/reset path for a participant that never arrives or departs.

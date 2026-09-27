@@ -29,3 +29,4 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_private_bo
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_HANDOFF) += dma_live_handoff.c
 
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c
+smm-$(CONFIG_STARLABS_STARBOOK_MTL_SMM_INVOCATION_FAIL_STOP) += smm_invocation_fail_stop.c
