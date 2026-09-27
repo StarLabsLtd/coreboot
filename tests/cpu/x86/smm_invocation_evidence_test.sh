@@ -51,6 +51,21 @@ else
 	exit 1
 fi
 
+generation_publication_atomic()
+{
+	source=$1
+	grep -A1 -F 'generation = __atomic_add_fetch(&evidence->generation, 1U,' \
+		"$source" | grep -q '__ATOMIC_RELEASE);'
+	! grep -Eq '(^|[^[:alnum:]_])evidence->generation\+\+' "$source"
+}
+generation_publication_atomic \
+	"$root/src/cpu/x86/smm_invocation_evidence.c"
+sed 's/generation = __atomic_add_fetch(&evidence->generation, 1U,/generation = ++evidence->generation; \/\*/' \
+	"$root/src/cpu/x86/smm_invocation_evidence.c" > \
+	"$temporary/generation-publication-mutant.c"
+! generation_publication_atomic \
+	"$temporary/generation-publication-mutant.c"
+
 ${CC:-cc} -m32 -march=i686 -Os -fstack-usage -std=gnu11 \
 	-Wall -Wextra -Werror \
 	-Wconversion -Wshadow -ffreestanding -fno-builtin -D__TEST__ \
@@ -153,7 +168,7 @@ mutation loader-instance-high-digest \
 mutation shutdown-boundary \
 	'0,/smm_invocation_evidence_shutdown_requested(evidence)/{s//false/}'
 mutation arrival-ownership \
-	'0,/if (!admission_reserve(evidence,/{s//if (false \&\& !admission_reserve(evidence,/}'
+	'0,/reserve = admission_reserve(evidence,/{s//reserve = ADMISSION_RESERVE_SUCCESS; if (false) reserve = admission_reserve(evidence,/}'
 mutation departure-publish-order \
 	'/if ((old | (1ULL << cpu)) != evidence->expected_cpus)/,/return SMM_INVOCATION_TRY_SUCCESS;/{s/__atomic_fetch_sub(\&evidence->departure_writers, 1U,/if (false) __atomic_fetch_sub(\&evidence->departure_writers, 1U,/; s/TEST_HOOK(54);/TEST_HOOK(54); __atomic_fetch_sub(\&evidence->departure_writers, 1U, __ATOMIC_RELEASE);/}'
 mutation claim-publication-cas \
@@ -167,6 +182,9 @@ mutation admission-success-phase \
 	'/static bool invocation_progress_phase/,/^}/{s/{/{ if (1) return true;/}'
 mutation admission-arrive-completion \
 	'/smm_invocation_evidence_arrive_try/,/smm_invocation_evidence_rendezvous_ready/{s/!admission_completed/(admission_completed \&\& false)/}'
+mutation admission-arrival-writer-early-publication \
+	'/TEST_HOOK(67);/i\
+\t__atomic_fetch_sub(&evidence->arrival_writers, 1U, __ATOMIC_RELEASE);'
 mutation admission-arrive-consumed \
 	'/SMM_INVOCATION_ADMISSION_ARRIVE,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
 mutation admission-arm-consumed \
@@ -175,12 +193,54 @@ mutation admission-arm-completion \
 	'/smm_invocation_evidence_require_rendezvous_ack_try/,/smm_invocation_evidence_admission_fail/{s/!admission_completed/(admission_completed \&\& false)/}'
 mutation admission-arm-phase \
 	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/SMM_INVOCATION_READY)/!ba; s/(completed_control & STATE_PHASE_MASK) != SMM_INVOCATION_READY/false/;}'
+mutation admission-arm-required-phase-ping-pong-error \
+	'/TEST_HOOK(65);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arm-zero-phase-ping-pong-error \
+	'/TEST_HOOK(64);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arm-reserve-ping-pong-error \
+	'/TEST_HOOK(66);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arm-required-phase-ping-pong-poison \
+	'/TEST_HOOK(65);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_READY); return SMM_INVOCATION_TRY_RETRY;/;}'
+mutation admission-arm-zero-phase-ping-pong-poison \
+	'/TEST_HOOK(64);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_READY); return SMM_INVOCATION_TRY_RETRY;/;}'
+mutation admission-arm-reserve-ping-pong-poison \
+	'/TEST_HOOK(66);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_READY); return SMM_INVOCATION_TRY_RETRY;/;}'
+mutation admission-arm-stale-zero-progress-error \
+	'/TEST_HOOK(73);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arm-stale-zero-unbound \
+	'/TEST_HOOK(73);/,/if (expected)/{s/if (phase == SMM_INVOCATION_OPENING ||/if (true ||/;}'
+mutation admission-arm-stale-zero-arming-error \
+	'/TEST_HOOK(73);/,/if (expected)/{s/phase == SMM_INVOCATION_ACK_ARMING)/false)/;}'
+mutation admission-arm-stale-one-reread-removed \
+	'/TEST_HOOK(74);/,/TEST_HOOK(75);/{s/expected = __atomic_load_n(/expected = 1U; (void)__atomic_load_n(/;}'
+mutation admission-arm-stale-one-transition-success \
+	'/TEST_HOOK(76);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_SUCCESS;/;}'
+mutation admission-arm-stale-one-transition-error \
+	'/TEST_HOOK(76);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
 mutation admission-ack-consumed \
 	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
 mutation admission-ack-completion \
 	'/smm_invocation_evidence_rendezvous_ack_try/,/smm_invocation_evidence_publish_and_request_close/{s/!admission_completed/(admission_completed \&\& false)/}'
 mutation admission-ack-shutdown \
 	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/INVOCATION_SHUTDOWN_REQUESTED/!ba; s/INVOCATION_SHUTDOWN_REQUESTED/0/;}'
+mutation admission-ack-phase-ping-pong-error \
+	'/TEST_HOOK(55);/,/phase != SMM_INVOCATION_COLLECTING/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-ack-reserve-ping-pong-error \
+	'/TEST_HOOK(57);/,/admission_token_fill/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-ack-ping-pong-poison \
+	'/TEST_HOOK(57);/,/admission_token_fill/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING); return SMM_INVOCATION_TRY_RETRY;/;}'
+mutation admission-arrive-phase-ping-pong-error \
+	'/TEST_HOOK(59);/,/phase != SMM_INVOCATION_COLLECTING/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arrive-arm-owner-error \
+	's/phase == SMM_INVOCATION_ACK_ARMING ||/false ||/'
+mutation admission-arrive-ready-ping-pong-error \
+	'/TEST_HOOK(72);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arrive-ready-ping-pong-poison \
+	'/TEST_HOOK(72);/,/return SMM_INVOCATION_TRY_RETRY;/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING); return SMM_INVOCATION_TRY_RETRY;/;}'
+mutation admission-arrive-reserve-ping-pong-error \
+	'/TEST_HOOK(60);/,/admission_token_fill/{s/return SMM_INVOCATION_TRY_RETRY;/return SMM_INVOCATION_TRY_ERROR;/;}'
+mutation admission-arrive-ping-pong-poison \
+	'/TEST_HOOK(60);/,/admission_token_fill/{s/return SMM_INVOCATION_TRY_RETRY;/(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING); return SMM_INVOCATION_TRY_RETRY;/;}'
 mutation strong-callback-phase \
 	'/smm_invocation_evidence_publish_and_request_close/,/^}/{0,/invocation_fail_stop();/{s/invocation_fail_stop();/return CB_ERR;/}}'
 mutation strong-acquisition-cas-loss \
@@ -232,10 +292,18 @@ if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort
 	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
 	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
 	-g '!src/cpu/x86/smm_invocation_entry.c' \
+	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
 	-g '!src/include/cpu/x86/smm_invocation_evidence.h'; then
 	printf '%s\n' 'dormant invocation evidence gained a production callsite' >&2
 	exit 1
 fi
+route_evidence_calls=$(rg -o 'smm_invocation_evidence_[[:alnum:]_]+' \
+	"$root/src/lib/payload_mm_authvar_presence_route_session.c" | sort -u)
+test "$route_evidence_calls" = "$(printf '%s\n' \
+	smm_invocation_evidence_claim \
+	smm_invocation_evidence_phase \
+	smm_invocation_evidence_publish_and_request_close \
+	smm_invocation_evidence_ticket_fail)"
 if rg -q 'CONFIG_MAX_CPUS|boot_cpu\(|mp_run_on_all_cpus|apmc_node\(' \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	"$root/src/include/cpu/x86/smm_invocation_evidence.h"; then

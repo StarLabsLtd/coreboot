@@ -25,6 +25,9 @@ static uint32_t test_hook_release;
 static uint32_t held_hook_point;
 static uint32_t held_hook_entered;
 static uint32_t held_hook_release;
+static uint32_t collision_hook_point;
+static uint32_t collision_hook_entered;
+static uint32_t collision_hook_release;
 static uint8_t fail_stop_exit_code;
 static uint32_t fail_stop_thread_exit;
 static uint32_t fail_stop_calls;
@@ -33,6 +36,16 @@ void smm_invocation_evidence_test_hook(uint32_t point)
 {
 	uint32_t expected = point;
 	uint32_t held = point;
+	uint32_t collision = point;
+
+	if (__atomic_compare_exchange_n(&collision_hook_point, &collision, 0U,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		__atomic_store_n(&collision_hook_entered, 1U, __ATOMIC_RELEASE);
+		while (!__atomic_load_n(&collision_hook_release,
+			__ATOMIC_ACQUIRE))
+			__asm__ volatile ("pause");
+		return;
+	}
 
 	if (__atomic_compare_exchange_n(&held_hook_point, &held, 0U, false,
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
@@ -48,6 +61,13 @@ void smm_invocation_evidence_test_hook(uint32_t point)
 	__atomic_store_n(&test_hook_entered, 1U, __ATOMIC_RELEASE);
 	while (!__atomic_load_n(&test_hook_release, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
+}
+
+static void collision_hook_arm(uint32_t point)
+{
+	__atomic_store_n(&collision_hook_entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&collision_hook_release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&collision_hook_point, point, __ATOMIC_RELEASE);
 }
 
 static void test_hook_arm(uint32_t point)
@@ -142,6 +162,7 @@ struct admission_arg {
 	struct smm_invocation_admission_token token;
 	uint64_t generation;
 	uint32_t cpu;
+	bool invalid_loader;
 	enum smm_invocation_try_result result;
 };
 
@@ -335,9 +356,12 @@ static void *rendezvous_fail_thread(void *opaque)
 static void *arm_ack_thread(void *opaque)
 {
 	struct admission_arg *arg = opaque;
+	const struct smm_invocation_loader_instance_nonce nonce =
+		arg->invalid_loader ? NONCE(99) :
+		arg->fixture->seed.loader_instance_nonce;
 
 	arg->result = smm_invocation_evidence_require_rendezvous_ack_try(
-		&arg->fixture->evidence, arg->fixture->seed.loader_instance_nonce,
+		&arg->fixture->evidence, nonce,
 		arg->fixture->seed.lifecycle, &arg->token);
 	return NULL;
 }
@@ -348,6 +372,17 @@ static void *rendezvous_ack_thread(void *opaque)
 
 	arg->result = smm_invocation_evidence_rendezvous_ack_try(
 		&arg->fixture->evidence, arg->generation, arg->cpu, &arg->token);
+	return NULL;
+}
+
+static void *arrive_try_thread(void *opaque)
+{
+	struct admission_arg *arg = opaque;
+
+	arg->result = smm_invocation_evidence_arrive_try(
+		&arg->fixture->evidence, arg->cpu,
+		arg->fixture->seed.participant_apic_ids[arg->cpu],
+		&arg->generation, &arg->token);
 	return NULL;
 }
 
@@ -1606,6 +1641,808 @@ static void test_shutdown_at_callback_boundaries(void)
 	}
 }
 
+static void test_opening_generation_publication_retry(void)
+{
+	struct fixture fixture;
+	struct smm_invocation_admission_token admission_token;
+	enum smm_invocation_try_result try_result;
+	struct thread_arg participant;
+	pthread_t first;
+	uint64_t generation;
+	uint64_t retry_generation;
+
+	/* The loser samples generation while the OPENING owner is paused before
+	 * its atomic generation publication, then retries after that publication.
+	 */
+	fixture_init(&fixture);
+	test_hook_arm(1);
+	participant = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	assert(!pthread_create(&first, NULL, arrive_thread, &participant));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	try_result = smm_invocation_evidence_arrive_try(&fixture.evidence, 1U,
+		fixture.seed.participant_apic_ids[1], &retry_generation,
+		&admission_token);
+	assert(try_result == SMM_INVOCATION_TRY_RETRY);
+	test_hook_wait_and_release();
+	assert(!pthread_join(first, NULL));
+	assert(participant.result == CB_SUCCESS);
+	assert(test_arrive(&fixture.evidence, 1U,
+		fixture.seed.participant_apic_ids[1], &generation) == CB_SUCCESS);
+	assert(generation == participant.generation);
+}
+
+static void admission_hook_arm(uint32_t point, uint32_t *hook_point,
+	uint32_t *entered, uint32_t *release)
+{
+	__atomic_store_n(entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(hook_point, point, __ATOMIC_RELEASE);
+}
+
+static void admission_hook_wait(uint32_t *entered)
+{
+	while (!__atomic_load_n(entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+}
+
+static void admission_hook_release(uint32_t *release)
+{
+	__atomic_store_n(release, 1U, __ATOMIC_RELEASE);
+}
+
+static uint64_t prepare_rendezvous_ack(struct fixture *fixture)
+{
+	struct smm_invocation_admission_token admission;
+	uint64_t generation;
+
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture->evidence, fixture->seed.loader_instance_nonce,
+		fixture->seed.lifecycle, &admission) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	generation = arrive_all(fixture);
+	return generation;
+}
+
+static void finish_rendezvous_ack(struct fixture *fixture,
+	uint64_t generation, uint32_t first_cpu)
+{
+	struct smm_invocation_admission_token admission;
+
+	for (uint32_t cpu = first_cpu; cpu < TEST_CPUS; cpu++)
+		assert(smm_invocation_evidence_rendezvous_ack_try(
+			&fixture->evidence, generation, cpu, &admission) ==
+			SMM_INVOCATION_TRY_SUCCESS);
+}
+
+static void assert_clean_ack_contention(struct fixture *fixture)
+{
+	const uint32_t state = __atomic_load_n(&fixture->evidence.state,
+		__ATOMIC_ACQUIRE);
+
+	assert(smm_invocation_evidence_phase(&fixture->evidence) ==
+		SMM_INVOCATION_COLLECTING);
+	assert(!__atomic_load_n(&fixture->evidence.rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE));
+	assert(!__atomic_load_n(&fixture->evidence.arrival_failed,
+		__ATOMIC_ACQUIRE));
+	assert(!smm_invocation_evidence_shutdown_requested(&fixture->evidence));
+	assert(!(state & (1U << 8)));
+	assert(__atomic_load_n(&fixture->evidence.rendezvous_ack_cpus,
+		__ATOMIC_ACQUIRE) == 3U);
+}
+
+static void assert_clean_arm_contention(struct fixture *fixture,
+	uint32_t ack_required)
+{
+	const uint32_t state = __atomic_load_n(&fixture->evidence.state,
+		__ATOMIC_ACQUIRE);
+
+	assert(smm_invocation_evidence_phase(&fixture->evidence) ==
+		SMM_INVOCATION_READY);
+	assert(__atomic_load_n(&fixture->evidence.rendezvous_ack_required,
+		__ATOMIC_ACQUIRE) == ack_required);
+	assert(!__atomic_load_n(&fixture->evidence.rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE));
+	assert(!__atomic_load_n(&fixture->evidence.arrival_failed,
+		__ATOMIC_ACQUIRE));
+	assert(!smm_invocation_evidence_shutdown_requested(&fixture->evidence));
+	assert(!(state & ((1U << 7) | (1U << 8))));
+}
+
+static void test_arrival_writer_covers_admission_completion(void)
+{
+	struct smm_invocation_admission_token admission;
+	struct thread_arg final_arrival;
+	struct fixture fixture;
+	pthread_t thread;
+	uint64_t generation = 0;
+
+	fixture_init(&fixture);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &admission) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
+		assert(test_arrive(&fixture.evidence, cpu,
+			fixture.seed.participant_apic_ids[cpu], &generation) ==
+			CB_SUCCESS);
+	final_arrival = (struct thread_arg) {
+		.fixture = &fixture, .cpu = TEST_CPUS - 1U,
+	};
+	test_hook_arm(67U);
+	assert(!pthread_create(&thread, NULL, arrive_thread, &final_arrival));
+	admission_hook_wait(&test_hook_entered);
+	assert(__atomic_load_n(&fixture.evidence.arrived_cpus,
+		__ATOMIC_ACQUIRE) == fixture.evidence.expected_cpus);
+	assert(__atomic_load_n(&fixture.evidence.arrival_writers,
+		__ATOMIC_ACQUIRE) == 1U);
+	assert(!smm_invocation_evidence_rendezvous_ready(&fixture.evidence,
+		generation));
+	assert(!__atomic_load_n(&fixture.evidence.arrival_failed,
+		__ATOMIC_ACQUIRE));
+	assert(!__atomic_load_n(&fixture.evidence.rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE));
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(thread, NULL));
+	assert(final_arrival.result == CB_SUCCESS);
+	assert(final_arrival.generation == generation);
+	assert(!__atomic_load_n(&fixture.evidence.arrival_writers,
+		__ATOMIC_ACQUIRE));
+	assert(smm_invocation_evidence_rendezvous_ready(&fixture.evidence,
+		generation));
+}
+
+static void test_arm_phase_ping_pong_retry(void)
+{
+	struct admission_arg first_owner;
+	struct admission_arg second_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+
+	fixture_init(&fixture);
+	first_owner = (struct admission_arg) {
+		.fixture = &fixture, .invalid_loader = true,
+	};
+	second_owner = (struct admission_arg) { .fixture = &fixture };
+	contender = (struct admission_arg) { .fixture = &fixture };
+
+	admission_hook_arm(16U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &first_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(19U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == SMM_INVOCATION_TRY_ERROR);
+	collision_hook_arm(61U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	admission_hook_arm(44U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&second, NULL, arm_ack_thread, &second_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(63U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	collision_hook_arm(65U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+	admission_hook_release(&collision_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arm_contention(&fixture, 1U);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &contender.token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+}
+
+static void test_arm_zero_expected_phase_ping_pong_retry(void)
+{
+	struct admission_arg first_owner;
+	struct admission_arg second_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+
+	fixture_init(&fixture);
+	first_owner = (struct admission_arg) {
+		.fixture = &fixture, .invalid_loader = true,
+	};
+	second_owner = first_owner;
+	contender = (struct admission_arg) { .fixture = &fixture };
+
+	admission_hook_arm(16U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &first_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(19U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == SMM_INVOCATION_TRY_ERROR);
+	collision_hook_arm(61U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	admission_hook_arm(16U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&second, NULL, arm_ack_thread, &second_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(19U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == SMM_INVOCATION_TRY_ERROR);
+	collision_hook_arm(64U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+	admission_hook_release(&collision_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arm_contention(&fixture, 0U);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &contender.token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+}
+
+static void test_arm_reserve_ping_pong_retry(void)
+{
+	struct admission_arg first_owner;
+	struct admission_arg second_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+
+	fixture_init(&fixture);
+	first_owner = (struct admission_arg) {
+		.fixture = &fixture, .invalid_loader = true,
+	};
+	second_owner = first_owner;
+	contender = (struct admission_arg) { .fixture = &fixture };
+
+	test_hook_arm(58U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &first_owner));
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == SMM_INVOCATION_TRY_ERROR);
+	collision_hook_arm(62U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	test_hook_arm(58U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	assert(!pthread_create(&second, NULL, arm_ack_thread, &second_owner));
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == SMM_INVOCATION_TRY_ERROR);
+	collision_hook_arm(66U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+	admission_hook_release(&collision_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arm_contention(&fixture, 0U);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &contender.token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+}
+
+static void assert_clean_arrival_contention(struct fixture *fixture,
+	uint32_t arrived_bitmap);
+
+static void test_arm_stale_zero_progress_phase(uint32_t progress_phase,
+	bool invalid_loader)
+{
+	struct smm_invocation_admission_token owner_token;
+	struct admission_arg contender;
+	struct fixture fixture;
+	struct thread_arg opening_owner;
+	pthread_t progressing;
+	pthread_t waiting;
+	bool progress_thread = false;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	contender = (struct admission_arg) {
+		.fixture = &fixture,
+		.invalid_loader = invalid_loader,
+	};
+	opening_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	test_hook_arm(73U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &owner_token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	if (progress_phase == SMM_INVOCATION_READY) {
+		/* No arrival owns a legal progress phase yet. */
+	} else if (progress_phase == SMM_INVOCATION_OPENING) {
+		admission_hook_arm(1U, &held_hook_point, &held_hook_entered,
+			&held_hook_release);
+		assert(!pthread_create(&progressing, NULL, arrive_thread,
+			&opening_owner));
+		admission_hook_wait(&held_hook_entered);
+		progress_thread = true;
+	} else {
+		assert(test_arrive(&fixture.evidence, 0U,
+			fixture.seed.participant_apic_ids[0], &generation) ==
+			CB_SUCCESS);
+		if (progress_phase == SMM_INVOCATION_ARRIVAL_ADMITTING) {
+			opening_owner.cpu = 1U;
+			admission_hook_arm(5U, &held_hook_point,
+				&held_hook_entered, &held_hook_release);
+			assert(!pthread_create(&progressing, NULL, arrive_thread,
+				&opening_owner));
+			admission_hook_wait(&held_hook_entered);
+			progress_thread = true;
+		} else {
+			assert(progress_phase == SMM_INVOCATION_COLLECTING);
+		}
+	}
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		progress_phase);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == (invalid_loader ?
+		SMM_INVOCATION_TRY_ERROR : SMM_INVOCATION_TRY_RETRY));
+	if (progress_thread) {
+		admission_hook_release(&held_hook_release);
+		assert(!pthread_join(progressing, NULL));
+		assert(opening_owner.result == CB_SUCCESS);
+	}
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &owner_token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	if (progress_phase == SMM_INVOCATION_READY)
+		assert_clean_arm_contention(&fixture, 1U);
+	else
+		assert_clean_arrival_contention(&fixture,
+			progress_phase == SMM_INVOCATION_ARRIVAL_ADMITTING ?
+			3U : 1U);
+}
+
+static void test_arm_stale_zero_invalid_phase(void)
+{
+	struct smm_invocation_admission_token owner_token;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t waiting;
+	uint32_t state;
+
+	fixture_init(&fixture);
+	contender = (struct admission_arg) { .fixture = &fixture };
+	test_hook_arm(73U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &owner_token) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	state = __atomic_load_n(&fixture.evidence.state, __ATOMIC_ACQUIRE);
+	state = (state & ~0x1fU) | SMM_INVOCATION_CLAIMED;
+	__atomic_store_n(&fixture.evidence.state, state, __ATOMIC_RELEASE);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_ERROR);
+}
+
+static void test_arm_stale_zero_arming_retry(void)
+{
+	struct admission_arg arm_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t arming;
+	pthread_t waiting;
+
+	fixture_init(&fixture);
+	arm_owner = (struct admission_arg) { .fixture = &fixture };
+	contender = (struct admission_arg) { .fixture = &fixture };
+	test_hook_arm(73U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_arm(44U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&arming, NULL, arm_ack_thread, &arm_owner));
+	admission_hook_wait(&held_hook_entered);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(arming, NULL));
+	assert(arm_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	assert_clean_arm_contention(&fixture, 1U);
+}
+
+static void test_arm_stale_zero_progress_retry(void)
+{
+	test_arm_stale_zero_progress_phase(SMM_INVOCATION_OPENING, false);
+	test_arm_stale_zero_progress_phase(
+		SMM_INVOCATION_ARRIVAL_ADMITTING, false);
+	test_arm_stale_zero_progress_phase(SMM_INVOCATION_COLLECTING, false);
+	test_arm_stale_zero_progress_phase(SMM_INVOCATION_READY, false);
+	test_arm_stale_zero_progress_phase(SMM_INVOCATION_COLLECTING, true);
+	test_arm_stale_zero_arming_retry();
+	test_arm_stale_zero_invalid_phase();
+}
+
+static void test_arm_stale_one_closed_retry(bool invalid_loader)
+{
+	struct smm_invocation_admission_token admission;
+	struct smm_invocation_token invocation;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t waiting;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	generation = prepare_rendezvous_ack(&fixture);
+	finish_rendezvous_ack(&fixture, generation, 0U);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &invocation) == CB_SUCCESS);
+	contender = (struct admission_arg) {
+		.fixture = &fixture,
+		.invalid_loader = invalid_loader,
+	};
+	test_hook_arm(74U);
+	assert(!pthread_create(&waiting, NULL, arm_ack_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	assert(smm_invocation_evidence_abort(&fixture.evidence, &invocation,
+		&fixture.ops) == CB_SUCCESS);
+	depart_all(&fixture, generation);
+	assert_clean_arm_contention(&fixture, 0U);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == (invalid_loader ?
+		SMM_INVOCATION_TRY_ERROR : SMM_INVOCATION_TRY_RETRY));
+	assert_clean_arm_contention(&fixture, 0U);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, fixture.seed.loader_instance_nonce,
+		fixture.seed.lifecycle, &admission) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	assert_clean_arm_contention(&fixture, 1U);
+}
+
+static void test_rendezvous_ack_phase_ping_pong_retry(void)
+{
+	struct admission_arg first_owner;
+	struct admission_arg second_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	generation = prepare_rendezvous_ack(&fixture);
+	first_owner = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 0,
+	};
+	second_owner = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 1,
+	};
+	contender = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 2,
+	};
+
+	admission_hook_arm(18U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&first_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(21U);
+	assert(!pthread_create(&waiting, NULL, rendezvous_ack_thread,
+		&contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	collision_hook_arm(55U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	admission_hook_arm(18U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&second, NULL, rendezvous_ack_thread,
+		&second_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(21U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_ack_contention(&fixture);
+	finish_rendezvous_ack(&fixture, generation, 2U);
+}
+
+static void test_rendezvous_ack_reserve_ping_pong_retry(void)
+{
+	struct admission_arg first_owner;
+	struct admission_arg second_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	generation = prepare_rendezvous_ack(&fixture);
+	first_owner = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 0,
+	};
+	second_owner = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 1,
+	};
+	contender = (struct admission_arg) {
+		.fixture = &fixture, .generation = generation, .cpu = 2,
+	};
+
+	test_hook_arm(58U);
+	assert(!pthread_create(&waiting, NULL, rendezvous_ack_thread,
+		&contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_arm(18U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&first_owner));
+	admission_hook_wait(&held_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	collision_hook_arm(57U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	test_hook_arm(58U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_arm(18U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&second, NULL, rendezvous_ack_thread,
+		&second_owner));
+	admission_hook_wait(&held_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_ack_contention(&fixture);
+	finish_rendezvous_ack(&fixture, generation, 2U);
+}
+
+static void assert_clean_arrival_contention(struct fixture *fixture,
+	uint32_t arrived_bitmap)
+{
+	const uint32_t state = __atomic_load_n(&fixture->evidence.state,
+		__ATOMIC_ACQUIRE);
+
+	assert(smm_invocation_evidence_phase(&fixture->evidence) ==
+		SMM_INVOCATION_COLLECTING);
+	assert(!__atomic_load_n(&fixture->evidence.rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE));
+	assert(!__atomic_load_n(&fixture->evidence.arrival_failed,
+		__ATOMIC_ACQUIRE));
+	assert(!smm_invocation_evidence_shutdown_requested(&fixture->evidence));
+	assert(!(state & (1U << 8)));
+	assert(__atomic_load_n(&fixture->evidence.arrived_cpus,
+		__ATOMIC_ACQUIRE) == arrived_bitmap);
+}
+
+static void test_arrival_phase_ping_pong_retry(void)
+{
+	struct admission_arg contender;
+	struct fixture fixture;
+	struct thread_arg first_owner;
+	struct thread_arg second_owner;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	first_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	second_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 1 };
+	contender = (struct admission_arg) { .fixture = &fixture, .cpu = 2 };
+
+	admission_hook_arm(1U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(20U);
+	assert(!pthread_create(&waiting, NULL, arrive_try_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == CB_SUCCESS);
+	generation = first_owner.generation;
+	collision_hook_arm(59U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	admission_hook_arm(5U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&second, NULL, arrive_thread, &second_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(20U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == CB_SUCCESS);
+	assert(second_owner.generation == generation);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arrival_contention(&fixture, 3U);
+	assert(test_arrive(&fixture.evidence, 2U,
+		fixture.seed.participant_apic_ids[2], &contender.generation) ==
+		CB_SUCCESS);
+	assert(contender.generation == generation);
+	assert(test_arrive(&fixture.evidence, 3U,
+		fixture.seed.participant_apic_ids[3], &contender.generation) ==
+		CB_SUCCESS);
+}
+
+static void test_arrival_samples_arm_owner(void)
+{
+	struct admission_arg arm_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	pthread_t arming;
+	pthread_t arriving;
+
+	fixture_init(&fixture);
+	arm_owner = (struct admission_arg) { .fixture = &fixture };
+	contender = (struct admission_arg) { .fixture = &fixture, .cpu = 0 };
+
+	admission_hook_arm(16U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&arming, NULL, arm_ack_thread, &arm_owner));
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(69U);
+	assert(!pthread_create(&arriving, NULL, arrive_try_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(arming, NULL));
+	assert(arm_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(arriving, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_SUCCESS);
+	assert(contender.generation == 1U);
+	assert_clean_arrival_contention(&fixture, 1U);
+}
+
+static void test_arrival_ready_ping_pong_retry(void)
+{
+	struct admission_arg arm_owner;
+	struct admission_arg contender;
+	struct fixture fixture;
+	struct thread_arg arrival_owner;
+	pthread_t arming;
+	pthread_t arriving;
+	pthread_t owning;
+
+	fixture_init(&fixture);
+	arm_owner = (struct admission_arg) { .fixture = &fixture };
+	contender = (struct admission_arg) { .fixture = &fixture, .cpu = 0 };
+	arrival_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 1 };
+
+	test_hook_arm(27U);
+	assert(!pthread_create(&arriving, NULL, arrive_try_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_arm(16U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&arming, NULL, arm_ack_thread, &arm_owner));
+	admission_hook_wait(&held_hook_entered);
+	collision_hook_arm(70U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(arming, NULL));
+	assert(arm_owner.result == SMM_INVOCATION_TRY_SUCCESS);
+	admission_hook_arm(71U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&held_hook_entered);
+	test_hook_arm(27U);
+	admission_hook_release(&held_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_arm(1U, &held_hook_point, &held_hook_entered,
+		&held_hook_release);
+	assert(!pthread_create(&owning, NULL, arrive_thread, &arrival_owner));
+	admission_hook_wait(&held_hook_entered);
+	collision_hook_arm(70U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+	admission_hook_release(&held_hook_release);
+	assert(!pthread_join(owning, NULL));
+	assert(arrival_owner.result == CB_SUCCESS);
+	test_hook_arm(72U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(arriving, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arrival_contention(&fixture, 2U);
+	assert(test_arrive(&fixture.evidence, 0U,
+		fixture.seed.participant_apic_ids[0], &contender.generation) ==
+		CB_SUCCESS);
+	assert(contender.generation == arrival_owner.generation);
+	assert_clean_arrival_contention(&fixture, 3U);
+}
+
+static void test_arrival_reserve_ping_pong_retry(void)
+{
+	struct admission_arg contender;
+	struct fixture fixture;
+	struct thread_arg first_owner;
+	struct thread_arg second_owner;
+	pthread_t first;
+	pthread_t second;
+	pthread_t waiting;
+	uint64_t generation;
+
+	fixture_init(&fixture);
+	assert(test_arrive(&fixture.evidence, 0U,
+		fixture.seed.participant_apic_ids[0], &generation) == CB_SUCCESS);
+	first_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 1 };
+	second_owner = (struct thread_arg) { .fixture = &fixture, .cpu = 2 };
+	contender = (struct admission_arg) { .fixture = &fixture, .cpu = 3 };
+
+	test_hook_arm(58U);
+	assert(!pthread_create(&waiting, NULL, arrive_try_thread, &contender));
+	admission_hook_wait(&test_hook_entered);
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_owner));
+	assert(!pthread_join(first, NULL));
+	assert(first_owner.result == CB_SUCCESS);
+	collision_hook_arm(60U);
+	admission_hook_release(&test_hook_release);
+	admission_hook_wait(&collision_hook_entered);
+
+	test_hook_arm(58U);
+	admission_hook_release(&collision_hook_release);
+	admission_hook_wait(&test_hook_entered);
+	assert(!pthread_create(&second, NULL, arrive_thread, &second_owner));
+	assert(!pthread_join(second, NULL));
+	assert(second_owner.result == CB_SUCCESS);
+	admission_hook_release(&test_hook_release);
+	assert(!pthread_join(waiting, NULL));
+	assert(contender.result == SMM_INVOCATION_TRY_RETRY);
+	assert_clean_arrival_contention(&fixture, 7U);
+	assert(test_arrive(&fixture.evidence, 3U,
+		fixture.seed.participant_apic_ids[3], &contender.generation) ==
+		CB_SUCCESS);
+	assert(contender.generation == generation);
+}
+
 static void test_linearization_gaps(void)
 {
 	struct fixture fixture;
@@ -2031,11 +2868,13 @@ static void test_admission_and_duplicate_gaps(void)
 	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
-		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
+		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
 	test_hook_wait_and_release();
 	assert(!pthread_join(first, NULL));
 	assert(first_arg.result == CB_SUCCESS);
 	assert(first_arg.generation == generation);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_SUCCESS);
 	depart_all(&fixture, generation);
@@ -2150,6 +2989,20 @@ int main(void)
 	test_terminal_fail_stop_and_exhaustion();
 	test_abort_restore_mutation_and_reentry();
 	test_shutdown_at_callback_boundaries();
+	test_opening_generation_publication_retry();
+	test_rendezvous_ack_phase_ping_pong_retry();
+	test_rendezvous_ack_reserve_ping_pong_retry();
+	test_arrival_writer_covers_admission_completion();
+	test_arm_phase_ping_pong_retry();
+	test_arm_zero_expected_phase_ping_pong_retry();
+	test_arm_reserve_ping_pong_retry();
+	test_arm_stale_zero_progress_retry();
+	test_arm_stale_one_closed_retry(false);
+	test_arm_stale_one_closed_retry(true);
+	test_arrival_samples_arm_owner();
+	test_arrival_ready_ping_pong_retry();
+	test_arrival_phase_ping_pong_retry();
+	test_arrival_reserve_ping_pong_retry();
 	test_linearization_gaps();
 	test_admission_completion_races();
 	test_admission_and_duplicate_gaps();

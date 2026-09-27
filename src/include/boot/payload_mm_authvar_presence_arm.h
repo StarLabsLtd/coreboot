@@ -44,6 +44,15 @@ enum payload_mm_authvar_presence_arm_dispatch {
 	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_ABORTED,
 };
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+enum payload_mm_authvar_presence_arm_protection_delegation {
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_EMPTY,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BINDING,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BOUND,
+	PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_POISONED,
+};
+#endif
+
 struct payload_mm_authvar_presence_arm;
 
 struct payload_mm_authvar_presence_arm_context {
@@ -84,6 +93,15 @@ struct payload_mm_authvar_presence_arm {
 	void *protected_storage_context;
 	payload_mm_authvar_protected_storage sealed_protected_storage;
 	void *sealed_protected_storage_context;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	uint32_t protection_delegation;
+	payload_mm_authvar_protected_storage delegated_protected_storage;
+	void *delegated_protected_storage_context;
+	size_t delegated_protected_storage_context_size;
+	payload_mm_authvar_protected_storage sealed_delegated_protected_storage;
+	void *sealed_delegated_protected_storage_context;
+	size_t sealed_delegated_protected_storage_context_size;
+#endif
 	struct payload_mm_authvar_presence_arm_context callback_context;
 	struct payload_mm_authvar_presence_arm_context sealed_callback_context;
 	payload_mm_authvar_presence_transaction_fail_stop_fn failure_callback;
@@ -118,5 +136,16 @@ enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 	struct bootmem_reservation_receipt *page_receipt,
 	payload_mm_authvar_protected_storage protected_storage,
 	void *protected_storage_context);
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+/* Mint a one-use proof delegation while the arm is still loader-ready. */
+enum cb_err payload_mm_authvar_presence_arm_protection_delegate_bind(
+	struct payload_mm_authvar_presence_arm *arm,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context,
+	payload_mm_authvar_protected_storage delegated_protected_storage,
+	void *delegated_protected_storage_context,
+	size_t delegated_protected_storage_context_size);
+#endif
 
 #endif

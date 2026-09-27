@@ -109,6 +109,60 @@ static bool proof_closure_unchanged(
 		arm->sealed_protected_storage_context == context;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+static bool delegated_proof_closure_valid(
+	const struct payload_mm_authvar_presence_arm *arm)
+{
+	return __atomic_load_n(&arm->protection_delegation, __ATOMIC_ACQUIRE) ==
+			PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BOUND &&
+		arm->delegated_protected_storage &&
+		arm->delegated_protected_storage ==
+			arm->sealed_delegated_protected_storage &&
+		arm->delegated_protected_storage_context ==
+			arm->sealed_delegated_protected_storage_context &&
+		arm->delegated_protected_storage_context_size ==
+			arm->sealed_delegated_protected_storage_context_size &&
+		arm->delegated_protected_storage_context_size &&
+		arm->delegated_protected_storage_context_size <=
+			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX;
+}
+
+static bool delegation_snapshot_valid(
+	const struct payload_mm_authvar_presence_arm *arm)
+{
+	const uint32_t state = __atomic_load_n(&arm->protection_delegation,
+		__ATOMIC_ACQUIRE);
+
+	if (state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_EMPTY)
+		return !arm->delegated_protected_storage &&
+			!arm->delegated_protected_storage_context &&
+			!arm->delegated_protected_storage_context_size &&
+			!arm->sealed_delegated_protected_storage &&
+			!arm->sealed_delegated_protected_storage_context &&
+			!arm->sealed_delegated_protected_storage_context_size;
+	return delegated_proof_closure_valid(arm);
+}
+
+static bool effective_proof_closure(
+	struct payload_mm_authvar_presence_arm *arm,
+	payload_mm_authvar_protected_storage *proof, void **context)
+{
+	if (__atomic_load_n(&arm->protection_delegation, __ATOMIC_ACQUIRE) ==
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_EMPTY) {
+		*proof = arm->protected_storage;
+		*context = arm->protected_storage_context;
+		return proof_closure_unchanged(arm, *proof, *context) &&
+			delegation_snapshot_valid(arm);
+	}
+	if (!delegated_proof_closure_valid(arm))
+		return false;
+	*proof = arm->delegated_protected_storage;
+	*context = arm->delegated_protected_storage_context;
+	return proof_closure_unchanged(arm, arm->protected_storage,
+		arm->protected_storage_context);
+}
+#endif
+
 static bool loader_bundle_valid(
 	const struct payload_mm_authvar_presence_arm *arm)
 {
@@ -162,7 +216,13 @@ static struct payload_mm_authvar_presence_arm *context_arm(void *context)
 	const struct payload_mm_authvar_presence_arm_context *callback = context;
 	struct payload_mm_authvar_presence_arm *arm;
 	payload_mm_authvar_protected_storage proof;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	payload_mm_authvar_protected_storage current_proof;
+#endif
 	void *proof_context;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	void *current_proof_context;
+#endif
 
 	if (!object_valid(callback, sizeof(*callback), _Alignof(*callback)))
 		return NULL;
@@ -170,6 +230,12 @@ static struct payload_mm_authvar_presence_arm *context_arm(void *context)
 	if (!object_valid(arm, sizeof(*arm), _Alignof(*arm)) ||
 	    arm != platform_payload_mm_authvar_presence_arm())
 		return NULL;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	if (!effective_proof_closure(arm, &proof, &proof_context) ||
+	    arm->failure_callback != arm->sealed_failure_callback ||
+	    arm->failure_context_size != arm->sealed_failure_context_size)
+		arm_fail_stop(arm);
+#else
 	proof = arm->protected_storage;
 	proof_context = arm->protected_storage_context;
 	if (proof != arm->sealed_protected_storage ||
@@ -177,6 +243,7 @@ static struct payload_mm_authvar_presence_arm *context_arm(void *context)
 	    arm->failure_callback != arm->sealed_failure_callback ||
 	    arm->failure_context_size != arm->sealed_failure_context_size)
 		arm_fail_stop(arm);
+#endif
 	if (callback->identity != (uintptr_t)arm ||
 	    memcmp(callback, &arm->sealed_callback_context, sizeof(*callback)))
 		return NULL;
@@ -189,8 +256,15 @@ static struct payload_mm_authvar_presence_arm *context_arm(void *context)
 	    !protected_range_exact(arm, proof, proof_context,
 		(const void *)(uintptr_t)proof, 1U))
 		arm_fail_stop(arm);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	if (!effective_proof_closure(arm, &current_proof,
+		&current_proof_context) || current_proof != proof ||
+	    current_proof_context != proof_context)
+		arm_fail_stop(arm);
+#else
 	if (!proof_closure_unchanged(arm, proof, proof_context))
 		arm_fail_stop(arm);
+#endif
 	if (callback->identity != (uintptr_t)arm ||
 	    memcmp(callback, &arm->sealed_callback_context, sizeof(*callback)))
 		arm_fail_stop(arm);
@@ -339,7 +413,11 @@ static bool callback_snapshot_valid(struct payload_mm_authvar_presence_arm *arm,
 		arm->policy.context_size <= sizeof(arm->policy_context) &&
 		!memcmp(arm->policy_context, arm->sealed_policy_context,
 			arm->policy.context_size) &&
-		loader_facts_valid(arm);
+		loader_facts_valid(arm)
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+		&& delegation_snapshot_valid(arm)
+#endif
+		;
 }
 
 static bool phase_snapshot_valid(struct payload_mm_authvar_presence_arm *arm,
@@ -810,10 +888,15 @@ static bool wrapped_protected_storage(void *context, const void *object,
 	if (!object_valid(arm, sizeof(*arm), _Alignof(*arm)) ||
 	    arm != platform_payload_mm_authvar_presence_arm())
 		return false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	if (!effective_proof_closure(arm, &proof, &proof_context))
+		arm_fail_stop(arm);
+#else
 	proof = arm->protected_storage;
 	proof_context = arm->protected_storage_context;
 	if (!proof_closure_unchanged(arm, proof, proof_context))
 		arm_fail_stop(arm);
+#endif
 	if (!transaction_provisioning_snapshot_valid(arm,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND))
 		arm_fail_stop(arm);
@@ -821,13 +904,107 @@ static bool wrapped_protected_storage(void *context, const void *object,
 	protected = proof(proof_context, object, size);
 	if (memcmp(&before, arm, sizeof(before)))
 		arm_fail_stop_snapshot(arm, &before);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	if (!effective_proof_closure(arm, &proof, &proof_context) ||
+	    !transaction_provisioning_snapshot_valid(arm,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND))
+		arm_fail_stop(arm);
+#else
 	if (!proof_closure_unchanged(arm, proof, proof_context) ||
 	    !transaction_provisioning_snapshot_valid(arm,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND))
 		arm_fail_stop(arm);
+#endif
 	scrub(&before, sizeof(before));
 	return protected;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+enum cb_err payload_mm_authvar_presence_arm_protection_delegate_bind(
+	struct payload_mm_authvar_presence_arm *arm,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context,
+	payload_mm_authvar_protected_storage delegated_protected_storage,
+	void *delegated_protected_storage_context,
+	size_t delegated_protected_storage_context_size)
+{
+	uint32_t expected =
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_EMPTY;
+
+	if (!object_valid(arm, sizeof(*arm), _Alignof(*arm)) ||
+	    arm != platform_payload_mm_authvar_presence_arm() ||
+	    __atomic_load_n(&arm->state, __ATOMIC_ACQUIRE) !=
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_LOADER_READY ||
+	    !protected_storage || protected_storage != arm->protected_storage ||
+	    protected_storage != arm->sealed_protected_storage ||
+	    protected_storage_context != arm->protected_storage_context ||
+	    protected_storage_context != arm->sealed_protected_storage_context ||
+	    !delegated_protected_storage ||
+	    !object_valid(delegated_protected_storage_context,
+		delegated_protected_storage_context_size, 1U) ||
+	    delegated_protected_storage_context_size >
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX ||
+	    overlaps(arm, sizeof(*arm), delegated_protected_storage_context,
+		delegated_protected_storage_context_size) ||
+	    overlaps(arm->composition, sizeof(*arm->composition),
+		delegated_protected_storage_context,
+		delegated_protected_storage_context_size) ||
+	    overlaps(arm->instance, sizeof(*arm->instance),
+		delegated_protected_storage_context,
+		delegated_protected_storage_context_size) ||
+	    overlaps(arm->evidence, sizeof(*arm->evidence),
+		delegated_protected_storage_context,
+		delegated_protected_storage_context_size) ||
+	    !loader_bundle_valid(arm))
+		return CB_ERR;
+	if (!__atomic_compare_exchange_n(&arm->protection_delegation, &expected,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BINDING,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		__atomic_store_n(&arm->protection_delegation,
+			PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_POISONED,
+			__ATOMIC_RELEASE);
+		__atomic_store_n(&arm->state,
+			PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_POISONED, __ATOMIC_RELEASE);
+		return CB_ERR;
+	}
+	if (!protected_range_bootstrap(arm, protected_storage,
+		protected_storage_context,
+		(const void *)(uintptr_t)delegated_protected_storage, 1U) ||
+	    !protected_range_bootstrap(arm, protected_storage,
+		protected_storage_context, delegated_protected_storage_context,
+		delegated_protected_storage_context_size) ||
+	    !protected_range_bootstrap(arm, protected_storage,
+		protected_storage_context,
+		(const void *)(uintptr_t)wrapped_protected_storage, 1U) ||
+	    !proof_closure_unchanged(arm, protected_storage,
+		protected_storage_context) ||
+	    !loader_bundle_valid(arm))
+		goto poison;
+	arm->delegated_protected_storage = delegated_protected_storage;
+	arm->delegated_protected_storage_context =
+		delegated_protected_storage_context;
+	arm->delegated_protected_storage_context_size =
+		delegated_protected_storage_context_size;
+	arm->sealed_delegated_protected_storage = delegated_protected_storage;
+	arm->sealed_delegated_protected_storage_context =
+		delegated_protected_storage_context;
+	arm->sealed_delegated_protected_storage_context_size =
+		delegated_protected_storage_context_size;
+	expected = PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BINDING;
+	if (!__atomic_compare_exchange_n(&arm->protection_delegation, &expected,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BOUND,
+		false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto poison;
+	return CB_SUCCESS;
+poison:
+	__atomic_store_n(&arm->protection_delegation,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_POISONED,
+		__ATOMIC_RELEASE);
+	__atomic_store_n(&arm->state, PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_POISONED,
+		__ATOMIC_RELEASE);
+	return CB_ERR;
+}
+#endif
 
 enum cb_err payload_mm_authvar_presence_arm_provision(
 	struct payload_mm_authvar_presence_arm *arm,
@@ -978,6 +1155,28 @@ static bool range_overlaps_any(const struct input_range *ranges, size_t count,
 	return false;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+static bool transaction_proof_arguments_valid(
+	struct payload_mm_authvar_presence_arm *arm,
+	payload_mm_authvar_protected_storage proof, void *context)
+{
+	const uint32_t state = __atomic_load_n(&arm->protection_delegation,
+		__ATOMIC_ACQUIRE);
+
+	if (state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BOUND)
+		return delegated_proof_closure_valid(arm) &&
+			proof == arm->delegated_protected_storage &&
+			context == arm->delegated_protected_storage_context;
+	if (state != PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_EMPTY ||
+	    !delegation_snapshot_valid(arm))
+		return false;
+	return proof && proof == arm->protected_storage &&
+		proof == arm->sealed_protected_storage &&
+		context == arm->protected_storage_context &&
+		context == arm->sealed_protected_storage_context;
+}
+#endif
+
 enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 	struct payload_mm_authvar_presence_arm *arm,
 	struct payload_mm_authvar_presence_transaction_slot *slot,
@@ -999,10 +1198,15 @@ enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 
 	if (!object_valid(arm, sizeof(*arm), _Alignof(*arm)) ||
 	    arm != platform_payload_mm_authvar_presence_arm() ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	    !transaction_proof_arguments_valid(arm, protected_storage,
+		protected_storage_context) ||
+#else
 	    !protected_storage || protected_storage != arm->protected_storage ||
 	    protected_storage != arm->sealed_protected_storage ||
 	    protected_storage_context != arm->protected_storage_context ||
 	    protected_storage_context != arm->sealed_protected_storage_context ||
+#endif
 	    !object_valid(slot, sizeof(*slot), _Alignof(*slot)) ||
 	    !object_valid(policy, sizeof(*policy), _Alignof(*policy)) ||
 	    !object_valid(binding, sizeof(*binding), _Alignof(*binding)) ||
@@ -1028,11 +1232,17 @@ enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 		(const void *)(uintptr_t)platform_payload_mm_authvar_presence_arm,
 		1U))
 		goto fail;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	if (!transaction_proof_arguments_valid(arm, protected_storage,
+		protected_storage_context))
+		goto fail;
+#else
 	if (protected_storage != arm->protected_storage ||
 	    protected_storage != arm->sealed_protected_storage ||
 	    protected_storage_context != arm->protected_storage_context ||
 	    protected_storage_context != arm->sealed_protected_storage_context)
 		goto fail;
+#endif
 	if (receipt.base > UINTPTR_MAX ||
 	    receipt.base % PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
 	    receipt.bytes != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
@@ -1056,6 +1266,12 @@ enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 		(const void *)(uintptr_t)receipt.base,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE };
 	if (!policy_valid(&p) || !binding_valid(&b) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	    (__atomic_load_n(&arm->protection_delegation, __ATOMIC_ACQUIRE) ==
+		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROTECTION_DELEGATION_BOUND &&
+	     (p.context != arm->delegated_protected_storage_context ||
+	      p.context_size != arm->delegated_protected_storage_context_size)) ||
+#endif
 	    !ranges_disjoint(ranges, range_count) ||
 	    !protected_range_bootstrap(arm, protected_storage,
 		protected_storage_context,
@@ -1138,8 +1354,13 @@ enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 	if (memcmp(&p, policy, sizeof(p)) || memcmp(&b, binding, sizeof(b)) ||
 	    memcmp(&receipt, page_receipt, sizeof(receipt)) ||
 	    (p.context_size && memcmp(context, p.context, p.context_size)) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION)
+	    !transaction_proof_arguments_valid(arm, protected_storage,
+		protected_storage_context) ||
+#else
 	    !proof_closure_unchanged(arm, protected_storage,
 		protected_storage_context) ||
+#endif
 	    memcmp(&arm->binding, &b, sizeof(b)) ||
 	    memcmp(&arm->sealed_binding, &b, sizeof(b)) ||
 	    arm->policy.prepare != p.prepare || arm->policy.commit != p.commit ||

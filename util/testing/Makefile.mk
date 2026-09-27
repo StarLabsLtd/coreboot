@@ -191,6 +191,11 @@ test-authvar-presence-arm:
 	tests/lib/payload_mm_authvar_presence_arm_test.sh
 	tests/lib/payload_mm_authvar_presence_arm_profiles_test.sh
 
+.PHONY: test-authvar-presence-route-session
+test-authvar-presence-route-session:
+	tests/lib/payload_mm_authvar_presence_route_session_test.sh
+	tests/lib/payload_mm_authvar_presence_arm_profiles_test.sh
+
 .PHONY: test-authvar-presence-mailbox-scrub
 test-authvar-presence-mailbox-scrub:
 	tests/lib/payload_mm_authvar_presence_authority_test.sh

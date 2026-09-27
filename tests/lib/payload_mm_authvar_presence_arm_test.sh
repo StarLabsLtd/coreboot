@@ -143,11 +143,19 @@ if grep -R -Eq 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_ARM(_PLATFORM)?' \
 	printf '%s\n' 'presence arm gained a production selector' >&2
 	exit 1
 fi
-if rg -q 'payload_mm_authvar_presence_arm_(provision|transaction_provision)' \
+if rg -q 'payload_mm_authvar_presence_arm_provision' \
 	"$root/src" \
 	-g '!src/include/boot/payload_mm_authvar_presence_arm.h' \
 	-g '!src/lib/payload_mm_authvar_presence_arm.c'; then
 	printf '%s\n' 'presence arm gained a production callsite' >&2
+	exit 1
+fi
+if rg -q 'payload_mm_authvar_presence_arm_transaction_provision' \
+	"$root/src" \
+	-g '!src/include/boot/payload_mm_authvar_presence_arm.h' \
+	-g '!src/lib/payload_mm_authvar_presence_arm.c' \
+	-g '!src/lib/payload_mm_authvar_presence_route_session.c'; then
+	printf '%s\n' 'presence arm transaction composition escaped route session' >&2
 	exit 1
 fi
 if rg -q 'platform_payload_mm_authvar_presence_arm\(' "$root/src" \

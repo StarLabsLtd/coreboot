@@ -66,12 +66,15 @@ static uint32_t adapter_hook_point;
 static em64t101_smm_state_save_area_t *adapter_hook_state;
 static struct intel_smm_invocation_adapter *adapter_hook_adapter;
 static uintptr_t adapter_hook_redirect;
+static uint32_t adapter_hook_revision;
 
 void intel_smm_invocation_adapter_test_hook(uint32_t point)
 {
 	if (point != adapter_hook_point)
 		return;
-	if (adapter_hook_redirect)
+	if (adapter_hook_revision)
+		adapter_hook_adapter->expected_revision = adapter_hook_revision;
+	else if (adapter_hook_redirect)
 		adapter_hook_adapter->nodes[0].save_state = adapter_hook_redirect;
 	else
 		adapter_hook_state->io_misc_info ^= 1U << 8;
@@ -335,6 +338,7 @@ static void test_adapter_boundaries(void)
 	states[1] = states[0];
 	adapter_hook_state = &states[0];
 	adapter_hook_adapter = &adapter;
+	assert(sizeof(adapter) <= SMM_INVOCATION_SAVE_STATE_CONTEXT_MAX);
 	for (uint32_t bit = 0; bit < 32; bit++) {
 		states[0].io_misc_info = EXACT_IO ^ (1U << bit);
 		assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
@@ -377,6 +381,55 @@ static void test_adapter_boundaries(void)
 	adapter_hook_point = 0;
 	adapter_hook_redirect = 0;
 	adapter.nodes[0].save_state = (uintptr_t)&states[0];
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
+	adapter_hook_revision = REV100;
+	adapter_hook_point = 1;
+	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+		SMM_INVOCATION_MATCH_ERROR);
+	adapter_hook_point = 0;
+	adapter_hook_revision = 0;
+
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
+	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+		SMM_INVOCATION_MATCHED);
+	adapter_hook_revision = REV100;
+	adapter_hook_point = 2;
+	assert(ops.read_rax(ops.context, 0, &value) == CB_ERR);
+	adapter_hook_point = 0;
+	adapter_hook_revision = 0;
+
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
+	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+		SMM_INVOCATION_MATCHED);
+	adapter_hook_revision = REV100;
+	adapter_hook_point = 3;
+	assert(ops.write_rax(ops.context, 0, 0x123400a5) == CB_ERR);
+	assert(states[0].rax == 0xa5);
+	adapter_hook_point = 0;
+	adapter_hook_revision = 0;
+	states[0].rax = 0xa5;
+
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	adapter_hook_revision = REV100;
+	adapter_hook_point = 5;
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
+	adapter_hook_point = 0;
+	adapter_hook_revision = 0;
+	assert(adapter.expected_revision == REV100);
+
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	adapter.expected_revision = 0;
+	memcpy(&snapshot, &adapter, sizeof(snapshot));
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
+	assert(!memcmp(&snapshot, &adapter, sizeof(snapshot)));
 
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
@@ -1623,6 +1676,113 @@ static void test_admission_token_binding(void)
 		SMM_INVOCATION_TRY_ERROR);
 	assert(smm_invocation_evidence_phase(&other) ==
 		SMM_INVOCATION_POISONED);
+}
+
+static void test_invalid_admission_state(void)
+{
+	const struct smm_invocation_loader_seed seed = {
+		.revision = SMM_INVOCATION_EVIDENCE_REVISION,
+		.size = sizeof(seed),
+		.active_cpus = 2,
+		.bsp_cpu = 0,
+		.loader_instance_nonce = NONCE(83),
+		.participant_apic_ids = { 3, 5 },
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
+	};
+	const uint32_t invalid[] = {
+		TEST_ADMISSION_CONSUMED,
+		0xfffffU << 12,
+	};
+	struct smm_invocation_evidence evidence;
+	struct smm_invocation_admission_token token;
+	struct admission_try_arg arm;
+	pthread_t thread;
+	uint64_t generation;
+
+	for (size_t index = 0; index < ARRAY_SIZE(invalid); index++) {
+		memset(&evidence, 0, sizeof(evidence));
+		assert(smm_invocation_evidence_provision(&evidence, &seed) ==
+			CB_SUCCESS);
+		__atomic_store_n(&evidence.state,
+			invalid[index] | SMM_INVOCATION_READY, __ATOMIC_RELEASE);
+		assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
+			NONCE(83), SMM_INVOCATION_LOADER_NON_S3_LOAD, &token) ==
+			SMM_INVOCATION_TRY_ERROR);
+		assert(smm_invocation_evidence_phase(&evidence) ==
+			SMM_INVOCATION_POISONED);
+
+		memset(&evidence, 0, sizeof(evidence));
+		assert(smm_invocation_evidence_provision(&evidence, &seed) ==
+			CB_SUCCESS);
+		__atomic_store_n(&evidence.state,
+			invalid[index] | SMM_INVOCATION_READY, __ATOMIC_RELEASE);
+		assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
+			&generation, &token) == SMM_INVOCATION_TRY_ERROR);
+		assert(smm_invocation_evidence_phase(&evidence) ==
+			SMM_INVOCATION_POISONED);
+
+		memset(&evidence, 0, sizeof(evidence));
+		assert(smm_invocation_evidence_provision(&evidence, &seed) ==
+			CB_SUCCESS);
+		__atomic_store_n(&evidence.state,
+			invalid[index] | SMM_INVOCATION_COLLECTING,
+			__ATOMIC_RELEASE);
+		assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
+			&generation, &token) == SMM_INVOCATION_TRY_ERROR);
+		assert(smm_invocation_evidence_phase(&evidence) ==
+			SMM_INVOCATION_POISONED);
+
+		memset(&evidence, 0, sizeof(evidence));
+		assert(smm_invocation_evidence_provision(&evidence, &seed) ==
+			CB_SUCCESS);
+		__atomic_store_n(&evidence.state,
+			invalid[index] | SMM_INVOCATION_COLLECTING,
+			__ATOMIC_RELEASE);
+		assert(smm_invocation_evidence_rendezvous_ack_try(&evidence, 1,
+			0, &token) == SMM_INVOCATION_TRY_ERROR);
+		assert(smm_invocation_evidence_phase(&evidence) ==
+			SMM_INVOCATION_POISONED);
+	}
+
+	memset(&evidence, 0, sizeof(evidence));
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
+	__atomic_store_n(&evidence.state,
+		(0xffffeU << 12) | SMM_INVOCATION_READY, __ATOMIC_RELEASE);
+	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
+		&generation, &token) == SMM_INVOCATION_TRY_SUCCESS);
+	assert(__atomic_load_n(&evidence.state, __ATOMIC_ACQUIRE) >> 12 ==
+		0xfffffU);
+	assert(smm_invocation_evidence_arrive_try(&evidence, 1, 5,
+		&generation, &token) == SMM_INVOCATION_TRY_ERROR);
+	assert(smm_invocation_evidence_phase(&evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	memset(&evidence, 0, sizeof(evidence));
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
+	__atomic_store_n(&evidence.state,
+		(0xfffffU << 12) | SMM_INVOCATION_READY, __ATOMIC_RELEASE);
+	arm = (struct admission_try_arg) {
+		.evidence = &evidence,
+		.loader_instance_nonce = NONCE(83),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
+	};
+	evidence_hook_point = 77;
+	evidence_hook_entered = 0;
+	evidence_hook_release = 0;
+	assert(!pthread_create(&thread, NULL, ack_arm_try_thread, &arm));
+	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&evidence.state,
+		TEST_ADMISSION_NONCE_ONE |
+		(SMM_INVOCATION_ADMISSION_ARM << 5) | TEST_ADMISSION_BUSY |
+		SMM_INVOCATION_ACK_ARMING, __ATOMIC_RELEASE);
+	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(thread, NULL));
+	assert(arm.result == SMM_INVOCATION_TRY_RETRY);
+	assert(smm_invocation_evidence_phase(&evidence) ==
+		SMM_INVOCATION_ACK_ARMING);
+	evidence_hook_point = 0;
+	evidence_hook_release = 1;
 }
 
 static void test_admission_failure_completion_race(void)
@@ -3688,6 +3848,7 @@ int main(int argc, char **argv)
 	test_reservation_gap_failure_and_shutdown();
 	test_transient_completion_before_observer();
 	test_admission_token_binding();
+	test_invalid_admission_state();
 	test_admission_failure_completion_race();
 	test_terminal_wins_stale_admission_failure();
 	test_stale_failure_cannot_claim_new_attempt();

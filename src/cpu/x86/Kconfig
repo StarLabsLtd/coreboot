@@ -432,5 +432,12 @@ config SMM_APMC_ROUTE_STARLABS_EFI_OPTION
 	bool
 config SMM_APMC_ROUTE_ACER_BOARD
 	bool
+config SMM_APMC_ROUTE_AUTHVAR_PRESENCE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION
+	help
+	  Internal capability for a later live handler composition. The dormant
+	  route-session mechanism does not select it.
 
 endif # ARCH_X86
