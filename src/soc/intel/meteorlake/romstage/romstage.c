@@ -16,8 +16,13 @@
 #include <soc/soc_chip.h>
 #include <string.h>
 
+#if CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE)
+void __weak mainboard_loader_instance_source_capture(int s3wake) { (void)s3wake; }
+enum cb_err __weak mainboard_loader_instance_source_publish(void) { return CB_SUCCESS; }
+#else
 void __weak mainboard_mor_cold_capture(int s3wake) { (void)s3wake; }
 enum cb_err __weak mainboard_mor_cold_publish(void) { return CB_SUCCESS; }
+#endif
 
 void platform_fill_dimm_info_args(const DIMM_INFO *src_dimm,
 	    const MEMORY_INFO_DATA_HOB *meminfo_hob,
@@ -32,8 +37,8 @@ void mainboard_romstage_entry(void)
 	struct chipset_power_state *ps = pmc_get_power_state();
 	bool s3wake = pmc_fill_power_state(ps) == ACPI_S3;
 
-	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION))
-		mainboard_mor_cold_capture(s3wake);
+	if (CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE))
+		mainboard_loader_instance_source_capture(s3wake);
 
 	/* Initialize HECI interface */
 	cse_init(HECI1_BASE_ADDRESS);
@@ -68,10 +73,11 @@ void mainboard_romstage_entry(void)
 
 	if (CONFIG(ENABLE_EARLY_DMA_PROTECTION))
 		vtd_enable_dma_protection();
-	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION)) {
-		const enum cb_err result = mainboard_mor_cold_publish();
+	if (CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE)) {
+		const enum cb_err result = mainboard_loader_instance_source_publish();
 
-		if (result != CB_SUCCESS && !s3wake)
-			die("MTL MOR cold-boot classification was not sealed\n");
+		if (result != CB_SUCCESS &&
+		    (!s3wake || CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_REQUIRED)))
+			die("MTL loader-instance source was not sealed\n");
 	}
 }

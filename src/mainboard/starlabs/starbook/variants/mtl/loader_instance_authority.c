@@ -1,18 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include "mor_early_dma.h"
+#include "smm_invocation_loader_instance.h"
 
-#include <rules.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
+#include "mor_cold_boot.h"
+#include "mor_early_dma.h"
+
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 #include "dma_guard.h"
 #include "dma_live.h"
-#include "mor_cold_boot.h"
+#endif
 
 #define EARLY_DMA_SEAL_DOMAIN 0x6d746c2d65646d61ULL
-#define PCI_COMMAND_MASTER (1U << 2)
+#define MTL_PCI_COMMAND_MASTER (1U << 2)
 
 static bool object_valid(const void *object, size_t size, size_t alignment)
 {
@@ -33,6 +36,14 @@ static bool objects_overlap(const void *first, size_t first_size,
 	return first_base - second_base < second_size;
 }
 
+#if ENV_RAMSTAGE
+static bool range_protected(uintptr_t base, size_t size, uint64_t limit)
+{
+	return size && base <= (uintptr_t)-1 - (size - 1U) &&
+		(uint64_t)base < limit && size <= limit - (uint64_t)base;
+}
+#endif
+
 static bool snapshot_valid(const struct pci_bme_quiesce_snapshot *snapshot)
 {
 	if (!snapshot || snapshot->failed || !snapshot->bus_count ||
@@ -43,7 +54,7 @@ static bool snapshot_valid(const struct pci_bme_quiesce_snapshot *snapshot)
 		const struct pci_bme_quiesce_function *function =
 			&snapshot->functions[index];
 
-		if ((function->command & PCI_COMMAND_MASTER) ||
+		if ((function->command & MTL_PCI_COMMAND_MASTER) ||
 		    (index && function[-1].bdf >= function->bdf) ||
 		    (function->bdf >> 8) >= snapshot->bus_count)
 			return false;
@@ -145,6 +156,7 @@ enum cb_err starbook_mtl_mor_early_dma_record_validate(
 #if ENV_RAMSTAGE
 #include <intelblocks/vtd.h>
 #include <soc/iomap.h>
+#include <soc/ramstage.h>
 #include <soc/vtd.h>
 #endif
 
@@ -165,6 +177,7 @@ static enum cb_err protected_limit(uint64_t *exclusive_limit)
 #endif
 
 #if ENV_SEPARATE_ROMSTAGE
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 static void allocate_early_record(int is_recovery)
 {
 	struct starbook_mtl_mor_early_dma_record *record;
@@ -178,58 +191,97 @@ static void allocate_early_record(int is_recovery)
 CBMEM_CREATION_HOOK(allocate_early_record);
 #endif
 #endif
+#endif
 
 #if ENV_RAMSTAGE
 static struct {
-	uint32_t boot_kind;
-	uint32_t ready;
-	uint64_t generation;
-} retained_classification;
+	struct starbook_mtl_loader_instance_fanout fanout;
+	struct starbook_mtl_loader_instance_owner owner;
+	struct pci_bme_quiesce_snapshot source_snapshot;
+} authority_workspace __aligned(8);
 
-enum cb_err mainboard_mor_early_dma_prepare(void)
+enum cb_err mainboard_loader_instance_authority_prepare(void)
 {
-	struct starbook_mtl_mor_early_dma_record *record =
-		cbmem_find(CBMEM_ID_MTL_MOR_EARLY_DMA);
-	uint8_t identity[32];
-	uint32_t boot_kind;
-	uint64_t generation = 0;
-	uint64_t limit;
-	const struct cbmem_entry *entry =
-		cbmem_entry_find(CBMEM_ID_MTL_MOR_EARLY_DMA);
+	struct smm_invocation_loader_instance_nonce nonce = { 0 };
+	uint32_t lifecycle;
+	uint64_t initial_limit;
+	uint64_t final_limit;
+	uint64_t abort_limit;
 
-	if (!entry || !record || cbmem_entry_start(entry) != record ||
-	    cbmem_entry_size(entry) != sizeof(*record) ||
-	    retained_classification.ready ||
-	    starbook_mtl_mor_cold_ramstage_classify(&boot_kind, &generation,
-		&record->mirror.pci) != CB_SUCCESS)
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
+	struct starbook_mtl_mor_early_dma_record *record = NULL;
+	const struct cbmem_entry *entry = NULL;
+	uint8_t identity[32];
+	bool early_record_safe = false;
+#endif
+
+	if (protected_limit(&initial_limit) != CB_SUCCESS ||
+	    !range_protected((uintptr_t)&authority_workspace,
+		sizeof(authority_workspace), initial_limit) ||
+	    starbook_mtl_loader_instance_fanout_begin(&authority_workspace.fanout,
+		(uintptr_t)&authority_workspace, sizeof(authority_workspace),
+		initial_limit, &authority_workspace.owner) != CB_SUCCESS)
 		return CB_ERR;
-	if (boot_kind == STARBOOK_MTL_MOR_BOOT_S3) {
-		retained_classification.boot_kind = boot_kind;
-		retained_classification.generation = generation;
-		retained_classification.ready = 1U;
+	if (starbook_mtl_loader_instance_source_ramstage_take(&lifecycle, &nonce,
+		&authority_workspace.source_snapshot) != CB_SUCCESS)
+		goto fail;
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
+	{
+		entry = cbmem_entry_find(CBMEM_ID_MTL_MOR_EARLY_DMA);
+		record = cbmem_find(CBMEM_ID_MTL_MOR_EARLY_DMA);
+		if (!entry || !record || cbmem_entry_start(entry) != record ||
+		    cbmem_entry_size(entry) != sizeof(*record) ||
+		    !range_protected((uintptr_t)record, sizeof(*record), initial_limit))
+			goto fail;
+		early_record_safe = true;
 		memset(record, 0, sizeof(*record));
-		return CB_SUCCESS;
+		if (lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+		    (starbook_mtl_mor_early_dma_record_build(nonce.low,
+			&authority_workspace.source_snapshot, record) != CB_SUCCESS ||
+		     starbook_mtl_dma_live_prepare_early(&record->primary.pci) ||
+		     starbook_mtl_mor_early_dma_record_validate(record, nonce.low,
+			&record->primary.pci, identity) != CB_SUCCESS ||
+		     starbook_mtl_dma_guard_seed(nonce.low, identity) != CB_SUCCESS))
+			goto fail;
 	}
-	if (boot_kind != STARBOOK_MTL_MOR_BOOT_COLD ||
-	    protected_limit(&limit) != CB_SUCCESS ||
-	    (uintptr_t)record >= limit ||
-	    sizeof(*record) > limit - (uintptr_t)record ||
-	    starbook_mtl_mor_early_dma_record_build(generation,
-		&record->mirror.pci, record) != CB_SUCCESS ||
-	    starbook_mtl_dma_live_prepare_early(&record->primary.pci) ||
-	    starbook_mtl_mor_early_dma_record_validate(record, generation,
-		&record->primary.pci, identity) != CB_SUCCESS ||
-	    starbook_mtl_dma_guard_seed(generation, identity) != CB_SUCCESS)
-		return CB_ERR;
-	retained_classification.boot_kind = boot_kind;
-	retained_classification.generation = generation;
-	retained_classification.ready = 1U;
+#endif
+	memset(&authority_workspace.source_snapshot, 0,
+		sizeof(authority_workspace.source_snapshot));
+	if (protected_limit(&final_limit) != CB_SUCCESS ||
+	    final_limit != initial_limit ||
+	    !range_protected((uintptr_t)&authority_workspace,
+		sizeof(authority_workspace), final_limit) ||
+	    starbook_mtl_loader_instance_fanout_commit(&authority_workspace.fanout,
+		(uintptr_t)&authority_workspace, sizeof(authority_workspace),
+		final_limit, lifecycle, nonce,
+		&authority_workspace.owner) != CB_SUCCESS)
+		goto fail;
+	memset(&nonce, 0, sizeof(nonce));
 	return CB_SUCCESS;
+fail:
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
+	if (early_record_safe)
+		memset(record, 0, sizeof(*record));
+#endif
+	memset(&authority_workspace.source_snapshot, 0,
+		sizeof(authority_workspace.source_snapshot));
+	if (protected_limit(&abort_limit) != CB_SUCCESS)
+		abort_limit = 0;
+	starbook_mtl_loader_instance_fanout_abort(&authority_workspace.fanout,
+		(uintptr_t)&authority_workspace, sizeof(authority_workspace),
+		abort_limit,
+		&authority_workspace.owner);
+	memset(&nonce, 0, sizeof(nonce));
+	return CB_ERR;
 }
 
+#if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 enum cb_err starbook_mtl_mor_early_dma_classify(uint32_t *boot_kind,
 	uint64_t *generation, struct starbook_mtl_dma_guard_snapshot *guard)
 {
+	uint32_t lifecycle;
+	uint64_t limit;
+
 	if (!object_valid(boot_kind, sizeof(*boot_kind), _Alignof(*boot_kind)) ||
 	    !object_valid(generation, sizeof(*generation), _Alignof(*generation)) ||
 	    !object_valid(guard, sizeof(*guard), _Alignof(*guard)) ||
@@ -241,19 +293,34 @@ enum cb_err starbook_mtl_mor_early_dma_classify(uint32_t *boot_kind,
 	*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
 	*generation = 0;
 	memset(guard, 0, sizeof(*guard));
-	if (retained_classification.ready != 1U ||
-	    (retained_classification.boot_kind != STARBOOK_MTL_MOR_BOOT_COLD &&
-	     retained_classification.boot_kind != STARBOOK_MTL_MOR_BOOT_S3) ||
-	    !retained_classification.generation)
+	if (protected_limit(&limit) != CB_SUCCESS ||
+	    !range_protected((uintptr_t)&authority_workspace,
+		sizeof(authority_workspace), limit) ||
+	    starbook_mtl_loader_instance_fanout_read_legacy(
+		&authority_workspace.fanout, (uintptr_t)&authority_workspace,
+		sizeof(authority_workspace), limit, &lifecycle, generation) != CB_SUCCESS)
 		return CB_ERR;
-	if (retained_classification.boot_kind == STARBOOK_MTL_MOR_BOOT_COLD &&
+	*boot_kind = lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD ?
+		STARBOOK_MTL_MOR_BOOT_S3 : STARBOOK_MTL_MOR_BOOT_COLD;
+	if (*boot_kind == STARBOOK_MTL_MOR_BOOT_COLD &&
 	    (starbook_mtl_dma_guard_prepare(guard) != CB_SUCCESS ||
-	     guard->generation != retained_classification.generation)) {
+	     guard->generation != *generation)) {
 		memset(guard, 0, sizeof(*guard));
+		*boot_kind = STARBOOK_MTL_MOR_BOOT_UNKNOWN;
+		*generation = 0;
 		return CB_ERR;
 	}
-	*boot_kind = retained_classification.boot_kind;
-	*generation = retained_classification.generation;
 	return CB_SUCCESS;
+}
+#endif
+
+enum cb_err starbook_mtl_smm_invocation_loader_instance_take(
+	struct smm_invocation_loader_instance_seed *seed)
+{
+	/* FSP-S has returned: establish a fresh all-function BME boundary here. */
+	return starbook_mtl_loader_instance_fanout_take_requiesced(
+		&authority_workspace.fanout, (uintptr_t)&authority_workspace,
+		sizeof(authority_workspace), seed,
+		starbook_mtl_loader_instance_source_ramstage_requiesce);
 }
 #endif

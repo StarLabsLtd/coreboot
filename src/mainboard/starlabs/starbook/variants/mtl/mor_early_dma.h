@@ -32,7 +32,6 @@ enum cb_err starbook_mtl_mor_early_dma_record_validate(
 	const struct starbook_mtl_mor_early_dma_record *record,
 	uint64_t generation, const struct pci_bme_quiesce_snapshot *snapshot,
 	uint8_t identity[32]);
-enum cb_err mainboard_mor_early_dma_prepare(void);
 enum cb_err starbook_mtl_mor_early_dma_classify(uint32_t *boot_kind,
 	uint64_t *generation, struct starbook_mtl_dma_guard_snapshot *guard);
 

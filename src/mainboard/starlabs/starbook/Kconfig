@@ -255,24 +255,53 @@ config STARLABS_STARBOOK_MTL_MOR_CLEAR_X86_BINDING
 	  boot hook, endpoint or MOR support claim. ACPI S3 is deliberately
 	  ineligible for destructive work.
 
-config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
+config STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE
 	bool
 	default n
 	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
 	select PCI_BME_QUIESCE
 	select RANDOM_GENERATOR_IN_ROMSTAGE
-	select SOC_INTEL_METEORLAKE_MOR_COLD_CLASSIFICATION
+	select SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE
 	help
-	  Retain the PM1-derived cold-versus-S3 result across FSP-M in a sealed
-	  CBMEM record. The record is not written until VT-d protected memory is
-	  active and every segment-zero PCI function has been quiesced. This is
-	  a dormant prerequisite and does not enable MOR clearing.
+	  Carry the PM1-derived non-S3-load versus S3-reload lifecycle and one
+	  128-bit correlation nonce across FSP-M in a sealed CBMEM record. The
+	  record is not written until VT-d protected memory is active and every
+	  segment-zero PCI function has been quiesced. This is a dormant source
+	  and does not enable an invocation route.
+
+config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE
+	help
+	  Adapt the protected loader-instance source to the dormant MOR early-DMA
+	  prerequisite. This does not sample a second identity.
+
+config STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE
+	select SOC_INTEL_METEORLAKE_LOADER_INSTANCE_AUTHORITY
+	select SOC_INTEL_METEORLAKE_LOADER_INSTANCE_REQUIRED
+
+config STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	depends on SMM_INVOCATION_LOADER_INSTANCE
+	select STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
+	help
+	  Build the dormant one-shot StarBook MTL loader-instance provider. It
+	  publishes no invocation route and is not consumed by the SMM loader yet.
 
 config STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD
 	bool
 	default n
 	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
 	select STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
+	select STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
 	select STARLABS_STARBOOK_MTL_MOR_DMA_GUARD
 	select SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD
 	help

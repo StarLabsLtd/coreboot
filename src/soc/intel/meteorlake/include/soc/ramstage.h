@@ -12,5 +12,6 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params);
 void mainboard_update_soc_chip_config(struct soc_intel_meteorlake_config *config);
 void soc_init_pre_device(void *chip_info);
 enum cb_err mainboard_mor_early_dma_prepare(void);
+enum cb_err mainboard_loader_instance_authority_prepare(void);
 
 #endif
