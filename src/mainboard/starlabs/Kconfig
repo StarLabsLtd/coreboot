@@ -14,4 +14,7 @@ source "src/mainboard/starlabs/*/Kconfig"
 config MAINBOARD_VENDOR
 	default "Star Labs"
 
+config VBOOT_FWID_MODEL
+	default "STARLABS_\$(CONFIG_MAINBOARD_PART_NUMBER)" if VBOOT && !CHROMEOS
+
 endif # VENDOR_STARLABS
