@@ -15,13 +15,13 @@ printf '%s\n' \
 
 build()
 {
-	name=$1
-	flags=$2
-	source=${3:-$root/src/cpu/x86/smm_invocation_evidence.c}
+	build_name=$1
+	build_flags=$2
+	build_source=${3:-$root/src/cpu/x86/smm_invocation_evidence.c}
 	# Deliberate normal flag splitting for this strict host harness.
 	# shellcheck disable=SC2086
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
-		-pthread $flags -D__TEST__ -D__COREBOOT__ \
+		-pthread $build_flags -D__TEST__ -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -29,9 +29,10 @@ build()
 		-I"$root/src/commonlib/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
-		"$root/tests/cpu/x86/smm_invocation_evidence_test.c" "$source" \
+		"$root/tests/cpu/x86/smm_invocation_evidence_test.c" \
+		"$build_source" \
 		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
-		-o "$temporary/$name"
+		-o "$temporary/$build_name"
 }
 
 for optimization in 0 2; do
@@ -50,7 +51,8 @@ else
 	exit 1
 fi
 
-${CC:-cc} -m32 -march=i686 -std=gnu11 -Wall -Wextra -Werror \
+${CC:-cc} -m32 -march=i686 -Os -fstack-usage -std=gnu11 \
+	-Wall -Wextra -Werror \
 	-Wconversion -Wshadow -ffreestanding -fno-builtin -D__TEST__ \
 	-D__COREBOOT__ -include "$root/src/include/kconfig.h" \
 	-include "$root/src/include/rules.h" \
@@ -67,17 +69,60 @@ if nm -u "$temporary/smm-invocation-evidence-32.o" | \
 fi
 ld -m elf_i386 -r "$temporary/smm-invocation-evidence-32.o" \
 	-o "$temporary/smm-invocation-evidence-32-linked.o"
+stack_file="$temporary/smm-invocation-evidence-32.su"
+stack_value()
+{
+	stack_name=$1
+	awk -F '\t' -v name="$stack_name" \
+		'$1 ~ (":" name "$") { print $2; found = 1 }
+		 END { if (!found) exit 1 }' "$stack_file"
+}
+strong_stack=$(stack_value smm_invocation_evidence_publish_and_request_close)
+geometry_stack=$(stack_value claimed_geometry_valid)
+build_token_stack=$(stack_value build_token)
+strong_chain=$((strong_stack + geometry_stack + build_token_stack))
+if [ "$strong_chain" -gt 1024 ]; then
+	printf 'strong completion stack chain exceeds 1 KiB: %s\n' \
+		"$strong_chain" >&2
+	exit 1
+fi
 
 mutation()
 {
-	name=$1
-	expression=$2
-	mutant="$temporary/$name.c"
-	sed "$expression" "$root/src/cpu/x86/smm_invocation_evidence.c" > "$mutant"
-	for optimization in 0 2; do
-		build "$name-O$optimization" "-O$optimization" "$mutant"
-		if "$temporary/$name-O$optimization" >/dev/null 2>&1; then
-			printf 'surviving mutant: %s O%s\n' "$name" "$optimization" >&2
+	mutation_name=$1
+	mutation_expression=$2
+	mutation_source="$temporary/$mutation_name.c"
+	sed "$mutation_expression" \
+		"$root/src/cpu/x86/smm_invocation_evidence.c" > \
+		"$mutation_source"
+	if cmp -s "$root/src/cpu/x86/smm_invocation_evidence.c" \
+		"$mutation_source"; then
+		printf 'mutation changed nothing: %s\n' "$mutation_name" >&2
+		exit 1
+	fi
+	for mutation_optimization in 0 2; do
+		mutation_binary="$mutation_name-O$mutation_optimization"
+		build "$mutation_binary" "-O$mutation_optimization" \
+			"$mutation_source"
+		if [ ! -x "$temporary/$mutation_binary" ]; then
+			printf 'mutant binary missing: %s\n' "$mutation_binary" >&2
+			exit 1
+		fi
+		set +e
+		timeout -k 2 20 "$temporary/$mutation_binary" >/dev/null 2>&1
+		mutation_status=$?
+		set -e
+		if [ "$mutation_status" -eq 0 ]; then
+			printf 'surviving mutant: %s O%s\n' "$mutation_name" \
+				"$mutation_optimization" >&2
+			exit 1
+		fi
+		if [ "$mutation_status" -eq 124 ] || \
+		   [ "$mutation_status" -eq 125 ] || \
+		   [ "$mutation_status" -eq 126 ] || \
+		   [ "$mutation_status" -eq 127 ]; then
+			printf 'mutant execution failed: %s status %s\n' \
+				"$mutation_binary" "$mutation_status" >&2
 			exit 1
 		fi
 	done
@@ -98,9 +143,9 @@ mutation full-rendezvous 's/evidence->expected_cpus ||/0 ||/'
 mutation invalid-match \
 	's/(match != SMM_INVOCATION_NOT_MATCHED \&\&/(false \&\&/'
 mutation reentry-owner \
-	'0,/callback_reentered(evidence) ||/{s//false ||/}'
+	'/smm_invocation_evidence_claim/,/^}/{0,/callback_reentered(evidence)/{s//false/}}'
 mutation topology-proof \
-	'0,/proof\[0\] = mix64(proof\[0\] \^ participant);/{s//proof[0] = mix64(proof[0]);/}'
+	'/static void build_token/,/^}/{s/evidence->participant_apic_ids\[cpu\]/0/}'
 mutation loader-instance-low-digest \
 	'/static void build_token/,/^}/{s/evidence->loader_instance_nonce.low/0/g;}'
 mutation loader-instance-high-digest \
@@ -108,20 +153,65 @@ mutation loader-instance-high-digest \
 mutation shutdown-boundary \
 	'0,/smm_invocation_evidence_shutdown_requested(evidence)/{s//false/}'
 mutation arrival-ownership \
-	'0,/!phase_claim(evidence, SMM_INVOCATION_READY,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_READY,/}'
+	'0,/if (!admission_reserve(evidence,/{s//if (false \&\& !admission_reserve(evidence,/}'
+mutation departure-publish-order \
+	'/if ((old | (1ULL << cpu)) != evidence->expected_cpus)/,/return SMM_INVOCATION_TRY_SUCCESS;/{s/__atomic_fetch_sub(\&evidence->departure_writers, 1U,/if (false) __atomic_fetch_sub(\&evidence->departure_writers, 1U,/; s/TEST_HOOK(54);/TEST_HOOK(54); __atomic_fetch_sub(\&evidence->departure_writers, 1U, __ATOMIC_RELEASE);/}'
 mutation claim-publication-cas \
 	'0,/!phase_claim(evidence, SMM_INVOCATION_CLAIMING,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_CLAIMING,/}'
-mutation depart-quiescence \
-	'/static void close_finish_if_quiescent/,/^}/{s/__atomic_load_n(\&evidence->departure_writers, __ATOMIC_ACQUIRE)/0/}'
 mutation restore-binding 's/return unchanged;/return true;/'
 mutation departure-admission \
-	'0,/!phase_claim(evidence, SMM_INVOCATION_CLOSING,/{s//false \&\& !phase_claim(evidence, SMM_INVOCATION_CLOSING,/}'
+	'/smm_invocation_evidence_depart_try/,/^}/{0,/!state_claim_exact(evidence, state,/{s//false \&\& !state_claim_exact(evidence, state,/}}'
 mutation invalid-participant-poison \
-	'0,/(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);/{s//(void)0;/}'
-mutation arrival-failure-latch \
-	'0,/__atomic_load_n(\&evidence->arrival_failed, __ATOMIC_ACQUIRE)/{s//false/}'
-mutation arrival-post-claim-reload \
-	's/TEST_HOOK(8);/TEST_HOOK(8); if (phase_load(evidence) != SMM_INVOCATION_COLLECTING) return SMM_INVOCATION_TRY_ERROR;/'
+	'/cpu >= evidence->active_cpus/,/participant =/{s/(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);/(void)0;/}'
+mutation admission-success-phase \
+	'/static bool invocation_progress_phase/,/^}/{s/{/{ if (1) return true;/}'
+mutation admission-arrive-completion \
+	'/smm_invocation_evidence_arrive_try/,/smm_invocation_evidence_rendezvous_ready/{s/!admission_completed/(admission_completed \&\& false)/}'
+mutation admission-arrive-consumed \
+	'/SMM_INVOCATION_ADMISSION_ARRIVE,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+mutation admission-arm-consumed \
+	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+mutation admission-arm-completion \
+	'/smm_invocation_evidence_require_rendezvous_ack_try/,/smm_invocation_evidence_admission_fail/{s/!admission_completed/(admission_completed \&\& false)/}'
+mutation admission-arm-phase \
+	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/SMM_INVOCATION_READY)/!ba; s/(completed_control & STATE_PHASE_MASK) != SMM_INVOCATION_READY/false/;}'
+mutation admission-ack-consumed \
+	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+mutation admission-ack-completion \
+	'/smm_invocation_evidence_rendezvous_ack_try/,/smm_invocation_evidence_publish_and_request_close/{s/!admission_completed/(admission_completed \&\& false)/}'
+mutation admission-ack-shutdown \
+	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/INVOCATION_SHUTDOWN_REQUESTED/!ba; s/INVOCATION_SHUTDOWN_REQUESTED/0/;}'
+mutation strong-callback-phase \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{0,/invocation_fail_stop();/{s/invocation_fail_stop();/return CB_ERR;/}}'
+mutation strong-acquisition-cas-loss \
+	'/TEST_HOOK(49);/,/TEST_HOOK(45);/{s/invocation_fail_stop();/return CB_ERR;/}'
+mutation strong-canonical-busy \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ADMISSION_BUSY | ADMISSION_CONSUMED |/0 | 0 |/}'
+mutation strong-canonical-latch \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/INVOCATION_LATCH_MASK/0/}'
+mutation strong-canonical-nonce \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/!(state >> ADMISSION_NONCE_SHIFT)/false/}'
+mutation strong-canonical-kind \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/kind != expected_kind/(kind != expected_kind \&\& false)/}'
+mutation strong-second-phase-sample \
+	'/TEST_HOOK(51);/,/SMM_INVOCATION_CLAIMED)/{s/if (callback_owns_phase/if (false \&\& callback_owns_phase/}'
+mutation strong-evidence-token-overlap \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ranges_overlap(evidence, sizeof(\*evidence), token, sizeof(\*token))/false/}'
+mutation strong-context-overlap \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/(ops_snapshot.context_size \&\&/(false \&\& ops_snapshot.context_size \&\&/}'
+mutation strong-geometry \
+	'/static bool claimed_geometry_valid/,/^}/{s/^\([[:space:]]*\)struct smm_invocation_token expected;/\1if (1) return true;\
+&/;}'
+mutation strong-ack-snapshot \
+	'/static bool claimed_geometry_valid/,/^}/{s/ack_control != expected_ack_required/false/}'
+mutation strong-close-request \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ | INVOCATION_CLOSE_REQUESTED |/ |/}'
+mutation strong-final-cas \
+	'/TEST_HOOK(48);/,/^}/{s/if (!__atomic_compare_exchange_n(\&evidence->state, \&state,/if ((state = state, false) \&\& !__atomic_compare_exchange_n(\&evidence->state, \&state,/}'
+mutation strong-post-write-guard \
+	'/ops_snapshot.write_rax/,/ops_snapshot.read_rax/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
+mutation strong-final-geometry \
+	'/TEST_HOOK(48);/,/TEST_HOOK(53);/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
 
 if rg -n '__builtin_trap|(^|[^[:alnum:]_])abort[[:space:]]*\(|\bhlt\b' \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
@@ -137,7 +227,7 @@ if rg -q 'select[[:space:]]+SMM_INVOCATION_EVIDENCE' "$root/src"; then
 	printf '%s\n' 'SMM invocation evidence became selected' >&2
 	exit 1
 fi
-if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown)' \
+if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown|publish_and_request_close)' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_evidence.c' \
 	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
 	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
@@ -161,6 +251,9 @@ patch="$temporary/checkpatch.patch"
 		git -C "$root" diff --no-index -- /dev/null "$file" || true
 	done
 } > "$patch"
+if [ ! -s "$patch" ]; then
+	git -C "$root" show --format= --binary HEAD -- > "$patch"
+fi
 "$root/util/lint/checkpatch.pl" --no-tree --show-types "$patch" \
 	> "$temporary/checkpatch.log" 2>&1 || true
 grep -q '^total: 0 errors, 0 warnings, ' "$temporary/checkpatch.log"

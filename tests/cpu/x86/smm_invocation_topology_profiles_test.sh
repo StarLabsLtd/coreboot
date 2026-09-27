@@ -11,7 +11,7 @@ scratch_make()
 (
 	# This script is also a recipe of the top-level coreboot Makefile. Do not
 	# let that outer recursion level, flags or jobserver alter isolated builds.
-	unset MAKELEVEL MAKEFLAGS MFLAGS MAKEOVERRIDES
+	unset MAKELEVEL MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS
 	exec make "$@"
 )
 

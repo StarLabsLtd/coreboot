@@ -454,7 +454,7 @@ mutate_component reentry-side-word \
 	'/static void record_reentry/,/^}/{s/TEST_HOOK(34);/TEST_HOOK(34); evidence->reentry_reserved = 1U;/}'
 mutate_component admission-complete-one-try \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/static void admission_complete/,/^}/{s/attempt < 4U/attempt < 1U/}'
+	'/static bool admission_complete/,/^}/{s/attempt < 4U/attempt < 1U/}'
 mutate adapter-active-bound \
 	'/intel_smm_invocation_adapter_ops(/,/^}/{s/snapshot.active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS/false/}'
 mutate adapter-snapshot-stability \

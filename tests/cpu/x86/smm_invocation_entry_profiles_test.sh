@@ -5,6 +5,15 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+
+scratch_make()
+(
+	# This script is also a recipe of the top-level coreboot Makefile. Do not
+	# let that outer recursion level, flags or jobserver alter isolated builds.
+	unset MAKELEVEL MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS
+	exec make "$@"
+)
+
 profile_kconfig="$temporary/Kconfig.entry-profile"
 cp "$root/src/Kconfig" "$profile_kconfig"
 printf '%s\n' \
@@ -21,11 +30,13 @@ for profile in starlabs_lite_glk starlabs_lite_adl starlabs_starbook_mtl; do
 	build="$temporary/$profile"
 	config="$build/full.config"
 	mkdir -p "$build"
-	make -C "$root" obj="$build" DOTCONFIG="$config" defconfig \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" defconfig \
 		KBUILD_KCONFIG="$profile_kconfig" \
 		KBUILD_DEFCONFIG="configs/config.$profile" >/dev/null
 	"$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN
-	make -C "$root" obj="$build" DOTCONFIG="$config" \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" \
 		KBUILD_KCONFIG="$profile_kconfig" olddefconfig \
 		>/dev/null
 	for symbol in SMM_INVOCATION_EVIDENCE SMM_INVOCATION_FAIL_STOP_PLATFORM \
@@ -34,7 +45,8 @@ for profile in starlabs_lite_glk starlabs_lite_adl starlabs_starbook_mtl; do
 		grep -q "^CONFIG_${symbol}=y$" "$config"
 		grep -q "^#define CONFIG_${symbol} 1$" "$build/config.h"
 	done
-	make -C "$root" obj="$build" DOTCONFIG="$config" \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" \
 		KBUILD_KCONFIG="$profile_kconfig" -j4 \
 		"$build/smm/cpu/x86/smm_invocation_entry.o" \
 		"$build/smm/cpu/x86/smm_invocation_evidence.o" \
