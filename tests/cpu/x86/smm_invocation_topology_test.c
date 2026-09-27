@@ -121,6 +121,7 @@ static void test_bounds_and_identity(void)
 static void test_maximum_and_corruption(void)
 {
 	struct smm_invocation_topology topology = { 0 };
+	struct smm_invocation_topology snapshot = { 0 };
 	struct smm_invocation_topology_builder builder;
 	uint32_t installed[SMM_INVOCATION_TOPOLOGY_MAX_CPUS] = { 0 };
 
@@ -133,6 +134,9 @@ static void test_maximum_and_corruption(void)
 		SMM_INVOCATION_TOPOLOGY_MAX_CPUS,
 		SMM_INVOCATION_TOPOLOGY_MAX_CPUS) == CB_SUCCESS);
 	assert(topology.bsp_cpu == 0);
+	assert(smm_invocation_topology_read(&topology, &snapshot) == CB_SUCCESS);
+	topology.active_cpus = SMM_INVOCATION_TOPOLOGY_MAX_CPUS + 1U;
+	assert(smm_invocation_topology_read(&topology, &snapshot) == CB_ERR);
 
 #define CORRUPT_AND_REJECT(member, value) do { \
 	assert(smm_invocation_topology_begin(&builder, &topology, 1, 9) == \

@@ -69,6 +69,26 @@ config SMM_INVOCATION_LOADER_INSTANCE
 	  an exact lifecycle and caller-supplied correlation nonce, but adds no
 	  nonce provider, lifecycle selector, command or public record.
 
+config SMM_INVOCATION_LOADER_INSTANCE_PLATFORM
+	bool
+	default n
+	depends on SMM_INVOCATION_LOADER_INSTANCE
+	help
+	  Internal capability supplied by exactly one platform implementation of
+	  the strong, one-shot loader-instance take contract.
+
+config SMM_INVOCATION_LOADER_COMPOSITION
+	bool
+	default n
+	depends on SMM_INVOCATION_EVIDENCE
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_INVOCATION_LOADER_INSTANCE
+	depends on SMM_INVOCATION_LOADER_INSTANCE_PLATFORM
+	help
+	  Atomically compose protected invocation topology, one loader-instance
+	  nonce and invocation evidence as the SMM loader's final fallible step.
+	  This adds no SMI command, APMC route or public endpoint.
+
 config PARALLEL_MP
 	def_bool y
 	help

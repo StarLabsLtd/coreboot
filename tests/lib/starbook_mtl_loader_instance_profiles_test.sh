@@ -41,7 +41,9 @@ for symbol in STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE \
 	SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE \
 	SOC_INTEL_METEORLAKE_LOADER_INSTANCE_REQUIRED \
 	SOC_INTEL_METEORLAKE_LOADER_INSTANCE_AUTHORITY \
-	SMM_INVOCATION_LOADER_INSTANCE; do
+	SMM_INVOCATION_LOADER_INSTANCE \
+	SMM_INVOCATION_LOADER_INSTANCE_PLATFORM \
+	SMM_INVOCATION_LOADER_COMPOSITION; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
 done
 scratch_make -s -C "$root" KBUILD_KCONFIG="$profile_kconfig" DOTCONFIG="$config" \
@@ -49,7 +51,10 @@ scratch_make -s -C "$root" KBUILD_KCONFIG="$profile_kconfig" DOTCONFIG="$config"
 	"$build/romstage/mainboard/starlabs/starbook/variants/mtl/loader_instance_source.o" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/loader_instance_source.o" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/loader_instance_authority.o" \
-	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/smm_invocation_loader_instance.o"
+	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/smm_invocation_loader_instance.o" \
+	"$build/ramstage/cpu/x86/smm_invocation_loader_composition.o" \
+	"$build/ramstage/cpu/x86/smm_invocation_evidence_loader.o" \
+	"$build/ramstage/cpu/x86/smm/smm_module_loader.o"
 
 printf '%s\n' \
 	'#include "mainboard/starlabs/starbook/variants/mtl/smm_invocation_loader_instance.h"' |
@@ -126,8 +131,8 @@ if rg -q 'smm_load_module|APM_CNT|outb|lb_(new_record|add)|save_state' \
 	printf '%s\n' 'loader-instance provider gained route or public-ABI coupling' >&2
 	exit 1
 fi
-test "$(rg -l 'starbook_mtl_smm_invocation_loader_instance_take' \
-	"$root/src" | wc -l)" -eq 2
+test "$(rg -l 'smm_invocation_platform_loader_instance_take' \
+	"$root/src" | wc -l)" -eq 3
 if rg -q '^CONFIG_STARLABS_STARBOOK_MTL_(LOADER_INSTANCE_SOURCE|LOADER_INSTANCE_AUTHORITY|SMM_INVOCATION_LOADER_INSTANCE_PROVIDER)=y$' \
 	"$root/configs"; then
 	printf '%s\n' 'loader-instance provider is no longer default-off' >&2
@@ -136,6 +141,6 @@ fi
 documentation="$root/Documentation/mainboard/starlabs/starbook-mtl-loader-instance.md"
 grep -q 'not monotonic' "$documentation"
 grep -q 'S0ix' "$documentation"
-grep -q 'installs no SMM-loader callsite' "$documentation"
+grep -q 'final fallible SMM-loader operation' "$documentation"
 
 printf '%s\n' 'StarBook MTL loader-instance provider profiles: PASS'

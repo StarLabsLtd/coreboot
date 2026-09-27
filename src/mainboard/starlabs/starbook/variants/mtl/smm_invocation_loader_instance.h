@@ -115,7 +115,4 @@ enum cb_err starbook_mtl_loader_instance_fanout_take_requiesced(
 	struct smm_invocation_loader_instance_seed *seed,
 	enum cb_err (*requiesce)(uint64_t *protected_limit));
 
-enum cb_err starbook_mtl_smm_invocation_loader_instance_take(
-	struct smm_invocation_loader_instance_seed *seed);
-
 #endif
