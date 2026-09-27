@@ -100,6 +100,10 @@ mutation reentry-owner \
 	'0,/callback_reentered(evidence) ||/{s//false ||/}'
 mutation topology-proof \
 	'0,/proof\[0\] = mix64(proof\[0\] \^ participant);/{s//proof[0] = mix64(proof[0]);/}'
+mutation loader-instance-low-digest \
+	'/static void build_token/,/^}/{s/evidence->loader_instance_nonce.low/0/g;}'
+mutation loader-instance-high-digest \
+	'/static void build_token/,/^}/{s/evidence->loader_instance_nonce.high/0/g;}'
 mutation shutdown-boundary \
 	'0,/smm_invocation_evidence_shutdown_requested(evidence)/{s//false/}'
 mutation arrival-ownership \

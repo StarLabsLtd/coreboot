@@ -6,12 +6,13 @@ hook, claim an APMC command, call the command registry, expose a table, or
 activate a presence route. No platform selects it.
 
 The loader contract supplies the installed SMM participant count, the exact
-logical-node to initial-APIC-ID topology, BSP node, a nonzero boot/resume
-generation. These are runtime facts; neither
+logical-node to initial-APIC-ID topology, BSP node, and a nonzero 128-bit
+loader-instance nonce. These are runtime facts; neither
 `CONFIG_MAX_CPUS` nor `boot_cpu()` is evidence. Reuse of an existing instance
-across reset or S3 is rejected. A fresh cold or resume loader instance is
-accepted only with a nonzero, fresh boot/resume generation after the trusted
-lifecycle has closed the old instance.
+across reset or S3 is rejected. Every non-S3 loader run and every S3 handler
+reload requires a newly sampled correlation nonce after the trusted lifecycle
+has closed the old instance. The nonce is not monotonic or anti-rollback
+evidence. S0ix does not reload SMM and retains the current instance.
 
 Every installed participant must publish one arrival before the existing SMM
 handler lock. Per-CPU slots move `EMPTY -> WRITING -> READY` with release/acquire
@@ -54,7 +55,7 @@ timeout/reset path for a participant that never arrives or departs.
 Production integration remains blocked on platform entry instrumentation that
 can call arrival before locking and departure afterward on every installed SMM
 participant, a revision-specific Intel save-state adapter, a trusted loader BSP
-and boot/resume-generation source, and a strongly linked nonreturning
+and loader-instance nonce source, and a strongly linked nonreturning
 timeout/reset implementation for
 a missing participant. Adding those callsites changes production SMM behavior
 and is deliberately outside this prerequisite.

@@ -206,6 +206,11 @@ test-smm-invocation-topology:
 	tests/cpu/x86/smm_invocation_topology_test.sh
 	tests/cpu/x86/smm_invocation_topology_profiles_test.sh
 
+.PHONY: test-smm-invocation-loader-instance
+test-smm-invocation-loader-instance:
+	tests/cpu/x86/smm_invocation_loader_instance_test.sh
+	tests/cpu/x86/smm_invocation_loader_instance_profiles_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

@@ -166,6 +166,22 @@ static uint64_t mix64(uint64_t value)
 	return value ^ (value >> 31);
 }
 
+static struct smm_invocation_loader_instance_nonce nonce_load(
+	const struct smm_invocation_loader_instance_nonce *nonce)
+{
+	return (struct smm_invocation_loader_instance_nonce) {
+		.low = __atomic_load_n(&nonce->low, __ATOMIC_ACQUIRE),
+		.high = __atomic_load_n(&nonce->high, __ATOMIC_ACQUIRE),
+	};
+}
+
+static void nonce_store(struct smm_invocation_loader_instance_nonce *target,
+	struct smm_invocation_loader_instance_nonce nonce)
+{
+	__atomic_store_n(&target->low, nonce.low, __ATOMIC_RELAXED);
+	__atomic_store_n(&target->high, nonce.high, __ATOMIC_RELAXED);
+}
+
 static uint64_t cpu_mask(uint32_t active_cpus)
 {
 	return active_cpus == 64U ? UINT64_MAX : (1ULL << active_cpus) - 1ULL;
@@ -175,10 +191,11 @@ static bool seed_valid(const struct smm_invocation_loader_seed *seed)
 {
 	if (seed->revision != SMM_INVOCATION_EVIDENCE_REVISION ||
 	    seed->size != sizeof(*seed) ||
-	    (seed->lifecycle != SMM_INVOCATION_LOADER_COLD &&
-	     seed->lifecycle != SMM_INVOCATION_LOADER_RESUME_FRESH) ||
+	    (seed->lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     seed->lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD) ||
 	    seed->reserved ||
-	    !seed->boot_generation || !seed->active_cpus ||
+	    smm_invocation_loader_instance_nonce_is_zero(
+		seed->loader_instance_nonce) || !seed->active_cpus ||
 	    seed->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
 	    seed->bsp_cpu >= seed->active_cpus)
 		return false;
@@ -221,9 +238,11 @@ static void scrub_fields(struct smm_invocation_evidence *evidence)
 		__ATOMIC_RELAXED);
 	evidence->active_cpus = 0;
 	evidence->bsp_cpu = 0;
-	__atomic_store_n(&evidence->boot_generation, 0U, __ATOMIC_RELAXED);
+	nonce_store(&evidence->loader_instance_nonce,
+		(struct smm_invocation_loader_instance_nonce) { 0 });
 	evidence->closed_generation = 0;
-	evidence->closed_boot_generation = 0;
+	evidence->closed_loader_instance_nonce =
+		(struct smm_invocation_loader_instance_nonce) { 0 };
 	__atomic_store_n(&evidence->loader_lifecycle, 0U, __ATOMIC_RELAXED);
 	evidence->closed_lifecycle = 0;
 	__atomic_store_n(&evidence->closed_eos_consumed, 0U,
@@ -311,8 +330,7 @@ static void admission_token_fill_control(
 	*token = (struct smm_invocation_admission_token) {
 		.evidence_identity = (uintptr_t)evidence,
 		.attempt_nonce = control >> ADMISSION_NONCE_SHIFT,
-		.boot_generation = __atomic_load_n(&evidence->boot_generation,
-			__ATOMIC_ACQUIRE),
+		.loader_instance_nonce = nonce_load(&evidence->loader_instance_nonce),
 		.invocation_generation = invocation_generation,
 		.lifecycle = __atomic_load_n(&evidence->loader_lifecycle,
 			__ATOMIC_ACQUIRE),
@@ -485,8 +503,8 @@ enum cb_err smm_invocation_evidence_provision(
 	}
 	evidence->active_cpus = snapshot.active_cpus;
 	evidence->bsp_cpu = snapshot.bsp_cpu;
-	__atomic_store_n(&evidence->boot_generation, snapshot.boot_generation,
-		__ATOMIC_RELAXED);
+	nonce_store(&evidence->loader_instance_nonce,
+		snapshot.loader_instance_nonce);
 	__atomic_store_n(&evidence->loader_lifecycle, snapshot.lifecycle,
 		__ATOMIC_RELAXED);
 	memcpy(evidence->participant_apic_ids, snapshot.participant_apic_ids,
@@ -504,7 +522,8 @@ static enum cb_err invocation_open_owned(
 {
 	invocation_scrub(evidence);
 	evidence->closed_generation = 0;
-	evidence->closed_boot_generation = 0;
+	evidence->closed_loader_instance_nonce =
+		(struct smm_invocation_loader_instance_nonce) { 0 };
 	evidence->closed_lifecycle = 0;
 	__atomic_store_n(&evidence->closed_eos_consumed, 0U,
 		__ATOMIC_RELAXED);
@@ -702,7 +721,8 @@ bool smm_invocation_evidence_rendezvous_ready(
 
 enum smm_invocation_try_result
 smm_invocation_evidence_require_rendezvous_ack_try(
-	struct smm_invocation_evidence *evidence, uint64_t boot_generation,
+	struct smm_invocation_evidence *evidence,
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce,
 	uint32_t lifecycle, struct smm_invocation_admission_token *token)
 {
 	uint32_t expected;
@@ -710,9 +730,10 @@ smm_invocation_evidence_require_rendezvous_ack_try(
 	uint32_t state;
 	bool resampled = false;
 
-	if (!evidence || !token || !boot_generation ||
-	    (lifecycle != SMM_INVOCATION_LOADER_COLD &&
-	     lifecycle != SMM_INVOCATION_LOADER_RESUME_FRESH))
+	if (!evidence || !token ||
+	    smm_invocation_loader_instance_nonce_is_zero(loader_instance_nonce) ||
+	    (lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD))
 		return SMM_INVOCATION_TRY_ERROR;
 retry_phase:
 	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
@@ -720,15 +741,16 @@ retry_phase:
 		return SMM_INVOCATION_TRY_ERROR;
 	admission_token_fill(evidence, token, SMM_INVOCATION_ADMISSION_ARM, 0);
 	TEST_HOOK(25);
-	token->boot_generation = boot_generation;
+	token->loader_instance_nonce = loader_instance_nonce;
 	token->lifecycle = lifecycle;
 	expected = __atomic_load_n(&evidence->rendezvous_ack_required,
 		__ATOMIC_ACQUIRE);
 	if (expected == 1U) {
 		phase = phase_load(evidence);
 		if (phase == SMM_INVOCATION_ACK_ARMING) {
-			if (__atomic_load_n(&evidence->boot_generation,
-				__ATOMIC_ACQUIRE) != boot_generation ||
+			if (!smm_invocation_loader_instance_nonce_equal(
+				nonce_load(&evidence->loader_instance_nonce),
+				loader_instance_nonce) ||
 			    __atomic_load_n(&evidence->loader_lifecycle,
 				__ATOMIC_ACQUIRE) != lifecycle)
 				return SMM_INVOCATION_TRY_ERROR;
@@ -746,8 +768,9 @@ retry_phase:
 		    phase != SMM_INVOCATION_ARRIVAL_ADMITTING &&
 		    phase != SMM_INVOCATION_COLLECTING)
 			return SMM_INVOCATION_TRY_ERROR;
-		return __atomic_load_n(&evidence->boot_generation,
-				__ATOMIC_ACQUIRE) == boot_generation &&
+		return smm_invocation_loader_instance_nonce_equal(
+				nonce_load(&evidence->loader_instance_nonce),
+				loader_instance_nonce) &&
 			__atomic_load_n(&evidence->loader_lifecycle,
 				__ATOMIC_ACQUIRE) == lifecycle ?
 			SMM_INVOCATION_TRY_SUCCESS : SMM_INVOCATION_TRY_ERROR;
@@ -798,8 +821,9 @@ retry_phase:
 	}
 	if (__atomic_load_n(&evidence->rendezvous_fail_requested,
 			__ATOMIC_ACQUIRE) ||
-	    __atomic_load_n(&evidence->boot_generation,
-			__ATOMIC_ACQUIRE) != boot_generation ||
+	    !smm_invocation_loader_instance_nonce_equal(
+		nonce_load(&evidence->loader_instance_nonce),
+		loader_instance_nonce) ||
 	    __atomic_load_n(&evidence->loader_lifecycle,
 			__ATOMIC_ACQUIRE) != lifecycle) {
 		if (__atomic_load_n(&evidence->rendezvous_fail_requested,
@@ -838,11 +862,13 @@ enum cb_err smm_invocation_evidence_admission_fail(
 	if (!evidence || !token ||
 	    token->evidence_identity != (uintptr_t)evidence ||
 	    !token->attempt_nonce || token->token_reserved ||
-	    !token->boot_generation ||
+	    smm_invocation_loader_instance_nonce_is_zero(
+		token->loader_instance_nonce) ||
 	    token->lifecycle != __atomic_load_n(&evidence->loader_lifecycle,
 		__ATOMIC_ACQUIRE) ||
-	    token->boot_generation != __atomic_load_n(&evidence->boot_generation,
-		__ATOMIC_ACQUIRE))
+	    !smm_invocation_loader_instance_nonce_equal(
+		token->loader_instance_nonce,
+		nonce_load(&evidence->loader_instance_nonce)))
 		return CB_ERR;
 	if (token->kind != SMM_INVOCATION_ADMISSION_ARM &&
 	    token->kind != SMM_INVOCATION_ADMISSION_ARRIVE &&
@@ -1151,9 +1177,10 @@ static void build_token(struct smm_invocation_evidence *evidence,
 	struct smm_invocation_token *token)
 {
 	uint64_t proof[3] = {
-		evidence->boot_generation ^ sentinel,
+		evidence->loader_instance_nonce.low ^ sentinel,
 		evidence->generation ^ command,
-		((uint64_t)evidence->active_cpus << 32) ^
+		evidence->loader_instance_nonce.high ^
+			((uint64_t)evidence->active_cpus << 32) ^
 			evidence->bsp_cpu ^ initiator,
 	};
 
@@ -1174,9 +1201,10 @@ static void build_token(struct smm_invocation_evidence *evidence,
 		.smi_generation = evidence->generation,
 		.rendezvous_generation = evidence->generation,
 		.rendezvous_digest = {
-			mix64(proof[0] ^ evidence->boot_generation),
+			mix64(proof[0] ^ evidence->loader_instance_nonce.low),
 			mix64(proof[1] ^ sentinel),
-			mix64(proof[2] ^ command),
+			mix64(proof[2] ^ command ^
+				evidence->loader_instance_nonce.high),
 		},
 		.bsp = 1,
 	};
@@ -1434,7 +1462,8 @@ static void close_finish_if_quiescent(
 	struct smm_invocation_evidence *evidence)
 {
 	uint64_t closed_generation;
-	uint64_t closed_boot_generation;
+	struct smm_invocation_loader_instance_nonce
+		closed_loader_instance_nonce;
 	uint32_t closed_lifecycle;
 	uint32_t state;
 
@@ -1444,7 +1473,7 @@ static void close_finish_if_quiescent(
 		return;
 
 	closed_generation = evidence->generation;
-	closed_boot_generation = evidence->boot_generation;
+	closed_loader_instance_nonce = evidence->loader_instance_nonce;
 	closed_lifecycle = evidence->loader_lifecycle;
 	invocation_scrub(evidence);
 	__atomic_store_n(&evidence->rendezvous_ack_required, 0U,
@@ -1454,7 +1483,7 @@ static void close_finish_if_quiescent(
 		phase_publish(evidence, SMM_INVOCATION_CLOSED);
 	} else {
 		evidence->closed_generation = closed_generation;
-		evidence->closed_boot_generation = closed_boot_generation;
+		evidence->closed_loader_instance_nonce = closed_loader_instance_nonce;
 		evidence->closed_lifecycle = closed_lifecycle;
 		__atomic_store_n(&evidence->closed_eos_consumed, 0U,
 			__ATOMIC_RELAXED);
@@ -1603,19 +1632,22 @@ enum cb_err smm_invocation_evidence_ticket_fail(
 
 bool smm_invocation_evidence_eos_consume(
 	struct smm_invocation_evidence *evidence, uint64_t generation,
-	uint64_t boot_generation, uint32_t lifecycle, uint32_t cpu)
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce,
+	uint32_t lifecycle, uint32_t cpu)
 {
 	uint32_t expected = 0;
 	uint32_t state;
 
-	if (!evidence || !generation || !boot_generation)
+	if (!evidence || !generation ||
+	    smm_invocation_loader_instance_nonce_is_zero(loader_instance_nonce))
 		return false;
 	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
 	if ((state & STATE_PHASE_MASK) != SMM_INVOCATION_READY ||
 	    state & INVOCATION_SHUTDOWN_REQUESTED ||
 	    cpu != evidence->bsp_cpu ||
 	    generation != evidence->closed_generation ||
-	    boot_generation != evidence->closed_boot_generation ||
+	    !smm_invocation_loader_instance_nonce_equal(loader_instance_nonce,
+		evidence->closed_loader_instance_nonce) ||
 	    lifecycle != evidence->closed_lifecycle ||
 	    __atomic_load_n(&evidence->closed_eos_consumed,
 		__ATOMIC_ACQUIRE))
@@ -1628,7 +1660,8 @@ bool smm_invocation_evidence_eos_consume(
 	if (smm_invocation_evidence_shutdown_requested(evidence) ||
 	    cpu != evidence->bsp_cpu ||
 	    generation != evidence->closed_generation ||
-	    boot_generation != evidence->closed_boot_generation ||
+	    !smm_invocation_loader_instance_nonce_equal(loader_instance_nonce,
+		evidence->closed_loader_instance_nonce) ||
 	    lifecycle != evidence->closed_lifecycle ||
 	    !__atomic_compare_exchange_n(&evidence->closed_eos_consumed,
 		&expected, 1U, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {

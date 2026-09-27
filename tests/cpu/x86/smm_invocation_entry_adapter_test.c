@@ -23,6 +23,8 @@
 #define TEST_ADMISSION_CONSUMED (1U << 8)
 #define TEST_SHUTDOWN_REQUESTED (1U << 9)
 #define TEST_REENTRY_DETECTED (1U << 10)
+#define NONCE(value) ((struct smm_invocation_loader_instance_nonce) { \
+	.low = (value), .high = (value) ^ 0xa55aa55aa55aa55aULL })
 #define TEST_CLOSE_REQUESTED (1U << 11)
 #define TEST_ADMISSION_NONCE_ONE (1U << 12)
 
@@ -134,12 +136,12 @@ static void expect_signal(pid_t child, int signal_number)
 }
 
 static enum cb_err test_arm(struct smm_invocation_evidence *evidence,
-	uint64_t boot_generation, uint32_t lifecycle)
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce, uint32_t lifecycle)
 {
 	struct smm_invocation_admission_token token;
 
 	return smm_invocation_evidence_require_rendezvous_ack_try(evidence,
-		boot_generation, lifecycle, &token) == SMM_INVOCATION_TRY_SUCCESS ?
+		loader_instance_nonce, lifecycle, &token) == SMM_INVOCATION_TRY_SUCCESS ?
 		CB_SUCCESS : CB_ERR;
 }
 
@@ -206,7 +208,7 @@ static void *arrival_thread(void *arg)
 	struct arrival_arg *arrival = arg;
 
 	arrival->result = smm_invocation_entry_arrive(arrival->evidence,
-		arrival->cause, arrival->policy, 7, 0xa5, arrival->cpu,
+		arrival->cause, arrival->policy, NONCE(7), 0xa5, arrival->cpu,
 		arrival->apic_id,
 		&arrival->ticket);
 	__atomic_store_n(&arrival->completed, 1U, __ATOMIC_RELEASE);
@@ -415,8 +417,8 @@ static void test_cause_validation(void)
 	struct smm_invocation_entry_cause cause = {
 		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 		.size = sizeof(cause),
-		.boot_generation = 7,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(7),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.command = 0xa5,
 		.recognized = 0,
 	};
@@ -428,12 +430,70 @@ static void test_cause_validation(void)
 		.max_polls = 1000,
 	};
 
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7), 0xa5,
 		0, 0, &ticket) == CB_ERR);
 	cause.recognized = 1;
 	cause.reserved[0] = 1;
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7), 0xa5,
 		0, 0, &ticket) == CB_ERR);
+}
+
+static void exercise_sparse_entry_nonce(
+	struct smm_invocation_loader_instance_nonce nonce)
+{
+	em64t101_smm_state_save_area_t state = { 0 };
+	uintptr_t top = (uintptr_t)&state + sizeof(state);
+	struct intel_smm_invocation_adapter adapter;
+	struct smm_invocation_save_state_ops ops;
+	struct smm_invocation_evidence evidence = { 0 };
+	struct smm_invocation_loader_seed seed = {
+		.revision = SMM_INVOCATION_EVIDENCE_REVISION,
+		.size = sizeof(seed),
+		.active_cpus = 1,
+		.bsp_cpu = 0,
+		.loader_instance_nonce = nonce,
+		.participant_apic_ids = { 3 },
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
+	};
+	struct smm_invocation_entry_cause cause = {
+		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
+		.size = sizeof(cause),
+		.loader_instance_nonce = nonce,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
+		.command = 0xa5,
+		.recognized = 1,
+	};
+	const struct smm_invocation_entry_policy policy = {
+		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
+		.size = sizeof(policy),
+		.max_polls = 1000,
+	};
+	struct smm_invocation_entry_ticket ticket;
+	struct smm_invocation_token token;
+
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
+	state.smm_revision = REV101;
+	state.io_misc_info = EXACT_IO;
+	state.rax = 0xa5;
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(state), REV101) == CB_SUCCESS);
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, nonce,
+		0xa5, 0, 3, &ticket) == CB_SUCCESS);
+	assert(smm_invocation_evidence_claim(&evidence, 0xa5,
+		0x11223344556677a5ULL, &ops, &token) == CB_SUCCESS);
+	assert(smm_invocation_evidence_abort(&evidence, &token, &ops) ==
+		CB_SUCCESS);
+	assert(smm_invocation_entry_depart(&evidence, &ticket) == CB_SUCCESS);
+	assert(smm_invocation_entry_eos_ready(&evidence, &ticket));
+}
+
+static void test_sparse_entry_nonce(void)
+{
+	exercise_sparse_entry_nonce(
+		(struct smm_invocation_loader_instance_nonce) { .low = 1 });
+	exercise_sparse_entry_nonce(
+		(struct smm_invocation_loader_instance_nonce) { .high = 1 });
 }
 
 static void test_identity_and_aliases(void)
@@ -444,15 +504,15 @@ static void test_identity_and_aliases(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_entry_cause cause = {
 		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 		.size = sizeof(cause),
-		.boot_generation = 8,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(8),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.command = 0xa5,
 		.recognized = 1,
 	};
@@ -464,21 +524,29 @@ static void test_identity_and_aliases(void)
 	struct smm_invocation_entry_ticket ticket;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 8, 0xa5,
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(8), 0xa5,
 		0, 3, &ticket) == CB_ERR);
 	assert(!__atomic_load_n(&evidence.rendezvous_ack_required,
 		__ATOMIC_ACQUIRE));
-	cause.boot_generation = 7;
-	cause.lifecycle = SMM_INVOCATION_LOADER_RESUME_FRESH;
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
+	cause.loader_instance_nonce = seed.loader_instance_nonce;
+	cause.loader_instance_nonce.low++;
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy,
+		seed.loader_instance_nonce, 0xa5, 0, 3, &ticket) == CB_ERR);
+	cause.loader_instance_nonce = seed.loader_instance_nonce;
+	cause.loader_instance_nonce.high++;
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy,
+		seed.loader_instance_nonce, 0xa5, 0, 3, &ticket) == CB_ERR);
+	cause.loader_instance_nonce = NONCE(7);
+	cause.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7), 0xa5,
 		0, 3, &ticket) == CB_ERR);
 	assert(!__atomic_load_n(&evidence.rendezvous_ack_required,
 		__ATOMIC_ACQUIRE));
-	cause.lifecycle = SMM_INVOCATION_LOADER_COLD;
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
+	cause.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
+	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7), 0xa5,
 		0, 3, (void *)&evidence) == CB_ERR);
 	assert(smm_invocation_entry_arrive(&evidence,
-		(const void *)(UINTPTR_MAX - 1U), &policy, 7, 0xa5, 0, 3,
+		(const void *)(UINTPTR_MAX - 1U), &policy, NONCE(7), 0xa5, 0, 3,
 		&ticket) == CB_ERR);
 }
 
@@ -490,15 +558,15 @@ static void test_policy_snapshot_mutation(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_entry_cause cause = {
 		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 		.size = sizeof(cause),
-		.boot_generation = 7,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(7),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.command = 0xa5,
 		.recognized = 1,
 	};
@@ -551,7 +619,7 @@ static void test_policy_snapshot_mutation(void)
 
 struct ack_arm_arg {
 	struct smm_invocation_evidence *evidence;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint32_t lifecycle;
 	enum cb_err result;
 	uint32_t completed;
@@ -587,7 +655,7 @@ struct evidence_arrival_arg {
 
 struct admission_try_arg {
 	struct smm_invocation_evidence *evidence;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint64_t generation;
 	uint32_t lifecycle;
 	uint32_t cpu;
@@ -617,7 +685,7 @@ struct provision_arg {
 struct eos_consume_arg {
 	struct smm_invocation_evidence *evidence;
 	uint64_t generation;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint32_t lifecycle;
 	uint32_t cpu;
 	bool result;
@@ -628,7 +696,7 @@ static void *ack_arm_thread(void *arg)
 	struct ack_arm_arg *arm = arg;
 
 	arm->result = test_arm(
-		arm->evidence, arm->boot_generation, arm->lifecycle);
+		arm->evidence, arm->loader_instance_nonce, arm->lifecycle);
 	__atomic_store_n(&arm->completed, 1U, __ATOMIC_RELEASE);
 	return NULL;
 }
@@ -683,7 +751,7 @@ static void *ack_arm_try_thread(void *arg)
 	struct admission_try_arg *call = arg;
 
 	call->result = smm_invocation_evidence_require_rendezvous_ack_try(
-		call->evidence, call->boot_generation, call->lifecycle,
+		call->evidence, call->loader_instance_nonce, call->lifecycle,
 		&call->token);
 	return NULL;
 }
@@ -738,7 +806,7 @@ static void *eos_consume_thread(void *arg)
 	struct eos_consume_arg *consume = arg;
 
 	consume->result = smm_invocation_evidence_eos_consume(
-		consume->evidence, consume->generation, consume->boot_generation,
+		consume->evidence, consume->generation, consume->loader_instance_nonce,
 		consume->lifecycle, consume->cpu);
 	return NULL;
 }
@@ -751,21 +819,21 @@ static void test_ack_arm_race(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 11,
+		.loader_instance_nonce = NONCE(11),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct ack_arm_arg args[2] = {
-		{ .evidence = &evidence, .boot_generation = 11,
-		  .lifecycle = SMM_INVOCATION_LOADER_COLD },
-		{ .evidence = &evidence, .boot_generation = 11,
-		  .lifecycle = SMM_INVOCATION_LOADER_COLD },
+		{ .evidence = &evidence, .loader_instance_nonce = NONCE(11),
+		  .lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD },
+		{ .evidence = &evidence, .loader_instance_nonce = NONCE(11),
+		  .lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD },
 	};
 	pthread_t threads[2];
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 12,
-		SMM_INVOCATION_LOADER_COLD) == CB_ERR);
+	assert(test_arm(&evidence, NONCE(12),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&evidence) ==
 		SMM_INVOCATION_READY);
 	assert(!__atomic_load_n(&evidence.rendezvous_ack_required,
@@ -784,8 +852,8 @@ static void test_ack_arm_race(void)
 	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(threads[0], NULL));
 	assert(args[0].result == CB_SUCCESS);
-	assert(test_arm(&evidence, 11,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(11),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	evidence_hook_point = 0;
 	evidence_hook_release = 1;
 }
@@ -797,14 +865,14 @@ static void test_ack_arm_published_marker_is_retry(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 76,
+		.loader_instance_nonce = NONCE(76),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner = {
 		.evidence = &evidence,
-		.boot_generation = seed.boot_generation,
+		.loader_instance_nonce = seed.loader_instance_nonce,
 		.lifecycle = seed.lifecycle,
 	};
 	struct smm_invocation_admission_token retry;
@@ -820,7 +888,7 @@ static void test_ack_arm_published_marker_is_retry(void)
 	assert(__atomic_load_n(&evidence.rendezvous_ack_required,
 		__ATOMIC_ACQUIRE) == 1U);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		seed.boot_generation, seed.lifecycle, &retry) ==
+		seed.loader_instance_nonce, seed.lifecycle, &retry) ==
 		SMM_INVOCATION_TRY_RETRY);
 	assert(retry.evidence_identity == (uintptr_t)&evidence);
 	assert(retry.kind == SMM_INVOCATION_ADMISSION_ARM);
@@ -829,7 +897,7 @@ static void test_ack_arm_published_marker_is_retry(void)
 	assert(!pthread_join(thread, NULL));
 	assert(owner.result == SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		seed.boot_generation, seed.lifecycle, &retry) ==
+		seed.loader_instance_nonce, seed.lifecycle, &retry) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	evidence_hook_point = 0;
 	evidence_hook_release = 1;
@@ -842,9 +910,9 @@ static void test_departure_published_marker_is_retry(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 77,
+		.loader_instance_nonce = NONCE(77),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct departure_try_arg owner = {
@@ -886,15 +954,15 @@ static void test_admission_completion_retries_competing_state_change(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 70,
+		.loader_instance_nonce = NONCE(70),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct ack_arm_arg arm = {
 		.evidence = &evidence,
-		.boot_generation = 70,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(70),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	pthread_t thread;
 	uint32_t state;
@@ -925,14 +993,14 @@ static void test_ack_arm_shutdown_failure_handoff(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 53,
+		.loader_instance_nonce = NONCE(53),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner = {
-		.evidence = &evidence, .boot_generation = 53,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.evidence = &evidence, .loader_instance_nonce = NONCE(53),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct admission_try_arg waiter = owner;
 	struct admission_fail_arg failure;
@@ -952,7 +1020,7 @@ static void test_ack_arm_shutdown_failure_handoff(void)
 	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		53, SMM_INVOCATION_LOADER_COLD, &waiter.token) ==
+		NONCE(53), SMM_INVOCATION_LOADER_NON_S3_LOAD, &waiter.token) ==
 		SMM_INVOCATION_TRY_RETRY);
 	assert(!pthread_create(&shutdown_worker, NULL, shutdown_thread,
 		&shutdown));
@@ -998,9 +1066,9 @@ static void test_admission_completion_before_observer(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 11,
+		.loader_instance_nonce = NONCE(11),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner;
@@ -1009,8 +1077,8 @@ static void test_admission_completion_before_observer(void)
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
-		.evidence = &evidence, .boot_generation = 11,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.evidence = &evidence, .loader_instance_nonce = NONCE(11),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	evidence_hook_point = 16;
 	evidence_hook_entered = 0;
@@ -1019,13 +1087,13 @@ static void test_admission_completion_before_observer(void)
 	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		11, SMM_INVOCATION_LOADER_COLD, &owner.token) ==
+		NONCE(11), SMM_INVOCATION_LOADER_NON_S3_LOAD, &owner.token) ==
 		SMM_INVOCATION_TRY_RETRY);
 	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(owner_thread, NULL));
 	assert(owner.result == SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		11, SMM_INVOCATION_LOADER_COLD, &owner.token) ==
+		NONCE(11), SMM_INVOCATION_LOADER_NON_S3_LOAD, &owner.token) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 
 	owner = (struct admission_try_arg) {
@@ -1085,14 +1153,14 @@ static void test_retry_token_resnapshot_gaps(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 59,
+		.loader_instance_nonce = NONCE(59),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg contender = {
-		.evidence = &evidence, .boot_generation = 59,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.evidence = &evidence, .loader_instance_nonce = NONCE(59),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct admission_try_arg owner = contender;
 	pthread_t contender_thread;
@@ -1207,14 +1275,14 @@ static void test_reservation_gap_failure_and_shutdown(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 47,
+		.loader_instance_nonce = NONCE(47),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner = {
-		.evidence = &evidence, .boot_generation = 47,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.evidence = &evidence, .loader_instance_nonce = NONCE(47),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct admission_try_arg waiter = owner;
 	struct admission_fail_arg failure;
@@ -1230,7 +1298,7 @@ static void test_reservation_gap_failure_and_shutdown(void)
 	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		47, SMM_INVOCATION_LOADER_COLD, &waiter.token) ==
+		NONCE(47), SMM_INVOCATION_LOADER_NON_S3_LOAD, &waiter.token) ==
 		SMM_INVOCATION_TRY_RETRY);
 	failure = (struct admission_fail_arg) {
 		.evidence = &evidence, .token = waiter.token,
@@ -1262,8 +1330,8 @@ static void test_reservation_gap_failure_and_shutdown(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 47,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(47),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&waiter.generation) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
@@ -1293,8 +1361,8 @@ static void test_reservation_gap_failure_and_shutdown(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 47,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(47),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
 		.evidence = &evidence, .cpu = 0, .apic_id = 3,
 	};
@@ -1320,8 +1388,8 @@ static void test_reservation_gap_failure_and_shutdown(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 47,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(47),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
 		.evidence = &evidence, .cpu = 0, .apic_id = 3,
 	};
@@ -1354,14 +1422,14 @@ static void test_transient_completion_before_observer(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 11,
+		.loader_instance_nonce = NONCE(11),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner = {
-		.evidence = &evidence, .boot_generation = 11,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.evidence = &evidence, .loader_instance_nonce = NONCE(11),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct admission_try_arg observer = owner;
 	pthread_t owner_thread;
@@ -1464,9 +1532,9 @@ static void test_admission_token_binding(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 23,
+		.loader_instance_nonce = NONCE(23),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence other = { 0 };
@@ -1478,8 +1546,8 @@ static void test_admission_token_binding(void)
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_provision(&other, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 23,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(23),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &exact) == SMM_INVOCATION_TRY_SUCCESS);
 	exact.invocation_generation = generation;
@@ -1503,11 +1571,15 @@ static void test_admission_token_binding(void)
 	assert(smm_invocation_evidence_admission_fail(&evidence, &altered) ==
 		CB_ERR);
 	altered = exact;
-	altered.boot_generation++;
+	altered.loader_instance_nonce.low++;
 	assert(smm_invocation_evidence_admission_fail(&evidence, &altered) ==
 		CB_ERR);
 	altered = exact;
-	altered.lifecycle = SMM_INVOCATION_LOADER_RESUME_FRESH;
+	altered.loader_instance_nonce.high++;
+	assert(smm_invocation_evidence_admission_fail(&evidence, &altered) ==
+		CB_ERR);
+	altered = exact;
+	altered.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
 	assert(smm_invocation_evidence_admission_fail(&evidence, &altered) ==
 		CB_ERR);
 	assert(smm_invocation_evidence_phase(&evidence) == phase);
@@ -1532,8 +1604,8 @@ static void test_admission_token_binding(void)
 	__atomic_store_n(&other.state,
 		(UINT32_MAX & ~0xfffU) | SMM_INVOCATION_READY,
 		__ATOMIC_RELEASE);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&other, 23,
-		SMM_INVOCATION_LOADER_COLD, &altered) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&other, NONCE(23),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &altered) ==
 		SMM_INVOCATION_TRY_ERROR);
 	assert(smm_invocation_evidence_phase(&other) ==
 		SMM_INVOCATION_POISONED);
@@ -1546,9 +1618,9 @@ static void test_admission_failure_completion_race(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 29,
+		.loader_instance_nonce = NONCE(29),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner;
@@ -1558,8 +1630,8 @@ static void test_admission_failure_completion_race(void)
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 29,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(29),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&generation) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
@@ -1569,9 +1641,9 @@ static void test_admission_failure_completion_race(void)
 		.evidence = &evidence,
 		.token = {
 			.evidence_identity = (uintptr_t)&evidence,
-			.boot_generation = 29,
+			.loader_instance_nonce = NONCE(29),
 			.invocation_generation = generation,
-			.lifecycle = SMM_INVOCATION_LOADER_COLD,
+			.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 			.kind = SMM_INVOCATION_ADMISSION_ACK,
 		},
 	};
@@ -1621,9 +1693,9 @@ static void test_terminal_wins_stale_admission_failure(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 37,
+		.loader_instance_nonce = NONCE(37),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence terminal;
@@ -1632,8 +1704,8 @@ static void test_terminal_wins_stale_admission_failure(void)
 	pthread_t thread;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 37,
-		SMM_INVOCATION_LOADER_COLD, &token) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(37),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &token) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	failure = (struct admission_fail_arg) {
 		.evidence = &evidence, .token = token,
@@ -1662,9 +1734,9 @@ static void test_stale_failure_cannot_claim_new_attempt(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 39,
+		.loader_instance_nonce = NONCE(39),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence snapshot;
@@ -1682,8 +1754,8 @@ static void test_stale_failure_cannot_claim_new_attempt(void)
 	pthread_t owner_thread;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 39,
-		SMM_INVOCATION_LOADER_COLD, &arm) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(39),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &arm) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, first.cpu,
 		first.apic_id, &first.generation, &first.token) ==
@@ -1729,9 +1801,9 @@ static void test_opening_completion_before_failure(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 41,
+		.loader_instance_nonce = NONCE(41),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg owner = {
@@ -1743,8 +1815,8 @@ static void test_opening_completion_before_failure(void)
 	pthread_t failure_thread;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 41,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(41),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	evidence_hook_point = 1;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -1787,9 +1859,9 @@ static void test_ack_failure_races(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct rendezvous_call_arg ack;
@@ -1800,8 +1872,8 @@ static void test_ack_failure_races(void)
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 7,
-		SMM_INVOCATION_LOADER_COLD) ==
+	assert(test_arm(&evidence, NONCE(7),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) ==
 		CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&generation) == CB_SUCCESS);
@@ -1818,9 +1890,9 @@ static void test_ack_failure_races(void)
 		.evidence_identity = (uintptr_t)&evidence,
 		.attempt_nonce = __atomic_load_n(&evidence.state,
 			__ATOMIC_ACQUIRE) >> 12,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.invocation_generation = generation,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.kind = SMM_INVOCATION_ADMISSION_ACK,
 	};
 	assert(smm_invocation_evidence_admission_fail(&evidence, &admission) ==
@@ -1838,8 +1910,8 @@ static void test_ack_failure_races(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 7,
-		SMM_INVOCATION_LOADER_COLD) ==
+	assert(test_arm(&evidence, NONCE(7),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) ==
 		CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&generation) == CB_SUCCESS);
@@ -1876,9 +1948,9 @@ static void test_poison_admitting_handoff(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 31,
+		.loader_instance_nonce = NONCE(31),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct evidence_arrival_arg last = {
@@ -1890,8 +1962,8 @@ static void test_poison_admitting_handoff(void)
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 31,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(31),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&generation) == CB_SUCCESS);
 	fail = (struct rendezvous_call_arg) {
@@ -1939,15 +2011,15 @@ static void test_transient_owner_shutdown_races(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct ack_arm_arg arm = {
 		.evidence = &evidence,
-		.boot_generation = 7,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(7),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct shutdown_arg shutdown = { .evidence = &evidence };
 	pthread_t owner;
@@ -1980,15 +2052,15 @@ static void test_transient_owner_shutdown_races(void)
 		.state = SMM_INVOCATION_READY,
 		.bsp_cpu = 0,
 		.closed_generation = 7,
-		.closed_boot_generation = 9,
-		.closed_lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.closed_loader_instance_nonce = NONCE(9),
+		.closed_lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	shutdown = (struct shutdown_arg) { .evidence = &evidence };
 	struct eos_consume_arg consume = {
 		.evidence = &evidence,
 		.generation = 7,
-		.boot_generation = 9,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(9),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.cpu = 0,
 	};
 	evidence_hook_point = 12;
@@ -2031,8 +2103,8 @@ static void test_transient_owner_shutdown_races(void)
 	memset(&evidence, 0, sizeof(evidence));
 	seed.active_cpus = 2;
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 7,
-		SMM_INVOCATION_LOADER_COLD) ==
+	assert(test_arm(&evidence, NONCE(7),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) ==
 		CB_SUCCESS);
 	uint64_t generation;
 	assert(test_arrive(&evidence, 0, 3,
@@ -2050,9 +2122,9 @@ static void test_transient_owner_shutdown_races(void)
 		.evidence_identity = (uintptr_t)&evidence,
 		.attempt_nonce = __atomic_load_n(&evidence.state,
 			__ATOMIC_ACQUIRE) >> 12,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.invocation_generation = generation,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.kind = SMM_INVOCATION_ADMISSION_ARRIVE,
 	};
 	assert(smm_invocation_evidence_admission_fail(&evidence, &admission) ==
@@ -2077,15 +2149,15 @@ static void test_reset_paths(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 0x12345, 0xabcdef },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_entry_cause cause = {
 		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 		.size = sizeof(cause),
-		.boot_generation = 7,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(7),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.command = 0xa5,
 		.recognized = 1,
 	};
@@ -2104,7 +2176,7 @@ static void test_reset_paths(void)
 		struct smm_invocation_entry_ticket ticket;
 
 		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, 7,
+		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7),
 			0xa5, 0, 0x12345, &ticket);
 		abort();
 	}
@@ -2120,7 +2192,7 @@ static void test_reset_paths(void)
 		struct smm_invocation_entry_ticket ticket;
 
 		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, 7,
+		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, NONCE(7),
 			0xa5, 0, 0x54321, &ticket);
 		abort();
 	}
@@ -2221,7 +2293,7 @@ static void test_reset_paths(void)
 		assert(!pthread_create(&thread, NULL, arrival_thread, &arrival));
 		while (!__atomic_load_n(&entry_hook_entered, __ATOMIC_ACQUIRE))
 			__asm__ volatile ("pause");
-		cause.boot_generation++;
+		cause.loader_instance_nonce.high++;
 		assert(smm_invocation_evidence_claim(&evidence, 0xa5,
 			0x11223344556677a5ULL, &ops, &token) == CB_ERR);
 		__atomic_store_n(&entry_hook_release, 1U, __ATOMIC_RELEASE);
@@ -2277,15 +2349,15 @@ static void test_bounded_transient_resets(void)
 				.size = sizeof(seed),
 				.active_cpus = 2,
 				.bsp_cpu = 0,
-				.boot_generation = 7,
+				.loader_instance_nonce = NONCE(7),
 				.participant_apic_ids = { 3, 7 },
-				.lifecycle = SMM_INVOCATION_LOADER_COLD,
+				.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 			};
 			struct smm_invocation_entry_cause cause = {
 				.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 				.size = sizeof(cause),
-				.boot_generation = 7,
-				.lifecycle = SMM_INVOCATION_LOADER_COLD,
+				.loader_instance_nonce = NONCE(7),
+				.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 				.command = 0xa5,
 				.recognized = 1,
 			};
@@ -2297,8 +2369,8 @@ static void test_bounded_transient_resets(void)
 			struct smm_invocation_entry_ticket ticket;
 			struct ack_arm_arg arm = {
 				.evidence = &evidence,
-				.boot_generation = 7,
-				.lifecycle = SMM_INVOCATION_LOADER_COLD,
+				.loader_instance_nonce = NONCE(7),
+				.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 			};
 			struct evidence_arrival_arg evidence_arrival = {
 				.evidence = &evidence,
@@ -2316,7 +2388,7 @@ static void test_bounded_transient_resets(void)
 					&arm));
 			} else if (mode < 4) {
 				assert(test_arm(
-					&evidence, 7, SMM_INVOCATION_LOADER_COLD) ==
+					&evidence, NONCE(7), SMM_INVOCATION_LOADER_NON_S3_LOAD) ==
 					CB_SUCCESS);
 				evidence_hook_point = mode == 1 ? 1 :
 					(mode == 2 ? 5 : 7);
@@ -2344,7 +2416,7 @@ static void test_bounded_transient_resets(void)
 				__ATOMIC_ACQUIRE))
 				__asm__ volatile ("pause");
 			(void)smm_invocation_entry_arrive(&evidence, &cause, &policy,
-				7, 0xa5, mode == 2 ? 0 : 1,
+				NONCE(7), 0xa5, mode == 2 ? 0 : 1,
 				mode == 2 ? 3 : 7, &ticket);
 			abort();
 		}
@@ -2368,9 +2440,9 @@ static void test_admission_token_replay_across_invocations(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 43,
+		.loader_instance_nonce = NONCE(43),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_admission_token arm;
 	struct smm_invocation_admission_token arrive;
@@ -2387,8 +2459,8 @@ static void test_admission_token_replay_across_invocations(void)
 		sizeof(state), REV101) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 43,
-		SMM_INVOCATION_LOADER_COLD, &arm) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(43),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &arm) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &arrive) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2410,8 +2482,8 @@ static void test_admission_token_replay_across_invocations(void)
 	assert(smm_invocation_evidence_admission_fail(&evidence, &ack) == CB_ERR);
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 43,
-		SMM_INVOCATION_LOADER_COLD, &current) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(43),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &current) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &current) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2447,9 +2519,9 @@ static void test_departure_timeout_suppresses_owner(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 61,
+		.loader_instance_nonce = NONCE(61),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence terminal;
@@ -2458,9 +2530,9 @@ static void test_departure_timeout_suppresses_owner(void)
 	struct smm_invocation_token token;
 	struct smm_invocation_admission_token admission;
 	struct smm_invocation_entry_ticket ticket = {
-		.boot_generation = 61,
+		.loader_instance_nonce = NONCE(61),
 		.cpu = 0,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.max_polls = 1,
 	};
 	struct departure_try_arg owner = {
@@ -2473,8 +2545,8 @@ static void test_departure_timeout_suppresses_owner(void)
 	pthread_t timeout_thread;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 61,
-		SMM_INVOCATION_LOADER_COLD, &admission) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(61),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&ticket.generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2533,7 +2605,7 @@ static void test_departure_timeout_suppresses_owner(void)
 }
 
 static uint64_t close_single_cpu_invocation(
-	struct smm_invocation_evidence *evidence, uint64_t boot_generation)
+	struct smm_invocation_evidence *evidence, struct smm_invocation_loader_instance_nonce loader_instance_nonce)
 {
 	em64t101_smm_state_save_area_t state = {
 		.smm_revision = REV101,
@@ -2548,7 +2620,7 @@ static uint64_t close_single_cpu_invocation(
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(evidence,
-		boot_generation, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		loader_instance_nonce, SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(evidence, 0, 3,
 		&generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2592,20 +2664,20 @@ static void finish_single_cpu_collecting(
 }
 
 static uint64_t prepare_single_cpu_departure(
-	struct smm_invocation_evidence *evidence, uint64_t boot_generation)
+	struct smm_invocation_evidence *evidence, struct smm_invocation_loader_instance_nonce loader_instance_nonce)
 {
 	const struct smm_invocation_loader_seed seed = {
 		.revision = SMM_INVOCATION_EVIDENCE_REVISION,
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = boot_generation,
+		.loader_instance_nonce = loader_instance_nonce,
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 
 	assert(smm_invocation_evidence_provision(evidence, &seed) == CB_SUCCESS);
-	return close_single_cpu_invocation(evidence, boot_generation);
+	return close_single_cpu_invocation(evidence, loader_instance_nonce);
 }
 
 static void test_departure_failure_final_arbitration(void)
@@ -2618,7 +2690,7 @@ static void test_departure_failure_final_arbitration(void)
 	};
 	pthread_t owner_thread;
 
-	owner.generation = prepare_single_cpu_departure(&evidence, 62);
+	owner.generation = prepare_single_cpu_departure(&evidence, NONCE(62));
 	evidence_hook_point = 28;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -2640,7 +2712,7 @@ static void test_departure_failure_final_arbitration(void)
 	assert(!__atomic_load_n(&evidence.departed_cpus, __ATOMIC_ACQUIRE));
 
 	memset(&evidence, 0, sizeof(evidence));
-	owner.generation = prepare_single_cpu_departure(&evidence, 63);
+	owner.generation = prepare_single_cpu_departure(&evidence, NONCE(63));
 	evidence_hook_point = 29;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -2677,8 +2749,8 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	};
 	struct eos_consume_arg eos = {
 		.evidence = &evidence,
-		.boot_generation = 69,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(69),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.cpu = 0,
 	};
 	struct smm_invocation_admission_token admission;
@@ -2687,14 +2759,14 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 68,
+		.loader_instance_nonce = NONCE(68),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	pthread_t thread;
 	uint64_t next_generation;
 
-	failure.generation = prepare_single_cpu_departure(&evidence, 65);
+	failure.generation = prepare_single_cpu_departure(&evidence, NONCE(65));
 	evidence_hook_point = 31;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -2703,7 +2775,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_depart_try(&evidence, 0,
 		failure.generation) == SMM_INVOCATION_TRY_SUCCESS);
-	next_generation = close_single_cpu_invocation(&evidence, 65);
+	next_generation = close_single_cpu_invocation(&evidence, NONCE(65));
 	assert(next_generation != failure.generation);
 	memcpy(&snapshot, &evidence, sizeof(snapshot));
 	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
@@ -2712,7 +2784,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	departure.generation = prepare_single_cpu_departure(&evidence, 66);
+	departure.generation = prepare_single_cpu_departure(&evidence, NONCE(66));
 	evidence_hook_point = 32;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -2722,7 +2794,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_depart_try(&evidence, 0,
 		departure.generation) == SMM_INVOCATION_TRY_SUCCESS);
-	next_generation = close_single_cpu_invocation(&evidence, 66);
+	next_generation = close_single_cpu_invocation(&evidence, NONCE(66));
 	assert(next_generation != departure.generation);
 	memcpy(&snapshot, &evidence, sizeof(snapshot));
 	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
@@ -2733,7 +2805,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		68, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(68), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&rendezvous.generation, &admission) ==
@@ -2747,7 +2819,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 		__asm__ volatile ("pause");
 	finish_single_cpu_collecting(&evidence, rendezvous.generation);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		68, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(68), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&next_generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2759,7 +2831,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	eos.generation = prepare_single_cpu_departure(&evidence, 69);
+	eos.generation = prepare_single_cpu_departure(&evidence, NONCE(69));
 	assert(smm_invocation_evidence_depart_try(&evidence, 0,
 		eos.generation) == SMM_INVOCATION_TRY_SUCCESS);
 	evidence_hook_point = 33;
@@ -2769,8 +2841,8 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
 	assert(smm_invocation_evidence_eos_consume(&evidence, eos.generation,
-		69, SMM_INVOCATION_LOADER_COLD, 0));
-	next_generation = close_single_cpu_invocation(&evidence, 69);
+		NONCE(69), SMM_INVOCATION_LOADER_NON_S3_LOAD, 0));
+	next_generation = close_single_cpu_invocation(&evidence, NONCE(69));
 	assert(next_generation != eos.generation);
 	assert(smm_invocation_evidence_depart_try(&evidence, 0,
 		next_generation) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2790,9 +2862,9 @@ static void test_stale_shutdown_cannot_dirty_terminal(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 67,
+		.loader_instance_nonce = NONCE(67),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence terminal;
@@ -2833,9 +2905,9 @@ static void test_packed_latches_and_terminal_shutdown(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 71,
+		.loader_instance_nonce = NONCE(71),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence snapshot;
@@ -2881,14 +2953,14 @@ static void test_packed_latches_and_terminal_shutdown(void)
 		__ATOMIC_ACQ_REL);
 	memcpy(&snapshot, &evidence, sizeof(snapshot));
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(71), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_ERROR);
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(71), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	__atomic_fetch_or(&evidence.state, TEST_SHUTDOWN_REQUESTED,
 		__ATOMIC_ACQ_REL);
@@ -2900,7 +2972,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(71), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -2914,7 +2986,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
-		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
+		NONCE(71), SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -3000,9 +3072,9 @@ static void test_provision_rejects_dirty_empty_state(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 73,
+		.loader_instance_nonce = NONCE(73),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	const uint32_t dirty_states[] = {
 		1U << 5,
@@ -3039,9 +3111,9 @@ static void test_cleanup_claim_retries_packed_latch(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 74,
+		.loader_instance_nonce = NONCE(74),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct rendezvous_call_arg failure = { .evidence = &evidence };
@@ -3052,7 +3124,7 @@ static void test_cleanup_claim_retries_packed_latch(void)
 	pthread_t owner_thread;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
+	assert(test_arm(&evidence, seed.loader_instance_nonce, seed.lifecycle) ==
 		CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3, &failure.generation) ==
 		CB_SUCCESS);
@@ -3073,7 +3145,7 @@ static void test_cleanup_claim_retries_packed_latch(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	departure.generation = prepare_single_cpu_departure(&evidence,
-		seed.boot_generation);
+		seed.loader_instance_nonce);
 	evidence_hook_point = 40;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -3099,9 +3171,9 @@ static void test_phase_claim_retries_packed_latch(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 75,
+		.loader_instance_nonce = NONCE(75),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct admission_try_arg operation;
@@ -3111,7 +3183,7 @@ static void test_phase_claim_retries_packed_latch(void)
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
+	assert(test_arm(&evidence, seed.loader_instance_nonce, seed.lifecycle) ==
 		CB_SUCCESS);
 	operation = (struct admission_try_arg) {
 		.evidence = &evidence,
@@ -3147,9 +3219,10 @@ static void test_phase_claim_retries_packed_latch(void)
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	operation = (struct admission_try_arg) {
 		.evidence = &evidence,
-		.boot_generation = seed.boot_generation + 1U,
+		.loader_instance_nonce = seed.loader_instance_nonce,
 		.lifecycle = seed.lifecycle,
 	};
+	operation.loader_instance_nonce.high++;
 	shutdown = (struct shutdown_arg) { .evidence = &evidence };
 	evidence_hook_point = 42;
 	evidence_hook_entered = 0;
@@ -3169,7 +3242,7 @@ static void test_phase_claim_retries_packed_latch(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
+	assert(test_arm(&evidence, seed.loader_instance_nonce, seed.lifecycle) ==
 		CB_SUCCESS);
 	operation = (struct admission_try_arg) {
 		.evidence = &evidence,
@@ -3218,9 +3291,9 @@ static void test_stale_reentry_cannot_dirty_next_state(void)
 		.size = sizeof(seed),
 		.active_cpus = 1,
 		.bsp_cpu = 0,
-		.boot_generation = 68,
+		.loader_instance_nonce = NONCE(68),
 		.participant_apic_ids = { 3 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_evidence snapshot;
@@ -3234,8 +3307,8 @@ static void test_stale_reentry_cannot_dirty_next_state(void)
 	uint64_t generation;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 68,
-		SMM_INVOCATION_LOADER_COLD, &admission) ==
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, NONCE(68),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
 		&generation, &admission) == SMM_INVOCATION_TRY_SUCCESS);
@@ -3291,15 +3364,15 @@ static void test_rendezvous_and_departure(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 0x12345, 0xabcdef },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	const struct smm_invocation_entry_cause cause = {
 		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 		.size = sizeof(cause),
-		.boot_generation = 7,
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.loader_instance_nonce = NONCE(7),
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.command = 0xa5,
 		.recognized = 1,
 	};
@@ -3334,8 +3407,8 @@ static void test_rendezvous_and_departure(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 2, tops,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
-	assert(test_arm(&evidence, 7,
-		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
+	assert(test_arm(&evidence, NONCE(7),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) == CB_SUCCESS);
 	for (uint32_t cpu = 0; cpu < 2; cpu++)
 		assert(test_arrive(&evidence, cpu,
 			seed.participant_apic_ids[cpu], &generations[cpu]) ==
@@ -3347,7 +3420,7 @@ static void test_rendezvous_and_departure(void)
 	for (uint32_t cpu = 0; cpu < 2; cpu++) {
 		arrivals[cpu].ticket = (struct smm_invocation_entry_ticket) {
 			.generation = generations[cpu],
-			.boot_generation = cause.boot_generation,
+			.loader_instance_nonce = cause.loader_instance_nonce,
 			.cpu = cpu,
 			.lifecycle = cause.lifecycle,
 			.max_polls = policy.max_polls,
@@ -3443,7 +3516,7 @@ static void test_rendezvous_and_departure(void)
 		assert(!pthread_create(&thread, NULL, eos_thread, &call));
 		while (!__atomic_load_n(&entry_hook_entered, __ATOMIC_ACQUIRE))
 			__asm__ volatile ("pause");
-		mutable.boot_generation++;
+		mutable.loader_instance_nonce.high++;
 		__atomic_store_n(&entry_hook_release, 1U, __ATOMIC_RELEASE);
 		(void)pthread_join(thread, NULL);
 		assert(smm_invocation_evidence_phase(&evidence) ==
@@ -3457,10 +3530,13 @@ static void test_rendezvous_and_departure(void)
 	stale.generation++;
 	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
 	stale = arrivals[0].ticket;
-	stale.boot_generation++;
+	stale.loader_instance_nonce.low++;
 	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
 	stale = arrivals[0].ticket;
-	stale.lifecycle = SMM_INVOCATION_LOADER_RESUME_FRESH;
+	stale.loader_instance_nonce.high++;
+	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
+	stale = arrivals[0].ticket;
+	stale.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
 	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
 	assert(smm_invocation_entry_eos_ready(&evidence, &arrivals[0].ticket));
 	assert(!smm_invocation_entry_eos_ready(&evidence,
@@ -3491,9 +3567,9 @@ static void test_claim_requires_all_acknowledgements(void)
 		.size = sizeof(seed),
 		.active_cpus = 2,
 		.bsp_cpu = 0,
-		.boot_generation = 9,
+		.loader_instance_nonce = NONCE(9),
 		.participant_apic_ids = { 3, 7 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	struct smm_invocation_token token;
 	struct claim_arg claim;
@@ -3507,8 +3583,8 @@ static void test_claim_requires_all_acknowledgements(void)
 	states[0].rax = 0xa5;
 	states[1].smm_revision = REV101;
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
-	assert(test_arm(&evidence, 9,
-		SMM_INVOCATION_LOADER_COLD) ==
+	assert(test_arm(&evidence, NONCE(9),
+		SMM_INVOCATION_LOADER_NON_S3_LOAD) ==
 		CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
 		&generations[0]) == CB_SUCCESS);
@@ -3573,6 +3649,7 @@ int main(void)
 	test_em64t100();
 	test_adapter_boundaries();
 	test_cause_validation();
+	test_sparse_entry_nonce();
 	test_identity_and_aliases();
 	test_policy_snapshot_mutation();
 	test_ack_arm_race();

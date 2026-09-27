@@ -16,6 +16,8 @@
 #define TEST_CPUS 4U
 #define TEST_COMMAND 0x5aU
 #define TEST_SENTINEL 0x112233445566775aULL
+#define NONCE(value) ((struct smm_invocation_loader_instance_nonce) { \
+	.low = (value), .high = (value) ^ 0xa55aa55aa55aa55aULL })
 
 static uint32_t test_hook_point;
 static uint32_t test_hook_entered;
@@ -226,9 +228,9 @@ static void fixture_init(struct fixture *fixture)
 		.size = sizeof(fixture->seed),
 		.active_cpus = TEST_CPUS,
 		.bsp_cpu = 0,
-		.boot_generation = 7,
+		.loader_instance_nonce = NONCE(7),
 		.participant_apic_ids = { 10, 11, 12, 13 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	fixture->mock = (struct mock_state) {
 		.matched = 0,
@@ -329,6 +331,57 @@ static void depart_all(struct fixture *fixture, uint64_t generation)
 	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++)
 		assert(test_depart(&fixture->evidence, cpu,
 			generation) == CB_SUCCESS);
+}
+
+static void exercise_sparse_nonce(
+	struct smm_invocation_loader_instance_nonce nonce)
+{
+	struct fixture fixture;
+	struct smm_invocation_admission_token admission;
+	struct smm_invocation_token token;
+	uint64_t generation = 0;
+	uint64_t first_generation = 0;
+
+	fixture_init(&fixture);
+	assert(smm_invocation_evidence_shutdown(&fixture.evidence) == CB_SUCCESS);
+	memset(&fixture.evidence, 0, sizeof(fixture.evidence));
+	fixture.seed.loader_instance_nonce = nonce;
+	assert(smm_invocation_evidence_provision(&fixture.evidence,
+		&fixture.seed) == CB_SUCCESS);
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture.evidence, nonce, fixture.seed.lifecycle, &admission) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++) {
+		assert(smm_invocation_evidence_arrive_try(&fixture.evidence, cpu,
+			fixture.seed.participant_apic_ids[cpu], &generation,
+			&admission) == SMM_INVOCATION_TRY_SUCCESS);
+		if (!cpu)
+			first_generation = generation;
+		assert(generation == first_generation);
+	}
+	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++)
+		assert(smm_invocation_evidence_rendezvous_ack_try(
+			&fixture.evidence, generation, cpu, &admission) ==
+			SMM_INVOCATION_TRY_SUCCESS);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
+	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
+		&fixture.ops) == CB_SUCCESS);
+	depart_all(&fixture, generation);
+	assert(smm_invocation_evidence_eos_consume(&fixture.evidence,
+		generation, nonce, fixture.seed.lifecycle, fixture.seed.bsp_cpu));
+	assert(!smm_invocation_evidence_eos_consume(&fixture.evidence,
+		generation, nonce, fixture.seed.lifecycle, fixture.seed.bsp_cpu));
+}
+
+static void test_sparse_nonce_lifecycle(void)
+{
+	exercise_sparse_nonce((struct smm_invocation_loader_instance_nonce) {
+		.low = 1,
+	});
+	exercise_sparse_nonce((struct smm_invocation_loader_instance_nonce) {
+		.high = 1,
+	});
 }
 
 static void test_happy_path(void)
@@ -542,7 +595,7 @@ static void test_invalid_match_and_aliases(void)
 
 	fixture_init(&fixture);
 	assert(test_arrive(&fixture.evidence, 0, 10,
-		&fixture.evidence.boot_generation) == CB_ERR);
+		&fixture.evidence.loader_instance_nonce.low) == CB_ERR);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
@@ -572,8 +625,10 @@ static void test_token_binds_loader_and_topology(void)
 {
 	struct fixture first;
 	struct fixture second;
+	struct fixture third;
 	struct smm_invocation_token first_token;
 	struct smm_invocation_token second_token;
+	struct smm_invocation_token third_token;
 	uint64_t generation;
 
 	fixture_init(&first);
@@ -587,8 +642,7 @@ static void test_token_binds_loader_and_topology(void)
 	fixture_init(&second);
 	assert(smm_invocation_evidence_shutdown(&second.evidence) == CB_SUCCESS);
 	memset(&second.evidence, 0, sizeof(second.evidence));
-	second.seed.boot_generation++;
-	second.seed.participant_apic_ids[1] = 21;
+	second.seed.loader_instance_nonce.high++;
 	assert(smm_invocation_evidence_provision(&second.evidence, &second.seed) == CB_SUCCESS);
 	generation = arrive_all(&second);
 	assert(smm_invocation_evidence_claim(&second.evidence, TEST_COMMAND,
@@ -599,6 +653,22 @@ static void test_token_binds_loader_and_topology(void)
 	assert(smm_invocation_evidence_abort(&second.evidence, &second_token,
 		&second.ops) == CB_SUCCESS);
 	depart_all(&second, generation);
+
+	fixture_init(&third);
+	assert(smm_invocation_evidence_shutdown(&third.evidence) == CB_SUCCESS);
+	memset(&third.evidence, 0, sizeof(third.evidence));
+	third.seed.loader_instance_nonce.low++;
+	assert(smm_invocation_evidence_provision(&third.evidence, &third.seed) ==
+		CB_SUCCESS);
+	generation = arrive_all(&third);
+	assert(smm_invocation_evidence_claim(&third.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &third.ops, &third_token) == CB_SUCCESS);
+	assert(memcmp(first_token.rendezvous_digest,
+		third_token.rendezvous_digest,
+		sizeof(first_token.rendezvous_digest)));
+	assert(smm_invocation_evidence_abort(&third.evidence, &third_token,
+		&third.ops) == CB_SUCCESS);
+	depart_all(&third, generation);
 }
 
 static void test_invalid_seed_and_duplicate(void)
@@ -611,9 +681,9 @@ static void test_invalid_seed_and_duplicate(void)
 		.revision = SMM_INVOCATION_EVIDENCE_REVISION,
 		.size = sizeof(fixture.seed),
 		.active_cpus = 2,
-		.boot_generation = 1,
+		.loader_instance_nonce = NONCE(1),
 		.participant_apic_ids = { 2, 2 },
-		.lifecycle = SMM_INVOCATION_LOADER_COLD,
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 	};
 	assert(smm_invocation_evidence_provision(&fixture.evidence,
 		&fixture.seed) == CB_ERR);
@@ -1056,6 +1126,7 @@ int main(void)
 	test_reentry_stale_and_collision();
 	test_invalid_match_and_aliases();
 	test_token_binds_loader_and_topology();
+	test_sparse_nonce_lifecycle();
 	test_invalid_seed_and_duplicate();
 	test_post_result_ambiguity_fail_stop();
 	test_terminal_fail_stop_and_exhaustion();

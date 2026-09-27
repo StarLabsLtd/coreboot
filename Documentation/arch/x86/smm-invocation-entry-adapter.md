@@ -20,7 +20,7 @@ for a stalled admission owner; that owner suppresses progress if it resumes.
 Admission primitives return an explicit success, retry or terminal-error
 result; callers never infer retryability from a later phase load. A retry
 result carries a protected, one-use failure token bound to the evidence
-object, admission kind, boot generation, loader lifecycle and invocation
+object, admission kind, loader-instance nonce, loader lifecycle and invocation
 generation. Wrong-kind, stale, replayed or cross-instance tokens cannot
 change the state. A contender that observes a transient owner resnapshots an
 exact stable state word; a token captured before a new reservation is never
@@ -51,7 +51,7 @@ until all arrivals are recorded, let the registry-selected owner claim and
 complete or abort the evidence, release the global lock, record every
 departure, and set EOS only after `smm_invocation_entry_eos_ready()`.
 EOS readiness consumes a one-use close receipt bound to the exact invocation,
-boot generation, loader lifecycle and BSP ticket; a bare or stale `READY`
+loader-instance nonce, loader lifecycle and BSP ticket; a bare or stale `READY`
 phase is insufficient. Departure uses the same explicit success/retry/error
 contract; the coordinator bounds retries by the poll budget frozen into the
 participant ticket and resets rather than spinning behind a stalled departure
@@ -66,7 +66,7 @@ The entry ABI change is conditional.  With the option disabled, the existing
 16-bit APIC map and stack argument layout are unchanged.  With it enabled,
 the stub compares the complete CPUID initial APIC ID against a 32-bit map and
 passes that value beside the logical CPU number.  The installed participant
-topology, boot/resume generation and BSP identity must come from the loader;
+topology, loader-instance nonce and BSP identity must come from the loader;
 the logical lock winner and `CONFIG_MAX_CPUS` are not evidence.
 
 The Intel adapter seals exact save-state addresses for the actual participant
@@ -88,8 +88,8 @@ requires one atomic composition containing all of:
 
 1. a shared, recognized private APMC cause predicate visible to every active
    participant and retained through rendezvous;
-2. a fresh loader instance with explicit active topology, BSP and nonzero
-   cold/resume generation, with the previous instance closed and drained;
+2. a new loader instance with explicit active topology, BSP and nonzero
+   128-bit correlation nonce, with the previous instance closed and drained;
 3. registry dispatch owning the exact command and the evidence claim;
 4. one completion/abort owner which moves evidence to `CLOSING`;
 5. a selected platform capability with exactly one strongly linked SMM-safe
