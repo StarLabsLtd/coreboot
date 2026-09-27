@@ -30,6 +30,7 @@ build()
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/cpu/x86/smm_invocation_evidence_test.c" "$source" \
+		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
 		-o "$temporary/$name"
 }
 
@@ -138,6 +139,8 @@ if rg -q 'select[[:space:]]+SMM_INVOCATION_EVIDENCE' "$root/src"; then
 fi
 if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown)' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_evidence.c' \
+	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
+	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
 	-g '!src/cpu/x86/smm_invocation_entry.c' \
 	-g '!src/include/cpu/x86/smm_invocation_evidence.h'; then
 	printf '%s\n' 'dormant invocation evidence gained a production callsite' >&2

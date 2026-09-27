@@ -224,6 +224,14 @@ test-smm-invocation-loader-instance:
 	tests/lib/starbook_mtl_mor_cold_boot_test.sh
 	tests/lib/starbook_mtl_mor_early_dma_test.sh
 
+.PHONY: test-smm-invocation-loader-composition
+test-smm-invocation-loader-composition:
+	$(Q)tests/cpu/x86/smm_invocation_loader_composition_test.sh
+	$(Q)env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=SMM_COMPOSITION_HOSTILE_OVERRIDE \
+		SMM_COMPOSITION_HOSTILE_OVERRIDE=1 \
+		tests/cpu/x86/smm_invocation_loader_composition_profiles_test.sh
+
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:
 	tests/lib/tpm2_platform_auth_test.sh

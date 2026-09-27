@@ -57,8 +57,10 @@ record. Provider-only builds neither allocate nor consume that record. When
 the authority is enabled, source publication failure is fatal even on S3: a
 stale record cannot be allowed to reach ramstage after freshness failed.
 
-This slice installs no SMM-loader callsite, command route, public table or
-payload ABI. A later composition must select the provider, publish topology,
-take this seed, publish the generic protected loader descriptor, provision
-invocation evidence, and unwind those objects in reverse order on failure.
-ADL and GLK remain generic compile profiles and have no MTL provider.
+The default-off board selector binds this authority into the composition. It is
+the final fallible SMM-loader operation. That composition snapshots protected
+topology, takes the nonce seed once, publishes and rechecks the generic loader
+descriptor, provisions
+and rechecks invocation evidence, and unwinds evidence, instance and topology
+in reverse order on failure. It adds no command route, public table or payload
+ABI. ADL and GLK remain generic compile profiles and have no MTL provider.

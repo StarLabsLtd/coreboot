@@ -178,9 +178,26 @@ struct smm_invocation_evidence {
 	uint32_t reserved;
 } __aligned(8);
 
+struct smm_invocation_evidence_loader_receipt {
+	uint64_t evidence_identity;
+	uint32_t terminal_state;
+	uint32_t acquired;
+	uint64_t reserved;
+} __aligned(8);
+
+_Static_assert(sizeof(struct smm_invocation_evidence_loader_receipt) == 24,
+	"SMM invocation evidence loader receipt ABI changed");
+
 enum cb_err smm_invocation_evidence_provision(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_loader_seed *seed);
+enum cb_err smm_invocation_evidence_loader_provision(
+	struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_loader_seed *seed,
+	struct smm_invocation_evidence_loader_receipt *receipt);
+enum cb_err smm_invocation_evidence_loader_rollback(
+	struct smm_invocation_evidence *evidence,
+	struct smm_invocation_evidence_loader_receipt *receipt);
 uint32_t smm_invocation_evidence_phase(
 	const struct smm_invocation_evidence *evidence);
 bool smm_invocation_evidence_shutdown_requested(

@@ -182,34 +182,6 @@ static void nonce_store(struct smm_invocation_loader_instance_nonce *target,
 	__atomic_store_n(&target->high, nonce.high, __ATOMIC_RELAXED);
 }
 
-static uint64_t cpu_mask(uint32_t active_cpus)
-{
-	return active_cpus == 64U ? UINT64_MAX : (1ULL << active_cpus) - 1ULL;
-}
-
-static bool seed_valid(const struct smm_invocation_loader_seed *seed)
-{
-	if (seed->revision != SMM_INVOCATION_EVIDENCE_REVISION ||
-	    seed->size != sizeof(*seed) ||
-	    (seed->lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
-	     seed->lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD) ||
-	    seed->reserved ||
-	    smm_invocation_loader_instance_nonce_is_zero(
-		seed->loader_instance_nonce) || !seed->active_cpus ||
-	    seed->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
-	    seed->bsp_cpu >= seed->active_cpus)
-		return false;
-
-	for (uint32_t cpu = 0; cpu < seed->active_cpus; cpu++) {
-		for (uint32_t other = cpu + 1; other < seed->active_cpus; other++) {
-			if (seed->participant_apic_ids[cpu] ==
-			    seed->participant_apic_ids[other])
-				return false;
-		}
-	}
-	return true;
-}
-
 static void invocation_scrub(struct smm_invocation_evidence *evidence)
 {
 	for (uint32_t cpu = 0; cpu < SMM_INVOCATION_EVIDENCE_MAX_CPUS; cpu++)
@@ -466,55 +438,6 @@ static void rendezvous_poison_requested(
 static void __noreturn invocation_fail_stop(void)
 {
 	smm_invocation_platform_fail_stop();
-}
-
-enum cb_err smm_invocation_evidence_provision(
-	struct smm_invocation_evidence *evidence,
-	const struct smm_invocation_loader_seed *seed)
-{
-	struct smm_invocation_loader_seed snapshot;
-	uint32_t empty = SMM_INVOCATION_EMPTY;
-
-	if (!evidence || !seed ||
-	    ranges_overlap(evidence, sizeof(*evidence), seed, sizeof(*seed)))
-		return CB_ERR;
-	memcpy(&snapshot, seed, sizeof(snapshot));
-	if (!seed_valid(&snapshot) ||
-	    !__atomic_compare_exchange_n(&evidence->state, &empty,
-		SMM_INVOCATION_PROVISIONING, false, __ATOMIC_ACQ_REL,
-		__ATOMIC_ACQUIRE)) {
-		scrub(&snapshot, sizeof(snapshot));
-		return CB_ERR;
-	}
-	if (memcmp(seed, &snapshot, sizeof(snapshot))) {
-		scrub(&snapshot, sizeof(snapshot));
-		terminal_scrub(evidence);
-		phase_publish(evidence, SMM_INVOCATION_POISONED);
-		return CB_ERR;
-	}
-
-	TEST_HOOK(36);
-	scrub_fields(evidence);
-	if (smm_invocation_evidence_shutdown_requested(evidence)) {
-		scrub(&snapshot, sizeof(snapshot));
-		terminal_scrub(evidence);
-		phase_publish(evidence, SMM_INVOCATION_CLOSED);
-		return CB_ERR;
-	}
-	evidence->active_cpus = snapshot.active_cpus;
-	evidence->bsp_cpu = snapshot.bsp_cpu;
-	nonce_store(&evidence->loader_instance_nonce,
-		snapshot.loader_instance_nonce);
-	__atomic_store_n(&evidence->loader_lifecycle, snapshot.lifecycle,
-		__ATOMIC_RELAXED);
-	memcpy(evidence->participant_apic_ids, snapshot.participant_apic_ids,
-		snapshot.active_cpus * sizeof(snapshot.participant_apic_ids[0]));
-	evidence->expected_cpus = cpu_mask(snapshot.active_cpus);
-	__atomic_store_n(&evidence->rendezvous_fail_requested, 0U,
-		__ATOMIC_RELAXED);
-	scrub(&snapshot, sizeof(snapshot));
-	phase_publish(evidence, SMM_INVOCATION_READY);
-	return CB_SUCCESS;
 }
 
 static enum cb_err invocation_open_owned(

@@ -2,6 +2,10 @@
 
 #include "smm_invocation_loader_instance.h"
 
+#if CONFIG(STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER)
+#include <cpu/x86/smm_invocation_loader_composition.h>
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -314,7 +318,8 @@ enum cb_err starbook_mtl_mor_early_dma_classify(uint32_t *boot_kind,
 }
 #endif
 
-enum cb_err starbook_mtl_smm_invocation_loader_instance_take(
+#if CONFIG(STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER)
+enum cb_err smm_invocation_platform_loader_instance_take(
 	struct smm_invocation_loader_instance_seed *seed)
 {
 	/* FSP-S has returned: establish a fresh all-function BME boundary here. */
@@ -323,4 +328,5 @@ enum cb_err starbook_mtl_smm_invocation_loader_instance_take(
 		sizeof(authority_workspace), seed,
 		starbook_mtl_loader_instance_source_ramstage_requiesce);
 }
+#endif
 #endif

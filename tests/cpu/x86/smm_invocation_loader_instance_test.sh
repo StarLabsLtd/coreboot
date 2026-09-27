@@ -99,16 +99,23 @@ mutate early-ready \
 	's/LOADER_INSTANCE_TEST_HOOK(2);/__atomic_store_n(\&instance->state, SMM_INVOCATION_LOADER_INSTANCE_READY, __ATOMIC_RELEASE); LOADER_INSTANCE_TEST_HOOK(2);/'
 
 grep -q '^config SMM_INVOCATION_LOADER_INSTANCE$' "$root/src/cpu/x86/Kconfig"
-if rg -q 'select[[:space:]]+SMM_INVOCATION_LOADER_INSTANCE' "$root/src"; then
+if rg -q 'select[[:space:]]+SMM_INVOCATION_LOADER_INSTANCE[[:space:]]*$' \
+	"$root/src"; then
 	printf '%s\n' 'loader instance gained a platform selector' >&2
 	exit 1
 fi
+test "$(rg -n 'select[[:space:]]+SMM_INVOCATION_LOADER_INSTANCE_PLATFORM[[:space:]]*$' \
+	"$root/src" | wc -l)" -eq 1
 if rg -q 'smm_invocation_loader_instance_(publish|read)' "$root/src" \
 	-g '!src/cpu/x86/smm_invocation_loader_instance.c' \
+	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
 	-g '!src/include/cpu/x86/smm_invocation_loader_instance.h'; then
 	printf '%s\n' 'loader instance gained a production callsite' >&2
 	exit 1
 fi
+test "$(rg -l 'smm_invocation_loader_instance_(publish|read)' "$root/src" \
+	-g '!src/cpu/x86/smm_invocation_loader_instance.c' \
+	-g '!src/include/cpu/x86/smm_invocation_loader_instance.h' | wc -l)" -eq 1
 if rg -q 'lb_new_record|lb_add|CBMEM|APM_CNT|outb|random|reset|save_state' \
 	"$root/src/cpu/x86/smm_invocation_loader_instance.c" \
 	"$root/src/include/cpu/x86/smm_invocation_loader_instance.h"; then

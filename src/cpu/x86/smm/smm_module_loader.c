@@ -13,6 +13,9 @@
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #endif
+#if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+#include <cpu/x86/smm_invocation_loader_composition.h>
+#endif
 #include <device/device.h>
 #include <device/mmio.h>
 #include <rmodule.h>
@@ -662,6 +665,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	struct smm_invocation_topology *published_topology = NULL;
 #endif
+#if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+	struct smm_invocation_loader_instance *published_instance = NULL;
+	struct smm_invocation_evidence *published_evidence = NULL;
+	struct smm_invocation_loader_composition *published_composition = NULL;
+	bool invocation_composition_started = false;
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
@@ -778,6 +787,14 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	    smihandler_params->num_cpus > SMM_INVOCATION_TOPOLOGY_MAX_CPUS)
 		goto fail;
 #endif
+#if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+	published_instance = &smihandler_params->invocation_loader_instance;
+	published_evidence = &smihandler_params->invocation_evidence;
+	published_composition = &smihandler_params->invocation_composition;
+	smm_invocation_loader_instance_scrub(published_instance);
+	memset(published_evidence, 0, sizeof(*published_evidence));
+	memset(published_composition, 0, sizeof(*published_composition));
+#endif
 
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	if (smm_module_setup_stub(stub_segment_base, smram_size, params,
@@ -801,26 +818,41 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
 	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
 #endif
-#if CONFIG(SMM_INVOCATION_TOPOLOGY)
-	return smm_invocation_topology_loader_result(published_topology, 0);
-#else
-	return 0;
+#if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+	invocation_composition_started = true;
+	if (smm_invocation_loader_compose(published_composition,
+		published_topology, published_instance, published_evidence) !=
+	    CB_SUCCESS)
+		goto fail;
 #endif
+	return 0;
 
 fail:
+#if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+	if (!invocation_composition_started && published_evidence)
+		memset(published_evidence, 0, sizeof(*published_evidence));
+	if (!invocation_composition_started && published_instance)
+		smm_invocation_loader_instance_scrub(published_instance);
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+	if (published_arena)
+		scrub_authvar_loader(published_arena, sizeof(*published_arena));
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 	if (published_channel)
 		scrub_authvar_loader(published_channel, sizeof(*published_channel));
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
-	if (published_arena)
-		scrub_authvar_loader(published_arena, sizeof(*published_arena));
 	if (authvar_arena_started)
 		platform_payload_mm_authvar_smm_arena_abort();
 	scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
 	scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
 #endif
-#if CONFIG(SMM_INVOCATION_TOPOLOGY)
+#if CONFIG(SMM_INVOCATION_TOPOLOGY) && CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
+	if (!invocation_composition_started)
+		return smm_invocation_topology_loader_result(published_topology, -1);
+	return -1;
+#elif CONFIG(SMM_INVOCATION_TOPOLOGY)
 	return smm_invocation_topology_loader_result(published_topology, -1);
 #else
 	return -1;

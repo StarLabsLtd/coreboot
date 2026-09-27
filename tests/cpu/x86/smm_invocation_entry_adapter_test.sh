@@ -99,6 +99,7 @@ build()
 	adapter=${3:-$root/src/soc/intel/common/block/smm/invocation_adapter.c}
 	entry=${4:-$root/src/cpu/x86/smm_invocation_entry.c}
 	evidence=${5:-$root/src/cpu/x86/smm_invocation_evidence.c}
+	evidence_loader=${6:-$root/src/cpu/x86/smm_invocation_evidence_loader.c}
 	# Deliberate normal flag splitting for this strict host harness.
 	# shellcheck disable=SC2086
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
@@ -110,7 +111,7 @@ build()
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/cpu/x86/smm_invocation_entry_adapter_test.c" \
-		"$entry" "$evidence" "$adapter" \
+		"$entry" "$evidence" "$evidence_loader" "$adapter" \
 		-o "$temporary/$output_name"
 )
 
@@ -128,15 +129,17 @@ mutate_component()
 	adapter=$root/src/soc/intel/common/block/smm/invocation_adapter.c
 	entry=$root/src/cpu/x86/smm_invocation_entry.c
 	evidence=$root/src/cpu/x86/smm_invocation_evidence.c
+	evidence_loader=$root/src/cpu/x86/smm_invocation_evidence_loader.c
 	case "$component" in
 	*/invocation_adapter.c) adapter=$mutant ;;
 	*/smm_invocation_entry.c) entry=$mutant ;;
 	*/smm_invocation_evidence.c) evidence=$mutant ;;
+	*/smm_invocation_evidence_loader.c) evidence_loader=$mutant ;;
 	esac
 	for optimization in 0 2; do
 		binary="$mutant_name-O$optimization"
 		build "$binary" "-O$optimization" "$adapter" \
-			"$entry" "$evidence"
+			"$entry" "$evidence" "$evidence_loader"
 		if [ ! -x "$temporary/$binary" ]; then
 			printf 'mutant binary missing: %s O%s\n' "$mutant_name" \
 				"$optimization" >&2
@@ -462,8 +465,8 @@ mutate_component packed-close-owner \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/static enum cb_err close_owned/,/^}/{s/uint32_t state;/uint32_t state; evidence->close_reserved = 1U;/; s/INVOCATION_CLOSE_REQUESTED |/0U |/}'
 mutate_component provisioning-latch-preservation \
-	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	'/TEST_HOOK(36);/a\
+	"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+	'/EVIDENCE_LOADER_TEST_HOOK(36);/a\
 \t__atomic_store_n(\&evidence->state, SMM_INVOCATION_PROVISIONING, __ATOMIC_RELEASE);'
 mutate_component admission-latch-preservation \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
@@ -475,8 +478,8 @@ mutate_component terminal-scrub-bounded \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/phase == SMM_INVOCATION_TERMINAL_SCRUBBING/,/continue;/{s/if (++spins == 10000000U)/if (false)/}'
 mutate_component provision-dirty-empty \
-	"$root/src/cpu/x86/smm_invocation_evidence.c" \
-	's/uint32_t empty = SMM_INVOCATION_EMPTY;/uint32_t empty = __atomic_load_n(\&evidence->state, __ATOMIC_ACQUIRE);/'
+	"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+	's/uint32_t expected = SMM_INVOCATION_EMPTY;/uint32_t expected = __atomic_load_n(\&evidence->state, __ATOMIC_ACQUIRE);/'
 mutate_component cleanup-latch-retry \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/static bool cleanup_claim/,/^}/{s/attempt < INVOCATION_LATCH_CAS_ATTEMPTS/attempt < 1U/}'

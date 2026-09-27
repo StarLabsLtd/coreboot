@@ -46,6 +46,9 @@ enum cb_err smm_invocation_topology_publish(
 	struct smm_invocation_topology_builder *builder,
 	const uint32_t *installed_apic_ids, uint32_t installed_cpus,
 	uint32_t runtime_cpus);
+enum cb_err smm_invocation_topology_read(
+	const struct smm_invocation_topology *topology,
+	struct smm_invocation_topology *snapshot);
 void smm_invocation_topology_scrub(
 	struct smm_invocation_topology *topology);
 int smm_invocation_topology_loader_result(
