@@ -5,9 +5,6 @@
 #include <boot/payload_mm_authvar_presence_backing.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <bootmem.h>
-#if !ENV_TEST
-#include <halt.h>
-#endif
 #include <string.h>
 
 #if !ENV_SMM && !ENV_TEST
@@ -570,28 +567,24 @@ static void dispatch_finish(
 	}
 }
 
-static enum cb_err reset_or_failstop(
+static __noreturn void reset_or_failstop(
 	const struct payload_mm_authvar_presence_policy *policy,
 	uint8_t reset_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX])
 {
 	payload_mm_authvar_presence_cold_reset_fn callback = policy->cold_reset;
+	payload_mm_authvar_presence_fail_stop_fn failure_callback =
+		policy->fail_stop;
 	const size_t context_size = policy->context_size;
+	uint8_t failure_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+
+	if (context_size)
+		memcpy(failure_context, reset_context, context_size);
 
 	dispatch_finish(policy, false, true);
 	callback(context_size ? reset_context : NULL);
 	scrub(reset_context, PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX);
-	{
-		uint32_t expected = PRESENCE_CLOSED;
-
-		(void)__atomic_compare_exchange_n(&presence.phase, &expected,
-			PRESENCE_POISONED, false, __ATOMIC_RELEASE,
-			__ATOMIC_ACQUIRE);
-	}
 	scrub((void *)policy, sizeof(*policy));
-#if !ENV_TEST
-	halt();
-#endif
-	return CB_ERR;
+	cleanup_fail_stop(failure_callback, failure_context, context_size);
 }
 
 enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
@@ -672,7 +665,7 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 	response_live = true;
 	scrub(&request, sizeof(request));
 	if (reset_required)
-		return reset_or_failstop(&policy, reset_context);
+		reset_or_failstop(&policy, reset_context);
 	scrub(reset_context, sizeof(reset_context));
 	dispatch_finish(&policy, response_live, false);
 	scrub(&policy, sizeof(policy));

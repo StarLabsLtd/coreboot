@@ -179,6 +179,10 @@ test-authvar-presence-handoff:
 .PHONY: test-authvar-presence-transaction
 test-authvar-presence-transaction:
 	tests/lib/payload_mm_authvar_presence_transaction_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=AUTHVAR_PRESENCE_TRANSACTION_HOSTILE_OVERRIDE \
+		AUTHVAR_PRESENCE_TRANSACTION_HOSTILE_OVERRIDE=1 \
+		tests/lib/payload_mm_authvar_presence_transaction_profiles_test.sh
 	tests/lib/payload_mm_authvar_presence_producer_test.sh
 	tests/lib/payload_mm_authvar_presence_publication_test.sh
 
