@@ -209,7 +209,11 @@ test-smm-invocation-fail-stop-providers:
 .PHONY: test-smm-invocation-topology
 test-smm-invocation-topology:
 	tests/cpu/x86/smm_invocation_topology_test.sh
-	tests/cpu/x86/smm_invocation_topology_profiles_test.sh
+	# Prove the profile builds discard hostile recursive Make state.
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=SMM_TOPOLOGY_HOSTILE_OVERRIDE \
+		SMM_TOPOLOGY_HOSTILE_OVERRIDE=1 \
+		tests/cpu/x86/smm_invocation_topology_profiles_test.sh
 
 .PHONY: test-smm-invocation-loader-instance
 test-smm-invocation-loader-instance:

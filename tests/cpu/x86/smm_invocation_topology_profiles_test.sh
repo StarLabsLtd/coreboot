@@ -7,19 +7,30 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 base=7df9b7efb7859069f5555780520d04600e7a4542
 
+scratch_make()
+(
+	# This script is also a recipe of the top-level coreboot Makefile. Do not
+	# let that outer recursion level, flags or jobserver alter isolated builds.
+	unset MAKELEVEL MAKEFLAGS MFLAGS MAKEOVERRIDES
+	exec make "$@"
+)
+
 off_build="$temporary/config-off"
 off_config="$off_build/full.config"
 mkdir -p "$off_build"
-make -C "$root" obj="$off_build" DOTCONFIG="$off_config" defconfig \
+scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$off_build" \
+	DOTCONFIG="$off_config" defconfig \
 	KBUILD_DEFCONFIG=configs/config.starlabs_lite_glk >/dev/null
 "$root/util/scripts/config" --file "$off_config" -e ANY_TOOLCHAIN
-make -C "$root" obj="$off_build" DOTCONFIG="$off_config" olddefconfig >/dev/null
+scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$off_build" \
+	DOTCONFIG="$off_config" olddefconfig >/dev/null
 if grep -q '^CONFIG_SMM_INVOCATION_TOPOLOGY=y$' "$off_config"; then
 	printf '%s\n' 'topology unexpectedly enabled in config-off profile' >&2
 	exit 1
 fi
 off_log="$temporary/config-off-build.log"
-make -C "$root" V=1 obj="$off_build" DOTCONFIG="$off_config" -B \
+scratch_make -C "$root" UPDATED_SUBMODULES=1 V=1 obj="$off_build" \
+	DOTCONFIG="$off_config" -B \
 	"$off_build/ramstage/cpu/x86/smm/smm_module_loader.o" \
 	"$off_build/smm/cpu/x86/smm/smm_module_handler.o" \
 	>"$off_log" 2>&1
@@ -68,11 +79,13 @@ for profile in starlabs_lite_glk starlabs_lite_adl starlabs_starbook_mtl; do
 	build="$temporary/$profile"
 	config="$build/full.config"
 	mkdir -p "$build"
-	make -C "$root" obj="$build" DOTCONFIG="$config" defconfig \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" defconfig \
 		KBUILD_KCONFIG="$profile_kconfig" \
 		KBUILD_DEFCONFIG="configs/config.$profile" >/dev/null
 	"$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN
-	make -C "$root" obj="$build" DOTCONFIG="$config" \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" \
 		KBUILD_KCONFIG="$profile_kconfig" olddefconfig >/dev/null
 	for symbol in SMM_INVOCATION_EVIDENCE SMM_INVOCATION_FAIL_STOP_PLATFORM \
 		SMM_INVOCATION_ENTRY_PLATFORM \
@@ -81,7 +94,8 @@ for profile in starlabs_lite_glk starlabs_lite_adl starlabs_starbook_mtl; do
 		grep -q "^CONFIG_${symbol}=y$" "$config"
 		grep -q "^#define CONFIG_${symbol} 1$" "$build/config.h"
 	done
-	make -C "$root" obj="$build" DOTCONFIG="$config" \
+	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
+		DOTCONFIG="$config" \
 		KBUILD_KCONFIG="$profile_kconfig" -j4 \
 		"$build/ramstage/cpu/x86/smm/smm_module_loader.o" \
 		"$build/ramstage/cpu/x86/smm_invocation_topology.o" \
