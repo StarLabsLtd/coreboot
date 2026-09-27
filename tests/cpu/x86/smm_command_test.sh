@@ -3,6 +3,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
+base=bf50e21e59a5113f59ccba6b6ad02db8beb869ac
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 
@@ -210,9 +211,27 @@ mutation()
 }
 
 mutation reserved-falls-through baseline \
-	's/!enabled && !command_reserved(command)/!enabled \&\& false \&\& !command_reserved(command)/'
+	'/return command_reserved(command) ?/{N;s/SMM_APMC_SELECT_CONSUMED_REJECT : SMM_APMC_SELECT_UNKNOWN/SMM_APMC_SELECT_UNKNOWN : SMM_APMC_SELECT_CONSUMED_REJECT/;}'
 mutation accept-owner-error baseline \
-	's/outcome != SMM_APMC_OWNER_HANDLED/(outcome != SMM_APMC_OWNER_HANDLED \&\& false)/'
+	's/outcome != SMM_APMC_OWNER_HANDLED/outcome == SMM_APMC_OWNER_HANDLED/'
+mutation selection-command baseline \
+	's/selection->command == expected_command/((void)expected_command, true)/'
+mutation selection-owner baseline \
+	's/selection->owner == claim->owner/true/'
+mutation selection-role baseline \
+	's/selection->role == claim->role/true/'
+mutation selection-binding baseline \
+	's/selection->binding_count == claim->binding_count/true/'
+mutation selection-observer baseline \
+	's/selection->observer_count == claim->observer_count/true/'
+mutation selection-reserved baseline \
+	's/selection->reserved == claim->reserved/true/'
+mutation selection-enabled baseline \
+	's/selection->enabled == claim->enabled/true/'
+mutation selection-consumption baseline \
+	'/smm_apmc_command_finish(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/\*selection = snapshot;/}'
+mutation selection-output-clear baseline \
+	'/smm_apmc_command_select(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/do { } while (0);/}'
 
 binding_mutant="$temporary/ignore-binding.c"
 sed 's/(bindings) == 1/(bindings) >= 0/' \
@@ -339,10 +358,21 @@ if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src"; then
 fi
 grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
-if rg -q 'smm_apmc_command_classify' "$root/src" \
+if rg -q 'smm_apmc_command_(select|finish)' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h'; then
-	printf '%s\n' 'dormant classifier gained a production callsite' >&2
+	printf '%s\n' 'dormant registry gained a production callsite' >&2
+	exit 1
+fi
+for source in \
+	src/cpu/x86/smm/smm_module_handler.c \
+	src/cpu/x86/smm/smm_stub.S; do
+	git -C "$root" diff --quiet "$base" -- "$source"
+done
+if git -C "$root" diff --unified=0 "$base" -- src | \
+	grep '^+' | grep -Ev '^\+\+\+' | \
+	rg -q '__weak|APM_CNT|out[bwl]|lb_(new_record|add)|callback|context|transport'; then
+	printf '%s\n' 'registry diff gained a route or executable capability' >&2
 	exit 1
 fi
 
@@ -355,17 +385,9 @@ changed_files="$temporary/changed-files.txt"
 } | sort -u > "$changed_files"
 cat > "$temporary/expected-files.txt" <<'EOF'
 Documentation/arch/x86/smm-apmc-command-registry.md
-src/cpu/x86/Kconfig
-src/cpu/x86/Makefile.mk
 src/cpu/x86/smm_command.c
 src/include/cpu/x86/smm_command.h
-src/mainboard/acer/aspire_vn7_572g/Kconfig
-src/mainboard/emulation/qemu-q35/Kconfig
-src/mainboard/starlabs/common/Kconfig
-src/soc/intel/common/block/smm/Kconfig
-tests/cpu/x86/smm_apmc_mainboard_hooks.txt
-tests/cpu/x86/smm_command_checkpatch.awk
-tests/cpu/x86/smm_command_checkpatch.expected
+tests/cpu/x86/smm_command_profiles_test.sh
 tests/cpu/x86/smm_command_test.c
 tests/cpu/x86/smm_command_test.sh
 util/testing/Makefile.mk
@@ -387,37 +409,9 @@ if [ -e "$checkpatch_cache" ]; then
 	[ ! -s "$checkpatch_cache" ]
 	unlink "$checkpatch_cache"
 fi
-awk -f "$root/tests/cpu/x86/smm_command_checkpatch.awk" \
-	"$checkpatch_output" > "$temporary/checkpatch.unsorted"
-sort "$temporary/checkpatch.unsorted" > "$temporary/checkpatch.actual"
-expected_diagnostics="$root/tests/cpu/x86/smm_command_checkpatch.expected"
-expected_rows="$temporary/checkpatch.expected.rows"
-[ "$(sed -n '1p' "$expected_diagnostics")" = \
-	'# SPDX-License-Identifier: GPL-2.0-only' ]
-[ "$(grep -cx '# SPDX-License-Identifier: GPL-2.0-only' \
-	"$expected_diagnostics")" -eq 1 ]
-tail -n +2 "$expected_diagnostics" > "$expected_rows"
-for severity in ERROR WARNING CHECK; do
-	raw_count=$(grep -c "^$severity:" "$checkpatch_output" || true)
-	normalized_count=$(grep -c "^$severity|" \
-		"$temporary/checkpatch.actual" || true)
-	[ "$raw_count" -eq "$normalized_count" ]
-done
-raw_count=$(grep -Ec '^(ERROR|WARNING|CHECK):' "$checkpatch_output" || true)
-[ "$raw_count" -eq "$(wc -l < "$temporary/checkpatch.actual")" ]
-summary_counts=$(sed -nE \
-	's/^total: ([0-9]+) errors, ([0-9]+) warnings, ([0-9]+) checks, [0-9]+ lines checked$/\1 \2 \3/p' \
-	"$checkpatch_output")
-[ "$(printf '%s\n' "$summary_counts" | wc -l)" -eq 1 ]
-set -- $summary_counts
-[ "$#" -eq 3 ]
-[ "$1" -eq "$(grep -c '^ERROR|' "$temporary/checkpatch.actual" || true)" ]
-[ "$2" -eq "$(grep -c '^WARNING|' "$temporary/checkpatch.actual" || true)" ]
-[ "$3" -eq "$(grep -c '^CHECK|' "$temporary/checkpatch.actual" || true)" ]
-[ "$(( $1 + $2 + $3 ))" -eq "$raw_count" ]
-[ "$(wc -l < "$expected_rows")" -eq 35 ]
-[ "$(sha256sum "$expected_rows" | cut -d' ' -f1)" = \
-	d278fb98568ca36c0ca99293c045a376ffc5cfc73623863576730f5049143375 ]
-diff -u "$expected_rows" "$temporary/checkpatch.actual"
+if rg -q '^(ERROR|WARNING|CHECK):' "$checkpatch_output"; then
+	cat "$checkpatch_output" >&2
+	exit 1
+fi
 
 printf '%s\n' 'SMM APMC command registry tests: PASS'
