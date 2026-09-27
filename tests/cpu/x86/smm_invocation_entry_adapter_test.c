@@ -979,7 +979,7 @@ static void test_admission_completion_retries_competing_state_change(void)
 	assert(state & (1U << 7));
 	__atomic_store_n(&evidence_hook_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(thread, NULL));
-	assert(arm.result == CB_SUCCESS);
+	assert(arm.result == CB_ERR);
 	state = __atomic_load_n(&evidence.state, __ATOMIC_ACQUIRE);
 	assert(!(state & (1U << 7)) && state & (1U << 9));
 	evidence_hook_point = 0;

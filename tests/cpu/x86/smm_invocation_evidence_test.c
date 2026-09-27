@@ -22,6 +22,9 @@
 static uint32_t test_hook_point;
 static uint32_t test_hook_entered;
 static uint32_t test_hook_release;
+static uint32_t held_hook_point;
+static uint32_t held_hook_entered;
+static uint32_t held_hook_release;
 static uint8_t fail_stop_exit_code;
 static uint32_t fail_stop_thread_exit;
 static uint32_t fail_stop_calls;
@@ -29,6 +32,15 @@ static uint32_t fail_stop_calls;
 void smm_invocation_evidence_test_hook(uint32_t point)
 {
 	uint32_t expected = point;
+	uint32_t held = point;
+
+	if (__atomic_compare_exchange_n(&held_hook_point, &held, 0U, false,
+		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		__atomic_store_n(&held_hook_entered, 1U, __ATOMIC_RELEASE);
+		while (!__atomic_load_n(&held_hook_release, __ATOMIC_ACQUIRE))
+			__asm__ volatile ("pause");
+		return;
+	}
 
 	if (!__atomic_compare_exchange_n(&test_hook_point, &expected, 0U, false,
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
@@ -115,6 +127,14 @@ struct operation_arg {
 	struct fixture *fixture;
 	struct smm_invocation_token *token;
 	enum cb_err result;
+};
+
+struct admission_arg {
+	struct fixture *fixture;
+	struct smm_invocation_admission_token token;
+	uint64_t generation;
+	uint32_t cpu;
+	enum smm_invocation_try_result result;
 };
 
 struct observer_arg {
@@ -269,6 +289,44 @@ static void *depart_thread(void *opaque)
 	return NULL;
 }
 
+static void *rendezvous_fail_thread(void *opaque)
+{
+	struct thread_arg *arg = opaque;
+
+	arg->result = smm_invocation_evidence_rendezvous_fail(
+		&arg->fixture->evidence, arg->generation);
+	return NULL;
+}
+
+static void *arm_ack_thread(void *opaque)
+{
+	struct admission_arg *arg = opaque;
+
+	arg->result = smm_invocation_evidence_require_rendezvous_ack_try(
+		&arg->fixture->evidence, arg->fixture->seed.loader_instance_nonce,
+		arg->fixture->seed.lifecycle, &arg->token);
+	return NULL;
+}
+
+static void *rendezvous_ack_thread(void *opaque)
+{
+	struct admission_arg *arg = opaque;
+
+	arg->result = smm_invocation_evidence_rendezvous_ack_try(
+		&arg->fixture->evidence, arg->generation, arg->cpu, &arg->token);
+	return NULL;
+}
+
+static void *admission_fail_thread(void *opaque)
+{
+	struct admission_arg *arg = opaque;
+
+	arg->result = smm_invocation_evidence_admission_fail(
+		&arg->fixture->evidence, &arg->token) == CB_SUCCESS ?
+		SMM_INVOCATION_TRY_SUCCESS : SMM_INVOCATION_TRY_ERROR;
+	return NULL;
+}
+
 static void *shutdown_thread(void *opaque)
 {
 	struct shutdown_arg *arg = opaque;
@@ -331,6 +389,23 @@ static void depart_all(struct fixture *fixture, uint64_t generation)
 	for (uint32_t cpu = 0; cpu < TEST_CPUS; cpu++)
 		assert(test_depart(&fixture->evidence, cpu,
 			generation) == CB_SUCCESS);
+}
+
+static uint64_t prepare_final_rendezvous_ack(struct fixture *fixture)
+{
+	struct smm_invocation_admission_token admission;
+	uint64_t generation;
+
+	assert(smm_invocation_evidence_require_rendezvous_ack_try(
+		&fixture->evidence, fixture->seed.loader_instance_nonce,
+		fixture->seed.lifecycle, &admission) ==
+		SMM_INVOCATION_TRY_SUCCESS);
+	generation = arrive_all(fixture);
+	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
+		assert(smm_invocation_evidence_rendezvous_ack_try(
+			&fixture->evidence, generation, cpu, &admission) ==
+			SMM_INVOCATION_TRY_SUCCESS);
+	return generation;
 }
 
 static void exercise_sparse_nonce(
@@ -460,8 +535,24 @@ static void test_exact_one_and_bsp(void)
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
+	assert(smm_invocation_evidence_shutdown(&fixture.evidence) == CB_SUCCESS);
+	memset(&fixture.evidence, 0, sizeof(fixture.evidence));
+	fixture.seed.bsp_cpu = TEST_CPUS - 1U;
+	assert(smm_invocation_evidence_provision(&fixture.evidence,
+		&fixture.seed) == CB_SUCCESS);
+	(void)arrive_all(&fixture);
+	fixture.mock.matched = 0;
+	fixture.mock.second_match = TEST_CPUS - 1U;
+	fixture.mock.rax[TEST_CPUS - 1U] = TEST_COMMAND;
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
 	fixture.mock.matched = 1;
+	fixture.mock.rax[1] = TEST_COMMAND;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
@@ -546,6 +637,7 @@ static void test_reentry_stale_and_collision(void)
 	fixture.mock.reenter = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
+	assert(fixture.mock.callback_count == 1U);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
@@ -591,6 +683,7 @@ static void test_invalid_match_and_aliases(void)
 	fixture.mock.invalid_match = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
+	assert(fixture.mock.callback_count == 1U);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 
 	fixture_init(&fixture);
@@ -626,9 +719,11 @@ static void test_token_binds_loader_and_topology(void)
 	struct fixture first;
 	struct fixture second;
 	struct fixture third;
+	struct fixture fourth;
 	struct smm_invocation_token first_token;
 	struct smm_invocation_token second_token;
 	struct smm_invocation_token third_token;
+	struct smm_invocation_token fourth_token;
 	uint64_t generation;
 
 	fixture_init(&first);
@@ -669,6 +764,22 @@ static void test_token_binds_loader_and_topology(void)
 	assert(smm_invocation_evidence_abort(&third.evidence, &third_token,
 		&third.ops) == CB_SUCCESS);
 	depart_all(&third, generation);
+
+	fixture_init(&fourth);
+	assert(smm_invocation_evidence_shutdown(&fourth.evidence) == CB_SUCCESS);
+	memset(&fourth.evidence, 0, sizeof(fourth.evidence));
+	fourth.seed.participant_apic_ids[TEST_CPUS - 1U]++;
+	assert(smm_invocation_evidence_provision(&fourth.evidence,
+		&fourth.seed) == CB_SUCCESS);
+	generation = arrive_all(&fourth);
+	assert(smm_invocation_evidence_claim(&fourth.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fourth.ops, &fourth_token) == CB_SUCCESS);
+	assert(memcmp(first_token.rendezvous_digest,
+		fourth_token.rendezvous_digest,
+		sizeof(first_token.rendezvous_digest)));
+	assert(smm_invocation_evidence_abort(&fourth.evidence, &fourth_token,
+		&fourth.ops) == CB_SUCCESS);
+	depart_all(&fourth, generation);
 }
 
 static void test_invalid_seed_and_duplicate(void)
@@ -1013,6 +1124,193 @@ static void test_linearization_gaps(void)
 	}
 }
 
+static void test_admission_completion_races(void)
+{
+	struct smm_invocation_token invocation;
+	struct admission_arg admission;
+	struct admission_arg failure;
+	struct shutdown_arg shutdown;
+	struct fixture fixture;
+	pthread_t first;
+	pthread_t second;
+	uint64_t generation;
+	uint32_t control;
+
+	fixture_init(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) { .fixture = &fixture };
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&held_hook_entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_point, 24U, __ATOMIC_RELEASE);
+	failure = admission;
+	assert(!pthread_create(&second, NULL, admission_fail_thread, &failure));
+	while (!__atomic_load_n(&held_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+	__atomic_store_n(&held_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(second, NULL));
+	assert(failure.result == SMM_INVOCATION_TRY_ERROR);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	fixture_init(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) { .fixture = &fixture };
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_or(&fixture.evidence.state, 1U << 8,
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+
+	fixture_init(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) { .fixture = &fixture };
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_and(&fixture.evidence.state, ~(1U << 7),
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+
+	fixture_init(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) { .fixture = &fixture };
+	assert(!pthread_create(&first, NULL, arm_ack_thread, &admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	control = __atomic_load_n(&fixture.evidence.state, __ATOMIC_ACQUIRE);
+	__atomic_store_n(&fixture.evidence.state,
+		(control & ~0x1fU) | SMM_INVOCATION_COLLECTING,
+		__ATOMIC_RELEASE);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+
+	fixture_init(&fixture);
+	generation = prepare_final_rendezvous_ack(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) {
+		.fixture = &fixture,
+		.generation = generation,
+		.cpu = TEST_CPUS - 1U,
+	};
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_and(&fixture.evidence.state, ~(1U << 7),
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+
+	fixture_init(&fixture);
+	generation = prepare_final_rendezvous_ack(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) {
+		.fixture = &fixture,
+		.generation = generation,
+		.cpu = TEST_CPUS - 1U,
+	};
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&held_hook_entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_point, 24U, __ATOMIC_RELEASE);
+	failure = admission;
+	assert(!pthread_create(&second, NULL, admission_fail_thread, &failure));
+	while (!__atomic_load_n(&held_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+	__atomic_store_n(&held_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(second, NULL));
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	fixture_init(&fixture);
+	generation = prepare_final_rendezvous_ack(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) {
+		.fixture = &fixture,
+		.generation = generation,
+		.cpu = TEST_CPUS - 1U,
+	};
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_or(&fixture.evidence.state, 1U << 8,
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+
+	fixture_init(&fixture);
+	generation = prepare_final_rendezvous_ack(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) {
+		.fixture = &fixture,
+		.generation = generation,
+		.cpu = TEST_CPUS - 1U,
+	};
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&held_hook_entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_point, 37U, __ATOMIC_RELEASE);
+	shutdown = (struct shutdown_arg) { .evidence = &fixture.evidence };
+	assert(!pthread_create(&second, NULL, shutdown_thread, &shutdown));
+	while (!__atomic_load_n(&held_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_ERROR);
+	__atomic_store_n(&held_hook_release, 1U, __ATOMIC_RELEASE);
+	while (smm_invocation_evidence_phase(&fixture.evidence) !=
+		SMM_INVOCATION_CLOSING)
+		__asm__ volatile ("pause");
+	depart_all(&fixture, generation);
+	assert(!pthread_join(second, NULL));
+	assert(shutdown.result == CB_SUCCESS);
+
+	fixture_init(&fixture);
+	generation = prepare_final_rendezvous_ack(&fixture);
+	test_hook_arm(35);
+	admission = (struct admission_arg) {
+		.fixture = &fixture,
+		.generation = generation,
+		.cpu = TEST_CPUS - 1U,
+	};
+	assert(!pthread_create(&first, NULL, rendezvous_ack_thread,
+		&admission));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &invocation) == CB_SUCCESS);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(admission.result == SMM_INVOCATION_TRY_SUCCESS);
+	assert(smm_invocation_evidence_abort(&fixture.evidence, &invocation,
+		&fixture.ops) == CB_SUCCESS);
+	depart_all(&fixture, generation);
+}
+
 static void test_admission_and_duplicate_gaps(void)
 {
 	struct fixture fixture;
@@ -1076,6 +1374,64 @@ static void test_admission_and_duplicate_gaps(void)
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_READY);
 
 	fixture_init(&fixture);
+	generation = arrive_all(&fixture);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
+	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
+		&fixture.ops) == CB_SUCCESS);
+	for (uint32_t cpu = 2; cpu < TEST_CPUS; cpu++)
+		assert(test_depart(&fixture.evidence, cpu,
+			generation) == CB_SUCCESS);
+	test_hook_arm(54);
+	first_arg = (struct thread_arg) {
+		.fixture = &fixture,
+		.cpu = 0,
+		.generation = generation,
+	};
+	assert(!pthread_create(&first, NULL, depart_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_CLOSING);
+	assert(!__atomic_load_n(&fixture.evidence.departure_writers,
+		__ATOMIC_ACQUIRE));
+	assert(test_depart(&fixture.evidence, 1, generation) == CB_SUCCESS);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_READY);
+	assert(!__atomic_load_n(&fixture.evidence.departure_writers,
+		__ATOMIC_ACQUIRE));
+	test_hook_wait_and_release();
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_SUCCESS);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_READY);
+	assert(!__atomic_load_n(&fixture.evidence.departure_writers,
+		__ATOMIC_ACQUIRE));
+
+	fixture_init(&fixture);
+	generation = arrive_all(&fixture);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
+		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
+	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
+		&fixture.ops) == CB_SUCCESS);
+	test_hook_arm(6);
+	first_arg = (struct thread_arg) {
+		.fixture = &fixture,
+		.cpu = 0,
+		.generation = generation,
+	};
+	assert(!pthread_create(&first, NULL, depart_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&fixture.evidence.generation, generation + 1U,
+		__ATOMIC_RELEASE);
+	test_hook_wait_and_release();
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_ERR);
+	assert(!__atomic_load_n(&fixture.evidence.departed_cpus,
+		__ATOMIC_ACQUIRE));
+
+	fixture_init(&fixture);
 	for (uint32_t cpu = 0; cpu < TEST_CPUS - 1U; cpu++)
 		assert(test_arrive(&fixture.evidence, cpu,
 			fixture.seed.participant_apic_ids[cpu], &generation) ==
@@ -1097,6 +1453,71 @@ static void test_admission_and_duplicate_gaps(void)
 	assert(smm_invocation_evidence_abort(&fixture.evidence, &token,
 		&fixture.ops) == CB_SUCCESS);
 	depart_all(&fixture, generation);
+
+	fixture_init(&fixture);
+	test_hook_arm(8);
+	first_arg = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	assert(smm_invocation_evidence_rendezvous_fail(&fixture.evidence,
+		first_arg.generation) == CB_ERR);
+	test_hook_wait_and_release();
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_ERR);
+	assert(!first_arg.generation);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	fixture_init(&fixture);
+	test_hook_arm(8);
+	first_arg = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&held_hook_entered, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_release, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&held_hook_point, 23U, __ATOMIC_RELEASE);
+	second_arg = (struct thread_arg) {
+		.fixture = &fixture,
+		.generation = first_arg.generation,
+	};
+	assert(!pthread_create(&second, NULL, rendezvous_fail_thread,
+		&second_arg));
+	while (!__atomic_load_n(&held_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_ERR && !first_arg.generation);
+	__atomic_store_n(&held_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(second, NULL));
+	assert(second_arg.result == CB_ERR);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+
+	fixture_init(&fixture);
+	test_hook_arm(8);
+	first_arg = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_or(&fixture.evidence.state, 1U << 8,
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_ERR && !first_arg.generation);
+
+	fixture_init(&fixture);
+	test_hook_arm(8);
+	first_arg = (struct thread_arg) { .fixture = &fixture, .cpu = 0 };
+	assert(!pthread_create(&first, NULL, arrive_thread, &first_arg));
+	while (!__atomic_load_n(&test_hook_entered, __ATOMIC_ACQUIRE))
+		__asm__ volatile ("pause");
+	__atomic_fetch_and(&fixture.evidence.state, ~(1U << 7),
+		__ATOMIC_ACQ_REL);
+	__atomic_store_n(&test_hook_release, 1U, __ATOMIC_RELEASE);
+	assert(!pthread_join(first, NULL));
+	assert(first_arg.result == CB_ERR && !first_arg.generation);
 
 	fixture_init(&fixture);
 	test_hook_arm(7);
@@ -1133,6 +1554,7 @@ int main(void)
 	test_abort_restore_mutation_and_reentry();
 	test_shutdown_at_callback_boundaries();
 	test_linearization_gaps();
+	test_admission_completion_races();
 	test_admission_and_duplicate_gaps();
 	return 0;
 }

@@ -272,26 +272,39 @@ static bool admission_reserve(struct smm_invocation_evidence *evidence,
 		&control, reserved, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
 }
 
-static void admission_complete(struct smm_invocation_evidence *evidence,
-	uint32_t kind)
+static bool admission_complete(struct smm_invocation_evidence *evidence,
+	uint32_t kind, uint32_t *completed_control)
 {
 	uint32_t control;
 
-	/* Failure claim, CONSUMED and shutdown are the only competing changes. */
+	/* Return the observed control with completion status. */
 	for (uint32_t attempt = 0; attempt < 4U; attempt++) {
 		control = __atomic_load_n(&evidence->state,
 			__ATOMIC_ACQUIRE);
 		if ((control & (ADMISSION_KIND_MASK | ADMISSION_BUSY)) !=
-		    ((kind << ADMISSION_KIND_SHIFT) | ADMISSION_BUSY))
-			return;
+		    ((kind << ADMISSION_KIND_SHIFT) | ADMISSION_BUSY)) {
+			if (completed_control)
+				*completed_control = control;
+			return false;
+		}
 		if (!attempt)
 			TEST_HOOK(35);
 		if (__atomic_compare_exchange_n(&evidence->state,
 			&control, control & ~ADMISSION_BUSY, false,
-			__ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
-			return;
+			__ATOMIC_RELEASE, __ATOMIC_ACQUIRE)) {
+			if (completed_control)
+				*completed_control = control;
+			return true;
+		}
 	}
 	invocation_fail_stop();
+}
+
+static bool invocation_progress_phase(uint32_t phase)
+{
+	return phase == SMM_INVOCATION_COLLECTING ||
+		(phase >= SMM_INVOCATION_CLAIMING &&
+		 phase <= SMM_INVOCATION_CLOSING);
 }
 
 static void admission_token_fill_control(
@@ -470,9 +483,11 @@ enum smm_invocation_try_result smm_invocation_evidence_arrive_try(
 {
 	struct smm_invocation_participant *participant;
 	uint32_t empty = SMM_INVOCATION_PARTICIPANT_EMPTY;
+	uint32_t completed_control;
 	uint32_t phase;
+	bool admission_completed;
 	bool opening_owner = false;
-	bool failed;
+	bool rendezvous_failed;
 	bool resampled = false;
 	uint32_t state;
 
@@ -554,7 +569,8 @@ retry_phase:
 	__atomic_fetch_add(&evidence->arrival_writers, 1U, __ATOMIC_ACQ_REL);
 	if (opening_owner && invocation_open_owned(evidence) != CB_SUCCESS) {
 		__atomic_store_n(&evidence->arrival_failed, 1U, __ATOMIC_RELEASE);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
 			__ATOMIC_RELEASE);
 		poison_finish_if_quiescent(evidence);
@@ -563,7 +579,8 @@ retry_phase:
 	if (!opening_owner &&
 	    !phase_claim(evidence, SMM_INVOCATION_ARRIVAL_ADMITTING,
 		SMM_INVOCATION_COLLECTING)) {
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		poison_finish_if_quiescent(evidence);
 		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
 			__ATOMIC_RELEASE);
@@ -576,7 +593,8 @@ retry_phase:
 	    apic_id != evidence->participant_apic_ids[cpu]) {
 		__atomic_store_n(&evidence->arrival_failed, 1U, __ATOMIC_RELEASE);
 		(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
 			__ATOMIC_RELEASE);
 		poison_finish_if_quiescent(evidence);
@@ -591,7 +609,8 @@ retry_phase:
 		__atomic_fetch_sub(&evidence->arrival_writers, 1U,
 			__ATOMIC_ACQ_REL);
 		(void)poison_owned(evidence, SMM_INVOCATION_COLLECTING);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
@@ -604,22 +623,32 @@ retry_phase:
 	*generation = evidence->generation;
 	TEST_HOOK(7);
 	__atomic_fetch_sub(&evidence->arrival_writers, 1U, __ATOMIC_RELEASE);
-	failed = __atomic_load_n(&evidence->arrival_failed, __ATOMIC_ACQUIRE) ||
-		__atomic_load_n(&evidence->rendezvous_fail_requested,
-			__ATOMIC_ACQUIRE);
-	if (failed)
+	rendezvous_failed = __atomic_load_n(
+		&evidence->rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE);
+	if (rendezvous_failed)
 		rendezvous_poison_requested(evidence);
 	poison_finish_if_quiescent(evidence);
 	TEST_HOOK(8);
-	if (failed ||
+	if (rendezvous_failed ||
 	    __atomic_load_n(&evidence->arrival_failed, __ATOMIC_ACQUIRE) ||
 	    smm_invocation_evidence_shutdown_requested(evidence)) {
 		*generation = 0;
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARRIVE, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
-	admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARRIVE);
+	admission_completed = admission_complete(evidence,
+		SMM_INVOCATION_ADMISSION_ARRIVE, &completed_control);
+	if (!admission_completed ||
+	    completed_control & (ADMISSION_CONSUMED |
+		INVOCATION_SHUTDOWN_REQUESTED) ||
+	    !invocation_progress_phase(completed_control & STATE_PHASE_MASK)) {
+		*generation = 0;
+		poison_finish_if_quiescent(evidence);
+		return SMM_INVOCATION_TRY_ERROR;
+	}
 	return SMM_INVOCATION_TRY_SUCCESS;
 }
 
@@ -648,9 +677,11 @@ smm_invocation_evidence_require_rendezvous_ack_try(
 	struct smm_invocation_loader_instance_nonce loader_instance_nonce,
 	uint32_t lifecycle, struct smm_invocation_admission_token *token)
 {
+	uint32_t completed_control;
 	uint32_t expected;
 	uint32_t phase;
 	uint32_t state;
+	bool admission_completed;
 	bool resampled = false;
 
 	if (!evidence || !token ||
@@ -733,8 +764,8 @@ retry_phase:
 	if (smm_invocation_evidence_shutdown_requested(evidence)) {
 		if (!phase_claim(evidence, SMM_INVOCATION_ACK_ARMING,
 			SMM_INVOCATION_CLOSING)) {
-			admission_complete(evidence,
-				SMM_INVOCATION_ADMISSION_ARM);
+			(void)admission_complete(evidence,
+				SMM_INVOCATION_ADMISSION_ARM, NULL);
 			poison_finish_if_quiescent(evidence);
 			return SMM_INVOCATION_TRY_ERROR;
 		}
@@ -755,7 +786,8 @@ retry_phase:
 		else if (!phase_claim(evidence, SMM_INVOCATION_ACK_ARMING,
 			SMM_INVOCATION_READY))
 			poison_finish_if_quiescent(evidence);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARM);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARM, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
@@ -764,11 +796,18 @@ retry_phase:
 	TEST_HOOK(44);
 	if (!phase_claim(evidence, SMM_INVOCATION_ACK_ARMING,
 		SMM_INVOCATION_READY)) {
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARM);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ARM, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
-	admission_complete(evidence, SMM_INVOCATION_ADMISSION_ARM);
+	admission_completed = admission_complete(evidence,
+		SMM_INVOCATION_ADMISSION_ARM, &completed_control);
+	if (!admission_completed ||
+	    completed_control & (ADMISSION_CONSUMED |
+		INVOCATION_SHUTDOWN_REQUESTED) ||
+	    (completed_control & STATE_PHASE_MASK) != SMM_INVOCATION_READY)
+		return SMM_INVOCATION_TRY_ERROR;
 	return SMM_INVOCATION_TRY_SUCCESS;
 }
 
@@ -883,8 +922,10 @@ enum smm_invocation_try_result smm_invocation_evidence_rendezvous_ack_try(
 	uint32_t cpu, struct smm_invocation_admission_token *token)
 {
 	uint64_t old;
+	uint32_t completed_control;
 	uint32_t phase;
 	uint32_t state;
+	bool admission_completed;
 	bool resampled = false;
 
 	if (!evidence || !generation || !token)
@@ -941,7 +982,8 @@ retry_phase:
 		if (!phase_claim(evidence, SMM_INVOCATION_ACK_ADMITTING,
 			SMM_INVOCATION_COLLECTING))
 			poison_finish_if_quiescent(evidence);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ACK);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ACK, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
@@ -956,7 +998,8 @@ retry_phase:
 			SMM_INVOCATION_COLLECTING))
 			poison_finish_if_quiescent(evidence);
 		rendezvous_poison_requested(evidence);
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ACK);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ACK, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
@@ -964,11 +1007,18 @@ retry_phase:
 		__ATOMIC_ACQ_REL);
 	if (!phase_claim(evidence, SMM_INVOCATION_ACK_ADMITTING,
 		SMM_INVOCATION_COLLECTING)) {
-		admission_complete(evidence, SMM_INVOCATION_ADMISSION_ACK);
+		(void)admission_complete(evidence,
+			SMM_INVOCATION_ADMISSION_ACK, NULL);
 		poison_finish_if_quiescent(evidence);
 		return SMM_INVOCATION_TRY_ERROR;
 	}
-	admission_complete(evidence, SMM_INVOCATION_ADMISSION_ACK);
+	admission_completed = admission_complete(evidence,
+		SMM_INVOCATION_ADMISSION_ACK, &completed_control);
+	if (!admission_completed ||
+	    completed_control & (ADMISSION_CONSUMED |
+		INVOCATION_SHUTDOWN_REQUESTED) ||
+	    !invocation_progress_phase(completed_control & STATE_PHASE_MASK))
+		return SMM_INVOCATION_TRY_ERROR;
 	if (old & (1ULL << cpu))
 		return SMM_INVOCATION_TRY_ERROR;
 	return SMM_INVOCATION_TRY_SUCCESS;
@@ -1390,8 +1440,7 @@ static void close_finish_if_quiescent(
 	uint32_t closed_lifecycle;
 	uint32_t state;
 
-	if (__atomic_load_n(&evidence->departure_writers, __ATOMIC_ACQUIRE) ||
-	    !cleanup_claim(evidence, SMM_INVOCATION_CLOSE_CLEANING,
+	if (!cleanup_claim(evidence, SMM_INVOCATION_CLOSE_CLEANING,
 		SMM_INVOCATION_CLOSE_SCRUBBING, 40))
 		return;
 
@@ -1482,9 +1531,10 @@ enum smm_invocation_try_result smm_invocation_evidence_depart_try(
 		return SMM_INVOCATION_TRY_ERROR;
 	}
 	if ((old | (1ULL << cpu)) != evidence->expected_cpus) {
-		phase_publish(evidence, SMM_INVOCATION_CLOSING);
 		__atomic_fetch_sub(&evidence->departure_writers, 1U,
 			__ATOMIC_RELEASE);
+		phase_publish(evidence, SMM_INVOCATION_CLOSING);
+		TEST_HOOK(54);
 		return SMM_INVOCATION_TRY_SUCCESS;
 	}
 	if (!close_requested(evidence) ||

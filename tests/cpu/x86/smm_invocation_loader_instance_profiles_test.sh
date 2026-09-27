@@ -10,6 +10,7 @@ base=81d33aced6fa48f1cfd93ff6feccfa774838fc7d
 scratch_make()
 {
 	env -u MAKELEVEL -u MAKEFLAGS -u MFLAGS -u MAKEOVERRIDES \
+		-u GNUMAKEFLAGS \
 		"${MAKE:-make}" "$@"
 }
 

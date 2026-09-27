@@ -211,7 +211,11 @@ test-smm-invocation-entry-adapter:
 
 .PHONY: test-smm-invocation-entry-profiles
 test-smm-invocation-entry-profiles:
-	tests/cpu/x86/smm_invocation_entry_profiles_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=SMM_INVOCATION_PROFILE_HOSTILE_OVERRIDE \
+		GNUMAKEFLAGS=n \
+		SMM_INVOCATION_PROFILE_HOSTILE_OVERRIDE=1 \
+		tests/cpu/x86/smm_invocation_entry_profiles_test.sh
 
 .PHONY: test-smm-invocation-fail-stop-providers
 test-smm-invocation-fail-stop-providers:
