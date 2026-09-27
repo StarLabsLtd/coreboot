@@ -71,27 +71,26 @@ make
 ## Converting an installed system
 
 The verified-boot layouts are incompatible with the earlier single-CBFS
-layouts, so conversion requires one full-BIOS capsule update. The transition
-capsule uses the previous firmware GUID while its image advertises the new
-GUID:
-
-| System | Previous firmware GUID |
-| --- | --- |
-| HZ | `634fefb2-7099-4e5c-8b85-bd458132f51e` |
-| B8 | `41627bd8-70a0-490d-b834-5de90ccfb56d` |
-| F1 | `ac75492e-18ad-477d-a719-710a0ddb6c2c` |
-| F2 | `75b29ff6-e882-41c7-903f-5af89e004113` |
-
-Build the ROM with its new GUID in the board configuration, then override only
-the outer capsule GUID with the previous value. For example, the F2 transition
-capsule is built with:
+layouts. A controlled provisioning conversion therefore uses a distinct,
+manifestless capsule: its outer image identity is the installed non-vboot GUID,
+while the replacement firmware contains the new vboot FMP identity. The build
+requires both differences to be made explicit:
 
 ```bash
-make -B CAPSULE_GUID=75b29ff6-e882-41c7-903f-5af89e004113 capsule
+make capsule \
+  CAPSULE_GUID=75b29ff6-e882-41c7-903f-5af89e004113 \
+  CAPSULE_LAYOUT_TRANSITION=1
 ```
 
-Only offer the transition to an installed firmware whose capsule updater can
-fall back to updating the complete BIOS region when the current and incoming
-FMAP layouts differ. This fallback replaces SMMSTORE and therefore resets EFI
-variables. After conversion, publish ordinary capsules under the new GUID;
-they must contain only the routine update regions from the board configuration.
+The missing RMAP deliberately selects the installed updater's BIOS-region
+path. This is wider than a routine update and may reset persistent EFI state.
+It is suitable only for controlled provisioning with stable power and external
+recovery available: interruption during the one-time layout replacement can
+leave the machine unbootable. Do not publish it as a routine customer update.
+
+The distinct old identity prevents a vboot system accepting the conversion a
+second time. The signed capsule version and lowest-supported version still
+have to advance the installed FMP policy. After conversion, confirm that vboot
+has persisted its firmware rollback state before releasing the machine.
+Routine vboot capsules use the new identity and only the RMAP regions selected
+by the vboot policy.
