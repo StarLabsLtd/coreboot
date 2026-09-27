@@ -496,9 +496,18 @@ if rg -q 'smm_invocation_entry_(arrive|depart|eos_ready)' "$root/src" \
 	printf '%s\n' 'dormant entry helper gained a production callsite' >&2
 	exit 1
 fi
-if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER|FAIL_STOP_PLATFORM)' \
+if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)' \
 	"$root/src"; then
 	printf '%s\n' 'dormant entry or adapter became selected' >&2
+	exit 1
+fi
+fail_stop_selectors=$(rg -l \
+	'select[[:space:]]+SMM_INVOCATION_FAIL_STOP_PLATFORM' "$root/src" | sort)
+expected_fail_stop_selectors=$(printf '%s\n' \
+	"$root/src/mainboard/emulation/qemu-q35/Kconfig" \
+	"$root/src/mainboard/starlabs/starbook/Kconfig" | sort)
+if [ "$fail_stop_selectors" != "$expected_fail_stop_selectors" ]; then
+	printf '%s\n' 'unexpected SMM invocation fail-stop selector set' >&2
 	exit 1
 fi
 if rg -q 'reset_context|fail_context|smm_invocation_(entry_reset|fail_stop)_fn' \
@@ -515,9 +524,17 @@ if rg -n '__builtin_trap|(^|[^[:alnum:]_])abort[[:space:]]*\(|\bhlt\b' \
 	printf '%s\n' 'SMM invocation production code gained a local fail-stop' >&2
 	exit 1
 fi
-if rg -q '__weak.*smm_invocation_platform_fail_stop|smm_invocation_platform_fail_stop[^{;]*\{' \
-	"$root/src"; then
-	printf '%s\n' 'generic tree gained a fail-stop provider definition' >&2
+if rg -q '__weak.*smm_invocation_platform_fail_stop' "$root/src"; then
+	printf '%s\n' 'SMM invocation fail-stop provider became weak' >&2
+	exit 1
+fi
+fail_stop_providers=$(rg -l '^void smm_invocation_platform_fail_stop\(void\)$' \
+	"$root/src" | sort)
+expected_fail_stop_providers=$(printf '%s\n' \
+	"$root/src/mainboard/emulation/qemu-q35/smm_invocation_fail_stop.c" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/smm_invocation_fail_stop.c" | sort)
+if [ "$fail_stop_providers" != "$expected_fail_stop_providers" ]; then
+	printf '%s\n' 'unexpected SMM invocation fail-stop provider set' >&2
 	exit 1
 fi
 grep -q '^smm-$(CONFIG_SMM_INVOCATION_INTEL_ADAPTER) += invocation_adapter.c$' \

@@ -10,7 +10,7 @@ config SMM_INVOCATION_FAIL_STOP_PLATFORM
 	  Internal capability supplied only by a platform with a strongly linked,
 	  non-returning SMM platform-wide reset, fallback reset or watchdog, and
 	  final terminal-halt implementation. Stopping only the calling CPU is not
-	  sufficient. No platform selects this capability yet.
+	  sufficient. No platform enables this capability by default.
 
 config SMM_INVOCATION_EVIDENCE
 	bool

@@ -93,10 +93,12 @@ requires one atomic composition containing all of:
 3. registry dispatch owning the exact command and the evidence claim;
 4. one completion/abort owner which moves evidence to `CLOSING`;
 5. a selected platform capability with exactly one strongly linked SMM-safe
-   non-returning reset or terminal halt for timeout or ambiguity.
+   non-returning reset, independent fallback and final terminal halt for
+   timeout or ambiguity.
 
-Until that composition exists, the hidden platform capability has no selector
-and tests require the coordinator to have no production callsite.  Q35 may
+Until that composition exists, only hidden, default-off platform fail-stop
+selectors exist, and tests require the coordinator to have no production
+callsite.  Q35 may
 exercise only the generic synthetic rendezvous because its save state lacks
 the exact Intel I/O-misc evidence.  Intel common 30100/30101 builds are compile
 targets; Meteor Lake hardware remains the production adapter validation gate.

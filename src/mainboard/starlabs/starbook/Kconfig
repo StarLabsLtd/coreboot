@@ -336,6 +336,17 @@ config STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER
 	  deliberately incompatible until their update path is converted to the
 	  typed capsule broker.
 
+config STARLABS_STARBOOK_MTL_SMM_INVOCATION_FAIL_STOP
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
+	depends on HAVE_CF9_RESET && SOC_INTEL_COMMON_BLOCK_TCO
+	select SMM_INVOCATION_FAIL_STOP_PLATFORM
+	help
+	  Supply the StarBook MTL terminal SMM fail-stop provider. The provider
+	  requests a platform-wide system reset, then arms the independent TCO
+	  watchdog before terminally halting. This selects no invocation route.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER
