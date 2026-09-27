@@ -3,6 +3,12 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
+
+if grep -En '"pause"|__builtin_ia32|__attribute__\(\(target\(' \
+	"$root/src/lib/payload_mm_authvar_presence_producer.c"; then
+	echo "generic presence producer gained architecture-specific code" >&2
+	exit 1
+fi
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"

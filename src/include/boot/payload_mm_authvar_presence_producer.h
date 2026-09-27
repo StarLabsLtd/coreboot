@@ -57,14 +57,26 @@ struct payload_mm_authvar_presence_composition {
 	size_t context_size;
 };
 
+/* Private correlation for the short COMMIT-to-table-publication interval. */
+struct payload_mm_authvar_presence_receipt {
+	struct lb_authvar_presence_endpoint endpoint;
+	uintptr_t identity;
+	u64 nonce;
+	u32 active;
+};
+
 /* Register before bootmem initialization, then compose after it. */
 enum cb_err payload_mm_authvar_presence_producer_reserve(void);
 enum cb_err payload_mm_authvar_presence_producer_compose(
 	const struct payload_mm_authvar_presence_composition *composition);
 
-/* The sole publication boundary. Failure always leaves record zeroed. */
+/* The sole publication boundary. Failure always leaves the receipt zeroed. */
 enum cb_err payload_mm_authvar_presence_producer_publication_take(
-	struct lb_authvar_presence_endpoint *record);
+	struct payload_mm_authvar_presence_receipt *receipt);
+enum cb_err
+payload_mm_authvar_presence_producer_publication_complete(struct payload_mm_authvar_presence_receipt *receipt);
+void __noreturn
+payload_mm_authvar_presence_producer_publication_fail_stop(struct payload_mm_authvar_presence_receipt *receipt);
 
 /* Restriction-only rollback before publication. */
 void payload_mm_authvar_presence_producer_abort(void);
@@ -73,6 +85,7 @@ void payload_mm_authvar_presence_producer_abort(void);
 typedef void (*payload_mm_authvar_presence_producer_test_hook_fn)(void);
 
 void payload_mm_authvar_presence_producer_reset_test(void);
+void payload_mm_authvar_presence_producer_publication_marker_test(u32 marker);
 const void *payload_mm_authvar_presence_producer_test_state(size_t *size);
 void payload_mm_authvar_presence_producer_before_prepare_test_hook(
 	payload_mm_authvar_presence_producer_test_hook_fn hook);

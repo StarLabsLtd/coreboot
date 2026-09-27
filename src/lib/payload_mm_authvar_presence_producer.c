@@ -16,6 +16,7 @@ enum producer_state {
 	PRODUCER_FINALIZING,
 	PRODUCER_PREPARING,
 	PRODUCER_ABORT_REQUESTED,
+	PRODUCER_PUBLISHED_PENDING,
 };
 
 enum producer_backing_owner {
@@ -23,6 +24,13 @@ enum producer_backing_owner {
 	PRODUCER_BACKING_RESERVATION,
 	PRODUCER_BACKING_PRODUCER,
 	PRODUCER_BACKING_AUTHORITY,
+};
+
+enum publication_commit_state {
+	PUBLICATION_NOT_COMMITTED,
+	PUBLICATION_PENDING,
+	PUBLICATION_COMPLETE_OWNER,
+	PUBLICATION_FAIL_STOP_OWNER,
 };
 
 struct producer_storage {
@@ -37,9 +45,11 @@ struct producer_storage {
 	uint8_t sealed_context[PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX];
 	struct payload_mm_authvar_presence_transaction_binding transaction;
 	struct payload_mm_authvar_presence_transaction_binding sealed_transaction;
+	uintptr_t publication_receipt_identity;
 };
 
 static struct producer_storage producer;
+static u32 publication_committed;
 #if ENV_TEST
 static payload_mm_authvar_presence_producer_test_hook_fn before_prepare_hook;
 #endif
@@ -66,6 +76,12 @@ static bool claim(uint32_t from, uint32_t to)
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
 }
 
+static bool object_valid(const void *object, size_t size, size_t alignment)
+{
+	return object && IS_ALIGNED((uintptr_t)object, alignment) &&
+		(uintptr_t)object <= UINTPTR_MAX - size;
+}
+
 static bool busy(void)
 {
 	return __atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) == PRODUCER_BUSY;
@@ -83,7 +99,7 @@ static bool active(void)
 
 	return state == PRODUCER_BUSY || state == PRODUCER_PREPARING ||
 		state == PRODUCER_ABORT_REQUESTED || state == PRODUCER_PREPARED ||
-		state == PRODUCER_FINALIZING;
+		state == PRODUCER_FINALIZING || state == PRODUCER_PUBLISHED_PENDING;
 }
 
 static bool context_unchanged(void)
@@ -213,7 +229,7 @@ static __noreturn void fail_stop(void)
 	clear_storage();
 	__atomic_store_n(&producer.state, PRODUCER_FAILED, __ATOMIC_RELEASE);
 	callback(context_size ? context : NULL);
-	__builtin_unreachable();
+	__builtin_trap();
 }
 
 enum cb_err payload_mm_authvar_presence_producer_reserve(void)
@@ -477,19 +493,19 @@ fail:
 }
 
 enum cb_err payload_mm_authvar_presence_producer_publication_take(
-	struct lb_authvar_presence_endpoint *record)
+	struct payload_mm_authvar_presence_receipt *receipt)
 {
 	struct lb_authvar_presence_endpoint endpoint;
 	struct payload_mm_authvar_presence_transaction_ack ack;
 	struct payload_mm_authvar_presence_transaction_binding work;
 	uint64_t saved_rax = UINT64_MAX;
 	uint32_t flags;
-	if (!record) {
+	if (!object_valid(receipt, sizeof(*receipt), __alignof__(*receipt))) {
 		if (claim(PRODUCER_PREPARED, PRODUCER_FINALIZING))
 			rollback();
 		return CB_ERR;
 	}
-	memset(record, 0, sizeof(*record));
+	memset(receipt, 0, sizeof(*receipt));
 	if (!claim(PRODUCER_PREPARED, PRODUCER_FINALIZING))
 		return CB_ERR;
 	if (!proofs(producer.backing_base, producer.backing_size, &flags) ||
@@ -516,13 +532,109 @@ enum cb_err payload_mm_authvar_presence_producer_publication_take(
 	}
 	scrub(&ack, sizeof(ack));
 	scrub(&work, sizeof(work));
-	if (!claim(PRODUCER_FINALIZING, PRODUCER_PUBLISHED)) {
+	receipt->endpoint = endpoint;
+	receipt->identity = (uintptr_t)receipt;
+	receipt->nonce = producer.sealed_transaction.nonce;
+	receipt->active = 1;
+	producer.publication_receipt_identity = (uintptr_t)receipt;
+	__atomic_store_n(&publication_committed, PUBLICATION_PENDING,
+			 __ATOMIC_RELEASE);
+	if (!claim(PRODUCER_FINALIZING, PRODUCER_PUBLISHED_PENDING)) {
 		fail_stop();
 	}
-	clear_storage();
-	*record = endpoint;
 	scrub(&endpoint, sizeof(endpoint));
 	return CB_SUCCESS;
+}
+
+static bool
+publication_receipt_matches(const struct payload_mm_authvar_presence_receipt *receipt,
+			    uintptr_t identity)
+{
+	return receipt->active == 1 &&
+		receipt->identity == identity &&
+		receipt->identity == producer.publication_receipt_identity &&
+		receipt->nonce == producer.sealed_transaction.nonce &&
+		!memcmp(&receipt->endpoint, &producer.endpoint,
+			sizeof(receipt->endpoint));
+}
+
+static bool publication_corruption_claim(u32 observed)
+{
+	if (observed == PUBLICATION_COMPLETE_OWNER ||
+	    observed == PUBLICATION_FAIL_STOP_OWNER ||
+	    __atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) !=
+		PRODUCER_PUBLISHED_PENDING)
+		return false;
+
+	return __atomic_compare_exchange_n(&publication_committed,
+		&observed, PUBLICATION_FAIL_STOP_OWNER, false,
+		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+}
+
+static bool
+publication_close_claim(const struct payload_mm_authvar_presence_receipt *receipt)
+{
+	u32 pending = PUBLICATION_PENDING;
+
+	if (!__atomic_compare_exchange_n(&publication_committed, &pending,
+					 PUBLICATION_COMPLETE_OWNER, false,
+					 __ATOMIC_ACQ_REL,
+					 __ATOMIC_ACQUIRE)) {
+		if (publication_corruption_claim(pending))
+			fail_stop();
+		return false;
+	}
+	if ((uintptr_t)receipt != producer.publication_receipt_identity)
+		fail_stop();
+	if (!claim(PRODUCER_PUBLISHED_PENDING, PRODUCER_FINALIZING))
+		fail_stop();
+	return true;
+}
+
+enum cb_err
+payload_mm_authvar_presence_producer_publication_complete(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	struct payload_mm_authvar_presence_receipt snapshot;
+
+	if (!publication_close_claim(receipt))
+		return CB_ERR;
+	snapshot = *receipt;
+	scrub(receipt, sizeof(*receipt));
+	if (!publication_receipt_matches(&snapshot, (uintptr_t)receipt)) {
+		scrub(&snapshot, sizeof(snapshot));
+		fail_stop();
+	}
+	scrub(&snapshot, sizeof(snapshot));
+	clear_storage();
+	__atomic_store_n(&producer.state, PRODUCER_PUBLISHED, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+}
+
+void __noreturn
+payload_mm_authvar_presence_producer_publication_fail_stop(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	u32 pending = PUBLICATION_PENDING;
+
+	if (!__atomic_compare_exchange_n(&publication_committed, &pending,
+					 PUBLICATION_FAIL_STOP_OWNER, false,
+					 __ATOMIC_ACQ_REL,
+					 __ATOMIC_ACQUIRE)) {
+		if (publication_corruption_claim(pending))
+			fail_stop();
+		if (pending == PUBLICATION_FAIL_STOP_OWNER) {
+			for (;;)
+				__atomic_signal_fence(__ATOMIC_ACQ_REL);
+		}
+		if (pending == PUBLICATION_COMPLETE_OWNER) {
+			while (__atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) ==
+			       PRODUCER_FINALIZING)
+				__atomic_signal_fence(__ATOMIC_ACQ_REL);
+		}
+		__builtin_trap();
+	}
+	if ((uintptr_t)receipt == producer.publication_receipt_identity)
+		scrub(receipt, sizeof(*receipt));
+	fail_stop();
 }
 
 void payload_mm_authvar_presence_producer_abort(void)
@@ -531,7 +643,9 @@ void payload_mm_authvar_presence_producer_abort(void)
 		uint32_t state = __atomic_load_n(&producer.state, __ATOMIC_ACQUIRE);
 		uint32_t expected = state;
 
-		if (state == PRODUCER_FINALIZING || state == PRODUCER_PUBLISHED ||
+		if (state == PRODUCER_FINALIZING ||
+		    state == PRODUCER_PUBLISHED_PENDING ||
+		    state == PRODUCER_PUBLISHED ||
 		    state == PRODUCER_FAILED || state == PRODUCER_ABORT_REQUESTED)
 			return;
 		if (state == PRODUCER_BUSY) {
@@ -573,7 +687,14 @@ void payload_mm_authvar_presence_producer_abort(void)
 void payload_mm_authvar_presence_producer_reset_test(void)
 {
 	scrub(&producer, sizeof(producer));
+	__atomic_store_n(&publication_committed, PUBLICATION_NOT_COMMITTED,
+			 __ATOMIC_RELEASE);
 	before_prepare_hook = NULL;
+}
+
+void payload_mm_authvar_presence_producer_publication_marker_test(u32 marker)
+{
+	__atomic_store_n(&publication_committed, marker, __ATOMIC_RELEASE);
 }
 
 const void *payload_mm_authvar_presence_producer_test_state(size_t *size)
@@ -588,4 +709,5 @@ void payload_mm_authvar_presence_producer_before_prepare_test_hook(
 {
 	before_prepare_hook = hook;
 }
+
 #endif

@@ -167,6 +167,10 @@ test-authvar-presence-producer:
 .PHONY: test-authvar-presence-publication
 test-authvar-presence-publication:
 	tests/lib/payload_mm_authvar_presence_publication_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=AUTHVAR_PRESENCE_PUBLICATION_HOSTILE_OVERRIDE \
+		AUTHVAR_PRESENCE_PUBLICATION_HOSTILE_OVERRIDE=1 \
+		tests/lib/payload_mm_authvar_presence_publication_profiles_test.sh
 
 .PHONY: test-authvar-presence-handoff
 test-authvar-presence-handoff:

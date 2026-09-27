@@ -138,11 +138,28 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 }
 
 enum cb_err payload_mm_authvar_presence_producer_publication_take(
-	struct lb_authvar_presence_endpoint *endpoint)
+	struct payload_mm_authvar_presence_receipt *receipt)
 {
 	presence_take_calls++;
-	*endpoint = presence_endpoint;
+	receipt->endpoint = presence_endpoint;
+	receipt->identity = (uintptr_t)receipt;
+	receipt->nonce = 1;
+	receipt->active = 1;
 	return CB_SUCCESS;
+}
+
+enum cb_err
+payload_mm_authvar_presence_producer_publication_complete(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	memset(receipt, 0, sizeof(*receipt));
+	return CB_SUCCESS;
+}
+
+void
+payload_mm_authvar_presence_producer_publication_fail_stop(struct payload_mm_authvar_presence_receipt *receipt)
+{
+	(void)receipt;
+	abort();
 }
 
 void payload_mm_authvar_presence_producer_abort(void)
@@ -164,12 +181,14 @@ static void test_presence_publication_record(void **state)
 {
 	struct lb_header *header = *state;
 	struct lb_authvar_presence_endpoint *record;
+	const uintptr_t table_end = (uintptr_t)tables_buffer + sizeof(tables_buffer);
+	enum cb_err status;
 
 	reset_presence(true);
 	assert_int_equal(payload_mm_authvar_presence_publication_reserve(),
 		CB_SUCCESS);
-	assert_int_equal(lb_add_payload_mm_authvar_presence_endpoint(header),
-		CB_SUCCESS);
+	status = lb_add_payload_mm_authvar_presence_endpoint(header, table_end);
+	assert_int_equal(status, CB_SUCCESS);
 	assert_int_equal(header->table_entries, 1);
 	record = (void *)lb_first_record(header);
 	assert_memory_equal(record, &presence_endpoint, sizeof(*record));
@@ -436,6 +455,12 @@ static void test_write_tables(void **state)
 	struct lb_record *record;
 	int32_t *mmc_status = cbmem_find(CBMEM_ID_MMC_STATUS);
 	size_t i = 0;
+	unsigned int presence_records = 0;
+	u32 last_tag = LB_TAG_UNUSED;
+
+	reset_presence(true);
+	assert_int_equal(payload_mm_authvar_presence_publication_reserve(),
+			 CB_SUCCESS);
 
 	/* Expect function to store cbtable entry in cbmem */
 	cbtable_start = write_tables();
@@ -451,6 +476,7 @@ static void test_write_tables(void **state)
 
 	LB_RECORD_FOR_EACH(record, i, header)
 	{
+		last_tag = record->tag;
 		switch (record->tag) {
 		case LB_TAG_MEMORY:
 			/* Should be the same as in bootmem_write_memory_table() */
@@ -599,10 +625,18 @@ static void test_write_tables(void **state)
 				ALIGN_UP(sizeof(struct lb_string) + sizeof(platform_blob_version), 8);
 			assert_int_equal(platform_blob_version_size, record->size);
 			break;
+		case LB_TAG_AUTHVAR_PRESENCE_ENDPOINT:
+			presence_records++;
+			assert_memory_equal(record, &presence_endpoint,
+					    sizeof(presence_endpoint));
+			break;
 		default:
 			fail_msg("Unexpected tag found in record. Tag ID: 0x%x", record->tag);
 		}
 	}
+	assert_int_equal(presence_records, 1);
+	assert_int_equal(last_tag, LB_TAG_AUTHVAR_PRESENCE_ENDPOINT);
+	assert_int_equal(presence_take_calls, 1);
 }
 
 int main(void)
