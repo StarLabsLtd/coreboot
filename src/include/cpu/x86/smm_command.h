@@ -209,6 +209,12 @@ struct smm_apmc_descriptor {
 	bool enabled;
 };
 
+enum smm_apmc_select_result {
+	SMM_APMC_SELECT_UNKNOWN,
+	SMM_APMC_SELECT_CONSUMED_REJECT,
+	SMM_APMC_SELECT_ENABLED,
+};
+
 enum smm_apmc_owner_outcome {
 	SMM_APMC_OWNER_HANDLED,
 	SMM_APMC_OWNER_UNREADY,
@@ -217,13 +223,15 @@ enum smm_apmc_owner_outcome {
 };
 
 enum smm_apmc_dispatch_result {
-	SMM_APMC_UNKNOWN,
 	SMM_APMC_CONSUMED_SUCCESS,
 	SMM_APMC_CONSUMED_REJECT,
 };
 
-enum smm_apmc_dispatch_result smm_apmc_command_classify(u8 command,
-	enum smm_apmc_owner_outcome outcome,
-	struct smm_apmc_descriptor *descriptor);
+enum smm_apmc_select_result
+smm_apmc_command_select(u8 command, struct smm_apmc_descriptor *selection);
+enum smm_apmc_dispatch_result
+smm_apmc_command_finish(u8 expected_command,
+			struct smm_apmc_descriptor *selection,
+			enum smm_apmc_owner_outcome outcome);
 
 #endif

@@ -188,6 +188,10 @@ test-authvar-presence-mailbox-scrub:
 .PHONY: test-smm-apmc-command-registry
 test-smm-apmc-command-registry:
 	tests/cpu/x86/smm_command_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=SMM_APMC_REGISTRY_HOSTILE_OVERRIDE \
+		SMM_APMC_REGISTRY_HOSTILE_OVERRIDE=1 \
+		tests/cpu/x86/smm_command_profiles_test.sh
 
 .PHONY: test-smm-invocation-evidence
 test-smm-invocation-evidence:

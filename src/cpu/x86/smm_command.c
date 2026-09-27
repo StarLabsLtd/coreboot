@@ -2,7 +2,6 @@
 
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_command.h>
-#include <string.h>
 
 _Static_assert(!CONFIG(SMM_APMC_COMMAND_REGISTRY) ||
 	       CONFIG(SMM_APMC_COMPOSITION_ATTESTED),
@@ -46,26 +45,51 @@ static bool command_enabled(u8 command,
 	}
 }
 
-enum smm_apmc_dispatch_result smm_apmc_command_classify(u8 command,
-	enum smm_apmc_owner_outcome outcome,
-	struct smm_apmc_descriptor *descriptor)
+static bool selection_matches(const struct smm_apmc_descriptor *selection,
+			      u8 expected_command,
+			      const struct smm_apmc_descriptor *claim)
+{
+	return selection->command == expected_command &&
+		selection->owner == claim->owner && selection->role == claim->role &&
+		selection->binding_count == claim->binding_count &&
+		selection->observer_count == claim->observer_count &&
+		selection->reserved == claim->reserved &&
+		selection->enabled == claim->enabled;
+}
+
+enum smm_apmc_select_result
+smm_apmc_command_select(u8 command, struct smm_apmc_descriptor *selection)
 {
 	struct smm_apmc_descriptor claim = { 0 };
 	const bool enabled = command_enabled(command, &claim);
 
-	if (!enabled && !command_reserved(command)) {
-		if (descriptor)
-			memset(descriptor, 0, sizeof(*descriptor));
-		return SMM_APMC_UNKNOWN;
-	}
-	if (!enabled) {
-		claim.command = command;
-		claim.reserved = true;
-	}
-	if (descriptor)
-		*descriptor = claim;
-	if (!enabled || claim.binding_count != 1U ||
-	    outcome != SMM_APMC_OWNER_HANDLED)
+	if (selection)
+		*selection = (struct smm_apmc_descriptor) { 0 };
+	if (!enabled)
+		return command_reserved(command) ?
+			SMM_APMC_SELECT_CONSUMED_REJECT : SMM_APMC_SELECT_UNKNOWN;
+	if (!selection)
+		return SMM_APMC_SELECT_CONSUMED_REJECT;
+	*selection = claim;
+	return SMM_APMC_SELECT_ENABLED;
+}
+
+enum smm_apmc_dispatch_result
+smm_apmc_command_finish(u8 expected_command,
+			struct smm_apmc_descriptor *selection,
+			enum smm_apmc_owner_outcome outcome)
+{
+	struct smm_apmc_descriptor snapshot;
+	struct smm_apmc_descriptor claim = { 0 };
+	bool valid;
+
+	if (!selection)
+		return SMM_APMC_CONSUMED_REJECT;
+	snapshot = *selection;
+	*selection = (struct smm_apmc_descriptor) { 0 };
+	valid = command_enabled(expected_command, &claim) &&
+		selection_matches(&snapshot, expected_command, &claim);
+	if (!valid || outcome != SMM_APMC_OWNER_HANDLED)
 		return SMM_APMC_CONSUMED_REJECT;
 	return SMM_APMC_CONSUMED_SUCCESS;
 }
