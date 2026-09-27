@@ -27,7 +27,8 @@ protocol. The loader's common result path also scrubs a previously published
 descriptor if a later independent SMM provisioning step fails.
 
 This slice does not publish an LB record, CBMEM object, command, selector,
-callback, address or payload endpoint. It does not create a boot epoch, infer
+callback, address or payload endpoint. It does not create a loader-instance
+descriptor, infer
 cold versus resume, initialize invocation evidence or the Intel save-state
 adapter, or attest a reset provider. Those facts require a later platform
 composition with an honest lifecycle and SMM-linked reset source.

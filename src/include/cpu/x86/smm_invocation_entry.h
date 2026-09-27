@@ -5,7 +5,7 @@
 
 #include <cpu/x86/smm_invocation_evidence.h>
 
-#define SMM_INVOCATION_ENTRY_CAUSE_REVISION 1U
+#define SMM_INVOCATION_ENTRY_CAUSE_REVISION 2U
 #define SMM_INVOCATION_ENTRY_POLICY_REVISION 2U
 #define SMM_INVOCATION_ENTRY_MAX_POLLS 10000000U
 
@@ -23,7 +23,7 @@ struct smm_invocation_entry_policy {
 struct smm_invocation_entry_cause {
 	uint32_t revision;
 	uint32_t size;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint32_t lifecycle;
 	uint8_t command;
 	uint8_t recognized;
@@ -32,7 +32,7 @@ struct smm_invocation_entry_cause {
 
 struct smm_invocation_entry_ticket {
 	uint64_t generation;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint32_t cpu;
 	uint32_t lifecycle;
 	uint32_t max_polls;
@@ -41,20 +41,28 @@ struct smm_invocation_entry_ticket {
 
 _Static_assert(sizeof(struct smm_invocation_entry_policy) == 16,
 	"SMM invocation entry policy ABI changed");
-_Static_assert(sizeof(struct smm_invocation_entry_ticket) == 32,
+_Static_assert(sizeof(struct smm_invocation_entry_cause) == 32,
+	"SMM invocation entry cause ABI changed");
+_Static_assert(_Alignof(struct smm_invocation_entry_cause) == 8,
+	"SMM invocation entry cause alignment changed");
+_Static_assert(offsetof(struct smm_invocation_entry_cause,
+	loader_instance_nonce) == 8,
+	"SMM invocation entry cause nonce offset changed");
+_Static_assert(sizeof(struct smm_invocation_entry_ticket) == 40,
 	"SMM invocation entry ticket ABI changed");
 _Static_assert(_Alignof(struct smm_invocation_entry_ticket) == 8,
 	"SMM invocation entry ticket alignment changed");
 _Static_assert(offsetof(struct smm_invocation_entry_ticket, generation) == 0,
 	"SMM invocation entry ticket generation offset changed");
-_Static_assert(offsetof(struct smm_invocation_entry_ticket, max_polls) == 24,
+_Static_assert(offsetof(struct smm_invocation_entry_ticket, max_polls) == 32,
 	"SMM invocation entry ticket poll-bound offset changed");
 
 enum cb_err smm_invocation_entry_arrive(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_entry_cause *cause,
 	const struct smm_invocation_entry_policy *policy,
-	uint64_t expected_boot_generation, uint8_t expected_command,
+	struct smm_invocation_loader_instance_nonce expected_loader_instance_nonce,
+	uint8_t expected_command,
 	uint32_t cpu, uint32_t initial_apic_id,
 	struct smm_invocation_entry_ticket *ticket);
 enum cb_err smm_invocation_entry_depart(

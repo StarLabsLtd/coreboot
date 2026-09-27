@@ -75,14 +75,16 @@ static bool ranges_overlap(const void *first, size_t first_size,
 }
 
 static bool cause_valid(const struct smm_invocation_entry_cause *cause,
-	uint64_t generation, uint8_t command)
+	struct smm_invocation_loader_instance_nonce nonce, uint8_t command)
 {
 	static const uint8_t zero[sizeof(cause->reserved)];
 
 	return cause && cause->revision == SMM_INVOCATION_ENTRY_CAUSE_REVISION &&
-		cause->size == sizeof(*cause) && cause->boot_generation == generation &&
-		(cause->lifecycle == SMM_INVOCATION_LOADER_COLD ||
-		 cause->lifecycle == SMM_INVOCATION_LOADER_RESUME_FRESH) &&
+		cause->size == sizeof(*cause) &&
+		smm_invocation_loader_instance_nonce_equal(
+			cause->loader_instance_nonce, nonce) &&
+		(cause->lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+		 cause->lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD) &&
 		cause->command == command && cause->recognized == 1U &&
 		!memcmp(cause->reserved, zero, sizeof(zero));
 }
@@ -98,9 +100,11 @@ static bool policy_valid(const struct smm_invocation_entry_policy *policy)
 
 static bool ticket_valid(const struct smm_invocation_entry_ticket *ticket)
 {
-	return ticket && ticket->generation && ticket->boot_generation &&
-		(ticket->lifecycle == SMM_INVOCATION_LOADER_COLD ||
-		 ticket->lifecycle == SMM_INVOCATION_LOADER_RESUME_FRESH) &&
+	return ticket && ticket->generation &&
+		!smm_invocation_loader_instance_nonce_is_zero(
+			ticket->loader_instance_nonce) &&
+		(ticket->lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+		 ticket->lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD) &&
 		ticket->max_polls &&
 		ticket->max_polls <= SMM_INVOCATION_ENTRY_MAX_POLLS &&
 		!ticket->reserved;
@@ -141,7 +145,8 @@ enum cb_err smm_invocation_entry_arrive(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_entry_cause *cause,
 	const struct smm_invocation_entry_policy *policy,
-	uint64_t expected_boot_generation, uint8_t expected_command,
+	struct smm_invocation_loader_instance_nonce expected_loader_instance_nonce,
+	uint8_t expected_command,
 	uint32_t cpu, uint32_t initial_apic_id,
 	struct smm_invocation_entry_ticket *ticket)
 {
@@ -152,7 +157,9 @@ enum cb_err smm_invocation_entry_arrive(
 	struct smm_invocation_admission_token admission;
 	enum smm_invocation_try_result try_result;
 
-	if (!evidence || !cause || !ticket || !expected_boot_generation ||
+	if (!evidence || !cause || !ticket ||
+	    smm_invocation_loader_instance_nonce_is_zero(
+		expected_loader_instance_nonce) ||
 	    !range_valid(policy, sizeof(*policy)))
 		return CB_ERR;
 	memcpy(&policy_snapshot, policy, sizeof(policy_snapshot));
@@ -161,12 +168,12 @@ enum cb_err smm_invocation_entry_arrive(
 	    !input_ranges_valid(evidence, cause, policy, ticket))
 		return CB_ERR;
 	memcpy(&snapshot, cause, sizeof(snapshot));
-	if (!cause_valid(&snapshot, expected_boot_generation, expected_command) ||
+	if (!cause_valid(&snapshot, expected_loader_instance_nonce, expected_command) ||
 	    !sources_unchanged(cause, &snapshot, policy, &policy_snapshot))
 		return CB_ERR;
 	for (uint32_t poll = 0; ; poll++) {
 		try_result = smm_invocation_evidence_require_rendezvous_ack_try(
-			evidence, snapshot.boot_generation, snapshot.lifecycle,
+			evidence, snapshot.loader_instance_nonce, snapshot.lifecycle,
 			&admission);
 		if (try_result == SMM_INVOCATION_TRY_SUCCESS)
 			break;
@@ -207,7 +214,7 @@ enum cb_err smm_invocation_entry_arrive(
 	}
 	memset(&ticket_snapshot, 0, sizeof(ticket_snapshot));
 	ticket_snapshot.generation = generation;
-	ticket_snapshot.boot_generation = snapshot.boot_generation;
+	ticket_snapshot.loader_instance_nonce = snapshot.loader_instance_nonce;
 	ticket_snapshot.cpu = cpu;
 	ticket_snapshot.lifecycle = snapshot.lifecycle;
 	ticket_snapshot.max_polls = policy_snapshot.max_polls;
@@ -288,6 +295,6 @@ bool smm_invocation_entry_eos_ready(
 		entry_fail_stop();
 	}
 	return smm_invocation_evidence_eos_consume(evidence,
-		snapshot.generation, snapshot.boot_generation, snapshot.lifecycle,
+		snapshot.generation, snapshot.loader_instance_nonce, snapshot.lifecycle,
 		snapshot.cpu);
 }

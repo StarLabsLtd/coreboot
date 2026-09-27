@@ -28,7 +28,7 @@ config SMM_INVOCATION_ENTRY_PLATFORM
 	depends on SMM_INVOCATION_EVIDENCE
 	help
 	  Internal capability supplied only by a platform composition which can
-	  prove a shared private APMC cause, fresh loader generation, installed
+	  prove a shared private APMC cause, loader-instance nonce, installed
 	  participant topology and a non-returning SMM reset path. No platform
 	  selects this capability yet.
 
@@ -59,6 +59,15 @@ config SMM_INVOCATION_TOPOLOGY
 	  Persist the exact full-width APIC topology used by the SMM entry stub
 	  in protected module parameters. This adds no command, dispatcher,
 	  public table or platform selection.
+
+config SMM_INVOCATION_LOADER_INSTANCE
+	bool
+	default n
+	depends on SMM_INVOCATION_TOPOLOGY
+	help
+	  Compile a dormant protected SMM loader-instance descriptor. It holds
+	  an exact lifecycle and caller-supplied correlation nonce, but adds no
+	  nonce provider, lifecycle selector, command or public record.
 
 config PARALLEL_MP
 	def_bool y

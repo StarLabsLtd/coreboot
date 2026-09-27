@@ -5,16 +5,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <cpu/x86/smm_invocation_loader_identity.h>
 #include <types.h>
 
-#define SMM_INVOCATION_EVIDENCE_REVISION 1U
+#define SMM_INVOCATION_EVIDENCE_REVISION 2U
 #define SMM_INVOCATION_EVIDENCE_MAX_CPUS 64U
-#define SMM_INVOCATION_TOKEN_REVISION 1U
-
-enum smm_invocation_loader_lifecycle {
-	SMM_INVOCATION_LOADER_COLD = 1,
-	SMM_INVOCATION_LOADER_RESUME_FRESH,
-};
+#define SMM_INVOCATION_TOKEN_REVISION 2U
 
 enum smm_invocation_match {
 	SMM_INVOCATION_MATCH_ERROR = -1,
@@ -38,7 +34,7 @@ struct smm_invocation_admission_token {
 	uintptr_t evidence_identity;
 	uint32_t attempt_nonce;
 	uint32_t token_reserved;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint64_t invocation_generation;
 	uint32_t lifecycle;
 	uint32_t kind;
@@ -49,11 +45,26 @@ struct smm_invocation_loader_seed {
 	uint32_t size;
 	uint32_t active_cpus;
 	uint32_t bsp_cpu;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint32_t participant_apic_ids[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
 	uint32_t lifecycle;
 	uint32_t reserved;
 };
+
+_Static_assert(sizeof(struct smm_invocation_admission_token) == 48,
+	"SMM invocation admission token ABI changed");
+_Static_assert(_Alignof(struct smm_invocation_admission_token) == 8,
+	"SMM invocation admission token alignment changed");
+_Static_assert(offsetof(struct smm_invocation_admission_token,
+	loader_instance_nonce) == 16,
+	"SMM invocation admission token nonce offset changed");
+_Static_assert(sizeof(struct smm_invocation_loader_seed) == 296,
+	"SMM invocation loader seed ABI changed");
+_Static_assert(_Alignof(struct smm_invocation_loader_seed) == 8,
+	"SMM invocation loader seed alignment changed");
+_Static_assert(offsetof(struct smm_invocation_loader_seed,
+	loader_instance_nonce) == 16,
+	"SMM invocation loader seed nonce offset changed");
 
 struct smm_invocation_token {
 	uint32_t revision;
@@ -142,10 +153,10 @@ struct smm_invocation_evidence {
 	uint32_t arrival_writers;
 	uint32_t departure_writers;
 	uint32_t departure_failed;
-	uint64_t boot_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
 	uint64_t generation;
 	uint64_t closed_generation;
-	uint64_t closed_boot_generation;
+	struct smm_invocation_loader_instance_nonce closed_loader_instance_nonce;
 	uint32_t loader_lifecycle;
 	uint32_t closed_lifecycle;
 	uint32_t closed_eos_consumed;
@@ -182,7 +193,8 @@ bool smm_invocation_evidence_rendezvous_ready(
 	const struct smm_invocation_evidence *evidence, uint64_t generation);
 enum smm_invocation_try_result
 smm_invocation_evidence_require_rendezvous_ack_try(
-	struct smm_invocation_evidence *evidence, uint64_t boot_generation,
+	struct smm_invocation_evidence *evidence,
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce,
 	uint32_t lifecycle, struct smm_invocation_admission_token *token);
 enum cb_err smm_invocation_evidence_admission_fail(
 	struct smm_invocation_evidence *evidence,
@@ -216,7 +228,8 @@ enum cb_err smm_invocation_evidence_ticket_fail(
 	struct smm_invocation_evidence *evidence, uint64_t generation);
 bool smm_invocation_evidence_eos_consume(
 	struct smm_invocation_evidence *evidence, uint64_t generation,
-	uint64_t boot_generation, uint32_t lifecycle, uint32_t cpu);
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce,
+	uint32_t lifecycle, uint32_t cpu);
 enum cb_err smm_invocation_evidence_shutdown(
 	struct smm_invocation_evidence *evidence);
 
