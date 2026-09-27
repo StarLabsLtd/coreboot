@@ -30,9 +30,11 @@ The later loader composition must publish topology first, publish this
 descriptor second, snapshot and recheck both before provisioning invocation
 evidence, and unwind in reverse order on failure.
 
-No current board selects this option. A later MTL provider must close the
-existing retained-classification replay, protected-range and S3 stale-record
-gaps before it may feed this primitive. It must fan out one protected random
-sample rather than resampling independent identities. ADL and GLK remain
-compile-only profiles. This primitive does not repeat VT-d, bus-master,
-protected-range or reset work performed elsewhere.
+No current board selects this option in a checked-in configuration. StarBook
+MTL has a separate default-off provider prerequisite described in
+`Documentation/mainboard/starlabs/starbook-mtl-loader-instance.md`. It closes
+the retained-classification, protected-range and S3 stale-record gaps and fans
+out one protected random sample. It does not yet call this generic primitive
+from the SMM loader. ADL and GLK remain compile-only profiles. This primitive
+does not repeat VT-d, bus-master, protected-range or reset work performed
+elsewhere.

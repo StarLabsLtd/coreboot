@@ -3,16 +3,17 @@
 bootblock-y += gpio.c
 
 romstage-y += romstage.c
-romstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION) += mor_cold_boot.c
-romstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD) += mor_early_dma.c
+romstage-$(CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE) += loader_instance_source.c
+romstage-$(CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY) += loader_instance_authority.c
 romstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker.c
 
 ramstage-y += devtree.c
 ramstage-y += gpio.c
 ramstage-y += hda_verb.c
 ramstage-y += ramstage.c
-ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION) += mor_cold_boot.c
-ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD) += mor_early_dma.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_SOURCE) += loader_instance_source.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY) += loader_instance_authority.c
+ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY) += smm_invocation_loader_instance.c
 ramstage-$(CONFIG_CAPSULE_BROKER_CBMEM_BUFFERS) += capsule_broker.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_resource_handoff.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_BOOT_CONTROLLER_INVENTORY) += payload_resource_policy.c

@@ -210,6 +210,10 @@ test-smm-invocation-topology:
 test-smm-invocation-loader-instance:
 	tests/cpu/x86/smm_invocation_loader_instance_test.sh
 	tests/cpu/x86/smm_invocation_loader_instance_profiles_test.sh
+	tests/lib/starbook_mtl_loader_instance_test.sh
+	tests/lib/starbook_mtl_loader_instance_profiles_test.sh
+	tests/lib/starbook_mtl_mor_cold_boot_test.sh
+	tests/lib/starbook_mtl_mor_early_dma_test.sh
 
 .PHONY: test-tpm2-platform-auth
 test-tpm2-platform-auth:

@@ -180,10 +180,10 @@ void soc_init_pre_device(void *chip_info)
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_TRACEHUB))
 		soc_enable_tracehub();
 
-	/* Nothing may regain DMA authority between this guard and FSP-S. */
-	if (CONFIG(SOC_INTEL_METEORLAKE_MOR_EARLY_DMA_GUARD) &&
-	    mainboard_mor_early_dma_prepare() != CB_SUCCESS)
-		die("MTL MOR early DMA guard failed\n");
+	/* Nothing may regain DMA authority between this handoff and FSP-S. */
+	if (CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_AUTHORITY) &&
+	    mainboard_loader_instance_authority_prepare() != CB_SUCCESS)
+		die("MTL loader-instance authority preparation failed\n");
 
 	/* Perform silicon specific init. */
 	fsp_silicon_init();
