@@ -482,6 +482,26 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
 	  contexts require an SMM stack of at least 16 KiB. It installs no route,
 	  selector or board policy.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	help
+	  Internal capability supplied by exactly one platform implementation of
+	  the strong canonical protected presence-arm provider. No platform selects
+	  it in this slice.
+
+config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
+	help
+	  Build the dormant, route-specific adapter that binds one protected SMM
+	  loader composition to the authenticated-variable presence publication
+	  transaction. It releases the arm only after exact successful COMMIT
+	  completion. No platform selects it and it installs no runtime route.
+
 config PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER
 	bool
 	default n

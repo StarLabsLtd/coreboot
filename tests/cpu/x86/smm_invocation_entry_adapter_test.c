@@ -469,6 +469,7 @@ static void exercise_sparse_entry_nonce(
 		.max_polls = 1000,
 	};
 	struct smm_invocation_entry_ticket ticket;
+	struct smm_invocation_entry_ticket invalid;
 	struct smm_invocation_token token;
 
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
@@ -480,11 +481,24 @@ static void exercise_sparse_entry_nonce(
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, nonce,
 		0xa5, 0, 3, &ticket) == CB_SUCCESS);
+	assert(ticket.command == cause.command);
+	assert(ticket.reserved[0] == 0U && ticket.reserved[1] == 0U &&
+	       ticket.reserved[2] == 0U);
 	assert(smm_invocation_evidence_claim(&evidence, 0xa5,
 		0x11223344556677a5ULL, &ops, &token) == CB_SUCCESS);
 	assert(smm_invocation_evidence_abort(&evidence, &token, &ops) ==
 		CB_SUCCESS);
+	for (size_t byte = 0; byte < sizeof(ticket.reserved); byte++) {
+		invalid = ticket;
+		invalid.reserved[byte] = 1U;
+		assert(smm_invocation_entry_depart(&evidence, &invalid) == CB_ERR);
+	}
 	assert(smm_invocation_entry_depart(&evidence, &ticket) == CB_SUCCESS);
+	for (size_t byte = 0; byte < sizeof(ticket.reserved); byte++) {
+		invalid = ticket;
+		invalid.reserved[byte] = 1U;
+		assert(!smm_invocation_entry_eos_ready(&evidence, &invalid));
+	}
 	assert(smm_invocation_entry_eos_ready(&evidence, &ticket));
 }
 
@@ -2534,6 +2548,7 @@ static void test_departure_timeout_suppresses_owner(void)
 		.cpu = 0,
 		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.max_polls = 1,
+		.command = 0xa5,
 	};
 	struct departure_try_arg owner = {
 		.evidence = &evidence, .cpu = 0,
@@ -3424,6 +3439,7 @@ static void test_rendezvous_and_departure(void)
 			.cpu = cpu,
 			.lifecycle = cause.lifecycle,
 			.max_polls = policy.max_polls,
+			.command = cause.command,
 		};
 		arrivals[cpu].result = CB_SUCCESS;
 	}
@@ -3443,7 +3459,8 @@ static void test_rendezvous_and_departure(void)
 	assert(arrivals[0].result == CB_SUCCESS);
 	assert(arrivals[1].result == CB_SUCCESS);
 	for (size_t cpu = 0; cpu < 2; cpu++)
-		assert(arrivals[cpu].ticket.generation != 0);
+		assert(arrivals[cpu].ticket.generation != 0 &&
+		       arrivals[cpu].ticket.command == cause.command);
 	entry_hook_cpu = UINT32_MAX;
 	assert(smm_invocation_entry_depart(&evidence, (void *)&evidence) ==
 		CB_ERR);
@@ -3531,6 +3548,9 @@ static void test_rendezvous_and_departure(void)
 	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
 	stale = arrivals[0].ticket;
 	stale.loader_instance_nonce.low++;
+	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
+	stale = arrivals[0].ticket;
+	stale.reserved[2] = 1U;
 	assert(!smm_invocation_entry_eos_ready(&evidence, &stale));
 	stale = arrivals[0].ticket;
 	stale.loader_instance_nonce.high++;
@@ -3643,8 +3663,14 @@ static void test_claim_requires_all_acknowledgements(void)
 		CB_SUCCESS);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+	if (argc == 2 && !strcmp(argv[1], "--ticket-focused")) {
+		test_cause_validation();
+		test_sparse_entry_nonce();
+		return 0;
+	}
+
 	test_em64t101();
 	test_em64t100();
 	test_adapter_boundaries();

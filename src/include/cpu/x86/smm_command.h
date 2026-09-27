@@ -11,6 +11,7 @@
 #define SMM_APMC_SPI_CONSOLE 0xe8U
 #define SMM_APMC_CAPSULE_BROKER 0xe8U
 #define SMM_APMC_ACER_BOARD 0xddU
+#define SMM_APMC_AUTHVAR_PRESENCE 0xffU
 
 enum smm_apmc_owner {
 	SMM_APMC_OWNER_NONE,
@@ -28,6 +29,7 @@ enum smm_apmc_owner {
 	SMM_APMC_OWNER_CAPSULE_BROKER,
 	SMM_APMC_OWNER_STARLABS_EFI_OPTION,
 	SMM_APMC_OWNER_ACER_BOARD,
+	SMM_APMC_OWNER_AUTHVAR_PRESENCE,
 };
 
 enum smm_apmc_role {
@@ -53,7 +55,8 @@ enum smm_apmc_role {
 	ENTRY(APM_CNT_SMMSTORE) \
 	ENTRY(APM_CNT_OPAL_SVC) \
 	ENTRY(APM_CNT_ELOG_GSMI) \
-	ENTRY(SMM_APMC_ACER_BOARD)
+	ENTRY(SMM_APMC_ACER_BOARD) \
+	ENTRY(SMM_APMC_AUTHVAR_PRESENCE)
 
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 #define SMM_APMC_SPI_CLAIM(ENTRY) \
@@ -233,5 +236,9 @@ enum smm_apmc_dispatch_result
 smm_apmc_command_finish(u8 expected_command,
 			struct smm_apmc_descriptor *selection,
 			enum smm_apmc_owner_outcome outcome);
+enum smm_apmc_dispatch_result
+smm_apmc_command_consume(u8 expected_command,
+			 enum smm_apmc_owner expected_owner,
+			 struct smm_apmc_descriptor *selection);
 
 #endif

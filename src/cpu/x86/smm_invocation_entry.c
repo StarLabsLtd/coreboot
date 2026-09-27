@@ -100,6 +100,8 @@ static bool policy_valid(const struct smm_invocation_entry_policy *policy)
 
 static bool ticket_valid(const struct smm_invocation_entry_ticket *ticket)
 {
+	static const uint8_t zero[sizeof(ticket->reserved)];
+
 	return ticket && ticket->generation &&
 		!smm_invocation_loader_instance_nonce_is_zero(
 			ticket->loader_instance_nonce) &&
@@ -107,7 +109,7 @@ static bool ticket_valid(const struct smm_invocation_entry_ticket *ticket)
 		 ticket->lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD) &&
 		ticket->max_polls &&
 		ticket->max_polls <= SMM_INVOCATION_ENTRY_MAX_POLLS &&
-		!ticket->reserved;
+		!memcmp(ticket->reserved, zero, sizeof(zero));
 }
 
 static bool input_ranges_valid(struct smm_invocation_evidence *evidence,
@@ -218,6 +220,7 @@ enum cb_err smm_invocation_entry_arrive(
 	ticket_snapshot.cpu = cpu;
 	ticket_snapshot.lifecycle = snapshot.lifecycle;
 	ticket_snapshot.max_polls = policy_snapshot.max_polls;
+	ticket_snapshot.command = snapshot.command;
 	memcpy(ticket, &ticket_snapshot, sizeof(ticket_snapshot));
 	ENTRY_TEST_HOOK(3, cpu);
 	if (!sources_unchanged(cause, &snapshot, policy, &policy_snapshot) ||

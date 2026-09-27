@@ -36,7 +36,8 @@ struct smm_invocation_entry_ticket {
 	uint32_t cpu;
 	uint32_t lifecycle;
 	uint32_t max_polls;
-	uint32_t reserved;
+	uint8_t command;
+	uint8_t reserved[3];
 } __aligned(8);
 
 _Static_assert(sizeof(struct smm_invocation_entry_policy) == 16,
@@ -56,6 +57,10 @@ _Static_assert(offsetof(struct smm_invocation_entry_ticket, generation) == 0,
 	"SMM invocation entry ticket generation offset changed");
 _Static_assert(offsetof(struct smm_invocation_entry_ticket, max_polls) == 32,
 	"SMM invocation entry ticket poll-bound offset changed");
+_Static_assert(offsetof(struct smm_invocation_entry_ticket, command) == 36,
+	"SMM invocation entry ticket command offset changed");
+_Static_assert(offsetof(struct smm_invocation_entry_ticket, reserved) == 37,
+	"SMM invocation entry ticket reserved offset changed");
 
 enum cb_err smm_invocation_entry_arrive(
 	struct smm_invocation_evidence *evidence,

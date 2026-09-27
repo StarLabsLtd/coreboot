@@ -5,7 +5,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
-base=bf50e21e59a5113f59ccba6b6ad02db8beb869ac
+base=275b2812f07ef6c957103d3024ab06eda00a0065
 
 if [ ! -f "$root/3rdparty/vboot/firmware/include/vb2_sha.h" ]; then
 	printf '%s\n' 'required vboot submodule is not initialized' >&2
@@ -104,7 +104,8 @@ for profile in \
 		"$build/smm/cpu/x86/smm/smm_module_handler.o" \
 		"$build/smmstub/cpu/x86/smm/smm_stub.o" >/dev/null
 	object="$build/smm/cpu/x86/smm_command.o"
-	for symbol in smm_apmc_command_select smm_apmc_command_finish; do
+	for symbol in smm_apmc_command_select smm_apmc_command_finish \
+		smm_apmc_command_consume; do
 		test "$(nm --defined-only "$object" | awk -v symbol="$symbol" \
 			'$3 == symbol { count++ } END { print count + 0 }')" -eq 1
 	done
