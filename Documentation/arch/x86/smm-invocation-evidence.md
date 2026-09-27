@@ -39,6 +39,18 @@ generation, invocation generation, topology and initiator plus a deterministic
 digest. It is immutable one-invocation correlation data, not a secret, an
 authenticator, or a capability. Callers must not use it as authority.
 
+The dormant `publish_and_request_close` primitive combines publication with
+the exact close request needed by a future transaction adapter. It snapshots
+the caller's token and save-state operations once; later changes to those
+caller-owned source objects cannot affect the operation. Structurally invalid
+inputs before it owns the `CLAIMED -> PUBLISHING` transition leave the claimed
+evidence and save state untouched. Once it owns that transition, every
+callback, shutdown, reentry, protected token, geometry, state, write, readback
+or close-request ambiguity invokes platform-wide fail-stop instead of returning
+an error. Success consumes the token and establishes `CLOSING` with the
+close-request latch. It neither performs participant departures nor consumes
+BSP EOS; those remain ordered steps of a future outer handler.
+
 Shutdown requests are observed around every fallible adapter boundary. Before
 the sentinel is written, callback reentry poisons the invocation. After the
 write, abort restores and verifies the original full RAX; any ambiguous restore

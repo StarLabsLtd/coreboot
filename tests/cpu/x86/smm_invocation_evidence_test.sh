@@ -51,7 +51,8 @@ else
 	exit 1
 fi
 
-${CC:-cc} -m32 -march=i686 -std=gnu11 -Wall -Wextra -Werror \
+${CC:-cc} -m32 -march=i686 -Os -fstack-usage -std=gnu11 \
+	-Wall -Wextra -Werror \
 	-Wconversion -Wshadow -ffreestanding -fno-builtin -D__TEST__ \
 	-D__COREBOOT__ -include "$root/src/include/kconfig.h" \
 	-include "$root/src/include/rules.h" \
@@ -68,6 +69,23 @@ if nm -u "$temporary/smm-invocation-evidence-32.o" | \
 fi
 ld -m elf_i386 -r "$temporary/smm-invocation-evidence-32.o" \
 	-o "$temporary/smm-invocation-evidence-32-linked.o"
+stack_file="$temporary/smm-invocation-evidence-32.su"
+stack_value()
+{
+	stack_name=$1
+	awk -F '\t' -v name="$stack_name" \
+		'$1 ~ (":" name "$") { print $2; found = 1 }
+		 END { if (!found) exit 1 }' "$stack_file"
+}
+strong_stack=$(stack_value smm_invocation_evidence_publish_and_request_close)
+geometry_stack=$(stack_value claimed_geometry_valid)
+build_token_stack=$(stack_value build_token)
+strong_chain=$((strong_stack + geometry_stack + build_token_stack))
+if [ "$strong_chain" -gt 1024 ]; then
+	printf 'strong completion stack chain exceeds 1 KiB: %s\n' \
+		"$strong_chain" >&2
+	exit 1
+fi
 
 mutation()
 {
@@ -150,19 +168,50 @@ mutation admission-success-phase \
 mutation admission-arrive-completion \
 	'/smm_invocation_evidence_arrive_try/,/smm_invocation_evidence_rendezvous_ready/{s/!admission_completed/(admission_completed \&\& false)/}'
 mutation admission-arrive-consumed \
-	'/SMM_INVOCATION_ADMISSION_ARRIVE,/{:a;N;/completed_control \& (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+	'/SMM_INVOCATION_ADMISSION_ARRIVE,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
 mutation admission-arm-consumed \
-	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/completed_control \& (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
 mutation admission-arm-completion \
 	'/smm_invocation_evidence_require_rendezvous_ack_try/,/smm_invocation_evidence_admission_fail/{s/!admission_completed/(admission_completed \&\& false)/}'
 mutation admission-arm-phase \
-	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/SMM_INVOCATION_READY)/!ba; s/(completed_control \& STATE_PHASE_MASK) != SMM_INVOCATION_READY/false/;}'
+	'/SMM_INVOCATION_ADMISSION_ARM,/{:a;N;/SMM_INVOCATION_READY)/!ba; s/(completed_control & STATE_PHASE_MASK) != SMM_INVOCATION_READY/false/;}'
 mutation admission-ack-consumed \
-	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/completed_control \& (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
+	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/completed_control & (ADMISSION_CONSUMED |/!ba; s/ADMISSION_CONSUMED |/0 |/;}'
 mutation admission-ack-completion \
-	'/smm_invocation_evidence_rendezvous_ack_try/,/smm_invocation_evidence_publish(/{s/!admission_completed/(admission_completed \&\& false)/}'
+	'/smm_invocation_evidence_rendezvous_ack_try/,/smm_invocation_evidence_publish_and_request_close/{s/!admission_completed/(admission_completed \&\& false)/}'
 mutation admission-ack-shutdown \
 	'/SMM_INVOCATION_ADMISSION_ACK,/{:a;N;/INVOCATION_SHUTDOWN_REQUESTED/!ba; s/INVOCATION_SHUTDOWN_REQUESTED/0/;}'
+mutation strong-callback-phase \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{0,/invocation_fail_stop();/{s/invocation_fail_stop();/return CB_ERR;/}}'
+mutation strong-acquisition-cas-loss \
+	'/TEST_HOOK(49);/,/TEST_HOOK(45);/{s/invocation_fail_stop();/return CB_ERR;/}'
+mutation strong-canonical-busy \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ADMISSION_BUSY | ADMISSION_CONSUMED |/0 | 0 |/}'
+mutation strong-canonical-latch \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/INVOCATION_LATCH_MASK/0/}'
+mutation strong-canonical-nonce \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/!(state >> ADMISSION_NONCE_SHIFT)/false/}'
+mutation strong-canonical-kind \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/kind != expected_kind/(kind != expected_kind \&\& false)/}'
+mutation strong-second-phase-sample \
+	'/TEST_HOOK(51);/,/SMM_INVOCATION_CLAIMED)/{s/if (callback_owns_phase/if (false \&\& callback_owns_phase/}'
+mutation strong-evidence-token-overlap \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ranges_overlap(evidence, sizeof(\*evidence), token, sizeof(\*token))/false/}'
+mutation strong-context-overlap \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/(ops_snapshot.context_size \&\&/(false \&\& ops_snapshot.context_size \&\&/}'
+mutation strong-geometry \
+	'/static bool claimed_geometry_valid/,/^}/{s/^\([[:space:]]*\)struct smm_invocation_token expected;/\1if (1) return true;\
+&/;}'
+mutation strong-ack-snapshot \
+	'/static bool claimed_geometry_valid/,/^}/{s/ack_control != expected_ack_required/false/}'
+mutation strong-close-request \
+	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ | INVOCATION_CLOSE_REQUESTED |/ |/}'
+mutation strong-final-cas \
+	'/TEST_HOOK(48);/,/^}/{s/if (!__atomic_compare_exchange_n(\&evidence->state, \&state,/if ((state = state, false) \&\& !__atomic_compare_exchange_n(\&evidence->state, \&state,/}'
+mutation strong-post-write-guard \
+	'/ops_snapshot.write_rax/,/ops_snapshot.read_rax/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
+mutation strong-final-geometry \
+	'/TEST_HOOK(48);/,/TEST_HOOK(53);/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
 
 if rg -n '__builtin_trap|(^|[^[:alnum:]_])abort[[:space:]]*\(|\bhlt\b' \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
@@ -178,7 +227,7 @@ if rg -q 'select[[:space:]]+SMM_INVOCATION_EVIDENCE' "$root/src"; then
 	printf '%s\n' 'SMM invocation evidence became selected' >&2
 	exit 1
 fi
-if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown)' \
+if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown|publish_and_request_close)' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_evidence.c' \
 	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
 	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \

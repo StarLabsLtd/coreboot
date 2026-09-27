@@ -1052,6 +1052,13 @@ static bool ops_valid(const struct smm_invocation_save_state_ops *ops)
 		 range_valid(ops->context, ops->context_size));
 }
 
+static bool callback_owns_phase(uint32_t phase)
+{
+	return phase == SMM_INVOCATION_CLAIMING ||
+		phase == SMM_INVOCATION_PUBLISHING ||
+		phase == SMM_INVOCATION_ABORTING;
+}
+
 static bool ops_unchanged(const struct smm_invocation_save_state_ops *ops,
 	const struct smm_invocation_save_state_ops *snapshot)
 {
@@ -1069,9 +1076,7 @@ static void record_reentry(struct smm_invocation_evidence *evidence,
 {
 	uint32_t state;
 
-	if (phase == SMM_INVOCATION_CLAIMING ||
-	    phase == SMM_INVOCATION_PUBLISHING ||
-	    phase == SMM_INVOCATION_ABORTING) {
+	if (callback_owns_phase(phase)) {
 		state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
 		if ((state & STATE_PHASE_MASK) != phase ||
 		    state & INVOCATION_REENTRY_DETECTED)
@@ -1181,6 +1186,70 @@ static void build_token(struct smm_invocation_evidence *evidence,
 		},
 		.bsp = 1,
 	};
+}
+
+static bool claimed_geometry_valid(struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_token *token, uint64_t sentinel,
+	uint32_t expected_ack_required)
+{
+	struct smm_invocation_token expected;
+	const uint32_t active_cpus = evidence->active_cpus;
+	const uint64_t generation = evidence->generation;
+	uint64_t expected_cpus;
+	const uint32_t ack_control = __atomic_load_n(
+		&evidence->rendezvous_ack_required, __ATOMIC_ACQUIRE);
+	const bool ack_required = ack_control;
+
+	if (!active_cpus || active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS)
+		return false;
+	expected_cpus = active_cpus == 64U ? UINT64_MAX :
+		(1ULL << active_cpus) - 1U;
+	if (evidence->bsp_cpu >= active_cpus ||
+	    token->initiator_cpu != evidence->bsp_cpu ||
+	    !generation ||
+	    smm_invocation_loader_instance_nonce_is_zero(
+		evidence->loader_instance_nonce) ||
+	    (evidence->loader_lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     evidence->loader_lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD) ||
+	    ack_control != expected_ack_required || expected_ack_required > 1U ||
+	    evidence->command > UINT8_MAX || !sentinel ||
+	    (uint8_t)sentinel != evidence->command ||
+	    (uint8_t)evidence->original_rax != evidence->command ||
+	    evidence->command_reserved || evidence->shutdown_reserved ||
+	    evidence->reentry_reserved || evidence->admission_reserved ||
+	    evidence->close_reserved || evidence->close_receipt_reserved ||
+	    evidence->reserved || evidence->closed_generation ||
+	    !smm_invocation_loader_instance_nonce_is_zero(
+		evidence->closed_loader_instance_nonce) ||
+	    evidence->closed_lifecycle ||
+	    __atomic_load_n(&evidence->closed_eos_consumed,
+		__ATOMIC_ACQUIRE) ||
+	    evidence->expected_cpus != expected_cpus ||
+	    __atomic_load_n(&evidence->arrived_cpus, __ATOMIC_ACQUIRE) !=
+		expected_cpus ||
+	    __atomic_load_n(&evidence->rendezvous_ack_cpus,
+		__ATOMIC_ACQUIRE) != (ack_required ? expected_cpus : 0) ||
+	    __atomic_load_n(&evidence->arrival_writers, __ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&evidence->departure_writers, __ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&evidence->arrival_failed, __ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&evidence->departure_failed, __ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&evidence->rendezvous_fail_requested,
+		__ATOMIC_ACQUIRE) ||
+	    __atomic_load_n(&evidence->departed_cpus, __ATOMIC_ACQUIRE))
+		return false;
+	for (uint32_t cpu = 0; cpu < active_cpus; cpu++) {
+		const struct smm_invocation_participant participant =
+			evidence->participants[cpu];
+
+		if (participant.phase != SMM_INVOCATION_PARTICIPANT_READY ||
+		    participant.generation != generation ||
+		    participant.apic_id != evidence->participant_apic_ids[cpu])
+			return false;
+	}
+	build_token(evidence, token->initiator_cpu, (uint8_t)evidence->command,
+		sentinel, &expected);
+	return !memcmp(&expected, token, sizeof(expected)) &&
+		!memcmp(token, &evidence->token, sizeof(*token));
 }
 
 enum cb_err smm_invocation_evidence_claim(
@@ -1399,6 +1468,124 @@ enum cb_err smm_invocation_evidence_complete(
 	if (memcmp(&snapshot, &evidence->token, sizeof(snapshot)))
 		return poison_owned(evidence, SMM_INVOCATION_COMPLETING);
 	(void)close_owned(evidence, SMM_INVOCATION_COMPLETING);
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_evidence_publish_and_request_close(
+	struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_token *token, uint64_t value,
+	const struct smm_invocation_save_state_ops *ops)
+{
+	struct smm_invocation_save_state_ops ops_snapshot;
+	struct smm_invocation_token token_snapshot;
+	uint64_t sentinel;
+	uint64_t readback;
+	uint32_t ack_required;
+	uint32_t expected_kind;
+	uint32_t kind;
+	uint32_t publishing_state;
+	uint32_t state;
+
+	if (!range_valid(evidence, sizeof(*evidence)))
+		return CB_ERR;
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (callback_owns_phase(state & STATE_PHASE_MASK))
+		invocation_fail_stop();
+	if (!range_valid(token, sizeof(*token)) ||
+	    !range_valid(ops, sizeof(*ops)) ||
+	    ranges_overlap(evidence, sizeof(*evidence), token, sizeof(*token)) ||
+	    ranges_overlap(evidence, sizeof(*evidence), ops, sizeof(*ops)) ||
+	    ranges_overlap(token, sizeof(*token), ops, sizeof(*ops)))
+		return CB_ERR;
+	memcpy(&token_snapshot, token, sizeof(token_snapshot));
+	memcpy(&ops_snapshot, ops, sizeof(ops_snapshot));
+	if (token_snapshot.revision != SMM_INVOCATION_TOKEN_REVISION ||
+	    token_snapshot.size != sizeof(token_snapshot) ||
+	    !token_snapshot.active_cpus ||
+	    token_snapshot.active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
+	    token_snapshot.initiator_cpu >= token_snapshot.active_cpus ||
+	    !token_snapshot.smi_generation ||
+	    token_snapshot.rendezvous_generation !=
+		token_snapshot.smi_generation ||
+	    token_snapshot.bsp != 1U || token_snapshot.reserved ||
+	    !ops_valid(&ops_snapshot) ||
+	    (ops_snapshot.context_size &&
+	     (ranges_overlap(evidence, sizeof(*evidence), ops_snapshot.context,
+		ops_snapshot.context_size) ||
+	      ranges_overlap(token, sizeof(*token), ops_snapshot.context,
+		ops_snapshot.context_size) ||
+	      ranges_overlap(ops, sizeof(*ops), ops_snapshot.context,
+		ops_snapshot.context_size))))
+		return CB_ERR;
+	TEST_HOOK(51);
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (callback_owns_phase(state & STATE_PHASE_MASK))
+		invocation_fail_stop();
+	if ((state & STATE_PHASE_MASK) != SMM_INVOCATION_CLAIMED)
+		return CB_ERR;
+	kind = (state & ADMISSION_KIND_MASK) >> ADMISSION_KIND_SHIFT;
+	ack_required = __atomic_load_n(&evidence->rendezvous_ack_required,
+		__ATOMIC_ACQUIRE);
+	expected_kind = ack_required ? SMM_INVOCATION_ADMISSION_ACK :
+		SMM_INVOCATION_ADMISSION_ARRIVE;
+	if (state & (ADMISSION_BUSY | ADMISSION_CONSUMED |
+		    INVOCATION_LATCH_MASK) ||
+	    !(state >> ADMISSION_NONCE_SHIFT) || ack_required > 1U ||
+	    kind != expected_kind)
+		invocation_fail_stop();
+	publishing_state = (state & ~STATE_PHASE_MASK) |
+		SMM_INVOCATION_PUBLISHING;
+	TEST_HOOK(49);
+	if (!__atomic_compare_exchange_n(&evidence->state, &state,
+		publishing_state, false,
+		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		invocation_fail_stop();
+
+	TEST_HOOK(45);
+	sentinel = evidence->sentinel;
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (state != publishing_state || value == sentinel ||
+	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
+		ack_required))
+		invocation_fail_stop();
+	if (ops_snapshot.read_rax(ops_snapshot.context,
+		token_snapshot.initiator_cpu, &readback) != CB_SUCCESS)
+		invocation_fail_stop();
+	TEST_HOOK(46);
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (state != publishing_state || readback != sentinel ||
+	    evidence->sentinel != sentinel ||
+	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
+		ack_required))
+		invocation_fail_stop();
+	if (ops_snapshot.write_rax(ops_snapshot.context,
+		token_snapshot.initiator_cpu, value) != CB_SUCCESS)
+		invocation_fail_stop();
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (state != publishing_state ||
+	    evidence->sentinel != sentinel ||
+	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
+		ack_required))
+		invocation_fail_stop();
+	if (ops_snapshot.read_rax(ops_snapshot.context,
+		token_snapshot.initiator_cpu, &readback) != CB_SUCCESS)
+		invocation_fail_stop();
+	TEST_HOOK(47);
+	TEST_HOOK(48);
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if (state != publishing_state || readback != value ||
+	    evidence->sentinel != sentinel ||
+	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
+		ack_required))
+		invocation_fail_stop();
+	TEST_HOOK(53);
+	if (!__atomic_compare_exchange_n(&evidence->state, &state,
+		(state & ~STATE_PHASE_MASK) | INVOCATION_CLOSE_REQUESTED |
+			SMM_INVOCATION_CLOSING,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		invocation_fail_stop();
+	scrub(&ops_snapshot, sizeof(ops_snapshot));
+	scrub(&token_snapshot, sizeof(token_snapshot));
 	return CB_SUCCESS;
 }
 

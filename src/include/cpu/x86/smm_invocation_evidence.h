@@ -234,6 +234,18 @@ enum cb_err smm_invocation_evidence_publish(
 enum cb_err smm_invocation_evidence_complete(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_token *token);
+/*
+ * Atomically publish one result and consume the exact claimed token.
+ * A failure before publication ownership leaves the claimed invocation
+ * untouched. After ownership is acquired this either establishes CLOSING with
+ * a close request or invokes the platform-wide fail-stop and does not return.
+ * Participant departure and BSP EOS consumption remain the outer handler's
+ * responsibility.
+ */
+enum cb_err smm_invocation_evidence_publish_and_request_close(
+	struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_token *token, uint64_t value,
+	const struct smm_invocation_save_state_ops *ops);
 enum cb_err smm_invocation_evidence_abort(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_token *token,
