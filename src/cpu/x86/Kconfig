@@ -96,6 +96,16 @@ config SMM_INVOCATION_LOADER_COMPOSITION
 	  nonce and invocation evidence as the SMM loader's final fallible step.
 	  This adds no SMI command, APMC route or public endpoint.
 
+config SMM_INVOCATION_INTEL_CAUSE
+	bool
+	default n
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Compile the dormant Intel private-APMC cause classifier. A future
+	  callsite must route its private-invalid result to the selected platform
+	  fail-stop. This adds no callsite, command dispatch or platform selection.
+
 config PARALLEL_MP
 	def_bool y
 	help

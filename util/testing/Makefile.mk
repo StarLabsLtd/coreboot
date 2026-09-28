@@ -225,6 +225,11 @@ test-smm-save-state-geometry:
 	tests/cpu/x86/smm_save_state_runtime_test.sh
 	tests/cpu/x86/smm_save_state_geometry_profiles_test.sh
 
+.PHONY: test-smm-invocation-intel-cause
+test-smm-invocation-intel-cause:
+	tests/cpu/x86/smm_invocation_intel_cause_test.sh
+	tests/cpu/x86/smm_invocation_intel_cause_profiles_test.sh
+
 .PHONY: test-smm-invocation-entry-profiles
 test-smm-invocation-entry-profiles:
 	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
