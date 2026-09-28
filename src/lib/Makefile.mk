@@ -59,6 +59,13 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 	payload_mm_authvar_presence_transaction.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) += \
 	payload_mm_authvar_presence_tuple_sender.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_INSTALLATION_EVIDENCE) += \
+	payload_mm_authvar_presence_lifecycle_composition.c \
+	payload_mm_authvar_presence_lifecycle_registration.c \
+	payload_mm_authvar_presence_pre_external_image_registration.c \
+	payload_mm_authvar_presence_payload_failure_registration.c \
+	payload_mm_authvar_presence_warm_reset_registration.c \
+	payload_mm_authvar_presence_s3_resume_registration.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION) += \
 	payload_mm_authvar_presence_transaction.c \
 	payload_mm_authvar_presence_transaction_receiver.c

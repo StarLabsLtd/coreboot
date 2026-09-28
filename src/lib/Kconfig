@@ -495,6 +495,17 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
 	  the private invocation tuple. It adds no lifecycle owner, dispatch route,
 	  handler, public endpoint, callsite or platform selection.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_INSTALLATION_EVIDENCE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
+	help
+	  Build dormant ramstage-only installation evidence for the four mandatory
+	  authenticated-variable presence lifecycle sources: pre-external-image,
+	  payload failure or return, warm reset and S3 resume. This only composes
+	  source registrations. It installs no hook or callsite, performs no closure
+	  and cannot establish the public LIFECYCLE_SEALED flag.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n
