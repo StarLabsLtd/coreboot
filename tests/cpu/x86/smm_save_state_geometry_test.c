@@ -24,6 +24,13 @@ void intel_smm_invocation_adapter_test_hook(uint32_t point)
 	(void)point;
 }
 
+size_t intel_smm_invocation_adapter_test_revision_size(
+	uint32_t layout_revision, size_t native_size)
+{
+	(void)layout_revision;
+	return native_size;
+}
+
 static void span_boundaries(void)
 {
 	uint8_t bytes[32];

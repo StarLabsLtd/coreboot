@@ -33,6 +33,7 @@ build()
 		"$root/tests/cpu/x86/smm_invocation_entry_adapter_test.c" \
 		"$entry" "$root/src/cpu/x86/smm_invocation_evidence.c" \
 		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+		"$root/src/cpu/x86/smm/save_state_geometry.c" \
 		"$root/src/soc/intel/common/block/smm/invocation_adapter.c" \
 		-o "$temporary/$output"
 }
