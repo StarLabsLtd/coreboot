@@ -7,6 +7,10 @@
 #include <cpu/x86/smm_save_state.h>
 #include <string.h>
 
+#if CONFIG(SMM_INVOCATION_INTEL_ADAPTER_PROVIDER)
+#include "invocation_adapter_internal.h"
+#endif
+
 #if defined(__TEST__)
 void intel_smm_invocation_adapter_test_hook(uint32_t point);
 size_t intel_smm_invocation_adapter_test_revision_size(
@@ -69,6 +73,34 @@ static size_t revision_size(uint32_t revision)
 			sizeof(em64t101_smm_state_save_area_t));
 	return 0;
 }
+
+#if CONFIG(SMM_INVOCATION_INTEL_ADAPTER_PROVIDER)
+bool intel_smm_invocation_adapter_revision_supported(uint32_t revision)
+{
+	return revision_size(revision) != 0;
+}
+
+bool intel_smm_invocation_adapter_range_disjoint(
+	const struct intel_smm_invocation_adapter *adapter,
+	const void *range, size_t range_size)
+{
+	const size_t save_state_size = adapter ?
+		revision_size(adapter->expected_revision) : 0;
+
+	if (!adapter || !range_valid(range, range_size) ||
+	    adapter->revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION ||
+	    adapter->size != sizeof(*adapter) || !adapter->active_cpus ||
+	    adapter->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
+	    adapter->reserved || !save_state_size)
+		return false;
+	for (uint32_t cpu = 0; cpu < adapter->active_cpus; cpu++)
+		if (ranges_overlap(range, range_size,
+			(const void *)adapter->nodes[cpu].save_state,
+			save_state_size))
+			return false;
+	return true;
+}
+#endif
 
 static bool node_tuple(const struct intel_smm_invocation_node *node,
 	uint32_t revision, struct invocation_tuple *tuple)
@@ -392,3 +424,77 @@ enum cb_err intel_smm_invocation_adapter_ops(
 	};
 	return CB_SUCCESS;
 }
+
+#if CONFIG(SMM_INVOCATION_INTEL_ADAPTER_PROVIDER)
+/* The provider calls these only while it exclusively owns the adapter. */
+enum cb_err intel_smm_invocation_adapter_bind(
+	struct intel_smm_invocation_adapter *adapter,
+	struct smm_invocation_save_state_ops *ops)
+{
+	if (!adapter || !ops || ranges_overlap(adapter, sizeof(*adapter), ops,
+		sizeof(*ops)) || !intel_smm_invocation_adapter_range_disjoint(adapter,
+		ops, sizeof(*ops)) ||
+	    adapter->revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION ||
+	    adapter->size != sizeof(*adapter) || !adapter->active_cpus ||
+	    adapter->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
+	    adapter->reserved || !revision_size(adapter->expected_revision))
+		return CB_ERR;
+	*ops = (struct smm_invocation_save_state_ops) {
+		.match_apmc_write = match_apmc_write,
+		.read_rax = read_rax,
+		.write_rax = write_rax,
+		.context = adapter,
+		.context_size = sizeof(*adapter),
+	};
+	return CB_SUCCESS;
+}
+
+enum cb_err intel_smm_invocation_adapter_begin(
+	struct intel_smm_invocation_adapter *adapter)
+{
+	const size_t save_state_size = adapter ?
+		revision_size(adapter->expected_revision) : 0;
+
+	if (!adapter || adapter->revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION ||
+	    adapter->size != sizeof(*adapter) || !adapter->active_cpus ||
+	    adapter->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
+	    adapter->reserved || !save_state_size)
+		return CB_ERR;
+	for (uint32_t cpu = 0; cpu < adapter->active_cpus; cpu++)
+		if (!range_valid((const void *)adapter->nodes[cpu].save_state,
+			save_state_size))
+			return CB_ERR;
+	if (adapter->invocation_nonce == UINT64_MAX) {
+		adapter->reserved = 1U;
+		return CB_ERR;
+	}
+	adapter->invocation_nonce++;
+	adapter->seal_phase = ADAPTER_SEAL_EMPTY;
+	adapter->matched_cpu = UINT32_MAX;
+	adapter->matched_revision = 0;
+	adapter->matched_io_misc = 0;
+	adapter->matched_command = 0;
+	adapter->matched_rax = 0;
+	adapter->matched_nonce = 0;
+	return CB_SUCCESS;
+}
+
+enum cb_err intel_smm_invocation_adapter_end(
+	struct intel_smm_invocation_adapter *adapter)
+{
+	if (!adapter || adapter->revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION ||
+	    adapter->size != sizeof(*adapter) || !adapter->active_cpus ||
+	    adapter->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
+	    adapter->reserved || !revision_size(adapter->expected_revision))
+		return CB_ERR;
+	__atomic_store_n(&adapter->seal_phase, ADAPTER_SEAL_POISONED,
+		__ATOMIC_RELEASE);
+	adapter->matched_cpu = UINT32_MAX;
+	adapter->matched_revision = 0;
+	adapter->matched_io_misc = 0;
+	adapter->matched_command = 0;
+	adapter->matched_rax = 0;
+	adapter->matched_nonce = 0;
+	return CB_SUCCESS;
+}
+#endif

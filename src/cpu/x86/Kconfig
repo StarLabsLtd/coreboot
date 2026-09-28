@@ -60,6 +60,17 @@ config SMM_INVOCATION_INTEL_ADAPTER
 	  adapter has no callsite until a platform composition supplies the
 	  entry and dispatch capabilities.
 
+config SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
+	bool
+	default n
+	depends on SMM_INVOCATION_INTEL_ADAPTER
+	depends on SMM_INVOCATION_RUNTIME_VIEW
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Compile the protected Intel save-state adapter owner. The provider binds
+	  checked runtime geometry once and serializes independent invocation
+	  rounds. It installs no SMI route, command or handler callsite.
+
 config SMM_SAVE_STATE_GEOMETRY
 	bool
 	default y if STM || SMM_INVOCATION_INTEL_ADAPTER
