@@ -4,6 +4,7 @@
 #define CPU_X86_SMM_COMMAND_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <types.h>
 
 /* Platform-local definitions audited outside cpu/x86/smm.h. */
@@ -12,6 +13,7 @@
 #define SMM_APMC_CAPSULE_BROKER 0xe8U
 #define SMM_APMC_ACER_BOARD 0xddU
 #define SMM_APMC_AUTHVAR_PRESENCE 0xffU
+#define SMM_APMC_AUTHVAR_PRESENCE_SENTINEL UINT64_MAX
 
 enum smm_apmc_owner {
 	SMM_APMC_OWNER_NONE,

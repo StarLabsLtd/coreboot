@@ -7,13 +7,15 @@
 #include <boot/payload_mm_authvar_presence_producer.h>
 #include <bootmem_reservation_receipt.h>
 #include <commonlib/bsd/cb_err.h>
+#include <cpu/x86/smm_command.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION 2U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CAPABILITY_SIZE 32U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE 4096U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL UINT64_MAX
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL \
+	SMM_APMC_AUTHVAR_PRESENCE_SENTINEL
 
 enum payload_mm_authvar_presence_transaction_decision {
 	PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE = 1U,

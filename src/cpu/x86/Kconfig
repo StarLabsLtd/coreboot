@@ -82,6 +82,18 @@ config SMM_INVOCATION_INTEL_ADAPTER_ROUTE
 	  the canonical Intel save-state adapter provider. This installs no SMI
 	  route, command, handler callsite or platform selection.
 
+config SMM_INVOCATION_TUPLE_TRIGGER
+	bool
+	default n
+	depends on ARCH_RAMSTAGE_X86_32
+	depends on HAVE_SMI_HANDLER
+	depends on SMM_INVOCATION_INTEL_ADAPTER_ROUTE
+	help
+	  Compile the dormant i386 ramstage trigger for the private invocation
+	  transport. It sends and receives one logical 64-bit value through
+	  ECX:EAX while issuing an exact byte OUT through DX. This adds no sender,
+	  lifecycle action, command dispatch, callsite or platform selection.
+
 config SMM_SAVE_STATE_GEOMETRY
 	bool
 	default y if STM || SMM_INVOCATION_INTEL_ADAPTER
