@@ -482,6 +482,19 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
 	  contexts require an SMM stack of at least 16 KiB. It installs no route,
 	  selector or board policy.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
+	bool
+	default n
+	depends on ARCH_RAMSTAGE_X86_32
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
+	depends on SMM_INVOCATION_TUPLE_TRIGGER
+	help
+	  Build the dormant ramstage adapter which transports one canonical
+	  authenticated-variable presence transaction request and response through
+	  the private invocation tuple. It adds no lifecycle owner, dispatch route,
+	  handler, public endpoint, callsite or platform selection.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n
