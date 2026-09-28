@@ -51,6 +51,13 @@ config SMM_INVOCATION_INTEL_ADAPTER
 	  adapter has no callsite until a platform composition supplies the
 	  entry and dispatch capabilities.
 
+config SMM_SAVE_STATE_GEOMETRY
+	bool
+	default y if STM || SMM_INVOCATION_INTEL_ADAPTER
+	help
+	  Internal checked native save-state geometry shared by STM and the Intel
+	  invocation adapter. Builds without either user retain the legacy handler.
+
 config SMM_INVOCATION_TOPOLOGY
 	bool
 	default n

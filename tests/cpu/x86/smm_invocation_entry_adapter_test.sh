@@ -112,6 +112,7 @@ build()
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/cpu/x86/smm_invocation_entry_adapter_test.c" \
 		"$entry" "$evidence" "$evidence_loader" "$adapter" \
+		"$root/src/cpu/x86/smm/save_state_geometry.c" \
 		-o "$temporary/$output_name"
 )
 

@@ -7,7 +7,13 @@
 #include <console/cbmem_console.h>
 #include <console/console.h>
 #include <cpu/cpu.h>
+#if CONFIG(STM)
+#include <cpu/x86/save_state.h>
+#endif
 #include <cpu/x86/smm.h>
+#if CONFIG(STM)
+#include <cpu/x86/smm_save_state.h>
+#endif
 #include <rmodule.h>
 #include <types.h>
 #include <security/intel/stm/SmmStm.h>
@@ -188,19 +194,41 @@ struct global_nvs *gnvs;
 
 void *smm_get_save_state(int cpu)
 {
+#if CONFIG(STM)
+	struct smm_save_state_span span;
+
+	if (cpu < 0 || (unsigned int)cpu >= smm_runtime.num_cpus ||
+	    smm_save_state_native_span(smm_runtime.save_state_top[cpu],
+		smm_runtime.save_state_size, STM_PSD_SIZE, &span) != CB_SUCCESS)
+		return NULL;
+	return (void *)span.base;
+#else
 	if (cpu >= smm_runtime.num_cpus)
 		return NULL;
 
 	return (void *)(smm_runtime.save_state_top[cpu] -
 			(smm_runtime.save_state_size - STM_PSD_SIZE));
+#endif
 }
 
 uint32_t smm_revision(void)
 {
+#if CONFIG(STM)
+	struct smm_save_state_span span;
+	uint32_t revision;
+
+	if (smm_save_state_native_span(smm_runtime.save_state_top[0],
+		smm_runtime.save_state_size, STM_PSD_SIZE, &span) != CB_SUCCESS ||
+	    smm_save_state_revision_at(&span, SMM_REVISION_OFFSET_FROM_TOP,
+		&revision) != CB_SUCCESS)
+		return SMM_REV_INVALID;
+	return revision;
+#else
 	const uintptr_t save_state = (uintptr_t)(smm_get_save_state(0));
 
 	return *(uint32_t *)(save_state + smm_runtime.save_state_size
 			     - SMM_REVISION_OFFSET_FROM_TOP);
+#endif
 }
 
 bool smm_region_overlaps_handler(const struct region *r)

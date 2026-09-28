@@ -33,6 +33,7 @@ ramstage-srcs += $(obj)/cpu/x86/smm/smm.manual
 endif
 
 smm-y += save_state.c
+smm-$(CONFIG_SMM_SAVE_STATE_GEOMETRY) += save_state_geometry.c
 
 ramstage-y += tseg_region.c
 smm-y += tseg_region.c

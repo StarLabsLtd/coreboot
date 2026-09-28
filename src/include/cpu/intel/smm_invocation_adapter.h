@@ -33,6 +33,10 @@ enum cb_err intel_smm_invocation_adapter_init(
 	struct intel_smm_invocation_adapter *adapter, uint32_t active_cpus,
 	const uintptr_t *save_state_top, uint32_t save_state_size,
 	uint32_t expected_revision);
+enum cb_err intel_smm_invocation_adapter_init_layout(
+	struct intel_smm_invocation_adapter *adapter, uint32_t active_cpus,
+	const uintptr_t *save_state_top, uint32_t allocation_size,
+	uint32_t reserved_size, uint32_t expected_revision);
 enum cb_err intel_smm_invocation_adapter_ops(
 	struct intel_smm_invocation_adapter *adapter,
 	struct smm_invocation_save_state_ops *ops);

@@ -4,6 +4,7 @@
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_save_state.h>
 #include <string.h>
 
 #if defined(__TEST__)
@@ -214,6 +215,15 @@ enum cb_err intel_smm_invocation_adapter_init(
 	const uintptr_t *save_state_top, uint32_t save_state_size,
 	uint32_t expected_revision)
 {
+	return intel_smm_invocation_adapter_init_layout(adapter, active_cpus,
+		save_state_top, save_state_size, 0, expected_revision);
+}
+
+enum cb_err intel_smm_invocation_adapter_init_layout(
+	struct intel_smm_invocation_adapter *adapter, uint32_t active_cpus,
+	const uintptr_t *save_state_top, uint32_t allocation_size,
+	uint32_t reserved_size, uint32_t expected_revision)
+{
 	uintptr_t tops[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
 	size_t expected_size;
 
@@ -225,27 +235,28 @@ enum cb_err intel_smm_invocation_adapter_init(
 	expected_size = expected_revision == EM64T100_REVISION ?
 		sizeof(em64t100_smm_state_save_area_t) :
 		sizeof(em64t101_smm_state_save_area_t);
-	if (save_state_size != expected_size ||
+	if (allocation_size <= reserved_size ||
 	    !range_valid(save_state_top, active_cpus * sizeof(*save_state_top)) ||
 	    ranges_overlap(adapter, sizeof(*adapter), save_state_top,
 		active_cpus * sizeof(*save_state_top)))
 		return CB_ERR;
 	memcpy(tops, save_state_top, active_cpus * sizeof(*tops));
 	for (uint32_t cpu = 0; cpu < active_cpus; cpu++) {
-		if (tops[cpu] < save_state_size ||
-		    !range_valid((const void *)(tops[cpu] - save_state_size),
-			save_state_size) ||
+		struct smm_save_state_span span;
+
+		if (smm_save_state_native_span(tops[cpu], allocation_size,
+			reserved_size, &span) != CB_SUCCESS ||
+		    span.size != expected_size ||
+		    !range_valid((const void *)span.base, span.size) ||
 		    ranges_overlap(adapter, sizeof(*adapter),
-			(const void *)(tops[cpu] - save_state_size),
-			save_state_size))
+			(const void *)span.base, span.size))
 			return CB_ERR;
 		for (uint32_t prior = 0; prior < cpu; prior++)
 			if (ranges_overlap(
-				(const void *)(tops[cpu] - save_state_size),
-				save_state_size,
-				(const void *)(tops[prior] - save_state_size),
-				save_state_size))
+				(const void *)span.base, span.size,
+				(const void *)tops[prior], expected_size))
 				return CB_ERR;
+		tops[cpu] = span.base;
 	}
 	memset(adapter, 0, sizeof(*adapter));
 	adapter->revision = INTEL_SMM_INVOCATION_ADAPTER_REVISION;
@@ -254,10 +265,7 @@ enum cb_err intel_smm_invocation_adapter_init(
 	adapter->expected_revision = expected_revision;
 	adapter->invocation_nonce = 1;
 	for (uint32_t cpu = 0; cpu < active_cpus; cpu++) {
-		uintptr_t base;
-
-		base = tops[cpu] - save_state_size;
-		adapter->nodes[cpu].save_state = base;
+		adapter->nodes[cpu].save_state = tops[cpu];
 	}
 	return CB_SUCCESS;
 }
