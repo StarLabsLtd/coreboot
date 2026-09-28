@@ -521,6 +521,26 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
 	  sender, route, table, board selection or live lifecycle callsite and does
 	  not establish the public LIFECYCLE_SEALED flag.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_PROVIDER
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	help
+	  Hidden capability supplied by a future platform provider which owns the
+	  exact protected route and returns a sealed ready receipt. No platform
+	  selects it in this slice.
+
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
+	bool
+	default n
+	depends on BOOTMEM_ALIGNED_RESERVATIONS
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_PROVIDER
+	help
+	  Build the dormant lifecycle-close endpoint ABI, reserved backing owner and
+	  receipt-gated table publication. Backing reservation never implies route
+	  readiness. This adds no provider, route, sender, board selection or live
+	  callsite.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n

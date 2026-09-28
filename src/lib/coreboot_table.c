@@ -12,6 +12,7 @@
 #include <boot/coreboot_tables.h>
 #include <boot/dma_handoff.h>
 #include <boot/payload_mm_authvar_presence_publication.h>
+#include <boot/payload_mm_authvar_presence_lifecycle_close_publication.h>
 #include <boot/tables.h>
 #include <boot_device.h>
 #include <string.h>
@@ -690,6 +691,13 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	lb_add_boot_mode(head);
 
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT) &&
+	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
+	     lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint(head,
+						 rom_table_end +
+						 COREBOOT_TABLE_SIZE) != CB_SUCCESS))
+		die("Authenticated-variable presence lifecycle-close publication failed\n");
+
 	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&
 	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
 	     lb_add_payload_mm_authvar_presence_endpoint(head,
@@ -725,7 +733,8 @@ void *write_tables(void)
 	if (cbtable_size > max_table_size) {
 		printk(BIOS_ERR, "%s: coreboot table didn't fit (%zx/%zx)\n",
 			__func__, cbtable_size, max_table_size);
-		if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION))
+		if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) ||
+		    CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT))
 			die("Authenticated-variable presence table overflow\n");
 	}
 

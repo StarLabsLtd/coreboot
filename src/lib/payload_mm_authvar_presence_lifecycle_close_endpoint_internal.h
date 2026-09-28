@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_INTERNAL_H
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_INTERNAL_H
+
+#include <boot/payload_mm_authvar_presence_lifecycle_close_publication.h>
+
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_reserve(void);
+struct payload_mm_authvar_presence_lifecycle_close_backing {
+	uint64_t base;
+	uint64_t bytes;
+	uint32_t tag;
+	uint32_t reserved;
+};
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_take(
+	struct payload_mm_authvar_presence_lifecycle_close_backing *backing);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_return(
+	const struct payload_mm_authvar_presence_lifecycle_close_backing *backing,
+	const struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume(
+	struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt,
+	struct lb_authvar_presence_lifecycle_close_endpoint *endpoint);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_publication_commit(void);
+void payload_mm_authvar_presence_lifecycle_close_backing_abort(void);
+
+#if ENV_TEST
+void payload_mm_authvar_presence_lifecycle_close_endpoint_reset_test(void);
+#endif
+
+#endif

@@ -6,7 +6,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d "$root/../.lifecycle-close-profile.XXXXXX")
 temporary=$(CDPATH= cd -- "$temporary" && pwd -P)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
-base=be5f9dc4a31b676a14761388d172864bc128567f
+base=8506f9dadb075d79d2d2c30b5568e26d724b6087
 baseline="$temporary/base"
 
 test -f "$root/3rdparty/vboot/firmware/include/vb2_sha.h"
@@ -73,6 +73,8 @@ config TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROFILE
 	default n
 	select TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PREREQUISITES
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_PROVIDER
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
 
 config SMM_MODULE_STACK_SIZE
 	default 0x4000 if TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PREREQUISITES
@@ -101,6 +103,8 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile_kconfig" olddefconfig >/dev/null
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER=y$' "$config"
+grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT=y$' "$config"
+grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_CONTRACT=y$' "$config"
@@ -115,17 +119,52 @@ for stem in lifecycle_close pre_external_image_close payload_failure_close \
 	file "$object" | grep -q 'ELF 32-bit'
 	test "$(find "$build" -type f \
 		-name "payload_mm_authvar_presence_${stem}.o" | wc -l)" -eq 1
-	! nm -u "$object" | grep -Eq '__atomic|libatomic'
-	! find "$build/ramstage" -type f \
-		-name "payload_mm_authvar_presence_${stem}.o" | grep -q .
+	if nm -u "$object" | grep -Eq '__atomic|libatomic'; then
+		echo "lifecycle-close owner gained runtime atomic dependency" >&2
+		exit 1
+	fi
+	if find "$build/ramstage" -type f \
+		-name "payload_mm_authvar_presence_${stem}.o" | grep -q .; then
+		echo "lifecycle-close owner escaped SMM" >&2
+		exit 1
+	fi
+done
+for stem in lifecycle_close_endpoint lifecycle_close_backing \
+	lifecycle_close_publication; do
+	object="$build/ramstage/lib/payload_mm_authvar_presence_${stem}.o"
+	test -s "$object"
+	file "$object" | grep -q 'ELF 32-bit'
+	test "$(find "$build" -type f \
+		-name "payload_mm_authvar_presence_${stem}.o" | wc -l)" -eq 1
+	if nm -u "$object" | grep -Eq '__atomic|libatomic'; then
+		echo "lifecycle-close endpoint gained runtime atomic dependency" >&2
+		exit 1
+	fi
+	if find "$build/smm" -type f \
+		-name "payload_mm_authvar_presence_${stem}.o" | grep -q .; then
+		echo "lifecycle-close endpoint escaped ramstage" >&2
+		exit 1
+	fi
 done
 stack_files=$(find "$build/smm/lib" -type f \
 	-name '*payload_mm_authvar_presence_*close*.su' -o \
 	-name '*payload_mm_authvar_presence_*reproof*.su')
 test -n "$stack_files"
 awk '$2 > 4096 { exit 1 }' $stack_files
-! nm "$build/cbfs/fallback/ramstage.debug" | \
-	grep -q 'payload_mm_authvar_presence_.*\(close\|reproof\)'
+if nm "$build/cbfs/fallback/ramstage.debug" | \
+	grep -Eq 'payload_mm_authvar_presence_(pre_external_image_close|payload_failure_close|warm_reset_close|s3_resume_close|closed_reproof|lifecycle_close_source)'; then
+	echo "SMM lifecycle-close owner linked into ramstage" >&2
+	exit 1
+fi
+for symbol in payload_mm_authvar_presence_lifecycle_close_endpoint_validate \
+	payload_mm_authvar_presence_lifecycle_close_endpoint_reserve \
+	payload_mm_authvar_presence_lifecycle_close_backing_reserve \
+	payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume \
+	payload_mm_authvar_presence_lifecycle_close_publication_commit \
+	lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint; do
+	test "$(nm -g "$build/cbfs/fallback/ramstage.debug" | awk -v symbol="$symbol" \
+		'$3 == symbol { count++ } END { print count + 0 }')" -eq 1
+done
 
 mkdir -p "$baseline"
 git -C "$root" archive "$base" | tar -x -C "$baseline"
@@ -149,8 +188,16 @@ build_natural()
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 		olddefconfig >/dev/null
 	if [ "$tree" = "$root" ]; then
-		! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER=y$' \
-			"$config"
+		if grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER=y$' \
+			"$config"; then
+			echo "lifecycle-close owner unexpectedly default-on" >&2
+			exit 1
+		fi
+		if grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT=y$' \
+			"$config"; then
+			echo "lifecycle-close endpoint unexpectedly default-on" >&2
+			exit 1
+		fi
 	fi
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 		-j4 "$build/cbfs/fallback/ramstage.debug" "$build/smm/smm" >/dev/null
