@@ -13,7 +13,7 @@
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION 2U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CAPABILITY_SIZE 32U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE 4096U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL UINT64_MAX
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL UINT64_MAX
 
 enum payload_mm_authvar_presence_transaction_decision {
 	PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE = 1U,
@@ -72,15 +72,15 @@ typedef enum cb_err (*payload_mm_authvar_presence_transaction_prepare_fn)(
 	void *context, const struct payload_mm_authvar_presence_seed *seed,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t *saved_rax);
+	uint64_t *saved_value);
 typedef enum cb_err (*payload_mm_authvar_presence_transaction_decide_fn)(
 	void *context,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t *saved_rax);
+	uint64_t *saved_value);
 
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CONTEXT_MAX 128U
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 3U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION 4U
 typedef enum cb_err (*payload_mm_authvar_presence_transaction_smm_prepare_fn)(
 	void *context, const struct payload_mm_authvar_presence_seed *seed,
 	uint64_t generation);
@@ -172,14 +172,14 @@ _Static_assert(sizeof(struct payload_mm_authvar_presence_transaction_page) ==
 _Static_assert(sizeof(struct payload_mm_authvar_presence_transaction_invocation) ==
 	64, "presence transaction invocation layout changed");
 
-uint64_t payload_mm_authvar_presence_transaction_rax(
+uint64_t payload_mm_authvar_presence_transaction_result(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	uint32_t decision);
 bool payload_mm_authvar_presence_transaction_ack_valid(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	uint32_t decision,
 	const struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t saved_rax);
+	uint64_t saved_value);
 
 #if ENV_SMM || ENV_TEST
 struct payload_mm_authvar_presence_transaction_slot *

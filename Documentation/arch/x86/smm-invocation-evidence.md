@@ -24,7 +24,7 @@ The save-state adapter must inspect every active node and return `MATCHED` only
 after a revision-specific immutable snapshot proves a valid synchronous I/O
 write of exact `outb` width to the full APM control port, the requested command,
 and permitted reserved bits. It must recheck that complete tuple around every
-save-state access. Its match and full-RAX callbacks form one cohesive,
+save-state access. Its match and logical-value callbacks form one cohesive,
 platform-trusted adapter and must keep an immutable handle to that exact node;
 performing a fresh lookup between callbacks is invalid. The collector requires
 exactly one match and requires that node to be the loader-recorded BSP. The
@@ -32,9 +32,11 @@ current `apmc_node()` first-match helper does not meet this contract. Q35
 AMD64/legacy save state lacks the I/O metadata and its AL/EAX heuristic is
 explicitly unsupported.
 
-Claim writes and reads back a full-width sentinel whose low byte remains the
-command. Publication first proves that sentinel still exists on the same node,
-then writes and reads back the full-width result. The token records the boot
+Claim writes and reads back a 64-bit logical sentinel whose low byte remains
+the command. The Intel transport carries its low and high dwords in EAX and
+ECX while preserving both physical registers' upper dwords. Publication first
+proves that sentinel still exists on the same node, then writes and reads back
+the complete logical result. The token records the boot
 generation, invocation generation, topology and initiator plus a deterministic
 digest. It is immutable one-invocation correlation data, not a secret, an
 authenticator, or a capability. Callers must not use it as authority.
@@ -53,7 +55,7 @@ BSP EOS; those remain ordered steps of a future outer handler.
 
 Shutdown requests are observed around every fallible adapter boundary. Before
 the sentinel is written, callback reentry poisons the invocation. After the
-write, abort restores and verifies the original full RAX; any ambiguous restore
+write, abort restores and verifies the original logical value; any ambiguous restore
 or result publication invokes the strongly linked platform fail-stop action.
 No function pointer or context is transported through loader, evidence, policy,
 or ticket state. Hidden, default-off platform implementations must attempt a

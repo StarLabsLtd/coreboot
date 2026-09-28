@@ -6,7 +6,7 @@
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <cpu/x86/smm_save_state.h>
 
-#define INTEL_SMM_INVOCATION_ADAPTER_REVISION 2U
+#define INTEL_SMM_INVOCATION_ADAPTER_REVISION 3U
 
 struct intel_smm_invocation_node {
 	uintptr_t save_state;
@@ -24,6 +24,7 @@ struct intel_smm_invocation_adapter {
 	uint32_t matched_command;
 	uint32_t expected_revision;
 	uint64_t matched_rax;
+	uint64_t matched_rcx;
 	uint64_t invocation_nonce;
 	uint64_t matched_nonce;
 	struct intel_smm_invocation_node

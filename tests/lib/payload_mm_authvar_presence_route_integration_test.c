@@ -28,7 +28,7 @@ static void assertion_failed(unsigned int line)
 #define assert(condition) do { if (!(condition)) assertion_failed(__LINE__); } while (0)
 
 struct save_state_fixture {
-	uint64_t rax;
+	uint64_t value;
 };
 
 struct callback_sentinel {
@@ -140,23 +140,23 @@ static enum smm_invocation_match match(void *context, uint32_t cpu,
 	return cpu == 0U ? SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
 }
 
-static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
+static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 {
 	struct save_state_fixture *save_state = context;
 
 	if (cpu != 0U || !value)
 		return CB_ERR;
-	*value = save_state->rax;
+	*value = save_state->value;
 	return CB_SUCCESS;
 }
 
-static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
+static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
 	struct save_state_fixture *save_state = context;
 
 	if (cpu != 0U || !value)
 		return CB_ERR;
-	save_state->rax = value;
+	save_state->value = value;
 	return CB_SUCCESS;
 }
 
@@ -237,7 +237,7 @@ static uint64_t run_round(struct integration_fixture *fixture,
 	fixture->page.request.decision = decision;
 	if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)
 		fixture->page.request.seed = fixture->seed;
-	fixture->save_state.rax = SMM_APMC_AUTHVAR_PRESENCE;
+	fixture->save_state.value = SMM_APMC_AUTHVAR_PRESENCE;
 	assert(!pthread_barrier_init(&fixture->arrival_barrier, NULL, 2U));
 	assert(!pthread_create(&threads[0], NULL, arrival_thread, &calls[0]));
 	assert(!pthread_create(&threads[1], NULL, arrival_thread, &calls[1]));
@@ -259,7 +259,7 @@ static uint64_t run_round(struct integration_fixture *fixture,
 		&fixture->session, &calls[0].ticket);
 	assert(!pthread_mutex_unlock(&fixture->handler_lock));
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&fixture->binding,
-		decision, &fixture->page.ack, fixture->save_state.rax));
+		decision, &fixture->page.ack, fixture->save_state.value));
 	assert(payload_mm_authvar_presence_route_session_depart(&fixture->session,
 		&calls[1].ticket) ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_PARTICIPANT_DEPARTED);
@@ -353,7 +353,8 @@ static void setup(struct integration_fixture *fixture)
 		&fixture->receipt, offsetof(struct bootmem_reservation_receipt, mac),
 		fixture->receipt.mac) == CB_SUCCESS);
 	fixture->ops = (struct smm_invocation_save_state_ops) {
-		.match_apmc_write = match, .read_rax = read_rax, .write_rax = write_rax,
+		.match_apmc_write = match, .read_value = read_value,
+		.write_value = write_value,
 		.context = &fixture->save_state,
 		.context_size = sizeof(fixture->save_state),
 	};

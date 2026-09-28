@@ -251,9 +251,9 @@ test "$((frame + child_bound))" -le 16384
 done
 
 # Compare the same synthetic MTL provider plus route-session composition with
-# only this patch's route symbol disabled against exact PR263. This proves the
-# new build wiring and contract-only header edit have no feature-off artifact
-# effect in the composition that will consume them.
+# the route symbol disabled against exact PR263. The linked SMM must remain
+# identical even though the later logical-value API migration intentionally
+# changes the dormant provider and route-session input objects.
 baseline="$temporary/base"
 mkdir -p "$baseline"
 git -C "$root" archive 38fba614b80ac7d26a6b7fbedf94e7e98e4d62a2 | \
@@ -294,13 +294,11 @@ cmp "$temporary/CURRENT_ROUTE_OFF/smm/smm" \
 for object in \
 	smm/soc/intel/common/block/smm/invocation_adapter_provider.o \
 	smm/lib/payload_mm_authvar_presence_route_session.o; do
-	objcopy --strip-debug "$temporary/CURRENT_ROUTE_OFF/$object" \
-		"$temporary/current-route-off.o"
-	objcopy --strip-debug "$temporary/BASE_ROUTE_OFF/$object" \
-		"$temporary/base-route-off.o"
-	cmp "$temporary/current-route-off.o" "$temporary/base-route-off.o"
+	test -f "$temporary/CURRENT_ROUTE_OFF/$object"
 done
 test ! -e "$temporary/CURRENT_ROUTE_OFF/smm/soc/intel/common/block/smm/invocation_adapter_route.o"
+! nm --defined-only "$temporary/CURRENT_ROUTE_OFF/smm/smm.elf" | \
+	grep -q 'intel_smm_invocation_adapter_route_provision'
 
 # Natural profiles must not select or emit the dormant route object.
 for profile in emulation_qemu_x86_q35_smm_tseg starlabs_lite_glk \

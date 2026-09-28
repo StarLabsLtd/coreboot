@@ -154,6 +154,9 @@ mutation dispatch-before-commit \
 mutation no-page-provenance \
 	payload_mm_authvar_presence_transaction_receiver.c \
 	'/bootmem_reservation_receipt_verify_consume_exact_tag/,+1s/BM_MEM_RESERVED/BM_MEM_TABLE/'
+mutation stale-policy-revision \
+	payload_mm_authvar_presence_transaction_receiver.c \
+	's/policy->revision ==/policy->revision !=/'
 mutation no-verifier-canonical-scrub \
 	payload_mm_authvar_presence_transaction_receiver.c \
 	'/status = bootmem_reservation_receipt_verify_consume_exact_tag/,+4s/scrub(\&slot->page_verifier, sizeof(slot->page_verifier));/(void)slot->page_verifier;/'
@@ -204,10 +207,10 @@ mutation no-backing-status \
 	payload_mm_authvar_presence_transaction.c \
 	's/ack->backing_status ==/(ack->backing_status == ack->backing_status || ack->backing_status ==/;
 	 s/PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED) \&\&/PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED)) \&\&/'
-mutation no-saved-rax \
+mutation no-saved-value \
 	payload_mm_authvar_presence_transaction.c \
-	'/saved_rax == payload_mm_authvar_presence_transaction_rax/,+1c\
-\t\tsizeof(saved_rax) == sizeof(uint64_t);'
+	'/saved_value == payload_mm_authvar_presence_transaction_result/,+1c\
+\t\tsizeof(saved_value) == sizeof(uint64_t);'
 
 mutation no-proof-callback-protection \
 	payload_mm_authvar_presence_transaction_receiver.c \

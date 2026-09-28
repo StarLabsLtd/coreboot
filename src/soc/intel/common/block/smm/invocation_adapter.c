@@ -4,6 +4,7 @@
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_invocation_fail_stop.h>
 #include <cpu/x86/smm_save_state.h>
 #include <string.h>
 
@@ -43,6 +44,7 @@ struct invocation_tuple {
 	uint32_t revision;
 	uint32_t io_misc;
 	uint64_t rax;
+	uint64_t rcx;
 };
 
 static bool range_valid(const void *base, size_t size)
@@ -116,6 +118,7 @@ static bool node_tuple(const struct intel_smm_invocation_node *node,
 		memcpy(&tuple->io_misc, &state->io_misc_info,
 			sizeof(tuple->io_misc));
 		memcpy(&tuple->rax, &state->rax, sizeof(tuple->rax));
+		memcpy(&tuple->rcx, &state->rcx, sizeof(tuple->rcx));
 	} else if (revision == EM64T101_REVISION) {
 		const em64t101_smm_state_save_area_t *state =
 			(const void *)node->save_state;
@@ -124,6 +127,7 @@ static bool node_tuple(const struct intel_smm_invocation_node *node,
 		memcpy(&tuple->io_misc, &state->io_misc_info,
 			sizeof(tuple->io_misc));
 		memcpy(&tuple->rax, &state->rax, sizeof(tuple->rax));
+		memcpy(&tuple->rcx, &state->rcx, sizeof(tuple->rcx));
 	} else {
 		return false;
 	}
@@ -139,7 +143,9 @@ static bool sealed_tuple(const struct intel_smm_invocation_adapter *adapter,
 		adapter->expected_revision == tuple->revision &&
 		adapter->matched_revision == tuple->revision &&
 		adapter->matched_io_misc == tuple->io_misc &&
-		adapter->matched_rax == tuple->rax && adapter->matched_nonce &&
+		adapter->matched_rax == tuple->rax &&
+		adapter->matched_rcx == tuple->rcx &&
+		adapter->matched_nonce &&
 		adapter->matched_nonce == adapter->invocation_nonce;
 }
 
@@ -180,13 +186,14 @@ static enum smm_invocation_match match_apmc_write(void *context,
 	adapter->matched_io_misc = first.io_misc;
 	adapter->matched_command = command;
 	adapter->matched_rax = first.rax;
+	adapter->matched_rcx = first.rcx;
 	adapter->matched_nonce = adapter->invocation_nonce;
 	__atomic_store_n(&adapter->seal_phase, ADAPTER_SEAL_READY,
 		__ATOMIC_RELEASE);
 	return SMM_INVOCATION_MATCHED;
 }
 
-static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
+static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 {
 	struct invocation_tuple first;
 	struct invocation_tuple second;
@@ -207,11 +214,11 @@ static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
 	    memcmp(&node, &adapter->nodes[cpu], sizeof(node)) ||
 	    !sealed_tuple(adapter, cpu, &first))
 		return CB_ERR;
-	memcpy(value, &first.rax, sizeof(*value));
+	*value = (uint32_t)first.rax | ((uint64_t)(uint32_t)first.rcx << 32);
 	return CB_SUCCESS;
 }
 
-static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
+static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
 	struct intel_smm_invocation_adapter *adapter = context;
 	struct invocation_tuple before;
@@ -219,6 +226,9 @@ static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
 	struct intel_smm_invocation_node node;
 	uint32_t revision;
 	void *rax;
+	void *rcx;
+	uint64_t target_rax;
+	uint64_t target_rcx;
 
 	if (!adapter || cpu >= adapter->active_cpus)
 		return CB_ERR;
@@ -238,24 +248,47 @@ static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
 			node.save_state)->rax;
 	else
 		return CB_ERR;
+	if (revision == EM64T100_REVISION)
+		rcx = &((em64t100_smm_state_save_area_t *)
+			node.save_state)->rcx;
+	else
+		rcx = &((em64t101_smm_state_save_area_t *)
+			node.save_state)->rcx;
+	target_rax = (before.rax & ~((uint64_t)UINT32_MAX)) |
+		(uint32_t)value;
+	target_rcx = (before.rcx & ~((uint64_t)UINT32_MAX)) |
+		(uint32_t)(value >> 32);
 	ADAPTER_TEST_HOOK(3);
 	if (!node_tuple(&node, revision, &after) ||
 	    memcmp(&before, &after, sizeof(before)) ||
 	    revision != adapter->expected_revision ||
 	    memcmp(&node, &adapter->nodes[cpu], sizeof(node)))
 		return CB_ERR;
-	memcpy(rax, &value, sizeof(value));
+	memcpy(rcx, &target_rcx, sizeof(target_rcx));
+	ADAPTER_TEST_HOOK(5);
+	if (!node_tuple(&node, revision, &after) ||
+	    after.revision != before.revision ||
+	    after.io_misc != before.io_misc || after.rax != before.rax ||
+	    after.rcx != target_rcx || revision != adapter->expected_revision ||
+	    memcmp(&node, &adapter->nodes[cpu], sizeof(node))) {
+		__atomic_store_n(&adapter->seal_phase, ADAPTER_SEAL_POISONED,
+			__ATOMIC_RELEASE);
+		smm_invocation_platform_fail_stop();
+	}
+	memcpy(rax, &target_rax, sizeof(target_rax));
 	ADAPTER_TEST_HOOK(4);
 	if (!node_tuple(&node, revision, &after) ||
 	    after.revision != before.revision ||
-	    after.io_misc != before.io_misc || after.rax != value ||
+	    after.io_misc != before.io_misc || after.rax != target_rax ||
+	    after.rcx != target_rcx ||
 	    revision != adapter->expected_revision ||
 	    memcmp(&node, &adapter->nodes[cpu], sizeof(node))) {
 		__atomic_store_n(&adapter->seal_phase, ADAPTER_SEAL_POISONED,
 			__ATOMIC_RELEASE);
-		return CB_ERR;
+		smm_invocation_platform_fail_stop();
 	}
-	adapter->matched_rax = value;
+	adapter->matched_rax = target_rax;
+	adapter->matched_rcx = target_rcx;
 	return CB_SUCCESS;
 }
 
@@ -391,7 +424,7 @@ enum cb_err intel_smm_invocation_adapter_ops(
 	    snapshot.active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
 	    snapshot.reserved || !revision_size(snapshot.expected_revision))
 		return CB_ERR;
-	ADAPTER_TEST_HOOK(5);
+	ADAPTER_TEST_HOOK(6);
 	save_state_size = revision_size(snapshot.expected_revision);
 	for (uint32_t cpu = 0; cpu < snapshot.active_cpus; cpu++) {
 		if (!range_valid((const void *)snapshot.nodes[cpu].save_state,
@@ -414,11 +447,12 @@ enum cb_err intel_smm_invocation_adapter_ops(
 	adapter->matched_io_misc = 0;
 	adapter->matched_command = 0;
 	adapter->matched_rax = 0;
+	adapter->matched_rcx = 0;
 	adapter->matched_nonce = 0;
 	*ops = (struct smm_invocation_save_state_ops) {
 		.match_apmc_write = match_apmc_write,
-		.read_rax = read_rax,
-		.write_rax = write_rax,
+		.read_value = read_value,
+		.write_value = write_value,
 		.context = adapter,
 		.context_size = sizeof(*adapter),
 	};
@@ -441,8 +475,8 @@ enum cb_err intel_smm_invocation_adapter_bind(
 		return CB_ERR;
 	*ops = (struct smm_invocation_save_state_ops) {
 		.match_apmc_write = match_apmc_write,
-		.read_rax = read_rax,
-		.write_rax = write_rax,
+		.read_value = read_value,
+		.write_value = write_value,
 		.context = adapter,
 		.context_size = sizeof(*adapter),
 	};
@@ -475,6 +509,7 @@ enum cb_err intel_smm_invocation_adapter_begin(
 	adapter->matched_io_misc = 0;
 	adapter->matched_command = 0;
 	adapter->matched_rax = 0;
+	adapter->matched_rcx = 0;
 	adapter->matched_nonce = 0;
 	return CB_SUCCESS;
 }
@@ -494,6 +529,7 @@ enum cb_err intel_smm_invocation_adapter_end(
 	adapter->matched_io_misc = 0;
 	adapter->matched_command = 0;
 	adapter->matched_rax = 0;
+	adapter->matched_rcx = 0;
 	adapter->matched_nonce = 0;
 	return CB_SUCCESS;
 }

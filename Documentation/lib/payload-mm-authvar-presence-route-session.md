@@ -41,8 +41,9 @@ calls registry `finish()` and never interprets an owner return as permission
 to fall through.
 
 The composed claim callback binds the exact `0xff` command, loader nonce and
-lifecycle, topology, BSP ticket generation, sentinel RAX, and save-state node.
-Its completion callback publishes the exact PREPARE, COMMIT, or ABORT RAX and
+lifecycle, topology, BSP ticket generation, sentinel logical value, and
+save-state node. Its completion callback publishes the exact PREPARE, COMMIT,
+or ABORT logical result and
 requests evidence close through the strong one-shot evidence primitive. The
 generic receiver then publishes the exact page acknowledgement. A receiver-
 owned validator checks the canonical receiver end state and stable clean page

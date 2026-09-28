@@ -74,12 +74,14 @@ count.  It supports only revisions `0x30100` and `0x30101`.  A match requires
 the complete I/O-misc value `0x00b20003`: synchronous valid, byte-width OUT DX,
 reserved bits zero, and the full port `0x00b2`.  OUT-immediate encodings,
 truncated port aliases and unsupported revisions fail closed.  Revision,
-I/O-misc and full 64-bit RAX are copied and rechecked around access to the same
-sealed node; the existing lazy `apmc_node()` and generic register helpers are
-not used. A successful exact match also seals node identity, revision,
-I/O-misc, full RAX and an invocation nonce. Reads and writes require that seal,
-recheck the node descriptor and tuple around access, and update the sealed RAX
-only after a verified full-width write.
+I/O-misc and the full 64-bit RAX and RCX are copied and rechecked around access
+to the same sealed node; the existing lazy `apmc_node()` and generic register
+helpers are not used. A successful exact match also seals node identity,
+revision, I/O-misc, both full registers and an invocation nonce. The logical
+64-bit value is EAX in bits 31:0 and ECX in bits 63:32. Reads and writes require
+that seal and recheck the node descriptor and tuple around access. Writes
+preserve both upper dwords, store RCX before RAX, and fail-stop without return
+after the first physical store if the complete pair cannot be proved.
 
 ## Remaining integration gate
 

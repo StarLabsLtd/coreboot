@@ -143,7 +143,7 @@ static enum cb_err claim(void *context, uint64_t sentinel,
 	struct payload_mm_authvar_presence_transaction_invocation *invocation)
 {
 	(void)context;
-	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL)
+	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL)
 		return CB_ERR;
 	smi_generation += 2U;
 	*invocation =
@@ -336,7 +336,7 @@ int main(void)
 	prepare_generation = smi_generation;
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE, &page.ack,
-		payload_mm_authvar_presence_transaction_rax(&binding,
+		payload_mm_authvar_presence_transaction_result(&binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)));
 	memset(&page, 0, sizeof(page));
 	page.request.binding = binding;
@@ -391,7 +391,7 @@ int main(void)
 	assert(payload_mm_authvar_presence_transaction_dispatch(&slot) == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, &page.ack,
-		payload_mm_authvar_presence_transaction_rax(&binding,
+		payload_mm_authvar_presence_transaction_result(&binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT)));
 	assert(arm.state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_ABORTED);
 	assert(abort_calls == 0U);
@@ -432,7 +432,7 @@ int main(void)
 	assert(payload_mm_authvar_presence_transaction_dispatch(&slot) == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, &page.ack,
-		payload_mm_authvar_presence_transaction_rax(&binding,
+		payload_mm_authvar_presence_transaction_result(&binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT)));
 	assert(arm.state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_ABORTED);
 	assert(abort_calls == 0U);
@@ -474,7 +474,7 @@ int main(void)
 	prepare_fails = false;
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, &page.ack,
-		payload_mm_authvar_presence_transaction_rax(&binding,
+		payload_mm_authvar_presence_transaction_result(&binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT)));
 	assert(arm.state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_ABORTED);
 	assert(abort_calls == 1U);
@@ -532,7 +532,7 @@ int main(void)
 	assert((enum cb_err)(uintptr_t)thread_status == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, &page.ack,
-		payload_mm_authvar_presence_transaction_rax(&binding,
+		payload_mm_authvar_presence_transaction_result(&binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT)));
 	assert(arm.state == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_ABORTED);
 	assert(abort_calls == 2U);

@@ -299,7 +299,7 @@ static enum cb_err original_claim(void *context, uint64_t sentinel,
 {
 	(void)context;
 	claim_calls++;
-	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL)
+	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL)
 		return CB_ERR;
 	invocation_generation += 2U;
 	*invocation =
@@ -460,7 +460,7 @@ static void provision(struct fixture *fixture)
 static void claim(struct payload_mm_authvar_presence_transaction_invocation *inv)
 {
 	assert(captured_policy.claim_invocation(captured_policy.context,
-		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL, inv) ==
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL, inv) ==
 		CB_SUCCESS);
 }
 
@@ -469,7 +469,7 @@ static void complete(
 	uint32_t decision)
 {
 	assert(captured_policy.complete_invocation(captured_policy.context, inv,
-		payload_mm_authvar_presence_transaction_rax(&captured_binding,
+		payload_mm_authvar_presence_transaction_result(&captured_binding,
 			decision)) == CB_SUCCESS);
 }
 
@@ -649,7 +649,7 @@ static void expect_fail_stop(fail_stop_case test)
 	assert(WTERMSIG(status) == SIGILL || WTERMSIG(status) == SIGABRT);
 }
 
-static void wrong_rax_after_claim(void)
+static void wrong_value_after_claim(void)
 {
 	struct fixture f;
 	struct payload_mm_authvar_presence_seed request;
@@ -662,7 +662,7 @@ static void wrong_rax_after_claim(void)
 	assert(captured_policy.prepare(captured_policy.context, &request,
 		f.binding.generation) == CB_SUCCESS);
 	assert(captured_policy.complete_invocation(captured_policy.context,
-		&invocation, payload_mm_authvar_presence_transaction_rax(
+		&invocation, payload_mm_authvar_presence_transaction_result(
 			&f.binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT)) ==
 		CB_ERR);
 }
@@ -1063,7 +1063,7 @@ int main(void)
 	protected_transaction_inputs_are_enforced();
 	loader_overlaps_are_rejected();
 	transaction_object_overlaps_are_rejected();
-	expect_fail_stop(wrong_rax_after_claim);
+	expect_fail_stop(wrong_value_after_claim);
 	expect_fail_stop(changed_invocation_after_claim);
 	expect_fail_stop(replay_prepare_completion);
 	expect_fail_stop(replay_generation_for_decision);

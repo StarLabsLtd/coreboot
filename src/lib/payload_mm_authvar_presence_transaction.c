@@ -20,7 +20,7 @@ static bool binding_valid(
 	return value != 0;
 }
 
-uint64_t payload_mm_authvar_presence_transaction_rax(
+uint64_t payload_mm_authvar_presence_transaction_result(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	uint32_t decision)
 {
@@ -38,7 +38,7 @@ uint64_t payload_mm_authvar_presence_transaction_rax(
 		value ^= binding->capability[index];
 	}
 	return value &&
-		value != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL ?
+		value != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL ?
 		value : 0;
 }
 
@@ -46,7 +46,7 @@ bool payload_mm_authvar_presence_transaction_ack_valid(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	uint32_t decision,
 	const struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t saved_rax)
+	uint64_t saved_value)
 {
 	return binding_valid(binding) && ack &&
 		ack->binding.revision == binding->revision &&
@@ -68,6 +68,6 @@ bool payload_mm_authvar_presence_transaction_ack_valid(
 			(decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
 			 PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
 			 PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED) &&
-		saved_rax == payload_mm_authvar_presence_transaction_rax(binding,
+		saved_value == payload_mm_authvar_presence_transaction_result(binding,
 			decision);
 }

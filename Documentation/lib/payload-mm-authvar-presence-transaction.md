@@ -9,7 +9,7 @@ or platform dispatch registration.
 The ramstage producer creates a fresh generation-bound transaction identifier,
 nonce and private capability. Its protected transport returns two independent
 results: an exact authenticated acknowledgement in a dedicated reserved 4 KiB
-page and an exact saved-RAX result from the evidenced initiating CPU. `PREPARE`
+page and an exact saved logical result from the evidenced initiating CPU. `PREPARE`
 installs the authority but leaves public dispatch gated. A publication owner
 then wins the sole `PREPARED` to `FINALIZING` transition. It completes every
 fallible proof and record preparation before issuing `COMMIT`. Only an exact
@@ -29,7 +29,7 @@ it never returns to retryable `PROVISIONED`. The page
 is never dereferenced until the verified snapshot establishes its exact base,
 4 KiB size and tag, and a trusted callback proves complete DMA protection.
 Before any authority callback, another trusted architecture callback claims one
-private invocation, seeds and reads back the reserved RAX sentinel, identifies
+private invocation, seeds and reads back the reserved logical sentinel, identifies
 the unique initiating BSP, reports the actual active CPU count, and supplies an
 opaque proof that every active CPU joined the same SMI generation. Generic code
 does not infer these facts from `CONFIG_MAX_CPUS`, an SMM lock, or handler CPU.
@@ -55,7 +55,7 @@ is exact-aborted once; ambiguous abort also fail-stops.
 
 Every successful invocation claim is closed exactly once only on a graceful
 canonical result. The one-shot completion callback must publish the nonzero
-saved-RAX value and fully close that exact invocation. It may return an error
+saved logical value and fully close that exact invocation. It may return an error
 only when it proves that no CPU or EOS was released; any shutdown race, partial
 close or ambiguous evidence transition must fail-stop inside the provider.
 Fatal receipt, DMA, token, callback or protected-state failures deliberately

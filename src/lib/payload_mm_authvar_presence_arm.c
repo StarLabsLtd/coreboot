@@ -701,7 +701,7 @@ static enum cb_err wrapped_claim(void *context, uint64_t sentinel,
 		return CB_ERR;
 	if (__atomic_load_n(&arm->state, __ATOMIC_ACQUIRE) !=
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND ||
-	    sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL ||
+	    sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL ||
 	    !callback_snapshot_valid(arm, PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_BOUND))
 		return CB_ERR;
 	dispatch = __atomic_load_n(&arm->dispatch, __ATOMIC_ACQUIRE);
@@ -767,7 +767,7 @@ static enum cb_err wrapped_complete(void *context,
 	audit = __atomic_load_n(&arm->audit, __ATOMIC_ACQUIRE);
 	if (dispatch == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_CLAIMED &&
 	    audit == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_PREPARED) {
-		exact_value = payload_mm_authvar_presence_transaction_rax(&arm->binding,
+		exact_value = payload_mm_authvar_presence_transaction_result(&arm->binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE);
 		expected = PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_COMPLETING;
 	} else if (dispatch ==
@@ -776,7 +776,7 @@ static enum cb_err wrapped_complete(void *context,
 		   audit == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_COMMITTED &&
 		   arm->completed_prepare_generation &&
 		   arm->completed_prepare_generation != UINT64_MAX) {
-		exact_value = payload_mm_authvar_presence_transaction_rax(&arm->binding,
+		exact_value = payload_mm_authvar_presence_transaction_result(&arm->binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT);
 		expected = PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_COMMIT_COMPLETING;
 	} else if ((dispatch ==
@@ -785,7 +785,7 @@ static enum cb_err wrapped_complete(void *context,
 		   (dispatch ==
 		    PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_PREPARE_CLAIMED &&
 		    audit == PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_AUDIT_EMPTY)) {
-		exact_value = payload_mm_authvar_presence_transaction_rax(&arm->binding,
+		exact_value = payload_mm_authvar_presence_transaction_result(&arm->binding,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT);
 		expected = PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_DISPATCH_ABORT_COMPLETING;
 	} else {

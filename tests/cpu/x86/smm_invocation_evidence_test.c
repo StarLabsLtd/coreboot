@@ -13,6 +13,11 @@
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
 
+_Static_assert(SMM_INVOCATION_EVIDENCE_REVISION == 3U,
+	"evidence semantic revision changed");
+_Static_assert(SMM_INVOCATION_TOKEN_REVISION == 2U,
+	"token ABI revision changed");
+
 #define TEST_CPUS 4U
 #define TEST_COMMAND 0x5aU
 #define TEST_SENTINEL 0x112233445566775aULL
@@ -102,7 +107,7 @@ static enum cb_err test_depart(struct smm_invocation_evidence *evidence,
 }
 
 struct mock_state {
-	uint64_t rax[TEST_CPUS];
+	uint64_t value[TEST_CPUS];
 	uint32_t matched;
 	uint32_t second_match;
 	uint32_t fail_read;
@@ -214,7 +219,7 @@ static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	return SMM_INVOCATION_NOT_MATCHED;
 }
 
-static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
+static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 {
 	struct mock_state *mock = context;
 
@@ -239,24 +244,28 @@ static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
 		if (!mock->fail_read)
 			return CB_ERR;
 	}
-	*value = mock->rax[cpu];
+	*value = mock->value[cpu];
 	return CB_SUCCESS;
 }
 
-static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
+static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
 	struct mock_state *mock = context;
 
 	if (cpu >= TEST_CPUS)
 		return CB_ERR;
-	mock->rax[cpu] = value;
+	if (mock->fail_write) {
+		mock->fail_write--;
+		return CB_ERR;
+	}
+	mock->value[cpu] = value;
 	if (mock->strong_reenter_on_write) {
 		mock->strong_reenter_on_write = 0;
 		(void)smm_invocation_evidence_publish_and_request_close(
 			mock->evidence, NULL, 1, NULL);
 	}
 	if (mock->wrong_write)
-		mock->rax[cpu] ^= 1U;
+		mock->value[cpu] ^= 1U;
 	if (mock->mutate_geometry_on_write) {
 		mock->evidence->generation++;
 		mock->mutate_geometry_on_write = 2U;
@@ -274,10 +283,6 @@ static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
 	if (mock->shutdown_on_write) {
 		mock->shutdown_on_write = 0;
 		assert(smm_invocation_evidence_shutdown(mock->evidence) == CB_ERR);
-	}
-	if (mock->fail_write) {
-		mock->fail_write--;
-		return CB_ERR;
 	}
 	return CB_SUCCESS;
 }
@@ -313,11 +318,11 @@ static void fixture_init(struct fixture *fixture)
 		.evidence = &fixture->evidence,
 		.ops = &fixture->ops,
 	};
-	fixture->mock.rax[0] = TEST_COMMAND;
+	fixture->mock.value[0] = TEST_COMMAND;
 	fixture->ops = (struct smm_invocation_save_state_ops) {
 		.match_apmc_write = match_apmc,
-		.read_rax = read_rax,
-		.write_rax = write_rax,
+		.read_value = read_value,
+		.write_value = write_value,
 		.context = &fixture->mock,
 		.context_size = sizeof(fixture->mock),
 	};
@@ -441,7 +446,7 @@ static void *terminal_observer_thread(void *opaque)
 		__asm__ volatile ("pause");
 	assert(!bytes_nonzero(&arg->evidence->token,
 		sizeof(arg->evidence->token)));
-	assert(!arg->evidence->sentinel && !arg->evidence->original_rax);
+	assert(!arg->evidence->sentinel && !arg->evidence->original_value);
 	assert(!bytes_nonzero(arg->evidence->participants,
 		sizeof(arg->evidence->participants)));
 	return NULL;
@@ -552,10 +557,10 @@ static void test_happy_path(void)
 		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
 	assert(token.initiator_cpu == 0 && token.active_cpus == TEST_CPUS);
 	assert(token.smi_generation == generation && token.bsp == 1);
-	assert(fixture.mock.rax[0] == TEST_SENTINEL);
+	assert(fixture.mock.value[0] == TEST_SENTINEL);
 	assert(smm_invocation_evidence_publish(&fixture.evidence, &token,
 		0x12345678ULL, &fixture.ops) == CB_SUCCESS);
-	assert(fixture.mock.rax[0] == 0x12345678ULL);
+	assert(fixture.mock.value[0] == 0x12345678ULL);
 	assert(smm_invocation_evidence_complete(&fixture.evidence, &token) ==
 		CB_SUCCESS);
 	observer = (struct observer_arg) {
@@ -622,7 +627,7 @@ static void test_exact_one_and_bsp(void)
 	(void)arrive_all(&fixture);
 	fixture.mock.matched = 0;
 	fixture.mock.second_match = TEST_CPUS - 1U;
-	fixture.mock.rax[TEST_CPUS - 1U] = TEST_COMMAND;
+	fixture.mock.value[TEST_CPUS - 1U] = TEST_COMMAND;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
@@ -631,7 +636,7 @@ static void test_exact_one_and_bsp(void)
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
 	fixture.mock.matched = 1;
-	fixture.mock.rax[1] = TEST_COMMAND;
+	fixture.mock.value[1] = TEST_COMMAND;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
@@ -647,15 +652,16 @@ static void test_save_state_failures_and_mutation(void)
 	fixture.mock.fail_write = 1;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
-	assert(fixture.mock.rax[0] == TEST_COMMAND);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+		SMM_INVOCATION_POISONED);
+	assert(fixture.mock.value[0] == TEST_COMMAND);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
 	fixture.mock.fail_read = 2;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
-	assert(fixture.mock.rax[0] == TEST_COMMAND);
+	assert(fixture.mock.value[0] == TEST_COMMAND);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
@@ -677,7 +683,7 @@ static void test_publish_guard_and_active_shutdown(void)
 	generation = arrive_all(&fixture);
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
-	fixture.mock.rax[0] ^= 1U;
+	fixture.mock.value[0] ^= 1U;
 	assert(smm_invocation_evidence_publish(&fixture.evidence, &token,
 		0x77ULL, &fixture.ops) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
@@ -783,9 +789,9 @@ static void test_strong_completion_rejection_is_inert(void)
 		if (mode == 0)
 			invalid_ops.match_apmc_write = NULL;
 		else if (mode == 1)
-			invalid_ops.read_rax = NULL;
+			invalid_ops.read_value = NULL;
 		else if (mode == 2)
-			invalid_ops.write_rax = NULL;
+			invalid_ops.write_value = NULL;
 		else {
 			invalid_ops.context = (void *)UINTPTR_MAX;
 			invalid_ops.context_size = 2;
@@ -837,7 +843,7 @@ static void test_strong_completion_success(void)
 		__ATOMIC_ACQUIRE);
 	assert(smm_invocation_evidence_publish_and_request_close(&fixture.evidence, &token,
 		0x1020304050607080ULL, &fixture.ops) == CB_SUCCESS);
-	assert(fixture.mock.rax[0] == 0x1020304050607080ULL);
+	assert(fixture.mock.value[0] == 0x1020304050607080ULL);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) ==
 		SMM_INVOCATION_CLOSING);
 	assert(__atomic_load_n(&fixture.evidence.state, __ATOMIC_ACQUIRE) ==
@@ -870,7 +876,7 @@ static void test_strong_completion_zero_result(void)
 		TEST_SENTINEL, &fixture.ops, &token) == CB_SUCCESS);
 	assert(smm_invocation_evidence_publish_and_request_close(&fixture.evidence,
 		&token, 0, &fixture.ops) == CB_SUCCESS);
-	assert(!fixture.mock.rax[0]);
+	assert(!fixture.mock.value[0]);
 	depart_all(&fixture, generation);
 }
 
@@ -1012,7 +1018,7 @@ static void test_strong_completion_callback_fail_stop(void)
 			if (mode == 0U)
 				fixture.mock.fail_read = 1;
 			else if (mode == 1U)
-				fixture.mock.rax[0] ^= 1U;
+				fixture.mock.value[0] ^= 1U;
 			else if (mode == 2U)
 				fixture.mock.fail_write = 1;
 			else if (mode == 3U)
@@ -1406,7 +1412,21 @@ static void test_token_binds_loader_and_topology(void)
 static void test_invalid_seed_and_duplicate(void)
 {
 	struct fixture fixture;
+	struct smm_invocation_evidence stale_evidence = { 0 };
+	struct smm_invocation_loader_seed stale_seed = {
+		.revision = 2U,
+		.size = sizeof(stale_seed),
+		.active_cpus = 1U,
+		.bsp_cpu = 0U,
+		.loader_instance_nonce = NONCE(1),
+		.participant_apic_ids = { 2U },
+		.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
+	};
 	uint64_t generation;
+
+	assert(smm_invocation_evidence_provision(&stale_evidence,
+		&stale_seed) == CB_ERR);
+	assert(!bytes_nonzero(&stale_evidence, sizeof(stale_evidence)));
 
 	memset(&fixture, 0, sizeof(fixture));
 	fixture.seed = (struct smm_invocation_loader_seed) {
@@ -1627,7 +1647,7 @@ static void test_shutdown_at_callback_boundaries(void)
 	__atomic_store_n(&fixture.mock.read_release, 1U, __ATOMIC_RELEASE);
 	assert(!pthread_join(operation_thread, NULL));
 	assert(operation.result == CB_ERR);
-	assert(fixture.mock.rax[0] == TEST_COMMAND);
+	assert(fixture.mock.value[0] == TEST_COMMAND);
 	assert(!pthread_join(stop_thread, NULL));
 	assert(shutdown.result == CB_ERR);
 	if (smm_invocation_evidence_phase(&fixture.evidence) ==

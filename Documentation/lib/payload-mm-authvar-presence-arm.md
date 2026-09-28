@@ -26,7 +26,7 @@ to APM control port `0xb2`. The audit distinguishes rejection before entering
 the original PREPARE from a call which entered it, so ABORT calls the original
 authority at most once and only when ownership may have transferred.
 PREPARE and its following COMMIT or ABORT each require a separate, exact
-invocation claim and exact RAX completion. The decision invocation generation
+invocation claim and exact logical-value completion. The decision invocation generation
 must be newer than the completed PREPARE generation.
 
 COMMIT calls the original authority first. Any error or changed protected

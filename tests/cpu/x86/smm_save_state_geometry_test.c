@@ -31,6 +31,11 @@ size_t intel_smm_invocation_adapter_test_revision_size(
 	return native_size;
 }
 
+void __noreturn smm_invocation_platform_fail_stop(void)
+{
+	abort();
+}
+
 static void span_boundaries(void)
 {
 	uint8_t bytes[32];

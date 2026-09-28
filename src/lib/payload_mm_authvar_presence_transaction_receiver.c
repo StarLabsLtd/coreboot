@@ -197,7 +197,7 @@ static enum cb_err complete_invocation(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	uint32_t decision, bool *owned)
 {
-	const uint64_t value = payload_mm_authvar_presence_transaction_rax(binding,
+	const uint64_t value = payload_mm_authvar_presence_transaction_result(binding,
 		decision);
 	enum cb_err status;
 
@@ -235,7 +235,7 @@ static bool staged_ack_unchanged(
 	return !nonzero(&page->request, sizeof(page->request)) &&
 		payload_mm_authvar_presence_transaction_ack_valid(binding, decision,
 			&page->ack,
-			payload_mm_authvar_presence_transaction_rax(binding, decision)) &&
+			payload_mm_authvar_presence_transaction_result(binding, decision)) &&
 		!nonzero(page->reserved, sizeof(page->reserved));
 }
 
@@ -443,7 +443,7 @@ static enum cb_err claim_invocation(
 {
 	memset(invocation, 0, sizeof(*invocation));
 	if (policy->claim_invocation(context,
-		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL,
 		invocation) != CB_SUCCESS)
 		return CB_ERR;
 	*owned = true;
@@ -952,7 +952,7 @@ bool payload_mm_authvar_presence_transaction_dispatch_ack_valid(
 		!nonzero(page->reserved, sizeof(page->reserved)) &&
 		payload_mm_authvar_presence_transaction_ack_valid(binding, decision,
 			&ack_snapshot,
-			payload_mm_authvar_presence_transaction_rax(binding, decision));
+			payload_mm_authvar_presence_transaction_result(binding, decision));
 	if (decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE)
 		valid = valid && policy_valid(&slot_snapshot.policy) &&
 			failure_closure_valid(&slot_snapshot.failure) &&

@@ -180,16 +180,16 @@ static void rollback(void)
 		struct payload_mm_authvar_presence_transaction_ack ack;
 		struct payload_mm_authvar_presence_transaction_binding work =
 			producer.sealed_transaction;
-		uint64_t saved_rax = UINT64_MAX;
+		uint64_t saved_value = UINT64_MAX;
 
 		memset(&ack, 0xa5, sizeof(ack));
 		if (producer.policy.authority_abort(policy_context(),
-			&work, &ack, &saved_rax) != CB_SUCCESS ||
+			&work, &ack, &saved_value) != CB_SUCCESS ||
 		    memcmp(&work, &producer.sealed_transaction, sizeof(work)) ||
 		    !payload_mm_authvar_presence_transaction_ack_valid(
 			&producer.sealed_transaction,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, &ack,
-			saved_rax))
+			saved_value))
 			fail_stop();
 		scrub(&ack, sizeof(ack));
 		scrub(&work, sizeof(work));
@@ -290,7 +290,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	struct payload_mm_authvar_presence_transaction_binding abort_work;
 	uint64_t random[6];
 	uint64_t transaction_random[6] = { 0 };
-	uint64_t transaction_rax = UINT64_MAX;
+	uint64_t transaction_value = UINT64_MAX;
 	uint32_t flags;
 	bool abort_confirmed;
 	size_t i;
@@ -395,7 +395,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	memset(&transaction_ack, 0xa5, sizeof(transaction_ack));
 	if (producer.policy.authority_prepare(policy_context(), &seed,
 		&transaction_work, &transaction_ack,
-		&transaction_rax) != CB_SUCCESS ||
+		&transaction_value) != CB_SUCCESS ||
 	    memcmp(&transaction_work, &producer.sealed_transaction,
 		sizeof(transaction_work)) || !preparing() ||
 	    !context_unchanged() || !transaction_unchanged() ||
@@ -403,25 +403,25 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	    !payload_mm_authvar_presence_transaction_ack_valid(
 		&producer.sealed_transaction,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE,
-		&transaction_ack, transaction_rax)) {
+		&transaction_ack, transaction_value)) {
 		abort_confirmed =
 			payload_mm_authvar_presence_transaction_ack_valid(
 			&producer.sealed_transaction,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT,
-			&transaction_ack, transaction_rax);
+			&transaction_ack, transaction_value);
 		if (!abort_confirmed) {
 			abort_work = producer.sealed_transaction;
 			memset(&transaction_ack, 0xa5, sizeof(transaction_ack));
-			transaction_rax = UINT64_MAX;
+			transaction_value = UINT64_MAX;
 			if (producer.policy.authority_abort(policy_context(),
 				&abort_work, &transaction_ack,
-				&transaction_rax) != CB_SUCCESS ||
+				&transaction_value) != CB_SUCCESS ||
 			    memcmp(&abort_work, &producer.sealed_transaction,
 				sizeof(abort_work)) ||
 			    !payload_mm_authvar_presence_transaction_ack_valid(
 				&producer.sealed_transaction,
 				PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT,
-				&transaction_ack, transaction_rax))
+				&transaction_ack, transaction_value))
 				{
 					producer.backing_owner =
 						PRODUCER_BACKING_AUTHORITY;
@@ -498,7 +498,7 @@ enum cb_err payload_mm_authvar_presence_producer_publication_take(
 	struct lb_authvar_presence_endpoint endpoint;
 	struct payload_mm_authvar_presence_transaction_ack ack;
 	struct payload_mm_authvar_presence_transaction_binding work;
-	uint64_t saved_rax = UINT64_MAX;
+	uint64_t saved_value = UINT64_MAX;
 	uint32_t flags;
 	if (!object_valid(receipt, sizeof(*receipt), __alignof__(*receipt))) {
 		if (claim(PRODUCER_PREPARED, PRODUCER_FINALIZING))
@@ -519,13 +519,13 @@ enum cb_err payload_mm_authvar_presence_producer_publication_take(
 	work = producer.sealed_transaction;
 	memset(&ack, 0xa5, sizeof(ack));
 	if (producer.policy.authority_commit(policy_context(),
-		&work, &ack, &saved_rax) != CB_SUCCESS ||
+		&work, &ack, &saved_value) != CB_SUCCESS ||
 	    memcmp(&work, &producer.sealed_transaction, sizeof(work)) ||
 	    !active() || !context_unchanged() || !transaction_unchanged() ||
 	    !payload_mm_authvar_presence_transaction_ack_valid(
 		&producer.sealed_transaction,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT, &ack,
-		saved_rax)) {
+		saved_value)) {
 		scrub(&ack, sizeof(ack));
 		scrub(&work, sizeof(work));
 		fail_stop();

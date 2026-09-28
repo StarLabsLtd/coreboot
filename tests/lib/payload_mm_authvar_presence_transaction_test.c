@@ -16,6 +16,15 @@
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
 
+_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION == 4U,
+	"transaction policy semantic revision changed");
+_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION == 2U,
+	"transaction binding ABI revision changed");
+_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_INVOCATION_REVISION == 1U,
+	"transaction invocation ABI revision changed");
+_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION == 2U,
+	"producer seed ABI revision changed");
+
 static struct payload_mm_authvar_presence_transaction_slot slot;
 static struct payload_mm_authvar_presence_transaction_page page;
 static struct payload_mm_authvar_presence_transaction_page page_before;
@@ -25,7 +34,8 @@ static bool launder_state, launder_abort_state, mutate_claim_context;
 static bool abort_error, launder_commit_state;
 static bool bad_receipt;
 static bool zero_context, reenter_complete;
-static uint64_t published_rax;
+static bool stale_policy_revision;
+static uint64_t published_value;
 static unsigned int claim_calls, publish_calls;
 static unsigned int expected_publish_calls;
 static unsigned int bad_rendezvous;
@@ -252,7 +262,7 @@ static enum cb_err claim(void *context, uint64_t sentinel,
 		slot.page_receipt.mac[0] ^= 1U;
 		break;
 	}
-	assert(sentinel == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL);
+	assert(sentinel == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL);
 	*invocation = (struct payload_mm_authvar_presence_transaction_invocation) {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_INVOCATION_REVISION,
 		.size = sizeof(*invocation), .initiator_cpu = bad_cpu ? 1U : 0U,
@@ -313,7 +323,7 @@ static enum cb_err complete_invocation(void *context,
 		 invocation)->reserved++;
 		break;
 	}
-	published_rax = value;
+	published_value = value;
 	if (reenter_complete) {
 		const unsigned int claims = claim_calls;
 		reenter_status = payload_mm_authvar_presence_transaction_dispatch(&slot);
@@ -463,10 +473,11 @@ static void reset_fixture(void)
 	abort_error = launder_commit_state = false;
 	bad_receipt = false;
 	zero_context = reenter_complete = false;
+	stale_policy_revision = false;
 	fatal_expected = FATAL_NONE;
 	block_prepare = prepare_entered = prepare_release = reenter_prepare = false;
 	reenter_status = thread_status = CB_SUCCESS;
-	published_rax = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL;
+	published_value = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL;
 }
 
 void payload_mm_authvar_presence_transaction_test_after_provision_claim(
@@ -490,7 +501,8 @@ static enum cb_err provision_status(void)
 {
 	uint32_t context = 0x12345678U;
 	struct payload_mm_authvar_presence_transaction_policy policy = {
-		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION,
+		.revision = stale_policy_revision ? 3U :
+			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_POLICY_REVISION,
 		.size = sizeof(policy), .prepare = prepare, .commit = commit,
 		.abort = abort_transaction, .dma_protected = dma,
 		.claim_invocation = claim, .complete_invocation = complete_invocation,
@@ -563,21 +575,21 @@ static void exact_ack(uint32_t decision)
 	uint32_t expected_backing;
 
 	assert(payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
-		&page.ack, published_rax));
+		&page.ack, published_value));
 	altered = page.ack;
 	altered.backing_status = 0;
 	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
-		&altered, published_rax));
+		&altered, published_value));
 	expected_backing = decision == PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT ?
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED;
 	altered.backing_status = expected_backing ^ 0x01010101U;
 	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
-		&altered, published_rax));
+		&altered, published_value));
 	altered = page.ack;
 	altered.binding.revision = 1U;
 	assert(!payload_mm_authvar_presence_transaction_ack_valid(&b, decision,
-		&altered, published_rax));
+		&altered, published_value));
 	assert(zero(&page.request, sizeof(page.request)));
 }
 
@@ -627,7 +639,7 @@ static void failures(void)
 
 	memcpy(collision.capability, sentinel_capability,
 		sizeof(collision.capability));
-	assert(payload_mm_authvar_presence_transaction_rax(&collision,
+	assert(payload_mm_authvar_presence_transaction_result(&collision,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE) == 0);
 
 	reset_fixture();
@@ -1043,6 +1055,11 @@ static void orphan_states_are_fatal(void)
 
 static void proof_mutations_are_rejected(void)
 {
+	reset_fixture();
+	stale_policy_revision = true;
+	assert(provision_status() == CB_ERR);
+	assert(zero(&slot, sizeof(slot)));
+
 	for (unsigned int call = 1U; call <= 6U; call += 5U) {
 		reset_fixture();
 		mutate_proof_call = call;

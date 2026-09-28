@@ -8,7 +8,7 @@
 #include <cpu/x86/smm_invocation_loader_identity.h>
 #include <types.h>
 
-#define SMM_INVOCATION_EVIDENCE_REVISION 2U
+#define SMM_INVOCATION_EVIDENCE_REVISION 3U
 #define SMM_INVOCATION_EVIDENCE_MAX_CPUS 64U
 #define SMM_INVOCATION_SAVE_STATE_CONTEXT_MAX 1024U
 #define SMM_INVOCATION_TOKEN_REVISION 2U
@@ -82,19 +82,22 @@ struct smm_invocation_token {
 /*
  * These callbacks are one platform-trusted adapter. match_apmc_write() must
  * revision-specifically snapshot and recheck the complete synchronous-I/O
- * tuple for this node. read_rax() and write_rax() must address the exact same
- * sealed save-state node; a fresh lookup or first-match helper is invalid.
+ * tuple for this node. read_value() and write_value() must address the exact
+ * same sealed save-state node; a fresh lookup or first-match helper is invalid.
+ * A returned write error proves that no save-state register changed. Once a
+ * platform adapter performs its first physical store, it must fail-stop rather
+ * than return if it cannot prove that the complete logical write succeeded.
  */
 typedef enum smm_invocation_match (*smm_invocation_match_fn)(void *context,
 	uint32_t cpu, uint8_t command);
-typedef enum cb_err (*smm_invocation_read_rax_fn)(void *context,
+typedef enum cb_err (*smm_invocation_read_value_fn)(void *context,
 	uint32_t cpu, uint64_t *value);
-typedef enum cb_err (*smm_invocation_write_rax_fn)(void *context,
+typedef enum cb_err (*smm_invocation_write_value_fn)(void *context,
 	uint32_t cpu, uint64_t value);
 struct smm_invocation_save_state_ops {
 	smm_invocation_match_fn match_apmc_write;
-	smm_invocation_read_rax_fn read_rax;
-	smm_invocation_write_rax_fn write_rax;
+	smm_invocation_read_value_fn read_value;
+	smm_invocation_write_value_fn write_value;
 	void *context;
 	size_t context_size;
 };
@@ -167,7 +170,7 @@ struct smm_invocation_evidence {
 	uint64_t rendezvous_ack_cpus;
 	uint64_t departed_cpus;
 	uint64_t sentinel;
-	uint64_t original_rax;
+	uint64_t original_value;
 	uint32_t command;
 	uint32_t command_reserved;
 	uint32_t participant_apic_ids[SMM_INVOCATION_EVIDENCE_MAX_CPUS];

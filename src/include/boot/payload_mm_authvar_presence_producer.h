@@ -5,7 +5,7 @@
 
 #include <boot/payload_mm_authvar_presence.h>
 
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION 2U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION 3U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX 128U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION 2U
 /* Private, one-use ramstage-to-SMM input. It is not a wire or table ABI. */
@@ -26,12 +26,12 @@ typedef enum cb_err (*payload_mm_authvar_presence_producer_prepare_fn)(
 	void *context, const struct payload_mm_authvar_presence_seed *seed,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t *saved_rax);
+	uint64_t *saved_value);
 typedef enum cb_err (*payload_mm_authvar_presence_producer_decide_fn)(
 	void *context,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	struct payload_mm_authvar_presence_transaction_ack *ack,
-	uint64_t *saved_rax);
+	uint64_t *saved_value);
 typedef void (*payload_mm_authvar_presence_producer_fail_stop_fn)(
 	void *context) __noreturn;
 
