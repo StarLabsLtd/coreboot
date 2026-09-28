@@ -11,6 +11,9 @@
 #include <cpu/x86/save_state.h>
 #endif
 #include <cpu/x86/smm.h>
+#if CONFIG(SMM_INVOCATION_STACK_CANARY_FAIL_STOP)
+#include <cpu/x86/smm_invocation_fail_stop.h>
+#endif
 #if CONFIG(STM)
 #include <cpu/x86/smm_save_state.h>
 #endif
@@ -306,12 +309,16 @@ asmlinkage void smm_handler_start(void *arg)
 	actual_canary = *p->canary;
 
 	if (actual_canary != expected_canary) {
+#if CONFIG(SMM_INVOCATION_STACK_CANARY_FAIL_STOP)
+		smm_invocation_platform_fail_stop();
+#else
 		printk(BIOS_DEBUG, "canary 0x%lx != 0x%lx\n", actual_canary,
 		       expected_canary);
 
 		// Don't die if we can't indicate an error.
 		if (CONFIG(DEBUG_SMI))
 			die("SMM Handler caused a stack overflow\n");
+#endif
 	}
 
 	smm_soc_exit();

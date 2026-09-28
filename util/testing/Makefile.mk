@@ -115,6 +115,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-mor-stack-bound
 	+$(MAKE) test-q35-mor-linear
 	+$(MAKE) test-authvar-smm-loader
+	+$(MAKE) test-smm-invocation-canary-fail-stop
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -125,7 +126,7 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
 	test-capsule-protected-flash test-capsule-platform-facts \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
-	test-q35-mor-linear test-cleanup
+	test-q35-mor-linear test-smm-invocation-canary-fail-stop test-cleanup
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
@@ -239,9 +240,14 @@ test-smm-invocation-entry-profiles:
 		tests/cpu/x86/smm_invocation_entry_profiles_test.sh
 
 .PHONY: test-smm-invocation-fail-stop-providers
-test-smm-invocation-fail-stop-providers:
+test-smm-invocation-fail-stop-providers: test-smm-invocation-canary-fail-stop
 	tests/cpu/x86/smm_invocation_fail_stop_providers_test.sh
 	tests/cpu/x86/smm_invocation_fail_stop_profiles_test.sh
+
+.PHONY: test-smm-invocation-canary-fail-stop
+test-smm-invocation-canary-fail-stop:
+	tests/cpu/x86/smm_invocation_canary_fail_stop_test.sh
+	tests/cpu/x86/smm_invocation_canary_fail_stop_profiles_test.sh
 
 .PHONY: test-smm-invocation-topology
 test-smm-invocation-topology:
