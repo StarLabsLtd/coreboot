@@ -9,10 +9,15 @@
 
 #if defined(__TEST__)
 void intel_smm_invocation_adapter_test_hook(uint32_t point);
+size_t intel_smm_invocation_adapter_test_revision_size(
+	uint32_t layout_revision, size_t native_size);
 #define ADAPTER_TEST_HOOK(point) \
 	intel_smm_invocation_adapter_test_hook(point)
+#define ADAPTER_REVISION_SIZE(revision, size) \
+	intel_smm_invocation_adapter_test_revision_size(revision, size)
 #else
 #define ADAPTER_TEST_HOOK(point) do { } while (0)
+#define ADAPTER_REVISION_SIZE(revision, size) (size)
 #endif
 
 #define EM64T100_REVISION 0x30100U
@@ -38,7 +43,7 @@ struct invocation_tuple {
 
 static bool range_valid(const void *base, size_t size)
 {
-	return base && size && (uintptr_t)base <= UINTPTR_MAX - size;
+	return base && size && (uintptr_t)base <= UINTPTR_MAX - (size - 1U);
 }
 
 static bool ranges_overlap(const void *first, size_t first_size,
@@ -49,8 +54,20 @@ static bool ranges_overlap(const void *first, size_t first_size,
 
 	if (!range_valid(first, first_size) || !range_valid(second, second_size))
 		return true;
-	return first_base < second_base + second_size &&
-		second_base < first_base + first_size;
+	if (first_base <= second_base)
+		return second_base - first_base < first_size;
+	return first_base - second_base < second_size;
+}
+
+static size_t revision_size(uint32_t revision)
+{
+	if (revision == EM64T100_REVISION)
+		return ADAPTER_REVISION_SIZE(EM64T100_REVISION,
+			sizeof(em64t100_smm_state_save_area_t));
+	if (revision == EM64T101_REVISION)
+		return ADAPTER_REVISION_SIZE(EM64T101_REVISION,
+			sizeof(em64t101_smm_state_save_area_t));
+	return 0;
 }
 
 static bool node_tuple(const struct intel_smm_invocation_node *node,
@@ -225,16 +242,12 @@ enum cb_err intel_smm_invocation_adapter_init_layout(
 	uint32_t reserved_size, uint32_t expected_revision)
 {
 	uintptr_t tops[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
-	size_t expected_size;
+	const size_t expected_size = revision_size(expected_revision);
 
 	if (!adapter || !save_state_top || !active_cpus ||
 	    active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
-	    (expected_revision != EM64T100_REVISION &&
-	     expected_revision != EM64T101_REVISION))
+	    !expected_size)
 		return CB_ERR;
-	expected_size = expected_revision == EM64T100_REVISION ?
-		sizeof(em64t100_smm_state_save_area_t) :
-		sizeof(em64t101_smm_state_save_area_t);
 	if (allocation_size <= reserved_size ||
 	    !range_valid(save_state_top, active_cpus * sizeof(*save_state_top)) ||
 	    ranges_overlap(adapter, sizeof(*adapter), save_state_top,
@@ -270,6 +283,66 @@ enum cb_err intel_smm_invocation_adapter_init_layout(
 	return CB_SUCCESS;
 }
 
+enum cb_err intel_smm_invocation_adapter_init_spans(
+	struct intel_smm_invocation_adapter *adapter, uint32_t active_cpus,
+	intel_smm_invocation_native_span_fn span_for_cpu, const void *context,
+	size_t context_size, uint32_t expected_revision)
+{
+	const size_t expected_size = revision_size(expected_revision);
+	const uint8_t *adapter_bytes;
+
+	if (!adapter || !span_for_cpu || !context || !context_size || !active_cpus ||
+	    active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS || !expected_size ||
+	    !range_valid(adapter, sizeof(*adapter)) ||
+	    !range_valid(context, context_size) ||
+	    ranges_overlap(adapter, sizeof(*adapter), context, context_size))
+		return CB_ERR;
+	adapter_bytes = (const void *)adapter;
+	for (size_t index = 0; index < sizeof(*adapter); index++)
+		if (adapter_bytes[index])
+			return CB_ERR;
+	adapter->reserved = UINT32_MAX;
+
+	/*
+	 * The unpublished adapter is the protected snapshot scratch. The reserved
+	 * marker rejects reentrant initialization. Any failure after ownership is
+	 * taken scrubs the entire destination before returning.
+	 */
+	for (uint32_t cpu = 0; cpu < active_cpus; cpu++) {
+		struct smm_save_state_span span = { 0 };
+
+		ADAPTER_TEST_HOOK(100U + cpu);
+		if (span_for_cpu(context, cpu, &span) != CB_SUCCESS ||
+		    span.size != expected_size ||
+		    !range_valid((const void *)span.base, span.size) ||
+		    ranges_overlap(&span, sizeof(span),
+			(const void *)span.base, span.size) ||
+		    ranges_overlap(adapter, sizeof(*adapter),
+			(const void *)span.base, span.size) ||
+		    ranges_overlap(context, context_size,
+			(const void *)span.base, span.size))
+			goto fail;
+		for (uint32_t prior = 0; prior < cpu; prior++)
+			if (ranges_overlap((const void *)span.base, span.size,
+				(const void *)adapter->nodes[prior].save_state,
+				expected_size))
+				goto fail;
+		adapter->nodes[cpu].save_state = span.base;
+	}
+
+	adapter->revision = INTEL_SMM_INVOCATION_ADAPTER_REVISION;
+	adapter->size = sizeof(*adapter);
+	adapter->active_cpus = active_cpus;
+	adapter->reserved = 0;
+	adapter->expected_revision = expected_revision;
+	adapter->invocation_nonce = 1;
+	return CB_SUCCESS;
+
+fail:
+	memset(adapter, 0, sizeof(*adapter));
+	return CB_ERR;
+}
+
 enum cb_err intel_smm_invocation_adapter_ops(
 	struct intel_smm_invocation_adapter *adapter,
 	struct smm_invocation_save_state_ops *ops)
@@ -284,18 +357,11 @@ enum cb_err intel_smm_invocation_adapter_ops(
 	if (snapshot.revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION ||
 	    snapshot.size != sizeof(snapshot) || !snapshot.active_cpus ||
 	    snapshot.active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
-	    snapshot.reserved ||
-	    (snapshot.expected_revision != EM64T100_REVISION &&
-	     snapshot.expected_revision != EM64T101_REVISION))
+	    snapshot.reserved || !revision_size(snapshot.expected_revision))
 		return CB_ERR;
 	ADAPTER_TEST_HOOK(5);
+	save_state_size = revision_size(snapshot.expected_revision);
 	for (uint32_t cpu = 0; cpu < snapshot.active_cpus; cpu++) {
-		if (snapshot.expected_revision == EM64T100_REVISION)
-			save_state_size = sizeof(em64t100_smm_state_save_area_t);
-		else if (snapshot.expected_revision == EM64T101_REVISION)
-			save_state_size = sizeof(em64t101_smm_state_save_area_t);
-		else
-			return CB_ERR;
 		if (!range_valid((const void *)snapshot.nodes[cpu].save_state,
 			save_state_size) ||
 		    ranges_overlap(ops, sizeof(*ops),

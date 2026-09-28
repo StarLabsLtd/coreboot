@@ -117,6 +117,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-authvar-smm-loader
 	+$(MAKE) test-smm-invocation-canary-fail-stop
 	+$(MAKE) test-smm-invocation-runtime-view
+	+$(MAKE) test-smm-invocation-entry-adapter
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -128,7 +129,8 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-capsule-protected-flash test-capsule-platform-facts \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
 	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
-	test-smm-invocation-runtime-view test-cleanup
+	test-smm-invocation-runtime-view test-smm-invocation-entry-adapter \
+	test-cleanup
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
@@ -219,8 +221,9 @@ test-smm-invocation-evidence:
 	tests/cpu/x86/smm_invocation_evidence_test.sh
 
 .PHONY: test-smm-invocation-entry-adapter
-test-smm-invocation-entry-adapter:
+test-smm-invocation-entry-adapter: test-smm-save-state-geometry
 	tests/cpu/x86/smm_invocation_entry_adapter_test.sh
+	tests/cpu/x86/smm_invocation_adapter_spans_test.sh
 
 .PHONY: test-smm-save-state-geometry
 test-smm-save-state-geometry:

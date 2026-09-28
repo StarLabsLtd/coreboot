@@ -80,6 +80,13 @@ void intel_smm_invocation_adapter_test_hook(uint32_t point)
 		adapter_hook_state->io_misc_info ^= 1U << 8;
 }
 
+size_t intel_smm_invocation_adapter_test_revision_size(
+	uint32_t layout_revision, size_t native_size)
+{
+	(void)layout_revision;
+	return native_size;
+}
+
 static uint8_t fail_stop_exit_code;
 static uint32_t fail_stop_thread_exit;
 static uint32_t fail_stop_calls;
