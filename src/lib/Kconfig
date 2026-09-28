@@ -506,6 +506,21 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_INSTALLATION_EVIDENCE
 	  source registrations. It installs no hook or callsite, performs no closure
 	  and cannot establish the public LIFECYCLE_SEALED flag.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
+	depends on SMM_INVOCATION_FAIL_STOP_PLATFORM
+	help
+	  Build the dormant SMM-only owner for exact-generation lifecycle closure.
+	  Four mandatory lifecycle sources and one ordered late CLOSED reproof share
+	  one private protected state machine, claim a fresh protected invocation,
+	  restrict the authority and complete that invocation only after a second
+	  exact CLOSED proof. This installs no
+	  sender, route, table, board selection or live lifecycle callsite and does
+	  not establish the public LIFECYCLE_SEALED flag.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n

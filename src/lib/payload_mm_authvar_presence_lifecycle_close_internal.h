@@ -1,0 +1,48 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INTERNAL_H
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INTERNAL_H
+
+#include <commonlib/bsd/cb_err.h>
+#include <stdint.h>
+
+#if !ENV_SMM && !ENV_TEST
+#error "authenticated-variable lifecycle close owner is SMM-only"
+#endif
+
+struct payload_mm_authvar_presence_lifecycle_close_slot {
+	uint32_t state;
+	uint32_t state_inverse;
+};
+
+struct payload_mm_authvar_presence_lifecycle_close_slot *
+payload_mm_authvar_presence_pre_external_image_close_slot(void);
+struct payload_mm_authvar_presence_lifecycle_close_slot *
+payload_mm_authvar_presence_payload_failure_close_slot(void);
+struct payload_mm_authvar_presence_lifecycle_close_slot *
+payload_mm_authvar_presence_warm_reset_close_slot(void);
+struct payload_mm_authvar_presence_lifecycle_close_slot *
+payload_mm_authvar_presence_s3_resume_close_slot(void);
+struct payload_mm_authvar_presence_lifecycle_close_slot *
+payload_mm_authvar_presence_closed_reproof_slot(void);
+
+enum cb_err payload_mm_authvar_presence_lifecycle_close_pre_external_image(
+	struct payload_mm_authvar_presence_lifecycle_close_slot *slot);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_payload_failure(
+	struct payload_mm_authvar_presence_lifecycle_close_slot *slot);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_warm_reset(
+	struct payload_mm_authvar_presence_lifecycle_close_slot *slot);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_resume(
+	struct payload_mm_authvar_presence_lifecycle_close_slot *slot);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_closed_reproof(
+	struct payload_mm_authvar_presence_lifecycle_close_slot *slot);
+
+#if ENV_TEST
+void payload_mm_authvar_presence_pre_external_image_close_reset_test(void);
+void payload_mm_authvar_presence_payload_failure_close_reset_test(void);
+void payload_mm_authvar_presence_warm_reset_close_reset_test(void);
+void payload_mm_authvar_presence_s3_resume_close_reset_test(void);
+void payload_mm_authvar_presence_closed_reproof_reset_test(void);
+#endif
+
+#endif
