@@ -418,6 +418,10 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 
 	for (int i = 0; i < loader_params->num_cpus; i++)
 		mod_params->save_state_top[i] = region_last(&cpus[i].ss) + 1;
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+	for (size_t i = loader_params->num_cpus; i < CONFIG_MAX_CPUS; i++)
+		mod_params->save_state_top[i] = 0;
+#endif
 
 	if (CONFIG(RUNTIME_CONFIGURABLE_SMM_LOGLEVEL))
 		mod_params->smm_log_level = mainboard_set_smm_log_level();
@@ -643,6 +647,14 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		    struct smm_loader_params *params)
 {
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+	if (!params || !params->num_cpus ||
+	    params->num_cpus != params->num_concurrent_save_states ||
+	    params->num_cpus > CONFIG_MAX_CPUS ||
+	    !params->cpu_save_state_size ||
+	    params->cpu_save_state_size > UINT32_MAX)
+		return -1;
+#endif
 	/*
 	 * Place in .bss to reduce stack usage.
 	 * TODO: once CPU_INFO_V2 is used everywhere, use smaller stack for APs and move

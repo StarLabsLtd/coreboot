@@ -112,7 +112,11 @@ struct smm_runtime {
 #if CONFIG(SMM_PCI_RESOURCE_STORE)
 	struct smm_pci_resource_info pci_resources[CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS];
 #endif
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+	uintptr_t save_state_top[CONFIG_MAX_CPUS] __aligned(sizeof(uintptr_t));
+#else
 	uintptr_t save_state_top[CONFIG_MAX_CPUS];
+#endif
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
@@ -151,6 +155,15 @@ struct smm_runtime {
 	struct smm_invocation_loader_composition invocation_composition __aligned(8);
 #endif
 } __packed;
+
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+_Static_assert(offsetof(struct smm_runtime, save_state_size) %
+	_Alignof(uint32_t) == 0, "SMM save-state size is not aligned");
+_Static_assert(offsetof(struct smm_runtime, num_cpus) %
+	_Alignof(uint32_t) == 0, "SMM runtime CPU count is not aligned");
+_Static_assert(offsetof(struct smm_runtime, save_state_top) %
+	_Alignof(uintptr_t) == 0, "SMM save-state tops are not aligned");
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 _Static_assert(offsetof(struct smm_runtime, authvar_mor_channel) %

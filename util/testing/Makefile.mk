@@ -116,6 +116,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-q35-mor-linear
 	+$(MAKE) test-authvar-smm-loader
 	+$(MAKE) test-smm-invocation-canary-fail-stop
+	+$(MAKE) test-smm-invocation-runtime-view
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -126,7 +127,8 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
 	test-capsule-protected-flash test-capsule-platform-facts \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
-	test-q35-mor-linear test-smm-invocation-canary-fail-stop test-cleanup
+	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
+	test-smm-invocation-runtime-view test-cleanup
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
@@ -227,7 +229,7 @@ test-smm-save-state-geometry:
 	tests/cpu/x86/smm_save_state_geometry_profiles_test.sh
 
 .PHONY: test-smm-invocation-intel-cause
-test-smm-invocation-intel-cause:
+test-smm-invocation-intel-cause: test-smm-invocation-runtime-view
 	tests/cpu/x86/smm_invocation_intel_cause_test.sh
 	tests/cpu/x86/smm_invocation_intel_cause_profiles_test.sh
 
@@ -248,6 +250,11 @@ test-smm-invocation-fail-stop-providers: test-smm-invocation-canary-fail-stop
 test-smm-invocation-canary-fail-stop:
 	tests/cpu/x86/smm_invocation_canary_fail_stop_test.sh
 	tests/cpu/x86/smm_invocation_canary_fail_stop_profiles_test.sh
+
+.PHONY: test-smm-invocation-runtime-view
+test-smm-invocation-runtime-view:
+	tests/cpu/x86/smm_invocation_runtime_view_test.sh
+	tests/cpu/x86/smm_invocation_runtime_view_profiles_test.sh
 
 .PHONY: test-smm-invocation-topology
 test-smm-invocation-topology:

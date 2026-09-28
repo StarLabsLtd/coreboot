@@ -115,6 +115,16 @@ config SMM_INVOCATION_INTEL_CAUSE
 	  callsite must route its private-invalid result to the selected platform
 	  fail-stop. This adds no callsite, command dispatch or platform selection.
 
+config SMM_INVOCATION_RUNTIME_VIEW
+	bool
+	default n
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	select SMM_SAVE_STATE_GEOMETRY
+	help
+	  Compile a dormant SMM-only opaque view of checked protected invocation
+	  CPU and save-state geometry. This adds no command, route, lifecycle action
+	  or platform selection.
+
 config PARALLEL_MP
 	def_bool y
 	help
