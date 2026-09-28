@@ -224,6 +224,8 @@ test-smm-invocation-evidence:
 test-smm-invocation-entry-adapter: test-smm-save-state-geometry
 	tests/cpu/x86/smm_invocation_entry_adapter_test.sh
 	tests/cpu/x86/smm_invocation_adapter_spans_test.sh
+	tests/cpu/x86/smm_invocation_adapter_provider_test.sh
+	tests/cpu/x86/smm_invocation_adapter_provider_profiles_test.sh
 
 .PHONY: test-smm-save-state-geometry
 test-smm-save-state-geometry:

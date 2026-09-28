@@ -3,20 +3,14 @@
 #ifndef SOC_INTEL_COMMON_BLOCK_SMI_HANDLER_H
 #define SOC_INTEL_COMMON_BLOCK_SMI_HANDLER_H
 
-#include <cpu/x86/save_state.h>
 #include <device/device.h>
+#include <intelblocks/smm_save_state_ops.h>
 #include <stdint.h>
 
 struct gpi_status;
 struct global_nvs;
 
 typedef void (*smi_handler_t)(const struct smm_save_state_ops *save_state_ops);
-
-/*
- * SOC SMI Handler has to provide this structure which has methods to access
- * the SOC specific SMM Save State Area
- */
-const struct smm_save_state_ops *get_smm_save_state_ops(void);
 
 /*
  * southbridge_smi should be defined inside SOC specific code and should have
@@ -123,7 +117,4 @@ void mainboard_smi_gpi_handler(const struct gpi_status *sts);
 /* Mainboard handler for ESPI EMIs */
 void mainboard_smi_espi_handler(void);
 
-extern const struct smm_save_state_ops em64t100_smm_ops;
-
-extern const struct smm_save_state_ops em64t101_smm_ops;
 #endif
