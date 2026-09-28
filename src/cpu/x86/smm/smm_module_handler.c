@@ -11,6 +11,10 @@
 #include <cpu/x86/save_state.h>
 #endif
 #include <cpu/x86/smm.h>
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+#include <cpu/x86/smm_invocation_runtime.h>
+#include <cpu/x86/smm_save_state.h>
+#endif
 #if CONFIG(SMM_INVOCATION_STACK_CANARY_FAIL_STOP)
 #include <cpu/x86/smm_invocation_fail_stop.h>
 #endif
@@ -44,9 +48,265 @@ __attribute__((aligned(4))) smi_semaphore smi_handler_status = SMI_UNLOCKED;
 #else
 #define SMM_RUNTIME_ALIGNMENT 4
 #endif
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+_Static_assert(_Alignof(uintptr_t) <= SMM_RUNTIME_ALIGNMENT,
+	"SMM runtime does not align pointer members");
+#endif
 static const volatile
 __attribute((aligned(SMM_RUNTIME_ALIGNMENT), __section__(".module_parameters")))
 	struct smm_runtime smm_runtime;
+
+#if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
+#if defined(__TEST__)
+void smm_invocation_runtime_view_test_hook(uint32_t point);
+#define RUNTIME_VIEW_TEST_HOOK(point) smm_invocation_runtime_view_test_hook(point)
+#define RUNTIME_VIEW_RESERVED_SIZE TEST_RUNTIME_VIEW_RESERVED_SIZE
+#else
+#define RUNTIME_VIEW_TEST_HOOK(point) do { } while (0)
+#define RUNTIME_VIEW_RESERVED_SIZE STM_PSD_SIZE
+#endif
+
+struct smm_invocation_runtime_view {
+	uint8_t opaque;
+};
+
+static const struct smm_invocation_runtime_view runtime_view;
+
+struct runtime_geometry_snapshot {
+	uint32_t runtime_cpus;
+	uint32_t allocation_size;
+	uintptr_t smram_base;
+	size_t smram_size;
+};
+
+static bool runtime_range_valid(uintptr_t base, size_t size, size_t alignment)
+{
+	return base && size && !(base % alignment) &&
+		base <= UINTPTR_MAX - (size - 1U);
+}
+
+static bool runtime_ranges_overlap(uintptr_t first, size_t first_size,
+	uintptr_t second, size_t second_size)
+{
+	if (first <= second)
+		return second - first < first_size;
+	return first - second < second_size;
+}
+
+static bool runtime_range_contains(uintptr_t outer, size_t outer_size,
+	uintptr_t inner, size_t inner_size)
+{
+	return runtime_range_valid(outer, outer_size, 1U) &&
+		runtime_range_valid(inner, inner_size, 1U) && inner >= outer &&
+		inner - outer < outer_size &&
+		inner_size <= outer_size - (inner - outer);
+}
+
+static __noinline bool runtime_topology_matches(uint32_t runtime_cpus)
+{
+	const volatile struct smm_invocation_topology *topology =
+		&smm_runtime.invocation_topology;
+
+	if (__atomic_load_n(&topology->state, __ATOMIC_ACQUIRE) !=
+		SMM_INVOCATION_TOPOLOGY_READY ||
+	    topology->revision != SMM_INVOCATION_TOPOLOGY_REVISION ||
+	    topology->size != sizeof(*topology) ||
+	    topology->active_cpus != runtime_cpus || topology->bsp_cpu != 0U ||
+	    topology->reserved[0] || topology->reserved[1] ||
+	    topology->reserved[2])
+		return false;
+	for (uint32_t cpu = 0; cpu < runtime_cpus; cpu++)
+		for (uint32_t other = cpu + 1U; other < runtime_cpus; other++)
+			if (topology->initial_apic_ids[cpu] ==
+			    topology->initial_apic_ids[other])
+				return false;
+	for (uint32_t cpu = runtime_cpus;
+	     cpu < SMM_INVOCATION_TOPOLOGY_MAX_CPUS; cpu++)
+		if (topology->initial_apic_ids[cpu])
+			return false;
+	return __atomic_load_n(&topology->state, __ATOMIC_ACQUIRE) ==
+		SMM_INVOCATION_TOPOLOGY_READY;
+}
+
+static __noinline bool runtime_composition_matches(void)
+{
+	const volatile struct smm_invocation_loader_composition *composition =
+		&smm_runtime.invocation_composition;
+
+	return __atomic_load_n(&composition->state, __ATOMIC_ACQUIRE) ==
+			SMM_INVOCATION_LOADER_COMPOSITION_READY &&
+		composition->owner_attempt == 1U && !composition->reserved[0] &&
+		!composition->reserved[1] &&
+		composition->evidence_identity ==
+			(uint64_t)(uintptr_t)&smm_runtime.invocation_evidence &&
+		__atomic_load_n(&composition->state, __ATOMIC_ACQUIRE) ==
+			SMM_INVOCATION_LOADER_COMPOSITION_READY;
+}
+
+static __noinline bool runtime_geometry_valid(uint32_t runtime_cpus,
+	uint32_t allocation_size,
+	uintptr_t smram_base, size_t smram_size, uintptr_t output, size_t output_size,
+	uintptr_t runtime, size_t runtime_size)
+{
+	struct smm_save_state_span native_span;
+	for (uint32_t cpu = 0; cpu < runtime_cpus; cpu++) {
+		const uintptr_t top = __atomic_load_n(&smm_runtime.save_state_top[cpu],
+			__ATOMIC_ACQUIRE);
+		uintptr_t allocation_base;
+
+		RUNTIME_VIEW_TEST_HOOK(10U + cpu);
+		if (top != __atomic_load_n(&smm_runtime.save_state_top[cpu],
+			__ATOMIC_ACQUIRE) || top < allocation_size)
+			return false;
+		allocation_base = top - allocation_size;
+		if (!runtime_range_contains(smram_base, smram_size,
+			allocation_base, allocation_size) ||
+		    runtime_ranges_overlap(output, output_size, allocation_base,
+			allocation_size) ||
+		    runtime_ranges_overlap(runtime, runtime_size, allocation_base,
+			allocation_size) ||
+		    smm_save_state_native_span(top, allocation_size,
+			RUNTIME_VIEW_RESERVED_SIZE,
+			&native_span) != CB_SUCCESS)
+			return false;
+		for (uint32_t prior = 0; prior < cpu; prior++) {
+			const uintptr_t prior_top = __atomic_load_n(
+				&smm_runtime.save_state_top[prior], __ATOMIC_ACQUIRE);
+
+			if (prior_top < allocation_size ||
+			    runtime_ranges_overlap(allocation_base, allocation_size,
+				prior_top - allocation_size, allocation_size))
+				return false;
+		}
+	}
+	for (uint32_t cpu = runtime_cpus; cpu < CONFIG_MAX_CPUS; cpu++)
+		if (__atomic_load_n(&smm_runtime.save_state_top[cpu],
+			__ATOMIC_ACQUIRE))
+			return false;
+	return true;
+}
+
+static bool runtime_output_valid(uintptr_t output, size_t output_size,
+	size_t output_alignment)
+{
+	const uintptr_t runtime = (uintptr_t)&smm_runtime;
+
+	return runtime_range_valid(output, output_size, output_alignment) &&
+		runtime_range_valid(runtime, sizeof(smm_runtime),
+			SMM_RUNTIME_ALIGNMENT) &&
+	    !runtime_ranges_overlap(output, output_size, runtime,
+		sizeof(smm_runtime)) &&
+	    !runtime_ranges_overlap(output, output_size, (uintptr_t)&runtime_view,
+		sizeof(runtime_view));
+}
+
+static __noinline bool runtime_geometry_snapshot(uintptr_t output,
+	size_t output_size,
+	struct runtime_geometry_snapshot *snapshot)
+{
+	struct runtime_geometry_snapshot value;
+	const uintptr_t runtime = (uintptr_t)&smm_runtime;
+
+	value.runtime_cpus = __atomic_load_n(&smm_runtime.num_cpus,
+		__ATOMIC_ACQUIRE);
+	value.allocation_size = __atomic_load_n(&smm_runtime.save_state_size,
+		__ATOMIC_ACQUIRE);
+	value.smram_base = __atomic_load_n(&smm_runtime.smbase, __ATOMIC_ACQUIRE);
+	value.smram_size = __atomic_load_n(&smm_runtime.smm_size, __ATOMIC_ACQUIRE);
+	if (!value.runtime_cpus || value.runtime_cpus > CONFIG_MAX_CPUS ||
+	    value.runtime_cpus > SMM_INVOCATION_TOPOLOGY_MAX_CPUS ||
+	    value.allocation_size <= RUNTIME_VIEW_RESERVED_SIZE ||
+	    !runtime_range_contains(value.smram_base, value.smram_size, runtime,
+		sizeof(smm_runtime)) ||
+	    !runtime_composition_matches() ||
+	    !runtime_topology_matches(value.runtime_cpus) ||
+	    !runtime_geometry_valid(value.runtime_cpus, value.allocation_size,
+		value.smram_base, value.smram_size, output, output_size, runtime,
+		sizeof(smm_runtime)))
+		return false;
+	*snapshot = value;
+	return true;
+}
+
+static bool runtime_geometry_unchanged(
+	const struct runtime_geometry_snapshot *before, uintptr_t output,
+	size_t output_size)
+{
+	struct runtime_geometry_snapshot after;
+
+	return runtime_geometry_snapshot(output, output_size, &after) &&
+		before->runtime_cpus == after.runtime_cpus &&
+		before->allocation_size == after.allocation_size &&
+		before->smram_base == after.smram_base &&
+		before->smram_size == after.smram_size;
+}
+
+enum cb_err smm_invocation_runtime_view_get(
+	const struct smm_invocation_runtime_view **view)
+{
+	const uintptr_t output = (uintptr_t)view;
+	struct runtime_geometry_snapshot snapshot;
+
+	if (!runtime_output_valid(output, sizeof(*view), _Alignof(*view)))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot(output, sizeof(*view), &snapshot))
+		return CB_ERR;
+	RUNTIME_VIEW_TEST_HOOK(1);
+	if (!runtime_geometry_unchanged(&snapshot, output, sizeof(*view)))
+		return CB_ERR;
+	*view = &runtime_view;
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_runtime_cpu_count(
+	const struct smm_invocation_runtime_view *view, uint32_t *active_cpus)
+{
+	const uintptr_t output = (uintptr_t)active_cpus;
+	struct runtime_geometry_snapshot snapshot;
+
+	if (view != &runtime_view ||
+	    !runtime_output_valid(output, sizeof(*active_cpus),
+		_Alignof(*active_cpus)))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot(output, sizeof(*active_cpus), &snapshot))
+		return CB_ERR;
+	RUNTIME_VIEW_TEST_HOOK(2);
+	if (!runtime_geometry_unchanged(&snapshot, output, sizeof(*active_cpus)))
+		return CB_ERR;
+	*active_cpus = snapshot.runtime_cpus;
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_runtime_save_state_span(
+	const struct smm_invocation_runtime_view *view, uint32_t cpu,
+	struct smm_save_state_span *span)
+{
+	const uintptr_t output = (uintptr_t)span;
+	struct runtime_geometry_snapshot snapshot;
+	struct smm_save_state_span value;
+	uintptr_t top;
+
+	if (view != &runtime_view ||
+	    !runtime_output_valid(output, sizeof(*span), _Alignof(*span)))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot(output, sizeof(*span), &snapshot) ||
+	    cpu >= snapshot.runtime_cpus)
+		return CB_ERR;
+	top = __atomic_load_n(&smm_runtime.save_state_top[cpu], __ATOMIC_ACQUIRE);
+	if (smm_save_state_native_span(top, snapshot.allocation_size,
+		RUNTIME_VIEW_RESERVED_SIZE, &value) != CB_SUCCESS ||
+	    !runtime_range_contains(snapshot.smram_base, snapshot.smram_size,
+		value.base, value.size))
+		return CB_ERR;
+	RUNTIME_VIEW_TEST_HOOK(100U + cpu);
+	if (!runtime_geometry_unchanged(&snapshot, output, sizeof(*span)) ||
+	    top != __atomic_load_n(&smm_runtime.save_state_top[cpu],
+		__ATOMIC_ACQUIRE))
+		return CB_ERR;
+	*span = value;
+	return CB_SUCCESS;
+}
+#endif
 
 static int smi_obtain_lock(void)
 {
