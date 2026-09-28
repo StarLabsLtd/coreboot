@@ -226,6 +226,16 @@ test-smm-invocation-entry-adapter: test-smm-save-state-geometry
 	tests/cpu/x86/smm_invocation_adapter_spans_test.sh
 	tests/cpu/x86/smm_invocation_adapter_provider_test.sh
 	tests/cpu/x86/smm_invocation_adapter_provider_profiles_test.sh
+	tests/cpu/x86/smm_invocation_adapter_route_test.sh
+	ADAPTER_ROUTE_SKIP_PROVIDER_PROFILE=1 \
+		tests/cpu/x86/smm_invocation_adapter_route_profiles_test.sh
+
+.PHONY: test-smm-invocation-adapter-route
+test-smm-invocation-adapter-route:
+	tests/cpu/x86/smm_invocation_adapter_provider_test.sh
+	tests/lib/payload_mm_authvar_presence_route_session_test.sh
+	tests/cpu/x86/smm_invocation_adapter_route_test.sh
+	tests/cpu/x86/smm_invocation_adapter_route_profiles_test.sh
 
 .PHONY: test-smm-save-state-geometry
 test-smm-save-state-geometry:

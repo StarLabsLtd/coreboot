@@ -6,6 +6,7 @@ ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM) += smm.c
 smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM) += smihandler.c
 smm-$(CONFIG_SMM_INVOCATION_INTEL_ADAPTER) += invocation_adapter.c
 smm-$(CONFIG_SMM_INVOCATION_INTEL_ADAPTER_PROVIDER) += invocation_adapter_provider.c
+smm-$(CONFIG_SMM_INVOCATION_INTEL_ADAPTER_ROUTE) += invocation_adapter_route.c
 smm-$(CONFIG_SMM_INVOCATION_INTEL_CAUSE) += invocation_cause.c
 smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW) += smm_spi_window.c
 smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_IO_TRAP) += smitraphandler.c

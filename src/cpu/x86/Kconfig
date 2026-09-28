@@ -71,6 +71,17 @@ config SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
 	  checked runtime geometry once and serializes independent invocation
 	  rounds. It installs no SMI route, command or handler callsite.
 
+config SMM_INVOCATION_INTEL_ADAPTER_ROUTE
+	bool
+	default n
+	depends on SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Provision the dormant authenticated-variable presence route directly from
+	  the canonical Intel save-state adapter provider. This installs no SMI
+	  route, command, handler callsite or platform selection.
+
 config SMM_SAVE_STATE_GEOMETRY
 	bool
 	default y if STM || SMM_INVOCATION_INTEL_ADAPTER
