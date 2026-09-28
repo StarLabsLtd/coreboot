@@ -102,6 +102,7 @@ enum {
 	LB_TAG_CAPSULE_BROKER_ENDPOINT	= 0x0054,
 	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
 	LB_TAG_AUTHVAR_PRESENCE_ENDPOINT = 0x0056,
+	LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT = 0x0057,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -1078,6 +1079,53 @@ _Static_assert(offsetof(struct lb_authvar_presence_endpoint, generation) == 16 &
 	offsetof(struct lb_authvar_presence_endpoint, capability_size) == 56 &&
 	offsetof(struct lb_authvar_presence_endpoint, reserved) == 60,
 	"authenticated-variable presence endpoint layout");
+
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_REVISION 1U
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SMM_OWNER (1U << 0)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_FIXED_COMMUNICATION (1U << 1)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_AUTHORITY_DMA_PROTECTED (1U << 2)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CPU_RENDEZVOUS (1U << 3)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_EXACT_GENERATION (1U << 4)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BOOT_EPOCH_SCOPED (1U << 5)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SOURCE_SCOPED (1U << 6)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SYNCHRONOUS_CLOSED_PROOF (1U << 7)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ONE_SHOT_SOURCES (1U << 8)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TERMINAL_BEFORE_EBS (1U << 9)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_REQUIRED_FLAGS ((1U << 10) - 1U)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT_APM_IO8 1U
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PRE_EXTERNAL_IMAGE (1U << 0)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PAYLOAD_FAILURE_OR_RETURN (1U << 1)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF (1U << 2)
+#define LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SOURCE_MASK ((1U << 3) - 1U)
+
+struct lb_authvar_presence_lifecycle_close_endpoint {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t flags;
+	lb_uint64_t generation;
+	lb_uint64_t communication_base;
+	uint32_t communication_size;
+	uint32_t message_size;
+	uint16_t transport;
+	uint16_t trigger_width;
+	uint32_t trigger_address;
+	uint32_t trigger_value;
+	uint32_t source_mask;
+	uint32_t reserved[2];
+} __packed;
+
+_Static_assert(sizeof(struct lb_authvar_presence_lifecycle_close_endpoint) == 64,
+	"authenticated-variable presence lifecycle-close endpoint ABI");
+_Static_assert(offsetof(struct lb_authvar_presence_lifecycle_close_endpoint,
+	generation) == 16 &&
+	offsetof(struct lb_authvar_presence_lifecycle_close_endpoint,
+	communication_base) == 24 &&
+	offsetof(struct lb_authvar_presence_lifecycle_close_endpoint, transport) == 40 &&
+	offsetof(struct lb_authvar_presence_lifecycle_close_endpoint, source_mask) == 52 &&
+	offsetof(struct lb_authvar_presence_lifecycle_close_endpoint, reserved) == 56,
+	"authenticated-variable presence lifecycle-close endpoint layout");
 struct lb_cfr {
 	uint32_t tag;
 	uint32_t size;

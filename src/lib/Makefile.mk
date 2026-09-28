@@ -73,6 +73,10 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER) += \
 	payload_mm_authvar_presence_warm_reset_close.c \
 	payload_mm_authvar_presence_s3_resume_close.c \
 	payload_mm_authvar_presence_closed_reproof.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT) += \
+	payload_mm_authvar_presence_lifecycle_close_endpoint.c \
+	payload_mm_authvar_presence_lifecycle_close_backing.c \
+	payload_mm_authvar_presence_lifecycle_close_publication.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION) += \
 	payload_mm_authvar_presence_transaction.c \
 	payload_mm_authvar_presence_transaction_receiver.c
