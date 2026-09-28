@@ -12,6 +12,15 @@ config SMM_INVOCATION_FAIL_STOP_PLATFORM
 	  final terminal-halt implementation. Stopping only the calling CPU is not
 	  sufficient. No platform enables this capability by default.
 
+config SMM_INVOCATION_STACK_CANARY_FAIL_STOP
+	bool
+	default n
+	depends on SMM_INVOCATION_FAIL_STOP_PLATFORM
+	help
+	  Route an SMM handler stack-canary mismatch directly to the selected
+	  non-returning platform-wide fail-stop provider. This capability remains
+	  dormant until a future invocation-route composition selects it.
+
 config SMM_INVOCATION_EVIDENCE
 	bool
 	default n
