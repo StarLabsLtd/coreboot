@@ -57,6 +57,8 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF) += \
 	payload_mm_authvar_presence_handoff_receiver.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 	payload_mm_authvar_presence_transaction.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) += \
+	payload_mm_authvar_presence_tuple_sender.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION) += \
 	payload_mm_authvar_presence_transaction.c \
 	payload_mm_authvar_presence_transaction_receiver.c
