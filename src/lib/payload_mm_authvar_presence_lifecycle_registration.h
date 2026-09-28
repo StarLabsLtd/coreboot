@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_REGISTRATION_H
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_REGISTRATION_H
+
+#include <commonlib/bsd/cb_err.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+struct payload_mm_authvar_presence_lifecycle_registration {
+	uint32_t state;
+	uint32_t evidence;
+	uint32_t evidence_inverse;
+	uint32_t sealed_evidence;
+	uint32_t sealed_evidence_inverse;
+};
+
+enum cb_err payload_mm_authvar_presence_lifecycle_registration_issue(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot,
+	uint32_t evidence);
+enum cb_err payload_mm_authvar_presence_lifecycle_registration_seal(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot,
+	uint32_t evidence);
+enum cb_err payload_mm_authvar_presence_lifecycle_registration_consume(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot,
+	uint32_t evidence);
+bool payload_mm_authvar_presence_lifecycle_registration_consumed(
+	const struct payload_mm_authvar_presence_lifecycle_registration *slot);
+
+enum cb_err payload_mm_authvar_presence_pre_external_image_seal(void);
+enum cb_err payload_mm_authvar_presence_pre_external_image_consume(void);
+bool payload_mm_authvar_presence_pre_external_image_consumed(void);
+enum cb_err payload_mm_authvar_presence_payload_failure_or_return_seal(void);
+enum cb_err payload_mm_authvar_presence_payload_failure_or_return_consume(void);
+bool payload_mm_authvar_presence_payload_failure_or_return_consumed(void);
+enum cb_err payload_mm_authvar_presence_warm_reset_seal(void);
+enum cb_err payload_mm_authvar_presence_warm_reset_consume(void);
+bool payload_mm_authvar_presence_warm_reset_consumed(void);
+enum cb_err payload_mm_authvar_presence_s3_resume_seal(void);
+enum cb_err payload_mm_authvar_presence_s3_resume_consume(void);
+bool payload_mm_authvar_presence_s3_resume_consumed(void);
+
+#if ENV_TEST
+typedef void (*payload_mm_authvar_presence_registration_test_action_fn)(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot);
+void payload_mm_authvar_presence_registration_claimed_action_test(
+	payload_mm_authvar_presence_registration_test_action_fn action);
+void payload_mm_authvar_presence_lifecycle_registration_slot_corrupt_test(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot);
+void payload_mm_authvar_presence_lifecycle_registration_state_corrupt_test(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot);
+uint32_t payload_mm_authvar_presence_registration_writes_test(void);
+void payload_mm_authvar_presence_lifecycle_registration_slot_reset_test(
+	struct payload_mm_authvar_presence_lifecycle_registration *slot);
+void payload_mm_authvar_presence_pre_external_image_reset_test(void);
+void payload_mm_authvar_presence_payload_failure_or_return_reset_test(void);
+void payload_mm_authvar_presence_warm_reset_reset_test(void);
+void payload_mm_authvar_presence_s3_resume_reset_test(void);
+#endif
+
+#endif

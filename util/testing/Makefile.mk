@@ -118,6 +118,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-smm-invocation-canary-fail-stop
 	+$(MAKE) test-smm-invocation-runtime-view
 	+$(MAKE) test-authvar-presence-tuple-sender
+	+$(MAKE) test-authvar-presence-lifecycle-installation
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -130,7 +131,16 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
 	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
 	test-smm-invocation-runtime-view test-authvar-presence-tuple-sender \
+	test-authvar-presence-lifecycle-installation \
 	test-cleanup
+
+.PHONY: test-authvar-presence-lifecycle-installation
+test-authvar-presence-lifecycle-installation:
+	tests/lib/payload_mm_authvar_presence_lifecycle_composition_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=AUTHVAR_PRESENCE_LIFECYCLE_HOSTILE_OVERRIDE \
+		AUTHVAR_PRESENCE_LIFECYCLE_HOSTILE_OVERRIDE=1 \
+		tests/lib/payload_mm_authvar_presence_lifecycle_composition_profiles_test.sh
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
