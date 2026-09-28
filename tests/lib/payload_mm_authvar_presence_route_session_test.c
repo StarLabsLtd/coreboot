@@ -67,6 +67,25 @@ static void run_round(
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
 	const struct payload_mm_authvar_presence_seed *seed);
 
+static void init_selection_receipt(
+	struct smm_apmc_selection_receipt *receipt)
+{
+	*receipt = (struct smm_apmc_selection_receipt) {
+		.revision = SMM_APMC_SELECTION_RECEIPT_REVISION,
+		.size = sizeof(*receipt),
+		.identity = (uint64_t)(uintptr_t)receipt,
+		.generation = 1U,
+		.descriptor = {
+			.command = SMM_APMC_AUTHVAR_PRESENCE,
+			.owner = SMM_APMC_OWNER_AUTHVAR_PRESENCE,
+			.role = SMM_APMC_EXCLUSIVE,
+			.binding_count = 1U,
+			.reserved = true,
+			.enabled = true,
+		},
+	};
+}
+
 static void expect_pre_unlock_ticket_corruption_death(
 	const struct smm_invocation_loader_instance *instance,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
@@ -84,17 +103,13 @@ static void expect_pre_unlock_ticket_corruption_death(
 		.size = sizeof(entry_policy), .max_polls = 100U,
 	};
 	struct smm_invocation_entry_ticket ticket = { 0 };
-	struct smm_apmc_descriptor selection = {
-		.command = SMM_APMC_AUTHVAR_PRESENCE,
-		.owner = SMM_APMC_OWNER_AUTHVAR_PRESENCE,
-		.role = SMM_APMC_EXCLUSIVE, .binding_count = 1U,
-		.reserved = true, .enabled = true,
-	};
+	struct smm_apmc_selection_receipt selection;
 	int status;
 	pid_t child = fork();
 
 	assert(child >= 0);
 	if (!child) {
+		init_selection_receipt(&selection);
 		memset(&page, 0, sizeof(page));
 		page.request.binding = *binding;
 		page.request.decision =
@@ -550,17 +565,13 @@ static void expect_idle_corruption_death(unsigned int mutation,
 		.lifecycle = instance->lifecycle, .max_polls = 100U,
 		.command = SMM_APMC_AUTHVAR_PRESENCE,
 	};
-	struct smm_apmc_descriptor selection = {
-		.command = SMM_APMC_AUTHVAR_PRESENCE,
-		.owner = SMM_APMC_OWNER_AUTHVAR_PRESENCE,
-		.role = SMM_APMC_EXCLUSIVE, .binding_count = 1U,
-		.reserved = true, .enabled = true,
-	};
+	struct smm_apmc_selection_receipt selection;
 	int status;
 	pid_t child = fork();
 
 	assert(child >= 0);
 	if (!child) {
+		init_selection_receipt(&selection);
 		switch (mutation) {
 		case 0:
 			session.active_invocation_generation = 1U;
@@ -677,12 +688,13 @@ enum cb_err smm_invocation_evidence_ticket_fail(
 }
 
 enum smm_apmc_dispatch_result smm_apmc_command_consume(uint8_t command,
-	enum smm_apmc_owner owner, struct smm_apmc_descriptor *selection)
+	enum smm_apmc_owner owner, struct smm_apmc_selection_receipt *selection)
 {
 	consume_calls++;
 	if (command != SMM_APMC_AUTHVAR_PRESENCE ||
 	    owner != SMM_APMC_OWNER_AUTHVAR_PRESENCE ||
-	    selection->command != command || selection->owner != owner)
+	    selection->descriptor.command != command ||
+	    selection->descriptor.owner != owner)
 		return SMM_APMC_CONSUMED_REJECT;
 	memset(selection, 0, sizeof(*selection));
 	return SMM_APMC_CONSUMED_SUCCESS;
@@ -707,14 +719,10 @@ static void run_round(
 		.size = sizeof(entry_policy), .max_polls = 100U,
 	};
 	struct smm_invocation_entry_ticket ticket = { 0 };
-	struct smm_apmc_descriptor selection = {
-		.command = SMM_APMC_AUTHVAR_PRESENCE,
-		.owner = SMM_APMC_OWNER_AUTHVAR_PRESENCE,
-		.role = SMM_APMC_EXCLUSIVE, .binding_count = 1U,
-		.reserved = true, .enabled = true,
-	};
+	struct smm_apmc_selection_receipt selection;
 
 	(void)evidence;
+	init_selection_receipt(&selection);
 	memset(&page, 0, sizeof(page));
 	page.request.binding = *binding;
 	page.request.decision = decision;
@@ -724,7 +732,7 @@ static void run_round(
 		&entry_policy, 0U, 0U, &ticket) == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_route_session_dispatch_locked(&session,
 		&ticket, &selection) == SMM_APMC_CONSUMED_SUCCESS);
-	assert(!selection.command && !selection.owner);
+	assert(!selection.descriptor.command && !selection.descriptor.owner);
 	payload_mm_authvar_presence_route_session_prepare_lock_release(&session,
 		&ticket);
 	assert(payload_mm_authvar_presence_route_session_depart(&session, &ticket) ==
@@ -876,12 +884,7 @@ int main(void)
 			{ .instance = &instance, .cpu = 1U },
 		};
 		struct departure_call bsp_call = { .ticket = &calls[0].ticket };
-		struct smm_apmc_descriptor selection = {
-			.command = SMM_APMC_AUTHVAR_PRESENCE,
-			.owner = SMM_APMC_OWNER_AUTHVAR_PRESENCE,
-			.role = SMM_APMC_EXCLUSIVE, .binding_count = 1U,
-			.reserved = true, .enabled = true,
-		};
+		struct smm_apmc_selection_receipt selection;
 
 		memset(&session, 0, sizeof(session));
 		memset(&arm, 0, sizeof(arm));
@@ -913,6 +916,7 @@ int main(void)
 			assert(!pthread_cond_wait(&arrival_condition, &arrival_lock));
 		assert(!pthread_mutex_unlock(&arrival_lock));
 		memset(&page, 0, sizeof(page));
+		init_selection_receipt(&selection);
 		page.request.binding = binding;
 		page.request.decision =
 			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE;

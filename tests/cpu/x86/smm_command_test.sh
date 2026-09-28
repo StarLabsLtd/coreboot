@@ -97,7 +97,7 @@ build()
 	header=${5:-$root/src/include}
 	# Deliberate normal flag splitting for this host-only strict harness.
 	# shellcheck disable=SC2086
-	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
+	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -pthread \
 		-fno-builtin $flags -D__TEST__ -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
@@ -130,6 +130,10 @@ for profile_name in baseline spi-q35 starlabs acer services amd-services \
 	run_profile "$profile_name" 0
 	run_profile "$profile_name" 2
 done
+
+build baseline baseline-tsan-O2 \
+	'-O2 -g -fno-omit-frame-pointer -fsanitize=thread'
+TSAN_OPTIONS=halt_on_error=1 "$temporary/baseline-tsan-O2"
 
 unsupported_log="$temporary/unsupported.log"
 if build unsupported unattested-build -O2 >"$unsupported_log" 2>&1; then
@@ -211,34 +215,24 @@ mutation()
 
 mutation reserved-falls-through baseline \
 	'/return command_reserved(command) ?/{N;s/SMM_APMC_SELECT_CONSUMED_REJECT : SMM_APMC_SELECT_UNKNOWN/SMM_APMC_SELECT_UNKNOWN : SMM_APMC_SELECT_CONSUMED_REJECT/;}'
-mutation accept-owner-error baseline \
-	's/outcome != SMM_APMC_OWNER_HANDLED/outcome == SMM_APMC_OWNER_HANDLED/'
-mutation selection-command baseline \
-	's/selection->command == expected_command/((void)expected_command, true)/'
-mutation selection-owner baseline \
-	's/selection->owner == claim->owner/true/'
-mutation selection-role baseline \
-	's/selection->role == claim->role/true/'
-mutation selection-binding baseline \
-	's/selection->binding_count == claim->binding_count/true/'
-mutation selection-observer baseline \
-	's/selection->observer_count == claim->observer_count/true/'
-mutation selection-reserved baseline \
-	's/selection->reserved == claim->reserved/true/'
-mutation selection-enabled baseline \
-	's/selection->enabled == claim->enabled/true/'
-mutation selection-consumption baseline \
-	'/smm_apmc_command_finish(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/\*selection = snapshot;/}'
-mutation selection-output-clear baseline \
-	'/smm_apmc_command_select(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/do { } while (0);/}'
+mutation receipt-revision baseline \
+	's/receipt->revision == SMM_APMC_SELECTION_RECEIPT_REVISION/receipt->revision != SMM_APMC_SELECTION_RECEIPT_REVISION/'
+mutation receipt-size baseline \
+	's/receipt->size == sizeof(\*receipt)/receipt->size != sizeof(*receipt)/'
+mutation receipt-generation baseline \
+	's/receipt->generation == owner->generation/receipt->generation != owner->generation/'
+mutation receipt-descriptor baseline \
+	's/!memcmp(\&receipt->descriptor, \&owner->descriptor/0 \&\& !memcmp(\&receipt->descriptor, \&owner->descriptor/'
+mutation receipt-reserved baseline \
+	's/!receipt->reserved/receipt->reserved/'
+mutation receipt-output-clear baseline \
+	'/smm_apmc_command_select(/,/^}/{s/\*receipt = (struct smm_apmc_selection_receipt) { 0 };/do { } while (0);/}'
 mutation consume-command baseline \
-	'/smm_apmc_command_consume(/,/^}/{s/selection_matches(&snapshot, expected_command, &claim)/selection_matches(\&snapshot, snapshot.command, \&claim)/}'
+	'/smm_apmc_command_consume(/,/^}/{s/receipt_matches(&snapshot, &owner, expected_command)/receipt_matches(\&snapshot, \&owner, snapshot.descriptor.command)/}'
 mutation consume-owner baseline \
 	'/smm_apmc_command_consume(/,/^}/{s/claim.owner == expected_owner/claim.owner != expected_owner/}'
-mutation consume-selection baseline \
-	'/smm_apmc_command_consume(/,/^}/{s/selection_matches(&snapshot, expected_command, &claim)/((void)snapshot, true)/}'
 mutation consume-clear baseline \
-	'/smm_apmc_command_consume(/,/^}/{s/\*selection = (struct smm_apmc_descriptor) { 0 };/\*selection = snapshot;/}'
+	'/smm_apmc_command_consume(/,/^}/{s/\*receipt = (struct smm_apmc_selection_receipt) { 0 };/\*receipt = snapshot;/}'
 
 binding_mutant="$temporary/ignore-binding.c"
 sed 's/(bindings) == 1/(bindings) >= 0/' \
@@ -369,7 +363,7 @@ if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src"; then
 fi
 grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
-if rg -q 'smm_apmc_command_(select|finish)' "$root/src" \
+if rg -q 'smm_apmc_command_select' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h'; then
 	printf '%s\n' 'dormant registry gained a production callsite' >&2

@@ -136,7 +136,7 @@ enum smm_apmc_dispatch_result
 payload_mm_authvar_presence_route_session_dispatch_locked(
 	struct payload_mm_authvar_presence_route_session *session,
 	const struct smm_invocation_entry_ticket *ticket,
-	struct smm_apmc_descriptor *selection);
+	struct smm_apmc_selection_receipt *receipt);
 
 /* On success, the caller's literal next action releases the handler lock. */
 void payload_mm_authvar_presence_route_session_prepare_lock_release(

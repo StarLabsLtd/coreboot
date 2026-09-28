@@ -708,9 +708,17 @@ static bool idle_snapshot_valid(
 		  session->prepare_invocation_generation != UINT64_MAX));
 }
 
-static bool selection_valid(const struct smm_apmc_descriptor *selection)
+static bool selection_valid(const struct smm_apmc_selection_receipt *receipt)
 {
-	return selection && selection->command == SMM_APMC_AUTHVAR_PRESENCE &&
+	const struct smm_apmc_descriptor *selection;
+
+	if (!receipt)
+		return false;
+	selection = &receipt->descriptor;
+	return receipt->revision == SMM_APMC_SELECTION_RECEIPT_REVISION &&
+		receipt->size == sizeof(*receipt) &&
+		!receipt->reserved &&
+		selection->command == SMM_APMC_AUTHVAR_PRESENCE &&
 		selection->owner == SMM_APMC_OWNER_AUTHVAR_PRESENCE &&
 		selection->role == SMM_APMC_EXCLUSIVE &&
 		selection->binding_count == 1U && !selection->observer_count &&
@@ -1172,16 +1180,16 @@ enum smm_apmc_dispatch_result
 payload_mm_authvar_presence_route_session_dispatch_locked(
 	struct payload_mm_authvar_presence_route_session *session,
 	const struct smm_invocation_entry_ticket *ticket,
-	struct smm_apmc_descriptor *selection)
+	struct smm_apmc_selection_receipt *receipt)
 {
 	struct smm_invocation_entry_ticket ticket_snapshot;
-	struct smm_apmc_descriptor selection_snapshot;
+	struct smm_apmc_selection_receipt receipt_snapshot;
 	uint32_t expected;
 	enum cb_err status;
 
 	if (!object_valid(session, sizeof(*session), _Alignof(*session)) ||
 	    !object_valid(ticket, sizeof(*ticket), _Alignof(*ticket)) ||
-	    !object_valid(selection, sizeof(*selection), _Alignof(*selection)))
+	    !object_valid(receipt, sizeof(*receipt), _Alignof(*receipt)))
 		return SMM_APMC_CONSUMED_REJECT;
 	expected = __atomic_load_n(&session->state, __ATOMIC_ACQUIRE);
 	if (!immutable_valid(session))
@@ -1192,14 +1200,15 @@ payload_mm_authvar_presence_route_session_dispatch_locked(
 		route_fail_stop_untrusted(session);
 	if (!idle_snapshot_valid(session, expected) ||
 	    !runtime_object_disjoint(session, ticket, sizeof(*ticket)) ||
-	    !runtime_object_disjoint(session, selection, sizeof(*selection)) ||
-	    overlaps(ticket, sizeof(*ticket), selection, sizeof(*selection)))
+	    !runtime_object_disjoint(session, receipt, sizeof(*receipt)) ||
+	    overlaps(ticket, sizeof(*ticket), receipt, sizeof(*receipt)))
 		return SMM_APMC_CONSUMED_REJECT;
 	ticket_snapshot = *ticket;
-	selection_snapshot = *selection;
+	receipt_snapshot = *receipt;
 	if (!ticket_valid(session, &ticket_snapshot) ||
 	    ticket_snapshot.cpu != session->topology_snapshot.bsp_cpu ||
-	    !selection_valid(&selection_snapshot) ||
+	    !selection_valid(&receipt_snapshot) ||
+	    receipt_snapshot.identity != (uint64_t)(uintptr_t)receipt ||
 	    !__atomic_compare_exchange_n(&session->state, &expected,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_OWNING, false,
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
@@ -1216,10 +1225,10 @@ payload_mm_authvar_presence_route_session_dispatch_locked(
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		route_fail_stop_untrusted(session);
 	if (memcmp(ticket, &ticket_snapshot, sizeof(ticket_snapshot)) ||
-	    memcmp(selection, &selection_snapshot, sizeof(selection_snapshot)))
+	    memcmp(receipt, &receipt_snapshot, sizeof(receipt_snapshot)))
 		route_fail_stop_untrusted(session);
 	if (smm_apmc_command_consume(SMM_APMC_AUTHVAR_PRESENCE,
-		SMM_APMC_OWNER_AUTHVAR_PRESENCE, selection) !=
+		SMM_APMC_OWNER_AUTHVAR_PRESENCE, receipt) !=
 		SMM_APMC_CONSUMED_SUCCESS)
 		route_fail_stop_untrusted(session);
 	status = payload_mm_authvar_presence_transaction_dispatch(session->slot);

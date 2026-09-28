@@ -154,7 +154,7 @@ END {
 		"route arm transaction provision")
 
 	adjacent = "if(smm_apmc_command_consume(SMM_APMC_AUTHVAR_PRESENCE," \
-		"SMM_APMC_OWNER_AUTHVAR_PRESENCE,selection)!=" \
+		"SMM_APMC_OWNER_AUTHVAR_PRESENCE,receipt)!=" \
 		"SMM_APMC_CONSUMED_SUCCESS)route_fail_stop_untrusted(session);" \
 		"status=payload_mm_authvar_presence_transaction_dispatch(" \
 		"session->slot);"
