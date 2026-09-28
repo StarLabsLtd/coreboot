@@ -83,6 +83,9 @@ mutation()
 
 mutation wrong-commit-ack-decision \
 	's/PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT, \&ack/PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, \&ack/'
+mutation producer-revision-backstep \
+	's/return policy \&\& policy->revision ==/return policy \&\& (policy->revision == 2U || policy->revision ==/;
+	 s/PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION \&\&/PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION) \&\&/'
 
 if grep -R -Eq --include=Kconfig \
 	'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER' "$root/src" || \

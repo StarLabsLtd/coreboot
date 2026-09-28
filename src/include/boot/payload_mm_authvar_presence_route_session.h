@@ -57,7 +57,7 @@ struct payload_mm_authvar_presence_route_session {
 	uint32_t decision;
 	uint64_t prepare_invocation_generation;
 	uint64_t active_invocation_generation;
-	uint64_t completion_rax;
+	uint64_t completion_value;
 	uintptr_t identity;
 	struct payload_mm_authvar_presence_arm *arm;
 	struct payload_mm_authvar_presence_transaction_slot *slot;

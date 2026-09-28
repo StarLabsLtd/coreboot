@@ -148,7 +148,8 @@ static bool policy_valid(
 
 static bool ops_valid(const struct smm_invocation_save_state_ops *ops)
 {
-	return ops && ops->match_apmc_write && ops->read_rax && ops->write_rax &&
+	return ops && ops->match_apmc_write && ops->read_value &&
+		ops->write_value &&
 		!!ops->context == !!ops->context_size;
 }
 
@@ -555,7 +556,7 @@ static enum cb_err route_claim(void *context, uint64_t sentinel,
 	if (!session || !invocation)
 		return CB_ERR;
 	memset(invocation, 0, sizeof(*invocation));
-	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL ||
+	if (sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL ||
 	    !__atomic_compare_exchange_n(&session->state, &expected,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_INVOCATION_CLAIMING, false,
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
@@ -620,13 +621,13 @@ static enum cb_err route_complete(void *context,
 		return CB_ERR;
 	if (!invocation_matches(invocation, &session->invocation))
 		route_fail_stop_untrusted(session);
-	if (value == payload_mm_authvar_presence_transaction_rax(&session->binding,
+	if (value == payload_mm_authvar_presence_transaction_result(&session->binding,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE))
 		decision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE;
-	else if (value == payload_mm_authvar_presence_transaction_rax(
+	else if (value == payload_mm_authvar_presence_transaction_result(
 		&session->binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT))
 		decision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT;
-	else if (value == payload_mm_authvar_presence_transaction_rax(
+	else if (value == payload_mm_authvar_presence_transaction_result(
 		&session->binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT))
 		decision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT;
 	else
@@ -642,7 +643,7 @@ static enum cb_err route_complete(void *context,
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		route_fail_stop_untrusted(session);
 	session->decision = decision;
-	session->completion_rax = value;
+	session->completion_value = value;
 	before = *session;
 	status = smm_invocation_evidence_publish_and_request_close(session->evidence,
 		&session->token, value, &session->ops);
@@ -691,7 +692,7 @@ static bool idle_snapshot_valid(
 	uint32_t state)
 {
 	const bool transients_zero = !session->active_invocation_generation &&
-		!session->decision && !session->completion_rax &&
+		!session->decision && !session->completion_value &&
 		!nonzero(&session->token, sizeof(session->token)) &&
 		!nonzero(&session->invocation, sizeof(session->invocation)) &&
 		!nonzero(&session->active_ticket, sizeof(session->active_ticket)) &&
@@ -785,7 +786,7 @@ static void terminal_scrub(
 		session->sealed_protected_storage_context = NULL;
 	session->prepare_invocation_generation = 0;
 	session->active_invocation_generation = 0;
-	session->completion_rax = 0;
+	session->completion_value = 0;
 	session->decision = 0;
 	session->round = 0;
 	session->identity = 0;
@@ -1010,9 +1011,9 @@ static __noinline enum cb_err route_session_validate_and_bind(
 	    !protected_exact(session,
 		(const void *)(uintptr_t)ops_snapshot.match_apmc_write, 1U) ||
 	    !protected_exact(session,
-		(const void *)(uintptr_t)ops_snapshot.read_rax, 1U) ||
+		(const void *)(uintptr_t)ops_snapshot.read_value, 1U) ||
 	    !protected_exact(session,
-		(const void *)(uintptr_t)ops_snapshot.write_rax, 1U) ||
+		(const void *)(uintptr_t)ops_snapshot.write_value, 1U) ||
 	    !protected_exact(session,
 		(const void *)(uintptr_t)protected_storage, 1U) ||
 	    !protected_exact(session, ops, sizeof(*ops)) ||
@@ -1214,7 +1215,7 @@ payload_mm_authvar_presence_route_session_dispatch_locked(
 		__ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return SMM_APMC_CONSUMED_REJECT;
 	if (session->active_invocation_generation || session->decision ||
-	    session->completion_rax)
+	    session->completion_value)
 		route_fail_stop_untrusted(session);
 	session->active_ticket = session->sealed_active_ticket = ticket_snapshot;
 	if (!active_ticket_valid(session))
@@ -1235,7 +1236,7 @@ payload_mm_authvar_presence_route_session_dispatch_locked(
 	if (status != CB_SUCCESS ||
 	    __atomic_load_n(&session->state, __ATOMIC_ACQUIRE) !=
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_EVIDENCE_CLOSING ||
-	    !session->decision || !session->completion_rax)
+	    !session->decision || !session->completion_value)
 		route_fail_stop_untrusted(session);
 	if (!payload_mm_authvar_presence_transaction_dispatch_ack_valid(
 		session->slot, &session->binding, session->decision, session->page))
@@ -1332,7 +1333,7 @@ payload_mm_authvar_presence_route_session_depart(
 		session->prepare_invocation_generation =
 			session->active_invocation_generation;
 		session->active_invocation_generation = 0;
-		session->completion_rax = 0;
+		session->completion_value = 0;
 		session->decision = 0;
 		scrub(&session->token, sizeof(session->token));
 		scrub(&session->invocation, sizeof(session->invocation));

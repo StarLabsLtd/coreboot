@@ -55,6 +55,11 @@ size_t intel_smm_invocation_adapter_test_revision_size(
 	return native_size;
 }
 
+void __noreturn smm_invocation_platform_fail_stop(void)
+{
+	abort();
+}
+
 void intel_smm_invocation_adapter_provider_test_hook(uint32_t point)
 {
 	const struct smm_invocation_save_state_ops *ops = (const void *)0xa5a5U;
@@ -207,9 +212,9 @@ static void two_independent_rounds(void)
 	{
 		uint64_t unchanged = UINT64_MAX;
 
-		assert(ops->read_rax(ops->context, 0, &unchanged) == CB_ERR);
+		assert(ops->read_value(ops->context, 0, &unchanged) == CB_ERR);
 		assert(unchanged == UINT64_MAX);
-		assert(ops->write_rax(ops->context, 0, 0x1122U) == CB_ERR);
+		assert(ops->write_value(ops->context, 0, 0x1122U) == CB_ERR);
 		assert(states[0].rax == 0x5aU);
 	}
 	memcpy(&descriptor, ops, sizeof(descriptor));
@@ -232,9 +237,9 @@ static void two_independent_rounds(void)
 		uint64_t unchanged = UINT64_MAX;
 		const uint64_t native_rax = states[0].rax;
 
-		assert(ops->read_rax(ops->context, 0, &unchanged) == CB_ERR);
+		assert(ops->read_value(ops->context, 0, &unchanged) == CB_ERR);
 		assert(unchanged == UINT64_MAX);
-		assert(ops->write_rax(ops->context, 0, 0x1122U) == CB_ERR);
+		assert(ops->write_value(ops->context, 0, 0x1122U) == CB_ERR);
 		assert(states[0].rax == native_rax);
 	}
 	assert(intel_smm_invocation_adapter_provider_arm(&second) ==
@@ -600,6 +605,27 @@ static void threaded_ownership_schedules(void)
 	assert(retire_owner.result == SMM_INVOCATION_TRY_SUCCESS);
 }
 
+static void stale_adapter_revision_is_rejected(void)
+{
+	em64t101_smm_state_save_area_t state = { 0 };
+	struct intel_smm_invocation_adapter adapter;
+	struct intel_smm_invocation_adapter snapshot;
+	struct smm_invocation_save_state_ops ops;
+	const uintptr_t top = (uintptr_t)&state + sizeof(state);
+
+	state.smm_revision = REV101;
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(state), REV101) == CB_SUCCESS);
+	adapter.revision = 2U;
+	memcpy(&snapshot, &adapter, sizeof(snapshot));
+	assert(intel_smm_invocation_adapter_bind(&adapter, &ops) == CB_ERR);
+	assert(intel_smm_invocation_adapter_begin(&adapter) == CB_ERR);
+	assert(intel_smm_invocation_adapter_end(&adapter) == CB_ERR);
+	assert(!intel_smm_invocation_adapter_range_disjoint(&adapter, &ops,
+		sizeof(ops)));
+	assert(!memcmp(&snapshot, &adapter, sizeof(snapshot)));
+}
+
 int main(void)
 {
 	two_independent_rounds();
@@ -613,5 +639,6 @@ int main(void)
 	stale_prior_round_poison();
 	output_aliases_are_rejected();
 	threaded_ownership_schedules();
+	stale_adapter_revision_is_rejected();
 	return 0;
 }

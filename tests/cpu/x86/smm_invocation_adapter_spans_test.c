@@ -47,6 +47,11 @@ size_t intel_smm_invocation_adapter_test_revision_size(
 	return native_size + (layout_revision == revised_layout ? revision_extra : 0U);
 }
 
+void __noreturn smm_invocation_platform_fail_stop(void)
+{
+	abort();
+}
+
 static void reset_control(struct span_source *source,
 	struct intel_smm_invocation_adapter *adapter, uint32_t revision)
 {

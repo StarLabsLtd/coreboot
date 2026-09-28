@@ -14,6 +14,9 @@
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
 
+_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION == 3U,
+	"producer composition semantic revision changed");
+
 static enum cb_err
 publication_take_and_complete(struct lb_authvar_presence_endpoint *endpoint)
 {
@@ -114,7 +117,7 @@ static bool true_range(void *context, uint64_t base, uint64_t size)
 static void ack(const struct payload_mm_authvar_presence_transaction_binding *b,
 	uint32_t decision,
 	struct payload_mm_authvar_presence_transaction_ack *result,
-	uint64_t *rax)
+	uint64_t *value)
 {
 	*result = (struct payload_mm_authvar_presence_transaction_ack) {
 		.binding = *b,
@@ -128,13 +131,13 @@ static void ack(const struct payload_mm_authvar_presence_transaction_binding *b,
 			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_CLEANED :
 			PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_TRANSFERRED,
 	};
-	*rax = payload_mm_authvar_presence_transaction_rax(b, decision);
+	*value = payload_mm_authvar_presence_transaction_result(b, decision);
 }
 
 static enum cb_err prepare_authority(void *context,
 	const struct payload_mm_authvar_presence_seed *seed,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
-	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *rax)
+	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *value)
 {
 	assert(true_state(context));
 	assert(seed->endpoint.generation == binding->generation);
@@ -150,7 +153,7 @@ static enum cb_err prepare_authority(void *context,
 			assert(!pthread_cond_wait(&commit_cond, &commit_mutex));
 		assert(!pthread_mutex_unlock(&commit_mutex));
 	}
-	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE, result, rax);
+	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE, result, value);
 	if (bad_prepare_ack)
 		result->binding.transaction_id++;
 	return prepare_error ? CB_ERR : CB_SUCCESS;
@@ -158,7 +161,7 @@ static enum cb_err prepare_authority(void *context,
 
 static enum cb_err commit_authority(void *context,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
-	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *rax)
+	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *value)
 {
 	assert(true_state(context));
 	commit_calls++;
@@ -171,13 +174,13 @@ static enum cb_err commit_authority(void *context,
 		assert(!pthread_mutex_unlock(&commit_mutex));
 	}
 	committed = true;
-	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT, result, rax);
+	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_COMMIT, result, value);
 	return commit_error ? CB_ERR : CB_SUCCESS;
 }
 
 static enum cb_err abort_authority(void *context,
 	const struct payload_mm_authvar_presence_transaction_binding *binding,
-	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *rax)
+	struct payload_mm_authvar_presence_transaction_ack *result, uint64_t *value)
 {
 	assert(true_state(context));
 	abort_calls++;
@@ -185,7 +188,7 @@ static enum cb_err abort_authority(void *context,
 	prepared = false;
 	memset(backing, 0, sizeof(backing));
 	authority_scrubs++;
-	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, result, rax);
+	ack(binding, PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_ABORT, result, value);
 	return CB_SUCCESS;
 }
 
@@ -316,6 +319,15 @@ static void reservation_owner_cleanup(void)
 		composition(&context);
 
 	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	memset(backing, 0x69, sizeof(backing));
+	policy.revision = 2U;
+	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_ERR);
+	assert(!backing[80] && !backing[sizeof(backing) - 1U]);
+	assert(!prepare_calls && !abort_calls && !authority_scrubs);
+
+	reset_fixture();
+	policy = composition(&context);
 	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
 	memset(backing, 0x69, sizeof(backing));
 	policy.revision++;

@@ -55,31 +55,31 @@ BEGIN {
 		"325:7,327:7,328:7,329:7,330:7,332:7,349:9")
 	register_sites("payload_mm_authvar_presence_transaction_dispatch",
 		"445:6,731:7,756:13,554:25,819:12,554:25,554:25")
-	register_sites("route_fail_stop_snapshot", "216:2")
-	register_sites("protected_exact", "339:14")
-	register_sites("delegated_protected_storage", "377:14")
-	register_sites("route_fail_stop_untrusted", "183:2")
-	register_sites("route_dma_protected", "529:14")
-	register_sites("route_decide", "490:3,491:3")
-	register_sites("route_prepare", "458:11")
-	register_sites("restore_or_fail_stop", "1210:6,1214:6")
+	register_sites("route_fail_stop_snapshot", "217:2")
+	register_sites("protected_exact", "340:14")
+	register_sites("delegated_protected_storage", "378:14")
+	register_sites("route_fail_stop_untrusted", "184:2")
+	register_sites("route_dma_protected", "530:14")
+	register_sites("route_decide", "491:3,492:3")
+	register_sites("route_prepare", "459:11")
+	register_sites("restore_or_fail_stop", "1211:6,1216:6")
 	register_sites("smm_invocation_evidence_claim",
-		"1398:11,1413:6,1420:6,1426:6")
+		"1400:11,1415:6,1422:6,1428:6")
 	register_sites("smm_invocation_evidence_publish",
-		"1506:6,1523:6,1525:6")
+		"1509:6,1526:6,1529:6")
 	register_sites("smm_invocation_evidence_publish_and_request_close",
-		"1643:6,1653:6,1662:6")
+		"1648:6,1659:6,1668:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
-		"smm_apmc_command_consume", "1230:6")
+		"smm_apmc_command_consume", "1231:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
-		"payload_mm_authvar_presence_transaction_dispatch", "1234:11")
-	register_direct("route_claim", "smm_invocation_evidence_claim", "564:6")
+		"payload_mm_authvar_presence_transaction_dispatch", "1235:11")
+	register_direct("route_claim", "smm_invocation_evidence_claim", "565:6")
 	register_direct("route_complete",
-		"smm_invocation_evidence_publish_and_request_close", "647:11")
+		"smm_invocation_evidence_publish_and_request_close", "648:11")
 	register_direct("route_session_validate_and_bind",
-		"payload_mm_authvar_presence_arm_protection_delegate_bind", "1044:11")
+		"payload_mm_authvar_presence_arm_protection_delegate_bind", "1045:11")
 	register_direct("payload_mm_authvar_presence_route_session_provision",
-		"payload_mm_authvar_presence_arm_transaction_provision", "1122:11")
+		"payload_mm_authvar_presence_arm_transaction_provision", "1123:11")
 	register_direct("payload_mm_authvar_presence_arm_transaction_provision",
 		"payload_mm_authvar_presence_transaction_provision", "1398:6")
 }

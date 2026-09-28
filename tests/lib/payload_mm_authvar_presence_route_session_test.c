@@ -371,15 +371,15 @@ static enum smm_invocation_match match(void *context, uint32_t cpu,
 		SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
 }
 
-static enum cb_err read_rax(void *context, uint32_t cpu, uint64_t *value)
+static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 {
 	(void)context;
 	(void)cpu;
-	*value = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL;
+	*value = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL;
 	return CB_SUCCESS;
 }
 
-static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
+static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
 	(void)context;
 	return cpu == 0U && value ? CB_SUCCESS : CB_ERR;
@@ -395,7 +395,7 @@ enum cb_err smm_invocation_evidence_claim(
 	if (expected_claim_generation)
 		assert(next_generation == expected_claim_generation);
 	if (command != SMM_APMC_AUTHVAR_PRESENCE ||
-	    sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_RAX_SENTINEL)
+	    sentinel != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_SENTINEL)
 		return CB_ERR;
 	*token = (struct smm_invocation_token) {
 		.revision = SMM_INVOCATION_TOKEN_REVISION,
@@ -580,7 +580,7 @@ static void expect_idle_corruption_death(unsigned int mutation,
 			session.decision = 1U;
 			break;
 		case 2:
-			session.completion_rax = 1U;
+			session.completion_value = 1U;
 			break;
 		case 3:
 			session.token.revision = 1U;
@@ -748,8 +748,8 @@ int main(void)
 	struct smm_invocation_evidence evidence = { 0 };
 	struct smm_invocation_topology topology = { 0 };
 	struct smm_invocation_save_state_ops ops = {
-		.match_apmc_write = match, .read_rax = read_rax,
-		.write_rax = write_rax, .context = save_state_context,
+		.match_apmc_write = match, .read_value = read_value,
+		.write_value = write_value, .context = save_state_context,
 		.context_size = sizeof(save_state_context),
 	};
 	struct payload_mm_authvar_presence_route_authority_policy policy = {

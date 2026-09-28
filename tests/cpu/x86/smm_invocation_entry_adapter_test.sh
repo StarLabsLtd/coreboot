@@ -205,6 +205,38 @@ for source in \
 done
 ld -m elf_i386 -r "$temporary"/*-32.o -o "$temporary/entry-adapter-32.o"
 
+for profile in 0:112:96:160 2:128:128:160; do
+	optimization=${profile%%:*}
+	rest=${profile#*:}
+	match_frame=${rest%%:*}
+	rest=${rest#*:}
+	read_frame=${rest%%:*}
+	write_frame=${rest#*:}
+	object="$temporary/adapter-stack-O$optimization.o"
+	${CC:-cc} -m32 -march=i686 -std=gnu11 -O"$optimization" \
+		-fstack-usage -Wall -Wextra -Werror -Wshadow -ffreestanding \
+		-fno-builtin -D__TEST__ -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$temporary/include" -I"$root/src/include" -I"$root/src" \
+		-I"$root/src/commonlib/include" \
+		-I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" -c \
+		"$root/src/soc/intel/common/block/smm/invocation_adapter.c" \
+		-o "$object"
+	stack_usage=${object%.o}.su
+	for function_frame in match_apmc_write:$match_frame \
+		read_value:$read_frame write_value:$write_frame; do
+		function=${function_frame%%:*}
+		frame=${function_frame#*:}
+		test "$(awk -F '\t' -v fn="$function" -v frame="$frame" \
+			'$1 ~ (":" fn "$") && $2 == frame && $3 == "static" {
+				count++ } END { print count + 0 }' "$stack_usage")" -eq 1
+	done
+	! nm -u "$object" | grep -q '__atomic_'
+done
+
 for source in smm_invocation_evidence smm_invocation_entry; do
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -D__COREBOOT__ \
 		-include "$root/src/include/kconfig.h" \
@@ -325,6 +357,19 @@ mutate()
 		printf 'mutant did not change source: %s\n' "$mutant_name" >&2
 		exit 1
 	fi
+	case "$mutant_name" in
+	post-rcx-return)
+		window=$(sed -n '/ADAPTER_TEST_HOOK(5)/,/memcpy(rax/p' "$mutant") ;;
+	post-rax-return)
+		window=$(sed -n '/ADAPTER_TEST_HOOK(4)/,/adapter->matched_rax/p' \
+			"$mutant") ;;
+	*) window= ;;
+	esac
+	if [ -n "$window" ]; then
+		test "$(printf '%s\n' "$window" | grep -c 'return CB_ERR;')" -eq 1
+		! printf '%s\n' "$window" | grep -q \
+			'smm_invocation_platform_fail_stop();'
+	fi
 	for optimization in 0 2; do
 		binary="$mutant_name-O$optimization"
 		build "$binary" "-O$optimization" "$mutant"
@@ -360,6 +405,29 @@ mutate low-port-alias 's/first.io_misc != APMC_OUT_DX_BYTE_IO_MISC/(first.io_mis
 mutate revision-binding '0,/tuple->revision == revision/{s//true/}'
 mutate sealed-read \
 	'0,/!sealed_tuple(adapter, cpu, \&first)/{s//false/}'
+mutate rcx-capture \
+	'/memcpy(\&tuple->rcx/,/sizeof(tuple->rcx));/c\
+\t\ttuple->rcx = 0;'
+mutate sealed-rcx \
+	's/adapter->matched_rcx == tuple->rcx/true/'
+mutate rcx-store-rax-stability \
+	's/after.rax != before.rax/false/'
+mutate adapter-revision-backstep \
+	's/snapshot.revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION/(snapshot.revision != INTEL_SMM_INVOCATION_ADAPTER_REVISION \&\& snapshot.revision != 2U)/'
+mutate logical-half-order \
+	's/(uint32_t)first.rax | ((uint64_t)(uint32_t)first.rcx << 32)/(uint32_t)first.rcx | ((uint64_t)(uint32_t)first.rax << 32)/'
+mutate logical-high-half \
+	's/ | ((uint64_t)(uint32_t)first.rcx << 32)//'
+mutate preserve-rax-upper \
+	'/target_rax =/,/;/c\
+\ttarget_rax = (uint32_t)value;'
+mutate preserve-rcx-upper \
+	'/target_rcx =/,/;/c\
+\ttarget_rcx = (uint32_t)(value >> 32);'
+mutate post-rcx-return \
+	'/ADAPTER_TEST_HOOK(5)/,/memcpy(rax/{s/smm_invocation_platform_fail_stop();/return CB_ERR;/}'
+mutate post-rax-return \
+	'/ADAPTER_TEST_HOOK(4)/,/adapter->matched_rax/{s/smm_invocation_platform_fail_stop();/return CB_ERR;/}'
 mutate_component ack-before-claim \
 	"$root/src/cpu/x86/smm_invocation_evidence.c" \
 	'/smm_invocation_evidence_claim/,/phase_claim/{s/__atomic_load_n(\&evidence->rendezvous_ack_required/false \&\& __atomic_load_n(\&evidence->rendezvous_ack_required/}'
@@ -577,8 +645,8 @@ while IFS= read -r file; do
 done
 
 ledger_lines=$(wc -l < "$ledger")
-if [ "$ledger_lines" -ne 115 ]; then
-	printf 'execution ledger incomplete: got %s expected 115\n' \
+if [ "$ledger_lines" -ne 135 ]; then
+	printf 'execution ledger incomplete: got %s expected 135\n' \
 		"$ledger_lines" >&2
 	exit 1
 fi

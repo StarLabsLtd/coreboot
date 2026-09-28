@@ -18,6 +18,7 @@ build()
 	build_name=$1
 	build_flags=$2
 	build_source=${3:-$root/src/cpu/x86/smm_invocation_evidence.c}
+	loader_source=${4:-$root/src/cpu/x86/smm_invocation_evidence_loader.c}
 	# Deliberate normal flag splitting for this strict host harness.
 	# shellcheck disable=SC2086
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
@@ -31,8 +32,38 @@ build()
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/cpu/x86/smm_invocation_evidence_test.c" \
 		"$build_source" \
-		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+		"$loader_source" \
 		-o "$temporary/$build_name"
+}
+
+loader_mutation()
+{
+	mutation_name=$1
+	mutation_expression=$2
+	mutation_source="$temporary/$mutation_name.c"
+	sed "$mutation_expression" \
+		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" > \
+		"$mutation_source"
+	if cmp -s "$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+		"$mutation_source"; then
+		printf 'mutation changed nothing: %s\n' "$mutation_name" >&2
+		exit 1
+	fi
+	for mutation_optimization in 0 2; do
+		mutation_binary="$mutation_name-O$mutation_optimization"
+		build "$mutation_binary" "-O$mutation_optimization" \
+			"$root/src/cpu/x86/smm_invocation_evidence.c" \
+			"$mutation_source"
+		if [ ! -x "$temporary/$mutation_binary" ]; then
+			printf 'mutant binary missing: %s\n' "$mutation_binary" >&2
+			exit 1
+		fi
+		if "$temporary/$mutation_binary" >/dev/null 2>&1; then
+			printf 'surviving mutant: %s O%s\n' "$mutation_name" \
+				"$mutation_optimization" >&2
+			exit 1
+		fi
+	done
 }
 
 for optimization in 0 2; do
@@ -146,6 +177,8 @@ mutation()
 mutation exact-one 's/matches != 1U/matches == 0U/'
 mutation linked-fail-stop \
 	's/smm_invocation_platform_fail_stop();/__builtin_trap();/'
+loader_mutation evidence-revision-backstep \
+	's/seed->revision != SMM_INVOCATION_EVIDENCE_REVISION/seed->revision != 2U/'
 mutation terminal-scrub-fail-stop \
 	'/phase == SMM_INVOCATION_TERMINAL_SCRUBBING/,/continue;/{s/invocation_fail_stop();/__builtin_trap();/}'
 mutation exact-bsp 's/initiator != evidence->bsp_cpu/false/'
@@ -269,7 +302,7 @@ mutation strong-close-request \
 mutation strong-final-cas \
 	'/TEST_HOOK(48);/,/^}/{s/if (!__atomic_compare_exchange_n(\&evidence->state, \&state,/if ((state = state, false) \&\& !__atomic_compare_exchange_n(\&evidence->state, \&state,/}'
 mutation strong-post-write-guard \
-	'/ops_snapshot.write_rax/,/ops_snapshot.read_rax/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
+	'/ops_snapshot.write_value/,/ops_snapshot.read_value/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
 mutation strong-final-geometry \
 	'/TEST_HOOK(48);/,/TEST_HOOK(53);/{s/!claimed_geometry_valid/(false \&\& !claimed_geometry_valid/; s/ack_required))/ack_required)))/}'
 

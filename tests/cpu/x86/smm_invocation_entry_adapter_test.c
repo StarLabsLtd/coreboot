@@ -28,6 +28,13 @@
 #define TEST_CLOSE_REQUESTED (1U << 11)
 #define TEST_ADMISSION_NONCE_ONE (1U << 12)
 
+_Static_assert(INTEL_SMM_INVOCATION_ADAPTER_REVISION == 3U,
+	"Intel adapter semantic revision changed");
+_Static_assert(SMM_INVOCATION_EVIDENCE_REVISION == 3U,
+	"evidence semantic revision changed");
+_Static_assert(SMM_INVOCATION_TOKEN_REVISION == 2U,
+	"token ABI revision changed");
+
 void smm_invocation_entry_test_ack_wait(
 	struct smm_invocation_evidence *evidence, uint64_t generation,
 	uint32_t cpu, const struct smm_invocation_entry_policy *policy);
@@ -67,6 +74,8 @@ static em64t101_smm_state_save_area_t *adapter_hook_state;
 static struct intel_smm_invocation_adapter *adapter_hook_adapter;
 static uintptr_t adapter_hook_redirect;
 static uint32_t adapter_hook_revision;
+static bool adapter_hook_mutate_rcx;
+static bool adapter_hook_mutate_rax;
 
 void intel_smm_invocation_adapter_test_hook(uint32_t point)
 {
@@ -76,6 +85,10 @@ void intel_smm_invocation_adapter_test_hook(uint32_t point)
 		adapter_hook_adapter->expected_revision = adapter_hook_revision;
 	else if (adapter_hook_redirect)
 		adapter_hook_adapter->nodes[0].save_state = adapter_hook_redirect;
+	else if (adapter_hook_mutate_rcx)
+		adapter_hook_state->rcx ^= 1ULL << 40;
+	else if (adapter_hook_mutate_rax)
+		adapter_hook_state->rax ^= 1ULL << 40;
 	else
 		adapter_hook_state->io_misc_info ^= 1U << 8;
 }
@@ -273,7 +286,8 @@ static void test_em64t101(void)
 
 	state.smm_revision = REV101;
 	state.io_misc_info = EXACT_IO;
-	state.rax = 0xa5;
+	state.rax = 0xa1b2c3d4000000a5ULL;
+	state.rcx = 0xe5f6071801020304ULL;
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(state), REV101) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter,
@@ -282,13 +296,15 @@ static void test_em64t101(void)
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
 		SMM_INVOCATION_MATCHED);
-	assert(ops.read_rax(ops.context, 0, &value) == CB_SUCCESS);
-	assert(value == 0xa5);
-	assert(ops.write_rax(ops.context, 0, 0x123400a5) == CB_SUCCESS);
-	assert(state.rax == 0x123400a5);
+	assert(ops.read_value(ops.context, 0, &value) == CB_SUCCESS);
+	assert(value == 0x01020304000000a5ULL);
+	assert(ops.write_value(ops.context, 0, 0x89abcdef765432a5ULL) ==
+		CB_SUCCESS);
+	assert(state.rax == 0xa1b2c3d4765432a5ULL);
+	assert(state.rcx == 0xe5f6071889abcdefULL);
 
 	state.io_misc_info = 0x00b20083U;
-	assert(ops.read_rax(ops.context, 0, &value) == CB_ERR);
+	assert(ops.read_value(ops.context, 0, &value) == CB_ERR);
 	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
 		SMM_INVOCATION_MATCH_ERROR);
 	state.io_misc_info = 0x01b20003U;
@@ -314,10 +330,12 @@ static void test_em64t100(void)
 	struct intel_smm_invocation_adapter adapter;
 	struct smm_invocation_save_state_ops ops;
 	uintptr_t top = (uintptr_t)&state + sizeof(state);
+	uint64_t value;
 
 	state.smm_revision = REV100;
 	state.io_misc_info = EXACT_IO;
-	state.rax = 0x5a;
+	state.rax = 0x112233440000005aULL;
+	state.rcx = 0x55667788a0b0c0d0ULL;
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(state), REV100) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter,
@@ -326,6 +344,12 @@ static void test_em64t100(void)
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(ops.match_apmc_write(ops.context, 0, 0x5a) ==
 		SMM_INVOCATION_MATCHED);
+	assert(ops.read_value(ops.context, 0, &value) == CB_SUCCESS);
+	assert(value == 0xa0b0c0d00000005aULL);
+	assert(ops.write_value(ops.context, 0, 0x102030405060705aULL) ==
+		CB_SUCCESS);
+	assert(state.rax == 0x112233445060705aULL);
+	assert(state.rcx == 0x5566778810203040ULL);
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(state), 0x30000) == CB_ERR);
 }
@@ -364,18 +388,38 @@ static void test_adapter_boundaries(void)
 		SMM_INVOCATION_MATCH_ERROR);
 	adapter_hook_point = 0;
 	states[0].io_misc_info = EXACT_IO;
+	adapter_hook_mutate_rcx = true;
+	adapter_hook_point = 1;
+	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+		SMM_INVOCATION_MATCH_ERROR);
+	adapter_hook_point = 0;
+	adapter_hook_mutate_rcx = false;
+	states[0].rcx = 0;
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
 		SMM_INVOCATION_MATCHED);
 	adapter_hook_point = 2;
-	assert(ops.read_rax(ops.context, 0, &value) == CB_ERR);
+	assert(ops.read_value(ops.context, 0, &value) == CB_ERR);
 	adapter_hook_point = 0;
 	states[0].io_misc_info = EXACT_IO;
+	states[0].rcx ^= 1ULL << 36;
+	assert(ops.read_value(ops.context, 0, &value) == CB_ERR);
+	states[0].rcx = 0;
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
+	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+		SMM_INVOCATION_MATCHED);
+	states[0].rcx ^= 1ULL << 44;
+	const uint64_t drifted_rcx = states[0].rcx;
+	assert(ops.write_value(ops.context, 0, 0x12345678000000a5ULL) ==
+		CB_ERR);
+	assert(states[0].rax == 0xa5);
+	assert(states[0].rcx == drifted_rcx);
+	states[0].rcx = 0;
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
 	assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
 		SMM_INVOCATION_MATCHED);
 	adapter_hook_point = 3;
-	assert(ops.write_rax(ops.context, 0, 0x123400a5) == CB_ERR);
+	assert(ops.write_value(ops.context, 0, 0x123400a5) == CB_ERR);
 	assert(states[0].rax == 0xa5);
 	adapter_hook_point = 0;
 	states[0].io_misc_info = EXACT_IO;
@@ -384,7 +428,7 @@ static void test_adapter_boundaries(void)
 		SMM_INVOCATION_MATCHED);
 	adapter_hook_redirect = (uintptr_t)&states[1];
 	adapter_hook_point = 2;
-	assert(ops.read_rax(ops.context, 0, &value) == CB_ERR);
+	assert(ops.read_value(ops.context, 0, &value) == CB_ERR);
 	adapter_hook_point = 0;
 	adapter_hook_redirect = 0;
 	adapter.nodes[0].save_state = (uintptr_t)&states[0];
@@ -405,7 +449,7 @@ static void test_adapter_boundaries(void)
 		SMM_INVOCATION_MATCHED);
 	adapter_hook_revision = REV100;
 	adapter_hook_point = 2;
-	assert(ops.read_rax(ops.context, 0, &value) == CB_ERR);
+	assert(ops.read_value(ops.context, 0, &value) == CB_ERR);
 	adapter_hook_point = 0;
 	adapter_hook_revision = 0;
 
@@ -416,7 +460,7 @@ static void test_adapter_boundaries(void)
 		SMM_INVOCATION_MATCHED);
 	adapter_hook_revision = REV100;
 	adapter_hook_point = 3;
-	assert(ops.write_rax(ops.context, 0, 0x123400a5) == CB_ERR);
+	assert(ops.write_value(ops.context, 0, 0x123400a5) == CB_ERR);
 	assert(states[0].rax == 0xa5);
 	adapter_hook_point = 0;
 	adapter_hook_revision = 0;
@@ -425,12 +469,18 @@ static void test_adapter_boundaries(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
 	adapter_hook_revision = REV100;
-	adapter_hook_point = 5;
+	adapter_hook_point = 6;
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
 	adapter_hook_point = 0;
 	adapter_hook_revision = 0;
 	assert(adapter.expected_revision == REV100);
 
+	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+		sizeof(states[0]), REV101) == CB_SUCCESS);
+	adapter.revision = 2U;
+	memcpy(&snapshot, &adapter, sizeof(snapshot));
+	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
+	assert(!memcmp(&snapshot, &adapter, sizeof(snapshot)));
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
 	adapter.expected_revision = 0;
@@ -441,7 +491,7 @@ static void test_adapter_boundaries(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
 	adapter_hook_redirect = (uintptr_t)&states[1];
-	adapter_hook_point = 5;
+	adapter_hook_point = 6;
 	adapter.active_cpus = SMM_INVOCATION_EVIDENCE_MAX_CPUS + 1U;
 	memcpy(&snapshot, &adapter, sizeof(snapshot));
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
@@ -456,7 +506,7 @@ static void test_adapter_boundaries(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(states[0]), REV101) == CB_SUCCESS);
 	adapter_hook_redirect = (uintptr_t)&states[1];
-	adapter_hook_point = 5;
+	adapter_hook_point = 6;
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
 	adapter_hook_point = 0;
 	adapter_hook_redirect = 0;
@@ -470,6 +520,45 @@ static void test_adapter_boundaries(void)
 	memcpy(&snapshot, &adapter, sizeof(snapshot));
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_ERR);
 	assert(!memcmp(&snapshot, &adapter, sizeof(snapshot)));
+}
+
+static void test_adapter_post_store_fail_stop(void)
+{
+	for (uint32_t hook = 4; hook <= 5; hook++) {
+		const uint8_t status = (uint8_t)(80U + hook);
+		const pid_t child = fork();
+
+		assert(child >= 0);
+		if (!child) {
+			em64t101_smm_state_save_area_t state = { 0 };
+			struct intel_smm_invocation_adapter adapter;
+			struct smm_invocation_save_state_ops ops;
+			const uintptr_t top = (uintptr_t)&state + sizeof(state);
+
+			state.smm_revision = REV101;
+			state.io_misc_info = EXACT_IO;
+			state.rax = 0x11223344000000a5ULL;
+			state.rcx = 0x5566778899aabbccULL;
+			adapter_hook_state = &state;
+			adapter_hook_adapter = &adapter;
+			assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
+				sizeof(state), REV101) == CB_SUCCESS);
+			assert(intel_smm_invocation_adapter_ops(&adapter, &ops) ==
+				CB_SUCCESS);
+			assert(ops.match_apmc_write(ops.context, 0, 0xa5) ==
+				SMM_INVOCATION_MATCHED);
+			fail_stop_exit_code = status;
+			adapter_hook_mutate_rax = hook == 5U;
+			adapter_hook_point = hook;
+			(void)ops.write_value(ops.context, 0,
+				0xa1b2c3d4e5f607a5ULL);
+			_exit(0);
+		}
+		expect_exit(child, status);
+	}
+	fail_stop_exit_code = 0;
+	adapter_hook_point = 0;
+	adapter_hook_mutate_rax = false;
 }
 
 static void test_cause_validation(void)
@@ -535,7 +624,8 @@ static void exercise_sparse_entry_nonce(
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	state.smm_revision = REV101;
 	state.io_misc_info = EXACT_IO;
-	state.rax = 0xa5;
+	state.rax = 0x10203040000000a5ULL;
+	state.rcx = 0x5060708090a0b0c0ULL;
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(state), REV101) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
@@ -548,6 +638,8 @@ static void exercise_sparse_entry_nonce(
 		0x11223344556677a5ULL, &ops, &token) == CB_SUCCESS);
 	assert(smm_invocation_evidence_abort(&evidence, &token, &ops) ==
 		CB_SUCCESS);
+	assert(state.rax == 0x10203040000000a5ULL);
+	assert(state.rcx == 0x5060708090a0b0c0ULL);
 	for (size_t byte = 0; byte < sizeof(ticket.reserved); byte++) {
 		invalid = ticket;
 		invalid.reserved[byte] = 1U;
@@ -3841,6 +3933,7 @@ int main(int argc, char **argv)
 	test_em64t101();
 	test_em64t100();
 	test_adapter_boundaries();
+	test_adapter_post_store_fail_stop();
 	test_cause_validation();
 	test_sparse_entry_nonce();
 	test_identity_and_aliases();

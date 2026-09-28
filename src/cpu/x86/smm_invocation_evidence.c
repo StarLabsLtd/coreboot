@@ -200,7 +200,7 @@ static void invocation_scrub(struct smm_invocation_evidence *evidence)
 		__ATOMIC_RELAXED);
 	__atomic_store_n(&evidence->departed_cpus, 0U, __ATOMIC_RELAXED);
 	evidence->sentinel = 0;
-	evidence->original_rax = 0;
+	evidence->original_value = 0;
 	evidence->command = 0;
 	evidence->command_reserved = 0;
 	scrub(&evidence->token, sizeof(evidence->token));
@@ -1139,7 +1139,8 @@ bool smm_invocation_evidence_rendezvous_ack_ready(
 
 static bool ops_valid(const struct smm_invocation_save_state_ops *ops)
 {
-	return ops && ops->match_apmc_write && ops->read_rax && ops->write_rax &&
+	return ops && ops->match_apmc_write && ops->read_value &&
+		ops->write_value &&
 		(!ops->context_size ||
 		 range_valid(ops->context, ops->context_size));
 }
@@ -1207,15 +1208,16 @@ static bool restore_or_fail_stop(struct smm_invocation_evidence *evidence,
 	uint64_t readback = 0;
 	bool unchanged;
 
-	if (ops->write_rax(ops->context, initiator, evidence->original_rax) !=
+	if (ops->write_value(ops->context, initiator,
+		evidence->original_value) !=
 		CB_SUCCESS)
 		invocation_fail_stop();
 	unchanged = ops_unchanged(source, ops) && !callback_reentered(evidence);
-	if (ops->read_rax(ops->context, initiator, &readback) != CB_SUCCESS)
+	if (ops->read_value(ops->context, initiator, &readback) != CB_SUCCESS)
 		invocation_fail_stop();
 	unchanged = unchanged && ops_unchanged(source, ops) &&
 		!callback_reentered(evidence);
-	if (readback != evidence->original_rax)
+	if (readback != evidence->original_value)
 		invocation_fail_stop();
 	return unchanged;
 }
@@ -1306,7 +1308,7 @@ static bool claimed_geometry_valid(struct smm_invocation_evidence *evidence,
 	    ack_control != expected_ack_required || expected_ack_required > 1U ||
 	    evidence->command > UINT8_MAX || !sentinel ||
 	    (uint8_t)sentinel != evidence->command ||
-	    (uint8_t)evidence->original_rax != evidence->command ||
+	    (uint8_t)evidence->original_value != evidence->command ||
 	    evidence->command_reserved || evidence->shutdown_reserved ||
 	    evidence->reentry_reserved || evidence->admission_reserved ||
 	    evidence->close_reserved || evidence->close_receipt_reserved ||
@@ -1410,21 +1412,22 @@ enum cb_err smm_invocation_evidence_claim(
 	}
 	if (matches != 1U || initiator != evidence->bsp_cpu)
 		return poison_owned(evidence, SMM_INVOCATION_CLAIMING);
-	if (snapshot.read_rax(snapshot.context, initiator,
-		&evidence->original_rax) != CB_SUCCESS ||
+	if (snapshot.read_value(snapshot.context, initiator,
+		&evidence->original_value) != CB_SUCCESS ||
 	    callback_reentered(evidence) || !ops_unchanged(ops, &snapshot) ||
-	    (uint8_t)evidence->original_rax != command)
+	    (uint8_t)evidence->original_value != command)
 		return poison_owned(evidence, SMM_INVOCATION_CLAIMING);
 	if (smm_invocation_evidence_shutdown_requested(evidence))
 		return close_owned(evidence, SMM_INVOCATION_CLAIMING);
-	if (snapshot.write_rax(snapshot.context, initiator, sentinel) !=
+	if (snapshot.write_value(snapshot.context, initiator, sentinel) !=
 		CB_SUCCESS) {
 		(void)restore_or_fail_stop(evidence, ops, &snapshot, initiator);
 		return poison_owned(evidence, SMM_INVOCATION_CLAIMING);
 	}
 	if (callback_reentered(evidence) || !ops_unchanged(ops, &snapshot) ||
-	    snapshot.read_rax(snapshot.context, initiator, &readback) !=
-		CB_SUCCESS || !ops_unchanged(ops, &snapshot) || readback != sentinel) {
+	    snapshot.read_value(snapshot.context, initiator, &readback) !=
+		CB_SUCCESS || !ops_unchanged(ops, &snapshot) ||
+	    readback != sentinel) {
 		(void)restore_or_fail_stop(evidence, ops, &snapshot, initiator);
 		return poison_owned(evidence, SMM_INVOCATION_CLAIMING);
 	}
@@ -1503,7 +1506,7 @@ enum cb_err smm_invocation_evidence_publish(
 		(void)close_owned(evidence, SMM_INVOCATION_PUBLISHING);
 		return CB_ERR;
 	}
-	if (snapshot.read_rax(snapshot.context, token_snapshot.initiator_cpu,
+	if (snapshot.read_value(snapshot.context, token_snapshot.initiator_cpu,
 		&readback) !=
 		CB_SUCCESS || callback_reentered(evidence) ||
 	    !ops_unchanged(ops, &snapshot) ||
@@ -1520,11 +1523,13 @@ enum cb_err smm_invocation_evidence_publish(
 				SMM_INVOCATION_PUBLISHING);
 		return close_owned(evidence, SMM_INVOCATION_PUBLISHING);
 	}
-	if (snapshot.write_rax(snapshot.context, token_snapshot.initiator_cpu,
-		value) != CB_SUCCESS || !ops_unchanged(ops, &snapshot) ||
-	    snapshot.read_rax(snapshot.context, token_snapshot.initiator_cpu,
+	if (snapshot.write_value(snapshot.context,
+		token_snapshot.initiator_cpu, value) != CB_SUCCESS ||
+	    !ops_unchanged(ops, &snapshot) ||
+	    snapshot.read_value(snapshot.context, token_snapshot.initiator_cpu,
 		&readback) != CB_SUCCESS || !ops_unchanged(ops, &snapshot) ||
-	    callback_reentered(evidence) || readback != value)
+	    callback_reentered(evidence) ||
+	    readback != value)
 		invocation_fail_stop();
 	TEST_HOOK(4);
 	if (!phase_claim(evidence, SMM_INVOCATION_PUBLISHING,
@@ -1570,8 +1575,8 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 {
 	struct smm_invocation_save_state_ops ops_snapshot;
 	struct smm_invocation_token token_snapshot;
-	uint64_t sentinel;
 	uint64_t readback;
+	uint64_t sentinel;
 	uint32_t ack_required;
 	uint32_t expected_kind;
 	uint32_t kind;
@@ -1640,17 +1645,18 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
 		ack_required))
 		invocation_fail_stop();
-	if (ops_snapshot.read_rax(ops_snapshot.context,
+	if (ops_snapshot.read_value(ops_snapshot.context,
 		token_snapshot.initiator_cpu, &readback) != CB_SUCCESS)
 		invocation_fail_stop();
 	TEST_HOOK(46);
 	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
-	if (state != publishing_state || readback != sentinel ||
+	if (state != publishing_state ||
+	    readback != sentinel ||
 	    evidence->sentinel != sentinel ||
 	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
 		ack_required))
 		invocation_fail_stop();
-	if (ops_snapshot.write_rax(ops_snapshot.context,
+	if (ops_snapshot.write_value(ops_snapshot.context,
 		token_snapshot.initiator_cpu, value) != CB_SUCCESS)
 		invocation_fail_stop();
 	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
@@ -1659,13 +1665,14 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
 		ack_required))
 		invocation_fail_stop();
-	if (ops_snapshot.read_rax(ops_snapshot.context,
+	if (ops_snapshot.read_value(ops_snapshot.context,
 		token_snapshot.initiator_cpu, &readback) != CB_SUCCESS)
 		invocation_fail_stop();
 	TEST_HOOK(47);
 	TEST_HOOK(48);
 	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
-	if (state != publishing_state || readback != value ||
+	if (state != publishing_state ||
+	    readback != value ||
 	    evidence->sentinel != sentinel ||
 	    !claimed_geometry_valid(evidence, &token_snapshot, sentinel,
 		ack_required))
