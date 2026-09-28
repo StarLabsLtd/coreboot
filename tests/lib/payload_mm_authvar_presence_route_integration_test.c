@@ -229,7 +229,7 @@ static uint64_t run_round(struct integration_fixture *fixture,
 		{ .fixture = fixture, .cpu = 0U, .apic_id = 0x10U },
 		{ .fixture = fixture, .cpu = 1U, .apic_id = 0x20U },
 	};
-	struct smm_apmc_descriptor selection;
+	struct smm_apmc_selection_receipt selection;
 	pthread_t threads[2];
 
 	memset(&fixture->page, 0, sizeof(fixture->page));
@@ -253,7 +253,7 @@ static uint64_t run_round(struct integration_fixture *fixture,
 	assert(payload_mm_authvar_presence_route_session_dispatch_locked(
 		&fixture->session, &calls[0].ticket, &selection) ==
 		SMM_APMC_CONSUMED_SUCCESS);
-	assert(!memcmp(&selection, &(struct smm_apmc_descriptor) { 0 },
+	assert(!memcmp(&selection, &(struct smm_apmc_selection_receipt) { 0 },
 		sizeof(selection)));
 	payload_mm_authvar_presence_route_session_prepare_lock_release(
 		&fixture->session, &calls[0].ticket);

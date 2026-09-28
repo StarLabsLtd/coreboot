@@ -161,7 +161,7 @@ sed 's/smm_apmc_command_consume(/smm_apmc_command_consume(smm_apmc_command_consu
 ! awk -f "$source_contract" "$temporary/route-consume-duplicate.c" \
 	"$arm_source" >/dev/null 2>&1
 sed '/status = payload_mm_authvar_presence_transaction_dispatch/i\
-\t(void)selection;' "$route_source" > "$temporary/route-adjacency.c"
+\t(void)receipt;' "$route_source" > "$temporary/route-adjacency.c"
 ! awk -f "$source_contract" "$temporary/route-adjacency.c" \
 	"$arm_source" >/dev/null 2>&1
 sed 's/\.prepare = wrapped_prepare,/.prepare = wrapped_abort, \/\* .prepare = wrapped_prepare, *\//' \

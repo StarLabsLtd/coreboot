@@ -221,17 +221,31 @@ struct smm_apmc_descriptor {
 	bool enabled;
 };
 
+#define SMM_APMC_SELECTION_RECEIPT_REVISION 1U
+struct smm_apmc_selection_receipt {
+	u32 revision;
+	u32 size;
+	u64 identity;
+	u64 generation;
+	struct smm_apmc_descriptor descriptor;
+	u8 reserved;
+} __aligned(8);
+
+_Static_assert(sizeof(struct smm_apmc_selection_receipt) == 32,
+	"SMM APMC selection receipt ABI changed");
+_Static_assert(_Alignof(struct smm_apmc_selection_receipt) == 8,
+	"SMM APMC selection receipt alignment changed");
+_Static_assert(offsetof(struct smm_apmc_selection_receipt, identity) == 8,
+	"SMM APMC selection receipt identity offset changed");
+_Static_assert(offsetof(struct smm_apmc_selection_receipt, generation) == 16,
+	"SMM APMC selection receipt generation offset changed");
+_Static_assert(offsetof(struct smm_apmc_selection_receipt, descriptor) == 24,
+	"SMM APMC selection receipt descriptor offset changed");
+
 enum smm_apmc_select_result {
 	SMM_APMC_SELECT_UNKNOWN,
 	SMM_APMC_SELECT_CONSUMED_REJECT,
 	SMM_APMC_SELECT_ENABLED,
-};
-
-enum smm_apmc_owner_outcome {
-	SMM_APMC_OWNER_HANDLED,
-	SMM_APMC_OWNER_UNREADY,
-	SMM_APMC_OWNER_MALFORMED,
-	SMM_APMC_OWNER_ERROR,
 };
 
 enum smm_apmc_dispatch_result {
@@ -240,14 +254,11 @@ enum smm_apmc_dispatch_result {
 };
 
 enum smm_apmc_select_result
-smm_apmc_command_select(u8 command, struct smm_apmc_descriptor *selection);
-enum smm_apmc_dispatch_result
-smm_apmc_command_finish(u8 expected_command,
-			struct smm_apmc_descriptor *selection,
-			enum smm_apmc_owner_outcome outcome);
+smm_apmc_command_select(u8 command,
+			struct smm_apmc_selection_receipt *receipt);
 enum smm_apmc_dispatch_result
 smm_apmc_command_consume(u8 expected_command,
 			 enum smm_apmc_owner expected_owner,
-			 struct smm_apmc_descriptor *selection);
+			 struct smm_apmc_selection_receipt *receipt);
 
 #endif

@@ -104,8 +104,7 @@ for profile in \
 		"$build/smm/cpu/x86/smm/smm_module_handler.o" \
 		"$build/smmstub/cpu/x86/smm/smm_stub.o" >/dev/null
 	object="$build/smm/cpu/x86/smm_command.o"
-	for symbol in smm_apmc_command_select smm_apmc_command_finish \
-		smm_apmc_command_consume; do
+	for symbol in smm_apmc_command_select smm_apmc_command_consume; do
 		test "$(nm --defined-only "$object" | awk -v symbol="$symbol" \
 			'$3 == symbol { count++ } END { print count + 0 }')" -eq 1
 	done

@@ -219,15 +219,15 @@ for profile in emulation_qemu_x86_q35_smm_tseg starlabs_starbook_mtl; do
 		}
 		{ print }
 		END {
-			print "edge: { sourcename: \"decoy\" targetname: \"smm_apmc_command_consume\" label: \"payload_mm_authvar_presence_route_session.c:1221:6\" }"
+			print "edge: { sourcename: \"decoy\" targetname: \"smm_apmc_command_consume\" label: \"payload_mm_authvar_presence_route_session.c:1230:6\" }"
 		}
 	' "$temporary/$name-smm.ci" > "$temporary/$name-target-decoy.ci"
 	! awk -v limit=12288 \
 		-f "$root/tests/lib/payload_mm_authvar_presence_route_stack_graph.awk" \
 		"$temporary/$name-target-decoy.ci" >/dev/null 2>&1
 	awk '
-		!changed && /payload_mm_authvar_presence_route_session.c:1221:6/ {
-			sub(/1221:6/, "1221:7"); changed = 1
+		!changed && /payload_mm_authvar_presence_route_session.c:1230:6/ {
+			sub(/1230:6/, "1230:7"); changed = 1
 		}
 		{ print }
 	' "$temporary/$name-smm.ci" > "$temporary/$name-relocated-direct.ci"

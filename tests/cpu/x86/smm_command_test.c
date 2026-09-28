@@ -4,11 +4,14 @@
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_command.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
+
+void smm_apmc_command_test_set_generation(u64 generation);
 
 #define RESERVED_VALUE(value) value,
 static const u8 reserved_commands[] = {
@@ -24,37 +27,30 @@ static const struct smm_apmc_descriptor enabled_claims[] = {
 #undef ENABLED_VALUE
 
 static enum smm_apmc_dispatch_result
-dispatch(u8 command, enum smm_apmc_owner_outcome outcome,
-	 struct smm_apmc_descriptor *descriptor)
+dispatch(u8 command, struct smm_apmc_descriptor *descriptor)
 {
-	struct smm_apmc_descriptor selection;
+	struct smm_apmc_selection_receipt receipt;
 	enum smm_apmc_dispatch_result result;
 
-	if (smm_apmc_command_select(command, &selection) !=
+	if (smm_apmc_command_select(command, &receipt) !=
 	    SMM_APMC_SELECT_ENABLED) {
 		if (descriptor)
 			memset(descriptor, 0, sizeof(*descriptor));
 		return SMM_APMC_CONSUMED_REJECT;
 	}
 	if (descriptor)
-		*descriptor = selection;
-	result = smm_apmc_command_finish(command, &selection, outcome);
+		*descriptor = receipt.descriptor;
+	result = smm_apmc_command_consume(command,
+		(enum smm_apmc_owner)receipt.descriptor.owner, &receipt);
 	if (result != SMM_APMC_CONSUMED_SUCCESS && descriptor)
 		memset(descriptor, 0, sizeof(*descriptor));
 	return result;
 }
 
-static enum smm_apmc_dispatch_result finish(u8 command,
-					    struct smm_apmc_descriptor *selection,
-					    enum smm_apmc_owner_outcome outcome)
+static void assert_receipt_zero(const struct smm_apmc_selection_receipt *receipt)
 {
-	return smm_apmc_command_finish(command, selection, outcome);
-}
-
-static void assert_descriptor_zero(const struct smm_apmc_descriptor *descriptor)
-{
-	assert(!memcmp(descriptor, &(struct smm_apmc_descriptor) { 0 },
-		       sizeof(*descriptor)));
+	assert(!memcmp(receipt, &(struct smm_apmc_selection_receipt) { 0 },
+		       sizeof(*receipt)));
 }
 
 static void reserved_namespace_is_unique_and_consumed(void)
@@ -62,20 +58,20 @@ static void reserved_namespace_is_unique_and_consumed(void)
 	bool seen[UINT8_MAX + 1U] = { 0 };
 
 	for (size_t index = 0; index < ARRAY_SIZE(reserved_commands); index++) {
-		struct smm_apmc_descriptor selection;
+		struct smm_apmc_selection_receipt receipt;
 		const u8 command = reserved_commands[index];
 
 		assert(!seen[command]);
 		seen[command] = true;
-		if (smm_apmc_command_select(command, &selection) ==
+		if (smm_apmc_command_select(command, &receipt) ==
 		    SMM_APMC_SELECT_ENABLED) {
-			assert(selection.command == command);
-			assert(finish(command, &selection,
-				      SMM_APMC_OWNER_MALFORMED) ==
-				SMM_APMC_CONSUMED_REJECT);
-			assert_descriptor_zero(&selection);
+			assert(receipt.descriptor.command == command);
+			assert(smm_apmc_command_consume(command,
+				(enum smm_apmc_owner)receipt.descriptor.owner,
+				&receipt) == SMM_APMC_CONSUMED_SUCCESS);
+			assert_receipt_zero(&receipt);
 		} else {
-			assert(smm_apmc_command_select(command, &selection) ==
+			assert(smm_apmc_command_select(command, &receipt) ==
 				SMM_APMC_SELECT_CONSUMED_REJECT);
 		}
 	}
@@ -83,33 +79,33 @@ static void reserved_namespace_is_unique_and_consumed(void)
 
 static void unknown_only_falls_through(void)
 {
-	struct smm_apmc_descriptor selection;
+	struct smm_apmc_selection_receipt receipt;
 
-	memset(&selection, 0xa5, sizeof(selection));
-	assert(smm_apmc_command_select(0x7aU, &selection) ==
+	memset(&receipt, 0xa5, sizeof(receipt));
+	assert(smm_apmc_command_select(0x7aU, &receipt) ==
 		SMM_APMC_SELECT_UNKNOWN);
-	assert_descriptor_zero(&selection);
+	assert_receipt_zero(&receipt);
 	assert(smm_apmc_command_select(0x7aU, NULL) ==
 		SMM_APMC_SELECT_UNKNOWN);
-	memset(&selection, 0xa5, sizeof(selection));
-	assert(smm_apmc_command_select(APM_CNT_NOOP_SMI, &selection) ==
+	memset(&receipt, 0xa5, sizeof(receipt));
+	assert(smm_apmc_command_select(APM_CNT_NOOP_SMI, &receipt) ==
 		SMM_APMC_SELECT_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
+	assert_receipt_zero(&receipt);
 }
 
 static void authvar_presence_is_reserved_without_a_route(void)
 {
-	struct smm_apmc_descriptor selection;
+	struct smm_apmc_selection_receipt receipt;
 
-	memset(&selection, 0xa5, sizeof(selection));
-	assert(smm_apmc_command_select(SMM_APMC_AUTHVAR_PRESENCE, &selection) ==
+	memset(&receipt, 0xa5, sizeof(receipt));
+	assert(smm_apmc_command_select(SMM_APMC_AUTHVAR_PRESENCE, &receipt) ==
 		SMM_APMC_SELECT_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
+	assert_receipt_zero(&receipt);
 	assert(smm_apmc_command_consume(SMM_APMC_AUTHVAR_PRESENCE,
 					SMM_APMC_OWNER_AUTHVAR_PRESENCE,
-					&selection) ==
+					&receipt) ==
 		SMM_APMC_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
+	assert_receipt_zero(&receipt);
 }
 
 static void enabled_owner_semantics(void)
@@ -122,27 +118,19 @@ static void enabled_owner_semantics(void)
 
 		assert(!seen[expected->command]);
 		seen[expected->command] = true;
-		assert(dispatch(expected->command, SMM_APMC_OWNER_HANDLED,
-				&descriptor) ==
+		assert(dispatch(expected->command, &descriptor) ==
 			SMM_APMC_CONSUMED_SUCCESS);
 		assert(!memcmp(&descriptor, expected, sizeof(descriptor)));
 	}
 
-	assert(dispatch(APM_CNT_ACPI_ENABLE, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(APM_CNT_ACPI_ENABLE, &descriptor) ==
 		SMM_APMC_CONSUMED_SUCCESS);
 	assert(descriptor.enabled);
 	assert(descriptor.binding_count == 1U);
 	assert(descriptor.role == SMM_APMC_EXCLUSIVE);
 	assert(descriptor.observer_count == 0U);
-	assert(dispatch(APM_CNT_ACPI_ENABLE, SMM_APMC_OWNER_UNREADY, NULL) ==
-		SMM_APMC_CONSUMED_REJECT);
-	assert(dispatch(APM_CNT_ACPI_ENABLE, SMM_APMC_OWNER_ERROR, NULL) ==
-		SMM_APMC_CONSUMED_REJECT);
-
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
-	assert(dispatch(SMM_APMC_SPI_CONSOLE, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(SMM_APMC_SPI_CONSOLE, &descriptor) ==
 #if CONFIG(BOARD_EMULATION_QEMU_X86_Q35)
 		SMM_APMC_CONSUMED_SUCCESS);
 	assert(descriptor.binding_count == 1U);
@@ -152,16 +140,14 @@ static void enabled_owner_semantics(void)
 #endif
 	assert(descriptor.owner == SMM_APMC_OWNER_SPI_CONSOLE);
 #elif !CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION)
-	assert(dispatch(SMM_APMC_SPI_CONSOLE, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(SMM_APMC_SPI_CONSOLE, &descriptor) ==
 		SMM_APMC_CONSUMED_REJECT);
 	assert(!descriptor.enabled);
 	assert(descriptor.role == SMM_APMC_ROLE_NONE);
 #endif
 
 #if CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION)
-	assert(dispatch(SMM_APMC_CAPSULE_BROKER, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(SMM_APMC_CAPSULE_BROKER, &descriptor) ==
 		SMM_APMC_CONSUMED_REJECT);
 	assert(descriptor.owner == SMM_APMC_OWNER_CAPSULE_BROKER);
 	assert(descriptor.binding_count == 0U);
@@ -169,67 +155,101 @@ static void enabled_owner_semantics(void)
 
 #if CONFIG(STARLABS_SMM_OPTION_HANDLER) && \
 	CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-	assert(dispatch(SMM_APMC_STARLABS_EFI_OPTION, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(SMM_APMC_STARLABS_EFI_OPTION, &descriptor) ==
 		SMM_APMC_CONSUMED_SUCCESS);
 	assert(descriptor.owner == SMM_APMC_OWNER_STARLABS_EFI_OPTION);
 #endif
 
 #if CONFIG(BOARD_ACER_VN7_572G)
-	assert(dispatch(SMM_APMC_ACER_BOARD, SMM_APMC_OWNER_HANDLED,
-			&descriptor) ==
+	assert(dispatch(SMM_APMC_ACER_BOARD, &descriptor) ==
 		SMM_APMC_CONSUMED_SUCCESS);
 	assert(descriptor.owner == SMM_APMC_OWNER_ACER_BOARD);
 #endif
 }
 
-static void selection_is_exact_and_consumed(void)
+static void exact_consume_semantics(void)
 {
-	struct smm_apmc_descriptor selection;
-	struct smm_apmc_descriptor snapshot;
+	struct smm_apmc_selection_receipt receipt;
+	struct smm_apmc_selection_receipt snapshot;
+	struct smm_apmc_selection_receipt copy;
 
-	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &selection) ==
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
 		SMM_APMC_SELECT_ENABLED);
-	snapshot = selection;
-	selection.owner ^= 1U;
-	assert(finish(APM_CNT_ACPI_ENABLE, &selection, SMM_APMC_OWNER_HANDLED) ==
-		SMM_APMC_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
-	/* A copied selection is correlation data, not replay authority. */
-	assert(finish(APM_CNT_ACPI_ENABLE, &snapshot, SMM_APMC_OWNER_HANDLED) ==
+	snapshot = receipt;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) ==
 		SMM_APMC_CONSUMED_SUCCESS);
-	assert_descriptor_zero(&snapshot);
-	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &selection) ==
+	assert_receipt_zero(&receipt);
+	/* Restoring an already consumed receipt at its original address is replay. */
+	receipt = snapshot;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) == SMM_APMC_CONSUMED_REJECT);
+	assert_receipt_zero(&receipt);
+
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
 		SMM_APMC_SELECT_ENABLED);
-	snapshot = selection;
+	copy = receipt;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&copy) == SMM_APMC_CONSUMED_REJECT);
+	assert_receipt_zero(&copy);
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) == SMM_APMC_CONSUMED_SUCCESS);
 
-	selection = snapshot;
-	selection.command = APM_CNT_ACPI_DISABLE;
-	assert(finish(APM_CNT_ACPI_ENABLE, &selection, SMM_APMC_OWNER_HANDLED) ==
-		SMM_APMC_CONSUMED_REJECT);
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
+		SMM_APMC_SELECT_ENABLED);
+	snapshot = receipt;
+	receipt.identity++;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) == SMM_APMC_CONSUMED_REJECT);
+	receipt = snapshot;
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) == SMM_APMC_CONSUMED_SUCCESS);
 
-#define REJECT_MUTATION(statement) do { \
-	selection = snapshot; \
+#define REJECT_CONSUME(statement) do { \
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) == \
+		SMM_APMC_SELECT_ENABLED); \
 	statement; \
-	assert(finish(APM_CNT_ACPI_ENABLE, &selection, \
-		      SMM_APMC_OWNER_HANDLED) == SMM_APMC_CONSUMED_REJECT); \
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE, \
+		SMM_APMC_OWNER_ACPI_CONTROL, &receipt) == \
+		SMM_APMC_CONSUMED_REJECT); \
+	assert_receipt_zero(&receipt); \
 } while (0)
-	REJECT_MUTATION(selection.role = SMM_APMC_ROLE_NONE);
-	REJECT_MUTATION(selection.binding_count = 2U);
-	REJECT_MUTATION(selection.observer_count = 1U);
-	REJECT_MUTATION(selection.reserved = false);
-	REJECT_MUTATION(selection.enabled = false);
-#undef REJECT_MUTATION
+	REJECT_CONSUME(receipt.revision++);
+	REJECT_CONSUME(receipt.size--);
+	REJECT_CONSUME(receipt.generation++);
+	REJECT_CONSUME(receipt.descriptor.command = APM_CNT_ACPI_DISABLE);
+	REJECT_CONSUME(receipt.descriptor.owner = SMM_APMC_OWNER_FINALIZE);
+	REJECT_CONSUME(receipt.descriptor.role = SMM_APMC_ROLE_NONE);
+	REJECT_CONSUME(receipt.descriptor.binding_count = 2U);
+	REJECT_CONSUME(receipt.descriptor.observer_count = 1U);
+	REJECT_CONSUME(receipt.descriptor.reserved = false);
+	REJECT_CONSUME(receipt.descriptor.enabled = false);
+	REJECT_CONSUME(receipt.reserved = 1U);
+#undef REJECT_CONSUME
 
-	selection = snapshot;
-	assert(finish(APM_CNT_ACPI_DISABLE, &selection, SMM_APMC_OWNER_HANDLED) ==
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
+		SMM_APMC_SELECT_ENABLED);
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_DISABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					&receipt) ==
 		SMM_APMC_CONSUMED_REJECT);
-	selection = snapshot;
-	assert(finish(APM_CNT_ACPI_ENABLE, &selection,
-		      (enum smm_apmc_owner_outcome)UINT8_MAX) ==
+	assert_receipt_zero(&receipt);
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
+		SMM_APMC_SELECT_ENABLED);
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_FINALIZE,
+					&receipt) ==
 		SMM_APMC_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
-	assert(finish(APM_CNT_ACPI_ENABLE, NULL, SMM_APMC_OWNER_HANDLED) ==
+	assert_receipt_zero(&receipt);
+	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+					SMM_APMC_OWNER_ACPI_CONTROL,
+					NULL) ==
 		SMM_APMC_CONSUMED_REJECT);
 	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, NULL) ==
 		SMM_APMC_SELECT_CONSUMED_REJECT);
@@ -237,53 +257,56 @@ static void selection_is_exact_and_consumed(void)
 		SMM_APMC_SELECT_CONSUMED_REJECT);
 }
 
-static void exact_consume_semantics(void)
+struct concurrent_consume_call {
+	struct smm_apmc_selection_receipt receipt;
+	pthread_barrier_t *barrier;
+	enum smm_apmc_dispatch_result result;
+};
+
+static void *concurrent_consume(void *argument)
 {
-	struct smm_apmc_descriptor selection;
-	struct smm_apmc_descriptor snapshot;
+	struct concurrent_consume_call *call = argument;
+	const int status = pthread_barrier_wait(call->barrier);
 
-	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &selection) ==
-		SMM_APMC_SELECT_ENABLED);
-	snapshot = selection;
-	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
-					SMM_APMC_OWNER_ACPI_CONTROL,
-					&selection) ==
-		SMM_APMC_CONSUMED_SUCCESS);
-	assert_descriptor_zero(&selection);
+	assert(status == 0 || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	call->result = smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
+		SMM_APMC_OWNER_ACPI_CONTROL, &call->receipt);
+	return NULL;
+}
 
-#define REJECT_CONSUME(statement) do { \
-	selection = snapshot; \
-	statement; \
-	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE, \
-		SMM_APMC_OWNER_ACPI_CONTROL, &selection) == \
-		SMM_APMC_CONSUMED_REJECT); \
-	assert_descriptor_zero(&selection); \
-} while (0)
-	REJECT_CONSUME(selection.command = APM_CNT_ACPI_DISABLE);
-	REJECT_CONSUME(selection.owner = SMM_APMC_OWNER_FINALIZE);
-	REJECT_CONSUME(selection.role = SMM_APMC_ROLE_NONE);
-	REJECT_CONSUME(selection.binding_count = 2U);
-	REJECT_CONSUME(selection.observer_count = 1U);
-	REJECT_CONSUME(selection.reserved = false);
-	REJECT_CONSUME(selection.enabled = false);
-#undef REJECT_CONSUME
+static void concurrent_consumers_are_exact(void)
+{
+	pthread_barrier_t barrier;
+	pthread_t threads[2];
+	struct concurrent_consume_call calls[2] = {
+		{ .barrier = &barrier }, { .barrier = &barrier },
+	};
 
-	selection = snapshot;
-	assert(smm_apmc_command_consume(APM_CNT_ACPI_DISABLE,
-					SMM_APMC_OWNER_ACPI_CONTROL,
-					&selection) ==
-		SMM_APMC_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
-	selection = snapshot;
-	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
-					SMM_APMC_OWNER_FINALIZE,
-					&selection) ==
-		SMM_APMC_CONSUMED_REJECT);
-	assert_descriptor_zero(&selection);
-	assert(smm_apmc_command_consume(APM_CNT_ACPI_ENABLE,
-					SMM_APMC_OWNER_ACPI_CONTROL,
-					NULL) ==
-		SMM_APMC_CONSUMED_REJECT);
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE,
+		&calls[0].receipt) == SMM_APMC_SELECT_ENABLED);
+	calls[1].receipt = calls[0].receipt;
+	assert(!pthread_barrier_init(&barrier, NULL, ARRAY_SIZE(threads)));
+	for (size_t index = 0; index < ARRAY_SIZE(threads); ++index)
+		assert(!pthread_create(&threads[index], NULL, concurrent_consume,
+			&calls[index]));
+	for (size_t index = 0; index < ARRAY_SIZE(threads); ++index)
+		assert(!pthread_join(threads[index], NULL));
+	assert(!pthread_barrier_destroy(&barrier));
+	assert(calls[0].result == SMM_APMC_CONSUMED_SUCCESS);
+	assert(calls[1].result == SMM_APMC_CONSUMED_REJECT);
+}
+
+static void exhausted_generation_fails_closed(void)
+{
+	struct smm_apmc_selection_receipt receipt;
+
+	smm_apmc_command_test_set_generation(UINT64_MAX);
+	memset(&receipt, 0xa5, sizeof(receipt));
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
+		SMM_APMC_SELECT_CONSUMED_REJECT);
+	assert_receipt_zero(&receipt);
+	assert(smm_apmc_command_select(APM_CNT_ACPI_ENABLE, &receipt) ==
+		SMM_APMC_SELECT_CONSUMED_REJECT);
 }
 
 int main(void)
@@ -292,7 +315,8 @@ int main(void)
 	unknown_only_falls_through();
 	authvar_presence_is_reserved_without_a_route();
 	enabled_owner_semantics();
-	selection_is_exact_and_consumed();
 	exact_consume_semantics();
+	concurrent_consumers_are_exact();
+	exhausted_generation_fails_closed();
 	return 0;
 }

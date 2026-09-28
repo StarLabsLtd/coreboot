@@ -70,16 +70,16 @@ BEGIN {
 	register_sites("smm_invocation_evidence_publish_and_request_close",
 		"1643:6,1653:6,1662:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
-		"smm_apmc_command_consume", "1221:6")
+		"smm_apmc_command_consume", "1230:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
-		"payload_mm_authvar_presence_transaction_dispatch", "1225:11")
+		"payload_mm_authvar_presence_transaction_dispatch", "1234:11")
 	register_direct("route_claim", "smm_invocation_evidence_claim", "564:6")
 	register_direct("route_complete",
 		"smm_invocation_evidence_publish_and_request_close", "647:11")
 	register_direct("route_session_validate_and_bind",
-		"payload_mm_authvar_presence_arm_protection_delegate_bind", "1036:11")
+		"payload_mm_authvar_presence_arm_protection_delegate_bind", "1044:11")
 	register_direct("payload_mm_authvar_presence_route_session_provision",
-		"payload_mm_authvar_presence_arm_transaction_provision", "1114:11")
+		"payload_mm_authvar_presence_arm_transaction_provision", "1122:11")
 	register_direct("payload_mm_authvar_presence_arm_transaction_provision",
 		"payload_mm_authvar_presence_transaction_provision", "1398:6")
 }
