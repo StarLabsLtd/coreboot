@@ -18,6 +18,8 @@ romstage-$(CONFIG_SOC_INTEL_CSE_PRE_CPU_RESET_TELEMETRY) += cse_telemetry.c
 romstage-y += meminit.c
 romstage-y += pcie_rp.c
 romstage-y += soc_info.c
+romstage-$(CONFIG_SOC_INTEL_METEORLAKE_AUTHVAR_PRESENCE_BOOT_CLASSIFIER) += \
+	authvar_presence_boot_classifier.c
 
 ramstage-y += acpi.c
 ramstage-y += chip.c
