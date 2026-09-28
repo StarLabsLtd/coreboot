@@ -496,6 +496,15 @@ config SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE
 	default n
 	depends on SOC_INTEL_METEORLAKE
 
+config SOC_INTEL_METEORLAKE_AUTHVAR_PRESENCE_BOOT_CLASSIFIER
+	bool
+	default n
+	depends on SOC_INTEL_METEORLAKE
+	help
+	  Build the dormant authenticated-variable presence boot classifier. It
+	  classifies a saved pre-clear PMC power-state snapshot, but installs no
+	  boot hook and grants no presence authority.
+
 config SOC_INTEL_METEORLAKE_LOADER_INSTANCE_REQUIRED
 	bool
 	default n

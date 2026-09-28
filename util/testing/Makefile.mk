@@ -119,6 +119,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-smm-invocation-runtime-view
 	+$(MAKE) test-authvar-presence-tuple-sender
 	+$(MAKE) test-authvar-presence-lifecycle-installation
+	+$(MAKE) test-mtl-authvar-presence-boot-classifier
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) junit.xml-unit-tests COV=1)
 	+(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) coverage-report COV=1)
 	+$(MAKE) coverage-report JUNIT_OUTPUT=y COV=1
@@ -132,7 +133,16 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
 	test-smm-invocation-runtime-view test-authvar-presence-tuple-sender \
 	test-authvar-presence-lifecycle-installation \
+	test-mtl-authvar-presence-boot-classifier \
 	test-cleanup
+
+.PHONY: test-mtl-authvar-presence-boot-classifier
+test-mtl-authvar-presence-boot-classifier:
+	tests/lib/mtl_authvar_presence_boot_classifier_test.sh
+	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
+		MAKEOVERRIDES=MTL_PRESENCE_BOOT_HOSTILE_OVERRIDE \
+		MTL_PRESENCE_BOOT_HOSTILE_OVERRIDE=1 \
+		tests/lib/mtl_authvar_presence_boot_classifier_profiles_test.sh
 
 .PHONY: test-authvar-presence-lifecycle-installation
 test-authvar-presence-lifecycle-installation:
