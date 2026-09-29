@@ -141,12 +141,12 @@ static bool protected_facts_valid(
 }
 
 enum intel_smm_invocation_cause_result __noinline
-intel_smm_invocation_private_cause(
+intel_smm_invocation_private_apmc_cause(
 	const struct smm_invocation_loader_composition *composition,
 	const struct smm_invocation_topology *topology,
 	const struct smm_invocation_loader_instance *instance,
 	const struct smm_invocation_evidence *evidence,
-	const uint32_t *runtime_cpus,
+	const uint32_t *runtime_cpus, uint8_t expected_command,
 	struct smm_invocation_entry_cause *cause)
 {
 	struct smm_invocation_topology topology_a = { 0 };
@@ -170,7 +170,7 @@ intel_smm_invocation_private_cause(
 
 	sample_a = sample_cause();
 	CAUSE_TEST_HOOK(1);
-	if (sample_a.command != SMM_APMC_AUTHVAR_PRESENCE) {
+	if (sample_a.command != expected_command) {
 		result = INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE;
 		goto publish;
 	}
@@ -238,4 +238,16 @@ publish:
 	scrub_bytes(&instance_b, sizeof(instance_b));
 	scrub_bytes(&cause_value, sizeof(cause_value));
 	return result;
+}
+
+enum intel_smm_invocation_cause_result intel_smm_invocation_private_cause(
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	const uint32_t *runtime_cpus,
+	struct smm_invocation_entry_cause *cause)
+{
+	return intel_smm_invocation_private_apmc_cause(composition, topology,
+		instance, evidence, runtime_cpus, SMM_APMC_AUTHVAR_PRESENCE, cause);
 }

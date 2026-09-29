@@ -175,6 +175,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_route_provision(
 	assert(actual_ops == &ops && actual_internal == &internal);
 	assert(predecessor_generation == evidence.closed_generation);
 	assert(actual_proof == protected_storage && !proof_context);
+	route->protected_storage = actual_proof;
+	route->protected_storage_context = proof_context;
 	*receipt = (struct payload_mm_authvar_presence_lifecycle_close_install_receipt) {
 		.descriptor = *descriptor,
 		.protected_route_identity = 1U,
@@ -215,7 +217,7 @@ uint64_t starbook_mtl_authvar_presence_lifecycle_close_install_trigger_test(
 	assert(intel_smm_invocation_adapter_provider_arm(&generation) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	status = starbook_mtl_authvar_presence_lifecycle_close_install_receive(
-		&dependencies);
+		&dependencies, retained_ops);
 	assert(intel_smm_invocation_adapter_provider_retire(generation) ==
 		SMM_INVOCATION_TRY_SUCCESS);
 	assert(status == CB_SUCCESS);
@@ -230,6 +232,8 @@ int main(void)
 		.generation = 7U,
 	};
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt receipt = { 0 };
+	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route binding;
+	struct smm_invocation_save_state_ops ops_snapshot;
 
 	assert(intel_smm_invocation_adapter_provider_provision(&retained_ops) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -240,6 +244,13 @@ int main(void)
 	assert(receipt.installed == 1U && receipt.protected_route_identity == 1U &&
 		receipt.route_nonce == 2U);
 	assert(range_validations == 2U);
+	assert(starbook_mtl_authvar_presence_lifecycle_close_installed_route(
+		&binding) == CB_SUCCESS);
+	assert(binding.route && binding.retained_ops == &ops);
+	ops_snapshot = ops;
+	assert(starbook_mtl_authvar_presence_lifecycle_close_installed_route(
+		(void *)&ops) == CB_ERR);
+	assert(!memcmp(&ops, &ops_snapshot, sizeof(ops)));
 	for (size_t index = 0; index < sizeof(*observed_frame); index++)
 		assert(!((const uint8_t *)observed_frame)[index]);
 	return 0;

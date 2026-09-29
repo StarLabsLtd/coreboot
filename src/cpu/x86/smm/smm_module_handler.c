@@ -11,11 +11,14 @@
 #include <cpu/x86/save_state.h>
 #endif
 #include <cpu/x86/smm.h>
+#if CONFIG(SMM_PRE_LOCK_DISPATCH)
+#include <cpu/x86/smm_pre_lock_dispatch.h>
+#endif
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_save_state.h>
 #endif
-#if CONFIG(SMM_INVOCATION_STACK_CANARY_FAIL_STOP)
+#if CONFIG(SMM_INVOCATION_STACK_CANARY_FAIL_STOP) || CONFIG(SMM_PRE_LOCK_DISPATCH)
 #include <cpu/x86/smm_invocation_fail_stop.h>
 #endif
 #if CONFIG(STM)
@@ -550,6 +553,26 @@ asmlinkage void smm_handler_start(void *arg)
 		/* Do not log messages to console here, it is not thread safe */
 		return;
 	}
+
+#if CONFIG(SMM_PRE_LOCK_DISPATCH)
+	const enum smm_pre_lock_dispatch_result pre_lock_result =
+		smm_pre_lock_dispatch(cpu, p->initial_apic_id);
+
+	switch (pre_lock_result) {
+	case SMM_PRE_LOCK_DISPATCH_NOT_HANDLED:
+		break;
+	case SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED:
+	case SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED:
+		actual_canary = *p->canary;
+		if (actual_canary != expected_canary)
+			smm_invocation_platform_fail_stop();
+		if (pre_lock_result == SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED)
+			southbridge_smi_set_eos();
+		return;
+	default:
+		smm_invocation_platform_fail_stop();
+	}
+#endif
 
 	/* Are we ok to execute the handler? */
 	if (!smi_obtain_lock()) {
