@@ -79,6 +79,21 @@ function require_edge(from_name, to_name,    count, from, i, target, to)
 	}
 }
 
+function require_edge_min(from_name, to_name, minimum,    count, from, i, target, to)
+{
+	from = find_node(from_name)
+	to = find_node(to_name)
+	for (i = 1; i <= edge_count[from]; i++) {
+		target = canonical(edge[from, i])
+		if (target == to)
+			count++
+	}
+	if (count < minimum) {
+		print "ERROR: missing runtime-view edge " from_name " -> " to_name > "/dev/stderr"
+		failed = 1
+	}
+}
+
 function walk(node, depth,    child, target, i, maximum)
 {
 	node = canonical(node)
@@ -142,6 +157,51 @@ function walk(node, depth,    child, target, i, maximum)
 }
 
 END {
+	if (auxiliary) {
+		require_edge_min("smm_invocation_runtime_auxiliary_binding_get",
+			"runtime_geometry_snapshot", 1)
+		require_edge_min("smm_invocation_runtime_auxiliary_binding_get",
+			"smm_invocation_auxiliary_channel_evidence", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"smm_invocation_topology_read", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"smm_invocation_loader_instance_read", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"smm_invocation_loader_composition_evidence", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"evidence_bound", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"auxiliary_seed_build", 1)
+		require_edge_min("smm_invocation_auxiliary_channel_evidence",
+			"auxiliary_scrub", 1)
+		require_edge("runtime_geometry_snapshot", "runtime_topology_matches")
+		require_edge("runtime_geometry_snapshot", "runtime_composition_matches")
+		require_edge("runtime_geometry_snapshot", "runtime_geometry_valid")
+		require_edge("runtime_geometry_valid", "smm_save_state_native_span")
+		maximum = walk(find_node("smm_invocation_runtime_auxiliary_binding_get"), 0)
+		required[1] = "runtime_geometry_snapshot"
+		required[2] = "runtime_geometry_valid"
+		required[3] = "runtime_topology_matches"
+		required[4] = "runtime_composition_matches"
+		required[5] = "smm_save_state_native_span"
+		required[6] = "smm_invocation_auxiliary_channel_evidence"
+		required[7] = "smm_invocation_topology_read"
+		required[8] = "smm_invocation_loader_instance_read"
+		required[9] = "smm_invocation_loader_composition_evidence"
+		required[10] = "evidence_bound"
+		required[11] = "auxiliary_seed_build"
+		required[12] = "auxiliary_scrub"
+		for (i = 1; i <= 12; i++)
+			if (!saw_function(required[i])) {
+				print "ERROR: missing reachable auxiliary function " \
+					required[i] > "/dev/stderr"
+				failed = 1
+			}
+		if (failed)
+			exit 1
+		print maximum
+		exit
+	}
 	require_edge("smm_invocation_runtime_view_get", "runtime_geometry_snapshot")
 	require_edge("smm_invocation_runtime_cpu_count", "runtime_geometry_snapshot")
 	require_edge("smm_invocation_runtime_save_state_span", "runtime_geometry_snapshot")

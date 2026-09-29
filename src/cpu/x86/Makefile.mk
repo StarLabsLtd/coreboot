@@ -34,12 +34,14 @@ smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence.c
 smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence_loader.c
 smm-$(CONFIG_SMM_INVOCATION_ENTRY) += smm_invocation_entry.c
 smm-$(CONFIG_SMM_INVOCATION_LOADER_COMPOSITION) += smm_invocation_loader_composition_gate.c
-smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += smm_invocation_loader_instance.c
-smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += smm_invocation_topology.c
+smm-$(CONFIG_SMM_INVOCATION_LOADER_READERS) += smm_invocation_loader_instance.c
+smm-$(CONFIG_SMM_INVOCATION_LOADER_READERS) += smm_invocation_topology.c
 ramstage-$(CONFIG_SMM_INVOCATION_TOPOLOGY) += smm_invocation_topology.c
 ramstage-$(CONFIG_SMM_INVOCATION_LOADER_INSTANCE) += smm_invocation_loader_instance.c
 ramstage-$(CONFIG_SMM_INVOCATION_LOADER_COMPOSITION) += smm_invocation_evidence_loader.c
 ramstage-$(CONFIG_SMM_INVOCATION_LOADER_COMPOSITION) += smm_invocation_loader_composition.c
+ramstage-$(CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS) += smm_invocation_auxiliary_channels.c
+smm-$(CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS) += smm_invocation_auxiliary_channels.c
 ramstage-$(CONFIG_SMM_INVOCATION_TUPLE_TRIGGER) += smm_invocation_tuple_trigger.c
 
 subdirs-$(CONFIG_CPU_INTEL_COMMON_SMM) += ../intel/smm

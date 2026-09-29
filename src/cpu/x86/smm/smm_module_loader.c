@@ -738,6 +738,9 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	struct smm_invocation_loader_composition *published_composition = NULL;
 	bool invocation_composition_started = false;
 #endif
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+	struct smm_invocation_auxiliary_channels *published_auxiliary = NULL;
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
@@ -873,6 +876,10 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	memset(published_evidence, 0, sizeof(*published_evidence));
 	memset(published_composition, 0, sizeof(*published_composition));
 #endif
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+	published_auxiliary = &smihandler_params->invocation_auxiliary;
+	memset(published_auxiliary, 0, sizeof(*published_auxiliary));
+#endif
 
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	if (smm_module_setup_stub(stub_segment_base, smram_size, params,
@@ -903,6 +910,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	    CB_SUCCESS)
 		goto fail;
 #endif
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+	if (smm_invocation_auxiliary_channels_compose(published_auxiliary,
+		published_composition, published_topology, published_instance,
+		published_evidence) != CB_SUCCESS)
+		goto fail;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
 	if (payload_mm_authvar_presence_lifecycle_close_mailbox_loader_provision(
 		published_lifecycle_mailbox, published_instance,
@@ -912,6 +925,10 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	return 0;
 
 fail:
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+	if (published_auxiliary)
+		smm_invocation_auxiliary_channels_loader_abort(published_auxiliary);
+#endif
 #if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
 	if (!invocation_composition_started && published_evidence)
 		memset(published_evidence, 0, sizeof(*published_evidence));

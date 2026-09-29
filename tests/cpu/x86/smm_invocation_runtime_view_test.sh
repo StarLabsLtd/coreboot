@@ -11,11 +11,11 @@ extract_fragment()
 {
 	awk '
 		/^struct smm_invocation_runtime_view \{/ { copy = 1 }
+		copy && /^static int smi_obtain_lock/ { exit }
+		copy && /^#if/ { depth++; print; next }
 		copy && /^#endif$/ {
-			ends++
-			if (ends == 1) next
-			print
-			exit
+			if (depth) { depth--; print }
+			next
 		}
 		copy { print }
 	' "$1" > "$2"
@@ -38,6 +38,8 @@ run_variant()
 		'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
 		'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
 		'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
+		'#define CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS 1' \
+		'#define CONFIG_SMM_MODULE_STACK_SIZE 0x2000' \
 		'#define CONFIG_STM 0' \
 		"#define TEST_RUNTIME_VIEW_RESERVED_SIZE $reserved" \
 		> "$temporary/include/config.h"
@@ -70,13 +72,14 @@ run_variant()
 		-o "$temporary/runtime-view-$stm-i686.o" \
 		>"$temporary/i686-$stm.log" 2>&1; then
 		! nm -u "$temporary/runtime-view-$stm-i686.o" | grep -q '__atomic_'
-		for function in smm_invocation_runtime_view_get \
+		for symbol in smm_invocation_runtime_view_get \
 			smm_invocation_runtime_cpu_count \
 			smm_invocation_runtime_save_state_span \
 			smm_invocation_runtime_range_is_protected \
-			smm_invocation_runtime_binding_get; do
-			frame=$(awk -F '\t' -v function="$function" \
-				'$1 ~ function "$" { print $2 }' \
+			smm_invocation_runtime_binding_get \
+			smm_invocation_runtime_auxiliary_binding_get; do
+			frame=$(awk -F '\t' -v symbol="$symbol" \
+				'$1 ~ symbol "$" { print $2 }' \
 				"$temporary/runtime-view-$stm-i686.su")
 			test -n "$frame" && test "$frame" -le 192
 		done

@@ -138,7 +138,8 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-capsule-protected-flash test-capsule-platform-facts \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
 	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
-	test-smm-invocation-runtime-view test-authvar-presence-tuple-sender \
+	test-smm-invocation-runtime-view test-smm-invocation-auxiliary-channels \
+	test-authvar-presence-tuple-sender \
 	test-authvar-presence-lifecycle-installation \
 	test-authvar-presence-lifecycle-close \
 	test-authvar-presence-lifecycle-close-endpoint \
@@ -363,6 +364,10 @@ test-smm-invocation-canary-fail-stop:
 test-smm-invocation-runtime-view:
 	tests/cpu/x86/smm_invocation_runtime_view_test.sh
 	tests/cpu/x86/smm_invocation_runtime_view_profiles_test.sh
+
+.PHONY: test-smm-invocation-auxiliary-channels
+test-smm-invocation-auxiliary-channels: test-smm-invocation-runtime-view
+	tests/lib/smm_invocation_auxiliary_channels_test.sh
 
 .PHONY: test-smm-invocation-topology
 test-smm-invocation-topology:

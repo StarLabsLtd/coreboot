@@ -6,7 +6,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 temporary=$(mktemp -d "$root/../.runtime-view-profile.XXXXXX")
 temporary=$(CDPATH= cd -- "$temporary" && pwd -P)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
-base=f1238b176479acb1547088fa84ccd39cce699c32
+base=ce93ac31a672054f4bcbf326cb5d45f235a20c78
 
 scratch_make()
 (
@@ -44,6 +44,8 @@ config TEST_MTL_RUNTIME_VIEW_PROFILE
 	select STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER
 	select SMM_INVOCATION_LOADER_COMPOSITION
 	select SMM_INVOCATION_RUNTIME_VIEW
+	select SMM_INVOCATION_RUNTIME_BINDING
+	select SMM_INVOCATION_AUXILIARY_CHANNELS
 
 config TEST_MTL_RUNTIME_VIEW_STM_PROFILE
 	bool "test-only MTL STM invocation runtime view"
@@ -52,6 +54,16 @@ config TEST_MTL_RUNTIME_VIEW_STM_PROFILE
 	select ENABLE_VMX
 	select STM
 EOF
+early_kconfig="$temporary/Kconfig.runtime-view-profile.early"
+head -n 3 "$profile_kconfig" > "$early_kconfig"
+cat >> "$early_kconfig" <<'EOF'
+
+config SMM_MODULE_STACK_SIZE
+	hex
+	default 0x2000 if TEST_MTL_RUNTIME_VIEW_PROFILE
+EOF
+tail -n +4 "$profile_kconfig" >> "$early_kconfig"
+mv "$early_kconfig" "$profile_kconfig"
 
 configure()
 {
@@ -137,11 +149,24 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 	else
 		! grep -q '^CONFIG_STM=y$' "$config"
 	fi
+	if [ "$name" != Q35_ON ]; then
+		grep -q '^CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS=y$' "$config"
+		grep -q '^CONFIG_SMM_INVOCATION_LOADER_READERS=y$' "$config"
+	fi
 	stack_flags='-fstack-usage -fcallgraph-info=su'
+	extra_targets=
+	if [ "$name" != Q35_ON ]; then
+		extra_targets="$build/ramstage/cpu/x86/smm_invocation_auxiliary_channels.o
+$build/smm/cpu/x86/smm_invocation_auxiliary_channels.o
+$build/smm/cpu/x86/smm_invocation_topology.o
+$build/smm/cpu/x86/smm_invocation_loader_instance.o"
+	fi
+	# shellcheck disable=SC2086
 	scratch_make -C "$root" UPDATED_SUBMODULES=1 obj="$build" \
 		DOTCONFIG="$config" KBUILD_KCONFIG="$profile_kconfig" -j4 \
 		STACK_AUDIT_CFLAGS="$stack_flags" "$build/smm/smm" \
-		"$build/ramstage/cpu/x86/smm/smm_module_loader.o" >/dev/null
+		"$build/ramstage/cpu/x86/smm/smm_module_loader.o" \
+		$extra_targets >/dev/null
 	handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
 	for symbol in smm_invocation_runtime_view_get \
 		smm_invocation_runtime_cpu_count \
@@ -156,6 +181,45 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 		xargs -r nm --defined-only 2>/dev/null | \
 		grep -Eq 'smm_invocation_runtime_(view_get|cpu_count|save_state_span|range_is_protected)'
 	! nm -u "$handler" | grep -q '__atomic_'
+	if [ "$name" != Q35_ON ]; then
+		aux_ramstage="$build/ramstage/cpu/x86/smm_invocation_auxiliary_channels.o"
+		aux_smm="$build/smm/cpu/x86/smm_invocation_auxiliary_channels.o"
+		loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
+		topology_reader="$build/smm/cpu/x86/smm_invocation_topology.o"
+		instance_reader="$build/smm/cpu/x86/smm_invocation_loader_instance.o"
+		test -s "$aux_ramstage" && test -s "$aux_smm" && \
+			test -s "$topology_reader" && test -s "$instance_reader"
+		file "$aux_ramstage" "$aux_smm" "$topology_reader" \
+			"$instance_reader" | grep -c 'ELF 32-bit' | grep -q '^4$'
+		nm --defined-only "$aux_ramstage" | grep -q \
+			'smm_invocation_auxiliary_channels_compose'
+		nm --defined-only "$aux_smm" | grep -q \
+			'smm_invocation_auxiliary_channel_evidence'
+		nm --defined-only "$handler" | grep -q \
+			'smm_invocation_runtime_auxiliary_binding_get'
+		nm -u "$loader" | grep -q \
+			'smm_invocation_auxiliary_channels_compose'
+		nm -u "$loader" | grep -q \
+			'smm_invocation_auxiliary_channels_loader_abort'
+		test "$(objdump -dr "$handler" | sed -n \
+			'/<smm_invocation_runtime_auxiliary_binding_get>:/,/^$/p' | \
+			grep -c 'smm_invocation_auxiliary_channel_evidence')" -eq 2
+		! nm -u "$aux_ramstage" "$aux_smm" "$topology_reader" \
+			"$instance_reader" | grep -Eq '__atomic_load_8|libatomic'
+		loader_source="$root/src/cpu/x86/smm/smm_module_loader.c"
+		primary_line=$(grep -n 'smm_invocation_loader_compose(' \
+			"$loader_source" | tail -1 | cut -d: -f1)
+		auxiliary_line=$(grep -n 'smm_invocation_auxiliary_channels_compose(' \
+			"$loader_source" | cut -d: -f1)
+		mailbox_line=$(grep -n 'mailbox_loader_provision(' \
+			"$loader_source" | cut -d: -f1)
+		fail_line=$(grep -n '^fail:' "$loader_source" | cut -d: -f1)
+		abort_line=$(grep -n 'smm_invocation_auxiliary_channels_loader_abort(' \
+			"$loader_source" | cut -d: -f1)
+		test "$primary_line" -lt "$auxiliary_line"
+		test "$auxiliary_line" -lt "$mailbox_line"
+		test "$fail_line" -lt "$abort_line"
+	fi
 	graph="$build/runtime-view.ci"
 	find "$build/smm" -type f -name '*.ci' -exec cat {} + > "$graph"
 	test -s "$graph"
@@ -165,6 +229,15 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 	case "$stack_bound" in
 	''|*[!0-9]*) exit 1 ;;
 	esac
+	if [ "$name" != Q35_ON ]; then
+		auxiliary_stack_bound=$(awk -v auxiliary=1 -v limit=8191 \
+			-f "$root/tests/cpu/x86/smm_invocation_runtime_view_stack_graph.awk" \
+			"$graph")
+		case "$auxiliary_stack_bound" in
+		''|*[!0-9]*) exit 1 ;;
+		esac
+		test "$auxiliary_stack_bound" -lt 8192
+	fi
 	for edge in \
 		'smm_invocation_runtime_view_get.*runtime_geometry_snapshot' \
 		'smm_invocation_runtime_cpu_count.*runtime_geometry_snapshot' \
@@ -198,6 +271,41 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 			-f "$root/tests/cpu/x86/smm_invocation_runtime_view_stack_graph.awk" \
 			"$mutant" >/dev/null 2>&1
 	done
+	if [ "$name" != Q35_ON ]; then
+		for edge in \
+			'smm_invocation_runtime_auxiliary_binding_get.*runtime_geometry_snapshot' \
+			'smm_invocation_runtime_auxiliary_binding_get.*smm_invocation_auxiliary_channel_evidence' \
+			'smm_invocation_auxiliary_channel_evidence.*smm_invocation_topology_read' \
+			'smm_invocation_auxiliary_channel_evidence.*smm_invocation_loader_instance_read' \
+			'smm_invocation_auxiliary_channel_evidence.*smm_invocation_loader_composition_evidence' \
+			'smm_invocation_auxiliary_channel_evidence.*evidence_bound' \
+			'smm_invocation_auxiliary_channel_evidence.*auxiliary_seed_build' \
+			'smm_invocation_auxiliary_channel_evidence.*auxiliary_scrub'; do
+			mutant="$build/auxiliary-missing-edge.ci"
+			sed "/edge:.*$edge/d" "$graph" > "$mutant"
+			! cmp -s "$graph" "$mutant"
+			! awk -v auxiliary=1 -v limit=8191 \
+				-f "$root/tests/cpu/x86/smm_invocation_runtime_view_stack_graph.awk" \
+				"$mutant" >/dev/null 2>&1
+		done
+		for mutation in recursive indirect unresolved deep; do
+			mutant="$build/auxiliary-$mutation.ci"
+			cp "$graph" "$mutant"
+			case "$mutation" in
+			recursive)
+				printf '%s\n' 'edge: { sourcename: "smm_invocation_runtime_auxiliary_binding_get" targetname: "smm_invocation_runtime_auxiliary_binding_get" label: "mutation:1:1" }' >> "$mutant" ;;
+			indirect)
+				printf '%s\n' 'node: { title: "__indirect_call" label: "__indirect_call\\nmutation:1:1" shape: ellipse }' 'edge: { sourcename: "smm_invocation_runtime_auxiliary_binding_get" targetname: "__indirect_call" label: "mutation:1:1" }' >> "$mutant" ;;
+			unresolved)
+				printf '%s\n' 'node: { title: "missing_auxiliary_target" label: "missing_auxiliary_target\\nmutation:1:1" shape: ellipse }' 'edge: { sourcename: "smm_invocation_runtime_auxiliary_binding_get" targetname: "missing_auxiliary_target" label: "mutation:1:1" }' >> "$mutant" ;;
+			deep)
+				printf '%s\n' 'node: { title: "auxiliary_deep" label: "auxiliary_deep\\nmutation:1:1\\n8192 bytes (static)" }' 'edge: { sourcename: "smm_invocation_runtime_auxiliary_binding_get" targetname: "auxiliary_deep" label: "mutation:1:1" }' >> "$mutant" ;;
+			esac
+			! awk -v auxiliary=1 -v limit=8191 \
+				-f "$root/tests/cpu/x86/smm_invocation_runtime_view_stack_graph.awk" \
+				"$mutant" >/dev/null 2>&1
+		done
+	fi
 done
 
 printf '%s\n' 'SMM invocation runtime view profiles: PASS'

@@ -18,6 +18,10 @@
 #endif
 #if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
 #include <cpu/x86/smm_invocation_loader_composition.h>
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+#include <cpu/x86/smm_invocation_auxiliary_channels.h>
+#endif
+
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 #include <boot/payload_mm_authvar_smm_loader.h>
@@ -178,12 +182,28 @@ struct smm_runtime {
 	struct smm_invocation_evidence invocation_evidence __aligned(8);
 	struct smm_invocation_loader_composition invocation_composition __aligned(8);
 #endif
+
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+	struct smm_invocation_auxiliary_channels invocation_auxiliary __aligned(8);
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 	uintptr_t dma_receipt_frame_base;
 	size_t dma_receipt_frame_size;
 	struct smm_dma_receipt_memory dma_receipt_memory __aligned(8);
 #endif
 } __packed;
+
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+_Static_assert(offsetof(struct smm_runtime, invocation_auxiliary) %
+	_Alignof(struct smm_invocation_auxiliary_channels) == 0,
+	"SMM invocation auxiliary channels are not aligned");
+_Static_assert(offsetof(struct smm_invocation_auxiliary_channels, evidence) %
+	_Alignof(struct smm_invocation_evidence) == 0,
+	"auxiliary invocation evidence is not aligned");
+_Static_assert(sizeof(((struct smm_runtime *)0)->invocation_auxiliary) ==
+	sizeof(struct smm_invocation_auxiliary_channels),
+	"SMM auxiliary invocation owner size changed");
+#endif
 
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
 _Static_assert(offsetof(struct smm_runtime, save_state_size) %
