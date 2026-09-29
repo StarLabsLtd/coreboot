@@ -73,6 +73,7 @@ run_variant()
 		for function in smm_invocation_runtime_view_get \
 			smm_invocation_runtime_cpu_count \
 			smm_invocation_runtime_save_state_span \
+			smm_invocation_runtime_range_is_protected \
 			smm_invocation_runtime_binding_get; do
 			frame=$(awk -F '\t' -v function="$function" \
 				'$1 ~ function "$" { print $2 }' \

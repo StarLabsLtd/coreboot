@@ -145,6 +145,7 @@ END {
 	require_edge("smm_invocation_runtime_view_get", "runtime_geometry_snapshot")
 	require_edge("smm_invocation_runtime_cpu_count", "runtime_geometry_snapshot")
 	require_edge("smm_invocation_runtime_save_state_span", "runtime_geometry_snapshot")
+	require_edge("smm_invocation_runtime_range_is_protected", "runtime_geometry_snapshot")
 	require_edge("runtime_geometry_snapshot", "runtime_topology_matches")
 	require_edge("runtime_geometry_snapshot", "runtime_composition_matches")
 	require_edge("runtime_geometry_snapshot", "runtime_geometry_valid")
@@ -152,8 +153,9 @@ END {
 	root[1] = "smm_invocation_runtime_view_get"
 	root[2] = "smm_invocation_runtime_cpu_count"
 	root[3] = "smm_invocation_runtime_save_state_span"
+	root[4] = "smm_invocation_runtime_range_is_protected"
 	maximum = 0
-	for (i = 1; i <= 3; i++) {
+	for (i = 1; i <= 4; i++) {
 		value = walk(find_node(root[i]), 0)
 		if (value > maximum)
 			maximum = value

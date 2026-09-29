@@ -165,8 +165,8 @@ config SMM_INVOCATION_RUNTIME_VIEW
 	select SMM_SAVE_STATE_GEOMETRY
 	help
 	  Compile a dormant SMM-only opaque view of checked protected invocation
-	  CPU and save-state geometry. This adds no command, route, lifecycle action
-	  or platform selection.
+	  CPU, save-state and SMRAM geometry. This adds no command, route, lifecycle
+	  action or platform selection.
 
 config PARALLEL_MP
 	def_bool y
