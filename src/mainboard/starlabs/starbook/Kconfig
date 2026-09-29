@@ -418,35 +418,36 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	help
 	  Build the protected SMM verifier for the MTL lifecycle-close DMA policy.
-	  The receipt transport exists but remains blocked on the missing protected
-	  requester/domain authority needed for independent VT-d graph validation.
-	  Do not make this selectable until that explicit dependency is implemented.
+	  This re-observes the exact requester roles, PCI state, VT-d engines and
+	  translation graph on every use. It remains dormant and default-off; the
+	  lifecycle-close install policy still needs a separately authenticated,
+	  disjoint mailbox and reset/S3 platform adapters.
 
 config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	bool
 	default n
 	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
 	depends on STARLABS_STARBOOK_MTL_DMA_HANDOFF
-	depends on STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY
 	depends on PAYLOAD_MM_CMS_CORE
 	select SMM_APMC_ROUTE_STARBOOK_MTL_DMA_RECEIPT
+	select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY
+	select STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY
 	help
 	  Build the dormant one-shot post-loader receipt channel. After the MTL
 	  DMA backend reaches its checked active state, ramstage sends its exact
 	  layout and complete PCI inventory through a transient private-SMI frame.
 	  SMM recomputes the full table digest, re-observes hardware and publishes
-	  only a protected binding. This adds no board default or policy claim. It
-	  remains unselectable until a protected authority supplies the exact three
-	  dynamic requester/domain identities needed to verify the VT-d table graph.
+	  only a protected binding after independently deriving the exact requester
+	  roles and verifying the complete VT-d graph. This adds no board default,
+	  reset/S3 adapter or universal early-DMA support claim.
 
 config STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY
 	bool
 	default n
 	help
-	  Reserved dependency for a future loader-owned protected authority binding
-	  the dynamically discovered boot requester BDFs to domains 1 through 3.
-	  No producer selects this symbol: public receipt data and ramstage statics
-	  are not authority for VT-d page-table semantics.
+	  Internal SMM-only authority selected by the complete receipt verifier. It
+	  derives the three requester roles from stable live ECAM observations and
+	  binds them to the current loader nonce, lifecycle and invocation generation.
 
 if BOARD_STARLABS_STARBOOK_SERIES
 

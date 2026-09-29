@@ -39,9 +39,9 @@ ${CC:-cc} $common -m32 -O2 -c \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_requester_authority.c" \
 	-o "$temporary/authority-32.o"
 
-! grep -q 'dma_smm_requester_authority' \
+grep -q 'dma_smm_requester_authority.c' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/Makefile.mk"
-! grep -q 'DMA_SMM_REQUESTER_ROLE_AUTHORITY' \
+grep -q '^config STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY$' \
 	"$root/src/mainboard/starlabs/starbook/Kconfig"
 
 echo 'StarBook MTL SMM requester authority validation: PASS'
