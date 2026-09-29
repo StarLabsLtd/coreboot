@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "dma_smm_receipt_provision.h"
+#include "dma_smm_authority.h"
 
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm_invocation_runtime.h>
@@ -21,6 +22,7 @@ enum receipt_state { RECEIPT_EMPTY, RECEIPT_PROVISIONING, RECEIPT_READY,
 
 struct receipt_context {
 	uint64_t identity;
+	struct starbook_mtl_dma_smm_authority_workspace *authority;
 };
 
 static struct {
@@ -31,6 +33,8 @@ static struct {
 	struct starbook_mtl_dma_smm_observer observer;
 	struct starbook_mtl_dma_smm_receipt receipt;
 	struct starbook_mtl_dma_smm_workspace workspace;
+	struct starbook_mtl_dma_smm_authority_workspace authority;
+	struct smm_dma_receipt_memory memory_snapshot;
 	struct starbook_mtl_dma_receipt_frame snapshot;
 } owner __aligned(8);
 
@@ -96,6 +100,19 @@ static enum cb_err observer_sha256(void *context, const void *data,
 		return CB_ERR;
 	return payload_mm_sha256(data, size, digest) == PAYLOAD_MM_VERIFY_OK ?
 		CB_SUCCESS : CB_ERR;
+}
+
+static enum cb_err observer_verify_translation(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	const struct receipt_context *receipt_context = context;
+
+	if (!receipt_context ||
+	    receipt_context->identity != 0x4d544c444d41524dULL ||
+	    !receipt_context->authority)
+		return CB_ERR;
+	return starbook_mtl_dma_smm_authority_verify(
+		receipt_context->authority, receipt);
 }
 
 static bool bytes_zero(const void *buffer, size_t size)
@@ -262,6 +279,7 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	if (!smm_get_dma_receipt_memory(&receipt_memory))
 		goto out;
 	memory_snapshot = *receipt_memory;
+	owner.memory_snapshot = memory_snapshot;
 #endif
 	for (uint32_t cpu = 0; cpu < topology.active_cpus; cpu++) {
 		const enum smm_invocation_match match =
@@ -297,12 +315,16 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	if (!frame_valid(&owner.snapshot) ||
 	    memcmp(frame, &owner.snapshot, sizeof(owner.snapshot)))
 		goto out;
-	owner.context.identity = 0x4d544c444d41524dULL;
+	owner.context = (struct receipt_context) {
+		.identity = 0x4d544c444d41524dULL,
+		.authority = &owner.authority,
+	};
 	owner.observer = (struct starbook_mtl_dma_smm_observer) {
 		.context = &owner.context,
 		.context_size = sizeof(owner.context),
 		.read32 = observer_read32,
 		.sha256 = observer_sha256,
+		.verify_translation = observer_verify_translation,
 	};
 	owner.receipt = owner.snapshot.candidate;
 	if (smm_invocation_loader_instance_read(binding.instance, &instance) !=
@@ -328,7 +350,8 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	    !dependencies_valid(&owner.dependencies, runtime_view) ||
 	    owner.observer.sha256(owner.observer.context,
 		(const void *)(uintptr_t)owner.receipt.tables.base,
-		owner.receipt.tables.size, owner.receipt.table_digest) != CB_SUCCESS ||
+		(size_t)owner.receipt.tables.size,
+		owner.receipt.table_digest) != CB_SUCCESS ||
 	    starbook_mtl_dma_smm_verify(&owner.receipt, (uintptr_t)&owner,
 		sizeof(owner), &owner.observer, runtime_view,
 		&owner.workspace) != CB_SUCCESS ||
@@ -362,6 +385,8 @@ out:
 		memset(&owner.context, 0, sizeof(owner.context));
 		memset(&owner.dependencies, 0, sizeof(owner.dependencies));
 		memset(&owner.workspace, 0, sizeof(owner.workspace));
+		memset(&owner.authority, 0, sizeof(owner.authority));
+		memset(&owner.memory_snapshot, 0, sizeof(owner.memory_snapshot));
 		__atomic_store_n(&owner.state, RECEIPT_FAILED, __ATOMIC_RELEASE);
 	}
 	memset(&owner.snapshot, 0, sizeof(owner.snapshot));
@@ -378,6 +403,9 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 	struct smm_invocation_runtime_binding runtime_binding;
 	struct smm_invocation_loader_instance instance;
 	struct starbook_mtl_dma_smm_binding value;
+#if !ENV_TEST
+	const struct smm_dma_receipt_memory *receipt_memory;
+#endif
 
 	if (!binding ||
 	    smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
@@ -394,7 +422,18 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 	    instance.lifecycle != owner.receipt.loader_lifecycle ||
 	    !smm_invocation_loader_instance_nonce_equal(
 		instance.loader_instance_nonce,
-		owner.receipt.loader_instance_nonce)) {
+		owner.receipt.loader_instance_nonce) ||
+#if !ENV_TEST
+	    !smm_get_dma_receipt_memory(&receipt_memory) ||
+	    !receipt_memory_unchanged(receipt_memory, &owner.memory_snapshot) ||
+	    !receipt_layout_matches_memory(&owner.receipt,
+		&owner.memory_snapshot) ||
+#endif
+	    !dependencies_valid(&owner.dependencies, runtime_view) ||
+	    !receipt_ranges_allowed(&owner.receipt) ||
+	    starbook_mtl_dma_smm_verify(&owner.receipt, (uintptr_t)&owner,
+		sizeof(owner), &owner.observer, runtime_view,
+		&owner.workspace) != CB_SUCCESS) {
 		if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) == RECEIPT_READY)
 			__atomic_store_n(&owner.state, RECEIPT_FAILED,
 				__ATOMIC_RELEASE);

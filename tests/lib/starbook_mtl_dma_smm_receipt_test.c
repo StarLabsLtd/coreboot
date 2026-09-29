@@ -38,6 +38,13 @@ static bool mutate_dependencies;
 static uint64_t rejected_base = UINT64_MAX;
 static struct starbook_mtl_dma_receipt_frame *pinned_frame = &frame;
 
+enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	assert(context && receipt);
+	return CB_SUCCESS;
+}
+
 bool starbook_mtl_dma_receipt_layout_matches_memory_test(
 	const struct starbook_mtl_dma_smm_receipt *receipt,
 	const struct smm_dma_receipt_memory *memory);
@@ -339,15 +346,23 @@ int main(int argc, char **argv)
 		unprotected = (const void *)(uintptr_t)ordinary_dram_range;
 	else if (!strcmp(argv[1], "dependency-toctou"))
 		mutate_dependencies = true;
-	else if (strcmp(argv[1], "valid") && strcmp(argv[1], "generation"))
+	else if (strcmp(argv[1], "valid") && strcmp(argv[1], "generation") &&
+		 strcmp(argv[1], "container-drift"))
 		return 2;
 
-	if (!strcmp(argv[1], "valid") || !strcmp(argv[1], "generation")) {
+	if (!strcmp(argv[1], "valid") || !strcmp(argv[1], "generation") ||
+	    !strcmp(argv[1], "container-drift")) {
 		assert(starbook_mtl_dma_receipt_provision_receive(&ops) == CB_SUCCESS);
 		assert(frame.state == STARBOOK_MTL_DMA_RECEIPT_FRAME_ACCEPTED);
 		assert(wire == STARBOOK_MTL_DMA_RECEIPT_WIRE_SUCCESS);
 		if (!strcmp(argv[1], "generation")) {
 			evidence.generation++;
+			assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);
+		} else if (!strcmp(argv[1], "container-drift")) {
+			binding.receipt = (void *)0x12345678;
+			allow_dram = false;
+			assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);
+			assert(binding.receipt == (void *)0x12345678);
 			assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);
 		} else {
 			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);

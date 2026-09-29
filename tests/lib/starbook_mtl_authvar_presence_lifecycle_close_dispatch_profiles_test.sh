@@ -26,6 +26,7 @@ config TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
 	select BOOTMEM_ALIGNED_RESERVATIONS
 	select BOOTMEM_ALIGNED_RESERVATION_RECEIPT
 	select ENABLE_EARLY_DMA_PROTECTION
+	select PAYLOAD_MM_CMS_CORE
 	select PAYLOAD_MM_AUTHVAR_CONTRACT
 	select PAYLOAD_MM_AUTHVAR_STORE_SCANNER
 	select PAYLOAD_MM_AUTHVAR_FTW_DECODER
@@ -61,6 +62,9 @@ config TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
 	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER
 	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
 	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
+	select STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
+	select STARLABS_STARBOOK_MTL_DMA_HANDOFF
+	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 
 config SMM_MODULE_STACK_SIZE
 	default 0x4000 if TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
@@ -85,22 +89,38 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" olddefconfig >/dev/null
 for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
+	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY \
+	STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION \
+	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY \
 	SMM_PRE_LOCK_DISPATCH SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE \
 	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
 done
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" STACK_AUDIT_CFLAGS=-fstack-usage -j4 \
-	"$build/smm/smm" >/dev/null
+	"$build/smm/smm" \
+	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o" \
+	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o" \
+	>/dev/null
 
 dispatcher="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
+authority="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.o"
+receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.o"
+verifier="$build/smm/soc/intel/common/block/vtd/vtd_translation_verify.o"
+sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o"
+platform="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o"
 handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
-test -s "$dispatcher" && test -s "$handler"
-file "$dispatcher" "$handler" | grep -c 'ELF 32-bit' | grep -q '^2$'
+test -s "$dispatcher" && test -s "$authority" && test -s "$receiver" &&
+	test -s "$verifier" && test -s "$sender" && test -s "$platform" &&
+	test -s "$handler"
+file "$dispatcher" "$authority" "$receiver" "$verifier" "$sender" \
+	"$platform" "$handler" | grep -c 'ELF 32-bit' | grep -q '^7$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
 nm -u "$dispatcher" | grep -q 'intel_smm_invocation_private_apmc_cause'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_binding_get'
+nm -u "$authority" | grep -q 'vtd_translation_verify'
 ! nm -u "$dispatcher" | grep -Eq '__atomic|__sync|libatomic'
 usage=$(find "$build/smm/mainboard/starlabs/starbook/variants/mtl" \
 	-name '*authvar_presence_lifecycle_close_dispatch*.su' -print -quit)
@@ -132,7 +152,10 @@ for module in vboot stm; do
 	rmdir "$baseline/3rdparty/$module"
 	ln -s "$root/3rdparty/$module" "$baseline/3rdparty/$module"
 done
-ln -s "$root/../../intel_fsp" "$temporary/intel_fsp"
+common_git=$(realpath "$(git -C "$root" rev-parse --git-common-dir)")
+intel_fsp=$(dirname "$(dirname "$common_git")")/intel_fsp
+test -d "$intel_fsp"
+ln -s "$intel_fsp" "$temporary/intel_fsp"
 
 build_off()
 {
@@ -148,8 +171,11 @@ build_off()
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
 		olddefconfig >/dev/null
 	if [ "$tree" = "$root" ]; then
-		! grep -q '^CONFIG_SMM_PRE_LOCK_DISPATCH=y$' "$config"
-		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH=y$' "$config"
+		if grep -q '^CONFIG_SMM_PRE_LOCK_DISPATCH=y$' "$config" ||
+		   grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH=y$' "$config"; then
+			echo 'default-off lifecycle-close profile unexpectedly enabled' >&2
+			exit 1
+		fi
 	fi
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
 		-j4 "$output/smm/smm" >/dev/null

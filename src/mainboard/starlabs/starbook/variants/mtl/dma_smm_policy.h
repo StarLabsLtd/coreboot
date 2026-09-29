@@ -56,6 +56,8 @@ struct starbook_mtl_dma_smm_observer {
 	enum cb_err (*read32)(void *context, uint64_t address, uint32_t *value);
 	enum cb_err (*sha256)(void *context, const void *data, size_t size,
 		uint8_t digest[STARBOOK_MTL_DMA_SMM_DIGEST_SIZE]);
+	enum cb_err (*verify_translation)(void *context,
+		const struct starbook_mtl_dma_smm_receipt *receipt);
 };
 
 struct starbook_mtl_dma_smm_workspace {
