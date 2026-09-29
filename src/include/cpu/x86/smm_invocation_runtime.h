@@ -19,6 +19,15 @@
  */
 struct smm_invocation_runtime_view;
 
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+struct smm_invocation_runtime_binding {
+	const struct smm_invocation_loader_composition *composition;
+	const struct smm_invocation_loader_instance *instance;
+	struct smm_invocation_evidence *evidence;
+	const struct smm_invocation_topology *topology;
+};
+#endif
+
 enum cb_err smm_invocation_runtime_view_get(
 	const struct smm_invocation_runtime_view **view);
 enum cb_err smm_invocation_runtime_cpu_count(
@@ -26,6 +35,11 @@ enum cb_err smm_invocation_runtime_cpu_count(
 enum cb_err smm_invocation_runtime_save_state_span(
 	const struct smm_invocation_runtime_view *view, uint32_t cpu,
 	struct smm_save_state_span *span);
+/* Returns only the checked loader-owned objects, never the raw SMM runtime. */
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+enum cb_err smm_invocation_runtime_binding_get(
+	struct smm_invocation_runtime_binding *binding);
+#endif
 #endif
 
 #endif

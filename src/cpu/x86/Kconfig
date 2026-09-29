@@ -473,6 +473,18 @@ config SMM_APMC_COMMAND_REGISTRY
 config SMM_APMC_COMPOSITION_ATTESTED
 	bool
 
+config SMM_INVOCATION_RUNTIME_BINDING
+	bool
+	default n
+	depends on SMM_INVOCATION_RUNTIME_VIEW
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	depends on SMM_INVOCATION_LOADER_INSTANCE
+	depends on SMM_INVOCATION_TOPOLOGY
+	help
+	  Expose a checked SMM-only binding to the exact loader-owned composition,
+	  instance, evidence and topology objects. The raw SMM runtime remains
+	  private and no invocation route is installed.
+
 # Build-time evidence selected only by the source family containing the case.
 config SMM_APMC_ROUTE_ACPI_CONTROL
 	bool
