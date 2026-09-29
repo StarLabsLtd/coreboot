@@ -460,6 +460,113 @@ static int domain_dram_resource(struct device *dev, struct resource *res)
 		res->base <= UINT64_MAX - res->size;
 }
 
+static bool assigned_domain_memory_resource(const struct device *dev,
+	const struct resource *res)
+{
+	return dev->enabled && dev->path.type == DEVICE_PATH_DOMAIN &&
+		(res->flags & (IORESOURCE_ASSIGNED | IORESOURCE_MEM)) ==
+			(IORESOURCE_ASSIGNED | IORESOURCE_MEM);
+}
+
+static bool usable_domain_dram_resource(const struct resource *res)
+{
+	return (res->flags & IORESOURCE_CACHEABLE) &&
+		!(res->flags & (IORESOURCE_RESERVE | IORESOURCE_SOFT_RESERVE));
+}
+
+static bool intervals_overlap(resource_t first_base, resource_t first_end,
+	resource_t second_base, resource_t second_end)
+{
+	return first_base < second_end && second_base < first_end;
+}
+
+bool bootmem_domain_dram_contains(uint64_t base, uint64_t size)
+{
+	const struct device *first_dev;
+	const struct resource *first_res;
+	resource_t cursor = base;
+	resource_t end;
+
+	if (!size || base > UINT64_MAX - size)
+		return false;
+	end = base + size;
+
+	for (first_dev = all_devices; first_dev; first_dev = first_dev->next) {
+		if (!first_dev->enabled || first_dev->path.type != DEVICE_PATH_DOMAIN)
+			continue;
+		for (first_res = first_dev->resource_list; first_res;
+		     first_res = first_res->next) {
+			const struct device *second_dev;
+			const struct resource *second_res;
+			resource_t first_end;
+
+			if (!assigned_domain_memory_resource(first_dev, first_res) ||
+			    !first_res->size)
+				continue;
+			if (first_res->base > UINT64_MAX - first_res->size)
+				return false;
+			first_end = first_res->base + first_res->size;
+			if (!intervals_overlap(base, end, first_res->base, first_end))
+				continue;
+			if (!usable_domain_dram_resource(first_res))
+				return false;
+
+			for (second_dev = first_dev; second_dev; second_dev = second_dev->next) {
+				if (!second_dev->enabled ||
+				    second_dev->path.type != DEVICE_PATH_DOMAIN)
+					continue;
+				for (second_res = second_dev == first_dev ? first_res->next :
+					     second_dev->resource_list;
+				     second_res; second_res = second_res->next) {
+					resource_t second_end;
+
+					if (!assigned_domain_memory_resource(second_dev, second_res) ||
+					    !second_res->size ||
+					    !usable_domain_dram_resource(second_res))
+						continue;
+					if (second_res->base > UINT64_MAX - second_res->size)
+						return false;
+					second_end = second_res->base + second_res->size;
+					if (intervals_overlap(base, end, second_res->base, second_end) &&
+					    intervals_overlap(first_res->base, first_end,
+						second_res->base, second_end))
+						return false;
+				}
+			}
+		}
+	}
+
+	while (cursor < end) {
+		const struct resource *cover = NULL;
+		resource_t cover_end = 0;
+
+		for (first_dev = all_devices; first_dev; first_dev = first_dev->next) {
+			if (!first_dev->enabled || first_dev->path.type != DEVICE_PATH_DOMAIN)
+				continue;
+			for (first_res = first_dev->resource_list; first_res;
+			     first_res = first_res->next) {
+				resource_t resource_end;
+
+				if (!assigned_domain_memory_resource(first_dev, first_res) ||
+				    !first_res->size || !usable_domain_dram_resource(first_res))
+					continue;
+				resource_end = first_res->base + first_res->size;
+				if (first_res->base > cursor || resource_end <= cursor)
+					continue;
+				if (cover)
+					return false;
+				cover = first_res;
+				cover_end = resource_end;
+			}
+		}
+		if (!cover)
+			return false;
+		cursor = MIN(cover_end, end);
+	}
+
+	return true;
+}
+
 #if ENV_TEST
 bool bootmem_domain_dram_resource_valid_for_test(struct device *dev,
 	struct resource *res)

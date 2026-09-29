@@ -155,6 +155,16 @@ bool bootmem_walk(range_action_t action, void *arg);
 
 #if CONFIG(BOOTMEM_DRAM_PROVENANCE)
 /**
+ * Check whether an exact interval is covered without gaps or ambiguity by
+ * assigned, cacheable DRAM resources of enabled memory domains.
+ *
+ * This reads the configured device resource tree directly. It may therefore
+ * be used after dev_configure() without initializing bootmem or publishing a
+ * memory table.
+ */
+bool bootmem_domain_dram_contains(uint64_t base, uint64_t size);
+
+/**
  * Walk exact intersections between authoritative domain DRAM resources and
  * the final bootmem map. Each callback range carries its final bootmem tag.
  * Reservations outside domain DRAM are never reported.

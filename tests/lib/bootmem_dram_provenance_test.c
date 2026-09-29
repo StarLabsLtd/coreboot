@@ -187,6 +187,85 @@ static bool verify_range(const struct range_entry *range, void *argument)
 	return !context->stop_after || context->count < context->stop_after;
 }
 
+static void test_direct_domain_dram_containment(void)
+{
+	struct resource resources[] = {
+		{
+			.base = 0x1000,
+			.size = 0x1000,
+			.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
+				IORESOURCE_ASSIGNED,
+			.next = &resources[1],
+		},
+		{
+			.base = 0x2000,
+			.size = 0x1000,
+			.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
+				IORESOURCE_ASSIGNED,
+		},
+	};
+	struct resource conflict = {
+		.base = 0x1800,
+		.size = 0x100,
+		.flags = IORESOURCE_MEM | IORESOURCE_RESERVE |
+			IORESOURCE_ASSIGNED,
+	};
+	struct device ignored = {
+		.enabled = 1,
+		.path.type = DEVICE_PATH_PCI,
+		.resource_list = &conflict,
+	};
+	struct device domain = {
+		.enabled = 1,
+		.path.type = DEVICE_PATH_DOMAIN,
+		.resource_list = resources,
+		.next = &ignored,
+	};
+	struct device *saved_all_devices = all_devices;
+
+	all_devices = &domain;
+	CHECK(bootmem_domain_dram_contains(0x1000, 0x2000));
+	CHECK(bootmem_domain_dram_contains(0x1800, 0x1000));
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0));
+	CHECK(!bootmem_domain_dram_contains(UINT64_MAX, 1));
+
+	resources[1].base = 0x2100;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
+	resources[1].base = 0x2000;
+	resources[0].flags &= ~IORESOURCE_ASSIGNED;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x1000));
+	resources[0].flags |= IORESOURCE_ASSIGNED;
+
+	domain.enabled = 0;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x1000));
+	domain.enabled = 1;
+	domain.path.type = DEVICE_PATH_PCI;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x1000));
+	domain.path.type = DEVICE_PATH_DOMAIN;
+
+	ignored.path.type = DEVICE_PATH_DOMAIN;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
+	ignored.path.type = DEVICE_PATH_PCI;
+	CHECK(bootmem_domain_dram_contains(0x1000, 0x2000));
+
+	ignored.path.type = DEVICE_PATH_DOMAIN;
+	ignored.enabled = 0;
+	CHECK(bootmem_domain_dram_contains(0x1000, 0x2000));
+	ignored.enabled = 1;
+	conflict.flags = IORESOURCE_MEM | IORESOURCE_SOFT_RESERVE |
+		IORESOURCE_ASSIGNED;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
+	conflict.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
+		IORESOURCE_ASSIGNED;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
+
+	conflict.base = UINT64_MAX;
+	conflict.size = 2;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
+
+	all_devices = saved_all_devices;
+}
+
 int main(int argc, char **argv)
 {
 	struct {
@@ -199,6 +278,8 @@ int main(int argc, char **argv)
 		.base = UINT64_MAX,
 		.size = 2,
 	};
+
+	test_direct_domain_dram_containment();
 
 	CHECK(!bootmem_domain_dram_resource_valid_for_test(&domain_device,
 		&domain_resources[6]));
