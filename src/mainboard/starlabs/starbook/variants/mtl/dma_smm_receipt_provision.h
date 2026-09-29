@@ -8,6 +8,9 @@
 
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <cpu/x86/smm_command.h>
+#if CONFIG(STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER)
+#include <boot/payload_mm_authvar_presence_lifecycle_close_transport.h>
+#endif
 
 #define STARBOOK_MTL_DMA_RECEIPT_FRAME_REVISION 1U
 #define STARBOOK_MTL_DMA_RECEIPT_FRAME_REQUEST 1U
@@ -41,6 +44,12 @@ struct starbook_mtl_dma_smm_binding {
 enum cb_err starbook_mtl_dma_receipt_provision_send(void);
 enum cb_err starbook_mtl_dma_receipt_candidate_build(
 	struct starbook_mtl_dma_smm_receipt *candidate);
+#if CONFIG(STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER)
+enum cb_err starbook_mtl_dma_receipt_carrier_lifecycle_acquire(
+	struct payload_mm_authvar_presence_lifecycle_close_install_frame **frame);
+enum cb_err starbook_mtl_dma_receipt_carrier_lifecycle_complete(void);
+void starbook_mtl_dma_receipt_carrier_lifecycle_abort(void);
+#endif
 
 #if ENV_SMM || ENV_TEST
 enum cb_err starbook_mtl_dma_receipt_policy(
@@ -49,6 +58,12 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	const struct smm_invocation_save_state_ops *expected_active_ops);
 enum cb_err starbook_mtl_dma_smm_binding_get(
 	struct starbook_mtl_dma_smm_binding *binding);
+#if CONFIG(STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER)
+bool starbook_mtl_lifecycle_install_communication_range_valid(void *context,
+	uint64_t base, uint64_t size);
+void *starbook_mtl_lifecycle_install_communication_context(void);
+size_t starbook_mtl_lifecycle_install_communication_context_size(void);
+#endif
 #endif
 
 _Static_assert(sizeof(struct starbook_mtl_dma_receipt_frame) == 6392,

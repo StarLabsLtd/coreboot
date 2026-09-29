@@ -96,6 +96,7 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION \
 	STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY \
 	STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY \
+	STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER \
 	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY \
 	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
@@ -106,7 +107,9 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	"$build/ramstage/cpu/x86/smm/smm_module_loader.o" \
 	"$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o" \
 	"$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_provider.o" \
+	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o" \
+	"$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_carrier.o" \
 	"$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.o" \
 	>/dev/null
 
@@ -117,18 +120,22 @@ requesters="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_requeste
 verifier="$build/smm/soc/intel/common/block/vtd/vtd_translation_verify.o"
 dma_receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.o"
 mailbox="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_mailbox.o"
+carrier="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_carrier.o"
 install_receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.o"
 loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
 backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o"
 provider="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_provider.o"
+dma_sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o"
 sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o"
 test -s "$dispatcher" && test -s "$handler" && test -s "$authority" && \
 	test -s "$requesters" && test -s "$verifier" && test -s "$dma_receiver" && \
-	test -s "$mailbox" && test -s "$loader" && test -s "$backing" && \
-	test -s "$provider" && test -s "$sender" && test -s "$install_receiver"
+	test -s "$mailbox" && test -s "$carrier" && test -s "$loader" && \
+	test -s "$backing" && test -s "$provider" && test -s "$dma_sender" && \
+	test -s "$sender" && test -s "$install_receiver"
 file "$dispatcher" "$handler" "$authority" "$requesters" "$verifier" \
-	"$dma_receiver" "$mailbox" "$install_receiver" "$loader" "$backing" \
-	"$provider" "$sender" | grep -c 'ELF 32-bit' | grep -q '^12$'
+	"$dma_receiver" "$mailbox" "$carrier" "$install_receiver" "$loader" \
+	"$backing" "$provider" "$dma_sender" "$sender" | grep -c 'ELF 32-bit' | \
+	grep -q '^14$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
@@ -141,6 +148,14 @@ nm --defined-only "$verifier" | grep -q 'vtd_translation_verify'
 nm --defined-only "$dma_receiver" | grep -q 'starbook_mtl_dma_smm_binding_get'
 nm --defined-only "$mailbox" | grep -q \
 	'starbook_mtl_lifecycle_mailbox_dma_protected'
+nm --defined-only "$carrier" | grep -q \
+	'starbook_mtl_lifecycle_install_communication_range_valid'
+nm --defined-only "$carrier" | grep -q \
+	'starbook_mtl_lifecycle_install_communication_context'
+nm --defined-only "$dma_sender" | grep -q \
+	'starbook_mtl_dma_receipt_carrier_lifecycle_acquire'
+nm --defined-only "$dma_sender" | grep -q \
+	'starbook_mtl_dma_receipt_carrier_lifecycle_complete'
 nm --defined-only "$install_receiver" | grep -q \
 	'starbook_mtl_authvar_presence_lifecycle_close_install_receive'
 nm --defined-only "$handler" | grep -q \
@@ -216,5 +231,54 @@ cmp "$temporary/current-off/cbfs/fallback/ramstage.elf" \
 	"$temporary/base-off/cbfs/fallback/ramstage.elf"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.o"
+
+# Enabling the existing install transport without the new carrier must retain
+# the PR282 sender exactly. This catches changes hidden by the full-off profile.
+legacy_profile="$temporary/legacy.Kconfig"
+sed '/select STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY/d' \
+	"$profile" > "$legacy_profile"
+carrier_baseline="$temporary/carrier-baseline-tree"
+mkdir -p "$carrier_baseline"
+git -C "$root" archive fc4ee4e7db0 | tar -x -C "$carrier_baseline"
+git -C "$root" ls-tree -r fc4ee4e7db0 | \
+	awk '$1 == "160000" { print $4 }' | while read -r module; do
+	rmdir "$carrier_baseline/$module" 2>/dev/null || true
+	mkdir -p "$(dirname "$carrier_baseline/$module")"
+	ln -s "$root/$module" "$carrier_baseline/$module"
+done
+
+build_carrier_off()
+{
+	tree=$1
+	name=$2
+	output="$temporary/$name"
+	config="$output/full.config"
+	install_sender="$output/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o"
+	dma_sender="$output/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o"
+	mkdir -p "$output"
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$legacy_profile" \
+		KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
+	"$tree/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN \
+		-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH -d LTO
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$legacy_profile" olddefconfig >/dev/null
+	grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL=y$' \
+		"$config"
+	! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY=y$' \
+		"$config"
+	! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER=y$' \
+		"$config"
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$legacy_profile" "$install_sender" "$dma_sender" >/dev/null
+	objcopy --strip-debug "$install_sender" "$temporary/$name.install-sender.o"
+	objcopy --strip-debug "$dma_sender" "$temporary/$name.dma-sender.o"
+}
+build_carrier_off "$root" carrier-current
+build_carrier_off "$carrier_baseline" carrier-baseline
+cmp "$temporary/carrier-current.install-sender.o" \
+	"$temporary/carrier-baseline.install-sender.o"
+cmp "$temporary/carrier-current.dma-sender.o" \
+	"$temporary/carrier-baseline.dma-sender.o"
 
 echo "StarBook MTL lifecycle-close dispatch profiles: PASS (frame $frame bytes)"

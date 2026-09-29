@@ -430,6 +430,7 @@ config STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY
 	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
 	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY
+	select STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER
 	help
 	  Build the dormant cold-boot authority for the exact lifecycle-close
 	  mailbox reservation. The SMM loader receives a one-shot verifier and the
@@ -439,6 +440,18 @@ config STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY
 	  primitive remains non-routable by itself and adds no claim/complete,
 	  communication-RAM, reset/S3 adapter, handler selection, board default or
 	  universal early-DMA claim.
+
+config STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER
+	bool
+	default n
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
+	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY
+	help
+	  Transfer the exact loader-pinned MTL DMA receipt frame once from DMA
+	  receipt provisioning to lifecycle-close installation, and build the
+	  protected SMM exact-range validator for its install-frame prefix. This
+	  primitive remains non-routable and adds no install, reset or S3 policy.
 
 config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	bool
