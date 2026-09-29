@@ -176,6 +176,11 @@ test-starbook-mtl-authvar-presence-route-composition:
 	tests/lib/starbook_mtl_authvar_presence_route_composition_test.sh
 	tests/lib/starbook_mtl_authvar_presence_route_composition_profiles_test.sh
 
+.PHONY: test-starbook-mtl-authvar-presence-lifecycle-close-install
+test-starbook-mtl-authvar-presence-lifecycle-close-install:
+	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_install_test.sh
+	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_install_profiles_test.sh
+
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:
 	tests/lib/payload_mm_authvar_smm_loader_failure_atomic_test.sh

@@ -370,6 +370,32 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER
 	  installer, SMI handler, APMC claim, DMA assertion, publication or board
 	  default. A later platform composition must supply those independently.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	depends on BOOTMEM_ALIGNED_RESERVATIONS
+	depends on SMM_APMC_COMMAND_REGISTRY
+	depends on SMM_INVOCATION_ENTRY
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
+	depends on SMM_INVOCATION_RUNTIME_VIEW
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_PROVIDER
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	select SMM_INVOCATION_RUNTIME_BINDING
+	help
+	  Build the dormant ramstage install sender and protected SMM lifecycle-close
+	  route owner. The receiver requires a separately protected MTL dependency
+	  contract for a pre-provisioned handler-armed save-state binding, exact
+	  shared-memory range validation, DMA and reset/S3 invocation ownership. This
+	  option adds no SMI handler, runtime selector, board default or hardware
+	  support claim.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

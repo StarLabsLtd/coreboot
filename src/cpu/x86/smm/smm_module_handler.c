@@ -308,6 +308,34 @@ enum cb_err smm_invocation_runtime_save_state_span(
 }
 #endif
 
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+enum cb_err smm_invocation_runtime_binding_get(
+	struct smm_invocation_runtime_binding *binding)
+{
+	const uintptr_t output = (uintptr_t)binding;
+	struct smm_invocation_runtime_binding value;
+	struct runtime_geometry_snapshot snapshot;
+
+	if (!runtime_output_valid(output, sizeof(*binding), _Alignof(*binding)))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot(output, sizeof(*binding), &snapshot))
+		return CB_ERR;
+	value = (struct smm_invocation_runtime_binding) {
+		.composition = (const void *)&smm_runtime.invocation_composition,
+		.instance = (const void *)&smm_runtime.invocation_loader_instance,
+		.evidence = (void *)&smm_runtime.invocation_evidence,
+		.topology = (const void *)&smm_runtime.invocation_topology,
+	};
+	RUNTIME_VIEW_TEST_HOOK(3);
+	if (!runtime_geometry_unchanged(&snapshot, output, sizeof(*binding)) ||
+	    smm_invocation_loader_composition_evidence(value.composition,
+		value.evidence) != value.evidence)
+		return CB_ERR;
+	*binding = value;
+	return CB_SUCCESS;
+}
+#endif
+
 static int smi_obtain_lock(void)
 {
 	u8 ret = SMI_LOCKED;

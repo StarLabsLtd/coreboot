@@ -13,6 +13,17 @@
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS \
 	0x434c4f5345414bfeULL
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REVISION 1U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REQUEST \
+	0x494e5354U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT \
+	0x52435054U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REJECTED \
+	0x52454a54U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_WIRE_REQUEST \
+	0x494e53feU
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_WIRE_SUCCESS \
+	0x434c4f53454b4ffeULL
 
 struct payload_mm_authvar_presence_lifecycle_close_install_descriptor {
 	uint32_t revision;
@@ -35,6 +46,15 @@ struct payload_mm_authvar_presence_lifecycle_close_install_receipt {
 	uint64_t route_nonce;
 	uint32_t installed;
 	uint32_t reserved;
+} __aligned(8);
+
+struct payload_mm_authvar_presence_lifecycle_close_install_frame {
+	uint32_t revision;
+	uint32_t size;
+	uint32_t state;
+	uint32_t reserved;
+	struct payload_mm_authvar_presence_lifecycle_close_install_descriptor request;
+	struct payload_mm_authvar_presence_lifecycle_close_install_receipt receipt;
 } __aligned(8);
 
 /* Error proves no installation mutation; ambiguity must fail-stop internally. */

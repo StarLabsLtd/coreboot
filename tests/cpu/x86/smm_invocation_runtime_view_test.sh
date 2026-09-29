@@ -11,7 +11,12 @@ extract_fragment()
 {
 	awk '
 		/^struct smm_invocation_runtime_view \{/ { copy = 1 }
-		copy && /^#endif$/ { exit }
+		copy && /^#endif$/ {
+			ends++
+			if (ends == 1) next
+			print
+			exit
+		}
 		copy { print }
 	' "$1" > "$2"
 	grep -q '^enum cb_err smm_invocation_runtime_view_get' "$2"
@@ -28,6 +33,7 @@ run_variant()
 		'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 		'#define CONFIG_MAX_CPUS 64' \
 		'#define CONFIG_SMM_INVOCATION_RUNTIME_VIEW 1' \
+		'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
 		'#define CONFIG_SMM_INVOCATION_LOADER_COMPOSITION 1' \
 		'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
 		'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
@@ -46,6 +52,7 @@ run_variant()
 		${CC:-cc} $flags -O$optimization $includes \
 			"$root/tests/cpu/x86/smm_invocation_runtime_view_test.c" \
 			"$root/src/cpu/x86/smm/save_state_geometry.c" \
+			"$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
 			-o "$temporary/runtime-view-$stm-O$optimization"
 		"$temporary/runtime-view-$stm-O$optimization"
 	done
@@ -53,6 +60,7 @@ run_variant()
 		-fno-omit-frame-pointer $includes \
 		"$root/tests/cpu/x86/smm_invocation_runtime_view_test.c" \
 		"$root/src/cpu/x86/smm/save_state_geometry.c" \
+		"$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
 		-o "$temporary/runtime-view-$stm-san"
 	ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 		"$temporary/runtime-view-$stm-san"
@@ -64,7 +72,8 @@ run_variant()
 		! nm -u "$temporary/runtime-view-$stm-i686.o" | grep -q '__atomic_'
 		for function in smm_invocation_runtime_view_get \
 			smm_invocation_runtime_cpu_count \
-			smm_invocation_runtime_save_state_span; do
+			smm_invocation_runtime_save_state_span \
+			smm_invocation_runtime_binding_get; do
 			frame=$(awk -F '\t' -v function="$function" \
 				'$1 ~ function "$" { print $2 }' \
 				"$temporary/runtime-view-$stm-i686.su")
@@ -91,6 +100,7 @@ kill_mutant()
 	if ${CC:-cc} $flags -O2 $includes \
 		"$root/tests/cpu/x86/smm_invocation_runtime_view_test.c" \
 		"$root/src/cpu/x86/smm/save_state_geometry.c" \
+		"$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
 		-o "$temporary/$name" >/dev/null 2>&1 && \
 		"$temporary/$name" >/dev/null 2>&1; then
 		printf '%s\n' "runtime-view mutant survived: $name" >&2

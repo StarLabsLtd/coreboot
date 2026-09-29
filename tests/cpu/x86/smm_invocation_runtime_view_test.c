@@ -51,6 +51,8 @@ void smm_invocation_runtime_view_test_hook(uint32_t point)
 		test_memory.runtime.smbase--;
 		test_memory.runtime.smm_size++;
 	}
+	if (hook_mode == 7U && point == 3U)
+		test_memory.runtime.invocation_composition.evidence_identity++;
 }
 
 #define smm_runtime test_memory.runtime
@@ -281,6 +283,24 @@ static void aliases_and_drift(void)
 	assert(smm_invocation_runtime_view_get(&view) == CB_ERR);
 }
 
+static void exact_runtime_binding(void)
+{
+	struct smm_invocation_runtime_binding binding;
+	struct smm_invocation_runtime_binding unchanged;
+
+	reset_runtime();
+	assert(smm_invocation_runtime_binding_get(&binding) == CB_SUCCESS);
+	assert(binding.composition == &test_memory.runtime.invocation_composition);
+	assert(binding.instance == &test_memory.runtime.invocation_loader_instance);
+	assert(binding.evidence == &test_memory.runtime.invocation_evidence);
+	assert(binding.topology == &test_memory.runtime.invocation_topology);
+	unchanged = binding;
+	hook_mode = 7U;
+	assert(smm_invocation_runtime_binding_get(&binding) == CB_ERR);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+	assert(smm_invocation_runtime_binding_get(NULL) == CB_ERR_ARG);
+}
+
 int main(void)
 {
 	exact_bounded_view();
@@ -289,5 +309,6 @@ int main(void)
 	invalid_geometry();
 	packed_native_alignment();
 	aliases_and_drift();
+	exact_runtime_binding();
 	return 0;
 }
