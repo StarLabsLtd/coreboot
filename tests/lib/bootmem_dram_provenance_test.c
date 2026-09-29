@@ -194,21 +194,21 @@ static void test_direct_domain_dram_containment(void)
 			.base = 0x1000,
 			.size = 0x1000,
 			.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
-				IORESOURCE_ASSIGNED,
+				IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
 			.next = &resources[1],
 		},
 		{
 			.base = 0x2000,
 			.size = 0x1000,
 			.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
-				IORESOURCE_ASSIGNED,
+				IORESOURCE_ASSIGNED | IORESOURCE_STORED,
 		},
 	};
 	struct resource conflict = {
 		.base = 0x1800,
 		.size = 0x100,
 		.flags = IORESOURCE_MEM | IORESOURCE_RESERVE |
-			IORESOURCE_ASSIGNED,
+			IORESOURCE_ASSIGNED | IORESOURCE_FIXED,
 	};
 	struct device ignored = {
 		.enabled = 1,
@@ -224,11 +224,22 @@ static void test_direct_domain_dram_containment(void)
 	struct device *saved_all_devices = all_devices;
 
 	all_devices = &domain;
+	CHECK(bootmem_domain_dram_contains(0x1000, 0x1000));
+	CHECK(bootmem_domain_dram_contains(0x2000, 0x1000));
 	CHECK(bootmem_domain_dram_contains(0x1000, 0x2000));
 	CHECK(bootmem_domain_dram_contains(0x1800, 0x1000));
 	CHECK(!bootmem_domain_dram_contains(0x1000, 0));
 	CHECK(!bootmem_domain_dram_contains(UINT64_MAX, 1));
 
+	resources[0].flags |= IORESOURCE_STORED;
+	CHECK(bootmem_domain_dram_contains(0x1000, 0x1000));
+	resources[0].flags &= ~IORESOURCE_STORED;
+	resources[0].flags &= ~IORESOURCE_FIXED;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x1000));
+	resources[0].flags |= IORESOURCE_FIXED;
+
+	resources[1].base = 0x1f00;
+	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
 	resources[1].base = 0x2100;
 	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
 	resources[1].base = 0x2000;
@@ -253,10 +264,10 @@ static void test_direct_domain_dram_containment(void)
 	CHECK(bootmem_domain_dram_contains(0x1000, 0x2000));
 	ignored.enabled = 1;
 	conflict.flags = IORESOURCE_MEM | IORESOURCE_SOFT_RESERVE |
-		IORESOURCE_ASSIGNED;
+		IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
 	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
 	conflict.flags = IORESOURCE_MEM | IORESOURCE_CACHEABLE |
-		IORESOURCE_ASSIGNED;
+		IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
 	CHECK(!bootmem_domain_dram_contains(0x1000, 0x2000));
 
 	conflict.base = UINT64_MAX;
