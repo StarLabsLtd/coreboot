@@ -50,6 +50,15 @@ config SMM_INVOCATION_ENTRY
 	  Compile the dormant pre-lock rendezvous instrumentation contract. This
 	  does not install a command, dispatch route or board selection.
 
+config SMM_PRE_LOCK_DISPATCH
+	bool
+	default n
+	depends on SMM_INVOCATION_ENTRY
+	help
+	  Inject exactly one platform-owned all-CPU dispatcher before the legacy
+	  SMM handler lock. Participant CPUs return directly; only a BSP-consumed
+	  result may assert EOS. No platform selects this capability by default.
+
 config SMM_INVOCATION_INTEL_ADAPTER
 	bool
 	default n
@@ -527,7 +536,8 @@ config SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE
 	default n
 	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
 	help
-	  Internal claim for the dormant authenticated-variable presence
-	  lifecycle-close transport. No platform selects it in this slice.
+	  Internal claim for the authenticated-variable presence lifecycle-close
+	  transport. Only an explicitly selected dormant dispatch composition may
+	  enable it; no board enables that composition by default.
 
 endif # ARCH_X86

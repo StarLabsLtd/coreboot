@@ -396,6 +396,21 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
 	  option adds no SMI handler, runtime selector, board default or hardware
 	  support claim.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
+	bool
+	default n
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
+	depends on SMM_INVOCATION_INTEL_CAUSE
+	select SMM_PRE_LOCK_DISPATCH
+	select SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE
+	help
+	  Build the dormant pre-lock all-CPU lifecycle-close dispatch composition.
+	  It classifies only the reserved 0xfe cause, admits the exact installation
+	  wire through an injected protected policy, and owns arm, select, dispatch,
+	  departure, retire and BSP EOS ordering. It injects the handler hook only
+	  when explicitly selected and adds no policy provider, DMA or reset/S3
+	  policy, board default or hardware support claim.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER

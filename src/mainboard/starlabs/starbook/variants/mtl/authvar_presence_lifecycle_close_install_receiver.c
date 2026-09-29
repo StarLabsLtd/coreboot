@@ -16,6 +16,7 @@ enum install_state { INSTALL_EMPTY, INSTALLING, INSTALLED, INSTALL_FAILED,
 struct install_owner {
 	uint32_t state;
 	uint32_t reserved;
+	const struct smm_invocation_save_state_ops *retained_ops;
 	struct payload_mm_authvar_presence_lifecycle_close_route route;
 } __aligned(8);
 
@@ -43,7 +44,8 @@ static bool frame_request_valid(
 
 enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
-		*dependencies)
+		*dependencies,
+	const struct smm_invocation_save_state_ops *expected_active_ops)
 {
 	struct payload_mm_authvar_presence_lifecycle_close_install_frame *frame = NULL;
 	struct payload_mm_authvar_presence_lifecycle_close_install_frame snapshot;
@@ -57,7 +59,8 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 	uint32_t expected = INSTALL_EMPTY;
 	enum cb_err status = CB_ERR;
 
-	if (!dependencies || !dependencies->internal || !dependencies->active_ops ||
+	if (!dependencies || !expected_active_ops || !dependencies->internal ||
+	    dependencies->active_ops != expected_active_ops ||
 	    !dependencies->protected_storage ||
 	    !dependencies->communication_range_valid ||
 	    dependencies->communication_range_context_size >
@@ -108,7 +111,7 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 		if (match == SMM_INVOCATION_MATCHED)
 			matched_cpu = cpu;
 	}
-	if (matched_cpu == UINT32_MAX ||
+	if (matched_cpu == UINT32_MAX || matched_cpu != topology.bsp_cpu ||
 	    ops->read_value(ops->context, matched_cpu, &wire) != CB_SUCCESS ||
 	    (uint32_t)wire !=
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_WIRE_REQUEST)
@@ -155,6 +158,7 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 		__atomic_store_n(&owner.state, INSTALL_POISONED, __ATOMIC_RELEASE);
 		platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop();
 	}
+	owner.retained_ops = ops;
 	__atomic_store_n(&owner.state, INSTALLED, __ATOMIC_RELEASE);
 	status = CB_SUCCESS;
 out:
@@ -174,4 +178,39 @@ out:
 	scrub(&binding, sizeof(binding));
 	scrub(&topology, sizeof(topology));
 	return status;
+}
+
+enum cb_err starbook_mtl_authvar_presence_lifecycle_close_installed_route(
+	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route *binding)
+{
+	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route value;
+	const uintptr_t output = (uintptr_t)binding;
+	const uintptr_t owner_base = (uintptr_t)&owner;
+
+	if (!binding || output % _Alignof(*binding) ||
+	    output > UINTPTR_MAX - (sizeof(*binding) - 1U) ||
+	    !owner.retained_ops ||
+	    (uintptr_t)owner.retained_ops % _Alignof(*owner.retained_ops) ||
+	    (uintptr_t)owner.retained_ops >
+		UINTPTR_MAX - (sizeof(*owner.retained_ops) - 1U) ||
+	    !(output + sizeof(*binding) <= owner_base ||
+	      owner_base + sizeof(owner) <= output) ||
+	    !((output + sizeof(*binding) <= (uintptr_t)owner.retained_ops) ||
+	      ((uintptr_t)owner.retained_ops + sizeof(*owner.retained_ops) <=
+	       output)) ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != INSTALLED ||
+	    !owner.route.protected_storage(owner.route.protected_storage_context,
+		&owner, sizeof(owner)) ||
+	    !owner.route.protected_storage(owner.route.protected_storage_context,
+		owner.retained_ops, sizeof(*owner.retained_ops)))
+		return CB_ERR;
+	value = (struct starbook_mtl_authvar_presence_lifecycle_close_installed_route) {
+		.route = &owner.route,
+		.retained_ops = owner.retained_ops,
+	};
+	if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != INSTALLED ||
+	    owner.retained_ops != value.retained_ops)
+		return CB_ERR;
+	*binding = value;
+	return CB_SUCCESS;
 }

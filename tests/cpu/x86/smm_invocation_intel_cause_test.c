@@ -166,6 +166,13 @@ static enum intel_smm_invocation_cause_result classify(
 		&instance, &evidence, &runtime_cpus, cause);
 }
 
+static enum intel_smm_invocation_cause_result classify_command(
+	uint8_t command, struct smm_invocation_entry_cause *cause)
+{
+	return intel_smm_invocation_private_apmc_cause(&composition, &topology,
+		&instance, &evidence, &runtime_cpus, command, cause);
+}
+
 static void expect_invalid(void)
 {
 	struct smm_invocation_entry_cause cause;
@@ -213,6 +220,28 @@ static void test_non_private_short_circuit(void)
 	assert(event_count == sizeof(expected) - 1U);
 	assert(!memcmp(events, expected, sizeof(expected) - 1U));
 	assert(smi_reads == 1U && apmc_reads == 1U && io_writes == 0U);
+}
+
+static void test_exact_command_selector(void)
+{
+	struct smm_invocation_entry_cause cause;
+
+	reset_fixture();
+	apmc[0] = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+	apmc[1] = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+	assert(classify_command(SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		&cause) == INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	assert(cause.command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+
+	reset_fixture();
+	assert(classify_command(SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		&cause) == INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE);
+
+	reset_fixture();
+	apmc[0] = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+	apmc[1] = SMM_APMC_AUTHVAR_PRESENCE;
+	assert(classify_command(SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		&cause) == INTEL_SMM_INVOCATION_CAUSE_PRIVATE_INVALID);
 }
 
 static void test_status_and_command_failures(void)
@@ -314,6 +343,7 @@ int main(void)
 {
 	test_valid_and_order();
 	test_non_private_short_circuit();
+	test_exact_command_selector();
 	test_status_and_command_failures();
 	test_protected_fact_failures();
 	test_invalid_inputs();

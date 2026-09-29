@@ -65,12 +65,12 @@ receiver="$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_li
 for mutation in first-range second-range; do
 	mutant="$temporary/$mutation.c"
 	case "$mutation" in
-	first-range)
-		sed '117,119c\
+first-range)
+		sed '120,122c\
 \tif (!frame_request_valid(frame))' \
 			"$receiver" > "$mutant" ;;
-	second-range)
-		sed '134,136c\
+second-range)
+		sed '137,139c\
 \tif (false) {' \
 			"$receiver" > "$mutant" ;;
 	esac

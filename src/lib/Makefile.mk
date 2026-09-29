@@ -81,6 +81,7 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) += \
 	payload_mm_authvar_presence_lifecycle_close_provider.c \
 	payload_mm_authvar_presence_lifecycle_close_sender.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) += \
+	payload_mm_authvar_presence_lifecycle_close_endpoint.c \
 	payload_mm_authvar_presence_lifecycle_close_route.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION) += \
 	payload_mm_authvar_presence_transaction.c \

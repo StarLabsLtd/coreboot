@@ -73,7 +73,7 @@ if objdump -d "$temporary/cause-i686.o" | grep -Eq 'call[l]?[[:space:]]+\*'; the
 	exit 1
 fi
 frame=$(awk -F '\t' \
-	'$1 ~ /intel_smm_invocation_private_cause$/ { print $2 }' \
+	'$1 ~ /intel_smm_invocation_private_apmc_cause$/ { print $2 }' \
 	"$temporary/cause-i686.su")
 test -n "$frame"
 test "$frame" -le 1024
@@ -136,7 +136,7 @@ sed 's/sample_a.smi_status != (1U << APM_STS_BIT)/!(sample_a.smi_status \& (1U <
 	"$production" > "$mutant_source"
 kill_mutant exclusive-status
 
-sed 's/if (sample_a.command != SMM_APMC_AUTHVAR_PRESENCE)/if (0)/' \
+sed 's/if (sample_a.command != expected_command)/if ((void)expected_command, 0)/' \
 	"$production" > "$mutant_source"
 kill_mutant sample-a-command
 

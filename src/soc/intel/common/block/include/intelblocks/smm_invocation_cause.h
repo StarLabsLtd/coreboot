@@ -25,5 +25,12 @@ enum intel_smm_invocation_cause_result intel_smm_invocation_private_cause(
 	const struct smm_invocation_evidence *evidence,
 	const uint32_t *runtime_cpus,
 	struct smm_invocation_entry_cause *cause);
+enum intel_smm_invocation_cause_result intel_smm_invocation_private_apmc_cause(
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	const uint32_t *runtime_cpus, uint8_t expected_command,
+	struct smm_invocation_entry_cause *cause);
 
 #endif

@@ -28,9 +28,25 @@ struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies {
 	size_t communication_range_context_size;
 };
 
+struct starbook_mtl_authvar_presence_lifecycle_close_installed_route {
+	struct payload_mm_authvar_presence_lifecycle_close_route *route;
+	const struct smm_invocation_save_state_ops *retained_ops;
+};
+
 enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
-		*dependencies);
+		*dependencies,
+	const struct smm_invocation_save_state_ops *expected_active_ops);
+/*
+ * Injected protected platform contract. The returned object and every object
+ * it names are revalidated by the receiver. The active_ops member must name
+ * the exact descriptor retained from the adapter provider before arm.
+ */
+enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
+	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
+		**dependencies);
+enum cb_err starbook_mtl_authvar_presence_lifecycle_close_installed_route(
+	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route *binding);
 #endif
 
 #endif
