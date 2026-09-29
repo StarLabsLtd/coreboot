@@ -34,13 +34,44 @@ static struct {
 	struct starbook_mtl_dma_receipt_frame snapshot;
 } owner __aligned(8);
 
-__weak enum cb_err starbook_mtl_dma_receipt_policy(
+#if !ENV_TEST
+static bool range_contains(const struct smm_dma_receipt_range *container,
+	uint64_t base, size_t size)
+{
+	return base && size && base >= container->base &&
+		base - container->base < container->size &&
+		size <= container->size - (base - container->base);
+}
+
+static bool ordinary_dram_range(void *context, uint64_t base, size_t size)
+{
+	const struct smm_dma_receipt_memory *memory = context;
+
+	return memory &&
+		(range_contains(&memory->frame, base, size) ||
+		 range_contains(&memory->dma, base, size) ||
+		 range_contains(&memory->mirror, base, size));
+}
+
+enum cb_err starbook_mtl_dma_receipt_policy(
 	const struct starbook_mtl_dma_receipt_dependencies **dependencies)
 {
-	if (dependencies)
-		*dependencies = NULL;
-	return CB_ERR;
+	static struct starbook_mtl_dma_receipt_dependencies policy;
+	const struct smm_dma_receipt_memory *memory;
+
+	if (!dependencies || !smm_get_dma_receipt_memory(&memory))
+		return CB_ERR;
+	policy = (struct starbook_mtl_dma_receipt_dependencies) {
+		.revision = STARBOOK_MTL_DMA_RECEIPT_DEPENDENCIES_REVISION,
+		.size = sizeof(policy),
+		.context = (void *)memory,
+		.context_size = sizeof(*memory),
+		.ordinary_dram_range = ordinary_dram_range,
+	};
+	*dependencies = &policy;
+	return CB_SUCCESS;
 }
+#endif
 
 static enum cb_err observer_read32(void *context, uint64_t address,
 	uint32_t *value)
@@ -133,6 +164,62 @@ static bool receipt_ranges_allowed(
 	return true;
 }
 
+static bool receipt_layout_matches_memory(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct smm_dma_receipt_memory *memory)
+{
+	const uint64_t page_size = 4096U;
+	uint64_t next;
+	uint64_t remaining_pages;
+
+	if (!receipt || !memory || memory->dma.size % page_size ||
+	    memory->mirror.size % page_size ||
+	    receipt->handoff.base != memory->dma.base ||
+	    receipt->handoff.size != page_size ||
+	    receipt->tables.base != memory->dma.base + page_size ||
+	    receipt->tables.size != memory->mirror.size ||
+	    receipt->table_mirror.base != memory->mirror.base ||
+	    receipt->table_mirror.size != memory->mirror.size ||
+	    memory->dma.size < page_size + receipt->tables.size ||
+	    (memory->dma.size - page_size - receipt->tables.size) % page_size)
+		return false;
+	next = receipt->tables.base + receipt->tables.size;
+	remaining_pages = (memory->dma.size - page_size -
+		receipt->tables.size) / page_size;
+	for (size_t index = 0; index < STARBOOK_MTL_DMA_SMM_ARENAS; index++) {
+		const uint64_t requesters = STARBOOK_MTL_DMA_SMM_ARENAS - index;
+		const uint64_t pages = remaining_pages / requesters;
+
+		if (!pages || receipt->arenas[index].base != next ||
+		    receipt->arenas[index].size != pages * page_size)
+			return false;
+		next += pages * page_size;
+		remaining_pages -= pages;
+	}
+	return !remaining_pages && next == memory->dma.base + memory->dma.size;
+}
+
+#if ENV_TEST
+bool starbook_mtl_dma_receipt_layout_matches_memory_test(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct smm_dma_receipt_memory *memory)
+{
+	return receipt_layout_matches_memory(receipt, memory);
+}
+#endif
+
+#if !ENV_TEST
+static bool receipt_memory_unchanged(
+	const struct smm_dma_receipt_memory *expected,
+	const struct smm_dma_receipt_memory *snapshot)
+{
+	const struct smm_dma_receipt_memory *current;
+
+	return smm_get_dma_receipt_memory(&current) && current == expected &&
+		!memcmp(current, snapshot, sizeof(*snapshot));
+}
+#endif
+
 enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	const struct smm_invocation_save_state_ops *expected_active_ops)
 {
@@ -142,6 +229,10 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	struct smm_invocation_loader_instance instance;
 	struct smm_invocation_topology topology;
 	const struct starbook_mtl_dma_receipt_dependencies *dependencies;
+#if !ENV_TEST
+	const struct smm_dma_receipt_memory *receipt_memory;
+	struct smm_dma_receipt_memory memory_snapshot;
+#endif
 	uint64_t wire = 0;
 	uintptr_t smram_base;
 	size_t smram_size;
@@ -167,6 +258,11 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	if (memcmp(dependencies, &owner.dependencies, sizeof(owner.dependencies)) ||
 	    !dependencies_valid(&owner.dependencies, runtime_view))
 		goto out;
+#if !ENV_TEST
+	if (!smm_get_dma_receipt_memory(&receipt_memory))
+		goto out;
+	memory_snapshot = *receipt_memory;
+#endif
 	for (uint32_t cpu = 0; cpu < topology.active_cpus; cpu++) {
 		const enum smm_invocation_match match =
 			expected_active_ops->match_apmc_write(
@@ -222,6 +318,10 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	smm_region(&smram_base, &smram_size);
 	if (!starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt,
 		smram_base, smram_size) ||
+#if !ENV_TEST
+	    !receipt_layout_matches_memory(&owner.receipt, &memory_snapshot) ||
+	    !receipt_memory_unchanged(receipt_memory, &memory_snapshot) ||
+#endif
 	    !receipt_ranges_allowed(&owner.receipt) ||
 	    memcmp(dependencies, &owner.dependencies,
 		sizeof(owner.dependencies)) ||
@@ -239,6 +339,10 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 	    !owner.dependencies.ordinary_dram_range(owner.dependencies.context,
 		frame_base, frame_size) ||
 	    !receipt_ranges_allowed(&owner.receipt) ||
+#if !ENV_TEST
+	    !receipt_memory_unchanged(receipt_memory, &memory_snapshot) ||
+	    !receipt_layout_matches_memory(&owner.receipt, &memory_snapshot) ||
+#endif
 	    memcmp(dependencies, &owner.dependencies,
 		sizeof(owner.dependencies)) ||
 	    !dependencies_valid(&owner.dependencies, runtime_view))

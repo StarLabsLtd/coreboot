@@ -16,6 +16,8 @@
 #define STARBOOK_MTL_DMA_SMM_DIGEST_SIZE 32U
 #define STARBOOK_MTL_DMA_SMM_GFX_QUIESCED 1U
 
+struct smm_invocation_runtime_view;
+
 struct starbook_mtl_dma_smm_range {
 	uint64_t base;
 	uint64_t size;

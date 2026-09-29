@@ -419,15 +419,40 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 	uintptr_t receipt_base;
 	size_t receipt_size;
+	struct smm_dma_receipt_memory receipt_memory;
 
 	if (!platform_smm_dma_receipt_frame(&receipt_base, &receipt_size) ||
+	    !platform_smm_dma_receipt_memory(&receipt_memory) ||
 	    !receipt_base || !receipt_size || receipt_base > UINT32_MAX ||
 	    receipt_size - 1U > UINT32_MAX - receipt_base ||
+	    receipt_memory.revision != SMM_DMA_RECEIPT_MEMORY_REVISION ||
+	    receipt_memory.size != sizeof(receipt_memory) ||
+	    receipt_memory.frame.base != receipt_base ||
+	    receipt_memory.frame.size != receipt_size ||
+	    !receipt_memory.dma.base || !receipt_memory.dma.size ||
+	    receipt_memory.dma.base > UINT32_MAX ||
+	    receipt_memory.dma.size - 1U >
+		UINT32_MAX - receipt_memory.dma.base ||
+	    !receipt_memory.mirror.base || !receipt_memory.mirror.size ||
+	    receipt_memory.mirror.base > UINT32_MAX ||
+	    receipt_memory.mirror.size - 1U >
+		UINT32_MAX - receipt_memory.mirror.base ||
 	    !tseg_size || tseg_base > UINTPTR_MAX - (tseg_size - 1U) ||
-	    spans_overlap(receipt_base, receipt_size, tseg_base, tseg_size))
+	    spans_overlap(receipt_base, receipt_size, tseg_base, tseg_size) ||
+	    spans_overlap(receipt_memory.dma.base, receipt_memory.dma.size,
+		tseg_base, tseg_size) ||
+	    spans_overlap(receipt_memory.mirror.base, receipt_memory.mirror.size,
+		tseg_base, tseg_size) ||
+	    spans_overlap(receipt_memory.frame.base, receipt_memory.frame.size,
+		receipt_memory.dma.base, receipt_memory.dma.size) ||
+	    spans_overlap(receipt_memory.frame.base, receipt_memory.frame.size,
+		receipt_memory.mirror.base, receipt_memory.mirror.size) ||
+	    spans_overlap(receipt_memory.dma.base, receipt_memory.dma.size,
+		receipt_memory.mirror.base, receipt_memory.mirror.size))
 		die("SMM: invalid MTL DMA receipt frame\n");
 	mod_params->dma_receipt_frame_base = receipt_base;
 	mod_params->dma_receipt_frame_size = receipt_size;
+	mod_params->dma_receipt_memory = receipt_memory;
 #endif
 	const struct cbmem_entry *cbmemc;
 	if (CONFIG(CONSOLE_CBMEM) && (cbmemc = cbmem_entry_find(CBMEM_ID_CONSOLE))) {

@@ -101,6 +101,23 @@ struct smm_pci_resource_info {
 	struct resource resources[SMM_PCI_RESOURCE_STORE_NUM_RESOURCES];
 };
 
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#define SMM_DMA_RECEIPT_MEMORY_REVISION 1U
+
+struct smm_dma_receipt_range {
+	uint64_t base;
+	uint64_t size;
+};
+
+struct smm_dma_receipt_memory {
+	uint32_t revision;
+	uint32_t size;
+	struct smm_dma_receipt_range frame;
+	struct smm_dma_receipt_range dma;
+	struct smm_dma_receipt_range mirror;
+};
+#endif
+
 struct smm_runtime {
 	u32 smbase;
 	u32 smm_size;
@@ -157,6 +174,7 @@ struct smm_runtime {
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 	uintptr_t dma_receipt_frame_base;
 	size_t dma_receipt_frame_size;
+	struct smm_dma_receipt_memory dma_receipt_memory __aligned(8);
 #endif
 } __packed;
 
@@ -201,6 +219,8 @@ _Static_assert(offsetof(struct smm_runtime, dma_receipt_frame_base) %
 	_Alignof(uintptr_t) == 0, "DMA receipt frame base is not aligned");
 _Static_assert(offsetof(struct smm_runtime, dma_receipt_frame_size) %
 	_Alignof(size_t) == 0, "DMA receipt frame size is not aligned");
+_Static_assert(offsetof(struct smm_runtime, dma_receipt_memory) % 8 == 0,
+	"DMA receipt memory authority is not aligned");
 #endif
 
 struct smm_module_params {
@@ -370,6 +390,8 @@ void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size);
 bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size);
+bool platform_smm_dma_receipt_memory(struct smm_dma_receipt_memory *memory);
+bool smm_get_dma_receipt_memory(const struct smm_dma_receipt_memory **memory);
 #endif
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
 struct capsule_broker_buffer_reservation;

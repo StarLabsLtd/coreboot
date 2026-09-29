@@ -7,6 +7,7 @@
 #include <commonlib/helpers.h>
 #include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
+#include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <device/mmio.h>
 #include <intelblocks/vtd.h>
@@ -33,6 +34,68 @@
 #define VTD_ROOT_ADDRESS 0x20U
 #define VTD_ROOT_POINTER_SET (1U << 30)
 #define VTD_TRANSLATION_ENABLE (1U << 31)
+
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+static bool receipt_range_valid(const struct smm_dma_receipt_range *range)
+{
+	return range->base && range->size && range->base <= UINT32_MAX &&
+		range->size - 1U <= UINT32_MAX - range->base;
+}
+
+static bool receipt_ranges_overlap(const struct smm_dma_receipt_range *first,
+	const struct smm_dma_receipt_range *second)
+{
+	return first->base <= second->base ?
+		second->base - first->base < first->size :
+		first->base - second->base < second->size;
+}
+
+bool platform_smm_dma_receipt_memory(struct smm_dma_receipt_memory *memory)
+{
+	const uintptr_t vtd_base = soc_vtd_iop_base();
+	const struct cbmem_entry *mirror_entry;
+	uintptr_t frame_base;
+	size_t frame_size;
+	size_t dma_size;
+	size_t mirror_size;
+	void *dma = vtd_get_dma_buffer(&dma_size);
+	void *mirror;
+	struct smm_dma_receipt_memory value;
+
+	if (!memory || !platform_smm_dma_receipt_frame(&frame_base, &frame_size) ||
+	    !dma || !dma_size || !vtd_base ||
+	    (vtd_read32(vtd_base, PMEN_REG) & (PMEN_EPM | PMEN_PRS)) !=
+		(PMEN_EPM | PMEN_PRS) || vtd_read32(vtd_base, PLMBASE_REG) ||
+	    vtd_read32(vtd_base, PLMLIMIT_REG) == UINT32_MAX ||
+	    (uint64_t)vtd_read32(vtd_base, PLMLIMIT_REG) + 1U !=
+		(uintptr_t)dma ||
+	    starbook_mtl_dma_live_table_mirror_size((uintptr_t)dma, dma_size,
+		&mirror_size))
+		return false;
+	mirror = cbmem_add(CBMEM_ID_MTL_DMA_MIRROR, mirror_size);
+	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
+	value = (struct smm_dma_receipt_memory) {
+		.revision = SMM_DMA_RECEIPT_MEMORY_REVISION,
+		.size = sizeof(value),
+		.frame = { frame_base, frame_size },
+		.dma = { (uintptr_t)dma, dma_size },
+		.mirror = { (uintptr_t)mirror, mirror_size },
+	};
+	if (!mirror || !mirror_entry || cbmem_entry_start(mirror_entry) != mirror ||
+	    cbmem_entry_size(mirror_entry) != mirror_size ||
+	    (uintptr_t)mirror > (uintptr_t)-1 - mirror_size ||
+	    (uintptr_t)mirror + mirror_size > (uintptr_t)dma ||
+	    !receipt_range_valid(&value.frame) ||
+	    !receipt_range_valid(&value.dma) ||
+	    !receipt_range_valid(&value.mirror) ||
+	    receipt_ranges_overlap(&value.frame, &value.dma) ||
+	    receipt_ranges_overlap(&value.frame, &value.mirror) ||
+	    receipt_ranges_overlap(&value.dma, &value.mirror))
+		return false;
+	*memory = value;
+	return true;
+}
+#endif
 
 _Static_assert(STARBOOK_MTL_DMA_LIVE_MAX_FUNCTIONS ==
 	LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES,

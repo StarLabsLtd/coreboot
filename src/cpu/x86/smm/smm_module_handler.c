@@ -431,6 +431,41 @@ bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size)
 	return frame_base == smm_runtime.dma_receipt_frame_base &&
 		frame_size == smm_runtime.dma_receipt_frame_size;
 }
+
+static bool receipt_range_valid(const struct smm_dma_receipt_range *range)
+{
+	return range->base && range->size && range->base <= UINT32_MAX &&
+		range->size - 1U <= UINT32_MAX - range->base;
+}
+
+bool smm_get_dma_receipt_memory(const struct smm_dma_receipt_memory **memory)
+{
+	const struct smm_dma_receipt_memory *value =
+		(const void *)&smm_runtime.dma_receipt_memory;
+
+	if (!memory || value->revision != SMM_DMA_RECEIPT_MEMORY_REVISION ||
+	    value->size != sizeof(*value) || !receipt_range_valid(&value->frame) ||
+	    !receipt_range_valid(&value->dma) ||
+	    !receipt_range_valid(&value->mirror) ||
+	    value->frame.base != smm_runtime.dma_receipt_frame_base ||
+	    value->frame.size != smm_runtime.dma_receipt_frame_size ||
+	    spans_overlap(value->frame.base, value->frame.size,
+		value->dma.base, value->dma.size) ||
+	    spans_overlap(value->frame.base, value->frame.size,
+		value->mirror.base, value->mirror.size) ||
+	    spans_overlap(value->dma.base, value->dma.size,
+		value->mirror.base, value->mirror.size) ||
+	    spans_overlap(value->frame.base, value->frame.size,
+		smm_runtime.smbase, smm_runtime.smm_size) ||
+	    spans_overlap(value->dma.base, value->dma.size,
+		smm_runtime.smbase, smm_runtime.smm_size) ||
+	    spans_overlap(value->mirror.base, value->mirror.size,
+		smm_runtime.smbase, smm_runtime.smm_size))
+		return false;
+	*memory = value;
+	return value->revision == SMM_DMA_RECEIPT_MEMORY_REVISION &&
+		value->size == sizeof(*value);
+}
 #endif
 
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)

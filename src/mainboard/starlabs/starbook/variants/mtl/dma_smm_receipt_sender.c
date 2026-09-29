@@ -3,9 +3,9 @@
 #include "dma_smm_receipt_provision.h"
 
 #include <arch/io.h>
-#include <bootmem.h>
 #include <cpu/x86/smm.h>
 #include <string.h>
+#include <symbols.h>
 
 #if !ENV_RAMSTAGE && !ENV_TEST
 #error "MTL DMA receipt sender is ramstage-only"
@@ -20,10 +20,18 @@ static struct {
 
 #if ENV_TEST
 uintptr_t starbook_mtl_dma_receipt_frame_address_test(uintptr_t address);
+bool starbook_mtl_dma_receipt_frame_in_program_test(uintptr_t address,
+	size_t size);
 #define RECEIPT_FRAME_ADDRESS \
 	starbook_mtl_dma_receipt_frame_address_test((uintptr_t)&frame)
+#define RECEIPT_FRAME_IN_PROGRAM(address, size) \
+	starbook_mtl_dma_receipt_frame_in_program_test(address, size)
 #else
 #define RECEIPT_FRAME_ADDRESS ((uintptr_t)&frame)
+#define RECEIPT_FRAME_IN_PROGRAM(address, size) \
+	((uintptr_t)_program <= (uintptr_t)_eprogram && \
+	 (address) >= (uintptr_t)_program && (address) <= (uintptr_t)_eprogram && \
+	 (size) <= (uintptr_t)_eprogram - (address))
 #endif
 
 bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size)
@@ -32,8 +40,7 @@ bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size)
 
 	if (!base || !size || frame_address != (uintptr_t)&frame ||
 	    frame_address > UINT32_MAX - (sizeof(frame) - 1U) ||
-	    !bootmem_region_targets_type(frame_address, sizeof(frame),
-		BM_MEM_RAMSTAGE))
+	    !RECEIPT_FRAME_IN_PROGRAM(frame_address, sizeof(frame)))
 		return false;
 	*base = frame_address;
 	*size = sizeof(frame);
