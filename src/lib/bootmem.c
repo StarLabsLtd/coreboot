@@ -460,12 +460,13 @@ static int domain_dram_resource(struct device *dev, struct resource *res)
 		res->base <= UINT64_MAX - res->size;
 }
 
-static bool assigned_domain_memory_resource(const struct device *dev,
+static bool authoritative_domain_memory_resource(const struct device *dev,
 	const struct resource *res)
 {
 	return dev->enabled && dev->path.type == DEVICE_PATH_DOMAIN &&
 		(res->flags & (IORESOURCE_ASSIGNED | IORESOURCE_MEM)) ==
-			(IORESOURCE_ASSIGNED | IORESOURCE_MEM);
+			(IORESOURCE_ASSIGNED | IORESOURCE_MEM) &&
+		(res->flags & (IORESOURCE_FIXED | IORESOURCE_STORED));
 }
 
 static bool usable_domain_dram_resource(const struct resource *res)
@@ -500,7 +501,7 @@ bool bootmem_domain_dram_contains(uint64_t base, uint64_t size)
 			const struct resource *second_res;
 			resource_t first_end;
 
-			if (!assigned_domain_memory_resource(first_dev, first_res) ||
+			if (!authoritative_domain_memory_resource(first_dev, first_res) ||
 			    !first_res->size)
 				continue;
 			if (first_res->base > UINT64_MAX - first_res->size)
@@ -520,7 +521,7 @@ bool bootmem_domain_dram_contains(uint64_t base, uint64_t size)
 				     second_res; second_res = second_res->next) {
 					resource_t second_end;
 
-					if (!assigned_domain_memory_resource(second_dev, second_res) ||
+					if (!authoritative_domain_memory_resource(second_dev, second_res) ||
 					    !second_res->size ||
 					    !usable_domain_dram_resource(second_res))
 						continue;
@@ -547,7 +548,7 @@ bool bootmem_domain_dram_contains(uint64_t base, uint64_t size)
 			     first_res = first_res->next) {
 				resource_t resource_end;
 
-				if (!assigned_domain_memory_resource(first_dev, first_res) ||
+				if (!authoritative_domain_memory_resource(first_dev, first_res) ||
 				    !first_res->size || !usable_domain_dram_resource(first_res))
 					continue;
 				resource_end = first_res->base + first_res->size;
