@@ -68,6 +68,15 @@ static bool spans_overlap(uintptr_t first, size_t first_size,
 }
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority *
+	smm_get_payload_mm_authvar_presence_lifecycle_close_mailbox_authority(void)
+{
+	return (struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority *)
+		&smm_runtime.authvar_lifecycle_mailbox;
+}
+#endif
+
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
 #if defined(__TEST__)
 void smm_invocation_runtime_view_test_hook(uint32_t point);

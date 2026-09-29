@@ -4,6 +4,7 @@
 #define MAINBOARD_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION_H
 
 #include "dma_smm_policy.h"
+#include "dma_smm_requester_authority.h"
 
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <cpu/x86/smm_command.h>
@@ -34,6 +35,7 @@ struct starbook_mtl_dma_receipt_frame {
 
 struct starbook_mtl_dma_smm_binding {
 	const struct starbook_mtl_dma_smm_receipt *receipt;
+	struct starbook_mtl_dma_requester_binding current;
 };
 
 enum cb_err starbook_mtl_dma_receipt_provision_send(void);

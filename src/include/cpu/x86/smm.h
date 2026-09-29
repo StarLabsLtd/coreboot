@@ -25,6 +25,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 #include <boot/payload_mm_authvar_mor_private_smi.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_lifecycle_close_mailbox.h>
+#endif
 
 #define SMM_DEFAULT_BASE 0x30000
 #define SMM_DEFAULT_SIZE 0x10000
@@ -161,6 +164,10 @@ struct smm_runtime {
 	struct payload_mm_authvar_mor_private_smi_slot authvar_mor_channel
 		__aligned(8);
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority
+		authvar_lifecycle_mailbox __aligned(8);
+#endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	struct smm_invocation_topology invocation_topology __aligned(8);
 #endif
@@ -191,6 +198,12 @@ _Static_assert(offsetof(struct smm_runtime, save_state_top) %
 _Static_assert(offsetof(struct smm_runtime, authvar_mor_channel) %
 	_Alignof(struct payload_mm_authvar_mor_private_smi_slot) == 0,
 	"MOR private SMI slot is not aligned in SMM parameters");
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+_Static_assert(offsetof(struct smm_runtime, authvar_lifecycle_mailbox) %
+	_Alignof(struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority)
+	== 0, "lifecycle mailbox authority is not aligned in SMM parameters");
 #endif
 
 #if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
@@ -281,6 +294,10 @@ void *smm_get_save_state(int cpu);
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 struct payload_mm_authvar_mor_private_smi_slot *
 	smm_get_payload_mm_authvar_mor_private_smi_slot(void);
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority *
+	smm_get_payload_mm_authvar_presence_lifecycle_close_mailbox_authority(void);
 #endif
 
 /* Returns true if the region overlaps with the SMM */

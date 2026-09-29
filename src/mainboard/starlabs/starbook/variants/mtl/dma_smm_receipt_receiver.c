@@ -465,6 +465,7 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 		return CB_ERR;
 	}
 	value.receipt = &owner.receipt;
+	value.current = owner.authority.binding;
 	if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_REPROVING) {
 		__atomic_store_n(&owner.state, RECEIPT_FAILED, __ATOMIC_RELEASE);
 		return CB_ERR;

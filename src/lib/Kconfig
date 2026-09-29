@@ -558,6 +558,21 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
 	  binds the exact protected route to the endpoint backing before publication.
 	  This installs no board selection, handler callsite or lifecycle caller.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	depends on BOOTMEM_ALIGNED_RESERVATIONS
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_INVOCATION_RUNTIME_VIEW
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	help
+	  Build the dormant cold-boot authenticated-frame ABI and protected SMM
+	  runtime slot for an exact lifecycle-close mailbox reservation. The weak
+	  install-policy hook remains fail-closed: this primitive is non-routable by
+	  itself and adds no route, handler selection or reset/S3 policy.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n
@@ -664,7 +679,8 @@ config BOOTMEM_ALIGNED_RESERVATION_RECEIPT
 	depends on BOOTMEM_ALIGNED_RESERVATIONS
 	help
 	  Build a dormant one-shot authenticated receipt for one exact final
-	  BM_MEM_TABLE aligned reservation. It uses a fixed HMAC-SHA-256 and the
+	  BM_MEM_TABLE or BM_MEM_RESERVED aligned reservation. It uses a fixed
+	  HMAC-SHA-256 and the
 	  caller provisions equal boot-local signer and protected verifier authorities.
 	  This adds no SMI trigger, endpoint, table publication or support claim.
 

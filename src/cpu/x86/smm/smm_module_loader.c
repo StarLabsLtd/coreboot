@@ -29,6 +29,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 #include <boot/payload_mm_authvar_mor_private_smi.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_lifecycle_close_mailbox.h>
+#endif
 #include <boot/capsule_broker.h>
 #include <boot/capsule_broker_buffers.h>
 
@@ -71,7 +74,8 @@ struct cpu_smm_info {
 struct cpu_smm_info cpus[CONFIG_MAX_CPUS] = { 0 };
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) || \
-	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
 static __noinline void scrub_authvar_loader(void *buffer, size_t size)
 {
 	volatile uint8_t *bytes = buffer;
@@ -721,6 +725,10 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	const bool authvar_channel_required =
 		platform_payload_mm_authvar_mor_private_smi_required();
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct payload_mm_authvar_presence_lifecycle_close_mailbox_authority
+		*published_lifecycle_mailbox = NULL;
+#endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	struct smm_invocation_topology *published_topology = NULL;
 #endif
@@ -839,6 +847,17 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	published_channel = &smihandler_params->authvar_mor_channel;
 	scrub_authvar_loader(published_channel, sizeof(*published_channel));
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	published_lifecycle_mailbox =
+		&smihandler_params->authvar_lifecycle_mailbox;
+	if ((uintptr_t)published_lifecycle_mailbox < handler_base ||
+	    sizeof(*published_lifecycle_mailbox) > handler_size ||
+	    (uintptr_t)published_lifecycle_mailbox - handler_base >
+		handler_size - sizeof(*published_lifecycle_mailbox))
+		goto fail;
+	scrub_authvar_loader(published_lifecycle_mailbox,
+		sizeof(*published_lifecycle_mailbox));
+#endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	published_topology = &smihandler_params->invocation_topology;
 	smm_invocation_topology_scrub(published_topology);
@@ -884,6 +903,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	    CB_SUCCESS)
 		goto fail;
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	if (payload_mm_authvar_presence_lifecycle_close_mailbox_loader_provision(
+		published_lifecycle_mailbox, published_instance,
+		published_evidence, published_composition) != CB_SUCCESS)
+		goto fail;
+#endif
 	return 0;
 
 fail:
@@ -900,6 +925,11 @@ fail:
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 	if (published_channel)
 		scrub_authvar_loader(published_channel, sizeof(*published_channel));
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	if (published_lifecycle_mailbox)
+		payload_mm_authvar_presence_lifecycle_close_mailbox_loader_abort(
+			published_lifecycle_mailbox);
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 	if (authvar_arena_started)

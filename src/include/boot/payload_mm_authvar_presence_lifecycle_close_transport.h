@@ -5,6 +5,7 @@
 
 #include <boot/payload_mm_authvar_presence_lifecycle_close_endpoint.h>
 #include <boot/payload_mm_authvar_presence_producer.h>
+#include <bootmem_reservation_receipt.h>
 #include <commonlib/bsd/cb_err.h>
 #include <stdint.h>
 
@@ -13,7 +14,11 @@
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS \
 	0x434c4f5345414bfeULL
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_REVISION 1U
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REVISION 2U
+#else
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REVISION 1U
+#endif
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REQUEST \
 	0x494e5354U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT \
@@ -54,6 +59,9 @@ struct payload_mm_authvar_presence_lifecycle_close_install_frame {
 	uint32_t state;
 	uint32_t reserved;
 	struct payload_mm_authvar_presence_lifecycle_close_install_descriptor request;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct bootmem_reservation_receipt backing_receipt;
+#endif
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt receipt;
 } __aligned(8);
 
@@ -61,6 +69,9 @@ struct payload_mm_authvar_presence_lifecycle_close_install_frame {
 enum cb_err platform_payload_mm_authvar_presence_lifecycle_close_route_install(
 	const struct payload_mm_authvar_presence_lifecycle_close_install_descriptor
 		*descriptor,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct bootmem_reservation_receipt *backing_receipt,
+#endif
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt *receipt);
 void __noreturn
 platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop(void);

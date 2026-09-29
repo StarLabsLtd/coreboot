@@ -7,6 +7,9 @@
 #include <string.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_mailbox.h"
+#endif
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
@@ -28,6 +31,51 @@ static uint32_t expected_frame_address;
 static unsigned int range_validations;
 enum provider_state { PROVIDER_EMPTY, PROVIDER_READY, PROVIDER_ACTIVE };
 static enum provider_state provider_state;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+static unsigned int mailbox_verifications;
+static unsigned int mailbox_poisons;
+static bool reject_mailbox;
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+static bool zero(const void *object, size_t size)
+{
+	const uint8_t *bytes = object;
+	uint8_t value = 0;
+
+	while (size--)
+		value |= *bytes++;
+	return !value;
+}
+
+enum cb_err starbook_mtl_lifecycle_mailbox_verify_consume(
+	struct bootmem_reservation_receipt *backing_receipt, uint64_t backing_base,
+	size_t backing_size, const void *frame, size_t frame_size,
+	const struct smm_invocation_save_state_ops *active_ops,
+	struct starbook_mtl_lifecycle_mailbox_binding *binding)
+{
+	assert(backing_receipt && backing_receipt->revision ==
+		BOOTMEM_RESERVATION_RECEIPT_REVISION);
+	assert(backing_receipt != &observed_frame->backing_receipt);
+	assert(backing_base == 0x400000 && backing_size == 0x1000);
+	assert(frame == observed_frame && frame_size == sizeof(*observed_frame));
+	assert(active_ops == &ops);
+	mailbox_verifications++;
+	if (reject_mailbox)
+		return CB_ERR;
+	memset(backing_receipt, 0, sizeof(*backing_receipt));
+	*binding = (struct starbook_mtl_lifecycle_mailbox_binding) {
+		.base = backing_base,
+		.size = backing_size,
+	};
+	return CB_SUCCESS;
+}
+
+void starbook_mtl_lifecycle_mailbox_poison(void)
+{
+	mailbox_poisons++;
+}
+#endif
 
 static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	uint8_t command)
@@ -175,6 +223,13 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_route_provision(
 	assert(actual_ops == &ops && actual_internal == &internal);
 	assert(predecessor_generation == evidence.closed_generation);
 	assert(actual_proof == protected_storage && !proof_context);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	assert(zero(&observed_frame->backing_receipt,
+		sizeof(observed_frame->backing_receipt)));
+#endif
+#if TEST_ROUTE_FAILURE
+	return CB_ERR;
+#endif
 	route->protected_storage = actual_proof;
 	route->protected_storage_context = proof_context;
 	*receipt = (struct payload_mm_authvar_presence_lifecycle_close_install_receipt) {
@@ -220,7 +275,17 @@ uint64_t starbook_mtl_authvar_presence_lifecycle_close_install_trigger_test(
 		&dependencies, retained_ops);
 	assert(intel_smm_invocation_adapter_provider_retire(generation) ==
 		SMM_INVOCATION_TRY_SUCCESS);
+#if TEST_ROUTE_FAILURE
+	assert(status == CB_ERR);
+#elif TEST_VERIFY_FAILURE
+	assert(status == CB_ERR);
+	assert(frame->state ==
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REJECTED);
+	assert(frame->backing_receipt.revision ==
+		BOOTMEM_RESERVATION_RECEIPT_REVISION);
+#else
 	assert(status == CB_SUCCESS);
+#endif
 	return response_wire;
 }
 
@@ -230,20 +295,65 @@ int main(void)
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_REVISION,
 		.size = sizeof(request),
 		.generation = 7U,
+		.backing_base = 0x400000,
+		.backing_size = 0x1000,
 	};
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt receipt = { 0 };
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct bootmem_reservation_receipt backing_receipt = {
+		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
+		.size = sizeof(backing_receipt),
+		.base = 0x400000,
+		.bytes = 0x1000,
+	};
+#if TEST_ROUTE_FAILURE || TEST_VERIFY_FAILURE
+	struct bootmem_reservation_receipt backing_frozen = backing_receipt;
+#endif
+#endif
+#if !TEST_ROUTE_FAILURE && !TEST_VERIFY_FAILURE
 	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route binding;
 	struct smm_invocation_save_state_ops ops_snapshot;
+#endif
 
 	assert(intel_smm_invocation_adapter_provider_provision(&retained_ops) ==
 		SMM_INVOCATION_TRY_SUCCESS);
+#if TEST_VERIFY_FAILURE
+	reject_mailbox = true;
+#endif
 	assert(platform_payload_mm_authvar_presence_lifecycle_close_route_install(
-		&request, &receipt) == CB_SUCCESS);
+		&request,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+		&backing_receipt,
+#endif
+		&receipt) ==
+#if TEST_ROUTE_FAILURE || TEST_VERIFY_FAILURE
+		CB_ERR);
+	assert(provisions == 0U);
+	assert(mailbox_verifications == 1U && mailbox_poisons ==
+#if TEST_ROUTE_FAILURE
+		1U);
+#else
+		0U);
+#endif
+	assert(!memcmp(&backing_receipt, &backing_frozen,
+		sizeof(backing_receipt)));
+	return 0;
+#else
+		CB_SUCCESS);
 	assert(provisions == 1U);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	assert(mailbox_verifications == 1U && mailbox_poisons == 0U);
+	assert(zero(&backing_receipt, sizeof(backing_receipt)));
+#endif
 	assert(!memcmp(&receipt.descriptor, &request, sizeof(request)));
 	assert(receipt.installed == 1U && receipt.protected_route_identity == 1U &&
 		receipt.route_nonce == 2U);
-	assert(range_validations == 2U);
+	assert(range_validations ==
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+		5U);
+#else
+		4U);
+#endif
 	assert(starbook_mtl_authvar_presence_lifecycle_close_installed_route(
 		&binding) == CB_SUCCESS);
 	assert(binding.route && binding.retained_ops == &ops);
@@ -254,4 +364,5 @@ int main(void)
 	for (size_t index = 0; index < sizeof(*observed_frame); index++)
 		assert(!((const uint8_t *)observed_frame)[index]);
 	return 0;
+#endif
 }

@@ -30,6 +30,34 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 	ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 "$temporary/test"
 done
 
+mkdir -p "$temporary/mailbox/include"
+printf '%s\n' \
+	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
+	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY 1' \
+	> "$temporary/mailbox/include/config.h"
+mailbox_common=$(printf '%s' "$common" | sed \
+	"s@$temporary/include@$temporary/mailbox/include@g")
+for flags in '-O0' '-O2' \
+	'-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer'; do
+	# shellcheck disable=SC2086
+	${CC:-cc} $mailbox_common $flags $sources -o "$temporary/mailbox-test"
+	ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
+		"$temporary/mailbox-test"
+done
+# A failure after the one-shot proof is consumed must poison the authority,
+# preserve the caller's proof, and return only the canonical rejected frame.
+# shellcheck disable=SC2086
+${CC:-cc} $mailbox_common -O2 -DTEST_ROUTE_FAILURE=1 $sources \
+	-o "$temporary/mailbox-failure"
+"$temporary/mailbox-failure"
+# A rejected one-shot proof is not consumed and must not poison the authority.
+# shellcheck disable=SC2086
+${CC:-cc} $mailbox_common -O2 -DTEST_VERIFY_FAILURE=1 $sources \
+	-o "$temporary/mailbox-verify-failure"
+"$temporary/mailbox-verify-failure"
+
 mutation="$temporary/noncanonical-slot.c"
 sed 's/slot = smm_get_payload_mm_authvar_presence_transaction_slot()/slot = NULL/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.c" \
@@ -66,12 +94,10 @@ for mutation in first-range second-range; do
 	mutant="$temporary/$mutation.c"
 	case "$mutation" in
 first-range)
-		sed '120,122c\
-\tif (!frame_request_valid(frame))' \
+		sed '0,/!dependencies->communication_range_valid(/s//dependencies->communication_range_valid(/' \
 			"$receiver" > "$mutant" ;;
 second-range)
-		sed '137,139c\
-\tif (false) {' \
+		sed 's/!dependencies->communication_range_valid(/dependencies->communication_range_valid(/g' \
 			"$receiver" > "$mutant" ;;
 	esac
 	! cmp -s "$receiver" "$mutant"
