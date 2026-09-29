@@ -38,6 +38,53 @@ static bool mutate_dependencies;
 static uint64_t rejected_base = UINT64_MAX;
 static struct starbook_mtl_dma_receipt_frame *pinned_frame = &frame;
 
+bool starbook_mtl_dma_receipt_layout_matches_memory_test(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct smm_dma_receipt_memory *memory);
+
+static void test_pinned_layout(void)
+{
+	struct smm_dma_receipt_memory memory = {
+		.revision = SMM_DMA_RECEIPT_MEMORY_REVISION,
+		.size = sizeof(memory),
+		.dma = { 0x100000, 0x10000 },
+		.mirror = { 0x300000, 0x4000 },
+	};
+	struct starbook_mtl_dma_smm_receipt receipt = {
+		.handoff = { 0x100000, 0x1000 },
+		.tables = { 0x101000, 0x4000 },
+		.table_mirror = { 0x300000, 0x4000 },
+		.arenas = {
+			{ 0x105000, 0x3000 },
+			{ 0x108000, 0x4000 },
+			{ 0x10c000, 0x4000 },
+		},
+	};
+	struct starbook_mtl_dma_smm_receipt mutated;
+
+	assert(starbook_mtl_dma_receipt_layout_matches_memory_test(&receipt,
+		&memory));
+#define REJECT_MUTATION(member, value) do { \
+	mutated = receipt; \
+	mutated.member = (value); \
+	assert(!starbook_mtl_dma_receipt_layout_matches_memory_test(&mutated, \
+		&memory)); \
+} while (0)
+	REJECT_MUTATION(handoff.base, receipt.handoff.base + 0x1000);
+	REJECT_MUTATION(handoff.size, 0x2000);
+	REJECT_MUTATION(tables.base, receipt.tables.base + 0x1000);
+	REJECT_MUTATION(tables.size, receipt.tables.size + 0x1000);
+	REJECT_MUTATION(table_mirror.base, receipt.table_mirror.base + 0x1000);
+	REJECT_MUTATION(table_mirror.size, receipt.table_mirror.size + 0x1000);
+	REJECT_MUTATION(arenas[0].base, receipt.arenas[0].base + 0x1000);
+	REJECT_MUTATION(arenas[0].size, receipt.arenas[0].size + 0x1000);
+	REJECT_MUTATION(arenas[1].base, receipt.arenas[1].base + 0x1000);
+	REJECT_MUTATION(arenas[1].size, receipt.arenas[1].size + 0x1000);
+	REJECT_MUTATION(arenas[2].base, receipt.arenas[2].base + 0x1000);
+	REJECT_MUTATION(arenas[2].size, receipt.arenas[2].size - 0x1000);
+#undef REJECT_MUTATION
+}
+
 static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	uint8_t command)
 {
@@ -242,6 +289,7 @@ int main(int argc, char **argv)
 	struct starbook_mtl_dma_smm_binding binding;
 
 	assert(argc == 2);
+	test_pinned_layout();
 	initialize();
 	if (!strcmp(argv[1], "wrong-range"))
 		wrong_range = true;

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <bootmem.h>
 #include <cpu/x86/smm.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
@@ -17,11 +16,10 @@ static bool mutate_candidate;
 static unsigned int builds;
 static unsigned int triggers;
 
-int bootmem_region_targets_type(uint64_t start, uint64_t size,
-	enum bootmem_type dest_type)
+bool starbook_mtl_dma_receipt_frame_in_program_test(uintptr_t address,
+	size_t size)
 {
-	return start && size == sizeof(struct starbook_mtl_dma_receipt_frame) &&
-		dest_type == BM_MEM_RAMSTAGE;
+	return address && size == sizeof(struct starbook_mtl_dma_receipt_frame);
 }
 
 uintptr_t starbook_mtl_dma_receipt_frame_address_test(uintptr_t address)

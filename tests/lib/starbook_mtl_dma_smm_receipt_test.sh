@@ -14,6 +14,9 @@ printf '%s\n' \
 	'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
 	'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
 	'#define CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION 1' \
+	'#define CONFIG_ECAM_MMCONF_BUS_NUMBER 256' \
+	'#define CONFIG_ECAM_MMCONF_BASE_ADDRESS 0xe0000000' \
+	'#define CONFIG_ECAM_MMCONF_LENGTH 0x10000000' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
@@ -59,6 +62,21 @@ awk -F '\t' '
 	$1 ~ /:scrub$/ { scrub = $2 }
 	END { if (!send || !scrub || send + scrub > 512) exit 1 }
 ' "$temporary/sender-stack.su"
+
+# Compile the actual option-on ramstage sources without the test environment.
+# This catches stage-dependent declarations and duplicate production headers.
+production_common=$(printf '%s' "$common" |
+	sed 's/-D__TEST__ //; s/-D__SMM__/-D__RAMSTAGE__/; s/-Wconversion //')
+# shellcheck disable=SC2086
+${CC:-cc} $production_common -O2 -Wredundant-decls -c \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.c" \
+	-o "$temporary/production-sender.o"
+# shellcheck disable=SC2086
+${CC:-cc} $production_common -O2 -Wredundant-decls -Wno-unused-parameter \
+	-I"$root/src/soc/intel/common/block/include" \
+	-I"$root/src/soc/intel/meteorlake/include" -c \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.c" \
+	-o "$temporary/production-platform.o"
 
 ${CC:-cc} $common -O2 -fstack-usage -c \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c" \
