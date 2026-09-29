@@ -8,3 +8,5 @@ romstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD) += vtd.c
 ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD) += vtd.c
 ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION) += vtd_translation.c
 ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION) += vtd_transition.c
+ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY) += vtd_translation_verify.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY) += vtd_translation_verify.c
