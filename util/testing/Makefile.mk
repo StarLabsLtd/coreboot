@@ -180,6 +180,7 @@ test-authvar-presence-lifecycle-close-endpoint:
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_backing_authority_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_sender_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_provider_test.sh
+	tests/lib/payload_mm_authvar_presence_s3_record_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh
 
 .PHONY: test-starbook-mtl-authvar-presence-route-composition
