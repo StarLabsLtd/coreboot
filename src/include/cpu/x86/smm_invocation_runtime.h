@@ -28,6 +28,17 @@ struct smm_invocation_runtime_binding {
 	struct smm_invocation_evidence *evidence;
 	const struct smm_invocation_topology *topology;
 };
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+struct smm_invocation_runtime_auxiliary_binding {
+	const struct smm_invocation_loader_composition *composition;
+	const struct smm_invocation_loader_instance *instance;
+	const struct smm_invocation_topology *topology;
+	struct smm_invocation_evidence *primary_evidence;
+	struct smm_invocation_evidence *auxiliary_evidence;
+	uint32_t index;
+	uint32_t reserved;
+};
+#endif
 #endif
 
 enum cb_err smm_invocation_runtime_view_get(
@@ -45,6 +56,10 @@ enum cb_err smm_invocation_runtime_range_is_protected(
 #if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 enum cb_err smm_invocation_runtime_binding_get(
 	struct smm_invocation_runtime_binding *binding);
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+enum cb_err smm_invocation_runtime_auxiliary_binding_get(uint32_t index,
+	struct smm_invocation_runtime_auxiliary_binding *binding);
+#endif
 #endif
 #endif
 

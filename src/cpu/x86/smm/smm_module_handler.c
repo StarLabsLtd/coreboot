@@ -11,6 +11,9 @@
 #include <cpu/x86/save_state.h>
 #endif
 #include <cpu/x86/smm.h>
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+#include "../smm_invocation_auxiliary_channels_private.h"
+#endif
 #if CONFIG(SMM_PRE_LOCK_DISPATCH)
 #include <cpu/x86/smm_pre_lock_dispatch.h>
 #endif
@@ -374,6 +377,42 @@ enum cb_err smm_invocation_runtime_binding_get(
 	*binding = value;
 	return CB_SUCCESS;
 }
+
+#if CONFIG(SMM_INVOCATION_AUXILIARY_CHANNELS)
+enum cb_err smm_invocation_runtime_auxiliary_binding_get(uint32_t index,
+	struct smm_invocation_runtime_auxiliary_binding *binding)
+{
+	const uintptr_t output = (uintptr_t)binding;
+	struct smm_invocation_runtime_auxiliary_binding value;
+	struct runtime_geometry_snapshot snapshot;
+
+	if (index >= SMM_INVOCATION_AUXILIARY_CHANNEL_COUNT ||
+	    !runtime_output_valid(output, sizeof(*binding), _Alignof(*binding)))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot(output, sizeof(*binding), &snapshot))
+		return CB_ERR;
+	value = (struct smm_invocation_runtime_auxiliary_binding) {
+		.composition = (const void *)&smm_runtime.invocation_composition,
+		.instance = (const void *)&smm_runtime.invocation_loader_instance,
+		.topology = (const void *)&smm_runtime.invocation_topology,
+		.primary_evidence = (void *)&smm_runtime.invocation_evidence,
+		.index = index,
+	};
+	value.auxiliary_evidence = smm_invocation_auxiliary_channel_evidence(
+		&smm_runtime.invocation_auxiliary, value.composition, value.topology,
+		value.instance, value.primary_evidence, index);
+	if (!value.auxiliary_evidence ||
+	    !runtime_geometry_unchanged(&snapshot, output, sizeof(*binding)) ||
+	    smm_invocation_auxiliary_channel_evidence(
+		&smm_runtime.invocation_auxiliary, value.composition, value.topology,
+		value.instance, value.primary_evidence, index) !=
+		value.auxiliary_evidence ||
+	    !runtime_geometry_unchanged(&snapshot, output, sizeof(*binding)))
+		return CB_ERR;
+	*binding = value;
+	return CB_SUCCESS;
+}
+#endif
 #endif
 
 static int smi_obtain_lock(void)

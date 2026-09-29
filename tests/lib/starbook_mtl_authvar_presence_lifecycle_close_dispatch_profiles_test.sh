@@ -54,6 +54,7 @@ config TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
 	select STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER
 	select SMM_INVOCATION_LOADER_COMPOSITION
 	select SMM_INVOCATION_RUNTIME_VIEW
+	select SMM_INVOCATION_AUXILIARY_CHANNELS
 	select SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
 	select SMM_INVOCATION_INTEL_CAUSE
 	select SMM_APMC_COMPOSITION_ATTESTED
@@ -97,6 +98,7 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY \
 	STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY \
 	STARLABS_STARBOOK_MTL_LIFECYCLE_INSTALL_CARRIER \
+	SMM_INVOCATION_AUXILIARY_CHANNELS SMM_INVOCATION_LOADER_READERS \
 	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY \
 	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
@@ -111,6 +113,10 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o" \
 	"$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_carrier.o" \
 	"$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.o" \
+	"$build/ramstage/cpu/x86/smm_invocation_auxiliary_channels.o" \
+	"$build/smm/cpu/x86/smm_invocation_auxiliary_channels.o" \
+	"$build/smm/cpu/x86/smm_invocation_topology.o" \
+	"$build/smm/cpu/x86/smm_invocation_loader_instance.o" \
 	>/dev/null
 
 dispatcher="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
@@ -127,15 +133,22 @@ backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing
 provider="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_provider.o"
 dma_sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o"
 sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o"
+aux_loader="$build/ramstage/cpu/x86/smm_invocation_auxiliary_channels.o"
+aux_smm="$build/smm/cpu/x86/smm_invocation_auxiliary_channels.o"
+topology_reader="$build/smm/cpu/x86/smm_invocation_topology.o"
+instance_reader="$build/smm/cpu/x86/smm_invocation_loader_instance.o"
 test -s "$dispatcher" && test -s "$handler" && test -s "$authority" && \
 	test -s "$requesters" && test -s "$verifier" && test -s "$dma_receiver" && \
 	test -s "$mailbox" && test -s "$carrier" && test -s "$loader" && \
 	test -s "$backing" && test -s "$provider" && test -s "$dma_sender" && \
 	test -s "$sender" && test -s "$install_receiver"
+	test -s "$aux_loader" && test -s "$aux_smm" && \
+		test -s "$topology_reader" && test -s "$instance_reader"
 file "$dispatcher" "$handler" "$authority" "$requesters" "$verifier" \
 	"$dma_receiver" "$mailbox" "$carrier" "$install_receiver" "$loader" \
-	"$backing" "$provider" "$dma_sender" "$sender" | grep -c 'ELF 32-bit' | \
-	grep -q '^14$'
+	"$backing" "$provider" "$dma_sender" "$sender" "$aux_loader" \
+	"$aux_smm" "$topology_reader" "$instance_reader" | \
+	grep -c 'ELF 32-bit' | grep -q '^18$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
@@ -158,6 +171,16 @@ nm --defined-only "$dma_sender" | grep -q \
 	'starbook_mtl_dma_receipt_carrier_lifecycle_complete'
 nm --defined-only "$install_receiver" | grep -q \
 	'starbook_mtl_authvar_presence_lifecycle_close_install_receive'
+nm --defined-only "$aux_loader" | grep -q \
+	'smm_invocation_auxiliary_channels_compose'
+nm --defined-only "$aux_loader" | grep -q \
+	'smm_invocation_auxiliary_channels_loader_abort'
+nm --defined-only "$aux_smm" | grep -q \
+	'smm_invocation_auxiliary_channel_evidence'
+nm --defined-only "$handler" | grep -q \
+	'smm_invocation_runtime_auxiliary_binding_get'
+! nm -u "$aux_loader" "$aux_smm" "$topology_reader" "$instance_reader" | \
+	grep -Eq '__atomic_load_8|libatomic'
 nm --defined-only "$handler" | grep -q \
 	'smm_get_payload_mm_authvar_presence_lifecycle_close_mailbox_authority'
 nm -u "$loader" | grep -q \
@@ -192,9 +215,9 @@ grep -A2 'default:' "$temporary/hook" | grep -q \
 
 baseline="$temporary/base"
 mkdir -p "$baseline"
-git -C "$root" archive 591aafeea2fa6b50086982b05fe0123d4ade3ea6 | \
+git -C "$root" archive ce93ac31a672054f4bcbf326cb5d45f235a20c78 | \
 	tar -x -C "$baseline"
-git -C "$root" ls-tree -r 591aafeea2fa6b50086982b05fe0123d4ade3ea6 | \
+git -C "$root" ls-tree -r ce93ac31a672054f4bcbf326cb5d45f235a20c78 | \
 	awk '$1 == "160000" { print $4 }' | while read -r module; do
 	rmdir "$baseline/$module" 2>/dev/null || true
 	mkdir -p "$(dirname "$baseline/$module")"
@@ -220,6 +243,7 @@ build_off()
 		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH=y$' "$config"
 		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION=y$' "$config"
 		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY=y$' "$config"
+		! grep -q '^CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS=y$' "$config"
 	fi
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
 		-j4 "$output/smm/smm" "$output/cbfs/fallback/ramstage.elf" >/dev/null
@@ -280,5 +304,57 @@ cmp "$temporary/carrier-current.install-sender.o" \
 	"$temporary/carrier-baseline.install-sender.o"
 cmp "$temporary/carrier-current.dma-sender.o" \
 	"$temporary/carrier-baseline.dma-sender.o"
+
+# The existing route-session composition builds the same shared readers when
+# auxiliary channels remain disabled. Prove the Makefile refactor and guarded
+# runtime/loader additions are byte-identical to PR283 in that configuration.
+aux_off_profile="$temporary/aux-off.Kconfig"
+sed '/select SMM_INVOCATION_AUXILIARY_CHANNELS/d' "$profile" > \
+	"$aux_off_profile"
+
+build_aux_off()
+{
+	tree=$1
+	name=$2
+	output="$temporary/$name"
+	config="$output/full.config"
+	mkdir -p "$output"
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$aux_off_profile" \
+		KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
+	"$tree/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN \
+		-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH -d LTO
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$aux_off_profile" olddefconfig >/dev/null
+	grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION=y$' "$config"
+	! grep -q '^CONFIG_SMM_INVOCATION_AUXILIARY_CHANNELS=y$' "$config"
+	if [ "$tree" = "$root" ]; then
+		grep -q '^CONFIG_SMM_INVOCATION_LOADER_READERS=y$' "$config"
+	fi
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$aux_off_profile" -j4 \
+		"$output/smm/smm" \
+		"$output/smm/cpu/x86/smm/smm_module_handler.o" \
+		"$output/smm/cpu/x86/smm_invocation_topology.o" \
+		"$output/smm/cpu/x86/smm_invocation_loader_instance.o" \
+		"$output/ramstage/cpu/x86/smm/smm_module_loader.o" >/dev/null
+	for object in smm/cpu/x86/smm/smm_module_handler.o \
+		smm/cpu/x86/smm_invocation_topology.o \
+		smm/cpu/x86/smm_invocation_loader_instance.o \
+		ramstage/cpu/x86/smm/smm_module_loader.o; do
+		objcopy --strip-debug "$output/$object" \
+			"$temporary/$name.$(basename "$object")"
+	done
+}
+
+build_aux_off "$root" aux-off-current
+build_aux_off "$baseline" aux-off-baseline
+cmp "$temporary/aux-off-current/smm/smm" \
+	"$temporary/aux-off-baseline/smm/smm"
+for object in smm_module_handler.o smm_invocation_topology.o \
+	smm_invocation_loader_instance.o smm_module_loader.o; do
+	cmp "$temporary/aux-off-current.$object" \
+		"$temporary/aux-off-baseline.$object"
+done
 
 echo "StarBook MTL lifecycle-close dispatch profiles: PASS (frame $frame bytes)"

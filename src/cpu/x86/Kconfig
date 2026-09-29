@@ -494,6 +494,25 @@ config SMM_INVOCATION_RUNTIME_BINDING
 	  instance, evidence and topology objects. The raw SMM runtime remains
 	  private and no invocation route is installed.
 
+config SMM_INVOCATION_AUXILIARY_CHANNELS
+	bool
+	default n
+	depends on SMM_INVOCATION_RUNTIME_BINDING
+	depends on SMM_MODULE_STACK_SIZE >= 0x2000
+	select SMM_INVOCATION_LOADER_READERS
+	help
+	  Provision two fixed protected auxiliary invocation-evidence channels from
+	  the exact loader composition, topology and instance. Indexed SMM access
+	  adds no command, route, reset meaning or platform selection.
+
+config SMM_INVOCATION_LOADER_READERS
+	bool
+	default n
+	depends on SMM_INVOCATION_LOADER_INSTANCE
+	depends on SMM_INVOCATION_TOPOLOGY
+	help
+	  Build the shared SMM-side checked topology and loader-instance readers.
+
 # Build-time evidence selected only by the source family containing the case.
 config SMM_APMC_ROUTE_ACPI_CONTROL
 	bool

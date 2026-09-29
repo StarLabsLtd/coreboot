@@ -26,6 +26,28 @@ static _Alignas(4096) struct {
 } test_memory;
 
 static uint32_t hook_mode;
+static uint32_t auxiliary_lookup_count;
+
+struct smm_invocation_evidence *smm_invocation_auxiliary_channel_evidence(
+	const volatile struct smm_invocation_auxiliary_channels *channels,
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *primary, uint32_t index)
+{
+	auxiliary_lookup_count++;
+	if (hook_mode == 9U && auxiliary_lookup_count == 2U)
+		test_memory.runtime.smm_size--;
+	if (hook_mode == 10U)
+		return NULL;
+	if (channels != &test_memory.runtime.invocation_auxiliary ||
+	    composition != &test_memory.runtime.invocation_composition ||
+	    topology != &test_memory.runtime.invocation_topology ||
+	    instance != &test_memory.runtime.invocation_loader_instance ||
+	    primary != &test_memory.runtime.invocation_evidence || index >= 2U)
+		return NULL;
+	return (void *)(uintptr_t)&channels->evidence[index];
+}
 
 void smm_invocation_runtime_view_test_hook(uint32_t point)
 {
@@ -93,6 +115,7 @@ static void reset_runtime(void)
 			.evidence_identity =
 				(uint64_t)(uintptr_t)&runtime->invocation_evidence,
 		};
+	auxiliary_lookup_count = 0U;
 	hook_mode = 0;
 }
 
@@ -330,6 +353,54 @@ static void exact_runtime_binding(void)
 	assert(smm_invocation_runtime_binding_get(NULL) == CB_ERR_ARG);
 }
 
+static void exact_auxiliary_runtime_binding(void)
+{
+	struct smm_invocation_runtime_auxiliary_binding binding;
+	struct smm_invocation_runtime_auxiliary_binding unchanged;
+	_Alignas(8) uint8_t misaligned[sizeof(binding) + 1U];
+
+	reset_runtime();
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U, &binding) ==
+		CB_SUCCESS);
+	assert(binding.composition == &test_memory.runtime.invocation_composition);
+	assert(binding.instance == &test_memory.runtime.invocation_loader_instance);
+	assert(binding.topology == &test_memory.runtime.invocation_topology);
+	assert(binding.primary_evidence == &test_memory.runtime.invocation_evidence);
+	assert(binding.auxiliary_evidence ==
+		&test_memory.runtime.invocation_auxiliary.evidence[0]);
+	assert(binding.index == 0U && binding.reserved == 0U);
+	assert(smm_invocation_runtime_auxiliary_binding_get(1U, &binding) ==
+		CB_SUCCESS);
+	assert(binding.auxiliary_evidence ==
+		&test_memory.runtime.invocation_auxiliary.evidence[1]);
+	unchanged = binding;
+	assert(smm_invocation_runtime_auxiliary_binding_get(2U, &binding) ==
+		CB_ERR_ARG);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+	assert(smm_invocation_runtime_auxiliary_binding_get(UINT32_MAX, &binding) ==
+		CB_ERR_ARG);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U, NULL) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U,
+		(void *)(misaligned + 1U)) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U,
+		(void *)&test_memory.runtime.invocation_auxiliary) == CB_ERR_ARG);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+	reset_runtime();
+	memset(&binding, 0xa5, sizeof(binding));
+	unchanged = binding;
+	hook_mode = 10U;
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U, &binding) == CB_ERR);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+	reset_runtime();
+	memset(&binding, 0xa5, sizeof(binding));
+	unchanged = binding;
+	hook_mode = 9U;
+	assert(smm_invocation_runtime_auxiliary_binding_get(0U, &binding) == CB_ERR);
+	assert(auxiliary_lookup_count == 2U);
+	assert(!memcmp(&binding, &unchanged, sizeof(binding)));
+}
+
 int main(void)
 {
 	exact_bounded_view();
@@ -340,5 +411,6 @@ int main(void)
 	packed_native_alignment();
 	aliases_and_drift();
 	exact_runtime_binding();
+	exact_auxiliary_runtime_binding();
 	return 0;
 }
