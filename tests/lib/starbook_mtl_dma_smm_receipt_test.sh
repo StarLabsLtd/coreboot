@@ -29,7 +29,8 @@ common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
 	-I$root/src/mainboard/starlabs/starbook/variants/mtl -no-pie"
 sources="$root/tests/lib/starbook_mtl_dma_smm_receipt_test.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c"
-cases='valid generation wrong-range protected-frame mutated-frame wrong-state
+cases='valid generation generation-rollback recursive-binding output-alias
+	wrong-range protected-frame mutated-frame wrong-state
 	null-table above-4g huge-table mmio-table smram-table unallowed-dram
 	unallowed-frame unallowed-handoff unallowed-tables unallowed-mirror
 	unallowed-arena0 unallowed-arena1 unallowed-arena2
@@ -93,6 +94,13 @@ make -s -C "$root" DOTCONFIG="$temporary/config" obj="$temporary/obj" \
 	"$temporary/config"
 ! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY=y$' \
 	"$temporary/config"
+
+grep -A8 '^config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION$' \
+	"$root/src/mainboard/starlabs/starbook/Kconfig" | \
+	grep -q 'select STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY'
+grep -A8 '^config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION$' \
+	"$root/src/mainboard/starlabs/starbook/Kconfig" | \
+	grep -q 'select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY'
 
 backend_line=$(grep -n 'starbook_mtl_dma_live_backend_ensure' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live_handoff.c" |

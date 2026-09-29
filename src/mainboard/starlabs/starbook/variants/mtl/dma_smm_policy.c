@@ -292,11 +292,13 @@ static bool protected_contract_valid(
 	    !protected_span(runtime_view, workspace, sizeof(*workspace)))
 		return false;
 	if (!observer->context || !observer->context_size || !observer->read32 ||
-	    !observer->sha256 ||
+	    !observer->sha256 || !observer->verify_translation ||
 	    !protected_span(runtime_view,
 		(const void *)(uintptr_t)observer->read32, 1U) ||
 	    !protected_span(runtime_view,
 		(const void *)(uintptr_t)observer->sha256, 1U) ||
+	    !protected_span(runtime_view,
+		(const void *)(uintptr_t)observer->verify_translation, 1U) ||
 	    !protected_span(runtime_view, observer->context,
 		observer->context_size))
 		return false;
@@ -344,6 +346,8 @@ enum cb_err starbook_mtl_dma_smm_verify(
 	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS ||
 	    verify_table_copies(&workspace->receipt, &workspace->observer,
 		workspace->digest) != CB_SUCCESS ||
+	    workspace->observer.verify_translation(workspace->observer.context,
+		&workspace->receipt, runtime_view) != CB_SUCCESS ||
 	    !protected_contract_valid(receipt, observer, runtime_view, workspace) ||
 	    memcmp(receipt, &workspace->receipt, sizeof(*receipt)) ||
 	    memcmp(observer, &workspace->observer, sizeof(*observer)) ||
@@ -351,9 +355,14 @@ enum cb_err starbook_mtl_dma_smm_verify(
 		lifecycle_base, lifecycle_size) ||
 	    verify_table_copies(&workspace->receipt, &workspace->observer,
 		workspace->digest) != CB_SUCCESS ||
+	    workspace->observer.verify_translation(workspace->observer.context,
+		&workspace->receipt, runtime_view) != CB_SUCCESS ||
 	    verify_engine(&workspace->receipt, &workspace->observer) !=
 		CB_SUCCESS ||
-	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS)
+	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS ||
+	    !protected_contract_valid(receipt, observer, runtime_view, workspace) ||
+	    memcmp(receipt, &workspace->receipt, sizeof(*receipt)) ||
+	    memcmp(observer, &workspace->observer, sizeof(*observer)))
 		return CB_ERR;
 	return CB_SUCCESS;
 }

@@ -9,7 +9,7 @@ digest gfx-active gfx-mode live-drift live-aba pci-drift
 misaligned-range misaligned-size misaligned-used
 range-overflow null-table above-4g huge-table mmio-table forbidden-table
 zero-loader-nonce zero-generation bad-lifecycle identity-reserved
-unprotected-receipt unprotected-read unprotected-sha
+unprotected-receipt unprotected-read unprotected-sha unprotected-translation
 unprotected-context unprotected-workspace wrong-runtime-view
 workspace-context-alias receipt-toctou observer-toctou'
 

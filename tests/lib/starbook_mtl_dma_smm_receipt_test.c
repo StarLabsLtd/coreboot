@@ -12,6 +12,7 @@
 
 #include "../../src/lib/payload_mm_crypto/crypto.h"
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.h"
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
@@ -37,10 +38,13 @@ static const void *unprotected;
 static bool mutate_dependencies;
 static uint64_t rejected_base = UINT64_MAX;
 static struct starbook_mtl_dma_receipt_frame *pinned_frame = &frame;
+static bool recursive_binding_get;
 
 bool starbook_mtl_dma_receipt_layout_matches_memory_test(
 	const struct starbook_mtl_dma_smm_receipt *receipt,
 	const struct smm_dma_receipt_memory *memory);
+struct starbook_mtl_dma_smm_binding *
+starbook_mtl_dma_smm_binding_owner_alias_test(void);
 
 static void test_pinned_layout(void)
 {
@@ -233,12 +237,29 @@ enum cb_err starbook_mtl_dma_smm_verify(
 	assert(receipt && lifecycle_base && lifecycle_size && observer && workspace);
 	assert(runtime_view == view);
 	assert(receipt->loader_instance_nonce.low == 1);
-	assert(receipt->invocation_generation == evidence.generation);
+	assert(receipt->invocation_generation <= evidence.generation);
 	assert(receipt->loader_lifecycle == instance.lifecycle);
 	for (size_t index = 0; index < sizeof(receipt->table_digest); index++)
 		assert(receipt->table_digest[index] == 0x5a);
 	if (mutate_frame)
 		frame.candidate.revision++;
+	if (recursive_binding_get && verify_calls > 1U) {
+		struct starbook_mtl_dma_smm_binding nested;
+
+		recursive_binding_get = false;
+		assert(starbook_mtl_dma_smm_binding_get(&nested) == CB_ERR);
+	}
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct smm_invocation_runtime_view *runtime_view,
+	const void *retained, size_t retained_size,
+	struct starbook_mtl_dma_smm_authority_workspace *workspace)
+{
+	assert(receipt && runtime_view == view && retained && retained_size &&
+		workspace);
 	return CB_SUCCESS;
 }
 
@@ -339,16 +360,34 @@ int main(int argc, char **argv)
 		unprotected = (const void *)(uintptr_t)ordinary_dram_range;
 	else if (!strcmp(argv[1], "dependency-toctou"))
 		mutate_dependencies = true;
-	else if (strcmp(argv[1], "valid") && strcmp(argv[1], "generation"))
+	else if (strcmp(argv[1], "valid") && strcmp(argv[1], "generation") &&
+		 strcmp(argv[1], "generation-rollback") &&
+		 strcmp(argv[1], "recursive-binding") &&
+		 strcmp(argv[1], "output-alias"))
 		return 2;
 
-	if (!strcmp(argv[1], "valid") || !strcmp(argv[1], "generation")) {
+	if (!strcmp(argv[1], "valid") || !strcmp(argv[1], "generation") ||
+	    !strcmp(argv[1], "generation-rollback") ||
+	    !strcmp(argv[1], "recursive-binding") ||
+	    !strcmp(argv[1], "output-alias")) {
 		assert(starbook_mtl_dma_receipt_provision_receive(&ops) == CB_SUCCESS);
 		assert(frame.state == STARBOOK_MTL_DMA_RECEIPT_FRAME_ACCEPTED);
 		assert(wire == STARBOOK_MTL_DMA_RECEIPT_WIRE_SUCCESS);
 		if (!strcmp(argv[1], "generation")) {
 			evidence.generation++;
+			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
+		} else if (!strcmp(argv[1], "generation-rollback")) {
+			evidence.generation--;
 			assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);
+		} else if (!strcmp(argv[1], "recursive-binding")) {
+			recursive_binding_get = true;
+			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
+			assert(!recursive_binding_get);
+		} else if (!strcmp(argv[1], "output-alias")) {
+			assert(starbook_mtl_dma_smm_binding_get(
+				starbook_mtl_dma_smm_binding_owner_alias_test()) ==
+				CB_ERR);
+			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
 		} else {
 			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
 			assert(binding.receipt->invocation_generation == 7);
