@@ -25,7 +25,8 @@ build_test()
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
-		-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+		-I"$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" "$test_source" "$implementation" \
 		-o "$temporary/$name"
@@ -148,7 +149,7 @@ table_source="$root/src/lib/coreboot_table.c"
 bootmem=$(grep -n 'bootmem_write_memory_table(lb_memory(head))' \
 	"$table_source" | cut -d: -f1)
 publish=$(grep -n 'lb_add_payload_mm_authvar_presence_endpoint(head,' \
-	"$table_source" | cut -d: -f1)
+	"$table_source" | cut -d: -f1 | head -n 1)
 boot_mode=$(grep -n 'lb_add_boot_mode(head)' "$table_source" | cut -d: -f1)
 finalize=$(grep -n 'return lb_table_fini(head)' "$table_source" | cut -d: -f1)
 overflow=$(grep -n 'Authenticated-variable presence table overflow' \
@@ -166,22 +167,26 @@ boundary_check()
 	[ "$(grep -c 'lb_add_boot_mode(head)' "$implementation")" -eq 1 ] ||
 		return 1
 	[ "$(grep -c 'lb_add_payload_mm_authvar_presence_endpoint(head,' \
-		"$implementation")" -eq 1 ] || return 1
+		"$implementation")" -eq 2 ] || return 1
 	[ "$(grep -c 'return lb_table_fini(head)' "$implementation")" -eq 1 ] ||
 		return 1
 	boot_mode=$(grep -n 'lb_add_boot_mode(head)' \
 		"$implementation" | cut -d: -f1)
-	publish=$(grep -n 'lb_add_payload_mm_authvar_presence_endpoint(head,' \
+	publishes=$(grep -n 'lb_add_payload_mm_authvar_presence_endpoint(head,' \
 		"$implementation" | cut -d: -f1)
 	finalize=$(grep -n 'return lb_table_fini(head)' \
 		"$implementation" | cut -d: -f1)
 	overflow=$(grep -n 'Authenticated-variable presence table overflow' \
 		"$implementation" | cut -d: -f1)
-	[ -n "$boot_mode" ] && [ -n "$publish" ] && [ -n "$finalize" ] && \
-		[ "$boot_mode" -lt "$publish" ] && [ "$publish" -lt "$finalize" ] && \
-		[ -n "$overflow" ] && \
-		! sed -n "$((publish + 1)),$((finalize - 1))p" "$implementation" | \
-			grep -Eq 'lb_[[:alnum:]_]+\(head'
+	[ -n "$boot_mode" ] && [ -n "$publishes" ] && [ -n "$finalize" ] && \
+		[ -n "$overflow" ] || return 1
+	for publish in $publishes; do
+		[ "$boot_mode" -lt "$publish" ] && [ "$publish" -lt "$finalize" ] ||
+			return 1
+	done
+	! sed -n "$((boot_mode + 1)),$((finalize - 1))p" "$implementation" | \
+		grep -E 'lb_[[:alnum:]_]+\(head' | \
+		grep -Ev 'lb_add_payload_mm_authvar_presence(_lifecycle_close)?_endpoint\(head'
 }
 
 sed -e '/lb_add_boot_mode(head)/d' \

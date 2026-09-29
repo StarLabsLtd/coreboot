@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "payload_mm_authvar_presence_lifecycle_close_internal.h"
+#include "payload_mm_authvar_presence_lifecycle_close_claims.h"
 
 enum close_state {
 	CLOSE_EMPTY,
@@ -27,12 +28,6 @@ enum source_state {
 	SOURCE_CLAIMED,
 	SOURCE_CONSUMED,
 };
-
-#define PRE_EXTERNAL_CLAIM 0x50524558434c4f53ULL
-#define PAYLOAD_FAILURE_CLAIM 0x5041594c434c4f53ULL
-#define WARM_RESET_CLAIM 0x5741524d434c4f53ULL
-#define S3_RESUME_CLAIM 0x53335245434c4f53ULL
-#define CLOSED_REPROOF_CLAIM 0x52455052434c4f53ULL
 
 struct close_owner {
 	struct payload_mm_authvar_presence_lifecycle_close_policy policy;
@@ -524,7 +519,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_pre_external_image(
 {
 	if (slot != payload_mm_authvar_presence_pre_external_image_close_slot())
 		return CB_ERR;
-	return close_source(slot, PRE_EXTERNAL_CLAIM, false);
+	return close_source(slot, PAYLOAD_MM_AUTHVAR_PRESENCE_PRE_EXTERNAL_CLAIM,
+		false);
 }
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_payload_failure(
@@ -532,7 +528,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_payload_failure(
 {
 	if (slot != payload_mm_authvar_presence_payload_failure_close_slot())
 		return CB_ERR;
-	return close_source(slot, PAYLOAD_FAILURE_CLAIM, false);
+	return close_source(slot, PAYLOAD_MM_AUTHVAR_PRESENCE_PAYLOAD_FAILURE_CLAIM,
+		false);
 }
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_warm_reset(
@@ -540,7 +537,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_warm_reset(
 {
 	if (slot != payload_mm_authvar_presence_warm_reset_close_slot())
 		return CB_ERR;
-	return close_source(slot, WARM_RESET_CLAIM, false);
+	return close_source(slot, PAYLOAD_MM_AUTHVAR_PRESENCE_WARM_RESET_CLAIM,
+		false);
 }
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_resume(
@@ -548,7 +546,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_resume(
 {
 	if (slot != payload_mm_authvar_presence_s3_resume_close_slot())
 		return CB_ERR;
-	return close_source(slot, S3_RESUME_CLAIM, false);
+	return close_source(slot, PAYLOAD_MM_AUTHVAR_PRESENCE_S3_RESUME_CLAIM,
+		false);
 }
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_closed_reproof(
@@ -556,7 +555,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_closed_reproof(
 {
 	if (slot != payload_mm_authvar_presence_closed_reproof_slot())
 		return CB_ERR;
-	return close_source(slot, CLOSED_REPROOF_CLAIM, true);
+	return close_source(slot, PAYLOAD_MM_AUTHVAR_PRESENCE_CLOSED_REPROOF_CLAIM,
+		true);
 }
 
 #if ENV_TEST

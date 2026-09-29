@@ -541,6 +541,23 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
 	  readiness. This adds no provider, route, sender, board selection or live
 	  callsite.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	bool
+	default n
+	depends on ARCH_RAMSTAGE_X86_32
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	depends on SMM_APMC_COMMAND_REGISTRY
+	depends on SMM_INVOCATION_ENTRY
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
+	help
+	  Build the dormant fixed-frame ramstage sender and protected SMM route for
+	  the three public lifecycle-close sources. A one-use installation receipt
+	  binds the exact protected route to the endpoint backing before publication.
+	  This installs no board selection, handler callsite or lifecycle caller.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n

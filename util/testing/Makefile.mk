@@ -167,6 +167,9 @@ test-authvar-presence-lifecycle-close:
 .PHONY: test-authvar-presence-lifecycle-close-endpoint
 test-authvar-presence-lifecycle-close-endpoint:
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_endpoint_test.sh
+	tests/lib/payload_mm_authvar_presence_lifecycle_close_sender_test.sh
+	tests/lib/payload_mm_authvar_presence_lifecycle_close_provider_test.sh
+	tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh
 
 .PHONY: test-authvar-smm-loader
 test-authvar-smm-loader:

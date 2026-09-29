@@ -6,6 +6,8 @@
 #include <random.h>
 #include <string.h>
 
+#include "payload_mm_authvar_presence_producer_internal.h"
+
 enum producer_state {
 	PRODUCER_EMPTY,
 	PRODUCER_RESERVED,
@@ -556,6 +558,30 @@ publication_receipt_matches(const struct payload_mm_authvar_presence_receipt *re
 		receipt->nonce == producer.sealed_transaction.nonce &&
 		!memcmp(&receipt->endpoint, &producer.endpoint,
 			sizeof(receipt->endpoint));
+}
+
+bool payload_mm_authvar_presence_producer_publication_receipt_validate(
+	const struct payload_mm_authvar_presence_receipt *receipt)
+{
+	struct payload_mm_authvar_presence_receipt snapshot;
+	bool valid;
+
+	if (!object_valid(receipt, sizeof(*receipt), __alignof__(*receipt)) ||
+	    __atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) !=
+		PRODUCER_PUBLISHED_PENDING ||
+	    __atomic_load_n(&publication_committed, __ATOMIC_ACQUIRE) !=
+		PUBLICATION_PENDING ||
+	    (uintptr_t)receipt != producer.publication_receipt_identity)
+		return false;
+	snapshot = *receipt;
+	valid = publication_receipt_matches(&snapshot, (uintptr_t)receipt) &&
+		!memcmp(receipt, &snapshot, sizeof(snapshot)) &&
+		__atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) ==
+			PRODUCER_PUBLISHED_PENDING &&
+		__atomic_load_n(&publication_committed, __ATOMIC_ACQUIRE) ==
+			PUBLICATION_PENDING;
+	scrub(&snapshot, sizeof(snapshot));
+	return valid;
 }
 
 static bool publication_corruption_claim(u32 observed)

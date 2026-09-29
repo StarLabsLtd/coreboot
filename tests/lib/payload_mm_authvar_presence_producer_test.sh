@@ -26,7 +26,8 @@ run_test()
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
-		-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+		-I"$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_presence_transaction_producer_test.c" \
@@ -66,7 +67,8 @@ mutation()
 			-include "$root/src/include/kconfig.h" \
 			-include "$root/src/include/rules.h" \
 			-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
-			-I"$temporary/include" -I"$root/src" -I"$root/src/include" \
+			-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+			-I"$root/src/include" \
 			-I"$root/src/commonlib/include" \
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$root/src/arch/x86/include" \

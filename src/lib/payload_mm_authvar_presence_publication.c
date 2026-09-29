@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_presence_publication.h>
+#include <boot/payload_mm_authvar_presence_lifecycle_close_transport.h>
 #include <boot/coreboot_tables.h>
 #if !ENV_TEST
 #include <bootstate.h>
 #include <halt.h>
 #endif
 #include <string.h>
+
+#include "payload_mm_authvar_presence_lifecycle_close_provider_internal.h"
 
 enum publication_state {
 	PUBLICATION_EMPTY,
@@ -92,7 +95,9 @@ static bool endpoint_fits(const struct lb_header *header, uintptr_t table_end,
 
 	if (!header || !IS_ALIGNED((uintptr_t)header, LB_ENTRY_ALIGN) ||
 	    header->header_bytes != sizeof(*header) ||
-	    header->table_entries == UINT32_MAX ||
+	    header->table_entries > UINT32_MAX -
+		(CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) ?
+		 2U : 1U) ||
 	    !IS_ALIGNED(header->table_bytes, LB_ENTRY_ALIGN) ||
 	    add_overflows((uintptr_t)header, sizeof(*header), &cursor) ||
 	    cursor > table_end ||
@@ -117,13 +122,18 @@ static bool endpoint_fits(const struct lb_header *header, uintptr_t table_end,
 		committed_bytes = 0;
 	}
 	if (committed_bytes >
-	    UINT32_MAX - sizeof(struct lb_authvar_presence_endpoint))
+	    UINT32_MAX - sizeof(struct lb_authvar_presence_endpoint) -
+		(CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) ?
+		 sizeof(struct lb_authvar_presence_lifecycle_close_endpoint) : 0U))
 		return false;
 
 	if (slot)
 		*slot = (void *)cursor;
 	return !add_overflows(cursor,
-			     sizeof(struct lb_authvar_presence_endpoint), &cursor) &&
+			     sizeof(struct lb_authvar_presence_endpoint) +
+			     (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) ?
+			      sizeof(struct lb_authvar_presence_lifecycle_close_endpoint) : 0U),
+			     &cursor) &&
 	       cursor <= table_end;
 }
 
@@ -230,6 +240,10 @@ enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
 		*header = saved_header;
 		goto out;
 	}
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT) &&
+	    payload_mm_authvar_presence_lifecycle_close_provider_prepare(&receipt) !=
+		CB_SUCCESS)
+		committed_publication_fail_stop(&receipt);
 	/* No callback or fallible operation is permitted after this commit. */
 	if (memcmp(header, &reserved_header, sizeof(*header)) ||
 	    memcmp(record, reserved_record, sizeof(reserved_record)))
