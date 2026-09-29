@@ -350,6 +350,26 @@ config STARLABS_STARBOOK_MTL_SMM_INVOCATION_FAIL_STOP
 	  requests a platform-wide system reset, then arms the independent TCO
 	  watchdog before terminally halting. This selects no invocation route.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER
+	bool
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER
+	depends on SMM_INVOCATION_INTEL_ADAPTER_PROVIDER
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	depends on SMM_INVOCATION_TOPOLOGY
+	depends on SMM_APMC_COMMAND_REGISTRY
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION
+	select SMM_INVOCATION_INTEL_ADAPTER_ROUTE
+	help
+	  Own the canonical protected arm, transaction slot and route session for
+	  the dormant StarBook MTL predecessor-presence route. This adds no route
+	  installer, SMI handler, APMC claim, DMA assertion, publication or board
+	  default. A later platform composition must supply those independently.
+
 if BOARD_STARLABS_STARBOOK_SERIES
 
 config STARLABS_TOUCHPAD_CONTROLLER
