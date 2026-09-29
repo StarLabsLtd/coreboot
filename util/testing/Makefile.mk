@@ -16,8 +16,13 @@ test-help help::
 	@echo  '  test-mor-stack-bound - Check the bounded MOR clear call graph'
 	@echo  '  test-q35-mor-linear - Check the Q35 linear MOR platform slice'
 	@echo  '  test-authvar-smm-loader - Check SMM authvar loader failure atomicity'
+	@echo  '  test-starbook-mtl-dma-smm-requester-authority - Check protected MTL requester roles'
 	@echo  '  test-cleanup         - Basic: Cleans coreboot directories'
 	@echo
+
+.PHONY: test-starbook-mtl-dma-smm-requester-authority
+test-starbook-mtl-dma-smm-requester-authority:
+	tests/lib/starbook_mtl_dma_smm_requester_authority_test.sh
 
 # junit.xml is a helper target to wrap builds that don't create junit.xml output
 # BLD = The name of the build
