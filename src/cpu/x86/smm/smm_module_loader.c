@@ -31,6 +31,9 @@
 #endif
 #include <boot/capsule_broker.h>
 #include <boot/capsule_broker_buffers.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+#include <boot/payload_mm_authvar_presence_lifecycle_close_backing.h>
+#endif
 
 #define SMM_CODE_SEGMENT_SIZE 0x10000
 
@@ -416,6 +419,11 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 	mod_params->save_state_size = loader_params->cpu_save_state_size;
 	mod_params->num_cpus = loader_params->num_cpus;
 	mod_params->gnvs_ptr = (uint32_t)(uintptr_t)acpi_get_gnvs();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+	if (!payload_mm_authvar_presence_lifecycle_close_backing_verifier_take(
+		&mod_params->authvar_presence_lifecycle_close_backing_verifier))
+		die("SMM: lifecycle-close backing verifier unavailable\n");
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 	uintptr_t receipt_base;
 	size_t receipt_size;

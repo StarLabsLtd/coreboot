@@ -25,6 +25,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
 #include <boot/payload_mm_authvar_mor_private_smi.h>
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+#include <bootmem_reservation_receipt.h>
+#endif
 
 #define SMM_DEFAULT_BASE 0x30000
 #define SMM_DEFAULT_SIZE 0x10000
@@ -176,6 +179,10 @@ struct smm_runtime {
 	size_t dma_receipt_frame_size;
 	struct smm_dma_receipt_memory dma_receipt_memory __aligned(8);
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+	struct bootmem_reservation_receipt_authority
+		authvar_presence_lifecycle_close_backing_verifier __aligned(8);
+#endif
 } __packed;
 
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
@@ -221,6 +228,12 @@ _Static_assert(offsetof(struct smm_runtime, dma_receipt_frame_size) %
 	_Alignof(size_t) == 0, "DMA receipt frame size is not aligned");
 _Static_assert(offsetof(struct smm_runtime, dma_receipt_memory) % 8 == 0,
 	"DMA receipt memory authority is not aligned");
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+_Static_assert(offsetof(struct smm_runtime,
+	authvar_presence_lifecycle_close_backing_verifier) % 8 == 0,
+	"lifecycle-close backing verifier is not aligned");
 #endif
 
 struct smm_module_params {

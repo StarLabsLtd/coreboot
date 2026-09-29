@@ -44,9 +44,13 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
  */
 enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
-		**dependencies);
+		**dependencies,
+	const struct smm_invocation_save_state_ops *active_ops);
 enum cb_err starbook_mtl_authvar_presence_lifecycle_close_installed_route(
 	struct starbook_mtl_authvar_presence_lifecycle_close_installed_route *binding);
+#if ENV_TEST
+void starbook_mtl_authvar_presence_lifecycle_close_install_policy_reset_test(void);
+#endif
 #endif
 
 #endif

@@ -460,7 +460,7 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF
 	default n
 	depends on HAVE_SMI_HANDLER
 	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
-	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	select BOOTMEM_ALIGNED_RESERVATION_RECEIPT
 	help
 	  Build the dormant private two-phase ramstage-to-SMM transport for one
 	  authenticated-variable presence seed. It owns a distinct reserved transfer
@@ -540,6 +540,17 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
 	  receipt-gated table publication. Backing reservation never implies route
 	  readiness. This adds no provider, route, sender, board selection or live
 	  callsite.
+
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	help
+	  Bind the lifecycle-close backing page to an exact final bootmem receipt.
+	  A platform consumer must move the one-shot verifier directly into its
+	  protected runtime before the endpoint provider may take the backing.
+	  This adds no transport, trigger, route or platform default.
 
 config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
 	bool

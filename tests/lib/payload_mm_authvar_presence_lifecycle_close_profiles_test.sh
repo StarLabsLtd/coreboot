@@ -8,6 +8,13 @@ temporary=$(CDPATH= cd -- "$temporary" && pwd -P)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 base=8506f9dadb075d79d2d2c30b5568e26d724b6087
 baseline="$temporary/base"
+common_git=$(realpath "$(git -C "$root" rev-parse --git-common-dir)")
+intel_fsp=$(dirname "$(dirname "$common_git")")/intel_fsp
+fsp_headers="$intel_fsp/arl/202507011953/Include/"
+fsp_fd="$intel_fsp/arl/202507011953/Release/Fsp.fd"
+test -d "$fsp_headers" && test -f "$fsp_fd"
+current_fsp_headers=$(realpath --relative-to="$root" "$fsp_headers")
+current_fsp_fd=$(realpath --relative-to="$root" "$fsp_fd")
 
 test -f "$root/3rdparty/vboot/firmware/include/vb2_sha.h"
 test -f "$root/3rdparty/stm/Readme.STMPE"
@@ -101,7 +108,9 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile_kconfig" \
 	KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
 "$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN \
-	-e TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROFILE -d LTO
+	-e TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROFILE -d LTO \
+	--set-str FSP_HEADER_PATH "$current_fsp_headers" \
+	--set-str FSP_FD_PATH "$current_fsp_fd"
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile_kconfig" olddefconfig >/dev/null
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER=y$' "$config"
@@ -133,8 +142,7 @@ for stem in lifecycle_close pre_external_image_close payload_failure_close \
 		exit 1
 	fi
 done
-for stem in lifecycle_close_endpoint lifecycle_close_backing \
-	lifecycle_close_publication lifecycle_close_provider \
+for stem in lifecycle_close_backing lifecycle_close_publication lifecycle_close_provider \
 	lifecycle_close_sender; do
 	object="$build/ramstage/lib/payload_mm_authvar_presence_${stem}.o"
 	test -s "$object"
@@ -151,6 +159,18 @@ for stem in lifecycle_close_endpoint lifecycle_close_backing \
 		exit 1
 	fi
 done
+for endpoint_object in \
+	"$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_endpoint.o" \
+	"$build/smm/lib/payload_mm_authvar_presence_lifecycle_close_endpoint.o"; do
+	test -s "$endpoint_object"
+	file "$endpoint_object" | grep -q 'ELF 32-bit'
+	if nm -u "$endpoint_object" | grep -Eq '__atomic|libatomic'; then
+		echo 'lifecycle-close endpoint gained runtime atomic dependency' >&2
+		exit 1
+	fi
+done
+test "$(find "$build" -type f \
+	-name 'payload_mm_authvar_presence_lifecycle_close_endpoint.o' | wc -l)" -eq 2
 route_object="$build/smm/lib/payload_mm_authvar_presence_lifecycle_close_route.o"
 test -s "$route_object"
 file "$route_object" | grep -q 'ELF 32-bit'
@@ -195,7 +215,7 @@ git -C "$root" archive "$base" | tar -x -C "$baseline"
 rmdir "$baseline/3rdparty/vboot" "$baseline/3rdparty/stm"
 ln -s "$root/3rdparty/vboot" "$baseline/3rdparty/vboot"
 ln -s "$root/3rdparty/stm" "$baseline/3rdparty/stm"
-ln -s "$root/../../intel_fsp" "$temporary/intel_fsp"
+ln -s "$intel_fsp" "$temporary/intel_fsp"
 
 build_natural()
 (
@@ -209,6 +229,13 @@ build_natural()
 		KBUILD_DEFCONFIG="configs/config.$profile" defconfig >/dev/null
 	"$tree/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN -d LTO \
 		-d PAYLOAD_SEABIOS -e PAYLOAD_NONE
+	if [ "$profile" = starlabs_starbook_mtl ]; then
+		tree_fsp_headers=$(realpath --relative-to="$tree" "$fsp_headers")
+		tree_fsp_fd=$(realpath --relative-to="$tree" "$fsp_fd")
+		"$tree/util/scripts/config" --file "$config" \
+			--set-str FSP_HEADER_PATH "$tree_fsp_headers" \
+			--set-str FSP_FD_PATH "$tree_fsp_fd"
+	fi
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 		olddefconfig >/dev/null
 	if [ "$tree" = "$root" ]; then

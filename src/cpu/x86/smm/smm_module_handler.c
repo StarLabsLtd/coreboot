@@ -2,6 +2,9 @@
 
 #include <arch/io.h>
 #include <boot/capsule_broker_buffers.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+#include <boot/payload_mm_authvar_presence_lifecycle_close_backing.h>
+#endif
 #include <arch/exception.h>
 #include <commonlib/region.h>
 #include <console/cbmem_console.h>
@@ -65,6 +68,14 @@ static bool spans_overlap(uintptr_t first, size_t first_size,
 {
 	return first <= second ? second - first < first_size :
 		first - second < second_size;
+}
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+struct bootmem_reservation_receipt_authority *
+smm_get_payload_mm_authvar_presence_lifecycle_close_backing_verifier(void)
+{
+	return (void *)&smm_runtime.authvar_presence_lifecycle_close_backing_verifier;
 }
 #endif
 

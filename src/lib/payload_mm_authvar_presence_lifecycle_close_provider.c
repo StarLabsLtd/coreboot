@@ -3,6 +3,7 @@
 #include "payload_mm_authvar_presence_lifecycle_close_endpoint_internal.h"
 #include "payload_mm_authvar_presence_producer_internal.h"
 #include "payload_mm_authvar_presence_lifecycle_close_provider_internal.h"
+#include <boot/payload_mm_authvar_presence_lifecycle_close_backing.h>
 #include <boot/payload_mm_authvar_presence_lifecycle_close_transport.h>
 #include <cpu/x86/apm.h>
 #include <cpu/x86/smm_command.h>
@@ -147,6 +148,11 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_provider_prepare(
 			.source_mask =
 				LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SOURCE_MASK,
 		};
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+	if (payload_mm_authvar_presence_lifecycle_close_backing_attest(
+		&descriptor.backing_receipt) != CB_SUCCESS)
+		goto out;
+#endif
 	for (size_t index = 0; index < ARRAY_SIZE(descriptor.challenge); index++)
 		if (get_random_number_64(&descriptor.challenge[index]) != CB_SUCCESS ||
 		    !descriptor.challenge[index])

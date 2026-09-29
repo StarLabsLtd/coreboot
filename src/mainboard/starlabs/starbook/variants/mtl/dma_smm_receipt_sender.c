@@ -12,6 +12,8 @@
 #endif
 
 static struct {
+	uint32_t ready;
+	uint32_t reserved;
 	struct starbook_mtl_dma_receipt_frame frame;
 	struct starbook_mtl_dma_smm_receipt snapshot;
 } sender __aligned(8);
@@ -45,6 +47,21 @@ bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size)
 	*base = frame_address;
 	*size = sizeof(frame);
 	return true;
+}
+
+bool starbook_mtl_dma_receipt_transport_frame(uintptr_t *base, size_t *size)
+{
+	uintptr_t frame_base;
+	size_t frame_size;
+
+	if (!base || !size ||
+	    __atomic_load_n(&sender.ready, __ATOMIC_ACQUIRE) != 1U ||
+	    !platform_smm_dma_receipt_frame(&frame_base, &frame_size) ||
+	    frame_base != (uintptr_t)&frame || frame_size != sizeof(frame))
+		return false;
+	*base = frame_base;
+	*size = frame_size;
+	return __atomic_load_n(&sender.ready, __ATOMIC_ACQUIRE) == 1U;
 }
 
 static __noinline void scrub(void *buffer, size_t size)
@@ -105,5 +122,7 @@ enum cb_err starbook_mtl_dma_receipt_provision_send(void)
 out:
 	scrub(&sender.snapshot, sizeof(sender.snapshot));
 	scrub(&frame, sizeof(frame));
+	if (status == CB_SUCCESS)
+		__atomic_store_n(&sender.ready, 1U, __ATOMIC_RELEASE);
 	return status;
 }

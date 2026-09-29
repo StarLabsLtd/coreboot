@@ -5,6 +5,9 @@
 
 #include <boot/payload_mm_authvar_presence_lifecycle_close_endpoint.h>
 #include <boot/payload_mm_authvar_presence_producer.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+#include <bootmem_reservation_receipt.h>
+#endif
 #include <commonlib/bsd/cb_err.h>
 #include <stdint.h>
 
@@ -37,6 +40,10 @@ struct payload_mm_authvar_presence_lifecycle_close_install_descriptor {
 	uint32_t trigger_value;
 	uint32_t source_mask;
 	uint32_t reserved;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
+	/* One-shot proof of the exact final bootmem backing reservation. */
+	struct bootmem_reservation_receipt backing_receipt;
+#endif
 } __aligned(8);
 
 struct payload_mm_authvar_presence_lifecycle_close_install_receipt {
@@ -64,6 +71,7 @@ enum cb_err platform_payload_mm_authvar_presence_lifecycle_close_route_install(
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt *receipt);
 void __noreturn
 platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop(void);
+
 enum cb_err payload_mm_authvar_presence_lifecycle_close_send(
 	const struct lb_authvar_presence_lifecycle_close_endpoint *endpoint,
 	uint32_t source);
