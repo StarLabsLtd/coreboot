@@ -193,8 +193,9 @@ static enum cb_err verify_pci(
 		CB_SUCCESS : CB_ERR;
 }
 
-static bool receipt_valid(const struct starbook_mtl_dma_smm_receipt *receipt,
-	uint64_t lifecycle_base, size_t lifecycle_size)
+bool starbook_mtl_dma_smm_receipt_geometry_valid(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	uint64_t forbidden_base, size_t forbidden_size)
 {
 	const struct starbook_mtl_dma_smm_range *const ranges[] = {
 		&receipt->handoff,
@@ -205,8 +206,16 @@ static bool receipt_valid(const struct starbook_mtl_dma_smm_receipt *receipt,
 		&receipt->arenas[2],
 	};
 	const uint64_t ecam_size = (uint64_t)PLATFORM_ECAM_BUSES << 20;
+	const struct starbook_mtl_dma_smm_range mmio[] = {
+		{ PLATFORM_ECAM_BASE, ecam_size },
+		{ PLATFORM_VTVC0_BASE, PAGE_SIZE },
+		{ PLATFORM_GFX_BASE, PAGE_SIZE },
+		{ PLATFORM_GFXVTBAR_REGISTER & ~(uint64_t)(PAGE_SIZE - 1U),
+			PAGE_SIZE },
+	};
 
-	if (receipt->revision != STARBOOK_MTL_DMA_SMM_RECEIPT_REVISION ||
+	if (!receipt ||
+	    receipt->revision != STARBOOK_MTL_DMA_SMM_RECEIPT_REVISION ||
 	    receipt->size != sizeof(*receipt) ||
 	    receipt->bus_count != PLATFORM_ECAM_BUSES ||
 	    !receipt->function_count ||
@@ -226,11 +235,17 @@ static bool receipt_valid(const struct starbook_mtl_dma_smm_receipt *receipt,
 		VTD_PMEN + sizeof(uint32_t)) ||
 	    receipt->gfxvtbar_register > UINT64_MAX - sizeof(uint64_t) ||
 	    !pointer_span_valid(receipt->gfxvtbar_register, sizeof(uint64_t)) ||
-	    !lifecycle_base || !lifecycle_size ||
-	    lifecycle_base > UINT64_MAX - (lifecycle_size - 1U) ||
+	    !forbidden_base || !forbidden_size ||
+	    forbidden_base > UINT64_MAX - (forbidden_size - 1U) ||
 	    receipt->vtvc0_rtaddr != receipt->tables.base ||
 	    receipt->gfxvtbar_value !=
 		(PLATFORM_GFX_BASE | DMA_VTBAR_ENABLED) ||
+	    smm_invocation_loader_instance_nonce_is_zero(
+		receipt->loader_instance_nonce) ||
+	    !receipt->invocation_generation ||
+	    (receipt->loader_lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     receipt->loader_lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD) ||
+	    receipt->identity_reserved ||
 	    !receipt->table_used_bytes ||
 	    (receipt->table_used_bytes & (PAGE_SIZE - 1U)) ||
 	    receipt->table_used_bytes > receipt->tables.size ||
@@ -242,8 +257,15 @@ static bool receipt_valid(const struct starbook_mtl_dma_smm_receipt *receipt,
 
 	for (size_t index = 0; index < ARRAY_SIZE(ranges); index++) {
 		if (!page_range_valid(ranges[index]) ||
-		    overlaps(lifecycle_base, lifecycle_size, ranges[index]))
+		    ranges[index]->base > UINT32_MAX ||
+		    ranges[index]->size - 1U >
+			UINT32_MAX - ranges[index]->base ||
+		    overlaps(forbidden_base, forbidden_size, ranges[index]))
 			return false;
+		for (size_t region = 0; region < ARRAY_SIZE(mmio); region++)
+			if (overlaps(mmio[region].base, mmio[region].size,
+				ranges[index]))
+				return false;
 		for (size_t prior = 0; prior < index; prior++)
 			if (overlaps(ranges[index]->base, ranges[index]->size,
 				ranges[prior]))
@@ -315,7 +337,8 @@ enum cb_err starbook_mtl_dma_smm_verify(
 
 	memcpy(&workspace->receipt, receipt, sizeof(workspace->receipt));
 	memcpy(&workspace->observer, observer, sizeof(workspace->observer));
-	if (!receipt_valid(&workspace->receipt, lifecycle_base, lifecycle_size) ||
+	if (!starbook_mtl_dma_smm_receipt_geometry_valid(&workspace->receipt,
+		lifecycle_base, lifecycle_size) ||
 	    verify_engine(&workspace->receipt, &workspace->observer) !=
 		CB_SUCCESS ||
 	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS ||
@@ -324,7 +347,8 @@ enum cb_err starbook_mtl_dma_smm_verify(
 	    !protected_contract_valid(receipt, observer, runtime_view, workspace) ||
 	    memcmp(receipt, &workspace->receipt, sizeof(*receipt)) ||
 	    memcmp(observer, &workspace->observer, sizeof(*observer)) ||
-	    !receipt_valid(&workspace->receipt, lifecycle_base, lifecycle_size) ||
+	    !starbook_mtl_dma_smm_receipt_geometry_valid(&workspace->receipt,
+		lifecycle_base, lifecycle_size) ||
 	    verify_table_copies(&workspace->receipt, &workspace->observer,
 		workspace->digest) != CB_SUCCESS ||
 	    verify_engine(&workspace->receipt, &workspace->observer) !=

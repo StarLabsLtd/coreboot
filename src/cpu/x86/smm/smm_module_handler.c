@@ -59,6 +59,15 @@ static const volatile
 __attribute((aligned(SMM_RUNTIME_ALIGNMENT), __section__(".module_parameters")))
 	struct smm_runtime smm_runtime;
 
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+static bool spans_overlap(uintptr_t first, size_t first_size,
+	uintptr_t second, size_t second_size)
+{
+	return first <= second ? second - first < first_size :
+		first - second < second_size;
+}
+#endif
+
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
 #if defined(__TEST__)
 void smm_invocation_runtime_view_test_hook(uint32_t point);
@@ -403,6 +412,26 @@ void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size)
 	*base = smm_runtime.payload_spi_console_buffer_base;
 	*size = smm_runtime.payload_spi_console_buffer_size;
 }
+
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size)
+{
+	const uintptr_t frame_base = smm_runtime.dma_receipt_frame_base;
+	const size_t frame_size = smm_runtime.dma_receipt_frame_size;
+	const uintptr_t smram_base = smm_runtime.smbase;
+	const size_t smram_size = smm_runtime.smm_size;
+
+	if (!base || !size || !frame_base || !frame_size || !smram_size ||
+	    frame_base > UINT32_MAX || frame_size - 1U > UINT32_MAX - frame_base ||
+	    smram_base > (uintptr_t)-1 - (smram_size - 1U) ||
+	    spans_overlap(frame_base, frame_size, smram_base, smram_size))
+		return false;
+	*base = frame_base;
+	*size = frame_size;
+	return frame_base == smm_runtime.dma_receipt_frame_base &&
+		frame_size == smm_runtime.dma_receipt_frame_size;
+}
+#endif
 
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
 void smm_get_capsule_broker_buffers(

@@ -149,6 +149,9 @@ static struct starbook_mtl_dma_smm_receipt valid_receipt(void)
 		},
 		.table_used_bytes = 0x3000,
 		.table_digest = { [0 ... 31] = 0x5a },
+		.loader_instance_nonce = { .low = 1 },
+		.invocation_generation = 1,
+		.loader_lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD,
 		.functions = {
 			{ .bdf = 0x10, .vendor = 0x8086, .device = 0x1111,
 			  .command = 3, .class = 0x030000 },
@@ -210,6 +213,29 @@ int main(int argc, char **argv)
 		receipt.table_used_bytes++;
 	} else if (!strcmp(argv[1], "range-overflow")) {
 		receipt.arenas[2].base = UINT64_MAX - 0x7ffU;
+	} else if (!strcmp(argv[1], "null-table")) {
+		receipt.tables.base = 0;
+		receipt.vtvc0_rtaddr = 0;
+	} else if (!strcmp(argv[1], "above-4g")) {
+		receipt.tables.base = 0x100000000ULL;
+		receipt.vtvc0_rtaddr = receipt.tables.base;
+	} else if (!strcmp(argv[1], "huge-table")) {
+		receipt.tables.size = UINT64_MAX;
+		receipt.table_mirror.size = UINT64_MAX;
+	} else if (!strcmp(argv[1], "mmio-table")) {
+		receipt.tables.base = ECAM;
+		receipt.vtvc0_rtaddr = receipt.tables.base;
+	} else if (!strcmp(argv[1], "forbidden-table")) {
+		receipt.tables.base = lifecycle_base;
+		receipt.vtvc0_rtaddr = receipt.tables.base;
+	} else if (!strcmp(argv[1], "zero-loader-nonce")) {
+		receipt.loader_instance_nonce.low = 0;
+	} else if (!strcmp(argv[1], "zero-generation")) {
+		receipt.invocation_generation = 0;
+	} else if (!strcmp(argv[1], "bad-lifecycle")) {
+		receipt.loader_lifecycle = 3;
+	} else if (!strcmp(argv[1], "identity-reserved")) {
+		receipt.identity_reserved = 1;
 	} else if (!strcmp(argv[1], "pointer32")) {
 		receipt.tables.base = 0x100000000ULL;
 		receipt.vtvc0_rtaddr = receipt.tables.base;

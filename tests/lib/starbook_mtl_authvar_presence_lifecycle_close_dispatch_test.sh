@@ -9,8 +9,13 @@ mkdir -p "$temporary/include"
 printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_COMPOSITION 1' \
 	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
 	'#define CONFIG_SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE 1' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION 1' \
+	'#define CONFIG_SMM_APMC_ROUTE_STARBOOK_MTL_DMA_RECEIPT 1' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin

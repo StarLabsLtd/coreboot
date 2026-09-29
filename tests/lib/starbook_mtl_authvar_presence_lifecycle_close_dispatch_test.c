@@ -14,6 +14,7 @@
 #include <intelblocks/smm_invocation_cause.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install.h"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
@@ -39,7 +40,9 @@ static atomic_uint prepare_count;
 static atomic_uint retire_count;
 static atomic_uint provision_count;
 static atomic_uint install_count;
+static atomic_uint receipt_count;
 static enum intel_smm_invocation_cause_result classification;
+static uint8_t invocation_command;
 static enum smm_apmc_select_result selection_result;
 static uint64_t invocation_wire;
 static struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
@@ -57,9 +60,16 @@ static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	uint8_t command)
 {
 	(void)context;
-	return cpu == 0U && command ==
-		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE ?
+	return cpu == 0U && command == invocation_command ?
 		SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
+}
+
+enum cb_err starbook_mtl_dma_receipt_provision_receive(
+	const struct smm_invocation_save_state_ops *expected_active_ops)
+{
+	assert(expected_active_ops == &ops);
+	atomic_fetch_add_explicit(&receipt_count, 1U, memory_order_relaxed);
+	return CB_SUCCESS;
 }
 
 static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
@@ -174,8 +184,9 @@ enum intel_smm_invocation_cause_result intel_smm_invocation_private_apmc_cause(
 	assert(actual_composition == &composition && actual_topology == &topology);
 	assert(actual_instance == &instance && actual_evidence == &evidence);
 	assert(*runtime_cpus == topology.active_cpus);
-	assert(expected_command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
 	atomic_fetch_add_explicit(&classify_count, 1U, memory_order_relaxed);
+	if (expected_command != invocation_command)
+		return INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE;
 	if (classification == INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID)
 		*cause = (struct smm_invocation_entry_cause) {
 			.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
@@ -314,6 +325,7 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
 		topology.initial_apic_ids[cpu] = cpu * 2U;
 	classification = classify;
+	invocation_command = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
 	selection_result = SMM_APMC_SELECT_ENABLED;
 	evidence.closed_generation = 9U;
 	ops = (struct smm_invocation_save_state_ops) {
@@ -338,6 +350,7 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	atomic_store(&retire_count, 0U);
 	atomic_store(&provision_count, 0U);
 	atomic_store(&install_count, 0U);
+	atomic_store(&receipt_count, 0U);
 	invocation_wire = 0;
 }
 
@@ -352,6 +365,7 @@ static void clear_round_counts(void)
 	atomic_store(&prepare_count, 0U);
 	atomic_store(&retire_count, 0U);
 	atomic_store(&provision_count, 0U);
+	atomic_store(&receipt_count, 0U);
 }
 
 static void run_all_cpus(struct worker *workers, pthread_t *threads)
@@ -385,11 +399,27 @@ int main(void)
 	struct worker workers[CPUS];
 
 	reset(INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE);
+	invocation_command = 0U;
 	assert(smm_pre_lock_dispatch(0U, topology.initial_apic_ids[0]) ==
 		SMM_PRE_LOCK_DISPATCH_NOT_HANDLED);
-	assert(atomic_load(&classify_count) == 1U && !atomic_load(&arm_count));
+	assert(atomic_load(&classify_count) == 2U && !atomic_load(&arm_count));
+
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	invocation_command = SMM_APMC_STARBOOK_MTL_DMA_RECEIPT;
+	run_all_cpus(workers, threads);
+	assert(workers[0].result == SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED);
+	for (uint32_t cpu = 1; cpu < CPUS; cpu++)
+		assert(workers[cpu].result ==
+			SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED);
+	assert(atomic_load(&classify_count) == CPUS);
+	assert(atomic_load(&receipt_count) == 1U);
+	assert(atomic_load(&arm_count) == 1U);
+	assert(atomic_load(&retire_count) == 1U);
+	assert(!atomic_load(&install_count));
+	assert(!atomic_load(&arrive_count));
 
 	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_INVALID);
+	invocation_command = SMM_APMC_STARBOOK_MTL_DMA_RECEIPT;
 	expect_fail_stop();
 
 	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
@@ -419,7 +449,7 @@ int main(void)
 	for (uint32_t cpu = 1; cpu < CPUS; cpu++)
 		assert(workers[cpu].result ==
 			SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED);
-	assert(atomic_load(&classify_count) == CPUS);
+	assert(atomic_load(&classify_count) == CPUS * 2U);
 	assert(atomic_load(&install_count) == 1U);
 	assert(atomic_load(&provision_count) == 1U);
 	assert(atomic_load(&arm_count) == 1U);
@@ -440,7 +470,7 @@ int main(void)
 	for (uint32_t cpu = 1; cpu < CPUS; cpu++)
 		assert(workers[cpu].result ==
 			SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED);
-	assert(atomic_load(&classify_count) == CPUS);
+	assert(atomic_load(&classify_count) == CPUS * 2U);
 	assert(atomic_load(&arrive_count) == CPUS);
 	assert(atomic_load(&departure_count) == CPUS);
 	assert(atomic_load(&arm_count) == 1U);

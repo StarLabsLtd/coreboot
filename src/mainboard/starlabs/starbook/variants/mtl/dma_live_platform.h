@@ -8,7 +8,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct starbook_mtl_dma_smm_receipt;
+
 enum cb_err starbook_mtl_dma_live_backend_ensure(void);
 bool starbook_mtl_dma_live_backend_handoff(uintptr_t *address, size_t *bytes);
+enum cb_err starbook_mtl_dma_receipt_candidate_build(
+	struct starbook_mtl_dma_smm_receipt *candidate);
 
 #endif

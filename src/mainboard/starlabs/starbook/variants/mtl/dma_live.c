@@ -392,3 +392,16 @@ bool starbook_mtl_dma_live_tables_match(
 	return !memcmp(layout->table_memory, layout->table_mirror,
 		layout->table_capacity_pages * DMA_LIVE_PAGE_SIZE);
 }
+
+bool starbook_mtl_dma_live_snapshot(
+	struct starbook_mtl_dma_live_layout *layout,
+	struct pci_bme_quiesce_snapshot *snapshot)
+{
+	if (!layout || !snapshot || live_state.phase != DMA_LIVE_ACTIVE)
+		return false;
+	memcpy(layout, &live_state.layout, sizeof(*layout));
+	memcpy(snapshot, &live_state.snapshot, sizeof(*snapshot));
+	return live_state.phase == DMA_LIVE_ACTIVE &&
+		!memcmp(layout, &live_state.layout, sizeof(*layout)) &&
+		!memcmp(snapshot, &live_state.snapshot, sizeof(*snapshot));
+}

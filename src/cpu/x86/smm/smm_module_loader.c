@@ -34,6 +34,15 @@
 
 #define SMM_CODE_SEGMENT_SIZE 0x10000
 
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+static bool spans_overlap(uintptr_t first, size_t first_size,
+	uintptr_t second, size_t second_size)
+{
+	return first <= second ? second - first < first_size :
+		first - second < second_size;
+}
+#endif
+
 /*
  * Components that make up the SMRAM:
  * 1. Save state - the total save state memory used
@@ -407,6 +416,19 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 	mod_params->save_state_size = loader_params->cpu_save_state_size;
 	mod_params->num_cpus = loader_params->num_cpus;
 	mod_params->gnvs_ptr = (uint32_t)(uintptr_t)acpi_get_gnvs();
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+	uintptr_t receipt_base;
+	size_t receipt_size;
+
+	if (!platform_smm_dma_receipt_frame(&receipt_base, &receipt_size) ||
+	    !receipt_base || !receipt_size || receipt_base > UINT32_MAX ||
+	    receipt_size - 1U > UINT32_MAX - receipt_base ||
+	    !tseg_size || tseg_base > UINTPTR_MAX - (tseg_size - 1U) ||
+	    spans_overlap(receipt_base, receipt_size, tseg_base, tseg_size))
+		die("SMM: invalid MTL DMA receipt frame\n");
+	mod_params->dma_receipt_frame_base = receipt_base;
+	mod_params->dma_receipt_frame_size = receipt_size;
+#endif
 	const struct cbmem_entry *cbmemc;
 	if (CONFIG(CONSOLE_CBMEM) && (cbmemc = cbmem_entry_find(CBMEM_ID_CONSOLE))) {
 		mod_params->cbmemc = cbmem_entry_start(cbmemc);
