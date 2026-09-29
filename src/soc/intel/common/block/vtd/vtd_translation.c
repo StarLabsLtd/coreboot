@@ -1,14 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "vtd_translation.h"
+#include "vtd_translation_internal.h"
 
 #include <stdbool.h>
 #include <string.h>
-
-#define VTD_ENTRY_PRESENT (1ULL << 0)
-#define VTD_ENTRY_WRITE (1ULL << 1)
-#define VTD_ENTRY_ADDRESS_MASK 0x000ffffffffff000ULL
-#define VTD_CONTEXT_ADDRESS_WIDTH_48 2ULL
 
 static bool range_valid(uint64_t base, uint32_t pages)
 {
@@ -44,10 +40,10 @@ static int allocate_page(struct vtd_translation_image *image, size_t *page)
 static int entry_page(const struct vtd_translation_image *image,
 	uint64_t entry, size_t *page)
 {
-	const uint64_t address = entry & VTD_ENTRY_ADDRESS_MASK;
+	const uint64_t address = entry & VTD_TRANSLATION_ENTRY_ADDRESS_MASK;
 	uint64_t offset;
 
-	if (!(entry & VTD_ENTRY_PRESENT) || address < image->physical_base)
+	if (!(entry & VTD_TRANSLATION_ENTRY_PRESENT) || address < image->physical_base)
 		return -1;
 	offset = address - image->physical_base;
 	if (offset & (VTD_TRANSLATION_PAGE_SIZE - 1U))
@@ -59,12 +55,12 @@ static int entry_page(const struct vtd_translation_image *image,
 static int child_page(struct vtd_translation_image *image, uint64_t *entry,
 	size_t *page)
 {
-	if (*entry & VTD_ENTRY_PRESENT)
+	if (*entry & VTD_TRANSLATION_ENTRY_PRESENT)
 		return entry_page(image, *entry, page);
 	if (allocate_page(image, page))
 		return -1;
 	*entry = page_physical(image, *page) |
-		VTD_ENTRY_PRESENT | VTD_ENTRY_WRITE;
+		VTD_TRANSLATION_ENTRY_PRESENT | VTD_TRANSLATION_ENTRY_WRITE;
 	return 0;
 }
 
@@ -84,10 +80,10 @@ static int map_page(struct vtd_translation_image *image, size_t pml4_page,
 	if (child_page(image, &table[(device >> 21) & 0x1ffU], &page))
 		return -1;
 	table = page_virtual(image, page);
-	if (table[(device >> 12) & 0x1ffU] & VTD_ENTRY_PRESENT)
+	if (table[(device >> 12) & 0x1ffU] & VTD_TRANSLATION_ENTRY_PRESENT)
 		return -1;
 	table[(device >> 12) & 0x1ffU] = cpu |
-		VTD_ENTRY_PRESENT | VTD_ENTRY_WRITE;
+		VTD_TRANSLATION_ENTRY_PRESENT | VTD_TRANSLATION_ENTRY_WRITE;
 	return 0;
 }
 
@@ -150,24 +146,24 @@ int vtd_translation_build(struct vtd_translation_image *image,
 
 		if (requester_valid(image, requesters, index))
 			return -1;
-		if (root[(size_t)bus * 2U] & VTD_ENTRY_PRESENT) {
+		if (root[(size_t)bus * 2U] & VTD_TRANSLATION_ENTRY_PRESENT) {
 			if (entry_page(image, root[(size_t)bus * 2U], &context_page))
 				return -1;
 		} else {
 			if (allocate_page(image, &context_page))
 				return -1;
 			root[(size_t)bus * 2U] = page_physical(image, context_page) |
-				VTD_ENTRY_PRESENT;
+				VTD_TRANSLATION_ENTRY_PRESENT;
 		}
 		context = page_virtual(image, context_page);
-		if (context[(size_t)devfn * 2U] & VTD_ENTRY_PRESENT ||
+		if (context[(size_t)devfn * 2U] & VTD_TRANSLATION_ENTRY_PRESENT ||
 		    allocate_page(image, &pml4_page))
 			return -1;
 		context[(size_t)devfn * 2U] = page_physical(image, pml4_page) |
-			VTD_ENTRY_PRESENT;
+			VTD_TRANSLATION_ENTRY_PRESENT;
 		context[(size_t)devfn * 2U + 1U] =
 			((uint64_t)requester->domain << 8) |
-			VTD_CONTEXT_ADDRESS_WIDTH_48;
+			VTD_TRANSLATION_CONTEXT_ADDRESS_WIDTH_48;
 		for (uint32_t arena_page = 0; arena_page < requester->pages;
 		     arena_page++) {
 			const uint64_t offset = (uint64_t)arena_page <<
