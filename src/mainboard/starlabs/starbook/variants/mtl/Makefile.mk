@@ -38,6 +38,8 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL
 	authvar_presence_lifecycle_close_install_sender.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL) += \
 	authvar_presence_lifecycle_close_install_receiver.c
+smm-$(CONFIG_STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY) += \
+	authvar_presence_lifecycle_close_mailbox.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH) += \
 	authvar_presence_lifecycle_close_dispatch.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) += \

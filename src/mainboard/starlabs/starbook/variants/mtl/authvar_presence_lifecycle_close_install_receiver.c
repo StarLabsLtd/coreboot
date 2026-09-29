@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+#include "authvar_presence_lifecycle_close_mailbox.h"
+#endif
 
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_invocation_runtime.h>
@@ -49,7 +52,15 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 {
 	struct payload_mm_authvar_presence_lifecycle_close_install_frame *frame = NULL;
 	struct payload_mm_authvar_presence_lifecycle_close_install_frame snapshot;
+	struct payload_mm_authvar_presence_lifecycle_close_install_frame expected_frame;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct payload_mm_authvar_presence_lifecycle_close_install_frame observed;
+#endif
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt receipt = { 0 };
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct starbook_mtl_lifecycle_mailbox_binding mailbox = { 0 };
+	bool mailbox_consumed = false;
+#endif
 	struct smm_invocation_runtime_binding binding;
 	struct smm_invocation_topology topology;
 	const struct smm_invocation_save_state_ops *ops;
@@ -57,6 +68,7 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 	uint64_t wire = 0;
 	uint32_t matched_cpu = UINT32_MAX;
 	uint32_t expected = INSTALL_EMPTY;
+	bool frame_snapshotted = false;
 	enum cb_err status = CB_ERR;
 
 	if (!dependencies || !expected_active_ops || !dependencies->internal ||
@@ -122,33 +134,70 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 		sizeof(*frame)) || !frame_request_valid(frame))
 		goto out;
 	snapshot = *frame;
+	frame_snapshotted = true;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	observed = snapshot;
+	slot = smm_get_payload_mm_authvar_presence_transaction_slot();
+	if (!frame_request_valid(&snapshot) || memcmp(frame, &snapshot, sizeof(snapshot)))
+		goto out;
+	if (starbook_mtl_lifecycle_mailbox_verify_consume(
+		&snapshot.backing_receipt, snapshot.request.backing_base,
+		snapshot.request.backing_size, frame, sizeof(*frame), ops,
+		&mailbox) != CB_SUCCESS)
+		goto out;
+	mailbox_consumed = true;
+	if (mailbox.base != snapshot.request.backing_base ||
+	    mailbox.size != snapshot.request.backing_size ||
+	    !slot)
+		goto out;
+	if (!dependencies->communication_range_valid(
+		dependencies->communication_range_context,
+		(uint64_t)(uintptr_t)frame, sizeof(*frame)) ||
+	    memcmp(frame, &observed, sizeof(observed)))
+		goto out;
+	memset(&frame->backing_receipt, 0, sizeof(frame->backing_receipt));
+	memset(&observed.backing_receipt, 0, sizeof(observed.backing_receipt));
+	memset(&snapshot.backing_receipt, 0, sizeof(snapshot.backing_receipt));
+	if (memcmp(frame, &observed, sizeof(observed)))
+		goto out;
+#else
 	if (!frame_request_valid(&snapshot) || memcmp(frame, &snapshot, sizeof(snapshot)) ||
-	    !(slot = smm_get_payload_mm_authvar_presence_transaction_slot()) ||
+	    !(slot = smm_get_payload_mm_authvar_presence_transaction_slot()))
+		goto out;
+#endif
+	if (
 	    payload_mm_authvar_presence_lifecycle_close_route_provision(&owner.route,
 		&snapshot.request, slot, binding.composition, binding.instance,
 		binding.evidence, binding.topology, ops, dependencies->internal,
 		binding.evidence->closed_generation, dependencies->protected_storage,
 		dependencies->protected_storage_context, &receipt) != CB_SUCCESS)
 		goto out;
-	if (memcmp(frame, &snapshot, sizeof(snapshot))) {
-		__atomic_store_n(&owner.state, INSTALL_POISONED, __ATOMIC_RELEASE);
-		platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop();
-	}
 	if (!dependencies->communication_range_valid(
-		dependencies->communication_range_context, (uint64_t)(uintptr_t)frame,
-		sizeof(*frame))) {
+		dependencies->communication_range_context,
+		(uint64_t)(uintptr_t)frame, sizeof(*frame)) ||
+	    memcmp(frame, &snapshot, sizeof(snapshot))) {
 		__atomic_store_n(&owner.state, INSTALL_POISONED, __ATOMIC_RELEASE);
 		platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop();
 	}
 	frame->receipt = receipt;
+	expected_frame = snapshot;
+	expected_frame.receipt = receipt;
+	if (!dependencies->communication_range_valid(
+		dependencies->communication_range_context, (uint64_t)(uintptr_t)frame,
+		sizeof(*frame)) || memcmp(frame, &expected_frame,
+		sizeof(expected_frame))) {
+		__atomic_store_n(&owner.state, INSTALL_POISONED, __ATOMIC_RELEASE);
+		platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop();
+	}
 	__atomic_store_n(&frame->state,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT,
 		__ATOMIC_RELEASE);
-	if (memcmp(&frame->request, &snapshot.request, sizeof(frame->request)) ||
-	    memcmp(&frame->receipt, &receipt, sizeof(receipt)) ||
-	    frame->revision != snapshot.revision || frame->size != snapshot.size ||
-	    frame->reserved || frame->state !=
-		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT) {
+	expected_frame.state =
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT;
+	if (!dependencies->communication_range_valid(
+		dependencies->communication_range_context,
+		(uint64_t)(uintptr_t)frame, sizeof(*frame)) ||
+	    memcmp(frame, &expected_frame, sizeof(expected_frame))) {
 		__atomic_store_n(&owner.state, INSTALL_POISONED, __ATOMIC_RELEASE);
 		platform_payload_mm_authvar_presence_lifecycle_close_route_fail_stop();
 	}
@@ -163,18 +212,51 @@ enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_receive(
 	status = CB_SUCCESS;
 out:
 	if (status != CB_SUCCESS) {
-		if (frame && dependencies->communication_range_valid(
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+		if (mailbox_consumed)
+			starbook_mtl_lifecycle_mailbox_poison();
+#endif
+		if (frame && frame_snapshotted) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+			if (mailbox_consumed)
+				memset(&snapshot.backing_receipt, 0,
+					sizeof(snapshot.backing_receipt));
+#endif
+			if (dependencies->communication_range_valid(
 			dependencies->communication_range_context,
-			(uint64_t)(uintptr_t)frame, sizeof(*frame))) {
-			scrub(&frame->receipt, sizeof(frame->receipt));
-			__atomic_store_n(&frame->state,
+			(uint64_t)(uintptr_t)frame, sizeof(*frame)) &&
+			    !memcmp(frame, &snapshot, sizeof(snapshot))) {
+				scrub(&frame->receipt, sizeof(frame->receipt));
+				memset(&snapshot.receipt, 0, sizeof(snapshot.receipt));
+				if (!dependencies->communication_range_valid(
+					dependencies->communication_range_context,
+					(uint64_t)(uintptr_t)frame, sizeof(*frame)) ||
+				    memcmp(frame, &snapshot, sizeof(snapshot)))
+					goto failure_published;
+				__atomic_store_n(&frame->state,
 				PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REJECTED,
 				__ATOMIC_RELEASE);
+				snapshot.state =
+					PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REJECTED;
+				if (!dependencies->communication_range_valid(
+					dependencies->communication_range_context,
+					(uint64_t)(uintptr_t)frame, sizeof(*frame)) ||
+				    memcmp(frame, &snapshot, sizeof(snapshot)))
+					goto failure_published;
+			}
 		}
+failure_published:
 		__atomic_store_n(&owner.state, INSTALL_FAILED, __ATOMIC_RELEASE);
 	}
 	scrub(&snapshot, sizeof(snapshot));
+	scrub(&expected_frame, sizeof(expected_frame));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	scrub(&observed, sizeof(observed));
+#endif
 	scrub(&receipt, sizeof(receipt));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	scrub(&mailbox, sizeof(mailbox));
+#endif
 	scrub(&binding, sizeof(binding));
 	scrub(&topology, sizeof(topology));
 	return status;

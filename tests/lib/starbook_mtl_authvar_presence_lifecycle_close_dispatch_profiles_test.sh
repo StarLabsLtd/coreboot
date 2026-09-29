@@ -64,6 +64,7 @@ config TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
 	select STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
 	select STARLABS_STARBOOK_MTL_DMA_HANDOFF
 	select STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
+	select STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY
 	select SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION
 	select PAYLOAD_MM_CMS_CORE
 
@@ -94,23 +95,40 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING \
 	STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION \
 	STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY \
+	STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY \
+	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY \
 	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
 done
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" STACK_AUDIT_CFLAGS=-fstack-usage -j4 \
-	"$build/smm/smm" >/dev/null
+	"$build/smm/smm" \
+	"$build/ramstage/cpu/x86/smm/smm_module_loader.o" \
+	"$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o" \
+	"$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_provider.o" \
+	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o" \
+	"$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.o" \
+	>/dev/null
 
 dispatcher="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
 authority="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.o"
 requesters="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_requester_authority.o"
 verifier="$build/smm/soc/intel/common/block/vtd/vtd_translation_verify.o"
-receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.o"
+dma_receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.o"
+mailbox="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_mailbox.o"
+install_receiver="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_receiver.o"
+loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
+backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o"
+provider="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_provider.o"
+sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.o"
 test -s "$dispatcher" && test -s "$handler" && test -s "$authority" && \
-	test -s "$requesters" && test -s "$verifier" && test -s "$receiver"
+	test -s "$requesters" && test -s "$verifier" && test -s "$dma_receiver" && \
+	test -s "$mailbox" && test -s "$loader" && test -s "$backing" && \
+	test -s "$provider" && test -s "$sender" && test -s "$install_receiver"
 file "$dispatcher" "$handler" "$authority" "$requesters" "$verifier" \
-	"$receiver" | grep -c 'ELF 32-bit' | grep -q '^6$'
+	"$dma_receiver" "$mailbox" "$install_receiver" "$loader" "$backing" \
+	"$provider" "$sender" | grep -c 'ELF 32-bit' | grep -q '^12$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
@@ -120,7 +138,19 @@ nm --defined-only "$authority" | grep -q 'starbook_mtl_dma_smm_authority_verify'
 nm --defined-only "$requesters" | grep -q \
 	'starbook_mtl_dma_requester_authority_derive'
 nm --defined-only "$verifier" | grep -q 'vtd_translation_verify'
-nm --defined-only "$receiver" | grep -q 'starbook_mtl_dma_smm_binding_get'
+nm --defined-only "$dma_receiver" | grep -q 'starbook_mtl_dma_smm_binding_get'
+nm --defined-only "$mailbox" | grep -q \
+	'starbook_mtl_lifecycle_mailbox_dma_protected'
+nm --defined-only "$install_receiver" | grep -q \
+	'starbook_mtl_authvar_presence_lifecycle_close_install_receive'
+nm --defined-only "$handler" | grep -q \
+	'smm_get_payload_mm_authvar_presence_lifecycle_close_mailbox_authority'
+nm -u "$loader" | grep -q \
+	'payload_mm_authvar_presence_lifecycle_close_mailbox_loader_provision'
+nm --defined-only "$backing" | grep -q \
+	'payload_mm_authvar_presence_lifecycle_close_backing_take_authenticated'
+nm -u "$provider" | grep -q \
+	'payload_mm_authvar_presence_lifecycle_close_backing_take_authenticated'
 ! nm -u "$authority" | grep -Eq '__atomic_load_8|libatomic'
 usage=$(find "$build/smm/mainboard/starlabs/starbook/variants/mtl" \
 	-name '*authvar_presence_lifecycle_close_dispatch*.su' -print -quit)
@@ -147,11 +177,13 @@ grep -A2 'default:' "$temporary/hook" | grep -q \
 
 baseline="$temporary/base"
 mkdir -p "$baseline"
-git -C "$root" archive 13e091c0188b74713e9cdd7327948a7c34f7052a | \
+git -C "$root" archive 591aafeea2fa6b50086982b05fe0123d4ade3ea6 | \
 	tar -x -C "$baseline"
-for module in vboot stm; do
-	rmdir "$baseline/3rdparty/$module"
-	ln -s "$root/3rdparty/$module" "$baseline/3rdparty/$module"
+git -C "$root" ls-tree -r 591aafeea2fa6b50086982b05fe0123d4ade3ea6 | \
+	awk '$1 == "160000" { print $4 }' | while read -r module; do
+	rmdir "$baseline/$module" 2>/dev/null || true
+	mkdir -p "$(dirname "$baseline/$module")"
+	ln -s "$root/$module" "$baseline/$module"
 done
 ln -s "$root/../intel_fsp" "$temporary/intel_fsp"
 
@@ -172,13 +204,16 @@ build_off()
 		! grep -q '^CONFIG_SMM_PRE_LOCK_DISPATCH=y$' "$config"
 		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH=y$' "$config"
 		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION=y$' "$config"
+		! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_LIFECYCLE_MAILBOX_AUTHORITY=y$' "$config"
 	fi
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
-		-j4 "$output/smm/smm" >/dev/null
+		-j4 "$output/smm/smm" "$output/cbfs/fallback/ramstage.elf" >/dev/null
 }
 build_off "$root" current-off
 build_off "$baseline" base-off
 cmp "$temporary/current-off/smm/smm" "$temporary/base-off/smm/smm"
+cmp "$temporary/current-off/cbfs/fallback/ramstage.elf" \
+	"$temporary/base-off/cbfs/fallback/ramstage.elf"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.o"
 

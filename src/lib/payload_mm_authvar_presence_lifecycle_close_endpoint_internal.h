@@ -4,6 +4,7 @@
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_INTERNAL_H
 
 #include <boot/payload_mm_authvar_presence_lifecycle_close_publication.h>
+#include <bootmem_reservation_receipt.h>
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_reserve(void);
 struct payload_mm_authvar_presence_lifecycle_close_backing {
@@ -14,6 +15,11 @@ struct payload_mm_authvar_presence_lifecycle_close_backing {
 };
 enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_take(
 	struct payload_mm_authvar_presence_lifecycle_close_backing *backing);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_take_authenticated(
+	struct payload_mm_authvar_presence_lifecycle_close_backing *backing,
+	struct bootmem_reservation_receipt *reservation_receipt);
+#endif
 enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_return(
 	const struct payload_mm_authvar_presence_lifecycle_close_backing *backing,
 	const struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt);

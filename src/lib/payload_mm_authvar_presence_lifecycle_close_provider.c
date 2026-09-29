@@ -55,9 +55,16 @@ __weak enum cb_err
 platform_payload_mm_authvar_presence_lifecycle_close_route_install(
 	const struct payload_mm_authvar_presence_lifecycle_close_install_descriptor
 		*descriptor,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct bootmem_reservation_receipt *backing_receipt,
+#endif
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt *receipt)
 {
 	(void)descriptor;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	if (backing_receipt)
+		scrub(backing_receipt, sizeof(*backing_receipt));
+#endif
 	if (receipt)
 		scrub(receipt, sizeof(*receipt));
 	return CB_ERR;
@@ -108,6 +115,9 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_provider_prepare(
 	struct payload_mm_authvar_presence_lifecycle_close_install_receipt
 		installed = { 0 };
 	struct payload_mm_authvar_presence_lifecycle_close_ready_receipt ready = { 0 };
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	struct bootmem_reservation_receipt backing_receipt = { 0 };
+#endif
 	struct lb_authvar_presence_endpoint presence;
 	struct payload_mm_authvar_presence_lifecycle_close_backing backing_snapshot;
 	enum cb_err install_status;
@@ -125,8 +135,13 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_provider_prepare(
 		goto out;
 	presence = presence_receipt->endpoint;
 	if (!presence.generation ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	    payload_mm_authvar_presence_lifecycle_close_backing_take_authenticated(
+		&provider.backing, &backing_receipt) != CB_SUCCESS ||
+#else
 	    payload_mm_authvar_presence_lifecycle_close_backing_take(
 		&provider.backing) != CB_SUCCESS ||
+#endif
 	    !payload_mm_authvar_presence_producer_publication_receipt_validate(
 		presence_receipt) ||
 	    memcmp(&presence, &presence_receipt->endpoint, sizeof(presence)))
@@ -158,7 +173,11 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_provider_prepare(
 		goto out;
 	install_status =
 		platform_payload_mm_authvar_presence_lifecycle_close_route_install(
-			&descriptor, &installed);
+			&descriptor,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+			&backing_receipt,
+#endif
+			&installed);
 	if (install_status != CB_SUCCESS) {
 		if (memcmp(&descriptor, &frozen, sizeof(frozen)) ||
 		    memcmp(&provider.backing, &backing_snapshot,
@@ -221,6 +240,9 @@ out:
 	scrub(&frozen, sizeof(frozen));
 	scrub(&installed, sizeof(installed));
 	scrub(&ready, sizeof(ready));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MAILBOX_AUTHORITY)
+	scrub(&backing_receipt, sizeof(backing_receipt));
+#endif
 	scrub(&presence, sizeof(presence));
 	if (status != CB_SUCCESS) {
 		if (route_live)
