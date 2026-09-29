@@ -45,11 +45,14 @@ if "$temporary/mutant" >/dev/null 2>&1; then
 fi
 
 mutation="$temporary/unscrubbed-sender.c"
-sed 's/scrub(&frame, sizeof(frame));/(void)frame;/' \
+sed 's/scrub(frame, sizeof(\*frame));/(void)frame;/' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.c" \
 	> "$mutation"
-! cmp -s "$mutation" \
-	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.c"
+if cmp -s "$mutation" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.c"; then
+	echo 'lifecycle-close sender scrub mutation changed nothing' >&2
+	exit 1
+fi
 # shellcheck disable=SC2086
 ${CC:-cc} $common -O2 \
 	"$root/tests/lib/starbook_mtl_authvar_presence_lifecycle_close_install_test.c" \
@@ -74,7 +77,10 @@ second-range)
 \tif (false) {' \
 			"$receiver" > "$mutant" ;;
 	esac
-	! cmp -s "$receiver" "$mutant"
+	if cmp -s "$receiver" "$mutant"; then
+		echo "lifecycle-close install mutation changed nothing: $mutation" >&2
+		exit 1
+	fi
 	# shellcheck disable=SC2086
 	${CC:-cc} $common -O2 \
 		"$root/tests/lib/starbook_mtl_authvar_presence_lifecycle_close_install_test.c" \
@@ -86,7 +92,7 @@ second-range)
 	fi
 done
 
-grep -q 'UINT32_MAX - (sizeof(frame) - 1U)' \
+grep -q 'UINT32_MAX - (sizeof(\*frame) - 1U)' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_sender.c"
 
 echo 'StarBook MTL lifecycle-close installation channel: PASS'

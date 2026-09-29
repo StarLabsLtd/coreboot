@@ -28,8 +28,10 @@ static struct {
 
 __weak enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
-		**dependencies)
+		**dependencies,
+	const struct smm_invocation_save_state_ops *active_ops)
 {
+	(void)active_ops;
 	if (dependencies)
 		*dependencies = NULL;
 	return CB_ERR;
@@ -196,7 +198,7 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 			__atomic_store_n(&owner.state, DISPATCH_ACTIVE, __ATOMIC_RELEASE);
 		} else {
 			if (starbook_mtl_authvar_presence_lifecycle_close_install_policy(
-				&install_policy) != CB_SUCCESS || !install_policy)
+				&install_policy, active_ops) != CB_SUCCESS || !install_policy)
 				fail_stop();
 			__atomic_store_n(&owner.state, DISPATCH_INSTALLING,
 				__ATOMIC_RELEASE);

@@ -177,6 +177,7 @@ test-authvar-presence-lifecycle-close:
 .PHONY: test-authvar-presence-lifecycle-close-endpoint
 test-authvar-presence-lifecycle-close-endpoint:
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_endpoint_test.sh
+	tests/lib/payload_mm_authvar_presence_lifecycle_close_backing_authority_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_sender_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_provider_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh
@@ -199,6 +200,7 @@ test-starbook-mtl-authvar-presence-lifecycle-close-dispatch:
 .PHONY: test-starbook-mtl-authvar-presence-lifecycle-close-dma-policy
 test-starbook-mtl-authvar-presence-lifecycle-close-dma-policy: \
 	test-smm-invocation-runtime-view
+	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_install_policy_test.sh
 	tests/lib/vtd_translation_verify_test.sh
 	tests/lib/starbook_mtl_dma_smm_policy_test.sh
 	tests/lib/starbook_mtl_dma_smm_receipt_test.sh

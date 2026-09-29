@@ -119,8 +119,10 @@ static bool communication_range_valid(void *context, uint64_t base,
 
 enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
-		**dependencies)
+		**dependencies,
+	const struct smm_invocation_save_state_ops *active_ops)
 {
+	assert(active_ops == &ops);
 	*dependencies = &install_dependencies;
 	return CB_SUCCESS;
 }

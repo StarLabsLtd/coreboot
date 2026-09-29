@@ -7,18 +7,30 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
+	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_COMPOSITION 1' \
+	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
+	'#define CONFIG_SMM_INVOCATION_RUNTIME_VIEW 1' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION 1' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY 1' \
+	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT 1' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
-	-D__COREBOOT__ -D__TEST__ -include $root/src/include/kconfig.h
+	-D__COREBOOT__ -D__TEST__ -D__SMM__ -include $root/src/include/kconfig.h
 	-include $root/src/include/rules.h
 	-include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h
 	-I$temporary/include -I$root/src -I$root/src/lib -I$root/src/include
 	-I$root/src/commonlib/include -I$root/src/commonlib/bsd/include
-	-I$root/src/arch/x86/include -no-pie"
+	-I$root/src/arch/x86/include -I$root/src/soc/intel/common/block/include
+	-I$root/src/mainboard/starlabs/starbook/variants/mtl -no-pie"
 sources="$root/tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.c
 	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_endpoint.c
-	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_route.c"
+	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_route.c
+	$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_policy.c"
 
 for profile in o0 o2 asan ubsan tsan; do
 	case "$profile" in

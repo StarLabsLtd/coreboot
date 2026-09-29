@@ -6,6 +6,7 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
 mkdir -p "$temporary/config"
 printf '%s\n' '#define CONFIG_BOOTMEM_ALIGNED_RESERVATIONS 1' \
+	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 1' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > "$temporary/config.h"
 cp "$temporary/config.h" "$temporary/config/config.h"
 includes="-I$temporary -I$root/src/include -I$root/src -I$root/src/commonlib/include -I$root/src/commonlib/bsd/include -I$root/src/arch/x86/include -I$root/src/lib"

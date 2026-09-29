@@ -37,6 +37,7 @@ struct starbook_mtl_dma_smm_binding {
 };
 
 enum cb_err starbook_mtl_dma_receipt_provision_send(void);
+bool starbook_mtl_dma_receipt_transport_frame(uintptr_t *base, size_t *size);
 enum cb_err starbook_mtl_dma_receipt_candidate_build(
 	struct starbook_mtl_dma_smm_receipt *candidate);
 

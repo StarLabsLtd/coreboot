@@ -6,6 +6,13 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d "$root/../.mtl-lifecycle-close-dispatch.XXXXXX")
 temporary=$(CDPATH= cd -- "$temporary" && pwd -P)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+common_git=$(realpath "$(git -C "$root" rev-parse --git-common-dir)")
+intel_fsp=$(dirname "$(dirname "$common_git")")/intel_fsp
+fsp_headers="$intel_fsp/arl/202507011953/Include/"
+fsp_fd="$intel_fsp/arl/202507011953/Release/Fsp.fd"
+test -d "$fsp_headers" && test -f "$fsp_fd"
+current_fsp_headers=$(realpath --relative-to="$root" "$fsp_headers")
+current_fsp_fd=$(realpath --relative-to="$root" "$fsp_fd")
 
 scratch_make()
 (
@@ -85,12 +92,15 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl \
 	defconfig >/dev/null
 "$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN \
-	-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH -d LTO
+	-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH -d LTO \
+	--set-str FSP_HEADER_PATH "$current_fsp_headers" \
+	--set-str FSP_FD_PATH "$current_fsp_fd"
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" olddefconfig >/dev/null
 for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY \
 	STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION \
+	BOOTMEM_ALIGNED_RESERVATION_RECEIPT \
 	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY \
 	SMM_PRE_LOCK_DISPATCH SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE \
 	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING; do
@@ -98,7 +108,7 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 done
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" STACK_AUDIT_CFLAGS=-fstack-usage -j4 \
-	"$build/smm/smm" \
+	"$build/smm/smm" "$build/cbfs/fallback/ramstage.debug" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o" \
 	>/dev/null
@@ -110,18 +120,34 @@ verifier="$build/smm/soc/intel/common/block/vtd/vtd_translation_verify.o"
 sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o"
 platform="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o"
 handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
+policy="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_policy.o"
+loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
+backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o"
 test -s "$dispatcher" && test -s "$authority" && test -s "$receiver" &&
 	test -s "$verifier" && test -s "$sender" && test -s "$platform" &&
-	test -s "$handler"
+	test -s "$handler" && test -s "$policy" && test -s "$loader" &&
+	test -s "$backing"
 file "$dispatcher" "$authority" "$receiver" "$verifier" "$sender" \
-	"$platform" "$handler" | grep -c 'ELF 32-bit' | grep -q '^7$'
+	"$platform" "$handler" "$policy" "$loader" "$backing" |
+	grep -c 'ELF 32-bit' | grep -q '^10$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
 nm -u "$dispatcher" | grep -q 'intel_smm_invocation_private_apmc_cause'
 nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_binding_get'
 nm -u "$authority" | grep -q 'vtd_translation_verify'
-! nm -u "$dispatcher" | grep -Eq '__atomic|__sync|libatomic'
+nm --defined-only "$policy" |
+	grep -q 'starbook_mtl_authvar_presence_lifecycle_close_install_policy'
+nm --defined-only "$handler" |
+	grep -q 'smm_get_payload_mm_authvar_presence_lifecycle_close_backing_verifier'
+nm -u "$loader" |
+	grep -q 'payload_mm_authvar_presence_lifecycle_close_backing_verifier_take'
+nm --defined-only "$backing" |
+	grep -q 'payload_mm_authvar_presence_lifecycle_close_backing_attest'
+if nm -u "$dispatcher" | grep -Eq '__atomic|__sync|libatomic'; then
+	echo 'lifecycle-close dispatcher gained runtime atomic dependency' >&2
+	exit 1
+fi
 usage=$(find "$build/smm/mainboard/starlabs/starbook/variants/mtl" \
 	-name '*authvar_presence_lifecycle_close_dispatch*.su' -print -quit)
 test -n "$usage"
@@ -152,9 +178,6 @@ for module in vboot stm; do
 	rmdir "$baseline/3rdparty/$module"
 	ln -s "$root/3rdparty/$module" "$baseline/3rdparty/$module"
 done
-common_git=$(realpath "$(git -C "$root" rev-parse --git-common-dir)")
-intel_fsp=$(dirname "$(dirname "$common_git")")/intel_fsp
-test -d "$intel_fsp"
 ln -s "$intel_fsp" "$temporary/intel_fsp"
 
 build_off()
@@ -163,11 +186,15 @@ build_off()
 	name=$2
 	output="$temporary/$name"
 	config="$output/full.config"
+	tree_fsp_headers=$(realpath --relative-to="$tree" "$fsp_headers")
+	tree_fsp_fd=$(realpath --relative-to="$tree" "$fsp_fd")
 	mkdir -p "$output"
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
 		KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
 	"$tree/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN -d LTO \
-		-d PAYLOAD_SEABIOS -e PAYLOAD_NONE
+		-d PAYLOAD_SEABIOS -e PAYLOAD_NONE \
+		--set-str FSP_HEADER_PATH "$tree_fsp_headers" \
+		--set-str FSP_FD_PATH "$tree_fsp_fd"
 	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
 		olddefconfig >/dev/null
 	if [ "$tree" = "$root" ]; then
