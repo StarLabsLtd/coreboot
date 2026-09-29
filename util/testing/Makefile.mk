@@ -290,6 +290,10 @@ test-smm-apmc-command-registry:
 		SMM_APMC_REGISTRY_HOSTILE_OVERRIDE=1 \
 		tests/cpu/x86/smm_command_profiles_test.sh
 
+.PHONY: test-smm-persistent-subregions
+test-smm-persistent-subregions:
+	tests/cpu/x86/smm_persistent_subregion_test.sh
+
 .PHONY: test-smm-invocation-evidence
 test-smm-invocation-evidence:
 	tests/cpu/x86/smm_invocation_evidence_test.sh

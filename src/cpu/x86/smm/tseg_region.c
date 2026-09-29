@@ -17,6 +17,8 @@
  *     +-------------------------+
  *     |   OPAL S3 State (opt)   | SMM_OPAL_S3_STATE_SMRAM_SIZE
  *     +-------------------------+
+ *     | Authvar S3 State (opt)  | SMM_AUTHVAR_S3_STATE_SMRAM_SIZE
+ *     +-------------------------+
  *     |      code and data      |
  *     |         (TSEG)          |
  *     +-------------------------+ TSEG
@@ -28,6 +30,9 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	const size_t ied_size = CONFIG_IED_REGION_SIZE;
 	const size_t cache_size = CONFIG_SMM_RESERVED_SIZE;
 	const size_t opal_state_size = CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE;
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	const size_t authvar_state_size = CONFIG_SMM_AUTHVAR_S3_STATE_SMRAM_SIZE;
+#endif
 
 	if (CONFIG(SMM_TSEG))
 		smm_region(&sub_base, &sub_size);
@@ -37,7 +42,11 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 		return -1;
 
 	ASSERT(IS_ALIGNED(sub_base, sub_size));
-	ASSERT(sub_size > (cache_size + ied_size + opal_state_size));
+	ASSERT(sub_size > (cache_size + ied_size + opal_state_size
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+		+ authvar_state_size
+#endif
+		));
 
 	switch (sub) {
 	case SMM_SUBREGION_HANDLER:
@@ -45,7 +54,21 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 		sub_size -= ied_size;
 		sub_size -= cache_size;
 		sub_size -= opal_state_size;
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+		sub_size -= authvar_state_size;
+#endif
 		break;
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	case SMM_SUBREGION_AUTHVAR_S3_STATE:
+		if (!authvar_state_size)
+			return -1;
+		/* Persistent authvar state immediately follows the handler. */
+		sub_base += sub_size -
+			(ied_size + cache_size + opal_state_size +
+			 authvar_state_size);
+		sub_size = authvar_state_size;
+		break;
+#endif
 	case SMM_SUBREGION_OPAL_S3_STATE:
 		if (!opal_state_size)
 			return -1;

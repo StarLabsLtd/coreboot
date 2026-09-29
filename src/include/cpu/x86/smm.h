@@ -150,6 +150,10 @@ struct smm_runtime {
 	uintptr_t opal_s3_state_base;
 	size_t opal_s3_state_size;
 #endif
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	uintptr_t authvar_s3_state_base __aligned(sizeof(uintptr_t));
+	size_t authvar_s3_state_size;
+#endif
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
 	uintptr_t capsule_communication_base;
 	size_t capsule_communication_reserved_size;
@@ -234,6 +238,15 @@ _Static_assert(offsetof(struct smm_runtime, dma_receipt_memory) % 8 == 0,
 _Static_assert(offsetof(struct smm_runtime,
 	authvar_presence_lifecycle_close_backing_verifier) % 8 == 0,
 	"lifecycle-close backing verifier is not aligned");
+#endif
+
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+_Static_assert(offsetof(struct smm_runtime, authvar_s3_state_base) %
+	_Alignof(uintptr_t) == 0,
+	"authenticated-variable S3 state base is not aligned");
+_Static_assert(offsetof(struct smm_runtime, authvar_s3_state_size) %
+	_Alignof(size_t) == 0,
+	"authenticated-variable S3 state size is not aligned");
 #endif
 
 struct smm_module_params {
@@ -367,6 +380,10 @@ enum {
 	SMM_SUBREGION_CACHE,
 	/* Chipset specific area. */
 	SMM_SUBREGION_CHIPSET,
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	/* Persistent authenticated-variable S3 state area. */
+	SMM_SUBREGION_AUTHVAR_S3_STATE,
+#endif
 	/* Total sub regions supported. */
 	SMM_SUBREGION_NUM,
 };
@@ -416,6 +433,9 @@ void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif
 #if CONFIG(SMM_OPAL_S3_STATE_SMRAM)
 void smm_get_opal_s3_state_buffer(uintptr_t *base, size_t *size);
+#endif
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+void smm_get_authvar_s3_state_buffer(uintptr_t *base, size_t *size);
 #endif
 
 #endif /* CPU_X86_SMM_H */

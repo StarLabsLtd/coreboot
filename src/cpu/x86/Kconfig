@@ -384,6 +384,24 @@ config SMM_OPAL_S3_STATE_SMRAM_SIZE
 	  secret/state. Must be large enough to store the OPAL S3 state
 	  structure and should be kept minimal to reduce SMRAM pressure.
 
+config SMM_AUTHVAR_S3_STATE_SMRAM
+	bool
+	depends on HAVE_ACPI_RESUME
+	help
+	  Reserve a small persistent SMRAM region for authenticated-variable
+	  lifecycle state that must survive an SMM handler reload on S3 resume.
+	  The region is separate from executable SMM state and from feature-private
+	  persistent regions such as OPAL state.
+
+config SMM_AUTHVAR_S3_STATE_SMRAM_SIZE
+	hex
+	default 0x1000 if SMM_AUTHVAR_S3_STATE_SMRAM
+	default 0x0
+	help
+	  Size in bytes of the persistent authenticated-variable S3 state region.
+	  Keep this region minimal because it reduces the space available to the
+	  SMM handler.
+
 config SMM_OPAL_S3_SCRATCH_CBMEM
 	bool
 	depends on HAVE_ACPI_RESUME

@@ -587,6 +587,21 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 			memset((void *)state_base, 0, state_size);
 	}
 #endif
+
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	uintptr_t authvar_state_base = 0;
+	size_t authvar_state_size = 0;
+
+	if (smm_subregion(SMM_SUBREGION_AUTHVAR_S3_STATE, &authvar_state_base,
+		&authvar_state_size)) {
+		die("SMM: authenticated-variable S3 state region unavailable\n");
+	}
+	mod_params->authvar_s3_state_base = authvar_state_base;
+	mod_params->authvar_s3_state_size = authvar_state_size;
+	/* A non-S3 load must never inherit protected state from an older boot. */
+	if (!acpi_is_wakeup_s3())
+		memset((void *)authvar_state_base, 0, authvar_state_size);
+#endif
 }
 
 static void print_region(const char *name, const struct region region)
