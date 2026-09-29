@@ -125,6 +125,14 @@ static enum cb_err sha256(void *opaque, const void *data, size_t size,
 	return CB_SUCCESS;
 }
 
+static enum cb_err verify_translation(void *opaque,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	struct context *context = opaque;
+
+	return context && receipt ? CB_SUCCESS : CB_ERR;
+}
+
 static struct starbook_mtl_dma_smm_receipt valid_receipt(void)
 {
 	struct starbook_mtl_dma_smm_receipt receipt = {
@@ -173,6 +181,7 @@ int main(int argc, char **argv)
 		.context_size = sizeof(context),
 		.read32 = read32,
 		.sha256 = sha256,
+		.verify_translation = verify_translation,
 	};
 	const struct smm_invocation_runtime_view *view = &runtime_view;
 	uint64_t lifecycle_base = 0x700000;
@@ -245,6 +254,8 @@ int main(int argc, char **argv)
 		unprotected = (const void *)(uintptr_t)read32;
 	} else if (!strcmp(argv[1], "unprotected-sha")) {
 		unprotected = (const void *)(uintptr_t)sha256;
+	} else if (!strcmp(argv[1], "unprotected-translation")) {
+		unprotected = (const void *)(uintptr_t)verify_translation;
 	} else if (!strcmp(argv[1], "unprotected-context")) {
 		unprotected = &context;
 	} else if (!strcmp(argv[1], "unprotected-workspace")) {

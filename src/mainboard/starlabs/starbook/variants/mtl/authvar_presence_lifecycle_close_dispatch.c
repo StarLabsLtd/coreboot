@@ -138,6 +138,9 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 		*install_policy;
 	const struct smm_invocation_save_state_ops *active_ops;
 	struct smm_invocation_runtime_binding runtime;
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY)
+	struct starbook_mtl_dma_smm_binding dma_binding;
+#endif
 	struct smm_invocation_topology topology;
 	struct smm_invocation_entry_cause cause = { 0 };
 	struct smm_invocation_entry_ticket ticket = { 0 };
@@ -223,6 +226,11 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 		&cause, &policy, cpu, initial_apic_id, &ticket) != CB_SUCCESS)
 		fail_stop();
 	if (bsp) {
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY)
+		if (starbook_mtl_dma_smm_binding_get(&dma_binding) != CB_SUCCESS ||
+		    !dma_binding.receipt)
+			fail_stop();
+#endif
 		if (smm_apmc_command_select(
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, &selection) !=
 			SMM_APMC_SELECT_ENABLED ||

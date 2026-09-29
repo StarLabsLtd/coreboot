@@ -171,8 +171,8 @@ int vtd_translation_verify(const struct vtd_translation_view *view,
 
 	for (size_t index = 0; index < requester_count; index++) {
 		const struct vtd_translation_requester *requester = &requesters[index];
-		const uint8_t bus = requester->bdf >> 8;
-		const uint8_t devfn = requester->bdf;
+		const uint8_t bus = (uint8_t)(requester->bdf >> 8);
+		const uint8_t devfn = (uint8_t)requester->bdf;
 		size_t context_page;
 		size_t pml4_page;
 		bool new_bus = true;
@@ -194,6 +194,7 @@ int vtd_translation_verify(const struct vtd_translation_view *view,
 				return -1;
 		} else {
 			uint64_t root;
+			uint64_t context_offset;
 
 			if (read_entry(view, 0, (size_t)bus * 2U, &root) ||
 			    (root & ~VTD_TRANSLATION_ENTRY_ADDRESS_MASK) !=
@@ -201,13 +202,14 @@ int vtd_translation_verify(const struct vtd_translation_view *view,
 			    (root & VTD_TRANSLATION_ENTRY_ADDRESS_MASK) <
 				view->physical_base)
 				return -1;
-			context_page = (root & VTD_TRANSLATION_ENTRY_ADDRESS_MASK) -
+			context_offset = (root & VTD_TRANSLATION_ENTRY_ADDRESS_MASK) -
 				view->physical_base;
-			if (context_page & (VTD_TRANSLATION_PAGE_SIZE - 1U))
+			if (context_offset & (VTD_TRANSLATION_PAGE_SIZE - 1U) ||
+			    (context_offset >> VTD_TRANSLATION_PAGE_SHIFT) >=
+				view->used_pages)
 				return -1;
-			context_page >>= VTD_TRANSLATION_PAGE_SHIFT;
-			if (context_page >= view->used_pages)
-				return -1;
+			context_page = (size_t)(context_offset >>
+				VTD_TRANSLATION_PAGE_SHIFT);
 		}
 		pml4_page = next_page++;
 		if (pml4_page >= view->used_pages ||
@@ -231,7 +233,7 @@ int vtd_translation_verify(const struct vtd_translation_view *view,
 		if (read_entry(view, 0, bus * 2U, &root) ||
 		    read_entry(view, 0, bus * 2U + 1U, &root_high) || root_high)
 			return -1;
-		if (!bus_expected(requesters, requester_count, bus)) {
+		if (!bus_expected(requesters, requester_count, (uint8_t)bus)) {
 			if (root)
 				return -1;
 			continue;
@@ -244,7 +246,8 @@ int vtd_translation_verify(const struct vtd_translation_view *view,
 			view->physical_base;
 		if ((root & (VTD_TRANSLATION_PAGE_SIZE - 1U)) ||
 		    (root >> VTD_TRANSLATION_PAGE_SHIFT) >= view->used_pages ||
-		    verify_context(view, root >> VTD_TRANSLATION_PAGE_SHIFT, bus,
+		    verify_context(view,
+			(size_t)(root >> VTD_TRANSLATION_PAGE_SHIFT), (uint8_t)bus,
 			requesters, requester_count))
 			return -1;
 	}

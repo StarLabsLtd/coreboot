@@ -29,7 +29,7 @@ common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
 	-I$root/src/mainboard/starlabs/starbook/variants/mtl -no-pie"
 sources="$root/tests/lib/starbook_mtl_dma_smm_receipt_test.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c"
-cases='valid generation wrong-range protected-frame mutated-frame wrong-state
+cases='valid generation container-drift wrong-range protected-frame mutated-frame wrong-state
 	null-table above-4g huge-table mmio-table smram-table unallowed-dram
 	unallowed-frame unallowed-handoff unallowed-tables unallowed-mirror
 	unallowed-arena0 unallowed-arena1 unallowed-arena2
@@ -89,10 +89,16 @@ cp "$root/configs/config.starlabs_starbook_mtl" "$temporary/config"
 	-e STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 make -s -C "$root" DOTCONFIG="$temporary/config" obj="$temporary/obj" \
 	olddefconfig >/dev/null
-! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION=y$' \
-	"$temporary/config"
-! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY=y$' \
-	"$temporary/config"
+if grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION=y$' \
+	"$temporary/config"; then
+	echo 'receipt route unexpectedly enabled without its composition' >&2
+	exit 1
+fi
+if grep -q '^CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY=y$' \
+	"$temporary/config"; then
+	echo 'obsolete requester-authority blocker unexpectedly enabled' >&2
+	exit 1
+fi
 
 backend_line=$(grep -n 'starbook_mtl_dma_live_backend_ensure' \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live_handoff.c" |

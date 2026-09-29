@@ -9,7 +9,7 @@ digest gfx-active gfx-mode live-drift live-aba pci-drift
 misaligned-range misaligned-size misaligned-used
 range-overflow null-table above-4g huge-table mmio-table forbidden-table
 zero-loader-nonce zero-generation bad-lifecycle identity-reserved
-unprotected-receipt unprotected-read unprotected-sha
+unprotected-receipt unprotected-read unprotected-sha unprotected-translation
 unprotected-context unprotected-workspace wrong-runtime-view
 workspace-context-alias receipt-toctou observer-toctou'
 
@@ -79,5 +79,9 @@ cp "$root/configs/config.starlabs_starbook_mtl" "$temporary/config"
 	-e STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 make -s -C "$root" DOTCONFIG="$temporary/config" obj="$temporary/obj" \
 	olddefconfig >/dev/null
-! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY=y$' "$temporary/config"
+if grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY=y$' \
+	"$temporary/config"; then
+	echo 'dormant DMA policy unexpectedly enabled without its composition' >&2
+	exit 1
+fi
 printf '%s\n' 'StarBook MTL SMM DMA receipt tests: PASS'

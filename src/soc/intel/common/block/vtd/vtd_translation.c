@@ -46,10 +46,11 @@ static int entry_page(const struct vtd_translation_image *image,
 	if (!(entry & VTD_TRANSLATION_ENTRY_PRESENT) || address < image->physical_base)
 		return -1;
 	offset = address - image->physical_base;
-	if (offset & (VTD_TRANSLATION_PAGE_SIZE - 1U))
+	if ((offset & (VTD_TRANSLATION_PAGE_SIZE - 1U)) ||
+	    (offset >> VTD_TRANSLATION_PAGE_SHIFT) >= image->used_pages)
 		return -1;
-	*page = offset >> VTD_TRANSLATION_PAGE_SHIFT;
-	return *page < image->used_pages ? 0 : -1;
+	*page = (size_t)(offset >> VTD_TRANSLATION_PAGE_SHIFT);
+	return 0;
 }
 
 static int child_page(struct vtd_translation_image *image, uint64_t *entry,
@@ -138,8 +139,8 @@ int vtd_translation_build(struct vtd_translation_image *image,
 
 	for (size_t index = 0; index < requester_count; index++) {
 		const struct vtd_translation_requester *requester = &requesters[index];
-		const uint8_t bus = requester->bdf >> 8;
-		const uint8_t devfn = requester->bdf;
+		const uint8_t bus = (uint8_t)(requester->bdf >> 8);
+		const uint8_t devfn = (uint8_t)requester->bdf;
 		uint64_t *context;
 		size_t context_page;
 		size_t pml4_page;

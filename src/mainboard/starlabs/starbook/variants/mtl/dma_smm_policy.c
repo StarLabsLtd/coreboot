@@ -6,8 +6,16 @@
 #include <string.h>
 
 #if ENV_TEST
+#ifndef STARBOOK_MTL_DMA_SMM_TEST_ECAM_BASE
 #define PLATFORM_ECAM_BASE 0xc0000000ULL
+#else
+#define PLATFORM_ECAM_BASE STARBOOK_MTL_DMA_SMM_TEST_ECAM_BASE
+#endif
+#ifndef STARBOOK_MTL_DMA_SMM_TEST_ECAM_BUSES
 #define PLATFORM_ECAM_BUSES 256U
+#else
+#define PLATFORM_ECAM_BUSES STARBOOK_MTL_DMA_SMM_TEST_ECAM_BUSES
+#endif
 #define PLATFORM_VTVC0_BASE 0xfc801000ULL
 #define PLATFORM_GFX_BASE 0xfc800000ULL
 #define PLATFORM_GFXVTBAR_REGISTER 0xfedc5410ULL
@@ -292,11 +300,13 @@ static bool protected_contract_valid(
 	    !protected_span(runtime_view, workspace, sizeof(*workspace)))
 		return false;
 	if (!observer->context || !observer->context_size || !observer->read32 ||
-	    !observer->sha256 ||
+	    !observer->sha256 || !observer->verify_translation ||
 	    !protected_span(runtime_view,
 		(const void *)(uintptr_t)observer->read32, 1U) ||
 	    !protected_span(runtime_view,
 		(const void *)(uintptr_t)observer->sha256, 1U) ||
+	    !protected_span(runtime_view,
+		(const void *)(uintptr_t)observer->verify_translation, 1U) ||
 	    !protected_span(runtime_view, observer->context,
 		observer->context_size))
 		return false;
@@ -314,11 +324,11 @@ static enum cb_err verify_table_copies(
 {
 	if (observer->sha256(observer->context,
 		(const void *)(uintptr_t)receipt->tables.base,
-		receipt->tables.size, digest) != CB_SUCCESS ||
+		(size_t)receipt->tables.size, digest) != CB_SUCCESS ||
 	    memcmp(digest, receipt->table_digest, 32) ||
 	    observer->sha256(observer->context,
 		(const void *)(uintptr_t)receipt->table_mirror.base,
-		receipt->table_mirror.size, digest) != CB_SUCCESS ||
+		(size_t)receipt->table_mirror.size, digest) != CB_SUCCESS ||
 	    memcmp(digest, receipt->table_digest, 32))
 		return CB_ERR;
 	return CB_SUCCESS;
@@ -344,6 +354,8 @@ enum cb_err starbook_mtl_dma_smm_verify(
 	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS ||
 	    verify_table_copies(&workspace->receipt, &workspace->observer,
 		workspace->digest) != CB_SUCCESS ||
+	    workspace->observer.verify_translation(workspace->observer.context,
+		&workspace->receipt) != CB_SUCCESS ||
 	    !protected_contract_valid(receipt, observer, runtime_view, workspace) ||
 	    memcmp(receipt, &workspace->receipt, sizeof(*receipt)) ||
 	    memcmp(observer, &workspace->observer, sizeof(*observer)) ||
@@ -351,6 +363,8 @@ enum cb_err starbook_mtl_dma_smm_verify(
 		lifecycle_base, lifecycle_size) ||
 	    verify_table_copies(&workspace->receipt, &workspace->observer,
 		workspace->digest) != CB_SUCCESS ||
+	    workspace->observer.verify_translation(workspace->observer.context,
+		&workspace->receipt) != CB_SUCCESS ||
 	    verify_engine(&workspace->receipt, &workspace->observer) !=
 		CB_SUCCESS ||
 	    verify_pci(&workspace->receipt, &workspace->observer) != CB_SUCCESS)

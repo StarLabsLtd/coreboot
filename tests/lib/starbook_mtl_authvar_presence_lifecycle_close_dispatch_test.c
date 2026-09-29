@@ -41,6 +41,7 @@ static atomic_uint retire_count;
 static atomic_uint provision_count;
 static atomic_uint install_count;
 static atomic_uint receipt_count;
+static atomic_uint dma_binding_count;
 static enum intel_smm_invocation_cause_result classification;
 static uint8_t invocation_command;
 static enum smm_apmc_select_result selection_result;
@@ -69,6 +70,19 @@ enum cb_err starbook_mtl_dma_receipt_provision_receive(
 {
 	assert(expected_active_ops == &ops);
 	atomic_fetch_add_explicit(&receipt_count, 1U, memory_order_relaxed);
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_dma_smm_binding_get(
+	struct starbook_mtl_dma_smm_binding *binding)
+{
+	static const struct starbook_mtl_dma_smm_receipt receipt;
+
+	assert(binding);
+	assert(atomic_load_explicit(&arrive_count, memory_order_relaxed) ==
+		topology.active_cpus);
+	binding->receipt = &receipt;
+	atomic_fetch_add_explicit(&dma_binding_count, 1U, memory_order_relaxed);
 	return CB_SUCCESS;
 }
 
@@ -351,6 +365,7 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	atomic_store(&provision_count, 0U);
 	atomic_store(&install_count, 0U);
 	atomic_store(&receipt_count, 0U);
+	atomic_store(&dma_binding_count, 0U);
 	invocation_wire = 0;
 }
 
@@ -366,6 +381,7 @@ static void clear_round_counts(void)
 	atomic_store(&retire_count, 0U);
 	atomic_store(&provision_count, 0U);
 	atomic_store(&receipt_count, 0U);
+	atomic_store(&dma_binding_count, 0U);
 }
 
 static void run_all_cpus(struct worker *workers, pthread_t *threads)
@@ -452,6 +468,7 @@ int main(void)
 	assert(atomic_load(&classify_count) == CPUS * 2U);
 	assert(atomic_load(&install_count) == 1U);
 	assert(atomic_load(&provision_count) == 1U);
+	assert(!atomic_load(&dma_binding_count));
 	assert(atomic_load(&arm_count) == 1U);
 	assert(atomic_load(&retire_count) == 1U);
 	assert(invocation_wire ==
@@ -480,6 +497,7 @@ int main(void)
 	assert(atomic_load(&retire_count) == 1U);
 	assert(atomic_load(&install_count) == 1U);
 	assert(atomic_load(&provision_count) == 1U);
+	assert(atomic_load(&dma_binding_count) == 1U);
 
 	clear_round_counts();
 	selection_result = SMM_APMC_SELECT_CONSUMED_REJECT;
