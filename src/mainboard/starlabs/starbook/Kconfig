@@ -418,10 +418,35 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	help
 	  Build the protected SMM verifier for the MTL lifecycle-close DMA policy.
-	  The provisioning symbol intentionally has no provider yet: the existing
-	  DMA backend retains its inventory and layout only in ramstage statics.
-	  Do not make this selectable until an immutable receipt is copied into
-	  SMRAM by the SMM loader and populated from independently checked state.
+	  The receipt transport exists but remains blocked on the missing protected
+	  requester/domain authority needed for independent VT-d graph validation.
+	  Do not make this selectable until that explicit dependency is implemented.
+
+config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
+	bool
+	default n
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
+	depends on STARLABS_STARBOOK_MTL_DMA_HANDOFF
+	depends on STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY
+	depends on PAYLOAD_MM_CMS_CORE
+	select SMM_APMC_ROUTE_STARBOOK_MTL_DMA_RECEIPT
+	help
+	  Build the dormant one-shot post-loader receipt channel. After the MTL
+	  DMA backend reaches its checked active state, ramstage sends its exact
+	  layout and complete PCI inventory through a transient private-SMI frame.
+	  SMM recomputes the full table digest, re-observes hardware and publishes
+	  only a protected binding. This adds no board default or policy claim. It
+	  remains unselectable until a protected authority supplies the exact three
+	  dynamic requester/domain identities needed to verify the VT-d table graph.
+
+config STARLABS_STARBOOK_MTL_DMA_SMM_REQUESTER_AUTHORITY
+	bool
+	default n
+	help
+	  Reserved dependency for a future loader-owned protected authority binding
+	  the dynamically discovered boot requester BDFs to domains 1 through 3.
+	  No producer selects this symbol: public receipt data and ramstage statics
+	  are not authority for VT-d page-table semantics.
 
 if BOARD_STARLABS_STARBOOK_SERIES
 

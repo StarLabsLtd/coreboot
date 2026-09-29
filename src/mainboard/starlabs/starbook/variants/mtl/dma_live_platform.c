@@ -24,6 +24,9 @@
 #include "dma_live.h"
 #include "dma_live_platform.h"
 #include "payload_resource_policy.h"
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#include "dma_smm_receipt_provision.h"
+#endif
 #include "../../../../../soc/intel/common/block/vtd/vtd_transition.h"
 
 #define VTD_GLOBAL_STATUS 0x1cU
@@ -245,6 +248,121 @@ enum cb_err starbook_mtl_dma_live_backend_ensure(void)
 	       dma_layout->arena_pages[0]);
 	return CB_SUCCESS;
 }
+
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+enum cb_err starbook_mtl_dma_receipt_candidate_build(
+	struct starbook_mtl_dma_smm_receipt *candidate)
+{
+	static struct pci_bme_quiesce_snapshot snapshot;
+	static struct pci_bme_quiesce_snapshot rechecked_snapshot;
+	struct starbook_mtl_dma_live_layout layout;
+	struct starbook_mtl_dma_live_layout rechecked_layout;
+	struct live_context vtvc0_context = { .vtd_base = soc_vtd_iop_base() };
+	struct live_context gfx_context = { .vtd_base = GFXVT_BASE_ADDRESS };
+	const struct vtd_transition_io vtvc0 = {
+		.context = &vtvc0_context,
+		.read32 = engine_read32,
+		.write32 = engine_write32,
+		.commit_tables = commit_tables,
+	};
+	const struct vtd_transition_io gfx = {
+		.context = &gfx_context,
+		.read32 = engine_read32,
+	};
+	const struct pci_bme_quiesce_io pci_io = {
+		.read32 = pci_read32,
+		.write16 = pci_write16,
+	};
+	const uint16_t integrated[] = { PCI_DEVFN_IGD, PCI_DEVFN_IPU };
+	struct vtd_transition_facts vtvc0_facts;
+	struct vtd_transition_facts gfx_facts;
+	const struct cbmem_entry *mirror_entry;
+	const uint64_t gfxvtbar = MCHBAR64(GFXVTBAR);
+	const uint64_t page_size = 1ULL << DMA_HANDOFF_GRANULE_SHIFT;
+	uint64_t table_capacity;
+	uint64_t table_used;
+
+	if (!candidate || !backend_ready || backend_poisoned ||
+	    !starbook_mtl_dma_live_snapshot(&layout, &snapshot) ||
+	    !engine_state_valid(&vtvc0, &vtvc0_facts) ||
+	    vtd_transition_probe(&gfx, &gfx_facts) || !gfx_facts.coherent ||
+	    (gfx_facts.status &
+		(VTD_ROOT_POINTER_SET | VTD_TRANSLATION_ENABLE)) ||
+	    (gfx_facts.protected_memory_enable & (PMEN_EPM | PMEN_PRS)) ||
+	    gfxvtbar != (GFXVT_BASE_ADDRESS | VTBAR_ENABLED) ||
+	    !starbook_mtl_dma_live_devices_are_verified(&pci_io,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER, integrated,
+		ARRAY_SIZE(integrated)) ||
+	    snapshot.bus_count != CONFIG_ECAM_MMCONF_BUS_NUMBER ||
+	    !snapshot.count ||
+	    snapshot.count > PCI_BME_QUIESCE_MAX_FUNCTIONS ||
+	    layout.table_capacity_pages > UINT64_MAX /
+		page_size ||
+	    layout.table_used_pages > UINT64_MAX /
+		page_size)
+		return CB_ERR;
+	table_capacity = (uint64_t)layout.table_capacity_pages <<
+		DMA_HANDOFF_GRANULE_SHIFT;
+	table_used = (uint64_t)layout.table_used_pages <<
+		DMA_HANDOFF_GRANULE_SHIFT;
+	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
+	if (!mirror_entry || layout.buffer !=
+		(void *)(uintptr_t)layout.buffer_physical ||
+	    layout.handoff != layout.buffer ||
+	    layout.table_memory != (uint8_t *)layout.buffer + page_size ||
+	    layout.table_physical != layout.buffer_physical + page_size ||
+	    layout.table_mirror !=
+		(void *)(uintptr_t)layout.table_mirror_physical ||
+	    cbmem_entry_start(mirror_entry) != layout.table_mirror ||
+	    cbmem_entry_size(mirror_entry) != table_capacity ||
+	    !table_capacity || !table_used || table_used > table_capacity)
+		return CB_ERR;
+	for (size_t index = 0; index < STARBOOK_MTL_DMA_SMM_ARENAS; index++)
+		if (!layout.arena_pages[index] ||
+		    layout.arena_pages[index] > UINT64_MAX / page_size)
+			return CB_ERR;
+
+	*candidate = (struct starbook_mtl_dma_smm_receipt) {
+		.revision = STARBOOK_MTL_DMA_SMM_RECEIPT_REVISION,
+		.size = sizeof(*candidate),
+		.bus_count = snapshot.bus_count,
+		.function_count = snapshot.count,
+		.gfx_mode = STARBOOK_MTL_DMA_SMM_GFX_QUIESCED,
+		.ecam_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS,
+		.vtvc0_base = vtvc0_context.vtd_base,
+		.vtvc0_rtaddr = vtvc0_facts.root,
+		.gfx_base = gfx_context.vtd_base,
+		.gfxvtbar_register = MCH_BASE_ADDRESS + GFXVTBAR,
+		.gfxvtbar_value = gfxvtbar,
+		.handoff = { layout.buffer_physical, page_size },
+		.tables = { layout.table_physical, table_capacity },
+		.table_mirror = { layout.table_mirror_physical,
+			table_capacity },
+		.table_used_bytes = table_used,
+	};
+	for (size_t index = 0; index < STARBOOK_MTL_DMA_SMM_ARENAS; index++)
+		candidate->arenas[index] =
+			(struct starbook_mtl_dma_smm_range) {
+				.base = layout.arena_base[index],
+				.size = (uint64_t)layout.arena_pages[index] <<
+					DMA_HANDOFF_GRANULE_SHIFT,
+			};
+	memcpy(candidate->functions, snapshot.functions,
+		snapshot.count * sizeof(snapshot.functions[0]));
+	if (!starbook_mtl_dma_live_snapshot(&rechecked_layout,
+		&rechecked_snapshot) ||
+	    memcmp(&layout, &rechecked_layout, sizeof(layout)) ||
+	    memcmp(&snapshot, &rechecked_snapshot, sizeof(snapshot)) ||
+	    !engine_state_valid(&vtvc0, NULL) ||
+	    !starbook_mtl_dma_live_tables_match(&layout) ||
+	    !starbook_mtl_dma_live_verify_active(&pci_io,
+		CONFIG_ECAM_MMCONF_BUS_NUMBER)) {
+		memset(candidate, 0, sizeof(*candidate));
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+#endif
 
 #if CONFIG(STARLABS_STARBOOK_MTL_MOR_DMA_GUARD)
 static enum cb_err platform_observe(void *unused,

@@ -190,6 +190,7 @@ test-starbook-mtl-authvar-presence-lifecycle-close-dispatch:
 test-starbook-mtl-authvar-presence-lifecycle-close-dma-policy: \
 	test-smm-invocation-runtime-view
 	tests/lib/starbook_mtl_dma_smm_policy_test.sh
+	tests/lib/starbook_mtl_dma_smm_receipt_test.sh
 	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_profiles_test.sh
 
 .PHONY: test-authvar-smm-loader

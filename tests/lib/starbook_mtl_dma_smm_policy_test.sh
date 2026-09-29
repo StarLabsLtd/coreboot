@@ -7,7 +7,9 @@ mkdir -p "$temporary/include"; printf '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
 cases='valid lifecycle-arena rtaddr-mode partial-bus bme missing-igd tail
 digest gfx-active gfx-mode live-drift live-aba pci-drift
 misaligned-range misaligned-size misaligned-used
-range-overflow unprotected-receipt unprotected-read unprotected-sha
+range-overflow null-table above-4g huge-table mmio-table forbidden-table
+zero-loader-nonce zero-generation bad-lifecycle identity-reserved
+unprotected-receipt unprotected-read unprotected-sha
 unprotected-context unprotected-workspace wrong-runtime-view
 workspace-context-alias receipt-toctou observer-toctou'
 

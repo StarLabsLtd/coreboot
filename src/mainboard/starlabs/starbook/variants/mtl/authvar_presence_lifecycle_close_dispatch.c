@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#include "dma_smm_receipt_provision.h"
+#endif
 
 #include <cpu/intel/smm_invocation_adapter_provider.h>
 #include <cpu/x86/smm_invocation_fail_stop.h>
@@ -14,6 +17,7 @@
 
 enum dispatch_state { DISPATCH_IDLE, DISPATCH_ARMING, DISPATCH_ACTIVE,
 	DISPATCH_DEPARTING, DISPATCH_INSTALLING, DISPATCH_INSTALL_COMPLETE,
+	DISPATCH_RECEIPT_PROVISIONING, DISPATCH_RECEIPT_COMPLETE,
 	DISPATCH_POISONED };
 
 static struct {
@@ -87,6 +91,44 @@ static void wait_for_install_departures(uint32_t expected, uint32_t max_polls)
 	fail_stop();
 }
 
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+static enum smm_pre_lock_dispatch_result receipt_provision(
+	bool bsp, uint32_t active_cpus, uint32_t max_polls)
+{
+	const struct smm_invocation_save_state_ops *active_ops;
+	uint32_t expected;
+
+	if (!bsp) {
+		wait_for_state(DISPATCH_RECEIPT_COMPLETE, max_polls);
+		if (__atomic_add_fetch(&owner.install_departures, 1U,
+			__ATOMIC_ACQ_REL) >= active_cpus)
+			fail_stop();
+		return SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED;
+	}
+	expected = DISPATCH_IDLE;
+	if (!__atomic_compare_exchange_n(&owner.state, &expected,
+		DISPATCH_ARMING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+	    intel_smm_invocation_adapter_provider_provision(&active_ops) !=
+		SMM_INVOCATION_TRY_SUCCESS ||
+	    intel_smm_invocation_adapter_provider_arm(
+		&owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS)
+		fail_stop();
+	__atomic_store_n(&owner.state, DISPATCH_RECEIPT_PROVISIONING,
+		__ATOMIC_RELEASE);
+	if (starbook_mtl_dma_receipt_provision_receive(active_ops) != CB_SUCCESS ||
+	    intel_smm_invocation_adapter_provider_retire(
+		owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS)
+		fail_stop();
+	owner.provider_generation = 0;
+	__atomic_store_n(&owner.state, DISPATCH_RECEIPT_COMPLETE,
+		__ATOMIC_RELEASE);
+	wait_for_install_departures(active_cpus - 1U, max_polls);
+	__atomic_store_n(&owner.install_departures, 0U, __ATOMIC_RELAXED);
+	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
+	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+}
+#endif
+
 enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	uint32_t cpu, uint32_t initial_apic_id)
 {
@@ -117,6 +159,16 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	    initial_apic_id != topology.initial_apic_ids[cpu])
 		fail_stop();
 	runtime_cpus = topology.active_cpus;
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+	classified = intel_smm_invocation_private_apmc_cause(runtime.composition,
+		runtime.topology, runtime.instance, runtime.evidence, &runtime_cpus,
+		SMM_APMC_STARBOOK_MTL_DMA_RECEIPT, &cause);
+	if (classified == INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID)
+		return receipt_provision(cpu == topology.bsp_cpu,
+			topology.active_cpus, policy.max_polls);
+	if (classified != INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE)
+		fail_stop();
+#endif
 	classified = intel_smm_invocation_private_apmc_cause(runtime.composition,
 		runtime.topology, runtime.instance, runtime.evidence, &runtime_cpus,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, &cause);

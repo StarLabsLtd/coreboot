@@ -59,6 +59,9 @@ bool starbook_mtl_dma_live_devices_are_verified(
 	const uint16_t *bdfs, size_t count);
 bool starbook_mtl_dma_live_tables_match(
 	const struct starbook_mtl_dma_live_layout *layout);
+bool starbook_mtl_dma_live_snapshot(
+	struct starbook_mtl_dma_live_layout *layout,
+	struct pci_bme_quiesce_snapshot *snapshot);
 void starbook_mtl_dma_live_poison(
 	const struct pci_bme_quiesce_io *pci_io, uint16_t bus_count);
 

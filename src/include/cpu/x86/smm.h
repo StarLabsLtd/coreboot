@@ -154,6 +154,10 @@ struct smm_runtime {
 	struct smm_invocation_evidence invocation_evidence __aligned(8);
 	struct smm_invocation_loader_composition invocation_composition __aligned(8);
 #endif
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+	uintptr_t dma_receipt_frame_base;
+	size_t dma_receipt_frame_size;
+#endif
 } __packed;
 
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
@@ -190,6 +194,13 @@ _Static_assert(offsetof(struct smm_runtime, invocation_topology) % 8 == 0,
 	"SMM invocation topology is not aligned");
 _Static_assert(_Alignof(struct smm_runtime) >= 8,
 	"SMM runtime does not preserve topology alignment");
+#endif
+
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+_Static_assert(offsetof(struct smm_runtime, dma_receipt_frame_base) %
+	_Alignof(uintptr_t) == 0, "DMA receipt frame base is not aligned");
+_Static_assert(offsetof(struct smm_runtime, dma_receipt_frame_size) %
+	_Alignof(size_t) == 0, "DMA receipt frame size is not aligned");
 #endif
 
 struct smm_module_params {
@@ -356,6 +367,10 @@ void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size);
+bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size);
+#endif
 #if CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)
 struct capsule_broker_buffer_reservation;
 void smm_get_capsule_broker_buffers(
