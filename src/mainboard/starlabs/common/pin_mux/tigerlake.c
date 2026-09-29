@@ -9,4 +9,6 @@ void configure_pin_mux(FSP_S_CONFIG *supd)
 	supd->SerialIoUartTxPinMuxPolicy[0] = 0x190B1209;
 	supd->SerialIoUartRtsPinMuxPolicy[0] = 0x190B220a;
 	supd->SerialIoUartCtsPinMuxPolicy[0] = 0x190B320b;
+	supd->CnviRfResetPinMux = 0x2942e408; /* GPP_A8 */
+	supd->CnviClkreqPinMux = 0x2942e609;  /* GPP_A9 modem CLKREQ */
 }
