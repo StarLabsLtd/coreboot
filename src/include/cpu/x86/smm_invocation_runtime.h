@@ -6,16 +6,18 @@
 #include <commonlib/bsd/cb_err.h>
 #include <cpu/x86/smm_save_state.h>
 #include <rules.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #if ENV_SMM || ENV_TEST
 /*
  * Opaque handle to checked protected SMM runtime geometry. Save-state spans are
  * sensitive writable register authority and are therefore exposed only by a
- * bounded per-CPU snapshot. This layer validates allocation and native-span
- * arithmetic; a later architecture adapter must validate revision, exact
- * native size and any revision-specific alignment. Every failure leaves the
- * caller's output unchanged.
+ * bounded per-CPU snapshot. The same exact handle can attest that a complete
+ * caller-supplied range is in protected SMRAM. This layer validates allocation
+ * and native-span arithmetic; a later architecture adapter must validate
+ * revision, exact native size and any revision-specific alignment. Every
+ * failure leaves the caller's output unchanged.
  */
 struct smm_invocation_runtime_view;
 
@@ -35,6 +37,10 @@ enum cb_err smm_invocation_runtime_cpu_count(
 enum cb_err smm_invocation_runtime_save_state_span(
 	const struct smm_invocation_runtime_view *view, uint32_t cpu,
 	struct smm_save_state_span *span);
+/* Accepts only the exact runtime view and a range wholly contained in SMRAM. */
+enum cb_err smm_invocation_runtime_range_is_protected(
+	const struct smm_invocation_runtime_view *view, const void *base,
+	size_t size);
 /* Returns only the checked loader-owned objects, never the raw SMM runtime. */
 #if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 enum cb_err smm_invocation_runtime_binding_get(

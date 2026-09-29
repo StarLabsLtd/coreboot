@@ -53,6 +53,8 @@ void smm_invocation_runtime_view_test_hook(uint32_t point)
 	}
 	if (hook_mode == 7U && point == 3U)
 		test_memory.runtime.invocation_composition.evidence_identity++;
+	if (hook_mode == 8U && point == 4U)
+		test_memory.runtime.smm_size--;
 }
 
 #define smm_runtime test_memory.runtime
@@ -139,6 +141,33 @@ static void exact_top_address_arithmetic(void)
 	assert(runtime_ranges_overlap(base, 16U, base + 15U, 17U));
 	assert(!runtime_ranges_overlap(base, 16U, base + 16U, 16U));
 	assert(!runtime_range_valid(base, 33U, 1U));
+}
+
+static void exact_protected_range(void)
+{
+	const struct smm_invocation_runtime_view *view;
+	uint8_t outside = 0;
+
+	reset_runtime();
+	view = valid_view();
+	assert(smm_invocation_runtime_range_is_protected(view, &test_memory,
+		sizeof(test_memory)) == CB_SUCCESS);
+	assert(smm_invocation_runtime_range_is_protected(view,
+		&test_memory.save_state[TEST_CPUS - 1U][TEST_ALLOCATION - 1U],
+		1U) == CB_SUCCESS);
+	assert(smm_invocation_runtime_range_is_protected(view, &outside,
+		sizeof(outside)) == CB_ERR);
+	assert(smm_invocation_runtime_range_is_protected(NULL, &test_memory,
+		1U) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_range_is_protected((const void *)1,
+		&test_memory, 1U) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_range_is_protected(view, NULL, 1U) ==
+		CB_ERR_ARG);
+	assert(smm_invocation_runtime_range_is_protected(view,
+		(const void *)UINTPTR_MAX, 2U) == CB_ERR_ARG);
+	hook_mode = 8U;
+	assert(smm_invocation_runtime_range_is_protected(view, &test_memory,
+		1U) == CB_ERR);
 }
 
 static void invalid_counts_and_binding(void)
@@ -305,6 +334,7 @@ int main(void)
 {
 	exact_bounded_view();
 	exact_top_address_arithmetic();
+	exact_protected_range();
 	invalid_counts_and_binding();
 	invalid_geometry();
 	packed_native_alignment();

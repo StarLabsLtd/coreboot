@@ -145,7 +145,8 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 	handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
 	for symbol in smm_invocation_runtime_view_get \
 		smm_invocation_runtime_cpu_count \
-		smm_invocation_runtime_save_state_span; do
+		smm_invocation_runtime_save_state_span \
+		smm_invocation_runtime_range_is_protected; do
 		test "$(nm --defined-only "$handler" | awk -v symbol="$symbol" \
 			'$3 == symbol { count++ } END { print count + 0 }')" -eq 1
 		test "$(nm --defined-only "$build/smm/smm.elf" | awk -v symbol="$symbol" \
@@ -153,7 +154,7 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 	done
 	! find "$build" -path '*/smm/*' -prune -o -type f -name '*.o' -print | \
 		xargs -r nm --defined-only 2>/dev/null | \
-		grep -Eq 'smm_invocation_runtime_(view_get|cpu_count|save_state_span)'
+		grep -Eq 'smm_invocation_runtime_(view_get|cpu_count|save_state_span|range_is_protected)'
 	! nm -u "$handler" | grep -q '__atomic_'
 	graph="$build/runtime-view.ci"
 	find "$build/smm" -type f -name '*.ci' -exec cat {} + > "$graph"
@@ -168,6 +169,7 @@ for name in Q35_ON MTL_ON MTL_STM_ON; do
 		'smm_invocation_runtime_view_get.*runtime_geometry_snapshot' \
 		'smm_invocation_runtime_cpu_count.*runtime_geometry_snapshot' \
 		'smm_invocation_runtime_save_state_span.*runtime_geometry_snapshot' \
+		'smm_invocation_runtime_range_is_protected.*runtime_geometry_snapshot' \
 		'runtime_geometry_snapshot.*runtime_topology_matches' \
 		'runtime_geometry_snapshot.*runtime_composition_matches' \
 		'runtime_geometry_snapshot.*runtime_geometry_valid' \
