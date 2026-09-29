@@ -691,6 +691,21 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	lb_add_boot_mode(head);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT)
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&
+	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
+	     lb_add_payload_mm_authvar_presence_endpoint(head,
+							 rom_table_end +
+							 COREBOOT_TABLE_SIZE) != CB_SUCCESS))
+		die("Authenticated-variable presence publication failed\n");
+
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT) &&
+	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
+	     lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint(head,
+						 rom_table_end +
+						 COREBOOT_TABLE_SIZE) != CB_SUCCESS))
+		die("Authenticated-variable presence lifecycle-close publication failed\n");
+#else
 	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT) &&
 	    (rom_table_end > UINTPTR_MAX - COREBOOT_TABLE_SIZE ||
 	     lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint(head,
@@ -704,6 +719,7 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 							 rom_table_end +
 							 COREBOOT_TABLE_SIZE) != CB_SUCCESS))
 		die("Authenticated-variable presence publication failed\n");
+#endif
 
 	/* Remember where my valid memory ranges are */
 	return lb_table_fini(head);

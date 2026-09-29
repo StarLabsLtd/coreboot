@@ -9,6 +9,8 @@
 #endif
 #include <string.h>
 
+#include "payload_mm_authvar_presence_lifecycle_close_provider_internal.h"
+
 enum publication_state { PUBLICATION_EMPTY, PUBLICATION_RESERVED,
 	PUBLICATION_BUSY, PUBLICATION_COMMITTED, PUBLICATION_FAILED };
 static uint32_t publication_state;
@@ -114,13 +116,17 @@ enum cb_err lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint(
 	u8 saved_record[sizeof(*record)];
 	enum cb_err status = CB_ERR;
 
-	if (!claim(PUBLICATION_RESERVED, PUBLICATION_BUSY))
+	if (!claim(PUBLICATION_RESERVED, PUBLICATION_BUSY)) {
+		if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT))
+			payload_mm_authvar_presence_lifecycle_close_provider_fail_stop();
 		goto done;
+	}
 	if (!endpoint_fits(header, table_end, &planned))
 		goto out;
 	if (!platform_payload_mm_authvar_presence_lifecycle_close_ready_receipt(
-		&receipt) ||
-	    payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume(&receipt,
+		&receipt))
+		goto out;
+	if (payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume(&receipt,
 		&endpoint) != CB_SUCCESS ||
 	    payload_mm_authvar_presence_lifecycle_close_endpoint_validate(&endpoint) !=
 		CB_SUCCESS)
@@ -139,16 +145,22 @@ enum cb_err lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint(
 	    payload_mm_authvar_presence_lifecycle_close_publication_commit() !=
 		CB_SUCCESS)
 		goto committed_failure;
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT))
+		payload_mm_authvar_presence_lifecycle_close_provider_commit();
 	status = CB_SUCCESS;
 	goto done;
 committed_failure:
 	__atomic_store_n(&publication_state, PUBLICATION_FAILED, __ATOMIC_RELEASE);
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT))
+		payload_mm_authvar_presence_lifecycle_close_provider_fail_stop();
 #if ENV_TEST
 	goto done;
 #else
 	__builtin_trap();
 #endif
 out:
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT))
+		payload_mm_authvar_presence_lifecycle_close_provider_fail_stop();
 	fail_owned();
 done:
 	scrub(&receipt, sizeof(receipt));

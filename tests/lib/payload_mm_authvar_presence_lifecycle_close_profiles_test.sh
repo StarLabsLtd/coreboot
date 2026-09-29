@@ -75,6 +75,8 @@ config TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROFILE
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_PROVIDER
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	select SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE
 
 config SMM_MODULE_STACK_SIZE
 	default 0x4000 if TEST_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PREREQUISITES
@@ -104,6 +106,8 @@ scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile_kconfig" olddefconfig >/dev/null
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT=y$' "$config"
+grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT=y$' "$config"
+grep -q '^CONFIG_SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY=y$' "$config"
 grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=y$' "$config"
@@ -130,7 +134,8 @@ for stem in lifecycle_close pre_external_image_close payload_failure_close \
 	fi
 done
 for stem in lifecycle_close_endpoint lifecycle_close_backing \
-	lifecycle_close_publication; do
+	lifecycle_close_publication lifecycle_close_provider \
+	lifecycle_close_sender; do
 	object="$build/ramstage/lib/payload_mm_authvar_presence_${stem}.o"
 	test -s "$object"
 	file "$object" | grep -q 'ELF 32-bit'
@@ -146,6 +151,24 @@ for stem in lifecycle_close_endpoint lifecycle_close_backing \
 		exit 1
 	fi
 done
+route_object="$build/smm/lib/payload_mm_authvar_presence_lifecycle_close_route.o"
+test -s "$route_object"
+file "$route_object" | grep -q 'ELF 32-bit'
+test "$(find "$build" -type f \
+	-name 'payload_mm_authvar_presence_lifecycle_close_route.o' | wc -l)" -eq 1
+if nm -u "$route_object" | grep -Eq '__atomic|libatomic'; then
+	echo 'lifecycle-close route gained runtime atomic dependency' >&2
+	exit 1
+fi
+sender_object="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_sender.o"
+test "$(nm -g "$sender_object" | awk \
+	'$3 == "payload_mm_authvar_presence_lifecycle_close_send" { count++ } \
+	 END { print count + 0 }')" -eq 1
+if find "$build/ramstage" -type f \
+	-name 'payload_mm_authvar_presence_lifecycle_close_route.o' | grep -q .; then
+	echo 'lifecycle-close route escaped SMM' >&2
+	exit 1
+fi
 stack_files=$(find "$build/smm/lib" -type f \
 	-name '*payload_mm_authvar_presence_*close*.su' -o \
 	-name '*payload_mm_authvar_presence_*reproof*.su')
@@ -161,6 +184,7 @@ for symbol in payload_mm_authvar_presence_lifecycle_close_endpoint_validate \
 	payload_mm_authvar_presence_lifecycle_close_backing_reserve \
 	payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume \
 	payload_mm_authvar_presence_lifecycle_close_publication_commit \
+	payload_mm_authvar_presence_lifecycle_close_provider_prepare \
 	lb_add_payload_mm_authvar_presence_lifecycle_close_endpoint; do
 	test "$(nm -g "$build/cbfs/fallback/ramstage.debug" | awk -v symbol="$symbol" \
 		'$3 == symbol { count++ } END { print count + 0 }')" -eq 1
@@ -196,6 +220,16 @@ build_natural()
 		if grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT=y$' \
 			"$config"; then
 			echo "lifecycle-close endpoint unexpectedly default-on" >&2
+			exit 1
+		fi
+		if grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT=y$' \
+			"$config"; then
+			echo "lifecycle-close transport unexpectedly default-on" >&2
+			exit 1
+		fi
+		if grep -q '^CONFIG_SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE=y$' \
+			"$config"; then
+			echo "lifecycle-close route unexpectedly default-on" >&2
 			exit 1
 		fi
 	fi

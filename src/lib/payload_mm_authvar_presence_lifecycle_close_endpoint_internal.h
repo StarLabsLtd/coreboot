@@ -17,6 +17,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_take(
 enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_return(
 	const struct payload_mm_authvar_presence_lifecycle_close_backing *backing,
 	const struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt);
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_cancel(
+	const struct payload_mm_authvar_presence_lifecycle_close_backing *backing);
 enum cb_err payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume(
 	struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt,
 	struct lb_authvar_presence_lifecycle_close_endpoint *endpoint);

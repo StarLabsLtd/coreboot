@@ -372,14 +372,19 @@ fi
 if rg -q 'smm_apmc_command_consume' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h' \
-	-g '!src/lib/payload_mm_authvar_presence_route_session.c'; then
-	printf '%s\n' 'registry consume escaped the dormant route session' >&2
+	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
+	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_route.c'; then
+	printf '%s\n' 'registry consume escaped the dormant routes' >&2
 	exit 1
 fi
 test "$(rg -o 'smm_apmc_command_consume' \
 	"$root/src/lib/payload_mm_authvar_presence_route_session.c" | wc -l)" -eq 1
+test "$(rg -o 'smm_apmc_command_consume' \
+	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_route.c" | \
+	wc -l)" -eq 1
 for symbol in PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION \
-	SMM_APMC_ROUTE_AUTHVAR_PRESENCE; do
+	SMM_APMC_ROUTE_AUTHVAR_PRESENCE \
+	SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE; do
 	if rg -q "select[[:space:]]+$symbol" "$root/src"; then
 		printf '%s\n' "$symbol became selected" >&2
 		exit 1

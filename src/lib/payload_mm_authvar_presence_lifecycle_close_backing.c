@@ -143,6 +143,22 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_return(
 	return status;
 }
 
+enum cb_err payload_mm_authvar_presence_lifecycle_close_backing_cancel(
+	const struct payload_mm_authvar_presence_lifecycle_close_backing *backing)
+{
+	enum cb_err status = CB_ERR;
+
+	lock();
+	if ((owner.state == BACKING_PROVIDER ||
+	     owner.state == BACKING_ABORT_REQUESTED) && backing &&
+	    !memcmp(backing, &owner.backing, sizeof(*backing))) {
+		fail_locked();
+		status = CB_SUCCESS;
+	}
+	unlock();
+	return status;
+}
+
 enum cb_err payload_mm_authvar_presence_lifecycle_close_ready_receipt_consume(
 	struct payload_mm_authvar_presence_lifecycle_close_ready_receipt *receipt,
 	struct lb_authvar_presence_lifecycle_close_endpoint *endpoint)

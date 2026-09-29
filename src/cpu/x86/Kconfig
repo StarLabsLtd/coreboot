@@ -510,4 +510,12 @@ config SMM_APMC_ROUTE_AUTHVAR_PRESENCE
 	  Internal capability for a later live handler composition. The dormant
 	  route-session mechanism does not select it.
 
+config SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	help
+	  Internal claim for the dormant authenticated-variable presence
+	  lifecycle-close transport. No platform selects it in this slice.
+
 endif # ARCH_X86

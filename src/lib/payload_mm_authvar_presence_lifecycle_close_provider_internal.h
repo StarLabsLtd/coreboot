@@ -1,0 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROVIDER_INTERNAL_H
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PROVIDER_INTERNAL_H
+
+#include <boot/payload_mm_authvar_presence_lifecycle_close_transport.h>
+
+enum cb_err payload_mm_authvar_presence_lifecycle_close_provider_prepare(
+	const struct payload_mm_authvar_presence_receipt *presence_receipt);
+void payload_mm_authvar_presence_lifecycle_close_provider_commit(void);
+void __noreturn
+payload_mm_authvar_presence_lifecycle_close_provider_fail_stop(void);
+
+#endif
