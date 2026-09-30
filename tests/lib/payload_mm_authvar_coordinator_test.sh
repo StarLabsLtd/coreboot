@@ -53,6 +53,7 @@ for optimization in 0 2; do
 		production-service-auth2 production-service-auth2-overflow \
 		production-service-auth-query \
 		production-service-header-drift \
+		production-service-required-size \
 		production-set-ordinary production-set-allow production-set-deny \
 		production-set-alias production-set-data-alias \
 		production-set-name-alias production-set-input-overlap production-set-overflow \

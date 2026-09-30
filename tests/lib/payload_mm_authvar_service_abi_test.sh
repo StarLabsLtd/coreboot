@@ -96,10 +96,37 @@ if grep -Eq '(^|[^A-Za-z0-9_])(smram|store_offset|boot_media|flash_offset|block_
 	printf '%s\n' 'public authenticated-variable wire exposes private authority' >&2
 	exit 1
 fi
-if grep -R -Fq 'payload_mm_authvar_service.c' \
-	"$root/src"/*/Makefile.mk "$root/src"/Makefile.mk 2>/dev/null; then
-	printf '%s\n' 'authenticated-variable service ABI has a firmware caller' >&2
-	exit 1
-fi
+check_service_linkage()
+{
+	awk -v validator='smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service.c' \
+		-v transaction='smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service_transaction.c' '
+		/payload_mm_authvar_service(_transaction)?\.c/ {
+			if ($0 == validator) validators++;
+			else if ($0 == transaction) transactions++;
+			else exit 1;
+		}
+		END { if (validators != 1 || transactions != 1) exit 1; }
+	' "$1"
+}
+
+# Only the existing coordinator owner may link protected execution into SMM.
+# Linkage is not an installed shared-memory route or endpoint publication proof.
+check_service_linkage "$root/src/lib/Makefile.mk"
+grep -RlE 'payload_mm_authvar_service(_transaction)?\.c' \
+	"$root/src" --include=Makefile.mk > "$temporary/service-linkage-files"
+test "$(wc -l < "$temporary/service-linkage-files")" -eq 1
+test "$(cat "$temporary/service-linkage-files")" = "$root/src/lib/Makefile.mk"
+for prefix in 'smm-y' 'ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR)'; do
+	for source in payload_mm_authvar_service.c payload_mm_authvar_service_transaction.c; do
+		awk -v prefix="$prefix" -v source="$source" '
+			index($0, " += " source) { $0 = prefix " += " source; }
+			{ print; }
+		' "$root/src/lib/Makefile.mk" > "$temporary/service-linkage-mutant"
+		if check_service_linkage "$temporary/service-linkage-mutant"; then
+			printf 'service linkage mutation survived: %s %s\n' "$prefix" "$source" >&2
+			exit 1
+		fi
+	done
+done
 
 printf '%s\n' 'Payload-MM authenticated-variable service ABI tests: PASS'
