@@ -34,7 +34,6 @@ struct payload_mm_authvar_presence_bootstrap {
 	struct bootmem_reservation_receipt_authority page_verifier;
 	struct bootmem_reservation_receipt page_receipt;
 	struct bootmem_reservation_receipt_authority service_verifier;
-	struct bootmem_reservation_receipt service_receipt;
 } __aligned(8);
 
 bool mainboard_authvar_presence_cold_boot(void);

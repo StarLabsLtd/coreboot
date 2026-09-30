@@ -125,3 +125,32 @@ installation boundary; there is no independent seed handoff. The existing S3
 DMA epoch is deliberately not a cold-boot proof. The separate cold callback
 uses the live DMA policy and the same protected receipt owner, but host and
 link evidence do not replace hardware validation of that complete path.
+
+The general-service prerequisite reserves one distinct, fixed 64 KiB
+`BM_MEM_TABLE` mailbox only with the hidden fixed-dispatcher attestation and a
+genuinely required canonical composition. Presence-only and disabled profiles
+do not allocate it. Its exact post-map receipt is imported through the same
+private bootstrap wave, after which the sole backend provider consumes it via
+`payload_mm_authvar_service_prepare`. The canonical slot does not retain a
+second service receipt or expose a raw receipt getter. Preparation establishes
+mailbox ownership, not installed service or endpoint readiness.
+
+That full prerequisite also defers the existing single SMRAM arena allocation
+until the real canonical tuple has provisioned its protected cold binding.
+The arena uses that binding's generation and capability owner, the same live
+occupied-region list and the existing allocator. Full loader nonce, topology,
+cold classification and bootstrap state are resampled before publication.
+Failure closes all staged receipt owners and stops boot without falling back
+to the independent legacy MOR owner. Without the full prerequisite, the
+existing MOR-only arena path remains unchanged.
+
+The host lane compiles the exact production loader functions with mocked
+rmodule, fanout and transport boundaries and links the real arena allocator,
+loader-instance and topology implementations. It covers both attestation
+settings, required/disabled decisions, optional MOR and ownership drift; its
+failure-atomic companion runs source mutations rather than raw statement
+counts. The receipt-import fixture uses the real receipt/MAC implementation
+but mocks the sole provider's preparation boundary. These are prerequisite
+proofs, not an enabled production profile. The real fixed 0xfc dispatcher,
+unconditional sole-backend initialization, optional MOR operation and final
+service/endpoint readiness still require integrated source and runtime proof.

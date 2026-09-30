@@ -108,6 +108,30 @@ static void authvar_presence_is_reserved_without_a_route(void)
 	assert_receipt_zero(&receipt);
 }
 
+static void authvar_service_has_one_owner(void)
+{
+	struct smm_apmc_selection_receipt receipt, replay;
+
+	memset(&receipt, 0xa5, sizeof(receipt));
+#if CONFIG(SMM_APMC_ROUTE_AUTHVAR_SERVICE)
+	assert(smm_apmc_command_select(SMM_APMC_AUTHVAR_SERVICE, &receipt) ==
+		SMM_APMC_SELECT_ENABLED);
+	assert(receipt.descriptor.owner == SMM_APMC_OWNER_AUTHVAR_SERVICE &&
+		receipt.descriptor.binding_count == 1 && !receipt.descriptor.observer_count);
+	replay = receipt;
+	assert(smm_apmc_command_consume(SMM_APMC_AUTHVAR_SERVICE,
+		SMM_APMC_OWNER_AUTHVAR_SERVICE, &receipt) == SMM_APMC_CONSUMED_SUCCESS);
+	assert_receipt_zero(&receipt);
+	assert(smm_apmc_command_consume(SMM_APMC_AUTHVAR_SERVICE,
+		SMM_APMC_OWNER_AUTHVAR_SERVICE, &replay) == SMM_APMC_CONSUMED_REJECT);
+#else
+	(void)replay;
+	assert(smm_apmc_command_select(SMM_APMC_AUTHVAR_SERVICE, &receipt) ==
+		SMM_APMC_SELECT_CONSUMED_REJECT);
+	assert_receipt_zero(&receipt);
+#endif
+}
+
 static void enabled_owner_semantics(void)
 {
 	struct smm_apmc_descriptor descriptor = { 0 };
@@ -314,6 +338,7 @@ int main(void)
 	reserved_namespace_is_unique_and_consumed();
 	unknown_only_falls_through();
 	authvar_presence_is_reserved_without_a_route();
+	authvar_service_has_one_owner();
 	enabled_owner_semantics();
 	exact_consume_semantics();
 	concurrent_consumers_are_exact();

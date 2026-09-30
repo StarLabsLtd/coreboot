@@ -577,4 +577,25 @@ config SMM_APMC_ROUTE_STARBOOK_MTL_DMA_RECEIPT
 	  Internal claim for the one-shot StarBook MTL DMA receipt provisioning
 	  SMI. Only its dormant board composition may select this route.
 
+config SMM_APMC_ROUTE_AUTHVAR_SERVICE
+	bool
+	default n
+	depends on SMM_APMC_COMMAND_REGISTRY
+	help
+	  Private command ownership for the fixed authenticated-variable service
+	  dispatcher. Only the source family containing that dispatcher may select
+	  this; reserving the command does not install a runtime endpoint.
+
+config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	bool
+	default n
+	depends on SMM_APMC_ROUTE_AUTHVAR_SERVICE
+	depends on PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
+	depends on SMM_INVOCATION_RUNTIME_BINDING
+	help
+	  Internal full-composition prerequisite selected only with the actual
+	  fixed service dispatcher and its unique command owner. Runtime readiness
+	  still requires genuine cold receipt import and sole backend installation.
+
 endif # ARCH_X86

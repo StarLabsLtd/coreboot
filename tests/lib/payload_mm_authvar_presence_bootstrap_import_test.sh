@@ -11,11 +11,15 @@ printf '%s\n' '#define CONFIG_MAX_CPUS 64' '#define CONFIG_DEFAULT_CONSOLE_LOGLE
 	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY 1' \
 	> "$temporary/include/config.h"
+for attested in 0 1; do
+printf '#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED %s\n' "$attested" \
+	> "$temporary/include/attested.h"
 for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer'; do
 	# The existing SHA implementation uses intentional byte truncation.
 	# Keep conversion diagnostics strict for the new import and fixture sources.
 	# shellcheck disable=SC2086
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror $flags -D__TEST__ -D__COREBOOT__ \
+		-include "$temporary/include/attested.h" \
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$temporary/include" -I"$root/src/include" \
@@ -24,6 +28,7 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 	# shellcheck disable=SC2086
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
 		$flags -no-pie -D__TEST__ -D__COREBOOT__ \
+		-include "$temporary/include/attested.h" \
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$temporary/include" -I"$root/src/include" -I"$root/src" \
@@ -35,9 +40,12 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 		"$root/src/lib/payload_mm_authvar_presence_transaction.c" \
 		"$temporary/receipt.o" \
 		-o "$temporary/test"
-	for scenario in $(seq 0 23); do
+	maximum=24
+	test "$attested" = 0 || maximum=26
+	for scenario in $(seq 0 "$maximum"); do
 		ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/test" "$scenario"
 	done
+done
 done
 echo 'Canonical bootstrap actual import/mailbox MAC/page receipt/one-use tests: PASS'

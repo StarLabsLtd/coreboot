@@ -3,6 +3,7 @@
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_presence_backing.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include "../../src/lib/bootmem_reservation_receipt_internal.h"
@@ -16,11 +17,38 @@ static struct payload_mm_authvar_presence_bootstrap_receipts receipts;
 static struct smm_invocation_loader_instance instance;
 static struct smm_invocation_topology topology;
 static unsigned int scenario, identity_reads;
+static unsigned int prepared_owners;
 
 static void require(bool condition)
 {
 	if (!condition)
 		exit(90);
+}
+
+/* The actual sole provider is reviewed separately; this boundary consumes the
+ * real typed receipt/MAC and checks the actual canonical getter on both sides. */
+enum cb_err payload_mm_authvar_service_prepare(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt)
+{
+	const struct payload_mm_authvar_presence_transaction_binding *binding;
+	struct payload_mm_authvar_presence_transaction_binding before;
+
+	require(verifier == &slot.service_verifier && !prepared_owners);
+	if (payload_mm_authvar_presence_bootstrap_binding_get(&binding) != CB_SUCCESS)
+		return CB_ERR;
+	before = *binding;
+	if (scenario == 25 ||
+	    bootmem_reservation_receipt_verify_consume_exact_tag(verifier, receipt,
+		BM_MEM_TABLE) != CB_SUCCESS)
+		return CB_ERR;
+	if (scenario == 26)
+		instance.loader_instance_nonce.high++;
+	if (payload_mm_authvar_presence_bootstrap_binding_get(&binding) != CB_SUCCESS ||
+	    memcmp(&before, binding, sizeof(before)))
+		return CB_ERR;
+	prepared_owners++;
+	return CB_SUCCESS;
 }
 
 struct payload_mm_authvar_presence_bootstrap *smm_get_payload_mm_authvar_presence_bootstrap(void)
@@ -118,7 +146,9 @@ int main(int argc, char **argv)
 	topology.active_cpus = 4;
 	receipt_make(&slot.mailbox_verifier, &receipts.mailbox, 0x100000, 3);
 	receipt_make(&slot.page_verifier, &receipts.page, 0x200000, 4);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	receipt_make(&slot.service_verifier, &receipts.service, 0x300000, 5);
+#endif
 	original = receipts;
 	backing = (struct payload_mm_authvar_presence_backing) {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
@@ -146,6 +176,7 @@ int main(int argc, char **argv)
 	case 21: receipts.service.base = receipts.mailbox.base - 4096; break;
 	case 22: receipts.service.base = receipts.page.base - 4096; break;
 	case 23: receipts.service.base = UINT32_MAX - 4095U; break;
+	case 24: receipts.service.mac[0] ^= 1; break;
 	case 14:
 		before = slot;
 		require(payload_mm_authvar_presence_bootstrap_receipts_import((void *)&slot) == CB_ERR);
@@ -174,8 +205,13 @@ int main(int argc, char **argv)
 	require(payload_mm_authvar_presence_backing_evidence_take(&backing) == CB_ERR);
 	require(bootmem_reservation_receipt_verify_consume_exact_tag(&slot.page_verifier,
 		&slot.page_receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	require(prepared_owners == 1);
 	require(bootmem_reservation_receipt_verify_consume_exact_tag(&slot.service_verifier,
-		&slot.service_receipt, BM_MEM_TABLE) == CB_SUCCESS);
+		&original.service, BM_MEM_TABLE) == CB_ERR);
+#else
+	require(!prepared_owners);
+#endif
 	receipts = original;
 	require(payload_mm_authvar_presence_bootstrap_receipts_import(&receipts) == CB_ERR);
 	return 0;

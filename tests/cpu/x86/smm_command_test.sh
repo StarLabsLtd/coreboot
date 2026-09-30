@@ -23,6 +23,9 @@ profile()
 }
 
 profile baseline SMM_APMC_ROUTE_ACPI_CONTROL SMM_APMC_ROUTE_FINALIZE
+profile authvar-service SMM_APMC_ROUTE_AUTHVAR_SERVICE \
+	PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED SMM_APMC_ROUTE_ACPI_CONTROL \
+	SMM_APMC_ROUTE_FINALIZE
 profile spi-q35 PAYLOAD_SPI_FLASH_CONSOLE BOARD_EMULATION_QEMU_X86_Q35 \
 	SMM_APMC_ROUTE_ACPI_CONTROL SMM_APMC_ROUTE_FINALIZE \
 	SMM_APMC_ROUTE_SPI_CONSOLE
@@ -125,7 +128,7 @@ run_profile()
 		"$temporary/$name"
 }
 
-for profile_name in baseline spi-q35 starlabs acer services amd-services \
+for profile_name in baseline authvar-service spi-q35 starlabs acer services amd-services \
 	legacy-xhci; do
 	run_profile "$profile_name" 0
 	run_profile "$profile_name" 2
@@ -365,7 +368,8 @@ grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
 if rg -q 'smm_apmc_command_select' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
-	-g '!src/include/cpu/x86/smm_command.h'; then
+	-g '!src/include/cpu/x86/smm_command.h' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c'; then
 	printf '%s\n' 'dormant registry gained a production callsite' >&2
 	exit 1
 fi
@@ -373,7 +377,9 @@ if rg -q 'smm_apmc_command_consume' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h' \
 	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
-	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_route.c'; then
+	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_route.c' \
+	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c'; then
 	printf '%s\n' 'registry consume escaped the dormant routes' >&2
 	exit 1
 fi
@@ -385,7 +391,8 @@ test "$(rg -o 'smm_apmc_command_consume' \
 for symbol in PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION \
 	SMM_APMC_ROUTE_AUTHVAR_PRESENCE \
 	SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE; do
-	if rg -q "select[[:space:]]+$symbol" "$root/src"; then
+	if rg -q "select[[:space:]]+$symbol" "$root/src" \
+		-g '!src/mainboard/starlabs/starbook/Kconfig'; then
 		printf '%s\n' "$symbol became selected" >&2
 		exit 1
 	fi

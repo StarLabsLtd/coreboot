@@ -23,7 +23,7 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void);
 enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
 	struct payload_mm_authvar_presence_bootstrap *slot,
 	const struct smm_invocation_loader_instance *instance,
-	const struct smm_invocation_topology *topology);
+	const struct smm_invocation_topology *topology, bool required);
 void payload_mm_authvar_presence_tuple_sender_close(void);
 /* One post-map take; the bootmem owners authenticate both exact reservations. */
 enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
