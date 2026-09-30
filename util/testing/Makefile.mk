@@ -203,6 +203,10 @@ test-starbook-mtl-presence-cold-source:
 .PHONY: test-authvar-presence-canonical-bootstrap
 test-authvar-presence-canonical-bootstrap:
 	sh tests/lib/payload_mm_authvar_presence_bootstrap_loader_test.sh
+	sh tests/lib/payload_mm_authvar_presence_bootstrap_import_test.sh
+	sh tests/mainboard/starlabs/starbook_mtl_presence_bootstrap_sender_test.sh
+	sh tests/mainboard/starlabs/starbook_mtl_presence_bootstrap_receiver_test.sh
+	sh tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_test.sh
 	tests/lib/payload_mm_authvar_presence_publication_test.sh
 	tests/lib/payload_mm_authvar_presence_tuple_sender_test.sh
 	sh tests/lib/payload_mm_authvar_presence_bootstrap_loader_link_test.sh
