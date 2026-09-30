@@ -52,6 +52,10 @@ static struct {
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM) || \
 	CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	const struct smm_invocation_save_state_ops *active_ops;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	uint64_t bootstrap_sentinel;
+	uint64_t classified_cpus;
+#endif
 #endif
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
 	uint32_t mode;
@@ -382,9 +386,12 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	struct smm_invocation_loader_instance instance, instance_check;
 	struct smm_invocation_topology topology, topology_check;
 	struct smm_invocation_token token, token_check;
+	const uint64_t sentinel = owner.bootstrap_sentinel;
 
 	if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != DISPATCH_SERVICE_INSTALLING ||
 	    owner.provider_generation || !owner.active_ops ||
+	    (uint32_t)sentinel != STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST ||
+	    !(sentinel >> 32) ||
 	    intel_smm_invocation_adapter_provider_provision(&retained_ops) !=
 		SMM_INVOCATION_TRY_SUCCESS || retained_ops != owner.active_ops ||
 	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
@@ -396,7 +403,7 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
 	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token) != CB_SUCCESS ||
+		sentinel, &token) != CB_SUCCESS ||
 	    runtime.evidence->loader_lifecycle != instance.lifecycle || !token.bsp ||
 	    token.initiator_cpu != topology.bsp_cpu || token.active_cpus != topology.active_cpus ||
 	    !smm_invocation_loader_instance_nonce_equal(runtime.evidence->loader_instance_nonce,
@@ -408,13 +415,14 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	    smm_invocation_topology_read(runtime.topology, &topology_check) != CB_SUCCESS ||
 	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token_check) != CB_SUCCESS ||
+		sentinel, &token_check) != CB_SUCCESS ||
 	    memcmp(&instance, &instance_check, sizeof(instance)) ||
 	    memcmp(&topology, &topology_check, sizeof(topology)) ||
 	    memcmp(&token, &token_check, sizeof(token)) ||
 	    smm_invocation_runtime_binding_get(&rechecked) != CB_SUCCESS ||
 	    memcmp(&runtime, &rechecked, sizeof(runtime)) ||
 	    owner.provider_generation || owner.active_ops != retained_ops ||
+	    owner.bootstrap_sentinel != sentinel ||
 	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != DISPATCH_SERVICE_INSTALLING)
 		return false;
 	return true;
@@ -430,6 +438,21 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 	struct smm_invocation_entry_ticket ticket;
 	struct smm_invocation_token token;
 	const bool bsp = cpu == topology->bsp_cpu;
+	const uint64_t expected_cpus = topology->active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology->active_cpus) - 1ULL;
+	const uint64_t bit = 1ULL << cpu;
+
+	/* All raw causes must be classified while the shared ledger is READY.
+	 * This is a synchronization barrier, not arrival or rendezvous authority. */
+	if (__atomic_fetch_or(&owner.classified_cpus, bit, __ATOMIC_ACQ_REL) & bit)
+		fail_stop();
+	for (uint32_t poll = 0; ; poll++) {
+		if (__atomic_load_n(&owner.classified_cpus, __ATOMIC_ACQUIRE) == expected_cpus)
+			break;
+		if (poll + 1U == policy->max_polls)
+			fail_stop();
+		__asm__ __volatile__("pause");
+	}
 
 	if (smm_invocation_entry_arrive(runtime->evidence, cause, policy,
 		cause->loader_instance_nonce, SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
@@ -438,7 +461,7 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 	if (bsp) {
 		if (smm_invocation_evidence_claim(runtime->evidence,
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-			STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, owner.active_ops,
+			owner.bootstrap_sentinel, owner.active_ops,
 			&token) != CB_SUCCESS)
 			fail_stop();
 		__atomic_store_n(&owner.state, DISPATCH_SERVICE_INSTALLING, __ATOMIC_RELEASE);
@@ -477,6 +500,8 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 		__asm__ __volatile__("pause");
 	}
 	owner.active_ops = NULL;
+	owner.bootstrap_sentinel = 0;
+	owner.classified_cpus = 0;
 	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
 	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
 }
@@ -514,7 +539,7 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 
 	if (smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
 	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
-	    !topology.active_cpus || cpu >= topology.active_cpus ||
+	    !topology.active_cpus || topology.active_cpus > 64U || cpu >= topology.active_cpus ||
 	    initial_apic_id != topology.initial_apic_ids[cpu])
 		fail_stop();
 	runtime_cpus = topology.active_cpus;
@@ -561,11 +586,27 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 		{
 			uint64_t wire;
+			uint32_t initiator = UINT32_MAX;
 
-			if (active_ops->read_value(active_ops->context, cpu, &wire) != CB_SUCCESS)
+			for (uint32_t participant = 0; participant < topology.active_cpus; participant++) {
+				const enum smm_invocation_match matched = active_ops->match_apmc_write(
+					active_ops->context, participant,
+					SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+
+				if (matched == SMM_INVOCATION_MATCH_ERROR ||
+				    (matched == SMM_INVOCATION_MATCHED && initiator != UINT32_MAX))
+					fail_stop();
+				if (matched == SMM_INVOCATION_MATCHED)
+					initiator = participant;
+			}
+			if (initiator == UINT32_MAX ||
+			    active_ops->read_value(active_ops->context, initiator, &wire) != CB_SUCCESS)
 				fail_stop();
-			if (wire == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST) {
+			if ((uint32_t)wire == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST) {
+				if (initiator != topology.bsp_cpu)
+					fail_stop();
 				owner.active_ops = active_ops;
+				owner.bootstrap_sentinel = wire;
 				__atomic_store_n(&owner.state, DISPATCH_BOOTSTRAP_COLLECTING,
 					__ATOMIC_RELEASE);
 				return service_bootstrap_dispatch(&runtime, &topology, &cause,
@@ -576,7 +617,8 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && \
-	CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+	CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) && \
+	!CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 		{
 			const enum starbook_mtl_presence_bootstrap_result bootstrap =
 				starbook_mtl_presence_bootstrap_receive(active_ops);

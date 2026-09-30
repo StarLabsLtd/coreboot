@@ -22,6 +22,7 @@ enum response_phase { RESPONSE_EMPTY, RESPONSE_PENDING, RESPONSE_STAGED, RESPONS
 static struct {
 	uint32_t phase;
 	uint32_t initiator;
+	uint64_t request_wire;
 	const struct smm_invocation_save_state_ops *ops;
 	struct starbook_mtl_presence_bootstrap_frame *frame;
 	struct starbook_mtl_presence_bootstrap_frame snapshot;
@@ -50,12 +51,24 @@ starbook_mtl_presence_bootstrap_receive(
 	struct payload_mm_authvar_presence_bootstrap *slot;
 	uint64_t wire;
 	uint32_t initiator = UINT32_MAX;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	struct smm_invocation_token token;
+#endif
 
 	if (!active_ops || !protected_storage(NULL, active_ops, sizeof(*active_ops)) ||
 	    !active_ops->match_apmc_write || !active_ops->read_value || !active_ops->write_value ||
 	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
 	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS)
 		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (active_ops->read_value(active_ops->context, topology.bsp_cpu, &wire) != CB_SUCCESS ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, wire, &token) != CB_SUCCESS ||
+	    !token.bsp || token.initiator_cpu != topology.bsp_cpu ||
+	    token.active_cpus != topology.active_cpus)
+		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
+	initiator = token.initiator_cpu;
+#else
 	for (uint32_t cpu = 0; cpu < topology.active_cpus; cpu++) {
 		const enum smm_invocation_match match = active_ops->match_apmc_write(
 			active_ops->context, cpu, SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
@@ -69,6 +82,7 @@ starbook_mtl_presence_bootstrap_receive(
 	if (initiator == UINT32_MAX ||
 	    active_ops->read_value(active_ops->context, initiator, &wire) != CB_SUCCESS)
 		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
+#endif
 	if ((uint32_t)wire != STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST)
 		return STARBOOK_MTL_PRESENCE_NOT_BOOTSTRAP;
 	if (initiator != topology.bsp_cpu ||
@@ -96,6 +110,7 @@ starbook_mtl_presence_bootstrap_receive(
 	    slot->state != PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_READY)
 		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
 	response.initiator = initiator;
+	response.request_wire = wire;
 	response.ops = active_ops;
 	response.frame = frame;
 	response.snapshot = snapshot;
@@ -108,17 +123,22 @@ starbook_mtl_presence_bootstrap_receive(
 enum cb_err starbook_mtl_presence_bootstrap_response_stage(
 	const struct smm_invocation_save_state_ops *active_ops)
 {
+	uint64_t wire;
+
 	if (!protected_storage(NULL, &response, sizeof(response)) ||
 	    __atomic_load_n(&response.phase, __ATOMIC_ACQUIRE) != RESPONSE_PENDING ||
 	    active_ops != response.ops ||
-	    memcmp(response.frame, &response.snapshot, sizeof(response.snapshot))
-#if !CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
-	    ||
-	    active_ops->write_value(active_ops->context, response.initiator,
-		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS) != CB_SUCCESS
-#endif
-	    )
+	    memcmp(response.frame, &response.snapshot, sizeof(response.snapshot)) ||
+	    active_ops->match_apmc_write(active_ops->context, response.initiator,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE) != SMM_INVOCATION_MATCHED ||
+	    active_ops->read_value(active_ops->context, response.initiator, &wire) != CB_SUCCESS ||
+	    wire != response.request_wire)
 		return CB_ERR;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (active_ops->write_value(active_ops->context, response.initiator,
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS) != CB_SUCCESS)
+		return CB_ERR;
+#endif
 	__atomic_store_n(&response.phase, RESPONSE_STAGED, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
 }
