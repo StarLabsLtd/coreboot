@@ -95,17 +95,33 @@ with mocked external owner boundaries, including every provisioning failure,
 disabled placement and replay. Its separate full-ROM lane links untouched MTL
 loader/handler objects and the real board composition owner, with opt-in absent.
 The optional `PRESENCE_BOOTSTRAP_AUTHORITY_POLICY_LINK=1` lane additionally
-requires the real board authority-policy object. Neither lane asserts an
-installed route or required-true end-to-end boot.
+requires the real board authority-policy object. Its nested
+`PRESENCE_BOOTSTRAP_PRIVATE_CALLER_LINK=1` lane checks the actual board-table
+sender and private dispatcher/factory caller objects. These ROM lanes keep
+opt-in absent; they do not assert required-true end-to-end boot.
 
-Production activation still needs a recognized private bootstrap dispatcher
-callsite, post-resolution receipt import, verified cold DMA authority and a
-board composition which actually calls the canonical route factory. Existing
-private-cause, save-state and all-CPU primitives must be reused rather than
-duplicated. PREPARE is the sole presence-seed installation boundary; there is
-no independent seed handoff. A later platform slice
-must emit receipts after both bootmem maps resolve, install ownership through
-the existing backing-evidence owner, establish a verified cold DMA proof and
-connect the route factory to a recognized private cause. Until those pieces
-exist, the bootstrap cannot become READY and no required-true production route
-is installed. The existing S3 DMA epoch is deliberately not a cold-boot proof.
+The MTL caller uses the existing `lb_board` hook after both bootmem maps resolve
+to emit the exact mailbox/page receipts and request the existing private 0xfe
+all-CPU dispatcher. Non-bootstrap requests, including legitimate AP requests,
+retain the ordinary lifecycle-close path. The recognized bootstrap imports
+mailbox ownership through the existing backing-evidence owner and retains the
+page receipt for canonical PREPARE. It retires the first save-state lease before
+calling the existing route factory, then uses a second lease of the same ops
+descriptor for the final response. The public frame remains REQUEST until the
+factory succeeds and that second lease retires. APs remain held throughout.
+Any intermediate failure invokes platform fail-stop without a completed ACK.
+
+Host fixtures execute the actual sender, receiver and dispatcher with mocked
+external owner/factory boundaries. A separate import fixture links the actual
+bootstrap, backing-evidence, transaction and receipt/MAC implementation: it
+checks exact mailbox ownership, generation, full loader identity, page-handle
+binding, one-use/replay and alias rejection. These tests are not a live MTL
+required-true service proof.
+
+Production activation still requires genuine board composition opt-in and the
+general variable-service/endpoint path, followed by integrated cold-DMA and
+route/service runtime validation. PREPARE remains the sole presence-seed
+installation boundary; there is no independent seed handoff. The existing S3
+DMA epoch is deliberately not a cold-boot proof. The separate cold callback
+uses the live DMA policy and the same protected receipt owner, but host and
+link evidence do not replace hardware validation of that complete path.
