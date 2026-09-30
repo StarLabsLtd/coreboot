@@ -13,6 +13,7 @@ test-help help::
 	@echo  '  test-payloads        - Basic: Builds internal payloads'
 	@echo  '  test-capsule-protected-flash - Run protected flash tests'
 	@echo  '  test-capsule-platform-facts - Run capsule platform-facts tests'
+	@echo  '  test-efi-capsule-tools - Run capsule generator and policy tests'
 	@echo  '  test-mor-stack-bound - Check the bounded MOR clear call graph'
 	@echo  '  test-q35-mor-linear - Check the Q35 linear MOR platform slice'
 	@echo  '  test-authvar-smm-loader - Check SMM authvar loader failure atomicity'
@@ -122,6 +123,7 @@ ifneq  ($(JENKINS_SKIP_UNIT_TESTS),y)
 	+$(MAKE) test-capsule-tpm-platform-anchor
 	+$(MAKE) test-capsule-protected-flash
 	+$(MAKE) test-capsule-platform-facts
+	+$(MAKE) test-efi-capsule-tools
 	+$(MAKE) test-mor-stack-bound
 	+$(MAKE) test-q35-mor-linear
 	+$(MAKE) test-authvar-smm-loader
@@ -141,6 +143,7 @@ endif
 test-basic: test-lint test-tools test-abuild test-payloads \
 	test-tpm2-platform-auth test-capsule-tpm-platform-anchor \
 	test-capsule-protected-flash test-capsule-platform-facts \
+	test-efi-capsule-tools \
 	test-authvar-service-abi test-authvar-smm-loader test-mor-stack-bound \
 	test-q35-mor-linear test-smm-invocation-canary-fail-stop \
 	test-smm-invocation-runtime-view test-authvar-presence-tuple-sender \
@@ -149,6 +152,13 @@ test-basic: test-lint test-tools test-abuild test-payloads \
 	test-authvar-presence-lifecycle-close-endpoint \
 	test-mtl-authvar-presence-boot-classifier \
 	test-cleanup
+
+.PHONY: test-efi-capsule-tools
+test-efi-capsule-tools:
+	python3 -m unittest discover -s util/efi_capsule/tests -v
+	util/efi_capsule/tests/test_kconfig.sh
+	util/efi_capsule/tests/test_make_recipe.sh
+	tests/lib/payload_mm_fmp_auth_policy_test.sh
 
 .PHONY: test-mtl-authvar-presence-boot-classifier
 test-mtl-authvar-presence-boot-classifier:

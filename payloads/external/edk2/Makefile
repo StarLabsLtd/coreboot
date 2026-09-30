@@ -148,15 +148,8 @@ ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
-CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
-CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
-CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
-CAPSULE_SIGNER_PRIVATE_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
-CAPSULE_OTHER_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
 CAPSULE_TRUSTED_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
 
-CAPSULE_SIGNER_PRIVATE_CERT_PATH := $(call edk2_abspath,$(CAPSULE_SIGNER_PRIVATE_CERT))
-CAPSULE_OTHER_PUBLIC_CERT_PATH := $(call edk2_abspath,$(CAPSULE_OTHER_PUBLIC_CERT))
 CAPSULE_TRUSTED_PUBLIC_CERT_PATH := $(call edk2_abspath,$(CAPSULE_TRUSTED_PUBLIC_CERT))
 
 # Workspace-local PCD include for FmpDxe; path is relative to EDK2 WORKSPACE for DSC (!include).
@@ -168,23 +161,6 @@ ifneq ($(CAPSULE_TRUSTED_PUBLIC_CERT),)
 BUILD_STR += -D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
 endif
 endif
-
-# TODO @starlabs: Depends on unmerged EDK2 patches.
-# AppendRmapManifest.py moved from BaseTools/Scripts to UefiPayloadPkg/Tools in
-# newer edk2 trees.
-EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
-	$(EDK2_PATH)/UefiPayloadPkg/Tools/AppendRmapManifest.py \
-	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
-))
-
-EDK2_BUILD_ARCH := X64
-ifeq ($(CONFIG_EDK2_UNIVERSAL_PAYLOAD),y)
-EDK2_BUILD_ARCH := IA32
-endif
-EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_STR)_GCC
-EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
-EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
-CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -431,57 +407,4 @@ distclean: clean
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg clean distclean
 
-.PHONY: coreboot_capsule capsule_keys
-
-coreboot_capsule: $(EDK2_PATH)
-	test -n "$(COREBOOT_ROM)"
-	test -n "$(COREBOOT_CAPSULE_OUT)"
-	test -f "$(COREBOOT_ROM)"
-	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
-	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
-	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
-	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
-	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
-	set -e; \
-	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
-	else \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
-	fi; \
-	embedded_driver_args=(); \
-	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
-		test -f "$(EDK2_FMP_DXE)"; \
-		embedded_driver_args=( --embedded-driver "$(EDK2_FMP_DXE)" ); \
-	fi; \
-	fw_version=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) )); \
-	if [ $$fw_version -eq 0 ]; then \
-		if [[ "$(CAPSULE_LOCALVERSION)" =~ ^[^0-9]*([0-9]+)[.]([0-9]+) ]]; then \
-			fw_version=$$(( (10#$${BASH_REMATCH[1]} << 16) | 10#$${BASH_REMATCH[2]} )); \
-		fi; \
-	fi; \
-	lsv=$$(( $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) )); \
-	if [ $$lsv -eq 0 ]; then \
-		lsv=$$fw_version; \
-	fi; \
-	capflags=( --capflag PersistAcrossReset ); \
-	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
-		capflags+=( --capflag InitiateReset ); \
-	fi; \
-	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$(COREBOOT_CAPSULE_OUT)" \
-		--guid "$(CAPSULE_GUID)" \
-		"$${capflags[@]}" \
-		--fw-version $$fw_version --lsv $$lsv \
-		--signer-private-cert "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)" \
-		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
-		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
-		"$${embedded_driver_args[@]}" \
-		"$$rmap_rom"; \
-	embedded_driver_count=0; \
-	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
-		embedded_driver_count=1; \
-	fi; \
-	python3 "$(CAPSULE_VALIDATOR)" \
-		--capsule "$(COREBOOT_CAPSULE_OUT)" \
-		--firmware-volume "$(EDK2_DXE_FV)" \
-		--guid "$(CAPSULE_GUID)" \
-		--embedded-drivers "$$embedded_driver_count"
+.PHONY: capsule_keys

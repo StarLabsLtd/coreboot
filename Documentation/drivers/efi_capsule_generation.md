@@ -1,77 +1,101 @@
-# Generating signed UEFI capsules with EDK2
+# Generating signed UEFI capsules
 
-coreboot can cooperate with an EDK2 payload to support firmware updates via the UEFI
-ESRT/FMP capsule mechanism.
+coreboot can generate `build/coreboot.cap` from the final ROM without EDK2
+BaseTools. The same generator serves two deliberately distinct update
+transports:
 
-This document covers generating a *signed* capsule during the coreboot build.
+- The legacy EDK2 transport appends an RMAP region allow-list to a copy of the
+  ROM. EDK2 consumes that manifest and owns the update operation.
+- The typed coreboot transport signs the exact final ROM. Its protected broker
+  derives writable routes from coreboot's runtime policy; build-time RMAP data
+  is not an authority input.
 
-At present, capsule generation requires a compatible EDK2 tree with the
-corresponding payload-side changes. Upstream support is being tracked in:
+`make capsule` builds the capsule explicitly. A normal build also creates it
+after the ROM is finalised when `DRIVERS_EFI_GENERATE_CAPSULE` is enabled.
 
-https://github.com/tianocore/edk2/pull/12053
+## Transport selection
 
-Older EDK2 trees may be missing pieces required by this integration.
+The capsule format is selected by a resolved transport capability, not by a
+payload name:
 
-## Build-time capsule generation
+- `DRIVERS_EFI_CAPSULE_LEGACY_TRANSPORT` is derived from an EDK2 payload with
+  `DRIVERS_EFI_UPDATE_CAPSULES` enabled.
+- `DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT` is hidden. A production platform
+  composition may default it on only after installing the complete protected
+  broker policy, FMP owner, authentication provider and published endpoint.
 
-Enable capsule support and use an EDK2 payload:
+`DRIVERS_EFI_GENERATE_CAPSULE` is unavailable without one of these transports.
+The two update paths are mutually exclusive.
 
-- `CONFIG_DRIVERS_EFI_UPDATE_CAPSULES`: enable coreboot capsule update support.
-- `CONFIG_DRIVERS_EFI_GENERATE_CAPSULE`: generate `build/coreboot.cap` after the ROM is finalised.
-- `CONFIG_PAYLOAD_EDK2`: build an EDK2 payload.
+## Firmware identity and version
 
-When enabled, the coreboot build generates `build/coreboot.cap` after the ROM image is
-finalised. The capsule can also be generated explicitly with `make capsule`.
+The generated FMP capsule uses:
 
-Configure the FMAP allowlist embedded into the ROM as a manifest:
+- `DRIVERS_EFI_MAIN_FW_GUID` for its ESRT/FMP image identity.
+- `DRIVERS_EFI_MAIN_FW_VERSION` for the attempted version.
+- `DRIVERS_EFI_MAIN_FW_LSV` for the lowest supported version.
 
-- `CONFIG_DRIVERS_EFI_CAPSULE_REGIONS`: whitespace-separated FMAP region allowlist embedded into
-  the ROM as a manifest (e.g. `COREBOOT EC`).
+When the configured version is zero, the build parses the leading
+`<major>.<minor>` value in `LOCALVERSION` and encodes it as
+`(major << 16) | minor`. A zero LSV inherits the resolved firmware version.
 
-Configure the ESRT/FMP firmware identity used by the capsule:
+The generator emits one authenticated FMP v3 image. It signs the MSS1 header
+and exact image bytes followed by the little-endian monotonic count, matching
+the payload-mm verifier.
 
-- `CONFIG_DRIVERS_EFI_MAIN_FW_GUID`: GUID of the firmware
-- `CONFIG_DRIVERS_EFI_MAIN_FW_VERSION`: firmware version encoded in the capsule header;
-  if set to `0`, derive a value from the leading `<major>.<minor>` in
-  `CONFIG_LOCALVERSION` when possible
-- `CONFIG_DRIVERS_EFI_MAIN_FW_LSV`: lowest supported firmware version; if set to `0`,
-  use the resolved firmware version
+## Legacy RMAP and embedded FmpDxe
 
-Reset behavior during capsule application:
+`DRIVERS_EFI_CAPSULE_REGIONS` applies only to the legacy transport. It lists
+the FMAP regions included in the RMAP manifest, for example `COREBOOT EC`.
 
-- `CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET`: add the capsule `InitiateReset` flag.
-  This is disabled by default because Linux rejects capsules with `InitiateReset` when using
-  `/dev/efi_capsule_loader`.
+Some legacy platforms load `FmpDxe.efi` from the capsule. Enable both:
 
-## Embedded drivers (FmpDxe in capsule)
+- `DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS`
+- `DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE`
 
-Some EDK2 capsule update flows use an embedded `FmpDxe.efi` driver inside the capsule.
+The EDK2 payload build must already have produced `FmpDxe.efi` and `DXEFV.Fv`.
+The coreboot capsule recipe passes the former to its generator, then checks the
+embedded-driver count and verifies that the matching FFS driver identity exists
+in the latter. The explicit artifact variables are
+`CAPSULE_LEGACY_FMP_DXE` and `CAPSULE_LEGACY_DXE_FV`; their defaults point at
+the selected EDK2 build architecture and build type.
 
-To generate capsules with an embedded `FmpDxe.efi`, enable:
+Typed coreboot capsules reject embedded drivers. Their endpoint and
+authentication provider are already resident in protected firmware.
 
-- `CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE`: embed `FmpDxe.efi` into generated capsules.
-- `CONFIG_DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS`: configure the EDK2 payload to accept
-  capsules with embedded drivers (sets `PcdCapsuleEmbeddedDriverSupport=TRUE`).
+## Signing policy
 
-Note: if Secure Boot is enabled, the embedded driver must be signed by a key trusted by the
-running firmware, otherwise capsule processing may fail when loading the embedded driver.
+Configure:
 
-## Capsule signing certificates
+- `DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT`
+- `DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT`
+- `DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT`
 
-`GenerateCapsule` can sign the FMP payload (PKCS#7). Many platforms require signed capsules.
+Legacy relative paths are resolved below the checkout name derived from
+`EDK2_REPOSITORY`. Typed profiles use coreboot-relative or absolute paths.
 
-coreboot exposes three Kconfig options for the certificate chain:
+The host tools reject inputs outside the payload-mm production verifier's
+bounds: certificates must use 2048- to 8192-bit RSA keys, a CMS object may
+contain at most eight certificates, each certificate is limited to 64 KiB,
+certificate bytes are limited to 256 KiB, and the complete CMS object is
+limited to 256 KiB. The signed body is limited to 128 MiB minus the monotonic
+count. The generated signature uses SHA-256 and detached DER PKCS#7.
 
-- `CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT`: PEM containing the signing private key and
-  leaf certificate
-- `CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT`: PEM intermediate certificate
-- `CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT`: PEM trusted root certificate
+The default EDK2 test certificates are compatibility fixtures only. Production
+firmware must configure its own protected signing hierarchy.
 
-If a configured path is relative, it is interpreted relative to the configured EDK2 repository
-inside `payloads/external/edk2/workspace`.
+## Validation
 
-The defaults use the EDK2 BaseTools test certificate chain. Do not use the test keys for
-production firmware updates.
+The build validates the completed capsule before publishing it atomically. It
+checks the FMP/authentication layout, identity, versions, exact image bytes,
+signature chain and transport-specific rules. Typed images additionally must
+contain exactly one runtime-compatible FMAP with bounded, uniquely named,
+non-empty `FMAP` and `COREBOOT` regions. Legacy embedded-driver builds also
+validate the matching DXE firmware volume.
 
-To generate your own certificate chain and convert it into the required PEM files, see:
-`BaseTools/Source/Python/Pkcs7Sign/Readme.md` in the EDK2 tree.
+Run all generator, hostile configuration, Make recipe and production verifier
+tests with:
+
+```
+make test-efi-capsule-tools
+```
