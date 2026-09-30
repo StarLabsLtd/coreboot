@@ -419,7 +419,9 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 	depends on PAYLOAD_MM_CMS_CORE
 	select STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT
+	select BOOTMEM_DRAM_PROVENANCE
 	select SMM_AUTHVAR_S3_STATE_SMRAM
+	select SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF
 	help
 	  Build the protected SMM verifier for the MTL lifecycle-close DMA policy.
 	  The receipt transport independently derives the live requester/domain
