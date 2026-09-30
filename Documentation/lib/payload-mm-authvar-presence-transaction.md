@@ -82,7 +82,8 @@ at least 4 KiB remains for emergency fail-stop handling.
 This slice does not provide the platform-private SMI cause, SMM dispatcher,
 fixed protected slot accessor, all-active-CPU rendezvous, saved-state access,
 reset/fail-stop implementation, transaction-page reservation signer, or board
-composition. The existing handoff remains independent. A later platform slice
+composition. PREPARE is the sole presence-seed installation boundary; there is
+no independent seed handoff. A later platform slice
 must provision a dedicated below-4-GiB reserved page and independent exact-tag
 receipt authority before permanent SMM loading, emit its receipt after both
 bootmem maps resolve, and connect only a recognized private cause. Until those

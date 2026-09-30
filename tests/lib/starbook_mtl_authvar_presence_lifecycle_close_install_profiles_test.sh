@@ -68,7 +68,6 @@ tail -n +4 "$root/src/Kconfig" >> "$profile"
 
 lib_kconfig="$temporary/lib.Kconfig"
 sed -e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION$/,+2 s/^\tdefault n$/\tdefault y if TEST_MTL_LIFECYCLE_CLOSE_INSTALL\n\tdefault n/' \
-	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF$/,+2 s/^\tdefault n$/\tdefault y if TEST_MTL_LIFECYCLE_CLOSE_INSTALL\n\tdefault n/' \
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION$/,+2 s/^\tdefault n$/\tdefault y if TEST_MTL_LIFECYCLE_CLOSE_INSTALL\n\tdefault n/' \
 	"$root/src/lib/Kconfig" > "$lib_kconfig"
 sed -i "s|source \"src/lib/Kconfig\"|source \"$lib_kconfig\"|" "$profile"

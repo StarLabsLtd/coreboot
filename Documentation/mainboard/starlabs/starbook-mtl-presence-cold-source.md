@@ -10,7 +10,7 @@ The revision-2 loader source record carries that classification alongside its
 existing lifecycle and one loader nonce. The protected-memory and PCI BME
 boundaries, mirrored record, seal and one-shot consumption all apply to the
 classification too. Ramstage installs it in the same authority workspace only
-after committing the existing loader fanout. The strong presence handoff cold
+after committing the existing loader fanout. The board presence cold
 predicate requires genuine cold evidence and the non-S3 lifecycle. Warm reset,
 S3, S4 and unknown evidence cannot become presence cold authority merely because
 the loader lifecycle says non-S3.
@@ -21,14 +21,16 @@ policy; it does not acquire the narrower presence admission policy.
 
 The complete cold composition still needs these activation dependencies:
 
-1. Provision the handoff slot and receipt verifiers into protected SMM storage
-   from the loader, carrying the same nonce and active CPU topology.
-2. Supply protected ordinary-DRAM validation and the cold presence receiver
-   installer using the existing checked MTL DMA receipt.
+1. Seal the producer transaction identity before permanent SMM loading and
+   provision its dedicated transaction-page receipt verifier into protected
+   storage using the same loader nonce and active CPU topology.
+2. Supply protected ordinary-DRAM validation and the cold transaction authority
+   policy using the existing checked MTL DMA receipt. Emit the exact-page
+   receipt after both bootmem maps have resolved.
 3. Supply cold route transaction claim/completion and lifecycle policy, then
    call `starbook_mtl_authvar_presence_route_composition_provision()` with those
    protected dependencies.
-4. Install the private cold handoff and PREPARE/COMMIT/ABORT dispatch with
+4. Install the private PREPARE/COMMIT/ABORT dispatch with
    all-CPU arm, retirement and EOS ordering before publishing the endpoint.
 5. Supply ramstage publication composition, real transport callbacks and
    readiness predicates; publish both presence and lifecycle-close records only
@@ -38,3 +40,14 @@ The complete cold composition still needs these activation dependencies:
 
 This prerequisite has host/configuration and board-build validation. Those
 checks do not establish hardware readiness for the complete composition.
+
+## One canonical authority installation
+
+The transaction PREPARE request already carries the producer seed and sealed
+binding to the protected route policy. PREPARE is the sole seed-installation
+boundary; COMMIT or ABORT resolves that same transaction. The unused independent
+seed handoff has been removed rather than enabling a second installation path.
+Its sender, receiver, transfer page and configuration are preserved in Git
+history, not in the active build. The transaction-page receipt and protected
+loader bootstrap remain necessary; their presence must not be inferred from
+the removal of the redundant transport.

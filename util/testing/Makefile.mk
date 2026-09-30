@@ -272,10 +272,6 @@ test-authvar-presence-publication:
 		AUTHVAR_PRESENCE_PUBLICATION_HOSTILE_OVERRIDE=1 \
 		tests/lib/payload_mm_authvar_presence_publication_profiles_test.sh
 
-.PHONY: test-authvar-presence-handoff
-test-authvar-presence-handoff:
-	tests/lib/payload_mm_authvar_presence_handoff_test.sh
-
 .PHONY: test-authvar-presence-transaction
 test-authvar-presence-transaction:
 	tests/lib/payload_mm_authvar_presence_transaction_test.sh
@@ -299,7 +295,6 @@ test-authvar-presence-route-session:
 .PHONY: test-authvar-presence-mailbox-scrub
 test-authvar-presence-mailbox-scrub:
 	tests/lib/payload_mm_authvar_presence_authority_test.sh
-	tests/lib/payload_mm_authvar_presence_handoff_test.sh
 	tests/lib/payload_mm_authvar_presence_transaction_test.sh
 	tests/lib/payload_mm_authvar_presence_producer_test.sh
 

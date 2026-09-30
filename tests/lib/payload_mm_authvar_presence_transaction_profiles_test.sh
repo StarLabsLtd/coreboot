@@ -43,9 +43,6 @@ sed -e 's/depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER$/'\
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION$/,+2 '\
 's/^\tdefault n$/\tdefault y if '\
 'TEST_AUTHVAR_PRESENCE_TRANSACTION_PREREQUISITES\n\tdefault n/' \
-	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF$/,+2 '\
-'s/^\tdefault n$/\tdefault y if '\
-'TEST_AUTHVAR_PRESENCE_TRANSACTION_PREREQUISITES\n\tdefault n/' \
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION$/,+2 '\
 's/^\tdefault n$/\tdefault y if '\
 'TEST_AUTHVAR_PRESENCE_TRANSACTION_PREREQUISITES\n\tdefault n/' \

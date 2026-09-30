@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <boot/payload_mm_authvar_presence_handoff.h>
 #include <soc/authvar_presence_boot_classifier.h>
 
 #include "mor_cold_boot.h"
@@ -212,7 +211,7 @@ static struct {
 } authority_workspace __aligned(8);
 
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_CLASSIFICATION)
-bool platform_payload_mm_authvar_presence_handoff_cold_boot(void)
+bool mainboard_authvar_presence_cold_boot(void)
 {
 	uint32_t lifecycle;
 	const uint32_t classification = authority_workspace.presence_boot_class;
