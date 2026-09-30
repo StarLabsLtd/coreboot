@@ -5124,6 +5124,163 @@ static void coordinator_private_atomic(bool concrete_provider)
 			PAYLOAD_MM_AUTHVAR_CERTDB_NOT_FOUND);
 }
 
+/* Public EDK2 policy byte layout: header 44 bytes, GUID at byte 8. */
+static void variable_policy_fixture(uint8_t entry[44], const uint8_t guid[16],
+	uint8_t lock_type, uint8_t maximum_size)
+{
+	memset(entry, 0, 44);
+	entry[2] = 1;
+	entry[4] = 44;
+	entry[6] = 44;
+	memcpy(entry + 8, guid, 16);
+	entry[28] = maximum_size;
+	entry[40] = lock_type;
+}
+
+static void coordinator_variable_policy(const char *scenario)
+{
+	static const uint8_t name[] = { 'O', 0, 'r', 0, 'd', 0, 0, 0 };
+	static const uint8_t value = 0x11;
+	struct payload_mm_authvar_policy_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS,
+		.name = name,
+		.name_size = sizeof(name),
+		.data = &value,
+		.data_size = sizeof(value),
+	};
+	struct payload_mm_authvar_policy_result result;
+	struct coordinator_fixture fixture;
+	uint8_t entry[128];
+	size_t entry_size = 44;
+	unsigned int programs, erases;
+	uint64_t status;
+	bool authenticated = strstr(scenario, "auth") != NULL;
+
+	coordinator_fixture_build(&fixture);
+	if (strstr(scenario, "presence"))
+		fixture.request.trusted_physical_presence = 1;
+	if (authenticated)
+		request = fixture.policy_request;
+	make_candidate_source();
+	variable_policy_fixture(entry, request.vendor_guid, 1, 1);
+	assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	coordinator_install_executor();
+	assert(payload_mm_authvar_variable_policy_register(arena, 44) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+	fmp_reject_smram_span = entry;
+	fmp_reject_smram_span_size = entry_size;
+	assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	fmp_reject_smram_span = NULL;
+	fmp_reject_smram_span_size = 0;
+#endif
+	if (strstr(scenario, "framing")) {
+		entry[6] = 0;
+		assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		entry[6] = 44;
+		entry[4] = 42;
+		assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		entry[4] = 44;
+	}
+	if (strstr(scenario, "auth-size"))
+		entry[40] = 0;
+	if (strstr(scenario, "create"))
+		entry[40] = 2;
+	if (strstr(scenario, "state")) {
+		static const uint8_t state_name[] = {
+			'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0,
+			'M', 0, 'o', 0, 'd', 0, 'e', 0, 0, 0,
+		};
+
+		entry_size = 62 + sizeof(state_name);
+		entry[4] = entry_size;
+		entry[6] = entry_size;
+		entry[40] = 3;
+		memcpy(entry + 44, coordinator_global_guid, 16);
+		entry[60] = 1;
+		entry[61] = 0;
+		memcpy(entry + 62, state_name, sizeof(state_name));
+	}
+	assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_ALREADY_STARTED);
+	if (strstr(scenario, "corrupt")) {
+		unsigned int part = strstr(scenario, "count") ? 0 :
+			strstr(scenario, "used") ? 1 : strstr(scenario, "lock") ? 2 : 3;
+
+		payload_mm_authvar_executor_test_corrupt_variable_policy(part,
+			strstr(scenario, "mirror") != NULL);
+		assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(poisoned);
+		assert(payload_mm_authvar_variable_policy_lock() ==
+			PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		return;
+	}
+	if (strstr(scenario, "specific")) {
+		variable_policy_fixture(entry, request.vendor_guid, 0, 1);
+		entry_size = 44 + sizeof(name);
+		entry[4] = entry_size;
+		memcpy(entry + 44, name, sizeof(name));
+		assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	}
+	if (strstr(scenario, "lifecycle")) {
+		struct payload_mm_authvar_policy_request lifecycle = {
+			.operation = strstr(scenario, "runtime") ?
+				PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME :
+				PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
+		};
+
+		assert(payload_mm_authvar_policy_transaction(&lifecycle, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+		return;
+	}
+	programs = program_count;
+	erases = erase_count;
+	if (authenticated)
+		status = payload_mm_authvar_executor_test_coordinate(&fixture.request,
+			&fixture.result);
+	else
+		status = payload_mm_authvar_policy_transaction(&request, &result);
+	if (strstr(scenario, "auth-size") || strstr(scenario, "create") ||
+	    strstr(scenario, "specific")) {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(program_count > programs);
+		if (strstr(scenario, "create")) {
+			programs = program_count;
+			assert(payload_mm_authvar_policy_transaction(&request, &result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+			assert(program_count == programs);
+		}
+		if (strstr(scenario, "specific")) {
+			request.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+			assert(payload_mm_authvar_policy_transaction(&request, &result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		}
+	} else {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+		assert(program_count == programs && erase_count == erases);
+		assert(coordinator_verify_calls == 0);
+	}
+	assert(payload_mm_authvar_variable_policy_lock() ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert(payload_mm_authvar_variable_policy_lock() ==
+		PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+	assert(payload_mm_authvar_variable_policy_register(entry, entry_size) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+}
+
 static void coordinator_native_ordinary(void)
 {
 	static const uint8_t guid[16] = {
@@ -7388,7 +7545,10 @@ int main(int argc, char **argv)
 	}
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-	if (!strcmp(argv[1], "coordinator-success")) {
+	if (!strncmp(argv[1], "variable-policy-", 16)) {
+		coordinator_variable_policy(argv[1]);
+		return 0;
+	} else if (!strcmp(argv[1], "coordinator-success")) {
 		coordinator_success();
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-presence")) {

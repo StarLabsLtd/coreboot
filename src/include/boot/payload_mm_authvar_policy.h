@@ -93,4 +93,11 @@ uint64_t payload_mm_authvar_policy_transaction(
 	const struct payload_mm_authvar_policy_request *request,
 	struct payload_mm_authvar_policy_result *result);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+/* Protected callers only; these are not shared-memory dispatch entry points.
+ * Encoded entries use the EDK2 revision-1 VariablePolicy wire layout. */
+uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t size);
+uint64_t payload_mm_authvar_variable_policy_lock(void);
+#endif
+
 #endif

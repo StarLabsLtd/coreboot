@@ -25,6 +25,7 @@
 #include <boot/payload_mm_authvar_store.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include <boot/payload_mm_authvar_view.h>
+#include <boot/payload_mm_authvar_format.h>
 #endif
 #include <boot/payload_mm_authvar_writer.h>
 #include <string.h>
@@ -195,6 +196,54 @@ static struct {
 #endif
 } executor;
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#define VARIABLE_POLICY_HEADER_SIZE 44U
+#define VARIABLE_POLICY_STATE_SIZE 18U
+#define VARIABLE_POLICY_MAX_ENTRY_SIZE 512U
+#define VARIABLE_POLICY_MAX_ENTRIES 128U
+struct variable_policy_ledger {
+	u32 count;
+	u32 used;
+	u32 locked;
+	u8 entries[VARIABLE_POLICY_MAX_ENTRY_SIZE * VARIABLE_POLICY_MAX_ENTRIES];
+};
+
+/* The ledger survives the per-request scratch-arena scrub. No payload pointer
+ * is retained. Its seal participates in every existing executor checkpoint. */
+static struct variable_policy_ledger variable_policies, sealed_variable_policies;
+static bool variable_policy_valid(const u8 *entry, size_t size);
+static u64 poison_session(void);
+
+static bool variable_policies_equal(void)
+{
+	size_t offset = 0;
+	u32 count = 0;
+
+	if (variable_policies.count != sealed_variable_policies.count ||
+	    variable_policies.count > VARIABLE_POLICY_MAX_ENTRIES ||
+	    variable_policies.used != sealed_variable_policies.used ||
+	    variable_policies.used > sizeof(variable_policies.entries) ||
+	    variable_policies.locked != sealed_variable_policies.locked ||
+	    variable_policies.locked > 1 ||
+	    memcmp(variable_policies.entries, sealed_variable_policies.entries,
+		variable_policies.used))
+		return false;
+	while (offset < variable_policies.used) {
+		const u8 *entry = variable_policies.entries + offset;
+		size_t size;
+
+		if (variable_policies.used - offset < VARIABLE_POLICY_HEADER_SIZE)
+			return false;
+		size = (size_t)entry[4] | (size_t)entry[5] << 8;
+		if (size > variable_policies.used - offset || !variable_policy_valid(entry, size))
+			return false;
+		offset += size;
+		count++;
+	}
+	return count == variable_policies.count;
+}
+#endif
+
 static bool owner_equal(const struct executor_session *state)
 {
 	return executor.owner_generation && executor.owner_token &&
@@ -268,7 +317,8 @@ static bool policy_equal(void)
 		executor.fmp_phase <= EXECUTOR_FMP_PHASE_POISONED
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-		&& executor.volatile_modes == executor.sealed_volatile_modes &&
+		&& variable_policies_equal() &&
+		executor.volatile_modes == executor.sealed_volatile_modes &&
 		executor.volatile_modes_valid == executor.sealed_volatile_modes_valid &&
 		executor.modes_need_reconcile ==
 			executor.sealed_modes_need_reconcile
@@ -388,9 +438,240 @@ static bool external_protected_span(const void *buffer, size_t size)
 #endif
 		!payload_mm_authvar_buffers_overlap(buffer, size, &executor,
 			sizeof(executor)) &&
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+		!payload_mm_authvar_buffers_overlap(buffer, size, &variable_policies,
+			sizeof(variable_policies)) &&
+		!payload_mm_authvar_buffers_overlap(buffer, size, &sealed_variable_policies,
+			sizeof(sealed_variable_policies)) &&
+#endif
 		!payload_mm_authvar_buffers_overlap(buffer, size,
 			executor.sealed.arena, executor.sealed.arena_size);
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static u16 policy_read16(const u8 *bytes)
+{
+	return (u16)((u16)bytes[0] | (u16)bytes[1] << 8);
+}
+
+static u32 policy_read32(const u8 *bytes)
+{
+	return (u32)bytes[0] | (u32)bytes[1] << 8 |
+		(u32)bytes[2] << 16 | (u32)bytes[3] << 24;
+}
+
+static bool policy_name_valid(const u8 *name, size_t size, bool wildcard_name)
+{
+	size_t wildcard_count = 0;
+
+	if (size < 4 || (size & 1U))
+		return false;
+	for (size_t offset = 0; offset < size; offset += 2) {
+		u16 character = policy_read16(name + offset);
+
+		if (!character)
+			return offset + 2 == size;
+		wildcard_count += wildcard_name && character == '#';
+		if (wildcard_count > UINT8_MAX)
+			return false;
+	}
+	return false;
+}
+
+static bool variable_policy_valid(const u8 *entry, size_t size)
+{
+	size_t name_offset;
+
+	if (size < VARIABLE_POLICY_HEADER_SIZE || size > VARIABLE_POLICY_MAX_ENTRY_SIZE ||
+	    (size & 1U) || policy_read32(entry) != 0x10000 ||
+	    policy_read16(entry + 4) != size || !policy_read32(entry + 28) ||
+	    policy_read32(entry + 24) > policy_read32(entry + 28) || entry[40] > 3)
+		return false;
+	name_offset = policy_read16(entry + 6);
+	if (name_offset > size || (name_offset & 1U))
+		return false;
+	if (entry[40] == 3) {
+		if (name_offset <= VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE ||
+		    !policy_name_valid(entry + VARIABLE_POLICY_HEADER_SIZE +
+			VARIABLE_POLICY_STATE_SIZE, name_offset - VARIABLE_POLICY_HEADER_SIZE -
+			VARIABLE_POLICY_STATE_SIZE, false))
+			return false;
+	} else if (name_offset != VARIABLE_POLICY_HEADER_SIZE) {
+		return false;
+	}
+	return name_offset == size ||
+		policy_name_valid(entry + name_offset, size - name_offset, true);
+}
+
+uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t size)
+{
+	u8 copied[VARIABLE_POLICY_MAX_ENTRY_SIZE];
+	u32 expected = 0;
+	u64 status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (size > sizeof(copied) || !external_protected_span(entry, size))
+		return status;
+	if (!__atomic_compare_exchange_n(&executor.busy, &expected, 1, false,
+		__ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!executor.installed) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto out;
+	}
+	if (!policy_equal()) {
+		status = poison_session();
+		goto out;
+	}
+	if (variable_policies.locked || executor.ready_to_boot || executor.at_runtime) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		goto out;
+	}
+	memcpy(copied, entry, size);
+	if (!variable_policy_valid(copied, size) || memcmp(copied, entry, size))
+		goto out;
+	for (size_t offset = 0; offset < variable_policies.used;) {
+		const u8 *existing = variable_policies.entries + offset;
+		size_t existing_size = policy_read16(existing + 4);
+		size_t existing_name = policy_read16(existing + 6);
+		size_t name_offset = policy_read16(copied + 6);
+
+		if (!memcmp(existing + 8, copied + 8, 16) &&
+		    existing_size - existing_name == size - name_offset &&
+		    !memcmp(existing + existing_name, copied + name_offset, size - name_offset)) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_ALREADY_STARTED;
+			goto out;
+		}
+		offset += existing_size;
+	}
+	if (variable_policies.count == VARIABLE_POLICY_MAX_ENTRIES ||
+	    size > sizeof(variable_policies.entries) - variable_policies.used) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+		goto out;
+	}
+	memcpy(variable_policies.entries + variable_policies.used, copied, size);
+	variable_policies.used += (u32)size;
+	variable_policies.count++;
+	sealed_variable_policies.count = variable_policies.count;
+	sealed_variable_policies.used = variable_policies.used;
+	memcpy(sealed_variable_policies.entries, variable_policies.entries,
+		variable_policies.used);
+	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+out:
+	memset(copied, 0, sizeof(copied));
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+
+uint64_t payload_mm_authvar_variable_policy_lock(void)
+{
+	u32 expected = 0;
+	u64 status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+
+	if (provider_reentry() || !__atomic_compare_exchange_n(&executor.busy,
+	    &expected, 1, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+		return status;
+	if (executor.installed && policy_equal()) {
+		status = variable_policies.locked ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		variable_policies.locked = true;
+		sealed_variable_policies.locked = true;
+	} else if (executor.installed) {
+		status = poison_session();
+	}
+	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
+	return status;
+}
+
+static u64 variable_policy_check(const struct executor_session *state)
+{
+	const struct payload_mm_authvar_policy_request *request = &state->request;
+	const u8 *best = NULL;
+	struct payload_mm_authvar_view current;
+	struct payload_mm_authvar_view_value value;
+	u8 source_modes;
+	u64 status;
+	u32 best_priority = UINT8_MAX;
+	size_t payload_size = request->data_size;
+
+	for (size_t offset = 0; offset < variable_policies.used;) {
+		const u8 *policy = variable_policies.entries + offset;
+		size_t size = policy_read16(policy + 4);
+		size_t name_offset = policy_read16(policy + 6);
+		u32 priority = UINT8_MAX;
+		bool matches = !memcmp(policy + 8, request->vendor_guid, 16);
+
+		if (matches && size != name_offset) {
+			matches = size - name_offset == request->name_size;
+			priority = 0;
+			for (size_t character = 0; matches && character < request->name_size;
+			     character += 2) {
+				u16 target = policy_read16(policy + name_offset + character);
+				u16 actual = policy_read16((const u8 *)request->name + character);
+				bool hexadecimal = (actual >= '0' && actual <= '9') ||
+					(actual >= 'a' && actual <= 'f') || (actual >= 'A' && actual <= 'F');
+
+				matches = target == '#' ? hexadecimal : target == actual;
+				priority += target == '#';
+			}
+		}
+		if (matches && (!best || priority < best_priority)) {
+			best = policy;
+			best_priority = priority;
+		}
+		offset += size;
+	}
+	if (!best)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
+		struct payload_mm_authvar_auth2_view auth2;
+
+		if (payload_mm_authvar_auth2_parse(request->data, request->data_size, &auth2) !=
+		    PAYLOAD_MM_AUTHVAR_FORMAT_OK)
+			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		payload_size = auth2.payload.size;
+	}
+	if (payload_size || request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE) {
+		if (payload_size < policy_read32(best + 24) || payload_size > policy_read32(best + 28) ||
+		    (request->attributes & policy_read32(best + 32)) != policy_read32(best + 32) ||
+		    (request->attributes & policy_read32(best + 36)))
+			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	}
+	if (best[40] == 1)
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	if (best[40] < 2)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (!payload_mm_authvar_coordinator_source_modes(&state->index, state->at_runtime,
+	    executor.sealed_volatile_modes_valid, executor.sealed_volatile_modes, &source_modes) ||
+	    payload_mm_authvar_view_init(&current, &state->index, source_modes,
+		state->at_runtime) != CB_SUCCESS)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (best[40] == 2) {
+		status = payload_mm_authvar_view_get(&current, request->vendor_guid,
+			request->name, request->name_size, 0, &value);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
+			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ?
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS : PAYLOAD_MM_AUTHVAR_STATUS_ABORTED;
+	}
+	if (best[40] == 3) {
+		status = payload_mm_authvar_view_get(&current, best + VARIABLE_POLICY_HEADER_SIZE,
+				best + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+				policy_read16(best + 6) - VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE,
+				1, &value);
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && value.data_size == 1 &&
+		    *(const u8 *)value.data == best[60])
+			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+		    status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+		    status != PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
+			return PAYLOAD_MM_AUTHVAR_STATUS_ABORTED;
+	}
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+#endif
 
 static uint8_t *snapshot(void)
 {
@@ -897,6 +1178,19 @@ enum cb_err payload_mm_authvar_executor_install(
 	    payload_mm_authvar_buffers_overlap(limits, sizeof(*limits), &executor,
 		sizeof(executor)))
 		return CB_ERR;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (!payload_mm_authvar_smram_buffer(&variable_policies,
+		    sizeof(variable_policies)) ||
+	    !payload_mm_authvar_smram_buffer(&sealed_variable_policies,
+		    sizeof(sealed_variable_policies)) ||
+	    payload_mm_authvar_buffers_overlap(trusted_smram_arena, arena_size,
+		&variable_policies, sizeof(variable_policies)) ||
+	    payload_mm_authvar_buffers_overlap(trusted_smram_arena, arena_size,
+		&sealed_variable_policies, sizeof(sealed_variable_policies)))
+		return CB_ERR;
+	memset(&variable_policies, 0, sizeof(variable_policies));
+	memset(&sealed_variable_policies, 0, sizeof(sealed_variable_policies));
+#endif
 	memcpy(&copied_limits, limits, sizeof(copied_limits));
 	if (!limits_valid(&copied_limits) || !maximum_record_fits(&copied_limits) ||
 	    memcmp(limits, &copied_limits, sizeof(copied_limits)) ||
@@ -3553,6 +3847,9 @@ static uint64_t __maybe_unused coordinate_transaction(
 		status = poison_session();
 		goto end;
 	}
+	status = variable_policy_check(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
 	if (!(executor.sealed_modes_need_reconcile ?
 		payload_mm_authvar_coordinator_reconcile_modes(&state->index,
 			state->at_runtime, executor.sealed_volatile_modes,
@@ -3816,6 +4113,21 @@ static bool corrupt_coordinate_policy;
 void payload_mm_authvar_executor_test_corrupt_coordinate_policy(void)
 {
 	corrupt_coordinate_policy = true;
+}
+
+void payload_mm_authvar_executor_test_corrupt_variable_policy(unsigned int part,
+	bool mirrored)
+{
+	if (part == 0)
+		variable_policies.count = VARIABLE_POLICY_MAX_ENTRIES + 1;
+	else if (part == 1)
+		variable_policies.used = sizeof(variable_policies.entries) + 1;
+	else if (part == 2)
+		variable_policies.locked = 2;
+	else
+		variable_policies.entries[4] = 0;
+	if (mirrored)
+		sealed_variable_policies = variable_policies;
 }
 
 static bool coordinator_spans_valid(const void *const parts[7],
@@ -4377,6 +4689,9 @@ uint64_t payload_mm_authvar_policy_transaction(
 		goto end;
 	}
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	status = variable_policy_check(state);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		goto end;
 	set_snapshot = (struct payload_mm_authvar_set_snapshot) {
 		.request = &state->request,
 		.index = &state->index,
