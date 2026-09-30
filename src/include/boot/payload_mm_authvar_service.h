@@ -126,5 +126,9 @@ enum cb_err payload_mm_authvar_service_request_validate(
 enum cb_err payload_mm_authvar_service_response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
 	const void *response, size_t message_size);
+/* Validate a private completed body before its completion-last publication. */
+enum cb_err payload_mm_authvar_service_response_validate_pending(
+	const struct lb_authvar_service_endpoint *endpoint, const void *request,
+	const void *response, size_t message_size);
 
 #endif

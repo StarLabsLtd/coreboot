@@ -22,6 +22,18 @@ struct payload_mm_authvar_executor_limits {
 	uint32_t maximum_records;
 };
 
+struct lb_authvar_service_endpoint;
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+/* Protected service admission; no shared-memory input or endpoint publication. */
+enum cb_err payload_mm_authvar_executor_service_admit(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size);
+enum cb_err payload_mm_authvar_service_transaction(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size);
+#endif
+
 /* Internal protected request/result, not a wire ABI. */
 struct payload_mm_authvar_read_request {
 	uint32_t operation;

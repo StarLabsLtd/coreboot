@@ -452,6 +452,37 @@ static bool external_protected_span(const void *buffer, size_t size)
 }
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+enum cb_err payload_mm_authvar_executor_service_admit(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size)
+{
+	struct payload_mm_authvar_contract contract;
+	const void *parts[] = { endpoint, request, response };
+	const size_t sizes[] = { sizeof(*endpoint), size, size };
+
+	if (provider_reentry() || !policy_equal() || !executor.installed ||
+	    size < PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE ||
+	    size > PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE)
+		return CB_ERR;
+	for (size_t i = 0; i < ARRAY_SIZE(parts); i++) {
+		if (!external_protected_span(parts[i], sizes[i]))
+			return CB_ERR;
+		for (size_t j = 0; j < i; j++) {
+			if (payload_mm_authvar_buffers_overlap(parts[i], sizes[i],
+				parts[j], sizes[j]))
+				return CB_ERR;
+		}
+	}
+	if (!payload_mm_authvar_authority_snapshot(&contract) ||
+	    endpoint->generation != contract.generation ||
+	    endpoint->communication_base != contract.communication.base ||
+	    endpoint->communication_size != contract.communication.size ||
+	    endpoint->message_size != size ||
+	    endpoint->maximum_name_size > executor.sealed.limits.maximum_name_size)
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
 static u16 policy_read16(const u8 *bytes)
 {
 	return (u16)((u16)bytes[0] | (u16)bytes[1] << 8);
