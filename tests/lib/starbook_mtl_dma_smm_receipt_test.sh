@@ -77,6 +77,10 @@ ${CC:-cc} $production_common -O2 -Wredundant-decls -Wno-unused-parameter \
 	-I"$root/src/soc/intel/meteorlake/include" -c \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.c" \
 	-o "$temporary/production-platform.o"
+# shellcheck disable=SC2086
+${CC:-cc} $production_common -O2 -Wredundant-decls -c \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_live_mirror.c" \
+	-o "$temporary/production-mirror.o"
 
 ${CC:-cc} $common -O2 -fstack-usage -c \
 	"$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c" \
