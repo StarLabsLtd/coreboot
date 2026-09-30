@@ -47,9 +47,25 @@ static bool provenance_mutates;
 static bool backing_protected;
 static uint64_t wire_generation;
 static bool reenter_dispatch;
+static bool contend_dispatch;
 static const struct smm_invocation_entry_ticket *reentry_ticket;
 static bool claim_mutates_mailbox;
 static bool claim_mutates_route;
+
+struct dispatch_contention {
+	struct smm_apmc_selection_receipt *selection;
+	enum smm_apmc_dispatch_result result;
+};
+
+static void *contending_dispatch(void *argument)
+{
+	struct dispatch_contention *contention = argument;
+
+	contention->result =
+		payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
+			&route, reentry_ticket, contention->selection);
+	return NULL;
+}
 
 static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	uint8_t command)
@@ -259,6 +275,16 @@ enum smm_apmc_dispatch_result smm_apmc_command_consume(
 		assert(payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 			&route, reentry_ticket, selection) == SMM_APMC_CONSUMED_REJECT);
 	}
+	if (contend_dispatch) {
+		struct dispatch_contention contention = { .selection = selection };
+		pthread_t thread;
+
+		contend_dispatch = false;
+		assert(!pthread_create(&thread, NULL, contending_dispatch,
+			&contention));
+		assert(!pthread_join(thread, NULL));
+		assert(contention.result == SMM_APMC_CONSUMED_REJECT);
+	}
 	return SMM_APMC_CONSUMED_SUCCESS;
 }
 
@@ -345,6 +371,7 @@ static void reset_fixture(void)
 	backing_protected = false;
 	wire_generation = AUTHORITY_GENERATION;
 	reenter_dispatch = false;
+	contend_dispatch = false;
 	reentry_ticket = NULL;
 	claim_mutates_mailbox = false;
 	claim_mutates_route = false;
@@ -479,6 +506,7 @@ int main(void)
 	assert(provision() == CB_ERR);
 	round_with_source(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF);
 	reenter_dispatch = true;
+	contend_dispatch = true;
 	round_with_source(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF);
 	assert(restrict_calls == 4U && consume_calls == 2U);
 
