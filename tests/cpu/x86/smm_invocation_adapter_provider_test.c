@@ -5,13 +5,17 @@
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter_provider.h>
 #include <cpu/x86/smm_invocation_runtime.h>
+#include <cpu/x86/smm_command.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
 #undef assert
-#define assert(condition) do { if (!(condition)) abort(); } while (0)
+extern int dprintf(int descriptor, const char *format, ...);
+#define assert(condition) do { if (!(condition)) { \
+	dprintf(2, "assertion line %d: %s\n", __LINE__, #condition); abort(); \
+} } while (0)
 
 #define REV100 0x30100U
 #define REV101 0x30101U
@@ -226,6 +230,35 @@ static void two_independent_rounds(void)
 	assert(first == 1U && provider.adapter.invocation_nonce == 2U);
 	assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
 		SMM_INVOCATION_MATCHED);
+	{
+		const struct intel_smm_invocation_adapter captured = provider.adapter;
+
+		assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
+			SMM_INVOCATION_MATCHED);
+		assert(!memcmp(&captured, &provider.adapter, sizeof(captured)));
+		states[1].smm_revision = REV101;
+		assert(ops->match_apmc_write(ops->context, 1, 0x5aU) ==
+			SMM_INVOCATION_NOT_MATCHED);
+		assert(ops->match_apmc_write(ops->context, 0, 0x5bU) ==
+			SMM_INVOCATION_MATCH_ERROR);
+		states[0].rax |= 1ULL << 32;
+		assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
+			SMM_INVOCATION_MATCH_ERROR);
+		states[0].rax = captured.matched_rax;
+		states[0].rcx++;
+		assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
+			SMM_INVOCATION_MATCH_ERROR);
+		states[0].rcx = captured.matched_rcx;
+		provider.adapter.invocation_nonce++;
+		assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
+			SMM_INVOCATION_MATCH_ERROR);
+		provider.adapter.invocation_nonce = captured.invocation_nonce;
+		provider.adapter.matched_command++;
+		assert(ops->match_apmc_write(ops->context, 0, 0x5aU) ==
+			SMM_INVOCATION_MATCH_ERROR);
+		provider.adapter.matched_command = captured.matched_command;
+		assert(!memcmp(&captured, &provider.adapter, sizeof(captured)));
+	}
 	second = UINT64_MAX;
 	assert(intel_smm_invocation_adapter_provider_arm(&second) ==
 		SMM_INVOCATION_TRY_RETRY && second == UINT64_MAX);
@@ -626,6 +659,56 @@ static void stale_adapter_revision_is_rejected(void)
 	assert(!memcmp(&snapshot, &adapter, sizeof(snapshot)));
 }
 
+static void fixed_service_native_tuple(void)
+{
+	const uint32_t revisions[] = { REV100, REV101 };
+
+	for (size_t layout = 0; layout < ARRAY_SIZE(revisions); layout++) {
+		for (unsigned int fault = 0; fault < 6; fault++) {
+			const struct smm_invocation_save_state_ops *ops;
+			uint64_t generation, value = UINT64_MAX;
+			uint64_t rax = fault == 1 ? (1ULL << 32) | 0xfcU :
+				fault == 5 ? 0xfdU : 0xfcU;
+			uint64_t rcx = fault == 2 ? 1 : fault == 3 ? 1ULL << 32 : 0;
+			uint32_t io_misc = ((fault == 4 ? 0xb3U : 0xb2U) << 16) | 3U;
+
+			reset_provider();
+			ops = provision(revisions[layout]);
+			if (revisions[layout] == REV100) {
+				states100[0].smm_revision = REV100;
+				states100[0].rax = rax;
+				states100[0].rcx = rcx;
+				states100[0].io_misc_info = io_misc;
+			} else {
+				states[0].smm_revision = REV101;
+				states[0].rax = rax;
+				states[0].rcx = rcx;
+				states[0].io_misc_info = io_misc;
+			}
+			assert(intel_smm_invocation_adapter_provider_arm(&generation) ==
+				SMM_INVOCATION_TRY_SUCCESS);
+			assert(ops->match_apmc_write(ops->context, 0, 0xfcU) ==
+				(fault ? SMM_INVOCATION_MATCH_ERROR : SMM_INVOCATION_MATCHED));
+			if (!fault) {
+				const struct intel_smm_invocation_adapter captured = provider.adapter;
+
+				assert(ops->read_value(ops->context, 0, &value) == CB_SUCCESS);
+				assert(value == 0xfcU);
+				assert(ops->match_apmc_write(ops->context, 0, 0xfcU) ==
+					SMM_INVOCATION_MATCHED);
+				assert(!memcmp(&captured, &provider.adapter, sizeof(captured)));
+			} else {
+				assert(ops->read_value(ops->context, 0, &value) == CB_ERR);
+				assert(value == UINT64_MAX);
+			}
+			assert(intel_smm_invocation_adapter_provider_retire(generation) ==
+				SMM_INVOCATION_TRY_SUCCESS);
+			assert(ops->match_apmc_write(ops->context, 0, 0xfcU) ==
+				SMM_INVOCATION_MATCH_ERROR);
+		}
+	}
+}
+
 int main(void)
 {
 	two_independent_rounds();
@@ -640,5 +723,6 @@ int main(void)
 	output_aliases_are_rejected();
 	threaded_ownership_schedules();
 	stale_adapter_revision_is_rejected();
+	fixed_service_native_tuple();
 	return 0;
 }

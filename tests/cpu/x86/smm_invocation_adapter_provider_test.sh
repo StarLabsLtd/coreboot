@@ -20,6 +20,7 @@ build()
 	name=$1
 	flags=$2
 	provider=${3:-}
+	adapter=${4:-$root/src/soc/intel/common/block/smm/invocation_adapter.c}
 	provider_flag=
 	if [ -n "$provider" ]; then
 		provider_flag="-DPROVIDER_SOURCE=\"$provider\""
@@ -38,8 +39,23 @@ build()
 		-I"$root/src/soc/intel/common/block/smm" \
 		"$root/tests/cpu/x86/smm_invocation_adapter_provider_test.c" \
 		"$root/src/cpu/x86/smm/save_state_geometry.c" \
-		"$root/src/soc/intel/common/block/smm/invocation_adapter.c" \
+		"$adapter" \
 		-o "$temporary/$name"
+}
+
+expect_dead_adapter_mutant()
+{
+	name=$1
+	mutant=$2
+	if cmp -s "$mutant" "$root/src/soc/intel/common/block/smm/invocation_adapter.c"; then
+		printf 'unchanged adapter mutant: %s\n' "$name" >&2
+		exit 1
+	fi
+	build "$name" -O2 '' "$mutant"
+	if "$temporary/$name" >/dev/null 2>&1; then
+		printf 'surviving adapter mutant: %s\n' "$name" >&2
+		exit 1
+	fi
 }
 
 expect_dead_mutant()
@@ -68,6 +84,21 @@ ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 	"$temporary/provider-sanitize"
 build provider-thread '-O1 -fsanitize=thread -fno-omit-frame-pointer'
 TSAN_OPTIONS=halt_on_error=1 "$temporary/provider-thread"
+
+mutant="$temporary/no-fixed-service-tuple.c"
+sed 's/if (command == SMM_APMC_AUTHVAR_SERVICE \&\&/if (false \&\& command == SMM_APMC_AUTHVAR_SERVICE \&\&/' \
+	"$root/src/soc/intel/common/block/smm/invocation_adapter.c" > "$mutant"
+expect_dead_adapter_mutant no-fixed-service-tuple "$mutant"
+
+mutant="$temporary/no-sealed-reuse-proof.c"
+sed 's/adapter->matched_command == command \&\& sealed_tuple(adapter, cpu, \&first)/true/' \
+	"$root/src/soc/intel/common/block/smm/invocation_adapter.c" > "$mutant"
+expect_dead_adapter_mutant no-sealed-reuse-proof "$mutant"
+
+mutant="$temporary/no-reuse-command.c"
+sed 's/adapter->matched_command == command \&\& sealed_tuple/true \&\& sealed_tuple/' \
+	"$root/src/soc/intel/common/block/smm/invocation_adapter.c" > "$mutant"
+expect_dead_adapter_mutant no-reuse-command "$mutant"
 
 mutant="$temporary/no-poison-scrub.c"
 sed 's/sizeof(provider) - sizeof(provider.state));/0);/' \

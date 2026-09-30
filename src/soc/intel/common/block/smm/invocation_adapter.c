@@ -4,6 +4,7 @@
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_fail_stop.h>
 #include <cpu/x86/smm_save_state.h>
 #include <string.h>
@@ -175,6 +176,16 @@ static enum smm_invocation_match match_apmc_write(void *context,
 	if (first.io_misc != APMC_OUT_DX_BYTE_IO_MISC ||
 	    (uint8_t)first.rax != command)
 		return SMM_INVOCATION_MATCH_ERROR;
+	/* The fixed service carries no pointer or size in either saved register. */
+	if (command == SMM_APMC_AUTHVAR_SERVICE &&
+	    (first.rax != SMM_APMC_AUTHVAR_SERVICE || first.rcx))
+		return SMM_INVOCATION_MATCH_ERROR;
+	/* Revalidate the same immutable capture; never capture a second truth. */
+	if (__atomic_load_n(&adapter->seal_phase, __ATOMIC_ACQUIRE) == ADAPTER_SEAL_READY)
+		return revision == adapter->expected_revision &&
+			!memcmp(&node, &adapter->nodes[cpu], sizeof(node)) &&
+			adapter->matched_command == command && sealed_tuple(adapter, cpu, &first) ?
+			SMM_INVOCATION_MATCHED : SMM_INVOCATION_MATCH_ERROR;
 	if (revision != adapter->expected_revision ||
 	    memcmp(&node, &adapter->nodes[cpu], sizeof(node)) ||
 	    !__atomic_compare_exchange_n(&adapter->seal_phase, &empty,
