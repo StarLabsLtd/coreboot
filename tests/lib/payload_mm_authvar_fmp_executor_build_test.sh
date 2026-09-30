@@ -48,7 +48,10 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_fmp_owner.c" \
 		-o "$temporary/test-O$optimization"
 	for test_case in clean generic-get generic-get-sha-armed \
-		variable-policy-ordinary variable-policy-framing \
+		production-set-ordinary production-set-absent production-set-alias \
+		production-set-data-alias variable-policy-ordinary variable-policy-framing \
+		production-set-name-alias production-set-input-overlap production-set-overflow \
+		production-set-wrong-operation \
 		variable-policy-auth variable-policy-auth-size variable-policy-auth-presence \
 		variable-policy-lifecycle-ready variable-policy-lifecycle-runtime \
 		variable-policy-create variable-policy-state variable-policy-specific \
