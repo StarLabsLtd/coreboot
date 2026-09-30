@@ -83,15 +83,29 @@ The producer seals the transaction generation, ID, nonce and capability during
 its pre-bootmem reservation, before permanent SMM loading. Its one-use loader
 binding take fixes the real initiating CPU and active CPU count; composition
 must reuse that identity and rejects a different topology. The take does not
-install authority or establish receipt ownership. The actual protected loader
-bootstrap and post-resolution route installation are still platform work.
+install authority or establish receipt ownership. The actual SMM loader now
+provisions a protected bootstrap record through the existing tuple-sender and
+runtime-binding conjunction. It retains the same full loader nonce, genuine
+cold classification, topology-bound transaction identity and independent
+mailbox/page receipt verifiers. A disabled early publication decision leaves
+the complete record zero; a required provisioning failure aborts loading.
 
-This slice does not provide the platform-private SMI cause, SMM dispatcher,
-fixed protected slot accessor, all-active-CPU rendezvous, saved-state access,
-reset/fail-stop implementation, transaction-page reservation signer, or board
-composition. PREPARE is the sole presence-seed installation boundary; there is
+`test-authvar-presence-canonical-bootstrap` checks the real provisioning code
+with mocked external owner boundaries, including every provisioning failure,
+disabled placement and replay. Its separate full-ROM lane links untouched MTL
+loader/handler objects and the real board composition owner, with opt-in absent.
+The optional `PRESENCE_BOOTSTRAP_AUTHORITY_POLICY_LINK=1` lane additionally
+requires the real board authority-policy object. Neither lane asserts an
+installed route or required-true end-to-end boot.
+
+Production activation still needs a recognized private bootstrap dispatcher
+callsite, post-resolution receipt import, verified cold DMA authority and a
+board composition which actually calls the canonical route factory. Existing
+private-cause, save-state and all-CPU primitives must be reused rather than
+duplicated. PREPARE is the sole presence-seed installation boundary; there is
 no independent seed handoff. A later platform slice
-must provision a dedicated below-4-GiB reserved page and independent exact-tag
-receipt authority before permanent SMM loading, emit its receipt after both
-bootmem maps resolve, and connect only a recognized private cause. Until those
-pieces exist, no platform can select or reach this transaction.
+must emit receipts after both bootmem maps resolve, install ownership through
+the existing backing-evidence owner, establish a verified cold DMA proof and
+connect the route factory to a recognized private cause. Until those pieces
+exist, the bootstrap cannot become READY and no required-true production route
+is installed. The existing S3 DMA epoch is deliberately not a cold-boot proof.
