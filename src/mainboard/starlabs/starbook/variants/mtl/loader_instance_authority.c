@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include "loader_instance_authority.h"
 #include "smm_invocation_loader_instance.h"
 
 #if CONFIG(STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER)
@@ -202,7 +203,21 @@ static struct {
 	struct starbook_mtl_loader_instance_fanout fanout;
 	struct starbook_mtl_loader_instance_owner owner;
 	struct pci_bme_quiesce_snapshot source_snapshot;
+	uint32_t lifecycle;
+	uint32_t lifecycle_inverse;
 } authority_workspace __aligned(8);
+
+enum cb_err mainboard_loader_instance_authority_lifecycle(uint32_t *lifecycle)
+{
+	const uint32_t value = authority_workspace.lifecycle;
+
+	if (!lifecycle || value != ~authority_workspace.lifecycle_inverse ||
+	    (value != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     value != SMM_INVOCATION_LOADER_S3_RELOAD))
+		return CB_ERR;
+	*lifecycle = value;
+	return CB_SUCCESS;
+}
 
 enum cb_err mainboard_loader_instance_authority_prepare(void)
 {
@@ -219,6 +234,8 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 	bool early_record_safe = false;
 #endif
 
+	authority_workspace.lifecycle = 0;
+	authority_workspace.lifecycle_inverse = 0;
 	if (protected_limit(&initial_limit) != CB_SUCCESS ||
 	    !range_protected((uintptr_t)&authority_workspace,
 		sizeof(authority_workspace), initial_limit) ||
@@ -260,9 +277,13 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 		final_limit, lifecycle, nonce,
 		&authority_workspace.owner) != CB_SUCCESS)
 		goto fail;
+	authority_workspace.lifecycle = lifecycle;
+	authority_workspace.lifecycle_inverse = ~lifecycle;
 	memset(&nonce, 0, sizeof(nonce));
 	return CB_SUCCESS;
 fail:
+	authority_workspace.lifecycle = 0;
+	authority_workspace.lifecycle_inverse = 0;
 #if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 	if (early_record_safe)
 		memset(record, 0, sizeof(*record));

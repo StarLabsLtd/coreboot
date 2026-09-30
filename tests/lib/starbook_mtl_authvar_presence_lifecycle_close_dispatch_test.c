@@ -42,6 +42,8 @@ static atomic_uint provision_count;
 static atomic_uint install_count;
 static atomic_uint receipt_count;
 static atomic_uint dma_binding_count;
+static atomic_uint cold_clear_count;
+static atomic_uint cold_activate_count;
 static enum intel_smm_invocation_cause_result classification;
 static uint8_t invocation_command;
 static enum smm_apmc_select_result selection_result;
@@ -50,6 +52,34 @@ static struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
 	install_dependencies;
 static struct payload_mm_authvar_presence_lifecycle_close_internal_policy
 	internal_policy;
+
+uint32_t starbook_mtl_authvar_presence_lifecycle_close_install_departures_test(void);
+
+enum cb_err starbook_mtl_authvar_presence_s3_cold_install(
+	const struct smm_invocation_loader_instance *actual_instance)
+{
+	assert(actual_instance == &instance);
+	assert(atomic_load_explicit(&install_count, memory_order_acquire) == 1U);
+	assert(atomic_load_explicit(&retire_count, memory_order_acquire) == 1U);
+	assert(starbook_mtl_authvar_presence_lifecycle_close_install_departures_test() ==
+		CPUS - 1U);
+	if (actual_instance->lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD)
+		return CB_ERR;
+	atomic_fetch_add_explicit(&cold_clear_count, 1U, memory_order_relaxed);
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_authvar_presence_s3_cold_route_complete(
+	struct payload_mm_authvar_presence_lifecycle_close_route *actual_route)
+{
+	assert(actual_route == installed_route);
+	assert(atomic_load_explicit(&departure_count, memory_order_acquire) == CPUS);
+	assert(atomic_load_explicit(&prepare_count, memory_order_acquire) == 1U);
+	assert(atomic_load_explicit(&retire_count, memory_order_acquire) == 1U);
+	assert(atomic_load_explicit(&dispatch_count, memory_order_acquire) == 1U);
+	atomic_fetch_add_explicit(&cold_activate_count, 1U, memory_order_relaxed);
+	return CB_SUCCESS;
+}
 
 void __noreturn
 smm_invocation_platform_fail_stop(void)
@@ -335,7 +365,9 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	installed_route = NULL;
 	memset(&install_frame, 0, sizeof(install_frame));
 	memset(&transaction_slot, 0, sizeof(transaction_slot));
+	memset(&instance, 0, sizeof(instance));
 	memset(&topology, 0, sizeof(topology));
+	instance.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
 	topology.active_cpus = CPUS;
 	topology.bsp_cpu = 0U;
 	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
@@ -368,6 +400,8 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	atomic_store(&install_count, 0U);
 	atomic_store(&receipt_count, 0U);
 	atomic_store(&dma_binding_count, 0U);
+	atomic_store(&cold_clear_count, 0U);
+	atomic_store(&cold_activate_count, 0U);
 	invocation_wire = 0;
 }
 
@@ -405,6 +439,22 @@ static void expect_fail_stop(void)
 	assert(child >= 0);
 	if (!child) {
 		(void)smm_pre_lock_dispatch(0U, topology.initial_apic_ids[0]);
+		_exit(0);
+	}
+	assert(waitpid(child, &status, 0) == child);
+	assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+}
+
+static void expect_all_cpu_fail_stop(void)
+{
+	pthread_t threads[CPUS];
+	struct worker workers[CPUS];
+	pid_t child = fork();
+	int status;
+
+	assert(child >= 0);
+	if (!child) {
+		run_all_cpus(workers, threads);
 		_exit(0);
 	}
 	assert(waitpid(child, &status, 0) == child);
@@ -479,6 +529,8 @@ int main(void)
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_RECEIPT);
 	assert(!atomic_load(&arrive_count));
 	assert(!atomic_load(&select_count));
+	assert(atomic_load(&cold_clear_count) == 1U);
+	assert(!atomic_load(&cold_activate_count));
 
 	clear_round_counts();
 	invocation_wire = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SENTINEL;
@@ -500,6 +552,8 @@ int main(void)
 	assert(atomic_load(&install_count) == 1U);
 	assert(atomic_load(&provision_count) == 1U);
 	assert(atomic_load(&dma_binding_count) == 1U);
+	assert(atomic_load(&cold_clear_count) == 1U);
+	assert(atomic_load(&cold_activate_count) == 1U);
 
 	clear_round_counts();
 	selection_result = SMM_APMC_SELECT_CONSUMED_REJECT;
@@ -508,5 +562,28 @@ int main(void)
 	assert(!pthread_barrier_init(&arrivals, NULL, 1U));
 	expect_fail_stop();
 	assert(!pthread_barrier_destroy(&arrivals));
+
+	/* An S3 loader instance must never fall back to the cold-clear path. */
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+	install_frame =
+		(struct payload_mm_authvar_presence_lifecycle_close_install_frame) {
+			.revision =
+				PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REVISION,
+			.size = sizeof(install_frame),
+			.state =
+				PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REQUEST,
+			.request = {
+				.revision =
+					PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_REVISION,
+				.size = sizeof(install_frame.request),
+				.generation = 7U,
+			},
+		};
+	invocation_wire = (uint64_t)(uintptr_t)&install_frame << 32 |
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_WIRE_REQUEST;
+	expect_all_cpu_fail_stop();
+	assert(!atomic_load(&cold_clear_count));
+	assert(!atomic_load(&cold_activate_count));
 	return 0;
 }

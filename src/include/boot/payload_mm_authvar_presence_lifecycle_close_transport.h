@@ -4,6 +4,7 @@
 #define BOOT_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT_H
 
 #include <boot/payload_mm_authvar_presence_lifecycle_close_endpoint.h>
+#include <boot/payload_mm_authvar_presence_lifecycle_close_wire.h>
 #include <boot/payload_mm_authvar_presence_producer.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
 #include <bootmem_reservation_receipt.h>
@@ -11,10 +12,6 @@
 #include <commonlib/bsd/cb_err.h>
 #include <stdint.h>
 
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SENTINEL \
-	0xfffffffffffffffeULL
-#define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS \
-	0x434c4f5345414bfeULL
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_REVISION 1U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REVISION 1U
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL_FRAME_REQUEST \

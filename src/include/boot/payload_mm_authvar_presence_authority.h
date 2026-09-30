@@ -40,6 +40,31 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	void *storage_context);
 
 /*
+ * Restore only a terminal CLOSED authority after an S3 handler reload. The
+ * endpoint, backing, proof callback, and optional proof context are protected
+ * inputs. The proof is consumed once and no callback, context, or capability
+ * is retained.
+ */
+enum cb_err payload_mm_authvar_presence_authority_restore_closed(
+	const struct lb_authvar_presence_endpoint *endpoint,
+	const struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_presence_range_proof_fn dma_protected,
+	const void *dma_context, size_t dma_context_size,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context);
+
+/*
+ * Copy only the terminal semantic identity of an exact, stable CLOSED
+ * authority into protected, disjoint caller-owned storage.  No capability,
+ * callback, context, or other live authority state is exposed.
+ */
+enum cb_err payload_mm_authvar_presence_authority_closed_snapshot(
+	struct lb_authvar_presence_endpoint *endpoint,
+	struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context, size_t storage_context_size);
+
+/*
  * Irreversibly restrict an authority installed for exactly generation.
  * Restricting the open matching generation closes it and scrubs its private
  * capability and context. Repeating the same generation after closure is an
@@ -64,11 +89,15 @@ void payload_mm_authvar_presence_authority_reset_test(void);
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size);
 void payload_mm_authvar_presence_authority_restrict_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_install_claim_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 void payload_mm_authvar_presence_authority_restrict_claim_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 void payload_mm_authvar_presence_authority_dispatch_finish_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 void payload_mm_authvar_presence_authority_cleanup_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_snapshot_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 #endif
 

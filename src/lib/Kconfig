@@ -569,6 +569,27 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
 	  binds the exact protected route to the endpoint backing before publication.
 	  This installs no board selection, handler callsite or lifecycle caller.
 
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_S3_ROUTE
+	bool
+	default n
+	depends on SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	help
+	  Build the dormant SMM-only S3 reload route for exact-generation CLOSED
+	  reproof. It binds only fresh loader state and protected DRAM/DMA evidence,
+	  creates no presence transaction or lifecycle owner, and accepts no cold
+	  lifecycle-close source. No platform selects or installs this route here.
+
+config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	help
+	  Add the protected, terminal-IDLE semantic snapshot used to bind a cold
+	  lifecycle-close route to retained S3 facts. It exports only the endpoint
+	  and exact backing dimensions. No live route state, callback, context or
+	  capability crosses the boundary.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 	bool
 	default n

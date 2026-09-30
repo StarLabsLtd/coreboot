@@ -5,6 +5,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
 #include <boot/payload_mm_authvar_presence_lifecycle_close_backing.h>
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
+#endif
 #include <arch/exception.h>
 #include <commonlib/region.h>
 #include <console/cbmem_console.h>
@@ -76,6 +79,31 @@ struct bootmem_reservation_receipt_authority *
 smm_get_payload_mm_authvar_presence_lifecycle_close_backing_verifier(void)
 {
 	return (void *)&smm_runtime.authvar_presence_lifecycle_close_backing_verifier;
+}
+#endif
+
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+const struct payload_mm_authvar_presence_s3_backing *
+smm_get_payload_mm_authvar_presence_s3_backing(void)
+{
+	const struct payload_mm_authvar_presence_s3_backing *backing =
+		(const void *)&smm_runtime.authvar_presence_s3_backing;
+
+	if (!payload_mm_authvar_presence_s3_backing_validate(backing,
+		(const void *)&smm_runtime.invocation_loader_instance))
+		return NULL;
+	return backing;
+}
+
+bool smm_payload_mm_authvar_presence_s3_dram_provenance(
+	void *context, uint64_t base, uint64_t size)
+{
+	const struct payload_mm_authvar_presence_s3_backing *backing =
+		smm_get_payload_mm_authvar_presence_s3_backing();
+
+	return backing && payload_mm_authvar_presence_s3_backing_dram_provenance(
+		backing, (const void *)&smm_runtime.invocation_loader_instance,
+		context, base, size);
 }
 #endif
 
@@ -507,6 +535,14 @@ void smm_get_opal_s3_state_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.opal_s3_state_base;
 	*size = smm_runtime.opal_s3_state_size;
+}
+#endif
+
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+void smm_get_authvar_s3_state_buffer(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.authvar_s3_state_base;
+	*size = smm_runtime.authvar_s3_state_size;
 }
 #endif
 

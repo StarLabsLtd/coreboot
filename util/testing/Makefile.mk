@@ -180,7 +180,9 @@ test-authvar-presence-lifecycle-close-endpoint:
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_backing_authority_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_sender_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_provider_test.sh
+	tests/lib/payload_mm_authvar_presence_s3_record_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh
+	tests/lib/payload_mm_authvar_presence_lifecycle_close_s3_route_test.sh
 
 .PHONY: test-starbook-mtl-authvar-presence-route-composition
 test-starbook-mtl-authvar-presence-route-composition:
@@ -195,6 +197,7 @@ test-starbook-mtl-authvar-presence-lifecycle-close-install:
 .PHONY: test-starbook-mtl-authvar-presence-lifecycle-close-dispatch
 test-starbook-mtl-authvar-presence-lifecycle-close-dispatch:
 	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_test.sh
+	tests/lib/starbook_mtl_authvar_presence_s3_cold_test.sh
 	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_profiles_test.sh
 
 .PHONY: test-starbook-mtl-authvar-presence-lifecycle-close-dma-policy
@@ -289,6 +292,10 @@ test-smm-apmc-command-registry:
 		MAKEOVERRIDES=SMM_APMC_REGISTRY_HOSTILE_OVERRIDE \
 		SMM_APMC_REGISTRY_HOSTILE_OVERRIDE=1 \
 		tests/cpu/x86/smm_command_profiles_test.sh
+
+.PHONY: test-smm-persistent-subregions
+test-smm-persistent-subregions:
+	tests/cpu/x86/smm_persistent_subregion_test.sh
 
 .PHONY: test-smm-invocation-evidence
 test-smm-invocation-evidence:

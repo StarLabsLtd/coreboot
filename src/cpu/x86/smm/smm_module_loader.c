@@ -34,6 +34,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
 #include <boot/payload_mm_authvar_presence_lifecycle_close_backing.h>
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
+#endif
 
 #define SMM_CODE_SEGMENT_SIZE 0x10000
 
@@ -419,6 +422,10 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 	mod_params->save_state_size = loader_params->cpu_save_state_size;
 	mod_params->num_cpus = loader_params->num_cpus;
 	mod_params->gnvs_ptr = (uint32_t)(uintptr_t)acpi_get_gnvs();
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	memset(&mod_params->authvar_presence_s3_backing, 0,
+		sizeof(mod_params->authvar_presence_s3_backing));
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
 	if (!payload_mm_authvar_presence_lifecycle_close_backing_verifier_take(
 		&mod_params->authvar_presence_lifecycle_close_backing_verifier))
@@ -587,7 +594,55 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 			memset((void *)state_base, 0, state_size);
 	}
 #endif
+
+#if CONFIG(SMM_AUTHVAR_S3_STATE_SMRAM)
+	uintptr_t authvar_state_base = 0;
+	size_t authvar_state_size = 0;
+
+	if (smm_subregion(SMM_SUBREGION_AUTHVAR_S3_STATE, &authvar_state_base,
+		&authvar_state_size)) {
+		die("SMM: authenticated-variable S3 state region unavailable\n");
+	}
+	mod_params->authvar_s3_state_base = authvar_state_base;
+	mod_params->authvar_s3_state_size = authvar_state_size;
+	/* A non-S3 load must never inherit protected state from an older boot. */
+	if (!acpi_is_wakeup_s3())
+		memset((void *)authvar_state_base, 0, authvar_state_size);
+#endif
 }
+
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+struct authvar_presence_s3_import {
+	struct payload_mm_authvar_presence_s3_backing *backing;
+	bool acpi_s3;
+};
+
+static enum cb_err authvar_presence_s3_import_finalize(
+	const struct smm_invocation_loader_instance *instance, void *context)
+{
+	struct authvar_presence_s3_import *import = context;
+	struct smm_invocation_loader_instance snapshot = { 0 };
+	enum cb_err result = CB_ERR;
+
+	if (!import || !import->backing ||
+	    smm_invocation_loader_instance_read(instance, &snapshot) != CB_SUCCESS ||
+	    (snapshot.lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD) !=
+		import->acpi_s3)
+		goto out;
+	if (snapshot.lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD) {
+		result = CB_SUCCESS;
+		goto out;
+	}
+	if (platform_smm_authvar_presence_s3_backing(instance, true,
+		import->backing))
+		result = CB_SUCCESS;
+out:
+	memset(&snapshot, 0, sizeof(snapshot));
+	if (result != CB_SUCCESS && import && import->backing)
+		memset(import->backing, 0, sizeof(*import->backing));
+	return result;
+}
+#endif
 
 static void print_region(const char *name, const struct region region)
 {
@@ -738,6 +793,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	struct smm_invocation_loader_composition *published_composition = NULL;
 	bool invocation_composition_started = false;
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	struct payload_mm_authvar_presence_s3_backing *published_s3_backing = NULL;
+	struct authvar_presence_s3_import s3_import = {
+		.acpi_s3 = !!acpi_is_wakeup_s3(),
+	};
+#endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
@@ -839,6 +900,10 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
 	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	published_s3_backing = &smihandler_params->authvar_presence_s3_backing;
+	s3_import.backing = published_s3_backing;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 	published_arena = &smihandler_params->authvar_arena;
 	scrub_authvar_loader(published_arena, sizeof(*published_arena));
@@ -892,9 +957,19 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	    CB_SUCCESS)
 		goto fail;
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	/* Composition is final: an inconsistent retained import cannot unwind. */
+	if (authvar_presence_s3_import_finalize(published_instance, &s3_import) !=
+		CB_SUCCESS)
+		die("SMM: authenticated-variable S3 backing proof unavailable\n");
+#endif
 	return 0;
 
 fail:
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	if (published_s3_backing)
+		memset(published_s3_backing, 0, sizeof(*published_s3_backing));
+#endif
 #if CONFIG(SMM_INVOCATION_LOADER_COMPOSITION)
 	if (!invocation_composition_started && published_evidence)
 		memset(published_evidence, 0, sizeof(*published_evidence));
