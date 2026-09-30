@@ -36,6 +36,8 @@ smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER) += 
 	authvar_presence_route_composition.c
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL) += \
 	authvar_presence_lifecycle_close_install_sender.c
+ramstage-$(CONFIG_SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF) += \
+	authvar_presence_s3_backing.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL) += \
 	authvar_presence_lifecycle_close_install_receiver.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH) += \

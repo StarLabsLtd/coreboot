@@ -402,6 +402,17 @@ config SMM_AUTHVAR_S3_STATE_SMRAM_SIZE
 	  Keep this region minimal because it reduces the space available to the
 	  SMM handler.
 
+config SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF
+	bool
+	default n
+	depends on HAVE_ACPI_RESUME && BOOTMEM_DRAM_PROVENANCE
+	depends on SMM_INVOCATION_LOADER_COMPOSITION
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	help
+	  Copy only validated retained authenticated-variable endpoint and exact
+	  DRAM backing facts into the protected SMM runtime during S3 handler load.
+
 config SMM_OPAL_S3_SCRATCH_CBMEM
 	bool
 	depends on HAVE_ACPI_RESUME

@@ -28,6 +28,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_RECEIPT)
 #include <bootmem_reservation_receipt.h>
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
+#endif
 
 #define SMM_DEFAULT_BASE 0x30000
 #define SMM_DEFAULT_SIZE 0x10000
@@ -187,6 +190,10 @@ struct smm_runtime {
 	struct bootmem_reservation_receipt_authority
 		authvar_presence_lifecycle_close_backing_verifier __aligned(8);
 #endif
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+	struct payload_mm_authvar_presence_s3_backing authvar_presence_s3_backing
+		__aligned(8);
+#endif
 } __packed;
 
 #if CONFIG(SMM_INVOCATION_RUNTIME_VIEW)
@@ -247,6 +254,11 @@ _Static_assert(offsetof(struct smm_runtime, authvar_s3_state_base) %
 _Static_assert(offsetof(struct smm_runtime, authvar_s3_state_size) %
 	_Alignof(size_t) == 0,
 	"authenticated-variable S3 state size is not aligned");
+#endif
+
+#if CONFIG(SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF)
+_Static_assert(offsetof(struct smm_runtime, authvar_presence_s3_backing) % 8 == 0,
+	"authenticated-variable S3 backing facts are not aligned");
 #endif
 
 struct smm_module_params {

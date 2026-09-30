@@ -75,6 +75,10 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER) += \
 	payload_mm_authvar_presence_closed_reproof.c
 smm-$(CONFIG_SMM_AUTHVAR_S3_STATE_SMRAM) += \
 	payload_mm_authvar_presence_s3_record.c
+ramstage-$(CONFIG_SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF) += \
+	payload_mm_authvar_presence_s3_backing.c
+smm-$(CONFIG_SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF) += \
+	payload_mm_authvar_presence_s3_backing.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT) += \
 	payload_mm_authvar_presence_lifecycle_close_endpoint.c \
 	payload_mm_authvar_presence_lifecycle_close_backing.c \
