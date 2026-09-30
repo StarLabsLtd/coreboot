@@ -30,7 +30,8 @@ static atomic_bool lease;
 static atomic_bool injected;
 static atomic_uint classified_cpus;
 static _Thread_local uint32_t current_cpu;
-static uint64_t wire = STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST;
+#define BOOT_WIRE (((uint64_t)0x801000U << 32) | STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST)
+static uint64_t wire = BOOT_WIRE;
 static unsigned int fault;
 static unsigned int view_identity;
 static bool owner_drift;
@@ -61,7 +62,7 @@ void __noreturn smm_invocation_platform_fail_stop(void)
 	assert(fault && fault != 17 && atomic_load(&injected));
 	assert(fault == 19 ? atomic_load(&ack) == 1 : !atomic_load(&ack));
 	if (fault == 14) {
-		assert(atomic_load(&arrivals) == 1 && !atomic_load(&installs));
+		assert(!atomic_load(&arrivals) && !atomic_load(&installs));
 		assert(atomic_load(&arm_count) == 1 && !atomic_load(&retire_count));
 	} else {
 		assert(atomic_load(&arrivals) == CPUS);
@@ -96,7 +97,8 @@ static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
 	(void)context;
 	assert(atomic_load(&lease) && !cpu);
-	if (value == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST) {
+	if ((uint32_t)value == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST) {
+		assert(value == BOOT_WIRE);
 		assert(!atomic_load(&stages) && !atomic_load(&installs));
 		wire = value;
 		return CB_SUCCESS;
@@ -109,7 +111,7 @@ static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 		struct smm_invocation_token nested;
 		assert(smm_invocation_evidence_claim(&evidence,
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-			STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &ops, &nested) == CB_ERR);
+			BOOT_WIRE, &ops, &nested) == CB_ERR);
 	}
 	wire = value;
 	return CB_SUCCESS;
@@ -135,24 +137,19 @@ enum cb_err smm_invocation_runtime_range_is_protected(
 	if (fault == 12) { atomic_store(&injected, true); return CB_ERR; }
 	return CB_SUCCESS;
 }
-enum intel_smm_invocation_cause_result intel_smm_invocation_private_apmc_cause(
-	const struct smm_invocation_loader_composition *loader,
-	const struct smm_invocation_topology *participants,
-	const struct smm_invocation_loader_instance *identity,
-	const struct smm_invocation_evidence *ledger, const uint32_t *count,
-	uint8_t command, struct smm_invocation_entry_cause *cause)
+uint32_t inl(uint16_t port)
 {
-	assert(loader == &composition && participants == &topology && identity == &instance);
-	assert(ledger == &evidence && *count == CPUS);
-	if (command != SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE)
-		return INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE;
-	*cause = (struct smm_invocation_entry_cause) {
-		.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION, .size = sizeof(*cause),
-		.loader_instance_nonce = instance.loader_instance_nonce,
-		.lifecycle = instance.lifecycle, .command = command, .recognized = 1,
-	};
-	atomic_fetch_or(&classified_cpus, 1U << current_cpu);
-	return INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID;
+	assert(port == 0x1834U);
+	return 1U << 5;
+}
+uint8_t inb(uint16_t port)
+{
+	assert(port == 0xb2U);
+	return SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+}
+void intel_smm_invocation_cause_test_hook(uint32_t point)
+{
+	if (point == 5) atomic_fetch_or(&classified_cpus, 1U << current_cpu);
 }
 enum smm_invocation_try_result intel_smm_invocation_adapter_provider_provision(
 	const struct smm_invocation_save_state_ops **output)
@@ -193,7 +190,8 @@ enum starbook_mtl_presence_bootstrap_result starbook_mtl_presence_bootstrap_rece
 	assert(active_ops == &ops && atomic_load(&arrivals) == CPUS);
 	assert(smm_invocation_evidence_claimed_snapshot(&evidence,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token) == CB_SUCCESS);
+		BOOT_WIRE, &token) == CB_SUCCESS);
+	assert(wire == BOOT_WIRE);
 	if (fault == 1) {
 		atomic_store(&injected, true);
 		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
@@ -219,7 +217,7 @@ enum cb_err starbook_mtl_presence_bootstrap_route_install(void)
 		struct smm_invocation_token nested;
 		assert(smm_invocation_evidence_claim(&evidence,
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
-			STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &ops, &nested) == CB_ERR);
+			BOOT_WIRE, &ops, &nested) == CB_ERR);
 	}
 	return platform_payload_mm_authvar_service_bootstrap_admitted() ? CB_SUCCESS : CB_ERR;
 }
@@ -227,7 +225,7 @@ enum cb_err starbook_mtl_presence_bootstrap_response_stage(
 	const struct smm_invocation_save_state_ops *active_ops)
 {
 	assert(active_ops == &ops && atomic_load(&lease) && atomic_load(&installs) == 1);
-	assert(wire == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST && !atomic_load(&ack));
+	assert(wire == BOOT_WIRE && !atomic_load(&ack));
 	atomic_fetch_add(&stages, 1);
 	if (fault == 6) { atomic_store(&injected, true); return CB_ERR; }
 	return CB_SUCCESS;
@@ -321,6 +319,9 @@ int main(int argc, char **argv)
 	uint32_t installed;
 	assert(argc == 2);
 	fault = (unsigned int)atol(argv[1]);
+	composition.state = SMM_INVOCATION_LOADER_COMPOSITION_READY;
+	composition.owner_attempt = 1;
+	composition.evidence_identity = (uintptr_t)&evidence;
 	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_loader_instance_publish(&instance, &identity) == CB_SUCCESS);
 	assert(smm_invocation_topology_begin(&builder, &topology, CPUS, 8) == CB_SUCCESS);
@@ -343,9 +344,9 @@ int main(int argc, char **argv)
 	}
 	assert(!pthread_create(&threads[0], NULL, cpu_entry, NULL));
 	if (fault != 20) {
-		while (!atomic_load(&arrivals)) __asm__ __volatile__("pause");
-		/* BSP reached the actual ledger; delayed APs are not yet proof. */
-		assert(!atomic_load(&installs) && !atomic_load(&ack));
+		while (!(atomic_load(&classified_cpus) & 1U)) __asm__ __volatile__("pause");
+		/* BSP classified the cause; missing APs cannot fabricate arrivals. */
+		assert(!atomic_load(&arrivals) && !atomic_load(&installs) && !atomic_load(&ack));
 		if (fault == 14) {
 			assert(!pthread_join(threads[0], NULL));
 			abort();
