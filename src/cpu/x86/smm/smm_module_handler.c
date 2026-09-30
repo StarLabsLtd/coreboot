@@ -577,6 +577,15 @@ struct payload_mm_authvar_mor_private_smi_slot *
 }
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+struct payload_mm_authvar_presence_bootstrap *
+smm_get_payload_mm_authvar_presence_bootstrap(void)
+{
+	return (struct payload_mm_authvar_presence_bootstrap *)
+		&smm_runtime.authvar_presence_bootstrap;
+}
+#endif
+
 void smm_region(uintptr_t *start, size_t *size)
 {
 	*start = smm_runtime.smbase;

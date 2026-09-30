@@ -55,6 +55,10 @@ ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER) += \
 	payload_mm_authvar_presence_transaction.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) += \
 	payload_mm_authvar_presence_tuple_sender.c
+ifeq ($(CONFIG_SMM_INVOCATION_RUNTIME_BINDING),y)
+smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) += \
+	payload_mm_authvar_presence_bootstrap.c
+endif
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_INSTALLATION_EVIDENCE) += \
 	payload_mm_authvar_presence_lifecycle_composition.c \
 	payload_mm_authvar_presence_lifecycle_registration.c \
