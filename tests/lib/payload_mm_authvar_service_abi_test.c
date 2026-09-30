@@ -638,7 +638,7 @@ static void deterministic_endpoint_mutations(void)
 			changed.header_size--;
 			break;
 		case 4:
-			changed.flags ^= LB_AUTHVAR_ENDPOINT_DMA_PROTECTED;
+			changed.flags ^= LB_AUTHVAR_ENDPOINT_PROTECTED_AUTHORITY;
 			break;
 		case 5:
 			changed.generation = 0;
@@ -828,8 +828,34 @@ static void required_data_size_metadata(void)
 	}
 }
 
+static void endpoint_revision_three(void)
+{
+	/* Literal external endpoint layout; frame revision remains independently 2. */
+	uint8_t raw[64] = {
+		[0] = 0x55, [4] = 64, [8] = 3, [10] = 64, [12] = 0xff,
+		[16] = 7, [26] = 0x10, [33] = 2, [37] = 2,
+		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
+		[52] = 32, [56] = 0x50, [57] = 1,
+	};
+	struct lb_authvar_service_endpoint descriptor;
+
+	memcpy(&descriptor, raw, sizeof(raw));
+	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_SUCCESS);
+	raw[8] = 2;
+	memcpy(&descriptor, raw, sizeof(raw));
+	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
+	raw[8] = 3;
+	for (unsigned int bit = 0; bit < 8; bit++) {
+		raw[12] ^= (uint8_t)(1U << bit);
+		memcpy(&descriptor, raw, sizeof(raw));
+		assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
+		raw[12] ^= (uint8_t)(1U << bit);
+	}
+}
+
 int main(void)
 {
+	endpoint_revision_three();
 	valid_requests();
 	hostile_requests();
 	response_order_and_echo();
