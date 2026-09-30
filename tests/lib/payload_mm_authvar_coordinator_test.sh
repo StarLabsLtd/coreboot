@@ -47,6 +47,11 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$output"
 	for case in \
+		production-set-ordinary production-set-allow production-set-deny \
+		production-set-alias production-set-data-alias \
+		production-set-name-alias production-set-input-overlap production-set-overflow \
+		production-set-policy-denied production-set-wrong-operation \
+		production-set-request-drift production-set-result-drift production-set-reentry \
 		coordinator-success \
 		coordinator-presence coordinator-presence-inconsistent \
 		coordinator-presence-lifecycle coordinator-presence-end-failure \

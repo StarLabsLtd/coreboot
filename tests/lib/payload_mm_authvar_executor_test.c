@@ -4169,10 +4169,31 @@ static size_t coordinator_auth2(uint8_t *data, const void *payload,
 	return 41U + payload_size;
 }
 
+static bool production_set_active;
+static unsigned int production_set_calls;
+static const char *production_set_scenario;
+static struct payload_mm_authvar_policy_request *production_set_request;
+static struct payload_mm_authvar_policy_result *production_set_result;
+
 static enum payload_mm_verify_status coordinator_verify(void *context,
 	const struct payload_mm_authvar_authority_verify_request *request,
 	struct payload_mm_authvar_authority_verification *verification)
 {
+	if (production_set_active) {
+		assert(context == NULL && request->owner != &coordinator_owner);
+		assert(payload_mm_crypto_owner_is_clean(request->owner));
+		production_set_calls++;
+		if (!strcmp(production_set_scenario, "production-set-request-drift"))
+			production_set_request->attributes ^= 1U;
+		else if (!strcmp(production_set_scenario, "production-set-result-drift"))
+			production_set_result->status ^= 1U;
+		else if (!strcmp(production_set_scenario, "production-set-reentry"))
+			assert(payload_mm_authvar_set_transaction(production_set_request,
+				production_set_result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		verification->accepted_authority = coordinator_accepted_authority;
+		return !strcmp(production_set_scenario, "production-set-deny") ?
+			PAYLOAD_MM_VERIFY_REJECTED : PAYLOAD_MM_VERIFY_OK;
+	}
 	assert(request->owner == &coordinator_owner);
 	assert(coordinator_result->status ==
 		PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING &&
@@ -4506,6 +4527,140 @@ static void coordinator_fixture_init(struct coordinator_fixture *fixture)
 	assert(coordinator_verify_calls == 0U);
 	fixture->policy_request.name = fixture->kek_name;
 	fixture->policy_request.name_size = sizeof(coordinator_kek_name);
+}
+
+static const struct payload_mm_authvar_store_entry *native_find(
+	const uint8_t guid[16], const uint8_t *name, size_t name_size,
+	struct payload_mm_authvar_store_index *index,
+	struct payload_mm_authvar_store_entry *entries, size_t capacity);
+
+static void production_set_test(const char *scenario)
+{
+	static const uint8_t ordinary_name[] = { 'O', 0, 'r', 0, 'd', 0, 0, 0 };
+	struct coordinator_fixture fixture;
+	struct payload_mm_authvar_policy_request request;
+	struct payload_mm_authvar_policy_result result;
+	struct payload_mm_authvar_store_entry entries[64];
+	struct payload_mm_authvar_store_index index;
+	const struct payload_mm_authvar_store_entry *stored;
+	unsigned int programs;
+	u64 status;
+
+	coordinator_fixture_init(&fixture);
+	request = fixture.policy_request;
+	memset(&result, 0xa5, sizeof(result));
+	production_set_active = true;
+	production_set_scenario = scenario;
+	production_set_request = &request;
+	production_set_result = &result;
+	programs = program_count;
+	if (!strcmp(scenario, "production-set-alias")) {
+		struct payload_mm_authvar_policy_request preserved = request;
+
+		assert(payload_mm_authvar_set_transaction(&request, (void *)&request) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		assert(!memcmp(&preserved, &request, sizeof(request)));
+		assert(!production_set_calls && program_count == programs);
+		return;
+	}
+	if (!strcmp(scenario, "production-set-data-alias")) {
+		uint8_t preserved[sizeof(fixture.auth2)];
+
+		memcpy(preserved, fixture.auth2, sizeof(preserved));
+		assert(payload_mm_authvar_set_transaction(&request, (void *)fixture.auth2) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		assert(!memcmp(preserved, fixture.auth2, sizeof(preserved)));
+		assert(!production_set_calls && program_count == programs);
+		return;
+	}
+	if (!strcmp(scenario, "production-set-name-alias") ||
+	    !strcmp(scenario, "production-set-input-overlap") ||
+	    !strcmp(scenario, "production-set-overflow") ||
+	    !strcmp(scenario, "production-set-wrong-operation")) {
+		struct payload_mm_authvar_policy_result preserved = result;
+
+		if (!strcmp(scenario, "production-set-name-alias")) {
+			request.name = &request;
+			request.name_size = 4U;
+		} else if (!strcmp(scenario, "production-set-input-overlap")) {
+			request.name = request.data;
+			request.name_size = 4U;
+		} else if (!strcmp(scenario, "production-set-wrong-operation")) {
+			request.operation = PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT;
+			request.attributes = 0U;
+		} else
+			request.data_size = SIZE_MAX;
+		assert(payload_mm_authvar_set_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		assert(!memcmp(&result, &preserved, sizeof(result)));
+		assert(!production_set_calls && program_count == programs);
+		return;
+	}
+	if (!strcmp(scenario, "production-set-ordinary")) {
+		request.name = ordinary_name;
+		request.name_size = sizeof(ordinary_name);
+		request.vendor_guid[0] ^= 0x5aU;
+		request.attributes &= ~PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+		request.data = &fixture.payload;
+		request.data_size = sizeof(fixture.payload);
+		assert(payload_mm_authvar_set_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		request.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+		assert(payload_mm_authvar_set_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		stored = native_find(request.vendor_guid, ordinary_name, sizeof(ordinary_name),
+			&index, entries, ARRAY_SIZE(entries));
+		assert(stored && stored->data_size == 2U);
+		request.attributes = 0U;
+		request.data = NULL;
+		request.data_size = 0U;
+		assert(payload_mm_authvar_set_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(!native_find(request.vendor_guid, ordinary_name, sizeof(ordinary_name),
+			&index, entries, ARRAY_SIZE(entries)));
+		assert(!production_set_calls);
+		return;
+	}
+	if (!strcmp(scenario, "production-set-policy-denied")) {
+		uint8_t entry[44] = { 0 };
+
+		entry[2] = 1U;
+		entry[4] = 44U;
+		entry[6] = 44U;
+		memcpy(entry + 8U, request.vendor_guid, 16U);
+		entry[28] = 1U;
+		entry[40] = 1U;
+		assert(payload_mm_authvar_variable_policy_register(entry, sizeof(entry)) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(payload_mm_authvar_set_transaction(&request, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED);
+		assert(!production_set_calls && program_count == programs);
+		assert(result.status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED &&
+			result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+		return;
+	}
+	status = payload_mm_authvar_set_transaction(&request, &result);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+	if (!strcmp(scenario, "production-set-allow")) {
+		bool reset_required = false;
+
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(production_set_calls && program_count > programs);
+		assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
+	} else if (!strcmp(scenario, "production-set-deny")) {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		assert(production_set_calls && program_count == programs);
+	} else {
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+		assert(production_set_calls && program_count == programs);
+	}
+#else
+	assert(status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(!production_set_calls && program_count == programs);
+#endif
+	assert(result.status == status && !result.reserved &&
+		result.completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
 }
 
 #if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
@@ -7545,7 +7700,10 @@ int main(int argc, char **argv)
 	}
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
-	if (!strncmp(argv[1], "variable-policy-", 16)) {
+	if (!strncmp(argv[1], "production-set-", 15)) {
+		production_set_test(argv[1]);
+		return 0;
+	} else if (!strncmp(argv[1], "variable-policy-", 16)) {
 		coordinator_variable_policy(argv[1]);
 		return 0;
 	} else if (!strcmp(argv[1], "coordinator-success")) {

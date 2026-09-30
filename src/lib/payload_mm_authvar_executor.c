@@ -39,6 +39,9 @@
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include "payload_mm_authvar_coordinator.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+#include "payload_mm_authvar_authority_provider.h"
+#endif
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT) || \
 	CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)
@@ -192,7 +195,7 @@ static struct {
 	bool sealed_volatile_modes_valid;
 	bool modes_need_reconcile;
 	bool sealed_modes_need_reconcile;
-	struct payload_mm_crypto_owner presence_owner;
+	struct payload_mm_crypto_owner coordinator_owner;
 #endif
 } executor;
 
@@ -3711,6 +3714,29 @@ struct coordinator_invocation {
 	bool fixed_presence;
 };
 
+static bool coordinator_spans_valid(const void *const parts[7],
+	const size_t sizes[7])
+{
+	for (size_t left = 0U; left < 7U; left++) {
+		if (sizes[left] && !external_protected_span(parts[left], sizes[left]))
+			return false;
+		for (size_t right = left + 1U; right < 7U; right++)
+			if (sizes[right] && payload_mm_authvar_buffers_overlap(parts[left],
+				sizes[left], parts[right], sizes[right]))
+				return false;
+	}
+	return true;
+}
+
+static bool coordinator_lengths_valid(size_t name_size, size_t data_size,
+	size_t context_size)
+{
+	return name_size && data_size &&
+		name_size <= executor.sealed.limits.maximum_name_size &&
+		data_size <= executor.sealed.limits.maximum_data_size &&
+		context_size <= PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX;
+}
+
 static bool immutable_digest(const void *data, size_t size,
 	u8 digest[PAYLOAD_MM_SHA256_SIZE])
 {
@@ -4048,6 +4074,79 @@ release_busy:
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+uint64_t payload_mm_authvar_set_transaction(
+	const struct payload_mm_authvar_policy_request *request,
+	struct payload_mm_authvar_policy_result *result)
+{
+	struct payload_mm_authvar_policy_request copied;
+	struct payload_mm_authvar_policy_result pending;
+	const void *parts[7] = { request, result };
+	size_t sizes[7] = { sizeof(*request), sizeof(*result) };
+	u64 status;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+	struct coordinator_invocation invocation;
+	enum payload_mm_authvar_authority_outcome outcome;
+	bool mutation_may_be_durable;
+	u8 modes;
+#endif
+
+	if (provider_reentry())
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (!external_protected_span(request, sizeof(*request)) ||
+	    (uintptr_t)request % _Alignof(*request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	memcpy(&copied, request, sizeof(copied));
+	if (copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (!(copied.attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED))
+		return payload_mm_authvar_policy_transaction(request, result);
+	parts[2] = copied.name; sizes[2] = copied.name_size;
+	parts[3] = copied.data; sizes[3] = copied.data_size;
+	if (!executor.installed || !policy_equal() ||
+	    !copied.name || !copied.data ||
+	    (uintptr_t)result % _Alignof(*result) ||
+	    !coordinator_lengths_valid(copied.name_size, copied.data_size, 0U) ||
+	    !coordinator_spans_valid(parts, sizes) ||
+	    memcmp(request, &copied, sizeof(copied)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	memset(result, 0, sizeof(*result));
+	result->status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING;
+	result->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
+	pending = *result;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER)
+	if (!payload_mm_authvar_smram_buffer(&executor.coordinator_owner,
+			sizeof(executor.coordinator_owner)) ||
+	    !payload_mm_authvar_smram_buffer(
+		(const void *)(uintptr_t)payload_mm_authvar_authority_provider_verify, 1U)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		goto out;
+	}
+	invocation = (struct coordinator_invocation) {
+		.original_request = request,
+		.admitted_request = copied,
+		.owner = &executor.coordinator_owner,
+		.verify = payload_mm_authvar_authority_provider_verify,
+		.external_descriptor = request,
+		.sealed_descriptor = &copied,
+		.descriptor_size = sizeof(copied),
+		.external_result = result,
+		.sealed_result = &pending,
+		.result_size = sizeof(pending),
+	};
+	status = coordinate_transaction(&invocation, &outcome, &modes,
+		&mutation_may_be_durable);
+out:
+#else
+	(void)pending;
+	status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+	memset(result, 0, sizeof(*result));
+	result->status = status;
+	__atomic_store_n(&result->completion, PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE,
+		__ATOMIC_RELEASE);
+	return status;
+}
+
 uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required)
 {
 	static const uint8_t global_guid[16] = {
@@ -4080,7 +4179,7 @@ uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required)
 	invocation = (struct coordinator_invocation) {
 		.original_request = &request,
 		.admitted_request = request,
-		.owner = &executor.presence_owner,
+		.owner = &executor.coordinator_owner,
 		.external_descriptor = &descriptor,
 		.sealed_descriptor = &descriptor,
 		.descriptor_size = sizeof(descriptor),
@@ -4130,33 +4229,10 @@ void payload_mm_authvar_executor_test_corrupt_variable_policy(unsigned int part,
 		sealed_variable_policies = variable_policies;
 }
 
-static bool coordinator_spans_valid(const void *const parts[7],
-	const size_t sizes[7])
-{
-	for (size_t left = 0U; left < 7U; left++) {
-		if (sizes[left] && !external_protected_span(parts[left], sizes[left]))
-			return false;
-		for (size_t right = left + 1U; right < 7U; right++)
-			if (sizes[right] && payload_mm_authvar_buffers_overlap(parts[left],
-				sizes[left], parts[right], sizes[right]))
-				return false;
-	}
-	return true;
-}
-
 bool payload_mm_authvar_executor_test_coordinator_spans(
 	const void *const parts[7], const size_t sizes[7])
 {
 	return parts && sizes && coordinator_spans_valid(parts, sizes);
-}
-
-static bool coordinator_lengths_valid(size_t name_size, size_t data_size,
-	size_t context_size)
-{
-	return name_size && data_size &&
-		name_size <= executor.sealed.limits.maximum_name_size &&
-		data_size <= executor.sealed.limits.maximum_data_size &&
-		context_size <= PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX;
 }
 
 bool payload_mm_authvar_executor_test_coordinator_lengths(size_t name_size,

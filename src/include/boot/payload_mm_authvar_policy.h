@@ -94,6 +94,14 @@ uint64_t payload_mm_authvar_policy_transaction(
 	struct payload_mm_authvar_policy_result *result);
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+/* Fixed production SET entry: no injected verifier, owner, or physical presence.
+ * Ordinary SET reuses policy_transaction; Auth2 uses the compiled native verifier.
+ * Request/result and key/data are disjoint protected spans outside private state.
+ * Unsafe admission leaves the output untouched; admitted completion is last. */
+uint64_t payload_mm_authvar_set_transaction(
+	const struct payload_mm_authvar_policy_request *request,
+	struct payload_mm_authvar_policy_result *result);
+
 /* Protected callers only; these are not shared-memory dispatch entry points.
  * Encoded entries use the EDK2 revision-1 VariablePolicy wire layout. */
 uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t size);
