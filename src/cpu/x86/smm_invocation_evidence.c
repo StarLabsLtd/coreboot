@@ -1244,7 +1244,7 @@ static enum cb_err close_owned(struct smm_invocation_evidence *evidence,
 	return CB_ERR;
 }
 
-static void build_token(struct smm_invocation_evidence *evidence,
+static void build_token(const struct smm_invocation_evidence *evidence,
 	uint32_t initiator, uint8_t command, uint64_t sentinel,
 	struct smm_invocation_token *token)
 {
@@ -1282,7 +1282,7 @@ static void build_token(struct smm_invocation_evidence *evidence,
 	};
 }
 
-static bool claimed_geometry_valid(struct smm_invocation_evidence *evidence,
+static bool claimed_geometry_valid(const struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_token *token, uint64_t sentinel,
 	uint32_t expected_ack_required)
 {
@@ -1344,6 +1344,44 @@ static bool claimed_geometry_valid(struct smm_invocation_evidence *evidence,
 		sentinel, &expected);
 	return !memcmp(&expected, token, sizeof(expected)) &&
 		!memcmp(token, &evidence->token, sizeof(*token));
+}
+
+static bool claimed_control_valid(uint32_t state, uint32_t ack_required)
+{
+	const uint32_t kind = (state & ADMISSION_KIND_MASK) >> ADMISSION_KIND_SHIFT;
+	const uint32_t expected_kind = ack_required ? SMM_INVOCATION_ADMISSION_ACK :
+		SMM_INVOCATION_ADMISSION_ARRIVE;
+
+	return (state & STATE_PHASE_MASK) == SMM_INVOCATION_CLAIMED &&
+		!(state & (ADMISSION_BUSY | ADMISSION_CONSUMED | INVOCATION_LATCH_MASK)) &&
+		(state >> ADMISSION_NONCE_SHIFT) && ack_required <= 1 && kind == expected_kind;
+}
+
+enum cb_err smm_invocation_evidence_claimed_snapshot(
+	const struct smm_invocation_evidence *evidence, uint8_t command,
+	uint64_t sentinel, struct smm_invocation_token *token)
+{
+	struct smm_invocation_token snapshot;
+	uint32_t state, ack_required;
+
+	if (!range_valid(evidence, sizeof(*evidence)) ||
+	    !range_valid(token, sizeof(*token)) ||
+	    (uintptr_t)evidence % _Alignof(*evidence) ||
+	    (uintptr_t)token % _Alignof(*token) ||
+	    ranges_overlap(evidence, sizeof(*evidence), token, sizeof(*token)) ||
+	    !sentinel || (uint8_t)sentinel != command)
+		return CB_ERR;
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	ack_required = __atomic_load_n(&evidence->rendezvous_ack_required, __ATOMIC_ACQUIRE);
+	if (!claimed_control_valid(state, ack_required) || evidence->command != command ||
+	    evidence->sentinel != sentinel)
+		return CB_ERR;
+	snapshot = evidence->token;
+	if (!claimed_geometry_valid(evidence, &snapshot, sentinel, ack_required) ||
+	    __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) != state)
+		return CB_ERR;
+	*token = snapshot;
+	return CB_SUCCESS;
 }
 
 enum cb_err smm_invocation_evidence_claim(
@@ -1578,8 +1616,6 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 	uint64_t readback;
 	uint64_t sentinel;
 	uint32_t ack_required;
-	uint32_t expected_kind;
-	uint32_t kind;
 	uint32_t publishing_state;
 	uint32_t state;
 
@@ -1620,15 +1656,9 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 		invocation_fail_stop();
 	if ((state & STATE_PHASE_MASK) != SMM_INVOCATION_CLAIMED)
 		return CB_ERR;
-	kind = (state & ADMISSION_KIND_MASK) >> ADMISSION_KIND_SHIFT;
 	ack_required = __atomic_load_n(&evidence->rendezvous_ack_required,
 		__ATOMIC_ACQUIRE);
-	expected_kind = ack_required ? SMM_INVOCATION_ADMISSION_ACK :
-		SMM_INVOCATION_ADMISSION_ARRIVE;
-	if (state & (ADMISSION_BUSY | ADMISSION_CONSUMED |
-		    INVOCATION_LATCH_MASK) ||
-	    !(state >> ADMISSION_NONCE_SHIFT) || ack_required > 1U ||
-	    kind != expected_kind)
+	if (!claimed_control_valid(state, ack_required))
 		invocation_fail_stop();
 	publishing_state = (state & ~STATE_PHASE_MASK) |
 		SMM_INVOCATION_PUBLISHING;

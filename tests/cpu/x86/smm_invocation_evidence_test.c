@@ -558,9 +558,43 @@ static void test_happy_path(void)
 	assert(token.initiator_cpu == 0 && token.active_cpus == TEST_CPUS);
 	assert(token.smi_generation == generation && token.bsp == 1);
 	assert(fixture.mock.value[0] == TEST_SENTINEL);
+	{
+		struct smm_invocation_token observed = { 0 };
+		struct smm_invocation_token unchanged;
+
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND, TEST_SENTINEL, &observed) == CB_SUCCESS);
+		assert(!memcmp(&observed, &token, sizeof(token)));
+		unchanged = observed;
+		assert(smm_invocation_evidence_claimed_snapshot(
+			(const void *)((uintptr_t)&fixture.evidence + 1), TEST_COMMAND,
+			TEST_SENTINEL, &observed) == CB_ERR);
+		assert(!memcmp(&observed, &unchanged, sizeof(observed)));
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND, TEST_SENTINEL,
+			(void *)((uintptr_t)&observed + 1)) == CB_ERR);
+		assert(!memcmp(&observed, &unchanged, sizeof(observed)));
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND ^ 1, TEST_SENTINEL, &observed) == CB_ERR);
+		assert(!memcmp(&observed, &unchanged, sizeof(observed)));
+		fixture.evidence.token.rendezvous_digest[0] ^= 1;
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND, TEST_SENTINEL, &observed) == CB_ERR);
+		assert(!memcmp(&observed, &unchanged, sizeof(observed)));
+		fixture.evidence.token.rendezvous_digest[0] ^= 1;
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND, TEST_SENTINEL, &fixture.evidence.token) == CB_ERR);
+	}
 	assert(smm_invocation_evidence_publish(&fixture.evidence, &token,
 		0x12345678ULL, &fixture.ops) == CB_SUCCESS);
 	assert(fixture.mock.value[0] == 0x12345678ULL);
+	{
+		struct smm_invocation_token observed = token;
+
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			TEST_COMMAND, TEST_SENTINEL, &observed) == CB_ERR);
+		assert(!memcmp(&observed, &token, sizeof(observed)));
+	}
 	assert(smm_invocation_evidence_complete(&fixture.evidence, &token) ==
 		CB_SUCCESS);
 	observer = (struct observer_arg) {

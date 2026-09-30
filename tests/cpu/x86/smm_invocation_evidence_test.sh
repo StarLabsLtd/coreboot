@@ -279,13 +279,13 @@ mutation strong-callback-phase \
 mutation strong-acquisition-cas-loss \
 	'/TEST_HOOK(49);/,/TEST_HOOK(45);/{s/invocation_fail_stop();/return CB_ERR;/}'
 mutation strong-canonical-busy \
-	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/ADMISSION_BUSY | ADMISSION_CONSUMED |/0 | 0 |/}'
+	'/static bool claimed_control_valid/,/^}/{s/ADMISSION_BUSY | ADMISSION_CONSUMED |/0 | 0 |/}'
 mutation strong-canonical-latch \
-	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/INVOCATION_LATCH_MASK/0/}'
+	'/static bool claimed_control_valid/,/^}/{s/INVOCATION_LATCH_MASK/0/}'
 mutation strong-canonical-nonce \
-	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/!(state >> ADMISSION_NONCE_SHIFT)/false/}'
+	'/static bool claimed_control_valid/,/^}/{s/(state >> ADMISSION_NONCE_SHIFT)/true/}'
 mutation strong-canonical-kind \
-	'/smm_invocation_evidence_publish_and_request_close/,/^}/{s/kind != expected_kind/(kind != expected_kind \&\& false)/}'
+	'/static bool claimed_control_valid/,/^}/{s/kind == expected_kind/(kind == expected_kind || true)/}'
 mutation strong-second-phase-sample \
 	'/TEST_HOOK(51);/,/SMM_INVOCATION_CLAIMED)/{s/if (callback_owns_phase/if (false \&\& callback_owns_phase/}'
 mutation strong-evidence-token-overlap \

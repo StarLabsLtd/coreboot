@@ -231,6 +231,12 @@ enum cb_err smm_invocation_evidence_claim(
 	struct smm_invocation_evidence *evidence, uint8_t command,
 	uint64_t sentinel, const struct smm_invocation_save_state_ops *ops,
 	struct smm_invocation_token *token);
+/* Read the current complete claimed rendezvous without consuming its token.
+ * The output must be disjoint from the loader-owned evidence. Failure leaves
+ * it unchanged; command and sentinel must be the caller's fixed route. */
+enum cb_err smm_invocation_evidence_claimed_snapshot(
+	const struct smm_invocation_evidence *evidence, uint8_t command,
+	uint64_t sentinel, struct smm_invocation_token *token);
 enum cb_err smm_invocation_evidence_publish(
 	struct smm_invocation_evidence *evidence,
 	const struct smm_invocation_token *token, uint64_t value,
