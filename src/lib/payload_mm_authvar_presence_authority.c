@@ -46,6 +46,7 @@ static payload_mm_authvar_presence_restrict_test_hook_fn install_claim_test_hook
 static payload_mm_authvar_presence_restrict_test_hook_fn restrict_claim_test_hook;
 static payload_mm_authvar_presence_restrict_test_hook_fn dispatch_finish_test_hook;
 static payload_mm_authvar_presence_restrict_test_hook_fn cleanup_test_hook;
+static payload_mm_authvar_presence_restrict_test_hook_fn snapshot_test_hook;
 #endif
 
 static __noinline void scrub(void *buffer, size_t size)
@@ -443,6 +444,204 @@ out:
 	}
 	__atomic_store_n(&presence.phase, PRESENCE_CLOSED, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
+}
+
+static bool closed_snapshot_valid(
+	const struct lb_authvar_presence_endpoint *endpoint,
+	const struct payload_mm_authvar_presence_backing *backing)
+{
+	struct payload_mm_authvar_presence_policy snapshot = presence.sealed;
+	const uint64_t generation = endpoint->generation;
+
+	return generation &&
+		__atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) ==
+			PRESENCE_CLOSED &&
+		install_gate_sealed() && policy_equal() &&
+		restriction_scrubbed() &&
+		__atomic_load_n(&presence.lifecycle_generation,
+			__ATOMIC_ACQUIRE) == generation &&
+		presence.closed_generation == generation &&
+		presence.sealed_closed_generation == generation &&
+		presence.policy.endpoint.generation == generation &&
+		presence.sealed.endpoint.generation == generation &&
+		presence.policy.backing.generation == generation &&
+		presence.sealed.backing.generation == generation &&
+		!memcmp(endpoint, &snapshot.endpoint, sizeof(*endpoint)) &&
+		!memcmp(backing, &snapshot.backing, sizeof(*backing)) &&
+		!memcmp(&presence.policy.endpoint, &snapshot.endpoint,
+			sizeof(snapshot.endpoint)) &&
+		!memcmp(&presence.policy.backing, &snapshot.backing,
+			sizeof(snapshot.backing)) &&
+		payload_mm_authvar_presence_endpoint_validate(&snapshot.endpoint) ==
+			CB_SUCCESS && backing_valid(&snapshot);
+}
+
+static bool snapshot_proof_context_equal(const void *source, size_t size,
+	const uint8_t *context, const uint8_t *sealed_context)
+{
+	return (!size || (!memcmp(source, sealed_context, size) &&
+		!memcmp(context, sealed_context, size))) &&
+		bytes_zero(context + size,
+			PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX - size) &&
+		bytes_zero(sealed_context + size,
+			PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX - size);
+}
+
+static bool snapshot_storage_protected(
+	payload_mm_authvar_protected_storage proof, void *context,
+	const void *source_context, size_t context_size,
+	const uint8_t *sealed_context, const void *storage, size_t storage_size)
+{
+	return snapshot_proof_context_equal(source_context, context_size, context,
+		sealed_context) && proof(context_size ? context : NULL, storage,
+		storage_size) &&
+		snapshot_proof_context_equal(source_context, context_size, context,
+			sealed_context);
+}
+
+enum cb_err payload_mm_authvar_presence_authority_closed_snapshot(
+	struct lb_authvar_presence_endpoint *endpoint,
+	struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context, size_t storage_context_size)
+{
+	struct lb_authvar_presence_endpoint endpoint_copy;
+	struct payload_mm_authvar_presence_backing backing_copy;
+	const uintptr_t endpoint_address = (uintptr_t)endpoint;
+	const uintptr_t backing_address = (uintptr_t)backing;
+	const void *proof_callback =
+		(const void *)(uintptr_t)storage_is_protected;
+	uint8_t proof_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	uint8_t sealed_proof_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	bool endpoint_protected = false;
+	bool backing_protected = false;
+
+	if (!endpoint || !backing || !storage_is_protected ||
+	    (storage_context == NULL) != (storage_context_size == 0U) ||
+	    storage_context_size > PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX ||
+	    endpoint_address % _Alignof(uint64_t) ||
+	    backing_address % _Alignof(*backing) ||
+	    !ranges_disjoint(endpoint, sizeof(*endpoint), backing,
+		sizeof(*backing)) ||
+	    !ranges_disjoint(endpoint, sizeof(*endpoint), &presence,
+		sizeof(presence)) ||
+	    !ranges_disjoint(backing, sizeof(*backing), &presence,
+		sizeof(presence)) ||
+	    !ranges_disjoint(endpoint, sizeof(*endpoint), proof_callback, 1U) ||
+	    !ranges_disjoint(backing, sizeof(*backing), proof_callback, 1U) ||
+	    (storage_context_size &&
+	     (!ranges_disjoint(storage_context, storage_context_size, endpoint,
+		sizeof(*endpoint)) ||
+	      !ranges_disjoint(storage_context, storage_context_size, backing,
+		sizeof(*backing)) ||
+	      !ranges_disjoint(storage_context, storage_context_size, &presence,
+		sizeof(presence)) ||
+	      !ranges_disjoint(storage_context, storage_context_size,
+		proof_callback, 1U))))
+		return CB_ERR;
+
+	if (__atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) !=
+	    PRESENCE_CLOSED)
+		return CB_ERR;
+	endpoint_copy = presence.sealed.endpoint;
+	backing_copy = presence.sealed.backing;
+	if (!closed_snapshot_valid(&endpoint_copy, &backing_copy))
+		goto poison;
+	if (!ranges_disjoint(endpoint, sizeof(*endpoint),
+		(const void *)(uintptr_t)backing_copy.base, backing_copy.bytes) ||
+	    !ranges_disjoint(backing, sizeof(*backing),
+		(const void *)(uintptr_t)backing_copy.base, backing_copy.bytes) ||
+	    (storage_context_size &&
+	     !ranges_disjoint(storage_context, storage_context_size,
+		(const void *)(uintptr_t)backing_copy.base,
+		backing_copy.bytes)))
+		return CB_ERR;
+	if (storage_context_size) {
+		memcpy(proof_context, storage_context, storage_context_size);
+		memcpy(sealed_proof_context, storage_context, storage_context_size);
+	}
+	if (!snapshot_proof_context_equal(storage_context, storage_context_size,
+		proof_context, sealed_proof_context))
+		goto poison;
+
+	/* No proof callback runs until the exact CLOSED source is validated. */
+	if (!snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		proof_callback, 1U) ||
+	    !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		&presence, sizeof(presence)) ||
+	    (storage_context_size &&
+	     !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		storage_context, storage_context_size)) ||
+	    !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		endpoint, sizeof(*endpoint)))
+		goto poison;
+	endpoint_protected = true;
+	if (!snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		backing, sizeof(*backing)))
+		goto poison;
+	backing_protected = true;
+	/* A failed call cannot leave a stale terminal identity in safe outputs. */
+	scrub(endpoint, sizeof(*endpoint));
+	scrub(backing, sizeof(*backing));
+	if (!closed_snapshot_valid(&endpoint_copy, &backing_copy))
+		goto poison;
+#if ENV_TEST
+	if (snapshot_test_hook)
+		snapshot_test_hook();
+#endif
+	if (!closed_snapshot_valid(&endpoint_copy, &backing_copy))
+		goto poison;
+
+	memcpy(endpoint, &endpoint_copy, sizeof(*endpoint));
+	memcpy(backing, &backing_copy, sizeof(*backing));
+
+	/* The final proof calls precede a callback-free exact resample. */
+	if (!snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		proof_callback, 1U) ||
+	    !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		&presence, sizeof(presence)) ||
+	    (storage_context_size &&
+	     !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		storage_context, storage_context_size)) ||
+	    !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		endpoint, sizeof(*endpoint)) ||
+	    !snapshot_storage_protected(storage_is_protected, proof_context,
+		storage_context, storage_context_size, sealed_proof_context,
+		backing, sizeof(*backing)) ||
+	    memcmp(endpoint, &endpoint_copy, sizeof(*endpoint)) ||
+	    memcmp(backing, &backing_copy, sizeof(*backing)) ||
+	    !closed_snapshot_valid(&endpoint_copy, &backing_copy) ||
+	    !snapshot_proof_context_equal(storage_context, storage_context_size,
+		proof_context, sealed_proof_context))
+		goto poison;
+
+	scrub(sealed_proof_context, sizeof(sealed_proof_context));
+	scrub(proof_context, sizeof(proof_context));
+	scrub(&backing_copy, sizeof(backing_copy));
+	scrub(&endpoint_copy, sizeof(endpoint_copy));
+	return CB_SUCCESS;
+
+poison:
+	/* CLOSED has no valid transition while this synchronous read is active. */
+	__atomic_store_n(&presence.phase, PRESENCE_POISONED, __ATOMIC_RELEASE);
+	if (backing_protected)
+		scrub(backing, sizeof(*backing));
+	if (endpoint_protected)
+		scrub(endpoint, sizeof(*endpoint));
+	scrub(sealed_proof_context, sizeof(sealed_proof_context));
+	scrub(proof_context, sizeof(proof_context));
+	scrub(&backing_copy, sizeof(backing_copy));
+	scrub(&endpoint_copy, sizeof(endpoint_copy));
+	return CB_ERR;
 }
 
 enum cb_err payload_mm_authvar_presence_authority_restrict(
@@ -855,6 +1054,7 @@ void payload_mm_authvar_presence_authority_reset_test(void)
 	restrict_claim_test_hook = NULL;
 	dispatch_finish_test_hook = NULL;
 	cleanup_test_hook = NULL;
+	snapshot_test_hook = NULL;
 }
 
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size)
@@ -892,5 +1092,11 @@ void payload_mm_authvar_presence_authority_cleanup_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook)
 {
 	cleanup_test_hook = hook;
+}
+
+void payload_mm_authvar_presence_authority_snapshot_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook)
+{
+	snapshot_test_hook = hook;
 }
 #endif

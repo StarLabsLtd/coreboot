@@ -60,6 +60,21 @@ static bool restore_entered;
 static bool restore_release;
 static enum cb_err restore_thread_result;
 static enum cb_err install_thread_result;
+static struct lb_authvar_presence_endpoint snapshot_endpoint;
+static struct payload_mm_authvar_presence_backing snapshot_backing;
+static enum cb_err snapshot_thread_result;
+static bool snapshot_block;
+static bool snapshot_entered;
+static bool snapshot_release;
+static const void *snapshot_unprotected;
+static unsigned int snapshot_proof_calls;
+static unsigned int snapshot_mutate_output_call;
+static unsigned int snapshot_mutate_source_call;
+static unsigned int snapshot_false_call;
+static unsigned int snapshot_mutate_context_call;
+static unsigned int snapshot_mutate_context_source_call;
+static uint8_t *snapshot_context_source;
+static unsigned int snapshot_mutate_phase_call;
 
 struct callback_context {
 	uint32_t magic;
@@ -68,6 +83,7 @@ struct callback_context {
 static struct callback_context callback_context;
 
 static bool state_contains_capability(void);
+static void corrupt_snapshot_source(void);
 
 static pthread_mutex_t restrict_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t restrict_cond = PTHREAD_COND_INITIALIZER;
@@ -121,6 +137,38 @@ static bool protected_storage_except_mailbox_page(void *context,
 {
 	(void)context;
 	return storage != NULL && size != 0U && size != sizeof(mailbox_page);
+}
+
+static bool snapshot_protected_storage(void *context, const void *storage,
+	size_t size)
+{
+	snapshot_proof_calls++;
+	if (snapshot_mutate_context_call == snapshot_proof_calls) {
+		assert(context);
+		((uint8_t *)context)[0] ^= 1U;
+	}
+	if (snapshot_mutate_context_source_call == snapshot_proof_calls) {
+		assert(snapshot_context_source);
+		snapshot_context_source[0] ^= 1U;
+	}
+	if (snapshot_mutate_phase_call == snapshot_proof_calls) {
+		const void *authority;
+		size_t authority_size;
+
+		authority = payload_mm_authvar_presence_authority_test_state(
+			&authority_size);
+		assert(storage == authority && size == authority_size);
+		__atomic_store_n((uint32_t *)((uint8_t *)(uintptr_t)authority +
+			authority_size - 2U * sizeof(uint32_t)), 0U,
+			__ATOMIC_RELEASE);
+	}
+	if (snapshot_mutate_output_call == snapshot_proof_calls)
+		snapshot_endpoint.generation++;
+	if (snapshot_mutate_source_call == snapshot_proof_calls)
+		corrupt_snapshot_source();
+	return snapshot_false_call != snapshot_proof_calls && storage && size &&
+		storage != snapshot_unprotected &&
+		protected_storage(NULL, storage, size);
 }
 
 static enum cb_err provision(void *context, uint64_t generation,
@@ -315,6 +363,21 @@ static void reset_fixture(void)
 	restore_release = false;
 	restore_thread_result = CB_SUCCESS;
 	install_thread_result = CB_SUCCESS;
+	memset(&snapshot_endpoint, 0, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0, sizeof(snapshot_backing));
+	snapshot_thread_result = CB_SUCCESS;
+	snapshot_block = false;
+	snapshot_entered = false;
+	snapshot_release = false;
+	snapshot_unprotected = NULL;
+	snapshot_proof_calls = 0U;
+	snapshot_mutate_output_call = 0U;
+	snapshot_mutate_source_call = 0U;
+	snapshot_false_call = 0U;
+	snapshot_mutate_context_call = 0U;
+	snapshot_mutate_context_source_call = 0U;
+	snapshot_context_source = NULL;
+	snapshot_mutate_phase_call = 0U;
 	memset(&restore_endpoint, 0, sizeof(restore_endpoint));
 	memset(&restore_backing, 0, sizeof(restore_backing));
 	for (size_t index = 0; index < sizeof(restore_context); index++)
@@ -381,6 +444,49 @@ static void *install_thread(void *unused)
 	install_thread_result = payload_mm_authvar_presence_authority_install(
 		&value, protected_storage, NULL);
 	return NULL;
+}
+
+static enum cb_err closed_snapshot(void)
+{
+	return payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing, snapshot_protected_storage,
+		NULL, 0U);
+}
+
+static void *snapshot_thread(void *unused)
+{
+	(void)unused;
+	snapshot_thread_result = closed_snapshot();
+	return NULL;
+}
+
+static void block_snapshot(void)
+{
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	snapshot_entered = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	while (snapshot_block && !snapshot_release)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+}
+
+static void corrupt_snapshot_source(void)
+{
+	uint8_t *state;
+	size_t state_size;
+
+	state = (void *)(uintptr_t)
+		payload_mm_authvar_presence_authority_test_state(&state_size);
+	for (size_t offset = 0;
+	     offset + sizeof(restore_endpoint) <= state_size; offset++) {
+		if (memcmp(state + offset, &restore_endpoint,
+			sizeof(restore_endpoint)))
+			continue;
+		state[offset + offsetof(struct lb_authvar_presence_endpoint,
+			generation)] ^= 1U;
+		return;
+	}
+	abort();
 }
 
 static bool state_contains_capability(void)
@@ -453,6 +559,15 @@ static void set_tail_generation(size_t index, uint64_t value)
 	assert(index < 5U);
 	memcpy(authority_generation_tail() + index * sizeof(value), &value,
 		sizeof(value));
+}
+
+static uint32_t tail_phase(void)
+{
+	uint32_t value;
+
+	memcpy(&value, authority_generation_tail() + 5U * sizeof(uint64_t),
+		sizeof(value));
+	return value;
 }
 
 static void clear_install_gate(void)
@@ -1245,6 +1360,211 @@ static void closed_restore(void)
 	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
 }
 
+static void closed_semantic_snapshot(void)
+{
+	struct payload_mm_authvar_presence_policy value;
+	uint8_t overlap[sizeof(snapshot_endpoint) + sizeof(snapshot_backing)]
+		__aligned(8);
+	uint8_t unaligned[sizeof(snapshot_endpoint) + 1U] __aligned(8);
+	uint8_t proof_context[16] = { 0 };
+	const void *state;
+	size_t state_size;
+	pthread_t thread;
+
+	reset_fixture();
+	value = policy();
+	assert(payload_mm_authvar_presence_authority_install(&value,
+		protected_storage, NULL) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(closed_snapshot() == CB_SUCCESS);
+	assert(!memcmp(&snapshot_endpoint, &value.endpoint,
+		sizeof(snapshot_endpoint)));
+	assert(!memcmp(&snapshot_backing, &value.backing,
+		sizeof(snapshot_backing)));
+	assert(snapshot_proof_calls == 8U);
+
+	/* OPEN and EMPTY are not terminal semantic identities. */
+	reset_fixture();
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	assert(closed_snapshot() == CB_ERR);
+	assert(snapshot_endpoint.tag == 0xa5a5a5a5U);
+	assert(snapshot_backing.revision == 0xa5a5a5a5U);
+	install();
+	assert(closed_snapshot() == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+
+	/* Each output must be protected and neither may overlap the other. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	snapshot_unprotected = &snapshot_backing;
+	assert(closed_snapshot() == CB_ERR);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(snapshot_backing.revision == 0xa5a5a5a5U);
+	snapshot_unprotected = NULL;
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		(void *)overlap, (void *)(overlap + 8U),
+		snapshot_protected_storage, NULL, 0U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		(void *)(unaligned + 1U), &snapshot_backing,
+		snapshot_protected_storage, NULL, 0U) == CB_ERR);
+	state = payload_mm_authvar_presence_authority_test_state(&state_size);
+	assert(state_size >= sizeof(snapshot_endpoint));
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		(void *)(uintptr_t)state, &snapshot_backing,
+		snapshot_protected_storage, NULL, 0U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		(void *)((uintptr_t)snapshot_protected_storage &
+			~(uintptr_t)(_Alignof(uint64_t) - 1U)), &snapshot_backing,
+		snapshot_protected_storage, NULL, 0U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, &snapshot_endpoint,
+		sizeof(snapshot_endpoint)) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, NULL, sizeof(proof_context)) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, proof_context,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX + 1U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage,
+		(void *)(UINTPTR_MAX - (uintptr_t)3U), 8U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, (void *)(uintptr_t)state, 1U) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, &mailbox_page, sizeof(mailbox_page)) ==
+		CB_ERR);
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, proof_context,
+		sizeof(proof_context)) == CB_SUCCESS);
+	assert(closed_snapshot() == CB_SUCCESS);
+
+	/* The verifier cannot mutate either copy of its sealed context epoch. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	snapshot_mutate_context_call = 2U;
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, proof_context,
+		sizeof(proof_context)) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	snapshot_context_source = proof_context;
+	snapshot_mutate_context_source_call = 3U;
+	assert(payload_mm_authvar_presence_authority_closed_snapshot(
+		&snapshot_endpoint, &snapshot_backing,
+		snapshot_protected_storage, proof_context,
+		sizeof(proof_context)) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	/* A verifier cannot escape terminal failure by changing CLOSED itself. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	snapshot_mutate_phase_call = 2U;
+	assert(closed_snapshot() == CB_ERR);
+	assert(tail_phase() == 9U);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(test_bytes_zero(&snapshot_backing, sizeof(snapshot_backing)));
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	snapshot_mutate_phase_call = 6U;
+	snapshot_false_call = 6U;
+	assert(closed_snapshot() == CB_ERR);
+	assert(tail_phase() == 9U);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(test_bytes_zero(&snapshot_backing, sizeof(snapshot_backing)));
+
+	/* A changed policy between the two samples poisons the authority. */
+	reset_fixture();
+	prepare_restore();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	payload_mm_authvar_presence_authority_snapshot_test_hook(
+		corrupt_snapshot_source);
+	assert(closed_snapshot() == CB_ERR);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(test_bytes_zero(&snapshot_backing, sizeof(snapshot_backing)));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	/* A false-returning proof cannot mutate CLOSED state without poison. */
+	reset_fixture();
+	prepare_restore();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	memset(&snapshot_endpoint, 0xa5, sizeof(snapshot_endpoint));
+	memset(&snapshot_backing, 0xa5, sizeof(snapshot_backing));
+	snapshot_mutate_source_call = 5U;
+	snapshot_false_call = 5U;
+	assert(closed_snapshot() == CB_ERR);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(test_bytes_zero(&snapshot_backing, sizeof(snapshot_backing)));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	/* Terminal generations are part of the exact CLOSED identity. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	set_tail_generation(3U, 8U);
+	assert(closed_snapshot() == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	/* A final proof callback cannot mutate a published output unnoticed. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	snapshot_mutate_output_call = 7U;
+	assert(closed_snapshot() == CB_ERR);
+	assert(test_bytes_zero(&snapshot_endpoint, sizeof(snapshot_endpoint)));
+	assert(test_bytes_zero(&snapshot_backing, sizeof(snapshot_backing)));
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	/* A concurrent terminal-state change is caught by the second sample. */
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	snapshot_block = true;
+	payload_mm_authvar_presence_authority_snapshot_test_hook(block_snapshot);
+	assert(!pthread_create(&thread, NULL, snapshot_thread, NULL));
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	while (!snapshot_entered)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(payload_mm_authvar_presence_authority_restrict(8U) == CB_ERR);
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	snapshot_release = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(snapshot_thread_result == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+}
+
 int main(void)
 {
 	install_validation();
@@ -1255,5 +1575,6 @@ int main(void)
 	dispatch_restrict_interleavings();
 	attempted_response_lifetime();
 	closed_restore();
+	closed_semantic_snapshot();
 	return 0;
 }
