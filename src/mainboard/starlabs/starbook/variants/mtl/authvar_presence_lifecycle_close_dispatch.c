@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD)
+#include "authvar_presence_s3_cold.h"
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 #include "dma_smm_receipt_provision.h"
 #endif
@@ -92,6 +95,13 @@ static void wait_for_install_departures(uint32_t expected, uint32_t max_polls)
 	}
 	fail_stop();
 }
+
+#if ENV_TEST
+uint32_t starbook_mtl_authvar_presence_lifecycle_close_install_departures_test(void)
+{
+	return __atomic_load_n(&owner.install_departures, __ATOMIC_ACQUIRE);
+}
+#endif
 
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 static enum smm_pre_lock_dispatch_result receipt_provision(
@@ -212,6 +222,11 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 				__ATOMIC_RELEASE);
 			wait_for_install_departures(topology.active_cpus - 1U,
 				policy.max_polls);
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD)
+			if (starbook_mtl_authvar_presence_s3_cold_install(runtime.instance) !=
+			    CB_SUCCESS)
+				fail_stop();
+#endif
 			__atomic_store_n(&owner.install_departures, 0U, __ATOMIC_RELAXED);
 			__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
 			return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
@@ -259,6 +274,11 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 		&rechecked) != CB_SUCCESS || rechecked.route != installed.route ||
 	    rechecked.retained_ops != installed.retained_ops)
 		fail_stop();
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD)
+	if (starbook_mtl_authvar_presence_s3_cold_route_complete(installed.route) !=
+	    CB_SUCCESS)
+		fail_stop();
+#endif
 	owner.provider_generation = 0;
 	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
 	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;

@@ -982,3 +982,168 @@ payload_mm_authvar_presence_lifecycle_close_route_depart(
 	__atomic_store_n(&route->state, ROUTE_IDLE, __ATOMIC_RELEASE);
 	return PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ROUTE_BSP_EOS_CONSUMED;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT)
+static bool idle_snapshot_context_equal(const void *context, size_t context_size,
+	const uint8_t *copy, const uint8_t *sealed_copy)
+{
+	return !memcmp(copy, sealed_copy,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX) &&
+		(!context_size || !memcmp(context, copy, context_size));
+}
+
+static bool idle_snapshot_storage_protected(
+	payload_mm_authvar_protected_storage proof, uint8_t *context_copy,
+	const void *context, size_t context_size, const uint8_t *sealed_context,
+	const void *object, size_t size)
+{
+	bool protected;
+
+	if (!idle_snapshot_context_equal(context, context_size, context_copy,
+		sealed_context))
+		return false;
+	protected = proof(context_size ? context_copy : NULL, object, size);
+	return protected && idle_snapshot_context_equal(context, context_size,
+		context_copy, sealed_context);
+}
+
+enum cb_err payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+	struct payload_mm_authvar_presence_lifecycle_close_route *route,
+	struct payload_mm_authvar_presence_lifecycle_close_snapshot *snapshot,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context, size_t storage_context_size)
+{
+	struct payload_mm_authvar_presence_lifecycle_close_route route_copy;
+	struct payload_mm_authvar_presence_lifecycle_close_snapshot value = { 0 };
+	const void *proof_callback =
+		(const void *)(uintptr_t)storage_is_protected;
+	uint8_t context_copy[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX] = { 0 };
+	uint8_t sealed_context[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX] = { 0 };
+	bool output_protected = false;
+
+	if (!route || !snapshot || !storage_is_protected ||
+	    (storage_context == NULL) != (storage_context_size == 0U) ||
+	    storage_context_size >
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX ||
+	    (uintptr_t)snapshot % _Alignof(*snapshot) ||
+	    !runtime_object_disjoint(route, snapshot, sizeof(*snapshot)) ||
+	    overlap(snapshot, sizeof(*snapshot), proof_callback, 1U) ||
+	    (storage_context_size &&
+	     (overlap(snapshot, sizeof(*snapshot), storage_context,
+		storage_context_size) ||
+	      overlap(storage_context, storage_context_size, route,
+		 sizeof(*route)) ||
+	      overlap(storage_context, storage_context_size,
+		 (void *)(uintptr_t)route->backing_base, route->backing_size) ||
+	      overlap(storage_context, storage_context_size, proof_callback, 1U))) ||
+	    __atomic_load_n(&route->state, __ATOMIC_ACQUIRE) != ROUTE_IDLE ||
+	    !route->last_invocation_generation ||
+	    route->last_invocation_generation ==
+		route->predecessor_invocation_generation || route->active_source ||
+	    smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_READY ||
+	    nonzero(&route->token, sizeof(route->token)) ||
+	    nonzero(&route->sealed_token, sizeof(route->sealed_token)) ||
+	    nonzero(&route->invocation, sizeof(route->invocation)) ||
+	    nonzero(&route->sealed_invocation,
+		sizeof(route->sealed_invocation)) ||
+	    nonzero(&route->active_ticket, sizeof(route->active_ticket)) ||
+	    nonzero(&route->sealed_active_ticket,
+		sizeof(route->sealed_active_ticket)))
+		return CB_ERR;
+	route_copy = *route;
+	if (storage_context_size) {
+		memcpy(context_copy, storage_context, storage_context_size);
+		memcpy(sealed_context, storage_context, storage_context_size);
+	}
+	if (!idle_snapshot_context_equal(storage_context, storage_context_size,
+		context_copy, sealed_context) ||
+	    !immutable_valid(route) || !dma_protected(route) ||
+	    memcmp(route, &route_copy, sizeof(route_copy)) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		proof_callback, 1U) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		route, sizeof(*route)) ||
+	    (storage_context_size &&
+	     !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		storage_context, storage_context_size)) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		snapshot, sizeof(*snapshot)))
+		goto poison;
+	output_protected = true;
+	scrub(snapshot, sizeof(*snapshot));
+	value = (struct payload_mm_authvar_presence_lifecycle_close_snapshot) {
+		.endpoint = {
+			.tag = LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT,
+			.size = sizeof(value.endpoint),
+			.revision =
+				LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT_REVISION,
+			.header_size = sizeof(value.endpoint),
+			.flags =
+				LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_REQUIRED_FLAGS,
+			.generation = route->generation,
+			.communication_base = route->backing_base,
+			.communication_size =
+				PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MESSAGE_SIZE,
+			.message_size =
+				PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MESSAGE_SIZE,
+			.transport =
+				LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT_APM_IO8,
+			.trigger_width = 1U,
+			.trigger_address = 0xb2U,
+			.trigger_value =
+				SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+			.source_mask =
+				LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_SOURCE_MASK,
+		},
+		.backing_base = route->backing_base,
+		.backing_bytes = route->backing_size,
+	};
+	if (payload_mm_authvar_presence_lifecycle_close_endpoint_validate(
+		&value.endpoint) != CB_SUCCESS ||
+	    memcmp(route, &route_copy, sizeof(route_copy)))
+		goto poison;
+	*snapshot = value;
+	if (memcmp(snapshot, &value, sizeof(value)) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		proof_callback, 1U) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		route, sizeof(*route)) ||
+	    (storage_context_size &&
+	     !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		storage_context, storage_context_size)) ||
+	    !idle_snapshot_storage_protected(storage_is_protected, context_copy,
+		storage_context, storage_context_size, sealed_context,
+		snapshot, sizeof(*snapshot)) ||
+	    !immutable_valid(route) || !dma_protected(route) ||
+	    memcmp(route, &route_copy, sizeof(route_copy)) ||
+	    memcmp(snapshot, &value, sizeof(value)) ||
+	    !idle_snapshot_context_equal(storage_context, storage_context_size,
+		context_copy, sealed_context))
+		goto poison;
+	scrub(sealed_context, sizeof(sealed_context));
+	scrub(context_copy, sizeof(context_copy));
+	scrub(&route_copy, sizeof(route_copy));
+	scrub(&value, sizeof(value));
+	return CB_SUCCESS;
+
+poison:
+	__atomic_store_n(&route->state, ROUTE_POISONED, __ATOMIC_RELEASE);
+	if (output_protected)
+		scrub(snapshot, sizeof(*snapshot));
+	scrub(sealed_context, sizeof(sealed_context));
+	scrub(context_copy, sizeof(context_copy));
+	scrub(&route_copy, sizeof(route_copy));
+	scrub(&value, sizeof(value));
+	return CB_ERR;
+}
+#endif

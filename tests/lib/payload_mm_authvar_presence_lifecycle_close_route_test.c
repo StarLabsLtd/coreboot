@@ -33,6 +33,35 @@ static uint8_t owner_context[
 	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX];
 static uint64_t internal_context_seed[2];
 static uint64_t next_invocation_generation;
+static unsigned int snapshot_proof_calls;
+static unsigned int snapshot_proof_fail_at;
+static unsigned int snapshot_route_mutate_at;
+static unsigned int snapshot_context_mutate_at;
+
+struct snapshot_proof_context { uint64_t first; uint64_t second; };
+
+static bool bytes_zero(const void *object, size_t size)
+{
+	const uint8_t *bytes = object;
+	uint8_t value = 0;
+
+	while (size--)
+		value |= *bytes++;
+	return value == 0;
+}
+
+static bool hostile_snapshot_storage(void *context, const void *base, size_t size)
+{
+	struct snapshot_proof_context *proof_context = context;
+
+	assert(base && size);
+	snapshot_proof_calls++;
+	if (snapshot_route_mutate_at == snapshot_proof_calls)
+		route.active_source = 1U;
+	if (snapshot_context_mutate_at == snapshot_proof_calls)
+		proof_context->first ^= 1U;
+	return snapshot_proof_fail_at != snapshot_proof_calls;
+}
 static uint64_t last_wire_value;
 static uint64_t last_completed_value;
 static uint64_t active_owner_claim;
@@ -455,6 +484,10 @@ static void reset(void)
 	departure_count = 0;
 	dma_calls = 0;
 	dma_fail_at = 0;
+	snapshot_proof_calls = 0;
+	snapshot_proof_fail_at = 0;
+	snapshot_route_mutate_at = 0;
+	snapshot_context_mutate_at = 0;
 	corrupt_ticket_before_release = false;
 }
 
@@ -664,13 +697,64 @@ static void mtl_policy_composition(void)
 	assert(payload_mm_authvar_presence_warm_reset_close() == CB_ERR);
 }
 
+static void snapshot_terminal_route(void)
+{
+	reset();
+	provision();
+	public_round(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PRE_EXTERNAL_IMAGE);
+}
+
+static void test_idle_snapshot_hostile(void)
+{
+	struct payload_mm_authvar_presence_lifecycle_close_snapshot snapshot;
+	struct snapshot_proof_context context = { 1U, 2U };
+
+	snapshot_terminal_route();
+	memset(&snapshot, 0xa5, sizeof(snapshot));
+	snapshot_proof_fail_at = 5U;
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, hostile_snapshot_storage, &context,
+		sizeof(context)) == CB_ERR);
+	assert(bytes_zero(&snapshot, sizeof(snapshot)));
+
+	snapshot_terminal_route();
+	snapshot_route_mutate_at = 1U;
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, hostile_snapshot_storage, &context,
+		sizeof(context)) == CB_ERR);
+
+	snapshot_terminal_route();
+	snapshot_context_mutate_at = 1U;
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, hostile_snapshot_storage, &context,
+		sizeof(context)) == CB_ERR);
+
+	snapshot_terminal_route();
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, (void *)&route, hostile_snapshot_storage, &context,
+		sizeof(context)) == CB_ERR);
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, hostile_snapshot_storage, &context,
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CONTEXT_MAX + 1U) ==
+		CB_ERR);
+}
+
 int main(void)
 {
+	struct payload_mm_authvar_presence_lifecycle_close_snapshot snapshot;
+
 	mtl_policy_composition();
 
 	reset();
 	provision();
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, protected_storage, NULL, 0U) == CB_ERR);
 	public_round(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PRE_EXTERNAL_IMAGE);
+	assert(payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+		&route, &snapshot, protected_storage, NULL, 0U) == CB_SUCCESS);
+	assert(snapshot.endpoint.generation == TEST_GENERATION);
+	assert(snapshot.backing_base == (uintptr_t)backing);
+	assert(snapshot.backing_bytes == sizeof(backing));
 	assert(active_owner_claim ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_PRE_EXTERNAL_CLAIM);
 	public_round(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF);
@@ -702,5 +786,6 @@ int main(void)
 			LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PRE_EXTERNAL_IMAGE);
 		abort();
 	}
+	test_idle_snapshot_hostile();
 	return 0;
 }
