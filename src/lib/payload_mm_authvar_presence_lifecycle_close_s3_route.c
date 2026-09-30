@@ -940,3 +940,26 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_depart(
 	__atomic_store_n(&route->state, S3_ROUTE_IDLE, __ATOMIC_RELEASE);
 	return PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_BSP_EOS_CONSUMED;
 }
+
+bool payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct lb_authvar_presence_lifecycle_close_endpoint *endpoint,
+	uint64_t backing_base, uint64_t backing_size)
+{
+	if (!route || !endpoint ||
+	    __atomic_load_n(&route->state, __ATOMIC_ACQUIRE) != S3_ROUTE_IDLE ||
+	    !immutable_valid(route) || !dma_valid(route) ||
+	    memcmp(endpoint, &route->endpoint, sizeof(*endpoint)) ||
+	    backing_base != route->backing_base ||
+	    backing_size != route->backing_size ||
+	    nonzero(&route->token, sizeof(route->token)) ||
+	    nonzero(&route->sealed_token, sizeof(route->sealed_token)) ||
+	    nonzero(&route->active_ticket, sizeof(route->active_ticket)) ||
+	    nonzero(&route->sealed_active_ticket,
+		sizeof(route->sealed_active_ticket)) ||
+	    smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_READY)
+		return false;
+	return __atomic_load_n(&route->state, __ATOMIC_ACQUIRE) == S3_ROUTE_IDLE &&
+		immutable_valid(route) && dma_valid(route);
+}

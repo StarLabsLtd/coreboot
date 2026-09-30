@@ -126,3 +126,10 @@ out:
 		__atomic_store_n(&sender.ready, 1U, __ATOMIC_RELEASE);
 	return status;
 }
+
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+bool starbook_mtl_dma_receipt_provisioned(void)
+{
+	return __atomic_load_n(&sender.ready, __ATOMIC_ACQUIRE) == 1U;
+}
+#endif

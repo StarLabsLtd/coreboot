@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+#include "authvar_presence_s3_rearm.h"
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD)
 #include "authvar_presence_s3_cold.h"
 #endif
@@ -13,6 +16,8 @@
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_pre_lock_dispatch.h>
 #include <intelblocks/smm_invocation_cause.h>
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
+#include <string.h>
 
 #if !ENV_SMM && !ENV_TEST
 #error "StarBook MTL lifecycle-close dispatcher is SMM-only"
@@ -23,11 +28,31 @@ enum dispatch_state { DISPATCH_IDLE, DISPATCH_ARMING, DISPATCH_ACTIVE,
 	DISPATCH_RECEIPT_PROVISIONING, DISPATCH_RECEIPT_COMPLETE,
 	DISPATCH_POISONED };
 
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+enum dispatch_mode { MODE_NONE, MODE_S3_REARM, MODE_S3_PUBLIC };
+#endif
+
 static struct {
 	uint32_t state;
 	uint32_t install_departures;
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+	uint32_t mode;
+	uint32_t mode_reserved;
 	uint64_t provider_generation;
+	const struct smm_invocation_save_state_ops *active_ops;
+	struct payload_mm_authvar_presence_s3_facts rearm_facts;
+	struct starbook_mtl_dma_smm_epoch_range rearm_ranges[2];
+#else
+	uint64_t provider_generation;
+#endif
 } owner;
+
+#if ENV_TEST
+void starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test(void)
+{
+	memset(&owner, 0, sizeof(owner));
+}
+#endif
 
 __weak enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
 	const struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
@@ -141,6 +166,186 @@ static enum smm_pre_lock_dispatch_result receipt_provision(
 }
 #endif
 
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+static void __noreturn s3_fail_stop(void)
+{
+	starbook_mtl_authvar_presence_s3_rearm_poison();
+	fail_stop();
+}
+
+static void s3_wait_for_state(uint32_t expected, uint32_t max_polls)
+{
+	for (uint32_t poll = 0; poll < max_polls; poll++) {
+		if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) == expected)
+			return;
+		__asm__ __volatile__("pause");
+	}
+	s3_fail_stop();
+}
+
+static void s3_wait_for_eos(struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_entry_ticket *ticket, uint32_t max_polls)
+{
+	for (uint32_t poll = 0; poll < max_polls; poll++) {
+		if (smm_invocation_entry_eos_ready(evidence, ticket))
+			return;
+		__asm__ __volatile__("pause");
+	}
+	s3_fail_stop();
+}
+
+#define fail_stop s3_fail_stop
+static enum smm_pre_lock_dispatch_result s3_dispatch(
+	const struct smm_invocation_runtime_binding *runtime,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_entry_cause *cause,
+	const struct smm_invocation_entry_policy *policy,
+	uint32_t cpu, uint32_t initial_apic_id)
+{
+	const struct payload_mm_authvar_presence_s3_backing *backing;
+	struct starbook_mtl_authvar_presence_s3_binding binding;
+	struct smm_invocation_entry_ticket ticket = { 0 };
+	struct smm_invocation_token token = { 0 };
+	struct smm_apmc_selection_receipt selection = { 0 };
+	uint64_t wire;
+	uint32_t expected;
+	bool bsp = cpu == topology->bsp_cpu;
+
+	if (bsp) {
+		expected = DISPATCH_IDLE;
+		if (!__atomic_compare_exchange_n(&owner.state, &expected,
+			DISPATCH_ARMING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+		    intel_smm_invocation_adapter_provider_provision(
+			&owner.active_ops) != SMM_INVOCATION_TRY_SUCCESS ||
+		    intel_smm_invocation_adapter_provider_arm(
+			&owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS ||
+		    owner.active_ops->read_value(owner.active_ops->context, cpu,
+			&wire) != CB_SUCCESS)
+			fail_stop();
+		if (starbook_mtl_authvar_presence_s3_binding_get(&binding) ==
+			CB_SUCCESS) {
+			if (binding.retained_ops != owner.active_ops ||
+			    wire == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST)
+				fail_stop();
+			owner.mode = MODE_S3_PUBLIC;
+		} else {
+			backing = smm_get_payload_mm_authvar_presence_s3_backing();
+			if (wire != STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST ||
+			    !backing)
+				fail_stop();
+			owner.rearm_ranges[0] =
+				(struct starbook_mtl_dma_smm_epoch_range) {
+					.base = backing->presence.communication_base,
+					.size = PAYLOAD_MM_AUTHVAR_PRESENCE_S3_BACKING_PAGE_SIZE,
+				};
+			owner.rearm_ranges[1] =
+				(struct starbook_mtl_dma_smm_epoch_range) {
+					.base = backing->lifecycle_close.communication_base,
+					.size =
+						PAYLOAD_MM_AUTHVAR_PRESENCE_S3_BACKING_PAGE_SIZE,
+				};
+			if (starbook_mtl_dma_smm_epoch_prepare(runtime->instance,
+				runtime->evidence, runtime->topology,
+				owner.rearm_ranges) != CB_SUCCESS)
+				fail_stop();
+			owner.mode = MODE_S3_REARM;
+		}
+		__atomic_store_n(&owner.state, DISPATCH_ACTIVE, __ATOMIC_RELEASE);
+	} else {
+		s3_wait_for_state(DISPATCH_ACTIVE, policy->max_polls);
+	}
+
+	if (owner.mode == MODE_S3_PUBLIC) {
+		if (starbook_mtl_authvar_presence_s3_binding_get(&binding) !=
+			CB_SUCCESS || binding.retained_ops != owner.active_ops ||
+		    payload_mm_authvar_presence_lifecycle_close_s3_route_arrive(
+			binding.route, cause, policy, cpu, initial_apic_id,
+			&ticket) != CB_SUCCESS)
+			fail_stop();
+		if (bsp) {
+			if (smm_apmc_command_select(
+				SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+				&selection) != SMM_APMC_SELECT_ENABLED ||
+			    payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
+				binding.route, &ticket, &selection) !=
+				SMM_APMC_CONSUMED_SUCCESS)
+				fail_stop();
+			payload_mm_authvar_presence_lifecycle_close_s3_route_prepare_lock_release(
+				binding.route, &ticket);
+			__atomic_store_n(&owner.state, DISPATCH_DEPARTING,
+				__ATOMIC_RELEASE);
+		} else {
+			s3_wait_for_state(DISPATCH_DEPARTING, policy->max_polls);
+		}
+		if (payload_mm_authvar_presence_lifecycle_close_s3_route_depart(
+			binding.route, &ticket) != (bsp ?
+			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_BSP_EOS_CONSUMED :
+			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_PARTICIPANT_DEPARTED))
+			fail_stop();
+	} else if (owner.mode == MODE_S3_REARM) {
+		if (smm_invocation_entry_arrive(runtime->evidence, cause, policy,
+			cause->loader_instance_nonce,
+			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, cpu,
+			initial_apic_id, &ticket) != CB_SUCCESS)
+			fail_stop();
+		if (bsp) {
+			if (smm_apmc_command_select(
+				SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+				&selection) != SMM_APMC_SELECT_ENABLED ||
+			    smm_apmc_command_consume(
+				SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+				SMM_APMC_OWNER_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+				&selection) != SMM_APMC_CONSUMED_SUCCESS ||
+			    smm_invocation_evidence_claim(runtime->evidence,
+				SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+				STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST,
+				owner.active_ops, &token) != CB_SUCCESS ||
+			    smm_invocation_evidence_publish_and_request_close(
+				runtime->evidence, &token,
+				STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_CLOSING,
+				owner.active_ops) != CB_SUCCESS)
+				fail_stop();
+			__atomic_store_n(&owner.state, DISPATCH_DEPARTING,
+				__ATOMIC_RELEASE);
+		} else {
+			s3_wait_for_state(DISPATCH_DEPARTING, policy->max_polls);
+		}
+		if (smm_invocation_entry_depart(runtime->evidence, &ticket) !=
+			CB_SUCCESS)
+			fail_stop();
+		if (bsp) {
+			s3_wait_for_eos(runtime->evidence, &ticket, policy->max_polls);
+			if (starbook_mtl_dma_smm_epoch_activate(runtime->instance,
+				runtime->evidence, runtime->topology, &ticket,
+				owner.rearm_ranges) != CB_SUCCESS ||
+			    starbook_mtl_authvar_presence_s3_rearm_borrow(
+				runtime->instance, &owner.rearm_facts) != CB_SUCCESS ||
+			    starbook_mtl_authvar_presence_s3_rearm_complete(
+				runtime->composition, runtime->instance,
+				runtime->evidence, runtime->topology,
+				owner.active_ops, &owner.rearm_facts) != CB_SUCCESS ||
+			    owner.active_ops->write_value(owner.active_ops->context,
+				cpu, STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_SUCCESS) !=
+				CB_SUCCESS)
+				fail_stop();
+		}
+	} else {
+		fail_stop();
+	}
+	if (!bsp)
+		return SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED;
+	if (intel_smm_invocation_adapter_provider_retire(
+		owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS)
+		fail_stop();
+	owner.provider_generation = 0;
+	owner.active_ops = NULL;
+	owner.mode = MODE_NONE;
+	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
+	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+}
+#undef fail_stop
+#endif
+
 enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	uint32_t cpu, uint32_t initial_apic_id)
 {
@@ -154,6 +359,9 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	struct starbook_mtl_dma_smm_binding dma_binding;
 #endif
 	struct smm_invocation_topology topology;
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+	struct smm_invocation_loader_instance instance;
+#endif
 	struct smm_invocation_entry_cause cause = { 0 };
 	struct smm_invocation_entry_ticket ticket = { 0 };
 	struct smm_apmc_selection_receipt selection = { 0 };
@@ -192,6 +400,18 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	if (classified != INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID)
 		fail_stop();
 	bsp = cpu == topology.bsp_cpu;
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+	if (smm_invocation_loader_instance_read(runtime.instance, &instance) !=
+		CB_SUCCESS || instance.lifecycle != cause.lifecycle ||
+	    !smm_invocation_loader_instance_nonce_equal(
+		instance.loader_instance_nonce, cause.loader_instance_nonce))
+		fail_stop();
+	if (instance.lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD)
+		return s3_dispatch(&runtime, &topology, &cause, &policy, cpu,
+			initial_apic_id);
+	if (instance.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD)
+		fail_stop();
+#endif
 	if (bsp) {
 		expected = DISPATCH_IDLE;
 		if (!__atomic_compare_exchange_n(&owner.state, &expected,

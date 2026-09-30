@@ -10,6 +10,11 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_S3_ROUTE 1' \
 	'#define CONFIG_SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE 1' \
+	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_COMPOSITION 1' \
+	'#define CONFIG_SMM_INVOCATION_LOADER_INSTANCE 1' \
+	'#define CONFIG_SMM_INVOCATION_TOPOLOGY 1' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION 1' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
@@ -48,6 +53,7 @@ production="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
 integration_sources="$root/tests/lib/payload_mm_authvar_presence_lifecycle_close_s3_route_integration_test.c
 	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_endpoint.c
 	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c
+	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c
 	$root/src/cpu/x86/smm_command.c
 	$root/src/cpu/x86/smm_invocation_entry.c
 	$root/src/cpu/x86/smm_invocation_evidence.c

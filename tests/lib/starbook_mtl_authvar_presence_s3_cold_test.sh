@@ -13,6 +13,7 @@ printf '%s\n' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT 1' \
 	'#define CONFIG_SMM_AUTHVAR_S3_STATE_SMRAM 1' \
 	'#define CONFIG_SMM_AUTHVAR_S3_STATE_SMRAM_SIZE 4096' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM 1' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin

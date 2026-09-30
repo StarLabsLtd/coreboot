@@ -130,5 +130,9 @@ enum payload_mm_authvar_presence_lifecycle_close_s3_route_departure
 payload_mm_authvar_presence_lifecycle_close_s3_route_depart(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
 	const struct smm_invocation_entry_ticket *ticket);
+bool payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct lb_authvar_presence_lifecycle_close_endpoint *endpoint,
+	uint64_t backing_base, uint64_t backing_size);
 
 #endif

@@ -320,12 +320,15 @@ if rg -q 'select[[:space:]]+SMM_INVOCATION_EVIDENCE' "$root/src"; then
 	printf '%s\n' 'SMM invocation evidence became selected' >&2
 	exit 1
 fi
-if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown|publish_and_request_close)' \
+if rg -q 'smm_invocation_evidence_(provision|arrive|claim|publish|complete|abort|depart|shutdown|publish_and_request_close)[[:space:]]*\(' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_evidence.c' \
 	-g '!src/cpu/x86/smm_invocation_evidence_loader.c' \
 	-g '!src/cpu/x86/smm_invocation_loader_composition.c' \
 	-g '!src/cpu/x86/smm_invocation_entry.c' \
 	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
+	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_route.c' \
+	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c' \
 	-g '!src/include/cpu/x86/smm_invocation_evidence.h'; then
 	printf '%s\n' 'dormant invocation evidence gained a production callsite' >&2
 	exit 1

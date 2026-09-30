@@ -34,6 +34,7 @@ static unsigned int activate_calls;
 static unsigned int seal_calls;
 static unsigned int poison_calls;
 static unsigned int proof_calls;
+static unsigned int rearm_suspend_calls;
 static unsigned int fail_proof_at;
 static bool loader_read_ok;
 static bool presence_ok;
@@ -41,6 +42,7 @@ static bool close_ok;
 static bool installed_ok;
 static bool activate_ok;
 static bool seal_ok;
+static bool rearm_suspend_ok;
 static jmp_buf fail_stop_jump;
 static bool fail_stop_armed;
 
@@ -112,6 +114,7 @@ static void fixtures_reset(void)
 	seal_calls = 0;
 	poison_calls = 0;
 	proof_calls = 0;
+	rearm_suspend_calls = 0;
 	fail_proof_at = 0;
 	loader_read_ok = true;
 	presence_ok = true;
@@ -119,6 +122,7 @@ static void fixtures_reset(void)
 	installed_ok = true;
 	activate_ok = true;
 	seal_ok = true;
+	rearm_suspend_ok = false;
 	fail_stop_armed = false;
 	starbook_mtl_authvar_presence_s3_cold_reset_test();
 }
@@ -245,6 +249,12 @@ void smm_invocation_platform_fail_stop(void)
 	longjmp(fail_stop_jump, 1);
 }
 
+enum cb_err starbook_mtl_authvar_presence_s3_rearm_suspend(void)
+{
+	rearm_suspend_calls++;
+	return rearm_suspend_ok ? CB_SUCCESS : CB_ERR;
+}
+
 static void install_and_activate(void)
 {
 	assert(starbook_mtl_authvar_presence_s3_cold_install(&instance) == CB_SUCCESS);
@@ -322,26 +332,33 @@ static void test_sleep_hook(void)
 {
 	fixtures_reset();
 	mainboard_smi_sleep(ACPI_S5);
-	assert(seal_calls == 0U && poison_calls == 0U);
+	assert(seal_calls == 0U && rearm_suspend_calls == 0U && poison_calls == 0U);
+
+	fixtures_reset();
+	rearm_suspend_ok = true;
+	mainboard_smi_sleep(ACPI_S3);
+	assert(seal_calls == 0U && rearm_suspend_calls == 1U && poison_calls == 0U);
+
+	fixtures_reset();
 	expect_s3_fail_stop();
-	assert(seal_calls == 0U && poison_calls == 1U);
+	assert(seal_calls == 0U && rearm_suspend_calls == 1U && poison_calls == 0U);
 
 	fixtures_reset();
 	install_and_activate();
 	mainboard_smi_sleep(ACPI_S3);
-	assert(seal_calls == 1U && poison_calls == 0U);
+	assert(seal_calls == 1U && rearm_suspend_calls == 0U && poison_calls == 0U);
 
 	fixtures_reset();
 	install_and_activate();
 	presence_endpoint.generation++;
 	expect_s3_fail_stop();
-	assert(seal_calls == 0U && poison_calls == 1U);
+	assert(seal_calls == 0U && rearm_suspend_calls == 0U && poison_calls == 1U);
 
 	fixtures_reset();
 	install_and_activate();
 	seal_ok = false;
 	expect_s3_fail_stop();
-	assert(seal_calls == 1U && poison_calls == 1U);
+	assert(seal_calls == 1U && rearm_suspend_calls == 0U && poison_calls == 1U);
 }
 
 static void test_protection_failure(void)

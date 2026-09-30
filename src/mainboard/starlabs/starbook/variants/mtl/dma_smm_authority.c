@@ -131,8 +131,9 @@ static bool workspace_protected(
 			(const void *)(uintptr_t)table_read64, 1U);
 }
 
-enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
-	const struct starbook_mtl_dma_smm_receipt *receipt)
+static enum cb_err authority_verify(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct starbook_mtl_dma_requester_binding *expected)
 {
 	struct starbook_mtl_dma_smm_authority_workspace *workspace = context;
 	const struct smm_invocation_runtime_view *runtime_view;
@@ -143,17 +144,14 @@ enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
 		STARBOOK_MTL_DMA_REQUESTER_ROLE_COUNT];
 	struct vtd_translation_view view;
 
-	if (!workspace || !receipt ||
+	if (!workspace || !receipt || !expected ||
 	    smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
 	    !workspace_protected(workspace, runtime_view) ||
 	    !protected_span(runtime_view, receipt, sizeof(*receipt)))
 		return CB_ERR;
 	workspace->identity = AUTHORITY_IDENTITY;
 	if (binding_read(workspace, &before) != CB_SUCCESS ||
-	    !smm_invocation_loader_instance_nonce_equal(
-		before.loader_instance_nonce, receipt->loader_instance_nonce) ||
-	    before.invocation_generation != receipt->invocation_generation ||
-	    before.loader_lifecycle != receipt->loader_lifecycle)
+	    memcmp(&before, expected, sizeof(before)))
 		return CB_ERR;
 
 	workspace->runtime_view = runtime_view;
@@ -212,4 +210,50 @@ enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
 	    memcmp(&view, &workspace->view, sizeof(view)))
 		return CB_ERR;
 	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	struct starbook_mtl_dma_requester_binding expected;
+
+	if (!receipt)
+		return CB_ERR;
+	expected = (struct starbook_mtl_dma_requester_binding) {
+		.loader_instance_nonce = receipt->loader_instance_nonce,
+		.invocation_generation = receipt->invocation_generation,
+		.loader_lifecycle = receipt->loader_lifecycle,
+	};
+	return authority_verify(context, receipt, &expected);
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify_epoch(void *context,
+	const struct starbook_mtl_dma_smm_receipt *sealed_receipt,
+	const struct starbook_mtl_dma_requester_binding *live_binding)
+{
+	if (!sealed_receipt || !live_binding ||
+	    !smm_invocation_loader_instance_nonce_equal(
+		sealed_receipt->loader_instance_nonce,
+		live_binding->loader_instance_nonce) ||
+	    sealed_receipt->loader_lifecycle != live_binding->loader_lifecycle ||
+	    sealed_receipt->invocation_generation == UINT64_MAX ||
+	    live_binding->invocation_generation !=
+		sealed_receipt->invocation_generation + 1U)
+		return CB_ERR;
+	return authority_verify(context, sealed_receipt, live_binding);
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify_live_policy(void *context,
+	const struct starbook_mtl_dma_smm_receipt *sealed_policy,
+	const struct starbook_mtl_dma_requester_binding *current_binding)
+{
+	if (!sealed_policy || !current_binding ||
+	    !smm_invocation_loader_instance_nonce_equal(
+		sealed_policy->loader_instance_nonce,
+		current_binding->loader_instance_nonce) ||
+	    sealed_policy->loader_lifecycle != current_binding->loader_lifecycle ||
+	    current_binding->invocation_generation <=
+		sealed_policy->invocation_generation)
+		return CB_ERR;
+	return authority_verify(context, sealed_policy, current_binding);
 }

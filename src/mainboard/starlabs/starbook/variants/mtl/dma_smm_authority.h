@@ -24,5 +24,11 @@ struct starbook_mtl_dma_smm_authority_workspace {
 
 enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
 	const struct starbook_mtl_dma_smm_receipt *receipt);
+enum cb_err starbook_mtl_dma_smm_authority_verify_epoch(void *context,
+	const struct starbook_mtl_dma_smm_receipt *sealed_receipt,
+	const struct starbook_mtl_dma_requester_binding *live_binding);
+enum cb_err starbook_mtl_dma_smm_authority_verify_live_policy(void *context,
+	const struct starbook_mtl_dma_smm_receipt *sealed_policy,
+	const struct starbook_mtl_dma_requester_binding *current_binding);
 
 #endif

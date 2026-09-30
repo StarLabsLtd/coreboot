@@ -198,6 +198,8 @@ test-starbook-mtl-authvar-presence-lifecycle-close-install:
 test-starbook-mtl-authvar-presence-lifecycle-close-dispatch:
 	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_test.sh
 	tests/lib/starbook_mtl_authvar_presence_s3_cold_test.sh
+	tests/lib/starbook_mtl_authvar_presence_s3_rearm_sender_test.sh
+	tests/lib/starbook_mtl_authvar_presence_s3_rearm_test.sh
 	tests/lib/starbook_mtl_authvar_presence_lifecycle_close_dispatch_profiles_test.sh
 
 .PHONY: test-starbook-mtl-authvar-presence-lifecycle-close-dma-policy

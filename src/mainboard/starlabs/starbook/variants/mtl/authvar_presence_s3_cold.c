@@ -2,6 +2,9 @@
 
 #include "authvar_presence_s3_cold.h"
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+#include "authvar_presence_s3_rearm.h"
+#endif
 
 #include <acpi/acpi.h>
 #include <boot/payload_mm_authvar_presence_authority.h>
@@ -35,7 +38,8 @@ static __noinline void scrub(void *buffer, size_t size)
 	__asm__ __volatile__("" : : "r" (bytes) : "memory");
 }
 
-static bool protected_storage(void *unused, const void *object, size_t size)
+bool starbook_mtl_authvar_presence_s3_protected_storage(
+	void *unused, const void *object, size_t size)
 {
 	const struct smm_invocation_runtime_view *view;
 
@@ -45,7 +49,8 @@ static bool protected_storage(void *unused, const void *object, size_t size)
 			CB_SUCCESS;
 }
 
-static bool record_storage(void **storage, size_t *size)
+bool starbook_mtl_authvar_presence_s3_record_storage(
+	void **storage, size_t *size)
 {
 	uintptr_t base;
 
@@ -55,7 +60,16 @@ static bool record_storage(void **storage, size_t *size)
 	*storage = (void *)base;
 	return base && *size == CONFIG_SMM_AUTHVAR_S3_STATE_SMRAM_SIZE &&
 		*size >= payload_mm_authvar_presence_s3_record_size() &&
-		protected_storage(NULL, *storage, *size);
+		starbook_mtl_authvar_presence_s3_protected_storage(NULL, *storage, *size);
+}
+
+#define protected_storage starbook_mtl_authvar_presence_s3_protected_storage
+#define record_storage starbook_mtl_authvar_presence_s3_record_storage
+
+bool starbook_mtl_authvar_presence_s3_cold_active(void)
+{
+	return protected_storage(NULL, &owner, sizeof(owner)) &&
+		__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) == COLD_ACTIVE;
 }
 
 static void poison(void)
@@ -218,8 +232,19 @@ void mainboard_smi_sleep(u8 slp_typ)
 {
 	if (slp_typ != ACPI_S3)
 		return;
-	if (starbook_mtl_authvar_presence_s3_suspend() != CB_SUCCESS)
-		smm_invocation_platform_fail_stop();
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
+	if (starbook_mtl_authvar_presence_s3_cold_active()) {
+		if (starbook_mtl_authvar_presence_s3_suspend() == CB_SUCCESS)
+			return;
+	} else if (starbook_mtl_authvar_presence_s3_rearm_suspend() ==
+		CB_SUCCESS) {
+		return;
+	}
+#else
+	if (starbook_mtl_authvar_presence_s3_suspend() == CB_SUCCESS)
+		return;
+#endif
+	smm_invocation_platform_fail_stop();
 }
 
 #if ENV_TEST

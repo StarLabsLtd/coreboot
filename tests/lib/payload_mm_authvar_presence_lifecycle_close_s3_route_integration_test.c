@@ -3,11 +3,16 @@
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_lifecycle_close_s3_route.h>
 #include <bootmem.h>
+#include <cpu/x86/smm.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "../../src/lib/payload_mm_crypto/crypto.h"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.h"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
 
 #undef assert
 static void __noreturn assertion_failed(unsigned int line)
@@ -39,6 +44,11 @@ struct integration_fixture {
 	uint8_t backing[
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_SIZE]
 		__aligned(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_ALIGNMENT);
+	uint8_t presence_backing[4096] __aligned(4096);
+	uint8_t dma_memory[5 * 4096] __aligned(4096);
+	uint8_t mirror_memory[4096] __aligned(4096);
+	struct starbook_mtl_dma_receipt_frame dma_frame __aligned(8);
+	struct smm_dma_receipt_memory dma_layout;
 	struct smm_invocation_loader_composition composition;
 	struct smm_invocation_loader_instance instance;
 	struct smm_invocation_evidence evidence;
@@ -52,6 +62,10 @@ struct integration_fixture {
 	struct lb_authvar_presence_lifecycle_close_endpoint endpoint;
 	struct payload_mm_authvar_presence_lifecycle_close_s3_policy policy;
 	unsigned int restrict_calls;
+	uint64_t dma_wire;
+	unsigned int epoch_collecting_calls;
+	unsigned int epoch_late_calls;
+	unsigned int epoch_terminal_calls;
 };
 
 struct arrival_call {
@@ -70,6 +84,116 @@ struct departure_call {
 };
 
 static struct integration_fixture *active_fixture;
+static struct smm_invocation_runtime_view *runtime_view = (void *)0x1234;
+
+enum cb_err smm_invocation_runtime_view_get(
+	const struct smm_invocation_runtime_view **view)
+{
+	*view = runtime_view;
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_runtime_binding_get(
+	struct smm_invocation_runtime_binding *binding)
+{
+	*binding = (struct smm_invocation_runtime_binding) {
+		.composition = &active_fixture->composition,
+		.instance = &active_fixture->instance,
+		.evidence = &active_fixture->evidence,
+		.topology = &active_fixture->topology,
+	};
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_runtime_range_is_protected(
+	const struct smm_invocation_runtime_view *view, const void *base, size_t size)
+{
+	if (view != runtime_view || !base || !size)
+		return CB_ERR;
+	if (base == &active_fixture->dma_frame &&
+	    size == sizeof(active_fixture->dma_frame))
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+
+bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size)
+{
+	*base = (uintptr_t)&active_fixture->dma_frame;
+	*size = sizeof(active_fixture->dma_frame);
+	return true;
+}
+
+bool smm_get_dma_receipt_memory(const struct smm_dma_receipt_memory **memory)
+{
+	*memory = &active_fixture->dma_layout;
+	return true;
+}
+
+void smm_region(uintptr_t *base, size_t *size)
+{
+	*base = 0x90000000U;
+	*size = 0x100000U;
+}
+
+enum payload_mm_verify_status payload_mm_sha256(const void *message,
+	size_t message_size, uint8_t digest[32])
+{
+	const uint8_t *bytes = message;
+	uint8_t value = 0;
+
+	for (size_t index = 0; index < message_size; index++)
+		value ^= bytes[index];
+	memset(digest, value, 32);
+	return PAYLOAD_MM_VERIFY_OK;
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	return context && receipt ? CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify_epoch(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct starbook_mtl_dma_requester_binding *binding)
+{
+	return context && receipt && binding &&
+		binding->invocation_generation == receipt->invocation_generation + 1U ?
+		CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_smm_authority_verify_live_policy(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	const struct starbook_mtl_dma_requester_binding *binding)
+{
+	return context && receipt && binding &&
+		binding->invocation_generation > receipt->invocation_generation ?
+		CB_SUCCESS : CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_smm_verify(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	uint64_t lifecycle_base, size_t lifecycle_size,
+	const struct starbook_mtl_dma_smm_observer *observer,
+	const struct smm_invocation_runtime_view *view,
+	struct starbook_mtl_dma_smm_workspace *workspace)
+{
+	(void)lifecycle_base;
+	(void)lifecycle_size;
+	(void)workspace;
+	if (!receipt || !observer || view != runtime_view)
+		return CB_ERR;
+	return observer->verify_translation(observer->context, receipt);
+}
+
+bool starbook_mtl_dma_smm_receipt_geometry_valid(
+	const struct starbook_mtl_dma_smm_receipt *receipt,
+	uint64_t forbidden_base, size_t forbidden_size)
+{
+	(void)forbidden_base;
+	(void)forbidden_size;
+	return receipt && receipt->tables.base && receipt->tables.size;
+}
 
 enum cb_err smm_invocation_platform_loader_instance_take(
 	struct smm_invocation_loader_instance_seed *seed)
@@ -118,6 +242,50 @@ static bool range_proof(void *context, uint64_t base, uint64_t size)
 	return proof && proof->magic == PROOF_MAGIC &&
 		base == (uintptr_t)active_fixture->backing &&
 		size == sizeof(active_fixture->backing);
+}
+
+static bool epoch_range_proof(void *context, uint64_t base, uint64_t size)
+{
+	const uint32_t phase = smm_invocation_evidence_phase(
+		&active_fixture->evidence);
+
+	assert(context && ((struct range_context *)context)->magic == PROOF_MAGIC);
+	if (phase == SMM_INVOCATION_COLLECTING)
+		active_fixture->epoch_collecting_calls++;
+	else if (phase >= SMM_INVOCATION_CLAIMED &&
+		 phase <= SMM_INVOCATION_CLOSING)
+		active_fixture->epoch_late_calls++;
+	else if (phase == SMM_INVOCATION_READY)
+		active_fixture->epoch_terminal_calls++;
+	return starbook_mtl_dma_smm_epoch_range_protected(NULL, base, size);
+}
+
+static enum smm_invocation_match dma_match(void *context, uint32_t cpu,
+	uint8_t command)
+{
+	(void)context;
+	return !cpu && command == SMM_APMC_STARBOOK_MTL_DMA_RECEIPT ?
+		SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
+}
+
+static enum cb_err dma_read(void *context, uint32_t cpu, uint64_t *value)
+{
+	struct integration_fixture *fixture = context;
+
+	if (fixture != active_fixture || cpu || !value)
+		return CB_ERR;
+	*value = fixture->dma_wire;
+	return CB_SUCCESS;
+}
+
+static enum cb_err dma_write(void *context, uint32_t cpu, uint64_t value)
+{
+	struct integration_fixture *fixture = context;
+
+	if (fixture != active_fixture || cpu)
+		return CB_ERR;
+	fixture->dma_wire = value;
+	return CB_SUCCESS;
 }
 
 static enum smm_invocation_match match(void *context, uint32_t cpu,
@@ -345,6 +513,36 @@ static void setup(struct integration_fixture *fixture)
 
 	memset(fixture, 0, sizeof(*fixture));
 	active_fixture = fixture;
+	fixture->dma_layout = (struct smm_dma_receipt_memory) {
+		.revision = SMM_DMA_RECEIPT_MEMORY_REVISION,
+		.size = sizeof(fixture->dma_layout),
+		.frame = { (uintptr_t)&fixture->dma_frame,
+			sizeof(fixture->dma_frame) },
+		.dma = { (uintptr_t)fixture->dma_memory,
+			sizeof(fixture->dma_memory) },
+		.mirror = { (uintptr_t)fixture->mirror_memory,
+			sizeof(fixture->mirror_memory) },
+	};
+	fixture->dma_frame = (struct starbook_mtl_dma_receipt_frame) {
+		.revision = STARBOOK_MTL_DMA_RECEIPT_FRAME_REVISION,
+		.size = sizeof(fixture->dma_frame),
+		.state = STARBOOK_MTL_DMA_RECEIPT_FRAME_REQUEST,
+		.candidate = {
+			.revision = STARBOOK_MTL_DMA_SMM_RECEIPT_REVISION,
+			.size = sizeof(fixture->dma_frame.candidate),
+			.handoff = { (uintptr_t)fixture->dma_memory, 4096 },
+			.tables = { (uintptr_t)fixture->dma_memory + 4096, 4096 },
+			.table_mirror = {
+				(uintptr_t)fixture->mirror_memory, 4096 },
+			.arenas = {
+				{ (uintptr_t)fixture->dma_memory + 8192, 4096 },
+				{ (uintptr_t)fixture->dma_memory + 12288, 4096 },
+				{ (uintptr_t)fixture->dma_memory + 16384, 4096 },
+			},
+		},
+	};
+	fixture->dma_wire = (uint64_t)(uint32_t)(uintptr_t)&fixture->dma_frame << 32 |
+		STARBOOK_MTL_DMA_RECEIPT_WIRE_REQUEST;
 	fixture->provenance_context.magic = PROOF_MAGIC;
 	fixture->dma_context.magic = PROOF_MAGIC;
 	fixture->storage_context.magic = PROOF_MAGIC;
@@ -401,7 +599,7 @@ static void setup(struct integration_fixture *fixture)
 			.dram_provenance_context = &fixture->provenance_context,
 			.dram_provenance_context_size =
 				sizeof(fixture->provenance_context),
-			.dma_protected = range_proof,
+			.dma_protected = epoch_range_proof,
 			.dma_context = &fixture->dma_context,
 			.dma_context_size = sizeof(fixture->dma_context),
 		};
@@ -410,20 +608,61 @@ static void setup(struct integration_fixture *fixture)
 int main(void)
 {
 	static struct integration_fixture fixture;
+	const struct smm_invocation_save_state_ops dma_ops = {
+		.match_apmc_write = dma_match,
+		.read_value = dma_read,
+		.write_value = dma_write,
+		.context = &fixture,
+		.context_size = sizeof(fixture),
+	};
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2] = {
+		{ (uintptr_t)fixture.presence_backing,
+			sizeof(fixture.presence_backing) },
+		{ (uintptr_t)fixture.backing, sizeof(fixture.backing) },
+	};
+	struct smm_invocation_entry_ticket activation_ticket;
 	uint64_t predecessor, first, second;
+	unsigned int terminal_before_retained_checks;
 
 	setup(&fixture);
 	predecessor = seed_predecessor(&fixture);
+	assert(starbook_mtl_dma_receipt_provision_receive(&dma_ops) == CB_SUCCESS);
+	assert(starbook_mtl_dma_smm_epoch_prepare(&fixture.instance,
+		&fixture.evidence, &fixture.topology, ranges) == CB_SUCCESS);
+	predecessor = seed_predecessor(&fixture);
+	activation_ticket = (struct smm_invocation_entry_ticket) {
+		.generation = predecessor,
+		.loader_instance_nonce = fixture.instance.loader_instance_nonce,
+		.cpu = fixture.topology.bsp_cpu,
+		.lifecycle = fixture.instance.lifecycle,
+	};
+	assert(starbook_mtl_dma_smm_epoch_activate(&fixture.instance,
+		&fixture.evidence, &fixture.topology, &activation_ticket,
+		ranges) == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 		&fixture.route, &fixture.endpoint, &fixture.composition,
 		&fixture.instance, &fixture.evidence, &fixture.topology,
 		&fixture.ops, &fixture.policy, protected_storage,
 		&fixture.storage_context, sizeof(fixture.storage_context)) == CB_SUCCESS);
+	assert(starbook_mtl_dma_smm_epoch_retain() == CB_SUCCESS);
+	terminal_before_retained_checks = fixture.epoch_terminal_calls;
 	assert(fixture.route.predecessor_invocation_generation == predecessor);
 	assert(fixture.route.ops.context != fixture.route.sealed_ops.context);
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+		&fixture.route, &fixture.endpoint, (uintptr_t)fixture.backing,
+		sizeof(fixture.backing)));
 	first = run_route_round(&fixture);
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+		&fixture.route, &fixture.endpoint, (uintptr_t)fixture.backing,
+		sizeof(fixture.backing)));
 	second = run_route_round(&fixture);
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+		&fixture.route, &fixture.endpoint, (uintptr_t)fixture.backing,
+		sizeof(fixture.backing)));
 	assert(predecessor < first && first < second);
+	assert(fixture.epoch_collecting_calls);
+	assert(fixture.epoch_late_calls);
+	assert(fixture.epoch_terminal_calls - terminal_before_retained_checks == 6U);
 	assert(fixture.restrict_calls == 4U);
 	return 0;
 }
