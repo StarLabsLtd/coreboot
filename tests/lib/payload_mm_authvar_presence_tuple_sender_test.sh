@@ -127,7 +127,7 @@ mutation no-context-recheck \
 # Compiler barriers are a source-level transport contract on i386. Require
 # each compiled mutant to differ, then let the exact source oracle reject it.
 fence_mutant="$temporary/no-release-fence.c"
-sed '0,/__ATOMIC_RELEASE/s//__ATOMIC_ACQUIRE/' \
+sed '0,/__atomic_thread_fence(__ATOMIC_RELEASE)/s/__atomic_thread_fence(__ATOMIC_RELEASE)/__atomic_thread_fence(__ATOMIC_ACQUIRE)/' \
 	"$root/src/lib/payload_mm_authvar_presence_tuple_sender.c" > "$fence_mutant"
 test ! "$fence_mutant" -ef \
 	"$root/src/lib/payload_mm_authvar_presence_tuple_sender.c"

@@ -2,6 +2,9 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_publication.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+#include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#endif
 #include <pthread.h>
 #include <sched.h>
 #include <signal.h>
@@ -23,6 +26,7 @@ static unsigned int compose_calls;
 static unsigned int take_calls;
 static unsigned int complete_calls;
 static unsigned int abort_calls;
+static unsigned int sender_close_calls;
 static unsigned int record_calls;
 static unsigned int required_calls;
 static unsigned int composition_calls;
@@ -50,6 +54,18 @@ static unsigned int race_mode;
 static unsigned int race_phase;
 static enum cb_err owner_status;
 static enum cb_err contender_status;
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void)
+{
+	return CB_SUCCESS;
+}
+
+void payload_mm_authvar_presence_tuple_sender_close(void)
+{
+	sender_close_calls++;
+}
+#endif
 
 #define lb_add_payload_mm_authvar_presence_endpoint(header) \
 	lb_add_payload_mm_authvar_presence_endpoint((header), active_table_end)
@@ -263,6 +279,7 @@ static void reset(void)
 	take_calls = 0;
 	complete_calls = 0;
 	abort_calls = 0;
+	sender_close_calls = 0;
 	record_calls = required_calls = composition_calls = 0;
 	scrubbed_compositions = 0;
 	scrubbed_endpoints = 0;
@@ -343,6 +360,9 @@ static void failures(void)
 	memcpy(before, table_storage, sizeof(before));
 	assert(lb_add_payload_mm_authvar_presence_endpoint(active_header) == CB_ERR);
 	assert(!abort_calls && take_calls == 1 && record_calls == 1);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+	assert(sender_close_calls == 1);
+#endif
 	assert(!memcmp(before, table_storage, sizeof(before)));
 
 	reset();

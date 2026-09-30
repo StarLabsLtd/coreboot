@@ -42,6 +42,25 @@ run_test()
 
 run_test strict-O0 "$source" -O0
 run_test strict-O2 "$source" -O2
+run_test coupled-loader-O0 "$source" -O0 \
+	-DCONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER=1 \
+	-DCONFIG_SMM_INVOCATION_RUNTIME_BINDING=1
+run_test coupled-loader-O2 "$source" -O2 \
+	-DCONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER=1 \
+	-DCONFIG_SMM_INVOCATION_RUNTIME_BINDING=1
+# Keep the FINALIZING error epilogue independent of fail()'s earlier cleanup.
+sed '/if (status != CB_SUCCESS) {/,/PUBLICATION_FINALIZING) {/ {
+ /payload_mm_authvar_presence_tuple_sender_close();/d
+}' "$source" > "$temporary/no-final-sender-close.c"
+test "$(rg -c 'payload_mm_authvar_presence_tuple_sender_close\(\);' \
+	"$temporary/no-final-sender-close.c")" -eq 1
+build_test no-final-sender-close "$temporary/no-final-sender-close.c" -O2 \
+	-DCONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER=1 \
+	-DCONFIG_SMM_INVOCATION_RUNTIME_BINDING=1
+if "$temporary/no-final-sender-close" >/dev/null 2>&1; then
+	echo 'mutation survived: FINALIZING sender cleanup' >&2
+	exit 1
+fi
 run_test sanitized-O0 "$source" -O0 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
 run_test sanitized-O2 "$source" -O2 -g -fno-omit-frame-pointer \

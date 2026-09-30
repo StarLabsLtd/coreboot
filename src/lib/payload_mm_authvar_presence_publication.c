@@ -282,6 +282,9 @@ out:
 	scrub(&composition, sizeof(composition));
 	scrub(&receipt, sizeof(receipt));
 	if (status != CB_SUCCESS) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+		payload_mm_authvar_presence_tuple_sender_close();
+#endif
 		if (__atomic_load_n(&publication_state, __ATOMIC_ACQUIRE) ==
 		    PUBLICATION_FINALIZING) {
 			uint32_t expected = PUBLICATION_FINALIZING;
