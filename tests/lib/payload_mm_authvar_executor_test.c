@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_executor.h>
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+#include <boot/payload_mm_authvar_format.h>
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 #include <boot/payload_mm_authvar_presence_authority.h>
 #include <bootmem.h>
@@ -615,6 +618,9 @@ static bool fault(enum test_callback_kind kind)
 }
 
 #ifndef EXECUTOR_REAL_MEDIA
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+static struct payload_mm_authvar_range service_communication;
+#endif
 bool payload_mm_authvar_contract_valid(
 	const struct payload_mm_authvar_contract *contract)
 {
@@ -629,6 +635,9 @@ bool payload_mm_authvar_authority_snapshot(
 	contract->size = sizeof(*contract);
 	contract->flags = PAYLOAD_MM_AUTHVAR_REQUIRED_FLAGS;
 	contract->generation = 1;
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+	contract->communication = service_communication;
+#endif
 	contract->store_size = authority_store_size;
 	contract->block_size = BLOCK_SIZE;
 	contract->erase_size = BLOCK_SIZE;
@@ -4174,6 +4183,9 @@ static unsigned int production_set_calls;
 static const char *production_set_scenario;
 static struct payload_mm_authvar_policy_request *production_set_request;
 static struct payload_mm_authvar_policy_result *production_set_result;
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+static struct payload_mm_authvar_service_frame *production_service_input;
+#endif
 
 static enum payload_mm_verify_status coordinator_verify(void *context,
 	const struct payload_mm_authvar_authority_verify_request *request,
@@ -4190,6 +4202,10 @@ static enum payload_mm_verify_status coordinator_verify(void *context,
 		else if (!strcmp(production_set_scenario, "production-set-reentry"))
 			assert(payload_mm_authvar_set_transaction(production_set_request,
 				production_set_result) == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+		else if (!strcmp(production_set_scenario, "production-service-header-drift"))
+			production_service_input->request_id++;
+#endif
 		verification->accepted_authority = coordinator_accepted_authority;
 		return !strcmp(production_set_scenario, "production-set-deny") ?
 			PAYLOAD_MM_VERIFY_REJECTED : PAYLOAD_MM_VERIFY_OK;
@@ -5291,6 +5307,147 @@ static void variable_policy_fixture(uint8_t entry[44], const uint8_t guid[16],
 	entry[28] = maximum_size;
 	entry[40] = lock_type;
 }
+
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+static void production_service_test(const char *scenario)
+{
+	struct coordinator_fixture fixture;
+	struct lb_authvar_service_endpoint endpoint = {
+		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT, .size = sizeof(endpoint),
+		.revision = 2, .header_size = sizeof(endpoint),
+		.flags = LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS, .generation = 1,
+		.communication_base = 0x100000, .communication_size = 512,
+		.message_size = 512, .transport = 1, .trigger_width = 1,
+		.trigger_address = 0xb2, .trigger_value = 0xfc,
+		.maximum_name_size = 128, .maximum_data_size = 240,
+	};
+	uint8_t input[512] __aligned(8), output[512] __aligned(8), before[512];
+	struct payload_mm_authvar_service_frame *request = (void *)input;
+	struct payload_mm_authvar_service_frame *response = (void *)output;
+	static const uint8_t name[] = { 'O', 0, 'r', 0, 'd', 0, 0, 0 };
+	static const uint32_t operations[] = { 3, 1, 2, 4, 7, 8, 5, 6 };
+	unsigned int programs;
+
+	coordinator_fixture_init(&fixture);
+	service_communication = (struct payload_mm_authvar_range) {
+		.base = endpoint.communication_base, .size = endpoint.communication_size,
+	};
+	programs = program_count;
+	for (size_t i = 0; i < sizeof(operations) / sizeof(operations[0]); i++) {
+		memset(input, 0, sizeof(input));
+		memset(output, 0xa5, sizeof(output));
+		request->revision = 2;
+		request->header_size = 144;
+		request->generation = 1;
+		request->request_id = i + 1U;
+		request->operation = operations[i];
+		request->status = UINT64_MAX;
+		request->completion = UINT32_MAX;
+		if (request->operation == 3 || request->operation == 1) {
+			memcpy(input + 144, name, sizeof(name));
+			request->name_size = sizeof(name);
+			memcpy(request->vendor_guid, caller_guid, sizeof(caller_guid));
+		}
+		if (request->operation == 3) {
+			request->attributes = 7;
+			request->data_size = 1;
+			input[272] = 0x33;
+		} else if (request->operation == 1) {
+			request->data_capacity = 1;
+		} else if (request->operation == 2) {
+			request->name_capacity = 128;
+		} else if (request->operation == 4) {
+			request->attributes = 7;
+		} else if (request->operation == 7) {
+			request->data_size = 44;
+			variable_policy_fixture(input + 272, caller_guid, 0, 1);
+		}
+		if (i == 0 && (!strcmp(scenario, "production-service-auth2") ||
+		    !strcmp(scenario, "production-service-auth2-overflow") ||
+		    !strcmp(scenario, "production-service-header-drift"))) {
+			request->attributes = fixture.policy_request.attributes;
+			request->name_size = (uint32_t)fixture.policy_request.name_size;
+			request->data_size = (uint32_t)fixture.policy_request.data_size;
+			memcpy(request->vendor_guid, fixture.policy_request.vendor_guid, 16);
+			memcpy(input + 144, fixture.policy_request.name, request->name_size);
+			assert(request->data_size <= endpoint.maximum_data_size);
+			memcpy(input + 272, fixture.policy_request.data, request->data_size);
+			production_set_active = true;
+			production_set_scenario = scenario;
+			production_service_input = request;
+			if (!strcmp(scenario, "production-service-auth2-overflow")) {
+				uint8_t envelope[241];
+				struct payload_mm_authvar_auth2_view view;
+
+				memset(envelope, 0, sizeof(envelope));
+				/* Valid format: 16-byte timestamp, 224-byte certificate, one payload byte. */
+				put32(envelope + 16, 224);
+				assert(payload_mm_authvar_auth2_parse(envelope, sizeof(envelope),
+					&view) == PAYLOAD_MM_AUTHVAR_FORMAT_OK);
+				assert(view.payload.size == 1);
+				request->data_size = sizeof(envelope);
+				memcpy(input + 272, envelope, endpoint.maximum_data_size);
+				memcpy(before, output, sizeof(before));
+				assert(payload_mm_authvar_service_transaction(&endpoint, input,
+					output, sizeof(input)) == CB_ERR);
+				assert(!memcmp(before, output, sizeof(before)) &&
+					program_count == programs && !production_set_calls);
+				return;
+			}
+		}
+		if (request->operation == 4 &&
+		    !strcmp(scenario, "production-service-auth-query"))
+			request->attributes |= PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+		if (!strcmp(scenario, "production-service-alias")) {
+			memcpy(before, input, sizeof(before));
+			assert(payload_mm_authvar_service_transaction(&endpoint, input,
+				input, sizeof(input)) == CB_ERR);
+			assert(!memcmp(before, input, sizeof(before)) && program_count == programs);
+			return;
+		}
+		if (!strcmp(scenario, "production-service-generation")) {
+			endpoint.generation++;
+			memcpy(before, output, sizeof(before));
+			assert(payload_mm_authvar_service_transaction(&endpoint, input,
+				output, sizeof(input)) == CB_ERR);
+			assert(!memcmp(before, output, sizeof(before)) && program_count == programs);
+			return;
+		}
+		if (!strcmp(scenario, "production-service-header-drift")) {
+			assert(payload_mm_authvar_service_transaction(&endpoint, input, output,
+				sizeof(input)) == CB_ERR);
+			/* Fail-stop is required by the outer route; no rollback is claimed. */
+			assert(program_count > programs && production_set_calls &&
+				response->status == UINT64_MAX && response->completion == UINT32_MAX);
+			for (size_t byte = 0; byte < sizeof(output); byte++) {
+				if ((byte < 96 || byte >= 104) && (byte < 140 || byte >= 144))
+					assert(output[byte] == 0);
+			}
+			return;
+		}
+		assert(payload_mm_authvar_service_transaction(&endpoint, input, output,
+			sizeof(input)) == CB_SUCCESS);
+		assert(response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+			response->completion == 0);
+		assert(payload_mm_authvar_service_response_validate(&endpoint, input, output,
+			sizeof(output)) == CB_SUCCESS);
+		if (!strcmp(scenario, "production-service-auth2")) {
+			assert(production_set_calls && program_count > programs);
+			return;
+		}
+		if (request->operation == 1)
+			assert(response->result_data_size == 1 && output[272] == 0x33);
+		if (request->operation == 2)
+			assert(response->result_name_size >= 4);
+		if (request->operation == 4) {
+			if (!strcmp(scenario, "production-service-auth-query"))
+				assert(response->maximum_variable > endpoint.maximum_data_size);
+			else
+				assert(response->maximum_variable <= endpoint.maximum_data_size);
+		}
+	}
+}
+#endif
 
 static void coordinator_variable_policy(const char *scenario)
 {
@@ -7700,6 +7857,12 @@ int main(int argc, char **argv)
 	}
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#ifdef EXECUTOR_SERVICE_TRANSACTION
+	if (!strncmp(argv[1], "production-service-", 19)) {
+		production_service_test(argv[1]);
+		return 0;
+	}
+#endif
 	if (!strncmp(argv[1], "production-set-", 15)) {
 		production_set_test(argv[1]);
 		return 0;

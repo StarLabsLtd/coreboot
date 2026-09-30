@@ -19,7 +19,7 @@ for optimization in 0 2; do
 	${HOSTCC:-cc} -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \
 		-Wshadow -Wstrict-prototypes \
 		-fsanitize=address,undefined -fno-sanitize-recover=all -fno-builtin \
-		-D__TEST__ -D__COREBOOT__ \
+		-D__TEST__ -D__COREBOOT__ -DEXECUTOR_SERVICE_TRANSACTION \
 		-include "$root/src/include/kconfig.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -28,6 +28,8 @@ for optimization in 0 2; do
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
+		"$root/src/lib/payload_mm_authvar_service_transaction.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
 		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
@@ -47,6 +49,10 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_authvar_record.c" \
 		"$root/src/lib/payload_mm_authvar_writer.c" -o "$output"
 	for case in \
+		production-service-all production-service-alias production-service-generation \
+		production-service-auth2 production-service-auth2-overflow \
+		production-service-auth-query \
+		production-service-header-drift \
 		production-set-ordinary production-set-allow production-set-deny \
 		production-set-alias production-set-data-alias \
 		production-set-name-alias production-set-input-overlap production-set-overflow \

@@ -410,9 +410,9 @@ static bool lifecycle_response_valid(
 		data_slot_tail_zero(endpoint, response, 0);
 }
 
-enum cb_err payload_mm_authvar_service_response_validate(
+static enum cb_err response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
-	const void *response, size_t message_size)
+	const void *response, size_t message_size, uint32_t completion)
 {
 	const struct payload_mm_authvar_service_frame *before = request;
 	const struct payload_mm_authvar_service_frame *after = response;
@@ -422,7 +422,7 @@ enum cb_err payload_mm_authvar_service_response_validate(
 	    message_size != endpoint->message_size ||
 	    !request_identity_equal(before, after) ||
 	    after->status == PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING ||
-	    after->completion != PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE ||
+	    after->completion != completion ||
 	    after->reserved[0] || after->reserved[1] ||
 	    after->result_name_size > endpoint->maximum_name_size ||
 	    after->result_data_size > endpoint->maximum_data_size ||
@@ -449,4 +449,20 @@ enum cb_err payload_mm_authvar_service_response_validate(
 	default:
 		return CB_ERR;
 	}
+}
+
+enum cb_err payload_mm_authvar_service_response_validate(
+	const struct lb_authvar_service_endpoint *endpoint, const void *request,
+	const void *response, size_t message_size)
+{
+	return response_validate(endpoint, request, response, message_size,
+		PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+}
+
+enum cb_err payload_mm_authvar_service_response_validate_pending(
+	const struct lb_authvar_service_endpoint *endpoint, const void *request,
+	const void *response, size_t message_size)
+{
+	return response_validate(endpoint, request, response, message_size,
+		PAYLOAD_MM_AUTHVAR_SERVICE_PENDING);
 }

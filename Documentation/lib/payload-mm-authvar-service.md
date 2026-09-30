@@ -20,9 +20,34 @@ SMRAM and media facts are not a public endpoint. The authenticated-variable
 service uses a distinct table record and wire ABI so this work cannot silently
 change the capsule contract or merge the abandoned CDK2 `b419825f2b` mirror.
 
-This slice defines and tests ABI validators only. It has no producer, table
-publication, SMI route, service implementation, storage backend, writer,
-runtime caller, Kconfig selection, or security claim.
+The initial slice defined ABI validators only. The protected execution layer now
+maps all eight wire operations to the existing executor, fixed compiled Auth2
+coordinator, and authoritative policy ledger. It admits only disjoint SMRAM
+snapshots tied to the sole installed authority's exact communication span and
+generation. NEXT has separate input and output storage; a response body is
+validated before its completion-last publication. This is not a shared-memory
+entry point: the installed route must own immutable full-body request snapshots,
+an independent response, all-CPU admission, and phase-appropriate protection.
+An admitted execution failure scrubs its private response and leaves status and
+completion pending. A post-commit descriptor drift can follow durable mutation;
+the outer fixed route must fail-stop rather than publish a retryable ACK or
+claim rollback.
+
+QueryVariableInfo retains EDK2's logical authenticated-payload limit. The
+independent bounded transport limits the complete SET envelope, including its
+variable-size certificate. Consequently a payload below the authenticated query
+limit can still have an envelope too large for the mailbox; such a request is
+rejected before mutation. No artificial certificate cap is introduced to hide
+that distinction. Ordinary queries are clamped to the transport data capacity.
+The comparison is EDK2 26.09 `Variable.c`'s authenticated maximum at line 3007
+and `VariableSmmRuntimeDxe.c`'s complete SET communication bound at line 1176.
+
+There is still no general endpoint producer, published table, selected SMI
+service route, or runtime proxy cutover. Production composition must import its
+own exact BM_MEM_TABLE receipt through the canonical loader bootstrap, select
+that separate communication span before the existing backend/authority is
+installed once, and preserve the distinct private MOR seal channel. Host
+executor/store tests do not establish those installation or hardware facts.
 
 ## Ownership and threats
 
