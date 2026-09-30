@@ -8,6 +8,7 @@
 #include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_invocation_loader_identity.h>
 #include <device/device.h>
 #include <device/mmio.h>
 #include <intelblocks/vtd.h>
@@ -23,7 +24,9 @@
 #include "dma_guard.h"
 #endif
 #include "dma_live.h"
+#include "dma_live_mirror.h"
 #include "dma_live_platform.h"
+#include "loader_instance_authority.h"
 #include "payload_resource_policy.h"
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 #include "dma_smm_receipt_provision.h"
@@ -61,8 +64,11 @@ bool platform_smm_dma_receipt_memory(struct smm_dma_receipt_memory *memory)
 	void *dma = vtd_get_dma_buffer(&dma_size);
 	void *mirror;
 	struct smm_dma_receipt_memory value;
+	uint32_t lifecycle;
 
-	if (!memory || !platform_smm_dma_receipt_frame(&frame_base, &frame_size) ||
+	if (!memory || mainboard_loader_instance_authority_lifecycle(&lifecycle) !=
+		CB_SUCCESS ||
+	    !platform_smm_dma_receipt_frame(&frame_base, &frame_size) ||
 	    !dma || !dma_size || !vtd_base ||
 	    (vtd_read32(vtd_base, PMEN_REG) & (PMEN_EPM | PMEN_PRS)) !=
 		(PMEN_EPM | PMEN_PRS) || vtd_read32(vtd_base, PLMBASE_REG) ||
@@ -72,7 +78,7 @@ bool platform_smm_dma_receipt_memory(struct smm_dma_receipt_memory *memory)
 	    starbook_mtl_dma_live_table_mirror_size((uintptr_t)dma, dma_size,
 		&mirror_size))
 		return false;
-	mirror = cbmem_add(CBMEM_ID_MTL_DMA_MIRROR, mirror_size);
+	mirror = starbook_mtl_dma_live_mirror_acquire(mirror_size, lifecycle);
 	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
 	value = (struct smm_dma_receipt_memory) {
 		.revision = SMM_DMA_RECEIPT_MEMORY_REVISION,
@@ -237,6 +243,9 @@ enum cb_err starbook_mtl_dma_live_backend_ensure(void)
 	bool engine_valid;
 	bool pci_valid;
 	int result;
+#if CONFIG(STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY)
+	uint32_t lifecycle;
+#endif
 
 	if (backend_poisoned)
 		return CB_ERR;
@@ -276,7 +285,13 @@ enum cb_err starbook_mtl_dma_live_backend_ensure(void)
 	if (starbook_mtl_dma_live_table_mirror_size((uintptr_t)dma_buffer,
 		dma_size, &mirror_size))
 		return CB_ERR;
+#if CONFIG(STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY)
+	if (mainboard_loader_instance_authority_lifecycle(&lifecycle) != CB_SUCCESS)
+		return CB_ERR;
+	table_mirror = starbook_mtl_dma_live_mirror_acquire(mirror_size, lifecycle);
+#else
 	table_mirror = cbmem_add(CBMEM_ID_MTL_DMA_MIRROR, mirror_size);
+#endif
 	mirror_entry = cbmem_entry_find(CBMEM_ID_MTL_DMA_MIRROR);
 	if (!table_mirror || (uintptr_t)table_mirror > (uintptr_t)-1 - mirror_size ||
 	    (uintptr_t)table_mirror + mirror_size > (uintptr_t)dma_buffer ||
