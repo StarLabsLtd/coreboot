@@ -78,6 +78,8 @@ void payload_mm_authvar_presence_authority_reset_test(void);
 const void *payload_mm_authvar_presence_authority_test_state(size_t *size);
 void payload_mm_authvar_presence_authority_restrict_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
+void payload_mm_authvar_presence_authority_install_claim_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 void payload_mm_authvar_presence_authority_restrict_claim_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook);
 void payload_mm_authvar_presence_authority_dispatch_finish_test_hook(

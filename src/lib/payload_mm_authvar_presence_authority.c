@@ -42,6 +42,7 @@ static struct {
 
 #if ENV_TEST
 static payload_mm_authvar_presence_restrict_test_hook_fn restrict_test_hook;
+static payload_mm_authvar_presence_restrict_test_hook_fn install_claim_test_hook;
 static payload_mm_authvar_presence_restrict_test_hook_fn restrict_claim_test_hook;
 static payload_mm_authvar_presence_restrict_test_hook_fn dispatch_finish_test_hook;
 static payload_mm_authvar_presence_restrict_test_hook_fn cleanup_test_hook;
@@ -229,7 +230,7 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE] = { 0 };
 	uint8_t failure_context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
 	payload_mm_authvar_presence_fail_stop_fn failure_callback;
-	uint32_t expected = 0;
+	uint32_t expected = PRESENCE_EMPTY;
 	enum cb_err result;
 
 	if (!install_phase_empty())
@@ -237,6 +238,10 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	if (!__atomic_compare_exchange_n(&presence.install_attempted, &expected, 1,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return CB_ERR;
+#if ENV_TEST
+	if (install_claim_test_hook)
+		install_claim_test_hook();
+#endif
 	if (!install_phase_empty())
 		return CB_ERR;
 	if (!trusted_policy || !storage_is_protected ||
@@ -344,16 +349,18 @@ enum cb_err payload_mm_authvar_presence_authority_restore_closed(
 	struct lb_authvar_presence_endpoint endpoint_copy;
 	struct payload_mm_authvar_presence_backing backing_copy;
 	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
-	uint32_t expected = PRESENCE_EMPTY;
+	uint32_t expected = 0;
 	uint32_t gate = 0;
 	bool valid = false;
 
-	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
-		PRESENCE_RESTORING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
-		return CB_ERR;
 	if (!__atomic_compare_exchange_n(&presence.install_attempted, &gate, 1,
-		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-		restore_poison();
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
+		PRESENCE_RESTORING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		/* Gate ownership is real, but a non-empty phase may still be live. */
+		__atomic_store_n(&presence.phase, PRESENCE_POISONED,
+			__ATOMIC_RELEASE);
 		return CB_ERR;
 	}
 	if (!restore_state_clean() || !endpoint || !backing || !dma_protected ||
@@ -844,6 +851,7 @@ void payload_mm_authvar_presence_authority_reset_test(void)
 {
 	scrub(&presence, sizeof(presence));
 	restrict_test_hook = NULL;
+	install_claim_test_hook = NULL;
 	restrict_claim_test_hook = NULL;
 	dispatch_finish_test_hook = NULL;
 	cleanup_test_hook = NULL;
@@ -860,6 +868,12 @@ void payload_mm_authvar_presence_authority_restrict_test_hook(
 	payload_mm_authvar_presence_restrict_test_hook_fn hook)
 {
 	restrict_test_hook = hook;
+}
+
+void payload_mm_authvar_presence_authority_install_claim_test_hook(
+	payload_mm_authvar_presence_restrict_test_hook_fn hook)
+{
+	install_claim_test_hook = hook;
 }
 
 void payload_mm_authvar_presence_authority_restrict_claim_test_hook(
