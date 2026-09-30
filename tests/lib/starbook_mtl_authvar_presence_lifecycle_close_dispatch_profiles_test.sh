@@ -103,7 +103,9 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	BOOTMEM_ALIGNED_RESERVATION_RECEIPT \
 	SOC_INTEL_COMMON_BLOCK_VTD_TRANSLATION_VERIFY \
 	SMM_PRE_LOCK_DISPATCH SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE \
-	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING; do
+	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING \
+	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD \
+	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
 done
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
@@ -121,20 +123,26 @@ sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt
 platform="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_platform.o"
 handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
 policy="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_policy.o"
+cold="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_cold.o"
 loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
 backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o"
 test -s "$dispatcher" && test -s "$authority" && test -s "$receiver" &&
 	test -s "$verifier" && test -s "$sender" && test -s "$platform" &&
-	test -s "$handler" && test -s "$policy" && test -s "$loader" &&
+	test -s "$handler" && test -s "$policy" && test -s "$cold" &&
+	test -s "$loader" &&
 	test -s "$backing"
 file "$dispatcher" "$authority" "$receiver" "$verifier" "$sender" \
-	"$platform" "$handler" "$policy" "$loader" "$backing" |
-	grep -c 'ELF 32-bit' | grep -q '^10$'
+	"$platform" "$handler" "$policy" "$cold" "$loader" "$backing" |
+	grep -c 'ELF 32-bit' | grep -q '^11$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
 nm -u "$dispatcher" | grep -q 'intel_smm_invocation_private_apmc_cause'
 nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_binding_get'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_authvar_presence_s3_cold_install'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_authvar_presence_s3_cold_route_complete'
+nm --defined-only "$cold" | grep -q 'mainboard_smi_sleep'
+nm -u "$cold" | grep -q 'payload_mm_authvar_presence_s3_record_suspend_seal'
 nm -u "$authority" | grep -q 'vtd_translation_verify'
 nm --defined-only "$policy" |
 	grep -q 'starbook_mtl_authvar_presence_lifecycle_close_install_policy'
@@ -211,5 +219,6 @@ build_off "$root" current-off
 build_off "$baseline" base-off
 cmp "$temporary/current-off/smm/smm" "$temporary/base-off/smm/smm"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
+test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_cold.o"
 
 echo "StarBook MTL lifecycle-close dispatch profiles: PASS (frame $frame bytes)"

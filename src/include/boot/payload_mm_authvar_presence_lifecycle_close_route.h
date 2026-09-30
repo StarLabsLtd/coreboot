@@ -11,6 +11,15 @@
 
 #define PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ROUTE_POLICY_REVISION 1U
 
+/* Terminal semantic identity only; no route pointer or live state. */
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT)
+struct payload_mm_authvar_presence_lifecycle_close_snapshot {
+	struct lb_authvar_presence_lifecycle_close_endpoint endpoint;
+	uint64_t backing_base;
+	uint64_t backing_bytes;
+};
+#endif
+
 struct payload_mm_authvar_presence_lifecycle_close_internal_policy {
 	uint32_t revision;
 	uint32_t size;
@@ -111,5 +120,12 @@ enum payload_mm_authvar_presence_lifecycle_close_route_departure
 payload_mm_authvar_presence_lifecycle_close_route_depart(
 	struct payload_mm_authvar_presence_lifecycle_close_route *route,
 	const struct smm_invocation_entry_ticket *ticket);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT)
+enum cb_err payload_mm_authvar_presence_lifecycle_close_route_idle_snapshot(
+	struct payload_mm_authvar_presence_lifecycle_close_route *route,
+	struct payload_mm_authvar_presence_lifecycle_close_snapshot *snapshot,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context, size_t storage_context_size);
+#endif
 
 #endif

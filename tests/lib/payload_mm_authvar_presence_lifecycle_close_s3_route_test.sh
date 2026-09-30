@@ -101,9 +101,10 @@ sed -n '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_S3_ROUTE$/,+
 	"$root/src/lib/Kconfig" | grep -q 'default n'
 grep -q '^smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_S3_ROUTE)' \
 	"$root/src/lib/Makefile.mk"
-git -C "$root" diff --exit-code -- \
-	src/include/boot/payload_mm_authvar_presence_lifecycle_close_route.h \
-	src/lib/payload_mm_authvar_presence_lifecycle_close_route.c
+# The cold-only semantic snapshot remains absent unless its independent hidden
+# capability is selected; the closed-S3 route does not select it.
+sed -n '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT$/,+4p' \
+	"$root/src/lib/Kconfig" | grep -q 'default n'
 
 "$root/tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh"
 echo 'Payload-MM authenticated-variable presence closed-S3 route tests: PASS'

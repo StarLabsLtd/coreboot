@@ -43,6 +43,8 @@ smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_INSTALL) += 
 	authvar_presence_lifecycle_close_install_receiver.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH) += \
 	authvar_presence_lifecycle_close_dispatch.c
+smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD) += \
+	authvar_presence_s3_cold.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) += \
 	dma_smm_authority.c dma_smm_policy.c dma_smm_receipt_receiver.c \
 	dma_smm_requester_authority.c
