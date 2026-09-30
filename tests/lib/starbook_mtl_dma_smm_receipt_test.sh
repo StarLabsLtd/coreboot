@@ -30,6 +30,9 @@ common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
 sources="$root/tests/lib/starbook_mtl_dma_smm_receipt_test.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c"
 cases='valid generation container-drift wrong-range protected-frame mutated-frame wrong-state
+	cold-valid cold-unclaimed cold-s3 cold-nonce cold-subset cold-backstep
+	cold-live-denied cold-claim-drift cold-unallowed cold-nested-binding binding-nested-cold
+	binding-alias
 	null-table above-4g huge-table mmio-table smram-table unallowed-dram
 	unallowed-frame unallowed-handoff unallowed-tables unallowed-mirror
 	unallowed-arena0 unallowed-arena1 unallowed-arena2
