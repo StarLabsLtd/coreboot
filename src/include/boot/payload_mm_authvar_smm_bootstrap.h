@@ -63,6 +63,14 @@ enum cb_err payload_mm_authvar_smm_bootstrap_arena_size(uint64_t store_size,
 enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	const struct payload_mm_authvar_smm_bootstrap *bootstrap);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+/* Fixed board owner proves the actual current private all-CPU BOOT claim. */
+bool platform_payload_mm_authvar_service_bootstrap_admitted(void);
+/* Use only the already consumed canonical service owner; MOR is optional. */
+enum cb_err payload_mm_authvar_smm_service_bootstrap_install(
+	const struct payload_mm_authvar_smm_bootstrap *bootstrap);
+#endif
+
 /* Private SMM platform binding; returns callbacks resident in protected SMM. */
 bool platform_payload_mm_authvar_smm_media_ops(
 	struct payload_mm_authvar_smm_media_ops *ops);

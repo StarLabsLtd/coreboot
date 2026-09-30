@@ -219,13 +219,18 @@ fi
 publication_mutant="$tmp/publication-mutant.c"
 awk '
 	{
-		if (index($0, "memcmp(receipt.owner, input.seal_channel.capability,")) {
+		if (index($0, "memcmp(receipt.owner,")) {
 			print "\t    false ||"
-			getline
+			do {
+				if (getline <= 0) exit 1
+			} while (!index($0, "sizeof(receipt.owner)) ||"))
+			changed++
 			next
 		}
 		print
-	}' "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" > "$publication_mutant"
+	} END { if (changed != 1) exit 1 }
+	' "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" > "$publication_mutant"
+! cmp -s "$root/src/lib/payload_mm_authvar_smm_bootstrap.c" "$publication_mutant"
 build_test publication-mutant 2 "$publication_mutant"
 if "$tmp/publication-mutant" torn-publication >/dev/null 2>&1; then
 	echo "torn-publication mutant survived" >&2
