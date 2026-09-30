@@ -5,8 +5,9 @@
 
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <cpu/x86/smm_invocation_evidence.h>
+#include <commonlib/coreboot_tables.h>
 
-#define STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION 1U
+#define STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION 2U
 #define STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST 1U
 #define STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED 2U
 #define STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST 0x425354feU
@@ -20,7 +21,13 @@ struct starbook_mtl_presence_bootstrap_frame {
 	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
 	uint32_t initiator_cpu;
 	uint32_t maximum_cpus;
+	/* Output only, admitted through this existing canonical BOOT response. */
+	struct lb_authvar_service_endpoint service_endpoint;
 } __aligned(8);
+
+_Static_assert(sizeof(struct starbook_mtl_presence_bootstrap_frame) == 376 &&
+	offsetof(struct starbook_mtl_presence_bootstrap_frame, service_endpoint) == 312,
+	"canonical BOOT endpoint response layout");
 
 enum starbook_mtl_presence_bootstrap_result {
 	STARBOOK_MTL_PRESENCE_NOT_BOOTSTRAP,

@@ -8,7 +8,9 @@
 #include <boot/coreboot_tables.h>
 #include <boot/payload_mm_authvar_presence_publication.h>
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_command.h>
 #include <console/console.h>
 #include <string.h>
 
@@ -26,13 +28,16 @@ uint64_t starbook_mtl_presence_bootstrap_trigger_test(uint32_t request, uint32_t
 void lb_board(struct lb_header *header)
 {
 	struct starbook_mtl_presence_bootstrap_frame *frame;
+	struct starbook_mtl_presence_bootstrap_frame response;
 	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
 	uintptr_t frame_base;
 	size_t frame_capacity;
 	uint64_t wire;
 	bool required;
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	const struct lb_authvar_service_endpoint no_endpoint = { 0 };
+#endif
 
-	(void)header;
 	if (payload_mm_authvar_presence_publication_loader_required(&required) != CB_SUCCESS)
 		die("StarBook MTL presence: invalid early publication decision\n");
 	if (!required)
@@ -63,14 +68,34 @@ void lb_board(struct lb_header *header)
 		wire = (uint64_t)eax | ((uint64_t)ecx << 32);
 	}
 #endif
+	/* Snapshot the public reply once; validation and publication use this copy. */
+	response = *frame;
 	if (wire != STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS ||
-	    frame->revision != STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION ||
-	    frame->size != sizeof(*frame) ||
-	    frame->state != STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED ||
-	    frame->reserved || frame->initiator_cpu || !frame->maximum_cpus ||
-	    frame->maximum_cpus > CONFIG_MAX_CPUS ||
-	    memcmp(&frame->receipts, &receipts, sizeof(receipts)))
+	    response.revision != STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION ||
+	    response.size != sizeof(response) ||
+	    response.state != STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED ||
+	    response.reserved || response.initiator_cpu || !response.maximum_cpus ||
+	    response.maximum_cpus > CONFIG_MAX_CPUS ||
+	    memcmp(&response.receipts, &receipts, sizeof(receipts)))
 		die("StarBook MTL presence: protected route installation failed\n");
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (!header || payload_mm_authvar_service_endpoint_validate(&response.service_endpoint) !=
+		CB_SUCCESS ||
+	    response.service_endpoint.communication_base != receipts.service.base ||
+	    response.service_endpoint.communication_size != receipts.service.bytes ||
+	    response.service_endpoint.communication_size !=
+		PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    response.service_endpoint.generation != receipts.service.generation ||
+	    response.service_endpoint.trigger_address != pm_acpi_smi_cmd_port() ||
+	    response.service_endpoint.trigger_value != SMM_APMC_AUTHVAR_SERVICE)
+		die("StarBook MTL presence: invalid admitted service endpoint\n");
+	memcpy(lb_new_record(header), &response.service_endpoint, sizeof(response.service_endpoint));
+#else
+	(void)header;
+	if (memcmp(&response.service_endpoint, &no_endpoint, sizeof(no_endpoint)))
+		die("StarBook MTL presence: unexpected service endpoint\n");
+#endif
 	memset(frame, 0, sizeof(*frame));
+	memset(&response, 0, sizeof(response));
 	memset(&receipts, 0, sizeof(receipts));
 }

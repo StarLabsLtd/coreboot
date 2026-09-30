@@ -43,6 +43,7 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE) += payload_mm_authvar_candidate.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_coordinator.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_set_preflight.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service.c
+ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) += payload_mm_authvar_service.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service_transaction.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) += \
 	payload_mm_authvar_presence.c \
