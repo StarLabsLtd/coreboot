@@ -37,6 +37,16 @@ publication_take_and_complete(struct lb_authvar_presence_endpoint *endpoint)
 static uint8_t backing[PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE]
 	__aligned(PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT);
 static unsigned int random_calls;
+static unsigned int random_failure;
+static unsigned int random_zero;
+static unsigned int malformed_handle;
+static bool abort_binding_copy;
+
+void payload_mm_authvar_presence_producer_binding_copy_test_hook(void)
+{
+	if (abort_binding_copy)
+		payload_mm_authvar_presence_producer_abort();
+}
 static unsigned int prepare_calls;
 static unsigned int commit_calls;
 static unsigned int abort_calls;
@@ -73,6 +83,8 @@ int bootmem_aligned_reservation_register(
 	*handle = (struct bootmem_aligned_reservation_handle) {
 		.opaque = { 1U, 2U },
 	};
+	if (malformed_handle)
+		handle->opaque[malformed_handle - 1U] = 0;
 	return 0;
 }
 
@@ -80,6 +92,8 @@ int bootmem_aligned_reservation_query(
 	const struct bootmem_aligned_reservation_handle *handle,
 	struct bootmem_aligned_reservation *reservation)
 {
+	if (!handle->opaque[0] || !handle->opaque[1])
+		return -1;
 	assert(handle->opaque[0] == 1U && handle->opaque[1] == 2U);
 	if (block_query && !query_entered) {
 		assert(!pthread_mutex_lock(&commit_mutex));
@@ -100,6 +114,10 @@ int bootmem_aligned_reservation_query(
 enum cb_err get_random_number_64(uint64_t *value)
 {
 	*value = 0x100U + ++random_calls;
+	if (random_calls == random_failure)
+		return CB_ERR;
+	if (random_calls == random_zero || (random_zero == 4U && random_calls >= 4U))
+		*value = 0;
 	return CB_SUCCESS;
 }
 
@@ -228,6 +246,9 @@ static void reset_fixture(void)
 	payload_mm_authvar_presence_producer_reset_test();
 	memset(backing, 0, sizeof(backing));
 	random_calls = prepare_calls = commit_calls = abort_calls = 0;
+	random_failure = random_zero = 0;
+	malformed_handle = 0;
+	abort_binding_copy = false;
 	authority_scrubs = 0;
 	prepared = committed = aborted = false;
 	prepare_error = commit_error = bad_prepare_ack = false;
@@ -237,6 +258,90 @@ static void reset_fixture(void)
 	before_prepare_entered = before_prepare_release = false;
 	finalize_result = CB_ERR;
 	compose_result = CB_ERR;
+}
+
+static void early_transaction_identity(void)
+{
+	struct bootmem_aligned_reservation_handle mailbox_handle;
+	struct payload_mm_authvar_presence_transaction_binding binding;
+	struct payload_mm_authvar_presence_transaction_binding replay;
+	uint32_t context = 0x12345678U;
+	struct payload_mm_authvar_presence_composition policy = composition(&context);
+
+	reset_fixture();
+	memset(&binding, 0xa5, sizeof(binding));
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		0, 4, &binding, &mailbox_handle) == CB_ERR);
+	assert(!memcmp(&binding, &(typeof(binding)) { 0 }, sizeof(binding)));
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	assert(random_calls == 7U && !prepare_calls);
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		0, 4, &binding, &mailbox_handle) == CB_SUCCESS);
+	assert(binding.generation == 0x101U && binding.transaction_id == 0x102U &&
+		binding.nonce == 0x103U && binding.initiator_cpu == 0 &&
+		binding.maximum_cpus == 4U);
+	assert(mailbox_handle.opaque[0] == 1U && mailbox_handle.opaque[1] == 2U);
+	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_SUCCESS);
+	assert(random_calls == 12U && prepare_calls == 1U);
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		0, 4, &replay, &mailbox_handle) == CB_ERR);
+	assert(!memcmp(&replay, &(typeof(replay)) { 0 }, sizeof(replay)));
+	assert(!memcmp(&mailbox_handle, &(typeof(mailbox_handle)) { 0 },
+		sizeof(mailbox_handle)));
+	payload_mm_authvar_presence_producer_abort();
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		0, 4, &binding, &mailbox_handle) == CB_SUCCESS);
+	policy.transaction_maximum_cpus = 3U;
+	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_ERR);
+	assert(!prepare_calls);
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		4, 4, &binding, &mailbox_handle) == CB_ERR);
+	assert(!memcmp(&binding, &(typeof(binding)) { 0 }, sizeof(binding)));
+	assert(payload_mm_authvar_presence_producer_compose(&policy) == CB_ERR);
+
+	for (unsigned int failure = 1; failure <= 7; failure++) {
+		reset_fixture();
+		random_failure = failure;
+		assert(payload_mm_authvar_presence_producer_reserve() == CB_ERR);
+		assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+			0, 4, &binding, &mailbox_handle) == CB_ERR);
+		assert(!memcmp(&binding, &(typeof(binding)) { 0 }, sizeof(binding)));
+		assert(!prepare_calls);
+	}
+	for (unsigned int zero = 1; zero <= 4; zero++) {
+		reset_fixture();
+		random_zero = zero;
+		assert(payload_mm_authvar_presence_producer_reserve() == CB_ERR);
+		assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+			0, 4, &binding, &mailbox_handle) == CB_ERR);
+		assert(!prepare_calls);
+	}
+	for (unsigned int word = 1; word <= 2; word++) {
+		reset_fixture();
+		malformed_handle = word;
+		assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+		assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+			0, 4, &binding, &mailbox_handle) == CB_ERR);
+		assert(!memcmp(&binding, &(typeof(binding)) { 0 }, sizeof(binding)));
+		assert(!memcmp(&mailbox_handle, &(typeof(mailbox_handle)) { 0 },
+			sizeof(mailbox_handle)));
+		assert(!prepare_calls);
+	}
+	reset_fixture();
+	assert(payload_mm_authvar_presence_producer_reserve() == CB_SUCCESS);
+	abort_binding_copy = true;
+	assert(payload_mm_authvar_presence_producer_transaction_binding_take(
+		0, 4, &binding, &mailbox_handle) == CB_ERR);
+	assert(!memcmp(&binding, &(typeof(binding)) { 0 }, sizeof(binding)));
+	assert(!memcmp(&mailbox_handle, &(typeof(mailbox_handle)) { 0 },
+		sizeof(mailbox_handle)));
+	assert(!prepare_calls);
 }
 
 static void compose(void)
@@ -586,6 +691,7 @@ static void publication_receipts(void)
 
 int main(void)
 {
+	early_transaction_identity();
 	success_and_abort();
 	ambiguous();
 	reservation_owner_cleanup();
