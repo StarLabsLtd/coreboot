@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -34,6 +35,8 @@ static struct smm_invocation_save_state_ops ops;
 static struct payload_mm_authvar_presence_lifecycle_close_s3_policy policy;
 static struct proof_context provenance_context;
 static struct proof_context dma_context;
+static uint64_t ops_context[2];
+static uint8_t storage_context;
 static uint64_t invocation_generation;
 static unsigned int arrivals;
 static unsigned int departures;
@@ -42,6 +45,7 @@ static unsigned int consume_calls;
 static unsigned int provenance_calls;
 static unsigned int dma_calls;
 static unsigned int dma_fail_at;
+static unsigned int restrict_mutate_call;
 static bool provenance_result;
 static bool provenance_mutates;
 static bool backing_protected;
@@ -51,6 +55,21 @@ static bool contend_dispatch;
 static const struct smm_invocation_entry_ticket *reentry_ticket;
 static bool claim_mutates_mailbox;
 static bool claim_mutates_route;
+static bool claim_mutates_final_proof;
+static unsigned int restrict_mutates_final_proof_call;
+static unsigned int dma_mutate_countdown;
+static bool dma_mutates_final_response_proof;
+static bool publish_mutates_mailbox;
+static bool publish_mutates_final_proof;
+static unsigned int eos_mutate_field;
+static bool block_rejected_provenance;
+static pthread_barrier_t rejected_provenance_barrier;
+static unsigned int storage_calls;
+static unsigned int storage_mutate_context_at;
+static bool storage_mutates_evidence;
+static bool storage_mutates_state;
+static bool range_mutates_evidence;
+static unsigned int losing_storage_calls;
 
 struct dispatch_contention {
 	struct smm_apmc_selection_receipt *selection;
@@ -70,14 +89,14 @@ static void *contending_dispatch(void *argument)
 static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	uint8_t command)
 {
-	(void)context;
+	assert(context == route.ops_context);
 	return !cpu && command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE ?
 		SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
 }
 
 static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 {
-	(void)context;
+	assert(context == route.ops_context);
 	if (cpu)
 		return CB_ERR;
 	*value = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SENTINEL;
@@ -86,7 +105,7 @@ static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
 
 static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 {
-	(void)context;
+	assert(context == route.ops_context);
 	return !cpu && value ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS ?
 		CB_SUCCESS : CB_ERR;
@@ -97,6 +116,25 @@ static bool range_proof(void *context, uint64_t base, uint64_t size)
 	const struct proof_context *proof = context;
 	unsigned int call = __atomic_add_fetch(&dma_calls, 1U, __ATOMIC_RELAXED);
 
+	if (dma_mutate_countdown && !--dma_mutate_countdown)
+		((struct payload_mm_authvar_presence_lifecycle_close_message *)
+		 backing)->request_id++;
+	if (dma_mutates_final_response_proof) {
+		struct payload_mm_authvar_presence_lifecycle_close_message *message =
+			(void *)backing;
+
+		if (message->status ==
+			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_STATUS_SUCCESS &&
+		    message->completion ==
+			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING) {
+			dma_mutates_final_response_proof = false;
+			message->request_id++;
+		}
+	}
+	if (range_mutates_evidence) {
+		range_mutates_evidence = false;
+		evidence.closed_generation++;
+	}
 	return proof && proof->magic == CONTEXT_MAGIC && !proof->reserved &&
 		base == (uintptr_t)backing && size == sizeof(backing) &&
 		(!dma_fail_at || call != dma_fail_at);
@@ -108,6 +146,14 @@ static bool provenance_proof(void *context, uint64_t base, uint64_t size)
 	bool valid;
 
 	__atomic_add_fetch(&provenance_calls, 1U, __ATOMIC_RELAXED);
+	if (block_rejected_provenance) {
+		int barrier = pthread_barrier_wait(&rejected_provenance_barrier);
+
+		assert(barrier == 0 || barrier == PTHREAD_BARRIER_SERIAL_THREAD);
+		barrier = pthread_barrier_wait(&rejected_provenance_barrier);
+		assert(barrier == 0 || barrier == PTHREAD_BARRIER_SERIAL_THREAD);
+		return false;
+	}
 	valid = provenance_result && proof && proof->magic == CONTEXT_MAGIC &&
 		!proof->reserved && base == (uintptr_t)backing &&
 		size == sizeof(backing);
@@ -121,11 +167,30 @@ static bool protected_storage(void *context, const void *base, size_t size)
 	uintptr_t first = (uintptr_t)base;
 	uintptr_t public_first = (uintptr_t)backing;
 
-	(void)context;
+	storage_calls++;
+	if (storage_calls == storage_mutate_context_at)
+		(*(uint8_t *)context)++;
+	if (storage_mutates_evidence) {
+		storage_mutates_evidence = false;
+		evidence.closed_generation++;
+	}
+	if (storage_mutates_state) {
+		storage_mutates_state = false;
+		__atomic_store_n(&route.state, 0U, __ATOMIC_RELEASE);
+	}
 	if (!base || !size || first > UINTPTR_MAX - (size - 1U))
 		return false;
 	return backing_protected || first + size <= public_first ||
 		first >= public_first + sizeof(backing);
+}
+
+static bool losing_storage(void *context, const void *base, size_t size)
+{
+	(void)context;
+	(void)base;
+	(void)size;
+	losing_storage_calls++;
+	return true;
 }
 
 void __noreturn smm_invocation_platform_fail_stop(void)
@@ -185,8 +250,15 @@ enum cb_err smm_invocation_entry_arrive(
 	assert(cause->recognized && cause->command == expected_command);
 	assert(smm_invocation_loader_instance_nonce_equal(
 		cause->loader_instance_nonce, expected_nonce));
-	if (!arrivals++)
+	if (!arrivals++) {
 		invocation_generation++;
+		candidate->generation = invocation_generation;
+		candidate->closed_generation = 0;
+		candidate->closed_loader_instance_nonce =
+			(struct smm_invocation_loader_instance_nonce) { 0 };
+		candidate->closed_lifecycle = 0;
+		candidate->closed_eos_consumed = 0;
+	}
 	*ticket = (struct smm_invocation_entry_ticket) {
 		.generation = invocation_generation,
 		.loader_instance_nonce = expected_nonce,
@@ -222,6 +294,8 @@ enum cb_err smm_invocation_evidence_claim(
 		 backing)->request_id++;
 	if (claim_mutates_route)
 		route.sealed_endpoint.generation++;
+	if (claim_mutates_final_proof)
+		dma_mutate_countdown = 2U;
 	candidate->state = SMM_INVOCATION_CLAIMED;
 	return CB_SUCCESS;
 }
@@ -234,6 +308,11 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 	assert(candidate == &evidence && token->smi_generation == invocation_generation);
 	assert(value == PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS);
 	assert(candidate_ops->write_value == write_value);
+	if (publish_mutates_mailbox)
+		((struct payload_mm_authvar_presence_lifecycle_close_message *)
+		 backing)->request_id++;
+	if (publish_mutates_final_proof)
+		dma_mutate_countdown = 2U;
 	candidate->state = SMM_INVOCATION_CLOSING;
 	return CB_SUCCESS;
 }
@@ -248,6 +327,11 @@ enum cb_err smm_invocation_entry_depart(
 	departures++;
 	if (departures == 2U) {
 		candidate->state = SMM_INVOCATION_READY;
+		candidate->closed_generation = invocation_generation;
+		candidate->closed_loader_instance_nonce =
+			instance.loader_instance_nonce;
+		candidate->closed_lifecycle = instance.lifecycle;
+		candidate->closed_eos_consumed = 0;
 		arrivals = 0;
 		departures = 0;
 	}
@@ -258,8 +342,44 @@ bool smm_invocation_entry_eos_ready(
 	struct smm_invocation_evidence *candidate,
 	const struct smm_invocation_entry_ticket *ticket)
 {
-	return candidate == &evidence && ticket->cpu == topology.bsp_cpu &&
-		candidate->state == SMM_INVOCATION_READY;
+	if (candidate != &evidence || ticket->cpu != topology.bsp_cpu ||
+	    candidate->state != SMM_INVOCATION_READY ||
+	    candidate->closed_eos_consumed)
+		return false;
+	candidate->closed_eos_consumed = 1;
+	switch (eos_mutate_field) {
+	case 1:
+		candidate->generation++;
+		break;
+	case 2:
+		candidate->closed_generation++;
+		break;
+	case 3:
+		candidate->loader_instance_nonce.low++;
+		break;
+	case 4:
+		candidate->closed_loader_instance_nonce.high++;
+		break;
+	case 5:
+		candidate->loader_lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
+		break;
+	case 6:
+		candidate->closed_lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
+		break;
+	case 7:
+		candidate->active_cpus++;
+		break;
+	case 8:
+		candidate->bsp_cpu++;
+		break;
+	case 9:
+		candidate->closed_eos_consumed = 0;
+		break;
+	case 10:
+		candidate->state = SMM_INVOCATION_CLOSING;
+		break;
+	}
+	return true;
 }
 
 enum smm_apmc_dispatch_result smm_apmc_command_consume(
@@ -292,6 +412,11 @@ enum cb_err payload_mm_authvar_presence_authority_restrict(uint64_t generation)
 {
 	assert(generation == AUTHORITY_GENERATION);
 	restrict_calls++;
+	if (restrict_calls == restrict_mutate_call)
+		((struct payload_mm_authvar_presence_lifecycle_close_message *)
+		 backing)->request_id++;
+	if (restrict_calls == restrict_mutates_final_proof_call)
+		dma_mutate_countdown = 2U;
 	return CB_SUCCESS;
 }
 
@@ -305,6 +430,9 @@ static void reset_fixture(void)
 	memset(&topology, 0, sizeof(topology));
 	provenance_context = (struct proof_context) { .magic = CONTEXT_MAGIC };
 	dma_context = (struct proof_context) { .magic = CONTEXT_MAGIC };
+	ops_context[0] = 0x1122334455667788ULL;
+	ops_context[1] = 0x8877665544332211ULL;
+	storage_context = 0x5a;
 	endpoint = (struct lb_authvar_presence_lifecycle_close_endpoint) {
 		.tag = LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT,
 		.size = sizeof(endpoint),
@@ -340,6 +468,7 @@ static void reset_fixture(void)
 	evidence.bsp_cpu = 0;
 	evidence.loader_instance_nonce = instance.loader_instance_nonce;
 	evidence.loader_lifecycle = instance.lifecycle;
+	evidence.generation = CLOSED_INVOCATION_GENERATION;
 	evidence.closed_generation = CLOSED_INVOCATION_GENERATION;
 	evidence.closed_loader_instance_nonce = instance.loader_instance_nonce;
 	evidence.closed_lifecycle = instance.lifecycle;
@@ -348,6 +477,8 @@ static void reset_fixture(void)
 		.match_apmc_write = match_apmc,
 		.read_value = read_value,
 		.write_value = write_value,
+		.context = ops_context,
+		.context_size = sizeof(ops_context),
 	};
 	policy = (struct payload_mm_authvar_presence_lifecycle_close_s3_policy) {
 		.revision =
@@ -366,6 +497,7 @@ static void reset_fixture(void)
 	invocation_generation = CLOSED_INVOCATION_GENERATION;
 	arrivals = departures = restrict_calls = consume_calls = 0;
 	provenance_calls = dma_calls = dma_fail_at = 0;
+	restrict_mutate_call = 0;
 	provenance_result = true;
 	provenance_mutates = false;
 	backing_protected = false;
@@ -375,13 +507,28 @@ static void reset_fixture(void)
 	reentry_ticket = NULL;
 	claim_mutates_mailbox = false;
 	claim_mutates_route = false;
+	claim_mutates_final_proof = false;
+	restrict_mutates_final_proof_call = 0;
+	dma_mutate_countdown = 0;
+	dma_mutates_final_response_proof = false;
+	publish_mutates_mailbox = false;
+	publish_mutates_final_proof = false;
+	eos_mutate_field = 0;
+	block_rejected_provenance = false;
+	storage_calls = 0;
+	storage_mutate_context_at = 0;
+	storage_mutates_evidence = false;
+	storage_mutates_state = false;
+	range_mutates_evidence = false;
+	losing_storage_calls = 0;
 }
 
 static enum cb_err provision(void)
 {
 	return payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 		&route, &endpoint, &composition, &instance, &evidence, &topology,
-		&ops, &policy, protected_storage, NULL);
+		&ops, &policy, protected_storage, &storage_context,
+		sizeof(storage_context));
 }
 
 static void round_with_source(uint32_t source)
@@ -402,6 +549,7 @@ static void round_with_source(uint32_t source)
 	struct smm_apmc_selection_receipt selection;
 	struct payload_mm_authvar_presence_lifecycle_close_message *message =
 		(void *)backing;
+	struct payload_mm_authvar_presence_lifecycle_close_message expected_response;
 
 	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_arrive(&route,
 		&cause, &entry_policy, 0, 0, &bsp) == CB_SUCCESS);
@@ -425,6 +573,11 @@ static void round_with_source(uint32_t source)
 		.status = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_STATUS_PENDING,
 		.completion = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING,
 	};
+	expected_response = *message;
+	expected_response.status =
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_STATUS_SUCCESS;
+	expected_response.completion =
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPLETE;
 	reentry_ticket = &bsp;
 	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 		&route, &bsp, &selection) == SMM_APMC_CONSUMED_SUCCESS);
@@ -432,6 +585,7 @@ static void round_with_source(uint32_t source)
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_STATUS_SUCCESS);
 	assert(message->completion ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPLETE);
+	assert(!memcmp(message, &expected_response, sizeof(expected_response)));
 	payload_mm_authvar_presence_lifecycle_close_s3_route_prepare_lock_release(
 		&route, &bsp);
 	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_depart(&route,
@@ -484,6 +638,14 @@ static void *provision_thread(void *argument)
 	return NULL;
 }
 
+static __noinline void dirty_stack(uint8_t value)
+{
+	volatile uint8_t bytes[4096];
+
+	for (size_t index = 0; index < sizeof(bytes); index++)
+		bytes[index] = value;
+}
+
 static void provision_race(void)
 {
 	pthread_t threads[2];
@@ -496,6 +658,44 @@ static void provision_race(void)
 	assert(!pthread_join(threads[1], NULL));
 	assert((results[0].status == CB_SUCCESS) +
 		(results[1].status == CB_SUCCESS) == 1);
+}
+
+static void rejected_provision_race(void)
+{
+	pthread_t winner;
+	struct provision_result result;
+	long page_size;
+	uint8_t *unreadable;
+	int barrier;
+
+	reset_fixture();
+	page_size = sysconf(_SC_PAGESIZE);
+	assert(page_size > 0);
+	unreadable = mmap(NULL, (size_t)page_size * 8U, PROT_NONE,
+		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	assert(unreadable != MAP_FAILED);
+	block_rejected_provenance = true;
+	assert(!pthread_barrier_init(&rejected_provenance_barrier, NULL, 2U));
+	assert(!pthread_create(&winner, NULL, provision_thread, &result));
+	barrier = pthread_barrier_wait(&rejected_provenance_barrier);
+	assert(barrier == 0 || barrier == PTHREAD_BARRIER_SERIAL_THREAD);
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
+		&route, (const void *)(unreadable + page_size * 0U),
+		(const void *)(unreadable + page_size * 1U),
+		(const void *)(unreadable + page_size * 2U),
+		(void *)(unreadable + page_size * 3U),
+		(const void *)(unreadable + page_size * 4U),
+		(const void *)(unreadable + page_size * 5U),
+		(const void *)(unreadable + page_size * 6U), losing_storage,
+		unreadable + page_size * 7U, 1U) == CB_ERR);
+	assert(losing_storage_calls == 0U);
+	barrier = pthread_barrier_wait(&rejected_provenance_barrier);
+	assert(barrier == 0 || barrier == PTHREAD_BARRIER_SERIAL_THREAD);
+	assert(!pthread_join(winner, NULL));
+	assert(!pthread_barrier_destroy(&rejected_provenance_barrier));
+	assert(!munmap(unreadable, (size_t)page_size * 8U));
+	assert(result.status == CB_ERR);
+	assert(provision() == CB_ERR);
 }
 
 int main(void)
@@ -531,6 +731,48 @@ int main(void)
 	expect_round_fail_stop(
 		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
 		AUTHORITY_GENERATION, 0);
+	claim_mutates_route = false;
+	claim_mutates_final_proof = true;
+	expect_round_fail_stop(
+		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+		AUTHORITY_GENERATION, 0);
+	claim_mutates_final_proof = false;
+	for (unsigned int call = 1U; call <= 2U; call++) {
+		restrict_mutate_call = call;
+		expect_round_fail_stop(
+			LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+			AUTHORITY_GENERATION, 0);
+	}
+	restrict_mutate_call = 0;
+	for (unsigned int call = 1U; call <= 2U; call++) {
+		restrict_mutates_final_proof_call = call;
+		expect_round_fail_stop(
+			LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+			AUTHORITY_GENERATION, 0);
+	}
+	restrict_mutates_final_proof_call = 0;
+	publish_mutates_mailbox = true;
+	expect_round_fail_stop(
+		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+		AUTHORITY_GENERATION, 0);
+	publish_mutates_mailbox = false;
+	publish_mutates_final_proof = true;
+	expect_round_fail_stop(
+		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+		AUTHORITY_GENERATION, 0);
+	publish_mutates_final_proof = false;
+	dma_mutates_final_response_proof = true;
+	expect_round_fail_stop(
+		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+		AUTHORITY_GENERATION, 0);
+	dma_mutates_final_response_proof = false;
+	for (unsigned int field = 1U; field <= 10U; field++) {
+		eos_mutate_field = field;
+		expect_round_fail_stop(
+			LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF,
+			AUTHORITY_GENERATION, 0);
+	}
+	eos_mutate_field = 0;
 
 	reset_fixture();
 	instance.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
@@ -538,7 +780,7 @@ int main(void)
 	assert(provision() == CB_ERR);
 
 	reset_fixture();
-	policy.backing_tag = 0;
+	policy.backing_tag = TEST_BACKING_TAG + 1U;
 	assert(provision() == CB_ERR);
 
 	reset_fixture();
@@ -562,9 +804,44 @@ int main(void)
 	memcpy(backing, &endpoint, sizeof(endpoint));
 	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 		&route, (const void *)backing, &composition, &instance, &evidence,
-		&topology, &ops, &policy, protected_storage, NULL) == CB_ERR);
+		&topology, &ops, &policy, protected_storage,
+		&storage_context, sizeof(storage_context)) == CB_ERR);
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
+		&route, &endpoint, &composition, &instance, &evidence, &topology,
+		&ops, &policy, protected_storage, &route, sizeof(route)) == CB_ERR);
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
+		&route, &endpoint, &composition, &instance, &evidence, &topology,
+		&ops, &policy, protected_storage,
+		(uint8_t *)&route + sizeof(route) - 8U, 8U) == CB_ERR);
+
+	reset_fixture();
+	storage_mutates_evidence = true;
+	assert(provision() == CB_ERR);
+
+	reset_fixture();
+	storage_mutates_state = true;
+	assert(provision() == CB_ERR);
+
+	reset_fixture();
+	storage_mutate_context_at = 2U;
+	assert(provision() == CB_ERR);
+
+	reset_fixture();
+	range_mutates_evidence = true;
+	assert(provision() == CB_ERR);
 
 	for (unsigned int trial = 0; trial < 64U; trial++)
 		provision_race();
+	for (unsigned int trial = 0; trial < 64U; trial++)
+		rejected_provision_race();
+	for (unsigned int trial = 0; trial < 32U; trial++) {
+		reset_fixture();
+		dirty_stack((uint8_t)(trial + 1U));
+		assert(provision() == CB_SUCCESS);
+	}
 	return 0;
 }

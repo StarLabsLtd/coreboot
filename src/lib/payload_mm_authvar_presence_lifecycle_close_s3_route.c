@@ -2,6 +2,7 @@
 
 #include <boot/payload_mm_authvar_presence_authority.h>
 #include <boot/payload_mm_authvar_presence_lifecycle_close_s3_route.h>
+#include <bootmem.h>
 #include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_fail_stop.h>
 #include <string.h>
@@ -76,12 +77,6 @@ static bool ranges_disjoint(const struct route_range *ranges, size_t count)
 	return true;
 }
 
-static bool callback_protected(payload_mm_authvar_protected_storage proof,
-	void *context, const void *callback)
-{
-	return callback && proof(context, callback, 1U);
-}
-
 static __noreturn void fail_stop(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route)
 {
@@ -141,11 +136,14 @@ static bool immutable_valid(
 		!memcmp(&route->topology_snapshot,
 			&route->sealed_topology_snapshot,
 			sizeof(route->topology_snapshot)) &&
-		!memcmp(&route->ops, &route->sealed_ops, sizeof(route->ops)) &&
+		!memcmp(&route->ops, &route->sealed_ops,
+			offsetof(struct smm_invocation_save_state_ops, context)) &&
 		route->ops.context == (route->ops.context_size ?
 			(void *)route->ops_context : NULL) &&
 		route->sealed_ops.context == (route->sealed_ops.context_size ?
 			(void *)route->sealed_ops_context : NULL) &&
+		(!route->ops.context_size ||
+		 route->ops.context != route->sealed_ops.context) &&
 		route->ops.context_size == route->sealed_ops.context_size &&
 		route->ops.context_size <= sizeof(route->ops_context) &&
 		!memcmp(route->ops_context, route->sealed_ops_context,
@@ -157,6 +155,26 @@ static bool immutable_valid(
 		route->protected_storage == route->sealed_protected_storage &&
 		route->protected_storage_context ==
 			route->sealed_protected_storage_context &&
+		route->protected_storage_context_size ==
+			route->sealed_protected_storage_context_size &&
+		route->protected_storage_context_size <=
+			sizeof(route->protected_storage_context_snapshot) &&
+		!!route->protected_storage_context ==
+			!!route->protected_storage_context_size &&
+		!memcmp(route->protected_storage_context_snapshot,
+			route->sealed_protected_storage_context_snapshot,
+			route->protected_storage_context_size) &&
+		route->predecessor_invocation_generation &&
+		route->predecessor_invocation_generation ==
+			route->sealed_predecessor_invocation_generation &&
+		smm_invocation_loader_instance_nonce_equal(
+			route->predecessor_loader_instance_nonce,
+			route->sealed_predecessor_loader_instance_nonce) &&
+		route->predecessor_lifecycle ==
+			route->sealed_predecessor_lifecycle &&
+		route->predecessor_eos_consumed == 1U &&
+		route->predecessor_eos_consumed ==
+			route->sealed_predecessor_eos_consumed &&
 		route->last_invocation_generation != UINT64_MAX &&
 		route->last_invocation_generation_inverse ==
 			~route->last_invocation_generation &&
@@ -167,8 +185,14 @@ static bool immutable_valid(
 			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_MESSAGE_SIZE &&
 		route->backing_size ==
 			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_SIZE &&
-		route->backing_tag != 0;
+		route->backing_tag == BM_MEM_RESERVED;
 	if (!valid || !protected_exact(route, route, sizeof(*route)) ||
+	    (route->protected_storage_context_size &&
+	     (!protected_exact(route, route->protected_storage_context,
+		route->protected_storage_context_size) ||
+	      memcmp(route->protected_storage_context,
+		route->protected_storage_context_snapshot,
+		route->protected_storage_context_size))) ||
 	    !protected_exact(route, route->composition,
 		sizeof(*route->composition)) ||
 	    !protected_exact(route, route->instance, sizeof(*route->instance)) ||
@@ -181,22 +205,18 @@ static bool immutable_valid(
 	valid = !memcmp(&instance, &route->instance_snapshot, sizeof(instance)) &&
 		!memcmp(&topology, &route->topology_snapshot, sizeof(topology)) &&
 		instance.lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD &&
+		smm_invocation_loader_instance_nonce_equal(
+			route->predecessor_loader_instance_nonce,
+			instance.loader_instance_nonce) &&
+		route->predecessor_lifecycle == instance.lifecycle &&
 		smm_invocation_loader_composition_evidence(route->composition,
 			route->evidence) == route->evidence &&
 		route->evidence->active_cpus == topology.active_cpus &&
 		route->evidence->bsp_cpu == topology.bsp_cpu &&
-		route->evidence->closed_generation &&
-		route->evidence->closed_generation <=
-			route->last_invocation_generation &&
-		route->evidence->closed_eos_consumed &&
 		smm_invocation_loader_instance_nonce_equal(
 			route->evidence->loader_instance_nonce,
 			instance.loader_instance_nonce) &&
-		smm_invocation_loader_instance_nonce_equal(
-			route->evidence->closed_loader_instance_nonce,
-			instance.loader_instance_nonce) &&
-		route->evidence->loader_lifecycle == instance.lifecycle &&
-		route->evidence->closed_lifecycle == instance.lifecycle;
+		route->evidence->loader_lifecycle == instance.lifecycle;
 	scrub(&instance, sizeof(instance));
 	scrub(&topology, sizeof(topology));
 	return valid;
@@ -222,7 +242,7 @@ static bool policy_valid(
 		  (PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_BACKING_ALIGNMENT - 1U)) &&
 		policy->backing_base <= UINTPTR_MAX - policy->backing_size &&
 		policy->backing_base + policy->backing_size <= (1ULL << 32) &&
-		policy->backing_tag && !policy->reserved &&
+		policy->backing_tag == BM_MEM_RESERVED && !policy->reserved &&
 		policy->dram_provenance && policy->dma_protected &&
 		policy->dram_provenance_context_size <=
 			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX &&
@@ -231,6 +251,107 @@ static bool policy_valid(
 		!!policy->dram_provenance_context ==
 			!!policy->dram_provenance_context_size &&
 		!!policy->dma_context == !!policy->dma_context_size;
+}
+
+struct predecessor_terminal {
+	uint64_t generation;
+	uint64_t closed_generation;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
+	struct smm_invocation_loader_instance_nonce closed_loader_instance_nonce;
+	uint32_t loader_lifecycle;
+	uint32_t closed_lifecycle;
+	uint32_t closed_eos_consumed;
+	uint32_t active_cpus;
+	uint32_t bsp_cpu;
+	uint32_t reserved;
+};
+
+_Static_assert(offsetof(struct predecessor_terminal, reserved) +
+	sizeof(((struct predecessor_terminal *)0)->reserved) ==
+	sizeof(struct predecessor_terminal),
+	"predecessor terminal must not have implicit tail padding");
+
+static void predecessor_snapshot(
+	const struct smm_invocation_evidence *evidence,
+	struct predecessor_terminal *snapshot)
+{
+	*snapshot = (struct predecessor_terminal) {
+		.generation = evidence->generation,
+		.closed_generation = evidence->closed_generation,
+		.loader_instance_nonce = evidence->loader_instance_nonce,
+		.closed_loader_instance_nonce =
+			evidence->closed_loader_instance_nonce,
+		.loader_lifecycle = evidence->loader_lifecycle,
+		.closed_lifecycle = evidence->closed_lifecycle,
+		.closed_eos_consumed = evidence->closed_eos_consumed,
+		.active_cpus = evidence->active_cpus,
+		.bsp_cpu = evidence->bsp_cpu,
+	};
+}
+
+static bool predecessor_equal(
+	const struct smm_invocation_evidence *evidence,
+	const struct predecessor_terminal *snapshot)
+{
+	struct predecessor_terminal observed;
+	bool equal;
+
+	predecessor_snapshot(evidence, &observed);
+	equal = observed.generation == snapshot->generation &&
+		observed.closed_generation == snapshot->closed_generation &&
+		smm_invocation_loader_instance_nonce_equal(
+			observed.loader_instance_nonce,
+			snapshot->loader_instance_nonce) &&
+		smm_invocation_loader_instance_nonce_equal(
+			observed.closed_loader_instance_nonce,
+			snapshot->closed_loader_instance_nonce) &&
+		observed.loader_lifecycle == snapshot->loader_lifecycle &&
+		observed.closed_lifecycle == snapshot->closed_lifecycle &&
+		observed.closed_eos_consumed == snapshot->closed_eos_consumed &&
+		observed.active_cpus == snapshot->active_cpus &&
+		observed.bsp_cpu == snapshot->bsp_cpu &&
+		!observed.reserved && !snapshot->reserved;
+	scrub(&observed, sizeof(observed));
+	return equal;
+}
+
+static bool provision_stable(
+	const struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_evidence *evidence,
+	const struct predecessor_terminal *predecessor)
+{
+	return __atomic_load_n(&route->state, __ATOMIC_ACQUIRE) ==
+		S3_ROUTE_PROVISIONING &&
+		smm_invocation_evidence_phase(evidence) == SMM_INVOCATION_READY &&
+		predecessor_equal(evidence, predecessor);
+}
+
+static bool storage_proof_stable(
+	const struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_evidence *evidence,
+	const struct predecessor_terminal *predecessor,
+	payload_mm_authvar_protected_storage proof, void *context,
+	const void *object, size_t size, bool expected)
+{
+	bool result;
+
+	if (!provision_stable(route, evidence, predecessor))
+		return false;
+	result = proof(context, object, size);
+	return result == expected && provision_stable(route, evidence, predecessor);
+}
+
+static bool range_proof_stable(
+	const struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_evidence *evidence,
+	const struct predecessor_terminal *predecessor,
+	payload_mm_authvar_presence_range_proof_fn proof, void *context,
+	uint64_t base, uint64_t size)
+{
+	if (!provision_stable(route, evidence, predecessor))
+		return false;
+	return proof(context, base, size) &&
+		provision_stable(route, evidence, predecessor);
 }
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
@@ -243,20 +364,25 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	const struct smm_invocation_save_state_ops *ops,
 	const struct payload_mm_authvar_presence_lifecycle_close_s3_policy *policy,
 	payload_mm_authvar_protected_storage protected_storage,
-	void *protected_storage_context)
+	void *protected_storage_context, size_t protected_storage_context_size)
 {
 	struct lb_authvar_presence_lifecycle_close_endpoint endpoint_snapshot;
 	struct smm_invocation_loader_instance instance_snapshot;
 	struct smm_invocation_topology topology_snapshot;
 	struct smm_invocation_save_state_ops ops_snapshot;
 	struct payload_mm_authvar_presence_lifecycle_close_s3_policy proof;
+	struct predecessor_terminal predecessor;
 	uint8_t provenance_context[
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX] = { 0 };
 	uint8_t dma_context[
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX] = { 0 };
 	uint8_t ops_context[SMM_INVOCATION_SAVE_STATE_CONTEXT_MAX] = { 0 };
-	struct route_range ranges[12];
+	uint8_t storage_context[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX] = { 0 };
+	struct route_range ranges[13];
+	struct route_range top_ranges[9];
 	size_t range_count = 0;
+	size_t top_count = 0;
 	uint32_t expected = S3_ROUTE_EMPTY;
 	enum cb_err status = CB_ERR;
 
@@ -268,8 +394,33 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	    !object_valid(topology, sizeof(*topology), _Alignof(*topology)) ||
 	    !object_valid(ops, sizeof(*ops), _Alignof(*ops)) ||
 	    !object_valid(policy, sizeof(*policy), _Alignof(*policy)) ||
-	    !protected_storage)
+	    !protected_storage ||
+	    protected_storage_context_size > sizeof(storage_context) ||
+	    !!protected_storage_context != !!protected_storage_context_size)
 		return CB_ERR;
+	top_ranges[top_count++] = (struct route_range) { route, sizeof(*route) };
+	top_ranges[top_count++] = (struct route_range) { endpoint, sizeof(*endpoint) };
+	top_ranges[top_count++] = (struct route_range) { composition,
+		sizeof(*composition) };
+	top_ranges[top_count++] = (struct route_range) { instance,
+		sizeof(*instance) };
+	top_ranges[top_count++] = (struct route_range) { evidence,
+		sizeof(*evidence) };
+	top_ranges[top_count++] = (struct route_range) { topology,
+		sizeof(*topology) };
+	top_ranges[top_count++] = (struct route_range) { ops, sizeof(*ops) };
+	top_ranges[top_count++] = (struct route_range) { policy, sizeof(*policy) };
+	if (protected_storage_context_size)
+		top_ranges[top_count++] = (struct route_range) {
+			protected_storage_context, protected_storage_context_size };
+	if (!ranges_disjoint(top_ranges, top_count))
+		return CB_ERR;
+	if (!__atomic_compare_exchange_n(&route->state, &expected,
+		S3_ROUTE_PROVISIONING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		goto out;
+	if (nonzero((const uint8_t *)route + sizeof(route->state),
+		sizeof(*route) - sizeof(route->state)))
+		goto reject;
 	endpoint_snapshot = *endpoint;
 	ops_snapshot = *ops;
 	proof = *policy;
@@ -280,23 +431,9 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	    !ops_snapshot.write_value ||
 	    ops_snapshot.context_size > sizeof(ops_context) ||
 	    !!ops_snapshot.context != !!ops_snapshot.context_size)
-		goto out;
-	if (proof.dram_provenance_context_size)
-		memcpy(provenance_context, proof.dram_provenance_context,
-			proof.dram_provenance_context_size);
-	if (proof.dma_context_size)
-		memcpy(dma_context, proof.dma_context, proof.dma_context_size);
-	if (ops_snapshot.context_size)
-		memcpy(ops_context, ops_snapshot.context, ops_snapshot.context_size);
-	ranges[range_count++] = (struct route_range) { route, sizeof(*route) };
-	ranges[range_count++] = (struct route_range) { endpoint, sizeof(*endpoint) };
-	ranges[range_count++] = (struct route_range) { composition,
-		sizeof(*composition) };
-	ranges[range_count++] = (struct route_range) { instance, sizeof(*instance) };
-	ranges[range_count++] = (struct route_range) { evidence, sizeof(*evidence) };
-	ranges[range_count++] = (struct route_range) { topology, sizeof(*topology) };
-	ranges[range_count++] = (struct route_range) { ops, sizeof(*ops) };
-	ranges[range_count++] = (struct route_range) { policy, sizeof(*policy) };
+		goto reject;
+	for (size_t index = 0; index < top_count; index++)
+		ranges[range_count++] = top_ranges[index];
 	ranges[range_count++] = (struct route_range) {
 		(void *)(uintptr_t)proof.backing_base, (size_t)proof.backing_size };
 	if (ops_snapshot.context_size)
@@ -309,80 +446,95 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	if (proof.dma_context_size)
 		ranges[range_count++] = (struct route_range) { proof.dma_context,
 			proof.dma_context_size };
-	if (!ranges_disjoint(ranges, range_count) ||
-	    memcmp(endpoint, &endpoint_snapshot, sizeof(endpoint_snapshot)) ||
-	    memcmp(ops, &ops_snapshot, sizeof(ops_snapshot)) ||
-	    memcmp(policy, &proof, sizeof(proof)) ||
-	    !__atomic_compare_exchange_n(&route->state, &expected,
-		S3_ROUTE_PROVISIONING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
-		goto out;
-	if (nonzero((const uint8_t *)route + sizeof(route->state),
-		sizeof(*route) - sizeof(route->state)) ||
-	    smm_invocation_loader_instance_read(instance, &instance_snapshot) !=
+	if (!ranges_disjoint(ranges, range_count))
+		goto reject;
+	if (smm_invocation_loader_instance_read(instance, &instance_snapshot) !=
 		CB_SUCCESS ||
 	    smm_invocation_topology_read(topology, &topology_snapshot) != CB_SUCCESS ||
 	    instance_snapshot.lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD ||
 	    smm_invocation_loader_composition_evidence(composition, evidence) !=
-		evidence ||
-	    smm_invocation_evidence_phase(evidence) != SMM_INVOCATION_READY ||
-	    !evidence->closed_generation ||
-	    evidence->closed_generation == UINT64_MAX ||
-	    !evidence->closed_eos_consumed ||
-	    evidence->active_cpus != topology_snapshot.active_cpus ||
-	    evidence->bsp_cpu != topology_snapshot.bsp_cpu ||
+		evidence)
+		goto reject;
+	predecessor_snapshot(evidence, &predecessor);
+	if (!predecessor.closed_generation ||
+	    predecessor.closed_generation == UINT64_MAX ||
+	    predecessor.generation != predecessor.closed_generation ||
+	    predecessor.closed_eos_consumed != 1U ||
+	    predecessor.active_cpus != topology_snapshot.active_cpus ||
+	    predecessor.bsp_cpu != topology_snapshot.bsp_cpu ||
 	    !smm_invocation_loader_instance_nonce_equal(
-		evidence->loader_instance_nonce,
+		predecessor.loader_instance_nonce,
 		instance_snapshot.loader_instance_nonce) ||
 	    !smm_invocation_loader_instance_nonce_equal(
-		evidence->closed_loader_instance_nonce,
+		predecessor.closed_loader_instance_nonce,
 		instance_snapshot.loader_instance_nonce) ||
-	    evidence->loader_lifecycle != instance_snapshot.lifecycle ||
-	    evidence->closed_lifecycle != instance_snapshot.lifecycle ||
-	    !protected_storage(protected_storage_context, route, sizeof(*route)) ||
-	    !protected_storage(protected_storage_context, endpoint,
-		sizeof(*endpoint)) ||
-	    !protected_storage(protected_storage_context, composition,
-		sizeof(*composition)) ||
-	    !protected_storage(protected_storage_context, instance,
-		sizeof(*instance)) ||
-	    !protected_storage(protected_storage_context, evidence,
-		sizeof(*evidence)) ||
-	    !protected_storage(protected_storage_context, topology,
-		sizeof(*topology)) ||
-	    !protected_storage(protected_storage_context, ops, sizeof(*ops)) ||
-	    !protected_storage(protected_storage_context, policy, sizeof(*policy)) ||
-	    protected_storage(protected_storage_context,
-		(const void *)(uintptr_t)proof.backing_base,
-		(size_t)proof.backing_size) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)protected_storage) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)ops_snapshot.match_apmc_write) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)ops_snapshot.read_value) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)ops_snapshot.write_value) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)proof.dram_provenance) ||
-	    !callback_protected(protected_storage, protected_storage_context,
-		(const void *)(uintptr_t)proof.dma_protected) ||
+	    predecessor.loader_lifecycle != instance_snapshot.lifecycle ||
+	    predecessor.closed_lifecycle != instance_snapshot.lifecycle ||
+	    !provision_stable(route, evidence, &predecessor))
+		goto reject;
+
+#define STORAGE_PROOF(object, object_size, expected_result) \
+	storage_proof_stable(route, evidence, &predecessor, protected_storage, \
+		protected_storage_context, (object), (object_size), (expected_result))
+	if (protected_storage_context_size) {
+		if (!STORAGE_PROOF(protected_storage_context,
+			protected_storage_context_size, true))
+			goto reject;
+		memcpy(storage_context, protected_storage_context,
+			protected_storage_context_size);
+	}
+	if (!STORAGE_PROOF(route, sizeof(*route), true) ||
+	    !STORAGE_PROOF(endpoint, sizeof(*endpoint), true) ||
+	    !STORAGE_PROOF(composition, sizeof(*composition), true) ||
+	    !STORAGE_PROOF(instance, sizeof(*instance), true) ||
+	    !STORAGE_PROOF(evidence, sizeof(*evidence), true) ||
+	    !STORAGE_PROOF(topology, sizeof(*topology), true) ||
+	    !STORAGE_PROOF(ops, sizeof(*ops), true) ||
+	    !STORAGE_PROOF(policy, sizeof(*policy), true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)proof.backing_base,
+		(size_t)proof.backing_size, false) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)protected_storage, 1U, true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)ops_snapshot.match_apmc_write,
+		1U, true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)ops_snapshot.read_value,
+		1U, true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)ops_snapshot.write_value,
+		1U, true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)proof.dram_provenance,
+		1U, true) ||
+	    !STORAGE_PROOF((const void *)(uintptr_t)proof.dma_protected,
+		1U, true) ||
 	    (ops_snapshot.context_size &&
-	     !protected_storage(protected_storage_context, ops_snapshot.context,
-		ops_snapshot.context_size)) ||
+	     !STORAGE_PROOF(ops_snapshot.context, ops_snapshot.context_size, true)) ||
 	    (proof.dram_provenance_context_size &&
-	     !protected_storage(protected_storage_context,
-		proof.dram_provenance_context,
-		proof.dram_provenance_context_size)) ||
+	     !STORAGE_PROOF(proof.dram_provenance_context,
+		proof.dram_provenance_context_size, true)) ||
 	    (proof.dma_context_size &&
-	     !protected_storage(protected_storage_context, proof.dma_context,
-		proof.dma_context_size)) ||
-	    !proof.dram_provenance(proof.dram_provenance_context_size ?
-		provenance_context : NULL, proof.backing_base, proof.backing_size) ||
-	    !proof.dma_protected(proof.dma_context_size ? dma_context : NULL,
+	     !STORAGE_PROOF(proof.dma_context, proof.dma_context_size, true)))
+		goto reject;
+#undef STORAGE_PROOF
+
+	if (proof.dram_provenance_context_size)
+		memcpy(provenance_context, proof.dram_provenance_context,
+			proof.dram_provenance_context_size);
+	if (proof.dma_context_size)
+		memcpy(dma_context, proof.dma_context, proof.dma_context_size);
+	if (ops_snapshot.context_size)
+		memcpy(ops_context, ops_snapshot.context, ops_snapshot.context_size);
+	if (!range_proof_stable(route, evidence, &predecessor,
+		proof.dram_provenance,
+		proof.dram_provenance_context_size ? provenance_context : NULL,
+		proof.backing_base, proof.backing_size) ||
+	    !range_proof_stable(route, evidence, &predecessor,
+		proof.dma_protected,
+		proof.dma_context_size ? dma_context : NULL,
 		proof.backing_base, proof.backing_size) ||
 	    memcmp(endpoint, &endpoint_snapshot, sizeof(endpoint_snapshot)) ||
 	    memcmp(ops, &ops_snapshot, sizeof(ops_snapshot)) ||
 	    memcmp(policy, &proof, sizeof(proof)) ||
+	    (protected_storage_context_size &&
+	     memcmp(protected_storage_context, storage_context,
+		protected_storage_context_size)) ||
 	    (ops_snapshot.context_size &&
 	     memcmp(ops_snapshot.context, ops_context,
 		ops_snapshot.context_size)) ||
@@ -390,7 +542,8 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	     memcmp(proof.dram_provenance_context, provenance_context,
 		proof.dram_provenance_context_size)) ||
 	    (proof.dma_context_size &&
-	     memcmp(proof.dma_context, dma_context, proof.dma_context_size)))
+	     memcmp(proof.dma_context, dma_context, proof.dma_context_size)) ||
+	    !provision_stable(route, evidence, &predecessor))
 		goto reject;
 
 	route->endpoint = route->sealed_endpoint = endpoint_snapshot;
@@ -426,22 +579,53 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 		protected_storage;
 	route->protected_storage_context =
 		route->sealed_protected_storage_context = protected_storage_context;
-	route->last_invocation_generation = evidence->closed_generation;
-	route->last_invocation_generation_inverse = ~evidence->closed_generation;
+	route->protected_storage_context_size =
+		route->sealed_protected_storage_context_size =
+			protected_storage_context_size;
+	if (protected_storage_context_size) {
+		memcpy(route->protected_storage_context_snapshot, storage_context,
+			protected_storage_context_size);
+		memcpy(route->sealed_protected_storage_context_snapshot,
+			storage_context, protected_storage_context_size);
+	}
+	route->predecessor_invocation_generation =
+		route->sealed_predecessor_invocation_generation =
+			predecessor.closed_generation;
+	route->predecessor_loader_instance_nonce =
+		route->sealed_predecessor_loader_instance_nonce =
+			predecessor.closed_loader_instance_nonce;
+	route->predecessor_lifecycle = route->sealed_predecessor_lifecycle =
+		predecessor.closed_lifecycle;
+	route->predecessor_eos_consumed =
+		route->sealed_predecessor_eos_consumed =
+			predecessor.closed_eos_consumed;
+	route->last_invocation_generation = predecessor.closed_generation;
+	route->last_invocation_generation_inverse =
+		~predecessor.closed_generation;
+	if (!provision_stable(route, evidence, &predecessor))
+		goto reject;
 	if (!dma_valid(route))
+		goto reject;
+	if (!provision_stable(route, evidence, &predecessor))
 		goto reject;
 	scrub((void *)(uintptr_t)route->backing_base, (size_t)route->backing_size);
 	if (!dma_valid(route))
+		goto reject;
+	if (!provision_stable(route, evidence, &predecessor))
 		goto reject;
 	__atomic_store_n(&route->state, S3_ROUTE_IDLE, __ATOMIC_RELEASE);
 	status = CB_SUCCESS;
 	goto out;
 reject:
-	scrub(route, sizeof(*route));
+	scrub((uint8_t *)route + sizeof(route->state),
+		sizeof(*route) - sizeof(route->state));
+	__atomic_store_n(&route->state, S3_ROUTE_POISONED, __ATOMIC_RELEASE);
 out:
 	scrub(provenance_context, sizeof(provenance_context));
 	scrub(dma_context, sizeof(dma_context));
 	scrub(ops_context, sizeof(ops_context));
+	scrub(storage_context, sizeof(storage_context));
+	scrub(&predecessor, sizeof(predecessor));
 	scrub(&proof, sizeof(proof));
 	scrub(&ops_snapshot, sizeof(ops_snapshot));
 	scrub(&instance_snapshot, sizeof(instance_snapshot));
@@ -530,6 +714,21 @@ static bool selection_valid(const struct smm_apmc_selection_receipt *selection)
 		selection->descriptor.reserved && selection->descriptor.enabled;
 }
 
+static bool pending_request_exact(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct payload_mm_authvar_presence_lifecycle_close_message *message,
+	const struct payload_mm_authvar_presence_lifecycle_close_message *request)
+{
+	if (!dma_valid(route) ||
+	    __atomic_load_n(&message->completion, __ATOMIC_ACQUIRE) !=
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING ||
+	    memcmp(message, request, sizeof(*request)) || !dma_valid(route))
+		return false;
+	return __atomic_load_n(&message->completion, __ATOMIC_ACQUIRE) ==
+			PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING &&
+		!memcmp(message, request, sizeof(*request));
+}
+
 enum smm_apmc_dispatch_result
 payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
@@ -537,7 +736,6 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 	struct smm_apmc_selection_receipt *selection)
 {
 	struct payload_mm_authvar_presence_lifecycle_close_message request;
-	struct payload_mm_authvar_presence_lifecycle_close_message observed;
 	struct payload_mm_authvar_presence_lifecycle_close_message response;
 	struct smm_invocation_entry_ticket ticket_snapshot;
 	struct smm_apmc_selection_receipt selection_snapshot;
@@ -551,7 +749,7 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 	    !__atomic_compare_exchange_n(&route->state, &expected,
 		S3_ROUTE_DISPATCHING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return SMM_APMC_CONSUMED_REJECT;
-	if (!immutable_valid(route) || !dma_valid(route))
+	if (!dma_valid(route))
 		fail_stop(route);
 	if (!runtime_disjoint(route, ticket, sizeof(*ticket)) ||
 	    !runtime_disjoint(route, selection, sizeof(*selection)) ||
@@ -578,24 +776,23 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING ||
 	    !dma_valid(route))
 		fail_stop(route);
-	if (!dma_valid(route))
-		fail_stop(route);
 	request = *message;
-	if (!dma_valid(route))
-		fail_stop(route);
-	if (!dma_valid(route))
-		fail_stop(route);
-	observed = *message;
-	if (!dma_valid(route) || memcmp(&request, &observed, sizeof(request)) ||
+	if (!pending_request_exact(route, message, &request) ||
 	    payload_mm_authvar_presence_lifecycle_close_request_validate(
 		&route->endpoint, &request, sizeof(request)) != CB_SUCCESS ||
 	    request.source !=
 		LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF)
 		fail_stop(route);
-	if (!dma_valid(route) || smm_invocation_evidence_claim(route->evidence,
+	if (smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_COLLECTING ||
+	    !pending_request_exact(route, message, &request) ||
+	    smm_invocation_evidence_claim(route->evidence,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SENTINEL,
-		&route->ops, &token) != CB_SUCCESS || !dma_valid(route) ||
+		&route->ops, &token) != CB_SUCCESS ||
+	    smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_CLAIMED ||
+	    !pending_request_exact(route, message, &request) ||
 	    token.revision != SMM_INVOCATION_TOKEN_REVISION ||
 	    token.size != sizeof(token) ||
 	    token.initiator_cpu != route->topology_snapshot.bsp_cpu ||
@@ -609,18 +806,20 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 	route->last_invocation_generation = token.smi_generation;
 	route->last_invocation_generation_inverse = ~token.smi_generation;
 	route->active_ticket = route->sealed_active_ticket = ticket_snapshot;
-	if (!dma_valid(route) || payload_mm_authvar_presence_authority_restrict(
-		route->endpoint.generation) != CB_SUCCESS || !dma_valid(route) ||
+	if (!pending_request_exact(route, message, &request) ||
 	    payload_mm_authvar_presence_authority_restrict(
-		route->endpoint.generation) != CB_SUCCESS || !dma_valid(route) ||
-	    !dma_valid(route) ||
+		route->endpoint.generation) != CB_SUCCESS ||
+	    !pending_request_exact(route, message, &request) ||
+	    payload_mm_authvar_presence_authority_restrict(
+		route->endpoint.generation) != CB_SUCCESS ||
+	    !pending_request_exact(route, message, &request) ||
 	    smm_invocation_evidence_publish_and_request_close(route->evidence,
 		&route->token,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_WIRE_SUCCESS,
-		&route->ops) != CB_SUCCESS || !dma_valid(route))
-		fail_stop(route);
-	if (!dma_valid(route) || memcmp(message, &request, sizeof(request)) ||
-	    !dma_valid(route))
+		&route->ops) != CB_SUCCESS ||
+	    smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_CLOSING ||
+	    !pending_request_exact(route, message, &request))
 		fail_stop(route);
 	response = request;
 	response.status = PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_STATUS_SUCCESS;
@@ -628,17 +827,15 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
 	if (!dma_valid(route))
 		fail_stop(route);
 	*message = response;
-	if (!dma_valid(route) || memcmp(message, &response, sizeof(response)) ||
-	    !dma_valid(route))
+	if (!dma_valid(route) ||
+	    __atomic_load_n(&message->completion, __ATOMIC_ACQUIRE) !=
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_PENDING ||
+	    memcmp(message, &response, sizeof(response)))
 		fail_stop(route);
 	__atomic_thread_fence(__ATOMIC_RELEASE);
-	if (!dma_valid(route))
-		fail_stop(route);
 	__atomic_store_n(&message->completion,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPLETE,
 		__ATOMIC_RELEASE);
-	if (!dma_valid(route))
-		fail_stop(route);
 	__atomic_store_n(&route->state, S3_ROUTE_RESPONDED, __ATOMIC_RELEASE);
 	return SMM_APMC_CONSUMED_SUCCESS;
 reject:
@@ -656,6 +853,29 @@ static bool active_ticket_valid(
 		!memcmp(ticket, &route->sealed_active_ticket, sizeof(*ticket));
 }
 
+static bool terminal_evidence_valid(
+	const struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_entry_ticket *ticket)
+{
+	const struct smm_invocation_evidence *evidence = route->evidence;
+
+	return smm_invocation_evidence_phase(evidence) == SMM_INVOCATION_READY &&
+		evidence->generation == ticket->generation &&
+		evidence->closed_generation == ticket->generation &&
+		smm_invocation_loader_instance_nonce_equal(
+			evidence->loader_instance_nonce,
+			ticket->loader_instance_nonce) &&
+		smm_invocation_loader_instance_nonce_equal(
+			evidence->closed_loader_instance_nonce,
+			route->instance_snapshot.loader_instance_nonce) &&
+		evidence->loader_lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD &&
+		evidence->closed_lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD &&
+		evidence->active_cpus == route->topology_snapshot.active_cpus &&
+		evidence->bsp_cpu == route->topology_snapshot.bsp_cpu &&
+		evidence->closed_eos_consumed == 1U &&
+		smm_invocation_evidence_phase(evidence) == SMM_INVOCATION_READY;
+}
+
 void payload_mm_authvar_presence_lifecycle_close_s3_route_prepare_lock_release(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
 	const struct smm_invocation_entry_ticket *ticket)
@@ -669,6 +889,8 @@ void payload_mm_authvar_presence_lifecycle_close_s3_route_prepare_lock_release(
 	snapshot = *ticket;
 	if (!active_ticket_valid(route, &snapshot) ||
 	    snapshot.cpu != route->topology_snapshot.bsp_cpu ||
+	    smm_invocation_evidence_phase(route->evidence) !=
+		SMM_INVOCATION_CLOSING ||
 	    memcmp(ticket, &snapshot, sizeof(snapshot)) ||
 	    !__atomic_compare_exchange_n(&route->state, &expected,
 		S3_ROUTE_DEPARTING, false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
@@ -708,6 +930,8 @@ payload_mm_authvar_presence_lifecycle_close_s3_route_depart(
 		__asm__ __volatile__("pause");
 	}
 	if (!smm_invocation_entry_eos_ready(route->evidence, &snapshot))
+		fail_stop(route);
+	if (!terminal_evidence_valid(route, &snapshot))
 		fail_stop(route);
 	scrub(&route->token, sizeof(route->token));
 	scrub(&route->sealed_token, sizeof(route->sealed_token));

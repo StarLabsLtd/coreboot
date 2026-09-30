@@ -69,14 +69,33 @@ struct payload_mm_authvar_presence_lifecycle_close_s3_route {
 	payload_mm_authvar_protected_storage sealed_protected_storage;
 	void *protected_storage_context;
 	void *sealed_protected_storage_context;
+	size_t protected_storage_context_size;
+	size_t sealed_protected_storage_context_size;
+	uint8_t protected_storage_context_snapshot[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX];
+	uint8_t sealed_protected_storage_context_snapshot[
+		PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_CONTEXT_MAX];
 	struct smm_invocation_token token;
 	struct smm_invocation_token sealed_token;
 	struct smm_invocation_entry_ticket active_ticket;
 	struct smm_invocation_entry_ticket sealed_active_ticket;
+	uint64_t predecessor_invocation_generation;
+	uint64_t sealed_predecessor_invocation_generation;
+	struct smm_invocation_loader_instance_nonce predecessor_loader_instance_nonce;
+	struct smm_invocation_loader_instance_nonce
+		sealed_predecessor_loader_instance_nonce;
+	uint32_t predecessor_lifecycle;
+	uint32_t sealed_predecessor_lifecycle;
+	uint32_t predecessor_eos_consumed;
+	uint32_t sealed_predecessor_eos_consumed;
 	uint64_t last_invocation_generation;
 	uint64_t last_invocation_generation_inverse;
 } __aligned(8);
 
+/*
+ * protected_storage_context is either NULL for a stateless verifier or a fresh,
+ * bounded protected runtime-verifier identity. Its exact bytes remain sealed.
+ */
 enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
 	const struct lb_authvar_presence_lifecycle_close_endpoint *endpoint,
@@ -87,7 +106,7 @@ enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_provision(
 	const struct smm_invocation_save_state_ops *ops,
 	const struct payload_mm_authvar_presence_lifecycle_close_s3_policy *policy,
 	payload_mm_authvar_protected_storage protected_storage,
-	void *protected_storage_context);
+	void *protected_storage_context, size_t protected_storage_context_size);
 
 enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_arrive(
 	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
