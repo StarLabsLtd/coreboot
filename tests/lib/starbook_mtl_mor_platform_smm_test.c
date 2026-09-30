@@ -33,7 +33,7 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		CB_SUCCESS : CB_ERR;
 }
 
-#include "../../src/mainboard/starlabs/starbook/variants/mtl/mor_platform_smm.c"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_platform_smm.c"
 
 int main(void)
 {

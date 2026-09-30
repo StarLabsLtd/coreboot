@@ -9,6 +9,7 @@ mkdir -p "$temporary/include"
 printf '%s\n' \
 	'#define CONFIG_MAX_CPUS 16' \
 	'#define CONFIG_SMM_MODULE_STACK_SIZE 0x4000' \
+	'#define CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER 1' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	> "$temporary/include/config.h"
 
@@ -32,8 +33,8 @@ done
 verify_smm_only()
 {
 	makefile=$1
-	test "$(grep -Ec '^[^#]*mor_platform_smm.c$' "$makefile")" -eq 1 &&
-		test "$(grep -c '^smm-\$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c$' \
+	test "$(grep -Ec '^[^#]*authvar_platform_smm.c$' "$makefile")" -eq 1 &&
+		test "$(grep -c '^smm-y += authvar_platform_smm.c$' \
 			"$makefile")" -eq 1
 }
 makefile="$root/src/mainboard/starlabs/starbook/variants/mtl/Makefile.mk"
@@ -41,7 +42,7 @@ verify_smm_only "$makefile"
 mutant="$temporary/Makefile-wrong-stage.mk"
 cp "$makefile" "$mutant"
 printf '%s\n' \
-	'ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c' \
+	'ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += authvar_platform_smm.c' \
 	>> "$mutant"
 if verify_smm_only "$mutant"; then
 	printf '%s\n' 'ERROR: wrong-stage SMM bootstrap survived' >&2

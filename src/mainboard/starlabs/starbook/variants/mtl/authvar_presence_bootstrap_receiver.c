@@ -4,6 +4,9 @@
 #include "authvar_presence_authority_policy.h"
 #include "authvar_presence_route_composition.h"
 #include "dma_smm_receipt_provision.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include "authvar_platform_smm.h"
+#endif
 
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_invocation_runtime.h>
@@ -108,9 +111,13 @@ enum cb_err starbook_mtl_presence_bootstrap_response_stage(
 	if (!protected_storage(NULL, &response, sizeof(response)) ||
 	    __atomic_load_n(&response.phase, __ATOMIC_ACQUIRE) != RESPONSE_PENDING ||
 	    active_ops != response.ops ||
-	    memcmp(response.frame, &response.snapshot, sizeof(response.snapshot)) ||
+	    memcmp(response.frame, &response.snapshot, sizeof(response.snapshot))
+#if !CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    ||
 	    active_ops->write_value(active_ops->context, response.initiator,
-		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS) != CB_SUCCESS)
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS) != CB_SUCCESS
+#endif
+	    )
 		return CB_ERR;
 	__atomic_store_n(&response.phase, RESPONSE_STAGED, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
@@ -154,6 +161,10 @@ enum cb_err starbook_mtl_presence_bootstrap_route_install(void)
 	    !(slot = smm_get_payload_mm_authvar_presence_bootstrap()) ||
 	    !protected_storage(NULL, slot, sizeof(*slot)))
 		return CB_ERR;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (starbook_mtl_authvar_service_bootstrap_install() != CB_SUCCESS)
+		return CB_ERR;
+#endif
 	return starbook_mtl_authvar_presence_route_composition_provision(
 		runtime.composition, runtime.instance, runtime.evidence, runtime.topology,
 		policy, binding, &slot->page_verifier, &slot->page_receipt,
