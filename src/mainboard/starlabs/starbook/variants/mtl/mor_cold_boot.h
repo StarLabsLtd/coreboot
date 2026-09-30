@@ -25,6 +25,7 @@ enum starbook_mtl_mor_boot_kind {
 struct starbook_mtl_mor_cold_capture {
 	uint32_t lifecycle;
 	uint32_t captured;
+	uint32_t presence_boot_class;
 };
 
 _Static_assert(sizeof(struct starbook_mtl_mor_cold_capture) ==

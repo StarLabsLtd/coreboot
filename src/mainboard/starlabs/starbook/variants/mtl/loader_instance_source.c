@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <soc/authvar_presence_boot_classifier.h>
 
 #if ENV_SEPARATE_ROMSTAGE || ENV_RAMSTAGE
 #include <cbmem.h>
@@ -67,12 +68,13 @@ static bool range_protected(uintptr_t base, size_t size, uint64_t limit)
 		(uint64_t)base < limit && size <= limit - (uint64_t)base;
 }
 
-static uint64_t payload_seal(uint32_t lifecycle,
+static uint64_t payload_seal(uint32_t lifecycle, uint32_t presence_boot_class,
 	struct smm_invocation_loader_instance_nonce nonce)
 {
 	return MTL_LOADER_INSTANCE_SEAL_DOMAIN ^ nonce.low ^
 		((nonce.high << 17) | (nonce.high >> 47)) ^
 		((uint64_t)lifecycle << 32) ^
+		((uint64_t)presence_boot_class << 48) ^
 		sizeof(struct starbook_mtl_loader_instance_source_payload);
 }
 
@@ -84,12 +86,25 @@ static bool payload_valid(
 		(payload->lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD ||
 		 payload->lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD) &&
 		payload->sealed == 1U && payload->loader_instance_nonce.low &&
-		payload->seal == payload_seal(payload->lifecycle,
+		!payload->reserved &&
+		payload->presence_boot_class <= MTL_AUTHVAR_PRESENCE_BOOT_COLD &&
+		(payload->presence_boot_class == MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN ||
+		 ((payload->presence_boot_class == MTL_AUTHVAR_PRESENCE_BOOT_S3) ==
+		  (payload->lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD))) &&
+		payload->seal == payload_seal(payload->lifecycle, payload->presence_boot_class,
 			payload->loader_instance_nonce);
 }
 
 void starbook_mtl_loader_instance_source_capture(
 	struct starbook_mtl_loader_instance_source_capture *capture, int s3wake)
+{
+	starbook_mtl_loader_instance_source_capture_classified(capture, s3wake,
+		MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN);
+}
+
+void starbook_mtl_loader_instance_source_capture_classified(
+	struct starbook_mtl_loader_instance_source_capture *capture, int s3wake,
+	uint32_t presence_boot_class)
 {
 	if (!object_valid(capture, sizeof(*capture), _Alignof(*capture)))
 		return;
@@ -97,8 +112,15 @@ void starbook_mtl_loader_instance_source_capture(
 		memset(capture, 0, sizeof(*capture));
 		return;
 	}
+	if (presence_boot_class > MTL_AUTHVAR_PRESENCE_BOOT_COLD ||
+	    (presence_boot_class != MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN &&
+	     ((presence_boot_class == MTL_AUTHVAR_PRESENCE_BOOT_S3) != !!s3wake))) {
+		memset(capture, 0, sizeof(*capture));
+		return;
+	}
 	capture->lifecycle = s3wake ? SMM_INVOCATION_LOADER_S3_RELOAD :
 		SMM_INVOCATION_LOADER_NON_S3_LOAD;
+	capture->presence_boot_class = presence_boot_class;
 	capture->captured = 1U;
 }
 
@@ -188,6 +210,10 @@ enum cb_err starbook_mtl_loader_instance_source_publish(
 	memcpy(&captured, capture, sizeof(captured));
 	memcpy(&operations, ops, sizeof(operations));
 	if (captured.captured != 1U ||
+	    captured.presence_boot_class > MTL_AUTHVAR_PRESENCE_BOOT_COLD ||
+	    (captured.presence_boot_class != MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN &&
+	     ((captured.presence_boot_class == MTL_AUTHVAR_PRESENCE_BOOT_S3) !=
+	      (captured.lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD))) ||
 	    (captured.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
 	     captured.lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD))
 		return CB_ERR;
@@ -214,6 +240,7 @@ enum cb_err starbook_mtl_loader_instance_source_publish(
 	    final_limit != first_limit ||
 	    !range_protected(entry_base, entry_size, final_limit) ||
 	    capture->lifecycle != captured.lifecycle ||
+	    capture->presence_boot_class != captured.presence_boot_class ||
 	    __atomic_load_n(&capture->captured, __ATOMIC_ACQUIRE) != 2U ||
 	    __atomic_load_n(&record->state, __ATOMIC_ACQUIRE) !=
 		STARBOOK_MTL_LOADER_INSTANCE_SOURCE_PUBLISHING || record->reserved ||
@@ -227,13 +254,15 @@ enum cb_err starbook_mtl_loader_instance_source_publish(
 		goto out;
 	SOURCE_TEST_HOOK(2);
 	if (__atomic_load_n(&record->state, __ATOMIC_ACQUIRE) !=
-		STARBOOK_MTL_LOADER_INSTANCE_SOURCE_PUBLISHING)
+		STARBOOK_MTL_LOADER_INSTANCE_SOURCE_PUBLISHING ||
+	    capture->presence_boot_class != captured.presence_boot_class)
 		goto out;
 	payload.revision = STARBOOK_MTL_LOADER_INSTANCE_SOURCE_REVISION;
 	payload.size = sizeof(payload);
 	payload.lifecycle = captured.lifecycle;
+	payload.presence_boot_class = captured.presence_boot_class;
 	payload.sealed = 1U;
-	payload.seal = payload_seal(payload.lifecycle,
+	payload.seal = payload_seal(payload.lifecycle, payload.presence_boot_class,
 		payload.loader_instance_nonce);
 	record->primary = payload;
 	record->mirror = payload;
@@ -259,12 +288,13 @@ out:
 	return CB_ERR;
 }
 
-enum cb_err starbook_mtl_loader_instance_source_consume(
+enum cb_err starbook_mtl_loader_instance_source_consume_classified(
 	struct starbook_mtl_loader_instance_source_record *record,
 	uintptr_t entry_base, size_t entry_size,
 	const struct starbook_mtl_loader_instance_source_ops *ops,
 	uint32_t *lifecycle,
-	struct smm_invocation_loader_instance_nonce *loader_instance_nonce)
+	struct smm_invocation_loader_instance_nonce *loader_instance_nonce,
+	uint32_t *presence_boot_class)
 {
 	struct starbook_mtl_loader_instance_source_record saved;
 	struct starbook_mtl_loader_instance_source_ops operations;
@@ -272,11 +302,23 @@ enum cb_err starbook_mtl_loader_instance_source_consume(
 	uint64_t final_limit;
 	struct smm_invocation_loader_instance_nonce saved_nonce = { 0 };
 	uint32_t saved_lifecycle = 0;
+	uint32_t saved_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
 	uint32_t expected = STARBOOK_MTL_LOADER_INSTANCE_SOURCE_READY;
 	enum cb_err result = CB_ERR;
 	bool owns_record = false;
 
 	if (!common_inputs_valid(record, entry_base, entry_size, ops) ||
+	    !object_valid(presence_boot_class, sizeof(*presence_boot_class),
+		_Alignof(*presence_boot_class)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		lifecycle, sizeof(*lifecycle)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		loader_instance_nonce, sizeof(*loader_instance_nonce)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		record, sizeof(*record)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		ops, sizeof(*ops)) ||
+	    object_contains(presence_boot_class, sizeof(*presence_boot_class), ops->context) ||
 	    !object_valid(lifecycle, sizeof(*lifecycle), _Alignof(*lifecycle)) ||
 	    !object_valid(loader_instance_nonce, sizeof(*loader_instance_nonce),
 		_Alignof(*loader_instance_nonce)) ||
@@ -297,6 +339,7 @@ enum cb_err starbook_mtl_loader_instance_source_consume(
 	    !ops->protected_limit || !ops->quiesce)
 		return CB_ERR_ARG;
 	*lifecycle = 0;
+	*presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
 	memset(loader_instance_nonce, 0, sizeof(*loader_instance_nonce));
 	memcpy(&operations, ops, sizeof(operations));
 	if (operations.protected_limit(operations.context, &first_limit) != CB_SUCCESS ||
@@ -322,6 +365,7 @@ enum cb_err starbook_mtl_loader_instance_source_consume(
 		goto out;
 	saved_nonce = saved.primary.loader_instance_nonce;
 	saved_lifecycle = saved.primary.lifecycle;
+	saved_boot_class = saved.primary.presence_boot_class;
 	result = CB_SUCCESS;
 out:
 	memset(&saved, 0, sizeof(saved));
@@ -330,10 +374,25 @@ out:
 			STARBOOK_MTL_LOADER_INSTANCE_SOURCE_CONSUMED);
 	if (result == CB_SUCCESS) {
 		*lifecycle = saved_lifecycle;
+		*presence_boot_class = saved_boot_class;
 		*loader_instance_nonce = saved_nonce;
 	}
 	memset(&saved_nonce, 0, sizeof(saved_nonce));
 	return result;
+}
+
+enum cb_err starbook_mtl_loader_instance_source_consume(
+	struct starbook_mtl_loader_instance_source_record *record,
+	uintptr_t entry_base, size_t entry_size,
+	const struct starbook_mtl_loader_instance_source_ops *ops,
+	uint32_t *lifecycle,
+	struct smm_invocation_loader_instance_nonce *loader_instance_nonce)
+{
+	uint32_t presence_boot_class;
+
+	return starbook_mtl_loader_instance_source_consume_classified(record,
+		entry_base, entry_size, ops, lifecycle, loader_instance_nonce,
+		&presence_boot_class);
 }
 
 void starbook_mtl_mor_cold_capture(
@@ -538,9 +597,16 @@ static void allocate_record(int is_recovery)
 }
 CBMEM_CREATION_HOOK(allocate_record);
 
-void mainboard_loader_instance_source_capture(int s3wake)
+void mainboard_loader_instance_source_capture(int s3wake,
+	const struct chipset_power_state *power_state)
 {
-	starbook_mtl_loader_instance_source_capture(&romstage_capture, s3wake);
+	struct mtl_authvar_presence_boot_evidence evidence = { 0 };
+
+	if (CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_CLASSIFICATION) &&
+	    mtl_authvar_presence_boot_classify(power_state, &evidence) != CB_SUCCESS)
+		return;
+	starbook_mtl_loader_instance_source_capture_classified(&romstage_capture,
+		s3wake, evidence.classification);
 }
 
 enum cb_err mainboard_loader_instance_source_publish(void)
@@ -683,13 +749,21 @@ enum cb_err starbook_mtl_mor_cold_ramstage_classify(
 enum cb_err starbook_mtl_loader_instance_source_ramstage_take(
 	uint32_t *lifecycle,
 	struct smm_invocation_loader_instance_nonce *loader_instance_nonce,
-	struct pci_bme_quiesce_snapshot *snapshot)
+	struct pci_bme_quiesce_snapshot *snapshot, uint32_t *presence_boot_class)
 {
 	struct starbook_mtl_loader_instance_source_record *record;
 	const struct cbmem_entry *entry;
 	uint64_t limit;
 
 	if (!object_valid(lifecycle, sizeof(*lifecycle), _Alignof(*lifecycle)) ||
+	    !object_valid(presence_boot_class, sizeof(*presence_boot_class),
+		_Alignof(*presence_boot_class)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		lifecycle, sizeof(*lifecycle)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		loader_instance_nonce, sizeof(*loader_instance_nonce)) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		snapshot, sizeof(*snapshot)) ||
 	    !object_valid(loader_instance_nonce, sizeof(*loader_instance_nonce),
 		_Alignof(*loader_instance_nonce)) ||
 	    !object_valid(snapshot, sizeof(*snapshot), _Alignof(*snapshot)) ||
@@ -705,6 +779,10 @@ enum cb_err starbook_mtl_loader_instance_source_ramstage_take(
 	if (!entry || !record || cbmem_entry_start(entry) != record ||
 	    cbmem_entry_size(entry) != sizeof(*record) ||
 	    protected_limit(NULL, &limit) != CB_SUCCESS ||
+	    !range_protected((uintptr_t)presence_boot_class,
+		sizeof(*presence_boot_class), limit) ||
+	    objects_overlap(presence_boot_class, sizeof(*presence_boot_class),
+		record, sizeof(*record)) ||
 	    !range_protected((uintptr_t)lifecycle, sizeof(*lifecycle), limit) ||
 	    !range_protected((uintptr_t)loader_instance_nonce,
 		sizeof(*loader_instance_nonce), limit) ||
@@ -721,14 +799,16 @@ enum cb_err starbook_mtl_loader_instance_source_ramstage_take(
 		sizeof(pci_workspace)))
 		return CB_ERR_ARG;
 	*lifecycle = 0;
+	*presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
 	memset(loader_instance_nonce, 0, sizeof(*loader_instance_nonce));
 	memset(snapshot, 0, sizeof(*snapshot));
-	if (starbook_mtl_loader_instance_source_consume(record,
+	if (starbook_mtl_loader_instance_source_consume_classified(record,
 		(uintptr_t)cbmem_entry_start(entry), cbmem_entry_size(entry),
-		&ramstage_ops, lifecycle, loader_instance_nonce) != CB_SUCCESS ||
+		&ramstage_ops, lifecycle, loader_instance_nonce, presence_boot_class) != CB_SUCCESS ||
 	    pci_snapshot.failed || !pci_snapshot.count ||
 	    pci_snapshot.count > PCI_BME_QUIESCE_MAX_FUNCTIONS) {
 		*lifecycle = 0;
+		*presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
 		memset(loader_instance_nonce, 0, sizeof(*loader_instance_nonce));
 		memset(&pci_snapshot, 0, sizeof(pci_snapshot));
 		return CB_ERR;

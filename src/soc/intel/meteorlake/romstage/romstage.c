@@ -17,7 +17,12 @@
 #include <string.h>
 
 #if CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE)
-void __weak mainboard_loader_instance_source_capture(int s3wake) { (void)s3wake; }
+void __weak mainboard_loader_instance_source_capture(int s3wake,
+	const struct chipset_power_state *power_state)
+{
+	(void)s3wake;
+	(void)power_state;
+}
 enum cb_err __weak mainboard_loader_instance_source_publish(void) { return CB_SUCCESS; }
 #else
 void __weak mainboard_mor_cold_capture(int s3wake) { (void)s3wake; }
@@ -38,7 +43,7 @@ void mainboard_romstage_entry(void)
 	bool s3wake = pmc_fill_power_state(ps) == ACPI_S3;
 
 	if (CONFIG(SOC_INTEL_METEORLAKE_LOADER_INSTANCE_SOURCE))
-		mainboard_loader_instance_source_capture(s3wake);
+		mainboard_loader_instance_source_capture(s3wake, ps);
 
 	/* Initialize HECI interface */
 	cse_init(HECI1_BASE_ADDRESS);

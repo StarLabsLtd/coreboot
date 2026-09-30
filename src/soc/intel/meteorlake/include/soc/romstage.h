@@ -12,7 +12,9 @@ void mainboard_memory_init_params(FSPM_UPD *memupd);
 void systemagent_early_init(void);
 void mainboard_mor_cold_capture(int s3wake);
 enum cb_err mainboard_mor_cold_publish(void);
-void mainboard_loader_instance_source_capture(int s3wake);
+struct chipset_power_state;
+void mainboard_loader_instance_source_capture(int s3wake,
+	const struct chipset_power_state *power_state);
 enum cb_err mainboard_loader_instance_source_publish(void);
 
 /* Board type */

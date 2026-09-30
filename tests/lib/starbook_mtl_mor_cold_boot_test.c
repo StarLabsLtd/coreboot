@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <pthread.h>
+#include <soc/authvar_presence_boot_classifier.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/mor_cold_boot.h"
 
@@ -204,6 +205,52 @@ int main(int argc, char **argv)
 	uint64_t output = 0;
 
 	assert(argc == 2);
+	if (!strcmp(argv[1], "presence-classification")) {
+		uint32_t lifecycle;
+		uint32_t classification;
+		struct smm_invocation_loader_instance_nonce nonce;
+
+		context.ops = &ops;
+		for (uint32_t boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
+		     boot_class <= MTL_AUTHVAR_PRESENCE_BOOT_COLD; boot_class++) {
+			struct starbook_mtl_loader_instance_source_capture classified = { 0 };
+
+			memset(&record, 0, sizeof(record));
+			starbook_mtl_loader_instance_source_capture_classified(&classified,
+				boot_class == MTL_AUTHVAR_PRESENCE_BOOT_S3, boot_class);
+			assert(starbook_mtl_loader_instance_source_publish(&classified,
+				&record, (uintptr_t)&record, sizeof(record), &ops) == CB_SUCCESS);
+			assert(starbook_mtl_loader_instance_source_consume_classified(&record,
+				(uintptr_t)&record, sizeof(record), &ops, &lifecycle, &nonce,
+				&classification) == CB_SUCCESS);
+			assert(classification == boot_class && nonce.low == context.random);
+			assert(lifecycle == (boot_class == MTL_AUTHVAR_PRESENCE_BOOT_S3 ?
+				SMM_INVOCATION_LOADER_S3_RELOAD : SMM_INVOCATION_LOADER_NON_S3_LOAD));
+			assert(consumed(&record));
+		}
+		return 0;
+	}
+	if (!strcmp(argv[1], "presence-classification-mutation")) {
+		struct starbook_mtl_loader_instance_source_capture classified = { 0 };
+		uint32_t lifecycle;
+		uint32_t classification = UINT32_MAX;
+		struct smm_invocation_loader_instance_nonce nonce;
+
+		context.ops = &ops;
+		starbook_mtl_loader_instance_source_capture_classified(&classified, 0,
+			MTL_AUTHVAR_PRESENCE_BOOT_RESET);
+		assert(starbook_mtl_loader_instance_source_publish(&classified, &record,
+			(uintptr_t)&record, sizeof(record), &ops) == CB_SUCCESS);
+		/* Editing both mirrors cannot upgrade reset evidence into cold. */
+		record.primary.presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_COLD;
+		record.mirror.presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_COLD;
+		assert(starbook_mtl_loader_instance_source_consume_classified(&record,
+			(uintptr_t)&record, sizeof(record), &ops, &lifecycle, &nonce,
+			&classification) != CB_SUCCESS);
+		assert(!lifecycle && !nonce.low && !nonce.high && !classification);
+		assert(consumed(&record));
+		return 0;
+	}
 	if (!strcmp(argv[1], "publish-race")) {
 		test_publish_race();
 		return 0;

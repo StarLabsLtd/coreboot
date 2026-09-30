@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <boot/payload_mm_authvar_presence_handoff.h>
+#include <soc/authvar_presence_boot_classifier.h>
 
 #include "mor_cold_boot.h"
 #include "mor_early_dma.h"
@@ -205,7 +207,22 @@ static struct {
 	struct pci_bme_quiesce_snapshot source_snapshot;
 	uint32_t lifecycle;
 	uint32_t lifecycle_inverse;
+	uint32_t presence_boot_class;
+	uint32_t presence_boot_class_inverse;
 } authority_workspace __aligned(8);
+
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_CLASSIFICATION)
+bool platform_payload_mm_authvar_presence_handoff_cold_boot(void)
+{
+	uint32_t lifecycle;
+	const uint32_t classification = authority_workspace.presence_boot_class;
+
+	return mainboard_loader_instance_authority_lifecycle(&lifecycle) == CB_SUCCESS &&
+		lifecycle == SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+		classification == ~authority_workspace.presence_boot_class_inverse &&
+		classification == MTL_AUTHVAR_PRESENCE_BOOT_COLD;
+}
+#endif
 
 enum cb_err mainboard_loader_instance_authority_lifecycle(uint32_t *lifecycle)
 {
@@ -223,6 +240,7 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 {
 	struct smm_invocation_loader_instance_nonce nonce = { 0 };
 	uint32_t lifecycle;
+	uint32_t presence_boot_class;
 	uint64_t initial_limit;
 	uint64_t final_limit;
 	uint64_t abort_limit;
@@ -236,6 +254,8 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 
 	authority_workspace.lifecycle = 0;
 	authority_workspace.lifecycle_inverse = 0;
+	authority_workspace.presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
+	authority_workspace.presence_boot_class_inverse = 0;
 	if (protected_limit(&initial_limit) != CB_SUCCESS ||
 	    !range_protected((uintptr_t)&authority_workspace,
 		sizeof(authority_workspace), initial_limit) ||
@@ -244,7 +264,7 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 		initial_limit, &authority_workspace.owner) != CB_SUCCESS)
 		return CB_ERR;
 	if (starbook_mtl_loader_instance_source_ramstage_take(&lifecycle, &nonce,
-		&authority_workspace.source_snapshot) != CB_SUCCESS)
+		&authority_workspace.source_snapshot, &presence_boot_class) != CB_SUCCESS)
 		goto fail;
 #if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 	{
@@ -279,11 +299,15 @@ enum cb_err mainboard_loader_instance_authority_prepare(void)
 		goto fail;
 	authority_workspace.lifecycle = lifecycle;
 	authority_workspace.lifecycle_inverse = ~lifecycle;
+	authority_workspace.presence_boot_class = presence_boot_class;
+	authority_workspace.presence_boot_class_inverse = ~presence_boot_class;
 	memset(&nonce, 0, sizeof(nonce));
 	return CB_SUCCESS;
 fail:
 	authority_workspace.lifecycle = 0;
 	authority_workspace.lifecycle_inverse = 0;
+	authority_workspace.presence_boot_class = MTL_AUTHVAR_PRESENCE_BOOT_UNKNOWN;
+	authority_workspace.presence_boot_class_inverse = 0;
 #if CONFIG(STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD)
 	if (early_record_safe)
 		memset(record, 0, sizeof(*record));

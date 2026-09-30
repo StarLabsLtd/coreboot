@@ -194,6 +194,12 @@ test-authvar-presence-lifecycle-close-endpoint:
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_route_test.sh
 	tests/lib/payload_mm_authvar_presence_lifecycle_close_s3_route_test.sh
 
+.PHONY: test-starbook-mtl-presence-cold-source
+test-starbook-mtl-presence-cold-source:
+	tests/lib/starbook_mtl_mor_cold_boot_test.sh
+	tests/lib/mtl_authvar_presence_boot_classifier_test.sh
+	sh tests/lib/starbook_mtl_presence_cold_source_profiles_test.sh
+
 .PHONY: test-starbook-mtl-authvar-presence-route-composition
 test-starbook-mtl-authvar-presence-route-composition:
 	tests/lib/starbook_mtl_authvar_presence_route_composition_test.sh
