@@ -275,8 +275,22 @@ kconfig_dormant_contract()
 
 reject_route_kconfig_enablers()
 {
-	! rg -q '^[[:space:]]*(select|imply)[[:space:]]+(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION|SMM_APMC_ROUTE_AUTHVAR_PRESENCE)([[:space:]]|$)' \
-		"$@"
+	files=$(rg -l '^[[:space:]]*(select|imply)[[:space:]]+(PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION|SMM_APMC_ROUTE_AUTHVAR_PRESENCE)([[:space:]]|$)' \
+		"$@" || true)
+	for file in $files; do
+		awk -v allowed="$root/src/mainboard/starlabs/starbook/Kconfig" '
+			$1 == "config" || $1 == "menuconfig" { symbol = $2 }
+			($1 == "select" || $1 == "imply") &&
+			($2 == "PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION" ||
+			 $2 == "SMM_APMC_ROUTE_AUTHVAR_PRESENCE") {
+				if (FILENAME != allowed || $1 != "select" ||
+				    $2 != "PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION" ||
+				    symbol != "STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER")
+					bad = 1
+			}
+			END { exit bad }
+		' "$file" || return 1
+	done
 }
 
 lib_kconfig="$root/src/lib/Kconfig"
@@ -286,6 +300,11 @@ kconfig_dormant_contract PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION \
 	"$lib_kconfig" "$route_dependencies"
 kconfig_dormant_contract SMM_APMC_ROUTE_AUTHVAR_PRESENCE \
 	"$cpu_kconfig" 'PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION'
+# The existing board owner is hidden, default-off and requires the complete
+# loader/adapter/transaction prerequisites. It does not enable the public route.
+kconfig_dormant_contract STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER \
+	"$root/src/mainboard/starlabs/starbook/Kconfig" \
+	'BOARD_STARLABS_STARBOOK_MTL && HAVE_SMI_HANDLER;SMM_INVOCATION_INTEL_ADAPTER_PROVIDER;SMM_INVOCATION_LOADER_COMPOSITION;SMM_INVOCATION_TOPOLOGY;SMM_APMC_COMMAND_REGISTRY;PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION;SMM_MODULE_STACK_SIZE >= 0x4000'
 reject_route_kconfig_enablers "$root/src"
 
 sed '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION$/,/^config / {
