@@ -13,6 +13,7 @@
 
 enum presence_phase {
 	PRESENCE_EMPTY,
+	PRESENCE_RESTORING,
 	PRESENCE_OPEN,
 	PRESENCE_EXECUTING,
 	PRESENCE_RESTRICT_REQUESTED,
@@ -63,6 +64,20 @@ static bool bytes_zero(const void *buffer, size_t size)
 	while (size--)
 		value |= *bytes++;
 	return value == 0;
+}
+
+static bool ranges_disjoint(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	const uintptr_t left_start = (uintptr_t)left;
+	const uintptr_t right_start = (uintptr_t)right;
+
+	if (!left || !right || !left_size || !right_size ||
+	    left_start > UINTPTR_MAX - left_size ||
+	    right_start > UINTPTR_MAX - right_size)
+		return false;
+	return left_start + left_size <= right_start ||
+		right_start + right_size <= left_start;
 }
 
 static bool capability_equal(const uint8_t *left, const uint8_t *right)
@@ -130,6 +145,33 @@ static bool install_gate_sealed(void)
 static bool install_phase_empty(void)
 {
 	return __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EMPTY;
+}
+
+static bool restore_state_clean(void)
+{
+	return bytes_zero(&presence.policy, sizeof(presence.policy)) &&
+		bytes_zero(&presence.sealed, sizeof(presence.sealed)) &&
+		bytes_zero(presence.context, sizeof(presence.context)) &&
+		bytes_zero(presence.sealed_context,
+			sizeof(presence.sealed_context)) &&
+		bytes_zero(presence.capability, sizeof(presence.capability)) &&
+		bytes_zero(presence.sealed_capability,
+			sizeof(presence.sealed_capability)) &&
+		presence.generation == 0 && presence.sealed_generation == 0 &&
+		presence.lifecycle_generation == 0 &&
+		presence.closed_generation == 0 &&
+		presence.sealed_closed_generation == 0;
+}
+
+static void restore_poison(void)
+{
+	scrub(&presence.policy, sizeof(presence.policy));
+	scrub(&presence.sealed, sizeof(presence.sealed));
+	restriction_scrub();
+	presence.lifecycle_generation = 0;
+	presence.closed_generation = 0;
+	presence.sealed_closed_generation = 0;
+	__atomic_store_n(&presence.phase, PRESENCE_POISONED, __ATOMIC_RELEASE);
 }
 
 static void mailbox_scrub(
@@ -290,6 +332,112 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_authvar_presence_authority_restore_closed(
+	const struct lb_authvar_presence_endpoint *endpoint,
+	const struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_presence_range_proof_fn dma_protected,
+	const void *dma_context, size_t dma_context_size,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context)
+{
+	struct payload_mm_authvar_presence_policy candidate = { 0 };
+	struct lb_authvar_presence_endpoint endpoint_copy;
+	struct payload_mm_authvar_presence_backing backing_copy;
+	uint8_t context[PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX] = { 0 };
+	uint32_t expected = PRESENCE_EMPTY;
+	uint32_t gate = 0;
+	bool valid = false;
+
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected,
+		PRESENCE_RESTORING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	if (!__atomic_compare_exchange_n(&presence.install_attempted, &gate, 1,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		restore_poison();
+		return CB_ERR;
+	}
+	if (!restore_state_clean() || !endpoint || !backing || !dma_protected ||
+	    !storage_is_protected ||
+	    (dma_context == NULL) != (dma_context_size == 0U) ||
+	    dma_context_size > sizeof(context) ||
+	    !ranges_disjoint(endpoint, sizeof(*endpoint), &presence,
+		sizeof(presence)) ||
+	    !ranges_disjoint(backing, sizeof(*backing), &presence,
+		sizeof(presence)) ||
+	    !ranges_disjoint(endpoint, sizeof(*endpoint), backing,
+		sizeof(*backing)) ||
+	    (dma_context_size &&
+	     (!ranges_disjoint(dma_context, dma_context_size, &presence,
+		sizeof(presence)) ||
+	      !ranges_disjoint(dma_context, dma_context_size, endpoint,
+		sizeof(*endpoint)) ||
+	      !ranges_disjoint(dma_context, dma_context_size, backing,
+		sizeof(*backing)))) ||
+	    !storage_is_protected(storage_context, &presence, sizeof(presence)) ||
+	    !storage_is_protected(storage_context, endpoint, sizeof(*endpoint)) ||
+	    !storage_is_protected(storage_context, backing, sizeof(*backing)) ||
+	    !callback_protected(storage_is_protected, storage_context,
+		(const void *)(uintptr_t)storage_is_protected) ||
+	    !callback_protected(storage_is_protected, storage_context,
+		(const void *)(uintptr_t)dma_protected) ||
+	    (dma_context_size &&
+	     !storage_is_protected(storage_context, dma_context,
+		dma_context_size)))
+		goto out;
+
+	memcpy(&endpoint_copy, endpoint, sizeof(endpoint_copy));
+	memcpy(&backing_copy, backing, sizeof(backing_copy));
+	if (dma_context_size)
+		memcpy(context, dma_context, dma_context_size);
+	candidate.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION;
+	candidate.size = sizeof(candidate);
+	candidate.endpoint = endpoint_copy;
+	candidate.backing = backing_copy;
+	if (payload_mm_authvar_presence_endpoint_validate(&endpoint_copy) !=
+		CB_SUCCESS || !backing_valid(&candidate) ||
+	    !ranges_disjoint((const void *)(uintptr_t)backing_copy.base,
+		backing_copy.bytes, &presence, sizeof(presence)) ||
+	    !ranges_disjoint((const void *)(uintptr_t)backing_copy.base,
+		backing_copy.bytes, endpoint, sizeof(*endpoint)) ||
+	    !ranges_disjoint((const void *)(uintptr_t)backing_copy.base,
+		backing_copy.bytes, backing, sizeof(*backing)) ||
+	    (dma_context_size &&
+	     !ranges_disjoint((const void *)(uintptr_t)backing_copy.base,
+		backing_copy.bytes, dma_context, dma_context_size)) ||
+	    !mailbox_unprotected(storage_is_protected, storage_context,
+		&endpoint_copy) ||
+	    !dma_protected(dma_context_size ? context : NULL,
+		backing_copy.base, backing_copy.bytes) ||
+	    memcmp(&endpoint_copy, endpoint, sizeof(endpoint_copy)) ||
+	    memcmp(&backing_copy, backing, sizeof(backing_copy)) ||
+	    (dma_context_size &&
+	     memcmp(context, dma_context, dma_context_size)) ||
+	    !restore_state_clean())
+		goto out;
+
+	presence.policy = candidate;
+	presence.sealed = candidate;
+	presence.lifecycle_generation = endpoint_copy.generation;
+	presence.closed_generation = endpoint_copy.generation;
+	presence.sealed_closed_generation = endpoint_copy.generation;
+	mailbox_scrub(&candidate);
+	valid = policy_equal() && restriction_scrubbed() &&
+		backing_valid(&presence.sealed) &&
+		payload_mm_authvar_presence_endpoint_validate(
+			&presence.sealed.endpoint) == CB_SUCCESS;
+out:
+	scrub(context, sizeof(context));
+	scrub(&backing_copy, sizeof(backing_copy));
+	scrub(&endpoint_copy, sizeof(endpoint_copy));
+	scrub(&candidate, sizeof(candidate));
+	if (!valid) {
+		restore_poison();
+		return CB_ERR;
+	}
+	__atomic_store_n(&presence.phase, PRESENCE_CLOSED, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+}
+
 enum cb_err payload_mm_authvar_presence_authority_restrict(
 	uint64_t generation)
 {
@@ -309,6 +457,9 @@ enum cb_err payload_mm_authvar_presence_authority_restrict(
 			    presence.policy.endpoint.generation == generation &&
 			    presence.sealed.endpoint.generation == generation &&
 			    install_gate_sealed() && policy_equal() &&
+			    backing_valid(&presence.sealed) &&
+			    payload_mm_authvar_presence_endpoint_validate(
+				    &presence.sealed.endpoint) == CB_SUCCESS &&
 			    restriction_scrubbed())
 				return CB_SUCCESS;
 			expected = PRESENCE_CLOSED;
@@ -675,7 +826,11 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 enum cb_err payload_mm_authvar_presence_smi_dispatch(uint16_t port,
 	uint8_t value)
 {
-	struct lb_authvar_presence_endpoint endpoint = presence.sealed.endpoint;
+	struct lb_authvar_presence_endpoint endpoint;
+
+	if (__atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_OPEN)
+		return CB_ERR;
+	endpoint = presence.sealed.endpoint;
 
 	if (endpoint.transport != LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8 ||
 	    endpoint.trigger_width != sizeof(value) ||

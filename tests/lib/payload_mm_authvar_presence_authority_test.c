@@ -49,6 +49,16 @@ static bool cleanup_observed;
 static bool cleanup_page_zero;
 static unsigned int cleanup_calls;
 static enum cb_err dispatch_thread_result;
+static struct lb_authvar_presence_endpoint restore_endpoint;
+static struct payload_mm_authvar_presence_backing restore_backing;
+static uint8_t restore_context[16];
+static bool restore_dma_ok;
+static bool restore_reenter;
+static bool restore_mutate_source;
+static bool restore_block;
+static bool restore_entered;
+static bool restore_release;
+static enum cb_err restore_thread_result;
 
 struct callback_context {
 	uint32_t magic;
@@ -103,6 +113,13 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 	return storage != NULL && size != 0U &&
 		(start > mailbox_start || mailbox_start - start >= size) &&
 		(mailbox_start > start || start - mailbox_start >= sizeof(mailbox_page));
+}
+
+static bool protected_storage_except_mailbox_page(void *context,
+	const void *storage, size_t size)
+{
+	(void)context;
+	return storage != NULL && size != 0U && size != sizeof(mailbox_page);
 }
 
 static enum cb_err provision(void *context, uint64_t generation,
@@ -289,6 +306,17 @@ static void reset_fixture(void)
 	cleanup_page_zero = false;
 	cleanup_calls = 0U;
 	dispatch_thread_result = CB_SUCCESS;
+	restore_dma_ok = true;
+	restore_reenter = false;
+	restore_mutate_source = false;
+	restore_block = false;
+	restore_entered = false;
+	restore_release = false;
+	restore_thread_result = CB_SUCCESS;
+	memset(&restore_endpoint, 0, sizeof(restore_endpoint));
+	memset(&restore_backing, 0, sizeof(restore_backing));
+	for (size_t index = 0; index < sizeof(restore_context); index++)
+		restore_context[index] = (uint8_t)(0xa0U + index);
 	callback_context.magic = 0x13579bdfU;
 }
 
@@ -298,6 +326,49 @@ static void install(void)
 
 	assert(payload_mm_authvar_presence_authority_install(&value,
 		protected_storage, NULL) == CB_SUCCESS);
+}
+
+static bool restore_dma_protected(void *context, uint64_t base, uint64_t size)
+{
+	assert(context);
+	assert(!memcmp(context, restore_context, sizeof(restore_context)));
+	if (restore_mutate_source)
+		restore_endpoint.trigger_value++;
+	if (restore_reenter)
+		assert(payload_mm_authvar_presence_authority_restore_closed(
+			&restore_endpoint, &restore_backing, restore_dma_protected,
+			restore_context, sizeof(restore_context), protected_storage,
+			NULL) == CB_ERR);
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	restore_entered = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	while (restore_block && !restore_release)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	return restore_dma_ok && base == (uintptr_t)&mailbox_page &&
+		size == sizeof(mailbox_page);
+}
+
+static void prepare_restore(void)
+{
+	struct payload_mm_authvar_presence_policy value = policy();
+
+	restore_endpoint = value.endpoint;
+	restore_backing = value.backing;
+}
+
+static enum cb_err restore_closed(void)
+{
+	return payload_mm_authvar_presence_authority_restore_closed(
+		&restore_endpoint, &restore_backing, restore_dma_protected,
+		restore_context, sizeof(restore_context), protected_storage, NULL);
+}
+
+static void *restore_thread(void *unused)
+{
+	(void)unused;
+	restore_thread_result = restore_closed();
+	return NULL;
 }
 
 static bool state_contains_capability(void)
@@ -973,6 +1044,170 @@ static void attempted_response_lifetime(void)
 	assert(mailbox_page.bytes[sizeof(mailbox_page) - 1U] == 0x69U);
 }
 
+static void closed_restore(void)
+{
+	struct payload_mm_authvar_presence_policy value;
+	const uint8_t *state;
+	size_t state_size;
+	pthread_t thread;
+	bool found_endpoint;
+	unsigned int found_backing;
+
+	reset_fixture();
+	prepare_restore();
+	memset(&mailbox_page, 0x5a, sizeof(mailbox_page));
+	assert(restore_closed() == CB_SUCCESS);
+	assert(test_bytes_zero(&mailbox_page, sizeof(mailbox_page)));
+	assert(state_contains(&restore_endpoint, sizeof(restore_endpoint)));
+	assert(state_contains(&restore_backing, sizeof(restore_backing)));
+	assert(tail_generation(0) == 0 && tail_generation(1) == 0 &&
+		tail_generation(2) == 7U && tail_generation(3) == 7U &&
+		tail_generation(4) == 7U);
+	assert(!state_contains(restore_context, sizeof(restore_context)));
+	for (size_t index = 0; index < sizeof(provisioned); index++)
+		provisioned[index] = (uint8_t)(index + 1U);
+	assert(!state_contains_capability());
+	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
+	assert(payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8) == CB_ERR);
+	assert(!executor_calls);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(restore_closed() == CB_ERR);
+	value = policy();
+	assert(payload_mm_authvar_presence_authority_install(&value,
+		protected_storage, NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	restore_backing.generation++;
+	assert(restore_closed() == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	restore_backing.base += PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_ALIGNMENT;
+	restore_endpoint.communication_base = restore_backing.base;
+	assert(restore_closed() == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	restore_dma_ok = false;
+	assert(restore_closed() == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	mailbox_is_protected = true;
+	assert(restore_closed() == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	memcpy(&mailbox_page, &restore_endpoint, sizeof(restore_endpoint));
+	assert(payload_mm_authvar_presence_authority_restore_closed(
+		(const void *)&mailbox_page, &restore_backing,
+		restore_dma_protected, restore_context, sizeof(restore_context),
+		protected_storage_except_mailbox_page, NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	memcpy(mailbox_page.bytes + 128U, &restore_backing,
+		sizeof(restore_backing));
+	assert(payload_mm_authvar_presence_authority_restore_closed(
+		&restore_endpoint, (const void *)(mailbox_page.bytes + 128U),
+		restore_dma_protected, restore_context, sizeof(restore_context),
+		protected_storage_except_mailbox_page, NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	memcpy(mailbox_page.bytes + 256U, restore_context,
+		sizeof(restore_context));
+	assert(payload_mm_authvar_presence_authority_restore_closed(
+		&restore_endpoint, &restore_backing, restore_dma_protected,
+		mailbox_page.bytes + 256U, sizeof(restore_context),
+		protected_storage_except_mailbox_page, NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	restore_reenter = true;
+	assert(restore_closed() == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+
+	reset_fixture();
+	prepare_restore();
+	restore_mutate_source = true;
+	assert(restore_closed() == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	state = payload_mm_authvar_presence_authority_test_state(&state_size);
+	assert(payload_mm_authvar_presence_authority_restore_closed(
+		(const void *)state, &restore_backing, restore_dma_protected,
+		restore_context, sizeof(restore_context), protected_storage,
+		NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	assert(payload_mm_authvar_presence_authority_restore_closed(
+		&restore_endpoint, &restore_backing, restore_dma_protected,
+		restore_context, PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX + 1U,
+		protected_storage, NULL) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	restore_block = true;
+	assert(!pthread_create(&thread, NULL, restore_thread, NULL));
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	while (!restore_entered)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(restore_closed() == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
+	assert(payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8) == CB_ERR);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	restore_release = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(restore_thread_result == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+
+	reset_fixture();
+	prepare_restore();
+	assert(restore_closed() == CB_SUCCESS);
+	state = payload_mm_authvar_presence_authority_test_state(&state_size);
+	found_endpoint = false;
+	for (size_t offset = 0;
+	     offset + sizeof(restore_endpoint) <= state_size; offset++) {
+		if (memcmp(state + offset, &restore_endpoint,
+			sizeof(restore_endpoint)))
+			continue;
+		((uint8_t *)(uintptr_t)state)[offset] ^= 1U;
+		found_endpoint = true;
+		break;
+	}
+	assert(found_endpoint);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+
+	reset_fixture();
+	prepare_restore();
+	assert(restore_closed() == CB_SUCCESS);
+	state = payload_mm_authvar_presence_authority_test_state(&state_size);
+	found_backing = 0;
+	for (size_t offset = 0;
+	     offset + sizeof(restore_backing) <= state_size; offset++) {
+		if (memcmp(state + offset, &restore_backing,
+			sizeof(restore_backing)))
+			continue;
+		((uint8_t *)(uintptr_t)state)[offset +
+			offsetof(struct payload_mm_authvar_presence_backing,
+				reserved)] ^= 1U;
+		found_backing++;
+		offset += sizeof(restore_backing) - 1U;
+	}
+	assert(found_backing == 2U);
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+}
+
 int main(void)
 {
 	install_validation();
@@ -982,5 +1217,6 @@ int main(void)
 	proof_transition_after_executor();
 	dispatch_restrict_interleavings();
 	attempted_response_lifetime();
+	closed_restore();
 	return 0;
 }
