@@ -66,6 +66,15 @@ void starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test(void)
 {
 	memset(&owner, 0, sizeof(owner));
 }
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+void starbook_mtl_authvar_service_bootstrap_owner_drift_test(bool generation)
+{
+	if (generation)
+		owner.provider_generation++;
+	else
+		owner.active_ops = NULL;
+}
+#endif
 #endif
 
 __weak enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
@@ -388,9 +397,9 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
 		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
 		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token) != CB_SUCCESS ||
-	    token.lifecycle != instance.lifecycle || !token.bsp ||
+	    runtime.evidence->loader_lifecycle != instance.lifecycle || !token.bsp ||
 	    token.initiator_cpu != topology.bsp_cpu || token.active_cpus != topology.active_cpus ||
-	    !smm_invocation_loader_instance_nonce_equal(token.loader_instance_nonce,
+	    !smm_invocation_loader_instance_nonce_equal(runtime.evidence->loader_instance_nonce,
 		instance.loader_instance_nonce) ||
 	    runtime.evidence->bsp_cpu != topology.bsp_cpu ||
 	    memcmp(runtime.evidence->participant_apic_ids, topology.initial_apic_ids,

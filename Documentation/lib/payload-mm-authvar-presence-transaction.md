@@ -154,3 +154,25 @@ but mocks the sole provider's preparation boundary. These are prerequisite
 proofs, not an enabled production profile. The real fixed 0xfc dispatcher,
 unconditional sole-backend initialization, optional MOR operation and final
 service/endpoint readiness still require integrated source and runtime proof.
+
+The guarded full-composition private wave now uses the existing invocation
+entry ledger: every CPU arrives, the BSP claims the actual rendezvous, and
+receipt import precedes installation. Retiring the first save-state lease does
+not retire this invocation claim. The fixed platform admission callback checks
+the protected dispatcher phase, retained ops identity, retired lease, full
+loader nonce, topology and claimed token before and after backend callbacks.
+The platform factory reuses the existing restricted Intel SPI callback rather
+than installing a second media provider. Presence-only composition keeps its
+previous path.
+
+The threaded host wave fixture links the real entry, evidence, loader-instance
+and topology implementations while mocking platform classification, save-state
+adapter and receipt/factory boundaries. It tests delayed and AP-first arrival,
+missing AP, callback reentry, token/identity/topology/lease drift, publication
+failures and EOS denial. A post-ACK EOS failure is terminal: it is not an
+unpublished response or a successful return to the payload. These proofs do
+not select the production profile or prove the complete service backend link.
+Optional MOR channel attachment still needs its later genuine private request
+admission; copying its slot during this wave or reusing the expired claim is
+not sufficient. Fixed 0xfc runtime dispatch, final service readiness and
+endpoint publication remain separate gates.
