@@ -6,8 +6,13 @@ loader bootstrap supplies the binding only after authenticating the reserved
 mailbox backing and its actual cold-loader identity. The authority consumes
 that same existing backing evidence during PREPARE.
 
-The board callback provider uses the live VT-d epoch range verifier and the
-existing claimed CPU invocation evidence. The latter reconstructs the token
+The board callback provider uses the existing protected DMA receipt owner and
+its live VT-d requester/translation verifier, not the S3-only epoch. Cold range
+checks require the exact NON_S3 loader nonce, a later fully claimed presence
+invocation, every active CPU, and a page outside the receipt's DMA-visible
+ranges. The receipt workspace is serialized and both the complete invocation
+token and loader/topology identities are checked again after live hardware
+verification. Failure poisons the receipt owner. The CPU evidence reconstructs the token
 from the retained loader identity, all participants and their acknowledgements;
 the provider requires the exact CPU count and initiating BSP from the binding.
 Neither a configuration assertion nor an injected payload proof substitutes
@@ -34,10 +39,14 @@ capability scrubbing, PREPARE/COMMIT/ABORT ordering and failed installation.
 Their runtime, DMA and authority boundaries are mocks, not platform validation.
 The claimed-snapshot accessor is also exercised by the existing full invocation
 evidence suite, including its hostile mutation and concurrency fixtures.
+The cold receipt fixtures check missing claims, S3/nonce mismatches, partial CPU
+participation, generation backsteps, denied live translations, claim drift and
+changed reservation ownership. They mock hardware boundaries; they do not
+establish an installed cold hardware route.
 
 This provider is built only when the existing board route owner, canonical tuple
 sender, runtime binding, DMA receipt provider and protected presence authority
 are all selected. That closure is not itself activation evidence. The actual
-loader/bootstrap caller, live DMA range composition, public operator dispatcher,
+bootstrap receipt import, live DMA range composition, public operator dispatcher,
 and final composed image still require integrated tests. General authenticated
 variable runtime services and their endpoint publication are separate open gates.

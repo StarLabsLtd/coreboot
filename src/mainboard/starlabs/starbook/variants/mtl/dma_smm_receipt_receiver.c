@@ -18,7 +18,7 @@
 #endif
 
 enum receipt_state { RECEIPT_EMPTY, RECEIPT_PROVISIONING, RECEIPT_READY,
-	RECEIPT_FAILED };
+	RECEIPT_FAILED, RECEIPT_VERIFYING_COLD, RECEIPT_VERIFYING_BINDING };
 enum epoch_state { EPOCH_EMPTY, EPOCH_CAPTURING, EPOCH_SEALED,
 	EPOCH_ACTIVATING, EPOCH_ACTIVATION_PROOF, EPOCH_RETAINED,
 	EPOCH_VERIFYING_ACTIVATION, EPOCH_VERIFYING_RETAINED, EPOCH_POISONED };
@@ -63,6 +63,8 @@ static struct {
 	struct starbook_mtl_dma_smm_authority_workspace authority;
 	struct smm_dma_receipt_memory memory_snapshot;
 	struct starbook_mtl_dma_receipt_frame snapshot;
+	struct starbook_mtl_dma_requester_binding cold_binding;
+	struct starbook_mtl_dma_requester_binding sealed_cold_binding;
 	struct {
 		uint32_t state;
 		uint32_t reserved;
@@ -339,6 +341,21 @@ static enum cb_err observer_verify_translation_live(void *context,
 		return CB_ERR;
 	return starbook_mtl_dma_smm_authority_verify_live_policy(
 		receipt_context->authority, receipt, &owner.epoch.live_binding);
+}
+
+static enum cb_err observer_verify_translation_cold(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	const struct receipt_context *receipt_context = context;
+
+	if (receipt_context != &owner.context ||
+	    receipt_context->identity != 0x4d544c444d41524dULL ||
+	    receipt_context->authority != &owner.authority ||
+	    memcmp(&owner.cold_binding, &owner.sealed_cold_binding,
+		sizeof(owner.cold_binding)))
+		return CB_ERR;
+	return starbook_mtl_dma_smm_authority_verify_live_policy(
+		&owner.authority, receipt, &owner.cold_binding);
 }
 
 #if !ENV_TEST
@@ -699,6 +716,15 @@ out:
 	return status;
 }
 
+static bool spans_overlap(const void *first, size_t first_size,
+	const void *second, size_t second_size)
+{
+	const uintptr_t a = (uintptr_t)first;
+	const uintptr_t b = (uintptr_t)second;
+
+	return a <= b ? b - a < first_size : a - b < second_size;
+}
+
 enum cb_err starbook_mtl_dma_smm_binding_get(
 	struct starbook_mtl_dma_smm_binding *binding)
 {
@@ -706,19 +732,31 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 	struct smm_invocation_runtime_binding runtime_binding;
 	struct smm_invocation_loader_instance instance;
 	struct starbook_mtl_dma_smm_binding value;
+	uint32_t expected = RECEIPT_READY;
 #if !ENV_TEST
 	const struct smm_dma_receipt_memory *receipt_memory;
 #endif
 
-	if (!binding ||
+	if (!binding || (uintptr_t)binding % _Alignof(*binding) ||
 	    smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
 	    smm_invocation_runtime_binding_get(&runtime_binding) != CB_SUCCESS ||
 	    smm_invocation_runtime_range_is_protected(runtime_view, binding,
 		sizeof(*binding)) != CB_SUCCESS ||
 	    smm_invocation_runtime_range_is_protected(runtime_view, &owner,
 		sizeof(owner)) != CB_SUCCESS ||
-	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_READY ||
-	    smm_invocation_loader_instance_read(runtime_binding.instance,
+	    spans_overlap(binding, sizeof(*binding), &owner, sizeof(owner)) ||
+	    spans_overlap(binding, sizeof(*binding), runtime_binding.instance,
+		sizeof(*runtime_binding.instance)) ||
+	    spans_overlap(binding, sizeof(*binding), runtime_binding.evidence,
+		sizeof(*runtime_binding.evidence)) ||
+	    spans_overlap(binding, sizeof(*binding), runtime_binding.topology,
+		sizeof(*runtime_binding.topology)) ||
+	    spans_overlap(binding, sizeof(*binding), runtime_binding.composition,
+		sizeof(*runtime_binding.composition)) ||
+	    !__atomic_compare_exchange_n(&owner.state, &expected,
+		RECEIPT_VERIFYING_BINDING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	if (smm_invocation_loader_instance_read(runtime_binding.instance,
 		&instance) != CB_SUCCESS ||
 	    runtime_binding.evidence->generation !=
 		owner.receipt.invocation_generation ||
@@ -737,16 +775,111 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 	    starbook_mtl_dma_smm_verify(&owner.receipt, (uintptr_t)&owner,
 		sizeof(owner), &owner.observer, runtime_view,
 		&owner.workspace) != CB_SUCCESS) {
-		if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) == RECEIPT_READY)
+		if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) ==
+			RECEIPT_VERIFYING_BINDING)
 			__atomic_store_n(&owner.state, RECEIPT_FAILED,
 				__ATOMIC_RELEASE);
 		return CB_ERR;
 	}
 	value.receipt = &owner.receipt;
-	if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_READY)
+	expected = RECEIPT_VERIFYING_BINDING;
+	if (!__atomic_compare_exchange_n(&owner.state, &expected,
+		RECEIPT_READY, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return CB_ERR;
 	*binding = value;
 	return CB_SUCCESS;
+}
+
+/* Cold presence checks live translation in the claimed invocation, not S3 epochs. */
+bool starbook_mtl_dma_smm_cold_range_protected(
+	void *unused, uint64_t base, uint64_t size)
+{
+	const struct smm_invocation_runtime_view *view;
+	struct smm_invocation_runtime_binding runtime;
+	struct smm_invocation_loader_instance instance;
+	struct smm_invocation_topology topology;
+	struct smm_invocation_token before;
+	struct smm_invocation_token after;
+	struct smm_invocation_loader_instance instance_after;
+	struct smm_invocation_topology topology_after;
+	struct smm_invocation_runtime_binding runtime_after;
+	struct starbook_mtl_dma_smm_observer observer;
+#if !ENV_TEST
+	const struct smm_dma_receipt_memory *memory;
+#endif
+	uint32_t expected = RECEIPT_READY;
+	bool valid = false;
+
+	(void)unused;
+	if (size != 4096U || !base || (base & 4095U) ||
+	    base > UINT64_MAX - 4095U ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner,
+		sizeof(owner)) != CB_SUCCESS ||
+	    !__atomic_compare_exchange_n(&owner.state, &expected,
+		RECEIPT_VERIFYING_COLD, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return false;
+	if (smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance) != CB_SUCCESS ||
+	    instance.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE, SMM_APMC_AUTHVAR_PRESENCE_SENTINEL,
+		&before) != CB_SUCCESS ||
+	    before.initiator_cpu != topology.bsp_cpu ||
+	    before.active_cpus != topology.active_cpus ||
+	    before.smi_generation <= owner.receipt.invocation_generation ||
+	    instance.lifecycle != owner.receipt.loader_lifecycle ||
+	    !smm_invocation_loader_instance_nonce_equal(instance.loader_instance_nonce,
+		owner.receipt.loader_instance_nonce) ||
+#if !ENV_TEST
+	    !smm_get_dma_receipt_memory(&memory) ||
+	    !receipt_memory_unchanged(memory, &owner.memory_snapshot) ||
+	    !receipt_layout_matches_memory(&owner.receipt, &owner.memory_snapshot) ||
+#endif
+	    !dependencies_valid(&owner.dependencies, view) ||
+	    !receipt_ranges_allowed(&owner.receipt) ||
+	    !starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt, base, 4096U))
+		goto out;
+	owner.cold_binding = owner.sealed_cold_binding =
+		(struct starbook_mtl_dma_requester_binding) {
+			.loader_instance_nonce = instance.loader_instance_nonce,
+			.invocation_generation = before.smi_generation,
+			.loader_lifecycle = instance.lifecycle,
+		};
+	observer = owner.observer;
+	observer.verify_translation = observer_verify_translation_cold;
+	if (starbook_mtl_dma_smm_verify(&owner.receipt, (uintptr_t)&owner,
+		sizeof(owner), &observer, view, &owner.workspace) != CB_SUCCESS ||
+	    !starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt, base, 4096U) ||
+	    !dependencies_valid(&owner.dependencies, view) ||
+	    !receipt_ranges_allowed(&owner.receipt) ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE, SMM_APMC_AUTHVAR_PRESENCE_SENTINEL,
+		&after) != CB_SUCCESS || memcmp(&before, &after, sizeof(before)) ||
+	    smm_invocation_runtime_binding_get(&runtime_after) != CB_SUCCESS ||
+	    memcmp(&runtime, &runtime_after, sizeof(runtime)) ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance_after) != CB_SUCCESS ||
+	    memcmp(&instance, &instance_after, sizeof(instance)) ||
+	    smm_invocation_topology_read(runtime.topology, &topology_after) != CB_SUCCESS ||
+	    memcmp(&topology, &topology_after, sizeof(topology)) ||
+	    smm_invocation_runtime_range_is_protected(view, &owner,
+		sizeof(owner)) != CB_SUCCESS ||
+	    memcmp(&owner.cold_binding, &owner.sealed_cold_binding,
+		sizeof(owner.cold_binding)) ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_VERIFYING_COLD)
+		goto out;
+	valid = true;
+out:
+	memset(&owner.cold_binding, 0, sizeof(owner.cold_binding));
+	memset(&owner.sealed_cold_binding, 0, sizeof(owner.sealed_cold_binding));
+	expected = RECEIPT_VERIFYING_COLD;
+	if (valid && !__atomic_compare_exchange_n(&owner.state, &expected,
+		RECEIPT_READY, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		valid = false;
+	if (!valid)
+		__atomic_store_n(&owner.state, RECEIPT_FAILED, __ATOMIC_RELEASE);
+	return valid;
 }
 
 static bool epoch_ranges_valid(

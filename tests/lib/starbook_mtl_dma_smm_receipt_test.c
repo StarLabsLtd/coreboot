@@ -38,6 +38,14 @@ static const void *unprotected;
 static bool mutate_dependencies;
 static uint64_t rejected_base = UINT64_MAX;
 static struct starbook_mtl_dma_receipt_frame *pinned_frame = &frame;
+static bool cold_case;
+static bool claimed_denied;
+static bool live_denied;
+static bool mutate_claim;
+static unsigned int claimed_calls;
+static unsigned int live_calls;
+static bool nested_binding;
+static bool nested_cold;
 
 enum cb_err starbook_mtl_dma_smm_authority_verify(void *context,
 	const struct starbook_mtl_dma_smm_receipt *receipt)
@@ -63,6 +71,27 @@ enum cb_err starbook_mtl_dma_smm_authority_verify_live_policy(void *context,
 {
 	assert(context && receipt && binding);
 	assert(binding->invocation_generation > receipt->invocation_generation);
+	live_calls++;
+	return live_denied ? CB_ERR : CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_evidence_claimed_snapshot(
+	const struct smm_invocation_evidence *candidate, uint8_t command,
+	uint64_t sentinel, struct smm_invocation_token *token)
+{
+	assert(candidate == &evidence && command == SMM_APMC_AUTHVAR_PRESENCE &&
+		sentinel == SMM_APMC_AUTHVAR_PRESENCE_SENTINEL);
+	claimed_calls++;
+	if (claimed_denied || candidate->state != SMM_INVOCATION_CLAIMED)
+		return CB_ERR;
+	*token = (struct smm_invocation_token) {
+		.initiator_cpu = topology.bsp_cpu,
+		.active_cpus = candidate->active_cpus,
+		.smi_generation = candidate->generation,
+		.rendezvous_generation = candidate->generation,
+	};
+	if (mutate_claim && claimed_calls > 1U)
+		token->rendezvous_digest[0]++;
 	return CB_SUCCESS;
 }
 
@@ -288,8 +317,18 @@ enum cb_err starbook_mtl_dma_smm_verify(
 	assert(receipt->loader_lifecycle == instance.lifecycle);
 	for (size_t index = 0; index < sizeof(receipt->table_digest); index++)
 		assert(receipt->table_digest[index] == 0x5a);
+	if (nested_binding && cold_case && evidence.generation > receipt->invocation_generation) {
+		struct starbook_mtl_dma_smm_binding nested = { (void *)0x1234 };
+
+		assert(starbook_mtl_dma_smm_binding_get(&nested) != CB_SUCCESS);
+		assert(nested.receipt == (void *)0x1234);
+	}
+	if (nested_cold && !cold_case && frame.state == STARBOOK_MTL_DMA_RECEIPT_FRAME_ACCEPTED)
+		assert(!starbook_mtl_dma_smm_cold_range_protected(NULL, 0x700000, 4096U));
 	if (mutate_frame)
 		frame.candidate.revision++;
+	if (cold_case && evidence.generation > receipt->invocation_generation)
+		return observer->verify_translation(observer->context, receipt);
 	return CB_SUCCESS;
 }
 
@@ -422,10 +461,12 @@ int main(int argc, char **argv)
 		mutate_dependencies = true;
 	else if (strcmp(argv[1], "valid") && strcmp(argv[1], "generation") &&
 		 strcmp(argv[1], "container-drift") &&
-		 strncmp(argv[1], "epoch-", 6))
+		 strncmp(argv[1], "epoch-", 6) && strncmp(argv[1], "cold-", 5) &&
+		 strcmp(argv[1], "binding-nested-cold") && strcmp(argv[1], "binding-alias"))
 		return 2;
 
 	epoch_case = !strncmp(argv[1], "epoch-", 6);
+	cold_case = !strncmp(argv[1], "cold-", 5);
 	retained_case = !strncmp(argv[1], "epoch-retained-", 15);
 	if (epoch_case) {
 		instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
@@ -434,10 +475,65 @@ int main(int argc, char **argv)
 		frame.candidate.loader_lifecycle = 0;
 	}
 	if (!strcmp(argv[1], "valid") || !strcmp(argv[1], "generation") ||
-	    !strcmp(argv[1], "container-drift") || epoch_case) {
+	    !strcmp(argv[1], "container-drift") || epoch_case || cold_case ||
+	    !strcmp(argv[1], "binding-nested-cold") || !strcmp(argv[1], "binding-alias")) {
 		assert(starbook_mtl_dma_receipt_provision_receive(&ops) == CB_SUCCESS);
 		assert(frame.state == STARBOOK_MTL_DMA_RECEIPT_FRAME_ACCEPTED);
 		assert(wire == STARBOOK_MTL_DMA_RECEIPT_WIRE_SUCCESS);
+		if (cold_case) {
+			evidence.generation = 8;
+			evidence.state = SMM_INVOCATION_CLAIMED;
+			if (!strcmp(argv[1], "cold-unclaimed"))
+				claimed_denied = true;
+			else if (!strcmp(argv[1], "cold-s3"))
+				instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+			else if (!strcmp(argv[1], "cold-nonce"))
+				instance.loader_instance_nonce.high++;
+			else if (!strcmp(argv[1], "cold-subset"))
+				evidence.active_cpus--;
+			else if (!strcmp(argv[1], "cold-backstep"))
+				evidence.generation = 7;
+			else if (!strcmp(argv[1], "cold-live-denied"))
+				live_denied = true;
+			else if (!strcmp(argv[1], "cold-claim-drift"))
+				mutate_claim = true;
+			else if (!strcmp(argv[1], "cold-unallowed"))
+				allow_dram = false;
+			else if (!strcmp(argv[1], "cold-nested-binding"))
+				nested_binding = true;
+			bool accepted = !strcmp(argv[1], "cold-valid") || nested_binding;
+			assert(starbook_mtl_dma_smm_cold_range_protected(NULL,
+				ranges[0].base, ranges[0].size) == accepted);
+			if (accepted) {
+				assert(live_calls == 1U && claimed_calls == 2U);
+				assert(starbook_mtl_dma_smm_cold_range_protected(NULL,
+					ranges[1].base, ranges[1].size));
+				assert(!starbook_mtl_dma_smm_epoch_range_protected(NULL,
+					ranges[0].base, ranges[0].size));
+			} else
+				assert(!starbook_mtl_dma_smm_cold_range_protected(NULL,
+					ranges[0].base, ranges[0].size));
+			return 0;
+		}
+		if (!strcmp(argv[1], "binding-alias")) {
+			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
+			struct starbook_mtl_dma_smm_receipt preserved = *binding.receipt;
+			struct starbook_mtl_dma_smm_binding *alias =
+				(void *)(uintptr_t)binding.receipt;
+
+			assert(starbook_mtl_dma_smm_binding_get(alias) != CB_SUCCESS);
+			assert(!memcmp(&preserved, binding.receipt, sizeof(preserved)));
+			assert(starbook_mtl_dma_smm_binding_get((void *)&instance) != CB_SUCCESS);
+			assert(starbook_mtl_dma_smm_binding_get((void *)&evidence) != CB_SUCCESS);
+			assert(starbook_mtl_dma_smm_binding_get((void *)&topology) != CB_SUCCESS);
+			assert(starbook_mtl_dma_smm_binding_get((void *)&composition) != CB_SUCCESS);
+			assert(starbook_mtl_dma_smm_binding_get((void *)((uintptr_t)&binding + 1U))
+				!= CB_SUCCESS);
+			assert(starbook_mtl_dma_smm_binding_get(&binding) == CB_SUCCESS);
+			return 0;
+		}
+		if (!strcmp(argv[1], "binding-nested-cold"))
+			nested_cold = true;
 		if (!strcmp(argv[1], "generation")) {
 			evidence.generation++;
 			assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);

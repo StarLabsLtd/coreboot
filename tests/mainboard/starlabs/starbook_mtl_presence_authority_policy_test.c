@@ -62,7 +62,7 @@ enum cb_err smm_invocation_evidence_claimed_snapshot(
 	return cpu_ready ? CB_SUCCESS : CB_ERR;
 }
 
-bool starbook_mtl_dma_smm_epoch_range_protected(void *context, uint64_t base, uint64_t size)
+bool starbook_mtl_dma_smm_cold_range_protected(void *context, uint64_t base, uint64_t size)
 {
 	assert(context == NULL);
 	return dma_ready && base == 0x100000 && size == 4096;

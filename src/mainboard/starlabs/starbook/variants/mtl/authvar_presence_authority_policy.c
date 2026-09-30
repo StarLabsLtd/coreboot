@@ -84,7 +84,7 @@ static bool dma_protected(void *unused, uint64_t base, uint64_t size)
 {
 	(void)unused;
 	return binding_valid() &&
-		starbook_mtl_dma_smm_epoch_range_protected(NULL, base, size);
+		starbook_mtl_dma_smm_cold_range_protected(NULL, base, size);
 }
 
 static bool cpu_rendezvous_proven(void)

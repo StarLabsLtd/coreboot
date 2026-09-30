@@ -71,6 +71,8 @@ enum cb_err starbook_mtl_dma_smm_epoch_activate(
 enum cb_err starbook_mtl_dma_smm_epoch_retain(void);
 bool starbook_mtl_dma_smm_epoch_range_protected(
 	void *unused, uint64_t base, uint64_t size);
+bool starbook_mtl_dma_smm_cold_range_protected(
+	void *unused, uint64_t base, uint64_t size);
 void starbook_mtl_dma_smm_epoch_poison(void);
 #endif
 
