@@ -77,9 +77,9 @@ scratch_make -C "$root" V=1 UPDATED_SUBMODULES=1 DOTCONFIG="$off_config" \
 mkdir -p "$temporary/source"
 cp "$root/src/lib/coreboot_table.c" "$temporary/source/coreboot_table.c"
 test "$(grep -c 'if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION) &&' \
-	"$temporary/source/coreboot_table.c")" -eq 1
+	"$temporary/source/coreboot_table.c")" -eq 2
 test "$(grep -c 'die("Authenticated-variable presence publication failed' \
-	"$temporary/source/coreboot_table.c")" -eq 1
+	"$temporary/source/coreboot_table.c")" -eq 2
 current="$off_build/ramstage/lib/coreboot_table.o"
 current_object="$temporary/coreboot_table.current.o"
 off_object="$temporary/coreboot_table.off.o"
