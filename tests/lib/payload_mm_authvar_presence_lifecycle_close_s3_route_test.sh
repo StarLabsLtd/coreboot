@@ -45,6 +45,33 @@ production="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
 	-I$temporary/include -I$root/src -I$root/src/include
 	-I$root/src/commonlib/include -I$root/src/commonlib/bsd/include
 	-I$root/src/arch/x86/include"
+integration_sources="$root/tests/lib/payload_mm_authvar_presence_lifecycle_close_s3_route_integration_test.c
+	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_endpoint.c
+	$root/src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c
+	$root/src/cpu/x86/smm_command.c
+	$root/src/cpu/x86/smm_invocation_entry.c
+	$root/src/cpu/x86/smm_invocation_evidence.c
+	$root/src/cpu/x86/smm_invocation_evidence_loader.c
+	$root/src/cpu/x86/smm_invocation_loader_composition.c
+	$root/src/cpu/x86/smm_invocation_loader_composition_gate.c
+	$root/src/cpu/x86/smm_invocation_loader_instance.c
+	$root/src/cpu/x86/smm_invocation_topology.c"
+for profile in integration-o0 integration-o2 integration-sanitized integration-tsan; do
+	case "$profile" in
+	integration-o0) flags='-O0 -g' ;;
+	integration-o2) flags='-O2 -g' ;;
+	integration-sanitized)
+		flags='-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all' ;;
+	integration-tsan)
+		flags='-O1 -g -fno-omit-frame-pointer -fsanitize=thread -fno-sanitize-recover=all -Wno-error=tsan' ;;
+	esac
+	# shellcheck disable=SC2086
+	${CC:-cc} $production -Wno-unused-parameter -pthread -no-pie $flags \
+		$integration_sources -o "$temporary/$profile"
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+	UBSAN_OPTIONS=halt_on_error=1 TSAN_OPTIONS=halt_on_error=1 \
+		"$temporary/$profile"
+done
 # shellcheck disable=SC2086
 ${CC:-cc} $production -O2 -c \
 	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c" \
