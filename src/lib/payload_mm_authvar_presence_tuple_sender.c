@@ -61,7 +61,8 @@ static bool zero(const void *buffer, size_t size)
 enum bootstrap_sender_state {
 	BOOTSTRAP_SENDER_EMPTY, BOOTSTRAP_SENDER_RESERVING,
 	BOOTSTRAP_SENDER_RESERVED, BOOTSTRAP_SENDER_PROVISIONING,
-	BOOTSTRAP_SENDER_READY, BOOTSTRAP_SENDER_CLOSED,
+	BOOTSTRAP_SENDER_READY, BOOTSTRAP_SENDER_EMITTING,
+	BOOTSTRAP_SENDER_CLOSED,
 };
 
 static struct {
@@ -190,6 +191,60 @@ out:
 	scrub(&participants, sizeof(participants));
 	scrub(&participants_check, sizeof(participants_check));
 	return status;
+}
+
+enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
+	struct payload_mm_authvar_presence_bootstrap_receipts *receipts,
+	struct payload_mm_authvar_presence_tuple_sender *sender)
+{
+	struct payload_mm_authvar_presence_bootstrap_receipts snapshot = { 0 };
+	struct payload_mm_authvar_presence_tuple_sender transport = { 0 };
+	enum cb_err result = CB_ERR;
+
+	if (!object_valid(receipts, sizeof(*receipts), _Alignof(*receipts)) ||
+	    !object_valid(sender, sizeof(*sender), _Alignof(*sender)) ||
+	    overlaps(receipts, sizeof(*receipts), sender, sizeof(*sender)) ||
+	    overlaps(receipts, sizeof(*receipts), &bootstrap_sender,
+		sizeof(bootstrap_sender)) ||
+	    overlaps(sender, sizeof(*sender), &bootstrap_sender, sizeof(bootstrap_sender)))
+		return CB_ERR;
+	scrub(receipts, sizeof(*receipts));
+	scrub(sender, sizeof(*sender));
+	if (!bootstrap_claim(BOOTSTRAP_SENDER_READY, BOOTSTRAP_SENDER_EMITTING) ||
+	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.mailbox,
+		&bootstrap_sender.mailbox_signer, &snapshot.mailbox, BM_MEM_RESERVED) !=
+		CB_SUCCESS ||
+	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.page,
+		&bootstrap_sender.page_signer, &snapshot.page, BM_MEM_RESERVED) !=
+		CB_SUCCESS ||
+	    snapshot.page.base > UINTPTR_MAX ||
+	    snapshot.page.bytes != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
+	    snapshot.page.base % PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
+	    physical_overlap((uintptr_t)snapshot.page.base, snapshot.mailbox.base,
+		snapshot.mailbox.bytes) ||
+	    __atomic_load_n(&bootstrap_sender.state, __ATOMIC_ACQUIRE) !=
+		BOOTSTRAP_SENDER_EMITTING)
+		goto out;
+	transport = (struct payload_mm_authvar_presence_tuple_sender) {
+		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER_REVISION,
+		.size = sizeof(transport), .page = (void *)(uintptr_t)snapshot.page.base,
+	};
+	*receipts = snapshot;
+	*sender = transport;
+	if (__atomic_load_n(&bootstrap_sender.state, __ATOMIC_ACQUIRE) !=
+	    BOOTSTRAP_SENDER_EMITTING) {
+		scrub(receipts, sizeof(*receipts));
+		scrub(sender, sizeof(*sender));
+		goto out;
+	}
+	result = CB_SUCCESS;
+out:
+	payload_mm_authvar_presence_tuple_sender_close();
+	if (result != CB_SUCCESS)
+		payload_mm_authvar_presence_producer_abort();
+	scrub(&snapshot, sizeof(snapshot));
+	scrub(&transport, sizeof(transport));
+	return result;
 }
 #endif
 
