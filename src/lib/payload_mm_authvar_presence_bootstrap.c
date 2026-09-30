@@ -2,6 +2,7 @@
 
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_presence_backing.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include <string.h>
@@ -70,6 +71,13 @@ fail:
 }
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+static bool service_overlaps_page(const struct bootmem_reservation_receipt *service,
+	uint64_t page)
+{
+	return service->base <= page ? page - service->base < service->bytes :
+		service->base - page < 4096U;
+}
+
 enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts)
 {
@@ -107,6 +115,16 @@ enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	    !snapshot.mailbox.base || (snapshot.mailbox.base & 4095U) ||
 	    snapshot.mailbox.base > UINT32_MAX - 4095U || snapshot.mailbox.bytes != 4096U ||
 	    snapshot.mailbox.base == snapshot.page.base ||
+	    !snapshot.service.base || (snapshot.service.base & 4095U) ||
+	    snapshot.service.base >
+		UINT32_MAX - (PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE - 1U) ||
+	    snapshot.service.bytes != PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    snapshot.service.generation != slot->binding.generation ||
+	    snapshot.service.tag != BM_MEM_TABLE ||
+	    memcmp(&snapshot.service.handle, &slot->service_verifier.handle,
+		sizeof(snapshot.service.handle)) ||
+	    service_overlaps_page(&snapshot.service, snapshot.page.base) ||
+	    service_overlaps_page(&snapshot.service, snapshot.mailbox.base) ||
 	    snapshot.page.generation != slot->binding.generation ||
 	    snapshot.mailbox.generation != slot->binding.generation ||
 	    memcmp(&snapshot.page.handle, &slot->page_verifier.handle,
@@ -118,6 +136,8 @@ enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 		goto fail;
 	/* PREPARE consumes/authenticates the page receipt through the canonical slot. */
 	slot->page_receipt = snapshot.page;
+	/* The single general-service constructor consumes this distinct table owner. */
+	slot->service_receipt = snapshot.service;
 	expected = PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_IMPORTING;
 	if (!__atomic_compare_exchange_n(&slot->state, &expected,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_READY, false,
@@ -131,8 +151,10 @@ enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 fail:
 	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
 	bootmem_reservation_receipt_close(&slot->page_verifier);
+	bootmem_reservation_receipt_close(&slot->service_verifier);
 	payload_mm_authvar_presence_backing_evidence_close();
 	memset(&slot->page_receipt, 0, sizeof(slot->page_receipt));
+	memset(&slot->service_receipt, 0, sizeof(slot->service_receipt));
 	__atomic_store_n(&slot->state, PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_FAILED,
 		__ATOMIC_RELEASE);
 	memset(receipts, 0, sizeof(*receipts));

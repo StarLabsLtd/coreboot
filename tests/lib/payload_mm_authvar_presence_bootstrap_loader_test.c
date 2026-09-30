@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,11 +23,15 @@ int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
 	struct bootmem_aligned_reservation_handle *handle)
 {
-	assert(request->bytes == 4096 && request->alignment == 4096 &&
-		request->limit_exclusive == 1ULL << 32 && request->tag == BM_MEM_RESERVED);
+	assert(request->alignment == 4096 && request->limit_exclusive == 1ULL << 32);
+	assert((request->tag == BM_MEM_RESERVED && request->bytes == 4096) ||
+		(request->tag == BM_MEM_TABLE &&
+		 request->bytes == PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE));
 	if (!accepted())
 		return -1;
-	*handle = (struct bootmem_aligned_reservation_handle) { .opaque = { 1, 2 } };
+	*handle = (struct bootmem_aligned_reservation_handle) {
+		.opaque = {request->tag == BM_MEM_TABLE ? 5U : 1U, 2},
+	};
 	return 0;
 }
 
@@ -107,12 +112,15 @@ enum cb_err bootmem_aligned_reservation_receipt_emit_exact_tag(
 	struct bootmem_reservation_receipt_authority *signer,
 	struct bootmem_reservation_receipt *receipt, enum bootmem_type tag)
 {
-	assert(tag == BM_MEM_RESERVED && handle->opaque[0]);
+	assert(handle->opaque[0] && tag ==
+		(handle->opaque[0] == 5 ? BM_MEM_TABLE : BM_MEM_RESERVED));
 	*receipt = (struct bootmem_reservation_receipt) {
 		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
 		.size = sizeof(*receipt), .generation = 42,
-		.base = handle->opaque[0] == 3 ? 0x1000 : 0x2000,
-		.bytes = 4096, .tag = BM_MEM_RESERVED,
+		.base = handle->opaque[0] == 3 ? 0x1000 :
+			handle->opaque[0] == 5 ? 0x10000 : 0x2000,
+		.bytes = handle->opaque[0] == 5 ? PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE : 4096,
+		.tag = tag,
 	};
 	bootmem_reservation_receipt_close(signer);
 	return accepted() ? CB_SUCCESS : CB_ERR;
@@ -167,17 +175,17 @@ int main(int argc, char **argv)
 		fail_at = fail_at * 10U + (unsigned int)(*digit - '0');
 	}
 	if (payload_mm_authvar_presence_tuple_sender_reserve() != CB_SUCCESS) {
-		assert(fail_at == 1);
+		assert(fail_at == 1 || fail_at == 2);
 		return 0;
 	}
 	memset(&slot, 0xa5, sizeof(slot));
 	result = payload_mm_authvar_presence_tuple_sender_loader_provision(
 		&slot, &instance, &topology);
-	if (fail_at && fail_at <= 19) {
+	if (fail_at && fail_at <= 25) {
 		assert(result == CB_ERR && empty(&slot, sizeof(slot)) && aborts == 1);
 		return 0;
 	}
-	assert(result == CB_SUCCESS && calls == 19 && !aborts);
+	assert(result == CB_SUCCESS && calls == 25 && !aborts);
 	assert(slot.state == PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_PROVISIONED &&
 		slot.cold_boot_proven == 1 && slot.binding.maximum_cpus == 4);
 	assert(smm_invocation_loader_instance_nonce_equal(slot.loader_nonce,
@@ -190,8 +198,9 @@ int main(int argc, char **argv)
 			empty(&sender, sizeof(sender)));
 		return 0;
 	}
-	assert(result == CB_SUCCESS && calls == 21 && sender.page == (void *)0x2000);
+	assert(result == CB_SUCCESS && calls == 28 && sender.page == (void *)0x2000);
 	assert(receipts.mailbox.base == 0x1000 && receipts.page.base == 0x2000);
+	assert(receipts.service.base == 0x10000 && receipts.service.tag == BM_MEM_TABLE);
 	assert(payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender) == CB_ERR);
 	assert(empty(&receipts, sizeof(receipts)) && empty(&sender, sizeof(sender)) && aborts == 1);
 	assert(payload_mm_authvar_presence_tuple_sender_loader_provision(

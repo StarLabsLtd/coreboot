@@ -24,7 +24,7 @@ for optimization in 0 2; do
 		-o "$temporary/test"
 	"$temporary/test" disabled
 	"$temporary/test" 0
-	for failure in $(seq 1 21); do
+	for failure in $(seq 1 28); do
 		"$temporary/test" "$failure"
 	done
 done

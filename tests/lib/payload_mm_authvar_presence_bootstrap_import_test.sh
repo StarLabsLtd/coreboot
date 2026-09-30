@@ -35,7 +35,7 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 		"$root/src/lib/payload_mm_authvar_presence_transaction.c" \
 		"$temporary/receipt.o" \
 		-o "$temporary/test"
-	for scenario in $(seq 0 16); do
+	for scenario in $(seq 0 23); do
 		ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/test" "$scenario"
 	done

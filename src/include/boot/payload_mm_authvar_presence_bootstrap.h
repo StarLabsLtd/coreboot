@@ -19,6 +19,7 @@ enum payload_mm_authvar_presence_bootstrap_state {
 struct payload_mm_authvar_presence_bootstrap_receipts {
 	struct bootmem_reservation_receipt mailbox;
 	struct bootmem_reservation_receipt page;
+	struct bootmem_reservation_receipt service;
 } __aligned(8);
 
 /* Loader-owned protected storage, never a public or payload-supplied ABI. */
@@ -32,6 +33,8 @@ struct payload_mm_authvar_presence_bootstrap {
 	struct bootmem_reservation_receipt_authority mailbox_verifier;
 	struct bootmem_reservation_receipt_authority page_verifier;
 	struct bootmem_reservation_receipt page_receipt;
+	struct bootmem_reservation_receipt_authority service_verifier;
+	struct bootmem_reservation_receipt service_receipt;
 } __aligned(8);
 
 bool mainboard_authvar_presence_cold_boot(void);

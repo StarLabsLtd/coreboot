@@ -2,6 +2,7 @@
 
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_presence_backing.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include "../../src/lib/bootmem_reservation_receipt_internal.h"
@@ -86,6 +87,10 @@ static void receipt_make(struct bootmem_reservation_receipt_authority *verifier,
 		.generation = slot.binding.generation, .sequence = 1, .handle = handle,
 		.base = base, .bytes = 4096, .tag = BM_MEM_RESERVED, .use = 1,
 	};
+	if (handle_index == 5) {
+		receipt->tag = BM_MEM_TABLE;
+		receipt->bytes = PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE;
+	}
 	require(bootmem_reservation_receipt_mac(key, receipt,
 		offsetof(struct bootmem_reservation_receipt, mac), receipt->mac) == CB_SUCCESS);
 	bootmem_reservation_receipt_close(&signer);
@@ -113,6 +118,7 @@ int main(int argc, char **argv)
 	topology.active_cpus = 4;
 	receipt_make(&slot.mailbox_verifier, &receipts.mailbox, 0x100000, 3);
 	receipt_make(&slot.page_verifier, &receipts.page, 0x200000, 4);
+	receipt_make(&slot.service_verifier, &receipts.service, 0x300000, 5);
 	original = receipts;
 	backing = (struct payload_mm_authvar_presence_backing) {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_REVISION,
@@ -133,6 +139,13 @@ int main(int argc, char **argv)
 	case 11: instance.loader_instance_nonce.high++; break;
 	case 12: topology.active_cpus--; break;
 	case 13: slot.state = PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_EMPTY; break;
+	case 17: receipts.service.tag = BM_MEM_RESERVED; break;
+	case 18: receipts.service.generation++; break;
+	case 19: receipts.service.handle.opaque[0]++; break;
+	case 20: receipts.service.bytes--; break;
+	case 21: receipts.service.base = receipts.mailbox.base - 4096; break;
+	case 22: receipts.service.base = receipts.page.base - 4096; break;
+	case 23: receipts.service.base = UINT32_MAX - 4095U; break;
 	case 14:
 		before = slot;
 		require(payload_mm_authvar_presence_bootstrap_receipts_import((void *)&slot) == CB_ERR);
@@ -161,6 +174,8 @@ int main(int argc, char **argv)
 	require(payload_mm_authvar_presence_backing_evidence_take(&backing) == CB_ERR);
 	require(bootmem_reservation_receipt_verify_consume_exact_tag(&slot.page_verifier,
 		&slot.page_receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	require(bootmem_reservation_receipt_verify_consume_exact_tag(&slot.service_verifier,
+		&slot.service_receipt, BM_MEM_TABLE) == CB_SUCCESS);
 	receipts = original;
 	require(payload_mm_authvar_presence_bootstrap_receipts_import(&receipts) == CB_ERR);
 	return 0;

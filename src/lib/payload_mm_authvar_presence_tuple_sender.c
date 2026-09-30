@@ -5,6 +5,7 @@
 #include <string.h>
 #if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 #include <boot/payload_mm_authvar_presence_publication.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <commonlib/helpers.h>
 #include <random.h>
 #endif
@@ -69,8 +70,10 @@ static struct {
 	uint32_t state;
 	struct bootmem_aligned_reservation_handle mailbox;
 	struct bootmem_aligned_reservation_handle page;
+	struct bootmem_aligned_reservation_handle service;
 	struct bootmem_reservation_receipt_authority mailbox_signer;
 	struct bootmem_reservation_receipt_authority page_signer;
+	struct bootmem_reservation_receipt_authority service_signer;
 } bootstrap_sender;
 
 __weak bool mainboard_authvar_presence_cold_boot(void)
@@ -90,8 +93,10 @@ void payload_mm_authvar_presence_tuple_sender_close(void)
 		__ATOMIC_RELEASE);
 	bootmem_reservation_receipt_close(&bootstrap_sender.mailbox_signer);
 	bootmem_reservation_receipt_close(&bootstrap_sender.page_signer);
+	bootmem_reservation_receipt_close(&bootstrap_sender.service_signer);
 	scrub(&bootstrap_sender.mailbox, sizeof(bootstrap_sender.mailbox));
 	scrub(&bootstrap_sender.page, sizeof(bootstrap_sender.page));
+	scrub(&bootstrap_sender.service, sizeof(bootstrap_sender.service));
 }
 
 enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void)
@@ -104,10 +109,18 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void)
 		.limit_exclusive = 1ULL << 32,
 		.tag = BM_MEM_RESERVED,
 	};
+	const struct bootmem_aligned_reservation_request service = {
+		.revision = BOOTMEM_ALIGNED_RESERVATION_REVISION,
+		.size = sizeof(service),
+		.bytes = PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE,
+		.alignment = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE,
+		.limit_exclusive = 1ULL << 32, .tag = BM_MEM_TABLE,
+	};
 
 	if (!bootstrap_claim(BOOTSTRAP_SENDER_EMPTY, BOOTSTRAP_SENDER_RESERVING))
 		return CB_ERR;
 	if (bootmem_aligned_reservation_register(&request, &bootstrap_sender.page) ||
+	    bootmem_aligned_reservation_register(&service, &bootstrap_sender.service) ||
 	    !bootstrap_claim(BOOTSTRAP_SENDER_RESERVING, BOOTSTRAP_SENDER_RESERVED)) {
 		payload_mm_authvar_presence_tuple_sender_close();
 		return CB_ERR;
@@ -124,7 +137,7 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
 	struct smm_invocation_loader_instance identity_check;
 	struct smm_invocation_topology participants;
 	struct smm_invocation_topology participants_check;
-	uint64_t random[2][BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE / sizeof(uint64_t)] = { 0 };
+	uint64_t random[3][BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE / sizeof(uint64_t)] = { 0 };
 	bool required;
 	enum cb_err status = CB_ERR;
 
@@ -169,6 +182,10 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
 		&slot->page_verifier, (uint8_t *)random[1],
 		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
 		&bootstrap_sender.page) != CB_SUCCESS ||
+	    bootmem_reservation_receipt_provision(&bootstrap_sender.service_signer,
+		&slot->service_verifier, (uint8_t *)random[2],
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
+		&bootstrap_sender.service) != CB_SUCCESS ||
 	    !bootstrap_claim(BOOTSTRAP_SENDER_PROVISIONING, BOOTSTRAP_SENDER_READY))
 		goto fail;
 	slot->loader_nonce = identity.loader_instance_nonce;
@@ -183,6 +200,7 @@ fail:
 	payload_mm_authvar_presence_producer_abort();
 	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
 	bootmem_reservation_receipt_close(&slot->page_verifier);
+	bootmem_reservation_receipt_close(&slot->service_verifier);
 	scrub(slot, sizeof(*slot));
 out:
 	scrub(random, sizeof(random));
@@ -217,11 +235,22 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.page,
 		&bootstrap_sender.page_signer, &snapshot.page, BM_MEM_RESERVED) !=
 		CB_SUCCESS ||
+	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.service,
+		&bootstrap_sender.service_signer, &snapshot.service, BM_MEM_TABLE) !=
+		CB_SUCCESS ||
 	    snapshot.page.base > UINTPTR_MAX ||
 	    snapshot.page.bytes != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
 	    snapshot.page.base % PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
 	    physical_overlap((uintptr_t)snapshot.page.base, snapshot.mailbox.base,
 		snapshot.mailbox.bytes) ||
+	    !snapshot.service.base || snapshot.service.base % 4096U ||
+	    snapshot.service.base >
+		UINT32_MAX - (PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE - 1U) ||
+	    snapshot.service.bytes != PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    physical_overlap((uintptr_t)snapshot.page.base, snapshot.service.base,
+		snapshot.service.bytes) ||
+	    physical_overlap((uintptr_t)snapshot.mailbox.base, snapshot.service.base,
+		snapshot.service.bytes) ||
 	    __atomic_load_n(&bootstrap_sender.state, __ATOMIC_ACQUIRE) !=
 		BOOTSTRAP_SENDER_EMITTING)
 		goto out;
