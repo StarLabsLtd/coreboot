@@ -9,6 +9,12 @@
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
 #include <boot/payload_mm_authvar_smm_loader.h>
 #include <boot/payload_mm_authvar_store.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_mm_authvar_presence_bootstrap.h>
+#include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
+#include <cpu/x86/smm_invocation_runtime.h>
+#endif
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <cpu/x86/smm.h>
@@ -31,6 +37,7 @@ _Static_assert(MINIMUM_RECORD_SIZE ==
 
 struct bootstrap_policy {
 	uint64_t generation;
+	uint32_t service;
 	struct payload_mm_authvar_smm_arena_receipt receipt;
 	struct payload_mm_authvar_range smram;
 	struct payload_mm_authvar_range communication;
@@ -47,10 +54,36 @@ struct bootstrap_policy {
 	size_t spi_context_size;
 };
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+enum service_phase {
+	SERVICE_EMPTY,
+	SERVICE_PREPARING,
+	SERVICE_PREPARE_CLOSE_REQUESTED,
+	SERVICE_PREPARED,
+	SERVICE_INSTALLING,
+	SERVICE_INSTALLED,
+	SERVICE_FAILED,
+};
+
+struct service_communication {
+	struct payload_mm_authvar_range range;
+	uint64_t generation;
+	uint8_t owner[PAYLOAD_MM_AUTHVAR_SMM_ARENA_OWNER_SIZE];
+};
+#endif
+
 static struct {
 	struct bootstrap_policy policy;
 	struct bootstrap_policy sealed;
 	uint32_t attempted;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	struct service_communication service;
+	struct service_communication sealed_service;
+	uint32_t service_phase;
+	/* These are separate from the reusable executor arena and private policy. */
+	uint8_t service_request[PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE] __aligned(8);
+	uint8_t service_response[PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE] __aligned(8);
+#endif
 } provider;
 
 static bool spans_overlap(uint64_t left, uint64_t left_size, uint64_t right,
@@ -82,8 +115,32 @@ static bool span_within(uint64_t base, uint64_t size, uint64_t outer_base,
 
 static bool policy_equal(void)
 {
-	return !memcmp(&provider.policy, &provider.sealed,
-		sizeof(provider.policy));
+	if (memcmp(&provider.policy, &provider.sealed, sizeof(provider.policy)))
+		return false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	uint32_t phase = __atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE);
+
+	if (provider.sealed.service) {
+		const struct payload_mm_authvar_presence_transaction_binding *binding;
+
+		return provider.sealed.service == 1 &&
+			(phase == SERVICE_INSTALLING || phase == SERVICE_INSTALLED) &&
+			!memcmp(&provider.service, &provider.sealed_service,
+			sizeof(provider.service)) &&
+			!memcmp(&provider.sealed.communication, &provider.sealed_service.range,
+				sizeof(provider.sealed.communication)) &&
+			provider.sealed.generation == provider.sealed_service.generation &&
+			payload_mm_authvar_presence_bootstrap_binding_get(&binding) == CB_SUCCESS &&
+			binding->generation == provider.sealed_service.generation &&
+			!memcmp(binding->capability, provider.sealed_service.owner,
+				sizeof(provider.sealed_service.owner)) &&
+			(phase != SERVICE_INSTALLING ||
+			 (span_within((uintptr_t)platform_payload_mm_authvar_service_bootstrap_admitted,
+				1, provider.sealed.smram.base, provider.sealed.smram.size) &&
+			  platform_payload_mm_authvar_service_bootstrap_admitted()));
+	}
+#endif
+	return true;
 }
 
 static bool policy_matches(const struct bootstrap_policy *snapshot)
@@ -159,6 +216,118 @@ static __attribute__((noinline)) void scrub(void *buffer, size_t size)
 	__asm__ __volatile__("" : : "r" (bytes) : "memory");
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+__weak bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
+{
+	return false;
+}
+
+void payload_mm_authvar_service_prepare_abort(void)
+{
+	uint32_t phase = __atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE);
+
+	for (;;) {
+		uint32_t replacement;
+
+		if (phase == SERVICE_FAILED || phase == SERVICE_PREPARE_CLOSE_REQUESTED)
+			return;
+		/* Import has ended once the sole backend initializer owns this state. */
+		if (phase == SERVICE_INSTALLING || phase == SERVICE_INSTALLED)
+			return;
+		/* The active preparer owns its writes and performs the terminal scrub. */
+		replacement = phase == SERVICE_PREPARING ?
+			SERVICE_PREPARE_CLOSE_REQUESTED : SERVICE_FAILED;
+		if (!__atomic_compare_exchange_n(&provider.service_phase, &phase,
+			replacement, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+			continue;
+		if (replacement == SERVICE_PREPARE_CLOSE_REQUESTED)
+			return;
+		scrub(&provider.service, sizeof(provider.service));
+		scrub(&provider.sealed_service, sizeof(provider.sealed_service));
+		scrub(provider.service_request, sizeof(provider.service_request));
+		scrub(provider.service_response, sizeof(provider.service_response));
+		return;
+	}
+}
+
+enum cb_err payload_mm_authvar_service_prepare(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt)
+{
+	const struct smm_invocation_runtime_view *view;
+	const struct payload_mm_authvar_presence_transaction_binding *binding;
+	const struct payload_mm_authvar_presence_transaction_binding *check;
+	struct payload_mm_authvar_presence_transaction_binding identity;
+	struct bootmem_reservation_receipt snapshot;
+	uintptr_t smram_base;
+	size_t smram_size;
+	uint32_t expected = SERVICE_EMPTY;
+	enum cb_err result = CB_ERR;
+
+	if (!verifier || !receipt ||
+	    (uintptr_t)verifier % _Alignof(*verifier) ||
+	    (uintptr_t)receipt % _Alignof(*receipt) ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &provider,
+		sizeof(provider)) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, verifier,
+		sizeof(*verifier)) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, receipt,
+		sizeof(*receipt)) != CB_SUCCESS ||
+	    spans_overlap((uintptr_t)verifier, sizeof(*verifier),
+		(uintptr_t)receipt, sizeof(*receipt)) ||
+	    spans_overlap((uintptr_t)verifier, sizeof(*verifier),
+		(uintptr_t)&provider, sizeof(provider)) ||
+	    spans_overlap((uintptr_t)receipt, sizeof(*receipt),
+		(uintptr_t)&provider, sizeof(provider)) ||
+	    payload_mm_authvar_presence_bootstrap_binding_get(&binding) != CB_SUCCESS ||
+	    spans_overlap((uintptr_t)verifier, sizeof(*verifier),
+		(uintptr_t)binding, sizeof(*binding)) ||
+	    spans_overlap((uintptr_t)receipt, sizeof(*receipt),
+		(uintptr_t)binding, sizeof(*binding)) ||
+	    __atomic_load_n(&provider.attempted, __ATOMIC_ACQUIRE) ||
+	    !__atomic_compare_exchange_n(&provider.service_phase, &expected,
+		SERVICE_PREPARING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	identity = *binding;
+	snapshot = *receipt;
+	smm_region(&smram_base, &smram_size);
+	if (!smram_size || !snapshot.base || (snapshot.base & 4095U) ||
+	    snapshot.base > UINT32_MAX - (PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE - 1U) ||
+	    snapshot.bytes != PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    snapshot.generation != identity.generation || snapshot.tag != BM_MEM_TABLE ||
+	    spans_overlap(snapshot.base, snapshot.bytes, smram_base, smram_size) ||
+	    bootmem_reservation_receipt_verify_consume_exact_tag(verifier, receipt,
+		BM_MEM_TABLE) != CB_SUCCESS ||
+	    bytes_nonzero(receipt, sizeof(*receipt)) ||
+	    payload_mm_authvar_presence_bootstrap_binding_get(&check) != CB_SUCCESS ||
+	    memcmp(&identity, check, sizeof(identity)))
+		goto cleanup;
+	provider.service = (struct service_communication) {
+		.range = { .base = snapshot.base, .size = snapshot.bytes },
+		.generation = identity.generation,
+	};
+	memcpy(provider.service.owner, identity.capability, sizeof(provider.service.owner));
+	provider.sealed_service = provider.service;
+	expected = SERVICE_PREPARING;
+	if (!__atomic_compare_exchange_n(&provider.service_phase, &expected,
+		SERVICE_PREPARED, false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto cleanup;
+	result = CB_SUCCESS;
+cleanup:
+	if (result != CB_SUCCESS) {
+		bootmem_reservation_receipt_close(verifier);
+		scrub(receipt, sizeof(*receipt));
+		scrub(&provider.service, sizeof(provider.service));
+		scrub(&provider.sealed_service, sizeof(provider.sealed_service));
+		__atomic_store_n(&provider.service_phase, SERVICE_FAILED, __ATOMIC_RELEASE);
+	}
+	scrub(&identity, sizeof(identity));
+	scrub(&snapshot, sizeof(snapshot));
+	return result;
+}
+#endif
+
 #if ENV_TEST
 void payload_mm_authvar_smm_bootstrap_scrub_observe(const void *buffer,
 	size_t size);
@@ -179,8 +348,8 @@ static bool authority_storage(void *unused, const void *base, size_t size)
 static bool fixed_transport(const void *base, size_t size)
 {
 	return base && policy_equal() &&
-		(uintptr_t)base == provider.sealed.communication.base &&
-		size == provider.sealed.communication.size &&
+		(uintptr_t)base == provider.sealed.channel.transport_base &&
+		size == provider.sealed.channel.transport_size &&
 		!spans_overlap((uintptr_t)base, size,
 			provider.sealed.smram.base, provider.sealed.smram.size);
 }
@@ -221,7 +390,8 @@ static bool communication_reserved(void *unused, uint64_t base, uint64_t size)
 	(void)unused;
 	return policy_equal() && base == provider.sealed.communication.base &&
 		size == provider.sealed.communication.size && size <= SIZE_MAX &&
-		fixed_transport((const void *)(uintptr_t)base, (size_t)size);
+		!spans_overlap(base, size, provider.sealed.smram.base,
+			provider.sealed.smram.size);
 }
 
 static bool store_owned(void *unused, uint64_t offset, uint64_t size)
@@ -292,8 +462,8 @@ enum cb_err payload_mm_authvar_smm_bootstrap_arena_size(uint64_t store_size,
 	return payload_mm_authvar_executor_required_size(&limits, arena_size);
 }
 
-enum cb_err payload_mm_authvar_smm_bootstrap_install(
-	const struct payload_mm_authvar_smm_bootstrap *bootstrap)
+static enum cb_err bootstrap_install(
+	const struct payload_mm_authvar_smm_bootstrap *bootstrap, bool service)
 {
 	struct payload_mm_authvar_smm_bootstrap input = { 0 };
 	struct payload_mm_authvar_smm_media_ops media = { 0 };
@@ -309,6 +479,11 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	uint32_t expected = 0;
 	enum cb_err result = CB_ERR;
 	bool owns_attempt = false;
+	bool have_channel = false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	const struct payload_mm_authvar_presence_transaction_binding *binding;
+	struct service_communication communication = { 0 };
+#endif
 
 	if (!__atomic_compare_exchange_n(&provider.attempted, &expected, 1, false,
 		__ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
@@ -318,21 +493,46 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		goto cleanup;
 	smm_region(&smram_base, &smram_size);
 	if (!smram_size || !span_within((uintptr_t)bootstrap, sizeof(*bootstrap),
-		smram_base, smram_size))
+		smram_base, smram_size) || spans_overlap((uintptr_t)bootstrap,
+		sizeof(*bootstrap), (uintptr_t)&provider, sizeof(provider)))
 		goto cleanup;
 	memcpy(&input, bootstrap, sizeof(input));
+	have_channel = bytes_nonzero(&input.seal_channel, sizeof(input.seal_channel));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (service) {
+		expected = SERVICE_PREPARED;
+		if (!__atomic_compare_exchange_n(&provider.service_phase, &expected,
+			SERVICE_INSTALLING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+		    memcmp(&provider.service, &provider.sealed_service,
+			sizeof(provider.service)) ||
+		    payload_mm_authvar_presence_bootstrap_binding_get(&binding) != CB_SUCCESS ||
+		    provider.sealed_service.generation != binding->generation ||
+		    memcmp(provider.sealed_service.owner, binding->capability,
+			sizeof(provider.sealed_service.owner)) ||
+		    !span_within((uintptr_t)platform_payload_mm_authvar_service_bootstrap_admitted,
+			1, smram_base, smram_size) ||
+		    !platform_payload_mm_authvar_service_bootstrap_admitted())
+			goto cleanup;
+		communication = provider.sealed_service;
+	} else if (__atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE) !=
+		SERVICE_EMPTY)
+		goto cleanup;
+	else
+#endif
+	if (service || !have_channel)
+		goto cleanup;
 	if (input.revision != PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP_REVISION ||
 	    input.size != sizeof(input) || !input.cold_boot_generation ||
 	    input.reserved[0] || input.reserved[1] ||
 	    !input.spi_writes_restricted_to_smm ||
 	    (!!input.spi_context != !!input.spi_context_size) ||
-	    input.seal_channel.transport_size !=
+	    (have_channel && (input.seal_channel.transport_size !=
 		sizeof(struct payload_mm_authvar_mor_seal_request) ||
 	    input.seal_channel.transport_base %
 		_Alignof(struct payload_mm_authvar_mor_seal_request) ||
 	    !input.seal_channel.caller || !input.seal_channel.caller_context ||
 	    !bytes_nonzero(input.seal_channel.capability,
-		sizeof(input.seal_channel.capability)) ||
+		sizeof(input.seal_channel.capability)))) ||
 	    !smm_take_payload_mm_authvar_arena_receipt(&receipt) ||
 	    receipt.revision != PAYLOAD_MM_AUTHVAR_SMM_ARENA_REVISION ||
 	    receipt.size != sizeof(receipt) || receipt.reserved[0] ||
@@ -343,8 +543,14 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	    !receipt.arena.size || receipt.arena.base % __BIGGEST_ALIGNMENT__ ||
 	    !span_within(receipt.arena.base, receipt.arena.size,
 		receipt.smram.base, receipt.smram.size) ||
-	    memcmp(receipt.owner, input.seal_channel.capability,
-		sizeof(receipt.owner)) ||
+	    memcmp(receipt.owner,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		service ? communication.owner :
+#endif
+		input.seal_channel.capability, sizeof(receipt.owner)) ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    (service && input.cold_boot_generation != communication.generation) ||
+#endif
 	    smmstore_lookup_read_region(&store) < 0 ||
 	    !platform_payload_mm_authvar_smm_media_ops(&media) ||
 	    !media_ops_valid(&media) ||
@@ -371,9 +577,11 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		goto cleanup;
 	provider.policy = (struct bootstrap_policy) {
 		.generation = input.cold_boot_generation,
+		.service = service ? 1 : 0,
 		.receipt = receipt,
 		.smram = { .base = smram_base, .size = smram_size },
 		.communication = {
+			/* Legacy MOR retains its original independent transport. */
 			.base = input.seal_channel.transport_base,
 			.size = input.seal_channel.transport_size,
 		},
@@ -391,6 +599,10 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		.spi_context = input.spi_context,
 		.spi_context_size = input.spi_context_size,
 	};
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (service)
+		provider.policy.communication = communication.range;
+#endif
 	if (!limits_build(provider.policy.store.size, provider.policy.block_size,
 		&provider.policy.limits) ||
 	    payload_mm_authvar_executor_required_size(&provider.policy.limits,
@@ -433,9 +645,9 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 		 spans_overlap((uintptr_t)input.spi_context,
 			input.spi_context_size, provider.sealed.arena.base,
 			provider.sealed.arena.size))) ||
-	    !fixed_transport((const void *)(uintptr_t)
+	    (have_channel && !fixed_transport((const void *)(uintptr_t)
 		input.seal_channel.transport_base,
-		(size_t)input.seal_channel.transport_size))
+		(size_t)input.seal_channel.transport_size)))
 		goto cleanup;
 	platform = (struct payload_mm_authvar_platform) {
 		.smm_address_bits = sizeof(uintptr_t) * 8U,
@@ -478,19 +690,32 @@ enum cb_err payload_mm_authvar_smm_bootstrap_install(
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
-	    payload_mm_authvar_mor_private_smi_channel_install(
+	    (have_channel && payload_mm_authvar_mor_private_smi_channel_install(
 		smm_get_payload_mm_authvar_mor_private_smi_slot(),
-		&provider.sealed.channel, protected_storage) != CB_SUCCESS ||
+		&provider.sealed.channel, protected_storage) != CB_SUCCESS) ||
 	    !policy_matches(&frozen) ||
 	    memcmp(&input, bootstrap, sizeof(input)) ||
 #endif
-	    payload_mm_authvar_mor_seal_channel_install(&provider.sealed.channel,
-		protected_storage, fixed_transport) != CB_SUCCESS ||
+	    (have_channel && payload_mm_authvar_mor_seal_channel_install(&provider.sealed.channel,
+		protected_storage, fixed_transport) != CB_SUCCESS) ||
 	    !policy_matches(&frozen) ||
 	    !smm_payload_mm_authvar_arena_receipt_consumed() ||
 	    memcmp(&input, bootstrap, sizeof(input)))
 		goto cleanup;
 	result = CB_SUCCESS;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (service) {
+		if (memcmp(&provider.service, &communication, sizeof(communication)) ||
+		    memcmp(&provider.sealed_service, &communication, sizeof(communication)))
+			result = CB_ERR;
+		else {
+			expected = SERVICE_INSTALLING;
+			if (!__atomic_compare_exchange_n(&provider.service_phase, &expected,
+				SERVICE_INSTALLED, false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+				result = CB_ERR;
+		}
+	}
+#endif
 
 cleanup:
 	if (owns_attempt && result != CB_SUCCESS) {
@@ -499,12 +724,24 @@ cleanup:
 #endif
 		scrub(&provider.policy, sizeof(provider.policy));
 		scrub(&provider.sealed, sizeof(provider.sealed));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		if (service) {
+			scrub(&provider.service, sizeof(provider.service));
+			scrub(&provider.sealed_service, sizeof(provider.sealed_service));
+			scrub(provider.service_request, sizeof(provider.service_request));
+			scrub(provider.service_response, sizeof(provider.service_response));
+			__atomic_store_n(&provider.service_phase, SERVICE_FAILED, __ATOMIC_RELEASE);
+		}
+#endif
 	}
 	scrub(&receipt, sizeof(receipt));
 	scrub(&facts, sizeof(facts));
 	scrub(&media, sizeof(media));
 	scrub(&input, sizeof(input));
 	scrub(&frozen, sizeof(frozen));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	scrub(&communication, sizeof(communication));
+#endif
 #if ENV_TEST
 	payload_mm_authvar_smm_bootstrap_scrub_observe(&receipt, sizeof(receipt));
 	payload_mm_authvar_smm_bootstrap_scrub_observe(&facts, sizeof(facts));
@@ -514,3 +751,17 @@ cleanup:
 #endif
 	return result;
 }
+
+enum cb_err payload_mm_authvar_smm_bootstrap_install(
+	const struct payload_mm_authvar_smm_bootstrap *bootstrap)
+{
+	return bootstrap_install(bootstrap, false);
+}
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+enum cb_err payload_mm_authvar_smm_service_bootstrap_install(
+	const struct payload_mm_authvar_smm_bootstrap *bootstrap)
+{
+	return bootstrap_install(bootstrap, true);
+}
+#endif
