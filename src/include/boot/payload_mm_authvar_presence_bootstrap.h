@@ -15,6 +15,12 @@ enum payload_mm_authvar_presence_bootstrap_state {
 	PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_FAILED,
 };
 
+/* Ownership receipts only: PREPARE remains the sole authority seed channel. */
+struct payload_mm_authvar_presence_bootstrap_receipts {
+	struct bootmem_reservation_receipt mailbox;
+	struct bootmem_reservation_receipt page;
+} __aligned(8);
+
 /* Loader-owned protected storage, never a public or payload-supplied ABI. */
 struct payload_mm_authvar_presence_bootstrap {
 	uint32_t state;
@@ -33,6 +39,9 @@ bool mainboard_authvar_presence_cold_boot(void);
 #if ENV_SMM || ENV_TEST
 struct payload_mm_authvar_presence_bootstrap *
 smm_get_payload_mm_authvar_presence_bootstrap(void);
+/* Protected snapshots copied by the recognized private bootstrap dispatcher. */
+enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
+	struct payload_mm_authvar_presence_bootstrap_receipts *receipts);
 /*
  * Only an installed binding may be returned. The implementation checks
  * protected placement, the retained full loader identity and the actual CPU

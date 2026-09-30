@@ -102,6 +102,22 @@ void bootmem_reservation_receipt_close(struct bootmem_reservation_receipt_author
 	memset(owner, 0, sizeof(*owner));
 }
 
+enum cb_err bootmem_aligned_reservation_receipt_emit_exact_tag(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt *receipt, enum bootmem_type tag)
+{
+	assert(tag == BM_MEM_RESERVED && handle->opaque[0]);
+	*receipt = (struct bootmem_reservation_receipt) {
+		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
+		.size = sizeof(*receipt), .generation = 42,
+		.base = handle->opaque[0] == 3 ? 0x1000 : 0x2000,
+		.bytes = 4096, .tag = BM_MEM_RESERVED,
+	};
+	bootmem_reservation_receipt_close(signer);
+	return accepted() ? CB_SUCCESS : CB_ERR;
+}
+
 uint64_t smm_invocation_tuple_trigger(void)
 {
 	abort();
@@ -133,6 +149,8 @@ int main(int argc, char **argv)
 		.initial_apic_ids = { 0, 1, 2, 3 },
 	};
 	struct payload_mm_authvar_presence_bootstrap slot;
+	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
+	struct payload_mm_authvar_presence_tuple_sender sender;
 	enum cb_err result;
 
 	assert(argc == 2);
@@ -155,7 +173,7 @@ int main(int argc, char **argv)
 	memset(&slot, 0xa5, sizeof(slot));
 	result = payload_mm_authvar_presence_tuple_sender_loader_provision(
 		&slot, &instance, &topology);
-	if (fail_at) {
+	if (fail_at && fail_at <= 19) {
 		assert(result == CB_ERR && empty(&slot, sizeof(slot)) && aborts == 1);
 		return 0;
 	}
@@ -164,8 +182,20 @@ int main(int argc, char **argv)
 		slot.cold_boot_proven == 1 && slot.binding.maximum_cpus == 4);
 	assert(smm_invocation_loader_instance_nonce_equal(slot.loader_nonce,
 		instance.loader_instance_nonce));
+	memset(&receipts, 0xa5, sizeof(receipts));
+	memset(&sender, 0xa5, sizeof(sender));
+	result = payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender);
+	if (fail_at) {
+		assert(result == CB_ERR && aborts == 1 && empty(&receipts, sizeof(receipts)) &&
+			empty(&sender, sizeof(sender)));
+		return 0;
+	}
+	assert(result == CB_SUCCESS && calls == 21 && sender.page == (void *)0x2000);
+	assert(receipts.mailbox.base == 0x1000 && receipts.page.base == 0x2000);
+	assert(payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender) == CB_ERR);
+	assert(empty(&receipts, sizeof(receipts)) && empty(&sender, sizeof(sender)) && aborts == 1);
 	assert(payload_mm_authvar_presence_tuple_sender_loader_provision(
 		&slot, &instance, &topology) == CB_ERR);
-	assert(empty(&slot, sizeof(slot)) && aborts == 1);
+	assert(empty(&slot, sizeof(slot)) && aborts == 2);
 	return 0;
 }
