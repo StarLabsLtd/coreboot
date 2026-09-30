@@ -797,6 +797,37 @@ static void policy_wire_requests(void)
 	}
 }
 
+static void required_data_size_metadata(void)
+{
+	const uint64_t too_small = (1ULL << 63) | 5ULL;
+	const uint32_t sizes[] = { DATA_SIZE + 1U, UINT32_MAX };
+	uint64_t success = 0;
+
+	for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+		matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_GET, too_small);
+		/* Independent fixed external offsets: status96, required-data108. */
+		memcpy(response_buffer + 96, &too_small, sizeof(too_small));
+		memcpy(response_buffer + 108, &sizes[i], sizeof(sizes[i]));
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+		response_data()[0] = 1;
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+		response_data()[0] = 0;
+		response_data()[DATA_SIZE - 1U] = 1;
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+		response_data()[DATA_SIZE - 1U] = 0;
+		memcpy(response_buffer + 96, &success, sizeof(success));
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+		matrix_response(PAYLOAD_MM_AUTHVAR_SERVICE_SET, too_small);
+		memcpy(response_buffer + 108, &sizes[i], sizeof(sizes[i]));
+		assert(payload_mm_authvar_service_response_validate(&endpoint,
+			request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+	}
+}
+
 int main(void)
 {
 	valid_requests();
@@ -808,5 +839,6 @@ int main(void)
 	deterministic_request_mutations();
 	deterministic_response_mutations();
 	policy_wire_requests();
+	required_data_size_metadata();
 	return 0;
 }

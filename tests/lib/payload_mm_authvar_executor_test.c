@@ -5327,13 +5327,27 @@ static void production_service_test(const char *scenario)
 	static const uint8_t name[] = { 'O', 0, 'r', 0, 'd', 0, 0, 0 };
 	static const uint32_t operations[] = { 3, 1, 2, 4, 7, 8, 5, 6 };
 	unsigned int programs;
+	size_t first = 0;
 
 	coordinator_fixture_init(&fixture);
 	service_communication = (struct payload_mm_authvar_range) {
 		.base = endpoint.communication_base, .size = endpoint.communication_size,
 	};
 	programs = program_count;
-	for (size_t i = 0; i < sizeof(operations) / sizeof(operations[0]); i++) {
+	if (!strcmp(scenario, "production-service-required-size")) {
+		uint8_t value[241];
+		struct payload_mm_authvar_policy_request write = {
+			.operation = 3, .attributes = 7, .name = name, .name_size = sizeof(name),
+			.data = value, .data_size = sizeof(value),
+		};
+		struct payload_mm_authvar_policy_result result;
+
+		memset(value, 0x5a, sizeof(value));
+		memcpy(write.vendor_guid, caller_guid, sizeof(caller_guid));
+		assert(payload_mm_authvar_set_transaction(&write, &result) == 0);
+		first = 1;
+	}
+	for (size_t i = first; i < sizeof(operations) / sizeof(operations[0]); i++) {
 		memset(input, 0, sizeof(input));
 		memset(output, 0xa5, sizeof(output));
 		request->revision = 2;
@@ -5427,6 +5441,15 @@ static void production_service_test(const char *scenario)
 		}
 		assert(payload_mm_authvar_service_transaction(&endpoint, input, output,
 			sizeof(input)) == CB_SUCCESS);
+		if (!strcmp(scenario, "production-service-required-size")) {
+			assert(response->status == ((1ULL << 63) | 5ULL) &&
+				response->result_data_size == 241 && response->completion == 0);
+			for (size_t byte = 272; byte < sizeof(output); byte++)
+				assert(output[byte] == 0);
+			assert(payload_mm_authvar_service_response_validate(&endpoint, input,
+				output, sizeof(output)) == CB_SUCCESS);
+			return;
+		}
 		assert(response->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
 			response->completion == 0);
 		assert(payload_mm_authvar_service_response_validate(&endpoint, input, output,

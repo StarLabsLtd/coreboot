@@ -39,6 +39,10 @@ variable-size certificate. Consequently a payload below the authenticated query
 limit can still have an envelope too large for the mailbox; such a request is
 rejected before mutation. No artificial certificate cap is introduced to hide
 that distinction. Ordinary queries are clamped to the transport data capacity.
+GET BUFFER_TOO_SMALL reports required logical data size, which can exceed the
+transport slot, without copying any data. SUCCESS still requires the copied
+size to fit both the caller capacity and the fixed slot. NEXT's owner-derived
+maximum name size remains bounded by the actual name slot.
 The comparison is EDK2 26.09 `Variable.c`'s authenticated maximum at line 3007
 and `VariableSmmRuntimeDxe.c`'s complete SET communication bound at line 1176.
 
@@ -48,6 +52,19 @@ own exact BM_MEM_TABLE receipt through the canonical loader bootstrap, select
 that separate communication span before the existing backend/authority is
 installed once, and preserve the distinct private MOR seal channel. Host
 executor/store tests do not establish those installation or hardware facts.
+
+At runtime cutover the producer and proxy must agree on the exact protection
+flag semantics: the shared mailbox is untrusted input copied once to protected
+SMRAM, not memory assumed permanently protected by the OS's IOMMU. Genuine
+hardware protection of authoritative staging/code/backend/policy and all-CPU
+admission remain mandatory. CDK2's actual coreboot handoff already emits a
+runtime-services-data allocation HOB for the page-rounded exact mailbox
+subrange, after requiring one containing CB_MEM_TABLE owner and no overlapping
+range; DxeCore refines that allocation with runtime attributes. Promoting all
+CB_MEM_TABLE memory is not acceptable. Targeted producer-path hostile coverage
+and actual nonidentity
+SetVirtualAddressMap/ConvertPointer operation must be validated with the real
+EFI runtime memory map, not merely injected host callbacks.
 
 ## Ownership and threats
 
