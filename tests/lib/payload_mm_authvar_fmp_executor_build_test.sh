@@ -48,6 +48,14 @@ for optimization in 0 2; do
 		"$root/src/lib/payload_mm_fmp_owner.c" \
 		-o "$temporary/test-O$optimization"
 	for test_case in clean generic-get generic-get-sha-armed \
+		variable-policy-ordinary variable-policy-framing \
+		variable-policy-auth variable-policy-auth-size variable-policy-auth-presence \
+		variable-policy-lifecycle-ready variable-policy-lifecycle-runtime \
+		variable-policy-create variable-policy-state variable-policy-specific \
+		variable-policy-corrupt-count variable-policy-corrupt-used \
+		variable-policy-corrupt-lock variable-policy-corrupt-framing \
+		variable-policy-corrupt-count-mirror variable-policy-corrupt-used-mirror \
+		variable-policy-corrupt-lock-mirror variable-policy-corrupt-framing-mirror \
 		coordinator-native-ordinary coordinator-native-ordinary-sha-armed \
 		undersize-arena fmp-layout fmp-initialize-empty \
 		fmp-initialize-suffixed-isolation \

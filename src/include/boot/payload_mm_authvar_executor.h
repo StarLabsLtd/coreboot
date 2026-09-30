@@ -137,6 +137,8 @@ struct payload_mm_authvar_coordinator_test_result {
 	uint32_t completion;
 };
 void payload_mm_authvar_executor_test_corrupt_coordinate_policy(void);
+void payload_mm_authvar_executor_test_corrupt_variable_policy(unsigned int part,
+	bool mirrored);
 
 /* Test-only proof hook; the production coordinator remains private. */
 uint64_t payload_mm_authvar_executor_test_coordinate(
