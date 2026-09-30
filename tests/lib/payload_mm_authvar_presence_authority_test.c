@@ -59,6 +59,7 @@ static bool restore_block;
 static bool restore_entered;
 static bool restore_release;
 static enum cb_err restore_thread_result;
+static enum cb_err install_thread_result;
 
 struct callback_context {
 	uint32_t magic;
@@ -313,6 +314,7 @@ static void reset_fixture(void)
 	restore_entered = false;
 	restore_release = false;
 	restore_thread_result = CB_SUCCESS;
+	install_thread_result = CB_SUCCESS;
 	memset(&restore_endpoint, 0, sizeof(restore_endpoint));
 	memset(&restore_backing, 0, sizeof(restore_backing));
 	for (size_t index = 0; index < sizeof(restore_context); index++)
@@ -368,6 +370,16 @@ static void *restore_thread(void *unused)
 {
 	(void)unused;
 	restore_thread_result = restore_closed();
+	return NULL;
+}
+
+static void *install_thread(void *unused)
+{
+	struct payload_mm_authvar_presence_policy value = policy();
+
+	(void)unused;
+	install_thread_result = payload_mm_authvar_presence_authority_install(
+		&value, protected_storage, NULL);
 	return NULL;
 }
 
@@ -1131,6 +1143,28 @@ static void closed_restore(void)
 	assert(restore_closed() == CB_SUCCESS);
 	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
 
+	/* Cold install owns the shared gate before restore may claim EMPTY. */
+	reset_fixture();
+	prepare_restore();
+	restrict_hook_entered = false;
+	restrict_hook_release = false;
+	payload_mm_authvar_presence_authority_install_claim_test_hook(
+		block_restrict);
+	assert(!pthread_create(&thread, NULL, install_thread, NULL));
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	while (!restrict_hook_entered)
+		assert(!pthread_cond_wait(&restrict_cond, &restrict_mutex));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(restore_closed() == CB_ERR);
+	assert(!pthread_mutex_lock(&restrict_mutex));
+	restrict_hook_release = true;
+	assert(!pthread_cond_broadcast(&restrict_cond));
+	assert(!pthread_mutex_unlock(&restrict_mutex));
+	assert(!pthread_join(thread, NULL));
+	assert(install_thread_result == CB_SUCCESS);
+	assert(state_contains_capability());
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+
 	reset_fixture();
 	prepare_restore();
 	restore_mutate_source = true;
@@ -1163,6 +1197,9 @@ static void closed_restore(void)
 	assert(payload_mm_authvar_presence_authority_dispatch() == CB_ERR);
 	assert(payload_mm_authvar_presence_smi_dispatch(0xb2, 0xe8) == CB_ERR);
 	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
+	value = policy();
+	assert(payload_mm_authvar_presence_authority_install(&value,
+		protected_storage, NULL) == CB_ERR);
 	assert(!pthread_mutex_lock(&restrict_mutex));
 	restore_release = true;
 	assert(!pthread_cond_broadcast(&restrict_cond));
