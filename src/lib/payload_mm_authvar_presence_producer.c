@@ -47,6 +47,7 @@ struct producer_storage {
 	uint8_t sealed_context[PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_CONTEXT_MAX];
 	struct payload_mm_authvar_presence_transaction_binding transaction;
 	struct payload_mm_authvar_presence_transaction_binding sealed_transaction;
+	bool transaction_binding_taken;
 	uintptr_t publication_receipt_identity;
 };
 
@@ -54,6 +55,9 @@ static struct producer_storage producer;
 static u32 publication_committed;
 #if ENV_TEST
 static payload_mm_authvar_presence_producer_test_hook_fn before_prepare_hook;
+__weak void payload_mm_authvar_presence_producer_binding_copy_test_hook(void)
+{
+}
 #endif
 
 _Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE >=
@@ -82,6 +86,15 @@ static bool object_valid(const void *object, size_t size, size_t alignment)
 {
 	return object && IS_ALIGNED((uintptr_t)object, alignment) &&
 		(uintptr_t)object <= UINTPTR_MAX - size;
+}
+
+static bool overlaps(const void *first, size_t first_size,
+	const void *second, size_t second_size)
+{
+	const uintptr_t a = (uintptr_t)first;
+	const uintptr_t b = (uintptr_t)second;
+
+	return a <= b ? b - a < first_size : a - b < second_size;
 }
 
 static bool busy(void)
@@ -236,6 +249,8 @@ static __noreturn void fail_stop(void)
 
 enum cb_err payload_mm_authvar_presence_producer_reserve(void)
 {
+	uint64_t random[7] = { 0 };
+	size_t i;
 	const struct bootmem_aligned_reservation_request request = {
 		.revision = BOOTMEM_ALIGNED_RESERVATION_REVISION,
 		.size = sizeof(request),
@@ -253,8 +268,85 @@ enum cb_err payload_mm_authvar_presence_producer_reserve(void)
 		return CB_ERR;
 	}
 	producer.backing_owner = PRODUCER_BACKING_RESERVATION;
+	for (i = 0; i < ARRAY_SIZE(random); i++)
+		if (get_random_number_64(&random[i]) != CB_SUCCESS || !busy())
+			goto fail;
+	if (!random[0] || !random[1] || !random[2] ||
+	    !(random[3] | random[4] | random[5] | random[6]))
+		goto fail;
+	producer.transaction =
+		(struct payload_mm_authvar_presence_transaction_binding) {
+			.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION,
+			.size = sizeof(producer.transaction),
+			.generation = random[0],
+			.transaction_id = random[1],
+			.nonce = random[2],
+		};
+	memcpy(producer.transaction.capability, &random[3],
+		sizeof(producer.transaction.capability));
+	producer.sealed_transaction = producer.transaction;
+	scrub(random, sizeof(random));
 	if (!claim(PRODUCER_BUSY, PRODUCER_RESERVED)) {
 		rollback();
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+fail:
+	scrub(random, sizeof(random));
+	rollback();
+	return CB_ERR;
+}
+
+enum cb_err payload_mm_authvar_presence_producer_transaction_binding_take(
+	uint32_t initiator_cpu, uint32_t maximum_cpus,
+	struct payload_mm_authvar_presence_transaction_binding *binding,
+	struct bootmem_aligned_reservation_handle *mailbox_handle)
+{
+	struct payload_mm_authvar_presence_transaction_binding snapshot;
+	struct bootmem_aligned_reservation_handle handle;
+
+	if (!object_valid(binding, sizeof(*binding), _Alignof(*binding)) ||
+	    !object_valid(mailbox_handle, sizeof(*mailbox_handle), _Alignof(*mailbox_handle)) ||
+	    overlaps(binding, sizeof(*binding), &producer, sizeof(producer)) ||
+	    overlaps(mailbox_handle, sizeof(*mailbox_handle), &producer, sizeof(producer)) ||
+	    overlaps(binding, sizeof(*binding), mailbox_handle, sizeof(*mailbox_handle)))
+		return CB_ERR;
+	memset(binding, 0, sizeof(*binding));
+	memset(mailbox_handle, 0, sizeof(*mailbox_handle));
+	if (!claim(PRODUCER_RESERVED, PRODUCER_BUSY))
+		return CB_ERR;
+	if (!maximum_cpus || initiator_cpu >= maximum_cpus ||
+	    producer.transaction_binding_taken || !transaction_unchanged() ||
+	    producer.backing_owner != PRODUCER_BACKING_RESERVATION ||
+	    !producer.reservation.opaque[0] || !producer.reservation.opaque[1]) {
+		rollback();
+		return CB_ERR;
+	}
+	producer.transaction.initiator_cpu = initiator_cpu;
+	producer.transaction.maximum_cpus = maximum_cpus;
+	producer.sealed_transaction = producer.transaction;
+	producer.transaction_binding_taken = true;
+	snapshot = producer.sealed_transaction;
+	handle = producer.reservation;
+	if (!claim(PRODUCER_BUSY, PRODUCER_RESERVED)) {
+		scrub(&snapshot, sizeof(snapshot));
+		scrub(&handle, sizeof(handle));
+		rollback();
+		return CB_ERR;
+	}
+	*binding = snapshot;
+	*mailbox_handle = handle;
+	scrub(&snapshot, sizeof(snapshot));
+	scrub(&handle, sizeof(handle));
+#if ENV_TEST
+	payload_mm_authvar_presence_producer_binding_copy_test_hook();
+#endif
+	if (__atomic_load_n(&producer.state, __ATOMIC_ACQUIRE) != PRODUCER_RESERVED ||
+	    !producer.transaction_binding_taken || !transaction_unchanged() ||
+	    memcmp(binding, &producer.sealed_transaction, sizeof(*binding)) ||
+	    memcmp(mailbox_handle, &producer.reservation, sizeof(*mailbox_handle))) {
+		scrub(binding, sizeof(*binding));
+		scrub(mailbox_handle, sizeof(*mailbox_handle));
 		return CB_ERR;
 	}
 	return CB_SUCCESS;
@@ -290,8 +382,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	struct payload_mm_authvar_presence_transaction_ack transaction_ack;
 	struct payload_mm_authvar_presence_transaction_binding transaction_work;
 	struct payload_mm_authvar_presence_transaction_binding abort_work;
-	uint64_t random[6];
-	uint64_t transaction_random[6] = { 0 };
+	uint64_t random[5];
 	uint64_t transaction_value = UINT64_MAX;
 	uint32_t flags;
 	bool abort_confirmed;
@@ -300,6 +391,13 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	if (!claim(PRODUCER_RESERVED, PRODUCER_BUSY))
 		return CB_ERR;
 	if (!policy_valid(composition))
+		goto fail;
+	if (!transaction_unchanged() ||
+	    (producer.transaction_binding_taken &&
+	     (producer.transaction.initiator_cpu !=
+		composition->transaction_initiator_cpu ||
+	      producer.transaction.maximum_cpus !=
+		composition->transaction_maximum_cpus)))
 		goto fail;
 	producer.policy = *composition;
 	if (composition->context_size) {
@@ -329,7 +427,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	for (i = 0; i < ARRAY_SIZE(random); i++)
 		if (get_random_number_64(&random[i]) != CB_SUCCESS || !busy())
 			goto fail_local;
-	if (!random[0] || !random[1] || !(random[2] | random[3] | random[4] | random[5]))
+	if (!random[0] || !(random[1] | random[2] | random[3] | random[4]))
 		goto fail_local;
 
 	seed.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_SEED_REVISION;
@@ -340,7 +438,7 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 		.revision = LB_AUTHVAR_PRESENCE_ENDPOINT_REVISION,
 		.header_size = sizeof(seed.endpoint),
 		.flags = LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS,
-		.generation = random[0],
+		.generation = producer.sealed_transaction.generation,
 		.communication_base = reservation.base,
 		.communication_size = PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE,
 		.message_size = PAYLOAD_MM_AUTHVAR_PRESENCE_MESSAGE_SIZE,
@@ -359,33 +457,15 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 		.generation = seed.endpoint.generation,
 		.tag = reservation.tag,
 	};
-	memcpy(seed.capability, &random[2], sizeof(seed.capability));
+	memcpy(seed.capability, &random[1], sizeof(seed.capability));
 	if (payload_mm_authvar_presence_endpoint_validate(&seed.endpoint) != CB_SUCCESS)
 		goto fail_local;
 
 	sealed_seed = seed;
 	if (!proofs(reservation.base, reservation.size, &flags))
 		goto fail_local;
-	for (i = 0; i < ARRAY_SIZE(transaction_random); i++)
-		if (get_random_number_64(&transaction_random[i]) != CB_SUCCESS ||
-		    !busy())
-			goto fail_local;
-	if (!transaction_random[0] || !transaction_random[1] ||
-	    !(transaction_random[2] | transaction_random[3] |
-	      transaction_random[4] | transaction_random[5]))
-		goto fail_local;
-	producer.transaction =
-		(struct payload_mm_authvar_presence_transaction_binding) {
-			.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_REVISION,
-			.size = sizeof(producer.transaction),
-			.generation = seed.endpoint.generation,
-			.transaction_id = transaction_random[0],
-			.nonce = transaction_random[1],
-			.initiator_cpu = producer.policy.transaction_initiator_cpu,
-			.maximum_cpus = producer.policy.transaction_maximum_cpus,
-		};
-	memcpy(producer.transaction.capability, &transaction_random[2],
-		sizeof(producer.transaction.capability));
+	producer.transaction.initiator_cpu = producer.policy.transaction_initiator_cpu;
+	producer.transaction.maximum_cpus = producer.policy.transaction_maximum_cpus;
 	producer.sealed_transaction = producer.transaction;
 #if ENV_TEST
 	if (before_prepare_hook)
@@ -440,13 +520,12 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	scrub(&transaction_ack, sizeof(transaction_ack));
 	scrub(&transaction_work, sizeof(transaction_work));
 	scrub(&abort_work, sizeof(abort_work));
-	scrub(transaction_random, sizeof(transaction_random));
 
 	message.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_REVISION;
 	message.size = sizeof(message);
 	message.action = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE;
-	message.generation = random[0];
-	message.request_id = random[1];
+	message.generation = producer.sealed_transaction.generation;
+	message.request_id = random[0];
 	memcpy(message.capability, seed.capability, sizeof(message.capability));
 	message.status = PAYLOAD_MM_AUTHVAR_PRESENCE_STATUS_PENDING;
 	message.completion = PAYLOAD_MM_AUTHVAR_PRESENCE_PENDING;
@@ -460,7 +539,6 @@ enum cb_err payload_mm_authvar_presence_producer_compose(
 	scrub(&sealed_seed, sizeof(sealed_seed));
 	scrub(&message, sizeof(message));
 	scrub(random, sizeof(random));
-	scrub(transaction_random, sizeof(transaction_random));
 	if (!claim(PRODUCER_PREPARING, PRODUCER_PREPARED))
 		goto fail_local;
 	return CB_SUCCESS;
@@ -470,7 +548,6 @@ fail_aborted:
 	scrub(&sealed_seed, sizeof(sealed_seed));
 	scrub(&message, sizeof(message));
 	scrub(random, sizeof(random));
-	scrub(transaction_random, sizeof(transaction_random));
 	if (producer.backing_owner == PRODUCER_BACKING_PRODUCER &&
 	    producer.backing_base && producer.backing_size ==
 		PAYLOAD_MM_AUTHVAR_PRESENCE_BACKING_SIZE)
@@ -485,7 +562,6 @@ fail_local:
 	scrub(&sealed_seed, sizeof(sealed_seed));
 	scrub(&message, sizeof(message));
 	scrub(random, sizeof(random));
-	scrub(transaction_random, sizeof(transaction_random));
 	scrub(&transaction_ack, sizeof(transaction_ack));
 	scrub(&transaction_work, sizeof(transaction_work));
 	scrub(&abort_work, sizeof(abort_work));

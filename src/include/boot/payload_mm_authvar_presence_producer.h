@@ -67,6 +67,12 @@ struct payload_mm_authvar_presence_receipt {
 
 /* Register before bootmem initialization, then compose after it. */
 enum cb_err payload_mm_authvar_presence_producer_reserve(void);
+struct bootmem_aligned_reservation_handle;
+/* One loader take, fixing the real topology before permanent SMM loading. */
+enum cb_err payload_mm_authvar_presence_producer_transaction_binding_take(
+	uint32_t initiator_cpu, uint32_t maximum_cpus,
+	struct payload_mm_authvar_presence_transaction_binding *binding,
+	struct bootmem_aligned_reservation_handle *mailbox_handle);
 enum cb_err payload_mm_authvar_presence_producer_compose(
 	const struct payload_mm_authvar_presence_composition *composition);
 

@@ -79,6 +79,13 @@ at least 4 KiB remains for emergency fail-stop handling.
 
 ## Deliberate integration blockers
 
+The producer seals the transaction generation, ID, nonce and capability during
+its pre-bootmem reservation, before permanent SMM loading. Its one-use loader
+binding take fixes the real initiating CPU and active CPU count; composition
+must reuse that identity and rejects a different topology. The take does not
+install authority or establish receipt ownership. The actual protected loader
+bootstrap and post-resolution route installation are still platform work.
+
 This slice does not provide the platform-private SMI cause, SMM dispatcher,
 fixed protected slot accessor, all-active-CPU rendezvous, saved-state access,
 reset/fail-stop implementation, transaction-page reservation signer, or board
