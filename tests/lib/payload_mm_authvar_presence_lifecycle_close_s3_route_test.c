@@ -703,6 +703,10 @@ int main(void)
 	reset_fixture();
 	assert(provision() == CB_SUCCESS);
 	assert(provenance_calls == 1U);
+	assert(payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+		&route, &endpoint, (uintptr_t)backing, sizeof(backing)));
+	assert(!payload_mm_authvar_presence_lifecycle_close_s3_route_idle_exact(
+		&route, &endpoint, (uintptr_t)backing + 1U, sizeof(backing)));
 	assert(provision() == CB_ERR);
 	round_with_source(LB_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_REPROOF);
 	reenter_dispatch = true;

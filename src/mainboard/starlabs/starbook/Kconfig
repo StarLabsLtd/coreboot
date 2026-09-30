@@ -442,6 +442,19 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD
 	  identity in the dedicated authenticated-variable SMRAM region. Cold
 	  activation follows all-CPU EOS; S3 sealing completes before sleep entry.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM
+	bool
+	default n
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD
+	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
+	depends on STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
+	depends on SMM_AUTHVAR_PRESENCE_S3_BACKING_PROOF
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_CLOSED_S3_ROUTE
+	help
+	  Rebuild the exact authenticated-variable presence and lifecycle-close
+	  authority after an S3 SMM reload. A protected DMA epoch and retained
+	  one-shot record authorize the private no-frame transaction.
+
 config STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
 	bool
 	default n

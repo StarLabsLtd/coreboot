@@ -34,13 +34,23 @@ cases='valid generation container-drift wrong-range protected-frame mutated-fram
 	unallowed-frame unallowed-handoff unallowed-tables unallowed-mirror
 	unallowed-arena0 unallowed-arena1 unallowed-arena2
 	unprotected-dependencies unprotected-dependency-context
-	unprotected-dependency-callback dependency-toctou'
+	unprotected-dependency-callback dependency-toctou
+	epoch-valid epoch-alias epoch-plus2 epoch-source-mutation epoch-phase
+	epoch-closed-generation epoch-nonce epoch-closed-nonce epoch-lifecycle
+	epoch-closed-lifecycle epoch-eos epoch-active-cpus epoch-bsp
+	epoch-expected-cpus epoch-apic epoch-topology
+	epoch-retained-collecting epoch-retained-claimed epoch-retained-ready
+	epoch-retained-backstep epoch-retained-mixed
+	epoch-retained-terminal-backstep epoch-retained-terminal-mixed'
 
-for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer'; do
+for flags in '-O0' '-O2' \
+	'-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer' \
+	'-O1 -g -fsanitize=thread -fno-omit-frame-pointer -Wno-tsan'; do
 	# shellcheck disable=SC2086
 	${CC:-cc} $common $flags $sources -o "$temporary/test"
 	for case_name in $cases; do
 		ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
+			TSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/test" "$case_name"
 	done
 done

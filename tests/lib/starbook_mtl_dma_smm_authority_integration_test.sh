@@ -32,7 +32,7 @@ sources="$root/tests/lib/starbook_mtl_dma_smm_authority_integration_test.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_requester_authority.c
 	$root/src/soc/intel/common/block/vtd/vtd_translation.c
 	$root/src/soc/intel/common/block/vtd/vtd_translation_verify.c"
-cases='valid valid-s3 forged-graph table-drift ecam-drift stale-s3'
+cases='valid valid-s3 epoch-s3 forged-graph table-drift ecam-drift stale-s3'
 
 for flags in '-O0' '-O2' \
 	'-O1 -g -fsanitize=undefined -fno-omit-frame-pointer'; do

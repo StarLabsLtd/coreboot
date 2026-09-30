@@ -15,6 +15,8 @@
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install.h"
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
+#include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm.h"
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
@@ -44,6 +46,17 @@ static atomic_uint receipt_count;
 static atomic_uint dma_binding_count;
 static atomic_uint cold_clear_count;
 static atomic_uint cold_activate_count;
+static atomic_uint epoch_prepare_count;
+static atomic_uint epoch_activate_count;
+static atomic_uint rearm_borrow_count;
+static atomic_uint rearm_complete_count;
+static bool s3_test_mode;
+static bool s3_active;
+static bool stale_epoch;
+static unsigned int fail_stage;
+static atomic_uint rearm_event;
+static struct payload_mm_authvar_presence_lifecycle_close_s3_route s3_route;
+static struct payload_mm_authvar_presence_s3_backing s3_backing;
 static enum intel_smm_invocation_cause_result classification;
 static uint8_t invocation_command;
 static enum smm_apmc_select_result selection_result;
@@ -54,6 +67,234 @@ static struct payload_mm_authvar_presence_lifecycle_close_internal_policy
 	internal_policy;
 
 uint32_t starbook_mtl_authvar_presence_lifecycle_close_install_departures_test(void);
+void starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test(void);
+
+enum cb_err smm_invocation_loader_instance_read(
+	const struct smm_invocation_loader_instance *candidate,
+	struct smm_invocation_loader_instance *snapshot)
+{
+	assert(candidate == &instance);
+	*snapshot = instance;
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_authvar_presence_s3_binding_get(
+	struct starbook_mtl_authvar_presence_s3_binding *binding)
+{
+	if (!s3_active)
+		return CB_ERR;
+	binding->route = &s3_route;
+	binding->retained_ops = &ops;
+	return CB_SUCCESS;
+}
+
+void starbook_mtl_dma_smm_epoch_poison(void) { }
+void starbook_mtl_authvar_presence_s3_rearm_poison(void)
+{
+	starbook_mtl_dma_smm_epoch_poison();
+}
+
+const struct payload_mm_authvar_presence_s3_backing *
+smm_get_payload_mm_authvar_presence_s3_backing(void)
+{
+	return s3_test_mode ? &s3_backing : NULL;
+}
+
+enum cb_err starbook_mtl_dma_smm_epoch_prepare(
+	const struct smm_invocation_loader_instance *actual_instance,
+	const struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_topology *actual_topology,
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2])
+{
+	assert(actual_instance == &instance && actual_evidence == &evidence);
+	assert(actual_topology == &topology && ranges[0].base == 0x700000U);
+	assert(ranges[1].base == 0x710000U);
+	atomic_fetch_add(&epoch_prepare_count, 1U);
+	return (stale_epoch || fail_stage == 1U) ? CB_ERR : CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_dma_smm_epoch_activate(
+	const struct smm_invocation_loader_instance *actual_instance,
+	const struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_topology *actual_topology,
+	const struct smm_invocation_entry_ticket *ticket,
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2])
+{
+	assert(actual_instance == &instance && actual_evidence == &evidence);
+	assert(actual_topology == &topology && ticket->cpu == topology.bsp_cpu);
+	assert(ranges[0].base == 0x700000U && ranges[1].base == 0x710000U);
+	assert(atomic_load(&departure_count) == CPUS);
+	atomic_fetch_add(&epoch_activate_count, 1U);
+	if (fail_stage == 2U)
+		return CB_ERR;
+	assert(atomic_fetch_add(&rearm_event, 1U) == 0U);
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_authvar_presence_s3_rearm_borrow(
+	const struct smm_invocation_loader_instance *actual_instance,
+	struct payload_mm_authvar_presence_s3_facts *facts)
+{
+	assert(actual_instance == &instance && facts);
+	memset(facts, 0, sizeof(*facts));
+	atomic_fetch_add(&rearm_borrow_count, 1U);
+	if (fail_stage == 3U)
+		return CB_ERR;
+	assert(atomic_fetch_add(&rearm_event, 1U) == 1U);
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_authvar_presence_s3_rearm_complete(
+	const struct smm_invocation_loader_composition *actual_composition,
+	const struct smm_invocation_loader_instance *actual_instance,
+	struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_topology *actual_topology,
+	const struct smm_invocation_save_state_ops *actual_ops,
+	const struct payload_mm_authvar_presence_s3_facts *facts)
+{
+	assert(actual_composition == &composition && actual_instance == &instance);
+	assert(actual_evidence == &evidence && actual_topology == &topology);
+	assert(actual_ops == &ops && facts);
+	assert(atomic_load(&epoch_activate_count) == 1U);
+	if (fail_stage == 4U)
+		return CB_ERR;
+	assert(atomic_fetch_add(&rearm_event, 1U) == 2U);
+	s3_active = true;
+	atomic_fetch_add(&rearm_complete_count, 1U);
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_entry_arrive(
+	struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_entry_cause *cause,
+	const struct smm_invocation_entry_policy *policy,
+	struct smm_invocation_loader_instance_nonce nonce, uint8_t command,
+	uint32_t cpu, uint32_t apic_id,
+	struct smm_invocation_entry_ticket *ticket)
+{
+	int status;
+	assert(actual_evidence == &evidence && cause && policy);
+	assert(command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+	assert(cpu < CPUS && apic_id == topology.initial_apic_ids[cpu]);
+	assert(smm_invocation_loader_instance_nonce_equal(nonce,
+		instance.loader_instance_nonce));
+	*ticket = (struct smm_invocation_entry_ticket) {
+		.generation = 10U, .loader_instance_nonce = nonce,
+		.cpu = cpu, .lifecycle = instance.lifecycle,
+		.max_polls = policy->max_polls, .command = command,
+	};
+	atomic_fetch_add(&arrive_count, 1U);
+	status = pthread_barrier_wait(&arrivals);
+	assert(!status || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_entry_depart(
+	struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_entry_ticket *ticket)
+{
+	assert(actual_evidence == &evidence && ticket);
+	atomic_fetch_add_explicit(&departure_count, 1U, memory_order_release);
+	return CB_SUCCESS;
+}
+
+bool smm_invocation_entry_eos_ready(
+	struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_entry_ticket *ticket)
+{
+	assert(actual_evidence == &evidence && ticket->cpu == topology.bsp_cpu);
+	return atomic_load_explicit(&departure_count, memory_order_acquire) == CPUS;
+}
+
+enum smm_apmc_dispatch_result smm_apmc_command_consume(uint8_t command,
+	enum smm_apmc_owner expected_owner,
+	struct smm_apmc_selection_receipt *receipt)
+{
+	assert(command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+	assert(expected_owner == SMM_APMC_OWNER_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+	assert(receipt);
+	return SMM_APMC_CONSUMED_SUCCESS;
+}
+
+enum cb_err smm_invocation_evidence_claim(
+	struct smm_invocation_evidence *actual_evidence, uint8_t command,
+	uint64_t sentinel, const struct smm_invocation_save_state_ops *actual_ops,
+	struct smm_invocation_token *token)
+{
+	assert(actual_evidence == &evidence && actual_ops == &ops && token);
+	assert(command == SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE);
+	assert(sentinel == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST);
+	return CB_SUCCESS;
+}
+
+enum cb_err smm_invocation_evidence_publish_and_request_close(
+	struct smm_invocation_evidence *actual_evidence,
+	const struct smm_invocation_token *token, uint64_t value,
+	const struct smm_invocation_save_state_ops *actual_ops)
+{
+	assert(actual_evidence == &evidence && token && actual_ops == &ops);
+	assert(value == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_CLOSING);
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_presence_lifecycle_close_s3_route_arrive(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_entry_cause *cause,
+	const struct smm_invocation_entry_policy *policy,
+	uint32_t cpu, uint32_t apic_id,
+	struct smm_invocation_entry_ticket *ticket)
+{
+	int status;
+
+	assert(route == &s3_route && cause && policy && cpu < CPUS);
+	assert(apic_id == topology.initial_apic_ids[cpu]);
+	*ticket = (struct smm_invocation_entry_ticket) {
+		.generation = 11U,
+		.loader_instance_nonce = instance.loader_instance_nonce,
+		.cpu = cpu, .lifecycle = instance.lifecycle,
+		.max_polls = policy->max_polls, .command = cause->command,
+	};
+	atomic_fetch_add(&arrive_count, 1U);
+	status = pthread_barrier_wait(&arrivals);
+	assert(!status || status == PTHREAD_BARRIER_SERIAL_THREAD);
+	return CB_SUCCESS;
+}
+
+enum smm_apmc_dispatch_result
+payload_mm_authvar_presence_lifecycle_close_s3_route_dispatch_locked(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_entry_ticket *ticket,
+	struct smm_apmc_selection_receipt *receipt)
+{
+	assert(route == &s3_route && ticket->cpu == topology.bsp_cpu && receipt);
+	atomic_fetch_add(&dispatch_count, 1U);
+	return SMM_APMC_CONSUMED_SUCCESS;
+}
+
+void payload_mm_authvar_presence_lifecycle_close_s3_route_prepare_lock_release(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_entry_ticket *ticket)
+{
+	assert(route == &s3_route && ticket->cpu == topology.bsp_cpu);
+	atomic_fetch_add_explicit(&prepare_count, 1U, memory_order_release);
+}
+
+enum payload_mm_authvar_presence_lifecycle_close_s3_route_departure
+payload_mm_authvar_presence_lifecycle_close_s3_route_depart(
+	struct payload_mm_authvar_presence_lifecycle_close_s3_route *route,
+	const struct smm_invocation_entry_ticket *ticket)
+{
+	unsigned int departed;
+
+	assert(route == &s3_route && ticket);
+	departed = atomic_fetch_add_explicit(&departure_count, 1U,
+		memory_order_acq_rel) + 1U;
+	if (ticket->cpu != topology.bsp_cpu)
+		return PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_PARTICIPANT_DEPARTED;
+	while (departed < CPUS)
+		departed = atomic_load_explicit(&departure_count, memory_order_acquire);
+	return PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_S3_BSP_EOS_CONSUMED;
+}
 
 enum cb_err starbook_mtl_authvar_presence_s3_cold_install(
 	const struct smm_invocation_loader_instance *actual_instance)
@@ -130,6 +371,11 @@ static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
 	(void)context;
 	if (cpu)
 		return CB_ERR;
+	if (s3_test_mode && value == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_SUCCESS) {
+		if (fail_stage == 5U)
+			return CB_ERR;
+		assert(atomic_fetch_add(&rearm_event, 1U) == 3U);
+	}
 	invocation_wire = value;
 	return CB_SUCCESS;
 }
@@ -237,6 +483,8 @@ enum intel_smm_invocation_cause_result intel_smm_invocation_private_apmc_cause(
 		*cause = (struct smm_invocation_entry_cause) {
 			.revision = SMM_INVOCATION_ENTRY_CAUSE_REVISION,
 			.size = sizeof(*cause),
+			.loader_instance_nonce = instance.loader_instance_nonce,
+			.lifecycle = instance.lifecycle,
 			.command = expected_command,
 			.recognized = 1U,
 		};
@@ -267,6 +515,8 @@ intel_smm_invocation_adapter_provider_retire(uint64_t generation)
 	if (atomic_load_explicit(&dispatch_count, memory_order_acquire))
 		assert(atomic_load_explicit(&departure_count,
 			memory_order_acquire) == topology.active_cpus);
+	if (s3_test_mode && atomic_load(&rearm_complete_count))
+		assert(atomic_fetch_add(&rearm_event, 1U) == 4U);
 	atomic_fetch_add_explicit(&retire_count, 1U, memory_order_relaxed);
 	return SMM_INVOCATION_TRY_SUCCESS;
 }
@@ -362,12 +612,14 @@ static void *dispatch_thread(void *argument)
 
 static void reset(enum intel_smm_invocation_cause_result classify)
 {
+	starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test();
 	installed_route = NULL;
 	memset(&install_frame, 0, sizeof(install_frame));
 	memset(&transaction_slot, 0, sizeof(transaction_slot));
 	memset(&instance, 0, sizeof(instance));
 	memset(&topology, 0, sizeof(topology));
 	instance.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
+	instance.loader_instance_nonce.low = 1U;
 	topology.active_cpus = CPUS;
 	topology.bsp_cpu = 0U;
 	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
@@ -402,6 +654,19 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 	atomic_store(&dma_binding_count, 0U);
 	atomic_store(&cold_clear_count, 0U);
 	atomic_store(&cold_activate_count, 0U);
+	atomic_store(&epoch_prepare_count, 0U);
+	atomic_store(&epoch_activate_count, 0U);
+	atomic_store(&rearm_borrow_count, 0U);
+	atomic_store(&rearm_complete_count, 0U);
+	s3_test_mode = false;
+	s3_active = false;
+	stale_epoch = false;
+	fail_stage = 0U;
+	atomic_store(&rearm_event, 0U);
+	s3_backing = (struct payload_mm_authvar_presence_s3_backing) {
+		.presence.communication_base = 0x700000U,
+		.lifecycle_close.communication_base = 0x710000U,
+	};
 	invocation_wire = 0;
 }
 
@@ -427,6 +692,21 @@ static void run_all_cpus(struct worker *workers, pthread_t *threads)
 		assert(!pthread_create(&threads[cpu], NULL, dispatch_thread,
 			&workers[cpu]));
 	}
+	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
+		assert(!pthread_join(threads[cpu], NULL));
+}
+
+static void run_aps_first(struct worker *workers, pthread_t *threads)
+{
+	for (uint32_t cpu = 1; cpu < CPUS; cpu++) {
+		workers[cpu].cpu = cpu;
+		assert(!pthread_create(&threads[cpu], NULL, dispatch_thread,
+			&workers[cpu]));
+	}
+	usleep(1000);
+	assert(!atomic_load_explicit(&arrive_count, memory_order_acquire));
+	workers[0].cpu = 0;
+	assert(!pthread_create(&threads[0], NULL, dispatch_thread, &workers[0]));
 	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
 		assert(!pthread_join(threads[cpu], NULL));
 }
@@ -554,6 +834,85 @@ int main(void)
 	assert(atomic_load(&dma_binding_count) == 1U);
 	assert(atomic_load(&cold_clear_count) == 1U);
 	assert(atomic_load(&cold_activate_count) == 1U);
+
+	/* AP-first S3 private rearm seals the DMA epoch before any arrival. */
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+	s3_test_mode = true;
+	invocation_wire = STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST;
+	assert(!pthread_barrier_init(&arrivals, NULL, CPUS));
+	run_aps_first(workers, threads);
+	assert(!pthread_barrier_destroy(&arrivals));
+	assert(workers[0].result == SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED);
+	for (uint32_t cpu = 1; cpu < CPUS; cpu++)
+		assert(workers[cpu].result ==
+			SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED);
+	assert(atomic_load(&epoch_prepare_count) == 1U);
+	assert(atomic_load(&arrive_count) == CPUS);
+	assert(atomic_load(&departure_count) == CPUS);
+	assert(atomic_load(&epoch_activate_count) == 1U);
+	assert(atomic_load(&rearm_borrow_count) == 1U);
+	assert(atomic_load(&rearm_complete_count) == 1U);
+	assert(atomic_load(&retire_count) == 1U);
+	assert(invocation_wire == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_SUCCESS);
+	assert(atomic_load(&rearm_event) == 5U);
+	assert(!atomic_load(&cold_clear_count));
+	assert(!atomic_load(&cold_activate_count));
+
+	/* The committed owner accepts a later public CLOSED_REPROOF route only. */
+	clear_round_counts();
+	atomic_store(&epoch_prepare_count, 0U);
+	atomic_store(&epoch_activate_count, 0U);
+	atomic_store(&rearm_borrow_count, 0U);
+	atomic_store(&rearm_complete_count, 0U);
+	invocation_wire = 0x12345678000000feULL;
+	assert(!pthread_barrier_init(&arrivals, NULL, CPUS));
+	run_all_cpus(workers, threads);
+	assert(!pthread_barrier_destroy(&arrivals));
+	assert(atomic_load(&arrive_count) == CPUS);
+	assert(atomic_load(&departure_count) == CPUS);
+	assert(atomic_load(&dispatch_count) == 1U);
+	assert(atomic_load(&prepare_count) == 1U);
+	assert(atomic_load(&retire_count) == 1U);
+	assert(!atomic_load(&epoch_prepare_count));
+	assert(!atomic_load(&epoch_activate_count));
+	assert(!atomic_load(&rearm_borrow_count));
+	assert(!atomic_load(&rearm_complete_count));
+
+	/* Every private transaction stage is terminal on failure. */
+	for (unsigned int stage = 1U; stage <= 5U; stage++) {
+		reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+		instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+		s3_test_mode = true;
+		fail_stage = stage;
+		invocation_wire = STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST;
+		assert(!pthread_barrier_init(&arrivals, NULL, CPUS));
+		expect_all_cpu_fail_stop();
+		assert(!pthread_barrier_destroy(&arrivals));
+		assert(!atomic_load(&cold_clear_count));
+		assert(!atomic_load(&cold_activate_count));
+	}
+
+	/* A fresh reload rejects stale proof first, then accepts its fresh epoch. */
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+	instance.loader_instance_nonce.low = 2U;
+	s3_test_mode = true;
+	stale_epoch = true;
+	invocation_wire = STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST;
+	assert(!pthread_barrier_init(&arrivals, NULL, CPUS));
+	expect_all_cpu_fail_stop();
+	assert(!pthread_barrier_destroy(&arrivals));
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
+	instance.loader_instance_nonce.low = 2U;
+	s3_test_mode = true;
+	invocation_wire = STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_REQUEST;
+	assert(!pthread_barrier_init(&arrivals, NULL, CPUS));
+	run_aps_first(workers, threads);
+	assert(!pthread_barrier_destroy(&arrivals));
+	assert(atomic_load(&rearm_event) == 5U);
+	assert(invocation_wire == STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM_SUCCESS);
 
 	clear_round_counts();
 	selection_result = SMM_APMC_SELECT_CONSUMED_REJECT;

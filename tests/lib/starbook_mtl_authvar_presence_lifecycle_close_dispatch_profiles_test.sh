@@ -72,6 +72,7 @@ config TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
 	select STARLABS_STARBOOK_MTL_PAYLOAD_RESOURCE_HANDOFF
 	select STARLABS_STARBOOK_MTL_DMA_HANDOFF
 	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
+	select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM
 
 config SMM_MODULE_STACK_SIZE
 	default 0x4000 if TEST_MTL_LIFECYCLE_CLOSE_DISPATCH
@@ -105,9 +106,39 @@ for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	SMM_PRE_LOCK_DISPATCH SMM_APMC_ROUTE_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE \
 	SMM_INVOCATION_INTEL_CAUSE SMM_INVOCATION_RUNTIME_BINDING \
 	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD \
+	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM \
 	PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_IDLE_SNAPSHOT; do
 	grep -q "^CONFIG_${symbol}=y$" "$config"
 done
+
+# The resume sender reads the protected loader lifecycle authority directly.
+# Requesting private S3 rearm without that provider must therefore remain off,
+# rather than relying on a link failure to expose an invalid composition.
+no_authority_profile="$temporary/Kconfig.no-authority"
+sed -e 's/select STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER$/select SMM_INVOCATION_LOADER_INSTANCE_PLATFORM/' \
+	-e '/select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM$/d' \
+	"$profile" > "$no_authority_profile"
+no_authority_build="$temporary/no-authority"
+no_authority_config="$no_authority_build/full.config"
+mkdir -p "$no_authority_build"
+scratch_make "$root" UPDATED_SUBMODULES=1 obj="$no_authority_build" \
+	DOTCONFIG="$no_authority_config" KBUILD_KCONFIG="$no_authority_profile" \
+	KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
+"$root/util/scripts/config" --file "$no_authority_config" -e ANY_TOOLCHAIN \
+	-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH \
+	-d STARLABS_STARBOOK_MTL_SMM_INVOCATION_LOADER_INSTANCE_PROVIDER \
+	-d STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY \
+	-e STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM \
+	--set-str FSP_HEADER_PATH "$current_fsp_headers" \
+	--set-str FSP_FD_PATH "$current_fsp_fd"
+scratch_make "$root" UPDATED_SUBMODULES=1 obj="$no_authority_build" \
+	DOTCONFIG="$no_authority_config" KBUILD_KCONFIG="$no_authority_profile" \
+	olddefconfig >"$no_authority_build/olddefconfig.log" 2>&1
+! grep -q 'WARNING:' "$no_authority_build/olddefconfig.log"
+! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY=y$' \
+	"$no_authority_config"
+! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM=y$' \
+	"$no_authority_config"
 scratch_make "$root" UPDATED_SUBMODULES=1 obj="$build" DOTCONFIG="$config" \
 	KBUILD_KCONFIG="$profile" STACK_AUDIT_CFLAGS=-fstack-usage -j4 \
 	"$build/smm/smm" "$build/cbfs/fallback/ramstage.debug" \
@@ -124,16 +155,19 @@ platform="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_live_plat
 handler="$build/smm/cpu/x86/smm/smm_module_handler.o"
 policy="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_install_policy.o"
 cold="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_cold.o"
+rearm="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm.o"
+rearm_sender="$build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm_sender.o"
 loader="$build/ramstage/cpu/x86/smm/smm_module_loader.o"
 backing="$build/ramstage/lib/payload_mm_authvar_presence_lifecycle_close_backing.o"
 test -s "$dispatcher" && test -s "$authority" && test -s "$receiver" &&
 	test -s "$verifier" && test -s "$sender" && test -s "$platform" &&
 	test -s "$handler" && test -s "$policy" && test -s "$cold" &&
+	test -s "$rearm" && test -s "$rearm_sender" &&
 	test -s "$loader" &&
 	test -s "$backing"
 file "$dispatcher" "$authority" "$receiver" "$verifier" "$sender" \
-	"$platform" "$handler" "$policy" "$cold" "$loader" "$backing" |
-	grep -c 'ELF 32-bit' | grep -q '^11$'
+	"$platform" "$handler" "$policy" "$cold" "$rearm" "$rearm_sender" \
+	"$loader" "$backing" | grep -c 'ELF 32-bit' | grep -q '^13$'
 test "$(nm --defined-only "$dispatcher" | awk \
 	'$3 == "smm_pre_lock_dispatch" { n++ } END { print n + 0 }')" -eq 1
 nm -u "$handler" | grep -q 'smm_pre_lock_dispatch'
@@ -143,6 +177,16 @@ nm -u "$dispatcher" | grep -q 'starbook_mtl_authvar_presence_s3_cold_install'
 nm -u "$dispatcher" | grep -q 'starbook_mtl_authvar_presence_s3_cold_route_complete'
 nm --defined-only "$cold" | grep -q 'mainboard_smi_sleep'
 nm -u "$cold" | grep -q 'payload_mm_authvar_presence_s3_record_suspend_seal'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_epoch_prepare'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_epoch_activate'
+nm -u "$dispatcher" | grep -q 'starbook_mtl_authvar_presence_s3_rearm_poison'
+if nm -u "$dispatcher" | grep -q 'starbook_mtl_dma_smm_epoch_poison'; then
+	echo 'dispatcher duplicates composite rearm epoch poison' >&2
+	exit 1
+fi
+nm -u "$rearm" | grep -q 'starbook_mtl_dma_smm_epoch_range_protected'
+nm --defined-only "$rearm_sender" |
+	grep -q 'starbook_mtl_authvar_presence_s3_rearm_send'
 nm -u "$authority" | grep -q 'vtd_translation_verify'
 nm --defined-only "$policy" |
 	grep -q 'starbook_mtl_authvar_presence_lifecycle_close_install_policy'
@@ -181,12 +225,70 @@ grep -A2 'default:' "$temporary/hook" | grep -q \
 
 baseline="$temporary/base"
 mkdir -p "$baseline"
-git -C "$root" archive 3d1cbb278c5 | tar -x -C "$baseline"
-for module in vboot stm; do
-	rmdir "$baseline/3rdparty/$module"
-	ln -s "$root/3rdparty/$module" "$baseline/3rdparty/$module"
+git -C "$root" archive d0823c247ed67583be18f308a9b2a711e04f99dc | tar -x -C "$baseline"
+for module_path in "$baseline"/3rdparty/*; do
+	module=$(basename "$module_path")
+	rmdir "$module_path"
+	ln -s "$root/3rdparty/$module" "$module_path"
 done
 ln -s "$intel_fsp" "$temporary/intel_fsp"
+
+# With the new private S3 rearm feature disabled, the pre-existing dispatcher
+# object must remain byte-identical to the exact parent revision and ramstage
+# must not gain the resume sender.
+no_rearm_profile="$temporary/Kconfig.no-rearm"
+sed '/select STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM$/d' \
+	"$profile" > "$no_rearm_profile"
+build_no_rearm()
+{
+	tree=$1
+	name=$2
+	output="$temporary/$name"
+	config="$output/full.config"
+	tree_fsp_headers=$(realpath --relative-to="$tree" "$fsp_headers")
+	tree_fsp_fd=$(realpath --relative-to="$tree" "$fsp_fd")
+	mkdir -p "$output"
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$no_rearm_profile" \
+		KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
+	"$tree/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN -d LTO \
+		-e TEST_MTL_LIFECYCLE_CLOSE_DISPATCH \
+		--set-str FSP_HEADER_PATH "$tree_fsp_headers" \
+		--set-str FSP_FD_PATH "$tree_fsp_fd"
+	if [ "$tree" = "$root" ]; then
+		"$tree/util/scripts/config" --file "$config" \
+			-d STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM
+	fi
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$no_rearm_profile" olddefconfig >/dev/null
+	grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH=y$' \
+		"$config"
+	if grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM=y$' \
+		"$config"; then
+		echo 'rearm-off profile unexpectedly enabled private S3 rearm' >&2
+		exit 1
+	fi
+	scratch_make "$tree" UPDATED_SUBMODULES=1 obj="$output" DOTCONFIG="$config" \
+		KBUILD_KCONFIG="$no_rearm_profile" -j4 "$output/smm/smm" \
+		"$output/cbfs/fallback/ramstage.debug" >/dev/null
+}
+build_no_rearm "$root" current-dispatch-no-rearm
+build_no_rearm "$baseline" base-dispatch-no-rearm
+for name in current-dispatch-no-rearm base-dispatch-no-rearm; do
+	objcopy -O binary -j .text -j .rodata -j .data \
+		"$temporary/$name/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o" \
+		"$temporary/$name/dispatcher.bin"
+done
+cmp "$temporary/current-dispatch-no-rearm/dispatcher.bin" \
+	"$temporary/base-dispatch-no-rearm/dispatcher.bin"
+for name in current-dispatch-no-rearm base-dispatch-no-rearm; do
+	objcopy -O binary -j .text -j .rodata -j .data \
+		"$temporary/$name/ramstage/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_sender.o" \
+		"$temporary/$name/receipt-sender.bin"
+done
+cmp "$temporary/current-dispatch-no-rearm/receipt-sender.bin" \
+	"$temporary/base-dispatch-no-rearm/receipt-sender.bin"
+test ! -e "$temporary/current-dispatch-no-rearm/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm_sender.o"
 
 build_off()
 {
@@ -220,5 +322,6 @@ build_off "$baseline" base-off
 cmp "$temporary/current-off/smm/smm" "$temporary/base-off/smm/smm"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_cold.o"
+test ! -e "$temporary/current-off/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm.o"
 
 echo "StarBook MTL lifecycle-close dispatch profiles: PASS (frame $frame bytes)"

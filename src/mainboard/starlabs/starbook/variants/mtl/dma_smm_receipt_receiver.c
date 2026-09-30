@@ -19,6 +19,33 @@
 
 enum receipt_state { RECEIPT_EMPTY, RECEIPT_PROVISIONING, RECEIPT_READY,
 	RECEIPT_FAILED };
+enum epoch_state { EPOCH_EMPTY, EPOCH_CAPTURING, EPOCH_SEALED,
+	EPOCH_ACTIVATING, EPOCH_ACTIVATION_PROOF, EPOCH_RETAINED,
+	EPOCH_VERIFYING_ACTIVATION, EPOCH_VERIFYING_RETAINED, EPOCH_POISONED };
+
+struct epoch_evidence_snapshot {
+	uint32_t phase;
+	uint32_t active_cpus;
+	uint32_t bsp_cpu;
+	uint32_t loader_lifecycle;
+	uint32_t closed_lifecycle;
+	uint32_t closed_eos_consumed;
+	uint32_t arrival_failed;
+	uint32_t rendezvous_fail_requested;
+	uint32_t departure_failed;
+	uint32_t rendezvous_ack_required;
+	struct smm_invocation_loader_instance_nonce loader_instance_nonce;
+	struct smm_invocation_loader_instance_nonce closed_loader_instance_nonce;
+	uint64_t generation;
+	uint64_t closed_generation;
+	uint64_t expected_cpus;
+	uint64_t arrived_cpus;
+	uint64_t rendezvous_ack_cpus;
+	uint64_t departed_cpus;
+	uint32_t participant_apic_ids[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
+	struct smm_invocation_participant
+		participants[SMM_INVOCATION_EVIDENCE_MAX_CPUS];
+};
 
 struct receipt_context {
 	uint64_t identity;
@@ -36,7 +63,283 @@ static struct {
 	struct starbook_mtl_dma_smm_authority_workspace authority;
 	struct smm_dma_receipt_memory memory_snapshot;
 	struct starbook_mtl_dma_receipt_frame snapshot;
+	struct {
+		uint32_t state;
+		uint32_t reserved;
+		const struct smm_invocation_loader_composition *composition;
+		const struct smm_invocation_loader_instance *instance_identity;
+		const struct smm_invocation_evidence *evidence_identity;
+		const struct smm_invocation_topology *topology_identity;
+		struct smm_invocation_loader_instance instance;
+		struct smm_invocation_topology topology;
+		struct starbook_mtl_dma_smm_receipt receipt;
+		struct starbook_mtl_dma_smm_receipt sealed_receipt;
+		struct starbook_mtl_dma_smm_epoch_range ranges[2];
+		struct starbook_mtl_dma_smm_epoch_range sealed_ranges[2];
+		uint8_t receipt_digest[STARBOOK_MTL_DMA_SMM_DIGEST_SIZE];
+		uint8_t sealed_digest[STARBOOK_MTL_DMA_SMM_DIGEST_SIZE];
+		struct starbook_mtl_dma_requester_binding live_binding;
+		struct starbook_mtl_dma_requester_binding sealed_live_binding;
+		struct epoch_evidence_snapshot predecessor;
+		struct epoch_evidence_snapshot activation;
+	} epoch;
 } owner __aligned(8);
+
+static void epoch_evidence_read(const struct smm_invocation_evidence *evidence,
+	struct epoch_evidence_snapshot *snapshot)
+{
+	*snapshot = (struct epoch_evidence_snapshot) {
+		.phase = smm_invocation_evidence_phase(evidence),
+		.active_cpus = __atomic_load_n(&evidence->active_cpus,
+			__ATOMIC_ACQUIRE),
+		.bsp_cpu = __atomic_load_n(&evidence->bsp_cpu, __ATOMIC_ACQUIRE),
+		.loader_lifecycle = __atomic_load_n(&evidence->loader_lifecycle,
+			__ATOMIC_ACQUIRE),
+		.closed_lifecycle = __atomic_load_n(&evidence->closed_lifecycle,
+			__ATOMIC_ACQUIRE),
+		.closed_eos_consumed = __atomic_load_n(
+			&evidence->closed_eos_consumed, __ATOMIC_ACQUIRE),
+		.arrival_failed = __atomic_load_n(&evidence->arrival_failed,
+			__ATOMIC_ACQUIRE),
+		.rendezvous_fail_requested = __atomic_load_n(
+			&evidence->rendezvous_fail_requested, __ATOMIC_ACQUIRE),
+		.departure_failed = __atomic_load_n(&evidence->departure_failed,
+			__ATOMIC_ACQUIRE),
+		.rendezvous_ack_required = __atomic_load_n(
+			&evidence->rendezvous_ack_required, __ATOMIC_ACQUIRE),
+		.loader_instance_nonce = {
+			.low = __atomic_load_n(&evidence->loader_instance_nonce.low,
+				__ATOMIC_ACQUIRE),
+			.high = __atomic_load_n(&evidence->loader_instance_nonce.high,
+				__ATOMIC_ACQUIRE),
+		},
+		.closed_loader_instance_nonce = {
+			.low = __atomic_load_n(
+				&evidence->closed_loader_instance_nonce.low,
+				__ATOMIC_ACQUIRE),
+			.high = __atomic_load_n(
+				&evidence->closed_loader_instance_nonce.high,
+				__ATOMIC_ACQUIRE),
+		},
+		.generation = __atomic_load_n(&evidence->generation,
+			__ATOMIC_ACQUIRE),
+		.closed_generation = __atomic_load_n(&evidence->closed_generation,
+			__ATOMIC_ACQUIRE),
+		.expected_cpus = __atomic_load_n(&evidence->expected_cpus,
+			__ATOMIC_ACQUIRE),
+		.arrived_cpus = __atomic_load_n(&evidence->arrived_cpus,
+			__ATOMIC_ACQUIRE),
+		.rendezvous_ack_cpus = __atomic_load_n(
+			&evidence->rendezvous_ack_cpus, __ATOMIC_ACQUIRE),
+		.departed_cpus = __atomic_load_n(&evidence->departed_cpus,
+			__ATOMIC_ACQUIRE),
+	};
+	for (uint32_t cpu = 0; cpu < SMM_INVOCATION_EVIDENCE_MAX_CPUS; cpu++) {
+		snapshot->participant_apic_ids[cpu] = __atomic_load_n(
+			&evidence->participant_apic_ids[cpu], __ATOMIC_ACQUIRE);
+		snapshot->participants[cpu] = (struct smm_invocation_participant) {
+			.phase = __atomic_load_n(&evidence->participants[cpu].phase,
+				__ATOMIC_ACQUIRE),
+			.apic_id = __atomic_load_n(&evidence->participants[cpu].apic_id,
+				__ATOMIC_ACQUIRE),
+			.generation = __atomic_load_n(
+				&evidence->participants[cpu].generation,
+				__ATOMIC_ACQUIRE),
+		};
+	}
+}
+
+static bool epoch_evidence_stable(const struct smm_invocation_evidence *evidence,
+	const struct epoch_evidence_snapshot *expected)
+{
+	struct epoch_evidence_snapshot after;
+
+	epoch_evidence_read(evidence, &after);
+	return !memcmp(&after, expected, sizeof(after));
+}
+
+static bool epoch_evidence_capture(
+	const struct smm_invocation_evidence *evidence,
+	struct epoch_evidence_snapshot *snapshot)
+{
+	if (!evidence || !snapshot)
+		return false;
+	epoch_evidence_read(evidence, snapshot);
+	return true;
+}
+
+static bool epoch_evidence_valid(
+	const struct epoch_evidence_snapshot *snapshot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology, uint64_t generation)
+{
+	uint64_t expected_cpus;
+
+	if (!snapshot || !instance || !topology || !generation ||
+	    !topology->active_cpus ||
+	    topology->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS)
+		return false;
+	expected_cpus = topology->active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology->active_cpus) - 1U;
+	return snapshot->phase == SMM_INVOCATION_READY &&
+		snapshot->generation == generation &&
+		snapshot->closed_generation == generation &&
+		snapshot->closed_eos_consumed == 1U &&
+		snapshot->active_cpus == topology->active_cpus &&
+		snapshot->bsp_cpu == topology->bsp_cpu &&
+		snapshot->expected_cpus == expected_cpus &&
+		snapshot->loader_lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD &&
+		snapshot->closed_lifecycle == SMM_INVOCATION_LOADER_S3_RELOAD &&
+		smm_invocation_loader_instance_nonce_equal(
+			snapshot->loader_instance_nonce,
+			instance->loader_instance_nonce) &&
+		smm_invocation_loader_instance_nonce_equal(
+			snapshot->closed_loader_instance_nonce,
+			instance->loader_instance_nonce) &&
+		!memcmp(snapshot->participant_apic_ids,
+			topology->initial_apic_ids,
+			sizeof(snapshot->participant_apic_ids));
+}
+
+static bool epoch_current_evidence_valid(
+	const struct smm_invocation_evidence *evidence,
+	const struct epoch_evidence_snapshot *snapshot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology,
+	uint64_t activation_generation)
+{
+	uint64_t expected_cpus;
+
+	if (!evidence || !snapshot || !instance || !topology ||
+	    activation_generation == UINT64_MAX ||
+	    snapshot->generation <= activation_generation ||
+	    !topology->active_cpus ||
+	    topology->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS)
+		return false;
+	expected_cpus = topology->active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology->active_cpus) - 1U;
+	if (!((snapshot->phase == SMM_INVOCATION_COLLECTING) ||
+	      (snapshot->phase >= SMM_INVOCATION_CLAIMING &&
+	       snapshot->phase <= SMM_INVOCATION_CLOSING)) ||
+	    snapshot->closed_generation || snapshot->closed_eos_consumed ||
+	    !smm_invocation_loader_instance_nonce_is_zero(
+		snapshot->closed_loader_instance_nonce) ||
+	    snapshot->closed_lifecycle || snapshot->arrival_failed ||
+	    snapshot->rendezvous_fail_requested || snapshot->departure_failed ||
+	    snapshot->rendezvous_ack_required != 1U ||
+	    snapshot->active_cpus != topology->active_cpus ||
+	    snapshot->bsp_cpu != topology->bsp_cpu ||
+	    snapshot->expected_cpus != expected_cpus ||
+	    snapshot->arrived_cpus != expected_cpus ||
+	    snapshot->rendezvous_ack_cpus != expected_cpus ||
+	    snapshot->departed_cpus ||
+	    snapshot->loader_lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD ||
+	    !smm_invocation_loader_instance_nonce_equal(
+		snapshot->loader_instance_nonce,
+		instance->loader_instance_nonce) ||
+	    memcmp(snapshot->participant_apic_ids, topology->initial_apic_ids,
+		sizeof(snapshot->participant_apic_ids)) ||
+	    !smm_invocation_evidence_rendezvous_ack_ready(evidence,
+		snapshot->generation))
+		return false;
+	for (uint32_t cpu = 0; cpu < topology->active_cpus; cpu++) {
+		if (snapshot->participants[cpu].phase !=
+			SMM_INVOCATION_PARTICIPANT_READY ||
+		    snapshot->participants[cpu].generation != snapshot->generation ||
+		    snapshot->participants[cpu].apic_id !=
+			topology->initial_apic_ids[cpu])
+			return false;
+	}
+	for (uint32_t cpu = topology->active_cpus;
+	     cpu < SMM_INVOCATION_EVIDENCE_MAX_CPUS; cpu++) {
+		if (snapshot->participants[cpu].phase !=
+			SMM_INVOCATION_PARTICIPANT_EMPTY ||
+		    snapshot->participants[cpu].generation ||
+		    snapshot->participants[cpu].apic_id)
+			return false;
+	}
+	return true;
+}
+
+static bool epoch_terminal_evidence_valid(
+	const struct epoch_evidence_snapshot *snapshot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology,
+	uint64_t activation_generation, uint64_t verified_generation)
+{
+	uint64_t expected_cpus;
+
+	if (!snapshot || !instance || !topology ||
+	    snapshot->generation < activation_generation ||
+	    snapshot->generation < verified_generation ||
+	    !epoch_evidence_valid(snapshot, instance, topology,
+		snapshot->generation) || !topology->active_cpus ||
+	    topology->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS)
+		return false;
+	expected_cpus = topology->active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology->active_cpus) - 1U;
+	if (snapshot->expected_cpus != expected_cpus ||
+	    snapshot->arrival_failed || snapshot->rendezvous_fail_requested ||
+	    snapshot->departure_failed || snapshot->rendezvous_ack_required ||
+	    snapshot->arrived_cpus || snapshot->rendezvous_ack_cpus ||
+	    snapshot->departed_cpus)
+		return false;
+	for (uint32_t cpu = 0; cpu < SMM_INVOCATION_EVIDENCE_MAX_CPUS; cpu++) {
+		if (snapshot->participants[cpu].phase !=
+			SMM_INVOCATION_PARTICIPANT_EMPTY ||
+		    snapshot->participants[cpu].generation ||
+		    snapshot->participants[cpu].apic_id)
+			return false;
+	}
+	return true;
+}
+
+static bool epoch_retained_evidence_valid(
+	const struct smm_invocation_evidence *evidence,
+	const struct epoch_evidence_snapshot *snapshot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology,
+	uint64_t activation_generation, uint64_t verified_generation)
+{
+	if (snapshot->phase == SMM_INVOCATION_READY)
+		return epoch_terminal_evidence_valid(snapshot, instance, topology,
+			activation_generation, verified_generation);
+	return epoch_current_evidence_valid(evidence, snapshot, instance,
+		topology, activation_generation) &&
+		snapshot->generation >= verified_generation;
+}
+
+static enum cb_err observer_verify_translation_epoch(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	const struct receipt_context *receipt_context = context;
+
+	if (!receipt_context ||
+	    receipt_context->identity != 0x4d544c444d41524dULL ||
+	    receipt_context->authority != &owner.authority ||
+	    memcmp(&owner.epoch.live_binding,
+		&owner.epoch.sealed_live_binding,
+		sizeof(owner.epoch.live_binding)))
+		return CB_ERR;
+	return starbook_mtl_dma_smm_authority_verify_epoch(
+		receipt_context->authority, receipt, &owner.epoch.live_binding);
+}
+
+static enum cb_err observer_verify_translation_live(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	const struct receipt_context *receipt_context = context;
+
+	if (!receipt_context ||
+	    receipt_context->identity != 0x4d544c444d41524dULL ||
+	    receipt_context->authority != &owner.authority ||
+	    memcmp(&owner.epoch.live_binding,
+		&owner.epoch.sealed_live_binding,
+		sizeof(owner.epoch.live_binding)))
+		return CB_ERR;
+	return starbook_mtl_dma_smm_authority_verify_live_policy(
+		receipt_context->authority, receipt, &owner.epoch.live_binding);
+}
 
 #if !ENV_TEST
 static bool range_contains(const struct smm_dma_receipt_range *container,
@@ -444,4 +747,311 @@ enum cb_err starbook_mtl_dma_smm_binding_get(
 		return CB_ERR;
 	*binding = value;
 	return CB_SUCCESS;
+}
+
+static bool epoch_ranges_valid(
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2],
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	return ranges && receipt && ranges[0].size == 4096U &&
+		ranges[1].size == 4096U && ranges[0].base && ranges[1].base &&
+		!(ranges[0].base & 4095U) && !(ranges[1].base & 4095U) &&
+		ranges[0].base <= UINT64_MAX - 4095U &&
+		ranges[1].base <= UINT64_MAX - 4095U &&
+		ranges[0].base != ranges[1].base &&
+		starbook_mtl_dma_smm_receipt_geometry_valid(receipt,
+			ranges[0].base, 4096U) &&
+		starbook_mtl_dma_smm_receipt_geometry_valid(receipt,
+			ranges[1].base, 4096U);
+}
+
+static bool epoch_owner_protected(
+	const struct smm_invocation_runtime_view *runtime_view)
+{
+	return runtime_view &&
+		smm_invocation_runtime_range_is_protected(runtime_view, &owner,
+			sizeof(owner)) == CB_SUCCESS;
+}
+
+void starbook_mtl_dma_smm_epoch_poison(void)
+{
+	__atomic_store_n(&owner.epoch.state, EPOCH_POISONED, __ATOMIC_RELEASE);
+}
+
+enum cb_err starbook_mtl_dma_smm_epoch_prepare(
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_topology *topology,
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2])
+{
+	const struct smm_invocation_runtime_view *runtime_view;
+	struct smm_invocation_runtime_binding runtime;
+	struct starbook_mtl_dma_smm_binding binding;
+	struct smm_invocation_loader_instance instance_snapshot;
+	struct smm_invocation_topology topology_snapshot;
+	struct epoch_evidence_snapshot evidence_snapshot;
+	uint32_t expected = EPOCH_EMPTY;
+
+	if (!instance || !evidence || !topology || !ranges ||
+	    smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
+	    !epoch_owner_protected(runtime_view) ||
+	    smm_invocation_runtime_range_is_protected(runtime_view, ranges,
+		2U * sizeof(*ranges)) != CB_SUCCESS ||
+	    !__atomic_compare_exchange_n(&owner.epoch.state, &expected,
+		EPOCH_CAPTURING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    runtime.instance != instance || runtime.evidence != evidence ||
+	    runtime.topology != topology ||
+	    smm_invocation_loader_instance_read(instance, &instance_snapshot) !=
+		CB_SUCCESS || instance_snapshot.lifecycle !=
+		SMM_INVOCATION_LOADER_S3_RELOAD ||
+	    smm_invocation_topology_read(topology, &topology_snapshot) != CB_SUCCESS ||
+	    (epoch_evidence_read(evidence, &evidence_snapshot),
+	     !epoch_evidence_valid(&evidence_snapshot, &instance_snapshot,
+		&topology_snapshot, evidence_snapshot.generation)) ||
+	    starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS ||
+	    !binding.receipt || !epoch_ranges_valid(ranges, binding.receipt))
+		goto fail;
+	owner.epoch.composition = runtime.composition;
+	owner.epoch.instance_identity = instance;
+	owner.epoch.evidence_identity = evidence;
+	owner.epoch.topology_identity = topology;
+	owner.epoch.instance = instance_snapshot;
+	owner.epoch.topology = topology_snapshot;
+	owner.epoch.receipt = *binding.receipt;
+	owner.epoch.sealed_receipt = *binding.receipt;
+	memcpy(owner.epoch.ranges, ranges, sizeof(owner.epoch.ranges));
+	memcpy(owner.epoch.sealed_ranges, ranges,
+		sizeof(owner.epoch.sealed_ranges));
+	owner.epoch.predecessor = evidence_snapshot;
+	if (owner.observer.sha256(owner.observer.context, &owner.epoch.receipt,
+		sizeof(owner.epoch.receipt), owner.epoch.receipt_digest) != CB_SUCCESS)
+		goto fail;
+	memcpy(owner.epoch.sealed_digest, owner.epoch.receipt_digest,
+		sizeof(owner.epoch.sealed_digest));
+	if (!epoch_owner_protected(runtime_view) ||
+	    memcmp(&owner.epoch.receipt, &owner.epoch.sealed_receipt,
+		sizeof(owner.epoch.receipt)) ||
+	    memcmp(owner.epoch.ranges, owner.epoch.sealed_ranges,
+		sizeof(owner.epoch.ranges)) ||
+	    memcmp(owner.epoch.receipt_digest, owner.epoch.sealed_digest,
+		sizeof(owner.epoch.receipt_digest)) ||
+	    memcmp(binding.receipt, &owner.epoch.receipt,
+		sizeof(owner.epoch.receipt)) ||
+	    !epoch_evidence_stable(evidence, &owner.epoch.predecessor))
+		goto fail;
+	__atomic_store_n(&owner.epoch.state, EPOCH_SEALED, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+fail:
+	starbook_mtl_dma_smm_epoch_poison();
+	return CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_smm_epoch_activate(
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_entry_ticket *ticket,
+	const struct starbook_mtl_dma_smm_epoch_range ranges[2])
+{
+	const struct smm_invocation_runtime_view *runtime_view;
+	struct smm_invocation_runtime_binding runtime;
+	struct smm_invocation_loader_instance instance_snapshot;
+	struct smm_invocation_topology topology_snapshot;
+	struct starbook_mtl_dma_smm_observer epoch_observer;
+	struct epoch_evidence_snapshot successor;
+	uint8_t digest[STARBOOK_MTL_DMA_SMM_DIGEST_SIZE];
+#if !ENV_TEST
+	const struct smm_dma_receipt_memory *receipt_memory;
+#endif
+	uint32_t expected = EPOCH_SEALED;
+
+	if (!instance || !evidence || !topology || !ticket || !ranges ||
+	    smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
+	    !epoch_owner_protected(runtime_view) ||
+	    !__atomic_compare_exchange_n(&owner.epoch.state, &expected,
+		EPOCH_ACTIVATING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    runtime.composition != owner.epoch.composition ||
+	    instance != owner.epoch.instance_identity ||
+	    evidence != owner.epoch.evidence_identity ||
+	    topology != owner.epoch.topology_identity ||
+	    runtime.instance != instance || runtime.evidence != evidence ||
+	    runtime.topology != topology ||
+	    smm_invocation_loader_instance_read(instance, &instance_snapshot) !=
+		CB_SUCCESS || memcmp(&instance_snapshot, &owner.epoch.instance,
+		sizeof(instance_snapshot)) ||
+	    smm_invocation_topology_read(topology, &topology_snapshot) != CB_SUCCESS ||
+	    memcmp(&topology_snapshot, &owner.epoch.topology,
+		sizeof(topology_snapshot)) ||
+	    owner.epoch.predecessor.generation == UINT64_MAX ||
+	    ticket->generation != owner.epoch.predecessor.generation + 1U ||
+	    ticket->cpu != topology_snapshot.bsp_cpu ||
+	    ticket->lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD ||
+	    !smm_invocation_loader_instance_nonce_equal(ticket->loader_instance_nonce,
+		instance_snapshot.loader_instance_nonce) ||
+	    (epoch_evidence_read(evidence, &successor),
+	     !epoch_evidence_valid(&successor, &instance_snapshot,
+		&topology_snapshot, ticket->generation)) ||
+	    memcmp(ranges, owner.epoch.ranges, sizeof(owner.epoch.ranges)) ||
+	    memcmp(owner.epoch.ranges, owner.epoch.sealed_ranges,
+		sizeof(owner.epoch.ranges)) ||
+	    memcmp(&owner.epoch.receipt, &owner.epoch.sealed_receipt,
+		sizeof(owner.epoch.receipt)) ||
+	    memcmp(&owner.receipt, &owner.epoch.receipt,
+		sizeof(owner.receipt)) ||
+	    !epoch_ranges_valid(owner.epoch.ranges, &owner.epoch.receipt) ||
+	    owner.observer.sha256(owner.observer.context, &owner.epoch.receipt,
+		sizeof(owner.epoch.receipt), digest) != CB_SUCCESS ||
+	    memcmp(digest, owner.epoch.receipt_digest, sizeof(digest)) ||
+	    memcmp(digest, owner.epoch.sealed_digest, sizeof(digest)) ||
+#if !ENV_TEST
+	    !smm_get_dma_receipt_memory(&receipt_memory) ||
+	    !receipt_memory_unchanged(receipt_memory, &owner.memory_snapshot) ||
+	    !receipt_layout_matches_memory(&owner.epoch.receipt,
+		&owner.memory_snapshot) ||
+#endif
+	    !dependencies_valid(&owner.dependencies, runtime_view) ||
+	    !receipt_ranges_allowed(&owner.epoch.receipt))
+		goto fail;
+	owner.epoch.live_binding = owner.epoch.sealed_live_binding =
+		(struct starbook_mtl_dma_requester_binding) {
+			.loader_instance_nonce = instance_snapshot.loader_instance_nonce,
+			.invocation_generation = ticket->generation,
+			.loader_lifecycle = instance_snapshot.lifecycle,
+		};
+	epoch_observer = owner.observer;
+	epoch_observer.verify_translation = observer_verify_translation_epoch;
+	if (starbook_mtl_dma_smm_verify(&owner.epoch.receipt, (uintptr_t)&owner,
+		sizeof(owner), &epoch_observer, runtime_view,
+		&owner.workspace) != CB_SUCCESS ||
+	    !epoch_ranges_valid(owner.epoch.ranges, &owner.epoch.receipt) ||
+	    !epoch_owner_protected(runtime_view) ||
+	    !epoch_evidence_stable(evidence, &successor))
+		goto fail;
+	owner.epoch.activation = successor;
+	__atomic_store_n(&owner.epoch.state, EPOCH_ACTIVATION_PROOF,
+		__ATOMIC_RELEASE);
+	memset(digest, 0, sizeof(digest));
+	return CB_SUCCESS;
+fail:
+	memset(digest, 0, sizeof(digest));
+	starbook_mtl_dma_smm_epoch_poison();
+	return CB_ERR;
+}
+
+enum cb_err starbook_mtl_dma_smm_epoch_retain(void)
+{
+	uint32_t expected = EPOCH_ACTIVATION_PROOF;
+
+	if (!__atomic_compare_exchange_n(&owner.epoch.state, &expected,
+		EPOCH_RETAINED, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		starbook_mtl_dma_smm_epoch_poison();
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+
+bool starbook_mtl_dma_smm_epoch_range_protected(
+	void *unused, uint64_t base, uint64_t size)
+{
+	const struct smm_invocation_runtime_view *runtime_view;
+	struct smm_invocation_runtime_binding runtime;
+	struct smm_invocation_loader_instance instance;
+	struct smm_invocation_topology topology;
+	struct epoch_evidence_snapshot evidence_snapshot;
+	struct starbook_mtl_dma_smm_observer epoch_observer;
+	uint8_t digest[STARBOOK_MTL_DMA_SMM_DIGEST_SIZE];
+	uint32_t expected;
+	uint32_t proof_state = EPOCH_EMPTY;
+	bool valid = false;
+
+	(void)unused;
+	if (size != 4096U ||
+	    (base != owner.epoch.ranges[0].base &&
+	     base != owner.epoch.ranges[1].base))
+		return false;
+	for (uint32_t poll = 0; poll < SMM_INVOCATION_ENTRY_MAX_POLLS; poll++) {
+		expected = EPOCH_ACTIVATION_PROOF;
+		if (__atomic_compare_exchange_n(&owner.epoch.state, &expected,
+			EPOCH_VERIFYING_ACTIVATION, false, __ATOMIC_ACQ_REL,
+			__ATOMIC_ACQUIRE)) {
+			proof_state = EPOCH_ACTIVATION_PROOF;
+			break;
+		}
+		expected = EPOCH_RETAINED;
+		if (__atomic_compare_exchange_n(&owner.epoch.state, &expected,
+			EPOCH_VERIFYING_RETAINED, false, __ATOMIC_ACQ_REL,
+			__ATOMIC_ACQUIRE)) {
+			proof_state = EPOCH_RETAINED;
+			break;
+		}
+		if (expected != EPOCH_VERIFYING_ACTIVATION &&
+		    expected != EPOCH_VERIFYING_RETAINED)
+			return false;
+		__asm__ __volatile__("pause");
+	}
+	if (!proof_state)
+		return false;
+	if (smm_invocation_runtime_view_get(&runtime_view) != CB_SUCCESS ||
+	    !epoch_owner_protected(runtime_view) ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    runtime.composition != owner.epoch.composition ||
+	    runtime.instance != owner.epoch.instance_identity ||
+	    runtime.evidence != owner.epoch.evidence_identity ||
+	    runtime.topology != owner.epoch.topology_identity ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance) !=
+		CB_SUCCESS || memcmp(&instance, &owner.epoch.instance,
+		sizeof(instance)) ||
+	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
+	    memcmp(&topology, &owner.epoch.topology, sizeof(topology)) ||
+	    !epoch_evidence_capture(runtime.evidence, &evidence_snapshot) ||
+	    (proof_state == EPOCH_ACTIVATION_PROOF ?
+	     !epoch_evidence_valid(&evidence_snapshot, &instance, &topology,
+		owner.epoch.activation.generation) :
+	     !epoch_retained_evidence_valid(runtime.evidence, &evidence_snapshot,
+		&instance, &topology, owner.epoch.activation.generation,
+		owner.epoch.sealed_live_binding.invocation_generation)) ||
+	    evidence_snapshot.generation <
+		owner.epoch.sealed_live_binding.invocation_generation ||
+	    memcmp(owner.epoch.ranges, owner.epoch.sealed_ranges,
+		sizeof(owner.epoch.ranges)) ||
+	    memcmp(&owner.epoch.receipt, &owner.epoch.sealed_receipt,
+		sizeof(owner.epoch.receipt)) ||
+	    !epoch_ranges_valid(owner.epoch.ranges, &owner.epoch.receipt))
+		goto out;
+	owner.epoch.live_binding = (struct starbook_mtl_dma_requester_binding) {
+		.loader_instance_nonce = instance.loader_instance_nonce,
+		.invocation_generation = evidence_snapshot.generation,
+		.loader_lifecycle = instance.lifecycle,
+	};
+	owner.epoch.sealed_live_binding = owner.epoch.live_binding;
+	epoch_observer = owner.observer;
+	epoch_observer.verify_translation = observer_verify_translation_live;
+	if (owner.observer.sha256(owner.observer.context, &owner.epoch.receipt,
+		sizeof(owner.epoch.receipt), digest) != CB_SUCCESS ||
+	    memcmp(digest, owner.epoch.receipt_digest, sizeof(digest)) ||
+	    memcmp(digest, owner.epoch.sealed_digest, sizeof(digest)) ||
+	    starbook_mtl_dma_smm_verify(&owner.epoch.receipt,
+		(uintptr_t)&owner, sizeof(owner), &epoch_observer, runtime_view,
+		&owner.workspace) != CB_SUCCESS ||
+	    !epoch_owner_protected(runtime_view) ||
+	    !epoch_evidence_stable(runtime.evidence, &evidence_snapshot) ||
+	    memcmp(&owner.epoch.live_binding,
+		&owner.epoch.sealed_live_binding,
+		sizeof(owner.epoch.live_binding)))
+		goto out;
+	valid = true;
+out:
+	memset(&instance, 0, sizeof(instance));
+	memset(&topology, 0, sizeof(topology));
+	memset(&evidence_snapshot, 0, sizeof(evidence_snapshot));
+	memset(&epoch_observer, 0, sizeof(epoch_observer));
+	memset(digest, 0, sizeof(digest));
+	if (!valid) {
+		starbook_mtl_dma_smm_epoch_poison();
+		return false;
+	}
+	__atomic_store_n(&owner.epoch.state, proof_state, __ATOMIC_RELEASE);
+	return true;
 }

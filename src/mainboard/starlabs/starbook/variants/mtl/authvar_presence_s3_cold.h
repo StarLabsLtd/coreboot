@@ -12,6 +12,11 @@ enum cb_err starbook_mtl_authvar_presence_s3_cold_install(
 enum cb_err starbook_mtl_authvar_presence_s3_cold_route_complete(
 	struct payload_mm_authvar_presence_lifecycle_close_route *route);
 enum cb_err starbook_mtl_authvar_presence_s3_suspend(void);
+bool starbook_mtl_authvar_presence_s3_protected_storage(
+	void *unused, const void *object, size_t size);
+bool starbook_mtl_authvar_presence_s3_record_storage(
+	void **storage, size_t *size);
+bool starbook_mtl_authvar_presence_s3_cold_active(void);
 
 #if ENV_TEST
 void starbook_mtl_authvar_presence_s3_cold_reset_test(void);

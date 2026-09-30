@@ -171,6 +171,21 @@ enum cb_err smm_invocation_runtime_binding_get(
 	return CB_SUCCESS;
 }
 
+uint32_t smm_invocation_evidence_phase(
+	const struct smm_invocation_evidence *candidate)
+{
+	return candidate->state & 0x1fU;
+}
+
+bool smm_invocation_evidence_rendezvous_ack_ready(
+	const struct smm_invocation_evidence *candidate, uint64_t generation)
+{
+	return candidate == &evidence && candidate->generation == generation &&
+		candidate->rendezvous_ack_required == 1U &&
+		candidate->rendezvous_ack_cpus == candidate->expected_cpus &&
+		!candidate->rendezvous_fail_requested;
+}
+
 enum cb_err smm_invocation_runtime_range_is_protected(
 	const struct smm_invocation_runtime_view *view, const void *base,
 	size_t size)
@@ -282,7 +297,15 @@ static void initialize(bool forged_graph)
 	instance.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
 	evidence.loader_instance_nonce = instance.loader_instance_nonce;
 	evidence.loader_lifecycle = instance.lifecycle;
+	evidence.state = SMM_INVOCATION_READY;
 	evidence.generation = 7;
+	evidence.closed_generation = 7;
+	evidence.closed_loader_instance_nonce = instance.loader_instance_nonce;
+	evidence.closed_lifecycle = instance.lifecycle;
+	evidence.closed_eos_consumed = 1;
+	evidence.active_cpus = topology.active_cpus;
+	evidence.bsp_cpu = topology.bsp_cpu;
+	evidence.expected_cpus = 0xfU;
 	dependencies = (struct starbook_mtl_dma_receipt_dependencies) {
 		.revision = STARBOOK_MTL_DMA_RECEIPT_DEPENDENCIES_REVISION,
 		.size = sizeof(dependencies),
@@ -305,14 +328,20 @@ int main(int argc, char **argv)
 		.receipt = (void *)0x12345678,
 	};
 	const bool forged = argc == 2 && !strcmp(argv[1], "forged-graph");
+	struct starbook_mtl_dma_smm_epoch_range ranges[2] = {
+		{ 0x700000, PAGE_SIZE }, { 0x710000, PAGE_SIZE },
+	};
+	struct smm_invocation_entry_ticket ticket = { 0 };
 
 	assert(argc == 2);
 	initialize(forged);
-	if (!strcmp(argv[1], "valid-s3")) {
+	if (!strcmp(argv[1], "valid-s3") || !strcmp(argv[1], "epoch-s3")) {
 		instance.loader_instance_nonce.low = 2;
 		instance.lifecycle = SMM_INVOCATION_LOADER_S3_RELOAD;
 		evidence.loader_instance_nonce = instance.loader_instance_nonce;
+		evidence.closed_loader_instance_nonce = instance.loader_instance_nonce;
 		evidence.loader_lifecycle = instance.lifecycle;
+		evidence.closed_lifecycle = instance.lifecycle;
 	}
 	if (forged) {
 		assert(starbook_mtl_dma_receipt_provision_receive(&ops) != CB_SUCCESS);
@@ -321,6 +350,23 @@ int main(int argc, char **argv)
 	assert(starbook_mtl_dma_receipt_provision_receive(&ops) == CB_SUCCESS);
 	assert(starbook_mtl_dma_smm_binding_get(&output) == CB_SUCCESS);
 	assert(output.receipt && output.receipt != (void *)0x12345678);
+	if (!strcmp(argv[1], "epoch-s3")) {
+		assert(starbook_mtl_dma_smm_epoch_prepare(&instance, &evidence,
+			&topology, ranges) == CB_SUCCESS);
+		evidence.generation++;
+		evidence.closed_generation++;
+		ticket = (struct smm_invocation_entry_ticket) {
+			.generation = evidence.generation,
+			.loader_instance_nonce = instance.loader_instance_nonce,
+			.lifecycle = instance.lifecycle,
+			.cpu = topology.bsp_cpu,
+		};
+		assert(starbook_mtl_dma_smm_epoch_activate(&instance, &evidence,
+			&topology, &ticket, ranges) == CB_SUCCESS);
+		assert(starbook_mtl_dma_smm_epoch_range_protected(NULL,
+			ranges[0].base, ranges[0].size));
+		return 0;
+	}
 	output.receipt = (void *)0x12345678;
 	if (!strcmp(argv[1], "table-drift"))
 		*(volatile uint64_t *)TABLE_BASE ^= 0x1000U;

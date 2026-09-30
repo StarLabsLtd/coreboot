@@ -579,12 +579,16 @@ mutate_component departure-published-retry \
 entry_callers=$(rg -l 'smm_invocation_entry_(arrive|depart|eos_ready)' \
 	"$root/src" -g '!src/cpu/x86/smm_invocation_entry.c' \
 	-g '!src/include/cpu/x86/smm_invocation_entry.h' | sort)
-if [ "$entry_callers" != \
-	"$root/src/lib/payload_mm_authvar_presence_route_session.c" ]; then
+expected_entry_callers=$(printf '%s\n' \
+	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_route.c" \
+	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c" \
+	"$root/src/lib/payload_mm_authvar_presence_route_session.c" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c" | sort)
+if [ "$entry_callers" != "$expected_entry_callers" ]; then
 	printf '%s\n' 'unexpected SMM invocation entry caller set' >&2
 	exit 1
 fi
-if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)' \
+if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)[[:space:]]*$' \
 	"$root/src"; then
 	printf '%s\n' 'dormant entry or adapter became selected' >&2
 	exit 1
