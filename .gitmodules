@@ -82,3 +82,7 @@
 [submodule "3rdparty/mbedtls"]
 	path = 3rdparty/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git
+
+[submodule "payloads/external/cdk2/cdk2"]
+	path = payloads/external/cdk2/cdk2
+	url = https://github.com/StarLabsLtd/cdk2.git

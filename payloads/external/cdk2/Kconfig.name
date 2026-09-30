@@ -1,0 +1,11 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config PAYLOAD_CDK2
+	bool "CDK2"
+	depends on ARCH_X86
+	select WANT_LINEAR_FRAMEBUFFER
+	select PAYLOAD_OWNS_PCI_DEVICES
+	help
+	  Build CDK2 from the pinned source submodule and add its native ELF as
+	  the primary payload. CDK2 consumes coreboot tables through the standard
+	  protected-mode payload entry ABI.

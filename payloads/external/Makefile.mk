@@ -157,6 +157,52 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 
 # edk2
 
+# cdk2
+
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+CDK2_SOURCE := payloads/external/cdk2/cdk2
+CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
+CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
+CDK2_CONFIG := $(CDK2_OUTPUT)/.config
+
+# Preserve both sides of the configuration boundary. The outer configuration
+# records platform policy while the nested configuration records CDK2's
+# resolved view of that policy.
+cbfs-files-y += cdk2/coreboot-config
+cdk2/coreboot-config-file := $(DOTCONFIG)
+cdk2/coreboot-config-type := raw
+cdk2/coreboot-config-compression := LZMA
+
+cbfs-files-y += cdk2/config
+cdk2/config-file := $(CDK2_CONFIG)
+cdk2/config-type := raw
+cdk2/config-compression := LZMA
+
+# The nested build owns its source dependencies. Always enter it so an edit in
+# the pinned source checkout cannot leave a stale payload in the outer build.
+.PHONY: cdk2-force
+cdk2-force:
+	@git submodule update --init --checkout --recursive -- $(CDK2_SOURCE)
+	@payloads/external/cdk2/verify-source.sh $(CDK2_SOURCE)
+
+$(CDK2_CONFIG): $(CDK2_PAYLOAD)
+
+$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(objutil)/kconfig/conf
+	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
+		LD="$(word 1,$(LD_x86_64))" \
+		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
+		READELF="$(READELF_x86_64)"
+	@grep -qx 'CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' $(CDK2_CONFIG) || { \
+		echo 'CDK2 integration requires the source-built strict direct route' >&2; \
+		exit 1; \
+	}
+
+endif
+
 ifeq ($(CONFIG_EDK2_ENABLE_IPXE),y)
 IPXE_EFI := payloads/external/iPXE/ipxe/ipxe.rom
 endif

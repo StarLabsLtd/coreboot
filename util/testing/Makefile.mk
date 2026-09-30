@@ -470,6 +470,24 @@ test-payloads:
 		$(MAKE) $(payload) -j $(CPUS) V=$(V) Q=$(Q)\
 		|| exit 1; )
 
+.PHONY: test-cdk2-external-payload
+test-cdk2-external-payload:
+	tests/lib/cdk2_external_payload_test.sh
+
+.PHONY: test-cdk2-external-payload-artifact
+test-cdk2-external-payload-artifact: $(obj)/coreboot.rom
+	tests/lib/cdk2_external_payload_artifact_test.sh \
+		$(obj)/coreboot.rom $(obj) $(DOTCONFIG) $(CBFSTOOL)
+
+.PHONY: test-cdk2-q35-compat-runtime-config
+test-cdk2-q35-compat-runtime-config:
+	tests/lib/cdk2_q35_compat_runtime_test.sh
+
+.PHONY: test-cdk2-q35-compat-runtime
+test-cdk2-q35-compat-runtime: $(obj)/coreboot.rom
+	tests/lib/cdk2_q35_compat_runtime_qemu_test.sh \
+		$(obj)/coreboot.rom $(CBFSTOOL)
+
 test-tools:
 	@echo "Build testing $(TOOLLIST)"
 	$(foreach tool, $(TOOLLIST),  echo "Building $(tool)";$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR="util/$(tool)" BLD="$(tool)" MFLAGS= MAKEFLAGS= MAKETARGET= junit.xml; )

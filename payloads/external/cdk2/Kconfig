@@ -1,0 +1,15 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+if PAYLOAD_CDK2
+
+# The current source-built native image uses the capsule profile. This default
+# is payload policy only; it does not select coreboot's SMMSTORE backend.
+config CDK2_COREBOOT_CAPSULE_PROFILE
+	default y
+
+source "payloads/external/cdk2/cdk2/Kconfig"
+
+config PAYLOAD_FILE
+	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"
+
+endif
