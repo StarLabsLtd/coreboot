@@ -42,7 +42,7 @@ scratch_make DOTCONFIG="$config" obj="$build" -j4 "$source_object" \
 	"$build/ramstage/mainboard/starlabs/starbook/variants/mtl/loader_instance_source.o" \
 	"$build/romstage/soc/intel/meteorlake/romstage/romstage.o" \
 	"$build/romstage/soc/intel/meteorlake/authvar_presence_boot_classifier.o"
-nm "$authority_object" | rg -q ' T platform_payload_mm_authvar_presence_handoff_cold_boot$'
+nm "$authority_object" | rg -q ' T mainboard_authvar_presence_cold_boot$'
 nm -u "$source_object" | rg -q 'mtl_authvar_presence_boot_classify$'
 
 for board in starlabs_starbook_mtl starlabs_lite_adl starlabs_lite_glk; do

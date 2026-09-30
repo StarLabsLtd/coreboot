@@ -81,8 +81,6 @@ sed -e 's/depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER$/'\
 'TEST_MTL_ADAPTER_ROUTE_PREREQUISITES/' \
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION$/,+2 '\
 's/^\tdefault n$/\tdefault y if TEST_MTL_ADAPTER_ROUTE_PREREQUISITES\n\tdefault n/' \
-	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_HANDOFF$/,+2 '\
-'s/^\tdefault n$/\tdefault y if TEST_MTL_ADAPTER_ROUTE_PREREQUISITES\n\tdefault n/' \
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION$/,+2 '\
 's/^\tdefault n$/\tdefault y if TEST_MTL_ADAPTER_ROUTE_PREREQUISITES\n\tdefault n/' \
 	-e '/^config PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM$/,+2 '\
