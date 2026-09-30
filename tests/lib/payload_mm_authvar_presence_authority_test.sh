@@ -36,6 +36,33 @@ run_test sanitized-O0 -O0 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
 run_test sanitized-O2 -O2 -g -fno-omit-frame-pointer \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
+run_test thread-sanitized -O1 -g -fno-omit-frame-pointer -fsanitize=thread
+
+for source in payload_mm_authvar_presence.c \
+	payload_mm_authvar_presence_authority.c; do
+	"${CC:-cc}" -m32 -march=i686 -std=gnu11 -Os -ffreestanding \
+		-Wall -Wextra -Werror -Wno-conversion -Wshadow -fno-builtin \
+		-D__COREBOOT__ -D__SMM__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+		-I"$root/src/include" -I"$root/src/commonlib/include" \
+		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+		-c "$root/src/lib/$source" -o "$temporary/$source.o"
+done
+
+"${CC:-cc}" -std=gnu11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
+	-Wundef -Wstrict-prototypes -ffreestanding -fno-builtin \
+	-D__COREBOOT__ -D__SMM__ \
+	-include "$root/src/include/kconfig.h" \
+	-include "$root/src/include/rules.h" \
+	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+	-I"$temporary/include" -I"$root/src" -I"$root/src/lib" \
+	-I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
+	-c "$root/src/lib/payload_mm_authvar_presence_authority.c" \
+	-o "$temporary/production-smm.o"
 
 mutation()
 {
@@ -113,6 +140,12 @@ mutation no-install-gate-binding \
 	's/return __atomic_load_n(\&presence.install_attempted, __ATOMIC_ACQUIRE) == 1;/return true;/'
 mutation no-install-phase-guard \
 	's/return __atomic_load_n(\&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EMPTY;/return true;/'
+mutation no-restore-dma-proof \
+	's/!dma_protected(dma_context_size ? context : NULL,/dma_protected(dma_context_size ? context : NULL,/'
+mutation no-restore-source-recheck \
+	's/memcmp(\&endpoint_copy, endpoint, sizeof(endpoint_copy))/false/'
+mutation no-restore-closed-backing-check \
+	'/if (phase == PRESENCE_CLOSED)/,/restriction_scrubbed())/s/backing_valid(\&presence.sealed)/true/'
 
 test "$(grep -c 'scrub(failure_context, sizeof(failure_context));' \
 	"$root/src/lib/payload_mm_authvar_presence_authority.c")" -ge 3
@@ -132,6 +165,12 @@ if grep -R -Eq 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY' \
 			{ bad = 1 }
 		END { exit !bad }' "$root/src/lib/Kconfig"; then
 	printf '%s\n' 'presence authority became platform-selectable' >&2
+	exit 1
+fi
+
+if ! grep -Fq 'smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) += \' \
+	"$root/src/lib/Makefile.mk"; then
+	printf '%s\n' 'presence authority lost config-off object gating' >&2
 	exit 1
 fi
 
