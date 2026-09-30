@@ -52,9 +52,10 @@ if test -n "${PAYLOAD_MM_Q35_ROM:-}"; then
 		'QEMU x86 q35/ich9'
 fi
 
-# Build a fresh detached CMS and independently verify it before exercising the
-# complete policy provider with the same authenticated image and trust root.
+# Build a complete capsule with the production generator before exercising the
+# complete policy provider with its exact authenticated image and trust root.
 "$temporary/optimized" emit "$temporary/payload"
+dd if="$temporary/payload" of="$temporary/raw-rom" bs=1 skip=16 status=none
 openssl req -new -newkey rsa:2048 -nodes -x509 -sha256 -days 1 \
 	-subj /CN=payload-mm-policy-test/ \
 	-addext basicConstraints=critical,CA:TRUE \
@@ -62,24 +63,25 @@ openssl req -new -newkey rsa:2048 -nodes -x509 -sha256 -days 1 \
 	-keyout "$temporary/key.pem" -out "$temporary/cert.pem" 2>/dev/null
 openssl x509 -in "$temporary/cert.pem" -outform DER \
 	-out "$temporary/cert.der"
-cp "$temporary/payload" "$temporary/content"
-dd if=/dev/zero bs=8 count=1 status=none >> "$temporary/content"
-openssl cms -sign -binary -in "$temporary/content" \
-	-signer "$temporary/cert.pem" -inkey "$temporary/key.pem" \
-	-outform DER -out "$temporary/cms.der" -nosmimecap
-openssl cms -verify -binary -inform DER -in "$temporary/cms.der" \
-	-content "$temporary/content" -CAfile "$temporary/cert.pem" \
-	-purpose any -no_check_time -partial_chain -out /dev/null 2>/dev/null
-cms_size=$(stat -c %s "$temporary/cms.der")
+cat "$temporary/key.pem" "$temporary/cert.pem" > "$temporary/signer.pem"
+python3 "$root/util/efi_capsule/generate_capsule.py" \
+	--output "$temporary/coreboot.cap" \
+	--guid 975cd0e6-c540-4e2b-906c-72c0d0d1e40d \
+	--fw-version 3 --lsv 2 \
+	--signer-private-cert "$temporary/signer.pem" \
+	--trusted-public-cert "$temporary/cert.pem" \
+	"$temporary/raw-rom"
+PYTHONPATH="$root" python3 - "$temporary/coreboot.cap" \
+	"$temporary/auth-image" <<'PY'
+import pathlib
+import sys
+
+from util.efi_capsule.validate_capsule import parse_capsule_details
+
+details = parse_capsule_details(pathlib.Path(sys.argv[1]).read_bytes())
+pathlib.Path(sys.argv[2]).write_bytes(details["authenticated"])
+PY
 cert_size=$(stat -c %s "$temporary/cert.der")
-certificate_length=$((24 + cms_size))
-{
-	dd if=/dev/zero bs=8 count=1 status=none
-	printf '%08x' "$certificate_length" | \
-		sed -E 's/(..)(..)(..)(..)/\4\3\2\1/' | xxd -r -p
-	printf '0002f10e9dd2af4adf68ee498aa9347d375665a7' | xxd -r -p
-	cat "$temporary/cms.der" "$temporary/payload"
-} > "$temporary/auth-image"
 {
 	printf '%08x' "$cert_size" | xxd -r -p
 	cat "$temporary/cert.der"
@@ -115,8 +117,6 @@ done
 	"$root/src/lib/payload_mm_crypto/mbedtls_verify_wrap.c" $objects \
 	-Wl,--gc-sections,--wrap=mbedtls_rsa_parse_pubkey -o "$temporary/real"
 "$temporary/real" real "$temporary/auth-image" "$temporary/trust.xdr"
-dd if="$temporary/payload" of="$temporary/raw-rom" bs=1 skip=16 \
-	status=none
 "${CC:-cc}" -std=gnu11 -O2 -Wall -Wextra -Werror -fno-builtin \
 	-ffunction-sections -fdata-sections \
 	-DREAL_AUTH -D__TEST__ -D__COREBOOT__ -D__SMM__ \

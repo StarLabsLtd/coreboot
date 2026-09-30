@@ -18,16 +18,21 @@ OTHER_GUID = uuid.UUID("83335bd5-ec9e-4a78-8931-223d990f5b44")
 
 def make_capsule(image_guid=FMP_GUID, embedded_count=0, item_offset=None):
     embedded_items = [b"MZ" for _ in range(embedded_count)]
+    payload = struct.pack("<4sIII", b"MSS1", 16, 1, 1) + b"firmware"
+    certificate = struct.pack(
+        "<IHH16s", 25, 0x0200, 0x0EF1,
+        uuid.UUID("4aafd29d-68df-49ee-8aa9-347d375665a7").bytes_le) + b"s"
+    authenticated = struct.pack("<Q", 0) + certificate + payload
     image = struct.pack(
         "<I16sB3xIIQQ",
         3,
         image_guid.bytes_le,
         1,
+        len(authenticated),
+        0,
+        0,
         1,
-        0,
-        0,
-        0,
-    ) + b"\0"
+    ) + authenticated
     items = embedded_items + [image]
 
     table_size = 8 + len(items) * 8
@@ -43,11 +48,10 @@ def make_capsule(image_guid=FMP_GUID, embedded_count=0, item_offset=None):
     fmp += struct.pack(f"<{len(items)}Q", *offsets)
     fmp += b"".join(items)
 
-    header_size = 32
+    header_size = 28
     image_size = header_size + len(fmp)
     capsule = FMP_CAPSULE_GUID.bytes_le
     capsule += struct.pack("<III", header_size, 0x10000, image_size)
-    capsule += b"\0" * (header_size - len(capsule))
     return capsule + fmp
 
 
@@ -79,6 +83,9 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
 
 
 class ValidateCapsuleTest(unittest.TestCase):
+    def test_payload_neutral_validation(self):
+        validate(make_capsule(), None, FMP_GUID, 0)
+
     def test_matching_capsule_and_resident_driver(self):
         validate(make_capsule(), make_fv(), FMP_GUID, 0)
 
@@ -106,8 +113,26 @@ class ValidateCapsuleTest(unittest.TestCase):
             validate(make_capsule(), make_fv(file_type=0x09), FMP_GUID, 0)
 
     def test_rejects_invalid_item_offset(self):
-        with self.assertRaisesRegex(ValidationError, "invalid FMP item offset"):
+        with self.assertRaisesRegex(ValidationError, "immediately follow"):
             validate(make_capsule(item_offset=8), make_fv(), FMP_GUID, 0)
+
+    def test_rejects_capsule_header_extension(self):
+        capsule = bytearray(make_capsule())
+        struct.pack_into("<I", capsule, 16, 32)
+        with self.assertRaisesRegex(ValidationError, "capsule header size"):
+            validate(bytes(capsule), None, FMP_GUID, 0)
+
+    def test_rejects_nonzero_image_reserved_bytes(self):
+        capsule = bytearray(make_capsule())
+        capsule[28 + 16 + 21] = 1
+        with self.assertRaisesRegex(ValidationError, "reserved bytes"):
+            validate(bytes(capsule), None, FMP_GUID, 0)
+
+    def test_rejects_vendor_code(self):
+        capsule = bytearray(make_capsule())
+        struct.pack_into("<I", capsule, 28 + 16 + 28, 1)
+        with self.assertRaisesRegex(ValidationError, "vendor code"):
+            validate(bytes(capsule), None, FMP_GUID, 0)
 
 
 if __name__ == "__main__":

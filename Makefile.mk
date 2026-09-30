@@ -82,15 +82,8 @@ finalised_rom:: | files_added
 .PHONY: capsule
 capsule::
 
-ifeq ($(CONFIG_PAYLOAD_EDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yyy)
-finalised_rom:: $(obj)/coreboot.cap
-capsule:: $(obj)/coreboot.cap
-
-$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) | files_added
-	$(MAKE) -C payloads/external/edk2 coreboot_capsule \
-		COREBOOT_ROM="$(abspath $<)" \
-		COREBOOT_CAPSULE_OUT="$(abspath $@)" \
-		$(EDK2_CAPSULE_ARGS)
+ifeq ($(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),y)
+include util/efi_capsule/Makefile.mk
 endif
 
 # This target should come just before the show_notices target.  If there
