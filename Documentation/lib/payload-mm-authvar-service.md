@@ -53,8 +53,8 @@ that separate communication span before the existing backend/authority is
 installed once, and preserve the distinct private MOR seal channel. Host
 executor/store tests do not establish those installation or hardware facts.
 
-At runtime cutover the producer and proxy must agree on the exact protection
-flag semantics: the shared mailbox is untrusted input copied once to protected
+At runtime cutover the producer and proxy must enforce endpoint revision 3:
+the shared mailbox is untrusted input copied once to protected
 SMRAM, not memory assumed permanently protected by the OS's IOMMU. Genuine
 hardware protection of authoritative staging/code/backend/policy and all-CPU
 admission remain mandatory. CDK2's actual coreboot handoff already emits a
@@ -111,10 +111,26 @@ it is not an operation in this runtime service.
 ## Wire contract
 
 `LB_TAG_AUTHVAR_SERVICE_ENDPOINT` describes one 64-byte endpoint. Required
-flags assert coreboot SMM ownership, fixed communication, pre-EBS DMA
-protection, CPU rendezvous, SMM policy ownership, absence of raw SMMSTORE,
-mandatory SMM BIOS write protection, and sealed lifecycle support. The record
-publishes only generation, mailbox geometry, bounded name/data capacities and
+flags assert coreboot SMM ownership, fixed communication, runtime protection of
+the private authoritative state, CPU rendezvous, SMM policy ownership, absence
+of raw SMMSTORE, mandatory SMM BIOS write protection, and sealed lifecycle
+support. The record
+uses revision 3 with the unchanged 64-byte layout; frame revision remains 2.
+Bit 2 is `PROTECTED_AUTHORITY`: actual chipset/SMRAM protection must cover
+authoritative code, staging, keys and policy against CPU and DMA access, while
+the backend remains owned and write-restricted to SMM. It does not attest that
+the shared mailbox is immutable or that the OS retains firmware IOMMU policy.
+Old endpoint revision 2 is rejected, rather than silently reinterpreted.
+Coreboot's early default-deny DMA protection and its actual handoff proof remain
+a separate required boot gate. A validator accepting the flag mask does not
+prove these hardware facts or permit publication without the installed owner.
+EDK2 26.09 (`aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272`)
+`VariableTraditionalMm.c` validates that communication is outside SMRAM;
+`VariableSmm.c` copies bounded payloads into private SMM storage before
+processing them. CDK2 uses the same untrusted shared-memory boundary, without
+depending on persistent OS IOMMU ownership.
+
+The record publishes only generation, mailbox geometry, bounded name/data capacities and
 an eight-bit APM trigger. It exposes no SMRAM, SPI, store, block, erase, or raw
 flash address or operation.
 

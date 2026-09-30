@@ -968,11 +968,12 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 	offsetof(struct lb_capsule_broker_endpoint, reserved) == 68,
 	"capsule broker endpoint layout");
 
-#define LB_AUTHVAR_SERVICE_ENDPOINT_REVISION 2U
+#define LB_AUTHVAR_SERVICE_ENDPOINT_REVISION 3U
 
 #define LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER  (1U << 0)
 #define LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION (1U << 1)
-#define LB_AUTHVAR_ENDPOINT_DMA_PROTECTED       (1U << 2)
+/* Runtime hardware protection of private authority, not mutable shared RAM. */
+#define LB_AUTHVAR_ENDPOINT_PROTECTED_AUTHORITY (1U << 2)
 #define LB_AUTHVAR_ENDPOINT_CPU_RENDEZVOUS      (1U << 3)
 #define LB_AUTHVAR_ENDPOINT_POLICY_IN_SMM       (1U << 4)
 #define LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE     (1U << 5)
@@ -981,7 +982,7 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 #define LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS \
 	(LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER | \
 	 LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION | \
-	 LB_AUTHVAR_ENDPOINT_DMA_PROTECTED | \
+	 LB_AUTHVAR_ENDPOINT_PROTECTED_AUTHORITY | \
 	 LB_AUTHVAR_ENDPOINT_CPU_RENDEZVOUS | \
 	 LB_AUTHVAR_ENDPOINT_POLICY_IN_SMM | \
 	 LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE | \
