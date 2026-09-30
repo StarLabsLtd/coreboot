@@ -278,6 +278,19 @@ config STARLABS_STARBOOK_MTL_MOR_COLD_CLASSIFICATION
 	  Adapt the protected loader-instance source to the dormant MOR early-DMA
 	  prerequisite. This does not sample a second identity.
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_CLASSIFICATION
+	bool "Retain exact StarBook MTL authenticated-variable cold evidence"
+	default n
+	depends on BOARD_STARLABS_STARBOOK_MTL && ENABLE_EARLY_DMA_PROTECTION
+	select STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
+	select SOC_INTEL_METEORLAKE_AUTHVAR_PRESENCE_BOOT_CLASSIFIER
+	help
+	  Carry the exact retained PMC boot classification through the existing
+	  protected loader-instance record and provide the presence handoff cold
+	  predicate. Only genuine cold evidence is admitted; reset, S3, S4 and
+	  unknown states remain ineligible. This installs no presence route,
+	  publication or capsule transport.
+
 config STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY
 	bool
 	default n

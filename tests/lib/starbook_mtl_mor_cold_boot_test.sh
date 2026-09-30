@@ -20,7 +20,8 @@ printf '#define %s %s\n' CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0 >> \
 run_suite()
 {
 	binary=$1
-	for case_name in cold high-zero s3 publish-race capture-reuse random-failure \
+	for case_name in presence-classification presence-classification-mutation \
+		cold high-zero s3 publish-race capture-reuse random-failure \
 		zero-generation \
 		publish-capture-record-alias publish-ops-record-alias \
 		publish-capture-ops-alias publish-context-record-alias \
@@ -46,6 +47,7 @@ for flags in '-O0' '-O2' '-O1 -fsanitize=address' \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$root/src" -I"$root/src/include" \
+		-I"$root/src/soc/intel/meteorlake/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
 		-I"$root/src/mainboard/starlabs/starbook/variants/mtl" \
@@ -61,6 +63,7 @@ done
 	-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 	-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 	-I"$root/src" -I"$root/src/include" -I"$root/src/commonlib/include" \
+	-I"$root/src/soc/intel/meteorlake/include" \
 	-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 	-I"$root/src/mainboard/starlabs/starbook/variants/mtl" \
 	-I"$temporary/include" "$root/tests/lib/starbook_mtl_mor_cold_boot_test.c" \
@@ -90,6 +93,7 @@ mutant()
 		-I"$root/src/arch/x86/include" \
 		-I"$root/src/mainboard/starlabs/starbook/variants/mtl" \
 		-I"$temporary/include" \
+		-I"$root/src/soc/intel/meteorlake/include" \
 		"$root/tests/lib/starbook_mtl_mor_cold_boot_test.c" "$source" \
 		-o "$binary"
 	if "$binary" "$case_name" >/dev/null 2>&1; then
@@ -154,7 +158,7 @@ check_publication_policy()
 
 check_publication_policy "$romstage_source"
 ! grep -q 'starbook_mtl' "$romstage_source" "$romstage_header"
-capture_line=$(grep -n 'mainboard_loader_instance_source_capture(s3wake)' \
+capture_line=$(grep -n 'mainboard_loader_instance_source_capture(s3wake, ps)' \
 	"$romstage_source" |
 	cut -d: -f1)
 fspm_line=$(grep -n '^[[:space:]]*fsp_memory_init(s3wake)' "$romstage_source" |

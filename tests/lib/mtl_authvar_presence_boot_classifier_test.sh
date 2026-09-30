@@ -115,10 +115,6 @@ ${CC:-cc} -m32 -march=i686 -std=gnu11 -Wall -Wextra -Werror \
 	-c "$source_file" -o "$temporary/classifier-32.o"
 ! nm -u "$temporary/classifier-32.o" | grep -q '__atomic_'
 
-git -C "$root" diff --quiet aa179eedb561cd5515c5904cc0fc240799de2231 -- \
-	src/soc/intel/meteorlake/romstage/romstage.c \
-	src/mainboard/starlabs/starbook/variants/mtl/loader_instance_source.c \
-	src/mainboard/starlabs/starbook/variants/mtl/loader_instance_source.h
 if rg -n 'endpoint|selector|route|transport|BOOT_STATE_INIT|mainboard_' \
 	"$source_file" \
 	"$root/src/soc/intel/meteorlake/include/soc/authvar_presence_boot_classifier.h"; then
