@@ -17,6 +17,7 @@
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_provision.h"
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_s3_rearm.h"
 #include <boot/payload_mm_authvar_presence_s3_backing.h>
+#include "authvar_presence_bootstrap_install.h"
 
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
@@ -65,6 +66,48 @@ static struct starbook_mtl_authvar_presence_lifecycle_close_install_dependencies
 	install_dependencies;
 static struct payload_mm_authvar_presence_lifecycle_close_internal_policy
 	internal_policy;
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+static bool bootstrap_mode, bootstrap_ack;
+static unsigned int bootstrap_failure, bootstrap_events;
+
+enum starbook_mtl_presence_bootstrap_result
+starbook_mtl_presence_bootstrap_receive(const struct smm_invocation_save_state_ops *active_ops)
+{
+	assert(active_ops == &ops);
+	if (!bootstrap_mode)
+		return STARBOOK_MTL_PRESENCE_NOT_BOOTSTRAP;
+	assert(atomic_load(&arm_count) == 1 && !bootstrap_ack);
+	return bootstrap_failure == 1 ? STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR :
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_IMPORTED;
+}
+
+enum cb_err starbook_mtl_presence_bootstrap_route_install(void)
+{
+	assert(bootstrap_mode && atomic_load(&retire_count) == 1);
+	assert(!bootstrap_ack && bootstrap_events++ == 0);
+	return bootstrap_failure == 3 ? CB_ERR : CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_presence_bootstrap_response_stage(
+	const struct smm_invocation_save_state_ops *active_ops)
+{
+	assert(active_ops == &ops && atomic_load(&arm_count) == 2);
+	assert(atomic_load(&retire_count) == 1 && !bootstrap_ack);
+	assert(bootstrap_events++ == 1);
+	return bootstrap_failure == 5 ? CB_ERR : CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_presence_bootstrap_response_publish(void)
+{
+	assert(atomic_load(&retire_count) == 2 && !bootstrap_ack);
+	assert(bootstrap_events++ == 2);
+	if (bootstrap_failure == 7)
+		return CB_ERR;
+	bootstrap_ack = true;
+	return CB_SUCCESS;
+}
+#endif
 
 uint32_t starbook_mtl_authvar_presence_lifecycle_close_install_departures_test(void);
 void starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test(void);
@@ -325,6 +368,10 @@ enum cb_err starbook_mtl_authvar_presence_s3_cold_route_complete(
 void __noreturn
 smm_invocation_platform_fail_stop(void)
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+	if (bootstrap_mode)
+		assert(!bootstrap_ack);
+#endif
 	abort();
 }
 
@@ -503,7 +550,15 @@ intel_smm_invocation_adapter_provider_provision(
 enum smm_invocation_try_result
 intel_smm_invocation_adapter_provider_arm(uint64_t *generation)
 {
-	assert(atomic_fetch_add_explicit(&arm_count, 1U, memory_order_relaxed) == 0U);
+	const unsigned int prior = atomic_fetch_add_explicit(&arm_count, 1U, memory_order_relaxed);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+	if (bootstrap_mode && prior == 1) {
+		assert(bootstrap_events == 1 && !bootstrap_ack);
+		if (bootstrap_failure == 4)
+			return SMM_INVOCATION_TRY_ERROR;
+	} else
+#endif
+		assert(prior == 0U);
 	*generation = 0x1234U;
 	return SMM_INVOCATION_TRY_SUCCESS;
 }
@@ -512,6 +567,14 @@ enum smm_invocation_try_result
 intel_smm_invocation_adapter_provider_retire(uint64_t generation)
 {
 	assert(generation == 0x1234U);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+	if (bootstrap_mode) {
+		assert(!bootstrap_ack);
+		if ((!atomic_load(&retire_count) && bootstrap_failure == 2) ||
+		    (atomic_load(&retire_count) == 1 && bootstrap_failure == 6))
+			return SMM_INVOCATION_TRY_ERROR;
+	}
+#endif
 	if (atomic_load_explicit(&dispatch_count, memory_order_acquire))
 		assert(atomic_load_explicit(&departure_count,
 			memory_order_acquire) == topology.active_cpus);
@@ -668,6 +731,12 @@ static void reset(enum intel_smm_invocation_cause_result classify)
 		.lifecycle_close.communication_base = 0x710000U,
 	};
 	invocation_wire = 0;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+	bootstrap_mode = false;
+	bootstrap_ack = false;
+	bootstrap_failure = 0;
+	bootstrap_events = 0;
+#endif
 }
 
 static void clear_round_counts(void)
@@ -745,6 +814,25 @@ int main(void)
 {
 	pthread_t threads[CPUS];
 	struct worker workers[CPUS];
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER)
+	reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+	invocation_command = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+	bootstrap_mode = true;
+	run_aps_first(workers, threads);
+	assert(bootstrap_ack && bootstrap_events == 3);
+	assert(atomic_load(&arm_count) == 2 && atomic_load(&retire_count) == 2);
+	assert(workers[0].result == SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED);
+	for (uint32_t cpu = 1; cpu < CPUS; cpu++)
+		assert(workers[cpu].result == SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED);
+	for (unsigned int failure = 1; failure <= 7; failure++) {
+		reset(INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID);
+		invocation_command = SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE;
+		bootstrap_mode = true;
+		bootstrap_failure = failure;
+		expect_all_cpu_fail_stop();
+	}
+#endif
 
 	reset(INTEL_SMM_INVOCATION_CAUSE_NOT_PRIVATE);
 	invocation_command = 0U;

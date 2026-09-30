@@ -42,7 +42,8 @@ ifeq ($(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER),y)
 ifeq ($(CONFIG_SMM_INVOCATION_RUNTIME_BINDING),y)
 ifeq ($(CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION),y)
 ifeq ($(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY),y)
-smm-y += authvar_presence_authority_policy.c
+smm-y += authvar_presence_authority_policy.c authvar_presence_bootstrap_receiver.c
+ramstage-y += authvar_presence_bootstrap_sender.c
 endif
 endif
 endif

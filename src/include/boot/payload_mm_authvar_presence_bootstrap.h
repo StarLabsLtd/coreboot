@@ -40,8 +40,10 @@ bool mainboard_authvar_presence_cold_boot(void);
 struct payload_mm_authvar_presence_bootstrap *
 smm_get_payload_mm_authvar_presence_bootstrap(void);
 /* Protected snapshots copied by the recognized private bootstrap dispatcher. */
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts);
+#endif
 /*
  * Only an installed binding may be returned. The implementation checks
  * protected placement, the retained full loader identity and the actual CPU

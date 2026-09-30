@@ -40,6 +40,15 @@ nm "$temporary/build/smm/cpu/x86/smm/smm_module_handler.o" |
 if test "${PRESENCE_BOOTSTRAP_AUTHORITY_POLICY_LINK:-0}" = 1; then
 	nm "$temporary/build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_authority_policy.o" |
 		rg -q ' T starbook_mtl_authvar_presence_authority_policy_get$'
+	if test "${PRESENCE_BOOTSTRAP_PRIVATE_CALLER_LINK:-0}" = 1; then
+		nm "$temporary/build/ramstage/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_sender.o" |
+			rg -q ' T lb_board$'
+		nm -u "$temporary/build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o" |
+			rg -q 'starbook_mtl_presence_bootstrap_route_install$'
+		nm -u "$temporary/build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_receiver.o" |
+			rg -q 'starbook_mtl_authvar_presence_route_composition_provision$'
+		echo 'Canonical presence actual private dispatcher/factory callers: PASS (opt-in absent)'
+	fi
 	echo 'Canonical presence actual authority policy object: PASS (opt-in absent)'
 fi
 nm -u "$temporary/build/ramstage/cpu/x86/smm/smm_module_loader.o" |

@@ -69,6 +69,7 @@ fail:
 	return CB_ERR;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts)
 {
@@ -140,3 +141,4 @@ fail:
 	memset(&mailbox_receipt, 0, sizeof(mailbox_receipt));
 	return CB_ERR;
 }
+#endif
