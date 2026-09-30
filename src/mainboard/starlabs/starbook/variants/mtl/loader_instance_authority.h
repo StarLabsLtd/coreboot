@@ -3,11 +3,10 @@
 #ifndef MAINBOARD_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY_H
 #define MAINBOARD_STARLABS_STARBOOK_MTL_LOADER_INSTANCE_AUTHORITY_H
 
+#include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <commonlib/bsd/cb_err.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 enum cb_err mainboard_loader_instance_authority_lifecycle(uint32_t *lifecycle);
-bool mainboard_authvar_presence_cold_boot(void);
 
 #endif

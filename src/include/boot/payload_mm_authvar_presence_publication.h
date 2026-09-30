@@ -15,6 +15,8 @@ bool platform_payload_mm_authvar_presence_composition(
 
 /* Register before bootmem initialization. */
 enum cb_err payload_mm_authvar_presence_publication_reserve(void);
+/* Read the immutable early admission decision, never rerun the board opt-in. */
+enum cb_err payload_mm_authvar_presence_publication_loader_required(bool *required);
 
 /* Append the endpoint as the final record within the exclusive table bound. */
 enum cb_err lb_add_payload_mm_authvar_presence_endpoint(

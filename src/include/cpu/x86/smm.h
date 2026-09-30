@@ -10,6 +10,9 @@
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+#include <boot/payload_mm_authvar_presence_bootstrap.h>
+#endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 #include <cpu/x86/smm_invocation_topology.h>
 #endif
@@ -181,6 +184,9 @@ struct smm_runtime {
 	struct smm_invocation_evidence invocation_evidence __aligned(8);
 	struct smm_invocation_loader_composition invocation_composition __aligned(8);
 #endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+	struct payload_mm_authvar_presence_bootstrap authvar_presence_bootstrap __aligned(8);
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 	uintptr_t dma_receipt_frame_base;
 	size_t dma_receipt_frame_size;
@@ -223,6 +229,11 @@ _Static_assert(offsetof(struct smm_runtime, invocation_loader_instance) % 8 == 0
 	"SMM invocation loader instance is not aligned");
 _Static_assert(_Alignof(struct smm_runtime) >= 8,
 	"SMM runtime does not preserve loader instance alignment");
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+_Static_assert(offsetof(struct smm_runtime, authvar_presence_bootstrap) % 8 == 0,
+	"Presence bootstrap is not aligned in SMM parameters");
 #endif
 
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)

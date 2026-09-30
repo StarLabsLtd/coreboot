@@ -3,6 +3,11 @@
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
 #include <cpu/x86/smm_invocation_tuple_trigger.h>
 #include <string.h>
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+#include <boot/payload_mm_authvar_presence_publication.h>
+#include <commonlib/helpers.h>
+#include <random.h>
+#endif
 
 static __noinline void scrub(void *buffer, size_t size)
 {
@@ -51,6 +56,142 @@ static bool zero(const void *buffer, size_t size)
 		value |= *bytes++;
 	return value == 0;
 }
+
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+enum bootstrap_sender_state {
+	BOOTSTRAP_SENDER_EMPTY, BOOTSTRAP_SENDER_RESERVING,
+	BOOTSTRAP_SENDER_RESERVED, BOOTSTRAP_SENDER_PROVISIONING,
+	BOOTSTRAP_SENDER_READY, BOOTSTRAP_SENDER_CLOSED,
+};
+
+static struct {
+	uint32_t state;
+	struct bootmem_aligned_reservation_handle mailbox;
+	struct bootmem_aligned_reservation_handle page;
+	struct bootmem_reservation_receipt_authority mailbox_signer;
+	struct bootmem_reservation_receipt_authority page_signer;
+} bootstrap_sender;
+
+__weak bool mainboard_authvar_presence_cold_boot(void)
+{
+	return false;
+}
+
+static bool bootstrap_claim(uint32_t from, uint32_t to)
+{
+	return __atomic_compare_exchange_n(&bootstrap_sender.state, &from, to,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+}
+
+void payload_mm_authvar_presence_tuple_sender_close(void)
+{
+	__atomic_store_n(&bootstrap_sender.state, BOOTSTRAP_SENDER_CLOSED,
+		__ATOMIC_RELEASE);
+	bootmem_reservation_receipt_close(&bootstrap_sender.mailbox_signer);
+	bootmem_reservation_receipt_close(&bootstrap_sender.page_signer);
+	scrub(&bootstrap_sender.mailbox, sizeof(bootstrap_sender.mailbox));
+	scrub(&bootstrap_sender.page, sizeof(bootstrap_sender.page));
+}
+
+enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void)
+{
+	const struct bootmem_aligned_reservation_request request = {
+		.revision = BOOTMEM_ALIGNED_RESERVATION_REVISION,
+		.size = sizeof(request),
+		.bytes = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE,
+		.alignment = PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE,
+		.limit_exclusive = 1ULL << 32,
+		.tag = BM_MEM_RESERVED,
+	};
+
+	if (!bootstrap_claim(BOOTSTRAP_SENDER_EMPTY, BOOTSTRAP_SENDER_RESERVING))
+		return CB_ERR;
+	if (bootmem_aligned_reservation_register(&request, &bootstrap_sender.page) ||
+	    !bootstrap_claim(BOOTSTRAP_SENDER_RESERVING, BOOTSTRAP_SENDER_RESERVED)) {
+		payload_mm_authvar_presence_tuple_sender_close();
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
+	struct payload_mm_authvar_presence_bootstrap *slot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology)
+{
+	struct smm_invocation_loader_instance identity;
+	struct smm_invocation_loader_instance identity_check;
+	struct smm_invocation_topology participants;
+	struct smm_invocation_topology participants_check;
+	uint64_t random[2][BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE / sizeof(uint64_t)] = { 0 };
+	bool required;
+	enum cb_err status = CB_ERR;
+
+	if (!object_valid(slot, sizeof(*slot), _Alignof(*slot)) ||
+	    (instance && overlaps(slot, sizeof(*slot), instance, sizeof(*instance))) ||
+	    (topology && overlaps(slot, sizeof(*slot), topology, sizeof(*topology))))
+		return CB_ERR;
+	scrub(slot, sizeof(*slot));
+	if (payload_mm_authvar_presence_publication_loader_required(&required) != CB_SUCCESS)
+		goto fail;
+	if (!required)
+		return CB_SUCCESS;
+	if (!bootstrap_claim(BOOTSTRAP_SENDER_RESERVED, BOOTSTRAP_SENDER_PROVISIONING) ||
+	    !object_valid(instance, sizeof(*instance), _Alignof(*instance)) ||
+	    !object_valid(topology, sizeof(*topology), _Alignof(*topology)) ||
+	    smm_invocation_loader_instance_read(instance, &identity) != CB_SUCCESS ||
+	    smm_invocation_topology_read(topology, &participants) != CB_SUCCESS ||
+	    identity.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    participants.bsp_cpu || !participants.active_cpus ||
+	    participants.active_cpus > CONFIG_MAX_CPUS ||
+	    !mainboard_authvar_presence_cold_boot() ||
+	    payload_mm_authvar_presence_producer_transaction_binding_take(
+		participants.bsp_cpu, participants.active_cpus, &slot->binding,
+		&bootstrap_sender.mailbox) != CB_SUCCESS)
+		goto fail;
+	for (size_t receipt = 0; receipt < ARRAY_SIZE(random); receipt++)
+		for (size_t word = 0; word < ARRAY_SIZE(random[receipt]); word++)
+			if (get_random_number_64(&random[receipt][word]) != CB_SUCCESS)
+				goto fail;
+	if (smm_invocation_loader_instance_read(instance, &identity_check) != CB_SUCCESS ||
+	    smm_invocation_topology_read(topology, &participants_check) != CB_SUCCESS ||
+	    memcmp(&identity, &identity_check, sizeof(identity)) ||
+	    memcmp(&participants, &participants_check, sizeof(participants)) ||
+	    !mainboard_authvar_presence_cold_boot() ||
+	    __atomic_load_n(&bootstrap_sender.state, __ATOMIC_ACQUIRE) !=
+		BOOTSTRAP_SENDER_PROVISIONING ||
+	    bootmem_reservation_receipt_provision(&bootstrap_sender.mailbox_signer,
+		&slot->mailbox_verifier, (uint8_t *)random[0],
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
+		&bootstrap_sender.mailbox) != CB_SUCCESS ||
+	    bootmem_reservation_receipt_provision(&bootstrap_sender.page_signer,
+		&slot->page_verifier, (uint8_t *)random[1],
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
+		&bootstrap_sender.page) != CB_SUCCESS ||
+	    !bootstrap_claim(BOOTSTRAP_SENDER_PROVISIONING, BOOTSTRAP_SENDER_READY))
+		goto fail;
+	slot->loader_nonce = identity.loader_instance_nonce;
+	slot->loader_lifecycle = identity.lifecycle;
+	slot->cold_boot_proven = 1U;
+	__atomic_store_n(&slot->state, PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_PROVISIONED,
+		__ATOMIC_RELEASE);
+	status = CB_SUCCESS;
+	goto out;
+fail:
+	payload_mm_authvar_presence_tuple_sender_close();
+	payload_mm_authvar_presence_producer_abort();
+	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
+	bootmem_reservation_receipt_close(&slot->page_verifier);
+	scrub(slot, sizeof(*slot));
+out:
+	scrub(random, sizeof(random));
+	scrub(&identity, sizeof(identity));
+	scrub(&identity_check, sizeof(identity_check));
+	scrub(&participants, sizeof(participants));
+	scrub(&participants_check, sizeof(participants_check));
+	return status;
+}
+#endif
 
 static enum cb_err send(void *context,
 	const struct payload_mm_authvar_presence_seed *seed,

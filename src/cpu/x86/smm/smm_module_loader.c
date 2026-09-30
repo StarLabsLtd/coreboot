@@ -9,6 +9,9 @@
 #include <console/payload_spi_console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+#include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/smm_invocation_topology.h>
@@ -962,6 +965,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	if (authvar_presence_s3_import_finalize(published_instance, &s3_import) !=
 		CB_SUCCESS)
 		die("SMM: authenticated-variable S3 backing proof unavailable\n");
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+	if (payload_mm_authvar_presence_tuple_sender_loader_provision(
+		&smihandler_params->authvar_presence_bootstrap, published_instance,
+		published_topology) != CB_SUCCESS)
+		die("SMM: canonical presence bootstrap unavailable\n");
 #endif
 	return 0;
 

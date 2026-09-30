@@ -200,6 +200,13 @@ test-starbook-mtl-presence-cold-source:
 	tests/lib/mtl_authvar_presence_boot_classifier_test.sh
 	sh tests/lib/starbook_mtl_presence_cold_source_profiles_test.sh
 
+.PHONY: test-authvar-presence-canonical-bootstrap
+test-authvar-presence-canonical-bootstrap:
+	sh tests/lib/payload_mm_authvar_presence_bootstrap_loader_test.sh
+	tests/lib/payload_mm_authvar_presence_publication_test.sh
+	tests/lib/payload_mm_authvar_presence_tuple_sender_test.sh
+	sh tests/lib/payload_mm_authvar_presence_bootstrap_loader_link_test.sh
+
 .PHONY: test-starbook-mtl-authvar-presence-route-composition
 test-starbook-mtl-authvar-presence-route-composition:
 	tests/lib/starbook_mtl_authvar_presence_route_composition_test.sh

@@ -3,6 +3,9 @@
 #include <boot/payload_mm_authvar_presence_publication.h>
 #include <boot/payload_mm_authvar_presence_lifecycle_close_transport.h>
 #include <boot/coreboot_tables.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+#include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#endif
 #if !ENV_TEST
 #include <bootstate.h>
 #include <halt.h>
@@ -159,9 +162,26 @@ static enum cb_err fail(void)
 			PUBLICATION_FAILED, false, __ATOMIC_ACQ_REL,
 			__ATOMIC_ACQUIRE)) {
 			payload_mm_authvar_presence_producer_abort();
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+			payload_mm_authvar_presence_tuple_sender_close();
+#endif
 			return CB_ERR;
 		}
 	}
+}
+
+enum cb_err payload_mm_authvar_presence_publication_loader_required(bool *required)
+{
+	uint32_t state;
+
+	if (!required)
+		return CB_ERR;
+	*required = false;
+	state = __atomic_load_n(&publication_state, __ATOMIC_ACQUIRE);
+	if (state != PUBLICATION_DISABLED && state != PUBLICATION_RESERVED)
+		return CB_ERR;
+	*required = state == PUBLICATION_RESERVED;
+	return CB_SUCCESS;
 }
 
 enum cb_err payload_mm_authvar_presence_publication_reserve(void)
@@ -180,6 +200,9 @@ enum cb_err payload_mm_authvar_presence_publication_reserve(void)
 		return CB_SUCCESS;
 	}
 	if (payload_mm_authvar_presence_producer_reserve() != CB_SUCCESS ||
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+	    payload_mm_authvar_presence_tuple_sender_reserve() != CB_SUCCESS ||
+#endif
 	    !claim(PUBLICATION_BUSY, PUBLICATION_RESERVED))
 		return fail();
 	return CB_SUCCESS;
@@ -259,6 +282,9 @@ out:
 	scrub(&composition, sizeof(composition));
 	scrub(&receipt, sizeof(receipt));
 	if (status != CB_SUCCESS) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+		payload_mm_authvar_presence_tuple_sender_close();
+#endif
 		if (__atomic_load_n(&publication_state, __ATOMIC_ACQUIRE) ==
 		    PUBLICATION_FINALIZING) {
 			uint32_t expected = PUBLICATION_FINALIZING;
