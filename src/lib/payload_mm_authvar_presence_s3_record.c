@@ -54,11 +54,13 @@ static uint32_t state_pair(uint32_t state)
 	return state | ((uint32_t)(uint16_t)~state << 16);
 }
 
+#if ENV_TEST
 static uint32_t state_from_pair(uint32_t pair)
 {
 	const uint32_t state = pair & UINT16_MAX;
 	return (pair >> 16) == (uint16_t)~state ? state : 0;
 }
+#endif
 
 static bool zero(const void *buffer, size_t size)
 {
@@ -89,11 +91,13 @@ static struct payload_mm_authvar_presence_s3_record *record_at(
 	return storage;
 }
 
+#if ENV_TEST
 static const struct payload_mm_authvar_presence_s3_record *const_record_at(
 	const void *storage, size_t storage_size)
 {
 	return record_at((void *)storage, storage_size);
 }
+#endif
 
 static bool object_disjoint(const void *object, size_t object_size,
 	const void *storage, size_t storage_size)

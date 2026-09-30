@@ -9,12 +9,13 @@ mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
-	-D__COREBOOT__ -D__TEST__ -include $root/src/include/kconfig.h
+	-D__COREBOOT__ -include $root/src/include/kconfig.h
 	-include $root/src/include/rules.h
 	-include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h
 	-I$temporary/include -I$root/src -I$root/src/lib -I$root/src/include
 	-I$root/src/commonlib/include -I$root/src/commonlib/bsd/include
 	-I$root/src/arch/x86/include -pthread -no-pie"
+test_common="$common -D__TEST__"
 sources="$root/tests/lib/payload_mm_authvar_presence_s3_record_test.c
 	$root/src/lib/payload_mm_authvar_presence_s3_record.c
 	$root/src/lib/payload_mm_authvar_presence.c
@@ -35,19 +36,19 @@ for profile in normal o0 o2 ia32-o0 ia32-o2 asan ubsan tsan; do
 	# promotion warnings are unrelated to this record. Keep strict conversion
 	# diagnostics on every file under test and suppress only that dependency.
 	# shellcheck disable=SC2086
-	${CC:-cc} $common $flags -Wno-conversion -c "$root/src/lib/crc_byte.c" \
+	${CC:-cc} $test_common $flags -Wno-conversion -c "$root/src/lib/crc_byte.c" \
 		-o "$temporary/crc-$profile.o"
 	# shellcheck disable=SC2086
-	${CC:-cc} $common $flags $sources "$temporary/crc-$profile.o" \
+	${CC:-cc} $test_common $flags $sources "$temporary/crc-$profile.o" \
 		-o "$temporary/$profile"
 	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
 	TSAN_OPTIONS=halt_on_error=1 \
 		"$temporary/$profile"
 done
 
-# The SMM target is IA-32. All state publication atomics must remain inline
-# there rather than acquiring a hidden libatomic or legacy __sync dependency.
-${CC:-cc} $common -O2 -m32 -march=i686 -ffreestanding -fno-pic -c \
+# Compile the actual production environment without the test-only API. The SMM
+# target is IA-32, and all state publication atomics must remain inline there.
+${CC:-cc} $common -D__SMM__ -O2 -m32 -march=i686 -ffreestanding -fno-pic -c \
 	"$root/src/lib/payload_mm_authvar_presence_s3_record.c" \
 	-o "$temporary/s3-record-ia32.o"
 if nm -u "$temporary/s3-record-ia32.o" | grep -Eq '__atomic|__sync|libatomic'; then
