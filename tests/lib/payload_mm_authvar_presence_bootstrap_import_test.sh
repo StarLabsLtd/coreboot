@@ -41,7 +41,7 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 		"$temporary/receipt.o" \
 		-o "$temporary/test"
 	maximum=24
-	test "$attested" = 0 || maximum=26
+	test "$attested" = 0 || maximum=28
 	for scenario in $(seq 0 "$maximum"); do
 		ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 			"$temporary/test" "$scenario"

@@ -165,6 +165,9 @@ enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	memset(&mailbox_receipt, 0, sizeof(mailbox_receipt));
 	return CB_SUCCESS;
 fail:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	payload_mm_authvar_service_prepare_abort();
+#endif
 	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
 	bootmem_reservation_receipt_close(&slot->page_verifier);
 	bootmem_reservation_receipt_close(&slot->service_verifier);

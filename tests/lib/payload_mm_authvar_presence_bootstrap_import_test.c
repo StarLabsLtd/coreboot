@@ -18,6 +18,7 @@ static struct smm_invocation_loader_instance instance;
 static struct smm_invocation_topology topology;
 static unsigned int scenario, identity_reads;
 static unsigned int prepared_owners;
+static unsigned int prepare_aborts;
 
 static void require(bool condition)
 {
@@ -48,7 +49,17 @@ enum cb_err payload_mm_authvar_service_prepare(
 	    memcmp(&before, binding, sizeof(before)))
 		return CB_ERR;
 	prepared_owners++;
+	if (scenario == 27)
+		instance.loader_instance_nonce.high++;
+	if (scenario == 28)
+		slot.state = PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_FAILED;
 	return CB_SUCCESS;
+}
+
+void payload_mm_authvar_service_prepare_abort(void)
+{
+	prepare_aborts++;
+	prepared_owners = 0;
 }
 
 struct payload_mm_authvar_presence_bootstrap *smm_get_payload_mm_authvar_presence_bootstrap(void)
@@ -187,11 +198,15 @@ int main(int argc, char **argv)
 	result = payload_mm_authvar_presence_bootstrap_receipts_import(&receipts);
 	if (scenario) {
 		require(result == CB_ERR);
+		require(!prepared_owners);
 		if ((scenario >= 10 && scenario <= 13) || scenario == 15)
 			require(!memcmp(&before, &slot, sizeof(slot)));
 		else {
 			require(slot.state == PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_FAILED);
 			require(!memcmp(&receipts, &zero, sizeof(zero)));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+			require(prepare_aborts == 1);
+#endif
 		}
 		require(payload_mm_authvar_presence_backing_evidence_take(&backing) == CB_ERR);
 		return 0;

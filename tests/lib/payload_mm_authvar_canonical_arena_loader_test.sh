@@ -11,7 +11,6 @@ printf '%s\n' '#define CONFIG_MAX_CPUS 4' '#define CONFIG_SMM_MODULE_STACK_SIZE 
 	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER 1' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP 1' \
-	'#define CONFIG_PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI 1' \
 	'#define CONFIG_MSEG_SIZE 0' '#define CONFIG_BIOS_RESOURCE_LIST_SIZE 0' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > "$temporary/include/config.h"
 
@@ -33,8 +32,11 @@ awk '/^int region_is_subregion\(/ { copying = 1 }
  copying { print; if ($0 == "}") exit }
 ' "$root/src/commonlib/region.c" > "$temporary/actual-region.c"
 for attested in 0 1; do
+for mor_present in 0 1; do
 printf '#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED %s\n' "$attested" \
 	> "$temporary/include/attested.h"
+printf '#define CONFIG_PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI %s\n' "$mor_present" \
+	>> "$temporary/include/attested.h"
 for optimization_flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all'; do
 	flags="-std=gnu11 $optimization_flags -Wall -Wextra -Werror -Wshadow -fno-builtin -no-pie"
 	includes="-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -include $temporary/include/attested.h -include $root/src/include/kconfig.h -include $root/src/include/rules.h -include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h -I$temporary/include -I$temporary -I$root/src/include -I$root/src -I$root/src/commonlib/include -I$root/src/commonlib/bsd/include -I$root/src/arch/x86/include"
@@ -51,6 +53,9 @@ for optimization_flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-
 		"$temporary/allocator.o" -o "$temporary/test"
 	for needed in 0 1; do
 		for mor in 0 1; do
+			if test "$mor_present" = 0 && test "$mor" = 1; then
+				continue
+			fi
 			"$temporary/test" "$needed" "$mor" 0
 			"$temporary/test" "$needed" "$mor" 1
 			if test "$needed" = 1 && test "$attested" = 1; then
@@ -60,6 +65,7 @@ for optimization_flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-
 			fi
 		done
 	done
+done
 done
 done
 echo 'Actual canonical late arena loader / legacy MOR ownership: PASS (host boundaries)'
