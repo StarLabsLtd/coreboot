@@ -106,6 +106,7 @@ enum cb_err payload_mm_authvar_service_request_validate(
 {
 	const struct payload_mm_authvar_service_frame *frame = message;
 	bool guid_zero;
+	size_t data_offset;
 
 	if (payload_mm_authvar_service_endpoint_validate(endpoint) != CB_SUCCESS ||
 	    !message || message_size != endpoint->message_size ||
@@ -153,8 +154,25 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
+	case PAYLOAD_MM_AUTHVAR_SERVICE_LOCK_POLICY:
 		if (!guid_zero || frame->attributes || frame->name_size ||
 		    frame->data_size || frame->name_capacity || frame->data_capacity)
+			return CB_ERR;
+		if (frame->operation == PAYLOAD_MM_AUTHVAR_SERVICE_LOCK_POLICY &&
+		    !bytes_zero((const uint8_t *)message + sizeof(*frame),
+			message_size - sizeof(*frame)))
+			return CB_ERR;
+		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_REGISTER_POLICY:
+		if (!guid_zero || frame->attributes || frame->name_size ||
+		    frame->name_capacity || frame->data_capacity ||
+		    frame->data_size < PAYLOAD_MM_AUTHVAR_POLICY_MIN_SIZE ||
+		    frame->data_size > PAYLOAD_MM_AUTHVAR_POLICY_MAX_SIZE ||
+		    !message_layout_valid(endpoint, &data_offset) ||
+		    !bytes_zero((const uint8_t *)message + sizeof(*frame),
+			data_offset - sizeof(*frame)) ||
+		    !bytes_zero((const uint8_t *)message + data_offset + frame->data_size,
+			message_size - data_offset - frame->data_size))
 			return CB_ERR;
 		break;
 	default:
@@ -333,6 +351,28 @@ static bool set_response_valid(
 	}
 }
 
+static bool policy_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	if (!result_empty(response) || !name_slot_tail_zero(endpoint, response, 0) ||
+	    !data_slot_tail_zero(endpoint, response, 0))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
+		return true;
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+	case PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES:
+	case PAYLOAD_MM_AUTHVAR_STATUS_ALREADY_STARTED:
+		return response->operation == PAYLOAD_MM_AUTHVAR_SERVICE_REGISTER_POLICY;
+	default:
+		return false;
+	}
+}
+
 static bool query_response_valid(
 	const struct lb_authvar_service_endpoint *endpoint,
 	const struct payload_mm_authvar_service_frame *response)
@@ -397,6 +437,9 @@ enum cb_err payload_mm_authvar_service_response_validate(
 			CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
 		return set_response_valid(endpoint, after) ? CB_SUCCESS : CB_ERR;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_REGISTER_POLICY:
+	case PAYLOAD_MM_AUTHVAR_SERVICE_LOCK_POLICY:
+		return policy_response_valid(endpoint, after) ? CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
 		return lifecycle_response_valid(endpoint, after) ?

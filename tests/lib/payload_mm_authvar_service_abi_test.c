@@ -740,6 +740,63 @@ static void deterministic_response_mutations(void)
 	}
 }
 
+static void policy_wire_requests(void)
+{
+	/* Literal external protocol values, not a copy of the native enum. */
+	const uint32_t wire_revision = 2U;
+	const uint64_t statuses[] = {
+		0ULL, (1ULL << 63) | 2ULL, (1ULL << 63) | 3ULL,
+		(1ULL << 63) | 7ULL, (1ULL << 63) | 8ULL,
+		(1ULL << 63) | 9ULL, (1ULL << 63) | 20ULL,
+		(1ULL << 63) | 14ULL, (1ULL << 63) | 26ULL,
+	};
+
+	for (uint32_t operation = 7U; operation <= 8U; operation++) {
+		struct payload_mm_authvar_service_frame *request = new_request(operation);
+
+		memcpy(request_buffer, &wire_revision, sizeof(wire_revision));
+		if (operation == 7U) {
+			uint32_t wire_size = 44U;
+
+			memcpy(request_buffer + 56U, &wire_size, sizeof(wire_size));
+			memset(request_buffer + 400U, 0xa5, wire_size);
+		}
+		assert(payload_mm_authvar_service_request_validate(&endpoint,
+			request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
+		for (size_t byte = 144U; byte < sizeof(request_buffer); byte++) {
+			if (operation == 7U && byte >= 400U && byte < 444U)
+				continue;
+			request_buffer[byte] = 1U;
+			assert(payload_mm_authvar_service_request_validate(&endpoint,
+				request_buffer, sizeof(request_buffer)) == CB_ERR);
+			request_buffer[byte] = 0U;
+		}
+		for (size_t index = 0; index < sizeof(statuses) / sizeof(statuses[0]); index++) {
+			bool accepted = index < 7U;
+
+			if (operation == 8U && (index == 1U || index == 5U || index == 6U))
+				accepted = false;
+			new_response(request, statuses[index]);
+			assert((payload_mm_authvar_service_response_validate(&endpoint,
+				request_buffer, response_buffer, sizeof(response_buffer)) ==
+				CB_SUCCESS) == accepted);
+			response_buffer[400U] = 1U;
+			assert(payload_mm_authvar_service_response_validate(&endpoint,
+				request_buffer, response_buffer, sizeof(response_buffer)) == CB_ERR);
+		}
+		request_buffer[0] = 1U;
+		assert(payload_mm_authvar_service_request_validate(&endpoint,
+			request_buffer, sizeof(request_buffer)) == CB_ERR);
+	}
+	for (uint32_t size = 43U; size <= 513U; size++) {
+		new_request(7U);
+		memcpy(request_buffer + 56U, &size, sizeof(size));
+		assert((payload_mm_authvar_service_request_validate(&endpoint,
+			request_buffer, sizeof(request_buffer)) == CB_SUCCESS) ==
+			(size >= 44U && size <= 512U));
+	}
+}
+
 int main(void)
 {
 	valid_requests();
@@ -750,5 +807,6 @@ int main(void)
 	deterministic_endpoint_mutations();
 	deterministic_request_mutations();
 	deterministic_response_mutations();
+	policy_wire_requests();
 	return 0;
 }
