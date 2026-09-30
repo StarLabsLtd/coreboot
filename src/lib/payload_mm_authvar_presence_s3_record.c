@@ -208,17 +208,15 @@ static bool claim(struct payload_mm_authvar_presence_s3_record *record,
 	uint32_t expected_state, uint32_t claimed_state)
 {
 	uint32_t expected = state_pair(expected_state);
-	uint32_t observed;
 
 	if (!record || !record_header_valid(record)) {
 		poison(record);
 		return false;
 	}
-	observed = __atomic_load_n(&record->state_pair, __ATOMIC_ACQUIRE);
-	if (observed != expected || state_from_pair(observed) != expected_state ||
-	    !record_content_valid(record, expected_state) ||
-	    !__atomic_compare_exchange_n(&record->state_pair, &expected,
-		state_pair(claimed_state), false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+	/* Mutable content may only be inspected after this caller owns the state. */
+	if (!__atomic_compare_exchange_n(&record->state_pair, &expected,
+		state_pair(claimed_state), false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) ||
+	    !record_content_valid(record, expected_state)) {
 		poison(record);
 		return false;
 	}
@@ -252,8 +250,7 @@ static void update_content(struct payload_mm_authvar_presence_s3_record *record,
 	record->digest_inverse = ~digest;
 }
 
-static bool exact_facts(
-	const struct payload_mm_authvar_presence_s3_record *record,
+static bool snapshot_facts(
 	const struct payload_mm_authvar_presence_s3_facts *facts,
 	struct payload_mm_authvar_presence_s3_facts *snapshot)
 {
@@ -261,8 +258,7 @@ static bool exact_facts(
 		return false;
 	*snapshot = *facts;
 	return facts_valid(snapshot) &&
-		!memcmp(facts, snapshot, sizeof(*snapshot)) &&
-		!memcmp(snapshot, &record->facts, sizeof(*snapshot));
+		!memcmp(facts, snapshot, sizeof(*snapshot));
 }
 
 size_t payload_mm_authvar_presence_s3_record_size(void)
@@ -301,8 +297,7 @@ enum cb_err payload_mm_authvar_presence_s3_record_cold_activate(
 		poison(record);
 		return CB_ERR;
 	}
-	snapshot = *facts;
-	if (!facts_valid(&snapshot) || memcmp(facts, &snapshot, sizeof(snapshot)) ||
+	if (!snapshot_facts(facts, &snapshot) ||
 	    !claim(record, RECORD_CLEARED, RECORD_UPDATING)) {
 		poison(record);
 		return CB_ERR;
@@ -334,7 +329,7 @@ enum cb_err payload_mm_authvar_presence_s3_record_suspend_seal(
 	uint64_t sequence;
 
 	if (!record || !object_disjoint(facts, sizeof(*facts), storage, storage_size) ||
-	    !exact_facts(record, facts, &snapshot) ||
+	    !snapshot_facts(facts, &snapshot) ||
 	    !claim(record, RECORD_ACTIVE, RECORD_UPDATING)) {
 		poison(record);
 		return CB_ERR;
@@ -344,6 +339,7 @@ enum cb_err payload_mm_authvar_presence_s3_record_suspend_seal(
 	if (__atomic_load_n(&record->state_pair, __ATOMIC_ACQUIRE) !=
 		state_pair(RECORD_UPDATING) ||
 	    !record_content_valid(record, RECORD_ACTIVE) ||
+	    memcmp(&snapshot, &record->facts, sizeof(snapshot)) ||
 	    sequence == UINT64_MAX) {
 		poison(record);
 		return CB_ERR;
@@ -398,7 +394,7 @@ enum cb_err payload_mm_authvar_presence_s3_record_rearm_commit(
 	uint64_t sequence;
 
 	if (!record || !object_disjoint(facts, sizeof(*facts), storage, storage_size) ||
-	    !exact_facts(record, facts, &snapshot) ||
+	    !snapshot_facts(facts, &snapshot) ||
 	    !claim(record, RECORD_REARMING, RECORD_UPDATING)) {
 		poison(record);
 		return CB_ERR;
@@ -408,6 +404,7 @@ enum cb_err payload_mm_authvar_presence_s3_record_rearm_commit(
 	if (__atomic_load_n(&record->state_pair, __ATOMIC_ACQUIRE) !=
 		state_pair(RECORD_UPDATING) ||
 	    !record_content_valid(record, RECORD_REARMING) ||
+	    memcmp(&snapshot, &record->facts, sizeof(snapshot)) ||
 	    sequence == UINT64_MAX) {
 		poison(record);
 		return CB_ERR;

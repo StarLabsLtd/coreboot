@@ -401,6 +401,101 @@ static void test_ambiguous_borrow_poison(void)
 		STORAGE_SIZE, &valid_facts) == CB_ERR);
 }
 
+static pthread_mutex_t writer_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t writer_condition = PTHREAD_COND_INITIALIZER;
+static enum payload_mm_authvar_presence_s3_record_test_point writer_point;
+static bool writer_waiting;
+static bool writer_release;
+
+static void writer_hook(enum payload_mm_authvar_presence_s3_record_test_point point)
+{
+	assert(!pthread_mutex_lock(&writer_lock));
+	if (point != writer_point) {
+		assert(!pthread_mutex_unlock(&writer_lock));
+		return;
+	}
+	writer_waiting = true;
+	assert(!pthread_cond_broadcast(&writer_condition));
+	while (!writer_release)
+		assert(!pthread_cond_wait(&writer_condition, &writer_lock));
+	assert(!pthread_mutex_unlock(&writer_lock));
+}
+
+struct writer_thread {
+	struct payload_mm_authvar_presence_s3_facts facts;
+	bool rearm;
+	enum cb_err status;
+};
+
+static void *writer_worker(void *opaque)
+{
+	struct writer_thread *thread = opaque;
+
+	if (thread->rearm)
+		thread->status = payload_mm_authvar_presence_s3_record_rearm_commit(
+			storage, STORAGE_SIZE, &thread->facts);
+	else
+		thread->status = payload_mm_authvar_presence_s3_record_suspend_seal(
+			storage, STORAGE_SIZE, &thread->facts);
+	return NULL;
+}
+
+static void race_writer_transition(bool rearm)
+{
+	pthread_t id;
+	struct writer_thread winner = {
+		.facts = valid_facts,
+		.rearm = rearm,
+	};
+	struct writer_thread loser = winner;
+	struct payload_mm_authvar_presence_s3_facts borrowed;
+
+	activate_and_seal();
+	if (rearm) {
+		assert(payload_mm_authvar_presence_s3_record_resume_borrow(storage,
+			STORAGE_SIZE, &borrowed) == CB_SUCCESS);
+		winner.facts = borrowed;
+		loser.facts = borrowed;
+	} else {
+		assert(payload_mm_authvar_presence_s3_record_resume_borrow(storage,
+			STORAGE_SIZE, &borrowed) == CB_SUCCESS);
+		assert(payload_mm_authvar_presence_s3_record_rearm_commit(storage,
+			STORAGE_SIZE, &borrowed) == CB_SUCCESS);
+	}
+
+	assert(!pthread_mutex_lock(&writer_lock));
+	writer_point = rearm ? PAYLOAD_MM_AUTHVAR_PRESENCE_S3_TEST_REARM_CLAIMED :
+		PAYLOAD_MM_AUTHVAR_PRESENCE_S3_TEST_SUSPEND_CLAIMED;
+	writer_waiting = false;
+	writer_release = false;
+	payload_mm_authvar_presence_s3_record_test_hook(writer_hook);
+	assert(!pthread_mutex_unlock(&writer_lock));
+	assert(!pthread_create(&id, NULL, writer_worker, &winner));
+
+	assert(!pthread_mutex_lock(&writer_lock));
+	while (!writer_waiting)
+		assert(!pthread_cond_wait(&writer_condition, &writer_lock));
+	assert(!pthread_mutex_unlock(&writer_lock));
+	(void)writer_worker(&loser);
+	assert(loser.status == CB_ERR);
+
+	assert(!pthread_mutex_lock(&writer_lock));
+	writer_release = true;
+	assert(!pthread_cond_broadcast(&writer_condition));
+	assert(!pthread_mutex_unlock(&writer_lock));
+	assert(!pthread_join(id, NULL));
+	assert(winner.status == CB_ERR);
+	assert(payload_mm_authvar_presence_s3_record_state_test(storage,
+		STORAGE_SIZE) == TEST_RECORD_POISONED);
+	payload_mm_authvar_presence_s3_record_test_hook(NULL);
+}
+
+static void test_ambiguous_writer_transitions_poison(void)
+{
+	race_writer_transition(false);
+	race_writer_transition(true);
+}
+
 static void test_bounds_and_explicit_poison(void)
 {
 	struct payload_mm_authvar_presence_s3_facts borrowed;
@@ -446,6 +541,7 @@ int main(void)
 	test_input_mutation_and_record_mutation();
 	test_reentry_poison();
 	test_ambiguous_borrow_poison();
+	test_ambiguous_writer_transitions_poison();
 	test_bounds_and_explicit_poison();
 	return 0;
 }
