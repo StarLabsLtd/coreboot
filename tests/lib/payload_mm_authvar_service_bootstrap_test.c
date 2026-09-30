@@ -22,6 +22,34 @@ static bool abort_during_consume;
 static unsigned int binding_reads;
 static bool wave_admitted = true;
 
+/* This prerequisite fixture installs only the backend boundary model. */
+__weak enum cb_err payload_mm_authvar_executor_service_admit(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size)
+{
+	(void)endpoint;
+	(void)request;
+	(void)response;
+	(void)size;
+	return CB_ERR;
+}
+
+__weak enum cb_err payload_mm_authvar_service_transaction(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size)
+{
+	(void)endpoint;
+	(void)request;
+	(void)response;
+	(void)size;
+	return CB_ERR;
+}
+
+__weak void __noreturn smm_invocation_platform_fail_stop(void)
+{
+	abort();
+}
+
 bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 {
 	return wave_admitted;
