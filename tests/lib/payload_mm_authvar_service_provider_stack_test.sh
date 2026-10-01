@@ -4,10 +4,17 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 runtime_wave=${PROVIDER_STACK_RUNTIME_WAVE:-0}
 case "$runtime_wave" in 0|1) ;; *) exit 1 ;; esac
+delivery_lane=${PROVIDER_STACK_BOOT_PRIVATE_DELIVERY:-0}
+case "$delivery_lane" in 0|1) ;; *) exit 1 ;; esac
+[ "$runtime_wave" -eq 0 ] || [ "$delivery_lane" -eq 0 ]
 fixture_source="$root/tests/lib/payload_mm_authvar_service_provider_stack_test.c"
 mbedtls_source=${MBEDTLS_SOURCE:-$root/3rdparty/mbedtls}
 temporary=$(mktemp -d)
-trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+trap 'if [ "${KEEP_PROVIDER_STACK_TMP:-0}" = 1 ]; then
+	printf "Provider stack artifacts: %s\n" "$temporary" >&2
+else
+	rm -rf "$temporary"
+fi' EXIT HUP INT TERM
 mkdir "$temporary/include"
 if [ "$runtime_wave" -eq 1 ]; then
 	fixture_source="$root/tests/mainboard/starlabs/starbook_mtl_authvar_service_runtime_wave_test.c"
@@ -62,11 +69,20 @@ print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
 print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, "payload";' \
 	"$temporary/signed.der" > "$temporary/auth2.bin"
 for authentication in auth2 ordinary; do
+	if [ "$delivery_lane" -eq 1 ] && [ "$authentication" = auth2 ]; then
+		continue
+	fi
 	# The baseline source/config is identical: exercise both argv profiles once built.
 	if [ "$runtime_wave" -eq 1 ] && [ "$authentication" = ordinary ]; then
 		continue
 	fi
-	for block_size in 65536 4096; do
+	profiles='0:65536 0:4096'
+	if [ "$delivery_lane" -eq 1 ]; then
+		profiles='0:65536 0:4096 1:65536 1:4096'
+	fi
+	for profile in $profiles; do
+		private_buffer=${profile%:*}
+		block_size=${profile#*:}
 		printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 			'#define CONFIG_MAX_CPUS 4' '#define CONFIG_SMMSTORE 0' \
 			'#define CONFIG_SMMSTORE_FULL_FLASH_ACCESS 0' \
@@ -82,6 +98,8 @@ for authentication in auth2 ordinary; do
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK 0' \
 			'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 0' \
 			'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' > "$temporary/include/config.h"
+		printf '#define CONFIG_PAYLOAD_BOOT_PRIVATE_BUFFER %s\n' "$private_buffer" \
+			>> "$temporary/include/config.h"
 		if [ "$runtime_wave" -eq 1 ]; then
 			printf '%s\n' '#define CONFIG_ROM_SIZE 8388608' \
 				'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
@@ -96,7 +114,18 @@ for authentication in auth2 ordinary; do
 				'#define CONFIG_SMM_APMC_ROUTE_AUTHVAR_SERVICE 1' \
 				>> "$temporary/include/config.h"
 		fi
-		for variant in baseline record-capacity header-capacity no-request-scrub early-release early-completion; do
+		variants='baseline record-capacity header-capacity no-request-scrub early-release early-completion'
+		if [ "$delivery_lane" -eq 1 ]; then
+			variants=baseline
+			if [ "$private_buffer" -eq 1 ]; then
+				variants='baseline begin-order recheck-order no-begin no-recheck'
+			fi
+		fi
+		for variant in $variants; do
+			if [ "$delivery_lane" -eq 1 ] && [ "$block_size" -eq 4096 ] &&
+			   [ "$variant" != baseline ]; then
+				continue
+			fi
 			if [ "$runtime_wave" -eq 1 ] && [ "$variant" != baseline ]; then
 				continue
 			fi
@@ -111,6 +140,26 @@ for authentication in auth2 ordinary; do
 			bootstrap_source="$root/src/lib/payload_mm_authvar_smm_bootstrap.c"
 			executor_source="$root/src/lib/payload_mm_authvar_executor.c"
 			case "$variant" in
+			no-begin)
+				sed '/if (delivery \&\&/ {
+N
+/!protected_storage/ { N; N; N; d; }
+}' "$bootstrap_source" > "$temporary/$variant.c"
+				;;
+			no-recheck)
+				sed '/if (delivery \&\&/ {
+N
+/PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK/ { N; N; d; }
+}' "$bootstrap_source" > "$temporary/$variant.c"
+				;;
+			begin-order)
+				sed 's/PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN,/PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK,/' \
+					"$bootstrap_source" > "$temporary/$variant.c"
+				;;
+			recheck-order)
+				sed 's/PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK,/PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN,/' \
+					"$bootstrap_source" > "$temporary/$variant.c"
+				;;
 			record-capacity)
 				sed '/^static uint64_t __maybe_unused coordinate_transaction(/,/^}/ {
 s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/state->policy.maximum_record_size/
@@ -152,6 +201,10 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 				esac
 			fi
 			for optimization in 0 2; do
+				if [ "$delivery_lane" -eq 1 ] && [ "$variant" != baseline ] &&
+				   [ "$optimization" -eq 0 ]; then
+					continue
+				fi
 				set --
 				if [ "$runtime_wave" -eq 1 ]; then
 					set -- \
@@ -239,6 +292,51 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					"$root/src/lib/payload_mm_authvar_writer.c" \
 					-I"$mbedtls_source/library" -Wl,--wrap=mbedtls_rsa_parse_pubkey \
 					"$@" -pthread -o "$temporary/test"
+				if [ "$delivery_lane" -eq 1 ]; then
+					modes=delivery
+					if [ "$private_buffer" -eq 1 ]; then
+						modes='delivery delivery-begin-denied delivery-recheck-denied'
+					fi
+					for mode in $modes; do
+						log="$temporary/delivery-${profile}-${variant}-O${optimization}-${mode}.log"
+						result=0
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" "$mode" > "$log" 2>&1 || result=$?
+						if [ "$variant" != baseline ]; then
+							[ "$result" -eq 134 ]
+							case "$variant" in
+							no-begin)
+								oracle=': !CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 1' ;;
+							no-recheck)
+								oracle=': !delivery_active || !CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 2' ;;
+							*) oracle=': delivery_checks == (unsigned int)stage' ;;
+							esac
+							grep -Fq "$oracle" "$log"
+							if grep -E 'runtime error:|Sanitizer' "$log"; then
+								exit 1
+							fi
+							break
+						fi
+						if [ "$mode" = delivery ]; then
+							expected_status=0
+						else
+							expected_status=78
+						fi
+						if [ "$result" -ne "$expected_status" ]; then
+							cat "$log" >&2
+							exit 1
+						fi
+						if grep -E 'provider stack line|provider reply:|runtime error:|Sanitizer' \
+							"$log"; then
+							exit 1
+						fi
+					done
+					if [ "$variant" = baseline ]; then
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" normal
+					fi
+					continue
+				fi
 				if [ "$runtime_wave" -eq 1 ]; then
 					sh "$root/tests/mainboard/starlabs/starbook_mtl_authvar_service_runtime_wave_run.sh" \
 						"$temporary/test" "$temporary" "$authentication"
@@ -283,4 +381,8 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 		done
 	done
 done
-echo 'Real bootstrap and eight-operation provider stack: PASS (host hardware boundaries)'
+if [ "$delivery_lane" -eq 1 ]; then
+	echo 'Real op9 transaction/publication and eight-op OFF/ON regression: PASS (held binding modeled)'
+else
+	echo 'Real bootstrap and eight-operation provider stack: PASS (host hardware boundaries)'
+fi

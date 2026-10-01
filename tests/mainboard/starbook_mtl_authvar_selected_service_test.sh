@@ -159,12 +159,24 @@ done
 ! nm -u "$elf" | grep -Eq '__atomic|libatomic'
 if [ "$boot_private" = 1 ]; then
 	for symbol in starbook_mtl_boot_private_lease_prepare \
-		starbook_mtl_boot_private_lease_close payload_boot_private_buffer_consume; do
+		starbook_mtl_boot_private_lease_close payload_boot_private_buffer_consume \
+		platform_payload_mm_authvar_service_delivery_held \
+		starbook_mtl_dma_smm_authority_verify_live_policy; do
 		test "$(nm -g --defined-only "$elf" | awk -v symbol="$symbol" \
 			'$2 == "T" && $3 == symbol { count++ } END { print count + 0 }')" -eq 1
 	done
-	# Delivery prepares the BOOT lease; its fc begin/recheck hooks remain dormant.
-	! nm "$elf" | grep -Eq ' starbook_mtl_boot_private_lease_(begin|recheck)_held$'
+	# The compiler may inline the public begin/recheck wrappers. Require their
+	# actual shared held proof and fixed translation callback, not wrapper names.
+	for symbol in boot_private_verify_held observer_verify_translation_boot_private; do
+		test "$(nm --defined-only "$elf" | awk -v symbol="$symbol" \
+			'$2 ~ /^[tT]$/ && ($3 == symbol || index($3, symbol ".") == 1) \
+			 { count++ } END { print count + 0 }')" -ge 1
+	done
+	# This object also defines the weak refusal. Its two real call relocations
+	# must resolve to the strong protected binding in the linked ELF above.
+	test "$(objdump -r "$build/smm/lib/payload_mm_authvar_smm_bootstrap.o" | awk \
+		'$2 == "R_386_PC32" && $3 == "platform_payload_mm_authvar_service_delivery_held" \
+		 { count++ } END { print count + 0 }')" -eq 2
 fi
 dispatcher="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 nm -u "$dispatcher" | grep -q ' starbook_mtl_authvar_service_runtime_dispatch$'
