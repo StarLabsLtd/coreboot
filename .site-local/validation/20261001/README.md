@@ -275,3 +275,31 @@ the normal tool path passes with service `Result=success`, `ExecMainStatus=0`,
 and no remaining process. Both failed/partial logs and explicit unit results
 are retained alongside the successful suite and package logs. This adds no
 ROM, QEMU, public-owner activation or hardware validation claim.
+
+## PR437 actual compatibility splash and setup runs
+
+Concatenate the two numbered parts of
+`qemu-reviewed-437-runtime-status-setup.tar.gz` in order. The archive SHA-256 is
+`eb0f7375fb940272828099392554eee2fdec0a4aca64a1b3189b4ad7d2219b2a`;
+part 00 is `fe245d7d840c22fd994516298d259914c7c0382d29750e090cd442eb26d89407`,
+and part 01 is `9dae4bc208811b4d4d964eb0a6085fba56317e76392e1462b7cf1a40a517eb6d`.
+It preserves the actual coreboot PR340/CDK2 PR437 setup pair, ROM and direct
+composition proof, screenshots, UART/debug/SPI output, fixtures and pflash
+transitions. TPM sockets/state and process IDs are excluded. `SHA256SUMS`
+covers the retained raw files and logs.
+
+The exact paired ROM is
+`497f9b8563298945f2990f775d966f510c62cfee9f96b64829a358df4434a3ae`.
+The three real setup boots pass F2 entry/navigation/Escape-to-Linux, an OS
+firmware-setup request, and its next-boot presentation without F2. The separate
+boot-policy-marker capture reaches Linux, EFI-variable operations, TPM and S5.
+Root visually inspected the actual captured splash: status text appears but
+overlaps the wordmark, so this is evidence of the remaining presentation defect,
+not final splash sign-off. Delegated coreboot-logo ownership is not selected.
+
+The first native-image invocation lacked imported coreboot profile settings
+and failed admission; its log is preserved separately from the successful
+actual `coreboot-stage` invocation. This pair uses the compatibility variable
+owner and bounded Q35 topology, not protected-store activation or hardware.
+Relocated firmware-setup manifests retain original absolute pflash paths;
+do not rewrite those paths to manufacture a successful original-chain replay.
