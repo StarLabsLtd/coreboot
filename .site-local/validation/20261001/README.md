@@ -139,3 +139,54 @@ See `coreboot-retired-review-fourteen.md` and the enclosed manifest for the
 41 repository states, narrow public-reference exceptions and replay commands.
 This is recovery evidence only; it neither approves those patches nor records
 build/boot validation or worktree retirement.
+
+## Exact Q35 compatibility runtime and setup receipts
+
+The two `qemu-reviewed-433-runtime-setup.tar.gz.part-00`/`part-01` files
+reassemble the generated archive in that order. They are split below GitHub's
+per-file limit, not separate test runs. SHA-256 digests:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Part 00 | `be3d64bc6b49a4681ccfaafca2e42f60352b9306cb2089468b4e955478566e8f` |
+| Part 01 | `fbf1a7848877611fe21e4bdd2c0cd487c336d5f21ece80be93ee386da5d2bba0` |
+| Reassembled archive | `b6835888c1a1cccd884a278ee3b9d609883b8abf1d0927415a0a0448d4ba0eb2` |
+
+Coreboot source is signed PR340 `e276a6cb6ea2d910942c0f0bddefb49f83c823c4`,
+with CDK2 PR433 `dacf554220bc629d121b4046a0fa51d19ca62136`. The normal ROM
+digest is `788bf0b8a43155049250d8104a5bead937b2d94768bb4d3224563244f3d573e1`.
+Its fresh shutdown-enabled QEMU run and runtime-services linear oracle pass
+Linux boot, EFI variable create/update, CBMEM/SPI gates and S5. The earlier
+no-shutdown run reached Linux/S5 but returned 124; its strict oracle refusal is
+retained, not rewritten as success. Initial empty compatibility-store warnings
+are present; these receipts do not claim warning-free logs.
+
+The separate setup profile has 36 direct images, ROM digest
+`65ac1b2f5d15e7726cd2a0c258f4093e83eb00edcb7909f5492214f2793f36d2`,
+and payload configuration digest
+`b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`.
+Genuine QEMU F2 entry, Down navigation, Escape/BGRT restoration and Linux
+continuation pass. The persisted OS firmware-setup request and following boot
+present setup without F2, consume the request and continue to Linux. Root
+visually inspected the readable LVGL controls, changed help and STARLABS logo.
+Debug `SplashStatus` is `UNSUPPORTED` for this CDK2-rendered logo; visible status
+text remains an open fix, not a successful visual check.
+
+The archive preserves manifests, raw serial/debug logs, SPI/pflash bytes,
+screenshots, source-owned synthetic test disks and generated requester fixture,
+the composed ROMs, setup configuration and direct-image provenance. It excludes
+TPM state and sockets. Runtime/hotkey replay passes independently after fresh
+extraction; the original-location complete two-boot oracle also passes.
+The unchanged archived manifests retain absolute source paths, so the complete
+two-boot oracle refuses a relocated pflash path chain. No path check was removed
+and no manifest was edited. Independently replaying the real variable-store
+transition on the three archived pflash images passes; requester fixture bytes
+and manifest match their originals. This is not a fully location-independent
+two-boot oracle replay.
+
+All runs use the bounded Q35 DMA-test topology and legacy SMMSTORE compatibility
+provider, not the dormant protected owner. These are not a whole release matrix,
+production Secure Boot activation, new MTL lease proof or hardware validation.
+The separately retained PR434 setup log records a fresh three-boot run of that
+later consumer on the same coreboot PR340 base; its independently composed ROM
+is byte-identical to the PR433 setup ROM. The archive itself contains PR433 runs.

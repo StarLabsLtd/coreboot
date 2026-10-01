@@ -1,0 +1,9 @@
+Found file config at 0x1fec0, type raw, compressed 3500, size 12151
+Found file cdk2/config at 0x2a1c0, type raw, compressed 963, size 3100
+CDK2 real setup QEMU acceptance: PASS
+Found file config at 0x1fec0, type raw, compressed 3500, size 12151
+Found file cdk2/config at 0x2a1c0, type raw, compressed 963, size 3100
+Found file config at 0x1fec0, type raw, compressed 3500, size 12151
+Found file cdk2/config at 0x2a1c0, type raw, compressed 963, size 3100
+CDK2 real setup QEMU acceptance: PASS
+CDK2 BootToFwUI two-boot QEMU acceptance: PASS
