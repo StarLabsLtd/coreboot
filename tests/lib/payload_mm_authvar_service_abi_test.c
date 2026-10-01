@@ -1065,6 +1065,14 @@ static void classification_wire_contract(void)
 		response_data()[offset] ^= 0x80;
 	}
 	response_data()[4] = 2;
+	response_data()[8] = 7;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[4] = 1;
+	response_data()[12] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_data()[4] = 2;
 	response_data()[8] = 6;
 	response_data()[12] = 1;
 	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
@@ -1087,6 +1095,12 @@ static void classification_wire_contract(void)
 	response_data()[0] = 1;
 	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
 		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[0] = 0;
+	endpoint.maximum_data_size = 8;
+	request->data_capacity = response->data_capacity = 8;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	endpoint.maximum_data_size = DATA_SIZE;
 	response = new_response(request, (1ULL << 63) | 14);
 	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
 		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);

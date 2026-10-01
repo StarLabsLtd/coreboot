@@ -181,7 +181,8 @@ static void classify_key(const struct lb_authvar_service_endpoint *descriptor,
 		65536) == CB_SUCCESS);
 	assert(mailbox->status == expected_status && !mailbox->result_attributes);
 	assert(mailbox->result_data_size ==
-		(expected_status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ? 0U : 16U));
+		(!expected_status || expected_status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ?
+		 16U : 0U));
 	for (size_t i = 144; i < 65536; i++) {
 		if (!expected_status && i >= 4240 && i < 4256)
 			continue;
@@ -241,7 +242,7 @@ int main(int argc, char **argv)
 	user = !strcmp(argv[1], "user") || !strcmp(argv[1], "capacity") || malformed_index;
 	oversized = !strcmp(argv[1], "oversized");
 	assert(user || oversized || !strcmp(argv[1], "setup") ||
-		!strcmp(argv[1], "classification") ||
+		!strncmp(argv[1], "classification", 14) ||
 		!strcmp(argv[1], "runtime") || !strcmp(argv[1], "end-error") ||
 		!strcmp(argv[1], "proof-drift") || !strcmp(argv[1], "wrong-namespace"));
 	runtime_smram_size = UINTPTR_MAX - 0x400000U;
@@ -286,7 +287,7 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	service_generation = descriptor.generation;
 	assert(descriptor.revision == 5 && descriptor.maximum_name_size == 4096);
-	if (!strcmp(argv[1], "classification")) {
+	if (!strncmp(argv[1], "classification", 14)) {
 		static const uint8_t missing[] = { 'Z', 0, 0, 0 };
 		static const uint8_t synthetic_name[] = {
 			'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0, 'M', 0, 'o', 0, 'd', 0,
@@ -315,6 +316,15 @@ int main(int argc, char **argv)
 			16, 0, 2, 6, 1);
 		classify_key(&descriptor, vendor_guid, missing, sizeof(missing),
 			16, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND, 0, 0, 0);
+		if (strcmp(argv[1], "classification")) {
+			baseline_begin = begin_count;
+			baseline_end = end_count;
+			fail_end = !strcmp(argv[1], "classification-end-error");
+			drift_at_end = !strcmp(argv[1], "classification-proof-drift");
+			assert(fail_end || drift_at_end);
+			classify_key(&descriptor, vendor_guid, vendor_name, sizeof(vendor_name),
+				16, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, 0, 0, 0);
+		}
 		puts("Actual key classification distinguishes runtime-hidden protected key: PASS");
 		return 0;
 	}
