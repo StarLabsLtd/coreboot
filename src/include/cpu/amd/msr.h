@@ -16,6 +16,7 @@
 #define FS_Base				0xC0000100
 #define HWCR_MSR			0xC0010015
 #define  SMM_LOCK			(1 << 0)
+#define  SMM_BASE_LOCK			(1U << 31)
 #define NB_CFG_MSR			0xC001001f
 #define FidVidStatus			0xC0010042
 #define MC0_CTL_MASK			0xC0010044

@@ -48,5 +48,7 @@ void lock_smm(void)
 {
 	msr_t hwcr = rdmsr(HWCR_MSR);
 	hwcr.lo |= SMM_LOCK;
+	if (CONFIG(SOC_AMD_PHOENIX_OPENSIL))
+		hwcr.lo |= SMM_BASE_LOCK;
 	wrmsr(HWCR_MSR, hwcr);
 }
