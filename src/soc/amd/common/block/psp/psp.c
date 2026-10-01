@@ -130,6 +130,21 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 }
 #endif
 
+enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4])
+{
+	struct mbox_cmd_set_config_buffer buffer = {
+		.header.size = sizeof(buffer.header) + sizeof(buffer.config_id) +
+			       sizeof(buffer.args),
+		.config_id = config,
+		.args = { args[0], args[1], args[2], args[3] },
+	};
+	int status = send_psp_command(MBOX_BIOS_CMD_SET_CONFIG, &buffer);
+
+	if (status == -PSPSTS_CMD_TIMEOUT)
+		die("PSP: Set-config command timed out\n");
+	return status || rd_resp_sts(&buffer.header) ? CB_ERR : CB_SUCCESS;
+}
+
 static enum cb_err psp_notify_df_lock(void)
 {
 	struct mbox_default_buffer buffer = {
