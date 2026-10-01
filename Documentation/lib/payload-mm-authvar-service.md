@@ -43,6 +43,19 @@ GET BUFFER_TOO_SMALL reports required logical data size, which can exceed the
 transport slot, without copying any data. SUCCESS still requires the copied
 size to fit both the caller capacity and the fixed slot. NEXT's owner-derived
 maximum name size remains bounded by the actual name slot.
+
+The endpoint's logical `maximum_data_size` may be smaller than the physical data
+slot. It must fit after the aligned name slot; it does not change the complete
+message size or the fixed communication reservation. All operations reject
+nonzero physical padding after that logical limit, on requests and on both
+successful and failed replies. The installed producer must derive the logical
+limit from its actual executor limits and physical slot capacity. A policy
+registration still needs its complete control envelope to fit this bound; an
+authenticated SET still needs its complete authentication envelope to fit it.
+Neither the capsule contract nor the private authority gains a caller-selected
+size. The paired producer and CDK2 validators must be updated together: an older
+proxy that requires the logical slot to fill the frame refuses a smaller limit.
+Endpoint revision 3, frame revision 2 and their byte layouts remain unchanged.
 The comparison is EDK2 26.09 `Variable.c`'s authenticated maximum at line 3007
 and `VariableSmmRuntimeDxe.c`'s complete SET communication bound at line 1176.
 
