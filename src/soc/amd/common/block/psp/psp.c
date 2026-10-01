@@ -180,7 +180,7 @@ static void psp_notify_boot_done(void)
 	int cmd_status;
 	struct mbox_default_buffer buffer = {
 		.header = {
-			.size = sizeof(buffer)
+			.size = sizeof(buffer.header)
 		}
 	};
 
