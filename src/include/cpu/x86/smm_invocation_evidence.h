@@ -75,6 +75,7 @@ struct smm_invocation_token {
 	uint64_t smi_generation;
 	uint64_t rendezvous_generation;
 	uint64_t rendezvous_digest[3];
+	/* Whether the initiating CPU is the BSP; only the attested runtime owner allows an AP. */
 	uint32_t bsp;
 	uint32_t reserved;
 } __aligned(8);

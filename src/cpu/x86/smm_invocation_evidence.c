@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <cpu/x86/smm_invocation_fail_stop.h>
 #include <string.h>
@@ -1244,6 +1245,16 @@ static enum cb_err close_owned(struct smm_invocation_evidence *evidence,
 	return CB_ERR;
 }
 
+static bool initiator_valid(const struct smm_invocation_evidence *evidence,
+	uint32_t initiator, uint8_t command)
+{
+	/* Boot-only owners retain BSP initiation. Runtime EFI calls can come from an AP. */
+	return initiator < evidence->active_cpus &&
+		(initiator == evidence->bsp_cpu ||
+		 (CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) &&
+		  CONFIG(SMM_APMC_ROUTE_AUTHVAR_SERVICE) && command == SMM_APMC_AUTHVAR_SERVICE));
+}
+
 static void build_token(const struct smm_invocation_evidence *evidence,
 	uint32_t initiator, uint8_t command, uint64_t sentinel,
 	struct smm_invocation_token *token)
@@ -1278,7 +1289,7 @@ static void build_token(const struct smm_invocation_evidence *evidence,
 			mix64(proof[2] ^ command ^
 				evidence->loader_instance_nonce.high),
 		},
-		.bsp = 1,
+		.bsp = initiator == evidence->bsp_cpu,
 	};
 }
 
@@ -1299,7 +1310,7 @@ static bool claimed_geometry_valid(const struct smm_invocation_evidence *evidenc
 	expected_cpus = active_cpus == 64U ? UINT64_MAX :
 		(1ULL << active_cpus) - 1U;
 	if (evidence->bsp_cpu >= active_cpus ||
-	    token->initiator_cpu != evidence->bsp_cpu ||
+	    !initiator_valid(evidence, token->initiator_cpu, (uint8_t)evidence->command) ||
 	    !generation ||
 	    smm_invocation_loader_instance_nonce_is_zero(
 		evidence->loader_instance_nonce) ||
@@ -1448,7 +1459,7 @@ enum cb_err smm_invocation_evidence_claim(
 			initiator = cpu;
 		}
 	}
-	if (matches != 1U || initiator != evidence->bsp_cpu)
+	if (matches != 1U || !initiator_valid(evidence, initiator, command))
 		return poison_owned(evidence, SMM_INVOCATION_CLAIMING);
 	if (snapshot.read_value(snapshot.context, initiator,
 		&evidence->original_value) != CB_SUCCESS ||
@@ -1640,7 +1651,8 @@ enum cb_err smm_invocation_evidence_publish_and_request_close(
 	    !token_snapshot.smi_generation ||
 	    token_snapshot.rendezvous_generation !=
 		token_snapshot.smi_generation ||
-	    token_snapshot.bsp != 1U || token_snapshot.reserved ||
+	    token_snapshot.bsp != (token_snapshot.initiator_cpu == evidence->bsp_cpu) ||
+	    token_snapshot.reserved ||
 	    !ops_valid(&ops_snapshot) ||
 	    (ops_snapshot.context_size &&
 	     (ranges_overlap(evidence, sizeof(*evidence), ops_snapshot.context,
