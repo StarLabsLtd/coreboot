@@ -10,15 +10,29 @@
 #include <cpu/x86/smm.h>
 #include <device/mmio.h>
 #include <string.h>
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_boot_private_buffer.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
+#include <boot/payload_mm_authvar_smm_bootstrap.h>
+#endif
 
 #include "../../../../../lib/payload_mm_crypto/crypto.h"
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include "authvar_presence_bootstrap_install.h"
+#endif
 
 #if !ENV_SMM && !ENV_TEST
 #error "MTL DMA receipt receiver is SMM-only"
 #endif
 
 enum receipt_state { RECEIPT_EMPTY, RECEIPT_PROVISIONING, RECEIPT_READY,
-	RECEIPT_FAILED, RECEIPT_VERIFYING_COLD, RECEIPT_VERIFYING_BINDING };
+	RECEIPT_FAILED, RECEIPT_VERIFYING_COLD, RECEIPT_VERIFYING_BINDING,
+	RECEIPT_VERIFYING_BOOT_PRIVATE };
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+enum boot_private_lease_state { BOOT_PRIVATE_EMPTY, BOOT_PRIVATE_PREPARING,
+	BOOT_PRIVATE_READY, BOOT_PRIVATE_VERIFYING, BOOT_PRIVATE_HELD,
+	BOOT_PRIVATE_CLOSED };
+#endif
 enum epoch_state { EPOCH_EMPTY, EPOCH_CAPTURING, EPOCH_SEALED,
 	EPOCH_ACTIVATING, EPOCH_ACTIVATION_PROOF, EPOCH_RETAINED,
 	EPOCH_VERIFYING_ACTIVATION, EPOCH_VERIFYING_RETAINED, EPOCH_POISONED };
@@ -65,6 +79,21 @@ static struct {
 	struct starbook_mtl_dma_receipt_frame snapshot;
 	struct starbook_mtl_dma_requester_binding cold_binding;
 	struct starbook_mtl_dma_requester_binding sealed_cold_binding;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	struct {
+		uint32_t state;
+		uint32_t reserved;
+		struct lb_payload_boot_private_buffer record;
+		struct lb_payload_boot_private_buffer sealed_record;
+		struct smm_invocation_runtime_binding runtime;
+		const struct smm_invocation_runtime_view *view;
+		struct smm_invocation_loader_instance instance;
+		struct smm_invocation_token bootstrap;
+		struct smm_invocation_token claimed;
+		struct starbook_mtl_dma_requester_binding live_binding;
+		struct starbook_mtl_dma_requester_binding sealed_live_binding;
+	} boot_private;
+#endif
 	struct {
 		uint32_t state;
 		uint32_t reserved;
@@ -86,6 +115,21 @@ static struct {
 		struct epoch_evidence_snapshot activation;
 	} epoch;
 } owner __aligned(8);
+
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+void starbook_mtl_boot_private_lease_close(void)
+{
+	const struct smm_invocation_runtime_view *view;
+
+	if (smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS)
+		return;
+	__atomic_store_n(&owner.boot_private.state, BOOT_PRIVATE_CLOSED, __ATOMIC_RELEASE);
+	/* Keep the terminal state while removing every reusable lease field. */
+	memset((uint8_t *)&owner.boot_private + sizeof(owner.boot_private.state), 0,
+		sizeof(owner.boot_private) - sizeof(owner.boot_private.state));
+}
+#endif
 
 static void epoch_evidence_read(const struct smm_invocation_evidence *evidence,
 	struct epoch_evidence_snapshot *snapshot)
@@ -1188,3 +1232,258 @@ out:
 	__atomic_store_n(&owner.epoch.state, proof_state, __ATOMIC_RELEASE);
 	return true;
 }
+
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#if ENV_TEST
+__weak void starbook_mtl_boot_private_lease_test_hook(void)
+{
+}
+#endif
+
+static bool boot_private_inputs_disjoint(
+	const struct bootmem_reservation_receipt_authority *verifier,
+	const struct bootmem_reservation_receipt *receipt,
+	const struct smm_invocation_runtime_binding *runtime)
+{
+	const struct {
+		const void *base;
+		size_t bytes;
+	} ranges[] = {
+		{ runtime->instance, sizeof(*runtime->instance) },
+		{ runtime->evidence, sizeof(*runtime->evidence) },
+		{ runtime->topology, sizeof(*runtime->topology) },
+		{ runtime->composition, sizeof(*runtime->composition) },
+	};
+
+	for (size_t index = 0; index < ARRAY_SIZE(ranges); index++)
+		if (spans_overlap(verifier, sizeof(*verifier), ranges[index].base,
+				ranges[index].bytes) ||
+		    spans_overlap(receipt, sizeof(*receipt), ranges[index].base,
+				ranges[index].bytes))
+			return false;
+	return true;
+}
+
+static bool boot_private_geometry_valid(void)
+{
+	const struct lb_payload_boot_private_buffer record = owner.boot_private.record;
+
+	return !memcmp(&record, &owner.boot_private.sealed_record, sizeof(record)) &&
+		record.tag == LB_TAG_PAYLOAD_BOOT_PRIVATE_BUFFER && record.size == sizeof(record) &&
+		record.revision == LB_PAYLOAD_BOOT_PRIVATE_BUFFER_REVISION &&
+		record.header_size == sizeof(record) &&
+		record.slot_size == LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_SIZE &&
+		record.bytes == LB_PAYLOAD_BOOT_PRIVATE_BUFFER_BYTES &&
+		record.slot_count == LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_COUNT &&
+		!record.reserved[0] && !record.reserved[1] && record.physical_base &&
+		!(record.physical_base & 4095U) &&
+		record.physical_base <= UINT64_MAX - (record.bytes - 1U) &&
+		starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt,
+			record.physical_base, record.bytes);
+}
+
+enum cb_err starbook_mtl_boot_private_lease_prepare(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt)
+{
+	const struct smm_invocation_runtime_view *view;
+	struct smm_invocation_runtime_binding runtime, rechecked_runtime;
+	struct smm_invocation_loader_instance instance, rechecked_instance;
+	struct smm_invocation_token token, rechecked_token;
+	const struct smm_invocation_runtime_view *rechecked_view;
+	uint32_t expected = BOOT_PRIVATE_EMPTY;
+	uint64_t sentinel;
+
+	if (smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS ||
+	    !__atomic_compare_exchange_n(&owner.boot_private.state, &expected,
+		BOOT_PRIVATE_PREPARING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	if (!verifier || !receipt ||
+	    smm_invocation_runtime_range_is_protected(view, verifier,
+		sizeof(*verifier)) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, receipt, sizeof(*receipt)) != CB_SUCCESS ||
+	    spans_overlap(verifier, sizeof(*verifier), &owner, sizeof(owner)) ||
+	    spans_overlap(receipt, sizeof(*receipt), &owner, sizeof(owner)) ||
+	    smm_invocation_runtime_range_is_protected(view,
+		(const void *)platform_payload_mm_authvar_service_bootstrap_admitted, 1) != CB_SUCCESS ||
+	    !platform_payload_mm_authvar_service_bootstrap_admitted() ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    !boot_private_inputs_disjoint(verifier, receipt, &runtime) ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance) != CB_SUCCESS ||
+	    instance.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    !smm_invocation_loader_instance_nonce_equal(instance.loader_instance_nonce,
+		owner.receipt.loader_instance_nonce) ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_READY)
+		goto failed;
+	sentinel = __atomic_load_n(&runtime.evidence->sentinel, __ATOMIC_ACQUIRE);
+	if ((uint32_t)sentinel != STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST ||
+	    !(sentinel >> 32) ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, sentinel, &token) != CB_SUCCESS ||
+	    !token.bsp || token.smi_generation <= owner.receipt.invocation_generation ||
+	    payload_boot_private_buffer_consume(verifier, receipt,
+		&owner.boot_private.record) != CB_SUCCESS)
+		goto failed;
+	owner.boot_private.sealed_record = owner.boot_private.record;
+	owner.boot_private.runtime = runtime;
+	owner.boot_private.view = view;
+	owner.boot_private.instance = instance;
+	owner.boot_private.bootstrap = token;
+	if (!boot_private_geometry_valid() || !dependencies_valid(&owner.dependencies, view) ||
+	    !receipt_ranges_allowed(&owner.receipt) ||
+	    !platform_payload_mm_authvar_service_bootstrap_admitted() ||
+	    smm_invocation_runtime_binding_get(&rechecked_runtime) != CB_SUCCESS ||
+	    memcmp(&runtime, &rechecked_runtime, sizeof(runtime)) ||
+	    smm_invocation_runtime_view_get(&rechecked_view) != CB_SUCCESS || view != rechecked_view ||
+	    smm_invocation_loader_instance_read(runtime.instance, &rechecked_instance) != CB_SUCCESS ||
+	    memcmp(&instance, &rechecked_instance, sizeof(instance)) ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, sentinel,
+		&rechecked_token) != CB_SUCCESS || memcmp(&token, &rechecked_token, sizeof(token)) ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_READY ||
+	    __atomic_load_n(&owner.boot_private.state, __ATOMIC_ACQUIRE) != BOOT_PRIVATE_PREPARING)
+		goto failed;
+#if ENV_TEST
+	starbook_mtl_boot_private_lease_test_hook();
+#endif
+	expected = BOOT_PRIVATE_PREPARING;
+	if (!__atomic_compare_exchange_n(&owner.boot_private.state, &expected, BOOT_PRIVATE_READY,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		goto failed;
+	return CB_SUCCESS;
+failed:
+	starbook_mtl_boot_private_lease_close();
+	return CB_ERR;
+}
+
+static enum cb_err observer_verify_translation_boot_private(void *context,
+	const struct starbook_mtl_dma_smm_receipt *receipt)
+{
+	const struct receipt_context *receipt_context = context;
+
+	if (receipt_context != &owner.context ||
+	    receipt_context->identity != 0x4d544c444d41524dULL ||
+	    receipt_context->authority != &owner.authority ||
+	    memcmp(&owner.boot_private.live_binding, &owner.boot_private.sealed_live_binding,
+		sizeof(owner.boot_private.live_binding)))
+		return CB_ERR;
+	return starbook_mtl_dma_smm_authority_verify_live_policy(&owner.authority, receipt,
+		&owner.boot_private.live_binding);
+}
+
+static enum cb_err boot_private_verify_held(uint32_t previous)
+{
+	const struct smm_invocation_runtime_view *view;
+	const struct smm_invocation_runtime_view *rechecked_view;
+	struct smm_invocation_runtime_binding runtime, rechecked_runtime;
+	struct smm_invocation_loader_instance instance, rechecked_instance;
+	struct smm_invocation_token token, rechecked_token;
+	struct starbook_mtl_dma_smm_observer observer;
+	struct starbook_mtl_dma_requester_binding live_binding;
+	struct lb_payload_boot_private_buffer record;
+	struct smm_invocation_token bootstrap;
+	uint32_t expected = previous;
+	uint32_t receipt_state = RECEIPT_READY;
+	bool receipt_held = false;
+	bool valid = false;
+#if !ENV_TEST
+	const struct smm_dma_receipt_memory *memory;
+#endif
+
+	if (smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS ||
+	    !__atomic_compare_exchange_n(&owner.boot_private.state, &expected,
+		BOOT_PRIVATE_VERIFYING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	if (view != owner.boot_private.view || owner.boot_private.reserved ||
+	    !boot_private_geometry_valid() ||
+	    smm_invocation_runtime_range_is_protected(view,
+		(const void *)platform_payload_mm_authvar_service_runtime_admitted, 1) != CB_SUCCESS ||
+	    !platform_payload_mm_authvar_service_runtime_admitted() ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    memcmp(&runtime, &owner.boot_private.runtime, sizeof(runtime)) ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance) != CB_SUCCESS ||
+	    memcmp(&instance, &owner.boot_private.instance, sizeof(instance)) ||
+	    instance.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence, SMM_APMC_AUTHVAR_SERVICE,
+		SMM_APMC_AUTHVAR_SERVICE, &token) != CB_SUCCESS ||
+	    token.smi_generation <= owner.boot_private.bootstrap.smi_generation ||
+	    (previous == BOOT_PRIVATE_HELD &&
+	     memcmp(&token, &owner.boot_private.claimed, sizeof(token))) ||
+	    !__atomic_compare_exchange_n(&owner.state, &receipt_state,
+		RECEIPT_VERIFYING_BOOT_PRIVATE, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		goto out;
+	receipt_held = true;
+	record = owner.boot_private.record;
+	bootstrap = owner.boot_private.bootstrap;
+	owner.boot_private.claimed = token;
+	live_binding = (struct starbook_mtl_dma_requester_binding) {
+			.loader_instance_nonce = instance.loader_instance_nonce,
+			.invocation_generation = token.smi_generation,
+			.loader_lifecycle = instance.lifecycle,
+		};
+	owner.boot_private.live_binding = owner.boot_private.sealed_live_binding = live_binding;
+	observer = owner.observer;
+	observer.verify_translation = observer_verify_translation_boot_private;
+	if (
+#if !ENV_TEST
+	    !smm_get_dma_receipt_memory(&memory) ||
+	    !receipt_memory_unchanged(memory, &owner.memory_snapshot) ||
+	    !receipt_layout_matches_memory(&owner.receipt, &owner.memory_snapshot) ||
+#endif
+	    !dependencies_valid(&owner.dependencies, view) || !receipt_ranges_allowed(&owner.receipt) ||
+	    starbook_mtl_dma_smm_verify(&owner.receipt, (uintptr_t)&owner, sizeof(owner),
+		&observer, view, &owner.workspace) != CB_SUCCESS ||
+	    !boot_private_geometry_valid() || !platform_payload_mm_authvar_service_runtime_admitted() ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence, SMM_APMC_AUTHVAR_SERVICE,
+		SMM_APMC_AUTHVAR_SERVICE, &rechecked_token) != CB_SUCCESS ||
+	    memcmp(&token, &rechecked_token, sizeof(token)) ||
+	    memcmp(&token, &owner.boot_private.claimed, sizeof(token)) ||
+	    memcmp(&record, &owner.boot_private.record, sizeof(record)) ||
+	    memcmp(&bootstrap, &owner.boot_private.bootstrap, sizeof(bootstrap)) ||
+	    memcmp(&live_binding, &owner.boot_private.live_binding, sizeof(live_binding)) ||
+	    memcmp(&live_binding, &owner.boot_private.sealed_live_binding, sizeof(live_binding)) ||
+	    smm_invocation_loader_instance_read(runtime.instance, &rechecked_instance) != CB_SUCCESS ||
+	    memcmp(&instance, &rechecked_instance, sizeof(instance)) ||
+	    memcmp(&instance, &owner.boot_private.instance, sizeof(instance)) ||
+	    smm_invocation_runtime_binding_get(&rechecked_runtime) != CB_SUCCESS ||
+	    memcmp(&runtime, &rechecked_runtime, sizeof(runtime)) ||
+	    memcmp(&runtime, &owner.boot_private.runtime, sizeof(runtime)) ||
+	    view != owner.boot_private.view ||
+	    smm_invocation_runtime_view_get(&rechecked_view) != CB_SUCCESS ||
+	    view != rechecked_view ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != RECEIPT_VERIFYING_BOOT_PRIVATE ||
+	    __atomic_load_n(&owner.boot_private.state, __ATOMIC_ACQUIRE) != BOOT_PRIVATE_VERIFYING)
+		goto out;
+	valid = true;
+out:
+	if (receipt_held) {
+		expected = RECEIPT_VERIFYING_BOOT_PRIVATE;
+		if (!__atomic_compare_exchange_n(&owner.state, &expected, RECEIPT_READY,
+			false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+			valid = false;
+	}
+	if (!valid) {
+		starbook_mtl_boot_private_lease_close();
+		return CB_ERR;
+	}
+	expected = BOOT_PRIVATE_VERIFYING;
+	if (!__atomic_compare_exchange_n(&owner.boot_private.state, &expected, BOOT_PRIVATE_HELD,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		starbook_mtl_boot_private_lease_close();
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+
+enum cb_err starbook_mtl_boot_private_lease_begin_held(void)
+{
+	return boot_private_verify_held(BOOT_PRIVATE_READY);
+}
+
+enum cb_err starbook_mtl_boot_private_lease_recheck_held(void)
+{
+	return boot_private_verify_held(BOOT_PRIVATE_HELD);
+}
+#endif
