@@ -26,6 +26,7 @@ common="-std=gnu11 -Wall -Wextra -Werror -Wshadow -fno-builtin
 	-I$root/src/arch/x86/include -I$root/src/soc/intel/common/block/include
 	-I$root/src/mainboard/starlabs/starbook/variants/mtl -no-pie"
 sources="$root/tests/lib/starbook_mtl_dma_smm_authority_integration_test.c
+	$root/src/cpu/x86/smm_invocation_evidence.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_receipt_receiver.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_policy.c
 	$root/src/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.c
