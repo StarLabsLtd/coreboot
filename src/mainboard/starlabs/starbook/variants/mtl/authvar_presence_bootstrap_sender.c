@@ -30,6 +30,7 @@ void lb_board(struct lb_header *header)
 	struct starbook_mtl_presence_bootstrap_frame *frame;
 	struct starbook_mtl_presence_bootstrap_frame response;
 	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
+	struct bootmem_reservation_receipt boot_private;
 	uintptr_t frame_base;
 	size_t frame_capacity;
 	uint64_t wire;
@@ -45,7 +46,8 @@ void lb_board(struct lb_header *header)
 	if (!starbook_mtl_dma_receipt_transport_frame(&frame_base, &frame_capacity) ||
 	    frame_capacity < sizeof(*frame) || frame_base % _Alignof(*frame) ||
 	    frame_base > UINT32_MAX - (sizeof(*frame) - 1U) ||
-	    payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &transport) !=
+	    payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &transport,
+		&boot_private) !=
 		CB_SUCCESS)
 		die("StarBook MTL presence: receipt emission failed\n");
 	frame = (void *)frame_base;
@@ -53,6 +55,7 @@ void lb_board(struct lb_header *header)
 		.revision = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION,
 		.size = sizeof(*frame), .state = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST,
 		.receipts = receipts,
+		.boot_private = boot_private,
 	};
 #if ENV_TEST
 	wire = starbook_mtl_presence_bootstrap_trigger_test(
@@ -76,7 +79,8 @@ void lb_board(struct lb_header *header)
 	    response.state != STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED ||
 	    response.reserved || response.initiator_cpu || !response.maximum_cpus ||
 	    response.maximum_cpus > CONFIG_MAX_CPUS ||
-	    memcmp(&response.receipts, &receipts, sizeof(receipts)))
+	    memcmp(&response.receipts, &receipts, sizeof(receipts)) ||
+	    memcmp(&response.boot_private, &boot_private, sizeof(boot_private)))
 		die("StarBook MTL presence: protected route installation failed\n");
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	if (!header || payload_mm_authvar_service_endpoint_validate(&response.service_endpoint) !=
@@ -98,4 +102,5 @@ void lb_board(struct lb_header *header)
 	memset(frame, 0, sizeof(*frame));
 	memset(&response, 0, sizeof(response));
 	memset(&receipts, 0, sizeof(receipts));
+	memset(&boot_private, 0, sizeof(boot_private));
 }

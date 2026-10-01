@@ -28,7 +28,8 @@ void payload_mm_authvar_presence_tuple_sender_close(void);
 /* One post-map take; the bootmem owners authenticate both exact reservations. */
 enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts,
-	struct payload_mm_authvar_presence_tuple_sender *sender);
+	struct payload_mm_authvar_presence_tuple_sender *sender,
+	struct bootmem_reservation_receipt *boot_private);
 #endif
 
 enum cb_err payload_mm_authvar_presence_tuple_sender_prepare(

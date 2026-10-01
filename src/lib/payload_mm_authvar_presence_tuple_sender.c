@@ -8,6 +8,9 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <commonlib/helpers.h>
 #include <random.h>
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_boot_private_buffer.h>
+#endif
 #endif
 
 static __noinline void scrub(void *buffer, size_t size)
@@ -38,6 +41,19 @@ static bool overlaps(const void *first, size_t first_size,
 		return true;
 	return a <= b ? b - a < first_size : a - b < second_size;
 }
+
+#if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+static bool outputs_overlap_source(
+	const struct payload_mm_authvar_presence_bootstrap_receipts *receipts,
+	const struct payload_mm_authvar_presence_tuple_sender *sender,
+	const struct bootmem_reservation_receipt *boot_private,
+	const void *source, size_t size)
+{
+	return overlaps(receipts, sizeof(*receipts), source, size) ||
+		overlaps(sender, sizeof(*sender), source, size) ||
+		(boot_private && overlaps(boot_private, sizeof(*boot_private), source, size));
+}
+#endif
 
 static bool physical_overlap(uintptr_t page, uint64_t base, uint64_t size)
 {
@@ -74,6 +90,10 @@ static struct {
 	struct bootmem_reservation_receipt_authority mailbox_signer;
 	struct bootmem_reservation_receipt_authority page_signer;
 	struct bootmem_reservation_receipt_authority service_signer;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	struct bootmem_aligned_reservation_handle boot_private;
+	struct bootmem_reservation_receipt_authority boot_private_signer;
+#endif
 } bootstrap_sender;
 
 __weak bool mainboard_authvar_presence_cold_boot(void)
@@ -94,6 +114,10 @@ void payload_mm_authvar_presence_tuple_sender_close(void)
 	bootmem_reservation_receipt_close(&bootstrap_sender.mailbox_signer);
 	bootmem_reservation_receipt_close(&bootstrap_sender.page_signer);
 	bootmem_reservation_receipt_close(&bootstrap_sender.service_signer);
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	bootmem_reservation_receipt_close(&bootstrap_sender.boot_private_signer);
+	scrub(&bootstrap_sender.boot_private, sizeof(bootstrap_sender.boot_private));
+#endif
 	scrub(&bootstrap_sender.mailbox, sizeof(bootstrap_sender.mailbox));
 	scrub(&bootstrap_sender.page, sizeof(bootstrap_sender.page));
 	scrub(&bootstrap_sender.service, sizeof(bootstrap_sender.service));
@@ -125,6 +149,9 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_reserve(void)
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	    bootmem_aligned_reservation_register(&service, &bootstrap_sender.service) ||
 #endif
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    payload_boot_private_buffer_reserve(&bootstrap_sender.boot_private) ||
+#endif
 	    !bootstrap_claim(BOOTSTRAP_SENDER_RESERVING, BOOTSTRAP_SENDER_RESERVED)) {
 		payload_mm_authvar_presence_tuple_sender_close();
 		return CB_ERR;
@@ -141,7 +168,9 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
 	struct smm_invocation_loader_instance identity_check;
 	struct smm_invocation_topology participants;
 	struct smm_invocation_topology participants_check;
-	uint64_t random[CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ? 3 : 2]
+	uint64_t random[(CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ? 3 : 2) +
+		(CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) &&
+		 CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED))]
 		[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE / sizeof(uint64_t)] = { 0 };
 	enum cb_err status = CB_ERR;
 
@@ -190,6 +219,12 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_loader_provision(
 		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
 		&bootstrap_sender.service) != CB_SUCCESS ||
 #endif
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    bootmem_reservation_receipt_provision(&bootstrap_sender.boot_private_signer,
+		&slot->boot_private_verifier, (uint8_t *)random[ARRAY_SIZE(random) - 1U],
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, slot->binding.generation,
+		&bootstrap_sender.boot_private) != CB_SUCCESS ||
+#endif
 	    !bootstrap_claim(BOOTSTRAP_SENDER_PROVISIONING, BOOTSTRAP_SENDER_READY))
 		goto fail;
 	slot->loader_nonce = identity.loader_instance_nonce;
@@ -205,6 +240,9 @@ fail:
 	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
 	bootmem_reservation_receipt_close(&slot->page_verifier);
 	bootmem_reservation_receipt_close(&slot->service_verifier);
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	bootmem_reservation_receipt_close(&slot->boot_private_verifier);
+#endif
 	scrub(slot, sizeof(*slot));
 out:
 	scrub(random, sizeof(random));
@@ -217,21 +255,38 @@ out:
 
 enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts,
-	struct payload_mm_authvar_presence_tuple_sender *sender)
+	struct payload_mm_authvar_presence_tuple_sender *sender,
+	struct bootmem_reservation_receipt *boot_private)
 {
 	struct payload_mm_authvar_presence_bootstrap_receipts snapshot = { 0 };
+	struct bootmem_reservation_receipt private_snapshot = { 0 };
 	struct payload_mm_authvar_presence_tuple_sender transport = { 0 };
 	enum cb_err result = CB_ERR;
 
 	if (!object_valid(receipts, sizeof(*receipts), _Alignof(*receipts)) ||
 	    !object_valid(sender, sizeof(*sender), _Alignof(*sender)) ||
 	    overlaps(receipts, sizeof(*receipts), sender, sizeof(*sender)) ||
-	    overlaps(receipts, sizeof(*receipts), &bootstrap_sender,
+	    outputs_overlap_source(receipts, sender, boot_private, &bootstrap_sender,
 		sizeof(bootstrap_sender)) ||
-	    overlaps(sender, sizeof(*sender), &bootstrap_sender, sizeof(bootstrap_sender)))
+	    outputs_overlap_source(receipts, sender, boot_private, &snapshot, sizeof(snapshot)) ||
+	    outputs_overlap_source(receipts, sender, boot_private, &transport, sizeof(transport)) ||
+	    outputs_overlap_source(receipts, sender, boot_private, &private_snapshot,
+		sizeof(private_snapshot)) ||
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    !boot_private ||
+#endif
+	    (boot_private &&
+	     (!object_valid(boot_private, sizeof(*boot_private), _Alignof(*boot_private)) ||
+	      overlaps(boot_private, sizeof(*boot_private), receipts, sizeof(*receipts)) ||
+	      overlaps(boot_private, sizeof(*boot_private), sender, sizeof(*sender))))) {
+		payload_mm_authvar_presence_tuple_sender_close();
+		payload_mm_authvar_presence_producer_abort();
 		return CB_ERR;
+	}
 	scrub(receipts, sizeof(*receipts));
 	scrub(sender, sizeof(*sender));
+	if (boot_private)
+		scrub(boot_private, sizeof(*boot_private));
 	if (!bootstrap_claim(BOOTSTRAP_SENDER_READY, BOOTSTRAP_SENDER_EMITTING) ||
 	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.mailbox,
 		&bootstrap_sender.mailbox_signer, &snapshot.mailbox, BM_MEM_RESERVED) !=
@@ -243,6 +298,10 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	    bootmem_aligned_reservation_receipt_emit_exact_tag(&bootstrap_sender.service,
 		&bootstrap_sender.service_signer, &snapshot.service, BM_MEM_TABLE) !=
 		CB_SUCCESS ||
+#endif
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	    payload_boot_private_buffer_emit(&bootstrap_sender.boot_private,
+		&bootstrap_sender.boot_private_signer, &private_snapshot) != CB_SUCCESS ||
 #endif
 	    snapshot.page.base > UINTPTR_MAX ||
 	    snapshot.page.bytes != PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PAGE_SIZE ||
@@ -268,10 +327,14 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	};
 	*receipts = snapshot;
 	*sender = transport;
+	if (boot_private)
+		*boot_private = private_snapshot;
 	if (__atomic_load_n(&bootstrap_sender.state, __ATOMIC_ACQUIRE) !=
 	    BOOTSTRAP_SENDER_EMITTING) {
 		scrub(receipts, sizeof(*receipts));
 		scrub(sender, sizeof(*sender));
+		if (boot_private)
+			scrub(boot_private, sizeof(*boot_private));
 		goto out;
 	}
 	result = CB_SUCCESS;
@@ -281,6 +344,7 @@ out:
 		payload_mm_authvar_presence_producer_abort();
 	scrub(&snapshot, sizeof(snapshot));
 	scrub(&transport, sizeof(transport));
+	scrub(&private_snapshot, sizeof(private_snapshot));
 	return result;
 }
 #endif

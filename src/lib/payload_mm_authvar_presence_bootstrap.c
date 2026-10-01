@@ -171,6 +171,9 @@ fail:
 	bootmem_reservation_receipt_close(&slot->mailbox_verifier);
 	bootmem_reservation_receipt_close(&slot->page_verifier);
 	bootmem_reservation_receipt_close(&slot->service_verifier);
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	bootmem_reservation_receipt_close(&slot->boot_private_verifier);
+#endif
 	payload_mm_authvar_presence_backing_evidence_close();
 	memset(&slot->page_receipt, 0, sizeof(slot->page_receipt));
 	__atomic_store_n(&slot->state, PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_FAILED,
