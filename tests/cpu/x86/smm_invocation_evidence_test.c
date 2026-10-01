@@ -202,9 +202,8 @@ static enum cb_err write_rax(void *context, uint32_t cpu, uint64_t value)
 	return CB_SUCCESS;
 }
 
-static void __noreturn test_fail_stop(void *context)
+void __noreturn smm_invocation_platform_fail_stop(void)
 {
-	(void)context;
 	abort();
 }
 
@@ -235,7 +234,7 @@ static void fixture_init(struct fixture *fixture)
 		.context_size = sizeof(fixture->mock),
 	};
 	assert(smm_invocation_evidence_provision(&fixture->evidence,
-		&fixture->seed, test_fail_stop, NULL, 0) == CB_SUCCESS);
+		&fixture->seed) == CB_SUCCESS);
 }
 
 static void *arrive_thread(void *opaque)
@@ -521,8 +520,7 @@ static void test_invalid_match_and_aliases(void)
 	assert(smm_invocation_evidence_provision(
 		(struct smm_invocation_evidence *)overlap.bytes,
 		(struct smm_invocation_loader_seed *)(overlap.bytes +
-			sizeof(struct smm_invocation_evidence) - 1U),
-		test_fail_stop, NULL, 0) == CB_ERR);
+			sizeof(struct smm_invocation_evidence) - 1U)) == CB_ERR);
 
 	fixture_init(&fixture);
 	(void)arrive_all(&fixture);
@@ -580,8 +578,7 @@ static void test_token_binds_loader_and_topology(void)
 	memset(&second.evidence, 0, sizeof(second.evidence));
 	second.seed.boot_generation++;
 	second.seed.participant_apic_ids[1] = 21;
-	assert(smm_invocation_evidence_provision(&second.evidence, &second.seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&second.evidence, &second.seed) == CB_SUCCESS);
 	generation = arrive_all(&second);
 	assert(smm_invocation_evidence_claim(&second.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &second.ops, &second_token) == CB_SUCCESS);
@@ -608,11 +605,11 @@ static void test_invalid_seed_and_duplicate(void)
 		.lifecycle = SMM_INVOCATION_LOADER_COLD,
 	};
 	assert(smm_invocation_evidence_provision(&fixture.evidence,
-		&fixture.seed, test_fail_stop, NULL, 0) == CB_ERR);
+		&fixture.seed) == CB_ERR);
 	fixture.seed.participant_apic_ids[1] = 3;
 	fixture.seed.lifecycle = 0;
 	assert(smm_invocation_evidence_provision(&fixture.evidence,
-		&fixture.seed, test_fail_stop, NULL, 0) == CB_ERR);
+		&fixture.seed) == CB_ERR);
 
 	fixture_init(&fixture);
 	assert(test_arrive(&fixture.evidence, 0, 10,

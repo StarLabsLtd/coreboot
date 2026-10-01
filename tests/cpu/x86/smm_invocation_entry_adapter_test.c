@@ -28,8 +28,7 @@
 
 void smm_invocation_entry_test_ack_wait(
 	struct smm_invocation_evidence *evidence, uint64_t generation,
-	uint32_t cpu, const struct smm_invocation_entry_policy *policy,
-	uint8_t *reset_context);
+	uint32_t cpu, const struct smm_invocation_entry_policy *policy);
 
 static uint32_t evidence_hook_point;
 static uint32_t evidence_hook_entered;
@@ -76,9 +75,20 @@ void intel_smm_invocation_adapter_test_hook(uint32_t point)
 		adapter_hook_state->io_misc_info ^= 1U << 8;
 }
 
-static void __noreturn test_fail_stop(void *context)
+static uint8_t fail_stop_exit_code;
+static uint32_t fail_stop_thread_exit;
+static uint32_t fail_stop_calls;
+
+void __noreturn smm_invocation_platform_fail_stop(void)
 {
-	(void)context;
+	const uint32_t calls = __atomic_add_fetch(&fail_stop_calls, 1U,
+		__ATOMIC_RELAXED);
+
+	if (fail_stop_thread_exit)
+		pthread_exit(NULL);
+	if (fail_stop_exit_code)
+		_exit(calls == 1U ? fail_stop_exit_code :
+			(uint8_t)(fail_stop_exit_code + 1U));
 	abort();
 }
 
@@ -104,16 +114,6 @@ void smm_invocation_entry_test_hook(uint32_t point, uint32_t cpu)
 		__asm__ volatile ("pause");
 }
 
-static void __noreturn exit_reset(void *context)
-{
-	_exit(*(const uint8_t *)context);
-}
-
-static void __noreturn thread_reset(void *context)
-{
-	(void)context;
-	pthread_exit(NULL);
-}
 
 static void expect_exit(pid_t child, int code)
 {
@@ -426,7 +426,6 @@ static void test_cause_validation(void)
 		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 		.size = sizeof(policy),
 		.max_polls = 1000,
-		.reset = test_fail_stop,
 	};
 
 	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
@@ -461,12 +460,10 @@ static void test_identity_and_aliases(void)
 		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 		.size = sizeof(policy),
 		.max_polls = 10,
-		.reset = test_fail_stop,
 	};
 	struct smm_invocation_entry_ticket ticket;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 8, 0xa5,
 		0, 3, &ticket) == CB_ERR);
 	assert(!__atomic_load_n(&evidence.rendezvous_ack_required,
@@ -478,12 +475,6 @@ static void test_identity_and_aliases(void)
 	assert(!__atomic_load_n(&evidence.rendezvous_ack_required,
 		__ATOMIC_ACQUIRE));
 	cause.lifecycle = SMM_INVOCATION_LOADER_COLD;
-	policy.reset_context = &cause;
-	policy.reset_context_size = 1;
-	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
-		0, 3, &ticket) == CB_ERR);
-	policy.reset_context = NULL;
-	policy.reset_context_size = 0;
 	assert(smm_invocation_entry_arrive(&evidence, &cause, &policy, 7, 0xa5,
 		0, 3, (void *)&evidence) == CB_ERR);
 	assert(smm_invocation_entry_arrive(&evidence,
@@ -511,14 +502,10 @@ static void test_policy_snapshot_mutation(void)
 		.command = 0xa5,
 		.recognized = 1,
 	};
-	uint8_t context = 0;
 	struct smm_invocation_entry_policy policy = {
 		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 		.size = sizeof(policy),
 		.max_polls = 10,
-		.reset = test_fail_stop,
-		.reset_context = &context,
-		.reset_context_size = sizeof(context),
 	};
 	struct arrival_arg arrival = {
 		.evidence = &evidence,
@@ -529,8 +516,7 @@ static void test_policy_snapshot_mutation(void)
 	};
 	pthread_t thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	for (uint32_t mutation = 0; mutation < 4; mutation++) {
 		const struct smm_invocation_entry_policy original = policy;
 
@@ -543,18 +529,14 @@ static void test_policy_snapshot_mutation(void)
 		assert(!pthread_create(&thread, NULL, arrival_thread, &arrival));
 		while (!__atomic_load_n(&entry_hook_entered, __ATOMIC_ACQUIRE))
 			__asm__ volatile ("pause");
-		if (mutation == 0) {
-			policy.reset_context = (const void *)(UINTPTR_MAX - 1U);
-			policy.reset_context_size = 4;
-		} else if (mutation == 1) {
-			policy.reset_context = &evidence;
-			policy.reset_context_size = 1;
-		} else if (mutation == 2) {
-			policy.reset_context_size =
-				SMM_INVOCATION_ENTRY_CONTEXT_MAX + 1U;
-		} else {
-			policy.reset = NULL;
-		}
+		if (mutation == 0)
+			policy.max_polls--;
+		else if (mutation == 1)
+			policy.reserved = 1;
+		else if (mutation == 2)
+			policy.revision++;
+		else
+			policy.size--;
 		__atomic_store_n(&entry_hook_release, 1U, __ATOMIC_RELEASE);
 		assert(!pthread_join(thread, NULL));
 		assert(arrival.result == CB_ERR);
@@ -747,7 +729,7 @@ static void *provision_thread(void *arg)
 	struct provision_arg *provision = arg;
 
 	provision->result = smm_invocation_evidence_provision(
-		provision->evidence, provision->seed, test_fail_stop, NULL, 0);
+		provision->evidence, provision->seed);
 	return NULL;
 }
 
@@ -781,8 +763,7 @@ static void test_ack_arm_race(void)
 	};
 	pthread_t threads[2];
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 12,
 		SMM_INVOCATION_LOADER_COLD) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&evidence) ==
@@ -829,8 +810,7 @@ static void test_ack_arm_published_marker_is_retry(void)
 	struct smm_invocation_admission_token retry;
 	pthread_t thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 44;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -874,8 +854,7 @@ static void test_departure_published_marker_is_retry(void)
 	};
 	pthread_t thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	__atomic_store_n(&evidence.generation, owner.generation,
 		__ATOMIC_RELAXED);
 	__atomic_store_n(&evidence.state,
@@ -920,8 +899,7 @@ static void test_admission_completion_retries_competing_state_change(void)
 	pthread_t thread;
 	uint32_t state;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 35;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -963,8 +941,7 @@ static void test_ack_arm_shutdown_failure_handoff(void)
 	pthread_t failure_thread;
 	pthread_t shutdown_worker;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 9;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -1030,8 +1007,7 @@ static void test_admission_completion_before_observer(void)
 	pthread_t owner_thread;
 	uint64_t generation[2];
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
 		.evidence = &evidence, .boot_generation = 11,
 		.lifecycle = SMM_INVOCATION_LOADER_COLD,
@@ -1123,8 +1099,7 @@ static void test_retry_token_resnapshot_gaps(void)
 	pthread_t owner_thread;
 	uint64_t generation[2];
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 25;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -1247,8 +1222,7 @@ static void test_reservation_gap_failure_and_shutdown(void)
 	pthread_t thread;
 	pthread_t failure_thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 16;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -1287,8 +1261,7 @@ static void test_reservation_gap_failure_and_shutdown(void)
 	assert(!evidence.admission_reserved);
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 47,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
@@ -1319,8 +1292,7 @@ static void test_reservation_gap_failure_and_shutdown(void)
 	assert(!(__atomic_load_n(&evidence.state, __ATOMIC_ACQUIRE) & ~0x1fU));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 47,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
@@ -1347,8 +1319,7 @@ static void test_reservation_gap_failure_and_shutdown(void)
 	assert(!(__atomic_load_n(&evidence.state, __ATOMIC_ACQUIRE) & ~0x1fU));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 47,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	owner = (struct admission_try_arg) {
@@ -1397,8 +1368,7 @@ static void test_transient_completion_before_observer(void)
 	pthread_t observer_thread;
 	uint64_t generation[2];
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 9;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -1506,10 +1476,8 @@ static void test_admission_token_binding(void)
 	uint32_t phase;
 	uint32_t failed;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
-	assert(smm_invocation_evidence_provision(&other, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&other, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 23,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	assert(smm_invocation_evidence_arrive_try(&evidence, 0, 3,
@@ -1589,8 +1557,7 @@ static void test_admission_failure_completion_race(void)
 	pthread_t failure_thread;
 	uint64_t generation;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 29,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
@@ -1664,8 +1631,7 @@ static void test_terminal_wins_stale_admission_failure(void)
 	struct admission_fail_arg failure;
 	pthread_t thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 37,
 		SMM_INVOCATION_LOADER_COLD, &token) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -1715,8 +1681,7 @@ static void test_stale_failure_cannot_claim_new_attempt(void)
 	pthread_t failure_thread;
 	pthread_t owner_thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 39,
 		SMM_INVOCATION_LOADER_COLD, &arm) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -1777,8 +1742,7 @@ static void test_opening_completion_before_failure(void)
 	pthread_t owner_thread;
 	pthread_t failure_thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 41,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	evidence_hook_point = 1;
@@ -1835,8 +1799,7 @@ static void test_ack_failure_races(void)
 	pthread_t fail_threads[2];
 	uint64_t generation;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 7,
 		SMM_INVOCATION_LOADER_COLD) ==
 		CB_SUCCESS);
@@ -1874,8 +1837,7 @@ static void test_ack_failure_races(void)
 	assert(!__atomic_load_n(&evidence.generation, __ATOMIC_ACQUIRE));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 7,
 		SMM_INVOCATION_LOADER_COLD) ==
 		CB_SUCCESS);
@@ -1927,8 +1889,7 @@ static void test_poison_admitting_handoff(void)
 	pthread_t fail_thread;
 	uint64_t generation;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 31,
 		SMM_INVOCATION_LOADER_COLD) == CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3,
@@ -1993,8 +1954,7 @@ static void test_transient_owner_shutdown_races(void)
 	pthread_t closer;
 	struct smm_invocation_admission_token admission;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	evidence_hook_point = 9;
 	evidence_hook_entered = 0;
 	evidence_hook_release = 0;
@@ -2022,7 +1982,6 @@ static void test_transient_owner_shutdown_races(void)
 		.closed_generation = 7,
 		.closed_boot_generation = 9,
 		.closed_lifecycle = SMM_INVOCATION_LOADER_COLD,
-		.fail_stop = test_fail_stop,
 	};
 	shutdown = (struct shutdown_arg) { .evidence = &evidence };
 	struct eos_consume_arg consume = {
@@ -2060,7 +2019,6 @@ static void test_transient_owner_shutdown_races(void)
 		evidence = (struct smm_invocation_evidence) {
 			.state = stale_phases[i],
 			.generation = 7,
-			.fail_stop = test_fail_stop,
 		};
 		assert(smm_invocation_evidence_rendezvous_fail(&evidence, 7) ==
 			CB_ERR);
@@ -2072,8 +2030,7 @@ static void test_transient_owner_shutdown_races(void)
 
 	memset(&evidence, 0, sizeof(evidence));
 	seed.active_cpus = 2;
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 7,
 		SMM_INVOCATION_LOADER_COLD) ==
 		CB_SUCCESS);
@@ -2133,13 +2090,11 @@ static void test_reset_paths(void)
 		.recognized = 1,
 	};
 	uint8_t reset_code = 73;
+	fail_stop_exit_code = reset_code;
 	struct smm_invocation_entry_policy policy = {
 		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 		.size = sizeof(policy),
 		.max_polls = 2,
-		.reset = exit_reset,
-		.reset_context = &reset_code,
-		.reset_context_size = sizeof(reset_code),
 	};
 	pid_t child = fork();
 
@@ -2148,8 +2103,7 @@ static void test_reset_paths(void)
 		struct smm_invocation_evidence evidence = { 0 };
 		struct smm_invocation_entry_ticket ticket;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, 7,
 			0xa5, 0, 0x12345, &ticket);
 		abort();
@@ -2157,6 +2111,7 @@ static void test_reset_paths(void)
 	expect_exit(child, reset_code);
 
 	reset_code = 74;
+	fail_stop_exit_code = reset_code;
 	seed.active_cpus = 1;
 	child = fork();
 	assert(child >= 0);
@@ -2164,8 +2119,7 @@ static void test_reset_paths(void)
 		struct smm_invocation_evidence evidence = { 0 };
 		struct smm_invocation_entry_ticket ticket;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		(void)smm_invocation_entry_arrive(&evidence, &cause, &policy, 7,
 			0xa5, 0, 0x54321, &ticket);
 		abort();
@@ -2173,6 +2127,7 @@ static void test_reset_paths(void)
 	expect_exit(child, reset_code);
 
 	reset_code = 75;
+	fail_stop_exit_code = reset_code;
 	seed.active_cpus = 2;
 	policy.max_polls = 1000000;
 	child = fork();
@@ -2188,8 +2143,7 @@ static void test_reset_paths(void)
 		};
 		pthread_t thread;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		entry_hook_point = 2;
 		entry_hook_cpu = 0;
 		entry_hook_entered = 0;
@@ -2205,6 +2159,7 @@ static void test_reset_paths(void)
 	expect_exit(child, reset_code);
 
 	reset_code = 76;
+	fail_stop_exit_code = reset_code;
 	child = fork();
 	assert(child >= 0);
 	if (!child) {
@@ -2218,8 +2173,7 @@ static void test_reset_paths(void)
 		};
 		pthread_t thread;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		entry_hook_point = 2;
 		entry_hook_cpu = 0;
 		entry_hook_entered = 0;
@@ -2235,6 +2189,7 @@ static void test_reset_paths(void)
 	expect_exit(child, reset_code);
 
 	reset_code = 77;
+	fail_stop_exit_code = reset_code;
 	seed.active_cpus = 1;
 	child = fork();
 	assert(child >= 0);
@@ -2251,8 +2206,7 @@ static void test_reset_paths(void)
 		};
 		pthread_t thread;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		state.smm_revision = REV101;
 		state.io_misc_info = EXACT_IO;
 		state.rax = 0xa5;
@@ -2277,6 +2231,7 @@ static void test_reset_paths(void)
 	expect_exit(child, reset_code);
 
 	reset_code = 78;
+	fail_stop_exit_code = reset_code;
 	child = fork();
 	assert(child >= 0);
 	if (!child) {
@@ -2287,8 +2242,7 @@ static void test_reset_paths(void)
 		};
 		pthread_t thread;
 
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		entry_hook_point = 3;
 		entry_hook_cpu = 0;
 		entry_hook_entered = 0;
@@ -2305,12 +2259,14 @@ static void test_reset_paths(void)
 	entry_hook_point = 0;
 	entry_hook_cpu = UINT32_MAX;
 	entry_hook_release = 1;
+	fail_stop_exit_code = 0;
 }
 
 static void test_bounded_transient_resets(void)
 {
 	for (uint8_t mode = 0; mode < 5; mode++) {
 		uint8_t reset_code = (uint8_t)(81U + mode);
+		fail_stop_exit_code = reset_code;
 		pid_t child = fork();
 
 		assert(child >= 0);
@@ -2337,9 +2293,6 @@ static void test_bounded_transient_resets(void)
 				.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 				.size = sizeof(policy),
 				.max_polls = 2,
-				.reset = exit_reset,
-				.reset_context = &reset_code,
-				.reset_context_size = sizeof(reset_code),
 			};
 			struct smm_invocation_entry_ticket ticket;
 			struct ack_arm_arg arm = {
@@ -2354,8 +2307,7 @@ static void test_bounded_transient_resets(void)
 			};
 			pthread_t owner;
 
-			assert(smm_invocation_evidence_provision(&evidence, &seed,
-				test_fail_stop, NULL, 0) == CB_SUCCESS);
+			assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 			evidence_hook_entered = 0;
 			evidence_hook_release = 0;
 			if (mode == 0) {
@@ -2385,7 +2337,7 @@ static void test_bounded_transient_resets(void)
 				__atomic_store_n(&evidence.generation, 1U,
 					__ATOMIC_RELEASE);
 				smm_invocation_entry_test_ack_wait(&evidence, 1, 0,
-					&policy, &reset_code);
+					&policy);
 				abort();
 			}
 			while (!__atomic_load_n(&evidence_hook_entered,
@@ -2398,6 +2350,7 @@ static void test_bounded_transient_resets(void)
 		}
 		expect_exit(child, reset_code);
 	}
+	fail_stop_exit_code = 0;
 	evidence_hook_point = 0;
 	evidence_hook_release = 1;
 	entry_barrier_target = 0;
@@ -2433,8 +2386,7 @@ static void test_admission_token_replay_across_invocations(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 1, &top,
 		sizeof(state), REV101) == CB_SUCCESS);
 	assert(intel_smm_invocation_adapter_ops(&adapter, &ops) == CB_SUCCESS);
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 43,
 		SMM_INVOCATION_LOADER_COLD, &arm) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2510,7 +2462,6 @@ static void test_departure_timeout_suppresses_owner(void)
 		.cpu = 0,
 		.lifecycle = SMM_INVOCATION_LOADER_COLD,
 		.max_polls = 1,
-		.reset = thread_reset,
 	};
 	struct departure_try_arg owner = {
 		.evidence = &evidence, .cpu = 0,
@@ -2521,8 +2472,7 @@ static void test_departure_timeout_suppresses_owner(void)
 	pthread_t owner_thread;
 	pthread_t timeout_thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 61,
 		SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2548,6 +2498,7 @@ static void test_departure_timeout_suppresses_owner(void)
 		&owner));
 	while (!__atomic_load_n(&evidence_hook_entered, __ATOMIC_ACQUIRE))
 		__asm__ volatile ("pause");
+	fail_stop_thread_exit = 1;
 	assert(!pthread_create(&timeout_thread, NULL, depart_thread, &timeout));
 	while (!__atomic_load_n(&evidence_hook_entered_secondary,
 		__ATOMIC_ACQUIRE))
@@ -2564,6 +2515,9 @@ static void test_departure_timeout_suppresses_owner(void)
 	__atomic_store_n(&evidence_hook_release_secondary, 1U,
 		__ATOMIC_RELEASE);
 	assert(!pthread_join(timeout_thread, NULL));
+	assert(__atomic_load_n(&fail_stop_calls, __ATOMIC_RELAXED) == 1U);
+	__atomic_store_n(&fail_stop_calls, 0U, __ATOMIC_RELAXED);
+	fail_stop_thread_exit = 0;
 	assert(smm_invocation_evidence_phase(&evidence) ==
 		SMM_INVOCATION_POISONED);
 	assert(!__atomic_load_n(&evidence.departed_cpus, __ATOMIC_ACQUIRE));
@@ -2650,8 +2604,7 @@ static uint64_t prepare_single_cpu_departure(
 		.lifecycle = SMM_INVOCATION_LOADER_COLD,
 	};
 
-	assert(smm_invocation_evidence_provision(evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(evidence, &seed) == CB_SUCCESS);
 	return close_single_cpu_invocation(evidence, boot_generation);
 }
 
@@ -2778,8 +2731,7 @@ static void test_stale_generation_cannot_claim_repeated_phase(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
 		68, SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2848,8 +2800,7 @@ static void test_stale_shutdown_cannot_dirty_terminal(void)
 	pthread_t thread;
 	uint32_t state;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	state = __atomic_load_n(&evidence.state, __ATOMIC_ACQUIRE);
 	__atomic_store_n(&evidence.state,
 		(state & ~0x1fU) | SMM_INVOCATION_PROVISIONING,
@@ -2925,8 +2876,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 		SMM_INVOCATION_CLOSED);
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	__atomic_fetch_or(&evidence.state, TEST_SHUTDOWN_REQUESTED,
 		__ATOMIC_ACQ_REL);
 	memcpy(&snapshot, &evidence, sizeof(snapshot));
@@ -2936,8 +2886,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
 		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2949,8 +2898,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
 		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2964,8 +2912,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
 		71, SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -2998,8 +2945,7 @@ static void test_packed_latches_and_terminal_shutdown(void)
 	assert(child >= 0);
 	if (!child) {
 		memset(&evidence, 0, sizeof(evidence));
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_SUCCESS);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 		evidence_hook_point = 38;
 		evidence_hook_entered = 0;
 		evidence_hook_release = 0;
@@ -3055,8 +3001,7 @@ static void test_provision_rejects_dirty_empty_state(void)
 		__atomic_store_n(&evidence.state, dirty_states[i],
 			__ATOMIC_RELAXED);
 		memcpy(&snapshot, &evidence, sizeof(snapshot));
-		assert(smm_invocation_evidence_provision(&evidence, &seed,
-			test_fail_stop, NULL, 0) == CB_ERR);
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_ERR);
 		assert(!memcmp(&snapshot, &evidence, sizeof(snapshot)));
 	}
 }
@@ -3080,8 +3025,7 @@ static void test_cleanup_claim_retries_packed_latch(void)
 	};
 	pthread_t owner_thread;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
 		CB_SUCCESS);
 	assert(test_arrive(&evidence, 0, 3, &failure.generation) ==
@@ -3140,8 +3084,7 @@ static void test_phase_claim_retries_packed_latch(void)
 	pthread_t shutdown_thread_id;
 	uint64_t generation;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
 		CB_SUCCESS);
 	operation = (struct admission_try_arg) {
@@ -3175,8 +3118,7 @@ static void test_phase_claim_retries_packed_latch(void)
 		SMM_INVOCATION_CLOSED);
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	operation = (struct admission_try_arg) {
 		.evidence = &evidence,
 		.boot_generation = seed.boot_generation + 1U,
@@ -3200,8 +3142,7 @@ static void test_phase_claim_retries_packed_latch(void)
 		SMM_INVOCATION_CLOSED);
 
 	memset(&evidence, 0, sizeof(evidence));
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, seed.boot_generation, seed.lifecycle) ==
 		CB_SUCCESS);
 	operation = (struct admission_try_arg) {
@@ -3266,8 +3207,7 @@ static void test_stale_reentry_cannot_dirty_next_state(void)
 	pthread_t stale_thread;
 	uint64_t generation;
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence, 68,
 		SMM_INVOCATION_LOADER_COLD, &admission) ==
 		SMM_INVOCATION_TRY_SUCCESS);
@@ -3341,7 +3281,6 @@ static void test_rendezvous_and_departure(void)
 		.revision = SMM_INVOCATION_ENTRY_POLICY_REVISION,
 		.size = sizeof(policy),
 		.max_polls = 1000000,
-		.reset = test_fail_stop,
 	};
 	struct arrival_arg arrivals[2] = {
 		{ .evidence = &evidence, .cause = &cause, .policy = &policy,
@@ -3360,8 +3299,7 @@ static void test_rendezvous_and_departure(void)
 	assert(intel_smm_invocation_adapter_init(&adapter, 2, duplicate_tops,
 		sizeof(states[0]), REV101) == CB_ERR);
 
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	states[0].smm_revision = REV101;
 	states[0].io_misc_info = EXACT_IO;
 	states[0].rax = 0xa5;
@@ -3387,7 +3325,6 @@ static void test_rendezvous_and_departure(void)
 			.cpu = cpu,
 			.lifecycle = cause.lifecycle,
 			.max_polls = policy.max_polls,
-			.reset = test_fail_stop,
 		};
 		arrivals[cpu].result = CB_SUCCESS;
 	}
@@ -3421,8 +3358,7 @@ static void test_rendezvous_and_departure(void)
 		};
 		pthread_t thread;
 
-		mutable.reset = thread_reset;
-
+		fail_stop_thread_exit = 1;
 		entry_hook_point = 5;
 		entry_hook_cpu = mutable.cpu;
 		entry_hook_entered = 0;
@@ -3447,11 +3383,9 @@ static void test_rendezvous_and_departure(void)
 	if (!stalled_child) {
 		struct smm_invocation_entry_ticket stalled = arrivals[1].ticket;
 		uint8_t reset_code = 96;
+		fail_stop_exit_code = reset_code;
 
 		stalled.max_polls = 2;
-		stalled.reset = exit_reset;
-		stalled.reset_context[0] = reset_code;
-		stalled.reset_context_size = 1;
 		__atomic_store_n(&evidence.state,
 			SMM_INVOCATION_DEPARTURE_ADMITTING, __ATOMIC_RELEASE);
 		(void)smm_invocation_entry_depart(&evidence, &stalled);
@@ -3475,8 +3409,7 @@ static void test_rendezvous_and_departure(void)
 		};
 		pthread_t thread;
 
-		mutable.reset = thread_reset;
-
+		fail_stop_thread_exit = 1;
 		entry_hook_point = 7;
 		entry_hook_cpu = mutable.cpu;
 		entry_hook_entered = 0;
@@ -3547,8 +3480,7 @@ static void test_claim_requires_all_acknowledgements(void)
 	states[0].io_misc_info = EXACT_IO;
 	states[0].rax = 0xa5;
 	states[1].smm_revision = REV101;
-	assert(smm_invocation_evidence_provision(&evidence, &seed,
-		test_fail_stop, NULL, 0) == CB_SUCCESS);
+	assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
 	assert(test_arm(&evidence, 9,
 		SMM_INVOCATION_LOADER_COLD) ==
 		CB_SUCCESS);

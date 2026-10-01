@@ -9,6 +9,7 @@ mkdir -p "$temporary/include"
 printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_FAIL_STOP_PLATFORM 1' \
 	'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
 	> "$temporary/include/config.h"
 
@@ -82,6 +83,8 @@ mutation()
 }
 
 mutation exact-one 's/matches != 1U/matches == 0U/'
+mutation linked-fail-stop \
+	's/smm_invocation_platform_fail_stop();/__builtin_trap();/'
 mutation exact-bsp 's/initiator != evidence->bsp_cpu/false/'
 mutation sentinel-command 's/(uint8_t)sentinel != command/false/'
 mutation exact-apic \

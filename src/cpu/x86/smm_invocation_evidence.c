@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/smm_invocation_evidence.h>
+#include <cpu/x86/smm_invocation_fail_stop.h>
 #include <string.h>
 
 #if defined(__TEST__)
@@ -73,8 +74,7 @@ static bool close_requested(const struct smm_invocation_evidence *evidence)
 		INVOCATION_CLOSE_REQUESTED;
 }
 
-static void __noreturn invocation_fail_stop(
-	struct smm_invocation_evidence *evidence);
+static void __noreturn invocation_fail_stop(void);
 
 static bool phase_claim(struct smm_invocation_evidence *evidence,
 	uint32_t from, uint32_t to)
@@ -103,7 +103,7 @@ static bool phase_claim(struct smm_invocation_evidence *evidence,
 		if ((state & STATE_PHASE_MASK) != from)
 			return false;
 	}
-	invocation_fail_stop(evidence);
+	invocation_fail_stop();
 }
 
 static bool state_claim_exact(struct smm_invocation_evidence *evidence,
@@ -239,9 +239,6 @@ static void scrub_fields(struct smm_invocation_evidence *evidence)
 	evidence->admission_reserved = 0;
 	scrub(evidence->participant_apic_ids,
 		sizeof(evidence->participant_apic_ids));
-	evidence->fail_stop = NULL;
-	scrub(evidence->fail_context, sizeof(evidence->fail_context));
-	evidence->fail_context_size = 0;
 }
 
 static void terminal_scrub(struct smm_invocation_evidence *evidence)
@@ -303,7 +300,7 @@ static void admission_complete(struct smm_invocation_evidence *evidence,
 			__ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
 			return;
 	}
-	invocation_fail_stop(evidence);
+	invocation_fail_stop();
 }
 
 static void admission_token_fill_control(
@@ -358,6 +355,7 @@ static bool cleanup_claim(struct smm_invocation_evidence *evidence,
 	uint32_t original = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
 	uint32_t state = original;
 
+	(void)hook;
 	if ((state & STATE_PHASE_MASK) != from)
 		return false;
 	TEST_HOOK(hook);
@@ -374,7 +372,7 @@ static bool cleanup_claim(struct smm_invocation_evidence *evidence,
 			(original & INVOCATION_LATCH_MASK))
 			return false;
 	}
-	invocation_fail_stop(evidence);
+	invocation_fail_stop();
 }
 
 static void poison_finish_if_quiescent(
@@ -408,7 +406,7 @@ static enum cb_err poison_owned(struct smm_invocation_evidence *evidence,
 			SMM_INVOCATION_POISONING))
 			goto claimed;
 	}
-	invocation_fail_stop(evidence);
+	invocation_fail_stop();
 
 claimed:
 	poison_finish_if_quiescent(evidence);
@@ -453,38 +451,20 @@ static void rendezvous_poison_requested(
 		return;
 }
 
-static void __noreturn invocation_fail_stop(
-	struct smm_invocation_evidence *evidence)
+static void __noreturn invocation_fail_stop(void)
 {
-	smm_invocation_fail_stop_fn stop = evidence->fail_stop;
-	uint8_t context[SMM_INVOCATION_EVIDENCE_CONTEXT_MAX];
-	const size_t size = evidence->fail_context_size;
-
-	if (!stop || size > sizeof(context))
-		__builtin_trap();
-	memcpy(context, evidence->fail_context, size);
-	stop(context);
-	__builtin_trap();
+	smm_invocation_platform_fail_stop();
 }
 
 enum cb_err smm_invocation_evidence_provision(
 	struct smm_invocation_evidence *evidence,
-	const struct smm_invocation_loader_seed *seed,
-	smm_invocation_fail_stop_fn fail_stop, const void *fail_context,
-	size_t fail_context_size)
+	const struct smm_invocation_loader_seed *seed)
 {
 	struct smm_invocation_loader_seed snapshot;
 	uint32_t empty = SMM_INVOCATION_EMPTY;
 
-	if (!evidence || !seed || !fail_stop ||
-	    fail_context_size > SMM_INVOCATION_EVIDENCE_CONTEXT_MAX ||
-	    (fail_context_size && !fail_context) ||
-	    ranges_overlap(evidence, sizeof(*evidence), seed, sizeof(*seed)) ||
-	    (fail_context_size &&
-	     (ranges_overlap(evidence, sizeof(*evidence), fail_context,
-		fail_context_size) ||
-	      ranges_overlap(seed, sizeof(*seed), fail_context,
-		fail_context_size))))
+	if (!evidence || !seed ||
+	    ranges_overlap(evidence, sizeof(*evidence), seed, sizeof(*seed)))
 		return CB_ERR;
 	memcpy(&snapshot, seed, sizeof(snapshot));
 	if (!seed_valid(&snapshot) ||
@@ -518,10 +498,6 @@ enum cb_err smm_invocation_evidence_provision(
 	memcpy(evidence->participant_apic_ids, snapshot.participant_apic_ids,
 		snapshot.active_cpus * sizeof(snapshot.participant_apic_ids[0]));
 	evidence->expected_cpus = cpu_mask(snapshot.active_cpus);
-	evidence->fail_stop = fail_stop;
-	if (fail_context_size)
-		memcpy(evidence->fail_context, fail_context, fail_context_size);
-	evidence->fail_context_size = fail_context_size;
 	__atomic_store_n(&evidence->rendezvous_fail_requested, 0U,
 		__ATOMIC_RELAXED);
 	scrub(&snapshot, sizeof(snapshot));
@@ -932,7 +908,7 @@ claimed:
 	__atomic_store_n(&evidence->rendezvous_fail_requested, 1U,
 		__ATOMIC_RELEASE);
 	if (!shutdown_request(evidence, target))
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	phase_publish(evidence, SMM_INVOCATION_POISONING);
 	poison_finish_if_quiescent(evidence);
 	return CB_ERR;
@@ -1143,14 +1119,14 @@ static bool restore_or_fail_stop(struct smm_invocation_evidence *evidence,
 
 	if (ops->write_rax(ops->context, initiator, evidence->original_rax) !=
 		CB_SUCCESS)
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	unchanged = ops_unchanged(source, ops) && !callback_reentered(evidence);
 	if (ops->read_rax(ops->context, initiator, &readback) != CB_SUCCESS)
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	unchanged = unchanged && ops_unchanged(source, ops) &&
 		!callback_reentered(evidence);
 	if (readback != evidence->original_rax)
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	return unchanged;
 }
 
@@ -1172,7 +1148,7 @@ static enum cb_err close_owned(struct smm_invocation_evidence *evidence,
 			false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 			return CB_ERR;
 	}
-	invocation_fail_stop(evidence);
+	invocation_fail_stop();
 	return CB_ERR;
 }
 
@@ -1318,7 +1294,7 @@ enum cb_err smm_invocation_evidence_claim(
 	if (!phase_claim(evidence, SMM_INVOCATION_CLAIMING,
 		SMM_INVOCATION_CLAIMED)) {
 		(void)restore_or_fail_stop(evidence, ops, &snapshot, initiator);
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	}
 	if (smm_invocation_evidence_shutdown_requested(evidence)) {
 		if (!restore_or_fail_stop(evidence, ops, &snapshot, initiator))
@@ -1393,15 +1369,15 @@ enum cb_err smm_invocation_evidence_publish(
 	    snapshot.read_rax(snapshot.context, token_snapshot.initiator_cpu,
 		&readback) != CB_SUCCESS || !ops_unchanged(ops, &snapshot) ||
 	    callback_reentered(evidence) || readback != value)
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	TEST_HOOK(4);
 	if (!phase_claim(evidence, SMM_INVOCATION_PUBLISHING,
 		SMM_INVOCATION_PUBLISHED))
-		invocation_fail_stop(evidence);
+		invocation_fail_stop();
 	if (smm_invocation_evidence_shutdown_requested(evidence)) {
 		if (!phase_claim(evidence, SMM_INVOCATION_PUBLISHED,
 			SMM_INVOCATION_COMPLETING))
-			invocation_fail_stop(evidence);
+			invocation_fail_stop();
 		(void)close_owned(evidence, SMM_INVOCATION_COMPLETING);
 		scrub(&snapshot, sizeof(snapshot));
 		scrub(&token_snapshot, sizeof(token_snapshot));
@@ -1609,7 +1585,7 @@ enum cb_err smm_invocation_evidence_ticket_fail(
 			TEST_HOOK(26);
 			if (!shutdown_request(evidence,
 				SMM_INVOCATION_DEPARTURE_FAIL_ADMITTING))
-				invocation_fail_stop(evidence);
+				invocation_fail_stop();
 			phase_publish(evidence, SMM_INVOCATION_POISONING);
 			poison_finish_if_quiescent(evidence);
 			return CB_ERR;
@@ -1624,7 +1600,7 @@ enum cb_err smm_invocation_evidence_ticket_fail(
 			SMM_INVOCATION_CLOSING))
 			return CB_ERR;
 		if (!shutdown_request(evidence, SMM_INVOCATION_CLOSING))
-			invocation_fail_stop(evidence);
+			invocation_fail_stop();
 		terminal_scrub(evidence);
 		phase_publish(evidence, SMM_INVOCATION_CLOSED);
 		return CB_ERR;
@@ -1681,7 +1657,7 @@ enum cb_err smm_invocation_evidence_shutdown(
 		phase = phase_load(evidence);
 		TEST_HOOK(30);
 		if (phase > SMM_INVOCATION_POISONED)
-			invocation_fail_stop(evidence);
+			invocation_fail_stop();
 		if (phase == SMM_INVOCATION_CLOSED)
 			return CB_SUCCESS;
 		if (phase == SMM_INVOCATION_POISONED)
@@ -1704,7 +1680,7 @@ enum cb_err smm_invocation_evidence_shutdown(
 				continue;
 			if (__atomic_load_n(&evidence->arrival_writers,
 				__ATOMIC_ACQUIRE))
-				invocation_fail_stop(evidence);
+				invocation_fail_stop();
 			terminal_scrub(evidence);
 			phase_publish(evidence, SMM_INVOCATION_CLOSED);
 			return CB_SUCCESS;
@@ -1719,7 +1695,7 @@ enum cb_err smm_invocation_evidence_shutdown(
 			return CB_ERR;
 		}
 		if (phase == SMM_INVOCATION_CLAIMED)
-			invocation_fail_stop(evidence);
+			invocation_fail_stop();
 		if (phase == SMM_INVOCATION_COLLECTING &&
 		    !__atomic_load_n(&evidence->arrival_writers, __ATOMIC_ACQUIRE) &&
 		    __atomic_load_n(&evidence->arrived_cpus, __ATOMIC_ACQUIRE) ==
@@ -1733,7 +1709,7 @@ enum cb_err smm_invocation_evidence_shutdown(
 			continue;
 		}
 		if (++spins == 10000000U)
-			invocation_fail_stop(evidence);
+			invocation_fail_stop();
 		__asm__ volatile ("pause");
 	}
 }

@@ -11,6 +11,7 @@ ledger="$temporary/execution-ledger"
 printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_FAIL_STOP_PLATFORM 1' \
 	'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
 	'#define CONFIG_SMM_INVOCATION_ENTRY 1' \
 	'#define CONFIG_SMM_INVOCATION_INTEL_ADAPTER 1' \
@@ -200,6 +201,50 @@ for source in \
 done
 ld -m elf_i386 -r "$temporary"/*-32.o -o "$temporary/entry-adapter-32.o"
 
+for source in smm_invocation_evidence smm_invocation_entry; do
+	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -D__COREBOOT__ \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$temporary/include" -I"$root/src/include" -I"$root/src" \
+		-I"$root/src/commonlib/include" \
+		-I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" -c \
+		"$root/src/cpu/x86/$source.c" -o "$temporary/$source.o"
+	[ "$(nm -u "$temporary/$source.o" | \
+		awk '$2 == "smm_invocation_platform_fail_stop" { count++ } END { print count + 0 }')" \
+		-eq 1 ]
+done
+printf '%s\n' 'int main(void) { return 0; }' > "$temporary/fail-stop-main.c"
+if ${CC:-cc} "$temporary/fail-stop-main.c" \
+	"$temporary/smm_invocation_evidence.o" \
+	"$temporary/smm_invocation_entry.o" -o "$temporary/no-provider" \
+	>"$temporary/no-provider.log" 2>&1; then
+	printf '%s\n' 'SMM invocation objects linked without fail-stop provider' >&2
+	exit 1
+fi
+grep -q 'smm_invocation_platform_fail_stop' "$temporary/no-provider.log"
+printf '%s\n' \
+	'#include <stdlib.h>' \
+	'void smm_invocation_platform_fail_stop(void) { _Exit(99); }' \
+	> "$temporary/fail-stop-provider.c"
+${CC:-cc} -c "$temporary/fail-stop-provider.c" \
+	-o "$temporary/fail-stop-provider.o"
+${CC:-cc} "$temporary/fail-stop-main.c" \
+	"$temporary/smm_invocation_evidence.o" \
+	"$temporary/smm_invocation_entry.o" \
+	"$temporary/fail-stop-provider.o" -o "$temporary/one-provider"
+if ${CC:-cc} "$temporary/fail-stop-main.c" \
+	"$temporary/smm_invocation_evidence.o" \
+	"$temporary/smm_invocation_entry.o" \
+	"$temporary/fail-stop-provider.o" "$temporary/fail-stop-provider.o" \
+	-o "$temporary/two-providers" >"$temporary/two-providers.log" 2>&1; then
+	printf '%s\n' 'duplicate SMM fail-stop providers linked' >&2
+	exit 1
+fi
+grep -q 'multiple definition.*smm_invocation_platform_fail_stop' \
+	"$temporary/two-providers.log"
+
 for bits in 32 64; do
 	arch=x86_$bits
 	${CC:-cc} -m$bits -std=gnu11 -ffreestanding -fno-builtin \
@@ -321,9 +366,9 @@ mutate_component eos-one-use \
 mutate_component policy-source-stability \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
 	's/!memcmp(policy, policy_snapshot, sizeof(\*policy_snapshot))/(!memcmp(policy, policy_snapshot, sizeof(*policy_snapshot)) || true)/'
-mutate_component policy-nested-snapshot \
+mutate_component linked-fail-stop \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
-	's/memcpy(reset_context, policy_snapshot.reset_context,/memcpy(reset_context, policy->reset_context,/'
+	's/smm_invocation_platform_fail_stop();/__builtin_trap();/'
 mutate_component depart-precommit-ticket \
 	"$root/src/cpu/x86/smm_invocation_entry.c" \
 	'/smm_invocation_entry_depart/,/return CB_SUCCESS;/{s/if (memcmp(ticket, \&snapshot, sizeof(snapshot)))/if (false)/}'
@@ -440,8 +485,22 @@ if rg -q 'smm_invocation_entry_(arrive|depart|eos_ready)' "$root/src" \
 	printf '%s\n' 'dormant entry helper gained a production callsite' >&2
 	exit 1
 fi
-if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)' "$root/src"; then
+if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER|FAIL_STOP_PLATFORM)' \
+	"$root/src"; then
 	printf '%s\n' 'dormant entry or adapter became selected' >&2
+	exit 1
+fi
+if rg -q 'reset_context|fail_context|smm_invocation_(entry_reset|fail_stop)_fn' \
+	"$root/src/include/cpu/x86/smm_invocation_entry.h" \
+	"$root/src/include/cpu/x86/smm_invocation_evidence.h" \
+	"$root/src/cpu/x86/smm_invocation_entry.c" \
+	"$root/src/cpu/x86/smm_invocation_evidence.c"; then
+	printf '%s\n' 'SMM invocation state regained fail-stop pointer transport' >&2
+	exit 1
+fi
+if rg -q '__weak.*smm_invocation_platform_fail_stop|smm_invocation_platform_fail_stop[^{;]*\{' \
+	"$root/src"; then
+	printf '%s\n' 'generic tree gained a fail-stop provider definition' >&2
 	exit 1
 fi
 grep -q '^smm-$(CONFIG_SMM_INVOCATION_INTEL_ADAPTER) += invocation_adapter.c$' \
