@@ -155,6 +155,56 @@ Historical native and release records are preserved independently; neither
 accepts this new artifact. This is still an SMM-only artifact calculation,
 not a whole-ROM, hardware, loader-lifetime or public-variable cutover signoff.
 
+### Private-receipt delivery release record
+
+A separate fixture enables the BOOT-private primitive together with the
+attested service route at production source
+`df3b5db2890377bac91210c430839472588ff51d`. The default remains private-OFF;
+the optional test-only profile depends on the existing full service
+prerequisites and does not change production selection.
+
+```sh
+MTL_AUTHVAR_SELECTED_BOOT_PRIVATE=1 \
+    MTL_AUTHVAR_SELECTED_XGCCPATH=/path/to/coreboot/util/crossgcc/xgcc/bin \
+    KEEP_MTL_AUTHVAR_SELECTED_TMP=1 \
+    sh tests/mainboard/starbook_mtl_authvar_selected_service_test.sh
+node tests/mainboard/starbook_mtl_authvar_selected_stack_audit.js \
+    --release-private-delivery-recorded ON/smm
+```
+
+The actual OFF and ON links select the pinned release compiler above with
+`ANY_TOOLCHAIN` disabled. ON has `PAYLOAD_BOOT_PRIVATE_BUFFER=y`, the existing
+16 KiB per-CPU stack and 16 MiB TSEG, and retains exactly one BOOT lease
+prepare/close and private receipt-consume implementation. The `fc` held-lease
+begin/recheck operations remain unreferenced and are discarded from this ELF;
+their protection walker is not covered by this selected record.
+
+| Private-delivery release input/artifact | SHA-256 |
+| --- | --- |
+| ON `full.config` | `a3123ad1f869777c1c8f7c7e57f0e2b1d5a1564c11f7c5d8ead5336631f61ee4` |
+| ON `smm/smm.elf` | `4b339979a62be5b5d248b6ea92d42df43792ec826aa7f4f0b0a390256ff97893` |
+| Sorted 396 `.ci`/`.su` paths and contents | `5c6e51feadfe605d3199fa7aa2b2be1a2100c12860ac385e6ab867652130ce7f` |
+
+Actual linked BOOT route installation calls service finalization before lease
+prepare and its signed receipt consumer, with failure cleanup and repeated
+472-byte request comparisons. These are direct calls, not new callback
+bindings or recursive edges. The receiver's 1,296-byte frame reaches a
+3,196-byte receipt/MAC path; lease prepare's 336-byte frame reaches a
+1,724-byte bootstrap-admission path. Neither exceeds the existing route
+binding maximum. Both selected root maxima remain 9,908 and 12,004 nested C
+bytes, with no unresolved reachable edges, unbounded recursion or unknown
+native targets. The outer 544/32-byte frames and 39-byte entry allowance
+still give artifact-qualified totals of 10,531 and 12,627 bytes.
+
+The release division-helper assembly remains separately checked: four saved
+registers and 28 local bytes for `__umoddi3`, with no calls or recursion.
+All historical records remain unchanged and reject this different artifact.
+The changed BOOT frame is not covered by the earlier private-OFF records.
+This SMM-only calculation does not prove live hardware placement, one fully
+joined delivery authority, tag-0x58 publication, consumer copy coherence,
+resumed-CPU protection, terminal loader lifetime or public-runtime activation.
+Final whole-ROM and hardware gates remain separate.
+
 Each following value is the maximum nested C path found within the named
 selected root, including conservative four-byte return-slot additions per
 call. GCC's static or `dynamic,bounded` frame values already include its
