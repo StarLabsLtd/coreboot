@@ -417,3 +417,88 @@ This validates the selected Q35 owner composition, not platform-wide early-DMA
 activation, protected variable ownership, the complete final loader/capsule
 matrix, or hardware. Linux table detection does not assert every BGRT field or
 OS presentation behavior; those remain separate validation requirements.
+
+## Exact CDK2 PR445/coreboot PR346 validation
+
+Concatenate `qemu-reviewed-346-445.tar.gz.part-aa`, `part-ab` and `part-ac`
+in that order. Whole archive SHA-256 is
+`fd01dfcec3d0e2af8ef9f72ee71f287adf0b77ffbf00d8257bdcd4ab1ba2d867`.
+The three part hashes respectively are
+`a74c01651641bcb7bf80cd39b0d78a88c372228b8d8236734526a6040db8200d`,
+`82a75e51a7ee6b63f8d6dceaea106183366838fd87a5a340c9c1e95cfb381b91`,
+and `d855e6baefcc79e39a9ca80ee95a02754458ba2d10eb0d72d10a226b516cbf92`.
+The enclosed checksum manifest covers retained files; TPM state, sockets and
+process IDs are excluded. Absolute fixture/pflash identities are preserved.
+
+Exact source is signed CDK2 `9291e98a5fe6e9b18462fe5f412541f8c32abf63`.
+The continuing `make -j4 check` succeeds with the complete tool PATH, including
+the newly aggregated real-PE PCI configuration-toggle gate. Its managed unit
+is inactive, MainPID zero, Result success and ExecMainStatus zero. Separate
+explicit stable lint and actual native-coreboot-image packaging also succeed.
+This directory originated at PR434; it is not another fresh whole-suite build.
+Continuing config SHA-256 is
+`6942c16419bb25e1ce8e760bf383bc7ffbcbc9fcf80f77c55e6a968f5baffe24`,
+and packaged ELF is
+`d249c53541ac8c9c8b37c1938d27752feb4f6cefed4a4c3e52016b808b611ba1`.
+
+The separately fresh 36-record setup composition passes native layout, strict
+MTRR and coreboot gates. Its config SHA-256 is
+`b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`,
+and native ELF is
+`78311211f29acfb4f7d742acd02a54f3268b2106221b5d9ebc1c5cf75df5b8ac`.
+It is paired with the genuine previously compiled coreboot PR346 producer
+described above, not claimed as a new producer build or committed gitlink pin.
+Final ROM SHA-256 is
+`d5e9f46d5f0c32de884fe00228d511ecc8ff5a1bd19d2f27c97e25585abc806d`.
+
+Actual QEMU runtime and three-boot setup acceptance pass: F2 navigation,
+Escape/logo restoration/Linux continuation, OS firmware-setup request and
+subsequent setup presentation. Root visually inspects real status and LVGL
+controls; both before/restored RGB crops match the configured BMP exactly.
+Linux detects BGRT. An independent peer replays the actual original-path
+runtime/hotkey/firmware-setup oracles, verifies all 90 retained-file checksums
+in a fresh extraction, confirms exclusions and compares both logo crops.
+Relocated fixture identity refusals are not rewritten into false passes.
+These compatibility-provider QEMU results are
+not protected-owner activation, every BGRT field, hardware or final sign-off.
+
+## Separate selected held-op9 SMM record
+
+`mtl-selected-held-op9.tar.gz` has SHA-256
+`2c46bf25219df9577178642f94807ac2697ea89ebeab2b4842ca3e6a853328fc`.
+It preserves the fresh actual pinned-crossgcc OFF/ON SMM-only links from the
+reviewed production checkpoint `c1faacd3da6011d75eb2430871d402144624272c`.
+The source-equivalent final clean three-commit split is
+`d159942f5e77425c84e81a75988ee3741ea23653`, directly after coreboot PR347.
+No dirty submodule changes are included in those commits.
+
+The new `--release-held-op9-recorded` diagnostic binds ON ELF
+`62b897781711fe574d601668e29630be083a0c4d602afc9bb604a0272d55fe5c`,
+configuration `0b5be5aa9b706d8f29e73b3815522022bf3378100d347578ebc5f51497ef8a33`
+and 396 compiler annotation paths/contents
+`4fadc1727ba8d8112f261f05f35813e724b1427f0c7d38c1d50d60e4c9f95b4b`.
+Compiler identity remains the pinned executable documented above. Configs,
+ELFs, xcompile selections, build logs, compiler annotations and component/audit
+logs are retained; FSP binaries, toolchain executables and signer material are
+not included. The checksum manifest covers every retained file.
+
+Root and independent peer replay the actual graph and inspect the linked
+BEGIN/transaction/RECHECK/copy/COMPLETE order. New strong delivery, held verifier
+and live walker nested maxima are 2,252/2,160/1,280 bytes. The newly calculated
+selected BOOT/runtime maxima remain 9,908/12,004, with no unresolved edges,
+unbounded recursion or unknown native targets. Reviewed outer allowances give
+10,531/12,627 within the selected 16,384-byte per-CPU stack. Returning delivery
+checks are not simultaneously nested with the transaction's CMS path.
+All four historical recorded artifacts still replay unchanged and reject the
+new artifact through their historical modes. Root also replays the copied
+annotation tree at its new path without changing any identity.
+
+Independent component execution covers unchanged production and C fixtures;
+the later runner-only narrowing of causal assertions is independently source/
+generated-mutant/log reviewed, not claimed as another whole recompilation.
+Actual missing-BEGIN and missing-RECHECK mutants fail at their specific media
+and pre-copy assertions, rather than arbitrary sanitizer failure.
+An independent fresh extraction verifies all 476 retained-file checksums,
+exclusions and the exact recorded graph. This SMM-only link does not prove first native-entry origin, resumed
+CPU copy lifetime, terminal loader/EBS/S3 closure, public variable activation,
+hardware placement, a whole-ROM or final project sign-off.
