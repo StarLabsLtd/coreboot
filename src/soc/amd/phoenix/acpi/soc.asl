@@ -54,7 +54,9 @@ External(\_SB.DPTC, MethodObj)
 Method (PNOT)
 {
 	/* Report AC/DC state to ALIB using WAL1() */
-	\WAL1 ()
+	If (CondRefOf (\_SB.ALIB)) {
+		\WAL1 ()
+	}
 
 	If (CondRefOf (\_SB.DPTC)) {
 		\_SB.DPTC()
