@@ -69,7 +69,8 @@ bool starbook_mtl_dma_receipt_transport_frame(uintptr_t *base, size_t *size)
 
 enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	struct payload_mm_authvar_presence_bootstrap_receipts *receipts,
-	struct payload_mm_authvar_presence_tuple_sender *sender)
+	struct payload_mm_authvar_presence_tuple_sender *sender,
+	struct bootmem_reservation_receipt *boot_private)
 {
 	emissions++;
 	memset(receipts, 0x36, sizeof(*receipts));
@@ -78,6 +79,7 @@ enum cb_err payload_mm_authvar_presence_tuple_sender_receipts_take(
 	receipts->service.bytes = PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE;
 	receipts->service.generation = 7;
 	memset(sender, 0, sizeof(*sender));
+	memset(boot_private, 0, sizeof(*boot_private));
 	return scenario == 7 ? CB_ERR : CB_SUCCESS;
 }
 
@@ -131,6 +133,12 @@ uint64_t starbook_mtl_presence_bootstrap_trigger_test(uint32_t request, uint32_t
 	case 25: frame.service_endpoint.reserved = 1; break;
 	case 26: frame.revision = 1; break;
 	case 27: frame.size -= (uint32_t)sizeof(frame.service_endpoint); break;
+	case 29:
+		frame.boot_private.mac[0] = 1;
+		break;
+	case 30:
+		frame.revision = 2;
+		break;
 	}
 	return STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS;
 }
@@ -138,7 +146,7 @@ uint64_t starbook_mtl_presence_bootstrap_trigger_test(uint32_t request, uint32_t
 void die(const char *format, ...)
 {
 	(void)format;
-	require(scenario >= 2 && scenario <= 27 && !table_records);
+	require(scenario >= 2 && scenario <= 30 && !table_records);
 	require(frame_queries == (scenario == 2 ? 0U : 1U));
 	require(emissions == (scenario >= 7 ? 1U : 0U));
 	require(triggers == (scenario >= 8 ? 1U : 0U));

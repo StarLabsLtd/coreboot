@@ -186,13 +186,17 @@ int main(int argc, char **argv)
 		frame.revision = 1;
 	if (scenario == 19)
 		frame.size = 312;
+	if (scenario == 20)
+		frame.boot_private.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION;
+	if (scenario == 21)
+		frame.revision = 2;
 	result = starbook_mtl_presence_bootstrap_receive(&ops);
 	if (scenario == 1) {
 		require(result == STARBOOK_MTL_PRESENCE_NOT_BOOTSTRAP && !imports && !writes);
 		return 0;
 	}
 	if ((scenario >= 2 && scenario <= 6) || scenario == 9 ||
-	    (scenario >= 11 && scenario <= 13) || (scenario >= 17 && scenario <= 19)) {
+	    (scenario >= 11 && scenario <= 13) || (scenario >= 17 && scenario <= 21)) {
 		require(result == STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR && !writes);
 		require(frame.state == STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST);
 		return 0;

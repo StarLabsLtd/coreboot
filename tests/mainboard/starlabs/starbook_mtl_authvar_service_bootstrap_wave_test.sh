@@ -69,12 +69,26 @@ for flags in '-O0' '-O2' \
  done
 done
 
-for flags in '-O0' '-O2' \
- '-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer' \
- '-O1 -g -fsanitize=thread -fno-omit-frame-pointer -Wno-tsan'; do
+build_coupled()
+{
+ flags=$1
+ private=$2
+ receiver=$3
+ output=$4
+ # Retain the receipt owner's existing strict profile; its historical SHA
+ # implementation is not conversion-clean. The wave sources retain -Wconversion.
+ # shellcheck disable=SC2086
+ ${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -fno-builtin $flags \
+  -D__COREBOOT__ -D__TEST__ -include "$root/src/include/kconfig.h" \
+  -include "$root/src/include/rules.h" \
+  -include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+  -I"$temporary/include" -I"$root/src" -isystem "$root/src/include" \
+  -I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+  -c "$root/src/lib/bootmem_reservation_receipt.c" -o "$temporary/receipt.o"
  # shellcheck disable=SC2086
  ${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin \
-  $flags -D__COREBOOT__ -D__TEST__ -include "$root/src/include/kconfig.h" \
+  $flags -D__COREBOOT__ -D__TEST__ -DCONFIG_PAYLOAD_BOOT_PRIVATE_BUFFER="$private" \
+  -include "$root/src/include/kconfig.h" \
   -include "$root/src/include/rules.h" \
   -include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
   -I"$temporary/include" -I"$root/src" -isystem "$root/src/include" \
@@ -84,7 +98,7 @@ for flags in '-O0' '-O2' \
   "$root/tests/mainboard/starlabs/starbook_mtl_authvar_service_coupled_wave_test.c" \
   "$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c" \
   "$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_protected_region.c" \
-  "$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_receiver.c" \
+  "$receiver" "$temporary/receipt.o" \
   "$root/src/soc/intel/common/block/smm/invocation_adapter.c" \
   "$root/src/cpu/x86/smm/save_state_geometry.c" \
   "$root/src/cpu/x86/smm_invocation_evidence.c" \
@@ -93,13 +107,32 @@ for flags in '-O0' '-O2' \
   "$root/src/cpu/x86/smm_invocation_loader_instance.c" \
   "$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
   "$root/src/soc/intel/common/block/smm/invocation_cause.c" \
-  "$root/src/cpu/x86/smm_invocation_topology.c" -o "$temporary/coupled"
- for fault in 0 1 2 3 4; do
+  "$root/src/cpu/x86/smm_invocation_topology.c" -o "$output"
+}
+receiver="$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_receiver.c"
+for private in 0 1; do
+for flags in '-O0' '-O2' \
+ '-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer' \
+ '-O1 -g -fsanitize=thread -fno-omit-frame-pointer -Wno-tsan'; do
+ build_coupled "$flags" "$private" "$receiver" "$temporary/coupled"
+ faults='0 1 2 3 4'
+ if [ "$private" = 1 ]; then faults="$faults 5 6 7 8 9"; fi
+ for fault in $faults; do
   printf 'coupled wave fault %s (%s)\n' "$fault" "$flags"
   ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
    TSAN_OPTIONS=halt_on_error=1 "$temporary/coupled" "$fault"
  done
 done
+done
+sed 's/if (payload_mm_authvar_service_finalize() != CB_SUCCESS)/if (starbook_mtl_boot_private_lease_prepare(\&slot->boot_private_verifier, \&response.boot_private) != CB_SUCCESS || payload_mm_authvar_service_finalize() != CB_SUCCESS)/' \
+ "$receiver" > "$temporary/lease-before-finalize.c"
+! cmp -s "$receiver" "$temporary/lease-before-finalize.c"
+build_coupled '-O2' 1 "$temporary/lease-before-finalize.c" "$temporary/order-mutant"
+if "$temporary/order-mutant" 0 > "$temporary/order-mutant.log" 2>&1; then
+ echo 'ERROR: BOOT lease was admitted before actual all-CPU finalization' >&2
+ exit 1
+fi
+grep -q 'finalize_checks == 2' "$temporary/order-mutant.log"
 ${CC:-cc} -std=gnu11 -Os -m32 -march=i686 -Wall -Wextra -Werror \
 	-Wconversion -Wshadow -ffreestanding -fno-builtin -fstack-usage \
 	-D__COREBOOT__ -D__TEST__ -include "$root/src/include/kconfig.h" \

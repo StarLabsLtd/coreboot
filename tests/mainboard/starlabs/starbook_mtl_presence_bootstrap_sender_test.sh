@@ -30,7 +30,7 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=address,undefined -fno-omit-frame-po
 	if [ "$service" -eq 1 ]; then
 	 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 "$temporary/test" 28
 	fi
-	for failure in $(seq 2 27); do
+	for failure in $(seq 2 27) 29 30; do
 		result=0
 		ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
 		 "$temporary/test" "$failure" || result=$?
