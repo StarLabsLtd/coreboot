@@ -34,6 +34,7 @@ static bool fail_end;
 static bool drift_at_end;
 static bool live_proof = true;
 static bool malformed_index;
+static uint8_t pending_classification[65536];
 
 bool platform_payload_mm_authvar_service_finalize_admitted(void)
 {
@@ -56,6 +57,10 @@ void __noreturn test_real_fail_stop(void)
 	assert((drift_at_end || fail_end || malformed_index) && begin_count == baseline_begin + 1 &&
 		end_count == baseline_end + 1);
 	assert(mailbox->status == UINT64_MAX && mailbox->completion == UINT32_MAX);
+	if (mailbox->operation == 10) {
+		assert(!memcmp(mailbox, pending_classification, sizeof(pending_classification)));
+		_exit(77);
+	}
 	for (size_t offset = 144; offset < 65536; offset++)
 		assert(((const uint8_t *)mailbox)[offset] == 0);
 	_exit(77);
@@ -175,6 +180,7 @@ static void classify_key(const struct lb_authvar_service_endpoint *descriptor,
 	mailbox->name_size = name_size;
 	memcpy((uint8_t *)mailbox + 144, name, name_size);
 	memcpy(saved, mailbox, sizeof(saved));
+	memcpy(pending_classification, mailbox, sizeof(pending_classification));
 	assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
 	assert(begin_count == begins + 1 && end_count == ends + 1);
 	assert(payload_mm_authvar_service_response_validate(descriptor, saved, mailbox,
