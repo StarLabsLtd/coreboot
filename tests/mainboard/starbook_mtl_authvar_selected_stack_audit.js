@@ -8,12 +8,18 @@ const fs = require('fs');
 const path = require('path');
 const child = require('child_process');
 const crypto = require('crypto');
+const privateDelivery = process.argv[2] === '--release-private-delivery-recorded';
 const postClassifier = process.argv[2] === '--release-post-classifier-recorded';
-const release = postClassifier || process.argv[2] === '--release-recorded';
+const release = privateDelivery || postClassifier || process.argv[2] === '--release-recorded';
 const arguments_ = process.argv.slice(release ? 3 : 2);
 const base = arguments_[0];
-if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js [--release-recorded|--release-post-classifier-recorded] ON/smm [ROOT...]');
-const record = postClassifier ? {
+if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js [--release-recorded|--release-post-classifier-recorded|--release-private-delivery-recorded] ON/smm [ROOT...]');
+const record = privateDelivery ? {
+	elf: '4b339979a62be5b5d248b6ea92d42df43792ec826aa7f4f0b0a390256ff97893',
+	config: 'a3123ad1f869777c1c8f7c7e57f0e2b1d5a1564c11f7c5d8ead5336631f61ee4',
+	annotations: '5c6e51feadfe605d3199fa7aa2b2be1a2100c12860ac385e6ab867652130ce7f',
+	umodFrame: 44,
+} : postClassifier ? {
 	elf: '5f839e8b6bfdf477651c4e91c04e314979ed57bc58eddb35a9339eb371e6d64a',
 	config: '6016a34ab0c6957a05a3a5935876b8c17556e291e33ec67f450d1530ca385aa2',
 	annotations: 'f430443957b5852d4a32abcc42682bb9a1e59a54b368d3bcba061b40239a8d8c',
