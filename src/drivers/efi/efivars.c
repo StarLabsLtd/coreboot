@@ -259,6 +259,7 @@ struct efi_find_compare_args {
 	const char *name;
 	uint32_t size;
 	void *data;
+	uint32_t attributes;
 	bool match;
 };
 
@@ -272,12 +273,21 @@ enum cb_err find_and_compare(struct region_device *rdev, VARIABLE_HEADER *hdr, s
 		return CB_SUCCESS;
 
 	*stop = true;
+	/* This writer cannot update authenticated or other special variables. */
+	if (hdr->Attributes & ~VARIABLE_ATTRIBUTE_NV_BS_RT)
+		return CB_ERR_NOT_IMPLEMENTED;
+
+	fa->attributes = hdr->Attributes;
+	if (!(fa->attributes & EFI_VARIABLE_NON_VOLATILE) ||
+	    !(fa->attributes & EFI_VARIABLE_BOOTSERVICE_ACCESS))
+		fa->attributes = VARIABLE_ATTRIBUTE_NV_BS_RT;
 	if (fa->size != hdr->DataSize) {
 		fa->match = false;
 		return CB_SUCCESS;
 	}
 
-	fa->match = rdev_memcmp(rdev, hdr_size + hdr->NameSize, fa->data, hdr->DataSize) == 0;
+	fa->match = fa->attributes == hdr->Attributes &&
+		rdev_memcmp(rdev, hdr_size + hdr->NameSize, fa->data, hdr->DataSize) == 0;
 
 	return CB_SUCCESS;
 }
@@ -460,7 +470,8 @@ enum cb_err efi_fv_get_option(const struct region_device *rdev,
 }
 
 static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *guid,
-				  const char *name, void *data, size_t size)
+				  const char *name, void *data, size_t size,
+				  uint32_t attributes)
 {
 	AUTHENTICATED_VARIABLE_HEADER auth_hdr;
 	size_t name_size, var_size;
@@ -487,9 +498,7 @@ static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *gu
 	memset(&auth_hdr, 0xff, sizeof(auth_hdr));
 
 	auth_hdr.StartId = VARIABLE_DATA;
-	auth_hdr.Attributes = EFI_VARIABLE_NON_VOLATILE|
-			      EFI_VARIABLE_BOOTSERVICE_ACCESS|
-			      EFI_VARIABLE_RUNTIME_ACCESS;
+	auth_hdr.Attributes = attributes;
 	auth_hdr.NameSize = name_size;
 	auth_hdr.DataSize = size;
 	memcpy(&auth_hdr.VendorGuid, guid, sizeof(EFI_GUID));
@@ -525,7 +534,8 @@ static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *gu
 static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
 			     const char *name,
 			     void *data,
-			     size_t size)
+			     size_t size,
+			     uint32_t attributes)
 {
 	VARIABLE_HEADER hdr;
 	size_t name_size, var_size;
@@ -551,9 +561,7 @@ static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
 	memset(&hdr, 0xff, sizeof(hdr));
 
 	hdr.StartId = VARIABLE_DATA;
-	hdr.Attributes = EFI_VARIABLE_NON_VOLATILE|
-			 EFI_VARIABLE_BOOTSERVICE_ACCESS|
-			 EFI_VARIABLE_RUNTIME_ACCESS;
+	hdr.Attributes = attributes;
 	hdr.NameSize = name_size;
 	hdr.DataSize = size;
 	memcpy(&hdr.VendorGuid, guid, sizeof(EFI_GUID));
@@ -616,8 +624,11 @@ enum cb_err efi_fv_set_option(const struct region_device *rdev,
 	args.size = size;
 	args.match = false;
 	args.data = data;
+	args.attributes = VARIABLE_ATTRIBUTE_NV_BS_RT;
 
 	ret = walk_variables(&store_rdev, auth_format, find_and_compare, &args);
+	if (ret != CB_SUCCESS && ret != CB_EFI_OPTION_NOT_FOUND)
+		return ret;
 	found_existing = ret == CB_SUCCESS;
 
 	if (found_existing) {
@@ -648,9 +659,9 @@ enum cb_err efi_fv_set_option(const struct region_device *rdev,
 	 */
 
 	if (auth_format)
-		ret = write_auth_hdr(&store_rdev, guid, name, data, size);
+		ret = write_auth_hdr(&store_rdev, guid, name, data, size, args.attributes);
 	else
-		ret = write_hdr(&store_rdev, guid, name, data, size);
+		ret = write_hdr(&store_rdev, guid, name, data, size, args.attributes);
 	if (ret != CB_SUCCESS)
 		return ret;
 
