@@ -340,3 +340,35 @@ The separate boot-policy capture has no text: source control flow prematurely
 clears it before the hotkey wait. Both captures are retained; this is not final
 waiting-splash sign-off. The compatibility variable owner and bounded Q35
 topology remain explicit, with no protected-owner or hardware activation claim.
+
+## PR440 actual waiting splash and setup receipt
+
+Concatenate numbered parts of `qemu-reviewed-440-runtime-splash-setup.tar.gz`.
+The archive SHA-256 is
+`0ab48f9f0b41fac65cb2fdd12d86d7f0d79271782cd9a216f1cda1c71977df60`.
+Parts 00/01/02 respectively are
+`65e52f983bcce63f9e9763d1b7c355e276f5b91cb9b909eb69e96dde2d23f7a0`,
+`9e8211df462143640b23ef861e60e72a963c4bb3e7464c2b5a27e06edd7c49aa`,
+and `f5d5223def0cb0d94fb0edac79df328f8738ccea9bde151053136acae2723bba`.
+The enclosed checksum manifest covers retained files; TPM state, sockets and
+process IDs are excluded.
+
+This is the fresh setup-profile build at signed CDK2 PR440
+`fda69156c2576b9942190fa9951f3f9cf95135d5`, following the hotkey-wait fix in
+PR439. The actual 36-record composition, strict MTRR and ELF checks pass.
+Configuration remains `b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`;
+the native ELF is `4a8028b30d5c98c6956445fa766be2434429c5d6718178c20842bf04eb69a841`.
+Pairing uses unchanged coreboot PR340; the ROM is
+`17875170eb8c5a8f894110872944a5e9890438f1be02cb666bf33ca034997d14`.
+
+Actual runtime and three setup boots pass: F2/navigation/Escape continuation,
+an OS BootToFwUI request, and subsequent setup presentation without F2.
+Root and independent peer visually inspect the complete wordmark and readable
+Selecting-device text in its own below-logo strip in the captured hotkey-wait
+frame. Independent oracle replays use the original paths. Relocated
+firmware-setup manifests retain their absolute fixture/pflash identities;
+do not rewrite them to manufacture an original-chain replay.
+
+This is compatibility-variable-provider, bounded-topology QEMU evidence,
+not a complete whole-suite receipt at PR440, delegated coreboot splash owner,
+protected-store activation or hardware sign-off.
