@@ -1,5 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cpu/intel/smm_invocation_adapter_provider.h>
+#include <cpu/x86/smm_invocation_fail_stop.h>
+#include <cpu/x86/smm_invocation_runtime.h>
+#include <cpu/x86/smm_pre_lock_dispatch.h>
+#include <intelblocks/smm_invocation_cause.h>
+#include <boot/payload_mm_authvar_presence_s3_backing.h>
+#include <string.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_mm_authvar_smm_bootstrap.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
+#endif
+
 #include "authvar_presence_lifecycle_close_install.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && \
 	CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && \
@@ -15,16 +27,8 @@
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 #include "dma_smm_receipt_provision.h"
 #endif
-
-#include <cpu/intel/smm_invocation_adapter_provider.h>
-#include <cpu/x86/smm_invocation_fail_stop.h>
-#include <cpu/x86/smm_invocation_runtime.h>
-#include <cpu/x86/smm_pre_lock_dispatch.h>
-#include <intelblocks/smm_invocation_cause.h>
-#include <boot/payload_mm_authvar_presence_s3_backing.h>
-#include <string.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
-#include <boot/payload_mm_authvar_smm_bootstrap.h>
+#include "authvar_protected_region.h"
 #endif
 
 #if !ENV_SMM && !ENV_TEST
@@ -36,8 +40,9 @@ enum dispatch_state { DISPATCH_IDLE, DISPATCH_ARMING, DISPATCH_ACTIVE,
 	DISPATCH_RECEIPT_PROVISIONING, DISPATCH_RECEIPT_COMPLETE,
 	DISPATCH_POISONED,
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
-/* The full service composition uses the existing entry ledger, not held APs. */
+/* Actual ledger participants perform bounded proof and recheck waits. */
 	DISPATCH_BOOTSTRAP_COLLECTING, DISPATCH_SERVICE_INSTALLING,
+	DISPATCH_SERVICE_RECHECKING,
 #endif
 };
 
@@ -55,6 +60,15 @@ static struct {
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	uint64_t bootstrap_sentinel;
 	uint64_t classified_cpus;
+	uint64_t protected_cpus;
+	uint64_t rechecked_cpus;
+	struct {
+		struct region region;
+		struct smm_invocation_runtime_binding runtime;
+		const struct smm_invocation_runtime_view *view;
+		struct smm_invocation_entry_cause cause;
+		struct smm_invocation_entry_ticket ticket;
+	} bootstrap_proofs[SMM_INVOCATION_TOPOLOGY_MAX_CPUS];
 #endif
 #endif
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
@@ -378,6 +392,66 @@ static enum smm_pre_lock_dispatch_result s3_dispatch(
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+static bool bootstrap_proofs_match(const struct smm_invocation_runtime_binding *runtime,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_token *token)
+{
+	const uint64_t expected = topology->active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology->active_cpus) - 1ULL;
+	const struct region *region = &owner.bootstrap_proofs[topology->bsp_cpu].region;
+
+	if (__atomic_load_n(&owner.protected_cpus, __ATOMIC_ACQUIRE) != expected)
+		return false;
+	for (uint32_t cpu = 0; cpu < topology->active_cpus; cpu++) {
+		const struct smm_invocation_entry_ticket *ticket =
+			&owner.bootstrap_proofs[cpu].ticket;
+		const struct smm_invocation_entry_cause *cause =
+			&owner.bootstrap_proofs[cpu].cause;
+
+		if (memcmp(&owner.bootstrap_proofs[cpu].region, region, sizeof(*region)) ||
+		    memcmp(&owner.bootstrap_proofs[cpu].runtime, runtime, sizeof(*runtime)) ||
+		    owner.bootstrap_proofs[cpu].view !=
+			owner.bootstrap_proofs[topology->bsp_cpu].view ||
+		    memcmp(cause, &owner.bootstrap_proofs[topology->bsp_cpu].cause,
+			sizeof(*cause)) || ticket->cpu != cpu ||
+		    ticket->generation != token->smi_generation ||
+		    ticket->command != SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE ||
+		    ticket->lifecycle != cause->lifecycle ||
+		    !smm_invocation_loader_instance_nonce_equal(ticket->loader_instance_nonce,
+			runtime->evidence->loader_instance_nonce) ||
+		    !smm_invocation_loader_instance_nonce_equal(cause->loader_instance_nonce,
+			runtime->evidence->loader_instance_nonce))
+			return false;
+	}
+	return true;
+}
+
+static bool bootstrap_proof_current(uint32_t cpu)
+{
+	struct region region;
+	struct smm_invocation_runtime_binding runtime;
+	const struct smm_invocation_runtime_view *view;
+
+	if (starbook_mtl_authvar_protected_region_read(&region) != CB_SUCCESS ||
+	    memcmp(&region, &owner.bootstrap_proofs[cpu].region, sizeof(region)) ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    memcmp(&runtime, &owner.bootstrap_proofs[cpu].runtime, sizeof(runtime)) ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    view != owner.bootstrap_proofs[cpu].view ||
+	    smm_invocation_runtime_geometry_is_contained(view, region.offset,
+		region.size) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS)
+		return false;
+	return true;
+}
+
+static bool bootstrap_proof_recheck(uint32_t cpu)
+{
+	return bootstrap_proof_current(cpu) &&
+		!(__atomic_fetch_or(&owner.rechecked_cpus, 1ULL << cpu,
+			__ATOMIC_ACQ_REL) & (1ULL << cpu));
+}
+
 bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 {
 	struct smm_invocation_runtime_binding runtime, rechecked;
@@ -409,6 +483,7 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	    !smm_invocation_loader_instance_nonce_equal(runtime.evidence->loader_instance_nonce,
 		instance.loader_instance_nonce) ||
 	    runtime.evidence->bsp_cpu != topology.bsp_cpu ||
+	    !bootstrap_proofs_match(&runtime, &topology, &token) ||
 	    memcmp(runtime.evidence->participant_apic_ids, topology.initial_apic_ids,
 		sizeof(topology.initial_apic_ids)) ||
 	    smm_invocation_loader_instance_read(runtime.instance, &instance_check) != CB_SUCCESS ||
@@ -428,6 +503,45 @@ bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 	return true;
 }
 
+bool platform_payload_mm_authvar_service_finalize_admitted(void)
+{
+	struct smm_invocation_runtime_binding runtime;
+	struct smm_invocation_topology topology;
+	struct smm_invocation_token token;
+	const uint64_t sentinel = owner.bootstrap_sentinel;
+
+	if (!platform_payload_mm_authvar_service_bootstrap_admitted() ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS)
+		return false;
+	const uint64_t expected = topology.active_cpus == 64U ? UINT64_MAX :
+		(1ULL << topology.active_cpus) - 1ULL;
+	/* Finalization validates twice. Locked AP proofs remain valid only while
+	 * those CPUs are held in this exact claimed wave; never republish their bits. */
+	const uint64_t rechecked = __atomic_load_n(&owner.rechecked_cpus, __ATOMIC_ACQUIRE);
+	if (rechecked == expected)
+		return bootstrap_proof_current(topology.bsp_cpu) &&
+			platform_payload_mm_authvar_service_bootstrap_admitted();
+	if (rechecked)
+		return false;
+	__atomic_store_n(&owner.state, DISPATCH_SERVICE_RECHECKING, __ATOMIC_RELEASE);
+	if (!bootstrap_proof_recheck(topology.bsp_cpu))
+		return false;
+	for (uint32_t poll = 0; ; poll++) {
+		if (__atomic_load_n(&owner.rechecked_cpus, __ATOMIC_ACQUIRE) == expected)
+			break;
+		if (poll + 1U == owner.bootstrap_proofs[topology.bsp_cpu].ticket.max_polls)
+			return false;
+		__asm__ __volatile__("pause");
+	}
+	if (smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, sentinel, &token) != CB_SUCCESS ||
+	    !bootstrap_proofs_match(&runtime, &topology, &token))
+		return false;
+	__atomic_store_n(&owner.state, DISPATCH_SERVICE_INSTALLING, __ATOMIC_RELEASE);
+	return platform_payload_mm_authvar_service_bootstrap_admitted();
+}
+
 static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 	const struct smm_invocation_runtime_binding *runtime,
 	const struct smm_invocation_topology *topology,
@@ -441,6 +555,15 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 	const uint64_t expected_cpus = topology->active_cpus == 64U ? UINT64_MAX :
 		(1ULL << topology->active_cpus) - 1ULL;
 	const uint64_t bit = 1ULL << cpu;
+	const struct smm_invocation_runtime_view *view;
+	struct region region;
+
+	if (smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS ||
+	    starbook_mtl_authvar_protected_region_read(&region) != CB_SUCCESS ||
+	    smm_invocation_runtime_geometry_is_contained(view, region.offset,
+		region.size) != CB_SUCCESS)
+		fail_stop();
 
 	/* All raw causes must be classified while the shared ledger is READY.
 	 * This is a synchronization barrier, not arrival or rendezvous authority. */
@@ -458,6 +581,20 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 		cause->loader_instance_nonce, SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
 		cpu, initial_apic_id, &ticket) != CB_SUCCESS)
 		fail_stop();
+	owner.bootstrap_proofs[cpu].region = region;
+	owner.bootstrap_proofs[cpu].runtime = *runtime;
+	owner.bootstrap_proofs[cpu].view = view;
+	owner.bootstrap_proofs[cpu].cause = *cause;
+	owner.bootstrap_proofs[cpu].ticket = ticket;
+	if (__atomic_fetch_or(&owner.protected_cpus, bit, __ATOMIC_ACQ_REL) & bit)
+		fail_stop();
+	for (uint32_t poll = 0; ; poll++) {
+		if (__atomic_load_n(&owner.protected_cpus, __ATOMIC_ACQUIRE) == expected_cpus)
+			break;
+		if (poll + 1U == policy->max_polls)
+			fail_stop();
+		__asm__ __volatile__("pause");
+	}
 	if (bsp) {
 		if (smm_invocation_evidence_claim(runtime->evidence,
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
@@ -486,6 +623,9 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 		owner.provider_generation = 0;
 		__atomic_store_n(&owner.state, DISPATCH_DEPARTING, __ATOMIC_RELEASE);
 	} else {
+		wait_for_state(DISPATCH_SERVICE_RECHECKING, policy->max_polls);
+		if (!bootstrap_proof_recheck(cpu))
+			fail_stop();
 		wait_for_state(DISPATCH_DEPARTING, policy->max_polls);
 	}
 	if (smm_invocation_entry_depart(runtime->evidence, &ticket) != CB_SUCCESS)
@@ -502,6 +642,9 @@ static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
 	owner.active_ops = NULL;
 	owner.bootstrap_sentinel = 0;
 	owner.classified_cpus = 0;
+	owner.protected_cpus = 0;
+	owner.rechecked_cpus = 0;
+	memset(owner.bootstrap_proofs, 0, sizeof(owner.bootstrap_proofs));
 	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
 	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
 }
