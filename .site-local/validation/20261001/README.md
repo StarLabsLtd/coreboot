@@ -637,3 +637,43 @@ an original-oracle result, not clean whole-surface restoration or visual
 sign-off. Strengthening that oracle and restoring the original framebuffer
 after an actual UI visit remain open. The BGRT table/image receipt above is
 unchanged; it does not assert the correctness of surrounding screen pixels.
+
+## Reviewed private linked-primary loader, PR448
+
+Concatenate `qemu-private-linked-primary-eee2.tar.gz.part-aa`, `part-ab` and
+`part-ac`. Archive SHA-256 is
+`3f8829478c1f316fe26afd0810c1fb841bd2cf509c927b271df3b1cbaf1d7a69`.
+Part hashes, in order, are
+`437562dea04c197c324c8a36ba74fceae82d2f8a837329287eb0baf83274de7a`,
+`f1471bcc37d2f3bb7922694b84ceca19e975d493acc4ad0478fa9b651aee2d78`,
+and `79f1d93b9b08ff3e03f48095e24609c439738155ff030f672d8264b114a206fb`.
+An independent fresh extraction verifies all retained-file checksums and no
+symlink or socket. Guest TPM state, PID files and private keys are excluded.
+
+Signed CDK2 PR448 `eee2b511381ce0f45e71f33279775a9191e86173` continues
+directly after PR447. The new private loader uses the real image transaction
+owners and rejects protocol-notification attempts to execute a pending linked
+image before post-load validation. Actual public/shared/raw StartImage reentry
+tests, O0/O2 sanitizers, causal guard-removal mutants and real Make header
+dependency queries pass independently. The initial whole-suite missing-header
+refusal is retained separately from the corrected exact-head success. The
+whole suite continues the PR434-origin build directory; separate stable lint
+and native packaging pass, not a fresh independent whole build.
+
+The unchanged committed coreboot PR349 producer is paired with the fresh
+36-record setup payload. Resolved configuration SHA-256 remains
+`b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`;
+native image SHA-256 is
+`4e8aa3247ba37c698e41c203a5ea092c06e87ee6a6f0e4e8c13123f9aaf35390`;
+paired ROM SHA-256 is
+`dd982a4ed22b7b18d0b0ec3fefe7ed36d8a67790b7d9b488beb69070081af6e2`.
+Runtime Linux/EFI services, F2/navigation/Escape, persisted firmware-setup
+request/presentation and actual Linux BGRT table/full BMP pass independent
+original-source-path oracles. Wrong-checkout canonical-path refusal is retained;
+the earlier overwritten working-directory refusal is transcript-qualified only.
+A separate incorrectly invoked strict composition gate correctly rejects the
+default component profile's missing FMP; the genuine setup composition passes.
+
+This does not update PR349's committed payload pin. These compatibility-provider
+Q35 receipts do not establish clean whole-frame setup restoration, protected
+variable activation, protected origin/lifetime closure, hardware or final sign-off.
