@@ -167,6 +167,22 @@ enum cb_err starbook_mtl_authvar_service_bootstrap_install(void)
 	return CB_SUCCESS;
 }
 
+enum cb_err payload_mm_authvar_service_finalize(void)
+{
+	assert(atomic_load(&installs) == 1 && !atomic_load(&lease));
+	assert(platform_payload_mm_authvar_service_bootstrap_admitted());
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_service_descriptor_copy(struct lb_authvar_service_endpoint *output)
+{
+	assert(output && atomic_load(&installs) == 1 && atomic_load(&lease));
+	assert(frame.state == STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST);
+	/* This fixture composes the actual tuple path, not the provider authority. */
+	*output = (struct lb_authvar_service_endpoint) { .tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT };
+	return CB_SUCCESS;
+}
+
 int main(int argc, char **argv)
 {
 	pthread_t threads[CPUS];

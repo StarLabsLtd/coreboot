@@ -180,13 +180,19 @@ int main(int argc, char **argv)
 		memory.frame.base += 8;
 	if (scenario == 13)
 		memory.frame.size--;
+	if (scenario == 17)
+		frame.service_endpoint.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT;
+	if (scenario == 18)
+		frame.revision = 1;
+	if (scenario == 19)
+		frame.size = 312;
 	result = starbook_mtl_presence_bootstrap_receive(&ops);
 	if (scenario == 1) {
 		require(result == STARBOOK_MTL_PRESENCE_NOT_BOOTSTRAP && !imports && !writes);
 		return 0;
 	}
 	if ((scenario >= 2 && scenario <= 6) || scenario == 9 ||
-	    (scenario >= 11 && scenario <= 13)) {
+	    (scenario >= 11 && scenario <= 13) || (scenario >= 17 && scenario <= 19)) {
 		require(result == STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR && !writes);
 		require(frame.state == STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST);
 		return 0;

@@ -6,6 +6,7 @@
 #include "dma_smm_receipt_provision.h"
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 #include "authvar_platform_smm.h"
+#include <boot/payload_mm_authvar_service_receiver.h>
 #endif
 
 #include <cpu/x86/smm.h>
@@ -51,6 +52,7 @@ starbook_mtl_presence_bootstrap_receive(
 	struct payload_mm_authvar_presence_bootstrap *slot;
 	uint64_t wire;
 	uint32_t initiator = UINT32_MAX;
+	const struct lb_authvar_service_endpoint no_endpoint = { 0 };
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	struct smm_invocation_token token;
 #endif
@@ -100,6 +102,7 @@ starbook_mtl_presence_bootstrap_receive(
 	    snapshot.size != sizeof(snapshot) ||
 	    snapshot.state != STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST ||
 	    snapshot.reserved || snapshot.initiator_cpu || snapshot.maximum_cpus ||
+	    memcmp(&snapshot.service_endpoint, &no_endpoint, sizeof(no_endpoint)) ||
 	    memcmp(frame, &snapshot, sizeof(snapshot)))
 		return STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR;
 	receipts = snapshot.receipts;
@@ -138,6 +141,12 @@ enum cb_err starbook_mtl_presence_bootstrap_response_stage(
 	if (active_ops->write_value(active_ops->context, response.initiator,
 		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS) != CB_SUCCESS)
 		return CB_ERR;
+#else
+	/* The owner copies only public metadata into this protected response body. */
+	if (payload_mm_authvar_service_descriptor_copy(&response.snapshot.service_endpoint) !=
+		CB_SUCCESS)
+		return CB_ERR;
+	response.frame->service_endpoint = response.snapshot.service_endpoint;
 #endif
 	__atomic_store_n(&response.phase, RESPONSE_STAGED, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
@@ -185,8 +194,14 @@ enum cb_err starbook_mtl_presence_bootstrap_route_install(void)
 	if (starbook_mtl_authvar_service_bootstrap_install() != CB_SUCCESS)
 		return CB_ERR;
 #endif
-	return starbook_mtl_authvar_presence_route_composition_provision(
+	if (starbook_mtl_authvar_presence_route_composition_provision(
 		runtime.composition, runtime.instance, runtime.evidence, runtime.topology,
 		policy, binding, &slot->page_verifier, &slot->page_receipt,
-		protected_storage, NULL) == SMM_INVOCATION_TRY_SUCCESS ? CB_SUCCESS : CB_ERR;
+		protected_storage, NULL) != SMM_INVOCATION_TRY_SUCCESS)
+		return CB_ERR;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	return payload_mm_authvar_service_finalize();
+#else
+	return CB_SUCCESS;
+#endif
 }

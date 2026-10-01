@@ -10,6 +10,20 @@ extern int dprintf(int descriptor, const char *format, ...);
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter.h>
 
+enum cb_err payload_mm_authvar_service_finalize(void)
+{
+	require(factories == 1);
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_service_descriptor_copy(struct lb_authvar_service_endpoint *output)
+{
+	require(factories == 1 && output);
+	/* Public metadata boundary only; the real provider has separate admission tests. */
+	*output = (struct lb_authvar_service_endpoint) { .tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT };
+	return CB_SUCCESS;
+}
+
 void smm_invocation_evidence_test_hook(uint32_t point) { (void)point; }
 void intel_smm_invocation_adapter_test_hook(uint32_t point) { (void)point; }
 size_t intel_smm_invocation_adapter_test_revision_size(uint32_t revision, size_t size)
@@ -52,6 +66,7 @@ int main(int argc, char **argv)
 		.revision = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION,
 		.size = sizeof(frame), .state = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST,
 	};
+	if (mode == 3) frame.service_endpoint.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT;
 	native.smm_revision = 0x30101U;
 	native.io_misc_info = 0x00b20003U;
 	native.rax = STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST;

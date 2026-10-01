@@ -27,7 +27,7 @@ for optimization in 0 2; do
 		"$root/tests/mainboard/starlabs/starbook_mtl_presence_bootstrap_receiver_test.c" \
 		"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_receiver.c" \
 		-o "$temporary/test"
-	for scenario in $(seq 0 16); do
+	for scenario in $(seq 0 19); do
 		"$temporary/test" "$scenario"
 	done
 done
@@ -56,7 +56,7 @@ for optimization in 0 2; do
 		"$root/src/cpu/x86/smm/save_state_geometry.c" \
 		"$root/src/soc/intel/common/block/smm/invocation_adapter.c" \
 		-o "$temporary/packed-claim"
-	for mode in 0 1 2; do
+	for mode in 0 1 2 3; do
 		ASAN_OPTIONS=detect_leaks=0 "$temporary/packed-claim" "$mode"
 	done
 done
