@@ -525,7 +525,7 @@ static enum cb_err response_validate(
 	    after->result_name_size > endpoint->maximum_name_size ||
 	    (after->result_data_size > endpoint->maximum_data_size &&
 	     !((after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET ||
-	        after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) &&
+		after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) &&
 	       after->status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) ||
 	    after->result_attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
 		return CB_ERR;
