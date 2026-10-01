@@ -1,0 +1,49 @@
+{
+  "coreboot": "4dd7974f5a5ec4a6e849cb76f0f81d1212645148",
+  "cdk2": "55bd35d644e7b53feedbfa7fdd34e47010dbaf92",
+  "source_date_epoch": "",
+  "build_epochs": {
+    "coreboot": "",
+    "cdk2": ""
+  },
+  "baseline_sha256": "23c88b74427aca8445e8622f9cb9921b3cc2f2accf45396c968ba7d52fb738d4",
+  "packaging_mode": "strict-direct",
+  "payload_sha256": "552df0fde1ae6b24034fe36099caee03dac7b30b0776756b8ac7b970e61c16e1",
+  "direct_provenance": {
+    "sha256": "a6d9d2390825ae141bd6a8f105cdcb2aaa5cbc0cf9490a1be44692f890852018",
+    "composition_sha256": "1829289b7a28480c3f049de8cdb4c793aeb18c4ec94cd31561d549a7c5bd17b1",
+    "inventory_sha256": "8a85b6c4150a982083c9b6a6fbcf4ab551d816a48eb58c2c39648b53a6969382",
+    "image_table_sha256": "e4b30b50cde56af82baa3360c61075910b93de47aacf57d8cce237d690749a19",
+    "pe_span_sha256": "4073c8b48e7ad1b8cea878a878f0dc4383b8b3300bf6fe14f6bcf669dfd70a4f",
+    "image_count": 36
+  },
+  "canonical_coreboot_config": {
+    "path": "/home/sean/Documents/.coreboot-worktrees/cdk2-portable-presence-pin/.config",
+    "sha256": "d6008d778842c4040b2e8c1a72f65cd59002c0c46fc906888473e02991b8469a"
+  },
+  "resolved_coreboot_config_sha256": "d6008d778842c4040b2e8c1a72f65cd59002c0c46fc906888473e02991b8469a",
+  "cdk2_defconfig_sha256": "faaca134ce93ad44771a94476e3cd403c3be0ede9a83c43b2bf31205303f8555",
+  "cdk2_profile": {
+    "path": "/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/util/qemu/config/cdk2-q35-setup-acceptance.defconfig",
+    "sha256": "a9dd10a9bb0ec2a02520981d9b259cc01d46375db036123efe256d391debf0ae"
+  },
+  "resolved_cdk2_config": {
+    "path": "/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/qemu-owned-style-root-694/cdk2/.config",
+    "sha256": "b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb",
+    "header_sha256": "4236bb2180e7fb61dee32ba9dc2e84458929d407b42f83a4e6d25c5c5486b292",
+    "linear_boot": true
+  },
+  "post_insertion": {
+    "cbfs_inventory_sha256": "e0c423eb0649866f31af78e40f4e76a2dcf080f040946f6d7d1ac8d665ee5478",
+    "extracted_payload_sha256": "228638f2ca0843229a76f9794498bb40503fb8c9bcc03a4088ec0f3475996ca7",
+    "verified": true
+  },
+  "embedded_cdk2_config_sha256": "b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb",
+  "tools": {
+    "cbfstool_sha256": "cff290787fdc7faddb53627dd7c471a8f7bf1f20e45aa8b3d5aa92024fcd4301",
+    "nm": "GNU nm (GNU Binutils for Ubuntu) 2.45",
+    "cc": "cc (Ubuntu 15.2.0-4ubuntu4) 15.2.0",
+    "ld": "GNU ld (GNU Binutils for Ubuntu) 2.45"
+  },
+  "output_sha256": "f3118dda1eb1560ca009b0a9b1536b293e992c9ffe087a95ebdee0c407990206"
+}

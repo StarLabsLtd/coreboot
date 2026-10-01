@@ -1,0 +1,2 @@
+QEMU acceptance unexpectedly enabled symbol: CDK2_SETUP_UI
+resolved acceptance payload must retain setup with zero key-poll timeout
