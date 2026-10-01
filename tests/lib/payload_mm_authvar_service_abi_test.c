@@ -2,11 +2,17 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #undef assert
-#define assert(condition) do { if (!(condition)) abort(); } while (0)
+#define assert(condition) do { \
+	if (!(condition)) { \
+		fprintf(stderr, "%s: %s\n", __func__, #condition); \
+		abort(); \
+	} \
+} while (0)
 
 #define MESSAGE_SIZE 4096U
 #define NAME_SIZE 256U
