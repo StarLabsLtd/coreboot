@@ -52,54 +52,6 @@ bool bootsplash_get_handoff(struct lb_boot_splash *handoff)
 	return true;
 }
 
-/* Validate the complete source layout before allocating or reading any pixels. */
-static bool validate_bmp(const struct bmp_image_header *header, size_t logo_size,
-	size_t *row_size, size_t *blt_size, size_t *palette_size)
-{
-	uint64_t row_bytes, pixel_bytes, buffer_bytes;
-
-	if (header->CharB != 'B' || header->CharM != 'M' ||
-	    header->Size != logo_size || header->ImageOffset > logo_size ||
-	    header->ImageOffset < sizeof(*header) ||
-	    header->HeaderSize != sizeof(*header) - offsetof(struct bmp_image_header, HeaderSize) ||
-	    header->Planes != 1 || header->CompressionType != 0 ||
-	    !header->PixelWidth || !header->PixelHeight ||
-	    header->PixelWidth > INT32_MAX || header->PixelHeight > INT32_MAX)
-		return false;
-
-	switch (header->BitPerPixel) {
-	case 1:
-	case 4:
-	case 8:
-		*palette_size = header->NumberOfColors ? header->NumberOfColors :
-			1U << header->BitPerPixel;
-		if (*palette_size > (1U << header->BitPerPixel) ||
-		    *palette_size > (header->ImageOffset - sizeof(*header)) /
-				sizeof(struct bmp_color_map))
-			return false;
-		break;
-	case 24:
-	case 32:
-		*palette_size = 0;
-		break;
-	default:
-		return false;
-	}
-
-	row_bytes = (((uint64_t)header->PixelWidth * header->BitPerPixel + 31) / 32) * 4;
-	pixel_bytes = row_bytes * header->PixelHeight;
-	buffer_bytes = (uint64_t)header->PixelWidth * header->PixelHeight * sizeof(struct blt_pixel);
-	if (row_bytes > SIZE_MAX || buffer_bytes > SIZE_MAX ||
-	    pixel_bytes > logo_size - header->ImageOffset ||
-	    (header->ImageSize && (header->ImageSize < pixel_bytes ||
-				header->ImageSize > logo_size - header->ImageOffset)))
-		return false;
-
-	*row_size = row_bytes;
-	*blt_size = buffer_bytes;
-	return true;
-}
-
 /*
  * Visual Representation of the Flipping:
  *
@@ -330,6 +282,7 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 {
 	const struct bmp_image_header *header = (const void *)logo;
 	size_t row_size, buffer_size, palette_size;
+	uint64_t row_bytes, pixel_bytes, buffer_bytes;
 	uintptr_t buffer;
 	bool standard_orientation;
 
@@ -345,8 +298,45 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	    !logo || logo_size < sizeof(*header) || logo_size - 1U > UINTPTR_MAX - logo ||
 	    orientation < LB_FB_ORIENTATION_NORMAL || orientation > LB_FB_ORIENTATION_RIGHT_UP)
 		return false;
-	if (!validate_bmp(header, logo_size, &row_size, &buffer_size, &palette_size))
+	/* Validate the complete source layout before allocating or reading pixels. */
+	if (header->CharB != 'B' || header->CharM != 'M' ||
+	    header->Size != logo_size || header->ImageOffset > logo_size ||
+	    header->ImageOffset < sizeof(*header) ||
+	    header->HeaderSize != sizeof(*header) - offsetof(struct bmp_image_header, HeaderSize) ||
+	    header->Planes != 1 || header->CompressionType != 0 ||
+	    !header->PixelWidth || !header->PixelHeight ||
+	    header->PixelWidth > INT32_MAX || header->PixelHeight > INT32_MAX)
 		return false;
+
+	switch (header->BitPerPixel) {
+	case 1:
+	case 4:
+	case 8:
+		palette_size = header->NumberOfColors ? header->NumberOfColors :
+			1U << header->BitPerPixel;
+		if (palette_size > (1U << header->BitPerPixel) ||
+		    palette_size > (header->ImageOffset - sizeof(*header)) /
+				sizeof(struct bmp_color_map))
+			return false;
+		break;
+	case 24:
+	case 32:
+		palette_size = 0;
+		break;
+	default:
+		return false;
+	}
+
+	row_bytes = (((uint64_t)header->PixelWidth * header->BitPerPixel + 31) / 32) * 4;
+	pixel_bytes = row_bytes * header->PixelHeight;
+	buffer_bytes = (uint64_t)header->PixelWidth * header->PixelHeight * sizeof(struct blt_pixel);
+	if (row_bytes > SIZE_MAX || buffer_bytes > SIZE_MAX ||
+	    pixel_bytes > logo_size - header->ImageOffset ||
+	    (header->ImageSize && (header->ImageSize < pixel_bytes ||
+				header->ImageSize > logo_size - header->ImageOffset)))
+		return false;
+	row_size = row_bytes;
+	buffer_size = buffer_bytes;
 
 	buffer = (uintptr_t)fill_blt_buffer(header, logo, buffer_size, row_size,
 					  palette_size, orientation);
