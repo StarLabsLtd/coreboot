@@ -36,6 +36,10 @@ allocation HOB. Both components run at O0/O2 with ASan and UBSan. Failed ACKs,
 mixed revisions and changed receipts cannot append either board record. Mutated
 tables with valid checksums but nonreserved backing, incorrect slot geometry or
 duplicate metadata fail import/reservation without changing outputs or HOBs.
+Actual reservation-owner re-resolution after receipt consumption also changes
+the backing base while retaining the original emitted receipt. The genuine
+query path refuses before either append; a receipt-as-owner source mutant
+incorrectly publishes in that same case, proving the new owner check is required.
 
 Loader identity, entropy/topology and the trigger's BOOT/provider admission are
 explicit host models. The trigger consumes the real protected-slot receipt, but

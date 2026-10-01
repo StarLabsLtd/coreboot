@@ -5,16 +5,16 @@
  * The trigger models admitted BOOT/provider finalization, not SMM placement,
  * origin authority or protection of a resumed CPU's subsequent copy interval.
  */
-#define die bootmem_fixture_die
-#define BOOT_PRIVATE_TABLE_COMPONENT
-#include "payload_boot_private_loader_delivery_test.c"
-#undef die
-
 #include <boot/coreboot_tables.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <commonlib/bsd/ipchksum.h>
 #include <cpu/x86/smm_command.h>
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_install.h"
+
+#define die bootmem_fixture_die
+#define BOOT_PRIVATE_TABLE_COMPONENT
+#include "payload_boot_private_loader_delivery_test.c"
+#undef die
 
 struct lb_header *boot_private_table_initialize(uintptr_t base);
 void boot_private_table_finish(struct lb_header *header);
@@ -55,6 +55,11 @@ uint64_t starbook_mtl_presence_bootstrap_trigger_test(uint32_t request, uint32_t
 	CHECK(payload_boot_private_buffer_consume(&protected_slot.boot_private_verifier,
 		&private_receipt, &consumed) == CB_SUCCESS);
 	CHECK(consumed.physical_base == shared_frame.boot_private.base);
+	if (!strcmp(scenario, "owner-drift")) {
+		/* Recommit the actual owner, keeping the original local receipt unchanged. */
+		resources[0].size -= 4096;
+		initialize();
+	}
 	shared_frame.state = STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED;
 	shared_frame.maximum_cpus = CONFIG_MAX_CPUS;
 	shared_frame.service_endpoint = (struct lb_authvar_service_endpoint) {
@@ -118,7 +123,8 @@ int main(int argc, char **argv)
 	header = boot_private_table_initialize((uintptr_t)table_bytes);
 	boot_private_table_memory(header);
 	lb_board(header);
-	CHECK(!strcmp(scenario, "valid") && header->table_entries == 3);
+	CHECK((!strcmp(scenario, "valid") || !strcmp(scenario, "owner-drift")) &&
+		header->table_entries == 3);
 	boot_private_table_finish(header);
 	CHECK(ipchksum(header, sizeof(*header)) == 0);
 	CHECK(ipchksum(header + 1, header->table_bytes) == header->table_checksum);
