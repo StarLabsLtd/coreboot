@@ -75,7 +75,10 @@ int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
 	struct bootmem_aligned_reservation_handle *handle);
 
-/* Atomically register one or more requests in array order. */
+/*
+ * Atomically register independent reservations in array order. Equal request
+ * geometry creates distinct handles and allocations, not a shared reservation.
+ */
 int bootmem_aligned_reservations_register(
 	const struct bootmem_aligned_reservation_request *requests,
 	size_t request_count, struct bootmem_aligned_reservation_handle *handles);

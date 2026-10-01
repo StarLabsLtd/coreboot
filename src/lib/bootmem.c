@@ -154,16 +154,6 @@ int bootmem_aligned_reservations_register(
 	for (size_t index = 0; index < request_count; index++) {
 		if (!aligned_request_valid(&snapshots[index]))
 			return -1;
-		for (size_t existing = 0; existing < aligned_reservation_count;
-		     existing++)
-			if (!memcmp(&snapshots[index],
-				&aligned_reservations[existing].request,
-				sizeof(snapshots[index])))
-				return -1;
-		for (size_t prior = 0; prior < index; prior++)
-			if (!memcmp(&snapshots[index], &snapshots[prior],
-				sizeof(snapshots[index])))
-				return -1;
 		const uint32_t slot = aligned_reservation_count + index + 1U;
 		candidates[index] = (struct bootmem_aligned_reservation_handle) {
 			.opaque = { slot, ALIGNED_RESERVATION_HANDLE_CHECK ^ slot },

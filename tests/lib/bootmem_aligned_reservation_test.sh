@@ -31,7 +31,7 @@ build_and_run()
 		"$root/src/lib/bootmem_reservation_receipt.c" \
 		"$root/src/lib/memrange.c" "$root/src/device/device_util.c" \
 		-no-pie -o "$temporary/$name"
-	for case_name in success bounded atomic-capacity \
+	for case_name in success bounded atomic-capacity identical-reservations \
 		receipt-handle-signer-alias receipt-handle-receipt-alias \
 		receipt-signer-first-alias receipt-receipt-first-alias \
 		receipt-boundary-arithmetic receipt-exact-tags \
@@ -94,9 +94,9 @@ mutant_test receipt-os-map-exact-tag \
 mutant_test receipt-firmware-map-exact-tag \
 	'!range_targets_type(&bootmem, state->result.base, state->result.size,' \
 	'!range_targets_type(\&bootmem_os, state->result.base, state->result.size,'
-mutant_test duplicate-registration \
-	'if (!memcmp(&snapshots\[index\],' \
-	'if (false \&\& !memcmp(\&snapshots[index],'
+mutant_test reused-slot-handle \
+	'aligned_reservation_count + index + 1U' \
+	'1U'
 mutant_test late-registration \
 	'bootmem_is_initialized() || request_count >' \
 	'false || request_count >'
