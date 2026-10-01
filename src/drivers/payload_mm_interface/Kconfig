@@ -18,6 +18,9 @@ config PAYLOAD_MM_INTERFACE
 	  continue to initialise and own SMM. Payload can register to be called on SMI too.
 	  An example use-case is enabling EDK2 Secure Boot with Authenticated Variables.
 
+	  Currently supported on the selected Intel client platforms with Fast SPI.
+	  AMD SMI dispatch and a compatible payload flash backend are not implemented.
+
 	  Select N if unsure.
 
 config PAYLOAD_MM_SMRAM_SIZE

@@ -4,7 +4,6 @@ config SOC_INTEL_COMMON_BLOCK_SMM
 	bool
 	select HAVE_CFR_RUNTIME_APPLY_SUPPORT
 	select HAVE_INSMM_STS if !SOC_INTEL_APOLLOLAKE
-	select HAVE_PAYLOAD_MM_INTERFACE
 	help
 	  Intel Processor common SMM support
 
