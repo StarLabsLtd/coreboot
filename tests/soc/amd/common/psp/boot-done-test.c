@@ -47,7 +47,7 @@ int send_psp_command(uint32_t command, void *buffer)
 	assert_int_equal(command, command_order[requests]);
 	assert_int_equal((uintptr_t)buffer % 32, 0);
 	assert_int_equal(header->status, 0);
-	assert_int_equal(header->size, command != 0x06 ? 8 : 32);
+	assert_int_equal(header->size, 8);
 	requests++;
 	if (command != rejected_command)
 		return 0;
