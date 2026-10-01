@@ -298,12 +298,23 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 						modes='delivery delivery-begin-denied delivery-recheck-denied'
 					fi
 					for mode in $modes; do
+						log="$temporary/delivery-${profile}-${variant}-O${optimization}-${mode}.log"
 						result=0
 						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
-							"$temporary/test" "$mode" > "$temporary/delivery.log" 2>&1 || result=$?
+							"$temporary/test" "$mode" > "$log" 2>&1 || result=$?
 						if [ "$variant" != baseline ]; then
 							[ "$result" -eq 134 ]
-							grep -q 'provider stack line' "$temporary/delivery.log"
+							case "$variant" in
+							no-begin)
+								oracle=': !CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 1' ;;
+							no-recheck)
+								oracle=': !delivery_active || !CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 2' ;;
+							*) oracle=': delivery_checks == (unsigned int)stage' ;;
+							esac
+							grep -Fq "$oracle" "$log"
+							if grep -E 'runtime error:|Sanitizer' "$log"; then
+								exit 1
+							fi
 							break
 						fi
 						if [ "$mode" = delivery ]; then
@@ -312,11 +323,11 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 							expected_status=78
 						fi
 						if [ "$result" -ne "$expected_status" ]; then
-							cat "$temporary/delivery.log" >&2
+							cat "$log" >&2
 							exit 1
 						fi
 						if grep -E 'provider stack line|provider reply:|runtime error:|Sanitizer' \
-							"$temporary/delivery.log"; then
+							"$log"; then
 							exit 1
 						fi
 					done

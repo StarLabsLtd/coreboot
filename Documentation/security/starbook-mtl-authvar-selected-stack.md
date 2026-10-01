@@ -205,6 +205,75 @@ joined delivery authority, tag-0x58 publication, consumer copy coherence,
 resumed-CPU protection, terminal loader lifetime or public-runtime activation.
 Final whole-ROM and hardware gates remain separate.
 
+### Separate selected held-op9 record
+
+The next actual PRIVATE-ON SMM link includes the held source-delivery binding
+at production checkpoint `c1faacd3da6011d75eb2430871d402144624272c`.
+The corrected selected-link fixture requires the strong platform callback,
+the retained held verifier and fixed observer, and the generic provider's two
+real `R_386_PC32` call relocations. Its own weak refusal definition means
+an undefined-symbol check is not an appropriate call-site oracle.
+
+```sh
+MTL_AUTHVAR_SELECTED_BOOT_PRIVATE=1 \
+    MTL_AUTHVAR_SELECTED_XGCCPATH=/path/to/coreboot/util/crossgcc/xgcc/bin \
+    KEEP_MTL_AUTHVAR_SELECTED_TMP=1 \
+    sh tests/mainboard/starbook_mtl_authvar_selected_service_test.sh
+node tests/mainboard/starbook_mtl_authvar_selected_stack_audit.js \
+    --release-held-op9-recorded ON/smm
+```
+
+Both OFF and ON links use the same pinned compiler with `ANY_TOOLCHAIN`
+disabled; ON retains the existing 16 KiB per-CPU stack and 16 MiB TSEG.
+The compiler executable digest remains
+`2bb7e369e87dcb22736938d7e9cae0b7d408199114eb0a31c7ceb5f873cd3c6d`.
+These are newly captured identities, not normalized or substituted earlier
+records:
+
+| Held-op9 release input/artifact | SHA-256 |
+| --- | --- |
+| OFF `full.config` | `83c8219d8defe20f7720b48c74beac7ad32542dbac4106d4fdd8af7bc0459917` |
+| OFF `smm/smm.elf` | `1222be8a918b587dccd58066f0a3a680d820b6c3fea1cfaf3fd90a54a7471350` |
+| ON `full.config` | `0b5be5aa9b706d8f29e73b3815522022bf3378100d347578ebc5f51497ef8a33` |
+| ON `smm/smm.elf` | `62b897781711fe574d601668e29630be083a0c4d602afc9bb604a0272d55fe5c` |
+| Sorted 396 `.ci`/`.su` paths and contents | `4fadc1727ba8d8112f261f05f35813e724b1427f0c7d38c1d50d60e4c9f95b4b` |
+
+Actual linked execute calls BEGIN stage zero at `0x2f22b`, the real
+transaction at `0x2f26a`, and RECHECK stage one at `0x2f2fe`, all before the
+response copy at `0x2f324` and sole COMPLETE store at `0x2f32c`.
+Both calls resolve to the strong receiver binding at `0x3ca29`.
+The generic weak stub's discarded annotation is not an additional selected
+root; explicit global roots use the same exact-node resolution as direct
+call edges.
+
+The new callback's two indirect DRAM checks have the fixed native receipt
+owner `ordinary_dram_range` target. The held verifier overrides the local
+observer's translation callback with
+`observer_verify_translation_boot_private`, which calls the actual
+`starbook_mtl_dma_smm_authority_verify_live_policy` owner. The earlier cold
+observer remains reachable during receipt provisioning, so this record
+conservatively includes both fixed targets. It does not use the legacy
+presence `fe` page guard as an `fc` proof.
+
+Fresh graph/linked-assembly analysis gives a 2,252-byte nested C maximum for
+the strong delivery callback, 2,160 for its held verifier and 1,280 for the
+live authority walker. The receiver's held-verifier frame is 480 bytes and
+the platform delivery frame is 80 bytes, both `dynamic,bounded`.
+BEGIN and RECHECK return outside the transaction/CMS path; those separate
+paths must not be summed as simultaneously nested frames. The freshly
+recalculated selected-root maxima are 9,908 BOOT and 12,004 runtime bytes,
+with no unresolved reachable edges, unbounded recursion or unknown native
+targets. Existing outer/stub allowances give 10,531/12,627 bytes, leaving
+3,757 bytes below the larger 16,384-byte allocation.
+
+All earlier mode identities and callback selections remain unchanged and
+reject this new ELF. Independent exact-artifact/source/assembly review is
+required before accepting this record. This actual selected SMM-only link
+does not establish hardware placement, first native-entry origin, a trusted
+resumed-CPU copy interval, immutable policy-cache lifetime, terminal external
+loader/EBS/S3 closure, or public variable/runtime activation. The real
+component tests and separately modeled hardware joins retain those limits.
+
 Each following value is the maximum nested C path found within the named
 selected root, including conservative four-byte return-slot additions per
 call. GCC's static or `dynamic,bounded` frame values already include its
