@@ -628,3 +628,12 @@ and visually inspects the readable initial LVGL setup controls/help panel.
 Raw logs, captures, provenance, configs, ELFs, paired ROM and completed native
 check logs are retained. These are bounded-topology Q35 compatibility-provider
 receipts, not protected-variable activation, hardware or final sign-off.
+
+Later full-frame visual inspection finds a real limitation in these accepted
+setup runs: the restored logo covers the middle of the still-visible form.
+The historical setup oracle requires only 1,000 recovered splash pixels and
+does not reject those remaining controls. Its recorded pass is preserved as
+an original-oracle result, not clean whole-surface restoration or visual
+sign-off. Strengthening that oracle and restoring the original framebuffer
+after an actual UI visit remain open. The BGRT table/image receipt above is
+unchanged; it does not assert the correctness of surrounding screen pixels.
