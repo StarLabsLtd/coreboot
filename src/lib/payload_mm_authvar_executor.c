@@ -23,6 +23,7 @@
 #endif
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_store.h>
+#include <boot/payload_mm_image_policy_snapshot.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include <boot/payload_mm_authvar_view.h>
 #include <boot/payload_mm_authvar_format.h>
@@ -462,6 +463,8 @@ enum cb_err payload_mm_authvar_executor_service_admit(
 	const size_t sizes[] = { sizeof(*endpoint), size, size };
 
 	if (provider_reentry() || !policy_equal() || !executor.installed ||
+	    executor.sealed.limits.maximum_data_size >
+		PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE ||
 	    size < PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE ||
 	    size > PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE)
 		return CB_ERR;
@@ -479,6 +482,7 @@ enum cb_err payload_mm_authvar_executor_service_admit(
 	    endpoint->communication_base != contract.communication.base ||
 	    endpoint->communication_size != contract.communication.size ||
 	    endpoint->message_size != size ||
+	    endpoint->maximum_data_size > executor.sealed.limits.maximum_data_size ||
 	    endpoint->maximum_name_size > executor.sealed.limits.maximum_name_size)
 		return CB_ERR;
 	return CB_SUCCESS;
@@ -3280,6 +3284,11 @@ static bool read_operation_valid(
 	const struct payload_mm_authvar_read_request *request)
 {
 	switch (request->operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+		return !request->attributes && !request->name_size && !request->name &&
+			!request->name_capacity && !request->result_name &&
+			bytes_all_zero(request->vendor_guid, sizeof(request->vendor_guid)) &&
+			(request->result_data != NULL) == (request->data_capacity != 0);
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		return !request->attributes && request->name_size &&
 			!request->name_capacity && !request->result_name &&
@@ -4419,7 +4428,8 @@ uint64_t payload_mm_authvar_read_transaction(
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	if (copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
 	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_NEXT &&
-	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_QUERY) {
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_QUERY &&
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 		goto complete_without_arena;
 	}
@@ -4441,6 +4451,12 @@ uint64_t payload_mm_authvar_read_transaction(
 	memset(state, 0, sizeof(*state));
 	if (!read_request_copy(state, request, &copied)) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		goto out;
+	}
+	if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+	    (state->at_runtime || executor.sealed.limits.maximum_data_size >
+		PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 		goto out;
 	}
 	media_result = media_begin(state);
@@ -4481,6 +4497,96 @@ uint64_t payload_mm_authvar_read_transaction(
 	modes_validated = true;
 #endif
 	switch (state->request.operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	{
+		static const uint8_t global_guid[16] = {
+			0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+			0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+		};
+		static const uint8_t image_guid[16] = {
+			0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
+			0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
+		};
+		static const struct {
+			const uint8_t *vendor_guid;
+			uint8_t name[8];
+			size_t name_size;
+		} keys[] = {
+			{ global_guid, { 'P', 0, 'K', 0, 0, 0 }, 6 },
+			{ image_guid, { 'd', 0, 'b', 0, 0, 0 }, 6 },
+			{ image_guid, { 'd', 0, 'b', 0, 'x', 0, 0, 0 }, 8 },
+			{ image_guid, { 'd', 0, 'b', 0, 't', 0, 0, 0 }, 8 },
+		};
+		const struct payload_mm_authvar_store_entry *entries[ARRAY_SIZE(keys)];
+		uint8_t *body = arena_at(executor.sealed.data_offset);
+		size_t required = PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
+		size_t offset;
+
+		/* Inspect all indexed lengths before touching any value or body byte. */
+		for (size_t key = 0; key < ARRAY_SIZE(keys); key++) {
+			size_t padded;
+
+			entries[key] = payload_mm_authvar_store_find(&state->index,
+				keys[key].vendor_guid, keys[key].name, keys[key].name_size);
+			if (!entries[key])
+				continue;
+			if (!entries[key]->data_size || entries[key]->data_size >
+			    PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE ||
+			    __builtin_add_overflow((size_t)entries[key]->data_size, (size_t)7,
+				&padded)) {
+				status = poison_session();
+				break;
+			}
+			padded &= ~(size_t)7;
+			if (__builtin_add_overflow(required, padded, &required) ||
+			    required > PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_SIZE) {
+				status = poison_session();
+				break;
+			}
+		}
+		if (!executor.installed)
+			break;
+		state->read_result.required_data_size = (uint32_t)required;
+		if (required > state->read_data_capacity ||
+		    required > executor.sealed.limits.maximum_data_size) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+			break;
+		}
+		memset(body, 0, required);
+		write_le32(body, PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_REVISION);
+		write_le32(body + 4U, PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE);
+		write_le32(body + 8U, (uint32_t)required);
+		write_le32(body + 12U, PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_KEYS);
+		write_le32(body + 16U, source_modes);
+		write_le32(body + 20U, 6U);
+		offset = PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
+		for (size_t key = 0; key < ARRAY_SIZE(keys); key++) {
+			uint8_t *descriptor = body + 32U + key * 16U;
+
+			if (!entries[key])
+				continue;
+			bytes = payload_mm_authvar_store_data(&state->index, entries[key]);
+			if (!bytes) {
+				status = poison_session();
+				break;
+			}
+			write_le32(descriptor, 1U);
+			write_le32(descriptor + 4U, entries[key]->attributes);
+			write_le32(descriptor + 8U, entries[key]->data_size);
+			memcpy(body + offset, bytes, entries[key]->data_size);
+			offset += ALIGN_UP((size_t)entries[key]->data_size, 8U);
+		}
+		if (!executor.installed)
+			break;
+		status = payload_mm_image_policy_snapshot_shape_valid(body, required) ?
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS : poison_session();
+		break;
+	}
+#else
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		break;
+#endif
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 		memset(&value, 0, sizeof(value));
@@ -4620,6 +4726,10 @@ end:
 		executor.sealed_modes_need_reconcile = false;
 	}
 #endif
+	if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+	    status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+	    status != PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
+		memset(&state->read_result, 0, sizeof(state->read_result));
 	state->read_result.status = status;
 	published = state->read_result;
 	/* Publication is allowed only after the media session ended successfully. */
@@ -4630,7 +4740,8 @@ end:
 			memset(copied.result_data, 0, copied.data_capacity);
 	}
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
-		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET)
+		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET ||
+		    state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT)
 			memcpy(copied.result_data,
 				arena_at(executor.sealed.data_offset),
 				published.required_data_size);

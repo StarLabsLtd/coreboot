@@ -76,6 +76,7 @@ enum cb_err payload_mm_authvar_service_transaction(
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_NEXT:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
 		status = payload_mm_authvar_read_transaction(&read, &read_result);
 		if (read_result.completion != PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE ||
 		    read_result.status != status || read_result.reserved)

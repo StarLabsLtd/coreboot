@@ -12,6 +12,7 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_image_policy_snapshot.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_fail_stop.h>
@@ -804,7 +805,9 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 		return CB_ERR;
 	data_offset = ALIGN_UP(PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE +
 		provider.sealed.limits.maximum_name_size, 8U);
-	if (data_offset >= sizeof(provider.service_request))
+	if (data_offset >= sizeof(provider.service_request) ||
+	    provider.sealed.limits.maximum_data_size >
+		PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE)
 		goto failed;
 	descriptor = (struct lb_authvar_service_endpoint) {
 		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT,

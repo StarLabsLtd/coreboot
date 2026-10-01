@@ -743,7 +743,7 @@ static void deterministic_response_mutations(void)
 static void policy_wire_requests(void)
 {
 	/* Literal external protocol values, not a copy of the native enum. */
-	const uint32_t wire_revision = 2U;
+	const uint32_t wire_revision = 3U;
 	const uint64_t statuses[] = {
 		0ULL, (1ULL << 63) | 2ULL, (1ULL << 63) | 3ULL,
 		(1ULL << 63) | 7ULL, (1ULL << 63) | 8ULL,
@@ -830,9 +830,9 @@ static void required_data_size_metadata(void)
 
 static void endpoint_revision_three(void)
 {
-	/* Literal external endpoint layout; frame revision remains independently 2. */
+	/* Literal external endpoint layout; frame revision is independently 3. */
 	uint8_t raw[64] = {
-		[0] = 0x55, [4] = 64, [8] = 3, [10] = 64, [12] = 0xff,
+		[0] = 0x55, [4] = 64, [8] = 4, [10] = 64, [12] = 0xff,
 		[16] = 7, [26] = 0x10, [33] = 2, [37] = 2,
 		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
 		[52] = 32, [56] = 0x50, [57] = 1,
@@ -845,6 +845,9 @@ static void endpoint_revision_three(void)
 	memcpy(&descriptor, raw, sizeof(raw));
 	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
 	raw[8] = 3;
+	memcpy(&descriptor, raw, sizeof(raw));
+	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
+	raw[8] = 4;
 	for (unsigned int bit = 0; bit < 8; bit++) {
 		raw[12] ^= (uint8_t)(1U << bit);
 		memcpy(&descriptor, raw, sizeof(raw));
@@ -857,7 +860,7 @@ static void logical_data_capacity(void)
 {
 	/* Literal 64-byte public record: physical frame 65536, logical data 512. */
 	const uint8_t raw[64] = {
-		[0] = 0x55, [4] = 64, [8] = 3, [10] = 64, [12] = 0xff,
+		[0] = 0x55, [4] = 64, [8] = 4, [10] = 64, [12] = 0xff,
 		[16] = 7, [26] = 0x10, [34] = 1, [38] = 1,
 		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
 		[53] = 1, [57] = 2,

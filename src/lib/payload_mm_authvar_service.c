@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_image_policy_snapshot.h>
 #include <string.h>
 
 #include "payload_mm_authvar_set_preflight.h"
@@ -34,6 +35,60 @@ static bool bytes_zero(const void *buffer, size_t size)
 	while (size--)
 		value |= *bytes++;
 	return value == 0;
+}
+
+static uint32_t read_le32(const uint8_t *bytes)
+{
+	return (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8U |
+		(uint32_t)bytes[2] << 16U | (uint32_t)bytes[3] << 24U;
+}
+
+bool payload_mm_image_policy_snapshot_shape_valid(const void *data, size_t size)
+{
+	const uint8_t *bytes = data;
+	size_t offset = PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
+	uint32_t modes;
+	bool pk_present = false;
+
+	if (!data || size < PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE ||
+	    size > PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_SIZE ||
+	    size > UINTPTR_MAX - (uintptr_t)data)
+		return false;
+	if (read_le32(bytes) != PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_REVISION ||
+	    read_le32(bytes + 4U) != PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE ||
+	    read_le32(bytes + 8U) != size ||
+	    read_le32(bytes + 12U) != PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_KEYS ||
+	    read_le32(bytes + 20U) != 6U || read_le32(bytes + 24U) || read_le32(bytes + 28U))
+		return false;
+	modes = read_le32(bytes + 16U);
+	if (modes & ~7U)
+		return false;
+	for (size_t key = 0; key < PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_KEYS; key++) {
+		const uint8_t *descriptor = bytes + 32U + key * 16U;
+		const uint32_t present = read_le32(descriptor);
+		const uint32_t attributes = read_le32(descriptor + 4U);
+		const uint32_t length = read_le32(descriptor + 8U);
+		size_t padded;
+
+		if (present > 1U || read_le32(descriptor + 12U) ||
+		    (!present && (attributes || length)))
+			return false;
+		if (!key)
+			pk_present = present;
+		if (!present)
+			continue;
+		if (!length || length > PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE ||
+		    !attributes || attributes & ~0x2fU ||
+		    ((attributes & 4U) && !(attributes & 2U)) ||
+		    ((attributes & 8U) && (attributes & 7U) != 7U))
+			return false;
+		padded = ((size_t)length + 7U) & ~(size_t)7U;
+		if (padded > size - offset || !bytes_zero(bytes + offset + length, padded - length))
+			return false;
+		offset += padded;
+	}
+	return offset == size && pk_present != !!(modes & 1U) &&
+		(!(modes & 2U) || pk_present);
 }
 
 static bool name_valid(const struct lb_authvar_service_endpoint *endpoint,
@@ -128,6 +183,13 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		return CB_ERR;
 	guid_zero = bytes_zero(frame->vendor_guid, sizeof(frame->vendor_guid));
 	switch (frame->operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+		if (!guid_zero || frame->attributes || frame->name_size ||
+		    frame->data_size || frame->name_capacity ||
+		    !bytes_zero((const uint8_t *)message + sizeof(*frame),
+			message_size - sizeof(*frame)))
+			return CB_ERR;
+		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		if (!name_valid(endpoint, message, frame->name_size) ||
 		    frame->attributes || frame->data_size || frame->name_capacity)
@@ -412,6 +474,40 @@ static bool lifecycle_response_valid(
 		data_slot_tail_zero(endpoint, response, 0);
 }
 
+static bool snapshot_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *request,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	size_t data_offset;
+
+	if (response->maximum_storage || response->remaining_storage ||
+	    response->maximum_variable || response->result_name_size ||
+	    response->result_attributes ||
+	    !bytes_zero(response->result_vendor_guid, sizeof(response->result_vendor_guid)) ||
+	    !name_slot_tail_zero(endpoint, response, 0) ||
+	    !message_layout_valid(endpoint, &data_offset))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+		return response->result_data_size <= request->data_capacity &&
+			payload_mm_image_policy_snapshot_shape_valid(
+				(const uint8_t *)response + data_offset, response->result_data_size) &&
+			data_slot_tail_zero(endpoint, response, response->result_data_size);
+	case PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL:
+		return response->result_data_size >= PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE &&
+			response->result_data_size <= PAYLOAD_MM_IMAGE_POLICY_SNAPSHOT_MAX_SIZE &&
+			response->result_data_size > request->data_capacity &&
+			data_slot_tail_zero(endpoint, response, 0);
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+		return !response->result_data_size && data_slot_tail_zero(endpoint, response, 0);
+	default:
+		return false;
+	}
+}
+
 static enum cb_err response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
 	const void *response, size_t message_size, uint32_t completion)
@@ -428,11 +524,14 @@ static enum cb_err response_validate(
 	    after->reserved[0] || after->reserved[1] ||
 	    after->result_name_size > endpoint->maximum_name_size ||
 	    (after->result_data_size > endpoint->maximum_data_size &&
-	     !(after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
+	     !((after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET ||
+	        after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) &&
 	       after->status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) ||
 	    after->result_attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
 		return CB_ERR;
 	switch (after->operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+		return snapshot_response_valid(endpoint, before, after) ? CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		return get_response_valid(endpoint, before, after) ?
 			CB_SUCCESS : CB_ERR;
