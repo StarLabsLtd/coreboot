@@ -92,8 +92,3 @@ void psp_write32(uint64_t base, uint32_t offset, uint32_t data)
 {
 	write32p((uintptr_t)(base | offset), data);
 }
-
-void psp_write64(uint64_t base, uint32_t offset, uint64_t data)
-{
-	write64p((uintptr_t)(base | offset), data);
-}
