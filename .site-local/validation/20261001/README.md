@@ -585,3 +585,46 @@ Q35 logo profile. It is not every platform/rotation, a new protected-owner
 activation, hardware, or final project sign-off. Absolute source/fixture
 identities are retained; do not rewrite archived manifests to manufacture
 an original-path replay from a relocated extraction.
+
+## Exact PR349 producer with PR447 payload and tools
+
+Concatenate `qemu-reviewed-349-447.tar.gz.part-aa`, `part-ab` and `part-ac`.
+Archive SHA-256 is
+`8800707d09003f4fbc64c437f7be52334b85dbd2f7c8b15c8213d586d1735fd3`.
+Part hashes, in that order, are
+`03f0076bc454a9993587773370a72734a92ed3b88d1c46540e7b06ebd68982cf`,
+`152e9afbaeec19c307d36803664b37d0a6fec3bf142fdaa140f969cf3eaee835`,
+and `498a09b6a6b9874880e9b3d87640518ffaed9c35550e60119565eca979747a6a`.
+An independent fresh extraction verifies every evidence-file checksum;
+TPM state, sockets and PIDs are excluded. The separately archived opted-in
+BGRT fixture and UKI above remain unchanged.
+
+The exact CDK2 firmware and test-tool source is signed PR447
+`80870fb2d5edeea4a97c3425d06835a71e9f3a39`. The full native check succeeds
+in the continuing PR434-origin build directory, not a fresh whole build.
+The managed unit completes inactive with MainPID zero and successful exit.
+Separate stable lint and native packaging succeed. Compatibility config
+remains `6942c16419bb25e1ce8e760bf383bc7ffbcbc9fcf80f77c55e6a968f5baffe24`;
+native ELF SHA-256 is
+`10124df0ab90303fce3e26cb565a4478986febeee6a49a0583975e65f7c944e5`.
+
+The separately fresh 36-record setup profile succeeds through strict native
+MTRR, composition, mutant and ELF gates. Its configuration remains
+`b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`;
+ELF SHA-256 is
+`3f653e9c48a611ea774f73f897edf1f45cc785f9a31fff66d3e5f42d7cf2fc02`.
+The unchanged committed PR349 producer is paired through the strict normal
+tool with this explicit setup payload, yielding ROM
+`30606448c786af956efe707a78265854d312433d39fc92367bbefa0b0e64d31b`.
+This pairing does not change PR349's committed PR445 gitlink or imply that
+its default 33-record composition includes these setup modules.
+
+Actual QEMU runtime services, F2/navigation/Escape/Linux continuation,
+and the complete persisted firmware-setup request/presentation sequence pass.
+The real Linux BGRT table and entire BMP pass the actual oracle with the
+same table/image hashes and offsets documented above. An independent reviewer
+reruns all four original-path runtime, hotkey, firmware-setup and BGRT oracles,
+and visually inspects the readable initial LVGL setup controls/help panel.
+Raw logs, captures, provenance, configs, ELFs, paired ROM and completed native
+check logs are retained. These are bounded-topology Q35 compatibility-provider
+receipts, not protected-variable activation, hardware or final sign-off.
