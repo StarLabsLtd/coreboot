@@ -199,6 +199,8 @@ static struct {
 #endif
 } executor;
 
+static uint64_t poison_session(void);
+
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #define VARIABLE_POLICY_HEADER_SIZE 44U
 #define VARIABLE_POLICY_STATE_SIZE 18U
@@ -215,7 +217,6 @@ struct variable_policy_ledger {
  * is retained. Its seal participates in every existing executor checkpoint. */
 static struct variable_policy_ledger variable_policies, sealed_variable_policies;
 static bool variable_policy_valid(const u8 *entry, size_t size);
-static u64 poison_session(void);
 
 static bool variable_policies_equal(void)
 {
@@ -1889,8 +1890,6 @@ static bool same_recovery(const struct payload_mm_authvar_ftw_plan *left,
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER)
-static uint64_t poison_session(void);
-
 static bool recovery_image_marker(uint8_t *image, size_t size, uint32_t offset,
 	uint8_t expected, uint8_t wanted)
 {
