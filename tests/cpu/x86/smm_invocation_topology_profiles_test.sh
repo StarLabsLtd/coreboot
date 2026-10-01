@@ -59,6 +59,7 @@ printf '%s\n' \
 	'  def_bool y' \
 	'  select SMM_INVOCATION_EVIDENCE' \
 	'  select SMM_INVOCATION_ENTRY_PLATFORM' \
+	'  select SMM_INVOCATION_FAIL_STOP_PLATFORM' \
 	'  select SMM_INVOCATION_ENTRY' \
 	'  select SMM_INVOCATION_INTEL_ADAPTER' \
 	'  select SMM_INVOCATION_TOPOLOGY' >> "$profile_kconfig"
@@ -73,7 +74,8 @@ for profile in starlabs_lite_glk starlabs_lite_adl starlabs_starbook_mtl; do
 	"$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN
 	make -C "$root" obj="$build" DOTCONFIG="$config" \
 		KBUILD_KCONFIG="$profile_kconfig" olddefconfig >/dev/null
-	for symbol in SMM_INVOCATION_EVIDENCE SMM_INVOCATION_ENTRY_PLATFORM \
+	for symbol in SMM_INVOCATION_EVIDENCE SMM_INVOCATION_FAIL_STOP_PLATFORM \
+		SMM_INVOCATION_ENTRY_PLATFORM \
 		SMM_INVOCATION_ENTRY SMM_INVOCATION_INTEL_ADAPTER \
 		SMM_INVOCATION_TOPOLOGY; do
 		grep -q "^CONFIG_${symbol}=y$" "$config"
