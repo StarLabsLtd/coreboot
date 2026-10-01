@@ -3289,6 +3289,7 @@ static bool read_operation_valid(
 			!request->name_capacity && !request->result_name &&
 			bytes_all_zero(request->vendor_guid, sizeof(request->vendor_guid)) &&
 			(request->result_data != NULL) == (request->data_capacity != 0);
+	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		return !request->attributes && request->name_size &&
 			!request->name_capacity && !request->result_name &&
@@ -4429,7 +4430,8 @@ uint64_t payload_mm_authvar_read_transaction(
 	if (copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
 	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_NEXT &&
 	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_QUERY &&
-	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) {
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+	    copied.operation != PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY) {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 		goto complete_without_arena;
 	}
@@ -4497,6 +4499,32 @@ uint64_t payload_mm_authvar_read_transaction(
 	modes_validated = true;
 #endif
 	switch (state->request.operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY:
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	{
+		struct payload_mm_authvar_key_classification classification;
+		uint8_t *body = arena_at(executor.sealed.data_offset);
+
+		status = payload_mm_authvar_view_classify(&read_view,
+			state->request.vendor_guid, state->request.name,
+			state->request.name_size, &classification);
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			break;
+		state->read_result.required_data_size = PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE;
+		if (state->read_data_capacity < PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+			break;
+		}
+		write_le32(body, PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_REVISION);
+		write_le32(body + 4U, classification.kind);
+		write_le32(body + 8U, classification.attributes);
+		write_le32(body + 12U, classification.flags);
+		break;
+	}
+#else
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		break;
+#endif
 	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	{
@@ -4726,7 +4754,8 @@ end:
 		executor.sealed_modes_need_reconcile = false;
 	}
 #endif
-	if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+	if ((state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT ||
+	     state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY) &&
 	    status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
 	    status != PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
 		memset(&state->read_result, 0, sizeof(state->read_result));
@@ -4741,6 +4770,7 @@ end:
 	}
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
 		if (state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET ||
+		    state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY ||
 		    state->request.operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT)
 			memcpy(copied.result_data,
 				arena_at(executor.sealed.data_offset),

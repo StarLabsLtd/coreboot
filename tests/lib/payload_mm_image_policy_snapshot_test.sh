@@ -82,7 +82,7 @@ for block_size in $block_sizes; do
 			ASAN_OPTIONS=detect_leaks=0 "$temporary/test" user
 			exit 0
 		fi
-		for scenario in setup user capacity runtime wrong-namespace end-error; do
+		for scenario in setup user capacity runtime wrong-namespace end-error classification; do
 			ASAN_OPTIONS=detect_leaks=0 "$temporary/test" "$scenario"
 		done
 		if [ "$block_size" -eq 65536 ]; then
