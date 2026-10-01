@@ -190,6 +190,11 @@ enum cb_err payload_mm_authvar_service_request_validate(
 			message_size - sizeof(*frame)))
 			return CB_ERR;
 		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY:
+		if (!bytes_zero((const uint8_t *)message + sizeof(*frame) + frame->name_size,
+			message_size - sizeof(*frame) - frame->name_size))
+			return CB_ERR;
+		__fallthrough;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		if (!name_valid(endpoint, message, frame->name_size) ||
 		    frame->attributes || frame->data_size || frame->name_capacity)
@@ -474,6 +479,56 @@ static bool lifecycle_response_valid(
 		data_slot_tail_zero(endpoint, response, 0);
 }
 
+static bool classification_response_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_service_frame *request,
+	const struct payload_mm_authvar_service_frame *response)
+{
+	const uint8_t *body;
+	uint32_t fields[4];
+	size_t offset;
+
+	if (response->maximum_storage || response->remaining_storage ||
+	    response->maximum_variable || response->result_name_size ||
+	    response->result_attributes ||
+	    !bytes_zero(response->result_vendor_guid, sizeof(response->result_vendor_guid)) ||
+	    !name_slot_tail_zero(endpoint, response, 0) ||
+	    !message_layout_valid(endpoint, &offset))
+		return false;
+	switch (response->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+		if (response->result_data_size != PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE ||
+		    request->data_capacity < PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE ||
+		    !data_slot_tail_zero(endpoint, response, PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE))
+			return false;
+		body = (const uint8_t *)response + offset;
+		for (size_t i = 0; i < 4; i++)
+			fields[i] = (uint32_t)body[4 * i] | (uint32_t)body[4 * i + 1] << 8 |
+				(uint32_t)body[4 * i + 2] << 16 | (uint32_t)body[4 * i + 3] << 24;
+		if (fields[0] != PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_REVISION ||
+		    !stored_attributes_valid(fields[2]) || fields[3] & ~PAYLOAD_MM_AUTHVAR_KEY_VISIBLE ||
+		    (!(fields[3] & PAYLOAD_MM_AUTHVAR_KEY_VISIBLE) &&
+		     (fields[2] & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)))
+			return false;
+		if (fields[1] == PAYLOAD_MM_AUTHVAR_KEY_SYNTHETIC)
+			return fields[3] == PAYLOAD_MM_AUTHVAR_KEY_VISIBLE &&
+				(fields[2] == 6U || fields[2] == 38U);
+		return fields[1] == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;
+	case PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL:
+		return response->result_data_size == PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE &&
+			request->data_capacity < PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE &&
+			data_slot_tail_zero(endpoint, response, 0);
+	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
+		return !response->result_data_size && data_slot_tail_zero(endpoint, response, 0);
+	default:
+		return false;
+	}
+}
+
 static bool snapshot_response_valid(
 	const struct lb_authvar_service_endpoint *endpoint,
 	const struct payload_mm_authvar_service_frame *request,
@@ -525,11 +580,15 @@ static enum cb_err response_validate(
 	    after->result_name_size > endpoint->maximum_name_size ||
 	    (after->result_data_size > endpoint->maximum_data_size &&
 	     !((after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET ||
-		after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT) &&
+		after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT ||
+		after->operation == PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY) &&
 	       after->status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) ||
 	    after->result_attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_SUPPORTED)
 		return CB_ERR;
 	switch (after->operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY:
+		return classification_response_valid(endpoint, before, after) ?
+			CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
 		return snapshot_response_valid(endpoint, before, after) ? CB_SUCCESS : CB_ERR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:

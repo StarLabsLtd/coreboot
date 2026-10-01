@@ -46,6 +46,7 @@ compile_and_kill()
 {
 	name=$1
 	expression=$2
+	expected_assert=${3:-}
 	mutant="$temporary/service-$name.c"
 
 	sed "$expression" "$root/src/lib/payload_mm_authvar_service.c" > "$mutant"
@@ -69,15 +70,28 @@ compile_and_kill()
 			-I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_service_abi_test.c" \
 			"$mutant" -o "$binary"
-		if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
+		log="$temporary/mutant-$name-O$optimization.log"
+		result=0
+		ASAN_OPTIONS=detect_leaks=1 "$binary" >"$log" 2>&1 || result=$?
+		if [ "$result" -eq 0 ]; then
 			printf 'mutation survived: %s O%s\n' "$name" "$optimization" >&2
 			exit 1
+		fi
+		if [ -n "$expected_assert" ]; then
+			test "$result" -eq 134
+			grep -q "$expected_assert" "$log"
 		fi
 	done
 }
 
 compile_and_kill get-write-protected \
 	'/static bool get_response_valid/,/static bool next_response_valid/ { /case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:/d; }'
+compile_and_kill classify-unknown-flags \
+	's/fields\[3\] \& ~PAYLOAD_MM_AUTHVAR_KEY_VISIBLE/false/' \
+	classification_wire_contract
+compile_and_kill classify-synthetic-attributes \
+	's/(fields\[2\] == 6U || fields\[2\] == 38U)/true/' \
+	classification_wire_contract
 compile_and_kill get-security-violation \
 	'/static bool get_response_valid/,/static bool next_response_valid/ { s/case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:/case PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION:/; }'
 compile_and_kill next-write-protected \

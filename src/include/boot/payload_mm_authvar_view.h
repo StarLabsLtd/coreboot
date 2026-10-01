@@ -25,6 +25,17 @@ struct payload_mm_authvar_view_value {
 	uint32_t attributes;
 };
 
+struct payload_mm_authvar_key_classification {
+	uint32_t kind;
+	uint32_t attributes;
+	uint32_t flags;
+};
+
+/* Metadata only: a hidden protected key remains present, never a RAM fallback. */
+uint64_t payload_mm_authvar_view_classify(const struct payload_mm_authvar_view *view,
+	const uint8_t vendor_guid[16], const void *name, size_t name_size,
+	struct payload_mm_authvar_key_classification *classification);
+
 enum cb_err payload_mm_authvar_view_init(struct payload_mm_authvar_view *view,
 	const struct payload_mm_authvar_store_index *persistent,
 	uint8_t volatile_modes, bool at_runtime);

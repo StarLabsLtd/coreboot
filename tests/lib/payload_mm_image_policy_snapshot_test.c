@@ -34,6 +34,7 @@ static bool fail_end;
 static bool drift_at_end;
 static bool live_proof = true;
 static bool malformed_index;
+static uint8_t pending_classification[65536];
 
 bool platform_payload_mm_authvar_service_finalize_admitted(void)
 {
@@ -56,6 +57,10 @@ void __noreturn test_real_fail_stop(void)
 	assert((drift_at_end || fail_end || malformed_index) && begin_count == baseline_begin + 1 &&
 		end_count == baseline_end + 1);
 	assert(mailbox->status == UINT64_MAX && mailbox->completion == UINT32_MAX);
+	if (mailbox->operation == 10) {
+		assert(!memcmp(mailbox, pending_classification, sizeof(pending_classification)));
+		_exit(77);
+	}
 	for (size_t offset = 144; offset < 65536; offset++)
 		assert(((const uint8_t *)mailbox)[offset] == 0);
 	_exit(77);
@@ -162,6 +167,38 @@ static uint32_t get32(const uint8_t *bytes)
 		(uint32_t)bytes[2] << 16U | (uint32_t)bytes[3] << 24U;
 }
 
+static void classify_key(const struct lb_authvar_service_endpoint *descriptor,
+	const uint8_t guid[16], const void *name, uint32_t name_size, uint32_t capacity,
+	uint64_t expected_status, uint32_t kind, uint32_t attributes, uint32_t flags)
+{
+	uint8_t saved[65536] __aligned(8);
+	const uint8_t *body = (const uint8_t *)mailbox + 4240;
+	unsigned int begins = begin_count, ends = end_count;
+
+	request_init(10, capacity);
+	memcpy(mailbox->vendor_guid, guid, 16);
+	mailbox->name_size = name_size;
+	memcpy((uint8_t *)mailbox + 144, name, name_size);
+	memcpy(saved, mailbox, sizeof(saved));
+	memcpy(pending_classification, mailbox, sizeof(pending_classification));
+	assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+	assert(begin_count == begins + 1 && end_count == ends + 1);
+	assert(payload_mm_authvar_service_response_validate(descriptor, saved, mailbox,
+		65536) == CB_SUCCESS);
+	assert(mailbox->status == expected_status && !mailbox->result_attributes);
+	assert(mailbox->result_data_size ==
+		(!expected_status || expected_status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ?
+		 16U : 0U));
+	for (size_t i = 144; i < 65536; i++) {
+		if (!expected_status && i >= 4240 && i < 4256)
+			continue;
+		assert(((const uint8_t *)mailbox)[i] == 0);
+	}
+	if (!expected_status)
+		assert(get32(body) == 1 && get32(body + 4) == kind &&
+			get32(body + 8) == attributes && get32(body + 12) == flags);
+}
+
 int main(int argc, char **argv)
 {
 	static const uint8_t vendor_guid[16] = {
@@ -211,6 +248,7 @@ int main(int argc, char **argv)
 	user = !strcmp(argv[1], "user") || !strcmp(argv[1], "capacity") || malformed_index;
 	oversized = !strcmp(argv[1], "oversized");
 	assert(user || oversized || !strcmp(argv[1], "setup") ||
+		!strncmp(argv[1], "classification", 14) ||
 		!strcmp(argv[1], "runtime") || !strcmp(argv[1], "end-error") ||
 		!strcmp(argv[1], "proof-drift") || !strcmp(argv[1], "wrong-namespace"));
 	runtime_smram_size = UINTPTR_MAX - 0x400000U;
@@ -254,7 +292,48 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_finalize() == CB_SUCCESS);
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	service_generation = descriptor.generation;
-	assert(descriptor.revision == 4 && descriptor.maximum_name_size == 4096);
+	assert(descriptor.revision == 5 && descriptor.maximum_name_size == 4096);
+	if (!strncmp(argv[1], "classification", 14)) {
+		static const uint8_t missing[] = { 'Z', 0, 0, 0 };
+		static const uint8_t synthetic_name[] = {
+			'S', 0, 'e', 0, 't', 0, 'u', 0, 'p', 0, 'M', 0, 'o', 0, 'd', 0,
+			'e', 0, 0, 0,
+		};
+		struct lb_authvar_service_endpoint old = descriptor;
+
+		old.revision = 4;
+		assert(payload_mm_authvar_service_endpoint_validate(&old) != CB_SUCCESS);
+		baseline_begin = begin_count;
+		request_init(10, 16);
+		mailbox->name_size = sizeof(vendor_name);
+		memcpy((uint8_t *)mailbox + 144, vendor_name, sizeof(vendor_name));
+		mailbox->revision = 2;
+		assert(payload_mm_authvar_service_execute() != CB_SUCCESS);
+		assert(begin_count == baseline_begin);
+		classify_key(&descriptor, vendor_guid, vendor_name, sizeof(vendor_name),
+			16, 0, 1, 0x23, 1);
+		classify_key(&descriptor, vendor_guid, vendor_name, sizeof(vendor_name),
+			15, PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL, 0, 0, 0);
+		request_init(6, 0);
+		assert(payload_mm_authvar_service_execute() == CB_SUCCESS && !mailbox->status);
+		classify_key(&descriptor, vendor_guid, vendor_name, sizeof(vendor_name),
+			16, 0, 1, 0x23, 0);
+		classify_key(&descriptor, global_guid, synthetic_name, sizeof(synthetic_name),
+			16, 0, 2, 6, 1);
+		classify_key(&descriptor, vendor_guid, missing, sizeof(missing),
+			16, PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND, 0, 0, 0);
+		if (strcmp(argv[1], "classification")) {
+			baseline_begin = begin_count;
+			baseline_end = end_count;
+			fail_end = !strcmp(argv[1], "classification-end-error");
+			drift_at_end = !strcmp(argv[1], "classification-proof-drift");
+			assert(fail_end || drift_at_end);
+			classify_key(&descriptor, vendor_guid, vendor_name, sizeof(vendor_name),
+				16, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, 0, 0, 0);
+		}
+		puts("Actual key classification distinguishes runtime-hidden protected key: PASS");
+		return 0;
+	}
 	/* Corrupt the last indexed record only after genuine endpoint admission. */
 	if (malformed_index)
 		flash_bytes[last_record + 7] |= 0x80;

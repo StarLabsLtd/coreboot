@@ -968,7 +968,7 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 	offsetof(struct lb_capsule_broker_endpoint, reserved) == 68,
 	"capsule broker endpoint layout");
 
-#define LB_AUTHVAR_SERVICE_ENDPOINT_REVISION 4U
+#define LB_AUTHVAR_SERVICE_ENDPOINT_REVISION 5U
 
 #define LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER  (1U << 0)
 #define LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION (1U << 1)

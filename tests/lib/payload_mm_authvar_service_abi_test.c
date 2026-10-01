@@ -5,8 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* The firmware stdio compatibility header has no host diagnostic declarations. */
+extern int dprintf(int fd, const char *format, ...);
+
 #undef assert
-#define assert(condition) do { if (!(condition)) abort(); } while (0)
+#define assert(condition) do { \
+	if (!(condition)) { \
+		dprintf(2, "%s: %s\n", __func__, #condition); \
+		abort(); \
+	} \
+} while (0)
 
 #define MESSAGE_SIZE 4096U
 #define NAME_SIZE 256U
@@ -869,7 +877,7 @@ static void endpoint_revision_three(void)
 {
 	/* Literal external endpoint layout; frame revision is independently 3. */
 	uint8_t raw[64] = {
-		[0] = 0x55, [4] = 64, [8] = 4, [10] = 64, [12] = 0xff,
+		[0] = 0x55, [4] = 64, [8] = 5, [10] = 64, [12] = 0xff,
 		[16] = 7, [26] = 0x10, [33] = 2, [37] = 2,
 		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
 		[52] = 32, [56] = 0x50, [57] = 1,
@@ -885,6 +893,9 @@ static void endpoint_revision_three(void)
 	memcpy(&descriptor, raw, sizeof(raw));
 	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
 	raw[8] = 4;
+	memcpy(&descriptor, raw, sizeof(raw));
+	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_ERR);
+	raw[8] = 5;
 	for (unsigned int bit = 0; bit < 8; bit++) {
 		raw[12] ^= (uint8_t)(1U << bit);
 		memcpy(&descriptor, raw, sizeof(raw));
@@ -897,7 +908,7 @@ static void logical_data_capacity(void)
 {
 	/* Literal 64-byte public record: physical frame 65536, logical data 512. */
 	const uint8_t raw[64] = {
-		[0] = 0x55, [4] = 64, [8] = 4, [10] = 64, [12] = 0xff,
+		[0] = 0x55, [4] = 64, [8] = 5, [10] = 64, [12] = 0xff,
 		[16] = 7, [26] = 0x10, [34] = 1, [38] = 1,
 		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
 		[53] = 1, [57] = 2,
@@ -1036,9 +1047,80 @@ static void snapshot_wire_contract(void)
 		response_buffer, sizeof(response_buffer)) == CB_ERR);
 }
 
+static void classification_wire_contract(void)
+{
+	struct payload_mm_authvar_service_frame *request, *response;
+	const uint8_t literal[16] = { 1, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 };
+
+	request = new_request(10);
+	set_name(request);
+	request->data_capacity = 16;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_SUCCESS);
+	request_buffer[148] = 1;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request_buffer[148] = 0;
+	response = new_response(request, 0);
+	response->result_data_size = 16;
+	memcpy(response_data(), literal, sizeof(literal));
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	for (size_t offset = 0; offset < 16; offset++) {
+		response_data()[offset] ^= 0x80;
+		assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+			response_buffer, sizeof(response_buffer)) == CB_ERR);
+		response_data()[offset] ^= 0x80;
+	}
+	response_data()[4] = 2;
+	response_data()[8] = 7;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[4] = 1;
+	response_data()[12] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_data()[4] = 2;
+	response_data()[8] = 6;
+	response_data()[12] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_data()[8] = 38;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_data()[8] = 7;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[8] = 38;
+	response_data()[12] = 0;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	request->data_capacity = 15;
+	response = new_response(request, (1ULL << 63) | 5);
+	response->result_data_size = 16;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_data()[0] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[0] = 0;
+	endpoint.maximum_data_size = 8;
+	request->data_capacity = response->data_capacity = 8;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	endpoint.maximum_data_size = DATA_SIZE;
+	response = new_response(request, (1ULL << 63) | 14);
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response->result_data_size = 16;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+}
+
 int main(void)
 {
 	snapshot_wire_contract();
+	classification_wire_contract();
 	endpoint_revision_three();
 	logical_data_capacity();
 	valid_requests();

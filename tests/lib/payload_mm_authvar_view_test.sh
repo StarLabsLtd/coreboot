@@ -73,5 +73,9 @@ mutant count-query 's/view->at_runtime, result);/!view->at_runtime, result);/'
 mutant allow-unknown-mode \
 	's/view->volatile_modes \& ~/\(false \&\& (view->volatile_modes \& ~/; s/PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) ||/PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS))) ||/'
 mutant drop-reserved 's/synthetic_key(vendor_guid, name, name_size) >= 0/false/'
+mutant classify-hidden-visible \
+	's/if (!view->at_runtime || (draft.attributes \& PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS))/if (true)/'
+mutant classify-synthetic-kind \
+	's/draft.kind = PAYLOAD_MM_AUTHVAR_KEY_SYNTHETIC;/draft.kind = PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;/'
 
 printf '%s\n' 'Authenticated-variable synthetic-view tests: PASS'
