@@ -26,6 +26,7 @@
 #endif
 #include <option.h>
 #include <starlabs/efi_option_smi.h>
+#include <starlabs/smi.h>
 #include <types.h>
 #include "ecdefs.h"
 
@@ -564,7 +565,7 @@ enum cb_err cfr_runtime_apply_option(uint32_t id)
 }
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-int mainboard_smi_apmc(u8 data)
+int starlabs_efi_option_smi(u8 data)
 {
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
