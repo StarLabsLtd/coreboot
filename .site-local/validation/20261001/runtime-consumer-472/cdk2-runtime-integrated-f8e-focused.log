@@ -1,0 +1,428 @@
+#
+# configuration written to /home/sean/tmp.nEAg3H9UYJ/parent/.config
+#
+#
+# configuration written to /home/sean/Documents/.cdk2-worktrees/fresh-image-policy-consumer/build/cdk2/.config
+#
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+#
+# No change to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+#
+# No change to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/output/.config
+#
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+cdk2 ELF layout: PASS (/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf)
+Actual core LoadImage through entry-installed policy (setup mode native PE load): PASS (modeled IRQ/HOB/trigger)
+Actual core LoadImage through entry-installed policy (authenticated enrollment denial): PASS (modeled IRQ/HOB/trigger)
+Actual protected variable entry (auth2-core): PASS (modeled trigger/HOB)
+cdk2 coreboot test: PASS
+Aborted
+Actual core entry policy decision-discard causal mutation O0: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+Actual protected variable entry (normal): PASS (modeled trigger/HOB)
+Actual protected variable entry (nonidentity): PASS (modeled trigger/HOB)
+Actual protected variable entry (endpoint-invalid): PASS (modeled trigger/HOB)
+Actual protected variable entry (general-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (router-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (install-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-free-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-retire-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-unregister-error): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-policy-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-busy-control): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-converted-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (ready-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-request-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-ready-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-owner-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-scratch-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-other-trigger): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-preclosed): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-policy-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-owner): PASS (modeled trigger/HOB)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.xMTF25dh3S/stage/.config
+#
+Actual protected variable entry (va-alias-service-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-8): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-9): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-10): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-11): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-12): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-13): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-14): PASS (modeled trigger/HOB)
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual protected variable entry (auth2): PASS (modeled trigger/HOB)
+Protected trigger continuity causal mutation O0: PASS
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+Pending runtime request continuity causal mutation O0: PASS
+0	4096	8192	PE
+Aborted
+Policy retirement retire-busy causal mutation O0: PASS
+0	4096	20480	PE
+0	4096	4096	PE
+Aborted
+Policy retirement unregister-error causal mutation O0: PASS
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.xMTF25dh3S/stage/native/cdk2-coreboot-image.elf
+Protected variable source import/cache and actual PE link: PASS
+Protected variable nested Make parent isolation: PASS
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual core LoadImage through entry-installed policy (setup mode native PE load): PASS (modeled IRQ/HOB/trigger)
+Actual core LoadImage through entry-installed policy (authenticated enrollment denial): PASS (modeled IRQ/HOB/trigger)
+Actual protected variable entry (auth2-core): PASS (modeled trigger/HOB)
+Aborted
+Actual core entry policy decision-discard causal mutation O2: PASS
+Actual general policy producer/owner fresh-copy and runtime refusal: PASS
+Actual general policy producer/owner fresh-copy and runtime refusal: PASS
+Actual protected variable entry (normal): PASS (modeled trigger/HOB)
+Actual protected variable entry (nonidentity): PASS (modeled trigger/HOB)
+Actual protected variable entry (endpoint-invalid): PASS (modeled trigger/HOB)
+Actual protected variable entry (general-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (router-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (install-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-free-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-retire-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-unregister-error): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-policy-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-busy-control): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-converted-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (ready-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-request-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-ready-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-owner-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-scratch-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-other-trigger): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-preclosed): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-policy-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-8): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-9): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-10): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-11): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-12): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-13): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-14): PASS (modeled trigger/HOB)
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual protected variable entry (auth2): PASS (modeled trigger/HOB)
+Protected trigger continuity causal mutation O2: PASS
+Pending runtime request continuity causal mutation O2: PASS
+Aborted
+Policy retirement retire-busy causal mutation O2: PASS
+Aborted
+Policy retirement unregister-error causal mutation O2: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry refusal mutation: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary callback recheck mutation: PASS
+Private linked-primary premature-public-start mutation: PASS
+Trusted inventory fixed-loader guard removal: PASS
+Aborted
+Diagnostic private-image Start guard removal: PASS
+Aborted
+Diagnostic partial-publication Unload guard removal: PASS
+DXE mixed MBR+GPT entry test: PASS
+DXE mixed MBR+GPT entry test: PASS
+DXE LVGL-without-BDS compile matrix: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS guard mutation: PASS
+rollback absence mutation: PASS
+rollback opens mutation: PASS
+rollback connection mutation: PASS
+DXE per-device partition ownership mutation: PASS
+DXE reconstructed bridge mutation: PASS
+DXE complete bus-register width mutation: PASS
+DXE extra bridge rejection mutation: PASS
+DXE storage-controller path span mutation: PASS
+DXE authoritative storage intent mutation: PASS
+DXE deterministic storage fallback mutation: PASS
+DXE deterministic per-device order mutation: PASS
+DXE exact loader fallback mutation: PASS
+DXE boot-policy loader-size revalidation mutation: PASS
+DXE boot-policy exact loader-path revalidation mutation: PASS
+DXE storage binding reuse mutation: PASS
+DXE same-backend candidate retry mutation: PASS
+DXE ATA Bus exact-connect status mutation: PASS
+DXE unowned ATA Bus absence mutation: PASS
+DXE ATA Bus residual ownership mutation: PASS
+DXE stale ATA Bus ownership mutation: PASS
+DXE ATA Bus single-stop ownership mutation: PASS
+DXE mixed MBR+GPT entry mutation test: PASS
+DXE capsule disk selected-ESP scan test: PASS
+DXE image transaction mutation tests: PASS
+DXE LoadImage transaction ownership mutation: PASS
+strict direct entry phase tests: skipped for compatibility route
+DXE framebuffer owner test: PASS
+DXE framebuffer unowned-inference mutation: PASS
+DXE framebuffer absent-legacy mutation: PASS
+DXE framebuffer declared-bar mutation: PASS
+DXE framebuffer decoy-probe mutation: PASS
+DXE framebuffer owner-segment mutation: PASS
+DXE framebuffer owner-bus mutation: PASS
+DXE framebuffer owner-device mutation: PASS
+DXE framebuffer owner-function mutation: PASS
+DXE framebuffer duplicate-bdf mutation: PASS
+DXE framebuffer range mutation: PASS
+DXE framebuffer cleanup mutation: PASS
+DXE framebuffer path-span mutation: PASS
+DXE framebuffer duplicate-hob mutation: PASS
+DXE framebuffer repeated-parse mutation: PASS
+DXE framebuffer stale-cache mutation: PASS
+DXE framebuffer owner mutation test: PASS
+dxe core service tests passed
+disconnect ownership mutation: rejected
+disconnect binding-handle mutation: rejected
+disconnect child mutation: rejected
+disconnect provisional mutation: rejected
+disconnect exact-driver mutation: rejected
+disconnect child-failure mutation: rejected
+disconnect rollback mutation: rejected
+disconnect pair-retained mutation: rejected
+disconnect reentry mutation: rejected
+disconnect registration mutation: rejected
+disconnect parent-lifetime mutation: rejected
+disconnect child-specific-lifetime mutation: rejected
+disconnect live-iteration mutation: rejected
+DXE DisconnectController ownership and mutation tests: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry refusal mutation: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary callback recheck mutation: PASS
+Private linked-primary premature-public-start mutation: PASS
+Trusted inventory fixed-loader guard removal: PASS
+Aborted
+Diagnostic private-image Start guard removal: PASS
+Aborted
+Diagnostic partial-publication Unload guard removal: PASS
+dxe storage scope tests passed
+dxe core entry tests passed
+dxe core GCD tests passed
+dxe core service tests passed
+Private linked-primary actual core test: PASS
+dxe core ABI tests passed
+dxe core dispatcher tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+Aborted
+Aborted
+DXE lifecycle legacy/composition profiles and owner-gate mutants: PASS
+dxe core image tests passed
+dxe core database tests passed
+dxe core event tests passed
+dxe core memory tests passed
+variable malformed-record O0/O2/strict/sanitizer/mutation tests: PASS
+variable runtime model tests: PASS
+variable runtime service tests: PASS
+variable runtime backend tests: PASS
+variable runtime entry tests: PASS
+variable runtime diagnostic tests: PASS
+FAT binding test: SetInfo accepted a name beyond declared FileInfo size
+FAT SetInfo declared-size mutation test: PASS
+SMMSTORE transport tests: PASS
+authenticated variable-store tests: PASS
+SMMSTORE FVB runtime tests: PASS
+SMMSTORE runtime driver tests: PASS
+SMMStore diagnostic tests: PASS
+SMMStore diagnostic tests: PASS

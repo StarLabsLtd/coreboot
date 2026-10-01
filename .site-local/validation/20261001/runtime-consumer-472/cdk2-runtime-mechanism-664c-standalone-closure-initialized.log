@@ -1,0 +1,68 @@
+#
+# configuration written to /home/sean/tmp.uuYqJY6kCk/parent/.config
+#
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# No change to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# No change to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/output/.config
+#
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.ydBCv3BZSI/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.ydBCv3BZSI/stage/native/cdk2-coreboot-image.elf
+Protected variable source import/cache and actual PE link: PASS
+Protected variable nested Make parent isolation: PASS

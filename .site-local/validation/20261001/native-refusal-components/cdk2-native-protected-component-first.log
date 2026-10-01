@@ -1,0 +1,40 @@
+#
+# configuration written to /home/sean/Documents/.cdk2-worktrees/protected-native-qemu-component-probe/build/cdk2/.config
+#
+qemu-system-x86_64: terminating on signal 15 from pid 1054981 (timeout)
+[0m[SPEW ]  PCI: 00:00:1c.4: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1c.5: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1d.0: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1d.1: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1d.2: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1d.7: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:19.0: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1f.5: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:1f.6: enabled 0[0m
+[0m[SPEW ]  PCI: 00:00:01.0: enabled 1[0m
+[0m[SPEW ]  PCI: 00:00:02.0: enabled 1[0m
+[0m[SPEW ]  APIC: 00: enabled 1[0m
+[0m[DEBUG]  BS: BS_DEV_INIT run times (exec / console): 18 / 15 ms[0m
+[7m[ERROR]  pc80_tpm_probe: No TPM device found[0m
+[7m[ERROR]  tlcl_lib_init: TIS probe failed[0m
+[7m[ERROR]  TPM Error (0x486): Can't initialize.[0m
+[0m[DEBUG]  FMAP: area SMMSTORE found @ 0 (524288 bytes)[0m
+[1;4m[WARN ]  EFIVARS: No Firmware Volume header present[0m
+[1;4m[WARN ]  EFIVARS: Failed to validate firmware header[0m
+[0m[DEBUG]  FMAP: area SMMSTORE found @ 0 (524288 bytes)[0m
+[0m[DEBUG]  init_pae_pagetables: Using address 0x0fdb5000 for page tables[0m
+[1;4m[WARN ]  EFIVARS: No Firmware Volume header present[0m
+[1;4m[WARN ]  EFIVARS: Failed to validate firmware header[0m
+[0m[INFO ]  capsules: no UEFI capsules were discovered.[0m
+[0m[DEBUG]  BS: BS_DEV_INIT exit times (exec / console): 1 / 1 ms[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ a1000 (7729152 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: Found 'logo.bmp' @0x21a40 size 0x21df in mcache @0x0fedd158[0m
+[0m[INFO ]  VB2:vb2_digest_init() 8671 bytes, hash algo 2, HW acceleration unsupported[0m
+[0m[DEBUG]  TPM: Digest of `CBFS: logo.bmp` to PCR 2 logged[0m
+[0m[DEBUG]  BS: BS_POST_DEVICE entry times (exec / console): 12 / 1 ms[0m
+[0m[INFO ]  Finalize devices...[0m
+[0m[INFO ]  Devices finalized[0m
+[1;4;5;7m[EMERG]  Q35 DMA: expected exactly one NVMe requester at 0000:00:03.0make[1]: *** [/home/sean/Documents/.cdk2-worktrees/protected-native-qemu-component-probe/src/boot/Makefile:869: native-protected-variable-component-test] Error 1
+make: *** [Makefile:1104: native-protected-variable-component-test] Error 2

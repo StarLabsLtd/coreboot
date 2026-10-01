@@ -1,0 +1,15 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/runtime-mechanism-standalone-closure'
+#
+# configuration written to /home/sean/tmp.zKdQc38xFo/parent/.config
+#
+#
+# configuration written to /home/sean/tmp.TCPMC81xTH/output/.config
+#
+/home/sean/Documents/.cdk2-worktrees/runtime-mechanism-standalone-closure//src/lib/cms.c:7:10: fatal error: bearssl.h: No such file or directory
+    7 | #include <bearssl.h>
+      |          ^~~~~~~~~~~
+compilation terminated.
+make[2]: *** [/home/sean/Documents/.cdk2-worktrees/runtime-mechanism-standalone-closure/src/boot/Makefile:676: /home/sean/tmp.TCPMC81xTH/output/native/cms.o] Error 1
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/runtime-mechanism-standalone-closure/Makefile:242: protected-variable-config-test] Error 2
+make: *** [Makefile:242: protected-variable-config-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/runtime-mechanism-standalone-closure'

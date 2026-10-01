@@ -1,0 +1,3 @@
+Native component artifacts: /home/sean/Documents/.cdk2-worktrees/protected-native-qemu-component-probe/build/cdk2/native/protected-variable-component/run.ovRQpU
+Found file config at 0x20800, type raw, compressed 3587, size 12379
+Native protected component missing-endpoint refusal: PASS (production boot guard held)

@@ -1,0 +1,42 @@
+Native component artifacts: /home/sean/Documents/.cdk2-worktrees/protected-native-qemu-component-probe/build/cdk2/native/protected-variable-component/run.Jl2UhB
+Found file config at 0x20800, type raw, compressed 3587, size 12379
+qemu-system-x86_64: Interrupt Mask set, irq is not generated
+qemu-system-x86_64: vtd_iommu_translate: detected translation failure (dev=00:05:00, iova=0x3fdaa000)
+qemu-system-x86_64: New fault is not recorded due to compression of faults
+[0m[DEBUG]    New segment dstaddr 0x001207f0 memsize 0x2b08 srcaddr 0xff8dee42 filesize 0x1805[0m
+[0m[DEBUG]  Loading Segment: addr: 0x001207f0 memsz: 0x0000000000002b08 filesz: 0x0000000000001805[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[SPEW ]  [ 0x001207f0, 001232f8, 0x001232f8) <- ff8dee42[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff8cdde4[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00124000 memsize 0xa82b10 srcaddr 0xff8e0647 filesize 0xd0[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00124000 memsz: 0x0000000000a82b10 filesz: 0x00000000000000d0[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[SPEW ]  [ 0x00124000, 00124258, 0x00ba6b10) <- ff8e0647[0m
+[0m[DEBUG]  Clearing Segment: addr: 0x0000000000124258 memsz: 0x0000000000a828b8[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff8cde00[0m
+[0m[DEBUG]    Entry Point 0x00100000[0m
+[0m[SPEW ]  Loaded segments[0m
+[0m[DEBUG]  BS: BS_PAYLOAD_LOAD run times (exec / console): 38 / 3 ms[0m
+[0m[INFO ]  Boot mode is 0[0m
+[0m[INFO ]  Disabled capsule update SMI handler[0m
+[0m[INFO ]  coreboot TPM 2.0 measurements:[0m
+[0m
+[0m[INFO ]   PCR-2 b64dfc7b86bb026d64096465004c8cb9be550f9b07a243ee0e5cafc7d657330e SHA256 [FMAP: FMAP][0m
+[0m[INFO ]   PCR-2 722d2572d041ca37573edeb31bf15708cbc2397f9d6eb61788b253db03f1057e SHA256 [CBFS: bootblock][0m
+[0m[INFO ]   PCR-2 548d28046f2e32d70f13febfbd12ee4b818061191d92b669855d7d65fab059da SHA256 [CBFS: fallback/romstage][0m
+[0m[INFO ]   PCR-2 3692303a3e52f9e16490a6279bfe3d8171bb708f4bd8eb7619e8cc5db2fca2ac SHA256 [CBFS: fallback/postcar][0m
+[0m[INFO ]   PCR-2 41f5679140e2237cf0fa7f00ee794a61db69941b7d3639260d307ff51658e5ad SHA256 [CBFS: fallback/ramstage][0m
+[0m[INFO ]   PCR-2 97ade6dbf15268beee3ac9f0a37af0e3be33fd4948d4e1ac6d6c6959a398a675 SHA256 [CBFS: logo.bmp][0m
+[0m[INFO ]   PCR-2 60d5d8ad199b0aa7dc22ffdb180f30652a8be9e5e760e82484ece61a93fda038 SHA256 [CBFS: fallback/payload][0m
+[0m
+[0m[DEBUG]  BS: BS_PAYLOAD_BOOT entry times (exec / console): 1 / 2 ms[0m
+[0m[DEBUG]  ICH-NM10-PCH: watchdog disabled[0m
+[0m[DEBUG]  Jumping to boot code at 0x00100000(0x3fc8a000)[0m
+[0m[SPEW ]  Check main stack:[0m
+[0m[SPEW ]  CPU0: stack: 0x3fda7c10 - 0x3fda9c10, lowest used address 0x3fda94e8, stack used: 1832 bytes[0m
+CDK2_NATIVE_PROTECTED_COMPONENT_BEGIN
+CDK2_NATIVE_PROTECTED_IMPORTED_RAM
+CDK2_NATIVE_PROTECTED_COMPONENT_FAIL
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/protected-native-qemu-component-probe/src/boot/Makefile:869: native-protected-variable-component-test] Error 1
+make: *** [Makefile:1104: native-protected-variable-component-test] Error 2
