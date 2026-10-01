@@ -10,6 +10,7 @@ printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_SMMSTORE_FULL_FLASH_ACCESS 0' \
 	'#define CONFIG_SMMSTORE_BLOCK_SIZE 65536' \
 	'#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1' \
 	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 0' \
 	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
 	> "$temporary/include/config.h"
@@ -40,6 +41,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_service_bootstrap_test.c" \
 		"$root/src/lib/payload_mm_authvar_smm_bootstrap.c" \
 		"$root/src/lib/payload_mm_authvar.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$temporary/receipt.o" -o "$temporary/test"
 	for mode in success with-mor repeat alias absent-identity mac tag size \
 		generation unaligned high smram drift abort-active abort-empty \

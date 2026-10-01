@@ -13,6 +13,8 @@
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
+#include <cpu/x86/smm_command.h>
+#include <cpu/x86/smm_invocation_fail_stop.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #endif
 #include <commonlib/helpers.h>
@@ -70,6 +72,14 @@ struct service_communication {
 	uint64_t generation;
 	uint8_t owner[PAYLOAD_MM_AUTHVAR_SMM_ARENA_OWNER_SIZE];
 };
+
+enum endpoint_phase {
+	ENDPOINT_EMPTY,
+	ENDPOINT_FINALIZING,
+	ENDPOINT_READY,
+	ENDPOINT_EXECUTING,
+	ENDPOINT_FAILED,
+};
 #endif
 
 static struct {
@@ -80,6 +90,9 @@ static struct {
 	struct service_communication service;
 	struct service_communication sealed_service;
 	uint32_t service_phase;
+	uint32_t endpoint_phase;
+	struct lb_authvar_service_endpoint endpoint;
+	struct lb_authvar_service_endpoint sealed_endpoint;
 	/* These are separate from the reusable executor arena and private policy. */
 	uint8_t service_request[PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE] __aligned(8);
 	uint8_t service_response[PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE] __aligned(8);
@@ -763,5 +776,135 @@ enum cb_err payload_mm_authvar_smm_service_bootstrap_install(
 	const struct payload_mm_authvar_smm_bootstrap *bootstrap)
 {
 	return bootstrap_install(bootstrap, true);
+}
+
+__weak bool platform_payload_mm_authvar_service_finalize_admitted(void)
+{
+	return false;
+}
+
+__weak bool platform_payload_mm_authvar_service_runtime_admitted(void)
+{
+	return false;
+}
+
+enum cb_err payload_mm_authvar_service_finalize(void)
+{
+	struct lb_authvar_service_endpoint descriptor;
+	uint32_t expected = ENDPOINT_EMPTY;
+	uint32_t data_offset;
+
+	if (__atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE) != SERVICE_INSTALLED ||
+	    !protected_storage(&provider, sizeof(provider)) || !spi_writes_restricted(NULL) ||
+	    memcmp(&provider.service, &provider.sealed_service, sizeof(provider.service)) ||
+	    !protected_storage((const void *)platform_payload_mm_authvar_service_finalize_admitted,
+		1) || !platform_payload_mm_authvar_service_finalize_admitted() ||
+	    !__atomic_compare_exchange_n(&provider.endpoint_phase, &expected,
+		ENDPOINT_FINALIZING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	data_offset = ALIGN_UP(PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE +
+		provider.sealed.limits.maximum_name_size, 8U);
+	/* The fixed wire format has no padding or alternate data-slot capacity. */
+	if (data_offset >= sizeof(provider.service_request) ||
+	    provider.sealed.limits.maximum_data_size <
+		(uint32_t)sizeof(provider.service_request) - data_offset)
+		goto failed;
+	descriptor = (struct lb_authvar_service_endpoint) {
+		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT,
+		.size = sizeof(descriptor),
+		.revision = LB_AUTHVAR_SERVICE_ENDPOINT_REVISION,
+		.header_size = sizeof(descriptor),
+		/* Established by the sole install and genuine current hardware/wave proof. */
+		.flags = LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS,
+		.generation = provider.sealed_service.generation,
+		.communication_base = provider.sealed_service.range.base,
+		.communication_size = sizeof(provider.service_request),
+		.message_size = sizeof(provider.service_request),
+		.transport = LB_AUTHVAR_ENDPOINT_TRANSPORT_APM_IO8,
+		.trigger_width = 1,
+		.trigger_address = APM_CNT,
+		.trigger_value = SMM_APMC_AUTHVAR_SERVICE,
+		.maximum_name_size = provider.sealed.limits.maximum_name_size,
+		.maximum_data_size = (uint32_t)sizeof(provider.service_request) - data_offset,
+	};
+	provider.endpoint = descriptor;
+	provider.sealed_endpoint = descriptor;
+	if (payload_mm_authvar_service_endpoint_validate(&provider.endpoint) != CB_SUCCESS ||
+	    payload_mm_authvar_executor_service_admit(&provider.endpoint,
+		provider.service_request, provider.service_response,
+		sizeof(provider.service_request)) != CB_SUCCESS ||
+	    !spi_writes_restricted(NULL) || !platform_payload_mm_authvar_service_finalize_admitted() ||
+	    memcmp(&provider.endpoint, &descriptor, sizeof(descriptor)) ||
+	    memcmp(&provider.sealed_endpoint, &descriptor, sizeof(descriptor)))
+		goto failed;
+	__atomic_store_n(&provider.endpoint_phase, ENDPOINT_READY, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
+
+failed:
+	scrub(&provider.endpoint, sizeof(provider.endpoint));
+	scrub(&provider.sealed_endpoint, sizeof(provider.sealed_endpoint));
+	__atomic_store_n(&provider.endpoint_phase, ENDPOINT_FAILED, __ATOMIC_RELEASE);
+	return CB_ERR;
+}
+
+enum cb_err payload_mm_authvar_service_descriptor_copy(
+	struct lb_authvar_service_endpoint *endpoint)
+{
+	if (!endpoint || (uintptr_t)endpoint % _Alignof(struct lb_authvar_service_endpoint) ||
+	    __atomic_load_n(&provider.endpoint_phase, __ATOMIC_ACQUIRE) != ENDPOINT_READY ||
+	    !protected_storage(endpoint, sizeof(*endpoint)) ||
+	    spans_overlap((uintptr_t)endpoint, sizeof(*endpoint), (uintptr_t)&provider,
+		sizeof(provider)) ||
+	    spans_overlap((uintptr_t)endpoint, sizeof(*endpoint), provider.sealed.arena.base,
+		provider.sealed.arena.size) ||
+	    memcmp(&provider.endpoint, &provider.sealed_endpoint, sizeof(provider.endpoint)))
+		return CB_ERR;
+	*endpoint = provider.sealed_endpoint;
+	return CB_SUCCESS;
+}
+
+enum cb_err payload_mm_authvar_service_execute(void)
+{
+	struct payload_mm_authvar_service_frame *response = (void *)provider.service_response;
+	struct payload_mm_authvar_service_frame *mailbox;
+	uint32_t expected = ENDPOINT_READY;
+	enum cb_err result = CB_ERR;
+
+	if (!protected_storage(&provider, sizeof(provider)) || !spi_writes_restricted(NULL) ||
+	    __atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE) != SERVICE_INSTALLED ||
+	    memcmp(&provider.service, &provider.sealed_service, sizeof(provider.service)) ||
+	    !protected_storage((const void *)platform_payload_mm_authvar_service_runtime_admitted,
+		1) || !platform_payload_mm_authvar_service_runtime_admitted() ||
+	    memcmp(&provider.endpoint, &provider.sealed_endpoint, sizeof(provider.endpoint)) ||
+	    !__atomic_compare_exchange_n(&provider.endpoint_phase, &expected,
+		ENDPOINT_EXECUTING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		return CB_ERR;
+	mailbox = (void *)(uintptr_t)provider.sealed_service.range.base;
+	/* The shared mailbox is untrusted. Never compare it again after this snapshot. */
+	memcpy(provider.service_request, mailbox, sizeof(provider.service_request));
+	if (payload_mm_authvar_service_request_validate(&provider.sealed_endpoint,
+		provider.service_request, sizeof(provider.service_request)) != CB_SUCCESS)
+		goto out;
+	if (!platform_payload_mm_authvar_service_runtime_admitted() || !spi_writes_restricted(NULL) ||
+	    payload_mm_authvar_service_transaction(&provider.endpoint, provider.service_request,
+		provider.service_response, sizeof(provider.service_request)) != CB_SUCCESS ||
+	    memcmp(&provider.endpoint, &provider.sealed_endpoint, sizeof(provider.endpoint)) ||
+	    memcmp(&provider.service, &provider.sealed_service, sizeof(provider.service)) ||
+	    payload_mm_authvar_service_response_validate(&provider.sealed_endpoint,
+		provider.service_request, provider.service_response,
+		sizeof(provider.service_response)) != CB_SUCCESS ||
+	    !platform_payload_mm_authvar_service_runtime_admitted() || !spi_writes_restricted(NULL))
+		smm_invocation_platform_fail_stop();
+	/* Publish the validated body first. The sole completion store is last. */
+	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
+	memcpy(mailbox, provider.service_response, sizeof(provider.service_response));
+	__atomic_store_n(&mailbox->completion, PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE,
+		__ATOMIC_RELEASE);
+	result = CB_SUCCESS;
+out:
+	scrub(provider.service_request, sizeof(provider.service_request));
+	scrub(provider.service_response, sizeof(provider.service_response));
+	__atomic_store_n(&provider.endpoint_phase, ENDPOINT_READY, __ATOMIC_RELEASE);
+	return result;
 }
 #endif

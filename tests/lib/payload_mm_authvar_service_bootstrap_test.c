@@ -22,6 +22,41 @@ static bool abort_during_consume;
 static unsigned int binding_reads;
 static bool wave_admitted = true;
 
+/* This prerequisite fixture installs only the backend boundary model. */
+#if !defined(TEST_REAL_BOOTSTRAP_STACK)
+__weak enum cb_err payload_mm_authvar_executor_service_admit(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size)
+{
+	(void)endpoint;
+	(void)request;
+	(void)response;
+	(void)size;
+	return CB_ERR;
+}
+
+__weak enum cb_err payload_mm_authvar_service_transaction(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const void *request, void *response, size_t size)
+{
+	(void)endpoint;
+	(void)request;
+	(void)response;
+	(void)size;
+	return CB_ERR;
+}
+#endif
+
+__weak void __noreturn smm_invocation_platform_fail_stop(void)
+{
+#if defined(TEST_REAL_BOOTSTRAP_STACK)
+	extern void __noreturn test_real_fail_stop(void);
+
+	test_real_fail_stop();
+#endif
+	abort();
+}
+
 bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
 {
 	return wave_admitted;
@@ -106,6 +141,7 @@ static void make_service_receipt(void)
 	bootmem_reservation_receipt_close(&signer);
 }
 
+#if !defined(TEST_REAL_BOOTSTRAP_STACK)
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
@@ -205,3 +241,4 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_smm_service_bootstrap_install(&seed) == CB_ERR);
 	return 0;
 }
+#endif
