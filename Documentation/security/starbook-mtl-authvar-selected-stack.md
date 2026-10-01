@@ -122,6 +122,39 @@ audit; changing a hash alone is not acceptance of another artifact.
 
 ## Recorded nested paths
 
+### Post-classifier release record
+
+A fresh OFF/ON fixture run at source commit
+`cdc87a8610cf6fffa0547fcc7188c9961c458ab9` links the reviewed key-classification
+producer and successor invocation readiness owner with the same pinned release
+compiler above. Its explicit diagnostic mode is:
+
+```sh
+node tests/mainboard/starbook_mtl_authvar_selected_stack_audit.js \
+    --release-post-classifier-recorded ON/smm
+```
+
+| Post-classifier release input/artifact | SHA-256 |
+| --- | --- |
+| ON `full.config` | `6016a34ab0c6957a05a3a5935876b8c17556e291e33ec67f450d1530ca385aa2` |
+| ON `smm/smm.elf` | `5f839e8b6bfdf477651c4e91c04e314979ed57bc58eddb35a9339eb371e6d64a` |
+| Sorted 394 `.ci`/`.su` paths and contents | `f430443957b5852d4a32abcc42682bb9a1e59a54b368d3bcba061b40239a8d8c` |
+
+The selected BOOT/runtime maxima remain 9,908 and 12,004 nested C bytes. Actual
+linked direct/tail traversal reaches no unresolved edge or unbounded recursion.
+The new readonly classification path uses direct validated-view/index lookups;
+it adds no callback binding or recursive call. The existing outer frames,
+assembly allowance and fixed callback/source qualifications above remain
+necessary. The resulting artifact-qualified totals remain 10,531 and 12,627
+bytes, not a general guarantee for another build.
+
+`PAYLOAD_BOOT_PRIVATE_BUFFER` is disabled in this profile: the unselected
+held-lease prerequisite has no retained symbols in this ELF, so these totals
+do not cover its call chain, first-entry delivery or resumed-CPU lifetime.
+Historical native and release records are preserved independently; neither
+accepts this new artifact. This is still an SMM-only artifact calculation,
+not a whole-ROM, hardware, loader-lifetime or public-variable cutover signoff.
+
 Each following value is the maximum nested C path found within the named
 selected root, including conservative four-byte return-slot additions per
 call. GCC's static or `dynamic,bounded` frame values already include its
