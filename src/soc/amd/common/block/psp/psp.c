@@ -131,6 +131,30 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 }
 #endif
 
+enum cb_err psp_send_generic_command(uint32_t command)
+{
+	struct mbox_default_buffer buffer = {
+		.header.size = sizeof(buffer.header),
+	};
+
+	int status = send_psp_command(command, &buffer);
+	return status || rd_resp_sts(&buffer.header) ? CB_ERR : CB_SUCCESS;
+}
+
+enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4])
+{
+	struct mbox_cmd_set_config_buffer buffer = {
+		/* Allocation alignment is not part of the mailbox wire format. */
+		.header.size = sizeof(buffer.header) + sizeof(buffer.config_id) +
+			       sizeof(buffer.args),
+		.config_id = config,
+		.args = { args[0], args[1], args[2], args[3] },
+	};
+
+	int status = send_psp_command(MBOX_BIOS_CMD_SET_CONFIG, &buffer);
+	return status || rd_resp_sts(&buffer.header) ? CB_ERR : CB_SUCCESS;
+}
+
 /*
  * Notify the PSP that the system is completing the boot process.  Upon
  * receiving this command, the PSP will only honor commands where the buffer
