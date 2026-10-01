@@ -19,8 +19,10 @@ enum publication_state {
 	PUBLICATION_BUSY,
 	PUBLICATION_DISABLED,
 	PUBLICATION_RESERVED,
+	PUBLICATION_SERVICE_RESERVED,
 	PUBLICATION_FINALIZING,
 	PUBLICATION_PUBLISHED,
+	PUBLICATION_SERVICE_PUBLISHED,
 	PUBLICATION_FAILED,
 };
 
@@ -64,6 +66,14 @@ static __noinline void scrub(void *buffer, size_t size)
 
 __weak bool platform_payload_mm_authvar_presence_required(void)
 {
+	return false;
+}
+
+__weak bool platform_payload_mm_authvar_service_published(
+	const struct lb_header *header, uintptr_t table_end)
+{
+	(void)header;
+	(void)table_end;
 	return false;
 }
 
@@ -153,6 +163,7 @@ static enum cb_err fail(void)
 
 	for (;;) {
 		if (state == PUBLICATION_DISABLED || state == PUBLICATION_PUBLISHED ||
+		    state == PUBLICATION_SERVICE_PUBLISHED ||
 		    state == PUBLICATION_FAILED || state == PUBLICATION_FINALIZING)
 			return CB_ERR;
 #if ENV_TEST
@@ -178,9 +189,10 @@ enum cb_err payload_mm_authvar_presence_publication_loader_required(bool *requir
 		return CB_ERR;
 	*required = false;
 	state = __atomic_load_n(&publication_state, __ATOMIC_ACQUIRE);
-	if (state != PUBLICATION_DISABLED && state != PUBLICATION_RESERVED)
+	if (state != PUBLICATION_DISABLED && state != PUBLICATION_RESERVED &&
+	    state != PUBLICATION_SERVICE_RESERVED)
 		return CB_ERR;
-	*required = state == PUBLICATION_RESERVED;
+	*required = state != PUBLICATION_DISABLED;
 	return CB_SUCCESS;
 }
 
@@ -190,7 +202,11 @@ enum cb_err payload_mm_authvar_presence_publication_reserve(void)
 
 	if (!claim(PUBLICATION_EMPTY, PUBLICATION_BUSY))
 		return fail();
-	required = platform_payload_mm_authvar_presence_required();
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY)) {
+		required = true;
+	} else {
+		required = platform_payload_mm_authvar_presence_required();
+	}
 	if (__atomic_load_n(&publication_state, __ATOMIC_ACQUIRE) !=
 	    PUBLICATION_BUSY)
 		return fail();
@@ -203,7 +219,9 @@ enum cb_err payload_mm_authvar_presence_publication_reserve(void)
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 	    payload_mm_authvar_presence_tuple_sender_reserve() != CB_SUCCESS ||
 #endif
-	    !claim(PUBLICATION_BUSY, PUBLICATION_RESERVED))
+	    !claim(PUBLICATION_BUSY,
+		CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY) ?
+		PUBLICATION_SERVICE_RESERVED : PUBLICATION_RESERVED))
 		return fail();
 	return CB_SUCCESS;
 }
@@ -225,9 +243,17 @@ enum cb_err lb_add_payload_mm_authvar_presence_endpoint(
 	state = __atomic_load_n(&publication_state, __ATOMIC_ACQUIRE);
 	if (state == PUBLICATION_DISABLED)
 		return CB_SUCCESS;
+	if (state == PUBLICATION_SERVICE_RESERVED) {
+		if (!claim(PUBLICATION_SERVICE_RESERVED, PUBLICATION_BUSY) ||
+		    !platform_payload_mm_authvar_service_published(header, table_end) ||
+		    !claim(PUBLICATION_BUSY, PUBLICATION_SERVICE_PUBLISHED))
+			return fail();
+		return CB_SUCCESS;
+	}
 	if (state == PUBLICATION_FINALIZING)
 		return CB_ERR;
-	if (state == PUBLICATION_PUBLISHED || state == PUBLICATION_FAILED)
+	if (state == PUBLICATION_PUBLISHED || state == PUBLICATION_SERVICE_PUBLISHED ||
+	    state == PUBLICATION_FAILED)
 		return CB_ERR;
 	if (!endpoint_fits(header, table_end, NULL))
 		return fail();

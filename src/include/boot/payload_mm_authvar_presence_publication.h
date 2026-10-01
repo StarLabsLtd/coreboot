@@ -13,6 +13,10 @@ bool platform_payload_mm_authvar_presence_required(void);
 bool platform_payload_mm_authvar_presence_composition(
 	struct payload_mm_authvar_presence_composition *composition);
 
+/* Validate completed same-boot service bootstrap and its exact published tuple. */
+bool platform_payload_mm_authvar_service_published(
+	const struct lb_header *header, uintptr_t table_end);
+
 /* Register before bootmem initialization. */
 enum cb_err payload_mm_authvar_presence_publication_reserve(void);
 /* Read the immutable early admission decision, never rerun the board opt-in. */
