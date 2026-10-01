@@ -1,0 +1,786 @@
+Running as unit: cdk2-variable-root-whole-16520.service; invocation ID: 8a3134a77d42460eb71f0c9fc1338abe
+Native FV protocol ABI and calling-convention mutation: PASS
+legacy boundary inventory tests: PASS
+Whole signature database admission and literal UEFI records: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+#
+# No change to /home/sean/tmp.vyhVy7cXXr/build/.config
+#
+PE32/gapped-section Authenticode external digest oracle: PASS
+#
+# No change to /home/sean/tmp.vyhVy7cXXr/build/.config
+#
+Signing Unsigned original image
+Signature verification OK
+#
+# No change to /home/sean/tmp.vyhVy7cXXr/build/.config
+#
+SPC SHA256 binding and real signed PE fixture: PASS
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /home/sean/tmp.89ITUCqwTJ/build/.config
+#
+#
+# configuration written to /home/sean/tmp.89ITUCqwTJ/external.config
+#
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Configuration input selection and unchanged-cache reuse: PASS
+BGRT oracle synthetic positive/refusal unit tests: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Signing Unsigned original image
+Signature verification OK
+Image-policy snapshot padding and atomic-output mutants: PASS
+SPC SHA256 binding and real signed PE fixture: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+CDK2 authenticated-variable service ABI tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+LVGL native source boundary tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+authenticated-variable presence composition config tests: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar transport O0/O2 ASan+UBSan: PASS
+Aborted
+Dormant authvar production closure and selection mutations: PASS
+Authvar runtime adapter O0/O2 ASan+UBSan: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Aborted
+CDK2 authenticated-variable presence ABI tests: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant lifetime terminal-deny/whole-scrub mutants and native closure: PASS
+#
+# configuration written to /home/sean/tmp.GsZC94LBhb/parent/.config
+#
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+#
+# No change to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+#
+# No change to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/output/.config
+#
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/stage/.config
+#
+Aborted
+Aborted
+Actual private runtime + RAM namespace (transport modeled): PASS
+CDK2 authenticated-variable presence client O0/O2/ASan+UBSan tests: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence bootstrap tests: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+0	4096	4096	PE
+Authenticated-variable reserved-type mutation: PASS
+authenticated-variable presence boundary mutation tests passed
+authenticated-variable presence lifecycle mutation tests passed
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+Authvar runtime owner O0/O2 ASan+UBSan: PASS
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /home/sean/tmp.bdVI3S2XHM/stage/.config
+#
+BlSupportDxe and PCD source/config retirement: PASS
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+SystemFmp coreboot contract ordinary/O2/ASan+UBSan tests: PASS
+0	4096	4096	PE
+SystemFmp transport parser O0/O2/ASan+UBSan and dormant-boundary tests: PASS
+SystemFmp typed transport client tests: PASS
+0	4096	4096	PE
+SystemFmp typed transport client tests: PASS
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+SystemFmp typed transport client tests: PASS
+SystemFmp client O0/O2/ASan+UBSan and source-closure tests: PASS
+deadline tests passed
+deadline measured-source mutation: PASS
+deadline revision-guard mutation: PASS
+deadline length-guard mutation: PASS
+deadline missing-active-check mutation: PASS
+deadline contradictory-source mutation: PASS
+deadline provenance mutation test: PASS
+deadline CBMEM first-match-return mutation: PASS
+deadline TSC CPU/metronome isolation test: PASS
+HII retirement and loader contract: PASS
+KEK.auth: OK
+KEK.esl: OK
+PK.auth: OK
+PK.esl: OK
+cdk2-qemu-test-only.crt.der: OK
+cdk2-qemu-test-only.crt.pem: OK
+db.auth: OK
+db.esl: OK
+Secure Boot test-only PKI: PASS
+#
+# configuration written to /home/sean/tmp.8zqhbvjUV2/secure/.config
+#
+#
+# configuration written to /home/sean/tmp.8zqhbvjUV2/ordinary/.config
+#
+Secure-Boot-on QEMU config contract: PASS
+0	4096	8192	PE
+0	4096	20480	PE
+EFI loader matrix media: prepared and hash-bound
+0	4096	4096	PE
+EFI loader matrix contract tests: PASS
+0	4096	4096	PE
+xhci model tests: PASS
+xhci controller tests: PASS
+xhci PCI adapter tests: PASS
+xhci entry tests: PASS
+cdk2 ELF layout: PASS (/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf)
+native build directory coherence test: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+linear ConnectController ownership mutations: PASS
+diagnostic literal profile tests: PASS
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+diagnostic parity: 1816 canonical reference sites mapped once
+diagnostic accounting: 1978 provisional + (-162) reconciled delta = 1816
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf)
+/home/sean/tmp.bdVI3S2XHM/stage/native/cdk2-coreboot-image.elf
+Protected variable source import/cache and actual PE link: PASS
+Protected variable nested Make parent isolation: PASS
+coreboot DXE return trap encoding test: PASS
+variable malformed-record O0/O2/strict/sanitizer/mutation tests: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_GRAPHICS
+#
+# configuration written to /home/sean/tmp.gAv78sVtB4/nonlinear/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+USB bus linearity source mutations: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+native relocation model test passed
+atomic native PE publication tests passed
+dxe core service tests passed
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+strict-default: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+strict-qemu: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+nonlinear: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=1
+linear-bds: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+linear-bds-disabled: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+nonlinear-disabled: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=1
+linear-bds-release: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=1
+nonlinear-debug: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+nonlinear-handler-off: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+setup acceptance: strict direct debug profile
+ConPlatform/NullMemoryTest/StatusCodeHandler profile normalization: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_DEBUG
+dxe core GCD tests passed
+dxe core dispatcher tests passed
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_SECURE_BOOT
+#
+# configuration written to /home/sean/tmp.gAv78sVtB4/secure/.config
+#
+linear payload refusal, component services and secure-linear admission: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_DEBUG
+BDS native setup mutants: PASS
+DxeCore connect trace source policy and mutations: PASS
+linear APIC timer inert-control boundary and mutations: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+dxe core dispatch policy tests passed
+dxe core dispatch policy tests passed
+dxe core service tests passed
+xhci entry tests: PASS
+xhci entry tests: PASS
+DXE core public Dispatch policy mutation test: PASS
+PCI bus immutable configuration toggle: PASS
+linear XHCI poll and ExitBootServices boundary: PASS (XHCI-only, DMA=0)
+DXE mixed MBR+GPT entry test: PASS
+DXE capsule disk selected-ESP scan test: PASS
+DXE image transaction mutation tests: PASS
+strict direct entry phase tests: skipped for compatibility route
+DXE mixed MBR+GPT entry test: PASS
+DXE LVGL-without-BDS compile matrix: PASS
+DXE framebuffer owner test: PASS
+DXE framebuffer unowned-inference mutation: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS suppression: PASS
+DXE framebuffer absent-legacy mutation: PASS
+DXE LoadImage transaction ownership mutation: PASS
+DXE display-failure BDS guard mutation: PASS
+DXE framebuffer declared-bar mutation: PASS
+dxe core service tests passed
+rollback absence mutation: PASS
+DXE framebuffer decoy-probe mutation: PASS
+disconnect ownership mutation: rejected
+disconnect binding-handle mutation: rejected
+DXE framebuffer owner-segment mutation: PASS
+disconnect child mutation: rejected
+rollback opens mutation: PASS
+disconnect provisional mutation: rejected
+DXE framebuffer owner-bus mutation: PASS
+disconnect exact-driver mutation: rejected
+rollback connection mutation: PASS
+disconnect child-failure mutation: rejected
+DXE framebuffer owner-device mutation: PASS
+disconnect rollback mutation: rejected
+disconnect pair-retained mutation: rejected
+DXE per-device partition ownership mutation: PASS
+DXE framebuffer owner-function mutation: PASS
+disconnect reentry mutation: rejected
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+DMA handoff outer-policy import and integration: PASS
+disconnect registration mutation: rejected
+DXE framebuffer duplicate-bdf mutation: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+disconnect parent-lifetime mutation: rejected
+DXE reconstructed bridge mutation: PASS
+disconnect child-specific-lifetime mutation: rejected
+DXE framebuffer range mutation: PASS
+disconnect live-iteration mutation: rejected
+DXE DisconnectController ownership and mutation tests: PASS
+DXE complete bus-register width mutation: PASS
+DXE framebuffer cleanup mutation: PASS
+Protected variable actual boot-entry gate: PASS
+DXE framebuffer path-span mutation: PASS
+DXE extra bridge rejection mutation: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+DXE framebuffer duplicate-hob mutation: PASS
+Protected variable actual boot-entry gate: PASS
+DXE storage-controller path span mutation: PASS
+Protected variable actual boot-entry gate: PASS
+DXE framebuffer repeated-parse mutation: PASS
+DXE authoritative storage intent mutation: PASS
+DXE framebuffer stale-cache mutation: PASS
+DXE framebuffer owner mutation test: PASS
+DxeCore graphics dependency tests: PASS
+DxeCore grouped image/map parallel dependency: PASS
+scratch Make environment isolation: PASS
+Direct-image shared-parser source closure: PASS
+Protected variable actual boot-entry gate: PASS
+DXE deterministic storage fallback mutation: PASS
+direct image eligibility and source PE inventory: PASS
+#
+# configuration written to /home/sean/cdk2-direct-dxe-bridge.yPmLst/build/.config
+#
+direct image table validator: PASS
+direct image table generator: PASS
+DXE deterministic per-device order mutation: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Protected variable actual boot-entry refusal mutation: PASS
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+native configuration cache rebuild and recipe coverage: PASS
+DXE exact loader fallback mutation: PASS
+0	4096	4096	PE
+0	4096	4096	PE
+DXE boot-policy loader-size revalidation mutation: PASS
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/cdk2-direct-dxe-bridge.yPmLst/build/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-direct-dxe-bridge.yPmLst/build/native/cdk2-coreboot-image.elf)
+normal coreboot image direct DxeCore bridge: PASS
+native command-input cache tests: PASS
+"/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/review-profile-test"
+review profile cache tests passed
+review profile collector tests passed
+review profile emitter tests passed
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+DXE boot-policy exact loader-path revalidation mutation: PASS
+review profile CLI tests passed
+review profile tests passed
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+DXE storage binding reuse mutation: PASS
+USB downstream and retry reset mutation tests: PASS
+0	4096	20480	PE
+0	4096	8192	PE
+usb mass model tests: PASS
+usb mass transport tests: PASS
+usb mass SCSI tests: PASS
+usb mass block tests: PASS
+usb mass binding tests: PASS
+usb mass entry tests: PASS
+SystemFmp native authentication envelope tests: PASS
+SystemFmp native authentication envelope tests: PASS
+SystemFmp native authentication envelope tests: PASS
+DXE same-backend candidate retry mutation: PASS
+#
+# No change to /home/sean/tmp.k76h8XHSv8/build/.config
+#
+DXE ATA Bus exact-connect status mutation: PASS
+DXE unowned ATA Bus absence mutation: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+system FMP durable-state tests passed
+system FMP durable-state tests passed
+system FMP durable-state tests passed
+SystemFmp board-binding tests: PASS
+SystemFmp board-binding tests: PASS
+SystemFmp board-binding tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+dxe core FV protocol tests passed
+usb keyboard HII boundary: PASS
+usb keyboard model tests: PASS
+usb keyboard transport tests: PASS
+usb keyboard protocol tests: PASS
+usb keyboard binding tests: PASS
+usb keyboard entry tests: PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+LVGL settings transaction: PASS
+LVGL settings source contract: PASS
+ehci model tests: PASS
+ehci PCI adapter tests: PASS
+ehci transfer tests: PASS
+nvme model tests: PASS
+nvme controller tests: PASS
+nvme binding tests: PASS
+nvme pass thru tests: PASS
+nvme block tests: PASS
+nvme entry tests: PASS
+nvme PCI transaction tests: PASS
+nvme diagnostic tests: PASS
+sdmmc pci model tests: PASS
+sdmmc pci async tests: PASS
+sd dxe disk info tests: PASS
+sd dxe binding tests: PASS
+sd dxe model tests: PASS
+sd dxe backend tests: PASS
+sd dxe block tests: PASS
+emmc dxe model tests: PASS
+emmc dxe backend tests: PASS
+emmc dxe block tests: PASS
+emmc dxe disk info tests: PASS
+emmc dxe binding tests: PASS
+variable runtime model tests: PASS
+variable runtime service tests: PASS
+variable runtime backend tests: PASS
+variable runtime entry tests: PASS
+variable runtime diagnostic tests: PASS
+usb mass transport tests: PASS
+dxe core memory tests passed
+diagnostic volume source contract: PASS
+native PE relocation checker tests passed
+marker-only PE nonpreferred-address relocation: PASS
+ESRT VariablePolicy prerequisite exclusion: PASS
+DXE ATA Bus residual ownership mutation: PASS
+ESRT VariablePolicy prerequisite exclusion: PASS
+FTW/ESRT synchronous entry in both component configurations: PASS
+#
+# No change to /home/sean/tmp.k76h8XHSv8/build/.config
+#
+ConSplitter first-record profile tests: PASS
+EC battery entry lifecycle: PASS
+bds settings tests passed
+Native host dependency unions and transitive cache rebuilds: PASS
+shell model tests passed
+strict DXE compatibility closure: skipped for compatibility route
+strict DXE closure mutations: skipped for compatibility route
+strict direct CBFS admission: /home/sean/cdk2-cbfs-admission.ZNs4jc/admission.tsv
+strict direct CBFS canonical admission and mismatch tests: PASS
+strict direct CBFS relative/absolute path admission: PASS
+PCD hostile scanner tests: PASS
+DXE stale ATA Bus ownership mutation: PASS
+direct image generator transitive header dependency: PASS
+direct image table validator: PASS
+direct image table generator: PASS
+direct image HOB and deterministic dispatcher: PASS
+"/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/util/review_profile/coreboot-review-profile" verify
+make: Nothing to be done for 'native-stage'.
+strict direct CBFS inventory and mutation negatives: PASS
+native USB mass-storage QEMU oracle: /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/usb-mass-qemu.efi
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Shared CMS Authenticode verification and capsule isolation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Shared CMS Authenticode verification and capsule isolation: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Certificate request self-signature ok
+subject=CN=CDK2-LEAF-TEST-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+DXE ATA Bus single-stop ownership mutation: PASS
+DXE mixed MBR+GPT entry mutation test: PASS
+43b3221b044f4e61416be8fa30f3fc6f733451aca5da54f44fa6cb99b8f01568  /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/EfiLoaderProbe.efi
+21d73381ecedeaa5d1e9a4fb3b8e020cf4175cc059e5c4fa546853d60eef57e9  /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/SecureBootEnroll.efi
+c6a2643c07c35ed45c3b6597d70185d9310451be49ab5bffff154e163513e880  /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/SecureBootLoaderProbe.efi
+native image authorization subset: PASS
+cdk2 coreboot test: PASS
+native image authorization subset: PASS
+sed: couldn't write 97 items to stdout: Broken pipe
+Verified RFC3161 signature binding and atomic UTC time: PASS
+BDS native setup contract: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+coreboot review profile verified
+secure boot key-state tests passed
+Shared CMS Authenticode verification and capsule isolation: PASS
+secure boot default-publication tests passed
+Signing Unsigned original image
+Signature verification OK
+dxe storage scope tests passed
+Signing Unsigned original image
+Signature verification OK
+dxe core entry tests passed
+Signing Unsigned original image
+dxe core GCD tests passed
+Signature verification OK
+Signing Unsigned original image
+dxe core service tests passed
+Signature verification OK
+Private linked-primary actual core test: PASS
+dxe core ABI tests passed
+dxe core dispatcher tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+native image authorization subset: PASS
+native image authorization subset: PASS
+SystemFmp freestanding crypto closure: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+dxe lifecycle tests passed
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+dxe lifecycle tests passed
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+dxe lifecycle tests passed
+Aborted
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+Aborted
+DXE lifecycle legacy/composition profiles and owner-gate mutants: PASS
+dxe core image tests passed
+dxe core database tests passed
+dxe core event tests passed
+dxe core memory tests passed
+cpu arch model tests: PASS
+cpu page table tests: PASS
+cpu interrupt tests: PASS
+cpu driver tests: PASS
+CPU diagnostic tests: PASS
+Signing Unsigned original image
+Signing Unsigned original image
+Signing Unsigned original image
+Signing Unsigned original image
+PE/TE executable-section audit tests passed
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.191G2V4bAY/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+SystemFmp native PKCS7/X509 tests: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+bds model tests passed
+bds entry tests passed
+bds disabled setup tests passed
+bds entry tests passed
+SystemFmp production symbol closure: PASS
+SystemFmp native PKCS7/X509 tests: PASS
+cdk2 coreboot test: PASS
+objcopy: /home/sean/tmp.nniyM2k9n4/substituted-coreboot-image.elf: warning: allocated section `.mtrr-injected' not in segment
+source MTRR ownership hostile mutations: PASS
+MTRR RDPRU provenance and mutations: PASS
+FV PE NOLOAD BSS extraction tests: PASS
+Secure-Boot-on loader media: prepared and hash-bound
+Signing Unsigned original image
+Secure-Boot-on EFI loader matrix contract tests: PASS
+diagnostic runtime transition test: PASS
+deadline tests passed
+cdk2 linear boot test: PASS
+cdk2 early splash test: PASS
+cdk2 ELF layout: PASS (/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/cdk2-stage.elf)
+cdk2 ELF layout: PASS (/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/cdk2-coreboot-stage.elf)
+cdk2 coreboot test: PASS
+ata atapi pass thru model tests: PASS
+ata atapi binding tests: PASS
+ata atapi AHCI tests: PASS
+ata atapi IDE tests: PASS
+ata atapi PCI adapter tests: PASS
+ata atapi entry tests: PASS
+ata pass thru protocol tests: PASS
+ata backend IDE tests: PASS
+ata dependency depfiles: PASS
+make[1]: Entering directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+make[1]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+ata dependency header touch: PASS
+#
+# configuration written to /home/sean/tmp.C4LCW3okVU/short/.config
+#
+#
+# configuration written to /home/sean/tmp.C4LCW3okVU/a-deliberately-different-absolute-build-directory/.config
+#
+ata native PE reproducibility: PASS
+ata bus dependency depfiles: PASS
+make[1]: Entering directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+make[1]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+ata bus dependency header touch: PASS
+make[1]: Entering directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+#
+# configuration written to /home/sean/tmp.YjDgWAg9l4/build/.config
+#
+make[1]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+make[1]: Entering directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+0	4096	8192	PE
+make[1]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+make[1]: Entering directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+make[1]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451'
+pci host bridge tests passed
+pci host bridge entry tests passed
+pci host bridge strict HOB authority test passed
+swap-free rollback mutation: PASS
+swap-remove rollback mutation: PASS
+swap-allocate rollback mutation: PASS
+omit-free rollback mutation: PASS
+omit-remove rollback mutation: PASS
+zero-transactions rollback mutation: PASS
+cross-cancel rollback mutation: PASS
+PCI host bridge rollback mutation tests: PASS
+pci bus entry tests: PASS
+pci enumerate immutable tests: PASS
+immutable pci bus entry tests: PASS
+PCI host bridge source ownership boundary: PASS
+pci bus model tests: PASS
+cdk2 PE test: PASS
+cdk2 entry test: PASS
+TCG2 diagnostic coalescing: PASS
+TCG2 platform HOB: PASS
+partition GPT tests: PASS
+partition MBR tests: PASS
+partition El Torito tests: PASS
+partition UDF tests: PASS
+partition child lifecycle tests: PASS
+partition driver tests: PASS
+cdk2 ELF checker test: PASS
+native cdk2 stage: /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/cdk2-stage.elf
+Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+Service runtime: 12min 49.395s
+CPU time consumed: 45min 23.720s
+Memory peak: 884.1M (swap: 0B)

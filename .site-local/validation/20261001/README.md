@@ -787,3 +787,34 @@ Selected protected-runtime boot admission is separately held: it must not
 report enabled Secure Boot without a deny-capable verifier. Neither archive
 establishes platform origin, usable policy-handler lifetime, full selected-ROM
 execution, hardware validation or final project sign-off.
+
+## Historical source-exact 95/e468 firmware and final repaired whole check
+
+Concatenate `protected-variable-95-e468-historical-regular-receipts.part-00`
+through `part-04`. Archive SHA-256 is
+`26e529b548405f59e862dc9790395e02dcf207fd4ab8c6151f089e45a74acec1`.
+Part hashes, in order, are
+`5fde1459258b3573b00d9ef2e1b7d0d49b80eedc706b52e18f83994f710c2654`,
+`75e145c663f02eeded46fd3473b11882b888496c05e858e266bc4a1bfa107a05`,
+`4466e1007f7fe164aa52a100a315a6651f5baff0b55e6e6d0570260c07688fe5`,
+`43dbf9da98cd963b7923808e9f060cdd1f131a16d2b0f8eff62a1bf65e7ad726`,
+and `e1b5c10953d0ba85e4333c1cd1f0745278a0f4852aa6147f21153872cd9a8f42`.
+Fresh extraction verifies all 155 retained-file checksums and regular/directory
+membership. Both nested source captures have exactly the changed Git paths from
+base `66922ef1c38` to their named 95/e468 revisions; every captured file matches
+its exact Git bytes. No manifests are rewritten to bypass original-path checks.
+
+The archive retains actual 95/e468 compatibility firmware, all three setup boots,
+BGRT and runtime receipts, plus the failed 95/31/e468 whole suites. The e468
+failure additionally exposed the USB test's default-header dependency, masked
+by the earlier continuing build. The archive's internal README qualifies those
+failures and excludes TPM state, sockets, PID files and private key files.
+
+Separate `cdk2-protected-variable-final-root-whole-16520.log` records actual
+exit zero for repaired PR451 `16520afbee6ee5d4b9ff0e23f777e9c641c893b8`:
+full `check` and `native-stage`, 12m49.395s, continuing the fresh e468 build with
+unchanged configuration. Exact-head stable and configured canonical full-diff
+checkpatch logs are retained separately. The frozen historical archive is not
+relabeled as this final source execution. These remain component and
+compatibility-provider receipts, not production authorization or hardware
+sign-off.
