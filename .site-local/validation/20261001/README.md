@@ -128,3 +128,14 @@ replays this artifact without accepting it through either historical mode.
 Root source/assembly and linked-edge review found no new classification
 callback or recursion; artifact-qualified nested maxima remain 9,908/12,004
 bytes. This is not a whole-ROM or selected-lease/lifetime/hardware receipt.
+
+## Fourteen obsolete dirty review-state recovery snapshots
+
+`coreboot-retired-review-fourteen.tar.gz`, SHA-256
+`8ada804c8f9f8d7bda453ea57fe0178eec3fdeaad172e5c0d5746229e08c71c4`,
+preserves exact staged/unstaged changes, source checkpoints, incremental bundles
+and relevant untracked/ignored artifacts for fourteen old review worktrees.
+See `coreboot-retired-review-fourteen.md` and the enclosed manifest for the
+41 repository states, narrow public-reference exceptions and replay commands.
+This is recovery evidence only; it neither approves those patches nor records
+build/boot validation or worktree retirement.
