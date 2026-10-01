@@ -242,6 +242,7 @@ ${HOSTCC:-cc} -std=gnu11 -O"$real_optimization" -Wall -Wextra -Werror -Wshadow \
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_service.c" \
 	"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 	"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
