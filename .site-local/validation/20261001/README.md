@@ -373,6 +373,13 @@ This is compatibility-variable-provider, bounded-topology QEMU evidence,
 not a complete whole-suite receipt at PR440, delegated coreboot splash owner,
 protected-store activation or hardware sign-off.
 
+The subsequent PR440 continuing whole-suite attempt failed with exit 2:
+its managed runner omitted `/usr/sbin` from PATH, so the loader-matrix fixture
+could not locate the installed `mkfs.vfat`. The raw log and failed unit result
+are retained, not counted as a whole-suite pass. Separately, the stable lint
+gate rejects the standard `_Generic` keyword added by PR440's deadline test;
+an exact-keyword lexer correction and regression tests are being reviewed.
+
 ## Genuine coreboot PR346/CDK2 PR440 splash composition
 
 Concatenate numbered parts of `qemu-reviewed-346-440-coreboot-splash.tar.gz`.

@@ -1,0 +1,276 @@
+Native FV protocol ABI and calling-convention mutation: PASS
+legacy boundary inventory tests: PASS
+Whole signature database admission and literal UEFI records: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+PE Authenticode digest and certificate bounds: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+#
+# No change to /home/sean/tmp.OmPJYr1sQx/build/.config
+#
+PE32/gapped-section Authenticode external digest oracle: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+#
+# No change to /home/sean/tmp.OmPJYr1sQx/build/.config
+#
+#
+# No change to /home/sean/tmp.OmPJYr1sQx/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /home/sean/tmp.BfHlYO8gW9/build/.config
+#
+#
+# configuration written to /home/sean/tmp.BfHlYO8gW9/external.config
+#
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Configuration input selection and unchanged-cache reuse: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+authenticated-variable presence composition tests passed
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests: PASS
+LVGL native source boundary tests: PASS
+CDK2 authenticated-variable service ABI tests: PASS
+authenticated-variable presence composition config tests: PASS
+Aborted
+Dormant authvar production closure and selection mutations: PASS
+Authvar transport O0/O2 ASan+UBSan: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Aborted
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant lifetime terminal-deny/whole-scrub mutants and native closure: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar runtime adapter O0/O2 ASan+UBSan: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence boundary mutation tests passed
+CDK2 authenticated-variable presence ABI tests: PASS
+Authvar runtime owner O0/O2 ASan+UBSan: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Aborted
+Aborted
+Actual private runtime + RAM namespace (transport modeled): PASS
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+CDK2 authenticated-variable presence client O0/O2/ASan+UBSan tests: PASS
+authenticated-variable presence lifecycle tests passed
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence bootstrap tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+USB downstream and retry reset mutation tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable reserved-type mutation: PASS
+Native FV protocol ABI and calling-convention mutation: PASS
+Whole signature database admission and literal UEFI records: PASS
+legacy boundary inventory tests: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+PE Authenticode digest and certificate bounds: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+#
+# No change to /home/sean/tmp.jsVk9XKXOj/build/.config
+#
+PE32/gapped-section Authenticode external digest oracle: PASS
+Signing Unsigned original image
+Signature verification OK
+PE32/gapped-section Authenticode external digest oracle: PASS
+SPC SHA256 binding and real signed PE fixture: PASS
+#
+# No change to /home/sean/tmp.jsVk9XKXOj/build/.config
+#
+#
+# No change to /home/sean/tmp.jsVk9XKXOj/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /home/sean/tmp.udYl2i2hU7/build/.config
+#
+#
+# configuration written to /home/sean/tmp.udYl2i2hU7/external.config
+#
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Configuration input selection and unchanged-cache reuse: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+CDK2 authenticated-variable service ABI tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+LVGL native source boundary tests: PASS
+authenticated-variable presence composition config tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar transport O0/O2 ASan+UBSan: PASS
+Aborted
+Dormant authvar production closure and selection mutations: PASS
+Authvar runtime adapter O0/O2 ASan+UBSan: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Aborted
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant lifetime terminal-deny/whole-scrub mutants and native closure: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authvar runtime owner O0/O2 ASan+UBSan: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+Aborted
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence boundary mutation tests passed
+Aborted
+Actual private runtime + RAM namespace (transport modeled): PASS
+CDK2 authenticated-variable presence client O0/O2/ASan+UBSan tests: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence bootstrap tests: PASS
+Authenticated-variable reserved-type mutation: PASS
+BlSupportDxe and PCD source/config retirement: PASS
+SystemFmp coreboot contract ordinary/O2/ASan+UBSan tests: PASS
+SystemFmp transport parser O0/O2/ASan+UBSan and dormant-boundary tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp typed transport client tests: PASS
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+deadline tests passed
+deadline measured-source mutation: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp client O0/O2/ASan+UBSan and source-closure tests: PASS
+deadline revision-guard mutation: PASS
+deadline length-guard mutation: PASS
+deadline missing-active-check mutation: PASS
+deadline contradictory-source mutation: PASS
+deadline provenance mutation test: PASS
+deadline TSC CPU/metronome isolation test: PASS
+HII retirement and loader contract: PASS
+KEK.auth: OK
+KEK.esl: OK
+PK.auth: OK
+PK.esl: OK
+cdk2-qemu-test-only.crt.der: OK
+cdk2-qemu-test-only.crt.pem: OK
+db.auth: OK
+db.esl: OK
+Secure Boot test-only PKI: PASS
+#
+# configuration written to /home/sean/tmp.bghv6qA3ng/secure/.config
+#
+#
+# configuration written to /home/sean/tmp.bghv6qA3ng/ordinary/.config
+#
+Secure-Boot-on QEMU config contract: PASS
+required tool unavailable: mkfs.vfat
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/checkpatch-ledger-digest/src/boot/Makefile:1788: native-efi-loader-matrix-test] Error 2
+make[1]: *** Waiting for unfinished jobs....
+deadline CBMEM first-match-return mutation: PASS
+native build directory coherence test: PASS
+dxe core service tests passed
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+DMA handoff outer-policy import and integration: PASS
+make: *** [Makefile:987: check] Error 2
