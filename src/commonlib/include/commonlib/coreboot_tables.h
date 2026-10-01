@@ -103,6 +103,7 @@ enum {
 	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
 	LB_TAG_AUTHVAR_PRESENCE_ENDPOINT = 0x0056,
 	LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT = 0x0057,
+	LB_TAG_PAYLOAD_BOOT_PRIVATE_BUFFER = 0x0058,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -1152,6 +1153,36 @@ struct lb_dma_handoff {
 	uint16_t revision;
 	uint16_t reserved;
 } __packed;
+
+#define LB_PAYLOAD_BOOT_PRIVATE_BUFFER_REVISION 1U
+#define LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_SIZE 65536U
+#define LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_COUNT 3U
+#define LB_PAYLOAD_BOOT_PRIVATE_BUFFER_BYTES \
+	(LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_SIZE * LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_COUNT)
+
+/* Allocation metadata only; this record proves neither origin nor DMA exclusion. */
+struct lb_payload_boot_private_buffer {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t slot_size;
+	lb_uint64_t physical_base;
+	uint32_t bytes;
+	uint32_t slot_count;
+	uint32_t reserved[2];
+} __packed;
+
+_Static_assert(sizeof(struct lb_payload_boot_private_buffer) == 40,
+	"unexpected boot-private buffer record size");
+_Static_assert(offsetof(struct lb_payload_boot_private_buffer, revision) == 8 &&
+	offsetof(struct lb_payload_boot_private_buffer, header_size) == 10 &&
+	offsetof(struct lb_payload_boot_private_buffer, slot_size) == 12 &&
+	offsetof(struct lb_payload_boot_private_buffer, physical_base) == 16 &&
+	offsetof(struct lb_payload_boot_private_buffer, bytes) == 24 &&
+	offsetof(struct lb_payload_boot_private_buffer, slot_count) == 28 &&
+	offsetof(struct lb_payload_boot_private_buffer, reserved) == 32,
+	"unexpected boot-private buffer record offsets");
 
 _Static_assert(sizeof(struct lb_dma_handoff) == 24,
 	"unexpected DMA handoff reference size");
