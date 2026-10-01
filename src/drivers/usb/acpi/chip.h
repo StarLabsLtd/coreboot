@@ -9,6 +9,9 @@
 
 struct drivers_usb_acpi_config {
 	const char *desc;
+	/* ACPI host interface path and controller-local zero-based USB4 port index. */
+	const char *usb4_host_interface;
+	unsigned int usb4_port_number;
 
 	/*
 	 * Physical ports that are user visible
