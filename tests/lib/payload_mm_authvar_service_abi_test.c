@@ -370,6 +370,25 @@ static void deterministic_request_mutations(void)
 	}
 }
 
+static void snapshot_literal_body(bool nonempty)
+{
+	uint8_t *body = response_data();
+
+	memset(body, 0, 104);
+	body[0] = 1;
+	body[4] = 96;
+	body[8] = nonempty ? 104 : 96;
+	body[12] = 4;
+	body[16] = 5;
+	body[20] = 6;
+	if (nonempty) {
+		body[80] = 1;
+		body[84] = 0x27;
+		body[88] = 3;
+		memcpy(body + 96, "dbt", 3);
+	}
+}
+
 static struct payload_mm_authvar_service_frame *matrix_response(
 	uint32_t operation, uint64_t status)
 {
@@ -377,6 +396,9 @@ static struct payload_mm_authvar_service_frame *matrix_response(
 	struct payload_mm_authvar_service_frame *response;
 
 	switch (operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+		request->data_capacity = 104;
+		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		set_name(request);
 		request->data_capacity = 32;
@@ -402,6 +424,14 @@ static struct payload_mm_authvar_service_frame *matrix_response(
 	assert(payload_mm_authvar_service_request_validate(&endpoint,
 		request_buffer, sizeof(request_buffer)) == CB_SUCCESS);
 	response = new_response(request, status);
+	if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+	    status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+		response->result_data_size = 96;
+		snapshot_literal_body(false);
+	} else if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT &&
+		   status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL) {
+		response->result_data_size = 4194400;
+	}
 	if (operation == PAYLOAD_MM_AUTHVAR_SERVICE_GET &&
 	    (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
 	     status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
@@ -428,6 +458,12 @@ static struct payload_mm_authvar_service_frame *matrix_response(
 static bool matrix_status_allowed(uint32_t operation, uint64_t status)
 {
 	switch (operation) {
+	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_GET:
 		return status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
 			status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL ||
@@ -479,6 +515,7 @@ static void response_status_matrix(void)
 		PAYLOAD_MM_AUTHVAR_SERVICE_QUERY,
 		PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT,
 		PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME,
+		PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT,
 	};
 	static const uint64_t statuses[] = {
 		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
@@ -933,8 +970,75 @@ static void logical_data_capacity(void)
 	}
 }
 
+static void snapshot_wire_contract(void)
+{
+	struct payload_mm_authvar_service_frame *request = new_request(9);
+	struct payload_mm_authvar_service_frame *response;
+
+	request->data_capacity = 104;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_SUCCESS);
+	request->revision = 2;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->revision = 3;
+	request->vendor_guid[15] = 1;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->vendor_guid[15] = 0;
+	request->name_capacity = 2;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->name_capacity = 0;
+	request_buffer[144] = 1;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request_buffer[144] = 0;
+	response = new_response(request, 0);
+	response->result_data_size = 96;
+	snapshot_literal_body(false);
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response->result_data_size = 104;
+	snapshot_literal_body(true);
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	/* A malformed final descriptor or its padding invalidates the whole reply. */
+	response_data()[92] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[92] = 0;
+	response_data()[99] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_data()[99] = 0;
+	response->result_attributes = 0x27;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->result_attributes = 0;
+	response = new_response(request, (1ULL << 63) | 5);
+	/* The checked aggregate scalar can exceed every individual/physical limit. */
+	response->result_data_size = 4194400;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_buffer[144] = 1;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_buffer[144] = 0;
+	response->result_data_size++;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->result_data_size = request->data_capacity;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response = new_response(request, (1ULL << 63) | 14);
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+}
+
 int main(void)
 {
+	snapshot_wire_contract();
 	endpoint_revision_three();
 	logical_data_capacity();
 	valid_requests();

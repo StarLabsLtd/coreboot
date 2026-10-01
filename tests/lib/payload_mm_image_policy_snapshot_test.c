@@ -33,6 +33,7 @@ static unsigned int baseline_end;
 static bool fail_end;
 static bool drift_at_end;
 static bool live_proof = true;
+static bool malformed_index;
 
 bool platform_payload_mm_authvar_service_finalize_admitted(void)
 {
@@ -52,7 +53,7 @@ void test_real_scrub_observe(const void *buffer, size_t size)
 
 void __noreturn test_real_fail_stop(void)
 {
-	assert((drift_at_end || fail_end) && begin_count == baseline_begin + 1 &&
+	assert((drift_at_end || fail_end || malformed_index) && begin_count == baseline_begin + 1 &&
 		end_count == baseline_end + 1);
 	assert(mailbox->status == UINT64_MAX && mailbox->completion == UINT32_MAX);
 	for (size_t offset = 144; offset < 65536; offset++)
@@ -137,7 +138,9 @@ static uint32_t append_record(uint32_t offset, const uint8_t guid[16],
 
 	memcpy(record.vendor_guid, guid, sizeof(record.vendor_guid));
 	assert(payload_mm_authvar_record_encode(&record, &value, 1,
-		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO, flash_bytes + offset,
+		attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED ?
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO :
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED, flash_bytes + offset,
 		CONFIG_SMMSTORE_BLOCK_SIZE - offset, &encoded));
 	flash_bytes[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
 	return ALIGN_UP(offset + encoded, 4U);
@@ -190,19 +193,22 @@ int main(int argc, char **argv)
 		{ 'P', 0, 'K', 0, 0, 0 }, { 'd', 0, 'b', 0, 0, 0 },
 		{ 'd', 0, 'b', 0, 'x', 0, 0, 0 }, { 'd', 0, 'b', 0, 't', 0, 0, 0 },
 	};
+	static const uint32_t attributes[4] = { 0x23, 0x27, 3, 7 };
 	const uint8_t one = 1;
 	struct lb_authvar_service_endpoint descriptor;
 	struct payload_mm_authvar_fv_geometry geometry;
 	uint8_t value[21000];
 	uint8_t saved_request[65536] __aligned(8);
 	uint32_t offset = 100;
+	uint32_t last_record = 0;
 	uint32_t required = 96;
 	size_t value_size = 0;
 	bool user;
 	bool oversized;
 
 	assert(argc == 2);
-	user = !strcmp(argv[1], "user") || !strcmp(argv[1], "capacity");
+	malformed_index = !strcmp(argv[1], "malformed-index");
+	user = !strcmp(argv[1], "user") || !strcmp(argv[1], "capacity") || malformed_index;
 	oversized = !strcmp(argv[1], "oversized");
 	assert(user || oversized || !strcmp(argv[1], "setup") ||
 		!strcmp(argv[1], "runtime") || !strcmp(argv[1], "end-error") ||
@@ -224,15 +230,16 @@ int main(int argc, char **argv)
 	offset = append_record(offset, vendor_guid, vendor_name, sizeof(vendor_name), &one, 1, 0x23);
 	if (user)
 		offset = append_record(offset, enable_guid, enable_name, sizeof(enable_name), &one, 1, 3);
-	memset(value, 0x5a, sizeof(value));
 	if (user || oversized || !strcmp(argv[1], "wrong-namespace")) {
-		value_size = oversized ? sizeof(value) : 3;
 		for (size_t key = user ? 0 : 1; key < 4; key++) {
 			const uint8_t *guid = !key || !strcmp(argv[1], "wrong-namespace") ?
 				global_guid : image_guid;
 
+			value_size = oversized ? sizeof(value) : key + 1;
+			memset(value, 0x30 + key, sizeof(value));
+			last_record = offset;
 			offset = append_record(offset, guid, names[key], key < 2 ? 6 : 8,
-				value, value_size, 0x27);
+				value, value_size, attributes[key]);
 			if (strcmp(argv[1], "wrong-namespace"))
 				required += ALIGN_UP((uint32_t)value_size, 8U);
 		}
@@ -248,6 +255,9 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	service_generation = descriptor.generation;
 	assert(descriptor.revision == 4 && descriptor.maximum_name_size == 4096);
+	/* Corrupt the last indexed record only after genuine endpoint admission. */
+	if (malformed_index)
+		flash_bytes[last_record + 7] |= 0x80;
 	if (!strcmp(argv[1], "runtime")) {
 		request_init(6, 0);
 		assert(payload_mm_authvar_service_execute() == CB_SUCCESS && mailbox->status == 0);
@@ -282,6 +292,20 @@ int main(int argc, char **argv)
 				get32(body + 8) == required && get32(body + 12) == 4 &&
 				get32(body + 16) == (user ? 6U : 5U) && get32(body + 20) == 6);
 			assert(payload_mm_image_policy_snapshot_shape_valid(body, required));
+			for (size_t key = 0, data_offset = 96; key < 4; key++) {
+				const uint8_t *entry = body + 32 + key * 16;
+
+				assert(get32(entry) == (user ? 1U : 0U) &&
+					get32(entry + 4) == (user ? attributes[key] : 0U) &&
+					get32(entry + 8) == (user ? key + 1 : 0U) &&
+					!get32(entry + 12));
+				if (!user)
+					continue;
+				for (size_t byte = 0; byte < 8; byte++)
+					assert(body[data_offset + byte] ==
+						(byte <= key ? 0x30 + key : 0U));
+				data_offset += 8;
+			}
 		}
 	}
 	if (mailbox->status)

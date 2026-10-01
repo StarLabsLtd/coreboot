@@ -7,6 +7,15 @@ mbedtls_source=${MBEDTLS_SOURCE:-$root/3rdparty/mbedtls}
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir "$temporary/include"
+executor_source=$root/src/lib/payload_mm_authvar_executor.c
+block_sizes='4096 65536'
+optimizations='0 2'
+if [ "$#" -ne 0 ]; then
+	test "$#" -eq 3 && test "$1" = --dbt-copy-mutant
+	executor_source=$2
+	block_sizes=4096
+	optimizations=$3
+fi
 printf '%s\n' '#include <stdint.h>' '#include <commonlib/helpers.h>' \
 	'#define DEVTREE_CONST const' \
 	'typedef uint8_t u8; typedef uint16_t u16; typedef uint32_t u32; typedef uint64_t u64;' \
@@ -28,13 +37,17 @@ for source in bootmem_reservation_receipt payload_mm_authvar_smm_bootstrap \
 	payload_mm_authvar_route payload_mm_authvar_fv payload_mm_authvar_ftw \
 	payload_mm_authvar_store payload_mm_authvar_store_semantics payload_mm_authvar_record \
 	payload_mm_authvar_writer; do
-	set -- "$@" "$root/src/lib/$source.c"
+	if [ "$source" = payload_mm_authvar_executor ]; then
+		set -- "$@" "$executor_source"
+	else
+		set -- "$@" "$root/src/lib/$source.c"
+	fi
 done
 for source in asn1parse bignum bignum_core bignum_mod bignum_mod_raw constant_time \
 	md oid pk pkparse rsa rsa_alt_helpers sha256 sha512 x509 x509_crt platform_util; do
 	set -- "$@" "$mbedtls_source/library/$source.c"
 done
-for block_size in 4096 65536; do
+for block_size in $block_sizes; do
 	printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 		'#define CONFIG_MAX_CPUS 4' '#define CONFIG_SMMSTORE 0' \
 		'#define CONFIG_SMMSTORE_FULL_FLASH_ACCESS 0' \
@@ -50,7 +63,7 @@ for block_size in 4096 65536; do
 		'#define CONFIG_PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK 0' \
 		'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 0' \
 		'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' > "$temporary/include/config.h"
-	for optimization in 0 2; do
+	for optimization in $optimizations; do
 		${HOSTCC:-cc} -std=gnu11 -O"$optimization" -g -Wall -Wextra -Werror \
 			-Wshadow -Wstrict-prototypes -fno-builtin -fno-pie -no-pie \
 			-ffunction-sections -fdata-sections -Wl,--gc-sections \
@@ -65,6 +78,10 @@ for block_size in 4096 65536; do
 			-I"$root/src/arch/x86/include" -I"$root/src/lib/payload_mm_crypto" \
 			-I"$mbedtls_source/include" -I"$mbedtls_source/library" \
 			-Wl,--wrap=mbedtls_rsa_parse_pubkey "$@" -pthread -o "$temporary/test"
+		if [ "$executor_source" != "$root/src/lib/payload_mm_authvar_executor.c" ]; then
+			ASAN_OPTIONS=detect_leaks=0 "$temporary/test" user
+			exit 0
+		fi
 		for scenario in setup user capacity runtime wrong-namespace end-error; do
 			ASAN_OPTIONS=detect_leaks=0 "$temporary/test" "$scenario"
 		done
@@ -74,6 +91,20 @@ for block_size in 4096 65536; do
 		result=0
 		ASAN_OPTIONS=detect_leaks=0 "$temporary/test" proof-drift || result=$?
 		test "$result" -eq 77
+		result=0
+		ASAN_OPTIONS=detect_leaks=0 "$temporary/test" malformed-index || result=$?
+		test "$result" -eq 77
 	done
+done
+test "$(grep -c 'bytes = payload_mm_authvar_store_data(&state->index, entries\[key\]);' \
+	"$root/src/lib/payload_mm_authvar_executor.c")" -eq 1
+sed 's/bytes = payload_mm_authvar_store_data(\&state->index, entries\[key\]);/bytes = payload_mm_authvar_store_data(\&state->index, entries[key == 3 ? 2 : key]);/' \
+	"$root/src/lib/payload_mm_authvar_executor.c" > "$temporary/executor-mutant.c"
+for optimization in 0 2; do
+	result=0
+	sh "$0" --dbt-copy-mutant "$temporary/executor-mutant.c" "$optimization" \
+		> "$temporary/mutant-$optimization.log" 2>&1 || result=$?
+	test "$result" -eq 134
+	grep -q 'body\[data_offset + byte\]' "$temporary/mutant-$optimization.log"
 done
 echo 'Actual coherent producer, size-only refusal and protected end-order gates: PASS'
