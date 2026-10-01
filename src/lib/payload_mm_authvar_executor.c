@@ -3925,8 +3925,12 @@ static uint64_t __maybe_unused coordinate_transaction(
 	};
 	if (state->policy.maximum_record_size > state->index.store_size)
 		state->policy.maximum_record_size = state->index.store_size;
-	if (state->policy.maximum_data_size > state->policy.maximum_record_size)
-		state->policy.maximum_data_size = state->policy.maximum_record_size;
+	if (state->policy.maximum_record_size <= PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE) {
+		status = poison_session();
+		goto end;
+	}
+	state->policy.maximum_data_size = MIN(state->policy.maximum_data_size,
+		state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE);
 	binding = (struct payload_mm_authvar_candidate_binding) {
 		.generation = state->generation,
 		.token = state->token,

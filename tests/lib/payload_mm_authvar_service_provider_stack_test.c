@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_media.h>
+#include <boot/payload_mm_authvar_certdb.h>
 #include <boot/payload_mm_authvar_record.h>
 #include <commonlib/helpers.h>
 #include <commonlib/payload_mm_authvar_fv.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 /* Real bootstrap, authority, media wrapper, executor and service transaction.
@@ -30,6 +32,64 @@ static bool scrub_guard;
 static unsigned int private_scrubs;
 static unsigned int body_copies;
 static bool scrub_probe_active;
+static bool authenticated_set;
+static uint64_t expected_reply;
+static uint8_t expected_binding[32];
+
+static size_t read_fixture(const char *path, uint8_t *buffer, size_t capacity)
+{
+	const int input = open(path, O_RDONLY);
+	uint8_t extra;
+	size_t used = 0;
+	ssize_t count = 0;
+
+	assert(input >= 0);
+	while (used < capacity && (count = read(input, buffer + used, capacity - used)) > 0)
+		used += count;
+	assert(count >= 0 && used && (used < capacity || read(input, &extra, 1) == 0));
+	assert(close(input) == 0);
+	return used;
+}
+
+static void assert_authenticated_commit(void)
+{
+	const uint8_t private_guid[] = {
+		0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe,
+		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+	};
+	const uint8_t private_name[] = { 'P', 0, 'r', 0, 'i', 0, 'v', 0, 0, 0 };
+	const uint8_t certdb_guid[] = {
+		0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+		0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+	};
+	const uint8_t certdb_name[] = {
+		'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+	};
+	const uint8_t timestamp[] = { 0xea, 7, 10, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = CONFIG_SMMSTORE_BLOCK_SIZE,
+		.maximum_name_size = 4096, .maximum_data_size = CONFIG_SMMSTORE_BLOCK_SIZE,
+		.maximum_records = 3072,
+	};
+	struct payload_mm_authvar_store_entry entry;
+	struct payload_mm_authvar_certdb_binding binding;
+	const uint8_t *primary = flash_bytes + 72;
+	const size_t primary_size = CONFIG_SMMSTORE_BLOCK_SIZE - 72;
+	bool found;
+
+	assert(payload_mm_authvar_store_find_one(&entry, &found, primary, primary_size,
+		&limits, private_guid, private_name, sizeof(private_name)) == CB_SUCCESS && found);
+	assert(entry.attributes == 0x23 && entry.data_size == 7);
+	assert(!memcmp(primary + entry.data_offset, "payload", 7));
+	assert(!memcmp(primary + entry.record_offset + 16, timestamp, sizeof(timestamp)));
+	assert(payload_mm_authvar_store_find_one(&entry, &found, primary, primary_size,
+		&limits, certdb_guid, certdb_name, sizeof(certdb_name)) == CB_SUCCESS && found);
+	assert(entry.attributes == 0x27 && entry.data_size > 4);
+	assert(payload_mm_authvar_certdb_find(primary + entry.data_offset, entry.data_size,
+		private_guid, private_name, sizeof(private_name) - 2, &binding) ==
+		PAYLOAD_MM_AUTHVAR_CERTDB_OK && binding.size == 32);
+	assert(!memcmp(binding.data, expected_binding, sizeof(expected_binding)));
+}
 
 void *__real_memcpy(void *destination, const void *source, size_t size);
 
@@ -41,7 +101,10 @@ void *__wrap_memcpy(void *destination, const void *source, size_t size)
 		const struct payload_mm_authvar_service_frame *frame = source;
 
 		assert(shared_mailbox->completion == UINT32_MAX);
-		assert(frame->completion == UINT32_MAX && frame->status == 0);
+		if (frame->status != expected_reply)
+			dprintf(2, "provider reply: expected %llx, observed %llx\n",
+				(unsigned long long)expected_reply, (unsigned long long)frame->status);
+		assert(frame->completion == UINT32_MAX && frame->status == expected_reply);
 		body_copies++;
 	}
 	result = __real_memcpy(destination, source, size);
@@ -78,6 +141,8 @@ void __noreturn test_real_fail_stop(void)
 	assert(shared_mailbox->request_id == 4);
 	assert(shared_mailbox->completion == UINT32_MAX);
 	assert(shared_mailbox->status == UINT64_MAX);
+	if (authenticated_set)
+		assert_authenticated_commit();
 	_exit(77);
 }
 
@@ -160,11 +225,28 @@ int main(int argc, char **argv)
 	};
 	const struct payload_mm_authvar_record_span value = { &vendor_keys_value, 1 };
 	uint32_t encoded_size;
+	uint8_t authenticated_data[8192];
+	size_t authenticated_size = 0;
 	bool proof_drift;
+	bool wrong_content;
+	bool capacity_edge;
 
-	assert(argc == 2);
+	assert(argc == 2 || argc == 4 || argc == 5);
+	authenticated_set = argc >= 4;
+	wrong_content = argc == 5 && !strcmp(argv[4], "wrong-content");
+	assert(argc != 5 || wrong_content);
+	if (authenticated_set) {
+		authenticated_size = read_fixture(argv[2], authenticated_data,
+			sizeof(authenticated_data));
+		assert(read_fixture(argv[3], expected_binding, sizeof(expected_binding)) ==
+			sizeof(expected_binding));
+		if (wrong_content)
+			authenticated_data[authenticated_size - 1] ^= 1;
+	}
 	proof_drift = !strcmp(argv[1], "proof-drift");
-	assert(proof_drift || !strcmp(argv[1], "normal") || !strcmp(argv[1], "mailbox-drift"));
+	capacity_edge = !strcmp(argv[1], "capacity-edge");
+	assert(proof_drift || capacity_edge || !strcmp(argv[1], "normal") ||
+		!strcmp(argv[1], "mailbox-drift"));
 
 	runtime_smram_size = UINTPTR_MAX - 0x400000U;
 	initialize();
@@ -182,6 +264,24 @@ int main(int argc, char **argv)
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO, flash_bytes + 100,
 		sizeof(flash_bytes) - 100, &encoded_size));
 	flash_bytes[102] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	if (authenticated_size) {
+		const uint8_t certdb_name[] = {
+			'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+		};
+		const uint8_t empty_certdb[] = { 4, 0, 0, 0 };
+		const struct payload_mm_authvar_record_descriptor certdb = {
+			.vendor_guid = { 0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+				0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a },
+			.name = certdb_name, .name_size = sizeof(certdb_name), .attributes = 0x27,
+		};
+		const struct payload_mm_authvar_record_span certdb_value = { empty_certdb, 4 };
+		const uint32_t offset = ALIGN_UP(100U + encoded_size, 4U);
+
+		assert(payload_mm_authvar_record_encode(&certdb, &certdb_value, 1,
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO, flash_bytes + offset,
+			sizeof(flash_bytes) - offset, &encoded_size));
+		flash_bytes[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	}
 	memset(&seed.seal_channel, 0, sizeof(seed.seal_channel));
 	assert(payload_mm_authvar_service_prepare(&service_verifier, &service_receipt) == CB_SUCCESS);
 	assert(payload_mm_authvar_smm_service_bootstrap_install(&seed) == CB_SUCCESS);
@@ -204,8 +304,55 @@ int main(int argc, char **argv)
 	const uint8_t ordinary_name[] = { 'N', 0, 0, 0 };
 	const size_t data_offset = 144U + descriptor.maximum_name_size;
 
-	for (size_t index = 0; index < ARRAY_SIZE(operations); index++) {
+	if (capacity_edge && CONFIG_SMMSTORE_BLOCK_SIZE == 4096U) {
+		const uint32_t name_sizes[] = { 4, descriptor.maximum_name_size };
+
+		/* Complete first-use FTW recovery before measuring rejected SET writes. */
 		private_scrubs = body_copies = 0;
+		expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		memset(mailbox, 0, 65536U);
+		*mailbox = (struct payload_mm_authvar_service_frame) {
+			.revision = 2, .header_size = 144, .operation = 4,
+			.generation = 9, .request_id = 99,
+			.status = UINT64_MAX, .completion = UINT32_MAX, .attributes = 7,
+		};
+		assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+		assert(mailbox->status == expected_reply &&
+			mailbox->completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+		assert(private_scrubs == 2 && body_copies == 1);
+		for (size_t index = 0; index < ARRAY_SIZE(name_sizes); index++) {
+			const unsigned int programs_before = program_count;
+			uint8_t *name = (uint8_t *)mailbox + 144;
+
+			private_scrubs = body_copies = 0;
+			expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			memset(mailbox, 0, 65536U);
+			*mailbox = (struct payload_mm_authvar_service_frame) {
+				.revision = 2, .header_size = 144, .operation = 3,
+				.generation = 9, .request_id = index + 100,
+				.status = UINT64_MAX, .completion = UINT32_MAX,
+				.attributes = 7, .name_size = name_sizes[index],
+				.data_size = descriptor.maximum_data_size,
+			};
+			memcpy(mailbox->vendor_guid, vendor_keys.vendor_guid, 16);
+			for (size_t offset = 0; offset + 2 < name_sizes[index]; offset += 2)
+				name[offset] = 'Z';
+			memset((uint8_t *)mailbox + data_offset, 0x5a, descriptor.maximum_data_size);
+			assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox,
+				65536U) == CB_SUCCESS);
+			assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+			assert(mailbox->completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
+			assert(mailbox->status == expected_reply && program_count == programs_before);
+			assert(private_scrubs == 2 && body_copies == 1);
+		}
+	}
+
+	for (size_t index = 0; index < ARRAY_SIZE(operations); index++) {
+		const unsigned int programs_before = program_count;
+
+		private_scrubs = body_copies = 0;
+		expected_reply = wrong_content && operations[index] == 3 ?
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION : PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 		memset(mailbox, 0, 65536U);
 		*mailbox = (struct payload_mm_authvar_service_frame) {
 			.revision = 2, .header_size = 144, .operation = operations[index],
@@ -232,6 +379,24 @@ int main(int argc, char **argv)
 			mailbox->data_size = 1;
 			memcpy((uint8_t *)mailbox + 144, ordinary_name, sizeof(ordinary_name));
 			*((uint8_t *)mailbox + data_offset) = 0x5a;
+			if (authenticated_size) {
+				const uint8_t private_guid[] = {
+					0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe,
+					0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+				};
+				const uint8_t private_name[] = {
+					'P', 0, 'r', 0, 'i', 0, 'v', 0, 0, 0,
+				};
+
+				memcpy(mailbox->vendor_guid, private_guid, sizeof(private_guid));
+				mailbox->name_size = sizeof(private_name);
+				mailbox->attributes = 0x23;
+				mailbox->data_size = authenticated_size;
+				memset((uint8_t *)mailbox + 144, 0, descriptor.maximum_name_size);
+				memcpy((uint8_t *)mailbox + 144, private_name, sizeof(private_name));
+				memcpy((uint8_t *)mailbox + data_offset, authenticated_data,
+					authenticated_size);
+			}
 			break;
 		case 7: {
 			/* Valid literal policy v1 header covering every key in one namespace. */
@@ -256,11 +421,17 @@ int main(int argc, char **argv)
 		}
 		assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
 		assert(mailbox->completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
-		assert(mailbox->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		assert(mailbox->status == expected_reply);
 		assert(mailbox->request_id == index + 1 && mailbox->operation == operations[index]);
 		assert(private_scrubs == 2 && body_copies == 1);
+		if (authenticated_set && operations[index] == 3) {
+			if (wrong_content)
+				assert(program_count == programs_before);
+			else
+				assert_authenticated_commit();
+		}
 	}
-	assert(!proof_drift && program_count);
+	assert(!proof_drift && (program_count || wrong_content));
 	assert(munmap(mailbox, 65536U) == 0);
 	return 0;
 }
