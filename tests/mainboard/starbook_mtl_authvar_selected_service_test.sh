@@ -4,6 +4,11 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 release_prefix=${MTL_AUTHVAR_SELECTED_XGCCPATH:-}
+boot_private=${MTL_AUTHVAR_SELECTED_BOOT_PRIVATE:-0}
+case "$boot_private" in
+	0|1) ;;
+	*) echo 'ERROR: BOOT-private selected profile must be 0 or 1' >&2; exit 1 ;;
+esac
 if [ -n "$release_prefix" ]; then
 	release_prefix=$(realpath "$release_prefix")/
 	test -x "${release_prefix}i386-elf-gcc"
@@ -71,6 +76,10 @@ configure()
 	if [ "$selected" = 1 ]; then
 		"$root/util/scripts/config" --file "$config" \
 			-e TEST_MTL_AUTHVAR_SERVICE_PREREQUISITES
+		if [ "$boot_private" = 1 ]; then
+			"$root/util/scripts/config" --file "$config" \
+				-e TEST_MTL_AUTHVAR_BOOT_PRIVATE_PREREQUISITES
+		fi
 	fi
 	scratch_make obj="$build" DOTCONFIG="$config" KBUILD_KCONFIG="$profile" \
 		olddefconfig >"$build/config.log" 2>&1
@@ -95,6 +104,7 @@ configure OFF 0
 ! grep -q '^CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH=y$' "$config"
 ! grep -q '^CONFIG_SMM_APMC_ROUTE_AUTHVAR_SERVICE=y$' "$config"
 ! grep -q '^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$' "$config"
+! grep -q '^CONFIG_PAYLOAD_BOOT_PRIVATE_BUFFER=y$' "$config"
 if ! scratch_make obj="$build" DOTCONFIG="$config" KBUILD_KCONFIG="$profile" \
 	-j4 "$build/smm/smm.elf" >"$build/smm-build.log" 2>&1; then
 	cat "$build/smm-build.log" >&2
@@ -105,6 +115,11 @@ check_compiler
 test ! -e "$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.o"
 
 configure ON 1
+if [ "$boot_private" = 1 ]; then
+	grep -qx 'CONFIG_PAYLOAD_BOOT_PRIVATE_BUFFER=y' "$config"
+else
+	! grep -q '^CONFIG_PAYLOAD_BOOT_PRIVATE_BUFFER=y$' "$config"
+fi
 for symbol in STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH \
 	STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH \
 	STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION \
@@ -142,6 +157,15 @@ for symbol in smm_pre_lock_dispatch \
 		'$2 == "T" && $3 == symbol { count++ } END { print count + 0 }')" -eq 1
 done
 ! nm -u "$elf" | grep -Eq '__atomic|libatomic'
+if [ "$boot_private" = 1 ]; then
+	for symbol in starbook_mtl_boot_private_lease_prepare \
+		starbook_mtl_boot_private_lease_close payload_boot_private_buffer_consume; do
+		test "$(nm -g --defined-only "$elf" | awk -v symbol="$symbol" \
+			'$2 == "T" && $3 == symbol { count++ } END { print count + 0 }')" -eq 1
+	done
+	# Delivery prepares the BOOT lease; its fc begin/recheck hooks remain dormant.
+	! nm "$elf" | grep -Eq ' starbook_mtl_boot_private_lease_(begin|recheck)_held$'
+fi
 dispatcher="$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.o"
 nm -u "$dispatcher" | grep -q ' starbook_mtl_authvar_service_runtime_dispatch$'
 test -s "$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.o"
