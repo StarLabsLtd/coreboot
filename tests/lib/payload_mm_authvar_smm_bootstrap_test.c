@@ -198,6 +198,9 @@ static bool spi_restricted(void *context)
 	struct payload_mm_authvar_smm_arena_receipt replay;
 
 	assert(context == protected_object);
+#if defined(TEST_REAL_BOOTSTRAP_STACK)
+	return restricted;
+#endif
 	if (callback_retake)
 		assert(!smm_take_payload_mm_authvar_arena_receipt(&replay));
 	if (mutate_consumed_state)
@@ -207,6 +210,7 @@ static bool spi_restricted(void *context)
 	return restricted;
 }
 
+#if !defined(TEST_REAL_BOOTSTRAP_STACK)
 enum cb_err payload_mm_authvar_authority_install(
 	const struct payload_mm_authvar_contract *contract,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context)
@@ -220,14 +224,21 @@ enum cb_err payload_mm_authvar_authority_install(
 		seed.spi_context_size++;
 	return CB_SUCCESS;
 }
+#endif
 
 enum cb_err payload_mm_authvar_smmstore_install(void)
 {
+#if defined(TEST_REAL_BOOTSTRAP_STACK)
+	extern enum cb_err test_real_media_install(void);
+
+	return test_real_media_install();
+#else
 	assert(step == 2);
 	step++;
 	if (mutate_at == step)
 		seed.seal_channel.caller++;
 	return CB_SUCCESS;
+#endif
 }
 
 enum cb_err payload_mm_authvar_qemu_pflash_install(void)
@@ -239,6 +250,7 @@ enum cb_err payload_mm_authvar_qemu_pflash_install(void)
 	return CB_SUCCESS;
 }
 
+#if !defined(TEST_REAL_BOOTSTRAP_STACK)
 enum cb_err payload_mm_authvar_executor_install(void *installed_arena,
 	size_t arena_size,
 	const struct payload_mm_authvar_executor_limits *limits)
@@ -261,6 +273,7 @@ enum cb_err payload_mm_authvar_executor_required_size(
 	*size = sizeof(arena);
 	return CB_SUCCESS;
 }
+#endif
 
 enum cb_err payload_mm_authvar_mor_seal_channel_install(
 	const struct payload_mm_authvar_mor_seal_channel *channel,
