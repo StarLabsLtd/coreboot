@@ -215,7 +215,7 @@ int main(int argc, char **argv)
 		instance.loader_instance_nonce));
 	memset(&receipts, 0xa5, sizeof(receipts));
 	memset(&sender, 0xa5, sizeof(sender));
-	result = payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender);
+	result = payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender, NULL);
 	if (fail_at) {
 		assert(result == CB_ERR && aborts == 1 && empty(&receipts, sizeof(receipts)) &&
 			empty(&sender, sizeof(sender)));
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 	assert(empty(&receipts.service, sizeof(receipts.service)) &&
 		empty(&slot.service_verifier, sizeof(slot.service_verifier)));
 #endif
-	assert(payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender) == CB_ERR);
+	assert(payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender, NULL) == CB_ERR);
 	assert(empty(&receipts, sizeof(receipts)) && empty(&sender, sizeof(sender)) && aborts == 1);
 	assert(loader_provision(
 		&slot, &instance, &topology) == CB_ERR);

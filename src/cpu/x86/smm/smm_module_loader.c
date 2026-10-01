@@ -1072,6 +1072,9 @@ canonical_fail:
 		bootmem_reservation_receipt_close(&bootstrap->mailbox_verifier);
 		bootmem_reservation_receipt_close(&bootstrap->page_verifier);
 		bootmem_reservation_receipt_close(&bootstrap->service_verifier);
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		bootmem_reservation_receipt_close(&bootstrap->boot_private_verifier);
+#endif
 		scrub_authvar_loader(bootstrap, sizeof(*bootstrap));
 		if (published_arena)
 			scrub_authvar_loader(published_arena, sizeof(*published_arena));
