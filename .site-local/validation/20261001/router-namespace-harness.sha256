@@ -1,0 +1,17 @@
+914a1fc61869d7327807ec976fb18dd37399aba0dde924f267909878e07a6a56  .site-local/validation/20261001/router-namespace-harness/README.md
+54ca8c7c115a0c3b27485cbccd2a152260ffe7a6a8e5ab80ec312fecd9ef607d  .site-local/validation/20261001/router-namespace-harness/cdk2-canonical-policy-core-root-507637.log
+ca9c0c7463b5fe2291d415396a6ccc0d57a15db6f10d2bf5b82d57d2b2bef5ac  .site-local/validation/20261001/router-namespace-harness/cdk2-native-dependency-scoped-mutant-root-retry1.log
+0b91735a03e8ae057ee8db32b5b0925221598cc1d24eeb05bbf1838b189b9aa5  .site-local/validation/20261001/router-namespace-harness/cdk2-native-dependency-scoped-mutant-root-retry2.log
+f00b5c996e362eabee3d32cf438d1f76ed971d088a37349bb868ac06dbadb81e  .site-local/validation/20261001/router-namespace-harness/cdk2-native-dependency-scoped-mutant-root.log
+90338522f879cc96cb3efe9c13a190f5074af5db85562a6da15144115b2c1a53  .site-local/validation/20261001/router-namespace-harness/cdk2-native-harness-b1fc-checkpatch.log
+6287c84849cb07cf5782028389bc90cfdfd8f1f5f277fb9b1ada9883750c395d  .site-local/validation/20261001/router-namespace-harness/cdk2-native-harness-b1fc-exact-head.log
+7c6145e8ab60beb312af33cc494c857665673d901aae1836b46357e939603d06  .site-local/validation/20261001/router-namespace-harness/cdk2-policy-owner-namespace-root-checkpatch.log
+9b458865ceceea61ddd4cefdc8afcd245c98c871e5aec46ccded73a94a2f472e  .site-local/validation/20261001/router-namespace-harness/cdk2-policy-owner-namespace-root-restacked.log
+3f17b3b953d3be35c73a6ba99a8cb4e79d62304ee53eb00f4d60593c3b57f75e  .site-local/validation/20261001/router-namespace-harness/cdk2-router-6e-full-harness-selftest-native-fix.log
+48276f97b54dc8bd64e32ea30d5c67d5d4784b0751dbee5e68b0264ca2c070eb  .site-local/validation/20261001/router-namespace-harness/cdk2-router-6e-full-harness-selftest-pcd-fix.log
+8ad074fc8996ff4ad0dd39e890a08056376496a363e2cae059af9fd720ef53fa  .site-local/validation/20261001/router-namespace-harness/cdk2-router-6e-full-harness-selftest.log
+b67e48103984e7c35a81e14d66041ee62c2ba5f99b34817c0e93a655de1db8dd  .site-local/validation/20261001/router-namespace-harness/cdk2-router-namespace-root-whole-739.log
+6f664e6a63b2717cd791a6b4b96ab6c08631a7de4b6551357731c1164491ba0c  .site-local/validation/20261001/router-namespace-harness/ready455-456.patch.gz
+6eb3a4fcb4f44f68ccc1ccaf9ec607c054ff16c43e689b88d0f8dd70e88d19ff  .site-local/validation/20261001/router-namespace-harness/root-component-config.h
+8a70dc70dc9cb75849aa1bd9cc15fa472a22a1a9d131a011b38a290130cdba46  .site-local/validation/20261001/router-namespace-harness/root-whole.config
+956fd3e734b8a12a8c1fdb78cfdc6a809088d2f53d3daec57141660946e3c500  .site-local/validation/20261001/router-namespace-harness/scoped-mutant-ac3.patch.gz

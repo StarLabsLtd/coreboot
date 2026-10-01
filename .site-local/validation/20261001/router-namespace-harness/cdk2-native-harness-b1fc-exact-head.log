@@ -1,0 +1,35 @@
+Running as unit: cdk2-harness-b1fc-exact-head.service; invocation ID: 76c92a97eba445c3b7eaed2735f43507
+QEMU discovery override selftest: PASS
+Warning: block count mismatch: found 130048 but assuming 130031.
+linear payload provenance hostile tests: PASS
+/home/sean/tmp.hCP4VEbmGX/c /home/sean/tmp.hCP4VEbmGX/d differ: byte 1, line 1
+post-insertion payload extraction is not stable
+SELFTEST_PASS
+derived fixture reproducibility: PASS
+Terminated
+/usr/bin/mdir: File "::/EFI/BOOT/BOOTX64.EFI" not found
+/usr/bin/mdir: File "::/EFI/UpdateCapsule/CDK2.cap" not found
+linear acceptance fixture mapping selftest: PASS
+CDK2 setup acceptance hostile selftest: PASS
+BootToFwUI SMMSTORE hostile selftest: PASS
+BootToFwUI two-boot oracle hostile selftest: PASS
+CDK2 QMP cleanup selftest: PASS
+CDK2 deadline interruption selftest: PASS
+Q35 protected nvme real-requester acceptance: PASS
+Q35 protected usb real-requester acceptance: PASS
+Q35 real-requester evidence hostile selftest: PASS
+TPM event-log oracle selftest: PASS
+TPM evidence freezer provenance selftest: PASS
+#
+# configuration written to /home/sean/tmp.eSripgZpH2/acceptance-build/.config
+#
+#
+# configuration written to /home/sean/tmp.eSripgZpH2/setup-acceptance-build/.config
+#
+direct image eligibility and source PE inventory: PASS
+harness self-tests: PASS
+Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+Service runtime: 2min 33.768s
+CPU time consumed: 2min 20.077s
+Memory peak: 1.5G (swap: 0B)

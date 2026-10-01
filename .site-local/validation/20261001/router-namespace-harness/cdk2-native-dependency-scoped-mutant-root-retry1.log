@@ -1,0 +1,7 @@
+#
+# No change to /home/sean/tmp.XF6WLAoC1x/build/.config
+#
+sed: -e expression #1, char 56: unknown command: `\'
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/src/boot/Makefile:856: /home/sean/tmp.XF6WLAoC1x/build/native/protected-image-policy-security-mutant.c] Error 1
+make[1]: *** Deleting file '/home/sean/tmp.XF6WLAoC1x/build/native/protected-image-policy-security-mutant.c'
+make: *** [/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/src/boot/Makefile:8578: native-host-dependency-test] Error 2
