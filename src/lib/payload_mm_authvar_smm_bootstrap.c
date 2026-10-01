@@ -789,6 +789,17 @@ __weak bool platform_payload_mm_authvar_service_runtime_admitted(void)
 	return false;
 }
 
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+__weak enum cb_err platform_payload_mm_authvar_service_delivery_held(
+	enum payload_mm_authvar_delivery_stage stage,
+	const struct payload_mm_authvar_range *communication)
+{
+	(void)stage;
+	(void)communication;
+	return CB_ERR;
+}
+#endif
+
 enum cb_err payload_mm_authvar_service_finalize(void)
 {
 	struct lb_authvar_service_endpoint descriptor;
@@ -886,6 +897,18 @@ enum cb_err payload_mm_authvar_service_execute(void)
 	if (payload_mm_authvar_service_request_validate(&provider.sealed_endpoint,
 		provider.service_request, sizeof(provider.service_request)) != CB_SUCCESS)
 		goto out;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	const struct payload_mm_authvar_service_frame *request =
+		(const void *)provider.service_request;
+	const bool delivery = request->operation ==
+		PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT;
+
+	if (delivery &&
+	    (!protected_storage((const void *)platform_payload_mm_authvar_service_delivery_held, 1) ||
+	     platform_payload_mm_authvar_service_delivery_held(PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN,
+		&provider.sealed_service.range) != CB_SUCCESS))
+		smm_invocation_platform_fail_stop();
+#endif
 	if (!platform_payload_mm_authvar_service_runtime_admitted() || !spi_writes_restricted(NULL) ||
 	    payload_mm_authvar_service_transaction(&provider.endpoint, provider.service_request,
 		provider.service_response, sizeof(provider.service_request)) != CB_SUCCESS ||
@@ -896,6 +919,12 @@ enum cb_err payload_mm_authvar_service_execute(void)
 		sizeof(provider.service_response)) != CB_SUCCESS ||
 	    !platform_payload_mm_authvar_service_runtime_admitted() || !spi_writes_restricted(NULL))
 		smm_invocation_platform_fail_stop();
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	if (delivery &&
+	    platform_payload_mm_authvar_service_delivery_held(PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK,
+		&provider.sealed_service.range) != CB_SUCCESS)
+		smm_invocation_platform_fail_stop();
+#endif
 	/* Publish the validated body first. The sole completion store is last. */
 	response->completion = PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 	memcpy(mailbox, provider.service_response, sizeof(provider.service_response));

@@ -8,13 +8,19 @@ const fs = require('fs');
 const path = require('path');
 const child = require('child_process');
 const crypto = require('crypto');
+const heldDelivery = process.argv[2] === '--release-held-op9-recorded';
 const privateDelivery = process.argv[2] === '--release-private-delivery-recorded';
 const postClassifier = process.argv[2] === '--release-post-classifier-recorded';
-const release = privateDelivery || postClassifier || process.argv[2] === '--release-recorded';
+const release = heldDelivery || privateDelivery || postClassifier || process.argv[2] === '--release-recorded';
 const arguments_ = process.argv.slice(release ? 3 : 2);
 const base = arguments_[0];
-if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js [--release-recorded|--release-post-classifier-recorded|--release-private-delivery-recorded] ON/smm [ROOT...]');
-const record = privateDelivery ? {
+if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js [--release-recorded|--release-post-classifier-recorded|--release-private-delivery-recorded|--release-held-op9-recorded] ON/smm [ROOT...]');
+const record = heldDelivery ? {
+	elf: '62b897781711fe574d601668e29630be083a0c4d602afc9bb604a0272d55fe5c',
+	config: '0b5be5aa9b706d8f29e73b3815522022bf3378100d347578ebc5f51497ef8a33',
+	annotations: '4fadc1727ba8d8112f261f05f35813e724b1427f0c7d38c1d50d60e4c9f95b4b',
+	umodFrame: 44,
+} : privateDelivery ? {
 	elf: '4b339979a62be5b5d248b6ea92d42df43792ec826aa7f4f0b0a390256ff97893',
 	config: 'a3123ad1f869777c1c8f7c7e57f0e2b1d5a1564c11f7c5d8ead5336631f61ee4',
 	annotations: '5c6e51feadfe605d3199fa7aa2b2be1a2100c12860ac385e6ab867652130ce7f',
@@ -151,8 +157,15 @@ for (const name of ['verify_engine', 'read64_stable', 'verify_pci'])
 		[receipt + 'observer_read32'], 'receipt_receiver.c:643-648');
 callbacks('src/mainboard/starlabs/starbook/variants/mtl/dma_smm_policy.c:verify_table_copies',
 	[receipt + 'observer_sha256'], 'receipt_receiver.c:646');
-callbacks('starbook_mtl_dma_smm_verify', [receipt + 'observer_verify_translation'],
-	'receipt_receiver.c:647');
+callbacks('starbook_mtl_dma_smm_verify', heldDelivery ?
+	[receipt + 'observer_verify_translation', receipt + 'observer_verify_translation_boot_private'] :
+	[receipt + 'observer_verify_translation'],
+	heldDelivery ? 'receipt_receiver.c:629/1430 cold observer or fixed held-fc override' :
+		'receipt_receiver.c:647');
+if (heldDelivery)
+	callbacks('platform_payload_mm_authvar_service_delivery_held',
+		[receipt + 'ordinary_dram_range'],
+		'receipt_receiver.c:439/1513/1533 fixed native receipt-owner dependency');
 const authority = 'src/mainboard/starlabs/starbook/variants/mtl/dma_smm_authority.c:';
 callbacks('starbook_mtl_dma_requester_authority_derive', [authority + 'binding_read'],
 	'dma_smm_authority.c:160-164');
@@ -360,7 +373,9 @@ const roots = arguments_.length > 1 ? arguments_.slice(1) :
 for (const name of roots) {
 	if (!byName.has(name)) throw new Error('Unknown audit root: ' + name);
 	unknown = new Set(); recursive = new Set(); cache = new Map(); reached = new Set();
-	for (const k of byName.get(name) || []) {
+	// Prefer the actual global definition, as direct-edge resolution does. A
+	// same-named discarded weak stub can also appear in compiler annotations.
+	for (const k of nodes.has(name) ? [name] : byName.get(name) || []) {
 		const r = bound(k);
 		console.log(JSON.stringify({root: k, candidate_nested_c_bytes: r.size, chain: r.chain,
 			unresolved: [...unknown], recursions: [...recursive],

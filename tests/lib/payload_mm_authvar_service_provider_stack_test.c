@@ -35,6 +35,25 @@ static bool scrub_probe_active;
 static bool authenticated_set;
 static uint64_t expected_reply;
 static uint8_t expected_binding[32];
+static bool delivery_active;
+static unsigned int delivery_checks;
+static unsigned int delivery_media;
+static unsigned int delivery_denied_stage;
+static uint8_t delivery_original[65536];
+
+/* The fixed platform binding is modeled here; the actual walker has its own gate. */
+enum cb_err platform_payload_mm_authvar_service_delivery_held(
+	enum payload_mm_authvar_delivery_stage stage,
+	const struct payload_mm_authvar_range *communication)
+{
+	assert(delivery_active && communication);
+	assert(communication->base == 0x100000U && communication->size == 65536U);
+	assert(delivery_checks == (unsigned int)stage);
+	assert(stage != PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN || !delivery_media);
+	assert(stage != PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK || delivery_media);
+	delivery_checks++;
+	return delivery_checks == delivery_denied_stage ? CB_ERR : CB_SUCCESS;
+}
 
 static size_t read_fixture(const char *path, uint8_t *buffer, size_t capacity)
 {
@@ -101,6 +120,7 @@ void *__wrap_memcpy(void *destination, const void *source, size_t size)
 		const struct payload_mm_authvar_service_frame *frame = source;
 
 		assert(shared_mailbox->completion == UINT32_MAX);
+		assert(!delivery_active || !CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 2);
 		if (frame->status != expected_reply)
 			dprintf(2, "provider reply: expected %llx, observed %llx\n",
 				(unsigned long long)expected_reply, (unsigned long long)frame->status);
@@ -137,6 +157,14 @@ bool platform_payload_mm_authvar_service_runtime_admitted(void)
 
 void __noreturn test_real_fail_stop(void)
 {
+	if (delivery_active) {
+		assert(delivery_denied_stage && delivery_checks == delivery_denied_stage);
+		assert(!body_copies && shared_mailbox->completion == UINT32_MAX);
+		assert(!memcmp(shared_mailbox, delivery_original, sizeof(delivery_original)));
+		assert(delivery_denied_stage != 1 || !delivery_media);
+		assert(delivery_denied_stage != 2 || delivery_media);
+		_exit(78);
+	}
 	assert(deny_after_program && program_count > program_baseline);
 	assert(shared_mailbox->request_id == 4);
 	assert(shared_mailbox->completion == UINT32_MAX);
@@ -149,6 +177,10 @@ void __noreturn test_real_fail_stop(void)
 static enum payload_mm_authvar_media_result begin(const void *context, uint64_t *generation)
 {
 	(void)context;
+	if (delivery_active) {
+		assert(!CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) || delivery_checks == 1);
+		delivery_media++;
+	}
 	if (recursive_execute) {
 		recursive_execute = false;
 		assert(payload_mm_authvar_service_execute() == CB_ERR);
@@ -250,7 +282,9 @@ int main(int argc, char **argv)
 	proof_drift = !strcmp(argv[1], "proof-drift");
 	capacity_edge = !strcmp(argv[1], "capacity-edge");
 	assert(proof_drift || capacity_edge || !strcmp(argv[1], "normal") ||
-		!strcmp(argv[1], "mailbox-drift"));
+		!strcmp(argv[1], "mailbox-drift") || !strcmp(argv[1], "delivery") ||
+		!strcmp(argv[1], "delivery-begin-denied") ||
+		!strcmp(argv[1], "delivery-recheck-denied"));
 
 	runtime_smram_size = UINTPTR_MAX - 0x400000U;
 	initialize();
@@ -298,6 +332,37 @@ int main(int argc, char **argv)
 	assert(descriptor.maximum_data_size ==
 		(CONFIG_SMMSTORE_BLOCK_SIZE == 4096U ? 8132U : 61296U));
 	scrub_guard = true;
+	if (!strncmp(argv[1], "delivery", 8)) {
+		delivery_active = true;
+		delivery_denied_stage = !strcmp(argv[1], "delivery-begin-denied") ? 1U :
+			!strcmp(argv[1], "delivery-recheck-denied") ? 2U : 0U;
+		expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		memset(mailbox, 0, 65536U);
+		*mailbox = (struct payload_mm_authvar_service_frame) {
+			.revision = 2, .header_size = 144, .operation = 9,
+			.generation = 9, .request_id = 1, .data_capacity = 65536U - 4240U,
+			.status = UINT64_MAX, .completion = UINT32_MAX,
+		};
+		assert(payload_mm_authvar_service_execute() == CB_ERR);
+		assert(!delivery_checks && !delivery_media && !body_copies && private_scrubs == 2);
+		mailbox->revision = 3;
+		mailbox->data_capacity = descriptor.maximum_data_size;
+		assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox, 65536U) ==
+			CB_SUCCESS);
+		memcpy(delivery_original, mailbox, sizeof(delivery_original));
+		private_scrubs = 0;
+		assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+		assert(!delivery_denied_stage);
+		assert(delivery_checks == (CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) ? 2U : 0U));
+		assert(delivery_media && body_copies == 1 && private_scrubs == 2);
+		assert(mailbox->completion == 0 && mailbox->operation == 9 &&
+			mailbox->result_data_size == 96);
+		const uint8_t *snapshot = (const uint8_t *)mailbox + 4240;
+
+		assert(snapshot[0] == 1 && snapshot[4] == 96);
+		assert(munmap(mailbox, 65536U) == 0);
+		return 0;
+	}
 #if !defined(TEST_REAL_RUNTIME_WAVE)
 	*mailbox = (struct payload_mm_authvar_service_frame) {
 		.revision = 3, .header_size = 144, .operation = UINT32_MAX,
