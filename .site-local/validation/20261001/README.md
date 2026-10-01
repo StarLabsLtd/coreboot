@@ -108,3 +108,23 @@ authority integration logs for test-only coreboot PR 338
 (`db5f66f12b31a7b1f983c01d9b7a510eeb133b82`). These do not replace the
 separately qualified older release SMM artifact receipts above, and establish
 no new full-ROM, QEMU, protected-owner activation or hardware result.
+
+## Separate post-classifier release SMM receipt
+
+`mtl-selected-release-after-339.tar.gz`, SHA-256
+`907b18a763a340fa9bd80b0e7a316cefa35b630490de7429dd63db05fe8ac077`,
+preserves the fresh OFF/ON SMM links at coreboot
+`cdc87a8610cf6fffa0547fcc7188c9961c458ab9`. It includes each profile's
+configuration, ELF, compiler selection and build logs, plus all 394 ON
+`.ci`/`.su` files. The selected classifier changes are included; the new
+BOOT-private lease is disabled and has no symbols in this artifact.
+
+ON ELF SHA-256 is
+`5f839e8b6bfdf477651c4e91c04e314979ed57bc58eddb35a9339eb371e6d64a`;
+configuration remains `6016a34ab0c6957a05a3a5935876b8c17556e291e33ec67f450d1530ca385aa2`;
+sorted annotations are `f430443957b5852d4a32abcc42682bb9a1e59a54b368d3bcba061b40239a8d8c`.
+The separate `--release-post-classifier-recorded` diagnostic mode in PR 341
+replays this artifact without accepting it through either historical mode.
+Root source/assembly and linked-edge review found no new classification
+callback or recursion; artifact-qualified nested maxima remain 9,908/12,004
+bytes. This is not a whole-ROM or selected-lease/lifetime/hardware receipt.
