@@ -753,3 +753,37 @@ the new hash authorization path. Native tests, not these guest boots, establish
 the new hash behavior. The guest tests establish unchanged compatibility;
 they do not establish protected-service activation, production policy admission,
 hardware validation or project-wide sign-off.
+
+## Protected-variable and first-entry historical WIP receipts
+
+Concatenate `protected-variable-history-801-95.tar.gz.part-aa` through `part-ad`.
+Archive SHA-256 is
+`64d34b62eee1b2ef349ec8837a2a2855e90a30821a25d21d4ab935aa09259aa9`.
+Part hashes, in order, are
+`09bdd9639c80ca0be587ab375925b7f717db619f659d139ac969fb4ab74c0e70`,
+`0326820648393a48545188e0c8adde19026ec37590c1d85ac2316e6d6864e36d`,
+`363cac251e5dc5b1f565e5492157410d2b48b8091b91ea4032d0efc2aad02388`,
+and `cf221768fb8cd1d2c3bc883dbf76fbff20030e08eaadc360a5aa1f8e4868f8ca`.
+Fresh extraction verifies all 194 retained-file checksums. The final included
+two-commit source series matches exact signed `66922ef1c38..95adc052b65`
+format-patch output. The bundle preserves successful named/native and
+compatibility QEMU receipts at the revisions it names, and the failed 801/526
+whole suites. Its pending final95 status reflects its earlier freeze.
+The separate `protected-variable-95-root-whole-failed.log` records that later
+aggregate failure: a private-primary host fixture omitted the real dispatcher
+from its link sources. No failed aggregate receipt is represented as a pass.
+
+`native-first-entry-16c9-4a570.tar.gz` has SHA-256
+`a436df71456b05a7b91fc0486508c70381fefa3f8851b1b0172466bfb947dee3`.
+Fresh extraction verifies all 37 retained-file checksums and the three source
+diffs. Both nested source archives match their exact Git paths at original
+`16c9f7d058d` and selected `e8eabff0efa`. Initialized-caller and selected/default
+native-link receipts are qualified independently in the internal README;
+the later `4a570cebca5` script check is not relabeled as the root e8 run.
+Successful experimental copy deliberately scrubs/closes and refuses boot
+before configuration/driver dispatch. These are unactivated WIP receipts.
+
+Selected protected-runtime boot admission is separately held: it must not
+report enabled Secure Boot without a deny-capable verifier. Neither archive
+establishes platform origin, usable policy-handler lifetime, full selected-ROM
+execution, hardware validation or final project sign-off.
