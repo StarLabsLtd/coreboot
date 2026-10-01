@@ -118,7 +118,8 @@ enum cb_err payload_mm_authvar_service_endpoint_validate(
 	    endpoint->size != sizeof(*endpoint) ||
 	    endpoint->revision != LB_AUTHVAR_SERVICE_ENDPOINT_REVISION ||
 	    endpoint->header_size != sizeof(*endpoint) ||
-	    endpoint->flags != LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS ||
+	    (endpoint->flags & ~LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) !=
+		LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS ||
 	    !endpoint->generation || !endpoint->communication_base ||
 	    endpoint->communication_base > UINTPTR_MAX ||
 	    endpoint->communication_base & (sizeof(uint64_t) - 1U) ||

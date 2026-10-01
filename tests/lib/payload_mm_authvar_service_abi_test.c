@@ -181,6 +181,11 @@ static void hostile_requests(void)
 	uint16_t *name;
 
 	changed = endpoint;
+	changed.flags |= LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_SUCCESS);
+	changed.flags |= 1U << 9;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	changed = endpoint;
 	changed.flags ^= LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE;
 	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
 	changed = endpoint;

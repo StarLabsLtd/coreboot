@@ -1007,6 +1007,8 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 #define LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE     (1U << 5)
 #define LB_AUTHVAR_ENDPOINT_SMM_BWP_REQUIRED    (1U << 6)
 #define LB_AUTHVAR_ENDPOINT_LIFECYCLE_SEALED    (1U << 7)
+/* Repeatable boot-services op9, not private BOOT delivery or origin proof. */
+#define LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL (1U << 8)
 #define LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS \
 	(LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER | \
 	 LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION | \
