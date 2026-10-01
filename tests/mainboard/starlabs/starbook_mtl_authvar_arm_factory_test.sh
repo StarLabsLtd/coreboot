@@ -50,4 +50,22 @@ for optimization in 0 2; do
 			"$temporary/ordinary-O$optimization" "$fault"
 	done
 done
+for attested in 0 1; do
+	"${CC:-cc}" -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
+		-Os -m32 -ffreestanding -fno-builtin -fstack-usage \
+		-D__TEST__ -D__COREBOOT__ \
+		-DCONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED="$attested" \
+		-include "$root/src/include/kconfig.h" \
+		-include "$root/src/include/rules.h" \
+		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
+		-I"$temporary/include" -I"$root/src" -I"$root/src/include" -I"$root/src/lib" \
+		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
+		-I"$root/src/arch/x86/include" \
+		-c "$root/src/lib/payload_mm_authvar_presence_arm.c" \
+		-o "$temporary/arm-native-$attested.o"
+	awk -F '\t' '
+		NF >= 3 { frames++; if ($2 > 4096) exit 1 }
+		END { if (!frames) exit 1 }
+	' "$temporary/arm-native-$attested.su"
+done
 printf '%s\n' 'Actual board arm initialization and claimed-BOOT admission: PASS'
