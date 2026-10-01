@@ -358,6 +358,17 @@ int main(int argc, char **argv)
 	assert(!platform_payload_mm_authvar_service_bootstrap_admitted());
 #if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
 	assert(finalize_checks == 2 && private_prepares == 1 && !private_closes);
+	/* Genuine successful child logs exercise the runner's masked-error guard. */
+	if (coupled_fault >= 10 && coupled_fault <= 13) {
+		static const char *const diagnostics[] = {
+			"assertion line 0: injected sibling diagnostic",
+			"BOOT-private loader delivery oracle failure: injected diagnostic",
+			"runtime error: injected diagnostic",
+			"ThreadSanitizer: injected diagnostic",
+		};
+
+		dprintf(2, "%s\n", diagnostics[coupled_fault - 10U]);
+	}
 #endif
 	return 0;
 }

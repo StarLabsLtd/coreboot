@@ -110,6 +110,13 @@ build_coupled()
   "$root/src/cpu/x86/smm_invocation_topology.c" -o "$output"
 }
 receiver="$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_receiver.c"
+coupled_log_clean()
+{
+	if grep -Eqi '[Aa]ssert|oracle failure|runtime error:|Sanitizer' "$1"; then
+		echo 'ERROR: coupled child emitted a masked failure diagnostic' >&2
+		return 1
+	fi
+}
 for private in 0 1; do
 for flags in '-O0' '-O2' \
  '-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer' \
@@ -119,10 +126,27 @@ for flags in '-O0' '-O2' \
  if [ "$private" = 1 ]; then faults="$faults 5 6 7 8 9"; fi
  for fault in $faults; do
   printf 'coupled wave fault %s (%s)\n' "$fault" "$flags"
-  ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
-   TSAN_OPTIONS=halt_on_error=1 "$temporary/coupled" "$fault"
+  log="$temporary/coupled-$private-$fault.log"
+  if ! ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
+   TSAN_OPTIONS=halt_on_error=1 "$temporary/coupled" "$fault" > "$log" 2>&1; then
+   cat "$log" >&2
+   exit 1
+  fi
+  if ! coupled_log_clean "$log"; then
+   cat "$log" >&2
+   exit 1
+  fi
  done
 done
+done
+build_coupled '-O2' 1 "$receiver" "$temporary/diagnostic-child"
+for fault in 10 11 12 13; do
+	log="$temporary/injected-diagnostic-$fault.log"
+	"$temporary/diagnostic-child" "$fault" > "$log" 2>&1
+	if coupled_log_clean "$log" > "$temporary/diagnostic-rejection.log" 2>&1; then
+		echo 'ERROR: coupled child diagnostic filter accepted an injected error' >&2
+		exit 1
+	fi
 done
 sed 's/if (payload_mm_authvar_service_finalize() != CB_SUCCESS)/if (starbook_mtl_boot_private_lease_prepare(\&slot->boot_private_verifier, \&response.boot_private) != CB_SUCCESS || payload_mm_authvar_service_finalize() != CB_SUCCESS)/' \
  "$receiver" > "$temporary/lease-before-finalize.c"
