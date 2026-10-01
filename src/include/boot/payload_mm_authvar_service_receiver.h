@@ -3,6 +3,7 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_SERVICE_RECEIVER_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_SERVICE_RECEIVER_H
 
+#include <boot/payload_mm_authvar.h>
 #include <bootmem_reservation_receipt.h>
 #include <commonlib/coreboot_tables.h>
 
@@ -23,6 +24,19 @@ void payload_mm_authvar_service_prepare_abort(void);
 /* Fixed platform owners attest genuine current waves, never caller booleans. */
 bool platform_payload_mm_authvar_service_finalize_admitted(void);
 bool platform_payload_mm_authvar_service_runtime_admitted(void);
+
+enum payload_mm_authvar_delivery_stage {
+	PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN,
+	PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK,
+};
+
+/*
+ * Fixed protected owner only. The source is the installed sealed communication
+ * range, not a caller-selected copy destination or proof of authority after RSM.
+ */
+enum cb_err platform_payload_mm_authvar_service_delivery_held(
+	enum payload_mm_authvar_delivery_stage stage,
+	const struct payload_mm_authvar_range *communication);
 
 /* After the sole install and real route factory, before the canonical BOOT ACK. */
 enum cb_err payload_mm_authvar_service_finalize(void);

@@ -12,6 +12,7 @@
 #include <string.h>
 #if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 #include <boot/payload_boot_private_buffer.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
 #endif
@@ -90,6 +91,7 @@ static struct {
 		struct smm_invocation_loader_instance instance;
 		struct smm_invocation_token bootstrap;
 		struct smm_invocation_token claimed;
+		struct payload_mm_authvar_range communication;
 		struct starbook_mtl_dma_requester_binding live_binding;
 		struct starbook_mtl_dma_requester_binding sealed_live_binding;
 	} boot_private;
@@ -1485,5 +1487,58 @@ enum cb_err starbook_mtl_boot_private_lease_begin_held(void)
 enum cb_err starbook_mtl_boot_private_lease_recheck_held(void)
 {
 	return boot_private_verify_held(BOOT_PRIVATE_HELD);
+}
+
+enum cb_err platform_payload_mm_authvar_service_delivery_held(
+	enum payload_mm_authvar_delivery_stage stage,
+	const struct payload_mm_authvar_range *communication)
+{
+	const struct smm_invocation_runtime_view *view, *rechecked_view;
+	struct payload_mm_authvar_range source;
+	const struct lb_payload_boot_private_buffer *record = &owner.boot_private.record;
+
+	if ((stage != PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN &&
+	     stage != PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK) ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) != CB_SUCCESS ||
+	    !communication || (uintptr_t)communication % _Alignof(*communication) ||
+	    smm_invocation_runtime_range_is_protected(view, communication,
+		sizeof(*communication)) != CB_SUCCESS ||
+	    spans_overlap(communication, sizeof(*communication), &owner, sizeof(owner)))
+		goto failed;
+	source = *communication;
+	if (source.size != PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE || !source.base ||
+	    source.base > UINTPTR_MAX - (source.size - 1U) ||
+	    !dependencies_valid(&owner.dependencies, view) ||
+	    !owner.dependencies.ordinary_dram_range(owner.dependencies.context,
+		source.base, source.size) ||
+	    !starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt, source.base, source.size) ||
+	    !boot_private_geometry_valid() ||
+	    spans_overlap((const void *)(uintptr_t)source.base, source.size,
+		(const void *)(uintptr_t)record->physical_base, record->bytes))
+		goto failed;
+	if (stage == PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN) {
+		if (owner.boot_private.communication.base || owner.boot_private.communication.size)
+			goto failed;
+		owner.boot_private.communication = source;
+		if (starbook_mtl_boot_private_lease_begin_held() != CB_SUCCESS)
+			goto failed;
+	} else if (memcmp(&source, &owner.boot_private.communication, sizeof(source)) ||
+		   starbook_mtl_boot_private_lease_recheck_held() != CB_SUCCESS) {
+		goto failed;
+	}
+	if (memcmp(&source, communication, sizeof(source)) ||
+	    memcmp(&source, &owner.boot_private.communication, sizeof(source)) ||
+	    !dependencies_valid(&owner.dependencies, view) ||
+	    !owner.dependencies.ordinary_dram_range(owner.dependencies.context,
+		source.base, source.size) ||
+	    !starbook_mtl_dma_smm_receipt_geometry_valid(&owner.receipt, source.base, source.size) ||
+	    !boot_private_geometry_valid() ||
+	    smm_invocation_runtime_view_get(&rechecked_view) != CB_SUCCESS || view != rechecked_view)
+		goto failed;
+	return CB_SUCCESS;
+failed:
+	starbook_mtl_boot_private_lease_close();
+	return CB_ERR;
 }
 #endif

@@ -22,6 +22,7 @@
 #undef initialize
 
 #include <boot/payload_boot_private_buffer.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
 
 #include "../../src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_bootstrap_install.h"
 
@@ -46,6 +47,13 @@ static uint8_t wave_command;
 static bool close_at_publication;
 static bool view_drift_during_walk;
 static bool view_drift_observed;
+static struct payload_mm_authvar_range *delivery_source_drift;
+
+static bool delivery_ordinary_dram_range(void *context, uint64_t base, size_t size)
+{
+	return ordinary_dram_range(context, base, size) ||
+		(size == 65536U && base >= 0x100000U && base <= 0x1000000U - size);
+}
 
 void starbook_mtl_boot_private_lease_test_hook(void)
 {
@@ -67,6 +75,12 @@ enum payload_mm_verify_status payload_mm_sha256(const void *message,
 {
 	enum payload_mm_verify_status status = dma_fixture_sha256(message, message_size, digest);
 
+	if (delivery_source_drift && evidence.command == SMM_APMC_AUTHVAR_SERVICE &&
+	    (uintptr_t)message >= TABLE_BASE &&
+	    (uintptr_t)message < TABLE_BASE + TABLE_PAGES * PAGE_SIZE) {
+		delivery_source_drift->base += 65536;
+		delivery_source_drift = NULL;
+	}
 	if (view_drift_during_walk && evidence.command == SMM_APMC_AUTHVAR_SERVICE &&
 	    (uintptr_t)message >= TABLE_BASE &&
 	    (uintptr_t)message < TABLE_BASE + TABLE_PAGES * PAGE_SIZE) {
@@ -156,6 +170,7 @@ int main(int argc, char **argv)
 	struct bootmem_aligned_reservation_handle handle;
 	struct bootmem_reservation_receipt_authority signer = { 0 }, verifier = { 0 };
 	struct bootmem_reservation_receipt receipt;
+	struct bootmem_aligned_reservation reservation;
 	uint8_t secret[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE] = { 1 };
 	const char *scenario;
 
@@ -167,8 +182,10 @@ int main(int argc, char **argv)
 	assert(bootmem_reservation_receipt_provision(&signer, &verifier, secret,
 		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 11, &handle) == CB_SUCCESS);
 	bootmem_fixture_initialize();
+	assert(!bootmem_aligned_reservation_query(&handle, &reservation));
 	assert(payload_boot_private_buffer_emit(&handle, &signer, &receipt) == CB_SUCCESS);
 	dma_fixture_initialize(false);
+	dependencies.ordinary_dram_range = delivery_ordinary_dram_range;
 	assert(starbook_mtl_dma_receipt_provision_receive(&ops) == CB_SUCCESS);
 	struct smm_invocation_loader_seed seed = {
 		.revision = SMM_INVOCATION_EVIDENCE_REVISION, .size = sizeof(seed),
@@ -254,6 +271,59 @@ int main(int argc, char **argv)
 
 		assert(starbook_mtl_dma_smm_binding_get(&binding) != CB_SUCCESS);
 		assert(binding.receipt == (void *)0x12345678);
+	}
+	if (!strncmp(scenario, "delivery-", 9)) {
+		struct payload_mm_authvar_range communication = { .base = 0x400000, .size = 65536 };
+		bool valid = !strcmp(scenario, "delivery-valid") ||
+			!strcmp(scenario, "delivery-source-drift") ||
+			!strcmp(scenario, "delivery-successor") ||
+			!strcmp(scenario, "delivery-close") ||
+			!strcmp(scenario, "delivery-view-drift");
+
+		if (!strcmp(scenario, "delivery-size"))
+			communication.size--;
+		else if (!strcmp(scenario, "delivery-overflow"))
+			communication.base = UINT64_MAX - 65535U;
+		else if (!strcmp(scenario, "delivery-arena"))
+			communication.base = 0x800000;
+		else if (!strcmp(scenario, "delivery-private"))
+			communication.base = reservation.base;
+		else if (!strcmp(scenario, "delivery-table"))
+			communication.base = TABLE_BASE;
+		else if (!strcmp(scenario, "delivery-mmio"))
+			communication.base = GFX_BASE;
+		else if (!strcmp(scenario, "delivery-source-drift-during-walk"))
+			delivery_source_drift = &communication;
+		else if (!strcmp(scenario, "delivery-recheck-first")) {
+			assert(platform_payload_mm_authvar_service_delivery_held(
+				PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK, &communication) != CB_SUCCESS);
+			return 0;
+		}
+		assert((platform_payload_mm_authvar_service_delivery_held(
+			PAYLOAD_MM_AUTHVAR_DELIVERY_BEGIN, &communication) == CB_SUCCESS) == valid);
+		if (!valid) {
+			assert(starbook_mtl_boot_private_lease_begin_held() != CB_SUCCESS);
+			return 0;
+		}
+		if (!strcmp(scenario, "delivery-valid")) {
+			assert(platform_payload_mm_authvar_service_delivery_held(
+				PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK, &communication) == CB_SUCCESS);
+			starbook_mtl_boot_private_lease_close();
+			return 0;
+		}
+		if (!strcmp(scenario, "delivery-source-drift"))
+			communication.base += 65536;
+		else if (!strcmp(scenario, "delivery-successor")) {
+			wave_finish();
+			assert(wave_begin(SMM_APMC_AUTHVAR_SERVICE, SMM_APMC_AUTHVAR_SERVICE) == CB_SUCCESS);
+		} else if (!strcmp(scenario, "delivery-close"))
+			starbook_mtl_boot_private_lease_close();
+		else if (!strcmp(scenario, "delivery-view-drift"))
+			view_drift_during_walk = true;
+		assert(platform_payload_mm_authvar_service_delivery_held(
+			PAYLOAD_MM_AUTHVAR_DELIVERY_RECHECK, &communication) != CB_SUCCESS);
+		assert(starbook_mtl_boot_private_lease_begin_held() != CB_SUCCESS);
+		return 0;
 	}
 	if (strcmp(scenario, "valid") && strcmp(scenario, "ap-valid") &&
 	    strcmp(scenario, "successor-refused")) {

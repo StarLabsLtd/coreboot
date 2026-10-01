@@ -59,7 +59,9 @@ sources="$root/tests/lib/starbook_mtl_boot_private_held_lease_test.c
 cases='valid ap-valid successor-refused arena-overlap bootstrap-denied bootstrap-ap-denied
 	receipt-mutated bootstrap-drift evidence-alias runtime-denied claim-denied
 	claim-drift table-drift ecam-drift routing-drift s3 close-before-use fresh-binding-denied
-	close-at-publication view-drift-during-walk'
+	close-at-publication view-drift-during-walk delivery-valid delivery-size delivery-overflow
+	delivery-arena delivery-private delivery-table delivery-mmio delivery-recheck-first delivery-source-drift
+	delivery-successor delivery-close delivery-view-drift delivery-source-drift-during-walk'
 compile()
 {
 	flags=$1
@@ -97,7 +99,7 @@ for flags in '-O0' '-O2' '-O1 -g -fsanitize=undefined -fno-omit-frame-pointer'; 
 	compile "$flags" "$receiver"
 	run_cases
 done
-for mutation in geometry claim authority admission publication view; do
+for mutation in geometry claim authority admission publication view source-geometry source-identity source-capture; do
 	case "$mutation" in
 	geometry) expression='/if (!boot_private_geometry_valid() || !dependencies_valid/s/!boot_private_geometry_valid()/false/' ;;
 	claim) expression='/^static enum cb_err boot_private_verify_held/,$s/memcmp(\&token, \&owner.boot_private.claimed, sizeof(token))/false/g' ;;
@@ -108,11 +110,16 @@ for mutation in geometry claim authority admission publication view; do
 	admission) expression='/^static enum cb_err boot_private_verify_held/,$s/!platform_payload_mm_authvar_service_runtime_admitted()/false/g' ;;
 	publication) expression='/^[[:space:]]*expected = BOOT_PRIVATE_PREPARING;/,+3c\
 \t__atomic_store_n(\&owner.boot_private.state, BOOT_PRIVATE_READY, __ATOMIC_RELEASE);' ;;
-	view) expression='/^static enum cb_err boot_private_verify_held/,$ {
+	view) expression='/^static enum cb_err boot_private_verify_held/,/^enum cb_err starbook_mtl_boot_private_lease_begin_held/ {
 /smm_invocation_runtime_view_get(\&rechecked_view)/,+1c\
 \t    false ||
 /const struct smm_invocation_runtime_view \*rechecked_view;/d
 }' ;;
+	source-geometry) expression='/^enum cb_err platform_payload_mm_authvar_service_delivery_held/,$ {
+/!starbook_mtl_dma_smm_receipt_geometry_valid(\&owner.receipt, source.base, source.size)/s/!starbook_mtl_dma_smm_receipt_geometry_valid(\&owner.receipt, source.base, source.size)/false/
+}' ;;
+	source-identity) expression='/^enum cb_err platform_payload_mm_authvar_service_delivery_held/,$s/memcmp(\&source, \&owner.boot_private.communication, sizeof(source))/false/g' ;;
+	source-capture) expression='/^enum cb_err platform_payload_mm_authvar_service_delivery_held/,$s/memcmp(\&source, communication, sizeof(source))/false/' ;;
 	esac
 	sed "$expression" "$receiver" > "$temporary/receiver-$mutation.c"
 	! cmp -s "$receiver" "$temporary/receiver-$mutation.c"
