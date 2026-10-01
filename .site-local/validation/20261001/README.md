@@ -719,3 +719,37 @@ No evidence paths or manifests were rewritten to bypass these checks.
 
 These are compatibility-provider Q35 receipts, not protected-service activation,
 hardware validation, final release/style coverage or project-wide sign-off.
+
+## Reviewed image hash parity, PR450
+
+Concatenate `qemu-image-hash-parity-669.tar.gz.part-aa`, `part-ab` and `part-ac`.
+Archive SHA-256 is
+`bbb0cbd2ed562861d090a3b0e86a12ed112397ef27e15952c4499e9e3efba3fd`.
+Part hashes, in order, are
+`0b47d5bb4b76717c11842b936a7cc9f8dd85fbdfd2a4058458aeab4d7d26e3ec`,
+`6026e3d9857a01aaf95f65e3aa30a2b2321e8c35d7e19fa334b510b32464dabe`,
+and `55d4303da9ba65ff4aee478a568a4da0e6717b8fb74a1b341b9ae7700e2cff3b`.
+Independent fresh extraction verifies all 109 retained-file checksums. Its 110
+regular files include the checksum manifest; membership contains only regular
+files/directories within the archive root. The source patch matches exactly
+the PR449-to-PR450 diff.
+
+Signed PR450 `66922ef1c386e1c5fd6aafc9ee6ff1c30ee2b3d2` follows PR449.
+The native tests exercise SHA-256/384/512 image hashes against independent
+OpenSSL references, including mixed database/revocation matches. Independent
+native and stable checks pass. The continuing-build final whole suite and
+native-stage target pass; `cdk2-image-hash-parity-669-root-whole.log` retains
+the final receipt separately because the archive was frozen before completion.
+Its internal README's pending status is accurate for that earlier freeze.
+The archive also preserves earlier runner failures caused by a missing
+Kconfig executable path and an incorrectly named native-stage target; neither
+is represented as a successful firmware test.
+
+All three actual QEMU boots pass the original source-path oracles: hotkey/setup
+restoration, persisted firmware-setup request/presentation, and Linux BGRT.
+Linux runtime-variable evidence passes as well. These compatibility-profile
+payload and ROM bytes are identical to PR449: this profile does not execute
+the new hash authorization path. Native tests, not these guest boots, establish
+the new hash behavior. The guest tests establish unchanged compatibility;
+they do not establish protected-service activation, production policy admission,
+hardware validation or project-wide sign-off.
