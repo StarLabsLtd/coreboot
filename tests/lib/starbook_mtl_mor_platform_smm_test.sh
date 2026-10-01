@@ -6,9 +6,13 @@ root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 temporary="$(mktemp -d "${TMPDIR:-/tmp}/mtl-mor-platform-smm.XXXXXX")"
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
+for mor in 0 1; do
+for service in 0 1; do
 printf '%s\n' \
 	'#define CONFIG_MAX_CPUS 16' \
 	'#define CONFIG_SMM_MODULE_STACK_SIZE 0x4000' \
+	"#define CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER $mor" \
+	"#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED $service" \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	> "$temporary/include/config.h"
 
@@ -28,12 +32,14 @@ for optimization in 0 2; do
 		"$root/tests/lib/starbook_mtl_mor_platform_smm_test.c" -o "$output"
 	ASAN_OPTIONS=detect_leaks=1 "$output"
 done
+done
+done
 
 verify_smm_only()
 {
 	makefile=$1
-	test "$(grep -Ec '^[^#]*mor_platform_smm.c$' "$makefile")" -eq 1 &&
-		test "$(grep -c '^smm-\$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c$' \
+	test "$(grep -Ec '^[^#]*authvar_platform_smm.c$' "$makefile")" -eq 1 &&
+		test "$(grep -c '^smm-y += authvar_platform_smm.c$' \
 			"$makefile")" -eq 1
 }
 makefile="$root/src/mainboard/starlabs/starbook/variants/mtl/Makefile.mk"
@@ -41,7 +47,7 @@ verify_smm_only "$makefile"
 mutant="$temporary/Makefile-wrong-stage.mk"
 cp "$makefile" "$mutant"
 printf '%s\n' \
-	'ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c' \
+	'ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += authvar_platform_smm.c' \
 	>> "$mutant"
 if verify_smm_only "$mutant"; then
 	printf '%s\n' 'ERROR: wrong-stage SMM bootstrap survived' >&2

@@ -11,6 +11,7 @@
 #include <cpu/x86/smm.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#include <boot/payload_mm_authvar_presence_publication.h>
 #endif
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 #include <cpu/x86/lapic.h>
@@ -689,6 +690,34 @@ static int append_and_check_region(const struct region smram,
 	return 0;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
+static enum cb_err reserve_authvar_arena(const struct region smram,
+	struct region *region_list,
+	const struct payload_mm_authvar_smm_arena_seed *seed,
+	struct payload_mm_authvar_smm_arena_receipt *receipt)
+{
+	struct payload_mm_authvar_range occupied[SMM_REGIONS_ARRAY_SIZE];
+	size_t occupied_count = 0;
+
+	for (size_t index = 0; index < SMM_REGIONS_ARRAY_SIZE; index++) {
+		if (!region_sz(&region_list[index]))
+			continue;
+		occupied[occupied_count++] = (struct payload_mm_authvar_range) {
+			.base = region_offset(&region_list[index]),
+			.size = region_sz(&region_list[index]),
+		};
+	}
+	if (payload_mm_authvar_smm_arena_reserve(receipt,
+		region_offset(&smram), region_sz(&smram), occupied, occupied_count,
+		seed) != CB_SUCCESS ||
+	    append_and_check_region(smram,
+		region_create(receipt->arena.base, receipt->arena.size),
+		region_list, "AUTHVAR"))
+		return CB_ERR;
+	return CB_SUCCESS;
+}
+#endif
+
 #define _PRES (1ULL << 0)
 #define _RW   (1ULL << 1)
 #define _US   (1ULL << 2)
@@ -774,11 +803,27 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	 * this back to the BSP stack.
 	 */
 	static struct region region_list[SMM_REGIONS_ARRAY_SIZE] = {};
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
+	bool presence_required = false;
+
+	if (payload_mm_authvar_presence_publication_loader_required(&presence_required) !=
+		CB_SUCCESS) {
+		payload_mm_authvar_presence_tuple_sender_close();
+		payload_mm_authvar_presence_producer_abort();
+		return -1;
+	}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 	struct payload_mm_authvar_smm_arena_seed authvar_seed = { 0 };
 	struct payload_mm_authvar_smm_arena_receipt authvar_arena = { 0 };
 	struct payload_mm_authvar_smm_arena_slot *published_arena = NULL;
-	const bool authvar_arena_required =
+	const bool canonical_arena_required =
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		presence_required;
+#else
+		false;
+#endif
+	const bool authvar_arena_required = canonical_arena_required ||
 		platform_payload_mm_authvar_smm_arena_required();
 	bool authvar_arena_started = false;
 #endif
@@ -871,28 +916,12 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		goto fail;
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
-	if (authvar_arena_required) {
-		struct payload_mm_authvar_range occupied[SMM_REGIONS_ARRAY_SIZE];
-		size_t occupied_count = 0;
-
+	if (authvar_arena_required && !canonical_arena_required) {
 		authvar_arena_started = true;
 		if (!platform_payload_mm_authvar_smm_arena_seed(&authvar_seed))
 			goto fail;
-		for (size_t index = 0; index < SMM_REGIONS_ARRAY_SIZE; index++) {
-			if (!region_sz(&region_list[index]))
-				continue;
-			occupied[occupied_count++] = (struct payload_mm_authvar_range) {
-				.base = region_offset(&region_list[index]),
-				.size = region_sz(&region_list[index]),
-			};
-		}
-		if (payload_mm_authvar_smm_arena_reserve(&authvar_arena,
-			smram_base, smram_size, occupied, occupied_count,
-			&authvar_seed) != CB_SUCCESS ||
-		    append_and_check_region(smram,
-			region_create(authvar_arena.arena.base,
-				authvar_arena.arena.size),
-			region_list, "AUTHVAR"))
+		if (reserve_authvar_arena(smram, region_list, &authvar_seed,
+			&authvar_arena) != CB_SUCCESS)
 			goto fail;
 	}
 #endif
@@ -944,7 +973,7 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		goto fail;
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
-	if (authvar_arena_required) {
+	if (authvar_arena_required && !canonical_arena_required) {
 		memcpy(&published_arena->receipt, &authvar_arena,
 			sizeof(authvar_arena));
 		__atomic_store_n(&published_arena->state,
@@ -969,8 +998,94 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 	if (payload_mm_authvar_presence_tuple_sender_loader_provision(
 		&smihandler_params->authvar_presence_bootstrap, published_instance,
-		published_topology) != CB_SUCCESS)
+		published_topology, presence_required) != CB_SUCCESS) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		if (canonical_arena_required) {
+			scrub_authvar_loader(published_arena, sizeof(*published_arena));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+			if (published_channel)
+				scrub_authvar_loader(published_channel, sizeof(*published_channel));
+#endif
+		}
+#endif
 		die("SMM: canonical presence bootstrap unavailable\n");
+	}
+#endif
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (canonical_arena_required) {
+		struct payload_mm_authvar_presence_bootstrap *bootstrap =
+			&smihandler_params->authvar_presence_bootstrap;
+		struct payload_mm_authvar_presence_bootstrap snapshot;
+		struct smm_invocation_loader_instance identity, identity_check;
+		struct smm_invocation_topology topology, topology_check;
+
+		_Static_assert(PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_CAPABILITY_SIZE >=
+			PAYLOAD_MM_AUTHVAR_SMM_ARENA_OWNER_SIZE,
+			"canonical backend owner exceeds transaction capability");
+		memcpy(&snapshot, bootstrap, sizeof(snapshot));
+		if (!published_arena ||
+		    memcmp(published_arena, &(struct payload_mm_authvar_smm_arena_slot) { 0 },
+			sizeof(*published_arena)) ||
+		    snapshot.state != PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_PROVISIONED ||
+		    snapshot.cold_boot_proven != 1 ||
+		    snapshot.loader_lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+		    !payload_mm_authvar_presence_transaction_result(&snapshot.binding,
+			PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION_PREPARE) ||
+		    smm_invocation_loader_instance_read(published_instance, &identity) !=
+			CB_SUCCESS ||
+		    identity.lifecycle != snapshot.loader_lifecycle ||
+		    !smm_invocation_loader_instance_nonce_equal(identity.loader_instance_nonce,
+			snapshot.loader_nonce) ||
+		    smm_invocation_topology_read(published_topology, &topology) != CB_SUCCESS ||
+		    topology.bsp_cpu != snapshot.binding.initiator_cpu ||
+		    topology.active_cpus != snapshot.binding.maximum_cpus ||
+		    !mainboard_authvar_presence_cold_boot())
+			goto canonical_fail;
+		authvar_seed.revision = PAYLOAD_MM_AUTHVAR_SMM_ARENA_REVISION;
+		authvar_seed.size = sizeof(authvar_seed);
+		authvar_seed.cold_boot_generation = snapshot.binding.generation;
+		memcpy(authvar_seed.owner, snapshot.binding.capability,
+			sizeof(authvar_seed.owner));
+		authvar_arena_started = true;
+		if (reserve_authvar_arena(smram, region_list, &authvar_seed,
+			&authvar_arena) != CB_SUCCESS ||
+		    smm_invocation_loader_instance_read(published_instance, &identity_check) !=
+			CB_SUCCESS ||
+		    smm_invocation_topology_read(published_topology, &topology_check) != CB_SUCCESS ||
+		    memcmp(&identity, &identity_check, sizeof(identity)) ||
+		    memcmp(&topology, &topology_check, sizeof(topology)) ||
+		    memcmp(&snapshot, bootstrap, sizeof(snapshot)) ||
+		    memcmp(published_arena, &(struct payload_mm_authvar_smm_arena_slot) { 0 },
+			sizeof(*published_arena)) ||
+		    !mainboard_authvar_presence_cold_boot())
+			goto canonical_fail;
+		memcpy(&published_arena->receipt, &authvar_arena, sizeof(authvar_arena));
+		__atomic_store_n(&published_arena->state, PAYLOAD_MM_AUTHVAR_SMM_ARENA_READY,
+			__ATOMIC_RELEASE);
+		scrub_authvar_loader(&snapshot, sizeof(snapshot));
+		scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
+		scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
+		goto canonical_done;
+canonical_fail:
+		payload_mm_authvar_presence_tuple_sender_close();
+		payload_mm_authvar_presence_producer_abort();
+		bootmem_reservation_receipt_close(&bootstrap->mailbox_verifier);
+		bootmem_reservation_receipt_close(&bootstrap->page_verifier);
+		bootmem_reservation_receipt_close(&bootstrap->service_verifier);
+		scrub_authvar_loader(bootstrap, sizeof(*bootstrap));
+		if (published_arena)
+			scrub_authvar_loader(published_arena, sizeof(*published_arena));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_PRIVATE_SMI)
+		if (published_channel)
+			scrub_authvar_loader(published_channel, sizeof(*published_channel));
+#endif
+		scrub_authvar_loader(&snapshot, sizeof(snapshot));
+		scrub_authvar_loader(&authvar_seed, sizeof(authvar_seed));
+		scrub_authvar_loader(&authvar_arena, sizeof(authvar_arena));
+		die("SMM: canonical authenticated-variable arena unavailable\n");
+canonical_done:
+		;
+	}
 #endif
 	return 0;
 

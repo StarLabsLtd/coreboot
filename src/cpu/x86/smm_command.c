@@ -8,6 +8,10 @@ _Static_assert(!CONFIG(SMM_APMC_COMMAND_REGISTRY) ||
 	       CONFIG(SMM_APMC_COMPOSITION_ATTESTED),
 	"APMC registry requires an attested dispatcher composition");
 
+_Static_assert(!CONFIG(SMM_APMC_ROUTE_AUTHVAR_SERVICE) ||
+	CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED),
+	"authenticated-variable service requires its fixed dispatcher");
+
 #define ASSERT_ONE_BINDING(value, owner, role, bindings) \
 	_Static_assert((bindings) == 1, "enabled APMC owner needs one dispatcher");
 SMM_APMC_ENABLED_CLAIMS(ASSERT_ONE_BINDING)

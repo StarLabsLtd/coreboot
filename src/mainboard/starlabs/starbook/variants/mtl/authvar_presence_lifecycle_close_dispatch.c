@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "authvar_presence_lifecycle_close_install.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && \
+	CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && \
+	CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#include "authvar_presence_bootstrap_install.h"
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
 #include "authvar_presence_s3_rearm.h"
 #endif
@@ -18,6 +23,9 @@
 #include <intelblocks/smm_invocation_cause.h>
 #include <boot/payload_mm_authvar_presence_s3_backing.h>
 #include <string.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_mm_authvar_smm_bootstrap.h>
+#endif
 
 #if !ENV_SMM && !ENV_TEST
 #error "StarBook MTL lifecycle-close dispatcher is SMM-only"
@@ -26,7 +34,12 @@
 enum dispatch_state { DISPATCH_IDLE, DISPATCH_ARMING, DISPATCH_ACTIVE,
 	DISPATCH_DEPARTING, DISPATCH_INSTALLING, DISPATCH_INSTALL_COMPLETE,
 	DISPATCH_RECEIPT_PROVISIONING, DISPATCH_RECEIPT_COMPLETE,
-	DISPATCH_POISONED };
+	DISPATCH_POISONED,
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+/* The full service composition uses the existing entry ledger, not held APs. */
+	DISPATCH_BOOTSTRAP_COLLECTING, DISPATCH_SERVICE_INSTALLING,
+#endif
+};
 
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
 enum dispatch_mode { MODE_NONE, MODE_S3_REARM, MODE_S3_PUBLIC };
@@ -35,15 +48,16 @@ enum dispatch_mode { MODE_NONE, MODE_S3_REARM, MODE_S3_PUBLIC };
 static struct {
 	uint32_t state;
 	uint32_t install_departures;
+	uint64_t provider_generation;
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM) || \
+	CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	const struct smm_invocation_save_state_ops *active_ops;
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM)
 	uint32_t mode;
 	uint32_t mode_reserved;
-	uint64_t provider_generation;
-	const struct smm_invocation_save_state_ops *active_ops;
 	struct payload_mm_authvar_presence_s3_facts rearm_facts;
 	struct starbook_mtl_dma_smm_epoch_range rearm_ranges[2];
-#else
-	uint64_t provider_generation;
 #endif
 } owner;
 
@@ -52,6 +66,15 @@ void starbook_mtl_authvar_presence_lifecycle_close_dispatch_reset_test(void)
 {
 	memset(&owner, 0, sizeof(owner));
 }
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+void starbook_mtl_authvar_service_bootstrap_owner_drift_test(bool generation)
+{
+	if (generation)
+		owner.provider_generation++;
+	else
+		owner.active_ops = NULL;
+}
+#endif
 #endif
 
 __weak enum cb_err starbook_mtl_authvar_presence_lifecycle_close_install_policy(
@@ -93,7 +116,11 @@ static uint32_t wait_for_active_mode(uint32_t max_polls)
 		const uint32_t state = __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE);
 
 		if (state == DISPATCH_ACTIVE || state == DISPATCH_INSTALLING ||
-		    state == DISPATCH_INSTALL_COMPLETE)
+		    state == DISPATCH_INSTALL_COMPLETE
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		    || state == DISPATCH_BOOTSTRAP_COLLECTING || state == DISPATCH_SERVICE_INSTALLING
+#endif
+		    )
 			return state;
 		__asm__ __volatile__("pause");
 	}
@@ -346,6 +373,115 @@ static enum smm_pre_lock_dispatch_result s3_dispatch(
 #undef fail_stop
 #endif
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
+{
+	struct smm_invocation_runtime_binding runtime, rechecked;
+	const struct smm_invocation_runtime_view *view;
+	const struct smm_invocation_save_state_ops *retained_ops;
+	struct smm_invocation_loader_instance instance, instance_check;
+	struct smm_invocation_topology topology, topology_check;
+	struct smm_invocation_token token, token_check;
+
+	if (__atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != DISPATCH_SERVICE_INSTALLING ||
+	    owner.provider_generation || !owner.active_ops ||
+	    intel_smm_invocation_adapter_provider_provision(&retained_ops) !=
+		SMM_INVOCATION_TRY_SUCCESS || retained_ops != owner.active_ops ||
+	    smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, &owner,
+		sizeof(owner)) != CB_SUCCESS ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance) != CB_SUCCESS ||
+	    instance.lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token) != CB_SUCCESS ||
+	    runtime.evidence->loader_lifecycle != instance.lifecycle || !token.bsp ||
+	    token.initiator_cpu != topology.bsp_cpu || token.active_cpus != topology.active_cpus ||
+	    !smm_invocation_loader_instance_nonce_equal(runtime.evidence->loader_instance_nonce,
+		instance.loader_instance_nonce) ||
+	    runtime.evidence->bsp_cpu != topology.bsp_cpu ||
+	    memcmp(runtime.evidence->participant_apic_ids, topology.initial_apic_ids,
+		sizeof(topology.initial_apic_ids)) ||
+	    smm_invocation_loader_instance_read(runtime.instance, &instance_check) != CB_SUCCESS ||
+	    smm_invocation_topology_read(runtime.topology, &topology_check) != CB_SUCCESS ||
+	    smm_invocation_evidence_claimed_snapshot(runtime.evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, &token_check) != CB_SUCCESS ||
+	    memcmp(&instance, &instance_check, sizeof(instance)) ||
+	    memcmp(&topology, &topology_check, sizeof(topology)) ||
+	    memcmp(&token, &token_check, sizeof(token)) ||
+	    smm_invocation_runtime_binding_get(&rechecked) != CB_SUCCESS ||
+	    memcmp(&runtime, &rechecked, sizeof(runtime)) ||
+	    owner.provider_generation || owner.active_ops != retained_ops ||
+	    __atomic_load_n(&owner.state, __ATOMIC_ACQUIRE) != DISPATCH_SERVICE_INSTALLING)
+		return false;
+	return true;
+}
+
+static enum smm_pre_lock_dispatch_result service_bootstrap_dispatch(
+	const struct smm_invocation_runtime_binding *runtime,
+	const struct smm_invocation_topology *topology,
+	const struct smm_invocation_entry_cause *cause,
+	const struct smm_invocation_entry_policy *policy,
+	uint32_t cpu, uint32_t initial_apic_id)
+{
+	struct smm_invocation_entry_ticket ticket;
+	struct smm_invocation_token token;
+	const bool bsp = cpu == topology->bsp_cpu;
+
+	if (smm_invocation_entry_arrive(runtime->evidence, cause, policy,
+		cause->loader_instance_nonce, SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+		cpu, initial_apic_id, &ticket) != CB_SUCCESS)
+		fail_stop();
+	if (bsp) {
+		if (smm_invocation_evidence_claim(runtime->evidence,
+			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
+			STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST, owner.active_ops,
+			&token) != CB_SUCCESS)
+			fail_stop();
+		__atomic_store_n(&owner.state, DISPATCH_SERVICE_INSTALLING, __ATOMIC_RELEASE);
+		if (starbook_mtl_presence_bootstrap_receive(owner.active_ops) !=
+			STARBOOK_MTL_PRESENCE_BOOTSTRAP_IMPORTED ||
+		    intel_smm_invocation_adapter_provider_retire(owner.provider_generation) !=
+			SMM_INVOCATION_TRY_SUCCESS)
+			fail_stop();
+		owner.provider_generation = 0;
+		if (!platform_payload_mm_authvar_service_bootstrap_admitted() ||
+		    starbook_mtl_presence_bootstrap_route_install() != CB_SUCCESS ||
+		    intel_smm_invocation_adapter_provider_arm(&owner.provider_generation) !=
+			SMM_INVOCATION_TRY_SUCCESS ||
+		    starbook_mtl_presence_bootstrap_response_stage(owner.active_ops) != CB_SUCCESS ||
+		    smm_invocation_evidence_publish_and_request_close(runtime->evidence,
+			&token, STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_SUCCESS,
+			owner.active_ops) != CB_SUCCESS ||
+		    intel_smm_invocation_adapter_provider_retire(owner.provider_generation) !=
+			SMM_INVOCATION_TRY_SUCCESS ||
+		    starbook_mtl_presence_bootstrap_response_publish() != CB_SUCCESS)
+			fail_stop();
+		owner.provider_generation = 0;
+		__atomic_store_n(&owner.state, DISPATCH_DEPARTING, __ATOMIC_RELEASE);
+	} else {
+		wait_for_state(DISPATCH_DEPARTING, policy->max_polls);
+	}
+	if (smm_invocation_entry_depart(runtime->evidence, &ticket) != CB_SUCCESS)
+		fail_stop();
+	if (!bsp)
+		return SMM_PRE_LOCK_DISPATCH_PARTICIPANT_HANDLED;
+	for (uint32_t poll = 0; ; poll++) {
+		if (smm_invocation_entry_eos_ready(runtime->evidence, &ticket))
+			break;
+		if (poll + 1U == policy->max_polls)
+			fail_stop();
+		__asm__ __volatile__("pause");
+	}
+	owner.active_ops = NULL;
+	__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
+	return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+}
+#endif
+
 enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	uint32_t cpu, uint32_t initial_apic_id)
 {
@@ -421,6 +557,54 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 		    intel_smm_invocation_adapter_provider_arm(
 			&owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS)
 			fail_stop();
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		{
+			uint64_t wire;
+
+			if (active_ops->read_value(active_ops->context, cpu, &wire) != CB_SUCCESS)
+				fail_stop();
+			if (wire == STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST) {
+				owner.active_ops = active_ops;
+				__atomic_store_n(&owner.state, DISPATCH_BOOTSTRAP_COLLECTING,
+					__ATOMIC_RELEASE);
+				return service_bootstrap_dispatch(&runtime, &topology, &cause,
+					&policy, cpu, initial_apic_id);
+			}
+		}
+#endif
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER) && \
+	CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && \
+	CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+		{
+			const enum starbook_mtl_presence_bootstrap_result bootstrap =
+				starbook_mtl_presence_bootstrap_receive(active_ops);
+
+			if (bootstrap == STARBOOK_MTL_PRESENCE_BOOTSTRAP_ERROR)
+				fail_stop();
+			if (bootstrap == STARBOOK_MTL_PRESENCE_BOOTSTRAP_IMPORTED) {
+				if (intel_smm_invocation_adapter_provider_retire(
+					owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS ||
+				    starbook_mtl_presence_bootstrap_route_install() != CB_SUCCESS ||
+				    intel_smm_invocation_adapter_provider_arm(
+					&owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS ||
+				    starbook_mtl_presence_bootstrap_response_stage(active_ops) != CB_SUCCESS ||
+				    intel_smm_invocation_adapter_provider_retire(
+					owner.provider_generation) != SMM_INVOCATION_TRY_SUCCESS ||
+				    starbook_mtl_presence_bootstrap_response_publish() != CB_SUCCESS)
+					fail_stop();
+				owner.provider_generation = 0;
+				__atomic_store_n(&owner.state, DISPATCH_INSTALL_COMPLETE,
+					__ATOMIC_RELEASE);
+				wait_for_install_departures(topology.active_cpus - 1U,
+					policy.max_polls);
+				__atomic_store_n(&owner.install_departures, 0U, __ATOMIC_RELAXED);
+				__atomic_store_n(&owner.state, DISPATCH_IDLE, __ATOMIC_RELEASE);
+				return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+			}
+		}
+#endif
 		if (starbook_mtl_authvar_presence_lifecycle_close_installed_route(
 			&installed) == CB_SUCCESS) {
 			if (installed.retained_ops != active_ops)
@@ -453,6 +637,11 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 		}
 	} else {
 		mode = wait_for_active_mode(policy.max_polls);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+		if (mode == DISPATCH_BOOTSTRAP_COLLECTING || mode == DISPATCH_SERVICE_INSTALLING)
+			return service_bootstrap_dispatch(&runtime, &topology, &cause,
+				&policy, cpu, initial_apic_id);
+#endif
 		if (mode != DISPATCH_ACTIVE)
 			return install_participant(topology.active_cpus, policy.max_polls);
 		if (starbook_mtl_authvar_presence_lifecycle_close_installed_route(

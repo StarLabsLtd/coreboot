@@ -95,17 +95,84 @@ with mocked external owner boundaries, including every provisioning failure,
 disabled placement and replay. Its separate full-ROM lane links untouched MTL
 loader/handler objects and the real board composition owner, with opt-in absent.
 The optional `PRESENCE_BOOTSTRAP_AUTHORITY_POLICY_LINK=1` lane additionally
-requires the real board authority-policy object. Neither lane asserts an
-installed route or required-true end-to-end boot.
+requires the real board authority-policy object. Its nested
+`PRESENCE_BOOTSTRAP_PRIVATE_CALLER_LINK=1` lane checks the actual board-table
+sender and private dispatcher/factory caller objects. These ROM lanes keep
+opt-in absent; they do not assert required-true end-to-end boot.
 
-Production activation still needs a recognized private bootstrap dispatcher
-callsite, post-resolution receipt import, verified cold DMA authority and a
-board composition which actually calls the canonical route factory. Existing
-private-cause, save-state and all-CPU primitives must be reused rather than
-duplicated. PREPARE is the sole presence-seed installation boundary; there is
-no independent seed handoff. A later platform slice
-must emit receipts after both bootmem maps resolve, install ownership through
-the existing backing-evidence owner, establish a verified cold DMA proof and
-connect the route factory to a recognized private cause. Until those pieces
-exist, the bootstrap cannot become READY and no required-true production route
-is installed. The existing S3 DMA epoch is deliberately not a cold-boot proof.
+The MTL caller uses the existing `lb_board` hook after both bootmem maps resolve
+to emit the exact mailbox/page receipts and request the existing private 0xfe
+all-CPU dispatcher. Non-bootstrap requests, including legitimate AP requests,
+retain the ordinary lifecycle-close path. The recognized bootstrap imports
+mailbox ownership through the existing backing-evidence owner and retains the
+page receipt for canonical PREPARE. It retires the first save-state lease before
+calling the existing route factory, then uses a second lease of the same ops
+descriptor for the final response. The public frame remains REQUEST until the
+factory succeeds and that second lease retires. APs remain held throughout.
+Any intermediate failure invokes platform fail-stop without a completed ACK.
+
+Host fixtures execute the actual sender, receiver and dispatcher with mocked
+external owner/factory boundaries. A separate import fixture links the actual
+bootstrap, backing-evidence, transaction and receipt/MAC implementation: it
+checks exact mailbox ownership, generation, full loader identity, page-handle
+binding, one-use/replay and alias rejection. These tests are not a live MTL
+required-true service proof.
+
+Production activation still requires genuine board composition opt-in and the
+general variable-service/endpoint path, followed by integrated cold-DMA and
+route/service runtime validation. PREPARE remains the sole presence-seed
+installation boundary; there is no independent seed handoff. The existing S3
+DMA epoch is deliberately not a cold-boot proof. The separate cold callback
+uses the live DMA policy and the same protected receipt owner, but host and
+link evidence do not replace hardware validation of that complete path.
+
+The general-service prerequisite reserves one distinct, fixed 64 KiB
+`BM_MEM_TABLE` mailbox only with the hidden fixed-dispatcher attestation and a
+genuinely required canonical composition. Presence-only and disabled profiles
+do not allocate it. Its exact post-map receipt is imported through the same
+private bootstrap wave, after which the sole backend provider consumes it via
+`payload_mm_authvar_service_prepare`. The canonical slot does not retain a
+second service receipt or expose a raw receipt getter. Preparation establishes
+mailbox ownership, not installed service or endpoint readiness.
+
+That full prerequisite also defers the existing single SMRAM arena allocation
+until the real canonical tuple has provisioned its protected cold binding.
+The arena uses that binding's generation and capability owner, the same live
+occupied-region list and the existing allocator. Full loader nonce, topology,
+cold classification and bootstrap state are resampled before publication.
+Failure closes all staged receipt owners and stops boot without falling back
+to the independent legacy MOR owner. Without the full prerequisite, the
+existing MOR-only arena path remains unchanged.
+
+The host lane compiles the exact production loader functions with mocked
+rmodule, fanout and transport boundaries and links the real arena allocator,
+loader-instance and topology implementations. It covers both attestation
+settings, required/disabled decisions, optional MOR and ownership drift; its
+failure-atomic companion runs source mutations rather than raw statement
+counts. The receipt-import fixture uses the real receipt/MAC implementation
+but mocks the sole provider's preparation boundary. These are prerequisite
+proofs, not an enabled production profile. The real fixed 0xfc dispatcher,
+unconditional sole-backend initialization, optional MOR operation and final
+service/endpoint readiness still require integrated source and runtime proof.
+
+The guarded full-composition private wave now uses the existing invocation
+entry ledger: every CPU arrives, the BSP claims the actual rendezvous, and
+receipt import precedes installation. Retiring the first save-state lease does
+not retire this invocation claim. The fixed platform admission callback checks
+the protected dispatcher phase, retained ops identity, retired lease, full
+loader nonce, topology and claimed token before and after backend callbacks.
+The platform factory reuses the existing restricted Intel SPI callback rather
+than installing a second media provider. Presence-only composition keeps its
+previous path.
+
+The threaded host wave fixture links the real entry, evidence, loader-instance
+and topology implementations while mocking platform classification, save-state
+adapter and receipt/factory boundaries. It tests delayed and AP-first arrival,
+missing AP, callback reentry, token/identity/topology/lease drift, publication
+failures and EOS denial. A post-ACK EOS failure is terminal: it is not an
+unpublished response or a successful return to the payload. These proofs do
+not select the production profile or prove the complete service backend link.
+Optional MOR channel attachment still needs its later genuine private request
+admission; copying its slot during this wave or reusing the expired claim is
+not sufficient. Fixed 0xfc runtime dispatch, final service readiness and
+endpoint publication remain separate gates.

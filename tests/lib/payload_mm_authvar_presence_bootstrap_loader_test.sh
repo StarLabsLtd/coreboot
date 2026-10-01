@@ -7,11 +7,16 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
 	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATIONS 1' \
+	'#define CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT 1' \
 	'#define CONFIG_MAX_CPUS 64' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	> "$temporary/include/config.h"
+for attested in 0 1; do
+printf '#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED %s\n' "$attested" \
+	> "$temporary/include/attested.h"
 for optimization in 0 2; do
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
 		-O"$optimization" -D__TEST__ -D__COREBOOT__ \
+		-include "$temporary/include/attested.h" \
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$temporary/include" -I"$root/src/include" -I"$root/src" \
@@ -23,8 +28,11 @@ for optimization in 0 2; do
 		-o "$temporary/test"
 	"$temporary/test" disabled
 	"$temporary/test" 0
-	for failure in $(seq 1 19); do
+	maximum=21
+	test "$attested" = 0 || maximum=28
+	for failure in $(seq 1 "$maximum"); do
 		"$temporary/test" "$failure"
 	done
+done
 done
 echo 'Canonical loader prerequisite failure/one-shot tests: PASS'

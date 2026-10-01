@@ -2,6 +2,8 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
+#include <boot/payload_mm_authvar_presence_publication.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,21 +14,47 @@
 /* Real loader provision code; these external owners are independent boundaries. */
 static unsigned int calls, fail_at, aborts;
 static bool required = true;
+enum {
+	reservation_calls = CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ? 2 : 1,
+	provision_calls = CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ? 25 : 19,
+	emit_calls = CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ? 28 : 21,
+};
 
 static bool accepted(void)
 {
 	return ++calls != fail_at;
 }
 
+static enum cb_err loader_provision(
+	struct payload_mm_authvar_presence_bootstrap *slot,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_topology *topology)
+{
+	bool loader_required;
+
+	memset(slot, 0, sizeof(*slot));
+	if (payload_mm_authvar_presence_publication_loader_required(&loader_required) != CB_SUCCESS) {
+		payload_mm_authvar_presence_tuple_sender_close();
+		payload_mm_authvar_presence_producer_abort();
+		return CB_ERR;
+	}
+	return payload_mm_authvar_presence_tuple_sender_loader_provision(slot, instance,
+		topology, loader_required);
+}
+
 int bootmem_aligned_reservation_register(
 	const struct bootmem_aligned_reservation_request *request,
 	struct bootmem_aligned_reservation_handle *handle)
 {
-	assert(request->bytes == 4096 && request->alignment == 4096 &&
-		request->limit_exclusive == 1ULL << 32 && request->tag == BM_MEM_RESERVED);
+	assert(request->alignment == 4096 && request->limit_exclusive == 1ULL << 32);
+	assert((request->tag == BM_MEM_RESERVED && request->bytes == 4096) ||
+		(request->tag == BM_MEM_TABLE &&
+		 request->bytes == PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE));
 	if (!accepted())
 		return -1;
-	*handle = (struct bootmem_aligned_reservation_handle) { .opaque = { 1, 2 } };
+	*handle = (struct bootmem_aligned_reservation_handle) {
+		.opaque = {request->tag == BM_MEM_TABLE ? 5U : 1U, 2},
+	};
 	return 0;
 }
 
@@ -102,6 +130,25 @@ void bootmem_reservation_receipt_close(struct bootmem_reservation_receipt_author
 	memset(owner, 0, sizeof(*owner));
 }
 
+enum cb_err bootmem_aligned_reservation_receipt_emit_exact_tag(
+	const struct bootmem_aligned_reservation_handle *handle,
+	struct bootmem_reservation_receipt_authority *signer,
+	struct bootmem_reservation_receipt *receipt, enum bootmem_type tag)
+{
+	assert(handle->opaque[0] && tag ==
+		(handle->opaque[0] == 5 ? BM_MEM_TABLE : BM_MEM_RESERVED));
+	*receipt = (struct bootmem_reservation_receipt) {
+		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
+		.size = sizeof(*receipt), .generation = 42,
+		.base = handle->opaque[0] == 3 ? 0x1000 :
+			handle->opaque[0] == 5 ? 0x10000 : 0x2000,
+		.bytes = handle->opaque[0] == 5 ? PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE : 4096,
+		.tag = tag,
+	};
+	bootmem_reservation_receipt_close(signer);
+	return accepted() ? CB_SUCCESS : CB_ERR;
+}
+
 uint64_t smm_invocation_tuple_trigger(void)
 {
 	abort();
@@ -133,13 +180,15 @@ int main(int argc, char **argv)
 		.initial_apic_ids = { 0, 1, 2, 3 },
 	};
 	struct payload_mm_authvar_presence_bootstrap slot;
+	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
+	struct payload_mm_authvar_presence_tuple_sender sender;
 	enum cb_err result;
 
 	assert(argc == 2);
 	if (!strcmp(argv[1], "disabled")) {
 		required = false;
 		memset(&slot, 0xa5, sizeof(slot));
-		assert(payload_mm_authvar_presence_tuple_sender_loader_provision(
+		assert(loader_provision(
 			&slot, NULL, NULL) == CB_SUCCESS);
 		assert(empty(&slot, sizeof(slot)) && !aborts && calls == 1);
 		return 0;
@@ -149,23 +198,41 @@ int main(int argc, char **argv)
 		fail_at = fail_at * 10U + (unsigned int)(*digit - '0');
 	}
 	if (payload_mm_authvar_presence_tuple_sender_reserve() != CB_SUCCESS) {
-		assert(fail_at == 1);
+		assert(fail_at && fail_at <= reservation_calls);
 		return 0;
 	}
 	memset(&slot, 0xa5, sizeof(slot));
-	result = payload_mm_authvar_presence_tuple_sender_loader_provision(
+	result = loader_provision(
 		&slot, &instance, &topology);
-	if (fail_at) {
+	if (fail_at && fail_at <= provision_calls) {
 		assert(result == CB_ERR && empty(&slot, sizeof(slot)) && aborts == 1);
 		return 0;
 	}
-	assert(result == CB_SUCCESS && calls == 19 && !aborts);
+	assert(result == CB_SUCCESS && calls == provision_calls && !aborts);
 	assert(slot.state == PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_PROVISIONED &&
 		slot.cold_boot_proven == 1 && slot.binding.maximum_cpus == 4);
 	assert(smm_invocation_loader_instance_nonce_equal(slot.loader_nonce,
 		instance.loader_instance_nonce));
-	assert(payload_mm_authvar_presence_tuple_sender_loader_provision(
+	memset(&receipts, 0xa5, sizeof(receipts));
+	memset(&sender, 0xa5, sizeof(sender));
+	result = payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender);
+	if (fail_at) {
+		assert(result == CB_ERR && aborts == 1 && empty(&receipts, sizeof(receipts)) &&
+			empty(&sender, sizeof(sender)));
+		return 0;
+	}
+	assert(result == CB_SUCCESS && calls == emit_calls && sender.page == (void *)0x2000);
+	assert(receipts.mailbox.base == 0x1000 && receipts.page.base == 0x2000);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	assert(receipts.service.base == 0x10000 && receipts.service.tag == BM_MEM_TABLE);
+#else
+	assert(empty(&receipts.service, sizeof(receipts.service)) &&
+		empty(&slot.service_verifier, sizeof(slot.service_verifier)));
+#endif
+	assert(payload_mm_authvar_presence_tuple_sender_receipts_take(&receipts, &sender) == CB_ERR);
+	assert(empty(&receipts, sizeof(receipts)) && empty(&sender, sizeof(sender)) && aborts == 1);
+	assert(loader_provision(
 		&slot, &instance, &topology) == CB_ERR);
-	assert(empty(&slot, sizeof(slot)) && aborts == 1);
+	assert(empty(&slot, sizeof(slot)) && aborts == 2);
 	return 0;
 }

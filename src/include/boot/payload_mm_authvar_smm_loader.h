@@ -17,7 +17,7 @@
 #define PAYLOAD_MM_AUTHVAR_SMM_ARENA_TAKING 0x5aU
 #define PAYLOAD_MM_AUTHVAR_SMM_ARENA_CONSUMED 0xc3U
 
-/* Private platform-to-loader input; owner is the seal-channel capability. */
+/* Private loader input; owner is the admitted canonical backend capability. */
 struct payload_mm_authvar_smm_arena_seed {
 	uint32_t revision;
 	uint32_t size;

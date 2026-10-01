@@ -33,7 +33,9 @@ ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) += \
 ramstage-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM) += \
 	authvar_presence_s3_rearm_sender.c
 
-smm-$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) += mor_platform_smm.c
+ifneq ($(filter y,$(CONFIG_STARLABS_STARBOOK_MTL_MOR_PLATFORM_PROVIDER) $(CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)),)
+smm-y += authvar_platform_smm.c
+endif
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_SMM_INVOCATION_FAIL_STOP) += smm_invocation_fail_stop.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER) += \
 	authvar_presence_route_composition.c
@@ -42,7 +44,8 @@ ifeq ($(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER),y)
 ifeq ($(CONFIG_SMM_INVOCATION_RUNTIME_BINDING),y)
 ifeq ($(CONFIG_STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION),y)
 ifeq ($(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY),y)
-smm-y += authvar_presence_authority_policy.c
+smm-y += authvar_presence_authority_policy.c authvar_presence_bootstrap_receiver.c
+ramstage-y += authvar_presence_bootstrap_sender.c
 endif
 endif
 endif

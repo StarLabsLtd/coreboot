@@ -30,6 +30,8 @@ printf '%s\n' \
 	'#define CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD 1' \
 	'#define CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_S3_REARM 1' \
 	'#define CONFIG_SMM_APMC_ROUTE_STARBOOK_MTL_DMA_RECEIPT 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY 1' \
 	> "$temporary/include/config.h"
 
 common="-std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow -fno-builtin
