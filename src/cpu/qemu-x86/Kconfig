@@ -40,6 +40,7 @@ config SMM_TSEG_SIZE
 
 config MAX_CPUS
 	int
+	default 1 if Q35_SMM_INVOCATION_NATIVE_COMPONENT
 	default 32 if SMM_TSEG
 	default 4
 

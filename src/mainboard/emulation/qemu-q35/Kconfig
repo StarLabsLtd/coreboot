@@ -2,6 +2,25 @@
 
 if BOARD_EMULATION_QEMU_X86_Q35
 
+config Q35_SMM_INVOCATION_NATIVE_COMPONENT
+	bool "QEMU-only single-CPU native SMM loader component"
+	default n
+	depends on CPU_QEMU_X86_TSEG_SMM && HAVE_CF9_RESET
+	depends on !HAVE_ACPI_RESUME
+	select IOAPIC
+	select Q35_SMM_INVOCATION_FAIL_STOP_TEST
+	select SMM_INVOCATION_TOPOLOGY
+	select SMM_INVOCATION_EVIDENCE
+	select SMM_INVOCATION_LOADER_INSTANCE
+	select SMM_INVOCATION_LOADER_INSTANCE_PLATFORM
+	select SMM_INVOCATION_LOADER_COMPOSITION
+	help
+	  Supply a one-shot, genuinely random cold loader instance to the existing
+	  protected SMM loader composition for a single-CPU native component.
+	  Actual CPU count and RDRAND availability are checked before acquisition.
+	  This supplies no DMA protection, invocation cause, command ownership,
+	  service admission or authenticated-variable endpoint.
+
 config QEMU_PFLASH_VOLATILE_LEASE
 	bool
 	default n

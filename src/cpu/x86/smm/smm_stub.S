@@ -30,7 +30,7 @@ cr3:
  * APIC id is found at the given index, the contiguous CPU number is index
  * into the table. */
 apic_to_cpu_num:
-#if CONFIG(SMM_INVOCATION_ENTRY)
+#if CONFIG(SMM_INVOCATION_ENTRY) || CONFIG(SMM_INVOCATION_TOPOLOGY)
 .fill CONFIG_MAX_CPUS,4,0xffffffff
 #else
 .fill CONFIG_MAX_CPUS,2,0xffff
@@ -168,7 +168,7 @@ apicid_end:
 	xor	%ecx, %ecx
 
 1:
-#if CONFIG(SMM_INVOCATION_ENTRY)
+#if CONFIG(SMM_INVOCATION_ENTRY) || CONFIG(SMM_INVOCATION_TOPOLOGY)
 	cmp	(%ebx, %ecx, 4), %eax
 #else
 	cmp	(%ebx, %ecx, 2), %ax

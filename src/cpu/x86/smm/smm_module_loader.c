@@ -215,7 +215,7 @@ static void smm_place_entry_code(const unsigned int num_cpus)
 
 	/* start at 1, the first CPU stub code is already there */
 	size = region_sz(&cpus[0].stub_code);
-	for (i = 1; i < num_cpus; i++) {
+	for (i = 1; i < num_cpus && i < ARRAY_SIZE(cpus); i++) {
 		printk(BIOS_DEBUG,
 		       "SMM Module: placing smm entry code at %zx,  cpu # 0x%x\n",
 		       region_offset(&cpus[i].stub_code), i);
@@ -254,10 +254,13 @@ int smm_setup_stack(const uintptr_t perm_smbase, const size_t perm_smram_size,
  * staggered by the per CPU SMM save state size extending down from
  * SMM_ENTRY_OFFSET.
  */
-static void smm_stub_place_staggered_entry_points(const struct smm_loader_params *params)
+static int smm_stub_place_staggered_entry_points(const struct smm_loader_params *params)
 {
+	if (params->num_concurrent_save_states > ARRAY_SIZE(cpus))
+		return -1;
 	if (params->num_concurrent_save_states > 1)
 		smm_place_entry_code(params->num_concurrent_save_states);
+	return 0;
 }
 
 /*
@@ -368,7 +371,8 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 	       stub_params->stack_size);
 	printk(BIOS_DEBUG, "%s: runtime.smm_size = 0x%zx\n", __func__, smm_size);
 
-	smm_stub_place_staggered_entry_points(params);
+	if (smm_stub_place_staggered_entry_points(params))
+		return -1;
 
 #if CONFIG(SMM_INVOCATION_TOPOLOGY)
 	if (topology && smm_invocation_topology_publish(&topology_builder,
