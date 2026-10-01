@@ -296,7 +296,8 @@ void arch_bootstate_coreboot_exit(void)
 		return;
 
 	/* APs are waiting for work. Last thing to do is park them. */
-	mp_park_aps();
+	if (mp_park_aps() != CB_SUCCESS)
+		die("APs failed to accept the payload-handoff park request");
 }
 
 /* cpu_info() looks at address 0 at the base of %gs for a pointer to struct cpu_info */
