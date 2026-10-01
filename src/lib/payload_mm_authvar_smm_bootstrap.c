@@ -839,6 +839,9 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 		.maximum_data_size = MIN(provider.sealed.limits.maximum_data_size,
 			(uint32_t)sizeof(provider.service_request) - data_offset),
 	};
+	/* Private BOOT delivery is one-shot; only the general route can repeat op9. */
+	if (!CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER))
+		descriptor.flags |= LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL;
 	provider.endpoint = descriptor;
 	provider.sealed_endpoint = descriptor;
 	if (payload_mm_authvar_service_endpoint_validate(&provider.endpoint) != CB_SUCCESS ||
