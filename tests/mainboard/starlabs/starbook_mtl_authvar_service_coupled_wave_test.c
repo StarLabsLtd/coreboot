@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-/* Keep the existing hostile-wave stubs for unrelated lifecycle paths. The
+/*
+ * Keep the existing hostile-wave stubs for unrelated lifecycle paths. The
  * coupled lane links the actual classifier, adapter, receiver and ledger;
  * provider ownership and receipt/policy cryptography remain test boundaries. */
 #define main boundary_wave_main
@@ -28,6 +29,7 @@
 #include <cpu/intel/em64t101_save_state.h>
 #include <cpu/intel/smm_invocation_adapter.h>
 #include <cpu/x86/smm.h>
+#include <bootmem.h>
 #include "authvar_presence_authority_policy.h"
 #include "authvar_presence_route_composition.h"
 
@@ -39,10 +41,68 @@ static struct payload_mm_authvar_presence_bootstrap slot;
 static struct payload_mm_authvar_presence_route_authority_policy authority_policy;
 static uintptr_t save_state_tops[CPUS];
 static unsigned int coupled_fault;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+static unsigned int finalize_checks;
+static unsigned int private_prepares;
+static unsigned int private_closes;
+
+void starbook_mtl_boot_private_lease_close(void)
+{
+	private_closes++;
+}
+
+enum cb_err starbook_mtl_boot_private_lease_prepare(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt)
+{
+	struct smm_invocation_token claimed;
+	const struct smm_invocation_runtime_view *view;
+	const uint64_t request = ((uint64_t)(uintptr_t)&frame << 32) |
+		STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST;
+
+	/* Observe the real held wave; receipt cryptography is a separate owner gate. */
+	assert(finalize_checks == 2 && atomic_load(&arrivals) == CPUS);
+	assert(verifier == &slot.boot_private_verifier && receipt != &frame.boot_private);
+	assert(!memcmp(receipt, &frame.boot_private, sizeof(*receipt)));
+	assert(smm_invocation_runtime_view_get(&view) == CB_SUCCESS);
+	assert(smm_invocation_runtime_range_is_protected(view, verifier,
+		sizeof(*verifier)) == CB_SUCCESS);
+	assert(smm_invocation_runtime_range_is_protected(view, receipt,
+		sizeof(*receipt)) == CB_SUCCESS);
+	assert(smm_invocation_evidence_claimed_snapshot(&evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, request, &claimed) == CB_SUCCESS);
+	assert(claimed.bsp && claimed.initiator_cpu == 0 && claimed.active_cpus == CPUS);
+	assert(platform_payload_mm_authvar_service_finalize_admitted());
+	private_prepares++;
+	if (coupled_fault == 6 || coupled_fault == 9) {
+		atomic_store(&injected, true);
+		return CB_ERR;
+	}
+	memset(receipt, 0, sizeof(*receipt));
+	bootmem_reservation_receipt_close(verifier);
+	return CB_SUCCESS;
+}
+#endif
 
 void __noreturn smm_invocation_platform_fail_stop(void)
 {
 	assert(atomic_load(&injected));
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	if (coupled_fault >= 5) {
+		assert(private_closes && frame.state == STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST);
+		assert(!atomic_load(&lease) == (coupled_fault != 5));
+		assert(atomic_load(&arm_count) == 1 && atomic_load(&arrivals) == CPUS);
+		assert(atomic_load(&installs) == (coupled_fault == 5 ? 0U : 1U));
+		assert(slot.boot_private_verifier.state == 4U);
+		struct bootmem_reservation_receipt_authority closed = slot.boot_private_verifier;
+
+		closed.state = 0;
+		const struct bootmem_reservation_receipt_authority empty = { 0 };
+
+		assert(!memcmp(&closed, &empty, sizeof(closed)));
+		_Exit(0);
+	}
+#endif
 	if (coupled_fault == 3) {
 		assert(!atomic_load(&arrivals) && !atomic_load(&installs));
 		assert(!atomic_load(&arm_count) && !atomic_load(&retire_count));
@@ -121,6 +181,9 @@ enum cb_err payload_mm_authvar_presence_bootstrap_receipts_import(
 	assert(!memcmp(receipts, &frame.receipts, sizeof(*receipts)));
 	assert(atomic_load(&arrivals) == CPUS && atomic_load(&lease));
 	slot.state = PAYLOAD_MM_AUTHVAR_PRESENCE_BOOTSTRAP_READY;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	memset(&slot.boot_private_verifier, 0x5a, sizeof(slot.boot_private_verifier));
+#endif
 	return CB_SUCCESS;
 }
 
@@ -173,7 +236,23 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 	assert(platform_payload_mm_authvar_service_bootstrap_admitted());
 	if (!platform_payload_mm_authvar_service_finalize_admitted())
 		return CB_ERR;
-	return platform_payload_mm_authvar_service_finalize_admitted() ? CB_SUCCESS : CB_ERR;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	finalize_checks++;
+	if (coupled_fault == 7) {
+		atomic_store(&injected, true);
+		evidence.token.smi_generation++;
+	}
+#endif
+	if (!platform_payload_mm_authvar_service_finalize_admitted())
+		return CB_ERR;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	finalize_checks++;
+	if (coupled_fault == 8) {
+		atomic_store(&injected, true);
+		frame.boot_private.mac[0] ^= 1U;
+	}
+#endif
+	return CB_SUCCESS;
 }
 
 enum cb_err payload_mm_authvar_service_descriptor_copy(struct lb_authvar_service_endpoint *output)
@@ -222,6 +301,18 @@ int main(int argc, char **argv)
 		.revision = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REVISION,
 		.size = sizeof(frame), .state = STARBOOK_MTL_PRESENCE_BOOTSTRAP_REQUEST,
 	};
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	frame.boot_private = (struct bootmem_reservation_receipt) {
+		.revision = BOOTMEM_RESERVATION_RECEIPT_REVISION,
+		.size = sizeof(frame.boot_private), .bytes = 196608,
+		.base = 0x800000, .tag = BM_MEM_RESERVED, .generation = 42,
+	};
+	memset(frame.boot_private.mac, 0x5a, sizeof(frame.boot_private.mac));
+	if (coupled_fault == 5) {
+		frame.revision = 2;
+		atomic_store(&injected, true);
+	}
+#endif
 	memory.frame.base = (uintptr_t)&frame;
 	memory.frame.size = sizeof(frame);
 	if (coupled_fault == 4) {
@@ -265,5 +356,19 @@ int main(int argc, char **argv)
 		!native_states[0].rcx && frame.state == STARBOOK_MTL_PRESENCE_BOOTSTRAP_ACCEPTED);
 	assert(smm_invocation_evidence_phase(&evidence) == SMM_INVOCATION_READY);
 	assert(!platform_payload_mm_authvar_service_bootstrap_admitted());
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	assert(finalize_checks == 2 && private_prepares == 1 && !private_closes);
+	/* Genuine successful child logs exercise the runner's masked-error guard. */
+	if (coupled_fault >= 10 && coupled_fault <= 13) {
+		static const char *const diagnostics[] = {
+			"assertion line 0: injected sibling diagnostic",
+			"BOOT-private loader delivery oracle failure: injected diagnostic",
+			"runtime error: injected diagnostic",
+			"ThreadSanitizer: injected diagnostic",
+		};
+
+		dprintf(2, "%s\n", diagnostics[coupled_fault - 10U]);
+	}
+#endif
 	return 0;
 }
