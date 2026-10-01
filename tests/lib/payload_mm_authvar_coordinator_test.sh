@@ -148,6 +148,7 @@ compile_mutant()
 		-I"$root/src/commonlib/bsd/include" -I"$root/src/arch/x86/include" \
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$mutant_source" "$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$root/src/lib/payload_mm_authvar_authority_provider.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
