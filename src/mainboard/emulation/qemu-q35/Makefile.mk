@@ -11,6 +11,7 @@ ramstage-y += ../qemu-i440fx/memmap.c
 ramstage-y += ../qemu-i440fx/northbridge.c
 ramstage-y += ../qemu-i440fx/rom_media.c
 ramstage-y += cpu.c
+ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_COMPONENT) += loader_instance.c
 ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_dma_handoff.c q35_dma_policy.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_registers.c

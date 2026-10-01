@@ -306,7 +306,7 @@ struct smm_stub_params {
 	 * initializes this array with a 1:1 mapping. If the APIC ids are not
 	 * contiguous like the 1:1 mapping it is up to the caller of the stub
 	 * loader to adjust this mapping. */
-#if CONFIG(SMM_INVOCATION_ENTRY)
+#if CONFIG(SMM_INVOCATION_ENTRY) || CONFIG(SMM_INVOCATION_TOPOLOGY)
 	u32 apic_id_to_cpu[CONFIG_MAX_CPUS];
 #else
 	u16 apic_id_to_cpu[CONFIG_MAX_CPUS];

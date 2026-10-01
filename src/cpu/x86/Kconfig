@@ -113,7 +113,7 @@ config SMM_SAVE_STATE_GEOMETRY
 config SMM_INVOCATION_TOPOLOGY
 	bool
 	default n
-	depends on SMM_INVOCATION_ENTRY
+	depends on HAVE_SMI_HANDLER
 	help
 	  Persist the exact full-width APIC topology used by the SMM entry stub
 	  in protected module parameters. This adds no command, dispatcher,
