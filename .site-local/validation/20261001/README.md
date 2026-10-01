@@ -92,3 +92,19 @@ unchanged. This is one fresh native build, not two independent builds or a
 QEMU/hardware/protected-activation receipt.
 Archive SHA-256 is
 `7ce04f02e783ea740ff32dc827447a79393f2db10b931fd398797832c8881be0`.
+
+The completed frozen PR 431 run at
+`06511e02c46e8cae5cbbfd3cbf1894dc22441fd4` is preserved in
+`cdk2-431-native-check.tar.gz`, SHA-256
+`4060881c498fecd87c1cf1612651110473955db64664739093bc3ace53d8fc8b`.
+The same configuration and existing `build/cdk2-428-acceptance` directory were
+used; this is not another clean build. Whole native `check` and
+`native-coreboot-image` both returned success after the dormant importer in
+PR 430. The ELF SHA-256 is
+`1387af6699b64a79e3184030e8a70d48f41d596cb11370f88115a50f6b746297`.
+The archive also preserves three passing command-cache regression logs,
+the root native32 focused importer log for PR 430, and root/independent
+authority integration logs for test-only coreboot PR 338
+(`db5f66f12b31a7b1f983c01d9b7a510eeb133b82`). These do not replace the
+separately qualified older release SMM artifact receipts above, and establish
+no new full-ROM, QEMU, protected-owner activation or hardware result.
