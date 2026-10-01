@@ -38,6 +38,8 @@ smm-y += authvar_platform_smm.c
 endif
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_SMM_INVOCATION_FAIL_STOP) += smm_invocation_fail_stop.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) += authvar_protected_region.c
+smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH) += \
+	authvar_service_runtime_dispatch.c
 smm-$(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER) += \
 	authvar_presence_route_composition.c
 ifeq ($(CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER),y)

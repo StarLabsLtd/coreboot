@@ -444,6 +444,29 @@ config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DMA_POLICY
 	  install-policy provider supplies transaction claim/completion, reset/S3
 	  ownership and general ordinary-RAM provenance for dma_protected().
 
+config STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH
+	bool
+	default n
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_DISPATCH
+	depends on STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
+	depends on PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	depends on PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND && !SMMSTORE
+	depends on !PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
+	depends on STARLABS_STARBOOK_MTL_AUTHVAR_SMM_CAPACITY
+	depends on SMM_MODULE_STACK_SIZE >= 0x4000
+	select SMM_APMC_ROUTE_AUTHVAR_SERVICE
+	select PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	help
+	  Link the fixed 0xfc service into the all-CPU pre-lock dispatcher together
+	  with its protected BOOT finalizer and sole authenticated-variable backend.
+	  The selected composition retains the 16 KiB per-CPU stack, 16 MiB TSEG,
+	  actual cold DMA receipt and locked per-CPU SMRAM proofs. Runtime admission
+	  still requires successful protected installation and a complete live wave.
+	  This default-off capability does not select payload runtime variable slots
+	  or enable legacy raw SMMSTORE alongside the protected backend.
+
 config STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_COLD_S3_RECORD
 	bool
 	default n

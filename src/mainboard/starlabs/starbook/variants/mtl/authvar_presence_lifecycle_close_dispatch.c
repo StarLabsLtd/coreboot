@@ -30,6 +30,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 #include "authvar_protected_region.h"
 #endif
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH)
+#include "authvar_service_runtime_dispatch.h"
+#endif
 
 #if !ENV_SMM && !ENV_TEST
 #error "StarBook MTL lifecycle-close dispatcher is SMM-only"
@@ -679,6 +682,14 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(
 	uint32_t mode;
 	bool bsp;
 	enum intel_smm_invocation_cause_result classified;
+
+#if CONFIG(STARLABS_STARBOOK_MTL_AUTHVAR_SERVICE_DISPATCH)
+	const enum smm_pre_lock_dispatch_result service_result =
+		starbook_mtl_authvar_service_runtime_dispatch(cpu, initial_apic_id);
+
+	if (service_result != SMM_PRE_LOCK_DISPATCH_NOT_HANDLED)
+		return service_result;
+#endif
 
 	if (smm_invocation_runtime_binding_get(&runtime) != CB_SUCCESS ||
 	    smm_invocation_topology_read(runtime.topology, &topology) != CB_SUCCESS ||
