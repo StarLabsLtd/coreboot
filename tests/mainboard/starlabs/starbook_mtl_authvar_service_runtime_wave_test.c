@@ -294,6 +294,11 @@ enum cb_err runtime_test_execute(void)
 		shared_mailbox->operation = UINT32_MAX;
 		atomic_store(&fault_injected, true);
 	}
+	if (runtime_fault == 19) {
+		assert(shared_mailbox->revision == 3 && shared_mailbox->operation == 4);
+		shared_mailbox->revision = 2;
+		atomic_store(&fault_injected, true);
+	}
 	if (runtime_fault == 13 || runtime_fault == 14) {
 		atomic_store(&fault_injected, true);
 		if (runtime_fault == 13)

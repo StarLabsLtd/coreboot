@@ -291,6 +291,7 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_smm_service_bootstrap_install(&seed) == CB_SUCCESS);
 	assert(payload_mm_authvar_service_finalize() == CB_SUCCESS);
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
+	assert(descriptor.revision == 4);
 	assert(descriptor.communication_base == 0x100000U && descriptor.communication_size == 65536U);
 	assert(descriptor.trigger_address == APM_CNT && descriptor.trigger_value == 0xfcU);
 	assert(descriptor.maximum_name_size == 4096U);
@@ -299,11 +300,25 @@ int main(int argc, char **argv)
 	scrub_guard = true;
 #if !defined(TEST_REAL_RUNTIME_WAVE)
 	*mailbox = (struct payload_mm_authvar_service_frame) {
-		.revision = 2, .header_size = 144, .operation = UINT32_MAX,
+		.revision = 3, .header_size = 144, .operation = UINT32_MAX,
 		.generation = 9, .request_id = 1, .status = UINT64_MAX, .completion = UINT32_MAX,
 	};
 	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
 	assert(mailbox->operation == UINT32_MAX && mailbox->completion == UINT32_MAX);
+	assert(private_scrubs == 2 && !body_copies);
+	private_scrubs = 0;
+	memset(mailbox, 0, 65536U);
+	*mailbox = (struct payload_mm_authvar_service_frame) {
+		.revision = 3, .header_size = 144, .operation = 4,
+		.generation = 9, .request_id = 1, .attributes = 7,
+		.status = UINT64_MAX, .completion = UINT32_MAX,
+	};
+	assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox, 65536U) == CB_SUCCESS);
+	mailbox->revision = 2;
+	assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox, 65536U) == CB_ERR);
+	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
+	assert(mailbox->revision == 2 && mailbox->operation == 4 &&
+		mailbox->completion == UINT32_MAX && mailbox->status == UINT64_MAX);
 	assert(private_scrubs == 2 && !body_copies);
 #endif
 	const uint32_t operations[] = { 4, 1, 2, 3, 7, 8, 5, 6 };
@@ -318,7 +333,7 @@ int main(int argc, char **argv)
 		expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 		memset(mailbox, 0, 65536U);
 		*mailbox = (struct payload_mm_authvar_service_frame) {
-			.revision = 2, .header_size = 144, .operation = 4,
+			.revision = 3, .header_size = 144, .operation = 4,
 			.generation = 9, .request_id = 99,
 			.status = UINT64_MAX, .completion = UINT32_MAX, .attributes = 7,
 		};
@@ -334,7 +349,7 @@ int main(int argc, char **argv)
 			expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 			memset(mailbox, 0, 65536U);
 			*mailbox = (struct payload_mm_authvar_service_frame) {
-				.revision = 2, .header_size = 144, .operation = 3,
+				.revision = 3, .header_size = 144, .operation = 3,
 				.generation = 9, .request_id = index + 100,
 				.status = UINT64_MAX, .completion = UINT32_MAX,
 				.attributes = 7, .name_size = name_sizes[index],
@@ -361,7 +376,7 @@ int main(int argc, char **argv)
 			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION : PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 		memset(mailbox, 0, 65536U);
 		*mailbox = (struct payload_mm_authvar_service_frame) {
-			.revision = 2, .header_size = 144, .operation = operations[index],
+			.revision = 3, .header_size = 144, .operation = operations[index],
 			.generation = 9, .request_id = index + 1,
 			.status = UINT64_MAX, .completion = UINT32_MAX,
 		};

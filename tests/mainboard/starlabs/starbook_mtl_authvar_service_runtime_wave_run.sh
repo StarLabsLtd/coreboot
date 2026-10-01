@@ -37,7 +37,7 @@ for initiator in 0 2; do
 			! grep -q 'provider stack line\|Assertion.*failed\|runtime error:\|Sanitizer' \
 				"$temporary/runtime-proof-drift.log"
 		done
-		for fault in 1 2 3 4 5 6 8 9 10 11 12 13 14 15 16 17 18; do
+		for fault in 1 2 3 4 5 6 8 9 10 11 12 13 14 15 16 17 18 19; do
 			printf 'Runtime preexecution fault=%s\n' "$fault"
 			result=0
 			RUNTIME_FAULT=$fault "$binary" normal > "$temporary/runtime-fault.log" 2>&1 || result=$?
