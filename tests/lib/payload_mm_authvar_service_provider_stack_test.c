@@ -17,7 +17,7 @@ extern int dprintf(int descriptor, const char *format, ...);
 	dprintf(2, "provider stack line %d: %s\n", __LINE__, #condition); abort(); \
 } } while (0)
 
-static uint8_t flash_bytes[3U * 65536U];
+static uint8_t flash_bytes[3U * CONFIG_SMMSTORE_BLOCK_SIZE];
 static struct lb_authvar_service_endpoint descriptor;
 static bool runtime_admitted = true;
 static bool mutate_mailbox;
@@ -168,6 +168,7 @@ int main(int argc, char **argv)
 
 	runtime_smram_size = UINTPTR_MAX - 0x400000U;
 	initialize();
+	store.region.size = sizeof(flash_bytes);
 	canonical.generation = 9;
 	canonical.capability[0] = 1;
 	make_service_receipt();
@@ -175,7 +176,8 @@ int main(int argc, char **argv)
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
 	assert(mailbox == (void *)0x100000U);
 	shared_mailbox = mailbox;
-	assert(payload_mm_authvar_fv_format(flash_bytes, sizeof(flash_bytes), 65536U));
+	assert(payload_mm_authvar_fv_format(flash_bytes, sizeof(flash_bytes),
+		CONFIG_SMMSTORE_BLOCK_SIZE));
 	assert(payload_mm_authvar_record_encode(&vendor_keys, &value, 1,
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO, flash_bytes + 100,
 		sizeof(flash_bytes) - 100, &encoded_size));
@@ -187,6 +189,9 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	assert(descriptor.communication_base == 0x100000U && descriptor.communication_size == 65536U);
 	assert(descriptor.trigger_address == APM_CNT && descriptor.trigger_value == 0xfcU);
+	assert(descriptor.maximum_name_size == 4096U);
+	assert(descriptor.maximum_data_size ==
+		(CONFIG_SMMSTORE_BLOCK_SIZE == 4096U ? 8132U : 61296U));
 	scrub_guard = true;
 	*mailbox = (struct payload_mm_authvar_service_frame) {
 		.revision = 2, .header_size = 144, .operation = UINT32_MAX,

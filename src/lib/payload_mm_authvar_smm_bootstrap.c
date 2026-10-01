@@ -804,10 +804,7 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 		return CB_ERR;
 	data_offset = ALIGN_UP(PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE +
 		provider.sealed.limits.maximum_name_size, 8U);
-	/* The fixed wire format has no padding or alternate data-slot capacity. */
-	if (data_offset >= sizeof(provider.service_request) ||
-	    provider.sealed.limits.maximum_data_size <
-		(uint32_t)sizeof(provider.service_request) - data_offset)
+	if (data_offset >= sizeof(provider.service_request))
 		goto failed;
 	descriptor = (struct lb_authvar_service_endpoint) {
 		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT,
@@ -825,7 +822,8 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 		.trigger_address = APM_CNT,
 		.trigger_value = SMM_APMC_AUTHVAR_SERVICE,
 		.maximum_name_size = provider.sealed.limits.maximum_name_size,
-		.maximum_data_size = (uint32_t)sizeof(provider.service_request) - data_offset,
+		.maximum_data_size = MIN(provider.sealed.limits.maximum_data_size,
+			(uint32_t)sizeof(provider.service_request) - data_offset),
 	};
 	provider.endpoint = descriptor;
 	provider.sealed_endpoint = descriptor;
