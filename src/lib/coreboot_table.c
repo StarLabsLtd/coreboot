@@ -173,7 +173,7 @@ static void lb_framebuffer(struct lb_header *header)
 	framebuffer->tag = LB_TAG_FRAMEBUFFER;
 	framebuffer->size = sizeof(*framebuffer);
 
-	if (CONFIG(BOOTSPLASH)) {
+	if (CONFIG(BOOTSPLASH) && !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
 		uint8_t *fb_ptr = (uint8_t *)(uintptr_t)framebuffer->physical_address;
 		unsigned int width = framebuffer->x_resolution;
 		unsigned int height = framebuffer->y_resolution;
@@ -613,7 +613,11 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(DRIVERS_OPTION_CFR))
 		lb_cfr_setup_menu(head);
 
-	/* Serialize resource map into mem table types (LB_MEM_*) */
+	/* Retain the bitmap before CBMEM is snapshotted and aligned owners commit. */
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+		bootsplash_render_primary();
+
+	/* Serialize resource map into mem table types (LB_MEM*) */
 	bootmem_write_memory_table(lb_memory(head));
 
 	/* Record our motherboard */
@@ -636,6 +640,12 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_record_version_timestamp(head);
 	/* Record our framebuffer */
 	lb_framebuffer(head);
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+		struct lb_boot_splash splash;
+
+		if (bootsplash_get_handoff(&splash))
+			memcpy(lb_new_record(head), &splash, sizeof(splash));
+	}
 
 	/* Record our GPIO settings (ChromeOS specific) */
 	if (CONFIG(CHROMEOS))
