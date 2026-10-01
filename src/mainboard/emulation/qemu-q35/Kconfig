@@ -21,6 +21,26 @@ config Q35_SMM_INVOCATION_NATIVE_COMPONENT
 	  This supplies no DMA protection, invocation cause, command ownership,
 	  service admission or authenticated-variable endpoint.
 
+config Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
+	bool "QEMU-only immutable-flash native APMC component"
+	default n
+	depends on Q35_SMM_INVOCATION_NATIVE_COMPONENT && !SMMSTORE
+	select SMM_INVOCATION_RUNTIME_VIEW
+	select SMM_INVOCATION_RUNTIME_BINDING
+	select SMMSTORE_READ_REGION
+	help
+	  Include an uncompressed native APMC leaf in boot media and reserve the
+	  controlled single-CPU component for APMC-only SMIs. The component must
+	  execute the actual flash leaf with its real bounded identity mapping.
+	  This does not attest an arbitrary operating-system caller or install an
+	  authenticated-variable endpoint. Legacy full-flash writers are excluded.
+
+config SMM_MODULE_STACK_SIZE
+	default 0x4000 if Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
+
+config SMMSTORE_SIZE
+	default 0x10000 if Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
+
 config QEMU_PFLASH_VOLATILE_LEASE
 	bool
 	default n
