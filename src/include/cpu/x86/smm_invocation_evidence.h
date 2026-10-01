@@ -183,6 +183,13 @@ struct smm_invocation_evidence {
 	uint32_t reserved;
 } __aligned(8);
 
+/*
+ * Read-only next-entry admission: fresh or fully closed and EOS-consumed.
+ * Does not arm a rendezvous or authorize any command.
+ */
+bool smm_invocation_evidence_entry_ready(
+	const struct smm_invocation_evidence *evidence);
+
 struct smm_invocation_evidence_loader_receipt {
 	uint64_t evidence_identity;
 	uint32_t terminal_state;

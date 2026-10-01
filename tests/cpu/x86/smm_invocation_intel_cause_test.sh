@@ -10,6 +10,9 @@ mkdir -p "$temporary/include/arch" "$temporary/include/intelblocks" \
 printf '%s\n' \
 	'#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' \
 	'#define CONFIG_MAX_CPUS 64' \
+	'#define CONFIG_SMM_INVOCATION_FAIL_STOP_PLATFORM 1' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED 1' \
+	'#define CONFIG_SMM_APMC_ROUTE_AUTHVAR_SERVICE 1' \
 	> "$temporary/include/config.h"
 
 cat > "$temporary/include/arch/io.h" <<'EOF'
@@ -47,6 +50,8 @@ cflags="-std=gnu11 -Wall -Wextra -Werror -Wframe-larger-than=2048 \
 sources="$root/tests/cpu/x86/smm_invocation_intel_cause_test.c \
 $root/src/soc/intel/common/block/smm/invocation_cause.c \
 $root/src/cpu/x86/smm_invocation_loader_composition_gate.c \
+$root/src/cpu/x86/smm_invocation_evidence.c \
+$root/src/cpu/x86/smm_invocation_evidence_loader.c \
 $root/src/cpu/x86/smm_invocation_topology.c \
 $root/src/cpu/x86/smm_invocation_loader_instance.c"
 
@@ -120,6 +125,8 @@ kill_mutant()
 		"$root/tests/cpu/x86/smm_invocation_intel_cause_test.c" \
 		"$mutant_source" \
 		"$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
+		"$root/src/cpu/x86/smm_invocation_evidence.c" \
+		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
 		"$root/src/cpu/x86/smm_invocation_topology.c" \
 		"$root/src/cpu/x86/smm_invocation_loader_instance.c" \
 		-o "$temporary/$name-mutant"; then
@@ -160,7 +167,7 @@ sed '/evidence_b = smm_invocation_loader_composition_evidence/{N;s/evidence_b = 
 	"$production" > "$mutant_source"
 kill_mutant composition-gate-b
 
-sed '/static bool evidence_ready/,/^}/s/return __atomic_load_n.*/return (void)evidence, true; \/\*/; /static bool evidence_ready/,/^}/s/^[[:space:]]*SMM_INVOCATION_READY;/ * removed READY check *\//' \
+sed 's/return smm_invocation_evidence_entry_ready(evidence);/return (void)evidence, true;/' \
 	"$production" > "$mutant_source"
 kill_mutant evidence-ready
 
@@ -187,5 +194,40 @@ kill_mutant output-alias
 sed 's/memcpy(cause, \&cause_value, sizeof(\*cause))/memset(cause, 0, sizeof(*cause))/' \
 	"$production" > "$mutant_source"
 kill_mutant publication
+
+for check in eos-consumed snapshot-recheck; do
+	case "$check" in
+	eos-consumed) replacement='s/evidence->closed_eos_consumed != 1U/false/' ;;
+	snapshot-recheck) replacement='s/!memcmp(evidence, metadata, sizeof(metadata))/true/' ;;
+	esac
+	sed "$replacement" "$root/src/cpu/x86/smm_invocation_evidence.c" \
+		> "$temporary/evidence-$check.c"
+	! cmp -s "$root/src/cpu/x86/smm_invocation_evidence.c" "$temporary/evidence-$check.c"
+	${CC:-cc} $cflags -O2 $includes \
+		"$root/tests/cpu/x86/smm_invocation_intel_cause_test.c" "$production" \
+		"$temporary/evidence-$check.c" \
+		"$root/src/cpu/x86/smm_invocation_evidence_loader.c" \
+		"$root/src/cpu/x86/smm_invocation_loader_composition_gate.c" \
+		"$root/src/cpu/x86/smm_invocation_topology.c" \
+		"$root/src/cpu/x86/smm_invocation_loader_instance.c" \
+		-o "$temporary/evidence-$check"
+	if "$temporary/evidence-$check" > "$temporary/evidence-$check.log" 2>&1; then
+		printf 'surviving evidence readiness mutant: %s\n' "$check" >&2
+		exit 1
+	fi
+	grep -Fq 'failed: !smm_invocation_evidence_entry_ready(&evidence)' \
+		"$temporary/evidence-$check.log"
+done
+
+${CC:-cc} $cflags -O2 -m32 -march=i686 -ffreestanding -fno-builtin \
+	-fno-pie -fstack-usage $includes -c "$root/src/cpu/x86/smm_invocation_evidence.c" \
+	-o "$temporary/evidence-i686.o"
+! nm -u "$temporary/evidence-i686.o" | grep -q '__atomic_'
+ready_frame=$(awk -F '\t' '$1 ~ /smm_invocation_evidence_entry_ready$/ { print $2 }' \
+	"$temporary/evidence-i686.su")
+test -n "$ready_frame"
+test "$ready_frame" -le 4096
+test "$((frame + ready_frame))" -le 1536
+printf 'i686 classifier/readiness frames: %s/%s bytes\n' "$frame" "$ready_frame"
 
 printf '%s\n' 'SMM invocation Intel private-cause tests: PASS'

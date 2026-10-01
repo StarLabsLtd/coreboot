@@ -112,8 +112,7 @@ static struct cause_sample sample_cause(void)
 
 static bool evidence_ready(const struct smm_invocation_evidence *evidence)
 {
-	return __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) ==
-		SMM_INVOCATION_READY;
+	return smm_invocation_evidence_entry_ready(evidence);
 }
 
 static bool protected_facts_valid(

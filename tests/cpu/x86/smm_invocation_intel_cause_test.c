@@ -4,11 +4,20 @@
 #include <cpu/x86/smm_command.h>
 #include <intelblocks/smm_invocation_cause.h>
 #include <stdint.h>
+#include <stddef.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
 #undef assert
-#define assert(condition) do { if (!(condition)) abort(); } while (0)
+#define assert(condition) do { \
+	if (!(condition)) { \
+		if (write(STDERR_FILENO, "failed: " #condition "\n", \
+			sizeof("failed: " #condition "\n") - 1U) < 0) \
+			abort(); \
+		abort(); \
+	} \
+} while (0)
 
 #define APM_STATUS (1U << 5)
 
@@ -36,6 +45,58 @@ static uint32_t io_writes;
 static char events[64];
 static size_t event_count;
 static enum mutation mutation;
+static uint32_t ready_drift;
+
+void smm_invocation_evidence_test_hook(uint32_t point)
+{
+	if (point == 81U && ready_drift == 4U)
+		evidence.active_cpus = UINT32_MAX;
+	if (point != 80U)
+		return;
+	if (ready_drift == 1U)
+		evidence.closed_generation++;
+	else if (ready_drift == 2U)
+		evidence.state ^= 1U << 9;
+	else if (ready_drift == 3U)
+		evidence.token.smi_generation = 1U;
+}
+
+void smm_invocation_platform_fail_stop(void)
+{
+	abort();
+}
+
+struct saved_values {
+	uint32_t initiator;
+	uint64_t values[2];
+};
+
+static enum smm_invocation_match match_write(void *context, uint32_t cpu,
+	uint8_t command)
+{
+	const struct saved_values *saved = context;
+
+	assert(cpu < 2U && command == SMM_APMC_AUTHVAR_SERVICE);
+	return cpu == saved->initiator ? SMM_INVOCATION_MATCHED : SMM_INVOCATION_NOT_MATCHED;
+}
+
+static enum cb_err read_value(void *context, uint32_t cpu, uint64_t *value)
+{
+	const struct saved_values *saved = context;
+
+	assert(cpu < 2U);
+	*value = saved->values[cpu];
+	return CB_SUCCESS;
+}
+
+static enum cb_err write_value(void *context, uint32_t cpu, uint64_t value)
+{
+	struct saved_values *saved = context;
+
+	assert(cpu < 2U);
+	saved->values[cpu] = value;
+	return CB_SUCCESS;
+}
 
 static void record(char event)
 {
@@ -205,6 +266,131 @@ static void test_valid_and_order(void)
 	assert(smi_reads == 2U && apmc_reads == 2U && io_writes == 0U);
 }
 
+static void expect_next_classification(bool valid)
+{
+	struct smm_invocation_entry_cause cause;
+
+	smi_reads = 0;
+	apmc_reads = 0;
+	event_count = 0;
+	apmc[0] = apmc[1] = SMM_APMC_AUTHVAR_SERVICE;
+	assert(classify_command(SMM_APMC_AUTHVAR_SERVICE, &cause) ==
+		(valid ? INTEL_SMM_INVOCATION_CAUSE_PRIVATE_VALID :
+			INTEL_SMM_INVOCATION_CAUSE_PRIVATE_INVALID));
+}
+
+static void test_completed_successor(void)
+{
+	static const size_t bad_fields[] = {
+		offsetof(struct smm_invocation_evidence, closed_generation),
+		offsetof(struct smm_invocation_evidence, closed_loader_instance_nonce),
+		offsetof(struct smm_invocation_evidence, closed_lifecycle),
+		offsetof(struct smm_invocation_evidence, closed_eos_consumed),
+		offsetof(struct smm_invocation_evidence, close_receipt_reserved),
+		offsetof(struct smm_invocation_evidence, arrival_writers),
+		offsetof(struct smm_invocation_evidence, departure_writers),
+		offsetof(struct smm_invocation_evidence, arrival_failed),
+		offsetof(struct smm_invocation_evidence, departure_failed),
+		offsetof(struct smm_invocation_evidence, rendezvous_fail_requested),
+		offsetof(struct smm_invocation_evidence, arrived_cpus),
+		offsetof(struct smm_invocation_evidence, rendezvous_ack_cpus),
+		offsetof(struct smm_invocation_evidence, departed_cpus),
+		offsetof(struct smm_invocation_evidence, sentinel),
+		offsetof(struct smm_invocation_evidence, original_value),
+		offsetof(struct smm_invocation_evidence, command),
+		offsetof(struct smm_invocation_evidence, token),
+		offsetof(struct smm_invocation_evidence, participants),
+		offsetof(struct smm_invocation_evidence, participant_apic_ids) + 2U * sizeof(uint32_t),
+		offsetof(struct smm_invocation_evidence, rendezvous_ack_required),
+	};
+	static struct smm_invocation_evidence completed;
+	struct smm_invocation_admission_token admission;
+	struct smm_invocation_token token;
+	struct saved_values saved;
+	const struct smm_invocation_save_state_ops ops = {
+		.match_apmc_write = match_write, .read_value = read_value,
+		.write_value = write_value, .context = &saved, .context_size = sizeof(saved),
+	};
+	uint64_t generation;
+
+	for (uint32_t initiator = 0; initiator < 2U; initiator++) {
+		struct smm_invocation_loader_seed seed = {
+			.revision = SMM_INVOCATION_EVIDENCE_REVISION, .size = sizeof(seed),
+			.lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD, .active_cpus = 2U,
+			.participant_apic_ids = { 0U, 2U },
+		};
+
+		reset_fixture();
+		seed.loader_instance_nonce = instance.loader_instance_nonce;
+		memset(&evidence, 0, sizeof(evidence));
+		assert(smm_invocation_evidence_provision(&evidence, &seed) == CB_SUCCESS);
+		assert(smm_invocation_evidence_entry_ready(&evidence));
+		for (uint32_t wave = 0; wave < 2U; wave++) {
+			expect_next_classification(true);
+			assert(smm_invocation_evidence_require_rendezvous_ack_try(&evidence,
+				instance.loader_instance_nonce, instance.lifecycle, &admission) ==
+				SMM_INVOCATION_TRY_SUCCESS);
+			for (uint32_t cpu = 0; cpu < 2U; cpu++)
+				assert(smm_invocation_evidence_arrive_try(&evidence, cpu,
+					topology.initial_apic_ids[cpu], &generation, &admission) ==
+					SMM_INVOCATION_TRY_SUCCESS);
+			for (uint32_t cpu = 0; cpu < 2U; cpu++)
+				assert(smm_invocation_evidence_rendezvous_ack_try(&evidence,
+					generation, cpu, &admission) == SMM_INVOCATION_TRY_SUCCESS);
+			saved = (struct saved_values) { .initiator = initiator };
+			saved.values[initiator] = SMM_APMC_AUTHVAR_SERVICE;
+			assert(smm_invocation_evidence_claim(&evidence, SMM_APMC_AUTHVAR_SERVICE,
+				SMM_APMC_AUTHVAR_SERVICE, &ops, &token) == CB_SUCCESS);
+			assert(token.initiator_cpu == initiator);
+			assert(smm_invocation_evidence_publish_and_request_close(&evidence,
+				&token, 0U, &ops) == CB_SUCCESS);
+			assert(saved.values[initiator] == 0U);
+			for (uint32_t cpu = 0; cpu < 2U; cpu++)
+				assert(smm_invocation_evidence_depart_try(&evidence, cpu, generation) ==
+					SMM_INVOCATION_TRY_SUCCESS);
+			assert(!smm_invocation_evidence_entry_ready(&evidence));
+			assert(smm_invocation_evidence_eos_consume(&evidence, generation,
+				instance.loader_instance_nonce, instance.lifecycle, topology.bsp_cpu));
+			assert(smm_invocation_evidence_entry_ready(&evidence));
+		}
+		completed = evidence;
+		for (size_t field = 0; field < ARRAY_SIZE(bad_fields); field++) {
+			((uint8_t *)&evidence)[bad_fields[field]] ^= 1U;
+			assert(!smm_invocation_evidence_entry_ready(&evidence));
+			expect_next_classification(false);
+			evidence = completed;
+		}
+		for (uint32_t bit = 7U; bit < 12U; bit++) {
+			evidence.state |= 1U << bit;
+			assert(!smm_invocation_evidence_entry_ready(&evidence));
+			expect_next_classification(false);
+			evidence = completed;
+		}
+		evidence.state = SMM_INVOCATION_READY;
+		expect_next_classification(false);
+		evidence = completed;
+		evidence.state &= 0xfffU;
+		expect_next_classification(false);
+		evidence = completed;
+		evidence.state = (completed.state & 0xfffU) | 0xfffff000U;
+		expect_next_classification(false);
+		evidence = completed;
+		evidence.state = (completed.state & ~0x60U) | 0x20U;
+		expect_next_classification(false);
+		evidence = completed;
+		evidence.generation = evidence.closed_generation = UINT64_MAX;
+		expect_next_classification(false);
+		evidence = completed;
+		for (uint32_t drift = 1U; drift <= 4U; drift++) {
+			ready_drift = drift;
+			assert(!smm_invocation_evidence_entry_ready(&evidence));
+			evidence = completed;
+		}
+		ready_drift = 0;
+		expect_next_classification(true);
+	}
+}
+
 static void test_non_private_short_circuit(void)
 {
 	struct smm_invocation_entry_cause cause;
@@ -341,6 +527,7 @@ static void test_invalid_inputs(void)
 
 int main(void)
 {
+	test_completed_successor();
 	test_valid_and_order();
 	test_non_private_short_circuit();
 	test_exact_command_selector();

@@ -51,6 +51,92 @@ bool smm_invocation_evidence_shutdown_requested(
 		__ATOMIC_ACQUIRE) & INVOCATION_SHUTDOWN_REQUESTED);
 }
 
+static bool bytes_zero(const void *buffer, size_t size)
+{
+	const uint8_t *bytes = buffer;
+
+	for (size_t index = 0; index < size; index++)
+		if (bytes[index])
+			return false;
+	return true;
+}
+
+bool smm_invocation_evidence_entry_ready(
+	const struct smm_invocation_evidence *evidence)
+{
+	uint8_t metadata[offsetof(struct smm_invocation_evidence, participants)] __aligned(8);
+	uint32_t active_cpus, bsp_cpu;
+	uint64_t generation;
+	uint32_t state;
+
+	if (!evidence || (uintptr_t)evidence % _Alignof(*evidence) ||
+	    (uintptr_t)evidence > UINTPTR_MAX - (sizeof(*evidence) - 1U))
+		return false;
+	state = __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE);
+	if ((state & STATE_PHASE_MASK) != SMM_INVOCATION_READY ||
+	    state & (ADMISSION_BUSY | ADMISSION_CONSUMED | INVOCATION_LATCH_MASK))
+		return false;
+	/* Retained metadata is copied; the entire scrubbed tail is proven zero twice. */
+	memcpy(metadata, evidence, sizeof(metadata));
+	memcpy(&active_cpus, metadata + offsetof(struct smm_invocation_evidence, active_cpus),
+		sizeof(active_cpus));
+	memcpy(&bsp_cpu, metadata + offsetof(struct smm_invocation_evidence, bsp_cpu),
+		sizeof(bsp_cpu));
+	generation = __atomic_load_n(&evidence->generation, __ATOMIC_ACQUIRE);
+	TEST_HOOK(81);
+	if (__atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) != state || !active_cpus ||
+	    active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS || bsp_cpu >= active_cpus ||
+	    evidence->expected_cpus != (active_cpus == 64U ? UINT64_MAX :
+		(1ULL << active_cpus) - 1ULL) ||
+	    smm_invocation_loader_instance_nonce_is_zero(evidence->loader_instance_nonce) ||
+	    (evidence->loader_lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD &&
+	     evidence->loader_lifecycle != SMM_INVOCATION_LOADER_S3_RELOAD) ||
+	    evidence->shutdown_reserved || evidence->reentry_reserved ||
+	    evidence->arrival_failed || evidence->rendezvous_fail_requested ||
+	    evidence->admission_reserved || evidence->arrival_writers ||
+	    evidence->departure_writers || evidence->departure_failed ||
+	    evidence->close_receipt_reserved || evidence->arrived_cpus ||
+	    evidence->rendezvous_ack_cpus || evidence->departed_cpus ||
+	    evidence->sentinel || evidence->original_value || evidence->command ||
+	    evidence->command_reserved ||
+	    !bytes_zero((const uint8_t *)evidence + sizeof(metadata),
+		 sizeof(*evidence) - sizeof(metadata)))
+		return false;
+	for (uint32_t cpu = 0; cpu < active_cpus; cpu++)
+		for (uint32_t other = cpu + 1U; other < active_cpus; other++)
+			if (evidence->participant_apic_ids[cpu] == evidence->participant_apic_ids[other])
+				return false;
+	if (!bytes_zero(&evidence->participant_apic_ids[active_cpus],
+		(SMM_INVOCATION_EVIDENCE_MAX_CPUS - active_cpus) *
+			sizeof(evidence->participant_apic_ids[0])))
+		return false;
+	if (!generation) {
+		if (state != SMM_INVOCATION_READY || evidence->closed_generation ||
+		    !smm_invocation_loader_instance_nonce_is_zero(evidence->closed_loader_instance_nonce) ||
+		    evidence->closed_lifecycle || evidence->closed_eos_consumed)
+			return false;
+	} else {
+		const uint32_t kind = (state & ADMISSION_KIND_MASK) >> ADMISSION_KIND_SHIFT;
+		const uint32_t nonce = state >> ADMISSION_NONCE_SHIFT;
+
+		if (generation == UINT64_MAX || evidence->closed_generation != generation ||
+		    !smm_invocation_loader_instance_nonce_equal(evidence->closed_loader_instance_nonce,
+			evidence->loader_instance_nonce) ||
+		    evidence->closed_lifecycle != evidence->loader_lifecycle ||
+		    evidence->closed_eos_consumed != 1U ||
+		    (kind != SMM_INVOCATION_ADMISSION_ARRIVE && kind != SMM_INVOCATION_ADMISSION_ACK) ||
+		    !nonce || nonce == ADMISSION_NONCE_MAX)
+			return false;
+	}
+	TEST_HOOK(80);
+	__asm__ __volatile__("" ::: "memory");
+	return __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) == state &&
+		!memcmp(evidence, metadata, sizeof(metadata)) &&
+		bytes_zero((const uint8_t *)evidence + sizeof(metadata),
+			sizeof(*evidence) - sizeof(metadata)) &&
+		__atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) == state;
+}
+
 static bool shutdown_request(struct smm_invocation_evidence *evidence,
 	uint32_t phase)
 {
