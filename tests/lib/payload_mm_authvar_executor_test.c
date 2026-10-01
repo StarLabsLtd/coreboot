@@ -5314,7 +5314,7 @@ static void production_service_test(const char *scenario)
 	struct coordinator_fixture fixture;
 	struct lb_authvar_service_endpoint endpoint = {
 		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT, .size = sizeof(endpoint),
-		.revision = 4, .header_size = sizeof(endpoint),
+		.revision = 5, .header_size = sizeof(endpoint),
 		.flags = LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS, .generation = 1,
 		.communication_base = 0x100000, .communication_size = 512,
 		.message_size = 512, .transport = 1, .trigger_width = 1,
@@ -5375,6 +5375,17 @@ static void production_service_test(const char *scenario)
 		} else if (request->operation == 7) {
 			request->data_size = 44;
 			variable_policy_fixture(input + 272, caller_guid, 0, 1);
+		}
+		if (i == first) {
+			struct lb_authvar_service_endpoint old = endpoint;
+			const unsigned int begins = begin_count, ends = end_count;
+
+			old.revision = 4;
+			memcpy(before, output, sizeof(before));
+			assert(payload_mm_authvar_service_transaction(&old, input, output,
+				sizeof(input)) == CB_ERR);
+			assert(!memcmp(before, output, sizeof(before)) && begin_count == begins &&
+				end_count == ends && program_count == programs);
 		}
 		if (i == 0 && (!strcmp(scenario, "production-service-auth2") ||
 		    !strcmp(scenario, "production-service-auth2-overflow") ||
