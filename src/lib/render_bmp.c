@@ -4,12 +4,12 @@
 #include <bootmode.h>
 #include <bootsplash.h>
 #include <bootstate.h>
-#include <timestamp.h>
 #include <console/console.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <symbols.h>
+#include <timestamp.h>
 
 #include "render_bmp.h"
 
