@@ -9,10 +9,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include <symbols.h>
+#include <timestamp.h>
 
 #include "render_bmp.h"
 
 #define MAX_SPLASH_TEXT_WIDTH 32
+
+static struct lb_boot_splash boot_splash_handoff;
+static bool boot_splash_handoff_valid;
+
+bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+	uint32_t framebuffer_width, uint32_t framebuffer_height,
+	uint32_t image_offset_x, uint32_t image_offset_y,
+	uint32_t image_width, uint32_t image_height, const void *bmp, size_t bmp_size)
+{
+	if (boot_splash_handoff_valid || !framebuffer_address ||
+	    !framebuffer_width || !framebuffer_height || !image_width || !image_height ||
+	    !bmp || bmp_size < sizeof(struct bmp_image_header) || bmp_size > UINT32_MAX ||
+	    bmp_size - 1U > UINTPTR_MAX - (uintptr_t)bmp ||
+	    image_offset_x > framebuffer_width || image_offset_y > framebuffer_height ||
+	    image_width > framebuffer_width - image_offset_x ||
+	    image_height > framebuffer_height - image_offset_y)
+		return false;
+	boot_splash_handoff = (struct lb_boot_splash) {
+		.tag = LB_TAG_BOOT_SPLASH, .size = sizeof(boot_splash_handoff),
+		.revision = LB_BOOT_SPLASH_REVISION,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP,
+		.framebuffer_address = framebuffer_address,
+		.image_offset_x = image_offset_x, .image_offset_y = image_offset_y,
+		.image_width = image_width, .image_height = image_height,
+		.bmp_address = (uintptr_t)bmp, .bmp_size = bmp_size,
+	};
+	boot_splash_handoff_valid = true;
+	return true;
+}
+
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff)
+{
+	if (!handoff || !boot_splash_handoff_valid)
+		return false;
+	*handoff = boot_splash_handoff;
+	return true;
+}
 
 /*
  * Visual Representation of the Flipping:
@@ -571,8 +609,23 @@ static int load_and_render_logo_to_framebuffer(
 		goto out;
 	}
 
+	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) && logo_type == BOOTSPLASH_CENTER &&
+	    config->panel_orientation != LB_FB_ORIENTATION_NORMAL) {
+		logo = (uintptr_t)bmp_retain_logo_from_blt((const void *)blt_buffer,
+			logo_width, logo_height, &logo_size);
+		if (!logo)
+			goto out;
+	}
 	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline, blt_buffer,
 				 logo_width, logo_height, logo_coords.x, logo_coords.y);
+	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) && logo_type == BOOTSPLASH_CENTER) {
+		if (!bootsplash_publish_handoff(config->framebuffer_base,
+			config->horizontal_resolution, config->vertical_resolution,
+			logo_coords.x, logo_coords.y, logo_width, logo_height,
+			(const void *)logo, logo_size))
+			goto out;
+		bmp_retain_logo();
+	}
 
 	result = 0;
 out:
@@ -621,9 +674,8 @@ void render_logo_to_framebuffer(struct logo_config *config)
 	}
 
 	/*
-	 * Note: Intel SoC platforms validate their framebuffer geometry earlier
-	 * in cb_logo.c. For non-Intel architectures (e.g., ARM/ARM64) using
-	 * memlayout, we validate the footprint against the linker region size.
+	 * Architectures using a linker-defined framebuffer region also bound
+	 * the footprint to that region, in addition to validating its geometry.
 	 */
 #if CONFIG(ARCH_ARM) || CONFIG(ARCH_ARM64)
 	const uint64_t required_fb_size = (uint64_t)config->vertical_resolution *
@@ -682,9 +734,28 @@ void render_logo_to_framebuffer(struct logo_config *config)
 	}
 }
 
+void bootsplash_render_primary(void)
+{
+	struct lb_boot_splash splash;
+	struct logo_config logo = { 0 };
+
+	if (!CONFIG(BMP_LOGO) || !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) ||
+	    bootsplash_get_handoff(&splash))
+		return;
+	render_logo_to_framebuffer(&logo);
+	if (bootsplash_get_handoff(&splash))
+		timestamp_add_now(TS_FIRMWARE_SPLASH_RENDERED);
+}
+
+static void render_primary_logo(void *argument)
+{
+	bootsplash_render_primary();
+}
+
 static void release_logo(void *arg_unused)
 {
 	bmp_release_logo();
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, release_logo, NULL);
+BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_ENTRY, render_primary_logo, NULL);
