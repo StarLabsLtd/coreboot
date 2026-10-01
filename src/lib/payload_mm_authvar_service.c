@@ -20,7 +20,7 @@ static bool message_layout_valid(
 	if (aligned_data > endpoint->message_size)
 		return false;
 	data_end = aligned_data + (uint64_t)endpoint->maximum_data_size;
-	if (data_end > UINT32_MAX || data_end != endpoint->message_size)
+	if (data_end > UINT32_MAX || data_end > endpoint->message_size)
 		return false;
 	*data_offset = (size_t)aligned_data;
 	return true;
@@ -110,6 +110,9 @@ enum cb_err payload_mm_authvar_service_request_validate(
 
 	if (payload_mm_authvar_service_endpoint_validate(endpoint) != CB_SUCCESS ||
 	    !message || message_size != endpoint->message_size ||
+	    !message_layout_valid(endpoint, &data_offset) ||
+	    !bytes_zero((const uint8_t *)message + data_offset + endpoint->maximum_data_size,
+		message_size - data_offset - endpoint->maximum_data_size) ||
 	    frame->revision != PAYLOAD_MM_AUTHVAR_SERVICE_REVISION ||
 	    frame->header_size != sizeof(*frame) || !frame->request_id ||
 	    frame->generation != endpoint->generation || frame->flags ||
@@ -168,7 +171,6 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		    frame->name_capacity || frame->data_capacity ||
 		    frame->data_size < PAYLOAD_MM_AUTHVAR_POLICY_MIN_SIZE ||
 		    frame->data_size > PAYLOAD_MM_AUTHVAR_POLICY_MAX_SIZE ||
-		    !message_layout_valid(endpoint, &data_offset) ||
 		    !bytes_zero((const uint8_t *)message + sizeof(*frame),
 			data_offset - sizeof(*frame)) ||
 		    !bytes_zero((const uint8_t *)message + data_offset + frame->data_size,

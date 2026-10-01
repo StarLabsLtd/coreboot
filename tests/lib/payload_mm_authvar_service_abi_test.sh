@@ -90,6 +90,12 @@ compile_and_kill lifecycle-device-error \
 	'/static bool lifecycle_response_valid/,/payload_mm_authvar_service_response_validate/ { s/response->status == PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR/false/; }'
 compile_and_kill lifecycle-write-protected \
 	'/static bool lifecycle_response_valid/,/payload_mm_authvar_service_response_validate/ { s/response->status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED/false/; }'
+compile_and_kill no-request-physical-padding \
+	'/!bytes_zero((const uint8_t \*)message + data_offset + endpoint->maximum_data_size,/,+1d'
+compile_and_kill no-response-physical-padding \
+	's/endpoint->message_size - data_offset - used/endpoint->maximum_data_size - used/'
+compile_and_kill old-exact-logical-layout \
+	's/data_end > endpoint->message_size/data_end != endpoint->message_size/'
 
 if grep -Eq '(^|[^A-Za-z0-9_])(smram|store_offset|boot_media|flash_offset|block_id|spi_address)([^A-Za-z0-9_]|$)' \
 	"$root/src/include/boot/payload_mm_authvar_service.h"; then
@@ -99,13 +105,15 @@ fi
 check_service_linkage()
 {
 	awk -v validator='smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service.c' \
+		-v public_validator='ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) += payload_mm_authvar_service.c' \
 		-v transaction='smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR) += payload_mm_authvar_service_transaction.c' '
 		/payload_mm_authvar_service(_transaction)?\.c/ {
 			if ($0 == validator) validators++;
+			else if ($0 == public_validator) public_validators++;
 			else if ($0 == transaction) transactions++;
 			else exit 1;
 		}
-		END { if (validators != 1 || transactions != 1) exit 1; }
+		END { if (validators != 1 || public_validators != 1 || transactions != 1) exit 1; }
 	' "$1"
 }
 

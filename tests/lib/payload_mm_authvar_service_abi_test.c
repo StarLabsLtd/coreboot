@@ -853,9 +853,87 @@ static void endpoint_revision_three(void)
 	}
 }
 
+static void logical_data_capacity(void)
+{
+	/* Literal 64-byte public record: physical frame 65536, logical data 512. */
+	const uint8_t raw[64] = {
+		[0] = 0x55, [4] = 64, [8] = 3, [10] = 64, [12] = 0xff,
+		[16] = 7, [26] = 0x10, [34] = 1, [38] = 1,
+		[40] = 1, [42] = 1, [44] = 0xb2, [48] = 0xe7,
+		[53] = 1, [57] = 2,
+	};
+	struct lb_authvar_service_endpoint descriptor, changed;
+	static uint8_t physical_request[65536] __aligned(8);
+	static uint8_t physical_response[65536] __aligned(8);
+	const size_t padding_offsets[] = { 912, 4095, 65535 };
+
+	memcpy(&descriptor, raw, sizeof(raw));
+	assert(payload_mm_authvar_service_endpoint_validate(&descriptor) == CB_SUCCESS);
+	changed = descriptor;
+	changed.maximum_data_size = 65137;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	changed = descriptor;
+	changed.maximum_name_size = 65536;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	changed = descriptor;
+	changed.message_size = 4096;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
+	for (uint32_t operation = 1; operation <= 8; operation++) {
+		struct payload_mm_authvar_service_frame *request;
+		struct payload_mm_authvar_service_frame *response;
+
+		if (operation <= 6)
+			matrix_response(operation, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		else {
+			request = new_request(operation);
+			if (operation == 7) request->data_size = 44;
+			new_response(request, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		}
+		memset(physical_request, 0, sizeof(physical_request));
+		memset(physical_response, 0, sizeof(physical_response));
+		memcpy(physical_request, request_buffer, sizeof(request_buffer));
+		memcpy(physical_response, response_buffer, sizeof(response_buffer));
+		request = (void *)physical_request;
+		response = (void *)physical_response;
+		assert(payload_mm_authvar_service_request_validate(&descriptor,
+			physical_request, sizeof(physical_request)) == CB_SUCCESS);
+		assert(payload_mm_authvar_service_response_validate(&descriptor,
+			physical_request, physical_response, sizeof(physical_response)) == CB_SUCCESS);
+		for (size_t index = 0; index < ARRAY_SIZE(padding_offsets); index++) {
+			const size_t byte = padding_offsets[index];
+
+			physical_request[byte] = 1;
+			assert(payload_mm_authvar_service_request_validate(&descriptor,
+				physical_request, sizeof(physical_request)) == CB_ERR);
+			physical_request[byte] = 0;
+			physical_response[byte] = 1;
+			assert(payload_mm_authvar_service_response_validate(&descriptor,
+				physical_request, physical_response, sizeof(physical_response)) == CB_ERR);
+			physical_response[byte] = 0;
+		}
+		/* The same physical padding must remain empty on error returns. */
+		response->status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		response->result_data_size = response->result_name_size = 0;
+		response->result_attributes = 0;
+		memset(response->result_vendor_guid, 0, sizeof(response->result_vendor_guid));
+		response->maximum_storage = response->remaining_storage = response->maximum_variable = 0;
+		memset(physical_response + 144, 0, sizeof(physical_response) - 144);
+		assert(payload_mm_authvar_service_response_validate(&descriptor,
+			physical_request, physical_response, sizeof(physical_response)) == CB_SUCCESS);
+		physical_response[65535] = 1;
+		assert(payload_mm_authvar_service_response_validate(&descriptor,
+			physical_request, physical_response, sizeof(physical_response)) == CB_ERR);
+		/* Oversized logical requests are refused even inside the physical frame. */
+		request->data_capacity = 513;
+		assert(payload_mm_authvar_service_request_validate(&descriptor,
+			physical_request, sizeof(physical_request)) == CB_ERR);
+	}
+}
+
 int main(void)
 {
 	endpoint_revision_three();
+	logical_data_capacity();
 	valid_requests();
 	hostile_requests();
 	response_order_and_echo();

@@ -1010,6 +1010,7 @@ struct lb_authvar_service_endpoint {
 	uint32_t trigger_address;
 	uint32_t trigger_value;
 	uint32_t maximum_name_size;
+	/* Logical data limit; unused bytes through message_size are zero padding. */
 	uint32_t maximum_data_size;
 	uint32_t reserved;
 } __packed;
