@@ -1,0 +1,7 @@
+secure=off persisted_offset=524287
+secure=on persisted_offset=524287
+/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/qemu-reviewed-55bd/coreboot.rom: OK
+/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/util/qemu/fixtures/nvme-final-c4bec.raw: OK
+/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/util/qemu/fixtures/secure-pflash/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/util/qemu/fixtures/secure-pflash/app.ld: OK
+secure pflash direct-write control and actual SMM persistence: PASS
