@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <pthread.h>
 #include <signal.h>
@@ -212,7 +213,7 @@ static enum smm_invocation_match match_apmc(void *context, uint32_t cpu,
 	}
 	if (mock->invalid_match)
 		return (enum smm_invocation_match)3;
-	if (command != TEST_COMMAND)
+	if (command != TEST_COMMAND && command != SMM_APMC_AUTHVAR_SERVICE)
 		return SMM_INVOCATION_MATCH_ERROR;
 	if (cpu == mock->matched || cpu == mock->second_match)
 		return SMM_INVOCATION_MATCHED;
@@ -673,6 +674,57 @@ static void test_exact_one_and_bsp(void)
 	fixture.mock.value[1] = TEST_COMMAND;
 	assert(smm_invocation_evidence_claim(&fixture.evidence, TEST_COMMAND,
 		TEST_SENTINEL, &fixture.ops, &token) == CB_ERR);
+	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
+}
+
+static void test_runtime_initiator(void)
+{
+	const uint8_t command = SMM_APMC_AUTHVAR_SERVICE;
+	const uint64_t sentinel = 0x11223344556677fcULL;
+	struct fixture fixture;
+	struct smm_invocation_token token, observed;
+	uint64_t generation;
+
+	for (uint32_t initiator = 0; initiator < TEST_CPUS; initiator++) {
+		fixture_init(&fixture);
+		fixture.mock.matched = initiator;
+		fixture.mock.value[initiator] = command;
+		generation = arrive_all(&fixture);
+		if (initiator && !(CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) &&
+			CONFIG(SMM_APMC_ROUTE_AUTHVAR_SERVICE))) {
+			assert(smm_invocation_evidence_claim(&fixture.evidence, command,
+				sentinel, &fixture.ops, &token) == CB_ERR);
+			assert(smm_invocation_evidence_phase(&fixture.evidence) ==
+				SMM_INVOCATION_POISONED);
+			continue;
+		}
+		assert(smm_invocation_evidence_claim(&fixture.evidence, command,
+			sentinel, &fixture.ops, &token) == CB_SUCCESS);
+		assert(token.initiator_cpu == initiator);
+		assert(token.bsp == (initiator == fixture.seed.bsp_cpu));
+		assert(smm_invocation_evidence_claimed_snapshot(&fixture.evidence,
+			command, sentinel, &observed) == CB_SUCCESS);
+		assert(!memcmp(&token, &observed, sizeof(token)));
+		assert(smm_invocation_evidence_publish_and_request_close(&fixture.evidence,
+			&token, 0, &fixture.ops) == CB_SUCCESS);
+		assert(fixture.mock.value[initiator] == 0);
+		depart_all(&fixture, generation);
+		assert(smm_invocation_evidence_eos_consume(&fixture.evidence, generation,
+			fixture.seed.loader_instance_nonce, fixture.seed.lifecycle,
+			fixture.seed.bsp_cpu));
+		assert(!smm_invocation_evidence_eos_consume(&fixture.evidence, generation,
+			fixture.seed.loader_instance_nonce, fixture.seed.lifecycle,
+			fixture.seed.bsp_cpu));
+	}
+
+	fixture_init(&fixture);
+	fixture.mock.matched = 1;
+	fixture.mock.second_match = 2;
+	fixture.mock.value[1] = command;
+	fixture.mock.value[2] = command;
+	(void)arrive_all(&fixture);
+	assert(smm_invocation_evidence_claim(&fixture.evidence, command,
+		sentinel, &fixture.ops, &token) == CB_ERR);
 	assert(smm_invocation_evidence_phase(&fixture.evidence) == SMM_INVOCATION_POISONED);
 }
 
@@ -3021,6 +3073,7 @@ int main(void)
 	test_happy_path();
 	test_missing_and_wrong_participant();
 	test_exact_one_and_bsp();
+	test_runtime_initiator();
 	test_save_state_failures_and_mutation();
 	test_publish_guard_and_active_shutdown();
 	test_strong_completion_rejection_is_inert();

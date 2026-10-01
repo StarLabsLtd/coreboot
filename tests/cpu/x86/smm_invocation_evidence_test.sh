@@ -11,6 +11,12 @@ printf '%s\n' \
 	'#define CONFIG_MAX_CPUS 64' \
 	'#define CONFIG_SMM_INVOCATION_FAIL_STOP_PLATFORM 1' \
 	'#define CONFIG_SMM_INVOCATION_EVIDENCE 1' \
+	'#ifndef TEST_DISABLE_AUTHVAR_ATTESTATION' \
+	'#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED 1' \
+	'#endif' \
+	'#ifndef TEST_DISABLE_AUTHVAR_ROUTE' \
+	'#define CONFIG_SMM_APMC_ROUTE_AUTHVAR_SERVICE 1' \
+	'#endif' \
 	> "$temporary/include/config.h"
 
 build()
@@ -73,6 +79,14 @@ for optimization in 0 2; do
 		"-O$optimization -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all"
 	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
 		"$temporary/sanitize-O$optimization"
+done
+
+for disabled_gate in ATTESTATION ROUTE; do
+	for optimization in 0 2; do
+		build "disabled-$disabled_gate-O$optimization" \
+			"-O$optimization -DTEST_DISABLE_AUTHVAR_$disabled_gate"
+		"$temporary/disabled-$disabled_gate-O$optimization"
+	done
 done
 
 if build tsan "-O1 -g -fsanitize=thread" >"$temporary/tsan-build.log" 2>&1; then
@@ -181,7 +195,9 @@ loader_mutation evidence-revision-backstep \
 	's/seed->revision != SMM_INVOCATION_EVIDENCE_REVISION/seed->revision != 2U/'
 mutation terminal-scrub-fail-stop \
 	'/phase == SMM_INVOCATION_TERMINAL_SCRUBBING/,/continue;/{s/invocation_fail_stop();/__builtin_trap();/}'
-mutation exact-bsp 's/initiator != evidence->bsp_cpu/false/'
+mutation exact-bsp 's/initiator == evidence->bsp_cpu/true/'
+mutation runtime-command-only 's/command == SMM_APMC_AUTHVAR_SERVICE/((void)command, true)/'
+mutation runtime-ap-refusal 's/command == SMM_APMC_AUTHVAR_SERVICE/((void)command, false)/'
 mutation sentinel-command 's/(uint8_t)sentinel != command/false/'
 mutation exact-apic \
 	'0,/apic_id != evidence->participant_apic_ids\[cpu\]/{s//false/}'
