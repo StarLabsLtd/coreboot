@@ -220,3 +220,40 @@ qualified in the PR, not claimed by this normal root importer run.
 PR343's actual loader and coupled all-CPU receiver gates are also retained.
 Their loader placement and held-lease callback modeling remain explicit;
 these are not hardware, resumed-CPU copy-coherence or public-runtime proofs.
+
+## Separate private-delivery selected release SMM receipts
+
+`mtl-private-delivery-release-selected.tar.gz`, SHA-256
+`8c6a0d60ddcc8df85ed87d2bcfeaf2188016a53effec38d6866b1d3909b29cb7`,
+preserves two actual OFF/ON SMM-only links using the pinned release crossgcc,
+production source PR343 `df3b5db2890377bac91210c430839472588ff51d`, and
+the separately reviewed opt-in test profile. The normal profile default stays
+private-OFF. The selected ON configuration has private receipt delivery enabled;
+prepare/close/consume are retained, while held begin/recheck remain discarded.
+
+The recorded ON ELF is
+`4b339979a62be5b5d248b6ea92d42df43792ec826aa7f4f0b0a390256ff97893`,
+configuration is
+`a3123ad1f869777c1c8f7c7e57f0e2b1d5a1564c11f7c5d8ead5336631f61ee4`,
+and sorted 396 compiler annotation paths/contents are
+`5c6e51feadfe605d3199fa7aa2b2be1a2100c12860ac385e6ab867652130ce7f`.
+Root and independent peer exact-artifact audit replays pass: nested root
+maxima 9,908/12,004 bytes, receipt receiver 3,196, and lease prepare 1,724.
+Outer entry allowances remain separately qualified by actual assembly.
+
+The independently built ON ELF is
+`a1a18937d7b1865d3bebfc8892960c554ef61d2892249e69d1dadd8b521121a1`.
+Its configuration is identical. Actual section comparison finds only nine
+temporary-directory bytes different in `.debug_line_str`; every other ELF
+section matches. One `static.ci` graph title also has that build path, yielding
+annotation digest
+`d7cb9dea2646be79354c0f3f97fc037681de1a6d457d0824c2067804720af3b1`.
+The unchanged exact-record audit correctly refuses this distinct artifact;
+that refusal is retained rather than normalizing its identity or claiming
+another accepted recorded replay.
+
+Both configurations, compiler selections, build logs, ELFs and ON annotations
+are retained, with peer/root recorded-audit logs and path-difference evidence.
+This is SMM-only evidence with fixture FSP headers, not a complete MTL ROM,
+hardware admission, tag-0x58 publisher, resumed-CPU protection, policy-copy
+coherence, terminal loader lifetime or public-runtime activation proof.
