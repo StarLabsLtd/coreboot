@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include "authvar_presence_route_composition.h"
-
 #include <boot/payload_mm_authvar_presence_arm.h>
+
+#include "authvar_presence_route_composition.h"
 
 #if !ENV_SMM && !ENV_TEST
 #error "StarBook MTL presence-route composition owner is SMM-only"
@@ -42,6 +42,17 @@ starbook_mtl_authvar_presence_route_composition_provision(
 	payload_mm_authvar_protected_storage protected_storage,
 	void *protected_storage_context)
 {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (payload_mm_authvar_presence_arm_bootstrap_provision(&owner.arm,
+		composition, instance, evidence, protected_storage,
+		protected_storage_context) != CB_SUCCESS)
+		return SMM_INVOCATION_TRY_ERROR;
+#else
+	if (payload_mm_authvar_presence_arm_provision(&owner.arm,
+		composition, instance, evidence, protected_storage,
+		protected_storage_context) != CB_SUCCESS)
+		return SMM_INVOCATION_TRY_ERROR;
+#endif
 	return intel_smm_invocation_adapter_route_provision(&owner.session,
 		&owner.arm, &owner.slot, composition, instance, evidence, topology,
 		authority_policy, binding, page_verifier, page_receipt,

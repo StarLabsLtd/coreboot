@@ -126,6 +126,18 @@ enum cb_err payload_mm_authvar_presence_arm_provision(
 	payload_mm_authvar_protected_storage protected_storage,
 	void *protected_storage_context);
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+/* Provision only within the platform-admitted canonical BOOT claim.
+ * The ordinary provisioning entry above remains READY-only. */
+enum cb_err payload_mm_authvar_presence_arm_bootstrap_provision(
+	struct payload_mm_authvar_presence_arm *arm,
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context);
+#endif
+
 /* Bind the exact policy and binding directly into the generic transaction. */
 enum cb_err payload_mm_authvar_presence_arm_transaction_provision(
 	struct payload_mm_authvar_presence_arm *arm,
