@@ -35,6 +35,9 @@ void lb_board(struct lb_header *header)
 	size_t frame_capacity;
 	uint64_t wire;
 	bool required;
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	struct bootmem_aligned_reservation reservation;
+#endif
 #if !CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 	const struct lb_authvar_service_endpoint no_endpoint = { 0 };
 #endif
@@ -93,7 +96,21 @@ void lb_board(struct lb_header *header)
 	    response.service_endpoint.trigger_address != pm_acpi_smi_cmd_port() ||
 	    response.service_endpoint.trigger_value != SMM_APMC_AUTHVAR_SERVICE)
 		die("StarBook MTL presence: invalid admitted service endpoint\n");
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	/* Resolve the original emitted handle, not a public reply's allocation claim. */
+	if (bootmem_aligned_reservation_query(&boot_private.handle, &reservation) ||
+	    reservation.reserved || reservation.tag != BM_MEM_RESERVED ||
+	    boot_private.tag != reservation.tag || boot_private.base != reservation.base ||
+	    boot_private.bytes != reservation.size ||
+	    reservation.size != LB_PAYLOAD_BOOT_PRIVATE_BUFFER_BYTES ||
+	    !reservation.base || reservation.base % 4096U ||
+	    reservation.base > UINT64_MAX - (reservation.size - 1U))
+		die("StarBook MTL presence: invalid admitted BOOT-private reservation\n");
+#endif
 	memcpy(lb_new_record(header), &response.service_endpoint, sizeof(response.service_endpoint));
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
+	lb_add_payload_boot_private_buffer(header, reservation.base);
+#endif
 #else
 	(void)header;
 	if (memcmp(&response.service_endpoint, &no_endpoint, sizeof(no_endpoint)))

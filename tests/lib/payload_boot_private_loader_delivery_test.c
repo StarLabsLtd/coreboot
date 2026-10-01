@@ -85,6 +85,7 @@ uint64_t smm_invocation_tuple_trigger(void)
 	abort();
 }
 
+#ifndef BOOT_PRIVATE_TABLE_COMPONENT
 int main(int argc, char **argv)
 {
 	struct smm_invocation_loader_instance instance = {
@@ -175,3 +176,4 @@ int main(int argc, char **argv)
 		zero(&private_receipt, sizeof(private_receipt)));
 	return 0;
 }
+#endif
