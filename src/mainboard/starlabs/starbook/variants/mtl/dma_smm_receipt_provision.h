@@ -8,6 +8,9 @@
 #include <cpu/x86/smm_invocation_evidence.h>
 #include <cpu/x86/smm_invocation_entry.h>
 #include <cpu/x86/smm_command.h>
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <bootmem_reservation_receipt.h>
+#endif
 
 #define STARBOOK_MTL_DMA_RECEIPT_FRAME_REVISION 1U
 #define STARBOOK_MTL_DMA_RECEIPT_FRAME_REQUEST 1U
@@ -74,6 +77,19 @@ bool starbook_mtl_dma_smm_epoch_range_protected(
 bool starbook_mtl_dma_smm_cold_range_protected(
 	void *unused, uint64_t base, uint64_t size);
 void starbook_mtl_dma_smm_epoch_poison(void);
+#if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER) && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+/*
+ * Unselected SMM-only prerequisite. These operations establish no authority
+ * for a resumed CPU, external code, an OS variable reply, or S3. Protected
+ * first-entry receipt delivery and terminal loader lifetime remain separate.
+ */
+enum cb_err starbook_mtl_boot_private_lease_prepare(
+	struct bootmem_reservation_receipt_authority *verifier,
+	struct bootmem_reservation_receipt *receipt);
+enum cb_err starbook_mtl_boot_private_lease_begin_held(void);
+enum cb_err starbook_mtl_boot_private_lease_recheck_held(void);
+void starbook_mtl_boot_private_lease_close(void);
+#endif
 #endif
 
 _Static_assert(sizeof(struct starbook_mtl_dma_receipt_frame) == 6392,
