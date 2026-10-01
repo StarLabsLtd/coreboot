@@ -903,7 +903,15 @@ enum cb_err payload_mm_authvar_service_execute(void)
 	result = CB_SUCCESS;
 out:
 	scrub(provider.service_request, sizeof(provider.service_request));
+#if ENV_TEST
+	payload_mm_authvar_smm_bootstrap_scrub_observe(provider.service_request,
+		sizeof(provider.service_request));
+#endif
 	scrub(provider.service_response, sizeof(provider.service_response));
+#if ENV_TEST
+	payload_mm_authvar_smm_bootstrap_scrub_observe(provider.service_response,
+		sizeof(provider.service_response));
+#endif
 	__atomic_store_n(&provider.endpoint_phase, ENDPOINT_READY, __ATOMIC_RELEASE);
 	return result;
 }
