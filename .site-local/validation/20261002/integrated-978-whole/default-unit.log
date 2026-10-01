@@ -1,0 +1,2 @@
+Oct 01 23:44:39 sean-Byte systemd[1290]: Started cdk2-root-integrated-978-default.service - [systemd-run] /usr/bin/bash -o pipefail -c "export PATH=/home/sean/.local/bin:/home/sean/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/home/sean; ulimit -s 65536; make -k -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=build/protected-variable-root-whole-e468 check native-stage > /tmp/cdk2-root-integrated-978-default.log 2>&1".
+Oct 02 00:05:01 sean-Byte systemd[1290]: cdk2-root-integrated-978-default.service: Consumed 40min 58.253s CPU time, 743.7M memory peak.
