@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_bundle.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_view.h>
 #include <commonlib/helpers.h>
 
@@ -481,6 +482,48 @@ static void test_query_and_admission(void)
 	expect(!memcmp(index_before, &store_index, sizeof(store_index)));
 }
 
+static void test_classification(void)
+{
+	struct payload_mm_authvar_key_classification result, before;
+	struct payload_mm_authvar_view_value value;
+	static const uint8_t missing[] = { 'Z', 0, 0, 0 };
+
+	scan_fixture(3U);
+	for (unsigned int runtime = 0; runtime < 2; runtime++) {
+		expect(payload_mm_authvar_view_init(&view, &store_index, 0, runtime) == CB_SUCCESS);
+		expect(payload_mm_authvar_view_classify(&view, private_guid, persistent_name,
+			sizeof(persistent_name), &result) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+		expect(result.kind == 1 && result.attributes == 3 && result.flags == !runtime);
+		if (runtime)
+			expect(payload_mm_authvar_view_get(&view, private_guid, persistent_name,
+				sizeof(persistent_name), 128, &value) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+		for (size_t i = 0; i < ARRAY_SIZE(expected); i++) {
+			expect(payload_mm_authvar_view_classify(&view, expected[i].guid,
+				expected[i].name, expected[i].name_size, &result) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+			expect(result.kind == 2 && result.attributes == expected[i].attributes &&
+				result.flags == 1);
+		}
+		memset(&result, 0xa5, sizeof(result));
+		before = result;
+		expect(payload_mm_authvar_view_classify(&view, private_guid, missing,
+			sizeof(missing), &result) == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+		expect(!memcmp(&result, &before, sizeof(result)));
+		expect(payload_mm_authvar_view_classify(&view, private_guid, missing,
+			sizeof(missing), (void *)&view) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		expect(payload_mm_authvar_view_classify(&view, private_guid, missing,
+			sizeof(missing), (void *)(UINTPTR_MAX - 3U)) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	}
+	collision_store(&expected[0], PAYLOAD_MM_AUTHVAR_STATE_ADDED);
+	memset(&result, 0xa5, sizeof(result));
+	before = result;
+	expect(payload_mm_authvar_view_classify(&view, global_guid, setup_name,
+		sizeof(setup_name), &result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+	expect(!memcmp(&result, &before, sizeof(result)));
+}
+
 int main(void)
 {
 	scan_fixture(7U);
@@ -488,5 +531,6 @@ int main(void)
 	test_next();
 	test_collisions_and_reserved();
 	test_query_and_admission();
+	test_classification();
 	return 0;
 }

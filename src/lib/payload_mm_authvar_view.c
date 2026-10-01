@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_bundle.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_view.h>
 #include <commonlib/helpers.h>
 #include <string.h>
@@ -210,6 +211,46 @@ enum cb_err payload_mm_authvar_view_init(struct payload_mm_authvar_view *view,
 		return CB_ERR_ARG;
 	memcpy(view, &draft, sizeof(*view));
 	return CB_SUCCESS;
+}
+
+uint64_t payload_mm_authvar_view_classify(const struct payload_mm_authvar_view *view,
+	const uint8_t vendor_guid[16], const void *name, size_t name_size,
+	struct payload_mm_authvar_key_classification *classification)
+{
+	struct payload_mm_authvar_key_classification draft = { 0 };
+	const struct payload_mm_authvar_store_entry *entry;
+	int key;
+
+	if (!span_valid(classification, sizeof(*classification)) ||
+	    (uintptr_t)classification % _Alignof(*classification) ||
+	    !span_valid(vendor_guid, 16U) || !name_valid(name, name_size) ||
+	    !view_valid(view) ||
+	    spans_overlap(classification, sizeof(*classification), view, sizeof(*view)) ||
+	    spans_overlap(classification, sizeof(*classification), vendor_guid, 16U) ||
+	    spans_overlap(classification, sizeof(*classification), name, name_size) ||
+	    spans_overlap(classification, sizeof(*classification), view->persistent,
+		 sizeof(*view->persistent)) ||
+	    spans_overlap(classification, sizeof(*classification), view->persistent->store,
+		 view->persistent->store_size) ||
+	    spans_overlap(classification, sizeof(*classification), view->persistent->entries,
+		 view->persistent->entry_capacity * sizeof(view->persistent->entries[0])))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	key = synthetic_key(vendor_guid, name, name_size);
+	if (key >= 0) {
+		draft.kind = PAYLOAD_MM_AUTHVAR_KEY_SYNTHETIC;
+		draft.attributes = synthetic[key].attributes;
+	} else {
+		entry = payload_mm_authvar_store_find(view->persistent, vendor_guid,
+			name, name_size);
+		if (!entry)
+			return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+		draft.kind = PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;
+		draft.attributes = entry->attributes;
+	}
+	if (!view->at_runtime || (draft.attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS))
+		draft.flags = PAYLOAD_MM_AUTHVAR_KEY_VISIBLE;
+	memcpy(classification, &draft, sizeof(draft));
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
 uint64_t payload_mm_authvar_view_get(const struct payload_mm_authvar_view *view,
