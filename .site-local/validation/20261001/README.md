@@ -257,3 +257,21 @@ are retained, with peer/root recorded-audit logs and path-difference evidence.
 This is SMM-only evidence with fixture FSP headers, not a complete MTL ROM,
 hardware admission, tag-0x58 publisher, resumed-CPU protection, policy-copy
 coherence, terminal loader lifetime or public-runtime activation proof.
+
+## PR436 continuing whole-suite receipt
+
+`cdk2-436-continuing-native-suite.tar.gz`, SHA-256
+`1a9c863dfb439a07ade79efcc12ffba9e37b750704b543499c55ea868f6abf63`,
+preserves the root complete native suite and confirmed package passes at
+`6532bc8b50345f7a4b3b41450536f2687ee49e09`. This continues the existing
+PR434-origin build directory, not a clean independent build. Configuration,
+generated header and native image digests remain the exact PR435 values
+listed above; those three files are already retained in the PR435 archive.
+
+The first execution-session run ended with status 143 before completion;
+its partial log is not a pass. An isolated managed-user-service retry failed
+because its initial tool path lacked `kconfig-conf`. The following retry with
+the normal tool path passes with service `Result=success`, `ExecMainStatus=0`,
+and no remaining process. Both failed/partial logs and explicit unit results
+are retained alongside the successful suite and package logs. This adds no
+ROM, QEMU, public-owner activation or hardware validation claim.
