@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smm_invocation_fail_stop.h>
 #include <cpu/x86/smm_invocation_loader_composition.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_invocation_topology.h>
@@ -171,19 +172,14 @@ enum cb_err smm_invocation_runtime_binding_get(
 	return CB_SUCCESS;
 }
 
-uint32_t smm_invocation_evidence_phase(
-	const struct smm_invocation_evidence *candidate)
+void smm_invocation_evidence_test_hook(uint32_t point)
 {
-	return candidate->state & 0x1fU;
+	(void)point;
 }
 
-bool smm_invocation_evidence_rendezvous_ack_ready(
-	const struct smm_invocation_evidence *candidate, uint64_t generation)
+void smm_invocation_platform_fail_stop(void)
 {
-	return candidate == &evidence && candidate->generation == generation &&
-		candidate->rendezvous_ack_required == 1U &&
-		candidate->rendezvous_ack_cpus == candidate->expected_cpus &&
-		!candidate->rendezvous_fail_requested;
+	abort();
 }
 
 enum cb_err smm_invocation_runtime_range_is_protected(
