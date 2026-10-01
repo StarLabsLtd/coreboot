@@ -1,0 +1,2 @@
+{"image_address": 1070845952, "image_sha256": "a05b76f687b176e39376a5fe2e1955cf6f5cd36435b9ef20ab66bb28d5f3909a", "image_size": 164790, "table_sha256": "67ebc6061178ae3c60f057ed856a7ecec2e6e9535bae866b417226346f9cda6b", "xoffset": 283, "yoffset": 183}
+CDK2 actual guest BGRT table/image acceptance: PASS

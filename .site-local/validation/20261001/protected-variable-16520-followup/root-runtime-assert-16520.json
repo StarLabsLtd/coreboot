@@ -1,0 +1,451 @@
+{
+  "lane": "runtime-services",
+  "runs": [
+    {
+      "run": "build/qemu-protected-variable-root-16520/bgrt-guest",
+      "records": [
+        {
+          "phase": "HANDOFF_VALIDATE",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "HANDOFF_VALIDATE",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 14520
+        },
+        {
+          "phase": "SPLASH_EARLY",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "SPLASH_EARLY",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 6181
+        },
+        {
+          "phase": "DXE_SERVICES",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "DXE_SERVICES",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 360297
+        },
+        {
+          "phase": "ARCH_PROTOCOLS",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "ARCH_PROTOCOLS",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 737474
+        },
+        {
+          "phase": "VARIABLES_MIN",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "VARIABLES_MIN",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 4021675
+        },
+        {
+          "phase": "CAPSULE_EARLY_GATE",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "CAPSULE_EARLY_GATE",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 7032
+        },
+        {
+          "phase": "CAPSULE_RAM",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "CAPSULE_RAM",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 6705
+        },
+        {
+          "phase": "PLATFORM_TABLES",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "PLATFORM_TABLES",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 148096
+        },
+        {
+          "phase": "PCI_ROOTS",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "PCI_ROOTS",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 712913
+        },
+        {
+          "phase": "PCI_ENUMERATE",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "PCI_ENUMERATE",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 260230
+        },
+        {
+          "phase": "STORAGE_CONTROLLERS",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "STORAGE_CONTROLLERS",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 6741
+        },
+        {
+          "phase": "BLOCK_DISCOVERY",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "BLOCK_DISCOVERY",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 1259019
+        },
+        {
+          "phase": "FILESYSTEMS",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "FILESYSTEMS",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 3718
+        },
+        {
+          "phase": "CAPSULE_DISK",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "CAPSULE_DISK",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 37743
+        },
+        {
+          "phase": "DISPLAY_ADOPT",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "DISPLAY_ADOPT",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 19378
+        },
+        {
+          "phase": "INPUT_UI",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "INPUT_UI",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 569843
+        },
+        {
+          "phase": "BOOT_POLICY",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "BOOT_POLICY",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 3154499
+        },
+        {
+          "phase": "OS_HANDOFF",
+          "operation": "start",
+          "status": "NOT_STARTED",
+          "elapsed_us": 0
+        },
+        {
+          "phase": "OS_HANDOFF",
+          "operation": "complete",
+          "status": "SUCCESS",
+          "elapsed_us": 0
+        }
+      ],
+      "failures": [],
+      "qemu_status": 0,
+      "ram_reset_terminals": 0,
+      "os_reset_terminals": 0,
+      "spi_erase_transition_observed": false,
+      "signature": [
+        [
+          "HANDOFF_VALIDATE",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "HANDOFF_VALIDATE",
+          "complete",
+          "SUCCESS",
+          14520
+        ],
+        [
+          "SPLASH_EARLY",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "SPLASH_EARLY",
+          "complete",
+          "SUCCESS",
+          6181
+        ],
+        [
+          "DXE_SERVICES",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "DXE_SERVICES",
+          "complete",
+          "SUCCESS",
+          360297
+        ],
+        [
+          "ARCH_PROTOCOLS",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "ARCH_PROTOCOLS",
+          "complete",
+          "SUCCESS",
+          737474
+        ],
+        [
+          "VARIABLES_MIN",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "VARIABLES_MIN",
+          "complete",
+          "SUCCESS",
+          4021675
+        ],
+        [
+          "CAPSULE_EARLY_GATE",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "CAPSULE_EARLY_GATE",
+          "complete",
+          "SUCCESS",
+          7032
+        ],
+        [
+          "CAPSULE_RAM",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "CAPSULE_RAM",
+          "complete",
+          "SUCCESS",
+          6705
+        ],
+        [
+          "PLATFORM_TABLES",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "PLATFORM_TABLES",
+          "complete",
+          "SUCCESS",
+          148096
+        ],
+        [
+          "PCI_ROOTS",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "PCI_ROOTS",
+          "complete",
+          "SUCCESS",
+          712913
+        ],
+        [
+          "PCI_ENUMERATE",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "PCI_ENUMERATE",
+          "complete",
+          "SUCCESS",
+          260230
+        ],
+        [
+          "STORAGE_CONTROLLERS",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "STORAGE_CONTROLLERS",
+          "complete",
+          "SUCCESS",
+          6741
+        ],
+        [
+          "BLOCK_DISCOVERY",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "BLOCK_DISCOVERY",
+          "complete",
+          "SUCCESS",
+          1259019
+        ],
+        [
+          "FILESYSTEMS",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "FILESYSTEMS",
+          "complete",
+          "SUCCESS",
+          3718
+        ],
+        [
+          "CAPSULE_DISK",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "CAPSULE_DISK",
+          "complete",
+          "SUCCESS",
+          37743
+        ],
+        [
+          "DISPLAY_ADOPT",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "DISPLAY_ADOPT",
+          "complete",
+          "SUCCESS",
+          19378
+        ],
+        [
+          "INPUT_UI",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "INPUT_UI",
+          "complete",
+          "SUCCESS",
+          569843
+        ],
+        [
+          "BOOT_POLICY",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "BOOT_POLICY",
+          "complete",
+          "SUCCESS",
+          3154499
+        ],
+        [
+          "OS_HANDOFF",
+          "start",
+          "NOT_STARTED",
+          0
+        ],
+        [
+          "OS_HANDOFF",
+          "complete",
+          "SUCCESS",
+          0
+        ]
+      ],
+      "log_sha256": "b843a4dc3fbbe215b3e485b440fd9630d76c89b69aeee443c1143f5dbea46f70"
+    }
+  ],
+  "passed": true
+}

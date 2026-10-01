@@ -1,0 +1,16 @@
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native initialized entry/op9/terminal refusal: PASS (modeled MODULE/prefix/trigger/MMIO)
+Native first-entry pre-dispatch refusal mutation: PASS
+Protected boot refused before native first-entry copy: PASS
+Protected boot refused before native first-entry copy: PASS
+Protected boot before first-entry copy refusal mutation: PASS
