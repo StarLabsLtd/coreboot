@@ -695,8 +695,12 @@ config PAYLOAD_BOOT_PRIVATE_BUFFER
 	help
 	  Build a dormant three-slot BOOT-private reservation and typed allocation
 	  metadata exporter using the existing one-shot bootmem receipt verifier.
-	  It installs no boot hook, table publisher, payload consumer, DMA-origin
-	  lease, runtime variable service, or fallback allocator.
+	  This primitive alone installs no boot hook, table publisher, payload
+	  consumer, runtime variable service, or fallback allocator. With the
+	  separately attested service route, the existing canonical BOOT delivery
+	  carries its signed receipt to the protected verifier and held-SMM lease.
+	  Reserved metadata does not prove origin or protection after SMM return;
+	  trusted consumer delivery and terminal loader lifetime remain separate.
 
 config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
 	bool
