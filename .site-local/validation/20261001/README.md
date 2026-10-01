@@ -677,3 +677,45 @@ default component profile's missing FMP; the genuine setup composition passes.
 This does not update PR349's committed payload pin. These compatibility-provider
 Q35 receipts do not establish clean whole-frame setup restoration, protected
 variable activation, protected origin/lifetime closure, hardware or final sign-off.
+
+## Reviewed full setup framebuffer restoration, PR449
+
+Concatenate `qemu-gui-restoration-d51.tar.gz.part-aa`, `part-ab` and `part-ac`.
+The complete archive SHA-256 is
+`7f31030f95941c3e88d9cf2590772165d96228667f0b095bc6e719ab4b69e34c`.
+Part hashes, in order, are
+`fbbc05542567800cc265e34472c6186a95fb8e1bc411aaa93f30c9332a21f6c7`,
+`07a0847b76bfc09c59bc57975efcf73fcc8257a9edbcc9522aeb98865a7627f3`,
+and `42e8cefd45033014ab26d68c573bbad2a734bede6638ea92d740b360be2655e1`.
+An independent fresh extraction verifies all 123 retained-file checksums;
+archive membership contains only regular files/directories within its root.
+The retained source patch matches the exact PR448-to-PR449 diff. The archive
+includes original pairing/provenance manifests, generated direct-image inputs,
+configurations, payload/ROM, raw captures, guest logs and validation receipts.
+
+Signed PR449 `d51df85330bdd6e4ebf1b862661ceb9a5b9afcd1` follows PR448.
+The final native payload SHA-256 is
+`c417e1d341c6a4f5d077b56d3decd07b8cfb60cd8f73de915eda865c368ba15f`;
+paired ROM SHA-256 is
+`c5f9c713daf6f624b8cd7ee7fd52919f08d21fd8972f4874a85c735c74eca469`.
+Coreboot PR349 and resolved configuration identities are unchanged. The final
+continuing-build whole suite, native restoration/causal mutations, stable lint
+and configured patch checkpatch pass. All three QEMU boots pass; both setup
+presentation captures pass the strengthened whole-frame oracle independently,
+including replays directly from the freshly extracted archive.
+
+Only the source-known transient status strip is exempt from pixel equality.
+Its restored capture is black; this is not proof of retained status text. The
+logo and all other screen pixels match, without residual setup controls.
+
+Full guest BGRT and runtime-variable oracles pass on extracted guest evidence
+with the unchanged original derived-fixture donor. A fully relocated BGRT
+fixture is refused by the original absolute NVMe identity check. Likewise,
+the relocated firmware-setup chain oracle refuses its absolute pflash seed
+identity; the original-path full chain passes, and the archived requester
+pflash bytes match the original and the archived presentation input at SHA-256
+`5e5cd57e4a5fc5ccd8619bf245c36d4b6bc4fabd86b74a186910d503a1788cf6`.
+No evidence paths or manifests were rewritten to bypass these checks.
+
+These are compatibility-provider Q35 receipts, not protected-service activation,
+hardware validation, final release/style coverage or project-wide sign-off.
