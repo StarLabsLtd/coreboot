@@ -211,6 +211,7 @@ enum mbox_p2c_status {
  * overhead compared to MMIO.
  */
 uint64_t psp_get_base(void);
+uintptr_t get_ccp_mmio_base(void);
 uint32_t psp_read32(uint64_t base, uint32_t offset);
 void psp_write32(uint64_t base, uint32_t offset, uint32_t data);
 
