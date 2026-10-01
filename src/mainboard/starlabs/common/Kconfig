@@ -222,7 +222,7 @@ config STARLABS_TOUCHPAD_CST
 	select STARLABS_TOUCHPAD
 
 config TCG_OPAL_S3_UNLOCK
-	default y
+	default y if HAVE_ACPI_RESUME
 
 config MB_COMMON_DIR
 	string
