@@ -683,9 +683,20 @@ config BOOTMEM_ALIGNED_RESERVATION_RECEIPT
 	depends on BOOTMEM_ALIGNED_RESERVATIONS
 	help
 	  Build a dormant one-shot authenticated receipt for one exact final
-	  BM_MEM_TABLE aligned reservation. It uses a fixed HMAC-SHA-256 and the
+	  aligned reservation. The legacy interface admits BM_MEM_TABLE only;
+	  the exact-tag interface also supports BM_MEM_RESERVED. It uses HMAC-SHA-256 and the
 	  caller provisions equal boot-local signer and protected verifier authorities.
 	  This adds no SMI trigger, endpoint, table publication or support claim.
+
+config PAYLOAD_BOOT_PRIVATE_BUFFER
+	bool
+	default n
+	depends on BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	help
+	  Build a dormant three-slot BOOT-private reservation and typed allocation
+	  metadata exporter using the existing one-shot bootmem receipt verifier.
+	  It installs no boot hook, table publisher, payload consumer, DMA-origin
+	  lease, runtime variable service, or fallback allocator.
 
 config PAYLOAD_MM_AUTHVAR_MOR_CLEAR_PLAN
 	bool
