@@ -35,3 +35,4 @@ ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
 ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c automatic_start_ssdt.c
 smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
+smm-y += smi_apmc.c
