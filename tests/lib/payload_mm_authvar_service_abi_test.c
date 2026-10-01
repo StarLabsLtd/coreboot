@@ -2,14 +2,16 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_service.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* The firmware stdio compatibility header has no host diagnostic declarations. */
+extern int dprintf(int fd, const char *format, ...);
 
 #undef assert
 #define assert(condition) do { \
 	if (!(condition)) { \
-		fprintf(stderr, "%s: %s\n", __func__, #condition); \
+		dprintf(2, "%s: %s\n", __func__, #condition); \
 		abort(); \
 	} \
 } while (0)
