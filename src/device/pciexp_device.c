@@ -487,7 +487,7 @@ static void pciexp_L1_substate_commit(struct device *root, struct device *dev,
 			return;
 	}
 
-	L1SubStateSupport = rp_L1_support & 0xf;
+	L1SubStateSupport = rp_L1_support & 0xf & ~root->pcie_l1ss_disable;
 	comm_mode_rst_time = (rp_L1_support >> 8) & 0xff;
 	power_on_scale = (rp_L1_support >> 16) & 0x3;
 	endp_power_on_value = (rp_L1_support >> 19) & 0x1f;

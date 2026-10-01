@@ -120,6 +120,8 @@ struct device {
 	unsigned int    mandatory : 1;
 	unsigned int	hotplug_port : 1;
 	u8 command;
+	/* L1SS Control 1 enable bits excluded on this downstream port's link. */
+	u8 pcie_l1ss_disable;
 	uint16_t hotplug_buses; /* Number of hotplug buses to allocate */
 
 	/* Base registers for this device. I/O, MEM and Expansion ROM */
