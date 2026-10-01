@@ -5379,13 +5379,14 @@ static void production_service_test(const char *scenario)
 		if (i == first) {
 			struct lb_authvar_service_endpoint old = endpoint;
 			const unsigned int begins = begin_count, ends = end_count;
+			const unsigned int writes = program_count;
 
 			old.revision = 4;
 			memcpy(before, output, sizeof(before));
 			assert(payload_mm_authvar_service_transaction(&old, input, output,
 				sizeof(input)) == CB_ERR);
 			assert(!memcmp(before, output, sizeof(before)) && begin_count == begins &&
-				end_count == ends && program_count == programs);
+				end_count == ends && program_count == writes);
 		}
 		if (i == 0 && (!strcmp(scenario, "production-service-auth2") ||
 		    !strcmp(scenario, "production-service-auth2-overflow") ||
