@@ -145,6 +145,11 @@ void payload_mm_authvar_smm_bootstrap_scrub_observe(const void *buffer,
 		combined |= bytes[index];
 	assert(!combined);
 	__atomic_fetch_add(&scrub_calls, 1U, __ATOMIC_RELAXED);
+#if defined(TEST_REAL_BOOTSTRAP_STACK)
+	extern void test_real_scrub_observe(const void *buffer, size_t size);
+
+	test_real_scrub_observe(buffer, size);
+#endif
 }
 
 void smm_region(uintptr_t *base, size_t *size)

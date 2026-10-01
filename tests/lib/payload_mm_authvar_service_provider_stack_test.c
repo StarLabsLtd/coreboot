@@ -11,6 +11,12 @@
 #define TEST_REAL_BOOTSTRAP_STACK
 #include "payload_mm_authvar_service_bootstrap_test.c"
 
+#undef assert
+extern int dprintf(int descriptor, const char *format, ...);
+#define assert(condition) do { if (!(condition)) { \
+	dprintf(2, "provider stack line %d: %s\n", __LINE__, #condition); abort(); \
+} } while (0)
+
 static uint8_t flash_bytes[3U * 65536U];
 static struct lb_authvar_service_endpoint descriptor;
 static bool runtime_admitted = true;
@@ -20,6 +26,41 @@ static bool deny_after_program;
 static unsigned int program_count;
 static unsigned int program_baseline;
 static struct payload_mm_authvar_service_frame *shared_mailbox;
+static bool scrub_guard;
+static unsigned int private_scrubs;
+static unsigned int body_copies;
+static bool scrub_probe_active;
+
+void *__real_memcpy(void *destination, const void *source, size_t size);
+
+void *__wrap_memcpy(void *destination, const void *source, size_t size)
+{
+	void *result;
+
+	if (destination == shared_mailbox && size == 65536U) {
+		const struct payload_mm_authvar_service_frame *frame = source;
+
+		assert(shared_mailbox->completion == UINT32_MAX);
+		assert(frame->completion == UINT32_MAX && frame->status == 0);
+		body_copies++;
+	}
+	result = __real_memcpy(destination, source, size);
+	if (destination == shared_mailbox && size == 65536U)
+		assert(shared_mailbox->completion == UINT32_MAX);
+	return result;
+}
+
+void test_real_scrub_observe(const void *buffer, size_t size)
+{
+	(void)buffer;
+	if (scrub_guard && size == 65536U) {
+		private_scrubs++;
+		assert(!scrub_probe_active);
+		scrub_probe_active = true;
+		assert(payload_mm_authvar_service_execute() == CB_ERR);
+		scrub_probe_active = false;
+	}
+}
 
 bool platform_payload_mm_authvar_service_finalize_admitted(void)
 {
@@ -146,17 +187,20 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	assert(descriptor.communication_base == 0x100000U && descriptor.communication_size == 65536U);
 	assert(descriptor.trigger_address == APM_CNT && descriptor.trigger_value == 0xfcU);
+	scrub_guard = true;
 	*mailbox = (struct payload_mm_authvar_service_frame) {
 		.revision = 2, .header_size = 144, .operation = UINT32_MAX,
 		.generation = 9, .request_id = 1, .status = UINT64_MAX, .completion = UINT32_MAX,
 	};
 	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
 	assert(mailbox->operation == UINT32_MAX && mailbox->completion == UINT32_MAX);
+	assert(private_scrubs == 2 && !body_copies);
 	const uint32_t operations[] = { 4, 1, 2, 3, 7, 8, 5, 6 };
 	const uint8_t ordinary_name[] = { 'N', 0, 0, 0 };
 	const size_t data_offset = 144U + descriptor.maximum_name_size;
 
 	for (size_t index = 0; index < ARRAY_SIZE(operations); index++) {
+		private_scrubs = body_copies = 0;
 		memset(mailbox, 0, 65536U);
 		*mailbox = (struct payload_mm_authvar_service_frame) {
 			.revision = 2, .header_size = 144, .operation = operations[index],
@@ -209,6 +253,7 @@ int main(int argc, char **argv)
 		assert(mailbox->completion == PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE);
 		assert(mailbox->status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 		assert(mailbox->request_id == index + 1 && mailbox->operation == operations[index]);
+		assert(private_scrubs == 2 && body_copies == 1);
 	}
 	assert(!proof_drift && program_count);
 	assert(munmap(mailbox, 65536U) == 0);
