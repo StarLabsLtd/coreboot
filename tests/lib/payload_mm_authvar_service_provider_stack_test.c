@@ -210,7 +210,11 @@ enum cb_err test_real_media_install(void)
 	return payload_mm_authvar_media_install(&port);
 }
 
+#if defined(TEST_REAL_RUNTIME_WAVE)
+int runtime_provider_fixture_main(int argc, char **argv)
+#else
 int main(int argc, char **argv)
+#endif
 {
 	struct payload_mm_authvar_service_frame *mailbox;
 	const uint8_t vendor_keys_name[] = {
@@ -293,6 +297,7 @@ int main(int argc, char **argv)
 	assert(descriptor.maximum_data_size ==
 		(CONFIG_SMMSTORE_BLOCK_SIZE == 4096U ? 8132U : 61296U));
 	scrub_guard = true;
+#if !defined(TEST_REAL_RUNTIME_WAVE)
 	*mailbox = (struct payload_mm_authvar_service_frame) {
 		.revision = 2, .header_size = 144, .operation = UINT32_MAX,
 		.generation = 9, .request_id = 1, .status = UINT64_MAX, .completion = UINT32_MAX,
@@ -300,6 +305,7 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
 	assert(mailbox->operation == UINT32_MAX && mailbox->completion == UINT32_MAX);
 	assert(private_scrubs == 2 && !body_copies);
+#endif
 	const uint32_t operations[] = { 4, 1, 2, 3, 7, 8, 5, 6 };
 	const uint8_t ordinary_name[] = { 'N', 0, 0, 0 };
 	const size_t data_offset = 144U + descriptor.maximum_name_size;
