@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Optional diagnostic for the exact recorded native artifact, not a build
+ * Optional diagnostic for an exact recorded artifact, not a build
  * dependency or a release-toolchain/hardware admission gate. Fixed callback
  * bindings and assembly frames below require source review before reuse.
  */
@@ -8,13 +8,24 @@ const fs = require('fs');
 const path = require('path');
 const child = require('child_process');
 const crypto = require('crypto');
-const base = process.argv[2];
-if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js ON/smm [ROOT...]');
+const release = process.argv[2] === '--release-recorded';
+const arguments_ = process.argv.slice(release ? 3 : 2);
+const base = arguments_[0];
+if (!base) throw new Error('Usage: node starbook_mtl_authvar_selected_stack_audit.js [--release-recorded] ON/smm [ROOT...]');
+const record = release ? {
+	elf: '5cfcf28ca58500c2e637fff7d3f2870ec443f70f622d19c97f81de48b3242723',
+	config: '6016a34ab0c6957a05a3a5935876b8c17556e291e33ec67f450d1530ca385aa2',
+	annotations: 'fd0dac259e6b45701ee183eba642190bc2293f53e168f1e031359b65fb3bd50e',
+	umodFrame: 44,
+} : {
+	elf: 'a4ff69f7391f8c749432b4b573681c1ed5905a991d8c12c9a0625cbc4b4e6f9f',
+	config: '94e021c7b7f3cf591594121c32f70f3bd64f862cd84711b8b2ec2ba02af175f0',
+	annotations: '12daff6718ab9c8acb24ff822beb438998158311558b5d35fa8df08e9cd26642',
+	umodFrame: 60,
+};
 const hash = filename => crypto.createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
-if (hash(path.join(base, 'smm.elf')) !==
-	'a4ff69f7391f8c749432b4b573681c1ed5905a991d8c12c9a0625cbc4b4e6f9f' ||
-    hash(path.join(path.dirname(base), 'full.config')) !==
-	'94e021c7b7f3cf591594121c32f70f3bd64f862cd84711b8b2ec2ba02af175f0')
+if (hash(path.join(base, 'smm.elf')) !== record.elf ||
+    hash(path.join(path.dirname(base), 'full.config')) !== record.config)
 	throw new Error('Unreviewed artifact/configuration: revise the source/assembly manifest first');
 const nodes = new Map(), edges = new Map(), byName = new Map(), aliases = new Set();
 const annotationPaths = [];
@@ -58,14 +69,14 @@ for (const {filename, data} of annotations) {
 	annotationHash.update(path.relative(base, filename) + '\0' + data.length + '\0');
 	annotationHash.update(data);
 }
-if (annotationHash.digest('hex') !==
-	'12daff6718ab9c8acb24ff822beb438998158311558b5d35fa8df08e9cd26642')
+if (annotationHash.digest('hex') !== record.annotations)
 	throw new Error('Unreviewed compiler annotation names/contents');
 for (const {filename, data} of annotations)
 	if (filename.endsWith('.ci')) read(filename, data);
 // Actual linked i386 libgcc leaf prologues: four saved registers plus 28/44
 // bytes of local reservation, no further stack adjustment/calls/recursion.
-for (const [name, size] of [['__udivdi3', 44], ['__umoddi3', 60],
+// Release __umoddi3 reserves 28 bytes; the native recorded version reserves 44.
+for (const [name, size] of [['__udivdi3', 44], ['__umoddi3', record.umodFrame],
 	['__udivmoddi4', 60], ['__divdi3', 0]]) {
 	nodes.set(name, {name, size, kind: 'static'});
 	byName.set(name, new Set([name]));
@@ -332,7 +343,7 @@ function bound(k, active = new Set(), derDepth = 0) {
 	cache.set(cacheKey, r);
 	return r;
 }
-const roots = process.argv.length > 3 ? process.argv.slice(3) :
+const roots = arguments_.length > 1 ? arguments_.slice(1) :
 	['service_bootstrap_dispatch', 'starbook_mtl_authvar_service_runtime_dispatch'];
 for (const name of roots) {
 	if (!byName.has(name)) throw new Error('Unknown audit root: ' + name);

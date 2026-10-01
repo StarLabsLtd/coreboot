@@ -73,6 +73,53 @@ unbounded stack nodes, and unbounded recursion cannot produce a successful
 diagnostic exit. An exit of zero reproduces the recorded calculation; it is
 not release-toolchain or hardware sign-off.
 
+## Separate pinned crossgcc artifact
+
+The release-compiler SMM-only fixture was also executed from revision
+`979a6a33500d895ff9189f4e9a5ecf9ada68af75` with the optional fixture change
+introducing `MTL_AUTHVAR_SELECTED_XGCCPATH`. No selected production source
+changed. This does not substitute for a final released ROM or hardware test.
+
+```sh
+MTL_AUTHVAR_SELECTED_XGCCPATH=/path/to/coreboot/util/crossgcc/xgcc/bin \
+    KEEP_MTL_AUTHVAR_SELECTED_TMP=1 \
+    sh tests/mainboard/starbook_mtl_authvar_selected_service_test.sh
+node tests/mainboard/starbook_mtl_authvar_selected_stack_audit.js \
+    --release-recorded ON/smm
+```
+
+The fixture explicitly supplies `XGCCPATH` and `CROSS_COMPILE_x86_32`, disables
+`ANY_TOOLCHAIN`, checks the repository's pinned toolchain version, and checks
+both generated OFF/ON compiler selections after the actual links. The recorded
+compiler is `i386-elf-gcc (coreboot toolchain v2026-07-28_508d4deeddc) 15.2.0`;
+its executable SHA-256 is
+`2bb7e369e87dcb22736938d7e9cae0b7d408199114eb0a31c7ceb5f873cd3c6d`.
+It was used read-only from the `q35-mor-linear-composition` crossgcc checkout.
+LTO remains disabled and the selected stack/backend prerequisites are unchanged.
+
+| Release input/artifact | SHA-256 |
+| --- | --- |
+| ON `full.config` | `6016a34ab0c6957a05a3a5935876b8c17556e291e33ec67f450d1530ca385aa2` |
+| ON `smm/smm.elf` | `5cfcf28ca58500c2e637fff7d3f2870ec443f70f622d19c97f81de48b3242723` |
+| Sorted 394 `.ci`/`.su` paths and contents | `fd0dac259e6b45701ee183eba642190bc2293f53e168f1e031359b65fb3bd50e` |
+
+The separate record does not replace or relax the native hashes above. Actual
+release ELF direct/tail traversal with the same source-qualified fixed callback
+and recursion bindings reaches no unresolved edge. The two maxima remain
+9,908 and 12,004 bytes; outer compiler frames remain 544 and 32 bytes. The same
+stub/alignment/canary allowance gives 10,531 and 12,627 bytes respectively,
+leaving 3,757 bytes under the selected 16 KiB per-CPU stack for the larger path.
+There is no additional ESP realignment instruction in this ELF. Release
+libgcc leaf prologues were checked separately: `__udivdi3` and `__umoddi3`
+each save four registers and reserve 28 bytes (44-byte frames), whereas
+`__udivmoddi4` reserves 44 bytes (60-byte frame). They make no nested calls.
+The native `__umoddi3` frame remains 60 bytes in its unchanged record.
+
+These are artifact-qualified selected BOOT/runtime calculations, not a
+whole-ROM, FSP, legacy route, hardware admission, or OS variable cutover claim.
+Changed compiler, source, callback bindings, or configuration requires a fresh
+audit; changing a hash alone is not acceptance of another artifact.
+
 ## Recorded nested paths
 
 Each following value is the maximum nested C path found within the named

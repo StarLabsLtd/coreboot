@@ -3,6 +3,14 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
+release_prefix=${MTL_AUTHVAR_SELECTED_XGCCPATH:-}
+if [ -n "$release_prefix" ]; then
+	release_prefix=$(realpath "$release_prefix")/
+	test -x "${release_prefix}i386-elf-gcc"
+	toolchain_version=$(bash "$root/util/crossgcc/buildgcc" --print-version)
+	"${release_prefix}i386-elf-gcc" --version |
+		grep -F "coreboot toolchain v${toolchain_version})"
+fi
 temporary=$(mktemp -d)
 cleanup()
 {
@@ -17,6 +25,10 @@ trap cleanup EXIT HUP INT TERM
 scratch_make()
 (
 	unset MAKELEVEL MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS
+	if [ -n "$release_prefix" ]; then
+		set -- "XGCCPATH=$release_prefix" \
+			"CROSS_COMPILE_x86_32=${release_prefix}i386-elf-" "$@"
+	fi
 	exec make BUILD_TIMELESS=1 KERNELVERSION=coreboot-mtl-service-test \
 		UPDATED_SUBMODULES=1 -C "$root" "$@"
 )
@@ -47,10 +59,15 @@ configure()
 	mkdir -p "$build"
 	scratch_make obj="$build" DOTCONFIG="$config" KBUILD_KCONFIG="$profile" \
 		KBUILD_DEFCONFIG=configs/config.starlabs_starbook_mtl defconfig >/dev/null
-	"$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN -e PAYLOAD_NONE \
+	"$root/util/scripts/config" --file "$config" -e PAYLOAD_NONE \
 		-d LTO -d SMMSTORE -d BOOTMEDIA_SMM_BWP_RUNTIME_OPTION \
 		-d DRIVERS_EFI_UPDATE_CAPSULES -d DRIVERS_EFI_GENERATE_CAPSULE \
 		--set-str FSP_HEADER_PATH "$fsp_headers" --set-str FSP_FD_PATH "$fsp_fd"
+	if [ -n "$release_prefix" ]; then
+		"$root/util/scripts/config" --file "$config" -d ANY_TOOLCHAIN
+	else
+		"$root/util/scripts/config" --file "$config" -e ANY_TOOLCHAIN
+	fi
 	if [ "$selected" = 1 ]; then
 		"$root/util/scripts/config" --file "$config" \
 			-e TEST_MTL_AUTHVAR_SERVICE_PREREQUISITES
@@ -60,6 +77,17 @@ configure()
 	if grep -qi 'unmet direct dependencies' "$build/config.log"; then
 		cat "$build/config.log" >&2
 		exit 1
+	fi
+	if [ -n "$release_prefix" ]; then
+		! grep -q '^CONFIG_ANY_TOOLCHAIN=y$' "$config"
+	fi
+}
+
+check_compiler()
+{
+	if [ -n "$release_prefix" ]; then
+		grep -Fx "GCC_CC_x86_32:=${release_prefix}i386-elf-gcc" "$build/xcompile"
+		grep -Fx "CROSS_COMPILE_x86_32:=${release_prefix}i386-elf-" "$build/xcompile"
 	fi
 }
 
@@ -72,6 +100,7 @@ if ! scratch_make obj="$build" DOTCONFIG="$config" KBUILD_KCONFIG="$profile" \
 	cat "$build/smm-build.log" >&2
 	exit 1
 fi
+check_compiler
 ! nm "$build/smm/smm.elf" | grep -q ' starbook_mtl_authvar_service_runtime_dispatch$'
 test ! -e "$build/smm/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.o"
 
@@ -99,6 +128,7 @@ if ! scratch_make obj="$build" DOTCONFIG="$config" KBUILD_KCONFIG="$profile" \
 	cat "$build/smm-build.log" >&2
 	exit 1
 fi
+check_compiler
 elf="$build/smm/smm.elf"
 file "$elf" | grep -q 'ELF 32-bit'
 for symbol in smm_pre_lock_dispatch \
