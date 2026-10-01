@@ -11,6 +11,9 @@ asmlinkage void bootblock_resume_entry(void);
 
 void write_resume_eip(void)
 {
+	if (!CONFIG(HAVE_ACPI_RESUME))
+		return;
+
 	msr_t s3_resume_entry = {
 		.raw = (uintptr_t)bootblock_resume_entry,
 	};
