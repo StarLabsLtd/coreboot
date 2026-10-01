@@ -171,7 +171,9 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 {
 	assert(atomic_load(&installs) == 1 && !atomic_load(&lease));
 	assert(platform_payload_mm_authvar_service_bootstrap_admitted());
-	return CB_SUCCESS;
+	if (!platform_payload_mm_authvar_service_finalize_admitted())
+		return CB_ERR;
+	return platform_payload_mm_authvar_service_finalize_admitted() ? CB_SUCCESS : CB_ERR;
 }
 
 enum cb_err payload_mm_authvar_service_descriptor_copy(struct lb_authvar_service_endpoint *output)

@@ -2,18 +2,22 @@
 
 #include <assert.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
+#include <boot/payload_mm_authvar_service_receiver.h>
 #include <cpu/intel/smm_invocation_adapter_provider.h>
 #include <cpu/x86/smm_invocation_runtime.h>
 #include <cpu/x86/smm_invocation_topology.h>
 #include <cpu/x86/smm_pre_lock_dispatch.h>
+#include <cpu/x86/msr.h>
 #include <intelblocks/smm_invocation_cause.h>
-#include "authvar_presence_bootstrap_install.h"
-#include "authvar_presence_lifecycle_close_install.h"
-#include "dma_smm_receipt_provision.h"
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "authvar_presence_bootstrap_install.h"
+#include "authvar_presence_lifecycle_close_install.h"
+#include "dma_smm_receipt_provision.h"
+#include "authvar_protected_region.h"
 
 #undef assert
 extern int dprintf(int descriptor, const char *format, ...);
@@ -30,10 +34,13 @@ static atomic_bool lease;
 static atomic_bool injected;
 static atomic_uint classified_cpus;
 static _Thread_local uint32_t current_cpu;
+static atomic_uint protection_reads[CPUS];
 #define BOOT_WIRE (((uint64_t)0x801000U << 32) | STARBOOK_MTL_PRESENCE_BOOTSTRAP_WIRE_REQUEST)
 static uint64_t wire = BOOT_WIRE;
 static unsigned int fault;
 static unsigned int view_identity;
+static unsigned int foreign_view_identity;
+static atomic_bool view_drift;
 static bool owner_drift;
 void starbook_mtl_authvar_service_bootstrap_owner_drift_test(bool generation);
 
@@ -61,7 +68,12 @@ void __noreturn smm_invocation_platform_fail_stop(void)
 {
 	assert(fault && fault != 17 && atomic_load(&injected));
 	assert(fault == 19 ? atomic_load(&ack) == 1 : !atomic_load(&ack));
-	if (fault == 14) {
+	if (fault >= 21) {
+		assert(atomic_load(&installs) ==
+			(fault == 23 || fault == 24 || fault >= 26 ? 1U : 0U));
+		_Exit(0);
+	}
+	if (fault == 14 || fault == 12) {
 		assert(!atomic_load(&arrivals) && !atomic_load(&installs));
 		assert(atomic_load(&arm_count) == 1 && !atomic_load(&retire_count));
 	} else {
@@ -127,15 +139,63 @@ enum cb_err smm_invocation_runtime_binding_get(struct smm_invocation_runtime_bin
 }
 enum cb_err smm_invocation_runtime_view_get(const struct smm_invocation_runtime_view **view)
 {
-	*view = (const void *)&view_identity;
+	*view = atomic_load(&view_drift) ? (const void *)&foreign_view_identity :
+		(const void *)&view_identity;
 	return CB_SUCCESS;
 }
 enum cb_err smm_invocation_runtime_range_is_protected(
 	const struct smm_invocation_runtime_view *view, const void *base, size_t size)
 {
-	assert(view == (const void *)&view_identity && base && size);
+	assert(base && size);
+	if (view != (const void *)&view_identity)
+		return CB_ERR;
 	if (fault == 12) { atomic_store(&injected, true); return CB_ERR; }
 	return CB_SUCCESS;
+}
+enum cb_err smm_invocation_runtime_geometry_is_contained(
+	const struct smm_invocation_runtime_view *view, uintptr_t base, size_t size)
+{
+	assert(view == (const void *)&view_identity && base == 0x80000000U &&
+		(size == (32U << 20) || size == (64U << 20)));
+	if (fault == 25 && current_cpu == 2U) {
+		atomic_store(&injected, true);
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
+}
+msr_t rdmsr(unsigned int index)
+{
+	assert(current_cpu < CPUS);
+	if (index == 0xfeU) {
+		atomic_fetch_add(&protection_reads[current_cpu], 1U);
+		return (msr_t){ .lo = (1U << 11) | (1U << 14) };
+	}
+	assert(index == 0x1f2U || index == 0x1f3U);
+	const bool changed = (fault == 29 && !current_cpu &&
+		atomic_load(&protection_reads[0]) > 4U) ||
+		(fault == 22 && current_cpu == 2U) ||
+		(fault == 24 && current_cpu == 2U &&
+		 atomic_load(&protection_reads[current_cpu]) > 2U);
+	if (changed)
+		atomic_store(&injected, true);
+	uint32_t value = index == 0x1f2U ? 0x80000006U :
+		(changed ? 0xfc000c00U : 0xfe000c00U);
+	if (index == 0x1f3U && current_cpu == 1U &&
+	    (fault == 21 || (fault == 23 && atomic_load(&protection_reads[1]) > 2U))) {
+		atomic_store(&injected, true);
+		value &= ~0x400U;
+	}
+	return (msr_t){ .lo = value };
+}
+uint32_t pci_read_config32(unsigned int device, unsigned int index)
+{
+	assert(!device && (index == 0xb8U || index == 0xb4U));
+	const bool changed = (fault == 29 && !current_cpu &&
+		atomic_load(&protection_reads[0]) > 4U) ||
+		(fault == 22 && current_cpu == 2U) ||
+		(fault == 24 && current_cpu == 2U &&
+		 atomic_load(&protection_reads[current_cpu]) > 2U);
+	return index == 0xb8U ? 0x80000001U : (changed ? 0x84000001U : 0x82000001U);
 }
 uint32_t inl(uint16_t port)
 {
@@ -219,7 +279,18 @@ enum cb_err starbook_mtl_presence_bootstrap_route_install(void)
 			SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE,
 			BOOT_WIRE, &ops, &nested) == CB_ERR);
 	}
-	return platform_payload_mm_authvar_service_bootstrap_admitted() ? CB_SUCCESS : CB_ERR;
+	if (!platform_payload_mm_authvar_service_finalize_admitted())
+		return CB_ERR;
+	if (fault >= 26 && fault <= 28) {
+		atomic_store(&injected, true);
+		if (fault == 26)
+			starbook_mtl_authvar_service_bootstrap_owner_drift_test(true);
+		if (fault == 27)
+			evidence.token.smi_generation++;
+		if (fault == 28)
+			atomic_store(&view_drift, true);
+	}
+	return platform_payload_mm_authvar_service_finalize_admitted() ? CB_SUCCESS : CB_ERR;
 }
 enum cb_err starbook_mtl_presence_bootstrap_response_stage(
 	const struct smm_invocation_save_state_ops *active_ops)
@@ -361,5 +432,7 @@ int main(int argc, char **argv)
 	assert(fault == 17 ? atomic_load(&injected) : !atomic_load(&injected));
 	assert(smm_invocation_evidence_phase(&evidence) == SMM_INVOCATION_READY);
 	assert(!platform_payload_mm_authvar_service_bootstrap_admitted());
+	for (uint32_t cpu = 0; cpu < CPUS; cpu++)
+		assert(atomic_load(&protection_reads[cpu]) == (cpu ? 4U : 6U));
 	return 0;
 }
