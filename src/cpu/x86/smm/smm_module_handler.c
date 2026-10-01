@@ -358,6 +358,22 @@ enum cb_err smm_invocation_runtime_save_state_span(
 	return CB_SUCCESS;
 }
 
+enum cb_err smm_invocation_runtime_geometry_is_contained(
+	const struct smm_invocation_runtime_view *view, uintptr_t base, size_t size)
+{
+	struct runtime_geometry_snapshot snapshot;
+
+	if (view != &runtime_view || !runtime_range_valid(base, size, 1U))
+		return CB_ERR_ARG;
+	if (!runtime_geometry_snapshot((uintptr_t)&snapshot, sizeof(snapshot),
+		&snapshot) ||
+	    !runtime_range_contains(base, size, snapshot.smram_base, snapshot.smram_size))
+		return CB_ERR;
+	RUNTIME_VIEW_TEST_HOOK(5);
+	return runtime_geometry_unchanged(&snapshot, (uintptr_t)&snapshot,
+			sizeof(snapshot)) ? CB_SUCCESS : CB_ERR;
+}
+
 enum cb_err smm_invocation_runtime_range_is_protected(
 	const struct smm_invocation_runtime_view *view, const void *base,
 	size_t size)

@@ -55,6 +55,8 @@ void smm_invocation_runtime_view_test_hook(uint32_t point)
 		test_memory.runtime.invocation_composition.evidence_identity++;
 	if (hook_mode == 8U && point == 4U)
 		test_memory.runtime.smm_size--;
+	if (hook_mode == 9U && point == 5U)
+		test_memory.runtime.smm_size--;
 }
 
 #define smm_runtime test_memory.runtime
@@ -168,6 +170,34 @@ static void exact_protected_range(void)
 	hook_mode = 8U;
 	assert(smm_invocation_runtime_range_is_protected(view, &test_memory,
 		1U) == CB_ERR);
+}
+
+static void exact_hardware_containment(void)
+{
+	const struct smm_invocation_runtime_view *view;
+	const uintptr_t base = (uintptr_t)&test_memory;
+	const size_t size = sizeof(test_memory);
+
+	reset_runtime();
+	view = valid_view();
+	assert(smm_invocation_runtime_geometry_is_contained(view, base, size) == CB_SUCCESS);
+	assert(smm_invocation_runtime_geometry_is_contained(view, base - 1U,
+		size + 2U) == CB_SUCCESS);
+	assert(smm_invocation_runtime_geometry_is_contained(view, base + 1U,
+		size) == CB_ERR);
+	assert(smm_invocation_runtime_geometry_is_contained(view, base,
+		size - 1U) == CB_ERR);
+	assert(smm_invocation_runtime_geometry_is_contained(view, base - 1U,
+		size) == CB_ERR);
+	assert(smm_invocation_runtime_geometry_is_contained(NULL, base, size) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_geometry_is_contained((const void *)1,
+		base, size) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_geometry_is_contained(view, 0, size) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_geometry_is_contained(view, base, 0) == CB_ERR_ARG);
+	assert(smm_invocation_runtime_geometry_is_contained(view,
+		UINTPTR_MAX, 2U) == CB_ERR_ARG);
+	hook_mode = 9U;
+	assert(smm_invocation_runtime_geometry_is_contained(view, base, size) == CB_ERR);
 }
 
 static void invalid_counts_and_binding(void)
@@ -335,6 +365,7 @@ int main(void)
 	exact_bounded_view();
 	exact_top_address_arithmetic();
 	exact_protected_range();
+	exact_hardware_containment();
 	invalid_counts_and_binding();
 	invalid_geometry();
 	packed_native_alignment();
