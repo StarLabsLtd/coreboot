@@ -39,7 +39,7 @@ static void sync_psp_addr_msr(void *unused)
 			printk(BIOS_ERR, "PSP_ADDR_MSR on BSP is 0; cannot program MSR on APs\n");
 			return;
 		}
-		psp_addr_base.lo = msr_temp.lo;
+		psp_addr_base = msr_temp;
 		printk(BIOS_SPEW, "Read PSP_ADDR_MSR 0x%x from BSP\n", psp_addr_base.lo);
 	} else {
 		msr_temp = rdmsr(PSP_ADDR_MSR);
