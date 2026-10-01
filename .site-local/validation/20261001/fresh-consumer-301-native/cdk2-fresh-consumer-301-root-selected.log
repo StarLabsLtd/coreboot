@@ -1,0 +1,26 @@
+#
+# configuration written to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/qemu-fresh-consumer-root-301/cdk2/.config
+#
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (36 records, 8 mutations)
+cdk2 ELF layout: PASS (/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/qemu-fresh-consumer-root-301/cdk2/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/qemu-fresh-consumer-root-301/cdk2/native/cdk2-coreboot-image.elf)
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+Fresh protected image-policy consumer checks: PASS
+Fresh protected image-policy consumer checks: PASS

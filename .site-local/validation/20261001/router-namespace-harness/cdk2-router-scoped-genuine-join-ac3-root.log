@@ -1,0 +1,145 @@
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Real Auth2/FTW to coherent snapshot; delivery/placement modeled: PASS
+Actual client/snapshot/image-time-policy/Security2 join; delivery modeled: PASS
+Aborted
+Verified RFC3161 signature binding and atomic UTC time: PASS
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Real Auth2/FTW to coherent snapshot; delivery/placement modeled: PASS
+Actual client/snapshot/image-time-policy/Security2 join; delivery modeled: PASS
+Aborted
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/tests/fixtures/timestamp.cnf
+Warning: certificate from '/home/sean/tmp.lDPmG4boQj/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Real Auth2/FTW to coherent snapshot; delivery/placement modeled: PASS
+Actual client/snapshot/image-time-policy/Security2 join; delivery modeled: PASS
+Aborted
+Verified RFC3161 signature binding and atomic UTC time: PASS
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Real Auth2/FTW to coherent snapshot; delivery/placement modeled: PASS
+Actual client/snapshot/image-time-policy/Security2 join; delivery modeled: PASS
+Aborted
+Real Auth2/coherent snapshot/private client/Security2 policy join: PASS (modeled delivery)

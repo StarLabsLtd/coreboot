@@ -11,6 +11,7 @@ f00b5c996e362eabee3d32cf438d1f76ed971d088a37349bb868ac06dbadb81e  .site-local/va
 48276f97b54dc8bd64e32ea30d5c67d5d4784b0751dbee5e68b0264ca2c070eb  .site-local/validation/20261001/router-namespace-harness/cdk2-router-6e-full-harness-selftest-pcd-fix.log
 8ad074fc8996ff4ad0dd39e890a08056376496a363e2cae059af9fd720ef53fa  .site-local/validation/20261001/router-namespace-harness/cdk2-router-6e-full-harness-selftest.log
 b67e48103984e7c35a81e14d66041ee62c2ba5f99b34817c0e93a655de1db8dd  .site-local/validation/20261001/router-namespace-harness/cdk2-router-namespace-root-whole-739.log
+973d17572f3deed71c599a66ce94a0c31076023deba8b6f81b4d483ea9baf52c  .site-local/validation/20261001/router-namespace-harness/cdk2-router-scoped-genuine-join-ac3-root.log
 6f664e6a63b2717cd791a6b4b96ab6c08631a7de4b6551357731c1164491ba0c  .site-local/validation/20261001/router-namespace-harness/ready455-456.patch.gz
 6eb3a4fcb4f44f68ccc1ccaf9ec607c054ff16c43e689b88d0f8dd70e88d19ff  .site-local/validation/20261001/router-namespace-harness/root-component-config.h
 8a70dc70dc9cb75849aa1bd9cc15fa472a22a1a9d131a011b38a290130cdba46  .site-local/validation/20261001/router-namespace-harness/root-whole.config
