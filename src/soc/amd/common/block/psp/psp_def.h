@@ -37,6 +37,7 @@
 #define MBOX_BIOS_CMD_QUERY_SPL_FUSE		0x47
 #define MBOX_BIOS_CMD_ARMOR_ENTER_SMM_MODE	0x50
 #define MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION	0x51
+#define MBOX_BIOS_CMD_SET_CONFIG			0x5d
 #define MBOX_BIOS_CMD_I2C_TPM_ARBITRATION	0x64
 #define MBOX_BIOS_CMD_ABORT			0xfe
 
@@ -68,6 +69,12 @@ struct mbox_buffer_header {
 
 struct mbox_default_buffer {	/* command-response buffer unused by command */
 	struct mbox_buffer_header header;
+} __packed __aligned(32);
+
+struct mbox_cmd_set_config_buffer {
+	struct mbox_buffer_header header;
+	uint32_t config_id;
+	uint32_t args[4];
 } __packed __aligned(32);
 
 struct smm_req_buffer {
@@ -224,6 +231,8 @@ enum cb_err psp_get_ftpm_capabilties(uint32_t *capabilities);
 enum cb_err psp_get_psp_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_hsti_state(uint32_t *state);
 enum cb_err soc_read_c2p38(uint32_t *msg_38_value);
+enum cb_err psp_send_generic_command(uint32_t command);
+enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4]);
 
 void enable_psp_smi(void);
 
