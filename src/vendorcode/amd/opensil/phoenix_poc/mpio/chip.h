@@ -54,6 +54,18 @@ enum pcie_aspm {
 	L0sL1,
 };
 
+/* Sync with MPIO_PP_CLKREQ. */
+enum pcie_clk_req {
+	CLK_DISABLE = 0,
+	CLK_REQ0,
+	CLK_REQ1,
+	CLK_REQ2,
+	CLK_REQ3,
+	CLK_REQ4,
+	CLK_REQ5,
+	CLK_REQ6,
+};
+
 struct drivers_amd_opensil_mpio_config {
 	enum mpio_type type;
 	uint8_t start_lane;
@@ -66,6 +78,7 @@ struct drivers_amd_opensil_mpio_config {
 	uint8_t aspm_l1_2 : 1;
 	uint8_t clock_pm : 1;
 	uint8_t bmc : 1;
+	enum pcie_clk_req clk_req;
 };
 
 #endif /* OPENSIL_PHOENIX_POC_MPIO_CHIP_H */
