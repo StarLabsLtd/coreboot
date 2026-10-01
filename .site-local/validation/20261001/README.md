@@ -303,3 +303,40 @@ actual `coreboot-stage` invocation. This pair uses the compatibility variable
 owner and bounded Q35 topology, not protected-store activation or hardware.
 Relocated firmware-setup manifests retain original absolute pflash paths;
 do not rewrite those paths to manufacture a successful original-chain replay.
+
+## PR438 native suite and actual splash/setup captures
+
+Concatenate numbered parts of
+`qemu-reviewed-438-native-runtime-splash-setup.tar.gz` in order. Its SHA-256 is
+`8974dd696f8e19115f746bc5e77eca58269a7571f0fd90d179cb041825c84582`.
+Parts 00/01/02 respectively have SHA-256
+`d2a044d58410e8800991c0fe7df228c1faf0d045acd3072e45cce72e25de1853`,
+`343a23bc62ac079a8b47e72679fb58acf70716dcd2b8e93027348b57542441ea`,
+and `d40b2dd67567bf4cab59084bab2093652ee175ecae083ebb354c28d23630298a`.
+All retained files are covered by the enclosed checksum manifest; TPM state,
+sockets and process IDs are excluded.
+
+At signed CDK2 PR438 `f897871873403dc848b8250bf84339f3059c1d13`, the whole
+native suite records managed-service success, exit zero and no remaining PID.
+It continues the PR434-origin build directory, not another clean native build.
+The actual `native-coreboot-image` packaging target also passes. The preceding
+nonexistent `package` alias invocation is preserved as a preexecution refusal,
+not a firmware failure or successful packaging result. Configuration/header
+digests remain the PR435 values; the new native image is
+`4b4ca6ba7c32870f22457361e701aaab2d0c3be9c48c19384772e5abd7ed02f3`.
+
+The separate fresh setup-profile link was built from reviewed WIP `3efabc5b5d`,
+whose entire Git tree exactly equals the signed PR438 tree
+`cfcf12dd4fa24139e44b87c60403115c158f1a03`. Pairing uses the clean signed
+head and unchanged coreboot PR340. Setup configuration is `b01cc23d5abc7a07b1daae14cb758a381b4c6a4ec39d9551619eb3cb5d14eaeb`;
+its ELF is `57578467d994bc215b94461cfbd556a5949f42a968cbc9dbdb80101da2ada0e2`.
+Both actual configuration/header/ELF sets are retained.
+
+The paired ROM is `17069f762d27a3b853e66f1fbf9d0188f36b4ea3b62998c2068d902b250abbde`.
+Actual QEMU runtime, F2/navigation/Escape and persisted firmware-setup runs
+pass independently. Root and peer visually inspect a genuine Starting-OS
+capture with the entire wordmark and readable text in its own below-logo strip.
+The separate boot-policy capture has no text: source control flow prematurely
+clears it before the hotkey wait. Both captures are retained; this is not final
+waiting-splash sign-off. The compatibility variable owner and bounded Q35
+topology remain explicit, with no protected-owner or hardware activation claim.
