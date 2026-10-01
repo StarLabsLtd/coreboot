@@ -69,6 +69,42 @@ run_test sanitized-O2 "$source" -O2 -g -fno-omit-frame-pointer \
 test_source=$default_test_source
 run_test default-inert-O0 "$source" -O0
 run_test default-inert-O2 "$source" -O2
+test_source="$root/tests/lib/payload_mm_authvar_service_publication_test.c"
+for optimization in 0 2; do
+	for weak_default in 0 1; do
+		weak_flag=
+		if test "$weak_default" -eq 1; then
+			weak_flag=-DTEST_WEAK_SERVICE_DEFAULT
+		fi
+		run_test "service-only-O$optimization-weak$weak_default" "$source" \
+			-O"$optimization" -g -fno-omit-frame-pointer \
+			-fsanitize=address,undefined -fno-sanitize-recover=all \
+			-DCONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY=1 \
+			-DCONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER=1 \
+			-DCONFIG_SMM_INVOCATION_RUNTIME_BINDING=1 $weak_flag
+	done
+done
+sed 's/!platform_payload_mm_authvar_service_published(header, table_end)/false/' \
+	"$source" > "$temporary/no-service-completion.c"
+test "$(grep -c '!platform_payload_mm_authvar_service_published(header, table_end)' \
+	"$source")" -eq 1
+! grep -q '!platform_payload_mm_authvar_service_published(header, table_end)' \
+	"$temporary/no-service-completion.c"
+for optimization in 0 2; do
+	name="no-service-completion-O$optimization"
+	build_test "$name" "$temporary/no-service-completion.c" \
+		-O"$optimization" -fsanitize=address,undefined \
+		-fno-sanitize-recover=all \
+		-DCONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY=1 \
+		-DCONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER=1 \
+		-DCONFIG_SMM_INVOCATION_RUNTIME_BINDING=1
+	status=0
+	"$temporary/$name" >/dev/null 2>&1 || status=$?
+	if test "$status" -ne 134; then
+		echo "service completion mutant did not assert: status $status" >&2
+		exit 1
+	fi
+done
 test_source="$root/tests/lib/payload_mm_authvar_presence_publication_test.c"
 
 mutation()

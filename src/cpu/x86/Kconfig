@@ -96,7 +96,7 @@ config SMM_INVOCATION_TUPLE_TRIGGER
 	default n
 	depends on ARCH_RAMSTAGE_X86_32
 	depends on HAVE_SMI_HANDLER
-	depends on SMM_INVOCATION_INTEL_ADAPTER_ROUTE
+	depends on SMM_INVOCATION_INTEL_ADAPTER_ROUTE || Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 	help
 	  Compile the dormant i386 ramstage trigger for the private invocation
 	  transport. It sends and receives one logical 64-bit value through
