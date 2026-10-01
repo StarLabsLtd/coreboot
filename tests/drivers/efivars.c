@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <drivers/efi/efivars.h>
+#include <vendorcode/intel/edk2/UDK2017/MdePkg/Include/Uefi/UefiMultiPhase.h>
 #include <vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/PiFirmwareVolume.h>
 #include <vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/Guid/VariableFormat.h>
 #include <string.h>
@@ -10,6 +11,9 @@
 /* Dummy firmware volume header for a 0x30000 byte partition with a single entry
  * in a formatted variable store.
  */
+/* HeaderLength (0x48) followed by the variable store header. */
+#define VARIABLE_OFFSET (0x48 + sizeof(VARIABLE_STORE_HEADER))
+
 static const uint8_t FVH[] = {
 	/* EFI_FIRMWARE_VOLUME_HEADER */
 	/* UINT8 ZeroVector[16] */
@@ -60,7 +64,7 @@ static const uint8_t FVH[] = {
 	/* UINT8 Reserved */
 	0xff,
 	/* UINT32 Attributes */
-	0x07, 0x00, 0x00, 0x00,
+	0x03, 0x00, 0x00, 0x00,
 	/* UINT64 MonotonicCount */
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	/* EFI_TIME TimeStamp */
@@ -154,7 +158,7 @@ static void efi_test_noop_existing_write(void **state)
 		assert_int_equal(flash_buffer[i], 0xff);
 }
 
-static void efi_test_new_write(void **state)
+static void efi_test_replace_preserves_access_attributes(void **state)
 {
 	enum cb_err ret;
 	uint8_t buf[16];
@@ -167,9 +171,10 @@ static void efi_test_new_write(void **state)
 				name, "is awesome", strlen("is awesome") + 1);
 	assert_int_equal(ret, CB_SUCCESS);
 
-	/* New variable has been written */
+	/* Replacement preserves the existing NV | BS attributes. */
 	assert_int_equal(flash_buffer[ALIGN_UP(sizeof(FVH), 4)], 0xaa);
 	assert_int_equal(flash_buffer[ALIGN_UP(sizeof(FVH), 4) + 1], 0x55);
+	assert_int_equal(flash_buffer[ALIGN_UP(sizeof(FVH), 4) + 4], 0x03);
 
 	/* Remaining space is blank */
 	for (i = ALIGN_UP(sizeof(FVH), 4) + 89; i < sizeof(flash_buffer); i++)
@@ -188,12 +193,87 @@ static void efi_test_new_write(void **state)
 	assert_string_equal((const char *)buf, "is awesome");
 }
 
+static void efi_test_rejects_special_attributes(void **state)
+{
+	const uint32_t special[] = {
+		EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS,
+		EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS,
+		EFI_VARIABLE_HARDWARE_ERROR_RECORD,
+	};
+	uint8_t before[sizeof(flash_buffer)];
+
+	for (size_t i = 0; i < ARRAY_SIZE(special); i++) {
+		mock_rdev(true);
+		uint32_t attributes = VARIABLE_ATTRIBUTE_NV_BS_RT | special[i];
+		memcpy(flash_buffer + VARIABLE_OFFSET + offsetof(AUTHENTICATED_VARIABLE_HEADER,
+			Attributes), &attributes, sizeof(attributes));
+		memcpy(before, flash_buffer, sizeof(before));
+
+		assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+			name, "is awesome", strlen("is awesome") + 1), CB_ERR_NOT_IMPLEMENTED);
+		assert_memory_equal(before, flash_buffer, sizeof(before));
+		assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+			name, "is great", strlen("is great") + 1), CB_ERR_NOT_IMPLEMENTED);
+		assert_memory_equal(before, flash_buffer, sizeof(before));
+	}
+}
+
+static void efi_test_repairs_invalid_access_attributes(void **state)
+{
+	char *const values[] = { "is great", "is awesome" };
+
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		for (uint32_t attributes = 0; attributes <= VARIABLE_ATTRIBUTE_NV_BS_RT;
+		     attributes++) {
+			mock_rdev(true);
+			memcpy(flash_buffer + VARIABLE_OFFSET +
+			       offsetof(AUTHENTICATED_VARIABLE_HEADER, Attributes),
+			       &attributes, sizeof(attributes));
+
+			assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+				name, values[i], strlen(values[i]) + 1), CB_SUCCESS);
+			const uint32_t expected = attributes == VARIABLE_ATTRIBUTE_NV_BS ?
+				attributes : VARIABLE_ATTRIBUTE_NV_BS_RT;
+			const bool unchanged = i == 0 && attributes == expected;
+			const size_t offset = unchanged ? VARIABLE_OFFSET :
+				ALIGN_UP(sizeof(FVH), 4);
+			uint32_t actual;
+			memcpy(&actual, flash_buffer + offset +
+			       offsetof(AUTHENTICATED_VARIABLE_HEADER, Attributes), sizeof(actual));
+			assert_int_equal(actual, expected);
+			assert_int_equal(flash_buffer[VARIABLE_OFFSET +
+				offsetof(AUTHENTICATED_VARIABLE_HEADER, State)],
+				unchanged ? VAR_ADDED : VAR_DELETED);
+		}
+	}
+}
+
+static void efi_test_new_write_uses_default_attributes(void **state)
+{
+	enum cb_err ret;
+	size_t offset = ALIGN_UP(sizeof(FVH), 4);
+
+	mock_rdev(true);
+
+	ret = efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+				"new", "is awesome", strlen("is awesome") + 1);
+	assert_int_equal(ret, CB_SUCCESS);
+
+	/* A new variable keeps the default NV | BS | RT attributes. */
+	assert_int_equal(flash_buffer[offset], 0xaa);
+	assert_int_equal(flash_buffer[offset + 1], 0x55);
+	assert_int_equal(flash_buffer[offset + 4], 0x07);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(efi_test_header),
 		cmocka_unit_test(efi_test_noop_existing_write),
-		cmocka_unit_test(efi_test_new_write)
+		cmocka_unit_test(efi_test_replace_preserves_access_attributes),
+		cmocka_unit_test(efi_test_rejects_special_attributes),
+		cmocka_unit_test(efi_test_repairs_invalid_access_attributes),
+		cmocka_unit_test(efi_test_new_write_uses_default_attributes)
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
