@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_presence_arm.h>
-#include "bootmem_reservation_receipt_internal.h"
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+#include <boot/payload_mm_authvar_smm_bootstrap.h>
+#endif
 #include <cpu/x86/apm.h>
 #include <cpu/x86/smm_command.h>
 #include <string.h>
+
+#include "bootmem_reservation_receipt_internal.h"
 
 #if !ENV_SMM && !ENV_TEST
 #error "Authenticated-variable presence arm is SMM-only"
@@ -1006,13 +1010,39 @@ poison:
 }
 #endif
 
-enum cb_err payload_mm_authvar_presence_arm_provision(
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+static bool bootstrap_claim_valid(struct payload_mm_authvar_presence_arm *arm,
+	const struct smm_invocation_evidence *evidence,
+	payload_mm_authvar_protected_storage protected_storage, void *context)
+{
+	struct payload_mm_authvar_presence_arm before;
+	struct smm_invocation_token token;
+	bool valid;
+
+	if (evidence->loader_lifecycle != SMM_INVOCATION_LOADER_NON_S3_LOAD ||
+	    smm_invocation_evidence_claimed_snapshot(evidence,
+		SMM_APMC_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE, evidence->sentinel,
+		&token) != CB_SUCCESS || token.bsp != 1U ||
+	    token.initiator_cpu != evidence->bsp_cpu ||
+	    !protected_range_bootstrap(arm, protected_storage, context,
+			(const void *)(uintptr_t)platform_payload_mm_authvar_service_bootstrap_admitted,
+			1U))
+		return false;
+	before = *arm;
+	valid = platform_payload_mm_authvar_service_bootstrap_admitted();
+	valid = valid && !memcmp(&before, arm, sizeof(before));
+	scrub(&before, sizeof(before));
+	return valid;
+}
+#endif
+
+static enum cb_err arm_provision(
 	struct payload_mm_authvar_presence_arm *arm,
 	const struct smm_invocation_loader_composition *composition,
 	const struct smm_invocation_loader_instance *instance,
 	const struct smm_invocation_evidence *evidence,
 	payload_mm_authvar_protected_storage protected_storage,
-	void *protected_storage_context)
+	void *protected_storage_context, bool bootstrap)
 {
 	struct smm_invocation_loader_composition composition_snapshot;
 	struct smm_invocation_loader_instance instance_input_snapshot;
@@ -1093,14 +1123,22 @@ enum cb_err payload_mm_authvar_presence_arm_provision(
 	    evidence->active_cpus == 0U ||
 	    evidence->active_cpus > SMM_INVOCATION_EVIDENCE_MAX_CPUS ||
 	    evidence->bsp_cpu >= evidence->active_cpus ||
-	    __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) !=
-		SMM_INVOCATION_READY ||
+	    (bootstrap && CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED) ?
+	     smm_invocation_evidence_phase(evidence) != SMM_INVOCATION_CLAIMED :
+	     __atomic_load_n(&evidence->state, __ATOMIC_ACQUIRE) != SMM_INVOCATION_READY) ||
 	    !smm_invocation_loader_instance_nonce_equal(
 		evidence->loader_instance_nonce, snapshot.loader_instance_nonce) ||
 	    evidence->loader_lifecycle != snapshot.lifecycle ||
 	    !loader_inputs_unchanged(composition, &composition_snapshot,
 		instance, &instance_input_snapshot, evidence, &evidence_snapshot))
 		goto fail;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (bootstrap &&
+	    (!bootstrap_claim_valid(arm, evidence, protected_storage, protected_storage_context) ||
+	     !loader_inputs_unchanged(composition, &composition_snapshot,
+		instance, &instance_input_snapshot, evidence, &evidence_snapshot)))
+		goto fail;
+#endif
 	arm->instance_snapshot = snapshot;
 	arm->sealed_instance_snapshot = snapshot;
 	arm->active_cpus = evidence->active_cpus;
@@ -1108,6 +1146,13 @@ enum cb_err payload_mm_authvar_presence_arm_provision(
 	arm->callback_context.arm = arm;
 	arm->callback_context.identity = (uintptr_t)arm;
 	arm->sealed_callback_context = arm->callback_context;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+	if (bootstrap &&
+	    (!bootstrap_claim_valid(arm, evidence, protected_storage, protected_storage_context) ||
+	     !loader_inputs_unchanged(composition, &composition_snapshot,
+		instance, &instance_input_snapshot, evidence, &evidence_snapshot)))
+		goto fail;
+#endif
 	expected = PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PROVISIONING;
 	if (!__atomic_compare_exchange_n(&arm->state, &expected,
 		PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_LOADER_READY, false,
@@ -1127,6 +1172,32 @@ fail:
 		__ATOMIC_RELEASE);
 	return CB_ERR;
 }
+
+enum cb_err payload_mm_authvar_presence_arm_provision(
+	struct payload_mm_authvar_presence_arm *arm,
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context)
+{
+	return arm_provision(arm, composition, instance, evidence,
+		protected_storage, protected_storage_context, false);
+}
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
+enum cb_err payload_mm_authvar_presence_arm_bootstrap_provision(
+	struct payload_mm_authvar_presence_arm *arm,
+	const struct smm_invocation_loader_composition *composition,
+	const struct smm_invocation_loader_instance *instance,
+	const struct smm_invocation_evidence *evidence,
+	payload_mm_authvar_protected_storage protected_storage,
+	void *protected_storage_context)
+{
+	return arm_provision(arm, composition, instance, evidence,
+		protected_storage, protected_storage_context, true);
+}
+#endif
 
 struct input_range {
 	const void *base;

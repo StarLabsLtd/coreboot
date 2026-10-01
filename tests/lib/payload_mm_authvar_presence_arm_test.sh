@@ -138,16 +138,25 @@ kconfig_default_n()
 
 kconfig_default_n PAYLOAD_MM_AUTHVAR_PRESENCE_ARM_PLATFORM
 kconfig_default_n PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
-if grep -R -Eq 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_ARM(_PLATFORM)?' \
-	"$root/src"; then
-	printf '%s\n' 'presence arm gained a production selector' >&2
+if rg -l 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_ARM(_PLATFORM)?' \
+	"$root/src" | grep -Fxv "$root/src/mainboard/starlabs/starbook/Kconfig"; then
+	printf '%s\n' 'presence arm gained a selector outside its sole platform owner' >&2
 	exit 1
 fi
-if rg -q 'payload_mm_authvar_presence_arm_provision' \
+awk '
+	$1 == "config" { owner = $2 == "STARLABS_STARBOOK_MTL_AUTHVAR_PRESENCE_ROUTE_COMPOSITION_OWNER" }
+	$1 == "select" && $2 ~ /^PAYLOAD_MM_AUTHVAR_PRESENCE_ARM(_PLATFORM)?$/ {
+		if (!owner) exit 1;
+		selectors++;
+	}
+	END { if (selectors != 2) exit 1; }
+' "$root/src/mainboard/starlabs/starbook/Kconfig"
+if rg -q 'payload_mm_authvar_presence_arm(_bootstrap)?_provision' \
 	"$root/src" \
 	-g '!src/include/boot/payload_mm_authvar_presence_arm.h' \
-	-g '!src/lib/payload_mm_authvar_presence_arm.c'; then
-	printf '%s\n' 'presence arm gained a production callsite' >&2
+	-g '!src/lib/payload_mm_authvar_presence_arm.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_route_composition.c'; then
+	printf '%s\n' 'presence arm provisioning escaped its sole platform factory' >&2
 	exit 1
 fi
 if rg -q 'payload_mm_authvar_presence_arm_transaction_provision' \
@@ -160,8 +169,9 @@ if rg -q 'payload_mm_authvar_presence_arm_transaction_provision' \
 fi
 if rg -q 'platform_payload_mm_authvar_presence_arm\(' "$root/src" \
 	-g '!src/include/boot/payload_mm_authvar_presence_arm.h' \
-	-g '!src/lib/payload_mm_authvar_presence_arm.c'; then
-	printf '%s\n' 'presence arm gained a production platform provider' >&2
+	-g '!src/lib/payload_mm_authvar_presence_arm.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_route_composition.c'; then
+	printf '%s\n' 'presence arm gained a second platform provider' >&2
 	exit 1
 fi
 if rg -q 'presence_arm_receipt|presence_arm_.*ready\(' \
@@ -171,4 +181,5 @@ if rg -q 'presence_arm_receipt|presence_arm_.*ready\(' \
 	exit 1
 fi
 
+"$root/tests/mainboard/starlabs/starbook_mtl_authvar_arm_factory_test.sh"
 printf '%s\n' 'presence publication-bound arm O0/O2/sanitizers/TSan/i686: PASS'
