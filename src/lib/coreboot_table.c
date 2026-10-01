@@ -94,6 +94,22 @@ struct lb_record *lb_new_record(struct lb_header *header)
 	return rec;
 }
 
+void lb_add_payload_boot_private_buffer(struct lb_header *header, uint64_t base)
+{
+	const struct lb_payload_boot_private_buffer buffer = {
+		.tag = LB_TAG_PAYLOAD_BOOT_PRIVATE_BUFFER,
+		.size = sizeof(buffer),
+		.revision = LB_PAYLOAD_BOOT_PRIVATE_BUFFER_REVISION,
+		.header_size = sizeof(buffer),
+		.slot_size = LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_SIZE,
+		.physical_base = base,
+		.bytes = LB_PAYLOAD_BOOT_PRIVATE_BUFFER_BYTES,
+		.slot_count = LB_PAYLOAD_BOOT_PRIVATE_BUFFER_SLOT_COUNT,
+	};
+
+	memcpy(lb_new_record(header), &buffer, sizeof(buffer));
+}
+
 static struct lb_memory *lb_memory(struct lb_header *header)
 {
 	struct lb_record *rec;

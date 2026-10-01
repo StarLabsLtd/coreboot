@@ -87,6 +87,20 @@ static int setup_test_header(void **state)
 	return 0;
 }
 
+static void test_boot_private_record(void **state)
+{
+	static const uint8_t wire[40] = {
+		0x58, 0, 0, 0, 40, 0, 0, 0, 1, 0, 40, 0, 0, 0, 1, 0,
+		0, 0, 0, 0x12, 1, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	};
+	struct lb_header *header = *state;
+
+	lb_add_payload_boot_private_buffer(header, 0x112000000ULL);
+	assert_int_equal(header->table_entries, 1);
+	assert_memory_equal(lb_first_record(header), wire, sizeof(wire));
+}
+
 static bool presence_required;
 static unsigned int presence_reserve_calls;
 static unsigned int presence_compose_calls;
@@ -644,6 +658,7 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_lb_add_gpios),
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
+		cmocka_unit_test_setup(test_boot_private_record, setup_test_header),
 		cmocka_unit_test_setup(test_presence_publication_record,
 					setup_test_header),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),

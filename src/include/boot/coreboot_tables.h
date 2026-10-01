@@ -75,6 +75,9 @@ void lb_table_add_serialno_from_vpd(struct lb_header *header);
 
 struct lb_record *lb_new_record(struct lb_header *header);
 
+/* Describe an admitted reserved span; this record does not establish protection. */
+void lb_add_payload_boot_private_buffer(struct lb_header *header, uint64_t base);
+
 /* Add VBOOT VBNV offsets. */
 void lb_table_add_vbnv_cmos(struct lb_header *header);
 
