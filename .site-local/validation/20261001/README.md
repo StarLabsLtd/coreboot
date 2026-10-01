@@ -372,3 +372,41 @@ do not rewrite them to manufacture an original-chain replay.
 This is compatibility-variable-provider, bounded-topology QEMU evidence,
 not a complete whole-suite receipt at PR440, delegated coreboot splash owner,
 protected-store activation or hardware sign-off.
+
+## Genuine coreboot PR346/CDK2 PR440 splash composition
+
+Concatenate numbered parts of `qemu-reviewed-346-440-coreboot-splash.tar.gz`.
+Its SHA-256 is `9f3d313291ba097a36c903adcc07945c41079962d3838642e3ed69fdb1aa09b7`;
+parts 00/01/02 respectively are
+`01a17f7b78103936edd65b32add34b1d468320002b20e1e6216da9f4410523a0`,
+`465f6f51a0aeddd95815dee529b29ca05b046c95e497953fbffa0b803b2e8c9e`,
+and `9aa8448bf6ecd75f4eb72e73b27df2958914e0406d508fecb9a89a49b7bb4f29`.
+The checksum manifest covers the retained files; TPM state, sockets and process
+IDs are excluded. Original-path identity qualifications remain unchanged.
+
+The actual coreboot build at signed `199d045ebe93f973c89eb854a6a406b608f6ce73`
+selects BMP_LOGO and USE_COREBOOT_FOR_BMP_RENDERING with a real linear
+framebuffer. Its config is `d6008d778842c4040b2e8c1a72f65cd59002c0c46fc906888473e02991b8469a`.
+The unmodified configured StarLabs BMP is
+`a05b76f687b176e39376a5fe2e1955cf6f5cd36435b9ef20ab66bb28d5f3909a`.
+The managed build finishes with success, exit zero and no remaining process;
+actual ramstage ELF, build log and bitmap are retained. Its committed baseline
+CDK2 gitlink remains PR433, not PR440. The genuine compiled producer ROM is
+subsequently paired through the normal strict tool with the separately fresh
+PR440 36-record native setup payload documented above. The final paired ROM is
+`c7c14c3d92632e054b06750a5d577facc00f156c690956f4e2d48f64cbaa467a`.
+
+Actual UART records the retained BOOT SPLASH allocation, successful splash
+adoption, status rendering and BGRT publication. Linux detects the BGRT table.
+Actual runtime, F2/navigation/Escape continuation and the persisted BootToFwUI
+request/presentation pass independently. Root and peer visually inspect the
+configured blue StarLabs logo and readable Selecting-device caption below it.
+The 234-by-234 logo crop at (283,183) matches the decoded configured BMP byte
+for byte both before setup and after returning from setup; reference and actual
+RGB files are retained. This is the genuine coreboot producer/native consumer,
+not a host-synthetic DISPLAYED flag or another logo draw owner.
+
+This validates the selected Q35 owner composition, not platform-wide early-DMA
+activation, protected variable ownership, the complete final loader/capsule
+matrix, or hardware. Linux table detection does not assert every BGRT field or
+OS presentation behavior; those remain separate validation requirements.
