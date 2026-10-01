@@ -502,3 +502,47 @@ An independent fresh extraction verifies all 476 retained-file checksums,
 exclusions and the exact recorded graph. This SMM-only link does not prove first native-entry origin, resumed
 CPU copy lifetime, terminal loader/EBS/S3 closure, public variable activation,
 hardware placement, a whole-ROM or final project sign-off.
+
+## Committed coreboot PR349/CDK2 PR445 composition
+
+Concatenate `qemu-reviewed-349-445.tar.gz.part-aa`, `part-ab` and `part-ac`.
+Archive SHA-256 is
+`3f136425dbf9facb34f73bafdddac7858920ad815ea3ab0eea00c25219627cde`.
+Part hashes in that order are
+`f419df288e5915b767619801c2fa0e8cef8f2c7fe029c8ccea7ce286e30f8225`,
+`b28972025107e5793624d64304a2d304bcec595f748944f4731211e37a83e55b`,
+and `9623605bde3f4a81b8be7edac9f2b18f5df36e2760c6d0e46dca968a317e1bba`.
+Checksums cover every retained file; TPM state, sockets and PIDs are excluded.
+
+The sole reviewed gitlink change at signed
+`4dd7974f5a5ec4a6e849cb76f0f81d1212645148`, directly after PR348, selects
+CDK2 PR445 `9291e98a5fe6e9b18462fe5f412541f8c32abf63`. The actual committed-head
+producer build succeeds, its managed unit is inactive with MainPID zero and
+successful exit, and its 33-record native payload passes composition/layout
+gates. The native build directory continues existing outputs; this is not
+claimed as another fresh complete native suite. Config and native ELF hashes
+are the PR445 compatibility-profile identities documented above.
+Producer coreboot config is
+`d6008d778842c4040b2e8c1a72f65cd59002c0c46fc906888473e02991b8469a`;
+committed default ROM is
+`23c88b74427aca8445e8622f9cb9921b3cc2f2accf45396c968ba7d52fb738d4`.
+Its actual QEMU runtime-services assertion passes Linux, variables, bounded
+DMA denial, console replay and shutdown.
+
+The same producer is separately paired through the strict normal tool with
+the explicit fresh 36-record PR445 setup profile, retaining its native ELF
+and config identities already documented. The paired ROM is
+`4ec8606b65ca1a8009bd0e74139af65ee6319cca4691c08ea63c164a4537ca40`.
+Actual F2/navigation/Escape/Linux continuation and the two-boot firmware-setup
+request/presentation gates pass. This paired setup image is not described as
+the committed default payload composition. An initial dirty-tree pair refusal
+and preceding staged-index prototype are excluded as exact final-head proof.
+
+An independent reviewer replays all three original-path runtime/setup oracles,
+inspects initial/navigated/restored captures and verifies all 79 retained-file
+checksums in a fresh extraction. The extracted runtime oracle passes; the
+relocated firmware-setup chain retains its absolute fixture identity refusal.
+No manifest is rewritten to convert that refusal into a pass.
+These are compatibility-provider,
+bounded-topology Q35 results, not protected-owner activation, hardware or final
+project sign-off.
