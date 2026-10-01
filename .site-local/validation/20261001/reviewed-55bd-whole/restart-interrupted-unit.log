@@ -1,0 +1,4 @@
+Oct 01 22:16:28 sean-Byte systemd[1290]: Started cdk2-root-whole-55bd.service - [systemd-run] /usr/bin/bash -o pipefail -c "export PATH=/home/sean/.local/bin:/home/sean/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/home/sean; ulimit -s 65536; make -k -j4 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=build/protected-variable-root-whole-e468 check native-stage 2>&1 | tee /tmp/cdk2-reviewed-55bd-root-whole.log".
+Oct 01 22:27:06 sean-Byte systemd[1290]: cdk2-root-whole-55bd.service: Main process exited, code=exited, status=141/n/a
+Oct 01 22:27:06 sean-Byte systemd[1290]: cdk2-root-whole-55bd.service: Failed with result 'exit-code'.
+Oct 01 22:27:06 sean-Byte systemd[1290]: cdk2-root-whole-55bd.service: Consumed 41min 8.524s CPU time, 649.5M memory peak.

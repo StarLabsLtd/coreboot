@@ -1,0 +1,2 @@
+Oct 01 22:38:37 sean-Byte systemd[1290]: Started cdk2-root-selected-whole-55bd.service - [systemd-run] /usr/bin/bash -o pipefail -c "export PATH=/home/sean/.local/bin:/home/sean/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/home/sean; ulimit -s 65536; make -k -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=build/qemu-owned-style-root-694/cdk2 check native-stage > /tmp/cdk2-reviewed-55bd-root-selected-whole.log 2>&1".
+Oct 01 22:58:05 sean-Byte systemd[1290]: cdk2-root-selected-whole-55bd.service: Consumed 39min 10.832s CPU time, 953.9M memory peak.
