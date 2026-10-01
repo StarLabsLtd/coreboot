@@ -512,7 +512,8 @@ Part hashes in that order are
 `f419df288e5915b767619801c2fa0e8cef8f2c7fe029c8ccea7ce286e30f8225`,
 `b28972025107e5793624d64304a2d304bcec595f748944f4731211e37a83e55b`,
 and `9623605bde3f4a81b8be7edac9f2b18f5df36e2760c6d0e46dca968a317e1bba`.
-Checksums cover every retained file; TPM state, sockets and PIDs are excluded.
+Checksums cover every retained evidence file except the checksum manifest
+itself; TPM state, sockets and PIDs are excluded.
 
 The sole reviewed gitlink change at signed
 `4dd7974f5a5ec4a6e849cb76f0f81d1212645148`, directly after PR348, selects
@@ -546,3 +547,41 @@ No manifest is rewritten to convert that refusal into a pass.
 These are compatibility-provider,
 bounded-topology Q35 results, not protected-owner activation, hardware or final
 project sign-off.
+
+## Actual Linux BGRT table/image receipt
+
+Concatenate `qemu-bgrt-346-445.tar.gz.part-aa` and `part-ab`. Archive SHA-256 is
+`30859ae9d7482c1a176303e7b219dd34b0f49c0eb58d6166ee4e619e84c288c0`;
+part hashes respectively are
+`f0fe696adb6e6055807d052d5042135c23580d3abc5d9f0fb53ad8d1016016cd`
+and `268267f12d25f41d9efd4015c6760afba6440280e23a3fe0742473695f65b156`.
+Root verifies all 35 evidence-file checksums in a fresh extraction and checks
+that TPM state, sockets, PIDs and private signing material are absent.
+
+The test tools are the exact seven source files from signed CDK2 PR447
+`80870fb2d5edeea4a97c3425d06835a71e9f3a39`, directly after PR446. The actual
+firmware tested remains the earlier genuine coreboot PR346/CDK2 PR445 paired
+ROM `d5e9f46d5f0c32de884fe00228d511ecc8ff5a1bd19d2f27c97e25585abc806d`.
+This is not falsely relabeled as a PR447 firmware boot. The explicitly selected
+Linux guest captures the real read-only BGRT sysfs table and image; default
+fixtures are unchanged. Exact pinned kernel, busybox, cbmem and EFI-stub inputs,
+opted-in UKI, derived NVMe disk, source-bound manifests and raw run are retained.
+
+Root and independent peer execute the original-path actual oracle and causal
+scratch-copy provenance/refusal suites. The 56-byte table has SHA-256
+`67ebc6061178ae3c60f057ed856a7ecec2e6e9535bae866b417226346f9cda6b`.
+Its ACPI signature/length/revision/checksum and BGRT version 1, displayed
+status 1, BMP type 0, nonzero image address and (283,183) offsets validate;
+the actual sysfs scalar fields agree. The entire 164,790-byte image is byte
+identical to the configured BMP, SHA-256
+`a05b76f687b176e39376a5fe2e1955cf6f5cd36435b9ef20ab66bb28d5f3909a`.
+The oracle binds actual ROM and NVMe identities to the derived fixture and UKI
+source manifests. CRLF is normalized explicitly; misplaced, duplicated and
+reordered evidence, changed fields/checksum/image and changed provenance fail
+at their specific assertions. Synthetic tests are unit-only, not QEMU proofs.
+
+This closes actual BGRT field/image validation for the selected unrotated
+Q35 logo profile. It is not every platform/rotation, a new protected-owner
+activation, hardware, or final project sign-off. Absolute source/fixture
+identities are retained; do not rewrite archived manifests to manufacture
+an original-path replay from a relocated extraction.
