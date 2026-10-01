@@ -37,11 +37,15 @@ release-publish `POISONING`, so quiescent cleanup cannot overtake those writes.
 No `cb_err` wrapper guesses how to handle retry: every caller must either retry
 within its frozen bound or submit the exact one-use failure token before its
 non-returning reset.
-The requester invokes a frozen platform-supplied non-returning reset using a
-bounded platform poll budget: returning a CPU through RSM would let an
-incomplete rendezvous escape. The reset is the terminal action for a stalled
-owner; protected cleanup may be deferred to hardware reset and is not claimed
-to complete first.
+The requester invokes the strongly linked platform non-returning fail-stop
+action after exhausting the numeric poll budget frozen into the policy and
+ticket. The policy and ticket contain no callback, context, or pointer:
+returning a CPU through RSM would let an
+incomplete rendezvous escape. The action must attempt a platform-wide reset,
+then a platform-wide fallback reset or watchdog, and may terminally halt only
+as its final fallback; merely stopping the requesting CPU is insufficient.
+Protected cleanup may be deferred to hardware reset and is not claimed to
+complete first.
 A future callsite must retain the shared cause
 until all arrivals are recorded, let the registry-selected owner claim and
 complete or abort the evidence, release the global lock, record every
@@ -88,7 +92,8 @@ requires one atomic composition containing all of:
    cold/resume generation, with the previous instance closed and drained;
 3. registry dispatch owning the exact command and the evidence claim;
 4. one completion/abort owner which moves evidence to `CLOSING`;
-5. a platform SMM-safe non-returning reset for timeout or ambiguity.
+5. a selected platform capability with exactly one strongly linked SMM-safe
+   non-returning reset or terminal halt for timeout or ambiguity.
 
 Until that composition exists, the hidden platform capability has no selector
 and tests require the coordinator to have no production callsite.  Q35 may

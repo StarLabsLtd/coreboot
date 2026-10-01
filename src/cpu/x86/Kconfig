@@ -2,10 +2,21 @@
 
 if ARCH_X86
 
+config SMM_INVOCATION_FAIL_STOP_PLATFORM
+	bool
+	default n
+	depends on HAVE_SMI_HANDLER
+	help
+	  Internal capability supplied only by a platform with a strongly linked,
+	  non-returning SMM platform-wide reset, fallback reset or watchdog, and
+	  final terminal-halt implementation. Stopping only the calling CPU is not
+	  sufficient. No platform selects this capability yet.
+
 config SMM_INVOCATION_EVIDENCE
 	bool
 	default n
 	depends on HAVE_SMI_HANDLER
+	depends on SMM_INVOCATION_FAIL_STOP_PLATFORM
 	help
 	  Compile a dormant protected state machine for exact initiating-CPU and
 	  all-installed-SMM-participant evidence. No platform selects this and it
@@ -25,6 +36,7 @@ config SMM_INVOCATION_ENTRY
 	bool
 	default n
 	depends on SMM_INVOCATION_ENTRY_PLATFORM
+	depends on SMM_INVOCATION_FAIL_STOP_PLATFORM
 	help
 	  Compile the dormant pre-lock rendezvous instrumentation contract. This
 	  does not install a command, dispatch route or board selection.
