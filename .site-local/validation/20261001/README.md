@@ -190,3 +190,33 @@ production Secure Boot activation, new MTL lease proof or hardware validation.
 The separately retained PR434 setup log records a fresh three-boot run of that
 later consumer on the same coreboot PR340 base; its independently composed ROM
 is byte-identical to the PR433 setup ROM. The archive itself contains PR433 runs.
+
+## PR435 continuing native suite and paired-component receipts
+
+`cdk2-435-continuing-check-and-paired-receipts.tar.gz`, SHA-256
+`ff6c9b3f8ef9d73317a7804fdd44bdfe8bfb98ee266d7033c30f4716cbf01492`,
+preserves the root full native suite and packaging passes at CDK2 PR435
+`165157d5f3e8c7978bf6b60d669f7ebbb6e09b0d`. The build directory started
+fresh at PR434; that run failed in the nested review-profile diagnostic.
+PR435 fixes that test's inherited Make environment. Its continuing suite and
+package checks pass using the same directory, not a second clean build.
+The original failure and the focused root/independent-peer diagnostic passes
+are retained alongside the successful logs.
+
+The selected `.config` digest is
+`6942c16419bb25e1ce8e760bf383bc7ffbcbc9fcf80f77c55e6a968f5baffe24`;
+generated `config.h` is
+`995d60054d1f3c0f59c567e7e4bbd278079bc3954eeec483ed6c6ee21bf747b5`;
+the retained native coreboot-image ELF is
+`7b1cf403502c63cdd1c264c0a7b95cc4329073d486711f13b7274725ed065cf9`.
+All three actual files are included. These receipts do not record a new ROM,
+QEMU run or protected-owner activation.
+
+Additional root logs record PR436's private policy-copy primitive (including
+native32 and sanitizer cases), actual selected table import and real
+producer/client/Security2 join. The source reply is erased before the copied
+policy is consumed. Selected table-import sanitizer coverage is separately
+qualified in the PR, not claimed by this normal root importer run.
+PR343's actual loader and coupled all-CPU receiver gates are also retained.
+Their loader placement and held-lease callback modeling remain explicit;
+these are not hardware, resumed-CPU copy-coherence or public-runtime proofs.
