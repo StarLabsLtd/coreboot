@@ -41,6 +41,10 @@ enum cb_err smm_invocation_runtime_save_state_span(
 enum cb_err smm_invocation_runtime_range_is_protected(
 	const struct smm_invocation_runtime_view *view, const void *base,
 	size_t size);
+/* Checks that the complete private allocation lies within a caller-attested
+ * hardware extent. Does not attest hardware locks, mappings or object placement. */
+enum cb_err smm_invocation_runtime_geometry_is_contained(
+	const struct smm_invocation_runtime_view *view, uintptr_t base, size_t size);
 /* Returns only the checked loader-owned objects, never the raw SMM runtime. */
 #if CONFIG(SMM_INVOCATION_RUNTIME_BINDING)
 enum cb_err smm_invocation_runtime_binding_get(

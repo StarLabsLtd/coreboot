@@ -74,6 +74,7 @@ run_variant()
 			smm_invocation_runtime_cpu_count \
 			smm_invocation_runtime_save_state_span \
 			smm_invocation_runtime_range_is_protected \
+			smm_invocation_runtime_geometry_is_contained \
 			smm_invocation_runtime_binding_get; do
 			frame=$(awk -F '\t' -v function="$function" \
 				'$1 ~ function "$" { print $2 }' \
@@ -113,6 +114,12 @@ kill_mutant reserve \
 	's/RUNTIME_VIEW_RESERVED_SIZE/0U/g'
 kill_mutant range \
 	's/return runtime_range_valid(outer/return true || runtime_range_valid(outer/'
+kill_mutant hardware-containment \
+	's/!runtime_range_contains(base, size, snapshot.smram_base, snapshot.smram_size)/false/'
+kill_mutant hardware-direction \
+	's/runtime_range_contains(base, size, snapshot.smram_base, snapshot.smram_size)/runtime_range_contains(snapshot.smram_base, snapshot.smram_size, base, size)/'
+kill_mutant hardware-recheck \
+	'/RUNTIME_VIEW_TEST_HOOK(5);/,/^}/s/return runtime_geometry_unchanged/return true || runtime_geometry_unchanged/'
 kill_mutant overlap \
 	's/if (first <= second)/if (false \&\& first <= second)/'
 kill_mutant topology \
