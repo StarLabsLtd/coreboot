@@ -58,17 +58,17 @@ OPENSIL_CONFIG=opensil_config
 bios_base=$(shell printf "0x%x" $(call int-subtract, $(CONFIG_ROMSTAGE_ADDR) $(CONFIG_C_ENV_BOOTBLOCK_SIZE)))
 bios_size=$(CONFIG_C_ENV_BOOTBLOCK_SIZE)
 
-$(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template
+$(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template $(DOTCONFIG)
 	sed -e "s,##APOB_BASE##,$(CONFIG_PSP_APOB_DRAM_ADDRESS)," \
 	    -e "s,##BIOS_ENTRY_BASE##,$(bios_base)," \
 	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size)," \
 		$< > $@
 
-$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(OBJPATH)/config.h $(objutil)/kconfig/conf
+$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
 	mkdir -p $(OBJPATH)/opensil/config; \
 	cd $(opensil_dir); \
-		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		export KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KBUILD_DEFCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KCONFIG_AUTOHEADER=$@ \
 		KCONFIG_AUTOCONFIG=$(OBJPATH)/opensil_auto.conf \
@@ -79,8 +79,9 @@ ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
 		KCONFIG_NEGATIVES=1 \
 		KCONFIG_WERROR=1 \
 		KCONFIG_WARN_UNKNOWN_SYMBOLS=1 \
-		KCONFIG_PACKAGE=openSIL.Config \
-		$(top)/$(objutil)/kconfig/conf --defconfig $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+		KCONFIG_PACKAGE=openSIL.Config; \
+		$(abspath $(objutil)/kconfig/conf) --defconfig $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig && \
+		$(abspath $(objutil)/kconfig/conf) --syncconfig Kconfig
 else
 	cd $(opensil_dir); \
 		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
