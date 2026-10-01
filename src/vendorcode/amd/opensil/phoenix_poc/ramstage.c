@@ -8,6 +8,7 @@
 #include <FCH/Tacoma/FchCore/FchUsb/FchUsbOemTc.h>
 #include <PROM/PromClass-api.h>
 #include <RcMgr/DfX/RcManager-api.h>
+#include <SMU/SmuClass-api.h>
 #include <amdblocks/iomap.h>
 #include <amdblocks/reset.h>
 #include <bootstate.h>
@@ -18,6 +19,7 @@
 #include <cpu/x86/smm.h>
 #include <console/console.h>
 #include <device/device.h>
+#include <halt.h>
 #include <soc/amd/phoenix/chip.h>
 #include <soc/aoac_defs.h>
 #include <soc/iomap.h>
@@ -237,6 +239,16 @@ static void configure_usb(SIL_CONTEXT *SilContext)
 	fch_usb_data->OemUsbConfigurationTable = (uintptr_t)&usb_config;
 }
 
+static void configure_smu(SIL_CONTEXT *SilContext)
+{
+	const struct soc_amd_phoenix_config *cfg = config_of_soc();
+	SMUCLASS_INPUT_BLK *smu = SilFindStructure(SilContext, SilId_SmuClass, 0);
+
+	if (!smu)
+		die("OpenSIL SMU configuration missing\n");
+	smu->S0i3Enable = cfg->s0ix_enable;
+}
+
 static void configure_ccx(SIL_CONTEXT *SilContext)
 {
 	CCXCLASS_DATA_BLK *ccx_data = SilFindStructure(SilContext, SilId_CcxClass, 0);
@@ -409,6 +421,7 @@ void setup_opensil(void)
 	configure_usb(&SilContext);
 	configure_ccx(&SilContext);
 	configure_spi_dtpm(&SilContext);
+	configure_smu(&SilContext);
 	configure_fch_acpi(&SilContext);
 }
 
