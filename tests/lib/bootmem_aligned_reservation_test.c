@@ -177,7 +177,6 @@ static void success(void)
 
 	invalid_requests();
 	CHECK(!bootmem_aligned_reservation_register(&tables, &table_handle));
-	CHECK(bootmem_aligned_reservation_register(&tables, &forged));
 	CHECK(!bootmem_aligned_reservation_register(&aperture, &aperture_handle));
 	CHECK(!bootmem_aligned_reservation_register(&aligned_page,
 		&aligned_page_handle));
@@ -279,8 +278,8 @@ static void atomic_capacity(void)
 	struct bootmem_aligned_reservation_handle singles[
 		BOOTMEM_ALIGNED_RESERVATION_MAX_REQUESTS];
 	struct bootmem_aligned_reservation_request batch[2] = {
-		request(0x9000, 0x1000, 0x2100000, BM_MEM_RESERVED),
-		request(0xa000, 0x1000, 0x2100000, BM_MEM_TABLE),
+		request(0x1000, 0x1000, 0x2100000, BM_MEM_RESERVED),
+		request(0x1000, 0x1000, 0x2100000, BM_MEM_RESERVED),
 	};
 	struct bootmem_aligned_reservation_handle batch_handles[2] = {
 		{ .opaque = { 1, 1 } }, { .opaque = { 2, 2 } },
@@ -530,6 +529,78 @@ static void receipt_map_mismatch(bool os_map)
 	bootmem_reservation_receipt_close(&verifier);
 	CHECK(authority_terminal_and_scrubbed(&verifier));
 }
+
+static void identical_reservations(void)
+{
+	struct bootmem_aligned_reservation_request batch[2] = {
+		request(4096, 4096, 1ULL << 32, BM_MEM_RESERVED),
+		request(4096, 4096, 1ULL << 32, BM_MEM_RESERVED),
+	};
+	const struct bootmem_aligned_reservation_request original = batch[0];
+	struct bootmem_aligned_reservation_handle handles[4];
+	struct bootmem_aligned_reservation results[4];
+	struct bootmem_aligned_reservation repeated;
+	struct bootmem_reservation_receipt_authority signer = { 0 };
+	struct bootmem_reservation_receipt_authority verifier = { 0 };
+	struct bootmem_reservation_receipt_authority wrong_signer = { 0 };
+	struct bootmem_reservation_receipt_authority wrong_verifier = { 0 };
+	struct bootmem_reservation_receipt receipt;
+	uint8_t key[BOOTMEM_RESERVATION_RECEIPT_SECRET_SIZE];
+
+	CHECK(!bootmem_aligned_reservations_register(batch, 2, handles));
+	CHECK(!bootmem_aligned_reservation_register(&batch[0], &handles[2]));
+	CHECK(!bootmem_aligned_reservation_register(&batch[0], &handles[3]));
+	CHECK(!memcmp(&batch[0], &original, sizeof(original)) &&
+		!memcmp(&batch[1], &original, sizeof(original)));
+	/* Subsequent caller mutation cannot change the captured geometry. */
+	batch[0].bytes = 8192;
+	initialize();
+	for (size_t index = 0; index < ARRAY_SIZE(handles); index++) {
+		CHECK(!bootmem_aligned_reservation_query(&handles[index], &results[index]));
+		CHECK(results[index].size == 4096 && results[index].tag == BM_MEM_RESERVED);
+		CHECK(bootmem_region_targets_type(results[index].base, 4096, BM_MEM_RESERVED));
+		bool os_reserved = false;
+		const size_t range_count = (emitted_table.header.size -
+			sizeof(emitted_table.header)) / sizeof(emitted_table.ranges[0]);
+
+		for (size_t range = 0; range < range_count; range++) {
+			const struct lb_memory_range *entry = &emitted_table.ranges[range];
+
+			if (entry->type == LB_MEM_RESERVED && entry->start <= results[index].base &&
+			    entry->size >= 4096 && results[index].base - entry->start <=
+				entry->size - 4096)
+				os_reserved = true;
+		}
+		CHECK(os_reserved);
+		CHECK(!bootmem_aligned_reservation_query(&handles[index], &repeated));
+		CHECK(!memcmp(&repeated, &results[index], sizeof(repeated)));
+		for (size_t prior = 0; prior < index; prior++) {
+			CHECK(memcmp(&handles[index], &handles[prior], sizeof(handles[index])));
+			CHECK(results[index].base + 4096 <= results[prior].base ||
+				results[prior].base + 4096 <= results[index].base);
+		}
+	}
+	memset(key, 0x55, sizeof(key));
+	CHECK(bootmem_reservation_receipt_provision(&signer, &verifier, key,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 7, &handles[0]) == CB_SUCCESS);
+	memset(key, 0x55, sizeof(key));
+	CHECK(bootmem_reservation_receipt_provision(&wrong_signer, &wrong_verifier, key,
+		BOOTMEM_RESERVATION_RECEIPT_COLD_BOOT, 7, &handles[1]) == CB_SUCCESS);
+	CHECK(bootmem_aligned_reservation_receipt_emit_exact_tag(&handles[0], &signer,
+		&receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	struct bootmem_reservation_receipt wrong_receipt = receipt;
+
+	CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&wrong_verifier,
+		&wrong_receipt, BM_MEM_RESERVED) == CB_ERR);
+	CHECK(zero(&wrong_receipt, sizeof(wrong_receipt)));
+	CHECK(authority_terminal_and_scrubbed(&wrong_verifier));
+	CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+		&receipt, BM_MEM_RESERVED) == CB_SUCCESS);
+	CHECK(bootmem_reservation_receipt_verify_consume_exact_tag(&verifier,
+		&receipt, BM_MEM_RESERVED) == CB_ERR);
+	CHECK(authority_terminal_and_scrubbed(&verifier));
+	bootmem_reservation_receipt_close(&wrong_signer);
+}
 #endif
 
 int main(int argc, char **argv)
@@ -546,6 +617,8 @@ int main(int argc, char **argv)
 	else if (!strcmp(argv[1], "presence-producer-contract"))
 		presence_producer_contract();
 #if CONFIG(BOOTMEM_ALIGNED_RESERVATION_RECEIPT)
+	else if (!strcmp(argv[1], "identical-reservations"))
+		identical_reservations();
 	else if (!strcmp(argv[1], "receipt-handle-signer-alias"))
 		receipt_alias(true);
 	else if (!strcmp(argv[1], "receipt-handle-receipt-alias"))
