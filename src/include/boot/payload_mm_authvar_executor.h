@@ -102,7 +102,8 @@ bool payload_mm_authvar_executor_test_mutate_mor_seal(
 #endif
 
 /*
- * GET, NEXT and QUERY only. Descriptors, input and bounded output spans must
+ * GET, NEXT, QUERY and the boot-only fixed image-policy group. Descriptors,
+ * input and bounded output spans must
  * be mutually disjoint protected memory. Output bytes and scalar results are
  * published only after the single media session ends successfully.
  */

@@ -5314,7 +5314,7 @@ static void production_service_test(const char *scenario)
 	struct coordinator_fixture fixture;
 	struct lb_authvar_service_endpoint endpoint = {
 		.tag = LB_TAG_AUTHVAR_SERVICE_ENDPOINT, .size = sizeof(endpoint),
-		.revision = 2, .header_size = sizeof(endpoint),
+		.revision = 4, .header_size = sizeof(endpoint),
 		.flags = LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS, .generation = 1,
 		.communication_base = 0x100000, .communication_size = 512,
 		.message_size = 512, .transport = 1, .trigger_width = 1,
@@ -5350,7 +5350,7 @@ static void production_service_test(const char *scenario)
 	for (size_t i = first; i < sizeof(operations) / sizeof(operations[0]); i++) {
 		memset(input, 0, sizeof(input));
 		memset(output, 0xa5, sizeof(output));
-		request->revision = 2;
+		request->revision = 3;
 		request->header_size = 144;
 		request->generation = 1;
 		request->request_id = i + 1U;
