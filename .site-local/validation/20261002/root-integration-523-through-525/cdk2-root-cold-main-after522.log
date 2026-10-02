@@ -1,0 +1,28 @@
+Cold enrolled MAIN artifacts: /home/sean/cdk2-root-cold-main-after522/run.On0z3Y
+tests/protected_variable_fullgraph_cold_enrolled_test.sh: line 120: 2490567 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/cold-media-compare-mutant" "$probe.before-smmstore.bin" "$probe.after-smmstore.bin" --self-test > "$output/codec-mutant.log" 2>&1
+Cold enrolled unsigned MAIN: real authorization refused before ReadyToBoot/app; exact canonical MTC-only boot increment, no other media changes
+Cold enrolled rogue MAIN: real authorization refused before ReadyToBoot/app; exact canonical MTC-only boot increment, no other media changes
+Unmodified cold db-signed MAIN: persisted Setup0/SecureBoot1/NV and real EBS/nonidentity-VA runtime PASS (no reenrollment)
+	Command being timed: "bash tests/protected_variable_fullgraph_cold_enrolled_test.sh /home/sean/cdk2-root-cold-main-after522"
+	User time (seconds): 95.26
+	System time (seconds): 22.07
+	Percent of CPU this job got: 104%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:52.32
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 217128
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 810
+	Minor (reclaiming a frame) page faults: 3899567
+	Voluntary context switches: 1516668
+	Involuntary context switches: 2338
+	Swaps: 0
+	File system inputs: 1543032
+	File system outputs: 1825864
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
