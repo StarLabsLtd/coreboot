@@ -1,0 +1,35 @@
+STRICT_SAN default O0
+ata bus model tests: PASS
+OBJECT default O0 DIFFERENT (not a byte-parity claim)
+STRICT_SAN selected O0
+ata bus model tests: PASS
+OBJECT selected O0 DIFFERENT (not a byte-parity claim)
+DIFFERENTIAL baseline/candidate O0
+100000 IDENTIFY baseline/candidate status+media comparisons: PASS
+STRICT_SAN default O2
+ata bus model tests: PASS
+OBJECT default O2 DIFFERENT (not a byte-parity claim)
+STRICT_SAN selected O2
+ata bus model tests: PASS
+OBJECT selected O2 DIFFERENT (not a byte-parity claim)
+DIFFERENTIAL baseline/candidate O2
+100000 IDENTIFY baseline/candidate status+media comparisons: PASS
+STRICT_SAN default Os
+ata bus model tests: PASS
+OBJECT default Os DIFFERENT (not a byte-parity claim)
+STRICT_SAN selected Os
+ata bus model tests: PASS
+OBJECT selected Os DIFFERENT (not a byte-parity claim)
+DIFFERENTIAL baseline/candidate Os
+100000 IDENTIFY baseline/candidate status+media comparisons: PASS
+ata bus model tests: PASS
+ata bus I/O scheduler tests: PASS
+ata bus block protocol tests: PASS
+make: '/home/sean/Documents/.cdk2-worktrees/ata-private-style-after499/build/cdk2/native/AtaBusDxe.efi' is up to date.
+ata bus binding lifecycle tests: PASS
+ata bus entry tests: PASS
+074b2e9f860bba71d41e27d5e06022f2663535d519f0de710c477eae4c875788  src/modules/ata_bus/model.c
+6eb3a4fcb4f44f68ccc1ccaf9ec607c054ff16c43e689b88d0f8dd70e88d19ff  build/cdk2/include/cdk2/config.h
+c9f8ef6e4c44a27d1b65cbc51f41bf6e74166104a3c3bf0fe91257d07357551e  /home/sean/Documents/cdk2/build/cdk2/include/cdk2/config.h
+4b544628e375b2526742a5d9eca6c4dbc9cabab53c738601a9506ce8e1a2639a  build/cdk2/native/AtaBusDxe.efi
+ATA bounded replay: PASS (x86_64 private-style only; no hardware claim)
