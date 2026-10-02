@@ -90,6 +90,17 @@ config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
 config SMMSTORE_BLOCK_SIZE
 	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
+config Q35_SMM_CAPSULE_BROKER_AUTH_POLICY
+	bool "Install Q35 protected capsule authentication policy"
+	default n
+	depends on Q35_SMM_CAPSULE_BROKER_BUFFERS
+	select PAYLOAD_MM_CMS_VERIFY
+	select CAPSULE_BROKER_TRUST_PACKAGE
+	help
+	  Copy the configured public certificate and trusted compiled image facts
+	  into the existing protected authentication owner during private cold
+	  bootstrap. This installs no capsule endpoint, DMA verifier or writer.
+
 config Q35_SMM_CAPSULE_BROKER_BUFFERS
 	bool "Reserve Q35 protected capsule broker buffers"
 	default n
@@ -120,6 +131,7 @@ config Q35_SMM_CAPSULE_BROKER
 	  and promises no cryptographic live-ROM or hardware antirollback proof.
 
 config SMM_TSEG_SIZE
+	default 0x800000 if Q35_SMM_CAPSULE_BROKER_AUTH_POLICY
 	default 0x200000 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
 config QEMU_PFLASH_VOLATILE_LEASE
