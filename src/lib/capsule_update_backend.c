@@ -92,15 +92,19 @@ enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan
 					  void *write_scratch, void *read_scratch,
 					  size_t scratch_bytes)
 {
+	enum cb_err status = CB_ERR;
+
 	if (!plan_allowed(plan, policy) || !media || !write_scratch ||
 	    !read_scratch || buffers_overlap(write_scratch, scratch_bytes,
 		read_scratch, scratch_bytes) || !media->read ||
 	    !media->erase || !media->write || !media->sync ||
-	    !media->source_valid ||
+	    !media->source_valid || (!!media->begin != !!media->end) ||
 	    media->size != policy->media_size ||
 	    media->erase_size != policy->erase_size ||
 	    scratch_bytes < policy->erase_size ||
 	    !media->source_valid(media->context, plan->image, plan->image_bytes))
+		return CB_ERR;
+	if (media->begin && media->begin(media->context) != CB_SUCCESS)
 		return CB_ERR;
 
 	for (size_t region_index = 0; region_index < plan->region_count;
@@ -118,7 +122,7 @@ enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan
 
 			if (!media->source_valid(media->context, plan->image,
 				plan->image_bytes))
-				return CB_ERR;
+				goto out;
 			memcpy(write_scratch, source_block, size);
 
 			if (!media->source_valid(media->context, plan->image,
@@ -135,8 +139,12 @@ enum cb_err capsule_apply_policy_verified(const struct capsule_update_plan *plan
 			    memcmp(read_scratch, write_scratch, size) ||
 			    !media->source_valid(media->context, plan->image,
 				plan->image_bytes))
-				return CB_ERR;
+				goto out;
 		}
 	}
-	return CB_SUCCESS;
+	status = CB_SUCCESS;
+out:
+	if (media->end && media->end(media->context) != CB_SUCCESS)
+		status = CB_ERR;
+	return status;
 }

@@ -204,6 +204,14 @@ struct media_fixture {
 	size_t erases;
 	size_t writes;
 	size_t syncs;
+	size_t begins;
+	size_t ends;
+	unsigned int fail_operation;
+	bool require_lease;
+	bool lease_active;
+	bool fail_begin;
+	bool fail_end;
+	bool drop_source_on_begin;
 	bool corrupt_readback;
 	bool source_available;
 	bool drop_source_on_erase;
@@ -217,6 +225,9 @@ static enum cb_err media_read(void *context, u64 offset, void *buffer,
 	struct media_fixture *media = context;
 
 	media->reads++;
+	assert(!media->require_lease || media->lease_active);
+	if (media->fail_operation == 4U)
+		return CB_ERR;
 	memcpy(buffer, &media->bytes[offset], size);
 	if (media->corrupt_readback)
 		((u8 *)buffer)[0] ^= 1;
@@ -228,6 +239,9 @@ static enum cb_err media_erase(void *context, u64 offset, size_t size)
 	struct media_fixture *media = context;
 
 	media->erases++;
+	assert(!media->require_lease || media->lease_active);
+	if (media->fail_operation == 1U)
+		return CB_ERR;
 	memset(&media->bytes[offset], 0xff, size);
 	if (media->drop_source_on_erase)
 		media->source_available = false;
@@ -240,6 +254,9 @@ static enum cb_err media_write(void *context, u64 offset,
 	struct media_fixture *media = context;
 
 	media->writes++;
+	assert(!media->require_lease || media->lease_active);
+	if (media->fail_operation == 2U)
+		return CB_ERR;
 	memcpy(&media->bytes[offset], buffer, size);
 	return CB_SUCCESS;
 }
@@ -249,7 +266,34 @@ static enum cb_err media_sync(void *context)
 	struct media_fixture *media = context;
 
 	media->syncs++;
+	assert(!media->require_lease || media->lease_active);
+	if (media->fail_operation == 3U)
+		return CB_ERR;
 	return CB_SUCCESS;
+}
+
+static enum cb_err media_begin(void *context)
+{
+	struct media_fixture *media = context;
+
+	assert(!media->lease_active);
+	media->begins++;
+	if (media->fail_begin)
+		return CB_ERR;
+	media->lease_active = true;
+	if (media->drop_source_on_begin)
+		media->source_available = false;
+	return CB_SUCCESS;
+}
+
+static enum cb_err media_end(void *context)
+{
+	struct media_fixture *media = context;
+
+	assert(media->lease_active);
+	media->ends++;
+	media->lease_active = false;
+	return media->fail_end ? CB_ERR : CB_SUCCESS;
 }
 
 static bool media_source_valid(void *context, const void *source, size_t size)
@@ -484,6 +528,72 @@ static void verified_apply_contract(void)
 	assert(fixture.erases == 1 && fixture.writes == 1 && fixture.reads == 1);
 }
 
+static void media_transaction_contract(void)
+{
+	struct capsule_update_plan plan;
+	struct capsule_media_policy policy;
+	struct capsule_media_backend media;
+	struct media_fixture fixture;
+	u8 image[TEST_MEDIA_SIZE];
+	u8 write_scratch[0x1000];
+	u8 read_scratch[0x1000];
+
+	/* Every flash callback requires the owner, including each failure path. */
+	for (unsigned int failure = 0; failure <= 4U; failure++) {
+		small_fixture(&plan, &policy, &media, &fixture, image);
+		media.begin = media_begin;
+		media.end = media_end;
+		fixture.require_lease = true;
+		fixture.fail_operation = failure;
+		assert(capsule_apply_policy_verified(&plan, &policy, &media,
+						     write_scratch, read_scratch, sizeof(read_scratch)) ==
+			(failure ? CB_ERR : CB_SUCCESS));
+		assert(fixture.begins == 1 && fixture.ends == 1 && !fixture.lease_active);
+	}
+
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.begin = media_begin;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+					     write_scratch, read_scratch, sizeof(read_scratch)) == CB_ERR);
+	assert(!fixture.begins && !fixture.ends && !fixture.erases);
+	media.begin = NULL;
+	media.end = media_end;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+					     write_scratch, read_scratch, sizeof(read_scratch)) == CB_ERR);
+	assert(!fixture.begins && !fixture.ends && !fixture.erases);
+
+	media.begin = media_begin;
+	fixture.fail_begin = true;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+					     write_scratch, read_scratch, sizeof(read_scratch)) == CB_ERR);
+	assert(fixture.begins == 1 && !fixture.ends && !fixture.lease_active &&
+	       !fixture.erases && !fixture.writes && !fixture.syncs && !fixture.reads);
+
+	for (unsigned int failure = 0; failure < 4U; failure++) {
+		small_fixture(&plan, &policy, &media, &fixture, image);
+		media.begin = media_begin;
+		media.end = media_end;
+		fixture.require_lease = true;
+		fixture.drop_source_on_begin = failure == 0U;
+		fixture.drop_source_on_erase = failure == 1U;
+		fixture.corrupt_readback = failure == 2U;
+		fixture.fail_end = failure == 3U;
+		assert(capsule_apply_policy_verified(&plan, &policy, &media,
+						     write_scratch, read_scratch, sizeof(read_scratch)) == CB_ERR);
+		assert(fixture.begins == 1 && fixture.ends == 1 && !fixture.lease_active);
+		if (!failure)
+			assert(!fixture.erases && !fixture.writes && !fixture.reads);
+	}
+
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	media.begin = media_begin;
+	media.end = media_end;
+	fixture.source_available = false;
+	assert(capsule_apply_policy_verified(&plan, &policy, &media,
+					     write_scratch, read_scratch, sizeof(read_scratch)) == CB_ERR);
+	assert(!fixture.begins && !fixture.ends && !fixture.erases);
+}
+
 int main(int argc, char **argv)
 {
 	valid_fixture();
@@ -491,6 +601,7 @@ int main(int argc, char **argv)
 	region_rejections();
 	bounded_backend_contract();
 	verified_apply_contract();
+	media_transaction_contract();
 	if (argc == 2 && !strcmp(argv[1], "--fixture")) {
 		reset_fixture();
 		return write(STDOUT_FILENO, blob, bytes) == (ssize_t)bytes ? 0 : 1;

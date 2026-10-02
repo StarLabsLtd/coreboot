@@ -11,6 +11,7 @@ typedef enum cb_err capsule_media_erase_fn(void *, u64, size_t);
 typedef enum cb_err capsule_media_write_fn(void *, u64, const void *, size_t);
 typedef enum cb_err capsule_media_sync_fn(void *);
 typedef bool capsule_media_source_valid_fn(void *, const void *, size_t);
+typedef enum cb_err capsule_media_transaction_fn(void *context);
 
 struct capsule_media_backend {
 	void *context;
@@ -21,6 +22,9 @@ struct capsule_media_backend {
 	capsule_media_write_fn *write;
 	capsule_media_sync_fn *sync;
 	capsule_media_source_valid_fn *source_valid;
+	/* Optional pair: failed begin retains no lease; end releases on every exit. */
+	capsule_media_transaction_fn *begin;
+	capsule_media_transaction_fn *end;
 };
 
 struct capsule_media_policy {
