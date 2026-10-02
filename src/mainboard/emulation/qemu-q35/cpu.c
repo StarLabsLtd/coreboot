@@ -10,6 +10,10 @@
 #include <device/fw_cfg.h>
 #include <stddef.h>
 #include <stdint.h>
+#if CONFIG(Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT)
+#include <southbridge/intel/common/pmbase.h>
+#include <southbridge/intel/common/pmutil.h>
+#endif
 
 static void get_smm_info(uintptr_t *perm_smbase, size_t *perm_smsize,
 	      size_t *smm_save_state_size)
@@ -81,6 +85,10 @@ static void post_mp_init(void)
 
 	/* Now that all APs have been relocated as well as the BSP let SMIs start flowing. */
 	global_smi_enable();
+#if CONFIG(Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT)
+	/* The controlled component excludes unrelated chipset SMI causes. */
+	write_pmbase32(SMI_EN, EOS | GBL_SMI_EN | APMC_EN);
+#endif
 
 	/* Lock down the SMRAM space. */
 	smm_lock();

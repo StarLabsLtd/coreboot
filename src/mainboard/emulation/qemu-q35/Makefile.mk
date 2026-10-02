@@ -12,6 +12,7 @@ ramstage-y += ../qemu-i440fx/northbridge.c
 ramstage-y += ../qemu-i440fx/rom_media.c
 ramstage-y += cpu.c
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_COMPONENT) += loader_instance.c
+ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += native_apmc.S
 ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_dma_handoff.c q35_dma_policy.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_registers.c
@@ -27,4 +28,20 @@ ramstage-$(CONFIG_CHROMEOS) += chromeos.c
 
 smm-y += ../qemu-i440fx/rom_media.c
 smm-y += smihandler.c
+smm-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += native_cause.c
 smm-$(CONFIG_Q35_SMM_INVOCATION_FAIL_STOP_TEST) += smm_invocation_fail_stop.c
+
+cbfs-files-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += q35/native-apmc
+q35/native-apmc-file := $(obj)/mainboard/emulation/qemu-q35/native_apmc.raw
+q35/native-apmc-type := raw
+q35/native-apmc-compression := none
+cbfs-files-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += q35/native-apmc-bootstrap
+q35/native-apmc-bootstrap-file := $(obj)/mainboard/emulation/qemu-q35/native_apmc_bootstrap.raw
+q35/native-apmc-bootstrap-type := raw
+q35/native-apmc-bootstrap-compression := none
+
+$(obj)/mainboard/emulation/qemu-q35/native_apmc.raw: $(obj)/ramstage/mainboard/emulation/qemu-q35/native_apmc.o
+	$(OBJCOPY_ramstage) -O binary -j .text.q35_native_apmc $< $@
+
+$(obj)/mainboard/emulation/qemu-q35/native_apmc_bootstrap.raw: $(obj)/ramstage/mainboard/emulation/qemu-q35/native_apmc.o
+	$(OBJCOPY_ramstage) -O binary -j .text.q35_native_apmc_bootstrap $< $@
