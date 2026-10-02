@@ -519,7 +519,7 @@ enum cb_err capsule_broker_policy_install(
 	    snapshot.media.size != snapshot.boot_media_size ||
 	    snapshot.media.erase_size != snapshot.erase_size ||
 	    !snapshot.media.read || !snapshot.media.erase || !snapshot.media.write ||
-	    !snapshot.media.sync ||
+	    !snapshot.media.sync || (!!snapshot.media.begin != !!snapshot.media.end) ||
 	    !context_valid(snapshot.media.context,
 		snapshot.media_context_size) ||
 	    !snapshot.scratch || snapshot.scratch_size != snapshot.erase_size ||
@@ -743,40 +743,89 @@ enum cb_err capsule_broker_checkpoint_grant_bound(uint64_t generation,
 	return CB_SUCCESS;
 }
 
+struct guarded_media_context {
+	struct capsule_broker_policy policy;
+	struct broker_control_state control;
+	bool acquired;
+};
+
+static bool guarded_media_current(const struct guarded_media_context *context)
+{
+	return context && !memcmp(&context->policy, &broker.policy,
+		 sizeof(context->policy)) && control_state_matches(&context->control) &&
+		execution_guard() &&
+		!memcmp(&context->policy, &broker.policy, sizeof(context->policy)) &&
+		control_state_matches(&context->control);
+}
+
+static enum cb_err guarded_begin(void *context)
+{
+	struct guarded_media_context *owned = context;
+	const struct capsule_media_backend *media = &owned->policy.media;
+
+	if (owned->acquired || !guarded_media_current(owned) ||
+	    media->begin(media->context) != CB_SUCCESS)
+		return CB_ERR;
+	owned->acquired = true;
+	if (guarded_media_current(owned))
+		return CB_SUCCESS;
+	/* Release the captured lease even if the installed owner has drifted. */
+	owned->acquired = false;
+	media->end(media->context);
+	return CB_ERR;
+}
+
+static enum cb_err guarded_end(void *context)
+{
+	struct guarded_media_context *owned = context;
+	const struct capsule_media_backend *media = &owned->policy.media;
+	enum cb_err status;
+	bool current;
+
+	if (!owned->acquired)
+		return CB_ERR;
+	owned->acquired = false;
+	current = guarded_media_current(owned);
+	/* Current authority must never gate release of an already acquired lease. */
+	status = media->end(media->context);
+	return status == CB_SUCCESS && current && guarded_media_current(owned) ?
+		CB_SUCCESS : CB_ERR;
+}
+
 static enum cb_err guarded_read(void *context, u64 offset, void *data,
 	size_t size)
 {
-	(void)context;
-	if (!execution_guard())
+	const struct guarded_media_context *owned = context;
+	if (!guarded_media_current(owned))
 		return CB_ERR;
-	return broker.policy.media.read(broker.policy.media.context, offset,
+	return owned->policy.media.read(owned->policy.media.context, offset,
 		data, size);
 }
 
 static enum cb_err guarded_erase(void *context, u64 offset, size_t size)
 {
-	(void)context;
-	if (!execution_guard())
+	const struct guarded_media_context *owned = context;
+	if (!guarded_media_current(owned))
 		return CB_ERR;
-	return broker.policy.media.erase(broker.policy.media.context, offset, size);
+	return owned->policy.media.erase(owned->policy.media.context, offset, size);
 }
 
 static enum cb_err guarded_write(void *context, u64 offset, const void *data,
 	size_t size)
 {
-	(void)context;
-	if (!execution_guard())
+	const struct guarded_media_context *owned = context;
+	if (!guarded_media_current(owned))
 		return CB_ERR;
-	return broker.policy.media.write(broker.policy.media.context, offset,
+	return owned->policy.media.write(owned->policy.media.context, offset,
 		data, size);
 }
 
 static enum cb_err guarded_sync(void *context)
 {
-	(void)context;
-	if (!execution_guard())
+	const struct guarded_media_context *owned = context;
+	if (!guarded_media_current(owned))
 		return CB_ERR;
-	return broker.policy.media.sync(broker.policy.media.context);
+	return owned->policy.media.sync(owned->policy.media.context);
 }
 
 static bool guarded_source_valid(void *context, const void *source, size_t size)
@@ -787,7 +836,7 @@ static bool guarded_source_valid(void *context, const void *source, size_t size)
 		unpack64(broker.policy.endpoint.staging_size);
 	const struct capsule_broker_raw_image *raw = &broker.flash_plan.raw_image;
 
-	return context == &broker && broker.flash_plan_valid && raw->size == size &&
+	return guarded_media_current(context) && broker.flash_plan_valid && raw->size == size &&
 		raw->offset <= staging_size && raw->size <= staging_size - raw->offset &&
 		raw->offset <= UINTPTR_MAX - staging &&
 		source == (const void *)(staging + (uintptr_t)raw->offset) &&
@@ -829,6 +878,7 @@ static enum cb_err apply_capsule(
 	struct capsule_update_plan plan;
 	struct capsule_media_policy media_policy;
 	struct capsule_media_backend media;
+	struct guarded_media_context media_context = { .policy = broker.policy };
 	uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE];
 	struct capsule_broker_flash_plan sealed_plan;
 	uintptr_t staging = (uintptr_t)
@@ -847,7 +897,8 @@ static enum cb_err apply_capsule(
 	broker.closed = true;
 	clear_grant();
 	clear_authentication();
-	if (!execution_guard() ||
+	media_context.control = control_state();
+	if (!guarded_media_current(&media_context) ||
 	    broker.policy.sha256(broker.policy.sha256_context,
 		(void *)staging, (size_t)intent->capsule_size, digest) != CB_SUCCESS ||
 	    !execution_guard() || memcmp(digest, intent->digest, sizeof(digest)))
@@ -869,7 +920,7 @@ static enum cb_err apply_capsule(
 		.owner_layout = &broker.policy.owner_layout,
 	};
 	media = (struct capsule_media_backend) {
-		.context = &broker,
+		.context = &media_context,
 		.size = broker.policy.media.size,
 		.erase_size = broker.policy.media.erase_size,
 		.read = guarded_read,
@@ -877,6 +928,8 @@ static enum cb_err apply_capsule(
 		.write = guarded_write,
 		.sync = guarded_sync,
 		.source_valid = guarded_source_valid,
+		.begin = broker.policy.media.begin ? guarded_begin : NULL,
+		.end = broker.policy.media.end ? guarded_end : NULL,
 	};
 	status = capsule_apply_policy_verified(&plan, &media_policy, &media,
 		broker.policy.write_scratch, broker.policy.scratch,
@@ -892,8 +945,9 @@ static enum cb_err apply_capsule(
 		broker.success_valid = true;
 	}
 out:
-	memset(broker.policy.write_scratch, 0, broker.policy.write_scratch_size);
-	memset(broker.policy.scratch, 0, broker.policy.scratch_size);
+	memset(media_context.policy.write_scratch, 0, media_context.policy.write_scratch_size);
+	memset(media_context.policy.scratch, 0, media_context.policy.scratch_size);
+	memset(&media_context, 0, sizeof(media_context));
 	clear_flash_plan();
 	return status;
 }
