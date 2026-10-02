@@ -3,6 +3,7 @@
 #include "native_cause.h"
 #include "native_service.h"
 #include "public_service.h"
+#include "q35_dma_cold.h"
 #include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
@@ -358,9 +359,17 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(uint32_t cpu, uint32_t i
 			smm_invocation_platform_fail_stop();
 		if (public == Q35_PUBLIC_SERVICE_HELD) {
 			service.phase = SERVICE_CAPSULE_EXECUTING;
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+			if (!q35_capsule_dma_scope_enter())
+				smm_invocation_platform_fail_stop();
+#endif
 #if CONFIG(CAPSULE_BROKER_CONTRACT)
 			/* Typed denials are ordinary refusals, not grants or precise evidence. */
 			capsule_broker_transport_dispatch();
+#endif
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+			if (!q35_capsule_dma_scope_leave())
+				smm_invocation_platform_fail_stop();
 #endif
 			if (!q35_capsule_service_current())
 				smm_invocation_platform_fail_stop();

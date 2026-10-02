@@ -44,9 +44,16 @@ static bool phase_current, foreign_function, mutate_memory, fail_ahci, fail_drai
 static bool protected_resources;
 static bool ram_held, ram_window, revoke_ram_after_drain;
 static bool stuck_master, late_master, late_function, change_ecam;
+static uint64_t public_generation = 1;
+static bool public_held = true, scope_started;
+static unsigned int ram_calls, delay_calls, edu_reads;
+static const char *late_controller;
+static bool edu_active;
+static bool protected_scope = true;
 
 /* HOST-only access to the actual static scanner, appended by the test script. */
 bool host_inventory(bool clear_master);
+size_t host_scope_snapshot(void *output, size_t capacity);
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -144,7 +151,14 @@ uint32_t read32(const void *pointer)
 		default: return 0;
 		}
 	}
-	if (address == EDU + 0x98U || address == EDU + 0x9cU)
+	if (address == EDU + 0x98U) {
+		const bool pending = edu_active;
+
+		edu_reads++;
+		edu_active = false; /* Modeled timer would finish on a subsequent read. */
+		return pending ? 1U : 0U;
+	}
+	if (address == EDU + 0x9cU)
 		return 0;
 	CHECK(false);
 	return UINT32_MAX;
@@ -201,8 +215,18 @@ void write32(void *pointer, uint32_t value)
 					pci[2][PCI_COMMAND] |= PCI_COMMAND_MASTER;
 				if (mutate_memory && drains == 2U)
 					memory.arena_base += PAGE;
-				if (revoke_ram_after_drain && drains == 2U)
-					ram_window = false;
+				if (late_controller && drains == 4U) {
+					if (!strcmp(late_controller, "scope-late-nvme"))
+						nvme_configuration = 1U;
+					else if (!strcmp(late_controller, "scope-late-xhci"))
+						xhci_command = 1U;
+					else if (!strcmp(late_controller, "scope-late-ahci"))
+						ahci_active = 1U;
+					else if (!strcmp(late_controller, "scope-late-protection"))
+						protected_scope = false;
+					else
+						edu_active = true;
+				}
 			}
 			value = fail_drain ? 1U << 31 : 1U << 25;
 		}
@@ -275,6 +299,7 @@ uint8_t pci_io_read_config8(pci_devfn_t device, uint16_t offset)
 void udelay(unsigned int microseconds)
 {
 	(void)microseconds;
+	delay_calls++;
 }
 
 void wbinvd(void)
@@ -295,7 +320,21 @@ bool platform_payload_mm_authvar_service_finalize_admitted(void)
 
 bool q35_capsule_ram_transaction_current(void)
 {
+	ram_calls++;
+	/* The fifth hook is the final owner check, after both passive boundaries. */
+	if (revoke_ram_after_drain && drains == 2U && ram_calls == 5U)
+		ram_window = false;
 	return ram_held && ram_window;
+}
+
+bool q35_capsule_service_current(void)
+{
+	return public_held;
+}
+
+uint64_t q35_public_capsule_generation(void)
+{
+	return public_held ? public_generation : 0;
 }
 
 const volatile struct smm_pci_resource_info *smm_get_pci_resource_store(void)
@@ -327,8 +366,12 @@ enum cb_err smm_invocation_runtime_geometry_is_contained(const struct smm_invoca
 enum cb_err smm_invocation_runtime_range_is_protected(const struct smm_invocation_runtime_view *input,
 	const void *base, size_t size)
 {
-	CHECK(input == &view && base == resources && size == sizeof(resources));
-	return protected_resources ? CB_SUCCESS : CB_ERR;
+	CHECK(input == &view);
+	if (base == resources && size == sizeof(resources))
+		return protected_resources ? CB_SUCCESS : CB_ERR;
+	/* The static protected-scope backing is modeled separately from PCI slots. */
+	CHECK(base && size);
+	return protected_scope ? CB_SUCCESS : CB_ERR;
 }
 
 bool smm_get_dma_owned_memory(const struct smm_dma_owned_memory **output)
@@ -387,6 +430,12 @@ static void table_image(void)
 
 static void reset_fixture(void)
 {
+	if (scope_started) {
+		(void)q35_capsule_dma_scope_leave();
+		scope_started = false;
+	}
+	public_held = true;
+	public_generation++;
 	memset(pci, 0, sizeof(pci));
 	memset(extra_pci, 0, sizeof(extra_pci));
 	memset(extra_present, 0, sizeof(extra_present));
@@ -429,11 +478,17 @@ static void reset_fixture(void)
 	nvme_resets = xhci_resets = ahci_resets = drains = writebacks = 0;
 	phase_current = true;
 	protected_resources = true;
+	protected_scope = true;
 	ram_held = ram_window = true;
 	revoke_ram_after_drain = false;
+	ram_calls = delay_calls = edu_reads = 0;
+	late_controller = NULL;
+	edu_active = false;
 	foreign_function = mutate_memory = fail_ahci = fail_drain = false;
 	stuck_master = late_master = late_function = change_ecam = false;
 	saved_index = config_index = 0x31415926U;
+	CHECK(q35_capsule_dma_scope_enter());
+	scope_started = true;
 }
 
 static void extra_function(size_t index, uint16_t bdf, uint32_t identity, uint8_t header)
@@ -482,9 +537,150 @@ static void inventory_cases(void)
 	}
 }
 
+static void scope_case(const char *mode)
+{
+	reset_fixture();
+	if (!strcmp(mode, "scope-protected-enter")) {
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		protected_scope = false;
+		CHECK(!q35_capsule_dma_scope_enter());
+		CHECK(!nvme_resets && !xhci_resets && !ahci_resets && !drains);
+		protected_scope = true;
+		return;
+	}
+	if (!strcmp(mode, "scope-protected-current") || !strcmp(mode, "scope-protected-leave")) {
+		const bool mutation = !strcmp(mode, "scope-protected-current");
+
+		if (mutation)
+			CHECK(q35_capsule_ram_dma_current());
+		protected_scope = false;
+		CHECK(!q35_capsule_ram_dma_current());
+		CHECK(!q35_capsule_dma_scope_leave());
+		CHECK(nvme_resets == (mutation ? 1U : 0U) &&
+			xhci_resets == (mutation ? 1U : 0U) && ahci_resets == (mutation ? 1U : 0U));
+		/*
+		 * Refused cleanup cannot write unprotected backing. Restore only to scrub;
+		 * the real dispatcher instead fail-stops on the failed leave.
+		 */
+		protected_scope = true;
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		CHECK(!q35_capsule_ram_dma_current());
+		return;
+	}
+	if (!strcmp(mode, "scope-metadata")) {
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		CHECK(!nvme_resets && !xhci_resets && !ahci_resets && !drains);
+		CHECK(!q35_capsule_ram_dma_current());
+		return;
+	}
+	if (!strcmp(mode, "scope-nested")) {
+		CHECK(!q35_capsule_dma_scope_enter());
+		CHECK(!q35_capsule_ram_dma_current());
+		CHECK(!nvme_resets && !xhci_resets && !ahci_resets && !drains);
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		return;
+	}
+	if (!strcmp(mode, "scope-partial")) {
+		fail_ahci = true;
+		CHECK(!q35_capsule_ram_dma_current());
+		fail_ahci = false;
+		CHECK(!q35_capsule_ram_dma_current());
+		CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U);
+		return;
+	}
+	CHECK(q35_capsule_ram_dma_current());
+	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U && drains == 2U);
+	if (!strcmp(mode, "scope-late-protection")) {
+		uint8_t scope_before[32], scope_after[32];
+		const size_t scope_size = host_scope_snapshot(scope_before, sizeof(scope_before));
+
+		CHECK(scope_size && scope_size <= sizeof(scope_before));
+		late_controller = mode;
+		CHECK(!q35_capsule_ram_dma_current());
+		CHECK(host_scope_snapshot(scope_after, sizeof(scope_after)) == scope_size);
+		CHECK(!memcmp(scope_before, scope_after, scope_size));
+		CHECK(!q35_capsule_dma_scope_leave());
+		CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U && drains == 4U);
+		/* Test teardown only: the actual receiver fail-stops on failed leave. */
+		protected_scope = true;
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		return;
+	}
+	if (!strcmp(mode, "scope-reuse")) {
+		CHECK(q35_capsule_ram_dma_current());
+		CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U && drains == 4U);
+		CHECK(q35_capsule_dma_scope_leave());
+		scope_started = false;
+		CHECK(!q35_capsule_ram_dma_current());
+		public_generation++;
+		CHECK(q35_capsule_dma_scope_enter());
+		scope_started = true;
+		CHECK(q35_capsule_ram_dma_current());
+		CHECK(nvme_resets == 2U && xhci_resets == 2U && ahci_resets == 2U && drains == 6U);
+		return;
+	}
+	if (!strcmp(mode, "scope-generation"))
+		public_generation++;
+	else if (!strcmp(mode, "scope-owner"))
+		public_held = false;
+	else if (!strcmp(mode, "scope-bme"))
+		pci[2][PCI_COMMAND] |= PCI_COMMAND_MASTER;
+	else if (!strcmp(mode, "scope-nvme"))
+		nvme_configuration = 1U;
+	else if (!strcmp(mode, "scope-xhci"))
+		xhci_command = 1U;
+	else if (!strcmp(mode, "scope-ahci"))
+		ahci_active = 1U;
+	else if (!strcmp(mode, "scope-root"))
+		translation[Q35_VTD_RTADDR / 4U] += PAGE;
+	else if (!strcmp(mode, "scope-table"))
+		((uint64_t *)tables)[4U * 512U + 3U] = (uintptr_t)communication | 3U;
+	else if (!strcmp(mode, "scope-resource"))
+		resources[2].resources[0].base += PAGE;
+	else if (!strcmp(mode, "scope-window"))
+		ram_window = false;
+	else if (!strcmp(mode, "scope-drain"))
+		fail_drain = true;
+	else if (!strncmp(mode, "scope-late-", 11))
+		late_controller = mode;
+	else
+		CHECK(false);
+	const bool accepted = q35_capsule_ram_dma_current();
+
+	CHECK(!accepted);
+	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U);
+	if (!strcmp(mode, "scope-bme"))
+		CHECK(pci[2][PCI_COMMAND] & PCI_COMMAND_MASTER);
+	/* Repairing observed facts cannot re-admit a poisoned same-wave scope. */
+	if (!strcmp(mode, "scope-generation"))
+		public_generation--;
+	public_held = ram_window = true;
+	pci[2][PCI_COMMAND] &= ~PCI_COMMAND_MASTER;
+	nvme_configuration = xhci_command = ahci_active = 0;
+	translation[Q35_VTD_RTADDR / 4U] = (uint32_t)(uintptr_t)tables;
+	table_image();
+	resources[2].resources[0].base = NVME;
+	fail_drain = false;
+	late_controller = NULL;
+	CHECK(!q35_capsule_ram_dma_current());
+	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U);
+	CHECK(q35_capsule_dma_scope_leave());
+	scope_started = false;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 2) {
+		if (!strncmp(argv[1], "scope-", 6)) {
+			scope_case(argv[1]);
+			printf("PASS HOST protected-lifetime model %s (not native authority)\n", argv[1]);
+			return 0;
+		}
 		reset_fixture();
 		if (!strncmp(argv[1], "inventory-", 10)) {
 			if (!strcmp(argv[1], "inventory-fast")) {

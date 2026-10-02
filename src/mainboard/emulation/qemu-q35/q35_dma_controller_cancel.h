@@ -21,5 +21,9 @@ struct q35_dma_controller_io {
 bool q35_dma_nvme_cancel(const struct q35_dma_controller_io *io);
 bool q35_dma_xhci_cancel(const struct q35_dma_controller_io *io);
 bool q35_dma_ahci_cancel(const struct q35_dma_controller_io *io);
+/* Read-only checks after cancellation within the same exclusive owner wave. */
+bool q35_dma_nvme_disabled(const struct q35_dma_controller_io *io);
+bool q35_dma_xhci_disabled(const struct q35_dma_controller_io *io);
+bool q35_dma_ahci_disabled(const struct q35_dma_controller_io *io);
 
 #endif

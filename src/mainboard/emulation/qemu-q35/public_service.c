@@ -124,6 +124,12 @@ failed:
 	return Q35_PUBLIC_SERVICE_ERROR;
 }
 
+uint64_t q35_public_capsule_generation(void)
+{
+	return q35_public_service_current(SMM_APMC_CAPSULE_BROKER) ?
+		owner.consumed.generation : 0;
+}
+
 void q35_public_service_end(void)
 {
 	if (!q35_public_service_current(owner.command))

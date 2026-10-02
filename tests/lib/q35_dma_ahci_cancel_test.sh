@@ -42,7 +42,9 @@ mutate()
 			} else exit 1
 			if (reverse) { swap = old; old = new; new = swap }
 		}
-		$0 == old { print new; count++; next }
+		/^bool q35_dma_ahci_cancel\(/ { scope = 1 }
+		/^bool q35_dma_nvme_disabled\(/ { scope = 0 }
+		scope && $0 == old { print new; count++; next }
 		{ print }
 		END { if (count != 1) exit 1 }
 	' "$3" > "$4"

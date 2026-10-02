@@ -24,6 +24,7 @@
 #include "vtd_registers.h"
 #if ENV_SMM
 #include "native_service.h"
+#include "public_service.h"
 #endif
 
 #define VTD_BASE 0xfed90000U
@@ -55,6 +56,64 @@ struct controller_aperture {
 };
 
 enum dma_wave { DMA_PRIVATE_FINALIZE, DMA_CAPSULE_RAM };
+
+#if ENV_SMM
+static struct {
+	uint64_t generation;
+	bool active;
+	bool retired;
+	bool poisoned;
+} capsule_scope;
+
+static bool scope_protected(void)
+{
+	const struct smm_invocation_runtime_view *view;
+
+	return smm_invocation_runtime_view_get(&view) == CB_SUCCESS &&
+		smm_invocation_runtime_range_is_protected(view, &capsule_scope,
+			sizeof(capsule_scope)) == CB_SUCCESS;
+}
+
+static bool scope_current(void)
+{
+	return scope_protected() && capsule_scope.active && !capsule_scope.poisoned &&
+		capsule_scope.generation &&
+		q35_public_capsule_generation() == capsule_scope.generation;
+}
+
+bool q35_capsule_dma_scope_enter(void)
+{
+	const uint64_t generation = q35_public_capsule_generation();
+
+	if (!scope_protected())
+		return false;
+	if (capsule_scope.active) {
+		capsule_scope.poisoned = true;
+		return false;
+	}
+	if (!generation || !q35_capsule_service_current())
+		return false;
+	capsule_scope.generation = generation;
+	capsule_scope.retired = false;
+	capsule_scope.poisoned = false;
+	capsule_scope.active = true;
+	return scope_current();
+}
+
+bool q35_capsule_dma_scope_leave(void)
+{
+	bool valid;
+
+	if (!scope_protected())
+		return false;
+	/* A poisoned mutation still has an ordinary typed-denial cleanup path. */
+	valid = capsule_scope.active && capsule_scope.generation &&
+		q35_public_capsule_generation() == capsule_scope.generation &&
+		q35_capsule_service_current();
+	memset(&capsule_scope, 0, sizeof(capsule_scope));
+	return valid;
+}
+#endif
 
 static bool wave_current(enum dma_wave wave)
 {
@@ -319,12 +378,16 @@ static void controller_delay(void *unused, uint32_t microseconds)
 	udelay(microseconds);
 }
 
-static bool controllers_quiesce(const struct smm_pci_resource_info slots[PCI_FUNCTIONS])
+static bool controllers_quiesce(const struct smm_pci_resource_info slots[PCI_FUNCTIONS],
+	bool cancel_queues)
 {
 	static const size_t devices[CONTROLLERS] = {2, 3, 6};
 	static const uint32_t bars[CONTROLLERS] = {PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_5};
 	bool (*const cancel[CONTROLLERS])(const struct q35_dma_controller_io *) = {
 		q35_dma_nvme_cancel, q35_dma_xhci_cancel, q35_dma_ahci_cancel,
+	};
+	bool (*const disabled[CONTROLLERS])(const struct q35_dma_controller_io *) = {
+		q35_dma_nvme_disabled, q35_dma_xhci_disabled, q35_dma_ahci_disabled,
 	};
 	const struct resource *edu = bar_resource(&slots[4], PCI_BASE_ADDRESS_0);
 	bool retired = true;
@@ -342,7 +405,7 @@ static bool controllers_quiesce(const struct smm_pci_resource_info slots[PCI_FUN
 			.context = &aperture, .read32 = controller_read,
 			.write32 = controller_write, .delay_us = controller_delay,
 		};
-		if (!cancel[i](&io) || aperture.fault)
+		if (!(cancel_queues ? cancel[i](&io) : disabled[i](&io)) || aperture.fault)
 			retired = false;
 	}
 	/* EDU holds no asynchronous host mapping: wait for its synchronous timer. */
@@ -354,6 +417,8 @@ static bool controllers_quiesce(const struct smm_pci_resource_info slots[PCI_FUN
 
 		if (command == UINT64_MAX)
 			return false;
+		if (!cancel_queues)
+			return retired && !(command & 1U);
 		if (!(command & 1U))
 			return retired;
 		udelay(10U);
@@ -391,7 +456,7 @@ static bool resource_image(struct smm_pci_resource_info slots[PCI_FUNCTIONS])
 #endif
 }
 
-static bool controllers_retired(enum dma_wave wave)
+static bool controllers_retired(enum dma_wave wave, bool cancel_queues)
 {
 	struct smm_pci_resource_info slots[PCI_FUNCTIONS];
 	uintptr_t smram_base;
@@ -401,9 +466,9 @@ static bool controllers_retired(enum dma_wave wave)
 
 	if (!wave_current(wave))
 		goto out;
-	if (!inventory(true) || !smram_geometry(&smram_base, &smram_size) ||
+	if (!inventory(cancel_queues) || !smram_geometry(&smram_base, &smram_size) ||
 	    !resource_image(slots) || !resource_image_valid(slots, smram_base, smram_size) ||
-	    !controllers_quiesce(slots) || !inventory(false) ||
+	    !controllers_quiesce(slots, cancel_queues) || !inventory(false) ||
 	    !resource_image_valid(slots, smram_base, smram_size))
 		goto out;
 	if (!wave_current(wave))
@@ -416,7 +481,7 @@ out:
 
 bool q35_dma_cold_quiesce(void)
 {
-	return controllers_retired(DMA_PRIVATE_FINALIZE);
+	return controllers_retired(DMA_PRIVATE_FINALIZE, true);
 }
 
 struct translation_state {
@@ -490,8 +555,14 @@ static bool dma_current(enum dma_wave wave)
 	size_t smram_size;
 	const uint32_t config_index = inl(PCI_IO_CONFIG_INDEX);
 	bool valid = false;
+	bool cancel_queues = true;
 
-	if (!controllers_retired(wave) || !smram_geometry(&smram_base, &smram_size) ||
+#if ENV_SMM
+	if (wave == DMA_CAPSULE_RAM)
+		cancel_queues = !capsule_scope.retired;
+#endif
+
+	if (!controllers_retired(wave, cancel_queues) || !smram_geometry(&smram_base, &smram_size) ||
 	    !(pci_io_read_config8(HOST_BRIDGE, ESMRAMC) & T_EN) ||
 	    (pci_io_read_config8(HOST_BRIDGE, SMRAMC) & (D_LCK | G_SMRAME | D_OPEN)) !=
 		(D_LCK | G_SMRAME) ||
@@ -539,6 +610,8 @@ static bool dma_current(enum dma_wave wave)
 	    before.root != after.root || before.status != after.status || before.version != after.version ||
 	    !q35_dma_pmr_state_matches(&before.pmr, &after.pmr) || !inventory(false))
 		goto out;
+	if (!controllers_retired(wave, false))
+		goto out;
 	if (!wave_current(wave))
 		goto out;
 	valid = true;
@@ -554,7 +627,25 @@ bool q35_dma_cold_current(void)
 
 bool q35_capsule_ram_dma_current(void)
 {
-	return dma_current(DMA_CAPSULE_RAM);
+#if ENV_SMM
+	bool valid;
+
+	if (!scope_current()) {
+		if (scope_protected() && capsule_scope.active)
+			capsule_scope.poisoned = true;
+		return false;
+	}
+	valid = dma_current(DMA_CAPSULE_RAM) && scope_current();
+	if (!scope_protected())
+		return false;
+	if (valid)
+		capsule_scope.retired = true;
+	else
+		capsule_scope.poisoned = true;
+	return valid;
+#else
+	return false;
+#endif
 }
 
 #if ENV_RAMSTAGE
