@@ -1,0 +1,29 @@
+#
+# No change to /home/sean/diagnostic-private-formatters-gate.MqmT1a/resolved.config
+#
+#
+# No change to /home/sean/diagnostic-private-formatters-gate.MqmT1a/resolved.config
+#
+#
+# No change to /home/sean/diagnostic-private-formatters-gate.MqmT1a/resolved.config
+#
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+cdk2 coreboot test: PASS
+diagnostic runtime transition test: PASS
+diagnostic handoff inventory: 35 linked images covered
+#
+# No change to /home/sean/diagnostic-private-formatters-gate.MqmT1a/resolved.config
+#
+#
+# No change to /home/sean/diagnostic-private-formatters-gate.MqmT1a/resolved.config
+#
+SMMSTORE transport tests: PASS
+authenticated variable-store tests: PASS
+SMMSTORE FVB runtime tests: PASS
+SMMSTORE runtime driver tests: PASS
+SMMStore diagnostic tests: PASS
+SMMStore diagnostic tests: PASS

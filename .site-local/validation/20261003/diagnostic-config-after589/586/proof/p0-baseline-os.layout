@@ -1,0 +1,20 @@
+config=144/8 TIME=16/1 entry=12/1 console=8/4 HOB=88/1
+cdk2_diag_config.putc=0/8
+cdk2_diag_config.putc_context=8/8
+cdk2_diag_config.putc_provenance=16/4
+cdk2_diag_config.cbmem_console=24/8
+cdk2_diag_config.cbmem_console_bytes=32/8
+cdk2_diag_config.spi_console_buffer=40/8
+cdk2_diag_config.spi_console_buffer_bytes=48/8
+cdk2_diag_config.spi_console_max_chunk=56/4
+cdk2_diag_config.spi_console_boot_limit=60/4
+cdk2_diag_config.spi_console_apm_cmd=64/1
+cdk2_diag_config.spi_console_remaining=72/8
+cdk2_diag_config.timestamps=80/8
+cdk2_diag_config.timestamp_bytes=88/8
+cdk2_diag_config.clock=96/8
+cdk2_diag_config.clock_context=104/8
+cdk2_diag_config.clock_hz=112/8
+cdk2_diag_config.owner=120/8
+cdk2_diag_config.owner_context=128/8
+cdk2_diag_config.emission_owner=136/8

@@ -1,0 +1,59 @@
+In file included from /home/sean/diagnostic-native-phase-proof.7FZ8yg/baseline/include/cdk2/diagnostic.h:6,
+                 from /home/sean/diagnostic-native-phase-proof.7FZ8yg/baseline/include/cdk2/pci_bus_binding.h:7,
+                 from tests/../src/modules/pci_bus/immutable_entry.c:2,
+                 from tests/pci_dma_arena_test.c:4:
+/home/sean/diagnostic-native-phase-proof.7FZ8yg/p0/include/cdk2/config.h:145:9: error: ‘CONFIG_PAYLOAD_DMA_HANDOFF’ redefined [-Werror]
+  145 | #define CONFIG_PAYLOAD_DMA_HANDOFF 0
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:3:9: note: this is the location of the previous definition
+    3 | #define CONFIG_PAYLOAD_DMA_HANDOFF 1
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c: In function ‘main’:
+tests/pci_dma_arena_test.c:248:15: error: implicit declaration of function ‘quiesce_io_function’ [-Wimplicit-function-declaration]
+  248 |         CHECK(quiesce_io_function(&entry, &child.function) != 0 &&
+      |               ^~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:8:37: note: in definition of macro ‘CHECK’
+    8 | #define CHECK(condition) do { if (!(condition)) __builtin_trap(); } while (0)
+      |                                     ^~~~~~~~~
+tests/pci_dma_arena_test.c:283:16: error: ‘struct immutable_context’ has no member named ‘dma_control’
+  283 |         context.dma_control = (struct cdk2_pci_dma_control) {
+      |                ^
+tests/pci_dma_arena_test.c:285:32: error: ‘quiesce_all_dma’ undeclared (first use in this function)
+  285 |                 .quiesce_all = quiesce_all_dma };
+      |                                ^~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:285:32: note: each undeclared identifier is reported only once for each function it appears in
+tests/pci_dma_arena_test.c:286:15: error: implicit declaration of function ‘quiesce_all_dma’ [-Wimplicit-function-declaration]
+  286 |         CHECK(quiesce_all_dma(NULL) == EFI_INVALID_PARAMETER);
+      |               ^~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:8:37: note: in definition of macro ‘CHECK’
+    8 | #define CHECK(condition) do { if (!(condition)) __builtin_trap(); } while (0)
+      |                                     ^~~~~~~~~
+tests/pci_dma_arena_test.c:288:61: error: ‘struct immutable_context’ has no member named ‘dma_control’
+  288 |                 struct cdk2_pci_dma_control forged = context.dma_control;
+      |                                                             ^
+tests/pci_dma_arena_test.c:293:39: error: ‘struct immutable_context’ has no member named ‘dma_control’
+  293 |         CHECK(quiesce_all_dma(&context.dma_control) == EFI_DEVICE_ERROR &&
+      |                                       ^
+tests/pci_dma_arena_test.c:8:37: note: in definition of macro ‘CHECK’
+    8 | #define CHECK(condition) do { if (!(condition)) __builtin_trap(); } while (0)
+      |                                     ^~~~~~~~~
+tests/pci_dma_arena_test.c:302:39: error: ‘struct immutable_context’ has no member named ‘dma_control’
+  302 |         CHECK(quiesce_all_dma(&context.dma_control) == EFI_SUCCESS &&
+      |                                       ^
+tests/pci_dma_arena_test.c:8:37: note: in definition of macro ‘CHECK’
+    8 | #define CHECK(condition) do { if (!(condition)) __builtin_trap(); } while (0)
+      |                                     ^~~~~~~~~
+tests/pci_dma_arena_test.c:311:9: error: implicit declaration of function ‘release_io_function’ [-Wimplicit-function-declaration]
+  311 |         release_io_function(&entry, &child.function);
+      |         ^~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:322:45: error: ‘quiesce_io_function’ undeclared (first use in this function)
+  322 |                         .quiesce_function = quiesce_io_function,
+      |                                             ^~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:323:45: error: initialization of ‘void (*)(void *, struct cdk2_pci_function *)’ from incompatible pointer type ‘int (*)()’ [-Wincompatible-pointer-types]
+  323 |                         .release_function = release_io_function } };
+      |                                             ^~~~~~~~~~~~~~~~~~~
+tests/pci_dma_arena_test.c:323:45: note: (near initialization for ‘binding.services.release_function’)
+tests/pci_dma_arena_test.c:311:9: note: ‘release_io_function’ declared here
+  311 |         release_io_function(&entry, &child.function);
+      |         ^~~~~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors

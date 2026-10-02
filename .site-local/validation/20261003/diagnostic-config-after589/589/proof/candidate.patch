@@ -1,0 +1,61 @@
+diff --git a/Kconfig b/Kconfig
+index 0b4169d812..27e7f21915 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -221,15 +221,6 @@ config CDK2_PROFILE_EXPERT_OVERRIDES
+ 	  Expose payload-internal migration controls for development. Production
+ 	  coreboot pairings should leave this disabled.
+ 
+-config CDK2_LATE_LINK
+-	bool "Use cdk2 late-link policy"
+-	default y
+-	depends on CDK2_PAYLOAD
+-	help
+-	  Apply cdk2's final PE/COFF linker alignment policy to every payload
+-	  image. This is intentionally selected by the payload build rather than
+-	  inherited from a platform default.
+-
+ config CDK2_NATIVE_STAGE
+ 	bool "Build the native cdk2 stage"
+ 	default y
+@@ -1099,22 +1090,6 @@ config CDK2_TPM_CONFIG
+ 	default y
+ 	depends on CDK2_TPM2 && CDK2_SETUP_UI
+ 
+-config CDK2_CPU_TIMER
+-	bool "Use CPUID leaf 0x15 for the CPU timer"
+-	default n
+-	depends on CDK2_PAYLOAD
+-	help
+-	  QEMU does not provide the timer contract required by this library.
+-
+-config CDK2_MAX_LOGICAL_PROCESSORS
+-	int "Maximum logical processors"
+-	range 1 4096
+-	default 1024
+-	depends on CDK2_PAYLOAD
+-	help
+-	  Upper bound for the UEFI CPU driver processor table. coreboot board
+-	  Kconfig should pass the platform CONFIG_MAX_CPUS value.
+-
+ choice
+ 	prompt "UEFI timer driver"
+ 	default CDK2_LAPIC_TIMER
+diff --git a/defconfig b/defconfig
+index 59d95415ba..22f2c8bb67 100644
+--- a/defconfig
++++ b/defconfig
+@@ -43,7 +43,6 @@ CONFIG_CDK2_CPU_VENDOR_INTEL=y
+ # CONFIG_CDK2_NATIVE_BDS is not set
+ # CONFIG_CDK2_NATIVE_SHELL is not set
+ CONFIG_CDK2_NATIVE_DXE_CORE=y
+-CONFIG_CDK2_LATE_LINK=y
+ CONFIG_CDK2_NATIVE_STAGE=y
+ CONFIG_CDK2_LINEAR_BOOT=y
+ CONFIG_CDK2_NATIVE_SECURITY_STUB=n
+@@ -77,5 +76,3 @@ CONFIG_CDK2_CBMEM_CONSOLE=n
+ CONFIG_CDK2_CBMEM_TIMESTAMPS=n
+ CONFIG_CDK2_BOOT_TIMEOUT=0
+ CONFIG_CDK2_TPM2=y
+-CONFIG_CDK2_CPU_TIMER=n
+-CONFIG_CDK2_MAX_LOGICAL_PROCESSORS=256

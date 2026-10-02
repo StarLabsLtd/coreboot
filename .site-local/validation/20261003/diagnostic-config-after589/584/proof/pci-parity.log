@@ -1,0 +1,6 @@
+actual isolated PCI diagnostic=0 O0 whole object PASS
+actual isolated PCI diagnostic=0 O2 whole object PASS
+actual isolated PCI diagnostic=0 Os whole object PASS
+actual isolated PCI diagnostic=1 O0 whole object PASS
+actual isolated PCI diagnostic=1 O2 whole object PASS
+actual isolated PCI diagnostic=1 Os whole object PASS

@@ -1,0 +1,291 @@
+diff --git a/include/cdk2/diagnostic.h b/include/cdk2/diagnostic.h
+index 0dfbb1b88f..b3fc63f2a6 100644
+--- a/include/cdk2/diagnostic.h
++++ b/include/cdk2/diagnostic.h
+@@ -305,33 +305,33 @@ void cdk2_diag_test_release_owner(volatile UINT64 *shared_owner, UINT64 owner);
+ void cdk2_diag_test_set_release_hook(void (*hook)(void *context), void *context);
+ #endif
+ void cdk2_diag_emit(enum cdk2_diag_level level, enum cdk2_diag_module module,
+-	UINT32 event, EFI_STATUS status);
++	uint32_t event, EFI_STATUS status);
+ /* Emit a console record without treating it as a timing boundary. */
+ void cdk2_diag_emit_console(enum cdk2_diag_level level,
+-	enum cdk2_diag_module module, UINT32 event, EFI_STATUS status);
+-void cdk2_diag_emit_compact(enum cdk2_diag_module module, UINT32 event,
++	enum cdk2_diag_module module, uint32_t event, EFI_STATUS status);
++void cdk2_diag_emit_compact(enum cdk2_diag_module module, uint32_t event,
+ 	EFI_STATUS status);
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message);
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message);
+ void cdk2_diag_message_status(enum cdk2_diag_module module,
+-	const CHAR8 *message, EFI_STATUS status);
++	const char *message, EFI_STATUS status);
+ void cdk2_diag_value(enum cdk2_diag_module module, const char *label,
+ 	uint64_t value);
+ void cdk2_diag_bytes(enum cdk2_diag_module module, const char *label,
+ 	const void *bytes, size_t count);
+ /* Read the active diagnostic clock for bounded optional-device work. */
+ uint64_t cdk2_diag_now(void);
+-void cdk2_diag_phase(const CHAR8 *phase, const CHAR8 *operation,
+-	EFI_STATUS status, UINT64 elapsed_ticks);
+-void cdk2_diag_phase_event(UINT32 event, const CHAR8 *phase,
+-	const CHAR8 *operation, EFI_STATUS status, UINT64 elapsed_ticks);
+-void cdk2_diag_phase_event_at(UINT32 event, UINT64 event_ticks,
+-	const CHAR8 *phase, const CHAR8 *operation, EFI_STATUS status,
+-	UINT64 elapsed_ticks);
++void cdk2_diag_phase(const char *phase, const char *operation,
++	EFI_STATUS status, uint64_t elapsed_ticks);
++void cdk2_diag_phase_event(uint32_t event, const char *phase,
++	const char *operation, EFI_STATUS status, uint64_t elapsed_ticks);
++void cdk2_diag_phase_event_at(uint32_t event, uint64_t event_ticks,
++	const char *phase, const char *operation, EFI_STATUS status,
++	uint64_t elapsed_ticks);
+ /* Optional timing pair: omitted when fewer than two slots remain after the
+  * mandatory linear-phase budget, preserving core timing visibility. */
+-BOOLEAN cdk2_diag_optional_phase_pair_at(UINT32 begin_event, UINT32 end_event,
+-	UINT64 begin_ticks, UINT64 end_ticks, const CHAR8 *phase,
+-	UINT64 elapsed_ticks, EFI_STATUS status);
++BOOLEAN cdk2_diag_optional_phase_pair_at(uint32_t begin_event, uint32_t end_event,
++	uint64_t begin_ticks, uint64_t end_ticks, const char *phase,
++	uint64_t elapsed_ticks, EFI_STATUS status);
+ 
+ /*
+  * DXE modules cannot assume that the console or allocator is available while
+@@ -339,7 +339,7 @@ BOOLEAN cdk2_diag_optional_phase_pair_at(UINT32 begin_event, UINT32 end_event,
+  * tiny, allocation-free literal transport matching the native entry path.
+  */
+ #if defined(CDK2_DEBUG) || CONFIG_CDK2_DIAGNOSTIC
+-static inline void cdk2_diag_literal(const CHAR8 *message)
++static inline void cdk2_diag_literal(const char *message)
+ {
+ 	cdk2_diag_message(CDK2_DIAG_NATIVE, message);
+ }
+diff --git a/src/lib/diagnostic.c b/src/lib/diagnostic.c
+index 717afb7978..e1645aefec 100644
+--- a/src/lib/diagnostic.c
++++ b/src/lib/diagnostic.c
+@@ -1032,7 +1032,7 @@ void cdk2_diag_runtime_transition(void)
+ }
+ 
+ static void emit_record(enum cdk2_diag_level level, enum cdk2_diag_module module,
+-	UINT32 event, EFI_STATUS status, BOOLEAN timestamp)
++	uint32_t event, EFI_STATUS status, BOOLEAN timestamp)
+ {
+ 	/* Runtime services may remain callable after SetVirtualAddressMap, but
+ 	 * their physical diagnostic sinks are no longer valid. */
+@@ -1061,39 +1061,39 @@ static void emit_record(enum cdk2_diag_level level, enum cdk2_diag_module module
+ }
+ 
+ void cdk2_diag_emit(enum cdk2_diag_level level, enum cdk2_diag_module module,
+-	UINT32 event, EFI_STATUS status)
++	uint32_t event, EFI_STATUS status)
+ {
+ 	emit_record(level, module, event, status, TRUE);
+ }
+ 
+ void cdk2_diag_emit_console(enum cdk2_diag_level level,
+-	enum cdk2_diag_module module, UINT32 event, EFI_STATUS status)
++	enum cdk2_diag_module module, uint32_t event, EFI_STATUS status)
+ {
+ 	emit_record(level, module, event, status, FALSE);
+ }
+ 
+-void cdk2_diag_emit_compact(enum cdk2_diag_module module, UINT32 event,
++void cdk2_diag_emit_compact(enum cdk2_diag_module module, uint32_t event,
+ 	EFI_STATUS status)
+ {
+ 	cdk2_diag_emit(CDK2_DIAG_INFO, module, event, status);
+ }
+ 
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	cdk2_diag_message_status(module, message, EFI_SUCCESS);
+ }
+ 
+ void cdk2_diag_message_status(enum cdk2_diag_module module,
+-	const CHAR8 *message, EFI_STATUS status)
++	const char *message, EFI_STATUS status)
+ {
+ 	enum cdk2_diag_level level = CDK2_DIAG_DEBUG;
+-	UINT32 hash = 2166136261U;
+-	const CHAR8 *cursor;
++	uint32_t hash = 2166136261U;
++	const char *cursor;
+ 
+ 	if (message == NULL)
+ 		return;
+ 	for (cursor = message; *cursor != '\0'; cursor++) {
+-		hash ^= (UINT8)*cursor;
++		hash ^= (uint8_t)*cursor;
+ 		hash *= 16777619U;
+ 		if (cursor[0] == '[' && cursor[1] != '\0' && cursor[2] != '\0' &&
+ 		    cursor[1] == 'e' && cursor[2] == 'r')
+@@ -1177,11 +1177,11 @@ void cdk2_diag_bytes(enum cdk2_diag_module module, const char *label,
+ 	end_emit();
+ }
+ 
+-static void emit_phase_locked(UINT32 event, UINT64 event_ticks,
+-	BOOLEAN supplied_ticks, const CHAR8 *phase,
+-	const CHAR8 *operation, EFI_STATUS status, UINT64 elapsed_ticks)
++static void emit_phase_locked(uint32_t event, uint64_t event_ticks,
++	BOOLEAN supplied_ticks, const char *phase,
++	const char *operation, EFI_STATUS status, uint64_t elapsed_ticks)
+ {
+-	UINT64 elapsed_us = diagnostic_elapsed_microseconds(elapsed_ticks);
++	uint64_t elapsed_us = diagnostic_elapsed_microseconds(elapsed_ticks);
+ 	if (event != 0U) {
+ 		if (supplied_ticks)
+ 			append_timestamp_at(event, event_ticks);
+@@ -1202,8 +1202,8 @@ static void emit_phase_locked(UINT32 event, UINT64 event_ticks,
+ 	write_text(" us\n");
+ }
+ 
+-void cdk2_diag_phase_event(UINT32 event, const CHAR8 *phase,
+-	const CHAR8 *operation, EFI_STATUS status, UINT64 elapsed_ticks)
++void cdk2_diag_phase_event(uint32_t event, const char *phase,
++	const char *operation, EFI_STATUS status, uint64_t elapsed_ticks)
+ {
+ 	if (phase == NULL || operation == NULL ||
+ 	    !begin_emit(event != 0U || EFI_ERROR(status)))
+@@ -1215,9 +1215,9 @@ void cdk2_diag_phase_event(UINT32 event, const CHAR8 *phase,
+ 	end_emit();
+ }
+ 
+-void cdk2_diag_phase_event_at(UINT32 event, UINT64 event_ticks,
+-	const CHAR8 *phase, const CHAR8 *operation, EFI_STATUS status,
+-	UINT64 elapsed_ticks)
++void cdk2_diag_phase_event_at(uint32_t event, uint64_t event_ticks,
++	const char *phase, const char *operation, EFI_STATUS status,
++	uint64_t elapsed_ticks)
+ {
+ 	if (phase == NULL || operation == NULL ||
+ 	    !begin_emit(event != 0U || EFI_ERROR(status)))
+@@ -1229,9 +1229,9 @@ void cdk2_diag_phase_event_at(UINT32 event, UINT64 event_ticks,
+ 	end_emit();
+ }
+ 
+-BOOLEAN cdk2_diag_optional_phase_pair_at(UINT32 begin_event, UINT32 end_event,
+-	UINT64 begin_ticks, UINT64 end_ticks, const CHAR8 *phase,
+-	UINT64 elapsed_ticks, EFI_STATUS status)
++BOOLEAN cdk2_diag_optional_phase_pair_at(uint32_t begin_event, uint32_t end_event,
++	uint64_t begin_ticks, uint64_t end_ticks, const char *phase,
++	uint64_t elapsed_ticks, EFI_STATUS status)
+ {
+ 	struct cdk2_diag_timestamp_table *table;
+ 	UINTN capacity;
+@@ -1262,8 +1262,8 @@ BOOLEAN cdk2_diag_optional_phase_pair_at(UINT32 begin_event, UINT32 end_event,
+ 	return TRUE;
+ }
+ 
+-void cdk2_diag_phase(const CHAR8 *phase, const CHAR8 *operation,
+-	EFI_STATUS status, UINT64 elapsed_ticks)
++void cdk2_diag_phase(const char *phase, const char *operation,
++	EFI_STATUS status, uint64_t elapsed_ticks)
+ {
+ 	cdk2_diag_phase_event(0U, phase, operation, status, elapsed_ticks);
+ }
+diff --git a/src/lib/diagnostic_event.c b/src/lib/diagnostic_event.c
+index 79de5c7d17..6c85daabfb 100644
+--- a/src/lib/diagnostic_event.c
++++ b/src/lib/diagnostic_event.c
+@@ -17,7 +17,7 @@ static void write_char(CHAR8 character)
+ 	__asm__ volatile ("outb %0, %w1" : : "a"((UINT8)character), "Nd"(0x3f8U));
+ }
+ 
+-void cdk2_diag_emit_compact(enum cdk2_diag_module module, UINT32 event,
++void cdk2_diag_emit_compact(enum cdk2_diag_module module, uint32_t event,
+ 	EFI_STATUS status)
+ {
+ 	write_char((CHAR8)module);
+diff --git a/tests/con_splitter_entry_test.c b/tests/con_splitter_entry_test.c
+index 22269c18e2..6f321617c7 100644
+--- a/tests/con_splitter_entry_test.c
++++ b/tests/con_splitter_entry_test.c
+@@ -70,7 +70,7 @@ EFI_STATUS cdk2_diag_configure_system_table(void *system)
+ 	return EFI_SUCCESS;
+ }
+ 
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	(void)module;
+ 	(void)message;
+diff --git a/tests/graphics_console_diagnostic_test.c b/tests/graphics_console_diagnostic_test.c
+index f83f95fbb5..70605b3746 100644
+--- a/tests/graphics_console_diagnostic_test.c
++++ b/tests/graphics_console_diagnostic_test.c
+@@ -22,7 +22,7 @@ static EFI_STATUS CDK2_MS_ABI capture(void *context, UINTN *size, void *data)
+ }
+ 
+ #ifdef CDK2_DIAGNOSTIC
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	common_calls++;
+ 	if (module != CDK2_DIAG_GRAPHICS_CONSOLE || message == NULL)
+diff --git a/tests/native_entry_test.c b/tests/native_entry_test.c
+index 56fa694c06..686ff33308 100644
+--- a/tests/native_entry_test.c
++++ b/tests/native_entry_test.c
+@@ -38,7 +38,7 @@ cdk2_platform_initialize_native_context(struct cdk2_native_context *context,
+ }
+ 
+ void cdk2_diag_emit(enum cdk2_diag_level level,
+-	enum cdk2_diag_module module, UINT32 event, EFI_STATUS status)
++	enum cdk2_diag_module module, uint32_t event, EFI_STATUS status)
+ {
+ 	(void)level;
+ 	(void)module;
+diff --git a/tests/nvme_diagnostic_test.c b/tests/nvme_diagnostic_test.c
+index fa1d14cfe3..7af4fdaa01 100644
+--- a/tests/nvme_diagnostic_test.c
++++ b/tests/nvme_diagnostic_test.c
+@@ -7,7 +7,7 @@
+ static char output[128];
+ static UINTN output_length;
+ 
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	size_t length = strlen(message);
+ 	if (module != CDK2_DIAG_NVME || output_length + length > sizeof(output))
+diff --git a/tests/pci_dma_arena_test.c b/tests/pci_dma_arena_test.c
+index 9d0cce35d2..8f6e10cd1f 100644
+--- a/tests/pci_dma_arena_test.c
++++ b/tests/pci_dma_arena_test.c
+@@ -13,7 +13,7 @@ static UINT32 diagnostic_event;
+ static EFI_STATUS diagnostic_status;
+ 
+ void cdk2_diag_emit(enum cdk2_diag_level level, enum cdk2_diag_module module,
+-	UINT32 event, EFI_STATUS status)
++	uint32_t event, EFI_STATUS status)
+ {
+ 	CHECK(level == CDK2_DIAG_INFO && module == CDK2_DIAG_PCI_BUS);
+ 	diagnostic_count++;
+diff --git a/tests/smmstore_diagnostic_test.c b/tests/smmstore_diagnostic_test.c
+index ee13c7ad55..32a9478298 100644
+--- a/tests/smmstore_diagnostic_test.c
++++ b/tests/smmstore_diagnostic_test.c
+@@ -28,7 +28,7 @@ static EFI_STATUS CDK2_MS_ABI capture(void *context, UINTN *size, void *data)
+ }
+ 
+ #ifdef CDK2_DIAGNOSTIC
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	common_calls++;
+ 	if (module != CDK2_DIAG_SMMSTORE || message == NULL)
+diff --git a/tests/tcg2_diagnostic_coalesce_test.c b/tests/tcg2_diagnostic_coalesce_test.c
+index e4f2e5f886..168591651a 100644
+--- a/tests/tcg2_diagnostic_coalesce_test.c
++++ b/tests/tcg2_diagnostic_coalesce_test.c
+@@ -9,7 +9,7 @@ static UINTN messages, values;
+ static UINT64 last_value;
+ static char last_message[96];
+ 
+-void cdk2_diag_message(enum cdk2_diag_module module, const CHAR8 *message)
++void cdk2_diag_message(enum cdk2_diag_module module, const char *message)
+ {
+ 	if (module == CDK2_DIAG_TCG2 && message != NULL) {
+ 		messages++;

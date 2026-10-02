@@ -1,0 +1,9 @@
+In file included from /home/sean/diagnostic-native-phase-proof.7FZ8yg/representation.c:5:
+/home/sean/diagnostic-native-phase-proof.7FZ8yg/representation.c: In function ‘main’:
+/home/sean/diagnostic-native-phase-proof.7FZ8yg/representation.c:183:52: error: comparison of integer expressions of different signedness: ‘INT64’ {aka ‘long long int’} and ‘UINT64’ {aka ‘long long unsigned int’} [-Werror=sign-compare]
+  183 |         assert(phase_table->entries[0].entry_stamp == emitted.clock);
+      |                                                    ^~
+/home/sean/diagnostic-native-phase-proof.7FZ8yg/representation.c:205:52: error: comparison of integer expressions of different signedness: ‘INT64’ {aka ‘long long int’} and ‘long unsigned int’ [-Werror=sign-compare]
+  205 |         assert(phase_table->entries[3].entry_stamp == UINT64_C(0xfedcba9876543211));
+      |                                                    ^~
+cc1: all warnings being treated as errors

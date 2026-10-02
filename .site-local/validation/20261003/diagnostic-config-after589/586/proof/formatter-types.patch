@@ -1,0 +1,202 @@
+diff --git a/src/lib/diagnostic.c b/src/lib/diagnostic.c
+index e1645aefec..5788924afd 100644
+--- a/src/lib/diagnostic.c
++++ b/src/lib/diagnostic.c
+@@ -29,7 +29,7 @@ static UINT32 spi_console_local_remaining;
+ static BOOLEAN spi_console_record_enabled;
+ static BOOLEAN spi_console_record_critical;
+ static BOOLEAN spi_console_record_suppressed;
+-static const CHAR8 *level_name(enum cdk2_diag_level level);
++static const char *level_name(enum cdk2_diag_level level);
+ 
+ uint64_t cdk2_diag_now(void)
+ {
+@@ -306,32 +306,32 @@ static BOOLEAN spi_console_flush(void)
+ #endif
+ }
+ 
+-static UINTN diagnostic_text_length(const CHAR8 *text)
++static size_t diagnostic_text_length(const char *text)
+ {
+-	UINTN length = 0U;
++	size_t length = 0U;
+ 
+ 	while (text != NULL && text[length] != '\0')
+ 		length++;
+ 	return length;
+ }
+ 
+-static UINTN diagnostic_length_add(UINTN length, UINTN addition)
++static size_t diagnostic_length_add(size_t length, size_t addition)
+ {
+ 	return addition > MAX_UINTN - length ? MAX_UINTN : length + addition;
+ }
+ 
+-static UINTN diagnostic_decimal_length(UINT64 value)
++static size_t diagnostic_decimal_length(uint64_t value)
+ {
+-	UINTN length = 1U;
++	size_t length = 1U;
+ 
+-	while (value >= 10U && length < sizeof(UINT64) * 8U) {
++	while (value >= 10U && length < sizeof(uint64_t) * 8U) {
+ 		value /= 10U;
+ 		length++;
+ 	}
+ 	return length;
+ }
+ 
+-static void spi_console_prepare_record(UINTN length)
++static void spi_console_prepare_record(size_t length)
+ {
+ #if CDK2_DIAG_SPI_CONSOLE_ENABLED
+ 	UINT32 budget;
+@@ -356,9 +356,9 @@ suppress:
+ #endif
+ }
+ 
+-static UINTN diagnostic_record_length(enum cdk2_diag_level level)
++static size_t diagnostic_record_length(enum cdk2_diag_level level)
+ {
+-	UINTN length = 1U;
++	size_t length = 1U;
+ 
+ 	length = diagnostic_length_add(length, diagnostic_text_length(level_name(level)));
+ 	length = diagnostic_length_add(length, sizeof("] CDK2:m=") - 1U);
+@@ -718,7 +718,7 @@ EFI_STATUS cdk2_diag_configure_hob(void *hob_list)
+ 
+ #if defined(CDK2_DIAG_DIRECT_SERIAL) && defined(__x86_64__)
+ #if defined(CDK2_DIAG_UNIT_TEST)
+-static void direct_serial_putc(CHAR8 character)
++static void direct_serial_putc(char character)
+ {
+ 	(void)character;
+ 	direct_serial_test_writes++;
+@@ -738,7 +738,7 @@ static void io_write8(UINT16 port, UINT8 value)
+ 	__asm__ volatile ("outb %0, %w1" : : "a"(value), "Nd"(port));
+ }
+ 
+-static void direct_serial_putc(CHAR8 character)
++static void direct_serial_putc(char character)
+ {
+ 	UINTN timeout = 100000U;
+ 	if (direct_serial_timed_out)
+@@ -757,7 +757,7 @@ static void direct_serial_putc(CHAR8 character)
+ 
+ #endif
+ 
+-static void write_char(CHAR8 character)
++static void write_char(char character)
+ {
+ 	BOOLEAN cbmem_written = FALSE;
+ 	if (!physical_sinks_retired && active.putc != NULL &&
+@@ -791,15 +791,15 @@ static void write_char(CHAR8 character)
+ 	}
+ }
+ 
+-static void write_text(const CHAR8 *text)
++static void write_text(const char *text)
+ {
+ 	while (*text != '\0')
+ 		write_char(*text++);
+ }
+ 
+-static void write_hex(UINT64 value, UINTN digits)
++static void write_hex(uint64_t value, size_t digits)
+ {
+-	static const CHAR8 hex[] = "0123456789abcdef";
++	static const char hex[] = "0123456789abcdef";
+ 
+ 	while (digits != 0U) {
+ 		digits--;
+@@ -807,20 +807,20 @@ static void write_hex(UINT64 value, UINTN digits)
+ 	}
+ }
+ 
+-static void write_decimal(UINT64 value)
++static void write_decimal(uint64_t value)
+ {
+-	CHAR8 digits[20];
+-	UINTN count = 0U;
++	char digits[20];
++	size_t count = 0U;
+ 
+ 	do {
+-		digits[count++] = (CHAR8)('0' + value % 10U);
++		digits[count++] = (char)('0' + value % 10U);
+ 		value /= 10U;
+ 	} while (value != 0U && count < sizeof(digits));
+ 	while (count != 0U)
+ 		write_char(digits[--count]);
+ }
+ 
+-static const CHAR8 *status_name(EFI_STATUS status)
++static const char *status_name(EFI_STATUS status)
+ {
+ 	switch (status) {
+ 	case EFI_SUCCESS: return "SUCCESS";
+@@ -845,7 +845,7 @@ static const CHAR8 *status_name(EFI_STATUS status)
+ 	}
+ }
+ 
+-static const CHAR8 *level_name(enum cdk2_diag_level level)
++static const char *level_name(enum cdk2_diag_level level)
+ {
+ 	switch (level) {
+ 	case CDK2_DIAG_DEBUG: return "DEBUG";
+@@ -856,13 +856,13 @@ static const CHAR8 *level_name(enum cdk2_diag_level level)
+ 	}
+ }
+ 
+-static UINT64 diagnostic_elapsed_microseconds(UINT64 elapsed_ticks)
++static uint64_t diagnostic_elapsed_microseconds(uint64_t elapsed_ticks)
+ {
+-	UINT64 elapsed_us = 0U;
++	uint64_t elapsed_us = 0U;
+ 
+ 	if (active.clock_hz != 0U) {
+-		UINT64 whole = elapsed_ticks / active.clock_hz;
+-		UINT64 remainder = elapsed_ticks % active.clock_hz;
++		uint64_t whole = elapsed_ticks / active.clock_hz;
++		uint64_t remainder = elapsed_ticks % active.clock_hz;
+ 
+ 		if (whole > MAX_UINT64 / 1000000U)
+ 			return MAX_UINT64;
+@@ -873,10 +873,10 @@ static UINT64 diagnostic_elapsed_microseconds(UINT64 elapsed_ticks)
+ 	return elapsed_us;
+ }
+ 
+-static UINTN diagnostic_phase_length(const CHAR8 *phase,
+-	const CHAR8 *operation, EFI_STATUS status, UINT64 elapsed_ticks)
++static size_t diagnostic_phase_length(const char *phase,
++	const char *operation, EFI_STATUS status, uint64_t elapsed_ticks)
+ {
+-	UINTN length = sizeof("CDK2 | ") - 1U;
++	size_t length = sizeof("CDK2 | ") - 1U;
+ 
+ 	length = diagnostic_length_add(length, diagnostic_text_length(phase));
+ 	length = diagnostic_length_add(length, sizeof(" | ") - 1U);
+diff --git a/src/lib/diagnostic_event.c b/src/lib/diagnostic_event.c
+index 6c85daabfb..969cc0b82a 100644
+--- a/src/lib/diagnostic_event.c
++++ b/src/lib/diagnostic_event.c
+@@ -2,7 +2,7 @@
+ 
+ #include <cdk2/diagnostic.h>
+ 
+-static void write_char(CHAR8 character)
++static void write_char(char character)
+ {
+ 	UINTN timeout = 100000U;
+ 	UINT8 ready;
+@@ -20,7 +20,7 @@ static void write_char(CHAR8 character)
+ void cdk2_diag_emit_compact(enum cdk2_diag_module module, uint32_t event,
+ 	EFI_STATUS status)
+ {
+-	write_char((CHAR8)module);
+-	write_char((CHAR8)event);
+-	write_char((CHAR8)status);
++	write_char((char)module);
++	write_char((char)event);
++	write_char((char)status);
+ }

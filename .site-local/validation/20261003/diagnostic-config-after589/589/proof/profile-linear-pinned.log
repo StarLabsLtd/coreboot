@@ -1,0 +1,250 @@
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/linear-default/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-linear/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_NATIVE_GRAPHICS_OUTPUT
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-forced-linear-graphics/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-canonical/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-not-set/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_NATIVE_GRAPHICS_OUTPUT
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-nonlinear-graphics/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-zero-to-one-0-1/.config
+#
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-retired-owner-request/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-one-to-zero-1-0/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-enabled/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-zero-to-zero-0-0/.config
+#
+kconfig/defconfig:80:notice: override: reassigning to symbol CDK2_CAPSULE
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-compatibility-empty-guid/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-linear/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-linear-notset-y/.config
+#
+kconfig/defconfig:80:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_CAPSULE_MAIN_FW_GUID
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-compatibility-guid/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-duplicate-linear-y-y/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-spaced/.config
+#
+kconfig/defconfig:80:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_CAPSULE_MAIN_FW_GUID
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-invalid-compatibility-guid/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-post-equals-space/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-signed/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-hexadecimal/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_EHCI
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_UHCI
+kconfig/defconfig:89:notice: override: reassigning to symbol CDK2_NATIVE_USB_MOUSE
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_NATIVE_SIO_BUS
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_NATIVE_PS2_MOUSE
+kconfig/defconfig:93:notice: override: reassigning to symbol CDK2_SETUP_UI
+kconfig/defconfig:94:notice: override: reassigning to symbol CDK2_LVGL_RENDERER
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-strict-hostile-drivers/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-empty/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NVME
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_USB
+kconfig/defconfig:89:notice: override: reassigning to symbol CDK2_ATA
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_SD
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-disk-no-transport/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-leading-zero/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-capsule-without-disk/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-bad-linear/.config
+#
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-disk-without-capsule/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_SECURE_BOOT
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-secure-boot/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed-trailing-linear/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+kconfig/defconfig:89:notice: override: reassigning to symbol CDK2_NATIVE_EHCI
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_NATIVE_UHCI
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_NATIVE_USB_MOUSE
+kconfig/defconfig:92:notice: override: reassigning to symbol CDK2_NATIVE_SIO_BUS
+kconfig/defconfig:93:notice: override: reassigning to symbol CDK2_NATIVE_PS2_MOUSE
+kconfig/defconfig:95:notice: override: reassigning to symbol CDK2_SETUP_UI
+kconfig/defconfig:96:notice: override: reassigning to symbol CDK2_LVGL_RENDERER
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-expert-embedded/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-missing/.config
+#
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-disabled/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-overflow/.config
+#
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-coreboot-owner/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:81:notice: override: reassigning to symbol CDK2_SMMSTORE
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-capsule-without-backend/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-linear-security/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:89:notice: override: reassigning to symbol CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-linear-CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-linear/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_PCI
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_CONSOLE
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/build-missing-prerequisite/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-canonical/.config
+#
+#
+# configuration written to /home/sean/tmp.MPfWzZxWKa/fmp-fixture/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-not-set/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-zero-to-one-0-1/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-one-to-zero-1-0/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-zero-to-zero-0-0/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-linear/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-linear-notset-y/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-duplicate-linear-y-y/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-spaced/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-post-equals-space/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-signed/.config
+#
+kconfig/defconfig:79:notice: override: reassigning to symbol CDK2_EC_ACPI_BATTERY_PROFILE
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-hexadecimal/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-empty/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-leading-zero/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-bad-linear/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-malformed-trailing-linear/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-missing/.config
+#
+#
+# configuration written to /home/sean/tmp.w4PhhGkim6/build-overflow/.config
+#
+#
+# configuration written to /home/sean/tmp.H9FmYcpmTU/build-malformed/.config
+#
+linear configuration constraints: PASS
+/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588//src/lib/cms.c:7:10: fatal error: bearssl.h: No such file or directory
+    7 | #include <bearssl.h>
+      |          ^~~~~~~~~~~
+compilation terminated.
+make[3]: *** [/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588/src/boot/Makefile:687: /home/sean/tmp.MPfWzZxWKa/coreboot-stage/native/cms.o] Error 1
+make[2]: *** [/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588/Makefile:1147: native-coreboot-image] Error 2
+make[1]: *** [Makefile:761: coreboot-stage] Error 2
+make: *** [Makefile:721: profile-config-test] Error 2

@@ -1,0 +1,1 @@
+#define CONFIG_CDK2_DIAGNOSTIC 0

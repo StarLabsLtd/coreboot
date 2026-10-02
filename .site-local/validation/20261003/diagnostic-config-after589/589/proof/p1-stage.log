@@ -1,0 +1,4 @@
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+direct image eligibility and source PE inventory: PASS

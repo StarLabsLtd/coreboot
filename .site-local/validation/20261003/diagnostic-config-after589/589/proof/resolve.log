@@ -1,0 +1,23 @@
+make: Entering directory '/home/sean/unused-native-config-proof.c01WSF/baseline'
+#
+# configuration written to /home/sean/unused-native-config-proof.c01WSF/p0-baseline/resolved.config
+#
+make: Leaving directory '/home/sean/unused-native-config-proof.c01WSF/baseline'
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588'
+#
+# configuration written to /home/sean/unused-native-config-proof.c01WSF/p0-candidate/resolved.config
+#
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588'
+make: Entering directory '/home/sean/unused-native-config-proof.c01WSF/baseline'
+#
+# configuration written to /home/sean/unused-native-config-proof.c01WSF/p1-baseline/resolved.config
+#
+make: Leaving directory '/home/sean/unused-native-config-proof.c01WSF/baseline'
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588'
+#
+# configuration written to /home/sean/unused-native-config-proof.c01WSF/p1-candidate/resolved.config
+#
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/unused-native-config-knobs-after588'
+Kconfig: OK
+defconfig: OK
+Actual P0/P1 resolution differs only in the three retired symbols: PASS
