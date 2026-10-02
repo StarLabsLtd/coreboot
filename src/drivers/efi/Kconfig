@@ -201,7 +201,8 @@ config DRIVERS_EFI_CAPSULE_REGIONS
 	  coreboot's protected runtime policy and does not use this setting.
 
 menu "Capsule signing certificates"
-	depends on DRIVERS_EFI_UPDATE_CAPSULES || DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_UPDATE_CAPSULES || DRIVERS_EFI_GENERATE_CAPSULE || \
+		CAPSULE_BROKER_TRUST_PACKAGE
 
 config DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT
 	string "PEM file used to sign generated capsules"
@@ -232,10 +233,13 @@ config DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT
 	string "Trusted root certificate for capsule signing (PEM)"
 	default "BaseTools/Source/Python/Pkcs7Sign/TestRoot.pub.pem" if \
 		DRIVERS_EFI_CAPSULE_LEGACY_TRANSPORT
-	depends on DRIVERS_EFI_UPDATE_CAPSULES || DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_UPDATE_CAPSULES || DRIVERS_EFI_GENERATE_CAPSULE || \
+		CAPSULE_BROKER_TRUST_PACKAGE
 	help
 	  Path to the trusted root certificate (PEM) used when generating a PKCS#7
 	  signature for the capsule.
+	  A typed broker trust package uses this public certificate as configured
+	  initial trust. Private keys must not be included in this file.
 
 	  For EDK2's compatibility default, a relative path is interpreted from its
 	  checked-out workspace. CDK2 profiles must configure the path explicitly.
