@@ -75,6 +75,14 @@ config DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
 
 	  This does not discover capsules, select an updater, or grant flash access.
 
+config DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION
+	bool
+	default y if DRIVERS_EFI_CAPSULE_RAM_HANDOFF && PAYLOAD_MM_AUTHVAR_COORDINATOR
+	help
+	  Read capsules only from an owned snapshot of a clean canonical MM variable
+	  store. Pending FTW recovery remains the protected variable owner's job;
+	  this reader neither repairs flash nor advertises warm-reset persistence.
+
 config DRIVERS_EFI_CAPSULE_MAX_NONPOPULATE_SIZE
 	hex "Maximum non-populate capsule size"
 	default 0x4000000

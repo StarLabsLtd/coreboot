@@ -107,9 +107,9 @@ smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) += payload_mm_authvar_author
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE) += payload_mm_authvar_controlled_mode.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_POLICY) += payload_mm_authvar_mor_identity.c
-ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_fv.c
-ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_ftw.c
-ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_store.c
+ifneq ($(filter y,$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) $(CONFIG_DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION)),)
+ramstage-y += payload_mm_authvar_fv.c payload_mm_authvar_ftw.c payload_mm_authvar_store.c
+endif
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_mor_identity.c
 ramstage-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) += payload_mm_authvar_mor_probe.c
 smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_GRANT) += payload_mm_authvar_mor_grant.c
