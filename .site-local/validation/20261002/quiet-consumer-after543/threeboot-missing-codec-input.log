@@ -1,0 +1,54 @@
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+make: Entering directory '/home/sean/Documents/cdk2'
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/cdk2'
+LVGL UI driver form test passed
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+CDK2 real setup QEMU acceptance: PASS
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+/home/sean/Documents/cdk2/util/qemu/bin/assert-protected-setup-store.sh: line 9: COREBOOT_TREE: actual immutable producer codec source required
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-boot-to-fw-ui-run.py", line 185, in <module>
+    subprocess.run(["bash", Path(__file__).with_name("assert-protected-setup-store.sh"),
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    request_before, request_pflash, presentation_after, presentation],
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   check=True)
+                   ^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['bash', PosixPath('/home/sean/Documents/cdk2/util/qemu/bin/assert-protected-setup-store.sh'), PosixPath('/home/sean/cdk2-root-quiet-threeboot-after543/boot-to-fw-ui/request/pflash-before.rom'), PosixPath('/home/sean/cdk2-root-quiet-threeboot-after543/boot-to-fw-ui/request/pflash.rom'), PosixPath('/home/sean/cdk2-root-quiet-threeboot-after543/boot-to-fw-ui/presentation/pflash.rom'), PosixPath('/home/sean/cdk2-root-quiet-threeboot-after543/boot-to-fw-ui/presentation')]' returned non-zero exit status 1.
+Command exited with non-zero status 1
+	Command being timed: "util/qemu/bin/run-quiet-setup-acceptance.sh /home/sean/cdk2-root-quiet-after543.taP01A/quiet-after543.rom /home/sean/cdk2-root-quiet-threeboot-after543 /home/sean/cdk2-root-quiet-after543.taP01A"
+	User time (seconds): 110.47
+	System time (seconds): 18.25
+	Percent of CPU this job got: 136%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:34.57
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 369424
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 258
+	Minor (reclaiming a frame) page faults: 750453
+	Voluntary context switches: 710978
+	Involuntary context switches: 759
+	Swaps: 0
+	File system inputs: 367768
+	File system outputs: 2700600
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
