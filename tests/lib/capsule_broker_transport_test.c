@@ -16,6 +16,11 @@ static uint64_t generation = 7;
 static void *selected_buffer = communication;
 static bool buffer_available = true;
 static bool ready = true;
+static bool ram_protocol;
+static bool ram_closed;
+static bool ram_close_success = true;
+static unsigned int dma_count;
+static unsigned int ram_close_count;
 static bool execute_success = true;
 static bool info_success = true;
 static bool mutate_input;
@@ -88,7 +93,38 @@ bool capsule_broker_intent_matches(uint64_t candidate_generation,
 
 bool capsule_broker_execution_ready(void)
 {
-	return ready;
+	dma_count++;
+	return ready && !ram_closed;
+}
+
+bool capsule_broker_transport_ready(uint32_t revision)
+{
+	if (ram_protocol)
+		return ready && revision == CAPSULE_BROKER_TRANSPORT_RAM_REVISION;
+	return (revision == CAPSULE_BROKER_TRANSPORT_REVISION_1 ||
+		revision == CAPSULE_BROKER_TRANSPORT_REVISION) &&
+		capsule_broker_execution_ready();
+}
+
+enum cb_err capsule_broker_ram_window_close(void)
+{
+	ram_close_count++;
+	assert(!execute_count);
+	if (recurse)
+		assert(capsule_broker_transport_dispatch() == CB_ERR);
+	if (mutate_input)
+		memset(request(), 0xa5, sizeof(*request()));
+	if (mutate_authority) {
+		size_t size;
+		uint8_t *authority = capsule_broker_transport_test_authority(&size);
+
+		assert(size > 0);
+		authority[0] ^= 1;
+	}
+	if (!ram_close_success)
+		return CB_ERR;
+	ram_closed = true;
+	return CB_SUCCESS;
 }
 
 enum cb_err payload_mm_fmp_transaction_execute_intent(
@@ -200,6 +236,13 @@ static void publish_info(uint64_t transaction)
 	memset(info(), 0xcc, sizeof(*info()));
 }
 
+static void publish_close(uint64_t transaction)
+{
+	publish_execute(CAPSULE_BROKER_TRANSPORT_RAM_REVISION, transaction);
+	request()->operation = CAPSULE_BROKER_TRANSPORT_CLOSE_RAM;
+	request()->intent_size = 0;
+}
+
 static void expect_rejected(void)
 {
 	uint8_t before[sizeof(*result())];
@@ -254,7 +297,57 @@ int main(int argc, char **argv)
 	assert(argc == 2);
 	name = argv[1];
 	publish_execute(CAPSULE_BROKER_TRANSPORT_REVISION_1, 1);
-	if (!strcmp(name, "happy")) {
+	if (!strncmp(name, "ram-", 4)) {
+		ram_protocol = true;
+		publish_close(1);
+		if (!strcmp(name, "ram-old-revision")) {
+			request()->revision = CAPSULE_BROKER_TRANSPORT_REVISION;
+			expect_rejected();
+			assert(!ram_close_count && !dma_count);
+			return 0;
+		}
+		if (!strcmp(name, "ram-old-provider")) {
+			ram_protocol = false;
+			expect_rejected();
+			assert(!ram_close_count);
+			return 0;
+		}
+		if (!strcmp(name, "ram-close-failure"))
+			ram_close_success = false;
+		if (!strcmp(name, "ram-close-reentry"))
+			recurse = true;
+		if (!strcmp(name, "ram-close-mutation"))
+			mutate_input = true;
+		if (!strcmp(name, "ram-close-authority"))
+			mutate_authority = true;
+		bool failure = !ram_close_success || mutate_authority;
+
+		assert(capsule_broker_transport_dispatch() == (failure ? CB_ERR : CB_SUCCESS));
+		assert(ram_close_count == 1 && !execute_count && !dma_count);
+		assert(result()->revision == CAPSULE_BROKER_TRANSPORT_RAM_REVISION &&
+			result()->generation == generation && result()->transaction == 1);
+		assert(!result()->attempted_version && !result()->reserved &&
+			!result()->last_attempt_status);
+		assert(result()->result == (failure ? CAPSULE_BROKER_RESULT_EXECUTION :
+			CAPSULE_BROKER_RESULT_SUCCESS));
+		if (failure)
+			return 0;
+		mutate_input = false;
+		recurse = false;
+		publish_close(2);
+		assert(capsule_broker_transport_dispatch() == CB_SUCCESS);
+		assert(ram_close_count == 2 && !dma_count);
+		publish_close(2);
+		expect_rejected();
+		assert(ram_close_count == 2);
+		publish_info(1);
+		request()->revision = CAPSULE_BROKER_TRANSPORT_RAM_REVISION;
+		assert(capsule_broker_transport_dispatch() == CB_SUCCESS);
+		assert(info_count == 1 && !dma_count);
+		publish_execute(CAPSULE_BROKER_TRANSPORT_RAM_REVISION, 1);
+		expect_rejected();
+		assert(!execute_count);
+	} else if (!strcmp(name, "happy")) {
 		expect_success();
 	} else if (!strcmp(name, "execute-revision2")) {
 		publish_execute(CAPSULE_BROKER_TRANSPORT_REVISION, 1);

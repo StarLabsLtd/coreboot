@@ -76,6 +76,7 @@ struct capsule_broker_policy {
 };
 
 #define CAPSULE_BROKER_POLICY_REVISION 1U
+#define CAPSULE_BROKER_POLICY_RAM_REVISION 2U
 
 typedef bool capsule_broker_protected_storage_fn(void *context,
 	const void *storage, size_t size);
@@ -87,6 +88,11 @@ bool capsule_broker_generation_matches(uint64_t generation);
 bool capsule_broker_intent_matches(uint64_t generation, uint64_t capsule_size);
 bool capsule_broker_buffer_available(const void *buffer, size_t size);
 bool capsule_broker_execution_ready(void);
+/* Metadata/current ownership only for RAM revision 3; no device cancellation. */
+bool capsule_broker_transport_ready(uint32_t revision);
+/* Protected eligibility, not DMA proof. Initialized only by the sole install. */
+bool capsule_broker_ram_window_open(void);
+enum cb_err capsule_broker_ram_window_close(void);
 bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint);
 bool capsule_broker_endpoint_shape_valid(
 	const struct lb_capsule_broker_endpoint *endpoint, uint64_t image_size);
