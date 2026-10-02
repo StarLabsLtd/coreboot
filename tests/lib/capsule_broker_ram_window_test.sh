@@ -27,7 +27,7 @@ compile()
 		-I"$root/src/arch/x86/include" -I"$temporary/include" \
 		"$root/tests/lib/capsule_broker_ram_window_test.c" "$source" \
 		"$root/src/lib/capsule_broker_endpoint.c" \
-		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
+		"$root/src/lib/capsule_write_layout.c" \
 		"$root/src/lib/capsule_update_backend.c" -o "$output"
 }
 

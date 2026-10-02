@@ -222,14 +222,14 @@ int main(int argc, char **argv)
 			{ .offset = 6 * ERASE_SIZE, .size = ERASE_SIZE,
 			  .name = "SMMSTORE", .flags = FMAP_AREA_PRESERVE },
 		},
-		.owner_layout = {
-			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
-			.size = sizeof(struct fmp_owner_layout),
+		.write_layout = {
+			.revision = CAPSULE_WRITE_LAYOUT_REVISION,
+			.size = sizeof(struct capsule_write_layout),
 			.media_size = MEDIA_SIZE,
 			.erase_size = ERASE_SIZE,
-			.slot_size = ERASE_SIZE,
 			.route_count = 1,
-			.state = {
+			.metadata_count = 2,
+			.metadata = {
 				{ .offset = 2 * ERASE_SIZE, .size = 2 * ERASE_SIZE },
 				{ .offset = 4 * ERASE_SIZE, .size = 2 * ERASE_SIZE },
 			},

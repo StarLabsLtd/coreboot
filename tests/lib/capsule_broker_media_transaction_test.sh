@@ -28,7 +28,7 @@ compile()
 		"-DBROKER_MEDIA_SOURCE=\"$source\"" \
 		"$root/tests/lib/capsule_broker_media_transaction_test.c" \
 		"$root/src/lib/capsule_broker_endpoint.c" \
-		"$root/src/lib/payload_mm_fmp_owner_layout.c" \
+		"$root/src/lib/capsule_write_layout.c" \
 		"$root/src/lib/capsule_update_backend.c" -o "$output"
 }
 
@@ -70,7 +70,7 @@ done
 
 for optimization in -O0 -O2; do
 	compile "$optimization" "$root/src/lib/capsule_broker.c" "$temporary/test"
-	for mode in happy partial-pair begin-failure begin-current-loss \
+	for mode in happy authvar-layout partial-pair begin-failure begin-current-loss \
 		begin-context-mutation begin-end-mutation begin-close reentry \
 		end-failure end-context-mutation end-restores-current apply-failure apply-current-loss; do
 		"$temporary/test" "$mode"

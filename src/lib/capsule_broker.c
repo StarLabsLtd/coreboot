@@ -509,13 +509,13 @@ enum cb_err capsule_broker_policy_install(
 	    !snapshot.region_count ||
 	    snapshot.region_count > CAPSULE_UPDATE_MAX_REGIONS ||
 	    !fmap_policy_valid(&snapshot) ||
-	    !payload_mm_fmp_layout_valid(&snapshot.owner_layout) ||
-	    snapshot.owner_layout.media_size != snapshot.boot_media_size ||
-	    snapshot.owner_layout.erase_size != snapshot.erase_size ||
-	    snapshot.owner_layout.smmstore.offset != snapshot.smmstore_offset ||
-	    snapshot.owner_layout.smmstore.size != snapshot.smmstore_size ||
-	    snapshot.owner_layout.route_count != snapshot.region_count ||
-	    memcmp(snapshot.owner_layout.route, snapshot.regions, routes_size) ||
+	    !capsule_write_layout_valid(&snapshot.write_layout) ||
+	    snapshot.write_layout.media_size != snapshot.boot_media_size ||
+	    snapshot.write_layout.erase_size != snapshot.erase_size ||
+	    snapshot.write_layout.smmstore.offset != snapshot.smmstore_offset ||
+	    snapshot.write_layout.smmstore.size != snapshot.smmstore_size ||
+	    snapshot.write_layout.route_count != snapshot.region_count ||
+	    memcmp(snapshot.write_layout.route, snapshot.regions, routes_size) ||
 	    snapshot.media.size != snapshot.boot_media_size ||
 	    snapshot.media.erase_size != snapshot.erase_size ||
 	    !snapshot.media.read || !snapshot.media.erase || !snapshot.media.write ||
@@ -917,7 +917,7 @@ static enum cb_err apply_capsule(
 		.smmstore_size = broker.policy.smmstore_size,
 		.regions = broker.regions,
 		.region_count = broker.policy.region_count,
-		.owner_layout = &broker.policy.owner_layout,
+		.write_layout = &broker.policy.write_layout,
 	};
 	media = (struct capsule_media_backend) {
 		.context = &media_context,
