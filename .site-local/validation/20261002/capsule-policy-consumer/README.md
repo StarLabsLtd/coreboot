@@ -34,3 +34,41 @@ Outer capsule limits do not substitute for the separate authenticated FMP-payloa
 staging capacity or writer admission. Positive reset-persistent RAM publication,
 native transport execution, capsule round trips, residual non-linear BDS limit
 retirement and hardware validation remain open.
+
+## Signed projection and wider source-contract replay
+
+Reviewed twenty-path consumer checkpoint is signed
+`f0a4d91308d47586288c5be353b6b3f5a0b99519`. Root's signed linear copy
+`366494bc8871a13f1dedd840b5a8ec58ecf75a48` follows the reviewed hash assertion
+cleanup. Its independent patch-equivalence check passes, and root's combined
+six-target replay session 51863 actually reaped exit 0 in 30.945s: coreboot
+HOB, capsule runtime/disk, FMP transport, compiled DXE disk handoff and linear
+source-order checks. The exact raw output is included. Ready PR498 publishes
+this linear checkpoint; this is not native transport or hardware sign-off.
+
+Actual reaped wider gates:
+
+- Profile configuration/native composition: session 22418, exit 0, 56.624s.
+- Capsule disk native-artifact contract: session 97168, exit 0, 4.788s;
+  replacing an obsolete no-op fixture sed with a copy: session 73274, exit 0,
+  4.898s. The fixture explicitly selects the real coreboot capsule profile.
+- Actual owned-policy linear source-order check: session 21837, exit 0.
+- Actual DXE disk handoff fixture: session 76262, exit 0, 9.280s.
+- Strict O0/O2 DXE disk positive and exact-source guard-discard mutation:
+  aggregate session 66322, exit 0, 24.280s. The deliberate permission-discard
+  binary returns 1 with the required filesystem-side-effect failure and no
+  sanitizer diagnostic; it is not a SIGABRT-134 mutation.
+
+The DXE fixture exercises disabled/RAM/disk/both transport masks from an owned
+HOB, malformed-policy denial, S4 suppression, and disk processing. No pending
+RAM capsule is present in this fixture, so it does not prove that delivery.
+Old tests demanding compile-time disk policy are replaced by the real table
+contract and causal removals. Native PE replaces a nonexistent retired FFS
+target; the retained-FV import-denial test remains.
+
+Additional preserved failures include inherited READY configuration skipping,
+the old scanner expectation, the obsolete FFS target, missing pinned BearSSL,
+the unenabled old artifact profile and the old DXE fixture's zero processor
+policy. A separate missing LVGL invocation is also retained. Only the selected
+BearSSL submodule was initialized, at the exact gitlink
+`8ef7680081c61b486622f2d983c0d3d21e83caad`; the shared LVGL input was read-only.

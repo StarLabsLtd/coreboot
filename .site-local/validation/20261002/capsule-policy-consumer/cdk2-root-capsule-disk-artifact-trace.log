@@ -1,0 +1,14 @@
++ set -eu
++ unset CDK2_CONFIG CDK2_CONFIG_HEADER CDK2_KCONFIG_AUTOCONFIG CDK2_KCONFIG_AUTOHEADER CDK2_KCONFIG_RUSTCCFG CDK2_KCONFIG_SPLITCONFIG
++ make_command=make
++ root=/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style
++ mktemp -d
++ temporary=/home/sean/tmp.BnlMpouTMb
++ trap rm -rf "$temporary" EXIT
++ sed s/^CONFIG_CDK2_CAPSULE=n$/CONFIG_CDK2_CAPSULE=y/ /home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style/defconfig
++ cat
++ MAKEFLAGS= MFLAGS= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style CDK2_CONFIG_READY= CDK2_BUILD_DIR=/home/sean/tmp.BnlMpouTMb/build CDK2_DEFCONFIG=/home/sean/tmp.BnlMpouTMb/linear-disk.defconfig defconfig
++ grep -Eiq warning:.*unmet|unmet direct dependencies /home/sean/tmp.BnlMpouTMb/config.log
++ grep -qx CONFIG_CDK2_LINEAR_BOOT=y /home/sean/tmp.BnlMpouTMb/build/.config
++ grep -qx CONFIG_DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT=y /home/sean/tmp.BnlMpouTMb/build/.config
++ rm -rf /home/sean/tmp.BnlMpouTMb

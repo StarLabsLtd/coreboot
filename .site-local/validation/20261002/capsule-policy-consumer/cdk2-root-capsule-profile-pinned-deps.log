@@ -1,0 +1,152 @@
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/linear-default/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_GRAPHICS_OUTPUT
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-forced-linear-graphics/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_GRAPHICS_OUTPUT
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-nonlinear-graphics/.config
+#
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-retired-owner-request/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-enabled/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CAPSULE
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-compatibility-empty-guid/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_CAPSULE_MAIN_FW_GUID
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-compatibility-guid/.config
+#
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:85:notice: override: reassigning to symbol CDK2_CAPSULE_MAIN_FW_GUID
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-invalid-compatibility-guid/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_NATIVE_EHCI
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_NATIVE_UHCI
+kconfig/defconfig:92:notice: override: reassigning to symbol CDK2_NATIVE_USB_MOUSE
+kconfig/defconfig:93:notice: override: reassigning to symbol CDK2_NATIVE_SIO_BUS
+kconfig/defconfig:94:notice: override: reassigning to symbol CDK2_NATIVE_PS2_MOUSE
+kconfig/defconfig:96:notice: override: reassigning to symbol CDK2_SETUP_UI
+kconfig/defconfig:97:notice: override: reassigning to symbol CDK2_LVGL_RENDERER
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-strict-hostile-drivers/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_NVME
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_USB
+kconfig/defconfig:92:notice: override: reassigning to symbol CDK2_ATA
+kconfig/defconfig:93:notice: override: reassigning to symbol CDK2_SD
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-disk-no-transport/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-capsule-without-disk/.config
+#
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-disk-without-capsule/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_SECURE_BOOT
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-secure-boot/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+kconfig/defconfig:92:notice: override: reassigning to symbol CDK2_NATIVE_EHCI
+kconfig/defconfig:93:notice: override: reassigning to symbol CDK2_NATIVE_UHCI
+kconfig/defconfig:94:notice: override: reassigning to symbol CDK2_NATIVE_USB_MOUSE
+kconfig/defconfig:95:notice: override: reassigning to symbol CDK2_NATIVE_SIO_BUS
+kconfig/defconfig:96:notice: override: reassigning to symbol CDK2_NATIVE_PS2_MOUSE
+kconfig/defconfig:98:notice: override: reassigning to symbol CDK2_SETUP_UI
+kconfig/defconfig:99:notice: override: reassigning to symbol CDK2_LVGL_RENDERER
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-expert-embedded/.config
+#
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-disabled/.config
+#
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-coreboot-owner/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_CAPSULE
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_SMMSTORE
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-capsule-without-backend/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-linear-security/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:92:notice: override: reassigning to symbol CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-linear-CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-linear-CDK2_CAPSULE_PROCESS_AT_RUNTIME/.config
+#
+kconfig/defconfig:86:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:87:notice: override: reassigning to symbol CDK2_NATIVE_SMMSTORE_FVB
+kconfig/defconfig:88:notice: override: reassigning to symbol CDK2_NATIVE_FTW
+kconfig/defconfig:90:notice: override: reassigning to symbol CDK2_PCI
+kconfig/defconfig:91:notice: override: reassigning to symbol CDK2_CONSOLE
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/build-missing-prerequisite/.config
+#
+#
+# configuration written to /home/sean/tmp.69uLRgzTtn/fmp-fixture/.config
+#
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_EC_ACPI_BATTERY_PROFILE
+	Command being timed: "sh tests/profile_config_test.sh"
+	User time (seconds): 45.56
+	System time (seconds): 14.30
+	Percent of CPU this job got: 105%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:56.60
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 96108
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 314
+	Minor (reclaiming a frame) page faults: 2770514
+	Voluntary context switches: 343694
+	Involuntary context switches: 1546
+	Swaps: 0
+	File system inputs: 1472
+	File system outputs: 167488
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
