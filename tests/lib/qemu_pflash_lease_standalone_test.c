@@ -10,6 +10,7 @@
 #define TEST_FLASH_SIZE (64 * 1024)
 
 uint8_t qemu_pflash_test_region[TEST_FLASH_SIZE];
+extern int dprintf(int descriptor, const char *format, ...);
 
 uint8_t qemu_pflash_test_read8(const volatile void *address);
 void qemu_pflash_test_write8(volatile void *address, uint8_t value);
@@ -24,11 +25,10 @@ int printk(int level, const char *format, ...)
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
 {
-	(void)expression;
-	(void)file;
-	(void)line;
-	if (!result)
+	if (!result) {
+		dprintf(2, "%s:%d: assertion failed: %s\n", file, line, expression);
 		abort();
+	}
 }
 
 #include "../../src/mainboard/emulation/qemu-i440fx/rom_media.c"
@@ -45,6 +45,7 @@ static uint8_t mock_status;
 static uint8_t injected_status_error;
 static uint32_t status_delay_reads;
 static uint32_t array_restore_count;
+static uint32_t program_count;
 static bool never_ready;
 static volatile uint32_t reenter;
 static struct qemu_pflash_lease *reenter_owner;
@@ -74,9 +75,10 @@ void qemu_pflash_test_write8(volatile void *address, uint8_t value)
 		assert(qemu_pflash_lease_sync(boot_device_rw(), reenter_owner) < 0);
 	switch (mock_mode) {
 	case MOCK_PROGRAM:
+		program_count++;
 		qemu_pflash_test_region[offset] = value;
 		mock_status = READY_STATUS | injected_status_error;
-		mock_mode = MOCK_ARRAY;
+		mock_mode = MOCK_STATUS;
 		return;
 	case MOCK_ERASE_CONFIRM:
 		if (value == BLOCK_ERASE_CONFIRM_CMD)
@@ -116,6 +118,7 @@ static void reset_flash(void)
 	injected_status_error = 0;
 	status_delay_reads = 0;
 	array_restore_count = 0;
+	program_count = 0;
 	never_ready = false;
 	reenter = 0;
 	reenter_owner = NULL;
@@ -148,6 +151,43 @@ static void normal_session(void)
 		assert(qemu_pflash_test_region[index] == 0xff);
 	assert(qemu_pflash_lease_end(&owner) == 0);
 	assert(rdev_writeat(root, &peer, 0x20, 1) == 1);
+}
+
+static void erased_padding_session(void)
+{
+	const struct region_device *root = boot_device_rw();
+	struct qemu_pflash_lease owner = { 0 };
+	uint8_t source[8] = {0xff, 1, 0xff, 0, 0xff, 0x80, 0xff, 0xff};
+	uint8_t erased[8];
+	uint32_t before;
+
+	memset(erased, 0xff, sizeof(erased));
+	assert(qemu_pflash_lease_begin(root, &owner) == 0);
+	assert(qemu_pflash_lease_erase(root, &owner, 0, QEMU_FLASH_BLOCK_SIZE) == 0);
+	before = program_count;
+	assert(qemu_pflash_lease_program(root, &owner, 0, erased, sizeof(erased)) == 0);
+	assert(program_count == before);
+	assert(mock_mode == MOCK_ARRAY);
+	mock_status = READY_STATUS | PROGRAM_ERROR_STATUS;
+	assert(qemu_pflash_lease_program(root, &owner, 0, erased, sizeof(erased)) < 0);
+	assert(program_count == before);
+	assert(mock_mode == MOCK_ARRAY);
+	mock_status = READY_STATUS;
+	assert(qemu_pflash_lease_program(root, &owner, 0, source, sizeof(source)) == 0);
+	assert(program_count == before + 3);
+	assert(!memcmp(qemu_pflash_test_region, source, sizeof(source)));
+	assert(mock_mode == MOCK_ARRAY);
+	/* QEMU permits programming FF over non-erased data; retain that behavior. */
+	before = program_count;
+	assert(qemu_pflash_lease_program(root, &owner, 0, erased, sizeof(erased)) == 0);
+	assert(program_count == before + sizeof(erased));
+	assert(!memcmp(qemu_pflash_test_region, erased, sizeof(erased)));
+	assert(mock_mode == MOCK_ARRAY);
+	assert(qemu_pflash_lease_end(&owner) == 0);
+	before = program_count;
+	assert(rdev_writeat(root, erased, 0, sizeof(erased)) == sizeof(erased));
+	assert(program_count == before + sizeof(erased));
+	assert(mock_mode == MOCK_ARRAY);
 }
 
 static void hostile_session(void)
@@ -211,12 +251,12 @@ static void status_session(void)
 	status_delay_reads = 3;
 	restores = array_restore_count;
 	assert(qemu_pflash_lease_program(root, &owner, 0x40, &byte, 1) == 0);
-	assert(array_restore_count == restores + 2);
+	assert(array_restore_count == restores + 3);
 
 	injected_status_error = PROGRAM_ERROR_STATUS;
 	restores = array_restore_count;
 	assert(qemu_pflash_lease_program(root, &owner, 0x41, &byte, 1) < 0);
-	assert(array_restore_count == restores + 2);
+	assert(array_restore_count == restores + 3);
 	injected_status_error = ERASE_ERROR_STATUS;
 	restores = array_restore_count;
 	assert(qemu_pflash_lease_erase(root, &owner, 2 * QEMU_FLASH_BLOCK_SIZE,
@@ -261,6 +301,7 @@ int main(void)
 	boot_device_init();
 	assert(qemu_flash_media == QEMU_FLASH_PFLASH);
 	normal_session();
+	erased_padding_session();
 	hostile_session();
 	bounds_session();
 	status_session();
