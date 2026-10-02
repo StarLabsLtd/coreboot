@@ -14,8 +14,9 @@ static unsigned int records;
 static unsigned int persistence_calls;
 
 #ifdef TEST_RAM_PERSISTENCE_PROVIDER
-bool platform_capsule_ram_persistent(void)
+bool platform_capsule_ram_persistent(const struct lb_header *header, uintptr_t table_end)
 {
+	assert(header == &table && table_end == (uintptr_t)&record && records == 1);
 	persistence_calls++;
 	return TEST_RAM_PERSISTENCE_PROVIDER;
 }
@@ -49,7 +50,7 @@ int main(void)
 	assert(persistence_calls == CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF));
 #else
 	assert(persistence_calls == 0);
-	assert(!platform_capsule_ram_persistent());
+	assert(!platform_capsule_ram_persistent(&table, (uintptr_t)&record));
 #endif
 	return 0;
 }

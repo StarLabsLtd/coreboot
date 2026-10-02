@@ -83,9 +83,9 @@ for limits in '0 1' '-1 1' '0x100000000 1' '1 -1' '1 0x100000000'; do
 done
 
 # Removing the production persistence guard must trip the fatal wire oracle.
-guard='if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF) && platform_capsule_ram_persistent())'
+guard='platform_capsule_ram_persistent(header, (uintptr_t)record)'
 test "$(grep -Fc "$guard" "$policy_source")" -eq 1
-sed 's/if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF) \&\& platform_capsule_ram_persistent())/if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF))/' \
+sed 's/platform_capsule_ram_persistent(header, (uintptr_t)record)/1/' \
 	"$policy_source" > "$temporary/persistence-guard-discard.c"
 policy_source="$temporary/persistence-guard-discard.c"
 for optimization in -O0 -O2; do
