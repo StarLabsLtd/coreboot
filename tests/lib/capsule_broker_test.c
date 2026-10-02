@@ -797,7 +797,7 @@ static void endpoint_mutations(void)
 } while (0)
 	REJECT(tag, 0);
 	REJECT(size, 79);
-	REJECT(revision, 2);
+	REJECT(revision, LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION + 1);
 	REJECT(header_size, 76);
 	REJECT(flags, LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ^ 1U);
 	REJECT(generation, 0);
@@ -1391,6 +1391,71 @@ static void callback_boundary_case(const char *mode)
 	assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
 }
 
+static void ram_window_case(const char *mode)
+{
+	struct fixture fixture;
+	struct capsule_broker_success success;
+	struct payload_mm_fmp_capsule_intent capsule;
+	void *buffer;
+	size_t size;
+	uint64_t generation;
+
+	initialize(&fixture);
+	assert(!capsule_broker_ram_window_open());
+	assert(capsule_broker_ram_window_close() == CB_ERR);
+	if (!strcmp(mode, "legacy")) {
+		install(&fixture);
+		assert(!capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_RAM_REVISION));
+		assert(capsule_broker_ram_window_close() == CB_ERR);
+		assert(capsule_broker_execution_ready());
+		return;
+	}
+	fixture.policy.revision = CAPSULE_BROKER_POLICY_RAM_REVISION;
+	if (!strcmp(mode, "mismatch")) {
+		assert(capsule_broker_policy_install(&fixture.policy, storage_protected,
+			&fixture) == CB_ERR);
+		assert(!capsule_broker_ram_window_open());
+		return;
+	}
+	fixture.policy.endpoint.revision = LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION;
+	install(&fixture);
+	assert(capsule_broker_ram_window_open());
+	assert(!capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_REVISION));
+	assert(capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_RAM_REVISION));
+	if (!strcmp(mode, "grant")) {
+		authenticate_set(&fixture, 1, 11);
+		assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
+		assert(capsule_broker_ram_window_close() == CB_ERR);
+		assert(capsule_broker_ram_window_open());
+		assert(apply_staged() == CB_SUCCESS);
+		assert(claim_success(GENERATION, 1, owner_record.sequence + 1,
+			fixture.capsule.digest, &success) == CB_SUCCESS);
+		return;
+	}
+	/* Metadata and denial-only close must never invoke the destructive DMA proof. */
+	memset(proof_calls, 0, sizeof(proof_calls));
+	runtime_dma_guard = false;
+	assert(capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_RAM_REVISION));
+	assert(capsule_broker_ram_window_close() == CB_SUCCESS);
+	assert(!capsule_broker_ram_window_open());
+	assert(capsule_broker_ram_window_close() == CB_SUCCESS);
+	assert(capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_RAM_REVISION));
+	assert(capsule_broker_transport_buffer(&buffer, &size, &generation));
+	assert(buffer == fixture.communication && size == sizeof(fixture.communication) &&
+		generation == GENERATION);
+	runtime_dma_guard = true;
+	assert(!capsule_broker_execution_ready());
+	capsule = intent(&fixture, PAYLOAD_MM_FMP_CAPSULE_CHECK, 1, 11);
+	assert(authenticate_intent(&capsule) == CB_ERR);
+	capsule = intent(&fixture, PAYLOAD_MM_FMP_CAPSULE_SET, 2, 11);
+	assert(authenticate_intent(&capsule) == CB_ERR);
+	assert(!proof_calls[PROOF_DMA_COMMUNICATION] && !proof_calls[PROOF_DMA_STAGING]);
+	assert(!fixture.reads && !fixture.erases && !fixture.writes);
+	assert(capsule_broker_policy_install(&fixture.policy, storage_protected,
+		&fixture) == CB_ERR);
+	assert(!capsule_broker_ram_window_open());
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 1)
@@ -1415,6 +1480,8 @@ int main(int argc, char **argv)
 		grant_max();
 	else if (!strcmp(argv[1], "generation-match"))
 		generation_match_case();
+	else if (!strncmp(argv[1], "ram-window-", 11))
+		ram_window_case(argv[1] + 11);
 	else if (!strncmp(argv[1], "success-", 8))
 		success_claim_case(argv[1] + 8);
 	else if (!strncmp(argv[1], "bound-", 6))

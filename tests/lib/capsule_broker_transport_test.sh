@@ -16,6 +16,8 @@ request-flags intent-size-field result-size-field generation intent-generation
 transaction intent-revision intent-size intent-operation intent-flags
 intent-zero-size intent-large intent-algorithm intent-digest-size intent-reserved
 not-ready failure mutation authority-mutation reentry replay maximum'
+cases="$cases ram-close ram-close-failure ram-close-reentry ram-close-mutation
+ram-close-authority ram-old-revision ram-old-provider"
 
 run_test()
 {

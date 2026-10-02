@@ -45,6 +45,7 @@ static struct {
 	bool installed;
 	bool install_attempted;
 	bool closed;
+	bool ram_window_closed;
 } broker;
 
 #if ENV_TEST
@@ -96,7 +97,16 @@ static void clear_grant(void)
 static bool authentication_state_valid(void)
 {
 	return broker.installed && !broker.closed && !broker.grant_valid &&
-		!broker.authentication_valid && broker.authentication_in_progress;
+		!broker.authentication_valid && broker.authentication_in_progress &&
+		(broker.policy.revision != CAPSULE_BROKER_POLICY_RAM_REVISION ||
+		 capsule_broker_ram_window_open());
+}
+
+bool capsule_broker_ram_window_open(void)
+{
+	return broker.installed && !broker.ram_window_closed &&
+		broker.policy.revision == CAPSULE_BROKER_POLICY_RAM_REVISION &&
+		broker.policy.endpoint.revision == LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION;
 }
 
 static uint64_t unpack64(lb_uint64_t value)
@@ -154,7 +164,8 @@ bool capsule_broker_buffer_available(const void *buffer, size_t size)
 bool capsule_broker_transport_buffer(void **buffer, size_t *size,
 	uint64_t *generation)
 {
-	if (!buffer || !size || !generation || !broker.installed || broker.closed)
+	if (!buffer || !size || !generation || !broker.installed ||
+	    (broker.closed && broker.policy.revision != CAPSULE_BROKER_POLICY_RAM_REVISION))
 		return false;
 	*buffer = (void *)(uintptr_t)
 		unpack64(broker.policy.endpoint.communication_base);
@@ -286,6 +297,7 @@ struct broker_control_state {
 	bool flash_plan_valid;
 	bool installed;
 	bool closed;
+	bool ram_window_closed;
 };
 
 static struct broker_control_state control_state(void)
@@ -310,6 +322,7 @@ static struct broker_control_state control_state(void)
 		.flash_plan_valid = broker.flash_plan_valid,
 		.installed = broker.installed,
 		.closed = broker.closed,
+		.ram_window_closed = broker.ram_window_closed,
 		.grant_raw_image = broker.grant_raw_image,
 		.authenticated_raw_image = broker.authenticated_raw_image,
 		.flash_plan = broker.flash_plan,
@@ -362,7 +375,52 @@ static bool control_state_matches(const struct broker_control_state *expected)
 			expected->authentication_in_progress &&
 		current.flash_plan_valid == expected->flash_plan_valid &&
 		current.installed == expected->installed &&
-		current.closed == expected->closed;
+		current.closed == expected->closed &&
+		current.ram_window_closed == expected->ram_window_closed;
+}
+
+static bool metadata_guard(void)
+{
+	const struct capsule_broker_proofs *proofs = &broker.policy.proofs;
+	const struct broker_control_state expected = control_state();
+	uint64_t communication = unpack64(broker.policy.endpoint.communication_base);
+	uint64_t staging = unpack64(broker.policy.endpoint.staging_base);
+	uint64_t staging_size = unpack64(broker.policy.endpoint.staging_size);
+
+	return proofs->communication_reserved(proofs->context, communication,
+		broker.policy.endpoint.communication_size) &&
+		control_state_matches(&expected) &&
+		proofs->staging_reserved(proofs->context, staging, staging_size) &&
+		control_state_matches(&expected) &&
+		proofs->cpu_rendezvous_active(proofs->context) &&
+		control_state_matches(&expected);
+}
+
+bool capsule_broker_transport_ready(uint32_t revision)
+{
+	if (!broker.installed)
+		return false;
+	if (broker.policy.revision == CAPSULE_BROKER_POLICY_RAM_REVISION)
+		return revision == CAPSULE_BROKER_TRANSPORT_RAM_REVISION && metadata_guard();
+	return !broker.closed && (revision == CAPSULE_BROKER_TRANSPORT_REVISION_1 ||
+		revision == CAPSULE_BROKER_TRANSPORT_REVISION) &&
+		capsule_broker_execution_ready();
+}
+
+enum cb_err capsule_broker_ram_window_close(void)
+{
+	if (!capsule_broker_transport_ready(CAPSULE_BROKER_TRANSPORT_RAM_REVISION) ||
+	    broker.authentication_in_progress || broker.authentication_valid ||
+	    broker.grant_valid || broker.flash_plan_valid)
+		return CB_ERR;
+	/* No public path can undo this denial or replace the installed policy. */
+	broker.ram_window_closed = true;
+	if (!metadata_guard()) {
+		broker.ram_window_closed = true;
+		broker.closed = true;
+		return CB_ERR;
+	}
+	return CB_SUCCESS;
 }
 
 static bool execution_guard(void)
@@ -394,7 +452,9 @@ bool capsule_broker_execution_ready(void)
 {
 	struct broker_control_state expected;
 
-	if (!broker.installed || broker.closed)
+	if (!broker.installed || broker.closed ||
+	    (broker.policy.revision == CAPSULE_BROKER_POLICY_RAM_REVISION &&
+	     !capsule_broker_ram_window_open()))
 		return false;
 	expected = control_state();
 	return execution_guard() && control_state_matches(&expected);
@@ -434,7 +494,10 @@ enum cb_err capsule_broker_policy_install(
 	staging = unpack64(snapshot.endpoint.staging_base);
 	staging_size = unpack64(snapshot.endpoint.staging_size);
 	routes_size = snapshot.region_count * sizeof(snapshot.regions[0]);
-	if (snapshot.revision != CAPSULE_BROKER_POLICY_REVISION ||
+	if ((snapshot.revision != CAPSULE_BROKER_POLICY_REVISION &&
+	     snapshot.revision != CAPSULE_BROKER_POLICY_RAM_REVISION) ||
+	    snapshot.endpoint.revision != (snapshot.revision == CAPSULE_BROKER_POLICY_RAM_REVISION ?
+		LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION : LB_CAPSULE_BROKER_ENDPOINT_REVISION) ||
 	    snapshot.size != sizeof(snapshot) ||
 	    !snapshot.raw_image_size ||
 	    !capsule_broker_endpoint_shape_valid(&snapshot.endpoint,
@@ -540,7 +603,9 @@ static enum cb_err authenticate_intent(
 	enum cb_err callback_status;
 	enum cb_err status = CB_ERR;
 
-	if (!broker.installed || broker.closed || broker.authentication_in_progress)
+	if (!broker.installed || broker.closed || broker.authentication_in_progress ||
+	    (broker.policy.revision == CAPSULE_BROKER_POLICY_RAM_REVISION &&
+	     !capsule_broker_ram_window_open()))
 		return CB_ERR;
 	if (broker.grant_valid) {
 		clear_grant();

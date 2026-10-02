@@ -70,6 +70,7 @@ cases="$cases bound-happy bound-sequence bound-digest bound-unstaged
 bound-mutation bound-mutation-generation bound-mutation-transaction
 bound-mutation-version"
 cases="$cases source-mutation"
+cases="$cases ram-window-close ram-window-legacy ram-window-mismatch ram-window-grant"
 cases="$cases success-happy success-generation success-transaction
 success-sequence success-digest success-close success-write-failure
 success-output-overlap success-output-misaligned"
