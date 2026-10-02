@@ -20,6 +20,9 @@
 #define Q35_VTD_PHMLIMIT 0x78U
 #define Q35_VTD_ROOT_SET (1U << 30)
 #define Q35_VTD_TRANSLATION_ENABLE (1U << 31)
+#define Q35_VTD_QUEUED_INVALIDATION_ENABLE (1U << 26)
+#define Q35_VTD_DRAIN_READS_SUPPORTED (1ULL << 55)
+#define Q35_VTD_DRAIN_WRITES_SUPPORTED (1ULL << 54)
 #define Q35_VTD_FAULT_PENDING (1U << 1)
 #define Q35_VTD_PMR_ENABLE (1U << 31)
 #define Q35_VTD_PMR_STATUS (1U << 0)
@@ -35,5 +38,7 @@ int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys);
 int q35_vtd_switch_root(const struct q35_vtd_io *io,
 	uint32_t expected_root_phys, uint32_t root_phys);
 int q35_vtd_invalidate(const struct q35_vtd_io *io);
+/* Request architectural draining; this does not establish table ownership. */
+int q35_vtd_invalidate_drain(const struct q35_vtd_io *io);
 
 #endif
