@@ -17,6 +17,18 @@
 #define XHCI_RESET 2U
 #define XHCI_HALTED 1U
 #define XHCI_NOT_READY (1U << 11)
+#define AHCI_CAP 0x00U
+#define AHCI_GHC 0x04U
+#define AHCI_PORTS 0x0cU
+#define AHCI_VERSION 0x10U
+#define AHCI_RESET 1U
+#define AHCI_INTERRUPT_ENABLE 2U
+#define AHCI_PORT_BASE 0x100U
+#define AHCI_PORT_STRIDE 0x80U
+#define AHCI_PORT_COMMAND 0x18U
+#define AHCI_PORT_ACTIVE 0x34U
+#define AHCI_PORT_ISSUE 0x38U
+#define AHCI_PORT_ENGINES ((1U << 0) | (1U << 4) | (1U << 14) | (1U << 15))
 
 static bool io_valid(const struct q35_dma_controller_io *io)
 {
@@ -98,4 +110,44 @@ bool q35_dma_xhci_cancel(const struct q35_dma_controller_io *io)
 	return command != UINT32_MAX && !(command & (XHCI_RUN | XHCI_RESET)) &&
 		status != UINT32_MAX && (status & (XHCI_HALTED | XHCI_NOT_READY)) ==
 			XHCI_HALTED && io->read32(io->context, 0) == capability;
+}
+
+bool q35_dma_ahci_cancel(const struct q35_dma_controller_io *io)
+{
+	uint32_t capability, ports, version, command, legal_ports;
+
+	if (!io_valid(io))
+		return false;
+	capability = io->read32(io->context, AHCI_CAP);
+	ports = io->read32(io->context, AHCI_PORTS);
+	version = io->read32(io->context, AHCI_VERSION);
+	command = io->read32(io->context, AHCI_GHC);
+	legal_ports = (capability & 31U) == 31U ? UINT32_MAX :
+		(1U << ((capability & 31U) + 1U)) - 1U;
+	if (capability == UINT32_MAX || !ports || (ports & ~legal_ports) ||
+	    (version >> 16) != 1U || (version & 0xffffU) > 0x0301U ||
+	    command == UINT32_MAX || (command & AHCI_RESET))
+		return false;
+	/* Port command/BME clearing alone does not retire already mapped IO. */
+	io->write32(io->context, AHCI_GHC,
+		(command & ~AHCI_INTERRUPT_ENABLE) | AHCI_RESET);
+	if (!wait_mask(io, AHCI_GHC, AHCI_RESET, 0))
+		return false;
+	for (uint32_t port = 0; port < 32U; port++) {
+		const uint32_t base = AHCI_PORT_BASE + port * AHCI_PORT_STRIDE;
+		uint32_t engines;
+
+		if (!(ports & (1U << port)))
+			continue;
+		engines = io->read32(io->context, base + AHCI_PORT_COMMAND);
+		if (engines == UINT32_MAX || (engines & AHCI_PORT_ENGINES) ||
+		    io->read32(io->context, base + AHCI_PORT_ACTIVE) ||
+		    io->read32(io->context, base + AHCI_PORT_ISSUE))
+			return false;
+	}
+	command = io->read32(io->context, AHCI_GHC);
+	return command != UINT32_MAX && !(command & (AHCI_RESET | AHCI_INTERRUPT_ENABLE)) &&
+		io->read32(io->context, AHCI_CAP) == capability &&
+		io->read32(io->context, AHCI_PORTS) == ports &&
+		io->read32(io->context, AHCI_VERSION) == version;
 }
