@@ -1,0 +1,13 @@
+#
+# No change to /home/sean/q35-authenticated-restore-after386.8oE1hv/resolved.config
+#
+#
+# No change to /home/sean/q35-authenticated-restore-after386.8oE1hv/resolved.config
+#
+#
+# No change to /home/sean/q35-authenticated-restore-after386.8oE1hv/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/q35-authenticated-restore-after386.8oE1hv/native/capsule-provider-info-close-component/run.ZOCQSR
+Found file config at 0x3e280, type raw, compressed 3569, size 12873
+Actual authenticated early RAM CHECK/SET + exact pristine route + real cold-reset history: PASS (Q35 component; no hardware/fullgraph claim)
+wall=87.65 user=83.27 system=5.24 peak_kib=256824
