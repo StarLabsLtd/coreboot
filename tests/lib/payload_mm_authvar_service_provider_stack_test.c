@@ -345,7 +345,7 @@ int main(int argc, char **argv)
 			.generation = 9, .request_id = 1, .data_capacity = 65536U - 4240U,
 			.status = UINT64_MAX, .completion = UINT32_MAX,
 		};
-		assert(payload_mm_authvar_service_execute() == CB_ERR);
+		assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
 		assert(!delivery_checks && !delivery_media && !body_copies && private_scrubs == 2);
 		mailbox->revision = 3;
 		mailbox->data_capacity = descriptor.maximum_data_size;
@@ -370,7 +370,11 @@ int main(int argc, char **argv)
 		.revision = 3, .header_size = 144, .operation = UINT32_MAX,
 		.generation = 9, .request_id = 1, .status = UINT64_MAX, .completion = UINT32_MAX,
 	};
+	runtime_admitted = false;
 	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
+	assert(!private_scrubs && !body_copies);
+	runtime_admitted = true;
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG && !program_count);
 	assert(mailbox->operation == UINT32_MAX && mailbox->completion == UINT32_MAX);
 	assert(private_scrubs == 2 && !body_copies);
 	private_scrubs = 0;
@@ -383,7 +387,7 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox, 65536U) == CB_SUCCESS);
 	mailbox->revision = 2;
 	assert(payload_mm_authvar_service_request_validate(&descriptor, mailbox, 65536U) == CB_ERR);
-	assert(payload_mm_authvar_service_execute() == CB_ERR && !program_count);
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG && !program_count);
 	assert(mailbox->revision == 2 && mailbox->operation == 4 &&
 		mailbox->completion == UINT32_MAX && mailbox->status == UINT64_MAX);
 	assert(private_scrubs == 2 && !body_copies);
@@ -520,6 +524,16 @@ int main(int argc, char **argv)
 		}
 	}
 	assert(!proof_drift && (program_count || wrong_content));
+#if !defined(TEST_REAL_RUNTIME_WAVE)
+	const uint32_t completed_programs = program_count;
+	const unsigned int completed_copies = body_copies, completed_scrubs = private_scrubs;
+
+	memcpy(delivery_original, mailbox, sizeof(delivery_original));
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
+	assert(program_count == completed_programs && body_copies == completed_copies &&
+		private_scrubs == completed_scrubs + 2);
+	assert(!memcmp(delivery_original, mailbox, sizeof(delivery_original)));
+#endif
 	assert(munmap(mailbox, 65536U) == 0);
 	return 0;
 }

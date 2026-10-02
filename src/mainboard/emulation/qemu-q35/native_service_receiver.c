@@ -2,6 +2,7 @@
 
 #include "native_cause.h"
 #include "native_service.h"
+#include "public_service.h"
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
@@ -114,7 +115,8 @@ static bool writes_are_private(void *unused)
 	(void)unused;
 	/* Controlled secure-pflash launch plus the actual cold denial observation. */
 	return !CONFIG(SMMSTORE) && !CONFIG(SMMSTORE_FULL_FLASH_ACCESS) &&
-		claim_current() && probe_current();
+		(claim_current() || (CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
+		 q35_public_service_current())) && probe_current();
 }
 
 bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
@@ -131,8 +133,10 @@ bool platform_payload_mm_authvar_service_finalize_admitted(void)
 
 bool platform_payload_mm_authvar_service_runtime_admitted(void)
 {
-	return service.phase == SERVICE_EXECUTING && wave.request == SMM_APMC_AUTHVAR_SERVICE &&
-		claim_current();
+	return (service.phase == SERVICE_EXECUTING && wave.request == SMM_APMC_AUTHVAR_SERVICE &&
+		claim_current()) ||
+		(CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
+		 service.phase == SERVICE_EXECUTING && q35_public_service_current());
 }
 
 static enum cb_err bootstrap(void)
@@ -216,6 +220,28 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(uint32_t cpu, uint32_t i
 
 	if (apm_get_apmc() != SMM_APMC_AUTHVAR_SERVICE)
 		return SMM_PRE_LOCK_DISPATCH_NOT_HANDLED;
+	if (CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
+	    service.phase == SERVICE_READY) {
+		enum q35_public_service_result public =
+			q35_public_service_begin(cpu, initial_apic_id);
+
+		if (wave.active || !protected_storage(&service, sizeof(service)) ||
+		    public == Q35_PUBLIC_SERVICE_ERROR)
+			smm_invocation_platform_fail_stop();
+		if (public == Q35_PUBLIC_SERVICE_HELD) {
+			enum cb_err status;
+
+			service.phase = SERVICE_EXECUTING;
+			/* A malformed or already-completed public mailbox is a refusal. */
+			status = payload_mm_authvar_service_execute();
+			if ((status != CB_SUCCESS && status != CB_ERR_ARG) ||
+			    !q35_public_service_current())
+				smm_invocation_platform_fail_stop();
+			service.phase = SERVICE_READY;
+			q35_public_service_end();
+		}
+		return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+	}
 	if (cpu || wave.active || !protected_storage(&wave, sizeof(wave)) ||
 	    smm_invocation_runtime_binding_get(&wave.runtime) != CB_SUCCESS ||
 	    smm_invocation_topology_read(wave.runtime.topology, &wave.topology) != CB_SUCCESS ||
