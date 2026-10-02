@@ -5705,6 +5705,10 @@ static uint64_t fmp_mutate(struct executor_session *state,
 	};
 	if (state->policy.maximum_record_size > state->index.store_size)
 		state->policy.maximum_record_size = state->index.store_size;
+	if (state->policy.maximum_record_size <= PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE)
+		return poison_session();
+	state->policy.maximum_data_size = MIN(state->policy.maximum_data_size,
+		state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE);
 	replaced = payload_mm_authvar_store_find(&state->index,
 		state->source.vendor_guid, state->source.name, state->source.name_size);
 	state->reclaim.copies = arena_at(executor.sealed.copies_offset);

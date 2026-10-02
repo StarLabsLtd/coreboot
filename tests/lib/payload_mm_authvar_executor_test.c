@@ -1368,6 +1368,8 @@ static void real_stack_install(void)
 #include EXECUTOR_SOURCE_INCLUDE
 #endif
 
+static bool fmp_small_store_limits;
+
 static void coordinator_install_executor(void)
 {
 	static struct payload_mm_authvar_executor_limits limits = {
@@ -1378,6 +1380,9 @@ static void coordinator_install_executor(void)
 		.maximum_records = 64,
 	};
 	size_t required_size = 0;
+
+	if (fmp_small_store_limits)
+		limits.maximum_data_size = BLOCK_SIZE;
 
 #ifdef EXECUTOR_REAL_MEDIA
 	real_stack_install();
@@ -2164,6 +2169,7 @@ static void fmp_state_case(const char *name)
 
 	memset(&sentinel, 0xa5, sizeof(sentinel));
 	output = sentinel;
+	fmp_small_store_limits = !strcmp(name, "fmp-initialize-small-store");
 	if (!strcmp(name, "fmp-initialize-suffixed-isolation"))
 		payload_mm_fmp_test_hardware_instance = 0x0123456789abcdefULL;
 	fmp_prepare_modes();
@@ -2885,7 +2891,8 @@ static void fmp_state_case(const char *name)
 			begin_count == end_count && !poisoned);
 		return;
 	}
-	if (!strcmp(name, "fmp-initialize-empty")) {
+	if (!strcmp(name, "fmp-initialize-empty") ||
+	    !strcmp(name, "fmp-initialize-small-store")) {
 		status = payload_mm_authvar_fmp_state_initialize(&output);
 		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && output.present &&
 			output.attributes == PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES &&
