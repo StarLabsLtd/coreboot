@@ -1,0 +1,36 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/.config
+#
+BDS native setup mutants: PASS
+make: *** No rule to make target 'direct-image-inventory-test'. Stop.
+make: *** Waiting for unfinished jobs....
+capsule provider mutant harness rejects an unchanged source
+make: *** [/home/sean/Documents/cdk2/src/boot/Makefile:7654: native-linear-pre-capsule-order-test] Error 1
+DXE capsule disk selected-ESP scan test: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+DXE disk-support exact-source mutation: PASS
+DXE support-attributes exact-source mutation: PASS
+Command exited with non-zero status 2
+	Command being timed: "make -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468 CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl native-bds-test native-dxe-core-capsule-disk-test native-linear-pre-capsule-order-test direct-image-inventory-test"
+	User time (seconds): 38.88
+	System time (seconds): 2.65
+	Percent of CPU this job got: 103%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:39.98
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 163924
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 23
+	Minor (reclaiming a frame) page faults: 627448
+	Voluntary context switches: 2704
+	Involuntary context switches: 528
+	Swaps: 0
+	File system inputs: 7416
+	File system outputs: 96848
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2

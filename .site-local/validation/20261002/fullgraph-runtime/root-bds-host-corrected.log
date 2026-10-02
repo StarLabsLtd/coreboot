@@ -1,0 +1,41 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/.config
+#
+bds settings tests passed
+BDS native setup mutants: PASS
+DXE capsule disk selected-ESP scan test: PASS
+linear pre-capsule production dispatch order: PASS
+RAM capsule orchestration contract: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+direct image eligibility and source PE inventory: PASS
+sed: couldn't write 39 items to stdout: Broken pipe
+BDS native setup contract: PASS
+bds model tests passed
+bds entry tests passed
+bds disabled setup tests passed
+bds entry tests passed
+DXE disk-support exact-source mutation: PASS
+DXE support-attributes exact-source mutation: PASS
+	Command being timed: "make -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468 CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl native-bds-test native-dxe-core-capsule-disk-test native-linear-pre-capsule-order-test native-direct-image-inventory-test"
+	User time (seconds): 57.53
+	System time (seconds): 20.55
+	Percent of CPU this job got: 179%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:43.58
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 163904
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 260
+	Minor (reclaiming a frame) page faults: 4068636
+	Voluntary context switches: 66140
+	Involuntary context switches: 3542
+	Swaps: 0
+	File system inputs: 8704
+	File system outputs: 610328
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

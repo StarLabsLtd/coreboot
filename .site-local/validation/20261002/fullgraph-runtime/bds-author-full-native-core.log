@@ -1,0 +1,130 @@
+DXE mixed MBR+GPT entry test: PASS
+DXE capsule disk selected-ESP scan test: PASS
+DXE mixed MBR+GPT entry test: PASS
+DXE LVGL-without-BDS compile matrix: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS suppression: PASS
+DXE disk-support exact-source mutation: PASS
+DXE display-failure BDS guard mutation: PASS
+DXE support-attributes exact-source mutation: PASS
+rollback absence mutation: PASS
+DXE image transaction mutation tests: PASS
+rollback opens mutation: PASS
+rollback connection mutation: PASS
+DXE LoadImage transaction ownership mutation: PASS
+strict direct entry phase tests: skipped for compatibility route
+DXE per-device partition ownership mutation: PASS
+DXE framebuffer owner test: PASS
+DXE reconstructed bridge mutation: PASS
+DXE framebuffer unowned-inference mutation: PASS
+DXE framebuffer absent-legacy mutation: PASS
+DXE complete bus-register width mutation: PASS
+DXE framebuffer declared-bar mutation: PASS
+DXE extra bridge rejection mutation: PASS
+DXE framebuffer decoy-probe mutation: PASS
+DXE storage-controller path span mutation: PASS
+DXE framebuffer owner-segment mutation: PASS
+DXE framebuffer owner-bus mutation: PASS
+DXE authoritative storage intent mutation: PASS
+DXE framebuffer owner-device mutation: PASS
+DXE deterministic storage fallback mutation: PASS
+DXE framebuffer owner-function mutation: PASS
+DXE deterministic per-device order mutation: PASS
+DXE framebuffer duplicate-bdf mutation: PASS
+DXE framebuffer range mutation: PASS
+DXE exact loader fallback mutation: PASS
+DXE framebuffer cleanup mutation: PASS
+DXE boot-policy loader-size revalidation mutation: PASS
+DXE framebuffer path-span mutation: PASS
+DXE boot-policy exact loader-path revalidation mutation: PASS
+DXE framebuffer duplicate-hob mutation: PASS
+DXE framebuffer repeated-parse mutation: PASS
+DXE storage binding reuse mutation: PASS
+DXE framebuffer stale-cache mutation: PASS
+DXE framebuffer owner mutation test: PASS
+DXE same-backend candidate retry mutation: PASS
+dxe core service tests passed
+disconnect ownership mutation: rejected
+DXE ATA Bus exact-connect status mutation: PASS
+disconnect binding-handle mutation: rejected
+disconnect child mutation: rejected
+DXE unowned ATA Bus absence mutation: PASS
+disconnect provisional mutation: rejected
+disconnect exact-driver mutation: rejected
+disconnect child-failure mutation: rejected
+DXE ATA Bus residual ownership mutation: PASS
+disconnect rollback mutation: rejected
+disconnect pair-retained mutation: rejected
+disconnect reentry mutation: rejected
+DXE stale ATA Bus ownership mutation: PASS
+disconnect registration mutation: rejected
+disconnect parent-lifetime mutation: rejected
+disconnect child-specific-lifetime mutation: rejected
+DXE ATA Bus single-stop ownership mutation: PASS
+DXE mixed MBR+GPT entry mutation test: PASS
+disconnect live-iteration mutation: rejected
+DXE DisconnectController ownership and mutation tests: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry gate: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Protected variable actual boot-entry gate: PASS
+Protected variable actual boot-entry refusal mutation: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary actual core test: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Private linked-primary callback recheck mutation: PASS
+Private linked-primary premature-public-start mutation: PASS
+Trusted inventory fixed-loader guard removal: PASS
+Aborted
+Diagnostic private-image Start guard removal: PASS
+Aborted
+Diagnostic partial-publication Unload guard removal: PASS
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+dxe storage scope tests passed
+dxe core entry tests passed
+dxe core GCD tests passed
+dxe core service tests passed
+Private linked-primary actual core test: PASS
+dxe core ABI tests passed
+dxe core dispatcher tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+dxe lifecycle tests passed
+Aborted
+Aborted
+DXE lifecycle legacy/composition profiles and owner-gate mutants: PASS
+dxe core image tests passed
+dxe core database tests passed
+dxe core event tests passed
+dxe core memory tests passed
+	Command being timed: "make CDK2_CONFIG_READY=1 -j2 native-dxe-core-test"
+	User time (seconds): 774.13
+	System time (seconds): 32.49
+	Percent of CPU this job got: 192%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:58.19
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 214420
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 94
+	Minor (reclaiming a frame) page faults: 12080809
+	Voluntary context switches: 10028
+	Involuntary context switches: 7685
+	Swaps: 0
+	File system inputs: 6024
+	File system outputs: 1753400
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
