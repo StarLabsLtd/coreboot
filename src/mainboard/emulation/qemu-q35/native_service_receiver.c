@@ -9,6 +9,8 @@
 #include <boot/payload_mm_fmp_boot.h>
 #include <boot/coreboot_tables.h>
 #include <boot_device.h>
+#include <cbfs.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_command.h>
@@ -18,6 +20,7 @@
 #include <cpu/x86/smm_invocation_topology.h>
 #include <cpu/x86/smm_pre_lock_dispatch.h>
 #include <fmap.h>
+#include <payload_mm_fmp_auth_policy.h>
 #include <string.h>
 
 #if !ENV_SMM
@@ -32,6 +35,12 @@ static struct {
 	uint64_t probe_offset;
 	uint64_t probe_size;
 } service;
+
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_AUTH_POLICY)
+static uint8_t capsule_trust_xdr[4 + ALIGN_UP(PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE, 4)];
+_Static_assert(sizeof(capsule_trust_xdr) <= PAYLOAD_MM_MAX_TRUST_XDR_SIZE,
+	"single certificate must fit the protected trust policy");
+#endif
 
 static struct {
 	bool active;
@@ -231,6 +240,49 @@ static enum cb_err bootstrap(void)
 		printk(BIOS_DEBUG, "Q35 capsule owner: protected store reconciled\n");
 		if (!claim_current())
 			return CB_ERR;
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_AUTH_POLICY)
+		{
+			enum cbfs_type type = CBFS_TYPE_RAW;
+			size_t certificate_size = 0;
+			enum cb_err status = CB_ERR;
+			struct payload_mm_fmp_auth_policy auth = {
+				.revision = PAYLOAD_MM_FMP_AUTH_POLICY_REVISION,
+				.size = sizeof(auth),
+				.trusted_lowest_version = firmware.lowest_supported_version,
+				.image_size = firmware.fw_size,
+				.trust_xdr = capsule_trust_xdr,
+				.mainboard_vendor = CONFIG_MAINBOARD_VENDOR,
+				.mainboard_vendor_size = sizeof(CONFIG_MAINBOARD_VENDOR) - 1,
+				.mainboard_part = CONFIG_MAINBOARD_PART_NUMBER,
+				.mainboard_part_size = sizeof(CONFIG_MAINBOARD_PART_NUMBER) - 1,
+			};
+
+			memcpy(auth.image_type.b, firmware.guid, sizeof(auth.image_type.b));
+			memset(capsule_trust_xdr, 0, sizeof(capsule_trust_xdr));
+			if (protected_storage(capsule_trust_xdr, sizeof(capsule_trust_xdr)) &&
+			    claim_current())
+				certificate_size = cbfs_ro_type_load("capsule/trust.der",
+					capsule_trust_xdr + 4, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE,
+					&type);
+			if (type == CBFS_TYPE_RAW && certificate_size &&
+			    certificate_size <= PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE &&
+			    claim_current()) {
+				capsule_trust_xdr[0] = certificate_size >> 24;
+				capsule_trust_xdr[1] = certificate_size >> 16;
+				capsule_trust_xdr[2] = certificate_size >> 8;
+				capsule_trust_xdr[3] = certificate_size;
+				auth.trust_xdr_size = 4 + ALIGN_UP(certificate_size, 4);
+				if (claim_current())
+					status = payload_mm_fmp_auth_policy_install(&auth,
+						protected_fmp_storage, NULL);
+			}
+			memset(capsule_trust_xdr, 0, sizeof(capsule_trust_xdr));
+			memset(&auth, 0, sizeof(auth));
+			if (status != CB_SUCCESS || !claim_current())
+				return CB_ERR;
+			printk(BIOS_DEBUG, "Q35 capsule owner: protected authentication installed\n");
+		}
+#endif
 		memset(&state, 0, sizeof(state));
 		memset(&firmware, 0, sizeof(firmware));
 	}
