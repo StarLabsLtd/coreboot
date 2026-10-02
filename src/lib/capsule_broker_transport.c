@@ -205,6 +205,7 @@ enum cb_err capsule_broker_transport_dispatch(void)
 	uint64_t transport_generation;
 	uintptr_t transport_address;
 	enum cb_err status;
+	enum payload_mm_fmp_transaction_outcome outcome;
 
 	if (transport_authority.busy ||
 	    !capsule_broker_transport_buffer(&transport_buffer, &transport_size,
@@ -253,12 +254,13 @@ enum cb_err capsule_broker_transport_dispatch(void)
 	shared_result = (void *)(uintptr_t)(transport_address +
 		CAPSULE_BROKER_TRANSPORT_RESULT_OFFSET);
 	result_pending(shared_result);
-	status = payload_mm_fmp_transaction_execute_intent(&intent);
+	status = payload_mm_fmp_transaction_execute_intent(&intent, &outcome);
 	result_pending(shared_result);
 	if (!control_matches(&expected)) {
 		payload_mm_fmp_transaction_close();
 		transport_authority = expected;
 		status = CB_ERR;
+		outcome = PAYLOAD_MM_FMP_TRANSACTION_FAILED;
 	}
 	memset(&result, 0, sizeof(result));
 	result.revision = request.revision;
@@ -271,6 +273,10 @@ enum cb_err capsule_broker_transport_dispatch(void)
 		CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL;
 	result.result = status == CB_SUCCESS ? CAPSULE_BROKER_RESULT_SUCCESS :
 		CAPSULE_BROKER_RESULT_EXECUTION;
+	if (status != CB_SUCCESS &&
+	    intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK &&
+	    outcome == PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED)
+		result.result = CAPSULE_BROKER_RESULT_SIGNATURE_REFUSED;
 	result_commit(shared_result, &result);
 	memset(&request, 0, sizeof(request));
 	memset(&intent, 0, sizeof(intent));

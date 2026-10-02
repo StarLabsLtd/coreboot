@@ -40,7 +40,8 @@ struct payload_mm_fmp_auth_policy {
 enum cb_err payload_mm_fmp_auth_policy_install(
 	const struct payload_mm_fmp_auth_policy *trusted_policy,
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
-enum cb_err payload_mm_fmp_authenticate_provider(const void *context,
+enum capsule_broker_authentication_status payload_mm_fmp_authenticate_provider(
+	const void *context,
 	const void *capsule, size_t capsule_size, uint32_t attempted_version,
 	const struct payload_mm_fmp_owner_record *owner_record,
 	struct capsule_broker_raw_image *raw_image);

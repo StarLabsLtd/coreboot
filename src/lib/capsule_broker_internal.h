@@ -16,7 +16,8 @@ typedef bool capsule_broker_range_proof_fn(void *context, uint64_t base,
 typedef bool capsule_broker_state_proof_fn(void *context);
 typedef enum cb_err capsule_broker_sha256_fn(void *context, const void *data,
 	size_t size, uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE]);
-typedef enum cb_err capsule_broker_authenticate_fn(const void *context,
+typedef enum capsule_broker_authentication_status capsule_broker_authenticate_fn(
+	const void *context,
 	const void *capsule, size_t capsule_size, uint32_t attempted_version,
 	const struct payload_mm_fmp_owner_record *owner_record,
 	struct capsule_broker_raw_image *raw_image);
@@ -95,7 +96,7 @@ bool capsule_broker_endpoint_shape_valid(
 	const struct lb_capsule_broker_endpoint *endpoint, uint64_t image_size);
 bool capsule_broker_transport_buffer(void **buffer, size_t *size,
 	uint64_t *generation);
-enum cb_err capsule_broker_authenticate_intent_bound(
+enum capsule_broker_authentication_status capsule_broker_authenticate_intent_bound(
 	const struct payload_mm_fmp_capsule_intent *intent,
 	const struct payload_mm_fmp_owner_record *owner_record);
 

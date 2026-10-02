@@ -75,10 +75,20 @@ enum cb_err payload_mm_fmp_transaction_install(
 }
 
 static enum cb_err finish(uint64_t transaction, enum cb_err status,
-	bool close)
+	bool close, bool signature_refused,
+	enum payload_mm_fmp_transaction_outcome *outcome)
 {
-	if (payload_mm_fmp_dispatch_complete(transaction) != CB_SUCCESS)
+	struct transaction_control expected = control_state();
+
+	if (payload_mm_fmp_dispatch_complete(transaction) != CB_SUCCESS) {
 		status = CB_ERR;
+		signature_refused = false;
+	}
+	if (signature_refused &&
+	    (!prerequisites_ready() || !control_matches(&expected)))
+		signature_refused = false;
+	if (signature_refused && outcome)
+		*outcome = PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED;
 	transaction_authority.busy = false;
 	if (close || status != CB_SUCCESS) {
 		transaction_authority.closed = true;
@@ -88,7 +98,8 @@ static enum cb_err finish(uint64_t transaction, enum cb_err status,
 }
 
 static enum cb_err execute(uint64_t request_address,
-	const struct payload_mm_fmp_capsule_intent *direct_intent)
+	const struct payload_mm_fmp_capsule_intent *direct_intent,
+	enum payload_mm_fmp_transaction_outcome *outcome)
 {
 	struct payload_mm_fmp_owner_record before;
 	struct payload_mm_fmp_owner_record after;
@@ -96,7 +107,12 @@ static enum cb_err execute(uint64_t request_address,
 	struct payload_mm_fmp_capsule_intent intent;
 	struct transaction_control expected;
 	enum cb_err status = CB_ERR;
+	enum capsule_broker_authentication_status authenticated;
 	bool set_operation = false;
+	bool signature_refused = false;
+
+	if (outcome)
+		*outcome = PAYLOAD_MM_FMP_TRANSACTION_FAILED;
 
 	if (!transaction_authority.installed || transaction_authority.busy ||
 	    transaction_authority.closed ||
@@ -150,7 +166,7 @@ static enum cb_err execute(uint64_t request_address,
 	memcpy(&intent, staged, sizeof(intent));
 	set_operation = intent.operation == PAYLOAD_MM_FMP_CAPSULE_SET;
 	if (intent.transaction <= transaction_authority.last_transaction) {
-		return finish(intent.transaction, CB_ERR, true);
+		return finish(intent.transaction, CB_ERR, true, false, outcome);
 	}
 	transaction_authority.last_transaction = intent.transaction;
 	expected = control_state();
@@ -160,14 +176,20 @@ static enum cb_err execute(uint64_t request_address,
 		!before.present ||
 		!before.sequence)
 		goto out;
-	if (capsule_broker_authenticate_intent_bound(staged, &before) !=
-		CB_SUCCESS || !control_matches(&expected) || !prerequisites_ready())
+	authenticated = capsule_broker_authenticate_intent_bound(staged, &before);
+	if ((authenticated != CAPSULE_BROKER_AUTHENTICATED &&
+	     authenticated != CAPSULE_BROKER_SIGNATURE_REFUSED) ||
+	    !control_matches(&expected) || !prerequisites_ready())
 		goto out;
 	memset(&after, 0, sizeof(after));
 	if (payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE, &after) !=
-		CB_SUCCESS || !control_matches(&expected) || !prerequisites_ready() ||
+		CB_SUCCESS || !prerequisites_ready() || !control_matches(&expected) ||
 	    memcmp(&before, &after, sizeof(before)))
 		goto out;
+	if (authenticated == CAPSULE_BROKER_SIGNATURE_REFUSED) {
+		signature_refused = intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK;
+		goto out;
+	}
 	if (intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK) {
 		status = CB_SUCCESS;
 		goto out;
@@ -188,18 +210,22 @@ out:
 	memset(&before, 0, sizeof(before));
 	memset(&after, 0, sizeof(after));
 	memset(&intent, 0, sizeof(intent));
-	return finish(expected.last_transaction, status, set_operation);
+	return finish(expected.last_transaction, status, set_operation,
+		signature_refused, outcome);
 }
 
 enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address)
 {
-	return execute(request_address, NULL);
+	return execute(request_address, NULL, NULL);
 }
 
 enum cb_err payload_mm_fmp_transaction_execute_intent(
-	const struct payload_mm_fmp_capsule_intent *intent)
+	const struct payload_mm_fmp_capsule_intent *intent,
+	enum payload_mm_fmp_transaction_outcome *outcome)
 {
-	return execute(0, intent);
+	if (!outcome)
+		return CB_ERR;
+	return execute(0, intent, outcome);
 }
 
 void payload_mm_fmp_transaction_close(void)

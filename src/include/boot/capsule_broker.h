@@ -41,6 +41,14 @@ _Static_assert(sizeof(struct capsule_broker_success) == 8,
 enum capsule_broker_result {
 	CAPSULE_BROKER_RESULT_SUCCESS = 0,
 	CAPSULE_BROKER_RESULT_EXECUTION = 1,
+	CAPSULE_BROKER_RESULT_SIGNATURE_REFUSED = 2,
+};
+
+/* Private synchronous decision; no refusal authorizes mutation. */
+enum capsule_broker_authentication_status {
+	CAPSULE_BROKER_AUTHENTICATED = 0,
+	CAPSULE_BROKER_AUTHENTICATION_FAILED = -1,
+	CAPSULE_BROKER_SIGNATURE_REFUSED = -2,
 };
 
 #define CAPSULE_BROKER_LAST_ATTEMPT_SUCCESS 0U

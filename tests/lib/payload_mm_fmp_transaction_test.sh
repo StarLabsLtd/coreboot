@@ -16,6 +16,8 @@ cases="$cases guard-entry guard-owner guard-auth guard-readback guard-reentry"
 cases="$cases lifecycle-close"
 cases="$cases check-same-sequence check-mutation check-aba"
 cases="$cases set-mutation set-aba"
+cases="$cases refusal-check refusal-set refusal-owner refusal-cleanup refusal-final-guard"
+cases="$cases refusal-readback-mutation refusal-final-mutation"
 
 run_test()
 {
