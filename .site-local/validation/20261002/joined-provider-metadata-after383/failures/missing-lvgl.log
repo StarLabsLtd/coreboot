@@ -1,0 +1,7 @@
+#
+# configuration written to /home/sean/q35-auth-provider-newtrust-native-info.D6yO4Q/resolved.config
+#
+/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/src/boot/Makefile:1712: *** LVGL sources are unavailable; run 'git submodule update --init 3rdparty/lvgl'. Stop.
+make: *** [Makefile:1138: native-capsule-provider-info-close-component-test] Error 2
+Command exited with non-zero status 2
+WALL 0.24 USER 0.09 SYSTEM 0.15 MAXRSS 7496

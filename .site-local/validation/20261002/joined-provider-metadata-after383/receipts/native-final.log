@@ -1,0 +1,4 @@
+Native MM warm-reset artifacts: /home/sean/q35-auth-provider-newtrust-native-info-clean.cLn7qs/native/capsule-provider-info-close-component/run.dsrfQ4
+Found file config at 0x3df80, type raw, compressed 3566, size 12873
+Actual published RAM endpoint + READ_INFO/CLOSE/post-close INFO: PASS (no firmware apply claim)
+WALL 11.73 USER 10.50 SYSTEM 1.23 MAXRSS 98076
