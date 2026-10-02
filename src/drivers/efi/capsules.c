@@ -2,6 +2,8 @@
 
 #include <acpi/acpi.h>
 #include <boot/coreboot_tables.h>
+#include <boot/payload_mm_authvar_ftw.h>
+#include <boot/payload_mm_authvar_store.h>
 #include <bootmem.h>
 #include <bootmode.h>
 #include <bootstate.h>
@@ -108,16 +110,47 @@ struct memory_range coalesce_buffer;
 static struct memory_range uefi_capsules[MAX_CAPSULES];
 static int uefi_capsule_count;
 
-static bool efi_is_disk_capsules_boot(void)
+static struct payload_mm_authvar_store_index capsule_store;
+
+static enum cb_err capsule_read_variable(const struct region_device *rdev,
+	const EFI_GUID *guid, const char *name, void *dest, uint32_t *size)
 {
-	struct region_device rdev;
+	const struct payload_mm_authvar_store_entry *entry;
+	const void *data;
+	uint16_t wide_name[32];
+	size_t name_length;
+
+	if (!CONFIG(DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION))
+		return efi_fv_get_option(rdev, guid, name, dest, size);
+	if (!guid || !name || !dest || !size ||
+	    !payload_mm_authvar_store_index_valid(&capsule_store))
+		return CB_ERR;
+	for (name_length = 0; name_length < ARRAY_SIZE(wide_name) && name[name_length];
+	     name_length++)
+		;
+	if (name_length == ARRAY_SIZE(wide_name))
+		return CB_ERR;
+	for (size_t i = 0; i <= name_length; i++)
+		wide_name[i] = (uint8_t)name[i];
+	entry = payload_mm_authvar_store_find(&capsule_store, (const void *)guid,
+		wide_name, (name_length + 1) * sizeof(wide_name[0]));
+	if (!entry || entry->attributes != 7 || entry->data_size != sizeof(uint64_t) ||
+	    *size < entry->data_size)
+		return CB_ERR;
+	data = payload_mm_authvar_store_data(&capsule_store, entry);
+	if (!data)
+		return CB_ERR;
+	memcpy(dest, data, entry->data_size);
+	*size = entry->data_size;
+	return CB_SUCCESS;
+}
+
+static bool efi_is_disk_capsules_boot(const struct region_device *rdev)
+{
 	uint64_t os_indications = 0;
 	uint32_t size = sizeof(os_indications);
 
-	if (smmstore_lookup_read_region(&rdev))
-		return false;
-
-	if (efi_fv_get_option(&rdev, &efi_global_variable_guid, "OsIndications",
+	if (capsule_read_variable(rdev, &efi_global_variable_guid, "OsIndications",
 			      &os_indications, &size) != CB_SUCCESS)
 		return false;
 
@@ -456,7 +489,7 @@ static int discover_capsule_blocks(struct region_device *rdev,
 
 		struct block_descr block;
 		uint32_t size = sizeof(block.self);
-		enum cb_err ret = efi_fv_get_option(rdev, &capsule_vendor_guid, var_name,
+		enum cb_err ret = capsule_read_variable(rdev, &capsule_vendor_guid, var_name,
 						    &block.self, &size);
 		if (ret != CB_SUCCESS) {
 			/* No more variables. */
@@ -697,6 +730,11 @@ void efi_parse_capsules(void)
 	/* EDK2 starts with 20 items and then grows the list, but it's unlikely
 	   to be necessary in practice. */
 	enum { MAX_CAPSULE_BLOCKS = MAX_CAPSULES };
+	const struct cbmem_entry *snapshot_entry = NULL;
+	void *store_snapshot = NULL;
+	struct payload_mm_authvar_store_entry *store_entries = NULL;
+	size_t snapshot_size = 0;
+	bool store_admitted = false;
 
 	static bool once;
 	if (!once) {
@@ -706,15 +744,56 @@ void efi_parse_capsules(void)
 		return;
 	}
 
-	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) && efi_is_disk_capsules_boot()) {
-		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);
-		return;
-	}
-
 	struct region_device rdev;
 	if (smmstore_lookup_read_region(&rdev)) {
 		printk(BIOS_INFO, "capsules: no SMMSTORE region, no update capsules.\n");
 		return;
+	}
+	if (CONFIG(DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION)) {
+		const size_t region_size = region_device_sz(&rdev);
+		const struct payload_mm_authvar_store_limits limits = {
+			.maximum_store_size = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_SIZE,
+			.maximum_name_size = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE,
+			.maximum_data_size = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE,
+			.maximum_records = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS,
+		};
+		struct payload_mm_authvar_ftw_plan plan;
+		const size_t index_size = limits.maximum_records * sizeof(*store_entries);
+		size_t index_offset;
+
+		if (!region_size || region_size > limits.maximum_store_size ||
+		    region_size > SIZE_MAX - (_Alignof(*store_entries) - 1))
+			goto exit_snapshot;
+		index_offset = ALIGN_UP(region_size, _Alignof(*store_entries));
+		if (index_offset > SIZE_MAX - index_size ||
+		    cbmem_entry_find(CBMEM_ID_CAPSULE_READ_SNAPSHOT))
+			goto exit_snapshot;
+		snapshot_size = index_offset + index_size;
+		snapshot_entry = cbmem_entry_add(CBMEM_ID_CAPSULE_READ_SNAPSHOT, snapshot_size);
+		if (!snapshot_entry)
+			goto exit_snapshot;
+		store_snapshot = cbmem_entry_start(snapshot_entry);
+		if (!store_snapshot || cbmem_entry_size(snapshot_entry) < snapshot_size)
+			goto exit_snapshot;
+		store_entries = (void *)((uint8_t *)store_snapshot + index_offset);
+		if (rdev_readat(&rdev, store_snapshot, 0, region_size) != region_size ||
+		    payload_mm_authvar_ftw_plan(store_snapshot, region_size, SMM_BLOCK_SIZE,
+			&plan) != CB_SUCCESS || plan.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
+		    plan.fv_header_size > region_size ||
+		    plan.variable_store_size > region_size - plan.fv_header_size)
+			goto exit_snapshot;
+		capsule_store = (struct payload_mm_authvar_store_index) {
+			.entries = store_entries, .entry_capacity = limits.maximum_records,
+		};
+		if (payload_mm_authvar_store_scan(&capsule_store,
+			(uint8_t *)store_snapshot + plan.fv_header_size, plan.variable_store_size,
+			&limits) != CB_SUCCESS || capsule_store.dirty_tail_offset)
+			goto exit_snapshot;
+		store_admitted = true;
+	}
+	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) && efi_is_disk_capsules_boot(&rdev)) {
+		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);
+		goto exit_snapshot;
 	}
 
 	memranges_init(&memory_map, IORESOURCE_MEM | IORESOURCE_FIXED | IORESOURCE_STORED |
@@ -797,6 +876,16 @@ exit:
 	if (ENV_X86_32)
 		paging_disable_pae();
 	memranges_teardown(&memory_map);
+exit_snapshot:
+	if (CONFIG(DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION) && !store_admitted)
+		printk(BIOS_WARNING, "capsules: MM variable store is not clean; RAM handoff refused.\n");
+	memset(&capsule_store, 0, sizeof(capsule_store));
+	if (snapshot_entry) {
+		if (store_snapshot && cbmem_entry_size(snapshot_entry) >= snapshot_size)
+			memset(store_snapshot, 0, snapshot_size);
+		if (cbmem_entry_remove(snapshot_entry))
+			printk(BIOS_WARNING, "capsules: read snapshot remains reserved.\n");
+	}
 }
 
 void lb_efi_capsules(struct lb_header *header)

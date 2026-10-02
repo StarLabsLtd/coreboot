@@ -24,7 +24,8 @@ capsules, legacy, header, kconfig, makefile, table = [
 assert "SMMSTORE_CMD_USE_FULL_FLASH" not in capsules
 assert "call_smm(" not in capsules
 assert "smmstore_lookup_region(" not in capsules
-assert capsules.count("smmstore_lookup_read_region(") == 2
+assert capsules.count("smmstore_lookup_read_region(") == 1
+assert capsules.count("capsule_read_variable(rdev,") == 2
 assert "SMMSTORE_CMD_USE_FULL_FLASH" in legacy
 assert "call_smm(" in legacy
 
