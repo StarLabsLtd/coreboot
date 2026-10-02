@@ -136,6 +136,7 @@ done
 	"$root/src/lib/capsule_broker.c" \
 	"$root/src/lib/capsule_broker_endpoint.c" \
 	"$root/src/lib/payload_mm_fmp_owner_layout.c" \
+	"$root/src/lib/capsule_write_layout.c" \
 	"$root/src/lib/capsule_update_backend.c" \
 	"$root/src/lib/payload_mm_crypto/cms.c" \
 	"$root/src/lib/payload_mm_crypto/crypto.c" \

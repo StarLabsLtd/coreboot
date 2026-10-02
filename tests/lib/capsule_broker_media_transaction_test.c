@@ -72,6 +72,13 @@ int main(int argc, char **argv)
 	assert(argc == 2);
 	mode = argv[1];
 	initialize(&fixture);
+	if (!strcmp(mode, "authvar-layout")) {
+		fixture.policy.write_layout.metadata_count = 0;
+		memset(fixture.policy.write_layout.metadata, 0,
+			sizeof(fixture.policy.write_layout.metadata));
+		fixture.policy.fmap_areas[1] = fixture.policy.fmap_areas[3];
+		fixture.policy.fmap_area_count = 2;
+	}
 	fixture.policy.media.begin = transaction_begin;
 	fixture.policy.media.end = transaction_end;
 	if (!strcmp(mode, "partial-pair")) {
@@ -101,7 +108,8 @@ int main(int argc, char **argv)
 	}
 	authenticate_set(&fixture, 1, 11);
 	assert(checkpoint_grant(GENERATION, 1, 11) == CB_SUCCESS);
-	happy = !strcmp(mode, "happy") || !strcmp(mode, "reentry");
+	happy = !strcmp(mode, "happy") || !strcmp(mode, "reentry") ||
+		!strcmp(mode, "authvar-layout");
 	assert(apply_staged() == (happy ? CB_SUCCESS : CB_ERR));
 	assert(begins == 1);
 	assert(ends == (strcmp(mode, "begin-failure") ? 1U : 0U));
