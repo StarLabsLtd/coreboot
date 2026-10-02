@@ -39,7 +39,7 @@ static const uint8_t *flash_leaf(bool long_mode)
 {
 	const struct region_device *root = boot_device_ro();
 	struct region_device store;
-	enum cbfs_type type;
+	enum cbfs_type type = CBFS_TYPE_RAW;
 	size_t size;
 	const uint8_t *leaf = cbfs_ro_type_map(long_mode ?
 		"q35/native-apmc" : "q35/native-apmc-bootstrap", &size, &type);

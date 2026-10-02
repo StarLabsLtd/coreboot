@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cpu.h>
+#include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <cpu/x86/smm_invocation_loader_composition.h>
 #include <device/fw_cfg.h>
 #include <random.h>
@@ -41,5 +42,14 @@ enum cb_err smm_invocation_platform_loader_instance_take(
 	seed->revision = SMM_INVOCATION_LOADER_INSTANCE_REVISION;
 	seed->size = sizeof(*seed);
 	seed->lifecycle = SMM_INVOCATION_LOADER_NON_S3_LOAD;
+	__atomic_store_n(&consumed, 2, __ATOMIC_RELEASE);
 	return CB_SUCCESS;
 }
+
+#if CONFIG(Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT)
+bool mainboard_authvar_presence_cold_boot(void)
+{
+	/* The genuine random non-S3 instance was acquired by this loader. */
+	return __atomic_load_n(&consumed, __ATOMIC_ACQUIRE) == 2 && fw_cfg_max_cpus() == 1;
+}
+#endif
