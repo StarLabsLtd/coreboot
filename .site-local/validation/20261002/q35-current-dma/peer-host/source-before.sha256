@@ -1,0 +1,14 @@
+324bac58806f5405327ba4d44b04368172a1e847256df05001c74d033c08206c  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c
+179a0613c5a3b9322e38c3e313f13d969ad2a65f892a1484473f1e806a3982d0  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.h
+383beca82fbca36be6ea2b17265baf3a56ff3cba14e0a96051daadd8182b159a  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_controller_cancel.c
+78e58fd5e186992ecbbc540c7a857f812a77b08ce61b2ac83870b614f1028e94  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_controller_cancel.h
+34cdde163f7dd386422399c01dddf984771d39b4800a9a58734f9540bee321c7  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_table_image.c
+31b616e56f82b153b51767a3a353cd7b78fc717b04bcc0f4187f9fe745f9c846  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_table_image.h
+1c97cd70167ab7f4bfba0b6190c9d487b2b7d7ceec6dab850cea0c89650f5bf4  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_policy.c
+1f1817eb456468bf53580488f0a08816e57c47ab4cf86b0ded8561a12fd64840  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_policy.h
+2d4695f9b0fd3a05f4d376bd2ff76fd45763ebe65b0564d08a614660d71bd32e  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/vtd_registers.c
+92c9f634f09437917a93fe4bf774ff4db52045f5fc3b2735a4cbddeeecfbba9b  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/vtd_registers.h
+fee88fc4ad511d4ec7ca78a7709fe4c9e11f475e16fe04daf8ce1f1cd1e32931  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/cpu/x86/smm.h
+6d04afb84473f03b500c100213176713d8fed0f727caf4bcb600fc9d2799ab37  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c
+3f4c0e1e91af276eb7df092e6e36f56df25e1455ac37aa41fdc8fd40d9554040  /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test_platform.h
+41564087baa93644b2a2f2cfd9d9d197969877fc2a5f600f6881e5ba89c1f658  tests/lib/q35_dma_cold_test.sh

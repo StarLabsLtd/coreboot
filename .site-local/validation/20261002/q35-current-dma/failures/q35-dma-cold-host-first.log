@@ -1,0 +1,10 @@
+HOST current-join artifacts: /home/sean/q35-dma-cold.FxED2g
+In file included from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:7:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/assert.h:6:10: fatal error: arch/hlt.h: No such file or directory
+    6 | #include <arch/hlt.h>
+      |          ^~~~~~~~~~~~
+compilation terminated.
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c: In function ‘memory_image’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:446:9: error: implicit declaration of function ‘smm_get_capsule_broker_buffers’ [-Wimplicit-function-declaration]
+  446 |         smm_get_capsule_broker_buffers(reservation);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1,0 +1,39 @@
+HOST current-join artifacts: /home/sean/q35-dma-cold.CE46S8
+In file included from /home/sean/q35-dma-cold.CE46S8/include/host-platform.h:9,
+                 from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:4:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/device/pci_type.h:8:9: error: unknown type name ‘u32’
+    8 | typedef u32 pci_devfn_t;
+      |         ^~~
+In file included from /home/sean/q35-dma-cold.CE46S8/include/host-platform.h:10:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/device/resource.h:44:9: error: unknown type name ‘u64’
+   44 | typedef u64 resource_t;
+      |         ^~~
+In file included from /home/sean/q35-dma-cold.CE46S8/include/host-platform.h:9,
+                 from /home/sean/q35-dma-cold.CE46S8/include/arch/pci_io_cfg.h:1,
+                 from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:3:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/device/pci_type.h:8:9: error: unknown type name ‘u32’
+    8 | typedef u32 pci_devfn_t;
+      |         ^~~
+In file included from /home/sean/q35-dma-cold.CE46S8/include/host-platform.h:10:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/device/resource.h:44:9: error: unknown type name ‘u64’
+   44 | typedef u64 resource_t;
+      |         ^~~
+In file included from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:12:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/delay.h:14:1: error: unknown type name ‘u32’
+   14 | u32 get_timer_fsb(void);
+      | ^~~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c: In function ‘resource_image_valid’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:223:36: error: comparison of integer expressions of different signedness: ‘pci_devfn_t’ {aka ‘int’} and ‘unsigned int’ [-Werror=sign-compare]
+  223 |                 if (slot->pci_addr != PCI_DEV(0, topology[device].bdf >> 3, topology[device].bdf & 7U) ||
+      |                                    ^~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:250:84: error: comparison of integer expressions of different signedness: ‘resource_t’ {aka ‘int’} and ‘uint64_t’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+  250 |                                 (pci64 ? IORESOURCE_PCI64 : 0U)) || resource->base != base ||
+      |                                                                                    ^~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c: In function ‘controllers_quiesce’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:307:49: error: comparison of integer expressions of different signedness: ‘resource_t’ {aka ‘int’} and ‘unsigned int’ [-Werror=sign-compare]
+  307 |                 if (!resource || resource->size < PAGE_SIZE ||
+      |                                                 ^
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c:319:31: error: comparison of integer expressions of different signedness: ‘resource_t’ {aka ‘int’} and ‘unsigned int’ [-Werror=sign-compare]
+  319 |         if (!edu || edu->size < 0xa0U ||
+      |                               ^
+cc1: all warnings being treated as errors

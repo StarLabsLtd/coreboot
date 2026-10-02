@@ -1,0 +1,35 @@
+#
+# No change to /home/sean/q35-cold-current-native.WxULjQ/resolved.config
+#
+#
+# No change to /home/sean/q35-cold-current-native.WxULjQ/resolved.config
+#
+#
+# No change to /home/sean/q35-cold-current-native.WxULjQ/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/q35-cold-current-native.WxULjQ/native/capsule-mm-update-component/run.9xAbNk
+Found file config at 0x39ac0, type raw, compressed 3561, size 12759
+Actual protected FMP initial combined state and independent cold reconciliation: PASS (no capsule writer/version-present claim)
+	Command being timed: "make -j2 CDK2_BUILD_DIR=/home/sean/q35-cold-current-native.WxULjQ CDK2_CONFIG=/home/sean/q35-cold-current-native.WxULjQ/resolved.config CDK2_CONFIG_HEADER=/home/sean/q35-cold-current-native.WxULjQ/include/cdk2/config.h KCONFIG_CONFIG=/home/sean/q35-cold-current-native.WxULjQ/resolved.config COREBOOT_CONFIG=/home/sean/q35-cold-current-full.uMv5uO/full.config COREBOOT_ROM=/home/sean/q35-cold-current-full.uMv5uO/build/coreboot.rom CBFSTOOL=/home/sean/q35-cold-current-full.uMv5uO/build/util/cbfstool/cbfstool native-fmp-owner-cold-state-component-test"
+	User time (seconds): 11.26
+	System time (seconds): 1.52
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:12.89
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 105352
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 256
+	Minor (reclaiming a frame) page faults: 365602
+	Voluntary context switches: 39778
+	Involuntary context switches: 221
+	Swaps: 0
+	File system inputs: 53064
+	File system outputs: 39360
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

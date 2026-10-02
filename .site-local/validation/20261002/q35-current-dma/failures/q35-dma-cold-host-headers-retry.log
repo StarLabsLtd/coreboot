@@ -1,0 +1,32 @@
+HOST current-join artifacts: /home/sean/q35-dma-cold.7gRlMr
+In file included from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/stdlib.h:6,
+                 from /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:9:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h: In function ‘xmalloc_work’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h:27:17: error: implicit declaration of function ‘printk’; did you mean ‘snprintf’? [-Wimplicit-function-declaration]
+   27 |                 printk(BIOS_ERR, "%s:%d %s(): Failed to malloc %zu bytes\n",
+      |                 ^~~~~~
+      |                 snprintf
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h:27:24: error: ‘BIOS_ERR’ undeclared (first use in this function)
+   27 |                 printk(BIOS_ERR, "%s:%d %s(): Failed to malloc %zu bytes\n",
+      |                        ^~~~~~~~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h:27:24: note: each undeclared identifier is reported only once for each function it appears in
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h: In function ‘xmemalign_work’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/commonlib/bsd/include/commonlib/bsd/stdlib.h:48:24: error: ‘BIOS_ERR’ undeclared (first use in this function)
+   48 |                 printk(BIOS_ERR, "%s:%d %s(): "
+      |                        ^~~~~~~~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c: In function ‘check’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:55:9: error: implicit declaration of function ‘fprintf’; did you mean ‘snprintf’? [-Wimplicit-function-declaration]
+   55 |         fprintf(stderr, "DMA_COLD_ASSERT: %s\n", expression);
+      |         ^~~~~~~
+      |         snprintf
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:55:17: error: ‘stderr’ undeclared (first use in this function)
+   55 |         fprintf(stderr, "DMA_COLD_ASSERT: %s\n", expression);
+      |                 ^~~~~~
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:10:1: note: ‘stderr’ is defined in header ‘<stdio.h>’; this is probably fixable by adding ‘#include <stdio.h>’
+    9 | #include <stdlib.h>
+  +++ |+#include <stdio.h>
+   10 | #include <string.h>
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c: In function ‘main’:
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:432:9: error: implicit declaration of function ‘puts’ [-Wimplicit-function-declaration]
+  432 |         puts("PASS HOST cold current join only (modeled platform, not authority)");
+      |         ^~~~

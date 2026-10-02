@@ -1,0 +1,14 @@
+commit 91bb151ecc6879e70687e3dbce1f92629e7922fc
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Fri Oct 2 13:28:57 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Fri Oct 2 13:28:57 2026 +0100
+
+    q35: recheck owned cold DMA protection before tables
+    
+    Retire the fixed cold controllers before owned allocation and assigned PCI resource capture. Validate the current default-deny table image, physical targets, legacy root and PMR state with acknowledged architectural drains before constructing the payload tables.
+    
+    Keep protected current checks tied to the real private finalize wave, with no capsule endpoint, writer or live-driver reset admission. Add strictly modeled host join and causal refusal regressions.
+    
+    Signed-off-by: Sean Rhodes <sean@starlabs.systems>

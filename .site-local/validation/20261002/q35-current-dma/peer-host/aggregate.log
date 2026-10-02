@@ -1,0 +1,41 @@
+HOST current-join artifacts: /home/sean/q35-dma-cold.E92L4S
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST ats cause O0 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST root cause O0 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST pmr cause O0 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST memory cause O0 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST protected cause O0 (assertion 134)
+DMA_COLD_ASSERT: !nvme_resets && !xhci_resets && !ahci_resets
+PASS exact HOST phase cause O0 (assertion 134)
+PASS HOST modeled current join O0 (not firmware admission)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST ats cause O2 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST root cause O2 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST pmr cause O2 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST memory cause O2 (assertion 134)
+DMA_COLD_ASSERT: !accepted
+PASS exact HOST protected cause O2 (assertion 134)
+DMA_COLD_ASSERT: !nvme_resets && !xhci_resets && !ahci_resets
+PASS exact HOST phase cause O2 (assertion 134)
+PASS HOST modeled current join O2 (not firmware admission)
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_cold.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_controller_cancel.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_controller_cancel.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_table_image.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_table_image.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_policy.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/q35_dma_policy.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/vtd_registers.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35/vtd_registers.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/include/cpu/x86/smm.h: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test_platform.h: OK
+tests/lib/q35_dma_cold_test.sh: OK

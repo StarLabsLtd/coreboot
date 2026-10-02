@@ -1,0 +1,3 @@
+DMA_COLD_ASSERT: !accepted
+ats-O0: /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/tests/lib/q35_dma_cold_test.c:57: check: Assertion `condition' failed.
+Aborted
