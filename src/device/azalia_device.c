@@ -187,6 +187,8 @@ static int wait_for_valid(u8 *base)
 	 * tells us to clear the busy bit explicitly, then poll until
 	 * the controller is ready.
 	 */
+	printk(BIOS_WARNING, "azalia_audio: response timeout, status = 0x%08x\n",
+	       read32(base + HDA_ICII_REG));
 	write32(base + HDA_ICII_REG, 0);
 	if (wait_for_ready(base) < 0) {
 		printk(BIOS_WARNING, "azalia_audio: controller is unresponsive.\n");
@@ -197,8 +199,11 @@ static int wait_for_valid(u8 *base)
 
 static int azalia_write_verb(u8 *base, u32 verb)
 {
-	if (wait_for_ready(base) < 0)
+	if (wait_for_ready(base) < 0) {
+		printk(BIOS_WARNING, "azalia_audio: readiness timeout, status = 0x%08x\n",
+		       read32(base + HDA_ICII_REG));
 		return -1;
+	}
 
 	write32(base + HDA_IC_REG, verb);
 
@@ -211,8 +216,11 @@ int azalia_program_verb_table(u8 *base, const u32 *verbs, u32 verb_size)
 		return 0;
 
 	for (u32 i = 0; i < verb_size; i++) {
-		if (azalia_write_verb(base, verbs[i]) < 0)
+		if (azalia_write_verb(base, verbs[i]) < 0) {
+			printk(BIOS_WARNING, "azalia_audio: verb %u (0x%08x) failed\n",
+			       i, verbs[i]);
 			return -1;
+		}
 	}
 	return 0;
 }
