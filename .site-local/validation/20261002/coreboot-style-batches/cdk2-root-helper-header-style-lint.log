@@ -1,0 +1,182 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#76: FILE: include/cdk2/qemu_test_fmp.h:76:
++void cdk2_qemu_fmp_sha256(const void *, UINTN, UINT8[32]);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINTN' should also have an identifier name
+#76: FILE: include/cdk2/qemu_test_fmp.h:76:
++void cdk2_qemu_fmp_sha256(const void *, UINTN, UINT8[32]);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT8' should also have an identifier name
+#76: FILE: include/cdk2/qemu_test_fmp.h:76:
++void cdk2_qemu_fmp_sha256(const void *, UINTN, UINT8[32]);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const UINT8' should also have an identifier name
+#77: FILE: include/cdk2/qemu_test_fmp.h:77:
++BOOLEAN cdk2_qemu_fmp_rsa2048_verify(const UINT8[32], const UINT8[256]);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const UINT8' should also have an identifier name
+#77: FILE: include/cdk2/qemu_test_fmp.h:77:
++BOOLEAN cdk2_qemu_fmp_rsa2048_verify(const UINT8[32], const UINT8[256]);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp *' should also have an identifier name
+#78: FILE: include/cdk2/qemu_test_fmp.h:78:
++EFI_STATUS cdk2_qemu_fmp_authenticate(struct cdk2_qemu_fmp *, const void *, UINTN,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#78: FILE: include/cdk2/qemu_test_fmp.h:78:
++EFI_STATUS cdk2_qemu_fmp_authenticate(struct cdk2_qemu_fmp *, const void *, UINTN,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINTN' should also have an identifier name
+#78: FILE: include/cdk2/qemu_test_fmp.h:78:
++EFI_STATUS cdk2_qemu_fmp_authenticate(struct cdk2_qemu_fmp *, const void *, UINTN,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const UINT8 **' should also have an identifier name
+#78: FILE: include/cdk2/qemu_test_fmp.h:78:
++EFI_STATUS cdk2_qemu_fmp_authenticate(struct cdk2_qemu_fmp *, const void *, UINTN,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32 *' should also have an identifier name
+#78: FILE: include/cdk2/qemu_test_fmp.h:78:
++EFI_STATUS cdk2_qemu_fmp_authenticate(struct cdk2_qemu_fmp *, const void *, UINTN,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp *' should also have an identifier name
+#80: FILE: include/cdk2/qemu_test_fmp.h:80:
++EFI_STATUS cdk2_qemu_fmp_recover(struct cdk2_qemu_fmp *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp *' should also have an identifier name
+#81: FILE: include/cdk2/qemu_test_fmp.h:81:
++EFI_STATUS cdk2_qemu_fmp_commit(struct cdk2_qemu_fmp *, UINT32, const void *, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32' should also have an identifier name
+#81: FILE: include/cdk2/qemu_test_fmp.h:81:
++EFI_STATUS cdk2_qemu_fmp_commit(struct cdk2_qemu_fmp *, UINT32, const void *, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#81: FILE: include/cdk2/qemu_test_fmp.h:81:
++EFI_STATUS cdk2_qemu_fmp_commit(struct cdk2_qemu_fmp *, UINT32, const void *, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32' should also have an identifier name
+#81: FILE: include/cdk2/qemu_test_fmp.h:81:
++EFI_STATUS cdk2_qemu_fmp_commit(struct cdk2_qemu_fmp *, UINT32, const void *, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp *' should also have an identifier name
+#82: FILE: include/cdk2/qemu_test_fmp.h:82:
++void cdk2_qemu_fmp_release(struct cdk2_qemu_fmp *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp_protocol *' should also have an identifier name
+#88: FILE: include/cdk2/qemu_test_fmp.h:88:
++void cdk2_qemu_fmp_protocol_init(struct cdk2_qemu_fmp_protocol *, struct cdk2_qemu_fmp *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_qemu_fmp *' should also have an identifier name
+#88: FILE: include/cdk2/qemu_test_fmp.h:88:
++void cdk2_qemu_fmp_protocol_init(struct cdk2_qemu_fmp_protocol *, struct cdk2_qemu_fmp *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const char *' should also have an identifier name
+#89: FILE: include/cdk2/qemu_test_fmp.h:89:
++BOOLEAN cdk2_qemu_fmp_configure_image_guid(const char *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#94: FILE: include/cdk2/qemu_test_fmp.h:94:
++EFI_STATUS CDK2_MS_ABI cdk2_qemu_test_fmp_entry(void *, struct cdk2_system_table_view *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_system_table_view *' should also have an identifier name
+#94: FILE: include/cdk2/qemu_test_fmp.h:94:
++EFI_STATUS CDK2_MS_ABI cdk2_qemu_test_fmp_entry(void *, struct cdk2_system_table_view *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#95: FILE: include/cdk2/qemu_test_fmp.h:95:
++EFI_STATUS CDK2_MS_ABI cdk2_qemu_test_fmp_unload(void *);
+
+total: 0 errors, 22 warnings, 97 lines checked
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_software_hash *' should also have an identifier name
+#11: FILE: include/cdk2/software_hash.h:11:
++EFI_STATUS cdk2_software_hash_init(struct cdk2_software_hash *, TPMI_ALG_HASH);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'TPMI_ALG_HASH' should also have an identifier name
+#11: FILE: include/cdk2/software_hash.h:11:
++EFI_STATUS cdk2_software_hash_init(struct cdk2_software_hash *, TPMI_ALG_HASH);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_software_hash *' should also have an identifier name
+#12: FILE: include/cdk2/software_hash.h:12:
++EFI_STATUS cdk2_software_hash_update(struct cdk2_software_hash *, const void *, UINTN);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#12: FILE: include/cdk2/software_hash.h:12:
++EFI_STATUS cdk2_software_hash_update(struct cdk2_software_hash *, const void *, UINTN);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINTN' should also have an identifier name
+#12: FILE: include/cdk2/software_hash.h:12:
++EFI_STATUS cdk2_software_hash_update(struct cdk2_software_hash *, const void *, UINTN);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_software_hash *' should also have an identifier name
+#13: FILE: include/cdk2/software_hash.h:13:
++EFI_STATUS cdk2_software_hash_final(struct cdk2_software_hash *, UINT8 *, UINT16);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT8 *' should also have an identifier name
+#13: FILE: include/cdk2/software_hash.h:13:
++EFI_STATUS cdk2_software_hash_final(struct cdk2_software_hash *, UINT8 *, UINT16);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT16' should also have an identifier name
+#13: FILE: include/cdk2/software_hash.h:13:
++EFI_STATUS cdk2_software_hash_final(struct cdk2_software_hash *, UINT8 *, UINT16);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'TPMI_ALG_HASH' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const struct cdk2_tcg2_span *' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT8 *' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT16' should also have an identifier name
+#14: FILE: include/cdk2/software_hash.h:14:
++EFI_STATUS cdk2_software_hash_spans(void *, TPMI_ALG_HASH, const struct cdk2_tcg2_span *,
+
+total: 0 errors, 14 warnings, 16 lines checked
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#17: FILE: include/cdk2/english.h:17:
++					      UINTN fat_size, CHAR8 *fat, CHAR16 *string);
+ 					                            ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#19: FILE: include/cdk2/english.h:19:
++						 CHAR16 *string, UINTN fat_size, CHAR8 *fat);
+ 						                                       ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#20: FILE: include/cdk2/english.h:20:
++typedef cdk2_stricoll_type *cdk2_stricoll_fn;
+                            ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#21: FILE: include/cdk2/english.h:21:
++typedef cdk2_meta_match_type *cdk2_meta_match_fn;
+                              ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#22: FILE: include/cdk2/english.h:22:
++typedef cdk2_str_case_type *cdk2_str_case_fn;
+                            ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#23: FILE: include/cdk2/english.h:23:
++typedef cdk2_fat_to_str_type *cdk2_fat_to_str_fn;
+                              ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#24: FILE: include/cdk2/english.h:24:
++typedef cdk2_str_to_fat_type *cdk2_str_to_fat_fn;
+                              ^
+
+total: 7 errors, 0 warnings, 57 lines checked

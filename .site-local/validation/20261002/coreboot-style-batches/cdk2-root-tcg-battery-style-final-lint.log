@@ -1,0 +1,119 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#49: FILE: tests/tcg2_platform_hob_test.c:49:
++EFI_STATUS cdk2_tcg2_test_find_tpm_base(const void *, UINT64 *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT64 *' should also have an identifier name
+#49: FILE: tests/tcg2_platform_hob_test.c:49:
++EFI_STATUS cdk2_tcg2_test_find_tpm_base(const void *, UINT64 *);
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#50: FILE: tests/tcg2_platform_hob_test.c:50:
++typedef EFI_STATUS (CDK2_MS_ABI *test_allocate_pool_fn)(EFI_MEMORY_TYPE, UINTN, void **);
+                                 ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#51: FILE: tests/tcg2_platform_hob_test.c:51:
++typedef EFI_STATUS (CDK2_MS_ABI *test_free_pool_fn)(void *);
+                                 ^
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'test_allocate_pool_fn' should also have an identifier name
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, UINT32, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'EFI_MEMORY_TYPE' should also have an identifier name
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, UINT32, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32' should also have an identifier name
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, UINT32, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void **' should also have an identifier name
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, UINT32, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'cdk2_physical_address_ptr' should also have an identifier name
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, UINT32, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'test_free_pool_fn' should also have an identifier name
+#54: FILE: tests/tcg2_platform_hob_test.c:54:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'EFI_PHYSICAL_ADDRESS' should also have an identifier name
+#54: FILE: tests/tcg2_platform_hob_test.c:54:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, UINT32);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT32' should also have an identifier name
+#54: FILE: tests/tcg2_platform_hob_test.c:54:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, UINT32);
+
+WARNING:MACRO_WITH_FLOW_CONTROL: Macros with flow control statements should be avoided
+#160: FILE: tests/tcg2_platform_hob_test.c:160:
++#define CHECK(x)                                                            \
++	do {                                                                \
++		if (!(x)) {                                                 \
++			fprintf(stderr, "tcg2 HOB:%d: %s\n", __LINE__, #x); \
++			return 1;                                           \
++		}                                                           \
++	} while (0)
+
+total: 2 errors, 11 warnings, 403 lines checked
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#8: FILE: tests/ec_battery_entry_lifecycle_test.c:8:
++static unsigned profile_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#9: FILE: tests/ec_battery_entry_lifecycle_test.c:9:
++static unsigned info_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#10: FILE: tests/ec_battery_entry_lifecycle_test.c:10:
++static unsigned critical_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#11: FILE: tests/ec_battery_entry_lifecycle_test.c:11:
++static unsigned transport_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#12: FILE: tests/ec_battery_entry_lifecycle_test.c:12:
++static unsigned stall_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#146: FILE: tests/ec_battery_entry_lifecycle_test.c:146:
++static unsigned create_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#147: FILE: tests/ec_battery_entry_lifecycle_test.c:147:
++static unsigned close_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#148: FILE: tests/ec_battery_entry_lifecycle_test.c:148:
++static unsigned install_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#240: FILE: tests/ec_battery_entry_lifecycle_test.c:240:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#240: FILE: tests/ec_battery_entry_lifecycle_test.c:240:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#240: FILE: tests/ec_battery_entry_lifecycle_test.c:240:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#241: FILE: tests/ec_battery_entry_lifecycle_test.c:241:
++			     unsigned stalls)
+
+total: 0 errors, 12 warnings, 408 lines checked
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#131: FILE: tests/scsi_bus_entry_test.c:131:
++EFI_STATUS CDK2_MS_ABI cdk2_scsi_bus_entry(void *, struct cdk2_system_table *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_system_table *' should also have an identifier name
+#131: FILE: tests/scsi_bus_entry_test.c:131:
++EFI_STATUS CDK2_MS_ABI cdk2_scsi_bus_entry(void *, struct cdk2_system_table *);
+
+total: 0 errors, 2 warnings, 160 lines checked

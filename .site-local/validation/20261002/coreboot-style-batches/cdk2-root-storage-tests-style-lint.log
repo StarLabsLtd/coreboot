@@ -1,0 +1,24 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#43: FILE: tests/ata_bus_entry_test.c:43:
++	void(CDK2_MS_ABI *notify)(void *, void *);
+ 	                 ^
+
+total: 1 errors, 0 warnings, 367 lines checked
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#29: FILE: tests/device_path_driver_test.c:29:
++EFI_STATUS CDK2_MS_ABI cdk2_device_path_entry(void *, struct system_table_view *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct system_table_view *' should also have an identifier name
+#29: FILE: tests/device_path_driver_test.c:29:
++EFI_STATUS CDK2_MS_ABI cdk2_device_path_entry(void *, struct system_table_view *);
+
+total: 0 errors, 2 warnings, 169 lines checked
+ERROR:CODE_INDENT: code indent should use tabs where possible
+#126: FILE: tests/xhci_pci_test.c:126:
++        };$
+
+WARNING:LEADING_SPACE: please, no spaces at the start of a line
+#126: FILE: tests/xhci_pci_test.c:126:
++        };$
+
+total: 1 errors, 1 warnings, 173 lines checked
