@@ -455,6 +455,21 @@ config PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
 	  opt-in is inert, no board selects it, and it installs no APM route. An
 	  opted-in composition fails the boot unless every producer proof succeeds.
 
+config PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	depends on PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	depends on !PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_TRANSPORT
+	depends on !PAYLOAD_MM_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_OWNER
+	depends on !PAYLOAD_MM_AUTHVAR_PRESENCE_ARM
+	depends on !PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION
+	help
+	  Reserve the canonical loader receipts and tuple for service bootstrap
+	  without composing or publishing a physical-presence authority. The
+	  platform must prove completion of the same-boot protected service and
+	  its table publication; the weak default refuses boot completion.
+
 config PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
 	bool
 	default n
