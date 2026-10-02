@@ -8,6 +8,10 @@
 
 struct lb_header;
 void q35_publish_native_service_table(struct lb_header *header);
+/* Actual held exclusive E8 owner; metadata remains available after CLOSE. */
+bool q35_capsule_service_current(void);
+/* The same current owner plus the installed, irreversible RAM eligibility. */
+bool q35_capsule_ram_transaction_current(void);
 
 #define Q35_NATIVE_BOOTSTRAP_REVISION 1U
 #define Q35_NATIVE_BOOTSTRAP_REQUEST 1U

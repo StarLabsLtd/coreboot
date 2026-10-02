@@ -14,8 +14,8 @@ enum q35_public_service_result {
 
 /* Public command ownership only; never private invocation/presence evidence. */
 enum q35_public_service_result q35_public_service_begin(uint32_t cpu,
-	uint32_t initial_apic_id);
-bool q35_public_service_current(void);
+	uint32_t initial_apic_id, uint8_t command);
+bool q35_public_service_current(uint8_t command);
 void q35_public_service_end(void);
 
 #endif
