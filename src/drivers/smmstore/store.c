@@ -97,6 +97,10 @@ static int lookup_store(struct region_device *rstore)
 	if (lookup_store_region(&region) != CB_SUCCESS)
 		return -1;
 
+	/* The mapped read device may cover only part of the physical flash. */
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash)
+		return boot_device_rw_subregion(&region, rstore);
+
 	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
 		return -1;
 

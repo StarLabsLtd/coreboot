@@ -3,6 +3,17 @@
 tests-y += efivars-test
 tests-y += smmstore-variable-test
 
+tests-y += smmstore-full-flash-test
+smmstore-full-flash-test-srcs += tests/drivers/smmstore-full-flash.c
+smmstore-full-flash-test-srcs += src/drivers/smmstore/store.c
+smmstore-full-flash-test-srcs += src/lib/boot_device.c
+smmstore-full-flash-test-srcs += src/commonlib/region.c
+smmstore-full-flash-test-srcs += tests/stubs/console.c
+smmstore-full-flash-test-stage := smm
+smmstore-full-flash-test-config += CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1 \
+	CONFIG_SMMSTORE_BLOCK_SIZE=65536 CONFIG_ROM_SIZE=0x2000000
+smmstore-full-flash-test-cflags += -Itests/drivers/smmstore-full-flash
+
 smmstore-variable-test-srcs += tests/drivers/smmstore-variable.c
 smmstore-variable-test-srcs += src/drivers/smmstore/smi.c
 smmstore-variable-test-srcs += src/drivers/efi/option.c
