@@ -1,0 +1,11 @@
+BDS native setup mutants: PASS
+bds settings tests passed
+BDS native setup contract: PASS
+bds model tests passed
+bds entry tests passed
+bds disabled setup tests passed
+bds entry tests passed
+DXE capsule disk selected-ESP scan test: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+DXE disk-support exact-source mutation: PASS
+DXE support-attributes exact-source mutation: PASS

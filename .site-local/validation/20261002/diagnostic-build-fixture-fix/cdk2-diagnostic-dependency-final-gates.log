@@ -1,0 +1,20 @@
+native command-input cache tests: PASS
+native configuration cache rebuild and recipe coverage: PASS
+BDS native setup mutants: PASS
+DXE capsule disk selected-ESP scan test: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+DXE disk-support exact-source mutation: PASS
+DXE support-attributes exact-source mutation: PASS
+bds settings tests passed
+#
+# No change to /tmp/tmp.kfhrCPShA9/build/.config
+#
+BDS native setup contract: PASS
+bds model tests passed
+bds entry tests passed
+bds disabled setup tests passed
+bds entry tests passed
+#
+# No change to /tmp/tmp.kfhrCPShA9/build/.config
+#
+Native host dependency unions and transitive cache rebuilds: PASS
