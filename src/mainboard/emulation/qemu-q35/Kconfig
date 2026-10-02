@@ -90,6 +90,19 @@ config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
 config SMMSTORE_BLOCK_SIZE
 	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
+config Q35_SMM_CAPSULE_BROKER_BUFFERS
+	bool "Reserve Q35 protected capsule broker buffers"
+	default n
+	depends on Q35_SMM_CAPSULE_BROKER && Q35_VTD_DMA_TEST_BACKEND
+	select CAPSULE_UPDATE_CONTRACT
+	select CAPSULE_BROKER_CONTRACT
+	select CAPSULE_BROKER_FIXED_BUFFERS
+	select CAPSULE_BROKER_CBMEM_BUFFERS
+	help
+	  Reserve the existing early CBMEM communication and staging buffers and
+	  import their actual geometry into the SMM loader. This provides allocation
+	  ownership only; it installs no writer, endpoint or DMA protection proof.
+
 config Q35_SMM_CAPSULE_BROKER
 	bool "QEMU-only protected state owner for typed firmware capsules"
 	default n

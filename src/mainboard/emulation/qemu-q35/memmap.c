@@ -14,19 +14,25 @@
 
 #include "q35.h"
 
+_Static_assert(!(CONFIG(Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF) ||
+	CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)) || (CONFIG_ROM_SIZE > 0 &&
+	CONFIG_ROM_SIZE <= SIZE_MAX - MiB - (CAPSULE_BROKER_BUFFER_ALIGNMENT - 1)),
+	"Q35 capsule staging size must fit the native address space");
+
 size_t platform_capsule_broker_staging_size(void)
 {
-	if (!CONFIG(Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF))
+	if (!CONFIG(Q35_CAPSULE_FIXED_BUFFER_TEST_PROOF) &&
+	    !CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS))
 		return 0;
 	/* Accommodate the ROM plus bounded authentication and FMP metadata. */
-	return ALIGN_UP(CONFIG_ROM_SIZE + 1 * MiB, 4096);
+	return ALIGN_UP(CONFIG_ROM_SIZE + MiB, CAPSULE_BROKER_BUFFER_ALIGNMENT);
 }
 
 size_t mainboard_cbmem_top_reservation_size(void)
 {
 	const size_t staging_size = platform_capsule_broker_staging_size();
 
-	if (!staging_size)
+	if (!staging_size || CONFIG(CAPSULE_BROKER_CBMEM_BUFFERS))
 		return 0;
 	return staging_size + CAPSULE_BROKER_COMMUNICATION_RESERVATION_SIZE;
 }

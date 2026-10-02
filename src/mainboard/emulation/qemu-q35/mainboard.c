@@ -63,7 +63,7 @@ static void qemu_nb_read_resources(struct device *dev)
 
 	smm_region(&tseg_base, &tseg_size);
 	reserved_ram_range(dev, ESMRAMC, tseg_base, tseg_size);
-	if (CONFIG(CAPSULE_BROKER_FIXED_BUFFERS)) {
+	if (CONFIG(CAPSULE_BROKER_FIXED_BUFFERS) && !CONFIG(CAPSULE_BROKER_CBMEM_BUFFERS)) {
 		const size_t reservation_size =
 			mainboard_cbmem_top_reservation_size();
 
