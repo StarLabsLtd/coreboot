@@ -1,0 +1,15 @@
+WARNING: line length of 353 exceeds 170 columns
+#104: FILE: tests/lib/payload_mm_fmp_auth_initial_version_test.sh:13:
++includes="-include $root/src/include/kconfig.h -include $root/src/include/rules.h -include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h -I$root/src -I$root/src/lib -I$root/src/lib/payload_mm_crypto -I$root/src/commonlib/include -I$root/src/commonlib/bsd/include -idirafter $root/src/include -I$root/src/arch/x86/include -I$temporary/include"
+
+total: 0 errors, 1 warnings, 499 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+Your patch has style problems, please review.
+
+NOTE: Ignored message types: ASSIGN_IN_IF AVOID_EXTERNS BLOCK_COMMENT_STYLE C99_COMMENTS COMPARISON_TO_NULL CONFIG_DESCRIPTION CORRUPTED_PATCH EXECUTE_PERMISSIONS FILE_PATH_CHANGES GERRIT_CHANGE_ID GLOBAL_INITIALISERS INITIALISED_STATIC LINE_SPACING MISSING_SPACE NEW_TYPEDEFS PRINTK_WITHOUT_KERN_LEVEL SPDX_LICENSE_TAG SPLIT_STRING UNDOCUMENTED_DT_STRING UNNECESSARY_ELSE VOLATILE
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.

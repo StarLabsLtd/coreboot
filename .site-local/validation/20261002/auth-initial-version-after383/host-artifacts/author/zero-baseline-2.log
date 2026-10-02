@@ -1,0 +1,1 @@
+zero-baseline-2: /home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/tests/lib/payload_mm_fmp_auth_policy_test.c:404: main: Assertion `status == CB_SUCCESS' failed.

@@ -1,0 +1,20 @@
+Initial-version HOST artifacts: /home/sean/payload-mm-fmp-initial-version.mTutb4
+Verification successful
+capsule validated: GUID 00000001-0000-0000-0000-000000000000, embedded drivers 0
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/include/payload_mm_fmp_auth_policy.h: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/lib/payload_mm_fmp_auth_policy.c: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/mainboard/emulation/qemu-q35/native_service_receiver.c: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/tests/lib/payload_mm_fmp_auth_policy_test.c: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/tests/lib/payload_mm_fmp_auth_initial_version_test.sh: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/util/efi_capsule/generate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/lib/payload_mm_crypto/crypto.c: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/lib/payload_mm_crypto/cms.c: OK
+/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382/src/lib/payload_mm_crypto/mbedtls_verify_wrap.c: OK
+Initial-version HOST actual CMS/dependencies and six exact causals: PASS

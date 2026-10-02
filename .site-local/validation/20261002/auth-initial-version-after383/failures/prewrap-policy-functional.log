@@ -1,0 +1,5 @@
+Verification successful
+Payload-MM FMP authentication policy O0/O2/ASan+UBSan: PASS
+Payload-MM FMP real CMS/OpenSSL root oracle: PASS (OpenSSL 3.5.3 16 Sep 2025 (Library: OpenSSL 3.5.3 16 Sep 2025))
+Payload-MM FMP signed-envelope broker composition: PASS
+WALL 12.63 USER 10.91 SYSTEM 1.69 MAXRSS 43604
