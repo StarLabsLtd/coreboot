@@ -13,6 +13,7 @@ ramstage-y += ../qemu-i440fx/rom_media.c
 ramstage-y += cpu.c
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_COMPONENT) += loader_instance.c
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += native_apmc.S
+ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT) += native_service_sender.c
 ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_dma_handoff.c q35_dma_policy.c
 ramstage-$(CONFIG_Q35_VTD_DMA_TEST_BACKEND) += vtd_registers.c
@@ -29,6 +30,7 @@ ramstage-$(CONFIG_CHROMEOS) += chromeos.c
 smm-y += ../qemu-i440fx/rom_media.c
 smm-y += smihandler.c
 smm-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += native_cause.c
+smm-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT) += native_service_receiver.c
 smm-$(CONFIG_Q35_SMM_INVOCATION_FAIL_STOP_TEST) += smm_invocation_fail_stop.c
 
 cbfs-files-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += q35/native-apmc

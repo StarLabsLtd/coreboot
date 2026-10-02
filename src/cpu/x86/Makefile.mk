@@ -34,8 +34,9 @@ smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence.c
 smm-$(CONFIG_SMM_INVOCATION_EVIDENCE) += smm_invocation_evidence_loader.c
 smm-$(CONFIG_SMM_INVOCATION_ENTRY) += smm_invocation_entry.c
 smm-$(CONFIG_SMM_INVOCATION_LOADER_COMPOSITION) += smm_invocation_loader_composition_gate.c
-smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += smm_invocation_loader_instance.c
-smm-$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) += smm_invocation_topology.c
+ifneq ($(filter y,$(CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_ROUTE_SESSION) $(CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)),)
+smm-y += smm_invocation_loader_instance.c smm_invocation_topology.c
+endif
 ramstage-$(CONFIG_SMM_INVOCATION_TOPOLOGY) += smm_invocation_topology.c
 ramstage-$(CONFIG_SMM_INVOCATION_LOADER_INSTANCE) += smm_invocation_loader_instance.c
 ramstage-$(CONFIG_SMM_INVOCATION_LOADER_COMPOSITION) += smm_invocation_evidence_loader.c

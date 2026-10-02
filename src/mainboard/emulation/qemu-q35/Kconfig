@@ -38,8 +38,47 @@ config Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
 config SMM_MODULE_STACK_SIZE
 	default 0x4000 if Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
 
+config Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
+	bool "QEMU-only native authenticated-variable service component"
+	default n
+	depends on Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
+	depends on !PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK
+	select Q35_PAYLOAD_MM_AUTHVAR_EXECUTOR_TEST_PROOF
+	select PAYLOAD_MM_AUTHVAR_QEMU_PFLASH_BACKEND
+	select PAYLOAD_MM_AUTHVAR_RECOVERY_PLANNER
+	select PAYLOAD_MM_AUTHVAR_MOR_COMPLETION_SEAL
+	select PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP
+	select BOOTMEM_ALIGNED_RESERVATIONS
+	select BOOTMEM_ALIGNED_RESERVATION_RECEIPT
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION
+	select PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER
+	select SMM_INVOCATION_TUPLE_TRIGGER
+	select SMM_INVOCATION_ENTRY_PLATFORM
+	select SMM_INVOCATION_ENTRY
+	select SMM_PRE_LOCK_DISPATCH
+	select SMM_APMC_COMMAND_REGISTRY
+	select SMM_APMC_ROUTE_AUTHVAR_SERVICE
+	select PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	select PAYLOAD_MM_AUTHVAR_SERVICE_BOOTSTRAP_ONLY
+	help
+	  Exercise the existing canonical service bootstrap and typed variable
+	  backend through the actual immutable-flash APMC leaves. This controlled
+	  single-CPU component requires QEMU secure pflash and checks ordinary
+	  write denial in a separate scratch area before importing genuine loader
+	  receipts. It grants no physical presence and is not an arbitrary-OS or
+	  production platform service admission.
+
 config SMMSTORE_SIZE
 	default 0x10000 if Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
+
+config SMMSTORE_BLOCK_SIZE
+	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
+
+config SMM_TSEG_SIZE
+	default 0x200000 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
 config QEMU_PFLASH_VOLATILE_LEASE
 	bool
@@ -294,6 +333,7 @@ config VBOOT
 	select GBB_FLAG_DISABLE_FWMP
 
 config FMDFILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/native-service-8M.fmd" if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/payload-mm-owner-8M.fmd" if Q35_PAYLOAD_MM_OWNER_FMAP_TEST_PROOF
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/vboot-rwa-8M.fmd" if VBOOT_SLOTS_RW_A && !VBOOT_SLOTS_RW_AB
 	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/vboot-rwab-8M.fmd" if VBOOT_SLOTS_RW_AB
