@@ -273,6 +273,7 @@ static enum cb_err bootstrap(void)
 				.revision = PAYLOAD_MM_FMP_AUTH_POLICY_REVISION,
 				.size = sizeof(auth),
 				.trusted_lowest_version = firmware.lowest_supported_version,
+				.trusted_current_version = firmware.version,
 				.image_size = firmware.fw_size,
 				.trust_xdr = capsule_trust_xdr,
 				.mainboard_vendor = CONFIG_MAINBOARD_VENDOR,

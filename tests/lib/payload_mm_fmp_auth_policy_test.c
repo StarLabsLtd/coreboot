@@ -24,9 +24,11 @@ static bool owner_ready = true;
 static bool protected_ok = true;
 static bool verify_ok = true;
 static bool mutate_policy;
+static bool mutate_current_policy;
 static bool mutate_authority;
 static bool reenter;
 static bool mutate_owner_read;
+static bool fail_owner_read;
 static unsigned int verifies;
 
 static size_t read_file(const char *path, uint8_t *data, size_t capacity)
@@ -175,6 +177,21 @@ static void build_guid_dependency(void)
 	build_payload_with(expression, sizeof(expression), 16, 3, 2);
 }
 
+static void build_current_dependency(void)
+{
+	uint8_t expression[24] = { 1, 3, 0, 0, 0, 0 };
+
+	expression[6] = 1;
+	expression[22] = 0x0a;
+	expression[23] = 0x0d;
+	build_payload_with(expression, sizeof(expression), 16, 3, 2);
+}
+
+static void cold_state(void)
+{
+	memset(state.data, 0, sizeof(state.data));
+}
+
 bool payload_mm_fmp_owner_ready(void)
 {
 	return owner_ready;
@@ -191,6 +208,8 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	struct payload_mm_fmp_owner_record *record)
 {
 	assert(key == PAYLOAD_MM_FMP_STATE_KEY_STATE);
+	if (fail_owner_read)
+		return CB_ERR;
 	*record = state;
 	if (mutate_owner_read)
 		record->data[4] ^= 1;
@@ -244,6 +263,8 @@ static bool protected_storage(void *context, const void *storage, size_t size)
 		policy->trusted_lowest_version++;
 		trust[4] ^= 1;
 	}
+	if (mutate_current_policy)
+		policy->trusted_current_version++;
 	if (mutate_authority)
 		((uint8_t *)storage)[size - 1] ^= 1;
 	return protected_ok;
@@ -257,6 +278,7 @@ static struct payload_mm_fmp_auth_policy policy(void)
 		.revision = PAYLOAD_MM_FMP_AUTH_POLICY_REVISION,
 		.size = sizeof(value),
 		.trusted_lowest_version = 2,
+		.trusted_current_version = 3,
 		.image_size = sizeof(rom),
 		.trust_xdr = trust,
 		.trust_xdr_size = trust_size,
@@ -294,8 +316,11 @@ int main(int argc, char **argv)
 	struct capsule_broker_raw_image raw_image;
 	const char *test;
 
-	if (argc == 3 && !strcmp(argv[1], "emit")) {
+	if (argc == 3 && (!strcmp(argv[1], "emit") ||
+	    !strcmp(argv[1], "emit-current-dependency"))) {
 		prepare();
+		if (!strcmp(argv[1], "emit-current-dependency"))
+			build_current_dependency();
 		write_file(argv[2], auth_image, auth_used);
 		return 0;
 	}
@@ -330,7 +355,11 @@ int main(int argc, char **argv)
 	}
 #endif
 #ifdef REAL_AUTH
-	if (argc == 4 && !strcmp(argv[1], "real")) {
+	if (argc == 4 && !strncmp(argv[1], "real", 4)) {
+		struct payload_mm_fmp_owner_record expected;
+		enum cb_err status;
+		bool reject;
+
 		prepare();
 		auth_used = read_file(argv[2], auth_image, sizeof(auth_image));
 		trust_size = read_file(argv[3], trust, sizeof(trust));
@@ -338,12 +367,48 @@ int main(int argc, char **argv)
 		value = policy();
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
-		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
-		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
-			raw_image.size <= auth_used - raw_image.offset &&
-			raw_image.lowest_supported_version == 2 &&
-			!raw_image.reserved);
+		if (strcmp(argv[1], "real") && strncmp(argv[1], "real-present", 12))
+			cold_state();
+		if (!strcmp(argv[1], "real-cold-floor")) {
+			state.data[1] = 1;
+			put_le32(state.data + 8, 4);
+		} else if (!strcmp(argv[1], "real-cold-absent")) {
+			memset(&state, 0, sizeof(state));
+		} else if (!strcmp(argv[1], "real-cold-owner-error")) {
+			fail_owner_read = true;
+		} else if (!strcmp(argv[1], "real-present-dependency")) {
+			put_le32(state.data + 4, 2);
+		} else if (!strcmp(argv[1], "real-cold-source-copy")) {
+			value.trusted_current_version = 0;
+		} else if (!strcmp(argv[1], "real-cold-unflagged-data")) {
+			put_le32(state.data + 4, UINT32_MAX);
+		}
+		expected = state;
+		if (!strcmp(argv[1], "real-cold-drift"))
+			state.data[0] = 1;
+		if (!strcmp(argv[1], "real-cold-aba"))
+			mutate_owner_read = true;
+		reject = !strcmp(argv[1], "real-cold-floor") ||
+			!strcmp(argv[1], "real-cold-absent") ||
+			!strcmp(argv[1], "real-cold-owner-error") ||
+			!strcmp(argv[1], "real-present-dependency") ||
+			!strcmp(argv[1], "real-cold-drift") ||
+			!strcmp(argv[1], "real-cold-aba") ||
+			!strcmp(argv[1], "real-cold-rogue");
+		status = payload_mm_fmp_authenticate_provider(NULL, auth_image,
+			auth_used, 3, &expected, &raw_image);
+		if (reject) {
+			assert(status == CB_ERR);
+			assert(raw_image.offset == 0 && raw_image.size == 0);
+		} else {
+			assert(status == CB_SUCCESS);
+			assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
+				raw_image.size <= auth_used - raw_image.offset &&
+				raw_image.lowest_supported_version == 2 &&
+				!raw_image.reserved);
+		}
+		if (strcmp(argv[1], "real-cold-drift"))
+			assert(!memcmp(&state, &expected, sizeof(state)));
 		return 0;
 	}
 #endif
@@ -357,6 +422,8 @@ int main(int argc, char **argv)
 		protected_ok = false;
 	else if (!strcmp(test, "install-mutation"))
 		mutate_policy = true;
+	else if (!strcmp(test, "install-current-mutation"))
+		mutate_current_policy = true;
 	else if (!strcmp(test, "install-authority-mutation"))
 		mutate_authority = true;
 	else if (!strcmp(test, "install-xdr"))
@@ -365,13 +432,19 @@ int main(int argc, char **argv)
 		value.mainboard_vendor_size = 0;
 	else if (!strcmp(test, "install-image-size"))
 		value.image_size = PAYLOAD_MM_FMP_MAX_ROM_SIZE + 1;
+	else if (!strcmp(test, "baseline-zero"))
+		value.trusted_current_version = 0;
+	else if (!strcmp(test, "baseline-below-floor"))
+		value.trusted_current_version = 1;
 	assert(payload_mm_fmp_auth_policy_install(&value, protected_storage,
 		&value) == ((!owner_ready || !protected_ok ||
-		mutate_policy || mutate_authority || !strcmp(test, "install-xdr") ||
+		mutate_policy || mutate_current_policy || mutate_authority ||
+		!strcmp(test, "install-xdr") ||
 		!strcmp(test, "install-source") ||
 		!strcmp(test, "install-image-size")) ?
 		CB_ERR : CB_SUCCESS));
-	if (!owner_ready || !protected_ok || mutate_policy || mutate_authority ||
+	if (!owner_ready || !protected_ok || mutate_policy || mutate_current_policy ||
+	    mutate_authority ||
 	    !strcmp(test, "install-xdr") || !strcmp(test, "install-source") ||
 	    !strcmp(test, "install-image-size"))
 		return 0;
@@ -384,8 +457,21 @@ int main(int argc, char **argv)
 		build_payload(false, 3, 4);
 	else if (!strcmp(test, "floor")) {
 		put_le32(state.data + 8, 4);
-	} else if (!strcmp(test, "missing-version")) {
-		state.data[0] = 0;
+	} else if (!strcmp(test, "missing-version") ||
+		   !strcmp(test, "baseline-zero") ||
+		   !strcmp(test, "baseline-below-floor")) {
+		cold_state();
+	} else if (!strcmp(test, "cold-dependency")) {
+		cold_state();
+		build_current_dependency();
+	} else if (!strcmp(test, "cold-source-copy")) {
+		cold_state();
+		build_current_dependency();
+		value.trusted_current_version = 0;
+	} else if (!strcmp(test, "absent-record")) {
+		memset(&state, 0, sizeof(state));
+	} else if (!strcmp(test, "owner-error")) {
+		fail_owner_read = true;
 	} else if (!strcmp(test, "dependency"))
 		build_payload(true, 3, 2);
 	else if (!strcmp(test, "dependency-declared"))
@@ -467,7 +553,10 @@ int main(int argc, char **argv)
 	    !strcmp(test, "dependency-guid") ||
 	    !strcmp(test, "header-extension") ||
 	    !strcmp(test, "header-extension-dependency") ||
-	    !strcmp(test, "reentry") || !strcmp(test, "source-copy")) {
+	    !strcmp(test, "reentry") || !strcmp(test, "source-copy") ||
+	    !strcmp(test, "missing-version") || !strcmp(test, "cold-dependency") ||
+	    !strcmp(test, "cold-source-copy") || !strcmp(test, "baseline-zero") ||
+	    !strcmp(test, "baseline-below-floor")) {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
 		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&

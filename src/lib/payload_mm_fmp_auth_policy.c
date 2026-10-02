@@ -58,6 +58,7 @@ static struct {
 	size_t vendor_size;
 	size_t part_size;
 	uint32_t trusted_lowest_version;
+	uint32_t trusted_current_version;
 	uint32_t image_size;
 	bool installed;
 	bool install_attempted;
@@ -218,6 +219,7 @@ enum cb_err payload_mm_fmp_auth_policy_install(
 	auth_policy.vendor_size = policy.mainboard_vendor_size;
 	auth_policy.part_size = policy.mainboard_part_size;
 	auth_policy.trusted_lowest_version = policy.trusted_lowest_version;
+	auth_policy.trusted_current_version = policy.trusted_current_version;
 	auth_policy.image_size = policy.image_size;
 	protected = storage_is_protected(context, &auth_policy,
 		sizeof(auth_policy));
@@ -234,6 +236,7 @@ enum cb_err payload_mm_fmp_auth_policy_install(
 	    auth_policy.vendor_size != policy.mainboard_vendor_size ||
 	    auth_policy.part_size != policy.mainboard_part_size ||
 	    auth_policy.trusted_lowest_version != policy.trusted_lowest_version ||
+	    auth_policy.trusted_current_version != policy.trusted_current_version ||
 	    auth_policy.image_size != policy.image_size || auth_policy.installed ||
 	    !auth_policy.install_attempted || auth_policy.busy ||
 	    !bytes_zero((const uint8_t *)&auth_policy.crypto,
@@ -633,9 +636,10 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 	if (payload_mm_fmp_owner_read(PAYLOAD_MM_FMP_STATE_KEY_STATE,
 		&record) != CB_SUCCESS ||
 	    memcmp(&record, expected_record, sizeof(record)) ||
-	    !record.present || !record.data[0])
+	    !record.present)
 		goto out;
-	installed_version = read_le32(record.data + 4);
+	installed_version = record.data[0] ? read_le32(record.data + 4) :
+		auth_policy.trusted_current_version;
 	lowest_version = auth_policy.trusted_lowest_version;
 	if (record.data[1] && read_le32(record.data + 8) > lowest_version)
 		lowest_version = read_le32(record.data + 8);

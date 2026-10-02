@@ -1,6 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 set -eu
+export ASAN_OPTIONS=abort_on_error=1:detect_leaks=1
+export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
@@ -17,9 +19,11 @@ dependency-declared-mismatch dependency-declared-truncated
 dependency-guid-truncated dependency-trailing dependency-false
 header-extension header-extension-dependency header-small header-overflow
 header-no-body reentry source-copy version floor payload-floor
-missing-version foreign-board duplicate-fmap
+missing-version cold-dependency cold-source-copy baseline-zero baseline-below-floor
+absent-record owner-error
+foreign-board duplicate-fmap
 duplicate-build-info verify-failure install-owner install-protection
-install-mutation install-authority-mutation install-xdr install-source
+install-mutation install-current-mutation install-authority-mutation install-xdr install-source
 install-image-size owner-same-sequence owner-aba'
 
 run_test()
@@ -45,6 +49,7 @@ run_test()
 run_test ordinary
 run_test optimized -O2
 run_test sanitized -O1 -g -fno-omit-frame-pointer \
+	-fno-pie -no-pie \
 	-fsanitize=address,undefined -fno-sanitize-recover=all
 
 if test -n "${PAYLOAD_MM_Q35_ROM:-}"; then

@@ -173,6 +173,7 @@ int main(int argc, char **argv)
 		.revision = PAYLOAD_MM_FMP_AUTH_POLICY_REVISION,
 		.size = sizeof(auth),
 		.trusted_lowest_version = 2,
+		.trusted_current_version = 3,
 		.image_size = ROM_SIZE,
 		.trust_xdr = trust,
 		.mainboard_vendor = vendor,
