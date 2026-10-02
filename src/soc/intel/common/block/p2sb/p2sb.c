@@ -39,13 +39,15 @@ void p2sb_configure_hpet(void)
 union p2sb_bdf p2sb_get_hpet_bdf(void)
 {
 	const bool was_hidden = p2sb_dev_is_hidden(PCH_DEV_P2SB);
-	if (was_hidden)
-		p2sb_unhide();
+	if (was_hidden && !p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	union p2sb_bdf bdf = { .raw = pci_read_config16(PCH_DEV_P2SB, PCH_P2SB_HBDF) };
 
-	if (was_hidden)
-		p2sb_hide();
+	if (was_hidden && !p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	return bdf;
 }
@@ -58,13 +60,15 @@ void p2sb_set_hpet_bdf(union p2sb_bdf bdf)
 union p2sb_bdf p2sb_get_ioapic_bdf(void)
 {
 	const bool was_hidden = p2sb_dev_is_hidden(PCH_DEV_P2SB);
-	if (was_hidden)
-		p2sb_unhide();
+	if (was_hidden && !p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	union p2sb_bdf bdf = { .raw = pci_read_config16(PCH_DEV_P2SB, PCH_P2SB_IBDF) };
 
-	if (was_hidden)
-		p2sb_hide();
+	if (was_hidden && !p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	return bdf;
 }
@@ -74,14 +78,14 @@ void p2sb_set_ioapic_bdf(union p2sb_bdf bdf)
 	pci_write_config16(PCH_DEV_P2SB, PCH_P2SB_IBDF, bdf.raw);
 }
 
-void p2sb_unhide(void)
+bool p2sb_unhide(void)
 {
-	p2sb_dev_unhide(PCH_DEV_P2SB);
+	return p2sb_dev_unhide(PCH_DEV_P2SB);
 }
 
-void p2sb_hide(void)
+bool p2sb_hide(void)
 {
-	p2sb_dev_hide(PCH_DEV_P2SB);
+	return p2sb_dev_hide(PCH_DEV_P2SB);
 }
 
 static void p2sb_configure_endpoints(int epmask_id, uint32_t mask)
