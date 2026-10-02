@@ -1,0 +1,6 @@
+author-restore 17104 original hashes unchanged; exact COREBOOT/probe readback PASS
+author-restore final-media 34aaf990a3a041e463e50c5f5b787f029cd6f9989b78e4fc5a3d5275bba9332e
+peer-restore 17104 original hashes unchanged; exact COREBOOT/probe readback PASS
+peer-restore final-media 34aaf990a3a041e463e50c5f5b787f029cd6f9989b78e4fc5a3d5275bba9332e
+failed-reset-console-motion 17104 original hashes unchanged; exact COREBOOT/probe readback PASS
+failed-reset-console-motion final-media e79e77b4c50c9c8f19e77327090edb17730ac6e40d4fde690ccb3367c6888477

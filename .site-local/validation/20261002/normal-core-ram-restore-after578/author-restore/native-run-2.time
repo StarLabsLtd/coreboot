@@ -1,0 +1,23 @@
+	Command being timed: "make native-system-fmp-core-ram-native-test CDK2_CONFIG=/home/sean/system-fmp-core-ram-restore-final.hqVPFk/resolved.config CDK2_BUILD_DIR=/home/sean/system-fmp-core-ram-restore-final.hqVPFk COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385 COREBOOT_CONFIG=/home/sean/q35-e8-scope-full.9sM2hH/full.config CDK2_BEARSSL_DIR=/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl CDK2_LVGL_ROOT=/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/lvgl CBFSTOOL=/home/sean/q35-e8-scope-full.9sM2hH/build/util/cbfstool/cbfstool MM_FULL_CORE_CAPSULE=/home/sean/system-fmp-core-ram-restore-final.hqVPFk/signed-restore-capsule.bin MM_FULL_CORE_TARGET=/home/sean/system-fmp-core-ram-restore-final.hqVPFk/original-pristine-full-core.rom MM_FULL_CORE_PUBLIC_TRUST=/home/sean/q35-capsule-native-signing.PuAsza/trust.pem MM_FULL_CORE_ATTEMPT=0x001a000b MM_FULL_CORE_TARGET_RUNNING=0x001a0009 MM_FULL_CORE_PRIOR_RUNNING=0x001a000a MM_FULL_CORE_PRIOR_HISTORY=0x001a000a MM_FULL_CORE_INITIAL=/home/sean/system-fmp-core-ram-restore-final.hqVPFk/successful-installed-input.rom MM_FULL_CORE_DISK=/home/sean/Documents/cdk2-validation/qemu/pr331-627e3bbe/qemu/fixtures/nvme-final-c4bec.raw MM_FULL_CORE_RUN=/home/sean/system-fmp-core-ram-restore-final.hqVPFk/run-2"
+	User time (seconds): 146.80
+	System time (seconds): 11.28
+	Percent of CPU this job got: 105%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:30.28
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 253064
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 3
+	Minor (reclaiming a frame) page faults: 373084
+	Voluntary context switches: 2869329
+	Involuntary context switches: 1009
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 913232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

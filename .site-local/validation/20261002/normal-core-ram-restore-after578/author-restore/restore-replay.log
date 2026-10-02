@@ -1,0 +1,3 @@
+Saved actual restore epochs a/a/9, two guest resets, exact signed b bytes and full Core loads: PASS
+Ordinary MAIN prior a/history a and cold running9/history b; exact original COREBOOT/probe/disk binding: PASS
+CLOSE-before-success reset is source-flow only; no independent fresh boot or hardware claim

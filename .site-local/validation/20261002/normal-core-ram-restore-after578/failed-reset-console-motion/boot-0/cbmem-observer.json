@@ -1,0 +1,21 @@
+{
+  "console_address": 1055772672,
+  "console_bytes": 131072,
+  "cursor": 35593,
+  "physical_limit": 1073741824,
+  "publication_retries": 6,
+  "snapshot_sha256": "81409827445818df565eb2b838dc6d541d1fc4958a5a9a594dbc5ab875b4eea5",
+  "source": "qmp-physical-cbmem",
+  "tables": [
+    {
+      "address": 1280,
+      "bytes": 40,
+      "sha256": "5644e31539e4df99fe7ba7ab2c57efc3039611e9928a7143e47e548f022d4209"
+    },
+    {
+      "address": 1053364224,
+      "bytes": 2156,
+      "sha256": "6a64b77423c209c6f8eb7d76dcdfb1a0da77a292cc2473bf3db3235fab23e199"
+    }
+  ]
+}

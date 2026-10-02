@@ -1,0 +1,30 @@
+#
+# No change to /home/sean/system-fmp-core-ram-restore-final.hqVPFk/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-core-ram-restore-final.hqVPFk/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-core-ram-restore-final.hqVPFk/resolved.config
+#
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/include/cdk2/config.h: OK
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/signed-restore-capsule.bin: OK
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/original-pristine-full-core.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-restore-after573/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-restore-after573/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-restore-after573/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/usr/bin/cc: OK
+/usr/bin/ld: OK
+/usr/bin/readelf: OK
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/native/cdk2-native-pe-link: OK
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/native/cdk2-pe-exec-sections: OK
+/home/sean/system-fmp-core-ram-restore-final.hqVPFk/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/generate_capsule.py: OK
+edeac5667f91a6dd91e92625bfc5eefaac9ca023e08e2aef68b1564a14ac31e1  /home/sean/system-fmp-core-ram-restore-final.hqVPFk/native/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+CBMEM console changed through every bounded snapshot
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-restore-after573/src/boot/Makefile:2036: native-system-fmp-core-ram-native-test] Error 1
+make: *** [Makefile:1147: native-system-fmp-core-ram-native-test] Error 2

@@ -1,0 +1,43 @@
+{
+  "failure": "CBMEM console changed through every bounded snapshot",
+  "qemu_status": 0,
+  "wall_seconds": 31.463079432000086,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790977677,
+        "microseconds": 617454
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790977677,
+        "microseconds": 617509
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790977707,
+        "microseconds": 842826
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    }
+  ],
+  "installed_sha256": "e79e77b4c50c9c8f19e77327090edb17730ac6e40d4fde690ccb3367c6888477",
+  "disk_sha256": "92b021e4561049614f61015ba8bb4a2c1165cb19dc9d41d3b613ffbb8f69e344"
+}
