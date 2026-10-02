@@ -16,6 +16,8 @@ enum q35_public_service_result {
 enum q35_public_service_result q35_public_service_begin(uint32_t cpu,
 	uint32_t initial_apic_id, uint8_t command);
 bool q35_public_service_current(uint8_t command);
+/* Acquisition-specific identity, only while the actual E8 owner is held. */
+uint64_t q35_public_capsule_generation(void);
 void q35_public_service_end(void);
 
 #endif

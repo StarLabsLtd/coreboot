@@ -21,6 +21,7 @@ typedef uint64_t u64;
 
 /* Irrelevant bootstrap wire types are outside this HOST platform model. */
 #define MAINBOARD_Q35_NATIVE_SERVICE_H
+bool q35_capsule_service_current(void);
 
 #define PCI_IO_CONFIG_INDEX 0xcf8U
 

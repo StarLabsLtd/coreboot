@@ -151,3 +151,68 @@ bool q35_dma_ahci_cancel(const struct q35_dma_controller_io *io)
 		io->read32(io->context, AHCI_PORTS) == ports &&
 		io->read32(io->context, AHCI_VERSION) == version;
 }
+
+bool q35_dma_nvme_disabled(const struct q35_dma_controller_io *io)
+{
+	uint32_t low, high, version, command, status;
+
+	if (!io || !io->read32)
+		return false;
+	low = io->read32(io->context, NVME_CAP);
+	high = io->read32(io->context, NVME_CAP + 4U);
+	version = io->read32(io->context, NVME_VERSION);
+	command = io->read32(io->context, NVME_CC);
+	status = io->read32(io->context, NVME_CSTS);
+	return (low || high) && low != UINT32_MAX && high != UINT32_MAX &&
+		(version >> 16) >= 1U && (version >> 16) <= 2U &&
+		command != UINT32_MAX && !(command & NVME_CC_ENABLE) &&
+		status != UINT32_MAX && !(status & (NVME_CSTS_READY | NVME_CSTS_FATAL));
+}
+
+bool q35_dma_xhci_disabled(const struct q35_dma_controller_io *io)
+{
+	uint32_t capability, operational, command, status;
+
+	if (!io || !io->read32)
+		return false;
+	capability = io->read32(io->context, 0);
+	operational = capability & 0xffU;
+	if (operational < 0x20U || (operational & 3U) ||
+	    (capability >> 16) < 0x100U || (capability >> 16) > 0x120U)
+		return false;
+	command = io->read32(io->context, operational + XHCI_USBCMD);
+	status = io->read32(io->context, operational + XHCI_USBSTS);
+	return command != UINT32_MAX && !(command & (XHCI_RUN | XHCI_RESET)) &&
+		status != UINT32_MAX && (status & (XHCI_HALTED | XHCI_NOT_READY)) == XHCI_HALTED;
+}
+
+bool q35_dma_ahci_disabled(const struct q35_dma_controller_io *io)
+{
+	uint32_t capability, ports, version, command, legal_ports;
+
+	if (!io || !io->read32)
+		return false;
+	capability = io->read32(io->context, AHCI_CAP);
+	ports = io->read32(io->context, AHCI_PORTS);
+	version = io->read32(io->context, AHCI_VERSION);
+	command = io->read32(io->context, AHCI_GHC);
+	legal_ports = (capability & 31U) == 31U ? UINT32_MAX :
+		(1U << ((capability & 31U) + 1U)) - 1U;
+	if (capability == UINT32_MAX || !ports || (ports & ~legal_ports) ||
+	    (version >> 16) != 1U || (version & 0xffffU) > 0x0301U ||
+	    command == UINT32_MAX || (command & (AHCI_RESET | AHCI_INTERRUPT_ENABLE)))
+		return false;
+	for (uint32_t port = 0; port < 32U; port++) {
+		const uint32_t base = AHCI_PORT_BASE + port * AHCI_PORT_STRIDE;
+		uint32_t engines;
+
+		if (!(ports & (1U << port)))
+			continue;
+		engines = io->read32(io->context, base + AHCI_PORT_COMMAND);
+		if (engines == UINT32_MAX || (engines & AHCI_PORT_ENGINES) ||
+		    io->read32(io->context, base + AHCI_PORT_ACTIVE) ||
+		    io->read32(io->context, base + AHCI_PORT_ISSUE))
+			return false;
+	}
+	return true;
+}
