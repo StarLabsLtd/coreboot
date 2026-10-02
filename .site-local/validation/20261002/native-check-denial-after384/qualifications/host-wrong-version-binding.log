@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/tests/capsule_mm_signed_byte_denial.py", line 45, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/tests/capsule_mm_signed_byte_denial.py", line 17, in main
+    raise ValidationError("native attempted version differs from signed capsule version")
+validate_capsule.ValidationError: native attempted version differs from signed capsule version

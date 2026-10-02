@@ -1,0 +1,1 @@
+Actual independent25785 returned0 but used MM_APPLY_VERSION=0xa instead of signed full0x001a000a. This can refuse the rollback floor before CMS; NOT final corrupt-signature acceptance. Retained as wrong-version harness invocation, with no production source mutation. First invocation literal a refused numeric validator before compile/VM2.

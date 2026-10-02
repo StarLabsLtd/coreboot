@@ -1,0 +1,12 @@
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/q35-check-denial-peer.LuINAj/native/capsule-provider-info-close-component/run.6dCdnT
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/src/boot/Makefile:916: native-capsule-provider-authenticated-check-denial-component-test] Error 1
+make: *** [Makefile:1141: native-capsule-provider-authenticated-check-denial-component-test] Error 2

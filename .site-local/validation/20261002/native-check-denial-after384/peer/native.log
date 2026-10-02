@@ -1,0 +1,13 @@
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+#
+# No change to /home/sean/q35-check-denial-peer.LuINAj/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/q35-check-denial-peer.LuINAj/native/capsule-provider-info-close-component/run.MBIWIc
+Actual capsule tools: framing unchanged, valid CMS before / invalid CMS after: PASS
+Found file config at 0x3df80, type raw, compressed 3566, size 12873
+Actual signed-ROM-byte corruption CHECK refusal + unchanged media/state + CLOSE: PASS (no SET)
