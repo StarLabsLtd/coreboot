@@ -1,0 +1,73 @@
+#
+# No change to /home/sean/q35-authenticated-apply-compile.X6I2ay/resolved.config
+#
+#
+# No change to /home/sean/q35-authenticated-apply-compile.X6I2ay/resolved.config
+#
+#
+# No change to /home/sean/q35-authenticated-apply-compile.X6I2ay/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/q35-authenticated-apply-compile.X6I2ay/native/capsule-provider-info-close-component/run.fS9hZ4
+Found file config at 0x3df80, type raw, compressed 3566, size 12873
+[0m[DEBUG]  IMD SMALL   1. 0x3f7fe000 0x00001000[0m
+[0m[DEBUG]  CAPSULE COM 2. 0x3f7fd000 0x00001000[0m
+[0m[DEBUG]  CAPSULE STG 3. 0x3eefd000 0x00900000[0m
+[0m[DEBUG]  CONSOLE     4. 0x3eedd000 0x00020000[0m
+[0m[DEBUG]  TIME STAMP  5. 0x3eedc000 0x00000910[0m
+[0m[DEBUG]  AFTER CAR   6. 0x3eecf000 0x0000d000[0m
+[0m[DEBUG]  RAMSTAGE    7. 0x3ed44000 0x0018b000[0m
+[0m[DEBUG]  Q35 VTD TAB 8. 0x3ed3a000 0x0000a000[0m
+[0m[DEBUG]  Q35 DMA ARE 9. 0x3ec99000 0x000a1000[0m
+[0m[DEBUG]  COREBOOT   10. 0x3ec91000 0x00008000[0m
+[0m[DEBUG]  ACPI       11. 0x3ec59000 0x00038000[0m
+[0m[DEBUG]  SMBIOS     12. 0x3ec51000 0x00008000[0m
+[0m[DEBUG]  IMD small region:[0m
+[0m[DEBUG]    IMD ROOT    0. 0x3f7fec00 0x00000400[0m
+[0m[DEBUG]    RO MCACHE   1. 0x3f7fe900 0x000002e8[0m
+[0m[DEBUG]    FMAP        2. 0x3f7fe820 0x000000e0[0m
+[0m[DEBUG]    ROMSTG STCK 3. 0x3f7fe780 0x00000088[0m
+[0m[DEBUG]    ACPI GNVS   4. 0x3f7fe680 0x00000100[0m
+[0m[DEBUG]    DMA HANDOFF 5. 0x3f7fe600 0x00000068[0m
+[0m[DEBUG]  BS: BS_WRITE_TABLES run times (exec / console): 1149 / 8 ms[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  CBFS: Found 'fallback/payload' @0x465c0 size 0x6f030 in mcache @0x3f7feb78[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff8585ec[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858608[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858624[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858640[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff8585ec[0m
+[0m[DEBUG]    code (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00100000 memsize 0x2954c srcaddr 0xff85865c filesize 0x157f4[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00100000 memsz: 0x000000000002954c filesz: 0x00000000000157f4[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858608[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00129550 memsize 0x1003440 srcaddr 0xff86de50 filesize 0x596d2[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00129550 memsz: 0x0000000001003440 filesz: 0x00000000000596d2[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858624[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x0112d000 memsize 0xa84108 srcaddr 0xff8c7522 filesize 0xfa[0m
+[0m[DEBUG]  Loading Segment: addr: 0x0112d000 memsz: 0x0000000000a84108 filesz: 0x00000000000000fa[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Clearing Segment: addr: 0x000000000112d4b8 memsz: 0x0000000000a83c50[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858640[0m
+[0m[DEBUG]    Entry Point 0x00100000[0m
+[0m[DEBUG]  BS: BS_PAYLOAD_LOAD run times (exec / console): 462 / 3 ms[0m
+[0m[DEBUG]  ICH-NM10-PCH: watchdog disabled[0m
+[0m[DEBUG]  Jumping to boot code at 0x00100000(0x3ec91000)[0m
+CDK2_MM_RESET_BEGIN
+CDK2_MM_RESET_ACTUAL_RAM_TABLE
+CDK2_MM_RESET_ACTUAL_HOBS
+CDK2_MM_RESET_ACTUAL_ACPI_HOB
+CDK2_MM_RESET_ACTUAL_CAPSULE_HOB_IMPORT
+CDK2_PROVIDER_ACTUAL_RAM_POLICY
+CDK2_MM_RESET_ACTUAL_CORE_READY
+CDK2_PROVIDER_ACTUAL_ENDPOINT_RAM_REV2_PASS
+CDK2_PROVIDER_ACTUAL_READ_INFO_PASS
+CDK2_PROVIDER_ACTUAL_PRIOR_STATE_PASS
+CDK2_PROVIDER_ACTUAL_CHECK_BEGIN
+CDK2_PROVIDER_ACTUAL_CHECK_MEDIA_AND_STATE_UNCHANGED_PASS
+CDK2_PROVIDER_ACTUAL_SET_BEGIN
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/src/boot/Makefile:912: native-capsule-provider-authenticated-apply-component-test] Error 1
+make: *** [Makefile:1140: native-capsule-provider-authenticated-apply-component-test] Error 2

@@ -1,0 +1,28 @@
+qemu-system-x86_64: Interrupt Mask set, irq is not generated
+qemu-system-x86_64: vtd_iommu_translate: detected translation failure (dev=00:05:00, iova=0x3edbd000)
+qemu-system-x86_64: New fault is not recorded due to compression of faults
+qemu-system-x86_64: terminating on signal 15 from pid 603237 (timeout)
+Command exited with non-zero status 124
+	Command being timed: "timeout 90 strace -f -c -e trace=pwrite64,fsync,fdatasync -o /home/sean/authenticated-apply-timeout-preservation.Yw0LJM/profile/syscall-summary.txt /usr/bin/qemu-system-x86_64 -machine q35,smm=on,accel=tcg -m 1024M -cpu max -smp 1 -nodefaults -device intel-iommu,pt=off -device VGA,bus=pcie.0,addr=01 -drive if=none,id=nvme0,format=raw,file=/home/sean/authenticated-apply-timeout-preservation.Yw0LJM/profile/nvme.raw -device nvme,drive=nvme0,serial=CDK2MMRESET,bus=pcie.0,addr=03 -device qemu-xhci,bus=pcie.0,addr=04 -device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05 -global driver=cfi.pflash01,property=secure,value=on -drive if=pflash,format=raw,file=/home/sean/authenticated-apply-timeout-preservation.Yw0LJM/profile/probe.rom,cache=writeback -display none -serial file:/home/sean/authenticated-apply-timeout-preservation.Yw0LJM/profile/probe.serial.log -device isa-debug-exit,iobase=0xf4,iosize=0x04"
+	User time (seconds): 70.97
+	System time (seconds): 22.00
+	Percent of CPU this job got: 103%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:30.10
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 117780
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 13
+	Minor (reclaiming a frame) page faults: 63982
+	Voluntary context switches: 9542415
+	Involuntary context switches: 891
+	Swaps: 0
+	File system inputs: 3848
+	File system outputs: 464
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 124

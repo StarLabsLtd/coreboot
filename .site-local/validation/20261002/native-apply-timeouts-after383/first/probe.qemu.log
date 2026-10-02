@@ -1,0 +1,4 @@
+qemu-system-x86_64: Interrupt Mask set, irq is not generated
+qemu-system-x86_64: vtd_iommu_translate: detected translation failure (dev=00:05:00, iova=0x3edbd000)
+qemu-system-x86_64: New fault is not recorded due to compression of faults
+qemu-system-x86_64: terminating on signal 15 from pid 599212 (timeout)
