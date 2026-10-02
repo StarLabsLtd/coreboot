@@ -681,8 +681,6 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	if (CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION))
 		lb_add_capsule_broker_endpoint(head);
-	if (CONFIG(DRIVERS_EFI_CAPSULE_DELIVERY_POLICY))
-		lb_add_capsule_delivery_policy(head);
 
 	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
 	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
@@ -693,6 +691,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Add board-specific table entries, if any. */
 	lb_board(head);
+	if (CONFIG(DRIVERS_EFI_CAPSULE_DELIVERY_POLICY))
+		lb_add_capsule_delivery_policy(head);
 
 	/* Possibly add UEFI capsules. */
 	if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF))

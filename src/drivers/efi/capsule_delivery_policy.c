@@ -11,8 +11,10 @@ _Static_assert(CONFIG_DRIVERS_EFI_CAPSULE_MAX_POPULATE_SIZE >= 0 &&
 	CONFIG_DRIVERS_EFI_CAPSULE_MAX_POPULATE_SIZE <= UINT32_MAX,
 	"populate limit must fit the EFI capsule image size");
 
-__weak bool platform_capsule_ram_persistent(void)
+__weak bool platform_capsule_ram_persistent(const struct lb_header *header, uintptr_t table_end)
 {
+	(void)header;
+	(void)table_end;
 	return false;
 }
 
@@ -21,12 +23,13 @@ void lb_add_capsule_delivery_policy(struct lb_header *header)
 	uint32_t transports = 0;
 	struct lb_capsule_delivery_policy *record;
 
-	if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF) && platform_capsule_ram_persistent())
+	record = (void *)lb_new_record(header);
+	if (CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF) &&
+	    platform_capsule_ram_persistent(header, (uintptr_t)record))
 		transports |= LB_CAPSULE_DELIVERY_RAM;
 	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT))
 		transports |= LB_CAPSULE_DELIVERY_DISK;
 
-	record = (void *)lb_new_record(header);
 	*record = (struct lb_capsule_delivery_policy) {
 		.tag = LB_TAG_CAPSULE_DELIVERY_POLICY,
 		.size = sizeof(*record),

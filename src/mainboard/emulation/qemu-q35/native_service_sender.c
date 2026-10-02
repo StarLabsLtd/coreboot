@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "native_service.h"
+#include <acpi/acpi.h>
 #include <arch/cpu.h>
+#include <boot/capsule_delivery_policy.h>
 #include <boot/coreboot_tables.h>
 #include <boot/payload_mm_authvar_presence_publication.h>
 #include <boot/payload_mm_authvar_presence_tuple_sender.h>
@@ -13,6 +15,7 @@
 #include <device/fw_cfg.h>
 #include <fmap.h>
 #include <halt.h>
+#include <security/memory/memory.h>
 #include <string.h>
 
 #if !ENV_RAMSTAGE
@@ -164,4 +167,15 @@ bool platform_payload_mm_authvar_service_published(const struct lb_header *heade
 		receipt_current(&publication.response.receipts.page, BM_MEM_RESERVED, 4096) &&
 		receipt_current(&publication.response.receipts.service, BM_MEM_TABLE,
 			PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE);
+}
+
+bool platform_capsule_ram_persistent(const struct lb_header *header, uintptr_t table_end)
+{
+	/* Warm-reset retention is limited to this actual Q35 public-MM composition. */
+	return CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
+		CONFIG(DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION) &&
+		CONFIG(DRIVERS_EFI_CAPSULE_RAM_HANDOFF) &&
+		!acpi_is_wakeup_s3() &&
+		(!CONFIG(PLATFORM_HAS_DRAM_CLEAR) || !security_clear_dram_request()) &&
+		platform_payload_mm_authvar_service_published(header, table_end);
 }
