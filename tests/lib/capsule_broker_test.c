@@ -486,14 +486,14 @@ static void initialize(struct fixture *fixture)
 			{ .offset = 0x7000, .size = 0x1000, .name = "SMMSTORE",
 			  .flags = FMAP_AREA_PRESERVE },
 		},
-		.owner_layout = {
-			.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
-			.size = sizeof(struct fmp_owner_layout),
+		.write_layout = {
+			.revision = CAPSULE_WRITE_LAYOUT_REVISION,
+			.size = sizeof(struct capsule_write_layout),
 			.media_size = MEDIA_SIZE,
 			.erase_size = ERASE_SIZE,
-			.slot_size = ERASE_SIZE,
 			.route_count = 1,
-			.state = {
+			.metadata_count = 2,
+			.metadata = {
 				{ .offset = 0x3000, .size = 0x2000 },
 				{ .offset = 0x5000, .size = 0x2000 },
 			},
@@ -990,7 +990,7 @@ static void rejected_apply(const char *mode)
 		const struct capsule_broker_policy *policy = &fixture.policy;
 		enum cb_err status;
 
-		fixture.policy.owner_layout.route[0] = fixture.policy.regions[0];
+		fixture.policy.write_layout.route[0] = fixture.policy.regions[0];
 		status = capsule_broker_policy_install(policy, storage_protected, &fixture);
 		assert(status == CB_ERR);
 		assert(!fixture.reads && !fixture.erases && !fixture.writes);

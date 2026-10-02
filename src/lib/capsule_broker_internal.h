@@ -7,7 +7,7 @@
 #include <boot/payload_mm_authvar.h>
 #include <commonlib/bsd/fmap_serialized.h>
 #include "capsule_update_internal.h"
-#include "payload_mm_fmp_owner_layout_internal.h"
+#include "capsule_write_layout_internal.h"
 
 struct payload_mm_fmp_owner_record;
 
@@ -59,7 +59,7 @@ struct capsule_broker_policy {
 	struct lb_capsule_update_region regions[CAPSULE_UPDATE_MAX_REGIONS];
 	uint32_t fmap_area_count;
 	struct fmap_area fmap_areas[CAPSULE_BROKER_MAX_FMAP_AREAS];
-	struct fmp_owner_layout owner_layout;
+	struct capsule_write_layout write_layout;
 	struct capsule_media_backend media;
 	size_t media_context_size;
 	void *write_scratch;

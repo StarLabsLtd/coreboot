@@ -199,7 +199,7 @@ struct media_fixture {
 	u8 bytes[TEST_MEDIA_SIZE];
 	struct lb_capsule_update_region plan_region;
 	struct lb_capsule_update_region policy_region;
-	struct fmp_owner_layout owner_layout;
+	struct capsule_write_layout write_layout;
 	size_t reads;
 	size_t erases;
 	size_t writes;
@@ -324,14 +324,14 @@ static void small_fixture(struct capsule_update_plan *plan,
 	memset(fixture->bytes, 0x5a, sizeof(fixture->bytes));
 	fixture->plan_region = region;
 	fixture->policy_region = region;
-	fixture->owner_layout = (struct fmp_owner_layout) {
-		.revision = PAYLOAD_MM_FMP_OWNER_LAYOUT_REVISION,
-		.size = sizeof(fixture->owner_layout),
+	fixture->write_layout = (struct capsule_write_layout) {
+		.revision = CAPSULE_WRITE_LAYOUT_REVISION,
+		.size = sizeof(fixture->write_layout),
 		.media_size = TEST_MEDIA_SIZE,
 		.erase_size = 0x1000,
-		.slot_size = 0x1000,
 		.route_count = 1,
-		.state = {
+		.metadata_count = 2,
+		.metadata = {
 			{ .offset = 0x8000, .size = 0x2000 },
 			{ .offset = 0xa000, .size = 0x2000 },
 		},
@@ -358,7 +358,7 @@ static void small_fixture(struct capsule_update_plan *plan,
 		.smmstore_size = 0x1000,
 		.regions = &fixture->policy_region,
 		.region_count = 1,
-		.owner_layout = &fixture->owner_layout,
+		.write_layout = &fixture->write_layout,
 	};
 	*media = (struct capsule_media_backend) {
 		.context = fixture,
@@ -388,6 +388,20 @@ static void verified_apply_contract(void)
 	assert(capsule_apply_policy_verified(&plan, &policy, &media, write_scratch,
 				     scratch,
 					     sizeof(scratch)) == CB_SUCCESS);
+	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.syncs == 2 &&
+		fixture.reads == 2);
+	assert(!memcmp(&fixture.bytes[0x4000], &image[0x2000], 0x2000));
+	assert(!memcmp(fixture.bytes, before, 0x4000));
+	assert(!memcmp(&fixture.bytes[0x6000], &before[0x6000],
+		       TEST_MEDIA_SIZE - 0x6000));
+
+	/* Authvar-owned media has no separate raw owner journals. */
+	small_fixture(&plan, &policy, &media, &fixture, image);
+	fixture.write_layout.metadata_count = 0;
+	memset(fixture.write_layout.metadata, 0, sizeof(fixture.write_layout.metadata));
+	memcpy(before, fixture.bytes, sizeof(before));
+	assert(capsule_apply_policy_verified(&plan, &policy, &media, write_scratch,
+					     scratch, sizeof(scratch)) == CB_SUCCESS);
 	assert(fixture.erases == 2 && fixture.writes == 2 && fixture.syncs == 2 &&
 		fixture.reads == 2);
 	assert(!memcmp(&fixture.bytes[0x4000], &image[0x2000], 0x2000));
@@ -488,20 +502,20 @@ static void verified_apply_contract(void)
 
 #define REJECT_LAYOUT(member, value) do { \
 	small_fixture(&plan, &policy, &media, &fixture, image); \
-	fixture.owner_layout.member = (value); \
+	fixture.write_layout.member = (value); \
 	assert(capsule_apply_policy_verified(&plan, &policy, &media, \
 		write_scratch, scratch, sizeof(scratch)) == CB_ERR); \
 	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
 } while (0)
-	REJECT_LAYOUT(state[0].offset, 0xa000);
-	REJECT_LAYOUT(state[0].offset, TEST_MEDIA_SIZE);
-	REJECT_LAYOUT(state[0].offset, 0xe000);
-	REJECT_LAYOUT(state[0].offset, 0x8001);
-	REJECT_LAYOUT(state[0].size, 0x1000);
-	REJECT_LAYOUT(state[0].size, UINT64_MAX);
+	REJECT_LAYOUT(metadata[0].offset, 0xa000);
+	REJECT_LAYOUT(metadata[0].offset, TEST_MEDIA_SIZE);
+	REJECT_LAYOUT(metadata[0].offset, 0xe000);
+	REJECT_LAYOUT(metadata[0].offset, 0x8001);
+	REJECT_LAYOUT(metadata[0].size, 0);
+	REJECT_LAYOUT(metadata[0].size, UINT64_MAX);
 	REJECT_LAYOUT(smmstore.offset, TEST_MEDIA_SIZE);
 	REJECT_LAYOUT(smmstore.size, UINT64_MAX);
-	REJECT_LAYOUT(slot_size, 0x1800);
+	REJECT_LAYOUT(metadata_count, CAPSULE_WRITE_LAYOUT_MAX_METADATA + 1);
 #undef REJECT_LAYOUT
 
 #define REJECT_ROUTE(offset) do { \
@@ -509,7 +523,7 @@ static void verified_apply_contract(void)
 	small_fixture(&plan, &policy, &media, &fixture, image); \
 	fixture.plan_region.flash_offset = rejected_offset; \
 	fixture.policy_region.flash_offset = rejected_offset; \
-	fixture.owner_layout.route[0] = fixture.policy_region; \
+	fixture.write_layout.route[0] = fixture.policy_region; \
 	assert(capsule_apply_policy_verified(&plan, &policy, &media, \
 		write_scratch, scratch, sizeof(scratch)) == CB_ERR); \
 	assert(!fixture.erases && !fixture.writes && !fixture.reads); \
