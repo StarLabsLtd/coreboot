@@ -7,7 +7,7 @@
 #include <boot/payload_mm_authvar.h>
 #include <payload_mm_cms.h>
 
-#define PAYLOAD_MM_FMP_AUTH_POLICY_REVISION 1U
+#define PAYLOAD_MM_FMP_AUTH_POLICY_REVISION 2U
 #define PAYLOAD_MM_FMP_BOARD_IDENTITY_SIZE 64U
 #define PAYLOAD_MM_FMP_MAX_ROM_SIZE (64U * 1024U * 1024U)
 
@@ -18,6 +18,7 @@ struct payload_mm_fmp_auth_policy {
 	uint32_t size;
 	guid_t image_type;
 	uint32_t trusted_lowest_version;
+	uint32_t trusted_current_version;
 	uint32_t image_size;
 	const void *trust_xdr;
 	size_t trust_xdr_size;
@@ -30,7 +31,9 @@ struct payload_mm_fmp_auth_policy {
 /*
  * Install once from trusted coreboot-owned facts before broker use. The
  * complete trust and identity policy is copied into protected storage. The
- * provider is synchronous, accepts no context and retains no capsule or output
+ * running version supplies dependency evaluation before a durable version is
+ * present; it does not create a durable state record or replace its floor.
+ * The provider is synchronous, accepts no context and retains no capsule or output
  * pointer. On success it returns the raw ROM's bounded offset and size inside
  * the exact supplied capsule envelope.
  */
