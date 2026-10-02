@@ -680,14 +680,14 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 		return -1;
 	}
 
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI))
-		p2sb_unhide();
+	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI)) && !p2sb_unhide())
+		die("Unable to change P2SB visibility\n");
 
 	for (int x = 0; x < count; x++)
 		gpio_pad_config_lock(&pad_list[x]);
 
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI))
-		p2sb_hide();
+	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI)) && !p2sb_hide())
+		die("Unable to change P2SB visibility\n");
 
 	return 0;
 }
