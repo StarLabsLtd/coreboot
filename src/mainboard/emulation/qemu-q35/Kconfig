@@ -90,6 +90,22 @@ config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
 config SMMSTORE_BLOCK_SIZE
 	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
+config Q35_SMM_CAPSULE_BROKER
+	bool "QEMU-only protected state owner for typed firmware capsules"
+	default n
+	depends on Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
+	depends on !SMMSTORE
+	depends on DRIVERS_EFI_FW_INFO
+	select PAYLOAD_MM_CMS_CORE
+	select PAYLOAD_MM_FMP_OWNER_AUTHVAR
+	select PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT
+	help
+	  Reconcile the existing protected FMP state through the real MM store
+	  during the private cold bootstrap. Initial identity comes from the
+	  trusted preinstalled coreboot image, not a payload firmware-info table.
+	  This first owner prerequisite installs no capsule endpoint or writer
+	  and promises no cryptographic live-ROM or hardware antirollback proof.
+
 config SMM_TSEG_SIZE
 	default 0x200000 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 

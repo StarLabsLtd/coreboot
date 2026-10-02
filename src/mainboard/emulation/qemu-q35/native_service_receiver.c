@@ -6,7 +6,10 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
+#include <boot/payload_mm_fmp_boot.h>
+#include <boot/coreboot_tables.h>
 #include <boot_device.h>
+#include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <cpu/x86/smm_command.h>
 #include <cpu/x86/smm_invocation_entry.h>
@@ -49,6 +52,11 @@ static bool protected_storage(const void *base, size_t size)
 
 	return smm_invocation_runtime_view_get(&view) == CB_SUCCESS &&
 		smm_invocation_runtime_range_is_protected(view, base, size) == CB_SUCCESS;
+}
+
+static bool protected_fmp_storage(void *context, const void *base, size_t size)
+{
+	return context == NULL && protected_storage(base, size);
 }
 
 static bool claim_current(void)
@@ -191,12 +199,41 @@ static enum cb_err bootstrap(void)
 	if (!probe_current() || payload_mm_authvar_smm_service_bootstrap_install(&input) !=
 		CB_SUCCESS || !claim_current())
 		return CB_ERR;
+	printk(BIOS_DEBUG, "Q35 native service: protected backend installed\n");
 	service.phase = SERVICE_FINALIZING;
 	if (payload_mm_authvar_service_finalize() != CB_SUCCESS ||
 	    memcmp(frame, &snapshot, sizeof(snapshot)) ||
 	    payload_mm_authvar_service_descriptor_copy(&snapshot.endpoint) != CB_SUCCESS ||
 	    !claim_current())
 		return CB_ERR;
+	printk(BIOS_DEBUG, "Q35 native service: endpoint finalized\n");
+	if (CONFIG(Q35_SMM_CAPSULE_BROKER)) {
+		struct lb_efi_fw_info firmware;
+		struct payload_mm_fmp_state_policy state = {
+			.revision = PAYLOAD_MM_FMP_STATE_POLICY_REVISION,
+			.size = sizeof(state),
+		};
+
+		/* The immutable private cold bootstrap trusts this preinstalled image.
+		 * Never import identity from the descriptive payload-visible table. */
+		printk(BIOS_DEBUG, "Q35 capsule owner: private bootstrap ready\n");
+		if (!claim_current() || efi_fw_info_get(&firmware) != CB_SUCCESS)
+			return CB_ERR;
+		memcpy(state.namespace_guid.b, firmware.guid, sizeof(state.namespace_guid.b));
+		state.trusted_lowest_version = firmware.lowest_supported_version;
+		if (payload_mm_fmp_state_policy_install(&state, protected_fmp_storage, NULL) !=
+		    CB_SUCCESS)
+			return CB_ERR;
+		printk(BIOS_DEBUG, "Q35 capsule owner: trusted state policy installed\n");
+		if (payload_mm_fmp_owner_authvar_boot_install(protected_fmp_storage, NULL) !=
+		    CB_SUCCESS)
+			return CB_ERR;
+		printk(BIOS_DEBUG, "Q35 capsule owner: protected store reconciled\n");
+		if (!claim_current())
+			return CB_ERR;
+		memset(&state, 0, sizeof(state));
+		memset(&firmware, 0, sizeof(firmware));
+	}
 	snapshot.maximum_cpus = 1;
 	snapshot.state = Q35_NATIVE_BOOTSTRAP_COMPLETE;
 	*frame = snapshot;
