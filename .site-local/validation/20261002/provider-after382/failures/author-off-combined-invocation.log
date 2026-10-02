@@ -1,0 +1,7 @@
+Error: Trying to build, but NOCOMPILE is set.
+  Please file a bug with the following information:
+- MAKECMDGOALS: olddefconfig all
+- HAVE_DOTCONFIG: /home/sean/q35-provider-off.gQr7UL/full.config
+- HAVE_KCONFIG_MAKEFILE_REAL: /home/sean/q35-provider-off.gQr7UL/build/util/kconfig/Makefile.real
+make: *** [Makefile:180: real-all] Error 1
+make: *** Waiting for unfinished jobs....

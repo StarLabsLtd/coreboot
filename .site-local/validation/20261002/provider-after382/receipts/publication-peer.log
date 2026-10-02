@@ -1,0 +1,6 @@
+HOST actual publication callback drift matrix -O0: PASS
+HOST actual publication callback drift matrix -O2: PASS
+HOST exact late guard-discard -O0 targeted refusal: PASS
+HOST exact late guard-discard -O2 targeted refusal: PASS
+HOST exact request guard-discard -O0 targeted refusal: PASS
+HOST exact request guard-discard -O2 targeted refusal: PASS

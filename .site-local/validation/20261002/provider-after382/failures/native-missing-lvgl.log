@@ -1,0 +1,5 @@
+#
+# configuration written to /home/sean/q35-provider-info-close-native.4OrgJ2/resolved.config
+#
+/home/sean/Documents/.cdk2-worktrees/q35-provider-native-info-close-after543/src/boot/Makefile:1704: *** LVGL sources are unavailable; run 'git submodule update --init 3rdparty/lvgl'.  Stop.
+make: *** [Makefile:1137: native-capsule-provider-info-close-component-test] Error 2

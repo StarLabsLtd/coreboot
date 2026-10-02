@@ -1,0 +1,9 @@
+HOST actual publication callback drift matrix -O0: PASS
+HOST actual publication callback drift matrix -O2: PASS
+HOST exact late guard-discard -O0 targeted refusal: PASS
+HOST exact late guard-discard -O2 targeted refusal: PASS
+/home/sean/Documents/.coreboot-worktrees/capsule-ram-window-after-dma-tables/tests/mainboard/q35_capsule_publication_test.c: In function ‘completion’:
+/home/sean/Documents/.coreboot-worktrees/capsule-ram-window-after-dma-tables/tests/mainboard/q35_capsule_publication_test.c:79:66: error: unused parameter ‘frame’ [-Werror=unused-parameter]
+   79 | static enum cb_err completion(struct q35_native_bootstrap_frame *frame,
+      |                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+cc1: all warnings being treated as errors

@@ -1,0 +1,310 @@
+    CP         romstage/arch/x86/car.ld
+    CP         romstage/arch/x86/memlayout.ld
+    CP         romstage/lib/program.ld
+    CP         bootblock/arch/x86/bootblock.ld
+    CP         bootblock/arch/x86/car.ld
+    CP         bootblock/arch/x86/memlayout.ld
+    CC         bootblock/arch/x86/walkcbfs.o
+    CP         bootblock/lib/program.ld
+    CREATE     /home/sean/q35-capsule-provider-selected.tUkGXZ/build/mainboard/emulation/qemu-q35/cbfs-file.EU5qC5.out (from /home/sean/q35-capsule-provider-selected.tUkGXZ/full.config)
+    CC+STRIP   src/lib/cbfs_master_header.c
+    HOSTCC     cbfstool/ifittool (link)
+    OBJCOPY    ramstage/cpu/x86/smm/smmstub.manual
+    HOSTCC     cbfstool/ifwitool.o
+payloads/external/cdk2/Kconfig:7:warning: config symbol defined without type
+    HOSTCC     cbfstool/cse_fpt.o
+    HOSTCC     cbfstool/cse_helpers.o
+    HOSTCC     cbfstool/fpt_hdr_20.o
+    HOSTCC     cbfstool/fpt_hdr_21.o
+    HOSTCC     cbfstool/cse_serger.o
+    HOSTCC     cbfstool/bpdt_1_6.o
+    HOSTCC     cbfstool/bpdt_1_7.o
+    HOSTCC     cbfstool/subpart_hdr_1.o
+    HOSTCC     cbfstool/subpart_hdr_2.o
+    HOSTCC     cbfstool/subpart_entry_1.o
+    OBJCOPY    ramstage/cpu/x86/sipi_vector.manual
+    HOSTCC     cbfstool/ifwitool (link)
+    HOSTCC     cbfstool/cse_fpt (link)
+    HOSTCC     cbfstool/cse_serger (link)
+    CC         romstage/mainboard/emulation/qemu-q35/static.o
+    CC         romstage/acpi/acpi_pm.o
+    CC         romstage/arch/x86/boot.o
+    CC         romstage/arch/x86/breakpoint.o
+    CC         romstage/arch/x86/cf9_reset.o
+    CC         romstage/arch/x86/cpu_common.o
+    CC         romstage/arch/x86/exception.o
+    CC         romstage/arch/x86/memcpy.o
+    CC         romstage/arch/x86/memmove_32.o
+    CC         romstage/arch/x86/memset.o
+    CC         romstage/arch/x86/mmap_boot.o
+    CC         romstage/arch/x86/null_breakpoint.o
+    CC         romstage/arch/x86/post.o
+    CC         romstage/arch/x86/postcar_loader.o
+    CC         romstage/arch/x86/romstage.o
+    CC         romstage/arch/x86/timestamp.o
+    CC         romstage/commonlib/bsd/cbfs_mcache.o
+    CC         romstage/commonlib/bsd/cbfs_private.o
+    CC         romstage/commonlib/bsd/elog.o
+    CC         romstage/commonlib/bsd/gcd.o
+    CC         romstage/commonlib/bsd/ipchksum.o
+    CC         romstage/commonlib/bsd/lz4_wrapper.o
+    CC         romstage/commonlib/bsd/string.o
+    CC         romstage/commonlib/bsd/xxhash.o
+    CC         romstage/commonlib/bsd/zstd_wrapper.o
+    CC         romstage/commonlib/iobuf.o
+    CC         romstage/commonlib/list.o
+    CC         romstage/commonlib/mem_pool.o
+    CC         romstage/commonlib/rational.o
+    CC         romstage/commonlib/region.o
+    CC         romstage/console/console.o
+    CC         romstage/console/die.o
+    CC         romstage/console/init.o
+    CC         romstage/console/post.o
+    CC         romstage/console/printk.o
+    CC         romstage/console/vsprintf.o
+    CC         romstage/console/vtxprintf.o
+    CC         romstage/cpu/intel/car/romstage.o
+    CC         romstage/cpu/x86/cache/cache.o
+    CC         romstage/cpu/x86/lapic/boot_cpu.o
+    CC         romstage/cpu/x86/lapic/lapic.o
+    CC         romstage/cpu/x86/mtrr/debug.o
+    CC         romstage/cpu/x86/mtrr/earlymtrr.o
+    CC         romstage/cpu/x86/mtrr/mtrrlib.o
+    CC         romstage/cpu/x86/name/name.o
+    CC         romstage/cpu/x86/pae/pgtbl.o
+    CC         romstage/cpu/x86/smm/tseg_region.o
+    CC         romstage/cpu/x86/tsc/delay_tsc.o
+    CC         romstage/device/device_const.o
+    CC         romstage/device/dram/ddr_common.o
+    CC         romstage/device/i2c.o
+    CC         romstage/device/mmio.o
+    CC         romstage/device/pci_early.o
+    CC         romstage/device/pci_ops.o
+    CC         romstage/drivers/efi/efivars.o
+    CC         romstage/drivers/emulation/qemu/fw_cfg.o
+    CC         romstage/drivers/emulation/qemu/qemu_debugcon.o
+    CC         romstage/drivers/pc80/pc/i8254.o
+    CC         romstage/drivers/pc80/rtc/mc146818rtc.o
+    CC         romstage/drivers/pc80/rtc/mc146818rtc_boot.o
+    CC         romstage/drivers/pc80/tpm/tis.o
+    CC         romstage/drivers/smmstore/read_region.o
+    CC         romstage/drivers/spi/bitbang.o
+    CC         romstage/drivers/spi/spi-generic.o
+    CC         romstage/drivers/uart/uart8250io.o
+    CC         romstage/drivers/uart/util.o
+    CC         romstage/drivers/wifi/generic/generic.o
+    CC         romstage/lib/boot_device.o
+    CC         romstage/lib/bootmode.o
+    CC         romstage/lib/capsule_broker_buffers.o
+    CC         romstage/lib/cbfs.o
+    CC         romstage/lib/cbmem_common.o
+    CC         romstage/lib/cbmem_console.o
+    CC         romstage/lib/crc_byte.o
+    CC         romstage/lib/delay.o
+    CC         romstage/lib/dimm_info_util.o
+    CC         romstage/lib/fmap.o
+    CC         romstage/lib/gcc.o
+    CC         romstage/lib/gpio.o
+    CC         romstage/lib/halt.o
+    CC         romstage/lib/hexdump.o
+    CC         romstage/lib/identity.o
+    CC         romstage/lib/imd.o
+    CC         romstage/lib/imd_cbmem.o
+    CC         romstage/lib/libgcc.o
+    CC         romstage/lib/lzma.o
+    CC         romstage/lib/lzmadecode.o
+    CC         romstage/lib/memchr.o
+    CC         romstage/lib/memcmp.o
+    CC         romstage/lib/memrange.o
+    CC         romstage/lib/prog_loaders.o
+    CC         romstage/lib/prog_ops.o
+    CC         romstage/lib/ramdetect.o
+    CC         romstage/lib/ramtest.o
+    CC         romstage/lib/region_file.o
+    CC         romstage/lib/reset.o
+    CC         romstage/lib/rmodule.o
+    CC         romstage/lib/romstage_handoff.o
+    CC         romstage/lib/rtc.o
+    CC         romstage/lib/selfboot.o
+    CC         romstage/lib/spd_bin.o
+    CC         romstage/lib/stack.o
+    CC         romstage/lib/string.o
+    CC         romstage/lib/timestamp.o
+    CC         romstage/lib/ux_locales.o
+    CC         romstage/lib/version.o
+    CC         romstage/mainboard/emulation/qemu-i440fx/bootmode.o
+    CC         romstage/mainboard/emulation/qemu-i440fx/memmap.o
+    CC         romstage/mainboard/emulation/qemu-q35/memmap.o
+    CC         romstage/mainboard/emulation/qemu-q35/romstage.o
+    CC         romstage/security/memory/memory.o
+    CC         romstage/southbridge/intel/common/early_smbus.o
+    CC         romstage/southbridge/intel/common/gpio.o
+    CC         romstage/southbridge/intel/common/pmbase.o
+    CC         romstage/southbridge/intel/common/pmclib.o
+    CC         romstage/southbridge/intel/common/reset.o
+    CC         romstage/southbridge/intel/common/rtc.o
+    CC         romstage/southbridge/intel/common/smbus.o
+    CC         romstage/southbridge/intel/common/usb_debug.o
+    CC         romstage/southbridge/intel/i82801ix/dmi_setup.o
+    CC         romstage/southbridge/intel/i82801ix/early_init.o
+    CC         ramstage/lib/capsule_broker_endpoint.o
+    CC         smm/lib/capsule_broker.o
+    CC         smm/lib/capsule_broker_endpoint.o
+    CC         smm/lib/capsule_broker_endpoint_smi.o
+    CC         smm/lib/capsule_broker_transport.o
+    CC         smm/lib/capsule_qemu_pflash.o
+    CC         smm/lib/payload_mm_fmp_checkpoint.o
+    CC         smm/lib/payload_mm_fmp_dispatch.o
+    CC         smm/lib/payload_mm_fmp_transaction.o
+    CC         smm/mainboard/emulation/qemu-q35/capsule_broker.o
+    CC         bootblock/mainboard/emulation/qemu-q35/static.o
+    CC         bootblock/acpi/acpi_pm.o
+    CC         bootblock/arch/x86/boot.o
+    CC         bootblock/arch/x86/breakpoint.o
+    CC         bootblock/arch/x86/cf9_reset.o
+    CC         bootblock/arch/x86/cpu_common.o
+    CC         bootblock/arch/x86/exception.o
+    CC         bootblock/arch/x86/memcpy.o
+    CC         bootblock/arch/x86/memmove_32.o
+    CC         bootblock/arch/x86/memset.o
+    CC         bootblock/arch/x86/mmap_boot.o
+    CC         bootblock/arch/x86/null_breakpoint.o
+    CC         bootblock/arch/x86/post.o
+    CC         bootblock/arch/x86/timestamp.o
+    CC         bootblock/commonlib/bsd/cbfs_mcache.o
+    CC         bootblock/commonlib/bsd/cbfs_private.o
+    CC         bootblock/commonlib/bsd/gcd.o
+    CC         bootblock/commonlib/bsd/ipchksum.o
+    CC         bootblock/commonlib/bsd/lz4_wrapper.o
+    CC         bootblock/commonlib/bsd/string.o
+    CC         bootblock/commonlib/bsd/xxhash.o
+    CC         bootblock/commonlib/bsd/zstd_wrapper.o
+    CC         bootblock/commonlib/iobuf.o
+    CC         bootblock/commonlib/list.o
+    CC         bootblock/commonlib/mem_pool.o
+    CC         bootblock/commonlib/region.o
+    CC         bootblock/console/console.o
+    CC         bootblock/console/die.o
+    CC         bootblock/console/init.o
+    CC         bootblock/console/post.o
+    CC         bootblock/console/printk.o
+    CC         bootblock/console/vsprintf.o
+    CC         bootblock/console/vtxprintf.o
+    CC         bootblock/cpu/qemu-x86/bootblock.o
+    CC         bootblock/cpu/x86/lapic/boot_cpu.o
+    CC         bootblock/cpu/x86/lapic/lapic.o
+    CC         bootblock/cpu/x86/mtrr/debug.o
+    CC         bootblock/cpu/x86/mtrr/earlymtrr.o
+    CC         bootblock/cpu/x86/mtrr/mtrrlib.o
+    CC         bootblock/cpu/x86/name/name.o
+    CC         bootblock/cpu/x86/pae/pgtbl.o
+    CC         bootblock/cpu/x86/tsc/delay_tsc.o
+    CC         bootblock/device/device_const.o
+    CC         bootblock/device/i2c.o
+    CC         bootblock/device/mmio.o
+    CC         bootblock/device/pci_early.o
+    CC         bootblock/device/pci_ops.o
+    CC         bootblock/drivers/efi/efivars.o
+    CC         bootblock/drivers/emulation/qemu/fw_cfg.o
+    CC         bootblock/drivers/emulation/qemu/qemu_debugcon.o
+    CC         bootblock/drivers/pc80/pc/i8254.o
+    CC         bootblock/drivers/pc80/rtc/mc146818rtc.o
+    CC         bootblock/drivers/pc80/rtc/mc146818rtc_boot.o
+    CC         bootblock/drivers/pc80/tpm/tis.o
+    CC         bootblock/drivers/smmstore/read_region.o
+    CC         bootblock/drivers/spi/bitbang.o
+    CC         bootblock/drivers/spi/spi-generic.o
+    CC         bootblock/drivers/uart/uart8250io.o
+    CC         bootblock/drivers/uart/util.o
+    CC         bootblock/lib/boot_device.o
+    CC         bootblock/lib/bootblock.o
+    CC         bootblock/lib/bootmode.o
+    CC         bootblock/lib/cbfs.o
+    CC         bootblock/lib/cbmem_console.o
+    CC         bootblock/lib/crc_byte.o
+    CC         bootblock/lib/delay.o
+    CC         bootblock/lib/fmap.o
+    CC         bootblock/lib/gcc.o
+    CC         bootblock/lib/gpio.o
+    CC         bootblock/lib/halt.o
+    CC         bootblock/lib/hexdump.o
+    CC         bootblock/lib/identity.o
+    CC         bootblock/lib/libgcc.o
+    CC         bootblock/lib/master_header_pointer.o
+    CC         bootblock/lib/memchr.o
+    CC         bootblock/lib/memcmp.o
+    CC         bootblock/lib/prog_loaders.o
+    CC         bootblock/lib/prog_ops.o
+    CC         bootblock/lib/reset.o
+    CC         bootblock/lib/string.o
+    CC         bootblock/lib/timestamp.o
+    CC         bootblock/lib/version.o
+    CC         bootblock/mainboard/emulation/qemu-i440fx/bootmode.o
+    CC         bootblock/mainboard/emulation/qemu-q35/bootblock.o
+    CC         bootblock/mainboard/emulation/qemu-q35/memmap.o
+    CC         bootblock/southbridge/intel/common/gpio.o
+    CC         bootblock/southbridge/intel/common/pmbase.o
+    CC         bootblock/southbridge/intel/common/reset.o
+    CC         bootblock/southbridge/intel/common/rtc.o
+    CC         bootblock/southbridge/intel/common/usb_debug.o
+    CC         bootblock/southbridge/intel/i82801ix/bootblock.o
+    CC         bootblock/southbridge/intel/i82801ix/early_init.o
+    CC         ramstage/cpu/x86/mp_init.o
+    LINK       cbfs/fallback/romstage.debug
+    CC         smm/lib/memchr.o
+    LINK       cbfs/fallback/bootblock.debug
+    OBJCOPY    cbfs/fallback/romstage.elf
+    OBJCOPY    cbfs/fallback/bootblock.elf
+    OBJCOPY    bootblock.raw.elf
+    OBJCOPY    bootblock.raw.bin
+    OBJCOPY    ramstage/cpu/x86/smm/smm.manual
+    LINK       cbfs/fallback/ramstage.debug
+Created CBFS (capacity = 8314852 bytes)
+    BOOTBLOCK
+    CBFS       cbfs_master_header
+    CBFS       fallback/romstage
+Image SIZE 8388608
+    CBFS       fallback/ramstage
+    CBFS       config
+    CBFS       revision
+    CBFS       build_info
+    CBFS       fallback/dsdt.aml
+    CBFS       capsule/trust.der
+    CBFS       cmos_layout.bin
+    CBFS       fallback/postcar
+    CBFS       q35/native-apmc
+    CBFS       q35/native-apmc-bootstrap
+    CBFS       fallback/payload
+INFO: Performing operation on 'COREBOOT' region...
+    CBFS       coreboot.rom
+    CBFSLAYOUT  coreboot.rom
+
+This image contains the following sections that can be manipulated with this tool:
+
+'SMMSTORE' (preserve, size 65536, offset 0)
+'SECURE_PROBE' (preserve, size 4096, offset 65536)
+'COREBOOT' (CBFS, size 8314880, offset 73728)
+
+It is possible to perform either the write action or the CBFS add/remove actions on every section listed above.
+To see the image's read-only sections as well, rerun with the -w option.
+    CBFSPRINT  coreboot.rom
+
+FMAP REGION: COREBOOT
+Name                           Offset     Type           Size   Comp
+cbfs_master_header             0x0        cbfs header        32 none
+fallback/romstage              0x80       stage           21016 none
+fallback/ramstage              0x5300     stage          232414 LZMA (491496 decompressed)
+config                         0x3df40    raw              3572 LZMA (12883 decompressed)
+revision                       0x3ed80    raw               787 none
+build_info                     0x3f0c0    raw               125 none
+fallback/dsdt.aml              0x3f180    raw              7260 none
+capsule/trust.der              0x40e40    raw               811 none
+cmos_layout.bin                0x411c0    cmos_layout       640 none
+fallback/postcar               0x41480    stage           20500 none
+q35/native-apmc                0x46500    raw                12 none
+q35/native-apmc-bootstrap      0x46540    raw                 2 none
+fallback/payload               0x46580    simple elf      78804 none
+(empty)                        0x59980    null          7927332 none
+bootblock                      0x7e8fc0   bootblock       20480 none
+
+Built emulation/qemu-q35 (QEMU x86 q35/ich9)

@@ -1,0 +1,4 @@
+eb3e4cb459378ac27a70a4a3d256e44a6112b734f0596cf5fbc7e1d9a83e4aba  ./Makefile
+cc2777fd9b2a81df34215262c89f5ce397f44b992ece564e5ba226f28733c945  ./src/boot/Makefile
+74244564329754d900c31814260fcbed630c233fd9187b3d6a0ae2c6ebbfc50e  ./tests/capsule_mm_native_reset_probe.c
+02c1d1441d845699bac9f0e61beb4e4cf37b8d0a8d8114e4472c23202e8818c6  ./tests/capsule_mm_native_reset_probe_test.sh
