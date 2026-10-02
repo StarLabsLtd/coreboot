@@ -63,6 +63,33 @@ config DRIVERS_EFI_CAPSULE_RAM_HANDOFF
 	  It does not grant the payload writable access to the variable store or
 	  flash device.
 
+config DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
+	bool "Publish EFI capsule delivery policy"
+	default n
+	help
+	  Describe the platform's allowed RAM and disk delivery paths and capsule
+	  size limits for a generic payload. RAM requires a platform implementation
+	  that establishes warm-reset DRAM persistence as well as the RAM handoff
+	  driver. Unknown persistence is not advertised. Disk reuses the existing
+	  capsule-on-disk policy without changing its dependencies.
+
+	  This does not discover capsules, select an updater, or grant flash access.
+
+config DRIVERS_EFI_CAPSULE_MAX_NONPOPULATE_SIZE
+	hex "Maximum non-populate capsule size"
+	default 0x4000000
+	range 0x1 0xffffffff
+	depends on DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
+
+config DRIVERS_EFI_CAPSULE_MAX_POPULATE_SIZE
+	hex "Maximum populate capsule size"
+	default 0x4000000
+	range 0x0 0xffffffff
+	depends on DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
+	help
+	  Zero disables populate capsules. This policy limit does not override a
+	  separately published capsule broker's staging or writable-region bounds.
+
 config DRIVERS_EFI_UPDATE_CAPSULES
 	bool "Include legacy EFI update capsules driver"
 	depends on DRIVERS_EFI_VARIABLE_STORE && SMMSTORE && DRIVERS_EFI_FW_INFO
