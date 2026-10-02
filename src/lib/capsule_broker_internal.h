@@ -90,8 +90,6 @@ bool capsule_broker_buffer_available(const void *buffer, size_t size);
 bool capsule_broker_execution_ready(void);
 /* Metadata/current ownership only for RAM revision 3; no device cancellation. */
 bool capsule_broker_transport_ready(uint32_t revision);
-/* Protected eligibility, not DMA proof. Initialized only by the sole install. */
-bool capsule_broker_ram_window_open(void);
 enum cb_err capsule_broker_ram_window_close(void);
 bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint);
 bool capsule_broker_endpoint_shape_valid(
