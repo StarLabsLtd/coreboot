@@ -1,0 +1,46 @@
+#
+# configuration written to /home/sean/cdk2-root-storage-after520/.config
+#
+ata atapi pass thru model tests: PASS
+ata atapi binding tests: PASS
+ata atapi AHCI tests: PASS
+ata atapi IDE tests: PASS
+ata atapi PCI adapter tests: PASS
+ata atapi entry tests: PASS
+scsi bus configured linker: PASS
+scsi bus dependency depfiles: PASS
+make[2]: Entering directory '/home/sean/Documents/cdk2'
+make[2]: Leaving directory '/home/sean/Documents/cdk2'
+scsi bus dependency header touch: PASS
+scsi disk model tests: PASS
+scsi disk I/O tests: PASS
+scsi disk async tests: PASS
+scsi disk block tests: PASS
+scsi disk binding tests: PASS
+scsi disk backend tests: PASS
+scsi disk entry tests: PASS
+native ATA/ATAPI oracle: /home/sean/cdk2-root-storage-after520/native/ata-atapi-qemu.efi
+native SATA controller oracle: /home/sean/cdk2-root-storage-after520/native/sata-qemu.efi
+	Command being timed: "make -j2 CDK2_BUILD_DIR=/home/sean/cdk2-root-storage-after520 CDK2_CONFIG=/home/sean/cdk2-root-storage-after520/.config CDK2_CONFIG_HEADER=/home/sean/cdk2-root-storage-after520/include/cdk2/config.h CDK2_DEFCONFIG=/home/sean/Documents/cdk2/util/qemu/config/cdk2-q35-protected-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config native-ata-atapi-pass-thru-test native-ata-atapi-binding-test native-ata-atapi-ahci-test native-ata-atapi-ide-test native-ata-atapi-pci-test native-ata-atapi-entry-test native-scsi-bus-test native-scsi-disk-test native-ata-atapi-oracle native-sata-controller-oracle"
+	User time (seconds): 25.94
+	System time (seconds): 2.72
+	Percent of CPU this job got: 97%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:29.50
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 76900
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 30
+	Minor (reclaiming a frame) page faults: 893435
+	Voluntary context switches: 3069
+	Involuntary context switches: 506
+	Swaps: 0
+	File system inputs: 3552
+	File system outputs: 55880
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

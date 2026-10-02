@@ -1,0 +1,39 @@
+make: Entering directory '/home/sean/Documents/cdk2'
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/cdk2'
+LVGL UI driver form test passed
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2980, type raw, compressed 955, size 3016
+CDK2 real setup QEMU acceptance: PASS
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2980, type raw, compressed 955, size 3016
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2980, type raw, compressed 955, size 3016
+SMMSTORE firmware-volume GUID is invalid
+Command exited with non-zero status 1
+	Command being timed: "util/qemu/bin/run-setup-acceptance.sh /home/sean/cdk2-root-protected-ui-after515/protected-ui-no-spi.rom /home/sean/cdk2-root-protected-ui-stable-frames /home/sean/cdk2-root-protected-ui-after515 /home/sean/Documents/cdk2/3rdparty/lvgl"
+	User time (seconds): 129.76
+	System time (seconds): 11.15
+	Percent of CPU this job got: 102%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:17.53
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 370936
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 146
+	Minor (reclaiming a frame) page faults: 2268544
+	Voluntary context switches: 371510
+	Involuntary context switches: 1728
+	Swaps: 0
+	File system inputs: 285344
+	File system outputs: 548608
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
