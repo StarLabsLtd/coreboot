@@ -1,0 +1,76 @@
+    CC         smm/lib/payload_mm_authvar_executor.o
+    CREATE     /home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh/mainboard/emulation/qemu-q35/cbfs-file.rraW4x.out (from /home/sean/q35-capsule-broker-owner-build.eXgVP7/full.config)
+payloads/external/cdk2/Kconfig:7:warning: config symbol defined without type
+    CC+STRIP   src/lib/cbfs_master_header.c
+    OBJCOPY    ramstage/cpu/x86/smm/smm.manual
+    LINK       cbfs/fallback/ramstage.debug
+Created CBFS (capacity = 8314852 bytes)
+    BOOTBLOCK
+    CBFS       cbfs_master_header
+    CBFS       fallback/romstage
+Image SIZE 8388608
+    CBFS       fallback/ramstage
+    CBFS       config
+    CBFS       revision
+    CBFS       build_info
+    CBFS       fallback/dsdt.aml
+    CBFS       cmos_layout.bin
+    CBFS       fallback/postcar
+    CBFS       q35/native-apmc
+    CBFS       q35/native-apmc-bootstrap
+    CBFS       fallback/payload
+INFO: Performing operation on 'COREBOOT' region...
+    CBFS       coreboot.rom
+    CBFSLAYOUT  coreboot.rom
+
+This image contains the following sections that can be manipulated with this tool:
+
+'SMMSTORE' (preserve, size 65536, offset 0)
+'SECURE_PROBE' (preserve, size 4096, offset 65536)
+'COREBOOT' (CBFS, size 8314880, offset 73728)
+
+It is possible to perform either the write action or the CBFS add/remove actions on every section listed above.
+To see the image's read-only sections as well, rerun with the -w option.
+    CBFSPRINT  coreboot.rom
+
+FMAP REGION: COREBOOT
+Name                           Offset     Type           Size   Comp
+cbfs_master_header             0x0        cbfs header        32 none
+fallback/romstage              0x80       stage           20472 none
+fallback/ramstage              0x5100     stage          205694 LZMA (426216 decompressed)
+config                         0x37500    raw              3463 LZMA (12324 decompressed)
+revision                       0x382c0    raw               787 none
+build_info                     0x38600    raw               125 none
+fallback/dsdt.aml              0x386c0    raw              7260 none
+cmos_layout.bin                0x3a380    cmos_layout       640 none
+fallback/postcar               0x3a640    stage           20500 none
+q35/native-apmc                0x3f6c0    raw                12 none
+q35/native-apmc-bootstrap      0x3f700    raw                 2 none
+fallback/payload               0x3f740    simple elf      78804 none
+(empty)                        0x52b40    null          7955556 none
+bootblock                      0x7e8fc0   bootblock       20480 none
+
+Built emulation/qemu-q35 (QEMU x86 q35/ich9)
+	Command being timed: "make -j2 all DOTCONFIG=/home/sean/q35-capsule-broker-owner-build.eXgVP7/full.config obj=/home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh UPDATED_SUBMODULES=1 VBOOT_SOURCE=/home/sean/Documents/.coreboot-worktrees/cdk2-portable-presence-pin/3rdparty/vboot"
+	User time (seconds): 2.07
+	System time (seconds): 0.91
+	Percent of CPU this job got: 105%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.83
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 68540
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 20
+	Minor (reclaiming a frame) page faults: 147624
+	Voluntary context switches: 4863
+	Involuntary context switches: 85
+	Swaps: 0
+	File system inputs: 42464
+	File system outputs: 45776
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

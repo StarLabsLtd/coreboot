@@ -1,0 +1,4 @@
+FMP small-store O0 normal: PASS
+FMP small-store O0 discard: PASS
+FMP small-store O2 normal: PASS
+FMP small-store O2 discard: PASS

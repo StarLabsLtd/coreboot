@@ -1,0 +1,97 @@
+#
+# No change to /home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config
+#
+#
+# No change to /home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config
+#
+#
+# No change to /home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/cdk2-fmp-owner-native.YfGP8c/native/capsule-mm-update-component/run.sLVN3R
+Found file config at 0x37500, type raw, compressed 3463, size 12324
+[0m[INFO ]   * Base: c0000000, Size: 3e000000, Tag: 200[0m
+[0m[INFO ]   * Base: 100000000, Size: fc00000000, Tag: 200[0m
+[0m[DEBUG]    PCI: 00:00:01.0 10 *  [0xfd000000 - 0xfdffffff] limit: fdffffff prefmem[0m
+[0m[DEBUG]    PCI: 00:00:05.0 10 *  [0xfcf00000 - 0xfcffffff] limit: fcffffff mem[0m
+[0m[DEBUG]    PCI: 00:00:01.0 30 *  [0xfcef0000 - 0xfcefffff] limit: fcefffff mem[0m
+[0m[DEBUG]    PCI: 00:00:03.0 10 *  [0xfceec000 - 0xfceeffff] limit: fceeffff mem[0m
+[0m[DEBUG]    PCI: 00:00:04.0 10 *  [0xfcee8000 - 0xfceebfff] limit: fceebfff mem[0m
+[0m[DEBUG]    PCI: 00:00:01.0 18 *  [0xfcee7000 - 0xfcee7fff] limit: fcee7fff mem[0m
+[0m[DEBUG]    PCI: 00:00:1f.2 24 *  [0xfcee6000 - 0xfcee6fff] limit: fcee6fff mem[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 3fe00000 size: 0 align: 0 gran: 0 limit: fdffffff done[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 100000000 size: 0 align: 0 gran: 0 limit: ffffffffff done[0m
+[0m[INFO ]  === Resource allocator: DOMAIN: 00000000 - resource allocation complete ===[0m
+[0m[DEBUG]  PCI: 00:00:01.0 10 <- [0x00000000fd000000 - 0x00000000fdffffff] size 0x01000000 gran 0x18 prefmem[0m
+[0m[DEBUG]  PCI: 00:00:01.0 18 <- [0x00000000fcee7000 - 0x00000000fcee7fff] size 0x00001000 gran 0x0c mem[0m
+[0m[DEBUG]  PCI: 00:00:01.0 30 <- [0x00000000fcef0000 - 0x00000000fcefffff] size 0x00010000 gran 0x10 romem[0m
+[0m[DEBUG]  PCI: 00:00:03.0 10 <- [0x00000000fceec000 - 0x00000000fceeffff] size 0x00004000 gran 0x0e mem64[0m
+[0m[DEBUG]  PCI: 00:00:04.0 10 <- [0x00000000fcee8000 - 0x00000000fceebfff] size 0x00004000 gran 0x0e mem64[0m
+[0m[DEBUG]  PCI: 00:00:05.0 10 <- [0x00000000fcf00000 - 0x00000000fcffffff] size 0x00100000 gran 0x14 mem[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 20 <- [0x000000000000ffe0 - 0x000000000000ffff] size 0x00000020 gran 0x05 io[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 24 <- [0x00000000fcee6000 - 0x00000000fcee6fff] size 0x00001000 gran 0x0c mem[0m
+[0m[INFO ]  Done setting resources.[0m
+[0m[INFO ]  Done allocating resources.[0m
+[0m[DEBUG]  BS: BS_DEV_RESOURCES run times (exec / console): 8 / 9 ms[0m
+[0m[INFO ]  Enabling resources...[0m
+[0m[DEBUG]  PCI: 00:00:00.0 cmd <- 00[0m
+[0m[DEBUG]  PCI: 00:00:01.0 cmd <- 03[0m
+[0m[DEBUG]  PCI: 00:00:03.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:04.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:05.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 subsystem <- 8086/2918[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 cmd <- 100[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 subsystem <- 8086/2922[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 cmd <- 103[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 subsystem <- 8086/2930[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 cmd <- 101[0m
+[0m[INFO ]  done.[0m
+[0m[DEBUG]  BS: BS_DEV_ENABLE run times (exec / console): 2 / 1 ms[0m
+[0m[INFO ]  Initializing devices...[0m
+[0m[DEBUG]  CPU_CLUSTER: 0 init[0m
+[0m[DEBUG]  Setting up SMI for CPU[0m
+[0m[DEBUG]  Save state size: 0x200 bytes[0m
+[0m[INFO ]  Will perform SMM setup.[0m
+[0m[INFO ]  CPU: QEMU TCG CPU version 2.5+.[0m
+[0m[INFO ]  LAPIC 0x0 in XAPIC mode.[0m
+[0m[DEBUG]  CPU: APIC: 00 enabled[0m
+[0m[DEBUG]  Loading module at 0x00038000 with entry 0x00038000. filesize: 0x198 memsize: 0x198[0m
+[0m[DEBUG]  Processing 9 relocs. Offset value of 0x00038000[0m
+[0m[DEBUG]  smm_module_setup_stub: stack_top = 0x3fe04000[0m
+[0m[DEBUG]  smm_module_setup_stub: per cpu stack_size = 0x4000[0m
+[0m[DEBUG]  smm_module_setup_stub: runtime.smm_size = 0x10000[0m
+[0m[DEBUG]  SMM Module: stub loaded at 38000. Will call 0x3fc72cfa[0m
+[0m[DEBUG]  Installing permanent SMM handler to 0x3fe00000[0m
+[0m[DEBUG]  HANDLER      [0x3fee3000-0x3ffff02f][0m
+[0m
+[0m[DEBUG]  CPU 0[0m
+[0m[DEBUG]    ss0        [0x3fee2e00-0x3fee2fff][0m
+[0m[DEBUG]    stub0      [0x3fedb000-0x3fedb197][0m
+[0m
+[0m[DEBUG]  stacks       [0x3fe00000-0x3fe03fff][0m
+[0m[DEBUG]  Loading module at 0x3fee3000 with entry 0x3feeb7b7. filesize: 0x33f40 memsize: 0x11c030[0m
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/src/boot/Makefile:905: native-fmp-owner-cold-state-component-test] Error 1
+make: *** [Makefile:1119: native-fmp-owner-cold-state-component-test] Error 2
+Command exited with non-zero status 2
+	Command being timed: "make native-fmp-owner-cold-state-component-test CDK2_CONFIG=/home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config CDK2_BUILD_DIR=/home/sean/cdk2-fmp-owner-native.YfGP8c COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/q35-capsule-broker-owner-after-retention COREBOOT_CONFIG=/home/sean/q35-capsule-broker-owner-build.eXgVP7/full.config COREBOOT_ROM=/home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh/coreboot.rom CBFSTOOL=/home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh/util/cbfstool/cbfstool MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls"
+	User time (seconds): 94.71
+	System time (seconds): 4.94
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:39.56
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 918464
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 4
+	Minor (reclaiming a frame) page faults: 1074181
+	Voluntary context switches: 51339
+	Involuntary context switches: 1413
+	Swaps: 0
+	File system inputs: 3928
+	File system outputs: 27296
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2

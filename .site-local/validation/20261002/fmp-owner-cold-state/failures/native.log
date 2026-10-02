@@ -1,0 +1,32 @@
+#
+# No change to /home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config
+#
+#
+# No change to /home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config
+#
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/src/boot/Makefile:1589: *** LVGL sources are unavailable; run 'git submodule update --init 3rdparty/lvgl'. Stop.
+make: *** [Makefile:1119: native-fmp-owner-cold-state-component-test] Error 2
+Command exited with non-zero status 2
+	Command being timed: "make native-fmp-owner-cold-state-component-test CDK2_CONFIG=/home/sean/cdk2-fmp-owner-native.YfGP8c/resolved.config CDK2_BUILD_DIR=/home/sean/cdk2-fmp-owner-native.YfGP8c COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/q35-capsule-broker-owner-after-retention COREBOOT_CONFIG=/home/sean/q35-capsule-broker-owner-build.eXgVP7/full.config COREBOOT_ROM=/home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh/coreboot.rom CBFSTOOL=/home/sean/q35-capsule-broker-owner-build.eXgVP7/build-fresh/util/cbfstool/cbfstool MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls"
+	User time (seconds): 0.09
+	System time (seconds): 0.14
+	Percent of CPU this job got: 103%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.22
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 7444
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 20941
+	Voluntary context switches: 237
+	Involuntary context switches: 16
+	Swaps: 0
+	File system inputs: 8
+	File system outputs: 368
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2
