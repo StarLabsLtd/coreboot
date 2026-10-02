@@ -1,0 +1,43 @@
+checkpatch filter tests passed
+C11 generic association and genuine switch trailing-statement checks: PASS
+Font declaration grammar and eight hostile macros (--grammar-only): PASS
+checkpatch launcher tests passed
+checkpatch allowlist path tests passed
+Checkpatch invocation build and diagnostic equivalence: PASS
+#
+# No change to /home/sean/root-transport-private-style.IMmX6r/build/.config
+#
+#
+# No change to /home/sean/root-transport-private-style.IMmX6r/build/.config
+#
+#
+# No change to /home/sean/root-transport-private-style.IMmX6r/build/.config
+#
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 0.042s
+
+OK
+	Command being timed: "make -j1 CDK2_BUILD_DIR=/home/sean/root-transport-private-style.IMmX6r/build checkpatch-filter-test native-system-fmp-core-ram-runner-test"
+	User time (seconds): 85.51
+	System time (seconds): 7.50
+	Percent of CPU this job got: 106%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:27.03
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 44568
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 21
+	Minor (reclaiming a frame) page faults: 1932629
+	Voluntary context switches: 4235
+	Involuntary context switches: 6671
+	Swaps: 0
+	File system inputs: 440
+	File system outputs: 608
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
