@@ -5,8 +5,9 @@ Managed session 8805 actually returned 1 after 14m35.758s (CPU 14m36.588s).
 The exact commands were `util/lint/lint lint-stable` followed by
 `util/lint/lint lint`, with `TMPDIR=/home/sean`. Both returned 1.
 
-The broad raw stream contains 1,298 checkpatch error starts and 149 warning
-starts, across 84 named files. It includes imported, hash-bound vboot/Linux
+The broad raw stream contains 1,299 checkpatch error records and 149 warning
+records, across 84 named files. One error follows the lint description on the
+same line; counting only line-start errors would miss it. It includes imported, hash-bound vboot/Linux
 source as well as owned production and test files. These are not an owned-only
 baseline, nor a justification for editing imported code. The stable failure
 was static boundary-checker rejection of four `filter-out` source expressions.
