@@ -38,6 +38,7 @@ static uint32_t nvme_configuration, nvme_status, xhci_command, xhci_status;
 static uint32_t ahci_command, ahci_active;
 static bool phase_current, foreign_function, mutate_memory, fail_ahci, fail_drain;
 static bool protected_resources;
+static bool ram_held, ram_window, revoke_ram_after_drain;
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -160,6 +161,8 @@ void write32(void *pointer, uint32_t value)
 				drains++;
 				if (mutate_memory && drains == 2U)
 					memory.arena_base += PAGE;
+				if (revoke_ram_after_drain && drains == 2U)
+					ram_window = false;
 			}
 			value = fail_drain ? 1U << 31 : 1U << 25;
 		}
@@ -248,6 +251,11 @@ void smm_region(uintptr_t *base, size_t *size)
 bool platform_payload_mm_authvar_service_finalize_admitted(void)
 {
 	return phase_current;
+}
+
+bool q35_capsule_ram_transaction_current(void)
+{
+	return ram_held && ram_window;
 }
 
 const volatile struct smm_pci_resource_info *smm_get_pci_resource_store(void)
@@ -377,6 +385,8 @@ static void reset_fixture(void)
 	nvme_resets = xhci_resets = ahci_resets = drains = writebacks = 0;
 	phase_current = true;
 	protected_resources = true;
+	ram_held = ram_window = true;
+	revoke_ram_after_drain = false;
 	foreign_function = mutate_memory = fail_ahci = fail_drain = false;
 	saved_index = config_index = 0x31415926U;
 }
@@ -397,17 +407,41 @@ int main(int argc, char **argv)
 			protected_resources = false;
 		else if (!strcmp(argv[1], "phase"))
 			phase_current = false;
+		else if (!strcmp(argv[1], "ram-held"))
+			ram_held = false;
+		else if (!strcmp(argv[1], "ram-window"))
+			ram_window = false;
+		else if (!strcmp(argv[1], "ram-final"))
+			revoke_ram_after_drain = true;
 		else
 			CHECK(false);
-		const bool accepted = q35_dma_cold_current();
+		const bool accepted = !strncmp(argv[1], "ram-", 4) ?
+			q35_capsule_ram_dma_current() : q35_dma_cold_current();
 
 		CHECK(!accepted);
-		if (!strcmp(argv[1], "phase") || !strcmp(argv[1], "protected"))
+		if (!strcmp(argv[1], "phase") || !strcmp(argv[1], "protected") ||
+		    !strcmp(argv[1], "ram-held") || !strcmp(argv[1], "ram-window"))
 			CHECK(!nvme_resets && !xhci_resets && !ahci_resets);
 		printf("PASS HOST refusal case %s\n", argv[1]);
 		return 0;
 	}
 	CHECK(argc == 1);
+	reset_fixture();
+	phase_current = false;
+	CHECK(q35_capsule_ram_dma_current());
+	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U && drains == 2U);
+	reset_fixture();
+	ram_held = false;
+	CHECK(!q35_capsule_ram_dma_current());
+	CHECK(!nvme_resets && !xhci_resets && !ahci_resets && !drains);
+	reset_fixture();
+	revoke_ram_after_drain = true;
+	CHECK(!q35_capsule_ram_dma_current());
+	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U && drains == 2U);
+	reset_fixture();
+	ram_window = false;
+	CHECK(!q35_capsule_ram_dma_current());
+	CHECK(!nvme_resets && !xhci_resets && !ahci_resets && !drains);
 	reset_fixture();
 	CHECK(q35_dma_cold_current());
 	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U);
