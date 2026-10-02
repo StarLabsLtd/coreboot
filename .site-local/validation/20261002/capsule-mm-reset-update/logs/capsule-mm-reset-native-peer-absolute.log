@@ -1,0 +1,6 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset-peer-absolute/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset-peer-absolute/native/capsule-mm-reset-component/run.GkHeI9
+Found file config at 0x35800, type raw, compressed 3446, size 12211
+Actual MM pointer + ResetSystem warm reset + canonical capsule HOB bytes: PASS (RAM capability remains off)
