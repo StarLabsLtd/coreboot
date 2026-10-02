@@ -45,7 +45,12 @@ enum cb_err payload_mm_authvar_service_finalize(void);
 enum cb_err payload_mm_authvar_service_descriptor_copy(
 	struct lb_authvar_service_endpoint *endpoint);
 
-/* Fixed installed mailbox only; no caller-selected pointers, sizes or verifier. */
+/*
+ * Fixed installed mailbox only; no caller-selected pointers, sizes or verifier.
+ * CB_ERR_ARG refuses an invalid private snapshot of untrusted mailbox input,
+ * without executing a transaction or publishing a response. Other failures
+ * indicate that the installed protected service could not admit execution.
+ */
 enum cb_err payload_mm_authvar_service_execute(void);
 
 #endif

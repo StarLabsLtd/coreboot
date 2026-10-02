@@ -74,6 +74,18 @@ config Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 config SMMSTORE_SIZE
 	default 0x10000 if Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT
 
+config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
+	bool "QEMU-only public authenticated-variable APMC service component"
+	default n
+	depends on Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
+	help
+	  Keep the immutable cold bootstrap, but accept public variable requests
+	  from the actual single CPU through the exclusively selected APMC service
+	  command. The protected request snapshot proves public route ownership,
+	  not a private caller instruction or physical-presence origin. This still
+	  requires the controlled APMC-only, secure-pflash QEMU launch profile.
+	  It provides no general multi-source or production-chipset attestation.
+
 config SMMSTORE_BLOCK_SIZE
 	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 

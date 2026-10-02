@@ -898,8 +898,10 @@ enum cb_err payload_mm_authvar_service_execute(void)
 	/* The shared mailbox is untrusted. Never compare it again after this snapshot. */
 	memcpy(provider.service_request, mailbox, sizeof(provider.service_request));
 	if (payload_mm_authvar_service_request_validate(&provider.sealed_endpoint,
-		provider.service_request, sizeof(provider.service_request)) != CB_SUCCESS)
+		provider.service_request, sizeof(provider.service_request)) != CB_SUCCESS) {
+		result = CB_ERR_ARG;
 		goto out;
+	}
 #if CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER)
 	const struct payload_mm_authvar_service_frame *request =
 		(const void *)provider.service_request;
