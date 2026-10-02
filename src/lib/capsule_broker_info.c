@@ -131,9 +131,12 @@ enum cb_err capsule_broker_info_read(
 	if (owner_status != CB_SUCCESS ||
 	    !payload_mm_fmp_owner_record_valid(PAYLOAD_MM_FMP_STATE_KEY_STATE,
 		&record) ||
-	    !record.present || !record.data[0])
+	    !record.present)
 		goto out;
-	durable_version = read32(record.data + 4);
+	/* A trusted running image exists before its first successful update.
+	 * Absence of a durable version does not manufacture a state write. */
+	durable_version = record.data[0] ? read32(record.data + 4) :
+		policy.current_version;
 	durable_lowest_version = policy.lowest_supported_version;
 	if (durable_version < policy.current_version)
 		goto out;
