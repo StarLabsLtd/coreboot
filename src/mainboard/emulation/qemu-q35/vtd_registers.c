@@ -6,6 +6,8 @@
 #define VTD_INVALIDATE (1U << 31)
 #define VTD_CONTEXT_GLOBAL (1U << 29)
 #define VTD_IOTLB_GLOBAL (1U << 28)
+#define VTD_DRAIN_READS (1U << 17)
+#define VTD_DRAIN_WRITES (1U << 16)
 
 static uint64_t read_pair(const struct q35_vtd_io *io, uint32_t offset)
 {
@@ -58,6 +60,52 @@ int q35_vtd_invalidate(const struct q35_vtd_io *io)
 	if (!io || !io->read32 || !io->write32 || iotlb_offset(io, &iotlb))
 		return -1;
 	return invalidate(io, iotlb);
+}
+
+int q35_vtd_invalidate_drain(const struct q35_vtd_io *io)
+{
+	const uint64_t required = Q35_VTD_DRAIN_READS_SUPPORTED |
+		Q35_VTD_DRAIN_WRITES_SUPPORTED;
+	const uint32_t active = Q35_VTD_ROOT_SET | Q35_VTD_TRANSLATION_ENABLE;
+	uint64_t capability;
+	uint64_t extended;
+	uint64_t root;
+	uint32_t status;
+	uint32_t version;
+	uint32_t iotlb;
+
+	if (!io || !io->read32 || !io->write32)
+		return -1;
+	capability = read_pair(io, Q35_VTD_CAP);
+	extended = read_pair(io, Q35_VTD_ECAP);
+	root = read_pair(io, Q35_VTD_RTADDR);
+	status = io->read32(io->context, Q35_VTD_GSTS);
+	version = io->read32(io->context, Q35_VTD_VERSION);
+	if ((capability & required) != required ||
+	    (status & active) != active ||
+	    (status & Q35_VTD_QUEUED_INVALIDATION_ENABLE) ||
+	    !root || (root & 0xfffU) || version == UINT32_MAX ||
+	    ((version >> 4) & 0xfU) != 1U || iotlb_offset(io, &iotlb) ||
+	    (io->read32(io->context, Q35_VTD_CCMD + 4U) & VTD_INVALIDATE) ||
+	    (io->read32(io->context, iotlb + 4U) & VTD_INVALIDATE))
+		return -1;
+
+	/* Preserve the existing global context/IOTLB invalidation contract. */
+	if (q35_vtd_invalidate(io))
+		return -1;
+	/* IVT completion must include both requested architectural drains. */
+	io->write32(io->context, iotlb, 0);
+	io->write32(io->context, iotlb + 4U, VTD_INVALIDATE | VTD_IOTLB_GLOBAL |
+		VTD_DRAIN_READS | VTD_DRAIN_WRITES);
+	if (wait_for(io, iotlb + 4U, VTD_INVALIDATE, 0) ||
+	    (io->read32(io->context, iotlb + 4U) & (3U << 25)) != (1U << 25) ||
+	    read_pair(io, Q35_VTD_CAP) != capability ||
+	    read_pair(io, Q35_VTD_ECAP) != extended ||
+	    read_pair(io, Q35_VTD_RTADDR) != root ||
+	    io->read32(io->context, Q35_VTD_GSTS) != status ||
+	    io->read32(io->context, Q35_VTD_VERSION) != version)
+		return -1;
+	return 0;
 }
 
 int q35_vtd_default_deny(const struct q35_vtd_io *io, uint32_t root_phys)
