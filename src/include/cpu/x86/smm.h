@@ -127,6 +127,16 @@ struct smm_dma_receipt_memory {
 };
 #endif
 
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+/* Loader-owned allocation geometry, not DMA protection evidence. */
+struct smm_dma_owned_memory {
+	uintptr_t table_base;
+	size_t table_size;
+	uintptr_t arena_base;
+	size_t arena_size;
+};
+#endif
+
 struct smm_runtime {
 	u32 smbase;
 	u32 smm_size;
@@ -166,6 +176,9 @@ struct smm_runtime {
 	size_t capsule_communication_size;
 	uintptr_t capsule_staging_base;
 	size_t capsule_staging_size;
+#endif
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+	struct smm_dma_owned_memory dma_owned_memory __aligned(sizeof(uintptr_t));
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP)
 	struct payload_mm_authvar_smm_arena_slot authvar_arena;
@@ -440,6 +453,10 @@ void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+bool platform_smm_dma_owned_memory(struct smm_dma_owned_memory *memory);
+bool smm_get_dma_owned_memory(const struct smm_dma_owned_memory **memory);
+#endif
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 bool platform_smm_dma_receipt_frame(uintptr_t *base, size_t *size);
 bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size);

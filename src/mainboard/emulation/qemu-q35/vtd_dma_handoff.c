@@ -9,6 +9,7 @@
 #include <commonlib/helpers.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
+#include <cpu/x86/smm.h>
 #include <delay.h>
 #include <device/device.h>
 #include <device/fw_cfg.h>
@@ -65,6 +66,8 @@
 static uint8_t *handoff_allocation;
 static uint8_t *table_allocation;
 static uint8_t *arena_allocation;
+static const struct cbmem_entry *table_allocation_entry;
+static const struct cbmem_entry *arena_allocation_entry;
 static struct device *edu_requester;
 static struct device *dma_devices[Q35_DMA_REQUESTERS];
 static uint16_t requester_bdfs[Q35_DMA_REQUESTERS];
@@ -739,6 +742,84 @@ static struct device *exact_device(uint16_t vendor, uint16_t device,
 	return bdf == expected_bdf ? found : NULL;
 }
 
+static bool dma_allocations_current(void)
+{
+	return table_allocation_entry && arena_allocation_entry &&
+		cbmem_entry_find(CBMEM_ID_Q35_VTD_TABLES) == table_allocation_entry &&
+		cbmem_entry_find(CBMEM_ID_Q35_DMA_ARENAS) == arena_allocation_entry &&
+		cbmem_entry_size(table_allocation_entry) == Q35_DMA_TABLE_BYTES &&
+		cbmem_entry_size(arena_allocation_entry) == Q35_DMA_ARENA_BYTES &&
+		cbmem_entry_start(table_allocation_entry) == table_allocation &&
+		cbmem_entry_start(arena_allocation_entry) == arena_allocation &&
+		table_allocation && arena_allocation &&
+		!((uintptr_t)table_allocation & (Q35_DMA_PAGE_SIZE - 1U)) &&
+		(uintptr_t)table_allocation <= UINT32_MAX - Q35_DMA_TABLE_BYTES &&
+		(uintptr_t)arena_allocation <= UINT32_MAX - Q35_DMA_ARENA_BYTES &&
+		((uintptr_t)table_allocation + Q35_DMA_TABLE_BYTES <=
+		 (uintptr_t)arena_allocation ||
+		 (uintptr_t)arena_allocation + Q35_DMA_ARENA_BYTES <=
+		 (uintptr_t)table_allocation);
+}
+
+static void q35_dma_prepare_allocations(void *unused)
+{
+	const struct cbmem_entry *blob_entry;
+	uintptr_t arena_base;
+
+	(void)unused;
+	/* The capsule loader accepts only allocations made by this boot's source. */
+	if (CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS) &&
+	    (table_allocation_entry || arena_allocation_entry ||
+	     cbmem_entry_find(CBMEM_ID_Q35_VTD_TABLES) ||
+	     cbmem_entry_find(CBMEM_ID_Q35_DMA_ARENAS)))
+		die("Q35 DMA: preexisting table or arena allocation is not owned\n");
+	if (CONFIG(PAYLOAD_DMA_HANDOFF)) {
+		blob_entry = cbmem_entry_add(CBMEM_ID_DMA_HANDOFF, Q35_DMA_BLOB_BYTES);
+		if (!blob_entry || cbmem_entry_size(blob_entry) != Q35_DMA_BLOB_BYTES)
+			die("Q35 DMA: modern handoff allocation size is not exact");
+		handoff_allocation = cbmem_entry_start(blob_entry);
+	}
+	table_allocation_entry = cbmem_entry_add(CBMEM_ID_Q35_VTD_TABLES,
+		Q35_DMA_TABLE_BYTES);
+	arena_allocation_entry = cbmem_entry_add(CBMEM_ID_Q35_DMA_ARENAS,
+		Q35_DMA_ARENA_BYTES);
+	if (!table_allocation_entry || !arena_allocation_entry)
+		die("Q35 DMA: resident table or arena allocation failed\n");
+	table_allocation = cbmem_entry_start(table_allocation_entry);
+	arena_allocation = cbmem_entry_start(arena_allocation_entry);
+	if (!handoff_allocation || !dma_allocations_current())
+		die("Q35 DMA: aligned split allocations failed\n");
+	memset(handoff_allocation, 0, Q35_DMA_BLOB_BYTES);
+	memset(table_allocation, 0, Q35_DMA_TABLE_BYTES);
+	memset(arena_allocation, 0, Q35_DMA_ARENA_BYTES);
+	arena_base = ALIGN_UP((uintptr_t)arena_allocation, Q35_DMA_PAGE_SIZE);
+	requester_arenas[0] = (void *)arena_base;
+	requester_arenas[1] = requester_arenas[0] +
+		Q35_NVME_ARENA_PAGES * Q35_DMA_PAGE_SIZE;
+	if ((uintptr_t)requester_arenas[1] +
+	    Q35_XHCI_ARENA_PAGES * Q35_DMA_PAGE_SIZE >
+	    (uintptr_t)arena_allocation + Q35_DMA_ARENA_BYTES)
+		die("Q35 DMA: aligned arena suballocations exceed reservation\n");
+}
+
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+/* CPU device initialization loads and locks SMM after these entry callbacks. */
+BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_ENTRY, q35_dma_prepare_allocations, NULL);
+
+bool platform_smm_dma_owned_memory(struct smm_dma_owned_memory *memory)
+{
+	if (!memory || !dma_allocations_current())
+		return false;
+	*memory = (struct smm_dma_owned_memory) {
+		.table_base = (uintptr_t)table_allocation,
+		.table_size = Q35_DMA_TABLE_BYTES,
+		.arena_base = (uintptr_t)arena_allocation,
+		.arena_size = Q35_DMA_ARENA_BYTES,
+	};
+	return true;
+}
+#endif
+
 static void q35_dma_backend_enable(void *unused)
 {
 	const struct q35_vtd_io io = {
@@ -747,11 +828,7 @@ static void q35_dma_backend_enable(void *unused)
 		.write32 = vtd_write32,
 		.commit_tables = commit_vtd_tables,
 	};
-	const struct cbmem_entry *blob_entry;
-	const struct cbmem_entry *table_entry;
-	const struct cbmem_entry *arena_entry;
 	uint8_t *root;
-	uintptr_t arena_base;
 	int result;
 
 	(void)unused;
@@ -779,36 +856,10 @@ static void q35_dma_backend_enable(void *unused)
 	if (!edu_bus_master_clear())
 		die("Q35 DMA: EDU BME could not be cleared");
 
-	if (CONFIG(PAYLOAD_DMA_HANDOFF)) {
-		blob_entry = cbmem_entry_add(CBMEM_ID_DMA_HANDOFF, Q35_DMA_BLOB_BYTES);
-		if (!blob_entry || cbmem_entry_size(blob_entry) != Q35_DMA_BLOB_BYTES)
-			die("Q35 DMA: modern handoff allocation size is not exact");
-		handoff_allocation = cbmem_entry_start(blob_entry);
-	}
-	table_entry = cbmem_entry_add(CBMEM_ID_Q35_VTD_TABLES, Q35_DMA_TABLE_BYTES);
-	if (!table_entry || cbmem_entry_size(table_entry) != Q35_DMA_TABLE_BYTES)
-		die("Q35 DMA: resident table allocation size is not exact");
-	table_allocation = cbmem_entry_start(table_entry);
-	arena_entry = cbmem_entry_add(CBMEM_ID_Q35_DMA_ARENAS,
-		Q35_DMA_ARENA_BYTES);
-	if (!arena_entry || cbmem_entry_size(arena_entry) != Q35_DMA_ARENA_BYTES)
-		die("Q35 DMA: resident arena allocation size is not exact");
-	arena_allocation = cbmem_entry_start(arena_entry);
-	if (!handoff_allocation || !table_allocation || !arena_allocation ||
-	    ((uintptr_t)table_allocation & (Q35_DMA_PAGE_SIZE - 1U)))
-		die("Q35 DMA: aligned split allocations failed");
-	if (handoff_allocation)
-		memset(handoff_allocation, 0, Q35_DMA_BLOB_BYTES);
-	memset(table_allocation, 0, Q35_DMA_TABLE_BYTES);
-	memset(arena_allocation, 0, Q35_DMA_ARENA_BYTES);
-	arena_base = ALIGN_UP((uintptr_t)arena_allocation, Q35_DMA_PAGE_SIZE);
-	requester_arenas[0] = (void *)arena_base;
-	requester_arenas[1] = requester_arenas[0] +
-		Q35_NVME_ARENA_PAGES * Q35_DMA_PAGE_SIZE;
-	if ((uintptr_t)requester_arenas[1] +
-	    Q35_XHCI_ARENA_PAGES * Q35_DMA_PAGE_SIZE >
-	    (uintptr_t)arena_allocation + Q35_DMA_ARENA_BYTES)
-		die("Q35 DMA: aligned arena suballocations exceed reservation");
+	if (!CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS))
+		q35_dma_prepare_allocations(NULL);
+	if (!dma_allocations_current())
+		die("Q35 DMA: owned allocation geometry changed before enable\n");
 	root = table_allocation;
 	if ((uintptr_t)root > UINT32_MAX - Q35_DMA_TABLE_BYTES)
 		die("Q35 DMA: QEMU legacy tables are not wholly below 4 GiB");
