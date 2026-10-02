@@ -4,9 +4,7 @@
 #define LIB_PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT_INTERNAL_H
 
 #include "payload_mm_fmp_owner_authvar_internal.h"
-
-enum cb_err payload_mm_fmp_owner_authvar_boot_install(
-	payload_mm_authvar_protected_storage storage_is_protected, void *context);
+#include <boot/payload_mm_fmp_boot.h>
 
 #if ENV_TEST
 void payload_mm_fmp_owner_authvar_boot_test_corrupt_control(bool sealed);
