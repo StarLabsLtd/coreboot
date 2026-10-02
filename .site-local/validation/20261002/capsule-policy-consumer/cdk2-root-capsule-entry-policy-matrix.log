@@ -1,0 +1,2 @@
+cdk2-capsule-runtime-entry-test: /home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:502: main: Assertion `retry_status == EFI_SUCCESS' failed.
+make: *** [/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style/src/boot/Makefile:3691: native-capsule-runtime-test] Aborted

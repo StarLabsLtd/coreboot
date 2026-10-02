@@ -1,0 +1,20 @@
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c: In function ‘main’:
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:33: error: implicit declaration of function ‘fprintf’ [-Wimplicit-function-declaration]
+  503 |                                 fprintf(stderr, "capsule scatter retry returned %#llx\n",
+      |                                 ^~~~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:13:1: note: include ‘<stdio.h>’ or provide a declaration of ‘fprintf’
+   12 | #include <cdk2/dxe_core_abi.h>
+  +++ |+#include <stdio.h>
+   13 | 
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:33: error: incompatible implicit declaration of built-in function ‘fprintf’ [-Werror=builtin-declaration-mismatch]
+  503 |                                 fprintf(stderr, "capsule scatter retry returned %#llx\n",
+      |                                 ^~~~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:33: note: include ‘<stdio.h>’ or provide a declaration of ‘fprintf’
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:41: error: ‘stderr’ undeclared (first use in this function)
+  503 |                                 fprintf(stderr, "capsule scatter retry returned %#llx\n",
+      |                                         ^~~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:41: note: ‘stderr’ is defined in header ‘<stdio.h>’; this is probably fixable by adding ‘#include <stdio.h>’
+/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style//tests/capsule_runtime_entry_test.c:503:41: note: each undeclared identifier is reported only once for each function it appears in
+cc1: all warnings being treated as errors
+make: *** [/home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style/src/boot/Makefile:5391: /home/sean/Documents/.cdk2-worktrees/capsule-delivery-policy-consumer-after-style/build/capsule-policy/native/cdk2-capsule-runtime-entry-test] Error 1
+make: *** Waiting for unfinished jobs....
