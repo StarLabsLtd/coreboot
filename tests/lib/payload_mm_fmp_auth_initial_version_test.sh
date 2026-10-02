@@ -10,7 +10,11 @@ compiler=${CC:-cc}
 mkdir -p "$temporary/include"
 printf '%s\n' '#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0' > "$temporary/include/config.h"
 common="-std=gnu11 -Wall -Wextra -Werror -fno-builtin -fno-pie -no-pie -ffunction-sections -fdata-sections -D__TEST__ -D__COREBOOT__ -D__SMM__"
-includes="-include $root/src/include/kconfig.h -include $root/src/include/rules.h -include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h -I$root/src -I$root/src/lib -I$root/src/lib/payload_mm_crypto -I$root/src/commonlib/include -I$root/src/commonlib/bsd/include -idirafter $root/src/include -I$root/src/arch/x86/include -I$temporary/include"
+includes="-include $root/src/include/kconfig.h -include $root/src/include/rules.h
+-include $root/src/commonlib/bsd/include/commonlib/bsd/compiler.h
+-I$root/src -I$root/src/lib -I$root/src/lib/payload_mm_crypto
+-I$root/src/commonlib/include -I$root/src/commonlib/bsd/include
+-idirafter $root/src/include -I$root/src/arch/x86/include -I$temporary/include"
 sanitizers='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer'
 export ASAN_OPTIONS=abort_on_error=1:detect_leaks=1
 export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
