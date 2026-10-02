@@ -1,0 +1,106 @@
+Read-only capsule authentication-reason parity audit, 2026-10-02
+
+Status: proposal only. No production, provider, wire, or durable-state change
+has been made. Actual normal Core RAM/SystemFmp native acceptance and native
+denials take priority. Generic execution failure remains EFI_DEVICE_ERROR.
+
+Source bindings
+
+Producer: b06f91d78a891e1d803ea48543bdf545231ef786, clean at inspection,
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385.
+Consumer: 0b4108e7abe31d76b0f125f0b806e770c7b95d96 (561),
+/home/sean/Documents/.cdk2-worktrees/system-fmp-mm-authentication-after560.
+Reference: local /home/sean/Documents/edk2, inspected with git show at
+aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272; not the mutable checkout.
+Line references below are to these exact source versions.
+
+Existing source contracts
+
+1. Producer src/lib/payload_mm_crypto/cms.c:1042 implements the actual image
+   authenticator. It initializes an explicit transient failure source, validates
+   framing, hashes signed payload plus monotonic count, verifies CMS/trust, then
+   rehashes payload/CMS/trust before publishing an outcome (1131-1179).
+   Input drift is VERIFY_CHANGED; allocation failure is VERIFY_NO_MEMORY.
+   The FINAL return passes through payload_mm_crypto_end at 1179, so the
+   detailed source field alone cannot establish the final failure class.
+
+2. Producer src/lib/payload_mm_crypto/crypto.c:515 implements the actual
+   detailed X.509 chain verifier. A well-formed untrusted chain rejected by
+   mbedtls_x509_crt_verify produces VERIFY_REJECTED with
+   CRYPTO_FAILURE_CAPSULE_SIGNATURE at 568-571. Malformed capsule certificate,
+   trust parse/policy failure, unsupported input and transient failure have
+   distinct classifications. cms.c:1156 maps the detailed signature source
+   into AUTH_FAILURE_CAPSULE_SIGNATURE only after the digest rechecks.
+
+3. Producer src/lib/payload_mm_fmp_auth_policy.c:615 currently collapses every
+   failure into CB_ERR. It requires an actual owner read, complete equality to
+   the expected record and presence (636-640), preserves the real durable floor,
+   and combines attempted-version rejection with authenticate_image failure
+   (646-649). Dependency/MSS1/board validation follows successful authentication.
+   No caller-supplied boolean or raw-image reserved field carries a reason.
+
+4. Producer src/lib/capsule_broker.c:590 authenticates the bound intent using
+   current execution/control checks and staging SHA before the callback.
+   Callback failure at 658 exits BEFORE the later execution and staging-hash
+   checks at 667-674. A future precise rejection result must not bypass those
+   rejection-path freshness checks or infer their success from a crypto reason.
+
+5. Producer src/lib/payload_mm_fmp_transaction.c:90 binds the real dispatch,
+   transaction/control, owner and prerequisites. CHECK success returns before
+   checkpoint/write (171-173); SET checkpoints, applies and finalizes (175-185).
+   finish at 77 can replace an earlier outcome on dispatch-completion failure.
+   Every failure closes the actual broker. A negative CHECK cannot be followed
+   by another accepted transaction merely because a modeled HOST fixture can.
+
+6. Producer src/lib/capsule_broker_transport.c:256 currently converts only the
+   final CB_SUCCESS/CB_ERR into last-attempt 0/1 and result SUCCESS/EXECUTION
+   (269-273), with control mismatch forcing generic error first. The existing
+   fixed reply is 40 bytes, last_attempt_status at offset 32 and result at 36:
+   src/include/boot/capsule_broker.h:91 and its static assertions. No new field
+   is needed to represent a numeric status, but compatibility semantics matter.
+
+7. Producer src/lib/payload_mm_fmp_state.c:71 validates the four presence flags
+   as 0/1; the 20-byte schema does not restrict the uint32 status to 0/1. Thus
+   status 5 is representable in durable storage, NOT currently transmitted or
+   written for failed authentication. Existing floor/flag monotonicity remains.
+
+8. Consumer src/modules/system_fmp/transport.c:390 and :538 accept only 0/1
+   last-attempt status; execute also requires success iff status zero. Older
+   consumers therefore reject status 5 as a bad response, fail-closed.
+   src/modules/system_fmp/session.c:75 maps EXECUTION_FAILED to EFI_DEVICE_ERROR.
+   Existing generic refusal must not be relabeled EFI_SECURITY_VIOLATION.
+
+Pinned reference qualification
+
+EDK2 MdePkg/Include/Guid/SystemResourceTable.h:41 defines standard AUTH_ERROR=5.
+SecurityPkg/Library/FmpAuthenticationLibPkcs7/FmpAuthenticationLibPkcs7.c:103
+returns RETURN_SECURITY_VIOLATION on actual PKCS7 verification failure.
+FmpDevicePkg/FmpDxe/FmpDxe.c:963 preserves the authentication EFI error and
+records a vendor DRIVER_ERROR_IMAGE_AUTH_FAILURE when no more specific local
+status exists. It does NOT justify claiming that all EDK2 FmpDxe paths use 5.
+
+Minimal future proposal for separate review, not approved implementation
+
+Carry a transaction-local, protected typed reason through authentication,
+broker, transaction completion and the authenticated response. Classify an
+authentication rejection only for FINAL VERIFY_REJECTED together with
+AUTH_FAILURE_CAPSULE_SIGNATURE and freshly successful owner/control/staging/
+DMA checks on the rejection path. Any changed input, wrong owner, resource,
+trust configuration, current hardware, checkpoint, media or finish failure
+must supersede that classification with the existing generic failure.
+
+If agreed, extend the existing reply's allowed status set narrowly to {0,1,5},
+retain success iff zero, and map ONLY the authenticated explicit auth status
+to EFI_SECURITY_VIOLATION / ImageUpdatable invalid. Keep legacy frontend CMS
+and generic errors unchanged. CHECK must preserve state and media exactly.
+Recording failed SET authentication durably is a separate owner transaction
+problem: current authentication fails before its checkpoint, so a precise
+reply alone does not prove durable failed-attempt history.
+
+Required causal/native proof before changing this contract: real trusted CMS
+positive; real rogue signer and signature corruption with precise final
+classification; framing/trust/resource/input/owner/current/finish/media drift
+remain generic; old consumer rejects unknown status; malformed success/status
+pairs refuse; CHECK whole media/state unchanged; no reason survives another
+SMI or a closed scope. Use genuine native producer and fresh failed-transaction
+VMs, not an allow callback or a seeded status. Native normal-flow work is open.
