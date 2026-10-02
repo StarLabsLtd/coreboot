@@ -1,0 +1,89 @@
++ set -eu
++ dirname -- tests/linear_config_test.sh
++ CDPATH= cd -- tests/..
++ pwd
++ root=/home/sean/Documents/cdk2
++ . /home/sean/Documents/cdk2/tests/scratch_make_environment.sh
++ cdk2_clear_scratch_make_environment
++ unset CDK2_CONFIG_READY
++ unset CDK2_CONFIG
++ unset CDK2_CONFIG_HEADER
++ unset CDK2_KCONFIG_AUTOCONFIG
++ unset CDK2_KCONFIG_AUTOHEADER
++ unset CDK2_KCONFIG_RUSTCCFG
++ unset CDK2_KCONFIG_SPLITCONFIG
++ unset CDK2_NATIVE_BUILD_DIR
++ unset CDK2_DEFCONFIG
++ unset MAKEFLAGS
++ unset MFLAGS
++ unset MAKEOVERRIDES
++ mktemp -d
++ tmp=/home/sean/tmp.oBjdOC9RNu
++ holder=
++ waiter=
++ supervisor=
++ trap exit_cleanup EXIT
++ trap signal_cleanup 129 HUP
++ trap signal_cleanup 130 INT
++ trap signal_cleanup 143 TERM
++ cp /home/sean/Documents/cdk2/defconfig /home/sean/tmp.oBjdOC9RNu/linear
++ echo CONFIG_CDK2_LINEAR_BOOT=y
++ make -s -C /home/sean/Documents/cdk2 CDK2_BUILD_DIR=/home/sean/tmp.oBjdOC9RNu/build-linear CDK2_DEFCONFIG=/home/sean/tmp.oBjdOC9RNu/linear defconfig
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+#
+# configuration written to /home/sean/tmp.oBjdOC9RNu/build-linear/.config
+#
++ grep -qx CONFIG_CDK2_LINEAR_BOOT=y /home/sean/tmp.oBjdOC9RNu/build-linear/.config
++ grep -qx CONFIG_CDK2_BOOT_TIMEOUT=0 /home/sean/tmp.oBjdOC9RNu/build-linear/.config
++ mkdir -p /home/sean/tmp.oBjdOC9RNu/build-canonical
++ printf %s\n # unrelated comment  CONFIG_CDK2_LINEAR_BOOT=y CONFIG_CDK2_BOOT_TIMEOUT=0
++ make -s -C /home/sean/Documents/cdk2 CDK2_BUILD_DIR=/home/sean/tmp.oBjdOC9RNu/build-canonical config
+#
+# configuration written to /home/sean/tmp.oBjdOC9RNu/build-canonical/.config
+#
++ grep -qx #define CONFIG_CDK2_LINEAR_BOOT 1 /home/sean/tmp.oBjdOC9RNu/build-canonical/include/cdk2/config.h
++ grep -qx #define CONFIG_CDK2_BOOT_TIMEOUT 0 /home/sean/tmp.oBjdOC9RNu/build-canonical/include/cdk2/config.h
++ mkdir -p /home/sean/tmp.oBjdOC9RNu/build-not-set
++ printf %s\n # CONFIG_CDK2_LINEAR_BOOT is not set
++ make -s -C /home/sean/Documents/cdk2 CDK2_BUILD_DIR=/home/sean/tmp.oBjdOC9RNu/build-not-set config
+#
+# configuration written to /home/sean/tmp.oBjdOC9RNu/build-not-set/.config
+#
++ grep -qx #define CONFIG_CDK2_LINEAR_BOOT 0 /home/sean/tmp.oBjdOC9RNu/build-not-set/include/cdk2/config.h
++ exit_cleanup
++ status=1
++ trap - EXIT HUP INT TERM
++ cleanup_status=0
++ cleanup
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ attempt=0
++ test 0 -lt 100
++ alive=false
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ test false = true
++ break
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ test -n 
++ continue
++ rm -rf /home/sean/tmp.oBjdOC9RNu
++ test 1 -eq 0
++ exit 1
