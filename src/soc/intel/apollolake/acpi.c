@@ -137,7 +137,9 @@ static unsigned long soc_fill_dmar(unsigned long current)
 		tmp = current;
 		union p2sb_bdf ibdf = p2sb_get_ioapic_bdf();
 		union p2sb_bdf hbdf = p2sb_get_hpet_bdf();
-		p2sb_hide();
+		if (!p2sb_hide())
+			die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 		current += acpi_create_dmar_drhd_4k(current,
 				DRHD_INCLUDE_PCI_ALL, 0, defvtbar);

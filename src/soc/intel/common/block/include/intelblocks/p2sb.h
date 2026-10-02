@@ -24,8 +24,8 @@ enum {
 	P2SB_EP_MASK_MAX_REG,
 };
 
-void p2sb_unhide(void);
-void p2sb_hide(void);
+bool p2sb_unhide(void);
+bool p2sb_hide(void);
 void p2sb_disable_sideband_access(void);
 void p2sb_enable_bar(void);
 void p2sb_configure_hpet(void);

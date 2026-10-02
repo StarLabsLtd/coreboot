@@ -119,7 +119,9 @@ static void chip_final(void *data)
 	set_imc_locks();
 	set_upi_locks();
 
-	p2sb_hide();
+	if (!p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 	iio_enable_masks();
 }
 
@@ -134,7 +136,9 @@ static void chip_init(void *data)
 	override_hpet_ioapic_bdf();
 	pch_enable_ioapic();
 	pch_lock_dmictl();
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 }
 
 struct chip_operations soc_intel_xeon_sp_cpx_ops = {
