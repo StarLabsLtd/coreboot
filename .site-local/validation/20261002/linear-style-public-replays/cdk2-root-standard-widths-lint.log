@@ -1,0 +1,19 @@
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#10: FILE: tests/software_hash_test.c:10:
++		unsigned value;
+
+WARNING:MACRO_WITH_FLOW_CONTROL: Macros with flow control statements should be avoided
+#42: FILE: tests/software_hash_test.c:42:
++#define CHECK(x)                                                    \
++	do {                                                        \
++		if (!(x)) {                                         \
++			fprintf(stderr, "software hash: %s\n", #x); \
++			return 1;                                   \
++		}                                                   \
++	} while (0)
+
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(algorithms)
+#93: FILE: tests/software_hash_test.c:93:
++	for (size_t ai = 0; ai < sizeof(algorithms) / sizeof(algorithms[0]); ai++) {
+
+total: 0 errors, 3 warnings, 151 lines checked

@@ -1,0 +1,15 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/.config
+#
+0	4096	4096	PE
+Native service component artifacts: /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/native/protected-variable-service-component/run.Yoo82m
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Native service Auth2 inputs: PK setup bypass; PK-signed KEK; KEK-signed db; valid untrusted-signer KEK
+Found file config at 0x320c0, type raw, compressed 3174, size 11184
+Found file q35/native-apmc at 0x3a180, type raw, compressed 12, size 12
+Native real SMM service Auth2/policy/PE/IRQ component: PASS (production boot guard held)
+Native second-boot enrolled key media readback and unsigned-image denial: PASS
+Native compiled CoreLoadImage CLI-discard mutant: correctly refused before enrollment
