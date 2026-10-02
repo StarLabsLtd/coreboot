@@ -44,7 +44,8 @@
 
 #define SMM_CODE_SEGMENT_SIZE 0x10000
 
-#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) || \
+	CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
 static bool spans_overlap(uintptr_t first, size_t first_size,
 	uintptr_t second, size_t second_size)
 {
@@ -563,6 +564,36 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 			mod_params->capsule_communication_base + communication_size;
 		mod_params->capsule_staging_size = staging_size;
 #endif
+	}
+#endif
+
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+	{
+		struct smm_dma_owned_memory memory;
+		struct capsule_broker_buffer_reservation reservation;
+
+		if (!platform_smm_dma_owned_memory(&memory) ||
+		    !capsule_broker_buffers_find(&reservation) ||
+		    !memory.table_base || !memory.table_size ||
+		    !memory.arena_base || !memory.arena_size ||
+		    memory.table_base > UINTPTR_MAX - (memory.table_size - 1U) ||
+		    memory.arena_base > UINTPTR_MAX - (memory.arena_size - 1U) ||
+		    (memory.table_base & 4095U) || (memory.table_size & 4095U) ||
+		    !tseg_size || tseg_base > UINTPTR_MAX - (tseg_size - 1U) ||
+		    spans_overlap(memory.table_base, memory.table_size,
+			memory.arena_base, memory.arena_size) ||
+		    spans_overlap(memory.table_base, memory.table_size, tseg_base, tseg_size) ||
+		    spans_overlap(memory.arena_base, memory.arena_size, tseg_base, tseg_size) ||
+		    spans_overlap(memory.table_base, memory.table_size,
+			reservation.communication_base, reservation.communication_reserved_size) ||
+		    spans_overlap(memory.table_base, memory.table_size,
+			reservation.staging_base, reservation.staging_size) ||
+		    spans_overlap(memory.arena_base, memory.arena_size,
+			reservation.communication_base, reservation.communication_reserved_size) ||
+		    spans_overlap(memory.arena_base, memory.arena_size,
+			reservation.staging_base, reservation.staging_size))
+			die("SMM: invalid owned DMA allocations\n");
+		mod_params->dma_owned_memory = memory;
 	}
 #endif
 

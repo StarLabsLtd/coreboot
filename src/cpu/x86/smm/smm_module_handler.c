@@ -65,7 +65,8 @@ static const volatile
 __attribute((aligned(SMM_RUNTIME_ALIGNMENT), __section__(".module_parameters")))
 	struct smm_runtime smm_runtime;
 
-#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
+#if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION) || \
+	CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
 static bool spans_overlap(uintptr_t first, size_t first_size,
 	uintptr_t second, size_t second_size)
 {
@@ -467,6 +468,71 @@ void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size)
 	*base = smm_runtime.payload_spi_console_buffer_base;
 	*size = smm_runtime.payload_spi_console_buffer_size;
 }
+
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+bool smm_get_dma_owned_memory(const struct smm_dma_owned_memory **memory)
+{
+	const struct smm_invocation_runtime_view *view;
+	const struct smm_dma_owned_memory *value =
+		(const void *)&smm_runtime.dma_owned_memory;
+	struct smm_dma_owned_memory snapshot;
+	struct runtime_geometry_snapshot geometry;
+	struct capsule_broker_buffer_reservation reservation;
+	const uintptr_t smram_base = smm_runtime.smbase;
+	const size_t smram_size = smm_runtime.smm_size;
+
+	if (!runtime_output_valid((uintptr_t)memory, sizeof(*memory),
+		_Alignof(*memory)) ||
+	    !runtime_geometry_snapshot((uintptr_t)memory, sizeof(*memory), &geometry) ||
+	    smm_invocation_runtime_view_get(&view) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, memory,
+		sizeof(*memory)) != CB_SUCCESS ||
+	    smm_invocation_runtime_range_is_protected(view, value,
+		sizeof(*value)) != CB_SUCCESS)
+		return false;
+	snapshot = (struct smm_dma_owned_memory) {
+		.table_base = smm_runtime.dma_owned_memory.table_base,
+		.table_size = smm_runtime.dma_owned_memory.table_size,
+		.arena_base = smm_runtime.dma_owned_memory.arena_base,
+		.arena_size = smm_runtime.dma_owned_memory.arena_size,
+	};
+	smm_get_capsule_broker_buffers(&reservation);
+	if (!snapshot.table_base || !snapshot.table_size ||
+	    !snapshot.arena_base || !snapshot.arena_size ||
+	    snapshot.table_base > UINTPTR_MAX - (snapshot.table_size - 1U) ||
+	    snapshot.arena_base > UINTPTR_MAX - (snapshot.arena_size - 1U) ||
+	    (snapshot.table_base & 4095U) || (snapshot.table_size & 4095U) ||
+	    !smram_size || smram_base > UINTPTR_MAX - (smram_size - 1U) ||
+	    !reservation.communication_base || !reservation.communication_reserved_size ||
+	    !reservation.staging_base || !reservation.staging_size ||
+	    reservation.communication_base > UINTPTR_MAX -
+		(reservation.communication_reserved_size - 1U) ||
+	    reservation.staging_base > UINTPTR_MAX - (reservation.staging_size - 1U) ||
+	    spans_overlap(snapshot.table_base, snapshot.table_size,
+		snapshot.arena_base, snapshot.arena_size) ||
+	    spans_overlap(snapshot.table_base, snapshot.table_size, smram_base, smram_size) ||
+	    spans_overlap(snapshot.arena_base, snapshot.arena_size, smram_base, smram_size) ||
+	    spans_overlap(snapshot.table_base, snapshot.table_size,
+		reservation.communication_base, reservation.communication_reserved_size) ||
+	    spans_overlap(snapshot.table_base, snapshot.table_size,
+		reservation.staging_base, reservation.staging_size) ||
+	    spans_overlap(snapshot.arena_base, snapshot.arena_size,
+		reservation.communication_base, reservation.communication_reserved_size) ||
+	    spans_overlap(snapshot.arena_base, snapshot.arena_size,
+		reservation.staging_base, reservation.staging_size) ||
+	    snapshot.table_base != smm_runtime.dma_owned_memory.table_base ||
+	    snapshot.table_size != smm_runtime.dma_owned_memory.table_size ||
+	    snapshot.arena_base != smm_runtime.dma_owned_memory.arena_base ||
+	    snapshot.arena_size != smm_runtime.dma_owned_memory.arena_size ||
+	    smram_base != smm_runtime.smbase || smram_size != smm_runtime.smm_size ||
+	    !runtime_geometry_unchanged(&geometry, (uintptr_t)memory, sizeof(*memory)) ||
+	    smm_invocation_runtime_range_is_protected(view, value,
+		sizeof(*value)) != CB_SUCCESS)
+		return false;
+	*memory = value;
+	return true;
+}
+#endif
 
 #if CONFIG(STARLABS_STARBOOK_MTL_DMA_SMM_RECEIPT_PROVISION)
 bool smm_get_dma_receipt_frame(uintptr_t *base, size_t *size)
