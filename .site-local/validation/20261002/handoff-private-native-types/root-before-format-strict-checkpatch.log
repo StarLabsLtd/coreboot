@@ -1,0 +1,107 @@
+CHECK: Prefer kernel type 'u8' over 'uint8_t'
+#15: FILE: src/modules/system_fmp/handoff.c:15:
++static bool guid_present(const uint8_t guid[16])
+
+CHECK: Prefer kernel type 'u8' over 'uint8_t'
+#17: FILE: src/modules/system_fmp/handoff.c:17:
++	uint8_t bits = 0U;
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#25: FILE: src/modules/system_fmp/handoff.c:25:
++static bool range_valid(uint64_t offset, uint64_t size, uint64_t limit)
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#30: FILE: src/modules/system_fmp/handoff.c:30:
++static bool ranges_overlap(uint64_t left_offset, uint64_t left_size,
+
+CHECK: Alignment should match open parenthesis
+#31: FILE: src/modules/system_fmp/handoff.c:31:
++static bool ranges_overlap(uint64_t left_offset, uint64_t left_size,
++	uint64_t right_offset, uint64_t right_size)
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#31: FILE: src/modules/system_fmp/handoff.c:31:
++	uint64_t right_offset, uint64_t right_size)
+
+CHECK: Alignment should match open parenthesis
+#38: FILE: src/modules/system_fmp/handoff.c:38:
++static EFI_STATUS validate_regions(const struct cb_capsule_handoff *record,
++	struct cdk2_system_fmp_handoff *candidate)
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#40: FILE: src/modules/system_fmp/handoff.c:40:
++	uint64_t smmstore_offset = unpack64(record->smmstore_offset);
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#41: FILE: src/modules/system_fmp/handoff.c:41:
++	uint64_t smmstore_size = unpack64(record->smmstore_size);
+
+CHECK: Prefer kernel type 'u32' over 'uint32_t'
+#42: FILE: src/modules/system_fmp/handoff.c:42:
++	uint32_t bios_regions = 0U;
+
+CHECK: Prefer kernel type 'u32' over 'uint32_t'
+#43: FILE: src/modules/system_fmp/handoff.c:43:
++	uint32_t index;
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#48: FILE: src/modules/system_fmp/handoff.c:48:
++		uint64_t image_offset = unpack64(source->image_offset);
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#49: FILE: src/modules/system_fmp/handoff.c:49:
++		uint64_t flash_offset = unpack64(source->flash_offset);
+
+CHECK: Prefer kernel type 'u64' over 'uint64_t'
+#50: FILE: src/modules/system_fmp/handoff.c:50:
++		uint64_t size = unpack64(source->size);
+
+CHECK: Prefer kernel type 'u32' over 'uint32_t'
+#51: FILE: src/modules/system_fmp/handoff.c:51:
++		uint32_t previous;
+
+CHECK: Alignment should match open parenthesis
+#61: FILE: src/modules/system_fmp/handoff.c:61:
++		    ranges_overlap(flash_offset, size, smmstore_offset,
++			smmstore_size))
+
+CHECK: Alignment should match open parenthesis
+#68: FILE: src/modules/system_fmp/handoff.c:68:
++			if (ranges_overlap(image_offset, size, other->image_offset,
++				    other->size) ||
+
+CHECK: Alignment should match open parenthesis
+#70: FILE: src/modules/system_fmp/handoff.c:70:
++			    ranges_overlap(flash_offset, size, other->flash_offset,
++				    other->size))
+
+CHECK: Lines should not end with a '('
+#84: FILE: src/modules/system_fmp/handoff.c:84:
++EFI_STATUS cdk2_system_fmp_handoff_from_coreboot(
+
+CHECK: Alignment should match open parenthesis
+#99: FILE: src/modules/system_fmp/handoff.c:99:
++	status = cdk2_coreboot_find_unique_record(coreboot, CB_TAG_FW_INFO,
++		sizeof(*firmware), &found);
+
+CHECK: Alignment should match open parenthesis
+#104: FILE: src/modules/system_fmp/handoff.c:104:
++	status = cdk2_coreboot_find_unique_record(coreboot,
++		CB_TAG_CAPSULE_HANDOFF, sizeof(*record), &found);
+
+CHECK: Alignment should match open parenthesis
+#154: FILE: src/modules/system_fmp/handoff.c:154:
++	memcpy(&candidate.image_type, record->image_type_guid,
++		sizeof(candidate.image_type));
+
+total: 0 errors, 0 warnings, 22 checks, 160 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+src/modules/system_fmp/handoff.c has style problems, please review.
+
+NOTE: Ignored message types: ASSIGN_IN_IF AVOID_EXTERNS BLOCK_COMMENT_STYLE COMPARISON_TO_NULL CONFIG_DESCRIPTION CORRUPTED_PATCH EXECUTE_PERMISSIONS FILE_PATH_CHANGES GERRIT_CHANGE_ID GLOBAL_INITIALISERS INITIALISED_STATIC LINE_SPACING MISSING_SPACE NEW_TYPEDEFS PREFER_DEFINED_ATTRIBUTE_MACRO PRINTK_WITHOUT_KERN_LEVEL SPDX_LICENSE_TAG SPLIT_STRING UNDOCUMENTED_DT_STRING UNNECESSARY_ELSE VOLATILE
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.
