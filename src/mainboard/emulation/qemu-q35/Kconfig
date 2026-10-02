@@ -109,10 +109,12 @@ config Q35_SMM_CAPSULE_BROKER_BUFFERS
 	select CAPSULE_BROKER_CONTRACT
 	select CAPSULE_BROKER_FIXED_BUFFERS
 	select CAPSULE_BROKER_CBMEM_BUFFERS
+	select SMM_PCI_RESOURCE_STORE
 	help
 	  Reserve the existing early CBMEM communication and staging buffers and
-	  import their actual geometry into the SMM loader. This provides allocation
-	  ownership only; it installs no writer, endpoint or DMA protection proof.
+	  import their actual geometry and assigned PCI resources into the SMM
+	  loader. Retire the fixed cold controllers before capture and recheck the
+	  current deny tables before handoff. This installs no writer or endpoint.
 
 config Q35_SMM_CAPSULE_BROKER
 	bool "QEMU-only protected state owner for typed firmware capsules"
