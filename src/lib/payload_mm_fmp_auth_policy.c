@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "payload_mm_crypto/crypto.h"
 #include "payload_mm_authvar_internal.h"
 #include "payload_mm_fmp_owner_internal.h"
 
@@ -612,7 +613,8 @@ static bool board_matches(const uint8_t *image, size_t size)
 		!memcmp(part.data, auth_policy.part, part.size);
 }
 
-static enum cb_err authenticate(const void *image, size_t image_size,
+static enum capsule_broker_authentication_status authenticate(const void *image,
+	size_t image_size,
 	uint32_t attempted_version,
 	const struct payload_mm_fmp_owner_record *expected_record,
 	struct capsule_broker_raw_image *raw_image)
@@ -629,6 +631,9 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 	uint32_t header_size;
 	uint32_t installed_version;
 	uint32_t lowest_version;
+	enum payload_mm_verify_status verified;
+	enum capsule_broker_authentication_status status =
+		CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	bool valid = false;
 
 	memset(&record, 0, sizeof(record));
@@ -643,10 +648,17 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 	lowest_version = auth_policy.trusted_lowest_version;
 	if (record.data[1] && read_le32(record.data + 8) > lowest_version)
 		lowest_version = read_le32(record.data + 8);
-	if (attempted_version < lowest_version ||
-	    payload_mm_authenticate_image(&auth_policy.crypto, &image_span,
-		&trust_span, &authenticated) != PAYLOAD_MM_VERIFY_OK)
+	if (attempted_version < lowest_version)
 		goto out;
+	verified = payload_mm_authenticate_image(&auth_policy.crypto, &image_span,
+		&trust_span, &authenticated);
+	if (verified != PAYLOAD_MM_VERIFY_OK) {
+		if (verified == PAYLOAD_MM_VERIFY_REJECTED &&
+		    authenticated.failure_source == PAYLOAD_MM_AUTH_FAILURE_CAPSULE_SIGNATURE &&
+		    payload_mm_crypto_owner_is_clean(&auth_policy.crypto))
+			status = CAPSULE_BROKER_SIGNATURE_REFUSED;
+		goto out;
+	}
 	payload = authenticated.payload.data;
 	payload_size = authenticated.payload.size;
 	if (payload_size < MSS1_HEADER_SIZE + 1)
@@ -688,35 +700,37 @@ static enum cb_err authenticate(const void *image, size_t image_size,
 out:
 	memset(&record, 0, sizeof(record));
 	memset(&authenticated, 0, sizeof(authenticated));
-	return valid ? CB_SUCCESS : CB_ERR;
+	return valid ? CAPSULE_BROKER_AUTHENTICATED : status;
 }
 
-enum cb_err payload_mm_fmp_authenticate_provider(const void *context,
+enum capsule_broker_authentication_status payload_mm_fmp_authenticate_provider(
+	const void *context,
 	const void *capsule, size_t capsule_size, uint32_t attempted_version,
 	const struct payload_mm_fmp_owner_record *owner_record,
 	struct capsule_broker_raw_image *raw_image)
 {
 	struct payload_mm_fmp_owner_record owner_snapshot;
-	enum cb_err status = CB_ERR;
+	enum capsule_broker_authentication_status status =
+		CAPSULE_BROKER_AUTHENTICATION_FAILED;
 
 	if (!raw_image || payload_mm_authvar_buffers_overlap(raw_image,
 		sizeof(*raw_image), &auth_policy, sizeof(auth_policy)) ||
 	    (capsule && payload_mm_authvar_buffers_overlap(raw_image,
 		sizeof(*raw_image), capsule, capsule_size)))
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	memset(raw_image, 0, sizeof(*raw_image));
 	if (context || !auth_policy.installed || auth_policy.busy || !capsule ||
 	    !capsule_size || !owner_record || !owner_record->sequence ||
 	    payload_mm_fmp_owner_storage_overlaps(capsule, capsule_size) ||
 	    payload_mm_authvar_buffers_overlap(capsule, capsule_size, &auth_policy,
 		sizeof(auth_policy)))
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	owner_snapshot = *owner_record;
 	auth_policy.busy = true;
 	status = authenticate(capsule, capsule_size, attempted_version,
 		&owner_snapshot, raw_image);
 	auth_policy.busy = false;
-	if (status != CB_SUCCESS)
+	if (status != CAPSULE_BROKER_AUTHENTICATED)
 		memset(raw_image, 0, sizeof(*raw_image));
 	return status;
 }

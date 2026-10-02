@@ -307,7 +307,7 @@ int main(int argc, char **argv)
 	digest(staging, capsule_size, intent.digest);
 	staged_intent = &intent;
 	assert(capsule_broker_authenticate_intent_bound(staged_intent, &owner) ==
-		CB_SUCCESS);
+		CAPSULE_BROKER_AUTHENTICATED);
 	assert(capsule_broker_checkpoint_grant_bound(GENERATION, 1, 3, 1, 2,
 		intent.digest) == CB_SUCCESS);
 	assert(capsule_broker_apply_intent(staged_intent) == CB_SUCCESS);

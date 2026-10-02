@@ -587,7 +587,7 @@ enum cb_err capsule_broker_policy_install(
 	return CB_SUCCESS;
 }
 
-static enum cb_err authenticate_intent(
+static enum capsule_broker_authentication_status authenticate_intent(
 	const struct payload_mm_fmp_capsule_intent *intent_source,
 	const struct payload_mm_fmp_owner_record *owner_source)
 {
@@ -600,26 +600,27 @@ static enum cb_err authenticate_intent(
 	struct capsule_broker_raw_image raw_image = { 0 };
 	const void *authenticate_context = NULL;
 	void *staging;
-	enum cb_err callback_status;
-	enum cb_err status = CB_ERR;
+	enum capsule_broker_authentication_status callback_status;
+	enum capsule_broker_authentication_status status =
+		CAPSULE_BROKER_AUTHENTICATION_FAILED;
 
 	if (!broker.installed || broker.closed || broker.authentication_in_progress ||
 	    (broker.policy.revision == CAPSULE_BROKER_POLICY_RAM_REVISION &&
 	     !capsule_broker_ram_window_open()))
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	if (broker.grant_valid) {
 		clear_grant();
 		broker.closed = true;
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	}
 	if (broker.authentication_valid) {
 		clear_authentication();
 		broker.closed = true;
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	}
 	if (!intent_source || !owner_source ||
 	    intent_source != payload_mm_fmp_dispatch_capsule_intent())
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	memcpy(&intent, intent_source, sizeof(intent));
 	owner = *owner_source;
 	expected_owner = owner;
@@ -632,7 +633,7 @@ static enum cb_err authenticate_intent(
 		intent.capsule_size) ||
 	    intent.digest_algorithm != PAYLOAD_MM_FMP_CAPSULE_DIGEST_SHA256 ||
 	    intent.digest_size != sizeof(intent.digest))
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	broker.authentication_in_progress = true;
 	staging = (void *)(uintptr_t)
 		unpack64(broker.policy.endpoint.staging_base);
@@ -655,14 +656,16 @@ static enum cb_err authenticate_intent(
 		&owner, &callback_raw_image);
 	raw_image = callback_raw_image;
 	memset(&callback_raw_image, 0, sizeof(callback_raw_image));
-	if (callback_status != CB_SUCCESS ||
+	if ((callback_status != CAPSULE_BROKER_AUTHENTICATED &&
+	     callback_status != CAPSULE_BROKER_SIGNATURE_REFUSED) ||
 	    memcmp(&owner, &expected_owner, sizeof(owner)) ||
-	    !authentication_state_valid() || !raw_image.size ||
-	    raw_image.size != broker.policy.raw_image_size ||
-	    raw_image.lowest_supported_version > intent.attempted_version ||
-	    raw_image.reserved ||
-	    raw_image.offset > intent.capsule_size ||
-	    raw_image.size > intent.capsule_size - raw_image.offset)
+	    !authentication_state_valid())
+		goto out;
+	if (callback_status == CAPSULE_BROKER_AUTHENTICATED &&
+	    (!raw_image.size || raw_image.size != broker.policy.raw_image_size ||
+	     raw_image.lowest_supported_version > intent.attempted_version ||
+	     raw_image.reserved || raw_image.offset > intent.capsule_size ||
+	     raw_image.size > intent.capsule_size - raw_image.offset))
 		goto out;
 	if (!execution_guard() || !authentication_state_valid())
 		goto out;
@@ -672,6 +675,11 @@ static enum cb_err authenticate_intent(
 	    !authentication_state_valid() ||
 	    memcmp(digest, intent.digest, sizeof(digest)))
 		goto out;
+	if (callback_status == CAPSULE_BROKER_SIGNATURE_REFUSED) {
+		if (intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK)
+			status = CAPSULE_BROKER_SIGNATURE_REFUSED;
+		goto out;
+	}
 	if (intent.operation == PAYLOAD_MM_FMP_CAPSULE_SET) {
 		broker.authenticated_transaction = intent.transaction;
 		broker.authenticated_owner_sequence = owner.sequence;
@@ -681,23 +689,23 @@ static enum cb_err authenticate_intent(
 		broker.authenticated_raw_image = raw_image;
 		broker.authentication_valid = true;
 	}
-	status = CB_SUCCESS;
+	status = CAPSULE_BROKER_AUTHENTICATED;
 out:
 	broker.authentication_in_progress = false;
 	memset(&callback_raw_image, 0, sizeof(callback_raw_image));
 	memset(&raw_image, 0, sizeof(raw_image));
-	if (status != CB_SUCCESS ||
+	if (status != CAPSULE_BROKER_AUTHENTICATED ||
 	    intent.operation == PAYLOAD_MM_FMP_CAPSULE_CHECK)
 		clear_authentication();
 	return status;
 }
 
-enum cb_err capsule_broker_authenticate_intent_bound(
+enum capsule_broker_authentication_status capsule_broker_authenticate_intent_bound(
 	const struct payload_mm_fmp_capsule_intent *intent,
 	const struct payload_mm_fmp_owner_record *owner_record)
 {
 	if (!owner_record || !owner_record->sequence)
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	return authenticate_intent(intent, owner_record);
 }
 

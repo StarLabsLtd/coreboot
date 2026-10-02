@@ -7,8 +7,38 @@
 #include <string.h>
 #include <unistd.h>
 
+extern int dprintf(int fd, const char *format, ...);
+extern void abort(void) __attribute__((noreturn));
+
 #include <payload_mm_fmp_auth_policy.h>
 #include "payload_mm_fmp_owner_internal.h"
+#include "payload_mm_crypto/crypto.h"
+
+#ifdef REAL_AUTH
+static bool fail_crypto_cleanup;
+static bool fail_crypto_allocation;
+static bool leave_crypto_dirty;
+static struct payload_mm_crypto_owner *cleanup_owner;
+
+enum payload_mm_verify_status __real_payload_mm_crypto_end(
+	struct payload_mm_crypto_owner *owner, enum payload_mm_verify_status status);
+
+enum payload_mm_verify_status __wrap_payload_mm_crypto_end(
+	struct payload_mm_crypto_owner *owner, enum payload_mm_verify_status status)
+{
+	if (leave_crypto_dirty) {
+		cleanup_owner = owner;
+		return status;
+	}
+	if (fail_crypto_cleanup) {
+		cleanup_owner = owner;
+		return __real_payload_mm_crypto_end(NULL, status);
+	}
+	if (fail_crypto_allocation)
+		owner->allocation_failed = true;
+	return __real_payload_mm_crypto_end(owner, status);
+}
+#endif
 
 #define ROM_SIZE 4096U
 #define AUTH_SIZE (9U * 1024U * 1024U)
@@ -61,11 +91,10 @@ static void write_file(const char *path, const uint8_t *data, size_t size)
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
 {
-	(void)expression;
-	(void)file;
-	(void)line;
-	if (!result)
-		__builtin_trap();
+	if (!result) {
+		dprintf(2, "%s:%d: assertion failed: %s\n", file, line, expression);
+		abort();
+	}
 }
 
 static void put_le16(uint8_t *data, uint16_t value)
@@ -228,6 +257,12 @@ bool payload_mm_authvar_buffers_overlap(const void *left, size_t left_size,
 }
 
 #ifndef REAL_AUTH
+bool payload_mm_crypto_owner_is_clean(const struct payload_mm_crypto_owner *owner)
+{
+	(void)owner;
+	return true;
+}
+
 enum payload_mm_verify_status payload_mm_authenticate_image(
 	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_crypto_span *image,
@@ -243,7 +278,7 @@ enum payload_mm_verify_status payload_mm_authenticate_image(
 		struct capsule_broker_raw_image raw_image;
 
 		assert(payload_mm_fmp_authenticate_provider(NULL, image->data,
-			image->size, 3, &state, &raw_image) == CB_ERR);
+			image->size, 3, &state, &raw_image) == CAPSULE_BROKER_AUTHENTICATION_FAILED);
 	}
 	if (!verify_ok)
 		return PAYLOAD_MM_VERIFY_REJECTED;
@@ -346,7 +381,7 @@ int main(int argc, char **argv)
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
+			auth_used, 3, &state, &raw_image) == CAPSULE_BROKER_AUTHENTICATED);
 		assert(raw_image.size == rom_size &&
 			raw_image.offset + raw_image.size == auth_used &&
 			raw_image.lowest_supported_version == 2 &&
@@ -357,7 +392,7 @@ int main(int argc, char **argv)
 #ifdef REAL_AUTH
 	if (argc == 4 && !strncmp(argv[1], "real", 4)) {
 		struct payload_mm_fmp_owner_record expected;
-		enum cb_err status;
+		enum capsule_broker_authentication_status status;
 		bool reject;
 
 		prepare();
@@ -367,6 +402,11 @@ int main(int argc, char **argv)
 		value = policy();
 		assert(payload_mm_fmp_auth_policy_install(&value,
 			protected_storage, &value) == CB_SUCCESS);
+		if (!strncmp(argv[1], "real-cold-corrupt", 17))
+			auth_image[auth_used - 1] ^= 1;
+		fail_crypto_cleanup = !strcmp(argv[1], "real-cold-corrupt-cleanup");
+		fail_crypto_allocation = !strcmp(argv[1], "real-cold-corrupt-allocation");
+		leave_crypto_dirty = !strcmp(argv[1], "real-cold-corrupt-dirty");
 		if (strcmp(argv[1], "real") && strncmp(argv[1], "real-present", 12))
 			cold_state();
 		if (!strcmp(argv[1], "real-cold-floor")) {
@@ -394,14 +434,22 @@ int main(int argc, char **argv)
 			!strcmp(argv[1], "real-present-dependency") ||
 			!strcmp(argv[1], "real-cold-drift") ||
 			!strcmp(argv[1], "real-cold-aba") ||
-			!strcmp(argv[1], "real-cold-rogue");
+			!strcmp(argv[1], "real-cold-rogue") ||
+			!strncmp(argv[1], "real-cold-corrupt", 17);
 		status = payload_mm_fmp_authenticate_provider(NULL, auth_image,
 			auth_used, 3, &expected, &raw_image);
 		if (reject) {
-			assert(status == CB_ERR);
+			assert(status == ((!strcmp(argv[1], "real-cold-rogue") ||
+				!strcmp(argv[1], "real-cold-corrupt")) ?
+				CAPSULE_BROKER_SIGNATURE_REFUSED :
+				CAPSULE_BROKER_AUTHENTICATION_FAILED));
 			assert(raw_image.offset == 0 && raw_image.size == 0);
+			if (fail_crypto_cleanup || leave_crypto_dirty) {
+				assert(!payload_mm_crypto_owner_is_clean(cleanup_owner));
+				assert(payload_mm_crypto_abort(cleanup_owner));
+			}
 		} else {
-			assert(status == CB_SUCCESS);
+			assert(status == CAPSULE_BROKER_AUTHENTICATED);
 			assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
 				raw_image.size <= auth_used - raw_image.offset &&
 				raw_image.lowest_supported_version == 2 &&
@@ -532,7 +580,7 @@ int main(int argc, char **argv)
 
 		state.data[4] ^= 1;
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &expected, &raw_image) == CB_ERR);
+			auth_used, 3, &expected, &raw_image) == CAPSULE_BROKER_AUTHENTICATION_FAILED);
 		assert(raw_image.offset == 0 && raw_image.size == 0);
 		assert(state.sequence == expected.sequence);
 		assert(memcmp(&state, &expected, sizeof(state)) != 0);
@@ -543,7 +591,7 @@ int main(int argc, char **argv)
 
 		mutate_owner_read = true;
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &expected, &raw_image) == CB_ERR);
+			auth_used, 3, &expected, &raw_image) == CAPSULE_BROKER_AUTHENTICATION_FAILED);
 		assert(raw_image.offset == 0 && raw_image.size == 0);
 		assert(!memcmp(&state, &expected, sizeof(state)));
 		return 0;
@@ -558,14 +606,14 @@ int main(int argc, char **argv)
 	    !strcmp(test, "cold-source-copy") || !strcmp(test, "baseline-zero") ||
 	    !strcmp(test, "baseline-below-floor")) {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state, &raw_image) == CB_SUCCESS);
+			auth_used, 3, &state, &raw_image) == CAPSULE_BROKER_AUTHENTICATED);
 		assert(raw_image.size == sizeof(rom) && raw_image.offset < auth_used &&
 			raw_image.size <= auth_used - raw_image.offset &&
 			raw_image.lowest_supported_version == 2 &&
 			!raw_image.reserved);
 	} else {
 		assert(payload_mm_fmp_authenticate_provider(NULL, auth_image,
-			auth_used, 3, &state, &raw_image) == CB_ERR);
+			auth_used, 3, &state, &raw_image) == CAPSULE_BROKER_AUTHENTICATION_FAILED);
 		assert(raw_image.offset == 0 && raw_image.size == 0);
 	}
 	if (!strcmp(test, "floor"))

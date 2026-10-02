@@ -5,11 +5,17 @@
 
 #include <boot/payload_mm_authvar.h>
 
+enum payload_mm_fmp_transaction_outcome {
+	PAYLOAD_MM_FMP_TRANSACTION_FAILED,
+	PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED,
+};
+
 enum cb_err payload_mm_fmp_transaction_install(
 	payload_mm_authvar_protected_storage storage_is_protected, void *context);
 enum cb_err payload_mm_fmp_transaction_execute(uint64_t request_address);
 enum cb_err payload_mm_fmp_transaction_execute_intent(
-	const struct payload_mm_fmp_capsule_intent *intent);
+	const struct payload_mm_fmp_capsule_intent *intent,
+	enum payload_mm_fmp_transaction_outcome *outcome);
 void payload_mm_fmp_transaction_close(void);
 
 #if ENV_TEST

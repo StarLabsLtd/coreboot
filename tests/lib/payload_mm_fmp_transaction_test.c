@@ -21,6 +21,8 @@ static bool ready = true;
 static bool protect = true;
 static bool prepare_fails;
 static bool auth_fails;
+static bool signature_refused;
+static bool complete_fails;
 static bool checkpoint_fails;
 static bool apply_fails;
 static bool finalize_fails;
@@ -32,6 +34,7 @@ static bool reenter;
 static bool guard = true;
 static unsigned int guard_calls;
 static unsigned int guard_failure;
+static unsigned int guard_mutation;
 static bool guard_reenters;
 static bool close_during_auth;
 static unsigned int owner_reads;
@@ -87,6 +90,11 @@ bool capsule_broker_execution_ready(void)
 {
 	mark('G');
 	guard_calls++;
+	if (guard_calls == guard_mutation) {
+		mutate_control = true;
+		mutate_authority();
+		mutate_control = false;
+	}
 	if (guard_reenters)
 		assert(payload_mm_fmp_transaction_execute(0x1000) == CB_ERR);
 	return guard && guard_calls != guard_failure;
@@ -126,7 +134,7 @@ const struct payload_mm_fmp_state_command *payload_mm_fmp_dispatch_command(void)
 enum cb_err payload_mm_fmp_dispatch_complete(uint64_t transaction)
 {
 	mark('X');
-	if (!dispatch_active || transaction != intent.transaction)
+	if (complete_fails || !dispatch_active || transaction != intent.transaction)
 		return CB_ERR;
 	dispatch_active = false;
 	return CB_SUCCESS;
@@ -145,7 +153,7 @@ enum cb_err payload_mm_fmp_owner_read(uint32_t key,
 	return CB_SUCCESS;
 }
 
-enum cb_err capsule_broker_authenticate_intent_bound(
+enum capsule_broker_authentication_status capsule_broker_authenticate_intent_bound(
 	const struct payload_mm_fmp_capsule_intent *staged,
 	const struct payload_mm_fmp_owner_record *owner_record)
 {
@@ -163,10 +171,13 @@ enum cb_err capsule_broker_authenticate_intent_bound(
 		assert(memcmp(owner_record, &record, sizeof(record)) != 0);
 		record.data[0] ^= 1;
 		assert(!memcmp(owner_record, &record, sizeof(record)));
-		return CB_ERR;
+		return CAPSULE_BROKER_AUTHENTICATION_FAILED;
 	}
 	mutate_authority();
-	return auth_fails ? CB_ERR : CB_SUCCESS;
+	if (signature_refused)
+		return CAPSULE_BROKER_SIGNATURE_REFUSED;
+	return auth_fails ? CAPSULE_BROKER_AUTHENTICATION_FAILED :
+		CAPSULE_BROKER_AUTHENTICATED;
 }
 
 enum cb_err payload_mm_fmp_checkpoint_commit_bound(uint64_t generation,
@@ -278,6 +289,33 @@ int main(int argc, char **argv)
 	}
 	assert(payload_mm_fmp_transaction_install(protected_storage, NULL) ==
 		CB_SUCCESS);
+	if (!strncmp(test, "refusal-", 8)) {
+		enum payload_mm_fmp_transaction_outcome outcome =
+			PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED;
+
+		intent.operation = !strcmp(test, "refusal-set") ?
+			PAYLOAD_MM_FMP_CAPSULE_SET : PAYLOAD_MM_FMP_CAPSULE_CHECK;
+		signature_refused = true;
+		mutate_owner = !strcmp(test, "refusal-owner");
+		complete_fails = !strcmp(test, "refusal-cleanup");
+		if (!strcmp(test, "refusal-final-guard"))
+			guard_failure = 6;
+		if (!strcmp(test, "refusal-final-mutation"))
+			guard_mutation = 6;
+		if (!strcmp(test, "refusal-readback-mutation"))
+			guard_mutation = 5;
+		assert(payload_mm_fmp_transaction_execute_intent(&intent, &outcome) ==
+			CB_ERR);
+		assert(outcome == (!strcmp(test, "refusal-check") ?
+			PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED :
+			PAYLOAD_MM_FMP_TRANSACTION_FAILED));
+		assert(owner_reads == 2 && !checkpoint_calls && !apply_calls &&
+			!finalize_calls && closes == 1);
+		assert(payload_mm_fmp_transaction_execute_intent(&intent, &outcome) ==
+			CB_ERR);
+		assert(outcome == PAYLOAD_MM_FMP_TRANSACTION_FAILED);
+		return 0;
+	}
 	if (!strcmp(test, "prepare-failure"))
 		prepare_fails = true;
 	else if (!strcmp(test, "auth-failure"))

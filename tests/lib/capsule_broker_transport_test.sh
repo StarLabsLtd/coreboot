@@ -18,6 +18,7 @@ intent-zero-size intent-large intent-algorithm intent-digest-size intent-reserve
 not-ready failure mutation authority-mutation reentry replay maximum'
 cases="$cases ram-close ram-close-failure ram-close-reentry ram-close-mutation
 ram-close-authority ram-old-revision ram-old-provider"
+cases="$cases signature-check signature-set signature-control signature-unknown"
 
 run_test()
 {

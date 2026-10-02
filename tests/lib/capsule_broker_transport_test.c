@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "capsule_broker_info_internal.h"
+#include "payload_mm_fmp_transaction_internal.h"
 
 static uint8_t communication[CAPSULE_BROKER_TRANSPORT_SIZE] __aligned(8);
 static uint8_t alternate[CAPSULE_BROKER_TRANSPORT_SIZE] __aligned(8);
@@ -19,6 +20,7 @@ static bool ready = true;
 static bool ram_protocol;
 static bool ram_closed;
 static bool ram_close_success = true;
+static enum payload_mm_fmp_transaction_outcome execute_outcome;
 static unsigned int dma_count;
 static unsigned int ram_close_count;
 static bool execute_success = true;
@@ -128,11 +130,13 @@ enum cb_err capsule_broker_ram_window_close(void)
 }
 
 enum cb_err payload_mm_fmp_transaction_execute_intent(
-	const struct payload_mm_fmp_capsule_intent *staged)
+	const struct payload_mm_fmp_capsule_intent *staged,
+	enum payload_mm_fmp_transaction_outcome *outcome)
 {
 	struct capsule_broker_transport_result *shared = result();
 
 	execute_count++;
+	*outcome = execute_outcome;
 	assert(staged != intent());
 	assert(shared->result == CAPSULE_BROKER_RESULT_PENDING);
 	assert(shared->last_attempt_status == CAPSULE_BROKER_STATUS_PENDING);
@@ -297,6 +301,23 @@ int main(int argc, char **argv)
 	assert(argc == 2);
 	name = argv[1];
 	publish_execute(CAPSULE_BROKER_TRANSPORT_REVISION_1, 1);
+	if (!strncmp(name, "signature-", 10)) {
+		execute_success = false;
+		execute_outcome = PAYLOAD_MM_FMP_TRANSACTION_SIGNATURE_REFUSED;
+		if (!strcmp(name, "signature-set"))
+			intent()->operation = PAYLOAD_MM_FMP_CAPSULE_SET;
+		if (!strcmp(name, "signature-control"))
+			mutate_authority = true;
+		if (!strcmp(name, "signature-unknown"))
+			execute_outcome = 17;
+		assert(capsule_broker_transport_dispatch() == CB_ERR);
+		assert(result()->last_attempt_status ==
+			CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL);
+		assert(result()->result == (!strcmp(name, "signature-check") ?
+			CAPSULE_BROKER_RESULT_SIGNATURE_REFUSED :
+			CAPSULE_BROKER_RESULT_EXECUTION));
+		return 0;
+	}
 	if (!strncmp(name, "ram-", 4)) {
 		ram_protocol = true;
 		publish_close(1);
