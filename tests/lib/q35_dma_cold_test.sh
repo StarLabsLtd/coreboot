@@ -43,6 +43,9 @@ printf '%s\n' '#define CONFIG_ECAM_MMCONF_BUS_NUMBER 256' \
 
 compile()
 {
+	# Expose the exact static inventory only inside the HOST test translation unit.
+	awk '{ print } END { print "bool host_inventory(bool clear_master) { return inventory(clear_master); }" }' \
+		"$1" > "$2-source.c"
 	"${CC:-cc}" -std=gnu11 -Wall -Wextra -Werror -Wshadow -Wvla \
 		-fno-pie -no-pie -O"$optimization" -g -fsanitize=address,undefined \
 		-fno-omit-frame-pointer -D__TEST__ -D__COREBOOT__ -D__SMM__ -fno-builtin \
@@ -53,7 +56,7 @@ compile()
 		-I"$temporary/include" -I"$board" -idirafter "$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
-		"$root/tests/lib/q35_dma_cold_test.c" "$1" \
+		"$root/tests/lib/q35_dma_cold_test.c" "$2-source.c" \
 		"$board/q35_dma_controller_cancel.c" "$board/q35_dma_table_image.c" \
 		"$board/q35_dma_policy.c" "$board/vtd_registers.c" -o "$2"
 }
@@ -64,12 +67,35 @@ ulimit -c 0
 for optimization in 0 2; do
 	compile "$board/q35_dma_cold.c" "$temporary/positive-O$optimization"
 	"$temporary/positive-O$optimization" > "$temporary/positive-O$optimization.log" 2>&1
-	for mode in ats root pmr memory protected phase ram-held ram-window ram-final; do
+	for mode in ats root pmr memory protected phase ram-held ram-window ram-final \
+		inventory-fast inventory-bridge inventory-count inventory-pxb inventory-bme \
+		inventory-ecam inventory-cleanup; do
 		"$temporary/positive-O$optimization" "$mode" \
 			> "$temporary/positive-$mode-O$optimization.log" 2>&1
 		MODE="$mode" perl -0777 -pe '
 			my ($old, $new);
-			if ($ENV{MODE} eq "ats") {
+			if ($ENV{MODE} eq "inventory-fast") {
+				$old = "if (valid && count == ARRAY_SIZE(topology))";
+				$new = "if (false /* HOST_CAUSAL_FAST */)";
+			} elsif ($ENV{MODE} eq "inventory-bridge") {
+				$old = "(read8((void *)(config + PCI_HEADER_TYPE)) & 0x7fU) != PCI_HEADER_TYPE_NORMAL";
+				$new = "false /* HOST_CAUSAL_BRIDGE */";
+			} elsif ($ENV{MODE} eq "inventory-count") {
+				$old = "if (valid && count == ARRAY_SIZE(topology))";
+				$new = "if (valid /* HOST_CAUSAL_COUNT */)";
+			} elsif ($ENV{MODE} eq "inventory-pxb") {
+				$old = "devfn <= UINT8_MAX";
+				$new = "devfn < UINT8_MAX /* HOST_CAUSAL_LAST */";
+			} elsif ($ENV{MODE} eq "inventory-bme") {
+				$old = "if (read16((void *)(config + PCI_COMMAND)) & PCI_COMMAND_MASTER)";
+				$new = "if (false /* HOST_CAUSAL_BME */)";
+			} elsif ($ENV{MODE} eq "inventory-ecam") {
+				$old = "return ecam_current();";
+				$new = "return true /* HOST_CAUSAL_ECAM */;";
+			} elsif ($ENV{MODE} eq "inventory-cleanup") {
+				$old = "if (!clear_master)";
+				$new = "if (true /* HOST_CAUSAL_CLEANUP */)";
+			} elsif ($ENV{MODE} eq "ats") {
 				$old = "capability == PCIE_EXT_CAP_ID_ATS";
 				$new = "false /* HOST_CAUSAL_ATS */";
 			} elsif ($ENV{MODE} eq "root") {
@@ -106,7 +132,28 @@ for optimization in 0 2; do
 		' "$board/q35_dma_cold.c" > "$temporary/$mode.c"
 		MODE="$mode" perl -0777 -pe '
 			my ($new, $old);
-			if ($ENV{MODE} eq "ats") {
+			if ($ENV{MODE} eq "inventory-fast") {
+				$new = "if (false /* HOST_CAUSAL_FAST */)";
+				$old = "if (valid && count == ARRAY_SIZE(topology))";
+			} elsif ($ENV{MODE} eq "inventory-bridge") {
+				$new = "false /* HOST_CAUSAL_BRIDGE */";
+				$old = "(read8((void *)(config + PCI_HEADER_TYPE)) & 0x7fU) != PCI_HEADER_TYPE_NORMAL";
+			} elsif ($ENV{MODE} eq "inventory-count") {
+				$new = "if (valid /* HOST_CAUSAL_COUNT */)";
+				$old = "if (valid && count == ARRAY_SIZE(topology))";
+			} elsif ($ENV{MODE} eq "inventory-pxb") {
+				$new = "devfn < UINT8_MAX /* HOST_CAUSAL_LAST */";
+				$old = "devfn <= UINT8_MAX";
+			} elsif ($ENV{MODE} eq "inventory-bme") {
+				$new = "if (false /* HOST_CAUSAL_BME */)";
+				$old = "if (read16((void *)(config + PCI_COMMAND)) & PCI_COMMAND_MASTER)";
+			} elsif ($ENV{MODE} eq "inventory-ecam") {
+				$new = "return true /* HOST_CAUSAL_ECAM */;";
+				$old = "return ecam_current();";
+			} elsif ($ENV{MODE} eq "inventory-cleanup") {
+				$new = "if (true /* HOST_CAUSAL_CLEANUP */)";
+				$old = "if (!clear_master)";
+			} elsif ($ENV{MODE} eq "ats") {
 				$new = "false /* HOST_CAUSAL_ATS */";
 				$old = "capability == PCIE_EXT_CAP_ID_ATS";
 			} elsif ($ENV{MODE} eq "root") {
@@ -139,7 +186,14 @@ for optimization in 0 2; do
 		"$temporary/$mode-O$optimization" "$mode" \
 			> "$temporary/$mode-O$optimization.log" 2>&1 || status=$?
 		test "$status" = 134
-		if test "$mode" = phase; then
+		if test "$mode" = inventory-fast; then
+			grep -Fx 'DMA_COLD_ASSERT: !other_identity_reads' "$temporary/$mode-O$optimization.log"
+		elif test "$mode" = inventory-cleanup; then
+			grep -Fx 'DMA_COLD_ASSERT: !(extra_pci[1][PCI_COMMAND] & PCI_COMMAND_MASTER)' \
+				"$temporary/$mode-O$optimization.log"
+		elif test "${mode#inventory-}" != "$mode"; then
+			grep -Fx 'DMA_COLD_ASSERT: !host_inventory(true)' "$temporary/$mode-O$optimization.log"
+		elif test "$mode" = phase; then
 			grep -Fx 'DMA_COLD_ASSERT: !nvme_resets && !xhci_resets && !ahci_resets' \
 				"$temporary/$mode-O$optimization.log"
 		else
