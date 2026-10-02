@@ -20,5 +20,6 @@ struct q35_dma_controller_io {
  */
 bool q35_dma_nvme_cancel(const struct q35_dma_controller_io *io);
 bool q35_dma_xhci_cancel(const struct q35_dma_controller_io *io);
+bool q35_dma_ahci_cancel(const struct q35_dma_controller_io *io);
 
 #endif
