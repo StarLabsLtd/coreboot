@@ -105,6 +105,7 @@ enum {
 	LB_TAG_AUTHVAR_PRESENCE_ENDPOINT = 0x0056,
 	LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT = 0x0057,
 	LB_TAG_PAYLOAD_BOOT_PRIVATE_BUFFER = 0x0058,
+	LB_TAG_CAPSULE_DELIVERY_POLICY	= 0x0059,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -870,6 +871,30 @@ struct lb_efi_fw_info {
 } __packed;
 
 #define LB_CAPSULE_HANDOFF_REVISION 2
+
+#define LB_CAPSULE_DELIVERY_POLICY_REVISION 1
+#define LB_CAPSULE_DELIVERY_RAM (1U << 0)
+#define LB_CAPSULE_DELIVERY_DISK (1U << 1)
+
+/* Delivery policy describes capabilities, not discovery or flash authority. */
+struct lb_capsule_delivery_policy {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t allowed_transports;
+	lb_uint64_t max_nonpopulate;
+	lb_uint64_t max_populate;
+	uint32_t reserved[2];
+} __packed;
+
+_Static_assert(sizeof(struct lb_capsule_delivery_policy) == 40,
+	"capsule delivery policy ABI");
+_Static_assert(offsetof(struct lb_capsule_delivery_policy, allowed_transports) == 12 &&
+	offsetof(struct lb_capsule_delivery_policy, max_nonpopulate) == 16 &&
+	offsetof(struct lb_capsule_delivery_policy, max_populate) == 24 &&
+	offsetof(struct lb_capsule_delivery_policy, reserved) == 32,
+	"capsule delivery policy layout");
 
 #define LB_CAPSULE_HANDOFF_AUTHENTICATED (1U << 0)
 #define LB_CAPSULE_HANDOFF_RESET_REQUIRED (1U << 1)

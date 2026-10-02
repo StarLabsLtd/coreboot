@@ -9,6 +9,7 @@
 #include <console/payload_spi_console.h>
 #include <console/uart.h>
 #include <identity.h>
+#include <boot/capsule_delivery_policy.h>
 #include <boot/coreboot_tables.h>
 #include <boot/dma_handoff.h>
 #include <boot/payload_mm_authvar_presence_publication.h>
@@ -680,6 +681,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	if (CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION))
 		lb_add_capsule_broker_endpoint(head);
+	if (CONFIG(DRIVERS_EFI_CAPSULE_DELIVERY_POLICY))
+		lb_add_capsule_delivery_policy(head);
 
 	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
 	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
