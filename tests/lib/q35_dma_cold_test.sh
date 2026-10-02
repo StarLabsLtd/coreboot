@@ -11,11 +11,16 @@ sha256sum "$board/q35_dma_cold.c" "$board/q35_dma_cold.h" \
 	"$board/q35_dma_table_image.c" "$board/q35_dma_table_image.h" \
 	"$board/q35_dma_policy.c" "$board/q35_dma_policy.h" \
 	"$board/vtd_registers.c" "$board/vtd_registers.h" \
+	"$board/native_service.h" \
 	"$root/src/include/cpu/x86/smm.h" "$root/tests/lib/q35_dma_cold_test.c" \
 	"$root/tests/lib/q35_dma_cold_test_platform.h" "$0" > "$temporary/source-before.sha256"
 mkdir -p "$temporary/include/arch" "$temporary/include/cpu/x86" \
 	"$temporary/include/device" "$temporary/include/console" "$temporary/include/boot"
 cp "$root/tests/lib/q35_dma_cold_test_platform.h" "$temporary/include/host-platform.h"
+awk '
+	$0 == "bool q35_capsule_ram_transaction_current(void);" { print; count++ }
+	END { if (count != 1) exit 1 }
+' "$board/native_service.h" > "$temporary/include/native-entry-point.h"
 awk '
 	/^struct smm_pci_resource_info \{/ || /^struct smm_dma_owned_memory \{/ { copy = 1; count++ }
 	copy { print }
@@ -44,6 +49,7 @@ compile()
 		-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-include "$temporary/include/structure-prefix.h" \
+		-include "$temporary/include/host-platform.h" \
 		-I"$temporary/include" -I"$board" -idirafter "$root/src/include" \
 		-I"$root/src/commonlib/include" -I"$root/src/commonlib/bsd/include" \
 		-I"$root/src/arch/x86/include" \
@@ -58,7 +64,7 @@ ulimit -c 0
 for optimization in 0 2; do
 	compile "$board/q35_dma_cold.c" "$temporary/positive-O$optimization"
 	"$temporary/positive-O$optimization" > "$temporary/positive-O$optimization.log" 2>&1
-	for mode in ats root pmr memory protected phase; do
+	for mode in ats root pmr memory protected phase ram-held ram-window ram-final; do
 		"$temporary/positive-O$optimization" "$mode" \
 			> "$temporary/positive-$mode-O$optimization.log" 2>&1
 		MODE="$mode" perl -0777 -pe '
@@ -79,8 +85,22 @@ for optimization in 0 2; do
 				$old = "smm_invocation_runtime_range_is_protected(view, (const void *)stored,\n\t\tPCI_FUNCTIONS * sizeof(*slots)) != CB_SUCCESS";
 				$new = "false /* HOST_CAUSAL_PROTECTED */";
 			} elsif ($ENV{MODE} eq "phase") {
-				$old = "#if ENV_SMM\n\tif (!platform_payload_mm_authvar_service_finalize_admitted())\n\t\tgoto out;\n#endif\n\tif (!inventory(true)";
-				$new = "#if ENV_SMM\n\tif (false /* HOST_CAUSAL_PHASE */)\n\t\tgoto out;\n#endif\n\tif (!inventory(true)";
+				$old = "\tif (!wave_current(wave))\n\t\tgoto out;\n\tif (!inventory(true)";
+				$new = "\tif (false /* HOST_CAUSAL_PHASE */)\n\t\tgoto out;\n\tif (!inventory(true)";
+			} elsif ($ENV{MODE} eq "ram-held" || $ENV{MODE} eq "ram-window") {
+				$old = "return q35_capsule_ram_transaction_current();";
+				$new = "return true /* HOST_CAUSAL_RAM */;";
+			} elsif ($ENV{MODE} eq "ram-final") {
+				$old = "\tif (!wave_current(wave))\n\t\tgoto out;\n\tvalid = true;\nout:";
+				# The two functions share this ending; scope the final scanner.
+				my $start = index($_, "static bool dma_current(enum dma_wave wave)");
+				die "missing final scanner\n" if $start < 0;
+				my $prefix = substr($_, 0, $start);
+				my $body = substr($_, $start);
+				$new = "\tif (false /* HOST_CAUSAL_RAM_FINAL */)\n\t\tgoto out;\n\tvalid = true;\nout:";
+				die "final match is not unique\n" unless $body =~ s/\Q$old\E/$new/g == 1;
+				$_ = $prefix . $body;
+				next;
 			} else { die "unknown causal mode\n"; }
 			die "causal match is not unique\n" unless s/\Q$old\E/$new/g == 1;
 		' "$board/q35_dma_cold.c" > "$temporary/$mode.c"
@@ -103,7 +123,13 @@ for optimization in 0 2; do
 				$old = "smm_invocation_runtime_range_is_protected(view, (const void *)stored,\n\t\tPCI_FUNCTIONS * sizeof(*slots)) != CB_SUCCESS";
 			} elsif ($ENV{MODE} eq "phase") {
 				$new = "false /* HOST_CAUSAL_PHASE */";
-				$old = "!platform_payload_mm_authvar_service_finalize_admitted()";
+				$old = "!wave_current(wave)";
+			} elsif ($ENV{MODE} eq "ram-held" || $ENV{MODE} eq "ram-window") {
+				$new = "return true /* HOST_CAUSAL_RAM */;";
+				$old = "return q35_capsule_ram_transaction_current();";
+			} elsif ($ENV{MODE} eq "ram-final") {
+				$new = "false /* HOST_CAUSAL_RAM_FINAL */";
+				$old = "!wave_current(wave)";
 			} else { die "unknown reverse mode\n"; }
 			die "reverse match is not unique\n" unless s/\Q$new\E/$old/g == 1;
 		' "$temporary/$mode.c" > "$temporary/$mode-reversed.c"

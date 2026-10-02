@@ -17,6 +17,10 @@ typedef uint64_t u64;
 #include <stddef.h>
 #include <stdint.h>
 #include "owned-structures.h"
+#include "native-entry-point.h"
+
+/* Irrelevant bootstrap wire types are outside this HOST platform model. */
+#define MAINBOARD_Q35_NATIVE_SERVICE_H
 
 #define PCI_IO_CONFIG_INDEX 0xcf8U
 

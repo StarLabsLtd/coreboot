@@ -22,6 +22,9 @@
 #include "q35_dma_controller_cancel.h"
 #include "q35_dma_table_image.h"
 #include "vtd_registers.h"
+#if ENV_SMM
+#include "native_service.h"
+#endif
 
 #define VTD_BASE 0xfed90000U
 #define PCI_FUNCTIONS 8U
@@ -50,6 +53,21 @@ struct controller_aperture {
 	size_t size;
 	bool fault;
 };
+
+enum dma_wave { DMA_PRIVATE_FINALIZE, DMA_CAPSULE_RAM };
+
+static bool wave_current(enum dma_wave wave)
+{
+#if ENV_SMM
+	if (wave == DMA_PRIVATE_FINALIZE)
+		return platform_payload_mm_authvar_service_finalize_admitted();
+	if (wave == DMA_CAPSULE_RAM)
+		return q35_capsule_ram_transaction_current();
+	return false;
+#else
+	return wave == DMA_PRIVATE_FINALIZE;
+#endif
+}
 
 static bool span_valid(uint64_t base, uint64_t size)
 {
@@ -361,7 +379,7 @@ static bool resource_image(struct smm_pci_resource_info slots[PCI_FUNCTIONS])
 #endif
 }
 
-bool q35_dma_cold_quiesce(void)
+static bool controllers_retired(enum dma_wave wave)
 {
 	struct smm_pci_resource_info slots[PCI_FUNCTIONS];
 	uintptr_t smram_base;
@@ -369,23 +387,24 @@ bool q35_dma_cold_quiesce(void)
 	const uint32_t config_index = inl(PCI_IO_CONFIG_INDEX);
 	bool valid = false;
 
-#if ENV_SMM
-	if (!platform_payload_mm_authvar_service_finalize_admitted())
+	if (!wave_current(wave))
 		goto out;
-#endif
 	if (!inventory(true) || !smram_geometry(&smram_base, &smram_size) ||
 	    !resource_image(slots) || !resource_image_valid(slots, smram_base, smram_size) ||
 	    !controllers_quiesce(slots) || !inventory(false) ||
 	    !resource_image_valid(slots, smram_base, smram_size))
 		goto out;
-#if ENV_SMM
-	if (!platform_payload_mm_authvar_service_finalize_admitted())
+	if (!wave_current(wave))
 		goto out;
-#endif
 	valid = true;
 out:
 	outl(config_index, PCI_IO_CONFIG_INDEX);
 	return valid;
+}
+
+bool q35_dma_cold_quiesce(void)
+{
+	return controllers_retired(DMA_PRIVATE_FINALIZE);
 }
 
 struct translation_state {
@@ -448,7 +467,7 @@ static bool memory_image(struct smm_dma_owned_memory *memory,
 #endif
 }
 
-bool q35_dma_cold_current(void)
+static bool dma_current(enum dma_wave wave)
 {
 	const struct q35_vtd_io io = {.read32 = translation_read, .write32 = translation_write};
 	struct smm_dma_owned_memory memory, repeated_memory;
@@ -460,7 +479,7 @@ bool q35_dma_cold_current(void)
 	const uint32_t config_index = inl(PCI_IO_CONFIG_INDEX);
 	bool valid = false;
 
-	if (!q35_dma_cold_quiesce() || !smram_geometry(&smram_base, &smram_size) ||
+	if (!controllers_retired(wave) || !smram_geometry(&smram_base, &smram_size) ||
 	    !(pci_io_read_config8(HOST_BRIDGE, ESMRAMC) & T_EN) ||
 	    (pci_io_read_config8(HOST_BRIDGE, SMRAMC) & (D_LCK | G_SMRAME | D_OPEN)) !=
 		(D_LCK | G_SMRAME) ||
@@ -508,14 +527,22 @@ bool q35_dma_cold_current(void)
 	    before.root != after.root || before.status != after.status || before.version != after.version ||
 	    !q35_dma_pmr_state_matches(&before.pmr, &after.pmr) || !inventory(false))
 		goto out;
-#if ENV_SMM
-	if (!platform_payload_mm_authvar_service_finalize_admitted())
+	if (!wave_current(wave))
 		goto out;
-#endif
 	valid = true;
 out:
 	outl(config_index, PCI_IO_CONFIG_INDEX);
 	return valid;
+}
+
+bool q35_dma_cold_current(void)
+{
+	return dma_current(DMA_PRIVATE_FINALIZE);
+}
+
+bool q35_capsule_ram_dma_current(void)
+{
+	return dma_current(DMA_CAPSULE_RAM);
 }
 
 #if ENV_RAMSTAGE

@@ -9,5 +9,7 @@
 bool q35_dma_cold_quiesce(void);
 /* Rechecks current owned geometry/tables after controller retirement. */
 bool q35_dma_cold_current(void);
+/* Destructive only under the actual held E8 wave and irreversible RAM window. */
+bool q35_capsule_ram_dma_current(void);
 
 #endif
