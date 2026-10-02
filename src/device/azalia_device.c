@@ -164,7 +164,7 @@ static int wait_for_valid(u8 *base)
 	u32 reg32;
 
 	/* Send the verb to the codec */
-	setbits32(base + HDA_ICII_REG, HDA_ICII_BUSY | HDA_ICII_VALID);
+	write32(base + HDA_ICII_REG, HDA_ICII_BUSY);
 
 	/*
 	 * The timeout is never reached when the codec is functioning properly.
@@ -205,6 +205,8 @@ static int azalia_write_verb(u8 *base, u32 verb)
 		return -1;
 	}
 
+	/* Acknowledge the old response before starting a new command. */
+	write32(base + HDA_ICII_REG, HDA_ICII_VALID);
 	write32(base + HDA_IC_REG, verb);
 
 	return wait_for_valid(base);
