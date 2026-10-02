@@ -66,7 +66,9 @@ static void heci1_disable_using_sbi(void)
 	int status;
 
 	/* unhide p2sb device */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	/* Send SBI command to make HECI#1 function disable */
 	status = pcr_execute_sideband_msg(PCH_DEV_P2SB, &msg, &data32, &response);
@@ -77,7 +79,9 @@ static void heci1_disable_using_sbi(void)
 	p2sb_disable_sideband_access();
 
 	/* hide p2sb device */
-	p2sb_hide();
+	if (!p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 }
 
 void heci1_disable(void)
