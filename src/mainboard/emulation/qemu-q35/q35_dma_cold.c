@@ -167,6 +167,18 @@ static bool inventory(bool clear_master)
 				valid = false;
 			count++;
 		}
+		/*
+		 * This closed QEMU Q35 image has a single host domain. Secondary
+		 * buses require a root-bus bridge or expander, neither of which
+		 * is in the exact topology. Recheck all 256 root functions on
+		 * every call; a mismatched quiesce still clears the other buses.
+		 */
+		if (!bus) {
+			if (valid && count == ARRAY_SIZE(topology))
+				return ecam_current();
+			if (!clear_master)
+				return false;
+		}
 	}
 	return valid && count == ARRAY_SIZE(topology) && ecam_current();
 }

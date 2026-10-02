@@ -18,6 +18,10 @@
 #define EDU 0xe0100000U
 
 static uint8_t pci[8][4096];
+static uint8_t extra_pci[2][4096];
+static uint16_t extra_bdfs[2];
+static bool extra_present[2];
+static unsigned int root_identity_reads[256], other_identity_reads;
 static uint32_t translation[PAGE / 4U];
 static const uint16_t bdfs[8] = {0, 8, 0x18, 0x20, 0x28, 0xf8, 0xfa, 0xfb};
 static const uint32_t identities[8] = {
@@ -39,6 +43,10 @@ static uint32_t ahci_command, ahci_active;
 static bool phase_current, foreign_function, mutate_memory, fail_ahci, fail_drain;
 static bool protected_resources;
 static bool ram_held, ram_window, revoke_ram_after_drain;
+static bool stuck_master, late_master, late_function, change_ecam;
+
+/* HOST-only access to the actual static scanner, appended by the test script. */
+bool host_inventory(bool clear_master);
 
 void mock_assert(const int result, const char *const expression,
 	const char *const file, const int line)
@@ -78,15 +86,34 @@ uint32_t read32(const void *pointer)
 	const int slot = pci_slot(address, &offset);
 	uint32_t value;
 
+	if (slot != -1 && !offset) {
+		const uint32_t bdf = (uint32_t)((address - ECAM) >> 12);
+
+		if (bdf <= UINT8_MAX) {
+			root_identity_reads[bdf]++;
+			if (change_ecam && bdf == UINT8_MAX)
+				pci[0][0x60] ^= 1U;
+		} else {
+			other_identity_reads++;
+		}
+	}
 	if (slot >= 0) {
 		if (offset > sizeof(pci[slot]) - sizeof(value))
 			return UINT32_MAX;
 		memcpy(&value, &pci[slot][offset], sizeof(value));
 		return value;
 	}
-	if (slot == -2)
+	if (slot == -2) {
+		for (size_t i = 0; i < 2; i++) {
+			if (!extra_present[i] || (address - ECAM) >> 12 != extra_bdfs[i])
+				continue;
+			CHECK(offset <= sizeof(extra_pci[i]) - sizeof(value));
+			memcpy(&value, &extra_pci[i][offset], sizeof(value));
+			return value;
+		}
 		return foreign_function && address == (uintptr_t)ECAM + (0x30U << 12) ?
 			0x100e8086U : UINT32_MAX;
+	}
 	if (address >= VTD && address < (uintptr_t)VTD + PAGE)
 		return translation[(address - VTD) / 4U];
 	if (address >= NVME && address < (uintptr_t)NVME + PAGE) {
@@ -148,17 +175,30 @@ void write32(void *pointer, uint32_t value)
 
 	if (slot >= 0) {
 		CHECK(offset <= sizeof(pci[slot]) - sizeof(value));
+		if (stuck_master && slot == 2 && offset == PCI_COMMAND)
+			value |= PCI_COMMAND_MASTER;
 		memcpy(&pci[slot][offset], &value, sizeof(value));
 		return;
 	}
-	if (slot == -2)
+	if (slot == -2) {
+		for (size_t i = 0; i < 2; i++) {
+			if (!extra_present[i] || (address - ECAM) >> 12 != extra_bdfs[i])
+				continue;
+			CHECK(offset <= sizeof(extra_pci[i]) - sizeof(value));
+			memcpy(&extra_pci[i][offset], &value, sizeof(value));
+		}
 		return;
+	}
 	if (address >= VTD && address < (uintptr_t)VTD + PAGE) {
 		if ((value & (1U << 31)) && address == VTD + Q35_VTD_CCMD + 4U)
 			value = 1U << 27;
 		if ((value & (1U << 31)) && address == VTD + 0x108U + 4U) {
 			if ((value & ((1U << 17) | (1U << 16))) == ((1U << 17) | (1U << 16))) {
 				drains++;
+				if (late_function && drains == 2U)
+					extra_present[0] = true;
+				if (late_master && drains == 2U)
+					pci[2][PCI_COMMAND] |= PCI_COMMAND_MASTER;
 				if (mutate_memory && drains == 2U)
 					memory.arena_base += PAGE;
 				if (revoke_ram_after_drain && drains == 2U)
@@ -348,6 +388,10 @@ static void table_image(void)
 static void reset_fixture(void)
 {
 	memset(pci, 0, sizeof(pci));
+	memset(extra_pci, 0, sizeof(extra_pci));
+	memset(extra_present, 0, sizeof(extra_present));
+	memset(root_identity_reads, 0, sizeof(root_identity_reads));
+	other_identity_reads = 0;
 	memset(resources, 0, sizeof(resources));
 	memset(translation, 0, sizeof(translation));
 	for (size_t slot = 0; slot < 8; slot++) {
@@ -388,13 +432,88 @@ static void reset_fixture(void)
 	ram_held = ram_window = true;
 	revoke_ram_after_drain = false;
 	foreign_function = mutate_memory = fail_ahci = fail_drain = false;
+	stuck_master = late_master = late_function = change_ecam = false;
 	saved_index = config_index = 0x31415926U;
+}
+
+static void extra_function(size_t index, uint16_t bdf, uint32_t identity, uint8_t header)
+{
+	CHECK(index < 2);
+	extra_bdfs[index] = bdf;
+	extra_present[index] = true;
+	memcpy(extra_pci[index], &identity, sizeof(identity));
+	extra_pci[index][PCI_HEADER_TYPE] = header;
+	extra_pci[index][PCI_COMMAND] = PCI_COMMAND_MASTER;
+}
+
+static void inventory_cases(void)
+{
+	reset_fixture();
+	CHECK(host_inventory(true));
+	CHECK(!other_identity_reads);
+	for (size_t devfn = 0; devfn <= UINT8_MAX; devfn++)
+		CHECK(root_identity_reads[devfn]);
+	CHECK(host_inventory(false));
+	CHECK(!other_identity_reads);
+	/* Never reuse a prior accepted image: every other root devfn is hostile. */
+	for (uint16_t devfn = 0; devfn <= UINT8_MAX; devfn++) {
+		bool expected = false;
+
+		for (size_t i = 0; i < 8; i++)
+			expected |= bdfs[i] == devfn;
+		if (expected)
+			continue;
+		reset_fixture();
+		extra_function(0, devfn, 0x00101b36U, PCI_HEADER_TYPE_NORMAL);
+		CHECK(!host_inventory(true));
+		CHECK(other_identity_reads == 255U * 256U);
+		CHECK(!(extra_pci[0][PCI_COMMAND] & PCI_COMMAND_MASTER));
+	}
+	/* Captured actual QEMU PXB-PCIE/CXL and ordinary bridge root identities. */
+	const uint32_t extra_identities[] = {0x000b1b36U, 0x00011b36U};
+	const uint8_t headers[] = {PCI_HEADER_TYPE_NORMAL, PCI_HEADER_TYPE_BRIDGE};
+	for (size_t i = 0; i < 2; i++) {
+		reset_fixture();
+		extra_function(0, 0x30, extra_identities[i], headers[i]);
+		extra_function(1, 0x3408, 0x11e81234U, PCI_HEADER_TYPE_NORMAL);
+		CHECK(!host_inventory(true));
+		CHECK(other_identity_reads == 255U * 256U);
+		CHECK(!(extra_pci[1][PCI_COMMAND] & PCI_COMMAND_MASTER));
+	}
 }
 
 int main(int argc, char **argv)
 {
 	if (argc == 2) {
 		reset_fixture();
+		if (!strncmp(argv[1], "inventory-", 10)) {
+			if (!strcmp(argv[1], "inventory-fast")) {
+				CHECK(host_inventory(true));
+				CHECK(!other_identity_reads);
+				return 0;
+			}
+			if (!strcmp(argv[1], "inventory-bridge"))
+				pci[2][PCI_HEADER_TYPE] = PCI_HEADER_TYPE_BRIDGE;
+			else if (!strcmp(argv[1], "inventory-count"))
+				set32(7, PCI_VENDOR_ID, UINT32_MAX);
+			else if (!strcmp(argv[1], "inventory-pxb"))
+				extra_function(0, 0xff, 0x000b1b36U, PCI_HEADER_TYPE_NORMAL);
+			else if (!strcmp(argv[1], "inventory-bme"))
+				stuck_master = true;
+			else if (!strcmp(argv[1], "inventory-ecam"))
+				change_ecam = true;
+			else if (!strcmp(argv[1], "inventory-cleanup")) {
+				extra_function(0, 0x30, 0x000b1b36U, PCI_HEADER_TYPE_NORMAL);
+				extra_function(1, 0x3408, 0x11e81234U, PCI_HEADER_TYPE_NORMAL);
+			} else {
+				CHECK(false);
+			}
+			CHECK(!host_inventory(true));
+			if (!strcmp(argv[1], "inventory-cleanup"))
+				CHECK(!(extra_pci[1][PCI_COMMAND] & PCI_COMMAND_MASTER));
+			printf("PASS HOST refusal case %s\n", argv[1]);
+			return 0;
+		}
 		if (!strcmp(argv[1], "ats"))
 			set32(2, 0x100, 0x1000fU);
 		else if (!strcmp(argv[1], "root"))
@@ -426,6 +545,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	CHECK(argc == 1);
+	inventory_cases();
 	reset_fixture();
 	phase_current = false;
 	CHECK(q35_capsule_ram_dma_current());
@@ -446,6 +566,19 @@ int main(int argc, char **argv)
 	CHECK(q35_dma_cold_current());
 	CHECK(nvme_resets == 1U && xhci_resets == 1U && ahci_resets == 1U);
 	CHECK(drains == 2U && writebacks == 1U && config_index == saved_index);
+	CHECK(!other_identity_reads);
+	for (size_t devfn = 0; devfn <= UINT8_MAX; devfn++)
+		CHECK(root_identity_reads[devfn] >= 4U);
+	reset_fixture();
+	extra_function(0, 0xff, 0x000b1b36U, PCI_HEADER_TYPE_NORMAL);
+	extra_present[0] = false;
+	late_function = true;
+	CHECK(!q35_dma_cold_current());
+	CHECK(drains == 2U && root_identity_reads[255] >= 4U);
+	reset_fixture();
+	late_master = true;
+	CHECK(!q35_dma_cold_current());
+	CHECK(drains == 2U);
 	reset_fixture();
 	phase_current = false;
 	CHECK(!q35_dma_cold_current());
