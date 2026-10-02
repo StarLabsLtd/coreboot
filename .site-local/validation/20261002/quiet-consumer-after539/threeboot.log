@@ -1,0 +1,45 @@
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+make: Entering directory '/home/sean/Documents/cdk2'
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/cdk2'
+LVGL UI driver form test passed
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+CDK2 real setup QEMU acceptance: PASS
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file cdk2/config at 0xc2200, type raw, compressed 2975, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+/home/sean/Documents/cdk2/util/qemu/bin/assert-protected-setup-store.sh: line 44: 4170119 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "$output/initial.bin" "$output/requested.bin" "$output/consumed.bin" --self-test > "$output/$comparison-self-test.log" 2>&1
+/home/sean/Documents/cdk2/util/qemu/bin/assert-protected-setup-store.sh: line 44: 4170498 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "$output/initial.bin" "$output/requested.bin" "$output/consumed.bin" --self-test > "$output/$comparison-self-test.log" 2>&1
+Protected setup actual-codec HOST receipts: /home/sean/cdk2-root-quiet-threeboot-after539/boot-to-fw-ui/presentation/protected-store-oracle.JshNgO
+CDK2 real setup QEMU acceptance: PASS
+CDK2 BootToFwUI two-boot QEMU acceptance: PASS
+	Command being timed: "util/qemu/bin/run-quiet-setup-acceptance.sh /home/sean/cdk2-root-minimal-lvgl-after527/quiet-after539.rom /home/sean/cdk2-root-quiet-threeboot-after539 /home/sean/cdk2-root-minimal-lvgl-after527"
+	User time (seconds): 131.50
+	System time (seconds): 22.33
+	Percent of CPU this job got: 133%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:55.40
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 367992
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 663
+	Minor (reclaiming a frame) page faults: 1015054
+	Voluntary context switches: 681026
+	Involuntary context switches: 5109
+	Swaps: 0
+	File system inputs: 507040
+	File system outputs: 2526440
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

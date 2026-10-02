@@ -1,0 +1,6 @@
+Running as unit: cdk2-root-quiet-package-after539.service; invocation ID: cca0437cbeb1401caf1fdb7e588fc975
+Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+Service runtime: 1.858s
+CPU time consumed: 2.200s
+Memory peak: 59.1M (swap: 0B)
