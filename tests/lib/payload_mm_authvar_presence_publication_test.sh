@@ -12,6 +12,7 @@ printf '%s\n' \
 	> "$temporary/include/config.h"
 
 source="$root/src/lib/payload_mm_authvar_presence_publication.c"
+sh "$root/tests/lib/payload_mm_authvar_presence_selector_test.sh"
 test_source="$root/tests/lib/payload_mm_authvar_presence_publication_test.c"
 default_test_source="$root/tests/lib/payload_mm_authvar_presence_publication_default_test.c"
 
@@ -169,8 +170,8 @@ selector_check()
 		END { exit !bad }' "$kconfig"
 }
 
-if grep -R -Eq --include=Kconfig \
-	'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION' "$root/src" || \
+if ! sh "$root/tests/lib/payload_mm_authvar_presence_selector_check.sh" \
+	"$root" PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION || \
 	! selector_check "$root/src/lib/Kconfig"; then
 	echo 'presence publication became selectable or selected' >&2
 	exit 1

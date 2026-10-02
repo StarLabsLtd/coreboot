@@ -89,8 +89,8 @@ mutation producer-revision-backstep \
 	's/return policy \&\& policy->revision ==/return policy \&\& (policy->revision == 2U || policy->revision ==/;
 	 s/PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION \&\&/PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER_REVISION) \&\&/'
 
-if grep -R -Eq --include=Kconfig \
-	'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER' "$root/src" || \
+if ! sh "$root/tests/lib/payload_mm_authvar_presence_selector_check.sh" \
+	"$root" PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER || \
 	awk '$1 == "config" { inside = $2 == \
 		"PAYLOAD_MM_AUTHVAR_PRESENCE_PRODUCER"; next }
 		inside && (($1 == "bool" && NF > 1) || $1 == "prompt" ||
