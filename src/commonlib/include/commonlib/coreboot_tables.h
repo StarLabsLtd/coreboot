@@ -970,6 +970,8 @@ _Static_assert(offsetof(struct lb_capsule_handoff, image_size) == 72 &&
 	"capsule bounds ABI");
 
 #define LB_CAPSULE_BROKER_ENDPOINT_REVISION 1
+/* Same layout; a private cold RAM window must be irreversibly closed before PCI. */
+#define LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION 2
 
 #define LB_CAPSULE_ENDPOINT_COREBOOT_SMM_OWNER    (1U << 0)
 #define LB_CAPSULE_ENDPOINT_SMM_ONLY_SPI          (1U << 1)

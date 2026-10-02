@@ -15,6 +15,7 @@
 struct transport_control {
 	uint64_t last_transaction;
 	uint64_t last_info_transaction;
+	uint64_t last_close_transaction;
 	bool busy;
 };
 
@@ -42,7 +43,8 @@ static bool request_valid(
 	const struct capsule_broker_transport_request *request)
 {
 	if ((request->revision != CAPSULE_BROKER_TRANSPORT_REVISION_1 &&
-	     request->revision != CAPSULE_BROKER_TRANSPORT_REVISION) ||
+	     request->revision != CAPSULE_BROKER_TRANSPORT_REVISION &&
+	     request->revision != CAPSULE_BROKER_TRANSPORT_RAM_REVISION) ||
 	    request->size != sizeof(*request) || request->flags ||
 	    !request->generation || !request->transaction)
 		return false;
@@ -51,11 +53,14 @@ static bool request_valid(
 				sizeof(struct payload_mm_fmp_capsule_intent) &&
 			request->result_size ==
 				sizeof(struct capsule_broker_transport_result);
-	return request->revision == CAPSULE_BROKER_TRANSPORT_REVISION &&
-		request->operation == CAPSULE_BROKER_TRANSPORT_READ_INFO &&
-		!request->intent_size &&
-		request->result_size ==
-			sizeof(struct capsule_broker_transport_info);
+	if (request->operation == CAPSULE_BROKER_TRANSPORT_READ_INFO)
+		return request->revision != CAPSULE_BROKER_TRANSPORT_REVISION_1 &&
+			!request->intent_size && request->result_size ==
+				sizeof(struct capsule_broker_transport_info);
+	return request->revision == CAPSULE_BROKER_TRANSPORT_RAM_REVISION &&
+		request->operation == CAPSULE_BROKER_TRANSPORT_CLOSE_RAM &&
+		!request->intent_size && request->result_size ==
+			sizeof(struct capsule_broker_transport_result);
 }
 
 static bool intent_matches_request(
@@ -132,7 +137,7 @@ static enum cb_err dispatch_info(uintptr_t transport_address,
 	memset(&snapshot, 0, sizeof(snapshot));
 	status = capsule_broker_info_read(&snapshot);
 	info_pending(shared);
-	if (!control_matches(expected) || !capsule_broker_execution_ready()) {
+	if (!control_matches(expected) || !capsule_broker_transport_ready(request->revision)) {
 		transport_authority = *expected;
 		status = CB_ERR;
 	}
@@ -160,6 +165,34 @@ static enum cb_err dispatch_info(uintptr_t transport_address,
 	return status;
 }
 
+static enum cb_err dispatch_close(uintptr_t transport_address,
+	const struct capsule_broker_transport_request *request,
+	const struct transport_control *expected)
+{
+	struct capsule_broker_transport_result result = { 0 };
+	struct capsule_broker_transport_result *shared =
+		(void *)(transport_address + CAPSULE_BROKER_TRANSPORT_RESULT_OFFSET);
+	enum cb_err status;
+
+	result_pending(shared);
+	status = capsule_broker_ram_window_close();
+	result_pending(shared);
+	if (!control_matches(expected) ||
+	    !capsule_broker_transport_ready(request->revision)) {
+		transport_authority = *expected;
+		status = CB_ERR;
+	}
+	result.revision = request->revision;
+	result.size = sizeof(result);
+	result.generation = request->generation;
+	result.transaction = request->transaction;
+	result.result = status == CB_SUCCESS ? CAPSULE_BROKER_RESULT_SUCCESS :
+		CAPSULE_BROKER_RESULT_EXECUTION;
+	result_commit(shared, &result);
+	memset(&result, 0, sizeof(result));
+	return status;
+}
+
 enum cb_err capsule_broker_transport_dispatch(void)
 {
 	struct capsule_broker_transport_request request;
@@ -183,7 +216,7 @@ enum cb_err capsule_broker_transport_dispatch(void)
 	memcpy(&request, (const void *)(uintptr_t)(transport_address +
 		CAPSULE_BROKER_TRANSPORT_REQUEST_OFFSET), sizeof(request));
 	if (!request_valid(&request) || request.generation != transport_generation ||
-	    !capsule_broker_execution_ready())
+	    !capsule_broker_transport_ready(request.revision))
 		goto reject;
 	if (request.operation == CAPSULE_BROKER_TRANSPORT_READ_INFO) {
 		if (request.transaction <=
@@ -196,6 +229,18 @@ enum cb_err capsule_broker_transport_dispatch(void)
 		transport_authority.busy = false;
 		return status;
 	}
+	if (request.operation == CAPSULE_BROKER_TRANSPORT_CLOSE_RAM) {
+		if (request.transaction <= transport_authority.last_close_transaction)
+			goto reject;
+		transport_authority.last_close_transaction = request.transaction;
+		expected = transport_authority;
+		status = dispatch_close(transport_address, &request, &expected);
+		memset(&request, 0, sizeof(request));
+		transport_authority.busy = false;
+		return status;
+	}
+	if (!capsule_broker_execution_ready())
+		goto reject;
 	memcpy(&intent, (const void *)(uintptr_t)(transport_address +
 		CAPSULE_BROKER_TRANSPORT_INTENT_OFFSET), sizeof(intent));
 	if (!intent_matches_request(&request, &intent) ||

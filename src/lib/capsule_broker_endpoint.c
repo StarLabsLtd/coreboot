@@ -30,7 +30,8 @@ bool capsule_broker_endpoint_shape_valid(
 	if (!endpoint || !image_size ||
 	    endpoint->tag != LB_TAG_CAPSULE_BROKER_ENDPOINT ||
 	    endpoint->size != sizeof(*endpoint) ||
-	    endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_REVISION ||
+	    (endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_REVISION &&
+	     endpoint->revision != LB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION) ||
 	    endpoint->header_size != sizeof(*endpoint) ||
 	    endpoint->flags != LB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ||
 	    endpoint->communication_size != CAPSULE_BROKER_TRANSPORT_SIZE ||
