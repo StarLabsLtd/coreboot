@@ -71,7 +71,7 @@ static uint32_t hardware_pm_timer_read(void)
 	return inl(DEFAULT_PMBASE + ACPI_PM_TIMER_OFFSET);
 }
 
-void lb_board(struct lb_header *header)
+void q35_add_lapic_timer_table(struct lb_header *header)
 {
 	struct lb_local_apic_timer_info *timer;
 	static const struct q35_lapic_timer_ops ops = {

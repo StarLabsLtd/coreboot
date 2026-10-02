@@ -5,6 +5,9 @@
 
 #include <stdint.h>
 
+struct lb_header;
+void q35_add_lapic_timer_table(struct lb_header *header);
+
 struct q35_lapic_timer_ops {
 	uint32_t (*lapic_read)(uint32_t reg);
 	void (*lapic_write)(uint32_t reg, uint32_t value);

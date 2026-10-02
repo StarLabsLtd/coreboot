@@ -70,7 +70,7 @@ static bool receipt_current(const struct bootmem_reservation_receipt *receipt,
 		reservation.base == receipt->base && reservation.size == size;
 }
 
-void lb_board(struct lb_header *header)
+void q35_publish_native_service_table(struct lb_header *header)
 {
 	struct payload_mm_authvar_presence_tuple_sender sender;
 	struct bootmem_reservation_receipt boot_private;

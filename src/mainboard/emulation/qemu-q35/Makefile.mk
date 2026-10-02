@@ -11,6 +11,7 @@ ramstage-y += ../qemu-i440fx/memmap.c
 ramstage-y += ../qemu-i440fx/northbridge.c
 ramstage-y += ../qemu-i440fx/rom_media.c
 ramstage-y += cpu.c
+ramstage-y += board_tables.c
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_COMPONENT) += loader_instance.c
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_CAUSE_COMPONENT) += native_apmc.S
 ramstage-$(CONFIG_Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT) += native_service_sender.c
