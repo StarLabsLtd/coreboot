@@ -22,6 +22,9 @@
 
 #include "q35_dma_policy.h"
 #include "q35_capsule_dma_proof.h"
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+#include "q35_dma_cold.h"
+#endif
 #if CONFIG(Q35_PAYLOAD_MM_MOR_LINEAR_TEST_PROVIDER)
 #include "q35_mor_dma.h"
 #include "q35_mor_pci_guard.h"
@@ -768,6 +771,10 @@ static void q35_dma_prepare_allocations(void *unused)
 
 	(void)unused;
 	/* The capsule loader accepts only allocations made by this boot's source. */
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS)
+	if (!q35_dma_cold_quiesce())
+		die("Q35 DMA: controller retirement before owned allocation failed\n");
+#endif
 	if (CONFIG(Q35_SMM_CAPSULE_BROKER_BUFFERS) &&
 	    (table_allocation_entry || arena_allocation_entry ||
 	     cbmem_entry_find(CBMEM_ID_Q35_VTD_TABLES) ||
