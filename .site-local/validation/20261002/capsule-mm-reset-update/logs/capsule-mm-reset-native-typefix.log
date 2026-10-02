@@ -1,0 +1,90 @@
+Native MM warm-reset artifacts: /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset/native/capsule-mm-reset-component/run.CyMCge
+Found file config at 0x35800, type raw, compressed 3446, size 12211
+[0m[INFO ]  QEMU: local APIC timer measured at 1000304675 Hz[0m
+[0m[DEBUG]  FMAP: area SECURE_PROBE found @ 10000 (4096 bytes)[0m
+[0m[DEBUG]  FMAP: area SMMSTORE found @ 0 (65536 bytes)[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: Found 'q35/native-apmc-bootstrap' @0x3da00 size 0x2 in mcache @0x3fdfeb58[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  Boot mode is 0[0m
+[0m[DEBUG]  Wrote coreboot table at: 0x3fba6000, 0x74c bytes, checksum 81fe[0m
+[0m[DEBUG]  coreboot table: 1892 bytes.[0m
+[0m[DEBUG]  IMD ROOT    0. 0x3fdff000 0x00001000[0m
+[0m[DEBUG]  IMD SMALL   1. 0x3fdfe000 0x00001000[0m
+[0m[DEBUG]  CONSOLE     2. 0x3fdde000 0x00020000[0m
+[0m[DEBUG]  TIME STAMP  3. 0x3fddd000 0x00000910[0m
+[0m[DEBUG]  AFTER CAR   4. 0x3fdd0000 0x0000d000[0m
+[0m[DEBUG]  RAMSTAGE    5. 0x3fc59000 0x00177000[0m
+[0m[DEBUG]  Q35 VTD TAB 6. 0x3fc4f000 0x0000a000[0m
+[0m[DEBUG]  Q35 DMA ARE 7. 0x3fbae000 0x000a1000[0m
+[0m[DEBUG]  COREBOOT    8. 0x3fba6000 0x00008000[0m
+[0m[DEBUG]  ACPI        9. 0x3fb6e000 0x00038000[0m
+[0m[DEBUG]  SMBIOS     10. 0x3fb66000 0x00008000[0m
+[0m[DEBUG]  IMD small region:[0m
+[0m[DEBUG]    IMD ROOT    0. 0x3fdfec00 0x00000400[0m
+[0m[DEBUG]    RO MCACHE   1. 0x3fdfe940 0x000002bc[0m
+[0m[DEBUG]    FMAP        2. 0x3fdfe860 0x000000e0[0m
+[0m[DEBUG]    ROMSTG STCK 3. 0x3fdfe7c0 0x00000088[0m
+[0m[DEBUG]    ACPI GNVS   4. 0x3fdfe6c0 0x00000100[0m
+[0m[DEBUG]    DMA HANDOFF 5. 0x3fdfe640 0x00000068[0m
+[0m[DEBUG]  BS: BS_WRITE_TABLES run times (exec / console): 76 / 8 ms[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  CBFS: Found 'fallback/payload' @0x3da40 size 0x1644b in mcache @0x3fdfeb8c[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff84fa6c[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff84fa88[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff84faa4[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff84fac0[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff84fa6c[0m
+[0m[DEBUG]    code (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00100000 memsize 0x277c2 srcaddr 0xff84fadc filesize 0x14973[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00100000 memsz: 0x00000000000277c2 filesz: 0x0000000000014973[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff84fa88[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x001277d0 memsize 0x3108 srcaddr 0xff86444f filesize 0x1972[0m
+[0m[DEBUG]  Loading Segment: addr: 0x001277d0 memsz: 0x0000000000003108 filesz: 0x0000000000001972[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff84faa4[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x0012b000 memsize 0xa84108 srcaddr 0xff865dc1 filesize 0xf6[0m
+[0m[DEBUG]  Loading Segment: addr: 0x0012b000 memsz: 0x0000000000a84108 filesz: 0x00000000000000f6[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Clearing Segment: addr: 0x000000000012b4b8 memsz: 0x0000000000a83c50[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff84fac0[0m
+[0m[DEBUG]    Entry Point 0x00100000[0m
+[0m[DEBUG]  BS: BS_PAYLOAD_LOAD run times (exec / console): 141 / 2 ms[0m
+[0m[DEBUG]  ICH-NM10-PCH: watchdog disabled[0m
+[0m[DEBUG]  Jumping to boot code at 0x00100000(0x3fba6000)[0m
+CDK2_MM_RESET_BEGIN
+CDK2_MM_RESET_FAIL
+qemu-system-x86_64: Interrupt Mask set, irq is not generated
+qemu-system-x86_64: vtd_iommu_translate: detected translation failure (dev=00:05:00, iova=0x3fcbe000)
+qemu-system-x86_64: New fault is not recorded due to compression of faults
+make: *** [/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/src/boot/Makefile:900: native-capsule-mm-reset-component-test] Error 1
+Command exited with non-zero status 2
+	Command being timed: "make CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=build/mm-reset CDK2_CONFIG=build/mm-reset/resolved.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-mm-read-admission-after-predicate COREBOOT_CONFIG=/home/sean/q35-capsule-mm-read-build.OJFRgq/full.config MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls COREBOOT_ROM=/home/sean/q35-capsule-mm-read-build.OJFRgq/build/coreboot.rom CBFSTOOL=/home/sean/q35-capsule-mm-read-build.OJFRgq/build/util/cbfstool/cbfstool native-capsule-mm-reset-component-test"
+	User time (seconds): 14.09
+	System time (seconds): 1.42
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.58
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 139892
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 25
+	Minor (reclaiming a frame) page faults: 337997
+	Voluntary context switches: 39327
+	Involuntary context switches: 210
+	Swaps: 0
+	File system inputs: 4296
+	File system outputs: 22112
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2

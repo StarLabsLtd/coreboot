@@ -1,0 +1,49 @@
+Native MM warm-reset artifacts: /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset/native/capsule-mm-reset-component/run.0R5r3Z
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c: In function ‘cdk2_native_stage_entry’:
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:39:45: error: storage size of ‘delivery’ isn’t known
+   39 |         struct cdk2_capsule_delivery_policy delivery;
+      |                                             ^~~~~~~~
+In file included from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/include/cdk2/authvar_presence_lifecycle_close_composition.h:5,
+                 from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/protected_variable_native_service_probe.c:3,
+                 from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:6:
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:58:23: error: implicit declaration of function ‘cdk2_capsule_delivery_policy_from_hobs’ [-Wimplicit-function-declaration]
+   58 |         if (EFI_ERROR(cdk2_capsule_delivery_policy_from_hobs(hobs, &delivery)) ||
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/include/uefi.h:193:35: note: in definition of macro ‘EFI_ERROR’
+  193 | #define EFI_ERROR(value) (((INTN)(value)) < 0)
+      |                                   ^~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:98:13: error: passing argument 4 of ‘(EFI_STATUS (__attribute__((ms_abi)) *)(UINT32,  UINT32,  UINTN,  UINT64 *))core.boot_services.allocate_pages’ from incompatible pointer type [-Wincompatible-pointer-types]
+   98 |             &address) != EFI_SUCCESS || !actual_ram(&handoff, (void *)(uintptr_t)address, 4096))
+      |             ^~~~~~~~
+      |             |
+      |             uint64_t * {aka long unsigned int *}
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:98:13: note: expected ‘UINT64 *’ {aka ‘long long unsigned int *’} but argument is of type ‘uint64_t *’ {aka ‘long unsigned int *’}
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:39:45: error: unused variable ‘delivery’ [-Werror=unused-variable]
+   39 |         struct cdk2_capsule_delivery_policy delivery;
+      |                                             ^~~~~~~~
+cc1: all warnings being treated as errors
+make: *** [/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/src/boot/Makefile:900: native-capsule-mm-reset-component-test] Error 1
+Command exited with non-zero status 2
+	Command being timed: "make CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=build/mm-reset CDK2_CONFIG=build/mm-reset/resolved.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-mm-read-admission-after-predicate COREBOOT_CONFIG=/home/sean/q35-capsule-mm-read-build.OJFRgq/full.config MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls COREBOOT_ROM=/home/sean/q35-capsule-mm-read-build.OJFRgq/build/coreboot.rom CBFSTOOL=/home/sean/q35-capsule-mm-read-build.OJFRgq/build/util/cbfstool/cbfstool native-capsule-mm-reset-component-test"
+	User time (seconds): 0.13
+	System time (seconds): 0.14
+	Percent of CPU this job got: 108%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.25
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 24672
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2
+	Minor (reclaiming a frame) page faults: 24094
+	Voluntary context switches: 252
+	Involuntary context switches: 9
+	Swaps: 0
+	File system inputs: 8
+	File system outputs: 384
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2

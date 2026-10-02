@@ -1,0 +1,15 @@
+#
+# configuration written to /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset-peer/resolved.config
+#
+Native MM warm-reset artifacts: /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/build/mm-reset-peer/native/capsule-mm-reset-component/run.p2XLX2
+In file included from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/include/cdk2/authvar_presence_lifecycle_close_composition.h:5,
+                 from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/protected_variable_native_service_probe.c:3,
+                 from /home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:6:
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c: In function ‘cdk2_native_stage_entry’:
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/tests/capsule_mm_native_reset_probe.c:67:23: error: implicit declaration of function ‘cdk2_coreboot_append_capsule_hobs’; did you mean ‘cdk2_coreboot_append_capsule_hob’? [-Wimplicit-function-declaration]
+   67 |         if (EFI_ERROR(cdk2_coreboot_append_capsule_hobs(hobs, &handoff)))
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/include/uefi.h:193:35: note: in definition of macro ‘EFI_ERROR’
+  193 | #define EFI_ERROR(value) (((INTN)(value)) < 0)
+      |                                   ^~~~~
+make: *** [/home/sean/Documents/.cdk2-worktrees/capsule-mm-native-reset-mechanics/src/boot/Makefile:900: native-capsule-mm-reset-component-test] Error 1
