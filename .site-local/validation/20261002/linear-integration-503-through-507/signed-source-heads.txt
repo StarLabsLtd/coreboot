@@ -1,0 +1,7 @@
+e53cdcfe614c7f469760b86c83cd2825d6683255 G tests: prove MM capsule pointer retention through ResetSystem
+469110c459cf35aba49f8e6f031825978f1b2454 G partition: use native types for private parser state
+db57e6422397e8b9a710b15ad6197bec9ae84c04 G tests: format protected entry and RAM capsule fixtures
+170c3656af73315b6659f83a79714301f5cf4e8d G tests: prove enrolled fullgraph image and virtual Auth2 admission
+ef91cbdb037b441b166189e92d2a9d852b84018d G usb: use coreboot pointer spacing in owned code
+d7cd7b4712b214fd2c768c03207e8a3bedb176a0 G tests: apply coreboot layout to capsule and BDS fixtures
+031411e9621491dea1cd760345f007e64f05c8eb G build: include the fullgraph diagnostic in native output contracts

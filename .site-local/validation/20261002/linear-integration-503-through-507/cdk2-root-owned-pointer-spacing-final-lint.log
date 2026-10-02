@@ -1,0 +1,22 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#28: FILE: include/cdk2/scsi_disk_entry.h:28:
++	cdk2_scsi_disk_name *name);
+ 	                    ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#31: FILE: include/cdk2/scsi_disk_entry.h:31:
++	const char *language, cdk2_scsi_disk_name *name);
+ 	                                          ^
+
+total: 2 errors, 0 warnings, 69 lines checked
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#38: FILE: include/cdk2/pci_bus_binding.h:38:
++typedef UINTN *cdk2_uintn_pointer;
+               ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#41: FILE: include/cdk2/pci_bus_binding.h:41:
++typedef cdk2_char16_pointer *cdk2_char16_pointer_pointer;
+                             ^
+
+total: 2 errors, 0 warnings, 170 lines checked

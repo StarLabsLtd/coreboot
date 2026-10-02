@@ -1,0 +1,53 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/.config
+#
+immutable pci bus entry tests: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+scsi disk model tests: PASS
+scsi disk I/O tests: PASS
+scsi disk async tests: PASS
+scsi disk block tests: PASS
+scsi disk binding tests: PASS
+scsi disk backend tests: PASS
+scsi disk entry tests: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+PCI bus immutable configuration toggle: PASS
+pci bus model tests: PASS
+pci bus entry tests: PASS
+	Command being timed: "make -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468 CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl native-con-platform-test native-scsi-disk-test native-pci-bus-test authvar-presence-lifecycle-close-client-test"
+	User time (seconds): 67.57
+	System time (seconds): 8.21
+	Percent of CPU this job got: 229%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:33.04
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 65228
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 129
+	Minor (reclaiming a frame) page faults: 1748335
+	Voluntary context switches: 8958
+	Involuntary context switches: 3205
+	Swaps: 0
+	File system inputs: 5112
+	File system outputs: 41384
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,35 @@
+#
+# No change to /home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468/.config
+#
+native configuration cache rebuild and recipe coverage: PASS
+native command-input cache tests: PASS
+#
+# No change to /home/sean/tmp.TcfYpvN8s4/build/.config
+#
+#
+# No change to /home/sean/tmp.TcfYpvN8s4/build/.config
+#
+Native host dependency unions and transitive cache rebuilds: PASS
+	Command being timed: "make -j1 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/Documents/.cdk2-worktrees/protected-variable-runtime-reviewed451/build/protected-variable-root-whole-e468 CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl native-config-cache-test native-command-cache-test native-host-dependency-test"
+	User time (seconds): 74.05
+	System time (seconds): 10.70
+	Percent of CPU this job got: 97%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:27.25
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 112312
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 87
+	Minor (reclaiming a frame) page faults: 3263977
+	Voluntary context switches: 18613
+	Involuntary context switches: 1558
+	Swaps: 0
+	File system inputs: 5576
+	File system outputs: 325864
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

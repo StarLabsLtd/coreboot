@@ -1,0 +1,32 @@
+#
+# configuration written to /home/sean/Documents/cdk2/build/cdk2/.config
+#
+TEST-ONLY protected wholegraph diagnostic artifacts: /home/sean/Documents/cdk2/build/cdk2/native/protected-variable-fullgraph-diagnostic/run.ndv5UP
+Found file config at 0x34900, type raw, compressed 3379, size 11929
+Found file config at 0x19a80, type raw, compressed 2975, size 9676
+Unchanged protected packaged graph: actual EFI_UNSUPPORTED guard return, no app (guard held)
+Same diagnostic graph with genuinely absent protected endpoint: actual owner/entry refusal, no variable install or app
+TEST-ONLY enrolled image admission/post-VA Auth2 diagnostic: PASS (one hardguard discard; production guard unchanged)
+	Command being timed: "make -j1 COREBOOT_CONFIG=/home/sean/q35-predicate-fwinfo-full.xUjMtj/full.config COREBOOT_ROM=/home/sean/q35-predicate-fwinfo-full.xUjMtj/build/coreboot.rom CBFSTOOL=/home/sean/q35-predicate-fwinfo-full.xUjMtj/build/util/cbfstool/cbfstool COREBOOT_ABSENT_ROM=/home/sean/q35-linear-no-endpoint-fwinfo.19jrz0/build/coreboot.rom CBFSTOOL_ABSENT=/home/sean/q35-linear-no-endpoint-fwinfo.19jrz0/build/util/cbfstool/cbfstool native-protected-variable-fullgraph-enrolled-diagnostic-test"
+	User time (seconds): 82.70
+	System time (seconds): 20.85
+	Percent of CPU this job got: 109%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:34.56
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 217016
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 898
+	Minor (reclaiming a frame) page faults: 4136410
+	Voluntary context switches: 1514049
+	Involuntary context switches: 2553
+	Swaps: 0
+	File system inputs: 138368
+	File system outputs: 840424
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
