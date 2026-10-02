@@ -408,6 +408,15 @@ config PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT
 	  and token, then uses the existing EDK2-compatible FTW state machine. It
 	  installs no backend or provider and publishes no endpoint.
 
+config PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED
+	bool
+	default n
+	depends on PAYLOAD_MM_AUTHVAR_COORDINATOR
+	help
+	  Retain exact variable-policy predicate ownership in SMRAM, including
+	  ordinary volatile values and deleted keys. The fixed shared protected
+	  pool is bounded; this does not authorize imports from payload RAM.
+
 config PAYLOAD_MM_AUTHVAR_COORDINATOR
 	bool
 	default n

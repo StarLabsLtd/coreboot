@@ -47,9 +47,17 @@ static bool name_is(const struct payload_mm_authvar_route_request *request,
 		!memcmp(request->name, name, name_size);
 }
 
-static enum payload_mm_authvar_target classify_target(
-	const struct payload_mm_authvar_route_request *request)
+static bool canonical_name(const void *name, size_t size);
+
+enum payload_mm_authvar_target payload_mm_authvar_route_key_target(
+	const uint8_t vendor_guid[16], const void *name, size_t name_size)
 {
+	struct payload_mm_authvar_route_request key = { .name = name, .name_size = name_size };
+	const struct payload_mm_authvar_route_request *request = &key;
+
+	if (!range_valid(vendor_guid, 16) || !canonical_name(name, name_size))
+		return PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE;
+	memcpy(key.vendor_guid, vendor_guid, sizeof(key.vendor_guid));
 	if (!memcmp(request->vendor_guid, global_variable_guid,
 		sizeof(global_variable_guid))) {
 		if (name_is(request, pk_name, sizeof(pk_name)))
@@ -186,7 +194,8 @@ enum payload_mm_authvar_route_result payload_mm_authvar_route_plan(
 	if (!canonical_name(copied.name, copied.name_size) ||
 	    (!copied.target_exists && copied.existing_attributes))
 		return PAYLOAD_MM_AUTHVAR_ROUTE_INVALID;
-	routed.target = classify_target(&copied);
+	routed.target = payload_mm_authvar_route_key_target(copied.vendor_guid,
+		copied.name, copied.name_size);
 	if (routed.target == PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE)
 		result = route_private(&copied, &routed);
 	else

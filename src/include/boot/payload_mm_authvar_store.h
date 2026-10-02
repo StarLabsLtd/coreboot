@@ -76,6 +76,10 @@ enum cb_err payload_mm_authvar_store_find_one(
 /* Revalidate every scanner/index invariant before policy consumes a snapshot. */
 bool payload_mm_authvar_store_index_valid(
 	const struct payload_mm_authvar_store_index *index);
+/* Historical records retain NV class even when the current value was deleted. */
+enum cb_err payload_mm_authvar_store_key_recorded(
+	const struct payload_mm_authvar_store_index *index, const uint8_t vendor_guid[16],
+	const void *name, size_t name_size, bool *recorded);
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_find(
 	const struct payload_mm_authvar_store_index *index,
 	const uint8_t vendor_guid[16], const void *name, size_t name_size);

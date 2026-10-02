@@ -27,6 +27,9 @@
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 #include <boot/payload_mm_authvar_view.h>
 #include <boot/payload_mm_authvar_format.h>
+#include <boot/payload_mm_authvar_route.h>
+#include <boot/payload_mm_authvar_bundle.h>
+#include <boot/payload_mm_authvar_controlled_mode.h>
 #endif
 #include <boot/payload_mm_authvar_writer.h>
 #include <string.h>
@@ -36,6 +39,7 @@
 #include "payload_mm_authvar_set_preflight.h"
 #if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
 #include "payload_mm_authvar_fmp_internal.h"
+#include "payload_mm_fmp_owner_authvar_internal.h"
 #include "payload_mm_crypto/crypto.h"
 #endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
@@ -207,17 +211,39 @@ static uint64_t poison_session(void);
 #define VARIABLE_POLICY_STATE_SIZE 18U
 #define VARIABLE_POLICY_MAX_ENTRY_SIZE 512U
 #define VARIABLE_POLICY_MAX_ENTRIES 128U
+#define VARIABLE_PREDICATE_DATA_CAPACITY 65536U
+struct variable_predicate_pin {
+	u32 policy_offset;
+	u32 kind;
+	u32 attributes;
+	u32 data_offset;
+	u32 data_size;
+};
 struct variable_policy_ledger {
 	u32 count;
 	u32 used;
 	u32 locked;
 	u8 entries[VARIABLE_POLICY_MAX_ENTRY_SIZE * VARIABLE_POLICY_MAX_ENTRIES];
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	u32 pin_count;
+	u32 data_used;
+	struct variable_predicate_pin pins[VARIABLE_POLICY_MAX_ENTRIES];
+	u8 data[VARIABLE_PREDICATE_DATA_CAPACITY];
+#endif
 };
 
 /* The ledger survives the per-request scratch-arena scrub. No payload pointer
  * is retained. Its seal participates in every existing executor checkpoint. */
 static struct variable_policy_ledger variable_policies, sealed_variable_policies;
 static bool variable_policy_valid(const u8 *entry, size_t size);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+static struct executor_session *session(void);
+static bool contract_allowed(const struct payload_mm_authvar_contract *contract,
+	const struct payload_mm_authvar_executor_limits *limits);
+static enum payload_mm_authvar_media_result media_begin(struct executor_session *state);
+static enum payload_mm_authvar_media_result media_end(struct executor_session *state);
+static u64 recover_session(struct executor_session *state);
+#endif
 
 static bool variable_policies_equal(void)
 {
@@ -245,7 +271,64 @@ static bool variable_policies_equal(void)
 		offset += size;
 		count++;
 	}
-	return count == variable_policies.count;
+	if (count != variable_policies.count)
+		return false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	if (variable_policies.pin_count > ARRAY_SIZE(variable_policies.pins) ||
+	    variable_policies.pin_count != sealed_variable_policies.pin_count ||
+	    variable_policies.data_used > sizeof(variable_policies.data) ||
+	    variable_policies.data_used != sealed_variable_policies.data_used ||
+	    memcmp(variable_policies.pins, sealed_variable_policies.pins,
+		sizeof(variable_policies.pins)) ||
+	    memcmp(variable_policies.data, sealed_variable_policies.data,
+		sizeof(variable_policies.data)))
+		return false;
+	count = 0;
+	for (size_t pin_index = 0; pin_index < variable_policies.pin_count; pin_index++) {
+		const struct variable_predicate_pin *pin = &variable_policies.pins[pin_index];
+		const u8 *entry;
+
+		offset = 0;
+		while (offset < variable_policies.used && offset < pin->policy_offset)
+			offset += (u32)variable_policies.entries[offset + 4] |
+				(u32)variable_policies.entries[offset + 5] << 8;
+		if (offset != pin->policy_offset || offset >= variable_policies.used)
+			return false;
+		entry = variable_policies.entries + offset;
+		if (entry[40] != 3 ||
+		    (pin->kind != PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT &&
+		     pin->kind != PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED) ||
+		    pin->data_offset > variable_policies.data_used ||
+		    pin->data_size > variable_policies.data_used - pin->data_offset ||
+		    (pin->kind == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT &&
+		     (pin->attributes || pin->data_size || pin->data_offset)) ||
+		    (pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED &&
+		     ((pin->data_size && pin->attributes != 2 && pin->attributes != 6) ||
+		      (!pin->data_size && (pin->attributes || pin->data_offset)))))
+			return false;
+		for (size_t previous = 0; previous < pin_index; previous++) {
+			const struct variable_predicate_pin *other = &variable_policies.pins[previous];
+			const u8 *other_entry = variable_policies.entries + other->policy_offset;
+			size_t name_end = (u32)entry[6] | (u32)entry[7] << 8;
+			size_t other_name_end = (u32)other_entry[6] | (u32)other_entry[7] << 8;
+
+			if ((name_end == other_name_end &&
+			     !memcmp(entry + VARIABLE_POLICY_HEADER_SIZE,
+				other_entry + VARIABLE_POLICY_HEADER_SIZE, 16) &&
+			     !memcmp(entry + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+				other_entry + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+				name_end - VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE)) ||
+			    (pin->data_size && other->data_size &&
+			     pin->data_offset < other->data_offset + other->data_size &&
+			     other->data_offset < pin->data_offset + pin->data_size))
+				return false;
+		}
+		count += pin->data_size;
+	}
+	if (count != variable_policies.data_used)
+		return false;
+#endif
+	return true;
 }
 #endif
 
@@ -330,6 +413,29 @@ static bool policy_equal(void)
 #endif
 		;
 }
+
+#if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+bool payload_mm_authvar_executor_state_predicate_pinned(void)
+{
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	return executor.installed && policy_equal() &&
+		executor.sealed.limits.maximum_data_size <= VARIABLE_PREDICATE_DATA_CAPACITY &&
+		payload_mm_authvar_smram_buffer(&variable_policies, sizeof(variable_policies)) &&
+		payload_mm_authvar_smram_buffer(&sealed_variable_policies,
+			sizeof(sealed_variable_policies)) &&
+		payload_mm_authvar_media_buffer_disjoint(&variable_policies,
+			sizeof(variable_policies)) &&
+		payload_mm_authvar_media_buffer_disjoint(&sealed_variable_policies,
+			sizeof(sealed_variable_policies)) &&
+		!payload_mm_authvar_buffers_overlap(&variable_policies, sizeof(variable_policies),
+			executor.sealed.arena, executor.sealed.arena_size) &&
+		!payload_mm_authvar_buffers_overlap(&sealed_variable_policies,
+			sizeof(sealed_variable_policies), executor.sealed.arena, executor.sealed.arena_size);
+#else
+	return false;
+#endif
+}
+#endif
 
 #if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
 static void fmp_complete_abort_after_fail_closed(void)
@@ -517,6 +623,104 @@ static bool policy_name_valid(const u8 *name, size_t size, bool wildcard_name)
 	return false;
 }
 
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+static struct variable_predicate_pin *variable_predicate_find(const u8 guid[16],
+	const void *name, size_t name_size)
+{
+	for (size_t index = 0; index < variable_policies.pin_count; index++) {
+		struct variable_predicate_pin *pin = &variable_policies.pins[index];
+		const u8 *entry = variable_policies.entries + pin->policy_offset;
+		size_t state_name_size = policy_read16(entry + 6) -
+			VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE;
+
+		if (state_name_size == name_size &&
+		    !memcmp(entry + VARIABLE_POLICY_HEADER_SIZE, guid, 16) &&
+		    !memcmp(entry + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+			name, name_size))
+			return pin;
+	}
+	return NULL;
+}
+
+static u64 variable_predicate_get(const struct variable_predicate_pin *pin,
+	bool at_runtime, size_t capacity, struct payload_mm_authvar_view_value *value)
+{
+	const u8 *entry = variable_policies.entries + pin->policy_offset;
+
+	if (!pin->data_size || (at_runtime && !(pin->attributes &
+	    PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+	*value = (struct payload_mm_authvar_view_value) {
+		.vendor_guid = entry + VARIABLE_POLICY_HEADER_SIZE,
+		.name = entry + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+		.name_size = policy_read16(entry + 6) - VARIABLE_POLICY_HEADER_SIZE -
+			VARIABLE_POLICY_STATE_SIZE,
+		.data = variable_policies.data + pin->data_offset,
+		.data_size = pin->data_size,
+		.attributes = pin->attributes,
+	};
+	return capacity < pin->data_size ? PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL :
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+static u64 variable_predicate_set(struct variable_predicate_pin *pin,
+	const struct executor_session *state, bool commit)
+{
+	const struct payload_mm_authvar_policy_request *request = &state->request;
+	u32 attributes = request->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	bool append = request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	bool deletion = !append && (!attributes || !request->data_size);
+	u32 old_size = pin->data_size;
+	u32 new_size;
+	u32 offset = old_size ? pin->data_offset : variable_policies.data_used;
+
+	if (attributes != 2 && attributes != 6 &&
+	    !(attributes == 0 && deletion))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (state->at_runtime &&
+	    ((old_size && !(pin->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
+	     (attributes && !(attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
+	     (!old_size && !attributes)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	if (old_size && attributes && attributes != pin->attributes)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (append && !request->data_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (deletion && !old_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+	if (!deletion && (request->data_size > executor.sealed.limits.maximum_data_size ||
+	    request->data_size > VARIABLE_PREDICATE_DATA_CAPACITY ||
+	    (append && old_size > executor.sealed.limits.maximum_data_size - request->data_size)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	new_size = deletion ? 0 : (u32)request->data_size + (append ? old_size : 0);
+	if (new_size > VARIABLE_PREDICATE_DATA_CAPACITY -
+	    (variable_policies.data_used - old_size))
+		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	if (!commit)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	memmove(variable_policies.data + offset + new_size,
+		variable_policies.data + offset + old_size,
+		variable_policies.data_used - offset - old_size);
+	for (size_t index = 0; index < variable_policies.pin_count; index++) {
+		struct variable_predicate_pin *other = &variable_policies.pins[index];
+
+		if (other != pin && other->data_size && other->data_offset >= offset + old_size)
+			other->data_offset = other->data_offset - old_size + new_size;
+	}
+	if (!deletion && request->data_size)
+		memcpy(variable_policies.data + offset + (append ? old_size : 0),
+			request->data, request->data_size);
+	variable_policies.data_used = variable_policies.data_used - old_size + new_size;
+	memset(variable_policies.data + variable_policies.data_used, 0,
+		sizeof(variable_policies.data) - variable_policies.data_used);
+	pin->data_size = new_size;
+	pin->data_offset = new_size ? offset : 0;
+	pin->attributes = new_size ? attributes : 0;
+	memcpy(&sealed_variable_policies, &variable_policies, sizeof(variable_policies));
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+#endif
+
 static bool variable_policy_valid(const u8 *entry, size_t size)
 {
 	size_t name_offset;
@@ -547,6 +751,10 @@ uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t s
 	u8 copied[VARIABLE_POLICY_MAX_ENTRY_SIZE];
 	u32 expected = 0;
 	u64 status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	u32 pin_kind = 0;
+	bool recovered = false;
+#endif
 
 	if (provider_reentry())
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -589,6 +797,98 @@ uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t s
 		status = PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 		goto out;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	if (copied[40] == 3) {
+		const u8 *guid = copied + VARIABLE_POLICY_HEADER_SIZE;
+		const u8 *name = guid + VARIABLE_POLICY_STATE_SIZE;
+		size_t name_size = policy_read16(copied + 6) -
+			VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE;
+
+		if (name_size > executor.sealed.limits.maximum_name_size ||
+		    executor.sealed.limits.maximum_data_size > VARIABLE_PREDICATE_DATA_CAPACITY) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+			goto out;
+		}
+		if (!variable_predicate_find(guid, name, name_size)) {
+			struct executor_session *state = session();
+			struct payload_mm_authvar_view view;
+			struct payload_mm_authvar_key_classification classification;
+			enum payload_mm_authvar_media_result result, end_result;
+			u8 modes;
+
+			if (variable_policies.pin_count == ARRAY_SIZE(variable_policies.pins)) {
+				status = PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+				goto out;
+			}
+			memset(state, 0, sizeof(*state));
+			recovered = true;
+			result = media_begin(state);
+			if (result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+				status = payload_mm_authvar_media_result_status(result);
+				goto out;
+			}
+			payload_mm_authvar_media_cache_invalidate();
+			if (!policy_equal() ||
+			    !payload_mm_authvar_authority_snapshot(&state->contract) ||
+			    !contract_allowed(&state->contract, &executor.sealed.limits))
+				status = poison_session();
+			else
+				status = recover_session(state);
+			if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+				if (!payload_mm_authvar_coordinator_source_modes(&state->index, false,
+				    executor.sealed_volatile_modes_valid, executor.sealed_volatile_modes,
+				    &modes) || payload_mm_authvar_view_init(&view, &state->index,
+					modes, false) != CB_SUCCESS)
+					status = poison_session();
+				else {
+					status = payload_mm_authvar_view_classify(&view, guid, name,
+						name_size, &classification);
+					if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+						if (classification.kind == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT)
+							pin_kind = PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;
+					} else if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
+						bool recorded;
+
+						if (payload_mm_authvar_store_key_recorded(&state->index,
+						    guid, name, name_size, &recorded) != CB_SUCCESS)
+							status = poison_session();
+						else {
+							bool ordinary = !recorded &&
+								payload_mm_authvar_route_key_target(guid, name, name_size - 2) ==
+									PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE &&
+								!payload_mm_authvar_bundle_key_reserved(guid, name, name_size) &&
+								payload_mm_authvar_controlled_mode_classify(guid, name, name_size) ==
+									PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE;
+#if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)
+							ordinary = ordinary && payload_mm_fmp_owner_authvar_reservation(
+								guid, name, name_size) == PAYLOAD_MM_FMP_OWNER_AUTHVAR_NOT_RESERVED;
+#endif
+							pin_kind = ordinary ? PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED :
+								PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;
+							status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+						}
+					}
+				}
+			}
+			end_result = media_end(state);
+			if (end_result != PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS ||
+			    !executor.installed || !policy_equal()) {
+				status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+				goto out;
+			}
+			if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+				goto out;
+		}
+	}
+#endif
+	/* Publish only after any authoritative storage wave ended successfully. */
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	if (pin_kind)
+		variable_policies.pins[variable_policies.pin_count++] =
+			(struct variable_predicate_pin) {
+				.policy_offset = variable_policies.used, .kind = pin_kind,
+			};
+#endif
 	memcpy(variable_policies.entries + variable_policies.used, copied, size);
 	variable_policies.used += (u32)size;
 	variable_policies.count++;
@@ -596,9 +896,16 @@ uint64_t payload_mm_authvar_variable_policy_register(const void *entry, size_t s
 	sealed_variable_policies.used = variable_policies.used;
 	memcpy(sealed_variable_policies.entries, variable_policies.entries,
 		variable_policies.used);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	memcpy(&sealed_variable_policies, &variable_policies, sizeof(variable_policies));
+#endif
 	status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 out:
 	memset(copied, 0, sizeof(copied));
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	if (recovered)
+		memset(executor.sealed.arena, 0, executor.sealed.required_size);
+#endif
 	__atomic_store_n(&executor.busy, 0, __ATOMIC_RELEASE);
 	return status;
 }
@@ -689,6 +996,13 @@ static u64 variable_policy_check(const struct executor_session *state)
 	if (best[40] == 2) {
 		status = payload_mm_authvar_view_get(&current, request->vendor_guid,
 			request->name, request->name_size, 0, &value);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		struct variable_predicate_pin *pin = variable_predicate_find(request->vendor_guid,
+			request->name, request->name_size);
+
+		if (pin && pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED)
+			status = variable_predicate_get(pin, state->at_runtime, 0, &value);
+#endif
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
 		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
@@ -700,6 +1014,15 @@ static u64 variable_policy_check(const struct executor_session *state)
 				best + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
 				policy_read16(best + 6) - VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE,
 				1, &value);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		struct variable_predicate_pin *pin = variable_predicate_find(
+			best + VARIABLE_POLICY_HEADER_SIZE,
+			best + VARIABLE_POLICY_HEADER_SIZE + VARIABLE_POLICY_STATE_SIZE,
+			policy_read16(best + 6) - VARIABLE_POLICY_HEADER_SIZE - VARIABLE_POLICY_STATE_SIZE);
+
+		if (pin && pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED)
+			status = variable_predicate_get(pin, state->at_runtime, 1, &value);
+#endif
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && value.data_size == 1 &&
 		    *(const u8 *)value.data == best[60])
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
@@ -4508,6 +4831,21 @@ uint64_t payload_mm_authvar_read_transaction(
 		status = payload_mm_authvar_view_classify(&read_view,
 			state->request.vendor_guid, state->request.name,
 			state->request.name_size, &classification);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		struct variable_predicate_pin *pin = variable_predicate_find(state->request.vendor_guid,
+			state->request.name, state->request.name_size);
+
+		if (pin && (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ||
+		    pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED)) {
+			classification = (struct payload_mm_authvar_key_classification) {
+				.kind = pin->kind, .attributes = pin->attributes,
+				.flags = pin->data_size && (!state->at_runtime ||
+					(pin->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ?
+					PAYLOAD_MM_AUTHVAR_KEY_VISIBLE : 0,
+			};
+			status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		}
+#endif
 		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 			break;
 		state->read_result.required_data_size = PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE;
@@ -4621,6 +4959,16 @@ uint64_t payload_mm_authvar_read_transaction(
 		status = payload_mm_authvar_view_get(&read_view,
 			state->request.vendor_guid, state->request.name,
 			state->request.name_size, state->read_data_capacity, &value);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		{
+			struct variable_predicate_pin *pin = variable_predicate_find(
+				state->request.vendor_guid, state->request.name, state->request.name_size);
+
+			if (pin && pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED)
+				status = variable_predicate_get(pin, state->at_runtime,
+					state->read_data_capacity, &value);
+		}
+#endif
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
 		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL) {
 			state->read_result.required_data_size = value.data_size;
@@ -4667,6 +5015,44 @@ uint64_t payload_mm_authvar_read_transaction(
 		status = payload_mm_authvar_view_get_next(&read_view,
 			state->request.vendor_guid, state->request.name,
 			state->request.name_size, state->read_name_capacity, &value);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		{
+			struct variable_predicate_pin *cursor = variable_predicate_find(
+				state->request.vendor_guid, state->request.name, state->request.name_size);
+			size_t first = cursor && cursor->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED ?
+				(size_t)(cursor - variable_policies.pins) + 1 : 0;
+			bool append_owned = state->request.name_size == 2 &&
+				!((const u8 *)state->request.name)[0] && !((const u8 *)state->request.name)[1];
+			struct payload_mm_authvar_view_value cursor_value;
+
+			if (cursor && cursor->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED) {
+				append_owned = variable_predicate_get(cursor, state->at_runtime,
+					SIZE_MAX, &cursor_value) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+				status = append_owned ? PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND :
+					PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			} else if (!append_owned) {
+				u64 cursor_status = payload_mm_authvar_view_get(&read_view,
+					state->request.vendor_guid, state->request.name,
+					state->request.name_size, 0, &cursor_value);
+
+				append_owned = cursor_status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+					cursor_status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+			}
+			if (append_owned && status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND)
+				for (size_t index = first; index < variable_policies.pin_count; index++) {
+					const struct variable_predicate_pin *pin = &variable_policies.pins[index];
+
+					if (pin->kind != PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED ||
+					    variable_predicate_get(pin, state->at_runtime, SIZE_MAX, &value) !=
+						PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+						continue;
+					status = state->read_name_capacity < value.name_size ?
+						PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL :
+						PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+					break;
+				}
+		}
+#endif
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
 		    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
 			state->read_result.required_name_size = value.name_size;
@@ -4717,6 +5103,22 @@ uint64_t payload_mm_authvar_read_transaction(
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 		status = payload_mm_authvar_view_query(&read_view, &query_policy,
 			state->request.attributes, &query);
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+		if (state->request.attributes == 2 || state->request.attributes == 6) {
+			if (state->at_runtime && state->request.attributes == 2)
+				status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			else {
+				query = (struct payload_mm_authvar_query_result) {
+					.maximum_storage = VARIABLE_PREDICATE_DATA_CAPACITY,
+					.remaining_storage = VARIABLE_PREDICATE_DATA_CAPACITY -
+						variable_policies.data_used,
+					.maximum_variable = MIN(executor.sealed.limits.maximum_data_size,
+						VARIABLE_PREDICATE_DATA_CAPACITY - variable_policies.data_used),
+				};
+				status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+			}
+		}
+#endif
 #else
 		status = payload_mm_authvar_store_query(&state->index, &query_policy,
 			state->request.attributes, state->at_runtime, &query);
@@ -4817,6 +5219,11 @@ uint64_t payload_mm_authvar_policy_transaction(
 	struct payload_mm_authvar_set_snapshot set_snapshot;
 	struct payload_mm_authvar_set_plan set_plan;
 	struct payload_mm_authvar_view current_view;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	struct variable_predicate_pin *pending_volatile = NULL;
+	u8 volatile_name_digest[PAYLOAD_MM_SHA256_SIZE];
+	u8 volatile_data_digest[PAYLOAD_MM_SHA256_SIZE];
+#endif
 #endif
 	enum payload_mm_authvar_media_result result;
 	enum payload_mm_authvar_media_result end_result;
@@ -4943,6 +5350,32 @@ uint64_t payload_mm_authvar_policy_transaction(
 	status = variable_policy_check(state);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		goto end;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	{
+		struct variable_predicate_pin *pin = variable_predicate_find(
+			state->request.vendor_guid, state->request.name, state->request.name_size);
+
+		if (pin && pin->kind == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED) {
+			status = variable_predicate_set(pin, state, false);
+			if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
+				if (!immutable_digest(state->request.name, state->request.name_size,
+				    volatile_name_digest) || !immutable_digest(state->request.data,
+					state->request.data_size, volatile_data_digest))
+					status = poison_session();
+				else
+					pending_volatile = pin;
+			}
+			goto end;
+		}
+		if (pin && pin->kind == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT &&
+		    state->request.data_size && state->request.attributes &&
+		    !(state->request.attributes &
+			PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE)) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+			goto end;
+		}
+	}
+#endif
 	set_snapshot = (struct payload_mm_authvar_set_snapshot) {
 		.request = &state->request,
 		.index = &state->index,
@@ -5110,6 +5543,21 @@ end:
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
+	if (pending_volatile && status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+	    end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
+		u8 name_digest[PAYLOAD_MM_SHA256_SIZE], data_digest[PAYLOAD_MM_SHA256_SIZE];
+
+		if (!executor.installed || !policy_equal() ||
+		    !immutable_digest(state->request.name, state->request.name_size, name_digest) ||
+		    !immutable_digest(state->request.data, state->request.data_size, data_digest) ||
+		    memcmp(name_digest, volatile_name_digest, sizeof(name_digest)) ||
+		    memcmp(data_digest, volatile_data_digest, sizeof(data_digest)))
+			status = poison_session();
+		else
+			status = variable_predicate_set(pending_volatile, state, true);
+	}
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (reconcile_modes && modes_validated && executor.installed &&
 	    policy_equal() && end_result == PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS) {
