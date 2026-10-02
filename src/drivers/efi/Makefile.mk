@@ -21,3 +21,19 @@ smm-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 
 ramstage-$(CONFIG_DRIVERS_EFI_FW_INFO)	+= info.c fw_info.c
 smm-$(CONFIG_CAPSULE_PLATFORM_FACTS)	+= fw_info.c
+
+ifeq ($(CONFIG_CAPSULE_BROKER_TRUST_PACKAGE),y)
+capsule-trust-pem := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+cbfs-files-y += capsule/trust.der
+capsule/trust.der-file := $(obj)/capsule/trust.der
+capsule/trust.der-type := raw
+
+.PHONY: capsule-trust-input-check
+capsule-trust-input-check:
+
+$(obj)/capsule/trust.der: capsule-trust-input-check $(DOTCONFIG) \
+		util/efi_capsule/package_trust.py util/efi_capsule/crypto_policy.py
+	mkdir -p $(dir $@)
+	python3 util/efi_capsule/package_trust.py --certificate "$(capsule-trust-pem)" \
+		--output "$@"
+endif
