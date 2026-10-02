@@ -1,0 +1,44 @@
+Found file cdk2/config at 0xc9180, type raw, compressed 2975, size 2975
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544'
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544'
+LVGL UI driver form test passed
+Found file config at 0x3df80, type raw, compressed 3566, size 12873
+Found file cdk2/config at 0xc9180, type raw, compressed 2975, size 2975
+Selecting status strip differs from source-rendered LVGL reference
+Command exited with non-zero status 1
+	Command being timed: "util/qemu/bin/run-quiet-setup-acceptance.sh /home/sean/cdk2-root-quiet-provider383.sggGBD/quiet-provider383.rom /home/sean/cdk2-root-quiet-threeboot-provider383-publication /home/sean/cdk2-root-quiet-provider383.sggGBD"
+	User time (seconds): 53.99
+	System time (seconds): 8.57
+	Percent of CPU this job got: 138%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:45.33
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 377668
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 152
+	Minor (reclaiming a frame) page faults: 302266
+	Voluntary context switches: 359474
+	Involuntary context switches: 355
+	Swaps: 0
+	File system inputs: 107848
+	File system outputs: 1249848
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

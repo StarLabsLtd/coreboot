@@ -1,0 +1,9 @@
+# Quiet publication succeeds; full UI oracle still fails
+
+Actual root session 23904 returned 1 at signed CDK2 `13c8506eef0e8575dfcbf0602b773616333caea2`, with managed wall time 45.360 seconds. The raw GNU log records 45.33 seconds and exit 1. The actual coreboot producer is the separately preserved joined provider-383 baseline, not the historical BMP-enabled producer. The quiet native payload and its package were unchanged from the separately preserved build-74522 input.
+
+The physical QMP observer accepted publication after 20 retries. The first and last failed publication table bytes, addresses, hashes and elapsed times are preserved under `run/cbmem-scratch`. The final low locator, leaf, console snapshot and live log pass the strict saved-console validator. This proves this publication case, not arbitrary table mutation tolerance or firmware authority.
+
+Actual F2 entry, form navigation, Escape return, logo restoration and Linux/runtime observations reached the saved QMP action sequence. However, the final pixel oracle reports `Selecting status strip differs from source-rendered LVGL reference`. Thus the three-boot suite failed; the other two boots were not completed by this invocation. The producer config has coreboot BMP rendering disabled. CDK2 draws its source fallback wordmark, while this old reference still assumes the narrower historical BMP. Root viewed the actual navigated form and Selecting screenshots; those observations do not override the failed oracle. A separately reviewed source-derived geometry correction and a fresh whole-suite replay remain required.
+
+This packet copies only finite original logs, config/manifest metadata, physical table and console snapshots, source-rendered reference and actual screen PPMs. It excludes pflash, NVMe/USB images, TPM state, guest files, sockets and signing keys. Original author inputs were not changed. No capsule-write, restore, hardware, host-power-loss or full-project success is claimed.

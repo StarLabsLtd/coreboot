@@ -1,0 +1,17 @@
+{
+  "config_header_sha256": "5fee53cf846a45172a6b8ef714596508ece6e74f34de93ca2902c7cf3845c783",
+  "prepared_config_sha256": "4232e9a9547717c2effceb4e525101b3814fe6edfee7439cbfb522273515865c",
+  "prepared_kconfig_sha256": "97ba51c27d0a7e12369d32cab439e9a093aa9579bb95c1158e993e3a7b8d8e44",
+  "prepared_defconfig_sha256": "c0b733c84b165e957615db40bb38c8c276fb975bd03d33787546230a254157ad",
+  "coreboot_input_identity_sha256": "89be598b8b1a6bb266a579e9258d25e3792643cc2f46e12eedd66d493c5ef19e",
+  "coreboot_source_input_sha256": "affdbf37d1a94634ede4d162d325a30fe010036a3a8c6d566987b36b34cfde35",
+  "ui_scale": 0,
+  "lvgl_config_sha256": "33395d36814c826a6b73d1d05a221e0020abbd01d65f63781f3db5a51a6ad7eb",
+  "lvgl_commit": "85aa60d18b3d5e5588d7b247abf90198f07c8a63",
+  "native_ui_test_sha256": "ad8988b0683a380c624dbf7e89d4276dfbd5fa6393ec63d7304a984b17d14b16",
+  "reference_test_source_sha256": "dbde55b6f2d311622f284e9e4324e85d71fb257d402918674689e408712ee4a1",
+  "reference_sha256": "0f61c6d78d59b7e222a6e9820fdd45613cf90186946aec156922bcb6dfdf6e33",
+  "renderer_source_sha256": "7f89635fdf8d5f7d00c632030a9e2e9f68f196858cd3f6e785fbe488cd37b6eb",
+  "settings_source_sha256": "ae239b1f6111ef9eb1ad02d5ef4c8751fd879888e1dd827c94f81aeaec7e29d3",
+  "source_commit": "13c8506eef0e8575dfcbf0602b773616333caea2"
+}

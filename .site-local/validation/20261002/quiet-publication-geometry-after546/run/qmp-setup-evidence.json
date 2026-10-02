@@ -1,0 +1,198 @@
+{
+  "actions": [
+    {
+      "vnc_connected": true
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "SPLASH_EARLY | complete | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "status-original"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "INPUT_UI | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "INPUT_UI | complete | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "splash-before"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "SetupHotkey | wait | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "selecting-before"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "delay_ms": 250
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "selecting-stable"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "state": "down",
+      "vnc_key": "f2"
+    },
+    {
+      "wait_cbmem": "SetupForm | begin | SUCCESS"
+    },
+    {
+      "state": "up",
+      "vnc_key": "f2"
+    },
+    {
+      "capture": "form-initial"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "capture": "form-navigated"
+    },
+    {
+      "state": "down",
+      "vnc_key": "esc"
+    },
+    {
+      "state": "up",
+      "vnc_key": "esc"
+    },
+    {
+      "wait_cbmem": "SetupForm | return | ABORTED"
+    },
+    {
+      "wait_cbmem": "BootLogo | restore and BGRT | SUCCESS"
+    },
+    {
+      "capture": "firmware-restored"
+    },
+    {
+      "wait_serial": "CDK2_RUNTIME_OK"
+    }
+  ],
+  "completion": {
+    "intentional": true,
+    "os_marker": "CDK2_RUNTIME_OK",
+    "qmp_quit": {
+      "return": {}
+    }
+  },
+  "diagnostics": {
+    "file": "cbmem-live.log",
+    "observer_file": "cbmem-observer.json",
+    "observer_sha256": "9b08f1622b4169956fa60a41cbc67f6ec6599e6ca01a3dd239b6873d0c92c431",
+    "sha256": "6404571b4efde057c46bf2cd54372f24ac4f778ad22544eeeb899cf715bf753a",
+    "source": "qmp-physical-cbmem"
+  },
+  "mode": "hotkey",
+  "profile": "quiet",
+  "screens": {
+    "firmware-restored": {
+      "file": "setup-firmware-restored.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    },
+    "form-initial": {
+      "file": "setup-form-initial.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+      "width": 800
+    },
+    "form-navigated": {
+      "file": "setup-form-navigated.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+      "width": 800
+    },
+    "selecting-before": {
+      "file": "setup-selecting-before.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "06cfb742e626ef59cda05fc39a12fdca53a524d0ee2b5be254bce0d5501476f7",
+      "width": 800
+    },
+    "selecting-stable": {
+      "file": "setup-selecting-stable.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "06cfb742e626ef59cda05fc39a12fdca53a524d0ee2b5be254bce0d5501476f7",
+      "width": 800
+    },
+    "splash-before": {
+      "file": "setup-splash-before.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "3ce92d14dbaa66ecba348c5bf9b30462e38a14cc5a4cc978ca8ed176357ed4c2",
+      "width": 800
+    },
+    "status-original": {
+      "file": "setup-status-original.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    }
+  },
+  "selecting_reference": {
+    "file": "selecting-reference.ppm",
+    "height": 480,
+    "manifest_sha256": "639b123b88cad1d68e8e356a4926f36617c15695a57513f786f12486ce73c814",
+    "sha256": "0f61c6d78d59b7e222a6e9820fdd45613cf90186946aec156922bcb6dfdf6e33",
+    "width": 800
+  }
+}
