@@ -327,7 +327,9 @@ static void soc_init(void *data)
 	 * There is a UPD setting for this, but it's more consistent to use
 	 * hide and unhide symmetrically.
 	 */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	config = config_of_soc();
 	/* Set RAPL MSR for Package power limits */
@@ -873,7 +875,9 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 		heci_cse_lockdown();
 
 		/* Hide the P2SB device to align with previous behavior. */
-		p2sb_hide();
+		if (!p2sb_hide())
+			die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 		/*
 		 * As per guidelines BIOS is recommended to drop CPU privilege
