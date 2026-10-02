@@ -25,6 +25,8 @@ struct payload_mm_authvar_executor_limits {
 struct lb_authvar_service_endpoint;
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+/* Optional descriptive capability of the genuinely installed protected owner. */
+bool payload_mm_authvar_executor_state_predicate_pinned(void);
 /* Protected service admission; no shared-memory input or endpoint publication. */
 enum cb_err payload_mm_authvar_executor_service_admit(
 	const struct lb_authvar_service_endpoint *endpoint,

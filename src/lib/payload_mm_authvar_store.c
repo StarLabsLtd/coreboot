@@ -536,6 +536,45 @@ error:
 	return CB_ERR;
 }
 
+enum cb_err payload_mm_authvar_store_key_recorded(
+	const struct payload_mm_authvar_store_index *index, const uint8_t vendor_guid[16],
+	const void *name, size_t name_size, bool *recorded)
+{
+	struct payload_mm_authvar_store_limits limits;
+	u32 offset;
+
+	if (!recorded || !range_valid(recorded, sizeof(*recorded)) ||
+	    !range_valid(vendor_guid, 16) || !range_valid(name, name_size) ||
+	    name_size > UINT32_MAX || !payload_mm_authvar_store_index_valid(index) ||
+	    ranges_overlap(recorded, sizeof(*recorded), index, sizeof(*index)) ||
+	    ranges_overlap(recorded, sizeof(*recorded), index->store, index->store_size) ||
+	    ranges_overlap(recorded, sizeof(*recorded), index->entries,
+		index->entry_capacity * sizeof(index->entries[0])) ||
+	    ranges_overlap(recorded, sizeof(*recorded), vendor_guid, 16) ||
+	    ranges_overlap(recorded, sizeof(*recorded), name, name_size))
+		return CB_ERR_ARG;
+	*recorded = false;
+	limits = (struct payload_mm_authvar_store_limits) {
+		.maximum_store_size = index->store_size,
+		.maximum_name_size = index->maximum_name_size,
+		.maximum_data_size = index->maximum_data_size,
+		.maximum_records = index->maximum_records,
+	};
+	offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	while (offset < index->used_size) {
+		struct record_view record;
+
+		if (decode_record(index->store, index->store_size, offset, &limits, &record) != RECORD_VALID)
+			return CB_ERR;
+		if (record.name_size == name_size &&
+		    !memcmp(index->store + record.offset + 44, vendor_guid, 16) &&
+		    !memcmp(index->store + record.name_offset, name, name_size))
+			*recorded = true;
+		offset = record.next;
+	}
+	return CB_SUCCESS;
+}
+
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_store_find(
 	const struct payload_mm_authvar_store_index *index,
 	const uint8_t vendor_guid[16], const void *name, size_t name_size)

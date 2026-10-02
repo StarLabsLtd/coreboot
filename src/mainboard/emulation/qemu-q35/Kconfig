@@ -78,6 +78,7 @@ config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
 	bool "QEMU-only public authenticated-variable APMC service component"
 	default n
 	depends on Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
+	select PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED
 	help
 	  Keep the immutable cold bootstrap, but accept public variable requests
 	  from the actual single CPU through the exclusively selected APMC service

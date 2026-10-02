@@ -1034,6 +1034,8 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16 &&
 #define LB_AUTHVAR_ENDPOINT_LIFECYCLE_SEALED    (1U << 7)
 /* Repeatable boot-services op9, not private BOOT delivery or origin proof. */
 #define LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL (1U << 8)
+/* The installed protected owner retains state-predicate classes after deletion. */
+#define LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED (1U << 9)
 #define LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS \
 	(LB_AUTHVAR_ENDPOINT_COREBOOT_SMM_OWNER | \
 	 LB_AUTHVAR_ENDPOINT_FIXED_COMMUNICATION | \

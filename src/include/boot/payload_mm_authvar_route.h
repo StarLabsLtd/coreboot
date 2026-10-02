@@ -32,6 +32,10 @@ enum payload_mm_authvar_target {
 	PAYLOAD_MM_AUTHVAR_TARGET_DBT,
 };
 
+/* Canonical UTF-16LE without NUL; also describes schema-owned absent NV keys. */
+enum payload_mm_authvar_target payload_mm_authvar_route_key_target(
+	const uint8_t vendor_guid[16], const void *name, size_t name_size);
+
 enum payload_mm_authvar_authority {
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE = 0,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS,

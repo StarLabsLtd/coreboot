@@ -118,8 +118,11 @@ enum cb_err payload_mm_authvar_service_endpoint_validate(
 	    endpoint->size != sizeof(*endpoint) ||
 	    endpoint->revision != LB_AUTHVAR_SERVICE_ENDPOINT_REVISION ||
 	    endpoint->header_size != sizeof(*endpoint) ||
-	    (endpoint->flags & ~LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) !=
+	    (endpoint->flags & ~(LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL |
+		LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED)) !=
 		LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS ||
+	    ((endpoint->flags & LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED) &&
+	     !(endpoint->flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL)) ||
 	    !endpoint->generation || !endpoint->communication_base ||
 	    endpoint->communication_base > UINTPTR_MAX ||
 	    endpoint->communication_base & (sizeof(uint64_t) - 1U) ||
@@ -507,14 +510,23 @@ static bool classification_response_valid(
 			fields[i] = (uint32_t)body[4 * i] | (uint32_t)body[4 * i + 1] << 8 |
 				(uint32_t)body[4 * i + 2] << 16 | (uint32_t)body[4 * i + 3] << 24;
 		if (fields[0] != PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_REVISION ||
-		    !stored_attributes_valid(fields[2]) || fields[3] & ~PAYLOAD_MM_AUTHVAR_KEY_VISIBLE ||
+		    fields[3] & ~PAYLOAD_MM_AUTHVAR_KEY_VISIBLE ||
 		    (!(fields[3] & PAYLOAD_MM_AUTHVAR_KEY_VISIBLE) &&
 		     (fields[2] & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)))
 			return false;
 		if (fields[1] == PAYLOAD_MM_AUTHVAR_KEY_SYNTHETIC)
 			return fields[3] == PAYLOAD_MM_AUTHVAR_KEY_VISIBLE &&
 				(fields[2] == 6U || fields[2] == 38U);
-		return fields[1] == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT;
+		if (endpoint->flags & LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED) {
+			if ((fields[1] == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT ||
+			     fields[1] == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED) &&
+			    fields[2] == 0 && fields[3] == 0)
+				return true;
+			if (fields[1] == PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED)
+				return fields[2] == 2 || fields[2] == 6;
+		}
+		return fields[1] == PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT &&
+			stored_attributes_valid(fields[2]);
 	case PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL:
 		return response->result_data_size == PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE &&
 			request->data_capacity < PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE &&
