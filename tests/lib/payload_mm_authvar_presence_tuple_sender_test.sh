@@ -152,8 +152,8 @@ if rg -n 'call_smm|out[bwl]?\(|lb_new_record|coreboot_table' \
 	printf '%s\n' 'tuple sender gained a route, direct OUT or public record' >&2
 	exit 1
 fi
-if rg -n 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER' \
-	"$root/src"; then
+if ! sh "$root/tests/lib/payload_mm_authvar_presence_selector_check.sh" \
+	"$root" PAYLOAD_MM_AUTHVAR_PRESENCE_TUPLE_SENDER; then
 	printf '%s\n' 'tuple sender gained a selector' >&2
 	exit 1
 fi
