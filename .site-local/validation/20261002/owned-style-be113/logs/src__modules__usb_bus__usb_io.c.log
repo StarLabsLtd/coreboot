@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * *bar" should be "foo **bar"
+#312: FILE: src/modules/usb_bus/usb_io.c:312:
++	CHAR16 * *result)
+
+total: 1 errors, 0 warnings, 555 lines checked

@@ -1,0 +1,13 @@
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'flush', this function's name, in a string
+#10: FILE: src/modules/cpu_arch/model.c:10:
++	CDK2_CPU_DIAG("[CDK2][cpu][verbose] flush data cache\n");
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#35: FILE: src/modules/cpu_arch/model.c:35:
++	BOOLEAN * state)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#52: FILE: src/modules/cpu_arch/model.c:52:
++	UINTN type, cdk2_cpu_interrupt_fn * handler)
+
+total: 2 errors, 1 warnings, 103 lines checked

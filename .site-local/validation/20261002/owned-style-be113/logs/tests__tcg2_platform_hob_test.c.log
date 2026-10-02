@@ -1,0 +1,61 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const void *' should also have an identifier name
+#50: FILE: tests/tcg2_platform_hob_test.c:50:
++EFI_STATUS cdk2_tcg2_test_find_tpm_base(const void *, UINT64 *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT64 *' should also have an identifier name
+#50: FILE: tests/tcg2_platform_hob_test.c:50:
++EFI_STATUS cdk2_tcg2_test_find_tpm_base(const void *, UINT64 *);
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#51: FILE: tests/tcg2_platform_hob_test.c:51:
++typedef EFI_STATUS (CDK2_MS_ABI *test_allocate_pool_fn)(EFI_MEMORY_TYPE, UINTN, void **);
+                                 ^
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#52: FILE: tests/tcg2_platform_hob_test.c:52:
++typedef EFI_STATUS (CDK2_MS_ABI *test_free_pool_fn)(void *);
+                                 ^
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'test_allocate_pool_fn' should also have an identifier name
+#53: FILE: tests/tcg2_platform_hob_test.c:53:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, uint32_t, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'EFI_MEMORY_TYPE' should also have an identifier name
+#53: FILE: tests/tcg2_platform_hob_test.c:53:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, uint32_t, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'uint32_t' should also have an identifier name
+#53: FILE: tests/tcg2_platform_hob_test.c:53:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, uint32_t, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void **' should also have an identifier name
+#53: FILE: tests/tcg2_platform_hob_test.c:53:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, uint32_t, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'cdk2_physical_address_ptr' should also have an identifier name
+#53: FILE: tests/tcg2_platform_hob_test.c:53:
++EFI_STATUS cdk2_tcg2_test_allocate_log(test_allocate_pool_fn, EFI_MEMORY_TYPE, uint32_t, void **,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'test_free_pool_fn' should also have an identifier name
+#55: FILE: tests/tcg2_platform_hob_test.c:55:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, uint32_t);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'EFI_PHYSICAL_ADDRESS' should also have an identifier name
+#55: FILE: tests/tcg2_platform_hob_test.c:55:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, uint32_t);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'uint32_t' should also have an identifier name
+#55: FILE: tests/tcg2_platform_hob_test.c:55:
++EFI_STATUS cdk2_tcg2_test_free_log(test_free_pool_fn, EFI_PHYSICAL_ADDRESS, uint32_t);
+
+WARNING:MACRO_WITH_FLOW_CONTROL: Macros with flow control statements should be avoided
+#161: FILE: tests/tcg2_platform_hob_test.c:161:
++#define CHECK(x)                                                            \
++	do {                                                                \
++		if (!(x)) {                                                 \
++			fprintf(stderr, "tcg2 HOB:%d: %s\n", __LINE__, #x); \
++			return 1;                                           \
++		}                                                           \
++	} while (0)
+
+total: 2 errors, 11 warnings, 404 lines checked

@@ -1,0 +1,5 @@
+WARNING:STATIC_CONST_CHAR_ARRAY: char * array declaration might be better as static const
+#62: FILE: tests/authvar_namespace_consumer_join_test.c:62:
++		char *arguments[] = {argv[1], NULL};
+
+total: 0 errors, 1 warnings, 170 lines checked

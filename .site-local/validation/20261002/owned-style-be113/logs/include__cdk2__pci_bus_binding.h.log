@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#39: FILE: include/cdk2/pci_bus_binding.h:39:
++typedef CHAR8 * cdk2_char8_pointer;
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#40: FILE: include/cdk2/pci_bus_binding.h:40:
++typedef CHAR16 * cdk2_char16_pointer;
+
+total: 2 errors, 0 warnings, 170 lines checked

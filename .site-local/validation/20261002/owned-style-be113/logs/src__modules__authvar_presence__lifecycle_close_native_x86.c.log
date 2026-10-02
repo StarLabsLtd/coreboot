@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#10: FILE: src/modules/authvar_presence/lifecycle_close_native_x86.c:10:
++static cdk2_authvar_presence_lifecycle_close_native_x86_test_fn * test_hook;
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#90: FILE: src/modules/authvar_presence/lifecycle_close_native_x86.c:90:
++	cdk2_authvar_presence_lifecycle_close_native_x86_test_fn * hook,
+
+total: 2 errors, 0 warnings, 102 lines checked

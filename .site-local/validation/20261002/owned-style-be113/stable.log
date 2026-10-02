@@ -1,0 +1,21 @@
+Check that files have license headers (lint-stable-000-license-headers): success
+Check for superfluous whitespace in the tree (lint-stable-003-whitespace): grep: src/modules/bds/keys/db_microsoft_uefi_2011.der: binary file matches
+grep: util/qemu/fixtures/esp-linux-cbmem.raw.xz: binary file matches
+grep: util/qemu/fixtures/nvme-final-c4bec.raw.xz: binary file matches
+success
+Check that C labels begin at start-of-line (lint-stable-004-style-labels): success
+Check that the Kconfig defconfig resolves (lint-stable-008-kconfig): success
+Check that we use a single assembler syntax (lint-stable-010-asm-syntax): success
+Check that source files are not executable (lint-stable-012-executable-bit): success
+Check for non-ASCII and unprintable characters (lint-stable-016-non-ascii): success
+Report any symbolic links (lint-stable-018-symlinks): success
+Check for auto-included headers (lint-stable-019-header-files): success
+Verify that the word 'coreboot' is lowercase (lint-stable-021-coreboot-lowercase): success
+Check for illegal characters in filename (lint-stable-023-filenames): success
+Check that production inputs stay inside the native coreboot boundary (lint-stable-025-native-boundary): Invalid build include reference: src/boot/Makefile:941:$(CDK2_PUBLIC_FULLGRAPH_APP_OBJS:%=%.d)
+test failed
+Verify that files don't contain windows line endings (lint-stable-026-line-endings): success
+Check that GCC attributes use coreboot helper macros (lint-stable-027-attribute-helpers): success
+Check native C identifiers for CamelCase (lint-stable-028-camelcase): success
+Keep explicitly native leaf code free of UEFI compatibility aliases (lint-stable-029-native-types): success
+ERROR: 1 test(s) failed.

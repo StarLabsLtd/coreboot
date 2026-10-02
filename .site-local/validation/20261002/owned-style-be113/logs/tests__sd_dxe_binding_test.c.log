@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#110: FILE: tests/sd_dxe_binding_test.c:110:
++	struct cdk2_sdmmc_protocol *protocol, UINT8 slot, BOOLEAN * present,
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#111: FILE: tests/sd_dxe_binding_test.c:111:
++	BOOLEAN * read_only)
+
+total: 2 errors, 0 warnings, 154 lines checked

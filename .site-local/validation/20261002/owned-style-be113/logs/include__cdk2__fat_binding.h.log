@@ -1,0 +1,14 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void' should also have an identifier name
+#31: FILE: include/cdk2/fat_binding.h:31:
++	EFI_STATUS (*create_event)(void *context,
+
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#32: FILE: include/cdk2/fat_binding.h:32:
++		void (CDK2_MS_ABI *notify)(void *event, void *notify_context),
+ 		                  ^
+
+WARNING:SPACING: space prohibited between function name and open parenthesis '('
+#132: FILE: include/cdk2/fat_binding.h:132:
++	EFI_STATUS CDK2_MS_ABI (*open_volume)(struct cdk2_fat_simple_fs_protocol *protocol,
+
+total: 1 errors, 2 warnings, 154 lines checked

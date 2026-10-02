@@ -1,0 +1,45 @@
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#993: FILE: src/modules/pci_bus/immutable_entry.c:993:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover probe recovery");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#997: FILE: src/modules/pci_bus/immutable_entry.c:997:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover probe journal full");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1002: FILE: src/modules/pci_bus/immutable_entry.c:1002:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root open");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1071: FILE: src/modules/pci_bus/immutable_entry.c:1071:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root HOB geometry");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1074: FILE: src/modules/pci_bus/immutable_entry.c:1074:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root configuration");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1077: FILE: src/modules/pci_bus/immutable_entry.c:1077:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover bus descriptor");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1080: FILE: src/modules/pci_bus/immutable_entry.c:1080:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root match or path");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1083: FILE: src/modules/pci_bus/immutable_entry.c:1083:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover assignment allocation");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1086: FILE: src/modules/pci_bus/immutable_entry.c:1086:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover topology import");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1089: FILE: src/modules/pci_bus/immutable_entry.c:1089:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover topology changed");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1092: FILE: src/modules/pci_bus/immutable_entry.c:1092:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover parent path allocation");
+
+total: 0 errors, 11 warnings, 1738 lines checked

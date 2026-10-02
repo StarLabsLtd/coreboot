@@ -1,0 +1,13 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#100: FILE: tests/smmstore_driver_test.c:100:
++EFI_STATUS CDK2_MS_ABI cdk2_smmstore_fvb_entry(void *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct system_table_view *' should also have an identifier name
+#100: FILE: tests/smmstore_driver_test.c:100:
++EFI_STATUS CDK2_MS_ABI cdk2_smmstore_fvb_entry(void *,
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#118: FILE: tests/smmstore_driver_test.c:118:
++	UINTN pages, EFI_PHYSICAL_ADDRESS * address)
+
+total: 1 errors, 2 warnings, 313 lines checked

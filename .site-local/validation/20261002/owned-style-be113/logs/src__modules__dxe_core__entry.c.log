@@ -1,0 +1,9 @@
+WARNING:INDENTED_LABEL: labels should not be indented
+#1876: FILE: src/modules/dxe_core/entry.c:1876:
++	tcg_host_probe:
+
+WARNING:INDENTED_LABEL: labels should not be indented
+#1896: FILE: src/modules/dxe_core/entry.c:1896:
++	tcg_absent_disposition:
+
+total: 0 errors, 2 warnings, 6444 lines checked

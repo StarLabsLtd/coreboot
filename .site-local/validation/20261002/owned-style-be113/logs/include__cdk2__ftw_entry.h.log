@@ -1,0 +1,9 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#55: FILE: include/cdk2/ftw_entry.h:55:
++EFI_STATUS CDK2_MS_ABI cdk2_ftw_entry(void *, struct cdk2_ftw_system_table_view *);
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_ftw_system_table_view *' should also have an identifier name
+#55: FILE: include/cdk2/ftw_entry.h:55:
++EFI_STATUS CDK2_MS_ABI cdk2_ftw_entry(void *, struct cdk2_ftw_system_table_view *);
+
+total: 0 errors, 2 warnings, 58 lines checked

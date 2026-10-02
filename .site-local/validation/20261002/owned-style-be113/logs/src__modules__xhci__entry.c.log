@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#79: FILE: src/modules/xhci/entry.c:79:
++	controller_name_fn *controller_name; CHAR8 * languages; };
+
+total: 1 errors, 0 warnings, 723 lines checked

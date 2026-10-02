@@ -1,0 +1,6 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#44: FILE: tests/ata_bus_entry_test.c:44:
++	void(CDK2_MS_ABI *notify)(void *, void *);
+ 	                 ^
+
+total: 1 errors, 0 warnings, 368 lines checked

@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#87: FILE: tests/usb_mass_entry_test.c:87:
++	UINTN *length, UINT32 * result)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#95: FILE: tests/usb_mass_entry_test.c:95:
++	UINT8 endpoint, void *data, UINTN *length, UINTN timeout, UINT32 * result)
+
+total: 2 errors, 0 warnings, 164 lines checked

@@ -1,0 +1,9 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#69: FILE: tests/acpi_table_driver_test.c:69:
++EFI_STATUS CDK2_MS_ABI cdk2_acpi_table_entry(void *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct system_table_view *' should also have an identifier name
+#69: FILE: tests/acpi_table_driver_test.c:69:
++EFI_STATUS CDK2_MS_ABI cdk2_acpi_table_entry(void *,
+
+total: 0 errors, 2 warnings, 382 lines checked

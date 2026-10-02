@@ -1,0 +1,13 @@
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#66: FILE: util/qemu/fixtures/ram-capsule/entry.c:66:
++static void marker(const char *s) { while (*s) out(0x3f8U, (UINT8)*s++); }
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#260: FILE: util/qemu/fixtures/ram-capsule/entry.c:260:
++	for (UINTN i = 0; i < size; i++) payload[i] = _binary_capsule_ram_cap_start[i];
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#269: FILE: util/qemu/fixtures/ram-capsule/entry.c:269:
++		for (;;) __asm__ volatile ("hlt");
+
+total: 3 errors, 0 warnings, 272 lines checked

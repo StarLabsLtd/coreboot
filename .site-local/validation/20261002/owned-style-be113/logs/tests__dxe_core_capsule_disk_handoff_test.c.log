@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#83: FILE: tests/dxe_core_capsule_disk_handoff_test.c:83:
++typedef CHAR16 * char16_ptr;
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#84: FILE: tests/dxe_core_capsule_disk_handoff_test.c:84:
++typedef UINT32 * uint32_ptr;
+
+total: 2 errors, 0 warnings, 422 lines checked

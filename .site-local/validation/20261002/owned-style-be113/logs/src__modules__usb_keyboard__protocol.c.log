@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#150: FILE: src/modules/usb_keyboard/protocol.c:150:
++	struct cdk2_usb_keyboard_key *key, cdk2_key_notify_fn * notify, void **handle)
+
+total: 1 errors, 0 warnings, 248 lines checked

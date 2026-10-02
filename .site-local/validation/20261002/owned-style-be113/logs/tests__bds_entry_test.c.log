@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#108: FILE: tests/bds_entry_test.c:108:
++typedef CHAR16 * char16_ptr;
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#109: FILE: tests/bds_entry_test.c:109:
++typedef const EFI_GUID * guid_ptr;
+
+total: 2 errors, 0 warnings, 1468 lines checked

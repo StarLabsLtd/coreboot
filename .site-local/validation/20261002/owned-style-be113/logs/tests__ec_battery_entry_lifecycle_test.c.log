@@ -1,0 +1,49 @@
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#9: FILE: tests/ec_battery_entry_lifecycle_test.c:9:
++static unsigned profile_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#10: FILE: tests/ec_battery_entry_lifecycle_test.c:10:
++static unsigned info_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#11: FILE: tests/ec_battery_entry_lifecycle_test.c:11:
++static unsigned critical_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#12: FILE: tests/ec_battery_entry_lifecycle_test.c:12:
++static unsigned transport_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#13: FILE: tests/ec_battery_entry_lifecycle_test.c:13:
++static unsigned stall_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#147: FILE: tests/ec_battery_entry_lifecycle_test.c:147:
++static unsigned create_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#148: FILE: tests/ec_battery_entry_lifecycle_test.c:148:
++static unsigned close_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#149: FILE: tests/ec_battery_entry_lifecycle_test.c:149:
++static unsigned install_calls;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#241: FILE: tests/ec_battery_entry_lifecycle_test.c:241:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#241: FILE: tests/ec_battery_entry_lifecycle_test.c:241:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#241: FILE: tests/ec_battery_entry_lifecycle_test.c:241:
++static void assert_io_counts(unsigned info, unsigned critical, unsigned transport,
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#242: FILE: tests/ec_battery_entry_lifecycle_test.c:242:
++			     unsigned stalls)
+
+total: 0 errors, 12 warnings, 409 lines checked

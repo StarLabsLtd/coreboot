@@ -1,0 +1,9 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const struct cdk2_system_table_view *' should also have an identifier name
+#14: FILE: tests/system_fmp_entry_test.c:14:
++EFI_STATUS cdk2_system_fmp_test_coreboot_handoff(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_coreboot_handoff *' should also have an identifier name
+#14: FILE: tests/system_fmp_entry_test.c:14:
++EFI_STATUS cdk2_system_fmp_test_coreboot_handoff(
+
+total: 0 errors, 2 warnings, 345 lines checked

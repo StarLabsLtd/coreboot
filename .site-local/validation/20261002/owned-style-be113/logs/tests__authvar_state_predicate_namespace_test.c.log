@@ -1,0 +1,5 @@
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(malformed)
+#271: FILE: tests/authvar_state_predicate_namespace_test.c:271:
++	for (size_t index = 0; index < sizeof(malformed) / sizeof(malformed[0]); index++) {
+
+total: 0 errors, 1 warnings, 301 lines checked

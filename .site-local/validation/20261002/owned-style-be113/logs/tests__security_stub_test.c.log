@@ -1,0 +1,5 @@
+WARNING:STATIC_CONST_CHAR_ARRAY: const array should probably be static const
+#109: FILE: tests/security_stub_test.c:109:
++	const char file[] = "file";
+
+total: 0 errors, 1 warnings, 219 lines checked

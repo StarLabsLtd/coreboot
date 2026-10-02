@@ -1,0 +1,17 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#778: FILE: src/modules/con_platform/entry.c:778:
++	CHAR8 * language, cdk2_con_name_ptr * name)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#778: FILE: src/modules/con_platform/entry.c:778:
++	CHAR8 * language, cdk2_con_name_ptr * name)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#796: FILE: src/modules/con_platform/entry.c:796:
++	void *controller, void *child, CHAR8 * language, cdk2_con_name_ptr * name)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#796: FILE: src/modules/con_platform/entry.c:796:
++	void *controller, void *child, CHAR8 * language, cdk2_con_name_ptr * name)
+
+total: 4 errors, 0 warnings, 871 lines checked

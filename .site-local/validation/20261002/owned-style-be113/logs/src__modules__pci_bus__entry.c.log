@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#85: FILE: src/modules/pci_bus/entry.c:85:
++	UINT8 header[24]; CHAR16 * vendor; UINT32 revision, pad;
+
+total: 1 errors, 0 warnings, 2222 lines checked

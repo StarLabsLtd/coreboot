@@ -1,0 +1,49 @@
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#54: FILE: tests/capsule_delivery_policy_test.c:54:
++		case 0: hobs.policy.tag++; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#55: FILE: tests/capsule_delivery_policy_test.c:55:
++		case 1: hobs.policy.size--; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#56: FILE: tests/capsule_delivery_policy_test.c:56:
++		case 2: hobs.policy.revision++; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#57: FILE: tests/capsule_delivery_policy_test.c:57:
++		case 3: hobs.policy.header_size--; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#58: FILE: tests/capsule_delivery_policy_test.c:58:
++		case 4: hobs.policy.allowed_transports |= 4; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#59: FILE: tests/capsule_delivery_policy_test.c:59:
++		case 5: hobs.policy.reserved[0] = 1; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#60: FILE: tests/capsule_delivery_policy_test.c:60:
++		case 6: hobs.policy.reserved[1] = 1; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#61: FILE: tests/capsule_delivery_policy_test.c:61:
++		case 7: hobs.policy.max_nonpopulate.lo = 0; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#62: FILE: tests/capsule_delivery_policy_test.c:62:
++		case 8: hobs.policy.max_nonpopulate.hi = 1; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#63: FILE: tests/capsule_delivery_policy_test.c:63:
++		case 9: hobs.policy.max_populate.hi = 1; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#64: FILE: tests/capsule_delivery_policy_test.c:64:
++		case 10: hobs.policy.allowed_transports = 0; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#65: FILE: tests/capsule_delivery_policy_test.c:65:
++		case 11: hobs.policy_hob.header.hob_length -= 8; break;
+
+total: 12 errors, 0 warnings, 110 lines checked

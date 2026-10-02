@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#74: FILE: src/modules/usb_mass/entry.c:74:
++	controller_name_fn *controller_name; CHAR8 * languages; };
+
+total: 1 errors, 0 warnings, 424 lines checked

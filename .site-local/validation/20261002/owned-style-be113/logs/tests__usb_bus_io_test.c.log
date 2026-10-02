@@ -1,0 +1,9 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#39: FILE: tests/usb_bus_io_test.c:39:
++	UINT32 * result)
+
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#152: FILE: tests/usb_bus_io_test.c:152:
++	UINT32 * result)
+
+total: 2 errors, 0 warnings, 426 lines checked

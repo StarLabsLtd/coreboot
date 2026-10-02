@@ -1,0 +1,5 @@
+WARNING:ENOSYS: ENOSYS means 'invalid syscall nr' and nothing else
+#22: FILE: util/qemu/fixtures/linux-mini/efivar-unlock.c:22:
++		if (errno == ENOTTY || errno == EOPNOTSUPP || errno == ENOSYS) {
+
+total: 0 errors, 1 warnings, 38 lines checked

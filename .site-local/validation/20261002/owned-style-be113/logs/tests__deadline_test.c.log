@@ -1,0 +1,9 @@
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#13: FILE: tests/deadline_test.c:13:
++	default : 0),
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#18: FILE: tests/deadline_test.c:18:
++	default : 0),
+
+total: 2 errors, 0 warnings, 185 lines checked

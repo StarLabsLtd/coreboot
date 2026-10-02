@@ -1,0 +1,10 @@
+WARNING:MACRO_WITH_FLOW_CONTROL: Macros with flow control statements should be avoided
+#229: FILE: tests/dxe_core_entry_test.c:229:
++#define REQUIRE_ROUTE(condition, message) do { \
++	if (!(condition)) { \
++		fprintf(stderr, "FAIL: %s\n", message); \
++		return 1; \
++	} \
++} while (0)
+
+total: 0 errors, 1 warnings, 2085 lines checked

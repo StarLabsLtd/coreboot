@@ -1,0 +1,14 @@
+src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h
+src/lib/tcg_hash/vendor/linux/include/linux/export.h
+src/lib/tcg_hash/vendor/linux/include/linux/kernel.h
+src/lib/tcg_hash/vendor/linux/include/linux/module.h
+src/lib/tcg_hash/vendor/linux/include/linux/string.h
+src/lib/tcg_hash/vendor/linux/include/linux/unaligned.h
+src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c
+src/lib/tcg_hash/vendor/vboot/2common.h
+src/lib/tcg_hash/vendor/vboot/2sha.h
+src/lib/tcg_hash/vendor/vboot/2sha1.c
+src/lib/tcg_hash/vendor/vboot/2sha256.c
+src/lib/tcg_hash/vendor/vboot/2sha512.c
+src/lib/tcg_hash/vendor/vboot/2sha_private.h
+src/lib/tcg_hash/vendor/vboot/2sysincludes.h

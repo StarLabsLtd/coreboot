@@ -1,0 +1,9 @@
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(addresses)
+#46: FILE: tests/authvar_native_x86_test.c:46:
++	for (size_t address = 0; address < sizeof(addresses) / sizeof(addresses[0]); address++) {
+
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(commands)
+#47: FILE: tests/authvar_native_x86_test.c:47:
++		for (size_t command = 0; command < sizeof(commands) / sizeof(commands[0]); command++) {
+
+total: 0 errors, 2 warnings, 57 lines checked

@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#25: FILE: include/cdk2/scsi_disk_entry.h:25:
++typedef CHAR16 * cdk2_scsi_disk_name;
+
+total: 1 errors, 0 warnings, 69 lines checked

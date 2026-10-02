@@ -1,0 +1,5 @@
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(changed)
+#106: FILE: tests/authenticode_spc_test.c:106:
++	for (size_t index = 0; index < sizeof(changed) / sizeof(changed[0]); index++) {
+
+total: 0 errors, 1 warnings, 213 lines checked

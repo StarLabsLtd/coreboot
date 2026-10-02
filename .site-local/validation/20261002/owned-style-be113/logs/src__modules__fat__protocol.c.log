@@ -1,0 +1,16 @@
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#34: FILE: src/modules/fat/protocol.c:34:
++	CHAR16 file_name[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#42: FILE: src/modules/fat/protocol.c:42:
++	CHAR16 label[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#45: FILE: src/modules/fat/protocol.c:45:
++	CHAR16 label[1];
++};
+
+total: 3 errors, 0 warnings, 1913 lines checked

@@ -1,0 +1,5 @@
+WARNING:MACRO_WITH_FLOW_CONTROL: Macros with flow control statements should be avoided
+#29: FILE: tests/tcg2_diagnostic_coalesce_test.c:29:
++#define CHECK(x) do { if (!(x)) { fprintf(stderr, "tcg2 diagnostic: %s\n", #x); return 1; } } while (0)
+
+total: 0 errors, 1 warnings, 62 lines checked

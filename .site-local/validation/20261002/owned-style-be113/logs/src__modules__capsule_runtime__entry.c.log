@@ -1,0 +1,21 @@
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1046: FILE: src/modules/capsule_runtime/entry.c:1046:
++	CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] persist begin\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1067: FILE: src/modules/capsule_runtime/entry.c:1067:
++		CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][error] persist failed\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1069: FILE: src/modules/capsule_runtime/entry.c:1069:
++		CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] persist complete\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'writeback', this function's name, in a string
+#1130: FILE: src/modules/capsule_runtime/entry.c:1130:
++	CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] writeback begin\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'writeback', this function's name, in a string
+#1149: FILE: src/modules/capsule_runtime/entry.c:1149:
++				CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] writeback complete\n");
+
+total: 0 errors, 5 warnings, 1425 lines checked

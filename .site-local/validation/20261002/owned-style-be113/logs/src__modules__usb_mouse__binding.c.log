@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#9: FILE: src/modules/usb_mouse/binding.c:9:
++typedef CHAR8 * char8_ptr;
+
+total: 1 errors, 0 warnings, 225 lines checked

@@ -1,0 +1,6 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#25: FILE: tests/qemu_test_fmp_entry_test.c:25:
++	UINT32 code_type, data_type; unload_fn *unload;
+ 	                                       ^
+
+total: 1 errors, 0 warnings, 188 lines checked

@@ -1,0 +1,13 @@
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'const struct cdk2_tpm2_config_table *' should also have an identifier name
+#6: FILE: include/cdk2/tpm2_acpi_hob.h:6:
++EFI_STATUS cdk2_tpm2_acpi_hob_probe(const struct cdk2_tpm2_config_table *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINTN' should also have an identifier name
+#6: FILE: include/cdk2/tpm2_acpi_hob.h:6:
++EFI_STATUS cdk2_tpm2_acpi_hob_probe(const struct cdk2_tpm2_config_table *,
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'UINT64 *' should also have an identifier name
+#6: FILE: include/cdk2/tpm2_acpi_hob.h:6:
++EFI_STATUS cdk2_tpm2_acpi_hob_probe(const struct cdk2_tpm2_config_table *,
+
+total: 0 errors, 3 warnings, 9 lines checked

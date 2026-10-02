@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#87: FILE: tests/usb_keyboard_transport_test.c:87:
++	UINTN *length, UINT32 * result)
+
+total: 1 errors, 0 warnings, 277 lines checked

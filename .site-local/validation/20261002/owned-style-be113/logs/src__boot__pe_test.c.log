@@ -1,0 +1,5 @@
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'main', this function's name, in a string
+#297: FILE: src/boot/pe_test.c:297:
++		"non-executable main Linux entry accepted by loader");
+
+total: 0 errors, 1 warnings, 617 lines checked

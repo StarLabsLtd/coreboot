@@ -1,0 +1,5 @@
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(cases)
+#503: FILE: tests/system_fmp_state_test.c:503:
++	for (size_t i = 0U; i < sizeof(cases) / sizeof(cases[0]); i++) {
+
+total: 0 errors, 1 warnings, 608 lines checked

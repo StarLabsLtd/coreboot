@@ -1,0 +1,6 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#20: FILE: src/boot/pe.h:20:
++	const EFI_IMAGE_SECTION_HEADER *sections, UINTN count, UINT32 alignment,
+ 	                               ^
+
+total: 1 errors, 0 warnings, 23 lines checked

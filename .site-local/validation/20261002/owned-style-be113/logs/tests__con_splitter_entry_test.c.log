@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#23: FILE: tests/con_splitter_entry_test.c:23:
++typedef const EFI_GUID * guid_ptr;
+
+total: 1 errors, 0 warnings, 421 lines checked

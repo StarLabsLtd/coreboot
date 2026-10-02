@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#26: FILE: include/cdk2/payload_mm_authvar_presence_lifecycle_close_client.h:26:
++	void *context, UINT16 port, UINT8 command, UINT64 input, UINT64 * result);
+
+total: 1 errors, 0 warnings, 72 lines checked

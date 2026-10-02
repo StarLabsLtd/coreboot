@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#46: FILE: tests/usb_bus_binding_test.c:46:
++	UINT32 * result)
+
+total: 1 errors, 0 warnings, 213 lines checked

@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#71: FILE: tests/usb_bus_rollback_test.c:71:
++	void *translator, UINT32 * result)
+
+total: 1 errors, 0 warnings, 260 lines checked

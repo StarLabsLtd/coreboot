@@ -1,0 +1,5 @@
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#58: FILE: tests/usb_bus_enumeration_test.c:58:
++	UINT32 * result)
+
+total: 1 errors, 0 warnings, 221 lines checked

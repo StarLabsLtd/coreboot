@@ -1,0 +1,6 @@
+ERROR:SPACING: need consistent spacing around '*' (ctx:WxV)
+#22: FILE: tests/nvme_entry_test.c:22:
++	const EFI_IMAGE_SECTION_HEADER *sections, UINTN count, UINT32 alignment,
+ 	                               ^
+
+total: 1 errors, 0 warnings, 92 lines checked
