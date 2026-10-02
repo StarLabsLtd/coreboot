@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 73, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 67, in main
+    validate_refusal(arguments.tools, arguments.capsule, arguments.target,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     arguments.trust, arguments.reference, arguments.signer,
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     arguments.case, arguments.attempt)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 37, in validate_refusal
+    raise ValueError("signed-byte fixture is not the exact one-byte corruption")
+ValueError: signed-byte fixture is not the exact one-byte corruption

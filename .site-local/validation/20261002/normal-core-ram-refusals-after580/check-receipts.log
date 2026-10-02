@@ -1,0 +1,6 @@
+wrong-signer: copied status/reset/markers/input maps PASS
+signed-byte: copied status/reset/markers/input maps PASS
+below-floor: copied status/reset/markers/input maps PASS
+consumer-66bd: all 11 signed source blobs PASS
+producer-codecs-b06: all 143 signed source blobs PASS
+Saved receipt checks only; no omitted media, fresh VM or continuation claim.

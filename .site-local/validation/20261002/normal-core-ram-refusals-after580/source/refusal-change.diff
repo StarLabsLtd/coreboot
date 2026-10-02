@@ -1,0 +1,917 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index ab5a9d2436..f8c8c09f8a 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -2020,6 +2020,9 @@ native-system-fmp-core-ram-stage-app: $(CDK2_CONFIG_HEADER) \
+ 		MM_FULL_CORE_TARGET_RUNNING="$(MM_FULL_CORE_TARGET_RUNNING)" \
+ 		MM_FULL_CORE_PRIOR_RUNNING="$(MM_FULL_CORE_PRIOR_RUNNING)" \
+ 		MM_FULL_CORE_PRIOR_HISTORY="$(MM_FULL_CORE_PRIOR_HISTORY)" \
++		MM_FULL_CORE_REFUSAL="$(MM_FULL_CORE_REFUSAL)" \
++		MM_FULL_CORE_REFERENCE_CAPSULE="$(MM_FULL_CORE_REFERENCE_CAPSULE)" \
++		MM_FULL_CORE_SIGNER_CERT="$(MM_FULL_CORE_SIGNER_CERT)" \
+ 		CAPSULE_TOOL_ROOT="$(COREBOOT_TREE)/util/efi_capsule" \
+ 		sh "$(CDK2_DIR)/tests/system_fmp_core_ram_stage_app_test.sh" \
+ 		"$(CDK2_CONFIG_HEADER)" "$(CDK2_NATIVE_BUILD_DIR)/system-fmp-core-ram-stage"
+@@ -2041,6 +2044,8 @@ native-system-fmp-core-ram-native-test: native-system-fmp-core-ram-stage-app
+ 		--target-running "$(if $(MM_FULL_CORE_TARGET_RUNNING),$(MM_FULL_CORE_TARGET_RUNNING),0x001a000a)" \
+ 		--prior-running "$(if $(MM_FULL_CORE_PRIOR_RUNNING),$(MM_FULL_CORE_PRIOR_RUNNING),0x001a0009)" \
+ 		--prior-history "$(if $(MM_FULL_CORE_PRIOR_HISTORY),$(MM_FULL_CORE_PRIOR_HISTORY),0)" \
++		$(if $(MM_FULL_CORE_REFUSAL),--expect-refusal "$(MM_FULL_CORE_REFUSAL)" --reference-capsule "$(MM_FULL_CORE_REFERENCE_CAPSULE)") \
++		$(if $(MM_FULL_CORE_SIGNER_CERT),--signer-cert "$(MM_FULL_CORE_SIGNER_CERT)") \
+ 		--app "$(CDK2_NATIVE_BUILD_DIR)/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi" \
+ 		--config "$(CDK2_CONFIG)" --header "$(CDK2_CONFIG_HEADER)" \
+ 		--core "$(CDK2_NATIVE_COREBOOT_IMAGE)" \
+diff --git a/tests/system_fmp_core_ram_native_test.py b/tests/system_fmp_core_ram_native_test.py
+index 1574698dc2..ed706ad597 100644
+--- a/tests/system_fmp_core_ram_native_test.py
++++ b/tests/system_fmp_core_ram_native_test.py
+@@ -4,6 +4,7 @@
+ import argparse
+ import hashlib
+ import json
++import os
+ import re
+ import shutil
+ import socket
+@@ -17,6 +18,13 @@ from pathlib import Path
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "util/qemu/bin"))
+ from qmp_cbmem_console import ConsoleReader, ConsoleSnapshotMotion, TableNotReady, parse_table
+ from qmp_cbmem_console import validate_saved_console
++from system_fmp_core_ram_refusal import CASES, validate_refusal
++
++REFUSAL_STATUS = {
++    "wrong-signer": b"DEVICE_ERROR (0x8000000000000007)",
++    "signed-byte": b"DEVICE_ERROR (0x8000000000000007)",
++    "below-floor": b"UNSUPPORTED (0x8000000000000003)",
++}
+ 
+ 
+ def digest(path):
+@@ -142,9 +150,9 @@ def unpublished_reset_console_motion(error, reader, previous, publication_starte
+ 
+ 
+ def check_boots(boots, capsule_size, prior_running=0x001A0009,
+-                target_running=0x001A000A):
+-    if len(boots) != 3:
+-        raise ValueError("expected three independently captured firmware epochs")
++                target_running=0x001A000A, refusal=None):
++    if len(boots) != (2 if refusal else 3):
++        raise ValueError("unexpected independently captured firmware epoch count")
+     for index, directory in enumerate(boots):
+         body = validate_saved_console(directory)
+         metadata = json.loads((directory / "cbmem-observer.json").read_text())
+@@ -176,6 +184,34 @@ def check_boots(boots, capsule_size, prior_running=0x001A0009,
+             raise ValueError("actual RAM phase must precede PCI")
+         if index == 1 and pci >= 0:
+             raise ValueError("capsule-processing epoch entered PCI before reset")
++        if refusal and index == 1:
++            expected = b"CDK2 | CAPSULE_RAM | failed | " + REFUSAL_STATUS[refusal] + b" | "
++            if current.count(expected) != 1 or current.count(b"CDK2 | CAPSULE_RAM | failed") != 1:
++                raise ValueError("actual RAM refusal status differs from the declared case")
++            if b"CDK2 | CAPSULE_RAM | complete" in current:
++                raise ValueError("refused RAM capsule unexpectedly completed")
++
++
++def check_refusal_markers(uart, events):
++    resets = [event for event in events if event.get("event") == "RESET"]
++    if len(resets) != 1 or resets[0].get("data", {}).get("guest") is not True:
++        raise ValueError("refusal requires exactly one actual guest warm reset")
++    for marker in ("MAIN_ENTRY", "SETUP1_SECURE0", "REAL_SYSTEM_FMP_INFO",
++                   "ACTUAL_INITIAL_ZERO_STATE", "QUERY_STRUCTURAL_ONLY", "UPDATE_CAPSULE_RESET"):
++        if uart.count(("CDK2_CORE_RAM_STAGE_" + marker).encode()) != 1:
++            raise ValueError("refusal ordinary MAIN marker cardinality: " + marker)
++    if b"CDK2_CORE_RAM_STAGE_ACTUAL_PRIOR_SUCCESS_STATE" in uart or \
++            b"CDK2_CORE_RAM_STAGE_FAIL" in uart or \
++            b"CDK2_CORE_RAM_ACTUAL_NORMAL_CORE_COLD_RUNNING_AND_HISTORY_PASS" in uart:
++        raise ValueError("refusal unexpectedly reached a failed application or cold history")
++
++
++def check_refusal_media(installed, initial, regions):
++    start, size = regions["SMMSTORE"]
++    if (start, size) != (0, 65536) or len(initial) != 8388608 or \
++            len(installed) != len(initial) or \
++            installed[:start] != initial[:start] or installed[start + size:] != initial[start + size:]:
++        raise ValueError("refusal changed firmware outside the actual SMMSTORE")
+ 
+ 
+ def main():
+@@ -186,12 +222,20 @@ def main():
+                  "pe-link", "pe-audit", "pe-marker"):
+         parser.add_argument("--" + name, type=Path, required=True)
+     parser.add_argument("--binding", type=Path, action="append", default=[])
++    parser.add_argument("--expect-refusal", choices=CASES)
++    parser.add_argument("--reference-capsule", type=Path)
++    parser.add_argument("--signer-cert", type=Path)
+     for name, default in (("attempt", 0x001A000A), ("target-running", 0x001A000A),
+                           ("prior-running", 0x001A0009), ("prior-history", 0)):
+         parser.add_argument("--" + name, type=version_number, default=default)
+     parser.add_argument("--qemu", default="qemu-system-x86_64")
+     arguments = parser.parse_args()
+-    if arguments.prior_running < 0x001A0009 or arguments.target_running < 0x001A0009 or \
++    if arguments.expect_refusal:
++        attempted = 0x001A0008 if arguments.expect_refusal == "below-floor" else 0x001A000A
++        if (arguments.attempt, arguments.target_running, arguments.prior_running,
++                arguments.prior_history) != (attempted, 0x001A000A, 0x001A0009, 0):
++            parser.error("invalid finite refusal fixture constants")
++    elif arguments.prior_running < 0x001A0009 or arguments.target_running < 0x001A0009 or \
+             arguments.target_running == arguments.prior_running or \
+             arguments.attempt <= max(arguments.prior_running, arguments.prior_history):
+         parser.error("fixture requires a newer authenticated attempt and a changed running image")
+@@ -210,7 +254,16 @@ def main():
+               arguments.capsule_tools / "validate_capsule.py",
+               Path(shutil.which(arguments.qemu)), Path(shutil.which("mcopy"))]
+     inputs += arguments.binding + [Path(__file__), Path(__file__).parents[1] /
+-                                  "util/qemu/bin/qmp_cbmem_console.py"]
++                                  "util/qemu/bin/qmp_cbmem_console.py",
++                                  Path(__file__).with_name("system_fmp_core_ram_refusal.py")]
++    if arguments.expect_refusal:
++        if arguments.reference_capsule is None:
++            parser.error("refusal requires actual authenticated reference capsule")
++        inputs.append(arguments.reference_capsule)
++        if arguments.signer_cert is not None:
++            inputs.append(arguments.signer_cert)
++        inputs += [Path(__file__).with_name("system_fmp_core_ram_refusal_store.c"),
++                   Path(__file__).with_name("system_fmp_core_ram_refusal_store_test.sh")]
+     for root in (Path(__file__).resolve().parents[1], arguments.capsule_tools.resolve().parents[1]):
+         tracked = subprocess.check_output(["git", "-C", str(root), "ls-files", "-z",
+                                            "src", "include", "tests", "util/efi_capsule",
+@@ -250,13 +303,18 @@ def main():
+         raise ValueError("ordinary MAIN does not embed the exact signed full capsule")
+     subprocess.run([str(arguments.pe_audit), "--subsystem", "10", str(arguments.app)],
+                    check=True)
+-    subprocess.run([sys.executable, str(arguments.capsule_tools / "validate_capsule.py"),
+-                    "--capsule", str(arguments.capsule), "--guid",
+-                    "00112233-4455-6677-8899-aabbccddeeff", "--embedded-drivers", "0",
+-                    "--fw-version", hex(arguments.attempt), "--lsv", "0x001a0009", "--image",
+-                    str(arguments.target), "--region", "COREBOOT",
+-                    "--trusted-public-cert", str(arguments.trust), "--initiate-reset",
+-                    "--require-fmap"], check=True)
++    if arguments.expect_refusal:
++        validate_refusal(arguments.capsule_tools, arguments.capsule, arguments.target,
++                         arguments.trust, arguments.reference_capsule, arguments.signer_cert,
++                         arguments.expect_refusal, arguments.attempt)
++    else:
++        subprocess.run([sys.executable, str(arguments.capsule_tools / "validate_capsule.py"),
++                        "--capsule", str(arguments.capsule), "--guid",
++                        "00112233-4455-6677-8899-aabbccddeeff", "--embedded-drivers", "0",
++                        "--fw-version", hex(arguments.attempt), "--lsv", "0x001a0009", "--image",
++                        str(arguments.target), "--region", "COREBOOT",
++                        "--trusted-public-cert", str(arguments.trust), "--initiate-reset",
++                        "--require-fmap"], check=True)
+     media = output / "pflash.rom"
+     disk = output / "nvme.raw"
+     shutil.copyfile(arguments.initial, media)
+@@ -287,6 +345,7 @@ def main():
+     previous = None
+     qmp = None
+     failure = None
++    refusal_observed = False
+     with (output / "qemu.log").open("wb") as log:
+         process = subprocess.Popen(command, stdout=log, stderr=log)
+         try:
+@@ -374,31 +433,60 @@ def main():
+                 save(reader, directory, body)
+                 if directory not in boots:
+                     boots.append(directory)
++                if arguments.expect_refusal and accepted_epoch == 1 and \
++                        b"CDK2 | CAPSULE_RAM | failed" in body[body.rfind(b"CDK2 | CAPSULE_RAM | begin"):]:
++                    check_boots(boots, arguments.capsule.stat().st_size,
++                                arguments.prior_running, arguments.target_running,
++                                arguments.expect_refusal)
++                    check_refusal_markers(serial.read_bytes(), qmp.events)
++                    refusal_observed = True
++                    process.terminate()  # HOST ends a validated refusal; not a guest success exit.
++                    process.wait(timeout=5)
++                    break
+                 time.sleep(0.2)
+-            if process.wait() != 3:
++            if arguments.expect_refusal and not refusal_observed:
++                raise ValueError("actual declared RAM refusal was not observed")
++            if not arguments.expect_refusal and process.wait() != 3:
+                 raise ValueError(f"actual QEMU exit {process.returncode}, expected 3")
+             uart = serial.read_bytes()
+-            for marker, count in (("MAIN_ENTRY", 2), ("SETUP1_SECURE0", 2),
+-                                  ("REAL_SYSTEM_FMP_INFO", 2),
+-                                  ("ACTUAL_INITIAL_ZERO_STATE", 0 if arguments.prior_history else 1),
+-                                  ("ACTUAL_PRIOR_SUCCESS_STATE", 1 if arguments.prior_history else 0),
+-                                  ("QUERY_STRUCTURAL_ONLY", 1),
+-                                  ("UPDATE_CAPSULE_RESET", 1)):
+-                if uart.count(("CDK2_CORE_RAM_STAGE_" + marker).encode()) != count:
+-                    raise ValueError(f"ordinary application marker cardinality: {marker}")
+-            if uart.count(b"CDK2_CORE_RAM_ACTUAL_NORMAL_CORE_COLD_RUNNING_AND_HISTORY_PASS") != 1:
+-                raise ValueError("normal full Core cold state/history observer missing")
+-            check_boots(boots, arguments.capsule.stat().st_size,
+-                        arguments.prior_running, arguments.target_running)
+-            installed = media.read_bytes()
+-            target = arguments.target.read_bytes()
+-            initial = arguments.initial.read_bytes()
+-            if len(installed) != 8388608 or installed[73728:] != target[73728:]:
+-                raise ValueError("installed COREBOOT differs from signed pristine target")
+-            if installed[65536:73728] != initial[65536:73728]:
+-                raise ValueError("excluded probe/gap changed")
+-            if digest(disk) != disk_before:
+-                raise ValueError("ordinary MAIN application disk changed")
++            if arguments.expect_refusal:
++                check_refusal_markers(uart, qmp.events)
++                check_boots(boots, arguments.capsule.stat().st_size,
++                            arguments.prior_running, arguments.target_running,
++                            arguments.expect_refusal)
++                sys.path.insert(0, str(arguments.capsule_tools))
++                from validate_capsule import parse_fmap_regions
++                check_refusal_media(media.read_bytes(), arguments.initial.read_bytes(),
++                                    parse_fmap_regions(arguments.initial.read_bytes()))
++                subprocess.run(["sh", str(Path(__file__).with_name(
++                    "system_fmp_core_ram_refusal_store_test.sh")), str(media), str(output)],
++                    env=dict(os.environ, CBFSTOOL=str(arguments.cbfstool),
++                             COREBOOT_TREE=str(arguments.capsule_tools.resolve().parents[1]),
++                             HOSTCC=str(arguments.compiler)), check=True)
++                if digest(disk) != disk_before:
++                    raise ValueError("refusal ordinary MAIN application disk changed")
++            else:
++                for marker, count in (("MAIN_ENTRY", 2), ("SETUP1_SECURE0", 2),
++                                      ("REAL_SYSTEM_FMP_INFO", 2),
++                                      ("ACTUAL_INITIAL_ZERO_STATE", 0 if arguments.prior_history else 1),
++                                      ("ACTUAL_PRIOR_SUCCESS_STATE", 1 if arguments.prior_history else 0),
++                                      ("QUERY_STRUCTURAL_ONLY", 1),
++                                      ("UPDATE_CAPSULE_RESET", 1)):
++                    if uart.count(("CDK2_CORE_RAM_STAGE_" + marker).encode()) != count:
++                        raise ValueError(f"ordinary application marker cardinality: {marker}")
++                if uart.count(b"CDK2_CORE_RAM_ACTUAL_NORMAL_CORE_COLD_RUNNING_AND_HISTORY_PASS") != 1:
++                    raise ValueError("normal full Core cold state/history observer missing")
++                check_boots(boots, arguments.capsule.stat().st_size,
++                            arguments.prior_running, arguments.target_running)
++                installed = media.read_bytes()
++                target = arguments.target.read_bytes()
++                initial = arguments.initial.read_bytes()
++                if len(installed) != 8388608 or installed[73728:] != target[73728:]:
++                    raise ValueError("installed COREBOOT differs from signed pristine target")
++                if installed[65536:73728] != initial[65536:73728]:
++                    raise ValueError("excluded probe/gap changed")
++                if digest(disk) != disk_before:
++                    raise ValueError("ordinary MAIN application disk changed")
+         except Exception as error:
+             failure = str(error)
+         finally:
+@@ -415,13 +503,20 @@ def main():
+                 failure = "immutable caller/source/tool inputs changed"
+             (output / "result.json").write_text(json.dumps({
+                 "failure": failure, "qemu_status": process.returncode,
++                "expected_refusal": arguments.expect_refusal,
++                "refusal_observed": refusal_observed,
++                "completion": "HOST termination after validated refusal" if refusal_observed else
++                              "guest debug exit or failure",
+                 "wall_seconds": time.monotonic() - started,
+                 "budget_seconds": 180, "events": [] if qmp is None else qmp.events,
+                 "installed_sha256": digest(media), "disk_sha256": digest(disk)},
+                 indent=2) + "\n")
+     if failure:
+         raise SystemExit(failure)
+-    print("Actual ordinary Core RAM/SystemFmp three-boot update PASS")
++    if arguments.expect_refusal:
++        print("Actual ordinary Core RAM refusal PASS (HOST termination; not guest success)")
++    else:
++        print("Actual ordinary Core RAM/SystemFmp three-boot update PASS")
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/tests/system_fmp_core_ram_refusal.py b/tests/system_fmp_core_ram_refusal.py
+new file mode 100644
+index 0000000000..d8026c37e0
+--- /dev/null
++++ b/tests/system_fmp_core_ram_refusal.py
+@@ -0,0 +1,73 @@
++# SPDX-License-Identifier: GPL-2.0-only
++"""HOST-only binding of three deliberately refused normal RAM capsules."""
++
++import argparse
++import sys
++import uuid
++from pathlib import Path
++
++CASES = ("wrong-signer", "signed-byte", "below-floor")
++
++
++def validate_refusal(tools, capsule, target, trust, reference, signer, case, attempt):
++    sys.path.insert(0, str(tools))
++    from validate_capsule import ValidationError, parse_capsule_details, validate, verify_signature
++
++    if case not in CASES or reference is None:
++        raise ValueError("known refusal and authenticated reference required")
++    original = reference.read_bytes()
++    image = target.read_bytes()
++    expected_guid = uuid.UUID("00112233-4455-6677-8899-aabbccddeeff")
++    validate(original, None, expected_guid, 0, 0x001a000a, 0x001a0009,
++             image, ["COREBOOT"], str(trust), True, require_fmap=True)
++    good = parse_capsule_details(original)
++    candidate = capsule.read_bytes()
++    details = parse_capsule_details(candidate)
++    if case == "below-floor":
++        if attempt != 0x001a0008:
++            raise ValueError("below-floor fixture must attempt version8 below actual floor9")
++        validate(candidate, None, expected_guid, 0, attempt, attempt, image,
++                 ["COREBOOT"], str(trust), True, require_fmap=True)
++    else:
++        if attempt != 0x001a000a:
++            raise ValueError("CMS refusal must retain the trusted reference attempt")
++        if case == "signed-byte":
++            changed = original[:-1] + bytes([original[-1] ^ 1])
++            if candidate != changed:
++                raise ValueError("signed-byte fixture is not the exact one-byte corruption")
++            for key in good:
++                if key not in ("authenticated", "payload", "image") and details[key] != good[key]:
++                    raise ValueError("signed-byte corruption changed capsule framing")
++        else:
++            if signer is None:
++                raise ValueError("wrong-signer fixture requires its own public certificate")
++            validate(candidate, None, expected_guid, 0, attempt, 0x001a0009,
++                     image, ["COREBOOT"], str(signer), True, require_fmap=True)
++            for key in ("payload", "monotonic_count", "flags"):
++                if details[key] != good[key]:
++                    raise ValueError("wrong signer changed the trusted reference signed body")
++        try:
++            verify_signature(details, str(trust))
++        except ValidationError as error:
++            if str(error) != "capsule PKCS#7 verification failed":
++                raise
++        else:
++            raise ValueError("CMS refusal unexpectedly verifies under actual producer trust")
++    print(f"Actual capsule tools bound finite {case} refusal; producer public trust unchanged: PASS")
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    for name in ("tools", "capsule", "target", "trust", "reference"):
++        parser.add_argument("--" + name, type=Path, required=True)
++    parser.add_argument("--signer", type=Path)
++    parser.add_argument("--case", choices=CASES, required=True)
++    parser.add_argument("--attempt", type=lambda text: int(text, 0), required=True)
++    arguments = parser.parse_args()
++    validate_refusal(arguments.tools, arguments.capsule, arguments.target,
++                     arguments.trust, arguments.reference, arguments.signer,
++                     arguments.case, arguments.attempt)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/system_fmp_core_ram_refusal_oracle_test.sh b/tests/system_fmp_core_ram_refusal_oracle_test.sh
+new file mode 100755
+index 0000000000..203d1a1728
+--- /dev/null
++++ b/tests/system_fmp_core_ram_refusal_oracle_test.sh
+@@ -0,0 +1,102 @@
++#!/bin/sh
++# SPDX-License-Identifier: GPL-2.0-only
++# Finite HOST tests; never starts QEMU or modifies caller firmware/capsules.
++set -eu
++
++test "$#" -eq 5
++root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
++tools="$1/util/efi_capsule"
++fixtures=$2
++reference=$3
++target=$4
++trust=$5
++output=$(mktemp -d "${TMPDIR:-/tmp}/core-ram-refusal-oracle.XXXXXX")
++printf 'Refusal HOST oracle artifacts: %s\n' "$output"
++original="$root/tests/system_fmp_core_ram_native_test.py"
++helper="$root/tests/system_fmp_core_ram_refusal.py"
++sha256sum "$original" "$helper" "$root/tests/system_fmp_core_ram_runner_test.py" \
++	"$0" "$reference" "$target" "$trust" "$fixtures/wrong-signer.pem" \
++	"$fixtures/wrong-signer-a.cap" "$fixtures/signed-byte-corrupt-a.cap" \
++	"$fixtures/signed-below-floor-8.cap" "$tools/validate_capsule.py" \
++	"$tools/crypto_policy.py" > "$output/inputs-before.sha256"
++python3 "$root/tests/system_fmp_core_ram_runner_test.py" > "$output/host.log" 2>&1
++
++preflight()
++{
++	case_name=$1
++	candidate=$2
++	attempted=$3
++	set -- --tools "$tools" --capsule "$candidate" --target "$target" --trust "$trust" \
++		--reference "$reference" --case "$case_name" --attempt "$attempted"
++	if test "$case_name" = wrong-signer; then
++		set -- "$@" --signer "$fixtures/wrong-signer.pem"
++	fi
++	python3 "$helper" "$@"
++}
++
++preflight wrong-signer "$fixtures/wrong-signer-a.cap" 0x001a000a > "$output/wrong-signer.log" 2>&1
++preflight signed-byte "$fixtures/signed-byte-corrupt-a.cap" 0x001a000a > "$output/signed-byte.log" 2>&1
++preflight below-floor "$fixtures/signed-below-floor-8.cap" 0x001a0008 > "$output/below-floor.log" 2>&1
++for case_name in wrong-signer signed-byte below-floor; do
++	if preflight "$case_name" "$reference" 0x001a000a > "$output/$case_name-good-refused.log" 2>&1; then
++		echo "refusal preflight accepted the actual good capsule as $case_name" >&2
++		exit 1
++	else
++		test "$?" -eq 1
++	fi
++	case "$case_name" in
++		wrong-signer) diagnostic='capsule PKCS#7 verification failed' ;;
++		signed-byte) diagnostic='not the exact one-byte corruption' ;;
++		below-floor) diagnostic='must attempt version8' ;;
++	esac
++	grep -q "$diagnostic" "$output/$case_name-good-refused.log"
++done
++
++python3 - "$original" "$output" <<-'PY'
++	import pathlib
++	import sys
++	source, output = map(pathlib.Path, sys.argv[1:])
++	body = source.read_text()
++	cases = (
++	    ('status', 'if current.count(expected) != 1 or current.count(b"CDK2 | CAPSULE_RAM | failed") != 1:',
++	     'if False:  # discarded exact refusal status/count', 'test_refusal_exact_status'),
++	    ('pci', 'if index == 1 and pci >= 0:', 'if False:  # discarded warm PCI refusal',
++	     'test_refusal_pci_refused'),
++	    ('complete', 'if b"CDK2 | CAPSULE_RAM | complete" in current:',
++	     'if False:  # discarded refusal completion guard', 'test_refusal_completion_refused'),
++	    ('reset', 'if len(resets) != 1 or resets[0].get("data", {}).get("guest") is not True:',
++	     'if False:  # discarded actual guest reset guard', 'test_guest_reset_cardinality'),
++	    ('markers', 'if uart.count(("CDK2_CORE_RAM_STAGE_" + marker).encode()) != 1:',
++	     'if False:  # discarded ordinary MAIN cardinality', 'test_refusal_main_markers'),
++	    ('firmware', 'installed[start + size:] != initial[start + size:]',
++	     '(False and False)', 'test_refusal_exact_firmware'),
++	    ('extent', 'len(initial) != 8388608', '(False or False)', 'test_refusal_truncated_media'),
++	)
++	for name, before, after, test in cases:
++	    if body.count(before) != 1:
++	        raise SystemExit(f'{name}: source target count is not one')
++	    changed = body.replace(before, after)
++	    if changed.count(after) != 1 or changed.replace(after, before) != body:
++	        raise SystemExit(f'{name}: whole runner inverse mismatch')
++	    (output / f'{name}.py').write_text(changed)
++	    (output / f'{name}-inverse.py').write_text(changed.replace(after, before))
++	    (output / f'{name}-test.txt').write_text(test)
++PY
++for cause in status pci complete reset markers firmware extent; do
++	cmp "$original" "$output/$cause-inverse.py"
++	test_name=$(cat "$output/$cause-test.txt")
++	if PYTHONPATH="$root/util/qemu/bin${PYTHONPATH:+:$PYTHONPATH}" \
++		CDK2_CORE_RAM_RUNNER_SOURCE="$output/$cause.py" \
++		python3 "$root/tests/system_fmp_core_ram_runner_test.py" "RefusalTest.$test_name" \
++		> "$output/$cause.log" 2>&1; then
++		echo "HOST test missed discarded $cause guard" >&2
++		exit 1
++	else
++		test "$?" -eq 1
++	fi
++	grep -q "FAIL: $test_name" "$output/$cause.log"
++	grep -q 'AssertionError: ValueError not raised' "$output/$cause.log"
++	! grep -Eq 'ERROR:|SyntaxError|ImportError|Traceback.*SystemExit' "$output/$cause.log"
++done
++sha256sum -c "$output/inputs-before.sha256"
++printf '%s\n' 'HOST refusal status/epoch/media/marker guards and actual capsule-tool preflights: PASS'
+diff --git a/tests/system_fmp_core_ram_refusal_store.c b/tests/system_fmp_core_ram_refusal_store.c
+new file mode 100644
+index 0000000000..061cce9845
+--- /dev/null
++++ b/tests/system_fmp_core_ram_refusal_store.c
+@@ -0,0 +1,130 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++/* Read-only HOST oracle; actual producer decoders, never guest admission. */
++#include <boot/payload_mm_authvar.h>
++#include <boot/payload_mm_authvar_ftw.h>
++#include <boot/payload_mm_authvar_store.h>
++#include <commonlib/helpers.h>
++#include <uuid.h>
++#include <assert.h>
++#include <stdio.h>
++#include <string.h>
++
++#define REGION_SIZE (64U * 1024U)
++#define ENTRY_CAPACITY 128U
++
++static const uint16_t state_name[] = { 'F', 'm', 'p', 'S', 't', 'a', 't', 'e', 0 };
++static uint8_t media[REGION_SIZE];
++static uint8_t changed[REGION_SIZE];
++
++static bool matches(const uint8_t *region, const uint8_t *guid,
++	uint32_t *record_offset, uint32_t *data_offset)
++{
++	const uint8_t zero[PAYLOAD_MM_FMP_STATE_WIRE_SIZE] = { 0 };
++	struct payload_mm_authvar_fv_geometry geometry;
++	struct payload_mm_authvar_ftw_plan plan;
++	struct payload_mm_authvar_store_entry entries[ENTRY_CAPACITY];
++	struct payload_mm_authvar_store_index index = {
++		.entries = entries, .entry_capacity = ARRAY_SIZE(entries),
++	};
++	const struct payload_mm_authvar_store_limits limits = {
++		.maximum_store_size = REGION_SIZE, .maximum_name_size = 4096U,
++		.maximum_data_size = REGION_SIZE, .maximum_records = ENTRY_CAPACITY,
++	};
++	const struct payload_mm_authvar_store_entry *entry;
++	const void *data;
++
++	if (!payload_mm_authvar_fv_geometry(&geometry, REGION_SIZE, 4096U))
++		return false;
++	if (payload_mm_authvar_ftw_plan(region, REGION_SIZE, 4096U, &plan) != CB_SUCCESS ||
++	    plan.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||
++	    plan.workspace != PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING ||
++	    plan.queue_disposition != PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY ||
++	    plan.queue_offset != PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE ||
++	    plan.queue_entry_size != 0U)
++		return false;
++	if (payload_mm_authvar_store_scan(&index,
++	    region + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE,
++	    geometry.variable_size - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE, &limits) != CB_SUCCESS ||
++	    index.dirty_tail_offset != 0U)
++		return false;
++	entry = payload_mm_authvar_store_find(&index, guid, state_name, sizeof(state_name));
++	if (entry == NULL || entry->attributes != PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES ||
++	    entry->data_size != sizeof(zero))
++		return false;
++	data = payload_mm_authvar_store_data(&index, entry);
++	if (data == NULL || memcmp(data, zero, sizeof(zero)) != 0)
++		return false;
++	if (record_offset != NULL)
++		*record_offset = PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + entry->record_offset;
++	if (data_offset != NULL)
++		*data_offset = PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + entry->data_offset;
++	return true;
++}
++
++static void self_test(const uint8_t *guid, uint32_t record_offset, uint32_t data_offset)
++{
++	uint8_t other_guid[UUID_LEN];
++	struct payload_mm_authvar_fv_geometry geometry;
++	bool attributes_refused;
++
++	assert(payload_mm_authvar_fv_geometry(&geometry, REGION_SIZE, 4096U));
++	for (size_t byte = 0U; byte < PAYLOAD_MM_FMP_STATE_WIRE_SIZE; byte++) {
++		bool data_refused;
++
++		memcpy(changed, media, sizeof(changed));
++		changed[data_offset + byte] ^= 1U;
++		data_refused = !matches(changed, guid, NULL, NULL);
++		assert(data_refused);
++	}
++	/*
++	 * Attributes are at byte four in the actual authenticated-variable header.
++	 * Adding RT keeps a valid record but must not alter the owner's attrs3.
++	 */
++	memcpy(changed, media, sizeof(changed));
++	changed[record_offset + 4U] |= 4U;
++	attributes_refused = !matches(changed, guid, NULL, NULL);
++	assert(attributes_refused);
++	for (size_t byte = 0U; byte < sizeof(other_guid); byte++) {
++		bool guid_refused;
++
++		memcpy(other_guid, guid, sizeof(other_guid));
++		other_guid[byte] ^= 1U;
++		guid_refused = !matches(media, other_guid, NULL, NULL);
++		assert(guid_refused);
++	}
++	for (size_t byte = 0U; byte < PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE; byte++) {
++		bool workspace_refused;
++
++		memcpy(changed, media, sizeof(changed));
++		changed[geometry.working_offset + byte] ^= 1U;
++		workspace_refused = !matches(changed, guid, NULL, NULL);
++		assert(workspace_refused);
++	}
++}
++
++int main(int argc, char **argv)
++{
++	uint8_t guid[UUID_LEN];
++	uint32_t record_offset, data_offset;
++	FILE *input;
++	bool complete;
++
++	if ((argc != 3 && argc != 4) ||
++	    (argc == 4 && strcmp(argv[3], "--self-test") != 0) ||
++	    parse_uuid(guid, argv[2]) != 0)
++		return 2;
++	input = fopen(argv[1], "rb");
++	if (input == NULL)
++		return 2;
++	complete = fread(media, 1U, sizeof(media), input) == sizeof(media) &&
++		fgetc(input) == EOF && !ferror(input);
++	if (fclose(input) != 0 || !complete)
++		return 2;
++	if (!matches(media, guid, &record_offset, &data_offset))
++		return 1;
++	if (argc == 4)
++		self_test(guid, record_offset, data_offset);
++	puts("Actual producer store: exact namespace/attrs3/20B zero FmpState and clean FTW: PASS");
++	return 0;
++}
+diff --git a/tests/system_fmp_core_ram_refusal_store_test.sh b/tests/system_fmp_core_ram_refusal_store_test.sh
+new file mode 100755
+index 0000000000..3905fa90f2
+--- /dev/null
++++ b/tests/system_fmp_core_ram_refusal_store_test.sh
+@@ -0,0 +1,126 @@
++#!/bin/sh
++# SPDX-License-Identifier: GPL-2.0-only
++set -eu
++
++test "$#" -eq 2 || { test "$#" -eq 3 && test "$3" = --self-test; }
++: "${COREBOOT_TREE:?actual producer codec source required}"
++: "${CBFSTOOL:?matching actual producer cbfstool required}"
++root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
++mkdir -p "$2"
++output=$(mktemp -d "$2/refusal-store.XXXXXX")
++printf 'Actual-codec refusal store artifacts: %s\n' "$output"
++compiler=${HOSTCC:-cc}
++original="$root/tests/system_fmp_core_ram_refusal_store.c"
++sources=
++for implementation in fv store record store_semantics writer default_store ftw; do
++	sources="$sources $COREBOOT_TREE/src/lib/payload_mm_authvar_$implementation.c"
++done
++sources="$sources $COREBOOT_TREE/src/lib/uuid.c $COREBOOT_TREE/src/lib/hexstrtobin.c"
++# shellcheck disable=SC2086
++sha256sum "$1" "$CBFSTOOL" "$original" "$0" "$(command -v "$compiler")" $sources \
++	> "$output/inputs-before.sha256"
++"$CBFSTOOL" "$1" read -r SMMSTORE -f "$output/store.bin" > "$output/extract.log" 2>&1
++"$CBFSTOOL" "$1" extract -n config -f "$output/producer.config" > "$output/config.log" 2>&1
++grep -qx 'CONFIG_Q35_SMM_CAPSULE_BROKER=y' "$output/producer.config"
++grep -qx 'CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT=y' "$output/producer.config"
++test "$(grep -c '^CONFIG_DRIVERS_EFI_MAIN_FW_GUID=' "$output/producer.config")" -eq 1
++guid=$(sed -n 's/^CONFIG_DRIVERS_EFI_MAIN_FW_GUID="\(.*\)"$/\1/p' "$output/producer.config")
++ulimit -c 0
++export ASAN_OPTIONS=abort_on_error=1:detect_leaks=1
++export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
++
++codec_cc()
++{
++	oracle=$1
++	optimization=$2
++	binary=$3
++	# These aliases close actual coreboot HOST types; none grants authority.
++	# shellcheck disable=SC2086
++	"$compiler" -std=gnu11 -Wall -Wextra -Werror -g -O"$optimization" \
++		-fno-builtin -fno-pie -no-pie -fsanitize=address,undefined \
++		-fno-sanitize-recover=all -fno-omit-frame-pointer -DENV_TEST=1 \
++		-Du8=uint8_t -Du16=uint16_t -Du32=uint32_t -Du64=uint64_t \
++		-Ds32=int32_t -Ds64=int64_t \
++		-include "$COREBOOT_TREE/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
++		-I"$COREBOOT_TREE/src/commonlib/include" \
++		-I"$COREBOOT_TREE/src/commonlib/bsd/include" \
++		-idirafter "$COREBOOT_TREE/src/include" "$oracle" $sources -o "$binary"
++}
++
++for optimization in 0 2; do
++	codec_cc "$original" "$optimization" "$output/check-o$optimization" \
++		> "$output/build-o$optimization.log" 2>&1
++	"$output/check-o$optimization" "$output/store.bin" "$guid" \
++		> "$output/check-o$optimization.log" 2>&1
++	if test "$#" -eq 3; then
++		"$output/check-o$optimization" "$output/store.bin" "$guid" --self-test \
++			> "$output/self-test-o$optimization.log" 2>&1
++	fi
++done
++
++if test "$#" -eq 3; then
++	perl - "$original" "$output" <<-'PERL'
++		use strict;
++		use warnings;
++		my ($source, $output) = @ARGV;
++		open my $input, '<', $source or die $!;
++		local $/;
++		my $body = <$input>;
++		my @cases = (
++			['data', 'memcmp(data, zero, sizeof(zero)) != 0', 'false /* removed zero-state comparison */'],
++			['attributes', 'entry->attributes != PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES', 'false /* removed attrs3 comparison */'],
++			['guid', 'entry = payload_mm_authvar_store_find(&index, guid, state_name, sizeof(state_name));',
++			 "entry = NULL;\n\t(void)guid;\n\tfor (size_t candidate = 0U; candidate < index.entry_count; candidate++) {\n" .
++			 "\t\tentry = payload_mm_authvar_store_find(&index, index.entries[candidate].vendor_guid,\n" .
++			 "\t\t\tstate_name, sizeof(state_name));\n\t\tif (entry != NULL)\n\t\t\tbreak;\n\t}"],
++		);
++		my $ftw = "if (payload_mm_authvar_ftw_plan(region, REGION_SIZE, 4096U, &plan) != CB_SUCCESS ||\n" .
++			"\t    plan.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN ||\n" .
++			"\t    plan.workspace != PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING ||\n" .
++			"\t    plan.queue_disposition != PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY ||\n" .
++			"\t    plan.queue_offset != PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE ||\n" .
++			"\t    plan.queue_entry_size != 0U)";
++		push @cases, ['ftw', $ftw, 'if (false && (' . substr($ftw, 4, -1) . '))'];
++		for my $case (@cases) {
++			my ($name, $before, $after) = @$case;
++			my $changed = $body;
++			my $count = ($changed =~ s/\Q$before\E/$after/g);
++			die "$name forward count $count\n" unless $count == 1;
++			open my $mutant, '>', "$output/$name-mutant.c" or die $!;
++			print {$mutant} $changed;
++			close $mutant;
++			$count = ($changed =~ s/\Q$after\E/$before/g);
++			die "$name inverse mismatch\n" unless $count == 1 && $changed eq $body;
++			open my $inverse, '>', "$output/$name-inverse.c" or die $!;
++			print {$inverse} $changed;
++			close $inverse;
++		}
++	PERL
++	for cause in data attributes guid ftw; do
++		cmp "$original" "$output/$cause-inverse.c"
++		case "$cause" in
++			ftw) assertion=workspace_refused ;;
++			*) assertion=${cause}_refused ;;
++		esac
++		for optimization in 0 2; do
++			binary="$output/$cause-o$optimization"
++			codec_cc "$output/$cause-mutant.c" "$optimization" "$binary" \
++				> "$output/$cause-build-o$optimization.log" 2>&1
++			"$binary" "$output/store.bin" "$guid" \
++				> "$output/$cause-positive-o$optimization.log" 2>&1
++			if "$binary" "$output/store.bin" "$guid" --self-test \
++				> "$output/$cause-causal-o$optimization.log" 2>&1; then
++				echo "oracle ignored discarded $cause guard" >&2
++				exit 1
++			else
++				status=$?
++			fi
++			test "$status" -eq 134
++			grep -q "Assertion.*$assertion.*failed" "$output/$cause-causal-o$optimization.log"
++			! grep -Eq 'ERROR: AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|AddressSanitizer:DEADLYSIGNAL|runtime error:' \
++				"$output/$cause-causal-o$optimization.log"
++		done
++	done
++fi
++sha256sum -c "$output/inputs-before.sha256"
++printf '%s\n' 'Actual producer refusal-store HOST oracle: PASS (no guest writes)'
+diff --git a/tests/system_fmp_core_ram_runner_test.py b/tests/system_fmp_core_ram_runner_test.py
+index 85343dbc17..d375e650a6 100644
+--- a/tests/system_fmp_core_ram_runner_test.py
++++ b/tests/system_fmp_core_ram_runner_test.py
+@@ -13,8 +13,9 @@ from pathlib import Path
+ from types import SimpleNamespace
+ from unittest.mock import patch
+ 
+-spec = importlib.util.spec_from_file_location("runner", Path(__file__).with_name(
+-    "system_fmp_core_ram_native_test.py"))
++runner_source = Path(os.environ.get("CDK2_CORE_RAM_RUNNER_SOURCE",
++                                   Path(__file__).with_name("system_fmp_core_ram_native_test.py")))
++spec = importlib.util.spec_from_file_location("runner", runner_source)
+ runner = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(runner)
+ from qmp_cbmem_console import checksum
+@@ -232,5 +233,96 @@ int main(void)
+                 runner.loads(payloads[1])
+ 
+ 
++class RefusalTest(unittest.TestCase):
++    def setUp(self):
++        EpochTest.setUp(self)
++        self.refusal_boots = self.directories[:2]
++        self.uart = b"".join(("CDK2_CORE_RAM_STAGE_" + marker + "\n").encode() for marker in (
++            "MAIN_ENTRY", "SETUP1_SECURE0", "REAL_SYSTEM_FMP_INFO", "ACTUAL_INITIAL_ZERO_STATE",
++            "QUERY_STRUCTURAL_ONLY", "UPDATE_CAPSULE_RESET"))
++        self.events = [{"event": "RESET", "data": {"guest": True}}]
++        self.failed = b"CDK2 | CAPSULE_RAM | begin\nCDK2 | CAPSULE_RAM | failed | "
++        self.bodies[self.directories[1]] = self.failed + runner.REFUSAL_STATUS["wrong-signer"] + b" | 1 us\n"
++
++    def refusal(self, case="wrong-signer"):
++        with patch.object(runner, "validate_saved_console", side_effect=self.bodies.get):
++            runner.check_boots(self.refusal_boots, 8388608, refusal=case)
++
++    def test_declared_status_positive(self):
++        for case in runner.CASES:
++            self.bodies[self.directories[1]] = self.failed + runner.REFUSAL_STATUS[case] + b" | 1 us\n"
++            self.refusal(case)
++
++    def test_refusal_exact_status(self):
++        self.bodies[self.directories[1]] = self.failed + b"INVALID_PARAMETER (0x8000000000000002) | 1 us\n"
++        with self.assertRaisesRegex(ValueError, "refusal status"):
++            self.refusal()
++
++    def test_refusal_failed_count(self):
++        self.bodies[self.directories[1]] += self.bodies[self.directories[1]].split(b"\n", 1)[1]
++        with self.assertRaisesRegex(ValueError, "refusal status"):
++            self.refusal()
++
++    def test_refusal_pci_refused(self):
++        self.bodies[self.directories[1]] += b"CDK2 | PCI_ROOTS | begin\n"
++        with self.assertRaisesRegex(ValueError, "entered PCI"):
++            self.refusal()
++
++    def test_refusal_completion_refused(self):
++        self.bodies[self.directories[1]] += b"CDK2 | CAPSULE_RAM | complete | SUCCESS\n"
++        with self.assertRaisesRegex(ValueError, "unexpectedly completed"):
++            self.refusal()
++
++    def test_refusal_keeps_running_version(self):
++        (self.directories[1] / "cbmem-table-0.bin").write_bytes(table(0x001A000A, True))
++        with self.assertRaisesRegex(ValueError, "identity"):
++            self.refusal()
++
++    def test_refusal_needs_retained_capsule_handoff(self):
++        (self.directories[1] / "cbmem-table-0.bin").write_bytes(table(0x001A0009, False))
++        with self.assertRaisesRegex(ValueError, "handoff"):
++            self.refusal()
++
++    def test_refusal_previous_tail(self):
++        self.bodies[self.directories[1]] = self.normal + b"old uncaptured tail\n" + self.bodies[self.directories[1]]
++        self.refusal()
++
++    def test_guest_reset_cardinality(self):
++        runner.check_refusal_markers(self.uart, self.events)
++        for events in ([], self.events * 2, [{"event": "RESET", "data": {"guest": False}}]):
++            with self.assertRaisesRegex(ValueError, "guest warm reset"):
++                runner.check_refusal_markers(self.uart, events)
++
++    def test_refusal_main_markers(self):
++        for line in self.uart.splitlines(keepends=True):
++            for changed in (self.uart.replace(line, b""), self.uart + line):
++                with self.assertRaisesRegex(ValueError, "cardinality"):
++                    runner.check_refusal_markers(changed, self.events)
++        for marker in (b"CDK2_CORE_RAM_STAGE_ACTUAL_PRIOR_SUCCESS_STATE",
++                       b"CDK2_CORE_RAM_STAGE_FAIL",
++                       b"CDK2_CORE_RAM_ACTUAL_NORMAL_CORE_COLD_RUNNING_AND_HISTORY_PASS"):
++            with self.assertRaisesRegex(ValueError, "cold history"):
++                runner.check_refusal_markers(self.uart + marker, self.events)
++
++    def test_refusal_exact_firmware(self):
++        initial = bytes(8388608)
++        legitimate = bytes([1]) + initial[1:]
++        runner.check_refusal_media(legitimate, initial, {"SMMSTORE": (0, 65536)})
++        for offset in (65536, 73728):
++            changed = bytearray(legitimate)
++            changed[offset] ^= 1
++            with self.assertRaisesRegex(ValueError, "outside the actual SMMSTORE"):
++                runner.check_refusal_media(changed, initial, {"SMMSTORE": (0, 65536)})
++        for region in ((1, 65536), (0, 73728)):
++            with self.assertRaisesRegex(ValueError, "SMMSTORE"):
++                runner.check_refusal_media(legitimate, initial, {"SMMSTORE": region})
++
++    def test_refusal_truncated_media(self):
++        for size in (32768, 73729, 8388607):
++            shortened = bytes(size)
++            with self.assertRaisesRegex(ValueError, "outside the actual SMMSTORE"):
++                runner.check_refusal_media(shortened, shortened, {"SMMSTORE": (0, 65536)})
++
++
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/system_fmp_core_ram_stage_app_test.sh b/tests/system_fmp_core_ram_stage_app_test.sh
+index a214bfcd54..e5eb6f831f 100644
+--- a/tests/system_fmp_core_ram_stage_app_test.sh
++++ b/tests/system_fmp_core_ram_stage_app_test.sh
+@@ -20,11 +20,14 @@ attempt=${MM_FULL_CORE_ATTEMPT:-0x001a000a}
+ target_running=${MM_FULL_CORE_TARGET_RUNNING:-0x001a000a}
+ prior_running=${MM_FULL_CORE_PRIOR_RUNNING:-0x001a0009}
+ prior_history=${MM_FULL_CORE_PRIOR_HISTORY:-0}
+-python3 - "$attempt" "$target_running" "$prior_running" "$prior_history" <<-'PY'
++refusal=${MM_FULL_CORE_REFUSAL:-}
++reference=${MM_FULL_CORE_REFERENCE_CAPSULE:-}
++signer=${MM_FULL_CORE_SIGNER_CERT:-}
++python3 - "$attempt" "$target_running" "$prior_running" "$prior_history" "$refusal" <<-'PY'
+ 	import re
+ 	import sys
+ 	values = []
+-	for text in sys.argv[1:]:
++	for text in sys.argv[1:5]:
+ 	    if not re.fullmatch(r'(?:0[xX][0-9a-fA-F]{1,8}|0|[1-9][0-9]{0,9})', text):
+ 	        raise SystemExit('invalid fixture numeric constant')
+ 	    value = int(text, 16 if text.lower().startswith('0x') else 10)
+@@ -32,7 +35,13 @@ python3 - "$attempt" "$target_running" "$prior_running" "$prior_history" <<-'PY'
+ 	        raise SystemExit('fixture numeric constant overflow')
+ 	    values.append(value)
+ 	attempt, target, running, history = values
+-	if running < 0x001a0009 or target < 0x001a0009 or target == running or \
++	refusal = sys.argv[5]
++	if refusal:
++	    expected = 0x001a0008 if refusal == 'below-floor' else 0x001a000a
++	    if refusal not in ('wrong-signer', 'signed-byte', 'below-floor') or \
++	            (attempt, target, running, history) != (expected, 0x001a000a, 0x001a0009, 0):
++	        raise SystemExit('invalid finite refusal fixture constants')
++	elif running < 0x001a0009 or target < 0x001a0009 or target == running or \
+ 	        attempt <= running or attempt <= history:
+ 	    raise SystemExit('fixture running/history/attempt relation invalid')
+ PY
+@@ -49,16 +58,30 @@ cp "$trust" "$output/public-trust.pem"
+ sha256sum "$header" "$capsule" "$target" "$trust" \
+ 	"$root/tests/system_fmp_core_ram_stage_app.c" \
+ 	"$root/tests/system_fmp_core_ram_stage_app.ld" \
+-	"$root/tests/system_fmp_core_ram_stage_app_test.sh" > "$output/inputs-before.sha256"
++	"$root/tests/system_fmp_core_ram_stage_app_test.sh" \
++	"$root/tests/system_fmp_core_ram_refusal.py" > "$output/inputs-before.sha256"
+ sha256sum "$(command -v "$compiler")" "$(command -v "$linker")" \
+ 	"$(command -v "$readelf")" "$pe_link" "$pe_audit" "$pe_marker" \
+ 	"$tools/validate_capsule.py" "$tools/generate_capsule.py" \
+ 	> "$output/tools-before.sha256"
+-python3 "$tools/validate_capsule.py" --capsule "$output/signed_capsule.bin" \
+-	--guid 00112233-4455-6677-8899-aabbccddeeff --embedded-drivers 0 \
+-	--fw-version "$attempt" --lsv 0x001a0009 --image "$output/target-image.bin" \
+-	--region COREBOOT --trusted-public-cert "$output/public-trust.pem" \
+-	--initiate-reset --require-fmap > "$output/capsule-validation.log" 2>&1
++if test -n "$refusal"; then
++	sha256sum "$reference" >> "$output/inputs-before.sha256"
++	set -- --tools "$tools" --capsule "$output/signed_capsule.bin" \
++		--target "$output/target-image.bin" --trust "$output/public-trust.pem" \
++		--reference "$reference" --case "$refusal" --attempt "$attempt"
++	if test -n "$signer"; then
++		sha256sum "$signer" >> "$output/inputs-before.sha256"
++		set -- "$@" --signer "$signer"
++	fi
++	python3 "$root/tests/system_fmp_core_ram_refusal.py" "$@" \
++		> "$output/capsule-validation.log" 2>&1
++else
++	python3 "$tools/validate_capsule.py" --capsule "$output/signed_capsule.bin" \
++		--guid 00112233-4455-6677-8899-aabbccddeeff --embedded-drivers 0 \
++		--fw-version "$attempt" --lsv 0x001a0009 --image "$output/target-image.bin" \
++		--region COREBOOT --trusted-public-cert "$output/public-trust.pem" \
++		--initiate-reset --require-fmap > "$output/capsule-validation.log" 2>&1
++fi
+ (cd "$output" && "$linker" -r -b binary signed_capsule.bin -o capsule.o)
+ "$compiler" -std=gnu11 -Wall -Wextra -Werror -O2 -ffreestanding \
+ 	-fno-stack-protector -fno-asynchronous-unwind-tables -fshort-wchar \

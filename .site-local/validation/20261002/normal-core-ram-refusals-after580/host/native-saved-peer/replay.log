@@ -1,0 +1,4 @@
+wrong-signer: saved strict epochs/status/markers/media/input identity PASS
+signed-byte: saved strict epochs/status/markers/media/input identity PASS
+below-floor: saved strict epochs/status/markers/media/input identity PASS
+Saved-outcome replay only: no fresh VM, guest success or OS-continuation claim.

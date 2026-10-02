@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_refusal_main_markers (__main__.RefusalTest.test_refusal_main_markers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_runner_test.py", line 299, in test_refusal_main_markers
+    with self.assertRaisesRegex(ValueError, "cardinality"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

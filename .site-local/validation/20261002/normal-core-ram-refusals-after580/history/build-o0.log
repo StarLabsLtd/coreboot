@@ -1,0 +1,16 @@
+tests/system_fmp_core_ram_refusal_store.c: In function ‘matches’:
+tests/system_fmp_core_ram_refusal_store.c:23:28: error: ‘PAYLOAD_MM_FMP_STATE_WIRE_SIZE’ undeclared (first use in this function)
+   23 |         const uint8_t zero[PAYLOAD_MM_FMP_STATE_WIRE_SIZE] = { 0 };
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/system_fmp_core_ram_refusal_store.c:23:28: note: each undeclared identifier is reported only once for each function it appears in
+tests/system_fmp_core_ram_refusal_store.c:52:51: error: ‘PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES’ undeclared (first use in this function)
+   52 |         if (entry == NULL || entry->attributes != PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES ||
+      |                                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/system_fmp_core_ram_refusal_store.c:23:23: error: unused variable ‘zero’ [-Werror=unused-variable]
+   23 |         const uint8_t zero[PAYLOAD_MM_FMP_STATE_WIRE_SIZE] = { 0 };
+      |                       ^~~~
+tests/system_fmp_core_ram_refusal_store.c: In function ‘self_test’:
+tests/system_fmp_core_ram_refusal_store.c:71:39: error: ‘PAYLOAD_MM_FMP_STATE_WIRE_SIZE’ undeclared (first use in this function)
+   71 |         for (size_t byte = 0U; byte < PAYLOAD_MM_FMP_STATE_WIRE_SIZE; byte++) {
+      |                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors

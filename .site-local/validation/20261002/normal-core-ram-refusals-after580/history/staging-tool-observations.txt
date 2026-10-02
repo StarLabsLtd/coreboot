@@ -1,0 +1,18 @@
+Transcribed tool observations (not original redirected raw log files)
+====================================================================
+Packaging first attempt, tool session29311/chunk27464e, exit1:
+cp: cannot stat '/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/bind-fixtures.log': No such file or directory
+Corrected existing basename binding.log; final pack session22348 exit0.
+
+Initial staging-only receipt checker, chunk13ebdf, exit1:
+AssertionError: CDK2_CORE_RAM_STAGE_PRODUCTION_VARIABLES_PASS
+This was a guessed diagnostic label in new packet code, not the real runner's
+marker or native outcome. Corrected labels use exact signed runner source;
+final check-receipts.log is the original redirected exit0 run.
+
+PR580 body update first gh-pr-edit attempt, chunk711ddb, exit1:
+GraphQL: Projects (classic) is being deprecated in favor of the new Projects experience.
+First REST body command, chunka5a2e9, exit1/HTTP400:
+gh: Body should be a JSON object (HTTP 400)
+Cause was jq without -n, so no JSON object was emitted. Corrected REST PATCH
+chunka71b9 succeeded0 and retained strict native/source scope unchanged.

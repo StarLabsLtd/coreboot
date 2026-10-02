@@ -1,0 +1,47 @@
+#
+# No change to /home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/resolved.config
+#
+#
+# No change to /home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/resolved.config
+#
+#
+# No change to /home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/resolved.config
+#
+/home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/include/cdk2/config.h: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer-a.cap: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/newer-pristine-full-core.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/signed-capsule.bin: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem: OK
+/usr/bin/cc: OK
+/usr/bin/ld: OK
+/usr/bin/readelf: OK
+/home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/native/cdk2-native-pe-link: OK
+/home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/native/cdk2-pe-exec-sections: OK
+/home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/generate_capsule.py: OK
+3dd6c90b2db98218ec0b67c483ba82658f121b0a80ad2fac25376b45ea60ec43  /home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/native/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim
+Actual-codec refusal store artifacts: /home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/run-1/refusal-store.NsbZ7j
+/home/sean/normal-core-ram-refusals.oIoDHH/wrong-signer/run-1/pflash.rom: OK
+/home/sean/q35-e8-scope-full.9sM2hH/build/util/cbfstool/cbfstool: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal_store.c: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal_store_test.sh: OK
+/usr/bin/cc: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_fv.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_record.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_store_semantics.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_writer.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_default_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/payload_mm_authvar_ftw.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/uuid.c: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/src/lib/hexstrtobin.c: OK
+Actual producer refusal-store HOST oracle: PASS (no guest writes)
+Actual capsule tools bound finite wrong-signer refusal; producer public trust unchanged: PASS
+Actual ordinary Core RAM refusal PASS (HOST termination; not guest success)

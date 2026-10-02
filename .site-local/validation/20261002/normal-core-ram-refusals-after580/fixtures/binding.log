@@ -1,0 +1,4 @@
+wrong-signer-a.cap 236e22b071cd0de979110230e9965a63666a68a367ddfbd2e48a21f25880a314
+signed-below-floor-8.cap 820cc9d8e4f40a3f644af3c69cdfda819bacb702842b9848a4a137eba07646c6
+signed-byte-corrupt-a.cap 4822641c498bdd5f7ce3333a277e967ab09b5e4f072a780fe5ce9ff31357a753
+Actual capsule parser/CMS binding: wrong signer, one signed byte, genuine below-floor signature PASS

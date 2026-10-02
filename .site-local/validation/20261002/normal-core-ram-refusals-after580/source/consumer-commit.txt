@@ -1,0 +1,10 @@
+commit 66bd61586bce3b52833feb37ece25374cea5bc1f
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Fri Oct 2 23:30:39 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Fri Oct 2 23:31:10 2026 +0100
+
+    qemu: exercise normal Core RAM capsule refusals
+    
+    (cherry picked from commit 098403a0d3d30b0ef70eff795c97b90cf7337827)

@@ -1,0 +1,12 @@
+commit b06f91d78a891e1d803ea48543bdf545231ef786
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Fri Oct 2 18:04:13 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Fri Oct 2 18:04:13 2026 +0100
+
+    qemu: scope capsule controller retirement to the held E8 acquisition
+    
+    Retire controllers on the first mutation proof in an actual protected exclusive command acquisition. Continue checking disabled controllers, immutable resources, requester bus mastering, owned translation tables, physical exclusions and acknowledged drain on every proof. Refuse and poison observed drift rather than resetting or repairing it. Scrub the private scope before releasing command ownership; metadata and close operations do not retire controllers.
+    
+    Signed-off-by: Sean Rhodes <sean@starlabs.systems>

@@ -1,0 +1,68 @@
+{
+  "failure": null,
+  "qemu_status": 0,
+  "expected_refusal": "signed-byte",
+  "refusal_observed": true,
+  "completion": "HOST termination after validated refusal",
+  "wall_seconds": 41.11861945599958,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790980625,
+        "microseconds": 938628
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790980625,
+        "microseconds": 938673
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790980656,
+        "microseconds": 368932
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790980656,
+        "microseconds": 882023
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790980656,
+        "microseconds": 882079
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    }
+  ],
+  "installed_sha256": "7ad8141bccedc5bd9f7fa33c78a59cb8e65c479acd814a2cd5983c7fe1e4b187",
+  "disk_sha256": "61ad43e5382ffc0e63eab5afce2a59e70d472e9ef9a334df85548f00583bcb0c"
+}

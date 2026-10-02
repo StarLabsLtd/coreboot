@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_guest_reset_cardinality (__main__.RefusalTest.test_guest_reset_cardinality)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_runner_test.py", line 293, in test_guest_reset_cardinality
+    with self.assertRaisesRegex(ValueError, "guest warm reset"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

@@ -1,0 +1,7 @@
+e9d1c3166e5e16b7949af58d393cabfbfcd2bdb56fecb1218155b20b6cc00622  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/native/cdk2-coreboot-image.elf
+793436ff89cc0cb0cecb3b5e3969604fc2ff386d50910b3022d0f7135c64ace4  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/native/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi
+f1dcbca75e390d3c5953c5a0f79e5ddcd0b04a4b54d220dff53532bf6d616fb7  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/run-1/initial-core.elf
+f1dcbca75e390d3c5953c5a0f79e5ddcd0b04a4b54d220dff53532bf6d616fb7  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/run-1/target-core.elf
+4822641c498bdd5f7ce3333a277e967ab09b5e4f072a780fe5ce9ff31357a753  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/run-1/boot-1/retained-capsule.bin
+7ad8141bccedc5bd9f7fa33c78a59cb8e65c479acd814a2cd5983c7fe1e4b187  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/run-1/pflash.rom
+61ad43e5382ffc0e63eab5afce2a59e70d472e9ef9a334df85548f00583bcb0c  /home/sean/normal-core-ram-refusals.oIoDHH/signed-byte/run-1/nvme.raw

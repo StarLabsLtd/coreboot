@@ -1,0 +1,15 @@
+Refusal HOST oracle artifacts: /home/sean/core-ram-refusal-oracle.Q0Pdh7
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_native_test.py: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_runner_test.py: OK
+tests/system_fmp_core_ram_refusal_oracle_test.sh: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/signed-capsule.bin: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/newer-pristine-full-core.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer-a.cap: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/signed-byte-corrupt-a.cap: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/signed-below-floor-8.cap: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/crypto_policy.py: OK
+HOST refusal status/epoch/media/marker guards and actual capsule-tool preflights: PASS

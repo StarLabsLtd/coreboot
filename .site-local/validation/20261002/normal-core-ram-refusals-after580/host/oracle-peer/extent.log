@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_refusal_truncated_media (__main__.RefusalTest.test_refusal_truncated_media)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_runner_test.py", line 323, in test_refusal_truncated_media
+    with self.assertRaisesRegex(ValueError, "outside the actual SMMSTORE"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

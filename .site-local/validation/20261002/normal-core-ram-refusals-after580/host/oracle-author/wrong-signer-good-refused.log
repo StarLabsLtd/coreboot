@@ -1,0 +1,40 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py", line 295, in verify_signature
+    subprocess.run(
+    ~~~~~~~~~~~~~~^
+        ["openssl", "smime", "-verify", "-binary", "-inform", "DER",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+         "-no_check_time", "-out", "/dev/null"],
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['openssl', 'smime', '-verify', '-binary', '-inform', 'DER', '-in', '/home/sean/coreboot-capsule-verify-4hn5re1e/signature.der', '-content', '/home/sean/coreboot-capsule-verify-4hn5re1e/content.bin', '-CAfile', '/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem', '-partial_chain', '-purpose', 'any', '-no_check_time', '-out', '/dev/null']' returned non-zero exit status 4.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 73, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 67, in main
+    validate_refusal(arguments.tools, arguments.capsule, arguments.target,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     arguments.trust, arguments.reference, arguments.signer,
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     arguments.case, arguments.attempt)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-refusals-after575/tests/system_fmp_core_ram_refusal.py", line 44, in validate_refusal
+    validate(candidate, None, expected_guid, 0, attempt, 0x001a0009,
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             image, ["COREBOOT"], str(signer), True, require_fmap=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py", line 382, in validate
+    verify_signature(details, trusted_public_cert)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py", line 302, in verify_signature
+    raise ValidationError("capsule PKCS#7 verification failed") from error
+validate_capsule.ValidationError: capsule PKCS#7 verification failed

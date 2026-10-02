@@ -1,0 +1,9 @@
+820cc9d8e4f40a3f644af3c69cdfda819bacb702842b9848a4a137eba07646c6  /home/sean/normal-core-ram-refusal-fixtures.VxQuI9/signed-below-floor-8.cap
+4822641c498bdd5f7ce3333a277e967ab09b5e4f072a780fe5ce9ff31357a753  /home/sean/normal-core-ram-refusal-fixtures.VxQuI9/signed-byte-corrupt-a.cap
+236e22b071cd0de979110230e9965a63666a68a367ddfbd2e48a21f25880a314  /home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer-a.cap
+0427acf40048d6e346158ad8b16a7b5258861b92fe2662a00c5d0a9af366b06f  /home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+e03749ed2f91b2404cec9fe8598bd6e684b7d1347c76551594dfd2a8f27c035d  /home/sean/system-fmp-provider-session-final.GCQCjf/original-pristine-full-core.rom
+b83f2452ee4cf0721581e06b8605d1c56e1f8f2814aab6571c83cc520251a36d  /home/sean/system-fmp-provider-session-final.GCQCjf/newer-pristine-full-core.rom
+4eeed7d6f893094ed581d5dfde65335f6d752aa75a7c00daf552a2d827c843ca  /home/sean/system-fmp-provider-session-final.GCQCjf/signed-capsule.bin
+810b009112fd12ea92ecc83cd072b07226db62665f71b2ea007f8ffe23d1d777  /home/sean/q35-e8-scope-full.9sM2hH/build/util/cbfstool/cbfstool
