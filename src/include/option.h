@@ -34,6 +34,11 @@ static inline enum cb_err set_uint_option(const char *name, unsigned int value)
 unsigned int get_uint_option(const char *name, const unsigned int fallback);
 enum cb_err set_uint_option(const char *name, unsigned int value);
 
+#if CONFIG(USE_UEFI_VARIABLE_STORE)
+enum cb_err get_uint_option_status(const char *name, unsigned int fallback,
+					  unsigned int *value);
+#endif
+
 #endif /* OPTION_BACKEND_NONE? */
 
 #endif /* _OPTION_H_ */

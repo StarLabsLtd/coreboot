@@ -561,10 +561,24 @@ int mainboard_smi_apmc(u8 data)
 		dnvs->value = get_supported_efiopts();
 		dnvs->status = CB_SUCCESS;
 		break;
-	case STARLABS_EFIOPT_CMD_GET:
-		dnvs->value = get_uint_option(opt->name, opt->fallback);
-		dnvs->status = CB_SUCCESS;
+	case STARLABS_EFIOPT_CMD_GET: {
+		unsigned int value;
+
+		dnvs->status = get_uint_option_status(opt->name, opt->fallback, &value);
+		if (dnvs->status == CB_EFI_OPTION_NOT_FOUND) {
+			dnvs->value = opt->fallback;
+			dnvs->status = CB_SUCCESS;
+		} else if (dnvs->status == CB_SUCCESS) {
+			const unsigned int stored = value;
+
+			dnvs->status = normalize_value(id, &value);
+			if (value != stored)
+				dnvs->status = CB_ERR_ARG;
+			if (dnvs->status == CB_SUCCESS)
+				dnvs->value = value;
+		}
 		break;
+	}
 	case STARLABS_EFIOPT_CMD_SET: {
 		uint32_t value = dnvs->value;
 		dnvs->status = normalize_value(id, &value);
