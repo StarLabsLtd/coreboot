@@ -1,0 +1,98 @@
+{
+  "failure": null,
+  "qemu_status": 3,
+  "wall_seconds": 171.507427259,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790975881,
+        "microseconds": 698480
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790975881,
+        "microseconds": 698558
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790975914,
+        "microseconds": 343176
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790975914,
+        "microseconds": 982980
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790975914,
+        "microseconds": 983070
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790976019,
+        "microseconds": 592975
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790976020,
+        "microseconds": 218443
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790976020,
+        "microseconds": 218530
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    }
+  ],
+  "installed_sha256": "136d2259c24eead60340e9e4edd009bffb7e2de5513836240f3b150278f2a6a3",
+  "disk_sha256": "2cfaa8da9764a316402b36d817508d8f42a26d8ac7b2f9b47d4dac4528eeed40"
+}

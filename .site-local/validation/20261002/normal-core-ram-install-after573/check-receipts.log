@@ -1,0 +1,9 @@
+author-positive original before/after maps equal: 17104 COREBOOT/probe/retained-signed-bytes exact;
+author-positive final-media 136d2259c24eead60340e9e4edd009bffb7e2de5513836240f3b150278f2a6a3
+author-positive retained-capsule 4eeed7d6f893094ed581d5dfde65335f6d752aa75a7c00daf552a2d827c843ca
+peer-positive original before/after maps equal: 17104 COREBOOT/probe/retained-signed-bytes exact;
+peer-positive final-media 136d2259c24eead60340e9e4edd009bffb7e2de5513836240f3b150278f2a6a3
+peer-positive retained-capsule 4eeed7d6f893094ed581d5dfde65335f6d752aa75a7c00daf552a2d827c843ca
+failed-provider-alias original before/after maps equal: 17103 COREBOOT/probe/retained-signed-bytes exact;
+failed-provider-alias final-media 8093c47b0a079e84f65b0e83b37fd988987200402bf1393e52b1637c66174309
+failed-provider-alias retained-capsule ae2624391763917d8e7bf720f8f6b190c8e70fcc8e4a5f1005c76b545b49d534

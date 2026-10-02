@@ -1,0 +1,29 @@
+/home/sean/system-fmp-core-ram-after570.LYMdWP/include/cdk2/config.h: OK
+/home/sean/system-fmp-core-ram-after570.LYMdWP/signed-capsule.bin: OK
+/home/sean/system-fmp-core-ram-after570.LYMdWP/newer-pristine-full-core.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/usr/bin/cc: OK
+/usr/bin/ld: OK
+/usr/bin/readelf: OK
+/home/sean/system-fmp-core-ram-after570.LYMdWP/native/cdk2-native-pe-link: OK
+/home/sean/system-fmp-core-ram-after570.LYMdWP/native/cdk2-pe-exec-sections: OK
+/home/sean/system-fmp-core-ram-after570.LYMdWP/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/generate_capsule.py: OK
+ee52bb5987edd0f5bc8f4066ae62cf4b50a3778b1db8fdc32fca2e5c91c1e151  /home/sean/system-fmp-core-ram-after570.LYMdWP/native/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561//tests/system_fmp_core_ram_native_test.py", line 373, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561//tests/system_fmp_core_ram_native_test.py", line 198, in main
+    if loads(extracted) != loads(arguments.core):
+       ~~~~~^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561//tests/system_fmp_core_ram_native_test.py", line 28, in loads
+    raise ValueError("expected actual ELF64 payload")
+ValueError: expected actual ELF64 payload
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/system-fmp-core-ram-native-after561/src/boot/Makefile:2032: native-system-fmp-core-ram-native-test] Error 1
+make: *** [Makefile:1146: native-system-fmp-core-ram-native-test] Error 2

@@ -1,0 +1,28 @@
+#
+# No change to /home/sean/system-fmp-core-ram-native-peer.PLLBd2/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-core-ram-native-peer.PLLBd2/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-core-ram-native-peer.PLLBd2/resolved.config
+#
+/home/sean/system-fmp-core-ram-native-peer.PLLBd2/include/cdk2/config.h: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/signed-capsule.bin: OK
+/home/sean/system-fmp-provider-session-final.GCQCjf/newer-pristine-full-core.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-provider-session-join-after570/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-provider-session-join-after570/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/system-fmp-provider-session-join-after570/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/usr/bin/cc: OK
+/usr/bin/ld: OK
+/usr/bin/readelf: OK
+/home/sean/system-fmp-core-ram-native-peer.PLLBd2/native/cdk2-native-pe-link: OK
+/home/sean/system-fmp-core-ram-native-peer.PLLBd2/native/cdk2-pe-exec-sections: OK
+/home/sean/system-fmp-core-ram-native-peer.PLLBd2/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/q35-exclusive-e8-dma-scope-after385/util/efi_capsule/generate_capsule.py: OK
+b00f4cbbd2045e6ba60de3c48e0c7b6e2f4175a295a386482c187fb7015fe308  /home/sean/system-fmp-core-ram-native-peer.PLLBd2/native/system-fmp-core-ram-stage/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+Actual ordinary Core RAM/SystemFmp three-boot update PASS

@@ -1,0 +1,65 @@
+{
+  "failure": "predeclared three-boot 180s budget expired",
+  "qemu_status": 0,
+  "wall_seconds": 180.88661891900028,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790974470,
+        "microseconds": 58080
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790974470,
+        "microseconds": 58175
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790974503,
+        "microseconds": 17278
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790974503,
+        "microseconds": 687303
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790974503,
+        "microseconds": 687381
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    }
+  ],
+  "installed_sha256": "8093c47b0a079e84f65b0e83b37fd988987200402bf1393e52b1637c66174309",
+  "disk_sha256": "495deaf98a08c0c433ededa9e8ea333fa8b4ce2e54ffe3275b181ab7ec2de33d"
+}

@@ -1,0 +1,3 @@
+Saved actual 3 epochs/guest resets/retained capsule/full Core loads/MAIN cold state/source inputs: PASS
+Exact signed COREBOOT readback + excluded probe/gap + disk final binding: PASS
+CLOSE-before-success reset remains source-flow evidence; this replay adds no fresh boot or hardware claim
