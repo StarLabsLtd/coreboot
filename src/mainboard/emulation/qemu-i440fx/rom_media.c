@@ -499,11 +499,34 @@ int qemu_pflash_lease_program(const struct region_device *root,
 	const void *buffer, size_t size)
 {
 	ssize_t result;
+	const uint8_t *source = buffer;
+	volatile uint8_t *destination = (volatile uint8_t *)(boot_dev.base + offset);
+	size_t index;
+	bool erased = true;
 
 	if (!buffer || !lease_span_valid(root, offset, size) ||
 	    lease_enter(root, lease))
 		return -1;
-	result = qemu_writeat_unlocked(root, buffer, offset, size);
+	/* Only an entirely erased, freshly read span may omit erased-value writes. */
+	write8(destination, READ_ARRAY_CMD);
+	for (index = 0; index < size; index++) {
+		if (read8(destination + index) != 0xff) {
+			erased = false;
+			break;
+		}
+	}
+	if (erased) {
+		for (index = 0; index < size; index++) {
+			if (source[index] == 0xff)
+				continue;
+			write8(destination + index, WRITE_BYTE_CMD);
+			write8(destination + index, source[index]);
+		}
+		write8(destination + size - 1, READ_ARRAY_CMD);
+		result = size;
+	} else {
+		result = qemu_writeat_unlocked(root, buffer, offset, size);
+	}
 	if (result != (ssize_t)size || pflash_status_restore(offset + size - 1) ||
 	    memcmp((const void *)(boot_dev.base + offset), buffer, size))
 		result = -1;

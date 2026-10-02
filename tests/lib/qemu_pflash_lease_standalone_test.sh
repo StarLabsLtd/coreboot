@@ -107,4 +107,43 @@ mutant ignore-status-errors \
 mutant omit-read-array-restore \
 	's/write8\(address, READ_ARRAY_CMD\);/(void)address;/'
 
+padding_mutant()
+{
+	name=$1
+	old=$2
+	new=$3
+	assertion=$4
+	source="$temporary/$name-rom_media.c"
+	test_source="$temporary/$name-test.c"
+	cp "$root/src/mainboard/emulation/qemu-i440fx/rom_media.c" "$source"
+	OLD="$old" NEW="$new" perl -0pi -e '
+		$count = s/\Q$ENV{OLD}\E/$ENV{NEW}/g;
+		die "expected exactly one source match\n" unless $count == 1;
+	' "$source"
+	cp "$source" "$temporary/reversed.c"
+	OLD="$new" NEW="$old" perl -0pi -e '
+		$count = s/\Q$ENV{OLD}\E/$ENV{NEW}/g;
+		die "expected exactly one inverse match\n" unless $count == 1;
+	' "$temporary/reversed.c"
+	cmp "$temporary/reversed.c" "$root/src/mainboard/emulation/qemu-i440fx/rom_media.c"
+	cp "$root/tests/lib/qemu_pflash_lease_standalone_test.c" "$test_source"
+	perl -0pi -e 's{#include "[.][.]/[.][.]/src/mainboard/emulation/qemu-i440fx/rom_media[.]c"}{#include "'"$source"'"}' "$test_source"
+	compile_test "$name" "$test_source" -O2 -g -fno-pie -no-pie \
+		-fsanitize=address,undefined -fno-sanitize-recover=all
+	status=0
+	ASAN_OPTIONS=detect_leaks=1 "$temporary/$name" > "$temporary/$name.log" 2>&1 || status=$?
+	test "$status" = 134
+	grep -F "assertion failed: $assertion" "$temporary/$name.log"
+	if grep -Eq 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:' \
+		"$temporary/$name.log"; then
+		exit 1
+	fi
+	printf '%s\n' "padding mutant $name: targeted assertion PASS"
+}
+
+padding_mutant ignore-erased-span 'if (erased) {' 'if (erased || !erased) {' \
+	'qemu_pflash_lease_program(root, &owner, 0, erased, sizeof(erased)) == 0'
+padding_mutant omit-ff-skip 'if (source[index] == 0xff)' 'if (false)' \
+	'program_count == before'
+
 printf '%s\n' 'QEMU pflash owner-lease tests: PASS'
