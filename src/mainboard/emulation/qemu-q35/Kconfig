@@ -90,6 +90,20 @@ config Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT
 config SMMSTORE_BLOCK_SIZE
 	default 4096 if Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT
 
+config Q35_SMM_CAPSULE_BROKER_SERVICE
+	bool "QEMU-only early RAM capsule firmware service"
+	default n
+	depends on Q35_SMM_CAPSULE_BROKER_AUTH_POLICY
+	depends on QEMU_PFLASH_VOLATILE_LEASE
+	select CAPSULE_BROKER_ENDPOINT_PUBLICATION
+	select SMM_APMC_ROUTE_CAPSULE_BROKER
+	help
+	  Install the existing typed authenticated writer from private cold facts.
+	  Each admitted early RAM transaction retires the fixed Q35 controllers
+	  and proves current protected DMA exclusions. The payload must close the
+	  irreversible window before PCI drivers or external code. Runtime queues
+	  and resets capsules only; disk firmware writes are not admitted here.
+
 config Q35_SMM_CAPSULE_BROKER_AUTH_POLICY
 	bool "Install Q35 protected capsule authentication policy"
 	default n

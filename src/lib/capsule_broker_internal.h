@@ -91,7 +91,6 @@ bool capsule_broker_execution_ready(void);
 /* Metadata/current ownership only for RAM revision 3; no device cancellation. */
 bool capsule_broker_transport_ready(uint32_t revision);
 enum cb_err capsule_broker_ram_window_close(void);
-bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint);
 bool capsule_broker_endpoint_shape_valid(
 	const struct lb_capsule_broker_endpoint *endpoint, uint64_t image_size);
 bool capsule_broker_transport_buffer(void **buffer, size_t *size,
@@ -116,8 +115,6 @@ enum cb_err capsule_broker_success_claim_bound(uint64_t generation,
 	uint64_t transaction, uint64_t checkpoint_sequence,
 	const uint8_t digest[CAPSULE_BROKER_DIGEST_SIZE],
 	struct capsule_broker_success *success);
-
-void capsule_broker_close_for_s3(void);
 
 #if ENV_TEST
 const void *capsule_broker_test_authority(size_t *size);

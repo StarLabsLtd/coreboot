@@ -64,7 +64,7 @@ static bool protected_storage(const void *base, size_t size)
 		smm_invocation_runtime_range_is_protected(view, base, size) == CB_SUCCESS;
 }
 
-static bool protected_fmp_storage(void *context, const void *base, size_t size)
+bool q35_capsule_storage_is_protected(void *context, const void *base, size_t size)
 {
 	return context == NULL && protected_storage(base, size);
 }
@@ -128,7 +128,7 @@ static bool probe_current(void)
 	return *byte == 0xff;
 }
 
-static bool writes_are_private(void *unused)
+bool q35_capsule_writes_are_private(void *unused)
 {
 	(void)unused;
 	/* Controlled secure-pflash launch plus the actual cold denial observation. */
@@ -178,11 +178,13 @@ bool platform_payload_mm_authvar_service_runtime_admitted(void)
 static enum cb_err bootstrap(void)
 {
 	struct q35_native_bootstrap_frame snapshot;
+	struct q35_native_bootstrap_frame request;
 	struct payload_mm_authvar_presence_bootstrap_receipts receipts;
 	struct payload_mm_authvar_presence_bootstrap *slot;
 	const struct payload_mm_authvar_presence_transaction_binding *binding;
 	struct payload_mm_authvar_smm_bootstrap input;
 	const struct lb_authvar_service_endpoint empty = { 0 };
+	const struct lb_capsule_broker_endpoint empty_capsule = { 0 };
 	struct q35_native_bootstrap_frame *frame = (void *)(uintptr_t)(wave.request >> 32);
 	struct bootmem_reservation_receipt page;
 	uintptr_t smram_base;
@@ -193,14 +195,17 @@ static enum cb_err bootstrap(void)
 	    (uintptr_t)frame < 0x100000 || (uintptr_t)frame % 4096 ||
 	    smram_base < sizeof(snapshot) ||
 	    (uintptr_t)frame > smram_base - sizeof(snapshot) ||
-	    !protected_storage(&snapshot, sizeof(snapshot)))
+	    !protected_storage(&snapshot, sizeof(snapshot)) ||
+	    !protected_storage(&request, sizeof(request)))
 		return CB_ERR;
 	/* The transport is untrusted; authority comes from the existing loader receipts. */
-	snapshot = *frame;
+	request = *frame;
+	snapshot = request;
 	if (snapshot.revision != Q35_NATIVE_BOOTSTRAP_REVISION ||
 	    snapshot.size != sizeof(snapshot) || snapshot.state != Q35_NATIVE_BOOTSTRAP_REQUEST ||
 	    snapshot.reserved || snapshot.maximum_cpus || snapshot.write_denied != 1 ||
 	    memcmp(&snapshot.endpoint, &empty, sizeof(empty)) ||
+	    memcmp(&snapshot.capsule_endpoint, &empty_capsule, sizeof(empty_capsule)) ||
 	    snapshot.receipts.page.base != (uintptr_t)frame ||
 	    snapshot.receipts.page.bytes != 4096)
 		return CB_ERR;
@@ -222,7 +227,7 @@ static enum cb_err bootstrap(void)
 	input = (struct payload_mm_authvar_smm_bootstrap) {
 		.revision = PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP_REVISION, .size = sizeof(input),
 		.cold_boot_generation = binding->generation,
-		.spi_writes_restricted_to_smm = writes_are_private,
+		.spi_writes_restricted_to_smm = q35_capsule_writes_are_private,
 	};
 	if (!probe_current() || payload_mm_authvar_smm_service_bootstrap_install(&input) !=
 		CB_SUCCESS || !claim_current())
@@ -249,12 +254,12 @@ static enum cb_err bootstrap(void)
 			return CB_ERR;
 		memcpy(state.namespace_guid.b, firmware.guid, sizeof(state.namespace_guid.b));
 		state.trusted_lowest_version = firmware.lowest_supported_version;
-		if (payload_mm_fmp_state_policy_install(&state, protected_fmp_storage, NULL) !=
-		    CB_SUCCESS)
+		if (payload_mm_fmp_state_policy_install(&state,
+			q35_capsule_storage_is_protected, NULL) != CB_SUCCESS)
 			return CB_ERR;
 		printk(BIOS_DEBUG, "Q35 capsule owner: trusted state policy installed\n");
-		if (payload_mm_fmp_owner_authvar_boot_install(protected_fmp_storage, NULL) !=
-		    CB_SUCCESS)
+		if (payload_mm_fmp_owner_authvar_boot_install(
+			q35_capsule_storage_is_protected, NULL) != CB_SUCCESS)
 			return CB_ERR;
 		printk(BIOS_DEBUG, "Q35 capsule owner: protected store reconciled\n");
 		if (!claim_current())
@@ -293,7 +298,7 @@ static enum cb_err bootstrap(void)
 				auth.trust_xdr_size = 4 + ALIGN_UP(certificate_size, 4);
 				if (claim_current())
 					status = payload_mm_fmp_auth_policy_install(&auth,
-						protected_fmp_storage, NULL);
+						q35_capsule_storage_is_protected, NULL);
 			}
 			memset(capsule_trust_xdr, 0, sizeof(capsule_trust_xdr));
 			memset(&auth, 0, sizeof(auth));
@@ -305,11 +310,27 @@ static enum cb_err bootstrap(void)
 		memset(&state, 0, sizeof(state));
 		memset(&firmware, 0, sizeof(firmware));
 	}
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_SERVICE)
+	if (q35_capsule_broker_boot_install() != CB_SUCCESS ||
+	    !platform_payload_mm_authvar_service_finalize_admitted() ||
+	    !capsule_broker_endpoint_ready(&snapshot.capsule_endpoint) ||
+	    !platform_payload_mm_authvar_service_finalize_admitted()) {
+		capsule_broker_close_for_s3();
+		return CB_ERR;
+	}
+#endif
+	if (!claim_current() || memcmp(frame, &request, sizeof(request))) {
+#if CONFIG(Q35_SMM_CAPSULE_BROKER_SERVICE)
+		capsule_broker_close_for_s3();
+#endif
+		return CB_ERR;
+	}
 	snapshot.maximum_cpus = 1;
 	snapshot.state = Q35_NATIVE_BOOTSTRAP_COMPLETE;
 	*frame = snapshot;
 	service.phase = SERVICE_READY;
 	memset(&snapshot, 0, sizeof(snapshot));
+	memset(&request, 0, sizeof(request));
 	memset(&receipts, 0, sizeof(receipts));
 	memset(&page, 0, sizeof(page));
 	memset(&input, 0, sizeof(input));

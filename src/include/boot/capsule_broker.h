@@ -186,6 +186,8 @@ enum cb_err capsule_broker_transport_dispatch(void);
 
 /* Read-only protected eligibility; never a DMA proof or a public open/rearm. */
 bool capsule_broker_ram_window_open(void);
+bool capsule_broker_endpoint_ready(struct lb_capsule_broker_endpoint *endpoint);
+void capsule_broker_close_for_s3(void);
 
 /* Platform composition proves the exact sealed endpoint before publication. */
 typedef enum cb_err (*capsule_broker_endpoint_ready_fn)(
