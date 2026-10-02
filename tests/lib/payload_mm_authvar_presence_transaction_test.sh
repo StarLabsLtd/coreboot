@@ -242,8 +242,8 @@ if grep -Eq 'CONFIG_MAX_CPUS|authority_install|authority_close|transaction_prepa
 	printf '%s\n' 'presence transaction regained a legacy path or CPU assumption' >&2
 	exit 1
 fi
-if grep -R -Eq --include=Kconfig \
-	'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION' "$root/src"; then
+if ! sh "$root/tests/lib/payload_mm_authvar_presence_selector_check.sh" \
+	"$root" PAYLOAD_MM_AUTHVAR_PRESENCE_TRANSACTION; then
 	printf '%s\n' 'presence transaction gained a selector' >&2
 	exit 1
 fi

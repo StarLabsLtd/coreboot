@@ -156,8 +156,8 @@ if grep -Eq '(^|[^A-Za-z0-9_])(variable_name|vendor_guid|data_size|SetVariable)(
 	exit 1
 fi
 
-if grep -R -Eq 'select[[:space:]]+PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY' \
-	"$root/src"/*/Kconfig "$root/src"/Kconfig 2>/dev/null || \
+if ! sh "$root/tests/lib/payload_mm_authvar_presence_selector_check.sh" \
+	"$root" PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY || \
 	awk '$1 == "config" { inside = $2 == \
 		"PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY"; next }
 		inside && (($1 == "bool" && NF > 1) || $1 == "prompt" || \
