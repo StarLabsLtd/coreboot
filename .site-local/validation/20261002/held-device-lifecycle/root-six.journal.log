@@ -1,0 +1,9 @@
+Started cdk2-root-held-io-six.service - [systemd-run] /bin/bash -c "set -euo pipefail; receipt_dir=\$(mktemp -d /home/sean/qemu-root-held-io.XXXXXX); printf \"Receipts: %s\\n\" \"\$receipt_dir\"; for controller in nvme xhci ahci; do for mode in bme-only reset; do /usr/bin/time -v python3 /home/sean/Documents/.cdk2-worktrees/qemu-ahci-inflight-after534/tests/qemu_inflight_diagnostic.py \"\$receipt_dir/\$controller-\$mode\" \"\$mode\" \"\$controller\" /home/sean/Documents/.coreboot-worktrees/q35-vtd-drain-after-auth/src/mainboard/emulation/qemu-q35 > \"\$receipt_dir/\$controller-\$mode.log\" 2>&1; printf \"%s %s: PASS\\n\" \"\$controller\" \"\$mode\"; done; done".
+Receipts: /home/sean/qemu-root-held-io.SfvDGF
+nvme bme-only: PASS
+nvme reset: PASS
+xhci bme-only: PASS
+xhci reset: PASS
+ahci bme-only: PASS
+ahci reset: PASS
+cdk2-root-held-io-six.service: Consumed 1.855s CPU time, 40.6M memory peak.
