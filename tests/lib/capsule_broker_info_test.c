@@ -9,6 +9,15 @@
 #include "capsule_broker_info_internal.h"
 #include "payload_mm_fmp_owner_internal.h"
 
+extern int dprintf(int fd, const char *format, ...);
+#undef assert
+#define assert(condition) do { \
+	if (!(condition)) { \
+		dprintf(2, "assertion failed: %s\n", #condition); \
+		__builtin_abort(); \
+	} \
+} while (0)
+
 static bool owner_ready = true;
 static bool protected_ok = true;
 static bool staging_ok = true;
@@ -66,8 +75,11 @@ bool payload_mm_fmp_owner_record_valid(uint32_t key,
 {
 	return key == PAYLOAD_MM_FMP_STATE_KEY_STATE && record->sequence &&
 		record->present <= 1 && !record->reserved && !record->reserved2 &&
-		(!record->present ||
+		((!record->present && !record->attributes && !record->data_size &&
+		  !memcmp(record->data, (const uint8_t[PAYLOAD_MM_FMP_STATE_WIRE_SIZE]){ 0 },
+			 sizeof(record->data))) ||
 		 (record->attributes == PAYLOAD_MM_FMP_STATE_VARIABLE_ATTRIBUTES &&
+		  record->present &&
 		  record->data_size == PAYLOAD_MM_FMP_STATE_WIRE_SIZE &&
 		  record->data[0] <= 1 && record->data[1] <= 1 &&
 		  record->data[2] <= 1 && record->data[3] <= 1));
@@ -185,6 +197,7 @@ int main(int argc, char **argv)
 {
 	struct capsule_broker_info_policy value = policy();
 	struct capsule_broker_info_snapshot info;
+	struct payload_mm_fmp_owner_record before;
 	const char *test;
 
 	assert(argc == 2);
@@ -242,11 +255,29 @@ int main(int argc, char **argv)
 		state.reserved = 1;
 	} else if (!strcmp(test, "read-absent")) {
 		state.present = 0;
-	} else if (!strcmp(test, "read-version-invalid")) {
-		state.data[0] = 0;
+		state.attributes = 0;
+		state.data_size = 0;
+		memset(state.data, 0, sizeof(state.data));
+	} else if (!strcmp(test, "read-cold-version") ||
+		   !strcmp(test, "read-cold-attempt") ||
+		   !strcmp(test, "read-cold-floor-newer")) {
+		memset(state.data, 0, sizeof(state.data));
+		if (!strcmp(test, "read-cold-attempt")) {
+			state.data[2] = 1;
+			state.data[3] = 1;
+			put32(state.data + 12, CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL);
+			put32(state.data + 16, 12);
+		}
+		if (!strcmp(test, "read-cold-floor-newer")) {
+			state.data[1] = 1;
+			put32(state.data + 8, 12);
+		}
 	} else if (!strcmp(test, "read-version-stale")) {
 		put32(state.data + 4, 10);
 	} else if (!strcmp(test, "read-floor-newer")) {
+		put32(state.data + 8, 12);
+	} else if (!strcmp(test, "read-floor-running-newer")) {
+		put32(state.data + 4, 12);
 		put32(state.data + 8, 12);
 	} else if (!strcmp(test, "read-authority-mutation")) {
 		mutate_authority = true;
@@ -286,9 +317,10 @@ int main(int argc, char **argv)
 			assert(((uint8_t *)&info)[i] == 0xa5);
 		return 0;
 	}
+	before = state;
 	if (!strcmp(test, "read-failure") || !strcmp(test, "read-record") ||
 	    !strcmp(test, "read-absent") ||
-	    !strcmp(test, "read-version-invalid") ||
+	    !strcmp(test, "read-cold-floor-newer") ||
 	    !strcmp(test, "read-version-stale") ||
 	    !strcmp(test, "read-floor-newer") ||
 	    !strcmp(test, "read-authority-mutation") ||
@@ -297,6 +329,7 @@ int main(int argc, char **argv)
 	    !strcmp(test, "read-lifecycle-mutation")) {
 		memset(&info, 0xa5, sizeof(info));
 		assert(capsule_broker_info_read(&info) == CB_ERR);
+		assert(!memcmp(&state, &before, sizeof(state)));
 		for (size_t i = 0; i < sizeof(info); i++)
 			assert(!((uint8_t *)&info)[i]);
 		if (strstr(test, "mutation")) {
@@ -317,23 +350,30 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	assert(capsule_broker_info_read(&info) == CB_SUCCESS && reads == 1);
+	assert(!memcmp(&state, &before, sizeof(state)));
 	assert(info.image_type.b[0] == 1);
 	assert(info.hardware_instance == 0x1122334455667788ULL);
 	assert(info.current_version == 11);
 	assert(info.lowest_supported_version ==
-		(!strcmp(test, "read-updated-state") ? 9 :
-		 !strcmp(test, "read-policy-floor") ? 7 : 8));
+		(!strcmp(test, "read-floor-running-newer") ? 12 :
+		 !strcmp(test, "read-updated-state") ? 9 :
+		 !strcmp(test, "read-policy-floor") ||
+		 !strcmp(test, "read-cold-version") ||
+		 !strcmp(test, "read-cold-attempt") ? 7 : 8));
 	assert(info.image_size == 8 * 1024 * 1024);
 	assert(info.capabilities == LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES);
-	if (!strcmp(test, "read-no-attempt")) {
+	if (!strcmp(test, "read-no-attempt") || !strcmp(test, "read-cold-version")) {
 		assert(!info.state_flags && !info.last_attempt_version &&
 			!info.last_attempt_status);
 	} else {
 		assert(info.state_flags == CAPSULE_BROKER_INFO_STATE_VALID_FLAGS);
 		assert(info.last_attempt_version ==
-			(!strcmp(test, "read-updated-state") ? 12 : 10));
+			(!strcmp(test, "read-updated-state") ||
+			 !strcmp(test, "read-cold-attempt") ? 12 : 10));
 		assert(info.last_attempt_status ==
-			CAPSULE_BROKER_LAST_ATTEMPT_SUCCESS);
+			(!strcmp(test, "read-cold-attempt") ?
+			 CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL :
+			 CAPSULE_BROKER_LAST_ATTEMPT_SUCCESS));
 	}
 	return 0;
 }
