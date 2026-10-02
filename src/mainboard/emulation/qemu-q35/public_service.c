@@ -20,6 +20,7 @@ enum public_service_phase { PUBLIC_EMPTY, PUBLIC_ACQUIRING, PUBLIC_HELD };
 
 static struct {
 	uint32_t phase;
+	uint8_t command;
 	const struct smm_invocation_runtime_view *view;
 	struct smm_invocation_runtime_binding runtime;
 	struct smm_invocation_topology topology;
@@ -30,7 +31,7 @@ static struct {
 	struct smm_apmc_selection_receipt consumed;
 } owner;
 
-bool q35_public_service_current(void)
+bool q35_public_service_current(uint8_t command)
 {
 	struct smm_invocation_runtime_binding runtime;
 	struct smm_invocation_topology topology;
@@ -38,8 +39,11 @@ bool q35_public_service_current(void)
 	const struct smm_invocation_runtime_view *view;
 
 	return __atomic_load_n(&owner.phase, __ATOMIC_ACQUIRE) == PUBLIC_HELD &&
+		owner.command == command &&
+		(command == SMM_APMC_AUTHVAR_SERVICE ||
+		 (CONFIG(SMM_APMC_ROUTE_CAPSULE_BROKER) && command == SMM_APMC_CAPSULE_BROKER)) &&
 		(read_pmbase32(SMI_EN) & ~EOS) == (GBL_SMI_EN | APMC_EN) &&
-		apm_get_apmc() == SMM_APMC_AUTHVAR_SERVICE &&
+		apm_get_apmc() == command &&
 		smm_invocation_runtime_view_get(&view) == CB_SUCCESS && view == owner.view &&
 		smm_invocation_runtime_range_is_protected(view, &owner, sizeof(owner)) ==
 			CB_SUCCESS &&
@@ -55,8 +59,9 @@ bool q35_public_service_current(void)
 		owner.consumed.size == sizeof(owner.consumed) &&
 		owner.consumed.identity == (uintptr_t)&owner.selection &&
 		owner.consumed.generation && !owner.consumed.reserved &&
-		owner.consumed.descriptor.command == SMM_APMC_AUTHVAR_SERVICE &&
-		owner.consumed.descriptor.owner == SMM_APMC_OWNER_AUTHVAR_SERVICE &&
+		owner.consumed.descriptor.command == command &&
+		owner.consumed.descriptor.owner == (command == SMM_APMC_AUTHVAR_SERVICE ?
+			SMM_APMC_OWNER_AUTHVAR_SERVICE : SMM_APMC_OWNER_CAPSULE_BROKER) &&
 		owner.consumed.descriptor.role == SMM_APMC_EXCLUSIVE &&
 		owner.consumed.descriptor.binding_count == 1 &&
 		!owner.consumed.descriptor.observer_count &&
@@ -64,16 +69,19 @@ bool q35_public_service_current(void)
 }
 
 enum q35_public_service_result q35_public_service_begin(uint32_t cpu,
-	uint32_t initial_apic_id)
+	uint32_t initial_apic_id, uint8_t command)
 {
 	struct smm_save_state_span span;
 	uint32_t expected = PUBLIC_EMPTY, cpus;
 
-	if (cpu || !__atomic_compare_exchange_n(&owner.phase, &expected, PUBLIC_ACQUIRING,
+	if ((command != SMM_APMC_AUTHVAR_SERVICE &&
+	     !(CONFIG(SMM_APMC_ROUTE_CAPSULE_BROKER) && command == SMM_APMC_CAPSULE_BROKER)) ||
+	    cpu || !__atomic_compare_exchange_n(&owner.phase, &expected, PUBLIC_ACQUIRING,
 	    false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
 		return Q35_PUBLIC_SERVICE_ERROR;
+	owner.command = command;
 	if ((read_pmbase32(SMI_EN) & ~EOS) != (GBL_SMI_EN | APMC_EN) ||
-	    apm_get_apmc() != SMM_APMC_AUTHVAR_SERVICE ||
+	    apm_get_apmc() != command ||
 	    smm_invocation_runtime_view_get(&owner.view) != CB_SUCCESS ||
 	    smm_invocation_runtime_range_is_protected(owner.view, &owner, sizeof(owner)) !=
 		CB_SUCCESS ||
@@ -93,18 +101,19 @@ enum q35_public_service_result q35_public_service_begin(uint32_t cpu,
 	if (owner.snapshot.smm_revision != 0x20064)
 		goto failed;
 	/* Saved arguments validate the public wire, not the instruction's origin. */
-	if (owner.snapshot.rax != SMM_APMC_AUTHVAR_SERVICE ||
+	if (owner.snapshot.rax != command ||
 	    owner.snapshot.rdx != 0xb2 || owner.snapshot.rcx)
 		goto refused;
-	if (smm_apmc_command_select(SMM_APMC_AUTHVAR_SERVICE, &owner.selection) !=
+	if (smm_apmc_command_select(command, &owner.selection) !=
 		SMM_APMC_SELECT_ENABLED)
 		goto failed;
 	owner.consumed = owner.selection;
-	if (smm_apmc_command_consume(SMM_APMC_AUTHVAR_SERVICE, SMM_APMC_OWNER_AUTHVAR_SERVICE,
+	if (smm_apmc_command_consume(command, command == SMM_APMC_AUTHVAR_SERVICE ?
+	    SMM_APMC_OWNER_AUTHVAR_SERVICE : SMM_APMC_OWNER_CAPSULE_BROKER,
 	    &owner.selection) != SMM_APMC_CONSUMED_SUCCESS)
 		goto failed;
 	__atomic_store_n(&owner.phase, PUBLIC_HELD, __ATOMIC_RELEASE);
-	if (!q35_public_service_current())
+	if (!q35_public_service_current(command))
 		smm_invocation_platform_fail_stop();
 	return Q35_PUBLIC_SERVICE_HELD;
 refused:
@@ -117,7 +126,7 @@ failed:
 
 void q35_public_service_end(void)
 {
-	if (!q35_public_service_current())
+	if (!q35_public_service_current(owner.command))
 		smm_invocation_platform_fail_stop();
 	memset(&owner, 0, sizeof(owner));
 }

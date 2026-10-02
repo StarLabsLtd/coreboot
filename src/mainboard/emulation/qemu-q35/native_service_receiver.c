@@ -3,6 +3,7 @@
 #include "native_cause.h"
 #include "native_service.h"
 #include "public_service.h"
+#include <boot/capsule_broker.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <boot/payload_mm_authvar_smm_bootstrap.h>
@@ -28,7 +29,7 @@
 #endif
 
 enum service_phase { SERVICE_EMPTY, SERVICE_INSTALLING, SERVICE_FINALIZING,
-	SERVICE_READY, SERVICE_EXECUTING };
+	SERVICE_READY, SERVICE_EXECUTING, SERVICE_CAPSULE_EXECUTING };
 
 static struct {
 	uint32_t phase;
@@ -133,7 +134,24 @@ static bool writes_are_private(void *unused)
 	/* Controlled secure-pflash launch plus the actual cold denial observation. */
 	return !CONFIG(SMMSTORE) && !CONFIG(SMMSTORE_FULL_FLASH_ACCESS) &&
 		(claim_current() || (CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
-		 q35_public_service_current())) && probe_current();
+		 q35_public_service_current(SMM_APMC_AUTHVAR_SERVICE)) ||
+		 q35_capsule_service_current()) && probe_current();
+}
+
+bool q35_capsule_service_current(void)
+{
+	return CONFIG(SMM_APMC_ROUTE_CAPSULE_BROKER) && !wave.active &&
+		service.phase == SERVICE_CAPSULE_EXECUTING &&
+		q35_public_service_current(SMM_APMC_CAPSULE_BROKER);
+}
+
+bool q35_capsule_ram_transaction_current(void)
+{
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+	return q35_capsule_service_current() && capsule_broker_ram_window_open();
+#else
+	return false;
+#endif
 }
 
 bool platform_payload_mm_authvar_service_bootstrap_admitted(void)
@@ -153,7 +171,8 @@ bool platform_payload_mm_authvar_service_runtime_admitted(void)
 	return (service.phase == SERVICE_EXECUTING && wave.request == SMM_APMC_AUTHVAR_SERVICE &&
 		claim_current()) ||
 		(CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
-		 service.phase == SERVICE_EXECUTING && q35_public_service_current());
+		 service.phase == SERVICE_EXECUTING &&
+		 q35_public_service_current(SMM_APMC_AUTHVAR_SERVICE));
 }
 
 static enum cb_err bootstrap(void)
@@ -307,12 +326,33 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(uint32_t cpu, uint32_t i
 	struct smm_invocation_entry_cause cause;
 	uint64_t result;
 
+	if (CONFIG(SMM_APMC_ROUTE_CAPSULE_BROKER) &&
+	    apm_get_apmc() == SMM_APMC_CAPSULE_BROKER && service.phase == SERVICE_READY) {
+		enum q35_public_service_result public =
+			q35_public_service_begin(cpu, initial_apic_id, SMM_APMC_CAPSULE_BROKER);
+
+		if (wave.active || !protected_storage(&service, sizeof(service)) ||
+		    public == Q35_PUBLIC_SERVICE_ERROR)
+			smm_invocation_platform_fail_stop();
+		if (public == Q35_PUBLIC_SERVICE_HELD) {
+			service.phase = SERVICE_CAPSULE_EXECUTING;
+#if CONFIG(CAPSULE_BROKER_CONTRACT)
+			/* Typed denials are ordinary refusals, not grants or precise evidence. */
+			capsule_broker_transport_dispatch();
+#endif
+			if (!q35_capsule_service_current())
+				smm_invocation_platform_fail_stop();
+			service.phase = SERVICE_READY;
+			q35_public_service_end();
+		}
+		return SMM_PRE_LOCK_DISPATCH_BSP_EOS_CONSUMED;
+	}
 	if (apm_get_apmc() != SMM_APMC_AUTHVAR_SERVICE)
 		return SMM_PRE_LOCK_DISPATCH_NOT_HANDLED;
 	if (CONFIG(Q35_SMM_INVOCATION_NATIVE_PUBLIC_SERVICE_COMPONENT) &&
 	    service.phase == SERVICE_READY) {
 		enum q35_public_service_result public =
-			q35_public_service_begin(cpu, initial_apic_id);
+			q35_public_service_begin(cpu, initial_apic_id, SMM_APMC_AUTHVAR_SERVICE);
 
 		if (wave.active || !protected_storage(&service, sizeof(service)) ||
 		    public == Q35_PUBLIC_SERVICE_ERROR)
@@ -324,7 +364,7 @@ enum smm_pre_lock_dispatch_result smm_pre_lock_dispatch(uint32_t cpu, uint32_t i
 			/* A malformed or already-completed public mailbox is a refusal. */
 			status = payload_mm_authvar_service_execute();
 			if ((status != CB_SUCCESS && status != CB_ERR_ARG) ||
-			    !q35_public_service_current())
+			    !q35_public_service_current(SMM_APMC_AUTHVAR_SERVICE))
 				smm_invocation_platform_fail_stop();
 			service.phase = SERVICE_READY;
 			q35_public_service_end();

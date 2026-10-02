@@ -184,6 +184,9 @@ enum cb_err capsule_broker_info_policy_install(
 /* Dormant typed entry point, reachable only through the exact route below. */
 enum cb_err capsule_broker_transport_dispatch(void);
 
+/* Read-only protected eligibility; never a DMA proof or a public open/rearm. */
+bool capsule_broker_ram_window_open(void);
+
 /* Platform composition proves the exact sealed endpoint before publication. */
 typedef enum cb_err (*capsule_broker_endpoint_ready_fn)(
 	const struct lb_capsule_broker_endpoint *endpoint,
