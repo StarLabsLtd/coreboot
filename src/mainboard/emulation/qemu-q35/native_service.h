@@ -6,6 +6,9 @@
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <commonlib/coreboot_tables.h>
 
+struct lb_header;
+void q35_publish_native_service_table(struct lb_header *header);
+
 #define Q35_NATIVE_BOOTSTRAP_REVISION 1U
 #define Q35_NATIVE_BOOTSTRAP_REQUEST 1U
 #define Q35_NATIVE_BOOTSTRAP_COMPLETE 2U
