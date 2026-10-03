@@ -40,7 +40,7 @@ Actual receipts
    actual complete producer-codec header closure checks passed after that failed
    invocation. Those codec sources were not executed by this failed native gate.
 
-2. Fresh normal prerequisite build/audit: session90285 actually reaped0,
+2. Fresh normal-build-workflow prerequisite audit: session90285 actually reaped0,
    GNU WALL117.07 USER96.28 SYS31.79 PEAK_KIB99496. Actual recipe is fresh/run.sh;
    original directory /home/sean/pci-bus-mtrr-audit-after614.kFd3bH. It copies the
    previously resolved fullgraph config into a new owned build and uses normal
@@ -54,6 +54,13 @@ Actual receipts
    fixtures. The PCI policy is exactly false-positive|1.
    Resulting Core SHA256:
    8b0e097298c6e934151ac03afbb10b69e20170bce4f122956e10cdda9de126e9.
+   This is the existing protected fullgraph acceptance configuration, not a
+   normal SystemFmp Core configuration: QEMU_ACCEPTANCE_PROFILE=1,
+   PROTECTED_VARIABLE_RUNTIME=1, NATIVE_SECURITY_STUB=1,
+   NATIVE_QEMU_TEST_FMP=1, NATIVE_SYSTEM_FMP=0, and build SECURE_BOOT=0.
+   "Normal" above describes the ordinary Make/config workflow only. The ELF
+   equality with the later AUTH2 gate confirms the same exact profile, not an
+   additional normal SystemFmp/writer or Secure-Boot-enabled-build claim.
    These quiet Make logs are not represented as a complete original compiler
    argv transcript. The actual top-level recipe and signed Make sources are kept.
 

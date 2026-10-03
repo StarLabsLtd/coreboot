@@ -1,4 +1,4 @@
-9c3d0f4d9765bbde8b6bf27c204ad683f818e46f679b6ef9e11a0a83d8c141e9  ./README.txt
+a5569360fd2335cbf447ea9abece5a3b8ec1dd92801c79f274b2e230672da514  ./README.txt
 6e2bb4d2a891c40c19495fa09452f08c7e8e93422cb35976a3336a27902f003f  ./check-receipts.py
 4f2501d97482a14b13526fe55c1ab9c4dfb942e65f7e8daf0a2daee1c7821071  ./failed-auth2-build/build.log
 fc50e92aecdc735818ae4cb542361d0b92e10df4fae8b33e99b7327aa6b85c71  ./failed-auth2-build/codec-after-check.log
