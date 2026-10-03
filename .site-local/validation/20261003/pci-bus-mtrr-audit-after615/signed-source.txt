@@ -1,0 +1,1 @@
+90a8821c5e9a99d4bb4768268d1a0cda9fe3edf7 93e39d5a98547a7cd7028fdc7b7f38e3a2d855a7 G boot: audit PCI bus WRMSR byte-pattern displacements

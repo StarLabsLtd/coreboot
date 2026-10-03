@@ -1,0 +1,2 @@
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)

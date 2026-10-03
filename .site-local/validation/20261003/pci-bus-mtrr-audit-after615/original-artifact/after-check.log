@@ -1,0 +1,10 @@
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/native-direct-images.rsp: OK
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/pci-bus-immutable-y-debug-y-diagnostic-y-spi-y/PciBusDxe.efi: OK
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/cdk2-coreboot-stage.elf: OK
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/cdk2-coreboot-test: OK
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/cdk2-pe-exec-sections: OK
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/pe-exec-sections-fixture: OK
+/home/sean/Documents/.cdk2-worktrees/pci-bus-mtrr-displacement-after614/tests/direct_mtrr_manifest.sh: OK
+/home/sean/Documents/.cdk2-worktrees/pci-bus-mtrr-displacement-after614/tests/mtrr_ownership_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/pci-bus-mtrr-displacement-after614/tests/direct_mtrr_ownership_test.sh: OK
+/home/sean/pci-bus-mtrr-audit-after614.kFd3bH/original-artifact-audit.sh: OK

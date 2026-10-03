@@ -1,0 +1,35 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index fc204302fa..06ef413120 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -8980,6 +8980,10 @@ ifeq ($(CONFIG_CDK2_NATIVE_CAPSULE_RUNTIME),y)
+ CDK2_NATIVE_DIRECT_MTRR_BINDINGS += \
+ 	"CDK2_NATIVE_CAPSULE_RUNTIME_PE|false-positive|auto"
+ endif
++ifeq ($(CONFIG_CDK2_NATIVE_PCI_BUS),y)
++CDK2_NATIVE_DIRECT_MTRR_BINDINGS += \
++	"CDK2_NATIVE_PCI_BUS_PE|false-positive|auto"
++endif
+ 
+ $(CDK2_NATIVE_DIRECT_MTRR_MANIFEST): \
+ 		$(CDK2_NATIVE_DIRECT_IMAGE_COMPOSITION) \
+@@ -9044,6 +9048,19 @@ native-direct-mtrr-ownership-audit: \
+ 			"$(CDK2_NATIVE_COREBOOT_ELF)" \
+ 			"$(CDK2_NATIVE_PE_EXEC_FIXTURE)" CDK2_NATIVE_CAPSULE_RUNTIME_PE; \
+ 	fi
++	@if test "$(CONFIG_CDK2_NATIVE_PCI_BUS)" = y; then \
++		OBJCOPY="$(CDK2_NATIVE_OBJCOPY)" OBJDUMP="$(CDK2_NATIVE_OBJDUMP)" \
++		sh "$(CDK2_DIR)/tests/direct_mtrr_ownership_test.sh" \
++			"$(CDK2_DIR)/tests/mtrr_ownership_test.sh" \
++			"$(CDK2_NATIVE_DIRECT_MTRR_MANIFEST)" \
++			"$(CDK2_NATIVE_COREBOOT_TEST)" \
++			"$(CDK2_NATIVE_PE_EXEC_SECTIONS)" \
++			"$(CDK2_NATIVE_PCI_BUS_PE)" \
++			"$(CDK2_DIR)/tests/direct_mtrr_manifest.sh" \
++			"$(CDK2_NATIVE_DIRECT_IMAGE_COMPOSITION)" \
++			"$(CDK2_NATIVE_COREBOOT_ELF)" \
++			"$(CDK2_NATIVE_PE_EXEC_FIXTURE)" CDK2_NATIVE_PCI_BUS_PE; \
++	fi
+ 
+ .PHONY: native-direct-composition-contract-test
+ native-direct-composition-contract-test: \
