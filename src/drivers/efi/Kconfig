@@ -70,8 +70,8 @@ config DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
 	  Describe the platform's allowed RAM and disk delivery paths and capsule
 	  size limits for a generic payload. RAM requires a platform implementation
 	  that establishes warm-reset DRAM persistence as well as the RAM handoff
-	  driver. Unknown persistence is not advertised. Disk reuses the existing
-	  capsule-on-disk policy without changing its dependencies.
+	  driver. Unknown persistence is not advertised. Disk requires the
+	  capsule-on-disk policy, which may be published without the legacy updater.
 
 	  This does not discover capsules, select an updater, or grant flash access.
 
@@ -113,13 +113,18 @@ config DRIVERS_EFI_UPDATE_CAPSULES
 
 config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 	bool "Support EFI capsules on disk"
-	depends on DRIVERS_EFI_UPDATE_CAPSULES
+	depends on DRIVERS_EFI_VARIABLE_STORE && DRIVERS_EFI_FW_INFO
+	depends on DRIVERS_EFI_UPDATE_CAPSULES || DRIVERS_EFI_CAPSULE_DELIVERY_POLICY
 	default y if SOC_AMD_COMMON
 	help
 	  Permit update capsules to be submitted via the EFI system
 	  partition instead of relying on capsule pointers surviving reset.
 	  Scanning DRAM for capsules is not reliable on some platforms, so this option is
 	  required for those platforms.
+
+	  A generic payload can discover this capability in the capsule delivery
+	  policy record without enabling the legacy updater. This option does not
+	  grant flash access or authorize an update transaction.
 
 config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 	bool "Allow embedded drivers in update capsules"
