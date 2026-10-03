@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -558,6 +558,8 @@
+ 	if (system == NULL || system->boot_services == NULL)
+ 		return EFI_INVALID_PARAMETER;
+ 	candidate = find_serial_hob(system);
++	boot_services = system->boot_services;
++	port = candidate;
+ 	if (candidate == NULL || candidate->header.revision != CDK2_SERIAL_PORT_HOB_REVISION ||
+ 	    candidate->header.length != sizeof(*candidate) || candidate->header.reserved != 0 ||
+ 	    candidate->input_hertz == 0 || candidate->use_mmio > 1 ||

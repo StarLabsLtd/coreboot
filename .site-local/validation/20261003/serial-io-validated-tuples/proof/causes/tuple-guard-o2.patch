@@ -1,0 +1,14 @@
+--- baseline
++++ mutant
+@@ -561,9 +561,9 @@
+ 	if (candidate == NULL || candidate->header.revision != CDK2_SERIAL_PORT_HOB_REVISION ||
+ 	    candidate->header.length != sizeof(*candidate) || candidate->header.reserved != 0 ||
+ 	    candidate->input_hertz == 0 || candidate->use_mmio > 1 ||
+-	    !cdk2_uart_registers_valid(candidate->use_mmio ? CDK2_UART_MMIO : CDK2_UART_PIO,
++	    (false && !cdk2_uart_registers_valid(candidate->use_mmio ? CDK2_UART_MMIO : CDK2_UART_PIO,
+ 		candidate->register_base, candidate->register_stride,
+-		candidate->register_stride, UART_MSR))
++		candidate->register_stride, UART_MSR)))
+ 		return EFI_NOT_FOUND;
+ 	boot_services = system->boot_services;
+ 	port = candidate;

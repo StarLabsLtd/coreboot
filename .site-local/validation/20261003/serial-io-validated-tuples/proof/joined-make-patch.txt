@@ -1,0 +1,24 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+-		$(CDK2_DIR)/src/lib/diagnostic.c $(CDK2_DIR)/include/cdk2/diagnostic.h | \
++		$(CDK2_DIR)/src/lib/diagnostic.c $(CDK2_DIR)/include/cdk2/diagnostic.h \
++		$(CDK2_DIR)/include/cdk2/uart.h | \
+-		$(CDK2_DIR)/include/cdk2/diagnostic.h | $(CDK2_NATIVE_BUILD_DIR)
++		$(CDK2_DIR)/include/cdk2/diagnostic.h $(CDK2_DIR)/include/cdk2/uart.h | \
++		$(CDK2_NATIVE_BUILD_DIR)
+-$(CDK2_NATIVE_SERIAL_IO_OBJ): $(CDK2_DIR)/src/modules/serial_io/serial_io.c $(CDK2_DIR)/include/cdk2/serial_io.h | $(CDK2_NATIVE_BUILD_DIR)
++$(CDK2_NATIVE_SERIAL_IO_OBJ): $(CDK2_DIR)/src/modules/serial_io/serial_io.c \
++		$(CDK2_DIR)/include/cdk2/serial_io.h \
++		$(CDK2_DIR)/include/cdk2/hob.h \
++		$(CDK2_DIR)/include/cdk2/hob_payload.h \
++		$(CDK2_DIR)/include/pi/hob.h \
++		$(CDK2_DIR)/include/cdk2/uart.h | $(CDK2_NATIVE_BUILD_DIR)
+-$(CDK2_NATIVE_SERIAL_IO_TEST): $(CDK2_DIR)/tests/serial_io_test.c $(CDK2_DIR)/src/modules/serial_io/serial_io.c $(CDK2_DIR)/include/cdk2/serial_io.h | $(CDK2_NATIVE_BUILD_DIR)
++$(CDK2_NATIVE_SERIAL_IO_TEST): $(CDK2_DIR)/tests/serial_io_test.c \
++		$(CDK2_DIR)/src/modules/serial_io/serial_io.c \
++		$(CDK2_DIR)/include/cdk2/serial_io.h \
++		$(CDK2_DIR)/include/cdk2/hob.h \
++		$(CDK2_DIR)/include/cdk2/hob_payload.h \
++		$(CDK2_DIR)/include/pi/hob.h \
++		$(CDK2_DIR)/include/cdk2/uart.h | $(CDK2_NATIVE_BUILD_DIR)

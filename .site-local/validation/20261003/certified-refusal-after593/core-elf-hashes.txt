@@ -1,0 +1,2 @@
+d3863ab002696c2622199262d96ff68cb38b9f01c62fe0c537799775b0e2dd76  /home/sean/capsule-certified-refusal-normal.BVJbj2/native/cdk2-coreboot-image.elf
+d3863ab002696c2622199262d96ff68cb38b9f01c62fe0c537799775b0e2dd76  /home/sean/capsule-certified-refusal-peer.PxZI5K/native/cdk2-coreboot-image.elf

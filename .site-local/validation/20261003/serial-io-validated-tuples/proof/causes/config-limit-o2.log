@@ -1,0 +1,3 @@
+serial io test failed: excess configuration-table count reached I/O or changed live context
+config-limit-o2: /home/sean/serial-io-final-proof.ChzR2V/causes/config-limit/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted

@@ -1,0 +1,11 @@
+commit 3b022120d08dca81b8dfec0e3acf344679fe602b
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Sat Oct 3 02:02:28 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Sat Oct 3 02:02:28 2026 +0100
+
+    capsule: correct certified refusal host recipes
+    
+    Register the selected-profile gate, preserve the sanitizer option through Make helper argument expansion, and use the native Microsoft varargs ABI for protocol tuple fixtures.
+    
+    Signed-off-by: Sean Rhodes <sean@starlabs.systems>

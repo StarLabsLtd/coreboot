@@ -1,0 +1,8 @@
+/usr/bin/ld: cannot find undefined: No such file or directory
+collect2: error: ld returned 1 exit status
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/boot/Makefile:1549: /home/sean/capsule-certified-refusal-normal.BVJbj2/native/cdk2-system-fmp-provider-test-sanitized] Error 1
+make: *** [Makefile:1148: native-system-fmp-provider-test] Error 2
+make: *** Waiting for unfinished jobs....
+real 37.80
+user 37.50
+sys 2.99

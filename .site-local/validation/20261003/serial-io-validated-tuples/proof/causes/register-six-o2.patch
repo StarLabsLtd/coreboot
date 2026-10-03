@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -563,7 +563,7 @@
+ 	    candidate->input_hertz == 0 || candidate->use_mmio > 1 ||
+ 	    !cdk2_uart_registers_valid(candidate->use_mmio ? CDK2_UART_MMIO : CDK2_UART_PIO,
+ 		candidate->register_base, candidate->register_stride,
+-		candidate->register_stride, UART_MSR))
++		candidate->register_stride, UART_LSR))
+ 		return EFI_NOT_FOUND;
+ 	boot_services = system->boot_services;
+ 	port = candidate;

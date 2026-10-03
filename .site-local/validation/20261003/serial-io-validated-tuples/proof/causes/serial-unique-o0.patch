@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -172,7 +172,7 @@
+ 			const EFI_HOB_GUID_TYPE *guid_hob = (const void *)hob;
+ 
+ 			if (guid_equal(&serial_hob_guid, &guid_hob->name)) {
+-				if (candidate != NULL || hob->hob_length !=
++				if ((false && candidate != NULL) || hob->hob_length !=
+ 				    ((sizeof(*guid_hob) + sizeof(*candidate) + 7U) & ~(size_t)7U))
+ 					return NULL;
+ 				candidate = (const void *)(guid_hob + 1);

@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -159,7 +159,7 @@
+ 		return NULL;
+ 	for (index = 0; index < system->config_count; index++)
+ 		if (guid_equal(&hob_list_guid, &system->config_tables[index].guid)) {
+-			if (handoff != NULL || system->config_tables[index].table == NULL)
++			if ((false && handoff != NULL) || system->config_tables[index].table == NULL)
+ 				return NULL;
+ 			handoff = system->config_tables[index].table;
+ 		}

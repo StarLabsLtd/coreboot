@@ -1,0 +1,16 @@
+/home/sean/serial-io-native-gate.wYokoR/resolved.config: OK
+/home/sean/serial-io-native-gate.wYokoR/include/cdk2/config.h: OK
+/home/sean/serial-io-validated-gate.uqrNZM/resolved.config: OK
+/home/sean/serial-io-validated-gate.uqrNZM/include/cdk2/config.h: OK
+include/cdk2/uart.h: OK
+include/cdk2/diagnostic.h: OK
+src/boot/Makefile: OK
+src/boot/coreboot.h: OK
+src/boot/coreboot_handoff.c: OK
+src/boot/coreboot_test.c: OK
+src/lib/diagnostic.c: OK
+src/modules/serial_io/serial_io.c: OK
+tests/diagnostic_test.c: OK
+tests/serial_io_test.c: OK
+util/lint/cdk2-typedefs.checkpatch: OK
+tests/checkpatch_filter_test.sh: OK

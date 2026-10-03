@@ -1,0 +1,3 @@
+serial io test failed: invalid entry changed the installed protocol context
+commit-order-o0: /home/sean/serial-io-final-proof.ChzR2V/causes/commit-order/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted

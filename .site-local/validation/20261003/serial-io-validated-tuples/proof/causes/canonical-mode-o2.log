@@ -1,0 +1,3 @@
+serial io test failed: malformed HOB/configuration reached I/O or changed live context
+canonical-mode-o2: /home/sean/serial-io-final-proof.ChzR2V/causes/canonical-mode/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted

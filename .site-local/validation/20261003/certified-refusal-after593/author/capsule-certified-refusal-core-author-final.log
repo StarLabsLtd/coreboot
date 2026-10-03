@@ -1,0 +1,7 @@
+Certified refusal HOST artifacts: /home/sean/capsule-certified-refusal.3YfJ89
+/usr/bin/ld: /home/sean/cchluMWQ.o:(.rodata+0xae8): undefined reference to `cdk2_authvar_native_x86_cache'
+/usr/bin/ld: /home/sean/cchluMWQ.o:(.rodata+0xaf0): undefined reference to `cdk2_authvar_native_x86_barrier'
+/usr/bin/ld: /home/sean/cchluMWQ.o:(.rodata+0xaf8): undefined reference to `cdk2_authvar_native_x86_trigger'
+/usr/bin/ld: /home/sean/cchluMWQ.o: in function `show_linear_status':
+/home/sean/capsule-certified-refusal.3YfJ89/aggregate.c:5274:(.text.show_linear_status+0x315): undefined reference to `cdk2_boot_logo_layout_for_surface'
+collect2: error: ld returned 1 exit status

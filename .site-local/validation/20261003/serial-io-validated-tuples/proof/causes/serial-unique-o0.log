@@ -1,0 +1,3 @@
+serial io test failed: duplicate serial GUID accepted
+serial-unique-o0: /home/sean/serial-io-final-proof.ChzR2V/causes/serial-unique/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted

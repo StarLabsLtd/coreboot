@@ -1,0 +1,7 @@
+capsule runtime PE subsystems: PASS
+cdk2 ELF layout: PASS (/home/sean/capsule-certified-refusal-normal.BVJbj2/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/capsule-certified-refusal-normal.BVJbj2/native/cdk2-coreboot-image.elf)

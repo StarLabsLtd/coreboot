@@ -1,0 +1,3 @@
+serial io test failed: malformed HOB/configuration reached I/O or changed live context
+payload-size-o0: /home/sean/serial-io-final-proof.ChzR2V/causes/payload-size/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted

@@ -1,0 +1,8 @@
+register-six	overflowing register span reached hardware or install
+tuple-guard	overflowing register span reached hardware or install
+config-unique	duplicate HOB-list configuration GUID accepted
+serial-unique	duplicate serial GUID accepted
+payload-size	malformed HOB/configuration reached I/O or changed live context
+config-limit	excess configuration-table count reached I/O or changed live context
+canonical-mode	malformed HOB/configuration reached I/O or changed live context
+commit-order	invalid entry changed the installed protocol context

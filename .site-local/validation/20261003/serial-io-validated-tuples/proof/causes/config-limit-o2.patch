@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -150,7 +150,7 @@
+ 	const CDK2_SERIAL_PORT_HOB *candidate = NULL;
+ 	size_t index;
+ 
+-	if (system->config_count > MAX_CONFIGURATION_TABLES ||
++	if ((false && system->config_count > MAX_CONFIGURATION_TABLES) ||
+ 	    system->config_count > SIZE_MAX / sizeof(*system->config_tables) ||
+ 	    (system->config_count != 0 && (system->config_tables == NULL ||
+ 	     (uintptr_t)system->config_tables % _Alignof(struct config_table) != 0 ||

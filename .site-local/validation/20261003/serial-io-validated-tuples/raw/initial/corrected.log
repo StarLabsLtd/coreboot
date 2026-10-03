@@ -1,0 +1,45 @@
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/serial-io-validated-tuples-after592/src/boot/Makefile:2591: native-cbmem-console-test] Error 1
+make: *** [Makefile:1147: native-cbmem-console-test] Error 2
+make: *** Waiting for unfinished jobs....
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+#
+# No change to /home/sean/serial-io-validated-gate.uqrNZM/resolved.config
+#
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+cdk2 coreboot test: invalid source serial tuple was narrowed or exported
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/serial-io-validated-tuples-after592/src/boot/Makefile:2583: native-coreboot-test] Error 1
+make: *** [Makefile:1147: native-coreboot-test] Error 2

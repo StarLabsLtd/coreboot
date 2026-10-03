@@ -1,0 +1,83 @@
+Certified refusal HOST artifacts: /home/sean/capsule-certified-refusal.ZtWJvn
+core: /home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_core_test.c:232: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_core_test.c:256: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_core_test.c:262: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_core_test.c:263: main: Assertion `!VALID()' failed.
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/provider.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/capsule_runtime/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_core_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/system_fmp_provider_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_runtime_entry_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/capsule_certified_refusal_test.sh: OK
+/home/sean/capsule-certified-refusal-normal.BVJbj2/include/cdk2/config.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/capsule_check_outcome.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/capsule_boot.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/system_fmp_provider.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/system_fmp_session.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/system_fmp_transport.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/dxe_core.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/dxe_image_transaction.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/include/cdk2/software_hash.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/dxe_core/image.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/dxe_core/memory.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/tcg_hash/software_hash.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/tcg_hash/vendor/vboot/2sha1.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/tcg_hash/vendor/vboot/2sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/tcg_hash/vendor/vboot/2sha512.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/diagnostic.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/deadline.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/lib/boot_logo.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/authvar_transport/native_x86.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/capsule_runtime/capsule_runtime.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/capsule_runtime/capsule_runtime_abi.c: OK
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+Future-floor HOST artifacts: /home/sean/cdk2-system-fmp-future-floor.dZ0SHC
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/session.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/provider.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/auth.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/handoff.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/starlabs_trust.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/payload.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/system_fmp/board_binding.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/boot/coreboot.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/modules/qemu_test_fmp/sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/system_fmp_future_floor_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/system_fmp_mm_route_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/system_fmp_transport_client_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/tests/system_fmp_future_floor_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588//src/lib/cms.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588//src/lib/authenticode_spc.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/ccopy.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/dec32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/dec64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/enc32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/enc64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_add.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_bitlen.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_decmod.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_decode.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_encode.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_fmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_modpow2.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_montmul.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_muladd.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_ninv31.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_sub.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_tmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i32_div32.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/multihash.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/sha2small.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/sha2big.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_i31_pkcs1_vrfy.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_i31_pub.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_pkcs1_sig_unpad.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/x509/x509_decoder.c: OK
+/home/sean/capsule-certified-refusal-normal.BVJbj2/native/bearssl-x509-minimal.c: OK
+Future-floor legacy CMS + typed MM/provider HOST joins and eight exact causals: PASS

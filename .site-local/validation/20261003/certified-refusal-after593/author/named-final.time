@@ -1,0 +1,14 @@
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/capsule-certified-refusal-after588/src/boot/Makefile:1596: native-system-fmp-entry-test] Segmentation fault
+make: *** [Makefile:1148: native-system-fmp-entry-test] Error 2
+make: *** Waiting for unfinished jobs....
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+Aborted
+real 61.12
+user 55.61
+sys 5.52

@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -559,7 +559,7 @@
+ 		return EFI_INVALID_PARAMETER;
+ 	candidate = find_serial_hob(system);
+ 	if (candidate == NULL || candidate->header.revision != CDK2_SERIAL_PORT_HOB_REVISION ||
+-	    candidate->header.length != sizeof(*candidate) || candidate->header.reserved != 0 ||
++	    candidate->header.length < sizeof(*candidate) || candidate->header.reserved != 0 ||
+ 	    candidate->input_hertz == 0 || candidate->use_mmio > 1 ||
+ 	    !cdk2_uart_registers_valid(candidate->use_mmio ? CDK2_UART_MMIO : CDK2_UART_PIO,
+ 		candidate->register_base, candidate->register_stride,

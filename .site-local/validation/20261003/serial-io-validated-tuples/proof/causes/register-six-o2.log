@@ -1,0 +1,3 @@
+serial io test failed: overflowing register span reached hardware or install
+register-six-o2: /home/sean/serial-io-final-proof.ChzR2V/causes/register-six/tests/serial_io_test.c:97: expect: Assertion `condition' failed.
+Aborted
