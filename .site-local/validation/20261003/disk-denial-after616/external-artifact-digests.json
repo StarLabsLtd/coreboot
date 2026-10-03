@@ -1,0 +1,7 @@
+{
+  "/home/sean/disk-capsule-closed-core.E7NMM4/native/cdk2-coreboot-image.elf": "737d4306f0969106fc550255a7d3e888f4856ef06b233e7ec2afef478dfffd9c",
+  "/home/sean/disk-capsule-producer.5FwfSp/disk-a.cap": "f1e9b29fe62cff2b96bc99df56266ea04677f78b6b871ead382891b6089f01b4",
+  "/home/sean/disk-capsule-producer.5FwfSp/run-2/retained-disk-a.cap": "f1e9b29fe62cff2b96bc99df56266ea04677f78b6b871ead382891b6089f01b4",
+  "/home/sean/disk-capsule-producer.5FwfSp/run-2/pflash.rom": "26cb9969dae678f3852be5669d893060f89a281032cc94a37be73ca9e12274d8",
+  "/home/sean/disk-capsule-producer.5FwfSp/run-2/nvme.raw": "fc87c48f3b4e627d7781f77247f5dcd8382a5370dc35f9d26ee5ea28c7074502"
+}

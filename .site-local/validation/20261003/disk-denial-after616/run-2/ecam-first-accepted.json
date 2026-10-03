@@ -1,0 +1,1 @@
+{"nvme": {"address": 2952888320, "vendor": 6966, "device": 16, "command": 2, "bus_master": false}, "xhci": {"address": 2952921088, "vendor": 6966, "device": 13, "command": 2, "bus_master": false}, "edu": {"address": 2952953856, "vendor": 4660, "device": 4584, "command": 2, "bus_master": false}}

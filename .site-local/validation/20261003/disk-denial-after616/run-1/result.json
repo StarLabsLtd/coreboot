@@ -1,0 +1,8 @@
+{
+  "failure": "TimeoutError('predeclared single-boot DISK 180s budget expired')",
+  "observation": null,
+  "qemu_seconds": 180.0284315470053,
+  "deadline_seconds": 180,
+  "qemu_status": 0,
+  "termination": "HOST after bounded denial, not guest boot success"
+}

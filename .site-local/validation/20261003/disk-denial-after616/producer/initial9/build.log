@@ -1,0 +1,311 @@
+    HOSTCC     nvramtool/cli/nvramtool.o
+    HOSTCC     nvramtool/cli/opts.o
+    HOSTCC     nvramtool/cmos_lowlevel.o
+    HOSTCC     nvramtool/cmos_ops.o
+    HOSTCC     nvramtool/common.o
+    HOSTCC     nvramtool/compute_ip_checksum.o
+    HOSTCC     nvramtool/hexdump.o
+    HOSTCC     nvramtool/input_file.o
+    HOSTCC     nvramtool/layout.o
+    HOSTCC     nvramtool/accessors/layout-common.o
+    HOSTCC     nvramtool/accessors/layout-text.o
+    HOSTCC     nvramtool/accessors/layout-bin.o
+    HOSTCC     nvramtool/lbtable.o
+    HOSTCC     nvramtool/reg_expr.o
+    HOSTCC     nvramtool/cbfs.o
+    HOSTCC     nvramtool/accessors/cmos-mem.o
+    HOSTCC     cbfstool/fmaptool.o
+    HOSTCC     cbfstool/cbfs_sections.o
+    HOSTCC     cbfstool/fmap_from_fmd.o
+    HOSTCC     cbfstool/fmd.o
+    HOSTCC     cbfstool/fmap.o
+    HOSTCC     cbfstool/kv_pair.o
+    HOSTCC     cbfstool/valstr.o
+    HOSTCC     util/sconfig/lex.yy.o
+    HOSTCC     util/sconfig/sconfig.tab.o
+    HOSTCC     nvramtool/nvramtool (link)
+    HOSTCC     cbfstool/fmd_parser.o
+    HOSTCC     cbfstool/fmd_scanner.o
+    HOSTCC     util/sconfig/main.o
+    CC         romstage/arch/x86/assembly_entry.o
+    OPTION     option_table.h
+    HOSTCC     util/sconfig/sconfig (link)
+    CC         romstage/arch/x86/gdt_init.o
+    CC         romstage/arch/x86/idt.o
+    HOSTCC     cbfstool/fmaptool (link)
+    SCONFIG    mainboard/emulation/qemu-q35/devicetree.cb
+    GEN        build.h
+    CC         bootblock/arch/x86/gdt_init.o
+    CC         bootblock/arch/x86/id.o
+    CC         bootblock/arch/x86/idt.o
+    FMAP       /home/sean/disk-capsule-producer.5FwfSp/initial9/build/util/cbfstool/fmaptool -h /home/sean/disk-capsule-producer.5FwfSp/initial9/build/fmap_config.h /home/sean/disk-capsule-producer.5FwfSp/initial9/build/fmap.fmd /home/sean/disk-capsule-producer.5FwfSp/initial9/build/fmap.fmap
+SUCCESS: Wrote 224 bytes to file '/home/sean/disk-capsule-producer.5FwfSp/initial9/build/fmap.fmap' (and generated header)
+The sections containing CBFSes are: COREBOOT
+    CC         bootblock/cpu/qemu-x86/cache_as_ram_bootblock.o
+    CC         bootblock/cpu/x86/entry16.o
+    CC         bootblock/cpu/x86/entry32.o
+    CC         ramstage/mainboard/emulation/qemu-q35/native_apmc.o
+    CC         ramstage/mainboard/emulation/qemu-q35/native_service_sender.o
+    CC         ramstage/mainboard/emulation/qemu-q35/payload_resource_handoff.o
+    CC         ramstage/mainboard/emulation/qemu-q35/q35_dma_cold.o
+    CC         ramstage/mainboard/emulation/qemu-q35/q35_dma_controller_cancel.o
+    CC         ramstage/mainboard/emulation/qemu-q35/q35_dma_policy.o
+    CC         ramstage/mainboard/emulation/qemu-q35/q35_dma_table_image.o
+    CC         ramstage/mainboard/emulation/qemu-q35/vtd_dma_handoff.o
+    CC         ramstage/mainboard/emulation/qemu-q35/vtd_registers.o
+    CC         ramstage/mainboard/emulation/qemu-i440fx/bootmode.o
+    CC         ramstage/mainboard/emulation/qemu-i440fx/memmap.o
+    CC         ramstage/mainboard/emulation/qemu-i440fx/northbridge.o
+    CC         ramstage/mainboard/emulation/qemu-i440fx/rom_media.o
+    CC         ramstage/lib/b64_decode.o
+    CC         ramstage/lib/boot_device.o
+    CC         ramstage/lib/bootmem.o
+    CC         ramstage/lib/bootmem_reservation_receipt.o
+    CC         ramstage/lib/bootmode.o
+    CC         ramstage/lib/capsule_broker_buffers.o
+    CC         ramstage/lib/capsule_broker_endpoint.o
+    CC         ramstage/lib/capsule_broker_endpoint_table.o
+    CC         ramstage/lib/capsule_update.o
+    CC         ramstage/lib/capsule_update_backend.o
+    CC         ramstage/lib/capsule_write_layout.o
+    CC         ramstage/lib/cbfs.o
+    CC         ramstage/lib/cbmem_common.o
+    CC         ramstage/lib/cbmem_console.o
+    CC         ramstage/lib/coreboot_table.o
+    CC         ramstage/lib/crc_byte.o
+    CC         ramstage/lib/delay.o
+    CC         ramstage/lib/devtree_update.o
+    CC         ramstage/lib/dimm_info_util.o
+    CC         ramstage/lib/dma_handoff.o
+    CC         ramstage/lib/dp_aux.o
+    CC         ramstage/lib/edid.o
+    CC         ramstage/lib/fallback_boot.o
+    CC         ramstage/lib/fmap.o
+    CC         ramstage/lib/framebuffer_info.o
+    CC         ramstage/lib/gcc.o
+    CC         ramstage/lib/gpio.o
+    CC         ramstage/lib/halt.o
+    CC         ramstage/lib/hardwaremain.o
+    CC         ramstage/lib/hexdump.o
+    CC         ramstage/lib/hexstrtobin.o
+    CC         ramstage/lib/identity.o
+    CC         ramstage/lib/imd.o
+    CC         ramstage/lib/imd_cbmem.o
+    CC         ramstage/lib/lzma.o
+    CC         ramstage/lib/lzmadecode.o
+    CC         ramstage/lib/malloc.o
+    CC         ramstage/lib/memchr.o
+    CC         ramstage/lib/memcmp.o
+    CC         ramstage/lib/memrange.o
+    CC         ramstage/lib/payload_mm_authvar.o
+    CC         ramstage/lib/payload_mm_authvar_ftw.o
+    CC         ramstage/lib/payload_mm_authvar_fv.o
+    CC         ramstage/lib/payload_mm_authvar_mor_grant.o
+    CC         ramstage/lib/payload_mm_authvar_mor_seal_sender.o
+    CC         ramstage/lib/payload_mm_authvar_presence.o
+    CC         ramstage/lib/payload_mm_authvar_presence_producer.o
+    CC         ramstage/lib/payload_mm_authvar_presence_publication.o
+    CC         ramstage/lib/payload_mm_authvar_presence_transaction.o
+    CC         ramstage/lib/payload_mm_authvar_presence_tuple_sender.o
+    CC         ramstage/lib/payload_mm_authvar_service.o
+    CC         ramstage/lib/payload_mm_authvar_smm_loader.o
+    CC         ramstage/lib/payload_mm_authvar_store.o
+    CC         ramstage/lib/payload_resource_handoff.o
+    CC         ramstage/lib/prog_loaders.o
+    CC         ramstage/lib/prog_ops.o
+    CC         ramstage/lib/ramdetect.o
+    CC         ramstage/lib/region_file.o
+    CC         ramstage/lib/reset.o
+    CC         ramstage/lib/rmodule.o
+    CC         ramstage/lib/romstage_handoff.o
+    CC         ramstage/lib/rtc.o
+    CC         ramstage/lib/selfboot.o
+    CC         ramstage/lib/smbios.o
+    CC         ramstage/lib/smbios_defaults.o
+    CC         ramstage/lib/stack.o
+    CC         ramstage/lib/string.o
+    CC         ramstage/lib/timestamp.o
+    CC         ramstage/lib/uuid.o
+    CC         ramstage/lib/version.o
+    CC         ramstage/lib/vga_gfx.o
+    CC         ramstage/drivers/wifi/generic/acpi.o
+    CC         ramstage/drivers/wifi/generic/generic.o
+    CC         ramstage/drivers/wifi/generic/smbios.o
+    CC         ramstage/drivers/uart/uart8250io.o
+    CC         ramstage/drivers/uart/util.o
+    CC         ramstage/drivers/spi/bitbang.o
+    CC         ramstage/drivers/spi/spi-generic.o
+    CC         ramstage/drivers/smmstore/read_region.o
+    CC         ramstage/drivers/pc80/vga/vga.o
+    CC         ramstage/drivers/pc80/vga/vga_font_8x16.o
+    CC         ramstage/drivers/pc80/vga/vga_io.o
+    CC         ramstage/drivers/pc80/vga/vga_palette.o
+    CC         ramstage/drivers/pc80/tpm/tis.o
+    CC         ramstage/drivers/pc80/rtc/mc146818rtc.o
+    CC         ramstage/drivers/pc80/rtc/mc146818rtc_boot.o
+    CC         ramstage/drivers/pc80/pc/i8254.o
+    CC         ramstage/drivers/pc80/pc/i8259.o
+    CC         ramstage/drivers/pc80/pc/isa-dma.o
+    CC         ramstage/drivers/pc80/pc/keyboard.o
+    CC         ramstage/drivers/emulation/qemu/bochs.o
+    CC         ramstage/drivers/emulation/qemu/cirrus.o
+    CC         ramstage/drivers/emulation/qemu/fw_cfg.o
+    CC         ramstage/drivers/emulation/qemu/qemu_debugcon.o
+    CC         ramstage/drivers/efi/capsule_delivery_policy.o
+    CC         ramstage/drivers/efi/capsules.o
+    CC         ramstage/drivers/efi/efivars.o
+    CC         ramstage/drivers/efi/fw_info.o
+    CC         ramstage/drivers/efi/info.o
+    CC         ramstage/device/dram/ddr_common.o
+    CC         ramstage/device/dram/spd.o
+    CC         ramstage/device/azalia_device.o
+    CC         ramstage/device/cardbus_device.o
+    CC         ramstage/device/cpu_device.o
+    CC         ramstage/device/device.o
+    CC         ramstage/device/device_const.o
+    CC         ramstage/device/device_util.o
+    CC         ramstage/device/gpio.o
+    CC         ramstage/device/i2c.o
+    CC         ramstage/device/i2c_bus.o
+    CC         ramstage/device/mdio.o
+    CC         ramstage/device/mmio.o
+    CC         ramstage/device/pci_class.o
+    CC         ramstage/device/pci_device.o
+    CC         ramstage/device/pci_ops.o
+    CC         ramstage/device/pci_rom.o
+    CC         ramstage/device/pciexp_device.o
+    CC         ramstage/device/pcix_device.o
+    CC         ramstage/device/pnp_device.o
+    CC         ramstage/device/resource_allocator_common.o
+    CC         ramstage/device/resource_allocator_v4.o
+    CC         ramstage/device/root_device.o
+    CC         ramstage/device/smbus_ops.o
+    CC         ramstage/cpu/x86/tsc/delay_tsc.o
+    CC         /home/sean/Documents/coreboot/3rdparty/mbedtls/library/rsa.o
+    CC         smm/mainboard/emulation/qemu-q35/static.o
+In file included from /home/sean/Documents/coreboot/3rdparty/mbedtls/library/md_psa.h:16,
+                 from /home/sean/Documents/coreboot/3rdparty/mbedtls/library/rsa.c:41:
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:122:29: error: redundant redeclaration of 'psa_key_attributes_init' [-Werror=redundant-decls]
+  122 | static psa_key_attributes_t psa_key_attributes_init(void);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:71:
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:329:43: note: previous definition of 'psa_key_attributes_init' with type 'struct psa_key_attributes_s(void)'
+  329 | static inline struct psa_key_attributes_s psa_key_attributes_init(void)
+      |                                           ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:148:13: error: redundant redeclaration of 'psa_set_key_id' [-Werror=redundant-decls]
+  148 | static void psa_set_key_id(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:335:20: note: previous definition of 'psa_set_key_id' with type 'void(psa_key_attributes_t *, mbedtls_svc_key_id_t)' {aka 'void(struct psa_key_attributes_s *, unsigned int)'}
+  335 | static inline void psa_set_key_id(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:196:13: error: redundant redeclaration of 'psa_set_key_lifetime' [-Werror=redundant-decls]
+  196 | static void psa_set_key_lifetime(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:364:20: note: previous definition of 'psa_set_key_lifetime' with type 'void(psa_key_attributes_t *, psa_key_lifetime_t)' {aka 'void(struct psa_key_attributes_s *, unsigned int)'}
+  364 | static inline void psa_set_key_lifetime(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:211:29: error: redundant redeclaration of 'psa_get_key_id' [-Werror=redundant-decls]
+  211 | static mbedtls_svc_key_id_t psa_get_key_id(
+      |                             ^~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:350:36: note: previous definition of 'psa_get_key_id' with type 'mbedtls_svc_key_id_t(const psa_key_attributes_t *)' {aka 'unsigned int(const struct psa_key_attributes_s *)'}
+  350 | static inline mbedtls_svc_key_id_t psa_get_key_id(
+      |                                    ^~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:224:27: error: redundant redeclaration of 'psa_get_key_lifetime' [-Werror=redundant-decls]
+  224 | static psa_key_lifetime_t psa_get_key_lifetime(
+      |                           ^~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:377:34: note: previous definition of 'psa_get_key_lifetime' with type 'psa_key_lifetime_t(const psa_key_attributes_t *)' {aka 'unsigned int(const struct psa_key_attributes_s *)'}
+  377 | static inline psa_key_lifetime_t psa_get_key_lifetime(
+      |                                  ^~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:243:13: error: redundant redeclaration of 'psa_set_key_usage_flags' [-Werror=redundant-decls]
+  243 | static void psa_set_key_usage_flags(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:394:20: note: previous definition of 'psa_set_key_usage_flags' with type 'void(psa_key_attributes_t *, psa_key_usage_t)' {aka 'void(struct psa_key_attributes_s *, unsigned int)'}
+  394 | static inline void psa_set_key_usage_flags(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:256:24: error: redundant redeclaration of 'psa_get_key_usage_flags' [-Werror=redundant-decls]
+  256 | static psa_key_usage_t psa_get_key_usage_flags(
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:401:31: note: previous definition of 'psa_get_key_usage_flags' with type 'psa_key_usage_t(const psa_key_attributes_t *)' {aka 'unsigned int(const struct psa_key_attributes_s *)'}
+  401 | static inline psa_key_usage_t psa_get_key_usage_flags(
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:289:13: error: redundant redeclaration of 'psa_set_key_algorithm' [-Werror=redundant-decls]
+  289 | static void psa_set_key_algorithm(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:407:20: note: previous definition of 'psa_set_key_algorithm' with type 'void(psa_key_attributes_t *, psa_algorithm_t)' {aka 'void(struct psa_key_attributes_s *, unsigned int)'}
+  407 | static inline void psa_set_key_algorithm(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:303:24: error: redundant redeclaration of 'psa_get_key_algorithm' [-Werror=redundant-decls]
+  303 | static psa_algorithm_t psa_get_key_algorithm(
+      |                        ^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:413:31: note: previous definition of 'psa_get_key_algorithm' with type 'psa_algorithm_t(const psa_key_attributes_t *)' {aka 'unsigned int(const struct psa_key_attributes_s *)'}
+  413 | static inline psa_algorithm_t psa_get_key_algorithm(
+      |                               ^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:320:13: error: redundant redeclaration of 'psa_set_key_type' [-Werror=redundant-decls]
+  320 | static void psa_set_key_type(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:419:20: note: previous definition of 'psa_set_key_type' with type 'void(psa_key_attributes_t *, psa_key_type_t)' {aka 'void(struct psa_key_attributes_s *, short unsigned int)'}
+  419 | static inline void psa_set_key_type(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:338:13: error: redundant redeclaration of 'psa_set_key_bits' [-Werror=redundant-decls]
+  338 | static void psa_set_key_bits(psa_key_attributes_t *attributes,
+      |             ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:431:20: note: previous definition of 'psa_set_key_bits' with type 'void(psa_key_attributes_t *, size_t)' {aka 'void(struct psa_key_attributes_s *, unsigned int)'}
+  431 | static inline void psa_set_key_bits(psa_key_attributes_t *attributes,
+      |                    ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:351:23: error: redundant redeclaration of 'psa_get_key_type' [-Werror=redundant-decls]
+  351 | static psa_key_type_t psa_get_key_type(const psa_key_attributes_t *attributes);
+      |                       ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:425:30: note: previous definition of 'psa_get_key_type' with type 'psa_key_type_t(const psa_key_attributes_t *)' {aka 'short unsigned int(const struct psa_key_attributes_s *)'}
+  425 | static inline psa_key_type_t psa_get_key_type(
+      |                              ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:363:15: error: redundant redeclaration of 'psa_get_key_bits' [-Werror=redundant-decls]
+  363 | static size_t psa_get_key_bits(const psa_key_attributes_t *attributes);
+      |               ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:441:22: note: previous definition of 'psa_get_key_bits' with type 'size_t(const psa_key_attributes_t *)' {aka 'unsigned int(const struct psa_key_attributes_s *)'}
+  441 | static inline size_t psa_get_key_bits(
+      |                      ^~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:954:29: error: redundant redeclaration of 'psa_hash_operation_init' [-Werror=redundant-decls]
+  954 | static psa_hash_operation_t psa_hash_operation_init(void);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:89:43: note: previous definition of 'psa_hash_operation_init' with type 'struct psa_hash_operation_s(void)'
+   89 | static inline struct psa_hash_operation_s psa_hash_operation_init(void)
+      |                                           ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:1313:28: error: redundant redeclaration of 'psa_mac_operation_init' [-Werror=redundant-decls]
+ 1313 | static psa_mac_operation_t psa_mac_operation_init(void);
+      |                            ^~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:153:42: note: previous definition of 'psa_mac_operation_init' with type 'struct psa_mac_operation_s(void)'
+  153 | static inline struct psa_mac_operation_s psa_mac_operation_init(void)
+      |                                          ^~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:1726:31: error: redundant redeclaration of 'psa_cipher_operation_init' [-Werror=redundant-decls]
+ 1726 | static psa_cipher_operation_t psa_cipher_operation_init(void);
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:121:45: note: previous definition of 'psa_cipher_operation_init' with type 'struct psa_cipher_operation_s(void)'
+  121 | static inline struct psa_cipher_operation_s psa_cipher_operation_init(void)
+      |                                             ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:2244:29: error: redundant redeclaration of 'psa_aead_operation_init' [-Werror=redundant-decls]
+ 2244 | static psa_aead_operation_t psa_aead_operation_init(void);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:192:43: note: previous definition of 'psa_aead_operation_init' with type 'struct psa_aead_operation_s(void)'
+  192 | static inline struct psa_aead_operation_s psa_aead_operation_init(void)
+      |                                           ^~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto.h:3231:39: error: redundant redeclaration of 'psa_key_derivation_operation_init' [-Werror=redundant-decls]
+ 3231 | static psa_key_derivation_operation_t psa_key_derivation_operation_init(void);
+      |                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/coreboot/3rdparty/mbedtls/include/psa/crypto_struct.h:219:43: note: previous definition of 'psa_key_derivation_operation_init' with type 'struct psa_key_derivation_s(void)'
+  219 | static inline struct psa_key_derivation_s psa_key_derivation_operation_init(
+      |                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CC         smm/acpi/acpi_pm.o
+    CC         smm/arch/x86/apmc_smi_port.o
+    CC         smm/arch/x86/breakpoint.o
+    CC         smm/arch/x86/cf9_reset.o
+    CC         smm/arch/x86/exception.o
+    CC         smm/arch/x86/idt.o
+    CC         smm/arch/x86/memcpy.o
+    CC         smm/arch/x86/memmove_32.o
+    CC         smm/arch/x86/memset.o
+    CC         smm/arch/x86/mmap_boot.o
+    CC         smm/arch/x86/null_breakpoint.o
+    CC         smm/commonlib/bsd/cbfs_mcache.o
+cc1: all warnings being treated as errors
+make: *** [Makefile:431: /home/sean/Documents/coreboot/3rdparty/mbedtls/library/rsa.o] Error 1
+make: *** Waiting for unfinished jobs....

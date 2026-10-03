@@ -1,0 +1,6 @@
+8d9c16b3dad1b2104e0000a1c928900a74158aa9c0e73c9e17a17fc8e1a7cf9d  /home/sean/disk-capsule-producer.5FwfSp/initial9-retry/build/coreboot.rom
+c0f5b466124c591f591fcf7745f693e4d6f031da9251a46b8bc878682505b324  /home/sean/disk-capsule-producer.5FwfSp/targetA-retry/build/coreboot.rom
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+47fae527f00e60283284128cd738ad325e2fc6b3c0adaa7f37aff0082b34506a  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/generate_capsule.py
+52dfee20427473c24c5fb026b7ca8b86c612203a2e6057d9f224af77e217957b  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/validate_capsule.py
+811ca92a7923487853681f3e4627b7dc7056cbfece1e8e0d5afa09b5ed5103c0  /home/sean/disk-capsule-producer.5FwfSp/generate.sh

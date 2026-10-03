@@ -1,0 +1,22 @@
+Found file fallback/payload at 0x46a00, type simple elf, compressed 545508, size 545508
+Found file capsule/trust.der at 0x412c0, type raw, compressed 847, size 847
+Found file fallback/payload at 0x46a00, type simple elf, compressed 545508, size 545508
+Found file capsule/trust.der at 0x412c0, type raw, compressed 847, size 847
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+Actual-codec refusal store artifacts: /home/sean/disk-capsule-producer.5FwfSp/run-2/refusal-store.YZCwFJ
+/home/sean/disk-capsule-producer.5FwfSp/run-2/pflash.rom: OK
+/home/sean/disk-capsule-producer.5FwfSp/initial9-retry/build/util/cbfstool/cbfstool: OK
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-denial-native-after612/tests/system_fmp_core_ram_refusal_store.c: OK
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-denial-native-after612/tests/system_fmp_core_ram_refusal_store_test.sh: OK
+/usr/bin/cc: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_fv.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_record.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_store_semantics.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_writer.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_default_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_ftw.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/uuid.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/hexstrtobin.c: OK
+Actual producer refusal-store HOST oracle: PASS (no guest writes)
+Actual ESP denied CHECK/file retained/no SET; no late writer/OS/drain proof: PASS

@@ -1,0 +1,13 @@
+{
+  "failure": null,
+  "observation": {
+    "transport": 8,
+    "transport_name": "BAD_RESPONSE",
+    "phase_result": "CDK2 | CAPSULE_DISK | complete | SUCCESS (0x0000000000000000) | 10085288 us",
+    "authority": "observed late CHECK denial; positive DISK admission not demonstrated"
+  },
+  "qemu_seconds": 12.460005262997583,
+  "deadline_seconds": 180,
+  "qemu_status": 0,
+  "termination": "HOST after bounded denial, not guest boot success"
+}
