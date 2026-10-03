@@ -1,0 +1,73 @@
+diff --git a/tests/system_fmp_disk_retained_native_test.py b/tests/system_fmp_disk_retained_native_test.py
+index f199cd836d..34005a2b95 100644
+--- a/tests/system_fmp_disk_retained_native_test.py
++++ b/tests/system_fmp_disk_retained_native_test.py
+@@ -27,6 +27,30 @@ TARGET_VERSION = 0x001a000a
+ IMAGE_SIZE = 8388608
+ 
+ 
++def config_assignments(lines):
++    """Exact Kconfig values despite the producer's documented CBFS ordering.
++
++    Makefile.mk stores savedefconfig followed by all remaining CONFIG values;
++    default disabled booleans/comments need not appear in that serialization.
++    """
++    assignments = {}
++    for line in lines:
++        value = re.fullmatch(r"(CONFIG_[A-Z0-9_]+)=(.+)", line)
++        disabled = re.fullmatch(r"# (CONFIG_[A-Z0-9_]+) is not set", line)
++        if value is not None:
++            name, setting = value.groups()
++        elif disabled is not None:
++            name, setting = disabled[1], "n"
++        elif not line or line.startswith("#") and not line.startswith("# CONFIG_"):
++            continue
++        else:
++            raise ValueError("malformed producer Kconfig entry")
++        if name in assignments:
++            raise ValueError("duplicate/conflicting producer Kconfig entry")
++        assignments[name] = setting
++    return {name: setting for name, setting in assignments.items() if setting != "n"}
++
++
+ def check_epoch(index, body, records, physical_limit, capsule):
+     """Independent DISK chronology; no RAM-fixture admission/oracle reuse."""
+     if index not in range(4):
+@@ -190,7 +214,7 @@ def main():
+         subprocess.run([str(args.cbfstool), str(image), "extract", "-n", "config",
+                         "-f", str(extracted_config)], check=True)
+         producer = extracted_config.read_text().splitlines()
+-        if producer != expected_config.read_text().splitlines():
++        if config_assignments(producer) != config_assignments(expected_config.read_text().splitlines()):
+             raise ValueError("actual packaged producer config differs from its bound build input")
+         for symbol in ("Q35_SMM_CAPSULE_BROKER", "PAYLOAD_MM_FMP_OWNER_AUTHVAR_BOOT",
+                        "DRIVERS_EFI_CAPSULE_DELIVERY_POLICY", "DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT"):
+diff --git a/tests/system_fmp_disk_retained_runner_test.py b/tests/system_fmp_disk_retained_runner_test.py
+index f88d9c5d6a..9288c569d2 100644
+--- a/tests/system_fmp_disk_retained_runner_test.py
++++ b/tests/system_fmp_disk_retained_runner_test.py
+@@ -38,6 +38,24 @@ def body(epoch):
+ 
+ 
+ class RunnerTests(unittest.TestCase):
++    def test_packaged_kconfig_exact_values(self):
++        full = ['# generated full config', 'CONFIG_ROUTE=y', 'CONFIG_WIDTH=0x00800000',
++                'CONFIG_PATH="/actual/Core.elf"', '# CONFIG_LEGACY is not set', 'CONFIG_DISABLED=n']
++        packed = ['# savedefconfig + derivable values', 'CONFIG_PATH="/actual/Core.elf"',
++                  'CONFIG_WIDTH=0x00800000', 'CONFIG_ROUTE=y']
++        expected = observer.config_assignments(full)
++        self.assertEqual(observer.config_assignments(packed), expected)
++        for changed in (packed + ['CONFIG_UNKNOWN=y'], packed[:-1],
++                        [line.replace('0x00800000', '0x00400000') for line in packed],
++                        [line.replace('/actual/Core.elf', '/other/Core.elf') for line in packed],
++                        [line.replace('CONFIG_ROUTE=y', 'CONFIG_ROUTE=m') for line in packed]):
++            self.assertNotEqual(observer.config_assignments(changed), expected)
++        for changed in (packed + ['CONFIG_ROUTE=y'], packed + ['CONFIG_ROUTE=n'],
++                        packed + ['# CONFIG_ROUTE is not set'], ['CONFIG_X='],
++                        ['CONFIG_X'], ['# CONFIG_X not set'], ['UNKNOWN=y']):
++            with self.assertRaises(ValueError):
++                observer.config_assignments(changed)
++
+     def test_each_epoch_and_old_partial_tail(self):
+         for epoch in range(4):
+             observer.check_epoch(epoch, body(0) + body(epoch), records(epoch), 1073741824, b"c" * 64)

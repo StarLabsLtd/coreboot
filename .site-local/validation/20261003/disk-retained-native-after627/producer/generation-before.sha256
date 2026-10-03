@@ -1,0 +1,6 @@
+0a61f849a10feb125a3217b7334cce51d1218c49d6383a1b07240b3f70a6b86b  /home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/coreboot.rom
+f21a8e4cb84503f4072dca61e75b5a45686b41ed06bf458bc8cad399373e0194  /home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/coreboot.rom
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+47fae527f00e60283284128cd738ad325e2fc6b3c0adaa7f37aff0082b34506a  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/generate_capsule.py
+52dfee20427473c24c5fb026b7ca8b86c612203a2e6057d9f224af77e217957b  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/validate_capsule.py
+e1f161ab76b5413352dcda213f85e012af5178eef6368d3e01380cc796797dc9  /home/sean/normal-efi-disk-producers-after625.ZBl2DT/generate.sh

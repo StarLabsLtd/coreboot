@@ -1,0 +1,10 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549220, size 549220
+Found file capsule/trust.der at 0x41300, type raw, compressed 847, size 847
+Found file config at 0x3e400, type raw, compressed 3540, size 12851
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/disk-retained-four-epoch-observer-after623/tests/system_fmp_disk_retained_native_test.py", line 377, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/disk-retained-four-epoch-observer-after623/tests/system_fmp_disk_retained_native_test.py", line 194, in main
+    raise ValueError("actual packaged producer config differs from its bound build input")
+ValueError: actual packaged producer config differs from its bound build input

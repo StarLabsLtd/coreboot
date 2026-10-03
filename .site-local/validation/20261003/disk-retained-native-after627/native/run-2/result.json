@@ -1,0 +1,139 @@
+{
+  "failure": null,
+  "qemu_status": 3,
+  "wall_seconds": 113.09554802400089,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1791017097,
+        "microseconds": 226710
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017097,
+        "microseconds": 226766
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017100,
+        "microseconds": 933475
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017101,
+        "microseconds": 456082
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017101,
+        "microseconds": 456142
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017116,
+        "microseconds": 697525
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017117,
+        "microseconds": 246190
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017117,
+        "microseconds": 246244
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017205,
+        "microseconds": 690461
+      },
+      "event": "RESET",
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017206,
+        "microseconds": 268238
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1791017206,
+        "microseconds": 268290
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    }
+  ],
+  "epochs": [
+    "boot-0",
+    "boot-1",
+    "boot-2",
+    "boot-3"
+  ],
+  "installed_sha256": "b63beab75efa2e014f87fa5858f1e564c1bcfe6918c23708bbb93c456a3f5249",
+  "disk_sha256": "55da8777ab3a4c4ed2c3442573c6de1d67094671a20980bc7e9125674a0abcf1",
+  "staged_disk_sha256": "55da8777ab3a4c4ed2c3442573c6de1d67094671a20980bc7e9125674a0abcf1",
+  "outcome": "guest success or failure; never HOST termination as success"
+}

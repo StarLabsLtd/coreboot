@@ -1,0 +1,9 @@
+tests/system_fmp_disk_retained_native_test.py: OK
+tests/system_fmp_disk_retained_runner_test.py: OK
+tests/system_fmp_disk_retained_store.c: OK
+tests/system_fmp_disk_retained_store_test.sh: OK
+tests/system_fmp_core_ram_native_test.py: OK
+tests/system_fmp_core_ram_refusal.py: OK
+util/qemu/bin/qmp_cbmem_console.py: OK
+/usr/bin/python3: OK
+/home/sean/disk-retained-ready-host.MwSahN/run.sh: OK

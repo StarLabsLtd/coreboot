@@ -1,0 +1,16 @@
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/coreboot.rom: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/util/cbfstool/cbfstool: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/coreboot.rom: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/util/cbfstool/cbfstool: OK
+Verification successful
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/coreboot.rom: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/coreboot.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/generate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/validate_capsule.py: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/generate.sh: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/coreboot.rom: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/initial9/build/util/cbfstool/cbfstool: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/coreboot.rom: OK
+/home/sean/normal-efi-disk-producers-after625.ZBl2DT/targetA/build/util/cbfstool/cbfstool: OK

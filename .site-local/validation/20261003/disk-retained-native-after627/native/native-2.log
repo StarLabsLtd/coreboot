@@ -1,0 +1,10 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549220, size 549220
+Found file capsule/trust.der at 0x41300, type raw, compressed 847, size 847
+Found file config at 0x3e400, type raw, compressed 3540, size 12851
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549220, size 549220
+Found file capsule/trust.der at 0x41300, type raw, compressed 847, size 847
+Found file config at 0x3e400, type raw, compressed 3542, size 12851
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+Actual codec artifacts: /home/sean/normal-disk-retained-native.dSunYE/run-2/disk-retained-store.InVMHB
+Actual producer DISK-to-RAM final media codec: PASS (HOST read-only)
+Actual normal DISK-to-retained-RAM four-epoch update PASS (guest success)
