@@ -1,0 +1,16 @@
+/home/sean/capsule-report-local-floor-cold-retry.Aowjcu/run-1/pflash.rom: OK
+/home/sean/normal-local-floor-producer.uE8CdA/initial9/build/util/cbfstool/cbfstool: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after607/tests/capsule_report_cold_store_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after607/tests/capsule_report_cold_store.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after607/tests/system_fmp_core_ram_refusal_store.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after607/include/cdk2/capsule_report.h: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_fv.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_record.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_store_semantics.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_writer.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_default_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_ftw.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/uuid.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/hexstrtobin.c: OK

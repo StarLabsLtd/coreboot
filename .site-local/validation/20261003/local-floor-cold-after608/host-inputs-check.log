@@ -1,0 +1,2 @@
+tests/capsule_report_cold_native_test.py: OK
+tests/capsule_report_cold_runner_test.py: OK

@@ -1,0 +1,46 @@
+{
+  "failure": "QMP physical read failed: [Errno 104] Connection reset by peer",
+  "qemu_status": 3,
+  "wall_seconds": 4.388199244000134,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790999183,
+        "microseconds": 733376
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790999183,
+        "microseconds": 733437
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790999187,
+        "microseconds": 270878
+      },
+      "event": "SHUTDOWN",
+      "data": {
+        "guest": true,
+        "reason": "guest-shutdown"
+      }
+    }
+  ],
+  "installed_sha256": "0e3faf89255b01ebde5ab2d3c8638e2dae72e62fdedaa8a79303f990d153d886",
+  "disk_sha256": "c0ea22129cffb54a97d9d97d8562524f456751f803f9eed842e3e5f3f8f634bc",
+  "disk_baseline_sha256": "c0ea22129cffb54a97d9d97d8562524f456751f803f9eed842e3e5f3f8f634bc",
+  "expected_local_floor_refusal": true,
+  "completion": "failed cold observation"
+}

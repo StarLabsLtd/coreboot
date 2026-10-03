@@ -1,0 +1,3 @@
+1b56a168855a85df762b4269a76a22e2e641ab5c G Observe cold capsule reports after local floor refusal
+b4420149f4c534c884a79e383a25ed04108cc44e G tests: finish cold report capture after terminal QMP close
+fe860fae35156a8bda41faba0c99669a26c4cb49 G docs: record cold local floor report persistence

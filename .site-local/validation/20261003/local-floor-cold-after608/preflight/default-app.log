@@ -1,0 +1,20 @@
+/home/sean/capsule-local-floor-final.irsKVf/include/cdk2/config.h: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/wrong-signer-a.cap: OK
+tests/capsule_report_cold_app_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/tests/capsule_report_cold_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/tests/capsule_report_cold_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/include/cdk2/capsule_report.h: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/usr/bin/ld.bfd: OK
+/usr/bin/readelf: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/cdk2-native-pe-link: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/cdk2-pe-exec-sections: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/tests/capsule_report_cold_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/src/lib/coreboot_hob.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/src/boot/coreboot_checksum.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/src/boot/coreboot_resource.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-report-local-floor-cold-after606/src/modules/dxe_core/string.c: OK
+53890f07f501cc34b88cb72814d475006c4cbbb71e957feb8b1ee4f859d8435a  /home/sean/capsule-report-local-floor-cold-native.2qHfAW/default-app/CapsuleReportCold.efi
+Ordinary cold MAIN report observer compiled: no native persistence claim
