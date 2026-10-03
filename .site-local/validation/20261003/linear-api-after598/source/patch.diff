@@ -1,0 +1,985 @@
+diff --git a/include/cdk2/linear_boot.h b/include/cdk2/linear_boot.h
+index 806a08d761..a1b9283309 100644
+--- a/include/cdk2/linear_boot.h
++++ b/include/cdk2/linear_boot.h
+@@ -4,6 +4,8 @@
+ #define CDK2_LINEAR_BOOT_H
+ 
+ #include <uefi.h>
++#include <stddef.h>
++#include <stdint.h>
+ 
+ /*
+  * This order is the boot contract.  A plan may execute a contiguous slice,
+@@ -79,22 +81,22 @@ struct cdk2_linear_state {
+ 	UINT8 boot_device_path[CDK2_LINEAR_BOOT_PATH_BYTES];
+ } __packed;
+ 
+-typedef EFI_STATUS cdk2_linear_phase_fn(void *context);
+-typedef UINT64 cdk2_linear_clock_fn(void *context);
++typedef uint64_t cdk2_linear_phase_fn(void *context);
++typedef uint64_t cdk2_linear_clock_fn(void *context);
+ typedef void cdk2_linear_report_fn(enum cdk2_linear_phase_id phase,
+-	const CHAR8 *name, EFI_STATUS status, UINT64 elapsed_ticks,
+-	BOOLEAN required, BOOLEAN begin, void *context);
++	const char *name, uint64_t status, uint64_t elapsed_ticks,
++	uint8_t required, uint8_t begin, void *context);
+ 
+ struct cdk2_linear_phase {
+ 	enum cdk2_linear_phase_id id;
+-	const CHAR8 *name;
++	const char *name;
+ 	cdk2_linear_phase_fn *run;
+-	BOOLEAN required;
++	uint8_t required;
+ };
+ 
+ struct cdk2_linear_plan {
+ 	const struct cdk2_linear_phase *phases;
+-	UINTN count;
++	size_t count;
+ 	cdk2_linear_clock_fn *clock;
+ 	cdk2_linear_report_fn *report;
+ 	void *context;
+@@ -103,38 +105,38 @@ struct cdk2_linear_plan {
+ extern const EFI_GUID cdk2_linear_state_hob_guid;
+ 
+ void cdk2_linear_state_init(struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_state_validate(const struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_state_from_hob(void *hob_list,
++uint64_t cdk2_linear_state_validate(const struct cdk2_linear_state *state);
++uint64_t cdk2_linear_state_from_hob(void *hob_list,
+ 	struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_state_update_hob(void *hob_list,
++uint64_t cdk2_linear_state_update_hob(void *hob_list,
+ 	const struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_boot_path_set(struct cdk2_linear_state *state,
+-	const void *path, UINT32 size, UINT32 generation);
+-EFI_STATUS cdk2_linear_capture_splash(struct cdk2_linear_state *state,
+-	EFI_PHYSICAL_ADDRESS framebuffer, UINT32 bytes_per_line,
+-	UINT32 x_resolution, UINT32 y_resolution);
+-EFI_STATUS cdk2_linear_capture_coreboot_splash(struct cdk2_linear_state *state,
+-	UINT32 image_offset_x, UINT32 image_offset_y,
+-	UINT32 image_width, UINT32 image_height,
+-	EFI_PHYSICAL_ADDRESS bmp_address, UINT32 bmp_size);
+-BOOLEAN cdk2_linear_display_clear_allowed(
++uint64_t cdk2_linear_boot_path_set(struct cdk2_linear_state *state,
++	const void *path, uint32_t size, uint32_t generation);
++uint64_t cdk2_linear_capture_splash(struct cdk2_linear_state *state,
++	uint64_t framebuffer, uint32_t bytes_per_line,
++	uint32_t x_resolution, uint32_t y_resolution);
++uint64_t cdk2_linear_capture_coreboot_splash(struct cdk2_linear_state *state,
++	uint32_t image_offset_x, uint32_t image_offset_y,
++	uint32_t image_width, uint32_t image_height,
++	uint64_t bmp_address, uint32_t bmp_size);
++uint8_t cdk2_linear_display_clear_allowed(
+ 	const struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_input_ui_validate(
+-	const struct cdk2_linear_state *state, UINTN graphics_outputs,
+-	UINTN text_inputs, UINTN text_input_exs, UINT32 boot_timeout);
+-EFI_STATUS cdk2_linear_capsule_gate_early(struct cdk2_linear_state *state,
+-	BOOLEAN ram_present, BOOLEAN disk_supported,
++uint64_t cdk2_linear_input_ui_validate(
++	const struct cdk2_linear_state *state, size_t graphics_outputs,
++	size_t text_inputs, size_t text_input_exs, uint32_t boot_timeout);
++uint64_t cdk2_linear_capsule_gate_early(struct cdk2_linear_state *state,
++	uint8_t ram_present, uint8_t disk_supported,
+ 	enum cdk2_linear_capsule_outcome *outcome);
+-EFI_STATUS cdk2_linear_capsule_finalize_disk(struct cdk2_linear_state *state,
+-	EFI_STATUS discovery_status,
++uint64_t cdk2_linear_capsule_finalize_disk(struct cdk2_linear_state *state,
++	uint64_t discovery_status,
+ 	enum cdk2_linear_capsule_outcome *outcome);
+-EFI_STATUS cdk2_linear_capsule_finalize_ram(struct cdk2_linear_state *state,
++uint64_t cdk2_linear_capsule_finalize_ram(struct cdk2_linear_state *state,
+ 	enum cdk2_linear_capsule_outcome *outcome);
+ enum cdk2_linear_capsule_outcome cdk2_linear_capsule_outcome(
+ 	const struct cdk2_linear_state *state);
+-EFI_STATUS cdk2_linear_capsule_disk_required(
+-	const struct cdk2_linear_state *state, BOOLEAN *required);
+-EFI_STATUS cdk2_linear_run(const struct cdk2_linear_plan *plan,
+-	struct cdk2_linear_state *state, UINTN *completed);
++uint64_t cdk2_linear_capsule_disk_required(
++	const struct cdk2_linear_state *state, uint8_t *required);
++uint64_t cdk2_linear_run(const struct cdk2_linear_plan *plan,
++	struct cdk2_linear_state *state, size_t *completed);
+ 
+ #endif
+diff --git a/src/boot/coreboot_handoff.c b/src/boot/coreboot_handoff.c
+index c48b092ec1..a5fec16fb0 100644
+--- a/src/boot/coreboot_handoff.c
++++ b/src/boot/coreboot_handoff.c
+@@ -4257,16 +4257,16 @@ static EFI_STATUS cdk2_coreboot_validate_handoff(UINTN bootloader_parameter)
+ #if CONFIG_CDK2_LINEAR_BOOT
+ struct cdk2_coreboot_linear_context {
+ 	UINTN bootloader_parameter;
+-	UINT64 deferred_handoff_start;
++	uint64_t deferred_handoff_start;
+ };
+ 
+-static UINT64 cdk2_coreboot_linear_clock(void *context)
++static uint64_t cdk2_coreboot_linear_clock(void *context)
+ {
+ 	(void)context;
+ 	return cdk2_diagnostic_clock(NULL);
+ }
+ 
+-static EFI_STATUS cdk2_coreboot_linear_validate(void *context)
++static uint64_t cdk2_coreboot_linear_validate(void *context)
+ {
+ 	const struct cdk2_coreboot_linear_context *linear = context;
+ 
+@@ -4366,7 +4366,7 @@ EFI_STATUS EFIAPI cdk2_coreboot_test_splash_record(
+ }
+ #endif
+ 
+-static EFI_STATUS cdk2_coreboot_linear_splash(void *context)
++static uint64_t cdk2_coreboot_linear_splash(void *context)
+ {
+ 	const struct cb_boot_splash *splash;
+ 	const struct cb_framebuffer *framebuffer;
+@@ -4403,8 +4403,8 @@ static EFI_STATUS cdk2_coreboot_linear_splash(void *context)
+ }
+ 
+ static void cdk2_coreboot_linear_report(enum cdk2_linear_phase_id phase,
+-	const CHAR8 *name, EFI_STATUS status, UINT64 elapsed, BOOLEAN required,
+-	BOOLEAN begin, void *context)
++	const char *name, uint64_t status, uint64_t elapsed, uint8_t required,
++	uint8_t begin, void *context)
+ {
+ 	struct cdk2_coreboot_linear_context *linear = context;
+ 
+@@ -4447,7 +4447,7 @@ static EFI_STATUS cdk2_coreboot_run_native_prefix(UINTN bootloader_parameter)
+ 		.report = cdk2_coreboot_linear_report,
+ 		.context = &context,
+ 	};
+-	UINTN completed;
++	size_t completed;
+ 
+ 	cdk2_linear_state_init(&m_linear_state);
+ 	return cdk2_linear_run(&plan, &m_linear_state, &completed);
+diff --git a/src/lib/linear_boot.c b/src/lib/linear_boot.c
+index c1d5dc0f0d..6e74ded14e 100644
+--- a/src/lib/linear_boot.c
++++ b/src/lib/linear_boot.c
+@@ -116,8 +116,8 @@ static bool loader_path_valid(const uint16_t *path)
+ 	return true;
+ }
+ 
+-EFI_STATUS cdk2_linear_boot_path_set(struct cdk2_linear_state *state,
+-	const void *path, UINT32 size, UINT32 generation)
++uint64_t cdk2_linear_boot_path_set(struct cdk2_linear_state *state,
++	const void *path, uint32_t size, uint32_t generation)
+ {
+ 	if (state == NULL || path == NULL || size < 4U ||
+ 	    size > CDK2_LINEAR_BOOT_PATH_BYTES || generation == 0U ||
+@@ -145,7 +145,7 @@ void cdk2_linear_state_init(struct cdk2_linear_state *state)
+ 	};
+ }
+ 
+-EFI_STATUS cdk2_linear_state_validate(const struct cdk2_linear_state *state)
++uint64_t cdk2_linear_state_validate(const struct cdk2_linear_state *state)
+ {
+ 	enum cdk2_linear_capsule_outcome capsule;
+ 	uint16_t loader_path[CDK2_LINEAR_LOADER_PATH_CHARS];
+@@ -261,8 +261,8 @@ enum cdk2_linear_capsule_outcome cdk2_linear_capsule_outcome(
+ 		 CDK2_LINEAR_STATE_CAPSULE_SHIFT);
+ }
+ 
+-EFI_STATUS cdk2_linear_capsule_disk_required(
+-	const struct cdk2_linear_state *state, BOOLEAN *required)
++uint64_t cdk2_linear_capsule_disk_required(
++	const struct cdk2_linear_state *state, uint8_t *required)
+ {
+ 	enum cdk2_linear_capsule_outcome outcome;
+ 
+@@ -278,8 +278,8 @@ EFI_STATUS cdk2_linear_capsule_disk_required(
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_capsule_gate_early(struct cdk2_linear_state *state,
+-	BOOLEAN ram_present, BOOLEAN disk_supported,
++uint64_t cdk2_linear_capsule_gate_early(struct cdk2_linear_state *state,
++	uint8_t ram_present, uint8_t disk_supported,
+ 	enum cdk2_linear_capsule_outcome *outcome)
+ {
+ 	enum cdk2_linear_capsule_outcome selected;
+@@ -301,7 +301,7 @@ EFI_STATUS cdk2_linear_capsule_gate_early(struct cdk2_linear_state *state,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_capsule_finalize_ram(struct cdk2_linear_state *state,
++uint64_t cdk2_linear_capsule_finalize_ram(struct cdk2_linear_state *state,
+ 	enum cdk2_linear_capsule_outcome *outcome)
+ {
+ 	if (state == NULL || outcome == NULL)
+@@ -318,8 +318,8 @@ EFI_STATUS cdk2_linear_capsule_finalize_ram(struct cdk2_linear_state *state,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_capsule_finalize_disk(struct cdk2_linear_state *state,
+-	EFI_STATUS discovery_status,
++uint64_t cdk2_linear_capsule_finalize_disk(struct cdk2_linear_state *state,
++	uint64_t discovery_status,
+ 	enum cdk2_linear_capsule_outcome *outcome)
+ {
+ 	enum cdk2_linear_capsule_outcome selected;
+@@ -343,11 +343,11 @@ EFI_STATUS cdk2_linear_capsule_finalize_disk(struct cdk2_linear_state *state,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_capture_splash(struct cdk2_linear_state *state,
+-	EFI_PHYSICAL_ADDRESS framebuffer, UINT32 bytes_per_line,
+-	UINT32 x_resolution, UINT32 y_resolution)
++uint64_t cdk2_linear_capture_splash(struct cdk2_linear_state *state,
++	uint64_t framebuffer, uint32_t bytes_per_line,
++	uint32_t x_resolution, uint32_t y_resolution)
+ {
+-	EFI_STATUS status;
++	uint64_t status;
+ 
+ 	status = cdk2_linear_state_validate(state);
+ 	if (EFI_ERROR(status))
+@@ -369,12 +369,12 @@ EFI_STATUS cdk2_linear_capture_splash(struct cdk2_linear_state *state,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_capture_coreboot_splash(struct cdk2_linear_state *state,
+-	UINT32 image_offset_x, UINT32 image_offset_y,
+-	UINT32 image_width, UINT32 image_height,
+-	EFI_PHYSICAL_ADDRESS bmp_address, UINT32 bmp_size)
++uint64_t cdk2_linear_capture_coreboot_splash(struct cdk2_linear_state *state,
++	uint32_t image_offset_x, uint32_t image_offset_y,
++	uint32_t image_width, uint32_t image_height,
++	uint64_t bmp_address, uint32_t bmp_size)
+ {
+-	EFI_STATUS status;
++	uint64_t status;
+ 
+ 	if (state == NULL)
+ 		return EFI_INVALID_PARAMETER;
+@@ -402,7 +402,7 @@ EFI_STATUS cdk2_linear_capture_coreboot_splash(struct cdk2_linear_state *state,
+ 	return status;
+ }
+ 
+-BOOLEAN cdk2_linear_display_clear_allowed(
++uint8_t cdk2_linear_display_clear_allowed(
+ 	const struct cdk2_linear_state *state)
+ {
+ 	enum cdk2_linear_capsule_outcome capsule;
+@@ -417,11 +417,11 @@ BOOLEAN cdk2_linear_display_clear_allowed(
+ 		capsule != CDK2_LINEAR_CAPSULE_RESULT_DISK_DEFERRED;
+ }
+ 
+-EFI_STATUS cdk2_linear_input_ui_validate(
+-	const struct cdk2_linear_state *state, UINTN graphics_outputs,
+-	UINTN text_inputs, UINTN text_input_exs, UINT32 boot_timeout)
++uint64_t cdk2_linear_input_ui_validate(
++	const struct cdk2_linear_state *state, size_t graphics_outputs,
++	size_t text_inputs, size_t text_input_exs, uint32_t boot_timeout)
+ {
+-	EFI_STATUS status = cdk2_linear_state_validate(state);
++	uint64_t status = cdk2_linear_state_validate(state);
+ 
+ 	if (EFI_ERROR(status) || state->next_phase != CDK2_LINEAR_INPUT_UI)
+ 		return EFI_COMPROMISED_DATA;
+@@ -435,7 +435,7 @@ EFI_STATUS cdk2_linear_input_ui_validate(
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_state_from_hob(void *hob_list,
++uint64_t cdk2_linear_state_from_hob(void *hob_list,
+ 	struct cdk2_linear_state *state)
+ {
+ 	EFI_HOB_HANDOFF_INFO_TABLE *handoff = hob_list;
+@@ -494,7 +494,7 @@ EFI_STATUS cdk2_linear_state_from_hob(void *hob_list,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_state_update_hob(void *hob_list,
++uint64_t cdk2_linear_state_update_hob(void *hob_list,
+ 	const struct cdk2_linear_state *state)
+ {
+ 	EFI_HOB_HANDOFF_INFO_TABLE *handoff = hob_list;
+@@ -535,11 +535,11 @@ EFI_STATUS cdk2_linear_state_update_hob(void *hob_list,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_linear_run(const struct cdk2_linear_plan *plan,
+-	struct cdk2_linear_state *state, UINTN *completed)
++uint64_t cdk2_linear_run(const struct cdk2_linear_plan *plan,
++	struct cdk2_linear_state *state, size_t *completed)
+ {
+ 	size_t index;
+-	EFI_STATUS validation;
++	uint64_t validation;
+ 
+ 	if (completed != NULL)
+ 		*completed = 0U;
+@@ -564,7 +564,7 @@ EFI_STATUS cdk2_linear_run(const struct cdk2_linear_plan *plan,
+ 		const struct cdk2_linear_phase *phase = &plan->phases[index];
+ 		uint64_t start;
+ 		uint64_t end;
+-		EFI_STATUS status;
++		uint64_t status;
+ 
+ 		start = plan->clock(plan->context);
+ 		plan->report(phase->id, phase->name, EFI_NOT_STARTED, 0U,
+diff --git a/src/modules/dxe_core/entry.c b/src/modules/dxe_core/entry.c
+index d3bff03dcf..1d8b272278 100644
+--- a/src/modules/dxe_core/entry.c
++++ b/src/modules/dxe_core/entry.c
+@@ -216,7 +216,7 @@ struct required_driver {
+ static UINTN protocol_instance_count(const EFI_GUID *guid);
+ static void *find_protocol(const EFI_GUID *guid);
+ static BOOLEAN configuration_table_present(const EFI_GUID *guid);
+-static UINT64 dxe_linear_clock(void *context);
++static uint64_t dxe_linear_clock(void *context);
+ 
+ static const EFI_GUID variable_policy_protocol_guid = { 0x81d1675c, 0x86f6, 0x48df,
+ 	{ 0xbd, 0x95, 0x9a, 0x6e, 0x4f, 0x09, 0x25, 0xc3 } };
+@@ -1381,7 +1381,7 @@ EFI_STATUS cdk2_dxe_test_install_core_image(struct cdk2_dxe_core *dxe_core,
+ }
+ #endif
+ 
+-static EFI_STATUS initialize_dxe_services(void *opaque)
++static uint64_t initialize_dxe_services(void *opaque)
+ {
+ 	typedef EFI_STATUS CDK2_MS_ABI install_table_fn(const EFI_GUID *,
+ 		void *);
+@@ -1831,7 +1831,7 @@ EFI_STATUS cdk2_dxe_test_framebuffer_bar(const UINT8 resource[48],
+ #endif
+ 
+ #if CONFIG_CDK2_LINEAR_BOOT
+-static EFI_STATUS initialize_arch_protocols(void *context)
++static uint64_t initialize_arch_protocols(void *context)
+ {
+ 	EFI_STATUS status = dispatch_required(context, arch_drivers,
+ 		ARRAY_SIZE(arch_drivers));
+@@ -1840,7 +1840,7 @@ static EFI_STATUS initialize_arch_protocols(void *context)
+ 		arch_protocols, ARRAY_SIZE(arch_protocols), protocol_present, NULL);
+ }
+ 
+-static EFI_STATUS initialize_minimal_variables(void *context)
++static uint64_t initialize_minimal_variables(void *context)
+ {
+ 	struct dxe_services_context *services = context;
+ 	EFI_STATUS status;
+@@ -2153,7 +2153,7 @@ static EFI_STATUS publish_coreboot_smbios(
+ 	return status;
+ }
+ 
+-static EFI_STATUS initialize_platform_tables(void *opaque)
++static uint64_t initialize_platform_tables(void *opaque)
+ {
+ 	static const EFI_GUID acpi_protocols[] = {
+ 		{ 0xffe06bdd, 0x6107, 0x46a6,
+@@ -2190,7 +2190,7 @@ static EFI_STATUS initialize_platform_tables(void *opaque)
+ 	return status;
+ }
+ 
+-static EFI_STATUS initialize_pci_roots(void *opaque)
++static uint64_t initialize_pci_roots(void *opaque)
+ {
+ 	static const EFI_GUID root_hob_guid = { 0xec4ebacb, 0x2638, 0x416e,
+ 		{ 0xbe, 0x80, 0xe5, 0xfa, 0x4b, 0x51, 0x19, 0x01 } };
+@@ -2431,7 +2431,7 @@ static EFI_STATUS validate_pci_children(struct dxe_services_context *context)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS initialize_pci_enumeration(void *opaque)
++static uint64_t initialize_pci_enumeration(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	void *binding_handles[CDK2_DXE_MAX_DRIVERS];
+@@ -2775,7 +2775,7 @@ static EFI_STATUS unwind_all_staged_providers(EFI_STATUS status)
+ 	return unstage_provider(&staged_nvme, status);
+ }
+ 
+-static EFI_STATUS initialize_storage_controllers(void *opaque)
++static uint64_t initialize_storage_controllers(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	EFI_STATUS status;
+@@ -3731,7 +3731,7 @@ BOOLEAN cdk2_dxe_test_removable_discovery_allowed(EFI_BOOT_MODE boot_mode)
+ }
+ #endif
+ 
+-static EFI_STATUS initialize_block_discovery(void *opaque)
++static uint64_t initialize_block_discovery(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	EFI_STATUS status = EFI_NOT_FOUND;
+@@ -3787,7 +3787,7 @@ EFI_STATUS cdk2_dxe_test_initialize_block_discovery(
+ }
+ #endif
+ 
+-static EFI_STATUS initialize_filesystems(void *opaque)
++static uint64_t initialize_filesystems(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	struct cdk2_fat_simple_fs_protocol *filesystem;
+@@ -3965,7 +3965,7 @@ EFI_STATUS cdk2_dxe_test_capsule_disk_completion_status(
+ }
+ #endif
+ 
+-static EFI_STATUS process_disk_capsules(void *opaque)
++static uint64_t process_disk_capsules(void *opaque)
+ {
+ 	static const EFI_GUID capsule_boot = { 0x2890d42b, 0x7f9b, 0x4a66,
+ 		{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
+@@ -3973,7 +3973,7 @@ static EFI_STATUS process_disk_capsules(void *opaque)
+ 	struct capsule_scan_runtime runtime = {0};
+ 	struct cdk2_fat_simple_fs_protocol *filesystem;
+ 	struct cdk2_capsule_disk_result result = {0};
+-	BOOLEAN disk_required;
++	uint8_t disk_required;
+ 	BOOLEAN completion_succeeded = FALSE;
+ 	EFI_STATUS discovery, status;
+ 
+@@ -4888,7 +4888,7 @@ static const struct cdk2_graphics_policy adopted_graphics_policy = {
+ 		CONFIG_CDK2_GOP_HIDPI_ASPECT_H : 0U,
+ };
+ 
+-static EFI_STATUS adopt_display(void *opaque)
++static uint64_t adopt_display(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	const EFI_PEI_GRAPHICS_INFO_HOB *graphics = NULL;
+@@ -5017,7 +5017,7 @@ rollback_input_xhci:
+ }
+ #endif
+ 
+-static EFI_STATUS initialize_input_ui(void *opaque)
++static uint64_t initialize_input_ui(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	struct cdk2_dxe_system_table *system;
+@@ -5424,7 +5424,7 @@ static EFI_STATUS activate_loader_services(struct dxe_services_context *context)
+ 	return status;
+ }
+ 
+-static EFI_STATUS select_boot_policy(void *opaque)
++static uint64_t select_boot_policy(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	struct cdk2_fat_simple_fs_protocol *filesystem = NULL;
+@@ -5501,7 +5501,7 @@ static EFI_STATUS select_boot_policy(void *opaque)
+ 	return status;
+ }
+ 
+-static EFI_STATUS handoff_operating_system(void *opaque)
++static uint64_t handoff_operating_system(void *opaque)
+ {
+ 	typedef EFI_STATUS CDK2_MS_ABI load_image_fn(BOOLEAN, void *, void *,
+ 		void *, UINTN, void **);
+@@ -5955,7 +5955,7 @@ typedef EFI_STATUS CDK2_MS_ABI capsule_get_variable_fn(CHAR16 *, EFI_GUID *,
+ typedef EFI_STATUS CDK2_MS_ABI capsule_set_variable_fn(CHAR16 *, EFI_GUID *,
+ 	UINT32, UINTN, void *);
+ 
+-static EFI_STATUS decide_capsule_path(void *opaque)
++static uint64_t decide_capsule_path(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	BOOLEAN ram_present = FALSE;
+@@ -6497,7 +6497,7 @@ EFI_STATUS cdk2_dxe_test_apply_ram_capsule(
+ }
+ #endif
+ 
+-static EFI_STATUS gate_ram_capsule(void *opaque)
++static uint64_t gate_ram_capsule(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+ 	struct cdk2_capsule_boot_protocol *processor;
+@@ -6544,18 +6544,18 @@ out:
+ 	return status;
+ }
+ 
+-static UINT64 dxe_linear_clock(void *context)
++static uint64_t dxe_linear_clock(void *context)
+ {
+-	UINT32 low, high;
++	uint32_t low, high;
+ 
+ 	(void)context;
+ 	__asm__ volatile ("rdtsc" : "=a"(low), "=d"(high));
+-	return ((UINT64)high << 32) | low;
++	return ((uint64_t)high << 32) | low;
+ }
+ 
+ static void dxe_linear_report(enum cdk2_linear_phase_id phase,
+-	const CHAR8 *name, EFI_STATUS status, UINT64 elapsed, BOOLEAN required,
+-	BOOLEAN begin, void *context)
++	const char *name, uint64_t status, uint64_t elapsed, uint8_t required,
++	uint8_t begin, void *context)
+ {
+ 	struct dxe_services_context *services = context;
+ 	enum cdk2_lvgl_status_message message = CDK2_LVGL_STATUS_MESSAGE_COUNT;
+@@ -6637,7 +6637,7 @@ EFI_STATUS CDK2_MS_ABI cdk2_dxe_core_entry(void *hob_list)
+ 		.report = dxe_linear_report,
+ 		.context = &services,
+ 	};
+-	UINTN completed;
++	size_t completed;
+ #endif
+ 
+ 	if (handoff == NULL || handoff->header.hob_type != EFI_HOB_TYPE_HANDOFF ||
+diff --git a/tests/bds_native_setup_contract_test.sh b/tests/bds_native_setup_contract_test.sh
+index 578624ecd7..d05f0eb440 100755
+--- a/tests/bds_native_setup_contract_test.sh
++++ b/tests/bds_native_setup_contract_test.sh
+@@ -118,7 +118,7 @@ if ! printf '%s\n' "$splitter_driver" | grep -q '0x408edcec' ||
+ 	echo 'direct setup owners are not split between ConSplitter and LVGL' >&2
+ 	exit 1
+ fi
+-input_ui_body=$(sed -n '/static EFI_STATUS initialize_input_ui(/,/^}/p' \
++input_ui_body=$(sed -n '/static uint64_t initialize_input_ui(/,/^}/p' \
+ 	"$core_entry")
+ for contract in \
+ 	'dispatch_binding_set(context, &console_splitter_driver, 5U,' \
+diff --git a/tests/direct_phase_entry_test.sh b/tests/direct_phase_entry_test.sh
+index 84d8cb9177..dc3773e13c 100644
+--- a/tests/direct_phase_entry_test.sh
++++ b/tests/direct_phase_entry_test.sh
+@@ -186,11 +186,11 @@ expect_executable_failure "$temporary/input-mutant" input
+ phase_oracle()
+ {
+ 	source=$1
+-	sed -n '/static EFI_STATUS initialize_block_discovery(/,/static EFI_STATUS initialize_filesystems(/p' \
++	sed -n '/static uint64_t initialize_block_discovery(/,/static uint64_t initialize_filesystems(/p' \
+ 		"$source" | grep -Fq 'disposition_storage_route(&core.dispatcher,' || return 1
+-	sed -n '/static EFI_STATUS initialize_input_ui(/,/static EFI_STATUS CDK2_MS_ABI poll_linear_input/p' \
++	sed -n '/static uint64_t initialize_input_ui(/,/static EFI_STATUS CDK2_MS_ABI poll_linear_input/p' \
+ 		"$source" | grep -Fq 'disposition_usb_route(&core.dispatcher,' || return 1
+-	variables=$(sed -n '/static EFI_STATUS initialize_minimal_variables(/,/static BOOLEAN configuration_table_present/p' \
++	variables=$(sed -n '/static uint64_t initialize_minimal_variables(/,/static BOOLEAN configuration_table_present/p' \
+ 		"$source")
+ 	printf '%s\n' "$variables" | grep -Fq \
+ 		'skip_direct_required(&core.dispatcher,' || return 1
+diff --git a/tests/linear_boot_policy_ownership_test.sh b/tests/linear_boot_policy_ownership_test.sh
+index 3466f35576..7e52ee4495 100755
+--- a/tests/linear_boot_policy_ownership_test.sh
++++ b/tests/linear_boot_policy_ownership_test.sh
+@@ -8,7 +8,7 @@ root=${3:-$(CDPATH= cd -- "$(dirname "$entry")/../../.." && pwd)}
+ config=${4:-$root/build/cdk2/include/cdk2/config.h}
+ test -f "$image"
+ body=$(awk '
+-	/static EFI_STATUS select_boot_policy\(void \*opaque\)/ { inside = 1 }
++	/static uint64_t select_boot_policy\(void \*opaque\)/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry")
+@@ -73,7 +73,7 @@ test -n "$fallback_line"
+ test "$fedora_line" -lt "$fallback_line"
+ grep -q 'CDK2_LINEAR_OS_HANDOFF' "$entry"
+ handoff=$(awk '
+-	/static EFI_STATUS handoff_operating_system\(void \*opaque\)/ { inside = 1 }
++	/static uint64_t handoff_operating_system\(void \*opaque\)/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry")
+diff --git a/tests/linear_boot_test.c b/tests/linear_boot_test.c
+index 34aae69268..135c7ac0e5 100644
+--- a/tests/linear_boot_test.c
++++ b/tests/linear_boot_test.c
+@@ -6,16 +6,16 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
+-#define TEST_WARNING ((EFI_STATUS)1U)
++#define TEST_WARNING ((uint64_t)1U)
+ 
+ struct fixture {
+-	UINT64 now;
+-	UINTN runs;
+-	UINTN reports;
+-	EFI_STATUS results[CDK2_LINEAR_PHASE_COUNT];
+-	EFI_STATUS reported[CDK2_LINEAR_PHASE_COUNT];
+-	UINT64 elapsed[CDK2_LINEAR_PHASE_COUNT];
+-	BOOLEAN required[CDK2_LINEAR_PHASE_COUNT];
++	uint64_t now;
++	size_t runs;
++	size_t reports;
++	uint64_t results[CDK2_LINEAR_PHASE_COUNT];
++	uint64_t reported[CDK2_LINEAR_PHASE_COUNT];
++	uint64_t elapsed[CDK2_LINEAR_PHASE_COUNT];
++	uint8_t required[CDK2_LINEAR_PHASE_COUNT];
+ 	struct cdk2_linear_state *state;
+ 	enum cdk2_linear_capsule_outcome outcome;
+ };
+@@ -27,21 +27,21 @@ struct handoff_fixture {
+ 	EFI_HOB_GENERIC_HEADER end;
+ };
+ 
+-static UINT64 clock_now(void *context)
++static uint64_t clock_now(void *context)
+ {
+ 	return ((struct fixture *)context)->now;
+ }
+ 
+-static EFI_STATUS run_phase(void *context)
++static uint64_t run_phase(void *context)
+ {
+ 	struct fixture *fixture = context;
+-	EFI_STATUS status = fixture->results[fixture->runs++];
++	uint64_t status = fixture->results[fixture->runs++];
+ 
+ 	fixture->now += 25U;
+ 	return status;
+ }
+ 
+-static EFI_STATUS select_deferred_capsule(void *context)
++static uint64_t select_deferred_capsule(void *context)
+ {
+ 	struct fixture *fixture = context;
+ 
+@@ -51,7 +51,7 @@ static EFI_STATUS select_deferred_capsule(void *context)
+ 		&fixture->outcome);
+ }
+ 
+-static EFI_STATUS require_deferred_capsule(void *context)
++static uint64_t require_deferred_capsule(void *context)
+ {
+ 	struct fixture *fixture = context;
+ 
+@@ -62,7 +62,7 @@ static EFI_STATUS require_deferred_capsule(void *context)
+ 		EFI_SUCCESS : EFI_COMPROMISED_DATA;
+ }
+ 
+-static EFI_STATUS finalize_absent_disk_capsule(void *context)
++static uint64_t finalize_absent_disk_capsule(void *context)
+ {
+ 	struct fixture *fixture = context;
+ 
+@@ -72,7 +72,7 @@ static EFI_STATUS finalize_absent_disk_capsule(void *context)
+ 		&fixture->outcome);
+ }
+ 
+-static EFI_STATUS finalize_retired_ram_capsule(void *context)
++static uint64_t finalize_retired_ram_capsule(void *context)
+ {
+ 	struct fixture *fixture = context;
+ 
+@@ -80,10 +80,10 @@ static EFI_STATUS finalize_retired_ram_capsule(void *context)
+ 	return cdk2_linear_capsule_finalize_ram(fixture->state, &fixture->outcome);
+ }
+ 
+-static EFI_STATUS require_retired_ram_capsule(void *context)
++static uint64_t require_retired_ram_capsule(void *context)
+ {
+ 	struct fixture *fixture = context;
+-	BOOLEAN required = TRUE;
++	uint8_t required = TRUE;
+ 
+ 	fixture->runs++;
+ 	if (EFI_ERROR(cdk2_linear_state_validate(fixture->state)) ||
+@@ -96,8 +96,8 @@ static EFI_STATUS require_retired_ram_capsule(void *context)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static void report_phase(enum cdk2_linear_phase_id phase, const CHAR8 *name,
+-	EFI_STATUS status, UINT64 elapsed, BOOLEAN required, BOOLEAN begin,
++static void report_phase(enum cdk2_linear_phase_id phase, const char *name,
++	uint64_t status, uint64_t elapsed, uint8_t required, uint8_t begin,
+ 	void *context)
+ {
+ 	struct fixture *fixture = context;
+@@ -172,13 +172,13 @@ int main(void)
+ 	};
+ 	struct cdk2_linear_state state;
+ 	struct cdk2_linear_state resumed;
+-	BOOLEAN disk_required;
++	uint8_t disk_required;
+ 	struct handoff_fixture handoff;
+ 	static UINT32 splash_pixels[2U * 6U] = {
+ 		1U, 2U, 3U, 4U, 0xa5U, 0xa5U,
+ 		5U, 6U, 7U, 8U, 0xa5U, 0xa5U,
+ 	};
+-	UINTN completed = 99U;
++	size_t completed = 99U;
+ 	int failures = 0;
+ 
+ 	cdk2_linear_state_init(&state);
+@@ -359,7 +359,7 @@ int main(void)
+ 				CDK2_LINEAR_FILESYSTEMS,
+ 				CDK2_LINEAR_CAPSULE_DISK,
+ 			};
+-			UINTN phase_index;
++			size_t phase_index;
+ 
+ 			for (phase_index = 0U;
+ 			     phase_index < ARRAY_SIZE(deferred_phases); phase_index++) {
+@@ -619,7 +619,7 @@ int main(void)
+ 		failures += expect(cdk2_linear_state_validate(&state) ==
+ 			EFI_COMPROMISED_DATA, "out-of-bounds inline path was accepted");
+ 		state.boot_device_path_size = sizeof(replacement);
+-		for (UINTN offset = 0U; offset < sizeof(unterminated); offset += 4U) {
++		for (size_t offset = 0U; offset < sizeof(unterminated); offset += 4U) {
+ 			unterminated[offset] = 1U;
+ 			unterminated[offset + 1U] = 1U;
+ 			unterminated[offset + 2U] = 4U;
+diff --git a/tests/linear_display_provenance_test.sh b/tests/linear_display_provenance_test.sh
+index d048575461..67e24b3f2e 100755
+--- a/tests/linear_display_provenance_test.sh
++++ b/tests/linear_display_provenance_test.sh
+@@ -20,7 +20,7 @@ if awk -F '\t' -v module="$module" '$3 == module { found = 1 }
+ 	echo 'linear retained-FV inventory still claims GraphicsOutputDxe' >&2
+ 	exit 1
+ fi
+-grep -q 'static EFI_STATUS adopt_display(void \*opaque)' \
++grep -q 'static uint64_t adopt_display(void \*opaque)' \
+ 	"$root/src/modules/dxe_core/entry.c"
+ grep -q 'dxe-core-graphics_output.o' "$root/src/boot/Makefile"
+ grep -q 'dxe-core-graphics_driver.o' "$root/src/boot/Makefile"
+@@ -30,10 +30,20 @@ grep -q 'dxe-core-graphics_driver.o' "$root/src/boot/Makefile"
+ 	"$root/util/qemu/bin/build-cdk2-pair.sh"
+ grep -q "CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' \"\$resolved_cdk2_config\"" \
+ 	"$root/util/qemu/bin/build-cdk2-pair.sh"
+-grep -q 'strict acceptance FV unexpectedly contains EcAcpiBatteryStatusDxe' \
++# Current packaging attests the direct image table, not an executable FV.
++grep -Fq '"$root/bin/assert-cdk2-direct-provenance.sh"' \
+ 	"$root/util/qemu/bin/build-cdk2-pair.sh"
+-grep -q 'CDK2_NATIVE_EC_BATTERY EcAcpiBatteryStatusDxe' \
++grep -Fq '"$payload" "$resolved_cdk2_header"' \
+ 	"$root/util/qemu/bin/build-cdk2-pair.sh"
++grep -Fq '"$native_dir/native-direct-images.rsp"' \
++	"$root/util/qemu/bin/build-cdk2-pair.sh"
++grep -Fq '"$native_dir/native-direct-composition-inventory.tsv"' \
++	"$root/util/qemu/bin/build-cdk2-pair.sh"
++grep -Fq '"$native_dir/cdk2-direct-image-table"' \
++	"$root/util/qemu/bin/build-cdk2-pair.sh"
++grep -A2 -Fx 'ifeq ($(CONFIG_CDK2_NATIVE_EC_BATTERY),y)' \
++	"$root/src/boot/Makefile" | \
++	grep -Fxq 'CDK2_NATIVE_DIRECT_IMAGES += 3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f:CDK2_NATIVE_EC_BATTERY_PE'
+ grep -Eq '^CDK2_NATIVE_GRAPHICS_CONSOLE_PE[[:space:]]+CONFIG_CDK2_NATIVE_GRAPHICS_CONSOLE[[:space:]]+'"$graphics_console_guid"'[[:space:]]+[^[:space:]]+[[:space:]]+GraphicsConsoleDxe\.efi[[:space:]]+SOURCE[[:space:]]+optional$' \
+ 	"$root/src/boot/native_modules.tsv"
+ grep -qi "$guid" "$root/src/boot/Makefile"
+diff --git a/tests/linear_pre_capsule_order_test.sh b/tests/linear_pre_capsule_order_test.sh
+index 35590a4226..d89e3cc556 100755
+--- a/tests/linear_pre_capsule_order_test.sh
++++ b/tests/linear_pre_capsule_order_test.sh
+@@ -13,7 +13,7 @@ check_published_reset_path()
+ {
+ 	file=$1
+ 	awk '
+-		/static EFI_STATUS process_disk_capsules\(void \*opaque\)/ { inside = 1 }
++		/static uint64_t process_disk_capsules\(void \*opaque\)/ { inside = 1 }
+ 		inside && /return reset_after_disk_capsules\(core\.runtime_storage == NULL \? NULL :/ {
+ 			published = 1
+ 		}
+@@ -207,7 +207,7 @@ validate_security_bootstrap()
+ {
+ 	source=$1
+ 	services_body=$(awk '
+-		/static EFI_STATUS initialize_dxe_services\(void \*opaque\)/ {
++		/static uint64_t initialize_dxe_services\(void \*opaque\)/ {
+ 			inside = 1
+ 		}
+ 		inside { print }
+@@ -248,7 +248,7 @@ fi
+ check_capsule_delivery_policy()
+ {
+ 	body=$(awk '
+-		/static EFI_STATUS decide_capsule_path\(void \*opaque\)/ { inside = 1 }
++		/static uint64_t decide_capsule_path\(void \*opaque\)/ { inside = 1 }
+ 		inside { print }
+ 		inside && /^}/ { exit }
+ 	' "$1")
+@@ -265,7 +265,7 @@ check_capsule_delivery_policy "$entry" || {
+ for required in CB_CAPSULE_DELIVERY_RAM CB_CAPSULE_DELIVERY_DISK \
+ 	cdk2_capsule_delivery_policy_from_hobs; do
+ 	awk -v required="$required" '
+-		/static EFI_STATUS decide_capsule_path\(void \*opaque\)/ { inside = 1 }
++		/static uint64_t decide_capsule_path\(void \*opaque\)/ { inside = 1 }
+ 		inside && index($0, required) &&
+ 		    (required != "CB_CAPSULE_DELIVERY_DISK" || /disk_supported =/) {
+ 			matches++; sub(required, "missing_delivery_policy")
+@@ -294,13 +294,13 @@ for function in initialize_pci_enumeration initialize_storage_controllers \
+ done
+ 
+ storage_body=$(sed -n \
+-	'/static EFI_STATUS initialize_storage_controllers(void \*opaque)/,/static BOOLEAN binding_was_present/p' \
++	'/static uint64_t initialize_storage_controllers(void \*opaque)/,/static BOOLEAN binding_was_present/p' \
+ 	"$entry")
+ block_body=$(sed -n \
+-	'/static EFI_STATUS initialize_block_discovery(void \*opaque)/,/static EFI_STATUS initialize_filesystems/p' \
++	'/static uint64_t initialize_block_discovery(void \*opaque)/,/static uint64_t initialize_filesystems/p' \
+ 	"$entry")
+ candidate_body=$(sed -n \
+-	'/static EFI_STATUS try_storage_candidate(struct dxe_services_context \*context,/,/static EFI_STATUS initialize_block_discovery/p' \
++	'/static EFI_STATUS try_storage_candidate(struct dxe_services_context \*context,/,/static uint64_t initialize_block_discovery/p' \
+ 	"$entry")
+ usb_media_body=$(sed -n \
+ 	'/static EFI_STATUS select_usb_media_impl/,/static EFI_STATUS select_usb_media(struct/p' \
+@@ -345,7 +345,7 @@ for bus in usb_bus_driver usb_mass_driver; do
+ done
+ 
+ variables_body=$(awk '
+-	/static EFI_STATUS initialize_minimal_variables\(void \*context\)/ { inside = 1 }
++	/static uint64_t initialize_minimal_variables\(void \*context\)/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry")
+@@ -360,7 +360,7 @@ printf '%s\n' "$variables_body" | grep -q \
+ 	exit 1
+ }
+ capsule_disk_body=$(awk '
+-	/static EFI_STATUS process_disk_capsules\(void \*opaque\)/ { inside = 1 }
++	/static uint64_t process_disk_capsules\(void \*opaque\)/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry")
+@@ -387,7 +387,7 @@ printf '%s\n' "$dxe_entry_body" |
+ }
+ 
+ platform_steps=$(awk '
+-	/static EFI_STATUS initialize_platform_tables\(/ { inside = 1 }
++	/static uint64_t initialize_platform_tables\(/ { inside = 1 }
+ 	inside && /cdk2_dxe_linear_validate_platform_hobs/ { print "validate-hobs" }
+ 	inside && /dispatch_required\(context, &platform_table_drivers\[0\], 1U\)/ { print "dispatch-acpi" }
+ 	inside && /cdk2_dxe_linear_require_protocols\(acpi_protocols/ { print "verify-acpi-protocols" }
+@@ -493,7 +493,7 @@ grep -q '^CDK2_NATIVE_LVGL_UI_PE[[:space:]]\+CONFIG_CDK2_NATIVE_LVGL_SETUP[[:spa
+ 	exit 1
+ }
+ input_ui_body=$(awk '
+-	/static EFI_STATUS initialize_input_ui\(/ { inside = 1 }
++	/static uint64_t initialize_input_ui\(/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry")
+diff --git a/tests/linear_retained_tcg2_test.sh b/tests/linear_retained_tcg2_test.sh
+index 135c7637c6..65eab44fe0 100644
+--- a/tests/linear_retained_tcg2_test.sh
++++ b/tests/linear_retained_tcg2_test.sh
+@@ -41,7 +41,7 @@ required = [
+ ]
+ assert all(x in s for x in required)
+ assert '"PcdDxe"' not in s and 'dxe_service_drivers' not in s
+-flow = s[s.index('static EFI_STATUS initialize_dxe_services'):]
++flow = s[s.index('static uint64_t initialize_dxe_services'):]
+ order = [flow.index('security_bootstrap'),
+          flow.index('variable_drivers'), flow.index('cdk2_tpm2_acpi_hob_probe('),
+          flow.index('measured_boot_drivers'), flow.index('require_linear_tcg2_publication')]
+diff --git a/tests/linear_smm_bootstrap_test.sh b/tests/linear_smm_bootstrap_test.sh
+index 614a7fcd91..6a459c1c1e 100644
+--- a/tests/linear_smm_bootstrap_test.sh
++++ b/tests/linear_smm_bootstrap_test.sh
+@@ -11,7 +11,7 @@ validate()
+ 		return 1
+ 	fi
+ 	discovery=$(awk '
+-		/static EFI_STATUS initialize_storage_controllers\(void \*opaque\)/ { inside = 1 }
++		/static uint64_t initialize_storage_controllers\(void \*opaque\)/ { inside = 1 }
+ 		inside { print }
+ 		inside && /^}/ { exit }
+ 	' "$1")
+@@ -19,7 +19,7 @@ validate()
+ 	media=$(awk '
+ 		/static EFI_STATUS try_storage_candidate\(/ { inside = 1 }
+ 		inside { print }
+-		/static EFI_STATUS initialize_block_discovery\(void \*opaque\)/ { exit }
++		/static uint64_t initialize_block_discovery\(void \*opaque\)/ { exit }
+ 	' "$1")
+ 	media=$(printf '%s\n' "$media" | tr '\n' ' ')
+ 	printf '%s\n' "$media" | grep -Eq 'candidate->backend == STORAGE_NVME.*stage_controller_provider\(context,.*candidate->handle, storage_controller_drivers,.*&nvme_pass_protocol, &pci_io_protocol,.*&storage_bindings\.nvme, &staged_nvme' || return 1
+@@ -27,7 +27,7 @@ validate()
+ 	printf '%s\n' "$media" | grep -Eq 'candidate->backend == STORAGE_AHCI.*stage_controller_provider\(context,.*candidate->handle, &ahci_controller_drivers\[0\],.*&ide_init_protocol, &pci_io_protocol,.*&storage_bindings\.sata, &staged_sata' || return 1
+ 	printf '%s\n' "$media" | grep -Eq 'candidate->backend == STORAGE_AHCI.*stage_controller_provider\(context,.*candidate->handle, &ahci_controller_drivers\[1\],.*&ata_pass_protocol, &ide_init_protocol,.*&storage_bindings\.ahci, &staged_ahci' || return 1
+ 	block=$(awk '
+-		/static EFI_STATUS initialize_block_discovery\(void \*opaque\)/ { inside = 1 }
++		/static uint64_t initialize_block_discovery\(void \*opaque\)/ { inside = 1 }
+ 		inside { print }
+ 		inside && /^}/ { exit }
+ 	' "$1" | tr '\n' ' ')
+diff --git a/tests/protected_variable_boot_gate_test.c b/tests/protected_variable_boot_gate_test.c
+index 097ad9b56f..5b7509e560 100644
+--- a/tests/protected_variable_boot_gate_test.c
++++ b/tests/protected_variable_boot_gate_test.c
+@@ -68,8 +68,8 @@ void cdk2_dxe_policy_interrupts_set(bool enabled)
+ }
+ #endif
+ 
+-EFI_STATUS __wrap_cdk2_linear_run(const struct cdk2_linear_plan *plan,
+-	struct cdk2_linear_state *state, UINTN *completed)
++uint64_t __wrap_cdk2_linear_run(const struct cdk2_linear_plan *plan,
++	struct cdk2_linear_state *state, size_t *completed)
+ {
+ 	assert(plan != NULL && plan->count > 0);
+ 	assert(plan->phases[0].id == CDK2_LINEAR_DXE_SERVICES);
+diff --git a/tests/ram_capsule_order_test.sh b/tests/ram_capsule_order_test.sh
+index 4d54a58544..d97bab47c8 100755
+--- a/tests/ram_capsule_order_test.sh
++++ b/tests/ram_capsule_order_test.sh
+@@ -9,7 +9,7 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+ check()
+ {
+ 	file=$1
+-	body=$(awk '/static EFI_STATUS gate_ram_capsule\(void \*opaque\)/ {on=1} on {print} on && /^}/ {exit}' "$file" | tr '\n\t' '  ' | sed 's/  */ /g')
++	body=$(awk '/static uint64_t gate_ram_capsule\(void \*opaque\)/ {on=1} on {print} on && /^}/ {exit}' "$file" | tr '\n\t' '  ' | sed 's/  */ /g')
+ 	finish=$(awk '/static EFI_STATUS finish_ram_capsule\(/ {on=1} on {print} on && /^}/ {exit}' "$file" | tr '\n\t' '  ' | sed 's/  */ /g')
+ 	case "$body" in
+ 	*'if (context->capsule_outcome != CDK2_LINEAR_CAPSULE_RESULT_RAM) { status = EFI_SUCCESS; goto out; }'*\
+diff --git a/tests/splash_status_contract_test.sh b/tests/splash_status_contract_test.sh
+index 2afe6de7c8..64e5ae629f 100644
+--- a/tests/splash_status_contract_test.sh
++++ b/tests/splash_status_contract_test.sh
+@@ -73,7 +73,7 @@ awk '
+ }
+ 
+ awk '
+-	/static EFI_STATUS handoff_operating_system\(/ { inside = 1 }
++	/static uint64_t handoff_operating_system\(/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry" >"$temporary/handoff"
+@@ -114,7 +114,7 @@ awk '
+ 		draw < bmp && bmp < bgrt ? 0 : 1 }
+ ' "$temporary/publish"
+ awk '
+-	/static EFI_STATUS select_boot_policy\(/ { inside = 1 }
++	/static uint64_t select_boot_policy\(/ { inside = 1 }
+ 	inside { print }
+ 	inside && /^}/ { exit }
+ ' "$entry" >"$temporary/setup"
+diff --git a/tests/splash_status_report_test.c b/tests/splash_status_report_test.c
+index 63382775da..32d6298f8f 100644
+--- a/tests/splash_status_report_test.c
++++ b/tests/splash_status_report_test.c
+@@ -75,13 +75,13 @@ static EFI_STATUS CDK2_MS_ABI free_snapshot(void *pixels_to_release)
+ 	return release_status;
+ }
+ 
+-static EFI_STATUS input_phase_complete(void *context)
++static uint64_t input_phase_complete(void *context)
+ {
+ 	assert(context != NULL);
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS policy_phase_failure(void *context)
++static uint64_t policy_phase_failure(void *context)
+ {
+ 	assert(context != NULL);
+ 	return EFI_SECURITY_VIOLATION;
+@@ -348,7 +348,7 @@ static void verify_owner(bool coreboot_logo)
+ 		const struct cdk2_linear_plan plan = { .phases = phases,
+ 			.count = ARRAY_SIZE(phases), .clock = dxe_linear_clock,
+ 			.report = dxe_linear_report, .context = &context };
+-		UINTN completed;
++		size_t completed;
+ 		EFI_STATUS status;
+ 
+ 		state.revision = CDK2_LINEAR_STATE_REVISION;
+diff --git a/util/qemu/bin/run-linear-acceptance-selftest.py b/util/qemu/bin/run-linear-acceptance-selftest.py
+index 6f105a92b1..c06f2ab0d7 100755
+--- a/util/qemu/bin/run-linear-acceptance-selftest.py
++++ b/util/qemu/bin/run-linear-acceptance-selftest.py
+@@ -47,7 +47,7 @@ entry_source = (repository / "src/modules/dxe_core/entry.c").read_text()
+ graphics_source = (repository / "src/modules/graphics_output/driver.c").read_text()
+ lvgl_source = (repository / "src/modules/lvgl_renderer/driver.c").read_text()
+ lvgl_port_source = (repository / "src/modules/lvgl_renderer/uefi_port.c").read_text()
+-adopt_body = function_body(entry_source, "static EFI_STATUS adopt_display(void *opaque)")
++adopt_body = function_body(entry_source, "static uint64_t adopt_display(void *opaque)")
+ graphics_adopt_body = function_body(
+     graphics_source, "uint64_t cdk2_graphics_adopt(")
+ gop_set_mode_body = function_body(graphics_source, "static uint64_t CDK2_MS_ABI set_mode(")

@@ -1,0 +1,12 @@
+p0 O0 eleven whole objects / native layouts / all256 byte flags / high64 trace / actual1112 HOB PASS
+In function ‘initialize’,
+    inlined from ‘main’ at tests/capsule_certified_refusal_core_test.c:223:2:
+tests/capsule_certified_refusal_core_test.c:172:45: error: array subscript 1 is above array bounds of ‘const struct required_driver[1]’ [-Werror=array-bounds=]
+  172 |                 .guid = capsule_disk_drivers[1].guid, .image = source_image,
+      |                         ~~~~~~~~~~~~~~~~~~~~^~~
+In file included from tests/capsule_certified_refusal_core_test.c:9:
+tests/../src/modules/dxe_core/entry.c: In function ‘main’:
+tests/../src/modules/dxe_core/entry.c:426:37: note: while referencing ‘capsule_disk_drivers’
+  426 | static const struct required_driver capsule_disk_drivers[] = {
+      |                                     ^~~~~~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors

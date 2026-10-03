@@ -1,0 +1,28 @@
+cdk2 linear boot test: PASS
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry: supported/legacy dispatch sentinels and partial-shape refusal O0/O2; scoped guard-deletion causal assertion: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O0: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O0: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O2: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O2: PASS

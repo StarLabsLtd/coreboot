@@ -1,0 +1,8 @@
+cdk2 linear boot test: PASS
+p0 O0 strict SAN / bytes-layout parity / actual phase595 controls PASS
+cdk2 linear boot test: PASS
+p0 O2 strict SAN / bytes-layout parity / actual phase595 controls PASS
+cdk2 linear boot test: PASS
+p1 O0 strict SAN / bytes-layout parity / actual phase595 controls PASS
+cdk2 linear boot test: PASS
+p1 O2 strict SAN / bytes-layout parity / actual phase595 controls PASS

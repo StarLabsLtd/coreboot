@@ -1,0 +1,69 @@
+#
+# configuration written to /home/sean/linear-boot-api-selected-gate.iljcto/resolved.config
+#
+cdk2 linear boot test: PASS
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry: supported/legacy dispatch sentinels and partial-shape refusal O0/O2; scoped guard-deletion causal assertion: PASS
+Certified refusal HOST artifacts: /home/sean/capsule-certified-refusal.AFw4eQ
+core: /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c:232: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c:256: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c:262: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c:263: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c:313: main: Assertion `context.capsule_outcome == CDK2_LINEAR_CAPSULE_RESULT_NONE' failed.
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/system_fmp/provider.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/capsule_runtime/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_core_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/system_fmp_provider_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_runtime_entry_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/tests/capsule_certified_refusal_test.sh: OK
+/home/sean/linear-boot-api-selected-gate.iljcto/include/cdk2/config.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/capsule_check_outcome.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/capsule_boot.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/system_fmp_provider.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/system_fmp_session.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/system_fmp_transport.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/dxe_core.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/dxe_image_transaction.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/software_hash.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/dxe_core/image.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/dxe_core/memory.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/tcg_hash/software_hash.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/tcg_hash/vendor/vboot/2sha1.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/tcg_hash/vendor/vboot/2sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/tcg_hash/vendor/vboot/2sha512.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/diagnostic.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/deadline.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/boot_logo.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/authvar_transport/native_x86.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/include/cdk2/linear_boot.h: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/lib/linear_boot.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/capsule_runtime/capsule_runtime.c: OK
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/capsule_runtime/capsule_runtime_abi.c: OK
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O0: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O0: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O2: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O2: PASS

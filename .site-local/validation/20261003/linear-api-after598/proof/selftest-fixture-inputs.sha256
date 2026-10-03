@@ -1,0 +1,5 @@
+054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36  util/qemu/fixtures/nvme-final-c4bec.raw
+b09a6a71a5efaaedd9112746c656cb1e97ed6fbea401c9f2f8cbcd81f68dcb32  util/qemu/fixtures/backup-gpt-linux.raw
+9f6bed28aa3652f96b7d1b5ec0ccbf92a20b8152e5586f07f2c02a913bdace3b  util/qemu/fixtures/fat16-fat32-label-linux.raw
+7b4c7c7a1c094f639bbe32ce75cf878ebf7c21f4268aaddef556b1dd5cc632d3  util/qemu/fixtures/capsule-valid.raw
+9ade807b7bdca9b75859c27aaae356b12ba6a17fc3614397d1d3e374757362c2  util/qemu/fixtures/capsule-bad-signature.raw

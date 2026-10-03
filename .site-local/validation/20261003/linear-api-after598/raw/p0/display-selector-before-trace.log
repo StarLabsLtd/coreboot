@@ -1,0 +1,14 @@
++ set -eu
++ root=/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596
++ guid=0b04b2ed-861c-42cd-a22f-c3aafaccb896
++ graphics_console_guid=cccb0c28-4b24-11d5-9a5a-0090273fc14d
++ awk -F \t $1 == "graphics-output-diagnostic-parity.tsv" {
+	module = $2
+	sub(/\.inf$/, "", module)
+	print module
+	found++
+} END { if (found != 1) exit 1 } /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/migration/diagnostic-ledgers.tsv
++ module=UefiPayloadPkg/GraphicsOutputDxe/GraphicsOutputDxe
++ awk -F \t -v module=UefiPayloadPkg/GraphicsOutputDxe/GraphicsOutputDxe $3 == module { found = 1 }
+	END { exit found ? 0 : 1 } /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/migration/retained-fv.tsv
++ grep -q static EFI_STATUS adopt_display(void \*opaque) /home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/modules/dxe_core/entry.c

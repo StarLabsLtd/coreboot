@@ -1,0 +1,2 @@
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/src/boot/Makefile:1748: *** LVGL sources are unavailable; run 'git submodule update --init 3rdparty/lvgl'.  Stop.
+make: *** [Makefile:1148: native-linear-boot-test] Error 2

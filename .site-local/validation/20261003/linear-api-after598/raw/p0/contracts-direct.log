@@ -1,0 +1,13 @@
+linear coreboot-owned SMM and controller staging tests: PASS
+linear pre-capsule production dispatch order: PASS
+RAM capsule orchestration contract: PASS
+linear retained TCG2 contract: PASS
+linear direct display provenance: PASS
+splash status ownership contract: PASS
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/util/qemu/bin/run-linear-acceptance-selftest.py", line 185, in <module>
+    module.validate_boot_fixture(fixture, mdir)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596/util/qemu/bin/run-linear-acceptance.py", line 86, in validate_boot_fixture
+    raise ValueError("pinned bootable NVMe fixture is missing or has the wrong hash")
+ValueError: pinned bootable NVMe fixture is missing or has the wrong hash

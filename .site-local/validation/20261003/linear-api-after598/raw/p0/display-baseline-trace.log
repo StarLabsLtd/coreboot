@@ -1,0 +1,20 @@
++ set -eu
++ root=/home/sean/linear-boot-api-proof.7wCus9/baseline
++ guid=0b04b2ed-861c-42cd-a22f-c3aafaccb896
++ graphics_console_guid=cccb0c28-4b24-11d5-9a5a-0090273fc14d
++ awk -F \t $1 == "graphics-output-diagnostic-parity.tsv" {
+	module = $2
+	sub(/\.inf$/, "", module)
+	print module
+	found++
+} END { if (found != 1) exit 1 } /home/sean/linear-boot-api-proof.7wCus9/baseline/migration/diagnostic-ledgers.tsv
++ module=UefiPayloadPkg/GraphicsOutputDxe/GraphicsOutputDxe
++ awk -F \t -v module=UefiPayloadPkg/GraphicsOutputDxe/GraphicsOutputDxe $3 == module { found = 1 }
+	END { exit found ? 0 : 1 } /home/sean/linear-boot-api-proof.7wCus9/baseline/migration/retained-fv.tsv
++ grep -q static EFI_STATUS adopt_display(void \*opaque) /home/sean/linear-boot-api-proof.7wCus9/baseline/src/modules/dxe_core/entry.c
++ grep -q dxe-core-graphics_output.o /home/sean/linear-boot-api-proof.7wCus9/baseline/src/boot/Makefile
++ grep -q dxe-core-graphics_driver.o /home/sean/linear-boot-api-proof.7wCus9/baseline/src/boot/Makefile
++ grep -q CDK2_NATIVE_GRAPHICS_OUTPUT:GraphicsOutputDxe:GraphicsOutputDxe.ffs /home/sean/linear-boot-api-proof.7wCus9/baseline/util/qemu/bin/build-cdk2-pair.sh
++ grep -q CDK2_NATIVE_EC_BATTERY:EcAcpiBatteryStatusDxe:EcAcpiBatteryStatusDxe.ffs /home/sean/linear-boot-api-proof.7wCus9/baseline/util/qemu/bin/build-cdk2-pair.sh
++ grep -q CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' "$resolved_cdk2_config" /home/sean/linear-boot-api-proof.7wCus9/baseline/util/qemu/bin/build-cdk2-pair.sh
++ grep -q strict acceptance FV unexpectedly contains EcAcpiBatteryStatusDxe /home/sean/linear-boot-api-proof.7wCus9/baseline/util/qemu/bin/build-cdk2-pair.sh

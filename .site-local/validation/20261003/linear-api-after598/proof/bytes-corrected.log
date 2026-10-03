@@ -1,0 +1,6 @@
+p0 O0 all256/high64/native padding/full1112 HOB+real boot-path hash PASS
+p0 O2 all256/high64/native padding/full1112 HOB+real boot-path hash PASS
+p0 Os all256/high64/native padding/full1112 HOB+real boot-path hash PASS
+p1 O0 all256/high64/native padding/full1112 HOB+real boot-path hash PASS
+p1 O2 all256/high64/native padding/full1112 HOB+real boot-path hash PASS
+p1 Os all256/high64/native padding/full1112 HOB+real boot-path hash PASS

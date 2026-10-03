@@ -1,0 +1,17 @@
+include/cdk2/linear_boot.h
+src/boot/coreboot_handoff.c
+src/lib/linear_boot.c
+src/modules/dxe_core/entry.c
+tests/bds_native_setup_contract_test.sh
+tests/direct_phase_entry_test.sh
+tests/linear_boot_policy_ownership_test.sh
+tests/linear_boot_test.c
+tests/linear_display_provenance_test.sh
+tests/linear_pre_capsule_order_test.sh
+tests/linear_retained_tcg2_test.sh
+tests/linear_smm_bootstrap_test.sh
+tests/protected_variable_boot_gate_test.c
+tests/ram_capsule_order_test.sh
+tests/splash_status_contract_test.sh
+tests/splash_status_report_test.c
+util/qemu/bin/run-linear-acceptance-selftest.py
