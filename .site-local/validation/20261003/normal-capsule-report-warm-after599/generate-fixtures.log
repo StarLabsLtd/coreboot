@@ -1,0 +1,7 @@
+Verification successful
+Verification successful
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/initial9/build/coreboot.rom: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/targetA/build/coreboot.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/generate-fixtures.sh: OK

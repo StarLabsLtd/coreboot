@@ -1,0 +1,34 @@
+{
+  "failure": null,
+  "qemu_status": 3,
+  "wall_seconds": 7.076000814002327,
+  "budget_seconds": 180,
+  "events": [
+    {
+      "timestamp": {
+        "seconds": 1790996169,
+        "microseconds": 31302
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    },
+    {
+      "timestamp": {
+        "seconds": 1790996169,
+        "microseconds": 31349
+      },
+      "event": "RTC_CHANGE",
+      "data": {
+        "offset": -1,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      }
+    }
+  ],
+  "installed_sha256": "52e827dde419fe7b45711ab744b3152cab081934d5e763e471646a463a6e540b",
+  "disk_sha256": "f6e88d97fdf1d9527e82c5d524fb768b79f771a9a2fc384064cb36e7725676fc",
+  "disk_baseline_sha256": "f6e88d97fdf1d9527e82c5d524fb768b79f771a9a2fc384064cb36e7725676fc",
+  "completion": "ordinary cold MAIN persisted report and normal locks"
+}

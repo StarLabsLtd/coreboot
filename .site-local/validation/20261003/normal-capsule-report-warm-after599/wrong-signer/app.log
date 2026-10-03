@@ -1,0 +1,26 @@
+/home/sean/capsule-standard-report-header-core.eEzkO9/include/cdk2/config.h: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/wrong-signer-a.cap: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/targetA/build/coreboot.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/tests/system_fmp_core_ram_refusal.py: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/include/cdk2/capsule_report.h: OK
+/home/sean/normal-capsule-report-corrected-producer.xexfMA/reference-a.cap: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/src/lib/coreboot_hob.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/src/boot/coreboot_checksum.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/src/boot/coreboot_resource.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-capsule-report-observer-after597/src/modules/dxe_core/string.c: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/usr/bin/ld.bfd: OK
+/usr/bin/readelf: OK
+/home/sean/capsule-standard-report-header-core.eEzkO9/native/cdk2-native-pe-link: OK
+/home/sean/capsule-standard-report-header-core.eEzkO9/native/cdk2-pe-exec-sections: OK
+/home/sean/capsule-standard-report-header-core.eEzkO9/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py: OK
+142e2e901b0d4893f9ad1be589c637763a23725f85ad903033e311064bd2bf90  /home/sean/normal-capsule-report-corrected-producer.xexfMA/wrong-signer/app/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim

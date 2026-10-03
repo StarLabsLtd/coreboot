@@ -1,0 +1,5 @@
+bdbc488447a3a01cafb67bc03f13cc6c4dc5ad61a6bb2b8acdb8e24dcd4602f1  /home/sean/normal-capsule-report-corrected-producer.xexfMA/initial9/build/coreboot.rom
+edc60a4eb5b1bada60e4b8d0f716fe5bc4f1e394073e23bd2e6c4245f0bb69a6  /home/sean/normal-capsule-report-corrected-producer.xexfMA/targetA/build/coreboot.rom
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+47fae527f00e60283284128cd738ad325e2fc6b3c0adaa7f37aff0082b34506a  /home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py
+64c5126db8572e2c49045cb647e202e638b2a3c7aee0d3169374ba268d7eb2e5  /home/sean/normal-capsule-report-corrected-producer.xexfMA/generate-fixtures.sh
