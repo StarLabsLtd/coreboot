@@ -1,0 +1,8 @@
+Retained staging HOST artifacts: /home/sean/disk-retained-stage-independent-san.Fy0LGx/disk-capsule-stage-host.KeC8A7
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-san.Fy0LGx/disk-capsule-stage-host.KeC8A7/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-san.Fy0LGx/disk-capsule-stage-host.KeC8A7/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-san.Fy0LGx/disk-capsule-stage-host.KeC8A7/mutant has a LOAD segment with RWX permissions

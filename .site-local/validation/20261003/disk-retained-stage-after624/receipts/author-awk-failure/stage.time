@@ -1,0 +1,6 @@
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.OaLWdQ/test has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.OaLWdQ/test has a LOAD segment with RWX permissions
+awk: line 4: syntax error at or near end of line
+real 16.51
+user 15.60
+sys 0.90

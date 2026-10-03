@@ -1,0 +1,23 @@
+In file included from /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c:45:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c: In function ‘vb2_sha256_finalize’:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c:303:32: error: array subscript -1 is below array bounds of ‘uint32_t[8]’ {aka ‘unsigned int[8]’} [-Werror=array-bounds=]
+  303 |                 UNPACK32(ctx->h[i], &digest[i << 2]);
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h:12:29: note: in definition of macro ‘UNPACK32’
+   12 |         (s)[2] = (uint8_t)((x) >> 8); \
+      |                             ^
+In file included from /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c:44:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h:22:18: note: while referencing ‘h’
+   22 |         uint32_t h[8];
+      |                  ^
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c:303:32: error: array subscript -1 is below array bounds of ‘uint32_t[8]’ {aka ‘unsigned int[8]’} [-Werror=array-bounds=]
+  303 |                 UNPACK32(ctx->h[i], &digest[i << 2]);
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h:14:29: note: in definition of macro ‘UNPACK32’
+   14 |         (s)[0] = (uint8_t)((x) >> 24); \
+      |                             ^
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h:22:18: note: while referencing ‘h’
+   22 |         uint32_t h[8];
+      |                  ^
+cc1: all warnings being treated as errors
+real 12.27
+user 11.89
+sys 0.38

@@ -1,0 +1,4 @@
+HOST artifacts: /home/sean/disk-stage-host.SmX83S
+/usr/bin/ld: warning: /home/sean/disk-stage-host.SmX83S/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS

@@ -1,0 +1,2 @@
+mutant: /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_stage_test.c:585: main: Assertion `pci_calls == 0' failed.
+Aborted

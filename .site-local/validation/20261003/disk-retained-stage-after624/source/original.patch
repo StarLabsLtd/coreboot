@@ -1,0 +1,1370 @@
+diff --git a/src/modules/dxe_core/entry.c b/src/modules/dxe_core/entry.c
+index 13542e6bc4..f86d42ec5d 100644
+--- a/src/modules/dxe_core/entry.c
++++ b/src/modules/dxe_core/entry.c
+@@ -3899,10 +3899,15 @@ static uint64_t read_disk_capsule_request(uint64_t *indications)
+ struct capsule_scan_runtime {
+ 	struct cdk2_capsule_boot_protocol *processor;
+ 	struct cdk2_capsule_disk_result *result;
++	struct dxe_services_context *context;
++	bool teardown_begun;
+ 	BOOLEAN reset_required;
+ 	BOOLEAN provider_invoked;
+ };
+ 
++static uint64_t stage_disk_capsule(struct capsule_scan_runtime *runtime,
++	const struct cdk2_capsule_image *images, size_t count);
++
+ static EFI_STATUS prefer_failure_status(EFI_STATUS status,
+ 	EFI_STATUS candidate)
+ {
+@@ -4008,6 +4013,9 @@ static EFI_STATUS capsule_scan_process(const struct cdk2_capsule_image *images,
+ 		if (status != EFI_SUCCESS)
+ 			return status;
+ 	}
++	if (runtime->processor != NULL &&
++	    (runtime->processor->delivery_policy.allowed_transports & CB_CAPSULE_DELIVERY_RAM))
++		return stage_disk_capsule(runtime, images, count);
+ 	return capsule_batch(runtime->processor, images, count,
+ 		&runtime->reset_required, &runtime->provider_invoked);
+ }
+@@ -4058,10 +4066,11 @@ EFI_STATUS cdk2_dxe_test_capsule_disk_completion_status(
+ }
+ #endif
+ 
++static const EFI_GUID capsule_boot_protocol_guid = { 0x2890d42b, 0x7f9b, 0x4a66,
++	{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
++
+ static uint64_t process_disk_capsules(void *opaque)
+ {
+-	static const EFI_GUID capsule_boot = { 0x2890d42b, 0x7f9b, 0x4a66,
+-		{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
+ 	struct dxe_services_context *context = opaque;
+ 	struct capsule_scan_runtime runtime = {0};
+ 	struct cdk2_fat_simple_fs_protocol *filesystem;
+@@ -4091,14 +4100,15 @@ static uint64_t process_disk_capsules(void *opaque)
+ 	    (void **)&filesystem) != EFI_SUCCESS)
+ 		return EFI_COMPROMISED_DATA;
+ 	for (UINTN index = 0U; index < core.database.protocol_count; index++)
+-		if (memcmp(&core.database.protocols[index].guid, &capsule_boot,
+-		    sizeof(capsule_boot)) == 0) {
++		if (memcmp(&core.database.protocols[index].guid, &capsule_boot_protocol_guid,
++		    sizeof(capsule_boot_protocol_guid)) == 0) {
+ 			if (runtime.processor != NULL)
+ 				return EFI_COMPROMISED_DATA;
+ 			runtime.processor = core.database.protocols[index].interface;
+ 		}
+ 	if (runtime.processor == NULL)
+ 		return EFI_NOT_FOUND;
++	runtime.context = context;
+ 	if (!(runtime.processor->delivery_policy.allowed_transports & CB_CAPSULE_DELIVERY_DISK))
+ 		return EFI_UNSUPPORTED;
+ 	if (runtime.processor->validate_capsule == NULL ||
+@@ -4111,6 +4121,10 @@ static uint64_t process_disk_capsules(void *opaque)
+ 		capsule_scan_validate, capsule_scan_process,
+ 		capsule_scan_allocate, capsule_scan_free, capsule_scan_report, &runtime,
+ 		&disk_capsules, &result);
++	/* An irreversible controller stop forbids reopening the source filesystem.
++	 * Successful INITIATE_RESET never returns; every returned stage is fatal. */
++	if (runtime.teardown_begun)
++		return EFI_ERROR(discovery) ? discovery : EFI_DEVICE_ERROR;
+ 	if (result.transaction != NULL) {
+ 		EFI_STATUS completion = cdk2_capsule_disk_complete_esp(filesystem,
+ 			capsule_scan_allocate, capsule_scan_free, capsule_scan_report,
+@@ -6144,8 +6158,6 @@ static EFI_STATUS validate_ram_capsule_protocol(
+ static EFI_STATUS ram_capsule_protocol(
+ 	void *expected_owner, struct cdk2_capsule_boot_protocol **processor)
+ {
+-	static const EFI_GUID capsule_boot = { 0x2890d42b, 0x7f9b, 0x4a66,
+-		{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
+ 	struct cdk2_dxe_protocol *match = NULL;
+ 	struct ram_capsule_protocol_view view = { 0 };
+ 	UINTN span = 0U, generation = 0U;
+@@ -6154,10 +6166,16 @@ static EFI_STATUS ram_capsule_protocol(
+ 	if (expected_owner == NULL || processor == NULL)
+ 		return EFI_INVALID_PARAMETER;
+ 	*processor = NULL;
++	if (core.database.protocol_count > CDK2_DXE_MAX_PROTOCOLS ||
++	    core.database.handle_count > CDK2_DXE_MAX_HANDLES ||
++	    core.database.open_count > ARRAY_SIZE(core.database.opens) ||
++	    core.images.count > CDK2_DXE_MAX_IMAGES)
++		return EFI_COMPROMISED_DATA;
+ 	for (UINTN index = 0U; index < core.database.protocol_count; index++) {
+ 		struct cdk2_dxe_protocol *record = &core.database.protocols[index];
+ 
+-		if (memcmp(&record->guid, &capsule_boot, sizeof(capsule_boot)) != 0)
++		if (memcmp(&record->guid, &capsule_boot_protocol_guid,
++		    sizeof(capsule_boot_protocol_guid)) != 0)
+ 			continue;
+ 		view.count++;
+ 		if (match != NULL)
+@@ -6334,6 +6352,418 @@ static EFI_STATUS ram_capsule_source(struct cdk2_dxe_system_table *system,
+ 	return EFI_SUCCESS;
+ }
+ 
++#if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP && \
++	CONFIG_PAYLOAD_DMA_HANDOFF
++struct stage_storage_binding {
++	struct driver_binding_view *interface;
++	struct driver_binding_view callbacks;
++	struct cdk2_dxe_image *owner;
++	uint64_t load_generation, registration, transaction_allocation_generation;
++	struct cdk2_dxe_image_transaction *transaction;
++	struct cdk2_dxe_image_transaction transaction_snapshot;
++};
++
++struct stage_control_owner {
++	struct cdk2_dxe_protocol record;
++	struct cdk2_dxe_image *owner;
++	uint64_t load_generation, transaction_allocation_generation;
++	struct cdk2_dxe_image_transaction *transaction;
++	struct cdk2_dxe_image_transaction transaction_snapshot;
++};
++
++/* Keep the original publication and resident code lifetime across callbacks. */
++static uint64_t stage_control_current(const EFI_GUID *guid, size_t size,
++	const void *interface, const void *callback,
++	const struct stage_control_owner *expected, struct stage_control_owner *captured)
++{
++	struct cdk2_dxe_protocol *record;
++	struct cdk2_dxe_image *owner;
++
++	if (core.database.open_count > ARRAY_SIZE(core.database.opens) ||
++	    private_control_record(&core, guid, size, &record, &owner) != EFI_SUCCESS ||
++	    record->interface != interface ||
++	    private_control_callback(&core, callback, &owner) != EFI_SUCCESS ||
++	    !owner->started || !owner->exited || owner->exit_active ||
++	    EFI_ERROR(owner->exit_status) || !owner->protocol_pins ||
++	    EFI_ERROR(cdk2_dxe_image_transaction_validate_owned(&core.images,
++		owner->transaction, owner->transaction_allocation_generation)) ||
++	    owner->transaction->state != CDK2_DXE_IMAGE_PUBLISHED)
++		return EFI_COMPROMISED_DATA;
++	if (expected != NULL && (memcmp(&expected->record, record, sizeof(*record)) ||
++	    expected->owner != owner || expected->load_generation != owner->load_generation ||
++	    expected->transaction != owner->transaction ||
++	    expected->transaction_allocation_generation != owner->transaction_allocation_generation ||
++	    memcmp(&expected->transaction_snapshot, owner->transaction,
++		sizeof(*owner->transaction))))
++		return EFI_COMPROMISED_DATA;
++	if (captured != NULL) {
++		memcpy(&captured->record, record, sizeof(*record));
++		captured->owner = owner;
++		captured->load_generation = owner->load_generation;
++		captured->transaction = owner->transaction;
++		captured->transaction_allocation_generation = owner->transaction_allocation_generation;
++		memcpy(&captured->transaction_snapshot, owner->transaction,
++			sizeof(*owner->transaction));
++	}
++	return EFI_SUCCESS;
++}
++
++static uint64_t stage_storage_binding_current(const struct dispatched_binding *binding,
++	const struct stage_storage_binding *expected, struct stage_storage_binding *captured)
++{
++	struct cdk2_dxe_protocol *record = NULL;
++	struct cdk2_dxe_image *owner;
++	struct driver_binding_view *view;
++	size_t handles = 0;
++
++	if (binding == NULL || binding->image == NULL || binding->binding == NULL ||
++	    core.database.protocol_count > CDK2_DXE_MAX_PROTOCOLS ||
++	    core.database.handle_count > CDK2_DXE_MAX_HANDLES ||
++	    core.database.open_count > ARRAY_SIZE(core.database.opens) ||
++	    core.images.count > CDK2_DXE_MAX_IMAGES)
++		return EFI_COMPROMISED_DATA;
++	for (size_t index = 0; index < core.database.protocol_count; index++) {
++		struct cdk2_dxe_protocol *candidate = &core.database.protocols[index];
++
++		if (candidate->handle != binding->binding ||
++		    memcmp(&candidate->guid, &driver_binding_protocol, sizeof(candidate->guid)))
++			continue;
++		if (record != NULL)
++			return EFI_COMPROMISED_DATA;
++		record = candidate;
++	}
++	for (size_t index = 0; index < core.database.handle_count; index++)
++		if (core.database.handles[index] == binding->binding)
++			handles++;
++	if (handles != 1 || record == NULL ||
++	    (uintptr_t)record->interface % _Alignof(*view) ||
++	    record->interface_dynamic || record->interface_size ||
++	    record->interface_generation || record->owner_image != binding->image)
++		return EFI_COMPROMISED_DATA;
++	owner = private_control_image(&core, record->interface, sizeof(*view));
++	if (owner == NULL || owner->handle != binding->image ||
++	    owner->load_generation != record->owner_generation || !owner->protocol_pins ||
++	    !owner->started || !owner->exited || owner->exit_active || EFI_ERROR(owner->exit_status) ||
++	    EFI_ERROR(cdk2_dxe_image_transaction_validate_owned(&core.images,
++		owner->transaction, owner->transaction_allocation_generation)) ||
++	    owner->transaction->state != CDK2_DXE_IMAGE_PUBLISHED)
++		return EFI_COMPROMISED_DATA;
++	view = record->interface;
++	if (view->image != binding->image || view->binding != binding->binding ||
++	    private_control_callback(&core, view->supported, &owner) != EFI_SUCCESS ||
++	    private_control_callback(&core, view->start, &owner) != EFI_SUCCESS ||
++	    private_control_callback(&core, view->stop, &owner) != EFI_SUCCESS)
++		return EFI_COMPROMISED_DATA;
++	if (expected != NULL && (expected->interface != view || expected->owner != owner ||
++	    expected->load_generation != owner->load_generation ||
++	    expected->registration != record->registration ||
++	    expected->transaction != owner->transaction ||
++	    expected->transaction_allocation_generation != owner->transaction_allocation_generation ||
++	    memcmp(&expected->callbacks, view, sizeof(*view)) ||
++	    memcmp(&expected->transaction_snapshot, owner->transaction, sizeof(*owner->transaction))))
++		return EFI_COMPROMISED_DATA;
++	if (captured != NULL) {
++		captured->interface = view;
++		captured->owner = owner;
++		captured->load_generation = owner->load_generation;
++		captured->registration = record->registration;
++		captured->transaction = owner->transaction;
++		captured->transaction_allocation_generation = owner->transaction_allocation_generation;
++		memcpy(&captured->callbacks, view, sizeof(*view));
++		memcpy(&captured->transaction_snapshot, owner->transaction, sizeof(*owner->transaction));
++	}
++	return EFI_SUCCESS;
++}
++#endif
++
++static uint64_t stage_disk_capsule(struct capsule_scan_runtime *runtime,
++	const struct cdk2_capsule_image *images, size_t count)
++{
++#if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP && \
++	CONFIG_PAYLOAD_DMA_HANDOFF
++	typedef EFI_STATUS CDK2_MS_ABI allocate_pages_fn(UINTN, UINT32, UINTN, UINT64 *);
++	typedef EFI_STATUS CDK2_MS_ABI free_pages_fn(UINT64, UINTN);
++	typedef EFI_STATUS CDK2_MS_ABI query_fn(
++		const struct cdk2_capsule_header *const *, UINTN, UINT64 *, UINT32 *);
++	typedef EFI_STATUS CDK2_MS_ABI update_fn(
++		const struct cdk2_capsule_header *const *, UINTN, UINT64);
++	struct cdk2_dxe_system_table *system;
++	struct cdk2_dxe_runtime_services *services;
++	struct cdk2_capsule_boot_protocol *current, *processor;
++	struct cdk2_dxe_image *owner;
++	struct cdk2_local_apic_timer_control *timer;
++	struct cdk2_xhci_control *xhci = NULL;
++	struct cdk2_pci_dma_control *pci;
++	struct cdk2_local_apic_timer_control timer_snapshot;
++	struct cdk2_xhci_control xhci_snapshot;
++	struct cdk2_pci_dma_control pci_snapshot;
++	static const EFI_GUID timer_guid = CDK2_LOCAL_APIC_TIMER_CONTROL_GUID;
++	static const EFI_GUID pci_guid = CDK2_PCI_DMA_CONTROL_GUID;
++	static const EFI_GUID xhci_guid = CDK2_XHCI_CONTROL_GUID;
++	struct stage_control_owner timer_owner, pci_owner, xhci_owner, runtime_identity;
++	struct dispatched_binding bindings[4];
++	struct stage_storage_binding binding_snapshots[4];
++	void *controllers[4], *device = NULL;
++	const struct cdk2_capsule_header *capsule, *array[1];
++	struct capsule_scatter_block *scatter;
++	struct cdk2_tcg2_span span;
++	uint8_t digest[32], current_digest[32];
++	UINT64 pending, address = 0, maximum = 0;
++	uint64_t owner_generation;
++	void *runtime_owner;
++	size_t offset, pages, size, matches = 0, namespace_matches = 0;
++	uint32_t reset_type = 0;
++	UINTN previous_tpl;
++	allocate_pages_fn *allocate = core.boot_services.allocate_pages;
++	free_pages_fn *release = core.boot_services.free_pages;
++	disconnect_controller_fn *disconnect = core.boot_services.disconnect_controller;
++	query_fn *query;
++	update_fn *update;
++	uint64_t status;
++
++	if (runtime == NULL || runtime->context == NULL || runtime->result == NULL ||
++	    images == NULL || count != 1 || runtime->teardown_begun ||
++	    runtime->result->loaded != runtime->result->candidates ||
++	    runtime->result->cleanup_failed || selected_storage_backend != STORAGE_NVME)
++		return EFI_UNSUPPORTED;
++	if (core.runtime_storage == NULL || allocate == NULL || release == NULL ||
++	    disconnect == NULL || core.database.open_count > ARRAY_SIZE(core.database.opens) ||
++	    core.database.protocol_count > CDK2_DXE_MAX_PROTOCOLS ||
++	    core.database.handle_count > CDK2_DXE_MAX_HANDLES ||
++	    core.images.count > CDK2_DXE_MAX_IMAGES)
++		return EFI_COMPROMISED_DATA;
++	system = &core.runtime_storage->system_table;
++	services = system->runtime_services;
++	runtime_owner = runtime->context->capsule_runtime_owner;
++	processor = runtime->processor;
++	if (services == NULL || services->query_capsule_capabilities == NULL ||
++	    services->update_capsule == NULL ||
++	    EFI_ERROR(ram_capsule_protocol(runtime_owner, &current)) ||
++	    current != processor ||
++	    (current->delivery_policy.allowed_transports &
++	     (CB_CAPSULE_DELIVERY_RAM | CB_CAPSULE_DELIVERY_DISK)) !=
++	     (CB_CAPSULE_DELIVERY_RAM | CB_CAPSULE_DELIVERY_DISK))
++		return EFI_COMPROMISED_DATA;
++	owner = private_control_image(&core, current, sizeof(*current));
++	query = services->query_capsule_capabilities;
++	update = services->update_capsule;
++	if (owner == NULL || owner->handle != runtime_owner || owner->exit_active ||
++	    private_control_callback(&core, query, &owner) != EFI_SUCCESS ||
++	    private_control_callback(&core, update, &owner) != EFI_SUCCESS ||
++	    stage_control_current(&capsule_boot_protocol_guid, sizeof(*processor), processor, update,
++		NULL, &runtime_identity) != EFI_SUCCESS)
++		return EFI_COMPROMISED_DATA;
++	owner_generation = owner->load_generation;
++	status = ram_capsule_source(system, &pending);
++	if (status != EFI_NOT_FOUND)
++		return status == EFI_SUCCESS ? EFI_ALREADY_STARTED : status;
++	size = images[0].size;
++	capsule = images[0].data;
++	if (capsule == NULL || (uintptr_t)capsule % _Alignof(*capsule) ||
++	    size < sizeof(*capsule) || size > UINT32_MAX ||
++	    (uintptr_t)capsule > UINTPTR_MAX - size || capsule->image_size != size ||
++	    memcmp(&capsule->guid, &images[0].guid, sizeof(capsule->guid)) ||
++	    capsule->flags != images[0].flags ||
++	    capsule->flags != (CDK2_CAPSULE_PERSIST | CDK2_CAPSULE_RESET) ||
++	    size > SIZE_MAX - 7 - 2 * sizeof(*scatter))
++		return EFI_UNSUPPORTED;
++	offset = (size + 7) & ~(size_t)7;
++	if (offset + 2 * sizeof(*scatter) > SIZE_MAX - 4095)
++		return EFI_OUT_OF_RESOURCES;
++	pages = (offset + 2 * sizeof(*scatter) + 4095) / 4096;
++	span = (struct cdk2_tcg2_span) { .data = (const void *)capsule, .size = size };
++	status = cdk2_software_hash_spans(NULL, TPM_ALG_SHA256, &span, 1, digest, sizeof(digest));
++	if (status != EFI_SUCCESS)
++		return status;
++	status = allocate(0, 0, pages, &address);
++	if (status != EFI_SUCCESS)
++		return status;
++	if (!address || address % 4096 || address > UINTPTR_MAX - pages * 4096) {
++		return EFI_COMPROMISED_DATA;
++	}
++	memcpy((void *)(uintptr_t)address, capsule, size);
++	array[0] = (const void *)(uintptr_t)address;
++	scatter = (void *)(uintptr_t)(address + offset);
++	scatter[0] = (struct capsule_scatter_block) { size, address };
++	scatter[1] = (struct capsule_scatter_block) { 0 };
++	status = query(array, 1, &maximum, &reset_type);
++	if (status != EFI_SUCCESS || maximum < size || reset_type != 1) {
++		(void)release(address, pages);
++		return status != EFI_SUCCESS ? status : EFI_COMPROMISED_DATA;
++	}
++	status = ram_capsule_source(system, &pending);
++	if (status != EFI_NOT_FOUND)
++		goto compromised;
++	span.data = (const void *)(uintptr_t)address;
++	status = cdk2_software_hash_spans(NULL, TPM_ALG_SHA256, &span, 1,
++		current_digest, sizeof(current_digest));
++	if (status != EFI_SUCCESS || memcmp(digest, current_digest, sizeof(digest)) ||
++	    array[0] != (const void *)(uintptr_t)address ||
++	    runtime->context->capsule_runtime_owner != runtime_owner ||
++	    owner->load_generation != owner_generation ||
++	    system->runtime_services != services || services->query_capsule_capabilities != query ||
++	    services->update_capsule != update ||
++	    EFI_ERROR(ram_capsule_protocol(runtime_owner, &current)) ||
++	    current != processor || runtime->processor != processor ||
++	    stage_control_current(&capsule_boot_protocol_guid, sizeof(*processor), processor, update,
++		&runtime_identity, NULL) != EFI_SUCCESS)
++		goto compromised;
++	bindings[0] = storage_bindings.fat;
++	bindings[1] = storage_bindings.partition;
++	bindings[2] = storage_bindings.disk;
++	bindings[3] = storage_bindings.nvme;
++	for (size_t index = 0; index < core.database.open_count; index++) {
++		const struct cdk2_dxe_open *open = &core.database.opens[index];
++
++		if (open->controller != selected_esp || open->agent != bindings[1].binding ||
++		    open->attributes != 0x08 || memcmp(&open->guid, &disk_io_protocol, sizeof(open->guid)))
++			continue;
++		if (open->count != 1 || ++matches != 1)
++			goto compromised;
++		device = open->handle;
++	}
++	if (matches != 1 || device == NULL || selected_storage_controller == NULL ||
++	    selected_storage_binding != bindings[3].image ||
++	    selected_storage_agent != bindings[3].binding ||
++	    private_timer_control(&core, &timer) != EFI_SUCCESS ||
++	    private_pci_dma_control(&core, &pci) != EFI_SUCCESS)
++		goto compromised;
++	if (cdk2_dxe_validate_nvme_children(&core.database, selected_storage_controller,
++	    selected_storage_agent) != EFI_SUCCESS)
++		goto compromised;
++	for (size_t index = 0; index < core.database.open_count; index++) {
++		const struct cdk2_dxe_open *open = &core.database.opens[index];
++
++		if (open->handle != selected_storage_controller ||
++		    open->agent != selected_storage_agent || open->controller != device ||
++		    open->attributes != 0x08 || memcmp(&open->guid, &pci_io_protocol, sizeof(open->guid)))
++			continue;
++		if (open->count != 1 || ++namespace_matches != 1)
++			goto compromised;
++	}
++	if (namespace_matches != 1)
++		goto compromised;
++	status = private_xhci_control(&core, NULL, NULL, &xhci);
++	if (status != EFI_SUCCESS && status != EFI_NOT_FOUND)
++		goto compromised;
++	memcpy(&timer_snapshot, timer, sizeof(timer_snapshot));
++	memcpy(&pci_snapshot, pci, sizeof(pci_snapshot));
++	if (xhci != NULL)
++		memcpy(&xhci_snapshot, xhci, sizeof(xhci_snapshot));
++	if (stage_control_current(&timer_guid, sizeof(*timer), timer, timer->deactivate,
++	    NULL, &timer_owner) != EFI_SUCCESS ||
++	    stage_control_current(&pci_guid, sizeof(*pci), pci, pci->quiesce_all,
++	    NULL, &pci_owner) != EFI_SUCCESS ||
++	    (xhci != NULL && stage_control_current(&xhci_guid, sizeof(*xhci), xhci,
++		xhci->quiesce, NULL, &xhci_owner) != EFI_SUCCESS))
++		goto compromised;
++	controllers[0] = selected_esp;
++	controllers[1] = device;
++	controllers[2] = device;
++	controllers[3] = selected_storage_controller;
++	for (size_t index = 0; index < ARRAY_SIZE(bindings); index++)
++		if (stage_storage_binding_current(&bindings[index], NULL,
++		    &binding_snapshots[index]) != EFI_SUCCESS)
++			goto compromised;
++	/* Scanner file handles are already closed. No later source completion is safe. */
++	runtime->teardown_begun = true;
++	for (size_t index = 0; index < ARRAY_SIZE(bindings); index++) {
++		status = stage_storage_binding_current(&bindings[index], &binding_snapshots[index], NULL);
++		if (status == EFI_SUCCESS)
++			status = disconnect(controllers[index], bindings[index].image, NULL);
++		if (status == EFI_SUCCESS)
++			status = stage_storage_binding_current(&bindings[index], &binding_snapshots[index], NULL);
++		if (status != EFI_SUCCESS)
++			return EFI_ERROR(status) ? status : EFI_DEVICE_ERROR;
++	}
++	previous_tpl = core.events.current_tpl;
++	core.events.current_tpl = 31;
++	{
++		struct cdk2_local_apic_timer_control *current_timer;
++		struct cdk2_xhci_control *current_xhci = NULL;
++		struct cdk2_pci_dma_control *current_pci;
++
++		status = private_timer_control(&core, &current_timer);
++		if (status == EFI_SUCCESS && (current_timer != timer ||
++		    memcmp(timer, &timer_snapshot, sizeof(timer_snapshot))))
++			status = EFI_COMPROMISED_DATA;
++		if (status == EFI_SUCCESS)
++			status = stage_control_current(&timer_guid, sizeof(*timer), timer,
++				timer->deactivate, &timer_owner, NULL);
++		if (status == EFI_SUCCESS)
++			status = timer->deactivate(timer);
++		if (status == EFI_SUCCESS)
++			status = stage_control_current(&timer_guid, sizeof(*timer), timer,
++				timer_snapshot.deactivate, &timer_owner, NULL);
++		if (status == EFI_SUCCESS) {
++			status = private_xhci_control(&core, NULL, NULL, &current_xhci);
++			if (status == EFI_NOT_FOUND && xhci == NULL)
++				status = EFI_SUCCESS;
++			if (status == EFI_SUCCESS && (current_xhci != xhci ||
++			    (xhci != NULL && memcmp(xhci, &xhci_snapshot, sizeof(xhci_snapshot)))))
++				status = EFI_COMPROMISED_DATA;
++		}
++		if (status == EFI_SUCCESS && xhci != NULL) {
++			status = stage_control_current(&xhci_guid, sizeof(*xhci), xhci,
++				xhci->quiesce, &xhci_owner, NULL);
++			if (status == EFI_SUCCESS)
++				status = xhci->quiesce(xhci, xhci->controller);
++			if (status == EFI_SUCCESS)
++				status = stage_control_current(&xhci_guid, sizeof(*xhci), xhci,
++					xhci_snapshot.quiesce, &xhci_owner, NULL);
++		}
++		if (status == EFI_SUCCESS)
++			status = private_pci_dma_control(&core, &current_pci);
++		if (status == EFI_SUCCESS && (current_pci != pci ||
++		    memcmp(pci, &pci_snapshot, sizeof(pci_snapshot))))
++			status = EFI_COMPROMISED_DATA;
++		if (status == EFI_SUCCESS)
++			status = stage_control_current(&pci_guid, sizeof(*pci), pci,
++				pci->quiesce_all, &pci_owner, NULL);
++		if (status == EFI_SUCCESS)
++			status = pci->quiesce_all(pci);
++		if (status == EFI_SUCCESS)
++			status = stage_control_current(&pci_guid, sizeof(*pci), pci,
++				pci_snapshot.quiesce_all, &pci_owner, NULL);
++	}
++	core.events.current_tpl = previous_tpl;
++	if (status != EFI_SUCCESS)
++		return EFI_ERROR(status) ? status : EFI_DEVICE_ERROR;
++	status = ram_capsule_source(system, &pending);
++	if (status != EFI_NOT_FOUND)
++		return EFI_COMPROMISED_DATA;
++	span.data = (const void *)(uintptr_t)address;
++	status = cdk2_software_hash_spans(NULL, TPM_ALG_SHA256, &span, 1,
++		current_digest, sizeof(current_digest));
++	if (status != EFI_SUCCESS || memcmp(digest, current_digest, sizeof(digest)) ||
++	    array[0] != (const void *)(uintptr_t)address ||
++	    scatter[0].length != size || scatter[0].address != address ||
++	    scatter[1].length || scatter[1].address ||
++	    system->runtime_services != services || services->query_capsule_capabilities != query ||
++	    services->update_capsule != update ||
++	    runtime->context->capsule_runtime_owner != runtime_owner ||
++	    owner->handle != runtime_owner || owner->load_generation != owner_generation ||
++	    owner->exit_active ||
++	    EFI_ERROR(ram_capsule_protocol(runtime_owner, &current)) ||
++	    current != processor || runtime->processor != processor ||
++	    private_control_callback(&core, update, &owner) != EFI_SUCCESS ||
++	    stage_control_current(&capsule_boot_protocol_guid, sizeof(*processor), processor, update,
++		&runtime_identity, NULL) != EFI_SUCCESS)
++		return EFI_COMPROMISED_DATA;
++	/* The real public service owns publication and reset. A return proves neither. */
++	(void)update(array, 1, (uint64_t)(uintptr_t)scatter);
++	return EFI_DEVICE_ERROR;
++compromised:
++	(void)release(address, pages);
++	return EFI_COMPROMISED_DATA;
++#else
++	(void)runtime;
++	(void)images;
++	(void)count;
++	return EFI_UNSUPPORTED;
++#endif
++}
++
+ static EFI_STATUS retire_ram_capsule_source(struct cdk2_dxe_system_table *system,
+ 	UINT64 snapshot)
+ {
+diff --git a/tests/dxe_core_capsule_disk_handoff_test.sh b/tests/dxe_core_capsule_disk_handoff_test.sh
+index 4ecb3d7860..d3bfdac94e 100755
+--- a/tests/dxe_core_capsule_disk_handoff_test.sh
++++ b/tests/dxe_core_capsule_disk_handoff_test.sh
+@@ -22,11 +22,21 @@ compile_test()
+ {
+ # shellcheck disable=SC2086
+ "$compiler" $flags -ffunction-sections -fdata-sections -fsanitize=address,undefined \
++	-fno-sanitize-recover=all \
+ 	-DCDK2_DXE_CAPSULE_DISK_SOURCE="\"$1\"" \
+ 	-no-pie -I"$temporary" -I"$root/build/cdk2/include" -I"$root/include" \
++	-I"$root/src/lib/tcg_hash/vendor/vboot" \
++	-I"$root/src/lib/tcg_hash/vendor/linux/include" \
+ 	-I"$root/src/modules/dxe_core" -DCDK2_HOST_TEST \
+ 	-o "$2" "$root/tests/dxe_core_capsule_disk_handoff_test.c" \
+ 	"$root/src/modules/dxe_core/database.c" \
++	"$root/src/modules/dxe_core/image.c" "$root/src/modules/dxe_core/memory.c" \
++	"$root/src/modules/capsule_runtime/capsule_runtime.c" \
++	"$root/src/lib/tcg_hash/software_hash.c" \
++	"$root/src/lib/tcg_hash/vendor/vboot/2sha1.c" \
++	"$root/src/lib/tcg_hash/vendor/vboot/2sha256.c" \
++	"$root/src/lib/tcg_hash/vendor/vboot/2sha512.c" \
++	"$root/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c" \
+ 	"$root/src/modules/dxe_core/lifecycle.c" "$root/src/lib/linear_boot.c" \
+ 	"$root/src/modules/dxe_core/presence_lifecycle.c" \
+ 	"$root/src/lib/capsule_disk.c" "$root/src/lib/diagnostic.c" \
+@@ -80,6 +90,9 @@ for mutation in disk-support support-attributes; do
+ 	echo "DXE $mutation exact-source mutation: PASS"
+ done
+ 
++# Same normally selected header and tool; no forced RAM delivery or writer grant.
++sh "$root/tests/dxe_core_capsule_disk_stage_test.sh" "$config" "$compiler" "$flags"
++
+ for mutation in request-bit request-attributes request-consume; do
+ 	case "$mutation" in
+ 	request-bit)
+diff --git a/tests/dxe_core_capsule_disk_stage_test.c b/tests/dxe_core_capsule_disk_stage_test.c
+new file mode 100644
+index 0000000000..593f4fff1f
+--- /dev/null
++++ b/tests/dxe_core_capsule_disk_stage_test.c
+@@ -0,0 +1,636 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* Actual Core/allocator/registry/transaction/hash/Query; modeled resident
++ * publications and controller responses. No CMS/MM/native drain proof. */
++#include <assert.h>
++#include <stdlib.h>
++#include <string.h>
++#include <stdio.h>
++#define main legacy_disk_fixture_main
++#define CDK2_DXE_CAPSULE_DISK_SOURCE CDK2_STAGE_SOURCE
++#include CDK2_STAGE_FIXTURE
++#undef main
++
++static bool filesystem_retired;
++
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
++	struct cdk2_fat_simple_fs_protocol *, cdk2_capsule_disk_alloc_fn,
++	cdk2_capsule_disk_free_fn, cdk2_capsule_disk_report_fn, void *,
++	struct cdk2_capsule_list *, struct cdk2_capsule_disk_result *);
++
++EFI_STATUS __wrap_cdk2_capsule_disk_complete_esp(
++	struct cdk2_fat_simple_fs_protocol *filesystem, cdk2_capsule_disk_alloc_fn allocate,
++	cdk2_capsule_disk_free_fn release, cdk2_capsule_disk_report_fn report, void *context,
++	struct cdk2_capsule_list *capsules, struct cdk2_capsule_disk_result *result)
++{
++	/* Real FAT Stop releases its unpublished simple_fs; complete_esp inspects
++	 * open_volume before the failed processing status. This HOST boundary spy
++	 * models retirement without treating a sanitizer UAF as a passing cause. */
++	assert(!filesystem_retired);
++	return __real_cdk2_capsule_disk_complete_esp(filesystem, allocate, release,
++		report, context, capsules, result);
++}
++
++#if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP && \
++	CONFIG_PAYLOAD_DMA_HANDOFF
++
++#define MODEL_CODE __attribute__((section(".stage_runtime_code"), noinline))
++#define MODEL_DATA __attribute__((section(".stage_runtime_data")))
++#define PCI_CODE __attribute__((section(".stage_pci_code"), noinline))
++#define PCI_DATA __attribute__((section(".stage_pci_data")))
++#define XHCI_CODE __attribute__((section(".stage_xhci_code"), noinline))
++#define XHCI_DATA __attribute__((section(".stage_xhci_data")))
++extern char stage_runtime_begin[], stage_runtime_end[], stage_pci_begin[], stage_pci_end[];
++extern char stage_xhci_begin[], stage_xhci_end[];
++
++static struct cdk2_capsule_boot_protocol model_processor MODEL_DATA;
++static struct driver_binding_view model_bindings[4] MODEL_DATA;
++static struct driver_binding_view model_pci_binding PCI_DATA;
++static struct cdk2_local_apic_timer_control model_timer PCI_DATA;
++static struct cdk2_pci_dma_control model_pci PCI_DATA;
++static struct driver_binding_view model_xhci_binding XHCI_DATA;
++static struct cdk2_xhci_control *model_xhci;
++static unsigned query_calls, stop_calls, timer_calls, pci_calls, xhci_calls, update_calls, frees;
++static uint64_t retained;
++static size_t retained_pages;
++static unsigned fault;
++static bool retire_filesystem_on_stop;
++static struct {
++	struct cdk2_capsule_header header;
++	unsigned char payload[4];
++} stage_input;
++static __typeof__(*core.runtime_storage) model_storage;
++static struct cdk2_dxe_runtime_services model_services;
++static struct dxe_services_context model_context;
++static struct cdk2_capsule_disk_result model_result;
++static struct capsule_scan_runtime model_scan;
++static struct cdk2_capsule_image model_candidate;
++static unsigned char source_image[] = { 1, 2, 3, 4 };
++static unsigned char controller_path[] = { 1, 1, 4, 0, 0x7f, 0xff, 4, 0 };
++static unsigned char namespace_path[] = { 1, 1, 4, 0, 1, 2, 4, 0, 0x7f, 0xff, 4, 0 };
++static void *scanner_allocations[64];
++
++static EFI_STATUS CDK2_MS_ABI scanner_allocate(UINT32 type, UINTN size, void **buffer)
++{
++	EFI_STATUS status = test_allocate_pool(type, size, buffer);
++	if (status != EFI_SUCCESS)
++		return status;
++	for (size_t index = 0; index < ARRAY_SIZE(scanner_allocations); index++) {
++		if (scanner_allocations[index] != NULL)
++			continue;
++		scanner_allocations[index] = *buffer;
++		return status;
++	}
++	abort();
++}
++
++static EFI_STATUS CDK2_MS_ABI scanner_free(void *buffer)
++{
++	for (size_t index = 0; index < ARRAY_SIZE(scanner_allocations); index++) {
++		if (scanner_allocations[index] != buffer)
++			continue;
++		scanner_allocations[index] = NULL;
++		return test_free_pool(buffer);
++	}
++	abort();
++}
++
++static EFI_STATUS CDK2_MS_ABI absent_get(CHAR16 *name, EFI_GUID *guid,
++	UINT32 *attributes, UINTN *size, void *data)
++{
++	(void)name; (void)guid; (void)attributes; (void)size; (void)data;
++	if (fault == 26 || (fault == 27 && query_calls)) {
++		UINT64 value = 4096;
++		*size = sizeof(value);
++		*attributes = 7;
++		memcpy(data, &value, sizeof(value));
++		return EFI_SUCCESS;
++	}
++	return EFI_NOT_FOUND;
++}
++
++static EFI_STATUS CDK2_MS_ABI absent_next(UINTN *size, CHAR16 *name, EFI_GUID *guid)
++{
++	(void)size; (void)name; (void)guid;
++	if ((fault == 26 || (fault == 27 && query_calls)) && !name[0]) {
++		memcpy(name, L"CapsuleUpdateData", sizeof(L"CapsuleUpdateData"));
++		*size = sizeof(L"CapsuleUpdateData");
++		*guid = capsule_variable_guid;
++		return EFI_SUCCESS;
++	}
++	return EFI_NOT_FOUND;
++}
++
++static EFI_STATUS CDK2_MS_ABI pages_allocate(UINTN type, UINT32 memory_type,
++	UINTN pages, UINT64 *address)
++{
++	EFI_STATUS status = cdk2_dxe_allocate_pages_policy(&core.memory,
++		memory_type, pages, type, address);
++	if (status == EFI_SUCCESS) {
++		retained = *address;
++		retained_pages = pages;
++		if (fault == 1)
++			(*address)++;
++	}
++	return status;
++}
++
++static EFI_STATUS CDK2_MS_ABI pages_free(UINT64 address, UINTN pages)
++{
++	frees++;
++	assert(address == retained && pages == retained_pages);
++	return cdk2_dxe_free_pages(&core.memory, (void *)(uintptr_t)address, pages);
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_process(
++	struct cdk2_capsule_boot_protocol *protocol, const void *capsule, UINTN size)
++{
++	(void)protocol; (void)capsule; (void)size;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_validate(
++	struct cdk2_capsule_boot_protocol *protocol, const void *image, UINTN size)
++{
++	const struct cdk2_capsule_header *array[] = { image };
++	const struct cdk2_capsule_policy policy = {
++		.max_nonpopulate = 4096, .max_populate = 4096,
++		.in_ram = TRUE, .persist = TRUE,
++	};
++	UINT64 maximum;
++	UINT32 reset;
++	(void)protocol;
++	if (size != sizeof(stage_input))
++		return EFI_INVALID_PARAMETER;
++	return cdk2_capsule_query(array, 1, &policy, NULL, NULL, &maximum, &reset);
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_scatter(
++	struct cdk2_capsule_boot_protocol *protocol, UINT64 address)
++{
++	(void)protocol; (void)address;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_query(
++	const struct cdk2_capsule_header *const *capsules, UINTN count,
++	UINT64 *maximum, UINT32 *reset)
++{
++	const struct cdk2_capsule_policy policy = {
++		.max_nonpopulate = 4096, .max_populate = 4096,
++		.in_ram = TRUE, .persist = TRUE,
++	};
++	EFI_STATUS status = cdk2_capsule_query(capsules, count, &policy,
++		NULL, NULL, maximum, reset);
++	query_calls++;
++	if (fault == 2)
++		return EFI_DEVICE_ERROR;
++	if (fault == 3)
++		*maximum = 1;
++	if (fault == 4)
++		*reset = 0;
++	if (fault == 5)
++		core.database.protocol_count = CDK2_DXE_MAX_PROTOCOLS + 1;
++	if (fault == 6)
++		core.database.open_count = ARRAY_SIZE(core.database.opens) + 1;
++	if (fault == 7)
++		core.images.count = CDK2_DXE_MAX_IMAGES + 1;
++	if (fault == 8)
++		((unsigned char *)(uintptr_t)retained)[sizeof(stage_input) - 1]++;
++	if (fault == 24)
++		core.database.protocols[0].registration++;
++	if (fault == 25)
++		core.images.images[0].transaction->state = CDK2_DXE_IMAGE_PREPARED;
++	if (fault == 28)
++		model_services.update_capsule = NULL;
++	return status;
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_update(
++	const struct cdk2_capsule_header *const *capsules, UINTN count, UINT64 address)
++{
++	struct capsule_scatter_block *scatter = (void *)(uintptr_t)address;
++	assert(count == 1 && capsules[0] == (void *)(uintptr_t)retained);
++	assert(!memcmp(capsules[0], &stage_input, sizeof(stage_input)));
++	assert(scatter[0].length == sizeof(stage_input) && scatter[0].address == retained);
++	assert(!scatter[1].length && !scatter[1].address);
++	assert(stop_calls == 4 && timer_calls == 1 && pci_calls == 1);
++	assert(xhci_calls == (model_xhci != NULL));
++	update_calls++;
++	/* Even a returned SUCCESS cannot establish publication/reset. */
++	return fault == 20 ? EFI_SUCCESS : EFI_DEVICE_ERROR;
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI binding_supported(
++	struct driver_binding_view *binding, void *controller, void *path)
++{
++	(void)binding; (void)controller; (void)path;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS MODEL_CODE CDK2_MS_ABI binding_stop(
++	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
++{
++	(void)binding; (void)controller; (void)count; (void)children;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS PCI_CODE CDK2_MS_ABI pci_supported(
++	struct driver_binding_view *binding, void *controller, void *path)
++{
++	(void)binding; (void)controller; (void)path;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS PCI_CODE CDK2_MS_ABI pci_stop(
++	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
++{
++	(void)binding; (void)controller; (void)count; (void)children;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS PCI_CODE CDK2_MS_ABI deactivate(
++	struct cdk2_local_apic_timer_control *control)
++{
++	assert(control == &model_timer && core.events.current_tpl == 31);
++	timer_calls++;
++	if (fault == 15)
++		return EFI_DEVICE_ERROR;
++	if (fault == 16) {
++		core.images.images[1].load_generation++;
++		for (size_t index = 0; index < core.database.protocol_count; index++)
++			if (core.database.protocols[index].owner_image == (void *)2)
++				core.database.protocols[index].owner_generation++;
++	}
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS PCI_CODE CDK2_MS_ABI quiesce(struct cdk2_pci_dma_control *control)
++{
++	assert(control == &model_pci && core.events.current_tpl == 31);
++	pci_calls++;
++	if (fault == 17)
++		return EFI_DEVICE_ERROR;
++	if (fault == 18)
++		((unsigned char *)(uintptr_t)retained)[sizeof(stage_input) - 1]++;
++	if (fault == 19)
++		core.database.protocol_count = CDK2_DXE_MAX_PROTOCOLS + 1;
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_supported(
++	struct driver_binding_view *binding, void *controller, void *path)
++{
++	(void)binding; (void)controller; (void)path;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_stop(
++	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
++{
++	(void)binding; (void)controller; (void)count; (void)children;
++	return EFI_UNSUPPORTED;
++}
++
++static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_quiesce(
++	struct cdk2_xhci_control *control, void *controller)
++{
++	assert(control == model_xhci && controller == (void *)30);
++	assert(core.events.current_tpl == 31 && timer_calls == 1 && pci_calls == 0);
++	xhci_calls++;
++	if (fault == 21)
++		return EFI_DEVICE_ERROR;
++	if (fault == 22) {
++		core.images.images[2].load_generation++;
++		for (size_t index = 0; index < core.database.protocol_count; index++)
++			if (core.database.protocols[index].owner_image == (void *)3)
++				core.database.protocols[index].owner_generation++;
++	}
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS CDK2_MS_ABI disconnect_model(void *controller, void *image, void *child)
++{
++	void *expected[] = { (void *)10, (void *)11, (void *)11, (void *)12 };
++	assert(stop_calls < 4 && controller == expected[stop_calls]);
++	assert(image == (void *)1 && child == NULL);
++	stop_calls++;
++	if (stop_calls == 1 && retire_filesystem_on_stop) {
++		assert(cdk2_dxe_uninstall(&core.database, selected_esp, &simple_fs_protocol,
++			&active_fixture->filesystem) == EFI_SUCCESS);
++		filesystem_retired = true;
++	}
++	if (fault == 9)
++		return EFI_DEVICE_ERROR;
++	if (fault == 10)
++		model_bindings[1].stop = NULL;
++	if (fault == 11) {
++		core.images.images[0].load_generation++;
++		for (size_t index = 0; index < core.database.protocol_count; index++)
++			if (core.database.protocols[index].owner_image == (void *)1)
++				core.database.protocols[index].owner_generation++;
++	}
++	if (fault == 12)
++		core.images.images[0].exit_active = TRUE;
++	if (fault == 13)
++		core.database.open_count = ARRAY_SIZE(core.database.opens) + 1;
++	if (fault == 14) {
++		core.images.images[1].load_generation++;
++		for (size_t index = 0; index < core.database.protocol_count; index++)
++			if (core.database.protocols[index].owner_image == (void *)2)
++				core.database.protocols[index].owner_generation++;
++	}
++	if (fault == 29) {
++		struct capsule_scatter_block *scatter = (void *)(uintptr_t)
++			(retained + ((sizeof(stage_input) + 7) & ~(size_t)7));
++		scatter[0].length--;
++	}
++	return EFI_SUCCESS;
++}
++
++static void publish(void *handle, const EFI_GUID *guid, void *interface, unsigned owner)
++{
++	assert(cdk2_dxe_restore(&core.database, handle, guid, interface) == EFI_SUCCESS);
++	struct cdk2_dxe_protocol *record = &core.database.protocols[core.database.protocol_count - 1];
++	if (owner) {
++		record->owner_image = (void *)(uintptr_t)owner;
++		record->owner_generation = core.images.images[owner - 1].load_generation;
++	}
++}
++
++static void initialize_stage(unsigned selected_fault)
++{
++	static const EFI_GUID boot_guid = { 0x2890d42b, 0x7f9b, 0x4a66,
++		{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
++	static const EFI_GUID timer_guid = CDK2_LOCAL_APIC_TIMER_CONTROL_GUID;
++	static const EFI_GUID pci_guid = CDK2_PCI_DMA_CONTROL_GUID;
++	static const EFI_GUID xhci_guid = CDK2_XHCI_CONTROL_GUID;
++	static const EFI_GUID host_guid = { 0x3e745226, 0x9818, 0x45b6,
++		{ 0xa2, 0xac, 0xd7, 0xcd, 0x0e, 0x8b, 0xa2, 0xbc } };
++	void *storage = aligned_alloc(4096, 64 * 4096);
++	assert(storage != NULL);
++	memset(&core, 0, sizeof(core));
++	assert(cdk2_dxe_memory_initialize(&core.memory, storage, 64) == EFI_SUCCESS);
++	core.images.memory = &core.memory;
++	core.images.count = 3;
++	for (unsigned index = 0; index < 3; index++) {
++		struct cdk2_dxe_image *image = &core.images.images[index];
++		image->handle = (void *)(uintptr_t)(index + 1);
++		image->base = index == 2 ? stage_xhci_begin :
++			index ? stage_pci_begin : stage_runtime_begin;
++		image->size = (uintptr_t)(index == 2 ? stage_xhci_end :
++			index ? stage_pci_end : stage_runtime_end) -
++			(uintptr_t)image->base;
++		image->load_generation = 30 + index;
++		image->started = image->exited = TRUE;
++		image->protocol_pins = 8;
++		assert(cdk2_dxe_image_transaction_prepare(&core.images, source_image,
++			sizeof(source_image), NULL, 0, &image->transaction,
++			&image->transaction_allocation_generation) == EFI_SUCCESS);
++		/* Model resident publication, not an actual firmware loader proof. */
++		image->transaction->state = CDK2_DXE_IMAGE_PUBLISHED;
++	}
++	assert(cdk2_dxe_database_initialize(&core.database) == EFI_SUCCESS);
++	memset(&model_processor, 0, sizeof(model_processor));
++	model_processor.validate_capsule = model_validate;
++	model_processor.process_capsule = model_process;
++	model_processor.process_scatter = model_scatter;
++	model_processor.delivery_policy.allowed_transports =
++		CB_CAPSULE_DELIVERY_RAM | CB_CAPSULE_DELIVERY_DISK;
++	publish((void *)1, &boot_guid, &model_processor, 1);
++	for (unsigned index = 0; index < 4; index++) {
++		model_bindings[index] = (struct driver_binding_view) {
++			.supported = binding_supported, .start = binding_supported,
++			.stop = binding_stop, .image = (void *)1,
++			.binding = (void *)(uintptr_t)(20 + index),
++		};
++		publish(model_bindings[index].binding, &driver_binding_protocol,
++			&model_bindings[index], 1);
++	}
++	model_pci_binding = (struct driver_binding_view) {
++		.supported = pci_supported, .start = pci_supported, .stop = pci_stop,
++		.image = (void *)2, .binding = (void *)2,
++	};
++	publish((void *)2, &driver_binding_protocol, &model_pci_binding, 2);
++	model_timer = (struct cdk2_local_apic_timer_control) {
++		.revision = CDK2_LOCAL_APIC_TIMER_CONTROL_REVISION, .deactivate = deactivate,
++	};
++	model_pci = (struct cdk2_pci_dma_control) {
++		.revision = CDK2_PCI_DMA_CONTROL_REVISION, .quiesce_all = quiesce,
++	};
++	publish((void *)2, &timer_guid, &model_timer, 2);
++	publish((void *)2, &pci_guid, &model_pci, 2);
++	model_xhci = NULL;
++	if (selected_fault >= 21 && selected_fault <= 23) {
++		UINTN span, generation;
++		assert(cdk2_dxe_allocate_pool(&core.memory, 4, sizeof(*model_xhci),
++			(void **)&model_xhci) == EFI_SUCCESS);
++		*model_xhci = (struct cdk2_xhci_control) {
++			.revision = CDK2_XHCI_CONTROL_REVISION, .controller = (void *)30,
++			.poll_once = xhci_quiesce, .start_polling = xhci_quiesce,
++			.stop_polling = xhci_quiesce, .quiesce = xhci_quiesce,
++		};
++		assert(cdk2_dxe_memory_readable_span(&core.memory, model_xhci,
++			&span, &generation) == EFI_SUCCESS);
++		publish((void *)30, &xhci_guid, model_xhci, 0);
++		struct cdk2_dxe_protocol *record =
++			&core.database.protocols[core.database.protocol_count - 1];
++		record->interface_dynamic = TRUE;
++		record->interface_size = sizeof(*model_xhci);
++		record->interface_generation = generation;
++		publish((void *)30, &host_guid, namespace_path, 0);
++		model_xhci_binding = (struct driver_binding_view) {
++			.supported = xhci_supported, .start = xhci_supported, .stop = xhci_stop,
++			.image = (void *)3, .binding = (void *)3,
++		};
++		publish((void *)3, &driver_binding_protocol, &model_xhci_binding, 3);
++	}
++	publish((void *)12, &device_path_protocol, controller_path, 0);
++	core.database.protocols[core.database.protocol_count - 1].interface_size = sizeof(controller_path);
++	publish((void *)11, &device_path_protocol, namespace_path, 0);
++	core.database.protocols[core.database.protocol_count - 1].interface_size = sizeof(namespace_path);
++	publish((void *)11, &block_io_protocol, namespace_path, 0);
++	core.database.opens[0] = (struct cdk2_dxe_open) {
++		.handle = (void *)11, .guid = disk_io_protocol, .agent = (void *)21,
++		.controller = (void *)10, .attributes = 0x08, .count = 1,
++	};
++	core.database.opens[1] = (struct cdk2_dxe_open) {
++		.handle = (void *)12, .guid = pci_io_protocol, .agent = (void *)23,
++		.controller = (void *)11, .attributes = 0x08, .count = 1,
++	};
++	core.database.open_count = 2;
++	storage_bindings.fat = (struct dispatched_binding) { (void *)1, (void *)20 };
++	storage_bindings.partition = (struct dispatched_binding) { (void *)1, (void *)21 };
++	storage_bindings.disk = (struct dispatched_binding) { (void *)1, (void *)22 };
++	storage_bindings.nvme = (struct dispatched_binding) { (void *)1, (void *)23 };
++	selected_storage_backend = STORAGE_NVME;
++	selected_storage_controller = (void *)12;
++	selected_storage_binding = (void *)1;
++	selected_storage_agent = (void *)23;
++	selected_esp = (void *)10;
++	memset(&model_storage, 0, sizeof(model_storage));
++	memset(&model_services, 0, sizeof(model_services));
++	model_storage.system_table.runtime_services = &model_services;
++	model_services.get_variable = absent_get;
++	model_services.get_next_variable_name = absent_next;
++	model_services.query_capsule_capabilities = model_query;
++	model_services.update_capsule = model_update;
++	core.runtime_storage = &model_storage;
++	core.boot_services.allocate_pages = pages_allocate;
++	core.boot_services.free_pages = pages_free;
++	core.boot_services.disconnect_controller = disconnect_model;
++	memset(&model_context, 0, sizeof(model_context));
++	model_context.capsule_runtime_owner = (void *)1;
++	model_result = (struct cdk2_capsule_disk_result) { .candidates = 1, .loaded = 1 };
++	model_scan = (struct capsule_scan_runtime) {
++		.context = &model_context, .result = &model_result, .processor = &model_processor,
++	};
++	stage_input.header = (struct cdk2_capsule_header) {
++		.guid = { 1, 2, 3, { 4, 5, 6, 7, 8, 9, 10, 11 } },
++		.header_size = sizeof(stage_input.header), .image_size = sizeof(stage_input),
++		.flags = CDK2_CAPSULE_PERSIST | CDK2_CAPSULE_RESET,
++	};
++	memcpy(stage_input.payload, "CDK2", sizeof(stage_input.payload));
++	model_candidate = (struct cdk2_capsule_image) {
++		.guid = stage_input.header.guid, .flags = stage_input.header.flags,
++		.data = &stage_input, .size = sizeof(stage_input),
++	};
++	query_calls = stop_calls = timer_calls = pci_calls = xhci_calls = update_calls = frees = 0;
++	retained = 0;
++	retained_pages = 0;
++	fault = selected_fault;
++	filesystem_retired = retire_filesystem_on_stop = false;
++}
++
++static void release_stage(void)
++{
++	free(core.memory.base);
++}
++
++static void test_scanner_terminal(void)
++{
++	struct filesystem_fixture fixture = { 0 };
++	struct test_capsule_delivery_hobs hobs;
++	struct cdk2_linear_state state;
++
++	initialize_stage(20);
++	fixture.filesystem.open_volume = fixture_open_volume;
++	fixture.root.open = fixture_open;
++	fixture.root.close = fixture_close;
++	fixture.directory.open = fixture_open;
++	fixture.directory.close = fixture_close;
++	fixture.directory.read = fixture_read;
++	fixture.file.close = fixture_close;
++	fixture.file.delete = fixture_delete;
++	fixture.file.read = fixture_read;
++	fixture.file.get_info = fixture_get_info;
++	memcpy(&fixture.capsule, &stage_input, sizeof(stage_input));
++	active_fixture = &fixture;
++	publish(selected_esp, &simple_fs_protocol, &fixture.filesystem, 0);
++	retire_filesystem_on_stop = true;
++	core.boot_services.allocate_pool = scanner_allocate;
++	core.boot_services.free_pool = scanner_free;
++	model_services.get_variable = support_get;
++	model_services.set_variable = support_set;
++	request_bits = 4U | 1U;
++	request_attributes = 7;
++	request_size = sizeof(request_bits);
++	request_get_status = request_set_status = EFI_SUCCESS;
++	request_writes = process_calls = 0;
++	test_capsule_delivery_hobs_init(&hobs,
++		CB_CAPSULE_DELIVERY_RAM | CB_CAPSULE_DELIVERY_DISK, 1048576, 1048576);
++	assert(cdk2_capsule_delivery_policy_from_hobs(&hobs,
++		&model_processor.delivery_policy) == EFI_SUCCESS);
++	model_context.handoff = &hobs.handoff;
++	model_context.linear_state = &state;
++	cdk2_linear_state_init(&state);
++	state.next_phase = CDK2_LINEAR_CAPSULE_DECIDE;
++	state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DECIDE) - 1U;
++	assert(cdk2_linear_capsule_gate_early(&state, FALSE, TRUE,
++		&model_context.capsule_outcome) == EFI_SUCCESS);
++	state.next_phase = CDK2_LINEAR_CAPSULE_DISK;
++	state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DISK) - 1U;
++	assert(process_disk_capsules(&model_context) == EFI_DEVICE_ERROR);
++	assert(update_calls == 1 && stop_calls == 4);
++	assert(filesystem_retired);
++	assert(fixture.open_volumes == 1 && fixture.deletes == 0);
++	assert(request_writes == 1 && request_bits == 1);
++	/* The HOST return is terminal: no source completion or request retry promise. */
++	/* HOST fixture destruction only: the terminal firmware path deliberately
++	 * leaves its scanner transaction resident until reset. No completion IO. */
++	for (size_t index = 0; index < ARRAY_SIZE(scanner_allocations); index++) {
++		free(scanner_allocations[index]);
++		scanner_allocations[index] = NULL;
++	}
++	memset(&disk_capsules, 0, sizeof(disk_capsules));
++	release_stage();
++}
++
++int main(int argc, char **argv)
++{
++	assert(argc == 1 || argc == 2);
++	if (argc == 2 && !strcmp(argv[1], "latch")) {
++		test_scanner_terminal();
++		return 0;
++	}
++	if (argc == 2)
++		assert(!strcmp(argv[1], "storage") || !strcmp(argv[1], "control"));
++	for (unsigned scenario = 0; scenario <= 29; scenario++) {
++		if (argc == 2 && scenario != (!strcmp(argv[1], "storage") ? 11U : 16U))
++			continue;
++		initialize_stage(scenario);
++		uint64_t status = stage_disk_capsule(&model_scan, &model_candidate, 1);
++		if (scenario == 11)
++			assert(stop_calls == 1 && timer_calls == 0);
++		if (scenario == 16)
++			assert(pci_calls == 0);
++		assert(EFI_ERROR(status));
++		assert(core.events.current_tpl == 0);
++		if (scenario == 0 || scenario == 20 || scenario == 23) {
++			assert(status == EFI_DEVICE_ERROR && update_calls == 1);
++			assert(model_scan.teardown_begun && !frees);
++		} else {
++			assert(update_calls == 0);
++			if (scenario <= 8 || (scenario >= 24 && scenario <= 28))
++				assert(stop_calls == 0 && !model_scan.teardown_begun);
++			else
++				assert(model_scan.teardown_begun);
++		}
++		if (scenario == 1)
++			assert(!frees);
++		if (scenario == 14)
++			assert(timer_calls == 0);
++		if (scenario == 21 || scenario == 22)
++			assert(xhci_calls == 1 && pci_calls == 0);
++		if (scenario == 9)
++			assert(stop_calls == 1 && timer_calls == 0 && pci_calls == 0);
++		if (scenario == 15)
++			assert(timer_calls == 1 && pci_calls == 0);
++		if (scenario == 26)
++			assert(query_calls == 0);
++		release_stage();
++	}
++	if (argc == 2)
++		return 0;
++	for (unsigned scenario = 0; scenario < 4; scenario++) {
++		initialize_stage(0);
++		if (scenario == 0) model_result.loaded = 0;
++		if (scenario == 1) model_result.cleanup_failed = TRUE;
++		if (scenario == 2) selected_storage_backend = STORAGE_AHCI;
++		assert(stage_disk_capsule(&model_scan, &model_candidate,
++			scenario == 3 ? 2 : 1) == EFI_UNSUPPORTED);
++		assert(!query_calls && !stop_calls && !update_calls && !model_scan.teardown_begun);
++		release_stage();
++	}
++	puts("DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS");
++	test_scanner_terminal();
++	puts("Actual DISK scanner lifetime guard: no completion of retired FS; one open/zero delete PASS");
++	return 0;
++}
++#else
++int main(void)
++{
++	assert(stage_disk_capsule(NULL, NULL, 1) == EFI_UNSUPPORTED);
++	puts("Nonselected retained staging: UNSUPPORTED without callbacks PASS");
++	return 0;
++}
++#endif
+diff --git a/tests/dxe_core_capsule_disk_stage_test.ld b/tests/dxe_core_capsule_disk_stage_test.ld
+new file mode 100644
+index 0000000000..aedd50a3ab
+--- /dev/null
++++ b/tests/dxe_core_capsule_disk_stage_test.ld
+@@ -0,0 +1,19 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* HOST-only resident-image spans; not a firmware linker/audit change. */
++SECTIONS {
++ .stage_runtime : ALIGN(4096) {
++  stage_runtime_begin = .;
++  *(.stage_runtime_code) *(.stage_runtime_data)
++  stage_runtime_end = .;
++ }
++ .stage_pci : ALIGN(4096) {
++  stage_pci_begin = .;
++  *(.stage_pci_code) *(.stage_pci_data)
++  stage_pci_end = .;
++ }
++ .stage_xhci : ALIGN(4096) {
++  stage_xhci_begin = .;
++  *(.stage_xhci_code) *(.stage_xhci_data)
++  stage_xhci_end = .;
++ }
++} INSERT AFTER .text;
+diff --git a/tests/dxe_core_capsule_disk_stage_test.sh b/tests/dxe_core_capsule_disk_stage_test.sh
+new file mode 100644
+index 0000000000..bea52aeab5
+--- /dev/null
++++ b/tests/dxe_core_capsule_disk_stage_test.sh
+@@ -0,0 +1,142 @@
++#!/bin/sh
++# SPDX-License-Identifier: GPL-2.0-only
++set -eu
++root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
++config=${1:?actual config header required}
++compiler=${2:-cc}
++flags=${3:--std=gnu11 -Wall -Wextra -Werror -fshort-wchar}
++output=$(mktemp -d "${TMPDIR:-/tmp}/disk-capsule-stage-host.XXXXXX")
++printf 'Retained staging HOST artifacts: %s\n' "$output"
++mkdir -p "$output/cdk2"
++cp "$config" "$output/cdk2/config.h"
++export ASAN_OPTIONS=abort_on_error=1:detect_leaks=1
++export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
++ulimit -c 0
++core_source=$root/src/modules/dxe_core/entry.c
++instrumentation='-fsanitize=address,undefined -fno-sanitize-recover=all --param asan-globals=0'
++
++# Exact joined source closure. The generic Query has support=NULL, so this
++# fixture does not claim Runtime FMP support parsing, CMS or MM verification.
++sources="
++$root/tests/dxe_core_capsule_disk_stage_test.c
++$root/src/modules/dxe_core/database.c
++$root/src/modules/dxe_core/image.c
++$root/src/modules/dxe_core/memory.c
++$root/src/modules/dxe_core/lifecycle.c
++$root/src/modules/dxe_core/presence_lifecycle.c
++$root/src/modules/capsule_runtime/capsule_runtime.c
++$root/src/lib/linear_boot.c
++$root/src/lib/capsule_disk.c
++$root/src/lib/tcg_hash/software_hash.c
++$root/src/lib/tcg_hash/vendor/vboot/2sha1.c
++$root/src/lib/tcg_hash/vendor/vboot/2sha256.c
++$root/src/lib/tcg_hash/vendor/vboot/2sha512.c
++$root/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c
++$root/src/lib/diagnostic.c
++$root/src/lib/deadline.c
++"
++
++compile()
++{
++	# HOST-only resident-image linker spans model publication. Its RWX segment
++	# is not a firmware artifact or an audit exception. Keep heap/stack ASan;
++	# globals-off prevents unrelated Core boot callback tables becoming GC roots.
++	# shellcheck disable=SC2086
++	"$compiler" $flags "$optimization" -g -ffunction-sections -fdata-sections \
++		-fno-pie -no-pie $instrumentation -DCDK2_HOST_TEST \
++		-DCDK2_STAGE_SOURCE=\""$core_source"\" \
++		-DCDK2_STAGE_FIXTURE=\""$root/tests/dxe_core_capsule_disk_handoff_test.c"\" \
++		-I"$output" -I"$root/include" -I"$root/src/modules/dxe_core" \
++		-I"$root/src/lib/tcg_hash/vendor/vboot" \
++		-I"$root/src/lib/tcg_hash/vendor/linux/include" \
++		-Wl,--wrap=cdk2_capsule_disk_complete_esp \
++		$sources "$@"
++}
++
++for optimization in -O0 -O2; do
++	compile -M
++done > "$output/dependencies.make"
++awk '
++ { gsub(/\\/, ""); for (i = 1; i <= NF; i++)
++   if ($i !~ /:$/) print $i }
++' "$output/dependencies.make" | sort -u > "$output/dependencies.list"
++# Includes actual compiler transitive project/system headers, copied config,
++# selected source and included handoff fixture, not merely the authored file.
++xargs sha256sum < "$output/dependencies.list" > "$output/inputs-before.sha256"
++sha256sum "$config" "$root/tests/dxe_core_capsule_disk_stage_test.sh" \
++	"$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++	"$(command -v "$compiler")" "$(command -v ld)" \
++	"$(command -v sh)" "$(command -v awk)" >> "$output/inputs-before.sha256"
++for optimization in -O0 -O2; do
++	compile -Wl,--gc-sections \
++		-Wl,-T,"$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++		-o "$output/test"
++	"$output/test"
++done
++
++if grep -qx '#define CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE 1' "$config" &&
++   grep -qx '#define CONFIG_CDK2_NATIVE_SYSTEM_FMP 1' "$config" &&
++   grep -qx '#define CONFIG_PAYLOAD_DMA_HANDOFF 1' "$config"; then
++	# Exactly three grouped guards, same O2 heap/stack SAN (globals-off) as positives.
++	# Every generated TU must round-trip byte-exactly to the original.
++	optimization=-O2
++	for cause in latch storage control; do
++		case "$cause" in
++		latch)
++			function_name=
++			expected='!filesystem_retired' ;;
++		storage)
++			function_name=stage_storage_binding_current
++			expected='stop_calls == 1 && timer_calls == 0' ;;
++		control)
++			function_name=stage_control_current
++			expected='pci_calls == 0' ;;
++		esac
++		awk -v function_name="$function_name" '
++		 function_name != "" && index($0, "static uint64_t " function_name "(") {
++		   selected = 1
++		 }
++		 function_name == "" && $0 == "\tif (runtime.teardown_begun)" {
++		   start = end = NR; matches++
++		 }
++		 selected && index($0, "\tif (expected != NULL && (") == 1 {
++		   start = end = NR; selected = 0; matches++
++		 }
++		 END { if (matches != 1 || end < start) exit 1; print start, end }
++		' "$root/src/modules/dxe_core/entry.c" > "$output/$cause.bounds"
++		read -r first last < "$output/$cause.bounds"
++		awk -v first="$first" -v cause="$cause" '
++		 NR == first {
++		   print cause == "latch" ? "\tif (FALSE)" : "\tif (FALSE && " substr($0, 6)
++		   next
++		 }
++		 { print }
++		' "$root/src/modules/dxe_core/entry.c" > "$output/$cause.c"
++		awk -v first="$first" -v last="$last" -v cause="$cause" '
++		 FNR == NR { if (FNR >= first && FNR <= last) original[FNR] = $0; next }
++		 FNR >= first && FNR <= last {
++		   if (cause == "latch") expected = "\tif (FALSE)"
++		   else expected = "\tif (FALSE && " substr(original[FNR], 6)
++		   if ($0 != expected) exit 1
++		   print original[FNR]; next
++		 }
++		 { print }
++		' "$root/src/modules/dxe_core/entry.c" "$output/$cause.c" \
++			> "$output/$cause.inverse.c"
++		cmp "$root/src/modules/dxe_core/entry.c" "$output/$cause.inverse.c"
++		core_source=$output/$cause.c
++		compile -Wl,--gc-sections \
++			-Wl,-T,"$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++			-o "$output/mutant"
++		status=0
++		"$output/mutant" "$cause" > "$output/$cause.log" 2>&1 || status=$?
++		test "$status" -eq 134
++		grep -F "$expected" "$output/$cause.log" >/dev/null
++		if grep -Eq 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:' \
++		   "$output/$cause.log"; then
++			exit 1
++		fi
++		printf 'Exact %s SAN guard discard: assertion134/full inverse/no sanitizer diagnostic PASS\n' "$cause"
++	done
++fi
++sha256sum -c "$output/inputs-before.sha256"

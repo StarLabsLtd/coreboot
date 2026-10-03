@@ -1,0 +1,5 @@
+Retained staging HOST artifacts: /tmp/disk-capsule-stage-host.RGTngB
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS

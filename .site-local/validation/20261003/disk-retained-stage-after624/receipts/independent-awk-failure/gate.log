@@ -1,0 +1,8 @@
+Retained staging HOST artifacts: /home/sean/disk-retained-stage-independent.Oyu5zn/disk-capsule-stage-host.NV5zyq
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent.Oyu5zn/disk-capsule-stage-host.NV5zyq/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent.Oyu5zn/disk-capsule-stage-host.NV5zyq/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+awk: line 4: syntax error at or near end of line

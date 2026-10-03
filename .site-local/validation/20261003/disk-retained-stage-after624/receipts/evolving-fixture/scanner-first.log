@@ -1,0 +1,4 @@
+HOST artifacts: /home/sean/disk-stage-host.172QYR
+/usr/bin/ld: warning: /home/sean/disk-stage-host.172QYR/test has a LOAD segment with RWX permissions
+test: /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:388: test_scanner_terminal: Assertion `process_disk_capsules(&model_context) == EFI_DEVICE_ERROR' failed.
+Aborted

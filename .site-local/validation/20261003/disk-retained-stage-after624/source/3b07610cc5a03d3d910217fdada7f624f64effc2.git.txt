@@ -1,0 +1,14 @@
+commit 3b07610cc5a03d3d910217fdada7f624f64effc2
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Sat Oct 3 08:47:28 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Sat Oct 3 08:48:17 2026 +0100
+
+    boot: stage disk capsules through retained RAM after owned teardown
+    
+    Preflight the installed capsule service before disconnecting the selected NVMe filesystem stack. Hold driver and private-control identities across teardown, quiesce owned controllers, and submit the retained scatter list through the public persistent capsule service.
+    
+    Keep failed or returning submissions terminal after teardown and prevent completion against a retired filesystem interface. Preserve the existing disk-only path and refuse unsupported retained-staging profiles.
+    
+    Signed-off-by: Sean Rhodes <sean@starlabs.systems>

@@ -1,0 +1,15 @@
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.RGTngB/test has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.RGTngB/test has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.RGTngB/mutant has a LOAD segment with RWX permissions
+/usr/bin/ld: /tmp/ccERwMQ4.o: in function `show_linear_status':
+/tmp/disk-capsule-stage-host.RGTngB/latch.c:5389:(.text.show_linear_status+0x345): undefined reference to `cdk2_boot_logo_layout_for_surface'
+/usr/bin/ld: /tmp/ccERwMQ4.o: in function `.LC150':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xc8): undefined reference to `cdk2_authvar_native_x86_cache'
+/usr/bin/ld: /tmp/ccERwMQ4.o: in function `.LC151':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xd0): undefined reference to `cdk2_authvar_native_x86_barrier'
+/usr/bin/ld: /tmp/ccERwMQ4.o: in function `.LC152':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xd8): undefined reference to `cdk2_authvar_native_x86_trigger'
+collect2: error: ld returned 1 exit status
+real 22.18
+user 20.98
+sys 1.19

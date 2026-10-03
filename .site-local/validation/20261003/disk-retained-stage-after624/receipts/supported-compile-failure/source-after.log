@@ -1,0 +1,7 @@
+src/modules/dxe_core/entry.c: OK
+tests/dxe_core_capsule_disk_handoff_test.sh: OK
+tests/dxe_core_capsule_disk_stage_test.c: OK
+tests/dxe_core_capsule_disk_stage_test.sh: OK
+tests/dxe_core_capsule_disk_stage_test.ld: OK
+/home/sean/disk-request-normal-protected-core-after619.1Zg8yk/include/cdk2/config.h: OK
+/home/sean/linear-boot-api-gate.f3YlpW/include/cdk2/config.h: OK

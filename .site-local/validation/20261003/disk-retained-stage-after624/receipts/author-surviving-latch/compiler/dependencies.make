@@ -1,0 +1,1145 @@
+dxe_core_capsule_disk_stage_test.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_stage_test.c \
+ /usr/include/stdc-predef.h /usr/include/assert.h /usr/include/features.h \
+ /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h /usr/include/stdlib.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/include/x86_64-linux-gnu/bits/waitflags.h \
+ /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
+ /usr/include/x86_64-linux-gnu/sys/types.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clock_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clockid_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/time_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/timer_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h /usr/include/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endianness.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap.h \
+ /usr/include/x86_64-linux-gnu/bits/uintn-identity.h \
+ /usr/include/x86_64-linux-gnu/sys/select.h \
+ /usr/include/x86_64-linux-gnu/bits/select.h \
+ /usr/include/x86_64-linux-gnu/bits/types/sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
+ /usr/include/x86_64-linux-gnu/bits/thread-shared-types.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes-arch.h \
+ /usr/include/x86_64-linux-gnu/bits/atomic_wide_counter.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_mutex.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h /usr/include/alloca.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h /usr/include/stdio.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_handoff_test.c \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_topology_handoff.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/capsule_delivery_policy_fixture.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_delivery_policy.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/../src/modules/dxe_core/private_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/local_apic_timer.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_dma_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/xhci_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle_close_composition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle_close_boundary.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_presence_lifecycle_close_client.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_presence_lifecycle_close.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/cpu_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_check_outcome.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_report.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/esrt_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/coreboot_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/system_fmp_transport.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/software_hash.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_measure.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_event_log.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_native_x86.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_transport.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_service.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_disk.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/boot_logo.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/con_splitter_entry.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/con_splitter.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/deadline.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob_payload.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/deadline_tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/graphics_output_driver.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/graphics_output.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/graphics_info_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_tcg2.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/protocol/tcg2.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/lvgl_ui.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/lvgl_renderer.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_host_bridge.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_configuration.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_io_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_io_model.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/partition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tpm2_acpi_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/firmware_file.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/private_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/private_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+database.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/database.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/partition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/pe.h
+image.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/image.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pe_image_view.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+memory.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/memory.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+lifecycle.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/lifecycle.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h
+presence_lifecycle.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/presence_lifecycle.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h
+capsule_runtime.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/capsule_runtime/capsule_runtime.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h
+linear_boot.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/linear_boot.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h
+capsule_disk.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_disk.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h
+software_hash.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/software_hash.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/software_hash.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_measure.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_event_log.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h
+2sha1.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha1.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h
+2sha256.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+2sha512.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha512.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+sm3.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/export.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/kernel.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/module.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/string.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/unaligned.h
+diagnostic.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/diagnostic.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h
+deadline.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/deadline.c \
+ /usr/include/stdc-predef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/deadline.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h
+dxe_core_capsule_disk_stage_test.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_stage_test.c \
+ /usr/include/stdc-predef.h /usr/include/assert.h /usr/include/features.h \
+ /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h /usr/include/stdlib.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/include/x86_64-linux-gnu/bits/waitflags.h \
+ /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
+ /usr/include/x86_64-linux-gnu/sys/types.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clock_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/clockid_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/time_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/timer_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h /usr/include/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/endianness.h \
+ /usr/include/x86_64-linux-gnu/bits/byteswap.h \
+ /usr/include/x86_64-linux-gnu/bits/uintn-identity.h \
+ /usr/include/x86_64-linux-gnu/sys/select.h \
+ /usr/include/x86_64-linux-gnu/bits/select.h \
+ /usr/include/x86_64-linux-gnu/bits/types/sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__sigset_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
+ /usr/include/x86_64-linux-gnu/bits/select2.h \
+ /usr/include/x86_64-linux-gnu/bits/select-decl.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
+ /usr/include/x86_64-linux-gnu/bits/thread-shared-types.h \
+ /usr/include/x86_64-linux-gnu/bits/pthreadtypes-arch.h \
+ /usr/include/x86_64-linux-gnu/bits/atomic_wide_counter.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_mutex.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h /usr/include/alloca.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/include/stdio.h /usr/lib/gcc/x86_64-linux-gnu/15/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_handoff_test.c \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_topology_handoff.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/capsule_delivery_policy_fixture.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_delivery_policy.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/../src/modules/dxe_core/private_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/local_apic_timer.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_dma_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/xhci_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle_close_composition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle_close_boundary.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_presence_lifecycle_close_client.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_presence_lifecycle_close.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/cpu_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_check_outcome.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_report.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/esrt_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/coreboot_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/system_fmp_transport.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/software_hash.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_measure.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_event_log.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_native_x86.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_transport.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/payload_mm_authvar_service.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_disk.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/boot_logo.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/con_splitter_entry.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/con_splitter.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/deadline.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob_payload.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/deadline_tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/graphics_output_driver.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/graphics_output.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/graphics_info_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_tcg2.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/protocol/tcg2.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/lvgl_ui.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/lvgl_renderer.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_host_bridge.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_configuration.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_io_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pci_io_model.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/partition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tpm2_acpi_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/firmware_file.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/private_control.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/private_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+database.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/database.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/partition.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/../../boot/pe.h
+image.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/image.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/pe_image_view.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+memory.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/memory.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_image_transaction.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_core_abi.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/runtime_arch.h \
+ /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/diagnostic.h
+lifecycle.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/lifecycle.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/dxe_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h
+presence_lifecycle.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/presence_lifecycle.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/authvar_presence_lifecycle.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h
+capsule_runtime.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/capsule_runtime/capsule_runtime.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_runtime.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h
+linear_boot.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/linear_boot.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h
+capsule_disk.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/capsule_disk.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat_binding.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/disk_io.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/english.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/fat.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h
+software_hash.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/software_hash.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/software_hash.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_measure.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/tcg2_event_log.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h
+2sha1.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha1.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h
+2sha256.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha256.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+2sha512.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha512.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2common.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sysincludes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+sm3.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/export.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/kernel.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/module.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/string.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/tcg_hash/vendor/linux/include/linux/unaligned.h
+diagnostic.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/diagnostic.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/diagnostic.h \
+ /tmp/disk-capsule-stage-host.jnZKaZ/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/pi/boot_mode.h
+deadline.o: \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/deadline.c \
+ /usr/include/stdc-predef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/cdk2/deadline.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/guid/tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/include/uefi.h

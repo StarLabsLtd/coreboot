@@ -1,0 +1,8 @@
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.fuyKIQ/test has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.fuyKIQ/test has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.fuyKIQ/mutant has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.fuyKIQ/mutant has a LOAD segment with RWX permissions
+/usr/bin/ld: warning: /tmp/disk-capsule-stage-host.fuyKIQ/mutant has a LOAD segment with RWX permissions
+real 126.90
+user 122.22
+sys 4.60

@@ -1,0 +1,17 @@
+Retained staging HOST artifacts: /home/sean/disk-retained-stage-independent-final.UdGtwA/disk-capsule-stage-host.ppoNg3
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-final.UdGtwA/disk-capsule-stage-host.ppoNg3/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-final.UdGtwA/disk-capsule-stage-host.ppoNg3/test has a LOAD segment with RWX permissions
+DISK retained staging: actual Core lifetime/hash/allocator/Query with modeled controllers PASS
+Actual DISK scanner returned-stage terminal guard: no completion reopen/delete PASS
+/usr/bin/ld: warning: /home/sean/disk-retained-stage-independent-final.UdGtwA/disk-capsule-stage-host.ppoNg3/mutant has a LOAD segment with RWX permissions
+/usr/bin/ld: /home/sean/disk-retained-stage-independent-final.UdGtwA/ccktza1v.o: in function `show_linear_status':
+/home/sean/disk-retained-stage-independent-final.UdGtwA/disk-capsule-stage-host.ppoNg3/latch.c:5389:(.text.show_linear_status+0x345): undefined reference to `cdk2_boot_logo_layout_for_surface'
+/usr/bin/ld: /home/sean/disk-retained-stage-independent-final.UdGtwA/ccktza1v.o: in function `.LC150':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xc8): undefined reference to `cdk2_authvar_native_x86_cache'
+/usr/bin/ld: /home/sean/disk-retained-stage-independent-final.UdGtwA/ccktza1v.o: in function `.LC151':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xd0): undefined reference to `cdk2_authvar_native_x86_barrier'
+/usr/bin/ld: /home/sean/disk-retained-stage-independent-final.UdGtwA/ccktza1v.o: in function `.LC152':
+dxe_core_capsule_disk_stage_test.c:(.rodata.cst8+0xd8): undefined reference to `cdk2_authvar_native_x86_trigger'
+collect2: error: ld returned 1 exit status

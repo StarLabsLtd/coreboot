@@ -1,0 +1,2 @@
+mutant: /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_stage_test.c:28: __wrap_cdk2_capsule_disk_complete_esp: Assertion `!filesystem_retired' failed.
+Aborted

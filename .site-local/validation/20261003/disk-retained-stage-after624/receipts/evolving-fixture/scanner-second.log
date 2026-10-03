@@ -1,0 +1,54 @@
+HOST artifacts: /home/sean/disk-stage-host.nU5qai
+/usr/bin/ld: warning: /home/sean/disk-stage-host.nU5qai/test has a LOAD segment with RWX permissions
+
+=================================================================
+==1254969==ERROR: LeakSanitizer: detected memory leaks
+
+Direct leak of 80 byte(s) in 1 object(s) allocated from:
+    #0 0x7793a852261b in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:67
+    #1 0x000000419a98 in test_allocate_pool /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_handoff_test.c:245
+    #2 0x00000040b18f in capsule_scan_allocate /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:3961
+    #3 0x000000442e1a in esp_alloc /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1163
+    #4 0x00000043cb5a in cdk2_capsule_disk_scan /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:817
+    #5 0x000000445081 in cdk2_capsule_disk_scan_esp /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1288
+    #6 0x00000040cbdd in process_disk_capsules /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:4118
+    #7 0x00000041cc83 in test_scanner_terminal /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:404
+    #8 0x00000041d36b in main /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:451
+    #9 0x7793a782a574 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #10 0x7793a782a627 in __libc_start_main_impl ../csu/libc-start.c:360
+    #11 0x000000402614 in _start (/home/sean/disk-stage-host.nU5qai/test+0x402614) (BuildId: 532e59f06bab87ce73e36eba2ac9502e3468d6a2)
+
+Indirect leak of 4096 byte(s) in 1 object(s) allocated from:
+    #0 0x7793a852261b in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:67
+    #1 0x000000419a98 in test_allocate_pool /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_handoff_test.c:245
+    #2 0x00000040b18f in capsule_scan_allocate /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:3961
+    #3 0x000000442e1a in esp_alloc /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1163
+    #4 0x000000432f5c in load_source /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:340
+    #5 0x00000043ba8a in cdk2_capsule_disk_scan /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:720
+    #6 0x000000445081 in cdk2_capsule_disk_scan_esp /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1288
+    #7 0x00000040cbdd in process_disk_capsules /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:4118
+    #8 0x00000041cc83 in test_scanner_terminal /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:404
+    #9 0x00000041d36b in main /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:451
+    #10 0x7793a782a574 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #11 0x7793a782a627 in __libc_start_main_impl ../csu/libc-start.c:360
+    #12 0x000000402614 in _start (/home/sean/disk-stage-host.nU5qai/test+0x402614) (BuildId: 532e59f06bab87ce73e36eba2ac9502e3468d6a2)
+
+Indirect leak of 4 byte(s) in 1 object(s) allocated from:
+    #0 0x7793a852261b in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:67
+    #1 0x000000419a98 in test_allocate_pool /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/tests/dxe_core_capsule_disk_handoff_test.c:245
+    #2 0x00000040b18f in capsule_scan_allocate /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:3961
+    #3 0x000000442e1a in esp_alloc /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1163
+    #4 0x0000004317d1 in copy_name /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:261
+    #5 0x000000431a5e in copy_metadata /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:276
+    #6 0x00000043345e in load_source /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:371
+    #7 0x00000043ba8a in cdk2_capsule_disk_scan /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:720
+    #8 0x000000445081 in cdk2_capsule_disk_scan_esp /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/lib/capsule_disk.c:1288
+    #9 0x00000040cbdd in process_disk_capsules /home/sean/Documents/.cdk2-worktrees/disk-capsule-retained-ram-stage-after616/src/modules/dxe_core/entry.c:4118
+    #10 0x00000041cc83 in test_scanner_terminal /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:404
+    #11 0x00000041d36b in main /home/sean/disk-capsule-stage-fixture.1PL4MW/dxe_core_capsule_disk_stage_test.c:451
+    #12 0x7793a782a574 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #13 0x7793a782a627 in __libc_start_main_impl ../csu/libc-start.c:360
+    #14 0x000000402614 in _start (/home/sean/disk-stage-host.nU5qai/test+0x402614) (BuildId: 532e59f06bab87ce73e36eba2ac9502e3468d6a2)
+
+SUMMARY: AddressSanitizer: 4180 byte(s) leaked in 3 allocation(s).
+Aborted
