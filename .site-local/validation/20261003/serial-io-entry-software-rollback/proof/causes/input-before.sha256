@@ -1,0 +1,5 @@
+bae08225ff10e8cc82c76a77eb2015df411a4e99c50f08e288de369e5eff373a  src/modules/serial_io/serial_io.c
+6f30fb6b52010e407473c6dbf6440b19a51853947f7fd291849be63fe0c9066e  tests/serial_io_test.c
+4d0efac10990ecdab23dc1da39600651cf932b1411dcc2cf8611dab4d6f0dbab  include/cdk2/uart.h
+4cc543f9646885a0fa4ab79d5cbe2079e3b41ace04f6563be935fef01b899d05  /home/sean/serial-io-native-gate.wYokoR/resolved.config
+43e3f8e7fab4730e10992ccb462dd8378588e47ae6d56b0ce7c1be2d7a04d7db  /home/sean/serial-io-native-gate.wYokoR/include/cdk2/config.h

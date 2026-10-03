@@ -1,0 +1,11 @@
+src/modules/serial_io/serial_io.c: OK
+tests/serial_io_test.c: OK
+include/cdk2/uart.h: OK
+/home/sean/serial-io-rollback-gate.MWFrOQ/resolved.config: OK
+/home/sean/serial-io-rollback-gate.MWFrOQ/include/cdk2/config.h: OK
+src/modules/serial_io/serial_io.c: OK
+tests/serial_io_test.c: OK
+include/cdk2/uart.h: OK
+/home/sean/serial-io-rollback-gate.MWFrOQ/resolved.config: OK
+/home/sean/serial-io-rollback-gate.MWFrOQ/include/cdk2/config.h: OK
+PASS native hardware-branch compile, no unresolved symbols; not PE/native execution

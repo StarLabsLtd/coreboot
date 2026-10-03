@@ -1,0 +1,4 @@
+configure-rollback	failed configure changed live context or reached I/O
+install-rollback	failed install lost original status or changed live software context
+mode-restore	failed configure changed live context or reached I/O
+failure-status	failed install lost original status or changed live software context

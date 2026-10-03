@@ -1,0 +1,20 @@
+sha256	bytes	original_path	scope
+93d758092e214f19480f3fabcaacc9c3f8a48a06b1107911e117338c753d6d64	2144400	/home/sean/capsule-linear-completion-normal.fw344b/native/cdk2-coreboot-image.elf	actual595 Core reused; no ELF copy
+bf9a7365e423573e1afd86c270e129c9212c907d073bf8bf3c7193c29064aae7	8388608	/home/sean/normal-refusal-consumed-producer.VPNIdB/initial9/build/coreboot.rom	actual387 initial producer; no ROM copy
+1a5104cc91e919780659dd77955b73a4cea1d945af1cefccf9a570dd4e4d0b29	8388608	/home/sean/normal-refusal-consumed-producer.VPNIdB/targetA/build/coreboot.rom	actual387 target producer; no ROM copy
+9f67fc914500d0585084fa6e604b633987314a8b9c6fe12924868e6b8d1f7b32	6654256	/home/sean/normal-refusal-consumed-producer.VPNIdB/initial9/build/util/cbfstool/cbfstool	actual producer tool; no executable copy
+e79c3173e6a2aeea71382b1962744bcdb18431f7e508f0e278c032b486f0517c	8390258	/home/sean/normal-refusal-consumed-producer.VPNIdB/reference-a.cap	genuine reference; no capsule copy
+e14360885f053c391ba51cd2ac9d34ee7561033e667686af9cb0a5522babdf42	8390260	/home/sean/normal-refusal-consumed-producer.VPNIdB/wrong-signer-a.cap	wrong signer candidate; no capsule copy
+37495906c83bfe227168b0b794b8831b2dffdbb951ea438742e82c93a75e4f28	8390258	/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte-corrupt-a.cap	signed-byte candidate; no capsule copy
+f3c23af4870b53fb0de139ce43ce1c345d779249a1258ecbe9944c4f5827ac78	8425472	/home/sean/normal-refusal-consumed-producer.VPNIdB/wrong-signer/app/SystemFmpCoreRamStage.efi	actual ordinary MAIN app; no PE copy
+e14360885f053c391ba51cd2ac9d34ee7561033e667686af9cb0a5522babdf42	8390260	/home/sean/normal-refusal-consumed-producer.VPNIdB/wrong-signer/run-1/boot-1/retained-capsule.bin	actual retained candidate; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/normal-refusal-consumed-producer.VPNIdB/wrong-signer/run-1/initial-core.elf	actual CBFS-loaded Core; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/normal-refusal-consumed-producer.VPNIdB/wrong-signer/run-1/target-core.elf	actual target CBFS-loaded Core; hash only
+c9e68f37730f04cac16a363b1be16bbc14690e0c9579e65c9f2db22df177a273	8425472	/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte/app/SystemFmpCoreRamStage.efi	actual ordinary MAIN app; no PE copy
+37495906c83bfe227168b0b794b8831b2dffdbb951ea438742e82c93a75e4f28	8390258	/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte/run-1/boot-1/retained-capsule.bin	actual retained candidate; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte/run-1/initial-core.elf	actual CBFS-loaded Core; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte/run-1/target-core.elf	actual target CBFS-loaded Core; hash only
+f3c23af4870b53fb0de139ce43ce1c345d779249a1258ecbe9944c4f5827ac78	8425472	/home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/app/SystemFmpCoreRamStage.efi	actual ordinary MAIN app; no PE copy
+e14360885f053c391ba51cd2ac9d34ee7561033e667686af9cb0a5522babdf42	8390260	/home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/run-1/boot-1/retained-capsule.bin	actual retained candidate; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/run-1/initial-core.elf	actual CBFS-loaded Core; hash only
+3dae8fcfeaab7baac6a95bdac798e43fa7dbef2622d36fe79d9bedc3091004b9	2133559	/home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/run-1/target-core.elf	actual target CBFS-loaded Core; hash only

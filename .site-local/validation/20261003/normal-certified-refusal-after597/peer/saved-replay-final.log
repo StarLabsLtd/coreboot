@@ -1,0 +1,5 @@
+PASS saved wrong-signer: exact two FW9 epochs, one guest warm reset, certified RAM complete before PCI, ordinary MAIN request absence/zero-state marker, retained candidate identity, input maps/current hashes, loaded Core, outside-SMMSTORE equality
+actual QEMU seconds=73.52133767299892; disk hash matches recorded final and original runner enforces pre/post disk equality
+PASS saved signed-byte: exact two FW9 epochs, one guest warm reset, certified RAM complete before PCI, ordinary MAIN request absence/zero-state marker, retained candidate identity, input maps/current hashes, loaded Core, outside-SMMSTORE equality
+actual QEMU seconds=73.48900207000042; disk hash matches recorded final and original runner enforces pre/post disk equality
+Saved-only opposition PASS; not a fresh VM, Linux, hardware or full-tree regression proof.

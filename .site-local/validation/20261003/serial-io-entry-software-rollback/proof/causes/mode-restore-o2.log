@@ -1,0 +1,3 @@
+serial io test failed: failed configure changed live context or reached I/O
+mode-restore-o2: /home/sean/serial-io-rollback-proof.OTmXWe/causes/mode-restore/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+Aborted

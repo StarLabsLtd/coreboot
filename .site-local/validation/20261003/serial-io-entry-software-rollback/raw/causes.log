@@ -1,0 +1,29 @@
+serial io test failed: failed configure changed live context or reached I/O
+configure-rollback-o0: /home/sean/serial-io-rollback-proof.OTmXWe/causes/configure-rollback/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS configure-rollback O0 targeted134 reverseTU noSAN
+serial io test failed: failed install lost original status or changed live software context
+install-rollback-o0: /home/sean/serial-io-rollback-proof.OTmXWe/causes/install-rollback/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS install-rollback O0 targeted134 reverseTU noSAN
+serial io test failed: failed configure changed live context or reached I/O
+mode-restore-o0: /home/sean/serial-io-rollback-proof.OTmXWe/causes/mode-restore/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS mode-restore O0 targeted134 reverseTU noSAN
+serial io test failed: failed install lost original status or changed live software context
+failure-status-o0: /home/sean/serial-io-rollback-proof.OTmXWe/causes/failure-status/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS failure-status O0 targeted134 reverseTU noSAN
+serial io test failed: failed configure changed live context or reached I/O
+configure-rollback-o2: /home/sean/serial-io-rollback-proof.OTmXWe/causes/configure-rollback/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS configure-rollback O2 targeted134 reverseTU noSAN
+serial io test failed: failed install lost original status or changed live software context
+install-rollback-o2: /home/sean/serial-io-rollback-proof.OTmXWe/causes/install-rollback/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS install-rollback O2 targeted134 reverseTU noSAN
+serial io test failed: failed configure changed live context or reached I/O
+mode-restore-o2: /home/sean/serial-io-rollback-proof.OTmXWe/causes/mode-restore/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS mode-restore O2 targeted134 reverseTU noSAN
+serial io test failed: failed install lost original status or changed live software context
+failure-status-o2: /home/sean/serial-io-rollback-proof.OTmXWe/causes/failure-status/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+PASS failure-status O2 targeted134 reverseTU noSAN
+src/modules/serial_io/serial_io.c: OK
+tests/serial_io_test.c: OK
+include/cdk2/uart.h: OK
+/home/sean/serial-io-native-gate.wYokoR/resolved.config: OK
+/home/sean/serial-io-native-gate.wYokoR/include/cdk2/config.h: OK

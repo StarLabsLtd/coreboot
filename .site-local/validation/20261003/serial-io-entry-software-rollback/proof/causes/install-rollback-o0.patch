@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -585,7 +585,7 @@
+ 	if (status == EFI_SUCCESS)
+ 		status = boot_services->install_multiple(&serial_handle, &serial_io_guid,
+ 			&serial_io, &device_path_guid, &serial_path, NULL);
+-	if (status != EFI_SUCCESS) {
++	if (status != EFI_SUCCESS && status != EFI_DEVICE_ERROR) {
+ 		/* Restore software context; UART programming is not undone. */
+ 		boot_services = previous_services;
+ 		port = previous_port;

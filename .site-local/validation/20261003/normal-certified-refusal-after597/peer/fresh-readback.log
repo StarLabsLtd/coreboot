@@ -1,0 +1,2 @@
+Fresh wrong-signer saved readback PASS: strict two FW9 epochs, one warm RESET, actual certified RAM complete before PCI, ordinary MAIN request absence/zero state, retained candidate, input/current hashes, Core loaded bytes, outside-store and final disk hash.
+Disk pre/post equality is source-executed by the native runner; this saved check verifies its recorded final hash, not a reconstructed initial disk.

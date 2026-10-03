@@ -1,0 +1,3 @@
+serial io test failed: failed install lost original status or changed live software context
+install-rollback-o0: /home/sean/serial-io-rollback-proof.OTmXWe/causes/install-rollback/tests/serial_io_test.c:102: expect: Assertion `condition' failed.
+Aborted

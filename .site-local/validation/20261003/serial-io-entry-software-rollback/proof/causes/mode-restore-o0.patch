@@ -1,0 +1,11 @@
+--- baseline
++++ mutant
+@@ -590,7 +590,7 @@
+ 		boot_services = previous_services;
+ 		port = previous_port;
+ 		serial_handle = previous_handle;
+-		serial_mode = previous_mode;
++		(void)previous_mode;
+ 		serial_path = previous_path;
+ 	}
+ 	return status;

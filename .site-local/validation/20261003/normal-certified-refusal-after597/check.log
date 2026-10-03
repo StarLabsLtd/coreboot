@@ -1,0 +1,4 @@
+root-wrong-signer: actual saved epochs/markers/maps/source/archive PASS
+root-signed-byte: actual saved epochs/markers/maps/source/archive PASS
+peer-wrong-signer: actual saved epochs/markers/maps/source/archive PASS
+Finite saved receipt check PASS; not a new VM or current historical path-hash assertion.

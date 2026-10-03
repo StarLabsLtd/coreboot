@@ -1,0 +1,13 @@
+PASS native o0 actual entry software rollback
+PASS native o2 actual entry software rollback
+PASS native san actual entry software rollback
+/home/sean/serial-io-native-gate.wYokoR/resolved.config: OK
+/home/sean/serial-io-native-gate.wYokoR/include/cdk2/config.h: OK
+PASS retained o0 actual entry software rollback
+PASS retained o2 actual entry software rollback
+PASS retained san actual entry software rollback
+/home/sean/serial-io-validated-gate.uqrNZM/resolved.config: OK
+/home/sean/serial-io-validated-gate.uqrNZM/include/cdk2/config.h: OK
+src/modules/serial_io/serial_io.c: OK
+tests/serial_io_test.c: OK
+include/cdk2/uart.h: OK

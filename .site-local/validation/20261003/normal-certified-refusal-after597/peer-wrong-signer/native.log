@@ -1,0 +1,18 @@
+Actual-codec refusal store artifacts: /home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/run-1/refusal-store.knbZGO
+/home/sean/certified-refusal-continuation-peer.Js7GPg/wrong-signer/run-1/pflash.rom: OK
+/home/sean/normal-refusal-consumed-producer.VPNIdB/initial9/build/util/cbfstool/cbfstool: OK
+/home/sean/Documents/.cdk2-worktrees/certified-refusal-continuation-peer-after595.3Qdgg0/tests/system_fmp_core_ram_refusal_store.c: OK
+/home/sean/Documents/.cdk2-worktrees/certified-refusal-continuation-peer-after595.3Qdgg0/tests/system_fmp_core_ram_refusal_store_test.sh: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_fv.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_record.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_store_semantics.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_writer.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_default_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/payload_mm_authvar_ftw.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/uuid.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/src/lib/hexstrtobin.c: OK
+Actual producer refusal-store HOST oracle: PASS (no guest writes)
+Actual capsule tools bound finite wrong-signer refusal; producer public trust unchanged: PASS
+Actual ordinary Core RAM certified refusal continuation PASS (guest success)

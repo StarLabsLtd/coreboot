@@ -1,0 +1,25 @@
+/home/sean/capsule-linear-completion-normal.fw344b/include/cdk2/config.h: OK
+/home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte-corrupt-a.cap: OK
+/home/sean/normal-refusal-consumed-producer.VPNIdB/targetA/build/coreboot.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/tests/system_fmp_core_ram_refusal.py: OK
+/home/sean/normal-refusal-consumed-producer.VPNIdB/reference-a.cap: OK
+/home/sean/normal-core-ram-refusal-fixtures.VxQuI9/wrong-signer.pem: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/src/lib/coreboot_hob.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/src/boot/coreboot_checksum.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/src/boot/coreboot_resource.c: OK
+/home/sean/Documents/.cdk2-worktrees/normal-refusal-continuation-after592/src/modules/dxe_core/string.c: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/usr/bin/ld.bfd: OK
+/usr/bin/readelf: OK
+/home/sean/capsule-linear-completion-normal.fw344b/native/cdk2-native-pe-link: OK
+/home/sean/capsule-linear-completion-normal.fw344b/native/cdk2-pe-exec-sections: OK
+/home/sean/capsule-linear-completion-normal.fw344b/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py: OK
+c9e68f37730f04cac16a363b1be16bbc14690e0c9579e65c9f2db22df177a273  /home/sean/normal-refusal-consumed-producer.VPNIdB/signed-byte/app/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim

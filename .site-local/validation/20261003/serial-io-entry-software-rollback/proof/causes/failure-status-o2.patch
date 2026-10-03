@@ -1,0 +1,9 @@
+--- baseline
++++ mutant
+@@ -593,5 +593,5 @@
+ 		serial_mode = previous_mode;
+ 		serial_path = previous_path;
+ 	}
+-	return status;
++	return status == EFI_DEVICE_ERROR ? EFI_SUCCESS : status;
+ }
