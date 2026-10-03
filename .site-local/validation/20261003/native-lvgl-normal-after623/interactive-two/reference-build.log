@@ -1,0 +1,15 @@
+make: Entering directory '/home/sean/Documents/cdk2'
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/cdk2'

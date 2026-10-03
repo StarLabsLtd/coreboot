@@ -1,0 +1,27 @@
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+#
+# No change to /home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config
+#
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	24576	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/home/sean/native-lvgl-interactive-after623.fXB54P/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/native-lvgl-interactive-after623.fXB54P/native/cdk2-coreboot-image.elf)

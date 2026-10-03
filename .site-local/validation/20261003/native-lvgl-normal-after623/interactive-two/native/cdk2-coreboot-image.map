@@ -1,0 +1,928 @@
+
+Merging program properties
+
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (0x3) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o (not found)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o (0x3)
+Removed property 0xc0000002 to merge /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o (not found) and /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o (0x3)
+
+Discarded input sections
+
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.diagnostic_text_length
+                0x0000000000000000       0x14 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.handoff_clock
+                0x0000000000000000       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.handoff_putc
+                0x0000000000000000       0x86 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.value_prefix
+                0x0000000000000000       0x43 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_now
+                0x0000000000000000       0x1c /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_configure_hob
+                0x0000000000000000      0x42b /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_configure_system_table
+                0x0000000000000000       0x68 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_runtime_transition
+                0x0000000000000000       0x21 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_emit_console
+                0x0000000000000000        0xc /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_emit_compact
+                0x0000000000000000       0x15 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_message_status
+                0x0000000000000000       0x86 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_message
+                0x0000000000000000        0xb /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .rodata.cdk2_diag_value.str1.1
+                0x0000000000000000        0x3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_value
+                0x0000000000000000       0x5e /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_bytes
+                0x0000000000000000       0x76 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .rodata.cdk2_diag_optional_phase_pair_at.str1.1
+                0x0000000000000000        0xa /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_optional_phase_pair_at
+                0x0000000000000000      0x117 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_phase
+                0x0000000000000000       0x17 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .rodata.hob_list_guid
+                0x0000000000000000       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .bss.local_handoff
+                0x0000000000000000       0x58 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .text.cdk2_platform_initialize_native_context
+                0x0000000000000000        0xf /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .text.cdk2_coreboot_parse_table
+                0x0000000000000000        0x9 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .text.cdk2_coreboot_calculate_crc32
+                0x0000000000000000       0x28 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.boot_private_object_valid
+                0x0000000000000000       0x14 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.boot_private_buffer_snapshot
+                0x0000000000000000      0x40a /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_import_boot_private_buffer
+                0x0000000000000000       0x33 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_reserve_boot_private_buffer
+                0x0000000000000000      0x230 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .rodata.cdk2_pci_topology_handoff_hob_guid
+                0x0000000000000000       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .text.cdk2_direct_image_handoff_open
+                0x0000000000000000       0xd8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .text.memmove  0x0000000000000000       0x2f /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .text.strlen   0x0000000000000000       0x12 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_boot_path_set
+                0x0000000000000000       0xd1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_capsule_outcome
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_capsule_disk_required
+                0x0000000000000000       0x42 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_capsule_gate_early
+                0x0000000000000000       0x8a /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_capsule_finalize_ram
+                0x0000000000000000       0x63 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_capsule_finalize_disk
+                0x0000000000000000       0x90 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_display_clear_allowed
+                0x0000000000000000       0x24 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_input_ui_validate
+                0x0000000000000000       0x6a /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_state_from_hob
+                0x0000000000000000      0x162 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_state_update_hob
+                0x0000000000000000      0x119 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .text.cdk2_boot_logo_bmp
+                0x0000000000000000      0x188 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.bytes_zero
+                0x0000000000000000       0x17 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.name_valid
+                0x0000000000000000       0x5a /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.result_empty
+                0x0000000000000000       0x38 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.name_slot_tail_zero
+                0x0000000000000000       0x43 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.data_slot_tail_zero
+                0x0000000000000000       0x42 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.stored_attributes_valid
+                0x0000000000000000       0x23 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.cdk2_authvar_service_request_validate
+                0x0000000000000000      0x35a /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .rodata.cdk2_authvar_service_request_validate
+                0x0000000000000000       0x28 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.cdk2_authvar_service_response_validate
+                0x0000000000000000      0x8d9 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .rodata.cdk2_authvar_service_response_validate
+                0x0000000000000000       0x28 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .text.read_u32
+                0x0000000000000000        0x3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .text.snapshot_range_valid
+                0x0000000000000000       0x1a /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .text.cdk2_image_policy_snapshot_decode_shape
+                0x0000000000000000      0x23c /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .text.cdk2_image_policy_snapshot_copy_shape
+                0x0000000000000000      0x11a /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .text.cdk2_native_payload_entry
+                0x0000000000000000       0x4b /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .comment       0x0000000000000000       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .note.gnu.property
+                0x0000000000000000       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+ .text          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+ .data          0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+ .bss           0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+                0x0000000000100000                . = 0x100000
+                0x0000000000100000                __cdk2_image_start = .
+
+.text.entry     0x0000000000100000      0x15d
+ *(.text.entry)
+ .text.entry    0x0000000000100000       0xd4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+                0x0000000000100000                cdk2_coreboot_entry32
+ .text.entry    0x00000000001000d4       0x89 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+                0x00000000001000d4                cdk2_native_stage_entry
+
+.text           0x0000000000101000     0xdb39
+ *(.text .text.*)
+ .text.cdk2.fault
+                0x0000000000101000        0x4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+                0x0000000000101000                cdk2_native_exception_dead_loop
+ .text.end_emit
+                0x0000000000101004       0x52 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.status_name
+                0x0000000000101056       0xcf /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.diagnostic_elapsed_microseconds
+                0x0000000000101125       0x4b /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.append_timestamp_at
+                0x0000000000101170      0x104 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.append_timestamp
+                0x0000000000101274       0x24 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.begin_emit
+                0x0000000000101298       0xe4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cbmem_console_validate
+                0x000000000010137c       0x52 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.configure_active
+                0x00000000001013ce      0x1a3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.write_char
+                0x0000000000101571       0xd1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.write_text
+                0x0000000000101642       0x18 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.write_hex
+                0x000000000010165a       0x38 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.emit_record
+                0x0000000000101692       0xf3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.emit_phase_locked
+                0x0000000000101785      0x10f /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.diagnostic_phase_length.isra.0
+                0x0000000000101894       0x29 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.diagnostic_default_timestamp_clock
+                0x00000000001018bd       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .text.cdk2_diag_configure
+                0x00000000001018cd        0xe /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                0x00000000001018cd                cdk2_diag_configure
+ .text.cdk2_diag_emit
+                0x00000000001018db        0xf /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                0x00000000001018db                cdk2_diag_emit
+ .text.cdk2_diag_phase_event
+                0x00000000001018ea       0x83 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                0x00000000001018ea                cdk2_diag_phase_event
+ .text.cdk2_diag_phase_event_at
+                0x000000000010196d       0x9d /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                0x000000000010196d                cdk2_diag_phase_event_at
+ .text.cdk2_coreboot_parse_one_table
+                0x0000000000101a0a      0x268 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+ .text.cdk2_coreboot_parse
+                0x0000000000101c72       0x83 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+                0x0000000000101c72                cdk2_coreboot_parse
+ .text.cdk2_coreboot_find_record
+                0x0000000000101cf5       0xbc /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+                0x0000000000101cf5                cdk2_coreboot_find_record
+ .text.cdk2_coreboot_find_unique_record
+                0x0000000000101db1       0xc2 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+                0x0000000000101db1                cdk2_coreboot_find_unique_record
+ .text.cdk2_coreboot_find_payload_resource_section
+                0x0000000000101e73       0x82 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+                0x0000000000101e73                cdk2_coreboot_find_payload_resource_section
+ .text.cdk2_coreboot_authorize_framebuffer
+                0x0000000000101ef5      0x1a8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+                0x0000000000101ef5                cdk2_coreboot_authorize_framebuffer
+ .text.cdk2_coreboot_checksum16
+                0x000000000010209d       0x38 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+                0x000000000010209d                cdk2_coreboot_checksum16
+ .text.cdk2_coreboot_crc32_update
+                0x00000000001020d5       0x25 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+                0x00000000001020d5                cdk2_coreboot_crc32_update
+ .text.cdk2_coreboot_unpack64_at
+                0x00000000001020fa        0x5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_mtrr_type_valid
+                0x00000000001020ff       0x12 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_u64_range_end
+                0x0000000000102111       0x12 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_u64_range_within
+                0x0000000000102123       0x46 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_u64_ranges_overlap
+                0x0000000000102169       0x43 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_memory_policy_covers_range_by_owner_flags
+                0x00000000001021ac      0x139 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_validate_payload_resource_fixed_entries
+                0x00000000001022e5       0x51 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_variable_mtrr_decode
+                0x0000000000102336       0xb1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_pci_topology_assignment_count
+                0x00000000001023e7       0x5c /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_pixel_mask_valid
+                0x0000000000102443       0x50 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .text.cdk2_coreboot_validate_payload_resource_handoff
+                0x0000000000102493     0x19ec /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+                0x0000000000102493                cdk2_coreboot_validate_payload_resource_handoff
+ .text.cdk2_coreboot_memory_range_end
+                0x0000000000103e7f       0x18 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_hob_memory_range
+                0x0000000000103e97       0x64 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_validate_memory_ranges
+                0x0000000000103efb       0x9c /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_append_hob
+                0x0000000000103f97       0x53 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_find_tolud
+                0x0000000000103fea       0xc1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_range_contains
+                0x00000000001040ab       0x25 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_validate_append_handoff
+                0x00000000001040d0       0xcd /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_resource_type
+                0x000000000010419d       0x58 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_append_before_end
+                0x00000000001041f5       0xbd /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+ .text.cdk2_coreboot_find_hob_memory_base
+                0x00000000001042b2      0x149 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x00000000001042b2                cdk2_coreboot_find_hob_memory_base
+ .text.cdk2_coreboot_append_capsule_hob
+                0x00000000001043fb       0x55 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x00000000001043fb                cdk2_coreboot_append_capsule_hob
+ .text.cdk2_coreboot_append_guid_hob
+                0x0000000000104450       0x91 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x0000000000104450                cdk2_coreboot_append_guid_hob
+ .text.cdk2_coreboot_append_memory_allocation_hob
+                0x00000000001044e1       0x8b /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x00000000001044e1                cdk2_coreboot_append_memory_allocation_hob
+ .text.cdk2_coreboot_append_stack_hob
+                0x000000000010456c       0x86 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x000000000010456c                cdk2_coreboot_append_stack_hob
+ .text.cdk2_coreboot_append_cpu_hob
+                0x00000000001045f2       0x3a /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x00000000001045f2                cdk2_coreboot_append_cpu_hob
+ .text.cdk2_coreboot_append_module_hob
+                0x000000000010462c       0xb8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x000000000010462c                cdk2_coreboot_append_module_hob
+ .text.cdk2_coreboot_build_hobs
+                0x00000000001046e4      0xec0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+                0x00000000001046e4                cdk2_coreboot_build_hobs
+ .text.cdk2_native_copy
+                0x00000000001055a4       0x13 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .text.cdk2_native_equal
+                0x00000000001055b7       0x18 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .text.cdk2_native_linux_efi_stub_valid
+                0x00000000001055cf      0x1c5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+                0x00000000001055cf                cdk2_native_linux_efi_stub_valid
+ .text.cdk2_native_load_pe32_plus
+                0x0000000000105794      0x733 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+                0x0000000000105794                cdk2_native_load_pe32_plus
+ .text.read32   0x0000000000105ec7        0x3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+ .text.cdk2_pe_image_view_open
+                0x0000000000105eca      0x2fa /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+                0x0000000000105eca                cdk2_pe_image_view_open
+ .text.cdk2_pe_image_section
+                0x00000000001061c4       0x6e /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+                0x00000000001061c4                cdk2_pe_image_section
+ .text.cdk2_pe_image_directory
+                0x0000000000106232       0x9c /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+                0x0000000000106232                cdk2_pe_image_directory
+ .text.cdk2_pe_image_view_native_supported
+                0x00000000001062ce       0x29 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+                0x00000000001062ce                cdk2_pe_image_view_native_supported
+ .text.read32   0x00000000001062f7        0x3 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .text.read64   0x00000000001062fa       0x18 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+ .text.cdk2_direct_image_table_record
+                0x0000000000106312       0xf9 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+                0x0000000000106312                cdk2_direct_image_table_record
+ .text.cdk2_direct_image_table_dxe_core
+                0x000000000010640b       0x94 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+                0x000000000010640b                cdk2_direct_image_table_dxe_core
+ .text.cdk2_direct_image_table_open
+                0x000000000010649f      0x3b1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+                0x000000000010649f                cdk2_direct_image_table_open
+ .text.memset   0x0000000000106850       0x18 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+                0x0000000000106850                memset
+ .text.memcpy   0x0000000000106868       0x1a /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+                0x0000000000106868                memcpy
+ .text.memcmp   0x0000000000106882       0x29 /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+                0x0000000000106882                memcmp
+ .text.bytes_copy
+                0x00000000001068ab       0x13 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.boot_path_valid
+                0x00000000001068be       0x5c /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+ .text.cdk2_linear_state_init
+                0x000000000010691a       0x1c /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x000000000010691a                cdk2_linear_state_init
+ .text.cdk2_linear_state_validate
+                0x0000000000106936      0x5a0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x0000000000106936                cdk2_linear_state_validate
+ .text.cdk2_linear_capture_splash
+                0x0000000000106ed6       0x59 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x0000000000106ed6                cdk2_linear_capture_splash
+ .text.cdk2_linear_capture_coreboot_splash
+                0x0000000000106f2f       0xa8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x0000000000106f2f                cdk2_linear_capture_coreboot_splash
+ .text.cdk2_linear_run
+                0x0000000000106fd7      0x1b5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x0000000000106fd7                cdk2_linear_run
+ .text.foreground_pixel.isra.0
+                0x000000000010718c       0x59 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .text.colour.isra.0
+                0x00000000001071e5       0x78 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .text.cdk2_boot_logo_layout_for_surface
+                0x000000000010725d       0x87 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+                0x000000000010725d                cdk2_boot_logo_layout_for_surface
+ .text.cdk2_boot_logo_draw
+                0x00000000001072e4       0xf0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+                0x00000000001072e4                cdk2_boot_logo_draw
+ .text.cdk2_early_splash_draw
+                0x00000000001073d4      0x22c /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+                0x00000000001073d4                cdk2_early_splash_draw
+ .text.message_layout_valid
+                0x0000000000107600       0x39 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+ .text.cdk2_authvar_service_endpoint_validate
+                0x0000000000107639      0x116 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+                0x0000000000107639                cdk2_authvar_service_endpoint_validate
+ .text.cdk2_diagnostic_clock
+                0x000000000010774f       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_checksum8
+                0x000000000010775f       0x12 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_acpi_field_present
+                0x0000000000107771       0x17 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_acpi_read_integer
+                0x0000000000107788       0x8c /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_aml_skip_name
+                0x0000000000107814       0x78 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_string_record_length
+                0x000000000010788c       0x27 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_unique_modern_cbmem_entry
+                0x00000000001078b3       0xd1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_validate_smbios_table_range
+                0x0000000000107984       0x3b /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_cfr_extract_var_binary
+                0x00000000001079bf       0x6e /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_cfr_validate_var_binary
+                0x0000000000107a2d       0x1c /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_cfr_validate_object
+                0x0000000000107a49      0x2b0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_pixel_mask
+                0x0000000000107cf9       0x3d /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_copy_bytes
+                0x0000000000107d36       0x13 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_read64
+                0x0000000000107d49       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_read32
+                0x0000000000107d69       0x1f /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_acpi_parse_root
+                0x0000000000107d88      0x1b0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_read16
+                0x0000000000107f38       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_validate_framebuffer_geometry
+                0x0000000000107f58       0x83 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_initialize_floating_point
+                0x0000000000107fdb       0x9b /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_mask_legacy_interrupts
+                0x0000000000108076       0x22 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_load_dxe_core
+                0x0000000000108098      0x3a0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_bytes_equal
+                0x0000000000108438       0x1f /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_aml_package
+                0x0000000000108457       0x79 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_aml_skip_termarg
+                0x00000000001084d0       0x3f /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_aml_find_s5
+                0x000000000010850f      0x3c6 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_acpi_s5_sleep_type
+                0x00000000001088d5       0x3d /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_acpi_root_s5
+                0x0000000000108912       0xaf /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_legacy_cbmem_entry
+                0x00000000001089c1      0x17d /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_cbmem_entry
+                0x0000000000108b3e       0x56 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_build_acpi_board_info.part.0
+                0x0000000000108b94      0x641 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_transfer
+                0x00000000001091d5       0xdd /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_hob_memory
+                0x00000000001092b2       0xd1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_cbmem_console.part.0
+                0x0000000000109383       0xf1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_validate_handoff
+                0x0000000000109474      0x193 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_linear_validate
+                0x0000000000109607        0xc /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_linear_splash
+                0x0000000000109613      0x32b /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_find_acpi_rsdp.part.0.constprop.0
+                0x000000000010993e       0x7d /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_linear_clock
+                0x00000000001099bb       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_linear_report
+                0x00000000001099cb       0xcd /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_build_platform_hobs.part.0
+                0x0000000000109a98     0x19d5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_coreboot_build_platform_hobs
+                0x000000000010b46d       0xaf /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .text.cdk2_platform_initialize_native_context
+                0x000000000010b51c      0x13a /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+                0x000000000010b51c                cdk2_platform_initialize_native_context
+ .text.cdk2_native_build_serial_hob
+                0x000000000010b656       0x2c /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b656                cdk2_native_build_serial_hob
+ .text.cdk2_native_apply_boot_mode
+                0x000000000010b682       0x2c /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b682                cdk2_native_apply_boot_mode
+ .text.cdk2_native_initialize_libraries
+                0x000000000010b6ae       0x25 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b6ae                cdk2_native_initialize_libraries
+ .text.cdk2_native_set_bootloader_parameter
+                0x000000000010b6d3       0x25 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b6d3                cdk2_native_set_bootloader_parameter
+ .text.cdk2_native_find_hob_memory
+                0x000000000010b6f8       0x27 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b6f8                cdk2_native_find_hob_memory
+ .text.cdk2_native_initialize_floating_point
+                0x000000000010b71f       0x22 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b71f                cdk2_native_initialize_floating_point
+ .text.cdk2_native_mask_legacy_interrupts
+                0x000000000010b741       0x25 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b741                cdk2_native_mask_legacy_interrupts
+ .text.cdk2_native_load_image
+                0x000000000010b766      0x114 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b766                cdk2_native_load_image
+ .text.cdk2_native_handoff
+                0x000000000010b87a       0x56 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b87a                cdk2_native_handoff
+ .text.cdk2_native_initialize_services
+                0x000000000010b8d0       0xb4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b8d0                cdk2_native_initialize_services
+ .text.cdk2_native_initialize_stage_context
+                0x000000000010b984       0x2b /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b984                cdk2_native_initialize_stage_context
+ .text.cdk2_native_validate_ops
+                0x000000000010b9af       0x5c /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010b9af                cdk2_native_validate_ops
+ .text.cdk2_native_allocate_pages
+                0x000000000010ba0b       0xc0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010ba0b                cdk2_native_allocate_pages
+ .text.cdk2_native_transfer
+                0x000000000010bacb       0x3b /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010bacb                cdk2_native_transfer
+ .text.cdk2_native_adopt_hob_list
+                0x000000000010bb06      0x12e /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010bb06                cdk2_native_adopt_hob_list
+ .text.cdk2_native_build_hobs
+                0x000000000010bc34      0x119 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010bc34                cdk2_native_build_hobs
+ .text.cdk2_native_populate_hobs
+                0x000000000010bd4d       0x44 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010bd4d                cdk2_native_populate_hobs
+ .text.cdk2_native_validate_entry
+                0x000000000010bd91       0x94 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010bd91                cdk2_native_validate_entry
+ .text.cdk2_native_prepare_entry
+                0x000000000010be25      0x191 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000010be25                cdk2_native_prepare_entry
+ .text.cdk2_native_run_entry
+                0x000000000010bfb6       0x77 /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+                0x000000000010bfb6                cdk2_native_run_entry
+ .text.range_valid
+                0x000000000010c02d       0x4d /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+ .text.cdk2_dma_handoff_find_blob
+                0x000000000010c07a      0x132 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+                0x000000000010c07a                cdk2_dma_handoff_find_blob
+ .text.cdk2_dma_handoff_consume
+                0x000000000010c1ac      0x44e /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+                0x000000000010c1ac                cdk2_dma_handoff_consume
+ .text.cdk2_dma_handoff_import
+                0x000000000010c5fa       0x69 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+                0x000000000010c5fa                cdk2_dma_handoff_import
+ .text          0x000000000010c663     0x24d6 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+                0x000000000010d967                cdk2_capsule_disk_scan
+                0x000000000010e2de                cdk2_capsule_disk_complete
+                0x000000000010e474                cdk2_capsule_disk_scan_esp
+                0x000000000010e881                cdk2_capsule_disk_complete_esp
+
+.iplt           0x000000000010eb39        0x0
+ .iplt          0x000000000010eb39        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+
+.rodata         0x000000000010eb40      0xd30
+ *(.rodata .rodata.*)
+ .rodata.cdk2.gdt
+                0x000000000010eb40       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .rodata.status_name.str1.1
+                0x000000000010eb66      0x189 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                                         0xf7 (size before relaxing)
+ *fill*         0x000000000010ecef        0x1 
+ .rodata.status_name
+                0x000000000010ecf0       0x80 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .rodata.value_prefix.str1.1
+                0x000000000010ed70        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                                         0x15 (size before relaxing)
+ .rodata.emit_record.str1.1
+                0x000000000010ed70        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                                         0x35 (size before relaxing)
+ .rodata.emit_phase_locked.str1.1
+                0x000000000010ed70        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                                         0x12 (size before relaxing)
+ .rodata.hex.0  0x000000000010ed70       0x11 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x000000000010ed81        0xf 
+ .rodata.cdk2_diag_handoff_guid
+                0x000000000010ed90       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+                0x000000000010ed90                cdk2_diag_handoff_guid
+ .rodata        0x000000000010eda0      0x400 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+ .rodata.cdk2_coreboot_validate_payload_resource_handoff
+                0x000000000010f1a0       0x5c /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+ .rodata.cdk2_native_load_pe32_plus.str1.1
+                0x000000000010f1fc        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+                                          0x5 (size before relaxing)
+ *fill*         0x000000000010f1fc        0x4 
+ .rodata.text_name.0
+                0x000000000010f200        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .rodata.compat_name.1
+                0x000000000010f208        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ .rodata.setup_name.2
+                0x000000000010f210        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+ *fill*         0x000000000010f218        0x8 
+ .rodata.cdk2_direct_image_handoff_guid
+                0x000000000010f220       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+                0x000000000010f220                cdk2_direct_image_handoff_guid
+ .rodata.cdk2_linear_state_hob_guid
+                0x000000000010f230       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+                0x000000000010f230                cdk2_linear_state_hob_guid
+ .rodata.wordmark
+                0x000000000010f240       0x38 /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+ .rodata.cdk2_coreboot_linear_report.str1.1
+                0x000000000010f278        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+                                          0xf (size before relaxing)
+ .rodata.cdk2_coreboot_build_platform_hobs.part.0.str1.1
+                0x000000000010f278        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+                                          0xe (size before relaxing)
+ *fill*         0x000000000010f278        0x8 
+ .rodata        0x000000000010f280      0x400 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.CSWTCH.290
+                0x000000000010f680        0xf /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ *fill*         0x000000000010f68f       0x11 
+ .rodata.CSWTCH.272
+                0x000000000010f6a0       0x22 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.str1.1
+                0x000000000010f6c2        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+                                         0x1e (size before relaxing)
+ *fill*         0x000000000010f6c2        0xe 
+ .rodata.m_cdk2_tcg_event2_entry_hob_guid
+                0x000000000010f6d0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_cfr_setup_menu_form_guid
+                0x000000000010f6e0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_coreboot_table_guid
+                0x000000000010f6f0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smbios3_table_guid
+                0x000000000010f700       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smbios_table_guid
+                0x000000000010f710       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_acpi_table_guid
+                0x000000000010f720       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_legacy_serial_port_info_guid
+                0x000000000010f730       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_serial_port_info_guid
+                0x000000000010f740       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_acpi_board_info_hob_guid
+                0x000000000010f750       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_tcg_physical_presence_info_hob_guid
+                0x000000000010f760       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_firmware_info_hob_guid
+                0x000000000010f770       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_deadline_tsc_info_guid
+                0x000000000010f780       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_tsc_info_guid
+                0x000000000010f790       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_local_apic_timer_info_guid
+                0x000000000010f7a0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_s3_communication_guid
+                0x000000000010f7b0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smm_register_info_guid
+                0x000000000010f7c0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smram_memory_guid
+                0x000000000010f7d0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_variable_flash_info_hob_guid
+                0x000000000010f7e0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smm_store_info_hob_guid
+                0x000000000010f7f0       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_graphics_info_hob_guid
+                0x000000000010f800       0x10 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smbios2_intermediate_anchor
+                0x000000000010f810        0x5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smbios3_anchor
+                0x000000000010f815        0x5 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.m_cdk2_smbios2_anchor
+                0x000000000010f81a        0x4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .rodata.str2.2
+                0x000000000010f81e       0x26 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+ *fill*         0x000000000010f844        0xc 
+ .rodata        0x000000000010f850       0x20 /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+
+.cdk2.image_table
+                0x000000000010f870      0x570
+ *(.cdk2.image_table)
+ .cdk2.image_table
+                0x000000000010f870      0x570 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+                0x000000000010f870                __cdk2_image_table_start
+                0x000000000010fde0                __cdk2_image_table_end
+
+.cdk2.pe        0x000000000010fde0   0x1f9600
+ *(.cdk2.pe)
+ .cdk2.pe       0x000000000010fde0   0x1f9600 /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+                0x000000000010fde0                __cdk2_pe_start
+                0x00000000003093e0                __cdk2_pe_end
+
+.rela.dyn       0x00000000003093e0        0x0
+ .rela.got      0x00000000003093e0        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .rela.iplt     0x00000000003093e0        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .rela.text.cdk2_coreboot_load_dxe_core
+                0x00000000003093e0        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .rela.text.cdk2_platform_initialize_native_context
+                0x00000000003093e0        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+
+.data           0x000000000030a000       0x40
+ *(.data .data.*)
+ .data.rel.ro.local.phases.0
+                0x000000000030a000       0x40 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+
+.got            0x000000000030a040        0x0
+ .got           0x000000000030a040        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+
+.got.plt        0x000000000030a040        0x0
+ .got.plt       0x000000000030a040        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+
+.igot.plt       0x000000000030a040        0x0
+ .igot.plt      0x000000000030a040        0x0 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+
+.bss            0x000000000030b000    0x911d0
+ *(.bss .bss.* COMMON)
+ .bss           0x000000000030b000    0x8a004 /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+ .bss.spi_console_record_enabled
+                0x0000000000395004        0x1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x0000000000395005        0x3 
+ .bss.spi_console_local_remaining
+                0x0000000000395008        0x4 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x000000000039500c        0x4 
+ .bss.spi_console_record_bytes
+                0x0000000000395010        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .bss.physical_sinks_retired
+                0x0000000000395018        0x1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x0000000000395019        0x7 
+ .bss.acquired_owner
+                0x0000000000395020        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .bss.emission_acquired
+                0x0000000000395028        0x1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x0000000000395029        0x7 
+ .bss.emitting_owner
+                0x0000000000395030        0x8 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ *fill*         0x0000000000395038        0x8 
+ .bss.active    0x0000000000395040       0x90 /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+ .bss.m_cdk2_native_idt
+                0x00000000003950d0     0x1000 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .bss.parsed_s5_sleep_type_b
+                0x00000000003960d0        0x1 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ *fill*         0x00000000003960d1        0xf 
+ .bss.m_linear_state
+                0x00000000003960e0      0x458 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ *fill*         0x0000000000396538        0x8 
+ .bss.m_dma_handoff
+                0x0000000000396540     0x4018 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ *fill*         0x000000000039a558        0x8 
+ .bss.m_coreboot_handoff
+                0x000000000039a560      0xc70 /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+ .bss.m_cdk2_native_hob_storage
+                0x000000000039b1d0     0x1000 /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+                0x000000000039c1d0                __cdk2_image_end = .
+                0x0000000000000001                ASSERT ((__cdk2_image_end > __cdk2_image_start), cdk2 native image is empty)
+                0x0000000000000001                ASSERT (((SIZEOF (.cdk2.image_table) > 0x0) && (SIZEOF (.cdk2.pe) > 0x0)), direct image table and PE span must both be present)
+                0x0000000000000001                ASSERT (((__cdk2_image_table_start == ADDR (.cdk2.image_table)) && (__cdk2_image_table_end == (ADDR (.cdk2.image_table) + SIZEOF (.cdk2.image_table)))), direct image table symbols do not match section bounds)
+                0x0000000000000001                ASSERT (((__cdk2_pe_start == ADDR (.cdk2.pe)) && (__cdk2_pe_end == (ADDR (.cdk2.pe) + SIZEOF (.cdk2.pe)))), direct PE symbols do not match section bounds)
+                0x0000000000000001                ASSERT ((((__cdk2_image_table_start % 0x8) == 0x0) && ((__cdk2_pe_start % 0x8) == 0x0)), direct image sections must be eight-byte aligned)
+                0x0000000000000001                ASSERT ((((((__cdk2_image_table_start >= __cdk2_image_start) && (__cdk2_image_table_end >= __cdk2_image_table_start)) && (__cdk2_pe_start >= __cdk2_image_table_end)) && (__cdk2_pe_end >= __cdk2_pe_start)) && (__cdk2_pe_end <= __cdk2_image_end)), direct image sections exceed the payload allocation)
+
+/DISCARD/
+ *(.comment)
+ *(.note*)
+ *(.eh_frame*)
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry32.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/entry.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/diagnostic.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/platform.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_checksum.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_resource.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_hobs.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/pe_image_view.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/direct_image_table.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/mem.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/linear_boot.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/boot_logo.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/early_splash.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload_mm_authvar_service.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/image_policy_snapshot.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_handoff.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/services.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/payload.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/coreboot_dma_handoff.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/capsule-disk.o
+LOAD /home/sean/native-lvgl-interactive-after623.fXB54P/native/native-direct-image-table.o
+OUTPUT(/home/sean/native-lvgl-interactive-after623.fXB54P/native/cdk2-coreboot-image.elf elf64-x86-64)

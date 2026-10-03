@@ -1,0 +1,8 @@
+{
+  "failure": "existing QMP controller exit 1; preserve partial evidence",
+  "observer_status": 1,
+  "qemu_status": 0,
+  "wall_seconds": 39.24894548699376,
+  "deadline_seconds": 180,
+  "scope": "normal623 UI controller; not unchanged QEMU-acceptance whole suite"
+}

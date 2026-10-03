@@ -1,0 +1,6 @@
+{
+  "full_source_sha256": "f0d6fb93a0d18f68fd92c3c256f2854ad8e15e4be9a29c723afddf364751a705",
+  "verbatim_prefix_sha256": "2a74d9eece6a304b7523891399d92d29025e3e4eff518a7711ce68821100a783",
+  "anchor": "\nserial_path = run / \"serial.log\"\n",
+  "scope": "existing visual/action/completion prefix only"
+}

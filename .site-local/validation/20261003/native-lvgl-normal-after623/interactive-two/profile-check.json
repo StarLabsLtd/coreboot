@@ -1,0 +1,8 @@
+{
+  "baseline": "/home/sean/native-lvgl-normal-after623.zLwvcS/resolved.config",
+  "baseline_sha256": "4a2ee6d9fba3b30a8be8efbc4392eef077d61b15221e7ade60b1475a8a724258",
+  "candidate": "/home/sean/native-lvgl-interactive-after623.fXB54P/resolved.config",
+  "candidate_sha256": "817e731b09b619a50ae09773ed523daa15ff71dac2290593a43749f34198e652",
+  "only_delta": "CONFIG_CDK2_BOOT_TIMEOUT=0 -> 2",
+  "production_default_changed": false
+}

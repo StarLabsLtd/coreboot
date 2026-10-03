@@ -1,0 +1,15 @@
+{
+  "both_clean_heads": "cb71f948001ddfcc2b366d645b12a61e08d3ff1a",
+  "canonical": "/home/sean/Documents/cdk2",
+  "equal_reference_sources": {
+    "Makefile": "18ded9b6898d7f81f30f74dacd4b4fbfd9f97b052a7cdbd454ee3ddb4d6387d0",
+    "configs/lvgl/lv_conf.h": "33395d36814c826a6b73d1d05a221e0020abbd01d65f63781f3db5a51a6ad7eb",
+    "src/boot/Makefile": "48a4dfd1f65e365d3fdddd1d98ac4437dee9fcc566205137d18d2a1f26294790",
+    "src/lib/boot_logo.c": "d9ff526ca3e72ecb5b5dccf77b30e3224d12824fbca0c3a9f617473f51040f79",
+    "src/modules/lvgl_renderer/driver.c": "7f89635fdf8d5f7d00c632030a9e2e9f68f196858cd3f6e785fbe488cd37b6eb",
+    "src/modules/lvgl_setup/settings.c": "ae239b1f6111ef9eb1ad02d5ef4c8751fd879888e1dd827c94f81aeaec7e29d3",
+    "tests/lvgl_dependency_provenance_test.sh": "479cabc194118e2f49d4347915b1677203f94168bd6c7d3bafac0c7b7f5435c6",
+    "tests/lvgl_ui_driver_test.c": "3de98a4adae02a8f796cc1cf3845508178c23c9a62e8a675d5335a9355fae145"
+  },
+  "worktree": "/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614"
+}

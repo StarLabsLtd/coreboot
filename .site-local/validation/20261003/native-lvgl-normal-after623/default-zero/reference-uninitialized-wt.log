@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/home/sean/native-lvgl-normal-after623.zLwvcS/prepare-reference.py", line 26, in <module>
+    subprocess.run(['make', '-j2', '-C', str(source), 'native-lvgl-renderer-test',
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    f'CDK2_BUILD_DIR={stage}', f'CDK2_CONFIG={stage / "resolved.config"}',
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+                    'CDK2_BEARSSL_DIR=/home/sean/Documents/cdk2/3rdparty/bearssl', f'CDK2_LVGL_ROOT={lvgl}'],
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   stdout=output, stderr=subprocess.STDOUT, check=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['make', '-j2', '-C', '/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614', 'native-lvgl-renderer-test', 'CDK2_BUILD_DIR=/home/sean/native-lvgl-normal-after623.zLwvcS', 'CDK2_CONFIG=/home/sean/native-lvgl-normal-after623.zLwvcS/resolved.config', 'COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388', 'COREBOOT_CONFIG=/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config', 'CDK2_BEARSSL_DIR=/home/sean/Documents/cdk2/3rdparty/bearssl', 'CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl']' returned non-zero exit status 2.

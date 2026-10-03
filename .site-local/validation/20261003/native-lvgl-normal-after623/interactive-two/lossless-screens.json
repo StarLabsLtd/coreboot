@@ -1,0 +1,82 @@
+{
+  "conversion": "ffmpeg -frames:v 1; no pixel edits",
+  "records": [
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-firmware-restored.ppm",
+      "original_sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-firmware-restored.png",
+      "derivative_sha256": "7b5041c618590749e71258aea7249dc56a7fd701f004c8d709f7547bda1e9e39",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-form-initial.ppm",
+      "original_sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-form-initial.png",
+      "derivative_sha256": "f36c4394dc9c98609d7ab9cb7788df209838c0b03ae8ecf590c0fcb11756f4ce",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-form-navigated.ppm",
+      "original_sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-form-navigated.png",
+      "derivative_sha256": "f08dbd71a4657aed996d9478a30ea96d558e5b31a1fd78b0268182ca6b330162",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-selecting-before.ppm",
+      "original_sha256": "06cfb742e626ef59cda05fc39a12fdca53a524d0ee2b5be254bce0d5501476f7",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-selecting-before.png",
+      "derivative_sha256": "933bac6421d996905225dbd49f3678b508bd59f334748b0ed6b2e6d0a994df97",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-selecting-stable.ppm",
+      "original_sha256": "06cfb742e626ef59cda05fc39a12fdca53a524d0ee2b5be254bce0d5501476f7",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-selecting-stable.png",
+      "derivative_sha256": "933bac6421d996905225dbd49f3678b508bd59f334748b0ed6b2e6d0a994df97",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-splash-before.ppm",
+      "original_sha256": "3ce92d14dbaa66ecba348c5bf9b30462e38a14cc5a4cc978ca8ed176357ed4c2",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-splash-before.png",
+      "derivative_sha256": "3c4efb4ee9b802c1c6db58492084cf10e5022cfa02c3440c461d06d772fb052f",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    },
+    {
+      "original": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-status-original.ppm",
+      "original_sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "derivative": "/home/sean/native-lvgl-interactive-after623.fXB54P/ui-run/setup-status-original.png",
+      "derivative_sha256": "7b5041c618590749e71258aea7249dc56a7fd701f004c8d709f7547bda1e9e39",
+      "size": [
+        800,
+        600
+      ],
+      "decoded_rgb_equal": true
+    }
+  ]
+}
