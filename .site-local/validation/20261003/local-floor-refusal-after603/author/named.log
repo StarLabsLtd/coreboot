@@ -1,0 +1,63 @@
+#
+# No change to /home/sean/capsule-local-floor-parent.tbfD8Q/resolved.config
+#
+#
+# No change to /home/sean/capsule-local-floor-parent.tbfD8Q/resolved.config
+#
+#
+# No change to /home/sean/capsule-local-floor-parent.tbfD8Q/resolved.config
+#
+Future-floor HOST artifacts: /home/sean/cdk2-system-fmp-future-floor.hzPopE
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/include/cdk2/system_fmp_session.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/include/cdk2/capsule_check_outcome.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/session.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/provider.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/auth.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/handoff.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/starlabs_trust.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/payload.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/system_fmp/board_binding.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/boot/coreboot.h: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/src/modules/qemu_test_fmp/sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/tests/system_fmp_future_floor_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/tests/system_fmp_mm_route_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/tests/system_fmp_transport_client_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599/tests/system_fmp_future_floor_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599//src/lib/cms.c: OK
+/home/sean/Documents/.cdk2-worktrees/capsule-local-floor-refusal-after599//src/lib/authenticode_spc.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/ccopy.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/dec32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/dec64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/enc32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/codec/enc64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_add.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_bitlen.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_decmod.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_decode.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_encode.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_fmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_modpow2.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_montmul.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_muladd.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_ninv31.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_sub.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i31_tmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/int/i32_div32.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/multihash.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/sha2small.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/hash/sha2big.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_i31_pkcs1_vrfy.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_i31_pub.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/rsa/rsa_pkcs1_sig_unpad.c: OK
+/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl/src/x509/x509_decoder.c: OK
+/home/sean/capsule-local-floor-parent.tbfD8Q/native/bearssl-x509-minimal.c: OK
+Future-floor legacy CMS + typed MM/provider HOST joins and eight exact causals: PASS
+#
+# No change to /home/sean/capsule-local-floor-parent.tbfD8Q/resolved.config
+#
+#
+# No change to /home/sean/capsule-local-floor-parent.tbfD8Q/resolved.config
+#
+cdk2 linear boot test: PASS
