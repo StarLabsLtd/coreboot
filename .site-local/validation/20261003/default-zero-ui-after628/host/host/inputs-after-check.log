@@ -1,0 +1,12 @@
+util/qemu/bin/qmp-setup-acceptance.py: OK
+util/qemu/bin/setup_acceptance_contract.py: OK
+util/qemu/bin/assert-default-zero-setup-run.py: OK
+tests/default_zero_setup_controller_test.py: OK
+util/qemu/bin/selftest.sh: OK
+util/qemu/bin/qmp_cbmem_console.py: OK
+tests/qmp_cbmem_console_test.py: OK
+util/qemu/bin/assert-setup-run.py: OK
+util/qemu/bin/run-setup-acceptance-selftest.py: OK
+/home/sean/native-default-zero-hotkey-after628.CfqEvm/run-host.sh: OK
+/usr/bin/python3.13: OK
+/usr/bin/time: OK

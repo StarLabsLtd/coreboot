@@ -1,0 +1,33 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 211, in read
+    reply = self.qmp({"execute": "pmemsave", "arguments": {
+        "val": address, "size": size, "filename": output.name}})
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 114, in qmp
+    json.loads(stream.readline())
+               ~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 314, in <module>
+    wait_marker("SetupHotkey | result | SUCCESS")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 129, in wait_marker
+    firmware_text()
+    ~~~~~~~~~~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 154, in firmware_text
+    return save_console()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 159, in save_console
+    body = cbmem_reader.snapshot()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 299, in snapshot
+    data, records = self.table(address)
+                    ~~~~~~~~~~^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 253, in table
+    data = self.read(address, header_size + table_size)
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 214, in read
+    raise PhysicalReadError(f"QMP physical read failed: {error}") from error
+qmp_cbmem_console.PhysicalReadError: QMP physical read failed: [Errno 104] Connection reset by peer

@@ -1,0 +1,323 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index 644f3ef69c..f3e5353898 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -7304,6 +7304,8 @@ $(CDK2_NATIVE_BUILD_DIR)/bds-lvgl-settings.o: \
+ $(CDK2_NATIVE_BDS_ENTRY_TEST): $(CDK2_DIR)/tests/bds_entry_test.c \
+ 		$(CDK2_DIR)/src/modules/bds/entry.c \
+ 		$(CDK2_DIR)/src/modules/bds/model.c \
++		$(CDK2_DIR)/src/modules/con_splitter/input.c \
++		$(CDK2_DIR)/src/modules/usb_keyboard/model.c \
+ 		$(CDK2_DIR)/src/modules/bds/settings.c \
+ 		$(CDK2_DIR)/src/modules/bds/secure_boot.c \
+ 		$(CDK2_DIR)/src/lib/signature_database.c \
+@@ -7313,6 +7315,11 @@ $(CDK2_NATIVE_BDS_ENTRY_TEST): $(CDK2_DIR)/tests/bds_entry_test.c \
+ 		$(CDK2_DIR)/src/modules/lvgl_setup/form.c \
+ 		$(CDK2_DIR)/src/lib/diagnostic.c \
+ 		$(CDK2_DIR)/include/cdk2/bds.h \
++		$(CDK2_DIR)/include/cdk2/con_splitter.h \
++		$(CDK2_DIR)/include/cdk2/usb_keyboard.h \
++		$(CDK2_DIR)/include/cdk2/usb_bus.h \
++		$(CDK2_DIR)/include/cdk2/xhci.h \
++		$(CDK2_DIR)/include/cdk2/terminal.h \
+ 		$(CDK2_DIR)/include/cdk2/bds_settings.h \
+ 		$(CDK2_DIR)/include/cdk2/lvgl_settings.h \
+ 		$(CDK2_DIR)/include/cdk2/lvgl_settings_form.h \
+@@ -7321,6 +7328,8 @@ $(CDK2_NATIVE_BDS_ENTRY_TEST): $(CDK2_DIR)/tests/bds_entry_test.c \
+ 	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) -fshort-wchar \
+ 		$(CDK2_NATIVE_INCLUDES) -o "$@" "$<" \
+ 		"$(CDK2_DIR)/src/modules/bds/model.c" \
++		"$(CDK2_DIR)/src/modules/con_splitter/input.c" \
++		"$(CDK2_DIR)/src/modules/usb_keyboard/model.c" \
+ 		"$(CDK2_DIR)/src/lib/diagnostic.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/settings.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/secure_boot.c" \
+@@ -7334,6 +7343,8 @@ $(CDK2_NATIVE_BDS_DISABLED_TEST): $(CDK2_NATIVE_BDS_ENTRY_TEST)
+ 		-DCDK2_BDS_TEST_SETUP_DISABLED $(CDK2_NATIVE_INCLUDES) -o "$@" \
+ 		"$(CDK2_DIR)/tests/bds_entry_test.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/model.c" \
++		"$(CDK2_DIR)/src/modules/con_splitter/input.c" \
++		"$(CDK2_DIR)/src/modules/usb_keyboard/model.c" \
+ 		"$(CDK2_DIR)/src/lib/diagnostic.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/settings.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/secure_boot.c" \
+@@ -7347,6 +7358,8 @@ $(CDK2_NATIVE_BDS_CAPSULE_DISK_TEST): $(CDK2_NATIVE_BDS_ENTRY_TEST)
+ 		-DCDK2_BDS_TEST_CAPSULE_DISK $(CDK2_NATIVE_INCLUDES) -o "$@" \
+ 		"$(CDK2_DIR)/tests/bds_entry_test.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/model.c" \
++		"$(CDK2_DIR)/src/modules/con_splitter/input.c" \
++		"$(CDK2_DIR)/src/modules/usb_keyboard/model.c" \
+ 		"$(CDK2_DIR)/src/lib/diagnostic.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/settings.c" \
+ 		"$(CDK2_DIR)/src/modules/bds/secure_boot.c" \
+diff --git a/src/modules/bds/entry.c b/src/modules/bds/entry.c
+index 2d8541c0d5..aec3471474 100644
+--- a/src/modules/bds/entry.c
++++ b/src/modules/bds/entry.c
+@@ -3,6 +3,7 @@
+ #include <cdk2/bds.h>
+ #include <cdk2/bds_secure_boot.h>
+ #include <cdk2/bds_settings.h>
++#include <cdk2/con_splitter.h>
+ #include <cdk2/diagnostic.h>
+ #include <cdk2/ec_battery_abi.h>
+ #include <cdk2/ftw_entry.h>
+@@ -13,8 +14,11 @@
+ #include <cdk2/config.h>
+ #endif
+ #include <cdk2/null_memory_test.h>
++#include <cdk2/terminal.h>
++#include <cdk2/usb_keyboard.h>
+ #include <pi/hob.h>
+ 
++#include <stddef.h>
+ #include <string.h>
+ 
+ #define LOAD_OPTION_ACTIVE 1U
+@@ -44,6 +48,11 @@
+ #define OS_INDICATIONS_BOOT_TO_FW_UI 0x0000000000000001ULL
+ #define OS_INDICATIONS_FILE_CAPSULE_DELIVERY 0x0000000000000004ULL
+ #define SCAN_F2 0x000cU
++/* One pending splitter queue plus each attached native provider queue.
++ * This finite pass does not promise fairness against continuously arriving keys. */
++#define SETUP_QUEUED_KEY_LIMIT (CDK2_CON_SPLITTER_MAX_INPUTS + \
++	CDK2_CON_SPLITTER_MAX_INPUTS * (CDK2_USB_KEYBOARD_QUEUE > CDK2_TERMINAL_QUEUE ? \
++	CDK2_USB_KEYBOARD_QUEUE : CDK2_TERMINAL_QUEUE))
+ #ifndef EFI_ABORTED
+ #define EFI_ABORTED EFIERR(21)
+ #endif
+@@ -1367,8 +1376,27 @@ static EFI_STATUS wait_for_setup_polled(UINTN seconds,
+ 	if (requested == NULL || seconds > MAX_UINTN / 10U)
+ 		return EFI_INVALID_PARAMETER;
+ 	*requested = FALSE;
+-	if (seconds == 0U)
++	if (seconds == 0U) {
++		EFI_STATUS status;
++
++		status = poll_input == NULL ? EFI_SUCCESS : poll_input(poll_context);
++		if (EFI_ERROR(status))
++			return status;
++		if (active_system->console_in == NULL ||
++		    active_system->console_in->read_key == NULL)
++			return EFI_SUCCESS;
++		for (size_t index = 0; index < SETUP_QUEUED_KEY_LIMIT; index++) {
++			status = active_system->console_in->read_key(
++				active_system->console_in, &key);
++			if (EFI_ERROR(status))
++				break;
++			if (key.scan_code == SCAN_F2) {
++				*requested = TRUE;
++				break;
++			}
++		}
+ 		return EFI_SUCCESS;
++	}
+ 	ticks = seconds * 10U;
+ 	for (tick = 0; tick < ticks; tick++) {
+ 		EFI_STATUS status;
+diff --git a/tests/bds_entry_test.c b/tests/bds_entry_test.c
+index e02b7d32fd..3c7e6d2091 100644
+--- a/tests/bds_entry_test.c
++++ b/tests/bds_entry_test.c
+@@ -62,6 +62,8 @@ static UINT16 key_scan_code = SCAN_F2;
+ static UINTN queued_key_reads;
+ static EFI_STATUS key_read_error = EFI_SUCCESS;
+ static BOOLEAN scheduled_key = TRUE;
++static size_t queued_f2_read, hotkey_polls;
++static EFI_STATUS hotkey_poll_status = EFI_SUCCESS;
+ static UINTN driver_loads;
+ static UINTN capsules, capsule_deletes;
+ struct capsule_fixture_variable {
+@@ -522,7 +524,7 @@ static EFI_STATUS CDK2_MS_ABI fake_read_key(void *input, struct input_key *key)
+ 	key_reads++;
+ 	if (EFI_ERROR(key_read_error))
+ 		return key_read_error;
+-	key->scan_code = key_scan_code;
++	key->scan_code = queued_f2_read == key_reads ? SCAN_F2 : key_scan_code;
+ 	key->unicode_char = 0U;
+ 	if (queued_key_reads != 0U) {
+ 		queued_key_reads--;
+@@ -531,6 +533,49 @@ static EFI_STATUS CDK2_MS_ABI fake_read_key(void *input, struct input_key *key)
+ 	return scheduled_key && key_reads == 2U ? EFI_SUCCESS : EFI_NOT_READY;
+ }
+ 
++static EFI_STATUS CDK2_MS_ABI test_hotkey_poll(void *context)
++{
++	hotkey_polls++;
++	if (EFI_ERROR(hotkey_poll_status))
++		return hotkey_poll_status;
++	if (context != NULL) {
++		key_scan_code = *(const uint16_t *)context;
++		queued_key_reads = 1U;
++	}
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS read_queued_keyboard(void *context, struct cdk2_split_key *key)
++{
++	struct cdk2_usb_keyboard_key physical;
++	EFI_STATUS status = cdk2_usb_keyboard_read(context, &physical);
++
++	if (!EFI_ERROR(status)) {
++		key->scan_code = physical.scan_code;
++		key->unicode = physical.unicode_char;
++	}
++	return status;
++}
++
++struct queued_console_input {
++	struct simple_text_input protocol;
++	struct cdk2_split_text_in splitter;
++};
++
++static EFI_STATUS CDK2_MS_ABI read_queued_splitter(void *context, struct input_key *key)
++{
++	struct queued_console_input *console = context;
++	struct cdk2_split_key candidate;
++	EFI_STATUS status = cdk2_split_text_in_read(&console->splitter, &candidate);
++
++	key_reads++;
++	if (!EFI_ERROR(status)) {
++		key->scan_code = candidate.scan_code;
++		key->unicode_char = candidate.unicode;
++	}
++	return status;
++}
++
+ static EFI_STATUS CDK2_MS_ABI fake_connect(void *handle, void *drivers, void *path,
+ 					   BOOLEAN recursive)
+ {
+@@ -994,6 +1039,106 @@ int main(void)
+ 				   "non-F2 input cannot enter setup");
+ 		key_scan_code = SCAN_F2;
+ 	}
++	{
++		UINTN old_stalls = stalls;
++		struct simple_text_input *saved_input = table.console_in;
++		read_key_fn *saved_read = input.read_key;
++		BOOLEAN requested = TRUE;
++		uint16_t polled_key = SCAN_F2;
++
++		scheduled_key = FALSE;
++		key_reads = hotkey_polls = queued_key_reads = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++			&requested) == EFI_SUCCESS && !requested && key_reads == 1U &&
++			hotkey_polls == 1U && stalls == old_stalls,
++			"zero timeout polls once and stops at an empty queue without stalling");
++		key_reads = hotkey_polls = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, &polled_key,
++			&requested) == EFI_SUCCESS && requested && key_reads == 1U &&
++			hotkey_polls == 1U && stalls == old_stalls,
++			"zero timeout accepts F2 delivered by its one physical-input poll");
++		key_scan_code = 1U;
++		for (size_t f2 = 1U; f2 <= SETUP_QUEUED_KEY_LIMIT; f2++) {
++			key_reads = hotkey_polls = 0U;
++			queued_key_reads = SETUP_QUEUED_KEY_LIMIT;
++			queued_f2_read = f2;
++			failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++				&requested) == EFI_SUCCESS && requested && key_reads == f2 &&
++				hotkey_polls == 1U && stalls == old_stalls,
++				"zero timeout accepts F2 at every position in its finite key budget");
++		}
++		queued_f2_read = SETUP_QUEUED_KEY_LIMIT + 1U;
++		queued_key_reads = SETUP_QUEUED_KEY_LIMIT + 1U;
++		key_reads = hotkey_polls = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++			&requested) == EFI_SUCCESS && !requested &&
++			key_reads == SETUP_QUEUED_KEY_LIMIT && queued_key_reads == 1U &&
++			hotkey_polls == 1U && stalls == old_stalls,
++			"zero timeout leaves input beyond its finite budget without stalling");
++		queued_f2_read = queued_key_reads = 0U;
++		hotkey_poll_status = EFI_DEVICE_ERROR;
++		key_reads = hotkey_polls = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++			&requested) == EFI_DEVICE_ERROR && !requested && key_reads == 0U &&
++			hotkey_polls == 1U && stalls == old_stalls,
++			"zero timeout propagates physical-input poll failure before reading");
++		hotkey_poll_status = EFI_SUCCESS;
++		key_read_error = EFI_DEVICE_ERROR;
++		key_reads = 0U;
++		failures += expect(wait_for_setup_polled(0U, NULL, NULL, &requested) ==
++			EFI_SUCCESS && !requested && key_reads == 1U && stalls == old_stalls,
++			"zero timeout preserves read-error continuation without setup");
++		key_read_error = EFI_SUCCESS;
++		table.console_in = NULL;
++		key_reads = hotkey_polls = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++			&requested) == EFI_SUCCESS && !requested && key_reads == 0U &&
++			hotkey_polls == 1U && stalls == old_stalls,
++			"zero timeout tolerates an absent console without stalling");
++		table.console_in = saved_input;
++		input.read_key = NULL;
++		failures += expect(wait_for_setup_polled(0U, NULL, NULL, &requested) ==
++			EFI_SUCCESS && !requested && key_reads == 0U && stalls == old_stalls,
++			"zero timeout tolerates an absent read callback");
++		input.read_key = saved_read;
++		key_reads = 0U;
++		queued_key_reads = 1U;
++		key_scan_code = SCAN_F2;
++		failures += expect(wait_for_setup(0U) && key_reads == 1U && stalls == old_stalls,
++			"zero timeout accepts a queued F2 without a physical-input callback");
++		scheduled_key = TRUE;
++	}
++	{
++		static struct cdk2_usb_keyboard keyboards[CDK2_CON_SPLITTER_MAX_INPUTS];
++		struct queued_console_input queued = {
++			.protocol = { .read_key = read_queued_splitter },
++		};
++		struct simple_text_input *saved_input = table.console_in;
++		UINTN old_stalls = stalls;
++		BOOLEAN requested = FALSE;
++
++		memset(keyboards, 0, sizeof(keyboards));
++		queued.splitter.pending_count = CDK2_CON_SPLITTER_MAX_INPUTS;
++		queued.splitter.device_count = CDK2_CON_SPLITTER_MAX_INPUTS;
++		for (size_t device = 0; device < CDK2_CON_SPLITTER_MAX_INPUTS; device++) {
++			queued.splitter.pending[device].key.scan_code = 1U;
++			queued.splitter.devices[device].read = read_queued_keyboard;
++			queued.splitter.devices[device].context = &keyboards[device];
++			keyboards[device].count = CDK2_USB_KEYBOARD_QUEUE;
++			for (size_t key = 0; key < CDK2_USB_KEYBOARD_QUEUE; key++)
++				keyboards[device].queue[key].scan_code = 1U;
++		}
++		keyboards[CDK2_CON_SPLITTER_MAX_INPUTS - 1U]
++			.queue[CDK2_USB_KEYBOARD_QUEUE - 1U].scan_code = SCAN_F2;
++		table.console_in = &queued.protocol;
++		key_reads = hotkey_polls = 0U;
++		failures += expect(wait_for_setup_polled(0U, test_hotkey_poll, NULL,
++			&requested) == EFI_SUCCESS && requested && hotkey_polls == 1U &&
++			key_reads == CDK2_CON_SPLITTER_MAX_INPUTS *
++				(CDK2_USB_KEYBOARD_QUEUE + 1U) && stalls == old_stalls,
++			"zero timeout reaches F2 behind actual full ConSplitter and USB model queues");
++		table.console_in = saved_input;
++	}
+ 	{
+ 		read_key_fn *saved_read = input.read_key;
+ 
+@@ -1102,10 +1247,14 @@ int main(void)
+ 		}
+ 		poll_stop_status = EFI_SUCCESS;
+ 		key_reads = 0U;
+-		failures += expect(installed->enter_setup(0U, NULL, NULL) == EFI_SUCCESS &&
++		hotkey_polls = 0U;
++		hotkey_poll_status = EFI_DEVICE_ERROR;
++		failures += expect(installed->enter_setup(0U, test_hotkey_poll, NULL) == EFI_SUCCESS &&
+ 					   native_browse_calls == native_before + 5U &&
+-					   key_reads == 1U && os_indications == 0U,
+-				   "successful setup teardown consumes BootToFwUI");
++					   key_reads == 1U && os_indications == 0U &&
++					   hotkey_polls == 100U,
++				   "BootToFwUI bypasses hotkey polling and retains form polling and consumption");
++		hotkey_poll_status = EFI_SUCCESS;
+ 		scheduled_key = TRUE;
+ 		key_reads = 0U;
+ 		key_scan_code = 1U;
+@@ -1121,7 +1270,7 @@ int main(void)
+ 		failures += expect(
+ 			installed->enter_setup(0U, NULL, NULL) == EFI_NOT_READY &&
+ 				native_browse_calls == native_before + 5U,
+-			"zero-duration setup window continues without polling or browsing");
++			"zero-duration setup window continues after a finite non-F2 scan without browsing");
+ 		key_scan_code = SCAN_F2;
+ 	}
+ 	{

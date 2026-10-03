@@ -1,0 +1,15 @@
+{
+  "wall_seconds": 0.17010535800363868,
+  "deadline_seconds": 5,
+  "qemu_status": 0,
+  "mapped_vnc_f2": [
+    "1",
+    "0",
+    "1"
+  ],
+  "delivered_input_f2": [
+    "0",
+    "1"
+  ],
+  "scope": "installed QEMU transport, not CDK2 USB/BDS/native admission"
+}

@@ -1,0 +1,8 @@
+{
+  "failure": "existing QMP controller exit 1; preserve partial evidence",
+  "observer_status": 1,
+  "qemu_status": 0,
+  "wall_seconds": 3.782300178994774,
+  "deadline_seconds": 180,
+  "scope": "normal628 default-zero default-zero-queued-hotkey; not delayed Selecting or BootToFwUI"
+}

@@ -1,0 +1,93 @@
+[
+  {
+    "request": {
+      "execute": "qmp_capabilities",
+      "id": "probe-0"
+    },
+    "reply": {
+      "return": {},
+      "id": "probe-0"
+    }
+  },
+  {
+    "request": {
+      "execute": "query-status",
+      "id": "probe-1"
+    },
+    "reply": {
+      "return": {
+        "status": "prelaunch",
+        "running": false
+      },
+      "id": "probe-1"
+    }
+  },
+  {
+    "vnc_f2_down": true,
+    "same_socket_frame_reply": true
+  },
+  {
+    "request": {
+      "execute": "query-status",
+      "id": "probe-3"
+    },
+    "reply": {
+      "return": {
+        "status": "prelaunch",
+        "running": false
+      },
+      "id": "probe-3"
+    }
+  },
+  {
+    "request": {
+      "execute": "cont",
+      "id": "probe-4"
+    },
+    "reply": {
+      "return": {},
+      "id": "probe-4"
+    }
+  },
+  {
+    "request": {
+      "execute": "query-status",
+      "id": "probe-5"
+    },
+    "reply": {
+      "return": {
+        "status": "running",
+        "running": true
+      },
+      "id": "probe-5"
+    }
+  },
+  {
+    "vnc_f2_down": false,
+    "same_socket_frame_reply": true
+  },
+  {
+    "vnc_f2_down": true,
+    "same_socket_frame_reply": true
+  },
+  {
+    "request": {
+      "execute": "stop",
+      "id": "probe-8"
+    },
+    "reply": {
+      "return": {},
+      "id": "probe-8"
+    }
+  },
+  {
+    "request": {
+      "execute": "quit",
+      "id": "probe-9"
+    },
+    "reply": {
+      "return": {},
+      "id": "probe-9"
+    }
+  }
+]

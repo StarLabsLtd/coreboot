@@ -1,0 +1,3 @@
+ M tests/default_zero_setup_controller_test.py
+ M util/qemu/bin/assert-default-zero-setup-run.py
+ M util/qemu/bin/qmp-setup-acceptance.py

@@ -1,0 +1,3 @@
+ M tests/default_zero_setup_controller_test.py
+ M util/qemu/bin/qmp-setup-acceptance.py
+ M util/qemu/bin/setup_acceptance_contract.py

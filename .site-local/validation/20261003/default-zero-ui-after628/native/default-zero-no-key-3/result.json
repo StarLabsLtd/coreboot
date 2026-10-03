@@ -1,0 +1,8 @@
+{
+  "failure": null,
+  "observer_status": 0,
+  "qemu_status": 0,
+  "wall_seconds": 36.99992313099938,
+  "deadline_seconds": 180,
+  "scope": "normal628 default-zero default-zero-no-key; not delayed Selecting or BootToFwUI"
+}

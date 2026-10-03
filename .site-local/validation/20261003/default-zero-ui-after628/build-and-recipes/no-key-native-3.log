@@ -1,0 +1,3 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549393, size 549393
+Default-zero normal setup evidence: PASS
+Actual normal628 default-zero default-zero-no-key: bounded observer PASS

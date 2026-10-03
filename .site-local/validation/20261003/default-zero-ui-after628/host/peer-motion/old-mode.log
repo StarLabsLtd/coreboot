@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/sean/default-zero-controller-source-peer.LfZshb/old-mode-parity.py", line 35, in <module>
+    raise ValueError('existing delayed/BootToFwUI execution statements changed')
+ValueError: existing delayed/BootToFwUI execution statements changed

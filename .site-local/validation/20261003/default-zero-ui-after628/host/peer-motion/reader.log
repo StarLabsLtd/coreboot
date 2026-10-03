@@ -1,0 +1,25 @@
+test_actual_wire_checksums (__main__.ConsoleTest.test_actual_wire_checksums) ... ok
+test_console_ownership_and_bounds (__main__.ConsoleTest.test_console_ownership_and_bounds) ... ok
+test_cursor_and_live_overflow (__main__.ConsoleTest.test_cursor_and_live_overflow) ... ok
+test_forward_depth_duplicates_and_physical_range (__main__.ConsoleTest.test_forward_depth_duplicates_and_physical_range) ... ok
+test_initial_publication_attempt_cap (__main__.ConsoleTest.test_initial_publication_attempt_cap) ... ok
+test_initial_publication_retry_is_bounded_and_not_late (__main__.ConsoleTest.test_initial_publication_retry_is_bounded_and_not_late) ... ok
+test_initial_qmp_error_is_not_missing_locator_or_publication (__main__.ConsoleTest.test_initial_qmp_error_is_not_missing_locator_or_publication) ... ok
+test_initial_transient_can_publish_but_qmp_error_cannot (__main__.ConsoleTest.test_initial_transient_can_publish_but_qmp_error_cannot) ... ok
+test_missing_ambiguous_and_cyclic_locators (__main__.ConsoleTest.test_missing_ambiguous_and_cyclic_locators) ... ok
+test_moving_snapshot_and_qmp_failure (__main__.ConsoleTest.test_moving_snapshot_and_qmp_failure) ... ok
+test_quiet_contract_preserves_debug_and_real_input (__main__.ConsoleTest.test_quiet_contract_preserves_debug_and_real_input) ... ok
+test_saved_capture_identity_and_hostile_metadata (__main__.ConsoleTest.test_saved_capture_identity_and_hostile_metadata) ... ok
+test_saved_forward_chain_and_locator (__main__.ConsoleTest.test_saved_forward_chain_and_locator) ... ok
+test_spaced_publication_beyond_old_count_then_late_corruption (__main__.ConsoleTest.test_spaced_publication_beyond_old_count_then_late_corruption) ... ok
+test_table_shape_and_checksums (__main__.ConsoleTest.test_table_shape_and_checksums) ... ok
+test_valid_table_drift_after_acceptance (__main__.ConsoleTest.test_valid_table_drift_after_acceptance) ... ok
+test_both_source_modes (__main__.LogoGeometryTest.test_both_source_modes) ... ok
+test_geometry_and_source_binding (__main__.LogoGeometryTest.test_geometry_and_source_binding) ... ok
+test_real_handoff_extent_contract (__main__.LogoGeometryTest.test_real_handoff_extent_contract) ... ok
+test_retained_saved_input_binding (__main__.LogoGeometryTest.test_retained_saved_input_binding) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.176s
+
+OK

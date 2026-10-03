@@ -1,0 +1,11 @@
+{
+  "head": "8a29709830889b9a7d1ab89c853653e9f39ba9e7",
+  "sha256": {
+    "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/tests/default_zero_setup_controller_test.py": "a75fdfb64d7520b815cebfcc64c0a927bb41d55024c9a80556a46276ad1e3045",
+    "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/assert-default-zero-setup-run.py": "c9d52040aba7eed885938796a7e31aa0c86e790b0df5743fa0d8b70e560aa2c6",
+    "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py": "972d6b8ec791811cc3bb8e68972b0bd1424835b7417976c3278b09d42729958e",
+    "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py": "e88d353b2459bee864f81ee1cfbabef1a4e4bc84e64453efe426ae41202c9728",
+    "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/setup_acceptance_contract.py": "b775bcf95c90c2453a5dcc4bf8f36f687a4303b0b61d42f01e9db97f1abd5743"
+  },
+  "status": ""
+}

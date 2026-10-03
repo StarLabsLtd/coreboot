@@ -1,0 +1,23 @@
+[
+  {
+    "original": "setup-form-initial.ppm",
+    "original_sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+    "png": "setup-form-initial.png",
+    "png_sha256": "7aec835ef40e847de9578412ab2a98be596bec95e4388c5efe4520eca6272217",
+    "lossless_pixels_equal": true
+  },
+  {
+    "original": "setup-form-navigated.ppm",
+    "original_sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+    "png": "setup-form-navigated.png",
+    "png_sha256": "dd3e5f34e4b03c93dd088ee72eb93bf481b5eb47ea76d19097bf001d612fe3de",
+    "lossless_pixels_equal": true
+  },
+  {
+    "original": "setup-firmware-restored.ppm",
+    "original_sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+    "png": "setup-firmware-restored.png",
+    "png_sha256": "7847f7989a98d1cba3c027b8a535f4fe29436a2dc6dc7603fd22d2b028e9b8db",
+    "lossless_pixels_equal": true
+  }
+]

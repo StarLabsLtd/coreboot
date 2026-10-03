@@ -1,0 +1,5 @@
+ M util/qemu/bin/qmp-setup-acceptance.py
+ M util/qemu/bin/selftest.sh
+ M util/qemu/bin/setup_acceptance_contract.py
+?? tests/default_zero_setup_controller_test.py
+?? util/qemu/bin/assert-default-zero-setup-run.py

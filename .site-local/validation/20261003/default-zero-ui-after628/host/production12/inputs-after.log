@@ -1,0 +1,15 @@
+/home/sean/default-zero-hotkey-proof.N3pnxd/run.sh: OK
+/home/sean/linear-boot-api-gate.f3YlpW/resolved.config: OK
+/home/sean/linear-boot-api-gate.f3YlpW/include/cdk2/config.h: OK
+/home/sean/normal-efi-disk-core-final.TJMaS8/resolved.config: OK
+/home/sean/normal-efi-disk-core-final.TJMaS8/include/cdk2/config.h: OK
+/usr/bin/cc: OK
+/usr/bin/objcopy: OK
+/usr/libexec/gcc/x86_64-linux-gnu/15/cc1: OK
+/usr/bin/perl: OK
+/usr/bin/ld: OK
+/usr/bin/bash: OK
+/usr/bin/awk: OK
+/usr/bin/xargs: OK
+/usr/bin/sha256sum: OK
+/usr/bin/time: OK

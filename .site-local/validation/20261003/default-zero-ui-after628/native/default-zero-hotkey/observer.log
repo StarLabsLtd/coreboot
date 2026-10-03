@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 303, in <module>
+    wait_marker("INPUT_UI | begin | NOT_STARTED")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 128, in wait_marker
+    firmware_text()
+    ~~~~~~~~~~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 146, in firmware_text
+    return save_console()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 151, in save_console
+    body = cbmem_reader.snapshot()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 333, in snapshot
+    raise ConsoleSnapshotMotion("CBMEM console changed through every bounded snapshot")
+qmp_cbmem_console.ConsoleSnapshotMotion: CBMEM console changed through every bounded snapshot

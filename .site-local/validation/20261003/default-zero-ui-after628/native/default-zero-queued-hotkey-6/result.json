@@ -1,0 +1,8 @@
+{
+  "failure": "TimeoutExpired(['/usr/bin/python3', '/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py', '/home/sean/native-default-zero-hotkey-after628.CfqEvm/default-zero-queued-hotkey-6', '/tmp/normal-ui-qmp.gfgzwlhe/qmp.sock', '180', 'default-zero-queued-hotkey', 'quiet'], 179.99942927799566)",
+  "observer_status": null,
+  "qemu_status": 0,
+  "wall_seconds": 180.27682783800265,
+  "deadline_seconds": 180,
+  "scope": "normal628 default-zero default-zero-queued-hotkey; not delayed Selecting or BootToFwUI"
+}

@@ -1,0 +1,217 @@
+{
+  "actions": [
+    {
+      "vnc_connected": true
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "SPLASH_EARLY | complete | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "status-original"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "INPUT_UI | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "module 0x03 | USB keyboard controllers | 0x0000000000000001"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "queued_input_snapshot": true
+    },
+    {
+      "qmp_pipeline": [
+        {
+          "execute": "cont",
+          "id": "queued-cont"
+        },
+        {
+          "arguments": {
+            "device": "cdk2-vga",
+            "events": [
+              {
+                "data": {
+                  "down": true,
+                  "key": {
+                    "data": "f2",
+                    "type": "qcode"
+                  }
+                },
+                "type": "key"
+              }
+            ]
+          },
+          "execute": "input-send-event",
+          "id": "queued-f2-down"
+        }
+      ],
+      "replies": [
+        {
+          "id": "queued-cont",
+          "return": {}
+        },
+        {
+          "id": "queued-f2-down",
+          "return": {}
+        }
+      ]
+    },
+    {
+      "wait_cbmem": "INPUT_UI | complete | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupHotkey | result | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupForm | begin | SUCCESS"
+    },
+    {
+      "qmp_pipeline": [
+        {
+          "arguments": {
+            "device": "cdk2-vga",
+            "events": [
+              {
+                "data": {
+                  "down": false,
+                  "key": {
+                    "data": "f2",
+                    "type": "qcode"
+                  }
+                },
+                "type": "key"
+              }
+            ]
+          },
+          "execute": "input-send-event",
+          "id": "queued-f2-up"
+        }
+      ],
+      "replies": [
+        {
+          "id": "queued-f2-up",
+          "return": {}
+        }
+      ]
+    },
+    {
+      "capture": "form-initial"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "capture": "form-navigated"
+    },
+    {
+      "state": "down",
+      "vnc_key": "esc"
+    },
+    {
+      "state": "up",
+      "vnc_key": "esc"
+    },
+    {
+      "wait_cbmem": "SetupForm | return | ABORTED"
+    },
+    {
+      "wait_cbmem": "OS_HANDOFF | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "BootLogo | restore and BGRT | SUCCESS"
+    },
+    {
+      "capture": "firmware-restored"
+    },
+    {
+      "wait_serial": "CDK2_RUNTIME_OK"
+    }
+  ],
+  "completion": {
+    "intentional": true,
+    "os_marker": "CDK2_RUNTIME_OK",
+    "qmp_quit": {
+      "return": {}
+    }
+  },
+  "diagnostics": {
+    "file": "cbmem-live.log",
+    "observer_file": "cbmem-observer.json",
+    "observer_sha256": "48d09d3a617bb8b43f5ac0d07cbf878436dbc812086f7fe30c8bbbbcc00290f4",
+    "sha256": "f084f2838205b06b295b0825de17b1a80ed7f46445669ae0cd2d4b758d90370d",
+    "source": "qmp-physical-cbmem"
+  },
+  "mode": "default-zero-queued-hotkey",
+  "profile": "quiet",
+  "queued_input_snapshot": {
+    "file": "queued-input-console.log",
+    "sha256": "11156bff8d7ea8b5dab6b4a6bf5350de26d8053a1092460eacdb3a9550a9e167"
+  },
+  "screens": {
+    "firmware-restored": {
+      "file": "setup-firmware-restored.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    },
+    "form-initial": {
+      "file": "setup-form-initial.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+      "width": 800
+    },
+    "form-navigated": {
+      "file": "setup-form-navigated.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+      "width": 800
+    },
+    "status-original": {
+      "file": "setup-status-original.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    }
+  },
+  "selecting_reference": {
+    "file": "selecting-reference.ppm",
+    "height": 480,
+    "manifest_sha256": "f3279de0647c22eaf7fe8164e4ba2c9ae2592dd9f783ea46d0d58eaa0f4fd048",
+    "sha256": "75039173afda30d0c558251728db6867accc24a7bac7477cb43edc7c4ea73172",
+    "status": [
+      157,
+      339,
+      486,
+      48
+    ],
+    "width": 800
+  }
+}

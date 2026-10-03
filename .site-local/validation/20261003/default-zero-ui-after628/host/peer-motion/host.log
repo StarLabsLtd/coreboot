@@ -1,0 +1,26 @@
+test_default_zero_config_rejects_nonzero_test_and_duplicates (__main__.ControllerTest.test_default_zero_config_rejects_nonzero_test_and_duplicates) ... ok
+test_default_zero_modes_require_quiet_profile (__main__.ControllerTest.test_default_zero_modes_require_quiet_profile) ... ok
+test_existing_delayed_and_fwui_transcripts_retained (__main__.ControllerTest.test_existing_delayed_and_fwui_transcripts_retained) ... ok
+test_held_f2_before_input_and_release_after_real_marker (__main__.ControllerTest.test_held_f2_before_input_and_release_after_real_marker) ... ok
+test_late_input_barrier_refuses_before_key_submission (__main__.ControllerTest.test_late_input_barrier_refuses_before_key_submission) ... ok
+test_no_key_has_zero_events_and_runtime_completion (__main__.ControllerTest.test_no_key_has_zero_events_and_runtime_completion) ... ok
+test_transport_failure_is_not_delivery (__main__.ControllerTest.test_transport_failure_is_not_delivery) ... ok
+test_unexpected_setup_in_no_key_refuses (__main__.ControllerTest.test_unexpected_setup_in_no_key_refuses) ... ok
+test_old_mode_motion_remains_fatal (__main__.MotionTest.test_old_mode_motion_remains_fatal) ... ok
+test_persistent_motion_expires_original_wait (__main__.MotionTest.test_persistent_motion_expires_original_wait) ... ok
+test_semantic_corruption_and_physical_read_failure_not_retried (__main__.MotionTest.test_semantic_corruption_and_physical_read_failure_not_retried) ... ok
+test_transient_motion_retries_then_accepts_actual_reader_snapshot (__main__.MotionTest.test_transient_motion_retries_then_accepts_actual_reader_snapshot) ... ok
+test_both_modeled_positives (__main__.SavedOracleTest.test_both_modeled_positives) ... ok
+test_input_transcript_missing_delayed_and_zero_key_events_refuse (__main__.SavedOracleTest.test_input_transcript_missing_delayed_and_zero_key_events_refuse) ... ok
+test_navigation_and_restoration_are_pixels_not_labels (__main__.SavedOracleTest.test_navigation_and_restoration_are_pixels_not_labels) ... ok
+test_real_checked_console_marker_status_cardinality_and_order (__main__.SavedOracleTest.test_real_checked_console_marker_status_cardinality_and_order) ... ok
+test_real_checked_fw_identity_not_learned_from_screens (__main__.SavedOracleTest.test_real_checked_fw_identity_not_learned_from_screens) ... ok
+test_recorded_wall_is_present_finite_positive_and_within_budget (__main__.SavedOracleTest.test_recorded_wall_is_present_finite_positive_and_within_budget) ... ok
+test_runtime_is_an_exact_full_line_not_a_substring (__main__.SavedOracleTest.test_runtime_is_an_exact_full_line_not_a_substring) ... ok
+test_table_config_console_and_completion_fail_closed (__main__.SavedOracleTest.test_table_config_console_and_completion_fail_closed) ... ok
+test_zero_wait_field_is_configured_seconds_not_elapsed_latency (__main__.SavedOracleTest.test_zero_wait_field_is_configured_seconds_not_elapsed_latency) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 2.400s
+
+OK

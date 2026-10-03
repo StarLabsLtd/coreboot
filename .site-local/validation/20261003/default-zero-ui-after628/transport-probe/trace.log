@@ -1,0 +1,8 @@
+vnc_msg_client_key_event VNC client msg key event state=0x61f188461650 ioc=0x61f188863c80 down=1 sym=65471
+vnc_key_event_map down 1, sym 0xffbf -> keycode 0x3c [f2]
+vnc_msg_client_key_event VNC client msg key event state=0x61f188461650 ioc=0x61f188863c80 down=0 sym=65471
+vnc_key_event_map down 0, sym 0xffbf -> keycode 0x3c [f2]
+input_event_key_qcode con 0, key qcode f2, down 0
+vnc_msg_client_key_event VNC client msg key event state=0x61f188461650 ioc=0x61f188863c80 down=1 sym=65471
+vnc_key_event_map down 1, sym 0xffbf -> keycode 0x3c [f2]
+input_event_key_qcode con 0, key qcode f2, down 1

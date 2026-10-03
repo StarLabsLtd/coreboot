@@ -1,0 +1,27 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 211, in read
+    reply = self.qmp({"execute": "pmemsave", "arguments": {
+        "val": address, "size": size, "filename": output.name}})
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 110, in qmp
+    sock.connect(str(sock_path))
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 391, in <module>
+    firmware_text()
+    ~~~~~~~~~~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 154, in firmware_text
+    return save_console()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp-setup-acceptance.py", line 159, in save_console
+    body = cbmem_reader.snapshot()
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 299, in snapshot
+    data, records = self.table(address)
+                    ~~~~~~~~~~^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 247, in table
+    header = self.read(address, HEADER_BYTES)
+  File "/home/sean/Documents/.cdk2-worktrees/default-zero-native-ui-observer-after628/util/qemu/bin/qmp_cbmem_console.py", line 214, in read
+    raise PhysicalReadError(f"QMP physical read failed: {error}") from error
+qmp_cbmem_console.PhysicalReadError: QMP physical read failed: [Errno 2] No such file or directory
