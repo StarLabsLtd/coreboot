@@ -541,7 +541,7 @@ enum cb_err payload_mm_authvar_store_key_recorded(
 	const void *name, size_t name_size, bool *recorded)
 {
 	struct payload_mm_authvar_store_limits limits;
-	u32 offset;
+	size_t offset;
 
 	if (!recorded || !range_valid(recorded, sizeof(*recorded)) ||
 	    !range_valid(vendor_guid, 16) || !range_valid(name, name_size) ||
