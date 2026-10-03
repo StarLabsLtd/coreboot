@@ -1,0 +1,6 @@
+/usr/bin/python3: OK
+/usr/bin/sh: OK
+/usr/bin/cc: OK
+/usr/bin/perl: OK
+/usr/bin/sha256sum: OK
+/usr/bin/git: OK

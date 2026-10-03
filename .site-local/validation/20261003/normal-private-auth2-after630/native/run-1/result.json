@@ -1,0 +1,48 @@
+{
+  "after_disk_sha256": "e9b133b826c46d19c4b8632ee2420bf77f44f4d63bd8f1bb3ef26beadbf2a7ce",
+  "budget_seconds": 180,
+  "events": [
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 485281,
+        "seconds": 1791029729
+      }
+    },
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 485332,
+        "seconds": 1791029729
+      }
+    },
+    {
+      "data": {
+        "guest": true,
+        "reason": "guest-shutdown"
+      },
+      "event": "SHUTDOWN",
+      "timestamp": {
+        "microseconds": 987482,
+        "seconds": 1791029736
+      }
+    }
+  ],
+  "failure": "ConnectionResetError(104, 'Connection reset by peer')",
+  "original_core_sha256": "6c86f953340891eac7f847508d9a65c6c67f0ac30c56905b5ee824a08282d08d",
+  "original_firmware_head": "d8e49af2ab0c90c6f6542b29026bd80309a9e1da",
+  "original_rom_sha256": "e381f1268fbc56e15a261fc7238206f97229430df4c4752cca192aac9fd697ae",
+  "qemu_status": 143,
+  "scope": "normal SystemFmp/private AUTH2 oneboot; not enrollment/cold/cuts/EDK2 A-B/HW",
+  "staged_disk_sha256": "e9b133b826c46d19c4b8632ee2420bf77f44f4d63bd8f1bb3ef26beadbf2a7ce",
+  "test_head": "796022ad0979f627773611fa1101449a7cc86b30",
+  "wall_seconds": 7.801870720002626
+}

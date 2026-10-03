@@ -1,0 +1,23 @@
+..F..............
+======================================================================
+FAIL: test_callsite_catches_only_transport (__main__.TerminalTest.test_callsite_catches_only_transport)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/terminal-exit-host-test.py", line 110, in test_callsite_catches_only_transport
+    self.assertEqual([ast.unparse(node.type) for node in catches],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ['(OSError, EOFError)', '(PhysicalReadError, OSError, EOFError)'])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['(PhysicalReadError, OSError, EOFError)', '(OSError, EOFError)'] != ['(OSError, EOFError)', '(PhysicalReadError, OSError, EOFError)']
+
+First differing element 0:
+'(PhysicalReadError, OSError, EOFError)'
+'(OSError, EOFError)'
+
+- ['(PhysicalReadError, OSError, EOFError)', '(OSError, EOFError)']
++ ['(OSError, EOFError)', '(PhysicalReadError, OSError, EOFError)']
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.009s
+
+FAILED (failures=1)

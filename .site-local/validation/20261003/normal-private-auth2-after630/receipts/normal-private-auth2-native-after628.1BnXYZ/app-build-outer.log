@@ -1,0 +1,3 @@
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/tests/protected_variable_fullgraph_runtime_app.c:16:2: error: #error Normal private AUTH2 requires the genuine protected SystemFmp default profile
+   16 | #error Normal private AUTH2 requires the genuine protected SystemFmp default profile
+      |  ^~~~~

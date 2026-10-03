@@ -1,0 +1,48 @@
+{
+  "after_disk_sha256": "f2083f6911087b0346475776d1442b7bbc17549543e0ec8127b9c46068600ada",
+  "budget_seconds": 180,
+  "events": [
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 584078,
+        "seconds": 1791030319
+      }
+    },
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 584145,
+        "seconds": 1791030319
+      }
+    },
+    {
+      "data": {
+        "guest": true,
+        "reason": "guest-shutdown"
+      },
+      "event": "SHUTDOWN",
+      "timestamp": {
+        "microseconds": 78197,
+        "seconds": 1791030327
+      }
+    }
+  ],
+  "failure": null,
+  "original_core_sha256": "6c86f953340891eac7f847508d9a65c6c67f0ac30c56905b5ee824a08282d08d",
+  "original_firmware_head": "d8e49af2ab0c90c6f6542b29026bd80309a9e1da",
+  "original_rom_sha256": "e381f1268fbc56e15a261fc7238206f97229430df4c4752cca192aac9fd697ae",
+  "qemu_status": 3,
+  "scope": "normal SystemFmp/private AUTH2 oneboot; not enrollment/cold/cuts/EDK2 A-B/HW",
+  "staged_disk_sha256": "f2083f6911087b0346475776d1442b7bbc17549543e0ec8127b9c46068600ada",
+  "test_head": "796022ad0979f627773611fa1101449a7cc86b30",
+  "wall_seconds": 7.8244191510020755
+}

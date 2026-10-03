@@ -1,0 +1,338 @@
+Makefile:917: update target 'prepare-kconfig' due to: target is .PHONY
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config"; then \
+	test -f "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: /home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config' >&2; \
+		exit 1; \
+	}; \
+	cp "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' '/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"; fi
+Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity' due to: target does not exist
+test -s "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"
+Makefile:973: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config' due to: /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/"
+cd "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" && \
+	if test -s "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then \
+		KCONFIG_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" KCONFIG_AUTOCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/auto.conf" KCONFIG_AUTOHEADER="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/config" kconfig-conf --olddefconfig kconfig/Kconfig; \
+	else \
+		KCONFIG_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" KCONFIG_AUTOCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/auto.conf" KCONFIG_AUTOHEADER="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/config" kconfig-conf --defconfig=kconfig/defconfig kconfig/Kconfig; \
+	fi
+#
+# No change to /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config
+#
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" && cmp -s "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"
+Makefile:1013: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h' due to: target does not exist
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" && cmp -s "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+Makefile:1149: update target 'native-protected-variable-normal-older-append-app' due to: target does not exist
+if fd=''; \
+	test -n "$fd" && { \
+		case "$fd" in *[!0-9]*|'') exit 1;; esac; \
+		test -e "/proc/self/fd/$fd" && \
+			test "/proc/self/fd/$fd" -ef "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/.config-target.lock" && \
+			flock -n "$fd"; \
+	}; then \
+	make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628" CDK2_BUILD_DIR="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" CDK2_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile" config && \
+	make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628" CDK2_BUILD_DIR="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" CDK2_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile" CDK2_CONFIG_READY=1 native-protected-variable-normal-older-append-app; \
+else \
+	exec 9>"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/.config-target.lock"; flock 9; \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory \
+		CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628" CDK2_BUILD_DIR="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" CDK2_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot"  CC="cc"      -f "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile" config && \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628" CDK2_BUILD_DIR="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" CDK2_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile" CDK2_CONFIG_READY=1 \
+		native-protected-variable-normal-older-append-app; \
+fi
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile:917: update target 'prepare-kconfig' due to: target is .PHONY
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config"; then \
+	test -f "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: /home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config' >&2; \
+		exit 1; \
+	}; \
+	cp "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' '/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"; fi
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity' due to: FORCE
+test -s "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile:973: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config' due to: /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/defconfig /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-input.identity
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/"
+cd "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app" && \
+	if test -s "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then \
+		KCONFIG_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" KCONFIG_AUTOCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/auto.conf" KCONFIG_AUTOHEADER="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/config" kconfig-conf --olddefconfig kconfig/Kconfig; \
+	else \
+		KCONFIG_CONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config" KCONFIG_AUTOCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/auto.conf" KCONFIG_AUTOHEADER="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/config" kconfig-conf --defconfig=kconfig/defconfig kconfig/Kconfig; \
+	fi
+#
+# No change to /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config
+#
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" && cmp -s "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile:1013: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h' due to: FORCE
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" && cmp -s "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"
+mkdir -p "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Kconfig" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/Makefile:983: update target 'config' due to: target is .PHONY
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"; then test -n "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" && cmp -s "/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config"
+#
+# No change to /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/resolved.config
+#
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-owner.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-owner.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-owner.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/modules/authvar_transport/owner.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-owner.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-transport.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-transport.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-transport.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/modules/authvar_transport/transport.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-transport.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-native_x86.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-native_x86.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-native_x86.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/modules/authvar_transport/native_x86.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-native_x86.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-payload_mm_authvar_service.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-payload_mm_authvar_service.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-payload_mm_authvar_service.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/lib/payload_mm_authvar_service.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-payload_mm_authvar_service.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-image_policy_snapshot.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-image_policy_snapshot.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-image_policy_snapshot.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/lib/image_policy_snapshot.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-image_policy_snapshot.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/boot/coreboot.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_checksum.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_checksum.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_checksum.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/boot/coreboot_checksum.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_checksum.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_resource.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_resource.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_resource.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/boot/coreboot_resource.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_resource.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:970: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-mem.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include -MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-mem.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-mem.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/lib/mem.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-mem.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:1073: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-app.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -DCDK2_NORMAL_PRIVATE_OLDER_APPEND=1 \
+	-fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include \
+	-MMD -MP -MF "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-app.o.d" -MT "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-app.o" -c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//tests/protected_variable_fullgraph_runtime_app.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-app.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:1065: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs.o' due to: target does not exist
+sh "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//tests/protected_variable_fullgraph_enrolled_inputs.sh" \
+	"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs" --no-child normal-older-append \
+	> "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:4742: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-pe-exec-sections' due to: target does not exist
+cc -std=c11 -O2 -Wall -Wextra -Werror -fshort-wchar -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-pe-exec-sections" "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//util/pe_exec_sections.c"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:4745: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-native-pe-link' due to: target does not exist
+set -e; temporary="/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-native-pe-link.tmp.$$"; \
+	trap 'rm -f "$temporary"' EXIT HUP INT TERM; \
+	cc -std=c11 -O2 -Wall -Wextra -Werror -fshort-wchar \
+		-o "$temporary" "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//util/native_pe_link.c"; \
+	mv -f "$temporary" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-native-pe-link"
+cd "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs" && ld -r -b binary \
+	private_create_auth.bin private_wrong_auth.bin private_append_auth.bin \
+	private_appended_value.bin private_certdb.bin -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:5306: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/pe-relocation-marker.o' due to: target does not exist
+cc -ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -I/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/include -I/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//include \
+	-c "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//src/lib/pe_relocation_marker.c" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/pe-relocation-marker.o"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:1077: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-linked.o' due to: target does not exist
+ld -r --gc-sections -u cdk2_public_fullgraph_runtime_entry \
+	-o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-linked.o" /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-owner.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-transport.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-native_x86.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-payload_mm_authvar_service.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-image_policy_snapshot.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_checksum.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-coreboot_resource.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/public-fullgraph-app-mem.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-app.o /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs.o
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:1082: update target '/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/NormalPrivateAuth2OlderAppend.efi' due to: target does not exist
+"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-native-pe-link" "ld" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-pe-exec-sections" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/pe-relocation-marker.o" "readelf" --subsystem 10 --entry cdk2_public_fullgraph_runtime_entry \
+	--image-base 0 --section-alignment 0x1000 --file-alignment 0x1000 \
+	--build-id=none --no-insert-timestamp -s --nxcompat \
+	-T "/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628//tests/protected_variable_fullgraph_runtime_app.ld" -o "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/NormalPrivateAuth2OlderAppend.efi" "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-linked.o"
+"/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/cdk2-pe-exec-sections" --subsystem 10 "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/NormalPrivateAuth2OlderAppend.efi"
+/home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/src/boot/Makefile:1089: update target 'native-protected-variable-normal-older-append-app' due to: target is .PHONY
+printf '%s\n' "/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/NormalPrivateAuth2OlderAppend.efi"
+/home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/NormalPrivateAuth2OlderAppend.efi

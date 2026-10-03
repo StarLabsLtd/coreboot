@@ -1,0 +1,7 @@
+ M Makefile
+ M src/boot/Makefile
+ M tests/protected_variable_fullgraph_enrolled_inputs.sh
+ M tests/protected_variable_fullgraph_runtime_app.c
+ M tests/protected_variable_private_media_check.c
+ M tests/protected_variable_private_media_check.sh
+?? tests/normal_private_auth2_host_test.sh

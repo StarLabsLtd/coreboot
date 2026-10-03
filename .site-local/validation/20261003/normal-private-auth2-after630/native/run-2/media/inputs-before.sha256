@@ -1,0 +1,15 @@
+2496f15b57a7b0b15e8e8f08756eaab61367d6a92e1c1311554bdb19dcd0610d  /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/run-2/after-smmstore.bin
+98d35920b1b10fa5d60edad3520e45c6414888392d354c3659112bb99db03b3d  /home/sean/normal-private-auth2-native-registry-after628.GXO9JR/app/native/normal-private-auth2-inputs/private_certdb.bin
+65f7f48835756077d66884e2953c910ab3d453dd8ef569042da2c236f65ff393  /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/tests/protected_variable_private_media_check.c
+537cceef67ac55d59696c18164787d9bca2d916c5f3ddcc57854b2db278023e8  /home/sean/Documents/.cdk2-worktrees/normal-private-auth2-older-append-after628/tests/protected_variable_private_media_check.sh
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/cc
+fa709dd80ec2ddd60b47b1a13964dcbe7c4b96fb08f91778485ae95a78685e4e  /usr/bin/perl
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/bin/sha256sum
+41fc4b37d4d7e00c6fb21594b5304761c39c88e0e600474215e77eae83e89bfb  /usr/libexec/gcc/x86_64-linux-gnu/15/cc1
+08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487  /usr/bin/x86_64-linux-gnu-as
+ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662  /usr/bin/x86_64-linux-gnu-ld
+bf96847421957a29e6e3f16c0453aaabdda7e11c70d779d2f135ba87bf701613  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_fv.c
+687aa6de64fa5d4c366e2e048fc3974765d33bdafe21476f34508298f11bd66b  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_store.c
+c974a8c1b509f99387f04e00f69e217a91e4d323d4bd0c111a5a3f9bec4e23bc  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_record.c
+78617ff37103dec4349b86946aa2e0806091178fba4302cb8f12c560bc496afb  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_ftw.c
+5e95d22bb09531ebd35ca2e0db2808bd17b68656ad2e9c5980f57f4724f292d7  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_certdb.c
