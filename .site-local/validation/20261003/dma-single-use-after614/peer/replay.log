@@ -1,0 +1,7 @@
+p0 O0 real DMA fixture strictSAN PASS
+p0 O2 real DMA fixture strictSAN PASS
+p1 O0 real DMA fixture strictSAN PASS
+p1 O2 real DMA fixture strictSAN PASS
+src/boot/coreboot_dma_handoff.c: OK
+tests/dma_handoff_test.c: OK
+src/boot/coreboot_checksum.c: OK

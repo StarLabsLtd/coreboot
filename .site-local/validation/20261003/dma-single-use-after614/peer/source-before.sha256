@@ -1,0 +1,3 @@
+cd29f36e16e1e156c2895a6c66ad5190225629da82bc395494279c32efd1668f  src/boot/coreboot_dma_handoff.c
+03dc655002a32ce043cd8249da3ab86d845f67512e915cf0355e95589e769f7a  tests/dma_handoff_test.c
+8a6b6e50c8296d0d63d37b8bea901363e1e54999de90c502f05bd551a87b45a9  src/boot/coreboot_checksum.c

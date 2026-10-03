@@ -1,0 +1,982 @@
+
+/home/sean/dma-single-use-proof.r5ZhAg/replay-immutable/p1-candidate-o0.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <handoff_crc32>:
+   0:	f3 0f 1e fa          	endbr64
+   4:	55                   	push   %rbp
+   5:	48 89 e5             	mov    %rsp,%rbp
+   8:	48 83 ec 30          	sub    $0x30,%rsp
+   c:	48 89 7d d8          	mov    %rdi,-0x28(%rbp)
+  10:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+  14:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+  18:	48 c7 45 f8 14 00 00 	movq   $0x14,-0x8(%rbp)
+  1f:	00 
+  20:	c7 45 e4 00 00 00 00 	movl   $0x0,-0x1c(%rbp)
+  27:	48 c7 45 e8 00 00 00 	movq   $0x0,-0x18(%rbp)
+  2e:	00 
+  2f:	eb 44                	jmp    75 <handoff_crc32+0x75>
+  31:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  35:	48 3b 45 f8          	cmp    -0x8(%rbp),%rax
+  39:	72 0e                	jb     49 <handoff_crc32+0x49>
+  3b:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  3f:	48 83 c0 04          	add    $0x4,%rax
+  43:	48 39 45 e8          	cmp    %rax,-0x18(%rbp)
+  47:	72 13                	jb     5c <handoff_crc32+0x5c>
+  49:	48 8b 55 f0          	mov    -0x10(%rbp),%rdx
+  4d:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  51:	48 01 d0             	add    %rdx,%rax
+  54:	0f b6 00             	movzbl (%rax),%eax
+  57:	0f b6 c0             	movzbl %al,%eax
+  5a:	eb 05                	jmp    61 <handoff_crc32+0x61>
+  5c:	b8 00 00 00 00       	mov    $0x0,%eax
+  61:	8b 55 e4             	mov    -0x1c(%rbp),%edx
+  64:	89 c6                	mov    %eax,%esi
+  66:	89 d7                	mov    %edx,%edi
+  68:	e8 00 00 00 00       	call   6d <handoff_crc32+0x6d>
+			69: R_X86_64_PLT32	cdk2_coreboot_crc32_update-0x4
+  6d:	89 45 e4             	mov    %eax,-0x1c(%rbp)
+  70:	48 83 45 e8 01       	addq   $0x1,-0x18(%rbp)
+  75:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+  79:	8b 40 04             	mov    0x4(%rax),%eax
+  7c:	89 c0                	mov    %eax,%eax
+  7e:	48 39 45 e8          	cmp    %rax,-0x18(%rbp)
+  82:	72 ad                	jb     31 <handoff_crc32+0x31>
+  84:	8b 45 e4             	mov    -0x1c(%rbp),%eax
+  87:	c9                   	leave
+  88:	c3                   	ret
+
+0000000000000089 <range_valid>:
+  89:	f3 0f 1e fa          	endbr64
+  8d:	55                   	push   %rbp
+  8e:	48 89 e5             	mov    %rsp,%rbp
+  91:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  95:	89 75 e4             	mov    %esi,-0x1c(%rbp)
+  98:	89 d0                	mov    %edx,%eax
+  9a:	48 89 4d d8          	mov    %rcx,-0x28(%rbp)
+  9e:	66 89 45 e0          	mov    %ax,-0x20(%rbp)
+  a2:	66 83 7d e0 3f       	cmpw   $0x3f,-0x20(%rbp)
+  a7:	76 0a                	jbe    b3 <range_valid+0x2a>
+  a9:	b8 00 00 00 00       	mov    $0x0,%eax
+  ae:	e9 93 00 00 00       	jmp    146 <range_valid+0xbd>
+  b3:	0f b7 45 e0          	movzwl -0x20(%rbp),%eax
+  b7:	ba 01 00 00 00       	mov    $0x1,%edx
+  bc:	89 c1                	mov    %eax,%ecx
+  be:	48 d3 e2             	shl    %cl,%rdx
+  c1:	48 89 d0             	mov    %rdx,%rax
+  c4:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+  c8:	48 83 7d e8 00       	cmpq   $0x0,-0x18(%rbp)
+  cd:	74 32                	je     101 <range_valid+0x78>
+  cf:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  d3:	48 83 e8 01          	sub    $0x1,%rax
+  d7:	48 23 45 e8          	and    -0x18(%rbp),%rax
+  db:	48 85 c0             	test   %rax,%rax
+  de:	75 21                	jne    101 <range_valid+0x78>
+  e0:	83 7d e4 00          	cmpl   $0x0,-0x1c(%rbp)
+  e4:	74 1b                	je     101 <range_valid+0x78>
+  e6:	8b 45 e4             	mov    -0x1c(%rbp),%eax
+  e9:	0f b7 55 e0          	movzwl -0x20(%rbp),%edx
+  ed:	48 c7 c6 ff ff ff ff 	mov    $0xffffffffffffffff,%rsi
+  f4:	89 d1                	mov    %edx,%ecx
+  f6:	48 d3 ee             	shr    %cl,%rsi
+  f9:	48 89 f2             	mov    %rsi,%rdx
+  fc:	48 39 c2             	cmp    %rax,%rdx
+  ff:	73 07                	jae    108 <range_valid+0x7f>
+ 101:	b8 00 00 00 00       	mov    $0x0,%eax
+ 106:	eb 3e                	jmp    146 <range_valid+0xbd>
+ 108:	8b 55 e4             	mov    -0x1c(%rbp),%edx
+ 10b:	0f b7 45 e0          	movzwl -0x20(%rbp),%eax
+ 10f:	89 c1                	mov    %eax,%ecx
+ 111:	48 d3 e2             	shl    %cl,%rdx
+ 114:	48 89 d0             	mov    %rdx,%rax
+ 117:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ 11b:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+ 11f:	48 f7 d0             	not    %rax
+ 122:	48 3b 45 e8          	cmp    -0x18(%rbp),%rax
+ 126:	73 07                	jae    12f <range_valid+0xa6>
+ 128:	b8 00 00 00 00       	mov    $0x0,%eax
+ 12d:	eb 17                	jmp    146 <range_valid+0xbd>
+ 12f:	48 8b 55 e8          	mov    -0x18(%rbp),%rdx
+ 133:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+ 137:	48 01 c2             	add    %rax,%rdx
+ 13a:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 13e:	48 89 10             	mov    %rdx,(%rax)
+ 141:	b8 01 00 00 00       	mov    $0x1,%eax
+ 146:	5d                   	pop    %rbp
+ 147:	c3                   	ret
+
+0000000000000148 <range_overlaps_blob>:
+ 148:	f3 0f 1e fa          	endbr64
+ 14c:	55                   	push   %rbp
+ 14d:	48 89 e5             	mov    %rsp,%rbp
+ 150:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+ 154:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
+ 158:	48 89 55 d8          	mov    %rdx,-0x28(%rbp)
+ 15c:	89 4d d4             	mov    %ecx,-0x2c(%rbp)
+ 15f:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 163:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+ 167:	8b 45 d4             	mov    -0x2c(%rbp),%eax
+ 16a:	48 f7 d0             	not    %rax
+ 16d:	48 3b 45 f0          	cmp    -0x10(%rbp),%rax
+ 171:	73 07                	jae    17a <range_overlaps_blob+0x32>
+ 173:	b8 01 00 00 00       	mov    $0x1,%eax
+ 178:	eb 2e                	jmp    1a8 <range_overlaps_blob+0x60>
+ 17a:	8b 55 d4             	mov    -0x2c(%rbp),%edx
+ 17d:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 181:	48 01 d0             	add    %rdx,%rax
+ 184:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ 188:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 18c:	48 3b 45 f8          	cmp    -0x8(%rbp),%rax
+ 190:	73 11                	jae    1a3 <range_overlaps_blob+0x5b>
+ 192:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 196:	48 3b 45 e0          	cmp    -0x20(%rbp),%rax
+ 19a:	73 07                	jae    1a3 <range_overlaps_blob+0x5b>
+ 19c:	b8 01 00 00 00       	mov    $0x1,%eax
+ 1a1:	eb 05                	jmp    1a8 <range_overlaps_blob+0x60>
+ 1a3:	b8 00 00 00 00       	mov    $0x0,%eax
+ 1a8:	5d                   	pop    %rbp
+ 1a9:	c3                   	ret
+
+00000000000001aa <unpack64>:
+ 1aa:	f3 0f 1e fa          	endbr64
+ 1ae:	55                   	push   %rbp
+ 1af:	48 89 e5             	mov    %rsp,%rbp
+ 1b2:	48 89 7d f8          	mov    %rdi,-0x8(%rbp)
+ 1b6:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+ 1ba:	8b 00                	mov    (%rax),%eax
+ 1bc:	89 c2                	mov    %eax,%edx
+ 1be:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+ 1c2:	8b 40 04             	mov    0x4(%rax),%eax
+ 1c5:	89 c0                	mov    %eax,%eax
+ 1c7:	48 c1 e0 20          	shl    $0x20,%rax
+ 1cb:	48 09 d0             	or     %rdx,%rax
+ 1ce:	5d                   	pop    %rbp
+ 1cf:	c3                   	ret
+
+00000000000001d0 <validate_requesters_against_boot_intent>:
+ 1d0:	f3 0f 1e fa          	endbr64
+ 1d4:	55                   	push   %rbp
+ 1d5:	48 89 e5             	mov    %rsp,%rbp
+ 1d8:	48 83 ec 60          	sub    $0x60,%rsp
+ 1dc:	48 89 7d a8          	mov    %rdi,-0x58(%rbp)
+ 1e0:	48 89 75 a0          	mov    %rsi,-0x60(%rbp)
+ 1e4:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+ 1eb:	00 00 
+ 1ed:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ 1f1:	31 c0                	xor    %eax,%eax
+ 1f3:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 1f7:	48 8b 40 40          	mov    0x40(%rax),%rax
+ 1fb:	48 89 45 d0          	mov    %rax,-0x30(%rbp)
+ 1ff:	48 8d 55 c0          	lea    -0x40(%rbp),%rdx
+ 203:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 207:	be 08 00 00 00       	mov    $0x8,%esi
+ 20c:	48 89 c7             	mov    %rax,%rdi
+ 20f:	e8 00 00 00 00       	call   214 <validate_requesters_against_boot_intent+0x44>
+			210: R_X86_64_PLT32	cdk2_coreboot_find_payload_resource_section-0x4
+ 214:	48 89 45 d8          	mov    %rax,-0x28(%rbp)
+ 218:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 21c:	48 85 c0             	test   %rax,%rax
+ 21f:	79 28                	jns    249 <validate_requesters_against_boot_intent+0x79>
+ 221:	48 b8 0e 00 00 00 00 	movabs $0x800000000000000e,%rax
+ 228:	00 00 80 
+ 22b:	48 39 45 d8          	cmp    %rax,-0x28(%rbp)
+ 22f:	74 09                	je     23a <validate_requesters_against_boot_intent+0x6a>
+ 231:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 235:	e9 e8 01 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 23a:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ 241:	00 00 80 
+ 244:	e9 d9 01 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 249:	48 8d 55 c8          	lea    -0x38(%rbp),%rdx
+ 24d:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 251:	be 05 00 00 00       	mov    $0x5,%esi
+ 256:	48 89 c7             	mov    %rax,%rdi
+ 259:	e8 00 00 00 00       	call   25e <validate_requesters_against_boot_intent+0x8e>
+			25a: R_X86_64_PLT32	cdk2_coreboot_find_payload_resource_section-0x4
+ 25e:	48 89 45 d8          	mov    %rax,-0x28(%rbp)
+ 262:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 266:	48 85 c0             	test   %rax,%rax
+ 269:	79 28                	jns    293 <validate_requesters_against_boot_intent+0xc3>
+ 26b:	48 b8 0e 00 00 00 00 	movabs $0x800000000000000e,%rax
+ 272:	00 00 80 
+ 275:	48 39 45 d8          	cmp    %rax,-0x28(%rbp)
+ 279:	74 09                	je     284 <validate_requesters_against_boot_intent+0xb4>
+ 27b:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
+ 27f:	e9 9e 01 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 284:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ 28b:	00 00 80 
+ 28e:	e9 8f 01 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 293:	48 8b 45 a0          	mov    -0x60(%rbp),%rax
+ 297:	8b 50 10             	mov    0x10(%rax),%edx
+ 29a:	48 8b 45 c8          	mov    -0x38(%rbp),%rax
+ 29e:	8b 40 08             	mov    0x8(%rax),%eax
+ 2a1:	39 c2                	cmp    %eax,%edx
+ 2a3:	74 0f                	je     2b4 <validate_requesters_against_boot_intent+0xe4>
+ 2a5:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ 2ac:	00 00 80 
+ 2af:	e9 6e 01 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 2b4:	c7 45 b4 00 00 00 00 	movl   $0x0,-0x4c(%rbp)
+ 2bb:	e9 4d 01 00 00       	jmp    40d <validate_requesters_against_boot_intent+0x23d>
+ 2c0:	8b 45 b4             	mov    -0x4c(%rbp),%eax
+ 2c3:	48 c1 e0 05          	shl    $0x5,%rax
+ 2c7:	48 8d 50 10          	lea    0x10(%rax),%rdx
+ 2cb:	48 8b 45 a0          	mov    -0x60(%rbp),%rax
+ 2cf:	48 01 d0             	add    %rdx,%rax
+ 2d2:	48 83 c0 04          	add    $0x4,%rax
+ 2d6:	48 89 45 e0          	mov    %rax,-0x20(%rbp)
+ 2da:	c7 45 b8 00 00 00 00 	movl   $0x0,-0x48(%rbp)
+ 2e1:	c7 45 bc 00 00 00 00 	movl   $0x0,-0x44(%rbp)
+ 2e8:	e9 fa 00 00 00       	jmp    3e7 <validate_requesters_against_boot_intent+0x217>
+ 2ed:	48 8b 45 c8          	mov    -0x38(%rbp),%rax
+ 2f1:	8b 40 0c             	mov    0xc(%rax),%eax
+ 2f4:	89 c1                	mov    %eax,%ecx
+ 2f6:	8b 55 bc             	mov    -0x44(%rbp),%edx
+ 2f9:	48 8b 45 c8          	mov    -0x38(%rbp),%rax
+ 2fd:	0f b7 40 06          	movzwl 0x6(%rax),%eax
+ 301:	0f b7 c0             	movzwl %ax,%eax
+ 304:	48 0f af c2          	imul   %rdx,%rax
+ 308:	48 8d 14 01          	lea    (%rcx,%rax,1),%rdx
+ 30c:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 310:	48 01 d0             	add    %rdx,%rax
+ 313:	48 89 45 e8          	mov    %rax,-0x18(%rbp)
+ 317:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 31b:	0f b7 00             	movzwl (%rax),%eax
+ 31e:	0f b7 d0             	movzwl %ax,%edx
+ 321:	48 8b 45 c0          	mov    -0x40(%rbp),%rax
+ 325:	8b 40 08             	mov    0x8(%rax),%eax
+ 328:	39 c2                	cmp    %eax,%edx
+ 32a:	72 0f                	jb     33b <validate_requesters_against_boot_intent+0x16b>
+ 32c:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 333:	00 00 80 
+ 336:	e9 e7 00 00 00       	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 33b:	48 8b 45 c0          	mov    -0x40(%rbp),%rax
+ 33f:	8b 40 0c             	mov    0xc(%rax),%eax
+ 342:	89 c1                	mov    %eax,%ecx
+ 344:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 348:	0f b7 00             	movzwl (%rax),%eax
+ 34b:	0f b7 d0             	movzwl %ax,%edx
+ 34e:	48 8b 45 c0          	mov    -0x40(%rbp),%rax
+ 352:	0f b7 40 06          	movzwl 0x6(%rax),%eax
+ 356:	0f b7 c0             	movzwl %ax,%eax
+ 359:	48 0f af c2          	imul   %rdx,%rax
+ 35d:	48 8d 14 01          	lea    (%rcx,%rax,1),%rdx
+ 361:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 365:	48 01 d0             	add    %rdx,%rax
+ 368:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+ 36c:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 370:	0f b6 40 02          	movzbl 0x2(%rax),%eax
+ 374:	0f b6 c0             	movzbl %al,%eax
+ 377:	c1 e0 08             	shl    $0x8,%eax
+ 37a:	89 c2                	mov    %eax,%edx
+ 37c:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 380:	0f b6 40 03          	movzbl 0x3(%rax),%eax
+ 384:	0f b6 c0             	movzbl %al,%eax
+ 387:	c1 e0 03             	shl    $0x3,%eax
+ 38a:	09 c2                	or     %eax,%edx
+ 38c:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 390:	0f b6 40 04          	movzbl 0x4(%rax),%eax
+ 394:	0f b6 c0             	movzbl %al,%eax
+ 397:	09 d0                	or     %edx,%eax
+ 399:	66 89 45 b2          	mov    %ax,-0x4e(%rbp)
+ 39d:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 3a1:	0f b7 10             	movzwl (%rax),%edx
+ 3a4:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 3a8:	0f b7 00             	movzwl (%rax),%eax
+ 3ab:	66 39 c2             	cmp    %ax,%dx
+ 3ae:	75 32                	jne    3e2 <validate_requesters_against_boot_intent+0x212>
+ 3b0:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 3b4:	0f b7 40 02          	movzwl 0x2(%rax),%eax
+ 3b8:	66 39 45 b2          	cmp    %ax,-0x4e(%rbp)
+ 3bc:	75 24                	jne    3e2 <validate_requesters_against_boot_intent+0x212>
+ 3be:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+ 3c2:	0f b7 40 0c          	movzwl 0xc(%rax),%eax
+ 3c6:	0f b7 c0             	movzwl %ax,%eax
+ 3c9:	83 e0 04             	and    $0x4,%eax
+ 3cc:	85 c0                	test   %eax,%eax
+ 3ce:	74 0c                	je     3dc <validate_requesters_against_boot_intent+0x20c>
+ 3d0:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ 3d7:	00 00 80 
+ 3da:	eb 46                	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 3dc:	83 45 b8 01          	addl   $0x1,-0x48(%rbp)
+ 3e0:	eb 01                	jmp    3e3 <validate_requesters_against_boot_intent+0x213>
+ 3e2:	90                   	nop
+ 3e3:	83 45 bc 01          	addl   $0x1,-0x44(%rbp)
+ 3e7:	48 8b 45 c8          	mov    -0x38(%rbp),%rax
+ 3eb:	8b 40 08             	mov    0x8(%rax),%eax
+ 3ee:	39 45 bc             	cmp    %eax,-0x44(%rbp)
+ 3f1:	0f 82 f6 fe ff ff    	jb     2ed <validate_requesters_against_boot_intent+0x11d>
+ 3f7:	83 7d b8 01          	cmpl   $0x1,-0x48(%rbp)
+ 3fb:	74 0c                	je     409 <validate_requesters_against_boot_intent+0x239>
+ 3fd:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ 404:	00 00 80 
+ 407:	eb 19                	jmp    422 <validate_requesters_against_boot_intent+0x252>
+ 409:	83 45 b4 01          	addl   $0x1,-0x4c(%rbp)
+ 40d:	48 8b 45 a0          	mov    -0x60(%rbp),%rax
+ 411:	8b 40 10             	mov    0x10(%rax),%eax
+ 414:	39 45 b4             	cmp    %eax,-0x4c(%rbp)
+ 417:	0f 82 a3 fe ff ff    	jb     2c0 <validate_requesters_against_boot_intent+0xf0>
+ 41d:	b8 00 00 00 00       	mov    $0x0,%eax
+ 422:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+ 426:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ 42d:	00 00 
+ 42f:	74 05                	je     436 <validate_requesters_against_boot_intent+0x266>
+ 431:	e8 00 00 00 00       	call   436 <validate_requesters_against_boot_intent+0x266>
+			432: R_X86_64_PLT32	__stack_chk_fail-0x4
+ 436:	c9                   	leave
+ 437:	c3                   	ret
+
+0000000000000438 <cdk2_dma_handoff_find_blob>:
+ 438:	f3 0f 1e fa          	endbr64
+ 43c:	55                   	push   %rbp
+ 43d:	48 89 e5             	mov    %rsp,%rbp
+ 440:	48 83 ec 70          	sub    $0x70,%rsp
+ 444:	48 89 7d a8          	mov    %rdi,-0x58(%rbp)
+ 448:	89 75 a4             	mov    %esi,-0x5c(%rbp)
+ 44b:	48 89 55 98          	mov    %rdx,-0x68(%rbp)
+ 44f:	48 89 4d 90          	mov    %rcx,-0x70(%rbp)
+ 453:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+ 45a:	00 00 
+ 45c:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ 460:	31 c0                	xor    %eax,%eax
+ 462:	48 c7 45 c8 00 00 00 	movq   $0x0,-0x38(%rbp)
+ 469:	00 
+ 46a:	c7 45 bc 00 00 00 00 	movl   $0x0,-0x44(%rbp)
+ 471:	c6 45 bb 00          	movb   $0x0,-0x45(%rbp)
+ 475:	48 83 7d a8 00       	cmpq   $0x0,-0x58(%rbp)
+ 47a:	74 1a                	je     496 <cdk2_dma_handoff_find_blob+0x5e>
+ 47c:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 480:	48 8b 00             	mov    (%rax),%rax
+ 483:	48 85 c0             	test   %rax,%rax
+ 486:	74 0e                	je     496 <cdk2_dma_handoff_find_blob+0x5e>
+ 488:	48 83 7d 98 00       	cmpq   $0x0,-0x68(%rbp)
+ 48d:	74 07                	je     496 <cdk2_dma_handoff_find_blob+0x5e>
+ 48f:	48 83 7d 90 00       	cmpq   $0x0,-0x70(%rbp)
+ 494:	75 0f                	jne    4a5 <cdk2_dma_handoff_find_blob+0x6d>
+ 496:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+ 49d:	00 00 80 
+ 4a0:	e9 bb 01 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 4a5:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4a9:	48 8b 00             	mov    (%rax),%rax
+ 4ac:	8b 40 04             	mov    0x4(%rax),%eax
+ 4af:	89 c2                	mov    %eax,%edx
+ 4b1:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4b5:	48 8b 40 08          	mov    0x8(%rax),%rax
+ 4b9:	48 39 d0             	cmp    %rdx,%rax
+ 4bc:	73 0f                	jae    4cd <cdk2_dma_handoff_find_blob+0x95>
+ 4be:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 4c5:	00 00 80 
+ 4c8:	e9 93 01 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 4cd:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4d1:	48 8b 10             	mov    (%rax),%rdx
+ 4d4:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4d8:	48 8b 00             	mov    (%rax),%rax
+ 4db:	8b 40 04             	mov    0x4(%rax),%eax
+ 4de:	89 c0                	mov    %eax,%eax
+ 4e0:	48 01 d0             	add    %rdx,%rax
+ 4e3:	48 89 45 c0          	mov    %rax,-0x40(%rbp)
+ 4e7:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4eb:	48 8b 50 08          	mov    0x8(%rax),%rdx
+ 4ef:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 4f3:	48 8b 00             	mov    (%rax),%rax
+ 4f6:	8b 40 04             	mov    0x4(%rax),%eax
+ 4f9:	89 c1                	mov    %eax,%ecx
+ 4fb:	48 89 d0             	mov    %rdx,%rax
+ 4fe:	48 29 c8             	sub    %rcx,%rax
+ 501:	48 89 45 d0          	mov    %rax,-0x30(%rbp)
+ 505:	48 c7 45 d8 00 00 00 	movq   $0x0,-0x28(%rbp)
+ 50c:	00 
+ 50d:	e9 10 01 00 00       	jmp    622 <cdk2_dma_handoff_find_blob+0x1ea>
+ 512:	48 83 7d d0 07       	cmpq   $0x7,-0x30(%rbp)
+ 517:	77 0f                	ja     528 <cdk2_dma_handoff_find_blob+0xf0>
+ 519:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 520:	00 00 80 
+ 523:	e9 38 01 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 528:	48 8b 45 c0          	mov    -0x40(%rbp),%rax
+ 52c:	48 89 45 e0          	mov    %rax,-0x20(%rbp)
+ 530:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 534:	8b 40 04             	mov    0x4(%rax),%eax
+ 537:	83 f8 07             	cmp    $0x7,%eax
+ 53a:	76 0f                	jbe    54b <cdk2_dma_handoff_find_blob+0x113>
+ 53c:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 540:	8b 40 04             	mov    0x4(%rax),%eax
+ 543:	89 c0                	mov    %eax,%eax
+ 545:	48 39 45 d0          	cmp    %rax,-0x30(%rbp)
+ 549:	73 0f                	jae    55a <cdk2_dma_handoff_find_blob+0x122>
+ 54b:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 552:	00 00 80 
+ 555:	e9 06 01 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 55a:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 55e:	8b 00                	mov    (%rax),%eax
+ 560:	83 f8 31             	cmp    $0x31,%eax
+ 563:	0f 85 9a 00 00 00    	jne    603 <cdk2_dma_handoff_find_blob+0x1cb>
+ 569:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 56d:	8b 40 04             	mov    0x4(%rax),%eax
+ 570:	83 f8 17             	cmp    $0x17,%eax
+ 573:	77 0f                	ja     584 <cdk2_dma_handoff_find_blob+0x14c>
+ 575:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 57c:	00 00 80 
+ 57f:	e9 dc 00 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 584:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 588:	48 89 45 e8          	mov    %rax,-0x18(%rbp)
+ 58c:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 590:	8b 40 14             	mov    0x14(%rax),%eax
+ 593:	3d 48 41 4d 44       	cmp    $0x444d4148,%eax
+ 598:	75 69                	jne    603 <cdk2_dma_handoff_find_blob+0x1cb>
+ 59a:	80 7d bb 00          	cmpb   $0x0,-0x45(%rbp)
+ 59e:	74 0f                	je     5af <cdk2_dma_handoff_find_blob+0x177>
+ 5a0:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 5a7:	00 00 80 
+ 5aa:	e9 b1 00 00 00       	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 5af:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 5b3:	48 83 c0 08          	add    $0x8,%rax
+ 5b7:	48 8b 00             	mov    (%rax),%rax
+ 5ba:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+ 5be:	48 8d 45 f0          	lea    -0x10(%rbp),%rax
+ 5c2:	48 89 c7             	mov    %rax,%rdi
+ 5c5:	e8 e0 fb ff ff       	call   1aa <unpack64>
+ 5ca:	48 89 45 c8          	mov    %rax,-0x38(%rbp)
+ 5ce:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 5d2:	8b 40 10             	mov    0x10(%rax),%eax
+ 5d5:	89 45 bc             	mov    %eax,-0x44(%rbp)
+ 5d8:	48 83 7d c8 00       	cmpq   $0x0,-0x38(%rbp)
+ 5dd:	74 14                	je     5f3 <cdk2_dma_handoff_find_blob+0x1bb>
+ 5df:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 5e2:	3b 45 a4             	cmp    -0x5c(%rbp),%eax
+ 5e5:	72 0c                	jb     5f3 <cdk2_dma_handoff_find_blob+0x1bb>
+ 5e7:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 5ea:	48 f7 d0             	not    %rax
+ 5ed:	48 3b 45 c8          	cmp    -0x38(%rbp),%rax
+ 5f1:	73 0c                	jae    5ff <cdk2_dma_handoff_find_blob+0x1c7>
+ 5f3:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 5fa:	00 00 80 
+ 5fd:	eb 61                	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 5ff:	c6 45 bb 01          	movb   $0x1,-0x45(%rbp)
+ 603:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 607:	8b 40 04             	mov    0x4(%rax),%eax
+ 60a:	89 c0                	mov    %eax,%eax
+ 60c:	48 01 45 c0          	add    %rax,-0x40(%rbp)
+ 610:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 614:	8b 40 04             	mov    0x4(%rax),%eax
+ 617:	89 c0                	mov    %eax,%eax
+ 619:	48 29 45 d0          	sub    %rax,-0x30(%rbp)
+ 61d:	48 83 45 d8 01       	addq   $0x1,-0x28(%rbp)
+ 622:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 626:	8b 40 10             	mov    0x10(%rax),%eax
+ 629:	89 c0                	mov    %eax,%eax
+ 62b:	48 39 45 d8          	cmp    %rax,-0x28(%rbp)
+ 62f:	0f 82 dd fe ff ff    	jb     512 <cdk2_dma_handoff_find_blob+0xda>
+ 635:	80 7d bb 00          	cmpb   $0x0,-0x45(%rbp)
+ 639:	75 0c                	jne    647 <cdk2_dma_handoff_find_blob+0x20f>
+ 63b:	48 b8 0e 00 00 00 00 	movabs $0x800000000000000e,%rax
+ 642:	00 00 80 
+ 645:	eb 19                	jmp    660 <cdk2_dma_handoff_find_blob+0x228>
+ 647:	48 8b 45 98          	mov    -0x68(%rbp),%rax
+ 64b:	48 8b 55 c8          	mov    -0x38(%rbp),%rdx
+ 64f:	48 89 10             	mov    %rdx,(%rax)
+ 652:	48 8b 45 90          	mov    -0x70(%rbp),%rax
+ 656:	8b 55 bc             	mov    -0x44(%rbp),%edx
+ 659:	89 10                	mov    %edx,(%rax)
+ 65b:	b8 00 00 00 00       	mov    $0x0,%eax
+ 660:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+ 664:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ 66b:	00 00 
+ 66d:	74 05                	je     674 <cdk2_dma_handoff_find_blob+0x23c>
+ 66f:	e8 00 00 00 00       	call   674 <cdk2_dma_handoff_find_blob+0x23c>
+			670: R_X86_64_PLT32	__stack_chk_fail-0x4
+ 674:	c9                   	leave
+ 675:	c3                   	ret
+
+0000000000000676 <validate_blob>:
+ 676:	f3 0f 1e fa          	endbr64
+ 67a:	55                   	push   %rbp
+ 67b:	48 89 e5             	mov    %rsp,%rbp
+ 67e:	48 83 ec 70          	sub    $0x70,%rsp
+ 682:	48 89 7d a8          	mov    %rdi,-0x58(%rbp)
+ 686:	89 75 a4             	mov    %esi,-0x5c(%rbp)
+ 689:	48 89 55 98          	mov    %rdx,-0x68(%rbp)
+ 68d:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+ 694:	00 00 
+ 696:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ 69a:	31 c0                	xor    %eax,%eax
+ 69c:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 6a0:	48 89 45 d0          	mov    %rax,-0x30(%rbp)
+ 6a4:	48 83 7d a8 00       	cmpq   $0x0,-0x58(%rbp)
+ 6a9:	74 0d                	je     6b8 <validate_blob+0x42>
+ 6ab:	48 83 7d 98 00       	cmpq   $0x0,-0x68(%rbp)
+ 6b0:	74 06                	je     6b8 <validate_blob+0x42>
+ 6b2:	83 7d a4 27          	cmpl   $0x27,-0x5c(%rbp)
+ 6b6:	77 0f                	ja     6c7 <validate_blob+0x51>
+ 6b8:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+ 6bf:	00 00 80 
+ 6c2:	e9 4b 03 00 00       	jmp    a12 <validate_blob+0x39c>
+ 6c7:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 6cb:	8b 00                	mov    (%rax),%eax
+ 6cd:	83 f8 02             	cmp    $0x2,%eax
+ 6d0:	75 74                	jne    746 <validate_blob+0xd0>
+ 6d2:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 6d6:	0f b7 40 08          	movzwl 0x8(%rax),%eax
+ 6da:	66 83 f8 28          	cmp    $0x28,%ax
+ 6de:	75 66                	jne    746 <validate_blob+0xd0>
+ 6e0:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 6e4:	0f b7 40 0a          	movzwl 0xa(%rax),%eax
+ 6e8:	66 83 f8 20          	cmp    $0x20,%ax
+ 6ec:	75 58                	jne    746 <validate_blob+0xd0>
+ 6ee:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 6f2:	0f b7 40 0e          	movzwl 0xe(%rax),%eax
+ 6f6:	66 83 f8 0c          	cmp    $0xc,%ax
+ 6fa:	75 4a                	jne    746 <validate_blob+0xd0>
+ 6fc:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 700:	0f b7 40 0c          	movzwl 0xc(%rax),%eax
+ 704:	66 83 f8 3f          	cmp    $0x3f,%ax
+ 708:	75 3c                	jne    746 <validate_blob+0xd0>
+ 70a:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 70e:	48 8b 40 18          	mov    0x18(%rax),%rax
+ 712:	48 85 c0             	test   %rax,%rax
+ 715:	74 2f                	je     746 <validate_blob+0xd0>
+ 717:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 71b:	8b 40 20             	mov    0x20(%rax),%eax
+ 71e:	85 c0                	test   %eax,%eax
+ 720:	75 24                	jne    746 <validate_blob+0xd0>
+ 722:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 726:	8b 40 24             	mov    0x24(%rax),%eax
+ 729:	85 c0                	test   %eax,%eax
+ 72b:	75 19                	jne    746 <validate_blob+0xd0>
+ 72d:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 731:	8b 40 10             	mov    0x10(%rax),%eax
+ 734:	85 c0                	test   %eax,%eax
+ 736:	74 0e                	je     746 <validate_blob+0xd0>
+ 738:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 73c:	8b 40 10             	mov    0x10(%rax),%eax
+ 73f:	3d 00 02 00 00       	cmp    $0x200,%eax
+ 744:	76 0f                	jbe    755 <validate_blob+0xdf>
+ 746:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 74d:	00 00 80 
+ 750:	e9 bd 02 00 00       	jmp    a12 <validate_blob+0x39c>
+ 755:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 759:	8b 40 10             	mov    0x10(%rax),%eax
+ 75c:	89 c0                	mov    %eax,%eax
+ 75e:	48 c1 e0 05          	shl    $0x5,%rax
+ 762:	48 83 c0 28          	add    $0x28,%rax
+ 766:	48 89 45 d8          	mov    %rax,-0x28(%rbp)
+ 76a:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
+ 76f:	48 3b 45 d8          	cmp    -0x28(%rbp),%rax
+ 773:	72 18                	jb     78d <validate_blob+0x117>
+ 775:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 779:	8b 40 04             	mov    0x4(%rax),%eax
+ 77c:	89 c0                	mov    %eax,%eax
+ 77e:	48 39 45 d8          	cmp    %rax,-0x28(%rbp)
+ 782:	75 09                	jne    78d <validate_blob+0x117>
+ 784:	8b 45 a4             	mov    -0x5c(%rbp),%eax
+ 787:	48 39 45 d8          	cmp    %rax,-0x28(%rbp)
+ 78b:	74 0f                	je     79c <validate_blob+0x126>
+ 78d:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 794:	00 00 80 
+ 797:	e9 76 02 00 00       	jmp    a12 <validate_blob+0x39c>
+ 79c:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 7a0:	48 89 c7             	mov    %rax,%rdi
+ 7a3:	e8 58 f8 ff ff       	call   0 <handoff_crc32>
+ 7a8:	89 c2                	mov    %eax,%edx
+ 7aa:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 7ae:	8b 40 14             	mov    0x14(%rax),%eax
+ 7b1:	39 c2                	cmp    %eax,%edx
+ 7b3:	74 0f                	je     7c4 <validate_blob+0x14e>
+ 7b5:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 7bc:	00 00 80 
+ 7bf:	e9 4e 02 00 00       	jmp    a12 <validate_blob+0x39c>
+ 7c4:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 7c8:	0f b7 40 08          	movzwl 0x8(%rax),%eax
+ 7cc:	0f b7 d0             	movzwl %ax,%edx
+ 7cf:	48 8b 45 a8          	mov    -0x58(%rbp),%rax
+ 7d3:	48 01 d0             	add    %rdx,%rax
+ 7d6:	48 89 45 e0          	mov    %rax,-0x20(%rbp)
+ 7da:	c7 45 b8 00 00 00 00 	movl   $0x0,-0x48(%rbp)
+ 7e1:	e9 cb 01 00 00       	jmp    9b1 <validate_blob+0x33b>
+ 7e6:	8b 45 b8             	mov    -0x48(%rbp),%eax
+ 7e9:	48 c1 e0 05          	shl    $0x5,%rax
+ 7ed:	48 89 c2             	mov    %rax,%rdx
+ 7f0:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 7f4:	48 01 d0             	add    %rdx,%rax
+ 7f7:	48 89 45 e8          	mov    %rax,-0x18(%rbp)
+ 7fb:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 7ff:	0f b7 40 04          	movzwl 0x4(%rax),%eax
+ 803:	66 85 c0             	test   %ax,%ax
+ 806:	0f 84 95 00 00 00    	je     8a1 <validate_blob+0x22b>
+ 80c:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 810:	0f b7 40 06          	movzwl 0x6(%rax),%eax
+ 814:	66 83 f8 0f          	cmp    $0xf,%ax
+ 818:	0f 85 83 00 00 00    	jne    8a1 <validate_blob+0x22b>
+ 81e:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 822:	8b 40 1c             	mov    0x1c(%rax),%eax
+ 825:	83 f8 1f             	cmp    $0x1f,%eax
+ 828:	75 77                	jne    8a1 <validate_blob+0x22b>
+ 82a:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 82e:	0f b7 40 0e          	movzwl 0xe(%rax),%eax
+ 832:	0f b7 d0             	movzwl %ax,%edx
+ 835:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 839:	8b 70 18             	mov    0x18(%rax),%esi
+ 83c:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 840:	48 8b 40 08          	mov    0x8(%rax),%rax
+ 844:	48 8d 4d c0          	lea    -0x40(%rbp),%rcx
+ 848:	48 89 c7             	mov    %rax,%rdi
+ 84b:	e8 39 f8 ff ff       	call   89 <range_valid>
+ 850:	84 c0                	test   %al,%al
+ 852:	74 4d                	je     8a1 <validate_blob+0x22b>
+ 854:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 858:	0f b7 40 0e          	movzwl 0xe(%rax),%eax
+ 85c:	0f b7 d0             	movzwl %ax,%edx
+ 85f:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 863:	8b 70 18             	mov    0x18(%rax),%esi
+ 866:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 86a:	48 8b 40 10          	mov    0x10(%rax),%rax
+ 86e:	48 8d 4d c8          	lea    -0x38(%rbp),%rcx
+ 872:	48 89 c7             	mov    %rax,%rdi
+ 875:	e8 0f f8 ff ff       	call   89 <range_valid>
+ 87a:	84 c0                	test   %al,%al
+ 87c:	74 23                	je     8a1 <validate_blob+0x22b>
+ 87e:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 882:	8b 48 04             	mov    0x4(%rax),%ecx
+ 885:	48 8b 75 c0          	mov    -0x40(%rbp),%rsi
+ 889:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 88d:	48 8b 40 08          	mov    0x8(%rax),%rax
+ 891:	48 8b 55 a8          	mov    -0x58(%rbp),%rdx
+ 895:	48 89 c7             	mov    %rax,%rdi
+ 898:	e8 ab f8 ff ff       	call   148 <range_overlaps_blob>
+ 89d:	84 c0                	test   %al,%al
+ 89f:	74 0f                	je     8b0 <validate_blob+0x23a>
+ 8a1:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 8a8:	00 00 80 
+ 8ab:	e9 62 01 00 00       	jmp    a12 <validate_blob+0x39c>
+ 8b0:	c7 45 bc 00 00 00 00 	movl   $0x0,-0x44(%rbp)
+ 8b7:	e9 e5 00 00 00       	jmp    9a1 <validate_blob+0x32b>
+ 8bc:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 8bf:	48 c1 e0 05          	shl    $0x5,%rax
+ 8c3:	48 89 c2             	mov    %rax,%rdx
+ 8c6:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 8ca:	48 01 d0             	add    %rdx,%rax
+ 8cd:	48 8b 50 08          	mov    0x8(%rax),%rdx
+ 8d1:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 8d4:	48 c1 e0 05          	shl    $0x5,%rax
+ 8d8:	48 89 c1             	mov    %rax,%rcx
+ 8db:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 8df:	48 01 c8             	add    %rcx,%rax
+ 8e2:	8b 40 18             	mov    0x18(%rax),%eax
+ 8e5:	89 c6                	mov    %eax,%esi
+ 8e7:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 8eb:	0f b7 40 0e          	movzwl 0xe(%rax),%eax
+ 8ef:	0f b7 c0             	movzwl %ax,%eax
+ 8f2:	89 c1                	mov    %eax,%ecx
+ 8f4:	48 d3 e6             	shl    %cl,%rsi
+ 8f7:	48 89 f0             	mov    %rsi,%rax
+ 8fa:	48 01 d0             	add    %rdx,%rax
+ 8fd:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+ 901:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 904:	48 c1 e0 05          	shl    $0x5,%rax
+ 908:	48 89 c2             	mov    %rax,%rdx
+ 90b:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 90f:	48 01 d0             	add    %rdx,%rax
+ 912:	0f b7 10             	movzwl (%rax),%edx
+ 915:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 919:	0f b7 00             	movzwl (%rax),%eax
+ 91c:	66 39 c2             	cmp    %ax,%dx
+ 91f:	75 22                	jne    943 <validate_blob+0x2cd>
+ 921:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 924:	48 c1 e0 05          	shl    $0x5,%rax
+ 928:	48 89 c2             	mov    %rax,%rdx
+ 92b:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 92f:	48 01 d0             	add    %rdx,%rax
+ 932:	0f b7 50 02          	movzwl 0x2(%rax),%edx
+ 936:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 93a:	0f b7 40 02          	movzwl 0x2(%rax),%eax
+ 93e:	66 39 c2             	cmp    %ax,%dx
+ 941:	74 4e                	je     991 <validate_blob+0x31b>
+ 943:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 946:	48 c1 e0 05          	shl    $0x5,%rax
+ 94a:	48 89 c2             	mov    %rax,%rdx
+ 94d:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 951:	48 01 d0             	add    %rdx,%rax
+ 954:	0f b7 50 04          	movzwl 0x4(%rax),%edx
+ 958:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 95c:	0f b7 40 04          	movzwl 0x4(%rax),%eax
+ 960:	66 39 c2             	cmp    %ax,%dx
+ 963:	74 2c                	je     991 <validate_blob+0x31b>
+ 965:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+ 969:	48 8b 40 08          	mov    0x8(%rax),%rax
+ 96d:	48 3b 45 f0          	cmp    -0x10(%rbp),%rax
+ 971:	73 2a                	jae    99d <validate_blob+0x327>
+ 973:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 976:	48 c1 e0 05          	shl    $0x5,%rax
+ 97a:	48 89 c2             	mov    %rax,%rdx
+ 97d:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ 981:	48 01 d0             	add    %rdx,%rax
+ 984:	48 8b 50 08          	mov    0x8(%rax),%rdx
+ 988:	48 8b 45 c0          	mov    -0x40(%rbp),%rax
+ 98c:	48 39 c2             	cmp    %rax,%rdx
+ 98f:	73 0c                	jae    99d <validate_blob+0x327>
+ 991:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ 998:	00 00 80 
+ 99b:	eb 75                	jmp    a12 <validate_blob+0x39c>
+ 99d:	83 45 bc 01          	addl   $0x1,-0x44(%rbp)
+ 9a1:	8b 45 bc             	mov    -0x44(%rbp),%eax
+ 9a4:	3b 45 b8             	cmp    -0x48(%rbp),%eax
+ 9a7:	0f 82 0f ff ff ff    	jb     8bc <validate_blob+0x246>
+ 9ad:	83 45 b8 01          	addl   $0x1,-0x48(%rbp)
+ 9b1:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 9b5:	8b 40 10             	mov    0x10(%rax),%eax
+ 9b8:	39 45 b8             	cmp    %eax,-0x48(%rbp)
+ 9bb:	0f 82 25 fe ff ff    	jb     7e6 <validate_blob+0x170>
+ 9c1:	48 8b 45 98          	mov    -0x68(%rbp),%rax
+ 9c5:	c6 00 01             	movb   $0x1,(%rax)
+ 9c8:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 9cc:	48 8b 50 18          	mov    0x18(%rax),%rdx
+ 9d0:	48 8b 45 98          	mov    -0x68(%rbp),%rax
+ 9d4:	48 89 50 08          	mov    %rdx,0x8(%rax)
+ 9d8:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 9dc:	8b 50 10             	mov    0x10(%rax),%edx
+ 9df:	48 8b 45 98          	mov    -0x68(%rbp),%rax
+ 9e3:	89 50 10             	mov    %edx,0x10(%rax)
+ 9e6:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+ 9ea:	8b 40 10             	mov    0x10(%rax),%eax
+ 9ed:	89 c0                	mov    %eax,%eax
+ 9ef:	48 c1 e0 05          	shl    $0x5,%rax
+ 9f3:	48 89 c2             	mov    %rax,%rdx
+ 9f6:	48 8b 45 98          	mov    -0x68(%rbp),%rax
+ 9fa:	48 8d 48 14          	lea    0x14(%rax),%rcx
+ 9fe:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+ a02:	48 89 c6             	mov    %rax,%rsi
+ a05:	48 89 cf             	mov    %rcx,%rdi
+ a08:	e8 00 00 00 00       	call   a0d <validate_blob+0x397>
+			a09: R_X86_64_PLT32	memcpy-0x4
+ a0d:	b8 00 00 00 00       	mov    $0x0,%eax
+ a12:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+ a16:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ a1d:	00 00 
+ a1f:	74 05                	je     a26 <validate_blob+0x3b0>
+ a21:	e8 00 00 00 00       	call   a26 <validate_blob+0x3b0>
+			a22: R_X86_64_PLT32	__stack_chk_fail-0x4
+ a26:	c9                   	leave
+ a27:	c3                   	ret
+
+0000000000000a28 <cdk2_dma_handoff_consume>:
+ a28:	f3 0f 1e fa          	endbr64
+ a2c:	55                   	push   %rbp
+ a2d:	48 89 e5             	mov    %rsp,%rbp
+ a30:	53                   	push   %rbx
+ a31:	4c 8d 9c 24 00 c0 ff 	lea    -0x4000(%rsp),%r11
+ a38:	ff 
+ a39:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+ a40:	48 83 0c 24 00       	orq    $0x0,(%rsp)
+ a45:	4c 39 dc             	cmp    %r11,%rsp
+ a48:	75 ef                	jne    a39 <cdk2_dma_handoff_consume+0x11>
+ a4a:	48 83 ec 68          	sub    $0x68,%rsp
+ a4e:	48 89 bd a8 bf ff ff 	mov    %rdi,-0x4058(%rbp)
+ a55:	48 89 b5 a0 bf ff ff 	mov    %rsi,-0x4060(%rbp)
+ a5c:	89 95 9c bf ff ff    	mov    %edx,-0x4064(%rbp)
+ a62:	48 89 8d 90 bf ff ff 	mov    %rcx,-0x4070(%rbp)
+ a69:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+ a70:	00 00 
+ a72:	48 89 45 e8          	mov    %rax,-0x18(%rbp)
+ a76:	31 c0                	xor    %eax,%eax
+ a78:	48 83 bd 90 bf ff ff 	cmpq   $0x0,-0x4070(%rbp)
+ a7f:	00 
+ a80:	75 0f                	jne    a91 <cdk2_dma_handoff_consume+0x69>
+ a82:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+ a89:	00 00 80 
+ a8c:	e9 4d 02 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ a91:	48 8b 85 90 bf ff ff 	mov    -0x4070(%rbp),%rax
+ a98:	ba 18 40 00 00       	mov    $0x4018,%edx
+ a9d:	be 00 00 00 00       	mov    $0x0,%esi
+ aa2:	48 89 c7             	mov    %rax,%rdi
+ aa5:	e8 00 00 00 00       	call   aaa <cdk2_dma_handoff_consume+0x82>
+			aa6: R_X86_64_PLT32	memset-0x4
+ aaa:	48 83 bd a8 bf ff ff 	cmpq   $0x0,-0x4058(%rbp)
+ ab1:	00 
+ ab2:	74 0a                	je     abe <cdk2_dma_handoff_consume+0x96>
+ ab4:	48 83 bd a0 bf ff ff 	cmpq   $0x0,-0x4060(%rbp)
+ abb:	00 
+ abc:	75 0f                	jne    acd <cdk2_dma_handoff_consume+0xa5>
+ abe:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+ ac5:	00 00 80 
+ ac8:	e9 11 02 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ acd:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ ad4:	48 8b 40 38          	mov    0x38(%rax),%rax
+ ad8:	48 85 c0             	test   %rax,%rax
+ adb:	75 25                	jne    b02 <cdk2_dma_handoff_consume+0xda>
+ add:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ ae4:	48 8b 40 40          	mov    0x40(%rax),%rax
+ ae8:	48 85 c0             	test   %rax,%rax
+ aeb:	74 15                	je     b02 <cdk2_dma_handoff_consume+0xda>
+ aed:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ af4:	48 8b 40 40          	mov    0x40(%rax),%rax
+ af8:	0f b7 40 08          	movzwl 0x8(%rax),%eax
+ afc:	66 83 f8 04          	cmp    $0x4,%ax
+ b00:	74 0f                	je     b11 <cdk2_dma_handoff_consume+0xe9>
+ b02:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ b09:	00 00 80 
+ b0c:	e9 cd 01 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ b11:	48 8d 95 b0 bf ff ff 	lea    -0x4050(%rbp),%rdx
+ b18:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ b1f:	48 89 d1             	mov    %rdx,%rcx
+ b22:	ba 18 00 00 00       	mov    $0x18,%edx
+ b27:	be 53 00 00 00       	mov    $0x53,%esi
+ b2c:	48 89 c7             	mov    %rax,%rdi
+ b2f:	e8 00 00 00 00       	call   b34 <cdk2_dma_handoff_consume+0x10c>
+			b30: R_X86_64_PLT32	cdk2_coreboot_find_unique_record-0x4
+ b34:	48 89 85 b8 bf ff ff 	mov    %rax,-0x4048(%rbp)
+ b3b:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ b42:	48 85 c0             	test   %rax,%rax
+ b45:	79 2e                	jns    b75 <cdk2_dma_handoff_consume+0x14d>
+ b47:	48 b8 0e 00 00 00 00 	movabs $0x800000000000000e,%rax
+ b4e:	00 00 80 
+ b51:	48 39 85 b8 bf ff ff 	cmp    %rax,-0x4048(%rbp)
+ b58:	74 0c                	je     b66 <cdk2_dma_handoff_consume+0x13e>
+ b5a:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ b61:	e9 78 01 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ b66:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ b6d:	00 00 80 
+ b70:	e9 69 01 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ b75:	48 8b 85 b0 bf ff ff 	mov    -0x4050(%rbp),%rax
+ b7c:	48 89 85 c0 bf ff ff 	mov    %rax,-0x4040(%rbp)
+ b83:	48 8b 85 c0 bf ff ff 	mov    -0x4040(%rbp),%rax
+ b8a:	8b 40 04             	mov    0x4(%rax),%eax
+ b8d:	83 f8 18             	cmp    $0x18,%eax
+ b90:	75 50                	jne    be2 <cdk2_dma_handoff_consume+0x1ba>
+ b92:	48 8b 85 c0 bf ff ff 	mov    -0x4040(%rbp),%rax
+ b99:	0f b7 40 14          	movzwl 0x14(%rax),%eax
+ b9d:	66 83 f8 02          	cmp    $0x2,%ax
+ ba1:	75 3f                	jne    be2 <cdk2_dma_handoff_consume+0x1ba>
+ ba3:	48 8b 85 c0 bf ff ff 	mov    -0x4040(%rbp),%rax
+ baa:	0f b7 40 16          	movzwl 0x16(%rax),%eax
+ bae:	66 85 c0             	test   %ax,%ax
+ bb1:	75 2f                	jne    be2 <cdk2_dma_handoff_consume+0x1ba>
+ bb3:	48 8b 85 c0 bf ff ff 	mov    -0x4040(%rbp),%rax
+ bba:	48 8b 40 08          	mov    0x8(%rax),%rax
+ bbe:	48 39 85 a0 bf ff ff 	cmp    %rax,-0x4060(%rbp)
+ bc5:	75 1b                	jne    be2 <cdk2_dma_handoff_consume+0x1ba>
+ bc7:	48 8b 85 c0 bf ff ff 	mov    -0x4040(%rbp),%rax
+ bce:	8b 40 10             	mov    0x10(%rax),%eax
+ bd1:	39 85 9c bf ff ff    	cmp    %eax,-0x4064(%rbp)
+ bd7:	75 09                	jne    be2 <cdk2_dma_handoff_consume+0x1ba>
+ bd9:	83 bd 9c bf ff ff 27 	cmpl   $0x27,-0x4064(%rbp)
+ be0:	77 0f                	ja     bf1 <cdk2_dma_handoff_consume+0x1c9>
+ be2:	48 b8 21 00 00 00 00 	movabs $0x8000000000000021,%rax
+ be9:	00 00 80 
+ bec:	e9 ed 00 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ bf1:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ bf8:	48 8b 40 40          	mov    0x40(%rax),%rax
+ bfc:	48 83 c0 1c          	add    $0x1c,%rax
+ c00:	48 8b 00             	mov    (%rax),%rax
+ c03:	48 89 85 c8 bf ff ff 	mov    %rax,-0x4038(%rbp)
+ c0a:	48 8b 85 a0 bf ff ff 	mov    -0x4060(%rbp),%rax
+ c11:	48 8b 95 90 bf ff ff 	mov    -0x4070(%rbp),%rdx
+ c18:	8b 8d 9c bf ff ff    	mov    -0x4064(%rbp),%ecx
+ c1e:	89 ce                	mov    %ecx,%esi
+ c20:	48 89 c7             	mov    %rax,%rdi
+ c23:	e8 4e fa ff ff       	call   676 <validate_blob>
+ c28:	48 89 85 b8 bf ff ff 	mov    %rax,-0x4048(%rbp)
+ c2f:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ c36:	48 85 c0             	test   %rax,%rax
+ c39:	79 0c                	jns    c47 <cdk2_dma_handoff_consume+0x21f>
+ c3b:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ c42:	e9 97 00 00 00       	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ c47:	48 8b 85 90 bf ff ff 	mov    -0x4070(%rbp),%rax
+ c4e:	48 8b 58 08          	mov    0x8(%rax),%rbx
+ c52:	48 8d 85 c8 bf ff ff 	lea    -0x4038(%rbp),%rax
+ c59:	48 89 c7             	mov    %rax,%rdi
+ c5c:	e8 49 f5 ff ff       	call   1aa <unpack64>
+ c61:	48 39 c3             	cmp    %rax,%rbx
+ c64:	74 25                	je     c8b <cdk2_dma_handoff_consume+0x263>
+ c66:	48 8b 85 90 bf ff ff 	mov    -0x4070(%rbp),%rax
+ c6d:	ba 18 40 00 00       	mov    $0x4018,%edx
+ c72:	be 00 00 00 00       	mov    $0x0,%esi
+ c77:	48 89 c7             	mov    %rax,%rdi
+ c7a:	e8 00 00 00 00       	call   c7f <cdk2_dma_handoff_consume+0x257>
+			c7b: R_X86_64_PLT32	memset-0x4
+ c7f:	48 b8 1a 00 00 00 00 	movabs $0x800000000000001a,%rax
+ c86:	00 00 80 
+ c89:	eb 53                	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ c8b:	48 8b 95 90 bf ff ff 	mov    -0x4070(%rbp),%rdx
+ c92:	48 8b 85 a8 bf ff ff 	mov    -0x4058(%rbp),%rax
+ c99:	48 89 d6             	mov    %rdx,%rsi
+ c9c:	48 89 c7             	mov    %rax,%rdi
+ c9f:	e8 2c f5 ff ff       	call   1d0 <validate_requesters_against_boot_intent>
+ ca4:	48 89 85 b8 bf ff ff 	mov    %rax,-0x4048(%rbp)
+ cab:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ cb2:	48 85 c0             	test   %rax,%rax
+ cb5:	79 22                	jns    cd9 <cdk2_dma_handoff_consume+0x2b1>
+ cb7:	48 8b 85 90 bf ff ff 	mov    -0x4070(%rbp),%rax
+ cbe:	ba 18 40 00 00       	mov    $0x4018,%edx
+ cc3:	be 00 00 00 00       	mov    $0x0,%esi
+ cc8:	48 89 c7             	mov    %rax,%rdi
+ ccb:	e8 00 00 00 00       	call   cd0 <cdk2_dma_handoff_consume+0x2a8>
+			ccc: R_X86_64_PLT32	memset-0x4
+ cd0:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ cd7:	eb 05                	jmp    cde <cdk2_dma_handoff_consume+0x2b6>
+ cd9:	b8 00 00 00 00       	mov    $0x0,%eax
+ cde:	48 8b 55 e8          	mov    -0x18(%rbp),%rdx
+ ce2:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ ce9:	00 00 
+ ceb:	74 05                	je     cf2 <cdk2_dma_handoff_consume+0x2ca>
+ ced:	e8 00 00 00 00       	call   cf2 <cdk2_dma_handoff_consume+0x2ca>
+			cee: R_X86_64_PLT32	__stack_chk_fail-0x4
+ cf2:	48 8b 5d f8          	mov    -0x8(%rbp),%rbx
+ cf6:	c9                   	leave
+ cf7:	c3                   	ret
+
+0000000000000cf8 <cdk2_dma_handoff_import>:
+ cf8:	f3 0f 1e fa          	endbr64
+ cfc:	55                   	push   %rbp
+ cfd:	48 89 e5             	mov    %rsp,%rbp
+ d00:	4c 8d 9c 24 00 c0 ff 	lea    -0x4000(%rsp),%r11
+ d07:	ff 
+ d08:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+ d0f:	48 83 0c 24 00       	orq    $0x0,(%rsp)
+ d14:	4c 39 dc             	cmp    %r11,%rsp
+ d17:	75 ef                	jne    d08 <cdk2_dma_handoff_import+0x10>
+ d19:	48 83 ec 50          	sub    $0x50,%rsp
+ d1d:	48 89 bd b8 bf ff ff 	mov    %rdi,-0x4048(%rbp)
+ d24:	48 89 b5 b0 bf ff ff 	mov    %rsi,-0x4050(%rbp)
+ d2b:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+ d32:	00 00 
+ d34:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+ d38:	31 c0                	xor    %eax,%eax
+ d3a:	48 83 bd b0 bf ff ff 	cmpq   $0x0,-0x4050(%rbp)
+ d41:	00 
+ d42:	75 0c                	jne    d50 <cdk2_dma_handoff_import+0x58>
+ d44:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+ d4b:	00 00 80 
+ d4e:	eb 7a                	jmp    dca <cdk2_dma_handoff_import+0xd2>
+ d50:	48 8b 85 b0 bf ff ff 	mov    -0x4050(%rbp),%rax
+ d57:	ba 18 40 00 00       	mov    $0x4018,%edx
+ d5c:	be 00 00 00 00       	mov    $0x0,%esi
+ d61:	48 89 c7             	mov    %rax,%rdi
+ d64:	e8 00 00 00 00       	call   d69 <cdk2_dma_handoff_import+0x71>
+			d65: R_X86_64_PLT32	memset-0x4
+ d69:	48 8d 8d cc bf ff ff 	lea    -0x4034(%rbp),%rcx
+ d70:	48 8d 95 d0 bf ff ff 	lea    -0x4030(%rbp),%rdx
+ d77:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ d7e:	be 28 00 00 00       	mov    $0x28,%esi
+ d83:	48 89 c7             	mov    %rax,%rdi
+ d86:	e8 00 00 00 00       	call   d8b <cdk2_dma_handoff_import+0x93>
+			d87: R_X86_64_PLT32	cdk2_dma_handoff_find_blob-0x4
+ d8b:	48 89 85 d8 bf ff ff 	mov    %rax,-0x4028(%rbp)
+ d92:	48 8b 85 d8 bf ff ff 	mov    -0x4028(%rbp),%rax
+ d99:	48 85 c0             	test   %rax,%rax
+ d9c:	79 09                	jns    da7 <cdk2_dma_handoff_import+0xaf>
+ d9e:	48 8b 85 d8 bf ff ff 	mov    -0x4028(%rbp),%rax
+ da5:	eb 23                	jmp    dca <cdk2_dma_handoff_import+0xd2>
+ da7:	8b 95 cc bf ff ff    	mov    -0x4034(%rbp),%edx
+ dad:	48 8b b5 d0 bf ff ff 	mov    -0x4030(%rbp),%rsi
+ db4:	48 8b 8d b0 bf ff ff 	mov    -0x4050(%rbp),%rcx
+ dbb:	48 8b 85 b8 bf ff ff 	mov    -0x4048(%rbp),%rax
+ dc2:	48 89 c7             	mov    %rax,%rdi
+ dc5:	e8 00 00 00 00       	call   dca <cdk2_dma_handoff_import+0xd2>
+			dc6: R_X86_64_PLT32	cdk2_dma_handoff_consume-0x4
+ dca:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+ dce:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ dd5:	00 00 
+ dd7:	74 05                	je     dde <cdk2_dma_handoff_import+0xe6>
+ dd9:	e8 00 00 00 00       	call   dde <cdk2_dma_handoff_import+0xe6>
+			dda: R_X86_64_PLT32	__stack_chk_fail-0x4
+ dde:	c9                   	leave
+ ddf:	c3                   	ret

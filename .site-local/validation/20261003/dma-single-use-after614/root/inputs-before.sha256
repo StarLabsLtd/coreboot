@@ -1,0 +1,3 @@
+cd29f36e16e1e156c2895a6c66ad5190225629da82bc395494279c32efd1668f  src/boot/coreboot_dma_handoff.c
+03dc655002a32ce043cd8249da3ab86d845f67512e915cf0355e95589e769f7a  tests/dma_handoff_test.c
+95a67bc67893cd5a53b05032097084cecd013bdd7432c2edd1c28170ce265ea0  include/cdk2/dma_handoff.h

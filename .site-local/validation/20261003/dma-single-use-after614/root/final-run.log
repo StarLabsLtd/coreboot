@@ -1,0 +1,9 @@
+p0 O0 whole object differs; source equivalence and tests required
+p0 O2 whole object differs; source equivalence and tests required
+p0 Os whole object equal
+p1 O0 whole object differs; source equivalence and tests required
+p1 O2 whole object differs; source equivalence and tests required
+p1 Os whole object equal
+src/boot/coreboot_dma_handoff.c: OK
+tests/dma_handoff_test.c: OK
+include/cdk2/dma_handoff.h: OK
