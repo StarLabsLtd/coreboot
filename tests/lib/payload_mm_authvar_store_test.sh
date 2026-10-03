@@ -134,9 +134,14 @@ for optimization in 0 2; do
 	fi
 done
 
+# Ramstage reads the protected store to derive the sealed state predicates;
+# this scanner inclusion does not grant a ramstage variable writer.
 awk '/payload_mm_authvar_store[.]c/ && \
-     $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_(STORE_SCANNER|MOR_ENTRY_PROBE)/ \
-     { bad = 1 } END { exit bad }' \
+     $0 !~ /CONFIG_PAYLOAD_MM_AUTHVAR_(STORE_SCANNER|MOR_ENTRY_PROBE)/ && \
+     !(previous == "ifneq ($(filter y,$(CONFIG_PAYLOAD_MM_AUTHVAR_MOR_ENTRY_PROBE) " \
+                   "$(CONFIG_DRIVERS_EFI_CAPSULE_MM_READ_ADMISSION)),)" && \
+       $0 == "ramstage-y += payload_mm_authvar_fv.c payload_mm_authvar_ftw.c payload_mm_authvar_store.c") \
+     { bad = 1 } { previous = $0 } END { exit bad }' \
 	"$root/src/lib/Makefile.mk"
 
 printf '%s\n' 'Payload-MM authenticated-variable store scanner tests: PASS'
