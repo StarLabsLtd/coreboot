@@ -1,0 +1,25 @@
+/home/sean/capsule-local-floor-final.irsKVf/include/cdk2/config.h: OK
+/home/sean/normal-local-floor-producer.uE8CdA/below-floor-8.cap: OK
+/home/sean/normal-local-floor-producer.uE8CdA/targetA/build/coreboot.rom: OK
+/home/sean/q35-capsule-native-signing.PuAsza/trust.pem: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/tests/system_fmp_core_ram_stage_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/tests/system_fmp_core_ram_stage_app.ld: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/tests/system_fmp_core_ram_stage_app_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/tests/system_fmp_core_ram_refusal.py: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/include/cdk2/capsule_report.h: OK
+/home/sean/normal-local-floor-producer.uE8CdA/reference-a.cap: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/src/lib/coreboot_hob.c: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/src/boot/coreboot_checksum.c: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/src/boot/coreboot_resource.c: OK
+/home/sean/Documents/.cdk2-worktrees/local-floor-native-observer-after601/src/modules/dxe_core/string.c: OK
+/usr/bin/x86_64-linux-gnu-gcc-15: OK
+/usr/bin/ld.bfd: OK
+/usr/bin/readelf: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/cdk2-native-pe-link: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/cdk2-pe-exec-sections: OK
+/home/sean/capsule-local-floor-final.irsKVf/native/pe-relocation-marker.o: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/validate_capsule.py: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py: OK
+7cc7a809741bdc4f5e6cc8a9e79141a4f9b31ceda745a261f4f176935c6708a2  /home/sean/normal-local-floor-producer.uE8CdA/below-floor/app/SystemFmpCoreRamStage.efi
+Normal MAIN stage/cold observer compiled: no VM or install claim

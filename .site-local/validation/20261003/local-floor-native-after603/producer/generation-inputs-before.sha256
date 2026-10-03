@@ -1,0 +1,6 @@
+406d543689b75e3d6e3ae9d704ebec0670e85787a590abf21bb01dc74cf3bc10  /home/sean/normal-local-floor-producer.uE8CdA/initial9/build/coreboot.rom
+03d93f1ca7146c90267fc2860d2ec3c00717ad1a5fed46ae9a11d9afd64b3e7e  /home/sean/normal-local-floor-producer.uE8CdA/targetA/build/coreboot.rom
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+47fae527f00e60283284128cd738ad325e2fc6b3c0adaa7f37aff0082b34506a  /home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/generate_capsule.py
+52dfee20427473c24c5fb026b7ca8b86c612203a2e6057d9f224af77e217957b  /home/sean/Documents/.coreboot-worktrees/capsule-signature-refusal-after386/util/efi_capsule/validate_capsule.py
+02cf4d98cd134336de9eede15b4f555fe9c92bdf990d1335d61891495c2645d3  /home/sean/normal-local-floor-producer.uE8CdA/generate-fixtures.sh
