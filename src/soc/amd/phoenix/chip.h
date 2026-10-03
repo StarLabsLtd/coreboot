@@ -26,6 +26,9 @@ struct soc_amd_phoenix_config {
 	/* Enable S0iX support */
 	bool s0ix_enable;
 
+	/* Keep the openSIL default unless a board requires IOMMU L2 DPG disabled. */
+	bool disable_iommu_dynamic_power_gating;
+
 	enum {
 		DOWNCORE_AUTO = 0,
 		DOWNCORE_1 = 1, /* Run with 1 physical core */
