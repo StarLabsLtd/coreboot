@@ -1,0 +1,13 @@
+In file included from /home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/tests/dxe_core_capsule_disk_handoff_test.c:16:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/src/modules/dxe_core/entry.c: In function ‘capsule_scan_process’:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/src/modules/dxe_core/entry.c:4001:74: error: dereferencing ‘void *’ pointer [-Werror]
+ 4001 |                 set = core.runtime_storage->system_table.runtime_services->set_variable;
+      |                                                                          ^~
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/src/modules/dxe_core/entry.c:4001:74: error: request for member ‘set_variable’ in something not a structure or union
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/tests/dxe_core_capsule_disk_handoff_test.c: In function ‘main’:
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/tests/dxe_core_capsule_disk_handoff_test.c:507:51: error: ‘EFI_WRITE_PROTECTED’ undeclared (first use in this function); did you mean ‘CDK2_FAT_WRITE_PROTECTED’?
+  507 |                 request_set_status = mode == 2U ? EFI_WRITE_PROTECTED : EFI_SUCCESS;
+      |                                                   ^~~~~~~~~~~~~~~~~~~
+      |                                                   CDK2_FAT_WRITE_PROTECTED
+/home/sean/Documents/.cdk2-worktrees/disk-capsule-os-request-after616/tests/dxe_core_capsule_disk_handoff_test.c:507:51: note: each undeclared identifier is reported only once for each function it appears in
+cc1: all warnings being treated as errors

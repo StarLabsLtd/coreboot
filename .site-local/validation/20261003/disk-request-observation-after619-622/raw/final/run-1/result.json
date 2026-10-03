@@ -1,0 +1,12 @@
+{
+  "failure": null,
+  "observation": {
+    "phase_result": "CDK2 | CAPSULE_DISK | complete | SUCCESS (0x0000000000000000) | 66349 us",
+    "authority": "unrequested disk skipped; no positive DISK admission demonstrated"
+  },
+  "qemu_seconds": 3.047307386994362,
+  "deadline_seconds": 180,
+  "qemu_status": 0,
+  "expect_no_request": true,
+  "termination": "HOST after bounded disk observation, not guest boot success"
+}

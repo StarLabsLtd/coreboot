@@ -1,0 +1,6 @@
+fa0da4ff49100da2bbb7433de0293d75a649c39f1105cb4446e9a1bbf547cef3  /home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/build/coreboot.rom
+3ee800db47f9007056d573a7f6aef18f4e229972499ef2de07d3c08c1a912d11  /home/sean/disk-no-request-hex-producer-after619.pXSGcd/targetA/build/coreboot.rom
+676fa1fdbde4e77f55818ed4f28394a5fbfbeeac1fad9a803bc05b24b9633c7a  /home/sean/q35-capsule-native-signing.PuAsza/trust.pem
+47fae527f00e60283284128cd738ad325e2fc6b3c0adaa7f37aff0082b34506a  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/generate_capsule.py
+52dfee20427473c24c5fb026b7ca8b86c612203a2e6057d9f224af77e217957b  /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/util/efi_capsule/validate_capsule.py
+a21825a5ca5b9e351c450b9ca59b81b26508bd38ce14f649e14f1aafdee03f9c  /home/sean/disk-no-request-hex-producer-after619.pXSGcd/generate.sh

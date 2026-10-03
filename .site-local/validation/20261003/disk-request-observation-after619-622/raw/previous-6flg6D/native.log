@@ -1,0 +1,6 @@
+Found file fallback/payload at 0x46a00, type simple elf, compressed 545976, size 545976
+Found file capsule/trust.der at 0x412c0, type raw, compressed 847, size 847
+Found file fallback/payload at 0x46a00, type simple elf, compressed 545976, size 545976
+Found file capsule/trust.der at 0x412c0, type raw, compressed 847, size 847
+capsule validated: GUID 00112233-4455-6677-8899-aabbccddeeff, embedded drivers 0
+ValueError('actual firmware identity differs from pristine9')

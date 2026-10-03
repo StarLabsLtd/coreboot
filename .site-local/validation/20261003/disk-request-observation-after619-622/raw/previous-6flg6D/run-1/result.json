@@ -1,0 +1,9 @@
+{
+  "failure": "ValueError('actual firmware identity differs from pristine9')",
+  "observation": null,
+  "qemu_seconds": 3.369840552993992,
+  "deadline_seconds": 180,
+  "qemu_status": 0,
+  "expect_no_request": true,
+  "termination": "HOST observer failure; no completed disk receipt"
+}

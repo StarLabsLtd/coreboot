@@ -1,0 +1,329 @@
+diff --git a/src/modules/dxe_core/entry.c b/src/modules/dxe_core/entry.c
+index 48297655a0..13542e6bc4 100644
+--- a/src/modules/dxe_core/entry.c
++++ b/src/modules/dxe_core/entry.c
+@@ -3865,8 +3865,40 @@ static EFI_STATUS revalidate_selected_loader(
+ 		EFI_COMPROMISED_DATA;
+ }
+ 
++typedef EFI_STATUS CDK2_MS_ABI capsule_get_variable_fn(CHAR16 *, EFI_GUID *,
++	UINT32 *, UINTN *, void *);
++typedef EFI_STATUS CDK2_MS_ABI capsule_set_variable_fn(CHAR16 *, EFI_GUID *,
++	UINT32, UINTN, void *);
++
++static uint64_t read_disk_capsule_request(uint64_t *indications)
++{
++	static CHAR16 name[] = L"OsIndications";
++	EFI_GUID global = { 0x8be4df61, 0x93ca, 0x11d2,
++		{ 0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c } };
++	struct cdk2_dxe_runtime_services *runtime;
++	capsule_get_variable_fn *get;
++	UINTN size = sizeof(*indications);
++	UINT32 attributes = 0U;
++	EFI_STATUS status;
++
++	*indications = 0U;
++	if (core.runtime_storage == NULL)
++		return EFI_UNSUPPORTED;
++	runtime = core.runtime_storage->system_table.runtime_services;
++	if (runtime == NULL || runtime->get_variable == NULL)
++		return EFI_UNSUPPORTED;
++	get = runtime->get_variable;
++	status = get(name, &global, &attributes, &size, indications);
++	if (status != EFI_SUCCESS)
++		return status;
++	if (size != sizeof(*indications) || attributes != 7U)
++		return EFI_COMPROMISED_DATA;
++	return (*indications & 4ULL) != 0U ? EFI_SUCCESS : EFI_NOT_FOUND;
++}
++
+ struct capsule_scan_runtime {
+ 	struct cdk2_capsule_boot_protocol *processor;
++	struct cdk2_capsule_disk_result *result;
+ 	BOOLEAN reset_required;
+ 	BOOLEAN provider_invoked;
+ };
+@@ -3949,10 +3981,33 @@ static EFI_STATUS capsule_scan_validate(const void *image, UINTN size,
+ static EFI_STATUS capsule_scan_process(const struct cdk2_capsule_image *images,
+ 	UINTN count, void *opaque)
+ {
++	static CHAR16 name[] = L"OsIndications";
++	EFI_GUID global = { 0x8be4df61, 0x93ca, 0x11d2,
++		{ 0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c } };
+ 	struct capsule_scan_runtime *runtime = opaque;
++	struct cdk2_dxe_runtime_services *services;
++	capsule_set_variable_fn *set;
++	uint64_t indications;
++	EFI_STATUS status;
+ 
+-	if (runtime == NULL)
++	if (runtime == NULL || runtime->result == NULL)
+ 		return EFI_UNSUPPORTED;
++	status = read_disk_capsule_request(&indications);
++	if (status != EFI_SUCCESS)
++		return status == EFI_NOT_FOUND ? EFI_NOT_READY : status;
++	/* The scanner may supply a valid prefix after a later read failure.
++	 * Preserve the request in that case so the remainder can be retried. */
++	if (runtime->result->loaded == runtime->result->candidates &&
++	    !runtime->result->cleanup_failed) {
++		services = core.runtime_storage->system_table.runtime_services;
++		set = services->set_variable;
++		if (set == NULL)
++			return EFI_UNSUPPORTED;
++		indications &= ~4ULL;
++		status = set(name, &global, 7U, sizeof(indications), &indications);
++		if (status != EFI_SUCCESS)
++			return status;
++	}
+ 	return capsule_batch(runtime->processor, images, count,
+ 		&runtime->reset_required, &runtime->provider_invoked);
+ }
+@@ -4011,6 +4066,7 @@ static uint64_t process_disk_capsules(void *opaque)
+ 	struct capsule_scan_runtime runtime = {0};
+ 	struct cdk2_fat_simple_fs_protocol *filesystem;
+ 	struct cdk2_capsule_disk_result result = {0};
++	uint64_t indications;
+ 	uint8_t disk_required;
+ 	BOOLEAN completion_succeeded = FALSE;
+ 	EFI_STATUS discovery, status;
+@@ -4023,6 +4079,12 @@ static uint64_t process_disk_capsules(void *opaque)
+ 		return status;
+ 	if (!disk_required)
+ 		return EFI_SUCCESS;
++	status = read_disk_capsule_request(&indications);
++	if (status == EFI_NOT_FOUND)
++		return cdk2_linear_capsule_finalize_disk(context->linear_state,
++			EFI_NOT_FOUND, &context->capsule_outcome);
++	if (status != EFI_SUCCESS)
++		return status;
+ 	if (selected_esp == NULL)
+ 		return EFI_COMPROMISED_DATA;
+ 	if (cdk2_dxe_handle(&core.database, selected_esp, &simple_fs_protocol,
+@@ -4042,6 +4104,7 @@ static uint64_t process_disk_capsules(void *opaque)
+ 	if (runtime.processor->validate_capsule == NULL ||
+ 	    runtime.processor->process_scatter == NULL)
+ 		return EFI_COMPROMISED_DATA;
++	runtime.result = &result;
+ 	discovery = cdk2_capsule_disk_scan_esp(filesystem,
+ 		runtime.processor->delivery_policy.max_nonpopulate,
+ 		runtime.processor->delivery_policy.max_populate,
+@@ -5988,11 +6051,6 @@ EFI_STATUS cdk2_dxe_linear_ram_capsule_present(void *hob_list,
+ }
+ 
+ #if CONFIG_CDK2_LINEAR_BOOT
+-typedef EFI_STATUS CDK2_MS_ABI capsule_get_variable_fn(CHAR16 *, EFI_GUID *,
+-	UINT32 *, UINTN *, void *);
+-typedef EFI_STATUS CDK2_MS_ABI capsule_set_variable_fn(CHAR16 *, EFI_GUID *,
+-	UINT32, UINTN, void *);
+-
+ static uint64_t decide_capsule_path(void *opaque)
+ {
+ 	struct dxe_services_context *context = opaque;
+diff --git a/tests/dxe_core_capsule_disk_handoff_test.c b/tests/dxe_core_capsule_disk_handoff_test.c
+index 5502b368cd..7291454072 100644
+--- a/tests/dxe_core_capsule_disk_handoff_test.c
++++ b/tests/dxe_core_capsule_disk_handoff_test.c
+@@ -26,6 +26,11 @@ static UINT64 support_bits = 1ULL | (1ULL << 6);
+ static UINT32 support_attributes = 6;
+ static UINTN support_size = sizeof(support_bits), support_writes;
+ static EFI_STATUS support_get_status = EFI_SUCCESS, support_set_status = EFI_SUCCESS;
++static uint64_t request_bits = 4U | 1U | (1U << 6);
++static uint32_t request_attributes = 7U;
++static size_t request_size = sizeof(request_bits), request_reads, request_writes;
++static EFI_STATUS request_get_status = EFI_SUCCESS, request_set_status = EFI_SUCCESS;
++static size_t process_calls;
+ 
+ static EFI_STATUS CDK2_MS_ABI support_get(CHAR16 *name, EFI_GUID *guid, UINT32 *attributes,
+ 					  UINTN *size, void *data)
+@@ -34,8 +39,20 @@ static EFI_STATUS CDK2_MS_ABI support_get(CHAR16 *name, EFI_GUID *guid, UINT32 *
+ 		0x8be4df61, 0x93ca, 0x11d2, {0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c}
+ 	};
+ 
+-	if (memcmp(name, L"OsIndicationsSupported", sizeof(L"OsIndicationsSupported")) ||
+-	    memcmp(guid, &global, sizeof(global)))
++	if (memcmp(guid, &global, sizeof(global)))
++		return EFI_NOT_FOUND;
++	if (!memcmp(name, L"OsIndications", sizeof(L"OsIndications"))) {
++		request_reads++;
++		if (request_get_status != EFI_SUCCESS)
++			return request_get_status;
++		if (*size < sizeof(request_bits))
++			return EFI_BUFFER_TOO_SMALL;
++		memcpy(data, &request_bits, sizeof(request_bits));
++		*size = request_size;
++		*attributes = request_attributes;
++		return EFI_SUCCESS;
++	}
++	if (memcmp(name, L"OsIndicationsSupported", sizeof(L"OsIndicationsSupported")))
+ 		return EFI_NOT_FOUND;
+ 	if (EFI_ERROR(support_get_status))
+ 		return support_get_status;
+@@ -50,8 +67,20 @@ static EFI_STATUS CDK2_MS_ABI support_get(CHAR16 *name, EFI_GUID *guid, UINT32 *
+ static EFI_STATUS CDK2_MS_ABI support_set(CHAR16 *name, EFI_GUID *guid, UINT32 attributes,
+ 					  UINTN size, void *data)
+ {
+-	(void)name;
+-	(void)guid;
++	static const EFI_GUID global = {
++		0x8be4df61, 0x93ca, 0x11d2, {0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c}
++	};
++
++	if (!memcmp(name, L"OsIndications", sizeof(L"OsIndications"))) {
++		if (memcmp(guid, &global, sizeof(global)) ||
++		    attributes != 7U || size != sizeof(request_bits))
++			return EFI_INVALID_PARAMETER;
++		if (request_set_status != EFI_SUCCESS)
++			return request_set_status;
++		memcpy(&request_bits, data, sizeof(request_bits));
++		request_writes++;
++		return EFI_SUCCESS;
++	}
+ 	if (attributes != 6 || size != sizeof(support_bits))
+ 		return EFI_INVALID_PARAMETER;
+ 	if (EFI_ERROR(support_set_status))
+@@ -197,6 +226,7 @@ capsule_process_scatter(struct cdk2_capsule_boot_protocol *processor, UINT64 sca
+ 	const UINT64 *blocks = (const UINT64 *)(UINTN)scatter;
+ 
+ 	(void)processor;
++	process_calls++;
+ 	return blocks[0] == IMAGE_SIZE && blocks[2] == 0U ? EFI_SUCCESS : EFI_COMPROMISED_DATA;
+ }
+ 
+@@ -412,6 +442,38 @@ int main(void)
+ 				   fixture.directory_reads == 0 && fixture.deletes == 0,
+ 			   "disabled disk policy has no filesystem side effects");
+ 	processor.delivery_policy.allowed_transports = CB_CAPSULE_DELIVERY_DISK;
++	for (size_t mode = 0U; mode < 5U; mode++) {
++		cdk2_linear_state_init(&state);
++		state.next_phase = CDK2_LINEAR_CAPSULE_DECIDE;
++		state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DECIDE) - 1U;
++		failures += expect(cdk2_linear_capsule_gate_early(&state, FALSE, TRUE,
++			&context.capsule_outcome) == EFI_SUCCESS, "request fixture disk gate");
++		state.next_phase = CDK2_LINEAR_CAPSULE_DISK;
++		state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DISK) - 1U;
++		request_bits = mode == 0U ? 1U : 5U;
++		request_get_status = mode == 1U ? EFI_NOT_FOUND :
++			mode == 4U ? EFI_DEVICE_ERROR : EFI_SUCCESS;
++		request_attributes = mode == 2U ? 6U : 7U;
++		request_size = mode == 3U ? 4U : sizeof(request_bits);
++		status = process_disk_capsules(&context);
++		failures += expect(status == (mode < 2U ? EFI_SUCCESS :
++			mode == 4U ? EFI_DEVICE_ERROR : EFI_COMPROMISED_DATA),
++			"actual disk request missing or malformed disposition");
++		failures += expect(fixture.open_volumes == 0U && fixture.file_reads == 0U &&
++			fixture.deletes == 0U && process_calls == 0U && request_writes == 0U,
++			"unrequested or malformed disk request has no filesystem or writer side effects");
++	}
++	request_bits = 4U | 1U | (1U << 6);
++	request_get_status = EFI_SUCCESS;
++	request_attributes = 7U;
++	request_size = sizeof(request_bits);
++	cdk2_linear_state_init(&state);
++	state.next_phase = CDK2_LINEAR_CAPSULE_DECIDE;
++	state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DECIDE) - 1U;
++	failures += expect(cdk2_linear_capsule_gate_early(&state, FALSE, TRUE,
++		&context.capsule_outcome) == EFI_SUCCESS, "requested disk gate");
++	state.next_phase = CDK2_LINEAR_CAPSULE_DISK;
++	state.completed_mask = (1U << CDK2_LINEAR_CAPSULE_DISK) - 1U;
+ 	status = process_disk_capsules(&context);
+ 	failures += expect(status == EFI_SUCCESS, "disk capsule phase");
+ 	failures += expect(fixture.open_volumes == 2U,
+@@ -420,9 +482,40 @@ int main(void)
+ 		expect(fixture.directory_reads == 2U, "exactly one directory discovery scan");
+ 	failures += expect(fixture.deletes == 1U,
+ 			   "completion cleanup removed the discovered capsule once");
++	failures += expect(request_reads >= 2U && request_writes == 1U &&
++		request_bits == (1U | (1U << 6)) && process_calls == 1U,
++		"loaded disk request consumes only bit4 through real variable callback");
+ 	failures +=
+ 		expect(cdk2_linear_capsule_outcome(&state) == CDK2_LINEAR_CAPSULE_RESULT_DISK,
+ 		       "disk capsule outcome finalized");
++	/* Modeled variable callbacks around the real loaded-batch function;
++	 * these do not prove persistent media or native controller retirement. */
++	for (size_t mode = 0U; mode < 6U; mode++) {
++		struct cdk2_capsule_disk_result selected = {
++			.candidates = mode == 3U ? 2U : 1U, .loaded = 1U,
++			.cleanup_failed = mode == 4U,
++		};
++		struct capsule_scan_runtime scan = { .processor = &processor,
++			.result = &selected };
++		struct cdk2_capsule_image image = { .data = &fixture.capsule,
++			.size = IMAGE_SIZE, .guid = fixture.capsule.guid,
++			.flags = fixture.capsule.flags };
++		size_t old_process = process_calls, old_writes = request_writes;
++
++		request_bits = mode == 0U ? 1U : 4U | (1U << 9);
++		request_get_status = mode == 1U ? EFI_DEVICE_ERROR : EFI_SUCCESS;
++		request_set_status = mode == 2U ? EFIERR(8) : EFI_SUCCESS;
++		status = capsule_scan_process(&image, 1U, &scan);
++		failures += expect(status == (mode == 0U ? EFI_NOT_READY :
++			mode == 1U ? EFI_DEVICE_ERROR : mode == 2U ? EFIERR(8) :
++			EFI_SUCCESS), "disk request reread and consume failure disposition");
++		failures += expect(process_calls == old_process + (mode >= 3U),
++			"withdrawn or failed request prevents loaded batch processing");
++		failures += expect(request_writes == old_writes + (mode == 5U) &&
++			request_bits == (mode == 0U ? 1U : mode == 5U ? (1U << 9) :
++			4U | (1U << 9)),
++			"partial loaded prefix preserves request and complete consume preserves unrelated bits");
++	}
+ 
+ 	puts(failures == 0 ? "DXE capsule disk selected-ESP scan test: PASS" :
+ 			     "DXE capsule disk selected-ESP scan test: FAIL");
+diff --git a/tests/dxe_core_capsule_disk_handoff_test.sh b/tests/dxe_core_capsule_disk_handoff_test.sh
+index 27b371c4cf..4ecb3d7860 100755
+--- a/tests/dxe_core_capsule_disk_handoff_test.sh
++++ b/tests/dxe_core_capsule_disk_handoff_test.sh
+@@ -79,3 +79,53 @@ for mutation in disk-support support-attributes; do
+ 	fi
+ 	echo "DXE $mutation exact-source mutation: PASS"
+ done
++
++for mutation in request-bit request-attributes request-consume; do
++	case "$mutation" in
++	request-bit)
++		needle='return (*indications & 4ULL) != 0U ? EFI_SUCCESS : EFI_NOT_FOUND;'
++		replacement='return EFI_SUCCESS;'
++		expected='unrequested or malformed disk request has no filesystem or writer side effects' ;;
++	request-attributes)
++		needle='if (size != sizeof(*indications) || attributes != 7U)'
++		replacement='if (size != sizeof(*indications))'
++		expected='actual disk request missing or malformed disposition' ;;
++	request-consume)
++		needle='indications &= ~4ULL;'
++		replacement='indications |= 4ULL;'
++		expected='loaded disk request consumes only bit4 through real variable callback' ;;
++	esac
++	original_line=$(awk -v needle="$needle" '
++		index($0, needle) { matches++; selected = NR }
++		END { if (matches != 1) exit 1; print selected }
++	' "$root/src/modules/dxe_core/entry.c")
++	awk -v needle="$needle" -v replacement="$replacement" '
++		index($0, needle) {
++			matches++;
++			position = index($0, needle);
++			$0 = substr($0, 1, position - 1) replacement substr($0, position + length(needle));
++		}
++		{ print }
++		END { if (matches != 1) exit 1 }
++	' "$root/src/modules/dxe_core/entry.c" > "$temporary/$mutation.c"
++	awk -v selected="$original_line" -v needle="$replacement" -v replacement="$needle" '
++		NR == selected {
++			matches++;
++			position = index($0, needle);
++			if (position == 0) exit 1;
++			$0 = substr($0, 1, position - 1) replacement substr($0, position + length(needle));
++		}
++		{ print }
++		END { if (matches != 1) exit 1 }
++	' "$temporary/$mutation.c" > "$temporary/$mutation-reversed.c"
++	cmp "$root/src/modules/dxe_core/entry.c" "$temporary/$mutation-reversed.c"
++	compile_test "$temporary/$mutation.c" "$temporary/mutant"
++	status=0
++	"$temporary/mutant" > "$temporary/mutant.log" 2>&1 || status=$?
++	test "$status" -eq 1
++	grep -F "FAIL: $expected" "$temporary/mutant.log" >/dev/null
++	if grep -Eq 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:' "$temporary/mutant.log"; then
++		exit 1
++	fi
++	echo "DXE $mutation exact-source mutation: PASS"
++done

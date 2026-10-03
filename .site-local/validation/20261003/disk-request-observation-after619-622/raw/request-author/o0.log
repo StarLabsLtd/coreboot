@@ -1,0 +1,7 @@
+DXE capsule disk selected-ESP scan test: PASS
+DXE disk-delivery guard exact-source mutation: PASS
+DXE disk-support exact-source mutation: PASS
+DXE support-attributes exact-source mutation: PASS
+DXE request-bit exact-source mutation: PASS
+DXE request-attributes exact-source mutation: PASS
+DXE request-consume exact-source mutation: PASS
