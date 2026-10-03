@@ -1,0 +1,11 @@
+Actual-codec private media artifacts: /home/sean/private-auth2-clean-history.QrezfE/artifacts/private-media.59BOLZ
+/home/sean/native-private-auth2-final-parent.WUaxVf/artifacts/run.Y4vYPw/enrolled.after-smmstore.bin: OK
+/home/sean/native-private-auth2-final-parent.WUaxVf/artifacts/run.Y4vYPw/configured/native/fullgraph-enrolled-inputs/private_certdb.bin: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_private_media_check.c: OK
+tests/protected_variable_private_media_check.sh: OK
+/usr/bin/cc: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_fv.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_store.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_record.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_ftw.c: OK
+/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/src/lib/payload_mm_authvar_certdb.c: OK

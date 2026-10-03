@@ -1,0 +1,9 @@
+UNMODIFIED protected packaged graph artifacts: /home/sean/native-private-auth2-final-retry.mPv628/artifacts/run.wIor8J
+Found file config at 0x3e400, type raw, compressed 3533, size 12849
+Found file config at 0x19a80, type raw, compressed 2975, size 9676
+Found file config at 0x33f00, type raw, compressed 3368, size 11878
+Unmodified production graph: genuinely absent endpoint refuses before variable install/app
+Unmodified production graph: old GENERAL without predicate owner refuses required ESRT before app
+Unmodified production graph ordinary runtime: PASS
+Unmodified production graph enrolled runtime: PASS
+UNMODIFIED protected fullgraph ordinary/enrolled EBS/nonidentity-VA runtime: PASS (no generated guard discard)

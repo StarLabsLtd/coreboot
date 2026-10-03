@@ -1,0 +1,19 @@
+make: Entering directory '/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/source'
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (31 records, 8 mutations)
+WRMSR byte count mismatch in /home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/pci-bus-immutable-y-debug-y-diagnostic-y-spi-y/PciBusDxe.efi: expected 0, found 1
+make[1]: *** [/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/source/src/boot/Makefile:8963: native-direct-mtrr-ownership-audit] Error 1
+make: *** [Makefile:1148: native-coreboot-image] Error 2
+make: *** Waiting for unfinished jobs....
+/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/configured/native/PublicFullgraphRuntimeDiagnostic.efi
+make: Leaving directory '/home/sean/native-private-auth2-after610.FeimaI/artifacts/run.ZKioUc/source'

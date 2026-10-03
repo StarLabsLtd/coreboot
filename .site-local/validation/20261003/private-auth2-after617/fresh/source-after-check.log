@@ -1,0 +1,6 @@
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/src/boot/Makefile: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_runtime_app.c: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_enrolled_inputs.sh: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_production_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_private_media_check.c: OK
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_private_media_check.sh: OK

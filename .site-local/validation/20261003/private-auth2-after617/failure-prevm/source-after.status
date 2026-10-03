@@ -1,0 +1,6 @@
+ M src/boot/Makefile
+ M tests/protected_variable_fullgraph_enrolled_inputs.sh
+ M tests/protected_variable_fullgraph_production_test.sh
+ M tests/protected_variable_fullgraph_runtime_app.c
+?? tests/protected_variable_private_media_check.c
+?? tests/protected_variable_private_media_check.sh

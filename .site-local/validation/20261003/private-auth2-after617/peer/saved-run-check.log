@@ -1,0 +1,3 @@
+Saved four-case outcomes/marker cardinality/identical Core/input bindings: PASS {'source-before.sha256': 2046, 'inputs-before.sha256': 8, 'codec-closure-before.sha256': 65, 'native.outputs.sha256': 13, 'payload.inputs.sha256': 5}
+Independent ASCII CN + actual DER TBSCertificate binding and full certdb bytes: PASS
+Existing fullgraph profile: SecurityStub=1/buildSecureBoot=0/SystemFmp=0; no new VM.

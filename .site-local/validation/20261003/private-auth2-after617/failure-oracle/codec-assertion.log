@@ -1,0 +1,2 @@
+check-o0: /home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_private_media_check.c:132: main: Assertion `matches(media)' failed.
+Aborted

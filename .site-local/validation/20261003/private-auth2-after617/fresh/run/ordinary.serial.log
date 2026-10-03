@@ -1,0 +1,1292 @@
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 bootblock starting (log level: 7)...[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: Found "FLASH" version 1.1 at 0x11000.[0m
+[0m[DEBUG]  FMAP: base = 0x0 size = 0x800000 #areas = 4[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: mcache @0x00014e00 built for 14 files, used 0x2e8 of 0x4000 bytes[0m
+[0m[INFO ]  CBFS: Found 'fallback/romstage' @0x80 size 0x5210 in mcache @0x00014e2c[0m
+[0m[DEBUG]  BS: bootblock times (exec / console): total (unknown) / 2 ms[0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 romstage starting (log level: 7)...[0m
+[0m[DEBUG]  SMBus controller enabled[0m
+[0m[INFO ]  QEMU: firmware config interface detected[0m
+[0m[INFO ]  Firmware config version id: 3[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/e820'[0m
+[0m[DEBUG]  CBMEM:[0m
+[0m[DEBUG]  IMD: root @ 0x3f7ff000 254 entries.[0m
+[0m[DEBUG]  IMD: root @ 0x3f7fec00 62 entries.[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[DEBUG]  SMM Memory Map[0m
+[0m[DEBUG]  SMRAM       : 0x3f800000 0x800000[0m
+[0m[DEBUG]   Subregion 0: 0x3f800000 0x800000[0m
+[0m[DEBUG]   Subregion 2: 0x40000000 0x0[0m
+[0m[DEBUG]   Subregion 3: 0x40000000 0x0[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  CBFS: Found 'fallback/postcar' @0x41900 size 0x5014 in mcache @0x00014fd8[0m
+[0m[DEBUG]  Loading module at 0x3eed0000 with entry 0x3eed0031. filesize: 0x4d08 memsize: 0xb030[0m
+[0m[DEBUG]  Processing 179 relocs. Offset value of 0x3ced0000[0m
+[0m[DEBUG]  BS: romstage times (exec / console): total (unknown) / 3 ms[0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 postcar starting (log level: 7)...[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: Found 'fallback/ramstage' @0x5300 size 0x39083 in mcache @0x3f7fe98c[0m
+[0m[DEBUG]  Loading module at 0x3ed45000 with entry 0x3ed45000. filesize: 0x757a0 memsize: 0x189470[0m
+[0m[DEBUG]  Processing 3223 relocs. Offset value of 0x3ad45000[0m
+[0m[DEBUG]  BS: postcar times (exec / console): total (unknown) / 2 ms[0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 ramstage starting (log level: 7)...[0m
+[0m[DEBUG]  BS: BS_PRE_DEVICE exit times (exec / console): 1 / 0 ms[0m
+[0m[DEBUG]  Initializing i82801ix southbridge...[0m
+[0m[DEBUG]  BS: BS_DEV_INIT_CHIPS run times (exec / console): 1 / 0 ms[0m
+[0m[INFO ]  Enumerating buses...[0m
+[0m[DEBUG]  Root Device scanning...[0m
+[0m[DEBUG]  CPU_CLUSTER: 0 enabled[0m
+[0m[DEBUG]  DOMAIN: 00000000 enabled[0m
+[0m[DEBUG]  DOMAIN: 00000000 scanning...[0m
+[0m[DEBUG]  PCI: pci_scan_bus for segment group 00 bus 00[0m
+[0m[DEBUG]  PCI: 00:00:00.0 [8086/29c0] enabled[0m
+[0m[DEBUG]  PCI: 00:00:01.0 [1234/1111] enabled[0m
+[0m[DEBUG]  PCI: 00:00:03.0 [1b36/0010] enabled[0m
+[0m[DEBUG]  PCI: 00:00:04.0 [1b36/000d] enabled[0m
+[0m[DEBUG]  PCI: 00:00:05.0 [1234/11e8] enabled[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1a.0 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1a.1 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1a.2 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1a.7 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1b.0 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.0 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.1 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.2 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.3 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.4 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1c.5 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1d.0 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1d.1 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1d.2 not found, disabling it.[0m
+[0m[INFO ]  PCI: Static device PCI: 00:00:1d.7 not found, disabling it.[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 [8086/2918] enabled[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 [8086/2922] enabled[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 [8086/2930] enabled[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 scanning...[0m
+[0m[DEBUG]  scan_bus: bus PCI: 00:00:1f.0 finished in 0 msecs[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 scanning...[0m
+[0m[DEBUG]  scan_bus: bus PCI: 00:00:1f.3 finished in 0 msecs[0m
+[0m[DEBUG]  scan_bus: bus DOMAIN: 00000000 finished in 4 msecs[0m
+[0m[DEBUG]  scan_bus: bus Root Device finished in 4 msecs[0m
+[0m[INFO ]  done[0m
+[0m[DEBUG]  BS: BS_DEV_ENUMERATE run times (exec / console): 3 / 3 ms[0m
+[0m[DEBUG]  found VGA at PCI: 00:00:01.0[0m
+[0m[DEBUG]  Setting up VGA for PCI: 00:00:01.0[0m
+[0m[DEBUG]  Setting PCI_BRIDGE_CTL_VGA for bridge DOMAIN: 00000000[0m
+[0m[DEBUG]  Setting PCI_BRIDGE_CTL_VGA for bridge Root Device[0m
+[0m[INFO ]  Allocating resources...[0m
+[0m[INFO ]  Reading resources...[0m
+[0m[INFO ]  QEMU: firmware config interface detected[0m
+[0m[INFO ]  Firmware config version id: 3[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/e820'[0m
+[0m[DEBUG]  QEMU: e820/res: 0xfd00000000 +0x300000000[0m
+[0m[DEBUG]  QEMU: e820/ram: 0x00000000 + 0x40000000[0m
+[0m[DEBUG]  QEMU: reserve ioports 0x0510-0x0511 [firmware-config][0m
+[0m[DEBUG]  QEMU: reserve ioports 0x5658-0x5658 [vmware-port][0m
+[0m[DEBUG]  Adding PCIe enhanced config space BAR 0xb0000000-0xc0000000.[0m
+[0m[INFO ]  Done reading resources.[0m
+[0m[INFO ]  === Resource allocator: DOMAIN: 00000000 - Pass 1 (relative placement) ===[0m
+[0m[INFO ]  === Resource allocator: DOMAIN: 00000000 - Pass 2 (allocating resources) ===[0m
+[0m[DEBUG]  DOMAIN: 00000000 io: base: 0 size: 0 align: 0 gran: 0 limit: ffff[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0d base 00000510 limit 00000511 io (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0e base 00005658 limit 00005658 io (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:1f.0 10000000 base 00000000 limit 00000fff io (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:1f.3 20 base 00000400 limit 0000041f io (fixed)[0m
+[0m[INFO ]   DOMAIN: 00000000: Resource ranges:[0m
+[0m[INFO ]   * Base: 1000, Size: 4658, Tag: 100[0m
+[0m[INFO ]   * Base: 5659, Size: a9a7, Tag: 100[0m
+[0m[DEBUG]    PCI: 00:00:1f.2 20 *  [0xffe0 - 0xffff] limit: ffff io[0m
+[0m[DEBUG]  DOMAIN: 00000000 io: base: 0 size: 0 align: 0 gran: 0 limit: ffff done[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 3f800000 size: 0 align: 0 gran: 0 limit: fdffffff[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 100000000 size: 0 align: 0 gran: 0 limit: ffffffffff[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0a base fd00000000 limit ffffffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0b base 00000000 limit 0009ffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0c base 000c0000 limit 3fffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 0f base 000a0000 limit 000bffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 10 base 000c0000 limit 000fffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 11 base 40000000 limit afffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: DOMAIN: 00000000 03 base fee00000 limit fee0ffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:00.0 02 base b0000000 limit bfffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:00.0 9e base 3f800000 limit 3fffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:1f.0 10000100 base ff800000 limit ffffffff mem (fixed)[0m
+[0m[DEBUG]   avoid_fixed_resources: PCI: 00:00:1f.0 03 base fec00000 limit fec00fff mem (fixed)[0m
+[0m[INFO ]   DOMAIN: 00000000: Resource ranges:[0m
+[0m[INFO ]   * Base: c0000000, Size: 3e000000, Tag: 200[0m
+[0m[INFO ]   * Base: 100000000, Size: fc00000000, Tag: 200[0m
+[0m[DEBUG]    PCI: 00:00:01.0 10 *  [0xfd000000 - 0xfdffffff] limit: fdffffff prefmem[0m
+[0m[DEBUG]    PCI: 00:00:05.0 10 *  [0xfcf00000 - 0xfcffffff] limit: fcffffff mem[0m
+[0m[DEBUG]    PCI: 00:00:01.0 30 *  [0xfcef0000 - 0xfcefffff] limit: fcefffff mem[0m
+[0m[DEBUG]    PCI: 00:00:03.0 10 *  [0xfceec000 - 0xfceeffff] limit: fceeffff mem[0m
+[0m[DEBUG]    PCI: 00:00:04.0 10 *  [0xfcee8000 - 0xfceebfff] limit: fceebfff mem[0m
+[0m[DEBUG]    PCI: 00:00:01.0 18 *  [0xfcee7000 - 0xfcee7fff] limit: fcee7fff mem[0m
+[0m[DEBUG]    PCI: 00:00:1f.2 24 *  [0xfcee6000 - 0xfcee6fff] limit: fcee6fff mem[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 3f800000 size: 0 align: 0 gran: 0 limit: fdffffff done[0m
+[0m[DEBUG]  DOMAIN: 00000000 mem: base: 100000000 size: 0 align: 0 gran: 0 limit: ffffffffff done[0m
+[0m[INFO ]  === Resource allocator: DOMAIN: 00000000 - resource allocation complete ===[0m
+[0m[DEBUG]  PCI: 00:00:01.0 10 <- [0x00000000fd000000 - 0x00000000fdffffff] size 0x01000000 gran 0x18 prefmem[0m
+[0m[DEBUG]  PCI: 00:00:01.0 18 <- [0x00000000fcee7000 - 0x00000000fcee7fff] size 0x00001000 gran 0x0c mem[0m
+[0m[DEBUG]  PCI: 00:00:01.0 30 <- [0x00000000fcef0000 - 0x00000000fcefffff] size 0x00010000 gran 0x10 romem[0m
+[0m[DEBUG]  PCI: 00:00:03.0 10 <- [0x00000000fceec000 - 0x00000000fceeffff] size 0x00004000 gran 0x0e mem64[0m
+[0m[DEBUG]  PCI: 00:00:04.0 10 <- [0x00000000fcee8000 - 0x00000000fceebfff] size 0x00004000 gran 0x0e mem64[0m
+[0m[DEBUG]  PCI: 00:00:05.0 10 <- [0x00000000fcf00000 - 0x00000000fcffffff] size 0x00100000 gran 0x14 mem[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 20 <- [0x000000000000ffe0 - 0x000000000000ffff] size 0x00000020 gran 0x05 io[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 24 <- [0x00000000fcee6000 - 0x00000000fcee6fff] size 0x00001000 gran 0x0c mem[0m
+[0m[INFO ]  Done setting resources.[0m
+[0m[INFO ]  Done allocating resources.[0m
+[0m[DEBUG]  BS: BS_DEV_RESOURCES run times (exec / console): 7 / 8 ms[0m
+[0m[INFO ]  Enabling resources...[0m
+[0m[DEBUG]  PCI: 00:00:00.0 cmd <- 00[0m
+[0m[DEBUG]  PCI: 00:00:01.0 cmd <- 03[0m
+[0m[DEBUG]  PCI: 00:00:03.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:04.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:05.0 cmd <- 02[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 subsystem <- 8086/2918[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 cmd <- 100[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 subsystem <- 8086/2922[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 cmd <- 103[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 subsystem <- 8086/2930[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 cmd <- 101[0m
+[0m[INFO ]  done.[0m
+[0m[DEBUG]  BS: BS_DEV_ENABLE run times (exec / console): 2 / 1 ms[0m
+[0m[DEBUG]  BS: BS_DEV_INIT entry times (exec / console): 4 / 0 ms[0m
+[0m[INFO ]  Initializing devices...[0m
+[0m[DEBUG]  CPU_CLUSTER: 0 init[0m
+[0m[DEBUG]  Setting up SMI for CPU[0m
+[0m[DEBUG]  Save state size: 0x200 bytes[0m
+[0m[INFO ]  Will perform SMM setup.[0m
+[0m[INFO ]  CPU: QEMU TCG CPU version 2.5+.[0m
+[0m[INFO ]  LAPIC 0x0 in XAPIC mode.[0m
+[0m[DEBUG]  CPU: APIC: 00 enabled[0m
+[0m[DEBUG]  Loading module at 0x00038000 with entry 0x00038000. filesize: 0x198 memsize: 0x198[0m
+[0m[DEBUG]  Processing 9 relocs. Offset value of 0x00038000[0m
+[0m[DEBUG]  smm_module_setup_stub: stack_top = 0x3f804000[0m
+[0m[DEBUG]  smm_module_setup_stub: per cpu stack_size = 0x4000[0m
+[0m[DEBUG]  smm_module_setup_stub: runtime.smm_size = 0x10000[0m
+[0m[DEBUG]  SMM Module: stub loaded at 38000. Will call 0x3ed65325[0m
+[0m[DEBUG]  Installing permanent SMM handler to 0x3f800000[0m
+[0m[DEBUG]  HANDLER      [0x3fe02000-0x3ffff727][0m
+[0m
+[0m[DEBUG]  CPU 0[0m
+[0m[DEBUG]    ss0        [0x3fe01e00-0x3fe01fff][0m
+[0m[DEBUG]    stub0      [0x3fdfa000-0x3fdfa197][0m
+[0m
+[0m[DEBUG]  stacks       [0x3f800000-0x3f803fff][0m
+[0m[DEBUG]  Loading module at 0x3fe02000 with entry 0x3fe0ac1d. filesize: 0x3fe48 memsize: 0x1fd728[0m
+[0m[DEBUG]  Processing 3338 relocs. Offset value of 0x3fe02000[0m
+[0m[DEBUG]  Loading module at 0x3fdfa000 with entry 0x3fdfa000. filesize: 0x198 memsize: 0x198[0m
+[0m[DEBUG]  Processing 9 relocs. Offset value of 0x3fdfa000[0m
+[0m[DEBUG]  smm_module_setup_stub: stack_top = 0x3f804000[0m
+[0m[DEBUG]  smm_module_setup_stub: per cpu stack_size = 0x4000[0m
+[0m[DEBUG]  smm_module_setup_stub: runtime.smm_size = 0x800000[0m
+[0m[DEBUG]  SMM Module: stub loaded at 3fdfa000. Will call 0x3fe0ac1d[0m
+[0m[DEBUG]  AUTHVAR      [0x3f804000-0x3fdf9fff][0m
+[0m[INFO ]  smm_do_relocation : curr_smbase 0x30000 perm_smbase 0x3fdf2000, cpu = 0[0m
+[0m[DEBUG]  In relocation handler: cpu 0[0m
+[0m[DEBUG]  SMM revision: 0x00020064[0m
+[0m[DEBUG]  New SMBASE=0x3fdf2000[0m
+[0m[DEBUG]  Relocation complete.[0m
+[0m[INFO ]  Initializing CPU #0[0m
+[0m[DEBUG]  CPU: vendor AMD device 663[0m
+[0m[DEBUG]  CPU: family 06, model 06, stepping 03[0m
+[0m[INFO ]  CPU #0 initialized[0m
+[0m[INFO ]  bsp_do_flight_plan done after 18 msecs.[0m
+[0m[DEBUG]  SMI_STS: [0m
+[0m[DEBUG]  GPE0_STS: [0m
+[0m[DEBUG]  ALT_GP_SMI_STS: GPI15 GPI14 GPI13 GPI12 GPI11 GPI10 GPI9 GPI8 GPI7 GPI6 GPI5 GPI4 GPI3 GPI2 GPI1 GPI0 [0m
+[0m[DEBUG]  TCO_STS: [0m
+[0m[DEBUG]  Locking SMM.[0m
+[0m[DEBUG]  CPU_CLUSTER: 0 init finished in 21 msecs[0m
+[0m[DEBUG]  PCI: 00:00:00.0 init[0m
+[0m[DEBUG]  Assigning IRQ 11 to PCI: 00:00:03.0[0m
+[0m[DEBUG]  Assigning IRQ 10 to PCI: 00:00:04.0[0m
+[0m[DEBUG]  Assigning IRQ 10 to PCI: 00:00:05.0[0m
+[0m[DEBUG]  Assigning IRQ 10 to PCI: 00:00:1f.2[0m
+[0m[DEBUG]  Assigning IRQ 10 to PCI: 00:00:1f.3[0m
+[0m[DEBUG]  PCI: 00:00:00.0 init finished in 2 msecs[0m
+[0m[DEBUG]  PCI: 00:00:01.0 init[0m
+[0m[DEBUG]  QEMU VGA: Using legacy VGA[0m
+[0m[DEBUG]  QEMU VGA: bochs dispi interface found, 16 MiB video memory[0m
+[0m[DEBUG]  QEMU VGA: framebuffer @ fd000000 (pci bar 0)[0m
+[0m[INFO ]  framebuffer_info: bytes_per_line: 3200, bits_per_pixel: 32[0m
+[0m[INFO ]                     x_res x y_res: 800 x 600, size: 1920000 at 0xfd000000[0m
+[0m[DEBUG]  PCI: 00:00:01.0 init finished in 1 msecs[0m
+[0m[DEBUG]  PCI: 00:00:03.0 init[0m
+[0m[DEBUG]  PCI: 00:00:03.0 init finished in 0 msecs[0m
+[0m[DEBUG]  PCI: 00:00:04.0 init[0m
+[0m[DEBUG]  PCI: 00:00:04.0 init finished in 0 msecs[0m
+[0m[DEBUG]  PCI: 00:00:05.0 init[0m
+[0m[DEBUG]  PCI: 00:00:05.0 init finished in 0 msecs[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 init[0m
+[0m[DEBUG]  i82801ix: lpc_init[0m
+[0m[DEBUG]  IOAPIC: Initializing IOAPIC at fec00000[0m
+[0m[DEBUG]  IOAPIC: ID = 0x00[0m
+[0m[DEBUG]  IOAPIC: 24 interrupts[0m
+[0m[DEBUG]  IOAPIC: Clearing IOAPIC at fec00000[0m
+[0m[DEBUG]  IOAPIC: ExtINT deferred (pending=0, gsi0=fec00000)[0m
+[0m[INFO ]  Set power on after power failure.[0m
+[0m[INFO ]  NMI sources disabled.[0m
+[0m[DEBUG]  rtc_failed = 0x0[0m
+[0m[DEBUG]  RTC Init[0m
+[0m[DEBUG]  IOAPIC: Enabling virtual-wire ExtINT on fec00000, BSP LAPIC = 0x00[0m
+[0m[DEBUG]  apm_control: Disabling ACPI.[0m
+[0m[DEBUG]  APMC done.[0m
+[0m[DEBUG]  PCI: 00:00:1f.0 init finished in 3 msecs[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 init[0m
+[0m[DEBUG]  i82801ix_sata: initializing...[0m
+[0m[DEBUG]  SATA controller in AHCI mode.[0m
+[0m[DEBUG]  ABAR: 0xfcee6000[0m
+[0m[DEBUG]  PCI: 00:00:1f.2 init finished in 1 msecs[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 init[0m
+[0m[DEBUG]  PCI: 00:00:1f.3 init finished in 0 msecs[0m
+[0m[INFO ]  Devices initialized[0m
+[0m[DEBUG]  BS: BS_DEV_INIT run times (exec / console): 23 / 10 ms[0m
+[0m[DEBUG]  FMAP: area SMMSTORE found @ 0 (65536 bytes)[0m
+[0m[DEBUG]  QEMU flash behaves as ROM[0m
+[1;4m[WARN ]  capsules: MM variable store is not clean; RAM handoff refused.[0m
+[0m[DEBUG]  BS: BS_DEV_INIT exit times (exec / console): 2 / 0 ms[0m
+[0m[INFO ]  Finalize devices...[0m
+[0m[INFO ]  Devices finalized[0m
+[0m[INFO ]  Q35 DMA: noncoherent page-walk table visibility established[0m
+[0m[INFO ]  Q35 DMA: denied unlisted EDU 0x28, reason 0x2, target unchanged, BME clear[0m
+[0m[INFO ]  Q35 DMA: default-deny active, 8 PCI functions BME clear, NVMe 0000:00:03.0 32 pages at 0x80000000, XHCI 0000:00:04.0 128 pages at 0x90000000, EDU unlisted[0m
+[0m[DEBUG]  BS: BS_POST_DEVICE exit times (exec / console): 224 / 1 ms[0m
+[0m[INFO ]  Q35 DMA: cold controller retirement and current owned deny before tables[0m
+[0m[DEBUG]  BS: BS_WRITE_TABLES entry times (exec / console): 5 / 0 ms[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/table-loader'[0m
+[0m[DEBUG]  QEMU: found ACPI tables in fw_cfg.[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/acpi/rsdp'[0m
+[0m[DEBUG]  QEMU: loading "etc/acpi/rsdp" to 0x3ec59000 (len 20)[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/acpi/tables'[0m
+[0m[DEBUG]  QEMU: loading "etc/acpi/tables" to 0x3ec59040 (len 131072)[0m
+[0m[DEBUG]  QEMU: loaded ACPI tables from fw_cfg.[0m
+[0m[DEBUG]  Looking on 0x3ec59000 for valid checksum[0m
+[0m[DEBUG]  Checksum 1 passed[0m
+[0m[DEBUG]  Checksum 2 passed all OK[0m
+[0m[DEBUG]  ACPI: added table 1/32, length now 44[0m
+[0m[DEBUG]  ACPI: added table 2/32, length now 52[0m
+[0m[DEBUG]  ACPI: added table 3/32, length now 60[0m
+[0m[DEBUG]  ACPI: added table 4/32, length now 68[0m
+[0m[DEBUG]  ACPI: added table 5/32, length now 76[0m
+[0m[DEBUG]  ACPI: added table 6/32, length now 84[0m
+[0m[DEBUG]  ACPI:     * SSDT[0m
+[0m[DEBUG]  Generating ACPI PIRQ entries[0m
+[0m[DEBUG]  ACPI: added table 7/32, length now 92[0m
+[0m[DEBUG]  ACPI tables: 131840 bytes.[0m
+[0m[DEBUG]  smbios_write_tables: 3ec51000[0m
+[0m[DEBUG]  SMBIOS firmware version is set to coreboot_version: 'release_26.09-451-g7ee34bed989c'[0m
+[0m[DEBUG]  SMBIOS: Unknown CPU or CPU doesn't support Deterministic Cache CPUID leaf[0m
+[0m[INFO ]  DOMAIN: 00000000 (QEMU Northbridge q35)[0m
+[0m[INFO ]  QEMU: firmware config: Found 'etc/smbios/smbios-tables'[0m
+[0m[DEBUG]  QEMU: found smbios tables in fw_cfg (len 312).[0m
+[0m[DEBUG]  QEMU: coreboot type0 table found at 0x3ec51040.[0m
+[0m[DEBUG]  QEMU: loading smbios tables to 0x3ec5108f[0m
+[0m[DEBUG]  SMBIOS tables: 483 bytes.[0m
+[0m[DEBUG]  Writing table forward entry at 0x00000500[0m
+[0m[DEBUG]  Wrote coreboot table at: 0x00000500, 0x10 bytes, checksum b115[0m
+[0m[DEBUG]  Writing coreboot table at 0x3ec91000[0m
+[0m[DEBUG]   0. 0000000000000000-0000000000000fff: CONFIGURATION TABLES[0m
+[0m[DEBUG]   1. 0000000000001000-000000000009ffff: RAM[0m
+[0m[DEBUG]   2. 00000000000a0000-00000000000f5fff: RESERVED[0m
+[0m[DEBUG]   3. 00000000000f6000-00000000000f6fff: CONFIGURATION TABLES[0m
+[0m[DEBUG]   4. 00000000000f7000-00000000000fffff: RESERVED[0m
+[0m[DEBUG]   5. 0000000000100000-000000003ec3efff: RAM[0m
+[0m[DEBUG]   6. 000000003ec3f000-000000003ec4efff: CONFIGURATION TABLES[0m
+[0m[DEBUG]   7. 000000003ec4f000-000000003ec50fff: RESERVED[0m
+[0m[DEBUG]   8. 000000003ec51000-000000003ed44fff: CONFIGURATION TABLES[0m
+[0m[DEBUG]   9. 000000003ed45000-000000003eecefff: RAMSTAGE[0m
+[0m[DEBUG]  10. 000000003eecf000-000000003f7fffff: CONFIGURATION TABLES[0m
+[0m[DEBUG]  11. 000000003f800000-000000003fffffff: RESERVED[0m
+[0m[DEBUG]  12. 00000000b0000000-00000000bfffffff: RESERVED[0m
+[0m[INFO ]  PRH RootBridge: segment 0, Bus: 0 - 0[0m
+[0m[INFO ]  PRH PCI 00:1f.2 BAR 4 type 1: ffe0 + 20[0m
+[0m[INFO ]  PRH PCI 00:1f.2 BAR 5 type 2: fcee6000 + 1000[0m
+[0m[INFO ]  PRH PCI 00:01.0 BAR 0 type 4: fd000000 + 1000000[0m
+[0m[INFO ]  PRH PCI 00:01.0 BAR 2 type 2: fcee7000 + 1000[0m
+[0m[INFO ]  PRH PCI 00:03.0 BAR 0 type 2: fceec000 + 4000[0m
+[0m[INFO ]  PRH PCI 00:04.0 BAR 0 type 2: fcee8000 + 4000[0m
+[0m[INFO ]  PRH PCI 00:05.0 BAR 0 type 2: fcf00000 + 100000[0m
+[0m[INFO ]  Q35 DMA: handoff generation 1, domains 1/2 linked, ten immutable table pages, 32/128 immutable arena pages[0m
+[0m[INFO ]  QEMU: local APIC timer measured at 1000558078 Hz[0m
+[0m[DEBUG]  FMAP: area SECURE_PROBE found @ 10000 (4096 bytes)[0m
+[0m[DEBUG]  FMAP: area SMMSTORE found @ 0 (65536 bytes)[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: Found 'q35/native-apmc-bootstrap' @0x469c0 size 0x2 in mcache @0x3f7feb44[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  Boot mode is 0[0m
+[0m[DEBUG]  Wrote coreboot table at: 0x3ec91000, 0x854 bytes, checksum d01[0m
+[0m[DEBUG]  coreboot table: 2156 bytes.[0m
+[0m[DEBUG]  IMD ROOT    0. 0x3f7ff000 0x00001000[0m
+[0m[DEBUG]  IMD SMALL   1. 0x3f7fe000 0x00001000[0m
+[0m[DEBUG]  CAPSULE COM 2. 0x3f7fd000 0x00001000[0m
+[0m[DEBUG]  CAPSULE STG 3. 0x3eefd000 0x00900000[0m
+[0m[DEBUG]  CONSOLE     4. 0x3eedd000 0x00020000[0m
+[0m[DEBUG]  TIME STAMP  5. 0x3eedc000 0x00000910[0m
+[0m[DEBUG]  AFTER CAR   6. 0x3eecf000 0x0000d000[0m
+[0m[DEBUG]  RAMSTAGE    7. 0x3ed44000 0x0018b000[0m
+[0m[DEBUG]  Q35 VTD TAB 8. 0x3ed3a000 0x0000a000[0m
+[0m[DEBUG]  Q35 DMA ARE 9. 0x3ec99000 0x000a1000[0m
+[0m[DEBUG]  COREBOOT   10. 0x3ec91000 0x00008000[0m
+[0m[DEBUG]  ACPI       11. 0x3ec59000 0x00038000[0m
+[0m[DEBUG]  SMBIOS     12. 0x3ec51000 0x00008000[0m
+[0m[DEBUG]  IMD small region:[0m
+[0m[DEBUG]    IMD ROOT    0. 0x3f7fec00 0x00000400[0m
+[0m[DEBUG]    RO MCACHE   1. 0x3f7fe900 0x000002e8[0m
+[0m[DEBUG]    FMAP        2. 0x3f7fe820 0x000000e0[0m
+[0m[DEBUG]    ROMSTG STCK 3. 0x3f7fe780 0x00000088[0m
+[0m[DEBUG]    ACPI GNVS   4. 0x3f7fe680 0x00000100[0m
+[0m[DEBUG]    DMA HANDOFF 5. 0x3f7fe600 0x00000068[0m
+[0m[DEBUG]  BS: BS_WRITE_TABLES run times (exec / console): 459 / 8 ms[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  CBFS: Found 'fallback/payload' @0x46a00 size 0x58074 in mcache @0x3f7feb78[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858a2c[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858a48[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858a64[0m
+[0m[DEBUG]  Checking segment from ROM address 0xff858a80[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858a2c[0m
+[0m[DEBUG]    code (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00100000 memsize 0xf35c srcaddr 0xff858a9c filesize 0x8470[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00100000 memsz: 0x000000000000f35c filesz: 0x0000000000008470[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858a48[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x0010f360 memsize 0x130828 srcaddr 0xff860f0c filesize 0x4fb6c[0m
+[0m[DEBUG]  Loading Segment: addr: 0x0010f360 memsz: 0x0000000000130828 filesz: 0x000000000004fb6c[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858a64[0m
+[0m[DEBUG]    data (compression=1)[0m
+[0m[DEBUG]    New segment dstaddr 0x00240000 memsize 0x922f0 srcaddr 0xff8b0a78 filesize 0x28[0m
+[0m[DEBUG]  Loading Segment: addr: 0x00240000 memsz: 0x00000000000922f0 filesz: 0x0000000000000028[0m
+[0m[DEBUG]  using LZMA[0m
+[0m[DEBUG]  Clearing Segment: addr: 0x0000000000240040 memsz: 0x00000000000922b0[0m
+[0m[DEBUG]  Loading segment from ROM address 0xff858a80[0m
+[0m[DEBUG]    Entry Point 0x00100000[0m
+[0m[DEBUG]  BS: BS_PAYLOAD_LOAD run times (exec / console): 124 / 3 ms[0m
+[0m[DEBUG]  ICH-NM10-PCH: watchdog disabled[0m
+[0m[DEBUG]  Jumping to boot code at 0x00100000(0x3ec91000)[0m
+CDK2 | HANDOFF_VALIDATE | start | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | HANDOFF_VALIDATE | complete | SUCCESS (0x0000000000000000) | 5261 us
+CDK2 | SPLASH_EARLY | start | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | SPLASH_EARLY | complete | SUCCESS (0x0000000000000000) | 2065 us
+[INFO] CDK2:m=01:e=1000:status=0000000000000000
+[INFO] CDK2:m=01:e=1001:status=0000000000000000
+[INFO] CDK2:m=01:e=1003:status=0000000000000000
+CDK2 | DXE_SERVICES | begin | NOT_STARTED (0x8000000000000013) | 0 us
+[DEBUG] CDK2:m=02:e=1a61:status=000000003c91de88
+[DEBUG] CDK2:m=02:e=1a62:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1a63:status=0000000000000000
+[INFO] CDK2:m=02:e=1100:status=0000000000000000
+[INFO] CDK2:m=02:e=1932:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1971:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1933:status=000000000003c7ee
+[INFO] CDK2:m=02:e=1101:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1900:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1901:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1902:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1926:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1927:status=0000000000000002
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000002
+[DEBUG] CDK2:m=02:e=1918:status=000000000000000d
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000002
+[DEBUG] CDK2:m=02:e=1918:status=000000000000000d
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000005
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=000000000000000d
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1903:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1904:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1905:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1906:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1907:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1909:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000000
+CDK2 | module 0x03 | direct driver GUID | e99706f8d67f6546864688e33ef71dfc
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000005000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | SecurityStubDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | DXE_SERVICES | complete | SUCCESS (0x0000000000000000) | 37702 us
+CDK2 | ARCH_PROTOCOLS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000001
+CDK2 | module 0x03 | direct driver GUID | 86481e1a17950e449fde3be44cee2136
+CDK2 | module 0x03 | direct image bytes | 0x000000000000d000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000000d000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[INFO] CDK2:m=24:e=26ab:status=0000000000000000
+[INFO] CDK2:m=24:e=2b8f:status=0000000000000000
+[INFO] CDK2:m=24:e=28ac:status=0000000000000000
+[INFO] CDK2:m=24:e=2bbe:status=0000000000000000
+[INFO] CDK2:m=24:e=258c:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=24:e=205f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CpuDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000003
+CDK2 | module 0x03 | direct driver GUID | c4f801b6b743844795b1f4226cb40cee
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006400
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000000a000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | RuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000002
+CDK2 | module 0x03 | direct driver GUID | e71f9ba1bcc1f849875f54a5d542443f
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000004000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CpuIo2Dxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000004
+CDK2 | module 0x03 | direct driver GUID | 739933c863a56145b858d8476f9defc4
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000004000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | Metronome | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000007
+CDK2 | module 0x03 | direct driver GUID | c7e4284b36ff104e93cfa82159e777c5
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000006000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[INFO] CDK2:m=25:e=23a1:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=25:e=239a:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | ResetSystemRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000009
+CDK2 | module 0x03 | direct driver GUID | 9681fe52def9074db22f51f77a0e7c41
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000004000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=24:e=2b95:status=0000000000000000
+[INFO] CDK2:m=24:e=2542:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 05a6dd3f6ea7464fad2912f4531b3d08
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | LocalApicTimerDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000005
+CDK2 | module 0x03 | direct driver GUID | 7fd699f0ae71364cb2a3dceb0eb2b7d8
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000005000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 28b8b2d22608a748b3df983c006024f0
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | WatchdogTimer | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | ARCH_PROTOCOLS | complete | SUCCESS (0x0000000000000000) | 34802 us
+CDK2 | VARIABLES_MIN | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000a
+CDK2 | module 0x03 | direct driver GUID | d5e4d2cb6870f54fb4629822b4ad8d60
+CDK2 | module 0x03 | direct image bytes | 0x000000000001c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000001c000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[INFO] CDK2:m=22:e=25c7:status=0000000000000000
+[INFO] CDK2:m=22:e=2620:status=0000000000000000
+[INFO] CDK2:m=22:e=2a19:status=0000000000000000
+[INFO] CDK2:m=22:e=2f28:status=0000000000000000
+[INFO] CDK2:m=22:e=2386:status=0000000000000000
+[INFO] CDK2:m=22:e=2386:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=22:e=29ad:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | VariableRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000008
+CDK2 | module 0x03 | direct driver GUID | 657b8d37a98d7347b6e4a47826a833e1
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000006000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PcRtc | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000006
+CDK2 | module 0x03 | direct driver GUID | 728260ad7fd06449801e7bd3b7888652
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000005000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | MonotonicCounterRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001a
+CDK2 | module 0x03 | direct driver GUID | 0a7f8542f213214b8a2353d3f714b840
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005a00
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000009000
+[INFO] CDK2:m=02:e=186c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=186f:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=01:e=2dc4:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[INFO] CDK2:m=01:e=2938:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CapsuleRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001c
+CDK2 | module 0x03 | direct driver GUID | ccb8e618d1637c44b32d3dbd51d32922
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000005000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | QemuTestFmpDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001b
+CDK2 | module 0x03 | direct driver GUID | 18d89b99f77d9a4aa5029b75033e6a0f
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000005000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c3:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | EsrtDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | variable policy protocols | 0x0000000000000001
+CDK2 | module 0x02 | firmware management protocols | 0x0000000000000001
+CDK2 | module 0x02 | ESRT management protocols | 0x0000000000000001
+CDK2 | Tcg2Dxe | hardware absent | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | Tcg2Dxe | hardware absent | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | VARIABLES_MIN | complete | SUCCESS (0x0000000000000000) | 824265 us
+CDK2 | CAPSULE_EARLY_GATE | begin | NOT_STARTED (0x8000000000000013) | 0 us
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[DEBUG] CDK2:m=22:e=224f:status=0000000000000000
+[DEBUG] CDK2:m=22:e=2857:status=0000000000000000
+CDK2 | CAPSULE_EARLY_GATE | complete | SUCCESS (0x0000000000000000) | 146811 us
+CDK2 | CAPSULE_RAM | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | CAPSULE_RAM | complete | SUCCESS (0x0000000000000000) | 2167 us
+CDK2 | PLATFORM_TABLES | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000b
+CDK2 | module 0x03 | direct driver GUID | 2ce42296388e084a9e8f54f784652f6b
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000006000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=0a:e=24f1:status=0000000000000000
+[INFO] CDK2:m=0a:e=22af:status=0000000000000000
+CDK2 | module 0x0a | RSDP address | 0x000000003ec79040
+[INFO] CDK2:m=0a:e=220c:status=0000000000000000
+CDK2 | module 0x0a | source RSDT length | 0x0000000000000040
+[DEBUG] CDK2:m=0a:e=28e5:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=0a:e=2c1f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | AcpiTableDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | PLATFORM_TABLES | complete | SUCCESS (0x0000000000000000) | 9037 us
+CDK2 | PCI_ROOTS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000d
+CDK2 | module 0x03 | direct driver GUID | 70b78f12795e76419e519bb268a17dd1
+CDK2 | module 0x03 | direct image bytes | 0x0000000000009000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000003d000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=17:e=22a6:status=0000000000000000
+[DEBUG] CDK2:m=17:e=2226:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1928:status=0000000000000000
+[DEBUG] CDK2:m=02:e=192a:status=0000000000000002
+[DEBUG] CDK2:m=02:e=192b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=192c:status=0000000000000000
+[DEBUG] CDK2:m=02:e=192d:status=0000000000000001
+[DEBUG] CDK2:m=02:e=192e:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=000000000000ffe0
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fcee6000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fd000000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fcee7000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fceec000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fcee8000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1916:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1917:status=0000000000000003
+[DEBUG] CDK2:m=02:e=1918:status=0000000000000001
+[DEBUG] CDK2:m=02:e=190b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1922:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1923:status=0000000000000001
+[DEBUG] CDK2:m=02:e=1919:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191b:status=0000000000000002
+[DEBUG] CDK2:m=02:e=191c:status=0000000000000003
+[DEBUG] CDK2:m=02:e=191d:status=0000000000000000
+[DEBUG] CDK2:m=02:e=191e:status=0000000000000001
+[DEBUG] CDK2:m=02:e=191f:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1913:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1914:status=00000000fcf00000
+[DEBUG] CDK2:m=02:e=1915:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | e99d934e48d90f4b88ede6e1ce517c1e
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=17:e=2ad3:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PciHostBridgeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | PCI_ROOTS | complete | SUCCESS (0x0000000000000000) | 19212 us
+CDK2 | PCI_ENUMERATE | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000e
+CDK2 | module 0x03 | direct driver GUID | 0400b893b39fd4119a3a0090273fc14d
+CDK2 | module 0x03 | direct image bytes | 0x000000000000c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000000c000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PciBusDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | connect controller | 0x0000000000000130
+CDK2 | module 0x02 | connect recursive | 0x0000000000000000
+CDK2 | module 0x02 | controller device-path bytes | 0x0000000000000010
+CDK2 | module 0x02 | path head | 02010c00d041030a000000007fff0400
+CDK2 | module 0x02 | binding image | 0x000000003ccdb908
+CDK2 | module 0x02 | binding handle | 0x000000003ccdb908
+CDK2 | module 0x02 | binding version | 0x0000000000000010
+CDK2 | module 0x02 | binding load generation | 0x0000000000000011
+CDK2 | module 0x02 | binding image-path bytes | 0x0000000000000018
+CDK2 | module 0x02 | path head | 0104140025a7e311318b834f897b15330f474cc27fff0400
+[INFO] CDK2:m=02:e=1836:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1837:status=0000000000000000
+[INFO] CDK2:m=02:e=1838:status=0000000000000000
+CDK2 | PCI_ENUMERATE | complete | SUCCESS (0x0000000000000000) | 26246 us
+CDK2 | STORAGE_CONTROLLERS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | STORAGE_CONTROLLERS | complete | SUCCESS (0x0000000000000000) | 1580 us
+CDK2 | BLOCK_DISCOVERY | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000f
+CDK2 | module 0x03 | direct driver GUID | f4bde35bcf53a346a6a973c34a6e5ee3
+CDK2 | module 0x03 | direct image bytes | 0x000000000000fc00
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000012000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=1e:e=2ba5:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | NvmExpressDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | connect controller | 0x0000000000000150
+CDK2 | module 0x02 | connect recursive | 0x0000000000000000
+CDK2 | module 0x02 | controller device-path bytes | 0x0000000000000016
+CDK2 | module 0x02 | path head | 02010c00d041030a000000000101060000037fff0400
+CDK2 | module 0x02 | binding image | 0x000000003ccdba28
+CDK2 | module 0x02 | binding handle | 0x000000003ccdba28
+CDK2 | module 0x02 | binding version | 0x0000000000000010
+CDK2 | module 0x02 | binding load generation | 0x0000000000000012
+CDK2 | module 0x02 | binding image-path bytes | 0x0000000000000018
+CDK2 | module 0x02 | path head | 0104140025a7e311318b834f897b15330f474cc27fff0400
+[INFO] CDK2:m=02:e=1836:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1837:status=0000000000000000
+[INFO] CDK2:m=02:e=1838:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000016
+CDK2 | module 0x03 | direct driver GUID | b4f7386b98ade9409093aca2b5a253c4
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000004000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[ERROR] CDK2:m=02:e=1835:status=800000000000000e
+CDK2 | module 0x02 | not-found handle | 0x0000000000000000
+CDK2 | module 0x02 | not-found protocol GUID | 6fcf25bbd4f1d2119a0c0090273fc1fd
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000001
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | DiskIoDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000017
+CDK2 | module 0x03 | direct driver GUID | 9ef3a11ffffeae4abd7b38a070a3b609
+CDK2 | module 0x03 | direct image bytes | 0x000000000000a000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000000a000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=15:e=28d9:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=15:e=2daa:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PartitionDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | connect controller | 0x0000000000000190
+CDK2 | module 0x02 | connect recursive | 0x0000000000000000
+CDK2 | module 0x02 | controller device-path bytes | 0x0000000000000026
+CDK2 | module 0x02 | path head | 02010c00d041030a00000000010106000003031710000100000000000000000000007fff0400
+CDK2 | module 0x02 | binding image | 0x000000003ccdbb48
+CDK2 | module 0x02 | binding handle | 0x000000003ccdbb48
+CDK2 | module 0x02 | binding version | 0x0000000000000010
+CDK2 | module 0x02 | binding load generation | 0x0000000000000013
+CDK2 | module 0x02 | binding image-path bytes | 0x0000000000000018
+CDK2 | module 0x02 | path head | 0104140025a7e311318b834f897b15330f474cc27fff0400
+[INFO] CDK2:m=02:e=1836:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1837:status=0000000000000000
+[INFO] CDK2:m=02:e=1838:status=0000000000000000
+CDK2 | module 0x02 | connect controller | 0x0000000000000190
+CDK2 | module 0x02 | connect recursive | 0x0000000000000000
+CDK2 | module 0x02 | controller device-path bytes | 0x0000000000000026
+CDK2 | module 0x02 | path head | 02010c00d041030a00000000010106000003031710000100000000000000000000007fff0400
+CDK2 | module 0x02 | binding image | 0x000000003ccdbc68
+CDK2 | module 0x02 | binding handle | 0x000000003ccdbc68
+CDK2 | module 0x02 | binding version | 0x0000000000000010
+CDK2 | module 0x02 | binding load generation | 0x0000000000000014
+CDK2 | module 0x02 | binding image-path bytes | 0x0000000000000018
+CDK2 | module 0x02 | path head | 0104140025a7e311318b834f897b15330f474cc27fff0400
+[INFO] CDK2:m=02:e=1836:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1837:status=0000000000000000
+[INFO] CDK2:m=02:e=1838:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001d
+CDK2 | module 0x03 | direct driver GUID | b6af3bcdfb50e84f8e4eab74d2c1a600
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000004000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | EnglishDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000018
+CDK2 | module 0x03 | direct driver GUID | fe781596b7b6c344af356bc705cd2b1f
+CDK2 | module 0x03 | direct image bytes | 0x000000000000d400
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000010000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=1a:e=2480:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=1a:e=21b7:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | Fat | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | connect controller | 0x00000000000001a0
+CDK2 | module 0x02 | connect recursive | 0x0000000000000000
+CDK2 | module 0x02 | controller device-path bytes | 0x0000000000000050
+CDK2 | module 0x02 | path head | 02010c00d041030a000000000101060000030317100001000000000000000000000004012a00010000000008000000000000c0f70300000000001111111122223333444455555555555502027fff0400
+CDK2 | module 0x02 | binding image | 0x000000003ccdbea8
+CDK2 | module 0x02 | binding handle | 0x000000003ccdbea8
+CDK2 | module 0x02 | binding version | 0x0000000000000010
+CDK2 | module 0x02 | binding load generation | 0x0000000000000016
+CDK2 | module 0x02 | binding image-path bytes | 0x0000000000000018
+CDK2 | module 0x02 | path head | 0104140025a7e311318b834f897b15330f474cc27fff0400
+[INFO] CDK2:m=02:e=1836:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1837:status=0000000000000000
+[INFO] CDK2:m=02:e=1838:status=0000000000000000
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c006600650064006f00720061005c007300680069006d007800360034002e006500660069000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c006600650064006f00720061005c0067007200750062007800360034002e006500660069000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c007500620075006e00740075005c007300680069006d007800360034002e006500660069000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c007500620075006e00740075005c0067007200750062007800360034002e006500660069000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c0042004f004f0054005c0042004f004f0054005800360034002e004500460049000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SataController | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | AtaAtapiPassThruDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | AtaBusDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | BLOCK_DISCOVERY | complete | SUCCESS (0x0000000000000000) | 647582 us
+CDK2 | FILESYSTEMS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | FILESYSTEMS | complete | SUCCESS (0x0000000000000000) | 178 us
+CDK2 | CAPSULE_DISK | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c00550070006400610074006500430061007000730075006c0065000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | CAPSULE_DISK | complete | SUCCESS (0x0000000000000000) | 7696 us
+CDK2 | DISPLAY_ADOPT | begin | NOT_STARTED (0x8000000000000013) | 0 us
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=1a61:status=00000000fd000000
+CDK2 | DISPLAY_ADOPT | complete | SUCCESS (0x0000000000000000) | 1789 us
+CDK2 | INPUT_UI | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000019
+CDK2 | module 0x03 | direct driver GUID | ecdc8e406dcf7c47a5a8b4844e3de281
+CDK2 | module 0x03 | direct image bytes | 0x000000000000c600
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=000000000000f000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+[INFO] CDK2:m=01:e=2351:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182b:status=0000000000000000
+[DEBUG] CDK2:m=02:e=182d:status=0000000000000000
+CDK2 | module 0x02 | image not-found trace count | 0x0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | ConSplitterDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | UsbMassStorageDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | XhciDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | UsbBusDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=02:e=1a61:status=0000000000010102
+CDK2 | INPUT_UI | complete | SUCCESS (0x0000000000000000) | 9793 us
+CDK2 | BOOT_POLICY | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c0042004f004f0054005c0042004f004f0054005800360034002e004500460049000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | EndOfDxe | signal and lock | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=02:e=1a61:status=80000000000001a0
+CDK2 | BOOT_POLICY | complete | SUCCESS (0x0000000000000000) | 542032 us
+CDK2 | OS_HANDOFF | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x1a | file open UTF-16 path | 5c004500460049005c0042004f004f0054005c0042004f004f0054005800360034002e004500460049000000
+CDK2 | module 0x1a | file open mode | 0x0000000000000001
+CDK2 | FAT file | open | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=02:e=1845:status=0000000000000000
+[INFO] CDK2:m=02:e=1846:status=0000000000079000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[INFO] CDK2:m=02:e=18a0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1821:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1823:status=0000000000000000
+[DEBUG] CDK2:m=02:e=1824:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c2:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c2:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[DEBUG] CDK2:m=22:e=224f:status=0000000000000000
+[DEBUG] CDK2:m=22:e=2857:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+[DEBUG] CDK2:m=22:e=295b:status=0000000000000000
+CDK2 | ReadyToBoot | signal | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | firmware management protocols after ReadyToBoot | 0x0000000000000001
+CDK2 | module 0x02 | ESRT management protocols after ReadyToBoot | 0x0000000000000001
+CDK2 | module 0x02 | ESRT tables after ReadyToBoot | 0x0000000000000001
+[INFO] CDK2:m=0a:e=2b5c:status=0000000000000000
+[DEBUG] CDK2:m=0a:e=2464:status=0000000000000000
+[DEBUG] CDK2:m=0a:e=28e5:status=0000000000000000
+CDK2 | BootLogo | restore and BGRT | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=02:e=1a61:status=0000000600000001
+[DEBUG] CDK2:m=02:e=1829:status=0000000000000000
+CDK2_PUBLIC_FULLGRAPH_APP_ENTERED
+CDK2_PUBLIC_FULLGRAPH_READY_CLOSED_OP7_IF1_SET
+[DEBUG] CDK2:m=02:e=19c2:status=0000000000000000
+[INFO] CDK2:m=22:e=29d0:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c2:status=0000000000000000
+[DEBUG] CDK2:m=02:e=19c2:status=0000000000000000
+CDK2_PUBLIC_FULLGRAPH_REAL_EBS_CALLBACKS_LIVE
+CDK2_PUBLIC_FULLGRAPH_REAL_SET_VIRTUAL_MAP
+CDK2_PUBLIC_FULLGRAPH_RUNTIME_PHYSICAL_ALIASES_REMOVED
+CDK2_PUBLIC_FULLGRAPH_VIRTUAL_GET_SET_CLOSED_OP7
+CDK2_PUBLIC_FULLGRAPH_RUNTIME_PASS

@@ -1,0 +1,17 @@
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Native service Auth2 inputs: PK setup bypass; PK-signed KEK; KEK-signed db; valid untrusted-signer KEK
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Use of uninitialized value $value in print at - line 14.
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Enrolled inputs: genuine child/db CMS and private create/append/delete; exact append attributes and independent CN+TBS certdb binding

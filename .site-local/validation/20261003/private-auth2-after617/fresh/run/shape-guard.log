@@ -1,0 +1,10 @@
+HOST compiled production guard-fragment artifacts: /home/sean/native-private-auth2-final-retry.mPv628/artifacts/run.wIor8J/shape-guard/run.SfxGh5
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096794 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096808 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096822 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096836 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096862 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096876 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096890 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/native-private-auth2-after616/tests/protected_variable_fullgraph_shape_test.sh: line 46: 1096904 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+HOST exact guard fragment: supported/legacy sentinels and all four partial-shape refusals O0/O2; four causal term deletions each rejected
