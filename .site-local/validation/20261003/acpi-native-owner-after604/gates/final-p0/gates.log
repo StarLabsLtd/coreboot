@@ -1,0 +1,5 @@
+#
+# configuration written to /home/sean/acpi-final-parent-gates.phA8dK/p0/resolved.config
+#
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS

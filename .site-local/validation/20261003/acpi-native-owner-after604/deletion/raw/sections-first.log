@@ -1,0 +1,4 @@
+p0 O0 unused-symbol removal and remaining whole object PASS
+p0 O2 unused-symbol removal and remaining whole object PASS
+p0 Os unused-symbol removal and remaining whole object PASS
+/home/sean/acpi-dead-bytes-proof.DuvfTG/p1-baseline-stripped-o0.o /home/sean/acpi-dead-bytes-proof.DuvfTG/p1-candidate-o0.o differ: byte 41, line 1

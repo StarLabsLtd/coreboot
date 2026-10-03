@@ -1,0 +1,18 @@
+p0 O0 actual native layout/padding/all256/high64/ACPI output PASS
+p0 O2 actual native layout/padding/all256/high64/ACPI output PASS
+p0 Os actual native layout/padding/all256/high64/ACPI output PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+p0 O0 strict ASAN/UBSAN actual native bytes+both real fixtures PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+p0 O2 strict ASAN/UBSAN actual native bytes+both real fixtures PASS
+p1 O0 actual native layout/padding/all256/high64/ACPI output PASS
+p1 O2 actual native layout/padding/all256/high64/ACPI output PASS
+p1 Os actual native layout/padding/all256/high64/ACPI output PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+p1 O0 strict ASAN/UBSAN actual native bytes+both real fixtures PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+p1 O2 strict ASAN/UBSAN actual native bytes+both real fixtures PASS

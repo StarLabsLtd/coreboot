@@ -1,0 +1,584 @@
+
+/home/sean/acpi-native-api-proof.1v4atD/p1-driver-candidate-os.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.sdt_unsupported:
+
+0000000000000000 <sdt_unsupported>:
+   0:	57                   	push   %rdi
+   1:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 8 <sdt_unsupported+0x8>
+			4: R_X86_64_PC32	.LC1-0x4
+   8:	56                   	push   %rsi
+   9:	50                   	push   %rax
+   a:	e8 00 00 00 00       	call   f <sdt_unsupported+0xf>
+			b: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+   f:	5a                   	pop    %rdx
+  10:	5e                   	pop    %rsi
+  11:	48 b8 03 00 00 00 00 	movabs $0x8000000000000003,%rax
+  18:	00 00 80 
+  1b:	5f                   	pop    %rdi
+  1c:	c3                   	ret
+
+Disassembly of section .text.allocate:
+
+0000000000000000 <allocate>:
+   0:	41 55                	push   %r13
+   2:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
+   7:	41 54                	push   %r12
+   9:	55                   	push   %rbp
+   a:	53                   	push   %rbx
+   b:	48 83 ec 18          	sub    $0x18,%rsp
+   f:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+  14:	48 85 f6             	test   %rsi,%rsi
+  17:	0f 84 b6 00 00 00    	je     d3 <allocate+0xd3>
+  1d:	48 81 fa 00 10 00 00 	cmp    $0x1000,%rdx
+  24:	0f 87 a9 00 00 00    	ja     d3 <allocate+0xd3>
+  2a:	48 8d 9e ff 0f 00 00 	lea    0xfff(%rsi),%rbx
+  31:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+  38:	00 00 80 
+  3b:	48 c1 eb 0c          	shr    $0xc,%rbx
+  3f:	0f 84 af 00 00 00    	je     f4 <allocate+0xf4>
+  45:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 4c <allocate+0x4c>
+			48: R_X86_64_PC32	.bss.allocations-0x4
+  4c:	31 ed                	xor    %ebp,%ebp
+  4e:	49 89 c4             	mov    %rax,%r12
+  51:	48 83 38 00          	cmpq   $0x0,(%rax)
+  55:	74 1c                	je     73 <allocate+0x73>
+  57:	48 ff c5             	inc    %rbp
+  5a:	48 83 c0 10          	add    $0x10,%rax
+  5e:	48 83 fd 44          	cmp    $0x44,%rbp
+  62:	75 ed                	jne    51 <allocate+0x51>
+  64:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+  6b:	00 00 80 
+  6e:	e9 81 00 00 00       	jmp    f4 <allocate+0xf4>
+  73:	48 83 ec 20          	sub    $0x20,%rsp
+  77:	49 89 cd             	mov    %rcx,%r13
+  7a:	49 89 d8             	mov    %rbx,%r8
+  7d:	ba 09 00 00 00       	mov    $0x9,%edx
+  82:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 89 <allocate+0x89>
+			85: R_X86_64_PC32	.bss.boot_services-0x4
+  89:	4c 8d 4c 24 28       	lea    0x28(%rsp),%r9
+  8e:	b9 01 00 00 00       	mov    $0x1,%ecx
+  93:	ff 50 28             	call   *0x28(%rax)
+  96:	48 83 c4 20          	add    $0x20,%rsp
+  9a:	48 85 c0             	test   %rax,%rax
+  9d:	78 55                	js     f4 <allocate+0xf4>
+  9f:	48 8b 4c 24 08       	mov    0x8(%rsp),%rcx
+  a4:	48 89 c8             	mov    %rcx,%rax
+  a7:	48 c1 e8 20          	shr    $0x20,%rax
+  ab:	74 32                	je     df <allocate+0xdf>
+  ad:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # b4 <allocate+0xb4>
+			b0: R_X86_64_PC32	.bss.boot_services-0x4
+  b4:	48 83 ec 20          	sub    $0x20,%rsp
+  b8:	48 89 da             	mov    %rbx,%rdx
+  bb:	ff 50 30             	call   *0x30(%rax)
+  be:	48 83 c4 20          	add    $0x20,%rsp
+  c2:	48 85 c0             	test   %rax,%rax
+  c5:	79 0c                	jns    d3 <allocate+0xd3>
+  c7:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # ce <allocate+0xce>
+			ca: R_X86_64_PC32	.LC2-0x4
+  ce:	e8 00 00 00 00       	call   d3 <allocate+0xd3>
+			cf: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+  d3:	48 b8 03 00 00 00 00 	movabs $0x8000000000000003,%rax
+  da:	00 00 80 
+  dd:	eb 15                	jmp    f4 <allocate+0xf4>
+  df:	48 c1 e5 04          	shl    $0x4,%rbp
+  e3:	31 c0                	xor    %eax,%eax
+  e5:	4c 01 e5             	add    %r12,%rbp
+  e8:	48 89 4d 00          	mov    %rcx,0x0(%rbp)
+  ec:	48 89 5d 08          	mov    %rbx,0x8(%rbp)
+  f0:	49 89 4d 00          	mov    %rcx,0x0(%r13)
+  f4:	48 83 c4 18          	add    $0x18,%rsp
+  f8:	5b                   	pop    %rbx
+  f9:	5d                   	pop    %rbp
+  fa:	41 5c                	pop    %r12
+  fc:	41 5d                	pop    %r13
+  fe:	c3                   	ret
+
+Disassembly of section .text.release:
+
+0000000000000000 <release>:
+   0:	55                   	push   %rbp
+   1:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 8 <release+0x8>
+			4: R_X86_64_PC32	.bss.allocations-0x4
+   8:	53                   	push   %rbx
+   9:	48 89 c5             	mov    %rax,%rbp
+   c:	31 db                	xor    %ebx,%ebx
+   e:	51                   	push   %rcx
+   f:	48 39 30             	cmp    %rsi,(%rax)
+  12:	75 44                	jne    58 <release+0x58>
+  14:	48 89 d8             	mov    %rbx,%rax
+  17:	48 83 ec 20          	sub    $0x20,%rsp
+  1b:	48 89 f1             	mov    %rsi,%rcx
+  1e:	48 c1 e0 04          	shl    $0x4,%rax
+  22:	48 8b 54 05 08       	mov    0x8(%rbp,%rax,1),%rdx
+  27:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 2e <release+0x2e>
+			2a: R_X86_64_PC32	.bss.boot_services-0x4
+  2e:	ff 50 30             	call   *0x30(%rax)
+  31:	48 83 c4 20          	add    $0x20,%rsp
+  35:	48 85 c0             	test   %rax,%rax
+  38:	79 0c                	jns    46 <release+0x46>
+  3a:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 41 <release+0x41>
+			3d: R_X86_64_PC32	.LC3-0x4
+  41:	e8 00 00 00 00       	call   46 <release+0x46>
+			42: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+  46:	48 c1 e3 04          	shl    $0x4,%rbx
+  4a:	31 d2                	xor    %edx,%edx
+  4c:	48 89 54 1d 00       	mov    %rdx,0x0(%rbp,%rbx,1)
+  51:	48 89 54 1d 08       	mov    %rdx,0x8(%rbp,%rbx,1)
+  56:	eb 0d                	jmp    65 <release+0x65>
+  58:	48 ff c3             	inc    %rbx
+  5b:	48 83 c0 10          	add    $0x10,%rax
+  5f:	48 83 fb 44          	cmp    $0x44,%rbx
+  63:	75 aa                	jne    f <release+0xf>
+  65:	58                   	pop    %rax
+  66:	5b                   	pop    %rbx
+  67:	5d                   	pop    %rbp
+  68:	c3                   	ret
+
+Disassembly of section .text.uninstall_table:
+
+0000000000000000 <uninstall_table>:
+   0:	57                   	push   %rdi
+   1:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 8 <uninstall_table+0x8>
+			4: R_X86_64_PC32	.LC4-0x4
+   8:	56                   	push   %rsi
+   9:	53                   	push   %rbx
+   a:	48 89 d3             	mov    %rdx,%rbx
+   d:	e8 00 00 00 00       	call   12 <uninstall_table+0x12>
+			e: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+  12:	48 89 de             	mov    %rbx,%rsi
+  15:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 1c <uninstall_table+0x1c>
+			18: R_X86_64_PC32	.bss.tables-0x4
+  1c:	e8 00 00 00 00       	call   21 <uninstall_table+0x21>
+			1d: R_X86_64_PLT32	cdk2_acpi_uninstall-0x4
+  21:	5b                   	pop    %rbx
+  22:	5e                   	pop    %rsi
+  23:	5f                   	pop    %rdi
+  24:	c3                   	ret
+
+Disassembly of section .text.install_table:
+
+0000000000000000 <install_table>:
+   0:	41 54                	push   %r12
+   2:	45 31 db             	xor    %r11d,%r11d
+   5:	4d 89 c4             	mov    %r8,%r12
+   8:	55                   	push   %rbp
+   9:	48 89 d5             	mov    %rdx,%rbp
+   c:	57                   	push   %rdi
+   d:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 14 <install_table+0x14>
+			10: R_X86_64_PC32	.LC5-0x4
+  14:	56                   	push   %rsi
+  15:	53                   	push   %rbx
+  16:	4c 89 cb             	mov    %r9,%rbx
+  19:	48 83 ec 10          	sub    $0x10,%rsp
+  1d:	4c 89 5c 24 08       	mov    %r11,0x8(%rsp)
+  22:	e8 00 00 00 00       	call   27 <install_table+0x27>
+			23: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+  27:	31 c0                	xor    %eax,%eax
+  29:	48 8d 4c 24 08       	lea    0x8(%rsp),%rcx
+  2e:	48 85 db             	test   %rbx,%rbx
+  31:	48 0f 44 c8          	cmove  %rax,%rcx
+  35:	4c 89 e2             	mov    %r12,%rdx
+  38:	48 89 ee             	mov    %rbp,%rsi
+  3b:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 42 <install_table+0x42>
+			3e: R_X86_64_PC32	.bss.tables-0x4
+  42:	e8 00 00 00 00       	call   47 <install_table+0x47>
+			43: R_X86_64_PLT32	cdk2_acpi_install-0x4
+  47:	48 85 c0             	test   %rax,%rax
+  4a:	78 08                	js     54 <install_table+0x54>
+  4c:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+  51:	48 89 13             	mov    %rdx,(%rbx)
+  54:	48 83 c4 10          	add    $0x10,%rsp
+  58:	5b                   	pop    %rbx
+  59:	5e                   	pop    %rsi
+  5a:	5f                   	pop    %rdi
+  5b:	5d                   	pop    %rbp
+  5c:	41 5c                	pop    %r12
+  5e:	c3                   	ret
+
+Disassembly of section .text.get_table:
+
+0000000000000000 <get_table>:
+   0:	41 55                	push   %r13
+   2:	49 89 d5             	mov    %rdx,%r13
+   5:	41 54                	push   %r12
+   7:	55                   	push   %rbp
+   8:	57                   	push   %rdi
+   9:	56                   	push   %rsi
+   a:	53                   	push   %rbx
+   b:	48 83 ec 38          	sub    $0x38,%rsp
+   f:	4d 85 c0             	test   %r8,%r8
+  12:	0f 94 c0             	sete   %al
+  15:	4d 85 c9             	test   %r9,%r9
+  18:	0f 94 c2             	sete   %dl
+  1b:	08 d0                	or     %dl,%al
+  1d:	0f 85 90 00 00 00    	jne    b3 <get_table+0xb3>
+  23:	4d 85 ed             	test   %r13,%r13
+  26:	0f 84 87 00 00 00    	je     b3 <get_table+0xb3>
+  2c:	48 3b 0d 00 00 00 00 	cmp    0x0(%rip),%rcx        # 33 <get_table+0x33>
+			2f: R_X86_64_PC32	.bss.tables+0x24
+  33:	48 b8 0e 00 00 00 00 	movabs $0x800000000000000e,%rax
+  3a:	00 00 80 
+  3d:	73 7e                	jae    bd <get_table+0xbd>
+  3f:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 46 <get_table+0x46>
+			42: R_X86_64_PC32	.bss.tables+0x14
+  46:	48 89 cb             	mov    %rcx,%rbx
+  49:	4d 89 c4             	mov    %r8,%r12
+  4c:	4c 89 cd             	mov    %r9,%rbp
+  4f:	48 c1 e3 05          	shl    $0x5,%rbx
+  53:	4c 8d 44 24 28       	lea    0x28(%rsp),%r8
+  58:	b9 04 00 00 00       	mov    $0x4,%ecx
+  5d:	8b 74 18 08          	mov    0x8(%rax,%rbx,1),%esi
+  61:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 68 <get_table+0x68>
+			64: R_X86_64_PC32	.bss.boot_services-0x4
+  68:	48 89 f2             	mov    %rsi,%rdx
+  6b:	ff 50 40             	call   *0x40(%rax)
+  6e:	48 85 c0             	test   %rax,%rax
+  71:	78 4a                	js     bd <get_table+0xbd>
+  73:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 7a <get_table+0x7a>
+			76: R_X86_64_PC32	.bss.tables+0x14
+  7a:	48 8b 7c 24 28       	mov    0x28(%rsp),%rdi
+  7f:	48 89 f2             	mov    %rsi,%rdx
+  82:	48 8b 04 18          	mov    (%rax,%rbx,1),%rax
+  86:	48 89 c6             	mov    %rax,%rsi
+  89:	e8 00 00 00 00       	call   8e <get_table+0x8e>
+			8a: R_X86_64_PLT32	memcpy-0x4
+  8e:	48 8b 44 24 28       	mov    0x28(%rsp),%rax
+  93:	49 89 45 00          	mov    %rax,0x0(%r13)
+  97:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 9e <get_table+0x9e>
+			9a: R_X86_64_PC32	.bss.tables+0x14
+  9e:	41 c7 04 24 3f 00 00 	movl   $0x3f,(%r12)
+  a5:	00 
+  a6:	48 8b 44 18 10       	mov    0x10(%rax,%rbx,1),%rax
+  ab:	48 89 45 00          	mov    %rax,0x0(%rbp)
+  af:	31 c0                	xor    %eax,%eax
+  b1:	eb 0a                	jmp    bd <get_table+0xbd>
+  b3:	48 b8 02 00 00 00 00 	movabs $0x8000000000000002,%rax
+  ba:	00 00 80 
+  bd:	48 83 c4 38          	add    $0x38,%rsp
+  c1:	5b                   	pop    %rbx
+  c2:	5e                   	pop    %rsi
+  c3:	5f                   	pop    %rdi
+  c4:	5d                   	pop    %rbp
+  c5:	41 5c                	pop    %r12
+  c7:	41 5d                	pop    %r13
+  c9:	c3                   	ret
+
+Disassembly of section .text.cdk2_acpi_table_entry:
+
+0000000000000000 <cdk2_acpi_table_entry>:
+   0:	41 57                	push   %r15
+   2:	41 56                	push   %r14
+   4:	41 55                	push   %r13
+   6:	41 54                	push   %r12
+   8:	55                   	push   %rbp
+   9:	48 89 d5             	mov    %rdx,%rbp
+   c:	57                   	push   %rdi
+   d:	48 89 d7             	mov    %rdx,%rdi
+  10:	56                   	push   %rsi
+  11:	53                   	push   %rbx
+  12:	48 bb 02 00 00 00 00 	movabs $0x8000000000000002,%rbx
+  19:	00 00 80 
+  1c:	48 83 ec 58          	sub    $0x58,%rsp
+  20:	e8 00 00 00 00       	call   25 <cdk2_acpi_table_entry+0x25>
+			21: R_X86_64_PLT32	cdk2_diag_configure_system_table-0x4
+  25:	31 d2                	xor    %edx,%edx
+  27:	48 8d 7c 24 38       	lea    0x38(%rsp),%rdi
+  2c:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 33 <cdk2_acpi_table_entry+0x33>
+			2f: R_X86_64_PC32	.data-0x4
+  33:	b9 06 00 00 00       	mov    $0x6,%ecx
+  38:	48 89 54 24 30       	mov    %rdx,0x30(%rsp)
+  3d:	f3 a5                	rep movsl (%rsi),(%rdi)
+  3f:	48 85 ed             	test   %rbp,%rbp
+  42:	0f 84 97 03 00 00    	je     3df <cdk2_acpi_table_entry+0x3df>
+  48:	48 8b 45 60          	mov    0x60(%rbp),%rax
+  4c:	48 85 c0             	test   %rax,%rax
+  4f:	0f 84 8a 03 00 00    	je     3df <cdk2_acpi_table_entry+0x3df>
+  55:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 5c <cdk2_acpi_table_entry+0x5c>
+			58: R_X86_64_PC32	.LC7-0x4
+  5c:	45 31 f6             	xor    %r14d,%r14d
+  5f:	45 31 e4             	xor    %r12d,%r12d
+  62:	45 31 ed             	xor    %r13d,%r13d
+  65:	48 89 05 00 00 00 00 	mov    %rax,0x0(%rip)        # 6c <cdk2_acpi_table_entry+0x6c>
+			68: R_X86_64_PC32	.bss.boot_services-0x4
+  6c:	e8 00 00 00 00       	call   71 <cdk2_acpi_table_entry+0x71>
+			6d: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+  71:	4c 8b 7d 68          	mov    0x68(%rbp),%r15
+  75:	4d 39 f7             	cmp    %r14,%r15
+  78:	74 45                	je     bf <cdk2_acpi_table_entry+0xbf>
+  7a:	49 6b de 18          	imul   $0x18,%r14,%rbx
+  7e:	48 03 5d 70          	add    0x70(%rbp),%rbx
+  82:	ba 10 00 00 00       	mov    $0x10,%edx
+  87:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 8e <cdk2_acpi_table_entry+0x8e>
+			8a: R_X86_64_PC32	.rodata.acpi_10_table_guid-0x4
+  8e:	48 89 df             	mov    %rbx,%rdi
+  91:	e8 00 00 00 00       	call   96 <cdk2_acpi_table_entry+0x96>
+			92: R_X86_64_PLT32	memcmp-0x4
+  96:	85 c0                	test   %eax,%eax
+  98:	75 04                	jne    9e <cdk2_acpi_table_entry+0x9e>
+  9a:	4c 8b 6b 10          	mov    0x10(%rbx),%r13
+  9e:	ba 10 00 00 00       	mov    $0x10,%edx
+  a3:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # aa <cdk2_acpi_table_entry+0xaa>
+			a6: R_X86_64_PC32	.rodata.acpi_20_table_guid-0x4
+  aa:	48 89 df             	mov    %rbx,%rdi
+  ad:	e8 00 00 00 00       	call   b2 <cdk2_acpi_table_entry+0xb2>
+			ae: R_X86_64_PLT32	memcmp-0x4
+  b2:	85 c0                	test   %eax,%eax
+  b4:	75 04                	jne    ba <cdk2_acpi_table_entry+0xba>
+  b6:	4c 8b 63 10          	mov    0x10(%rbx),%r12
+  ba:	49 ff c6             	inc    %r14
+  bd:	eb b6                	jmp    75 <cdk2_acpi_table_entry+0x75>
+  bf:	31 db                	xor    %ebx,%ebx
+  c1:	49 39 de             	cmp    %rbx,%r14
+  c4:	0f 84 d3 02 00 00    	je     39d <cdk2_acpi_table_entry+0x39d>
+  ca:	4c 6b fb 18          	imul   $0x18,%rbx,%r15
+  ce:	4c 03 7d 70          	add    0x70(%rbp),%r15
+  d2:	ba 10 00 00 00       	mov    $0x10,%edx
+  d7:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # de <cdk2_acpi_table_entry+0xde>
+			da: R_X86_64_PC32	.rodata.hob_list_guid-0x4
+  de:	4c 89 ff             	mov    %r15,%rdi
+  e1:	e8 00 00 00 00       	call   e6 <cdk2_acpi_table_entry+0xe6>
+			e2: R_X86_64_PLT32	memcmp-0x4
+  e6:	85 c0                	test   %eax,%eax
+  e8:	75 0e                	jne    f8 <cdk2_acpi_table_entry+0xf8>
+  ea:	49 8b 5f 10          	mov    0x10(%r15),%rbx
+  ee:	48 85 db             	test   %rbx,%rbx
+  f1:	75 0a                	jne    fd <cdk2_acpi_table_entry+0xfd>
+  f3:	e9 a5 02 00 00       	jmp    39d <cdk2_acpi_table_entry+0x39d>
+  f8:	48 ff c3             	inc    %rbx
+  fb:	eb c4                	jmp    c1 <cdk2_acpi_table_entry+0xc1>
+  fd:	66 83 3b 01          	cmpw   $0x1,(%rbx)
+ 101:	0f 85 96 02 00 00    	jne    39d <cdk2_acpi_table_entry+0x39d>
+ 107:	66 83 7b 02 37       	cmpw   $0x37,0x2(%rbx)
+ 10c:	0f 86 8b 02 00 00    	jbe    39d <cdk2_acpi_table_entry+0x39d>
+ 112:	48 8b 6b 30          	mov    0x30(%rbx),%rbp
+ 116:	48 8d 43 08          	lea    0x8(%rbx),%rax
+ 11a:	48 39 c5             	cmp    %rax,%rbp
+ 11d:	0f 82 7a 02 00 00    	jb     39d <cdk2_acpi_table_entry+0x39d>
+ 123:	48 39 dd             	cmp    %rbx,%rbp
+ 126:	0f 82 71 02 00 00    	jb     39d <cdk2_acpi_table_entry+0x39d>
+ 12c:	48 89 ea             	mov    %rbp,%rdx
+ 12f:	48 29 da             	sub    %rbx,%rdx
+ 132:	48 83 fa 07          	cmp    $0x7,%rdx
+ 136:	0f 86 61 02 00 00    	jbe    39d <cdk2_acpi_table_entry+0x39d>
+ 13c:	44 0f b7 73 02       	movzwl 0x2(%rbx),%r14d
+ 141:	66 41 83 fe 07       	cmp    $0x7,%r14w
+ 146:	0f 86 51 02 00 00    	jbe    39d <cdk2_acpi_table_entry+0x39d>
+ 14c:	4c 39 f2             	cmp    %r14,%rdx
+ 14f:	0f 82 48 02 00 00    	jb     39d <cdk2_acpi_table_entry+0x39d>
+ 155:	8b 13                	mov    (%rbx),%edx
+ 157:	66 83 fa ff          	cmp    $0xffff,%dx
+ 15b:	0f 84 3c 02 00 00    	je     39d <cdk2_acpi_table_entry+0x39d>
+ 161:	66 83 fa 04          	cmp    $0x4,%dx
+ 165:	75 3b                	jne    1a2 <cdk2_acpi_table_entry+0x1a2>
+ 167:	66 41 83 fe 23       	cmp    $0x23,%r14w
+ 16c:	76 34                	jbe    1a2 <cdk2_acpi_table_entry+0x1a2>
+ 16e:	48 8d 7b 08          	lea    0x8(%rbx),%rdi
+ 172:	ba 10 00 00 00       	mov    $0x10,%edx
+ 177:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 17e <cdk2_acpi_table_entry+0x17e>
+			17a: R_X86_64_PC32	.rodata.cdk2_acpi_table_hob_guid-0x4
+ 17e:	e8 00 00 00 00       	call   183 <cdk2_acpi_table_entry+0x183>
+			17f: R_X86_64_PLT32	memcmp-0x4
+ 183:	85 c0                	test   %eax,%eax
+ 185:	75 1b                	jne    1a2 <cdk2_acpi_table_entry+0x1a2>
+ 187:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 18e <cdk2_acpi_table_entry+0x18e>
+			18a: R_X86_64_PC32	.LC8-0x4
+ 18e:	e8 00 00 00 00       	call   193 <cdk2_acpi_table_entry+0x193>
+			18f: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+ 193:	40 8a 6b 18          	mov    0x18(%rbx),%bpl
+ 197:	40 80 fd 01          	cmp    $0x1,%bpl
+ 19b:	74 0d                	je     1aa <cdk2_acpi_table_entry+0x1aa>
+ 19d:	e9 07 02 00 00       	jmp    3a9 <cdk2_acpi_table_entry+0x3a9>
+ 1a2:	4c 01 f3             	add    %r14,%rbx
+ 1a5:	e9 79 ff ff ff       	jmp    123 <cdk2_acpi_table_entry+0x123>
+ 1aa:	66 83 7b 1a 0b       	cmpw   $0xb,0x1a(%rbx)
+ 1af:	0f 86 f4 01 00 00    	jbe    3a9 <cdk2_acpi_table_entry+0x3a9>
+ 1b5:	48 8b 73 1c          	mov    0x1c(%rbx),%rsi
+ 1b9:	48 85 f6             	test   %rsi,%rsi
+ 1bc:	0f 84 e7 01 00 00    	je     3a9 <cdk2_acpi_table_entry+0x3a9>
+ 1c2:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 1c9 <cdk2_acpi_table_entry+0x1c9>
+			1c5: R_X86_64_PC32	.LC9-0x4
+ 1c9:	e8 00 00 00 00       	call   1ce <cdk2_acpi_table_entry+0x1ce>
+			1ca: R_X86_64_PLT32	cdk2_acpi_diagnostic_value-0x4
+ 1ce:	4c 8b 43 1c          	mov    0x1c(%rbx),%r8
+ 1d2:	b9 40 00 00 00       	mov    $0x40,%ecx
+ 1d7:	48 8d 15 00 00 00 00 	lea    0x0(%rip),%rdx        # 1de <cdk2_acpi_table_entry+0x1de>
+			1da: R_X86_64_PC32	.bss.records-0x4
+ 1de:	48 8d 74 24 38       	lea    0x38(%rsp),%rsi
+ 1e3:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 1ea <cdk2_acpi_table_entry+0x1ea>
+			1e6: R_X86_64_PC32	.bss.tables-0x4
+ 1ea:	e8 00 00 00 00       	call   1ef <cdk2_acpi_table_entry+0x1ef>
+			1eb: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ 1ef:	48 89 c3             	mov    %rax,%rbx
+ 1f2:	48 85 c0             	test   %rax,%rax
+ 1f5:	0f 88 b8 01 00 00    	js     3b3 <cdk2_acpi_table_entry+0x3b3>
+ 1fb:	48 83 3d 00 00 00 00 	cmpq   $0x0,0x0(%rip)        # 203 <cdk2_acpi_table_entry+0x203>
+ 202:	00 
+			1fe: R_X86_64_PC32	.bss.tables+0x5b
+ 203:	74 5c                	je     261 <cdk2_acpi_table_entry+0x261>
+ 205:	48 8d 4c 24 30       	lea    0x30(%rsp),%rcx
+ 20a:	ba 08 00 00 00       	mov    $0x8,%edx
+ 20f:	be 14 00 00 00       	mov    $0x14,%esi
+ 214:	31 ff                	xor    %edi,%edi
+ 216:	e8 00 00 00 00       	call   21b <cdk2_acpi_table_entry+0x21b>
+			217: R_X86_64_PC32	.text.allocate-0x4
+ 21b:	48 89 c3             	mov    %rax,%rbx
+ 21e:	48 85 c0             	test   %rax,%rax
+ 221:	0f 85 8c 01 00 00    	jne    3b3 <cdk2_acpi_table_entry+0x3b3>
+ 227:	48 8b 5c 24 30       	mov    0x30(%rsp),%rbx
+ 22c:	48 8b 35 00 00 00 00 	mov    0x0(%rip),%rsi        # 233 <cdk2_acpi_table_entry+0x233>
+			22f: R_X86_64_PC32	.bss.tables+0x44
+ 233:	ba 14 00 00 00       	mov    $0x14,%edx
+ 238:	48 89 df             	mov    %rbx,%rdi
+ 23b:	e8 00 00 00 00       	call   240 <cdk2_acpi_table_entry+0x240>
+			23c: R_X86_64_PLT32	memcpy-0x4
+ 240:	48 89 1d 00 00 00 00 	mov    %rbx,0x0(%rip)        # 247 <cdk2_acpi_table_entry+0x247>
+			243: R_X86_64_PC32	.bss.tables+0x54
+ 247:	be 14 00 00 00       	mov    $0x14,%esi
+ 24c:	48 89 df             	mov    %rbx,%rdi
+ 24f:	c6 43 0f 00          	movb   $0x0,0xf(%rbx)
+ 253:	c6 43 08 00          	movb   $0x0,0x8(%rbx)
+ 257:	e8 00 00 00 00       	call   25c <cdk2_acpi_table_entry+0x25c>
+			258: R_X86_64_PLT32	cdk2_acpi_checksum-0x4
+ 25c:	f7 d8                	neg    %eax
+ 25e:	88 43 08             	mov    %al,0x8(%rbx)
+ 261:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 268 <cdk2_acpi_table_entry+0x268>
+			264: R_X86_64_PC32	.bss.boot_services-0x4
+ 268:	48 8b 15 00 00 00 00 	mov    0x0(%rip),%rdx        # 26f <cdk2_acpi_table_entry+0x26f>
+			26b: R_X86_64_PC32	.bss.tables+0x44
+ 26f:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 276 <cdk2_acpi_table_entry+0x276>
+			272: R_X86_64_PC32	.rodata.acpi_20_table_guid-0x4
+ 276:	ff 90 c0 00 00 00    	call   *0xc0(%rax)
+ 27c:	49 89 c6             	mov    %rax,%r14
+ 27f:	48 85 c0             	test   %rax,%rax
+ 282:	78 7b                	js     2ff <cdk2_acpi_table_entry+0x2ff>
+ 284:	48 8b 5c 24 30       	mov    0x30(%rsp),%rbx
+ 289:	48 85 db             	test   %rbx,%rbx
+ 28c:	75 50                	jne    2de <cdk2_acpi_table_entry+0x2de>
+ 28e:	31 c0                	xor    %eax,%eax
+ 290:	4c 8d 0d 00 00 00 00 	lea    0x0(%rip),%r9        # 297 <cdk2_acpi_table_entry+0x297>
+			293: R_X86_64_PC32	.rodata.acpi_sdt_protocol_guid-0x4
+ 297:	4c 8d 05 00 00 00 00 	lea    0x0(%rip),%r8        # 29e <cdk2_acpi_table_entry+0x29e>
+			29a: R_X86_64_PC32	.data.rel.local.protocol-0x4
+ 29e:	48 89 44 24 28       	mov    %rax,0x28(%rsp)
+ 2a3:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 2aa <cdk2_acpi_table_entry+0x2aa>
+			2a6: R_X86_64_PC32	.data.rel.local.sdt_protocol-0x4
+ 2aa:	48 8d 15 00 00 00 00 	lea    0x0(%rip),%rdx        # 2b1 <cdk2_acpi_table_entry+0x2b1>
+			2ad: R_X86_64_PC32	.rodata.acpi_table_protocol_guid-0x4
+ 2b1:	48 89 44 24 20       	mov    %rax,0x20(%rsp)
+ 2b6:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 2bd <cdk2_acpi_table_entry+0x2bd>
+			2b9: R_X86_64_PC32	.bss.boot_services-0x4
+ 2bd:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 2c4 <cdk2_acpi_table_entry+0x2c4>
+			2c0: R_X86_64_PC32	.bss.driver_handle-0x4
+ 2c4:	ff 90 48 01 00 00    	call   *0x148(%rax)
+ 2ca:	49 89 c6             	mov    %rax,%r14
+ 2cd:	48 85 c0             	test   %rax,%rax
+ 2d0:	0f 89 b7 00 00 00    	jns    38d <cdk2_acpi_table_entry+0x38d>
+ 2d6:	48 85 db             	test   %rbx,%rbx
+ 2d9:	0f 95 c3             	setne  %bl
+ 2dc:	eb 25                	jmp    303 <cdk2_acpi_table_entry+0x303>
+ 2de:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 2e5 <cdk2_acpi_table_entry+0x2e5>
+			2e1: R_X86_64_PC32	.bss.boot_services-0x4
+ 2e5:	48 89 da             	mov    %rbx,%rdx
+ 2e8:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 2ef <cdk2_acpi_table_entry+0x2ef>
+			2eb: R_X86_64_PC32	.rodata.acpi_10_table_guid-0x4
+ 2ef:	ff 90 c0 00 00 00    	call   *0xc0(%rax)
+ 2f5:	49 89 c6             	mov    %rax,%r14
+ 2f8:	48 85 c0             	test   %rax,%rax
+ 2fb:	78 04                	js     301 <cdk2_acpi_table_entry+0x301>
+ 2fd:	eb 8f                	jmp    28e <cdk2_acpi_table_entry+0x28e>
+ 2ff:	31 ed                	xor    %ebp,%ebp
+ 301:	31 db                	xor    %ebx,%ebx
+ 303:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 30a <cdk2_acpi_table_entry+0x30a>
+			306: R_X86_64_PC32	.LC10-0x4
+ 30a:	e8 00 00 00 00       	call   30f <cdk2_acpi_table_entry+0x30f>
+			30b: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+ 30f:	84 db                	test   %bl,%bl
+ 311:	0f 84 bb 00 00 00    	je     3d2 <cdk2_acpi_table_entry+0x3d2>
+ 317:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 31e <cdk2_acpi_table_entry+0x31e>
+			31a: R_X86_64_PC32	.bss.boot_services-0x4
+ 31e:	4c 89 ea             	mov    %r13,%rdx
+ 321:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 328 <cdk2_acpi_table_entry+0x328>
+			324: R_X86_64_PC32	.rodata.acpi_10_table_guid-0x4
+ 328:	ff 90 c0 00 00 00    	call   *0xc0(%rax)
+ 32e:	48 89 c3             	mov    %rax,%rbx
+ 331:	48 85 c0             	test   %rax,%rax
+ 334:	0f 89 98 00 00 00    	jns    3d2 <cdk2_acpi_table_entry+0x3d2>
+ 33a:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 341 <cdk2_acpi_table_entry+0x341>
+			33d: R_X86_64_PC32	.LC11-0x4
+ 341:	e8 00 00 00 00       	call   346 <cdk2_acpi_table_entry+0x346>
+			342: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+ 346:	40 84 ed             	test   %bpl,%bpl
+ 349:	0f 84 90 00 00 00    	je     3df <cdk2_acpi_table_entry+0x3df>
+ 34f:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 356 <cdk2_acpi_table_entry+0x356>
+			352: R_X86_64_PC32	.bss.boot_services-0x4
+ 356:	4c 89 e2             	mov    %r12,%rdx
+ 359:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 360 <cdk2_acpi_table_entry+0x360>
+			35c: R_X86_64_PC32	.rodata.acpi_20_table_guid-0x4
+ 360:	ff 90 c0 00 00 00    	call   *0xc0(%rax)
+ 366:	48 89 c5             	mov    %rax,%rbp
+ 369:	48 85 c0             	test   %rax,%rax
+ 36c:	78 0a                	js     378 <cdk2_acpi_table_entry+0x378>
+ 36e:	48 85 db             	test   %rbx,%rbx
+ 371:	75 6c                	jne    3df <cdk2_acpi_table_entry+0x3df>
+ 373:	4c 89 f3             	mov    %r14,%rbx
+ 376:	eb 3b                	jmp    3b3 <cdk2_acpi_table_entry+0x3b3>
+ 378:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 37f <cdk2_acpi_table_entry+0x37f>
+			37b: R_X86_64_PC32	.LC12-0x4
+ 37f:	e8 00 00 00 00       	call   384 <cdk2_acpi_table_entry+0x384>
+			380: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+ 384:	48 85 db             	test   %rbx,%rbx
+ 387:	48 0f 44 dd          	cmove  %rbp,%rbx
+ 38b:	eb 52                	jmp    3df <cdk2_acpi_table_entry+0x3df>
+ 38d:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 394 <cdk2_acpi_table_entry+0x394>
+			390: R_X86_64_PC32	.LC13-0x4
+ 394:	31 db                	xor    %ebx,%ebx
+ 396:	e8 00 00 00 00       	call   39b <cdk2_acpi_table_entry+0x39b>
+			397: R_X86_64_PLT32	cdk2_acpi_diagnostic-0x4
+ 39b:	eb 42                	jmp    3df <cdk2_acpi_table_entry+0x3df>
+ 39d:	48 bb 0e 00 00 00 00 	movabs $0x800000000000000e,%rbx
+ 3a4:	00 00 80 
+ 3a7:	eb 0a                	jmp    3b3 <cdk2_acpi_table_entry+0x3b3>
+ 3a9:	48 bb 21 00 00 00 00 	movabs $0x8000000000000021,%rbx
+ 3b0:	00 00 80 
+ 3b3:	48 8b 74 24 30       	mov    0x30(%rsp),%rsi
+ 3b8:	48 85 f6             	test   %rsi,%rsi
+ 3bb:	74 07                	je     3c4 <cdk2_acpi_table_entry+0x3c4>
+ 3bd:	31 ff                	xor    %edi,%edi
+ 3bf:	e8 00 00 00 00       	call   3c4 <cdk2_acpi_table_entry+0x3c4>
+			3c0: R_X86_64_PC32	.text.release-0x4
+ 3c4:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 3cb <cdk2_acpi_table_entry+0x3cb>
+			3c7: R_X86_64_PC32	.bss.tables-0x4
+ 3cb:	e8 00 00 00 00       	call   3d0 <cdk2_acpi_table_entry+0x3d0>
+			3cc: R_X86_64_PLT32	cdk2_acpi_tables_destroy-0x4
+ 3d0:	eb 0d                	jmp    3df <cdk2_acpi_table_entry+0x3df>
+ 3d2:	31 db                	xor    %ebx,%ebx
+ 3d4:	40 84 ed             	test   %bpl,%bpl
+ 3d7:	0f 85 72 ff ff ff    	jne    34f <cdk2_acpi_table_entry+0x34f>
+ 3dd:	eb 94                	jmp    373 <cdk2_acpi_table_entry+0x373>
+ 3df:	48 83 c4 58          	add    $0x58,%rsp
+ 3e3:	48 89 d8             	mov    %rbx,%rax
+ 3e6:	5b                   	pop    %rbx
+ 3e7:	5e                   	pop    %rsi
+ 3e8:	5f                   	pop    %rdi
+ 3e9:	5d                   	pop    %rbp
+ 3ea:	41 5c                	pop    %r12
+ 3ec:	41 5d                	pop    %r13
+ 3ee:	41 5e                	pop    %r14
+ 3f0:	41 5f                	pop    %r15
+ 3f2:	c3                   	ret
+
+Disassembly of section .text.cdk2_acpi_table_protocol:
+
+0000000000000000 <cdk2_acpi_table_protocol>:
+   0:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 7 <cdk2_acpi_table_protocol+0x7>
+			3: R_X86_64_PC32	.data.rel.local.protocol-0x4
+   7:	c3                   	ret
+
+Disassembly of section .text.cdk2_acpi_active_tables:
+
+0000000000000000 <cdk2_acpi_active_tables>:
+   0:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 7 <cdk2_acpi_active_tables+0x7>
+			3: R_X86_64_PC32	.bss.tables-0x4
+   7:	c3                   	ret

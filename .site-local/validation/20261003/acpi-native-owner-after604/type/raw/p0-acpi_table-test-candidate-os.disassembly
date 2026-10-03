@@ -1,0 +1,1032 @@
+
+/home/sean/acpi-native-api-proof.1v4atD/p0-acpi_table-test-candidate-os.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <read32>:
+   0:	8b 07                	mov    (%rdi),%eax
+   2:	c3                   	ret
+
+0000000000000003 <allocate>:
+   3:	f3 0f 1e fa          	endbr64
+   7:	48 8b 87 80 01 00 00 	mov    0x180(%rdi),%rax
+   e:	48 ff c0             	inc    %rax
+  11:	48 89 87 80 01 00 00 	mov    %rax,0x180(%rdi)
+  18:	48 3b 87 90 01 00 00 	cmp    0x190(%rdi),%rax
+  1f:	74 66                	je     87 <allocate+0x84>
+  21:	41 54                	push   %r12
+  23:	45 31 c9             	xor    %r9d,%r9d
+  26:	49 89 cc             	mov    %rcx,%r12
+  29:	41 b8 ff ff ff ff    	mov    $0xffffffff,%r8d
+  2f:	55                   	push   %rbp
+  30:	48 8d ae ff 0f 00 00 	lea    0xfff(%rsi),%rbp
+  37:	b9 62 00 00 00       	mov    $0x62,%ecx
+  3c:	ba 03 00 00 00       	mov    $0x3,%edx
+  41:	53                   	push   %rbx
+  42:	81 e5 00 f0 ff ff    	and    $0xfffff000,%ebp
+  48:	48 89 fb             	mov    %rdi,%rbx
+  4b:	31 ff                	xor    %edi,%edi
+  4d:	48 89 ee             	mov    %rbp,%rsi
+  50:	e8 00 00 00 00       	call   55 <allocate+0x52>
+			51: R_X86_64_PLT32	mmap-0x4
+  55:	48 83 f8 ff          	cmp    $0xffffffffffffffff,%rax
+  59:	75 0c                	jne    67 <allocate+0x64>
+  5b:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+  62:	00 00 80 
+  65:	eb 1b                	jmp    82 <allocate+0x7f>
+  67:	48 8b 93 80 01 00 00 	mov    0x180(%rbx),%rdx
+  6e:	48 c1 e2 04          	shl    $0x4,%rdx
+  72:	48 89 44 13 f0       	mov    %rax,-0x10(%rbx,%rdx,1)
+  77:	48 89 6c 13 f8       	mov    %rbp,-0x8(%rbx,%rdx,1)
+  7c:	49 89 04 24          	mov    %rax,(%r12)
+  80:	31 c0                	xor    %eax,%eax
+  82:	5b                   	pop    %rbx
+  83:	5d                   	pop    %rbp
+  84:	41 5c                	pop    %r12
+  86:	c3                   	ret
+  87:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+  8e:	00 00 80 
+  91:	c3                   	ret
+
+0000000000000092 <checksum>:
+  92:	53                   	push   %rbx
+  93:	48 8d 1c 17          	lea    (%rdi,%rdx,1),%rbx
+  97:	c6 03 00             	movb   $0x0,(%rbx)
+  9a:	e8 00 00 00 00       	call   9f <checksum+0xd>
+			9b: R_X86_64_PLT32	cdk2_acpi_checksum-0x4
+  9f:	f7 d8                	neg    %eax
+  a1:	88 03                	mov    %al,(%rbx)
+  a3:	5b                   	pop    %rbx
+  a4:	c3                   	ret
+
+00000000000000a5 <release>:
+  a5:	f3 0f 1e fa          	endbr64
+  a9:	48 8b 97 80 01 00 00 	mov    0x180(%rdi),%rdx
+  b0:	31 c0                	xor    %eax,%eax
+  b2:	48 39 c2             	cmp    %rax,%rdx
+  b5:	75 01                	jne    b8 <release+0x13>
+  b7:	c3                   	ret
+  b8:	55                   	push   %rbp
+  b9:	53                   	push   %rbx
+  ba:	51                   	push   %rcx
+  bb:	48 89 c5             	mov    %rax,%rbp
+  be:	48 c1 e5 04          	shl    $0x4,%rbp
+  c2:	48 39 34 2f          	cmp    %rsi,(%rdi,%rbp,1)
+  c6:	75 21                	jne    e9 <release+0x44>
+  c8:	48 01 fd             	add    %rdi,%rbp
+  cb:	48 89 fb             	mov    %rdi,%rbx
+  ce:	48 89 f7             	mov    %rsi,%rdi
+  d1:	48 8b 75 08          	mov    0x8(%rbp),%rsi
+  d5:	e8 00 00 00 00       	call   da <release+0x35>
+			d6: R_X86_64_PLT32	munmap-0x4
+  da:	31 ff                	xor    %edi,%edi
+  dc:	48 89 7d 00          	mov    %rdi,0x0(%rbp)
+  e0:	48 ff 83 88 01 00 00 	incq   0x188(%rbx)
+  e7:	eb 08                	jmp    f1 <release+0x4c>
+  e9:	48 ff c0             	inc    %rax
+  ec:	48 39 c2             	cmp    %rax,%rdx
+  ef:	75 ca                	jne    bb <release+0x16>
+  f1:	5e                   	pop    %rsi
+  f2:	5b                   	pop    %rbx
+  f3:	5d                   	pop    %rbp
+  f4:	c3                   	ret
+
+00000000000000f5 <expect>:
+  f5:	31 c0                	xor    %eax,%eax
+  f7:	40 84 ff             	test   %dil,%dil
+  fa:	75 2d                	jne    129 <expect+0x34>
+  fc:	51                   	push   %rcx
+  fd:	48 8b 3d 00 00 00 00 	mov    0x0(%rip),%rdi        # 104 <expect+0xf>
+			100: R_X86_64_PC32	stderr-0x4
+ 104:	41 89 d0             	mov    %edx,%r8d
+ 107:	49 89 f1             	mov    %rsi,%r9
+ 10a:	48 8d 0d 00 00 00 00 	lea    0x0(%rip),%rcx        # 111 <expect+0x1c>
+			10d: R_X86_64_PC32	.LC0-0x4
+ 111:	be 02 00 00 00       	mov    $0x2,%esi
+ 116:	48 8d 15 00 00 00 00 	lea    0x0(%rip),%rdx        # 11d <expect+0x28>
+			119: R_X86_64_PC32	.LC1-0x4
+ 11d:	e8 00 00 00 00       	call   122 <expect+0x2d>
+			11e: R_X86_64_PLT32	__fprintf_chk-0x4
+ 122:	b8 01 00 00 00       	mov    $0x1,%eax
+ 127:	5e                   	pop    %rsi
+ 128:	c3                   	ret
+ 129:	c3                   	ret
+
+000000000000012a <make_table>:
+ 12a:	49 89 f1             	mov    %rsi,%r9
+ 12d:	89 d6                	mov    %edx,%esi
+ 12f:	31 c0                	xor    %eax,%eax
+ 131:	49 89 f8             	mov    %rdi,%r8
+ 134:	48 89 f1             	mov    %rsi,%rcx
+ 137:	f3 aa                	rep stos %al,(%rdi)
+ 139:	4c 89 c7             	mov    %r8,%rdi
+ 13c:	41 8b 01             	mov    (%r9),%eax
+ 13f:	41 88 50 04          	mov    %dl,0x4(%r8)
+ 143:	ba 09 00 00 00       	mov    $0x9,%edx
+ 148:	41 c7 40 05 00 00 00 	movl   $0x2000000,0x5(%r8)
+ 14f:	02 
+ 150:	41 89 00             	mov    %eax,(%r8)
+ 153:	48 b8 4f 45 4d 54 41 	movabs $0x454c4241544d454f,%rax
+ 15a:	42 4c 45 
+ 15d:	41 c7 40 0a 4f 45 4d 	movl   $0x314d454f,0xa(%r8)
+ 164:	31 
+ 165:	66 41 c7 40 0e 32 33 	movw   $0x3332,0xe(%r8)
+ 16c:	49 89 40 10          	mov    %rax,0x10(%r8)
+ 170:	e9 1d ff ff ff       	jmp    92 <checksum>
+
+0000000000000175 <write64>:
+ 175:	48 89 37             	mov    %rsi,(%rdi)
+ 178:	c3                   	ret
+
+Disassembly of section .text.startup:
+
+0000000000000000 <main>:
+   0:	f3 0f 1e fa          	endbr64
+   4:	41 57                	push   %r15
+   6:	31 c0                	xor    %eax,%eax
+   8:	b9 66 00 00 00       	mov    $0x66,%ecx
+   d:	45 31 c9             	xor    %r9d,%r9d
+  10:	41 56                	push   %r14
+  12:	41 b8 ff ff ff ff    	mov    $0xffffffff,%r8d
+  18:	ba 03 00 00 00       	mov    $0x3,%edx
+  1d:	be 00 10 00 00       	mov    $0x1000,%esi
+  22:	41 55                	push   %r13
+  24:	41 54                	push   %r12
+  26:	55                   	push   %rbp
+  27:	53                   	push   %rbx
+  28:	48 81 ec 78 05 00 00 	sub    $0x578,%rsp
+  2f:	64 48 8b 3c 25 28 00 	mov    %fs:0x28,%rdi
+  36:	00 00 
+  38:	48 89 bc 24 68 05 00 	mov    %rdi,0x568(%rsp)
+  3f:	00 
+  40:	48 8d bc 24 78 01 00 	lea    0x178(%rsp),%rdi
+  47:	00 
+  48:	f3 ab                	rep stos %eax,(%rdi)
+  4a:	48 8d 84 24 78 01 00 	lea    0x178(%rsp),%rax
+  51:	00 
+  52:	31 ff                	xor    %edi,%edi
+  54:	b9 62 00 00 00       	mov    $0x62,%ecx
+  59:	48 89 44 24 30       	mov    %rax,0x30(%rsp)
+  5e:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 65 <main+0x65>
+			61: R_X86_64_PC32	.text-0x1
+  65:	48 89 44 24 38       	mov    %rax,0x38(%rsp)
+  6a:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 71 <main+0x71>
+			6d: R_X86_64_PC32	.text+0xa1
+  71:	48 89 44 24 40       	mov    %rax,0x40(%rsp)
+  76:	e8 00 00 00 00       	call   7b <main+0x7b>
+			77: R_X86_64_PLT32	mmap-0x4
+  7b:	31 ff                	xor    %edi,%edi
+  7d:	45 31 c9             	xor    %r9d,%r9d
+  80:	ba 03 00 00 00       	mov    $0x3,%edx
+  85:	be 00 10 00 00       	mov    $0x1000,%esi
+  8a:	41 b8 ff ff ff ff    	mov    $0xffffffff,%r8d
+  90:	b9 62 00 00 00       	mov    $0x62,%ecx
+  95:	48 89 c3             	mov    %rax,%rbx
+  98:	e8 00 00 00 00       	call   9d <main+0x9d>
+			99: R_X86_64_PLT32	mmap-0x4
+  9d:	48 83 fb ff          	cmp    $0xffffffffffffffff,%rbx
+  a1:	ba 90 00 00 00       	mov    $0x90,%edx
+  a6:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # ad <main+0xad>
+			a9: R_X86_64_PC32	.LC2-0x4
+  ad:	48 89 c5             	mov    %rax,%rbp
+  b0:	0f 95 c0             	setne  %al
+  b3:	31 ff                	xor    %edi,%edi
+  b5:	48 83 fd ff          	cmp    $0xffffffffffffffff,%rbp
+  b9:	40 0f 95 c7          	setne  %dil
+  bd:	21 c7                	and    %eax,%edi
+  bf:	e8 00 00 00 00       	call   c4 <main+0xc4>
+			c0: R_X86_64_PC32	.text+0xf1
+  c4:	48 83 fb ff          	cmp    $0xffffffffffffffff,%rbx
+  c8:	0f 84 2f 0b 00 00    	je     bfd <main+0xbfd>
+  ce:	48 83 fd ff          	cmp    $0xffffffffffffffff,%rbp
+  d2:	0f 84 25 0b 00 00    	je     bfd <main+0xbfd>
+  d8:	ba 30 00 00 00       	mov    $0x30,%edx
+  dd:	48 89 df             	mov    %rbx,%rdi
+  e0:	4c 8d 64 24 48       	lea    0x48(%rsp),%r12
+  e5:	41 89 c6             	mov    %eax,%r14d
+  e8:	4c 8d ac 24 7c 03 00 	lea    0x37c(%rsp),%r13
+  ef:	00 
+  f0:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # f7 <main+0xf7>
+			f3: R_X86_64_PC32	.LC3-0x4
+  f7:	e8 00 00 00 00       	call   fc <main+0xfc>
+			f8: R_X86_64_PC32	.text+0x126
+  fc:	ba 30 00 00 00       	mov    $0x30,%edx
+ 101:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 108 <main+0x108>
+			104: R_X86_64_PC32	.LC4-0x4
+ 108:	4c 89 ef             	mov    %r13,%rdi
+ 10b:	e8 00 00 00 00       	call   110 <main+0x110>
+			10c: R_X86_64_PC32	.text+0x126
+ 110:	4c 89 e8             	mov    %r13,%rax
+ 113:	31 ff                	xor    %edi,%edi
+ 115:	ba 95 00 00 00       	mov    $0x95,%edx
+ 11a:	48 c1 e8 20          	shr    $0x20,%rax
+ 11e:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 125 <main+0x125>
+			121: R_X86_64_PC32	.LC5-0x4
+ 125:	40 0f 95 c7          	setne  %dil
+ 129:	e8 00 00 00 00       	call   12e <main+0x12e>
+			12a: R_X86_64_PC32	.text+0xf1
+ 12e:	ba 34 00 00 00       	mov    $0x34,%edx
+ 133:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 13a <main+0x13a>
+			136: R_X86_64_PC32	.LC6-0x4
+ 13a:	48 8d bc 24 6c 04 00 	lea    0x46c(%rsp),%rdi
+ 141:	00 
+ 142:	44 01 f0             	add    %r14d,%eax
+ 145:	89 44 24 08          	mov    %eax,0x8(%rsp)
+ 149:	e8 00 00 00 00       	call   14e <main+0x14e>
+			14a: R_X86_64_PC32	.text+0x126
+ 14e:	48 8d bc 24 90 04 00 	lea    0x490(%rsp),%rdi
+ 155:	00 
+ 156:	48 89 de             	mov    %rbx,%rsi
+ 159:	ba 09 00 00 00       	mov    $0x9,%edx
+ 15e:	e8 00 00 00 00       	call   163 <main+0x163>
+			15f: R_X86_64_PC32	.text+0x171
+ 163:	48 8d bc 24 98 04 00 	lea    0x498(%rsp),%rdi
+ 16a:	00 
+ 16b:	4c 89 ee             	mov    %r13,%rsi
+ 16e:	e8 00 00 00 00       	call   173 <main+0x173>
+			16f: R_X86_64_PC32	.text+0x171
+ 173:	be 34 00 00 00       	mov    $0x34,%esi
+ 178:	48 8d bc 24 6c 04 00 	lea    0x46c(%rsp),%rdi
+ 17f:	00 
+ 180:	e8 00 00 00 00       	call   185 <main+0x185>
+			181: R_X86_64_PC32	.text+0x8e
+ 185:	ba 24 00 00 00       	mov    $0x24,%edx
+ 18a:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 191 <main+0x191>
+			18d: R_X86_64_PC32	.LC7-0x4
+ 191:	48 89 ef             	mov    %rbp,%rdi
+ 194:	e8 00 00 00 00       	call   199 <main+0x199>
+			195: R_X86_64_PC32	.text+0x126
+ 199:	31 c0                	xor    %eax,%eax
+ 19b:	b9 07 00 00 00       	mov    $0x7,%ecx
+ 1a0:	48 8d bc 24 18 03 00 	lea    0x318(%rsp),%rdi
+ 1a7:	00 
+ 1a8:	f3 ab                	rep stos %eax,(%rdi)
+ 1aa:	48 8d b4 24 6c 04 00 	lea    0x46c(%rsp),%rsi
+ 1b1:	00 
+ 1b2:	ba 08 00 00 00       	mov    $0x8,%edx
+ 1b7:	48 b8 52 53 44 20 50 	movabs $0x2052545020445352,%rax
+ 1be:	54 52 20 
+ 1c1:	48 8d bc 24 28 03 00 	lea    0x328(%rsp),%rdi
+ 1c8:	00 
+ 1c9:	48 89 84 24 10 03 00 	mov    %rax,0x310(%rsp)
+ 1d0:	00 
+ 1d1:	c7 84 24 19 03 00 00 	movl   $0x314d454f,0x319(%rsp)
+ 1d8:	4f 45 4d 31 
+ 1dc:	66 c7 84 24 1d 03 00 	movw   $0x3332,0x31d(%rsp)
+ 1e3:	00 32 33 
+ 1e6:	c6 84 24 1f 03 00 00 	movb   $0x2,0x31f(%rsp)
+ 1ed:	02 
+ 1ee:	89 ac 24 20 03 00 00 	mov    %ebp,0x320(%rsp)
+ 1f5:	c6 84 24 24 03 00 00 	movb   $0x24,0x324(%rsp)
+ 1fc:	24 
+ 1fd:	e8 00 00 00 00       	call   202 <main+0x202>
+			1fe: R_X86_64_PC32	.text+0x171
+ 202:	be 14 00 00 00       	mov    $0x14,%esi
+ 207:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ 20e:	00 
+ 20f:	e8 00 00 00 00       	call   214 <main+0x214>
+			210: R_X86_64_PC32	.text+0x8e
+ 214:	ba 20 00 00 00       	mov    $0x20,%edx
+ 219:	be 24 00 00 00       	mov    $0x24,%esi
+ 21e:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ 225:	00 
+ 226:	e8 00 00 00 00       	call   22b <main+0x22b>
+			227: R_X86_64_PC32	.text+0x8e
+ 22b:	48 8d 94 24 b8 00 00 	lea    0xb8(%rsp),%rdx
+ 232:	00 
+ 233:	b9 0c 00 00 00       	mov    $0xc,%ecx
+ 238:	48 89 de             	mov    %rbx,%rsi
+ 23b:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ 242:	00 
+ 243:	48 8d bc 24 0c 04 00 	lea    0x40c(%rsp),%rdi
+ 24a:	00 
+ 24b:	f3 a5                	rep movsl (%rsi),(%rdi)
+ 24d:	48 8d bc 24 3c 04 00 	lea    0x43c(%rsp),%rdi
+ 254:	00 
+ 255:	b9 0c 00 00 00       	mov    $0xc,%ecx
+ 25a:	4c 89 ee             	mov    %r13,%rsi
+ 25d:	f3 a5                	rep movsl (%rsi),(%rdi)
+ 25f:	48 8d bc 24 a0 04 00 	lea    0x4a0(%rsp),%rdi
+ 266:	00 
+ 267:	b9 0d 00 00 00       	mov    $0xd,%ecx
+ 26c:	48 8d b4 24 6c 04 00 	lea    0x46c(%rsp),%rsi
+ 273:	00 
+ 274:	f3 a5                	rep movsl (%rsi),(%rdi)
+ 276:	48 8d bc 24 34 03 00 	lea    0x334(%rsp),%rdi
+ 27d:	00 
+ 27e:	b9 09 00 00 00       	mov    $0x9,%ecx
+ 283:	48 8d b4 24 10 03 00 	lea    0x310(%rsp),%rsi
+ 28a:	00 
+ 28b:	f3 a5                	rep movsl (%rsi),(%rdi)
+ 28d:	b9 06 00 00 00       	mov    $0x6,%ecx
+ 292:	48 8d 74 24 30       	lea    0x30(%rsp),%rsi
+ 297:	4c 89 e7             	mov    %r12,%rdi
+ 29a:	e8 00 00 00 00       	call   29f <main+0x29f>
+			29b: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ 29f:	31 ff                	xor    %edi,%edi
+ 2a1:	ba a9 00 00 00       	mov    $0xa9,%edx
+ 2a6:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 2ad <main+0x2ad>
+			2a9: R_X86_64_PC32	.LC8-0x4
+ 2ad:	48 85 c0             	test   %rax,%rax
+ 2b0:	40 0f 94 c7          	sete   %dil
+ 2b4:	e8 00 00 00 00       	call   2b9 <main+0x2b9>
+			2b5: R_X86_64_PC32	.text+0xf1
+ 2b9:	8b 4c 24 08          	mov    0x8(%rsp),%ecx
+ 2bd:	31 ff                	xor    %edi,%edi
+ 2bf:	44 8d 3c 01          	lea    (%rcx,%rax,1),%r15d
+ 2c3:	48 83 7c 24 70 02    	cmpq   $0x2,0x70(%rsp)
+ 2c9:	75 20                	jne    2eb <main+0x2eb>
+ 2cb:	48 8b 44 24 60       	mov    0x60(%rsp),%rax
+ 2d0:	48 39 18             	cmp    %rbx,(%rax)
+ 2d3:	75 16                	jne    2eb <main+0x2eb>
+ 2d5:	4c 39 68 20          	cmp    %r13,0x20(%rax)
+ 2d9:	75 10                	jne    2eb <main+0x2eb>
+ 2db:	80 78 18 00          	cmpb   $0x0,0x18(%rax)
+ 2df:	75 0a                	jne    2eb <main+0x2eb>
+ 2e1:	31 ff                	xor    %edi,%edi
+ 2e3:	80 78 38 00          	cmpb   $0x0,0x38(%rax)
+ 2e7:	40 0f 94 c7          	sete   %dil
+ 2eb:	ba ab 00 00 00       	mov    $0xab,%edx
+ 2f0:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 2f7 <main+0x2f7>
+			2f3: R_X86_64_PC32	.LC9-0x4
+ 2f7:	e8 00 00 00 00       	call   2fc <main+0x2fc>
+			2f8: R_X86_64_PC32	.text+0xf1
+ 2fc:	48 8d b4 24 76 04 00 	lea    0x476(%rsp),%rsi
+ 303:	00 
+ 304:	ba 1a 00 00 00       	mov    $0x1a,%edx
+ 309:	44 01 f8             	add    %r15d,%eax
+ 30c:	4c 8b bc 24 b0 00 00 	mov    0xb0(%rsp),%r15
+ 313:	00 
+ 314:	89 44 24 08          	mov    %eax,0x8(%rsp)
+ 318:	49 8d 7f 0a          	lea    0xa(%r15),%rdi
+ 31c:	e8 00 00 00 00       	call   321 <main+0x321>
+			31d: R_X86_64_PLT32	memcmp-0x4
+ 321:	89 c1                	mov    %eax,%ecx
+ 323:	85 c0                	test   %eax,%eax
+ 325:	75 45                	jne    36c <main+0x36c>
+ 327:	49 8d 7f 24          	lea    0x24(%r15),%rdi
+ 32b:	e8 00 00 00 00       	call   330 <main+0x330>
+			32c: R_X86_64_PC32	.text-0x4
+ 330:	49 8d 7f 28          	lea    0x28(%r15),%rdi
+ 334:	89 c2                	mov    %eax,%edx
+ 336:	e8 00 00 00 00       	call   33b <main+0x33b>
+			337: R_X86_64_PC32	.text-0x4
+ 33b:	48 c1 e0 20          	shl    $0x20,%rax
+ 33f:	48 09 d0             	or     %rdx,%rax
+ 342:	48 39 c3             	cmp    %rax,%rbx
+ 345:	75 27                	jne    36e <main+0x36e>
+ 347:	49 8d 7f 2c          	lea    0x2c(%r15),%rdi
+ 34b:	31 c9                	xor    %ecx,%ecx
+ 34d:	e8 00 00 00 00       	call   352 <main+0x352>
+			34e: R_X86_64_PC32	.text-0x4
+ 352:	49 8d 7f 30          	lea    0x30(%r15),%rdi
+ 356:	89 c2                	mov    %eax,%edx
+ 358:	e8 00 00 00 00       	call   35d <main+0x35d>
+			359: R_X86_64_PC32	.text-0x4
+ 35d:	48 c1 e0 20          	shl    $0x20,%rax
+ 361:	48 09 d0             	or     %rdx,%rax
+ 364:	4c 39 e8             	cmp    %r13,%rax
+ 367:	0f 94 c1             	sete   %cl
+ 36a:	eb 02                	jmp    36e <main+0x36e>
+ 36c:	31 c9                	xor    %ecx,%ecx
+ 36e:	89 cf                	mov    %ecx,%edi
+ 370:	ba ae 00 00 00       	mov    $0xae,%edx
+ 375:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 37c <main+0x37c>
+			378: R_X86_64_PC32	.LC10-0x4
+ 37c:	e8 00 00 00 00       	call   381 <main+0x381>
+			37d: R_X86_64_PC32	.text+0xf1
+ 381:	8b 4c 24 08          	mov    0x8(%rsp),%ecx
+ 385:	48 8d 75 0a          	lea    0xa(%rbp),%rsi
+ 389:	4c 8b bc 24 a8 00 00 	mov    0xa8(%rsp),%r15
+ 390:	00 
+ 391:	ba 1a 00 00 00       	mov    $0x1a,%edx
+ 396:	01 c1                	add    %eax,%ecx
+ 398:	49 8d 7f 0a          	lea    0xa(%r15),%rdi
+ 39c:	89 4c 24 08          	mov    %ecx,0x8(%rsp)
+ 3a0:	e8 00 00 00 00       	call   3a5 <main+0x3a5>
+			3a1: R_X86_64_PLT32	memcmp-0x4
+ 3a5:	89 c1                	mov    %eax,%ecx
+ 3a7:	85 c0                	test   %eax,%eax
+ 3a9:	75 20                	jne    3cb <main+0x3cb>
+ 3ab:	49 8d 7f 04          	lea    0x4(%r15),%rdi
+ 3af:	e8 00 00 00 00       	call   3b4 <main+0x3b4>
+			3b0: R_X86_64_PC32	.text-0x4
+ 3b4:	83 f8 28             	cmp    $0x28,%eax
+ 3b7:	75 14                	jne    3cd <main+0x3cd>
+ 3b9:	49 8d 7f 24          	lea    0x24(%r15),%rdi
+ 3bd:	31 c9                	xor    %ecx,%ecx
+ 3bf:	e8 00 00 00 00       	call   3c4 <main+0x3c4>
+			3c0: R_X86_64_PC32	.text-0x4
+ 3c4:	39 d8                	cmp    %ebx,%eax
+ 3c6:	0f 94 c1             	sete   %cl
+ 3c9:	eb 02                	jmp    3cd <main+0x3cd>
+ 3cb:	31 c9                	xor    %ecx,%ecx
+ 3cd:	89 cf                	mov    %ecx,%edi
+ 3cf:	ba b2 00 00 00       	mov    $0xb2,%edx
+ 3d4:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 3db <main+0x3db>
+			3d7: R_X86_64_PC32	.LC11-0x4
+ 3db:	e8 00 00 00 00       	call   3e0 <main+0x3e0>
+			3dc: R_X86_64_PC32	.text+0xf1
+ 3e0:	8b 4c 24 08          	mov    0x8(%rsp),%ecx
+ 3e4:	4c 8b bc 24 90 00 00 	mov    0x90(%rsp),%r15
+ 3eb:	00 
+ 3ec:	ba 06 00 00 00       	mov    $0x6,%edx
+ 3f1:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 3f8 <main+0x3f8>
+			3f4: R_X86_64_PC32	.LC12-0x4
+ 3f8:	01 c1                	add    %eax,%ecx
+ 3fa:	49 8d 7f 09          	lea    0x9(%r15),%rdi
+ 3fe:	89 4c 24 08          	mov    %ecx,0x8(%rsp)
+ 402:	e8 00 00 00 00       	call   407 <main+0x407>
+			403: R_X86_64_PLT32	memcmp-0x4
+ 407:	85 c0                	test   %eax,%eax
+ 409:	74 04                	je     40f <main+0x40f>
+ 40b:	31 ff                	xor    %edi,%edi
+ 40d:	eb 4c                	jmp    45b <main+0x45b>
+ 40f:	be 14 00 00 00       	mov    $0x14,%esi
+ 414:	4c 89 ff             	mov    %r15,%rdi
+ 417:	e8 00 00 00 00       	call   41c <main+0x41c>
+			418: R_X86_64_PLT32	cdk2_acpi_checksum-0x4
+ 41c:	84 c0                	test   %al,%al
+ 41e:	75 eb                	jne    40b <main+0x40b>
+ 420:	8b b4 24 98 00 00 00 	mov    0x98(%rsp),%esi
+ 427:	48 8b bc 24 90 00 00 	mov    0x90(%rsp),%rdi
+ 42e:	00 
+ 42f:	e8 00 00 00 00       	call   434 <main+0x434>
+			430: R_X86_64_PLT32	cdk2_acpi_checksum-0x4
+ 434:	84 c0                	test   %al,%al
+ 436:	75 d3                	jne    40b <main+0x40b>
+ 438:	48 8b 94 24 b0 00 00 	mov    0xb0(%rsp),%rdx
+ 43f:	00 
+ 440:	48 8d 7a 04          	lea    0x4(%rdx),%rdi
+ 444:	e8 00 00 00 00       	call   449 <main+0x449>
+			445: R_X86_64_PC32	.text-0x4
+ 449:	48 89 d7             	mov    %rdx,%rdi
+ 44c:	89 c6                	mov    %eax,%esi
+ 44e:	e8 00 00 00 00       	call   453 <main+0x453>
+			44f: R_X86_64_PLT32	cdk2_acpi_checksum-0x4
+ 453:	31 ff                	xor    %edi,%edi
+ 455:	84 c0                	test   %al,%al
+ 457:	40 0f 94 c7          	sete   %dil
+ 45b:	ba b6 00 00 00       	mov    $0xb6,%edx
+ 460:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 467 <main+0x467>
+			463: R_X86_64_PC32	.LC13-0x4
+ 467:	e8 00 00 00 00       	call   46c <main+0x46c>
+			468: R_X86_64_PC32	.text+0xf1
+ 46c:	44 8b 7c 24 08       	mov    0x8(%rsp),%r15d
+ 471:	4c 89 e7             	mov    %r12,%rdi
+ 474:	41 01 c7             	add    %eax,%r15d
+ 477:	48 8b 84 24 00 03 00 	mov    0x300(%rsp),%rax
+ 47e:	00 
+ 47f:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+ 484:	48 8b 44 24 60       	mov    0x60(%rsp),%rax
+ 489:	48 8b 70 30          	mov    0x30(%rax),%rsi
+ 48d:	e8 00 00 00 00       	call   492 <main+0x492>
+			48e: R_X86_64_PLT32	cdk2_acpi_uninstall-0x4
+ 492:	31 ff                	xor    %edi,%edi
+ 494:	48 85 c0             	test   %rax,%rax
+ 497:	75 1b                	jne    4b4 <main+0x4b4>
+ 499:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+ 49e:	48 39 84 24 00 03 00 	cmp    %rax,0x300(%rsp)
+ 4a5:	00 
+ 4a6:	75 0c                	jne    4b4 <main+0x4b4>
+ 4a8:	31 ff                	xor    %edi,%edi
+ 4aa:	48 83 7c 24 70 01    	cmpq   $0x1,0x70(%rsp)
+ 4b0:	40 0f 94 c7          	sete   %dil
+ 4b4:	ba be 00 00 00       	mov    $0xbe,%edx
+ 4b9:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 4c0 <main+0x4c0>
+			4bc: R_X86_64_PC32	.LC14-0x4
+ 4c0:	e8 00 00 00 00       	call   4c5 <main+0x4c5>
+			4c1: R_X86_64_PC32	.text+0xf1
+ 4c5:	ba 30 00 00 00       	mov    $0x30,%edx
+ 4ca:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 4d1 <main+0x4d1>
+			4cd: R_X86_64_PC32	.LC4-0x4
+ 4d1:	44 01 f8             	add    %r15d,%eax
+ 4d4:	4c 8d bc 24 ac 03 00 	lea    0x3ac(%rsp),%r15
+ 4db:	00 
+ 4dc:	4c 89 ff             	mov    %r15,%rdi
+ 4df:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 4e3:	e8 00 00 00 00       	call   4e8 <main+0x4e8>
+			4e4: R_X86_64_PC32	.text+0x126
+ 4e8:	ba 30 00 00 00       	mov    $0x30,%edx
+ 4ed:	4c 89 e7             	mov    %r12,%rdi
+ 4f0:	4c 89 fe             	mov    %r15,%rsi
+ 4f3:	48 8b 84 24 f8 02 00 	mov    0x2f8(%rsp),%rax
+ 4fa:	00 
+ 4fb:	48 ff c0             	inc    %rax
+ 4fe:	48 89 84 24 08 03 00 	mov    %rax,0x308(%rsp)
+ 505:	00 
+ 506:	48 8d 44 24 20       	lea    0x20(%rsp),%rax
+ 50b:	48 89 c1             	mov    %rax,%rcx
+ 50e:	48 89 44 24 10       	mov    %rax,0x10(%rsp)
+ 513:	e8 00 00 00 00       	call   518 <main+0x518>
+			514: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 518:	31 ff                	xor    %edi,%edi
+ 51a:	48 89 c2             	mov    %rax,%rdx
+ 51d:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+ 524:	00 00 80 
+ 527:	48 39 c2             	cmp    %rax,%rdx
+ 52a:	75 16                	jne    542 <main+0x542>
+ 52c:	48 83 7c 24 70 01    	cmpq   $0x1,0x70(%rsp)
+ 532:	75 0e                	jne    542 <main+0x542>
+ 534:	31 ff                	xor    %edi,%edi
+ 536:	80 bc 24 88 00 00 00 	cmpb   $0x0,0x88(%rsp)
+ 53d:	00 
+ 53e:	40 0f 95 c7          	setne  %dil
+ 542:	ba c2 00 00 00       	mov    $0xc2,%edx
+ 547:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 54e <main+0x54e>
+			54a: R_X86_64_PC32	.LC15-0x4
+ 54e:	e8 00 00 00 00       	call   553 <main+0x553>
+			54f: R_X86_64_PC32	.text+0xf1
+ 553:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 557:	31 d2                	xor    %edx,%edx
+ 559:	4c 89 e7             	mov    %r12,%rdi
+ 55c:	48 89 94 24 08 03 00 	mov    %rdx,0x308(%rsp)
+ 563:	00 
+ 564:	4c 89 fe             	mov    %r15,%rsi
+ 567:	ba 30 00 00 00       	mov    $0x30,%edx
+ 56c:	01 c1                	add    %eax,%ecx
+ 56e:	89 4c 24 1c          	mov    %ecx,0x1c(%rsp)
+ 572:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+ 577:	e8 00 00 00 00       	call   57c <main+0x57c>
+			578: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 57c:	31 ff                	xor    %edi,%edi
+ 57e:	48 85 c0             	test   %rax,%rax
+ 581:	75 28                	jne    5ab <main+0x5ab>
+ 583:	48 83 7c 24 70 02    	cmpq   $0x2,0x70(%rsp)
+ 589:	75 20                	jne    5ab <main+0x5ab>
+ 58b:	48 8b 44 24 60       	mov    0x60(%rsp),%rax
+ 590:	48 8b 4c 24 20       	mov    0x20(%rsp),%rcx
+ 595:	48 39 48 30          	cmp    %rcx,0x30(%rax)
+ 599:	75 10                	jne    5ab <main+0x5ab>
+ 59b:	80 78 38 00          	cmpb   $0x0,0x38(%rax)
+ 59f:	74 0a                	je     5ab <main+0x5ab>
+ 5a1:	31 ff                	xor    %edi,%edi
+ 5a3:	4c 39 78 20          	cmp    %r15,0x20(%rax)
+ 5a7:	40 0f 95 c7          	setne  %dil
+ 5ab:	ba c6 00 00 00       	mov    $0xc6,%edx
+ 5b0:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 5b7 <main+0x5b7>
+			5b3: R_X86_64_PC32	.LC16-0x4
+ 5b7:	e8 00 00 00 00       	call   5bc <main+0x5bc>
+			5b8: R_X86_64_PC32	.text+0xf1
+ 5bc:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 5c0:	ba 30 00 00 00       	mov    $0x30,%edx
+ 5c5:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 5cc <main+0x5cc>
+			5c8: R_X86_64_PC32	.LC17-0x4
+ 5cc:	48 8d bc 24 dc 03 00 	lea    0x3dc(%rsp),%rdi
+ 5d3:	00 
+ 5d4:	01 c1                	add    %eax,%ecx
+ 5d6:	89 4c 24 10          	mov    %ecx,0x10(%rsp)
+ 5da:	e8 00 00 00 00       	call   5df <main+0x5df>
+			5db: R_X86_64_PC32	.text+0x126
+ 5df:	4c 89 e7             	mov    %r12,%rdi
+ 5e2:	48 8d 4c 24 28       	lea    0x28(%rsp),%rcx
+ 5e7:	ba 30 00 00 00       	mov    $0x30,%edx
+ 5ec:	48 8d b4 24 dc 03 00 	lea    0x3dc(%rsp),%rsi
+ 5f3:	00 
+ 5f4:	e8 00 00 00 00       	call   5f9 <main+0x5f9>
+			5f5: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 5f9:	31 ff                	xor    %edi,%edi
+ 5fb:	48 85 c0             	test   %rax,%rax
+ 5fe:	75 2a                	jne    62a <main+0x62a>
+ 600:	48 83 7c 24 70 03    	cmpq   $0x3,0x70(%rsp)
+ 606:	75 22                	jne    62a <main+0x62a>
+ 608:	48 8b 44 24 60       	mov    0x60(%rsp),%rax
+ 60d:	ba 04 00 00 00       	mov    $0x4,%edx
+ 612:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 619 <main+0x619>
+			615: R_X86_64_PC32	.LC17-0x4
+ 619:	48 8b 78 40          	mov    0x40(%rax),%rdi
+ 61d:	e8 00 00 00 00       	call   622 <main+0x622>
+			61e: R_X86_64_PLT32	memcmp-0x4
+ 622:	31 ff                	xor    %edi,%edi
+ 624:	85 c0                	test   %eax,%eax
+ 626:	40 0f 94 c7          	sete   %dil
+ 62a:	ba cb 00 00 00       	mov    $0xcb,%edx
+ 62f:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 636 <main+0x636>
+			632: R_X86_64_PC32	.LC18-0x4
+ 636:	e8 00 00 00 00       	call   63b <main+0x63b>
+			637: R_X86_64_PC32	.text+0xf1
+ 63b:	44 8b 7c 24 10       	mov    0x10(%rsp),%r15d
+ 640:	48 8b 74 24 28       	mov    0x28(%rsp),%rsi
+ 645:	4c 89 e7             	mov    %r12,%rdi
+ 648:	41 01 c7             	add    %eax,%r15d
+ 64b:	e8 00 00 00 00       	call   650 <main+0x650>
+			64c: R_X86_64_PLT32	cdk2_acpi_uninstall-0x4
+ 650:	31 ff                	xor    %edi,%edi
+ 652:	48 85 c0             	test   %rax,%rax
+ 655:	75 1e                	jne    675 <main+0x675>
+ 657:	48 83 7c 24 70 02    	cmpq   $0x2,0x70(%rsp)
+ 65d:	75 16                	jne    675 <main+0x675>
+ 65f:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+ 664:	31 ff                	xor    %edi,%edi
+ 666:	48 ff c0             	inc    %rax
+ 669:	48 39 84 24 00 03 00 	cmp    %rax,0x300(%rsp)
+ 670:	00 
+ 671:	40 0f 94 c7          	sete   %dil
+ 675:	ba ce 00 00 00       	mov    $0xce,%edx
+ 67a:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 681 <main+0x681>
+			67d: R_X86_64_PC32	.LC19-0x4
+ 681:	e8 00 00 00 00       	call   686 <main+0x686>
+			682: R_X86_64_PC32	.text+0xf1
+ 686:	48 8b 74 24 20       	mov    0x20(%rsp),%rsi
+ 68b:	4c 89 e7             	mov    %r12,%rdi
+ 68e:	41 01 c7             	add    %eax,%r15d
+ 691:	e8 00 00 00 00       	call   696 <main+0x696>
+			692: R_X86_64_PLT32	cdk2_acpi_uninstall-0x4
+ 696:	31 ff                	xor    %edi,%edi
+ 698:	48 85 c0             	test   %rax,%rax
+ 69b:	75 17                	jne    6b4 <main+0x6b4>
+ 69d:	48 8b 44 24 08       	mov    0x8(%rsp),%rax
+ 6a2:	31 ff                	xor    %edi,%edi
+ 6a4:	48 83 c0 02          	add    $0x2,%rax
+ 6a8:	48 39 84 24 00 03 00 	cmp    %rax,0x300(%rsp)
+ 6af:	00 
+ 6b0:	40 0f 94 c7          	sete   %dil
+ 6b4:	ba d0 00 00 00       	mov    $0xd0,%edx
+ 6b9:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 6c0 <main+0x6c0>
+			6bc: R_X86_64_PC32	.LC20-0x4
+ 6c0:	e8 00 00 00 00       	call   6c5 <main+0x6c5>
+			6c1: R_X86_64_PC32	.text+0xf1
+ 6c5:	ba 94 00 00 00       	mov    $0x94,%edx
+ 6ca:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 6d1 <main+0x6d1>
+			6cd: R_X86_64_PC32	.LC3-0x4
+ 6d1:	48 8d bc 24 d4 04 00 	lea    0x4d4(%rsp),%rdi
+ 6d8:	00 
+ 6d9:	44 01 f8             	add    %r15d,%eax
+ 6dc:	49 bf 03 00 00 00 00 	movabs $0x8000000000000003,%r15
+ 6e3:	00 00 80 
+ 6e6:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 6ea:	e8 00 00 00 00       	call   6ef <main+0x6ef>
+			6eb: R_X86_64_PC32	.text+0x126
+ 6ef:	48 8d 44 24 28       	lea    0x28(%rsp),%rax
+ 6f4:	ba 94 00 00 00       	mov    $0x94,%edx
+ 6f9:	48 8d b4 24 d4 04 00 	lea    0x4d4(%rsp),%rsi
+ 700:	00 
+ 701:	48 89 44 24 10       	mov    %rax,0x10(%rsp)
+ 706:	48 8d 44 24 48       	lea    0x48(%rsp),%rax
+ 70b:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+ 710:	48 89 c7             	mov    %rax,%rdi
+ 713:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+ 718:	e8 00 00 00 00       	call   71d <main+0x71d>
+			719: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 71d:	31 ff                	xor    %edi,%edi
+ 71f:	ba d4 00 00 00       	mov    $0xd4,%edx
+ 724:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 72b <main+0x72b>
+			727: R_X86_64_PC32	.LC21-0x4
+ 72b:	4c 39 f8             	cmp    %r15,%rax
+ 72e:	40 0f 94 c7          	sete   %dil
+ 732:	e8 00 00 00 00       	call   737 <main+0x737>
+			733: R_X86_64_PC32	.text+0xf1
+ 737:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 73b:	ba 94 00 00 00       	mov    $0x94,%edx
+ 740:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 747 <main+0x747>
+			743: R_X86_64_PC32	.LC22-0x4
+ 747:	48 8d bc 24 d4 04 00 	lea    0x4d4(%rsp),%rdi
+ 74e:	00 
+ 74f:	01 c8                	add    %ecx,%eax
+ 751:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 755:	e8 00 00 00 00       	call   75a <main+0x75a>
+			756: R_X86_64_PC32	.text+0x126
+ 75a:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+ 75f:	48 8b 7c 24 08       	mov    0x8(%rsp),%rdi
+ 764:	ba 94 00 00 00       	mov    $0x94,%edx
+ 769:	48 8d b4 24 d4 04 00 	lea    0x4d4(%rsp),%rsi
+ 770:	00 
+ 771:	e8 00 00 00 00       	call   776 <main+0x776>
+			772: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 776:	31 ff                	xor    %edi,%edi
+ 778:	ba d7 00 00 00       	mov    $0xd7,%edx
+ 77d:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 784 <main+0x784>
+			780: R_X86_64_PC32	.LC21-0x4
+ 784:	4c 39 f8             	cmp    %r15,%rax
+ 787:	40 0f 94 c7          	sete   %dil
+ 78b:	e8 00 00 00 00       	call   790 <main+0x790>
+			78c: R_X86_64_PC32	.text+0xf1
+ 790:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 794:	ba 94 00 00 00       	mov    $0x94,%edx
+ 799:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 7a0 <main+0x7a0>
+			79c: R_X86_64_PC32	.LC23-0x4
+ 7a0:	48 8d bc 24 d4 04 00 	lea    0x4d4(%rsp),%rdi
+ 7a7:	00 
+ 7a8:	01 c8                	add    %ecx,%eax
+ 7aa:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 7ae:	e8 00 00 00 00       	call   7b3 <main+0x7b3>
+			7af: R_X86_64_PC32	.text+0x126
+ 7b3:	48 8b 4c 24 10       	mov    0x10(%rsp),%rcx
+ 7b8:	48 8b 7c 24 08       	mov    0x8(%rsp),%rdi
+ 7bd:	ba 94 00 00 00       	mov    $0x94,%edx
+ 7c2:	48 8d b4 24 d4 04 00 	lea    0x4d4(%rsp),%rsi
+ 7c9:	00 
+ 7ca:	e8 00 00 00 00       	call   7cf <main+0x7cf>
+			7cb: R_X86_64_PLT32	cdk2_acpi_install-0x4
+ 7cf:	31 ff                	xor    %edi,%edi
+ 7d1:	ba da 00 00 00       	mov    $0xda,%edx
+ 7d6:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 7dd <main+0x7dd>
+			7d9: R_X86_64_PC32	.LC21-0x4
+ 7dd:	4c 39 f8             	cmp    %r15,%rax
+ 7e0:	40 0f 94 c7          	sete   %dil
+ 7e4:	e8 00 00 00 00       	call   7e9 <main+0x7e9>
+			7e5: R_X86_64_PC32	.text+0xf1
+ 7e9:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 7ed:	48 8b 7c 24 08       	mov    0x8(%rsp),%rdi
+ 7f2:	44 8d 24 01          	lea    (%rcx,%rax,1),%r12d
+ 7f6:	e8 00 00 00 00       	call   7fb <main+0x7fb>
+			7f7: R_X86_64_PLT32	cdk2_acpi_tables_destroy-0x4
+ 7fb:	48 8b 84 24 00 03 00 	mov    0x300(%rsp),%rax
+ 802:	00 
+ 803:	31 ff                	xor    %edi,%edi
+ 805:	ba de 00 00 00       	mov    $0xde,%edx
+ 80a:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 811 <main+0x811>
+			80d: R_X86_64_PC32	.LC24-0x4
+ 811:	48 ff c0             	inc    %rax
+ 814:	48 3b 84 24 f8 02 00 	cmp    0x2f8(%rsp),%rax
+ 81b:	00 
+ 81c:	40 0f 94 c7          	sete   %dil
+ 820:	e8 00 00 00 00       	call   825 <main+0x825>
+			821: R_X86_64_PC32	.text+0xf1
+ 825:	48 8d b4 24 0c 04 00 	lea    0x40c(%rsp),%rsi
+ 82c:	00 
+ 82d:	ba 30 00 00 00       	mov    $0x30,%edx
+ 832:	48 89 df             	mov    %rbx,%rdi
+ 835:	45 8d 3c 04          	lea    (%r12,%rax,1),%r15d
+ 839:	e8 00 00 00 00       	call   83e <main+0x83e>
+			83a: R_X86_64_PLT32	memcmp-0x4
+ 83e:	41 89 c4             	mov    %eax,%r12d
+ 841:	85 c0                	test   %eax,%eax
+ 843:	75 5c                	jne    8a1 <main+0x8a1>
+ 845:	48 8d b4 24 3c 04 00 	lea    0x43c(%rsp),%rsi
+ 84c:	00 
+ 84d:	ba 30 00 00 00       	mov    $0x30,%edx
+ 852:	4c 89 ef             	mov    %r13,%rdi
+ 855:	e8 00 00 00 00       	call   85a <main+0x85a>
+			856: R_X86_64_PLT32	memcmp-0x4
+ 85a:	85 c0                	test   %eax,%eax
+ 85c:	75 46                	jne    8a4 <main+0x8a4>
+ 85e:	48 8d b4 24 a0 04 00 	lea    0x4a0(%rsp),%rsi
+ 865:	00 
+ 866:	ba 34 00 00 00       	mov    $0x34,%edx
+ 86b:	48 8d bc 24 6c 04 00 	lea    0x46c(%rsp),%rdi
+ 872:	00 
+ 873:	e8 00 00 00 00       	call   878 <main+0x878>
+			874: R_X86_64_PLT32	memcmp-0x4
+ 878:	85 c0                	test   %eax,%eax
+ 87a:	75 28                	jne    8a4 <main+0x8a4>
+ 87c:	48 8d b4 24 34 03 00 	lea    0x334(%rsp),%rsi
+ 883:	00 
+ 884:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ 88b:	00 
+ 88c:	ba 24 00 00 00       	mov    $0x24,%edx
+ 891:	45 31 e4             	xor    %r12d,%r12d
+ 894:	e8 00 00 00 00       	call   899 <main+0x899>
+			895: R_X86_64_PLT32	memcmp-0x4
+ 899:	85 c0                	test   %eax,%eax
+ 89b:	41 0f 94 c4          	sete   %r12b
+ 89f:	eb 03                	jmp    8a4 <main+0x8a4>
+ 8a1:	45 31 e4             	xor    %r12d,%r12d
+ 8a4:	44 89 e7             	mov    %r12d,%edi
+ 8a7:	ba df 00 00 00       	mov    $0xdf,%edx
+ 8ac:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 8b3 <main+0x8b3>
+			8af: R_X86_64_PC32	.LC25-0x4
+ 8b3:	e8 00 00 00 00       	call   8b8 <main+0x8b8>
+			8b4: R_X86_64_PC32	.text+0xf1
+ 8b8:	48 8d bc 24 58 03 00 	lea    0x358(%rsp),%rdi
+ 8bf:	00 
+ 8c0:	48 8d b4 24 10 03 00 	lea    0x310(%rsp),%rsi
+ 8c7:	00 
+ 8c8:	b9 09 00 00 00       	mov    $0x9,%ecx
+ 8cd:	f3 a5                	rep movsl (%rsi),(%rdi)
+ 8cf:	45 8d 24 07          	lea    (%r15,%rax,1),%r12d
+ 8d3:	b9 06 00 00 00       	mov    $0x6,%ecx
+ 8d8:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ 8dd:	48 8d 84 24 b8 00 00 	lea    0xb8(%rsp),%rax
+ 8e4:	00 
+ 8e5:	4c 8d 84 24 58 03 00 	lea    0x358(%rsp),%r8
+ 8ec:	00 
+ 8ed:	49 bf 21 00 00 00 00 	movabs $0x8000000000000021,%r15
+ 8f4:	00 00 80 
+ 8f7:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+ 8fc:	48 8d 44 24 30       	lea    0x30(%rsp),%rax
+ 901:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ 906:	48 89 c6             	mov    %rax,%rsi
+ 909:	fe 84 24 60 03 00 00 	incb   0x360(%rsp)
+ 910:	48 89 44 24 10       	mov    %rax,0x10(%rsp)
+ 915:	e8 00 00 00 00       	call   91a <main+0x91a>
+			916: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ 91a:	31 ff                	xor    %edi,%edi
+ 91c:	ba e6 00 00 00       	mov    $0xe6,%edx
+ 921:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 928 <main+0x928>
+			924: R_X86_64_PC32	.LC26-0x4
+ 928:	4c 39 f8             	cmp    %r15,%rax
+ 92b:	40 0f 94 c7          	sete   %dil
+ 92f:	e8 00 00 00 00       	call   934 <main+0x934>
+			930: R_X86_64_PC32	.text+0xf1
+ 934:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ 939:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+ 93e:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ 945:	00 
+ 946:	44 01 e0             	add    %r12d,%eax
+ 949:	b9 06 00 00 00       	mov    $0x6,%ecx
+ 94e:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ 953:	fe 84 24 75 04 00 00 	incb   0x475(%rsp)
+ 95a:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 95e:	e8 00 00 00 00       	call   963 <main+0x963>
+			95f: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ 963:	31 ff                	xor    %edi,%edi
+ 965:	ba e9 00 00 00       	mov    $0xe9,%edx
+ 96a:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 971 <main+0x971>
+			96d: R_X86_64_PC32	.LC27-0x4
+ 971:	4c 39 f8             	cmp    %r15,%rax
+ 974:	40 0f 94 c7          	sete   %dil
+ 978:	e8 00 00 00 00       	call   97d <main+0x97d>
+			979: R_X86_64_PC32	.text+0xf1
+ 97d:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 981:	ba 09 00 00 00       	mov    $0x9,%edx
+ 986:	48 8d bc 24 6c 04 00 	lea    0x46c(%rsp),%rdi
+ 98d:	00 
+ 98e:	be 34 00 00 00       	mov    $0x34,%esi
+ 993:	fe 8c 24 75 04 00 00 	decb   0x475(%rsp)
+ 99a:	01 c8                	add    %ecx,%eax
+ 99c:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ 9a0:	e8 00 00 00 00       	call   9a5 <main+0x9a5>
+			9a1: R_X86_64_PC32	.text+0x8e
+ 9a5:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ 9aa:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+ 9af:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ 9b6:	00 
+ 9b7:	b9 06 00 00 00       	mov    $0x6,%ecx
+ 9bc:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ 9c1:	fe 84 24 85 03 00 00 	incb   0x385(%rsp)
+ 9c8:	e8 00 00 00 00       	call   9cd <main+0x9cd>
+			9c9: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ 9cd:	31 ff                	xor    %edi,%edi
+ 9cf:	ba ee 00 00 00       	mov    $0xee,%edx
+ 9d4:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # 9db <main+0x9db>
+			9d7: R_X86_64_PC32	.LC27-0x4
+ 9db:	4c 39 f8             	cmp    %r15,%rax
+ 9de:	40 0f 94 c7          	sete   %dil
+ 9e2:	e8 00 00 00 00       	call   9e7 <main+0x9e7>
+			9e3: R_X86_64_PC32	.text+0xf1
+ 9e7:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ 9eb:	4c 89 ef             	mov    %r13,%rdi
+ 9ee:	ba 09 00 00 00       	mov    $0x9,%edx
+ 9f3:	be 30 00 00 00       	mov    $0x30,%esi
+ 9f8:	fe 8c 24 85 03 00 00 	decb   0x385(%rsp)
+ 9ff:	01 c8                	add    %ecx,%eax
+ a01:	89 44 24 1c          	mov    %eax,0x1c(%rsp)
+ a05:	e8 00 00 00 00       	call   a0a <main+0xa0a>
+			a06: R_X86_64_PC32	.text+0x8e
+ a0a:	fe 45 09             	incb   0x9(%rbp)
+ a0d:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ a12:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ a19:	00 
+ a1a:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+ a1f:	b9 06 00 00 00       	mov    $0x6,%ecx
+ a24:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ a29:	e8 00 00 00 00       	call   a2e <main+0xa2e>
+			a2a: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ a2e:	31 ff                	xor    %edi,%edi
+ a30:	ba f5 00 00 00       	mov    $0xf5,%edx
+ a35:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # a3c <main+0xa3c>
+			a38: R_X86_64_PC32	.LC27-0x4
+ a3c:	4c 39 f8             	cmp    %r15,%rax
+ a3f:	40 0f 94 c7          	sete   %dil
+ a43:	e8 00 00 00 00       	call   a48 <main+0xa48>
+			a44: R_X86_64_PC32	.text+0xf1
+ a48:	fe 4d 09             	decb   0x9(%rbp)
+ a4b:	8b 4c 24 1c          	mov    0x1c(%rsp),%ecx
+ a4f:	48 89 ef             	mov    %rbp,%rdi
+ a52:	ba 09 00 00 00       	mov    $0x9,%edx
+ a57:	be 24 00 00 00       	mov    $0x24,%esi
+ a5c:	44 8d 2c 01          	lea    (%rcx,%rax,1),%r13d
+ a60:	e8 00 00 00 00       	call   a65 <main+0xa65>
+			a61: R_X86_64_PC32	.text+0x8e
+ a65:	31 c0                	xor    %eax,%eax
+ a67:	ba 08 00 00 00       	mov    $0x8,%edx
+ a6c:	be 14 00 00 00       	mov    $0x14,%esi
+ a71:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ a78:	00 
+ a79:	89 84 24 20 03 00 00 	mov    %eax,0x320(%rsp)
+ a80:	e8 00 00 00 00       	call   a85 <main+0xa85>
+			a81: R_X86_64_PC32	.text+0x8e
+ a85:	ba 20 00 00 00       	mov    $0x20,%edx
+ a8a:	be 24 00 00 00       	mov    $0x24,%esi
+ a8f:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ a96:	00 
+ a97:	e8 00 00 00 00       	call   a9c <main+0xa9c>
+			a98: R_X86_64_PC32	.text+0x8e
+ a9c:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ aa1:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+ aa6:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ aab:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ ab2:	00 
+ ab3:	b9 06 00 00 00       	mov    $0x6,%ecx
+ ab8:	e8 00 00 00 00       	call   abd <main+0xabd>
+			ab9: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ abd:	31 ff                	xor    %edi,%edi
+ abf:	48 85 c0             	test   %rax,%rax
+ ac2:	75 24                	jne    ae8 <main+0xae8>
+ ac4:	48 83 bc 24 a8 00 00 	cmpq   $0x0,0xa8(%rsp)
+ acb:	00 00 
+ acd:	75 19                	jne    ae8 <main+0xae8>
+ acf:	48 8b 84 24 90 00 00 	mov    0x90(%rsp),%rax
+ ad6:	00 
+ ad7:	48 8d 78 10          	lea    0x10(%rax),%rdi
+ adb:	e8 00 00 00 00       	call   ae0 <main+0xae0>
+			adc: R_X86_64_PC32	.text-0x4
+ ae0:	31 ff                	xor    %edi,%edi
+ ae2:	85 c0                	test   %eax,%eax
+ ae4:	40 0f 94 c7          	sete   %dil
+ ae8:	ba fc 00 00 00       	mov    $0xfc,%edx
+ aed:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # af4 <main+0xaf4>
+			af0: R_X86_64_PC32	.LC28-0x4
+ af4:	e8 00 00 00 00       	call   af9 <main+0xaf9>
+			af5: R_X86_64_PC32	.text+0xf1
+ af9:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ afe:	41 01 c5             	add    %eax,%r13d
+ b01:	e8 00 00 00 00       	call   b06 <main+0xb06>
+			b02: R_X86_64_PLT32	cdk2_acpi_tables_destroy-0x4
+ b06:	ba 08 00 00 00       	mov    $0x8,%edx
+ b0b:	be 14 00 00 00       	mov    $0x14,%esi
+ b10:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ b17:	00 
+ b18:	89 ac 24 20 03 00 00 	mov    %ebp,0x320(%rsp)
+ b1f:	e8 00 00 00 00       	call   b24 <main+0xb24>
+			b20: R_X86_64_PC32	.text+0x8e
+ b24:	ba 20 00 00 00       	mov    $0x20,%edx
+ b29:	be 24 00 00 00       	mov    $0x24,%esi
+ b2e:	48 8d bc 24 10 03 00 	lea    0x310(%rsp),%rdi
+ b35:	00 
+ b36:	e8 00 00 00 00       	call   b3b <main+0xb3b>
+			b37: R_X86_64_PC32	.text+0x8e
+ b3b:	48 8b 54 24 08       	mov    0x8(%rsp),%rdx
+ b40:	48 8b 84 24 f8 02 00 	mov    0x2f8(%rsp),%rax
+ b47:	00 
+ b48:	4c 8d 84 24 10 03 00 	lea    0x310(%rsp),%r8
+ b4f:	00 
+ b50:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+ b55:	b9 06 00 00 00       	mov    $0x6,%ecx
+ b5a:	48 8d 7c 24 48       	lea    0x48(%rsp),%rdi
+ b5f:	48 83 c0 02          	add    $0x2,%rax
+ b63:	48 89 84 24 08 03 00 	mov    %rax,0x308(%rsp)
+ b6a:	00 
+ b6b:	e8 00 00 00 00       	call   b70 <main+0xb70>
+			b6c: R_X86_64_PLT32	cdk2_acpi_tables_initialize-0x4
+ b70:	31 ff                	xor    %edi,%edi
+ b72:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # b79 <main+0xb79>
+			b75: R_X86_64_PC32	.LC29-0x4
+ b79:	48 89 c2             	mov    %rax,%rdx
+ b7c:	48 b8 09 00 00 00 00 	movabs $0x8000000000000009,%rax
+ b83:	00 00 80 
+ b86:	48 39 c2             	cmp    %rax,%rdx
+ b89:	ba 05 01 00 00       	mov    $0x105,%edx
+ b8e:	40 0f 94 c7          	sete   %dil
+ b92:	e8 00 00 00 00       	call   b97 <main+0xb97>
+			b93: R_X86_64_PC32	.text+0xf1
+ b97:	31 ff                	xor    %edi,%edi
+ b99:	ba 07 01 00 00       	mov    $0x107,%edx
+ b9e:	48 8d 35 00 00 00 00 	lea    0x0(%rip),%rsi        # ba5 <main+0xba5>
+			ba1: R_X86_64_PC32	.LC30-0x4
+ ba5:	41 01 c5             	add    %eax,%r13d
+ ba8:	48 8b 84 24 00 03 00 	mov    0x300(%rsp),%rax
+ baf:	00 
+ bb0:	48 83 c0 02          	add    $0x2,%rax
+ bb4:	48 3b 84 24 f8 02 00 	cmp    0x2f8(%rsp),%rax
+ bbb:	00 
+ bbc:	40 0f 94 c7          	sete   %dil
+ bc0:	e8 00 00 00 00       	call   bc5 <main+0xbc5>
+			bc1: R_X86_64_PC32	.text+0xf1
+ bc5:	be 00 10 00 00       	mov    $0x1000,%esi
+ bca:	48 89 df             	mov    %rbx,%rdi
+ bcd:	41 01 c5             	add    %eax,%r13d
+ bd0:	e8 00 00 00 00       	call   bd5 <main+0xbd5>
+			bd1: R_X86_64_PLT32	munmap-0x4
+ bd5:	be 00 10 00 00       	mov    $0x1000,%esi
+ bda:	48 89 ef             	mov    %rbp,%rdi
+ bdd:	e8 00 00 00 00       	call   be2 <main+0xbe2>
+			bde: R_X86_64_PLT32	munmap-0x4
+ be2:	45 85 ed             	test   %r13d,%r13d
+ be5:	75 0c                	jne    bf3 <main+0xbf3>
+ be7:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # bee <main+0xbee>
+			bea: R_X86_64_PC32	.LC31-0x4
+ bee:	e8 00 00 00 00       	call   bf3 <main+0xbf3>
+			bef: R_X86_64_PLT32	puts-0x4
+ bf3:	31 c0                	xor    %eax,%eax
+ bf5:	45 85 ed             	test   %r13d,%r13d
+ bf8:	0f 95 c0             	setne  %al
+ bfb:	eb 05                	jmp    c02 <main+0xc02>
+ bfd:	b8 01 00 00 00       	mov    $0x1,%eax
+ c02:	48 8b 94 24 68 05 00 	mov    0x568(%rsp),%rdx
+ c09:	00 
+ c0a:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ c11:	00 00 
+ c13:	74 05                	je     c1a <main+0xc1a>
+ c15:	e8 00 00 00 00       	call   c1a <main+0xc1a>
+			c16: R_X86_64_PLT32	__stack_chk_fail-0x4
+ c1a:	48 81 c4 78 05 00 00 	add    $0x578,%rsp
+ c21:	5b                   	pop    %rbx
+ c22:	5d                   	pop    %rbp
+ c23:	41 5c                	pop    %r12
+ c25:	41 5d                	pop    %r13
+ c27:	41 5e                	pop    %r14
+ c29:	41 5f                	pop    %r15
+ c2b:	c3                   	ret

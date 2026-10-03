@@ -1,0 +1,6 @@
+p0 O0 unused-symbol removal and remaining whole object PASS
+p0 O2 unused-symbol removal and remaining whole object PASS
+p0 Os unused-symbol removal and remaining whole object PASS
+p1 O0 unused-symbol removal and remaining whole object PASS
+p1 O2 unused-symbol removal and remaining whole object PASS
+p1 Os unused-symbol removal and remaining whole object PASS

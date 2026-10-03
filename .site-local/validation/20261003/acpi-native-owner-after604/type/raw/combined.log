@@ -1,0 +1,14 @@
+In file included from /home/sean/acpi-native-api-audit.Y9pVUe/combined.c:3:
+/home/sean/Documents/cdk2/include/cdk2/tpm2_acpi_table.h:54:32: error: conflicting types for ‘cdk2_acpi_allocate_fn’; have ‘EFI_STATUS(UINTN,  void **)’ {aka ‘long long unsigned int(long long unsigned int,  void **)’}
+   54 | typedef EFI_STATUS CDK2_MS_ABI cdk2_acpi_allocate_fn(UINTN size, void **buffer);
+      |                                ^~~~~~~~~~~~~~~~~~~~~
+In file included from /home/sean/acpi-native-api-audit.Y9pVUe/combined.c:2:
+/home/sean/Documents/cdk2/include/cdk2/acpi_table.h:29:20: note: previous declaration of ‘cdk2_acpi_allocate_fn’ with type ‘cdk2_acpi_allocate_fn’ {aka ‘long long unsigned int(void *, long long unsigned int,  long long unsigned int,  void **)’}
+   29 | typedef EFI_STATUS cdk2_acpi_allocate_fn(void *context, UINTN size,
+      |                    ^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/cdk2/include/cdk2/tpm2_acpi_table.h:55:32: error: conflicting types for ‘cdk2_acpi_free_fn’; have ‘EFI_STATUS(void *)’ {aka ‘long long unsigned int(void *)’}
+   55 | typedef EFI_STATUS CDK2_MS_ABI cdk2_acpi_free_fn(void *buffer);
+      |                                ^~~~~~~~~~~~~~~~~
+/home/sean/Documents/cdk2/include/cdk2/acpi_table.h:31:14: note: previous declaration of ‘cdk2_acpi_free_fn’ with type ‘cdk2_acpi_free_fn’ {aka ‘void(void *, void *)’}
+   31 | typedef void cdk2_acpi_free_fn(void *context, void *buffer);
+      |              ^~~~~~~~~~~~~~~~~

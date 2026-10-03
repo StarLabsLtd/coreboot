@@ -1,0 +1,24 @@
+tests/acpi_table_test.c: In function ‘main’:
+tests/acpi_table_test.c:146:40: error: ‘MAX_uint32_t’ undeclared (first use in this function); did you mean ‘uint32_t’?
+  146 |         EXPECT((uintptr_t)high_table > MAX_uint32_t);
+      |                                        ^~~~~~~~~~~~
+tests/acpi_table_test.c:110:48: note: in definition of macro ‘EXPECT’
+  110 | #define EXPECT(condition) (failures += expect((condition), #condition, __LINE__))
+      |                                                ^~~~~~~~~
+tests/acpi_table_test.c:146:40: note: each undeclared identifier is reported only once for each function it appears in
+  146 |         EXPECT((uintptr_t)high_table > MAX_uint32_t);
+      |                                        ^~~~~~~~~~~~
+tests/acpi_table_test.c:110:48: note: in definition of macro ‘EXPECT’
+  110 | #define EXPECT(condition) (failures += expect((condition), #condition, __LINE__))
+      |                                                ^~~~~~~~~
+src/modules/acpi_table/acpi_table.c: In function ‘rebuild_roots’:
+src/modules/acpi_table/acpi_table.c:121:56: error: ‘MAX_uint32_t’ undeclared (first use in this function); did you mean ‘uint32_t’?
+  121 |                 if (tables->rsdt != NULL && address <= MAX_uint32_t) {
+      |                                                        ^~~~~~~~~~~~
+      |                                                        uint32_t
+src/modules/acpi_table/acpi_table.c:121:56: note: each undeclared identifier is reported only once for each function it appears in
+src/modules/acpi_table/acpi_table.c: In function ‘cdk2_acpi_tables_initialize’:
+src/modules/acpi_table/acpi_table.c:170:25: error: ‘MAX_uint32_t’ undeclared (first use in this function); did you mean ‘uint32_t’?
+  170 |             capacity > (MAX_uint32_t - CDK2_ACPI_HEADER_SIZE) / 8U)
+      |                         ^~~~~~~~~~~~
+      |                         uint32_t

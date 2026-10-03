@@ -1,0 +1,5 @@
+#
+# configuration written to /home/sean/acpi-native-api-gates.4HLLIk/p0/resolved.config
+#
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS

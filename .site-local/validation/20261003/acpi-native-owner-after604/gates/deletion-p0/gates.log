@@ -1,0 +1,5 @@
+#
+# configuration written to /home/sean/acpi-dead-bytes-gates.GbQl9M/p0/resolved.config
+#
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
