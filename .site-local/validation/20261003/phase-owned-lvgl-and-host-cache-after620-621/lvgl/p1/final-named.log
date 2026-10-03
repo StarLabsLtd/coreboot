@@ -1,0 +1,12 @@
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/p1/resolved.config
+#
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/p1/resolved.config
+#
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/p1/resolved.config
+#
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/src/boot/Makefile:7913: native-splash-status-report-test] Error 1
+make: *** [Makefile:1148: native-splash-status-report-test] Error 2

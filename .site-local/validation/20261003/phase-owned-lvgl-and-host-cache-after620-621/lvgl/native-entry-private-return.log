@@ -1,0 +1,10 @@
+/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/src/boot/Makefile: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/run-native-entry-objects.sh: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/closure-p0/resolved.config: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/closure-p0/include/cdk2/config.h: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/p1/resolved.config: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/p1/include/cdk2/config.h: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/renderer-without-hotkey/resolved.config: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/renderer-without-hotkey/include/cdk2/config.h: OK
+Production entry TU: genuine P0 / P1 / renderer-without-hotkey compile PASS

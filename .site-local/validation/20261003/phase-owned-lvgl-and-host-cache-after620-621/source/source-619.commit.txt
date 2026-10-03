@@ -1,0 +1,3 @@
+1baa1dbbf5050b62a9fa27c2b373af84df9b92ce
+G
+boot: require an OS request before disk capsule discovery

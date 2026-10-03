@@ -1,0 +1,5 @@
+P0: four complete dependency manifests verified; support 30 x 4; fixture links 19
+P0: original4 + precise134/noSAN15 + inverseTU3 + finalPASS1; traced named wall 222.81s -> 92.40s (58.53% less)
+P1: four complete dependency manifests verified; support 44 x 4; fixture links 19
+P1: original4 + precise134/noSAN15 + inverseTU3 + finalPASS1; traced named wall 295.62s -> 110.29s (62.69% less)
+Exact final620 HOST A/B receipts: PASS (no firmware/native UI or persistent-cache claim)

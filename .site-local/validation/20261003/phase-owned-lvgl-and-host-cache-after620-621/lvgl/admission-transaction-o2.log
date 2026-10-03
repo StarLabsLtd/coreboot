@@ -1,0 +1,1 @@
+admission-transaction-o2: /home/sean/phase-owned-lvgl-proof.CuEvQK/admission.c:132: main: Assertion `status == EFI_COMPROMISED_DATA && "admission owned transaction refusal"' failed.

@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Trace only this exact existing gate, for retained per-mode disposition proof.
+case "$1" in
+*/tests/splash_status_report_test.sh) exec /bin/sh -x "$@" ;;
+*) exec /bin/sh "$@" ;;
+esac

@@ -1,0 +1,90 @@
+diff --git a/tests/splash_status_report_test.sh b/tests/splash_status_report_test.sh
+index 5be5615cd3..c03e4f99c9 100644
+--- a/tests/splash_status_report_test.sh
++++ b/tests/splash_status_report_test.sh
+@@ -12,8 +12,28 @@ for source in "$@"; do
+ 	esac
+ done
+ temporary=$(mktemp -d)
+-trap 'rm -rf "$temporary"' EXIT HUP INT TERM
++if [ "${KEEP_SPLASH_STATUS_TMP:-0}" = 1 ]; then
++	echo "Splash HOST artifacts: $temporary"
++else
++	trap 'rm -rf "$temporary"' EXIT HUP INT TERM
++fi
+ ulimit -c 0
++compiler=${HOSTCC:-cc}
++compiler_path=$(command -v -- "$compiler")
++# The same compile flags apply to support objects and the changed fixture.
++# Link-only options and the mutated entry selector are supplied by the caller.
++compile_source()
++{
++	set -- -std=c11 -O"$optimization" -Wall -Wextra -Werror \
++		-fshort-wchar -ffunction-sections -fdata-sections \
++		-fsanitize=address,undefined -fno-sanitize-recover=all -fno-pie \
++		-DCDK2_HOST_TEST -DCDK2_SPLASH_TEST_DEBUG="$debug" \
++		-I"$configuration" -I"$root/include" -I"$root/src/modules/dxe_core" \
++		-I"$root/src/lib/tcg_hash/vendor/linux/include" "$@"
++	printf '%s\0' "$compiler" "$@" >> "$temporary/argv-$debug-$optimization"
++	printf '\0' >> "$temporary/argv-$debug-$optimization"
++	"$compiler" "$@"
++}
+ sed '/static EFI_STATUS show_linear_status(/,/^}/s/CDK2_LINEAR_STATE_SPLASH_VISIBLE/CDK2_LINEAR_STATE_COREBOOT_SPLASH/' \
+ 	"$root/src/modules/dxe_core/entry.c" > "$temporary/coreboot-only.c"
+ sed 's/if (!begin \&\& EFI_ERROR(status))/if (EFI_ERROR(status))/' \
+@@ -43,6 +63,29 @@ cmp "$root/src/modules/dxe_core/entry.c" "$temporary/callback-identity-reversed.
+ ! cmp -s "$root/src/modules/dxe_core/entry.c" "$temporary/dirty-bgrt.c"
+ for debug in 0 1; do
+ 	for optimization in 0 2; do
++		objects="$temporary/support-$debug-$optimization"
++		mkdir "$objects"
++		# Snapshot the actual complete dependency closure before compiling.
++		# All mutants alter expressions only, not include/config selection.
++		compile_source -M -MT cdk2-splash-dependencies \
++			"$root/tests/splash_status_report_test.c" "$@" > "$objects/dependencies.make"
++		perl -MText::ParseWords=shellwords -0777 -ne '
++			s/\\\n/ /g;
++			for (split /\n/) {
++				s/^cdk2-splash-dependencies: // or next;
++				s/\$\$/\$/g;
++				print join("\n", shellwords($_)), "\n";
++			}' "$objects/dependencies.make" | sort -u > "$objects/dependencies.txt"
++		[ -s "$objects/dependencies.txt" ]
++		xargs -d '\n' sha256sum < "$objects/dependencies.txt" > "$objects/inputs.sha256"
++		sha256sum "$compiler_path" "$0" "$configuration/cdk2/config.h" "$@" \
++			>> "$objects/inputs.sha256"
++		index=0
++		for source in "$@"; do
++			index=$((index + 1))
++			object=$(printf '%s/support-%04u.o' "$objects" "$index")
++			compile_source -c "$source" -o "$object"
++		done
+ 		for mode in original coreboot-only begin-error reseal dirty-bgrt debug-only owner-generation callback-identity; do
+ 			case "$mode" in
+ 			reseal|dirty-bgrt)
+@@ -54,14 +97,8 @@ for debug in 0 1; do
+ 			esac
+ 			entry="$root/src/modules/dxe_core/entry.c"
+ 			if [ "$mode" != original ]; then entry="$temporary/$mode.c"; fi
+-			"${HOSTCC:-cc}" -std=c11 -O"$optimization" -Wall -Wextra -Werror \
+-				-fshort-wchar -ffunction-sections -fdata-sections \
+-				-fsanitize=address,undefined -fno-sanitize-recover=all \
+-				-fno-pie -no-pie -Wl,--gc-sections -DCDK2_HOST_TEST \
+-				-DCDK2_SPLASH_TEST_DEBUG="$debug" -DCDK2_SPLASH_ENTRY_SOURCE="\"$entry\"" \
+-				-I"$configuration" -I"$root/include" -I"$root/src/modules/dxe_core" \
+-				-I"$root/src/lib/tcg_hash/vendor/linux/include" \
+-				"$root/tests/splash_status_report_test.c" "$@" \
++			compile_source -no-pie -Wl,--gc-sections -DCDK2_SPLASH_ENTRY_SOURCE="\"$entry\"" \
++				"$root/tests/splash_status_report_test.c" "$objects"/*.o \
+ 				-o "$temporary/report"
+ 			if [ "$mode" = original ]; then
+ 				ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 \
+@@ -85,6 +122,8 @@ for debug in 0 1; do
+ 			esac
+ 			grep -Fq "$oracle" "$temporary/mutant.log"
+ 		done
++		sha256sum -c "$objects/inputs.sha256" > "$objects/inputs-after.log"
++		sha256sum "$temporary/argv-$debug-$optimization"
+ 	done
+ done
+ echo 'Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS'

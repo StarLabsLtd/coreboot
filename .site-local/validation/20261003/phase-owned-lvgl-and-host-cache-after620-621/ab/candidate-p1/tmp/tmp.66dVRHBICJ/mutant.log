@@ -1,0 +1,2 @@
+report: /home/sean/Documents/.cdk2-worktrees/splash-status-ephemeral-objects-after620/tests/splash_status_report_test.c:264: verify_owner: Assertion `refused == EFI_COMPROMISED_DATA && "captured UI callback refusal"' failed.
+Aborted

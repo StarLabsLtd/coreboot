@@ -1,0 +1,8 @@
+#
+# configuration written to /home/sean/phase-owned-lvgl-proof.CuEvQK/closure-p0/resolved.config
+#
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS

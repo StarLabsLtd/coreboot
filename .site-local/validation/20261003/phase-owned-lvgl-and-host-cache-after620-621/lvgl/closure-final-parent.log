@@ -1,0 +1,6 @@
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+/home/sean/Documents/.cdk2-worktrees/dxe-entry-report-host-closure-after614/src/boot/Makefile: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-entry-report-host-closure-after614/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-entry-report-host-closure-after614/tests/splash_status_report_test.c: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/closure-p1/include/cdk2/config.h: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/run-closure-final-parent.sh: OK

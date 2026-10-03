@@ -1,0 +1,1 @@
+coreboot-only-inspect: /home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/tests/splash_status_report_test.c:222: verify_owner: Assertion `show_linear_status(&context, CDK2_LVGL_STATUS_PREPARING) == EFI_NOT_FOUND' failed.

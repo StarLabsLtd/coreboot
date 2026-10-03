@@ -1,0 +1,23 @@
+	Command being timed: "make native-splash-status-report-test CDK2_CONFIG=/home/sean/phase-owned-lvgl-proof.CuEvQK/p1/resolved.config CDK2_BUILD_DIR=/home/sean/phase-owned-lvgl-proof.CuEvQK/p1 COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/authvar-store-native-offset-after387 COREBOOT_CONFIG=/home/sean/q35-e8-scope-full.9sM2hH/full.config CDK2_BEARSSL_DIR=/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/bearssl CDK2_LVGL_ROOT=/home/sean/Documents/.cdk2-worktrees/fmp-owner-native-state-after-update/3rdparty/lvgl"
+	User time (seconds): 260.98
+	System time (seconds): 14.55
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:35.60
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 165316
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 3
+	Minor (reclaiming a frame) page faults: 6083757
+	Voluntary context switches: 5879
+	Involuntary context switches: 3042
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 536
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

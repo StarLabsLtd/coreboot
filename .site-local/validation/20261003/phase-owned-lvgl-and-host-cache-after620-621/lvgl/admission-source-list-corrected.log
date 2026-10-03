@@ -1,0 +1,1 @@
+/home/sean/phase-owned-lvgl-proof.CuEvQK/run-admission.sh: line 68: 1101417 Aborted                 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$proof/admission-$mode-o$optimization" > "$proof/admission-$mode-o$optimization.log" 2>&1

@@ -1,0 +1,18 @@
+make: Entering directory '/home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-source'
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-p1/resolved.config
+#
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-p1/resolved.config
+#
+#
+# No change to /home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-p1/resolved.config
+#
+/usr/bin/ld: /home/sean/ccD4xdIB.o: in function `initialize_capsule_reports':
+splash_status_report_test.c:(.text.initialize_capsule_reports+0x4f5): undefined reference to `cdk2_capsule_report_initialize'
+/usr/bin/ld: /home/sean/ccD4xdIB.o: in function `finish_ram_capsule':
+splash_status_report_test.c:(.text.finish_ram_capsule+0x6d6): undefined reference to `cdk2_capsule_report_fmp'
+collect2: error: ld returned 1 exit status
+make[1]: *** [/home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-source/src/boot/Makefile:7908: native-splash-status-report-test] Error 1
+make: *** [Makefile:1148: native-splash-status-report-test] Error 2
+make: Leaving directory '/home/sean/phase-owned-lvgl-proof.CuEvQK/baseline-source'

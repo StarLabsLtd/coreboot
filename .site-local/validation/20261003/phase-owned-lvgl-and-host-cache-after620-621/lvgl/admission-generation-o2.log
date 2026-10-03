@@ -1,0 +1,1 @@
+admission-generation-o2: /home/sean/phase-owned-lvgl-proof.CuEvQK/admission.c:130: main: Assertion `status == EFI_COMPROMISED_DATA && "admission first-load generation refusal"' failed.

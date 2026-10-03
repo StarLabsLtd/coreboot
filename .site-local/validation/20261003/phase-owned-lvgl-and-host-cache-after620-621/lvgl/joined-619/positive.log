@@ -1,0 +1,5 @@
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/phase-owned-lvgl-status-after614/tests/splash_status_report_test.c: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/p1/include/cdk2/config.h: OK
+/home/sean/phase-owned-lvgl-proof.CuEvQK/run-joined-positive-fixture.sh: OK

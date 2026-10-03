@@ -1,0 +1,11 @@
+/usr/bin/ld: /tmp/ccRc0hHC.o: in function `scan_service':
+compat-admission.c:(.text.scan_service+0x25): undefined reference to `cdk2_dxe_dispatcher_scan'
+/usr/bin/ld: /tmp/ccRc0hHC.o: in function `mount_service':
+compat-admission.c:(.text.mount_service+0x29): undefined reference to `cdk2_dxe_fv_mount'
+/usr/bin/ld: /tmp/ccRc0hHC.o: in function `initialize_dxe_services':
+compat-admission.c:(.text.initialize_dxe_services+0x485): undefined reference to `cdk2_dxe_fv_mount'
+/usr/bin/ld: compat-admission.c:(.text.initialize_dxe_services+0x527): undefined reference to `cdk2_dxe_dispatcher_set_extractor'
+/usr/bin/ld: compat-admission.c:(.text.initialize_dxe_services+0x653): undefined reference to `cdk2_dxe_dispatcher_scan'
+/usr/bin/ld: /tmp/ccC3jPIN.o: in function `cdk2_dxe_dispatch_one':
+direct_dispatch.c:(.text.cdk2_dxe_dispatch_one+0x3ee): undefined reference to `cdk2_dxe_dispatch_compat_one'
+collect2: error: ld returned 1 exit status
