@@ -10,6 +10,7 @@
 #include <Nbio/NbioClass-api.h>
 #include <RcMgr/DfX/RcManager-api.h>
 #include <soc/iomap.h>
+#include <soc/soc_chip.h>
 #include <vendorcode/amd/opensil/opensil.h>
 #include <xSIM-api.h>
 #include <static.h>
@@ -141,6 +142,7 @@ WEAK_DEV_PTR(usb4_pcie_bridge_1);
 
 static void nbio_params_config(SIL_CONTEXT *SilContext)
 {
+	const struct soc_amd_phoenix_config *config = config_of_soc();
 	NBIOCLASS_DATA_BLOCK *nbio_data = SilFindStructure(SilContext, SilId_NbioClass, 0);
 	GFXCLASS_INPUT_BLK *gfx_data = SilFindStructure(SilContext, SilId_GfxClass, 0);
 	NBIO_CONFIG_DATA *input = &nbio_data->NbioConfigData;
@@ -156,6 +158,8 @@ static void nbio_params_config(SIL_CONTEXT *SilContext)
 	input->SevSnpSupport              = false;
 	input->IommuAvicSupport           = true;
 	input->IommuSupport               = is_dev_enabled(DEV_PTR(iommu));
+	if (config->disable_iommu_dynamic_power_gating)
+		input->CfgIOMMUDynamicPgEnable = false;
 	input->CfgAzaliaEnable            = is_dev_enabled(DEV_PTR(gfx_hda));
 	input->Usb4Rt0En                  = is_dev_enabled(DEV_PTR(usb4_router_0));
 	input->Usb4Rt0PcieTnlEn           = is_dev_enabled(DEV_PTR(usb4_pcie_bridge_0));
