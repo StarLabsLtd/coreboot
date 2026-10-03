@@ -1,0 +1,42 @@
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+cdk2 coreboot test: PASS
+diagnostic runtime transition test: PASS
+diagnostic handoff inventory: 35 linked images covered
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+cdk2 entry test: PASS
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+real 21.63
+user 20.65
+sys 1.98

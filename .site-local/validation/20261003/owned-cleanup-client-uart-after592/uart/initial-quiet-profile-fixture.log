@@ -1,0 +1,40 @@
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+cdk2 coreboot test: PASS
+16-bit UART data was not written at full width
+rejected UART replaced the live validated context
+32-bit UART data was not written at full width
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/validated-uart-after591/src/boot/Makefile:2592: native-cbmem-console-test] Error 1
+make: *** [Makefile:1147: native-cbmem-console-test] Error 2
+make: *** Waiting for unfinished jobs....
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+cdk2 entry test: PASS
+real 21.02
+user 19.46
+sys 1.83

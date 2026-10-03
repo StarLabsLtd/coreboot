@@ -1,0 +1,40 @@
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+/home/sean/Documents/.cdk2-worktrees/validated-uart-after591//tests/diagnostic_runtime_transition_test.c: In function ‘main’:
+/home/sean/Documents/.cdk2-worktrees/validated-uart-after591//tests/diagnostic_runtime_transition_test.c:39:28: error: implicit declaration of function ‘cdk2_diag_test_direct_serial_writes’; did you mean ‘cdk2_diag_test_direct_serial_allowed’? [-Wimplicit-function-declaration]
+   39 |         failures += expect(cdk2_diag_test_direct_serial_writes() != 0U,
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                            cdk2_diag_test_direct_serial_allowed
+/home/sean/Documents/.cdk2-worktrees/validated-uart-after591//tests/diagnostic_runtime_transition_test.c:68:66: error: comparison of integer expressions of different signedness: ‘int’ and ‘UINTN’ {aka ‘long long unsigned int’} [-Werror=sign-compare]
+   68 |         failures += expect(cdk2_diag_test_direct_serial_writes() == serial_writes,
+      |                                                                  ^~
+cc1: all warnings being treated as errors
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/validated-uart-after591/src/boot/Makefile:5096: /home/sean/validated-uart-gate.INSDAY/native/cdk2-diagnostic-runtime-transition-test] Error 1
+make: *** [Makefile:1147: native-cbmem-console-test] Error 2
+make: *** Waiting for unfinished jobs....
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+#
+# No change to /home/sean/validated-uart-gate.INSDAY/resolved.config
+#
+cdk2 entry test: PASS
+real 15.80
+user 14.56
+sys 1.30

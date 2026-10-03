@@ -1,0 +1,3 @@
+8290ad0621f2fffcc4f074c97e65afde01a28762450ca782cdc4383bee7da973  include/cdk2/diagnostic.h
+b771d97da34d351a65849968522c5a6b353baca250c8a81fc2b0fe64ff10fd64  src/lib/diagnostic.c
+d2c47cb31e7bc204443b29fef8c411359fdfdad4848fcfe9b0ae2a5b2499f203  tests/diagnostic_runtime_transition_test.c

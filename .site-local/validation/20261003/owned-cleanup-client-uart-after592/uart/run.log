@@ -1,0 +1,8 @@
+diagnostic runtime transition test: PASS
+diagnostic runtime transition test: PASS
+diagnostic runtime transition test: PASS
+include/cdk2/diagnostic.h: OK
+src/lib/diagnostic.c: OK
+tests/diagnostic_runtime_transition_test.c: OK
+/home/sean/unused-native-config-proof.c01WSF/p1-candidate/resolved.config: OK
+/home/sean/unused-native-config-proof.c01WSF/p1-candidate/include/cdk2/config.h: OK

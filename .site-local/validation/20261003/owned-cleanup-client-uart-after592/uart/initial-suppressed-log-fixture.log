@@ -1,0 +1,7 @@
+16-bit UART data was not written at full width
+rejected UART replaced the live validated context
+32-bit UART data was not written at full width
+byte UART stride was ignored
+real 0.38
+user 0.40
+sys 0.04

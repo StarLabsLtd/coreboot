@@ -1,0 +1,4 @@
+src/boot/coreboot.c:3:#include "kconfig.h"
+src/boot/services.c:3:#include <config.h>
+src/boot/payload.c:3:#include <rules.h>
+src/boot/pe.c:3:#include "compiler.h"

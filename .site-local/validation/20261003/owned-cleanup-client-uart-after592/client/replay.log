@@ -1,0 +1,11 @@
+SystemFmp typed transport client tests: PASS
+Legacy real transport rejects result 2/status 1 without authenticated outcome: O0 PASS
+SystemFmp typed transport client tests: PASS
+Legacy real transport rejects result 2/status 1 without authenticated outcome: O2 PASS
+SystemFmp typed transport client tests: PASS
+Legacy real transport rejects result 2/status 1 without authenticated outcome: sanitized PASS
+src/modules/system_fmp/transport.c: OK
+tests/system_fmp_transport_client_test.c: OK
+include/cdk2/system_fmp_transport.h: OK
+src/modules/qemu_test_fmp/sha256.c: OK
+src/boot/coreboot.c: OK

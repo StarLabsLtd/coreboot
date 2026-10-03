@@ -1,0 +1,30 @@
+SystemFmp typed transport client tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp client O0/O2/ASan+UBSan and source-closure tests: PASS
+#
+# No change to /home/sean/system-fmp-signature-refusal-client-gate.KpVb3k/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-signature-refusal-client-gate.KpVb3k/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-signature-refusal-client-gate.KpVb3k/resolved.config
+#
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+#
+# No change to /home/sean/system-fmp-signature-refusal-client-gate.KpVb3k/resolved.config
+#
+#
+# No change to /home/sean/system-fmp-signature-refusal-client-gate.KpVb3k/resolved.config
+#
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+include/cdk2/system_fmp_transport.h: OK
+src/modules/system_fmp/transport.c: OK
+src/modules/system_fmp/session.c: OK
+tests/system_fmp_transport_client_test.c: OK
+tests/system_fmp_session_test.c: OK
