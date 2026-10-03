@@ -1,0 +1,3 @@
+Certified refusal HOST artifacts: /home/sean/capsule-certified-refusal.KhTBZx
+core: /home/sean/Documents/.cdk2-worktrees/capsule-standard-refusal-report-after595/tests/capsule_certified_refusal_core_test.c:383: main: Assertion `(status == EFI_SUCCESS) == (scenario == 0)' failed.
+Aborted

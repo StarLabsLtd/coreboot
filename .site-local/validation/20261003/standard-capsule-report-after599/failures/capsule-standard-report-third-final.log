@@ -1,0 +1,3 @@
+Certified refusal HOST artifacts: /home/sean/capsule-certified-refusal.1jkwlm
+runtime: /home/sean/Documents/.cdk2-worktrees/capsule-standard-refusal-report-after595/tests/capsule_runtime_entry_test.c:620: main: Assertion `protocol->outcome.payload_index == 1 && protocol->outcome.set_begun && protocol->outcome.unproved && protocol->outcome.matching_checks == 2' failed.
+Aborted
