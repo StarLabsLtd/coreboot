@@ -1,0 +1,1 @@
+TEST-ONLY fullgraph outer guard discard: exact one statement; production guard held

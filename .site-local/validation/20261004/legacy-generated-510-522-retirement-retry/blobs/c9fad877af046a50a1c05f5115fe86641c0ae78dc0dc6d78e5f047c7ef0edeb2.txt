@@ -1,0 +1,3 @@
+Canonical cold-boot MTC high 1 -> 2; full-region expected transaction comparison
+HOST oracle rejects PK/NV sentinel/wrong MTC count/journal changes: PASS
+HOST canonical MTC-only full-media delta: PASS (read-only oracle, not service authority)

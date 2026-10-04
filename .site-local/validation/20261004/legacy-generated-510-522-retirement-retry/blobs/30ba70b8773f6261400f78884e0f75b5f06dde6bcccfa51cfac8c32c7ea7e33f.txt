@@ -1,0 +1,1138 @@
+config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	bool
+	default y
+
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "cdk2 payload"
+
+config CDK2_PAYLOAD
+	bool "Build the cdk2 coreboot payload"
+	default y
+	help
+	  Select the payload composition used by the private cdk2 fork.
+	  coreboot remains the owner of platform policy; this option only
+	  describes the payload build consumed by coreboot. In particular,
+	  coreboot owns MTRR programming; cdk2 may validate the effective cache
+	  policy but must not replace it.
+
+config PAYLOAD_DMA_HANDOFF
+	bool "Consume coreboot DMA-protection handoff"
+	default n
+	depends on CDK2_PAYLOAD
+	help
+	  Import coreboot's resolved DMA-handoff policy without mirroring it in a
+	  private payload option. When enabled, cdk2 validates and retains the
+	  already-active protection handoff. It does not grant bus mastering.
+
+config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	bool
+	default n
+	help
+	  Import coreboot's actual authenticated-variable service route selection.
+	  This is not an authority grant from a payload-local option or table flag.
+
+config CDK2_PCI
+	bool "Include PCI support"
+	default y
+	depends on CDK2_PAYLOAD
+
+config CDK2_STORAGE
+	bool "Include storage support"
+	default y
+	depends on CDK2_PCI
+
+config CDK2_CONSOLE
+	bool "Include console support"
+	default y
+	depends on CDK2_PAYLOAD
+
+config CDK2_GRAPHICS
+	bool "Include graphics support"
+	default y
+	depends on CDK2_CONSOLE && CDK2_PCI
+
+config CDK2_GOP_HIDPI
+	bool "Enable high-DPI GOP scaling"
+	default n
+	depends on CDK2_GRAPHICS
+	help
+	  Expose a 2x scaled GOP mode for high-DPI framebuffers handed off by
+	  coreboot.
+
+config CDK2_GOP_HIDPI_H_THRESHOLD
+	int "High-DPI GOP horizontal threshold"
+	range 0 2147483647
+	default 1920
+	depends on CDK2_GOP_HIDPI
+
+config CDK2_GOP_HIDPI_V_THRESHOLD
+	int "High-DPI GOP vertical threshold"
+	range 0 2147483647
+	default 1080
+	depends on CDK2_GOP_HIDPI
+
+config CDK2_GOP_HIDPI_ASPECT_CAP
+	bool "Cap wide high-DPI GOP viewports"
+	default n
+	depends on CDK2_GOP_HIDPI
+	help
+	  Center the scaled GOP viewport inside framebuffers wider than the
+	  configured aspect ratio.
+
+config CDK2_GOP_HIDPI_ASPECT_W
+	int "High-DPI GOP aspect width"
+	range 1 2147483647
+	default 16
+	depends on CDK2_GOP_HIDPI_ASPECT_CAP
+
+config CDK2_GOP_HIDPI_ASPECT_H
+	int "High-DPI GOP aspect height"
+	range 1 2147483647
+	default 9
+	depends on CDK2_GOP_HIDPI_ASPECT_CAP
+
+config CDK2_SETUP_UI
+	bool "Include the firmware setup UI"
+	default y
+	depends on CDK2_CONSOLE
+	help
+	  Include the firmware boot and setup surface. The native LVGL setup
+	  form reads and writes its typed settings directly through runtime
+	  services; no HII form package or browser is involved.
+	  Disable this only for payloads that provide their own setup surface.
+
+config CDK2_LVGL_RENDERER
+	bool "Use the LVGL graphical setup renderer"
+	default n
+	depends on CDK2_SETUP_UI && CDK2_GRAPHICS
+	help
+	  Render the typed native setup form and boot menu through LVGL.
+
+config CDK2_NATIVE_LVGL_SETUP
+	bool "Include the native LVGL setup form"
+	default y
+	depends on CDK2_LVGL_RENDERER
+	depends on !CDK2_STRICT_DIRECT_RUNTIME || CDK2_NATIVE_BDS
+	help
+	  Include the native graphical settings model, renderer protocol and
+	  transactional runtime-variable storage used by BDS.
+
+config CDK2_CONNECT_ALL_DEVICES
+	bool "Connect every device before boot"
+	default n
+	depends on CDK2_PAYLOAD
+	help
+	  Connect all boot-service devices before selecting a boot option. The
+	  default selective policy connects the chosen internal path and falls
+	  back to removable media discovery only when needed.
+
+config CDK2_ESRT
+	bool "Include ESRT support"
+	default y
+	depends on CDK2_PAYLOAD
+
+config CDK2_COREBOOT_CAPSULE_PROFILE
+	bool "Use the coreboot capsule-update profile"
+	default n
+	depends on CDK2_CONSOLE && CDK2_PCI
+	select CDK2_COREBOOT_OWNS_SMM
+	select CDK2_CAPSULE_SMM_BACKEND
+	select CDK2_SMMSTORE
+	select CDK2_ESRT
+	select CDK2_GRAPHICS
+	select CDK2_CAPSULE
+	select CDK2_NATIVE_STAGE
+	select CDK2_STORAGE
+	select CDK2_NATIVE_ENGLISH
+	select CDK2_NATIVE_DISK_IO
+	select CDK2_NATIVE_PARTITION
+	select CDK2_NATIVE_PCI_HOST_BRIDGE
+	select CDK2_NATIVE_FAT
+	select CDK2_NATIVE_SMMSTORE_FVB if !CDK2_PROTECTED_VARIABLE_RUNTIME
+	select CDK2_NATIVE_FTW if !CDK2_PROTECTED_VARIABLE_RUNTIME
+	help
+	  Internal profile selected by coreboot's public CDK2 capsule-update
+	  policy. It derives the complete supported SMMSTORE, ESRT, variable,
+	  capsule-runtime, and capsule-on-disk pairing.
+
+config CDK2_COREBOOT_OWNS_SMM
+	bool
+	default y
+	help
+	  coreboot owns and locks SMRAM and provides the SMM services consumed by
+	  this payload. Native payload SMM modules must not be built or dispatched.
+
+config CDK2_STRICT_DIRECT_RUNTIME
+	bool
+	default y if CDK2_LINEAR_BOOT && CDK2_COREBOOT_CAPSULE_PROFILE && \
+		!CDK2_SECURE_BOOT && CDK2_COREBOOT_OWNS_SMM && \
+		!CDK2_PROFILE_EXPERT_OVERRIDES
+	help
+	  Derived identity for the supported source-closed payload composition.
+	  Other profiles are available for isolated component tests only; they
+	  cannot produce a payload image or select a firmware-volume fallback.
+
+config CDK2_LINEAR_BOOT
+	bool
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_DXE_CORE && CDK2_PCI && CDK2_STORAGE && CDK2_GRAPHICS
+	select CDK2_CBMEM_TIMESTAMPS
+	select CDK2_NATIVE_ACPI_TABLE
+	select CDK2_NATIVE_DISK_IO
+	select CDK2_NATIVE_PARTITION
+	select CDK2_NATIVE_ENGLISH
+	select CDK2_NATIVE_FAT
+	select CDK2_NATIVE_CAPSULE_RUNTIME
+	select CDK2_NATIVE_SECURITY_STUB if !CDK2_SECURE_BOOT
+	help
+	  Run payload initialization as one explicit phase sequence beginning at
+	  the validated coreboot handoff. The native prefix draws the splash before
+	  HOB or DXE construction and passes a fail-closed continuation record to
+	  DxeCore. Later phases must resume that record without skips or reordering.
+	  Phase boundaries are recorded in coreboot's CBMEM timestamp table.
+	  Interactive input is disabled unless CDK2_LINEAR_SETUP_HOTKEY explicitly
+	  selects the bounded, synchronous native setup surface.
+	  This is the only supported payload startup. Disabling a prerequisite
+	  leaves component tests available but rejects payload construction; it
+	  does not select the retired generic DXE/BDS startup.
+
+config CDK2_LINEAR_BDS_FAILOVER
+	bool "Use standard BootOrder with removable-media fallback"
+	default n
+	depends on CDK2_LINEAR_BOOT && CDK2_NATIVE_BDS
+	help
+	  Hand the initialized platform to the native boot manager, which consumes
+	  BootNext and BootOrder before trying the standard removable-media path.
+	  This matches normal UEFI boot policy while preserving linear hardware
+	  initialization and keeping EFI/BOOT/BOOTX64.EFI as a recovery fallback.
+
+config CDK2_LINEAR_SETUP_HOTKEY
+	bool "Enter native setup from the linear boot path"
+	default n
+	depends on CDK2_LINEAR_BDS_FAILOVER && CDK2_SETUP_UI
+	depends on CDK2_NATIVE_LVGL_SETUP
+	help
+	  Poll synchronously for F2 during the bounded boot-menu timeout, enter the
+	  native typed LVGL form, then return to the linear OS handoff. No generic
+	  BDS boot pass or asynchronous dispatcher is entered.
+
+config CDK2_PROFILE_EXPERT_OVERRIDES
+	bool "Allow expert overrides of the coreboot CDK2 profile"
+	default n
+	depends on CDK2_COREBOOT_CAPSULE_PROFILE
+	help
+	  Expose payload-internal migration controls for development. Production
+	  coreboot pairings should leave this disabled.
+
+config CDK2_LATE_LINK
+	bool "Use cdk2 late-link policy"
+	default y
+	depends on CDK2_PAYLOAD
+	help
+	  Apply cdk2's final PE/COFF linker alignment policy to every payload
+	  image. This is intentionally selected by the payload build rather than
+	  inherited from a platform default.
+
+config CDK2_NATIVE_STAGE
+	bool "Build the native cdk2 stage"
+	default y
+	depends on CDK2_PAYLOAD
+	help
+	  Build the freestanding C/linker stage used by the direct coreboot
+	  handoff. The native stage owns HOB construction and the coreboot entry
+	  flow.
+
+config CDK2_NATIVE_SECURITY_STUB
+	bool "Build native Security2 policy routing services"
+	default n
+	depends on CDK2_NATIVE_STAGE && !CDK2_SECURE_BOOT
+	help
+	  Publish Security and Security2 architectural protocols and route bounded
+	  image-policy callbacks. Strict linear non-Secure-Boot profiles select this
+	  source-owned implementation; Secure Boot retains its verification owner.
+
+config CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION
+	bool
+	default y if CDK2_STRICT_DIRECT_RUNTIME && PAYLOAD_DMA_HANDOFF
+	depends on CDK2_NATIVE_STAGE && CDK2_LINEAR_BOOT
+	depends on CDK2_STRICT_DIRECT_RUNTIME && CDK2_COREBOOT_OWNS_SMM
+	depends on CDK2_NATIVE_SECURITY_STUB && PAYLOAD_DMA_HANDOFF
+	help
+	  Always link the portable authenticated-variable presence consumer into a
+	  strict direct payload when coreboot's PAYLOAD_DMA_HANDOFF policy is
+	  enabled. A stable coreboot table with neither endpoint leaves the feature
+	  unavailable. A partial, duplicate or malformed pair fails the boot closed.
+	  A valid pair binds its native clients to the first Security2-authenticated
+	  boot-policy image.
+
+config CDK2_NULL_MEMORY_TEST
+	bool "Build the native null memory-test driver"
+	default y
+	depends on CDK2_PAYLOAD && (!CDK2_LINEAR_BOOT || CDK2_NATIVE_BDS)
+	help
+	  Install the Generic Memory Test Protocol and promote initialized coreboot
+	  memory without running a destructive firmware memory test in BDS
+	  compatibility profiles. Strict linear boot does not invoke this protocol.
+	  Disabling it omits the optional protocol; BDS accepts its absence.
+
+config CDK2_NATIVE_ENGLISH
+	bool "Build the native English Unicode collation driver"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Provide the English Unicode Collation 2 protocol and FAT filename
+	  conversion from CDK2-owned source.
+
+config CDK2_NATIVE_WATCHDOG
+	bool "Build the native UEFI watchdog driver"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Replace the retained WatchdogTimerDxe file with CDK2's source-built
+	  architectural watchdog protocol driver.
+
+config CDK2_NATIVE_MONOTONIC_COUNTER
+	bool "Build native monotonic-counter services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+
+config CDK2_NATIVE_STATUS_CODE_ROUTER
+	bool "Build the native report-status-code router"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Build the runtime status-code and handler protocols used by native
+	  diagnostic consumers.
+
+config CDK2_NATIVE_CPU_IO2
+	bool "Build native CPU I/O 2 services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Replace CpuIo2Dxe with CDK2-owned MMIO and x86 port-I/O services.
+
+config CDK2_NATIVE_DEVICE_PATH
+	bool "Build native device-path services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish the UEFI Device Path Utilities, To Text, and From Text
+	  protocols from the native DXE driver.
+
+config CDK2_NATIVE_PARTITION
+	bool "Build native partition services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Discover GPT, MBR, El Torito, and UDF partitions and publish child
+	  block, disk, device-path, and partition-information protocols.
+
+config CDK2_NATIVE_PCI_HOST_BRIDGE
+	bool "Build native PCI host bridge services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Consume Universal Payload root-bridge handoff data and publish the PCI
+	  Host Bridge Resource Allocation and per-root Bridge I/O protocols. The
+	  authoritative coreboot resource handoff supplies ECAM and assigned BARs.
+	  Missing handoff data stops initialization without probing or reassignment.
+
+config CDK2_NATIVE_FAT
+	bool "Build native FAT file-system services"
+	default y
+	depends on CDK2_NATIVE_DISK_IO && CDK2_NATIVE_ENGLISH
+	help
+	  Publish the Simple File System and revisioned File protocols from the
+	  admitted FAT volume driver. Filename conversion is provided by the
+	  Unicode Collation protocol; FAT does not require the HII database.
+
+config CDK2_NATIVE_PCI_BUS
+	bool "Build native PCI bus services"
+	default y
+	depends on CDK2_NATIVE_FAT && CDK2_NATIVE_PCI_HOST_BRIDGE
+	help
+	  Enumerate PCI roots and publish per-function Device Path, PCI I/O and
+	  option-ROM Load File protocols using the native host bridge services.
+
+config CDK2_NATIVE_SATA_CONTROLLER
+	bool "Build native SATA controller initialization"
+	default y
+	depends on CDK2_NATIVE_PCI_BUS && CDK2_ATA
+	help
+	  Publish IDE Controller Init mode negotiation for admitted PCI IDE and
+	  AHCI controllers after native PCI enumeration.
+
+config CDK2_NATIVE_ATA_ATAPI_PASS_THRU
+	bool "Build native ATA/ATAPI pass-through services"
+	default y
+	depends on CDK2_NATIVE_SATA_CONTROLLER
+	help
+	  Publish ATA Pass Thru and Extended SCSI Pass Thru protocols for
+	  discovered IDE and AHCI devices.
+
+config CDK2_NATIVE_ATA_BUS
+	bool "Build native ATA bus services"
+	default y
+	depends on CDK2_NATIVE_ATA_ATAPI_PASS_THRU
+	help
+	  Publish Block I/O, Block I/O 2, Disk Info and conditional Storage
+	  Security children for devices exposed by native ATA Pass Thru.
+
+config CDK2_NATIVE_SCSI_BUS
+	bool "Build native SCSI bus services"
+	default y
+	depends on CDK2_NATIVE_ATA_ATAPI_PASS_THRU
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish SCSI I/O children for devices exposed by native Extended SCSI
+	  Pass Thru.
+
+config CDK2_NATIVE_SCSI_DISK
+	bool "Build native SCSI disk services"
+	default y
+	depends on CDK2_NATIVE_SCSI_BUS
+	help
+	  Publish Block I/O, Block I/O 2 and Disk Info on supported native SCSI
+	  I/O controllers.
+
+config CDK2_NATIVE_XHCI
+	bool "Build native XHCI host controller"
+	default y
+	depends on CDK2_NATIVE_PCI_BUS
+	help
+	  Publish the USB2 Host Controller protocol for PCI XHCI controllers.
+
+config CDK2_NATIVE_USB_BUS
+	bool "Build native USB bus driver"
+	default y
+	depends on CDK2_NATIVE_XHCI
+	help
+	  Enumerate USB devices and publish USB I/O interface children.
+
+config CDK2_NATIVE_USB_MASS_STORAGE
+	bool "Build native USB mass-storage driver"
+	default y
+	depends on CDK2_NATIVE_USB_BUS
+	help
+	  Publish block devices for USB bulk-only mass-storage interfaces.
+
+config CDK2_NATIVE_USB_KEYBOARD
+	bool "Build native USB keyboard driver"
+	default n
+	depends on CDK2_NATIVE_USB_BUS
+	help
+	  Publish Simple Text Input protocols for USB boot keyboards.
+
+config CDK2_NATIVE_USB_MOUSE
+	bool "Build native USB mouse driver"
+	default n
+	depends on CDK2_NATIVE_USB_BUS
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish Simple Pointer input for USB boot mice.
+
+config CDK2_NATIVE_SIO_BUS
+	bool "Build native SIO bus driver"
+	default n
+	depends on CDK2_NATIVE_PCI_BUS
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish fixed ACPI resource children for the Q35 ISA bridge.
+
+config CDK2_NATIVE_PS2_MOUSE
+	bool "Build native PS/2 mouse driver"
+	default n
+	depends on CDK2_NATIVE_SIO_BUS && !CDK2_PS2_KEYBOARD
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish Simple Pointer input for the legacy auxiliary controller.
+
+config CDK2_NATIVE_TERMINAL
+	bool "Build native serial terminal driver"
+	default n
+	depends on CDK2_NATIVE_SERIAL_IO
+	help
+	  Publish text input and output protocols over Serial I/O.
+
+config CDK2_NATIVE_STATUS_CODE_HANDLER
+	bool "Build the native release status-code handler"
+	default y
+	depends on CDK2_NATIVE_STATUS_CODE_ROUTER
+	depends on !CDK2_BUILD_DEBUG || CDK2_QEMU_ACCEPTANCE_PROFILE
+	depends on !CDK2_BUILD_DEBUG || CDK2_NATIVE_LVGL_SETUP
+	depends on !CDK2_LINEAR_BOOT || CDK2_NATIVE_BDS
+	help
+	  Provide the compatibility report-status-code handler when the native
+	  router is present. Strict direct profiles use CDK2's direct diagnostic
+	  sinks and omit both compatibility modules; the watchdog remains.
+
+config CDK2_NATIVE_DISK_IO
+	bool "Build native Disk I/O services"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_STORAGE
+	help
+	  Provide Disk I/O and Disk I/O 2 on Block I/O controllers. Version 2
+	  requests use the standard completion token with a blocking backend.
+
+config CDK2_NATIVE_SERIAL_IO
+	bool "Build native serial I/O services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish the PI Serial I/O protocol over the UART described by the
+	  coreboot-derived serial-port HOB.
+
+config CDK2_NATIVE_RESET_SYSTEM
+	bool "Build native reset-system services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Publish the architectural and notification reset protocols and implement
+	  ResetSystem from the coreboot-derived ACPI board-information HOB.
+
+config CDK2_NATIVE_PCAT_RTC
+	bool "Build native PC/AT real-time-clock services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Publish the real-time-clock architectural protocol and provide runtime
+	  time and wake-alarm services through the PC/AT CMOS register interface.
+
+config CDK2_NATIVE_LOCAL_APIC_TIMER
+	bool "Build native local APIC timer services"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_LAPIC_TIMER
+	help
+	  Publish the timer architectural protocol using the authoritative local
+	  APIC timer input frequency supplied by coreboot. Initialization fails
+	  closed when the platform omits that handoff.
+
+config CDK2_NATIVE_GRAPHICS_OUTPUT
+	bool "Build native graphics output driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_GRAPHICS && !CDK2_LINEAR_BOOT
+	help
+	  Publish GOP from a validated Universal Payload framebuffer handoff in
+	  dispatcher-based builds. Linear boot adopts that framebuffer directly in
+	  DxeCore and deliberately excludes this standalone driver.
+
+config CDK2_NATIVE_ACPI_TABLE
+	bool "Build native ACPI table protocol"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Own ACPI root tables and publish the ACPI Table protocol.
+
+config CDK2_NATIVE_SMMSTORE_FVB
+	bool "Build native SMM store FVB runtime driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_SMMSTORE
+	depends on !CDK2_PROTECTED_VARIABLE_RUNTIME
+	help
+	  Publish runtime firmware-volume access over the SMMSTORE handoff.
+
+config CDK2_NATIVE_FTW
+	bool "Build native fault-tolerant write driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_SMMSTORE_FVB
+	help
+	  Publish the PI fault-tolerant-write protocol over native SMMSTORE FVB
+	  geometry and recover pending journal records before publication.
+
+config CDK2_NATIVE_GRAPHICS_CONSOLE
+	bool "Build native graphics console services"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_GRAPHICS_OUTPUT
+	help
+	  Publish Simple Text Output on GOP controllers and render directly from
+	  the source-resident 8x19 console glyph table.
+	  Linear boot adopts the coreboot framebuffer directly in DxeCore, so it
+	  does not build this standalone dispatcher-era console producer.
+
+config CDK2_CONSOLE_COLUMNS
+	int "Preferred text-console columns (0 selects automatic modes)"
+	default 0
+	range 0 4096
+	depends on CDK2_NATIVE_GRAPHICS_CONSOLE
+
+config CDK2_CONSOLE_ROWS
+	int "Preferred text-console rows (0 selects automatic modes)"
+	default 0
+	range 0 4096
+	depends on CDK2_NATIVE_GRAPHICS_CONSOLE
+config CDK2_NATIVE_CON_PLATFORM
+	bool "Build native console platform services"
+	default y
+	depends on CDK2_NATIVE_STAGE && (!CDK2_LINEAR_BOOT || CDK2_NATIVE_BDS)
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish console device policy and DriverBinding services for supported
+	  console input and output controllers in BDS compatibility profiles.
+	  Strict linear boot owns console policy directly in the core.
+
+config CDK2_NATIVE_CON_SPLITTER
+	bool "Build native console splitter services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Publish virtual console aggregation and bind physical console protocols.
+
+config CDK2_NATIVE_EC_BATTERY
+	bool "Build native EC battery status services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Detect ChromeOS, Merlin, and ThinkPad embedded controllers and publish
+	  their battery percentage, presence, charging, and critical state.
+
+config CDK2_NATIVE_RUNTIME_ARCH
+	bool "Build native runtime architectural services"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Publish the Runtime Architectural Protocol and provide CRC32, pointer
+	  conversion, and the physical-to-virtual runtime transition.
+
+
+config CDK2_NATIVE_UHCI
+	bool "Build native UHCI host controller driver"
+	default n
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish the USB2 host-controller protocol for UHCI PCI controllers.
+
+config CDK2_NATIVE_EHCI
+	bool "Build native EHCI host controller driver"
+	default n
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Publish the USB2 host-controller protocol for EHCI PCI controllers.
+
+config CDK2_NATIVE_NVME
+	bool "Build native NVMe controller driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NVME
+	help
+	  Publish NVMe pass-thru and namespace block protocols.
+
+config CDK2_NATIVE_SDMMC_PCI
+	bool "Build native SD/MMC PCI host-controller driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_SD && !CDK2_LINEAR_BOOT
+	help
+	  Publish SD/MMC pass-thru for PCI SD host controllers.
+	  The strict linear profile currently selects one NVMe ESP and deliberately
+	  excludes the unrelated SD/MMC discovery path.
+
+config CDK2_NATIVE_SD_DXE
+	bool "Build native SD card bus driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_SDMMC_PCI
+	help
+	  Publish Block I/O and Disk Info children for discovered SD cards.
+
+config CDK2_NATIVE_EMMC_DXE
+	bool "Build native eMMC bus driver"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_SDMMC_PCI
+	help
+	  Publish block and card-information children for eMMC partitions.
+
+config CDK2_PROTECTED_VARIABLE_RUNTIME
+	bool "Use coreboot's protected variable owner"
+	default n
+	depends on CDK2_NATIVE_STAGE && CDK2_COREBOOT_OWNS_SMM
+	depends on PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	depends on !CDK2_SECURE_BOOT
+	help
+	  Publish the existing protected and volatile variable namespace through
+	  the native runtime driver. coreboot owns the sole nonvolatile backend;
+	  cdk2 owns only empty volatile RAM banks. A missing or invalid service
+	  endpoint fails driver installation without falling back to FVB or FTW.
+	  This experimental selection does not grant resumed S3 authority or
+	  activate protected image-policy snapshots or Secure Boot verification.
+	  Full DXE boot currently returns unsupported before initialization until
+	  a deny-capable image authorizer is integrated. Isolated driver tests may
+	  exercise installation and the authoritative variable modes separately.
+
+config CDK2_NATIVE_VARIABLE_RUNTIME
+	bool "Build native variable runtime driver" if !CDK2_COREBOOT_CAPSULE_PROFILE || CDK2_PROFILE_EXPERT_OVERRIDES
+	default y if CDK2_COREBOOT_CAPSULE_PROFILE
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on CDK2_PROTECTED_VARIABLE_RUNTIME || (CDK2_NATIVE_FTW && CDK2_NATIVE_SMMSTORE_FVB)
+	depends on !CDK2_SECURE_BOOT
+	help
+	  Publish persistent UEFI variable runtime services over FVB and FTW.
+	  Secure Boot builds retain the authenticated variable driver until cdk2
+	  has a native PKCS#7 authenticator and anti-replay implementation.
+
+config CDK2_NATIVE_CPU_ARCH
+	bool "Build native CPU architectural protocol driver"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Publish CPU architectural services and route x86 interrupt vectors.
+
+
+config CDK2_CPU_VENDOR_INTEL
+	bool "Build Intel-specific CPU services"
+	default n
+	help
+	  Select only when the platform CPU uses Intel architectural save state.
+
+config CDK2_NATIVE_BDS
+	bool "Build native boot device selection manager"
+	default y
+	depends on CDK2_NATIVE_STAGE && (!CDK2_LINEAR_BOOT || \
+		CDK2_PROFILE_EXPERT_OVERRIDES || (CDK2_SETUP_UI && \
+		CDK2_LVGL_RENDERER))
+	help
+	  Connect controllers and dispatch configured or fallback boot images.
+
+config CDK2_NATIVE_SHELL
+	bool "Build native startup script runner"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_BDS && CDK2_SHELL
+	help
+	  Execute startup.nsh images from the boot filesystem.
+
+config CDK2_NATIVE_DXE_CORE
+	bool "Build native DXE core"
+	default y
+	depends on CDK2_NATIVE_STAGE
+	help
+	  Own UEFI services, dispatch firmware drivers, and enter BDS.
+
+config CDK2_NATIVE_TCG2
+	bool "Build native TPM2 measured-boot services"
+	default y
+	depends on CDK2_NATIVE_STAGE && CDK2_TPM2
+	depends on CDK2_NATIVE_SECURITY_STUB || CDK2_LINEAR_BOOT
+	select CDK2_SOFTWARE_HASH
+	help
+	  Publish EFI_TCG2_PROTOCOL over the TPM2 interface described by ACPI,
+	  route Security2 image measurements, and import coreboot event HOBs.
+
+config CDK2_SOFTWARE_HASH
+	bool
+	default y if CDK2_NATIVE_TCG2
+	help
+	  Admit bounded streaming SHA1/SHA256/SHA384/SHA512/SM3 hashing for
+	  measured boot. Active TPM banks without a software implementation fail.
+
+config CDK2_NATIVE_TCG2_REPLACEMENT
+	bool "Replace retained TCG2 seed"
+	default y if CDK2_LINEAR_BOOT
+	depends on CDK2_NATIVE_TCG2
+	help
+	  Package the native TCG2 implementation in place of the retained seed.
+	  Linear boot requires this replacement because the seed's linked TPM
+	  device instance is incompatible with the coreboot handoff.
+
+config CDK2_NATIVE_TPM2_ACPI_TABLE
+	bool "Build native TPM2 ACPI table"
+	default n
+	depends on CDK2_NATIVE_TCG2 && CDK2_PROFILE_EXPERT_OVERRIDES
+	depends on !CDK2_STRICT_DIRECT_RUNTIME
+	help
+	  Internal ownership marker for the native TPM2 ACPI producer.  coreboot
+	  acceptance keeps this disabled because coreboot owns the TPM2 table.
+
+config CDK2_NATIVE_CAPSULE_RUNTIME
+	bool "Build native capsule runtime services" if !CDK2_COREBOOT_CAPSULE_PROFILE || CDK2_PROFILE_EXPERT_OVERRIDES
+	default y if CDK2_COREBOOT_CAPSULE_PROFILE
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on !CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+	help
+	  Publish capsule query and update runtime services after variable write
+	  services become available.
+
+config CDK2_NATIVE_SYSTEM_FMP
+	bool
+	default y if CDK2_COREBOOT_CAPSULE_PROFILE
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_CAPSULE_RUNTIME && CDK2_ESRT
+	depends on !CDK2_NATIVE_QEMU_TEST_FMP
+	help
+	  Build the source-owned production FMP adapter. It authenticates the EFI
+	  capsule against the profile's pinned public StarLabs trust set, validates
+	  the MSS1 payload, binds the candidate image to coreboot identity, and
+	  invokes only the typed protected coreboot broker. The same payload binary
+	  discovers identity, geometry and transport at runtime and fails closed
+	  unless coreboot publishes every required protected capability.
+
+config CDK2_QEMU_ACCEPTANCE_PROFILE
+	bool "Enable automated QEMU acceptance firmware"
+	default n
+	depends on CDK2_NATIVE_STAGE && CDK2_ESRT
+	depends on CDK2_CPU_VENDOR_INTEL
+	depends on CDK2_COREBOOT_CAPSULE_PROFILE
+	select DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
+	select CDK2_NATIVE_QEMU_TEST_FMP
+	help
+	  Enable firmware fixtures used only by automated QEMU acceptance tests.
+	  This profile must never be enabled for hardware or production images.
+
+config CDK2_NATIVE_QEMU_TEST_FMP
+	bool
+	depends on CDK2_NATIVE_STAGE && CDK2_NATIVE_CAPSULE_RUNTIME && CDK2_ESRT
+	help
+	  Build the default-off QEMU-only firmware-management acceptance fixture.
+	  Its public test trust anchor must never be enabled in production images.
+
+config CDK2_QEMU_TEST_FMP_IMAGE_GUID
+	string
+	default "00112233-4455-6677-8899-aabbccddeeff"
+	depends on CDK2_NATIVE_QEMU_TEST_FMP
+
+config CDK2_DEBUG
+	bool "Enable the CDK2 debug profile"
+	default n
+	depends on CDK2_CONSOLE
+	select CDK2_BUILD_DEBUG
+	select CDK2_SERIAL
+	select CDK2_CBMEM_CONSOLE
+	select CDK2_CBMEM_TIMESTAMPS
+	help
+	  Build a debug payload and route its diagnostics to serial, the coreboot
+	  CBMEM console, and (when supported by coreboot) the persistent SPI
+	  console. Also publish payload timestamps in CBMEM. This is the CDK2
+	  equivalent of coreboot's EDK2_DEBUG profile; one option enables every
+	  diagnostic sink needed to capture a hardware boot.
+
+config CDK2_BUILD_DEBUG
+	bool
+	default n
+	depends on CDK2_PAYLOAD
+
+config CDK2_SMMSTORE
+	bool "Use coreboot SMMSTORE variables"
+	default y
+	depends on CDK2_COREBOOT_OWNS_SMM
+	help
+	  Use the coreboot SMMSTORE implementation through coreboot's locked SMM
+	  service. This does not transfer ownership of SMRAM to the payload, and
+	  therefore does not select the native CDK2 SMM stack.
+
+config CDK2_EC_ACPI_BATTERY_PROFILE
+	int "EC ACPI battery profile"
+	range 0 5
+	default 0
+	depends on CDK2_PAYLOAD
+	help
+	  Select the EC battery status profile consumed by the cdk2 ACPI battery
+	  status driver: 0 probes, 1 selects Chrome EC, 2 selects Merlin, and 3
+	  selects ThinkPad, 4 preserves the legacy ThinkPad selection, and 5
+	  selects a genuine Smart Battery System word-command transport.
+	  coreboot board Kconfig owns the value for integrated builds.
+
+config CDK2_EC_BATTERY_DATA_PORT
+	hex "EC battery data port"
+	default 0x62
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_COMMAND_PORT
+	hex "EC battery command/status port"
+	default 0x66
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_READ_COMMAND
+	hex "EC battery read command"
+	default 0x80
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_WRITE_COMMAND
+	hex "EC battery write command"
+	default 0x81
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_OUTPUT_FULL_MASK
+	hex "EC output-buffer-full mask"
+	default 0x01
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_INPUT_FULL_MASK
+	hex "EC input-buffer-full mask"
+	default 0x02
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_TIMEOUT_US
+	int "EC battery transaction timeout (microseconds)"
+	range 100 10000000
+	default 100000
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_STATUS_COMMAND
+	hex "SBS BatteryStatus command"
+	default 0x16
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_WORD_READ_COMMAND
+	hex "EC command that performs an SBS Read Word transaction"
+	default 0
+	depends on CDK2_NATIVE_EC_BATTERY
+	help
+	  Platform-specific EC command that accepts one Smart Battery command and
+	  returns its little-endian 16-bit result.  Zero deliberately disables the
+	  SBS profile: the standard ACPI EC 0x80 command is only a byte read and is
+	  not falsely treated as an SBS transport.
+
+config CDK2_EC_BATTERY_SBS_RELATIVE_SOC_COMMAND
+	hex "SBS RelativeStateOfCharge command"
+	default 0x0d
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_REMAINING_COMMAND
+	hex "SBS RemainingCapacity command"
+	default 0x0f
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_FULL_COMMAND
+	hex "SBS FullChargeCapacity command"
+	default 0x10
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_CURRENT_COMMAND
+	hex "SBS Current command"
+	default 0x0a
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_PRESENT_MASK
+	hex "SBS present/initialized mask"
+	default 0
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_DISCHARGING_MASK
+	hex "SBS discharging mask"
+	default 0x0040
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_CRITICAL_MASK
+	hex "SBS critical status mask"
+	default 0x0a10
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_EC_BATTERY_SBS_ERROR_MASK
+	hex "SBS BatteryStatus error-code mask"
+	default 0x000f
+	depends on CDK2_NATIVE_EC_BATTERY
+
+config CDK2_CAPSULE
+	bool "Include capsule update support"
+	default n
+	depends on CDK2_ESRT && CDK2_GRAPHICS
+	depends on CDK2_CAPSULE_SMM_BACKEND
+
+config CDK2_CAPSULE_SMM_BACKEND
+	bool
+
+config CDK2_CAPSULE_MAIN_FW_GUID
+	string "Capsule system firmware FMP GUID"
+	default ""
+	depends on CDK2_CAPSULE
+	depends on !CDK2_COREBOOT_CAPSULE_PROFILE
+	help
+	  Compatibility GUID assigned to a system-firmware ESRT entry when no
+	  coreboot-owned native SystemFmp provider supplies its identity at runtime.
+
+config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
+	bool "Support EFI capsules on disk"
+	depends on CDK2_CAPSULE
+	select CDK2_STORAGE
+	select CDK2_NATIVE_DEVICE_PATH if !CDK2_STRICT_DIRECT_RUNTIME
+	select CDK2_NATIVE_ENGLISH
+	select CDK2_NATIVE_DISK_IO
+	select CDK2_NATIVE_PARTITION
+	select CDK2_NATIVE_PCI_HOST_BRIDGE
+	select CDK2_NATIVE_FAT
+	select CDK2_NATIVE_BDS if !CDK2_LINEAR_BOOT || CDK2_PROFILE_EXPERT_OVERRIDES
+	help
+	  This is coreboot's public capsule-on-disk policy, imported unchanged by
+	  the payload boundary instead of mirrored by a CDK2-specific option. It
+	  includes the generic disk, partition, and FAT stack but leaves NVMe, USB,
+	  ATA, and SD transports to board policy.
+
+config CDK2_NATIVE_CAPSULE_DISK_SCANNER
+	bool
+	default y
+	depends on CDK2_NATIVE_STAGE
+	depends on DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT || CDK2_COREBOOT_CAPSULE_PROFILE
+	help
+	  Build the native deterministic capsule-on-disk scanner. Storage and
+	  filesystem protocol adapters are selected separately.
+
+config CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+	bool "Allow embedded drivers in update capsules"
+	default n
+	depends on CDK2_CAPSULE && !CDK2_LINEAR_BOOT
+	depends on !CDK2_COREBOOT_CAPSULE_PROFILE || CDK2_PROFILE_EXPERT_OVERRIDES
+	help
+	  Permit FMP capsules to carry embedded DXE drivers.
+
+config CDK2_CAPSULE_EMBED_FMP_DXE
+	bool "Embed FmpDxe in generated capsules"
+	default n
+	depends on CDK2_CAPSULE && (!CDK2_COREBOOT_CAPSULE_PROFILE || CDK2_PROFILE_EXPERT_OVERRIDES)
+	select CDK2_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
+	help
+	  Embed the FmpDxe driver in generated update capsules instead of keeping
+	  it in the payload FV.
+
+config CDK2_SECURE_BOOT
+	bool "Enable secure boot support"
+	default n
+	depends on CDK2_PAYLOAD
+	select CDK2_ESRT
+
+config CDK2_SECURE_BOOT_CONFIG
+	bool "Include secure boot configuration UI"
+	default y
+	depends on CDK2_SECURE_BOOT && CDK2_SETUP_UI && CDK2_NATIVE_LVGL_SETUP
+
+
+config CDK2_SHELL
+	bool "Include the UEFI shell"
+	default y
+	depends on CDK2_PAYLOAD
+
+config CDK2_NVME
+	bool "Include NVMe support"
+	default y
+	depends on CDK2_PCI && CDK2_STORAGE
+
+config CDK2_USB
+	bool "Include USB support"
+	default y
+	depends on CDK2_PCI
+
+config CDK2_ATA
+	bool "Include ATA support"
+	default y
+	depends on CDK2_PCI && CDK2_STORAGE
+
+config CDK2_SD
+	bool "Include SD support"
+	default y
+	depends on CDK2_PCI && CDK2_STORAGE
+
+config CDK2_PS2_MOUSE
+	bool "Include PS/2 mouse support"
+	default y
+	depends on CDK2_CONSOLE && CDK2_PCI
+	select CDK2_SIO_BUS
+
+config CDK2_SIO_BUS
+	bool
+	depends on CDK2_PCI
+
+config CDK2_PS2_KEYBOARD
+	bool "Include PS/2 keyboard support"
+	default n
+	depends on CDK2_CONSOLE && CDK2_PCI
+	select CDK2_SIO_BUS
+
+config CDK2_SERIAL
+	bool "Enable the serial driver"
+	default n
+	depends on CDK2_CONSOLE
+
+config CDK2_CBMEM_CONSOLE
+	bool "Use the coreboot cbmem console"
+	default n
+	depends on CDK2_CONSOLE
+	help
+	  Append CDK2 diagnostics to the console buffer published by coreboot.
+	  This sink is independent of the UEFI serial driver; debug builds may
+	  tee the same records to their early serial transport.
+
+config CDK2_SPI_CONSOLE
+	bool
+	depends on CDK2_BUILD_DEBUG && CDK2_CBMEM_CONSOLE
+	default y if CDK2_BUILD_DEBUG && CDK2_CBMEM_CONSOLE
+	help
+	  Persist debug diagnostics through coreboot's versioned SMM SPI-console
+	  service after first appending the same record to CBMEM.
+
+config CDK2_DIAGNOSTIC
+	bool
+	default y if CDK2_BUILD_DEBUG || CDK2_CBMEM_CONSOLE
+	help
+	  Build the diagnostic transport whenever either the debug serial sink or
+	  the release-safe coreboot CBMEM sink is enabled.
+
+config CDK2_CBMEM_TIMESTAMPS
+	bool "Publish payload timestamps through CBMEM"
+	default n
+	depends on CDK2_PAYLOAD
+	help
+	  Record cdk2 entry, HOB, DXE load, and handoff timestamps in the
+	  coreboot CBMEM timestamp table.
+
+config CDK2_BOOT_TIMEOUT
+	int "Default boot menu timeout in seconds"
+	range 0 60
+	default 0
+	depends on CDK2_PAYLOAD
+
+config CDK2_USB_SCAN_TIMEOUT
+	int "Optional USB media discovery timeout in seconds"
+	range 0 60
+	default 2
+	depends on CDK2_PAYLOAD
+	help
+	  Bound optional USB mass-storage discovery.  Already discovered media
+	  remains usable; zero disables the deadline.  This is separate from the
+	  boot-menu timeout, which applies only after device discovery.
+
+config CDK2_TPM2
+	bool "Include TPM 2 support"
+	default y
+	depends on CDK2_PAYLOAD
+
+config CDK2_TPM_CONFIG
+	bool "Include TPM configuration UI"
+	default y
+	depends on CDK2_TPM2 && CDK2_SETUP_UI
+
+config CDK2_CPU_TIMER
+	bool "Use CPUID leaf 0x15 for the CPU timer"
+	default n
+	depends on CDK2_PAYLOAD
+	help
+	  QEMU does not provide the timer contract required by this library.
+
+config CDK2_MAX_LOGICAL_PROCESSORS
+	int "Maximum logical processors"
+	range 1 4096
+	default 1024
+	depends on CDK2_PAYLOAD
+	help
+	  Upper bound for the UEFI CPU driver processor table. coreboot board
+	  Kconfig should pass the platform CONFIG_MAX_CPUS value.
+
+choice
+	prompt "UEFI timer driver"
+	default CDK2_LAPIC_TIMER
+	depends on CDK2_PAYLOAD
+	help
+	  Select the timer architectural protocol installed by the payload.
+	  Local APIC is the direct-coreboot default; HPET remains available for
+	  platforms that explicitly provide a working HPET interrupt path.
+
+config CDK2_LAPIC_TIMER
+	bool "Local APIC timer"
+
+config CDK2_HPET_TIMER
+	bool "HPET timer"
+
+endchoice
+
+endmenu

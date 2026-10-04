@@ -1,0 +1,5 @@
+make[2]: Entering directory '/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/source'
+#
+# configuration written to /home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/.config
+#
+make[2]: Leaving directory '/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/source'

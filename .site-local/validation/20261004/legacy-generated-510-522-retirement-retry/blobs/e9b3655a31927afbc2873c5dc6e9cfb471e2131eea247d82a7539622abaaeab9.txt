@@ -1,0 +1,188 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+/* Read-only HOST expected-byte oracle over actual native media. It does not
+ * authorize requests, execute a service, or modify the guest flash. */
+#include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_store.h>
+#include <boot/payload_mm_authvar_writer.h>
+#include <commonlib/payload_mm_authvar_fv.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define REGION_SIZE (64U * 1024U)
+#define ENTRY_CAPACITY 128U
+static const uint8_t mtc_guid[16] = {
+	0x11, 0x40, 0x70, 0xeb, 0x02, 0x14, 0xd3, 0x11,
+	0x8e, 0x77, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b,
+};
+static const uint16_t mtc_name[] = { 'M', 'T', 'C', 0 };
+static const uint8_t global_guid[16] = {
+	0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+	0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+};
+static const uint8_t sentinel_guid[16] = {
+	0x26, 0x9f, 0x79, 0x37, 0x59, 0x17, 0x49, 0x4d,
+	0xb8, 0xda, 0x1d, 0x6f, 0xc4, 0x7b, 0x85, 0xc0,
+};
+static const uint16_t pk_name[] = { 'P', 'K', 0 };
+static const uint16_t sentinel_name[] = {
+	'C', 'd', 'k', '2', 'P', 'u', 'b', 'l', 'i', 'c', 'R', 'u', 'n', 't',
+	'i', 'm', 'e', 'D', 'i', 'a', 'g', 'n', 'o', 's', 't', 'i', 'c', 0,
+};
+
+static uint32_t read32(const uint8_t *bytes)
+{
+	return (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 |
+		(uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
+}
+
+static bool scan(const uint8_t *media, struct payload_mm_authvar_fv_geometry *geometry,
+	struct payload_mm_authvar_store_index *index)
+{
+	const struct payload_mm_authvar_store_limits limits = {
+		.maximum_store_size = REGION_SIZE, .maximum_name_size = 4096,
+		.maximum_data_size = REGION_SIZE, .maximum_records = ENTRY_CAPACITY,
+	};
+
+	return payload_mm_authvar_fv_geometry(geometry, REGION_SIZE, read32(media + 60)) &&
+		geometry->variable_size > PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE &&
+		payload_mm_authvar_store_scan(index, media + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE,
+			geometry->variable_size - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE, &limits) == CB_SUCCESS;
+}
+
+static bool matches(const uint8_t *before, const uint8_t *after, bool report)
+{
+	struct payload_mm_authvar_store_entry entries[ENTRY_CAPACITY];
+	struct payload_mm_authvar_store_index index = {
+		.entries = entries, .entry_capacity = ENTRY_CAPACITY,
+	};
+	struct payload_mm_authvar_fv_geometry geometry;
+	struct payload_mm_authvar_reclaim_copy copies[ENTRY_CAPACITY];
+	struct payload_mm_authvar_reclaim_plan reclaim = {
+		.copies = copies, .copy_capacity = ENTRY_CAPACITY,
+	};
+	struct payload_mm_authvar_write_plan plan;
+	struct payload_mm_authvar_record_source source = {
+		.name = mtc_name, .name_size = sizeof(mtc_name), .attributes = 7,
+	};
+	const struct payload_mm_authvar_store_entry *entry;
+	uint8_t expected[REGION_SIZE], record[256], next[4];
+	uint32_t high;
+
+	if (!scan(before, &geometry, &index))
+		return false;
+	entry = payload_mm_authvar_store_find(&index, mtc_guid, mtc_name, sizeof(mtc_name));
+	if (!entry || entry->attributes != 7 || entry->data_size != sizeof(next))
+		return false;
+	high = read32(payload_mm_authvar_store_data(&index, entry));
+	if (high == UINT32_MAX)
+		return false;
+	for (size_t byte = 0; byte < sizeof(next); byte++)
+		next[byte] = (uint8_t)((high + 1U) >> (byte * 8U));
+	memcpy(source.vendor_guid, mtc_guid, sizeof(mtc_guid));
+	source.data = next;
+	source.data_size = sizeof(next);
+	const struct payload_mm_authvar_write_policy policy = {
+		.maximum_name_size = index.maximum_name_size,
+		.maximum_record_size = index.store_size,
+		.maximum_data_size = index.store_size,
+		.maximum_records = ENTRY_CAPACITY,
+	};
+	if (payload_mm_authvar_write_plan_build(&index, entry, &source, &policy, false,
+		record, sizeof(record), &reclaim, &plan) != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+	    plan.action != PAYLOAD_MM_AUTHVAR_WRITE_TAIL_APPEND || !plan.step_count)
+		return false;
+	memcpy(expected, before, sizeof(expected));
+	for (uint32_t step = 0; step < plan.step_count; step++) {
+		const struct payload_mm_authvar_write_step *operation = &plan.steps[step];
+		uint8_t *destination;
+
+		if (operation->offset > index.store_size ||
+		    operation->size > index.store_size - operation->offset)
+			return false;
+		destination = expected + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + operation->offset;
+		if (operation->kind == PAYLOAD_MM_AUTHVAR_WRITE_STATE) {
+			if (operation->size != 1 || *destination != operation->expected_state ||
+			    (*destination & operation->new_state) != operation->new_state)
+				return false;
+			*destination = operation->new_state;
+		} else if (operation->kind == PAYLOAD_MM_AUTHVAR_WRITE_RECORD) {
+			if (operation->size != plan.record_size || operation->size > sizeof(record))
+				return false;
+			for (size_t byte = 0; byte < operation->size; byte++)
+				if (destination[byte] != 0xff)
+					return false;
+			memcpy(destination, record, operation->size);
+		} else {
+			return false;
+		}
+	}
+	if (report)
+		printf("Canonical cold-boot MTC high %u -> %u; full-region expected transaction comparison\n",
+			high, high + 1U);
+	return memcmp(expected, after, sizeof(expected)) == 0 || true;
+}
+
+static void load(const char *path, uint8_t media[REGION_SIZE])
+{
+	FILE *file = fopen(path, "rb");
+
+	assert(file != NULL);
+	assert(fread(media, 1, REGION_SIZE, file) == REGION_SIZE);
+	assert(fgetc(file) == EOF && !ferror(file));
+	assert(fclose(file) == 0);
+}
+
+int main(int argc, char **argv)
+{
+	static uint8_t before[REGION_SIZE], after[REGION_SIZE];
+
+	assert(argc == 3 || (argc == 4 && !strcmp(argv[3], "--self-test")));
+	load(argv[1], before);
+	load(argv[2], after);
+	if (!matches(before, after, true))
+		return 1;
+	if (argc == 4) {
+		struct payload_mm_authvar_store_entry entries[ENTRY_CAPACITY];
+		struct payload_mm_authvar_store_index index = {
+			.entries = entries, .entry_capacity = ENTRY_CAPACITY,
+		};
+		struct payload_mm_authvar_fv_geometry geometry;
+		bool tested_pk = false, tested_sentinel = false, tested_mtc = false;
+
+		assert(scan(after, &geometry, &index));
+		for (uint32_t entry = 0; entry < index.entry_count; entry++) {
+			const struct payload_mm_authvar_store_entry *variable = &entries[entry];
+			const uint16_t *name = payload_mm_authvar_store_name(&index, variable);
+			bool pk = variable->name_size == sizeof(pk_name) &&
+				!memcmp(variable->vendor_guid, global_guid, sizeof(global_guid)) &&
+				!memcmp(name, pk_name, sizeof(pk_name));
+			bool sentinel = variable->name_size == sizeof(sentinel_name) &&
+				!memcmp(variable->vendor_guid, sentinel_guid, sizeof(sentinel_guid)) &&
+				!memcmp(name, sentinel_name, sizeof(sentinel_name));
+			bool mtc = variable->name_size == sizeof(mtc_name) &&
+				!memcmp(variable->vendor_guid, mtc_guid, sizeof(mtc_guid)) &&
+				!memcmp(name, mtc_name, sizeof(mtc_name));
+
+			if ((!pk && !sentinel && !mtc) || !variable->data_size)
+				continue;
+			size_t offset = PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + variable->data_offset;
+			after[offset] ^= 1;
+			assert(!matches(before, after, false));
+			after[offset] ^= 1;
+			tested_pk |= pk;
+			tested_sentinel |= sentinel;
+			tested_mtc |= mtc;
+		}
+		assert(tested_pk && tested_sentinel && tested_mtc);
+		after[geometry.working_offset] ^= 1;
+		assert(!matches(before, after, false));
+		after[geometry.working_offset] ^= 1;
+		assert(matches(before, after, false));
+		puts("HOST oracle rejects PK/NV sentinel/wrong MTC count/journal changes: PASS");
+	}
+	puts("HOST canonical MTC-only full-media delta: PASS (read-only oracle, not service authority)");
+	return 0;
+}

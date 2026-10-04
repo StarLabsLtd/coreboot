@@ -1,0 +1,5 @@
+make: Entering directory '/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/source'
+#
+# configuration written to /home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/configured/.config
+#
+make: Leaving directory '/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/source'

@@ -1,0 +1,15 @@
+36db2b2d6823361fd647a260253e9cb63893db8b32225f82695589ff60aa2a5a  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-db.bootx64.efi
+36db2b2d6823361fd647a260253e9cb63893db8b32225f82695589ff60aa2a5a  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-db.efi
+317e48df51146842f74be2e38acecb397e6db95532e25a44b9d0032ae34e40ae  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-rogue.bootx64.efi
+317e48df51146842f74be2e38acecb397e6db95532e25a44b9d0032ae34e40ae  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-rogue.efi
+340ba1f1d29981d3788fb2aab8d967ed5233ae1c89203dae2d9537f249ead527  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-unsigned.bootx64.efi
+340ba1f1d29981d3788fb2aab8d967ed5233ae1c89203dae2d9537f249ead527  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-unsigned.efi
+d31bcd425ba3811d23cfcb694adb358cb45755f6f5225d4f399dd33a7ffed40f  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-db.elf
+d31bcd425ba3811d23cfcb694adb358cb45755f6f5225d4f399dd33a7ffed40f  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-rogue.elf
+d31bcd425ba3811d23cfcb694adb358cb45755f6f5225d4f399dd33a7ffed40f  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-unsigned.elf
+fd8f1c0f5456d99fffed5b23a09f7ad4d2c79e695c8623033e641d3f7283870c  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-db.rom
+bc2b1e5147483289c2f56f45db3daf93bacc719f1e091801441fce7dc4723bf8  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-rogue.rom
+bc2b1e5147483289c2f56f45db3daf93bacc719f1e091801441fce7dc4723bf8  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-unsigned.rom
+f08b51750f3d8c1f1c02a77d8976d6d4e16a4a6974ad135ca0bf5b4eca672e71  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-db.serial.log
+9383e00b8a0a7491a847bc5c4b18127a3af8fc28bdc2f1cc6aff26153ced7c2a  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-rogue.serial.log
+243c0845af1fcb53ec731b0243b208ff05cdc819716be0bca1f0c23b73dd2c0c  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/cold-unsigned.serial.log

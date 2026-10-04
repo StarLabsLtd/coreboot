@@ -1,0 +1,16 @@
+#include <assert.h>
+#include <uefi.h>
+static EFI_STATUS shape(void) {
+#if CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME && \
+	(!CONFIG_CDK2_STRICT_DIRECT_RUNTIME || !CONFIG_CDK2_LINEAR_BOOT || \
+	 0 || !CONFIG_CDK2_NATIVE_SECURITY_STUB)
+	/*
+	 * Only the source-closed native linear graph may reach the mandatory
+	 * protected owner and deny-capable Security2 authorizer installation.
+	 * Build shape is not authority: their real validation must still succeed
+	 * before the required variable phase or OS image dispatch can complete.
+	 */
+	return EFI_UNSUPPORTED;
+#endif
+return EFI_SUCCESS; }
+int main(void) { assert(shape() == EXPECTED_STATUS); return 0; }

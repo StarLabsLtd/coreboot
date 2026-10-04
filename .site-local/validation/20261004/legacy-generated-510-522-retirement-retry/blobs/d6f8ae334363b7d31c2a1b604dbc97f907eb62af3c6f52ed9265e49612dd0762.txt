@@ -1,0 +1,9 @@
+UNMODIFIED protected packaged graph artifacts: /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0
+Found file config at 0x34900, type raw, compressed 3379, size 11929
+Found file config at 0x19a80, type raw, compressed 2975, size 9676
+Found file config at 0x33f00, type raw, compressed 3368, size 11878
+Unmodified production graph: genuinely absent endpoint refuses before variable install/app
+Unmodified production graph: old GENERAL without predicate owner refuses required ESRT before app
+Unmodified production graph ordinary runtime: PASS
+Unmodified production graph enrolled runtime: PASS
+UNMODIFIED protected fullgraph ordinary/enrolled EBS/nonidentity-VA runtime: PASS (no generated guard discard)

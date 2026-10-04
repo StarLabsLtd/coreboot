@@ -1,0 +1,12 @@
+generated-unarchived	0	/home/sean/cdk2-root-production-after510/.config-target.lock
+generated-unarchived	5266	/home/sean/cdk2-root-production-after510/include/generated/rustc_cfg
+generated-unarchived	0	/home/sean/cdk2-root-production-after510/kconfig/.kconfig-prepare.lock
+generated-unarchived	121	/home/sean/cdk2-root-production-after510/kconfig/coreboot-input.identity
+generated-unarchived	21836	/home/sean/cdk2-root-production-after510/kconfig/coreboot-source.tmp
+generated-unarchived	809	/home/sean/cdk2-root-production-after510/kconfig/defconfig
+generated-unarchived	65536	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.after-smmstore.bin
+generated-unarchived	65536	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.before-smmstore.bin
+generated-unarchived	495616	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.bootx64.efi
+generated-unarchived	1309504	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.elf
+generated-unarchived	134217728	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.nvme.raw
+generated-unarchived	8388608	/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/absent.rom

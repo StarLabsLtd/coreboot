@@ -1,0 +1,2 @@
+/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/coreboot.config
+b519f175cb29a3ee2e5955f1fbcab984f6c886c13d17df9651b1ba6139554828

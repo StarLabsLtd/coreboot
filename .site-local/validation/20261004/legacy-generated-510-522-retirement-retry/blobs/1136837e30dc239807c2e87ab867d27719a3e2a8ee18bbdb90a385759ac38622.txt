@@ -1,0 +1,5 @@
+244c78ccf4bdaf83c17203498fc60530ae4b1c642ea9fbd218178436dd1e3070  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/enrolled-app.efi
+97ada26fb8d84e32b95938e3fe0260969b9b6c732dcd706cc291970d634dd47e  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/ordinary-app.efi
+d31bcd425ba3811d23cfcb694adb358cb45755f6f5225d4f399dd33a7ffed40f  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/production.elf
+363b28536b6b4ce5f5f49d00b8592f26e44cbbd3c9662f8442db04f6f73e2195  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/configured/include/cdk2/config.h
+55e105af89361b09c97a22827cb6a88087dc5acf8f08c7102ee03e189f7b2a0e  /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/resolved-payload.config

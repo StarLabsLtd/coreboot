@@ -1,0 +1,1 @@
+no-NATIVE_VARIABLE_RUNTIME-o0-mutant: /home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/shape-guard/run.5LdTXB/no-NATIVE_VARIABLE_RUNTIME.c:16: main: Assertion `shape() == EXPECTED_STATUS' failed.

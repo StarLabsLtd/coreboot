@@ -1,0 +1,5 @@
+make: Entering directory '/home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/source'
+#
+# configuration written to /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/configured/.config
+#
+make: Leaving directory '/home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/source'

@@ -1,0 +1,1 @@
+no-LINEAR_BOOT-o2-mutant: /home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/shape-guard/run.5LdTXB/no-LINEAR_BOOT.c:16: main: Assertion `shape() == EXPECTED_STATUS' failed.

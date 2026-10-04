@@ -1,0 +1,19 @@
+FAILED, INCOMPLETE archival collection; no retirement authority.
+
+Root session45762 ran the reviewed legacy collector and exited1 at:
+nontext selected input: configured/native/AcpiTableDxe.efi
+MIME application/vnd.microsoft.portable-executable.
+The full-path */config* selector accidentally included descendants of the
+configured directory. The MIME guard refused the EFI executable. No selected
+private-key contents were copied. Independent audit found174 mapped originals
+with exact full-byte copies and no binary/private-key contents in those blobs.
+Three retained input tars were copied and hash/byte checked. Originals remain.
+
+Chronology: peer initially released59673233, then found the selection blocker
+after release; root had already launched. The author learned of execution after
+editing the same proposal path to09d0eaf. That proposal was preserved in a NEW
+retry directory, and the original59673233 source was restored byte-exact.
+The copied original collector here is that restored reviewed recipe. There is
+NO before/after recipe immutability attestation for this failed collection.
+Do not promote the partial packet to a complete archive or historical test pass.
+The retry uses a separate destination and corrected basename-only selection.

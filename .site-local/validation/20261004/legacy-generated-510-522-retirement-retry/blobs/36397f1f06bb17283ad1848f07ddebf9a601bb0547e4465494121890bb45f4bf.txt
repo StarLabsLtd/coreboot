@@ -1,0 +1,7 @@
+deps_config := \
+	kconfig/Kconfig \
+
+/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/auto.conf: $(deps_config)
+
+
+$(deps_config): ;

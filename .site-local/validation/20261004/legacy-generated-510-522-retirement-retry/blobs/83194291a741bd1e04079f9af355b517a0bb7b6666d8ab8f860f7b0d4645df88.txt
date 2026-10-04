@@ -1,0 +1,1 @@
+no-LINEAR_BOOT-o0-mutant: /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/shape-guard/run.so5crr/no-LINEAR_BOOT.c:16: main: Assertion `shape() == EXPECTED_STATUS' failed.

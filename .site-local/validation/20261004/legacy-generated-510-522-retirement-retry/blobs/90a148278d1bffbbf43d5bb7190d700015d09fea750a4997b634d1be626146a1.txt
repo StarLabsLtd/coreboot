@@ -1,0 +1,1 @@
+cold-media-compare-mutant: /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/codec-compare-mutant.c:173: main: Assertion `!matches(before, after, false)' failed.

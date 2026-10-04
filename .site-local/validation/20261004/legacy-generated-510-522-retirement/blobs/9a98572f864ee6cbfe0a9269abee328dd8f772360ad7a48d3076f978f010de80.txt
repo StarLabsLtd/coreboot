@@ -1,0 +1,7 @@
+deps_config := \
+	kconfig/Kconfig \
+
+/home/sean/cdk2-root-production-after510/auto.conf: $(deps_config)
+
+
+$(deps_config): ;

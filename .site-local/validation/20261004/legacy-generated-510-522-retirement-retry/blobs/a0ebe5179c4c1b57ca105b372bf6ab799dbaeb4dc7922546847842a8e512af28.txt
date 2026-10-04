@@ -1,0 +1,6 @@
+e4dd3ba7ebf9849926e48b2c23cb572470763c523e0131ecf23377c925ff220b  /home/sean/Documents/cdk2/tests/protected_variable_cold_media_check.c
+bf96847421957a29e6e3f16c0453aaabdda7e11c70d779d2f135ba87bf701613  /home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule/src/lib/payload_mm_authvar_fv.c
+4e176866ac71a494d008d0799b926be025867cf3670ece67d92f9c594a12f796  /home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule/src/lib/payload_mm_authvar_store.c
+c974a8c1b509f99387f04e00f69e217a91e4d323d4bd0c111a5a3f9bec4e23bc  /home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule/src/lib/payload_mm_authvar_record.c
+4815cb6ae280899ef42ed9a0528c6555bfc715e6ed7f31822a706636b9713222  /home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule/src/lib/payload_mm_authvar_store_semantics.c
+5ac52b5807aaffd4adf2715aa734f1d9863817cfd4c2da8ebdf11706e16fb4e7  /home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule/src/lib/payload_mm_authvar_writer.c

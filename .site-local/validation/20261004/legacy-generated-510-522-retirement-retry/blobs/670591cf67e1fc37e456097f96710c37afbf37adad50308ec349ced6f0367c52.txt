@@ -1,0 +1,1 @@
+no-STRICT_DIRECT_RUNTIME-o0-mutant: /home/sean/cdk2-root-cold-main-after522/run.On0z3Y/baseline/run.rA2EY0/shape-guard/run.so5crr/no-STRICT_DIRECT_RUNTIME.c:16: main: Assertion `shape() == EXPECTED_STATUS' failed.

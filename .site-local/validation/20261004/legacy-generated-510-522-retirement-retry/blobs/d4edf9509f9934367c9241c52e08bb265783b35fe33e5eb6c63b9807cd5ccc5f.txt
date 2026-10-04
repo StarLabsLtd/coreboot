@@ -1,0 +1,12 @@
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Native service Auth2 inputs: PK setup bypass; PK-signed KEK; KEK-signed db; valid untrusted-signer KEK
+CMS Verification successful
+CMS Verification successful
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Enrolled inputs: real db/rogue-signed child PEs; newer KEK-signed db and valid untrusted-signer db

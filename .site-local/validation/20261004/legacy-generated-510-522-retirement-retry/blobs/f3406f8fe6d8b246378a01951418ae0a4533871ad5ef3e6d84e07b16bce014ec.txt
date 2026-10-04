@@ -1,0 +1,21 @@
+make[2]: Entering directory '/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/source'
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (31 records, 8 mutations)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/native/cdk2-coreboot-image.elf)
+/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/native/PublicFullgraphRuntimeDiagnostic.efi
+/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/configured/native/PublicFullgraphEnrolledDiagnostic.efi
+make[2]: Leaving directory '/home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/source'

@@ -1,0 +1,10 @@
+HOST compiled production guard-fragment artifacts: /home/sean/cdk2-root-production-after510/native/protected-variable-fullgraph-production/run.EJ8TkU/shape-guard/run.5LdTXB
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209202 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209216 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209230 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209244 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209270 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209284 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209299 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+/home/sean/Documents/cdk2/tests/protected_variable_fullgraph_shape_test.sh: line 46: 2209314 Aborted                 "$binary-mutant" > "$binary-mutant.log" 2>&1
+HOST exact guard fragment: supported/legacy sentinels and all four partial-shape refusals O0/O2; four causal term deletions each rejected

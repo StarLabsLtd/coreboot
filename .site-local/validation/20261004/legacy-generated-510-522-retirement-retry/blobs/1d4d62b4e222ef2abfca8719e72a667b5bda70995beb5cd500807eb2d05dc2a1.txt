@@ -1,0 +1,20 @@
+make: Entering directory '/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/source'
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (31 records, 8 mutations)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/configured/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/configured/native/cdk2-coreboot-image.elf)
+/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/configured/native/PublicFullgraphRuntimeDiagnostic.efi
+make: Leaving directory '/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/source'

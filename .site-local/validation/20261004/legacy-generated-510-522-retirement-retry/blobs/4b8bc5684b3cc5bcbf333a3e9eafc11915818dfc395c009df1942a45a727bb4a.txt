@@ -1,0 +1,7 @@
+deps_config := \
+	kconfig/Kconfig \
+
+/home/sean/cdk2-root-combined-native.6l4qUG/run.4u6gUG/configured/auto.conf: $(deps_config)
+
+
+$(deps_config): ;
