@@ -4,6 +4,7 @@
 #include <CCX/Common/CcxApic.h>
 #include <FCH/Common/FchCommon.h>
 #include <FCH/FchUsb-api.h>
+#include <FCH/FchIsa-api.h>
 #include <FCH/Tacoma/FchCore/FchUsb/FchUsbOemTc.h>
 #include <PROM/PromClass-api.h>
 #include <RcMgr/DfX/RcManager-api.h>
@@ -306,6 +307,19 @@ WEAK_DEV_PTR(lpc_bridge);
 	fch_data->FchRunTime.FchDeviceEnableMap |= \
 		(is_dev_enabled(DEV_PTR(dev)) ? (1ul << aoac_bit) : 0)
 
+static void configure_fch_isa(SIL_CONTEXT *SilContext)
+{
+	if (!CONFIG(MEMORY_MAPPED_TPM))
+		return;
+
+	FCHISA_INPUT_BLK *fch_isa_data = SilFindStructure(SilContext, SilId_FchIsa, 0);
+	if (!fch_isa_data)
+		die("OpenSIL: FCH ISA data not found\n");
+
+	/* Select SPI dTPM routing before device enumeration probes its MMIO window. */
+	fch_isa_data->SpiConfig.SystemTpmConfig = 0;
+}
+
 static void configure_fch_acpi(SIL_CONTEXT *SilContext)
 {
 	FCHHWACPI_INPUT_BLK *fch_hwacpi_data = SilFindStructure(SilContext, SilId_FchHwAcpi, 0);
@@ -405,6 +419,7 @@ void setup_opensil(void)
 	configure_usb(&SilContext);
 	configure_ccx(&SilContext);
 	configure_smu(&SilContext);
+	configure_fch_isa(&SilContext);
 	configure_fch_acpi(&SilContext);
 }
 
