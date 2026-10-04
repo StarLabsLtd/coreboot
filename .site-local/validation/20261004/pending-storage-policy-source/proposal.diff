@@ -1,0 +1,107 @@
+diff --git a/src/modules/dxe_core/entry.c b/src/modules/dxe_core/entry.c
+index 8c05c928bc..686bb4068c 100644
+--- a/src/modules/dxe_core/entry.c
++++ b/src/modules/dxe_core/entry.c
+@@ -2567,12 +2567,12 @@ static EFI_STATUS get_storage_binding(struct dxe_services_context *context,
+ static enum storage_backend storage_backend_from_class(const UINT8 class_code[3])
+ {
+ 	if (class_code[2] == 1U && class_code[1] == 8U && class_code[0] == 2U)
+-		return STORAGE_NVME;
++		return CONFIG_CDK2_NATIVE_NVME ? STORAGE_NVME : STORAGE_NONE;
+ 	if (class_code[2] == 0x0cU && class_code[1] == 0x03U &&
+ 	    class_code[0] == 0x30U)
+ 		return CONFIG_CDK2_NATIVE_XHCI ? STORAGE_USB : STORAGE_NONE;
+ 	if (class_code[2] == 1U && class_code[1] == 6U && class_code[0] == 1U)
+-		return STORAGE_AHCI;
++		return CONFIG_CDK2_NATIVE_ATA_BUS ? STORAGE_AHCI : STORAGE_NONE;
+ 	return STORAGE_NONE;
+ }
+ 
+diff --git a/tests/dxe_core_entry_mixed_partition_test.c b/tests/dxe_core_entry_mixed_partition_test.c
+index 12b475ca36..8f27c349b3 100644
+--- a/tests/dxe_core_entry_mixed_partition_test.c
++++ b/tests/dxe_core_entry_mixed_partition_test.c
+@@ -1442,6 +1442,83 @@ int main(void)
+ 		return 1;
+ 	puts("DXE USB policy candidate admission: PASS");
+ 	return 0;
++#elif defined(CDK2_STORAGE_POLICY_ONLY)
++	struct storage_candidates candidates = {0};
++	const UINT8 classes[3][3] = {
++		{ 2U, 8U, 1U }, { 0x30U, 0x03U, 0x0cU }, { 1U, 6U, 1U }
++	};
++	const UINT8 unsupported_class[3] = { 0U, 0U, 0U };
++	const enum storage_backend backends[3] = {
++		STORAGE_NVME, STORAGE_USB, STORAGE_AHCI
++	};
++	const BOOLEAN enabled[3] = {
++		CONFIG_CDK2_NATIVE_NVME, CONFIG_CDK2_NATIVE_XHCI,
++		CONFIG_CDK2_NATIVE_ATA_BUS
++	};
++	const char *const admission_messages[3] = {
++		"NVMe native capability class admission",
++		"storage policy preserves USB class admission",
++		"AHCI complete native route class admission"
++	};
++	void *handles[3] = { nvme_controller, usb_controller, ahci_controller };
++	UINTN expected_count = 0U;
++	int failures = 0;
++
++	for (UINTN index = 0U; index < ARRAY_SIZE(classes); index++) {
++		struct cdk2_pci_topology_function function = {
++			.programming_interface = classes[index][0],
++			.subclass = classes[index][1], .class_code = classes[index][2]
++		};
++		enum storage_backend expected = enabled[index] ?
++			backends[index] : STORAGE_NONE;
++
++		failures += expect(storage_backend_from_class(classes[index]) == expected,
++			admission_messages[index]);
++		failures += expect(topology_storage_backend(&function) == expected,
++			"storage policy topology class admission");
++	}
++	/* Reverse backend order, retaining the production fallback sort. */
++	for (UINTN index = ARRAY_SIZE(classes); index != 0U; index--) {
++		UINTN selected = index - 1U;
++
++		consider_storage_candidate(&candidates, handles[selected],
++			classes[selected], 8U + selected);
++		expected_count += enabled[selected] ? 1U : 0U;
++		failures += expect(candidates.count == expected_count && !candidates.invalid,
++			"storage policy candidate count");
++	}
++	consider_storage_candidate(&candidates, (void *)0xa500, unsupported_class, 8U);
++	for (UINTN index = 0U; index < ARRAY_SIZE(classes); index++)
++		if (!enabled[index])
++			consider_storage_candidate(&candidates, handles[index], classes[index], 8U);
++	failures += expect(candidates.count == expected_count && !candidates.invalid,
++		"disabled and unsupported routes cannot poison admitted candidates");
++	sort_storage_candidates(&candidates);
++	expected_count = 0U;
++	for (UINTN index = 0U; index < ARRAY_SIZE(classes); index++) {
++		if (!enabled[index])
++			continue;
++		failures += expect(candidates.candidate[expected_count].handle ==
++			handles[index] && candidates.candidate[expected_count].backend ==
++			backends[index] && candidates.candidate[expected_count].location ==
++			8U + index && candidates.candidate[expected_count].intent_order ==
++			MAX_UINTN, "enabled storage candidate identity and fallback order");
++		expected_count++;
++	}
++	if (expected_count != 0U) {
++		UINTN first = 0U;
++
++		while (!enabled[first])
++			first++;
++		consider_storage_candidate(&candidates, handles[first], classes[first],
++			8U + first);
++		failures += expect(candidates.invalid && candidates.count == expected_count,
++			"enabled duplicate storage location remains compromised");
++	}
++	if (failures != 0)
++		return 1;
++	puts("DXE native storage policy candidate admission: PASS");
++	return 0;
+ #elif defined(CDK2_BOOT_LOGO_FAILURE_ONLY)
+ 	UINTN activation_calls = MAX_UINTN;
+ 

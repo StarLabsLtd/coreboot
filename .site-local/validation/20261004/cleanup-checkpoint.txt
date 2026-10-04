@@ -129,3 +129,52 @@ normal/default689, full-lint688 and checker-provenance packet has 233 complete
 original mappings. It preserves the expected old-pin status 1 and the empty
 extended-lint inventory, without turning either into additional coverage.
 Neither archival collection re-executed a firmware test or source hash helper.
+
+Fifth completed pass:
+- The loose147 operation passed: three existing archives moved without copying,
+  with unchanged device/inode/size/SHA; the other 144 files moved to recoverable
+  trash. Both actual-result reviews passed. Only the two excluded active cleanup
+  scripts remain among top-level cdk2-* regular files. Their checks were inline,
+  without a separately persisted before-identity ledger.
+- All 53 SeaBIOS clone leaves moved to recoverable trash. The 53 parent trees
+  remain, including dirty owned work. Both actual reviews proved exact commands,
+  original-path absence, directory identities and Trashinfo paths, all raw refs
+  and 106 configuration files, 15191 ignored-input metadata hashes, retained
+  canonical state and the surviving graph. Exactly 53 markers disappeared;
+  alternates were unchanged. Parent diff preservation was checked inline, not
+  by an independently persisted before-diff ledger.
+- These two actual operations have a separate 620-original receipt archive,
+  with both reviews, full counterparts and stored hashes passing. No trash or
+  retained archive payload was copied into that evidence packet.
+- Twelve additional clean CDK2 parents were retired after branch/signature,
+  source and private-store dependency checks, bringing total retired CDK2
+  parents to 180 and its registry to 87. Their exact signed heads and observed
+  tool results are in worktree-retirement12.tsv. The first five were source-only
+  nonforce removals; seven initialized clean vendor parents used bounded force
+  after every vendor HEAD/raw ref was proved retained canonically. In the last
+  chain, the 616 borrower was removed and its edge rechecked absent before 610.
+  No canonical submodule config was changed through deinit; no refs were pruned.
+- Fifteen closed home recipe/old-lint/documentation directories and the PP4
+  diagnostic receipt directory moved to recoverable trash. All preserved bytes
+  were checked against signed Git blobs: 287 selected originals for the first
+  batch, and 287 for PP4. Actual trash counterparts passed the same checks.
+  Generated lint selectors/headers and HOST binaries were separately classified
+  as rebuildable, not falsely represented as archived payloads. Golden inputs
+  remain. Six obsolete 66-retirement recipe directories also moved to trash
+  after their twelve bytesets and lack of current consumers were reviewed.
+- The old DEFAULT661 root is still present pending publication/retirement. Its
+  59 unique noncompiled inputs/configurations were retained in a 59551-byte
+  local archive; every member passed full stream-byte comparison and both actual
+  reviews. The evidence packet contains only 18 genuine retention records and
+  copier sources, not the local tar, certificates, signatures or mutant source.
+  Its copier returned zero; it has no synthetic collection.status.
+
+The pending storage-policy diff is also preserved explicitly as UNTESTED SOURCE
+against signed623527. This protects unfinished work on the unreliable host; it
+does not join that proposal into canonical signed58598 or assert test coverage.
+
+This remains an interim cleanup checkpoint. Larger active/current fixtures,
+private-store borrowers and unretained vendor tips still need classification.
+All trash moves remain recoverable until a separate trash-emptying decision;
+moving to trash is not claimed to free disk space. Home Assistant, Plex, VMs,
+unrelated repositories, user dirty coreboot changes and hardware remain untouched.

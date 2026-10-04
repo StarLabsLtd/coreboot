@@ -1,0 +1,532 @@
+[
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 18449785
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-bootstrap-failure-atomic/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 24615709
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-certdb-codec/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.2",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.2.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 10743148
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-media-backend/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.3",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.3.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 32969000
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-mor-probe/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.4",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.4.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 53401126
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-presence-canonical-bootstrap/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.5",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.5.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 7112774
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-presence-lifecycle-close-dma-install-provider/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.6",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.6.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 35477105
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-presence-producer/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.7",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.7.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 35617311
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-presence-publication/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.8",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.8.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 25255650
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-private-binding/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.9",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.9.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 25799041
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-private-provider/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.10",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.10.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 25406664
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-private-trust/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.11",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.11.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 21978457
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-read-view/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.12",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.12.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 19643144
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-service-status/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.13",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.13.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 22918942
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-set-preflight/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.14",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.14.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 20545061
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-shared-fv/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.15",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.15.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 10596108
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-smmstore-backend/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.16",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.16.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 20306256
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-trust-authority/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.17",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.17.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 21465617
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/authvar-view/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.18",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.18.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6702594
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/bootmem-aligned-reservations/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.19",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.19.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 36385459
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/bootmem-receipt-exact-tag/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.20",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.20.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 16366572
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/capsule-anchor-overlap-fix/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.21",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.21.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 17819843
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/generic-inventory-workspace/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.22",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.22.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 3278458
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-clear-executor/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.23",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.23.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6168365
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-clear-x86-backend/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.24",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.24.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 10879072
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-control-clear-transaction/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.25",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.25.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6933681
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-durable-control-clear/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.26",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.26.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 4971994
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-executor-inventory-revalidate/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.27",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.27.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 4188281
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-executor-window-boundary/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.28",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.28.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 4077237
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-grant-close/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.29",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.29.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 10107708
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-grant-discard/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.30",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.30.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6153069
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-grant-take/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.31",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.31.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 16125791
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-linear-orchestrator/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.32",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.32.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 33392757
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-mtl-dma-guard/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.33",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.33.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 16109322
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-private-channel-v2/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.34",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.34.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 12559282
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-private-smi-channel/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.35",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.35.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6444125
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-probe-ramstage/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.36",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.36.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 11156561
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mor-seal-transport/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.37",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.37.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 13492235
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-authvar-smm-capacity/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.38",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.38.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 10471709
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-early-ecam-guard/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.39",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.39.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 7612733
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-mor-cold-classification/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.40",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.40.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 11136667
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-mor-executor-bindings/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.41",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.41.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 17048612
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-mor-platform-provider/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.42",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.42.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6973245
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-mor-x86-binding/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.43",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.43.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 52738937
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/mtl-presence-boot-classifier/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.44",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.44.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 6952083
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/pci-bme-quiesce/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.45",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.45.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 13099063
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-authvar-pflash-backend/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.46",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.46.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 12442933
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-authvar-pflash-media/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.47",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.47.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 17276541
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-mor-composition/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.48",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.48.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 17033288
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-mor-e2e-provider/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.49",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.49.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 18714100
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-mor-linear-composition/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.50",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.50.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 11652197
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/q35-mor-test-adapter/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.51",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.51.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 38606569
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/smm-command-registry/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.52",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.52.trashinfo"
+  },
+  {
+    "disposition": "recoverable-clone-trash",
+    "identity": {
+      "dev": 66306,
+      "inode": 22902203
+    },
+    "source": "/home/sean/Documents/.coreboot-worktrees/spi-volatile-group-fix/payloads/external/SeaBIOS/seabios",
+    "target": "/home/sean/.local/share/Trash/files/seabios.53",
+    "trash_info": "/home/sean/.local/share/Trash/info/seabios.53.trashinfo"
+  }
+]

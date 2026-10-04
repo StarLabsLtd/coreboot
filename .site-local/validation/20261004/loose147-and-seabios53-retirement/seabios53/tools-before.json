@@ -1,0 +1,38 @@
+[
+  {
+    "actual": "/usr/bin/python3.13",
+    "alias": "/usr/bin/python3",
+    "name": "python3",
+    "sha256": "efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e"
+  },
+  {
+    "actual": "/usr/bin/git",
+    "alias": "/usr/bin/git",
+    "name": "git",
+    "sha256": "3446b26047255f16d588eda4527aeedf02bd173449382d93bfe8a141257876c9"
+  },
+  {
+    "actual": "/usr/bin/ssh-keygen",
+    "alias": "/usr/bin/ssh-keygen",
+    "name": "ssh-keygen",
+    "sha256": "f864fa5389950f1c6edb37e4bb0adbf039ae491739a88b1ce738f3a0d72b1f75"
+  },
+  {
+    "actual": "/usr/lib/cargo/bin/coreutils/sha256sum",
+    "alias": "/usr/bin/sha256sum",
+    "name": "sha256sum",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "actual": "/usr/bin/gio",
+    "alias": "/usr/bin/gio",
+    "name": "gio",
+    "sha256": "113f4bc69af1432f563024e9765451c2882b2eb545fbb1c41858ae0d532b7448"
+  },
+  {
+    "actual": "/usr/bin/find",
+    "alias": "/usr/bin/find",
+    "name": "find",
+    "sha256": "57bfc7c7725ab979e685b6cb625e0da3d5d30ee01c764814cae5088dea8c6f36"
+  }
+]

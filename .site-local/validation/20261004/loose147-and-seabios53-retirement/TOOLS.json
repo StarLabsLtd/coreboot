@@ -1,0 +1,20 @@
+[
+  {
+    "name": "python3",
+    "alias": "/usr/bin/python3",
+    "actual": "/usr/bin/python3.13",
+    "sha256": "efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e"
+  },
+  {
+    "name": "gzip",
+    "alias": "/usr/bin/gzip",
+    "actual": "/usr/bin/gzip",
+    "sha256": "c160e29abe38cd29f5edcad431f6cecf663cbfc7054597da7b1ee165301cb205"
+  },
+  {
+    "name": "sha256sum",
+    "alias": "/usr/bin/sha256sum",
+    "actual": "/usr/lib/cargo/bin/coreutils/sha256sum",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  }
+]

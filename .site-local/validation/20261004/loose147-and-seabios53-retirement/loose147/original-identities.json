@@ -1,0 +1,884 @@
+{
+  "/home/sean/cdk2-checkpatch-whole-after549.log": {
+    "dev": 66306,
+    "inode": 1096047,
+    "sha256": "3f3a40b82f1c2894d6d1c9dca9100c9dbd3c98cdd981a4235ad2f2d13a1d34f2",
+    "size": 181696
+  },
+  "/home/sean/cdk2-default-manual-core-artifacts.path": {
+    "dev": 66306,
+    "inode": 1095478,
+    "sha256": "b2719a81f24e288d0b08acce6a70e147e82764c376b4988c9ac7b45c3e20315b",
+    "size": 43
+  },
+  "/home/sean/cdk2-evidence-capsule-cherry.log": {
+    "dev": 66306,
+    "inode": 1093697,
+    "sha256": "830b25476d04ac5534405c816bd7ab33713b2c78f11039a1961304ca01565695",
+    "size": 8249
+  },
+  "/home/sean/cdk2-native-apply-restack-lint.log": {
+    "dev": 66306,
+    "inode": 1096076,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size": 0
+  },
+  "/home/sean/cdk2-native-flash-parser-check": {
+    "dev": 66306,
+    "inode": 1093357,
+    "sha256": "05fdc235121d36c9041782b1c45447611648f7e0e2b85098826bd57052e78fd2",
+    "size": 42120
+  },
+  "/home/sean/cdk2-native-flash-parser-check-final": {
+    "dev": 66306,
+    "inode": 1093322,
+    "sha256": "2aa3dd490e2fe7b445d85c2211910e7b64c409a9b904e4589ef935af7333c166",
+    "size": 42120
+  },
+  "/home/sean/cdk2-original-fullgraph-build-fix.patch": {
+    "dev": 66306,
+    "inode": 1093542,
+    "sha256": "fe0c81d0f698ec60dac400299af5b8e14fbea2a2307a6953b063252826f62368",
+    "size": 3555
+  },
+  "/home/sean/cdk2-owned-style-after-fixtures.uEBpyC-receipts.tar.zst": {
+    "dev": 66306,
+    "inode": 1095328,
+    "sha256": "3456f0343548c3edfcfcdf76b234d6b03ac08c67aa87f88a5fcf6c6819e91072",
+    "size": 93228
+  },
+  "/home/sean/cdk2-pointer-type-ledger-trace.log": {
+    "dev": 66306,
+    "inode": 1093654,
+    "sha256": "f0f4c86a03e1a45c18b8cf0a9f026f8bc5fd4952f9d0a5ef49ffd8cdc13b3854",
+    "size": 3050
+  },
+  "/home/sean/cdk2-qemu-harness-after549.log": {
+    "dev": 66306,
+    "inode": 1093404,
+    "sha256": "67341fe6aa69fcd7f2a0e0fd950f5a4ca1d7463576e30f39b28a0afd40172724",
+    "size": 1772
+  },
+  "/home/sean/cdk2-qemu-harness-after549.time": {
+    "dev": 66306,
+    "inode": 1096055,
+    "sha256": "109f89748249352d68c2cc2792cd036733fe4ef7013d19438101223966b0c967",
+    "size": 186
+  },
+  "/home/sean/cdk2-qemu-harness-after552.log": {
+    "dev": 66306,
+    "inode": 1096070,
+    "sha256": "8dcfca94cdd7e059077141ec9e54177c9581ca8dfe5f1b38e2181e4b7ebf325b",
+    "size": 5069
+  },
+  "/home/sean/cdk2-qemu-harness-after552.time": {
+    "dev": 66306,
+    "inode": 1096095,
+    "sha256": "8560fa58ec798c03c3407199d314347072b0d89fb21a7985311f25ffb51ae9b4",
+    "size": 158
+  },
+  "/home/sean/cdk2-quiet-cbmem-host-final.log": {
+    "dev": 66306,
+    "inode": 1093776,
+    "sha256": "38e5e22ec1848d88c2cdb89cceab82bf629eac848b1019a60b4fa7e9a1e1c677",
+    "size": 448
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-native-final.log": {
+    "dev": 66306,
+    "inode": 1093879,
+    "sha256": "5f5af9e07950780bb31c70a6467a715fecabf52cfbe481f854258f7660dd758d",
+    "size": 2613
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-native-first.log": {
+    "dev": 66306,
+    "inode": 1093895,
+    "sha256": "162b4289a0ff09fbda34e74f4597a6e98842bd2c5ede50aa90da6612982ce957",
+    "size": 1500
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-native-retry.log": {
+    "dev": 66306,
+    "inode": 1093892,
+    "sha256": "6e9b3c406ef6e19b414b60245756c37c6c7aa3121ec3b072937f7a1601aba025",
+    "size": 3347
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-reference-identity-restore.log": {
+    "dev": 66306,
+    "inode": 1093833,
+    "sha256": "f8bdca5da807558b3d8923ef6034a3ad5fef50e87c18ade827711d45536465f3",
+    "size": 145
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-threeboot-first.log": {
+    "dev": 66306,
+    "inode": 1093893,
+    "sha256": "183884ea7c03232cb049a73c14774f71f69318b5f86f922642fcd6f402970f6e",
+    "size": 1461
+  },
+  "/home/sean/cdk2-quiet-lvgl-status-threeboot-retry.log": {
+    "dev": 66306,
+    "inode": 1093931,
+    "sha256": "49db5043d6ee8a0294138953351efc6bbfa7e8d16bc289032051f9bfc3ea03ec",
+    "size": 3233
+  },
+  "/home/sean/cdk2-quiet-protected-ui-hotkey-first.log": {
+    "dev": 66306,
+    "inode": 1093816,
+    "sha256": "e7d56ff50d3326c485a6158fed5179b0be970d4e7b49bfbbb97973236972bd55",
+    "size": 2488
+  },
+  "/home/sean/cdk2-quiet-protected-ui-native-first.log": {
+    "dev": 66306,
+    "inode": 1093835,
+    "sha256": "640b4a57f5f6e0c88c901ecb4d8b80272c7498d75eec76fb7a87b8853f17a777",
+    "size": 2262
+  },
+  "/home/sean/cdk2-quiet-protected-ui-threeboot-retry.log": {
+    "dev": 66306,
+    "inode": 1093859,
+    "sha256": "5583472e4b794f24f6acbb38a12d50b1bbb11434b01c5178cea04129632e0c2b",
+    "size": 2661
+  },
+  "/home/sean/cdk2-quiet-qemu-profile-host.log": {
+    "dev": 66306,
+    "inode": 1093848,
+    "sha256": "3f156e5bbee77b7a7b421b293d3a8f5b93cf1e82e33d5fb90cffb95ef635d89d",
+    "size": 1491
+  },
+  "/home/sean/cdk2-root-abi-warning-style-after524.log": {
+    "dev": 66306,
+    "inode": 1093871,
+    "sha256": "351338334a471c8b45872fb0456549241b21660e47fbdd9b45cb35903c864662",
+    "size": 1820
+  },
+  "/home/sean/cdk2-root-abi-warning-style-selected-final-config.log": {
+    "dev": 66306,
+    "inode": 1093888,
+    "sha256": "cdf2c712ca42b6ff63691074a7029aac443f750a9f6d734ad521d730651f335b",
+    "size": 93
+  },
+  "/home/sean/cdk2-root-abi-warning-style-selected-final.log": {
+    "dev": 66306,
+    "inode": 1093889,
+    "sha256": "c554457fbf69758670d2c05e7661e79097f64e909de33a77c3f15cb90d309e5f",
+    "size": 3722
+  },
+  "/home/sean/cdk2-root-abi-warning-style-selected.log": {
+    "dev": 66306,
+    "inode": 1093874,
+    "sha256": "b8a2566e88ac89f3bba824a82837dbd7d3676dc4427f3fefacbf53ed96408241",
+    "size": 2035
+  },
+  "/home/sean/cdk2-root-bridge-caller-before.sha256": {
+    "dev": 66306,
+    "inode": 1095794,
+    "sha256": "50d1615776692e2333579d2bd995fc601e3e7e62f3121413f1254de6d94c263c",
+    "size": 248
+  },
+  "/home/sean/cdk2-root-bridge-environment-isolation.log": {
+    "dev": 66306,
+    "inode": 1095801,
+    "sha256": "fdeff114029b14b62a09ca5f4f5f01db4cb607ed5f82db7e3a0d8ff81f6d12b3",
+    "size": 1759
+  },
+  "/home/sean/cdk2-root-capsule-opcode-audit-final.log": {
+    "dev": 66306,
+    "inode": 1093746,
+    "sha256": "c7df62e2e83a2209bdc69a9df5c087fc88c176839527f8a26f7393ec0ec1f689",
+    "size": 1866
+  },
+  "/home/sean/cdk2-root-capsule-opcode-audit-trace.log": {
+    "dev": 66306,
+    "inode": 1093671,
+    "sha256": "1a640feb53b6db46b3909050620b7afce4fa0159d8381521b5312063a4d41101",
+    "size": 338618
+  },
+  "/home/sean/cdk2-root-capsule-opcode-audit.log": {
+    "dev": 66306,
+    "inode": 1093745,
+    "sha256": "86a036b19b863cd029566c9aeff1c7d3c3b65fc98716f5ad5d4a3d261c989e9b",
+    "size": 1831
+  },
+  "/home/sean/cdk2-root-capsule-opcode-dxe-mutant-trace.log": {
+    "dev": 66306,
+    "inode": 1093744,
+    "sha256": "4326ffabac0543fe9cddef386bcd506a9baa048384155ce1202c0ff6d13c618e",
+    "size": 4585
+  },
+  "/home/sean/cdk2-root-capsule-update-after514.log": {
+    "dev": 66306,
+    "inode": 1093646,
+    "sha256": "4e1d3d1aa636e8e89bd4fd7eacde695269f6ad7028d61fa562442ed285117923",
+    "size": 1955
+  },
+  "/home/sean/cdk2-root-capsule-window-quiet-native-retry.log": {
+    "dev": 66306,
+    "inode": 1095457,
+    "sha256": "9dc1179275764683a23f7838be00fb72e6e9e189e75acea843d7e8be8776bd2e",
+    "size": 2642
+  },
+  "/home/sean/cdk2-root-capsule-window-quiet-native.log": {
+    "dev": 66306,
+    "inode": 1095768,
+    "sha256": "7a68e7263fdec2e2f9a84c6049bb9e5ef4542a009763727be91dc18afc6036fa",
+    "size": 1432
+  },
+  "/home/sean/cdk2-root-catalog-bound-linear-after509.log": {
+    "dev": 66306,
+    "inode": 1093551,
+    "sha256": "b3f6f0cdbe9ca5ef5ba3ffadfeb0d62e3ffc758fd7c2c7b024638568b381b07f",
+    "size": 1445
+  },
+  "/home/sean/cdk2-root-checkpatch-types-after556.log": {
+    "dev": 66306,
+    "inode": 1096138,
+    "sha256": "8c389db5f79220f9e0cea69e554768c3fb75ad1678f1c30618cd5476918d92d6",
+    "size": 181
+  },
+  "/home/sean/cdk2-root-client-style-after538.log": {
+    "dev": 66306,
+    "inode": 1095863,
+    "sha256": "1935c7985b6548017ed6028def0182cdc4e952745a6ca5c746fce7c5823b40a5",
+    "size": 400
+  },
+  "/home/sean/cdk2-root-cold-main-after522.log": {
+    "dev": 66306,
+    "inode": 1093737,
+    "sha256": "0dbfe56746a4526b2ec8f37be85d1835d85af8583b90ade7c939fc1f14d7940f",
+    "size": 1649
+  },
+  "/home/sean/cdk2-root-fixture-callback-style-after525-retry.log": {
+    "dev": 66306,
+    "inode": 1093914,
+    "sha256": "ee0be6b418feb6f82ec7e7e7a904d1c223bc1e1ae913b45f53a487c5651b0ff7",
+    "size": 4429
+  },
+  "/home/sean/cdk2-root-fixture-callback-style-after525.log": {
+    "dev": 66306,
+    "inode": 1095214,
+    "sha256": "f058103f87c6a195fae8062681f39efa7cbfa8718330dab9767855ca7e95306f",
+    "size": 1794
+  },
+  "/home/sean/cdk2-root-fixture-warning-after532-retry.log": {
+    "dev": 66306,
+    "inode": 1095318,
+    "sha256": "f58e224896f65fa47c25af2aba690c207b1533fe2f08849e708a4b5937aaa2ce",
+    "size": 1792
+  },
+  "/home/sean/cdk2-root-fixture-warning-after532-retry2.log": {
+    "dev": 66306,
+    "inode": 1095329,
+    "sha256": "59097cb1ce5cfb482c2e6be65ec8d078ea8c0ad7786556858566b91f807fb8f1",
+    "size": 3167
+  },
+  "/home/sean/cdk2-root-fixture-warning-after532.log": {
+    "dev": 66306,
+    "inode": 1093839,
+    "sha256": "dda76ed9ffd1cd49165c7370c5d855d07f8d8210eef016598e909b76bfd28d26",
+    "size": 1426
+  },
+  "/home/sean/cdk2-root-full-default-after524-retry.log": {
+    "dev": 66306,
+    "inode": 1093885,
+    "sha256": "9a711cbf8d048f750957b775ca045d440c07db5389f89fd18cc55abb4143f1ac",
+    "size": 49899
+  },
+  "/home/sean/cdk2-root-full-default-after524.log": {
+    "dev": 66306,
+    "inode": 1093877,
+    "sha256": "608f6ea9044caa3ceb2b0add7d977ac89f8f6dc26ff61ed0ea57b9c4a8023259",
+    "size": 4540
+  },
+  "/home/sean/cdk2-root-full-default-after530.log": {
+    "dev": 66306,
+    "inode": 1093875,
+    "sha256": "59d294c93c9e6c4eb72c3bbc19d433fc07bf74932266028a91050035a3eeb2a0",
+    "size": 50323
+  },
+  "/home/sean/cdk2-root-full-default-after533.log": {
+    "dev": 66306,
+    "inode": 1095254,
+    "sha256": "7be56e2f07bfa35e2731972901891246c44a4da0d426c22347dcf8fe7efcb3ed",
+    "size": 50292
+  },
+  "/home/sean/cdk2-root-full-default-after541.before.sha256": {
+    "dev": 66306,
+    "inode": 1095952,
+    "sha256": "1773ea3b967444a30642eaeeb9c3694deab2e41205095f1d3b60523d787b1731",
+    "size": 260
+  },
+  "/home/sean/cdk2-root-full-default-after541.log": {
+    "dev": 66306,
+    "inode": 1095953,
+    "sha256": "b144106d0aa001d7780dba806503d672137667cb408a77983df157fd10db66b3",
+    "size": 51147
+  },
+  "/home/sean/cdk2-root-full-default-after549.before": {
+    "dev": 66306,
+    "inode": 1095939,
+    "sha256": "1773ea3b967444a30642eaeeb9c3694deab2e41205095f1d3b60523d787b1731",
+    "size": 260
+  },
+  "/home/sean/cdk2-root-full-default-after549.log": {
+    "dev": 66306,
+    "inode": 1096124,
+    "sha256": "b0cacbbd86a7670718368a853069001eeedb11d97710388fa957efcd80b930b2",
+    "size": 54716
+  },
+  "/home/sean/cdk2-root-full-protected-after530.log": {
+    "dev": 66306,
+    "inode": 1095265,
+    "sha256": "8ae017590729d01db1c191d12f8c5bfeaf785948ada50ebb24fcc44fb4bd239e",
+    "size": 9594
+  },
+  "/home/sean/cdk2-root-full-protected-after531.log": {
+    "dev": 66306,
+    "inode": 1095267,
+    "sha256": "8e93fbb872d8d1933ff0cf9af01f4dab78d68a2382c17b8a2deb5825f04f8f22",
+    "size": 40298
+  },
+  "/home/sean/cdk2-root-full-protected-after534.log": {
+    "dev": 66306,
+    "inode": 1095263,
+    "sha256": "a002ce620c47359e3dce5544818ec639fedaa60f417f6365cc185e75754f058f",
+    "size": 45439
+  },
+  "/home/sean/cdk2-root-full-protected-after535.log": {
+    "dev": 66306,
+    "inode": 1095451,
+    "sha256": "5506cc07d2b7dca22db8432fb0b884859ea01b03ef1a116465660ebc696bfdb2",
+    "size": 47383
+  },
+  "/home/sean/cdk2-root-full-protected-after541.before.sha256": {
+    "dev": 66306,
+    "inode": 1095837,
+    "sha256": "715544566837462d289e19859d872887876fc9a77b3525477970302c63a50462",
+    "size": 252
+  },
+  "/home/sean/cdk2-root-full-protected-after541.log": {
+    "dev": 66306,
+    "inode": 1095918,
+    "sha256": "e8e083ce0a8f419d0eff7419ab8032512f889ff7ee93cb14d115a6475f45db2a",
+    "size": 65195
+  },
+  "/home/sean/cdk2-root-full-protected-after549.before": {
+    "dev": 66306,
+    "inode": 1095827,
+    "sha256": "715544566837462d289e19859d872887876fc9a77b3525477970302c63a50462",
+    "size": 252
+  },
+  "/home/sean/cdk2-root-full-protected-after549.log": {
+    "dev": 66306,
+    "inode": 1096126,
+    "sha256": "c61b46eaa968d066e20294bcdb0c3250faae292a6b202151f8ae34ab3fa71033",
+    "size": 69222
+  },
+  "/home/sean/cdk2-root-future-floor-after541-retry.log": {
+    "dev": 66306,
+    "inode": 1095954,
+    "sha256": "ba251f0cf0d37ef9a0a0ce498e49d3e52a5c78951b7adb70d851c412b35394f0",
+    "size": 5540
+  },
+  "/home/sean/cdk2-root-future-floor-after541.log": {
+    "dev": 66306,
+    "inode": 1095959,
+    "sha256": "99afece3ba95bc9e2d0afeda80bce7a2609b4c3601cd6dee281a85be78f2dcf5",
+    "size": 1307
+  },
+  "/home/sean/cdk2-root-future-floor-before.sha256": {
+    "dev": 66306,
+    "inode": 1095958,
+    "sha256": "bf3fca823d5b8f39191788cffa61cadf44e642658f735ac91e787c3cad6fb8d0",
+    "size": 244
+  },
+  "/home/sean/cdk2-root-future-floor-transport-after541.log": {
+    "dev": 66306,
+    "inode": 1095960,
+    "sha256": "ae4af0f66452876c12ea5fe5db18c4f8e185743f11b4b1268a98d6206a8463ad",
+    "size": 836
+  },
+  "/home/sean/cdk2-root-future-floor-transport-client-after541.log": {
+    "dev": 66306,
+    "inode": 1095957,
+    "sha256": "ba8ede97fd48e8f90921a8beaa123cdc894b2794cbc33fbd4b602767babc258a",
+    "size": 967
+  },
+  "/home/sean/cdk2-root-generic-after513.log": {
+    "dev": 66306,
+    "inode": 1093643,
+    "sha256": "73b696d0eba638e2761902c5888ffd49147aad9d696a2ac1b3f66f8de2b56709",
+    "size": 937
+  },
+  "/home/sean/cdk2-root-linear-scratch-standalone-trace.log": {
+    "dev": 66306,
+    "inode": 1095862,
+    "sha256": "d074b6a45c0dc572221c55a4a32c5f498eb91fde9049637ff7c7ef5f99d878d5",
+    "size": 2711
+  },
+  "/home/sean/cdk2-root-linear-scratch-trace.log": {
+    "dev": 66306,
+    "inode": 1095860,
+    "sha256": "2d9964debecf5ac4eb2a45acb90ffbe73ec1a1978aba4fe86cb82661d3ff5842",
+    "size": 2711
+  },
+  "/home/sean/cdk2-root-lint-after541.log": {
+    "dev": 66306,
+    "inode": 1095938,
+    "sha256": "1935c7985b6548017ed6028def0182cdc4e952745a6ca5c746fce7c5823b40a5",
+    "size": 400
+  },
+  "/home/sean/cdk2-root-local-provenance-combined.log": {
+    "dev": 66306,
+    "inode": 1093929,
+    "sha256": "d7eea9ee97b9e1e9b033b7238005b1d879894a13bc843a18baef7e2902522300",
+    "size": 1192
+  },
+  "/home/sean/cdk2-root-local-provenance-final.log": {
+    "dev": 66306,
+    "inode": 1093916,
+    "sha256": "0e3ee04b16f2216f656e36ffd6c5e6842f12e4fb4cfbe597dab1358bd71489b6",
+    "size": 1189
+  },
+  "/home/sean/cdk2-root-local-provenance-focused.log": {
+    "dev": 66306,
+    "inode": 1095243,
+    "sha256": "bc4fe760ef6d607aff4e7f88611989cb8036a95e26b7c844a16c8dc86f194eeb",
+    "size": 924
+  },
+  "/home/sean/cdk2-root-local-provenance-integrated.log": {
+    "dev": 66306,
+    "inode": 1095244,
+    "sha256": "52236490148886c33db370111d7bcc1bc04a47f856f3e0faf9433aef6f479ffd",
+    "size": 1097
+  },
+  "/home/sean/cdk2-root-local-provenance-temp-owned.log": {
+    "dev": 66306,
+    "inode": 1095257,
+    "sha256": "620f3513e9ffb9bfbb114595b59f3ec85dd6e520cd56670212cfd6be243a5ebe",
+    "size": 1188
+  },
+  "/home/sean/cdk2-root-manual-core-after534-retry.log": {
+    "dev": 66306,
+    "inode": 1095504,
+    "sha256": "96eec34ab801467b1be4f00fe910d4f2176cf0eaedb76461e46dc4a3e1a04651",
+    "size": 1807
+  },
+  "/home/sean/cdk2-root-manual-core-after534.log": {
+    "dev": 66306,
+    "inode": 1095308,
+    "sha256": "16c5003be27850db85878fead952ffa514c1e2e441b9547044aa9e3e0cb1e92b",
+    "size": 1639
+  },
+  "/home/sean/cdk2-root-minimal-lvgl-after527.log": {
+    "dev": 66306,
+    "inode": 1095252,
+    "sha256": "8e2a84ff716b14688fedd5759f460c90432fe98f520190e4f3ebd609e91c3207",
+    "size": 2772
+  },
+  "/home/sean/cdk2-root-mm-reset-after507.log": {
+    "dev": 66306,
+    "inode": 1093640,
+    "sha256": "e3bda4772e6a67a6ee20e145c5321170d27201502055bd6a9b8b57ac51f0133e",
+    "size": 1934
+  },
+  "/home/sean/cdk2-root-owned-pointer-spacing-after508.log": {
+    "dev": 66306,
+    "inode": 1093619,
+    "sha256": "6d2862169a2ee2433a9e1d0128634636dd74f85a6322b440b81a8738b2591b27",
+    "size": 2777
+  },
+  "/home/sean/cdk2-root-owned-pointer-spacing-final-lint.log": {
+    "dev": 66306,
+    "inode": 1093620,
+    "sha256": "14147d02fb8833cd4560b0fea95bfefbe5700e7fe7c68df05fb45217b845a3f0",
+    "size": 816
+  },
+  "/home/sean/cdk2-root-owned-pointer-spacing-final.log": {
+    "dev": 66306,
+    "inode": 1093617,
+    "sha256": "51473e876b5f2b10bcc12963ea523856114f08bf7a5bdb0e5d1900cdd458484a",
+    "size": 2775
+  },
+  "/home/sean/cdk2-root-partition-linear-after506.log": {
+    "dev": 66306,
+    "inode": 1093593,
+    "sha256": "4904c2f6d7bccbbe9f7179c20ae52d62deb962943981aca983e1ce2ff8ccc3c2",
+    "size": 1285
+  },
+  "/home/sean/cdk2-root-pointer-knowledge-final-34-files.log": {
+    "dev": 66306,
+    "inode": 1093688,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size": 0
+  },
+  "/home/sean/cdk2-root-pointer-knowledge-final-34.log": {
+    "dev": 66306,
+    "inode": 1093664,
+    "sha256": "0b5243d9e854f78b6a60266cf2e11b40fd01d07592ab51e870811b8ca34fd651",
+    "size": 891
+  },
+  "/home/sean/cdk2-root-pointer-knowledge-ledger-final.log": {
+    "dev": 66306,
+    "inode": 1093641,
+    "sha256": "7bfa19eece2a39582bfbf485e93e66211a791f3973c9fdaba7b9fce40baa0818",
+    "size": 1081
+  },
+  "/home/sean/cdk2-root-pointer-type-knowledge-tests.log": {
+    "dev": 66306,
+    "inode": 1093644,
+    "sha256": "5592d9e61fbb738eb9c82550bf3d483dfad57071cbc359adc542f7186aa71203",
+    "size": 987
+  },
+  "/home/sean/cdk2-root-presence-unwind-selected-after530.log": {
+    "dev": 66306,
+    "inode": 1095248,
+    "sha256": "52e67e4cc0f1f2cebd49bea80e3c7ff96b556548a30229d2070b618bfeb3b6cb",
+    "size": 1271
+  },
+  "/home/sean/cdk2-root-production-fullgraph-after510.log": {
+    "dev": 66306,
+    "inode": 1093626,
+    "sha256": "5161ae318af0efeb5e1d06f1faa0e5d50bb0c5ece4ffb2f8852d2c92981aa050",
+    "size": 2549
+  },
+  "/home/sean/cdk2-root-protected-image-after523.log": {
+    "dev": 66306,
+    "inode": 1093845,
+    "sha256": "5b0acb75c35b08663baec7f138627c9db80f1aba996487c2b3799e250cac75de",
+    "size": 2116
+  },
+  "/home/sean/cdk2-root-protected-setup-after523.log": {
+    "dev": 66306,
+    "inode": 1093860,
+    "sha256": "3640823716ed6c481b4cef7655e0a7a080d1d74192f649120345521c4b90d666",
+    "size": 2760
+  },
+  "/home/sean/cdk2-root-protected-setup-ledger-after523.log": {
+    "dev": 66306,
+    "inode": 1093849,
+    "sha256": "5596c84488a67905a9cbd6fc89cf4eca3099b9b53e022ef419cb5c2758750421",
+    "size": 966
+  },
+  "/home/sean/cdk2-root-protected-setup-store-captured-retry.log": {
+    "dev": 66306,
+    "inode": 1093838,
+    "sha256": "22977b17e1b224a0fc424f4fe1107e8afc88642dec3e2f6d5aaa4f09a08fcc42",
+    "size": 1369
+  },
+  "/home/sean/cdk2-root-protected-setup-store-captured.log": {
+    "dev": 66306,
+    "inode": 1093830,
+    "sha256": "da7284126e6e0fe4fd48db8636c134327b706ecad915c52f4f3f7e7040e5469d",
+    "size": 1098
+  },
+  "/home/sean/cdk2-root-protected-setup-store-causal.log": {
+    "dev": 66306,
+    "inode": 1093771,
+    "sha256": "38f3e87951a2984384668e687f529084cc55db601e5fdfbf566b0e186c74ee4d",
+    "size": 2135
+  },
+  "/home/sean/cdk2-root-protected-setup-store-style-source.log": {
+    "dev": 66306,
+    "inode": 1093779,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size": 0
+  },
+  "/home/sean/cdk2-root-protected-setup-store-style.log": {
+    "dev": 66306,
+    "inode": 1093866,
+    "sha256": "eedb65180414aec8b3830921a450aaa305c8f34eecf1af39ca8248b6bd561632",
+    "size": 2137
+  },
+  "/home/sean/cdk2-root-protected-ui-after515.log": {
+    "dev": 66306,
+    "inode": 1093704,
+    "sha256": "0e86cf10e35bd14f5b5e0ef940be379aa85b6fbd7bc91a89fb04374e65a4cb09",
+    "size": 2032
+  },
+  "/home/sean/cdk2-root-protected-ui-console-config.log": {
+    "dev": 66306,
+    "inode": 1093709,
+    "sha256": "69ad37ddfc9d4e6b0d4f09f0a8ebed824af971d54cc808437195d6a25ebbb736",
+    "size": 810
+  },
+  "/home/sean/cdk2-root-protected-ui-console-image.log": {
+    "dev": 66306,
+    "inode": 1093723,
+    "sha256": "abf4d9febb160f63fea544335d377c98a6d48cbcfdff43b6a81bd9b44cea98fe",
+    "size": 2033
+  },
+  "/home/sean/cdk2-root-protected-ui-interactive-after516.log": {
+    "dev": 66306,
+    "inode": 1093713,
+    "sha256": "49ee506852497cfaa49d5f4313313d9f5fccb8dbe4f76bf0e8b5dc27dd4fa784",
+    "size": 1314
+  },
+  "/home/sean/cdk2-root-protected-ui-interactive-profile516.log": {
+    "dev": 66306,
+    "inode": 1093720,
+    "sha256": "3c62e4ae6945741552c5b9becd30b30e431ba523b49c67e3b4a604921f54a42e",
+    "size": 1316
+  },
+  "/home/sean/cdk2-root-protected-ui-live-after519.log": {
+    "dev": 66306,
+    "inode": 1093736,
+    "sha256": "8ea3d09d905d7450560fb5a47c79e06f1ff4e4c61d1d15919b50c41ef99e7ef6",
+    "size": 1477
+  },
+  "/home/sean/cdk2-root-protected-ui-no-spi-package-final.log": {
+    "dev": 66306,
+    "inode": 1093579,
+    "sha256": "516bb67d61784542adef612d6d4093f4f383641c2959663f0d76d00d83da9ed4",
+    "size": 71
+  },
+  "/home/sean/cdk2-root-protected-ui-no-spi-package.log": {
+    "dev": 66306,
+    "inode": 1093622,
+    "sha256": "cae27d26d884e9af24ecc2ab0137d5e632cca2e24b764ad51f0aff7c7a7d9823",
+    "size": 48
+  },
+  "/home/sean/cdk2-root-protected-ui-no-spi-resolve.log": {
+    "dev": 66306,
+    "inode": 1093721,
+    "sha256": "65684d813c683e56722228a94bdc60be3ceafb4140e2546a4ba157e298f7a363",
+    "size": 140
+  },
+  "/home/sean/cdk2-root-protected-ui-no-spi-resolved.log": {
+    "dev": 66306,
+    "inode": 1093729,
+    "sha256": "8ae4a90f4eb1321654fca4d31d8136a0cc86231a4c53c9e9c8e398331aac3034",
+    "size": 2029
+  },
+  "/home/sean/cdk2-root-protected-ui-package.log": {
+    "dev": 66306,
+    "inode": 1093703,
+    "sha256": "c7be45101eeddc20e5f2c1d211fcf75b352ac899a0bfe00c05b3e7f2c28db078",
+    "size": 71
+  },
+  "/home/sean/cdk2-root-protected-ui-profile-restore.log": {
+    "dev": 66306,
+    "inode": 1093719,
+    "sha256": "f8bdca5da807558b3d8923ef6034a3ad5fef50e87c18ade827711d45536465f3",
+    "size": 145
+  },
+  "/home/sean/cdk2-root-protected-ui-selectable-sink-image.log": {
+    "dev": 66306,
+    "inode": 1093754,
+    "sha256": "70750c58273ec6e03f44eacef647fb889bc8005db86f6a0683ec9c83d3022c2e",
+    "size": 1926
+  },
+  "/home/sean/cdk2-root-protected-ui-selectable-sink-resolve.log": {
+    "dev": 66306,
+    "inode": 1093753,
+    "sha256": "0e2f3b6431e6941ed4de15f64906e28e91c06b61f96f0107788ca5e043692337",
+    "size": 82
+  },
+  "/home/sean/cdk2-root-protected-ui-stable-frames.log": {
+    "dev": 66306,
+    "inode": 1093738,
+    "sha256": "00e5b83fb32a0db42bb21a4a786269f62f1132563405e16ad550508ea0c92e72",
+    "size": 1794
+  },
+  "/home/sean/cdk2-root-quiet-consumer-after539-isolated.before": {
+    "dev": 66306,
+    "inode": 1095914,
+    "sha256": "50d1615776692e2333579d2bd995fc601e3e7e62f3121413f1254de6d94c263c",
+    "size": 248
+  },
+  "/home/sean/cdk2-root-quiet-consumer-after539-isolated.log": {
+    "dev": 66306,
+    "inode": 1095915,
+    "sha256": "170a8b56492db26cb05fe6f977a43641af042b8e68314ecb7921798d07696af7",
+    "size": 2982
+  },
+  "/home/sean/cdk2-root-quiet-consumer-after539.log": {
+    "dev": 66306,
+    "inode": 1095886,
+    "sha256": "ecfc756c2c20e6535aa2d070621ad0ab9d86f048eaa576aefeaaf9591ec211ed",
+    "size": 376
+  },
+  "/home/sean/cdk2-root-quiet-consumer-after543-fresh.before": {
+    "dev": 66306,
+    "inode": 1095977,
+    "sha256": "a13b08c058eb75a9b18bd63b0a79841ae790a0dbedb8630f208c59abf44d428c",
+    "size": 248
+  },
+  "/home/sean/cdk2-root-quiet-consumer-after543-fresh.log": {
+    "dev": 66306,
+    "inode": 1095978,
+    "sha256": "46bc7cf8d5d85d7b6bf75713af0cb117c999100cdc891324bae172cbee71c2eb",
+    "size": 3155
+  },
+  "/home/sean/cdk2-root-quiet-native-after526.log": {
+    "dev": 66306,
+    "inode": 1093913,
+    "sha256": "df40060ec523dbe97008cc0a2509264b927bcc8a785d3dfe9ef0ceda58f296b8",
+    "size": 2683
+  },
+  "/home/sean/cdk2-root-quiet-new-provider383.before": {
+    "dev": 66306,
+    "inode": 1096021,
+    "sha256": "e68545d288eed152996d42e8374b68cd1e3447bc442e4cd50837b54cbe6b5611",
+    "size": 254
+  },
+  "/home/sean/cdk2-root-quiet-new-provider383.log": {
+    "dev": 66306,
+    "inode": 1096022,
+    "sha256": "f55d19258915dcc62636e065d0e879bac6701596d5bb50df6c2ece44969a2d67",
+    "size": 3168
+  },
+  "/home/sean/cdk2-root-quiet-package-after529.log": {
+    "dev": 66306,
+    "inode": 1095277,
+    "sha256": "cebab40f52744d11a5833513b9478b287ceb64cc5a8c2197c86e03a333d1cd34",
+    "size": 4360
+  },
+  "/home/sean/cdk2-root-quiet-package-after539.log": {
+    "dev": 66306,
+    "inode": 1095912,
+    "sha256": "4cf401acc0ad4402dd369554085889f85f6246a20fb191370e6708e215e31546",
+    "size": 279
+  },
+  "/home/sean/cdk2-root-quiet-status-after528.log": {
+    "dev": 66306,
+    "inode": 1095250,
+    "sha256": "046905cdaf2e5b3975568daeda83e72aae360414933a7aba3576cf8a6a7abf60",
+    "size": 2964
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after529-retry.log": {
+    "dev": 66306,
+    "inode": 1095273,
+    "sha256": "c0c2ea7fae2b758b88b54a8150644f523072e93d22df3375766683dbcf5ce2e7",
+    "size": 2816
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after529.log": {
+    "dev": 66306,
+    "inode": 1095282,
+    "sha256": "233a7dbf0f8130f182c6bb04c4ceb19f5eafa2475b9fee5e2189747100ab9728",
+    "size": 3338
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after539.before": {
+    "dev": 66306,
+    "inode": 1095920,
+    "sha256": "50d1615776692e2333579d2bd995fc601e3e7e62f3121413f1254de6d94c263c",
+    "size": 248
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after539.log": {
+    "dev": 66306,
+    "inode": 1095921,
+    "sha256": "4fdf62f0a0dae6a5e46989496f881e6011c518ae1ed722709eb82262531e7825",
+    "size": 2806
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after539.tar.zst": {
+    "dev": 66306,
+    "inode": 1095950,
+    "sha256": "d4f69dc0150082b45da34a4cd55d0a6c9cb4df2c4301f4f315756956cda679af",
+    "size": 79533798
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after543-combined.tar.zst": {
+    "dev": 66306,
+    "inode": 53421506,
+    "sha256": "f9987b29cd75fd106cf402561544f63753693effa99986359c0d2eb31e325791",
+    "size": 158713392
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after543-retry.log": {
+    "dev": 66306,
+    "inode": 1095986,
+    "sha256": "de7466fe601ba64472d151d4d0264e4516dabecc21d9dc454796ca14f64de703",
+    "size": 2815
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-after543.log": {
+    "dev": 66306,
+    "inode": 1095981,
+    "sha256": "77ba4f0235dc0784b88bf8a140418e3cc19e7b8be3a71ba67074235c8cbb80b4",
+    "size": 3338
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-provider383-publication.log": {
+    "dev": 66306,
+    "inode": 1096025,
+    "sha256": "7233eb6a756d69425fbbda61144c34dae9220ac474bcaab405e1f7121c22c3e0",
+    "size": 1856
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-provider383-retry.log": {
+    "dev": 66306,
+    "inode": 1095976,
+    "sha256": "bbcfedd30b6432215c5a0b36ac95387edfe11fa9c1f887b81ef52868ee0d92f5",
+    "size": 3399
+  },
+  "/home/sean/cdk2-root-quiet-threeboot-provider383.log": {
+    "dev": 66306,
+    "inode": 1096023,
+    "sha256": "9a60217ce9aaac67e2fa8a6c56d3f0436f9ee6bbf6e974beda648bfd7f658f4f",
+    "size": 2862
+  },
+  "/home/sean/cdk2-root-resource-after512.log": {
+    "dev": 66306,
+    "inode": 1093615,
+    "sha256": "c748e5a3de29e16bb70d52a3d5d3dbc1ef0c87d3a5f326965af5a03eec7b39ba",
+    "size": 1138
+  },
+  "/home/sean/cdk2-root-review-profile-cli-diagnosis.log": {
+    "dev": 66306,
+    "inode": 1093863,
+    "sha256": "0e41564adfe121cf6ca6686d985ed221fee945b567ca309a9d85782d0b2d4743",
+    "size": 2735
+  },
+  "/home/sean/cdk2-root-scratch-callers-before.sha256": {
+    "dev": 66306,
+    "inode": 1095838,
+    "sha256": "50d1615776692e2333579d2bd995fc601e3e7e62f3121413f1254de6d94c263c",
+    "size": 248
+  },
+  "/home/sean/cdk2-root-scratch-callers-isolation.log": {
+    "dev": 66306,
+    "inode": 1095841,
+    "sha256": "7dcb9ab6593f102efa64b6d7a332df3d8768a152feabe09ffc7da7d43e01b023",
+    "size": 8327
+  },
+  "/home/sean/cdk2-root-selectable-spi-sink.log": {
+    "dev": 66306,
+    "inode": 1093722,
+    "sha256": "abb6cb38e19e7f143f99e86c3ceb2796e1eec5be4eef2d5df38649488b943f3c",
+    "size": 3063
+  },
+  "/home/sean/cdk2-root-software-hash-provenance-after556.log": {
+    "dev": 66306,
+    "inode": 1096072,
+    "sha256": "a8b1fb484e296bcbb71420d45fc805a4741976dd77994d30160745cc509ba50a",
+    "size": 648
+  },
+  "/home/sean/cdk2-root-spacing-ledger-fixed-after521.log": {
+    "dev": 66306,
+    "inode": 1093798,
+    "sha256": "faf5f5658aae16d42fd3e325493188d9246b25646bce903d7f4c8d055e66d34e",
+    "size": 965
+  },
+  "/home/sean/cdk2-root-spacing-types-after521.log": {
+    "dev": 66306,
+    "inode": 1093828,
+    "sha256": "ec34150faa2c6738e710168a9871d00e04af21d4aee8fb17c1dcb01028fca775",
+    "size": 1064
+  },
+  "/home/sean/cdk2-root-storage-after520.log": {
+    "dev": 66306,
+    "inode": 1093777,
+    "sha256": "b73bb8a88c88a16e94f4959080b100e602bca6727295565929b72bd28ec7d4a2",
+    "size": 2226
+  },
+  "/home/sean/cdk2-root-variable-runtime-split-after533.log": {
+    "dev": 66306,
+    "inode": 1095297,
+    "sha256": "cdbc6274dd1531f2683d1b8952f14da837ba29eb2ce92f67e830c2e644fa3816",
+    "size": 19754
+  },
+  "/home/sean/cdk2-route-patch.kK9X70": {
+    "dev": 66306,
+    "inode": 1093941,
+    "sha256": "17ae7ed97588220461f2ca65555582bc3bc86d76aa2efad936ee18d760ac39a6",
+    "size": 230057
+  },
+  "/home/sean/cdk2-window-lint-diagnosis.log": {
+    "dev": 66306,
+    "inode": 1095479,
+    "sha256": "a032c9e6ba1ce5d12ba327c065add049a892ecfde4a884ae528a3dd4e0336ed6",
+    "size": 14402
+  }
+}

@@ -1,0 +1,13 @@
+name	retained_signed_head	retained_branch	force	observed_tool_exit	observed_tool_chunk
+normal-fwui-reference-archive-aftere63	5d8638345829623ac5ad9ac39476ae85ed979645	agent/normal-fwui-reference-archive-aftere63	false	0	c27f60
+q35-provider-native-info-close-after543	d3745376a42fc97f1ee5f95c84b9e49eda3c0dfd	agent/q35-native-check-denial-after-apply	false	0	68613a
+roadmap-checkpoint-after664	db83da14b244c901d6d84841f63a914369e0f18e	agent/roadmap-checkpoint-after664	false	0	926543
+roadmap-runtime-ui-after641	25f2a262f260a4392223242c8c31792efce74c66	agent/roadmap-runtime-ui-after641	false	0	3b9bba
+splash-status-baseline-after620	127c80df85986ca77ce50f3bfcb6fc98c3ac41dc	agent/splash-status-baseline-after620	false	0	ef6419
+diagnostic-dependency-cleanup-after502	d7cd7b4712b214fd2c768c03207e8a3bedb176a0	agent/diagnostic-dependency-cleanup-after502	true	0	6b42e6
+protected-enrolled-fullgraph-diagnostic	ff080c6e41bd48206c04196c43047741693689e8	agent/protected-fullgraph-diagnostic-linear-after499	true	0	f8a977
+runtime-mechanism-standalone-closure	664c2f5d4e00ce4be8250a269ba5e2844594078f	agent/runtime-mechanism-standalone-closure	true	0	61176a
+unused-native-config-knobs-after588	c05b7c8d174181b367764c344377d26edd228d54	agent/unused-native-config-knobs-after588	true	0	afd00a
+native-private-auth2-after616	9120b63d0430af6f0239856175871022f96bc37c	agent/native-private-auth2-after616	true	0	45e298
+system-fmp-future-floor-after541	a9f95cd47999642fc6b256a3b41936d8d65a5716	agent/system-fmp-future-floor-after541	true	0	e38521
+native-private-auth2-after610	9a694e9ee070db9761af222215f169e2d985e2e3	agent/native-private-auth2-after610	true	0	a20cb2

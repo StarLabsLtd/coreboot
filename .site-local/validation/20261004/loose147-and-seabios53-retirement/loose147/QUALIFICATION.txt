@@ -1,0 +1,4 @@
+Exact147 cleanup:3 same-filesystem nonclobber/no-copy archive renames with unchanged inode/size/SHA;
+142 preserved historical text and2 metadata-only generated ELFs now in recoverable gio trash.
+No archive duplication, source/worktree/object/ref mutation or unrelated cleanup.
+Keep retained archives and trash until separate Root policy; no trash-emptying authority.

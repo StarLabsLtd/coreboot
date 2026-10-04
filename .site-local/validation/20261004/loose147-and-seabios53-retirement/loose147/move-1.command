@@ -1,0 +1,1 @@
+["mv", "--update=none-fail", "--no-copy", "-T", "--", "/home/sean/cdk2-owned-style-after-fixtures.uEBpyC-receipts.tar.zst", "/home/sean/Documents/cdk2-validation/retained-inputs/loose-cdk2-archives/cdk2-owned-style-after-fixtures.uEBpyC-receipts.tar.zst"]

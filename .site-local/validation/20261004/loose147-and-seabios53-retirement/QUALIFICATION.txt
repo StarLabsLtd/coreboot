@@ -1,0 +1,8 @@
+Completed loose147 and SeaBIOS53 retirement receipts only; no HOST/firmware/VM/hardware claim.
+Loose147: three same-inode retained local archive renames plus144 recoverable file trash operations.
+Excluded2 active scripts were checked inline by operation, but no separate before identity ledger was persisted.
+SeaBIOS53: recoverable clone-leaf trash only, not parent removals; generated clone bodies are not copied here.
+Exact flat command/log/status/identity/graph receipts plus four executed recipe files and this collector.
+No trash payload/archive/ELF/media/vendor/source/Git-object traversal or old-original SHA replay after moves.
+Actual operations bind signed published296aa; archival does not rerun operations or reconstruction helpers.
+Utility closure is finite enumeration; originals and deterministic plain/gzip counterparts remain byte-exact.

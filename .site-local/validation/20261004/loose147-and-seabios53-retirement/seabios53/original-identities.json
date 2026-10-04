@@ -1,0 +1,214 @@
+{
+  "/home/sean/Documents/.coreboot-worktrees/authvar-bootstrap-failure-atomic/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 18449785
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-certdb-codec/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 24615709
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-media-backend/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 10743148
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-mor-probe/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 32969000
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-presence-canonical-bootstrap/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 53401126
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-presence-lifecycle-close-dma-install-provider/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 7112774
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-presence-producer/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 35477105
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-presence-publication/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 35617311
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-private-binding/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 25255650
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-private-provider/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 25799041
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-private-trust/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 25406664
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-read-view/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 21978457
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-service-status/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 19643144
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-set-preflight/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 22918942
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-shared-fv/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 20545061
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-smmstore-backend/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 10596108
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-trust-authority/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 20306256
+  },
+  "/home/sean/Documents/.coreboot-worktrees/authvar-view/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 21465617
+  },
+  "/home/sean/Documents/.coreboot-worktrees/bootmem-aligned-reservations/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6702594
+  },
+  "/home/sean/Documents/.coreboot-worktrees/bootmem-receipt-exact-tag/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 36385459
+  },
+  "/home/sean/Documents/.coreboot-worktrees/capsule-anchor-overlap-fix/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 16366572
+  },
+  "/home/sean/Documents/.coreboot-worktrees/generic-inventory-workspace/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 17819843
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-clear-executor/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 3278458
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-clear-x86-backend/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6168365
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-control-clear-transaction/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 10879072
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-durable-control-clear/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6933681
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-executor-inventory-revalidate/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 4971994
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-executor-window-boundary/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 4188281
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-grant-close/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 4077237
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-grant-discard/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 10107708
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-grant-take/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6153069
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-linear-orchestrator/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 16125791
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-mtl-dma-guard/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 33392757
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-private-channel-v2/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 16109322
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-private-smi-channel/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 12559282
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-probe-ramstage/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6444125
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mor-seal-transport/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 11156561
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-authvar-smm-capacity/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 13492235
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-early-ecam-guard/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 10471709
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-mor-cold-classification/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 7612733
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-mor-executor-bindings/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 11136667
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-mor-platform-provider/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 17048612
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-mor-x86-binding/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6973245
+  },
+  "/home/sean/Documents/.coreboot-worktrees/mtl-presence-boot-classifier/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 52738937
+  },
+  "/home/sean/Documents/.coreboot-worktrees/pci-bme-quiesce/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 6952083
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-authvar-pflash-backend/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 13099063
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-authvar-pflash-media/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 12442933
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-mor-composition/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 17276541
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-mor-e2e-provider/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 17033288
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-mor-linear-composition/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 18714100
+  },
+  "/home/sean/Documents/.coreboot-worktrees/q35-mor-test-adapter/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 11652197
+  },
+  "/home/sean/Documents/.coreboot-worktrees/smm-command-registry/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 38606569
+  },
+  "/home/sean/Documents/.coreboot-worktrees/spi-volatile-group-fix/payloads/external/SeaBIOS/seabios": {
+    "dev": 66306,
+    "inode": 22902203
+  }
+}

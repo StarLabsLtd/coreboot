@@ -1,0 +1,6 @@
+Exact53 SeaBIOS clone leaves moved to recoverable same-filesystem gio trash; parents retained.
+Directory inode/device, Trashinfo original path, HEAD/raw refs and configs retained.
+Signed config/raw-reference packet plus fresh approved source/graph admission; no historical build/HOST claim.
+Generated outputs are recoverable in trash, not represented as payloads in evidence Git.
+Original config paths intentionally absent only after recorded successful exact-leaf commands.
+No parent removal, canonical/ref/object pruning, source edit or trash-emptying authority.
