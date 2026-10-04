@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/loader-matrix-path-retry.27wkn8/tmp LANG=C LC_ALL=C PYTHONDONTWRITEBYTECODE=1 sh tests/efi_loader_matrix_test.sh 
