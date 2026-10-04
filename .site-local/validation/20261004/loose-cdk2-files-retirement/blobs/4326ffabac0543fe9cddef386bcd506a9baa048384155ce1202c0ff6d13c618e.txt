@@ -1,0 +1,51 @@
++ set -eu
++ audit=tests/mtrr_ownership_test.sh
++ manifest=/home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs
++ expected_test=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-test
++ section_parser=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-pe-exec-sections
++ image=/home/sean/cdk2-root-protected-ui-after515/native/DxeCore.efi
++ manifest_builder=tests/direct_mtrr_manifest.sh
++ composition=/home/sean/cdk2-root-protected-ui-after515/native/native-direct-images.rsp
++ coreboot_elf=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-stage.elf
++ pe_fixture=/home/sean/cdk2-root-protected-ui-after515/native/pe-exec-sections-fixture
++ image_variable=CDK2_NATIVE_DXE_CORE_PE
++ set --
++ test CDK2_NATIVE_DXE_CORE_PE != CDK2_NATIVE_DXE_CORE_PE
++ test CDK2_NATIVE_DXE_CORE_PE != CDK2_NATIVE_CAPSULE_RUNTIME_PE
++ awk -F \t $3 == "CDK2_NATIVE_CAPSULE_RUNTIME_PE" { found = 1 }
+		END { exit !found } /home/sean/cdk2-root-protected-ui-after515/native/native-direct-images.rsp
++ set -- CDK2_NATIVE_CAPSULE_RUNTIME_PE|false-positive|auto
++ mktemp -d /home/sean/cdk2-direct-mtrr-test.XXXXXX
++ temporary=/home/sean/cdk2-direct-mtrr-test.sdhhxy
++ trap rm -rf "$temporary" EXIT HUP INT TERM
++ run_audit /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs
++ CDK2_PE_EXEC_SECTIONS=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-pe-exec-sections tests/mtrr_ownership_test.sh /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs /home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-test
++ image_policy /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs /home/sean/cdk2-root-protected-ui-after515/native/DxeCore.efi
++ awk -F | -v path=/home/sean/cdk2-root-protected-ui-after515/native/DxeCore.efi 
+		$2 == "payload" && $5 == path { print $3 "|" $4; rows++ }
+		END { if (rows != 1) exit 1 }
+	 /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs
++ con_policy=-|0
++ con_allowed=-
++ con_count=0
++ wrong_count=1
++ awk -F | -v OFS=| -v path=/home/sean/cdk2-root-protected-ui-after515/native/DxeCore.efi -v wrong=1 $2 == "payload" && $5 == path { $4 = wrong } { print } /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs
++ expect_reject /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-count a false-positive WRMSR byte-count mutation
++ run_audit /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-count
++ CDK2_PE_EXEC_SECTIONS=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-pe-exec-sections tests/mtrr_ownership_test.sh /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-count /home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-test
++ test - = false-positive
++ replacement=false-positive
++ awk -F | -v OFS=| -v path=/home/sean/cdk2-root-protected-ui-after515/native/DxeCore.efi -v replacement=false-positive $2 == "payload" && $5 == path { $3 = replacement } { print } /home/sean/cdk2-root-protected-ui-after515/native/direct-mtrr-ownership-inputs
++ expect_reject /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-binding an image false-positive classification mutation
++ run_audit /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-binding
++ CDK2_PE_EXEC_SECTIONS=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-pe-exec-sections tests/mtrr_ownership_test.sh /home/sean/cdk2-direct-mtrr-test.sdhhxy/bad-binding /home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-test
++ zero_pe=/home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-raw.efi
++ /home/sean/cdk2-root-protected-ui-after515/native/pe-exec-sections-fixture /home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-raw.efi valid
++ zero_composition=/home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-composition
++ awk -F \t -v OFS=\t -v zero=/home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-raw.efi -v variable=CDK2_NATIVE_DXE_CORE_PE 
+	NR == 1 && $3 != variable { print; next }
+	$3 == variable { $4 = zero; print; found++ }
+	END { if (found != 1) exit 1 }
+ /home/sean/cdk2-root-protected-ui-after515/native/native-direct-images.rsp
++ CDK2_PE_EXEC_SECTIONS=/home/sean/cdk2-root-protected-ui-after515/native/cdk2-pe-exec-sections tests/direct_mtrr_manifest.sh /home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-composition /home/sean/cdk2-direct-mtrr-test.sdhhxy/zero-manifest /home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-stage.elf /home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-test CDK2_NATIVE_DXE_CORE_PE|false-positive|auto CDK2_NATIVE_CAPSULE_RUNTIME_PE|false-positive|auto
++ rm -rf /home/sean/cdk2-direct-mtrr-test.sdhhxy

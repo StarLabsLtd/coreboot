@@ -1,0 +1,54 @@
+Found file cdk2/config at 0xc15c0, type raw, compressed 943, size 2975
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline'
+#
+# No change to /home/sean/cdk2-quiet-lvgl-status-native-first/.config
+#
+#
+# No change to /home/sean/cdk2-quiet-lvgl-status-native-first/.config
+#
+#
+# No change to /home/sean/cdk2-quiet-lvgl-status-native-first/.config
+#
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline'
+LVGL UI driver form test passed
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc15c0, type raw, compressed 943, size 2975
+CDK2 real setup QEMU acceptance: PASS
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc15c0, type raw, compressed 943, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Found file cdk2/config at 0xc15c0, type raw, compressed 943, size 2975
+Found file cdk2/config at 0xc15c0, type raw, compressed 943, size 2975
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline/util/qemu/bin/assert-protected-setup-store.sh: line 44: 2828662 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "$output/initial.bin" "$output/requested.bin" "$output/consumed.bin" --self-test > "$output/$comparison-self-test.log" 2>&1
+/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline/util/qemu/bin/assert-protected-setup-store.sh: line 44: 2828717 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "$output/initial.bin" "$output/requested.bin" "$output/consumed.bin" --self-test > "$output/$comparison-self-test.log" 2>&1
+Protected setup actual-codec HOST receipts: /home/sean/cdk2-quiet-lvgl-status-threeboot-retry/boot-to-fw-ui/presentation/protected-store-oracle.qkbItM
+CDK2 real setup QEMU acceptance: PASS
+CDK2 BootToFwUI two-boot QEMU acceptance: PASS
+	Command being timed: "bash util/qemu/bin/run-quiet-setup-acceptance.sh /home/sean/cdk2-quiet-lvgl-status-native-first/protected-quiet-lvgl-status.rom /home/sean/cdk2-quiet-lvgl-status-threeboot-retry /home/sean/cdk2-quiet-lvgl-status-native-first"
+	User time (seconds): 120.27
+	System time (seconds): 18.38
+	Percent of CPU this job got: 133%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:43.86
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 367272
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 443
+	Minor (reclaiming a frame) page faults: 1015726
+	Voluntary context switches: 707114
+	Involuntary context switches: 1160
+	Swaps: 0
+	File system inputs: 384744
+	File system outputs: 2711448
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

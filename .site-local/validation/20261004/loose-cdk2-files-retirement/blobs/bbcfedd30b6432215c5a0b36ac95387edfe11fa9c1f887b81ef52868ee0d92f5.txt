@@ -1,0 +1,65 @@
+Found file cdk2/config at 0xc9180, type raw, compressed 2975, size 2975
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544'
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+#
+# No change to /home/sean/cdk2-root-quiet-provider383.sggGBD/.config
+#
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544'
+LVGL UI driver form test passed
+Found file config at 0x3df80, type raw, compressed 3566, size 12873
+Found file cdk2/config at 0xc9180, type raw, compressed 2975, size 2975
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp-setup-acceptance.py", line 256, in <module>
+    wait_marker("SPLASH_EARLY | complete | SUCCESS")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp-setup-acceptance.py", line 112, in wait_marker
+    firmware_text()
+    ~~~~~~~~~~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp-setup-acceptance.py", line 131, in firmware_text
+    body = cbmem_reader.snapshot()
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp_cbmem_console.py", line 257, in snapshot
+    data, records = self.table(address)
+                    ~~~~~~~~~~^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp_cbmem_console.py", line 225, in table
+    self.table_publication_error(error)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp_cbmem_console.py", line 213, in table_publication_error
+    raise error
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp_cbmem_console.py", line 223, in table
+    records = parse_table(data)
+  File "/home/sean/Documents/.cdk2-worktrees/quiet-sata-topology-after544/util/qemu/bin/qmp_cbmem_console.py", line 56, in parse_table
+    raise ValueError("LBIO geometry/checksum rejected")
+ValueError: LBIO geometry/checksum rejected
+Command exited with non-zero status 1
+	Command being timed: "util/qemu/bin/run-quiet-setup-acceptance.sh /home/sean/cdk2-root-quiet-provider383.sggGBD/quiet-provider383.rom /home/sean/cdk2-root-quiet-threeboot-provider383-retry /home/sean/cdk2-root-quiet-provider383.sggGBD"
+	User time (seconds): 71.59
+	System time (seconds): 8.03
+	Percent of CPU this job got: 36%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:38.41
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 374656
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 391
+	Minor (reclaiming a frame) page faults: 1831434
+	Voluntary context switches: 178050
+	Involuntary context switches: 1251
+	Swaps: 0
+	File system inputs: 154944
+	File system outputs: 178104
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

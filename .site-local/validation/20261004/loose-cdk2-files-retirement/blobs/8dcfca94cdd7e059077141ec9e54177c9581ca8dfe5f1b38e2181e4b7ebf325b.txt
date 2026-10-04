@@ -1,0 +1,91 @@
+QEMU discovery override selftest: PASS
+Warning: block count mismatch: found 130048 but assuming 130031.
+linear payload provenance hostile tests: PASS
+/home/sean/tmp.URzJtM656p/c /home/sean/tmp.URzJtM656p/d differ: byte 1, line 1
+post-insertion payload extraction is not stable
+SELFTEST_PASS
+derived fixture reproducibility: PASS
+Terminated
+/usr/bin/mdir: File "::/EFI/BOOT/BOOTX64.EFI" not found
+/usr/bin/mdir: File "::/EFI/UpdateCapsule/CDK2.cap" not found
+linear acceptance fixture mapping selftest: PASS
+HOST source-binding mutant missing_saved_table: exact refusal PASS
+HOST source-binding mutant changed_retained_bmp: exact refusal PASS
+HOST source-binding mutant changed_producer_config: exact refusal PASS
+CDK2 setup acceptance hostile selftest: PASS
+BootToFwUI SMMSTORE hostile selftest: PASS
+Created CBFS (capacity = 524196 bytes)
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+Found file cdk2/config at 0x80000, type raw, compressed 52, size 52
+Found file config at 0x80080, type raw, compressed 9, size 9
+HOST modeled missing-saved-table: exact refusal PASS
+HOST modeled changed-source-config: exact refusal PASS
+HOST modeled changed-source-geometry: exact refusal PASS
+HOST modeled BootToFwUI two-boot oracle hostile selftest: PASS
+CDK2 QMP cleanup selftest: PASS
+CDK2 deadline interruption selftest: PASS
+Q35 protected nvme real-requester acceptance: PASS
+Q35 protected usb real-requester acceptance: PASS
+Q35 real-requester evidence hostile selftest: PASS
+TPM event-log oracle selftest: PASS
+TPM evidence freezer provenance selftest: PASS
+#
+# configuration written to /home/sean/tmp.6mcVS0v1aa/acceptance-build/.config
+#
+#
+# configuration written to /home/sean/tmp.6mcVS0v1aa/setup-acceptance-build/.config
+#
+#
+# configuration written to /home/sean/tmp.6mcVS0v1aa/quiet-acceptance-build/.config
+#
+direct image eligibility and source PE inventory: PASS
+harness self-tests: PASS

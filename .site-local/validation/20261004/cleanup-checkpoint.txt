@@ -74,7 +74,8 @@ Third completed pass:
   by an independent retained store without altering canonical vboot's history.
   A successor collector completed for all 66 parents, copying two configurations
   and two recipe files plus reconstruction metadata. Final packet reviews and
-  signed push precede any removal; the 66 parents are still present.
+  signed push preceded removal; the 66 parents were still present at that
+  checkpoint.
 
 Latest normal-profile HOST regression at source 58598b47ab331eabb271f2343f6b0d4d882d30d1
 completed with all ten recorded statuses zero (wall 1112.08 seconds). Author and
@@ -82,3 +83,49 @@ independent actual closure reviews passed. The separate default-profile HOST
 regression also completed with all eight recorded statuses zero (wall 941.42
 seconds); Root, author and independent finite closure reviews passed.
 These results do not assert latest guest or hardware proof.
+
+Fourth completed pass:
+- All 66 archived coreboot parent worktrees were removed, bringing total
+  retired coreboot parents to 70 and the registered coreboot tree count to 82.
+  Source branches and objects remain retained; no Git GC or ref pruning ran.
+- The original operation removed 41 parents, then stopped because a remaining
+  standalone mbedtls clone borrowed objects from an already removed private
+  admin directory. Its retirement.status remains 1. A separate read-only
+  diagnostic status remains 128. The pointer was repaired to the validated
+  retained canonical object store without source, HEAD or ref changes.
+- The first continuation proposal stopped before creating its receipt or
+  attempting removal: a single-owner dictionary rejected a known shared vboot
+  store. Its qualified terminal summary is not a substituted raw process log.
+- The reviewed successor admitted exact archived owner sets and required the
+  borrower to precede the store owner. It removed the remaining 25 with every
+  command status zero and a separate final retirement.status of zero.
+- Root, author and independent actual-result reviews passed: exact commands,
+  absence of all 66 paths, unchanged shared refs, all 19 retained repository
+  snapshots, and surviving dependency-marker/alternate bytes. The continuation
+  graph changed from 1799 to 1627 markers and 49 to 46 alternate files; removed
+  entries belonged only to the selected worktrees. Outside broken markers
+  remain held and are not represented as repaired.
+
+The exact 147-file loose CDK2 preservation packet is independently qualified:
+142 historical text files have complete stored counterparts, two generated
+HOST ELFs have metadata only, and three existing local archives have a move
+plan only. Original loose files are still present at this checkpoint. Their
+retirement requires this packet's signed publication and a separately reviewed
+Root-only operation. No existing archive payload was uploaded to Git.
+
+The reviewed 53-clone SeaBIOS preservation collector passed. Root verified all
+108 original mappings and stored hashes; the independent reviewer reconstructed
+all 53 current clone/parent records, raw references and object types/reachability,
+the complete dependency graph and retained canonical snapshot. The packet
+preserves 106 configurations and two recipe files; generated outputs receive
+metadata only. Dirty parent worktrees are excluded from removal authority.
+No SeaBIOS clone removal is claimed here.
+
+Finite archives now include the original partial41 and successful continuation25
+receipts, exact attempted recipes and qualified pre-output failures (226 original
+mappings). The 127-byte NUL-delimited Git status record is stored byte-exact;
+it is a machine-status record, not generated file contents. The separate latest
+normal/default689, full-lint688 and checker-provenance packet has 233 complete
+original mappings. It preserves the expected old-pin status 1 and the empty
+extended-lint inventory, without turning either into additional coverage.
+Neither archival collection re-executed a firmware test or source hash helper.

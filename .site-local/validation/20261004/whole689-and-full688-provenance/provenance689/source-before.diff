@@ -1,0 +1,64 @@
+diff --git a/review-profile/coreboot/checkpatch-local.patch b/review-profile/coreboot/checkpatch-local.patch
+index 57f445a46f..dd3dedbd45 100644
+--- a/review-profile/coreboot/checkpatch-local.patch
++++ b/review-profile/coreboot/checkpatch-local.patch
+@@ -1,8 +1,10 @@
+ diff --git a/util/lint/checkpatch.pl b/util/lint/checkpatch.pl
+-index 16b6bd35fb..eb4c8627e7 100755
++index 16b6bd35fb..e14cea374a 100755
+ --- a/util/lint/checkpatch.pl
+ +++ b/util/lint/checkpatch.pl
+-@@ -5320,7 +5320,48 @@ sub process {
++@@ -5159,0 +5160 @@ sub process {
+++			$to =~ s/\s+$//;
++@@ -5320,7 +5321,48 @@ sub process {
+  				$herecurr);
+  		}
+  # case and default should not have general statements after them
+@@ -52,7 +54,7 @@ index 16b6bd35fb..eb4c8627e7 100755
+  		    $line !~ /\G(?:
+  			(?:\s*$;*)(?:\s*{)?(?:\s*$;*)(?:\s*\\)?\s*$|
+  			\s*return\s+
+-@@ -5487,6 +5528,11 @@ sub process {
++@@ -5487,6 +5529,11 @@ sub process {
+  			$dstat =~ s/^\s*//s;
+  			$dstat =~ s/\s*$//s;
+  
+@@ -64,7 +66,7 @@ index 16b6bd35fb..eb4c8627e7 100755
+  			# Flatten any parentheses and braces
+  			while ($dstat =~ s/\([^\(\)]*\)/1u/ ||
+  			       $dstat =~ s/\{[^\{\}]*\}/1u/ ||
+-@@ -5523,6 +5569,7 @@ sub process {
++@@ -5523,6 +5570,7 @@ sub process {
+  			my $herectx = get_stat_here($linenr, $stmt_cnt, $here);
+  
+  			if ($dstat ne '' &&
+diff --git a/review-profile/coreboot/generated/manifest.json b/review-profile/coreboot/generated/manifest.json
+index 36637fdf58..43e51d4176 100644
+--- a/review-profile/coreboot/generated/manifest.json
++++ b/review-profile/coreboot/generated/manifest.json
+@@ -24,7 +24,7 @@
+   "evidence_sha256": "100518d996d6614d28342e3e7c65b6b23b13d8970ef2a5f812ed440bfd50f834",
+   "format_revision": 6,
+   "gerrit_url": "https://review.coreboot.org",
+-  "input_sha256": "48c19eeedeffccf66f6a4f8862db1467b90b8f20164b9364600e6b45bc981dfe",
++  "input_sha256": "49506ef2ba1669ca8b25be0ab86a1ca55fb632eda48fcf29fbd43a76adc36ed2",
+   "observations_sha256": "bc5fa238afa4a3a0ed3d9f75bc7ddeb1170c9f7b56aacaed8cc3d0fc0fea325c",
+   "queries": {
+     "1000145": "project:coreboot reviewer:1000145",
+diff --git a/review-profile/coreboot/sources.json b/review-profile/coreboot/sources.json
+index 85edcf8970..99f39acd76 100644
+--- a/review-profile/coreboot/sources.json
++++ b/review-profile/coreboot/sources.json
+@@ -3,9 +3,9 @@
+   "imports": [
+     {
+       "local_patch": "review-profile/coreboot/checkpatch-local.patch",
+-      "local_patch_sha256": "20678e01ae72a33060e55a8853dcda5ecbaf1e06300b4d21cbbf3e27e3aa2e32",
++      "local_patch_sha256": "eff6a82db8fae306cd2c90e649066c7d7d27b584c6ab223c8dca72105ac51f31",
+       "local_path": "util/lint/checkpatch.pl",
+-      "local_sha256": "6c13a6fa89cc03236cb62fb9ba3dc8252dd3997a411b9c30b8d76869d03991be",
++      "local_sha256": "712c2421bac764ab65d084a2f0901fa3d5e254ea2ef3065f8fa7ab368b50323b",
+       "path": "util/lint/checkpatch.pl",
+       "sha256": "945a529e4a1e7183ede7e025b87cee4b50d28b7b642406f9502b1a2392dce18a",
+       "source_url": "https://raw.githubusercontent.com/coreboot/coreboot/3531cde8002a9afff8ad4c272b2c4ea015f45012/util/lint/checkpatch.pl",

@@ -1,0 +1,17 @@
+bash	/usr/bin/bash
+cat	/usr/lib/cargo/bin/coreutils/cat
+find	/usr/bin/find
+wc	/usr/lib/cargo/bin/coreutils/wc
+grep	/usr/bin/grep
+sha256sum	/usr/lib/cargo/bin/coreutils/sha256sum
+mkdir	/usr/lib/cargo/bin/coreutils/mkdir
+stat	/usr/lib/cargo/bin/coreutils/stat
+dirname	/usr/lib/cargo/bin/coreutils/dirname
+gzip	/usr/bin/gzip
+cmp	/usr/bin/cmp
+cp	/usr/bin/gnucp
+sort	/usr/lib/cargo/bin/coreutils/sort
+xargs	/usr/bin/xargs
+readlink	/usr/lib/cargo/bin/coreutils/readlink
+file	/usr/bin/file
+cut	/usr/lib/cargo/bin/coreutils/cut

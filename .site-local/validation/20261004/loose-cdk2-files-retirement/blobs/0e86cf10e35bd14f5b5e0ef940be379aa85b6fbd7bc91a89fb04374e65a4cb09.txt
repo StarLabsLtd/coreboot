@@ -1,0 +1,47 @@
+#
+# configuration written to /home/sean/cdk2-root-protected-ui-after515/.config
+#
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (34 records, 8 mutations)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-protected-ui-after515/native/cdk2-coreboot-image.elf)
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+	Command being timed: "make -j2 CDK2_BUILD_DIR=/home/sean/cdk2-root-protected-ui-after515 CDK2_CONFIG=/home/sean/cdk2-root-protected-ui-after515/.config CDK2_CONFIG_HEADER=/home/sean/cdk2-root-protected-ui-after515/include/cdk2/config.h CDK2_DEFCONFIG=/home/sean/Documents/cdk2/util/qemu/config/cdk2-q35-protected-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config native-coreboot-image native-lvgl-renderer-test"
+	User time (seconds): 87.06
+	System time (seconds): 18.42
+	Percent of CPU this job got: 103%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:42.06
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 97504
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 184
+	Minor (reclaiming a frame) page faults: 4049313
+	Voluntary context switches: 460010
+	Involuntary context switches: 2440
+	Swaps: 0
+	File system inputs: 49928
+	File system outputs: 296768
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

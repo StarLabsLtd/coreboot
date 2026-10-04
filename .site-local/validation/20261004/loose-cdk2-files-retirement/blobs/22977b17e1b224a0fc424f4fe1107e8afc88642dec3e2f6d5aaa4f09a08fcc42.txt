@@ -1,0 +1,28 @@
+Found file cdk2/config at 0xc2980, type raw, compressed 955, size 3016
+Found file config at 0x351c0, type raw, compressed 3465, size 12157
+Protected setup actual-codec HOST receipts: /home/sean/cdk2-root-protected-ui-stable-frames/boot-to-fw-ui/presentation/protected-store-oracle.Evo4uL
+CDK2 real setup QEMU acceptance: PASS
+CDK2 BootToFwUI two-boot QEMU acceptance: PASS
+	Command being timed: "python3 util/qemu/bin/assert-boot-to-fw-ui-run.py /home/sean/cdk2-root-protected-ui-stable-frames/boot-to-fw-ui/request /home/sean/cdk2-root-protected-ui-stable-frames/boot-to-fw-ui/presentation /home/sean/cdk2-root-protected-ui-stable-frames/boot-to-fw-ui/fixture"
+	User time (seconds): 5.97
+	System time (seconds): 1.24
+	Percent of CPU this job got: 98%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:07.31
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 157784
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 28
+	Minor (reclaiming a frame) page faults: 355690
+	Voluntary context switches: 1243
+	Involuntary context switches: 62
+	Swaps: 0
+	File system inputs: 218968
+	File system outputs: 89392
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

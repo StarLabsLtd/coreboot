@@ -1,0 +1,10 @@
+Historical loose-file preservation only; no historical test/runtime success claim.
+Exact147 original paths:142 text bytes fully mapped to deduplicated lossless blobs;
+2 generated HOST ELFs have static headers/hash/size only; their executable bytes are NOT archived.
+3 existing local tar.zst archives have hash/size and a future local MOVE PLAN only;
+archive payloads are NOT copied, opened, moved, extracted or published by this collector.
+No original file, source tree, object store, ref, active recipe or unrelated data is changed.
+No deletion/move/Git write authority is supplied by collector success.
+Future retirement requires independent packet audit, durable evidence push and separate
+Root-owned exact retirement plan; archives must first be retained locally without duplicate copies.
+Utility evidence is finite enumeration, not complete interpreter/runtime attestation.

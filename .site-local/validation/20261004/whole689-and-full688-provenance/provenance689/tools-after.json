@@ -1,0 +1,150 @@
+[
+  {
+    "path": "/usr/bin/mawk",
+    "sha256": "9f11bee2561b60b79397c67086c58734334cee3d7382a275ab40530c9dc9e9b7"
+  },
+  {
+    "path": "/usr/bin/bash",
+    "sha256": "2986231b72a4ad6d21ce85f05f6630b6bddf2100a80fa49198c527e87eb1a6af"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/cat",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/gnuchmod",
+    "sha256": "fd265a53ab1d9181a90130cde9a9e31ef67cd8a739b6bf539717ef922a4bbda3"
+  },
+  {
+    "path": "/usr/bin/cmp",
+    "sha256": "fec89e553875fec383eb836797a38ec7886a00c91b102fd790e3b8e3d3c04334"
+  },
+  {
+    "path": "/usr/bin/gnucp",
+    "sha256": "2555c1da675f51062e08155bc16e45f3555461f68e838c51b344b2ac6aa694ca"
+  },
+  {
+    "path": "/usr/bin/curl",
+    "sha256": "e3f463ad30a4b10d61000c330ac8f78c14161cfca55387b1580cc44fcb2a23ae"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/cut",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/date",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/dirname",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/env",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/find",
+    "sha256": "57bfc7c7725ab979e685b6cb625e0da3d5d30ee01c764814cae5088dea8c6f36"
+  },
+  {
+    "path": "/usr/bin/git",
+    "sha256": "3446b26047255f16d588eda4527aeedf02bd173449382d93bfe8a141257876c9"
+  },
+  {
+    "path": "/usr/bin/grep",
+    "sha256": "20a35a4c18f2fe9e6305c1cbf866b9c0fcc3f957132ae66028c99ec353bb0a80"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/head",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/jq",
+    "sha256": "d77c2808d1254ffdf3f1b5c79d90eb5d892db816ac20ccab8cfc0e34d5c69293"
+  },
+  {
+    "path": "/usr/bin/make",
+    "sha256": "93fc2b4bbe134f593c864748fce8a101588d0ca68577b216ae09aa08acd3e61e"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/mkdir",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/mktemp",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/gnumv",
+    "sha256": "61e00542a18d07205f5dfbfe8e34d616c574ad3b36dcb2496190b0b0734d05c8"
+  },
+  {
+    "path": "/usr/bin/patch",
+    "sha256": "b45c5761097648ef9f972ed4465168b1a39b8318e750332a33d067a122bdfccc"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/printf",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/pwd",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/python3.13",
+    "sha256": "efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/readlink",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/gnurm",
+    "sha256": "6d63d4e7c3f3acf3045380816ac6a62a0b745b4451f8c61c744a345768349eab"
+  },
+  {
+    "path": "/usr/bin/sed",
+    "sha256": "ed5640ac9a0af33a8be9a981ef70f03cd83d5e902a7c5eeff18ee02b2fd48505"
+  },
+  {
+    "path": "/usr/bin/dash",
+    "sha256": "781c19b56fbdb17284707f9026e107f639e5447df7df3b248a5d5a50c4b0806c"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/sha256sum",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/sleep",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/sort",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/ssh-keygen",
+    "sha256": "f864fa5389950f1c6edb37e4bb0adbf039ae491739a88b1ce738f3a0d72b1f75"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/stat",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/tail",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/tr",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/lib/cargo/bin/coreutils/wc",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "path": "/usr/bin/xargs",
+    "sha256": "a4903cc9f9eb9532cb34f08f04ead3a82be9f8c15de7d23f98922b3600062499"
+  }
+]

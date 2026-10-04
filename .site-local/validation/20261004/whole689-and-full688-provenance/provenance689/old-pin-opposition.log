@@ -1,0 +1,17 @@
+pinned local coreboot patch or result digest differs
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/bin/curl: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/checkpatch-local.patch: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/config.json: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/gates.md: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/generated/checkpoint.jsonl: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/generated/evidence.jsonl: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/generated/manifest.json: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/generated/observations.md: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/generated/source-records.jsonl: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/readme.md: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/review-profile/coreboot/sources.json: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/util/lint/checkpatch.pl: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/util/review_profile/coreboot-review-profile: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/util/review_profile/coreboot-review-profile-cache.sh: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/util/review_profile/coreboot-review-profile-collect.sh: OK
+/home/sean/review-profile-provenance-final.20261004-r1/old-pin-root/util/review_profile/coreboot-review-profile-emit.sh: OK

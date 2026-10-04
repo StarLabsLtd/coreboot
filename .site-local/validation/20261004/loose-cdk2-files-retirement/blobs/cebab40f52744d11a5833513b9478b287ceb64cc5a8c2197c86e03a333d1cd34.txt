@@ -1,0 +1,46 @@
+Found file cdk2/config at 0xc15c0, type raw, compressed 2975, size 2975
+FMAP REGION: COREBOOT
+Name                           Offset     Type           Size   Comp
+cbfs_master_header             0x0        cbfs header        32 none
+fallback/romstage              0x80       stage           20472 none
+fallback/ramstage              0x5100     stage          196693 LZMA (399580 decompressed)
+config                         0x351c0    raw              3465 LZMA (12157 decompressed)
+revision                       0x35f80    raw               787 none
+build_info                     0x362c0    raw               125 none
+logo.bmp                       0x36380    raw              8671 LZMA (164790 decompressed)
+fallback/dsdt.aml              0x385c0    raw              7260 none
+cmos_layout.bin                0x3a280    cmos_layout       640 none
+fallback/postcar               0x3a540    stage           20500 none
+q35/native-apmc                0x3f5c0    raw                12 none
+q35/native-apmc-bootstrap      0x3f600    raw                 2 none
+fallback/payload               0x3f640    simple elf     532287 none
+cdk2/config                    0xc15c0    raw              2975 none
+(empty)                        0xc21c0    null          7499236 none
+bootblock                      0x7e8fc0   bootblock       20480 none
+f7a91a9a9b41844aa906e524331877d61f3bd5e3729c2d3e58ca490cc1e8ce7c  /home/sean/q35-protected-ui-producer.sv8jP6/build/coreboot.rom
+d957b383667b07f5b64aeab74d1e3ed8d0c563d97d019c1942ad6f3a03ce380f  /home/sean/q35-protected-ui-producer.sv8jP6/build/cbfstool
+9963056c7e3e708b1d0879919f5dea7c9163b0a78f42910e07c8c4feedd7c78b  /home/sean/cdk2-root-minimal-lvgl-after527/quiet-status.rom
+1c7ae7ee035d7f724f38e8a9a98ad5c063ead9940953ab566e2a71fd21598f94  /home/sean/cdk2-root-minimal-lvgl-after527/native/cdk2-coreboot-image.elf
+	Command being timed: "/bin/bash -e -o pipefail -c native_dir=/home/sean/cdk2-root-minimal-lvgl-after527/native; package_dir=/home/sean/cdk2-root-minimal-lvgl-after527; cbfs_tool=/home/sean/q35-protected-ui-producer.sv8jP6/build/cbfstool; producer_rom=/home/sean/q35-protected-ui-producer.sv8jP6/build/coreboot.rom; test ! -e "$package_dir/quiet-status.rom"; test "$(sha256sum "$producer_rom" | cut -d " " -f1)" = f7a91a9a9b41844aa906e524331877d61f3bd5e3729c2d3e58ca490cc1e8ce7c; test "$(sha256sum "$cbfs_tool" | cut -d " " -f1)" = d957b383667b07f5b64aeab74d1e3ed8d0c563d97d019c1942ad6f3a03ce380f; util/qemu/bin/assert-cdk2-setup-acceptance-config.sh "$package_dir/.config" quiet; util/qemu/bin/assert-cdk2-direct-provenance.sh "$native_dir/cdk2-coreboot-image.elf" "$package_dir/include/cdk2/config.h" "$native_dir/native-direct-images.rsp" "$native_dir/native-direct-composition-inventory.tsv" "$native_dir/cdk2-direct-image-table" "$native_dir/cdk2-elfcheck" tests/direct_composition_contract_test.sh util/direct-composition-inventory "$package_dir/quiet-status-attestation.tsv"; cp --reflink=auto "$producer_rom" "$package_dir/quiet-status.rom"; "$cbfs_tool" "$package_dir/quiet-status.rom" remove -n fallback/payload; "$cbfs_tool" "$package_dir/quiet-status.rom" add-payload -n fallback/payload -f "$native_dir/cdk2-coreboot-image.elf" -c lzma; "$cbfs_tool" "$package_dir/quiet-status.rom" add -n cdk2/config -f "$package_dir/.config" -t raw; "$cbfs_tool" "$package_dir/quiet-status.rom" extract -n cdk2/config -f "$package_dir/quiet-status-extracted.config"; cmp "$package_dir/.config" "$package_dir/quiet-status-extracted.config"; "$cbfs_tool" "$package_dir/quiet-status.rom" print; sha256sum "$producer_rom" "$cbfs_tool" "$package_dir/quiet-status.rom" "$native_dir/cdk2-coreboot-image.elf""
+	User time (seconds): 1.18
+	System time (seconds): 1.13
+	Percent of CPU this job got: 119%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.94
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 33052
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 105
+	Minor (reclaiming a frame) page faults: 234327
+	Voluntary context switches: 3941
+	Involuntary context switches: 103
+	Swaps: 0
+	File system inputs: 23880
+	File system outputs: 53976
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

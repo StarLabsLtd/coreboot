@@ -1,0 +1,30 @@
+Actual Root retirement execution stopped with exit 1, 2026-10-04.
+Immutable B1TKcb retirec6c729d881 / README6cf8c28d was executed against signed
+published evidence f3fc8485d69ba9b4ebdac374a4f5b34dbb28a8b8.
+
+Forty-one exact worktree removals completed with literal status zero. Before
+removing candidate 42, q35-pflash-erased-padding-after384, fresh inspection
+failed at Git status with raw 128. No removal command for candidate 42 or the
+remaining candidates ran. retirement.status remains 1: this is a partial
+failure, not a successful 66-parent retirement or a firmware test result.
+
+The remaining checkout's standalone 3rdparty/mbedtls/.git object store borrows
+objects through an alternate pointing to the retired q35-fresh-root-inventory-
+after383 private module store. The incoming-edge scan covered canonical Git
+administration trees but omitted standalone nested Git directories inside
+worktree source directories. This is a defect in the retirement dependency
+admission, not missing canonical recovery objects. All required raw ref/HEAD
+objects had been verified in retained repositories before retirement.
+
+stop-diagnostic.log/status record a separate read-only replay of the failing
+Git-status command before repair. pflash-mbedtls-alternates-before.txt preserves
+the original pointer bytes. No successful reclassification of this receipt,
+recipe rewrite, branch pruning or automatic continuation is authorized.
+Next: independently review exact alternate recovery and the complete remaining
+standalone-store dependency graph, then use a new receipt/recipe for any further
+retirement. Source/configuration bytes and refs must remain preserved.
+
+Removed source worktrees can be reconstructed from retained parent branch refs,
+configuration recovery and canonical vendor objects. Generated output requires
+rebuilding. No user Home Assistant, Plex, VM, unrelated repo or hardware state
+was changed by this retirement operation.

@@ -1,0 +1,238 @@
++ set -eu
++ dirname -- util/lint/checkpatch-allowlist-check
++ CDPATH= cd -- util/lint/../..
++ pwd
++ root=/home/sean/Documents/cdk2
++ ledger=/home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ source_path=src/modules/terminal/driver.c
++ mktemp -d /tmp/cdk2-checkpatch-ledger.XXXXXX
++ temporary=/tmp/cdk2-checkpatch-ledger.5DxBiU
++ trap rm -rf "$temporary" EXIT HUP INT TERM
++ binary=/tmp/cdk2-checkpatch-ledger.5DxBiU/filter
++ cc -std=c11 -Wall -Wextra -Werror -O2 /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-filter.c -o /tmp/cdk2-checkpatch-ledger.5DxBiU/filter
++ exec
++ rm -f /tmp/cdk2-checkpatch-ledger.5DxBiU/filter
++ expected=a644dcb86deccb9cefabf8f7a2c2899381fc418be86185dbc72c43c31a77be9b
++ sha256sum /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ awk { print $1 }
++ test a644dcb86deccb9cefabf8f7a2c2899381fc418be86185dbc72c43c31a77be9b = a644dcb86deccb9cefabf8f7a2c2899381fc418be86185dbc72c43c31a77be9b
++ awk -F \t !/^#/ && NF {
+	if (NF != 6) exit 2
+	key = $1 FS $2 FS $3 FS $4 FS $5
+	if ($6 != ++seen[key]) exit 3
+	rows++
+} END { print rows + 0 } /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ test 31 -eq 31
++ /home/sean/Documents/cdk2/util/lint/checkpatch-paths /home/sean/Documents/cdk2 /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ printf \t
++ tab=	
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/lib/coreboot_hob.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/lib/coreboot_hob.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/lib/coreboot_hob.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/authvar_presence/bootstrap.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/authvar_presence/bootstrap.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/authvar_presence/bootstrap.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/authvar_presence/bootstrap.h
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/authvar_presence/bootstrap.h CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/authvar_presence/bootstrap.h
++ [ 2 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/dxe_core/entry.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/dxe_core/entry.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/dxe_core/entry.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/pcat_rtc/pcat_rtc.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/pcat_rtc/pcat_rtc.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/pcat_rtc/pcat_rtc.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/reset_system/reset_system.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/reset_system/reset_system.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/reset_system/reset_system.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/system_fmp/entry.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/system_fmp/entry.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/system_fmp/entry.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/system_fmp/transport.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/system_fmp/transport.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/system_fmp/transport.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/terminal/driver.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/terminal/driver.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/terminal/driver.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/uhci/entry.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 12 -eq 12
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 12 -eq 12
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/uhci/entry.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/uhci/entry.c
++ [ 12 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/usb_bus/entry.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/usb_bus/entry.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/usb_bus/entry.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/usb_keyboard/binding.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/usb_keyboard/binding.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/usb_keyboard/binding.c
++ [ 2 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/variable_runtime/entry.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 4 -eq 4
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 4 -eq 4
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/variable_runtime/entry.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/variable_runtime/entry.c
++ [ 4 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/capsule_ram_window_core_test.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/capsule_ram_window_core_test.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/capsule_ram_window_core_test.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/emmc_dxe_qemu.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 3 -eq 3
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 3 -eq 3
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/emmc_dxe_qemu.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/emmc_dxe_qemu.c
++ [ 3 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/monotonic_counter_test.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 2 -eq 2
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/monotonic_counter_test.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/monotonic_counter_test.c
++ [ 2 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/protected_variable_boot_gate_test.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/protected_variable_boot_gate_test.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/protected_variable_boot_gate_test.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/reset_system_test.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/reset_system_test.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/reset_system_test.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/system_fmp_session_test.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=tests/system_fmp_session_test.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 tests/system_fmp_session_test.c
++ [ 0 -eq 0 ]
++ test ! -s /tmp/cdk2-checkpatch-ledger.5DxBiU/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- tests/system_fmp_transport_client_test.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 0 -eq 0
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.5DxBiU/raw-file
++ test 12 -eq 0
++ rm -rf /tmp/cdk2-checkpatch-ledger.5DxBiU

@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "sh",
+    "util/lint/lint-007-checkpatch"
+  ],
+  "environment": {
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "OLDPWD": "/home/sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean/Documents/.cdk2-worktrees/full-lint-after685-host",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/full-lint-after688-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

@@ -1,0 +1,87 @@
+#
+# configuration written to /home/sean/cdk2-root-full-default-after524/.config
+#
+legacy boundary inventory tests: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Native FV protocol ABI and calling-convention mutation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Whole signature database admission and literal UEFI records: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+#
+# No change to /home/sean/tmp.QQj3cMGr4t/build/.config
+#
+#
+# No change to /home/sean/tmp.QQj3cMGr4t/build/.config
+#
+#
+# No change to /home/sean/tmp.QQj3cMGr4t/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /home/sean/tmp.Hu1GLAUBBZ/build/.config
+#
+#
+# configuration written to /home/sean/tmp.Hu1GLAUBBZ/external.config
+#
+Configuration input selection and unchanged-cache reuse: PASS
+BGRT oracle synthetic positive/refusal unit tests: PASS
+CDK2 authenticated-variable service ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable reserved-type mutation: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+CDK2 authenticated-variable presence ABI tests: PASS
+Terminated
+Terminated
+make: *** [Makefile:182: authvar-presence-bootstrap-test] Error 143

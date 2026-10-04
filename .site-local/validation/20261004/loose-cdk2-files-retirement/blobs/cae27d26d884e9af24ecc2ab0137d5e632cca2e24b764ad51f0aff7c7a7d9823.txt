@@ -1,0 +1,1 @@
+protected Q35 setup has no SPI console producer

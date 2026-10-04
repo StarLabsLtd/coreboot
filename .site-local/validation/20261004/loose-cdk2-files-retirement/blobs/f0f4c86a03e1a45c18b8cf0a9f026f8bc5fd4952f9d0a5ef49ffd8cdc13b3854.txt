@@ -1,0 +1,55 @@
++ set -eu
++ dirname -- util/lint/checkpatch-allowlist-check
++ CDPATH= cd -- util/lint/../..
++ pwd
++ root=/home/sean/Documents/cdk2
++ ledger=/home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ source_path=src/modules/terminal/driver.c
++ mktemp -d /tmp/cdk2-checkpatch-ledger.XXXXXX
++ temporary=/tmp/cdk2-checkpatch-ledger.559PQK
++ trap rm -rf "$temporary" EXIT HUP INT TERM
++ binary=/tmp/cdk2-checkpatch-ledger.559PQK/filter
++ cc -std=c11 -Wall -Wextra -Werror -O2 /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-filter.c -o /tmp/cdk2-checkpatch-ledger.559PQK/filter
++ exec
++ rm -f /tmp/cdk2-checkpatch-ledger.559PQK/filter
++ expected=fad95ce1509744fce71ec19c0eb7ea0a03026571b8f169ffae16870defa973bd
++ sha256sum /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ awk { print $1 }
++ test fad95ce1509744fce71ec19c0eb7ea0a03026571b8f169ffae16870defa973bd = fad95ce1509744fce71ec19c0eb7ea0a03026571b8f169ffae16870defa973bd
++ awk -F \t !/^#/ && NF {
+	if (NF != 6) exit 2
+	key = $1 FS $2 FS $3 FS $4 FS $5
+	if ($6 != ++seen[key]) exit 3
+	rows++
+} END { print rows + 0 } /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ test 36 -eq 36
++ /home/sean/Documents/cdk2/util/lint/checkpatch-paths /home/sean/Documents/cdk2 /home/sean/Documents/cdk2/util/lint/cdk2-checkpatch-allowlist.tsv
++ printf \t
++ tab=	
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/authvar_presence/bootstrap.c
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.559PQK/raw-file
++ test 1 -eq 1
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.559PQK/raw-file
++ test 1 -eq 1
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/authvar_presence/bootstrap.c CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/authvar_presence/bootstrap.c
++ [ 1 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.559PQK/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/authvar_presence/bootstrap.h
++ true
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.559PQK/raw-file
++ test 2 -eq 2
++ grep -Ec ^(ERROR|WARNING|CHECK): /tmp/cdk2-checkpatch-ledger.559PQK/raw-file
++ test 2 -eq 2
++ cd /home/sean/Documents/cdk2
++ CDK2_CHECKPATCH_VERIFY_PATH=src/modules/authvar_presence/bootstrap.h CDK2_CHECKPATCH_EXEC_FD=3 /proc/self/fd/3 /home/sean/Documents/cdk2 --show-types --file --quiet --max-line-length=96 src/modules/authvar_presence/bootstrap.h
++ [ 2 -eq 0 ]
++ grep -Eq ^total: 0 errors, 0 warnings, [0-9]+ lines checked$ /tmp/cdk2-checkpatch-ledger.559PQK/filtered-file
++ IFS=	 read -r path count
++ git -C /home/sean/Documents/cdk2 ls-files --error-unmatch -- src/modules/dxe_core/presence_lifecycle.c
++ grep -Ec ^(ERROR|WARNING):SPACING: /tmp/cdk2-checkpatch-ledger.559PQK/raw-file
++ test 0 -eq 1
++ rm -rf /tmp/cdk2-checkpatch-ledger.559PQK

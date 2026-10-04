@@ -1,0 +1,64 @@
+#
+# configuration written to /home/sean/cdk2-quiet-lvgl-status-native-first/.config
+#
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.087s
+
+OK
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	24576	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (34 records, 8 mutations)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/cdk2-quiet-lvgl-status-native-first/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-quiet-lvgl-status-native-first/native/cdk2-coreboot-image.elf)
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+quiet release splash status policy is not exact
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline/src/boot/Makefile:3691: native-lvgl-renderer-test] Error 1
+make: *** [Makefile:1126: native-lvgl-renderer-test] Error 2
+make: *** Waiting for unfinished jobs....
+/usr/bin/ld: /home/sean/ccrfa6OW.o: in function `policy_interrupts_enabled':
+core.c:(.text.policy_interrupts_enabled+0x9): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccrfa6OW.o: in function `policy_interrupts_set':
+core.c:(.text.policy_interrupts_set+0x18): undefined reference to `cdk2_dxe_policy_interrupts_set'
+collect2: error: ld returned 1 exit status
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline/src/boot/Makefile:7648: native-splash-status-report-test] Error 1
+make: *** [Makefile:1126: native-splash-status-report-test] Error 2
+Command exited with non-zero status 2
+	Command being timed: "make -j2 CDK2_BUILD_DIR=/home/sean/cdk2-quiet-lvgl-status-native-first CDK2_CONFIG=/home/sean/cdk2-quiet-lvgl-status-native-first/.config CDK2_CONFIG_HEADER=/home/sean/cdk2-quiet-lvgl-status-native-first/include/cdk2/config.h KCONFIG_CONFIG=/home/sean/cdk2-quiet-lvgl-status-native-first/.config CDK2_DEFCONFIG=/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline/util/qemu/config/cdk2-q35-protected-quiet-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config native-coreboot-image native-lvgl-renderer-test native-splash-status-report-test qemu-acceptance-profile-config-test"
+	User time (seconds): 100.08
+	System time (seconds): 21.21
+	Percent of CPU this job got: 103%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:56.87
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 104956
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 290
+	Minor (reclaiming a frame) page faults: 5000385
+	Voluntary context switches: 720819
+	Involuntary context switches: 2857
+	Swaps: 0
+	File system inputs: 43696
+	File system outputs: 473568
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2

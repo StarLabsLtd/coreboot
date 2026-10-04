@@ -1,0 +1,64 @@
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.078s
+
+OK
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	24576	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (34 records, 8 mutations)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-quiet-provider383.sggGBD/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-quiet-provider383.sggGBD/native/cdk2-coreboot-image.elf)
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+QEMU acceptance profile Kconfig tests: PASS
+QMP delayed/stable/navigation framebuffer observer: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O0: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O0: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O2: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O2: PASS
+	Command being timed: "make -j2 CDK2_BUILD_DIR=/home/sean/cdk2-root-quiet-provider383.sggGBD CDK2_CONFIG=/home/sean/cdk2-root-quiet-provider383.sggGBD/.config CDK2_CONFIG_HEADER=/home/sean/cdk2-root-quiet-provider383.sggGBD/include/cdk2/config.h CDK2_DEFCONFIG=/home/sean/Documents/cdk2/util/qemu/config/cdk2-q35-protected-quiet-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-auth-provider-newtrust-baseline.8ELcTU/full.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/fmp-auth-initial-version-after382 MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls native-coreboot-image native-lvgl-renderer-test native-capsule-ram-window-core-test qemu-acceptance-profile-config-test"
+	User time (seconds): 124.72
+	System time (seconds): 25.23
+	Percent of CPU this job got: 104%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:23.55
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 152924
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 834
+	Minor (reclaiming a frame) page faults: 5589363
+	Voluntary context switches: 746023
+	Involuntary context switches: 3420
+	Swaps: 0
+	File system inputs: 73240
+	File system outputs: 574216
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

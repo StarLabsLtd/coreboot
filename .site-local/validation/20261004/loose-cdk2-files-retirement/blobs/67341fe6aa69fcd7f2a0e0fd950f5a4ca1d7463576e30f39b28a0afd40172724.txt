@@ -1,0 +1,27 @@
+QEMU discovery override selftest: PASS
+Warning: block count mismatch: found 130048 but assuming 130031.
+linear payload provenance hostile tests: PASS
+/tmp/tmp.4hXrc2KR44/c /tmp/tmp.4hXrc2KR44/d differ: byte 1, line 1
+post-insertion payload extraction is not stable
+SELFTEST_PASS
+derived fixture reproducibility: PASS
+Terminated
+/usr/bin/mdir: File "::/EFI/BOOT/BOOTX64.EFI" not found
+/usr/bin/mdir: File "::/EFI/UpdateCapsule/CDK2.cap" not found
+linear acceptance fixture mapping selftest: PASS
+HOST source-binding mutant missing_saved_table: exact refusal PASS
+HOST source-binding mutant changed_retained_bmp: exact refusal PASS
+HOST source-binding mutant changed_producer_config: exact refusal PASS
+CDK2 setup acceptance hostile selftest: PASS
+BootToFwUI SMMSTORE hostile selftest: PASS
+actual producer cbfstool is required for store-profile binding
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/run-boot-to-fw-ui-oracle-selftest.py", line 193, in <module>
+    subprocess.run([oracle, request, presentation, fixture], check=True,
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   stdout=subprocess.DEVNULL)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '[PosixPath('/home/sean/Documents/cdk2/util/qemu/bin/assert-boot-to-fw-ui-run.py'), PosixPath('/tmp/cdk2-boot-to-fw-ui-oracle.no5_f9za/valid/request'), PosixPath('/tmp/cdk2-boot-to-fw-ui-oracle.no5_f9za/valid/presentation'), PosixPath('/tmp/cdk2-boot-to-fw-ui-oracle.no5_f9za/valid/fixture')]' returned non-zero exit status 1.

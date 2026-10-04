@@ -1,0 +1,89 @@
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+graphics console HII boundary: PASS
+scsi bus configured linker: PASS
+graphics console diagnostic tests: PASS
+scsi bus dependency depfiles: PASS
+graphics console diagnostic tests: PASS
+SMMSTORE transport tests: PASS
+authenticated variable-store tests: PASS
+SMMSTORE FVB runtime tests: PASS
+SMMSTORE runtime driver tests: PASS
+SMMStore diagnostic tests: PASS
+SMMStore diagnostic tests: PASS
+sd dxe disk info tests: PASS
+sd dxe binding tests: PASS
+sd dxe model tests: PASS
+sd dxe backend tests: PASS
+sd dxe block tests: PASS
+emmc dxe model tests: PASS
+emmc dxe backend tests: PASS
+emmc dxe block tests: PASS
+emmc dxe disk info tests: PASS
+emmc dxe binding tests: PASS
+usb keyboard HII boundary: PASS
+usb keyboard model tests: PASS
+usb keyboard transport tests: PASS
+usb keyboard protocol tests: PASS
+usb keyboard binding tests: PASS
+usb keyboard entry tests: PASS
+usb mass model tests: PASS
+usb mass transport tests: PASS
+usb mass SCSI tests: PASS
+usb mass block tests: PASS
+usb mass binding tests: PASS
+usb mass entry tests: PASS
+xhci model tests: PASS
+xhci controller tests: PASS
+xhci PCI adapter tests: PASS
+xhci entry tests: PASS
+immutable pci bus entry tests: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+make[1]: Entering directory '/home/sean/Documents/cdk2'
+make[1]: Leaving directory '/home/sean/Documents/cdk2'
+scsi bus dependency header touch: PASS
+checkpatch filter tests passed
+C11 generic association and genuine switch trailing-statement checks: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+PCI bus immutable configuration toggle: PASS
+make[1]: warning: -j4 forced in submake: resetting jobserver mode.
+checkpatch launcher tests passed
+checkpatch allowlist path tests passed
+pci bus model tests: PASS
+pci bus entry tests: PASS
+	Command being timed: "make -j2 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/cdk2-root-abi-warning-style-selected-final CDK2_DEFCONFIG=/home/sean/Documents/cdk2/util/qemu/config/cdk2-q35-protected-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls native-acpi-table-test native-device-path-test native-graphics-console-test native-scsi-bus-test native-smmstore-test native-system-fmp-entry-test native-usb-mouse-test native-sd-dxe-test native-emmc-dxe-test native-usb-keyboard-test native-usb-mass-test native-xhci-test native-pci-bus-test checkpatch-filter-test checkpatch-allowlist-check"
+	User time (seconds): 168.60
+	System time (seconds): 15.97
+	Percent of CPU this job got: 175%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:45.11
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 51352
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 726
+	Minor (reclaiming a frame) page faults: 4715551
+	Voluntary context switches: 14166
+	Involuntary context switches: 9684
+	Swaps: 0
+	File system inputs: 30344
+	File system outputs: 52160
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

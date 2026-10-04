@@ -1,0 +1,60 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index 7f10815908..e76fc0a570 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -62,6 +62,9 @@ CDK2_NATIVE_FTW_PE ?= $(CDK2_NATIVE_BUILD_DIR)/FaultTolerantWriteDxe.efi
+ CDK2_NATIVE_CON_SPLITTER_PE ?= $(CDK2_NATIVE_BUILD_DIR)/ConSplitterDxe.efi
+ CDK2_NATIVE_SHELL_PE ?= $(CDK2_NATIVE_BUILD_DIR)/Shell.efi
+ CDK2_NATIVE_PERELOCCHECK ?= $(CDK2_NATIVE_PE_EXEC_SECTIONS)
++CDK2_NATIVE_PE_LINK ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-native-pe-link
++CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ ?= \
++	$(CDK2_NATIVE_BUILD_DIR)/pe-relocation-marker.o
+ CDK2_NATIVE_METRONOME_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-metronome-test
+ CDK2_NATIVE_SCSI_BUS_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-scsi-bus-test
+ CDK2_NATIVE_SCSI_BINDING_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-scsi-binding-test
+@@ -921,7 +924,8 @@ $(CDK2_PUBLIC_FULLGRAPH_APP_LINK_OBJ): $(CDK2_PUBLIC_FULLGRAPH_APP_OBJS) \
+ 		-o "$@" $(CDK2_PUBLIC_FULLGRAPH_APP_OBJS)
+ $(CDK2_PUBLIC_FULLGRAPH_APP_PE): $(CDK2_PUBLIC_FULLGRAPH_APP_LINK_OBJ) \
+ 		$(CDK2_DIR)/tests/protected_variable_fullgraph_runtime_app.ld \
+-		$(CDK2_NATIVE_PERELOCCHECK) $(CDK2_NATIVE_PE_LINK)
++		$(CDK2_NATIVE_PERELOCCHECK) $(CDK2_NATIVE_PE_LINK) \
++		$(CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ)
+ 	@$(CDK2_NATIVE_PE_LD) --subsystem 10 \
+ 		--entry cdk2_public_fullgraph_runtime_entry --image-base 0 \
+ 		--section-alignment 0x1000 --file-alignment 0x1000 --build-id=none \
+@@ -938,8 +942,6 @@ native-protected-variable-fullgraph-diagnostic-test:
+ 		COREBOOT_ABSENT_ROM="$(COREBOOT_ABSENT_ROM)" CBFSTOOL_ABSENT="$(CBFSTOOL_ABSENT)" \
+ 		bash "$(CDK2_DIR)/tests/protected_variable_fullgraph_test.sh" \
+ 		"$(CDK2_NATIVE_BUILD_DIR)/protected-variable-fullgraph-diagnostic"
+--include $(CDK2_PUBLIC_FULLGRAPH_APP_OBJS:%=%.d)
+-
+ define cdk2_protected_image_policy_join_test_rule
+ $(CDK2_NATIVE_BUILD_DIR)/protected-image-policy-join-test-o$(1): \
+ 		$(CDK2_PROTECTED_IMAGE_POLICY_JOIN_SOURCES) $(CDK2_BEARSSL_SOURCE_PATHS) \
+@@ -1591,9 +1593,6 @@ CDK2_NATIVE_LD ?= $(LD)
+ ifeq ($(strip $(CDK2_NATIVE_LD)),)
+ CDK2_NATIVE_LD := ld
+ endif
+-CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ ?= \
+-	$(CDK2_NATIVE_BUILD_DIR)/pe-relocation-marker.o
+-CDK2_NATIVE_PE_LINK ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-native-pe-link
+ CDK2_NATIVE_PE_LD = "$(CDK2_NATIVE_PE_LINK)" "$(CDK2_NATIVE_LD)" \
+ 	"$(CDK2_NATIVE_PERELOCCHECK)" "$(CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ)" \
+ 	"$(CDK2_NATIVE_READELF)"
+@@ -8692,6 +8691,7 @@ native-stage native-coreboot-stage native-coreboot-image \
+ # loader can admit arbitrary placement without weakening third-party checks.
+ CDK2_NATIVE_PE_OUTPUTS := $(sort $(foreach variable,$(.VARIABLES),\
+ 	$(if $(filter CDK2_NATIVE_%_PE,$(variable)),$($(variable)))))
++CDK2_NATIVE_PE_OUTPUTS += $(CDK2_PUBLIC_FULLGRAPH_APP_PE)
+ $(CDK2_NATIVE_PE_OUTPUTS): $(CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ) \
+ 	$(CDK2_NATIVE_PERELOCCHECK) $(CDK2_NATIVE_PE_LINK)
+ 
+@@ -8700,6 +8700,8 @@ $(CDK2_NATIVE_PE_OUTPUTS): $(CDK2_NATIVE_PE_RELOCATION_MARKER_OBJ) \
+ CDK2_NATIVE_CONFIG_OUTPUTS := $(sort $(filter $(CDK2_NATIVE_BUILD_DIR)/%,\
+ 	$(foreach variable,$(filter CDK2_NATIVE_%,$(.VARIABLES)),$($(variable)))))
+ # These outputs are declared directly in rules or by other source families.
++CDK2_NATIVE_CONFIG_OUTPUTS += $(CDK2_PUBLIC_FULLGRAPH_APP_OBJS) \
++	$(CDK2_PUBLIC_FULLGRAPH_APP_LINK_OBJ) $(CDK2_PUBLIC_FULLGRAPH_APP_PE)
+ CDK2_NATIVE_CONFIG_OUTPUTS += $(addprefix $(CDK2_NATIVE_BUILD_DIR)/,\
+ 	usb-bus-model-test usb-bus-io-test usb-bus-binding-test usb-bus-entry-test \
+ 	usb-bus-rollback-test usb-bus-enumeration-test \

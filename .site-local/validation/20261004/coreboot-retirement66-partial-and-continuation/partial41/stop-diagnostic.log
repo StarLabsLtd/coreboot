@@ -1,0 +1,6 @@
+error: unable to normalize alternate object path: /home/sean/Documents/coreboot/.git/worktrees/q35-fresh-root-inventory-after383/modules/3rdparty/mbedtls/objects
+error: unable to normalize alternate object path: /home/sean/Documents/coreboot/.git/worktrees/q35-fresh-root-inventory-after383/modules/3rdparty/mbedtls/objects
+error: unable to normalize alternate object path: /home/sean/Documents/coreboot/.git/worktrees/q35-fresh-root-inventory-after383/modules/3rdparty/mbedtls/objects
+error: unable to normalize alternate object path: /home/sean/Documents/coreboot/.git/worktrees/q35-fresh-root-inventory-after383/modules/3rdparty/mbedtls/objects
+fatal: bad object HEAD
+fatal: 'git status --porcelain=2' failed in submodule 3rdparty/mbedtls

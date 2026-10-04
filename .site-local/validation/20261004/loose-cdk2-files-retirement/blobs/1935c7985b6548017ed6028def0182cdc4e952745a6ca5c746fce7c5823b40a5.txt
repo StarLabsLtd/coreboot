@@ -1,0 +1,9 @@
+#
+# configuration written to /home/sean/cdk2-root-minimal-lvgl-after527/.config
+#
+checkpatch filter tests passed
+C11 generic association and genuine switch trailing-statement checks: PASS
+Font declaration grammar and eight hostile macros (--grammar-only): PASS
+make[1]: warning: -j4 forced in submake: resetting jobserver mode.
+checkpatch launcher tests passed
+checkpatch allowlist path tests passed

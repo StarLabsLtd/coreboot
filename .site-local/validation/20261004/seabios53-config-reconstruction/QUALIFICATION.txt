@@ -1,0 +1,5 @@
+53 standalone SeaBIOS clone reconstruction/config preservation only.
+All configs stored byte-exact; ignored out/pyc files have size/hash metadata only, NOT payload recovery.
+Canonical retained HEAD/all raw refs/object types/reachability are required. No Git objects copied.
+No generated executable/ROM/rawmedia/source payloads copied; no historical build/test pass claimed.
+No clone or parent removal authorized here. Dirty parent source must remain.

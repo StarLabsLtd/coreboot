@@ -1,0 +1,4 @@
+source	proposed_target	size	sha256	payload_copied	move_executed
+/home/sean/cdk2-owned-style-after-fixtures.uEBpyC-receipts.tar.zst	/home/sean/Documents/cdk2-validation/retained-inputs/loose-cdk2-archives/cdk2-owned-style-after-fixtures.uEBpyC-receipts.tar.zst	93228	3456f0343548c3edfcfcdf76b234d6b03ac08c67aa87f88a5fcf6c6819e91072	false	false
+/home/sean/cdk2-root-quiet-threeboot-after539.tar.zst	/home/sean/Documents/cdk2-validation/retained-inputs/loose-cdk2-archives/cdk2-root-quiet-threeboot-after539.tar.zst	79533798	d4f69dc0150082b45da34a4cd55d0a6c9cb4df2c4301f4f315756956cda679af	false	false
+/home/sean/cdk2-root-quiet-threeboot-after543-combined.tar.zst	/home/sean/Documents/cdk2-validation/retained-inputs/loose-cdk2-archives/cdk2-root-quiet-threeboot-after543-combined.tar.zst	158713392	f9987b29cd75fd106cf402561544f63753693effa99986359c0d2eb31e325791	false	false

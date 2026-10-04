@@ -1,0 +1,27 @@
+2026-10-04: Root executed immutable continuation25 proposal TcPYmQ.
+
+Recipe retire.py SHA256:
+28b3870fb7a7734a8afface7e333c228a0fccc2c4ba5767e58f4726593bfb5b3
+README SHA256:
+a09f155efba37f978416afe5f736854f4354a2435a9eb68a51ea2eeea3a08755
+
+Actual process session 75774 reaped with exit status 1 during admission:
+main line 299 -> incoming_check line 232 -> graph_snapshot line 184
+RuntimeError: foreign private nested Gitdir/common alias
+
+The requested receipt path
+/home/sean/coreboot-retirement66-continuation25.20261004-r1
+was not created. No continuation removal was attempted. This is a
+pre-output admission failure, not a completed or partially completed
+retirement receipt. The original 41 successful removals and original
+retirement.status=1 remain unchanged.
+
+Read-only diagnosis identified a shared private vboot common store for
+spans and smm-invocation-runtime-view. The single-owner dictionary
+overwrote the recorded spans owner and refused its legitimate marker.
+The proposed correction requires exact archived owner sets and verifies
+that any borrower is removed before the private administrative owner.
+It does not authorize outside borrowers, source/ref changes, or GC.
+
+This record summarizes the actual terminal result and diagnosis; it is
+not a substituted raw process log or a claim that a retry passed.

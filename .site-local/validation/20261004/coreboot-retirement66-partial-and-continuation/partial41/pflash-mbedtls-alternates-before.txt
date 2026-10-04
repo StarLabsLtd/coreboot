@@ -1,0 +1,1 @@
+/home/sean/Documents/coreboot/.git/worktrees/q35-fresh-root-inventory-after383/modules/3rdparty/mbedtls/objects

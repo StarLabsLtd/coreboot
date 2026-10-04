@@ -1,0 +1,3 @@
+ M review-profile/coreboot/checkpatch-local.patch
+ M review-profile/coreboot/generated/manifest.json
+ M review-profile/coreboot/sources.json

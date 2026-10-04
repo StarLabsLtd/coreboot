@@ -1,0 +1,47 @@
+{
+  "availability_complete": {
+    "arthur-heymans": true,
+    "benjamin-doron": true,
+    "matt-devillier": true,
+    "nico-huber": true
+  },
+  "category_counts": {
+    "change-quality": 102,
+    "hardware": 121,
+    "kconfig-build": 140,
+    "ownership": 29,
+    "security-smm": 32,
+    "style": 32
+  },
+  "checkpoint_sha256": "e50864f4024ee5ac908db2daad4f06bd0a2362a008c17d42774262d1af33af16",
+  "collected_substantive_counts": {
+    "arthur-heymans": 1799,
+    "benjamin-doron": 94,
+    "matt-devillier": 867,
+    "nico-huber": 4570
+  },
+  "evidence_count": 3000,
+  "evidence_sha256": "100518d996d6614d28342e3e7c65b6b23b13d8970ef2a5f812ed440bfd50f834",
+  "format_revision": 6,
+  "gerrit_url": "https://review.coreboot.org",
+  "observations_sha256": "bc5fa238afa4a3a0ed3d9f75bc7ddeb1170c9f7b56aacaed8cc3d0fc0fea325c",
+  "queries": {
+    "1000145": "project:coreboot reviewer:1000145",
+    "1000517": "project:coreboot reviewer:1000517",
+    "1001353": "project:coreboot reviewer:1001353",
+    "1002565": "project:coreboot reviewer:1002565",
+    "1003363": "project:coreboot reviewer:1003363",
+    "1004454": "project:coreboot reviewer:1004454"
+  },
+  "query_sha256": "9af7d622572fe1d1560ce74714e5ae2ed28a5824f9a7b09e944a1826bc2ca0c1",
+  "reviewer_counts": {
+    "arthur-heymans": 1020,
+    "benjamin-doron": 94,
+    "matt-devillier": 867,
+    "nico-huber": 1019
+  },
+  "snapshot_cutoff": "2026-08-25T00:00:00Z",
+  "source_records_sha256": "e7e047f728639bdda1b1fe23d022df44fbc1a07811bfd184b4755d8bc9e5c234",
+  "target": 3000,
+  "target_reached": true
+}

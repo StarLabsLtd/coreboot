@@ -1,0 +1,8 @@
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.072s
+
+OK
+make: *** [Makefile:1136: native-coreboot-image] Terminated
+make: *** [Makefile:1136: native-lvgl-renderer-test] Terminated
+make[1]: *** [/home/sean/Documents/cdk2/src/boot/Makefile:2633: /home/sean/cdk2-root-minimal-lvgl-after527/native/fat-protocol.o] Terminated

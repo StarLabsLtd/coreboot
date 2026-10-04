@@ -1,0 +1,38 @@
+[
+  {
+    "actual": "/usr/bin/python3.13",
+    "alias": "/usr/bin/python3",
+    "name": "python3",
+    "sha256": "efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e"
+  },
+  {
+    "actual": "/usr/lib/cargo/bin/coreutils/sha256sum",
+    "alias": "/usr/bin/sha256sum",
+    "name": "sha256sum",
+    "sha256": "2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739"
+  },
+  {
+    "actual": "/usr/bin/file",
+    "alias": "/usr/bin/file",
+    "name": "file",
+    "sha256": "d74c0992d1c160e955e16c7acdaffe2c1daa853ad2ed9cb601b34d4a62f3c9c5"
+  },
+  {
+    "actual": "/usr/bin/x86_64-linux-gnu-readelf",
+    "alias": "/usr/bin/readelf",
+    "name": "readelf",
+    "sha256": "d1459ee29cd3ae90f4b703e7a76748d48c89f1050ecfa626c3825af2cc1efcfb"
+  },
+  {
+    "actual": "/usr/bin/gzip",
+    "alias": "/usr/bin/gzip",
+    "name": "gzip",
+    "sha256": "c160e29abe38cd29f5edcad431f6cecf663cbfc7054597da7b1ee165301cb205"
+  },
+  {
+    "actual": "/usr/bin/cmp",
+    "alias": "/usr/bin/cmp",
+    "name": "cmp",
+    "sha256": "fec89e553875fec383eb836797a38ec7886a00c91b102fd790e3b8e3d3c04334"
+  }
+]

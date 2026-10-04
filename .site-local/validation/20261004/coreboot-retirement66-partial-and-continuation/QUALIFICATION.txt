@@ -1,0 +1,11 @@
+Cleanup/reconstruction receipts only, no firmware/QEMU/hardware or historical HOST gate claim.
+Original41-removal receipt remains failure1; stop128 is separate read-only diagnostic replay.
+One pointer repaired to canonical retained mbedtls; original/new bytes preserved.
+Tc attempted continuation failed pre-output admission, no receipt/no removals: summary is NOT raw terminal log.
+New owner-set continuation25 statuses0 is separate; original failure is NOT reclassified.
+aa30 archive collector failed pre-output1 at NUL guard; no packet, no regression of actual25.
+Exact127-byte Git porcelain-z machine-status SHA26fe exception preserved unchanged, not firmware binary.
+G5 archive attempt failed pre-output1 on quoted source guard strings, not actual private keys; no packet.
+Anchored full PEM header lines refuse; source string literals are not header lines.
+Only flat receipts, exact six retirement recipes plus four failed collector bodies/current collector copied.
+No source/vendor/Git object/build/ROM/media/private state payload copied; no source SHA replay after deletion.

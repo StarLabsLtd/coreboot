@@ -1,0 +1,6 @@
+Started cdk2-quiet-cbmem-host-final.service - [systemd-run] /usr/bin/bash -o pipefail -c "set -e; python3 tests/qmp_cbmem_console_test.py; python3 tests/setup_capture_readiness_test.py; bash -n util/qemu/bin/run-quiet-setup-acceptance.sh util/qemu/bin/run-one.sh; git diff --check".
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.036s
+OK
+QMP delayed/stable/navigation framebuffer observer: PASS

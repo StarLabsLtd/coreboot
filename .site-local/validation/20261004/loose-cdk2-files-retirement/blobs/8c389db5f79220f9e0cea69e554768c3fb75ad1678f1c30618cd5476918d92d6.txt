@@ -1,0 +1,3 @@
+C11 generic association and genuine switch trailing-statement checks: PASS
+Font declaration grammar and eight hostile macros (--grammar-only): PASS
+checkpatch launcher tests passed

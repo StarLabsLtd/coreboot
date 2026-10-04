@@ -1,0 +1,1302 @@
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/review-profile-test"
+review profile cache tests passed
+review profile collector tests passed
+review profile emitter tests passed
+review profile CLI tests passed
+review profile tests passed
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/util/review_profile/coreboot-review-profile" verify
+coreboot review profile verified
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+legacy boundary inventory tests: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Native FV protocol ABI and calling-convention mutation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Whole signature database admission and literal UEFI records: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+#
+# No change to /tmp/tmp.gPeVXZpKSh/build/.config
+#
+#
+# No change to /tmp/tmp.gPeVXZpKSh/build/.config
+#
+#
+# No change to /tmp/tmp.gPeVXZpKSh/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /tmp/tmp.rfgcmAL51A/build/.config
+#
+#
+# configuration written to /tmp/tmp.rfgcmAL51A/external.config
+#
+Configuration input selection and unchanged-cache reuse: PASS
+BGRT oracle synthetic positive/refusal unit tests: PASS
+CDK2 authenticated-variable service ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable reserved-type mutation: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence client O0/O2/ASan+UBSan tests: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence bootstrap tests: PASS
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests: PASS
+authenticated-variable presence composition config tests: PASS
+LVGL native source boundary tests: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar transport O0/O2 ASan+UBSan: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar runtime adapter O0/O2 ASan+UBSan: PASS
+Aborted
+Aborted
+Aborted
+Aborted
+Actual private runtime + RAM namespace (transport modeled): PASS
+Actual modeled predicate namespace O0 positive: 0
+Aborted
+Actual compiled predicate capability O0 causal assertion: 134
+Aborted
+Actual compiled predicate ram-migration O0 causal assertion: 134
+Aborted
+Actual compiled predicate ram-fallback O0 causal assertion: 134
+Aborted
+Actual compiled predicate query-overflow O0 causal assertion: 134
+Aborted
+Actual compiled predicate classification O0 causal assertion: 134
+Aborted
+Actual compiled predicate image-capability O0 causal assertion: 134
+Actual modeled predicate namespace O2 positive: 0
+Aborted
+Actual compiled predicate capability O2 causal assertion: 134
+Aborted
+Actual compiled predicate ram-migration O2 causal assertion: 134
+Aborted
+Actual compiled predicate ram-fallback O2 causal assertion: 134
+Aborted
+Actual compiled predicate query-overflow O2 causal assertion: 134
+Aborted
+Actual compiled predicate classification O2 causal assertion: 134
+Aborted
+Actual compiled predicate image-capability O2 causal assertion: 134
+MM predicate namespace ownership/capability O0/O2 ASan+UBSan: PASS (producer transport modeled)
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant lifetime terminal-deny/whole-scrub mutants and native closure: PASS
+#
+# configuration written to /tmp/tmp.22EwRVBOyn/parent/.config
+#
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# No change to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# No change to /tmp/tmp.4yWxbikpNd/output/.config
+#
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/output/.config
+#
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf)
+/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /tmp/tmp.4yWxbikpNd/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf)
+/tmp/tmp.4yWxbikpNd/stage/native/cdk2-coreboot-image.elf
+Protected variable source import/cache and actual PE link: PASS
+Protected variable nested Make parent isolation: PASS
+no-recheck-0: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:263: snapshot_tests: Assertion `cdk2_authvar_runtime_owner_image_policy_snapshot(owner, bytes, sizeof(bytes), &size) == EFI_DEVICE_ERROR' failed.
+no-recheck-2: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:263: snapshot_tests: Assertion `cdk2_authvar_runtime_owner_image_policy_snapshot(owner, bytes, sizeof(bytes), &size) == EFI_DEVICE_ERROR' failed.
+no-closure-0: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:154: trigger: Assertion `size == 777 && active_owner->failed' failed.
+no-closure-2: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:154: trigger: Assertion `size == 777 && active_owner->failed' failed.
+Authvar runtime owner O0/O2 ASan+UBSan: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence boundary mutation tests passed
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+USB downstream and retry reset mutation tests: PASS
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+legacy boundary inventory tests: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Native FV protocol ABI and calling-convention mutation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Whole signature database admission and literal UEFI records: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+#
+# No change to /tmp/tmp.Whw0KlnBGt/build/.config
+#
+#
+# No change to /tmp/tmp.Whw0KlnBGt/build/.config
+#
+#
+# No change to /tmp/tmp.Whw0KlnBGt/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /tmp/tmp.yfH0vEReas/build/.config
+#
+#
+# configuration written to /tmp/tmp.yfH0vEReas/external.config
+#
+Configuration input selection and unchanged-cache reuse: PASS
+BGRT oracle synthetic positive/refusal unit tests: PASS
+CDK2 authenticated-variable service ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable reserved-type mutation: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+authenticated-variable lifecycle-close StartImage unwind tests: PASS
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+authenticated-variable presence bootstrap tests passed
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence client O0/O2/ASan+UBSan tests: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence bootstrap tests: PASS
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests passed
+authenticated-variable presence composition tests: PASS
+authenticated-variable presence composition config tests: PASS
+LVGL native source boundary tests: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar transport O0/O2 ASan+UBSan: PASS
+Dormant authvar production closure and selection mutations: PASS
+Authvar runtime adapter O0/O2 ASan+UBSan: PASS
+Aborted
+Aborted
+Aborted
+Aborted
+Actual private runtime + RAM namespace (transport modeled): PASS
+Actual modeled predicate namespace O0 positive: 0
+Aborted
+Actual compiled predicate capability O0 causal assertion: 134
+Aborted
+Actual compiled predicate ram-migration O0 causal assertion: 134
+Aborted
+Actual compiled predicate ram-fallback O0 causal assertion: 134
+Aborted
+Actual compiled predicate query-overflow O0 causal assertion: 134
+Aborted
+Actual compiled predicate classification O0 causal assertion: 134
+Aborted
+Actual compiled predicate image-capability O0 causal assertion: 134
+Actual modeled predicate namespace O2 positive: 0
+Aborted
+Actual compiled predicate capability O2 causal assertion: 134
+Aborted
+Actual compiled predicate ram-migration O2 causal assertion: 134
+Aborted
+Actual compiled predicate ram-fallback O2 causal assertion: 134
+Aborted
+Actual compiled predicate query-overflow O2 causal assertion: 134
+Aborted
+Actual compiled predicate classification O2 causal assertion: 134
+Aborted
+Actual compiled predicate image-capability O2 causal assertion: 134
+MM predicate namespace ownership/capability O0/O2 ASan+UBSan: PASS (producer transport modeled)
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant BOOT-private terminal lifetime and whole-buffer scrub: PASS
+Dormant lifetime terminal-deny/whole-scrub mutants and native closure: PASS
+#
+# configuration written to /tmp/tmp.TybDVa5pg5/parent/.config
+#
+#
+# configuration written to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# configuration written to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# No change to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# configuration written to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# configuration written to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# No change to /tmp/tmp.UhMgdvj950/output/.config
+#
+#
+# configuration written to /tmp/tmp.UhMgdvj950/output/.config
+#
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /tmp/tmp.UhMgdvj950/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf)
+/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf
+kconfig/defconfig:4:notice: override: reassigning to symbol CDK2_PAYLOAD
+#
+# configuration written to /tmp/tmp.UhMgdvj950/stage/.config
+#
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf)
+/tmp/tmp.UhMgdvj950/stage/native/cdk2-coreboot-image.elf
+Protected variable source import/cache and actual PE link: PASS
+Protected variable nested Make parent isolation: PASS
+no-recheck-0: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:263: snapshot_tests: Assertion `cdk2_authvar_runtime_owner_image_policy_snapshot(owner, bytes, sizeof(bytes), &size) == EFI_DEVICE_ERROR' failed.
+no-recheck-2: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:263: snapshot_tests: Assertion `cdk2_authvar_runtime_owner_image_policy_snapshot(owner, bytes, sizeof(bytes), &size) == EFI_DEVICE_ERROR' failed.
+no-closure-0: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:154: trigger: Assertion `size == 777 && active_owner->failed' failed.
+no-closure-2: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/authvar_runtime_owner_test.c:154: trigger: Assertion `size == 777 && active_owner->failed' failed.
+Authvar runtime owner O0/O2 ASan+UBSan: PASS
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle tests passed
+authenticated-variable presence lifecycle mutation tests passed
+authenticated-variable presence boundary mutation tests passed
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+usb bus enumeration tests: PASS
+USB downstream and retry reset mutation tests: PASS
+0	4096	24576	PE
+0	4096	12288	PE
+usb mass model tests: PASS
+usb mass transport tests: PASS
+usb mass SCSI tests: PASS
+usb mass block tests: PASS
+usb mass binding tests: PASS
+usb mass entry tests: PASS
+native USB mass-storage QEMU oracle: /home/sean/cdk2-root-full-protected-after530/native/usb-mass-qemu.efi
+SystemFmp native authentication envelope tests: PASS
+SystemFmp native authentication envelope tests: PASS
+SystemFmp native authentication envelope tests: PASS
+SystemFmp freestanding crypto closure: PASS
+SystemFmp native PKCS7/X509 tests: PASS
+SystemFmp native PKCS7/X509 tests: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Shared CMS Authenticode verification and capsule isolation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Shared CMS Authenticode verification and capsule isolation: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Certificate request self-signature ok
+subject=CN=CDK2-TSA-TEST-ONLY
+CMS Verification successful
+Signing Unsigned original image
+Verification successful
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-TIMESTAMPED-CODE-ONLY
+Signing Unsigned original image
+Signature verification OK
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Response has been generated.
+Using configuration from /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/fixtures/timestamp.cnf
+Warning: certificate from '/tmp/tmp.RFpkw5DF3P/tsa.pem' with subject '/CN=CDK2-TSA-TEST-ONLY' is not a CA cert
+Verification: OK
+CMS Verification successful
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Verified RFC3161 signature binding and atomic UTC time: PASS
+Certificate request self-signature ok
+subject=CN=CDK2-LEAF-TEST-ONLY
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+native image authorization subset: PASS
+native image authorization subset: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Verified OK
+Shared CMS Authenticode verification and capsule isolation: PASS
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+Signing Unsigned original image
+Signature verification OK
+native image authorization subset: PASS
+native image authorization subset: PASS
+Fresh protected image-policy consumer checks: PASS
+Fresh protected image-policy consumer checks: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+SystemFmp MSS1 payload and dependency model: PASS
+system FMP durable-state tests passed
+system FMP durable-state tests passed
+system FMP durable-state tests passed
+SystemFmp board-binding tests: PASS
+SystemFmp board-binding tests: PASS
+SystemFmp board-binding tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp coordinator tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp source-neutral session hostile tests: PASS
+SystemFmp production symbol closure: PASS
+native build directory coherence test: PASS
+BlSupportDxe and PCD source/config retirement: PASS
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+dxe core service tests passed
+DMA handoff consumer and strict PCI arena hostile tests: PASS
+DMA handoff outer-policy import and integration: PASS
+SystemFmp coreboot contract ordinary/O2/ASan+UBSan tests: PASS
+SystemFmp transport parser O0/O2/ASan+UBSan and source-boundary tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp typed transport client tests: PASS
+SystemFmp client O0/O2/ASan+UBSan and source-closure tests: PASS
+Future-floor HOST artifacts: /tmp/cdk2-system-fmp-future-floor.dbLckQ
+Aborted
+Aborted
+Aborted
+Aborted
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/system_fmp/session.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/system_fmp/auth.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/system_fmp/payload.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/system_fmp/board_binding.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/boot/coreboot.h: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/boot/coreboot.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/qemu_test_fmp/sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/system_fmp_future_floor_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/system_fmp_transport_client_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/system_fmp_future_floor_test.sh: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//src/lib/cms.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//src/lib/authenticode_spc.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/codec/ccopy.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/codec/dec32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/codec/dec64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/codec/enc32be.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/codec/enc64be.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_add.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_bitlen.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_decmod.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_decode.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_encode.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_fmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_modpow2.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_montmul.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_muladd.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_ninv31.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_sub.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i31_tmont.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/int/i32_div32.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/hash/multihash.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/hash/sha2small.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/hash/sha2big.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/rsa/rsa_i31_pkcs1_vrfy.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/rsa/rsa_i31_pub.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/rsa/rsa_pkcs1_sig_unpad.c: OK
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530//3rdparty/bearssl/src/x509/x509_decoder.c: OK
+/home/sean/cdk2-root-full-protected-after530/native/bearssl-x509-minimal.c: OK
+Future-floor HOST real parsers and four exact cap-restoration causals: PASS
+deadline tests passed
+deadline measured-source mutation: PASS
+deadline revision-guard mutation: PASS
+deadline length-guard mutation: PASS
+deadline missing-active-check mutation: PASS
+deadline contradictory-source mutation: PASS
+deadline provenance mutation test: PASS
+deadline CBMEM first-match-return mutation: PASS
+deadline TSC CPU/metronome isolation test: PASS
+HII retirement and loader contract: PASS
+43b3221b044f4e61416be8fa30f3fc6f733451aca5da54f44fa6cb99b8f01568  /home/sean/cdk2-root-full-protected-after530/native/EfiLoaderProbe.efi
+21d73381ecedeaa5d1e9a4fb3b8e020cf4175cc059e5c4fa546853d60eef57e9  /home/sean/cdk2-root-full-protected-after530/native/SecureBootEnroll.efi
+c6a2643c07c35ed45c3b6597d70185d9310451be49ab5bffff154e163513e880  /home/sean/cdk2-root-full-protected-after530/native/SecureBootLoaderProbe.efi
+KEK.auth: OK
+KEK.esl: OK
+PK.auth: OK
+PK.esl: OK
+cdk2-qemu-test-only.crt.der: OK
+cdk2-qemu-test-only.crt.pem: OK
+db.auth: OK
+db.esl: OK
+Secure Boot test-only PKI: PASS
+Signing Unsigned original image
+Signing Unsigned original image
+Signing Unsigned original image
+Signing Unsigned original image
+Secure-Boot-on loader media: prepared and hash-bound
+Signing Unsigned original image
+Secure-Boot-on EFI loader matrix contract tests: PASS
+#
+# configuration written to /tmp/tmp.qrQnmQ378s/secure/.config
+#
+#
+# configuration written to /tmp/tmp.qrQnmQ378s/ordinary/.config
+#
+Secure-Boot-on QEMU config contract: PASS
+EFI loader matrix media: prepared and hash-bound
+EFI loader matrix contract tests: PASS
+LVGL source/config provenance: PASS
+dxe core FV protocol tests passed
+xhci model tests: PASS
+xhci controller tests: PASS
+xhci PCI adapter tests: PASS
+xhci entry tests: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+linear ConnectController ownership mutations: PASS
+usb keyboard HII boundary: PASS
+usb keyboard model tests: PASS
+usb keyboard transport tests: PASS
+usb keyboard protocol tests: PASS
+usb keyboard binding tests: PASS
+usb keyboard entry tests: PASS
+ACPI immutable root-overlay tests: PASS
+ACPI table driver immutable-overlay tests: PASS
+LVGL settings transaction: PASS
+LVGL settings source contract: PASS
+diagnostic parity: 1816 canonical reference sites mapped once
+diagnostic accounting: 1978 provisional + (-162) reconciled delta = 1816
+ehci model tests: PASS
+ehci PCI adapter tests: PASS
+ehci transfer tests: PASS
+nvme model tests: PASS
+nvme controller tests: PASS
+nvme binding tests: PASS
+nvme pass thru tests: PASS
+nvme block tests: PASS
+nvme entry tests: PASS
+nvme PCI transaction tests: PASS
+nvme diagnostic tests: PASS
+sdmmc pci model tests: PASS
+sdmmc pci async tests: PASS
+sd dxe disk info tests: PASS
+sd dxe binding tests: PASS
+sd dxe model tests: PASS
+sd dxe backend tests: PASS
+sd dxe block tests: PASS
+emmc dxe model tests: PASS
+emmc dxe backend tests: PASS
+emmc dxe block tests: PASS
+emmc dxe disk info tests: PASS
+emmc dxe binding tests: PASS
+cdk2 coreboot test: PASS
+cpu arch model tests: PASS
+cpu page table tests: PASS
+cpu interrupt tests: PASS
+cpu driver tests: PASS
+CPU diagnostic tests: PASS
+PE/TE executable-section audit tests passed
+cdk2 coreboot test: PASS
+objcopy: /tmp/tmp.u6IXXK7gIn/substituted-coreboot-image.elf: warning: allocated section `.mtrr-injected' not in segment
+source MTRR ownership hostile mutations: PASS
+MTRR RDPRU provenance and mutations: PASS
+FV PE NOLOAD BSS extraction tests: PASS
+variable malformed-record O0/O2/strict/sanitizer/mutation tests: PASS
+HOST LEGACY VariableRuntime entry fixture artifacts: /home/sean/cdk2-root-full-protected-after530/native/variable-runtime-legacy-entry-fixture/run.3OoLbZ
+Modeled FVB/FTW and authenticated adapters are NOT protected variable authority.
+HOST LEGACY VariableRuntime entry fixture: PASS (not protected image/variable authority)
+CMS Verification successful
+CMS Verification successful
+CMS Verification successful
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual core LoadImage through entry-installed policy (setup mode native PE load): PASS (modeled IRQ/HOB/trigger)
+Actual core LoadImage through entry-installed policy (authenticated enrollment denial): PASS (modeled IRQ/HOB/trigger)
+Actual protected variable entry (auth2-core): PASS (modeled trigger/HOB)
+Aborted
+Actual core entry policy decision-discard causal mutation O0: PASS
+Actual protected variable entry (normal): PASS (modeled trigger/HOB)
+Actual protected variable entry (nonidentity): PASS (modeled trigger/HOB)
+Actual protected variable entry (endpoint-invalid): PASS (modeled trigger/HOB)
+Actual protected variable entry (general-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (router-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (install-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-free-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-retire-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-unregister-error): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-policy-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-busy-control): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-converted-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (ready-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-request-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-ready-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-owner-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-scratch-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-other-trigger): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-preclosed): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-policy-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-8): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-9): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-10): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-11): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-12): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-13): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-14): PASS (modeled trigger/HOB)
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual protected variable entry (auth2): PASS (modeled trigger/HOB)
+Protected trigger continuity causal mutation O0: PASS
+Pending runtime request continuity causal mutation O0: PASS
+Aborted
+Policy retirement retire-busy causal mutation O0: PASS
+Aborted
+Policy retirement unregister-error causal mutation O0: PASS
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual core LoadImage through entry-installed policy (setup mode native PE load): PASS (modeled IRQ/HOB/trigger)
+Actual core LoadImage through entry-installed policy (authenticated enrollment denial): PASS (modeled IRQ/HOB/trigger)
+Actual protected variable entry (auth2-core): PASS (modeled trigger/HOB)
+Aborted
+Actual core entry policy decision-discard causal mutation O2: PASS
+Actual protected variable entry (normal): PASS (modeled trigger/HOB)
+Actual protected variable entry (nonidentity): PASS (modeled trigger/HOB)
+Actual protected variable entry (endpoint-invalid): PASS (modeled trigger/HOB)
+Actual protected variable entry (general-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (router-absent): PASS (modeled trigger/HOB)
+Actual protected variable entry (install-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-free-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-retire-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (image-policy-unregister-error): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-owner-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-base): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-entry-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (span-policy-size): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (allocation-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (event-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-busy-control): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-second-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-set-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-get-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-operation-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-next-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-query-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-register-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-ebs-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (call-lock-va-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-ebs): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-va): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (policy-converted-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (ready-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-fail): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-request-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-ready-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-owner-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-scratch-drift): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-other-trigger): PASS (modeled trigger/HOB)
+Actual protected variable entry (runtime-preclosed): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-namespace-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-policy-busy): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-owner-poison): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-entry-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-service-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-owner): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-message): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-scratch): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-alias-names-mailbox): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-1): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-2): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-3): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-4): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-5): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-6): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-7): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-8): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-9): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-10): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-11): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-12): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-13): PASS (modeled trigger/HOB)
+Actual protected variable entry (va-14): PASS (modeled trigger/HOB)
+Authoritative mode 0: status=0 attributes=6 value=0
+Authoritative mode 1: status=0 attributes=6 value=1
+Authoritative mode 2: status=0 attributes=6 value=1
+Actual protected variable entry (auth2): PASS (modeled trigger/HOB)
+Protected trigger continuity causal mutation O2: PASS
+Pending runtime request continuity causal mutation O2: PASS
+Aborted
+Policy retirement retire-busy causal mutation O2: PASS
+Aborted
+Policy retirement unregister-error causal mutation O2: PASS
+variable runtime model tests: PASS
+variable runtime service tests: PASS
+variable runtime backend tests: PASS
+variable runtime diagnostic tests: PASS
+coreboot DXE return trap encoding test: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_GRAPHICS
+#
+# configuration written to /tmp/tmp.8668ms1SiO/nonlinear/.config
+#
+dxe core service tests passed
+dxe core GCD tests passed
+dxe core dispatcher tests passed
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_SECURE_BOOT
+#
+# configuration written to /tmp/tmp.8668ms1SiO/secure/.config
+#
+linear payload refusal, component services and secure-linear admission: PASS
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_CBMEM_CONSOLE
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:84:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_DEBUG
+kconfig/defconfig:82:notice: override: reassigning to symbol CDK2_NATIVE_STAGE
+kconfig/defconfig:83:notice: override: reassigning to symbol CDK2_LINEAR_BOOT
+PCI bus immutable configuration toggle: PASS
+usb mass transport tests: PASS
+dxe core memory tests passed
+diagnostic volume source contract: PASS
+USB bus linearity source mutations: PASS
+native relocation model test passed
+atomic native PE publication tests passed
+native PE relocation checker tests passed
+marker-only PE nonpreferred-address relocation: PASS
+ESRT VariablePolicy prerequisite exclusion: PASS
+ESRT VariablePolicy prerequisite exclusion: PASS
+FTW/ESRT synchronous entry in both component configurations: PASS
+strict-default: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+strict-qemu: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+nonlinear: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=1
+linear-bds: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+linear-bds-disabled: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=0
+nonlinear-disabled: normalized ConPlatform/NullMemoryTest=0 StatusCodeHandler=1
+linear-bds-release: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=1
+nonlinear-debug: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+nonlinear-handler-off: normalized ConPlatform/NullMemoryTest=1 StatusCodeHandler=0
+setup acceptance: strict direct debug profile
+ConPlatform/NullMemoryTest/StatusCodeHandler profile normalization: PASS
+ConSplitter first-record profile tests: PASS
+EC battery entry lifecycle: PASS
+Real Kconfig EC fixture caller isolation and override-discard causal: PASS
+bds settings tests passed
+BDS native setup contract: PASS
+BDS native setup mutants: PASS
+bds model tests passed
+bds entry tests passed
+bds disabled setup tests passed
+bds entry tests passed
+secure boot key-state tests passed
+secure boot default-publication tests passed
+shell model tests passed
+DxeCore connect trace source policy and mutations: PASS
+linear APIC timer inert-control boundary and mutations: PASS
+xhci entry tests: PASS
+xhci entry tests: PASS
+linear XHCI poll and ExitBootServices boundary: PASS (XHCI-only, DMA=0)
+dxe core dispatch policy tests passed
+dxe core dispatch policy tests passed
+DXE core public Dispatch policy mutation test: PASS
+HOST LEGACY generic Core fixture artifacts: /home/sean/cdk2-root-full-protected-after530/native/dxe-core-legacy-fixture/run.EVkOHW
+Modeled Security2 synthetic unsigned-image positives are NOT protected admission.
+HOST LEGACY generic Core fixture: PASS (not protected image/variable authority)
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry partial refusal/supported dispatch boundary: PASS
+HOST actual boot-entry: supported/legacy dispatch sentinels and partial-shape refusal O0/O2; scoped guard-deletion causal assertion: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O0: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O0: PASS
+Core actual finish closes before reset; close refusal prevents reset: PASS
+Core RAM window no-capsule/malformed/close-failure paths: PASS
+FAIL: close_calls == 1 && context.capsule_client.ram_closed
+Core RAM window gate causal -O2: PASS
+FAIL: close_calls == 1 && !close_refused && !pointer_live
+Core RAM window reset causal -O2: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Canonical fixed-loader byte binding and host IRQ model: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary actual core test: PASS
+Private linked-primary callback recheck mutation: PASS
+Private linked-primary premature-public-start mutation: PASS
+Trusted inventory fixed-loader guard removal: PASS
+Aborted
+Diagnostic private-image Start guard removal: PASS
+Aborted
+Diagnostic partial-publication Unload guard removal: PASS
+strict DxeCore compatibility closure: PASS
+strict DxeCore compatibility closure mutations: PASS
+DxeCore graphics dependency tests: PASS
+DxeCore grouped image/map parallel dependency: PASS
+scratch Make environment isolation: PASS
+strict direct CBFS admission: /tmp/cdk2-cbfs-admission.uBAKJI/admission.tsv
+strict direct CBFS canonical admission and mismatch tests: PASS
+strict direct CBFS relative/absolute path admission: PASS
+strict direct CBFS inventory and mutation negatives: PASS
+Direct-image shared-parser source closure: PASS
+direct image eligibility and source PE inventory: PASS
+PCD hostile scanner tests: PASS
+direct image generator transitive header dependency: PASS
+direct image table validator: PASS
+direct image table generator: PASS
+direct image HOB and deterministic dispatcher: PASS
+#
+# configuration written to /tmp/cdk2-direct-dxe-bridge.GdPoR8/build/.config
+#
+direct image table validator: PASS
+direct image table generator: PASS
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	20480	PE
+0	4096	4096	PE
+0	4096	4096	PE
+cdk2 ELF layout: PASS (/tmp/cdk2-direct-dxe-bridge.GdPoR8/build/native/cdk2-coreboot-image.elf)
+cdk2 ELF layout: PASS (/tmp/cdk2-direct-dxe-bridge.GdPoR8/build/native/cdk2-coreboot-image.elf)
+normal coreboot image direct DxeCore bridge: PASS
+native configuration cache rebuild and recipe coverage: PASS
+#
+# No change to /tmp/tmp.dAUMBG5he8/build/.config
+#
+#
+# No change to /tmp/tmp.dAUMBG5he8/build/.config
+#
+Native host dependency unions and transitive cache rebuilds: PASS
+native command-input cache tests: PASS
+diagnostic runtime transition test: PASS
+deadline tests passed
+cdk2 linear boot test: PASS
+cdk2 early splash test: PASS
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-full-protected-after530/native/cdk2-stage.elf)
+cdk2 ELF layout: PASS (/home/sean/cdk2-root-full-protected-after530/native/cdk2-coreboot-stage.elf)
+cdk2 coreboot test: PASS
+ata atapi pass thru model tests: PASS
+ata atapi binding tests: PASS
+ata atapi AHCI tests: PASS
+ata atapi IDE tests: PASS
+ata atapi PCI adapter tests: PASS
+ata atapi entry tests: PASS
+ata pass thru protocol tests: PASS
+ata backend IDE tests: PASS
+ata dependency depfiles: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+ata dependency header touch: PASS
+#
+# configuration written to /tmp/tmp.X2VzLw6ZfM/short/.config
+#
+#
+# configuration written to /tmp/tmp.X2VzLw6ZfM/a-deliberately-different-absolute-build-directory/.config
+#
+ata native PE reproducibility: PASS
+ata bus dependency depfiles: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+ata bus dependency header touch: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+#
+# configuration written to /tmp/tmp.5bfA3vI6Gw/build/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+0	4096	8192	PE
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530'
+pci host bridge tests passed
+pci host bridge entry tests passed
+pci host bridge strict HOB authority test passed
+swap-free rollback mutation: PASS
+swap-remove rollback mutation: PASS
+swap-allocate rollback mutation: PASS
+omit-free rollback mutation: PASS
+omit-remove rollback mutation: PASS
+zero-transactions rollback mutation: PASS
+cross-cancel rollback mutation: PASS
+PCI host bridge rollback mutation tests: PASS
+pci bus entry tests: PASS
+pci enumerate immutable tests: PASS
+immutable pci bus entry tests: PASS
+PCI host bridge source ownership boundary: PASS
+pci bus model tests: PASS
+LVGL UI driver form test passed
+cdk2 PE test: PASS
+cdk2 entry test: PASS
+TCG2 diagnostic coalescing: PASS
+TCG2 platform HOB: PASS
+partition GPT tests: PASS
+partition MBR tests: PASS
+El Torito sparse catalog 0: status=8000000000000021 outside=0 wrapped=0 count=0
+El Torito sparse catalog 1: status=8000000000000021 outside=0 wrapped=0 count=0
+partition El Torito tests: PASS
+partition UDF tests: PASS
+partition child lifecycle tests: PASS
+partition driver tests: PASS
+cdk2 ELF checker test: PASS
+native cdk2 stage: /home/sean/cdk2-root-full-protected-after530/native/cdk2-stage.elf
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/review-profile-test"
+review profile cache tests passed
+review profile collector tests passed
+review profile emitter tests passed
+review profile CLI tests passed
+review profile tests passed
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/util/review_profile/coreboot-review-profile" verify
+coreboot review profile verified
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+#
+# No change to /home/sean/cdk2-root-full-protected-after530/.config
+#
+	Command being timed: "make -j1 CDK2_BUILD_DIR=/home/sean/cdk2-root-full-protected-after530 CDK2_DEFCONFIG=/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/util/qemu/config/cdk2-q35-protected-quiet-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls review-profile-check check native-stage"
+	User time (seconds): 3069.17
+	System time (seconds): 393.56
+	Percent of CPU this job got: 113%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 50:39.72
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 215024
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 20582
+	Minor (reclaiming a frame) page faults: 93035669
+	Voluntary context switches: 5840873
+	Involuntary context switches: 124088
+	Swaps: 0
+	File system inputs: 1035552
+	File system outputs: 193664
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

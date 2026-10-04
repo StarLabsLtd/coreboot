@@ -1,0 +1,2 @@
+/home/sean/Documents/.cdk2-worktrees/full-lint-after685-host/util/lint/lint-000-license-headers
+/home/sean/Documents/.cdk2-worktrees/full-lint-after685-host/util/lint/lint-007-checkpatch

@@ -1,0 +1,140 @@
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/tests/review-profile-test"
+review profile cache tests passed
+review profile collector tests passed
+review profile emitter tests passed
+review profile CLI tests passed
+review profile tests passed
+"/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/util/review_profile/coreboot-review-profile" verify
+coreboot review profile verified
+#
+# configuration written to /home/sean/cdk2-root-full-protected-after530/.config
+#
+legacy boundary inventory tests: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE Authenticode digest and certificate bounds: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+PE32/gapped-section Authenticode external digest oracle: PASS
+Native FV protocol ABI and calling-convention mutation: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Signing Unsigned original image
+Signature verification OK
+SPC SHA256 binding and real signed PE fixture: PASS
+Whole signature database admission and literal UEFI records: PASS
+Whole signature database admission and literal UEFI records: PASS
+Signature database whole-admission mutation: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy framing copy/source erasure; no authority or coherence: PASS
+Private policy copy framing/atomic-output coupled mutants: PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot shape only (no authority/activation): PASS
+Image-policy snapshot padding and atomic-output mutants: PASS
+#
+# No change to /home/sean/tmp.u3iUkoB7wG/build/.config
+#
+#
+# No change to /home/sean/tmp.u3iUkoB7wG/build/.config
+#
+#
+# No change to /home/sean/tmp.u3iUkoB7wG/build/.config
+#
+generated config header schema-cache and atomic stability: PASS
+#
+# configuration written to /home/sean/tmp.aWzVf41aQs/build/.config
+#
+#
+# configuration written to /home/sean/tmp.aWzVf41aQs/external.config
+#
+Configuration input selection and unchanged-cache reuse: PASS
+BGRT oracle synthetic positive/refusal unit tests: PASS
+CDK2 authenticated-variable service ABI tests: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable mailbox HOB and DXE runtime refinement: PASS
+Authenticated-variable reserved-type mutation: PASS
+Actual native SMI full-register tuple without host I/O: PASS
+CDK2 authenticated-variable presence ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close ABI tests: PASS
+CDK2 authenticated-variable presence lifecycle-close client tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close native x86 tests: PASS
+CDK2 authenticated-variable presence lifecycle-close native x86 tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+authenticated-variable lifecycle-close boundary integration: PASS
+CDK2 authenticated-variable presence lifecycle-close boundary tests: PASS
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests passed
+authenticated-variable lifecycle-close composition tests: PASS
+authenticated-variable lifecycle-close production wiring tests: PASS
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `cdk2_dxe_load_image':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:1837:(.text+0x2fb3e): undefined reference to `cdk2_direct_image_table_record'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x303c9): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x303ce): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x31a94): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x31a99): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x321ef): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x32286): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x3228b): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x3246f): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x32688): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x3268d): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x33fdd): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x33fe2): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_set':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:568:(.text+0x341e8): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: /home/sean/ccqvvu6k.o: in function `policy_interrupts_enabled':
+/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/src/modules/dxe_core/core.c:554:(.text+0x341ed): undefined reference to `cdk2_dxe_policy_interrupts_get'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:176: authvar-presence-lifecycle-close-start-unwind-test] Error 1
+Command exited with non-zero status 2
+	Command being timed: "make -j1 CDK2_BUILD_DIR=/home/sean/cdk2-root-full-protected-after530 CDK2_DEFCONFIG=/home/sean/Documents/.cdk2-worktrees/full-protected-regression-after530/util/qemu/config/cdk2-q35-protected-quiet-setup-acceptance.defconfig COREBOOT_CONFIG=/home/sean/q35-protected-ui-producer.sv8jP6/full.config COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/authvar-state-predicate-pinned-after-capsule MBEDTLS_SOURCE=/home/sean/Documents/coreboot/3rdparty/mbedtls review-profile-check check native-stage"
+	User time (seconds): 136.44
+	System time (seconds): 22.51
+	Percent of CPU this job got: 101%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:36.08
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 156720
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 362
+	Minor (reclaiming a frame) page faults: 5236923
+	Voluntary context switches: 57464
+	Involuntary context switches: 4806
+	Swaps: 0
+	File system inputs: 22984
+	File system outputs: 442424
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 2
