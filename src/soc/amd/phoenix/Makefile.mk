@@ -121,6 +121,12 @@ APOB_NV_RO_BASE=$(APOB_NV_BASE)
 endif
 endif # !CONFIG_SOC_AMD_COMMON_BLOCK_APOB_NV_DISABLE
 
+ifeq ($(CONFIG_SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3)$(CONFIG_SMMSTORE),yy)
+# ROM Armor needs the SMM Store region to be whitelisted.
+PSP_BIOS_NV_ST_BASE=$(call get_fmap_value,FMAP_SECTION_SMMSTORE_START)
+PSP_BIOS_NV_ST_SIZE=$(call get_fmap_value,FMAP_SECTION_SMMSTORE_SIZE)
+endif
+
 ifeq ($(CONFIG_SEPARATE_SIGNED_PSPFW),y)
 SIGNED_AMDFW_A_POSITION=$(call get_fmap_value,FMAP_SECTION_SIGNED_AMDFW_A_START)
 SIGNED_AMDFW_B_POSITION=$(call get_fmap_value,FMAP_SECTION_SIGNED_AMDFW_B_START)
@@ -172,6 +178,9 @@ OPT_SPL_TABLE_FILE=$(call add_opt_prefix, $(SPL_TABLE_FILE), --spl-table)
 OPT_BIOS_AMDCOMPRESS=$(if $(CONFIG_CBFS_VERIFICATION), --elfcopy, --compress)
 OPT_BIOS_FWCOMPRESS=$(if $(CONFIG_CBFS_VERIFICATION), --bios-bin-uncomp)
 
+OPT_BIOS_NV_ST_BASE=$(call add_opt_prefix, $(PSP_BIOS_NV_ST_BASE), --variable-nvram-base)
+OPT_BIOS_NV_ST_SIZE=$(call add_opt_prefix, $(PSP_BIOS_NV_ST_SIZE), --variable-nvram-size)
+
 MANIFEST_FILE=$(obj)/amdfw_manifest
 OPT_MANIFEST=$(call add_opt_prefix, $(MANIFEST_FILE), --output-manifest)
 
@@ -185,6 +194,8 @@ AMDFW_COMMON_ARGS=$(OPT_PSP_APCB_FILES) \
 		$(OPT_PSP_BIOSBIN_FILE) \
 		$(OPT_PSP_BIOSBIN_DEST) \
 		$(OPT_PSP_BIOSBIN_SIZE) \
+		$(OPT_BIOS_NV_ST_BASE) \
+		$(OPT_BIOS_NV_ST_SIZE) \
 		$(OPT_PSP_SOFTFUSE) \
 		$(OPT_PSP_LOAD_MP2_FW) \
 		--use-pspsecureos \
