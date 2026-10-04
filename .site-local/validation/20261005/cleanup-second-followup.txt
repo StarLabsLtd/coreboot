@@ -1,0 +1,63 @@
+Additional cleanup qualification, 2026-10-05
+
+Four further source-only CDK2 worktrees were removed nonforce after independent
+clean-source, signed-ref and private-admin dependency reviews. Observed Root
+tool results were zero (not independently persisted raw execution logs):
+
+review-authvar-native-final-b.1285216.15008: 0f21c0
+  retained eb61b8dda3a655787eec291caae59263ced6c37b
+  archive/authvar-review-b-20261002, local and origin
+review-authvar-native-final-d.BmUHT0: 15e780
+  retained 40d051f524ce5b8c0375849bedaafc6fd5d69341
+  archive/authvar-review-d-20261002, local and origin
+review-authvar-native.1084560.12194: 39a73f
+  retained 392baa6919f7193e8f1ed9cf563c963bae0e4b8e
+  archive/authvar-review-initial-20261002, local and origin
+xhci-private-model-types/.xhci-gate-recovery.4UFYH6/base: d4f54b
+  retained 8137157963fe88cb3ca9b3f9a1662e3c5bbaf41c
+  agent/nvme-private-model-types and agent/nvme-private-model-after641-ready
+
+The first three paths were under Documents/.cdk2-recovery-worktrees-20261002;
+the fourth under Documents/.cdk2-worktrees. All four are absent and retained
+refs/signatures passed actual-result review. Historical XHCI finish recipes
+can need the baseline source, reconstructed from its retained signed ref;
+current replay uses retained compiled artifacts. RecoveryC, the outer XHCI
+checkout and base-build remain. Total retired CDK2 parents is now 188; registry
+count is 79. No refs were pruned or GC run. Canonical CDK2 remains signed58598.
+
+Thirty-one compiled-only LVGL output directories in compiled-lvgl-leaves31.list
+moved to recoverable trash. Each contains exactly 463 ELF relocatable objects
+and 463 compiler dependency files: 28706 generated files in total. Actual
+recovery review checked all original paths absent, exact Trashinfo mappings,
+member counts and absence of other files/symlinks/Git/source/config/log/media.
+Headers, lvgl-config, libraries and source stores outside the leaves remain.
+Command-input metadata remains for 30 leaves; it was already absent for the
+dependency-union leaf, not removed by this operation. The image-hash leaf's
+463 dependency files name the retained checkpatch-ledger-digest vendor source;
+its uninitialized local vendor was not silently treated as the source.
+Observed Root gio groups, all zero: b437f3 (owned leaf), 91ed44 (GUI three),
+2d766c (26 listed leaves), c8792d (image leaf). Generated payload bytes were
+not uploaded to Git. These moves do not claim to free disk space.
+
+The five causal fixtures copied into signed75e4 moved to recoverable trash:
+review-profile-nested-make-mutants.At8BXe and review-profile-local-patch-peer.log.
+Actual recovery compared all five bytesets to signed blobs; empty log preserved.
+Root tool 03c8bc returned zero. The old loose retirement receipt directory
+(447 files) and its plan (2 files) also moved to recoverable trash, Root453a0d
+zero; all 449 recovered files match signed evidence. No receipt target paths
+were followed and retained input archives remain.
+
+The 67 MiB cdk2-owned-style-after-fixtures.uEBpyC old HOST snapshot moved to
+recoverable trash, Root ddadc2 zero. Before removal, 1766 receipt files matched
+the retained signed legacy archive; 1562 copied source files each matched raw
+Git blobs reachable in retained CDK2/LVGL/BearSSL histories. This is individual
+blob recovery, NOT proof of equality to one named historical source tree:
+24 paths differ from the named base/overlay composition. The remaining HOST
+checkpatch-filter executable is generated from retained source. No test,
+compiler, firmware, VM or hardware invocation is implied by that cleanup.
+
+The storage-policy software gate passed on its original signed-parent source
+composition; the signed linear successor 9cfd330eb9dc is being revalidated.
+This remains interim cleanup and bounded HOST evidence, not project completion.
+Home Assistant, Plex, VMs, unrelated repositories and user dirty coreboot work
+remain outside these operations. Recoverable trash has not been emptied.
