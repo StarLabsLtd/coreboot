@@ -1,0 +1,20 @@
+make: Entering directory '/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655'
+    MAKE       
+    HOSTCC     nvramtool/cli/nvramtool.o
+    HOSTCC     nvramtool/cli/opts.o
+    HOSTCC     nvramtool/cmos_lowlevel.o
+Makefile:313: Missing NSS. PKCS11 signing not supported. Install libnss3 to enable this feature.
+    HOSTCC     nvramtool/cmos_ops.o
+vboot SHA256 built with tight loops (slower, smaller code size)
+    HOSTCC     nvramtool/common.o
+    CC            firmware/2lib/2api.o
+cc1: error: /home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655//home/sean/Documents/coreboot/3rdparty/vboot/firmware/include: No such file or directory [-Werror=missing-include-dirs]
+    HOSTCC     nvramtool/compute_ip_checksum.o
+    HOSTCC     nvramtool/hexdump.o
+    HOSTCC     nvramtool/input_file.o
+    HOSTCC     nvramtool/layout.o
+cc1: all warnings being treated as errors
+make[1]: *** [Makefile:1308: /home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655/build/external/vboot_reference-romstage/firmware/2lib/2api.o] Error 1
+make: *** [src/security/vboot/Makefile.mk:55: build/external/vboot_reference-romstage/vboot_fw.a] Error 2
+make: *** Waiting for unfinished jobs....
+make: Leaving directory '/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655'
