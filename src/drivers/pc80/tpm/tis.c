@@ -783,11 +783,14 @@ bool pc80_tis_is_fifo_route(tis_sendrecv_fn sendrecv)
 static bool lifecycle_owned(void)
 {
 	u8 access = lifecycle_read_access(0);
-
-	return (access & (TIS_ACCESS_TPM_REG_VALID_STS |
+	bool owned = (access & (TIS_ACCESS_TPM_REG_VALID_STS |
 		TIS_ACCESS_ACTIVE_LOCALITY)) ==
 		(TIS_ACCESS_TPM_REG_VALID_STS | TIS_ACCESS_ACTIVE_LOCALITY) &&
 		!(access & TIS_ACCESS_BEEN_SEIZED);
+
+	if (!owned)
+		printk(BIOS_ERR, "TPM2 FIFO diagnostic: ownership ACCESS=%02x\n", access);
+	return owned;
 }
 
 static bool lifecycle_read_idle(bool *idle)
@@ -797,8 +800,10 @@ static bool lifecycle_read_idle(bool *idle)
 	if (!idle || !lifecycle_owned())
 		return false;
 	status = lifecycle_read_status(0);
-	if (!(status & TIS_STS_VALID))
+	if (!(status & TIS_STS_VALID)) {
+		printk(BIOS_ERR, "TPM2 FIFO diagnostic: invalid STS=%02x\n", status);
 		return false;
+	}
 	*idle = (status & TIS_STS_COMMAND_READY) &&
 		!(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT));
 	return true;
