@@ -1,0 +1,7 @@
+Convert the coherent private xHCI model, services and matching test fixtures to standard native C types. Keep installed EFI/MS ABI callbacks and wire formats explicit; bridge PCI output pointers through correctly typed EFI temporaries. Keep device addresses 64-bit and full-width state rejection before storing the bounded private state.
+
+Root and a non-author worker reviewed the full slice before author gates. Default and O0/O2 existing four-executable ASAN/UBSAN suites and diagnostic parity pass. Root independently replayed all twelve existing sanitizer executables and compared three whole objects; this is not independent compilation. Same generated configuration headers and installed USB2 callback/protocol header bytes match.
+
+Private USB2 state shrinks its container by eight bytes. PCI adapter, USB2 ABI adapter and entry objects therefore differ at reviewed boundaries/layout; no complete object parity is claimed. The protocol remains 112 bytes/alignment 8. Strict pedantic/conversion suites fail on both baseline and candidate with inherited diagnostics. A whole-header checkpatch scan reports six type-recognition spacing errors on unchanged public UINT8 pointer declarations; changed-line checkpatch and the other nine files pass. These failures and initial incorrect object dispatches remain in the receipts.
+
+Author receipts: `.xhci-gate-recovery.4UFYH6` in the source worktree; independent replay: `/home/sean/xhci-root-independent.Yh4rSb`. No new whole Core, guest, 32-bit or hardware result is claimed. The full release checklist remains open.

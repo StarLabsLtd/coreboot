@@ -1,0 +1,38 @@
+0000000000000058 000000000000000a r CSWTCH.66
+0000000000000cac 0000000000000230 t async_interrupt
+0000000000000954 0000000000000358 t bulk_transfer
+                 U cdk2_xhci_async_interrupt_poll
+                 U cdk2_xhci_async_interrupt_rearm
+                 U cdk2_xhci_async_interrupt_start
+                 U cdk2_xhci_async_interrupt_stop
+                 U cdk2_xhci_bulk_transfer
+                 U cdk2_xhci_control_transfer
+                 U cdk2_xhci_controller_deadline_expired
+                 U cdk2_xhci_controller_get_port
+                 U cdk2_xhci_controller_reset
+                 U cdk2_xhci_controller_set_port
+                 U cdk2_xhci_controller_set_state
+                 U cdk2_xhci_device_configure_endpoint
+                 U cdk2_xhci_device_disable
+                 U cdk2_xhci_device_enable
+                 U cdk2_xhci_device_mark_hub
+                 U cdk2_xhci_device_update_ep0
+                 U cdk2_xhci_interrupt_transfer
+000000000000140f 00000000000000ed T cdk2_xhci_usb2_init
+00000000000015ca 00000000000000c3 T cdk2_xhci_usb2_poll
+00000000000014fc 00000000000000ce T cdk2_xhci_usb2_release
+00000000000013de 0000000000000017 t clear_port
+00000000000002c8 000000000000068c t control_transfer
+0000000000001223 0000000000000094 t get_capability
+0000000000001035 00000000000001ee t get_port
+000000000000000b 0000000000000053 t get_state
+                 U memset
+00000000000012b7 0000000000000127 t port_feature
+0000000000000101 000000000000000d t release_protocol.isra.0
+000000000000010e 0000000000000141 t reset
+000000000000005e 0000000000000053 t serialize_protocol.constprop.0
+00000000000013f5 000000000000001a t set_port
+000000000000024f 0000000000000079 t set_state
+0000000000000edc 0000000000000159 t sync_interrupt
+00000000000000b1 0000000000000050 t transfer_result
+0000000000000000 000000000000000b t unsupported

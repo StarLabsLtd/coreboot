@@ -1,0 +1,30 @@
+cdk2_xhci_capabilities 32 4
+cdk2_xhci_trb 16 1
+cdk2_xhci_ring 24 8
+cdk2_xhci_event_ring 16 8
+cdk2_xhci_erst_entry 16 1
+cdk2_usb_request 8 1
+cdk2_xhci_segment 16 8
+cdk2_xhci_port_status 12 4
+cdk2_xhci_dma 24 8
+cdk2_xhci_mapping 1560 8
+cdk2_xhci_controller_services 112 8
+cdk2_xhci_controller 75296 8
+cdk2_xhci_endpoint 64 8
+cdk2_xhci_device 2104 8
+cdk2_xhci_async_transfer 72 8
+cdk2_xhci_pci_allocation 24 8
+cdk2_xhci_pci_adapter 233824 8
+cdk2_usb_port_status 4 2
+cdk2_usb2_translator 2 1
+cdk2_usb2_hc_protocol 112 8
+cdk2_xhci_usb2 539520 8
+cdk2_usb2_hc_protocol.get_capability 0
+cdk2_usb2_hc_protocol.reset 8
+cdk2_usb2_hc_protocol.get_state 16
+cdk2_usb2_hc_protocol.set_state 24
+cdk2_usb2_hc_protocol.major_revision 104
+cdk2_usb2_hc_protocol.minor_revision 106
+cdk2_xhci_usb2.protocol 0
+cdk2_xhci_usb2.state 538748
+cdk2_xhci_usb2.async 538752

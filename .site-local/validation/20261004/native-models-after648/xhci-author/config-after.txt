@@ -1,0 +1,2 @@
+4edfabf04f47d30e6fc0ffdb82d80f31a3967742df57a9879c32431c093216ab  /home/sean/Documents/.cdk2-worktrees/xhci-private-model-types/.xhci-gate-recovery.4UFYH6/default/.config
+eb6f9c5213c63d577dda51761c00c1018a4f04736e1adc878799869c04b80f02  /home/sean/Documents/.cdk2-worktrees/xhci-private-model-types/.xhci-gate-recovery.4UFYH6/default/include/cdk2/config.h

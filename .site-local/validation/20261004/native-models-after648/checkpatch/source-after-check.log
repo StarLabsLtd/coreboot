@@ -1,0 +1,2 @@
+util/lint/cdk2-typedefs.checkpatch: OK
+tests/checkpatch_filter_test.sh: OK

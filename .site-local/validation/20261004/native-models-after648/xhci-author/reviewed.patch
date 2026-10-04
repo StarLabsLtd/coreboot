@@ -1,0 +1,2073 @@
+diff --git a/include/cdk2/xhci.h b/include/cdk2/xhci.h
+index 7109cf03e7..5e4dd51da3 100644
+--- a/include/cdk2/xhci.h
++++ b/include/cdk2/xhci.h
+@@ -3,6 +3,8 @@
+ #define CDK2_XHCI_H_
+ 
+ #include <uefi.h>
++#include <stddef.h>
++#include <stdint.h>
+ #include <cdk2/deadline.h>
+ #include <cdk2/pci_io_abi.h>
+ 
+@@ -12,7 +14,7 @@ typedef EFI_STATUS CDK2_MS_ABI cdk2_xhci_diagnostic_write_fn(
+ void cdk2_xhci_diagnostic_set(void *context,
+ 	cdk2_xhci_diagnostic_write_fn *write);
+ void cdk2_xhci_diagnostic(const char *message);
+-BOOLEAN cdk2_xhci_diagnostic_ready(void);
++uint8_t cdk2_xhci_diagnostic_ready(void);
+ #define CDK2_XHCI_DIAG(message) cdk2_xhci_diagnostic(message)
+ #else
+ #define CDK2_XHCI_DIAG(message) do { } while (0)
+@@ -24,53 +26,53 @@ BOOLEAN cdk2_xhci_diagnostic_ready(void);
+ #define CDK2_XHCI_MAX_SCRATCHPADS 1023U
+ 
+ struct cdk2_xhci_capabilities {
+-	UINT8 capability_length;
+-	UINT16 interface_version;
+-	UINT8 maximum_slots, maximum_ports;
+-	UINT16 maximum_interrupters, scratchpad_count;
+-	UINT32 runtime_offset, doorbell_offset, extended_capability, page_size;
+-	BOOLEAN context_64, address_64;
++	uint8_t capability_length;
++	uint16_t interface_version;
++	uint8_t maximum_slots, maximum_ports;
++	uint16_t maximum_interrupters, scratchpad_count;
++	uint32_t runtime_offset, doorbell_offset, extended_capability, page_size;
++	uint8_t context_64, address_64;
+ };
+ 
+ struct cdk2_xhci_trb {
+-	UINT64 parameter;
+-	UINT32 status;
+-	UINT32 control;
++	uint64_t parameter;
++	uint32_t status;
++	uint32_t control;
+ } __packed;
+ 
+ struct cdk2_xhci_ring {
+ 	struct cdk2_xhci_trb *trbs;
+-	UINT64 device_address;
+-	UINT16 enqueue;
+-	BOOLEAN cycle;
++	uint64_t device_address;
++	uint16_t enqueue;
++	uint8_t cycle;
+ };
+ 
+ struct cdk2_xhci_event_ring {
+ 	struct cdk2_xhci_trb *trbs;
+-	UINT16 count, dequeue;
+-	BOOLEAN cycle;
++	uint16_t count, dequeue;
++	uint8_t cycle;
+ };
+ 
+ struct cdk2_xhci_erst_entry {
+-	UINT64 address;
+-	UINT32 size;
+-	UINT32 reserved;
++	uint64_t address;
++	uint32_t size;
++	uint32_t reserved;
+ } __packed;
+ 
+ struct cdk2_usb_request {
+-	UINT8 request_type, request;
+-	UINT16 value, index, length;
++	uint8_t request_type, request;
++	uint16_t value, index, length;
+ } __packed;
+ 
+ struct cdk2_xhci_segment {
+-	UINT64 device;
+-	UINT32 length;
++	uint64_t device;
++	uint32_t length;
+ };
+ 
+ struct cdk2_xhci_port_status {
+-	UINT8 speed;
+-	BOOLEAN connected, enabled, powered, resetting, suspended, over_current;
+-	UINT32 changes;
++	uint8_t speed;
++	uint8_t connected, enabled, powered, resetting, suspended, over_current;
++	uint32_t changes;
+ };
+ 
+ enum cdk2_xhci_port_feature {
+@@ -87,33 +89,33 @@ enum cdk2_xhci_port_feature {
+ 
+ struct cdk2_xhci_dma {
+ 	void *host;
+-	UINT64 device;
+-	UINTN size;
++	uint64_t device;
++	size_t size;
+ };
+ 
+ #define CDK2_XHCI_TRANSFER_SEGMENTS 64U
+ struct cdk2_xhci_mapping {
+ 	struct cdk2_xhci_segment segments[CDK2_XHCI_TRANSFER_SEGMENTS];
+ 	void *tokens[CDK2_XHCI_TRANSFER_SEGMENTS];
+-	UINTN count, token_count, length;
++	size_t count, token_count, length;
+ };
+ 
+-typedef EFI_STATUS cdk2_xhci_read32_fn(void *context, UINT32 offset,
+-	UINT32 *value);
+-typedef EFI_STATUS cdk2_xhci_write32_fn(void *context, UINT32 offset,
+-	UINT32 value);
+-typedef EFI_STATUS cdk2_xhci_write64_fn(void *context, UINT32 offset,
+-	UINT64 value);
++typedef EFI_STATUS cdk2_xhci_read32_fn(void *context, uint32_t offset,
++	uint32_t *value);
++typedef EFI_STATUS cdk2_xhci_write32_fn(void *context, uint32_t offset,
++	uint32_t value);
++typedef EFI_STATUS cdk2_xhci_write64_fn(void *context, uint32_t offset,
++	uint64_t value);
+ typedef EFI_STATUS cdk2_xhci_flush_fn(void *context);
+-typedef void cdk2_xhci_delay_fn(void *context, UINTN microseconds);
+-typedef EFI_STATUS cdk2_xhci_allocate_dma_fn(void *context, UINTN size,
+-	UINTN alignment, struct cdk2_xhci_dma *dma);
++typedef void cdk2_xhci_delay_fn(void *context, uint64_t microseconds);
++typedef EFI_STATUS cdk2_xhci_allocate_dma_fn(void *context, size_t size,
++	size_t alignment, struct cdk2_xhci_dma *dma);
+ typedef void cdk2_xhci_release_dma_fn(void *context, struct cdk2_xhci_dma *dma);
+ typedef EFI_STATUS cdk2_xhci_map_buffer_fn(void *context, void *buffer,
+-	UINTN length, BOOLEAN device_writes, struct cdk2_xhci_mapping *mapping);
++	size_t length, uint8_t device_writes, struct cdk2_xhci_mapping *mapping);
+ typedef void cdk2_xhci_unmap_buffer_fn(void *context,
+ 	struct cdk2_xhci_mapping *mapping);
+-typedef UINT64 cdk2_xhci_clock_fn(void *context);
++typedef uint64_t cdk2_xhci_clock_fn(void *context);
+ typedef void cdk2_xhci_disable_deadline_fn(void *context);
+ 
+ struct cdk2_xhci_controller_services {
+@@ -143,19 +145,19 @@ struct cdk2_xhci_controller {
+ 	struct cdk2_xhci_event_ring event_ring;
+ 	struct cdk2_xhci_trb pending_events[32];
+ 	struct cdk2_xhci_mapping retained_mappings[32];
+-	UINT8 pending_count;
+-	UINT8 retained_mapping_count;
+-	UINT16 scratchpads_owned;
+-	BOOLEAN running, protocol_busy;
++	uint8_t pending_count;
++	uint8_t retained_mapping_count;
++	uint16_t scratchpads_owned;
++	uint8_t running, protocol_busy;
+ };
+ 
+ struct cdk2_xhci_endpoint {
+ 	struct cdk2_xhci_dma dma;
+ 	struct cdk2_xhci_ring ring;
+-	UINT32 maximum_packet;
+-	UINT16 interval;
+-	UINT8 dci, type;
+-	BOOLEAN enabled;
++	uint32_t maximum_packet;
++	uint16_t interval;
++	uint8_t dci, type;
++	uint8_t enabled;
+ };
+ 
+ struct cdk2_xhci_device {
+@@ -163,27 +165,27 @@ struct cdk2_xhci_device {
+ 	struct cdk2_xhci_dma input_context, device_context, endpoint_dma;
+ 	struct cdk2_xhci_ring endpoint_ring;
+ 	struct cdk2_xhci_endpoint endpoints[31];
+-	UINT32 route_string;
+-	UINT16 ep0_maximum_packet;
+-	UINT8 slot, root_port, speed;
+-	UINT8 tt_hub_slot, tt_port, last_completion, tt_think_time;
+-	BOOLEAN enabled, multi_tt;
++	uint32_t route_string;
++	uint16_t ep0_maximum_packet;
++	uint8_t slot, root_port, speed;
++	uint8_t tt_hub_slot, tt_port, last_completion, tt_think_time;
++	uint8_t enabled, multi_tt;
+ };
+ 
+ struct cdk2_xhci_async_transfer {
+ 	struct cdk2_xhci_device *device;
+ 	struct cdk2_xhci_dma dma;
+-	UINT64 last_address;
+-	UINTN length, actual;
+-	UINT16 first, count;
+-	UINT8 endpoint, dci, completion;
+-	BOOLEAN active, submitted;
++	uint64_t last_address;
++	size_t length, actual;
++	uint16_t first, count;
++	uint8_t endpoint, dci, completion;
++	uint8_t active, submitted;
+ };
+ 
+ #define CDK2_XHCI_PCI_ALLOCATIONS (CDK2_XHCI_MAX_SCRATCHPADS + 5U + 256U * 34U + 8U)
+ struct cdk2_xhci_pci_allocation {
+ 	void *host, *mapping;
+-	UINTN pages;
++	size_t pages;
+ };
+ struct cdk2_xhci_pci_adapter {
+ 	struct cdk2_efi_pci_io_protocol *pci;
+@@ -193,9 +195,9 @@ struct cdk2_xhci_pci_adapter {
+ 	const struct cdk2_deadline *deadline;
+ 	cdk2_xhci_clock_fn *clock;
+ 	void *clock_context;
+-	UINT64 original_attributes;
+-	UINT8 bar;
+-	BOOLEAN attributes_owned, address_64;
++	uint64_t original_attributes;
++	uint8_t bar;
++	uint8_t attributes_owned, address_64;
+ };
+ 
+ #define CDK2_USB_NOERROR 0U
+@@ -207,12 +209,12 @@ struct cdk2_xhci_pci_adapter {
+ #define CDK2_USB_ERR_SYSTEM 0x100U
+ 
+ struct cdk2_usb_port_status {
+-	UINT16 status, change;
++	uint16_t status, change;
+ };
+ 
+ struct cdk2_usb2_translator {
+-	UINT8 hub_address;
+-	UINT8 port_number;
++	uint8_t hub_address;
++	uint8_t port_number;
+ };
+ 
+ struct cdk2_usb2_hc_protocol;
+@@ -273,53 +275,54 @@ struct cdk2_xhci_usb2 {
+ 	struct cdk2_usb2_hc_protocol protocol;
+ 	struct cdk2_xhci_controller *controller;
+ 	struct cdk2_xhci_device devices[256];
+-	UINT8 current_port, current_speed;
+-	UINT8 pending_hub, pending_hub_port;
+-	UINTN state;
++	uint8_t current_port, current_speed;
++	uint8_t pending_hub, pending_hub_port;
++	uint32_t state;
+ 	struct {
+ 		struct cdk2_xhci_async_transfer transfer;
+ 		cdk2_usb2_async_callback_fn *callback;
+ 		void *context;
+-		UINT8 address, endpoint;
+-		BOOLEAN active;
++		uint8_t address, endpoint;
++		uint8_t active;
+ 	} async[8];
+ };
+ 
+-EFI_STATUS cdk2_xhci_parse_capabilities(UINT32 capability0, UINT32 hcs1,
+-	UINT32 hcs2, UINT32 hcc1, UINT32 doorbell, UINT32 runtime,
+-	UINT32 page_size_mask, struct cdk2_xhci_capabilities *capabilities);
++EFI_STATUS cdk2_xhci_parse_capabilities(uint32_t capability0, uint32_t hcs1,
++	uint32_t hcs2, uint32_t hcc1, uint32_t doorbell, uint32_t runtime,
++	uint32_t page_size_mask, struct cdk2_xhci_capabilities *capabilities);
+ EFI_STATUS cdk2_xhci_ring_init(struct cdk2_xhci_ring *ring,
+-	struct cdk2_xhci_trb trbs[CDK2_XHCI_RING_TRBS], UINT64 device_address);
++	struct cdk2_xhci_trb trbs[CDK2_XHCI_RING_TRBS], uint64_t device_address);
+ EFI_STATUS cdk2_xhci_ring_enqueue(struct cdk2_xhci_ring *ring,
+-	UINT64 parameter, UINT32 status, UINT32 control, UINT16 *index);
++	uint64_t parameter, uint32_t status, uint32_t control, uint16_t *index);
+ EFI_STATUS cdk2_xhci_event_ring_init(struct cdk2_xhci_event_ring *ring,
+-	struct cdk2_xhci_trb *trbs, UINT16 count);
++	struct cdk2_xhci_trb *trbs, uint16_t count);
+ EFI_STATUS cdk2_xhci_event_ring_dequeue(struct cdk2_xhci_event_ring *ring,
+ 	struct cdk2_xhci_trb *event);
+-EFI_STATUS cdk2_xhci_command_enqueue(struct cdk2_xhci_ring *ring, UINT8 type,
+-	UINT8 slot, UINT64 parameter, UINT64 *command_address);
++EFI_STATUS cdk2_xhci_command_enqueue(struct cdk2_xhci_ring *ring, uint8_t type,
++	uint8_t slot, uint64_t parameter, uint64_t *command_address);
+ EFI_STATUS cdk2_xhci_command_completion(struct cdk2_xhci_event_ring *ring,
+-	UINT64 command_address, UINT8 *completion_code, UINT8 *slot);
++	uint64_t command_address, uint8_t *completion_code, uint8_t *slot);
+ EFI_STATUS cdk2_xhci_build_control_transfer(struct cdk2_xhci_ring *ring,
+-	const struct cdk2_usb_request *request, UINT64 data_device, UINT32 data_length,
+-	BOOLEAN data_in, UINT16 *first, UINT16 *count);
++	const struct cdk2_usb_request *request, uint64_t data_device,
++	uint32_t data_length, uint8_t data_in, uint16_t *first, uint16_t *count);
+ EFI_STATUS cdk2_xhci_build_control_transfer_segments(struct cdk2_xhci_ring *ring,
+ 	const struct cdk2_usb_request *request,
+-	const struct cdk2_xhci_segment *segments, UINTN segment_count,
+-	UINT16 maximum_packet, BOOLEAN data_in, UINT16 *first, UINT16 *count);
++	const struct cdk2_xhci_segment *segments, size_t segment_count,
++	uint16_t maximum_packet, uint8_t data_in, uint16_t *first, uint16_t *count);
+ EFI_STATUS cdk2_xhci_build_bulk_transfer(struct cdk2_xhci_ring *ring,
+-	const struct cdk2_xhci_segment *segments, UINTN segment_count,
+-	UINT16 maximum_packet, BOOLEAN data_in, UINT16 *first, UINT16 *count);
+-EFI_STATUS cdk2_xhci_decode_port(UINT32 portsc,
++	const struct cdk2_xhci_segment *segments, size_t segment_count,
++	uint16_t maximum_packet, uint8_t data_in, uint16_t *first, uint16_t *count);
++EFI_STATUS cdk2_xhci_decode_port(uint32_t portsc,
+ 	struct cdk2_xhci_port_status *status);
+ EFI_STATUS cdk2_xhci_build_address_context(void *input_context,
+-	UINTN input_size, void *device_context, UINTN device_size, BOOLEAN context_64,
+-	UINT8 speed, UINT8 root_port, UINT16 maximum_packet, UINT64 endpoint_ring,
+-	UINT32 route_string, UINT8 tt_hub_slot, UINT8 tt_port);
++	size_t input_size, void *device_context, size_t device_size, uint8_t context_64,
++	uint8_t speed, uint8_t root_port, uint16_t maximum_packet,
++	uint64_t endpoint_ring, uint32_t route_string, uint8_t tt_hub_slot,
++	uint8_t tt_port);
+ EFI_STATUS cdk2_xhci_controller_init(struct cdk2_xhci_controller *controller,
+ 	const struct cdk2_xhci_controller_services *services,
+ 	const struct cdk2_xhci_capabilities *capability);
+-BOOLEAN cdk2_xhci_controller_deadline_expired(
++uint8_t cdk2_xhci_controller_deadline_expired(
+ 	const struct cdk2_xhci_controller *controller);
+ /* A controller carrying a deadline must also carry disable_deadline.  If that
+  * invariant is violated, destroy deliberately leaves the hardware, mappings,
+@@ -327,37 +330,37 @@ BOOLEAN cdk2_xhci_controller_deadline_expired(
+  * prove that the controller halted before releasing resources. */
+ void cdk2_xhci_controller_destroy(struct cdk2_xhci_controller *controller);
+ EFI_STATUS cdk2_xhci_controller_set_state(struct cdk2_xhci_controller *controller,
+-	UINTN state);
++	size_t state);
+ EFI_STATUS cdk2_xhci_controller_reset(struct cdk2_xhci_controller *controller);
+ EFI_STATUS cdk2_xhci_controller_command(struct cdk2_xhci_controller *controller,
+-	UINT8 type, UINT8 slot, UINT64 parameter, UINT8 *result_slot);
++	uint8_t type, uint8_t slot, uint64_t parameter, uint8_t *result_slot);
+ EFI_STATUS cdk2_xhci_device_enable(struct cdk2_xhci_controller *controller,
+-	UINT8 root_port, UINT8 speed, UINT16 maximum_packet, UINT32 route_string,
+-	UINT8 tt_hub_slot, UINT8 tt_port,
++	uint8_t root_port, uint8_t speed, uint16_t maximum_packet,
++	uint32_t route_string, uint8_t tt_hub_slot, uint8_t tt_port,
+ 	struct cdk2_xhci_device *device);
+ EFI_STATUS cdk2_xhci_device_update_ep0(struct cdk2_xhci_device *device,
+-	UINT16 maximum_packet);
++	uint16_t maximum_packet);
+ EFI_STATUS cdk2_xhci_device_mark_hub(struct cdk2_xhci_device *device,
+-	UINT8 port_count);
++	uint8_t port_count);
+ EFI_STATUS cdk2_xhci_device_disable(struct cdk2_xhci_device *device);
+ EFI_STATUS cdk2_xhci_controller_get_port(struct cdk2_xhci_controller *controller,
+-	UINT8 port, struct cdk2_xhci_port_status *status);
++	uint8_t port, struct cdk2_xhci_port_status *status);
+ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller,
+-	UINT8 port, enum cdk2_xhci_port_feature feature, BOOLEAN set);
++	uint8_t port, enum cdk2_xhci_port_feature feature, uint8_t set);
+ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+-	const struct cdk2_usb_request *request, void *buffer, UINTN *length,
+-	BOOLEAN data_in, UINTN timeout);
++	const struct cdk2_usb_request *request, void *buffer, size_t *length,
++	uint8_t data_in, size_t timeout);
+ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, UINT8 transfer_type, UINT32 maximum_packet,
+-	UINT16 polling_interval);
++	uint8_t endpoint_address, uint8_t transfer_type, uint32_t maximum_packet,
++	uint16_t polling_interval);
+ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, void *buffer, UINTN *length, UINTN timeout);
++	uint8_t endpoint_address, void *buffer, size_t *length, size_t timeout);
+ EFI_STATUS cdk2_xhci_interrupt_transfer(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, void *buffer, UINTN *length, UINT32 maximum_packet,
+-	UINT16 polling_interval, UINTN timeout);
++	uint8_t endpoint_address, void *buffer, size_t *length,
++	uint32_t maximum_packet, uint16_t polling_interval, size_t timeout);
+ EFI_STATUS cdk2_xhci_async_interrupt_start(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, UINTN length, UINT32 maximum_packet,
+-	UINT16 polling_interval,
++	uint8_t endpoint_address, size_t length, uint32_t maximum_packet,
++	uint16_t polling_interval,
+ 	struct cdk2_xhci_async_transfer *transfer);
+ EFI_STATUS cdk2_xhci_async_interrupt_poll(
+ 	struct cdk2_xhci_async_transfer *transfer);
+@@ -366,15 +369,15 @@ EFI_STATUS cdk2_xhci_async_interrupt_rearm(
+ EFI_STATUS cdk2_xhci_async_interrupt_stop(
+ 	struct cdk2_xhci_async_transfer *transfer);
+ EFI_STATUS cdk2_xhci_pci_adapter_init(struct cdk2_xhci_pci_adapter *adapter,
+-	struct cdk2_efi_pci_io_protocol *pci, UINT8 bar, void *delay_context,
++	struct cdk2_efi_pci_io_protocol *pci, uint8_t bar, void *delay_context,
+ 	cdk2_xhci_delay_fn *delay, const struct cdk2_deadline *deadline,
+ 	cdk2_xhci_clock_fn *clock, void *clock_context);
+-BOOLEAN cdk2_xhci_pci_deadline_expired(
++uint8_t cdk2_xhci_pci_deadline_expired(
+ 	const struct cdk2_xhci_pci_adapter *adapter);
+ void cdk2_xhci_pci_controller_services(struct cdk2_xhci_pci_adapter *adapter,
+ 	struct cdk2_xhci_controller_services *services);
+ void cdk2_xhci_pci_set_address_width(struct cdk2_xhci_pci_adapter *adapter,
+-	BOOLEAN address_64);
++	uint8_t address_64);
+ EFI_STATUS cdk2_xhci_pci_adapter_release(struct cdk2_xhci_pci_adapter *adapter);
+ EFI_STATUS cdk2_xhci_usb2_init(struct cdk2_xhci_usb2 *usb2,
+ 	struct cdk2_xhci_controller *controller);
+diff --git a/src/modules/xhci/controller.c b/src/modules/xhci/controller.c
+index 2dd169ad19..902c0e51db 100644
+--- a/src/modules/xhci/controller.c
++++ b/src/modules/xhci/controller.c
+@@ -2,7 +2,7 @@
+ 
+ #include <cdk2/xhci.h>
+ 
+-static BOOLEAN bulk_diagnostic_emitted;
++static uint8_t bulk_diagnostic_emitted;
+ 
+ #include <string.h>
+ 
+@@ -11,7 +11,7 @@ static BOOLEAN bulk_diagnostic_emitted;
+ static EFI_STATUS retain_mapping(struct cdk2_xhci_controller *controller,
+ 	struct cdk2_xhci_mapping *mapping, EFI_STATUS status);
+ EFI_STATUS cdk2_xhci_controller_set_state(struct cdk2_xhci_controller *controller,
+-	UINTN state);
++	size_t state);
+ #define XHCI_CRCR 0x18U
+ #define XHCI_DCBAAP 0x30U
+ #define XHCI_CONFIG 0x38U
+@@ -21,10 +21,10 @@ EFI_STATUS cdk2_xhci_controller_set_state(struct cdk2_xhci_controller *controlle
+ #define XHCI_ERDP 0x38U
+ #define XHCI_PORTSC 0x400U
+ 
+-static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, UINT8 type,
+-	UINT8 dci, UINT64 parameter);
++static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, uint8_t type,
++	uint8_t dci, uint64_t parameter);
+ 
+-BOOLEAN cdk2_xhci_controller_deadline_expired(
++uint8_t cdk2_xhci_controller_deadline_expired(
+ 	const struct cdk2_xhci_controller *controller)
+ {
+ 	if (controller == NULL)
+@@ -54,12 +54,12 @@ static EFI_STATUS retain_mapping(struct cdk2_xhci_controller *controller,
+ }
+ 
+ static EFI_STATUS wait_mask(struct cdk2_xhci_controller *controller,
+-	UINT32 offset, UINT32 mask, UINT32 expected)
++	uint32_t offset, uint32_t mask, uint32_t expected)
+ {
+-	UINT32 value;
++	uint32_t value;
+ 	EFI_STATUS status;
+ 
+-	for (UINTN retry = 0; retry < 1000U; retry++) {
++	for (size_t retry = 0; retry < 1000U; retry++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller))
+ 			return EFI_TIMEOUT;
+ 		status = controller->services.read32(controller->services.context, offset,
+@@ -117,9 +117,9 @@ void cdk2_xhci_controller_destroy(struct cdk2_xhci_controller *controller)
+ }
+ 
+ EFI_STATUS cdk2_xhci_controller_set_state(struct cdk2_xhci_controller *controller,
+-	UINTN state)
++	size_t state)
+ {
+-	UINT32 operational;
++	uint32_t operational;
+ 	EFI_STATUS status;
+ 
+ 	if (controller == NULL || state > 2U)
+@@ -166,11 +166,11 @@ EFI_STATUS cdk2_xhci_controller_reset(struct cdk2_xhci_controller *controller)
+ 
+ static EFI_STATUS claim_legacy_ownership(struct cdk2_xhci_controller *controller)
+ {
+-	UINT32 offset = controller->capability.extended_capability;
+-	UINT32 value;
++	uint32_t offset = controller->capability.extended_capability;
++	uint32_t value;
+ 	EFI_STATUS status;
+ 
+-	for (UINTN count = 0U; offset != 0U && count < 256U; count++) {
++	for (size_t count = 0U; offset != 0U && count < 256U; count++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller))
+ 			return EFI_TIMEOUT;
+ 		status = controller->services.read32(controller->services.context,
+@@ -187,7 +187,7 @@ static EFI_STATUS claim_legacy_ownership(struct cdk2_xhci_controller *controller
+ 			}
+ 			status = controller->services.write32(controller->services.context,
+ 				offset, value | 1U << 24);
+-			for (UINTN retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
++			for (size_t retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
+ 				if (cdk2_xhci_controller_deadline_expired(controller))
+ 					return EFI_TIMEOUT;
+ 				status = controller->services.read32(controller->services.context,
+@@ -216,9 +216,9 @@ EFI_STATUS cdk2_xhci_controller_init(struct cdk2_xhci_controller *controller,
+ 	const struct cdk2_xhci_capabilities *capability)
+ {
+ 	struct cdk2_xhci_erst_entry *erst;
+-	UINT64 *dcbaa;
+-	UINT64 *scratchpads;
+-	UINT32 operational;
++	uint64_t *dcbaa;
++	uint64_t *scratchpads;
++	uint32_t operational;
+ 	EFI_STATUS status;
+ 
+ 	if (controller == NULL || services == NULL || capability == NULL ||
+@@ -256,7 +256,7 @@ EFI_STATUS cdk2_xhci_controller_init(struct cdk2_xhci_controller *controller,
+ 	if (EFI_ERROR(status))
+ 		goto fail;
+ 	status = services->allocate_dma(services->context,
+-		(capability->maximum_slots + 1U) * sizeof(UINT64), 64U,
++		(capability->maximum_slots + 1U) * sizeof(uint64_t), 64U,
+ 		&controller->dcbaa);
+ 	if (EFI_ERROR(status))
+ 		goto fail;
+@@ -276,12 +276,12 @@ EFI_STATUS cdk2_xhci_controller_init(struct cdk2_xhci_controller *controller,
+ 	dcbaa = controller->dcbaa.host;
+ 	if (capability->scratchpad_count != 0U) {
+ 		status = services->allocate_dma(services->context,
+-			capability->scratchpad_count * sizeof(UINT64), 64U,
++			capability->scratchpad_count * sizeof(uint64_t), 64U,
+ 			&controller->scratchpad_array);
+ 		if (EFI_ERROR(status))
+ 			goto fail;
+ 		scratchpads = controller->scratchpad_array.host;
+-		for (UINT16 index = 0; index < capability->scratchpad_count; index++) {
++		for (uint16_t index = 0; index < capability->scratchpad_count; index++) {
+ 			if (cdk2_xhci_controller_deadline_expired(controller)) {
+ 				status = EFI_TIMEOUT;
+ 				goto fail;
+@@ -361,9 +361,9 @@ static EFI_STATUS next_event(struct cdk2_xhci_controller *controller,
+ }
+ 
+ static EFI_STATUS matching_event(struct cdk2_xhci_controller *controller,
+-	UINT8 type, UINT64 address, struct cdk2_xhci_trb *event)
++	uint8_t type, uint64_t address, struct cdk2_xhci_trb *event)
+ {
+-	for (UINTN index = 0U; index < controller->pending_count; index++)
++	for (size_t index = 0U; index < controller->pending_count; index++)
+ 		if ((controller->pending_events[index].control >> 10 & 0x3fU) == type &&
+ 		    (controller->pending_events[index].parameter & ~0xfULL) ==
+ 		    (address & ~0xfULL)) {
+@@ -375,23 +375,23 @@ static EFI_STATUS matching_event(struct cdk2_xhci_controller *controller,
+ 	return EFI_NOT_READY;
+ }
+ 
+-static BOOLEAN td_contains(const struct cdk2_xhci_ring *ring, UINT16 first,
+-	UINT16 count, UINT64 address)
++static uint8_t td_contains(const struct cdk2_xhci_ring *ring, uint16_t first,
++	uint16_t count, uint64_t address)
+ {
+ 	if (address < ring->device_address || ((address - ring->device_address) & 0xfU))
+ 		return FALSE;
+-	UINTN index = (address - ring->device_address) / 16U;
+-	for (UINT16 offset = 0U; offset < count; offset++)
++	size_t index = (address - ring->device_address) / 16U;
++	for (uint16_t offset = 0U; offset < count; offset++)
+ 		if ((first + offset) % (CDK2_XHCI_RING_TRBS - 1U) == index)
+ 			return TRUE;
+ 	return FALSE;
+ }
+ 
+ static EFI_STATUS matching_td_event(struct cdk2_xhci_controller *controller,
+-	const struct cdk2_xhci_ring *ring, UINT16 first, UINT16 count,
++	const struct cdk2_xhci_ring *ring, uint16_t first, uint16_t count,
+ 	struct cdk2_xhci_trb *event)
+ {
+-	for (UINTN index = 0U; index < controller->pending_count; index++)
++	for (size_t index = 0U; index < controller->pending_count; index++)
+ 		if ((controller->pending_events[index].control >> 10 & 0x3fU) == 32U &&
+ 		    td_contains(ring, first, count,
+ 			controller->pending_events[index].parameter & ~0xfULL)) {
+@@ -423,9 +423,9 @@ static EFI_STATUS retain_transfer_event(struct cdk2_xhci_controller *controller,
+ }
+ 
+ static void purge_ring_events(struct cdk2_xhci_controller *controller,
+-	const struct cdk2_xhci_ring *ring, UINT16 first, UINT16 count, UINT8 type)
++	const struct cdk2_xhci_ring *ring, uint16_t first, uint16_t count, uint8_t type)
+ {
+-	UINTN index = 0U;
++	size_t index = 0U;
+ 
+ 	while (index < controller->pending_count) {
+ 		struct cdk2_xhci_trb *event = &controller->pending_events[index];
+@@ -466,7 +466,7 @@ static EFI_STATUS drain_aborted_commands(struct cdk2_xhci_controller *controller
+ 
+ static EFI_STATUS abort_command_ring(struct cdk2_xhci_controller *controller)
+ {
+-	UINT32 crcr;
++	uint32_t crcr;
+ 	EFI_STATUS status;
+ 
+ 	if (cdk2_xhci_controller_deadline_expired(controller))
+@@ -476,7 +476,7 @@ static EFI_STATUS abort_command_ring(struct cdk2_xhci_controller *controller)
+ 		controller->command_ring.device_address |
+ 			(controller->command_ring.cycle ? 1U : 0U) | 1U << 2);
+ 
+-	for (UINTN retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
++	for (size_t retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller))
+ 			return EFI_TIMEOUT;
+ 		status = controller->services.read32(controller->services.context,
+@@ -500,11 +500,11 @@ static EFI_STATUS abort_command_ring(struct cdk2_xhci_controller *controller)
+ }
+ 
+ EFI_STATUS cdk2_xhci_controller_command(struct cdk2_xhci_controller *controller,
+-	UINT8 type, UINT8 slot, UINT64 parameter, UINT8 *result_slot)
++	uint8_t type, uint8_t slot, uint64_t parameter, uint8_t *result_slot)
+ {
+ 	struct cdk2_xhci_trb event;
+-	UINT64 command_address;
+-	UINT8 completion;
++	uint64_t command_address;
++	uint8_t completion;
+ 	EFI_STATUS status;
+ 
+ 	if (controller == NULL || !controller->running || result_slot == NULL)
+@@ -525,7 +525,7 @@ EFI_STATUS cdk2_xhci_controller_command(struct cdk2_xhci_controller *controller,
+ 
+ 		return EFI_ERROR(recovery) ? recovery : status;
+ 	}
+-	for (UINTN retry = 0; retry < 1000U; retry++) {
++	for (size_t retry = 0; retry < 1000U; retry++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller)) {
+ 			status = EFI_TIMEOUT;
+ 			break;
+@@ -563,7 +563,7 @@ static void release_device_dma(struct cdk2_xhci_device *device)
+ {
+ 	struct cdk2_xhci_controller *controller = device->controller;
+ 
+-	for (UINTN index = 0U; index < 31U; index++)
++	for (size_t index = 0U; index < 31U; index++)
+ 		if (device->endpoints[index].dma.host != NULL)
+ 			controller->services.release_dma(controller->services.context,
+ 				&device->endpoints[index].dma);
+@@ -579,12 +579,12 @@ static void release_device_dma(struct cdk2_xhci_device *device)
+ }
+ 
+ EFI_STATUS cdk2_xhci_device_enable(struct cdk2_xhci_controller *controller,
+-	UINT8 root_port, UINT8 speed, UINT16 maximum_packet, UINT32 route_string,
+-	UINT8 tt_hub_slot, UINT8 tt_port,
++	uint8_t root_port, uint8_t speed, uint16_t maximum_packet, uint32_t route_string,
++	uint8_t tt_hub_slot, uint8_t tt_port,
+ 	struct cdk2_xhci_device *device)
+ {
+-	UINTN context_size;
+-	UINT8 result_slot;
++	size_t context_size;
++	uint8_t result_slot;
+ 	EFI_STATUS status;
+ 
+ 	if (controller == NULL || device == NULL || !controller->running ||
+@@ -631,7 +631,7 @@ EFI_STATUS cdk2_xhci_device_enable(struct cdk2_xhci_controller *controller,
+ 		goto fail;
+ 	}
+ 	device->slot = result_slot;
+-	((UINT64 *)controller->dcbaa.host)[device->slot] = device->device_context.device;
++	((uint64_t *)controller->dcbaa.host)[device->slot] = device->device_context.device;
+ 	status = controller->services.flush(controller->services.context);
+ 	if (!EFI_ERROR(status))
+ 		status = cdk2_xhci_controller_command(controller, 11U, device->slot,
+@@ -643,7 +643,7 @@ EFI_STATUS cdk2_xhci_device_enable(struct cdk2_xhci_controller *controller,
+ 			device->enabled = TRUE;
+ 			return status;
+ 		}
+-		((UINT64 *)controller->dcbaa.host)[device->slot] = 0U;
++		((uint64_t *)controller->dcbaa.host)[device->slot] = 0U;
+ 		goto fail;
+ 	}
+ 	device->enabled = TRUE;
+@@ -655,14 +655,14 @@ fail:
+ }
+ 
+ EFI_STATUS cdk2_xhci_device_update_ep0(struct cdk2_xhci_device *device,
+-	UINT16 maximum_packet)
++	uint16_t maximum_packet)
+ {
+ 	struct cdk2_xhci_controller *controller;
+-	UINTN context_size;
+-	UINT32 *control;
+-	UINT32 *input_ep0;
+-	UINT32 *device_ep0;
+-	UINT8 result_slot;
++	size_t context_size;
++	uint32_t *control;
++	uint32_t *input_ep0;
++	uint32_t *device_ep0;
++	uint8_t result_slot;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || maximum_packet == 0U)
+@@ -676,10 +676,10 @@ EFI_STATUS cdk2_xhci_device_update_ep0(struct cdk2_xhci_device *device,
+ 	memset(device->input_context.host, 0, device->input_context.size);
+ 	control = device->input_context.host;
+ 	control[1] = 1U << 1;
+-	input_ep0 = (void *)((UINT8 *)device->input_context.host + context_size * 2U);
+-	device_ep0 = (void *)((UINT8 *)device->device_context.host + context_size);
++	input_ep0 = (void *)((uint8_t *)device->input_context.host + context_size * 2U);
++	device_ep0 = (void *)((uint8_t *)device->device_context.host + context_size);
+ 	memcpy(input_ep0, device_ep0, context_size);
+-	input_ep0[1] = (input_ep0[1] & 0xffffU) | (UINT32)maximum_packet << 16;
++	input_ep0[1] = (input_ep0[1] & 0xffffU) | (uint32_t)maximum_packet << 16;
+ 	status = controller->services.flush(controller->services.context);
+ 	if (!EFI_ERROR(status))
+ 		status = cdk2_xhci_controller_command(controller, 13U, device->slot,
+@@ -694,7 +694,7 @@ EFI_STATUS cdk2_xhci_device_update_ep0(struct cdk2_xhci_device *device,
+ EFI_STATUS cdk2_xhci_device_disable(struct cdk2_xhci_device *device)
+ {
+ 	struct cdk2_xhci_controller *controller;
+-	UINT8 result_slot;
++	uint8_t result_slot;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || device->controller == NULL)
+@@ -704,24 +704,24 @@ EFI_STATUS cdk2_xhci_device_disable(struct cdk2_xhci_device *device)
+ 		&result_slot);
+ 	if (EFI_ERROR(status))
+ 		return status;
+-	((UINT64 *)controller->dcbaa.host)[device->slot] = 0U;
++	((uint64_t *)controller->dcbaa.host)[device->slot] = 0U;
+ 	controller->services.flush(controller->services.context);
+ 	release_device_dma(device);
+ 	memset(device, 0, sizeof(*device));
+ 	return EFI_SUCCESS;
+ }
+ 
+-static UINT32 port_offset(const struct cdk2_xhci_controller *controller,
+-	UINT8 port)
++static uint32_t port_offset(const struct cdk2_xhci_controller *controller,
++	uint8_t port)
+ {
+ 	return controller->capability.capability_length + XHCI_PORTSC +
+-		(UINT32)(port - 1U) * 0x10U;
++		(uint32_t)(port - 1U) * 0x10U;
+ }
+ 
+ EFI_STATUS cdk2_xhci_controller_get_port(struct cdk2_xhci_controller *controller,
+-	UINT8 port, struct cdk2_xhci_port_status *status)
++	uint8_t port, struct cdk2_xhci_port_status *status)
+ {
+-	UINT32 value;
++	uint32_t value;
+ 	EFI_STATUS result;
+ 
+ 	if (controller == NULL || status == NULL || !controller->running ||
+@@ -735,12 +735,12 @@ EFI_STATUS cdk2_xhci_controller_get_port(struct cdk2_xhci_controller *controller
+ }
+ 
+ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller,
+-	UINT8 port, enum cdk2_xhci_port_feature feature, BOOLEAN set)
++	uint8_t port, enum cdk2_xhci_port_feature feature, uint8_t set)
+ {
+-	UINT32 offset;
+-	UINT32 value;
+-	UINT32 change;
+-	UINT32 bit;
++	uint32_t offset;
++	uint32_t value;
++	uint32_t change;
++	uint32_t bit;
+ 	EFI_STATUS status;
+ 
+ 	if (controller == NULL || !controller->running || port == 0U ||
+@@ -755,7 +755,7 @@ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller
+ 		return status;
+ 	change = 0U;
+ 	if (feature == CDK2_XHCI_PORT_SUSPEND) {
+-		value &= ~(((UINT32)0x7fU << 17) | (1U << 1) | (0xfU << 5));
++		value &= ~(((uint32_t)0x7fU << 17) | (1U << 1) | (0xfU << 5));
+ 		value |= 1U << 16 | (set ? 3U : 15U) << 5;
+ 		status = controller->services.write32(controller->services.context,
+ 			offset, value);
+@@ -805,7 +805,7 @@ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller
+ 		return EFI_INVALID_PARAMETER;
+ 	if (feature == CDK2_XHCI_PORT_ENABLE && set)
+ 		return EFI_UNSUPPORTED;
+-	value &= ~(((UINT32)0x7fU << 17) | (1U << 1));
++	value &= ~(((uint32_t)0x7fU << 17) | (1U << 1));
+ 	if (change != 0U)
+ 		value |= change;
+ 	else if (feature == CDK2_XHCI_PORT_ENABLE && !set)
+@@ -818,7 +818,7 @@ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller
+ 		value);
+ 	if (EFI_ERROR(status) || feature != CDK2_XHCI_PORT_RESET || !set)
+ 		return status;
+-	for (UINTN retry = 0U; retry < 100U; retry++) {
++	for (size_t retry = 0U; retry < 100U; retry++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller))
+ 			return EFI_TIMEOUT;
+ 		controller->services.delay(controller->services.context, 1000U);
+@@ -831,16 +831,16 @@ EFI_STATUS cdk2_xhci_controller_set_port(struct cdk2_xhci_controller *controller
+ }
+ 
+ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+-	const struct cdk2_usb_request *request, void *buffer, UINTN *length,
+-	BOOLEAN data_in, UINTN timeout)
++	const struct cdk2_usb_request *request, void *buffer, size_t *length,
++	uint8_t data_in, size_t timeout)
+ {
+ 	struct cdk2_xhci_controller *controller;
+ 	struct cdk2_xhci_mapping mapping;
+ 	struct cdk2_xhci_trb event;
+-	UINT16 first, count;
+-	UINT16 original_enqueue;
+-	UINT8 original_cycle;
+-	BOOLEAN completed = FALSE, submitted = FALSE;
++	uint16_t first, count;
++	uint16_t original_enqueue;
++	uint8_t original_cycle;
++	uint8_t completed = FALSE, submitted = FALSE;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || request == NULL || length == NULL ||
+@@ -873,14 +873,14 @@ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+ 		status = controller->services.flush(controller->services.context);
+ 	if (!EFI_ERROR(status))
+ 		status = controller->services.write32(controller->services.context,
+-			controller->capability.doorbell_offset + (UINT32)device->slot * 4U, 1U);
++			controller->capability.doorbell_offset + (uint32_t)device->slot * 4U, 1U);
+ 	if (!EFI_ERROR(status))
+ 		submitted = TRUE;
+ 	else {
+ 		device->endpoint_ring.enqueue = original_enqueue;
+ 		device->endpoint_ring.cycle = original_cycle;
+ 	}
+-	for (UINTN elapsed = 0U; !EFI_ERROR(status) &&
++	for (size_t elapsed = 0U; !EFI_ERROR(status) &&
+ 	     (timeout == 0U || elapsed < timeout); elapsed++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller)) {
+ 			status = EFI_TIMEOUT;
+@@ -898,7 +898,7 @@ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+ 		if (!EFI_ERROR(status) && (event.control >> 10 & 0x3fU) == 32U &&
+ 		    td_contains(&device->endpoint_ring, first, count,
+ 			event.parameter & ~0xfULL)) {
+-			UINT32 residual = event.status & 0xffffffU;
++			uint32_t residual = event.status & 0xffffffU;
+ 
+ 			device->last_completion = event.status >> 24;
+ 			status = device->last_completion == 1U ||
+@@ -935,7 +935,7 @@ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+ 	if (completed && device->last_completion >= 2U &&
+ 	    device->last_completion <= 6U) {
+ 		EFI_STATUS recovery = endpoint_command(device, 14U, 1U, 0U);
+-		UINT64 dequeue = (device->endpoint_ring.device_address +
++		uint64_t dequeue = (device->endpoint_ring.device_address +
+ 			device->endpoint_ring.enqueue * 16U) |
+ 			(device->endpoint_ring.cycle ? 1U : 0U);
+ 
+@@ -949,17 +949,17 @@ EFI_STATUS cdk2_xhci_control_transfer(struct cdk2_xhci_device *device,
+ 	return status;
+ }
+ 
+-static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, UINT8 type,
+-	UINT8 dci, UINT64 parameter);
++static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, uint8_t type,
++	uint8_t dci, uint64_t parameter);
+ 
+-static UINT8 interval_exponent(UINT8 speed, UINT16 milliseconds)
++static uint8_t interval_exponent(uint8_t speed, uint16_t milliseconds)
+ {
+-	UINT32 periods;
+-	UINT8 exponent;
++	uint32_t periods;
++	uint8_t exponent;
+ 
+ 	if (milliseconds == 0U)
+ 		return 0U;
+-	periods = speed >= 3U ? (UINT32)milliseconds * 8U : milliseconds;
++	periods = speed >= 3U ? (uint32_t)milliseconds * 8U : milliseconds;
+ 	exponent = speed >= 3U ? 0U : 3U;
+ 	while (periods > 1U && exponent < 16U) {
+ 		periods /= 2U;
+@@ -969,12 +969,12 @@ static UINT8 interval_exponent(UINT8 speed, UINT16 milliseconds)
+ }
+ 
+ EFI_STATUS cdk2_xhci_device_mark_hub(struct cdk2_xhci_device *device,
+-	UINT8 port_count)
++	uint8_t port_count)
+ {
+ 	struct cdk2_xhci_controller *controller;
+-	UINTN context_size;
+-	UINT32 *control, *slot;
+-	UINT8 result_slot;
++	size_t context_size;
++	uint32_t *control, *slot;
++	uint8_t result_slot;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || port_count == 0U)
+@@ -986,15 +986,15 @@ EFI_STATUS cdk2_xhci_device_mark_hub(struct cdk2_xhci_device *device,
+ 	memset(device->input_context.host, 0, device->input_context.size);
+ 	control = device->input_context.host;
+ 	control[1] = 1U;
+-	slot = (void *)((UINT8 *)device->input_context.host + context_size);
++	slot = (void *)((uint8_t *)device->input_context.host + context_size);
+ 	memcpy(slot, device->device_context.host, context_size);
+ 	slot[0] |= 1U << 26;
+ 	slot[0] = (slot[0] & ~(3U << 16)) |
+-		((UINT32)device->tt_think_time << 16);
++		((uint32_t)device->tt_think_time << 16);
+ 	if (device->speed == 3U && device->multi_tt)
+ 		slot[0] |= 1U << 25;
+ 	if ((slot[1] >> 24) < port_count)
+-		slot[1] = (slot[1] & 0x00ffffffU) | (UINT32)port_count << 24;
++		slot[1] = (slot[1] & 0x00ffffffU) | (uint32_t)port_count << 24;
+ 	status = controller->services.flush(controller->services.context);
+ 	if (!EFI_ERROR(status))
+ 		status = cdk2_xhci_controller_command(controller, 13U, device->slot,
+@@ -1003,22 +1003,22 @@ EFI_STATUS cdk2_xhci_device_mark_hub(struct cdk2_xhci_device *device,
+ }
+ 
+ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, UINT8 transfer_type, UINT32 maximum_packet,
+-	UINT16 polling_interval)
++	uint8_t endpoint_address, uint8_t transfer_type, uint32_t maximum_packet,
++	uint16_t polling_interval)
+ {
+ 	struct cdk2_xhci_controller *controller;
+ 	struct cdk2_xhci_endpoint *endpoint;
+-	UINTN context_size;
+-	UINT32 *control;
+-	UINT32 *slot_context;
+-	UINT32 *context;
+-	UINT8 number = endpoint_address & 0xfU;
+-	UINT8 dci = number * 2U + ((endpoint_address & 0x80U) != 0U ? 1U : 0U);
+-	UINT8 xhci_type;
+-	UINT8 result_slot;
+-	UINT16 packet_size;
+-	UINT8 burst;
+-	UINT32 esit_payload;
++	size_t context_size;
++	uint32_t *control;
++	uint32_t *slot_context;
++	uint32_t *context;
++	uint8_t number = endpoint_address & 0xfU;
++	uint8_t dci = number * 2U + ((endpoint_address & 0x80U) != 0U ? 1U : 0U);
++	uint8_t xhci_type;
++	uint8_t result_slot;
++	uint16_t packet_size;
++	uint8_t burst;
++	uint32_t esit_payload;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || number == 0U || dci > 31U ||
+@@ -1027,13 +1027,13 @@ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+ 	    (transfer_type == 3U && polling_interval == 0U))
+ 		return EFI_INVALID_PARAMETER;
+ 	packet_size = maximum_packet & 0x7ffU;
+-	burst = (UINT8)(maximum_packet >> 11 & 0xfU);
++	burst = (uint8_t)(maximum_packet >> 11 & 0xfU);
+ 	if (packet_size == 0U ||
+ 	    (device->speed < 4U && (burst > 2U || (transfer_type == 2U && burst != 0U))))
+ 		return EFI_INVALID_PARAMETER;
+ 	esit_payload = maximum_packet >> 16;
+ 	if (esit_payload == 0U)
+-		esit_payload = (UINT32)packet_size * (burst + 1U);
++		esit_payload = (uint32_t)packet_size * (burst + 1U);
+ 	xhci_type = transfer_type == 2U ?
+ 		((endpoint_address & 0x80U) != 0U ? 6U : 2U) :
+ 		((endpoint_address & 0x80U) != 0U ? 7U : 3U);
+@@ -1054,7 +1054,7 @@ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+ 		control = device->input_context.host;
+ 		control[0] = 1U << dci;
+ 		control[1] = 1U;
+-		memcpy((UINT8 *)device->input_context.host + context_size,
++		memcpy((uint8_t *)device->input_context.host + context_size,
+ 			device->device_context.host, context_size);
+ 		status = controller->services.flush(controller->services.context);
+ 		if (!EFI_ERROR(status))
+@@ -1077,17 +1077,17 @@ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+ 	memset(device->input_context.host, 0, device->input_context.size);
+ 	control = device->input_context.host;
+ 	control[1] = 1U | 1U << dci;
+-	slot_context = (void *)((UINT8 *)device->input_context.host + context_size);
++	slot_context = (void *)((uint8_t *)device->input_context.host + context_size);
+ 	memcpy(slot_context, device->device_context.host, context_size);
+ 	if ((slot_context[0] >> 27 & 0x1fU) < dci)
+ 		slot_context[0] = (slot_context[0] & ~(0x1fU << 27)) |
+-			(UINT32)dci << 27;
+-	context = (void *)((UINT8 *)device->input_context.host +
++			(uint32_t)dci << 27;
++	context = (void *)((uint8_t *)device->input_context.host +
+ 		context_size * (dci + 1U));
+-	context[0] = (UINT32)interval_exponent(device->speed, polling_interval) << 16;
+-	context[1] = 3U << 1 | (UINT32)xhci_type << 3 | (UINT32)burst << 8 |
+-		(UINT32)packet_size << 16;
+-	context[2] = (UINT32)endpoint->dma.device | 1U;
++	context[0] = (uint32_t)interval_exponent(device->speed, polling_interval) << 16;
++	context[1] = 3U << 1 | (uint32_t)xhci_type << 3 | (uint32_t)burst << 8 |
++		(uint32_t)packet_size << 16;
++	context[2] = (uint32_t)endpoint->dma.device | 1U;
+ 	context[3] = endpoint->dma.device >> 32;
+ 	context[4] = packet_size | (transfer_type == 3U ? esit_payload << 16 : 0U);
+ 	status = controller->services.flush(controller->services.context);
+@@ -1109,17 +1109,17 @@ EFI_STATUS cdk2_xhci_device_configure_endpoint(struct cdk2_xhci_device *device,
+ }
+ 
+ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, void *buffer, UINTN *length, UINTN timeout)
++	uint8_t endpoint_address, void *buffer, size_t *length, size_t timeout)
+ {
+ 	struct cdk2_xhci_controller *controller;
+ 	struct cdk2_xhci_mapping mapping;
+ 	struct cdk2_xhci_endpoint *endpoint;
+ 	struct cdk2_xhci_trb event;
+-	UINT16 first, count;
+-	UINT16 original_enqueue;
+-	UINT8 original_cycle;
+-	UINT8 dci;
+-	BOOLEAN completed = FALSE, submitted = FALSE;
++	uint16_t first, count;
++	uint16_t original_enqueue;
++	uint8_t original_cycle;
++	uint8_t dci;
++	uint8_t completed = FALSE, submitted = FALSE;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || !device->enabled || buffer == NULL || length == NULL)
+@@ -1152,14 +1152,14 @@ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+ 		status = controller->services.flush(controller->services.context);
+ 	if (!EFI_ERROR(status))
+ 		status = controller->services.write32(controller->services.context,
+-			controller->capability.doorbell_offset + (UINT32)device->slot * 4U, dci);
++			controller->capability.doorbell_offset + (uint32_t)device->slot * 4U, dci);
+ 	if (!EFI_ERROR(status))
+ 		submitted = TRUE;
+ 	else {
+ 		endpoint->ring.enqueue = original_enqueue;
+ 		endpoint->ring.cycle = original_cycle;
+ 	}
+-	for (UINTN elapsed = 0U; !EFI_ERROR(status) &&
++	for (size_t elapsed = 0U; !EFI_ERROR(status) &&
+ 	     (timeout == 0U || elapsed < timeout); elapsed++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller)) {
+ 			status = EFI_TIMEOUT;
+@@ -1176,7 +1176,7 @@ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+ 		}
+ 		if (!EFI_ERROR(status) && (event.control >> 10 & 0x3fU) == 32U &&
+ 		    td_contains(&endpoint->ring, first, count, event.parameter & ~0xfULL)) {
+-			UINT32 residual = event.status & 0xffffffU;
++			uint32_t residual = event.status & 0xffffffU;
+ 
+ 			device->last_completion = event.status >> 24;
+ 			status = device->last_completion == 1U ||
+@@ -1212,7 +1212,7 @@ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+ 	if (completed && device->last_completion >= 2U &&
+ 	    device->last_completion <= 6U) {
+ 		EFI_STATUS recovery = endpoint_command(device, 14U, dci, 0U);
+-		UINT64 dequeue = (endpoint->ring.device_address +
++		uint64_t dequeue = (endpoint->ring.device_address +
+ 			endpoint->ring.enqueue * 16U) |
+ 			(endpoint->ring.cycle ? 1U : 0U);
+ 
+@@ -1227,8 +1227,8 @@ EFI_STATUS cdk2_xhci_bulk_transfer(struct cdk2_xhci_device *device,
+ }
+ 
+ EFI_STATUS cdk2_xhci_interrupt_transfer(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, void *buffer, UINTN *length, UINT32 maximum_packet,
+-	UINT16 polling_interval, UINTN timeout)
++	uint8_t endpoint_address, void *buffer, size_t *length, uint32_t maximum_packet,
++	uint16_t polling_interval, size_t timeout)
+ {
+ 	EFI_STATUS status;
+ 
+@@ -1240,20 +1240,20 @@ EFI_STATUS cdk2_xhci_interrupt_transfer(struct cdk2_xhci_device *device,
+ 		endpoint_address, buffer, length, timeout);
+ }
+ 
+-static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, UINT8 type,
+-	UINT8 dci, UINT64 parameter)
++static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, uint8_t type,
++	uint8_t dci, uint64_t parameter)
+ {
+ 	struct cdk2_xhci_controller *controller = device->controller;
+ 	struct cdk2_xhci_trb event;
+-	UINT64 address;
+-	UINT16 index;
++	uint64_t address;
++	uint16_t index;
+ 	EFI_STATUS status;
+ 
+ 	if (cdk2_xhci_controller_deadline_expired(controller))
+ 		return EFI_TIMEOUT;
+ 	status = cdk2_xhci_ring_enqueue(&controller->command_ring, parameter, 0U,
+-		(UINT32)type << 10 | (UINT32)dci << 16 |
+-		(UINT32)device->slot << 24, &index);
++		(uint32_t)type << 10 | (uint32_t)dci << 16 |
++		(uint32_t)device->slot << 24, &index);
+ 	if (EFI_ERROR(status))
+ 		return status;
+ 	address = controller->command_ring.device_address + index * 16U;
+@@ -1266,7 +1266,7 @@ static EFI_STATUS endpoint_command(struct cdk2_xhci_device *device, UINT8 type,
+ 
+ 		return EFI_ERROR(recovery) ? recovery : status;
+ 	}
+-	for (UINTN retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
++	for (size_t retry = 0U; !EFI_ERROR(status) && retry < 1000U; retry++) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller)) {
+ 			status = EFI_TIMEOUT;
+ 			break;
+@@ -1303,11 +1303,11 @@ static EFI_STATUS submit_async(struct cdk2_xhci_async_transfer *transfer)
+ 	struct cdk2_xhci_endpoint *endpoint =
+ 		&transfer->device->endpoints[transfer->dci - 1U];
+ 	struct cdk2_xhci_segment segments[4];
+-	UINT64 address = transfer->dma.device;
+-	UINTN remaining = transfer->length, segment_count = 0U;
+-	UINT16 first, count;
+-	UINT16 saved_enqueue = endpoint->ring.enqueue;
+-	BOOLEAN saved_cycle = endpoint->ring.cycle;
++	uint64_t address = transfer->dma.device;
++	size_t remaining = transfer->length, segment_count = 0U;
++	uint16_t first, count;
++	uint16_t saved_enqueue = endpoint->ring.enqueue;
++	uint8_t saved_cycle = endpoint->ring.cycle;
+ 	EFI_STATUS status;
+ 
+ 	if (cdk2_xhci_controller_deadline_expired(controller))
+@@ -1315,11 +1315,11 @@ static EFI_STATUS submit_async(struct cdk2_xhci_async_transfer *transfer)
+ 	while (remaining != 0U && segment_count < 4U) {
+ 		if (cdk2_xhci_controller_deadline_expired(controller))
+ 			return EFI_TIMEOUT;
+-		UINTN boundary = 0x10000U - (UINTN)(address & 0xffffU);
+-		UINTN length = remaining < boundary ? remaining : boundary;
++		size_t boundary = 0x10000U - (size_t)(address & 0xffffU);
++		size_t length = remaining < boundary ? remaining : boundary;
+ 
+ 		segments[segment_count++] = (struct cdk2_xhci_segment) {
+-			address, (UINT32)length };
++			address, (uint32_t)length };
+ 		address += length; remaining -= length;
+ 	}
+ 	if (remaining != 0U)
+@@ -1331,7 +1331,7 @@ static EFI_STATUS submit_async(struct cdk2_xhci_async_transfer *transfer)
+ 	if (!EFI_ERROR(status))
+ 		status = controller->services.write32(controller->services.context,
+ 			controller->capability.doorbell_offset +
+-			(UINT32)transfer->device->slot * 4U, transfer->dci);
++			(uint32_t)transfer->device->slot * 4U, transfer->dci);
+ 	if (!EFI_ERROR(status)) {
+ 		transfer->last_address = endpoint->ring.device_address +
+ 			((first + count - 1U) % (CDK2_XHCI_RING_TRBS - 1U)) * 16U;
+@@ -1345,11 +1345,11 @@ static EFI_STATUS submit_async(struct cdk2_xhci_async_transfer *transfer)
+ }
+ 
+ EFI_STATUS cdk2_xhci_async_interrupt_start(struct cdk2_xhci_device *device,
+-	UINT8 endpoint_address, UINTN length, UINT32 maximum_packet,
+-	UINT16 polling_interval,
++	uint8_t endpoint_address, size_t length, uint32_t maximum_packet,
++	uint16_t polling_interval,
+ 	struct cdk2_xhci_async_transfer *transfer)
+ {
+-	UINT8 dci;
++	uint8_t dci;
+ 	EFI_STATUS status;
+ 
+ 	if (device == NULL || transfer == NULL || !device->enabled || length == 0U ||
+@@ -1422,7 +1422,7 @@ complete:
+ 			&transfer->device->endpoints[transfer->dci - 1U];
+ 		EFI_STATUS recovery = endpoint_command(transfer->device, 14U,
+ 			transfer->dci, 0U);
+-		UINT64 dequeue = (endpoint->ring.device_address + endpoint->ring.enqueue * 16U) |
++		uint64_t dequeue = (endpoint->ring.device_address + endpoint->ring.enqueue * 16U) |
+ 			(endpoint->ring.cycle ? 1U : 0U);
+ 		if (!EFI_ERROR(recovery))
+ 			recovery = endpoint_command(transfer->device, 16U, transfer->dci,
+@@ -1461,7 +1461,7 @@ EFI_STATUS cdk2_xhci_async_interrupt_stop(
+ 			transfer->completion == 6U ? 14U : 15U,
+ 			transfer->dci, 0U);
+ 		if (!EFI_ERROR(status))
+-			for (UINTN index = 0U; index < controller->pending_count; ) {
++			for (size_t index = 0U; index < controller->pending_count; ) {
+ 				if ((controller->pending_events[index].control >> 10 & 0x3fU) == 32U &&
+ 				    td_contains(&endpoint->ring, transfer->first, transfer->count,
+ 					controller->pending_events[index].parameter & ~0xfULL))
+diff --git a/src/modules/xhci/diagnostic.c b/src/modules/xhci/diagnostic.c
+index 6ee8b3e0b2..a3fb6bf072 100644
+--- a/src/modules/xhci/diagnostic.c
++++ b/src/modules/xhci/diagnostic.c
+@@ -30,7 +30,7 @@ void cdk2_xhci_diagnostic(const char *message)
+ #endif
+ }
+ 
+-BOOLEAN cdk2_xhci_diagnostic_ready(void)
++uint8_t cdk2_xhci_diagnostic_ready(void)
+ {
+ 	return
+ #ifdef CDK2_DIAGNOSTIC
+diff --git a/src/modules/xhci/entry.c b/src/modules/xhci/entry.c
+index 1cd0d34b41..3a1cfc116d 100644
+--- a/src/modules/xhci/entry.c
++++ b/src/modules/xhci/entry.c
+@@ -83,7 +83,7 @@ struct context { struct cdk2_xhci_pci_adapter adapter;
+ 	struct cdk2_xhci_control control;
+ #endif
+ 	void *handle, *timer, *exit_boot; struct context *next;
+-	BOOLEAN protocol_installed, usb_initialized; };
++	uint8_t protocol_installed, usb_initialized; };
+ 
+ typedef char stall_offset_check[offsetof(struct boot_services, stall) == 248U ? 1 : -1];
+ typedef char create_offset_check[offsetof(struct boot_services, create_event) == 80U ? 1 : -1];
+@@ -112,7 +112,7 @@ struct serial_protocol {
+ 	cdk2_xhci_diagnostic_write_fn *write;
+ };
+ 
+-static BOOLEAN configure_serial(void)
++static uint8_t configure_serial(void)
+ {
+ 	struct serial_protocol *serial = NULL;
+ 
+@@ -155,19 +155,19 @@ static void configure_serial_notification(void)
+ }
+ #endif
+ 
+-static void delay(void *unused, UINTN microseconds)
++static void delay(void *unused, uint64_t microseconds)
+ {
+ 	(void)unused;
+ 	bs->stall(microseconds);
+ }
+ 
+-static UINT64 read_tsc(void *unused)
++static uint64_t read_tsc(void *unused)
+ {
+-	UINT32 low, high;
++	uint32_t low, high;
+ 
+ 	(void)unused;
+ 	__asm__ volatile ("rdtsc" : "=a"(low), "=d"(high));
+-	return ((UINT64)high << 32) | low;
++	return ((uint64_t)high << 32) | low;
+ }
+ 
+ static void CDK2_MS_ABI timer_notify(void *event, void *opaque)
+@@ -197,7 +197,7 @@ static EFI_STATUS CDK2_MS_ABI poll_once(struct cdk2_xhci_control *control,
+ 	void *controller)
+ {
+ 	struct context *context;
+-	BOOLEAN active = FALSE;
++	uint8_t active = FALSE;
+ 
+ 	if (control == NULL || control->revision != CDK2_XHCI_CONTROL_REVISION ||
+ 	    controller == NULL || control->controller != controller)
+@@ -208,7 +208,7 @@ static EFI_STATUS CDK2_MS_ABI poll_once(struct cdk2_xhci_control *control,
+ 	if (__atomic_test_and_set(&context->controller.protocol_busy,
+ 	    __ATOMIC_ACQUIRE))
+ 		return EFI_ACCESS_DENIED;
+-	for (UINTN index = 0U; index < ARRAY_SIZE(context->usb2->async); index++)
++	for (size_t index = 0U; index < ARRAY_SIZE(context->usb2->async); index++)
+ 		if (context->usb2->async[index].active)
+ 			active = TRUE;
+ 	if (active && context->controller.services.deadline != NULL) {
+@@ -319,7 +319,7 @@ static void CDK2_MS_ABI exit_boot_notify(void *event, void *opaque)
+ }
+ #endif
+ 
+-static BOOLEAN language_equal(const CHAR8 *left, const CHAR8 *right)
++static uint8_t language_equal(const CHAR8 *left, const CHAR8 *right)
+ {
+ 	while (*left != 0 && *left == *right) {
+ 		left++;
+diff --git a/src/modules/xhci/model.c b/src/modules/xhci/model.c
+index 07e25bd9ed..c4f2a3fecb 100644
+--- a/src/modules/xhci/model.c
++++ b/src/modules/xhci/model.c
+@@ -4,13 +4,13 @@
+ 
+ #include <string.h>
+ 
+-EFI_STATUS cdk2_xhci_parse_capabilities(UINT32 capability0, UINT32 hcs1,
+-	UINT32 hcs2, UINT32 hcc1, UINT32 doorbell, UINT32 runtime,
+-	UINT32 page_size_mask, struct cdk2_xhci_capabilities *capabilities)
++EFI_STATUS cdk2_xhci_parse_capabilities(uint32_t capability0, uint32_t hcs1,
++	uint32_t hcs2, uint32_t hcc1, uint32_t doorbell, uint32_t runtime,
++	uint32_t page_size_mask, struct cdk2_xhci_capabilities *capabilities)
+ {
+ 	CDK2_XHCI_DIAG("[CDK2][xhci][info] parse controller capabilities\n");
+-	UINT32 page_size;
+-	UINT32 bit;
++	uint32_t page_size;
++	uint32_t bit;
+ 
+ 	if (capabilities == NULL || (capability0 & 0xffU) < 0x20U ||
+ 	    (hcs1 & 0xffU) == 0U || ((hcs1 >> 24) & 0xffU) == 0U ||
+@@ -40,7 +40,7 @@ EFI_STATUS cdk2_xhci_parse_capabilities(UINT32 capability0, UINT32 hcs1,
+ }
+ 
+ EFI_STATUS cdk2_xhci_ring_init(struct cdk2_xhci_ring *ring,
+-	struct cdk2_xhci_trb trbs[CDK2_XHCI_RING_TRBS], UINT64 device_address)
++	struct cdk2_xhci_trb trbs[CDK2_XHCI_RING_TRBS], uint64_t device_address)
+ {
+ 	if (ring == NULL || trbs == NULL || (device_address & 0x3fU) != 0U)
+ 		return EFI_INVALID_PARAMETER;
+@@ -55,7 +55,7 @@ EFI_STATUS cdk2_xhci_ring_init(struct cdk2_xhci_ring *ring,
+ }
+ 
+ EFI_STATUS cdk2_xhci_ring_enqueue(struct cdk2_xhci_ring *ring,
+-	UINT64 parameter, UINT32 status, UINT32 control, UINT16 *index)
++	uint64_t parameter, uint32_t status, uint32_t control, uint16_t *index)
+ {
+ 	struct cdk2_xhci_trb *trb;
+ 
+@@ -76,7 +76,7 @@ EFI_STATUS cdk2_xhci_ring_enqueue(struct cdk2_xhci_ring *ring,
+ }
+ 
+ EFI_STATUS cdk2_xhci_event_ring_init(struct cdk2_xhci_event_ring *ring,
+-	struct cdk2_xhci_trb *trbs, UINT16 count)
++	struct cdk2_xhci_trb *trbs, uint16_t count)
+ {
+ 	if (ring == NULL || trbs == NULL || count < 16U || count > 4096U)
+ 		return EFI_INVALID_PARAMETER;
+@@ -104,16 +104,16 @@ EFI_STATUS cdk2_xhci_event_ring_dequeue(struct cdk2_xhci_event_ring *ring,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_xhci_command_enqueue(struct cdk2_xhci_ring *ring, UINT8 type,
+-	UINT8 slot, UINT64 parameter, UINT64 *command_address)
++EFI_STATUS cdk2_xhci_command_enqueue(struct cdk2_xhci_ring *ring, uint8_t type,
++	uint8_t slot, uint64_t parameter, uint64_t *command_address)
+ {
+-	UINT16 index;
++	uint16_t index;
+ 	EFI_STATUS status;
+ 
+ 	if (ring == NULL || command_address == NULL || type < 9U || type > 23U)
+ 		return EFI_INVALID_PARAMETER;
+ 	status = cdk2_xhci_ring_enqueue(ring, parameter, 0U,
+-		(UINT32)type << 10 | (UINT32)slot << 24, &index);
++		(uint32_t)type << 10 | (uint32_t)slot << 24, &index);
+ 	if (EFI_ERROR(status))
+ 		return status;
+ 	*command_address = ring->device_address + index * sizeof(struct cdk2_xhci_trb);
+@@ -121,7 +121,7 @@ EFI_STATUS cdk2_xhci_command_enqueue(struct cdk2_xhci_ring *ring, UINT8 type,
+ }
+ 
+ EFI_STATUS cdk2_xhci_command_completion(struct cdk2_xhci_event_ring *ring,
+-	UINT64 command_address, UINT8 *completion_code, UINT8 *slot)
++	uint64_t command_address, uint8_t *completion_code, uint8_t *slot)
+ {
+ 	struct cdk2_xhci_trb event;
+ 	EFI_STATUS status;
+@@ -140,8 +140,8 @@ EFI_STATUS cdk2_xhci_command_completion(struct cdk2_xhci_event_ring *ring,
+ }
+ 
+ EFI_STATUS cdk2_xhci_build_control_transfer(struct cdk2_xhci_ring *ring,
+-	const struct cdk2_usb_request *request, UINT64 data_device, UINT32 data_length,
+-	BOOLEAN data_in, UINT16 *first, UINT16 *count)
++	const struct cdk2_usb_request *request, uint64_t data_device,
++	uint32_t data_length, uint8_t data_in, uint16_t *first, uint16_t *count)
+ {
+ 	struct cdk2_xhci_segment segment = { data_device, data_length };
+ 	return cdk2_xhci_build_control_transfer_segments(ring, request,
+@@ -151,19 +151,19 @@ EFI_STATUS cdk2_xhci_build_control_transfer(struct cdk2_xhci_ring *ring,
+ 
+ EFI_STATUS cdk2_xhci_build_control_transfer_segments(struct cdk2_xhci_ring *ring,
+ 	const struct cdk2_usb_request *request,
+-	const struct cdk2_xhci_segment *segments, UINTN segment_count,
+-	UINT16 maximum_packet, BOOLEAN data_in, UINT16 *first, UINT16 *count)
++	const struct cdk2_xhci_segment *segments, size_t segment_count,
++	uint16_t maximum_packet, uint8_t data_in, uint16_t *first, uint16_t *count)
+ {
+-	UINT64 setup = 0U;
+-	UINT32 transfer_type;
+-	UINTN data_length = 0U;
+-	UINT16 index;
++	uint64_t setup = 0U;
++	uint32_t transfer_type;
++	size_t data_length = 0U;
++	uint16_t index;
+ 	EFI_STATUS status;
+ 
+ 	if (maximum_packet == 0U || segment_count > CDK2_XHCI_TRANSFER_SEGMENTS ||
+ 	    (segment_count != 0U && segments == NULL))
+ 		return EFI_INVALID_PARAMETER;
+-	for (UINTN segment = 0U; segment < segment_count; segment++) {
++	for (size_t segment = 0U; segment < segment_count; segment++) {
+ 		if (segments[segment].device == 0U || segments[segment].length == 0U ||
+ 		    data_length > 0x1ffffU - segments[segment].length)
+ 			return EFI_INVALID_PARAMETER;
+@@ -180,12 +180,12 @@ EFI_STATUS cdk2_xhci_build_control_transfer_segments(struct cdk2_xhci_ring *ring
+ 		return status;
+ 	*first = index;
+ 	*count = 1U;
+-	for (UINTN segment = 0U; segment < segment_count; segment++) {
+-		UINTN remaining = data_length;
+-		UINT32 td_size;
+-		for (UINTN done = 0U; done <= segment; done++)
++	for (size_t segment = 0U; segment < segment_count; segment++) {
++		size_t remaining = data_length;
++		uint32_t td_size;
++		for (size_t done = 0U; done <= segment; done++)
+ 			remaining -= segments[done].length;
+-		td_size = (UINT32)((remaining + maximum_packet - 1U) / maximum_packet);
++		td_size = (uint32_t)((remaining + maximum_packet - 1U) / maximum_packet);
+ 		if (td_size > 31U)
+ 			td_size = 31U;
+ 		status = cdk2_xhci_ring_enqueue(ring, segments[segment].device,
+@@ -205,17 +205,17 @@ EFI_STATUS cdk2_xhci_build_control_transfer_segments(struct cdk2_xhci_ring *ring
+ }
+ 
+ EFI_STATUS cdk2_xhci_build_bulk_transfer(struct cdk2_xhci_ring *ring,
+-	const struct cdk2_xhci_segment *segments, UINTN segment_count,
+-	UINT16 maximum_packet, BOOLEAN data_in, UINT16 *first, UINT16 *count)
++	const struct cdk2_xhci_segment *segments, size_t segment_count,
++	uint16_t maximum_packet, uint8_t data_in, uint16_t *first, uint16_t *count)
+ {
+-	UINT16 index;
++	uint16_t index;
+ 	EFI_STATUS status;
+ 
+ 	if (ring == NULL || maximum_packet == 0U ||
+ 	    (segment_count != 0U && segments == NULL) ||
+ 	    segment_count > 64U || first == NULL || count == NULL)
+ 		return EFI_INVALID_PARAMETER;
+-	for (UINTN segment = 0; segment < segment_count; segment++)
++	for (size_t segment = 0; segment < segment_count; segment++)
+ 		if (segments[segment].device == 0U || segments[segment].length == 0U ||
+ 		    segments[segment].length > 0x1ffffU)
+ 			return EFI_BAD_BUFFER_SIZE;
+@@ -229,12 +229,12 @@ EFI_STATUS cdk2_xhci_build_bulk_transfer(struct cdk2_xhci_ring *ring,
+ 		}
+ 		return status;
+ 	}
+-	for (UINTN segment = 0; segment < segment_count; segment++) {
+-		UINTN remaining = 0U;
+-		UINT32 td_size;
+-		for (UINTN next = segment + 1U; next < segment_count; next++)
++	for (size_t segment = 0; segment < segment_count; segment++) {
++		size_t remaining = 0U;
++		uint32_t td_size;
++		for (size_t next = segment + 1U; next < segment_count; next++)
+ 			remaining += segments[next].length;
+-		td_size = (UINT32)((remaining + maximum_packet - 1U) / maximum_packet);
++		td_size = (uint32_t)((remaining + maximum_packet - 1U) / maximum_packet);
+ 		if (td_size > 31U)
+ 			td_size = 31U;
+ 		status = cdk2_xhci_ring_enqueue(ring, segments[segment].device,
+@@ -250,10 +250,10 @@ EFI_STATUS cdk2_xhci_build_bulk_transfer(struct cdk2_xhci_ring *ring,
+ 	return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS cdk2_xhci_decode_port(UINT32 portsc,
++EFI_STATUS cdk2_xhci_decode_port(uint32_t portsc,
+ 	struct cdk2_xhci_port_status *status)
+ {
+-	UINT8 speed;
++	uint8_t speed;
+ 
+ 	if (status == NULL)
+ 		return EFI_INVALID_PARAMETER;
+@@ -273,17 +273,18 @@ EFI_STATUS cdk2_xhci_decode_port(UINT32 portsc,
+ }
+ 
+ EFI_STATUS cdk2_xhci_build_address_context(void *input_context,
+-	UINTN input_size, void *device_context, UINTN device_size, BOOLEAN context_64,
+-	UINT8 speed, UINT8 root_port, UINT16 maximum_packet, UINT64 endpoint_ring,
+-	UINT32 route_string, UINT8 tt_hub_slot, UINT8 tt_port)
++	size_t input_size, void *device_context, size_t device_size, uint8_t context_64,
++	uint8_t speed, uint8_t root_port, uint16_t maximum_packet,
++	uint64_t endpoint_ring, uint32_t route_string, uint8_t tt_hub_slot,
++	uint8_t tt_port)
+ {
+-	UINTN context_size = context_64 ? 64U : 32U;
+-	UINT32 *input = input_context;
+-	UINT32 *device = device_context;
+-	UINT32 *input_slot;
+-	UINT32 *input_ep0;
+-	UINT32 *device_slot;
+-	UINT32 *device_ep0;
++	size_t context_size = context_64 ? 64U : 32U;
++	uint32_t *input = input_context;
++	uint32_t *device = device_context;
++	uint32_t *input_slot;
++	uint32_t *input_ep0;
++	uint32_t *device_slot;
++	uint32_t *device_ep0;
+ 
+ 	if (input == NULL || device == NULL || speed == 0U || speed > 5U ||
+ 	    root_port == 0U || maximum_packet == 0U || (endpoint_ring & 0x3fU) != 0U ||
+@@ -293,15 +294,15 @@ EFI_STATUS cdk2_xhci_build_address_context(void *input_context,
+ 	memset(input, 0, input_size);
+ 	memset(device, 0, device_size);
+ 	input[1] = 3U;
+-	input_slot = (void *)((UINT8 *)input + context_size);
+-	input_ep0 = (void *)((UINT8 *)input_slot + context_size);
++	input_slot = (void *)((uint8_t *)input + context_size);
++	input_ep0 = (void *)((uint8_t *)input_slot + context_size);
+ 	device_slot = device;
+-	device_ep0 = (void *)((UINT8 *)device + context_size);
+-	input_slot[0] = route_string | (UINT32)speed << 20 | 1U << 27;
+-	input_slot[1] = (UINT32)root_port << 16;
+-	input_slot[2] = tt_hub_slot | (UINT32)tt_port << 8;
+-	input_ep0[1] = 3U << 1 | 4U << 3 | (UINT32)maximum_packet << 16;
+-	input_ep0[2] = (UINT32)endpoint_ring | 1U;
++	device_ep0 = (void *)((uint8_t *)device + context_size);
++	input_slot[0] = route_string | (uint32_t)speed << 20 | 1U << 27;
++	input_slot[1] = (uint32_t)root_port << 16;
++	input_slot[2] = tt_hub_slot | (uint32_t)tt_port << 8;
++	input_ep0[1] = 3U << 1 | 4U << 3 | (uint32_t)maximum_packet << 16;
++	input_ep0[2] = (uint32_t)endpoint_ring | 1U;
+ 	input_ep0[3] = endpoint_ring >> 32;
+ 	input_ep0[4] = 8U;
+ 	memcpy(device_slot, input_slot, context_size);
+diff --git a/src/modules/xhci/pci_adapter.c b/src/modules/xhci/pci_adapter.c
+index dcb81b014d..edb0df8ceb 100644
+--- a/src/modules/xhci/pci_adapter.c
++++ b/src/modules/xhci/pci_adapter.c
+@@ -15,7 +15,7 @@
+ #define PCI_MAP_BUS_MASTER_READ 0U
+ #define PCI_MAP_BUS_MASTER_WRITE 1U
+ 
+-BOOLEAN cdk2_xhci_pci_deadline_expired(
++uint8_t cdk2_xhci_pci_deadline_expired(
+ 	const struct cdk2_xhci_pci_adapter *adapter)
+ {
+ 	if (adapter == NULL)
+@@ -35,30 +35,36 @@ static void disable_deadline(void *opaque)
+ 	adapter->clock_context = NULL;
+ }
+ 
+-static EFI_STATUS read32(void *opaque, UINT32 offset, UINT32 *value)
++static EFI_STATUS read32(void *opaque, uint32_t offset, uint32_t *value)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
++	UINT32 efi_value = 0U;
++	EFI_STATUS status;
+ 
+ 	if (cdk2_xhci_pci_deadline_expired(adapter))
+ 		return EFI_TIMEOUT;
+-	return adapter->pci->mem.read(adapter->pci, PCI_WIDTH_UINT32, adapter->bar,
+-		offset, 1U, value);
++	status = adapter->pci->mem.read(adapter->pci, PCI_WIDTH_UINT32, adapter->bar,
++		offset, 1U, &efi_value);
++	if (!EFI_ERROR(status))
++		*value = efi_value;
++	return status;
+ }
+ 
+-static EFI_STATUS write32(void *opaque, UINT32 offset, UINT32 value)
++static EFI_STATUS write32(void *opaque, uint32_t offset, uint32_t value)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
++	UINT32 efi_value = value;
+ 
+ 	if (cdk2_xhci_pci_deadline_expired(adapter))
+ 		return EFI_TIMEOUT;
+ 	return adapter->pci->mem.write(adapter->pci, PCI_WIDTH_UINT32, adapter->bar,
+-		offset, 1U, &value);
++		offset, 1U, &efi_value);
+ }
+ 
+-static EFI_STATUS write64(void *opaque, UINT32 offset, UINT64 value)
++static EFI_STATUS write64(void *opaque, uint32_t offset, uint64_t value)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+-	UINT32 halves[2] = { value, value >> 32 };
++	uint32_t halves[2] = { value, value >> 32 };
+ 
+ 	if (cdk2_xhci_pci_deadline_expired(adapter))
+ 		return EFI_TIMEOUT;
+@@ -66,7 +72,7 @@ static EFI_STATUS write64(void *opaque, UINT32 offset, UINT64 value)
+ 		offset, 2U, halves);
+ }
+ 
+-static void delay(void *opaque, UINTN microseconds)
++static void delay(void *opaque, uint64_t microseconds)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+ 
+@@ -82,13 +88,15 @@ static EFI_STATUS flush(void *opaque)
+ 	return adapter->pci->flush(adapter->pci);
+ }
+ 
+-static EFI_STATUS allocate_dma(void *opaque, UINTN size, UINTN alignment,
++static EFI_STATUS allocate_dma(void *opaque, size_t size, size_t alignment,
+ 	struct cdk2_xhci_dma *dma)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+ 	struct cdk2_xhci_pci_allocation *record = NULL;
+-	UINTN pages = (size + 4095U) / 4096U;
+-	UINTN bytes = pages * 4096U;
++	size_t pages = (size + 4095U) / 4096U;
++	size_t bytes = pages * 4096U;
++	UINTN pages_efi = pages, bytes_efi = bytes;
++	UINT64 device_efi = 0U;
+ 	EFI_STATUS status;
+ 
+ 	if (dma == NULL || size == 0U || alignment == 0U ||
+@@ -96,26 +104,28 @@ static EFI_STATUS allocate_dma(void *opaque, UINTN size, UINTN alignment,
+ 		return EFI_INVALID_PARAMETER;
+ 	if (cdk2_xhci_pci_deadline_expired(adapter))
+ 		return EFI_TIMEOUT;
+-	for (UINTN index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++)
++	for (size_t index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++)
+ 		if (adapter->allocations[index].host == NULL) {
+ 			record = &adapter->allocations[index];
+ 			break;
+ 		}
+ 	if (record == NULL)
+ 		return EFI_OUT_OF_RESOURCES;
+-	status = adapter->pci->allocate_buffer(adapter->pci, 0U, 4U, pages,
++	status = adapter->pci->allocate_buffer(adapter->pci, 0U, 4U, pages_efi,
+ 		&dma->host, 0U);
+ 	if (EFI_ERROR(status))
+ 		return status;
+ 	status = adapter->pci->map(adapter->pci, PCI_MAP_COMMON_BUFFER, dma->host,
+-		&bytes, &dma->device, &record->mapping);
++		&bytes_efi, &device_efi, &record->mapping);
++	bytes = bytes_efi;
++	dma->device = device_efi;
+ 	if (EFI_ERROR(status) || bytes < size ||
+ 	    (!adapter->address_64 && (dma->device > UINT32_MAX ||
+ 	     bytes - 1U > UINT32_MAX - dma->device)) ||
+-	    (((UINTN)dma->host | dma->device) & (alignment - 1U)) != 0U) {
++	    (((uintptr_t)dma->host | dma->device) & (alignment - 1U)) != 0U) {
+ 		if (!EFI_ERROR(status))
+ 			(void)adapter->pci->unmap(adapter->pci, record->mapping);
+-		(void)adapter->pci->free_buffer(adapter->pci, pages, dma->host);
++		(void)adapter->pci->free_buffer(adapter->pci, pages_efi, dma->host);
+ 		memset(dma, 0, sizeof(*dma));
+ 		memset(record, 0, sizeof(*record));
+ 		return EFI_DEVICE_ERROR;
+@@ -131,13 +141,15 @@ static void release_dma(void *opaque, struct cdk2_xhci_dma *dma)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+ 
+-	for (UINTN index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++) {
++	for (size_t index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++) {
+ 		struct cdk2_xhci_pci_allocation *record = &adapter->allocations[index];
++		UINTN pages;
+ 
+ 		if (record->host != dma->host)
+ 			continue;
+ 		(void)adapter->pci->unmap(adapter->pci, record->mapping);
+-		(void)adapter->pci->free_buffer(adapter->pci, record->pages, record->host);
++		pages = record->pages;
++		(void)adapter->pci->free_buffer(adapter->pci, pages, record->host);
+ 		memset(record, 0, sizeof(*record));
+ 		return;
+ 	}
+@@ -147,26 +159,28 @@ static void unmap_buffer(void *opaque, struct cdk2_xhci_mapping *mapping)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+ 
+-	for (UINTN index = mapping->token_count; index > 0U; index--)
++	for (size_t index = mapping->token_count; index > 0U; index--)
+ 		(void)adapter->pci->unmap(adapter->pci, mapping->tokens[index - 1U]);
+ 	memset(mapping, 0, sizeof(*mapping));
+ }
+ 
+-static EFI_STATUS map_buffer(void *opaque, void *buffer, UINTN length,
+-	BOOLEAN device_writes, struct cdk2_xhci_mapping *mapping)
++static EFI_STATUS map_buffer(void *opaque, void *buffer, size_t length,
++	uint8_t device_writes, struct cdk2_xhci_mapping *mapping)
+ {
+ 	struct cdk2_xhci_pci_adapter *adapter = opaque;
+-	UINT8 *cursor = buffer;
+-	UINTN remaining = length;
++	uint8_t *cursor = buffer;
++	size_t remaining = length;
+ 	EFI_STATUS status;
+ 
+ 	if (buffer == NULL || mapping == NULL || length == 0U)
+ 		return EFI_INVALID_PARAMETER;
+ 	memset(mapping, 0, sizeof(*mapping));
+ 	while (remaining != 0U && mapping->count < CDK2_XHCI_TRANSFER_SEGMENTS) {
+-		UINTN bytes = remaining > 0x10000U ? 0x10000U : remaining;
+-		UINTN index = mapping->count;
+-		UINTN token = mapping->token_count;
++		size_t bytes = remaining > 0x10000U ? 0x10000U : remaining;
++		size_t index = mapping->count;
++		size_t token = mapping->token_count;
++		UINTN bytes_efi = bytes;
++		UINT64 device_efi = 0U;
+ 
+ 		if (cdk2_xhci_pci_deadline_expired(adapter)) {
+ 			unmap_buffer(adapter, mapping);
+@@ -174,7 +188,9 @@ static EFI_STATUS map_buffer(void *opaque, void *buffer, UINTN length,
+ 		}
+ 		status = adapter->pci->map(adapter->pci, device_writes ?
+ 			PCI_MAP_BUS_MASTER_WRITE : PCI_MAP_BUS_MASTER_READ, cursor,
+-			&bytes, &mapping->segments[index].device, &mapping->tokens[token]);
++			&bytes_efi, &device_efi, &mapping->tokens[token]);
++		bytes = bytes_efi;
++		mapping->segments[index].device = device_efi;
+ 		if (EFI_ERROR(status) || bytes == 0U || bytes > remaining) {
+ 			unmap_buffer(adapter, mapping);
+ 			return EFI_ERROR(status) ? status : EFI_DEVICE_ERROR;
+@@ -187,7 +203,7 @@ static EFI_STATUS map_buffer(void *opaque, void *buffer, UINTN length,
+ 		}
+ 		if (bytes > 0x10000U -
+ 		    (mapping->segments[index].device & 0xffffU)) {
+-			UINTN boundary = 0x10000U -
++			size_t boundary = 0x10000U -
+ 				(mapping->segments[index].device & 0xffffU);
+ 			if (mapping->count + 2U > CDK2_XHCI_TRANSFER_SEGMENTS) {
+ 				unmap_buffer(adapter, mapping);
+@@ -214,13 +230,14 @@ static EFI_STATUS map_buffer(void *opaque, void *buffer, UINTN length,
+ }
+ 
+ EFI_STATUS cdk2_xhci_pci_adapter_init(struct cdk2_xhci_pci_adapter *adapter,
+-	struct cdk2_efi_pci_io_protocol *pci, UINT8 bar, void *delay_context,
++	struct cdk2_efi_pci_io_protocol *pci, uint8_t bar, void *delay_context,
+ 	cdk2_xhci_delay_fn *delay_service, const struct cdk2_deadline *deadline,
+ 	cdk2_xhci_clock_fn *clock, void *clock_context)
+ {
+ 	CDK2_XHCI_DIAG("[CDK2][xhci][info] initialize PCI adapter\n");
+ 	UINT8 class_code[3];
+-	UINT64 supported;
++	uint64_t supported;
++	UINT64 original_efi, supported_efi;
+ 	EFI_STATUS status;
+ 
+ 	if (adapter == NULL || pci == NULL || delay_service == NULL ||
+@@ -245,12 +262,15 @@ EFI_STATUS cdk2_xhci_pci_adapter_init(struct cdk2_xhci_pci_adapter *adapter,
+ 		return EFI_UNSUPPORTED;
+ 	if (cdk2_xhci_pci_deadline_expired(adapter))
+ 		return EFI_TIMEOUT;
+-	status = pci->attributes(pci, PCI_ATTRIBUTE_GET, 0U,
+-		&adapter->original_attributes);
++	status = pci->attributes(pci, PCI_ATTRIBUTE_GET, 0U, &original_efi);
++	if (!EFI_ERROR(status))
++		adapter->original_attributes = original_efi;
+ 	if (!EFI_ERROR(status) && cdk2_xhci_pci_deadline_expired(adapter))
+ 		status = EFI_TIMEOUT;
+ 	if (!EFI_ERROR(status))
+-		status = pci->attributes(pci, PCI_ATTRIBUTE_SUPPORTED, 0U, &supported);
++		status = pci->attributes(pci, PCI_ATTRIBUTE_SUPPORTED, 0U, &supported_efi);
++	if (!EFI_ERROR(status))
++		supported = supported_efi;
+ 	if (!EFI_ERROR(status) && (supported & PCI_DEVICE_ENABLE) != PCI_DEVICE_ENABLE)
+ 		status = EFI_UNSUPPORTED;
+ 	if (!EFI_ERROR(status) && cdk2_xhci_pci_deadline_expired(adapter))
+@@ -289,7 +309,7 @@ void cdk2_xhci_pci_controller_services(struct cdk2_xhci_pci_adapter *adapter,
+ }
+ 
+ void cdk2_xhci_pci_set_address_width(struct cdk2_xhci_pci_adapter *adapter,
+-	BOOLEAN address_64)
++	uint8_t address_64)
+ {
+ 	if (adapter != NULL)
+ 		adapter->address_64 = address_64;
+@@ -302,7 +322,7 @@ EFI_STATUS cdk2_xhci_pci_adapter_release(struct cdk2_xhci_pci_adapter *adapter)
+ 
+ 	if (adapter == NULL || adapter->pci == NULL)
+ 		return EFI_INVALID_PARAMETER;
+-	for (UINTN index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++)
++	for (size_t index = 0; index < CDK2_XHCI_PCI_ALLOCATIONS; index++)
+ 		if (adapter->allocations[index].host != NULL) {
+ 			struct cdk2_xhci_dma dma = { .host = adapter->allocations[index].host };
+ 
+diff --git a/src/modules/xhci/usb2_abi.c b/src/modules/xhci/usb2_abi.c
+index f8316dfb36..f73dc5bace 100644
+--- a/src/modules/xhci/usb2_abi.c
++++ b/src/modules/xhci/usb2_abi.c
+@@ -136,7 +136,7 @@ static EFI_STATUS CDK2_MS_ABI get_state(struct cdk2_usb2_hc_protocol *this,
+ 		return EFI_INVALID_PARAMETER;
+ 	if (cdk2_xhci_controller_deadline_expired(owner(this)->controller))
+ 		return EFI_TIMEOUT;
+-	*state = owner(this)->state;
++	*state = (UINT32)owner(this)->state;
+ 	return EFI_SUCCESS;
+ }
+ 
+@@ -153,9 +153,9 @@ static EFI_STATUS CDK2_MS_ABI set_state(struct cdk2_usb2_hc_protocol *this,
+ 	status = serialize_protocol(usb2, &guard);
+ 	if (EFI_ERROR(status))
+ 		return status;
+-	status = cdk2_xhci_controller_set_state(usb2->controller, state);
++	status = cdk2_xhci_controller_set_state(usb2->controller, (size_t)state);
+ 	if (!EFI_ERROR(status))
+-		usb2->state = state;
++		usb2->state = (uint32_t)state;
+ 	return status;
+ }
+ 
+@@ -216,12 +216,13 @@ static EFI_STATUS ensure_device(struct cdk2_xhci_usb2 *usb2, UINT8 address,
+ 		if (root_port == 0U || maximum_packet > UINT16_MAX)
+ 			return EFI_NOT_READY;
+ 		if (EFI_ERROR(cdk2_xhci_device_enable(usb2->controller,
+-			root_port, xhci_speed, maximum_packet, route_string, tt_hub_slot,
++			root_port, xhci_speed, (uint16_t)maximum_packet, route_string, tt_hub_slot,
+ 			tt_port, candidate)))
+ 			return EFI_DEVICE_ERROR;
+ 	}
+ 	if (candidate->ep0_maximum_packet != maximum_packet &&
+-	    EFI_ERROR(cdk2_xhci_device_update_ep0(candidate, maximum_packet)))
++	    EFI_ERROR(cdk2_xhci_device_update_ep0(candidate,
++		(uint16_t)maximum_packet)))
+ 		return EFI_DEVICE_ERROR;
+ 	*device = candidate;
+ 	return EFI_SUCCESS;
+@@ -234,6 +235,7 @@ static EFI_STATUS CDK2_MS_ABI control_transfer(
+ {
+ 	struct cdk2_xhci_device *device = NULL;
+ 	struct cdk2_xhci_usb2 *usb2;
++	size_t native_length;
+ 	EFI_STATUS status;
+ 
+ 	(void)translator;
+@@ -284,9 +286,11 @@ static EFI_STATUS CDK2_MS_ABI control_transfer(
+ 		*result = CDK2_USB_NOERROR;
+ 		return EFI_SUCCESS;
+ 	}
++	native_length = *length;
+ 	if (!EFI_ERROR(status))
+-		status = cdk2_xhci_control_transfer(device, request, data, length,
++		status = cdk2_xhci_control_transfer(device, request, data, &native_length,
+ 			direction == 0U, timeout);
++	*length = (UINTN)native_length;
+ 	if (!EFI_ERROR(status) && direction == 0U && data != NULL && *length >= 7U &&
+ 	    request->request == 6U && request->value == 0x100U)
+ 		device->multi_tt = ((const UINT8 *)data)[6] == 2U;
+@@ -335,12 +339,12 @@ static EFI_STATUS CDK2_MS_ABI bulk_transfer(struct cdk2_usb2_hc_protocol *this,
+ 	if (status == EFI_ALREADY_STARTED)
+ 		status = EFI_SUCCESS;
+ 	if (!EFI_ERROR(status)) {
+-		UINTN remaining = *length;
+-		UINTN transferred = 0U;
++		size_t remaining = *length;
++		size_t transferred = 0U;
+ 
+ 		for (UINT8 index = 0U; index < buffers &&
+ 		     (remaining != 0U || (*length == 0U && index == 0U)); index++) {
+-			UINTN buffer_remaining = remaining > UINT32_MAX ? UINT32_MAX : remaining;
++			size_t buffer_remaining = remaining > UINT32_MAX ? UINT32_MAX : remaining;
+ 			UINT8 *cursor = data[index];
+ 
+ 			if (cursor == NULL) {
+@@ -348,9 +352,9 @@ static EFI_STATUS CDK2_MS_ABI bulk_transfer(struct cdk2_usb2_hc_protocol *this,
+ 				break;
+ 			}
+ 			while (buffer_remaining != 0U || (*length == 0U && index == 0U)) {
+-				UINTN requested = buffer_remaining > 0x200000U ?
++				size_t requested = buffer_remaining > 0x200000U ?
+ 					0x200000U : buffer_remaining;
+-				UINTN current = requested;
++				size_t current = requested;
+ 
+ 				status = cdk2_xhci_bulk_transfer(device, endpoint, cursor,
+ 					&current, timeout);
+@@ -371,7 +375,7 @@ static EFI_STATUS CDK2_MS_ABI bulk_transfer(struct cdk2_usb2_hc_protocol *this,
+ 			    device->last_completion == 13U)
+ 				break;
+ 		}
+-		*length = transferred;
++		*length = (UINTN)transferred;
+ 		if (!EFI_ERROR(status) && remaining != 0U && device->last_completion != 13U)
+ 			status = EFI_BAD_BUFFER_SIZE;
+ 	}
+@@ -390,7 +394,7 @@ static EFI_STATUS CDK2_MS_ABI async_interrupt(
+ 	UINTN interval, UINTN length, void *translator, void *callback, void *context)
+ {
+ 	struct cdk2_xhci_usb2 *usb2;
+-	UINTN free_index = 8U;
++	size_t free_index = 8U;
+ 	EFI_STATUS status;
+ 
+ 	(void)speed;
+@@ -430,7 +434,7 @@ static EFI_STATUS CDK2_MS_ABI async_interrupt(
+ 	usb2->async[free_index].address = address;
+ 	usb2->async[free_index].endpoint = endpoint;
+ 	if (EFI_ERROR(cdk2_xhci_async_interrupt_start(&usb2->devices[address],
+-		endpoint, length, maximum_packet, interval,
++		endpoint, (size_t)length, (uint32_t)maximum_packet, (uint16_t)interval,
+ 		&usb2->async[free_index].transfer))) {
+ 		memset(&usb2->async[free_index], 0, sizeof(usb2->async[free_index]));
+ 		return EFI_DEVICE_ERROR;
+@@ -446,6 +450,7 @@ static EFI_STATUS CDK2_MS_ABI sync_interrupt(struct cdk2_usb2_hc_protocol *this,
+ {
+ 	struct cdk2_xhci_device *device;
+ 	struct cdk2_xhci_usb2 *usb2;
++	size_t native_length;
+ 	EFI_STATUS status;
+ 
+ 	(void)speed; (void)translator;
+@@ -461,8 +466,10 @@ static EFI_STATUS CDK2_MS_ABI sync_interrupt(struct cdk2_usb2_hc_protocol *this,
+ 	device = &usb2->devices[address];
+ 	if (!device->enabled)
+ 		return EFI_NOT_FOUND;
+-	status = cdk2_xhci_interrupt_transfer(device, endpoint, data, length,
+-		maximum_packet, 1U, timeout);
++	native_length = *length;
++	status = cdk2_xhci_interrupt_transfer(device, endpoint, data, &native_length,
++		(uint32_t)maximum_packet, 1U, timeout);
++	*length = (UINTN)native_length;
+ 	*result = transfer_result(device, status);
+ 	return status;
+ }
+@@ -486,13 +493,13 @@ static EFI_STATUS CDK2_MS_ABI get_port(struct cdk2_usb2_hc_protocol *this,
+ 	if (EFI_ERROR(result))
+ 		return result;
+ 	if (!native.connected) {
+-		for (UINTN address = 0U; address < 256U; address++) {
+-			BOOLEAN busy = FALSE;
++		for (size_t address = 0U; address < 256U; address++) {
++			uint8_t busy = FALSE;
+ 
+ 			if (!usb2->devices[address].enabled ||
+ 			    usb2->devices[address].root_port != port + 1U)
+ 				continue;
+-			for (UINTN index = 0U; index < 8U; index++) {
++			for (size_t index = 0U; index < 8U; index++) {
+ 				EFI_STATUS stopped;
+ 
+ 				if (!usb2->async[index].active ||
+@@ -626,7 +633,7 @@ EFI_STATUS cdk2_xhci_usb2_release(struct cdk2_xhci_usb2 *usb2)
+ 
+ 	if (usb2 == NULL || usb2->controller == NULL)
+ 		return EFI_INVALID_PARAMETER;
+-	for (UINTN index = 0U; index < 8U; index++)
++	for (size_t index = 0U; index < 8U; index++)
+ 		if (usb2->async[index].active) {
+ 			EFI_STATUS status = cdk2_xhci_async_interrupt_stop(
+ 				&usb2->async[index].transfer);
+@@ -638,7 +645,7 @@ EFI_STATUS cdk2_xhci_usb2_release(struct cdk2_xhci_usb2 *usb2)
+ 		}
+ 	if (EFI_ERROR(first))
+ 		return first;
+-	for (UINTN address = 0U; address < 256U; address++)
++	for (size_t address = 0U; address < 256U; address++)
+ 		if (usb2->devices[address].enabled) {
+ 			EFI_STATUS status = cdk2_xhci_device_disable(&usb2->devices[address]);
+ 
+@@ -654,7 +661,7 @@ void cdk2_xhci_usb2_poll(struct cdk2_xhci_usb2 *usb2)
+ {
+ 	if (usb2 == NULL || cdk2_xhci_controller_deadline_expired(usb2->controller))
+ 		return;
+-	for (UINTN index = 0U; index < 8U; index++)
++	for (size_t index = 0U; index < 8U; index++)
+ 		if (usb2->async[index].active) {
+ 			if (cdk2_xhci_controller_deadline_expired(usb2->controller))
+ 				return;
+@@ -663,9 +670,10 @@ void cdk2_xhci_usb2_poll(struct cdk2_xhci_usb2 *usb2)
+ 
+ 			if (status == EFI_NOT_READY)
+ 				continue;
++			UINTN callback_length = usb2->async[index].transfer.actual;
+ 			(void)usb2->async[index].callback(
+ 				usb2->async[index].transfer.dma.host,
+-				usb2->async[index].transfer.actual,
++				callback_length,
+ 				usb2->async[index].context,
+ 				transfer_result(usb2->async[index].transfer.device, status));
+ 			if (EFI_ERROR(cdk2_xhci_async_interrupt_rearm(
+diff --git a/tests/xhci_controller_test.c b/tests/xhci_controller_test.c
+index 4546f5a77c..c76c0bb563 100644
+--- a/tests/xhci_controller_test.c
++++ b/tests/xhci_controller_test.c
+@@ -27,7 +27,7 @@ struct fixture {
+ 	BOOLEAN early_transfer, split_mapping;
+ };
+ 
+-static EFI_STATUS read32(void *opaque, UINT32 offset, UINT32 *value)
++static EFI_STATUS read32(void *opaque, uint32_t offset, uint32_t *value)
+ {
+ 	struct fixture *fixture = opaque;
+ 
+@@ -36,7 +36,7 @@ static EFI_STATUS read32(void *opaque, UINT32 offset, UINT32 *value)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static UINT64 clock_now(void *opaque)
++static uint64_t clock_now(void *opaque)
+ {
+ 	struct fixture *fixture = opaque;
+ 
+@@ -52,7 +52,7 @@ static void disable_deadline(void *opaque)
+ 	((struct fixture *)opaque)->deadline_disables++;
+ }
+ 
+-static EFI_STATUS write32(void *opaque, UINT32 offset, UINT32 value)
++static EFI_STATUS write32(void *opaque, uint32_t offset, uint32_t value)
+ {
+ 	struct fixture *fixture = opaque;
+ 
+@@ -100,7 +100,7 @@ static EFI_STATUS write32(void *opaque, UINT32 offset, UINT32 value)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS write64(void *opaque, UINT32 offset, UINT64 value)
++static EFI_STATUS write64(void *opaque, uint32_t offset, uint64_t value)
+ {
+ 	struct fixture *fixture = opaque;
+ 
+@@ -110,7 +110,7 @@ static EFI_STATUS write64(void *opaque, UINT32 offset, UINT64 value)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static void delay(void *opaque, UINTN microseconds)
++static void delay(void *opaque, uint64_t microseconds)
+ {
+ 	((struct fixture *)opaque)->delays++;
+ 	(void)microseconds;
+@@ -126,7 +126,7 @@ static EFI_STATUS flush(void *opaque)
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS allocate_dma(void *opaque, UINTN size, UINTN alignment,
++static EFI_STATUS allocate_dma(void *opaque, size_t size, size_t alignment,
+ 	struct cdk2_xhci_dma *dma)
+ {
+ 	struct fixture *fixture = opaque;
+@@ -155,22 +155,22 @@ static void release_dma(void *opaque, struct cdk2_xhci_dma *dma)
+ 	free(dma->host);
+ }
+ 
+-static EFI_STATUS map_buffer(void *opaque, void *buffer, UINTN length,
+-	BOOLEAN device_writes, struct cdk2_xhci_mapping *mapping)
++static EFI_STATUS map_buffer(void *opaque, void *buffer, size_t length,
++	uint8_t device_writes, struct cdk2_xhci_mapping *mapping)
+ {
+ 	struct fixture *fixture = opaque;
+ 	(void)device_writes;
+ 	if (fixture->split_mapping && length > 1U) {
+-		UINTN first = length / 2U;
++		size_t first = length / 2U;
+ 
+ 		*mapping = (struct cdk2_xhci_mapping) { .segments = {
+-			{ (UINTN)buffer, first },
+-			{ (UINTN)buffer + first, length - first },
++			{ (uint64_t)(uintptr_t)buffer, first },
++			{ (uint64_t)(uintptr_t)buffer + first, length - first },
+ 		}, .count = 2U, .length = length };
+ 		return EFI_SUCCESS;
+ 	}
+ 	*mapping = (struct cdk2_xhci_mapping) { .segments = {
+-		{ (UINTN)buffer, length } }, .count = 1U, .length = length };
++		{ (uint64_t)(uintptr_t)buffer, length } }, .count = 1U, .length = length };
+ 	return EFI_SUCCESS;
+ }
+ 
+@@ -295,7 +295,7 @@ int main(void)
+ 	CHECK(cdk2_xhci_device_enable(&controller, 2U, 3U, 64U, 0U, 0U, 0U,
+ 		&device) ==
+ 		EFI_SUCCESS && device.enabled && device.slot == 5U &&
+-		((UINT64 *)controller.dcbaa.host)[5] == device.device_context.device);
++		((uint64_t *)controller.dcbaa.host)[5] == device.device_context.device);
+ 	fixture.device = &device;
+ 	CHECK(cdk2_xhci_device_update_ep0(&device, 512U) == EFI_SUCCESS &&
+ 		device.ep0_maximum_packet == 512U &&
+@@ -303,7 +303,7 @@ int main(void)
+ 	{
+ 		struct cdk2_usb_request request = { 0x80U, 6U, 0x100U, 0U, 8U };
+ 		UINT8 buffer[8];
+-		UINTN length = sizeof(buffer);
++		size_t length = sizeof(buffer);
+ 
+ 		fixture.split_mapping = TRUE;
+ 		fixture.early_transfer = TRUE;
+diff --git a/tests/xhci_model_test.c b/tests/xhci_model_test.c
+index d7ec3b0e45..e08a9fa42b 100644
+--- a/tests/xhci_model_test.c
++++ b/tests/xhci_model_test.c
+@@ -17,7 +17,7 @@ int main(void)
+ 	struct cdk2_xhci_trb event_trbs[16] = { 0 };
+ 	struct cdk2_xhci_trb event;
+ 	UINT16 index;
+-	UINT64 command_address;
++	uint64_t command_address;
+ 	UINT8 completion, slot;
+ 	struct cdk2_usb_request request = { 0x80U, 6U, 0x100U, 0U, 18U };
+ 	struct cdk2_xhci_segment segments[2] = { { 0x200000U, 4096U },
+diff --git a/tests/xhci_pci_test.c b/tests/xhci_pci_test.c
+index 11b45e532f..915ed0d150 100644
+--- a/tests/xhci_pci_test.c
++++ b/tests/xhci_pci_test.c
+@@ -103,11 +103,11 @@ static EFI_STATUS CDK2_MS_ABI flush(struct cdk2_efi_pci_io_protocol *pci)
+ 	(void)pci;
+ 	return EFI_SUCCESS;
+ }
+-static void delay(void *opaque, UINTN microseconds)
++static void delay(void *opaque, uint64_t microseconds)
+ {
+ 	((struct fixture *)opaque)->delays += microseconds;
+ }
+-static UINT64 clock_now(void *opaque)
++static uint64_t clock_now(void *opaque)
+ {
+ 	return ((struct fixture *)opaque)->now;
+ }

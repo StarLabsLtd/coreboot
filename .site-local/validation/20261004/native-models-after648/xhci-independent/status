@@ -1,0 +1,15 @@
+default-model=0
+default-controller=0
+default-pci=0
+default-entry=0
+o0-model=0
+o0-controller=0
+o0-pci=0
+o0-entry=0
+o2-model=0
+o2-controller=0
+o2-pci=0
+o2-entry=0
+model-object-cmp=0
+controller-object-cmp=0
+diagnostic-object-cmp=0

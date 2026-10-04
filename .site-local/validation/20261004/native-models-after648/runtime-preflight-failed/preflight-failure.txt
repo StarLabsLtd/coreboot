@@ -1,0 +1,1 @@
+Preflight failed before compiler entry: gcc -print-file-name=cc1 returned literal cc1, not an existing tool. Use -print-prog-name for cc1/collect2 in a fresh retry. Source not edited.

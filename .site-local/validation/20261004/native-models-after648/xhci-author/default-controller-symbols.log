@@ -1,0 +1,44 @@
+00000000000003c6 00000000000001a6 t abort_command_ring
+                 U cdk2_deadline_expired_at
+0000000000002bbf 00000000000001bf T cdk2_xhci_async_interrupt_poll
+0000000000002d7e 000000000000002b T cdk2_xhci_async_interrupt_rearm
+0000000000002a7d 0000000000000142 T cdk2_xhci_async_interrupt_start
+0000000000002da9 00000000000001e5 T cdk2_xhci_async_interrupt_stop
+                 U cdk2_xhci_build_address_context
+                 U cdk2_xhci_build_bulk_transfer
+                 U cdk2_xhci_build_control_transfer_segments
+00000000000029ec 000000000000002c T cdk2_xhci_bulk_transfer
+0000000000000ae0 00000000000004bf t cdk2_xhci_bulk_transfer.part.0
+                 U cdk2_xhci_command_enqueue
+0000000000001f75 00000000000004b7 T cdk2_xhci_control_transfer
+00000000000015c3 000000000000022d T cdk2_xhci_controller_command
+00000000000002b4 0000000000000037 T cdk2_xhci_controller_deadline_expired
+00000000000008f8 0000000000000126 T cdk2_xhci_controller_destroy
+0000000000001c6f 0000000000000088 T cdk2_xhci_controller_get_port
+0000000000000f9f 00000000000005b8 T cdk2_xhci_controller_init
+0000000000001557 000000000000006c T cdk2_xhci_controller_reset
+0000000000001cf7 000000000000027e T cdk2_xhci_controller_set_port
+0000000000000a1e 00000000000000c2 T cdk2_xhci_controller_set_state
+                 U cdk2_xhci_decode_port
+0000000000002565 0000000000000487 T cdk2_xhci_device_configure_endpoint
+0000000000001be0 000000000000008f T cdk2_xhci_device_disable
+00000000000017f0 00000000000002c6 T cdk2_xhci_device_enable
+000000000000242c 0000000000000139 T cdk2_xhci_device_mark_hub
+0000000000001ab6 000000000000012a T cdk2_xhci_device_update_ep0
+                 U cdk2_xhci_event_ring_dequeue
+                 U cdk2_xhci_event_ring_init
+0000000000002a18 0000000000000065 T cdk2_xhci_interrupt_transfer
+                 U cdk2_xhci_ring_enqueue
+                 U cdk2_xhci_ring_init
+000000000000056c 00000000000001ac t endpoint_command
+00000000000001db 00000000000000d9 t matching_td_event
+                 U memcpy
+                 U memset
+000000000000035e 0000000000000068 t next_event
+000000000000012e 00000000000000ad t purge_ring_events
+000000000000004e 000000000000007a t release_device_dma
+00000000000000c8 0000000000000023 t release_dma
+0000000000000000 000000000000004e t retain_event
+0000000000000718 00000000000001e0 t submit_async
+00000000000000eb 0000000000000043 t td_contains.isra.0
+00000000000002eb 0000000000000073 t wait_mask

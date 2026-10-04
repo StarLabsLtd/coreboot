@@ -1,0 +1,365 @@
+diff --git a/src/modules/runtime_arch/entry.c b/src/modules/runtime_arch/entry.c
+index ccd34d488c..94afc17ca8 100644
+--- a/src/modules/runtime_arch/entry.c
++++ b/src/modules/runtime_arch/entry.c
+@@ -97,7 +97,7 @@ static const EFI_GUID runtime_arch_guid = { 0xb7dfb4e1, 0x052f, 0x449f,
+ static struct cdk2_runtime_arch_protocol protocol;
+ static struct cdk2_runtime_map active_map;
+ static struct runtime_image_entry self_image;
+-static UINT8 self_relocation_snapshot[16384] __aligned(8);
++static uint8_t self_relocation_snapshot[16384] __aligned(8);
+ 
+ #define VIRTUAL_ADDRESS_CHANGE_EVENT 0x60000202U
+ #define EXIT_BOOT_SERVICES_EVENT 0x00000201U
+@@ -117,7 +117,7 @@ void cdk2_runtime_arch_test_reset(void)
+ }
+ #endif
+ 
+-static BOOLEAN range_valid(UINTN offset, UINTN size, UINTN limit)
++static uint8_t range_valid(size_t offset, size_t size, size_t limit)
+ {
+ 	return offset <= limit && size <= limit - offset;
+ }
+@@ -130,18 +130,19 @@ static void CDK2_MS_ABI exit_boot_services(void *event, void *context)
+ }
+ 
+ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+-	UINTN virtual_base, BOOLEAN apply)
++	uintptr_t virtual_base, uint8_t apply)
+ {
+ 	struct cdk2_pe_image_view view;
+ 	EFI_IMAGE_DATA_DIRECTORY directory;
+-	UINT8 *base = image->image_base, *snapshot = image->relocation_data;
+-	UINTN offset, end, adjust, index;
++	uint8_t *base = image->image_base, *snapshot = image->relocation_data;
++	size_t offset, end, index;
++	uintptr_t adjust;
+ 	EFI_STATUS status;
+ 
+ 	if (image->image_base == NULL || image->relocation_data == NULL ||
+-	    image->image_size > MAX_UINTN)
++	    image->image_size > SIZE_MAX)
+ 		return EFI_COMPROMISED_DATA;
+-	status = cdk2_pe_image_view_open(base, (UINTN)image->image_size, &view);
++	status = cdk2_pe_image_view_open(base, (size_t)image->image_size, &view);
+ 	if (EFI_ERROR(status))
+ 		return status;
+ 	if (!cdk2_pe_image_view_native_supported(&view))
+@@ -151,14 +152,14 @@ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+ 	if (EFI_ERROR(status))
+ 		return status;
+ 	if (directory.size == 0 || !range_valid(directory.virtual_address,
+-		directory.size, (UINTN)image->image_size))
++		directory.size, (size_t)image->image_size))
+ 		return EFI_COMPROMISED_DATA;
+-	adjust = virtual_base - (UINTN)image->image_base;
++	adjust = virtual_base - (uintptr_t)image->image_base;
+ 	offset = directory.virtual_address;
+ 	end = offset + directory.size;
+ 	while (offset < end) {
+-		UINT32 block_virtual, block_size;
+-		UINTN count;
++		uint32_t block_virtual, block_size;
++		size_t count;
+ 
+ 		if (!range_valid(offset, sizeof(EFI_IMAGE_BASE_RELOCATION), end))
+ 			return EFI_COMPROMISED_DATA;
+@@ -170,11 +171,11 @@ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+ 		    ((block_size - sizeof(EFI_IMAGE_BASE_RELOCATION)) & 1U) != 0)
+ 			return EFI_COMPROMISED_DATA;
+ 		count = (block_size - sizeof(EFI_IMAGE_BASE_RELOCATION)) /
+-			sizeof(UINT16);
++			sizeof(uint16_t);
+ 		for (index = 0; index < count; index++) {
+-			UINT16 relocation;
+-			UINTN target;
+-			UINTN type;
++			uint16_t relocation;
++			size_t target;
++			size_t type;
+ 
+ 			memcpy(&relocation, base + offset +
+ 				sizeof(EFI_IMAGE_BASE_RELOCATION) +
+@@ -185,15 +186,15 @@ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+ 			if (type == EFI_IMAGE_REL_BASED_ABSOLUTE)
+ 				continue;
+ 			if (type == EFI_IMAGE_REL_BASED_DIR64) {
+-				UINT64 value, saved;
++				uint64_t value, saved;
+ 
+ 				if (!range_valid(target, sizeof(value),
+-					(UINTN)image->image_size))
++					(size_t)image->image_size))
+ 					return EFI_COMPROMISED_DATA;
+-				snapshot = (void *)(((UINTN)snapshot + 7U) & ~(UINTN)7U);
++				snapshot = (void *)(((uintptr_t)snapshot + 7U) & ~(uintptr_t)7U);
+ 				if (image == &self_image &&
+-				    (UINTN)snapshot > (UINTN)self_relocation_snapshot +
+-					sizeof(self_relocation_snapshot) - sizeof(UINT64))
++				    (uintptr_t)snapshot > (uintptr_t)self_relocation_snapshot +
++					sizeof(self_relocation_snapshot) - sizeof(uint64_t))
+ 					return EFI_OUT_OF_RESOURCES;
+ 				memcpy(&value, base + target, sizeof(value));
+ 				memcpy(&saved, snapshot, sizeof(saved));
+@@ -205,29 +206,29 @@ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+ 				} else if (image == &self_image) {
+ 					memcpy(snapshot, &value, sizeof(value));
+ 				}
+-				snapshot += sizeof(UINT64);
++				snapshot += sizeof(uint64_t);
+ 			} else if (type == IMAGE_REL_BASED_HIGHLOW) {
+-				UINT32 value, saved;
++				uint32_t value, saved;
+ 
+ 				if (!range_valid(target, sizeof(value),
+-					(UINTN)image->image_size))
++					(size_t)image->image_size))
+ 					return EFI_COMPROMISED_DATA;
+-				snapshot = (void *)(((UINTN)snapshot + 3U) & ~(UINTN)3U);
++				snapshot = (void *)(((uintptr_t)snapshot + 3U) & ~(uintptr_t)3U);
+ 				if (image == &self_image &&
+-				    (UINTN)snapshot > (UINTN)self_relocation_snapshot +
+-					sizeof(self_relocation_snapshot) - sizeof(UINT32))
++				    (uintptr_t)snapshot > (uintptr_t)self_relocation_snapshot +
++					sizeof(self_relocation_snapshot) - sizeof(uint32_t))
+ 					return EFI_OUT_OF_RESOURCES;
+ 				memcpy(&value, base + target, sizeof(value));
+ 				memcpy(&saved, snapshot, sizeof(saved));
+ 				if (apply) {
+ 					if (value == saved) {
+-						value += (UINT32)adjust;
++						value += (uint32_t)adjust;
+ 						memcpy(base + target, &value, sizeof(value));
+ 					}
+ 				} else if (image == &self_image) {
+ 					memcpy(snapshot, &value, sizeof(value));
+ 				}
+-				snapshot += sizeof(UINT32);
++				snapshot += sizeof(uint32_t);
+ 			} else {
+ 				return EFI_UNSUPPORTED;
+ 			}
+@@ -240,7 +241,7 @@ static EFI_STATUS relocate_image(struct runtime_image_entry *image,
+ static EFI_STATUS validate_list(struct cdk2_runtime_list_entry *head)
+ {
+ 	struct cdk2_runtime_list_entry *link = head->forward, *previous = head;
+-	UINTN count = 0;
++	size_t count = 0;
+ 
+ 	while (link != head) {
+ 		if (link == NULL || link->back != previous || ++count > MAX_RUNTIME_ENTRIES)
+@@ -268,7 +269,7 @@ static EFI_STATUS convert_optional_slot(void **slot)
+ 	return cdk2_runtime_convert_pointer(&active_map, 1U, slot);
+ }
+ 
+-static EFI_STATUS validate_range(const void *address, UINTN size,
++static EFI_STATUS validate_range(const void *address, size_t size,
+ 	void **converted)
+ {
+ 	return cdk2_runtime_convert_range(&active_map, address, size, converted);
+@@ -301,7 +302,7 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 	struct cdk2_runtime_list_entry *link;
+ 	void **runtime_slots;
+ 	void *virtual_map;
+-	UINTN index;
++	size_t index;
+ 	EFI_STATUS status;
+ 	extern struct system_table *cdk2_runtime_system_table;
+ 
+@@ -331,14 +332,14 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 	}
+ 	system = cdk2_runtime_system_table;
+ 	runtime = system->runtime;
+-	runtime_slots = (void **)((UINT8 *)runtime + 24U);
++	runtime_slots = (void **)((uint8_t *)runtime + 24U);
+ 	for (index = 0; index < 14; index++)
+ 		if (EFI_ERROR(validate_slot(&runtime_slots[index]))) {
+ 			status = EFI_NO_MAPPING;
+ 			goto fail;
+ 		}
+-	if (EFI_ERROR(validate_slot((void **)((UINT8 *)system + 24U))) ||
+-	    EFI_ERROR(validate_slot((void **)((UINT8 *)system + 88U)))) {
++	if (EFI_ERROR(validate_slot((void **)((uint8_t *)system + 24U))) ||
++	    EFI_ERROR(validate_slot((void **)((uint8_t *)system + 88U)))) {
+ 		status = EFI_NO_MAPPING;
+ 		goto fail;
+ 	}
+@@ -372,19 +373,19 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 	}
+ 	for (link = protocol.image_head.forward; link != &protocol.image_head;
+ 	     link = link->forward) {
+-		struct runtime_image_entry *entry = (void *)((UINT8 *)link -
++		struct runtime_image_entry *entry = (void *)((uint8_t *)link -
+ 			offsetof(struct runtime_image_entry, link));
+ 		void *converted = entry->image_base;
+ 
+-		status = entry->image_size > MAX_UINTN ? EFI_NO_MAPPING :
+-			validate_range(entry->image_base, (UINTN)entry->image_size,
++		status = entry->image_size > SIZE_MAX ? EFI_NO_MAPPING :
++			validate_range(entry->image_base, (size_t)entry->image_size,
+ 				&converted);
+ 		if (EFI_ERROR(status)) {
+ 			if (status == EFI_NOT_FOUND)
+ 				status = EFI_NO_MAPPING;
+ 			goto fail;
+ 		}
+-		status = relocate_image(entry, (UINTN)converted, FALSE);
++		status = relocate_image(entry, (uintptr_t)converted, FALSE);
+ 		if (EFI_ERROR(status))
+ 			goto fail;
+ 	}
+@@ -402,7 +403,7 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 	protocol.memory_map_virtual = virtual_map;
+ 	for (link = protocol.event_head.forward; link != &protocol.event_head;
+ 	     link = link->forward) {
+-		struct runtime_event_entry *entry = (void *)((UINT8 *)link -
++		struct runtime_event_entry *entry = (void *)((uint8_t *)link -
+ 			offsetof(struct runtime_event_entry, link));
+ 
+ 		if ((entry->type & VIRTUAL_ADDRESS_CHANGE_EVENT) ==
+@@ -411,12 +412,12 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 	}
+ 	for (link = protocol.image_head.forward; link != &protocol.image_head;
+ 	     link = link->forward) {
+-		struct runtime_image_entry *entry = (void *)((UINT8 *)link -
++		struct runtime_image_entry *entry = (void *)((uint8_t *)link -
+ 			offsetof(struct runtime_image_entry, link));
+ 		void *converted = entry->image_base;
+ 
+ 		(void)convert_slot(&converted);
+-		(void)relocate_image(entry, (UINTN)converted, TRUE);
++		(void)relocate_image(entry, (uintptr_t)converted, TRUE);
+ 	}
+ 	for (index = 0; index < 14; index++)
+ 		if (EFI_ERROR(convert_slot(&runtime_slots[index])))
+@@ -427,9 +428,9 @@ static EFI_STATUS CDK2_MS_ABI set_virtual_map(UINTN map_size,
+ 		if (payload != NULL && !EFI_ERROR(convert_slot(&payload)))
+ 			system->tables[index].table = payload;
+ 	}
+-	if (EFI_ERROR(convert_slot((void **)((UINT8 *)system + 24U))) ||
+-	    EFI_ERROR(convert_slot((void **)((UINT8 *)system + 88U))) ||
+-	    EFI_ERROR(convert_optional_slot((void **)((UINT8 *)system + 112U))))
++	if (EFI_ERROR(convert_slot((void **)((uint8_t *)system + 24U))) ||
++	    EFI_ERROR(convert_slot((void **)((uint8_t *)system + 88U))) ||
++	    EFI_ERROR(convert_optional_slot((void **)((uint8_t *)system + 112U))))
+ 		goto fail_committed;
+ 	(void)update_crc(&runtime->header);
+ 	(void)update_crc(&system->header);
+diff --git a/tests/runtime_arch_entry_test.c b/tests/runtime_arch_entry_test.c
+index 1d10d8f0be..6b89c55b39 100644
+--- a/tests/runtime_arch_entry_test.c
++++ b/tests/runtime_arch_entry_test.c
+@@ -56,17 +56,17 @@ struct event_entry {
+ struct image_entry {
+ 	struct cdk2_runtime_list_entry link;
+ 	void *base;
+-	UINT64 size;
++	uint64_t size;
+ 	void *relocation_data, *handle;
+ };
+ 
+ static struct loaded loaded;
+ static struct cdk2_runtime_arch_protocol *published;
+-static UINTN notifications;
++static size_t notifications;
+ static void (CDK2_MS_ABI *exit_notify)(void *, void *);
+-static UINT8 image_storage[4096] __aligned(4096);
+-static UINT8 snapshot_pool[256U * 1024U] __aligned(4096);
+-static UINTN pool_allocations, pool_frees;
++static uint8_t image_storage[4096] __aligned(4096);
++static uint8_t snapshot_pool[256U * 1024U] __aligned(4096);
++static size_t pool_allocations, pool_frees;
+ static EFI_STATUS allocation_status, creation_status, installation_status;
+ static EFI_STATUS release_status, close_status;
+ static struct cdk2_runtime_memory_descriptor *caller_map_to_mutate;
+@@ -156,8 +156,8 @@ static int expect(int value, const char *text)
+ 
+ int main(void)
+ {
+-	UINT8 *image = image_storage + 1U;
+-	UINTN image_size = sizeof(image_storage) - 1U;
++	uint8_t *image = image_storage + 1U;
++	size_t image_size = sizeof(image_storage) - 1U;
+ 	struct boot boot = {
+ 		.header.size = sizeof(boot), .handle = handle,
+ 		.install = (install_fn *)install_fixed, .create = create, .close = close_event,
+@@ -174,17 +174,17 @@ int main(void)
+ 	EFI_IMAGE_NT_HEADERS64 pe = {0};
+ 	EFI_IMAGE_BASE_RELOCATION relocation = {0};
+ 	EFI_IMAGE_SECTION_HEADER section = {0};
+-	UINT16 relocation_record[2];
+-	UINT64 fixup;
+-	UINT64 relocation_snapshot;
+-	UINT64 replacement_fixup;
++	uint16_t relocation_record[2];
++	uint64_t fixup;
++	uint64_t relocation_snapshot;
++	uint64_t replacement_fixup;
+ 	struct image_entry runtime_image = {
+ 		.base = image, .size = sizeof(image_storage) - 1U,
+ 		.relocation_data = &relocation_snapshot
+ 	};
+-	UINTN stack_base = (UINTN)&system & ~(UINTN)0xfff;
+-	UINTN runtime_code_base, runtime_code_end;
+-	UINTN index;
++	uintptr_t stack_base = (uintptr_t)&system & ~(uintptr_t)0xfff;
++	uintptr_t runtime_code_base, runtime_code_end;
++	size_t index;
+ 	int failures = 0;
+ 	loaded.base = NULL;
+ 	loaded.size = image_size;
+@@ -277,7 +277,7 @@ int main(void)
+ 	memcpy(image + 0x200U, &relocation, sizeof(relocation));
+ 	memcpy(image + 0x200U + sizeof(relocation), relocation_record,
+ 		sizeof(relocation_record));
+-	fixup = (UINTN)image + 0x18U;
++	fixup = (uintptr_t)image + 0x18U;
+ 	memcpy(image + 0x300U, &fixup, sizeof(fixup));
+ 	relocation_snapshot = fixup;
+ 	replacement_fixup = relocation_snapshot + 0x55U;
+@@ -292,21 +292,21 @@ int main(void)
+ 		.number_of_pages = 4, .attributes = EFI_MEMORY_RUNTIME
+ 	};
+ 	descriptors[1] = (struct cdk2_runtime_memory_descriptor) {
+-		.physical_start = (UINTN)image & ~(UINTN)0xfff,
+-		.virtual_start = ((UINTN)image & ~(UINTN)0xfff) + 0x100000,
++		.physical_start = (uintptr_t)image & ~(uintptr_t)0xfff,
++		.virtual_start = ((uintptr_t)image & ~(uintptr_t)0xfff) + 0x100000,
+ 		.number_of_pages = 1, .attributes = EFI_MEMORY_RUNTIME
+ 	};
+-	runtime_code_base = (UINTN)runtime.set_map;
+-	if ((UINTN)runtime.convert < runtime_code_base)
+-		runtime_code_base = (UINTN)runtime.convert;
+-	if ((UINTN)boot.crc < runtime_code_base)
+-		runtime_code_base = (UINTN)boot.crc;
+-	runtime_code_end = (UINTN)runtime.set_map;
+-	if ((UINTN)runtime.convert > runtime_code_end)
+-		runtime_code_end = (UINTN)runtime.convert;
+-	if ((UINTN)boot.crc > runtime_code_end)
+-		runtime_code_end = (UINTN)boot.crc;
+-	runtime_code_base &= ~(UINTN)0xfff;
++	runtime_code_base = (uintptr_t)runtime.set_map;
++	if ((uintptr_t)runtime.convert < runtime_code_base)
++		runtime_code_base = (uintptr_t)runtime.convert;
++	if ((uintptr_t)boot.crc < runtime_code_base)
++		runtime_code_base = (uintptr_t)boot.crc;
++	runtime_code_end = (uintptr_t)runtime.set_map;
++	if ((uintptr_t)runtime.convert > runtime_code_end)
++		runtime_code_end = (uintptr_t)runtime.convert;
++	if ((uintptr_t)boot.crc > runtime_code_end)
++		runtime_code_end = (uintptr_t)boot.crc;
++	runtime_code_base &= ~(uintptr_t)0xfff;
+ 	descriptors[2] = (struct cdk2_runtime_memory_descriptor) {
+ 		.physical_start = runtime_code_base,
+ 		.virtual_start = runtime_code_base,
+@@ -314,8 +314,8 @@ int main(void)
+ 		.attributes = EFI_MEMORY_RUNTIME
+ 	};
+ 	descriptors[3] = (struct cdk2_runtime_memory_descriptor) {
+-		.physical_start = (UINTN)snapshot_pool,
+-		.virtual_start = (UINTN)snapshot_pool,
++		.physical_start = (uintptr_t)snapshot_pool,
++		.virtual_start = (uintptr_t)snapshot_pool,
+ 		.number_of_pages = sizeof(snapshot_pool) / 4096U,
+ 		.attributes = EFI_MEMORY_RUNTIME
+ 	};

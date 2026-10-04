@@ -1,0 +1,14 @@
+0000000000000856 00000000000001b3 T cdk2_xhci_build_address_context
+0000000000000616 00000000000001a3 T cdk2_xhci_build_bulk_transfer
+00000000000005d6 0000000000000040 T cdk2_xhci_build_control_transfer
+00000000000003ea 00000000000001ec T cdk2_xhci_build_control_transfer_segments
+000000000000035a 0000000000000090 T cdk2_xhci_command_completion
+00000000000002f1 0000000000000069 T cdk2_xhci_command_enqueue
+00000000000007b9 000000000000009d T cdk2_xhci_decode_port
+0000000000000264 000000000000008d T cdk2_xhci_event_ring_dequeue
+0000000000000227 000000000000003d T cdk2_xhci_event_ring_init
+0000000000000000 000000000000011b T cdk2_xhci_parse_capabilities
+0000000000000197 0000000000000090 T cdk2_xhci_ring_enqueue
+000000000000011b 000000000000007c T cdk2_xhci_ring_init
+                 U memcpy
+                 U memset

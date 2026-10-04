@@ -1,0 +1,2 @@
+ M src/modules/runtime_arch/entry.c
+ M tests/runtime_arch_entry_test.c

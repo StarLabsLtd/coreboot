@@ -1,0 +1,64 @@
+struct cdk2_usb_port_status {
+	uint16_t status, change;
+};
+
+struct cdk2_usb2_translator {
+	uint8_t hub_address;
+	uint8_t port_number;
+};
+
+struct cdk2_usb2_hc_protocol;
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_get_capability_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 *maximum_speed,
+	UINT8 *port_count, UINT8 *is_64bit);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_reset_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT16 attributes);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_get_state_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT32 *state);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_set_state_fn(
+	struct cdk2_usb2_hc_protocol *this, UINTN state);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_control_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 address, UINT8 speed,
+	UINTN maximum_packet, struct cdk2_usb_request *request, UINTN direction,
+	void *data, UINTN *length, UINTN timeout, void *translator, UINT32 *result);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_bulk_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 address, UINT8 endpoint,
+	UINT8 speed, UINTN maximum_packet, UINT8 buffers, void **data,
+	UINTN *length, UINT8 *toggle, UINTN timeout, void *translator,
+	UINT32 *result);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_async_interrupt_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 address, UINT8 endpoint,
+	UINT8 speed, UINTN maximum_packet, BOOLEAN new_transfer, UINT8 *toggle,
+	UINTN interval, UINTN length, void *translator, void *callback,
+	void *context);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_sync_interrupt_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 address, UINT8 endpoint,
+	UINT8 speed, UINTN maximum_packet, void *data, UINTN *length,
+	UINT8 *toggle, UINTN timeout, void *translator, UINT32 *result);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_async_callback_fn(void *data,
+	UINTN length, void *context, UINT32 result);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_stub_fn(void);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_get_port_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 port,
+	struct cdk2_usb_port_status *status);
+typedef EFI_STATUS CDK2_MS_ABI cdk2_usb2_port_feature_fn(
+	struct cdk2_usb2_hc_protocol *this, UINT8 port, UINTN feature);
+
+struct cdk2_usb2_hc_protocol {
+	cdk2_usb2_get_capability_fn *get_capability;
+	cdk2_usb2_reset_fn *reset;
+	cdk2_usb2_get_state_fn *get_state;
+	cdk2_usb2_set_state_fn *set_state;
+	cdk2_usb2_control_fn *control_transfer;
+	cdk2_usb2_bulk_fn *bulk_transfer;
+	cdk2_usb2_async_interrupt_fn *async_interrupt_transfer;
+	cdk2_usb2_sync_interrupt_fn *sync_interrupt_transfer;
+	cdk2_usb2_stub_fn *isochronous_transfer;
+	cdk2_usb2_stub_fn *async_isochronous_transfer;
+	cdk2_usb2_get_port_fn *get_root_hub_port_status;
+	cdk2_usb2_port_feature_fn *set_root_hub_port_feature;
+	cdk2_usb2_port_feature_fn *clear_root_hub_port_feature;
+	UINT16 major_revision, minor_revision;
+};
+
+struct cdk2_xhci_usb2 {

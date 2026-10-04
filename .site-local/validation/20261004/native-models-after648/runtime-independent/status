@@ -1,0 +1,10 @@
+default-O0-model=0
+default-O0-entry=0
+default-O2-model=0
+default-O2-entry=0
+default-object-cmp=0
+strict-O0-model=0
+strict-O0-entry=0
+strict-O2-model=0
+strict-O2-entry=0
+strict-object-cmp=0

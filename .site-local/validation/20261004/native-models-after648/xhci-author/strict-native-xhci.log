@@ -1,0 +1,21 @@
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c: In function ‘cdk2_xhci_parse_capabilities’:
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c:26:38: error: conversion from ‘uint32_t’ {aka ‘unsigned int’} to ‘short unsigned int’ may change value [-Werror=conversion]
+   26 |                 .interface_version = capability0 >> 16,
+      |                                      ^~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c:29:34: error: conversion from ‘uint32_t’ {aka ‘unsigned int’} to ‘unsigned char’ may change value [-Werror=conversion]
+   29 |                 .maximum_ports = hcs1 >> 24,
+      |                                  ^~~~
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c: In function ‘cdk2_xhci_command_completion’:
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c:137:28: error: conversion from ‘uint32_t’ {aka ‘unsigned int’} to ‘uint8_t’ {aka ‘unsigned char’} may change value [-Werror=conversion]
+  137 |         *completion_code = event.status >> 24;
+      |                            ^~~~~
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c:138:17: error: conversion from ‘uint32_t’ {aka ‘unsigned int’} to ‘uint8_t’ {aka ‘unsigned char’} may change value [-Werror=conversion]
+  138 |         *slot = event.control >> 24;
+      |                 ^~~~~
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c: In function ‘cdk2_xhci_build_address_context’:
+/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types//src/modules/xhci/model.c:306:24: error: conversion from ‘uint64_t’ {aka ‘long unsigned int’} to ‘uint32_t’ {aka ‘unsigned int’} may change value [-Werror=conversion]
+  306 |         input_ep0[3] = endpoint_ring >> 32;
+      |                        ^~~~~~~~~~~~~
+cc1: all warnings being treated as errors
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/xhci-private-model-types/src/boot/Makefile:3848: /home/sean/Documents/.cdk2-worktrees/xhci-private-model-types/.xhci-gate-recovery.4UFYH6/strict/native/xhci-model-test] Error 1
+make: *** [Makefile:1150: native-xhci-test] Error 2

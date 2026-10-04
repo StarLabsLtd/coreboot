@@ -1,0 +1,17 @@
+There are 8 section headers, starting at offset 0xc0:
+
+Section Headers:
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        0000000000000000 000040 000000 00  AX  0   0  1
+  [ 2] .data             PROGBITS        0000000000000000 000040 000000 00  WA  0   0  1
+  [ 3] .bss              NOBITS          0000000000000000 000040 000000 00  WA  0   0  1
+  [ 4] .note.GNU-stack   PROGBITS        0000000000000000 000040 000000 00      0   0  1
+  [ 5] .symtab           SYMTAB          0000000000000000 000040 000030 18      6   2  8
+  [ 6] .strtab           STRTAB          0000000000000000 000070 00000e 00      0   0  1
+  [ 7] .shstrtab         STRTAB          0000000000000000 00007e 00003c 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), l (large), p (processor specific)

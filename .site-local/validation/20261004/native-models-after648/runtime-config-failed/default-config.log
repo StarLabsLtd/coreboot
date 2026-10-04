@@ -1,0 +1,2 @@
+/bin/bash: line 5: kconfig-conf: command not found
+make: *** [Makefile:975: /home/sean/runtime2-author-gates-retry.mIsvTK/default/.config] Error 127

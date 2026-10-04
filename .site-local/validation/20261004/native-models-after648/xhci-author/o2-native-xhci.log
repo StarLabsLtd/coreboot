@@ -1,0 +1,4 @@
+xhci model tests: PASS
+xhci controller tests: PASS
+xhci PCI adapter tests: PASS
+xhci entry tests: PASS
