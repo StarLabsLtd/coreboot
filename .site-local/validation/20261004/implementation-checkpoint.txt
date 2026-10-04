@@ -1,0 +1,99 @@
+CDK2 implementation and validation checkpoint, 2026-10-04
+
+Current source
+--------------
+Canonical /home/sean/Documents/cdk2 is clean on signed
+62352715633271454b9c2edc10c055c12fb5deef, the linear ready688 head.
+Ready687 (4ec31d9ccd4d9f75d169bfcaad4dcb1cb194ccc8) requires unique
+UART authority across diagnostic, serial HOB and early handoff consumers.
+Ready688 makes native USB controller selection depend on the USB policy
+and skips an XHCI storage candidate when the native controller is disabled.
+Both PRs are OPEN/non-draft; their exact heads and linear bases were checked.
+
+Completed bounded HOST qualification
+----------------------------------
+RTC runtime facts: actual FADT-to-coreboot-board-HOB-to-RTC consumer tests,
+including modern NO_CMOS, legacy PCAT and optional century behavior.
+RTC fixture style: current raw style and four full Coreboot model modes pass;
+the historical full685 lint failure remains preserved as a failure.
+Stable686 lint: complete stable dispatcher passes; not full checkpatch.
+UART r5: 74 statuses, 68 zero and six expected lookup-reversion failures;
+all eight serial-off/on O0/O2/ASAN/UBSAN models and both public families pass.
+UART r1-r4 failures are preserved literally, including fixture admission,
+pointer lint and the unmapped synthetic CBMEM fixture failure. The latter
+is diagnosed by the actual source path; no crash program counter was observed.
+USB r1: 40 statuses, 38 zero and two expected signed-old-code failures.
+The full profile configuration suite and eight real-header candidate models
+pass. Standalone component profiles have capsule/strict/expert all disabled.
+These are candidate-admission and configuration proofs, not USB hardware proof.
+All changes received independent source and actual-result review before signing.
+
+In progress, not qualified yet
+-----------------------------
+Exact joined688 normal: whole-normal-after688.20261004-r1.
+Exact joined688 full lint: full-lint-after688-final.20261004-r1.
+Both source/tool/config closures remain frozen through completion. Default
+review-profile-check/check/native-stage is queued after normal closes, using
+the same reviewed recipe package; it has not run on joined688 yet.
+The active normal run has reported review-profile-test failure: the checker
+changed in commit 094122722c, but its local provenance pins were not updated.
+The actual local checker and the pinned predecessor differ by the reviewed
+comparison-operand whitespace normalization. This is a tooling failure;
+the remaining -k tests continue, and no whole-normal PASS is claimed.
+The original full mixed-device suite is retained for the joined regression,
+not duplicated in the targeted USB receipt. No latest-head guest or hardware
+acceptance is implied by these bounded results or by an active process.
+
+Next runtime-fact audit, read-only findings
+-----------------------------------------
+Reference source: signed joined688; actual coreboot producer: signed
+7ee34bed989c46913c3ee6672fb25e83227c3b6c.
+Existing unique helpers already cover payload resources, DMA, authenticated
+variable endpoint, capsule delivery, SystemFMP, mainboard, UART and splash
+authority. Do not blanket-replace every first-match record lookup: capsule
+records and CBMEM entries deliberately support multiple records.
+
+Prioritize concrete authority inconsistencies, with unchanged absence and
+optional-record policies and actual consumer tests:
+1. TSC_INFO: generic HOB/diagnostic consumers still use first-match lookup,
+   while the deadline constant-clock authority already requires uniqueness.
+   Preserve measured fallback and authoritative CBMEM frequency. Prove no
+   HOB/timestamp/diagnostic mutation on ambiguous input through real consumers.
+2. FRAMEBUFFER: two first-match consumers remain alongside unique splash and
+   resource geometry authority. Use genuinely owned framebuffer fixtures;
+   preserve bounds and avoid drawing, capture or publication on ambiguity.
+3. FW_INFO: generic firmware HOB uses first-match alongside unique SystemFMP.
+   Preserve optional absence; version display strings are a separate audit.
+4. Optional SPI console mailbox: singleton producer, but first-match consumer.
+   Keep allocation and tuple checks and optional absence behavior unchanged.
+5. ACPI_RSDP: singleton producer; duplicate authority must not be treated as
+   ordinary absence and silently fall back to legacy CBMEM.
+
+One concrete redundant parse: HOB initialization calls update_acpi_handoff,
+then append_acpi_hobs; both obtain and parse the same ACPI board information.
+Consider a locally owned, validated snapshot shared by those synchronous
+consumers, not a persistent cache or new ABI. Retain existing RTC/TPM/MCFG
+lifetimes and malformed-root checks. No implementation or test result for
+these proposed follow-ups is claimed; joined gate inputs remain unchanged.
+An additional native-policy audit found NVMe and AHCI candidate classification
+still unconditional, despite their driver selections depending on the NVMe
+and ATA policies. The corresponding disabled-provider admission needs a
+bounded follow-up; no live controller or dispatch side effect is claimed.
+SD is already policy-gated and has no corresponding storage candidate enum
+in this route. Isolated source-only proposals may be prepared during gates;
+the actual joined688 source roots and gate inputs remain unchanged.
+
+Whole-project work still open
+----------------------------
+Remaining native style/dead-code/private protocol cleanup; complete runtime
+CBTABLES/Kconfig inventory and coreboot symbol reuse; early DMA controller
+enrollment and MTL/Cezanne producers; authenticated-variable/payload-MM
+enrollment, persistence and recovery; selected-boot TPM parity/live PCR1 and
+optional TPM; capsule BootNext/multiple/enrolled/power-loss tests; complete
+UI/settings/input/loaders/event-quiescence coverage; fresh whole-repository
+review cycles and PR reconstruction ledger; final exact-head QEMU acceptance;
+then authorized hardware cold/warm boots, EDK2 A/B and capsule round trips.
+No audited whole-project percentage or hardware-only completion claim exists.
+Necessary UEFI wire types and variable-store formats are not leftover EDK2
+build tooling. Native Make/Kconfig/direct-image packaging is already in place.
+Hardware remains out of scope for this active QEMU-only validation phase.
