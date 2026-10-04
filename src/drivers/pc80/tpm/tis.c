@@ -838,6 +838,7 @@ static void lpc_tpm_fill_ssdt(const struct device *dev)
 		acpigen_write_STA(ACPI_STATUS_DEVICE_ALL_OFF);
 
 	u16 port = dev->path.pnp.port;
+	u8 int_vec = tpm_read_int_vector(0);
 
 	/* Resources */
 	acpigen_write_name("_CRS");
@@ -853,8 +854,8 @@ static void lpc_tpm_fill_ssdt(const struct device *dev)
 		 */
 		struct acpi_irq tpm_irq_a = ACPI_IRQ_LEVEL_LOW(CONFIG_TPM_PIRQ);
 		acpi_device_write_interrupt(&tpm_irq_a);
-	} else if (tpm_read_int_vector(0) > 0) {
-		u8 int_vec = tpm_read_int_vector(0);
+	} else if (int_vec > 0 && int_vec <= 15) {
+		/* Only LPC SIRQ vectors 1-15 are defined by TPM_INT_VECTOR. */
 		u8 int_pol = tpm_read_int_polarity(0);
 		struct acpi_irq tpm_irq = ACPI_IRQ_LEVEL_LOW(int_vec);
 
