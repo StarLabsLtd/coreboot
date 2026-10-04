@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/psp.h>
+#include <boot_device.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <stdint.h>
@@ -12,14 +13,8 @@
 static u8 transfer_buffer[4 * KiB] __aligned(32);
 
 /*
- * Read data from the SPI flash via PSP RomArmor.
- * ROM Armor 2 only.
- *
- * On ROM Armor 3, reads can be done directly through ROM2/ROM3 MMIO,
- * so this function is not used.
- *
- * This bypasses direct SPI controller access and uses PSP firmware
- * to perform the read operation through RomArmor protocol.
+ * ROM Armor 3 reads use the mapped boot device; only ROM Armor 2 supports
+ * mailbox read commands.
  */
 static ssize_t psp_rom_armor_spi_readat(const struct region_device *rd, void *buf,
 					size_t offset, size_t len)
@@ -29,7 +24,7 @@ static ssize_t psp_rom_armor_spi_readat(const struct region_device *rd, void *bu
 	int ret;
 
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
-		return -1;
+		return rdev_readat(boot_device_ro(), buf, offset, len);
 
 	printk(BIOS_DEBUG, "PSP RomArmor rdev_ops: read offset=0x%zx, len=0x%zx\n",
 	       offset, len);
