@@ -1,0 +1,13 @@
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#36: FILE: /home/sean/stage-code-decorators-final.20261004-r1/old.c:36:
++#define MODEL_CODE __section(".stage_runtime_code") __noinline
+
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#38: FILE: /home/sean/stage-code-decorators-final.20261004-r1/old.c:38:
++#define PCI_CODE __section(".stage_pci_code") __noinline
+
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#40: FILE: /home/sean/stage-code-decorators-final.20261004-r1/old.c:40:
++#define XHCI_CODE __section(".stage_xhci_code") __noinline
+
+total: 3 errors, 0 warnings, 639 lines checked

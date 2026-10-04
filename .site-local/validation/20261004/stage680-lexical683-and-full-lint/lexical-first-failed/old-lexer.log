@@ -1,0 +1,4 @@
+tests/lexical_tokens.c:1: CamelCase identifier: tCHAR16
+tests/lexical_tokens.c:1: CamelCase identifier: nWARNING
+tests/lexical_tokens.c:1: CamelCase identifier: CamelLiteral
+tests/lexical_tokens.c:12: CamelCase identifier: thirdCamelName

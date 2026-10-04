@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/full-lint-after683-host",
+    "verify-commit",
+    "59225e6c7e7c0ff4f80984a0a291dd3cd0121856"
+  ],
+  "environment": {
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/full-lint-after683-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

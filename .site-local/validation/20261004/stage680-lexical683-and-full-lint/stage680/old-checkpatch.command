@@ -1,0 +1,1 @@
+perl /home/sean/Documents/.cdk2-worktrees/stage-code-decorators-after679/util/lint/checkpatch.pl --no-tree --typedefsfile /home/sean/Documents/.cdk2-worktrees/stage-code-decorators-after679/util/lint/cdk2-typedefs.checkpatch --show-types --file --quiet --max-line-length 96 /home/sean/stage-code-decorators-final.20261004-r1/old.c 

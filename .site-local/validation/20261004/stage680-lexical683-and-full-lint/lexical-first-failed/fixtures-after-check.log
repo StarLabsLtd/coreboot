@@ -1,0 +1,8 @@
+/home/sean/lint-lexical-followup-host.tSu0d4/lexer-fixture/tests/lexical_tokens.c: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/src/boot/Makefile: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/tests/native_boundary_style_lint_test.sh: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/util/lint/helper_functions.sh: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/util/lint/lint-stable-025-native-boundary: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/util/lint/lint-stable-027-attribute-helpers: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/util/lint/lint-stable-028-camelcase: OK
+/home/sean/lint-lexical-followup-host.tSu0d4/old-source/util/lint/lint-stable-029-native-types: OK

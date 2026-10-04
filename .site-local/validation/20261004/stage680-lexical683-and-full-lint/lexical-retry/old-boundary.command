@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/lint-lexical-followup-host-retry.JmMduj/tmp LANG=C LC_ALL=C sh /home/sean/lint-lexical-followup-host-retry.JmMduj/old-source/tests/native_boundary_style_lint_test.sh 

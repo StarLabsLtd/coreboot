@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/lint-lexical-followup-host-retry.JmMduj/tmp LANG=C LC_ALL=C sh /home/sean/Documents/.cdk2-worktrees/lint-lexical-followup-after677/util/lint/lint-stable-028-camelcase 

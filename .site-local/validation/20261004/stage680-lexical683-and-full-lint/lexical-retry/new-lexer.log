@@ -1,0 +1,3 @@
+tests/lexical_tokens.c:13: CamelCase identifier: firstCamelName
+tests/lexical_tokens.c:14: CamelCase identifier: secondCamelName
+tests/lexical_tokens.c:15: CamelCase identifier: thirdCamelName

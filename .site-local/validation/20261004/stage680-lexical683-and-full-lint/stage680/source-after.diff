@@ -1,0 +1,135 @@
+diff --git a/tests/dxe_core_capsule_disk_stage_test.c b/tests/dxe_core_capsule_disk_stage_test.c
+index 01e470e75c..5763cbbcae 100644
+--- a/tests/dxe_core_capsule_disk_stage_test.c
++++ b/tests/dxe_core_capsule_disk_stage_test.c
+@@ -33,11 +33,8 @@ EFI_STATUS __wrap_cdk2_capsule_disk_complete_esp(
+ #if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP && \
+ 	CONFIG_PAYLOAD_DMA_HANDOFF
+ 
+-#define MODEL_CODE __section(".stage_runtime_code") __noinline
+ #define MODEL_DATA __section(".stage_runtime_data")
+-#define PCI_CODE __section(".stage_pci_code") __noinline
+ #define PCI_DATA __section(".stage_pci_data")
+-#define XHCI_CODE __section(".stage_xhci_code") __noinline
+ #define XHCI_DATA __section(".stage_xhci_data")
+ extern char stage_runtime_begin[], stage_runtime_end[], stage_pci_begin[], stage_pci_end[];
+ extern char stage_xhci_begin[], stage_xhci_end[];
+@@ -141,14 +138,14 @@ static EFI_STATUS CDK2_MS_ABI pages_free(UINT64 address, UINTN pages)
+ 	return cdk2_dxe_free_pages(&core.memory, (void *)(uintptr_t)address, pages);
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_process(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI model_process(
+ 	struct cdk2_capsule_boot_protocol *protocol, const void *capsule, UINTN size)
+ {
+ 	(void)protocol; (void)capsule; (void)size;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_validate(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI model_validate(
+ 	struct cdk2_capsule_boot_protocol *protocol, const void *image, UINTN size)
+ {
+ 	const struct cdk2_capsule_header *array[] = { image };
+@@ -164,14 +161,14 @@ static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_validate(
+ 	return cdk2_capsule_query(array, 1, &policy, NULL, NULL, &maximum, &reset);
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_scatter(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI model_scatter(
+ 	struct cdk2_capsule_boot_protocol *protocol, UINT64 address)
+ {
+ 	(void)protocol; (void)address;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_query(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI model_query(
+ 	const struct cdk2_capsule_header *const *capsules, UINTN count,
+ 	UINT64 *maximum, UINT32 *reset)
+ {
+@@ -205,7 +202,7 @@ static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_query(
+ 	return status;
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_update(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI model_update(
+ 	const struct cdk2_capsule_header *const *capsules, UINTN count, UINT64 address)
+ {
+ 	struct capsule_scatter_block *scatter = (void *)(uintptr_t)address;
+@@ -220,35 +217,35 @@ static EFI_STATUS MODEL_CODE CDK2_MS_ABI model_update(
+ 	return fault == 20 ? EFI_SUCCESS : EFI_DEVICE_ERROR;
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI binding_supported(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI binding_supported(
+ 	struct driver_binding_view *binding, void *controller, void *path)
+ {
+ 	(void)binding; (void)controller; (void)path;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS MODEL_CODE CDK2_MS_ABI binding_stop(
++static EFI_STATUS __section(".stage_runtime_code") __noinline CDK2_MS_ABI binding_stop(
+ 	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
+ {
+ 	(void)binding; (void)controller; (void)count; (void)children;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS PCI_CODE CDK2_MS_ABI pci_supported(
++static EFI_STATUS __section(".stage_pci_code") __noinline CDK2_MS_ABI pci_supported(
+ 	struct driver_binding_view *binding, void *controller, void *path)
+ {
+ 	(void)binding; (void)controller; (void)path;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS PCI_CODE CDK2_MS_ABI pci_stop(
++static EFI_STATUS __section(".stage_pci_code") __noinline CDK2_MS_ABI pci_stop(
+ 	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
+ {
+ 	(void)binding; (void)controller; (void)count; (void)children;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS PCI_CODE CDK2_MS_ABI deactivate(
++static EFI_STATUS __section(".stage_pci_code") __noinline CDK2_MS_ABI deactivate(
+ 	struct cdk2_local_apic_timer_control *control)
+ {
+ 	assert(control == &model_timer && core.events.current_tpl == 31);
+@@ -264,7 +261,8 @@ static EFI_STATUS PCI_CODE CDK2_MS_ABI deactivate(
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS PCI_CODE CDK2_MS_ABI quiesce(struct cdk2_pci_dma_control *control)
++static EFI_STATUS __section(".stage_pci_code") __noinline CDK2_MS_ABI quiesce(
++	struct cdk2_pci_dma_control *control)
+ {
+ 	assert(control == &model_pci && core.events.current_tpl == 31);
+ 	pci_calls++;
+@@ -277,21 +275,21 @@ static EFI_STATUS PCI_CODE CDK2_MS_ABI quiesce(struct cdk2_pci_dma_control *cont
+ 	return EFI_SUCCESS;
+ }
+ 
+-static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_supported(
++static EFI_STATUS __section(".stage_xhci_code") __noinline CDK2_MS_ABI xhci_supported(
+ 	struct driver_binding_view *binding, void *controller, void *path)
+ {
+ 	(void)binding; (void)controller; (void)path;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_stop(
++static EFI_STATUS __section(".stage_xhci_code") __noinline CDK2_MS_ABI xhci_stop(
+ 	struct driver_binding_view *binding, void *controller, UINTN count, void **children)
+ {
+ 	(void)binding; (void)controller; (void)count; (void)children;
+ 	return EFI_UNSUPPORTED;
+ }
+ 
+-static EFI_STATUS XHCI_CODE CDK2_MS_ABI xhci_quiesce(
++static EFI_STATUS __section(".stage_xhci_code") __noinline CDK2_MS_ABI xhci_quiesce(
+ 	struct cdk2_xhci_control *control, void *controller)
+ {
+ 	assert(control == model_xhci && controller == (void *)30);

@@ -1,0 +1,198 @@
+diff --git a/docs/tcg2-boot-variable-parity.md b/docs/tcg2-boot-variable-parity.md
+index cd8f78a066..9e250858ce 100644
+--- a/docs/tcg2-boot-variable-parity.md
++++ b/docs/tcg2-boot-variable-parity.md
+@@ -4,7 +4,7 @@ The TCG2 driver's four legacy `EV_EFI_VARIABLE_BOOT` callers select PCR1:
+ BootOrder, BootCurrent, BootNext and the constructed Boot#### name. The generic
+ variable-measurement API still uses its caller's PCR argument. Application
+ measurements remain PCR4; GPT and boot-attempt actions remain PCR5; secure-boot
+-configuration variables remain PCR7; successful separators remain PCR0–7.
++configuration variables remain PCR7; successful separators remain PCR0-7.
+ 
+ This placement follows the pinned [EDK2 26.09 Tcg2Dxe source](https://github.com/StarLabsLtd/edk2/blob/aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272/SecurityPkg/Tcg/Tcg2Dxe/Tcg2Dxe.c)
+ `ReadAndMeasureBootVariable` and the legacy BOOT compatibility entry in the
+diff --git a/tests/native_boundary_style_lint_test.sh b/tests/native_boundary_style_lint_test.sh
+index d3cd7e14cf..6a1b85ce67 100755
+--- a/tests/native_boundary_style_lint_test.sh
++++ b/tests/native_boundary_style_lint_test.sh
+@@ -503,6 +503,10 @@ printf 'int good;\n' > "$recipe_root/src/good.c"
+ printf '#include <Library/BaseLib.h>\n' > "$recipe_root/outside/bad.c"
+ printf 'outside/\nresult\n' > "$recipe_root/.gitignore"
+ for scenario in direct helper actual_helper nested conditional_list conditional_alias \
++    explicit explicit_actual explicit_argument explicit_prerequisite \
++    explicit_literal explicit_unknown explicit_redefined explicit_assigned \
++    explicit_conditional explicit_environment explicit_constructed \
++    explicit_function explicit_nested explicit_unclosed \
+     prerequisite helper_argument helper_literal excluded unknown_helper \
+     helper_redefined helper_assigned helper_conditional helper_environment \
+     helper_constructed helper_function unknown_function forged_assignment \
+@@ -514,20 +518,20 @@ for scenario in direct helper actual_helper nested conditional_list conditional_
+ 	{
+ 		printf 'CC := cc\nBASE := src/good.c\nSOURCES := src/good.c\n'
+ 		case "$scenario" in
+-		helper_conditional) printf 'ifeq ($(MODE),then)\n' ;;
++		helper_conditional|explicit_conditional) printf 'ifeq ($(MODE),then)\n' ;;
+ 		esac
+ 		printf 'define host_test\n'
+ 		case "$scenario" in
+-		actual_helper)
++		actual_helper|explicit_actual)
+ 			awk '
+ 			 $0 == "define cdk2_native_host_test" { selected = 1; next }
+ 			 selected && $0 == "endef" { exit }
+ 			 selected { print }
+ 			' "$root/src/boot/Makefile"
+ 			;;
+-		helper_constructed) printf '\t$(CC) $(1) outside/$(2)\n' ;;
+-		helper_function) printf '\t$(CC) $(1) $(word 1,$(2))\n' ;;
+-		helper_literal) printf '\t$(CC) $(1) $(2) outside/bad.c\n' ;;
++		helper_constructed|explicit_constructed) printf '\t$(CC) $(1) outside/$(2)\n' ;;
++		helper_function|explicit_function) printf '\t$(CC) $(1) $(word 1,$(2))\n' ;;
++		helper_literal|explicit_literal) printf '\t$(CC) $(1) $(2) outside/bad.c\n' ;;
+ 		cross_file_define|dangling_define) ;;
+ 		*) printf '\t$(CC) $(1) $(2)\n' ;;
+ 		esac
+@@ -536,9 +540,9 @@ for scenario in direct helper actual_helper nested conditional_list conditional_
+ 		*) printf 'endef\n' ;;
+ 		esac
+ 		case "$scenario" in
+-		helper_redefined) printf 'define host_test\n\t$(CC) $(1) $(2)\nendef\n' ;;
+-		helper_assigned) printf 'host_test = $(shell touch forbidden)\n' ;;
+-		helper_conditional) printf 'endif\n' ;;
++		helper_redefined|explicit_redefined) printf 'define host_test\n\t$(CC) $(1) $(2)\nendef\n' ;;
++		helper_assigned|explicit_assigned) printf 'host_test = $(shell touch forbidden)\n' ;;
++		helper_conditional|explicit_conditional) printf 'endif\n' ;;
+ 		esac
+ 		case "$scenario" in
+ 		conditional_list|conditional_alias|conditional_cycle|conditional_environment|\
+@@ -560,13 +564,18 @@ for scenario in direct helper actual_helper nested conditional_list conditional_
+ 			printf 'SOURCES := \\\n\t$(filter %%.c,$^)\n' ;;
+ 		esac
+ 		case "$scenario" in
+-		prerequisite) printf 'all: outside/bad.c\n' ;;
++		prerequisite|explicit_prerequisite) printf 'all: outside/bad.c\n' ;;
+ 		forged_prerequisite) printf 'all: $(filter %%.c,$^)\n' ;;
+ 		forged_prerequisite_continued)
+ 			printf 'all: \\\n\t$(filter %%.c,$^)\n' ;;
+ 		*) printf 'all: $(SOURCES)\n' ;;
+ 		esac
+ 		case "$scenario" in
++		explicit_argument) printf '\t$(call host_test,outside/bad.c,"src/good.c")\n' ;;
++		explicit_unknown) printf '\t$(call missing,-O2,"src/good.c")\n' ;;
++		explicit_nested) printf '\t$(word 1,$(call host_test,-O2,"src/good.c"))\n' ;;
++		explicit_unclosed) printf '\t$(call host_test,-O2,"src/good.c"\n' ;;
++		explicit*) printf '\t$(call host_test,-D_GNU_SOURCE,\\\n\t  "src/good.c")\n' ;;
+ 		direct|prerequisite|forged_*|conditional_*)
+ 			printf '\t@$(CC) $(filter %%.c,$^) -o "$@"\n' ;;
+ 		nested|excluded)
+@@ -597,7 +606,7 @@ for scenario in direct helper actual_helper nested conditional_list conditional_
+ 	git -C "$recipe_root" init -q
+ 	git -C "$recipe_root" add .
+ 	case "$scenario" in
+-	helper_environment) control='host_test=$(shell touch forbidden)' ;;
++	helper_environment|explicit_environment) control='host_test=$(shell touch forbidden)' ;;
+ 		conditional_environment) control='LIST=outside/bad.c' ;;
+ 	conditional_environment_alias) control='ALIAS=outside/bad.c' ;;
+ 	*) control= ;;
+@@ -610,12 +619,14 @@ for scenario in direct helper actual_helper nested conditional_list conditional_
+ 			util/lint/lint-stable-025-native-boundary
+ 	fi) > "$recipe_root/result"
+ 	case "$scenario" in
+-	direct|helper|actual_helper|nested|conditional_list|conditional_alias)
++	direct|helper|actual_helper|nested|conditional_list|conditional_alias|\
++	explicit|explicit_actual)
+ 		if [ -s "$recipe_root/result" ]; then
+ 			cat "$recipe_root/result"
+ 			exit 1
+ 		fi ;;
+-	prerequisite|helper_argument|helper_literal|excluded|conditional_outside)
++	prerequisite|helper_argument|helper_literal|excluded|conditional_outside|\
++	explicit_argument|explicit_prerequisite|explicit_literal)
+ 		grep -q 'EDK-style include path.*outside/bad.c' "$recipe_root/result" ;;
+ 	conditional_cycle|conditional_environment|conditional_environment_alias|\
+ 	conditional_unknown|conditional_transitive)
+@@ -738,11 +749,31 @@ _Imaginary double imaginary_object;
+ int nativeCamelName;
+ int _GenericExtra;
+ EOF
++cat > "$style/tests/lexical_tokens.c" <<'EOF'
++const char *url = "https://example.invalid/CamelLiteral";
++const char *block = "/* CamelLiteral */";
++const char *escaped = "quoted \" // CamelLiteral /* end */";
++const char *rows = "\tCHAR16 member[1];\nWARNING: CamelLiteral";
++char quote = '\'';
++/* " CamelComment // still in block
++ * CamelComment " */
++// " CamelComment /* still in line
++// continued comment \
++CamelComment
++const char *continued = "CamelLiteral \
++CamelLiteral";
++int firstCamelName;
++int secondCamelName; /* " CamelComment */
++int thirdCamelName; // " CamelComment
++EOF
+ git -C "$style" init -q
+ git -C "$style" add .
+ 
+ (cd "$style" && util/lint/lint-stable-028-camelcase) > "$camel_result"
+-test "$(wc -l < "$camel_result")" -eq 6
++test "$(wc -l < "$camel_result")" -eq 9
++grep -q 'lexical_tokens.c:13:.*firstCamelName' "$camel_result"
++grep -q 'lexical_tokens.c:14:.*secondCamelName' "$camel_result"
++grep -q 'lexical_tokens.c:15:.*thirdCamelName' "$camel_result"
+ grep -q 'c11_keywords.c:6:.*nativeCamelName' "$camel_result"
+ grep -q 'c11_keywords.c:7:.*_GenericExtra' "$camel_result"
+ grep -q 'system_fmp_test_key_reference.h:2:.*UnrelatedCamelName' "$camel_result"
+diff --git a/util/lint/lint-stable-025-native-boundary b/util/lint/lint-stable-025-native-boundary
+index 5cad2a1406..ddf5e06bad 100755
+--- a/util/lint/lint-stable-025-native-boundary
++++ b/util/lint/lint-stable-025-native-boundary
+@@ -366,8 +366,13 @@ evaluate_build_descriptions()
+ 		if (value ~ /\$\(|\$\{/)
+ 			helper_invalid[helper_name] = 1
+ 	}
++	function explicit_source_call(value) {
++		return value ~ /^[[:space:]]+\$\(call[[:space:]]+[A-Za-z_][A-Za-z0-9_]*,/ && \
++		    value ~ /\.(c|h|S)([^A-Za-z0-9_.-]|$)/
++	}
+ 	function expand_recipe(value, token, name, prefix_size) {
+-		if (value !~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/)
++		if (value !~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/ && \
++		    !explicit_source_call(value))
+ 			return expand(value)
+ 		if (value ~ /\$\(call[[:space:]]/) {
+ 			if (!match(value,
+@@ -394,7 +399,8 @@ evaluate_build_descriptions()
+ 		return expand(value)
+ 	}
+ 	function record_recipe(value, recipe_index) {
+-		if (value ~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/) {
++		if (value ~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/ || \
++		    explicit_source_call(value)) {
+ 			line[++line_count] = value
+ 			line_location[line_count] = recipe_location
+ 			line_recipe[line_count] = 1
+diff --git a/util/lint/lint-stable-028-camelcase b/util/lint/lint-stable-028-camelcase
+index bc387c35b1..8b695e6692 100755
+--- a/util/lint/lint-stable-028-camelcase
++++ b/util/lint/lint-stable-028-camelcase
+@@ -85,10 +85,14 @@ printf '%s\n' "$FILELIST" | \
+ 		my $file = $ARGV;
+ 		my $code = $_;
+ 
+-		$code =~ s{/\*.*?\*/}{keep_newlines($&)}gse;
+-		$code =~ s{//[^\n]*}{ }g;
+-		$code =~ s{"(?:\\.|[^"\\])*"}{ }g;
+-		$code =~ s{'\''(?:\\.|[^'\''\\])*'\''}{ }g;
++		# Consume complete lexical tokens together: comment markers inside
++		# literals and quotes inside comments do not start another token.
++		$code =~ s{
++			"(?:\\.|[^"\\])*" |
++			'\''(?:\\.|[^'\''\\])*'\'' |
++			/\*.*?\*/ |
++			//(?:\\\r?\n|[^\n])*
++		}{keep_newlines($&)}gxse;
+ 
+ 		my $line_number = 0;
+ 		for my $line (split /\n/, $code, -1) {

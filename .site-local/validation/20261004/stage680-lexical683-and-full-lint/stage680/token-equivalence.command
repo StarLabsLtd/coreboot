@@ -1,0 +1,1 @@
+perl /home/sean/stage-code-decorators-host-recipe.WecndG/verify-tokens.pl /home/sean/stage-code-decorators-final.20261004-r1/old.c /home/sean/Documents/.cdk2-worktrees/stage-code-decorators-after679/tests/dxe_core_capsule_disk_stage_test.c 

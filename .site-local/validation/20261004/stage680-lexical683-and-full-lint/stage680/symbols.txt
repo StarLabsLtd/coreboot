@@ -1,0 +1,396 @@
+
+/home/sean/stage-code-decorators-final.20261004-r1/tmp/disk-capsule-stage-host.XIMYEz/test:     file format elf64-x86-64
+
+SYMBOL TABLE:
+0000000000000000 l    df *ABS*	0000000000000000              crt1.o
+0000000000441e5c l     O .note.ABI-tag	0000000000000020              __abi_tag
+0000000000000000 l    df *ABS*	0000000000000000              dxe_core_capsule_disk_stage_test.c
+0000000000403860 l     F .text	000000000000012b              fixture_close
+0000000000451f08 l     O .bss	0000000000000008              active_fixture
+0000000000439000 l     F .stage_runtime	000000000000000f              model_process
+0000000000439010 l     F .stage_runtime	000000000000000f              model_scatter
+0000000000439020 l     F .stage_runtime	000000000000000f              binding_supported
+0000000000439030 l     F .stage_runtime	000000000000000f              binding_stop
+000000000043a000 l     F .stage_pci	000000000000000f              pci_supported
+000000000043a010 l     F .stage_pci	000000000000000f              pci_stop
+000000000043b000 l     F .stage_xhci	000000000000000f              xhci_supported
+000000000043b010 l     F .stage_xhci	000000000000000f              xhci_stop
+0000000000403990 l     F .text	00000000000004eb              cdk2_hob_list_validate
+0000000000403f50 l     F .text	0000000000000132              fixture_delete
+0000000000404090 l     F .text	0000000000000163              fixture_open_volume
+0000000000451f10 l     O .bss	0000000000000008              process_calls
+0000000000404230 l     F .text	000000000000009f              test_free_pool
+00000000004042d0 l     F .text	00000000000000fc              test_allocate_pool
+000000000043b020 l     F .stage_xhci	000000000000032a              xhci_quiesce
+0000000000451ef8 l     O .bss	0000000000000008              model_xhci
+0000000000451ee8 l     O .bss	0000000000000004              timer_calls
+0000000000451ee4 l     O .bss	0000000000000004              pci_calls
+0000000000451ec4 l     O .bss	0000000000000004              fault
+0000000000451ee0 l     O .bss	0000000000000004              xhci_calls
+000000000043e2f8 l     O .rodata	000000000000000d              __PRETTY_FUNCTION__.4
+000000000043a020 l     F .stage_pci	0000000000000156              quiesce
+000000000043a480 l     O .stage_pci	0000000000000010              model_pci
+0000000000451ed0 l     O .bss	0000000000000008              retained
+000000000043e2f0 l     O .rodata	0000000000000008              __PRETTY_FUNCTION__.3
+000000000043a180 l     F .stage_pci	00000000000002e7              deactivate
+000000000043a490 l     O .stage_pci	0000000000000010              model_timer
+000000000043e2e0 l     O .rodata	000000000000000b              __PRETTY_FUNCTION__.2
+00000000004043d0 l     F .text	000000000000022d              publish
+00000000004025d0 l     F .text	000000000000001e              publish.cold
+000000000043e2d8 l     O .rodata	0000000000000008              __PRETTY_FUNCTION__.1
+0000000000439040 l     F .stage_runtime	00000000000004d2              model_query
+0000000000451ef0 l     O .bss	0000000000000004              query_calls
+00000000004516e0 l     O .bss	0000000000000088              model_services
+0000000000439520 l     F .stage_runtime	0000000000000334              model_validate
+0000000000404600 l     F .text	00000000000001d9              scanner_free
+0000000000451180 l     O .bss	0000000000000200              scanner_allocations
+00000000004047e0 l     F .text	00000000000002a3              fixture_open
+00000000004025ee l     F .text	000000000000000f              fixture_open.cold
+0000000000404a90 l     F .text	000000000000063f              test_capsule_delivery_hobs_init
+00000000004050d0 l     F .text	0000000000000576              fixture_read
+00000000004025fd l     F .text	000000000000000f              fixture_read.cold
+0000000000405650 l     F .text	0000000000000278              support_set
+0000000000451f38 l     O .bss	0000000000000008              support_set_status
+0000000000451f48 l     O .bss	0000000000000008              support_writes
+0000000000448510 l     O .data	0000000000000008              support_bits
+0000000000451f18 l     O .bss	0000000000000008              request_set_status
+0000000000451f28 l     O .bss	0000000000000008              request_writes
+00000000004484f8 l     O .data	0000000000000008              request_bits
+000000000040260c l     F .text	000000000000003c              support_set.cold
+00000000004058d0 l     F .text	000000000000040f              support_get
+0000000000451f20 l     O .bss	0000000000000008              request_get_status
+0000000000451f30 l     O .bss	0000000000000008              request_reads
+00000000004484e8 l     O .data	0000000000000008              request_size
+00000000004484f0 l     O .data	0000000000000004              request_attributes
+0000000000451f40 l     O .bss	0000000000000008              support_get_status
+0000000000448500 l     O .data	0000000000000008              support_size
+0000000000448508 l     O .data	0000000000000004              support_attributes
+0000000000402648 l     F .text	000000000000003c              support_get.cold
+0000000000439860 l     F .stage_runtime	000000000000036c              model_update
+0000000000451ea0 l     O .bss	0000000000000020              stage_input
+000000000043e308 l     O .rodata	000000000000000d              __PRETTY_FUNCTION__.5
+0000000000451eec l     O .bss	0000000000000004              stop_calls
+0000000000451edc l     O .bss	0000000000000004              update_calls
+0000000000405ce0 l     F .text	0000000000000877              disconnect_model
+0000000000451ec0 l     O .bss	0000000000000001              retire_filesystem_on_stop
+0000000000451f00 l     O .bss	0000000000000001              filesystem_retired
+0000000000439be0 l     O .stage_runtime	00000000000000c0              model_bindings
+0000000000402684 l     F .text	000000000000006c              disconnect_model.cold
+000000000043e330 l     O .rodata	0000000000000011              __PRETTY_FUNCTION__.7
+0000000000406560 l     F .text	00000000000000c3              pages_free
+0000000000451ed8 l     O .bss	0000000000000004              frees
+0000000000451ec8 l     O .bss	0000000000000008              retained_pages
+00000000004026f0 l     F .text	000000000000001e              pages_free.cold
+000000000043e318 l     O .rodata	000000000000000b              __PRETTY_FUNCTION__.6
+0000000000406630 l     F .text	000000000000011e              pages_allocate
+0000000000406750 l     F .text	0000000000000233              fixture_get_info
+0000000000406990 l     F .text	000000000000030d              absent_next
+000000000040270e l     F .text	000000000000000f              absent_next.cold
+0000000000406ca0 l     F .text	00000000000001c5              absent_get
+000000000040271d l     F .text	000000000000000f              absent_get.cold
+0000000000406e70 l     F .text	000000000000066c              cdk2_capsule_delivery_policy_validate.constprop.0
+00000000004074e0 l     F .text	0000000000000243              scanner_allocate
+0000000000407730 l     F .text	000000000000027a              private_control_callback.constprop.0
+00000000004079b0 l     F .text	0000000000001651              initialize_stage
+00000000004484e0 l     O .data	0000000000000004              source_image
+0000000000439ca0 l     O .stage_runtime	0000000000000090              model_processor
+000000000043e390 l     O .rodata	0000000000000010              boot_guid.12
+000000000043a4a0 l     O .stage_pci	0000000000000030              model_pci_binding
+000000000043e380 l     O .rodata	0000000000000010              timer_guid.11
+000000000043e370 l     O .rodata	0000000000000010              pci_guid.10
+000000000043e360 l     O .rodata	0000000000000010              xhci_guid.9
+000000000043e350 l     O .rodata	0000000000000010              host_guid.8
+00000000004484c8 l     O .data	000000000000000c              namespace_path
+000000000043b360 l     O .stage_xhci	0000000000000030              model_xhci_binding
+00000000004513e0 l     O .bss	0000000000000068              model_result
+00000000004484d8 l     O .data	0000000000000008              controller_path
+0000000000451780 l     O .bss	0000000000000710              model_storage
+0000000000451460 l     O .bss	0000000000000280              model_context
+00000000004513c0 l     O .bss	0000000000000020              model_scan
+0000000000451380 l     O .bss	0000000000000028              model_candidate
+000000000040272c l     F .text	00000000000000d2              initialize_stage.cold
+000000000043e3a0 l     O .rodata	0000000000000011              __PRETTY_FUNCTION__.13
+0000000000409010 l     F .text	0000000000000ab3              private_control_record.constprop.0
+00000000004027fe l     F .text	000000000000000f              private_control_record.constprop.0.cold
+0000000000409ad0 l     F .text	00000000000002b1              private_timer_control.constprop.0
+000000000043e400 l     O .rodata	0000000000000010              guid.21
+0000000000409d90 l     F .text	0000000000000b2c              private_pci_dma_control.constprop.0
+000000000043e3f0 l     O .rodata	0000000000000010              guid.20
+000000000040a8c0 l     F .text	0000000000000e76              private_xhci_control.constprop.0
+000000000043e410 l     O .rodata	0000000000000010              guid.24
+000000000040280d l     F .text	0000000000000019              process_disk_capsules.cold
+000000000040ceb0 l     F .text	0000000000000b63              test_scanner_terminal
+0000000000402826 l     F .text	0000000000000104              test_scanner_terminal.cold
+000000000043e2c0 l     O .rodata	0000000000000016              __PRETTY_FUNCTION__.0
+000000000040292a l     F .text	000000000000003c              stage_control_current.cold
+0000000000402966 l     F .text	000000000000003c              stage_storage_binding_current.cold
+00000000004029a2 l     F .text	0000000000000052              stage_disk_capsule.cold
+00000000004029f4 l     F .text	0000000000000036              __wrap_cdk2_capsule_disk_complete_esp.cold
+000000000043e3c0 l     O .rodata	0000000000000026              __PRETTY_FUNCTION__.15
+0000000000402a2a l     F .text	00000000000002a4              main.cold
+000000000043e3b1 l     O .rodata	0000000000000005              __PRETTY_FUNCTION__.14
+00000000004033f0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              database.c
+0000000000414f50 l     F .text	00000000000001d4              storage_path_length
+0000000000415130 l     F .text	000000000000010a              known_handle
+0000000000415240 l     F .text	00000000000007bc              install_protocol
+0000000000402cce l     F .text	000000000000001e              install_protocol.cold
+0000000000415a00 l     F .text	0000000000000659              cdk2_dxe_handle_span.part.0
+0000000000402cec l     F .text	000000000000001e              cdk2_dxe_handle_span.part.0.cold
+0000000000416060 l     F .text	0000000000000191              storage_path_from_handle
+0000000000402d0a l     F .text	000000000000005a              cdk2_dxe_uninstall.cold
+0000000000402d64 l     F .text	000000000000000f              cdk2_dxe_handle.cold
+000000000043e610 l     O .rodata	0000000000000010              device_path.6
+000000000043e600 l     O .rodata	0000000000000010              block_io.4
+0000000000402d73 l     F .text	000000000000003c              cdk2_dxe_validate_nvme_children.cold
+0000000000403410 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              image.c
+0000000000417670 l     F .text	00000000000001d9              transaction_is_current
+000000000043e620 l     O .rodata	0000000000000004              end_path.0
+0000000000402daf l     F .text	000000000000002d              cdk2_dxe_image_transaction_prepare.cold
+0000000000403430 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              memory.c
+0000000000418dc0 l     F .text	00000000000007db              allocate_external
+0000000000402ddc l     F .text	000000000000000f              allocate_external.cold
+00000000004195a0 l     F .text	00000000000003cb              cdk2_dxe_allocate_pages.part.0
+0000000000402deb l     F .text	000000000000000f              cdk2_dxe_allocate_pages.part.0.cold
+0000000000402dfa l     F .text	000000000000000f              cdk2_dxe_memory_initialize.cold
+0000000000402e09 l     F .text	000000000000000f              cdk2_dxe_allocate_pages_policy.cold
+0000000000402e18 l     F .text	000000000000002d              cdk2_dxe_free_pages.cold
+0000000000402e45 l     F .text	000000000000001e              cdk2_dxe_allocate_pool.cold
+0000000000403450 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              capsule_disk.c
+000000000041f080 l     F .text	00000000000000ac              report
+000000000041f130 l     F .text	000000000000019e              structural_valid
+000000000041f2d0 l     F .text	000000000000012e              validate_name
+000000000041f400 l     F .text	00000000000000e1              esp_source
+000000000041f4f0 l     F .text	0000000000000102              esp_open
+000000000041f600 l     F .text	000000000000044a              esp_read
+000000000041fa50 l     F .text	000000000000008d              esp_validate
+000000000041fae0 l     F .text	000000000000008d              esp_process
+000000000041fb70 l     F .text	0000000000000085              esp_alloc
+000000000041fc00 l     F .text	0000000000000085              esp_free
+000000000041fc90 l     F .text	00000000000000a3              esp_report
+000000000041fd40 l     F .text	000000000000036d              discard_transaction.part.0
+00000000004200b0 l     F .text	00000000000003a3              esp_file
+0000000000420460 l     F .text	000000000000037a              free_loaded.part.0.constprop.0
+00000000004207e0 l     F .text	00000000000004e9              compare_file_order
+0000000000420cd0 l     F .text	00000000000000e9              compare_loaded
+0000000000420dc0 l     F .text	00000000000005d3              copy_metadata
+00000000004213a0 l     F .text	00000000000001d9              esp_finish
+0000000000421580 l     F .text	0000000000000532              esp_remove_unread
+000000000043e640 l     O .rodata	0000000000000010              file_info_guid.0
+0000000000421ac0 l     F .text	0000000000004291              load_source
+000000000043e650 l     O .rodata	0000000000000010              fmp_capsule_guid
+0000000000425d60 l     F .text	000000000000077f              esp_remove
+0000000000402e63 l     F .text	000000000000000f              esp_remove.cold
+00000000004034f0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              lifecycle.c
+0000000000403470 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              presence_lifecycle.c
+0000000000403490 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              capsule_runtime.c
+000000000041bf40 l     F .text	00000000000003c3              validate
+000000000043e630 l     O .rodata	0000000000000010              fmp_capsule_guid
+00000000004034b0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              linear_boot.c
+000000000041c710 l     F .text	00000000000001bc              boot_path_valid
+00000000004034d0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              software_hash.c
+000000000043e750 l     O .rodata	000000000000001e              CSWTCH.3
+0000000000403510 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              2sha1.c
+000000000042d9b0 l     F .text	0000000000000b29              sha1_transform
+0000000000403530 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              2sha256.c
+000000000042ec50 l     F .text	0000000000001298              vb2_sha256_transform
+000000000043e880 l     O .rodata	0000000000000020              sha224_h0
+0000000000403550 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              2sha512.c
+00000000004308b0 l     F .text	000000000000116d              vb2_sha512_transform
+000000000043e8c0 l     O .rodata	0000000000000280              sha512_k
+000000000043eb40 l     O .rodata	0000000000000040              sha384_h0
+000000000043eb80 l     O .rodata	0000000000000040              sha512_h0
+0000000000403570 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              sm3.c
+0000000000432380 l     F .text	00000000000043a5              sm3_block_generic
+0000000000436730 l     F .text	0000000000000765              __sm3_final
+0000000000403590 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              diagnostic.c
+0000000000437850 l     F .text	0000000000000181              end_emit
+00000000006188d8 l     O .bss	0000000000000008              emitting_owner
+00000000006188e0 l     O .bss	0000000000000090              active
+00000000006188d0 l     O .bss	0000000000000001              emission_acquired
+0000000000618798 l     O .bss	0000000000000001              spi_console_record_enabled
+00000000006188c8 l     O .bss	0000000000000008              acquired_owner
+00000000006187a0 l     O .bss	0000000000000008              spi_console_record_bytes
+00000000004379e0 l     F .text	0000000000000270              begin_emit
+0000000000437c50 l     F .text	0000000000000608              append_timestamp_at
+0000000000438260 l     F .text	00000000000000f3              cbmem_console_validate
+00000000006188c0 l     O .bss	0000000000000001              physical_sinks_retired
+0000000000438360 l     F .text	000000000000039e              write_char
+00000000006187c0 l     O .bss	0000000000000100              spi_console_record
+000000000043ebe0 l     O .rodata	0000000000000011              hex.0
+0000000000438700 l     F .text	00000000000006ad              emit_record
+000000000043ebc0 l     O .rodata	0000000000000020              CSWTCH.76
+00000000004035b0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              deadline.c
+00000000004035d0 l     F .text	0000000000000016              _sub_I_00099_0
+0000000000000000 l    df *ABS*	0000000000000000              crtstuff.c
+0000000000403630 l     F .text	0000000000000000              deregister_tm_clones
+0000000000403660 l     F .text	0000000000000000              register_tm_clones
+00000000004036a0 l     F .text	0000000000000000              __do_global_dtors_aux
+0000000000451164 l     O .bss	0000000000000001              completed.0
+0000000000442dc0 l     O .fini_array	0000000000000000              __do_global_dtors_aux_fini_array_entry
+00000000004036d0 l     F .text	0000000000000000              frame_dummy
+0000000000442db8 l     O .init_array	0000000000000000              __frame_dummy_init_array_entry
+0000000000000000 l    df *ABS*	0000000000000000              crtstuff.c
+0000000000441e58 l     O .eh_frame	0000000000000000              __FRAME_END__
+0000000000000000 l    df *ABS*	0000000000000000              asan_preinit.cpp
+0000000000442d30 l     O .preinit_array	0000000000000008              _ZL7preinit
+0000000000000000 l    df *ABS*	0000000000000000              
+000000000043ebf4 l       .eh_frame_hdr	0000000000000000              __GNU_EH_FRAME_HDR
+0000000000442dc8 l     O .dynamic	0000000000000000              _DYNAMIC
+0000000000442fe8 l     O .got.plt	0000000000000000              _GLOBAL_OFFSET_TABLE_
+0000000000000000       F *UND*	0000000000000000              __asan_report_store4
+000000000043e780 g     O .rodata	0000000000000100              vb2_sha256_k
+000000000043e460 g     O .rodata	0000000000000010              device_path_protocol
+000000000043b000 g       .stage_xhci	0000000000000000              stage_xhci_begin
+00000000004303e0 g     F .text	00000000000004ce              vb2_sha256_finalize
+000000000040c200 g     F .text	0000000000000192              capsule_disk_completion_status
+0000000000451f60 g     O .bss	00000000000000a8              storage_bindings
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_type_mismatch_v1_abort
+000000000042bd10 g     F .text	00000000000010d9              cdk2_capsule_disk_complete_esp
+000000000043a4d0 g       .stage_pci	0000000000000000              stage_pci_end
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_8
+0000000000419970 g     F .text	000000000000027f              cdk2_dxe_memory_initialize
+000000000040da20 g     F .text	0000000000000306              validate_ram_capsule_protocol
+0000000000000000       F *UND*	0000000000000000              free
+0000000000000000       F *UND*	0000000000000000              memmove
+0000000000451160 g       .data	0000000000000000              _edata
+000000000043a000 g       .stage_pci	0000000000000000              stage_pci_begin
+0000000000000000       F *UND*	0000000000000000              __asan_report_load_n
+000000000042fef0 g     F .text	0000000000000190              vb2_sha256_init
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_0
+0000000000452038 g     O .bss	0000000000000008              selected_storage_controller
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_shift_out_of_bounds_abort
+000000000041e9d0 g     F .text	0000000000000156              cdk2_linear_capsule_disk_required
+000000000041ab00 g     F .text	0000000000000995              cdk2_dxe_allocate_pool
+00000000004182e0 g     F .text	0000000000000ad5              cdk2_dxe_image_transaction_prepare
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_nonnull_arg_abort
+000000000041ee30 g     F .text	0000000000000246              cdk2_linear_capsule_finalize_disk
+0000000000000000       F *UND*	0000000000000000              __asan_stack_free_8
+000000000040dd30 g     F .text	0000000000000bb4              ram_capsule_protocol
+0000000000000000       F *UND*	0000000000000000              puts
+0000000000410e00 g     F .text	0000000000003b3f              stage_disk_capsule
+0000000000000000       F *UND*	0000000000000000              __asan_report_store16
+0000000000402e80 g     F .text	000000000000056f              main
+000000000042d540 g     F .text	0000000000000461              cdk2_software_hash_spans
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_1
+0000000000000000       F *UND*	0000000000000000              abort@GLIBC_2.2.5
+0000000000419bf0 g     F .text	00000000000005d8              cdk2_dxe_allocate_pages_policy
+0000000000000000       F *UND*	0000000000000000              __asan_report_load4
+0000000000417850 g     F .text	00000000000004e4              cdk2_dxe_image_transaction_validate_owned
+0000000000452020 g     O .bss	0000000000000008              selected_esp
+0000000000452040 g     O .bss	0000000000000004              selected_storage_backend
+000000000043e450 g     O .rodata	0000000000000010              block_io_protocol
+000000000043e440 g     O .rodata	0000000000000010              disk_io_protocol
+0000000000000000       F *UND*	0000000000000000              __assert_fail@GLIBC_2.2.5
+0000000000452060 g     O .bss	00000000001c6738              core
+0000000000000000       F *UND*	0000000000000000              strcmp
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_6
+0000000000431a20 g     F .text	0000000000000170              vb2_sha512_init
+000000000043b390 g     F .fini	0000000000000000              .hidden _fini
+0000000000000000       F *UND*	0000000000000000              __libc_start_main@GLIBC_2.34
+0000000000429d80 g     F .text	0000000000000a3b              cdk2_capsule_disk_complete
+0000000000403620 g     F .text	0000000000000005              .hidden _dl_relocate_static_pie
+000000000040e8f0 g     F .text	000000000000089a              ram_capsule_source
+000000000043b390 g       .stage_xhci	0000000000000000              stage_xhci_end
+000000000042e4e0 g     F .text	000000000000016c              vb2_sha1_update
+000000000040f190 g     F .text	0000000000000941              stage_control_current
+0000000000000000       F *UND*	0000000000000000              memset
+0000000000414940 g     F .text	00000000000005dc              capsule_scan_process
+0000000000430080 g     F .text	0000000000000352              vb2_sha256_update
+0000000000439000 g       .stage_runtime	0000000000000000              stage_runtime_begin
+0000000000414f20 g     F .text	0000000000000028              __wrap_cdk2_capsule_disk_complete_esp
+00000000004035f0 g     F .text	0000000000000026              _start
+0000000000000000       F *UND*	0000000000000000              memcmp
+000000000043e480 g     O .rodata	0000000000000010              driver_binding_protocol
+0000000000000000       F *UND*	0000000000000000              __asan_report_store8
+0000000000000000       F *UND*	0000000000000000              __asan_report_load2
+000000000042d360 g     F .text	00000000000001d3              cdk2_software_hash_final
+000000000042e650 g     F .text	0000000000000430              vb2_sha1_finalize
+000000000042ea80 g     F .text	00000000000001d0              vb2_sha1_init
+000000000040bd40 g     F .text	00000000000004bc              read_disk_capsule_request
+0000000000452030 g     O .bss	0000000000000008              selected_storage_binding
+0000000000000000       F *UND*	0000000000000000              __stack_chk_fail@GLIBC_2.4
+0000000000431ef0 g     F .text	0000000000000481              vb2_sha512_finalize
+0000000000402000 g     F .init	0000000000000000              .hidden _init
+0000000000000000       F *UND*	0000000000000000              __asan_handle_no_return
+0000000000000000       F *UND*	0000000000000000              __asan_init
+0000000000451160 g     O .data	0000000000000000              .hidden __TMC_END__
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_4
+000000000041b4a0 g     F .text	0000000000000437              cdk2_dxe_free_pool
+0000000000000000       F *UND*	0000000000000000              malloc
+000000000040fae0 g     F .text	0000000000001311              stage_storage_binding_current
+000000000041a1d0 g     F .text	000000000000092c              cdk2_dxe_free_pages
+000000000041c310 g     F .text	00000000000003ff              cdk2_capsule_query
+0000000000436ea0 g     F .text	0000000000000285              sm3_init
+0000000000452010 g     O .bss	0000000000000010              disk_capsules
+000000000041bc60 g     F .text	00000000000002da              cdk2_dxe_memory_allocation_generation
+0000000000000000       F *UND*	0000000000000000              __asan_report_load1
+0000000000404200 g     F .text	0000000000000028              capsule_scan_report
+0000000000000000       F *UND*	0000000000000000              __asan_report_store1
+0000000000000000       F *UND*	0000000000000000              memcpy
+00000000004163b0 g     F .text	00000000000006d3              cdk2_dxe_uninstall
+000000000043e490 g     O .rodata	0000000000000010              simple_fs_protocol
+000000000040c4b0 g     F .text	00000000000009fd              process_disk_capsules
+00000000004377d0 g     F .text	0000000000000071              sm3_final
+0000000000416d10 g     F .text	0000000000000957              cdk2_dxe_validate_nvme_children
+0000000000618970 g       .bss	0000000000000000              _end
+000000000043e430 g     O .rodata	0000000000000010              capsule_boot_protocol_guid
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_5
+000000000041eb30 g     F .text	00000000000002fc              cdk2_linear_capsule_gate_early
+0000000000437130 g     F .text	0000000000000693              sm3_update
+0000000000452028 g     O .bss	0000000000000008              selected_storage_agent
+0000000000439d30 g       .stage_runtime	0000000000000000              stage_runtime_end
+000000000043e8a0 g     O .rodata	0000000000000020              vb2_sha256_h0
+0000000000000000       F *UND*	0000000000000000              __asan_report_load8
+0000000000000000       F *UND*	0000000000000000              __asan_report_store2
+0000000000451160 g       .bss	0000000000000000              __bss_start
+00000000004264e0 g     F .text	00000000000038a0              cdk2_capsule_disk_scan
+000000000041ca60 g     F .text	0000000000001f6a              cdk2_linear_state_validate
+0000000000000000       F *UND*	0000000000000000              __asan_unpoison_stack_memory
+0000000000416290 g     F .text	000000000000011e              cdk2_dxe_restore
+0000000000417d40 g     F .text	0000000000000592              cdk2_dxe_image_transaction_release
+000000000041b8e0 g     F .text	0000000000000374              cdk2_dxe_memory_readable_span
+00000000004036e0 g     F .text	000000000000014a              capsule_scan_allocate
+0000000000438db0 g     F .text	000000000000000f              cdk2_diag_emit
+0000000000000000       F *UND*	0000000000000000              __asan_stack_free_5
+000000000042a7c0 g     F .text	0000000000001550              cdk2_capsule_disk_scan_esp
+0000000000403e80 g     F .text	00000000000000c2              capsule_scan_validate
+000000000042cdf0 g     F .text	000000000000023a              cdk2_software_hash_init
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_2
+0000000000000000       F *UND*	0000000000000000              aligned_alloc
+000000000040b740 g     F .text	00000000000005fd              capsule_batch
+0000000000451160 g     O .bss	0000000000000004              __asan_option_detect_stack_use_after_return
+000000000040c3a0 g     F .text	0000000000000109              reset_after_disk_capsules
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_load_invalid_value_abort
+000000000042d030 g     F .text	000000000000032f              cdk2_software_hash_update
+0000000000000000       F *UND*	0000000000000000              __asan_version_mismatch_check_v8
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_out_of_bounds_abort
+0000000000431b90 g     F .text	0000000000000352              vb2_sha512_update
+000000000043e470 g     O .rodata	0000000000000010              pci_io_protocol
+0000000000000000       F *UND*	0000000000000000              __asan_report_store_n
+0000000000000000       F *UND*	0000000000000000              __asan_stack_free_6
+000000000043e420 g     O .rodata	0000000000000010              capsule_variable_guid
+000000000041c8d0 g     F .text	0000000000000185              cdk2_linear_state_init
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_add_overflow_abort
+0000000000000000       F *UND*	0000000000000000              __asan_stack_malloc_3
+0000000000000000  w      *UND*	0000000000000000              __gmon_start__
+0000000000403830 g     F .text	0000000000000029              capsule_scan_free
+0000000000000000       F *UND*	0000000000000000              __ubsan_handle_pointer_overflow_abort
+0000000000416a90 g     F .text	000000000000027f              cdk2_dxe_handle
+0000000000416200 g     F .text	0000000000000085              cdk2_dxe_database_initialize
+
+
