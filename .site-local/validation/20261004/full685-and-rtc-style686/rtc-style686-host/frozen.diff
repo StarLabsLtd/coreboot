@@ -1,0 +1,32 @@
+diff --git a/src/boot/coreboot_test.c b/src/boot/coreboot_test.c
+index c9c72ffefd..8fad7a32dd 100644
+--- a/src/boot/coreboot_test.c
++++ b/src/boot/coreboot_test.c
+@@ -2676,8 +2676,10 @@ static int test_rtc_board_handoff(void)
+ 		const EFI_GUID board_guid = CDK2_ACPI_BOARD_INFO_HOB_GUID;
+ 		const struct cdk2_acpi_board_info_hob *board = NULL;
+ 		const EFI_HOB_GENERIC_HEADER *hob;
+-		uint8_t expected_flags = cases[index].revision < 5 ?
+-			CDK2_ACPI_RTC_LEGACY_PC_AT : 0;
++		uint8_t expected_flags = 0;
++
++		if (cases[index].revision < 5)
++			expected_flags = CDK2_ACPI_RTC_LEGACY_PC_AT;
+ 
+ 		if (cases[index].revision >= 5 && cases[index].length >=
+ 		    offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ia_pc_boot_arch) +
+@@ -2710,9 +2712,11 @@ static int test_rtc_board_handoff(void)
+ 		failures += expect(status == cases[index].expected,
+ 			"real FADT-to-HOB RTC availability/index admission mismatch");
+ 		if (status == EFI_SUCCESS) {
+-			uint8_t expected = cases[index].length >
+-				offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century) ?
+-				cases[index].century : 0;
++			uint8_t expected = 0;
++
++			if (cases[index].length >
++			    offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century))
++				expected = cases[index].century;
+ 
+ 			failures += expect(century == expected,
+ 				"real FADT-to-HOB RTC century field escaped its advertised extent");

@@ -1,0 +1,15 @@
+ERROR:SPACING: space prohibited before that ':' (ctx:WxW)
+#2680: FILE: src/boot/coreboot_test.c:2680:
++			CDK2_ACPI_RTC_LEGACY_PC_AT : 0;
+ 			                           ^
+
+ERROR:SPACING: space prohibited before that ':' (ctx:WxW)
+#2715: FILE: src/boot/coreboot_test.c:2715:
++				cases[index].century : 0;
+ 				                     ^
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#2715: FILE: src/boot/coreboot_test.c:2715:
++				cases[index].century : 0;
+
+total: 3 errors, 0 warnings, 6648 lines checked

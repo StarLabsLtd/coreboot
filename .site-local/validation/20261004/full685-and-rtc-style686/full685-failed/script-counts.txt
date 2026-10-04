@@ -1,0 +1,4 @@
+  16 /home/sean/full-lint-after685-final.20261004-r1/stable-script-inventory.txt
+   2 /home/sean/full-lint-after685-final.20261004-r1/full-script-inventory.txt
+   0 /home/sean/full-lint-after685-final.20261004-r1/extended-script-inventory.txt
+  18 total

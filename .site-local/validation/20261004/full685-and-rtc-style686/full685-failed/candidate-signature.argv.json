@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675",
+    "verify-commit",
+    "ddc179372681983e2f903ab0bb4cb7b0f0c495ff"
+  ],
+  "environment": {
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/full-lint-after685-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

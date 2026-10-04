@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/full-lint-after685-host",
+    "-j1",
+    "CDK2_BUILD_DIR=/home/sean/full-lint-after685-final.20261004-r1/build",
+    "CDK2_CONFIG=/home/sean/full-lint-after685-final.20261004-r1/build/.config",
+    "COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+    "COREBOOT_CONFIG=/home/sean/disk-no-request-hex-producer-after619.pXSGcd/initial9/full.config",
+    "CC=cc",
+    "HOSTCC=cc",
+    "olddefconfig"
+  ],
+  "environment": {
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/full-lint-after685-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}
