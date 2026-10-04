@@ -1,0 +1,11 @@
+/usr/bin/python3.13: OK
+/usr/bin/time: OK
+/usr/bin/bash: OK
+/usr/bin/git: OK
+/usr/bin/awk: OK
+/usr/bin/xargs: OK
+/usr/bin/find: OK
+/usr/bin/sort: OK
+/usr/bin/cp: OK
+/usr/bin/cmp: OK
+/usr/bin/sha256sum: OK

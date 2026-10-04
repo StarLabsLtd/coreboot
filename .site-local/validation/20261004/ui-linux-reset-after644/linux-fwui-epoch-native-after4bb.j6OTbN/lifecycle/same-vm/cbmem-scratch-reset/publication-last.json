@@ -1,0 +1,8 @@
+{
+  "address": 1053364224,
+  "bytes": 1324,
+  "elapsed_seconds": 0.6902071730000898,
+  "error": "LBIO geometry/checksum rejected",
+  "previous_retries": 12,
+  "sha256": "d5332fdd09fcabe2cc6f3c770826e20ef2f01ee9cb8dee50aab72bcc47089623"
+}

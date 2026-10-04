@@ -1,0 +1,33 @@
+a435e2a591d611e332e764504a230831b87f7a3a7be8cc62804245d73529d681  include/cdk2/nvme.h
+d21b27279d9130ff17eaa7890c67a4abda7a10e9a655ef081edbc9fd67a34864  src/modules/nvme/binding.c
+33964395fc700f3243d5cbd1c60ce69d4c55fed3ef079fe0d71c5a9190801458  src/modules/nvme/block.c
+738ed7d339dc396e2fd592c42e018d15892b765a937d976d0baaddddb42629e9  src/modules/nvme/controller.c
+0a2b5a35e50a35cd27fe3a299e714037397e331fcfb6b857d285ebb96bc4c4f7  src/modules/nvme/diagnostic.c
+286769957ef1ab74c6015aa9a6a3038089cc51ef345575097d2e594cfff15fcd  src/modules/nvme/discovery.c
+07420350c56f1b45e6273272a3051734d991f03315efbbac4100437abfd2b1c9  src/modules/nvme/entry.c
+4ee6e4b4c3691d30e1cd9f0b5dbfd6aa2e221756c7f7a544b103f7d184ccfda6  src/modules/nvme/io.c
+33cb43277f27869c61205ed58edd373d437b0c79a59953ffbfdf0662cd6865af  src/modules/nvme/model.c
+fee010ff3dca0c2b633c213bc2b7b4546048d8d777456b15768f83893f978f8d  src/modules/nvme/pass_thru.c
+2bdb037aa6d444bd8965f6eb0b06496c43091e7277fdd2a9e73dcf0935cc42a2  src/modules/nvme/pci_adapter.c
+67cd3ea85ffc66f5a63997060d977e13fbb7433aa23182329c846753ab06f191  tests/nvme_controller_test.c
+9e8d1d65976ffa0ca33f7d0feabd87d941806daa73c367f18fe57581616eecbe  tests/nvme_pass_thru_test.c
+0eb2980c297014a4960efb1219c57c18e8fb996b780210065a203390cb3df578  tests/nvme_pci_adapter_test.c
+77cd3543b756c7f96adbe9cbad2585d6a52f5b960cc8ed33cbdc608c5136f0fa  Kconfig
+ac2fb46970ec1dbd90de08be6c603cdfc2ef933fd02086bdd86cd370ac9360de  defconfig
+47f39183a892b4a87a078a5851dc4cc499036b06a549a42da3932b5ebf9f3534  Makefile
+6f8e88e7d42cd54892a3c1be170088fa6eb85b861c9400cfca5ecd1730b77aff  src/boot/Makefile
+2d6968557091db3d190b5464e6e81c9faf79ea70618d4343a0cedb9beab42778  -
+ M include/cdk2/nvme.h
+ M src/modules/nvme/binding.c
+ M src/modules/nvme/block.c
+ M src/modules/nvme/controller.c
+ M src/modules/nvme/diagnostic.c
+ M src/modules/nvme/discovery.c
+ M src/modules/nvme/entry.c
+ M src/modules/nvme/io.c
+ M src/modules/nvme/model.c
+ M src/modules/nvme/pass_thru.c
+ M src/modules/nvme/pci_adapter.c
+ M tests/nvme_controller_test.c
+ M tests/nvme_pass_thru_test.c
+ M tests/nvme_pci_adapter_test.c

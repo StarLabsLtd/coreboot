@@ -1,0 +1,15 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549393, size 549393
+Found file config at 0x3e400, type raw, compressed 3537, size 12860
+8804 blocks
+10351 blocks
+10351 blocks
+10351 blocks
+10351 blocks
+10351 blocks
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/linux-origin-fwui-qmp-topology-aftere4cf/util/qemu/bin/run-linux-boot-to-fw-ui.py", line 173, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/linux-origin-fwui-qmp-topology-aftere4cf/util/qemu/bin/run-linux-boot-to-fw-ui.py", line 168, in main
+    raise ValueError("Linux-origin firmware UI gate failed; retained output: " + str(output))
+ValueError: Linux-origin firmware UI gate failed; retained output: /home/sean/linux-fwui-reset-dual-qmp-native.wevWm6/lifecycle

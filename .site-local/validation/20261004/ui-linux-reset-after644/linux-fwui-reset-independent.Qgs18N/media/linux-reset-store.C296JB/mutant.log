@@ -1,0 +1,1 @@
+comparison-mutant: /home/sean/linux-fwui-reset-independent.Qgs18N/media/linux-reset-store.C296JB/comparison-mutant.c:99: main: Assertion `!linux_reset_matches(initial, final, guid)' failed.

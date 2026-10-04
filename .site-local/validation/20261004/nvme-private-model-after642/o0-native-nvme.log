@@ -1,0 +1,45 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types'
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c: In function ‘main’:
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:85:47: error: ISO C forbids passing argument 1 of ‘cdk2_nvme_test_link_close_child’ between function pointer and ‘void *’ [-Werror=pedantic]
+   85 |         CHECK(cdk2_nvme_test_link_close_child(open_child, close_child,
+      |                                               ^~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:34:29: note: in definition of macro ‘CHECK’
+   34 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "failed %s:%d: %s\n", \
+      |                             ^
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:12:50: note: expected ‘void *’ but argument is of type ‘EFI_STATUS (__attribute__((ms_abi)) *)(void *, const void *, void **, void *, void *, UINT32)’ {aka ‘long long unsigned int (__attribute__((ms_abi)) *)(void *, const void *, void **, void *, void *, unsigned int)’}
+   12 | EFI_STATUS cdk2_nvme_test_link_close_child(void *open_service,
+      |                                            ~~~~~~^~~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:85:59: error: ISO C forbids passing argument 2 of ‘cdk2_nvme_test_link_close_child’ between function pointer and ‘void *’ [-Werror=pedantic]
+   85 |         CHECK(cdk2_nvme_test_link_close_child(open_child, close_child,
+      |                                                           ^~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:34:29: note: in definition of macro ‘CHECK’
+   34 | #define CHECK(x) do { if (!(x)) { fprintf(stderr, "failed %s:%d: %s\n", \
+      |                             ^
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//tests/nvme_entry_test.c:13:15: note: expected ‘void *’ but argument is of type ‘EFI_STATUS (__attribute__((ms_abi)) *)(void *, const void *, void *, void *)’ {aka ‘long long unsigned int (__attribute__((ms_abi)) *)(void *, const void *, void *, void *)’}
+   13 |         void *close_service, void *parent, void *agent, void *child,
+      |         ~~~~~~^~~~~~~~~~~~~
+cc1: all warnings being treated as errors
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/nvme/entry.c: In function ‘cdk2_nvme_test_link_close_child’:
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/nvme/entry.c:451:60: error: ISO C forbids conversion of object pointer to function pointer type [-Werror=pedantic]
+  451 |         struct boot_services services = { .open_protocol = (open_fn *)open_service,
+      |                                                            ^
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/nvme/entry.c:452:35: error: ISO C forbids conversion of object pointer to function pointer type [-Werror=pedantic]
+  452 |                 .close_protocol = (close_fn *)close_service };
+      |                                   ^
+cc1: all warnings being treated as errors
+In file included from /home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//include/cdk2/fat_binding.h:7,
+                 from /home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/dxe_core/database.c:5:
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//include/cdk2/english.h: In function ‘cdk2_english_fold’:
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//include/cdk2/english.h:41:34: error: conversion from ‘unsigned int’ to ‘CHAR16’ {aka ‘short unsigned int’} may change value [-Werror=conversion]
+   41 |                 return character - 0x20U;
+      |                        ~~~~~~~~~~^~~~~~~
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/dxe_core/database.c: In function ‘reloc_check’:
+/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types//src/modules/dxe_core/database.c:100:86: error: conversion from ‘long long unsigned int’ to ‘UINT32’ {aka ‘unsigned int’} may change value [-Werror=conversion]
+  100 |                                 status = reloc_offset(reader, offset + sizeof(block) +
+      |                                                               ~~~~~~~~~~~~~~~~~~~~~~~^
+  101 |                                         index * sizeof(entries[0]),
+      |                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~                    
+cc1: all warnings being treated as errors
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types/src/boot/Makefile:4297: /tmp/cdk2-nvme-gate.xFK4Nu/o0/native/cdk2-nvme-entry-test] Error 1
+make: *** [Makefile:1150: native-nvme-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types'

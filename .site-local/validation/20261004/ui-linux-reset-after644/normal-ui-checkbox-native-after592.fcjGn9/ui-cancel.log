@@ -1,0 +1,12 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549393, size 549393
+Found file config at 0x3e400, type raw, compressed 3537, size 12860
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/normal-ui-checkbox-native-after42044/util/qemu/bin/run-normal-boot-to-fw-ui.py", line 526, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/.cdk2-worktrees/normal-ui-checkbox-native-after42044/util/qemu/bin/run-normal-boot-to-fw-ui.py", line 376, in main
+    rom, cbfstool, inputs = build_admission(stage, firmware, producer, output)
+                            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/normal-ui-checkbox-native-after42044/util/qemu/bin/run-normal-boot-to-fw-ui.py", line 157, in build_admission
+    raise ValueError("current production bodies differ from the reused Core")
+ValueError: current production bodies differ from the reused Core

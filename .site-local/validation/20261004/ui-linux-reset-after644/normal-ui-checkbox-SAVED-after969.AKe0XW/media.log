@@ -1,0 +1,2 @@
+util/qemu/bin/assert-protected-setup-store.sh: line 168: 1455034 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "${check_media[@]}" "${fmp_arguments[@]}" --self-test > "$output/$comparison-self-test.log" 2>&1
+Protected setup actual-codec HOST receipts: /home/sean/normal-ui-checkbox-SAVED-after969.AKe0XW/view/protected-store-oracle.ivhxr2

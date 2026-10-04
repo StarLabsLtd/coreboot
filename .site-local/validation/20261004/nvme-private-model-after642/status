@@ -1,0 +1,48 @@
+o0-defconfig=0
+o0-native-nvme=2
+o2-defconfig=0
+o2-native-nvme=2
+san-o0-defconfig=0
+san-o0-native-nvme=2
+san-o2-defconfig=0
+san-o2-native-nvme=2
+default-defconfig=0
+default-native-nvme=0
+san-runtime-o0-defconfig=0
+san-runtime-o0-native-nvme=0
+san-runtime-o2-defconfig=0
+san-runtime-o2-native-nvme=0
+base-worktree=0
+base-strict-defconfig=0
+base-strict-native-nvme=2
+same-config-header=0
+model-candidate-build=2 base-build=2
+controller-candidate-build=2 base-build=2
+discovery-candidate-build=2 base-build=2
+io-candidate-build=2 base-build=2
+pci_adapter-candidate-build=2 base-build=2
+binding-candidate-build=2 base-build=2
+pass_thru-candidate-build=2 base-build=2
+block-candidate-build=2 base-build=2
+diagnostic-candidate-build=2 base-build=2
+entry-candidate-build=2 base-build=2
+model-candidate-build=0 base-build=0
+model-object-cmp=0
+controller-candidate-build=0 base-build=0
+controller-object-cmp=0
+discovery-candidate-build=0 base-build=0
+discovery-object-cmp=0
+io-candidate-build=0 base-build=0
+io-object-cmp=0
+pci_adapter-candidate-build=0 base-build=0
+pci_adapter-object-cmp=1
+binding-candidate-build=0 base-build=0
+binding-object-cmp=0
+pass_thru-candidate-build=0 base-build=0
+pass_thru-object-cmp=0
+block-candidate-build=0 base-build=0
+block-object-cmp=0
+diagnostic-candidate-build=0 base-build=0
+diagnostic-object-cmp=0
+entry-candidate-build=0 base-build=0
+entry-object-cmp=0

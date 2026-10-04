@@ -1,0 +1,8 @@
+{
+  "deadline_seconds": 180,
+  "failure": "whole run-one command did not exit zero; whole run-one command exceeded its original180 budget; missing or unsuccessful reaped QEMU status; missing/unexpected reaped observer status; run-one did not finish its actual manifest",
+  "observer_status": null,
+  "outer_status": 124,
+  "qemu_status": null,
+  "wall_seconds": 180.14512922998983
+}

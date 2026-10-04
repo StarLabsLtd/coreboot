@@ -1,0 +1,10 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types'
+nvme model tests: PASS
+nvme controller tests: PASS
+nvme binding tests: PASS
+nvme pass thru tests: PASS
+nvme block tests: PASS
+nvme entry tests: PASS
+nvme PCI transaction tests: PASS
+nvme diagnostic tests: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/nvme-private-model-types'

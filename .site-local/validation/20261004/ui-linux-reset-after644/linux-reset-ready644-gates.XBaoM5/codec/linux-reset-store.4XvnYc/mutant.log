@@ -1,0 +1,1 @@
+comparison-mutant: /home/sean/linux-reset-ready644-gates.XBaoM5/codec/linux-reset-store.4XvnYc/comparison-mutant.c:99: main: Assertion `!linux_reset_matches(initial, final, guid)' failed.

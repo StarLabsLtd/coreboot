@@ -1,0 +1,14 @@
+include/cdk2/nvme.h=0
+src/modules/nvme/binding.c=0
+src/modules/nvme/block.c=0
+src/modules/nvme/controller.c=0
+src/modules/nvme/diagnostic.c=0
+src/modules/nvme/discovery.c=0
+src/modules/nvme/entry.c=0
+src/modules/nvme/io.c=0
+src/modules/nvme/model.c=0
+src/modules/nvme/pass_thru.c=0
+src/modules/nvme/pci_adapter.c=0
+tests/nvme_controller_test.c=0
+tests/nvme_pass_thru_test.c=0
+tests/nvme_pci_adapter_test.c=0

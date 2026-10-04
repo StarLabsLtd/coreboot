@@ -1,0 +1,15 @@
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 bootblock starting (log level: 7)...[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: Found "FLASH" version 1.1 at 0x11000.[0m
+[0m[DEBUG]  FMAP: base = 0x0 size = 0x800000 #areas = 4[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ 12000 (8314880 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: mcache @0x00014e00 built for 14 files, used 0x2e8 of 0x4000 bytes[0m
+[0m[INFO ]  CBFS: Found 'fallback/romstage' @0x80 size 0x5210 in mcache @0x00014e2c[0m
+[0m[DEBUG]  BS: bootblock times (exec / console): total (unknown) / 7 ms[0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c Sat Oct 03 04:21:17 UTC 2026 x86_32 romstage starting (log level: 7)...[0m

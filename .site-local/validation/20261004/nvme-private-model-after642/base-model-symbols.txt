@@ -1,0 +1,4 @@
+0000000000000193 T cdk2_nvme_add_namespace
+0000000000000000 T cdk2_nvme_decode_capability
+00000000000000a1 T cdk2_nvme_parse_namespace
+0000000000000245 T cdk2_nvme_validate_io

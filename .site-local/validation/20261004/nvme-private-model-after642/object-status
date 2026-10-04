@@ -1,0 +1,21 @@
+same-config-header=0
+model-candidate-build=0 base-build=0
+model-object-cmp=0
+controller-candidate-build=0 base-build=0
+controller-object-cmp=0
+discovery-candidate-build=0 base-build=0
+discovery-object-cmp=0
+io-candidate-build=0 base-build=0
+io-object-cmp=0
+pci_adapter-candidate-build=0 base-build=0
+pci_adapter-object-cmp=1
+binding-candidate-build=0 base-build=0
+binding-object-cmp=0
+pass_thru-candidate-build=0 base-build=0
+pass_thru-object-cmp=0
+block-candidate-build=0 base-build=0
+block-object-cmp=0
+diagnostic-candidate-build=0 base-build=0
+diagnostic-object-cmp=0
+entry-candidate-build=0 base-build=0
+entry-object-cmp=0

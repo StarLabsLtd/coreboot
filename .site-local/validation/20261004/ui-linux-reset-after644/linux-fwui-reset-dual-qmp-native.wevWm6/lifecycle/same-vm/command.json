@@ -1,0 +1,14 @@
+[
+  "/usr/bin/python3",
+  "/home/sean/Documents/.cdk2-worktrees/linux-origin-fwui-qmp-topology-aftere4cf/util/qemu/bin/run-deadline.py",
+  "--kill-after",
+  "3",
+  "180",
+  "--",
+  "bash",
+  "/home/sean/Documents/.cdk2-worktrees/linux-origin-fwui-qmp-topology-aftere4cf/util/qemu/bin/run-one.sh",
+  "normal-linux-fw-ui-reset",
+  "/home/sean/native-default-zero-hotkey-after628.CfqEvm/initial9/build/coreboot.rom",
+  "/home/sean/linux-fwui-reset-dual-qmp-native.wevWm6/lifecycle/same-vm",
+  "180"
+]
