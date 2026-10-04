@@ -3,12 +3,15 @@ CDK2 implementation and validation checkpoint, 2026-10-04
 Current source
 --------------
 Canonical /home/sean/Documents/cdk2 is clean on signed
-62352715633271454b9c2edc10c055c12fb5deef, the linear ready688 head.
+58598b47ab331eabb271f2343f6b0d4d882d30d1, the linear ready689 head.
 Ready687 (4ec31d9ccd4d9f75d169bfcaad4dcb1cb194ccc8) requires unique
 UART authority across diagnostic, serial HOB and early handoff consumers.
 Ready688 makes native USB controller selection depend on the USB policy
 and skips an XHCI storage candidate when the native controller is disabled.
 Both PRs are OPEN/non-draft; their exact heads and linear bases were checked.
+Ready689 updates the local checker provenance for the existing whitespace
+normalization without changing the upstream pin or corpus evidence. PR689 is
+OPEN/non-draft, exact head58598, base agent/usb-policy-after687-ready.
 
 Completed bounded HOST qualification
 ----------------------------------
@@ -50,8 +53,12 @@ An isolated provenance correction passed its bounded actual HOST gate:
 review-profile-provenance-final.20261004-r1, execution/closure/aggregate 0,
 14 zero statuses and one expected stale-pin raw refusal 1. Exact zero-fuzz
 patch reconstruction, unchanged corpus and full profile tests passed.
-It is not integrated or signed yet; independent actual-result review remains
-required before integration and any latest-head whole-build retry.
+It received independent actual-result review, was signed/pushed, and was joined
+unchanged into ready689 and canonical after the old joined688 gates closed.
+The new whole-normal-after689.20261004-r1 is active on signed58598, using the
+reviewed new recipe with bytecode suppression passed through env-i and patch
+included in the finite executable closure. Default remains unexecuted, queued
+after the normal gate closes. No latest-head whole-normal PASS is claimed.
 The original full mixed-device suite is retained for the joined regression,
 not duplicated in the targeted USB receipt. No latest-head guest or hardware
 acceptance is implied by these bounded results or by an active process.

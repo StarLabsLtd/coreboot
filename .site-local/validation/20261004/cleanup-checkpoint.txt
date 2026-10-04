@@ -30,3 +30,28 @@ Plex, VM, unrelated repository, secrets, or hardware state was changed.
 
 Cleanup scripts are temporary orchestration, not CDK2 build infrastructure.
 Root performed deletion; workers independently inventoried dependencies.
+
+Second completed pass:
+- CDK2 parent worktrees removed now total 164, plus the eight nested vendor
+  worktrees. Two stale missing-directory registration records were pruned
+  after confirming their commits remain referenced by retained branches.
+- Four unused source-only coreboot worktrees removed, with signed refs retained.
+- 99 explicitly inventoried unused coreboot build directories removed. Their
+  parent configs, source and nested Git stores were not removed. Rebuildable
+  compiler output is not represented as archived evidence. Producer, validation,
+  canonical, old QEMU/TPM receipt-containing build and Go source-ZIP caches were
+  excluded from that operation.
+- Closed HOST receipt/recipe directories removed now total 59. The additional
+  18 were moved to trash after archive SHA and all original byte comparisons.
+- 37 empty old temporary directories removed with rmdir.
+- 18 old future-floor test directories moved to trash after independent archival
+  execution review and signed push d2dddb78328. The packet records all 2587
+  regular files: 406 selected source/log originals and 2181 generated exclusions.
+  All selected bytes are stored, deduplicated into 113 full-byte blobs; none
+  were omitted by presumed Git equivalence. 119 physical packet files, 118
+  stored SHA entries. No historical success is inferred from old mutant logs.
+
+Trash operations are recoverable until the system trash is emptied. This did
+not empty unrelated trash. Other removed generated outputs require rebuilding.
+Further unused trees with nested Git-object dependencies or unique historical
+inputs remain under active classification; this is still NOT complete cleanup.
