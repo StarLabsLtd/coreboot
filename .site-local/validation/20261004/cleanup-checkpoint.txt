@@ -26,7 +26,7 @@ alternates and unique future test inputs remain excluded pending proof.
 Preserved: canonical CDK2, user's dirty coreboot tree, EDK2 reference, durable
 evidence, active isolated proposals, latest test receipts, current/golden
 configurations, required QEMU media and producer tools. No Home Assistant,
-Plex, VM, unrelated repository, secrets, or hardware state was changed.
+Plex, VM, unrelated repository, user credentials, or hardware state was changed.
 
 Cleanup scripts are temporary orchestration, not CDK2 build infrastructure.
 Root performed deletion; workers independently inventoried dependencies.
@@ -55,3 +55,24 @@ Trash operations are recoverable until the system trash is emptied. This did
 not empty unrelated trash. Other removed generated outputs require rebuilding.
 Further unused trees with nested Git-object dependencies or unique historical
 inputs remain under active classification; this is still NOT complete cleanup.
+
+Third completed pass:
+- CDK2 parent worktrees removed now total 168. Four formerly retained historical
+  source worktrees were retired after proving their future consumers require
+  retained configurations rather than the physical source directories.
+- Three old generated build parents (production-after510, cold-main-after522,
+  combined-native) moved to trash after signed push a8c21a3c4b8. The successful
+  retry packet records 480 selected originals and 7831 exclusions, with all
+  selected bytes preserved. Three locally retained input archives remain under
+  Documents/cdk2-validation/retained-inputs; they were not uploaded to evidence
+  Git. The first collector failure remains explicitly unqualified in evidence.
+- A proposed 66-parent coreboot retirement stopped before creating its packet:
+  one private vendor branch tip was missing from the retained canonical store.
+  Subsequent inventory found 11 missing repository/tip pairs, including one
+  shallow vboot tip. Those parents remain present while bounded object recovery
+  is reviewed; no incomplete-history claim or deletion is authorized yet.
+
+Latest normal-profile HOST regression at source 58598b47ab331eabb271f2343f6b0d4d882d30d1
+completed with all ten recorded statuses zero (wall 1112.08 seconds). Author and
+independent actual closure reviews passed. The default-profile HOST regression is now
+running separately. These results do not assert latest guest or hardware proof.

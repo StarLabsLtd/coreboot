@@ -1,0 +1,18 @@
+Actual final collector42b7598b/README502cdca6 admission failure, 2026-10-04.
+Execution exited1 BEFORE creating the proposed coreboot-config-retirement66
+packet directory. No source/config/vendor/ref mutation or retirement occurred.
+
+The required private local vboot branch tip
+dd38e912b39166975ed13e46602d8a5b2a6e85f4 was unavailable as a commit in the
+retained canonical /home/sean/Documents/coreboot/3rdparty/vboot repository.
+Actual nested HEADs had been checked, but the additional private local-branch
+tip guard correctly refused to discard a tip without proven durable recovery.
+This is a failed archival admission, not a firmware/compiler/QEMU failure.
+
+Exact immutable collector:
+/home/sean/coreboot-config-retirement-collector-final.AKAY8f/collect.py
+SHA25642b7598b76d0cb3902ad5a620be6b86666f08b48893884938eca68ff1b3df29c
+README SHA256502cdca6c129ceadd6306781ad8987132a918cbc4396cc71b41cb53c6d275c09
+Next step is read-only complete tip inventory and a separately reviewed local
+object/ref retention plan, then a new absent output destination. No success or
+complete source cleanup is claimed from this failed preflight.

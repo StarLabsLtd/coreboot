@@ -55,10 +55,16 @@ review-profile-provenance-final.20261004-r1, execution/closure/aggregate 0,
 patch reconstruction, unchanged corpus and full profile tests passed.
 It received independent actual-result review, was signed/pushed, and was joined
 unchanged into ready689 and canonical after the old joined688 gates closed.
-The new whole-normal-after689.20261004-r1 is active on signed58598, using the
-reviewed new recipe with bytecode suppression passed through env-i and patch
-included in the finite executable closure. Default remains unexecuted, queued
-after the normal gate closes. No latest-head whole-normal PASS is claimed.
+The new whole-normal-after689.20261004-r1 completed on signed58598 with all ten
+statuses zero, including execution, closure and aggregate. Actual regression
+wall time was 1112.08 seconds. Root reconstructed and compared the finite
+input inventory, checked configuration hashes and before/after heads, tool
+resolution and checker state; all passed. Author and independent final
+actual-result reviews passed. The reviewed recipe passes bytecode suppression through
+env-i and includes patch in the finite executable closure.
+The whole-default-after689.20261004-r1 is now running separately from the same
+frozen recipe, with standalone defconfig rather than the normal producer
+profile. No default PASS or latest-head guest/hardware proof is claimed.
 The original full mixed-device suite is retained for the joined regression,
 not duplicated in the targeted USB receipt. No latest-head guest or hardware
 acceptance is implied by these bounded results or by an active process.
