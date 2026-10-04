@@ -1,0 +1,18 @@
+TOOL	python3	/usr/bin/python3	/usr/bin/python3.13
+efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e  /usr/bin/python3.13
+TOOL	bash	/usr/bin/bash	/usr/bin/bash
+2986231b72a4ad6d21ce85f05f6630b6bddf2100a80fa49198c527e87eb1a6af  /usr/bin/bash
+TOOL	git	/usr/bin/git	/usr/bin/git
+3446b26047255f16d588eda4527aeedf02bd173449382d93bfe8a141257876c9  /usr/bin/git
+TOOL	sha256sum	/usr/bin/sha256sum	/usr/lib/cargo/bin/coreutils/sha256sum
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/sha256sum
+TOOL	awk	/usr/bin/awk	/usr/bin/mawk
+9f11bee2561b60b79397c67086c58734334cee3d7382a275ab40530c9dc9e9b7  /usr/bin/mawk
+TOOL	xargs	/usr/bin/xargs	/usr/bin/xargs
+a4903cc9f9eb9532cb34f08f04ead3a82be9f8c15de7d23f98922b3600062499  /usr/bin/xargs
+TOOL	cmp	/usr/bin/cmp	/usr/bin/cmp
+fec89e553875fec383eb836797a38ec7886a00c91b102fd790e3b8e3d3c04334  /usr/bin/cmp
+TOOL	realpath	/usr/bin/realpath	/usr/lib/cargo/bin/coreutils/realpath
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/realpath
+TOOL	tee	/usr/bin/tee	/usr/lib/cargo/bin/coreutils/tee
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/tee

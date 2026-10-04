@@ -1,0 +1,62 @@
+TOOL	bash	/usr/bin/bash	/usr/bin/bash
+2986231b72a4ad6d21ce85f05f6630b6bddf2100a80fa49198c527e87eb1a6af  /usr/bin/bash
+TOOL	sh	/usr/bin/sh	/usr/bin/dash
+781c19b56fbdb17284707f9026e107f639e5447df7df3b248a5d5a50c4b0806c  /usr/bin/dash
+TOOL	python3	/usr/bin/python3	/usr/bin/python3.13
+efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e  /usr/bin/python3.13
+TOOL	cc	/usr/bin/cc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	gcc	/usr/bin/gcc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	g++	/usr/bin/g++	/usr/bin/x86_64-linux-gnu-g++-15
+148558fc6e291be5a3a1c14adef7638c4c8bec30d085ebaff740244c0204be37  /usr/bin/x86_64-linux-gnu-g++-15
+TOOL	x86_64-linux-gnu-gcc	/usr/bin/x86_64-linux-gnu-gcc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	x86_64-linux-gnu-g++	/usr/bin/x86_64-linux-gnu-g++	/usr/bin/x86_64-linux-gnu-g++-15
+148558fc6e291be5a3a1c14adef7638c4c8bec30d085ebaff740244c0204be37  /usr/bin/x86_64-linux-gnu-g++-15
+TOOL	objcopy	/usr/bin/objcopy	/usr/bin/x86_64-linux-gnu-objcopy
+c38dc6bcee96c9b7426419a95e0bf6c15dd0024f50b4c5057d173b72c5f092dc  /usr/bin/x86_64-linux-gnu-objcopy
+TOOL	x86_64-linux-gnu-objcopy	/usr/bin/x86_64-linux-gnu-objcopy	/usr/bin/x86_64-linux-gnu-objcopy
+c38dc6bcee96c9b7426419a95e0bf6c15dd0024f50b4c5057d173b72c5f092dc  /usr/bin/x86_64-linux-gnu-objcopy
+TOOL	awk	/usr/bin/awk	/usr/bin/mawk
+9f11bee2561b60b79397c67086c58734334cee3d7382a275ab40530c9dc9e9b7  /usr/bin/mawk
+TOOL	sha256sum	/usr/bin/sha256sum	/usr/lib/cargo/bin/coreutils/sha256sum
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/sha256sum
+TOOL	realpath	/usr/bin/realpath	/usr/lib/cargo/bin/coreutils/realpath
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/realpath
+TOOL	cmp	/usr/bin/cmp	/usr/bin/cmp
+fec89e553875fec383eb836797a38ec7886a00c91b102fd790e3b8e3d3c04334  /usr/bin/cmp
+TOOL	sed	/usr/bin/sed	/usr/bin/sed
+ed5640ac9a0af33a8be9a981ef70f03cd83d5e902a7c5eeff18ee02b2fd48505  /usr/bin/sed
+TOOL	sort	/usr/bin/sort	/usr/lib/cargo/bin/coreutils/sort
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/sort
+TOOL	grep	/usr/bin/grep	/usr/bin/grep
+20a35a4c18f2fe9e6305c1cbf866b9c0fcc3f957132ae66028c99ec353bb0a80  /usr/bin/grep
+TOOL	git	/usr/bin/git	/usr/bin/git
+3446b26047255f16d588eda4527aeedf02bd173449382d93bfe8a141257876c9  /usr/bin/git
+TOOL	mktemp	/usr/bin/mktemp	/usr/lib/cargo/bin/coreutils/mktemp
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/mktemp
+TOOL	wc	/usr/bin/wc	/usr/lib/cargo/bin/coreutils/wc
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/wc
+TOOL	cut	/usr/bin/cut	/usr/lib/cargo/bin/coreutils/cut
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/cut
+TOOL	tr	/usr/bin/tr	/usr/lib/cargo/bin/coreutils/tr
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/tr
+TOOL	cp	/usr/bin/cp	/usr/bin/gnucp
+2555c1da675f51062e08155bc16e45f3555461f68e838c51b344b2ac6aa694ca  /usr/bin/gnucp
+SELECTED	cc1	/usr/libexec/gcc/x86_64-linux-gnu/15/cc1
+41fc4b37d4d7e00c6fb21594b5304761c39c88e0e600474215e77eae83e89bfb  /usr/libexec/gcc/x86_64-linux-gnu/15/cc1
+SELECTED	cc1plus	/usr/libexec/gcc/x86_64-linux-gnu/15/cc1plus
+bbba9d2d03128bc1a81ac1c6490206bf672ceeb3e732d569f6885f61a69916a1  /usr/libexec/gcc/x86_64-linux-gnu/15/cc1plus
+SELECTED	as	/usr/bin/x86_64-linux-gnu-as
+08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487  /usr/bin/x86_64-linux-gnu-as
+SELECTED	ld	/usr/bin/x86_64-linux-gnu-ld
+ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662  /usr/bin/x86_64-linux-gnu-ld.bfd
+SELECTED	collect2	/usr/libexec/gcc/x86_64-linux-gnu/15/collect2
+1eda8637ec0ce7749bca958e50fc44284e33ed8a3f090d441cf46455867957a1  /usr/libexec/gcc/x86_64-linux-gnu/15/collect2
+SELECTED	lto-wrapper	/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper
+0065b93fdf6ae2e6f0744ec4e765e50bb5b606ea9ea1d1bced223ede9d68b16e  /usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper
+SUPPORT	libgcc.a	/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a
+1ea0757d94885c3765545d8f179e382b00874ab5b23a8e03bab74c7459d94457  /usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a
+SUPPORT	liblto_plugin.so	/usr/lib/gcc/x86_64-linux-gnu/15/liblto_plugin.so
+3b3d0979c10af15045802b5d615de87253557b77cbab8551c174cda6b7e2e30a  /usr/libexec/gcc/x86_64-linux-gnu/15/liblto_plugin.so

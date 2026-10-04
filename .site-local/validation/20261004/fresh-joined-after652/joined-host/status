@@ -1,0 +1,9 @@
+assert-tpm-absent-dma-safe-selftest=0
+run-linear-acceptance-selftest=0
+assert-tpm-event-log-selftest=0
+freeze-tpm-evidence-selftest=0
+capture=0
+fresh_normal_fwui_admission=0
+normal_fwui_admission=0
+default_zero_setup_controller=0
+linux_fwui_reset=0

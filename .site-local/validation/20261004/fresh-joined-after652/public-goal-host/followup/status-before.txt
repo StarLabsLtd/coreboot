@@ -1,0 +1,2 @@
+ M util/qemu/bin/build-normal-fwui-fresh.sh
+ M util/qemu/bin/fresh_normal_fwui.py

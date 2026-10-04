@@ -1,0 +1,12 @@
+commit d40c29cf933c84c0d27f7ce5fcb99a45c23e8f3f
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Sun Oct 4 11:39:02 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Sun Oct 4 11:39:02 2026 +0100
+
+    qemu: build normal renderer through the public Make goal
+    
+    Replace the unsupported absolute renderer goal with registered native-lvgl-renderer-test in the actual and recorded combined build invocation. Require the same public goal during invocation admission. Keep the locked config dispatcher, profile flags, phase receipts and vendor proof unchanged.
+    
+    The canonical signed source has the existing populated pinned vendor roots required by the public dependency proof. Fresh8, historical9 and actual invocation positive/old-absolute-goal/missing-goal/config-bypass/absent-receipt HOST oppositions passed with frozen source/tool/recipe closure. Preserve the initial receipt-only Bash time-keyword failure and failed ready650 build; no new Core or guest success is claimed.

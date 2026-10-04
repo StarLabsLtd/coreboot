@@ -1,0 +1,5 @@
+HOST invocation public-goal-positive: PASS
+HOST invocation old-absolute-goal: PASS
+HOST invocation missing-public-goal: PASS
+HOST invocation bypass-config-ready: PASS
+HOST invocation absent-receipt: PASS

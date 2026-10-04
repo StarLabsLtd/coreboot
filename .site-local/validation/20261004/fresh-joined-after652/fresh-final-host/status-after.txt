@@ -1,0 +1,10 @@
+ M tests/direct_pair_provenance_test.sh
+ A tests/fresh_normal_fwui_admission_test.py
+ M util/qemu/README.md
+ M util/qemu/bin/assert-cdk2-direct-provenance.sh
+ M util/qemu/bin/assert-default-zero-setup-run.py
+ A util/qemu/bin/build-normal-fwui-fresh.sh
+ A util/qemu/bin/fresh_normal_fwui.py
+ M util/qemu/bin/run-linux-boot-to-fw-ui.py
+ M util/qemu/bin/run-normal-boot-to-fw-ui.py
+ M util/qemu/bin/run-one.sh

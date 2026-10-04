@@ -1,0 +1,14 @@
+commit 2859492a1e5fd0ccc5bf7461b623f48ea867086c
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Sun Oct 4 11:24:50 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Sun Oct 4 11:24:50 2026 +0100
+
+    qemu: admit explicit current-source normal setup builds
+    
+    Keep historical normal628 reuse admission and pins unchanged. Add an explicit fresh mode that binds signed clean joined source and vendors, current Kconfig resolution, actual toolchain and native inputs, regenerated direct composition, packed Core/producer configuration and current renderer references.
+    
+    Protect provenance inputs by dumping sections into separate owned ELFs and check mutation refusal, including expected-object mutation. Derive the protected profile test count from the fixed contract exclusions.
+    
+    Source freeze 37bf16c91a488229227166e0db3ff99d14b49281bc95b296afbcc96074b45f58 independently reviewed. Required host models, both retained saved-run oracles and actual provenance oppositions passed with source/tool/artifact closure unchanged. No new Core build or guest evidence claimed. Preserve the extra inherited capture-readiness fixture failure and superseded count-assertion failures as open/initial receipts.

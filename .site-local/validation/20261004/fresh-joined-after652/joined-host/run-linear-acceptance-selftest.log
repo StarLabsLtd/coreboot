@@ -1,0 +1,3 @@
+/usr/bin/mdir: File "::/EFI/BOOT/BOOTX64.EFI" not found
+/usr/bin/mdir: File "::/EFI/UpdateCapsule/CDK2.cap" not found
+linear acceptance fixture mapping selftest: PASS
