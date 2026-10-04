@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "cmp",
+    "/home/sean/tpm-fifo-functional-build-after661/payload/include/cdk2/config.h",
+    "/home/sean/efivar-unlock-public-final.20261004-r1/build/include/cdk2/config.h"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1",
+    "HOME": "/home/sean",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "OLDPWD": "/home/sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/efivar-unlock-public-final.20261004-r1/tmp",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

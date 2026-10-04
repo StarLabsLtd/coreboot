@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin HOME=/home/sean TMPDIR=/home/sean/tcg-hash-pack32-host.l71pAn/tmp LANG=C LC_ALL=C HOSTCC=/usr/bin/gcc ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 sh tests/software_hash_source_test.sh /home/sean/Documents/.cdk2-worktrees/tcg-hash-pack32-after661 

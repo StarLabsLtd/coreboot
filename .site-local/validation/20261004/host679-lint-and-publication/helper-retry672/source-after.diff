@@ -1,0 +1,148 @@
+diff --git a/tests/efivar_unlock_test.c b/tests/efivar_unlock_test.c
+new file mode 100644
+index 0000000000..3e849b1f77
+--- /dev/null
++++ b/tests/efivar_unlock_test.c
+@@ -0,0 +1,129 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <assert.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fs.h>
++#include <stdarg.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++
++#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
++
++static int open_error, get_error, set_error;
++static unsigned int original_flags, written_flags;
++static unsigned int opens, gets, sets, closes, reports;
++
++static int fixture_open(const char *path, int flags)
++{
++	assert(path != NULL && flags == (O_RDONLY | O_CLOEXEC));
++	opens++;
++	if (open_error != 0) {
++		errno = open_error;
++		return -1;
++	}
++	return 7;
++}
++
++static int fixture_ioctl(int descriptor, unsigned long request, ...)
++{
++	va_list arguments;
++	unsigned int *flags;
++	int error;
++
++	assert(descriptor == 7);
++	va_start(arguments, request);
++	flags = va_arg(arguments, unsigned int *);
++	va_end(arguments);
++	assert(flags != NULL);
++	if (request == FS_IOC_GETFLAGS) {
++		gets++;
++		*flags = original_flags;
++		error = get_error;
++	} else {
++		assert(request == FS_IOC_SETFLAGS);
++		sets++;
++		written_flags = *flags;
++		error = set_error;
++	}
++	errno = error;
++	return error == 0 ? 0 : -1;
++}
++
++static int fixture_close(int descriptor)
++{
++	assert(descriptor == 7);
++	closes++;
++	return 0;
++}
++
++static void fixture_perror(const char *label)
++{
++	assert(label != NULL && errno != 0);
++	reports++;
++}
++
++#define open fixture_open
++#define ioctl fixture_ioctl
++#define close fixture_close
++#define perror fixture_perror
++#define main efivar_unlock_main
++#ifndef CDK2_EFIVAR_UNLOCK_SOURCE
++#define CDK2_EFIVAR_UNLOCK_SOURCE "../util/qemu/fixtures/linux-mini/efivar-unlock.c"
++#endif
++#include CDK2_EFIVAR_UNLOCK_SOURCE
++#undef main
++#undef perror
++#undef close
++#undef ioctl
++#undef open
++
++static void reset(void)
++{
++	open_error = get_error = set_error = 0;
++	original_flags = FS_IMMUTABLE_FL | FS_APPEND_FL;
++	written_flags = 0;
++	opens = gets = sets = closes = reports = 0;
++}
++
++int main(int argc, char **argv)
++{
++	char program[] = "efivar-unlock", path[] = "fixture";
++	char *arguments[3] = { program, path, NULL };
++	int unsupported_syscall;
++	const int errors[] = { ENOTTY, EOPNOTSUPP, EACCES, EIO };
++
++	assert(argc == 2);
++	unsupported_syscall = atoi(argv[1]);
++	assert(unsupported_syscall > 0);
++	reset();
++	assert(efivar_unlock_main(1, arguments) == 2 && opens == 0);
++	reset();
++	open_error = EACCES;
++	assert(efivar_unlock_main(2, arguments) == 1);
++	assert(opens == 1 && gets == 0 && sets == 0 && closes == 0 && reports == 1);
++	for (size_t index = 0; index < ARRAY_SIZE(errors); index++) {
++		reset();
++		get_error = errors[index];
++		assert(efivar_unlock_main(2, arguments) == (index < 2 ? 3 : 1));
++		assert(opens == 1 && gets == 1 && sets == 0 && closes == 1);
++		assert(reports == (index < 2 ? 0U : 1U));
++	}
++	reset();
++	get_error = unsupported_syscall;
++	assert(efivar_unlock_main(2, arguments) == 1);
++	assert(gets == 1 && sets == 0 && closes == 1 && reports == 1);
++	reset();
++	set_error = EACCES;
++	assert(efivar_unlock_main(2, arguments) == 1);
++	assert(gets == 1 && sets == 1 && closes == 1 && reports == 1);
++	assert(written_flags == FS_APPEND_FL);
++	reset();
++	assert(efivar_unlock_main(2, arguments) == 0);
++	assert(gets == 1 && sets == 1 && closes == 1 && reports == 0);
++	assert(written_flags == FS_APPEND_FL);
++	puts("efivar unlock syscall and immutable-flag contracts: PASS");
++	return 0;
++}
+diff --git a/util/qemu/fixtures/linux-mini/efivar-unlock.c b/util/qemu/fixtures/linux-mini/efivar-unlock.c
+index 5313fc737a..146035ec21 100644
+--- a/util/qemu/fixtures/linux-mini/efivar-unlock.c
++++ b/util/qemu/fixtures/linux-mini/efivar-unlock.c
+@@ -19,7 +19,7 @@ int main(int argc, char **argv)
+ 		return 1;
+ 	}
+ 	if (ioctl(fd, FS_IOC_GETFLAGS, &flags) < 0) {
+-		if (errno == ENOTTY || errno == EOPNOTSUPP || errno == ENOSYS) {
++		if (errno == ENOTTY || errno == EOPNOTSUPP) {
+ 			close(fd);
+ 			return 3;
+ 		}

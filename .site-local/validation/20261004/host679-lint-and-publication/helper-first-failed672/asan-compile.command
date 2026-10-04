@@ -1,0 +1,1 @@
+gcc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -g -fno-pie -no-pie -O1 -fsanitize=address -fno-sanitize-recover=all tests/efivar_unlock_test.c -o /home/sean/efivar-unlock-contract-host.phWpE0/build/asan 

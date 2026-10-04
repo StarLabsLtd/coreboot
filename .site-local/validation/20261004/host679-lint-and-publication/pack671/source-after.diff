@@ -1,0 +1,88 @@
+diff --git a/src/lib/tcg_hash/PROVENANCE b/src/lib/tcg_hash/PROVENANCE
+index 1172e5baf3..8c2f87c57c 100644
+--- a/src/lib/tcg_hash/PROVENANCE
++++ b/src/lib/tcg_hash/PROVENANCE
+@@ -10,7 +10,7 @@ linux_sm3_sha256=c0109ee488102e6f678ee3c7cf316013652ea69b42f200b554c77815fa621a5
+ compatibility_shims=local_freestanding_headers_hash_bound_below
+ vboot_2common_sha256=7df01f9bff3add62cd8f9e54eecd781f160fae2b27c19d129f47908e12bb1f02
+ vboot_2sha_h_sha256=378579912914d3de761703eee93bab2bf06024de2cf84e654ea5f09f6aa50170
+-vboot_2sha_private_sha256=0367de2e92a1a7a2a52b7c50fb6e31fd6a6694c3dd94d08f476a20eca878610a
++vboot_2sha_private_sha256=18be5ddef7f2ad1319b137b18bd2e34e2e7371d4ed29535fbbab74d45053f05c
+ vboot_2sysincludes_sha256=241ace9e820f9702794c49bd8a76cd1386b14b5e0ea2723cffdafc3b6a487a7d
+ linux_sm3_h_sha256=4990b55a8c24e9945c42b8be72da85b45756a4f2c79f0559c8b45e38a95601f1
+ linux_export_h_sha256=9e25befc9ccf992931a89a567cebc8c1273a43cf3edd27ad99a557388aef612d
+diff --git a/src/lib/tcg_hash/vendor/vboot/2sha_private.h b/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+index fec444c4b3..c48ca6e836 100644
+--- a/src/lib/tcg_hash/vendor/vboot/2sha_private.h
++++ b/src/lib/tcg_hash/vendor/vboot/2sha_private.h
+@@ -14,10 +14,9 @@
+ 	(s)[0] = (uint8_t)((x) >> 24); \
+ } while (0)
+ 
+-#define PACK32(s, x) do { \
+-	*(x) = (uint32_t)(s)[3] | (uint32_t)(s)[2] << 8 | \
+-		(uint32_t)(s)[1] << 16 | (uint32_t)(s)[0] << 24; \
+-} while (0)
++#define PACK32(s, x) \
++	(*(x) = (uint32_t)(s)[3] | (uint32_t)(s)[2] << 8 | \
++		(uint32_t)(s)[1] << 16 | (uint32_t)(s)[0] << 24)
+ 
+ #define UNPACK64(x, s) do { \
+ 	for (unsigned int _i = 0; _i < 8; _i++) \
+diff --git a/tests/software_hash_source_test.sh b/tests/software_hash_source_test.sh
+index f507136c4a..8f6ad3f4ef 100644
+--- a/tests/software_hash_source_test.sh
++++ b/tests/software_hash_source_test.sh
+@@ -18,7 +18,7 @@ grep -qx 'linux_commit=08dbfad3f5040f5bdb6c529da20d6d4e81fefd72' \
+ check() { test "$(sha256sum "$root/$1" | cut -d' ' -f1)" = "$2"; }
+ check src/lib/tcg_hash/vendor/vboot/2common.h 7df01f9bff3add62cd8f9e54eecd781f160fae2b27c19d129f47908e12bb1f02
+ check src/lib/tcg_hash/vendor/vboot/2sha.h 378579912914d3de761703eee93bab2bf06024de2cf84e654ea5f09f6aa50170
+-check src/lib/tcg_hash/vendor/vboot/2sha_private.h 0367de2e92a1a7a2a52b7c50fb6e31fd6a6694c3dd94d08f476a20eca878610a
++check src/lib/tcg_hash/vendor/vboot/2sha_private.h 18be5ddef7f2ad1319b137b18bd2e34e2e7371d4ed29535fbbab74d45053f05c
+ check src/lib/tcg_hash/vendor/vboot/2sysincludes.h 241ace9e820f9702794c49bd8a76cd1386b14b5e0ea2723cffdafc3b6a487a7d
+ check src/lib/tcg_hash/vendor/linux/include/crypto/sm3.h 4990b55a8c24e9945c42b8be72da85b45756a4f2c79f0559c8b45e38a95601f1
+ check src/lib/tcg_hash/vendor/linux/include/linux/export.h 9e25befc9ccf992931a89a567cebc8c1273a43cf3edd27ad99a557388aef612d
+diff --git a/tests/software_hash_test.c b/tests/software_hash_test.c
+index 205c45a9cc..f707b09fb6 100644
+--- a/tests/software_hash_test.c
++++ b/tests/software_hash_test.c
+@@ -1,5 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0-only */
+ #include <cdk2/software_hash.h>
++#include <2sha_private.h>
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+@@ -55,6 +56,32 @@ int main(void)
+ 	struct cdk2_software_hash one, split, overflow;
+ 	struct cdk2_tcg2_span spans[3];
+ 	uint64_t prior;
++	/* Exercise the owned shim with unaligned input and unsigned high bytes. */
++	for (size_t offset = 0; offset < 4; offset++) {
++		uint8_t bytes[7] = {0};
++		uint32_t output[2] = {0}, *target = output;
++		uint32_t expected = 0;
++
++		for (size_t index = 0; index < 4; index++) {
++			bytes[offset + index] = (uint8_t)(0x80U + index * 0x25U);
++			expected = expected * 256U + bytes[offset + index];
++		}
++		if (offset < 4)
++			PACK32(bytes + offset, target++);
++		else
++			CHECK(0);
++		CHECK(output[0] == expected && output[1] == 0 && target == output + 1);
++		for (unsigned int value = 0; value < 256; value++) {
++			for (size_t index = 0; index < 4; index++) {
++				bytes[offset + index] = (uint8_t)value;
++				PACK32(bytes + offset, output);
++				expected = 0;
++				for (size_t byte = 0; byte < 4; byte++)
++					expected = expected * 256U + bytes[offset + byte];
++				CHECK(output[0] == expected);
++			}
++		}
++	}
+ 	CHECK(cdk2_software_hash_init(NULL, TPM_ALG_SHA256) == EFI_INVALID_PARAMETER);
+ 	CHECK(vector(TPM_ALG_SHA1, "", "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
+ 	CHECK(vector(TPM_ALG_SHA1, "abc", "a9993e364706816aba3e25717850c26c9cd0d89d"));

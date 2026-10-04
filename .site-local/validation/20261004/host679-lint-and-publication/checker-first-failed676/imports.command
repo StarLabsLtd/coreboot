@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin HOME=/home/sean TMPDIR=/home/sean/checkpatch-boundaries-host.mXHLoF/tmp LANG=C LC_ALL=C HOSTCC=/usr/bin/gcc sh util/lint/lint-007-checkpatch src/lib/tcg_hash/vendor/vboot/2sha1.c\ src/lib/tcg_hash/vendor/vboot/2sha256.c\ src/lib/tcg_hash/vendor/vboot/2sha512.c 

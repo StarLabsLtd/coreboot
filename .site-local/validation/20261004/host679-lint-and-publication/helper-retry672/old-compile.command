@@ -1,0 +1,1 @@
+gcc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -O0 -DCDK2_EFIVAR_UNLOCK_SOURCE=\"/home/sean/efivar-unlock-contract-host-retry.OKE5zj/old-source/efivar-unlock.c\" tests/efivar_unlock_test.c -o /home/sean/efivar-unlock-contract-host-retry.OKE5zj/build/old-contract 

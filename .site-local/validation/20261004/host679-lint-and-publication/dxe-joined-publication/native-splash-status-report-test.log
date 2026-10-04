@@ -1,0 +1,15 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670'
+#
+# No change to /home/sean/dxe-publication-joined-final.20261004-r2/build/resolved.config
+#
+Splash HOST artifacts: /home/sean/dxe-publication-joined-final.20261004-r2/tmp/tmp.IirysudLTB
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+09c55abefdc4fa1bd8b494bf6d3ae27d0fd83f0b40dd3b92ac5ea49bc86dcf2c  /home/sean/dxe-publication-joined-final.20261004-r2/tmp/tmp.IirysudLTB/argv-0-0
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+b4cae77bfa690fa70ec5c19a5829edc7688aa41c7676dd682db664b6490681d5  /home/sean/dxe-publication-joined-final.20261004-r2/tmp/tmp.IirysudLTB/argv-0-2
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+14dfe27a91cc9c8155e3f99ab3fb67463b06358e6233ad19ceaf0456c898ede3  /home/sean/dxe-publication-joined-final.20261004-r2/tmp/tmp.IirysudLTB/argv-1-0
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+fbe51ab3eb986ae0c4677e71c5c8e911c4a3261ea19448027955e0032a571066  /home/sean/dxe-publication-joined-final.20261004-r2/tmp/tmp.IirysudLTB/argv-1-2
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670'

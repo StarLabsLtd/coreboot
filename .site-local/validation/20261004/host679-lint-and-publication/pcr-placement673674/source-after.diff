@@ -1,0 +1,498 @@
+diff --git a/docs/tcg2-boot-variable-parity.md b/docs/tcg2-boot-variable-parity.md
+new file mode 100644
+index 0000000000..cd8f78a066
+--- /dev/null
++++ b/docs/tcg2-boot-variable-parity.md
+@@ -0,0 +1,31 @@
++# Legacy boot-variable measurement parity
++
++The TCG2 driver's four legacy `EV_EFI_VARIABLE_BOOT` callers select PCR1:
++BootOrder, BootCurrent, BootNext and the constructed Boot#### name. The generic
++variable-measurement API still uses its caller's PCR argument. Application
++measurements remain PCR4; GPT and boot-attempt actions remain PCR5; secure-boot
++configuration variables remain PCR7; successful separators remain PCR0–7.
++
++This placement follows the pinned [EDK2 26.09 Tcg2Dxe source](https://github.com/StarLabsLtd/edk2/blob/aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272/SecurityPkg/Tcg/Tcg2Dxe/Tcg2Dxe.c)
++`ReadAndMeasureBootVariable` and the legacy BOOT compatibility entry in the
++[TCG PC Client Platform Firmware Profile 1.06, revision 52](https://trustedcomputinggroup.org/wp-content/uploads/PC-Client-Platform-Firmware-Profile-Version-1.06-Revision-52_pub.pdf),
++Table27 (printed page139). Legacy BOOT hashes variable data only while logging
++the full UEFI variable payload. That digest rule is an independently reviewed
++change; this patch changes only driver PCR placement, not digest spans, wire
++records, algorithms or bank selection.
++
++This is not complete EDK2 event-set parity or full PFP compliance. EDK2 measures
++BootOrder and its listed Boot#### variables. The native driver retains additional
++BootCurrent, BootNext and current Boot####-outside-BootOrder events, including
++their existing ordering and failure behavior. BOOT2, GPT2 and a decision on these
++extra events remain separate work. No variable event is moved to PCR4.
++
++The included-driver HOST fixture invokes the real ReadyToBoot and variable-ready
++callbacks, with explicit runtime-variable, pool and measurement-service boundary
++models. It checks exact names/GUIDs/data/PCRs, ordered Boot#### selection,
++current-outside-order, missing/malformed/read/allocation/measurement failure paths,
++once-only separators/boot attempts and unchanged secure-variable PCR7 policy.
++It is not evidence of loaded firmware, a TPM device, a selected-Boot guest or
++live PCR replay. The fallback-media QEMU oracle continues to require no legacy
++BOOT event at any PCR; a future selected-Boot lane needs its own exact variable
++event contract and Linux PCR1 replay, not a fallback-oracle exemption.
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index a71dfad147..466b16a702 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -1787,6 +1787,7 @@ CDK2_NATIVE_TCG2_EVENT_LOG_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-tcg2-event-log-
+ CDK2_NATIVE_TCG2_MEASURE_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-tcg2-measure-test
+ CDK2_NATIVE_TCG2_SERVICE_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-tcg2-service-test
+ CDK2_NATIVE_TCG2_ENTRY_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-tcg2-entry-test
++CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/cdk2-tcg2-driver-boot-test
+ CDK2_NATIVE_TCG2_DIAGNOSTIC_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-diagnostic-test
+ CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-diagnostic-coalesce-test
+ CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-platform-hob-test
+@@ -2013,6 +2014,7 @@ CDK2_NATIVE_HOST_TOOLS := \
+ 	$(CDK2_NATIVE_TCG2_MEASURE_TEST) \
+ 	$(CDK2_NATIVE_TCG2_SERVICE_TEST) \
+ 	$(CDK2_NATIVE_TCG2_ENTRY_TEST) \
++	$(CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST) \
+ 	$(CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST) \
+ 	$(CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST) \
+ 	$(CDK2_NATIVE_SOFTWARE_HASH_TEST) \
+@@ -2610,6 +2612,7 @@ native-check: $(CDK2_CONFIG_HEADER) $(CDK2_NATIVE_ELF) $(CDK2_NATIVE_OVERRIDE_EL
+ 	@"$(CDK2_NATIVE_TCG2_MEASURE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_SERVICE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_ENTRY_TEST)"
++	@"$(CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST)"
+ 	@"$(CDK2_NATIVE_TPM2_ACPI_TABLE_TEST)"
+@@ -2884,8 +2887,9 @@ native-tcg2-measure-test: $(CDK2_NATIVE_TCG2_MEASURE_TEST)
+ native-tcg2-service-test: $(CDK2_NATIVE_TCG2_SERVICE_TEST)
+ 	@"$<"
+ 
+-native-tcg2-entry-test: $(CDK2_NATIVE_TCG2_ENTRY_TEST)
++native-tcg2-entry-test: $(CDK2_NATIVE_TCG2_ENTRY_TEST) $(CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST)
+ 	@"$<"
++	@"$(CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST)"
+ 
+ native-software-hash-test: $(CDK2_NATIVE_SOFTWARE_HASH_TEST)
+ 	@"$<"
+@@ -5844,6 +5848,14 @@ $(CDK2_NATIVE_TCG2_SERVICE_TEST): $(CDK2_DIR)/tests/tcg2_service_test.c $(CDK2_D
+ $(CDK2_NATIVE_TCG2_ENTRY_TEST): $(CDK2_DIR)/tests/tcg2_entry_test.c $(CDK2_DIR)/src/modules/tcg2/tcg2_entry.c $(CDK2_DIR)/include/cdk2/tcg2_entry.h | $(CDK2_NATIVE_BUILD_DIR)
+ 	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) $(CDK2_NATIVE_INCLUDES) -o "$@" "$(CDK2_DIR)/tests/tcg2_entry_test.c" "$(CDK2_DIR)/src/modules/tcg2/tcg2_entry.c"
+ 
++$(CDK2_NATIVE_TCG2_DRIVER_BOOT_TEST): $(CDK2_DIR)/tests/tcg2_driver_boot_variable_test.c \
++		$(CDK2_DIR)/src/modules/tcg2/driver.c $(CDK2_CONFIG_HEADER) | $(CDK2_NATIVE_BUILD_DIR)
++	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) -DCDK2_HOST_TEST \
++		-ffunction-sections -fdata-sections $(CDK2_NATIVE_INCLUDES) \
++		-MMD -MP -MF "$@.d" -MT "$@" -o "$@" "$<" -Wl,--gc-sections \
++		-Wl,--wrap=cdk2_tcg2_measure_boot_variable,--wrap=cdk2_tcg2_measure_separator \
++		-Wl,--wrap=cdk2_tcg2_boot_attempt,--wrap=cdk2_tcg2_measure_spans
++
+ $(CDK2_NATIVE_TPM2_ACPI_TABLE_TEST): $(CDK2_DIR)/tests/tpm2_acpi_table_test.c $(CDK2_DIR)/src/modules/tpm2_acpi_table/tpm2_acpi_table.c $(CDK2_DIR)/src/modules/tpm2_acpi_table/driver.c $(CDK2_DIR)/src/lib/diagnostic.c $(CDK2_DIR)/include/cdk2/tpm2_acpi_table.h | $(CDK2_NATIVE_BUILD_DIR)
+ 	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) $(CDK2_NATIVE_INCLUDES) -o "$@" "$(CDK2_DIR)/tests/tpm2_acpi_table_test.c" "$(CDK2_DIR)/src/modules/tpm2_acpi_table/tpm2_acpi_table.c" "$(CDK2_DIR)/src/modules/tpm2_acpi_table/driver.c" "$(CDK2_DIR)/src/lib/diagnostic.c"
+ 
+diff --git a/src/modules/tcg2/driver.c b/src/modules/tcg2/driver.c
+index b610bfb73e..c08c4969f9 100644
+--- a/src/modules/tcg2/driver.c
++++ b/src/modules/tcg2/driver.c
+@@ -702,7 +702,7 @@ static void measure_boot_option(UINT16 option)
+ 	for (UINTN index = 0; index < 4U; index++)
+ 		name[7U - index] = hex[option >> (index * 4U) & 0xfU];
+ 	measure_variable(name, sizeof(name) - sizeof(*name), &global_variable_guid,
+-		5, EV_EFI_VARIABLE_BOOT);
++		1, EV_EFI_VARIABLE_BOOT);
+ }
+ 
+ static UINT64 read_little_endian(const UINT8 *bytes, UINTN size)
+@@ -811,11 +811,11 @@ static void CDK2_MS_ABI ready_to_boot(void *event, void *context)
+ 		return;
+ 	}
+ 	measure_variable(boot_order, sizeof(boot_order) - sizeof(*boot_order),
+-		&global_variable_guid, 5, EV_EFI_VARIABLE_BOOT);
++		&global_variable_guid, 1, EV_EFI_VARIABLE_BOOT);
+ 	measure_variable(boot_current, sizeof(boot_current) - sizeof(*boot_current),
+-		&global_variable_guid, 5, EV_EFI_VARIABLE_BOOT);
++		&global_variable_guid, 1, EV_EFI_VARIABLE_BOOT);
+ 	measure_variable(boot_next, sizeof(boot_next) - sizeof(*boot_next),
+-		&global_variable_guid, 5, EV_EFI_VARIABLE_BOOT);
++		&global_variable_guid, 1, EV_EFI_VARIABLE_BOOT);
+ 	size = sizeof(current);
+ 	current_valid = !EFI_ERROR(runtime_services->get_variable(boot_current,
+ 		&global_variable_guid, NULL, &size, &current)) && size == sizeof(current);
+@@ -948,7 +948,8 @@ EFI_STATUS CDK2_MS_ABI cdk2_tcg2_entry(void *image,
+ 	}
+ 	tpm_io = (struct cdk2_tpm2_io){ NULL, mmio_read8, mmio_read32, mmio_read64,
+ 		mmio_write8, mmio_write32, mmio_write64, tpm_stall };
+-	transport = (struct cdk2_tpm2_transport){ interface, tpm_base, 2000000U, &tpm_io };
++	transport = (struct cdk2_tpm2_transport) { .interface = interface,
++		.base = tpm_base, .timeout_us = 2000000U, .io = &tpm_io };
+ 	status = cdk2_tcg2_service_init(&service, &transport, NULL, allocate_log, free_log,
+ 		NULL, NULL, LOG_CAPACITY, LOG_CAPACITY);
+ 	if (EFI_ERROR(status)) {
+diff --git a/tests/tcg2_driver_boot_variable_test.c b/tests/tcg2_driver_boot_variable_test.c
+new file mode 100644
+index 0000000000..e486c5db42
+--- /dev/null
++++ b/tests/tcg2_driver_boot_variable_test.c
+@@ -0,0 +1,325 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++#include <assert.h>
++#include <stdbool.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++/* Exercise the real driver's private callbacks, not a copied PCR policy. */
++#ifndef CDK2_TCG2_DRIVER_SOURCE
++#define CDK2_TCG2_DRIVER_SOURCE "../src/modules/tcg2/driver.c"
++#endif
++#include CDK2_TCG2_DRIVER_SOURCE
++
++struct variable_fixture {
++	const CHAR16 *name;
++	const EFI_GUID *guid;
++	const void *data;
++	size_t size;
++	bool missing, fail_read;
++};
++
++struct variable_record {
++	CHAR16 name[16];
++	EFI_GUID guid;
++	uint8_t data[16];
++	size_t name_size, data_size;
++	uint32_t pcr, type;
++};
++
++static const CHAR16 option_one[] = u"Boot0001";
++static const CHAR16 option_two[] = u"Boot0002";
++static const CHAR16 option_ten[] = u"Boot000A";
++static uint16_t order_data[] = { 2, 1 };
++static uint16_t current_data = 1, next_data = 10;
++static const uint8_t option_data[] = { 1, 2, 3, 4 };
++static const uint8_t secure_data[] = { 1 };
++static struct variable_fixture variables[11];
++static struct variable_record records[32];
++static size_t record_count, allocation_count, free_count, active_allocations;
++static size_t fail_allocation = SIZE_MAX;
++static uint32_t separator_count, attempts, returning_attempts;
++static EFI_STATUS measurement_status;
++static struct boot_services_view mock_boot;
++static struct runtime_services_view mock_runtime;
++static struct system_table_view mock_system;
++
++static bool same_name(const CHAR16 *left, const CHAR16 *right)
++{
++	while (*left != 0 && *left == *right) {
++		left++;
++		right++;
++	}
++	return *left == *right;
++}
++
++static EFI_STATUS CDK2_MS_ABI get_variable(const CHAR16 *name,
++	const EFI_GUID *guid, UINT32 *attributes, UINTN *size, void *data)
++{
++	(void)attributes;
++	for (size_t index = 0; index < ARRAY_SIZE(variables); index++) {
++		struct variable_fixture *variable = &variables[index];
++
++		if (!same_name(name, variable->name))
++			continue;
++		assert(memcmp(guid, variable->guid, sizeof(*guid)) == 0);
++		if (variable->missing)
++			return EFI_NOT_FOUND;
++		if (data == NULL || *size < variable->size) {
++			*size = variable->size;
++			return EFI_BUFFER_TOO_SMALL;
++		}
++		if (variable->fail_read)
++			return EFI_DEVICE_ERROR;
++		memcpy(data, variable->data, variable->size);
++		*size = variable->size;
++		return EFI_SUCCESS;
++	}
++	return EFI_NOT_FOUND;
++}
++
++static EFI_STATUS CDK2_MS_ABI allocate_pool(EFI_MEMORY_TYPE type,
++	UINTN size, void **data)
++{
++	assert(type == efi_boot_services_data && size <= sizeof(records[0].data));
++	if (allocation_count++ == fail_allocation)
++		return EFI_OUT_OF_RESOURCES;
++	*data = malloc(size);
++	assert(*data != NULL);
++	active_allocations++;
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS CDK2_MS_ABI free_pool(void *data)
++{
++	assert(data != NULL && active_allocations != 0);
++	free(data);
++	active_allocations--;
++	free_count++;
++	return EFI_SUCCESS;
++}
++
++/* Only the external measurement boundaries are mocked; the driver's variable
++ * reads, allocations, Boot#### construction and callback control flow are real. */
++EFI_STATUS __wrap_cdk2_tcg2_measure_boot_variable(struct cdk2_tcg2_service *owner,
++	TPM_PCRINDEX pcr, UINT32 type, const EFI_GUID *guid,
++	cdk2_const_char16 name, UINT32 name_bytes, const void *data, UINT32 data_size,
++	UINT32 *code)
++{
++	struct variable_record *record;
++
++	assert(owner == &service && record_count < ARRAY_SIZE(records));
++	record = &records[record_count++];
++	assert(name_bytes < sizeof(record->name) && data_size <= sizeof(record->data));
++	memcpy(record->name, name, name_bytes);
++	record->guid = *guid;
++	memcpy(record->data, data, data_size);
++	record->name_size = name_bytes;
++	record->data_size = data_size;
++	record->pcr = pcr;
++	record->type = type;
++	*code = 0;
++	return measurement_status;
++}
++
++EFI_STATUS __wrap_cdk2_tcg2_measure_separator(struct cdk2_tcg2_measurement *owner,
++	TPM_PCRINDEX pcr, UINT32 type, UINT32 value, UINT32 *code)
++{
++	assert(owner == &service.measurement && pcr == separator_count);
++	assert(type == 4 && value == 0 && active_allocations == 0);
++	separator_count++;
++	*code = 0;
++	return measurement_status;
++}
++
++EFI_STATUS __wrap_cdk2_tcg2_boot_attempt(struct cdk2_tcg2_service *owner,
++	BOOLEAN returning, UINT32 *code)
++{
++	assert(owner == &service && separator_count == 8);
++	if (returning)
++		returning_attempts++;
++	else
++		attempts++;
++	*code = 0;
++	return measurement_status;
++}
++
++EFI_STATUS __wrap_cdk2_tcg2_measure_spans(struct cdk2_tcg2_measurement *owner,
++	TPM_PCRINDEX pcr, UINT32 type, const struct cdk2_tcg2_span *spans,
++	UINT32 count, const void *event, UINT32 event_size, UINT32 *code)
++{
++	(void)owner; (void)pcr; (void)type; (void)spans; (void)count;
++	(void)event; (void)event_size; (void)code;
++	/* No SMBIOS table is supplied by this focused variable fixture. */
++	assert(0);
++	return EFI_DEVICE_ERROR;
++}
++
++static void reset_fixture(void)
++{
++	assert(active_allocations == 0);
++	variables[0] = (struct variable_fixture){ boot_order, &global_variable_guid,
++		order_data, sizeof(order_data), false, false };
++	variables[1] = (struct variable_fixture){ boot_current, &global_variable_guid,
++		&current_data, sizeof(current_data), false, false };
++	variables[2] = (struct variable_fixture){ boot_next, &global_variable_guid,
++		&next_data, sizeof(next_data), false, false };
++	variables[3] = (struct variable_fixture){ option_one, &global_variable_guid,
++		option_data, sizeof(option_data), false, false };
++	variables[4] = variables[3]; variables[4].name = option_two;
++	variables[5] = variables[3]; variables[5].name = option_ten;
++	variables[6] = (struct variable_fixture){ secure_boot, &global_variable_guid,
++		secure_data, sizeof(secure_data), false, false };
++	variables[7] = variables[6]; variables[7].name = pk;
++	variables[8] = variables[6]; variables[8].name = kek;
++	variables[9] = variables[6]; variables[9].name = db;
++	variables[9].guid = &image_security_database_guid;
++	variables[10] = variables[9]; variables[10].name = dbx;
++	memset(records, 0, sizeof(records));
++	record_count = allocation_count = free_count = 0;
++	fail_allocation = SIZE_MAX;
++	separator_count = attempts = returning_attempts = 0;
++	measurement_status = EFI_SUCCESS;
++	variables_measured = publication_complete = variable_measurement_pending = FALSE;
++	separators_measured = boot_attempt_started = FALSE;
++	mock_boot.allocate_pool = allocate_pool;
++	mock_boot.free_pool = free_pool;
++	mock_runtime.get_variable = get_variable;
++	boot_services = &mock_boot;
++	runtime_services = &mock_runtime;
++	system_table = &mock_system;
++	current_data = 1;
++}
++
++static void expect_record(size_t index, const CHAR16 *name, uint32_t pcr,
++	uint32_t type, const EFI_GUID *guid, const void *data, size_t size)
++{
++	const struct variable_record *record = &records[index];
++	size_t name_length = 0;
++
++	while (name[name_length] != 0)
++		name_length++;
++	assert(index < record_count && same_name(record->name, name));
++	assert(record->name_size == name_length * sizeof(CHAR16));
++	assert(record->pcr == pcr && record->type == type);
++	assert(memcmp(&record->guid, guid, sizeof(*guid)) == 0);
++	assert(record->data_size == size && memcmp(record->data, data, size) == 0);
++}
++
++static void expect_boot_record(size_t index, const CHAR16 *name,
++	const void *data, size_t size)
++{
++	expect_record(index, name, 1, EV_EFI_VARIABLE_BOOT,
++		&global_variable_guid, data, size);
++}
++
++static void boot_callbacks(void)
++{
++	reset_fixture();
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 5 && separator_count == 8 && attempts == 1);
++	expect_boot_record(0, boot_order, order_data, sizeof(order_data));
++	expect_boot_record(1, boot_current, &current_data, sizeof(current_data));
++	expect_boot_record(2, boot_next, &next_data, sizeof(next_data));
++	expect_boot_record(3, option_two, option_data, sizeof(option_data));
++	expect_boot_record(4, option_one, option_data, sizeof(option_data));
++	assert(allocation_count == free_count && active_allocations == 0);
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 5 && separator_count == 8 && attempts == 1);
++	assert(returning_attempts == 1);
++
++	reset_fixture();
++	current_data = 10;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 6);
++	expect_boot_record(5, option_ten, option_data, sizeof(option_data));
++	assert(active_allocations == 0);
++
++	reset_fixture();
++	variables[0].missing = true;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 3 && attempts == 1);
++	expect_boot_record(0, boot_current, &current_data, sizeof(current_data));
++	expect_boot_record(2, option_one, option_data, sizeof(option_data));
++
++	reset_fixture();
++	variables[0].size = sizeof(order_data) - 1;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 4 && allocation_count == free_count);
++	expect_boot_record(3, option_one, option_data, sizeof(option_data));
++
++	reset_fixture();
++	variables[0].fail_read = true;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 3 && allocation_count == free_count);
++	expect_boot_record(2, option_one, option_data, sizeof(option_data));
++
++	reset_fixture();
++	for (size_t index = 0; index < 6; index++)
++		variables[index].missing = true;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 0 && separator_count == 8 && attempts == 1);
++
++	reset_fixture();
++	variables[2].fail_read = true;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 4 && allocation_count == free_count);
++	expect_boot_record(2, option_two, option_data, sizeof(option_data));
++
++	reset_fixture();
++	fail_allocation = 0;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 4 && allocation_count == free_count + 1);
++	expect_boot_record(0, boot_current, &current_data, sizeof(current_data));
++
++	reset_fixture();
++	fail_allocation = 3;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 4 && allocation_count == free_count + 1);
++	expect_boot_record(3, option_one, option_data, sizeof(option_data));
++
++	reset_fixture();
++	measurement_status = EFI_DEVICE_ERROR;
++	ready_to_boot(NULL, NULL);
++	assert(record_count == 5 && separator_count == 8 && attempts == 1);
++	assert(active_allocations == 0);
++
++	reset_fixture();
++	variables[0].size = (uint64_t)UINT32_MAX + 1;
++	measure_variable(boot_order, sizeof(boot_order) - sizeof(*boot_order),
++		&global_variable_guid, 1, EV_EFI_VARIABLE_BOOT);
++	assert(record_count == 0 && allocation_count == 0);
++
++	/* The helper must preserve a caller-specified PCR; policy lives at callers. */
++	reset_fixture();
++	measure_variable(boot_next, sizeof(boot_next) - sizeof(*boot_next),
++		&global_variable_guid, 5, EV_EFI_VARIABLE_BOOT);
++	assert(record_count == 1 && allocation_count == free_count);
++	expect_record(0, boot_next, 5, EV_EFI_VARIABLE_BOOT,
++		&global_variable_guid, &next_data, sizeof(next_data));
++}
++
++static void secure_callbacks(void)
++{
++	reset_fixture();
++	variable_write_ready(NULL, NULL);
++	assert(record_count == 0 && variable_measurement_pending);
++	publication_complete = TRUE;
++	variable_write_ready(NULL, NULL);
++	assert(record_count == 5 && allocation_count == free_count);
++	for (size_t index = 0; index < 5; index++)
++		expect_record(index, variables[6 + index].name, 7,
++			EV_EFI_VARIABLE_DRIVER_CONFIG, variables[6 + index].guid,
++			secure_data, sizeof(secure_data));
++	variable_write_ready(NULL, NULL);
++	assert(record_count == 5 && active_allocations == 0);
++}
++
++int main(void)
++{
++	boot_callbacks();
++	secure_callbacks();
++	puts("TCG2 real-driver boot-variable PCR policy: PASS");
++	return 0;
++}
+diff --git a/util/qemu/bin/assert-tpm-event-log-selftest.py b/util/qemu/bin/assert-tpm-event-log-selftest.py
+index 76c2c8a565..3327ee1f6e 100755
+--- a/util/qemu/bin/assert-tpm-event-log-selftest.py
++++ b/util/qemu/bin/assert-tpm-event-log-selftest.py
+@@ -159,7 +159,10 @@ def phase_mutants(path):
+     reject([*original[1:10], original[0], *original[10:]])
+     reject([event for event in original if event[2] != b"firmware application"])
+     reject([original[1], *original])
+-    reject([(5, oracle.EV_EFI_VARIABLE_BOOT, b"Boot0001"), *original])
++    # The fallback lane has no boot variables at any PCR. Each mutant carries
++    # a matching live PCR4/5 replay, so only the cardinality guard rejects it.
++    for pcr in (1, 4, 5, 7):
++        reject([(pcr, oracle.EV_EFI_VARIABLE_BOOT, b"Boot0001"), *original])
+     reject([event for event in original if event[2] != oracle.BOOT_ATTEMPT])
+     reject([*original, (5, oracle.EV_EFI_ACTION, oracle.BOOT_ATTEMPT)])
+     reject([original[0], original[1],
+diff --git a/util/qemu/bin/assert-tpm-event-log.py b/util/qemu/bin/assert-tpm-event-log.py
+index 727a97b8d4..72b155ae67 100755
+--- a/util/qemu/bin/assert-tpm-event-log.py
++++ b/util/qemu/bin/assert-tpm-event-log.py
+@@ -209,6 +209,8 @@ def validate(serial):
+                 if event["pcr"] == 5 and event["type"] == EV_EFI_GPT_EVENT]
+     pcr5_boot = [index for index, event in enumerate(events)
+                  if event["pcr"] == 5 and event["type"] == EV_EFI_VARIABLE_BOOT]
++    boot_variables = [event for event in events
++                      if event["type"] == EV_EFI_VARIABLE_BOOT]
+     pcr5_attempt = [index for index, event in enumerate(events)
+                     if event["pcr"] == 5 and event["type"] == EV_EFI_ACTION and
+                     event["event"] == BOOT_ATTEMPT]
+@@ -217,7 +219,7 @@ def validate(serial):
+     # one boot-attempt action after both, then at least one downstream image.
+     pre_separator_apps = [index for index in pcr4_app
+                           if index < separators[4][0]]
+-    if len(pre_separator_apps) != 1 or len(pcr5_gpt) != 1 or pcr5_boot:
++    if len(pre_separator_apps) != 1 or len(pcr5_gpt) != 1 or boot_variables:
+         raise ValueError("fallback-media pre-separator evidence has wrong cardinality")
+     if pcr5_gpt[0] >= separators[5][0] or len(pcr5_attempt) != 1:
+         raise ValueError("fallback-media GPT or boot-attempt phase is invalid")

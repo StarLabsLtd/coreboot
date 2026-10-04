@@ -1,0 +1,2 @@
+mutant: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/dxe_capsule_publication_test.c:177: verify_publication: Assertion `status == expected' failed.
+Aborted

@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/sean/tcg2-boot-variable-pcr1-host-final.20261004-r2/old-source/assert-tpm-event-log-selftest.py", line 225, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/tcg2-boot-variable-pcr1-host-final.20261004-r2/old-source/assert-tpm-event-log-selftest.py", line 220, in main
+    phase_mutants(path)
+    ~~~~~~~~~~~~~^^^^^^
+  File "/home/sean/tcg2-boot-variable-pcr1-host-final.20261004-r2/old-source/assert-tpm-event-log-selftest.py", line 165, in phase_mutants
+    reject([(pcr, oracle.EV_EFI_VARIABLE_BOOT, b"Boot0001"), *original])
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/tcg2-boot-variable-pcr1-host-final.20261004-r2/old-source/assert-tpm-event-log-selftest.py", line 155, in reject
+    rejected(path, serial(log, response))
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/tcg2-boot-variable-pcr1-host-final.20261004-r2/old-source/assert-tpm-event-log-selftest.py", line 84, in rejected
+    raise AssertionError("hostile TPM evidence was accepted")
+AssertionError: hostile TPM evidence was accepted

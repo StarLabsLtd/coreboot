@@ -1,0 +1,14 @@
+diff --git a/src/modules/tcg2/driver.c b/src/modules/tcg2/driver.c
+index b610bfb73e..4a12fdfce7 100644
+--- a/src/modules/tcg2/driver.c
++++ b/src/modules/tcg2/driver.c
+@@ -948,7 +948,8 @@ EFI_STATUS CDK2_MS_ABI cdk2_tcg2_entry(void *image,
+ 	}
+ 	tpm_io = (struct cdk2_tpm2_io){ NULL, mmio_read8, mmio_read32, mmio_read64,
+ 		mmio_write8, mmio_write32, mmio_write64, tpm_stall };
+-	transport = (struct cdk2_tpm2_transport){ interface, tpm_base, 2000000U, &tpm_io };
++	transport = (struct cdk2_tpm2_transport) { .interface = interface,
++		.base = tpm_base, .timeout_us = 2000000U, .io = &tpm_io };
+ 	status = cdk2_tcg2_service_init(&service, &transport, NULL, allocate_log, free_log,
+ 		NULL, NULL, LOG_CAPACITY, LOG_CAPACITY);
+ 	if (EFI_ERROR(status)) {

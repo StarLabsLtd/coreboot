@@ -1,0 +1,45 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-lint-after677-host'
+Check that files have license headers (lint-stable-000-license-headers): success
+Check for superfluous whitespace in the tree (lint-stable-003-whitespace): grep: src/modules/bds/keys/db_microsoft_uefi_2011.der: binary file matches
+grep: util/qemu/fixtures/esp-linux-cbmem.raw.xz: binary file matches
+grep: util/qemu/fixtures/nvme-final-c4bec.raw.xz: binary file matches
+success
+Check that C labels begin at start-of-line (lint-stable-004-style-labels): success
+Check that the Kconfig defconfig resolves (lint-stable-008-kconfig): success
+Check that we use a single assembler syntax (lint-stable-010-asm-syntax): success
+Check that source files are not executable (lint-stable-012-executable-bit): success
+Check for non-ASCII and unprintable characters (lint-stable-016-non-ascii): docs/tcg2-boot-variable-parity.md:7:configuration variables remain PCR7; successful separators remain PCR0–7.
+test failed
+Report any symbolic links (lint-stable-018-symlinks): success
+Check for auto-included headers (lint-stable-019-header-files): success
+Verify that the word 'coreboot' is lowercase (lint-stable-021-coreboot-lowercase): success
+Check for illegal characters in filename (lint-stable-023-filenames): success
+Check that production inputs stay inside the native coreboot boundary (lint-stable-025-native-boundary): Invalid build source reference: src/boot/Makefile:2911:	__CDK2_UNSUPPORTED__.c:__CDK2_UNSUPPORTED__.c
+test failed
+Verify that files don't contain windows line endings (lint-stable-026-line-endings): success
+Check that GCC attributes use coreboot helper macros (lint-stable-027-attribute-helpers): success
+Check native C identifiers for CamelCase (lint-stable-028-camelcase): tests/checkpatch_uefi_information_test.c:21: CamelCase identifier: tCHAR16
+tests/checkpatch_uefi_information_test.c:21: CamelCase identifier: tCHAR16
+tests/checkpatch_uefi_information_test.c:21: CamelCase identifier: tCHAR16
+tests/checkpatch_uefi_information_test.c:21: CamelCase identifier: nWARNING
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT64
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT64
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT64
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tBOOLEAN
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT8
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT64
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tUINT32
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:563: CamelCase identifier: tCHAR16
+util/lint/cdk2-checkpatch-filter.c:571: CamelCase identifier: For
+util/lint/cdk2-checkpatch-filter.c:571: CamelCase identifier: Ignored
+util/lint/cdk2-checkpatch-filter.c:571: CamelCase identifier: If
+test failed
+Keep explicitly native leaf code free of UEFI compatibility aliases (lint-stable-029-native-types): success
+ERROR: 3 test(s) failed.
+make: *** [Makefile:700: lint] Error 1
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-lint-after677-host'

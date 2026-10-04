@@ -1,0 +1,265 @@
+make: Entering directory '/home/sean/efivar-unlock-public-final.20261004-r1/cache-source'
+Makefile:918: update target 'prepare-kconfig' due to: target is .PHONY
+mkdir -p "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config"; then \
+	test -f "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: /home/sean/tpm-fifo-functional-build-after661/producer-resolved.config' >&2; \
+		exit 1; \
+	}; \
+	cp "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' '/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"; fi
+Makefile:971: update target '/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity' due to: FORCE
+test -s "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"
+Makefile:1014: update target '/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h' due to: FORCE
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"; then test -n "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" && cmp -s "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"
+mkdir -p "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+Makefile:1150: update target 'native-efivar-unlock-test' due to: target does not exist
+if fd=''; \
+	test -n "$fd" && { \
+		case "$fd" in *[!0-9]*|'') exit 1;; esac; \
+		test -e "/proc/self/fd/$fd" && \
+			test "/proc/self/fd/$fd" -ef "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config-target.lock" && \
+			flock -n "$fd"; \
+	}; then \
+	make --no-print-directory CDK2_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/" CDK2_ROOT="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source" CDK2_BUILD_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build" CDK2_CONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config" CDK2_DEFCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" CDK2_KCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" CDK2_NATIVE_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot" HOSTCC="cc" CC="cc"      \
+		-f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile" config && \
+	make --no-print-directory CDK2_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/" CDK2_ROOT="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source" CDK2_BUILD_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build" CDK2_CONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config" CDK2_DEFCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" CDK2_KCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" CDK2_NATIVE_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot" HOSTCC="cc" CC="cc"      \
+		-f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile" CDK2_CONFIG_READY=1 native-efivar-unlock-test; \
+else \
+	exec 9>"/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config-target.lock"; flock 9; \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory \
+		CDK2_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/" CDK2_ROOT="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source" CDK2_BUILD_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build" CDK2_CONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config" CDK2_DEFCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" CDK2_KCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" CDK2_NATIVE_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot" HOSTCC="cc" CC="cc"      -f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile" config && \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory CDK2_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/" CDK2_ROOT="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source" CDK2_BUILD_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build" CDK2_CONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config" CDK2_DEFCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" CDK2_KCONFIG="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf" COREBOOT_CONFIG="/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" CDK2_NATIVE_DIR="/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot" HOSTCC="cc" CC="cc"      \
+		-f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile" CDK2_CONFIG_READY=1 \
+		native-efivar-unlock-test; \
+fi
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile:918: update target 'prepare-kconfig' due to: target is .PHONY
+mkdir -p "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config"; then \
+	test -f "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: /home/sean/tpm-fifo-functional-build-after661/producer-resolved.config' >&2; \
+		exit 1; \
+	}; \
+	cp "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' '/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"; fi
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile:971: update target '/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity' due to: FORCE
+test -s "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-input.identity"
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile:1014: update target '/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h' due to: FORCE
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"; then test -n "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" && cmp -s "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"
+mkdir -p "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Kconfig" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/Makefile:984: update target 'config' due to: target is .PHONY
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"; then test -n "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" && cmp -s "/home/sean/tpm-fifo-functional-build-after661/producer-resolved.config" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config"
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot/Makefile:2907: update target '/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test' due to: /home/sean/efivar-unlock-public-final.20261004-r1/cache-source//util/qemu/fixtures/linux-mini/efivar-unlock.c /home/sean/efivar-unlock-public-final.20261004-r1/cache-source//tests/../util/qemu/fixtures/linux-mini/efivar-unlock.c
+set -e; dependency="/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test.d.$$.tmp"; trap 'rm -f "$dependency"' EXIT HUP INT TERM; cc -std=c11 -O2 -Wall -Wextra -Werror -fshort-wchar -D_GNU_SOURCE -MMD -MP -MF - -MT "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test" -o "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-source//tests/efivar_unlock_test.c" > "$dependency"; mv -f "$dependency" "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test.d"; trap - EXIT HUP INT TERM
+/home/sean/efivar-unlock-public-final.20261004-r1/cache-source/src/boot/Makefile:2902: update target 'native-efivar-unlock-test' due to: target is .PHONY
+set -e; errno=$(perl -MErrno=ENOSYS -e 'print ENOSYS'); \
+	test "$errno" -gt 0; "/home/sean/efivar-unlock-public-final.20261004-r1/cache-build/native/efivar-unlock-test" "$errno"
+efivar unlock syscall and immutable-flag contracts: PASS
+make: Leaving directory '/home/sean/efivar-unlock-public-final.20261004-r1/cache-source'

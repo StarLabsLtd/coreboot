@@ -1,0 +1,6 @@
+ M src/modules/fat/protocol.c
+ M tests/checkpatch_filter_test.sh
+ A tests/checkpatch_source_ownership_test.sh
+ A tests/checkpatch_uefi_information_test.c
+ M util/lint/cdk2-checkpatch-filter.c
+ M util/lint/lint-007-checkpatch

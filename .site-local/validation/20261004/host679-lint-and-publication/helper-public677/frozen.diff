@@ -1,0 +1,67 @@
+diff --git a/Makefile b/Makefile
+index e26c718b2e..bb19b33175 100644
+--- a/Makefile
++++ b/Makefile
+@@ -478,7 +478,7 @@ CDK2_CONFIG_TARGETS := build build-image check manifest modules native-stage \
+ 	native-capsule-delivery-policy-test \
+ 	native-capsule-runtime-diagnostic-parity native-tcg2-transport-test native-tcg2-commands-test \
+ 	native-tcg2-event-log-test native-tcg2-measure-test native-tcg2-service-test \
+-	native-tcg2-entry-test native-software-hash-test \
++	native-tcg2-entry-test native-software-hash-test native-efivar-unlock-test \
+ 	native-tpm2-acpi-table-test native-tpm2-acpi-diagnostic-parity \
+ 	native-security-stub-diagnostic-parity native-esrt-test native-esrt-diagnostic-parity \
+ 	native-device-path-test native-partition-test native-pci-host-bridge-oracle native-fat-test \
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index a71dfad147..bc91a39cd5 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -1791,6 +1791,7 @@ CDK2_NATIVE_TCG2_DIAGNOSTIC_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-diagnostic-tes
+ CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-diagnostic-coalesce-test
+ CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/tcg2-platform-hob-test
+ CDK2_NATIVE_SOFTWARE_HASH_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/software-hash-test
++CDK2_NATIVE_EFIVAR_UNLOCK_TEST ?= $(CDK2_NATIVE_BUILD_DIR)/efivar-unlock-test
+ CDK2_SOFTWARE_HASH_INCLUDES := -I"$(CDK2_DIR)/src/lib/tcg_hash/vendor/vboot" -I"$(CDK2_DIR)/src/lib/tcg_hash/vendor/linux/include"
+ CDK2_SOFTWARE_HASH_SRCS := $(CDK2_DIR)/src/lib/tcg_hash/software_hash.c $(CDK2_DIR)/src/lib/tcg_hash/vendor/vboot/2sha1.c $(CDK2_DIR)/src/lib/tcg_hash/vendor/vboot/2sha256.c $(CDK2_DIR)/src/lib/tcg_hash/vendor/vboot/2sha512.c $(CDK2_DIR)/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c
+ CDK2_PE_IMAGE_VIEW_SRC := $(CDK2_DIR)/src/lib/pe_image_view.c
+@@ -2016,6 +2017,7 @@ CDK2_NATIVE_HOST_TOOLS := \
+ 	$(CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST) \
+ 	$(CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST) \
+ 	$(CDK2_NATIVE_SOFTWARE_HASH_TEST) \
++	$(CDK2_NATIVE_EFIVAR_UNLOCK_TEST) \
+ 	$(CDK2_NATIVE_TPM2_ACPI_TABLE_TEST) \
+ 	$(CDK2_NATIVE_ESRT_TEST) \
+ 	$(CDK2_NATIVE_ESRT_ENTRY_TEST) \
+@@ -2610,6 +2612,8 @@ native-check: $(CDK2_CONFIG_HEADER) $(CDK2_NATIVE_ELF) $(CDK2_NATIVE_OVERRIDE_EL
+ 	@"$(CDK2_NATIVE_TCG2_MEASURE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_SERVICE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_ENTRY_TEST)"
++	@set -e; errno=$$(perl -MErrno=ENOSYS -e 'print ENOSYS'); \
++		test "$$errno" -gt 0; "$(CDK2_NATIVE_EFIVAR_UNLOCK_TEST)" "$$errno"
+ 	@"$(CDK2_NATIVE_TCG2_DIAGNOSTIC_COALESCE_TEST)"
+ 	@"$(CDK2_NATIVE_TCG2_PLATFORM_HOB_TEST)"
+ 	@"$(CDK2_NATIVE_TPM2_ACPI_TABLE_TEST)"
+@@ -2643,6 +2647,8 @@ native-coreboot-stage:
+ 
+ native-check: $(CDK2_CONFIG_HEADER) $(CDK2_NATIVE_HOST_TOOLS) \
+ 		$(CDK2_NATIVE_USB_MASS_CHECK_DEPS)
++	@set -e; errno=$$(perl -MErrno=ENOSYS -e 'print ENOSYS'); \
++		test "$$errno" -gt 0; "$(CDK2_NATIVE_EFIVAR_UNLOCK_TEST)" "$$errno"
+ 	@"$(CDK2_NATIVE_SERVICE_TEST)"
+ 	@"$(CDK2_NATIVE_COREBOOT_TEST)"
+ 	@"$(CDK2_NATIVE_WATCHDOG_TEST)"
+@@ -2891,6 +2897,15 @@ native-software-hash-test: $(CDK2_NATIVE_SOFTWARE_HASH_TEST)
+ 	@"$<"
+ 	@sh "$(CDK2_DIR)/tests/software_hash_source_test.sh" "$(CDK2_DIR)"
+ 
++.PHONY: native-efivar-unlock-test
++native-efivar-unlock-test: $(CDK2_NATIVE_EFIVAR_UNLOCK_TEST)
++	@set -e; errno=$$(perl -MErrno=ENOSYS -e 'print ENOSYS'); \
++		test "$$errno" -gt 0; "$<" "$$errno"
++
++$(CDK2_NATIVE_EFIVAR_UNLOCK_TEST): $(CDK2_DIR)/tests/efivar_unlock_test.c \
++		$(CDK2_DIR)/util/qemu/fixtures/linux-mini/efivar-unlock.c | $(CDK2_NATIVE_BUILD_DIR)
++	$(call cdk2_native_host_test,-D_GNU_SOURCE,"$(CDK2_DIR)/tests/efivar_unlock_test.c")
++
+ native-tpm2-acpi-table-test: $(CDK2_NATIVE_TPM2_ACPI_TABLE_TEST)
+ 	@"$<"
+ 

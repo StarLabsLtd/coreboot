@@ -1,0 +1,35 @@
+record=0 length=203 wire=0
+record=1 length=199 wire=0
+record=2 length=199 wire=0
+record=3 length=47 wire=0
+record=4 length=143 wire=0
+record=5 length=61 wire=0
+record=6 length=399 wire=0
+record=7 length=123 wire=0
+filter=1 clean=0
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#34: FILE: src/modules/fat/protocol.c:34:
++	CHAR16 file_name[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#42: FILE: src/modules/fat/protocol.c:42:
++	CHAR16 label[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#45: FILE: src/modules/fat/protocol.c:45:
++	CHAR16 label[1];
++};
+
+total: 3 errors, 0 warnings, 1921 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+src/modules/fat/protocol.c has style problems, please review.
+
+NOTE: Ignored message types: ASSIGN_IN_IF AVOID_EXTERNS BLOCK_COMMENT_STYLE COMPARISON_TO_NULL CONFIG_DESCRIPTION CORRUPTED_PATCH EXECUTE_PERMISSIONS FILE_PATH_CHANGES GERRIT_CHANGE_ID GLOBAL_INITIALISERS INITIALISED_STATIC LINE_SPACING MISSING_SPACE NEW_TYPEDEFS PREFER_DEFINED_ATTRIBUTE_MACRO PRINTK_WITHOUT_KERN_LEVEL SPDX_LICENSE_TAG SPLIT_STRING UNDOCUMENTED_DT_STRING UNNECESSARY_ELSE VOLATILE
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.

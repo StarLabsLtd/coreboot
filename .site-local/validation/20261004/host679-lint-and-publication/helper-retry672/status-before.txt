@@ -1,0 +1,2 @@
+ A tests/efivar_unlock_test.c
+ M util/qemu/fixtures/linux-mini/efivar-unlock.c

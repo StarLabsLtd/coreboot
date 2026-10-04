@@ -1,0 +1,1 @@
+o2-old-driver: /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/tests/tcg2_driver_boot_variable_test.c:205: expect_record: Assertion `record->pcr == pcr && record->type == type' failed.

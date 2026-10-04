@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670",
+    "verify-commit",
+    "9698e3ed5f0526e8bae89d725445c91e55c24ed6"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1",
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "KEEP_SPLASH_STATUS_TMP": "1",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKE": "make",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "OLDPWD": "/home/sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/dxe-publication-joined-final.20261004-r2/tmp",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

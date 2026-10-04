@@ -1,0 +1,179 @@
+diff --git a/tests/direct_phase_entry_test.sh b/tests/direct_phase_entry_test.sh
+index dc3773e13c..f2f48d964f 100644
+--- a/tests/direct_phase_entry_test.sh
++++ b/tests/direct_phase_entry_test.sh
+@@ -31,7 +31,8 @@ sed 's/^#define CONFIG_CDK2_NATIVE_TCG2 1$/#define CONFIG_CDK2_NATIVE_TCG2 0/' \
+ # actual OS-handoff completion gate, not a duplicate policy implementation.
+ # Flags deliberately undergo normal compiler argument splitting.
+ # shellcheck disable=SC2086
+-"$compiler" $flags -DCDK2_HOST_TEST -fsanitize=address,undefined \
++"$compiler" $flags -DCDK2_HOST_TEST -DCDK2_DIRECT_PHASE_IRQ_TEST \
++	-fsanitize=address,undefined \
+ 	-fno-sanitize-recover=all -I"$temporary" -I"$root/include" \
+ 	-I"$root/src/lib/tcg_hash/vendor/linux/include" \
+ 	-o "$temporary/entry" \
+@@ -54,6 +55,7 @@ sed 's/^#define CONFIG_CDK2_NATIVE_TCG2 1$/#define CONFIG_CDK2_NATIVE_TCG2 0/' \
+ 	"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 	"$root/src/lib/linear_boot.c" "$root/src/lib/boot_logo.c" \
+ 	"$root/src/lib/capsule_disk.c" \
++	"$root/src/lib/capsule_report.c" \
+ 	"$root/src/modules/graphics_output/graphics_output.c" \
+ 	"$root/src/modules/graphics_output/driver.c" \
+ 	"$root/src/lib/tpm2_acpi_hob.c" \
+@@ -77,13 +79,15 @@ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+ 	"$root/tests/dxe_core_entry_mixed_partition_test.c" \
+ 	"$root/tests/direct_phase_presence_fixture.c" \
+ 	"$root/src/modules/dxe_core/database.c" \
++	"$root/src/modules/dxe_core/image.c" \
++	"$root/src/modules/dxe_core/memory.c" \
+ 	"$root/src/lib/linear_boot.c" \
+ 	"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 	"$root/src/lib/direct_image_table.c" "$root/src/lib/pe_image_view.c" \
+ 	"$root/src/modules/dxe_core/lifecycle.c" \
+ 	"$root/src/modules/dxe_core/presence_lifecycle.c" \
+ 	"$root/src/lib/diagnostic.c" "$root/src/lib/deadline.c" \
+-	$hash_sources -Wl,--gc-sections
++	$hash_sources -Wl,--gc-sections -Wl,--wrap=cdk2_dxe_memory_readable_span
+ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+ 	UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 "$temporary/mixed-entry"
+ 
+@@ -92,7 +96,8 @@ compile_entry_mutant()
+ 	source=$1
+ 	output=$2
+ 	# shellcheck disable=SC2086
+-	"$compiler" $flags -DCDK2_HOST_TEST -fsanitize=address,undefined \
++	"$compiler" $flags -DCDK2_HOST_TEST -DCDK2_DIRECT_PHASE_IRQ_TEST \
++		-fsanitize=address,undefined \
+ 		-fno-sanitize-recover=all -I"$temporary" -I"$root/include" \
+ 		-I"$root/src/lib/tcg_hash/vendor/linux/include" \
+ 		-I"$root/src/modules/dxe_core" \
+@@ -114,6 +119,7 @@ compile_entry_mutant()
+ 		"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 		"$root/src/lib/linear_boot.c" "$root/src/lib/boot_logo.c" \
+ 		"$root/src/lib/capsule_disk.c" \
++		"$root/src/lib/capsule_report.c" \
+ 		"$root/src/modules/graphics_output/graphics_output.c" \
+ 		"$root/src/modules/graphics_output/driver.c" \
+ 		"$root/src/lib/tpm2_acpi_hob.c" \
+@@ -137,13 +143,15 @@ compile_mixed_mutant()
+ 		"$root/tests/dxe_core_entry_mixed_partition_test.c" \
+ 		"$root/tests/direct_phase_presence_fixture.c" \
+ 		"$root/src/modules/dxe_core/database.c" \
++		"$root/src/modules/dxe_core/image.c" \
++		"$root/src/modules/dxe_core/memory.c" \
+ 		"$root/src/lib/linear_boot.c" \
+ 		"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 		"$root/src/lib/direct_image_table.c" "$root/src/lib/pe_image_view.c" \
+ 		"$root/src/modules/dxe_core/lifecycle.c" \
+ 		"$root/src/modules/dxe_core/presence_lifecycle.c" \
+ 		"$root/src/lib/diagnostic.c" "$root/src/lib/deadline.c" \
+-		$hash_sources -Wl,--gc-sections
++		$hash_sources -Wl,--gc-sections -Wl,--wrap=cdk2_dxe_memory_readable_span
+ }
+ 
+ expect_executable_failure()
+diff --git a/tests/direct_phase_presence_fixture.c b/tests/direct_phase_presence_fixture.c
+index 45aae4a975..3f98fdf25a 100644
+--- a/tests/direct_phase_presence_fixture.c
++++ b/tests/direct_phase_presence_fixture.c
+@@ -2,6 +2,25 @@
+ 
+ #include <cdk2/config.h>
+ #include <cdk2/authvar_presence_lifecycle_close_composition.h>
++#include <stdbool.h>
++
++#if CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME
++/*
++ * Stateful HOST IRQ boundary, not native interrupt or authorization proof.
++ * The direct-entry fixture does not execute protected LoadImage policy.
++ */
++static bool direct_phase_interrupts_enabled = true;
++
++bool cdk2_dxe_policy_interrupts_get(void)
++{
++	return direct_phase_interrupts_enabled;
++}
++
++void cdk2_dxe_policy_interrupts_set(bool enabled)
++{
++	direct_phase_interrupts_enabled = enabled;
++}
++#endif
+ 
+ /*
+  * Startup-order fixtures have no protected-service endpoint. Model the real
+diff --git a/tests/dxe_core_entry_mixed_partition_test.c b/tests/dxe_core_entry_mixed_partition_test.c
+index ac124b48fe..525a964eec 100644
+--- a/tests/dxe_core_entry_mixed_partition_test.c
++++ b/tests/dxe_core_entry_mixed_partition_test.c
+@@ -160,9 +160,17 @@ static struct cdk2_xhci_control xhci_control = {
+ 	.stop_polling = stop_polling_xhci,
+ 	.quiesce = poll_xhci,
+ };
+-/* The entry harness publishes through a stub; model the allocation metadata
+- * separately. The XHCI entry test covers the real allocator and installation. */
++/*
++ * The entry harness publishes through a stub; model the allocation metadata
++ * separately. The XHCI entry test covers the real allocator and installation.
++ * The direct-phase link retains real transaction allocation validation and
++ * wraps only this pre-existing XHCI readability boundary.
++ */
++#ifdef CDK2_DIRECT_PHASE_TEST_ONLY
++EFI_STATUS __wrap_cdk2_dxe_memory_readable_span(struct cdk2_dxe_memory *memory,
++#else
+ EFI_STATUS cdk2_dxe_memory_readable_span(struct cdk2_dxe_memory *memory,
++#endif
+ 	const void *address, UINTN *size, UINT64 *generation)
+ {
+ 	(void)memory;
+diff --git a/tests/dxe_core_entry_test.c b/tests/dxe_core_entry_test.c
+index b7bce12b41..d2d97f632b 100644
+--- a/tests/dxe_core_entry_test.c
++++ b/tests/dxe_core_entry_test.c
+@@ -14,6 +14,7 @@
+ #include <industry_standard/acpi.h>
+ #include <guid/graphics_info_hob.h>
+ 
++#include <assert.h>
+ #include <stdio.h>
+ #include <stdbool.h>
+ #include <stdlib.h>
+@@ -21,6 +22,11 @@
+ 
+ #define TEST_WARN_WRITE_FAILURE ((EFI_STATUS)3U)
+ 
++#if defined(CDK2_DIRECT_PHASE_IRQ_TEST) && CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME
++bool cdk2_dxe_policy_interrupts_get(void);
++void cdk2_dxe_policy_interrupts_set(bool enabled);
++#endif
++
+ typedef BOOLEAN test_boolean_t;
+ typedef UINT64 test_uint64_t;
+ typedef UINTN test_uintn_t;
+@@ -779,6 +785,15 @@ int main(void)
+ 	UINT8 replacement_path[32];
+ 	struct test_linked_loaded_image linked_loaded = {0};
+ 
++#if defined(CDK2_DIRECT_PHASE_IRQ_TEST) && CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME
++	/* Check the HOST boundary state, not protected LoadImage authorization. */
++	assert(cdk2_dxe_policy_interrupts_get());
++	cdk2_dxe_policy_interrupts_set(false);
++	assert(!cdk2_dxe_policy_interrupts_get());
++	cdk2_dxe_policy_interrupts_set(true);
++	assert(cdk2_dxe_policy_interrupts_get());
++#endif
++
+ 	if (!cdk2_dxe_test_removable_discovery_allowed(
+ 		BOOT_WITH_FULL_CONFIGURATION) ||
+ 	    cdk2_dxe_test_removable_discovery_allowed(BOOT_ON_S4_RESUME)) {
+@@ -2110,6 +2125,10 @@ int main(void)
+ 		fputs("FAIL: invalid handoff\n", stderr);
+ 		return 1;
+ 	}
++
++#if defined(CDK2_DIRECT_PHASE_IRQ_TEST) && CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME
++	assert(cdk2_dxe_policy_interrupts_get());
++#endif
+ 	free(framebuffer_memory_storage);
+ 	free(reserved_capsule_page);
+ 	puts("dxe core entry tests passed");

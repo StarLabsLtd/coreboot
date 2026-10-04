@@ -1,0 +1,449 @@
+diff --git a/src/modules/dxe_core/entry.c b/src/modules/dxe_core/entry.c
+index 9fbf42f314..66c843f14d 100644
+--- a/src/modules/dxe_core/entry.c
++++ b/src/modules/dxe_core/entry.c
+@@ -1916,54 +1916,52 @@ static uint64_t initialize_minimal_variables(void *context)
+ 
+ 		status = dispatch_required(context, capsule_disk_drivers,
+ 			ARRAY_SIZE(capsule_disk_drivers));
++		if (!EFI_ERROR(status) &&
++		    (core.images.count != image_count + ARRAY_SIZE(capsule_disk_drivers) ||
++		     !core.images.images[image_count].started))
++			status = EFI_COMPROMISED_DATA;
+ 		if (!EFI_ERROR(status)) {
+-			if (core.images.count != image_count +
+-			    ARRAY_SIZE(capsule_disk_drivers) ||
+-			    !core.images.images[image_count].started)
++			services->capsule_runtime_owner =
++				core.images.images[image_count].handle;
++#if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP
++			if (!core.images.images[image_count + 1U].started)
+ 				status = EFI_COMPROMISED_DATA;
+ 			else {
+-				services->capsule_runtime_owner =
+-					core.images.images[image_count].handle;
+-#if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP
+-				if (!core.images.images[image_count + 1U].started)
+-					status = EFI_COMPROMISED_DATA;
+-				else {
+-					struct cdk2_dxe_image *image =
+-						&core.images.images[image_count + 1U];
+-
+-					services->capsule_fmp_owner =
+-						core.images.images[image_count + 1U].handle;
+-					services->capsule_fmp_generation =
+-						core.images.images[image_count + 1U].load_generation;
+-					for (UINTN index = 0U; index < core.dispatcher.count; index++) {
+-						const struct cdk2_dxe_driver *driver =
+-							&core.dispatcher.drivers[index];
+-
+-						if (memcmp(&driver->guid, &capsule_disk_drivers[1].guid,
+-							   sizeof(driver->guid)) != 0)
+-							continue;
+-						if (services->capsule_fmp_source != NULL) {
+-							status = EFI_COMPROMISED_DATA;
+-							break;
+-						}
+-						services->capsule_fmp_source = driver;
+-					}
+-					if (services->capsule_fmp_source == NULL ||
+-					    EFI_ERROR(cdk2_dxe_image_transaction_validate_owned(
+-						&core.images, image->transaction,
+-						image->transaction_allocation_generation)))
++				struct cdk2_dxe_image *image =
++					&core.images.images[image_count + 1U];
++
++				services->capsule_fmp_owner =
++					core.images.images[image_count + 1U].handle;
++				services->capsule_fmp_generation =
++					core.images.images[image_count + 1U].load_generation;
++				for (UINTN index = 0U; index < core.dispatcher.count; index++) {
++					const struct cdk2_dxe_driver *driver =
++						&core.dispatcher.drivers[index];
++
++					if (memcmp(&driver->guid, &capsule_disk_drivers[1].guid,
++						   sizeof(driver->guid)) != 0)
++						continue;
++					if (services->capsule_fmp_source != NULL) {
+ 						status = EFI_COMPROMISED_DATA;
+-					else {
+-						services->capsule_fmp_transaction_generation =
+-							image->transaction->generation;
+-						services->capsule_fmp_source_image =
+-							services->capsule_fmp_source->image;
+-						services->capsule_fmp_source_size =
+-							services->capsule_fmp_source->image_size;
++						break;
+ 					}
++					services->capsule_fmp_source = driver;
++				}
++				if (services->capsule_fmp_source == NULL ||
++				    EFI_ERROR(cdk2_dxe_image_transaction_validate_owned(
++					&core.images, image->transaction,
++					image->transaction_allocation_generation)))
++					status = EFI_COMPROMISED_DATA;
++				else {
++					services->capsule_fmp_transaction_generation =
++						image->transaction->generation;
++					services->capsule_fmp_source_image =
++						services->capsule_fmp_source->image;
++					services->capsule_fmp_source_size =
++						services->capsule_fmp_source->image_size;
+ 				}
+-#endif
+ 			}
++#endif
+ 		}
+ 	}
+ 	cdk2_diag_value(CDK2_DIAG_DXE_MAIN, "variable policy protocols",
+diff --git a/tests/dxe_capsule_publication_test.c b/tests/dxe_capsule_publication_test.c
+new file mode 100644
+index 0000000000..5f3d7ff52d
+--- /dev/null
++++ b/tests/dxe_capsule_publication_test.c
+@@ -0,0 +1,230 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++/*
++ * Invoke actual full-entry publication policy. Dispatch, report setup and TPM
++ * presence are explicit HOST boundary models, not loaded firmware/TPM proof.
++ * Registry ownership and transaction allocation validation remain real Core.
++ */
++#include <assert.h>
++#include <stdio.h>
++#include <stdlib.h>
++#ifdef CDK2_PUBLICATION_SOURCE
++#include CDK2_PUBLICATION_SOURCE
++#else
++#include "../src/modules/dxe_core/entry.c"
++#endif
++
++enum publication_case {
++	ACCEPTED,
++	VARIABLE_FAILURE,
++	CAPSULE_FAILURE,
++	LATE_DISPATCH_FAILURE,
++	SHORT_COUNT,
++	LONG_COUNT,
++	RUNTIME_NOT_STARTED,
++	FMP_NOT_STARTED,
++	SOURCE_ABSENT,
++	DUPLICATE_SOURCE,
++	STALE_TRANSACTION,
++	PREEXISTING_SOURCE,
++	CASE_COUNT,
++};
++
++static enum publication_case selected_case;
++static size_t dispatch_calls, report_calls, tpm_calls, skip_calls;
++static const uint8_t source_bytes[32] = { 1, 2, 3 };
++static struct cdk2_dxe_image_transaction *transaction;
++static UINT64 allocation_generation;
++static struct cdk2_runtime_services_view report_runtime;
++static EFI_HOB_HANDOFF_INFO_TABLE handoff;
++extern char stage_runtime_begin[], stage_runtime_end[];
++
++static EFI_STATUS CDK2_MS_ABI policy_register(
++	const struct cdk2_variable_policy_entry *entry) __section(".stage_runtime_code") __noinline;
++static EFI_STATUS CDK2_MS_ABI policy_register(
++	const struct cdk2_variable_policy_entry *entry)
++{
++	(void)entry;
++	assert(false && "report boundary must not invoke modeled policy callback");
++	return EFI_UNSUPPORTED;
++}
++
++static struct cdk2_variable_policy_protocol policy __section(".stage_runtime_data") = {
++	.register_policy = policy_register,
++};
++
++EFI_STATUS __wrap_cdk2_dxe_dispatch_one(struct cdk2_dxe_dispatcher *dispatcher,
++	const EFI_GUID *guid)
++{
++	size_t call = dispatch_calls++;
++
++	assert(dispatcher == &core.dispatcher);
++	if (call < ARRAY_SIZE(variable_drivers)) {
++		assert(memcmp(guid, &variable_drivers[call].guid, sizeof(*guid)) == 0);
++		assert(report_calls == 0);
++		return selected_case == VARIABLE_FAILURE ? EFI_DEVICE_ERROR : EFI_SUCCESS;
++	}
++	assert(report_calls == 1);
++	size_t index = call - ARRAY_SIZE(variable_drivers);
++
++	assert(index < ARRAY_SIZE(capsule_disk_drivers));
++	assert(memcmp(guid, &capsule_disk_drivers[index].guid, sizeof(*guid)) == 0);
++	if ((selected_case == CAPSULE_FAILURE && index == 0) ||
++	    (selected_case == LATE_DISPATCH_FAILURE && index == 1))
++		return EFI_DEVICE_ERROR;
++	if (selected_case == SHORT_COUNT && index == 2)
++		return EFI_SUCCESS;
++	struct cdk2_dxe_image *image = &core.images.images[core.images.count++];
++
++	*image = (struct cdk2_dxe_image) {
++		.handle = (void *)(uintptr_t)(index + 2), .load_generation = 20 + index,
++		.started = !((selected_case == RUNTIME_NOT_STARTED && index == 0) ||
++			(selected_case == FMP_NOT_STARTED && index == 1)),
++	};
++	if (index == 1) {
++		image->transaction = transaction;
++		image->transaction_allocation_generation = allocation_generation +
++			(selected_case == STALE_TRANSACTION);
++	}
++	if (selected_case == LONG_COUNT && index == 2)
++		core.images.count++;
++	return EFI_SUCCESS;
++}
++
++uint64_t __wrap_cdk2_capsule_report_initialize(struct cdk2_runtime_services_view *runtime,
++	struct cdk2_variable_policy_protocol *selected_policy, uint32_t boot_mode)
++{
++	assert(dispatch_calls == ARRAY_SIZE(variable_drivers));
++	assert(selected_policy == &policy && boot_mode == handoff.boot_mode);
++	assert(memcmp(runtime, &report_runtime, sizeof(*runtime)) == 0);
++	report_calls++;
++	return EFI_SUCCESS;
++}
++
++EFI_STATUS __wrap_cdk2_tpm2_acpi_hob_probe(const struct cdk2_tpm2_config_table *tables,
++	UINTN count, UINT64 *base)
++{
++	assert(tables == (void *)core.runtime_storage->configuration_tables && count == 0);
++	tpm_calls++;
++	*base = 0;
++	return EFI_NOT_FOUND;
++}
++
++EFI_STATUS __wrap_cdk2_dxe_dispatcher_skip_direct(struct cdk2_dxe_dispatcher *dispatcher,
++	const EFI_GUID *guid, enum cdk2_dxe_direct_disposition disposition)
++{
++	assert(dispatcher == &core.dispatcher);
++	assert(skip_calls < ARRAY_SIZE(measured_boot_drivers));
++	assert(memcmp(guid, &measured_boot_drivers[skip_calls].guid, sizeof(*guid)) == 0);
++	assert(disposition == CDK2_DXE_DIRECT_SKIPPED_HARDWARE_ABSENT);
++	skip_calls++;
++	return EFI_SUCCESS;
++}
++
++static void initialize_publication(struct dxe_services_context *services, void *storage)
++{
++	memset(&core, 0, sizeof(core));
++	memset(services, 0, sizeof(*services));
++	dispatch_calls = report_calls = tpm_calls = skip_calls = 0;
++	assert(cdk2_dxe_memory_initialize(&core.memory, storage, 16) == EFI_SUCCESS);
++	core.images.memory = &core.memory;
++	assert(cdk2_dxe_image_transaction_prepare(&core.images, source_bytes,
++		sizeof(source_bytes), NULL, 0, &transaction, &allocation_generation) == EFI_SUCCESS);
++	transaction->state = CDK2_DXE_IMAGE_PUBLISHED;
++	core.runtime_storage = calloc(1, sizeof(*core.runtime_storage));
++	assert(core.runtime_storage != NULL);
++	core.runtime_storage->system_table.runtime_services = (void *)&report_runtime;
++	services->handoff = &handoff;
++	core.images.count = 1;
++	core.images.images[0] = (struct cdk2_dxe_image) {
++		.handle = (void *)1, .load_generation = 7, .protocol_pins = 1,
++		.base = stage_runtime_begin, .size = stage_runtime_end - stage_runtime_begin,
++	};
++	core.database.handles[core.database.handle_count++] = (void *)1;
++	for (size_t index = 0; index < ARRAY_SIZE(variable_protocols); index++)
++		core.database.protocols[core.database.protocol_count++].guid = variable_protocols[index];
++	core.database.protocols[core.database.protocol_count++] = (struct cdk2_dxe_protocol) {
++		.guid = variable_policy_protocol_guid, .handle = (void *)1, .interface = &policy,
++		.owner_image = (void *)1, .owner_generation = 7,
++	};
++	/* One nonmatching driver before and after the FMP proves GUID filtering. */
++	core.dispatcher.count = 3;
++	core.dispatcher.drivers[1] = (struct cdk2_dxe_driver) {
++		.guid = capsule_disk_drivers[1].guid, .image = source_bytes,
++		.image_size = sizeof(source_bytes),
++	};
++	if (selected_case == SOURCE_ABSENT)
++		core.dispatcher.drivers[1].guid = (EFI_GUID) { 0 };
++	if (selected_case == DUPLICATE_SOURCE)
++		core.dispatcher.drivers[2] = core.dispatcher.drivers[1];
++	if (selected_case == PREEXISTING_SOURCE)
++		services->capsule_fmp_source = &core.dispatcher.drivers[1];
++}
++
++static void verify_publication(void)
++{
++	struct dxe_services_context services;
++	void *storage = aligned_alloc(4096, 16 * 4096);
++	EFI_STATUS expected = selected_case == ACCEPTED ? EFI_SUCCESS : EFI_COMPROMISED_DATA;
++
++	assert(storage != NULL);
++	initialize_publication(&services, storage);
++	if (selected_case == VARIABLE_FAILURE || selected_case == CAPSULE_FAILURE ||
++	    selected_case == LATE_DISPATCH_FAILURE)
++		expected = EFI_DEVICE_ERROR;
++	EFI_STATUS status = initialize_minimal_variables(&services);
++
++	assert(status == expected);
++	bool runtime_published = selected_case == ACCEPTED || selected_case >= FMP_NOT_STARTED;
++	bool fmp_published = runtime_published && selected_case != FMP_NOT_STARTED;
++	bool metadata_published = selected_case == ACCEPTED || selected_case == DUPLICATE_SOURCE ||
++		selected_case == PREEXISTING_SOURCE;
++
++	assert(services.capsule_runtime_owner == (runtime_published ? (void *)2 : NULL));
++	assert(services.capsule_fmp_owner == (fmp_published ? (void *)3 : NULL));
++	assert(services.capsule_fmp_generation == (fmp_published ? 21U : 0U));
++	if (fmp_published && selected_case != SOURCE_ABSENT)
++		assert(services.capsule_fmp_source == &core.dispatcher.drivers[1]);
++	else
++		assert(services.capsule_fmp_source == NULL);
++	assert(services.capsule_fmp_transaction_generation ==
++		(metadata_published ? transaction->generation : 0U));
++	assert(services.capsule_fmp_source_image == (metadata_published ? source_bytes : NULL));
++	assert(services.capsule_fmp_source_size == (metadata_published ? sizeof(source_bytes) : 0U));
++	assert(report_calls == (selected_case == VARIABLE_FAILURE ? 0U : 1U));
++	size_t expected_dispatch = ARRAY_SIZE(variable_drivers) + ARRAY_SIZE(capsule_disk_drivers);
++
++	if (selected_case == VARIABLE_FAILURE)
++		expected_dispatch = 1;
++	if (selected_case == CAPSULE_FAILURE)
++		expected_dispatch = ARRAY_SIZE(variable_drivers) + 1;
++	if (selected_case == LATE_DISPATCH_FAILURE)
++		expected_dispatch = ARRAY_SIZE(variable_drivers) + 2;
++	assert(dispatch_calls == expected_dispatch);
++	assert(tpm_calls == (selected_case == ACCEPTED ? 1U : 0U));
++	assert(skip_calls == (selected_case == ACCEPTED ? ARRAY_SIZE(measured_boot_drivers) : 0U));
++	cdk2_dxe_image_transaction_release(&core.images, transaction, allocation_generation);
++	free(core.runtime_storage);
++	free(storage);
++}
++
++int main(int argc, char **argv)
++{
++	assert(argc == 1 || argc == 2);
++	int first = 0, last = CASE_COUNT;
++
++	if (argc == 2) {
++		char *end;
++		long value = strtol(argv[1], &end, 10);
++
++		assert(*end == '\0' && value >= 0 && value < CASE_COUNT);
++		first = value;
++		last = first + 1;
++	}
++	for (int scenario = first; scenario < last; scenario++) {
++		selected_case = scenario;
++		verify_publication();
++	}
++	puts("Actual minimal-variable capsule publication: ordered dispatch/owners/duplicate/transaction PASS");
++	return 0;
++}
+diff --git a/tests/dxe_capsule_publication_test.sh b/tests/dxe_capsule_publication_test.sh
+new file mode 100644
+index 0000000000..ba687bd82d
+--- /dev/null
++++ b/tests/dxe_capsule_publication_test.sh
+@@ -0,0 +1,109 @@
++#!/bin/sh
++# SPDX-License-Identifier: GPL-2.0-only
++set -eu
++root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
++config=${1:?actual normal protected DMA config header required}
++output=$(mktemp -d "${TMPDIR:-/tmp}/dxe-capsule-publication.XXXXXX")
++printf 'Actual publication HOST artifacts: %s\n' "$output"
++mkdir "$output/cdk2"
++cp "$config" "$output/cdk2/config.h"
++for symbol in CDK2_LINEAR_BOOT CDK2_COREBOOT_CAPSULE_PROFILE CDK2_NATIVE_SYSTEM_FMP \
++    PAYLOAD_DMA_HANDOFF CDK2_NATIVE_TCG2 CDK2_STRICT_DIRECT_RUNTIME; do
++	grep -qx "#define CONFIG_$symbol 1" "$config"
++done
++export ASAN_OPTIONS=abort_on_error=1:detect_leaks=1
++export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
++ulimit -c 0
++entry=$root/src/modules/dxe_core/entry.c
++compiler=${HOSTCC:-cc}
++compile()
++{
++	# Same accepted heap/stack SAN instrumentation as the full-entry fixtures.
++	# Global registration must not root unrelated boot callbacks through GC.
++	"$compiler" "$optimization" -g -std=gnu11 -Wall -Wextra -Werror -fshort-wchar \
++		-ffunction-sections -fdata-sections -fno-pie -no-pie \
++		-fsanitize=address,undefined -fno-sanitize-recover=all --param asan-globals=0 \
++		-DCDK2_HOST_TEST -DCDK2_PUBLICATION_SOURCE=\""$entry"\" \
++		-I"$output" -I"$root/include" -I"$root/src/modules/dxe_core" \
++		-I"$root/src/lib/tcg_hash/vendor/linux/include" \
++		"$root/tests/dxe_capsule_publication_test.c" \
++		"$root/src/modules/dxe_core/image.c" "$root/src/modules/dxe_core/memory.c" \
++		"$root/src/lib/diagnostic.c" \
++		-Wl,--wrap=cdk2_dxe_dispatch_one -Wl,--wrap=cdk2_capsule_report_initialize \
++		-Wl,--wrap=cdk2_tpm2_acpi_hob_probe -Wl,--wrap=cdk2_dxe_dispatcher_skip_direct \
++		"$@"
++}
++for optimization in -O0 -O2; do
++	compile -M -MT publication-dependencies
++done > "$output/dependencies.make"
++perl -MText::ParseWords=shellwords -0777 -ne '
++	s/\\\n/ /g;
++	for (split /\n/) {
++		s/^publication-dependencies: // or next;
++		s/\$\$/\$/g;
++		print join("\n", shellwords($_)), "\n";
++	}' "$output/dependencies.make" | sort -u > "$output/dependencies.txt"
++test -s "$output/dependencies.txt"
++xargs -d '\n' sha256sum < "$output/dependencies.txt" > "$output/inputs-before.sha256"
++sha256sum "$0" "$config" "$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++	"$(command -v "$compiler")" "$(command -v ld)" >> "$output/inputs-before.sha256"
++for optimization in -O0 -O2; do
++	compile -Wl,--gc-sections -Wl,-T,"$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++		-o "$output/positive"
++	"$output/positive"
++done
++optimization=-O2
++for cause in dispatch count runtime-start fmp-start duplicate transaction; do
++	case "$cause" in
++	dispatch)
++		needle='if (!EFI_ERROR(status) &&
++		    (core.images.count !='
++		replacement='if (TRUE &&
++		    (core.images.count !='
++		scenario=2 ;;
++	count)
++		needle='core.images.count != image_count + ARRAY_SIZE(capsule_disk_drivers)'
++		replacement='(core.images.count != image_count + ARRAY_SIZE(capsule_disk_drivers) && FALSE)'
++		scenario=4 ;;
++	runtime-start)
++		needle='!core.images.images[image_count].started'
++		replacement='FALSE /* publication runtime-start mutant */'
++		scenario=6 ;;
++	fmp-start)
++		needle='!core.images.images[image_count + 1U].started'
++		replacement='FALSE /* publication fmp-start mutant */'
++		scenario=7 ;;
++	duplicate)
++		needle='if (services->capsule_fmp_source != NULL) {'
++		replacement='if (FALSE /* publication duplicate mutant */) {'
++		scenario=9 ;;
++	transaction)
++		needle='EFI_ERROR(cdk2_dxe_image_transaction_validate_owned(
++					&core.images, image->transaction,
++					image->transaction_allocation_generation))'
++		replacement='FALSE /* publication transaction mutant */'
++		scenario=10 ;;
++	esac
++	NEEDLE="$needle" REPLACEMENT="$replacement" perl -0pe '
++		BEGIN { $needle=$ENV{NEEDLE}; $replacement=$ENV{REPLACEMENT}; }
++		$count=s/\Q$needle\E/$replacement/g;
++		END { die "publication mutation count must equal one\n" unless $count == 1; }
++	' "$root/src/modules/dxe_core/entry.c" > "$output/$cause.c"
++	NEEDLE="$replacement" REPLACEMENT="$needle" perl -0pe '
++		BEGIN { $needle=$ENV{NEEDLE}; $replacement=$ENV{REPLACEMENT}; }
++		$count=s/\Q$needle\E/$replacement/g;
++		END { die "publication inverse count must equal one\n" unless $count == 1; }
++	' "$output/$cause.c" > "$output/$cause.inverse.c"
++	cmp "$root/src/modules/dxe_core/entry.c" "$output/$cause.inverse.c"
++	entry=$output/$cause.c
++	compile -Wl,--gc-sections -Wl,-T,"$root/tests/dxe_core_capsule_disk_stage_test.ld" \
++		-o "$output/mutant"
++	status=0
++	"$output/mutant" "$scenario" > "$output/$cause.log" 2>&1 || status=$?
++	test "$status" = 134
++	grep -F "Assertion \`status == expected' failed" "$output/$cause.log"
++	! grep -Eq 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:' \
++		"$output/$cause.log"
++	printf 'Actual publication %s guard: assertion134/byte-exact inverse/no SAN diagnostic PASS\n' "$cause"
++done
++sha256sum -c "$output/inputs-before.sha256"

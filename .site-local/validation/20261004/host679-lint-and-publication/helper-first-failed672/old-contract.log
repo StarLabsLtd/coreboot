@@ -1,0 +1,1 @@
+old-contract: tests/efivar_unlock_test.c:113: main: Assertion `efivar_unlock_main(2, arguments) == 1' failed.

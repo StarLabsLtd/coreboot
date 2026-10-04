@@ -1,0 +1,5 @@
+/usr/bin/ld: /home/sean/direct-phase-report-link-final.20261004-r3/tmp/ccwT1evO.o: in function `finish_ram_capsule':
+entry.c:(.text+0x16bc1): undefined reference to `cdk2_capsule_report_fmp'
+/usr/bin/ld: /home/sean/direct-phase-report-link-final.20261004-r3/tmp/ccwT1evO.o: in function `initialize_minimal_variables':
+entry.c:(.text+0x1ce97): undefined reference to `cdk2_capsule_report_initialize'
+collect2: error: ld returned 1 exit status

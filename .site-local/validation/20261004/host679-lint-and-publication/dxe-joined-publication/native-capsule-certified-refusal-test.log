@@ -1,0 +1,50 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670'
+#
+# No change to /home/sean/dxe-publication-joined-final.20261004-r2/build/resolved.config
+#
+Certified refusal HOST artifacts: /home/sean/dxe-publication-joined-final.20261004-r2/tmp/capsule-certified-refusal.tWuAfL
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:319: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:343: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:349: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:351: main: Assertion `!VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:456: main: Assertion `context.capsule_outcome == CDK2_LINEAR_CAPSULE_RESULT_NONE' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:446: main: Assertion `close_calls == (scenario == 12 ? 0U : 1U)' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:383: main: Assertion `!LOCAL_VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:384: main: Assertion `!LOCAL_VALID()' failed.
+core: /home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c:385: main: Assertion `!LOCAL_VALID()' failed.
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/dxe_core/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/system_fmp/provider.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/capsule_runtime/entry.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_core_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/system_fmp_provider_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_runtime_entry_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_certified_refusal_test.sh: OK
+/home/sean/dxe-publication-joined-final.20261004-r2/build/include/cdk2/config.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/capsule_check_outcome.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/capsule_boot.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/system_fmp_provider.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/system_fmp_session.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/system_fmp_transport.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/dxe_core.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/dxe_image_transaction.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/software_hash.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/dxe_core/image.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/dxe_core/memory.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/tcg_hash/software_hash.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/tcg_hash/vendor/vboot/2sha1.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/tcg_hash/vendor/vboot/2sha256.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/tcg_hash/vendor/vboot/2sha512.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/system_fmp/transport.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/diagnostic.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/deadline.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/boot_logo.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/authvar_transport/native_x86.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/linear_boot.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/linear_boot.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/include/cdk2/capsule_report.h: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/lib/capsule_report.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/tests/capsule_report_test.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/capsule_runtime/capsule_runtime.c: OK
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670/src/modules/capsule_runtime/capsule_runtime_abi.c: OK
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-joined-after670'

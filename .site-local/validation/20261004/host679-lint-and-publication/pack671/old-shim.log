@@ -1,0 +1,18 @@
+WARNING:SINGLE_STATEMENT_DO_WHILE_MACRO: Single statement macros should not use a do {} while (0) loop
+#17: FILE: /home/sean/tcg-hash-pack32-host.l71pAn/old-source/2sha_private.h:17:
++#define PACK32(s, x) do { \
++	*(x) = (uint32_t)(s)[3] | (uint32_t)(s)[2] << 8 | \
++		(uint32_t)(s)[1] << 16 | (uint32_t)(s)[0] << 24; \
++} while (0)
+
+total: 0 errors, 1 warnings, 35 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/sean/tcg-hash-pack32-host.l71pAn/old-source/2sha_private.h has style problems, please review.
+
+NOTE: Ignored message types: ASSIGN_IN_IF AVOID_EXTERNS BLOCK_COMMENT_STYLE COMPARISON_TO_NULL CONFIG_DESCRIPTION CORRUPTED_PATCH EXECUTE_PERMISSIONS FILE_PATH_CHANGES GERRIT_CHANGE_ID GLOBAL_INITIALISERS INITIALISED_STATIC LINE_SPACING MISSING_SPACE NEW_TYPEDEFS PREFER_DEFINED_ATTRIBUTE_MACRO PRINTK_WITHOUT_KERN_LEVEL SPDX_LICENSE_TAG SPLIT_STRING UNDOCUMENTED_DT_STRING UNNECESSARY_ELSE VOLATILE
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.

@@ -1,0 +1,22 @@
+WARNING:DEEP_INDENTATION: Too many leading tabs - consider code refactoring
+#1942: FILE: src/modules/dxe_core/entry.c:1942:
++						if (memcmp(&driver->guid, &capsule_disk_drivers[1].guid,
+
+WARNING:DEEP_INDENTATION: Too many leading tabs - consider code refactoring
+#1945: FILE: src/modules/dxe_core/entry.c:1945:
++						if (services->capsule_fmp_source != NULL) {
+
+total: 0 errors, 2 warnings, 7410 lines checked
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#36: FILE: tests/dxe_core_capsule_disk_stage_test.c:36:
++#define MODEL_CODE __section(".stage_runtime_code") __noinline
+
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#38: FILE: tests/dxe_core_capsule_disk_stage_test.c:38:
++#define PCI_CODE __section(".stage_pci_code") __noinline
+
+ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parentheses
+#40: FILE: tests/dxe_core_capsule_disk_stage_test.c:40:
++#define XHCI_CODE __section(".stage_xhci_code") __noinline
+
+total: 3 errors, 0 warnings, 639 lines checked

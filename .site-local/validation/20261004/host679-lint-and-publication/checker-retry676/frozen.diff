@@ -1,0 +1,417 @@
+diff --git a/src/modules/fat/protocol.c b/src/modules/fat/protocol.c
+index abdcfee3cd..7de1eddf26 100644
+--- a/src/modules/fat/protocol.c
++++ b/src/modules/fat/protocol.c
+@@ -43,6 +43,14 @@ struct efi_fs_info {
+ struct efi_label_info {
+ 	CHAR16 label[1];
+ };
++/* These one-element tails are UEFI information wire records, not private arrays. */
++_Static_assert(sizeof(CHAR16) == 2U, "UEFI information character size changed");
++_Static_assert(offsetof(struct efi_file_info, file_name) == 80U &&
++	sizeof(struct efi_file_info) == 88U, "EFI_FILE_INFO wire layout changed");
++_Static_assert(offsetof(struct efi_fs_info, label) == 36U &&
++	sizeof(struct efi_fs_info) == 40U, "EFI_FILE_SYSTEM_INFO wire layout changed");
++_Static_assert(offsetof(struct efi_label_info, label) == 0U &&
++	sizeof(struct efi_label_info) == 2U, "EFI_FILE_SYSTEM_VOLUME_LABEL wire layout changed");
+ struct async_task;
+ struct fat_handle {
+ 	struct cdk2_fat_file_protocol protocol;
+diff --git a/tests/checkpatch_filter_test.sh b/tests/checkpatch_filter_test.sh
+index 21d6f5239f..75fc44af6b 100755
+--- a/tests/checkpatch_filter_test.sh
++++ b/tests/checkpatch_filter_test.sh
+@@ -7,6 +7,10 @@ sh "$root/tests/checkpatch_generic_test.sh"
+ sh "$root/tests/checkpatch_font_declaration_test.sh" --grammar-only
+ temporary=$(mktemp -d "${TMPDIR:-/tmp}/cdk2-checkpatch-launcher-test.XXXXXX")
+ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
++sh "$root/tests/checkpatch_source_ownership_test.sh"
++"${HOSTCC:-cc}" -std=c11 -Wall -Wextra -Werror -O2 \
++	"$root/tests/checkpatch_uefi_information_test.c" -o "$temporary/uefi-information"
++"$temporary/uefi-information" "$root"
+ before=$(find "$temporary" -maxdepth 1 -type f \
+ 	-name 'cdk2-checkpatch-filter.*' | wc -l)
+ index=0
+@@ -144,6 +148,12 @@ mkdir -p "$lint_root/util/lint" "$lint_root/sources"
+ cp "$root/util/lint/lint-007-checkpatch" "$lint_root/util/lint/"
+ cp "$root/util/lint/helper_functions.sh" "$lint_root/util/lint/"
+ cp "$root/util/lint/cdk2-checkpatch-filter.c" "$lint_root/util/lint/"
++mkdir -p "$lint_root/src/lib/tcg_hash/vendor/vboot"
++cp "$root/src/lib/tcg_hash/PROVENANCE" "$lint_root/src/lib/tcg_hash/"
++for file in 2sha1.c 2sha256.c 2sha512.c; do
++	cp "$root/src/lib/tcg_hash/vendor/vboot/$file" \
++		"$lint_root/src/lib/tcg_hash/vendor/vboot/$file"
++done
+ printf '%s\n' '#!/bin/sh' \
+ 	'for file do :; done' \
+ 	'if [ -n "$LINT_SELECTION_LOG" ]; then printf "%s\n" "$file" >> "$LINT_SELECTION_LOG"; fi' \
+diff --git a/tests/checkpatch_source_ownership_test.sh b/tests/checkpatch_source_ownership_test.sh
+new file mode 100755
+index 0000000000..2b300f1632
+--- /dev/null
++++ b/tests/checkpatch_source_ownership_test.sh
+@@ -0,0 +1,72 @@
++#!/bin/sh
++# SPDX-License-Identifier: GPL-2.0-only
++set -eu
++root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
++temporary=$(mktemp -d)
++trap 'rm -rf "$temporary"' EXIT HUP INT TERM
++mkdir -p "$temporary/util/lint" "$temporary/src/lib/tcg_hash/vendor/vboot"
++for path in lint-007-checkpatch helper_functions.sh cdk2-checkpatch-filter.c \
++	checkpatch.pl cdk2-typedefs.checkpatch spelling.txt const_structs.checkpatch; do
++	cp "$root/util/lint/$path" "$temporary/util/lint/$path"
++done
++cp "$root/.checkpatch.conf" "$temporary/.checkpatch.conf"
++cp "$root/src/lib/tcg_hash/PROVENANCE" "$temporary/src/lib/tcg_hash/PROVENANCE"
++for name in 2sha1 2sha256 2sha512; do
++	cp "$root/src/lib/tcg_hash/vendor/vboot/$name.c" \
++		"$temporary/src/lib/tcg_hash/vendor/vboot/$name.c"
++done
++paths='src/lib/tcg_hash/vendor/vboot/2sha1.c src/lib/tcg_hash/vendor/vboot/2sha256.c src/lib/tcg_hash/vendor/vboot/2sha512.c'
++check_imports()
++{
++	(cd "$temporary"; sh util/lint/lint-007-checkpatch "$paths")
++}
++check_imports > "$temporary/positive.log" 2>&1
++test ! -s "$temporary/positive.log"
++printf X >> "$temporary/src/lib/tcg_hash/vendor/vboot/2sha1.c"
++if check_imports > "$temporary/changed.log" 2>&1; then
++	echo 'changed upstream import was excluded' >&2
++	exit 1
++fi
++cp "$root/src/lib/tcg_hash/vendor/vboot/2sha1.c" \
++	"$temporary/src/lib/tcg_hash/vendor/vboot/2sha1.c"
++rm "$temporary/src/lib/tcg_hash/vendor/vboot/2sha256.c"
++if check_imports > "$temporary/missing.log" 2>&1; then
++	echo 'missing upstream import was excluded' >&2
++	exit 1
++fi
++ln -s "$root/src/lib/tcg_hash/vendor/vboot/2sha256.c" \
++	"$temporary/src/lib/tcg_hash/vendor/vboot/2sha256.c"
++if check_imports > "$temporary/symlink.log" 2>&1; then
++	echo 'symlink upstream import was excluded' >&2
++	exit 1
++fi
++rm "$temporary/src/lib/tcg_hash/vendor/vboot/2sha256.c"
++cp "$root/src/lib/tcg_hash/vendor/vboot/2sha256.c" \
++	"$temporary/src/lib/tcg_hash/vendor/vboot/2sha256.c"
++grep '^vboot_2sha1_sha256=' "$root/src/lib/tcg_hash/PROVENANCE" \
++	>> "$temporary/src/lib/tcg_hash/PROVENANCE"
++if check_imports > "$temporary/duplicate.log" 2>&1; then
++	echo 'ambiguous upstream provenance was accepted' >&2
++	exit 1
++fi
++cp "$root/src/lib/tcg_hash/PROVENANCE" "$temporary/src/lib/tcg_hash/PROVENANCE"
++sed 's/^vboot_2sha1_sha256=.*/vboot_2sha1_sha256=forged/' \
++	"$root/src/lib/tcg_hash/PROVENANCE" > "$temporary/src/lib/tcg_hash/PROVENANCE"
++if check_imports > "$temporary/forged.log" 2>&1; then
++	echo 'forged upstream provenance was accepted' >&2
++	exit 1
++fi
++cp "$root/src/lib/tcg_hash/PROVENANCE" "$temporary/src/lib/tcg_hash/PROVENANCE"
++# Near names and local compatibility headers remain ordinary owned source.
++for name in 2sha1-local.c 2sha_private.h; do
++	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '' \
++		'struct owned {' ' int value[1];' '};' \
++		> "$temporary/src/lib/tcg_hash/vendor/vboot/$name"
++	if (cd "$temporary"; sh util/lint/lint-007-checkpatch \
++		"src/lib/tcg_hash/vendor/vboot/$name") > "$temporary/$name.log" 2>&1; then
++		echo 'owned or near-name source was excluded' >&2
++		exit 1
++	fi
++	grep -q 'FLEXIBLE_ARRAY' "$temporary/$name.log"
++done
++echo 'exact upstream ownership pins and owned-source refusals: PASS'
+diff --git a/tests/checkpatch_uefi_information_test.c b/tests/checkpatch_uefi_information_test.c
+new file mode 100644
+index 0000000000..3219c16834
+--- /dev/null
++++ b/tests/checkpatch_uefi_information_test.c
+@@ -0,0 +1,126 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#define _POSIX_C_SOURCE 200809L
++#include <assert.h>
++#define main cdk2_checkpatch_filter_main
++#include "../util/lint/cdk2-checkpatch-filter.c"
++#undef main
++
++static void write_source(const char *path, const char *text, size_t length)
++{
++	int descriptor = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0600);
++
++	assert(descriptor >= 0);
++	assert(write(descriptor, text, length) == (ssize_t)length);
++	assert(close(descriptor) == 0);
++}
++
++int main(int argc, char **argv)
++{
++	static const char header[] =
++		"ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays";
++	static const char *const definitions[] = {
++		"struct efi_file_info {", "struct efi_fs_info {", "struct efi_label_info {",
++	};
++	static const char *const members[] = {
++		"\tCHAR16 file_name[1];", "\tCHAR16 label[1];", "\tCHAR16 label[1];",
++	};
++	char directory[] = "/tmp/cdk2-uefi-information.XXXXXX";
++	char path[PATH_MAX], original_path[PATH_MAX], record[1024], hostile[2048];
++	struct buffer source = {0};
++	size_t index;
++
++	assert(argc == 2);
++	assert(snprintf(original_path, sizeof(original_path),
++		"%s/src/modules/fat/protocol.c", argv[1]) < (int)sizeof(original_path));
++	assert(read_file(original_path, &source) && source.length != 0U);
++	assert(mkdtemp(directory) != NULL);
++	for (index = 0U; index < 3U; index++) {
++		static const char *const suffix[] = {"src", "src/modules", "src/modules/fat"};
++		assert(snprintf(path, sizeof(path), "%s/%s", directory, suffix[index]) <
++			(int)sizeof(path));
++		assert(mkdir(path, 0700) == 0);
++	}
++	assert(snprintf(path, sizeof(path), "%s/src/modules/fat/protocol.c", directory) <
++		(int)sizeof(path));
++	write_source(path, source.data, source.length);
++	for (index = 0U; index < ARRAY_SIZE(definitions); index++) {
++		const char *definition = strstr(source.data, definitions[index]);
++		const char *member;
++		const char *cursor;
++		size_t line = 1U;
++		char *changed;
++
++		assert(definition != NULL);
++		member = strstr(definition, members[index]);
++		assert(member != NULL);
++		for (cursor = source.data; cursor < member; cursor++)
++			if (*cursor == '\n')
++				line++;
++		assert(snprintf(record, sizeof(record),
++			"%s\n#17: FILE: src/modules/fat/protocol.c:%zu:\n+%s\n+};",
++			header, line + 1U, members[index]) < (int)sizeof(record));
++		assert(uefi_information_tail(directory, record, strlen(record)));
++		assert(snprintf(hostile, sizeof(hostile), "%s\nWARNING:OTHER: hostile", record) <
++			(int)sizeof(hostile));
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		strcpy(hostile, record);
++		changed = strstr(hostile, "[1]");
++		assert(changed != NULL);
++		changed[1] = '2';
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		strcpy(hostile, record);
++		changed = strstr(hostile, "CHAR16");
++		assert(changed != NULL);
++		memcpy(changed, "UINT16", 6U);
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		strcpy(hostile, record);
++		changed = strstr(hostile, "protocol.c");
++		assert(changed != NULL);
++		changed[0] = 'x';
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		strcpy(hostile, record);
++		hostile[strlen(hostile) - 1U] = ',';
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		assert(snprintf(hostile, sizeof(hostile),
++			"%s\n#17: FILE: src/modules/fat/protocol.c:%zu:\n+%s\n+};",
++			header, line, members[index]) < (int)sizeof(hostile));
++		assert(!uefi_information_tail(directory, hostile, strlen(hostile)));
++		changed = strdup(source.data);
++		assert(changed != NULL);
++		changed[(size_t)(definition - source.data) + strlen("struct efi_")] = 'x';
++		write_source(path, changed, source.length);
++		assert(!uefi_information_tail(directory, record, strlen(record)));
++		free(changed);
++		write_source(path, source.data, source.length);
++	}
++	/* An exact block inside a comment is not a wire declaration. */
++	{
++		static const char commented[] =
++			"/*\nstruct efi_label_info {\n\tCHAR16 label[1];\n};\n*/\n";
++		write_source(path, commented, sizeof(commented) - 1U);
++		assert(snprintf(record, sizeof(record),
++			"%s\n#17: FILE: src/modules/fat/protocol.c:4:\n+%s\n+};",
++			header, members[2]) < (int)sizeof(record));
++		assert(!uefi_information_tail(directory, record, strlen(record)));
++	}
++	write_source(path, "", 0U);
++	assert(!uefi_information_tail(directory, record, strlen(record)));
++	write_source(path, "\0", 1U);
++	assert(!uefi_information_tail(directory, record, strlen(record)));
++	assert(unlink(path) == 0);
++	assert(!uefi_information_tail(directory, record, strlen(record)));
++	assert(symlink(original_path, path) == 0);
++	assert(!uefi_information_tail(directory, record, strlen(record)));
++	assert(unlink(path) == 0);
++	for (index = 3U; index > 0U; index--) {
++		static const char *const suffix[] = {"src", "src/modules", "src/modules/fat"};
++		assert(snprintf(path, sizeof(path), "%s/%s", directory, suffix[index - 1U]) <
++			(int)sizeof(path));
++		assert(rmdir(path) == 0);
++	}
++	assert(rmdir(directory) == 0);
++	free(source.data);
++	puts("exact UEFI information tails and hostile records: PASS");
++	return 0;
++}
+diff --git a/util/lint/cdk2-checkpatch-filter.c b/util/lint/cdk2-checkpatch-filter.c
+index 5102b2f93e..e7164d3b1b 100644
+--- a/util/lint/cdk2-checkpatch-filter.c
++++ b/util/lint/cdk2-checkpatch-filter.c
+@@ -557,6 +557,104 @@ done:
+ 	return result;
+ }
+ 
++static bool uefi_information_tail(const char *root, const char *record, size_t length)
++{
++	static const char header[] =
++		"ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays\n";
++	static const struct {
++		const char *definition;
++		const char *member;
++	} tails[] = {
++		{ "struct efi_file_info {\n"
++		  "\tUINT64 size, file_size, physical_size;\n"
++		  "\tstruct efi_time create, access, modify;\n"
++		  "\tUINT64 attribute;\n\tCHAR16 file_name[1];\n};\n",
++		  "\tCHAR16 file_name[1];" },
++		{ "struct efi_fs_info {\n\tUINT64 size;\n\tBOOLEAN read_only;\n"
++		  "\tUINT8 pad[7];\n\tUINT64 volume_size, free_space;\n"
++		  "\tUINT32 block_size;\n\tCHAR16 label[1];\n};\n",
++		  "\tCHAR16 label[1];" },
++		{ "struct efi_label_info {\n\tCHAR16 label[1];\n};\n",
++		  "\tCHAR16 label[1];" },
++	};
++	struct buffer source = {0};
++	struct stat source_stat;
++	char path[PATH_MAX], expected[512];
++	size_t report_line, source_line, index;
++	int consumed = 0;
++	bool result = false;
++
++	if (length < sizeof(header) - 1U ||
++	    memcmp(record, header, sizeof(header) - 1U) != 0 ||
++	    sscanf(record + sizeof(header) - 1U,
++		"#%zu: FILE: src/modules/fat/protocol.c:%zu:%n",
++		&report_line, &source_line, &consumed) != 2 || consumed == 0)
++		return false;
++	if (snprintf(path, sizeof(path), "%s/src/modules/fat/protocol.c", root) >=
++	    (int)sizeof(path) || lstat(path, &source_stat) != 0 ||
++	    !S_ISREG(source_stat.st_mode) || !read_file(path, &source))
++		return false;
++	if (source.length == 0U || memchr(source.data, '\0', source.length) != NULL)
++		goto done;
++	for (index = 0U; index < ARRAY_SIZE(tails); index++) {
++		const char *definition = strstr(source.data, tails[index].definition);
++		const char *member;
++		const char *cursor;
++		enum { CODE, LINE_COMMENT, BLOCK_COMMENT, STRING, CHARACTER } context = CODE;
++		size_t line = 1U;
++		int written;
++
++		if (definition == NULL || (definition != source.data && definition[-1] != '\n') ||
++		    strstr(definition + 1U, tails[index].definition) != NULL)
++			continue;
++		for (cursor = source.data; cursor < definition; cursor++) {
++			if (context == LINE_COMMENT) {
++				if (*cursor == '\n' && (cursor == source.data || cursor[-1] != '\\'))
++					context = CODE;
++			} else if (context == BLOCK_COMMENT) {
++				if (*cursor == '*' && cursor[1] == '/')
++					context = CODE, cursor++;
++			} else if (context == STRING || context == CHARACTER) {
++				if (*cursor == '\\' && cursor + 1U < definition)
++					cursor++;
++				else if ((context == STRING && *cursor == '"') ||
++					 (context == CHARACTER && *cursor == '\''))
++					context = CODE;
++			} else if (*cursor == '/' && cursor[1] == '/') {
++				context = LINE_COMMENT;
++				cursor++;
++			} else if (*cursor == '/' && cursor[1] == '*') {
++				context = BLOCK_COMMENT;
++				cursor++;
++			} else if (*cursor == '"') {
++				context = STRING;
++			} else if (*cursor == '\'') {
++				context = CHARACTER;
++			}
++		}
++		if (context != CODE)
++			continue;
++		member = strstr(definition, tails[index].member);
++		for (cursor = source.data; cursor < member; cursor++)
++			if (*cursor == '\n')
++				line++;
++		/* Checkpatch reports the closing line of this two-line context. */
++		if (line + 1U != source_line)
++			continue;
++		written = snprintf(expected, sizeof(expected),
++			"%s#%zu: FILE: src/modules/fat/protocol.c:%zu:\n+%s\n+};",
++			header, report_line, source_line, tails[index].member);
++		if (written >= 0 && (size_t)written == length &&
++		    (size_t)written < sizeof(expected) && memcmp(expected, record, length) == 0) {
++			result = true;
++			break;
++		}
++	}
++done:
++	free(source.data);
++	return result;
++}
++
+ static bool ends_with(const char *end, size_t length, const char *suffix)
+ {
+ 	size_t suffix_length = strlen(suffix);
+@@ -710,7 +808,8 @@ static bool filter_output(const char *root, const struct buffer *input,
+ 
+ 		if (record == NULL)
+ 			goto allowlist_fail;
+-		if (record_false_positive(root, &allowlist, record, length)) {
++		if (record_false_positive(root, &allowlist, record, length) ||
++		    uefi_information_tail(root, record, length)) {
+ 			if (length >= 6U && memcmp(cursor, "ERROR:", 6U) == 0) {
+ 				if (suppressed_errors == UINT_MAX) {
+ 					free(record);
+diff --git a/util/lint/lint-007-checkpatch b/util/lint/lint-007-checkpatch
+index d9a1a7d037..5ab35abe26 100755
+--- a/util/lint/lint-007-checkpatch
++++ b/util/lint/lint-007-checkpatch
+@@ -43,15 +43,34 @@ fi
+ 
+ # We want word splitting here, so disable the shellcheck warnings
+ # shellcheck disable=SC2046,SC2086
++root=$(CDPATH= cd -- "$LINTDIR/../.." && pwd)
++# Only these exact upstream C imports are outside owned full-file style review.
++# Pin their actual bytes and provenance first; local compatibility headers and
++# every diff remain subject to ordinary diagnostics.
++grep -qx 'vboot_commit=5c360ef458b0a013d8a6d47724bb0fffb5accbcf' \
++	"$root/src/lib/tcg_hash/PROVENANCE" || exit 1
++for specification in \
++	2sha1:7342d22d7013e774f3d236a337861f47fa6626fe24a303d3475f4d64575270ef \
++	2sha256:8d626603cc9a9ff8226a0f08cf06d559f65682c75443a7f9f7deb67be3d29302 \
++	2sha512:5785cc2da44dd141e9a1863f568daed61002bd47b2bd8af4332ab831313075c1; do
++	name=${specification%%:*}
++	hash=${specification#*:}
++	test "$(grep -c "^vboot_${name}_sha256=" "$root/src/lib/tcg_hash/PROVENANCE")" = 1 || exit 1
++	grep -qx "vboot_${name}_sha256=$hash" "$root/src/lib/tcg_hash/PROVENANCE" || exit 1
++	test -f "$root/src/lib/tcg_hash/vendor/vboot/$name.c" &&
++		test ! -L "$root/src/lib/tcg_hash/vendor/vboot/$name.c" || exit 1
++	printf '%s  %s\n' "$hash" "$root/src/lib/tcg_hash/vendor/vboot/$name.c" |
++		sha256sum -c - >/dev/null || exit 1
++done
+ FILELIST=$( ${FIND_FILES} $INCLUDED_DIRS | \
+ 		grep "$INCLUDED_FILES" | \
+-		grep -v "$EXCLUDED_DIRS" )
++		grep -v "$EXCLUDED_DIRS" | \
++		grep -v '^src/lib/tcg_hash/vendor/vboot/2sha\(1\|256\|512\)\.c$' )
+ 
+ [ -n "$FILELIST" ] || exit 0
+ 
+ # Compile once for this invocation, not once for every source file. Keep the
+ # existing descriptor-bound launch and the same filtering rules.
+-root=$(CDPATH= cd -- "$LINTDIR/../.." && pwd)
+ binary=$(mktemp "${TMPDIR:-/tmp}/cdk2-checkpatch-filter.XXXXXX") || exit $?
+ trap 'rm -f "$binary"' EXIT HUP INT TERM
+ "${HOSTCC:-cc}" -std=c11 -Wall -Wextra -Werror -O2 \

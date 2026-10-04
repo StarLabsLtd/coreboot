@@ -1,0 +1,16 @@
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/.EXTRA_PREREQS
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/=
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/$(CDK2_CONFIG_HEADER)
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/$(CDK2_NATIVE_COMMAND_INPUTS)
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/$(CDK2_DIR)/Makefile
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/$(CDK2_DIR)/src/boot/Makefile
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/tests/efivar_unlock_test.c
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/util/qemu/fixtures/linux-mini/efivar-unlock.c
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/tests/efivar_unlock_test.c
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/util/qemu/fixtures/linux-mini/efivar-unlock.c
+/home/sean/efivar-unlock-public-final.20261004-r1/build/include/cdk2/config.h
+/home/sean/efivar-unlock-public-final.20261004-r1/build/native/command-inputs
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/Makefile
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/src/boot/Makefile
+/home/sean/Documents/.cdk2-worktrees/efivar-unlock-host-target-after672/|
+/home/sean/efivar-unlock-public-final.20261004-r1/build/native

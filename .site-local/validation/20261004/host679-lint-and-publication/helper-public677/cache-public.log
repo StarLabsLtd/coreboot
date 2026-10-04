@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/efivar-unlock-public-final.20261004-r1/cache-source'
+#
+# configuration written to /home/sean/efivar-unlock-public-final.20261004-r1/cache-build/.config
+#
+efivar unlock syscall and immutable-flag contracts: PASS
+make: Leaving directory '/home/sean/efivar-unlock-public-final.20261004-r1/cache-source'

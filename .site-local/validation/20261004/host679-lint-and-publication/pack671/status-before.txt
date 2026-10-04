@@ -1,0 +1,4 @@
+ M src/lib/tcg_hash/PROVENANCE
+ M src/lib/tcg_hash/vendor/vboot/2sha_private.h
+ M tests/software_hash_source_test.sh
+ M tests/software_hash_test.c
