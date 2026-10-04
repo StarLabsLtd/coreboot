@@ -1,0 +1,2 @@
+pcat-rtc test: absent-century policy wrote platform CMOS
+pcat-rtc test: alternative-century policy was not copied or touched fixed 0x32

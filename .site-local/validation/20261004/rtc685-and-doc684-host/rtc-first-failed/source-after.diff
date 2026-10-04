@@ -1,0 +1,970 @@
+diff --git a/docs/rtc-platform-facts.md b/docs/rtc-platform-facts.md
+new file mode 100644
+index 0000000000..31a541c005
+--- /dev/null
++++ b/docs/rtc-platform-facts.md
+@@ -0,0 +1,31 @@
++# PC/AT RTC platform facts
++
++The existing ACPI board-info GUID HOB retains its original `ACPI_BOARD_INFO`
++prefix and appends a native revision 1 RTC tail. Legacy reset/metronome consumers
++still accept their unchanged minimum prefix. RTC requires a unique canonical HOB
++list and exact current payload/tail extents before diagnostic setup, events,
++divider I/O, runtime hooks or protocol publication. Missing/old unextended data
++is not permission to assume a century register; malformed or duplicate data is
++rejected. Unknown tail revisions and unknown modern RTC availability are refused.
++
++The coreboot adapter derives the tail from its already checksum-validated unique
++FADT. Century has its own advertised field extent: zero or an unavailable field
++permits no century write. A declared nonzero index must fit the supported first
++CMOS bank and must not alias standard clock/control/alarm registers 0x00-0x0d.
++There is no fixed 0x32 fallback. Revision 5-or-newer FADT with a complete
++`ia_pc_boot_arch` field makes bit 5 NO_CMOS authoritative and prevents RTC entry
++before any activity. Modern truncated availability remains unknown.
++
++Valid pre-v5 FADT retains the previously selected PC/AT route through an explicit
++legacy-compatibility flag. Bit 5 was reserved there and is not interpreted as a
++modern NO_CMOS declaration. This compatibility policy does not discover a new
++RTC device or add an ACPI control-method time implementation.
++
++RTC copies only the admitted century scalar into runtime-owned storage, not an
++ACPI/HOB pointer. GetTime retains the existing 1970-2069 pivot and does not read
++century; SetTime retains the same year horizon and only writes a declared index.
++Alarm, timezone, locking, CRC and failure rollback policies are unchanged. HOST
++models are not proof of physical CMOS ownership or an actual guest/platform run.
++
++The field meanings follow the [ACPI FADT specification](https://uefi.org/specs/ACPI/6.6/05_ACPI_Software_Programming_Model.html),
++sections 5.2.9 and 5.2.9.3. This slice does not claim complete RTC/platform parity.
+diff --git a/include/cdk2/acpi_board_info.h b/include/cdk2/acpi_board_info.h
+new file mode 100644
+index 0000000000..60d5a2aa2e
+--- /dev/null
++++ b/include/cdk2/acpi_board_info.h
+@@ -0,0 +1,111 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#ifndef CDK2_ACPI_BOARD_INFO_H
++#define CDK2_ACPI_BOARD_INFO_H
++
++#include <cdk2/hob.h>
++#include <cdk2/hob_payload.h>
++#include <guid/acpi_board_info.h>
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++
++#define CDK2_ACPI_BOARD_INFO_HOB_GUID \
++	{ 0x0ad3d31b, 0xb3d8, 0x4506, { 0xae, 0x71, 0x2e, 0xf1, 0x10, 0x06, 0xd9, 0x0f } }
++
++#define CDK2_ACPI_RTC_INFO_REVISION 1U
++#define CDK2_ACPI_RTC_LEGACY_PC_AT BIT0
++#define CDK2_ACPI_RTC_STATUS_KNOWN BIT1
++#define CDK2_ACPI_RTC_NO_CMOS BIT2
++#define CDK2_ACPI_RTC_CENTURY_KNOWN BIT3
++#define CDK2_ACPI_RTC_FLAGS_MASK 0x0fU
++
++/* Native append-only tail: the original board-info wire prefix is unchanged. */
++struct cdk2_acpi_rtc_info {
++	CDK2_HOB_PAYLOAD_HEADER header;
++	uint8_t flags;
++	uint8_t century_index;
++	uint8_t reserved[2];
++};
++
++struct cdk2_acpi_board_info_hob {
++	ACPI_BOARD_INFO board_info;
++	struct cdk2_acpi_rtc_info rtc;
++};
++
++_Static_assert(sizeof(struct cdk2_acpi_rtc_info) == 8, "RTC tail wire size");
++_Static_assert(offsetof(struct cdk2_acpi_board_info_hob, rtc) == sizeof(ACPI_BOARD_INFO),
++	"legacy ACPI board-info prefix");
++_Static_assert(sizeof(struct cdk2_acpi_board_info_hob) ==
++	sizeof(ACPI_BOARD_INFO) + sizeof(struct cdk2_acpi_rtc_info), "board-info tail extent");
++
++static inline bool cdk2_acpi_board_info_guid_equal(const EFI_GUID *left,
++	const EFI_GUID *right)
++{
++	for (size_t index = 0; index < sizeof(*left); index++)
++		if (((const uint8_t *)left)[index] != ((const uint8_t *)right)[index])
++			return false;
++	return true;
++}
++
++static inline EFI_STATUS cdk2_acpi_rtc_info_from_hobs(const void *hob_list,
++	uint8_t *century_index)
++{
++	const EFI_GUID board_guid = CDK2_ACPI_BOARD_INFO_HOB_GUID;
++	const EFI_HOB_HANDOFF_INFO_TABLE *handoff = hob_list;
++	const EFI_HOB_GENERIC_HEADER *hob;
++	const struct cdk2_acpi_board_info_hob *record = NULL;
++	const struct cdk2_acpi_rtc_info *rtc;
++	size_t size = 0;
++	uint8_t availability;
++	EFI_STATUS status;
++
++	if (century_index == NULL)
++		return EFI_INVALID_PARAMETER;
++	if (hob_list == NULL)
++		return EFI_NOT_FOUND;
++	status = cdk2_hob_list_validate(hob_list);
++	if (EFI_ERROR(status))
++		return status;
++	for (hob = hob_list; (UINTN)hob < handoff->efi_end_of_hob_list;
++	     hob = (const void *)((const uint8_t *)hob + hob->hob_length)) {
++		const EFI_HOB_GUID_TYPE *guid_hob = (const void *)hob;
++
++		if (hob->hob_type != EFI_HOB_TYPE_GUID_EXTENSION)
++			continue;
++		if (hob->hob_length < sizeof(*guid_hob))
++			return EFI_COMPROMISED_DATA;
++		if (!cdk2_acpi_board_info_guid_equal(&guid_hob->name, &board_guid))
++			continue;
++		if (record != NULL)
++			return EFI_COMPROMISED_DATA;
++		record = (const void *)(guid_hob + 1);
++		size = hob->hob_length - sizeof(*guid_hob);
++	}
++	if (record == NULL)
++		return EFI_NOT_FOUND;
++	if (size == sizeof(ACPI_BOARD_INFO))
++		return EFI_UNSUPPORTED;
++	if (size != sizeof(*record))
++		return EFI_COMPROMISED_DATA;
++	rtc = &record->rtc;
++	if (rtc->header.revision != CDK2_ACPI_RTC_INFO_REVISION)
++		return EFI_UNSUPPORTED;
++	if (rtc->header.reserved || rtc->header.length != sizeof(*rtc) ||
++	    rtc->reserved[0] || rtc->reserved[1] ||
++	    (rtc->flags & ~CDK2_ACPI_RTC_FLAGS_MASK) ||
++	    (!(rtc->flags & CDK2_ACPI_RTC_CENTURY_KNOWN) && rtc->century_index) ||
++	    (rtc->century_index && (rtc->century_index <= 0x0dU || rtc->century_index >= 0x80U)))
++		return EFI_COMPROMISED_DATA;
++	availability = rtc->flags & (CDK2_ACPI_RTC_LEGACY_PC_AT | CDK2_ACPI_RTC_STATUS_KNOWN);
++	if (availability == (CDK2_ACPI_RTC_LEGACY_PC_AT | CDK2_ACPI_RTC_STATUS_KNOWN) ||
++	    ((rtc->flags & CDK2_ACPI_RTC_NO_CMOS) &&
++	     availability != CDK2_ACPI_RTC_STATUS_KNOWN))
++		return EFI_COMPROMISED_DATA;
++	if (!availability || (rtc->flags & CDK2_ACPI_RTC_NO_CMOS))
++		return EFI_UNSUPPORTED;
++	*century_index = rtc->century_index;
++	return EFI_SUCCESS;
++}
++
++#endif
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index 2e04647d67..1d0d56fcce 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -5619,8 +5619,10 @@ native-reset-system-diagnostic-parity:
+ 
+ native-check: native-reset-system-diagnostic-parity
+ 
+-$(CDK2_NATIVE_PCAT_RTC_OBJ): $(CDK2_DIR)/src/modules/pcat_rtc/pcat_rtc.c $(CDK2_DIR)/include/cdk2/pcat_rtc.h | $(CDK2_NATIVE_BUILD_DIR)
++$(CDK2_NATIVE_PCAT_RTC_OBJ): $(CDK2_DIR)/src/modules/pcat_rtc/pcat_rtc.c \
++		$(CDK2_DIR)/include/cdk2/pcat_rtc.h $(CDK2_DIR)/include/cdk2/acpi_board_info.h | $(CDK2_NATIVE_BUILD_DIR)
+ 	@$(CDK2_NATIVE_CC) $(filter-out -fdata-sections -ffunction-sections,$(CDK2_NATIVE_CFLAGS)) \
++		-MMD -MP -MF "$@.d" -MT "$@" \
+ 		-fno-ident -fcf-protection=none -maccumulate-outgoing-args \
+ 		$(if $(filter y,$(CONFIG_CDK2_BUILD_DEBUG)),-DCDK2_DEBUG) $(if $(filter y,$(CONFIG_CDK2_DIAGNOSTIC)),-DCDK2_DIAGNOSTIC) \
+ 		$(CDK2_NATIVE_INCLUDES) -c "$<" -o "$@"
+@@ -5757,8 +5759,11 @@ $(CDK2_NATIVE_RESET_SYSTEM_TEST): $(CDK2_DIR)/tests/reset_system_test.c \
+ 		$(CDK2_DIR)/src/modules/reset_system/diagnostic.c \
+ 		$(CDK2_DIR)/src/lib/diagnostic.c
+ 
+-$(CDK2_NATIVE_PCAT_RTC_TEST): $(CDK2_DIR)/tests/pcat_rtc_test.c $(CDK2_DIR)/src/modules/pcat_rtc/pcat_rtc.c $(CDK2_DIR)/include/cdk2/pcat_rtc.h | $(CDK2_NATIVE_BUILD_DIR)
+-	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) $(CDK2_NATIVE_INCLUDES) -o "$@" "$<"
++$(CDK2_NATIVE_PCAT_RTC_TEST): $(CDK2_DIR)/tests/pcat_rtc_test.c \
++		$(CDK2_DIR)/src/modules/pcat_rtc/pcat_rtc.c $(CDK2_DIR)/include/cdk2/pcat_rtc.h \
++		$(CDK2_DIR)/include/cdk2/acpi_board_info.h | $(CDK2_NATIVE_BUILD_DIR)
++	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) -MMD -MP -MF "$@.d" -MT "$@" \
++		$(CDK2_NATIVE_INCLUDES) -o "$@" "$<"
+ 
+ $(CDK2_NATIVE_LOCAL_APIC_TIMER_TEST): $(CDK2_DIR)/tests/local_apic_timer_test.c $(CDK2_DIR)/src/modules/local_apic_timer/local_apic_timer.c $(CDK2_DIR)/include/cdk2/local_apic_timer.h | $(CDK2_NATIVE_BUILD_DIR)
+ 	@$(CDK2_NATIVE_HOST_CC) $(CDK2_NATIVE_HOST_CFLAGS) $(CDK2_NATIVE_INCLUDES) -o "$@" "$(CDK2_DIR)/tests/local_apic_timer_test.c" "$(CDK2_DIR)/src/modules/local_apic_timer/local_apic_timer.c"
+@@ -6024,6 +6029,7 @@ $(CDK2_NATIVE_COREBOOT_TEST): $(CDK2_NATIVE_DIR)/coreboot.c \
+ 		$(CDK2_DIR)/src/lib/diagnostic.c \
+ 		$(CDK2_DIR)/src/lib/direct_image_table.c $(CDK2_PE_IMAGE_VIEW_SRC) \
+ 		$(CDK2_DIR)/include/cdk2/direct_image_table.h \
++		$(CDK2_DIR)/include/cdk2/acpi_board_info.h \
+ 		$(CDK2_DIR)/include/coreboot_tables.h \
+ 		$(CDK2_DIR)/include/guid/deadline_tsc_info.h \
+ 		$(CDK2_DIR)/include/cdk2/pci_topology_handoff.h \
+diff --git a/src/boot/coreboot.h b/src/boot/coreboot.h
+index 4728f25436..fdafcb1e00 100644
+--- a/src/boot/coreboot.h
++++ b/src/boot/coreboot.h
+@@ -136,6 +136,9 @@ EFI_STATUS EFIAPI
+ cdk2_coreboot_test_append_serial_hobs(EFI_HOB_HANDOFF_INFO_TABLE *hob,
+ 	const struct cdk2_coreboot_handoff *coreboot);
+ EFI_STATUS EFIAPI
++cdk2_coreboot_test_append_acpi_hobs(EFI_HOB_HANDOFF_INFO_TABLE *hob,
++	const struct cdk2_coreboot_handoff *coreboot);
++EFI_STATUS EFIAPI
+ cdk2_coreboot_test_append_diagnostic_hob(EFI_HOB_HANDOFF_INFO_TABLE hob[],
+ 	const struct cdk2_coreboot_handoff *coreboot);
+ EFI_STATUS EFIAPI
+diff --git a/src/boot/coreboot_handoff.c b/src/boot/coreboot_handoff.c
+index a5fec16fb0..c555054789 100644
+--- a/src/boot/coreboot_handoff.c
++++ b/src/boot/coreboot_handoff.c
+@@ -13,6 +13,7 @@
+ #include <guid/graphics_info_hob.h>
+ #include <guid/serial_port_info.h>
+ #include <cdk2/diagnostic.h>
++#include <cdk2/acpi_board_info.h>
+ #include <cdk2/direct_image_table.h>
+ #include <cdk2/dma_handoff.h>
+ #include <cdk2/early_splash.h>
+@@ -933,7 +934,8 @@ static EFI_STATUS cdk2_coreboot_build_acpi_board_info(EFI_PHYSICAL_ADDRESS rsdp_
+ 						      ACPI_BOARD_INFO *board_info,
+ 						      EFI_PHYSICAL_ADDRESS *rsdp_base,
+ 						      EFI_ACPI_DESCRIPTION_HEADER **tpm2_table,
+-						      const void **mcfg_table)
++						      const void **mcfg_table,
++						      struct cdk2_acpi_rtc_info *rtc_info)
+ {
+ 	EFI_ACPI_3_0_ROOT_SYSTEM_DESCRIPTION_POINTER *rsdp;
+ 	EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE *fadt;
+@@ -1003,6 +1005,30 @@ static EFI_STATUS cdk2_coreboot_build_acpi_board_info(EFI_PHYSICAL_ADDRESS rsdp_
+ 	}
+ 
+ 	*board_info = (ACPI_BOARD_INFO){0};
++	if (rtc_info != NULL) {
++		*rtc_info = (struct cdk2_acpi_rtc_info) {
++			.header = { CDK2_ACPI_RTC_INFO_REVISION, 0, sizeof(*rtc_info) },
++		};
++		/*
++		 * Pre-v5 FADT retains the selected PC/AT compatibility path;
++		 * its reserved boot-architecture bit 5 does not declare NO_CMOS.
++		 */
++		if (fadt->header.revision < 5U)
++			rtc_info->flags |= CDK2_ACPI_RTC_LEGACY_PC_AT;
++		else if (cdk2_coreboot_acpi_field_present(&fadt->header,
++		    OFFSET_OF(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ia_pc_boot_arch),
++		    sizeof(fadt->ia_pc_boot_arch))) {
++			rtc_info->flags |= CDK2_ACPI_RTC_STATUS_KNOWN;
++			if (fadt->ia_pc_boot_arch & BIT5)
++				rtc_info->flags |= CDK2_ACPI_RTC_NO_CMOS;
++		}
++		if (cdk2_coreboot_acpi_field_present(&fadt->header,
++		    OFFSET_OF(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century),
++		    sizeof(fadt->century))) {
++			rtc_info->flags |= CDK2_ACPI_RTC_CENTURY_KNOWN;
++			rtc_info->century_index = fadt->century;
++		}
++	}
+ 	board_info->pm_ctrl_reg_base = fadt->pm1a_cnt_blk;
+ 	board_info->pm_ctrl_reg_base_b = fadt->pm1b_cnt_blk;
+ 	board_info->pm_ctrl_reg_address_space = 1U; /* System I/O address space. */
+@@ -1553,7 +1579,7 @@ static EFI_STATUS cdk2_coreboot_update_acpi_handoff(struct cdk2_coreboot_handoff
+ 	}
+ 
+ 	status = cdk2_coreboot_build_acpi_board_info(rsdp_base, &board_info, NULL, NULL,
+-		&coreboot->mcfg);
++		&coreboot->mcfg, NULL);
+ 	if (EFI_ERROR(status)) {
+ 		return status;
+ 	}
+@@ -1567,7 +1593,7 @@ static EFI_STATUS cdk2_coreboot_update_acpi_handoff(struct cdk2_coreboot_handoff
+ static EFI_STATUS cdk2_coreboot_append_acpi_hobs(EFI_HOB_HANDOFF_INFO_TABLE *handoff,
+ 						 const struct cdk2_coreboot_handoff *coreboot)
+ {
+-	ACPI_BOARD_INFO board_info;
++	struct cdk2_acpi_board_info_hob board_hob;
+ 	EFI_PHYSICAL_ADDRESS rsdp_base;
+ 	EFI_ACPI_DESCRIPTION_HEADER *tpm2_table;
+ 	EFI_STATUS status;
+@@ -1577,8 +1603,8 @@ static EFI_STATUS cdk2_coreboot_append_acpi_hobs(EFI_HOB_HANDOFF_INFO_TABLE *han
+ 		return status;
+ 	}
+ 
+-	status = cdk2_coreboot_build_acpi_board_info(rsdp_base, &board_info, &rsdp_base,
+-		&tpm2_table, NULL);
++	status = cdk2_coreboot_build_acpi_board_info(rsdp_base, &board_hob.board_info, &rsdp_base,
++		&tpm2_table, NULL, &board_hob.rtc);
+ 	if (EFI_ERROR(status)) {
+ 		return status;
+ 	}
+@@ -1588,8 +1614,8 @@ static EFI_STATUS cdk2_coreboot_append_acpi_hobs(EFI_HOB_HANDOFF_INFO_TABLE *han
+ 		return status;
+ 	}
+ 
+-	status = cdk2_coreboot_append_guid_hob(handoff, &m_cdk2_acpi_board_info_hob_guid, &board_info,
+-					       sizeof(board_info));
++	status = cdk2_coreboot_append_guid_hob(handoff, &m_cdk2_acpi_board_info_hob_guid, &board_hob,
++					       sizeof(board_hob));
+ 	if (EFI_ERROR(status)) {
+ 		return status;
+ 	}
+@@ -3965,6 +3991,13 @@ EFI_STATUS EFIAPI cdk2_coreboot_test_append_serial_hobs(
+ 	return cdk2_coreboot_append_serial_hobs(hob, coreboot);
+ }
+ 
++EFI_STATUS EFIAPI cdk2_coreboot_test_append_acpi_hobs(
++	EFI_HOB_HANDOFF_INFO_TABLE *hob,
++	const struct cdk2_coreboot_handoff *coreboot)
++{
++	return cdk2_coreboot_append_acpi_hobs(hob, coreboot);
++}
++
+ EFI_STATUS EFIAPI cdk2_coreboot_test_append_diagnostic_hob(
+ 	EFI_HOB_HANDOFF_INFO_TABLE hob[],
+ 	const struct cdk2_coreboot_handoff *coreboot)
+@@ -4027,7 +4060,7 @@ EFIAPI
+ cdk2_coreboot_test_build_acpi_board_info(EFI_PHYSICAL_ADDRESS rsdp_address, void *board_info)
+ {
+ 	return cdk2_coreboot_build_acpi_board_info(
+-		rsdp_address, (ACPI_BOARD_INFO *)board_info, NULL, NULL, NULL);
++		rsdp_address, (ACPI_BOARD_INFO *)board_info, NULL, NULL, NULL, NULL);
+ }
+ 
+ BOOLEAN
+diff --git a/src/boot/coreboot_test.c b/src/boot/coreboot_test.c
+index ad39ccd157..c9c72ffefd 100644
+--- a/src/boot/coreboot_test.c
++++ b/src/boot/coreboot_test.c
+@@ -5,6 +5,7 @@
+  */
+ 
+ #include <cdk2/boot_private_buffer.h>
++#include <cdk2/acpi_board_info.h>
+ #include <cdk2/capsule_delivery_policy.h>
+ #include <cdk2/diagnostic.h>
+ #include <cdk2/dma_handoff.h>
+@@ -2595,6 +2596,133 @@ static void build_test_acpi_tables(EFI_ACPI_3_0_ROOT_SYSTEM_DESCRIPTION_POINTER
+ 	test_update_rsdp_checksums(rsdp);
+ }
+ 
++static int test_rtc_board_handoff(void)
++{
++	static const struct {
++		uint8_t revision, century;
++		uint16_t boot_arch;
++		size_t length;
++		EFI_STATUS expected;
++	} cases[] = {
++		{ 1, 0, BIT5, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 3, 0x32, BIT5, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 3, 0x37, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 3, 0x80, BIT5, offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century),
++			EFI_SUCCESS },
++		{ 5, 0, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 6, 0x32, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 6, 0x37, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_SUCCESS },
++		{ 5, 0x32, BIT5, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_UNSUPPORTED },
++		{ 5, 0x32, BIT5, offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ia_pc_boot_arch) + 1,
++			EFI_UNSUPPORTED },
++		{ 6, 0x0d, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_COMPROMISED_DATA },
++		{ 6, 0x80, 0, sizeof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE), EFI_COMPROMISED_DATA },
++	};
++	EFI_ACPI_3_0_ROOT_SYSTEM_DESCRIPTION_POINTER rsdp;
++	struct test_acpi_root xsdt;
++	EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE fadt, alternate;
++	struct test_mcfg_table mcfg;
++	uint8_t table[sizeof(struct cb_header) + sizeof(struct cb_acpi_rsdp)];
++	uint64_t hobs[1024];
++	struct cb_acpi_rsdp *record = (void *)(table + sizeof(struct cb_header));
++	struct cdk2_coreboot_handoff handoff;
++	EFI_HOB_HANDOFF_INFO_TABLE *hob_list;
++	EFI_STATUS status;
++	int failures = 0;
++
++	for (size_t index = 0; index < ARRAY_SIZE(cases) + 2; index++) {
++		uint8_t century = 0xee;
++		bool checksum_case = index == ARRAY_SIZE(cases);
++		bool duplicate_case = index == ARRAY_SIZE(cases) + 1;
++
++		build_test_acpi_tables(&rsdp, &xsdt, &fadt, &mcfg);
++		if (index < ARRAY_SIZE(cases)) {
++			fadt.header.revision = cases[index].revision;
++			fadt.header.length = cases[index].length;
++			fadt.century = cases[index].century;
++			fadt.ia_pc_boot_arch = cases[index].boot_arch;
++		}
++		test_update_acpi_table_checksum(&fadt.header);
++		if (checksum_case)
++			fadt.header.checksum ^= 1;
++		if (duplicate_case) {
++			alternate = fadt;
++			xsdt.entries[1] = (UINTN)&alternate;
++			test_update_acpi_table_checksum(&xsdt.header);
++		}
++		memset(table, 0, sizeof(table));
++		*record = (struct cb_acpi_rsdp) {
++			.tag = CB_TAG_ACPI_RSDP, .size = sizeof(*record),
++			.rsdp_pointer = { .lo = (uint32_t)(uintptr_t)&rsdp,
++				.hi = (uint32_t)((uint64_t)(uintptr_t)&rsdp >> 32) },
++		};
++		size_t table_size = finalize_table(table, sizeof(table), sizeof(*record), 1);
++
++		status = cdk2_coreboot_parse_table(table, table_size, &handoff);
++		if (!EFI_ERROR(status))
++			status = cdk2_coreboot_build_hobs(&handoff, hobs, (uint8_t *)hobs + sizeof(hobs),
++				hobs, (uint8_t *)hobs + sizeof(hobs), FALSE, (void **)&hob_list);
++		if (!EFI_ERROR(status))
++			status = cdk2_coreboot_test_append_acpi_hobs(hob_list, &handoff);
++		if (checksum_case || duplicate_case) {
++			failures += expect(status == EFI_COMPROMISED_DATA,
++				"invalid FADT produced an RTC platform contract");
++			continue;
++		}
++		failures += expect(status == EFI_SUCCESS,
++			"validated ACPI set failed real board-info HOB production");
++		if (EFI_ERROR(status))
++			continue;
++		const EFI_GUID board_guid = CDK2_ACPI_BOARD_INFO_HOB_GUID;
++		const struct cdk2_acpi_board_info_hob *board = NULL;
++		const EFI_HOB_GENERIC_HEADER *hob;
++		uint8_t expected_flags = cases[index].revision < 5 ?
++			CDK2_ACPI_RTC_LEGACY_PC_AT : 0;
++
++		if (cases[index].revision >= 5 && cases[index].length >=
++		    offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, ia_pc_boot_arch) +
++		    sizeof(fadt.ia_pc_boot_arch)) {
++			expected_flags |= CDK2_ACPI_RTC_STATUS_KNOWN;
++			if (cases[index].boot_arch & BIT5)
++				expected_flags |= CDK2_ACPI_RTC_NO_CMOS;
++		}
++		if (cases[index].length > offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century))
++			expected_flags |= CDK2_ACPI_RTC_CENTURY_KNOWN;
++		for (hob = (const void *)hob_list; (UINTN)hob < hob_list->efi_end_of_hob_list;
++		     hob = (const void *)((const uint8_t *)hob + hob->hob_length)) {
++			const EFI_HOB_GUID_TYPE *guid_hob = (const void *)hob;
++
++			if (hob->hob_type != EFI_HOB_TYPE_GUID_EXTENSION ||
++			    hob->hob_length < sizeof(*guid_hob) ||
++			    !cdk2_acpi_board_info_guid_equal(&guid_hob->name, &board_guid))
++				continue;
++			failures += expect(board == NULL && hob->hob_length ==
++				sizeof(*guid_hob) + sizeof(*board),
++				"producer did not emit one exact append-only board-info payload");
++			board = (const void *)(guid_hob + 1);
++		}
++		failures += expect(board != NULL && board->rtc.flags == expected_flags &&
++			board->rtc.header.revision == CDK2_ACPI_RTC_INFO_REVISION &&
++			board->rtc.header.length == sizeof(board->rtc) &&
++			!board->rtc.header.reserved && !board->rtc.reserved[0] && !board->rtc.reserved[1],
++			"producer guessed unavailable FADT bytes or emitted malformed RTC metadata");
++		status = cdk2_acpi_rtc_info_from_hobs(hob_list, &century);
++		failures += expect(status == cases[index].expected,
++			"real FADT-to-HOB RTC availability/index admission mismatch");
++		if (status == EFI_SUCCESS) {
++			uint8_t expected = cases[index].length >
++				offsetof(EFI_ACPI_3_0_FIXED_ACPI_DESCRIPTION_TABLE, century) ?
++				cases[index].century : 0;
++
++			failures += expect(century == expected,
++				"real FADT-to-HOB RTC century field escaped its advertised extent");
++		} else
++			failures += expect(century == 0xee,
++				"rejected RTC platform contract modified the output scalar");
++	}
++	return failures;
++}
++
+ static UINTN build_tpm_spec_event(UINT8 *event_log)
+ {
+ 	TCG_PCR_EVENT_HDR header;
+@@ -3238,6 +3366,7 @@ int main(void)
+ 		{0xbb, 0x6e, 0x82, 0xb1, 0xfd, 0x80, 0xff, 0x3d}
+ 	};
+ 	failures += test_payload_resource_handoff4_validation();
++	failures += test_rtc_board_handoff();
+ 	{
+ 		const struct cdk2_pci_topology_handoff *topology_hob;
+ 		const struct cdk2_pci_boot_controller *boot_controller;
+diff --git a/src/modules/pcat_rtc/pcat_rtc.c b/src/modules/pcat_rtc/pcat_rtc.c
+index e9d50e7454..425270bda0 100644
+--- a/src/modules/pcat_rtc/pcat_rtc.c
++++ b/src/modules/pcat_rtc/pcat_rtc.c
+@@ -3,6 +3,7 @@
+ /* Native PC/AT-compatible real-time clock runtime services. */
+ 
+ #include <cdk2/pcat_rtc.h>
++#include <cdk2/acpi_board_info.h>
+ #include <stddef.h>
+ #include <stdint.h>
+ 
+@@ -22,7 +23,6 @@
+ #define RTC_REGISTER_B 0x0bU
+ #define RTC_REGISTER_C 0x0cU
+ #define RTC_REGISTER_D 0x0dU
+-#define RTC_CENTURY 0x32U
+ #define RTC_UPDATE_IN_PROGRESS BIT7
+ #define RTC_DIVIDER_MASK 0x70U
+ #define RTC_DIVIDER_32KHZ 0x20U
+@@ -92,12 +92,24 @@ struct boot_services_view {
+ 	create_event_ex_function *create_event_ex;
+ };
+ 
++struct configuration_table {
++	EFI_GUID guid;
++	void *table;
++};
++
+ struct system_table_view {
+ 	UINT8 unused[88];
+ 	struct runtime_services_view *runtime_services;
+ 	struct boot_services_view *boot_services;
++	UINTN table_count;
++	struct configuration_table *tables;
+ };
+ 
++_Static_assert(offsetof(struct system_table_view, table_count) == 104,
++	"EFI system-table configuration count");
++_Static_assert(offsetof(struct system_table_view, tables) == 112,
++	"EFI system-table configuration array");
++
+ static const EFI_GUID rtc_arch_guid = {
+ 	0x27cfac87, 0x46cc, 0x11d4,
+ 	{ 0x9a, 0x38, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d }
+@@ -119,6 +131,7 @@ struct rtc_time_zone {
+ 	UINT8 reserved;
+ };
+ static struct runtime_services_view *runtime_services;
++static uint8_t rtc_century_index;
+ #ifdef CDK2_DEBUG
+ static const EFI_GUID serial_guid = { 0xbb25cf6f, 0xf1d4, 0x11d2,
+ 	{ 0x9a, 0x0c, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0xfd } };
+@@ -524,12 +537,14 @@ static EFI_STATUS CDK2_MS_ABI set_time(CDK2_EFI_TIME *time)
+ 	rtc_write(RTC_MONTH, encode_value(time->month, register_b), guard.selector);
+ 	rtc_write(RTC_YEAR, encode_value((UINT8)(time->year % 100U), register_b),
+ 		guard.selector);
+-	rtc_write(RTC_CENTURY, encode_value((UINT8)(time->year / 100U), register_b),
+-		guard.selector);
++	if (rtc_century_index != 0U)
++		rtc_write(rtc_century_index, encode_value((UINT8)(time->year / 100U), register_b),
++			guard.selector);
+ 	rtc_write(RTC_REGISTER_B, register_b & (UINT8)~RTC_SET, guard.selector);
+ 	rtc_release(guard);
+ 	time_transaction_release();
+-	CDK2_PCAT_RTC_DIAG("[CDK2][pcat-rtc][info] century register updated\n");
++	if (rtc_century_index != 0U)
++		CDK2_PCAT_RTC_DIAG("[CDK2][pcat-rtc][info] century register updated\n");
+ 	return EFI_SUCCESS;
+ }
+ 
+@@ -685,11 +700,18 @@ static EFI_STATUS CDK2_MS_ABI set_wakeup_time(BOOLEAN enable, CDK2_EFI_TIME *tim
+ EFI_STATUS CDK2_MS_ABI cdk2_pcat_rtc_entry(void *image,
+ 	struct system_table_view *system)
+ {
++	const EFI_GUID hob_list_guid = {
++		0x7739f24c, 0x93d7, 0x11d4,
++		{ 0x9a, 0x3a, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d }
++	};
++	const void *hob_list = NULL;
++	bool found = false;
+ 	get_time_function *old_get_time;
+ 	set_time_function *old_set_time;
+ 	get_wakeup_time_function *old_get_wakeup_time;
+ 	set_wakeup_time_function *old_set_wakeup_time;
+ 	UINT32 old_crc32;
++	uint8_t century, old_century;
+ 	EFI_STATUS status;
+ 
+ 	(void)image;
+@@ -702,6 +724,20 @@ EFI_STATUS CDK2_MS_ABI cdk2_pcat_rtc_entry(void *image,
+ 	    system->runtime_services->set_variable == NULL ||
+ 	    system->runtime_services->convert_pointer == NULL)
+ 		return EFI_INVALID_PARAMETER;
++	if (system->table_count > SIZE_MAX / sizeof(*system->tables) ||
++	    (system->table_count != 0U && system->tables == NULL))
++		return EFI_COMPROMISED_DATA;
++	for (UINTN index = 0; index < system->table_count; index++) {
++		if (!cdk2_acpi_board_info_guid_equal(&system->tables[index].guid, &hob_list_guid))
++			continue;
++		if (found)
++			return EFI_COMPROMISED_DATA;
++		found = true;
++		hob_list = system->tables[index].table;
++	}
++	status = cdk2_acpi_rtc_info_from_hobs(hob_list, &century);
++	if (EFI_ERROR(status))
++		return status;
+ #ifdef CDK2_DEBUG
+ 	if (system->boot_services->locate_protocol != NULL) {
+ 		struct serial_view { UINT32 revision; void *reset, *attributes, *control,
+@@ -739,11 +775,13 @@ EFI_STATUS CDK2_MS_ABI cdk2_pcat_rtc_entry(void *image,
+ 	old_get_wakeup_time = system->runtime_services->get_wakeup_time;
+ 	old_set_wakeup_time = system->runtime_services->set_wakeup_time;
+ 	old_crc32 = system->runtime_services->header.crc32;
++	old_century = rtc_century_index;
+ 	status = system->boot_services->create_event_ex(0x00000200U, 16U,
+ 		virtual_address_change, NULL, &virtual_address_change_guid,
+ 		&virtual_address_event);
+ 	if (status != EFI_SUCCESS)
+ 		return status;
++	rtc_century_index = century;
+ 	{
+ 		struct rtc_guard guard = rtc_acquire();
+ 		UINT8 register_a = rtc_read(RTC_REGISTER_A, guard.selector);
+@@ -765,6 +803,7 @@ EFI_STATUS CDK2_MS_ABI cdk2_pcat_rtc_entry(void *image,
+ 		status = system->boot_services->install_multiple(&driver_handle,
+ 			&rtc_arch_guid, NULL, NULL);
+ 	if (status != EFI_SUCCESS) {
++		rtc_century_index = old_century;
+ 		(void)system->boot_services->close_event(virtual_address_event);
+ 		system->runtime_services->get_time = old_get_time;
+ 		system->runtime_services->set_time = old_set_time;
+diff --git a/tests/pcat_rtc_test.c b/tests/pcat_rtc_test.c
+index 96c866f65e..77f679991d 100644
+--- a/tests/pcat_rtc_test.c
++++ b/tests/pcat_rtc_test.c
+@@ -6,6 +6,8 @@
+ #define CDK2_PCAT_RTC_TEST
+ #include "../src/modules/pcat_rtc/pcat_rtc.c"
+ 
++#define TEST_CENTURY 0x32U
++
+ static UINT8 cmos[128];
+ static UINT8 selected_register;
+ static UINT8 nmi_mask;
+@@ -20,6 +22,70 @@ static int alarm_written_with_aie;
+ static struct rtc_time_zone saved_zone;
+ static int zone_valid;
+ static EFI_STATUS set_variable_status;
++static size_t io_reads, io_writes, event_count, close_count;
++static uint64_t hob_storage[128];
++#ifdef CDK2_DEBUG
++static size_t diagnostic_count, locate_count;
++
++static EFI_STATUS CDK2_MS_ABI diagnostic_write(void *context, UINTN *size, void *data)
++{
++	(void)context; (void)size; (void)data;
++	diagnostic_count++;
++	return EFI_SUCCESS;
++}
++
++static EFI_STATUS CDK2_MS_ABI locate_protocol(const EFI_GUID *guid, void *registration,
++	void **interface)
++{
++	(void)guid; (void)registration; (void)interface;
++	locate_count++;
++	return EFI_NOT_FOUND;
++}
++#endif
++
++static struct cdk2_acpi_board_info_hob *build_rtc_hobs(size_t payload_size, size_t count)
++{
++	const EFI_GUID board_guid = CDK2_ACPI_BOARD_INFO_HOB_GUID;
++	EFI_HOB_HANDOFF_INFO_TABLE *handoff = (void *)hob_storage;
++	uint8_t *cursor = (void *)(handoff + 1);
++	struct cdk2_acpi_board_info_hob *first = NULL;
++
++	memset(hob_storage, 0, sizeof(hob_storage));
++	for (size_t index = 0; index < count; index++) {
++		EFI_HOB_GUID_TYPE *guid_hob = (void *)cursor;
++		struct cdk2_acpi_board_info_hob *record = (void *)(guid_hob + 1);
++
++		guid_hob->header = (EFI_HOB_GENERIC_HEADER) {
++			.hob_type = EFI_HOB_TYPE_GUID_EXTENSION,
++			.hob_length = sizeof(*guid_hob) + payload_size,
++		};
++		guid_hob->name = board_guid;
++		if (payload_size >= sizeof(*record))
++			record->rtc = (struct cdk2_acpi_rtc_info) {
++				.header = { CDK2_ACPI_RTC_INFO_REVISION, 0, sizeof(record->rtc) },
++				.flags = CDK2_ACPI_RTC_STATUS_KNOWN | CDK2_ACPI_RTC_CENTURY_KNOWN,
++				.century_index = TEST_CENTURY,
++			};
++		if (first == NULL)
++			first = record;
++		cursor += guid_hob->header.hob_length;
++	}
++	EFI_HOB_GENERIC_HEADER *end = (void *)cursor;
++
++	*end = (EFI_HOB_GENERIC_HEADER) {
++		.hob_type = EFI_HOB_TYPE_END_OF_HOB_LIST, .hob_length = sizeof(*end),
++	};
++	*handoff = (EFI_HOB_HANDOFF_INFO_TABLE) {
++		.header = { .hob_type = EFI_HOB_TYPE_HANDOFF, .hob_length = sizeof(*handoff) },
++		.version = EFI_HOB_HANDOFF_TABLE_VERSION,
++		.efi_memory_bottom = (UINTN)hob_storage,
++		.efi_memory_top = (UINTN)hob_storage + sizeof(hob_storage),
++		.efi_free_memory_bottom = (UINTN)(end + 1),
++		.efi_free_memory_top = (UINTN)hob_storage + sizeof(hob_storage),
++		.efi_end_of_hob_list = (UINTN)end,
++	};
++	return first;
++}
+ 
+ static EFI_STATUS CDK2_MS_ABI convert_pointer(UINTN disposition, void **address)
+ {
+@@ -27,12 +93,14 @@ static EFI_STATUS CDK2_MS_ABI convert_pointer(UINTN disposition, void **address)
+ }
+ static EFI_STATUS CDK2_MS_ABI close_event(void *event)
+ {
++	close_count++;
+ 	(void)event; return EFI_SUCCESS;
+ }
+ static EFI_STATUS CDK2_MS_ABI create_event_ex(UINT32 type, UINTN tpl,
+ 	void (CDK2_MS_ABI *notify)(void *, void *), void *context,
+ 	const EFI_GUID *group, void **event)
+ {
++	event_count++;
+ 	(void)type; (void)tpl; (void)notify; (void)context; (void)group;
+ 	*event = (void *)2; return EFI_SUCCESS;
+ }
+@@ -67,6 +135,7 @@ UINT8 cdk2_pcat_rtc_test_in8(UINT16 port)
+ {
+ 	UINT8 value;
+ 
++	io_reads++;
+ 	if (port == RTC_INDEX_PORT)
+ 		return selected_register | nmi_mask;
+ 	if (port != RTC_DATA_PORT)
+@@ -87,6 +156,7 @@ UINT8 cdk2_pcat_rtc_test_in8(UINT16 port)
+ 
+ void cdk2_pcat_rtc_test_out8(UINT16 port, UINT8 value)
+ {
++	io_writes++;
+ 	if (port == RTC_INDEX_PORT) {
+ 		selected_register = value & 0x7fU;
+ 		nmi_mask = value & BIT7;
+@@ -138,6 +208,32 @@ static int expect(int condition, const char *message)
+ 	return !condition;
+ }
+ 
++static int expect_entry_refused(struct system_table_view *system, EFI_STATUS expected,
++	const char *message)
++{
++	struct runtime_services_view before = *system->runtime_services;
++	size_t reads = io_reads, writes = io_writes, events = event_count, closes = close_count;
++	UINTN installs = install_count, crcs = crc_count;
++	uint8_t century = rtc_century_index;
++#ifdef CDK2_DEBUG
++	size_t diagnostics = diagnostic_count, locates = locate_count;
++	void *diagnostic_context = cdk2_pcat_rtc_diagnostic_context;
++	cdk2_pcat_rtc_diagnostic_write_fn *diagnostic_function = cdk2_pcat_rtc_diagnostic_write;
++#endif
++	EFI_STATUS status = cdk2_pcat_rtc_entry(NULL, system);
++
++#ifdef CDK2_DEBUG
++	if (diagnostics != diagnostic_count || locates != locate_count ||
++	    diagnostic_context != cdk2_pcat_rtc_diagnostic_context ||
++	    diagnostic_function != cdk2_pcat_rtc_diagnostic_write)
++		return expect(0, "refused RTC policy performed diagnostic setup/activity");
++#endif
++	return expect(status == expected && io_reads == reads && io_writes == writes &&
++		event_count == events && close_count == closes && install_count == installs &&
++		crc_count == crcs && rtc_century_index == century &&
++		memcmp(&before, system->runtime_services, sizeof(before)) == 0, message);
++}
++
+ static void set_bcd_clock(void)
+ {
+ 	memset(cmos, 0, sizeof(cmos));
+@@ -149,7 +245,7 @@ static void set_bcd_clock(void)
+ 	cmos[RTC_DAY_OF_MONTH] = 0x29;
+ 	cmos[RTC_MONTH] = 0x02;
+ 	cmos[RTC_YEAR] = 0x28;
+-	cmos[RTC_CENTURY] = 0x20;
++	cmos[TEST_CENTURY] = 0x20;
+ }
+ 
+ int main(void)
+@@ -157,6 +253,12 @@ int main(void)
+ 	struct runtime_services_view runtime;
+ 	struct boot_services_view boot;
+ 	struct system_table_view system;
++	struct configuration_table tables[2] = {
++		{ .guid = { 0x7739f24c, 0x93d7, 0x11d4,
++			{ 0x9a, 0x3a, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d } },
++		  .table = hob_storage },
++	};
++	struct cdk2_acpi_board_info_hob *board;
+ 	CDK2_EFI_TIME time;
+ 	CDK2_TIME_CAPABILITIES capabilities;
+ 	BOOLEAN enabled;
+@@ -170,6 +272,10 @@ int main(void)
+ 	boot.calculate_crc32 = calculate_crc32;
+ 	boot.close_event = close_event;
+ 	boot.create_event_ex = create_event_ex;
++#ifdef CDK2_DEBUG
++	boot.locate_protocol = locate_protocol;
++	CDK2_PCAT_RTC_DIAG_SET((void *)1, diagnostic_write);
++#endif
+ 	runtime.header.header_size = sizeof(runtime);
+ 	runtime.header.crc32 = 0x87654321U;
+ 	runtime.get_variable = get_variable;
+@@ -179,6 +285,93 @@ int main(void)
+ 	system.boot_services = &boot;
+ 	failures += expect(cdk2_pcat_rtc_entry(NULL, NULL) == EFI_INVALID_PARAMETER,
+ 		"NULL system table was accepted");
++	failures += expect_entry_refused(&system, EFI_NOT_FOUND,
++		"missing HOB configuration table caused RTC activity");
++	system.table_count = 1;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"NULL configuration array caused RTC activity");
++	system.tables = tables;
++	system.table_count = SIZE_MAX / sizeof(*tables) + 1;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"overflowing configuration array count caused RTC activity");
++	system.table_count = 1;
++	tables[0].table = (uint8_t *)hob_storage + 1;
++	failures += expect_entry_refused(&system, EFI_INVALID_PARAMETER,
++		"unaligned HOB list caused RTC activity");
++	tables[0].table = hob_storage;
++	build_rtc_hobs(sizeof(*board), 0);
++	failures += expect_entry_refused(&system, EFI_NOT_FOUND,
++		"missing board-info HOB caused RTC activity");
++	build_rtc_hobs(sizeof(ACPI_BOARD_INFO), 1);
++	failures += expect_entry_refused(&system, EFI_UNSUPPORTED,
++		"legacy unextended board-info HOB silently assumed a century register");
++	build_rtc_hobs(sizeof(ACPI_BOARD_INFO) - 8, 1);
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"truncated board-info prefix caused RTC activity");
++	build_rtc_hobs(0, 1);
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"empty board-info payload caused RTC activity");
++	build_rtc_hobs(sizeof(*board) + 8, 1);
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"unexpected board-info payload extent caused RTC activity");
++	build_rtc_hobs(sizeof(*board), 2);
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"duplicate board-info HOB caused RTC activity");
++	board = build_rtc_hobs(sizeof(*board), 1);
++	tables[1] = tables[0];
++	system.table_count = 2;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"duplicate HOB configuration table caused RTC activity");
++	system.table_count = 1;
++	((EFI_HOB_HANDOFF_INFO_TABLE *)hob_storage)->version++;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"invalid PHIT version caused RTC activity");
++	board = build_rtc_hobs(sizeof(*board), 1);
++	board->rtc.header.revision++;
++	failures += expect_entry_refused(&system, EFI_UNSUPPORTED,
++		"unknown RTC tail revision caused RTC activity");
++	board->rtc.header.revision = CDK2_ACPI_RTC_INFO_REVISION;
++	board->rtc.header.length--;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"invalid RTC tail length caused RTC activity");
++	board->rtc.header.length = sizeof(board->rtc);
++	board->rtc.header.reserved = 1;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"reserved RTC header byte caused RTC activity");
++	board->rtc.header.reserved = 0;
++	board->rtc.reserved[1] = 1;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"reserved RTC tail byte caused RTC activity");
++	board->rtc.reserved[1] = 0;
++	board->rtc.flags |= 0x80U;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"unknown RTC flags caused RTC activity");
++	board->rtc.flags = CDK2_ACPI_RTC_LEGACY_PC_AT | CDK2_ACPI_RTC_STATUS_KNOWN |
++		CDK2_ACPI_RTC_CENTURY_KNOWN;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"contradictory legacy and modern RTC availability caused activity");
++	board->rtc.flags = CDK2_ACPI_RTC_CENTURY_KNOWN;
++	failures += expect_entry_refused(&system, EFI_UNSUPPORTED,
++		"unknown modern RTC availability caused activity");
++	board->rtc.flags |= CDK2_ACPI_RTC_NO_CMOS;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"NO_CMOS without a known modern flag caused activity");
++	board->rtc.flags |= CDK2_ACPI_RTC_STATUS_KNOWN;
++	failures += expect_entry_refused(&system, EFI_UNSUPPORTED,
++		"declared NO_CMOS caused RTC activity");
++	board->rtc.flags = CDK2_ACPI_RTC_STATUS_KNOWN | CDK2_ACPI_RTC_CENTURY_KNOWN;
++	for (size_t index = 0; index < 4; index++) {
++		const uint8_t invalid[] = { 1, 0x0d, 0x80, 0xff };
++
++		board->rtc.century_index = invalid[index];
++		failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++			"invalid declared century index caused RTC activity");
++	}
++	board->rtc.century_index = TEST_CENTURY;
++	board->rtc.flags = CDK2_ACPI_RTC_STATUS_KNOWN;
++	failures += expect_entry_refused(&system, EFI_COMPROMISED_DATA,
++		"century index without a bounded source field caused RTC activity");
++	board->rtc.flags = CDK2_ACPI_RTC_LEGACY_PC_AT | CDK2_ACPI_RTC_CENTURY_KNOWN;
+ 	runtime.get_time = (get_time_function *)(UINTN)1;
+ 	install_status = EFI_DEVICE_ERROR;
+ 	failures += expect(cdk2_pcat_rtc_entry(NULL, &system) == EFI_DEVICE_ERROR &&
+@@ -222,7 +415,7 @@ int main(void)
+ 	failures += expect(runtime.get_time(&time, NULL) == EFI_DEVICE_ERROR,
+ 		"malformed BCD year was accepted");
+ 	set_bcd_clock();
+-	cmos[RTC_CENTURY] = 0;
++	cmos[TEST_CENTURY] = 0;
+ 	failures += expect(runtime.get_time(&time, NULL) == EFI_SUCCESS && time.year == 2028U,
+ 		"missing century register did not use the documented pivot");
+ 	cmos[RTC_REGISTER_B] = RTC_HOUR_MODE_24 | RTC_DATA_MODE_BINARY;
+@@ -253,7 +446,7 @@ int main(void)
+ 	set_variable_status = EFI_SUCCESS;
+ 	failures += expect(runtime.set_time(&time) == EFI_SUCCESS,
+ 		"valid SetTime failed");
+-	failures += expect(cmos[RTC_YEAR] == 0x24 && cmos[RTC_CENTURY] == 0x20 &&
++	failures += expect(cmos[RTC_YEAR] == 0x24 && cmos[TEST_CENTURY] == 0x20 &&
+ 		cmos[RTC_HOURS] == 0x23 && cmos[RTC_SECONDS] == 0x58 &&
+ 		cmos[RTC_DAY_OF_WEEK] == 0x03,
+ 		"SetTime encoded BCD incorrectly");
+@@ -274,7 +467,7 @@ int main(void)
+ 	time = (CDK2_EFI_TIME){ 9999, 12, 31, 23, 59, 59, 0, 0,
+ 		EFI_UNSPECIFIED_TIMEZONE, 0, 0 };
+ 	failures += expect(runtime.set_time(&time) == EFI_UNSUPPORTED &&
+-		cmos[RTC_CENTURY] == 0x20,
++		cmos[TEST_CENTURY] == 0x20,
+ 		"unrepresentable year modified platform CMOS");
+ 	time = (CDK2_EFI_TIME){ 2024, 12, 31, 23, 59, 58, 0, 0,
+ 		EFI_UNSPECIFIED_TIMEZONE, 0, 0 };
+@@ -325,7 +518,7 @@ int main(void)
+ 		enabled == TRUE && pending == TRUE && time.year == 2024U &&
+ 		time.month == 12U && time.day == 31U && time.hour == 7U,
+ 		"alarm status was read incorrectly");
+-	cmos[RTC_CENTURY] = 0x20;
++	cmos[TEST_CENTURY] = 0x20;
+ 	cmos[RTC_YEAR] = 0x25;
+ 	cmos[RTC_MONTH] = 0x01;
+ 	cmos[RTC_DAY_OF_MONTH] = 0x01;
+@@ -336,7 +529,7 @@ int main(void)
+ 	failures += expect(runtime.get_wakeup_time(&enabled, &pending, &time) == EFI_SUCCESS &&
+ 		time.year == 2024U && time.month == 12U && time.day == 31U,
+ 		"overnight pending alarm was reported as a future occurrence");
+-	cmos[RTC_CENTURY] = 0x99;
++	cmos[TEST_CENTURY] = 0x99;
+ 	cmos[RTC_YEAR] = 0x99;
+ 	cmos[RTC_MONTH] = 0x12;
+ 	cmos[RTC_DAY_OF_MONTH] = 0x31;
+@@ -377,7 +570,7 @@ int main(void)
+ 		time.minute == 35U && time.second == 0U && seconds_reads >= 4U,
+ 		"RTC update crossing was not retried to a stable snapshot");
+ 	set_bcd_clock();
+-	cmos[RTC_CENTURY] = 0x20;
++	cmos[TEST_CENTURY] = 0x20;
+ 	cmos[RTC_YEAR] = 0x69;
+ 	cmos[RTC_MONTH] = 0x12;
+ 	cmos[RTC_DAY_OF_MONTH] = 0x31;
+@@ -388,5 +581,31 @@ int main(void)
+ 		EFI_UNSPECIFIED_TIMEZONE, 0, 0 };
+ 	failures += expect(runtime.set_wakeup_time(TRUE, &time) == EFI_UNSUPPORTED,
+ 		"alarm accepted a date outside the RTC year horizon");
++	/* Declared absence and an alternative index must never touch fixed 0x32. */
++	board->rtc.flags = CDK2_ACPI_RTC_STATUS_KNOWN | CDK2_ACPI_RTC_CENTURY_KNOWN;
++	board->rtc.century_index = 0;
++	failures += expect(cdk2_pcat_rtc_entry(NULL, &system) == EFI_SUCCESS,
++		"valid absent-century RTC policy was rejected");
++	set_bcd_clock();
++	cmos[TEST_CENTURY] = 0xa5;
++	cmos[0x37] = 0xb6;
++	time = (CDK2_EFI_TIME) { 2024, 12, 31, 23, 59, 58, 0, 0,
++		EFI_UNSPECIFIED_TIMEZONE, 0, 0 };
++	failures += expect(runtime.set_time(&time) == EFI_SUCCESS &&
++		cmos[TEST_CENTURY] == 0xa5 && cmos[0x37] == 0xb6,
++		"absent-century policy wrote platform CMOS");
++	board->rtc.century_index = 0x37;
++	failures += expect(cdk2_pcat_rtc_entry(NULL, &system) == EFI_SUCCESS,
++		"valid alternative century index was rejected");
++	/* Runtime owns the admitted scalar, not the boot HOB pointer. */
++	board->rtc.century_index = 0x38;
++	failures += expect(runtime.set_time(&time) == EFI_SUCCESS &&
++		cmos[TEST_CENTURY] == 0xa5 && cmos[0x37] == 0x20 && cmos[0x38] == 0,
++		"alternative-century policy was not copied or touched fixed 0x32");
++	board->rtc.century_index = 0;
++	install_status = EFI_DEVICE_ERROR;
++	failures += expect(cdk2_pcat_rtc_entry(NULL, &system) == EFI_DEVICE_ERROR &&
++		rtc_century_index == 0x37,
++		"failed reinstallation changed the admitted RTC scalar");
+ 	return failures == 0 ? 0 : 1;
+ }

@@ -1,0 +1,5 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'

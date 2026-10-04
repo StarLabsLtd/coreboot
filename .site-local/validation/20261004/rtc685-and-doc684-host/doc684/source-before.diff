@@ -1,0 +1,106 @@
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 8aa3e79a27..bd8eeef692 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -3,7 +3,7 @@
+ ## Current work (2026-10-04)
+ 
+ This checkpoint supersedes older WIP statuses below, not the full release gates.
+-The ready linear chains reach CDK2 PR675 and coreboot PR390. Detailed bounded
++The ready linear chains reach CDK2 PR683 and coreboot PR390. Detailed bounded
+ receipts and preserved failures are recorded in the ready linear CDK2 PR
+ chain and coreboot's
+ `agent/validation-evidence-20261001` branch. Earlier percentage estimates are
+@@ -11,9 +11,10 @@ not an audited whole-project completion measure.
+ 
+ ### Latest bounded checkpoints
+ 
+-- Canonical CDK2 remains signed PR661 (`6faf053c28d7`) while active acceptance
+-  recipes bind that exact source. Ready PR662--675 are published, reviewed,
+-  nondraft successors; publication does not imply a whole joined-candidate run.
++- Canonical CDK2 is signed PR679 (`a3ed5f42934c`) after the PR661-bound gates
++  closed. Ready successors through PR683 are published, reviewed and nondraft;
++  the completed full-lint candidate is PR683, separately from canonical PR679.
++  Publication does not imply complete joined-candidate release acceptance.
+ - The complete default regression invocation at PR661 passes configuration,
+   `review-profile-check`, `check` and `native-stage`, with final source/tool/
+   configuration closure. The actual serial invocation takes 2,577.66 seconds.
+@@ -41,7 +42,7 @@ not an audited whole-project completion measure.
+ - PR668 rebuilds the Linux telemetry fixture through source-owned tooling and
+   packages a separately named ordinary fallback EFI derivative. The original
+   fixture remains unchanged; reproducibility and hostile packaging cases pass.
+-- Coreboot PR390 (`3e2609c8938a`) corrects FIFO `COMMAND_READY` handling without
++- coreboot PR390 (`3e2609c8938a`) corrects FIFO `COMMAND_READY` handling without
+   assuming `stsValid`. Its HOST and strict build gates pass. The original guest
+   reaches Linux/S5 in 38.80 seconds but fails strict telemetry because its old
+   OS emits only 128 log bytes. That failure remains preserved. With PR668's
+@@ -58,8 +59,9 @@ not an audited whole-project completion measure.
+   evaluations. Full hash KATs and direct shim cases pass in four strict modes;
+   the shim remains owned, with explicit updated provenance, not an exemption.
+ - PR672 corrects the Linux test-helper's unavailable-syscall classification;
+-  real included-helper syscall-boundary tests pass in four strict modes. Public
+-  Make integration of that new fixture is still a separate pending change.
++  real included-helper syscall-boundary tests pass in four strict modes. PR677
++  separately registers its public Make target and proves the actual helper
++  prerequisite, dependency record and rebuild after touching a copied helper.
+ - PR673 names the transport initializer's existing fields without changing its
+   implicit zero limit. PR674 separately places actual legacy BOOT measurements
+   in PCR1 and adds real driver callback tests. Four strict driver modes, public
+@@ -71,27 +73,51 @@ not an audited whole-project completion measure.
+   existing ordering mutations and four raw style scans pass. Its explicitly
+   scoped HOST interrupt/readability boundaries are not protected LoadImage or
+   native interrupt-authority proof. Earlier failed attempts remain preserved.
++- PR676 distinguishes three provenance-pinned immutable imports from owned code
++  and recognizes only exact UEFI information tails. Complete hostile suites and
++  raw FAT checking pass; the initial failure and diagnostic remain preserved.
++- PR679 flattens capsule publication without dropping owner/count/generation/
++  transaction checks. Joined genuine normal Core/direct/splash/capsule families
++  and twelve-case actual publication O0/O2 sanitizer tests pass. Six guard
++  mutations fail causally with exact inverses; this is HOST, not loaded-firmware
++  or hardware evidence. Its empty outer executable ledger is not output proof.
++- PR680 spells fourteen resident-function annotations directly. Complete expanded
++  C tokens and linker sections are unchanged; actual O0/O2 stage, sanitizer and
++  three causal guard tests pass, and the three old macro style errors disappear.
++- PR681--683 correct the ASCII PCR range, comment/string lexical handling and
++  explicit helper-source inspection. Complete hostile models and actual source
++  scans pass. Signed old-source oppositions retain raw diagnostics separately
++  from process status; the initial failed outer assertion remains preserved.
++- Complete PR677 lint remains a preserved failure with three style errors and
++  two indentation warnings, plus scanner/documentation findings. The later
++  combined PR683 lint passes direct full C checkpatch and the empty extended
++  dispatcher, but fails stable
++  lint on this roadmap's uppercase coreboot spelling. That sole stable failure is
++  corrected here without changing the checker; a complete retry remains open.
++  Do not treat targeted style passes as a completed full-lint invocation.
+ 
+ ### Immediate software gates still open
+ 
+ - Join and revalidate the ready successors; rerun complete lint with genuine
+   configuration and explicit immutable-import versus owned-wire boundaries.
+-- Finish the independently reviewed DXE publication simplification's joined
+-  normal-profile/publication gates; source review alone does not close them.
++- Validate the reviewed RTC platform-fact slice: derive optional century and
++  modern NO_CMOS from the existing validated FADT, preserve explicit pre-v5 PC/AT
++  compatibility, and consume an append-only board-info tail before RTC activity.
++  Review identified an integration-fixture append-route error before execution;
++  its correction and behavioral/build/guest acceptance remain open.
+ - Complete selected Boot####/BootNext and event-set parity, live PCR1 replay,
+   optional TPM absence and full platform-profile coverage. The bounded HOST
+   hashing/placement tests and passing fallback guest are not substitutes.
+-- Publish and revalidate the precise immutable-import/UEFI wire-tail lint
+-  boundary change and public Make integration of the Linux helper fixture.
+ - Complete the remaining checked-in release inventory below, including native
+   settings/UI coverage, authenticated-variable recovery/profile matrices,
+   platform runtime-fact/Kconfig and boundary-style audits, and hardware DMA
+   producers. Do not treat the unchecked inventory as hardware-only work.
+ 
+-Published durable evidence through signed `232f316f9037` is on coreboot's
++Published durable evidence through signed `3404682f2e47` is on coreboot's
+ `agent/validation-evidence-20261001` branch. It includes preserved failures,
+ normal PR658 UI/Linux runs, complete default PR661 gates, bounded HOST gates
+-through PR670 and the actual strict present-TPM fallback acceptance. Later HOST
++through PR677, the joined DXE publication gates and preserved full-lint failure,
++and the actual strict present-TPM fallback acceptance. The later stage/scanner
+ receipts still require archival. Diagnostic, failed and passing functional runs
+ remain distinct; no packet establishes whole-project completion.
+ 

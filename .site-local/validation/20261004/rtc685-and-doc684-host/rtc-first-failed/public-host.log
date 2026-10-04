@@ -1,0 +1,4 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:1837: *** LVGL sources are unavailable; run 'git submodule update --init 3rdparty/lvgl'.  Stop.
+make: *** [Makefile:1150: native-pcat-rtc-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'

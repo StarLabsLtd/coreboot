@@ -1,0 +1,16 @@
+/usr/bin/bash
+/usr/bin/sh
+/usr/bin/python3
+/usr/bin/git
+/usr/bin/awk
+/usr/bin/sed
+/usr/bin/grep
+/usr/bin/sha256sum
+/usr/bin/cut
+/usr/bin/xargs
+/usr/bin/cmp
+/usr/bin/mkdir
+/usr/bin/rm
+/usr/bin/dirname
+/usr/bin/mktemp
+/usr/bin/uname

@@ -1,0 +1,3 @@
+grep: src/modules/bds/keys/db_microsoft_uefi_2011.der: binary file matches
+grep: util/qemu/fixtures/esp-linux-cbmem.raw.xz: binary file matches
+grep: util/qemu/fixtures/nvme-final-c4bec.raw.xz: binary file matches

@@ -1,0 +1,5 @@
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/tests/pcat_rtc_test.c: In function 'main':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/tests/pcat_rtc_test.c:326:10: error: dereferencing type-punned pointer will break strict-aliasing rules [-Werror=strict-aliasing]
+  326 |         ((EFI_HOB_HANDOFF_INFO_TABLE *)hob_storage)->version++;
+      |         ~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors
