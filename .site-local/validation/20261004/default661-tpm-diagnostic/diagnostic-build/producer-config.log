@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee'
+payloads/external/cdk2/Kconfig:7:warning: config symbol defined without type
+#
+# configuration written to /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/.config
+#
+make: Leaving directory '/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee'

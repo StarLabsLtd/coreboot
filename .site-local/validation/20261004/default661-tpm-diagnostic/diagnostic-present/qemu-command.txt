@@ -1,0 +1,331 @@
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:3: set -euo pipefail
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:4: [[ 4 -lt 3 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:4: [[ 4 -gt 4 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:8: name=tpm-linux
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:8: rom=/home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:8: run=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:8: limit=180
++++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:9: dirname -- /home/sean/Documents/cdk2/util/qemu/bin/run-one.sh
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:9: cd -- /home/sean/Documents/cdk2/util/qemu/bin/..
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:9: pwd -P
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:9: root=/home/sean/Documents/cdk2/util/qemu
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:10: source /home/sean/Documents/cdk2/util/qemu/config/q35-max.env
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:1: : pc-q35-10.1
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:2: : max
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:3: : 1024M
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:4: : 1
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:5: : 2026-01-01T00:00:00
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:6: : 00112233-4455-6677-8899-aabbccddeeff
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:7: : 52:54:00:12:34:56
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:8: : tpm-tis
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:9: : 1
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:10: : esp-base.raw
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:11: : nvme-final-c4bec.raw
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:12: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:13: : sata.raw
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:14: : sd.raw
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:15: : usb.raw
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:16: : off
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:17: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:18: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:19: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:20: : 0
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:21: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:22: : ''
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:23: : 0
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:24: : 1
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:25: : 0
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:26: : 0
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:27: : 1
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:28: : 0
+++/home/sean/Documents/cdk2/util/qemu/config/q35-max.env:29: : 1
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:11: source /home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:12: run_profile=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:16: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:19: for toggle in CDK2_AB_ENABLE_ESP CDK2_AB_ENABLE_NVME CDK2_AB_ENABLE_SATA CDK2_AB_ENABLE_SD CDK2_AB_ENABLE_USB CDK2_AB_ENABLE_NETWORK CDK2_AB_ENABLE_TPM
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:21: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:25: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:28: qmp_setup_mode=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:29: qmp_setup_profile=debug
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:30: [[ debug == debug ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:33: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:47: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:86: CDK2_AB_I8042=1
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:87: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:87: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:90: machine_i8042=off
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:91: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:91: machine_i8042=on
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:92: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:95: [[ -f /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:96: cbfstool=/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:97: [[ -x /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:100: [[ ! -e /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/manifest.json ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:101: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:104: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:105: enable=CDK2_AB_ENABLE_NVME
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:106: fixture=CDK2_AB_NVME_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:107: [[ nvme == nvme ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:107: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:108: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:108: [[ -f /home/sean/Documents/cdk2/util/qemu/fixtures/nvme-final-c4bec.raw ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:104: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:105: enable=CDK2_AB_ENABLE_SATA
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:106: fixture=CDK2_AB_SATA_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:107: [[ sata == nvme ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:108: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:104: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:105: enable=CDK2_AB_ENABLE_SD
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:106: fixture=CDK2_AB_SD_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:107: [[ sd == nvme ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:108: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:112: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:115: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:115: [[ -f /home/sean/Documents/cdk2/util/qemu/fixtures/usb.raw ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:118: mkdir -p /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/tpmstate /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/guest
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:119: /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom extract -n config -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/coreboot-config.txt
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:120: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:133: /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom extract -n cdk2/config -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/cdk2-config.txt
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:135: dma_test_backend=0
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:136: grep -qx CONFIG_Q35_VTD_DMA_TEST_BACKEND=y /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/coreboot-config.txt
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:139: [[ 1 != 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:139: [[ 1 != 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:139: [[ 0 != 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:139: [[ 0 != 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:139: [[ 0 != 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:143: dma_test_backend=1
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:145: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:150: /home/sean/Documents/cdk2/util/qemu/bin/assert-cdk2-rom-acceptance-config.sh /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/cdk2-config.txt
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:154: CDK2_AB_SPI_CONSOLE_OFFSET=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:155: CDK2_AB_SPI_CONSOLE_SIZE=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:156: pflash_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:157: grep -qx CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/cdk2-config.txt
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:169: /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom layout
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:169: layout='This image contains the following sections that can be manipulated with this tool:
+
+'\''SMMSTORE'\'' (size 524288, offset 0)
+'\''CONSOLE'\'' (size 131072, offset 524288)
+'\''COREBOOT'\'' (CBFS, size 7729152, offset 659456)
+
+It is possible to perform either the write action or the CBFS add/remove actions on every section listed above.
+To see the image'\''s read-only sections as well, rerun with the -w option.'
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:170: printf '%s\n' 'This image contains the following sections that can be manipulated with this tool:
+
+'\''SMMSTORE'\'' (size 524288, offset 0)
+'\''CONSOLE'\'' (size 131072, offset 524288)
+'\''COREBOOT'\'' (CBFS, size 7729152, offset 659456)
+
+It is possible to perform either the write action or the CBFS add/remove actions on every section listed above.
+To see the image'\''s read-only sections as well, rerun with the -w option.'
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:170: awk '/^'\''CONSOLE'\'' / { print; exit }'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:170: console_row=''\''CONSOLE'\'' (size 131072, offset 524288)'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:171: [[ -n 'CONSOLE' (size 131072, offset 524288) ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:172: printf '%s\n' ''\''CONSOLE'\'' (size 131072, offset 524288)'
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:172: sed -n 's/.*size \([0-9][0-9]*\), offset.*/\1/p'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:172: CDK2_AB_SPI_CONSOLE_SIZE=131072
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:173: printf '%s\n' ''\''CONSOLE'\'' (size 131072, offset 524288)'
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:173: sed -n 's/.*offset \([0-9][0-9]*\)).*/\1/p'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:173: CDK2_AB_SPI_CONSOLE_OFFSET=524288
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:174: [[ 524288 == 524288 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:174: [[ 131072 == 131072 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:178: grep -qx CONFIG_CONSOLE_SPI_FLASH=y /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/coreboot-config.txt
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:179: grep -qx CONFIG_PAYLOAD_SPI_FLASH_CONSOLE=y /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/coreboot-config.txt
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:183: mktemp -d /tmp/cdk2-ab-sock.XXXXXX
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:183: socket_dir=/tmp/cdk2-ab-sock.86o6mn
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:184: qmp_socket=/tmp/cdk2-ab-sock.86o6mn/qmp.sock
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:185: swtpm_socket=/tmp/cdk2-ab-sock.86o6mn/swtpm.sock
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:186: qmp_observer_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:188: [[ '' == normal-system-fmp-linux-fw-ui-reset ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:193: ln -s /tmp/cdk2-ab-sock.86o6mn/qmp.sock /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/qmp.sock
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:194: ln -s /tmp/cdk2-ab-sock.86o6mn/swtpm.sock /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/swtpm.sock
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:195: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:199: cp --reflink=auto /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:201: cp --reflink=auto /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash-before.rom
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:202: [[ '' == torn-smmstore ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:204: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:208: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:212: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:213: enable=CDK2_AB_ENABLE_NVME
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:214: fixture=CDK2_AB_NVME_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:215: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:216: [[ nvme == nvme ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:216: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:219: cp --reflink=auto /home/sean/Documents/cdk2/util/qemu/fixtures/nvme-final-c4bec.raw /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:212: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:213: enable=CDK2_AB_ENABLE_SATA
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:214: fixture=CDK2_AB_SATA_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:215: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:212: for image in nvme sata sd
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:213: enable=CDK2_AB_ENABLE_SD
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:214: fixture=CDK2_AB_SD_IMAGE
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:215: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:223: nvme_before_sha=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:224: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:225: sha256sum /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:225: cut '-d ' -f1
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:225: nvme_before_sha=054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:227: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:228: cp --reflink=auto /home/sean/Documents/cdk2/util/qemu/fixtures/usb.raw /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/usb.raw
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:230: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:231: swtpm socket --tpm2 --tpmstate dir=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/tpmstate --ctrl type=unixio,path=/tmp/cdk2-ab-sock.86o6mn/swtpm.sock --flags startup-clear --log file=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/swtpm.log,level=1 --daemon
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:236: qmp_capture_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:237: qmp_input_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:238: qmp_setup_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:239: qmp_reset_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:240: qemu_runner_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:269: trap cleanup EXIT
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:270: trace_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:271: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:274: cd_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:275: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:283: icount_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:284: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:287: shutdown_args=(-no-shutdown)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:288: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:289: shutdown_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:291: reboot_args=(-no-reboot)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:292: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:295: esp_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:296: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:299: nvme_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:300: nvme_fault_sha=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:301: nvme_device=nvme,drive=nvme0,serial=CDK2ABNVME0001
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:302: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:302: nvme_device+=,bus=pcie.0,addr=03
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:303: [[ 1 != 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:304: nvme_file=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:305: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:315: nvme_args=(-drive if=none,id=nvme0,format=raw,file="$nvme_file",cache=unsafe -device "$nvme_device")
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:317: sata_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:318: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:318: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:320: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:323: sd_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:324: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:328: usb_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:329: xhci_device=qemu-xhci,id=xhci
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:330: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:330: xhci_device+=,bus=pcie.0,addr=04
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:331: keyboard_device=usb-kbd,id=cdk2-usb-kbd,bus=xhci.0
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:332: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:335: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:340: usb_args=(-device "$xhci_device" -drive if=none,id=usb0,format=raw,file="$run/usb.raw",cache=unsafe -device usb-storage,bus=xhci.0,drive=usb0,serial=CDK2ABUSB0001,removable="$CDK2_AB_USB_REMOVABLE" -device "$keyboard_device" -device usb-mouse,id=cdk2-usb-mouse,bus=xhci.0)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:341: net_args=(-net none)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:342: [[ 0 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:345: tpm_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:346: [[ 1 == 0 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:349: tpm_args=(-chardev socket,id=chrtpm,path="$swtpm_socket" -tpmdev emulator,id=tpm0,chardev=chrtpm -device "$CDK2_AB_TPM_DEVICE",tpmdev=tpm0)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:350: vga_device=VGA,id=cdk2-vga
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:351: dma_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:352: [[ 1 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:353: vga_device+=,bus=pcie.0,addr=01
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:355: dma_args=(-device intel-iommu,pt=off -device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:357: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:362: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:366: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:374: display_args=(-display none)
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:375: start_args=()
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:376: [[ 0 == 1 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:380: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:385: set +e
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:404: qemu_runner_pid=1319167
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:405: wait 1319167
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:386: /home/sean/Documents/cdk2/util/qemu/bin/run-deadline.py --kill-after 3 180 -- qemu-system-x86_64 -name tpm-linux -machine pc-q35-10.1,smm=on,accel=tcg,i8042=on -cpu max -smp 1,sockets=1,cores=1,threads=1 -m 1024M -rtc base=2026-01-01T00:00:00,clock=vm -uuid 00112233-4455-6677-8899-aabbccddeeff -no-reboot -pidfile /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/qemu.pid -drive if=pflash,unit=0,format=raw,readonly=off,file=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom -chardev file,id=ser,path=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/serial.log -serial chardev:ser -debugcon file:/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/debugcon.log -global isa-debugcon.iobase=0x402 -qmp unix:/tmp/cdk2-ab-sock.86o6mn/qmp.sock,server=on,wait=off -display none -device VGA,id=cdk2-vga,bus=pcie.0,addr=01 -device intel-iommu,pt=off -device edu,dma_mask=0xffffffff,bus=pcie.0,addr=05 -drive if=none,id=nvme0,format=raw,file=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw,cache=unsafe -device nvme,drive=nvme0,serial=CDK2ABNVME0001,bus=pcie.0,addr=03 -device qemu-xhci,id=xhci,bus=pcie.0,addr=04 -drive if=none,id=usb0,format=raw,file=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/usb.raw,cache=unsafe -device usb-storage,bus=xhci.0,drive=usb0,serial=CDK2ABUSB0001,removable=off -device usb-kbd,id=cdk2-usb-kbd,bus=xhci.0 -device usb-mouse,id=cdk2-usb-mouse,bus=xhci.0 -net none -chardev socket,id=chrtpm,path=/tmp/cdk2-ab-sock.86o6mn/swtpm.sock -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:406: status=124
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:407: qemu_runner_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:408: set -e
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:409: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:412: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:415: [[ -n 524288 ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:415: [[ -n 131072 ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:416: stat -c %s /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:416: rom_bytes=8388608
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:417: ((  CDK2_AB_SPI_CONSOLE_OFFSET + CDK2_AB_SPI_CONSOLE_SIZE <= rom_bytes  ))
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:420: dd if=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash-before.rom of=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/spi-console.before.bin bs=1 skip=524288 count=131072 status=none
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:422: dd if=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom of=/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/spi-console.after.bin bs=1 skip=524288 count=131072 status=none
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:425: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:434: terminate_child ''
++/home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh:7: local pid= attempt
++/home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh:9: kill -0 ''
++/home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh:10: wait ''
++/home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh:10: true
++/home/sean/Documents/cdk2/util/qemu/bin/lib/process.sh:11: return
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:435: qmp_input_pid=
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:436: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:447: [[ -n '' ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: realpath /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/esp-before.raw ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/esp-base.raw ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme-fault.conf ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash-before.rom
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/pflash.rom
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw ]]
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/nvme.raw
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: sha256sum /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/coreboot-config.txt
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: cut '-d ' -f1
+++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: jq -n --argjson esp 0 --argjson nvme 1 --argjson sata 0 --argjson sd 0 --argjson usb 1 --argjson network 0 --argjson tpm 1 '{esp:$esp,nvme:$nvme,sata:$sata,sd:$sd,usb:$usb,network:$network,tpm:$tpm}'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:451: jq -n --arg name tpm-linux --arg rom /home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom --arg rom_sha 83f2284374237acedc444a701374acfe719f194e2e88638219a60d314bcd3607 --arg machine pc-q35-10.1 --arg tpm tpm-tis --argjson swtpm_log_level 1 --arg esp_fixture esp-base.raw --arg esp_before_sha '' --arg esp_after_sha '' --arg nvme_fixture nvme-final-c4bec.raw --arg sata_fixture sata.raw --arg sd_fixture sd.raw --arg usb_fixture usb.raw --arg usb_removable off --arg cd_fixture '' --arg nvme_fault_config '' --arg nvme_fault_sha '' --arg qemu_trace_events '' --arg qmp_reset_marker '' --arg qmp_wait_serial '' --arg qmp_wait_timeout 180 --argjson qmp_capture 0 --argjson qmp_setup_acceptance 0 --arg qmp_setup_mode '' --arg qmp_setup_profile debug --arg qmp_input_qcode '' --arg pflash_mutator '' --arg pflash_seed '' --arg nvme_seed '' --arg pflash_before_sha 83f2284374237acedc444a701374acfe719f194e2e88638219a60d314bcd3607 --arg pflash_after_sha 22e47c8d9107f7625dcd627ee688b7032d97685347e52c42f78196e5480fad5b --arg nvme_after_sha 054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36 --arg nvme_before_sha 054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36 --arg spi_console_offset 524288 --arg spi_console_size 131072 --arg cbfstool_sha256 7bf4af7ef8e1262045b6bceff9cdca4c71e37b9b775e7f0fb8e428282c109b20 --arg coreboot_config_sha256 8c53641abaed50bd675029a1fb81364853baa94e245983c953a4ad18073af155 --argjson devices '{
+  "esp": 0,
+  "nvme": 1,
+  "sata": 0,
+  "sd": 0,
+  "usb": 1,
+  "network": 0,
+  "tpm": 1
+}' --argjson qemu_status 124 '{name:$name,rom:$rom,rom_sha256:$rom_sha,machine:$machine,tpm:$tpm,
+    swtpm_log_level:$swtpm_log_level,
+    esp_fixture:$esp_fixture,esp_before_sha256:$esp_before_sha,
+    esp_after_sha256:$esp_after_sha,
+    nvme_fixture:$nvme_fixture,sata_fixture:$sata_fixture,
+    sd_fixture:$sd_fixture,usb_fixture:$usb_fixture,usb_removable:$usb_removable,
+    cd_fixture:$cd_fixture,nvme_fault_config:$nvme_fault_config,
+    nvme_fault_sha256:$nvme_fault_sha,
+    qemu_trace_events:$qemu_trace_events,
+    qmp_reset_marker:$qmp_reset_marker,qmp_capture:$qmp_capture,
+    qmp_setup_acceptance:($qmp_setup_acceptance == 1),
+    qmp_setup_mode:$qmp_setup_mode,
+    qmp_setup_profile:$qmp_setup_profile,
+    qmp_wait_serial:$qmp_wait_serial,qmp_wait_timeout:$qmp_wait_timeout,
+    qmp_input_qcode:$qmp_input_qcode,
+    pflash_mutator:$pflash_mutator,
+    pflash_seed:$pflash_seed,
+    nvme_seed:$nvme_seed,pflash_before_sha256:$pflash_before_sha,
+    pflash_after_sha256:$pflash_after_sha,nvme_before_sha256:$nvme_before_sha,
+    nvme_after_sha256:$nvme_after_sha,
+    spi_console:{offset:$spi_console_offset,size:$spi_console_size,
+      cbfstool_sha256:$cbfstool_sha256,
+      coreboot_config_sha256:$coreboot_config_sha256},devices:$devices,
+    qemu_status:$qemu_status}'
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:518: [[ -n '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:531: [[ -s /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/serial.log ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:1: cleanup
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:242: [[ ! -S /tmp/cdk2-ab-sock.86o6mn/qmp.sock ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:244: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:245: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:246: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:247: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:248: [[ -z '' ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:249: [[ -f /home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux/qemu.pid ]]
++/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh:267: find /tmp/cdk2-ab-sock.86o6mn -depth -delete

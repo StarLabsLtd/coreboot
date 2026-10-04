@@ -1,0 +1,44 @@
+tree 1a7540bfca8e55ad3e785cd3b6ee4907f78de4ad
+parent 24655cd2309e2758e553780bd2f0bc883a408da8
+author Yu-Ping Wu <yupingso@chromium.org> 1773199567 -0700
+committer Chromeos LUCI <chromeos-scoped@luci-project-accounts.iam.gserviceaccount.com> 1773243027 -0700
+
+lib20: Add vb2api_verify_kernel_data back
+
+This reverts commit a11ad5ccdeaebb265c0775735a92f322e3b6d676
+("lib20: remove unused code").
+
+Reason for revert: vb2api_verify_kernel_data is used in coreboot.
+
+Original change's description:
+> lib20: remove unused code
+>
+> This commit performs cleanup and refactoring of code related to lib20.
+> Specifically, the changes include:
+> - Removal of unused code from the lib20 with associated tests.
+> - Moving valid keyblock hash test to a new, dedicated file.
+> - Renaming of `vb20_rsa_padding_tests.c` and `vb20_verify_fw.c`
+>   to remove the stale `vb20` prefix
+>
+> BRANCH=main
+> BUG=b:124141368
+> TEST=build & unit tests
+>
+> Change-Id: Ib10289999aca5862712f07064e449443550ebf92
+> Signed-off-by: Grzegorz Bernacki <bernacki@google.com>
+> Reviewed-on: https://chromium-review.googlesource.com/c/chromiumos/platform/vboot_reference/+/7124844
+> Reviewed-by: Yu-Ping Wu <yupingso@chromium.org>
+> Reviewed-by: Jakub "Kuba" Czapiga <czapiga@google.com>
+
+BUG=b:124141368
+TEST=cq
+BRANCH=none
+
+Change-Id: I310cff2be4095e7ec3e0d6712a93044c7f803906
+Signed-off-by: Yu-Ping Wu <yupingso@google.com>
+Reviewed-on: https://chromium-review.googlesource.com/c/chromiumos/platform/vboot_reference/+/7652320
+Reviewed-by: Jakub "Kuba" Czapiga <czapiga@google.com>
+Reviewed-by: Grzegorz Bernacki <bernacki@google.com>
+Auto-Submit: Yu-Ping Wu <yupingso@chromium.org>
+Commit-Queue: Yu-Ping Wu <yupingso@chromium.org>
+Tested-by: Yu-Ping Wu <yupingso@chromium.org>

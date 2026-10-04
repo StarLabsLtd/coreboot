@@ -1,0 +1,7 @@
+ M ROADMAP.md
+ M migration/system-fmp-production-gates.tsv
+ M tests/capsule_report_cold_app.ld
+ M tests/dxe_core_capsule_disk_stage_test.c
+ M tests/protected_variable_fullgraph_runtime_app.c
+ M tests/protected_variable_private_media_check.sh
+ M tests/system_fmp_core_ram_stage_app.ld

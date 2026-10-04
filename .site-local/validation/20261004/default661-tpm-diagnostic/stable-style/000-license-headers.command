@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/stable-lint-style-host-gates.6u6nEI/tmp LANG=C LC_ALL=C HOSTCC=gcc sh util/lint/lint-stable-000-license-headers 

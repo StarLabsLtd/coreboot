@@ -1,0 +1,52 @@
+/machine/unattached/device[17]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[18]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[19]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[20]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[21]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[22]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[23]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[24]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[17]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[18]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[19]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[20]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[21]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[22]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[23]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[24]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[17]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[18]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[19]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[20]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[21]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[22]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[23]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[24]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[17]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[18]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[19]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[20]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[21]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[22]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[23]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[24]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[17]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[18]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[19]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[20]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[21]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[22]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[23]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[24]: smbus: error: Unexpected send start condition in state 2
+/machine/unattached/device[17]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[18]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[19]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[20]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[21]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[22]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[23]: smbus: error: Unexpected write in state -1
+/machine/unattached/device[24]: smbus: error: Unexpected write in state -1
+qemu-system-x86_64: Interrupt Mask set, irq is not generated
+qemu-system-x86_64: vtd_iommu_translate: detected translation failure (dev=00:05:00, iova=0x3fdab000)
+qemu-system-x86_64: New fault is not recorded due to compression of faults
+qemu-system-x86_64: terminating on signal 15 from pid 1319167 (python3)

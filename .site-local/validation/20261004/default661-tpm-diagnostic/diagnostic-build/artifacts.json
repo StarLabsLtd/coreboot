@@ -1,0 +1,42 @@
+[
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/.config",
+    "sha256": "43023a30a8ffa2a1d407aa77dbfc5065f4258719429bafc63d89388fdfd50465"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/xcompile",
+    "sha256": "3d4e43898a953ecfad1f1534e767dd709cee11c724bb9ca42b3c22c480919a86"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/coreboot.rom",
+    "sha256": "1a09f3c590c3bbddb62120d5620f2d4ebb85730343f84eb0b9410f4fe8978151"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool",
+    "sha256": "7bf4af7ef8e1262045b6bceff9cdca4c71e37b9b775e7f0fb8e428282c109b20"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/payload/.config",
+    "sha256": "51a81cd1edecaefc0c176d4d3c36bff26b3220c9a95e48d53596cbd1cdf1b1c6"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/payload/include/cdk2/config.h",
+    "sha256": "46a4a9d6bce99e78ed6fea666b8f281bf35efa30b594983a5ace6a6f70ecd73c"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "sha256": "420908799a9db9c836b3cd0442e18dcfc865acf5ebf8e1ead3162efc266c4199"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom",
+    "sha256": "83f2284374237acedc444a701374acfe719f194e2e88638219a60d314bcd3607"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom.manifest.json",
+    "sha256": "d8498dc5f0431f4b90d29cc67b7258990c6424ee17a79e066a21f0df3bf5ca1c"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom.direct-provenance.tsv",
+    "sha256": "4c7f5bb730b212544ab417340c4ee99ff8c3b6e13edc7a0a6e523c720e22f79b"
+  }
+]

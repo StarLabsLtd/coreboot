@@ -1,0 +1,21 @@
+make: Entering directory '/home/sean/Documents/cdk2'
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	4096	PE
+0	4096	8192	PE
+0	4096	4096	PE
+0	4096	12288	PE
+0	4096	8192	PE
+0	4096	12288	PE
+0	4096	28672	PE
+0	4096	4096	PE
+0	4096	4096	PE
+production direct composition contract: PASS (33 records, 8 mutations)
+cdk2 ELF layout: PASS (/home/sean/tpm-fifo-diagnostic-build-after661/payload/native/cdk2-coreboot-image.elf)
+cdk2 coreboot test: PASS
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+direct composition MTRR hostile mutations: PASS (zero/nonzero policy and mutations)
+cdk2 ELF layout: PASS (/home/sean/tpm-fifo-diagnostic-build-after661/payload/native/cdk2-coreboot-image.elf)
+make: Leaving directory '/home/sean/Documents/cdk2'

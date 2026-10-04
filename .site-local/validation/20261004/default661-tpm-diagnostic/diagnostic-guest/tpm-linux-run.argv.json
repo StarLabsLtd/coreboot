@@ -1,0 +1,42 @@
+{
+  "argv": [
+    "env",
+    "-i",
+    "PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "TMPDIR=/home/sean",
+    "LANG=C",
+    "LC_ALL=C",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "BASH_XTRACEFD=9",
+    "PS4=+${BASH_SOURCE}:${LINENO}: ",
+    "CDK2_AB_ENABLE_ESP=0",
+    "CDK2_AB_ENABLE_NVME=1",
+    "CDK2_AB_ENABLE_USB=1",
+    "CDK2_AB_ENABLE_SATA=0",
+    "CDK2_AB_ENABLE_SD=0",
+    "CDK2_AB_ENABLE_NETWORK=0",
+    "CDK2_AB_ENABLE_TPM=1",
+    "CDK2_AB_CPU=max",
+    "CDK2_AB_SMP=1",
+    "CDK2_AB_ALLOW_SHUTDOWN=1",
+    "CDK2_AB_NVME_IMAGE=nvme-final-c4bec.raw",
+    "CDK2_AB_CBFSTOOL=/home/sean/Documents/.coreboot-worktrees/tpm-fifo-lifecycle-diagnostic-after7ee/build/util/cbfstool/cbfstool",
+    "bash",
+    "-x",
+    "/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh",
+    "tpm-linux",
+    "/home/sean/tpm-fifo-diagnostic-build-after661/tpm-acceptance.rom",
+    "/home/sean/tpm-fifo-diagnostic-guest-after661/tpm-linux",
+    "180"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

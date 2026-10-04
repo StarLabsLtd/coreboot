@@ -1,0 +1,99 @@
+diff --git a/ROADMAP.md b/ROADMAP.md
+index cfb3471f9a..2795163535 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -428,7 +428,7 @@ followed by the broader acceptance gates. Neither local object parity nor
+ these bounded UI/variable tests closes the full release checklist below.
+ Neither modeled ownership tests nor clearing PCI bus mastering substitutes for
+ a real controller drain.
+-Coreboot PR389 selects disk-delivery capability from the existing policy and
++coreboot PR389 selects disk-delivery capability from the existing policy and
+ variable-store symbols; it adds no late writer grant. Published finite evidence
+ on the coreboot evidence branch is receipt replay, not another fresh VM run.
+ 
+diff --git a/migration/system-fmp-production-gates.tsv b/migration/system-fmp-production-gates.tsv
+index eff38c7408..e5b0382d04 100644
+--- a/migration/system-fmp-production-gates.tsv
++++ b/migration/system-fmp-production-gates.tsv
+@@ -6,7 +6,7 @@
+ source-witnesses	HISTORICAL_RETAINED	-	47 exact historical Git objects/source roots remain audit evidence; no transitive link-closure or reproducibility upgrade
+ warning-model	COMPONENT_ONLY	source-witnesses	policy.c/test_key.c typed warning detector retained in explicit HOST targets; malformed/not-checked semantics, no authorization or production PCD dependency
+ public-trust	LEGACY_RETAINED	source-witnesses	Exact retained public XDR/literal StarLabs trust stays unchanged for legacy native authentication; retained_policy.c is explicitly unselected, not the protected broker's configured trust policy
+-protected-public-trust	SELECTED_Q35	source-witnesses	Coreboot sealed policy uses the explicitly configured public certificate; public-only native signing/build provenance is separate from retained XDR/HOST vector certificates; no silent trust substitution or hardware claim
++protected-public-trust	SELECTED_Q35	source-witnesses	coreboot sealed policy uses the explicitly configured public certificate; public-only native signing/build provenance is separate from retained XDR/HOST vector certificates; no silent trust substitution or hardware claim
+ native-crypto	IMPLEMENTED_SELECTED_LEGACY	public-trust	Pinned BearSSL freestanding CMS/X509 adapter remains native legacy route with hostile real vectors; protected RAM route delegates cryptographic authorization to genuine MM, not untrusted framing
+ authentication-envelope	IMPLEMENTED_SELECTED	native-crypto	Bounded EFI/PKCS7/FMP parser is shared by unchanged legacy authentication and explicit untrusted structural parsing; framing alone never authenticates protected requests
+ authentication	SELECTED_Q35	authentication-envelope,native-crypto,protected-public-trust	PR561 derives MM route only from validated full handoff/sealed RAM endpoint and real READ_INFO; actual CHECK/SET forwards original authenticated bytes; no caller grant/fallback or legacy trust change
+diff --git a/tests/capsule_report_cold_app.ld b/tests/capsule_report_cold_app.ld
+index 89f2f3086e..d32d899762 100644
+--- a/tests/capsule_report_cold_app.ld
++++ b/tests/capsule_report_cold_app.ld
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
+ OUTPUT_FORMAT(pei-x86-64)
+ ENTRY(capsule_report_cold_entry)
+ SECTIONS
+diff --git a/tests/dxe_core_capsule_disk_stage_test.c b/tests/dxe_core_capsule_disk_stage_test.c
+index 593f4fff1f..7e7f8cf18b 100644
+--- a/tests/dxe_core_capsule_disk_stage_test.c
++++ b/tests/dxe_core_capsule_disk_stage_test.c
+@@ -33,12 +33,12 @@ EFI_STATUS __wrap_cdk2_capsule_disk_complete_esp(
+ #if CONFIG_CDK2_COREBOOT_CAPSULE_PROFILE && CONFIG_CDK2_NATIVE_SYSTEM_FMP && \
+ 	CONFIG_PAYLOAD_DMA_HANDOFF
+ 
+-#define MODEL_CODE __attribute__((section(".stage_runtime_code"), noinline))
+-#define MODEL_DATA __attribute__((section(".stage_runtime_data")))
+-#define PCI_CODE __attribute__((section(".stage_pci_code"), noinline))
+-#define PCI_DATA __attribute__((section(".stage_pci_data")))
+-#define XHCI_CODE __attribute__((section(".stage_xhci_code"), noinline))
+-#define XHCI_DATA __attribute__((section(".stage_xhci_data")))
++#define MODEL_CODE __section(".stage_runtime_code") __noinline
++#define MODEL_DATA __section(".stage_runtime_data")
++#define PCI_CODE __section(".stage_pci_code") __noinline
++#define PCI_DATA __section(".stage_pci_data")
++#define XHCI_CODE __section(".stage_xhci_code") __noinline
++#define XHCI_DATA __section(".stage_xhci_data")
+ extern char stage_runtime_begin[], stage_runtime_end[], stage_pci_begin[], stage_pci_end[];
+ extern char stage_xhci_begin[], stage_xhci_end[];
+ 
+diff --git a/tests/protected_variable_fullgraph_runtime_app.c b/tests/protected_variable_fullgraph_runtime_app.c
+index e8733a983e..fc9581f913 100644
+--- a/tests/protected_variable_fullgraph_runtime_app.c
++++ b/tests/protected_variable_fullgraph_runtime_app.c
+@@ -9,12 +9,12 @@
+ #ifdef CDK2_NORMAL_PRIVATE_OLDER_APPEND
+ #include <cdk2/config.h>
+ #if defined(CDK2_FULLGRAPH_ENROLLED) || defined(CDK2_FULLGRAPH_COLD_ENROLLED)
+-#error Normal private AUTH2 and enrolled fullgraph modes are distinct
++#error normal private AUTH2 and enrolled fullgraph modes are distinct
+ #endif
+ #if !CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME || !CONFIG_CDK2_NATIVE_SYSTEM_FMP || \
+ 	CONFIG_CDK2_QEMU_ACCEPTANCE_PROFILE || CONFIG_CDK2_NATIVE_QEMU_TEST_FMP || \
+ 	CONFIG_CDK2_BUILD_DEBUG || CONFIG_CDK2_BOOT_TIMEOUT != 0
+-#error Normal private AUTH2 requires the genuine protected SystemFmp default profile
++#error normal private AUTH2 requires the genuine protected system_fmp default profile
+ #endif
+ #endif
+ 
+diff --git a/tests/protected_variable_private_media_check.sh b/tests/protected_variable_private_media_check.sh
+index 27ed72c792..00ae1dbadf 100644
+--- a/tests/protected_variable_private_media_check.sh
++++ b/tests/protected_variable_private_media_check.sh
+@@ -65,7 +65,7 @@ while IFS= read -r path; do
+ 	sha256sum "$path"
+ done < "$output/closure.list" > "$output/closure-before.sha256"
+ for optimization in 0 2; do
+-	# Coreboot HOST type aliases close its real codec; none grants authority.
++	# coreboot HOST type aliases close its real codec; none grants authority.
+ 	# shellcheck disable=SC2086
+ 	"$compiler" -std=gnu11 -Wall -Wextra -Werror -g -O"$optimization" -fno-builtin \
+ 		-fno-pie -no-pie -fsanitize=address,undefined -fno-sanitize-recover=all \
+diff --git a/tests/system_fmp_core_ram_stage_app.ld b/tests/system_fmp_core_ram_stage_app.ld
+index 71334cb251..fef33ed701 100644
+--- a/tests/system_fmp_core_ram_stage_app.ld
++++ b/tests/system_fmp_core_ram_stage_app.ld
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
+ OUTPUT_FORMAT(pei-x86-64)
+ ENTRY(system_fmp_core_ram_stage_entry)
+ SECTIONS
