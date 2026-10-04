@@ -797,10 +797,15 @@ static bool lifecycle_read_idle(bool *idle)
 	if (!idle || !lifecycle_owned())
 		return false;
 	status = lifecycle_read_status(0);
-	if (!(status & TIS_STS_VALID))
+	if (!(status & (TIS_STS_VALID | TIS_STS_COMMAND_READY)))
 		return false;
+	/*
+	 * COMMAND_READY is independent of STS_VALID. Only interpret DATA_AVAILABLE
+	 * and EXPECT when STS_VALID is set (TCG PTP 5.5.2.3).
+	 */
 	*idle = (status & TIS_STS_COMMAND_READY) &&
-		!(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT));
+		(!(status & TIS_STS_VALID) ||
+		 !(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT)));
 	return true;
 }
 

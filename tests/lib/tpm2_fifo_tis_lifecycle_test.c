@@ -113,15 +113,18 @@ static void reset(void)
 	pc80_tis_fifo_set_test_backend(&backend);
 }
 
-static void quiesce_idle(void)
+static void quiesce_idle(u8 status)
 {
 	reset();
 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
 	access_count = 1;
-	status_values[0] = STATUS_VALID | STATUS_READY;
+	status_values[0] = status;
 	status_count = 1;
+	CHECK(pc80_tis_fifo_validate_idle() == CB_SUCCESS);
 	CHECK(pc80_tis_fifo_quiesce() == CB_SUCCESS);
 	CHECK(ready_calls == 0);
+	CHECK(write_calls == 0);
+	CHECK(wait_calls == 0);
 }
 
 static void quiesce_busy(u8 busy_status)
@@ -202,26 +205,42 @@ static void release_lost(u8 lost_access)
 	CHECK(wait_calls == 0);
 }
 
-static void invalid_status(void)
+static void invalid_status(u8 status)
 {
 	reset();
 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
 	access_count = 1;
-	status_values[0] = STATUS_READY;
+	status_values[0] = status;
 	status_count = 1;
+	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
 	CHECK(pc80_tis_fifo_quiesce() == CB_ERR);
+	CHECK(pc80_tis_fifo_release_locality() == CB_ERR);
 	CHECK(ready_calls == 0);
 	CHECK(write_calls == 0);
 	CHECK(wait_calls == 0);
 }
 
-static void transmit_lost(u8 lost_access)
+static void contradictory_status(u8 status)
+{
+	reset();
+	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
+	access_count = 1;
+	status_values[0] = STATUS_VALID | STATUS_READY | status;
+	status_count = 1;
+	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
+	CHECK(pc80_tis_fifo_release_locality() == CB_ERR);
+	CHECK(ready_calls == 0);
+	CHECK(write_calls == 0);
+	CHECK(wait_calls == 0);
+}
+
+static void transmit_lost(u8 lost_access, u8 status)
 {
 	reset();
 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
 	access_values[1] = lost_access;
 	access_count = 2;
-	status_values[0] = STATUS_VALID | STATUS_READY;
+	status_values[0] = status;
 	status_count = 1;
 	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
 	CHECK(ready_calls == 0);
@@ -233,7 +252,17 @@ int main(int argc, char **argv)
 {
 	CHECK(argc == 2);
 	if (!strcmp(argv[1], "idle"))
-		quiesce_idle();
+		quiesce_idle(STATUS_VALID | STATUS_READY);
+	else if (!strcmp(argv[1], "ready-only"))
+		quiesce_idle(STATUS_READY);
+	else if (!strcmp(argv[1], "ready-undefined-data"))
+		quiesce_idle(STATUS_READY | STATUS_DATA);
+	else if (!strcmp(argv[1], "ready-undefined-expect"))
+		quiesce_idle(STATUS_READY | STATUS_EXPECT);
+	else if (!strcmp(argv[1], "ready-valid-data"))
+		contradictory_status(STATUS_DATA);
+	else if (!strcmp(argv[1], "ready-valid-expect"))
+		contradictory_status(STATUS_EXPECT);
 	else if (!strcmp(argv[1], "data-available"))
 		quiesce_busy(STATUS_DATA);
 	else if (!strcmp(argv[1], "expect"))
@@ -247,11 +276,20 @@ int main(int argc, char **argv)
 	else if (!strcmp(argv[1], "ready-bad-postcondition"))
 		quiesce_ready_failure(true);
 	else if (!strcmp(argv[1], "invalid-status"))
-		invalid_status();
+		invalid_status(0);
+	else if (!strcmp(argv[1], "invalid-data"))
+		invalid_status(STATUS_DATA);
+	else if (!strcmp(argv[1], "invalid-expect"))
+		invalid_status(STATUS_EXPECT);
 	else if (!strcmp(argv[1], "transmit-lost-locality"))
-		transmit_lost(ACCESS_VALID);
+		transmit_lost(ACCESS_VALID, STATUS_VALID | STATUS_READY);
 	else if (!strcmp(argv[1], "transmit-seized-locality"))
-		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED);
+		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED,
+			STATUS_VALID | STATUS_READY);
+	else if (!strcmp(argv[1], "ready-lost-locality"))
+		transmit_lost(ACCESS_VALID, STATUS_READY);
+	else if (!strcmp(argv[1], "ready-seized-locality"))
+		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED, STATUS_READY);
 	else if (!strcmp(argv[1], "release-lost-locality"))
 		release_lost(ACCESS_VALID);
 	else if (!strcmp(argv[1], "release-seized-locality"))
