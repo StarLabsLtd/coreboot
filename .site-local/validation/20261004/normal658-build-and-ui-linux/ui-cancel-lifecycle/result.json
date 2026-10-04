@@ -1,0 +1,8 @@
+{
+  "build_admission": "fresh-current-head",
+  "failure": null,
+  "firmware_head": "b37a977ec5f81b6fa0bce527ab74acd743040a24",
+  "observer_head": "b37a977ec5f81b6fa0bce527ab74acd743040a24",
+  "producer_head": "7ee34bed989c46913c3ee6672fb25e83227c3b6c",
+  "scope": "one fresh queued-F2 checkbox edit/Esc discard boot; whole media verified; widget visual review separate"
+}

@@ -1,0 +1,32 @@
+Independent completed Ready658 Linux firmware-setup guest review
+
+Original receipt: /home/sean/fresh-normal-focus-guest-after657.M2fS2l/linux-reset.
+No original receipt was changed. Five original PPMs were visually inspected
+through lossless ffmpeg PNG conversions in this NEW owned directory. No compiler
+or VM was executed by the reviewer.
+
+Outer status0, whole EXIT0/WALL265.02; inner observer/QEMU/outer0 and no failure,
+wall132.74858093500006 within original180. Firmware/observer source was exactly
+b37a977ec5f81b6fa0bce527ab74acd743040a24 and producer7ee34bed989c46913c3ee6672fb25e83227c3b6c.
+Recorded source/input/tool/vboot-link before/after comparisons are identical;
+original recorded source/input/recipe checksum closures contain no failed rows.
+Those source closures completed before legitimate canonical661 advancement.
+No old source checksum replay against advanced canonical source was performed.
+Preserved immutable build/input and recipe hashes independently verify now.
+
+Pinned requester UKI ed36f81f717b92bd4a1a23c77707eb5a51b45461384d3dedd84e0dfe1a8e7a59
+is bound by lifecycle/result.json alongside requester/init/manifest hashes.
+QMP evidence contains exactly one guest_reset action, triggered after the Linux
+firmware-UI request marker; no host reset is inferred. Source-owned lifecycle
+gate reports request/guestRESET/intent UI/delete PASS, with subsequent Linux
+acceptance and shutdown. Actual codec O0/O2 ordered full-media history and
+mutation opposition PASS; inverse PASS and expected comparison-mutant assertion
+are preserved. This bounds the real variable update/consumption/delete history
+and immutable media outside its authorized SMMSTORE area.
+
+All five screenshots reviewed: initial ring on UI Scale; navigated dark ring on
+unchecked layout checkbox with old Scale ring removed and matching help text;
+disabled dependent rows remain disabled. Firmware restoration shows Star Labs
+logo. Status-original and selecting-reference images remain separate captures.
+This is actual Ready658 normal protected SystemFmp same-VM guest evidence, not
+Ready661 ordinary TPM acceptance, hardware, mouse-click or full-release signoff.

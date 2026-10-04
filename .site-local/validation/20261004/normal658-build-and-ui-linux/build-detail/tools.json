@@ -1,0 +1,20 @@
+{
+  "ar": "/usr/bin/x86_64-linux-gnu-ar",
+  "as": "/usr/bin/x86_64-linux-gnu-as",
+  "bash": "/usr/bin/bash",
+  "cc": "/usr/bin/x86_64-linux-gnu-gcc-15",
+  "cc1": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1",
+  "collect2": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2",
+  "gcc": "/usr/bin/x86_64-linux-gnu-gcc-15",
+  "iasl": "/usr/bin/iasl",
+  "kconfig-conf": "/home/sean/Documents/coreboot/build/util/kconfig/conf",
+  "ld": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+  "lto-wrapper": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper",
+  "make": "/usr/bin/make",
+  "nm": "/usr/bin/x86_64-linux-gnu-nm",
+  "objcopy": "/usr/bin/x86_64-linux-gnu-objcopy",
+  "objdump": "/usr/bin/x86_64-linux-gnu-objdump",
+  "python3": "/usr/bin/python3.13",
+  "readelf": "/usr/bin/x86_64-linux-gnu-readelf",
+  "time": "/usr/bin/time"
+}

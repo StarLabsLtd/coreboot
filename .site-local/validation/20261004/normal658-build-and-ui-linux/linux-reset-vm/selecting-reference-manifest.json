@@ -1,0 +1,35 @@
+{
+  "boot_logo_source_sha256": "d9ff526ca3e72ecb5b5dccf77b30e3224d12824fbca0c3a9f617473f51040f79",
+  "config_header_sha256": "ac668eb9c8a622e020182653fd832e6671741f5e616a01cfa4fb33b8e9b4065f",
+  "coreboot_input_identity_sha256": "3bfd9b5515e375cd73d4aad368c8fe69abc05f2005c517cd564bcf790d077c84",
+  "coreboot_source_input_sha256": "d2f5db5a8d33dab72cca9587ca958e67c657b1d2ea0bec18ce69bff775bd1492",
+  "geometry": {
+    "logo": [
+      157,
+      268,
+      486,
+      63
+    ],
+    "mode": "cdk2-fallback",
+    "status": [
+      157,
+      339,
+      486,
+      48
+    ]
+  },
+  "logo_bmp_sha256": "",
+  "lvgl_commit": "85aa60d18b3d5e5588d7b247abf90198f07c8a63",
+  "lvgl_config_sha256": "33395d36814c826a6b73d1d05a221e0020abbd01d65f63781f3db5a51a6ad7eb",
+  "native_ui_test_sha256": "4e53c02e9220e9a764086a4baaa60ab80b393412108430e06c4d90a47a27cad4",
+  "prepared_config_sha256": "10f6aef02d7678a1ae8d5ffab8157b5ab0a37438576a645cdf237fe130fa2aac",
+  "prepared_defconfig_sha256": "ac2fb46970ec1dbd90de08be6c603cdfc2ef933fd02086bdd86cd370ac9360de",
+  "prepared_kconfig_sha256": "9120716512c77b94d4c414c3f06ab17965fcab96376c289e0603c221d985a632",
+  "producer_config_sha256": "99f515dba5df249c5162a26337e9de8688eb1671db6ba5a770d4beb18f5aff22",
+  "reference_sha256": "75039173afda30d0c558251728db6867accc24a7bac7477cb43edc7c4ea73172",
+  "reference_test_source_sha256": "ff3f3b81dacadb644d20399b4edeb8cb0e05496eee53aeba9322b813469535ad",
+  "renderer_source_sha256": "f5d035907e88fd10d1c3b0818e86b64085a9aab9d1be5413d21179be627d3d27",
+  "settings_source_sha256": "ae239b1f6111ef9eb1ad02d5ef4c8751fd879888e1dd827c94f81aeaec7e29d3",
+  "source_commit": "b37a977ec5f81b6fa0bce527ab74acd743040a24",
+  "ui_scale": 0
+}

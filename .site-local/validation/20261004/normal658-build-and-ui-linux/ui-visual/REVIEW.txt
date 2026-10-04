@@ -1,0 +1,37 @@
+Independent read-only Ready658 UI guest and Ready660 identity review
+
+Original completed guest receipt:
+/home/sean/fresh-normal-focus-guest-after657.M2fS2l/ui-cancel
+Original files were not changed. Seven original PPM frames were inspected using
+lossless PNG previews in this new task-owned directory. No compiler or VM was
+executed by the reviewer. PNG conversion used ffmpeg; this was visualization,
+not a new guest capture or a modified evidence frame.
+
+Actual outer status 0; whole EXIT=0 WALL=275.90. Inner result observer, QEMU and
+outer statuses are 0, wall_seconds=95.18722689199967, deadline_seconds=180.
+Independent GNU SHA checks of source/input/recipe receipts passed. Source,
+inputs, tools and vboot-link before/after comparisons passed. Fresh binding:
+firmware b37a977ec5f81b6fa0bce527ab74acd743040a24;
+ROM 1c02d0b8bcbe71d19832e729cea3b9144e93a0906f1eb7b0711e1e08e1783af3;
+descriptor 23c9429c4b7776448b49413279e27ba60956352a5ac6f065ba80f03e32242f12.
+The actual final read-only HOST codec oracle reports:
+Normal UI cancellation full-media history: PASS.
+
+Visual review of all seven original frames: initial dark ring surrounds UI
+Scale; navigation moves it to the unchecked layout checkbox and removes the
+old ring. The edited frame has the checkbox checked, dependent rows enabled
+and focus back on UI Scale. Dependent-focused frame moves the visible ring to
+Frame Height, removes the Scale ring and displays the appropriate help text.
+The firmware-restored frame shows the Star Labs logo. The status-original frame
+and independently sized selecting-reference frame remain separate evidence.
+This proves captured keyboard ring transitions, not merely action text. It is
+not an actual mouse-click, hardware, full regression or TPM acceptance claim.
+
+Ready660 independently verified signed/G, clean and exact donor body:
+9961fede875aa85f098610eb61eab33f6d271cd4;
+parent 28131e6ef3852392b6cda215940175a92c6aade9;
+full binary diff b1fdeefa9232afeb98ece78902b92087e824ff595284634967d127f03425d7ca.
+This Ready660 identity is distinct from the frozen Ready658 guest source.
+
+Linux guest session45018 was still active when this report was prepared. No
+Linux guest success, closure or visual qualification is inferred here.

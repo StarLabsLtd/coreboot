@@ -1,0 +1,20 @@
+SOURCE-ONLY fresh normal focus production preparation; no stage executed.
+
+Expected future signed clean canonical/build/guest observer HEAD:
+b37a977ec5f81b6fa0bce527ab74acd743040a24 (ready658 UI copy).
+Its parent c10cf4547600c9ad132ac599bf92b27813ecd517 contains the freezer change,
+not the UI focus change, and is not an accepted execution head for this run.
+Root alone will fast-forward canonical after existing DEFAULT closure finishes.
+
+This build.sh is copied from the approved actual654 outer recipe, changing only
+its new receipt root and fixed expected future UI HEAD. Source-owned fresh
+builder/public production Core+native LVGL target, original normal and producer
+configuration inputs, clean pinned producer7ee34, source/tool/config/build
+admission receipts, empty new build requirement, and artifact hash bindings are
+unchanged. No stale stage, firmware image, executable or guest medium was copied.
+Only scripts were copied; fresh artifacts must be built in this new build/.
+
+After full recipe review, explicit lane release, and canonical future FF:
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin TMPDIR=/home/sean LANG=C LC_ALL=C PYTHONDONTWRITEBYTECODE=1 bash /home/sean/fresh-normal-focus-after657.CftZZg/build.sh b37a977ec5f81b6fa0bce527ab74acd743040a24
+
+No fresh build/guest/focus visibility success is claimed by this preparation.

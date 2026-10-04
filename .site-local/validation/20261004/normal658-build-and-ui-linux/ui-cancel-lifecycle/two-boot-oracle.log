@@ -1,0 +1,5 @@
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549410, size 549410
+Found file config at 0x3e400, type raw, compressed 3545, size 12858
+Default-zero normal setup evidence: PASS
+/home/sean/Documents/cdk2/util/qemu/bin/assert-protected-setup-store.sh: line 168: 903001 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/$comparison-mutant" "${check_media[@]}" "${fmp_arguments[@]}" --self-test > "$output/$comparison-self-test.log" 2>&1
+Protected setup actual-codec HOST receipts: /home/sean/fresh-normal-focus-guest-after657.M2fS2l/ui-cancel/lifecycle/ui-cancel/protected-store-oracle.oeTeIL
