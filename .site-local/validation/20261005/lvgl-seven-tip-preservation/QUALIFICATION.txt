@@ -1,0 +1,3 @@
+Seven exact raw LVGL commit tips preserved by local non-force fetch under canonical recovery refs.
+Two clean signed parents/current vendor HEAD/source/config/shallow/oldrefs unchanged; all raw source objects retained.
+No network completion, GC/prune, source edit, HEAD change, deletion or historical build/test claim.

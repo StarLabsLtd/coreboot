@@ -1,0 +1,15 @@
+[
+  "git",
+  "-c",
+  "gc.auto=0",
+  "-c",
+  "maintenance.auto=false",
+  "-C",
+  "/home/sean/Documents/cdk2/3rdparty/lvgl",
+  "fetch",
+  "--no-tags",
+  "--no-recurse-submodules",
+  "--no-write-fetch-head",
+  "/home/sean/Documents/cdk2/.git/worktrees/capsule-ram-window-consumer-after531/modules/3rdparty/lvgl",
+  "5dd2d53bdfa1b525db8700f65b9c387f7877fdb4:refs/archive/retired-lvgl-5dd2d53bdfa1b525db8700f65b9c387f7877fdb4"
+]

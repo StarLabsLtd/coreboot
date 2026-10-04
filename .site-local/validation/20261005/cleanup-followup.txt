@@ -1,0 +1,44 @@
+Cleanup follow-up, 2026-10-05
+
+The original DEFAULT661 directory moved to recoverable trash only after its
+retention metadata was signed and pushed in a62d0d210b97. The actual gio tool
+returned zero. The opposing actual review compared all 59 retained archive
+members to their trash counterparts and all 24 historical top-level receipts
+to signed evidence blobs. No before-directory-inode ledger is claimed. The
+59551-byte local input archive and current golden inputs remain retained.
+
+Two obsolete recipe directories, n6MCmo and FJaETV, also moved to recoverable
+trash. Their five complete files still match signed archived counterparts.
+They were not runtime dependencies of the new vendor-ref preservation recipe.
+The retained vboot recovery Git store was not a deletion target.
+
+The first LVGL preservation proposal (pTuroY, b89c425bd3a8) was held UNEXECUTED:
+its blanket alternate refusal rejected a legitimate canonical-object borrower.
+The separately reviewed immutable successor (zgOwU5, e840fba684f3) admits and
+records only that exact existing alternate, without rewriting it. Its actual
+invocation returned zero, with seven local non-force fetches and all recorded
+statuses zero. The adjacent complete 34-file receipt is a byte-exact copy.
+
+Canonical LVGL gained only seven explicitly named archive refs. Current HEAD,
+tracked source, metadata and existing refs remained unchanged. Both selected
+source repositories and their signed parent states remained unchanged; all
+source raw-ref objects were proved canonically reachable with matching types.
+This is local object preservation, not firmware testing, hardware acceptance,
+remote vendor-object backup or complete-cleanup sign-off. No worktree removal
+is implied by the preservation receipt itself.
+
+After both actual preservation reviews, four clean initialized CDK2 worktrees
+were separately removed with bounded force. Each actual Git tool returned zero:
+capsule-ram-window-consumer-after531 (e351fa),
+q35-auth-provider-metadata-after383 (345c5c),
+variable-runtime-legacy-fixture-after532 (e203d2), and
+fmp-owner-native-state-after-update (ae8572).
+Signed branch refs and complete private vendor raw-ref targets were checked
+retained before removal, with no foreign incoming private-store dependencies.
+Outbound dependency owners remain retained; no branch pruning or GC was run.
+These observed tool results are not a separately persisted raw execution log.
+
+The h5uePF provenance recipe directory also moved to recoverable trash; all
+three recovered files match signed evidence blobs. Five otherwise unarchived
+historical peer/mutant fixture files are now copied byte-exact into the adjacent
+review-profile-causal-fixtures packet. They were not executed during cleanup.
