@@ -1,0 +1,151 @@
+diff --git a/util/qemu/bin/make-tpm-linux-fixture-selftest.sh b/util/qemu/bin/make-tpm-linux-fixture-selftest.sh
+new file mode 100755
+index 0000000000..76b603a3a0
+--- /dev/null
++++ b/util/qemu/bin/make-tpm-linux-fixture-selftest.sh
+@@ -0,0 +1,66 @@
++#!/usr/bin/env bash
++# SPDX-License-Identifier: GPL-2.0-only
++set -euo pipefail
++[[ $# == 2 ]] || {
++	echo 'usage: make-tpm-linux-fixture-selftest.sh CANONICAL_NVME CURRENT_MINI_UKI' >&2
++	exit 2
++}
++root=$(cd -- "$(dirname -- "$0")/.." && pwd -P)
++base=$(realpath "$1")
++uki=$(realpath "$2")
++work=$(mktemp -d)
++trap 'rm -rf "$work"' EXIT HUP INT TERM
++sha256sum "$base" "$uki" > "$work/inputs.sha256"
++"$root/bin/make-tpm-linux-fixture.sh" "$base" "$uki" "$work/positive"
++test -s "$work/positive/tpm-linux.manifest"
++test -s "$work/positive/tpm-linux.raw"
++if "$root/bin/make-tpm-linux-fixture.sh" "$base" "$uki" "$work/positive" \
++	> "$work/existing.log" 2>&1; then
++	echo 'existing output directory was accepted' >&2
++	exit 1
++fi
++if "$root/bin/make-tpm-linux-fixture.sh" "$base" "$uki" "$base" \
++	> "$work/alias.log" 2>&1; then
++	echo 'output/input alias was accepted' >&2
++	exit 1
++fi
++cp --reflink=auto "$base" "$work/bad-base.raw"
++printf X | dd of="$work/bad-base.raw" bs=1 seek=64 conv=notrunc status=none
++if "$root/bin/make-tpm-linux-fixture.sh" "$work/bad-base.raw" "$uki" \
++	"$work/bad-base-output" > "$work/bad-base.log" 2>&1; then
++	echo 'changed canonical base was accepted' >&2
++	exit 1
++fi
++cp "$uki" "$work/missing.efi"
++objcopy --remove-section .initrd "$work/missing.efi"
++if "$root/bin/make-tpm-linux-fixture.sh" "$base" "$work/missing.efi" \
++	"$work/missing-output" > "$work/missing.log" 2>&1; then
++	echo 'missing initrd was accepted' >&2
++	exit 1
++fi
++# A valid cpio archive with a different init must reach and fail the source comparison.
++mkdir "$work/stale-root"
++cp "$root/fixtures/linux-mini/init" "$work/stale-root/init"
++printf X | dd of="$work/stale-root/init" bs=1 seek=0 conv=notrunc status=none
++(
++	cd "$work/stale-root"
++	printf 'init\n' | cpio --quiet -o -H newc
++) | gzip -n > "$work/stale-initrd.gz"
++objcopy --update-section .initrd="$work/stale-initrd.gz" "$uki" "$work/stale.efi"
++python3 "$root/bin/verify-mini-uki.py" "$work/stale.efi"
++gzip -dc "$work/stale-initrd.gz" | cpio --quiet -i --to-stdout init > "$work/stale-init"
++cmp "$work/stale-root/init" "$work/stale-init"
++if "$root/bin/make-tpm-linux-fixture.sh" "$base" "$work/stale.efi" \
++	"$work/stale-output" > "$work/stale.log" 2>&1; then
++	echo 'valid initrd with a different source-owned init was accepted' >&2
++	exit 1
++fi
++printf 'console=ttyS0,115200 cdk2_fw_ui_request=1\0' > "$work/reset-command"
++objcopy --update-section .cmdline="$work/reset-command" "$uki" "$work/reset.efi"
++if "$root/bin/make-tpm-linux-fixture.sh" "$base" "$work/reset.efi" \
++	"$work/reset-output" > "$work/reset.log" 2>&1; then
++	echo 'unexpected firmware-reset command line was accepted' >&2
++	exit 1
++fi
++sha256sum -c "$work/inputs.sha256" >/dev/null
++echo 'source-owned TPM Linux fixture packaging: PASS'
+diff --git a/util/qemu/bin/make-tpm-linux-fixture.sh b/util/qemu/bin/make-tpm-linux-fixture.sh
+new file mode 100755
+index 0000000000..c5cbe1529e
+--- /dev/null
++++ b/util/qemu/bin/make-tpm-linux-fixture.sh
+@@ -0,0 +1,73 @@
++#!/usr/bin/env bash
++# SPDX-License-Identifier: GPL-2.0-only
++# Package current source-owned Linux telemetry without replacing the historical fixture.
++set -euo pipefail
++[[ $# == 3 ]] || {
++	echo 'usage: make-tpm-linux-fixture.sh CANONICAL_NVME MINI_UKI NEW_OUTPUT_DIR' >&2
++	exit 2
++}
++root=$(cd -- "$(dirname -- "$0")/.." && pwd -P)
++base=$(realpath "$1")
++uki=$(realpath "$2")
++output=$(realpath -m "$3")
++base_sha=054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36
++export TZ=UTC SOURCE_DATE_EPOCH=1781974900 LC_ALL=C
++[[ -f $base && -f $uki && ! -e $output ]] || {
++	echo 'inputs must exist and output directory must be new' >&2
++	exit 1
++}
++printf '%s  %s\n' "$base_sha" "$base" | sha256sum -c - >/dev/null
++python3 "$root/bin/verify-mini-uki.py" "$uki"
++work=$(mktemp -d)
++trap 'rm -rf "$work"' EXIT HUP INT TERM
++sha256sum "$base" "$uki" "$root/fixtures/linux-mini/init" > "$work/inputs.sha256"
++objcopy --dump-section .initrd="$work/initrd.gz" \
++	--dump-section .cmdline="$work/cmdline" "$uki" "$work/inspected.efi"
++gzip -dc "$work/initrd.gz" | cpio --quiet -i --to-stdout init > "$work/init"
++cmp "$root/fixtures/linux-mini/init" "$work/init"
++python3 - "$work/cmdline" <<'PY'
++from pathlib import Path
++import sys
++
++expected = ('console=ttyS0,115200 earlycon=uart8250,io,0x3f8,115200n8 '
++            'nokaslr panic=-1 rdinit=/init')
++if Path(sys.argv[1]).read_bytes() != expected.encode('ascii') + b'\0':
++    raise SystemExit('TPM fixture requires ordinary source-owned mini Linux command line')
++PY
++mkdir -- "$output"
++cp --reflink=auto "$base" "$output/tpm-linux.raw"
++cp "$uki" "$work/BOOTX64.EFI"
++touch -d "@$SOURCE_DATE_EPOCH" "$work/BOOTX64.EFI"
++mcopy -o -m -i "$output/tpm-linux.raw"@@1048576 \
++	"$work/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI
++mcopy -i "$output/tpm-linux.raw"@@1048576 ::/EFI/BOOT/BOOTX64.EFI \
++	"$work/packaged.efi"
++cmp "$uki" "$work/packaged.efi"
++test "$(stat -c %s "$base")" = "$(stat -c %s "$output/tpm-linux.raw")"
++# The original GPT and partition placement are outside the FAT replacement.
++cmp -n 1048576 "$base" "$output/tpm-linux.raw"
++tail -c 17408 "$base" > "$work/base-gpt-tail"
++tail -c 17408 "$output/tpm-linux.raw" > "$work/output-gpt-tail"
++cmp "$work/base-gpt-tail" "$work/output-gpt-tail"
++mkdir "$work/base-files" "$work/output-files"
++mcopy -s -i "$base"@@1048576 '::/*' "$work/base-files/"
++mcopy -s -i "$output/tpm-linux.raw"@@1048576 '::/*' "$work/output-files/"
++for tree in base output; do
++	(
++		cd "$work/$tree-files"
++		find . -type d -print | sort
++		find . -type f ! -path './EFI/BOOT/BOOTX64.EFI' -print0 |
++			sort -z | xargs -0 -r sha256sum
++	) > "$work/$tree-files.sha256"
++done
++cmp "$work/base-files.sha256" "$work/output-files.sha256"
++sha256sum -c "$work/inputs.sha256" >/dev/null
++{
++	printf 'format=cdk2-tpm-linux-guest-fixture-v1\n'
++	printf 'base_sha256=%s\n' "$base_sha"
++	printf 'uki_sha256=%s\n' "$(sha256sum "$uki" | cut -d' ' -f1)"
++	printf 'init_sha256=%s\n' "$(sha256sum "$work/init" | cut -d' ' -f1)"
++	printf 'initrd_sha256=%s\n' "$(sha256sum "$work/initrd.gz" | cut -d' ' -f1)"
++	printf 'generator_sha256=%s\n' "$(sha256sum "$0" | cut -d' ' -f1)"
++	printf 'output_sha256=%s\n' "$(sha256sum "$output/tpm-linux.raw" | cut -d' ' -f1)"
++} > "$output/tpm-linux.manifest"

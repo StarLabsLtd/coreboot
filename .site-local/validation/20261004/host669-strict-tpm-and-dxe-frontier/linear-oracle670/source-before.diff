@@ -1,0 +1,44 @@
+diff --git a/tests/linear_pre_capsule_order_test.sh b/tests/linear_pre_capsule_order_test.sh
+index d89e3cc556..513dd0f5a2 100755
+--- a/tests/linear_pre_capsule_order_test.sh
++++ b/tests/linear_pre_capsule_order_test.sh
+@@ -135,12 +135,22 @@ grep -q '&capsule_boot_guid, &boot_protocol, NULL' "$capsule_runtime" || {
+ 	echo 'native CapsuleRuntimeDxe does not publish the capsule processor protocol' >&2
+ 	exit 1
+ }
+-grep -q 'memcmp(&core.database.protocols\[index\].guid, &capsule_boot,' \
+-	"$entry" || {
++capsule_processor_body=$(awk '
++	/static uint64_t process_disk_capsules\(void \*opaque\)/ { inside = 1 }
++	inside { print }
++	inside && /^}/ { exit }
++' "$entry")
++printf '%s\n' "$capsule_processor_body" | grep -Fq \
++	'memcmp(&core.database.protocols[index].guid, &capsule_boot_protocol_guid,' || {
+ 	echo 'disk capsule path does not require the published processor protocol' >&2
+ 	exit 1
+ }
+-grep -q 'if (runtime.processor != NULL)' "$entry" || {
++printf '%s\n' "$capsule_processor_body" | grep -Fq \
++	'sizeof(capsule_boot_protocol_guid)) == 0)' || {
++	echo 'disk capsule processor identity comparison is incomplete' >&2
++	exit 1
++}
++printf '%s\n' "$capsule_processor_body" | grep -q 'if (runtime.processor != NULL)' || {
+ 	echo 'disk capsule path accepts duplicate capsule processors' >&2
+ 	exit 1
+ }
+@@ -186,6 +196,13 @@ reject_provider_mutant FmpDxe FmpDxeBad legacy-name
+ reject_provider_mutant '#else' '#if 1' provider-coexistence
+ reject_provider_mutant 'if (runtime.processor != NULL)' 'if (FALSE)' \
+ 	duplicate-processor 'accepts duplicate capsule processors'
++reject_provider_mutant \
++	'memcmp(\&core.database.protocols\[index\].guid, \&capsule_boot_protocol_guid,' \
++	'memcmp(\&core.database.protocols[index].guid, \&simple_fs_protocol,' \
++	processor-identity 'does not require the published processor protocol'
++reject_provider_mutant 'sizeof(capsule_boot_protocol_guid)) == 0)' \
++	'sizeof(capsule_boot_protocol_guid)) != 0)' processor-comparison \
++	'processor identity comparison is incomplete'
+ reject_provider_mutant 0x408edcec 0x408edced console-data1
+ reject_provider_mutant '0x3d, 0xe2, 0x81' '0x3d, 0xe3, 0x81' console-data4-tail
+ reject_provider_mutant ConSplitterDxe ConSplitterBad console-name

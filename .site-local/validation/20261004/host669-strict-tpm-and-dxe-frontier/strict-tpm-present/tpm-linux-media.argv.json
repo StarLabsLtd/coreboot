@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "python3",
+    "/home/sean/tpm-current-os-guest-recipes.jNWZGi/receipt.py",
+    "media",
+    "/home/sean/Documents/cdk2",
+    "/home/sean/tpm-current-os-guest-correct-vboot-after661/tpm-linux",
+    "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/build/util/cbfstool/cbfstool"
+  ],
+  "environment": {
+    "HOME": "/home/sean",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

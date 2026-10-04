@@ -1,0 +1,13 @@
+In file included from /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/tests/tcg2_driver_boot_variable_test.c:13:
+/home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/tests/../src/modules/tcg2/driver.c: In function 'cdk2_tcg2_entry':
+/home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/tests/../src/modules/tcg2/driver.c:951:29: error: missing initializer for field 'max_command_size' of 'struct cdk2_tpm2_transport' [-Werror=missing-field-initializers]
+  951 |         transport = (struct cdk2_tpm2_transport){ interface, tpm_base, 2000000U, &tpm_io };
+      |                             ^~~~~~~~~~~~~~~~~~~
+In file included from /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/include/cdk2/tcg2_commands.h:7,
+                 from /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/include/cdk2/tcg2_service.h:6,
+                 from /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/include/cdk2/tcg2_entry.h:6,
+                 from /home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/tests/../src/modules/tcg2/driver.c:7:
+/home/sean/Documents/.cdk2-worktrees/tcg2-boot-variable-pcr1-after661/include/cdk2/tcg2_transport.h:49:16: note: 'max_command_size' declared here
+   49 |         UINT32 max_command_size;
+      |                ^~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors

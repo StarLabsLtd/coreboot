@@ -1,0 +1,74 @@
+[
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom",
+    "sha256": "b19d508b8c15e143608933e58ce27cf9375cc603de4583e1bfeee702a98b68de"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom.manifest.json",
+    "sha256": "7d82d74bd613699a5e6f691539366acf5380e2c2880540eaf8b136c5e68aa33e"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom.direct-provenance.tsv",
+    "sha256": "05ed9730e614509449cfee17b11982653ffdcb583a45cbb61f2853b2e7403093"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/build/util/cbfstool/cbfstool",
+    "sha256": "29908aa58cf90f48b12911be8bd781670c23a1bfce3b2b1801aac32ad8b3b9a4"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/tpm-telemetry-Ktq6vZ.raw/tpm-linux.raw",
+    "sha256": "0ba91a45e94509ffa4cd29b2e2a30d5bdeed09aaed8799abf68a257523e89a63"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/usb.raw",
+    "sha256": "3b6a07d0d404fab4e23b6d34bc6696a6a312dd92821332385e5af7c01c421351"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/.config",
+    "sha256": "43023a30a8ffa2a1d407aa77dbfc5065f4258719429bafc63d89388fdfd50465"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/payload/.config",
+    "sha256": "51a81cd1edecaefc0c176d4d3c36bff26b3220c9a95e48d53596cbd1cdf1b1c6"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "sha256": "420908799a9db9c836b3cd0442e18dcfc865acf5ebf8e1ead3162efc266c4199"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/nvme-final-c4bec.raw",
+    "sha256": "054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/tpm-telemetry-Ktq6vZ.raw/tpm-linux.manifest",
+    "sha256": "9815f95bd7d70ebc354e8eaddd8875b150172c03c43d19f4d425df6a21c53d35"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/uki/tpm-linux.efi",
+    "sha256": "6ae93a4249a5ad43dd4b7835ae2a7472196b3bafbb4ff6002224017e9e7b2d9e"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/uki/tpm-linux.efi.manifest",
+    "sha256": "16c1f27f07222cbb06bca233e73330cecae18c7299f9478c834e4e6261cfbd0b"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/artifacts.sha256",
+    "sha256": "71369f40bdda6a86bcee050e7513bee444c4d124012936bf5285d904ba5d86aa"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/aggregate.status",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/closure.status",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/run.sh",
+    "sha256": "4b033b7e8028811e80d53c9c7d865a00845ec776099f2d0858541b0267424812"
+  },
+  {
+    "path": "/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/frozen.diff",
+    "sha256": "200741251067a5c46563fc5e2ea142b41790082edc3e8be764aff04d01c8b041"
+  }
+]

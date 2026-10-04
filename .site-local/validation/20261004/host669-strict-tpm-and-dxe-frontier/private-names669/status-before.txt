@@ -1,0 +1,3 @@
+ M src/modules/capsule_runtime/entry.c
+ M src/modules/cpu_arch/model.c
+ M src/modules/pci_bus/immutable_entry.c

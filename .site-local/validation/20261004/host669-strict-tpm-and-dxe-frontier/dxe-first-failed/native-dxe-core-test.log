@@ -1,0 +1,8 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661'
+#
+# No change to /home/sean/dxe-publication-final.20261004-r1/build/resolved.config
+#
+HOST LEGACY generic Core fixture artifacts: /home/sean/dxe-publication-final.20261004-r1/build/native/dxe-core-legacy-fixture/run.Yf1QiL
+Modeled Security2 synthetic unsigned-image positives are NOT protected admission.
+make: *** [/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/src/boot/Makefile:7693: native-dxe-core-legacy-fixture-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661'

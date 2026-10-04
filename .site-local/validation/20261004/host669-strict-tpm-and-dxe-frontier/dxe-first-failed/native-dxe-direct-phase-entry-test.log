@@ -1,0 +1,20 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661'
+#
+# No change to /home/sean/dxe-publication-final.20261004-r1/build/resolved.config
+#
+/usr/bin/ld: /home/sean/dxe-publication-final.20261004-r1/tmp/cc6sHF4r.o: in function `finish_ram_capsule':
+entry.c:(.text+0x16bc1): undefined reference to `cdk2_capsule_report_fmp'
+/usr/bin/ld: /home/sean/dxe-publication-final.20261004-r1/tmp/cc6sHF4r.o: in function `initialize_minimal_variables':
+entry.c:(.text+0x1ce97): undefined reference to `cdk2_capsule_report_initialize'
+/usr/bin/ld: /home/sean/dxe-publication-final.20261004-r1/tmp/ccrf5pb5.o: in function `cdk2_dxe_load_image':
+core.c:(.text+0x1a0f9): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: core.c:(.text+0x1a0fe): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: core.c:(.text+0x1b125): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: core.c:(.text+0x1b12a): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: core.c:(.text+0x1b608): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: core.c:(.text+0x1b679): undefined reference to `cdk2_dxe_policy_interrupts_set'
+/usr/bin/ld: core.c:(.text+0x1b67e): undefined reference to `cdk2_dxe_policy_interrupts_get'
+/usr/bin/ld: core.c:(.text+0x1b826): undefined reference to `cdk2_dxe_policy_interrupts_get'
+collect2: error: ld returned 1 exit status
+make: *** [/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/src/boot/Makefile:7642: native-dxe-direct-phase-entry-test] Error 1
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661'

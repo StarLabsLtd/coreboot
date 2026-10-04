@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin HOME=/home/sean TMPDIR=/home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/tmp LANG=C LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 bash util/qemu/bin/make-tpm-linux-fixture-selftest.sh /home/sean/Documents/cdk2/util/qemu/fixtures/nvme-final-c4bec.raw /home/sean/tpm-source-owned-os-host-refreeze.Ktq6vZ/uki/tpm-linux.efi 

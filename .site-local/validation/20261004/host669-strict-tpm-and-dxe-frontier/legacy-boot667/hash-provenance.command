@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/tcg2-legacy-boot-digest-host-gates.r087g9/tmp LANG=C LC_ALL=C ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 HOSTCC=/usr/bin/gcc sh tests/software_hash_source_test.sh /home/sean/Documents/.cdk2-worktrees/tcg2-legacy-boot-digest-after661 

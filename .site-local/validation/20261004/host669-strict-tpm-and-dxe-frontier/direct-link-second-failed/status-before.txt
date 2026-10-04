@@ -1,0 +1,3 @@
+ M tests/direct_phase_entry_test.sh
+ M tests/direct_phase_presence_fixture.c
+ M tests/dxe_core_entry_test.c

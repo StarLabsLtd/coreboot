@@ -1,0 +1,20 @@
+diff --git a/tests/direct_phase_entry_test.sh b/tests/direct_phase_entry_test.sh
+index dc3773e13c..8ac23baf7b 100644
+--- a/tests/direct_phase_entry_test.sh
++++ b/tests/direct_phase_entry_test.sh
+@@ -54,6 +54,7 @@ sed 's/^#define CONFIG_CDK2_NATIVE_TCG2 1$/#define CONFIG_CDK2_NATIVE_TCG2 0/' \
+ 	"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 	"$root/src/lib/linear_boot.c" "$root/src/lib/boot_logo.c" \
+ 	"$root/src/lib/capsule_disk.c" \
++	"$root/src/lib/capsule_report.c" \
+ 	"$root/src/modules/graphics_output/graphics_output.c" \
+ 	"$root/src/modules/graphics_output/driver.c" \
+ 	"$root/src/lib/tpm2_acpi_hob.c" \
+@@ -114,6 +115,7 @@ compile_entry_mutant()
+ 		"$root/src/modules/dxe_core/direct_dispatch.c" \
+ 		"$root/src/lib/linear_boot.c" "$root/src/lib/boot_logo.c" \
+ 		"$root/src/lib/capsule_disk.c" \
++		"$root/src/lib/capsule_report.c" \
+ 		"$root/src/modules/graphics_output/graphics_output.c" \
+ 		"$root/src/modules/graphics_output/driver.c" \
+ 		"$root/src/lib/tpm2_acpi_hob.c" \

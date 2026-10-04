@@ -1,0 +1,4 @@
+HOME=/home/sean precedence=.:/home/sean:.scripts
+d48b46ca43032e80dc1efa3bc85eca9f56b793e15a6eaf3834b6f75be32931a1  /home/sean/Documents/.cdk2-worktrees/direct-phase-capsule-report-link-after661/.checkpatch.conf
+absent /home/sean/.checkpatch.conf
+absent /home/sean/Documents/.cdk2-worktrees/direct-phase-capsule-report-link-after661/.scripts/.checkpatch.conf

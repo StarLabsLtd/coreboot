@@ -1,0 +1,2 @@
+ A util/qemu/bin/make-tpm-linux-fixture-selftest.sh
+ A util/qemu/bin/make-tpm-linux-fixture.sh

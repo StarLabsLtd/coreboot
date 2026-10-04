@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/direct-phase-capsule-report-link-after661",
+    "verify-commit",
+    "HEAD"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1",
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "KEEP_SPLASH_STATUS_TMP": "1",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKE": "make",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "OLDPWD": "/home/sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean/Documents/.cdk2-worktrees/direct-phase-capsule-report-link-after661",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/direct-phase-report-link-final.20261004-r2/tmp",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

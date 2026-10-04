@@ -1,0 +1,2 @@
+{'algorithms': ['0x0004', '0x000b', '0x000c', '0x000d'], 'events': 26, 'pcr4_applications': 2, 'pcr5_gpt': 1, 'pcr5_boot_variables': 0, 'pcr5_boot_attempts': 1, 'downstream_applications': 1, 'acpi_device': 'MSFT0101:00', 'sha256': '91b1b2a90d67285b026823d292d5a2d1fca930854b5bc5339835cb8b45988eeb'}
+tpm-linux: PASS (1 run(s))

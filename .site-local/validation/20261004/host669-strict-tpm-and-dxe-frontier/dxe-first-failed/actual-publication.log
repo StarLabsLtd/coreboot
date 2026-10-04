@@ -1,0 +1,21 @@
+Actual publication HOST artifacts: /home/sean/dxe-publication-final.20261004-r1/tmp/dxe-capsule-publication.Q9CIM6
+In file included from /home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/tests/dxe_capsule_publication_test.c:8:
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/tests/dxe_capsule_publication_test.c: In function 'initialize_publication':
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/tests/dxe_capsule_publication_test.c:132:62: error: passing argument 7 of 'cdk2_dxe_image_transaction_prepare' from incompatible pointer type [-Wincompatible-pointer-types]
+  132 |                 sizeof(source_bytes), NULL, 0, &transaction, &allocation_generation) == EFI_SUCCESS);
+      |                                                              ^~~~~~~~~~~~~~~~~~~~~~
+      |                                                              |
+      |                                                              uint64_t * {aka long unsigned int *}
+In file included from /home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/src/modules/dxe_core/entry.c:8,
+                 from /home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/tests/dxe_capsule_publication_test.c:12:
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/include/cdk2/dxe_core.h:447:17: note: expected 'UINT64 *' {aka 'long long unsigned int *'} but argument is of type 'uint64_t *' {aka 'long unsigned int *'}
+  447 |         UINT64 *allocation_generation);
+      |         ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/tests/dxe_capsule_publication_test.c:132:62: error: passing argument 7 of 'cdk2_dxe_image_transaction_prepare' from incompatible pointer type [-Wincompatible-pointer-types]
+  132 |                 sizeof(source_bytes), NULL, 0, &transaction, &allocation_generation) == EFI_SUCCESS);
+      |                                                              ^~~~~~~~~~~~~~~~~~~~~~
+      |                                                              |
+      |                                                              uint64_t * {aka long unsigned int *}
+/home/sean/Documents/.cdk2-worktrees/dxe-publication-flatten-after661/include/cdk2/dxe_core.h:447:17: note: expected 'UINT64 *' {aka 'long long unsigned int *'} but argument is of type 'uint64_t *' {aka 'long unsigned int *'}
+  447 |         UINT64 *allocation_generation);
+      |         ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~

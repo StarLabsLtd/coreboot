@@ -1,0 +1,2 @@
+ M src/modules/tcg2/tcg2_measure.c
+ M tests/tcg2_measure_test.c

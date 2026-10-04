@@ -1,0 +1,3 @@
+ M src/modules/dxe_core/entry.c
+ A tests/dxe_capsule_publication_test.c
+ A tests/dxe_capsule_publication_test.sh

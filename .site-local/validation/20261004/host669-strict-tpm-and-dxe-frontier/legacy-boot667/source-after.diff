@@ -1,0 +1,205 @@
+diff --git a/src/modules/tcg2/tcg2_measure.c b/src/modules/tcg2/tcg2_measure.c
+index a82fef5d3d..c9075e682d 100644
+--- a/src/modules/tcg2/tcg2_measure.c
++++ b/src/modules/tcg2/tcg2_measure.c
+@@ -370,6 +370,10 @@ EFI_STATUS cdk2_tcg2_measure_variable(struct cdk2_tcg2_measurement *measurement,
+ 		sizeof(header) };
+ 	event_spans[1] = (struct cdk2_tcg2_data_span){ (const UINT8 *)name, name_bytes };
+ 	event_spans[2] = (struct cdk2_tcg2_data_span){ data, data_size };
++	/* Legacy BOOT hashes only variable data, but logs the full variable payload. */
++	if (event_type == EV_EFI_VARIABLE_BOOT)
++		return measure_parts(measurement, pcr_index, event_type, &spans[2], 1,
++			event_spans, 3, total_size, response_code, 1);
+ 	return measure_parts(measurement, pcr_index, event_type, spans, 3,
+ 		event_spans, 3, total_size, response_code, 1);
+ }
+diff --git a/tests/tcg2_measure_test.c b/tests/tcg2_measure_test.c
+index 5b3c9549aa..4b8ce28b45 100644
+--- a/tests/tcg2_measure_test.c
++++ b/tests/tcg2_measure_test.c
+@@ -9,6 +9,7 @@
+ 
+ struct mock {
+ 	uint32_t hash_calls, extend_calls, hashed_bytes, last_digest_count;
++	TPM_PCRINDEX last_pcr;
+ 	struct cdk2_tcg2_digest last_digests[5];
+ };
+ static uint8_t large_payload[4U * 1024U * 1024U];
+@@ -31,7 +32,7 @@ static EFI_STATUS extend(void *context, TPM_PCRINDEX pcr,
+ 			 const struct cdk2_tcg2_digest *digests, uint32_t count, uint32_t *code)
+ {
+ 	struct mock *mock = context;
+-	(void)pcr;
++	mock->last_pcr = pcr;
+ 	mock->extend_calls++;
+ 	mock->last_digest_count = count;
+ 	if (count <= ARRAY_SIZE(mock->last_digests))
+@@ -47,6 +48,160 @@ static int expect(int condition, const char *message)
+ 	return !condition;
+ }
+ 
++/* Fixed hashes of 01020304 and the explicit 40-byte UEFI_VARIABLE_DATA below. */
++static const struct variable_kat {
++	TPMI_ALG_HASH algorithm;
++	uint16_t size;
++	uint8_t data[CDK2_TCG2_MAX_DIGEST_SIZE];
++	uint8_t full[CDK2_TCG2_MAX_DIGEST_SIZE];
++} variable_kats[] = {
++	{ TPM_ALG_SHA1, SHA1_DIGEST_SIZE,
++		{ 0x12, 0xda, 0xda, 0x1f, 0xff, 0x4d, 0x47, 0x87, 0xad, 0xe3,
++		  0x33, 0x31, 0x47, 0x20, 0x2c, 0x3b, 0x44, 0x3e, 0x37, 0x6f },
++		{ 0xa4, 0x54, 0x7d, 0xab, 0x9f, 0x23, 0xda, 0x44, 0x7f, 0x15,
++		  0xda, 0x9f, 0xca, 0x15, 0x37, 0x7e, 0x49, 0xb5, 0x15, 0x25 } },
++	{ TPM_ALG_SHA256, SHA256_DIGEST_SIZE,
++		{ 0x9f, 0x64, 0xa7, 0x47, 0xe1, 0xb9, 0x7f, 0x13, 0x1f, 0xab, 0xb6,
++		  0xb4, 0x47, 0x29, 0x6c, 0x9b, 0x6f, 0x02, 0x01, 0xe7, 0x9f, 0xb3,
++		  0xc5, 0x35, 0x6e, 0x6c, 0x77, 0xe8, 0x9b, 0x6a, 0x80, 0x6a },
++		{ 0xa1, 0xc0, 0xc7, 0xe5, 0xdd, 0x97, 0x4a, 0x79, 0xbe, 0x74, 0x6b,
++		  0x29, 0x25, 0xb5, 0x4f, 0xdd, 0x5c, 0x7b, 0x9a, 0xa8, 0x71, 0x63,
++		  0x0f, 0x7d, 0x02, 0x38, 0xf8, 0x7d, 0x3f, 0x1e, 0x31, 0x27 } },
++	{ TPM_ALG_SHA384, SHA384_DIGEST_SIZE,
++		{ 0x5a, 0x66, 0x7d, 0x62, 0x43, 0x0a, 0x8c, 0x25, 0x3e, 0xba, 0xe4,
++		  0x33, 0x33, 0x39, 0x04, 0xdc, 0x6e, 0x1d, 0x41, 0xdc, 0xdc, 0x47,
++		  0x97, 0x04, 0x77, 0x31, 0x59, 0xb9, 0x05, 0xa3, 0xad, 0x82, 0xd2,
++		  0xba, 0xd7, 0x76, 0x2d, 0x81, 0xa3, 0x66, 0xcc, 0x46, 0xfb, 0xb2,
++		  0xe2, 0x32, 0x7f, 0x5c },
++		{ 0xd5, 0x78, 0xac, 0x8e, 0x51, 0x65, 0xe5, 0xcf, 0x5f, 0xd9, 0xfa,
++		  0xf0, 0x28, 0x49, 0xd7, 0xc1, 0xc6, 0x73, 0xbe, 0x46, 0xdc, 0x85,
++		  0x0f, 0xe2, 0x02, 0xc4, 0x8c, 0xd6, 0xfb, 0xe3, 0x72, 0x76, 0x2c,
++		  0x17, 0xe8, 0xe0, 0x95, 0xc1, 0x49, 0xc0, 0x8a, 0xb5, 0x3e, 0xc0,
++		  0x5c, 0xd3, 0xea, 0x30 } },
++	{ TPM_ALG_SHA512, SHA512_DIGEST_SIZE,
++		{ 0xa7, 0xc9, 0x76, 0xdb, 0x17, 0x23, 0xad, 0xb4, 0x12, 0x74, 0x17,
++		  0x8d, 0xc8, 0x2e, 0x9b, 0x77, 0x79, 0x41, 0xab, 0x20, 0x1c, 0x69,
++		  0xde, 0x61, 0xd0, 0xf2, 0xbc, 0x6d, 0x27, 0xa3, 0x59, 0x8f, 0x59,
++		  0x4f, 0xa7, 0x48, 0xe5, 0x0d, 0x88, 0xd3, 0xc2, 0xbf, 0x1e, 0x2c,
++		  0x2e, 0x72, 0xc3, 0xcf, 0xef, 0x78, 0xc3, 0xc6, 0xd4, 0xaf, 0xa9,
++		  0x03, 0x91, 0xf7, 0xe3, 0x3a, 0xba, 0xbc, 0xa4, 0x8e },
++		{ 0xee, 0x70, 0xc8, 0xbd, 0xe8, 0xdd, 0xa8, 0xb5, 0xe4, 0xa0, 0x4f,
++		  0xab, 0x7b, 0xbe, 0x0d, 0xf3, 0x23, 0xcd, 0x90, 0xd5, 0x34, 0x32,
++		  0x3c, 0x97, 0x8c, 0x40, 0x7d, 0xaf, 0xe1, 0x7a, 0xf3, 0xff, 0xf4,
++		  0x07, 0xd5, 0x00, 0xe3, 0x8d, 0xda, 0x82, 0x73, 0x65, 0x92, 0xeb,
++		  0x48, 0xa1, 0x20, 0x59, 0x4a, 0x21, 0x10, 0xb3, 0x9c, 0xb5, 0x64,
++		  0x3d, 0x4a, 0xe2, 0x63, 0x7b, 0x25, 0x5c, 0xc1, 0x88 } },
++};
++
++static uint32_t read_le32(const uint8_t *bytes)
++{
++	return (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 |
++		(uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
++}
++
++static int variable_record_matches(const struct cdk2_tcg2_logs *logs,
++	const struct mock *mock, TPM_PCRINDEX pcr, uint32_t event_type,
++	const uint8_t *payload, uint32_t payload_size)
++{
++	const uint8_t *record = logs->main.buffer + logs->main.last_entry_offset;
++	uint32_t expected_size = 16U + payload_size;
++	uint32_t offset = 12U;
++	uint32_t index;
++
++	for (index = 0; index < ARRAY_SIZE(variable_kats); index++)
++		expected_size += 2U + variable_kats[index].size;
++	if (logs->main.used - logs->main.last_entry_offset != expected_size ||
++	    read_le32(record) != pcr || read_le32(record + 4) != event_type ||
++	    read_le32(record + 8) != ARRAY_SIZE(variable_kats))
++		return 0;
++	for (index = 0; index < ARRAY_SIZE(variable_kats); index++) {
++		if (record[offset] != (uint8_t)variable_kats[index].algorithm ||
++		    record[offset + 1] != (uint8_t)(variable_kats[index].algorithm >> 8) ||
++		    memcmp(record + offset + 2, mock->last_digests[index].bytes,
++			variable_kats[index].size) != 0)
++			return 0;
++		offset += 2U + variable_kats[index].size;
++	}
++	return read_le32(record + offset) == payload_size &&
++		memcmp(record + offset + 4, payload, payload_size) == 0;
++}
++
++static int variable_digest_tests(void)
++{
++	static const uint8_t original_payload[] = {
++		0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x03, 0x00,
++		0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
++		0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x64, 0x00, 0x62, 0x00, 0x01, 0x02, 0x03, 0x04,
++	};
++	static const uint32_t event_types[] = {
++		EV_EFI_VARIABLE_BOOT, EV_EFI_VARIABLE_DRIVER_CONFIG, EV_EFI_VARIABLE_AUTHORITY,
++	};
++	uint8_t main_log[4096], final_log[1024], payload[sizeof(original_payload)];
++	struct cdk2_tcg2_logs logs = {0};
++	struct mock mock = {0};
++	struct cdk2_tcg2_measurement measurement = {
++		.logs = &logs, .context = &mock, .hash = cdk2_software_hash_spans,
++		.extend = extend,
++		.algorithms = {TPM_ALG_SHA1, TPM_ALG_SHA256, TPM_ALG_SHA384, TPM_ALG_SHA512},
++		.algorithm_count = ARRAY_SIZE(variable_kats),
++	};
++	uint32_t mutation, type, bank, code;
++	int failures = 0;
++
++	cdk2_tcg2_log_init(&logs.main, main_log, sizeof(main_log));
++	cdk2_tcg2_log_init(&logs.final, final_log, sizeof(final_log));
++	for (mutation = 0; mutation < 4U; mutation++) {
++		EFI_GUID vendor = {1, 2, 3, {4, 5, 6, 7, 8, 9, 10, 11}};
++		CHAR16 name[] = {'d', 'b'};
++		uint8_t data[] = {1, 2, 3, 4};
++
++		memcpy(payload, original_payload, sizeof(payload));
++		if (mutation == 1U) {
++			vendor.data1 = 2U;
++			payload[0] = 2U;
++		} else if (mutation == 2U) {
++			name[0] = 'e';
++			payload[32] = 'e';
++		} else if (mutation == 3U) {
++			data[3] = 5U;
++			payload[39] = 5U;
++		}
++		for (type = 0; type < ARRAY_SIZE(event_types); type++) {
++			TPM_PCRINDEX pcr = type == 0 ? 5U : 7U;
++			EFI_STATUS status;
++
++			mock.extend_calls = 0;
++			code = UINT32_MAX;
++			status = cdk2_tcg2_measure_variable(&measurement, pcr, event_types[type],
++				&vendor, name, sizeof(name), data, sizeof(data), &code);
++			failures += expect(status == EFI_SUCCESS && code == 0 &&
++				mock.extend_calls == 1U && mock.last_pcr == pcr &&
++				mock.last_digest_count == ARRAY_SIZE(variable_kats),
++				"variable measurement did not extend all four banks once");
++			if (EFI_ERROR(status))
++				continue;
++			for (bank = 0; bank < ARRAY_SIZE(variable_kats); bank++) {
++				const uint8_t *expected = type == 0 ? variable_kats[bank].data :
++					variable_kats[bank].full;
++				int equal = memcmp(mock.last_digests[bank].bytes, expected,
++					variable_kats[bank].size) == 0;
++				int expected_equal = mutation == 0 || (type == 0 && mutation < 3U);
++
++				failures += expect(mock.last_digests[bank].algorithm ==
++					variable_kats[bank].algorithm && mock.last_digests[bank].size ==
++					variable_kats[bank].size && equal == expected_equal,
++					"variable digest KAT or metadata/data opposition failed");
++			}
++			failures += expect(variable_record_matches(&logs, &mock, pcr,
++				event_types[type], payload, sizeof(payload)),
++				"variable event changed its PCR, type, digests or full payload");
++		}
++	}
++	return failures;
++}
++
+ int main(void)
+ {
+ 	uint8_t image[0x500], main_log[4096], final_log[1024];
+@@ -74,6 +229,7 @@ int main(void)
+ 	uint32_t before;
+ 	int failures = 0;
+ 
++	failures += variable_digest_tests();
+ 	memset(image, 0x5a, sizeof(image));
+ 	memset(dos, 0, sizeof(*dos));
+ 	dos->e_magic = EFI_IMAGE_DOS_SIGNATURE;

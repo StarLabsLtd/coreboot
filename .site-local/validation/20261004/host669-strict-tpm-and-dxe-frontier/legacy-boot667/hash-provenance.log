@@ -1,0 +1,13 @@
+software hash header crypto/sm3.h includes1: PASS
+software hash header crypto/sm3.h includes2: PASS
+software hash header linux/kernel.h includes1: PASS
+software hash header linux/kernel.h includes2: PASS
+software hash header linux/unaligned.h includes1: PASS
+software hash header linux/unaligned.h includes2: PASS
+software hash header 2sha.h includes1: PASS
+software hash header 2sha.h includes2: PASS
+software hash header 2sha_private.h includes1: PASS
+software hash header 2sha_private.h includes2: PASS
+software hash header 2sysincludes.h includes1: PASS
+software hash header 2sysincludes.h includes2: PASS
+software hash source provenance: PASS

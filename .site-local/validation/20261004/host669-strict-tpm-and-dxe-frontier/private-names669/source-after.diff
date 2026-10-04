@@ -1,0 +1,78 @@
+diff --git a/src/modules/capsule_runtime/entry.c b/src/modules/capsule_runtime/entry.c
+index 017138ba17..01611b522c 100644
+--- a/src/modules/capsule_runtime/entry.c
++++ b/src/modules/capsule_runtime/entry.c
+@@ -1109,7 +1109,8 @@ done:
+ 	return status;
+ }
+ 
+-static EFI_STATUS persist(UINTN sequence, UINT64 scatter_gather, void *context)
++static EFI_STATUS persist_capsule_variable(UINTN sequence, UINT64 scatter_gather,
++	void *context)
+ {
+ 	set_variable_fn *set_variable = (void *)runtime_services->set_variable;
+ 	CHAR16 name[32] = L"CapsuleUpdateData";
+@@ -1190,7 +1191,7 @@ static BOOLEAN capsule_covered(UINT64 scatter_gather, UINT64 start, UINT64 size,
+ 	return FALSE;
+ }
+ 
+-static EFI_STATUS writeback(UINT64 scatter_gather,
++static EFI_STATUS writeback_capsule_scatter(UINT64 scatter_gather,
+ 	const struct cdk2_capsule_header *const *capsules, UINTN count, void *context)
+ {
+ 	struct capsule_block { UINT64 length, address; };
+@@ -1411,8 +1412,8 @@ EFI_STATUS CDK2_MS_ABI cdk2_capsule_runtime_entry(void *image,
+ 	runtime = (struct cdk2_capsule_runtime) {
+ 		.context = system,
+ 		.process = process,
+-		.persist = persist,
+-		.writeback = writeback,
++		.persist = persist_capsule_variable,
++		.writeback = writeback_capsule_scatter,
+ 		.warm_reset = warm_reset,
+ 	};
+ 	status = cdk2_capsule_install_runtime_slots(system->runtime, system->boot,
+diff --git a/src/modules/cpu_arch/model.c b/src/modules/cpu_arch/model.c
+index 9386b695f3..323bbd5c5a 100644
+--- a/src/modules/cpu_arch/model.c
++++ b/src/modules/cpu_arch/model.c
+@@ -4,7 +4,7 @@
+ static const struct cdk2_cpu_arch_ops *hardware;
+ static UINT64 timer_period;
+ 
+-static EFI_STATUS CDK2_MS_ABI flush(struct cdk2_cpu_arch *cpu, UINT64 start,
++static EFI_STATUS CDK2_MS_ABI flush_cpu_data_cache(struct cdk2_cpu_arch *cpu, UINT64 start,
+ 	UINT64 length, UINT32 type)
+ {
+ 	CDK2_CPU_DIAG("[CDK2][cpu][verbose] flush data cache\n");
+@@ -79,7 +79,7 @@ static EFI_STATUS CDK2_MS_ABI set_attributes(struct cdk2_cpu_arch *cpu,
+ }
+ 
+ static struct cdk2_cpu_arch protocol = {
+-	flush, enable, disable, get_state, init, register_handler, get_timer,
++	flush_cpu_data_cache, enable, disable, get_state, init, register_handler, get_timer,
+ 	set_attributes, 1U, 4U
+ };
+ 
+diff --git a/src/modules/pci_bus/immutable_entry.c b/src/modules/pci_bus/immutable_entry.c
+index ce46aa4ef6..f6ef8e41f5 100644
+--- a/src/modules/pci_bus/immutable_entry.c
++++ b/src/modules/pci_bus/immutable_entry.c
+@@ -970,7 +970,7 @@ static int retain_parent_path(struct immutable_context *entry, void **scratch,
+ 	return 0;
+ }
+ 
+-static int discover(void *opaque, void *controller, void *remaining,
++static int import_coreboot_pci_topology(void *opaque, void *controller, void *remaining,
+ 	struct cdk2_pci_topology *topology, void **path, size_t *parent_path_size)
+ {
+ 	struct immutable_context *entry = opaque;
+@@ -1707,7 +1707,7 @@ EFI_STATUS CDK2_MS_ABI cdk2_pci_bus_entry(void *image, void *system_table)
+ 	if (find_root_hob(&context, system) != 0)
+ 		return EFI_COMPROMISED_DATA;
+ 	context.driver = (struct cdk2_pci_bus_driver) { .context = &context,
+-		.probe = probe, .discover = discover,
++		.probe = probe, .discover = import_coreboot_pci_topology,
+ 		.release_discovery = release_discovery,
+ 		.finish_discovery = finish_discovery, .publish = publish,
+ 		.finish_stop = finish_stop,

@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "python3",
+    "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py",
+    "tpm-linux",
+    "/home/sean/tpm-current-os-guest-correct-vboot-after661/tpm-linux",
+    "--output",
+    "/home/sean/tpm-current-os-guest-correct-vboot-after661/tpm-linux-assertions.json"
+  ],
+  "environment": {
+    "HOME": "/home/sean",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

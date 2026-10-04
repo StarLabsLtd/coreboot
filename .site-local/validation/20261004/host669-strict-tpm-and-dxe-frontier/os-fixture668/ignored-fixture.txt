@@ -1,0 +1,2 @@
+/home/sean/Documents/cdk2/util/qemu/fixtures/tpm-telemetry-Ktq6vZ.raw/tpm-linux.raw
+/home/sean/Documents/cdk2/util/qemu/fixtures/tpm-telemetry-Ktq6vZ.raw/tpm-linux.manifest

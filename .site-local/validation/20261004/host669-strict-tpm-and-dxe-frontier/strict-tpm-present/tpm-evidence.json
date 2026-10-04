@@ -1,0 +1,56 @@
+{
+  "coreboot_region_immutable": true,
+  "disk_immutable": true,
+  "fmap": {
+    "CONSOLE": {
+      "offset": 524288,
+      "size": 131072
+    },
+    "COREBOOT": {
+      "offset": 659456,
+      "size": 7729152
+    },
+    "SMMSTORE": {
+      "offset": 0,
+      "size": 524288
+    }
+  },
+  "format": "cdk2-tpm-evidence-v1",
+  "hashes": {
+    "cbfstool": "29908aa58cf90f48b12911be8bd781670c23a1bfce3b2b1801aac32ad8b3b9a4",
+    "debugcon.log": "1dbf4e4c135fda01a515919eaa22f16b1ec38cff48bdb33aef6acd01c5908c45",
+    "nvme-before.raw": "0ba91a45e94509ffa4cd29b2e2a30d5bdeed09aaed8799abf68a257523e89a63",
+    "nvme.raw": "0ba91a45e94509ffa4cd29b2e2a30d5bdeed09aaed8799abf68a257523e89a63",
+    "pflash-before.rom": "b19d508b8c15e143608933e58ce27cf9375cc603de4583e1bfeee702a98b68de",
+    "pflash.rom": "6137c6f4382e6f3e79dd9b99a41c36f0faa1c2a61ade02f14342bc5ba084e4bd",
+    "qemu-command.txt": "26590e32aa55b1e03d6b05b31deb06d08e944abf99e2dde036ffb8bee6b33e85",
+    "qemu.log": "3ef7e8c2cccbcdf61bdc21fe00bff811838c067cbaf1a2db3b0522a8a56d55cf",
+    "qemu.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "rom": "b19d508b8c15e143608933e58ce27cf9375cc603de4583e1bfeee702a98b68de",
+    "rom_manifest": "7d82d74bd613699a5e6f691539366acf5380e2c2880540eaf8b136c5e68aa33e",
+    "serial.log": "b6b9a610d23c8ca157c0b2f375ef93d6357db1d8c0348976cbd4f6938dc60d5a"
+  },
+  "heads": {
+    "cdk2": "6faf053c28d7b33de30daeaeae8408340685d006",
+    "coreboot": "3e2609c8938a06c6bb782474c7a01209745a4319"
+  },
+  "oracle": {
+    "acpi_device": "MSFT0101:00",
+    "algorithms": [
+      "0x0004",
+      "0x000b",
+      "0x000c",
+      "0x000d"
+    ],
+    "downstream_applications": 1,
+    "events": 26,
+    "pcr4_applications": 2,
+    "pcr5_boot_attempts": 1,
+    "pcr5_boot_variables": 0,
+    "pcr5_gpt": 1,
+    "sha256": "91b1b2a90d67285b026823d292d5a2d1fca930854b5bc5339835cb8b45988eeb"
+  },
+  "pflash_changed_bytes": 77183,
+  "pflash_changed_first": 0,
+  "pflash_changed_last": 601110
+}

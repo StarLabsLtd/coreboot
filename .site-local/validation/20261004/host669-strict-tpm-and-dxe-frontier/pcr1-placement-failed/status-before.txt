@@ -1,0 +1,6 @@
+ A docs/tcg2-boot-variable-parity.md
+ M src/boot/Makefile
+ M src/modules/tcg2/driver.c
+ A tests/tcg2_driver_boot_variable_test.c
+ M util/qemu/bin/assert-tpm-event-log-selftest.py
+ M util/qemu/bin/assert-tpm-event-log.py

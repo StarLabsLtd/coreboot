@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/private-diagnostic-names-host.PP4WaV/tmp LANG=C LC_ALL=C ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /home/sean/private-diagnostic-names-host.PP4WaV/build/o2-capsule 

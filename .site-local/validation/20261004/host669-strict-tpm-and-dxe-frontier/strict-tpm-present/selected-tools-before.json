@@ -1,0 +1,227 @@
+{
+  "commands": {
+    "AR_x86_32": "x86_64-linux-gnu-gcc-ar",
+    "AS_x86_32": "x86_64-linux-gnu-as --32",
+    "CC_x86_32": "x86_64-linux-gnu-gcc",
+    "CPP_x86_32": "x86_64-linux-gnu-cpp",
+    "HOSTCC": "gcc",
+    "HOSTCXX": "g++",
+    "IASL": "iasl",
+    "LD_x86_32": "x86_64-linux-gnu-ld.bfd -b elf32-i386 -melf_i386 --no-warn-rwx-segments",
+    "NM_x86_32": "x86_64-linux-gnu-gcc-nm",
+    "OBJCOPY_x86_32": "x86_64-linux-gnu-objcopy",
+    "OBJDUMP_x86_32": "x86_64-linux-gnu-objdump",
+    "READELF_x86_32": "x86_64-linux-gnu-readelf",
+    "STRIP_x86_32": "x86_64-linux-gnu-strip"
+  },
+  "files": {
+    "AR_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-ar-15",
+      "sha256": "6bff93367292a322dc29fa9558e44a62d1c322165fd88952fe7e5567a1a1d0eb",
+      "spelling": "x86_64-linux-gnu-gcc-ar"
+    },
+    "AS_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487",
+      "spelling": "x86_64-linux-gnu-as"
+    },
+    "CC_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722",
+      "spelling": "x86_64-linux-gnu-gcc"
+    },
+    "CC_x86_32/ar": {
+      "path": "/usr/bin/x86_64-linux-gnu-ar",
+      "sha256": "e448e111724ab2584d855ba00897bd860d272009fac201ea30ddc6d7d8f7c4a4",
+      "spelling": "ar"
+    },
+    "CC_x86_32/as": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487",
+      "spelling": "/usr/bin/x86_64-linux-gnu-as"
+    },
+    "CC_x86_32/cc1": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1",
+      "sha256": "41fc4b37d4d7e00c6fb21594b5304761c39c88e0e600474215e77eae83e89bfb",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1"
+    },
+    "CC_x86_32/collect2": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2",
+      "sha256": "1eda8637ec0ce7749bca958e50fc44284e33ed8a3f090d441cf46455867957a1",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2"
+    },
+    "CC_x86_32/ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662",
+      "spelling": "/usr/bin/x86_64-linux-gnu-ld"
+    },
+    "CC_x86_32/libgcc.a": {
+      "path": "/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a",
+      "sha256": "0e5df2fa10fb935f88d7865473ea338b8f1fc05f7942f9b6285c3a793c0186ea",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a"
+    },
+    "CC_x86_32/liblto_plugin.so": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/liblto_plugin.so",
+      "sha256": "3b3d0979c10af15045802b5d615de87253557b77cbab8551c174cda6b7e2e30a",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/liblto_plugin.so"
+    },
+    "CC_x86_32/lto-wrapper": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper",
+      "sha256": "0065b93fdf6ae2e6f0744ec4e765e50bb5b606ea9ea1d1bced223ede9d68b16e",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper"
+    },
+    "CC_x86_32/nm": {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "sha256": "9a811468a6a478b28e19b3749dce7e9d7f586ee8cb6f3a3a1fe0174e4387016e",
+      "spelling": "nm"
+    },
+    "COMPILER_RT_x86_32": {
+      "path": "/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a",
+      "sha256": "0e5df2fa10fb935f88d7865473ea338b8f1fc05f7942f9b6285c3a793c0186ea",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a"
+    },
+    "CPP_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-cpp-15",
+      "sha256": "0f2aae4b67a638ede50e27843be4c238440dd1783bf88ecd48d30adc851baa1b",
+      "spelling": "x86_64-linux-gnu-cpp"
+    },
+    "HOSTCC": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722",
+      "spelling": "gcc"
+    },
+    "HOSTCC/ar": {
+      "path": "/usr/bin/x86_64-linux-gnu-ar",
+      "sha256": "e448e111724ab2584d855ba00897bd860d272009fac201ea30ddc6d7d8f7c4a4",
+      "spelling": "ar"
+    },
+    "HOSTCC/as": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487",
+      "spelling": "/usr/bin/x86_64-linux-gnu-as"
+    },
+    "HOSTCC/cc1": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1",
+      "sha256": "41fc4b37d4d7e00c6fb21594b5304761c39c88e0e600474215e77eae83e89bfb",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1"
+    },
+    "HOSTCC/collect2": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2",
+      "sha256": "1eda8637ec0ce7749bca958e50fc44284e33ed8a3f090d441cf46455867957a1",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2"
+    },
+    "HOSTCC/ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662",
+      "spelling": "/usr/bin/x86_64-linux-gnu-ld"
+    },
+    "HOSTCC/libgcc.a": {
+      "path": "/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a",
+      "sha256": "1ea0757d94885c3765545d8f179e382b00874ab5b23a8e03bab74c7459d94457",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a"
+    },
+    "HOSTCC/liblto_plugin.so": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/liblto_plugin.so",
+      "sha256": "3b3d0979c10af15045802b5d615de87253557b77cbab8551c174cda6b7e2e30a",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/liblto_plugin.so"
+    },
+    "HOSTCC/lto-wrapper": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper",
+      "sha256": "0065b93fdf6ae2e6f0744ec4e765e50bb5b606ea9ea1d1bced223ede9d68b16e",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper"
+    },
+    "HOSTCC/nm": {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "sha256": "9a811468a6a478b28e19b3749dce7e9d7f586ee8cb6f3a3a1fe0174e4387016e",
+      "spelling": "nm"
+    },
+    "HOSTCXX": {
+      "path": "/usr/bin/x86_64-linux-gnu-g++-15",
+      "sha256": "148558fc6e291be5a3a1c14adef7638c4c8bec30d085ebaff740244c0204be37",
+      "spelling": "g++"
+    },
+    "HOSTCXX/ar": {
+      "path": "/usr/bin/x86_64-linux-gnu-ar",
+      "sha256": "e448e111724ab2584d855ba00897bd860d272009fac201ea30ddc6d7d8f7c4a4",
+      "spelling": "ar"
+    },
+    "HOSTCXX/as": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487",
+      "spelling": "/usr/bin/x86_64-linux-gnu-as"
+    },
+    "HOSTCXX/cc1plus": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1plus",
+      "sha256": "bbba9d2d03128bc1a81ac1c6490206bf672ceeb3e732d569f6885f61a69916a1",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/cc1plus"
+    },
+    "HOSTCXX/collect2": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2",
+      "sha256": "1eda8637ec0ce7749bca958e50fc44284e33ed8a3f090d441cf46455867957a1",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/collect2"
+    },
+    "HOSTCXX/ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662",
+      "spelling": "/usr/bin/x86_64-linux-gnu-ld"
+    },
+    "HOSTCXX/libgcc.a": {
+      "path": "/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a",
+      "sha256": "1ea0757d94885c3765545d8f179e382b00874ab5b23a8e03bab74c7459d94457",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a"
+    },
+    "HOSTCXX/liblto_plugin.so": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/liblto_plugin.so",
+      "sha256": "3b3d0979c10af15045802b5d615de87253557b77cbab8551c174cda6b7e2e30a",
+      "spelling": "/usr/lib/gcc/x86_64-linux-gnu/15/liblto_plugin.so"
+    },
+    "HOSTCXX/lto-wrapper": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper",
+      "sha256": "0065b93fdf6ae2e6f0744ec4e765e50bb5b606ea9ea1d1bced223ede9d68b16e",
+      "spelling": "/usr/libexec/gcc/x86_64-linux-gnu/15/lto-wrapper"
+    },
+    "HOSTCXX/nm": {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "sha256": "9a811468a6a478b28e19b3749dce7e9d7f586ee8cb6f3a3a1fe0174e4387016e",
+      "spelling": "nm"
+    },
+    "IASL": {
+      "path": "/usr/bin/iasl",
+      "sha256": "44b8089f2584cf7705e4e6bf82db034a6806dd797c3601d4b618b9fba29df482",
+      "spelling": "iasl"
+    },
+    "LD_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662",
+      "spelling": "x86_64-linux-gnu-ld.bfd"
+    },
+    "NM_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-nm-15",
+      "sha256": "9d6ed3ce0e3b6548368b1268c60ee2a527ef1f23bd1c72329334d2d3c88fbb33",
+      "spelling": "x86_64-linux-gnu-gcc-nm"
+    },
+    "OBJCOPY_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "sha256": "c38dc6bcee96c9b7426419a95e0bf6c15dd0024f50b4c5057d173b72c5f092dc",
+      "spelling": "x86_64-linux-gnu-objcopy"
+    },
+    "OBJDUMP_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-objdump",
+      "sha256": "ee13b1f49eb30f1b9183d1fd651daf1acd124a7e4249da9b9be923d157f16acc",
+      "spelling": "x86_64-linux-gnu-objdump"
+    },
+    "READELF_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-readelf",
+      "sha256": "d1459ee29cd3ae90f4b703e7a76748d48c89f1050ecfa626c3825af2cc1efcfb",
+      "spelling": "x86_64-linux-gnu-readelf"
+    },
+    "STRIP_x86_32": {
+      "path": "/usr/bin/x86_64-linux-gnu-strip",
+      "sha256": "0fe2fe19189d04124283e7d583b56eb8962da737058f8da70304dd35b5dde203",
+      "spelling": "x86_64-linux-gnu-strip"
+    }
+  },
+  "flags": {
+    "x86_32": "-Wno-address-of-packed-member --param=min-pagesize=1024 -Wflex-array-member-not-at-end -Wcalloc-transposed-args -Walloc-size -Wno-unused-parameter -Wno-sign-compare -Wno-empty-body -Wno-missing-field-initializers -Wno-override-init -Wno-ignored-qualifiers -Wno-shift-negative-value -Wno-unused-but-set-parameter -Wno-type-limits -Wno-cast-function-type -Wextra -m32 -Wl,-b,elf32-i386 -Wl,-melf_i386 -m32  -fuse-ld=bfd -fno-stack-protector -Wl,--build-id=none -fno-delete-null-pointer-checks -Wlogical-op"
+  }
+}
